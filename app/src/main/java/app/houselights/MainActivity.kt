@@ -12,7 +12,11 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -33,6 +37,7 @@ import app.houselights.core.PlaybackPlan
 import app.houselights.core.SourceConfig
 import app.houselights.ui.util.appContainer
 import app.houselights.ui.design.HlMotion
+import app.houselights.ui.design.LocalHouseLights
 import app.houselights.ui.design.components.HouseLights
 import androidx.compose.runtime.mutableStateOf
 import kotlinx.coroutines.delay
@@ -85,9 +90,17 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             HouselightsTheme {
-                Box(Modifier.fillMaxSize().background(HouselightsColors.background)) {
-                    AppNavigation(onPlay = ::play)
-                    HouseLights(down = lightsDown.value)
+                // One cue for the whole app; its steps (room, scrims, black) are in HouseLightCue.
+                val lights = animateFloatAsState(
+                    if (lightsDown.value) 1f else 0f,
+                    tween(HlMotion.DIM, easing = LinearEasing),
+                    label = "houselights",
+                )
+                CompositionLocalProvider(LocalHouseLights provides { lights.value }) {
+                    Box(Modifier.fillMaxSize().background(HouselightsColors.background)) {
+                        AppNavigation(onPlay = ::play)
+                        HouseLights()
+                    }
                 }
             }
         }

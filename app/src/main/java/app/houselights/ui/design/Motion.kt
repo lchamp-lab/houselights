@@ -12,8 +12,8 @@ object HlMotion {
     const val STANDARD = 250
     /** Backdrop and ambient light changes. */
     const val SLOW = 600
-    /** Lights down before the player starts, and back up after. */
-    const val DIM = 700
+    /** House lights: room, then screen, then black before the player starts; backwards after. */
+    const val DIM = 1000
     /** Wait for focus to settle before loading a new backdrop. */
     const val SETTLE = 220L
 

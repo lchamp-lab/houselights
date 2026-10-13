@@ -3,12 +3,20 @@ package app.houselights.ui.design.components
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.BiasAlignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -16,6 +24,9 @@ import androidx.compose.ui.layout.ContentScale
 import app.houselights.core.ImageRef
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlMotion
+import app.houselights.ui.design.HlScreen
+import app.houselights.ui.design.HouseLightCue
+import app.houselights.ui.design.LocalHouseLights
 import app.houselights.ui.design.LocalAmbient
 import app.houselights.ui.util.screenWidthPx
 import coil.compose.AsyncImage
@@ -37,29 +48,42 @@ enum class BackdropStyle(
 }
 
 /**
- * Full-screen picture on pure black, faded where text sits, plus the ambient light it
- * spills into the room ([LocalAmbient]).
+ * The screen: the picture projected at the film's aspect ratio ([ratio], see [HlScreen]),
+ * framed by black masking that glides when the ratio changes, faded where text sits, and
+ * spilling its light into the room ([LocalAmbient]). When the house lights go down, the
+ * scrims lift and the picture shows whole.
  */
 @Composable
-fun Backdrop(image: ImageRef?, style: BackdropStyle, modifier: Modifier = Modifier) {
+fun Backdrop(image: ImageRef?, style: BackdropStyle, modifier: Modifier = Modifier, ratio: Float = HlScreen.DISPLAY) {
     val black = Hl.colors.background
     val ambient = LocalAmbient.current
+    val lights = LocalHouseLights.current
     val url = image?.url(screenWidthPx())
-    Box(modifier.fillMaxSize().background(black)) {
-        Crossfade(targetState = url, animationSpec = tween(HlMotion.SLOW, easing = HlMotion.standard), label = "backdrop") { u ->
-            if (u != null) {
-                AsyncImage(
-                    model = u,
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    alignment = Alignment.TopEnd,
-                    alpha = style.imageAlpha,
-                    modifier = Modifier.fillMaxSize(),
-                )
+    // Constant-width masking, motorised like a cinema's: it travels, it does not jump.
+    val screenRatio by animateFloatAsState(
+        ratio.coerceAtLeast(HlScreen.DISPLAY),
+        tween(HlMotion.SLOW, easing = HlMotion.emphasized),
+        label = "masking",
+    )
+    BoxWithConstraints(modifier.fillMaxSize().background(black)) {
+        val screenHeight = (maxWidth / screenRatio).coerceAtMost(maxHeight)
+        Box(Modifier.fillMaxWidth().height(screenHeight).align(Alignment.Center).clipToBounds()) {
+            Crossfade(targetState = url, animationSpec = tween(HlMotion.SLOW, easing = HlMotion.standard), label = "backdrop") { u ->
+                if (u != null) {
+                    AsyncImage(
+                        model = u,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        // Faces sit in the upper part of most stills: keep them when masking crops.
+                        alignment = BiasAlignment(1f, -0.35f),
+                        alpha = style.imageAlpha,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                }
             }
         }
         Box(
-            Modifier.fillMaxSize().background(
+            Modifier.fillMaxSize().graphicsLayer { alpha = HouseLightCue.scrims(lights()) }.background(
                 Brush.horizontalGradient(
                     0f to black.copy(alpha = style.leftScrim),
                     0.34f to black.copy(alpha = style.leftScrim * 0.9f),
@@ -69,7 +93,7 @@ fun Backdrop(image: ImageRef?, style: BackdropStyle, modifier: Modifier = Modifi
             )
         )
         Box(
-            Modifier.fillMaxSize().background(
+            Modifier.fillMaxSize().graphicsLayer { alpha = HouseLightCue.scrims(lights()) }.background(
                 Brush.verticalGradient(
                     0f to black.copy(alpha = 0.45f),
                     0.14f to Color.Transparent,
@@ -79,12 +103,12 @@ fun Backdrop(image: ImageRef?, style: BackdropStyle, modifier: Modifier = Modifi
                 )
             )
         )
-        // Light from the picture, reflected on the room below it.
+        // Light from the picture, reflected on the room below it; stronger once the room is dark.
         Box(
             Modifier.fillMaxSize().drawBehind {
                 drawRect(
                     Brush.radialGradient(
-                        0f to ambient.copy(alpha = 0.22f),
+                        0f to ambient.copy(alpha = 0.22f + 0.14f * (1f - HouseLightCue.room(lights()))),
                         1f to Color.Transparent,
                         center = Offset(size.width * 0.28f, size.height * 1.05f),
                         radius = size.width * 0.62f,

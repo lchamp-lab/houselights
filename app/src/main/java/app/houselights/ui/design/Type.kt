@@ -57,6 +57,10 @@ data class HlType(
     val badge: TextStyle,
     /** The Houselights wordmark. */
     val wordmark: TextStyle,
+    /** Names in the billing block, set like the credits at the foot of a poster. */
+    val billing: TextStyle,
+    /** The small words between them: "a film by", "with". */
+    val billingJoin: TextStyle,
 )
 
 val HouselightsType = HlType(
@@ -71,6 +75,8 @@ val HouselightsType = HlType(
     caption = TextStyle(fontFamily = HlFonts.text, fontWeight = FontWeight.Normal, fontSize = 13.sp, lineHeight = 18.sp),
     badge = TextStyle(fontFamily = HlFonts.wide, fontWeight = FontWeight.SemiBold, fontSize = 11.sp, lineHeight = 14.sp, letterSpacing = 0.04.em),
     wordmark = TextStyle(fontFamily = HlFonts.condensed, fontWeight = FontWeight.SemiBold, fontSize = 22.sp, lineHeight = 24.sp, letterSpacing = 0.02.em),
+    billing = TextStyle(fontFamily = HlFonts.condensed, fontWeight = FontWeight.Medium, fontSize = 17.sp, lineHeight = 24.sp, letterSpacing = 0.03.em),
+    billingJoin = TextStyle(fontFamily = HlFonts.condensed, fontWeight = FontWeight.Normal, fontSize = 13.sp, lineHeight = 24.sp, letterSpacing = 0.02.em),
 )
 
 val LocalHlType = staticCompositionLocalOf { HouselightsType }

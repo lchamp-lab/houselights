@@ -83,7 +83,6 @@
     <string name="favorite">Favorite</string>
     <string name="add_favorite">Add to favorites</string>
     <string name="view_series">View series</string>
-    <string name="directed_by">Directed by %s</string>
     <string name="cast">Cast</string>
     <string name="tech_details">Technical details</string>
     <string name="tech_info">Technical info</string>
@@ -254,6 +253,8 @@
     <string name="testing">testing…</string>
     <string name="version">Houselights %s</string>
     <!-- Editing artwork and identification -->
+    <string name="billing_by">a film by</string>
+    <string name="billing_with">with</string>
     <string name="edit">Edit</string>
     <string name="edit_title">Edit “%s”</string>
     <string name="artwork_poster">Poster</string>

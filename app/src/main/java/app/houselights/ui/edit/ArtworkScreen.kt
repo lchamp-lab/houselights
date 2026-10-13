@@ -42,6 +42,7 @@ import app.houselights.core.ArtworkOrigin
 import app.houselights.core.MediaItem
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlMotion
+import app.houselights.ui.design.HlScreen
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.LocalAmbient
 import app.houselights.ui.design.components.ArtworkChoiceCard
@@ -85,7 +86,7 @@ fun ArtworkScreen(itemId: String, kind: ArtworkKind, onDone: () -> Unit) {
 
     CompositionLocalProvider(LocalAmbient provides rememberAmbientColor(backdrop)) {
         Box(Modifier.fillMaxSize()) {
-            Backdrop(backdrop, if (kind == ArtworkKind.POSTER) BackdropStyle.Quiet else BackdropStyle.Full)
+            Backdrop(backdrop, if (kind == ArtworkKind.POSTER) BackdropStyle.Quiet else BackdropStyle.Full, ratio = HlScreen.ratioOf(item))
             Column(Modifier.fillMaxSize().padding(top = HlSpace.safeV, bottom = HlSpace.m)) {
                 Header(kind, item, choices)
                 Box(
@@ -179,7 +180,7 @@ private fun Choices(
                 image = option.image,
                 selected = option == choices.selected,
                 title = if (automatic) stringResource(R.string.artwork_automatic) else describe(kind, option),
-                caption = if (automatic) listOfNotNull(describe(kind, option), size(option)).joinToString(" · ") else size(option),
+                caption = if (automatic) listOfNotNull(describe(kind, option), size(option)).joinToString("   ") else size(option),
                 onClick = { onChoose(option) },
                 width = kind.cardWidth,
                 aspectRatio = kind.aspectRatio,

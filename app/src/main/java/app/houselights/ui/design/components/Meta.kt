@@ -13,6 +13,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.Icon
@@ -86,3 +89,42 @@ fun BadgeRow(badges: List<String>, modifier: Modifier = Modifier) {
     if (badges.isEmpty()) return
     Row(modifier, horizontalArrangement = Arrangement.spacedBy(HlSpace.xs)) { badges.forEach { Badge(it) } }
 }
+
+/**
+ * The credits at the foot of a poster: names in tall condensed capitals, joined by small
+ * words ("a film by", "with"). The one place where Houselights sets words in capitals.
+ */
+@Composable
+fun BillingBlock(directors: List<String>, cast: List<String>, modifier: Modifier = Modifier) {
+    if (directors.isEmpty() && cast.isEmpty()) return
+    val c = Hl.colors
+    val t = Hl.type
+    val locale = Locale.getDefault()
+    val by = stringResource(R.string.billing_by)
+    val with = stringResource(R.string.billing_with)
+    val credits = buildAnnotatedString {
+        // A line may break between names, never inside one or after "with".
+        fun join(word: String) = withStyle(t.billingJoin.toSpanStyle().copy(color = c.contentTertiary)) { append(word.unbreakable() + NBSP) }
+        fun names(list: List<String>) = list.forEachIndexed { i, name ->
+            if (i > 0) append(GAP)
+            withStyle(t.billing.toSpanStyle().copy(color = c.contentSecondary)) { append(name.uppercase(locale).unbreakable()) }
+        }
+        if (directors.isNotEmpty()) {
+            join(by)
+            names(directors.take(1))
+        }
+        if (cast.isNotEmpty()) {
+            if (directors.isNotEmpty()) append(GAP)
+            join(with)
+            names(cast.take(3))
+        }
+    }
+    Text(credits, style = t.billing, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = modifier)
+}
+
+private const val NBSP = "\u00A0"
+
+/** Between names: three spaces wide, no punctuation, and the only place a line may break. */
+private const val GAP = "$NBSP$NBSP "
+
+private fun String.unbreakable() = replace(' ', '\u00A0').replace('-', '\u2011')

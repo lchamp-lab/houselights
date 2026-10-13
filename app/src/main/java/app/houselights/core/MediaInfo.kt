@@ -16,6 +16,14 @@ data class VideoInfo(
     val hdr: List<HdrFormat> = emptyList(),
     val dolbyVisionProfile: Int? = null,
 ) {
+    /** Width over height of the picture: 2.39 for a scope film, 1.78 for 16:9. */
+    val aspectRatio: Float?
+        get() {
+            val w = width ?: return null
+            val h = height?.takeIf { it > 0 } ?: return null
+            return w.toFloat() / h
+        }
+
     /** 4K, 1080p, 720p or SD, from the frame size (wide films are shorter than 2160). */
     val resolution: String?
         get() {

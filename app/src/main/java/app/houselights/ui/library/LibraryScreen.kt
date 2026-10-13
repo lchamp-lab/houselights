@@ -46,6 +46,7 @@ import app.houselights.core.WatchStatus
 import app.houselights.ui.design.components.Emphasis
 import app.houselights.ui.design.components.HlButton
 import app.houselights.ui.design.Hl
+import app.houselights.ui.design.HlScreen
 import app.houselights.ui.design.HlMotion
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.LocalAmbient
@@ -105,7 +106,7 @@ fun LibraryScreen(
 
     CompositionLocalProvider(LocalAmbient provides rememberAmbientColor(shown?.backdrop)) {
         Box(Modifier.fillMaxSize()) {
-            Backdrop(shown?.backdrop, BackdropStyle.Quiet)
+            Backdrop(shown?.backdrop, BackdropStyle.Quiet, ratio = HlScreen.ratioOf(shown))
             Column(Modifier.fillMaxSize()) {
                 Row(
                     Modifier.fillMaxWidth().padding(start = HlSpace.safeH, end = HlSpace.safeH - HlSpace.m, top = HlSpace.safeV),

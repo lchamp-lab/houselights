@@ -49,10 +49,14 @@ import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.LocalAmbient
+import app.houselights.ui.design.HlScreen
+import app.houselights.ui.design.LocalHouseLights
+import app.houselights.ui.design.houseLit
 import app.houselights.ui.design.revealOnFocus
 import app.houselights.ui.design.components.Backdrop
 import app.houselights.ui.design.components.BackdropStyle
 import app.houselights.ui.design.components.BadgeRow
+import app.houselights.ui.design.components.BillingBlock
 import app.houselights.ui.design.components.Emphasis
 import app.houselights.ui.design.components.HlButton
 import app.houselights.ui.design.components.HlIconButton
@@ -113,10 +117,10 @@ fun DetailScreen(
 
     CompositionLocalProvider(LocalAmbient provides rememberAmbientColor(item.backdrop)) {
         Box(Modifier.fillMaxSize()) {
-            Backdrop(item.backdrop, BackdropStyle.Full)
+            Backdrop(item.backdrop, BackdropStyle.Full, ratio = HlScreen.ratioOf(item))
 
             LazyColumn(
-                    Modifier.fillMaxSize(),
+                    Modifier.fillMaxSize().houseLit(LocalHouseLights.current),
                     contentPadding = PaddingValues(bottom = HlSpace.xxl),
                     verticalArrangement = Arrangement.spacedBy(HlSpace.l),
                 ) {
@@ -217,9 +221,9 @@ private fun Hero(
             Spacer(Modifier.height(if (item.tagline != null) HlSpace.xs else HlSpace.l))
             Text(item.overview, style = Hl.type.body, color = Hl.colors.contentSecondary, maxLines = 3, overflow = TextOverflow.Ellipsis)
         }
-        if (item.directors.isNotEmpty()) {
-            Spacer(Modifier.height(HlSpace.s))
-            Text(stringResource(R.string.directed_by, item.directors.joinToString(", ")), style = Hl.type.caption, color = Hl.colors.contentTertiary)
+        if (item.directors.isNotEmpty() || item.cast.isNotEmpty()) {
+            Spacer(Modifier.height(HlSpace.m))
+            BillingBlock(item.directors, item.cast.map { it.name })
         }
         Spacer(Modifier.height(HlSpace.xl))
 

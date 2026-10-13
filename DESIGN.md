@@ -16,7 +16,26 @@ size or a font**: they use the tokens and components below.
    The *house lights* fade to black before playback (`HouseLights`). The *poster wall* drifts slowly
    on the welcome screen.
 4. **Words do one job.** Sentence case, no all-caps labels, no decorative punctuation between facts
-   (spacing separates them). In French, the interface uses *vous*.
+   (spacing separates them). In French, the interface uses *vous*. The one exception is the billing
+   block, set in capitals like the credits at the foot of a poster.
+
+## The screen and the room
+
+Houselights is an auditorium, and this is what tells it apart. Nothing is added for decoration: the
+identity comes from treating artwork as a projected screen and the interface as the room around it.
+
+- **Masking.** Backdrops are projected at the film's own aspect ratio, read from the file
+  (`HlScreen.ratioOf`). Flat films and television fill the display; scope films get black masking
+  above and below, at the ratios a projection booth uses (1.85, 1.90, 2.00, 2.20, 2.39, 2.76). When
+  the ratio changes, the masking travels (`SLOW`), like the motorised masking of a cinema. Controls
+  that sit at the top of the screen simply end up on the masking.
+- **House lights.** Playing a title runs one cue (`HouseLightCue`, `DIM`): the room fades first
+  (text, buttons, rows: `Modifier.houseLit`), the scrims lift so the picture shows whole inside its
+  masking, the screen's light spills further into the dark room, then black and the player. Coming
+  back runs the cue backwards.
+- **Billing block.** On a detail page, director and leading cast are set like poster credits:
+  small words ("a film by", "with") between names in condensed capitals. A line breaks only
+  between names.
 
 ## Tokens
 
@@ -28,7 +47,9 @@ size or a font**: they use the tokens and components below.
 | `HlShapes` | `Dimens.kt` | radius follows hierarchy: `artwork` 4 dp, `field` 6, `panel` 10, `control` pill, `avatar` circle |
 | `HlSize` | `Dimens.kt` | poster 112 dp, landscape 220, episode 264, avatar 76, icon 20, progress 3, focus border 2 |
 | `HlFocus` | `Dimens.kt` | focus scale (artwork 1.10, cards 1.06, controls 1.04), sibling dim 0.38, glow 18 dp |
-| `HlMotion` | `Motion.kt` | `FAST` 150, `STANDARD` 250, `SLOW` 600, `DIM` 700 ms; `SETTLE` 220 ms before a backdrop changes |
+| `HlMotion` | `Motion.kt` | `FAST` 150, `STANDARD` 250, `SLOW` 600, `DIM` 1000 ms; `SETTLE` 220 ms before a backdrop changes |
+| `HlScreen` | `Auditorium.kt` | the screen's aspect ratio for a title, snapped to projection ratios; `DISPLAY` (16:9) means no masking |
+| `LocalHouseLights`, `HouseLightCue` | `Auditorium.kt` | how far the house lights are down (read while drawing), and the order of the cue: room, scrims, black |
 | `HlIcons` | `Icons.kt` | line icons drawn for the app (folder, server, display, playback, document, storage, edit, poster, backdrop, logo, search, lamp); core Material icons for the rest |
 | `HlBringIntoView` | `Scroll.kt` | lists scroll only as much as needed; replaces the TV default that pivots focus to a third of the screen |
 | `revealOnFocus()` | `Scroll.kt` | when focus enters a group (row and header, hero and buttons, settings section), the whole group comes into view |
@@ -38,7 +59,8 @@ size or a font**: they use the tokens and components below.
 
 | Component | Use |
 |---|---|
-| `Backdrop` (`Hero`, `Full`, `Quiet`) | full-screen artwork faded to black where text sits, plus the ambient light |
+| `Backdrop` (`Hero`, `Full`, `Quiet`) | the screen: artwork at the title's ratio inside black masking, faded where text sits, plus the ambient light; its scrims lift when the lights go down |
+| `BillingBlock` | poster-style credits on detail pages |
 | `rememberAmbientColor` | the light a picture spills into the room, animated |
 | `PosterCard`, `LandscapeCard`, `PersonCard` | artwork with the shared focus treatment (`ArtworkSurface`) |
 | `MediaRow` | horizontal row with header and focus restoration; dims the other cards when one is focused |
@@ -55,7 +77,7 @@ size or a font**: they use the tokens and components below.
 | `HlTextField` | TV text field: focusable box first, keyboard on OK; tungsten while typing; always one line of body text tall, empty or not |
 | `HlFormScaffold`, `StatusPanel`, `FieldLabel` | setup screens: explanation and live status on the left, form on the right |
 | `PosterWall` | tilted, drifting wall of posters (welcome) |
-| `HouseLights` | fade to black before the player starts and back after |
+| `HouseLights` | the last step of the cue: black over everything before the player starts |
 | `CardSkeleton`, `ProgressLine` | loading placeholders and progress |
 
 ## Focus
