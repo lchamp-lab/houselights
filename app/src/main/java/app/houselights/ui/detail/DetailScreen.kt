@@ -1,5 +1,8 @@
 package app.houselights.ui.detail
 
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.gestures.BringIntoViewSpec
+import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,6 +25,7 @@ import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -65,7 +69,9 @@ import app.houselights.ui.components.screenWidthPx
 import app.houselights.ui.components.toPx
 import app.houselights.ui.home.ErrorMessage
 import app.houselights.ui.theme.Palette
+import kotlin.math.abs
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun DetailScreen(
     itemId: String,
@@ -92,6 +98,9 @@ fun DetailScreen(
     Box(Modifier.fillMaxSize()) {
         ImmersiveBackdrop(item.backdrop?.url(screenPx), bottomWeight = 0.5f)
 
+        // The TV default pivots the focused element to a third of the screen, which would scroll
+        // the hero away as soon as "Play" gets focus: only scroll when something leaves the screen.
+        CompositionLocalProvider(LocalBringIntoViewSpec provides MinimalBringIntoView) {
         LazyColumn(
             Modifier.fillMaxSize(),
             contentPadding = PaddingValues(bottom = 64.dp),
@@ -147,6 +156,20 @@ fun DetailScreen(
                     }
                 }
             }
+        }
+        }
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+private val MinimalBringIntoView = object : BringIntoViewSpec {
+    override fun calculateScrollDistance(offset: Float, size: Float, containerSize: Float): Float {
+        val trailing = offset + size
+        return when {
+            offset >= 0 && trailing <= containerSize -> 0f
+            offset < 0 && trailing > containerSize -> 0f
+            abs(offset) < abs(trailing - containerSize) -> offset
+            else -> trailing - containerSize
         }
     }
 }

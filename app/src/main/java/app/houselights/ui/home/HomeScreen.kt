@@ -88,9 +88,9 @@ fun HomeScreen(
             TopBar(libraries = state.libraries, onLibrary = onOpenLibrary, onSettings = onOpenSettings)
             HeroInfo(
                 item = shown,
-                modifier = Modifier.padding(start = SafeH, top = 12.dp).height(230.dp),
+                modifier = Modifier.padding(start = SafeH, top = 8.dp).height(196.dp),
             )
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(8.dp))
             when {
                 state.loading && state.sections.isEmpty() -> Message(stringResource(R.string.loading))
                 state.error != null && state.sections.isEmpty() -> ErrorMessage(state.error!!, vm::load)
