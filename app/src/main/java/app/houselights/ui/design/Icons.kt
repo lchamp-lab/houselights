@@ -65,6 +65,16 @@ object HlIcons {
         moveTo(4f, 5f); lineTo(20f, 5f); lineTo(14f, 12.5f); lineTo(14f, 18.5f); lineTo(10f, 20f); lineTo(10f, 12.5f); close()
     }
 
+    /** Information: a circled i. */
+    val Info = icon("Info") {
+        moveTo(20.5f, 12f)
+        arcTo(8.5f, 8.5f, 0f, true, true, 3.5f, 12f)
+        arcTo(8.5f, 8.5f, 0f, true, true, 20.5f, 12f)
+        close()
+        moveTo(12f, 11f); lineTo(12f, 16.5f)
+        moveTo(12f, 7.75f); lineTo(12f, 8f)
+    }
+
     /** A document: the NFO file. */
     val Document = icon("Document") {
         moveTo(6f, 3.5f); lineTo(14f, 3.5f); lineTo(18.5f, 8f); lineTo(18.5f, 20.5f); lineTo(6f, 20.5f); close()

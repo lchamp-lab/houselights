@@ -61,7 +61,7 @@ import app.houselights.ui.design.components.MediaRow
 import app.houselights.ui.design.components.MetaLine
 import app.houselights.ui.design.components.PersonCard
 import app.houselights.ui.design.components.PosterCard
-import app.houselights.ui.design.components.SectionHeader
+import app.houselights.ui.design.components.HlModal
 import app.houselights.ui.design.components.TechSpecs
 import app.houselights.ui.design.components.TitleArt
 import app.houselights.ui.design.components.rememberAmbientColor
@@ -92,6 +92,11 @@ fun DetailScreen(
 
     val screenHeight = LocalConfiguration.current.screenHeightDp.dp
     var focusedEpisode by remember { mutableStateOf<MediaItem?>(null) }
+    var showTech by remember { mutableStateOf(false) }
+    val media = item.media?.takeIf { it.video != null || it.audio.isNotEmpty() }
+    if (showTech && media != null) {
+        HlModal(stringResource(R.string.tech_details), onDismiss = { showTech = false }) { TechSpecs(media) }
+    }
 
     CompositionLocalProvider(LocalAmbient provides rememberAmbientColor(item.backdrop)) {
         Box(Modifier.fillMaxSize()) {
@@ -113,6 +118,7 @@ fun DetailScreen(
                                 onToggleFavorite = vm::toggleFavorite,
                                 onOpenSeries = { item.seriesId?.let(onOpenItem) },
                                 onOpenNfo = { onOpenNfo(item.id) },
+                                onShowTech = if (media != null) ({ showTech = true }) else null,
                                 modifier = Modifier.padding(start = HlSpace.safeH, bottom = HlSpace.l).align(Alignment.BottomStart),
                             )
                         }
@@ -130,16 +136,7 @@ fun DetailScreen(
                         }
                     }
 
-                    item.media?.takeIf { it.video != null || it.audio.isNotEmpty() }?.let { media ->
-                        item(key = "tech") {
-                            Column(Modifier.padding(horizontal = HlSpace.safeH).revealOnFocus()) {
-                                SectionHeader(stringResource(R.string.tech_details), Modifier.padding(bottom = HlSpace.s))
-                                TechSpecs(media)
-                            }
-                        }
-                    }
-
-                    if (item.cast.isNotEmpty()) {
+                            if (item.cast.isNotEmpty()) {
                         item(key = "cast") {
                             MediaRow(stringResource(R.string.cast), spacing = HlSpace.s) {
                                 items(item.cast) { PersonCard(it) }
@@ -169,6 +166,7 @@ private fun Hero(
     onToggleFavorite: () -> Unit,
     onOpenSeries: () -> Unit,
     onOpenNfo: () -> Unit,
+    onShowTech: (() -> Unit)?,
     modifier: Modifier,
 ) {
     val playFocus = remember { FocusRequester() }
@@ -247,6 +245,9 @@ private fun Hero(
                     onClick = onTogglePlayed,
                     modifier = if (target == null) Modifier.focusRequester(playFocus) else Modifier,
                 )
+            }
+            if (onShowTech != null) {
+                HlIconButton(HlIcons.Info, stringResource(R.string.tech_info), onClick = onShowTech)
             }
             if (item.hasNfo) {
                 HlIconButton(HlIcons.Document, stringResource(R.string.nfo), onClick = onOpenNfo)

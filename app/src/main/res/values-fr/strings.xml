@@ -79,6 +79,8 @@
     <string name="directed_by">Réalisé par %s</string>
     <string name="cast">Distribution</string>
     <string name="tech_details">Détails techniques</string>
+    <string name="tech_info">Infos techniques</string>
+    <string name="close">Fermer</string>
     <string name="nfo">NFO</string>
     <string name="nfo_title">Fichier NFO</string>
     <string name="nfo_desc">La description de ce titre écrite par votre gestionnaire de médias. Ses informations priment sur celles de TMDB.</string>

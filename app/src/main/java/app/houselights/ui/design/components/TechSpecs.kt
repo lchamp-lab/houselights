@@ -1,6 +1,5 @@
 package app.houselights.ui.design.components
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -21,9 +20,6 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.tv.material3.Border
-import androidx.tv.material3.ClickableSurfaceDefaults
-import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
 import app.houselights.R
 import app.houselights.core.AudioTrack
@@ -40,40 +36,20 @@ import java.util.Locale
 private const val MAX_AUDIO = 4
 private const val MAX_SUBTITLE_LANGUAGES = 4
 
-/**
- * Spec sheet of a file: video, audio tracks and subtitles side by side, then the file
- * itself. Focusable so the remote can stop on it while scrolling a detail page.
- */
+/** Spec sheet of a file: video, audio tracks and subtitles side by side, then the file itself. */
 @Composable
 fun TechSpecs(media: MediaInfo, modifier: Modifier = Modifier) {
     val c = Hl.colors
-    Surface(
-        onClick = {},
-        modifier = modifier.fillMaxWidth(),
-        shape = ClickableSurfaceDefaults.shape(HlShapes.panel),
-        scale = ClickableSurfaceDefaults.scale(focusedScale = 1f),
-        border = ClickableSurfaceDefaults.border(
-            border = Border(BorderStroke(HlSize.hairline, c.outline.copy(alpha = 0.6f)), shape = HlShapes.panel),
-            focusedBorder = Border(BorderStroke(HlSize.focusBorder, c.focus), shape = HlShapes.panel),
-        ),
-        colors = ClickableSurfaceDefaults.colors(
-            containerColor = c.surface.copy(alpha = 0.75f),
-            focusedContainerColor = c.surface.copy(alpha = 0.9f),
-            contentColor = c.content,
-            focusedContentColor = c.content,
-        ),
-    ) {
-        Column(Modifier.padding(HlSpace.l)) {
-            Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.xl)) {
-                media.video?.let { VideoColumn(media, Modifier.weight(1f)) }
-                if (media.audio.isNotEmpty()) AudioColumn(media.audio, Modifier.weight(1.3f))
-                if (media.subtitles.isNotEmpty()) SubtitleColumn(media.subtitles, Modifier.weight(1f))
-            }
-            Spacer(Modifier.height(HlSpace.l))
-            Box(Modifier.fillMaxWidth().height(HlSize.hairline).background(c.outline.copy(alpha = 0.5f)))
-            Spacer(Modifier.height(HlSpace.m))
-            FileFacts(media)
+    Column(modifier) {
+        Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.xl)) {
+            media.video?.let { VideoColumn(media, Modifier.weight(1f)) }
+            if (media.audio.isNotEmpty()) AudioColumn(media.audio, Modifier.weight(1.3f))
+            if (media.subtitles.isNotEmpty()) SubtitleColumn(media.subtitles, Modifier.weight(1f))
         }
+        Spacer(Modifier.height(HlSpace.l))
+        Box(Modifier.fillMaxWidth().height(HlSize.hairline).background(c.outline.copy(alpha = 0.5f)))
+        Spacer(Modifier.height(HlSpace.m))
+        FileFacts(media)
     }
 }
 

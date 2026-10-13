@@ -86,6 +86,8 @@
     <string name="directed_by">Directed by %s</string>
     <string name="cast">Cast</string>
     <string name="tech_details">Technical details</string>
+    <string name="tech_info">Technical info</string>
+    <string name="close">Close</string>
     <string name="nfo">NFO</string>
     <string name="nfo_title">NFO file</string>
     <string name="nfo_desc">The description of this title written by your media manager. Its details take precedence over TMDB.</string>

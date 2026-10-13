@@ -48,7 +48,8 @@ size or a font**: they use the tokens and components below.
 | `HlListItem` | a choice in a vertical list, with an optional icon in a lit disc |
 | `HlMenuButton`, `MenuSection`, `MenuOption` | icon button opening a sectioned menu: closes on choice (sorting) or stays open (filters) |
 | `DefinitionList` | label and value pairs on a quiet panel (settings, NFO) |
-| `TechSpecs` | spec sheet of a file: video, audio tracks, subtitles by language, then container, size, bitrate, duration |
+| `HlModal` | panel over the dimmed room for details on demand; focus stays inside, Back or Close dismisses |
+| `TechSpecs` | spec sheet of a file (video, audio tracks, subtitles by language, container, size, bitrate, duration), shown in an `HlModal` |
 | `HlTextField` | TV text field: focusable box first, keyboard on OK; tungsten while typing |
 | `HlFormScaffold`, `StatusPanel`, `FieldLabel` | setup screens: explanation and live status on the left, form on the right |
 | `PosterWall` | tilted, drifting wall of posters (welcome) |
