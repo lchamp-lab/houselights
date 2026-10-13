@@ -38,14 +38,23 @@ import androidx.tv.material3.Text
 import app.houselights.R
 import app.houselights.core.Library
 import app.houselights.core.MediaItem
+import app.houselights.core.LibraryFacets
+import app.houselights.core.LibraryFilter
+import app.houselights.core.Quality
 import app.houselights.core.SortOption
+import app.houselights.core.WatchStatus
+import app.houselights.ui.design.components.Emphasis
+import app.houselights.ui.design.components.HlButton
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlMotion
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.LocalAmbient
 import app.houselights.ui.design.components.Backdrop
 import app.houselights.ui.design.components.BackdropStyle
-import app.houselights.ui.design.components.HlTab
+import app.houselights.ui.design.HlIcons
+import app.houselights.ui.design.components.HlMenuButton
+import app.houselights.ui.design.components.MenuOption
+import app.houselights.ui.design.components.MenuSection
 import app.houselights.ui.design.components.LocalGroupFocused
 import app.houselights.ui.design.components.MetaLine
 import app.houselights.ui.design.components.PosterCard
@@ -73,6 +82,13 @@ fun LibraryScreen(
     LaunchedEffect(focused) {
         delay(HlMotion.SETTLE)
         shown = focused
+    }
+    // A title filtered out of the grid must not stay named in the header.
+    LaunchedEffect(state.items) {
+        if (shown != null && state.items.none { it.id == shown?.id }) {
+            focused = null
+            shown = null
+        }
     }
     val gridFocus = remember { FocusRequester() }
     var gridHasFocus by remember { mutableStateOf(false) }
@@ -104,11 +120,18 @@ fun LibraryScreen(
                         )
                     }
                     Spacer(Modifier.weight(1f))
-                    SortOption.entries.forEach { opt ->
-                        HlTab(sortLabel(opt), selected = state.sort == opt, onClick = { vm.setSort(opt) })
-                    }
-                    Spacer(Modifier.width(HlSpace.m))
-                    HlTab(stringResource(R.string.filter_unwatched), selected = state.unplayedOnly, onClick = vm::toggleUnplayed)
+                    FilterButton(state.filter, state.facets, vm::setFilter)
+                    Spacer(Modifier.width(HlSpace.s))
+                    HlMenuButton(
+                        text = sortLabel(state.sort),
+                        icon = HlIcons.Sort,
+                        sections = listOf(
+                            MenuSection(
+                                stringResource(R.string.sort_by),
+                                SortOption.entries.map { opt -> MenuOption(sortLabel(opt), state.sort == opt) { vm.setSort(opt) } },
+                            ),
+                        ),
+                    )
                 }
                 // What is under the cursor, without taking space from the wall.
                 Row(
@@ -123,6 +146,11 @@ fun LibraryScreen(
                 }
                 when {
                     state.loading && state.items.isEmpty() -> Unit
+                    state.items.isEmpty() && state.filter.activeCount > 0 -> Column(Modifier.padding(HlSpace.safeH)) {
+                        Text(stringResource(R.string.no_match), style = Hl.type.body, color = Hl.colors.contentSecondary)
+                        Spacer(Modifier.height(HlSpace.l))
+                        HlButton(stringResource(R.string.reset_filters), { vm.setFilter(LibraryFilter()) }, icon = HlIcons.Filter)
+                    }
                     state.items.isEmpty() -> Text(
                         state.error ?: stringResource(R.string.empty),
                         style = Hl.type.body,
@@ -167,3 +195,74 @@ private fun sortLabel(sort: SortOption): String = stringResource(
         SortOption.RATING -> R.string.sort_rating
     }
 )
+
+/** Filter menu: status, genre, decade and quality, combined; stays open while choosing. */
+@Composable
+private fun FilterButton(filter: LibraryFilter, facets: LibraryFacets, onChange: (LibraryFilter) -> Unit) {
+    val statusLabels = mapOf(
+        WatchStatus.ALL to stringResource(R.string.show_all),
+        WatchStatus.UNWATCHED to stringResource(R.string.filter_unwatched),
+        WatchStatus.IN_PROGRESS to stringResource(R.string.status_in_progress),
+        WatchStatus.WATCHED to stringResource(R.string.status_watched),
+        WatchStatus.FAVORITES to stringResource(R.string.section_favorites),
+    )
+    val qualityLabels = mapOf(
+        Quality.UHD_4K to "4K",
+        Quality.HDR to stringResource(R.string.quality_hdr),
+        Quality.DOLBY_VISION to "Dolby Vision",
+    )
+    val decadeLabel = @Composable { d: Int -> stringResource(R.string.decade, d) }
+
+    val sections = buildList {
+        add(
+            MenuSection(
+                stringResource(R.string.filter_status),
+                WatchStatus.entries.map { st -> MenuOption(statusLabels.getValue(st), filter.status == st) { onChange(filter.copy(status = st)) } },
+            )
+        )
+        if (facets.genres.isNotEmpty()) add(
+            MenuSection(
+                stringResource(R.string.filter_genre),
+                listOf(MenuOption(stringResource(R.string.all_genres), filter.genre == null) { onChange(filter.copy(genre = null)) }) +
+                    facets.genres.map { g -> MenuOption(g, filter.genre == g) { onChange(filter.copy(genre = g)) } },
+            )
+        )
+        if (facets.decades.isNotEmpty()) add(
+            MenuSection(
+                stringResource(R.string.filter_decade),
+                listOf(MenuOption(stringResource(R.string.all_decades), filter.decade == null) { onChange(filter.copy(decade = null)) }) +
+                    facets.decades.map { d -> MenuOption(decadeLabel(d), filter.decade == d) { onChange(filter.copy(decade = d)) } },
+            )
+        )
+        if (facets.qualities.isNotEmpty()) add(
+            MenuSection(
+                stringResource(R.string.filter_quality),
+                listOf(MenuOption(stringResource(R.string.all_qualities), filter.quality == null) { onChange(filter.copy(quality = null)) }) +
+                    facets.qualities.map { q -> MenuOption(qualityLabels.getValue(q), filter.quality == q) { onChange(filter.copy(quality = q)) } },
+            )
+        )
+        if (filter.activeCount > 0) add(
+            MenuSection(null, listOf(MenuOption(stringResource(R.string.reset_filters), false) { onChange(LibraryFilter()) }))
+        )
+    }
+
+    // The button names the active filter, or how many are combined.
+    val detail = when (filter.activeCount) {
+        0 -> null
+        1 -> when {
+            filter.status != WatchStatus.ALL -> statusLabels.getValue(filter.status)
+            filter.genre != null -> filter.genre
+            filter.decade != null -> decadeLabel(filter.decade)
+            else -> filter.quality?.let { qualityLabels.getValue(it) }
+        }
+        else -> pluralStringResource(R.plurals.filter_count, filter.activeCount, filter.activeCount)
+    }
+    HlMenuButton(
+        text = stringResource(R.string.filter),
+        icon = HlIcons.Filter,
+        sections = sections,
+        detail = detail,
+        emphasis = if (filter.activeCount > 0) Emphasis.Primary else Emphasis.Secondary,
+        closeOnSelect = false,
+    )
+}

@@ -53,6 +53,18 @@ object HlIcons {
         moveTo(10.25f, 9f); lineTo(15f, 12f); lineTo(10.25f, 15f); close()
     }
 
+    /** Sorting: lines of decreasing length. */
+    val Sort = icon("Sort") {
+        moveTo(4f, 7f); lineTo(20f, 7f)
+        moveTo(4f, 12f); lineTo(15f, 12f)
+        moveTo(4f, 17f); lineTo(10f, 17f)
+    }
+
+    /** Filtering: a funnel. */
+    val Filter = icon("Filter") {
+        moveTo(4f, 5f); lineTo(20f, 5f); lineTo(14f, 12.5f); lineTo(14f, 18.5f); lineTo(10f, 20f); lineTo(10f, 12.5f); close()
+    }
+
     /** About: the house light itself. */
     val Lamp = icon("Lamp") {
         moveTo(6f, 11f); quadTo(6f, 5f, 12f, 5f); quadTo(18f, 5f, 18f, 11f); close()

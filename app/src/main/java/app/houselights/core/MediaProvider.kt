@@ -45,7 +45,10 @@ interface MediaProvider {
 
     suspend fun libraries(): List<Library>
     suspend fun home(): List<HomeSection>
-    suspend fun libraryPage(library: Library, sort: SortOption, unplayedOnly: Boolean, start: Int, limit: Int): Page
+    suspend fun libraryPage(library: Library, sort: SortOption, filter: LibraryFilter, start: Int, limit: Int): Page
+
+    /** Genres, decades and qualities present in [library], to build the filter menu. */
+    suspend fun libraryFacets(library: Library): LibraryFacets = LibraryFacets()
     suspend fun item(id: String): MediaItem
     suspend fun seasons(series: MediaItem): List<MediaItem>
     suspend fun episodes(series: MediaItem, season: MediaItem): List<MediaItem>

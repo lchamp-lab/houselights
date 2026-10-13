@@ -4,6 +4,10 @@ import android.util.Log
 import app.houselights.core.HomeSection
 import app.houselights.core.ImageRef
 import app.houselights.core.Library
+import app.houselights.core.LibraryFacets
+import app.houselights.core.LibraryFilter
+import app.houselights.core.Quality
+import app.houselights.core.WatchStatus
 import app.houselights.core.LibraryKind
 import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
@@ -55,7 +59,7 @@ class JellyfinProvider(config: SourceConfig.Jellyfin, deviceId: String) : MediaP
         }
     }
 
-    override suspend fun libraryPage(library: Library, sort: SortOption, unplayedOnly: Boolean, start: Int, limit: Int): Page {
+    override suspend fun libraryPage(library: Library, sort: SortOption, filter: LibraryFilter, start: Int, limit: Int): Page {
         val types = when (library.kind) {
             LibraryKind.MOVIES -> "Movie"
             LibraryKind.SHOWS -> "Series"
@@ -78,10 +82,25 @@ class JellyfinProvider(config: SourceConfig.Jellyfin, deviceId: String) : MediaP
             startIndex = start,
             limit = limit,
             fields = ROW_FIELDS,
-            filters = if (unplayedOnly) "IsUnplayed" else null,
+            filters = when (filter.status) {
+                WatchStatus.ALL -> null
+                WatchStatus.UNWATCHED -> "IsUnplayed"
+                WatchStatus.IN_PROGRESS -> "IsResumable"
+                WatchStatus.WATCHED -> "IsPlayed"
+                WatchStatus.FAVORITES -> "IsFavorite"
+            },
+            genres = filter.genre,
+            years = filter.decade?.let { d -> (d..d + 9).joinToString(",") },
+            is4K = if (filter.quality == Quality.UHD_4K) true else null,
         )
         return Page(result.items.map(::toMedia), result.totalRecordCount)
     }
+
+    override suspend fun libraryFacets(library: Library): LibraryFacets = LibraryFacets(
+        genres = runCatching { api.genres(userId, library.id).items.mapNotNull { it.name } }.getOrDefault(emptyList()),
+        // Jellyfin has no cheap decade listing; 4K is the only quality its API filters on.
+        qualities = listOf(Quality.UHD_4K),
+    )
 
     override suspend fun item(id: String): MediaItem = toMedia(api.item(id, userId))
 

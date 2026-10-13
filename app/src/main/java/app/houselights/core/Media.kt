@@ -90,4 +90,27 @@ data class HomeSection(
 
 enum class SortOption { TITLE, ADDED, YEAR, RATING }
 
+enum class WatchStatus { ALL, UNWATCHED, IN_PROGRESS, WATCHED, FAVORITES }
+
+enum class Quality { UHD_4K, HDR, DOLBY_VISION }
+
+/** What a library grid shows; every field is optional and they combine. */
+data class LibraryFilter(
+    val status: WatchStatus = WatchStatus.ALL,
+    val genre: String? = null,
+    /** First year of the decade, e.g. 2010. */
+    val decade: Int? = null,
+    val quality: Quality? = null,
+) {
+    val activeCount: Int
+        get() = listOf(status != WatchStatus.ALL, genre != null, decade != null, quality != null).count { it }
+}
+
+/** Values actually present in a library, so filters never offer an empty choice. */
+data class LibraryFacets(
+    val genres: List<String> = emptyList(),
+    val decades: List<Int> = emptyList(),
+    val qualities: List<Quality> = emptyList(),
+)
+
 data class Page(val items: List<MediaItem>, val total: Int)

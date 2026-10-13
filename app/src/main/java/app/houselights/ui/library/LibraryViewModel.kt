@@ -4,6 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import app.houselights.AppContainer
 import app.houselights.core.Library
+import app.houselights.core.LibraryFacets
+import app.houselights.core.LibraryFilter
 import app.houselights.core.MediaItem
 import app.houselights.core.SortOption
 import kotlinx.coroutines.Job
@@ -18,7 +20,8 @@ data class LibraryState(
     val loading: Boolean = true,
     val error: String? = null,
     val sort: SortOption = SortOption.TITLE,
-    val unplayedOnly: Boolean = false,
+    val filter: LibraryFilter = LibraryFilter(),
+    val facets: LibraryFacets = LibraryFacets(),
 )
 
 class LibraryViewModel(private val app: AppContainer, private val library: Library) : ViewModel() {
@@ -28,7 +31,13 @@ class LibraryViewModel(private val app: AppContainer, private val library: Libra
 
     init {
         reload()
-        viewModelScope.launch { app.libraryChanged.collect { reload() } }
+        loadFacets()
+        viewModelScope.launch {
+            app.libraryChanged.collect {
+                reload()
+                loadFacets()
+            }
+        }
     }
 
     fun setSort(sort: SortOption) {
@@ -37,9 +46,16 @@ class LibraryViewModel(private val app: AppContainer, private val library: Libra
         reload()
     }
 
-    fun toggleUnplayed() {
-        _state.update { it.copy(unplayedOnly = !it.unplayedOnly) }
+    fun setFilter(filter: LibraryFilter) {
+        if (filter == _state.value.filter) return
+        _state.update { it.copy(filter = filter) }
         reload()
+    }
+
+    private fun loadFacets() {
+        viewModelScope.launch {
+            runCatching { app.provider.libraryFacets(library) }.onSuccess { f -> _state.update { it.copy(facets = f) } }
+        }
     }
 
     private fun reload() {
@@ -54,7 +70,7 @@ class LibraryViewModel(private val app: AppContainer, private val library: Libra
         if (job?.isActive == true || (s.items.isNotEmpty() && s.items.size >= s.total)) return
         job = viewModelScope.launch {
             runCatching {
-                app.provider.libraryPage(library, s.sort, s.unplayedOnly, start = s.items.size, limit = PAGE)
+                app.provider.libraryPage(library, s.sort, s.filter, start = s.items.size, limit = PAGE)
             }.onSuccess { page ->
                 _state.update { it.copy(items = it.items + page.items, total = page.total, loading = false) }
             }.onFailure { e ->

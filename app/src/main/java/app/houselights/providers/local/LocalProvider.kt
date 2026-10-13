@@ -7,6 +7,10 @@ import app.houselights.R
 import app.houselights.core.HomeSection
 import app.houselights.core.ImageRef
 import app.houselights.core.Library
+import app.houselights.core.LibraryFacets
+import app.houselights.core.LibraryFilter
+import app.houselights.core.Quality
+import app.houselights.core.WatchStatus
 import app.houselights.core.LibraryKind
 import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
@@ -49,12 +53,40 @@ class LocalProvider(private val context: Context, private val dao: LibraryDao) :
         }
     }
 
-    override suspend fun libraryPage(library: Library, sort: SortOption, unplayedOnly: Boolean, start: Int, limit: Int): Page {
+    override suspend fun libraryPage(library: Library, sort: SortOption, filter: LibraryFilter, start: Int, limit: Int): Page {
         val kind = if (library.id == SHOWS) ItemKind.SERIES else ItemKind.MOVIE
-        val unplayed = when {
-            !unplayedOnly -> ""
-            kind == ItemKind.SERIES -> " AND EXISTS (SELECT 1 FROM items e WHERE e.seriesId = items.id AND e.kind = 'EPISODE' AND e.played = 0)"
-            else -> " AND played = 0"
+        val args = mutableListOf<Any>()
+        val where = StringBuilder("kind = '${kind.name}'")
+        val episodes = "SELECT 1 FROM items e WHERE e.seriesId = items.id AND e.kind = 'EPISODE'"
+        when (filter.status) {
+            WatchStatus.ALL -> {}
+            WatchStatus.UNWATCHED -> where.append(
+                if (kind == ItemKind.SERIES) " AND EXISTS ($episodes AND e.played = 0)" else " AND played = 0 AND positionMs = 0"
+            )
+            WatchStatus.IN_PROGRESS -> where.append(
+                if (kind == ItemKind.SERIES) " AND EXISTS ($episodes AND (e.played = 1 OR e.positionMs > 0)) AND EXISTS ($episodes AND e.played = 0)"
+                else " AND played = 0 AND positionMs > 0"
+            )
+            WatchStatus.WATCHED -> where.append(
+                if (kind == ItemKind.SERIES) " AND NOT EXISTS ($episodes AND e.played = 0)" else " AND played = 1"
+            )
+            WatchStatus.FAVORITES -> where.append(" AND favorite = 1")
+        }
+        filter.genre?.let {
+            // Genres are stored as "A|B|C": match a whole entry.
+            where.append(" AND ('|' || genres || '|') LIKE ?")
+            args += "%|$it|%"
+        }
+        filter.decade?.let {
+            where.append(" AND year BETWEEN ? AND ?")
+            args += it
+            args += it + 9
+        }
+        when (filter.quality) {
+            null -> {}
+            Quality.UHD_4K -> where.append(" AND ('|' || badges || '|') LIKE '%|4K|%'")
+            Quality.HDR -> where.append(" AND (badges LIKE '%HDR%' OR badges LIKE '%Dolby Vision%')")
+            Quality.DOLBY_VISION -> where.append(" AND badges LIKE '%Dolby Vision%'")
         }
         val order = when (sort) {
             SortOption.TITLE -> "sortTitle COLLATE NOCASE ASC"
@@ -62,11 +94,26 @@ class LocalProvider(private val context: Context, private val dao: LibraryDao) :
             SortOption.YEAR -> "year DESC, sortTitle ASC"
             SortOption.RATING -> "rating DESC, sortTitle ASC"
         }
-        val where = "kind = '${kind.name}'$unplayed"
-        val items = dao.query(SimpleSQLiteQuery("SELECT * FROM items WHERE $where ORDER BY $order LIMIT $limit OFFSET $start"))
-        val total = dao.countQuery(SimpleSQLiteQuery("SELECT COUNT(*) FROM items WHERE $where"))
+        val items = dao.query(SimpleSQLiteQuery("SELECT * FROM items WHERE $where ORDER BY $order LIMIT $limit OFFSET $start", args.toTypedArray()))
+        val total = dao.countQuery(SimpleSQLiteQuery("SELECT COUNT(*) FROM items WHERE $where", args.toTypedArray()))
         val mapper = Mapper()
         return Page(items.map { mapper.map(it) }, total)
+    }
+
+    override suspend fun libraryFacets(library: Library): LibraryFacets {
+        val kind = if (library.id == SHOWS) ItemKind.SERIES else ItemKind.MOVIE
+        // Shows carry no technical badges themselves: look at their episodes.
+        val badgeKind = if (kind == ItemKind.SERIES) ItemKind.EPISODE else kind
+        val badges = dao.badgesOf(badgeKind).flatMap { it.split('|') }.toSet()
+        return LibraryFacets(
+            genres = dao.genresOf(kind).flatMap { it.split('|') }.filter { it.isNotBlank() }.distinct().sorted(),
+            decades = dao.yearsOf(kind).map { it / 10 * 10 }.distinct().sortedDescending(),
+            qualities = buildList {
+                if ("4K" in badges) add(Quality.UHD_4K)
+                if (badges.any { it.startsWith("HDR") } || "Dolby Vision" in badges) add(Quality.HDR)
+                if ("Dolby Vision" in badges) add(Quality.DOLBY_VISION)
+            },
+        )
     }
 
     override suspend fun item(id: String): MediaItem {

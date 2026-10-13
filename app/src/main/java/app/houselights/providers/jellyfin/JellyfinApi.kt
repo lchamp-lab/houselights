@@ -55,6 +55,16 @@ interface JellyfinApi {
         @Query("limit") limit: Int,
         @Query("fields") fields: String,
         @Query("filters") filters: String? = null,
+        @Query("genres") genres: String? = null,
+        @Query("years") years: String? = null,
+        @Query("is4K") is4K: Boolean? = null,
+    ): ItemsResult
+
+    @GET("Genres")
+    suspend fun genres(
+        @Query("userId") userId: String,
+        @Query("parentId") parentId: String,
+        @Query("sortBy") sortBy: String = "SortName",
     ): ItemsResult
 
     @GET("Items/{id}")

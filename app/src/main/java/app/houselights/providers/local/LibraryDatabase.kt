@@ -157,6 +157,15 @@ interface LibraryDao {
     @Query("SELECT COUNT(*) FROM items WHERE kind = :kind")
     suspend fun count(kind: ItemKind): Int
 
+    @Query("SELECT genres FROM items WHERE kind = :kind AND genres != ''")
+    suspend fun genresOf(kind: ItemKind): List<String>
+
+    @Query("SELECT DISTINCT year FROM items WHERE kind = :kind AND year IS NOT NULL")
+    suspend fun yearsOf(kind: ItemKind): List<Int>
+
+    @Query("SELECT DISTINCT badges FROM items WHERE kind = :kind AND badges != ''")
+    suspend fun badgesOf(kind: ItemKind): List<String>
+
     /** Films and shows found in a source (not seasons or episodes). */
     @Query("SELECT COUNT(*) FROM items WHERE sourceId = :sourceId AND kind IN ('MOVIE','SERIES')")
     fun observeTitleCount(sourceId: Long): Flow<Int>
