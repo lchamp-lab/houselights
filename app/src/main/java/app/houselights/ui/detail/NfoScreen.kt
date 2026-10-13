@@ -91,6 +91,7 @@ fun NfoScreen(itemId: String) {
             selected = tab,
             onSelect = { tab = it },
             modifier = Modifier.focusRequester(tabsFocus),
+            selectOnFocus = true,
         )
         if (doc != null) {
             when (tab) {
@@ -102,7 +103,7 @@ fun NfoScreen(itemId: String) {
 }
 
 @Composable
-private fun NfoDetails(info: NfoInfo?) {
+private fun NfoDetails(info: NfoInfo?) = ScrollablePanel {
     when {
         info == null -> Text(stringResource(R.string.nfo_unreadable), style = Hl.type.body, color = Hl.colors.contentSecondary)
         info.kind == "link" -> {
@@ -130,8 +131,9 @@ private fun NfoDetails(info: NfoInfo?) {
             }
             DefinitionList(rows)
             info.plot?.let { plot ->
+                Spacer(Modifier.height(HlSpace.s))
                 FieldLabel(stringResource(R.string.label_plot))
-                ScrollablePanel { Text(plot, style = Hl.type.body, color = Hl.colors.content) }
+                Text(plot, style = Hl.type.body, color = Hl.colors.content)
             }
         }
     }

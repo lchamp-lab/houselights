@@ -244,13 +244,17 @@ fun HlListItem(
     }
 }
 
-/** Exclusive options in one pill track (content type, protocol, display mode). */
+/**
+ * Exclusive options in one pill track (content type, protocol, display mode). With
+ * [selectOnFocus], moving onto an option selects it, as tabs over content do on TV.
+ */
 @Composable
 fun HlSegmented(
     options: List<String>,
     selected: Int,
     onSelect: (Int) -> Unit,
     modifier: Modifier = Modifier,
+    selectOnFocus: Boolean = false,
 ) {
     Row(
         modifier
@@ -259,6 +263,8 @@ fun HlSegmented(
             .padding(HlSpace.xxs),
         horizontalArrangement = Arrangement.spacedBy(HlSpace.xxs),
     ) {
-        options.forEachIndexed { i, label -> HlTab(label, selected = i == selected, onClick = { onSelect(i) }) }
+        options.forEachIndexed { i, label ->
+            HlTab(label, selected = i == selected, onClick = { onSelect(i) }, onFocused = { if (selectOnFocus) onSelect(i) })
+        }
     }
 }

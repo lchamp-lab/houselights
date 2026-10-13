@@ -83,9 +83,9 @@ class LibraryScanner(
             val local = sidecars.forVideo(f)
             item == null || item.mediaInfo == null || refreshMetadata ||
                 (tmdb != null && item.matchedAt == null) ||
-                // An NFO or artwork placed next to the file since the last scan.
-                (local.nfo != null && item.nfoPath != local.nfo.relativePath) ||
-                (local.poster != null && item.posterPath?.startsWith("file:") != true)
+                // An NFO or artwork placed next to the file, or removed, since the last scan.
+                item.nfoPath != local.nfo?.relativePath ||
+                (local.poster != null) != (item.posterPath?.startsWith("file:") == true)
         }
         _state.update { it.copy(total = todo.size) }
         Log.i(TAG, "${source.name}: ${files.size} files, ${missing.size} removed, ${todo.size} to process")
@@ -139,13 +139,19 @@ class LibraryScanner(
 
         val nfoText = local.nfo?.let { readText(source, it) }
         val nfo = nfoText?.let(NfoParser::parse)
-        val needsTmdb = tmdb != null && (item.matchedAt == null || refreshMetadata || nfo != null)
-        if (nfo == null && !needsTmdb && local.poster == null && local.fanart == null && local.logo == null) return
+        // Sidecars that disappeared leave details to TMDB again.
+        val sidecarsRemoved = (item.nfoPath != null && local.nfo == null) ||
+            (local.poster == null && item.posterPath?.startsWith("file:") == true)
+        val needsTmdb = tmdb != null && (item.matchedAt == null || refreshMetadata || nfo != null || sidecarsRemoved)
+        if (nfo == null && !needsTmdb && !sidecarsRemoved && local.poster == null && local.fanart == null && local.logo == null) return
 
         // Identify exactly when the NFO carries an id; search by title otherwise.
         val movie = if (!needsTmdb) null else {
             val id = nfo?.tmdbId ?: nfo?.imdbId?.let { tmdb!!.findByImdb(it).first }
             id?.let { tmdb!!.movieById(it) } ?: tmdb!!.findMovie(nfo?.title ?: parsed.title, nfo?.year ?: parsed.year)
+        }
+        if (sidecarsRemoved) {
+            item = item.copy(title = parsed.title, tagline = null, overview = null, posterPath = null, backdropPath = null, logoPath = null, stillPath = null)
         }
         val title = nfo?.title ?: movie?.title ?: item.title
         item = item.copy(
