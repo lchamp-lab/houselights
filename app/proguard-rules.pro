@@ -1,0 +1,20 @@
+-keepattributes *Annotation*, InnerClasses, Signature, Exceptions
+-keep,includedescriptorclasses class app.posterwall.**$$serializer { *; }
+-keepclassmembers class app.posterwall.** { *** Companion; }
+-keepclasseswithmembers class app.posterwall.** { kotlinx.serialization.KSerializer serializer(...); }
+-keep,allowobfuscation,allowshrinking interface retrofit2.Call
+-keep,allowobfuscation,allowshrinking class retrofit2.Response
+-keep,allowobfuscation,allowshrinking class kotlin.coroutines.Continuation
+-keep interface app.posterwall.data.JellyfinApi { *; }
+-dontwarn okhttp3.internal.platform.**
+-dontwarn org.conscrypt.**
+
+# smbj: Kerberos (GSS) and EL are optional desktop features, absent on Android.
+-dontwarn javax.el.**
+-dontwarn org.ietf.jgss.**
+# smbj registers event handlers and security providers through reflection.
+-keep class com.hierynomus.** { *; }
+-keep class net.engio.mbassy.** { *; }
+-keep class org.bouncycastle.jcajce.provider.** { *; }
+-keep class org.bouncycastle.jce.provider.** { *; }
+-dontwarn org.bouncycastle.**
