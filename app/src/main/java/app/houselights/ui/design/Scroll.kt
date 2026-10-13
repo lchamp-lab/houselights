@@ -2,6 +2,19 @@ package app.houselights.ui.design
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.gestures.BringIntoViewSpec
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.composed
+import androidx.compose.foundation.focusGroup
+import androidx.compose.ui.ExperimentalComposeUiApi
+import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.focus.onFocusChanged
+import kotlinx.coroutines.launch
 import kotlin.math.abs
 
 /**
@@ -19,4 +32,31 @@ val HlBringIntoView = object : BringIntoViewSpec {
             else -> trailing - containerSize
         }
     }
+}
+
+/**
+ * Keeps vertical navigation inside this column: up or down at its edges does nothing instead
+ * of jumping to a neighbouring column. Left and right still leave it.
+ */
+@OptIn(ExperimentalComposeUiApi::class)
+fun Modifier.keepVerticalFocus(): Modifier = this
+    .focusProperties {
+        exit = { direction ->
+            if (direction == FocusDirection.Up || direction == FocusDirection.Down) FocusRequester.Cancel else FocusRequester.Default
+        }
+    }
+    .focusGroup()
+
+/**
+ * When focus enters this element, scroll it fully into view, not only the focused child.
+ * Use it on groups whose title or context sits above their first focusable element
+ * (a row and its header, a hero and its buttons, a settings section).
+ */
+@OptIn(ExperimentalFoundationApi::class)
+fun Modifier.revealOnFocus(): Modifier = composed {
+    val requester = remember { BringIntoViewRequester() }
+    val scope = rememberCoroutineScope()
+    this
+        .bringIntoViewRequester(requester)
+        .onFocusChanged { if (it.hasFocus) scope.launch { requester.bringIntoView() } }
 }

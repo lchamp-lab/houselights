@@ -14,12 +14,14 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -51,6 +53,7 @@ import app.houselights.ui.design.components.ScreenTitle
 import app.houselights.ui.design.components.rememberAmbientColor
 import app.houselights.ui.util.appContainer
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 private const val COLUMNS = 7
 
@@ -73,6 +76,8 @@ fun LibraryScreen(
     }
     val gridFocus = remember { FocusRequester() }
     var gridHasFocus by remember { mutableStateOf(false) }
+    val gridState = rememberLazyGridState()
+    val scope = rememberCoroutineScope()
     var focusedOnce by remember { mutableStateOf(false) }
     LaunchedEffect(state.items.isNotEmpty()) {
         if (state.items.isNotEmpty() && !focusedOnce) {
@@ -126,6 +131,7 @@ fun LibraryScreen(
                     )
                     else -> CompositionLocalProvider(LocalGroupFocused provides gridHasFocus) { LazyVerticalGrid(
                         columns = GridCells.Fixed(COLUMNS),
+                        state = gridState,
                         contentPadding = PaddingValues(start = HlSpace.safeH, end = HlSpace.safeH, top = HlSpace.m, bottom = HlSpace.xxl),
                         horizontalArrangement = Arrangement.spacedBy(HlSpace.l),
                         verticalArrangement = Arrangement.spacedBy(HlSpace.l),
@@ -138,6 +144,8 @@ fun LibraryScreen(
                                 width = null,
                                 onFocused = {
                                     focused = item
+                                    // The first line sits under the padding: show it all.
+                                    if (index < COLUMNS) scope.launch { gridState.animateScrollToItem(0) }
                                     if (index > state.items.size - COLUMNS * 3) vm.loadMore()
                                 },
                                 modifier = if (index == 0) Modifier.focusRequester(gridFocus) else Modifier,

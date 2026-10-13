@@ -60,6 +60,7 @@ import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.LocalAmbient
+import app.houselights.ui.design.revealOnFocus
 import app.houselights.ui.util.toPx
 import coil.compose.AsyncImage
 
@@ -77,7 +78,7 @@ fun MediaRow(
     content: LazyListScope.() -> Unit,
 ) {
     var rowFocused by remember { mutableStateOf(false) }
-    Column(modifier) {
+    Column(modifier.revealOnFocus()) {
         if (header != null) SectionHeader(header, Modifier.padding(start = HlSpace.safeH, bottom = HlSpace.xxs))
         CompositionLocalProvider(LocalGroupFocused provides rowFocused) {
             LazyRow(

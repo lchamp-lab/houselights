@@ -29,6 +29,7 @@ import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.keepVerticalFocus
 
 /**
  * Layout shared by setup screens: what this is and what is happening on the left,
@@ -55,7 +56,7 @@ fun HlFormScaffold(
             Box(Modifier.width(HlSize.hairline).fillMaxHeight().padding(vertical = HlSpace.xl).background(Hl.colors.outline.copy(alpha = 0.5f)))
             Spacer(Modifier.width(HlSpace.xl))
             Column(
-                Modifier.weight(1f).fillMaxHeight().verticalScroll(rememberScrollState()).padding(top = 72.dp, bottom = HlSpace.xxl, end = HlSpace.m),
+                Modifier.weight(1f).fillMaxHeight().keepVerticalFocus().verticalScroll(rememberScrollState()).padding(top = 72.dp, bottom = HlSpace.xxl, end = HlSpace.m),
                 verticalArrangement = Arrangement.spacedBy(HlSpace.l),
                 content = form,
             )

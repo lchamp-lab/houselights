@@ -77,6 +77,8 @@ import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.keepVerticalFocus
+import app.houselights.ui.design.revealOnFocus
 import app.houselights.ui.design.components.Backdrop
 import app.houselights.ui.design.components.BackdropStyle
 import app.houselights.ui.design.components.Badge
@@ -112,7 +114,7 @@ fun SettingsScreen(onAddFolder: () -> Unit, onChangeSource: () -> Unit) {
     Box(Modifier.fillMaxSize()) {
         Backdrop(null, BackdropStyle.Quiet)
         Row(Modifier.fillMaxSize().padding(start = HlSpace.safeH, end = HlSpace.safeH, top = HlSpace.safeV)) {
-            Column(Modifier.width(260.dp).fillMaxHeight()) {
+            Column(Modifier.width(260.dp).fillMaxHeight().keepVerticalFocus()) {
                 ScreenTitle(stringResource(R.string.settings_title))
                 Spacer(Modifier.height(HlSpace.xl))
                 panes.forEachIndexed { i, p ->
@@ -165,8 +167,8 @@ private fun NavItem(pane: Pane, selected: Boolean, onFocused: () -> Unit, modifi
 @Composable
 private fun PaneContent(pane: Pane, s: AppSettings, onAddFolder: () -> Unit, onChangeSource: () -> Unit, modifier: Modifier) {
     LazyColumn(
-        modifier = modifier.fillMaxHeight().focusRestorer(),
-        contentPadding = PaddingValues(top = 72.dp, bottom = HlSpace.xxl, end = HlSpace.m),
+        modifier = modifier.fillMaxHeight().keepVerticalFocus().focusRestorer(),
+        contentPadding = PaddingValues(bottom = HlSpace.xxl, end = HlSpace.m),
         verticalArrangement = Arrangement.spacedBy(HlSpace.l),
     ) {
         when (pane) {
@@ -183,23 +185,29 @@ private fun PaneContent(pane: Pane, s: AppSettings, onAddFolder: () -> Unit, onC
 private fun LazyListScope.libraryPane(s: AppSettings, onAddFolder: () -> Unit, onChangeSource: () -> Unit) {
     when (val source = s.source) {
         SourceConfig.Local -> {
-            item { PaneHeader(stringResource(R.string.section_source), stringResource(R.string.library_desc)) }
-            item { Folders(onAddFolder) }
-            item { TmdbKey() }
+            item {
+                Section {
+                    PaneHeader(stringResource(R.string.section_source), stringResource(R.string.library_desc))
+                    Folders(onAddFolder)
+                }
+            }
+            item { Box(Modifier.revealOnFocus()) { TmdbKey() } }
         }
         is SourceConfig.Jellyfin -> {
-            item { PaneHeader(stringResource(R.string.source_jellyfin), null) }
             item {
-                InfoList(
+                Section {
+                    PaneHeader(stringResource(R.string.source_jellyfin), null)
+                    InfoList(
                     stringResource(R.string.label_server) to (source.serverName ?: "Jellyfin"),
                     stringResource(R.string.label_address) to source.serverUrl,
                     stringResource(R.string.label_user) to (source.userName ?: "?"),
-                )
+                    )
+                }
             }
         }
         null -> {}
     }
-    item { ChangeSource(onChangeSource) }
+    item { Box(Modifier.revealOnFocus()) { ChangeSource(onChangeSource) } }
 }
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -350,9 +358,13 @@ private fun ChangeSource(onChangeSource: () -> Unit) {
 // --- Playback (Jellyfin) ---------------------------------------------------------------------
 
 private fun LazyListScope.playbackPane(s: AppSettings) {
-    item { PaneHeader(stringResource(R.string.section_playback), stringResource(R.string.playback_desc)) }
-    item { PlaybackSource(s) }
-    item { PathMappings(s) }
+    item {
+        Section {
+            PaneHeader(stringResource(R.string.section_playback), stringResource(R.string.playback_desc))
+            PlaybackSource(s)
+        }
+    }
+    item { Box(Modifier.revealOnFocus()) { PathMappings(s) } }
 }
 
 @Composable
@@ -417,17 +429,19 @@ private fun PathMappings(s: AppSettings) {
 // --- Display ---------------------------------------------------------------------------------
 
 private fun LazyListScope.displayPane(s: AppSettings) {
-    item { PaneHeader(stringResource(R.string.section_display), stringResource(R.string.display_desc)) }
     item {
         val app = appContainer()
         val scope = rememberCoroutineScope()
-        Choice(
+        Section {
+            PaneHeader(stringResource(R.string.section_display), stringResource(R.string.display_desc))
+            Choice(
             title = stringResource(R.string.ui_label),
             description = null,
             options = listOf(stringResource(R.string.ui_4k), stringResource(R.string.ui_system)),
             selected = if (s.ui4k) 0 else 1,
             onSelect = { scope.launch { app.settings.setUi4k(it == 0) } },
-        )
+            )
+        }
     }
     item { DisplayInfo() }
 }
@@ -450,8 +464,7 @@ private fun DisplayInfo() {
 // --- About -----------------------------------------------------------------------------------
 
 private fun LazyListScope.aboutPane(s: AppSettings) {
-    item { PaneHeader(stringResource(R.string.section_about), null) }
-    item { AboutInfo(s) }
+    item { Section { PaneHeader(stringResource(R.string.section_about), null); AboutInfo(s) } }
     item { Hint(stringResource(R.string.tmdb_attribution), Hl.colors.contentTertiary) }
 }
 
@@ -483,6 +496,18 @@ private fun AboutInfo(s: AppSettings) {
 }
 
 // --- Building blocks -------------------------------------------------------------------------
+
+/**
+ * First group of a pane: the space aligning it with the navigation, its header and first
+ * controls, revealed together so going back up always shows the header.
+ */
+@Composable
+private fun Section(content: @Composable () -> Unit) {
+    Column(Modifier.revealOnFocus(), verticalArrangement = Arrangement.spacedBy(HlSpace.l)) {
+        Spacer(Modifier.height(72.dp - HlSpace.l))
+        content()
+    }
+}
 
 @Composable
 private fun PaneHeader(title: String, description: String?) {

@@ -31,6 +31,8 @@ size or a font**: they use the tokens and components below.
 | `HlMotion` | `Motion.kt` | `FAST` 150, `STANDARD` 250, `SLOW` 600, `DIM` 700 ms; `SETTLE` 220 ms before a backdrop changes |
 | `HlIcons` | `Icons.kt` | line icons drawn for the app (folder, server, display, playback, lamp); core Material icons for the rest |
 | `HlBringIntoView` | `Scroll.kt` | lists scroll only as much as needed; replaces the TV default that pivots focus to a third of the screen |
+| `revealOnFocus()` | `Scroll.kt` | when focus enters a group (row and header, hero and buttons, settings section), the whole group comes into view |
+| `keepVerticalFocus()` | `Scroll.kt` | up and down never leave a column (settings panes, forms); only left and right do |
 
 ## Components
 

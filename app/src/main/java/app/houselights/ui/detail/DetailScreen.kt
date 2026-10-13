@@ -47,6 +47,7 @@ import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.LocalAmbient
+import app.houselights.ui.design.revealOnFocus
 import app.houselights.ui.design.components.Backdrop
 import app.houselights.ui.design.components.BackdropStyle
 import app.houselights.ui.design.components.BadgeRow
@@ -98,7 +99,7 @@ fun DetailScreen(
                     verticalArrangement = Arrangement.spacedBy(HlSpace.l),
                 ) {
                     item(key = "hero") {
-                        Box(Modifier.fillMaxWidth().height(screenHeight * 0.9f)) {
+                        Box(Modifier.fillMaxWidth().height(screenHeight * 0.9f).revealOnFocus()) {
                             Hero(
                                 item = item,
                                 nextUp = state.nextUp,
@@ -113,7 +114,7 @@ fun DetailScreen(
                     }
 
                     if (item.kind == MediaKind.SERIES && state.seasons.isNotEmpty()) {
-                        item(key = "seasons") { Seasons(state.seasons, state.selectedSeasonId, vm::selectSeason) }
+                        item(key = "seasons") { Box(Modifier.revealOnFocus()) { Seasons(state.seasons, state.selectedSeasonId, vm::selectSeason) } }
                         item(key = "episodes-${state.selectedSeasonId}") {
                             Episodes(
                                 episodes = state.episodes,
