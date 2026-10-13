@@ -1,0 +1,251 @@
+package app.houselights.ui.edit
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.tv.material3.Text
+import app.houselights.R
+import app.houselights.core.ArtworkChoices
+import app.houselights.core.ArtworkKind
+import app.houselights.core.ArtworkOption
+import app.houselights.core.ArtworkOrigin
+import app.houselights.core.MediaItem
+import app.houselights.ui.design.Hl
+import app.houselights.ui.design.HlMotion
+import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.LocalAmbient
+import app.houselights.ui.design.components.ArtworkChoiceCard
+import app.houselights.ui.design.components.Backdrop
+import app.houselights.ui.design.components.BackdropStyle
+import app.houselights.ui.design.components.CardSkeleton
+import app.houselights.ui.design.components.Emphasis
+import app.houselights.ui.design.components.HlButton
+import app.houselights.ui.design.components.MediaRow
+import app.houselights.ui.design.components.MetaLine
+import app.houselights.ui.design.components.ScreenTitle
+import app.houselights.ui.design.components.TitleArt
+import app.houselights.ui.design.components.rememberAmbientColor
+import app.houselights.ui.util.appContainer
+import app.houselights.ui.util.languageName
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+
+/**
+ * Choosing one piece of artwork. The page behind previews the focused choice where it will
+ * be used: the backdrop behind the title, the logo above it; posters are seen in the row.
+ */
+@Composable
+fun ArtworkScreen(itemId: String, kind: ArtworkKind, onDone: () -> Unit) {
+    val app = appContainer()
+    val vm = viewModel(key = "artwork-$itemId-$kind") { ArtworkViewModel(app, itemId, kind) }
+    val state by vm.state.collectAsStateWithLifecycle()
+    val scope = rememberCoroutineScope()
+    val item = state.item
+    val choices = state.choices
+
+    var focused by remember { mutableStateOf<ArtworkOption?>(null) }
+    // The preview follows focus once it settles: no image load on every step.
+    var shown by remember { mutableStateOf<ArtworkOption?>(null) }
+    LaunchedEffect(focused) {
+        delay(HlMotion.SETTLE)
+        shown = focused
+    }
+    val preview = shown ?: choices?.selected
+    val backdrop = if (kind == ArtworkKind.BACKDROP) preview?.image else item?.backdrop
+
+    CompositionLocalProvider(LocalAmbient provides rememberAmbientColor(backdrop)) {
+        Box(Modifier.fillMaxSize()) {
+            Backdrop(backdrop, if (kind == ArtworkKind.POSTER) BackdropStyle.Quiet else BackdropStyle.Full)
+            Column(Modifier.fillMaxSize().padding(top = HlSpace.safeV, bottom = HlSpace.m)) {
+                Header(kind, item, choices)
+                Box(
+                    Modifier.weight(1f).fillMaxWidth().padding(horizontal = HlSpace.safeH, vertical = HlSpace.m),
+                    contentAlignment = Alignment.BottomStart,
+                ) {
+                    if (item != null) Preview(kind, item, preview)
+                }
+                when {
+                    state.error != null -> Problem(state.error!!, vm::load)
+                    choices == null -> Skeletons(kind)
+                    choices.options.isEmpty() -> Text(
+                        stringResource(R.string.artwork_empty),
+                        style = Hl.type.body,
+                        color = Hl.colors.contentSecondary,
+                        modifier = Modifier.padding(horizontal = HlSpace.safeH, vertical = HlSpace.xl),
+                    )
+                    else -> Choices(
+                        kind = kind,
+                        item = item!!,
+                        choices = choices,
+                        onFocus = { focused = it },
+                        onChoose = { option -> scope.launch { if (vm.choose(option)) onDone() } },
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun Header(kind: ArtworkKind, item: MediaItem?, choices: ArtworkChoices?) {
+    Column(Modifier.padding(horizontal = HlSpace.safeH)) {
+        ScreenTitle(stringResource(kind.title))
+        Spacer(Modifier.height(HlSpace.xxs))
+        Row(horizontalArrangement = Arrangement.spacedBy(18.dp)) {
+            item?.let { Text(it.title, style = Hl.type.meta, color = Hl.colors.content) }
+            choices?.let {
+                Text(pluralStringResource(R.plurals.image_count, it.options.size, it.options.size), style = Hl.type.meta, color = Hl.colors.contentSecondary)
+            }
+        }
+        Spacer(Modifier.height(HlSpace.xs))
+        Text(
+            stringResource(if (choices != null && !choices.onlineAvailable) R.string.artwork_offline else R.string.artwork_hint),
+            style = Hl.type.caption,
+            color = if (choices != null && !choices.onlineAvailable) Hl.colors.tungsten else Hl.colors.contentTertiary,
+            modifier = Modifier.widthIn(max = 640.dp),
+        )
+    }
+}
+
+/** The title as the detail page will show it with the focused choice. */
+@Composable
+private fun Preview(kind: ArtworkKind, item: MediaItem, preview: ArtworkOption?) {
+    when (kind) {
+        ArtworkKind.BACKDROP -> Column {
+            TitleArt(item.title, item.logo, maxWidth = 380.dp, maxHeight = 96.dp, style = Hl.type.headline)
+            Spacer(Modifier.height(HlSpace.m))
+            MetaLine(item)
+        }
+        ArtworkKind.LOGO -> TitleArt(
+            title = item.title,
+            logo = preview?.image,
+            maxWidth = 440.dp,
+            maxHeight = 112.dp,
+        )
+        ArtworkKind.POSTER -> Unit
+    }
+}
+
+@Composable
+private fun Choices(
+    kind: ArtworkKind,
+    item: MediaItem,
+    choices: ArtworkChoices,
+    onFocus: (ArtworkOption) -> Unit,
+    onChoose: (ArtworkOption) -> Unit,
+) {
+    val selectedIndex = choices.options.indexOf(choices.selected).coerceAtLeast(0)
+    val listState = rememberLazyListState(initialFirstVisibleItemIndex = selectedIndex)
+    val selectedFocus = remember { FocusRequester() }
+    LaunchedEffect(Unit) {
+        // Start on the image in use, once the row has laid it out.
+        withFrameNanos { }
+        runCatching { selectedFocus.requestFocus() }
+    }
+    MediaRow(header = null, state = listState) {
+        itemsIndexed(choices.options, key = { _, o -> o.value }) { i, option ->
+            val automatic = option == choices.automatic
+            ArtworkChoiceCard(
+                image = option.image,
+                selected = option == choices.selected,
+                title = if (automatic) stringResource(R.string.artwork_automatic) else describe(kind, option),
+                caption = if (automatic) listOfNotNull(describe(kind, option), size(option)).joinToString(" · ") else size(option),
+                onClick = { onChoose(option) },
+                width = kind.cardWidth,
+                aspectRatio = kind.aspectRatio,
+                fit = kind == ArtworkKind.LOGO,
+                placeholder = item.title.takeIf { option.origin == ArtworkOrigin.NONE },
+                onFocused = { onFocus(option) },
+                modifier = if (i == selectedIndex) Modifier.focusRequester(selectedFocus) else Modifier,
+            )
+        }
+    }
+}
+
+/** What an option is: its language, or where it comes from. */
+@Composable
+private fun describe(kind: ArtworkKind, option: ArtworkOption): String = when (option.origin) {
+    ArtworkOrigin.NONE -> stringResource(R.string.artwork_title_in_type)
+    ArtworkOrigin.LOCAL_FILE -> stringResource(R.string.artwork_local_file)
+    ArtworkOrigin.NFO -> stringResource(R.string.artwork_from_nfo)
+    ArtworkOrigin.ONLINE -> languageName(option.language)
+        ?: stringResource(if (kind == ArtworkKind.LOGO) R.string.artwork_any_language else R.string.artwork_no_text)
+}
+
+private fun size(option: ArtworkOption): String? =
+    if (option.width > 0 && option.height > 0) "${option.width} × ${option.height}" else null
+
+@Composable
+private fun Skeletons(kind: ArtworkKind) {
+    Row(
+        Modifier.padding(horizontal = HlSpace.safeH, vertical = HlSpace.m),
+        horizontalArrangement = Arrangement.spacedBy(HlSpace.m),
+    ) {
+        repeat(8) { CardSkeleton(kind.cardWidth, kind.aspectRatio) }
+    }
+}
+
+@Composable
+private fun Problem(error: EditError, onRetry: () -> Unit) {
+    val focus = remember { FocusRequester() }
+    LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
+    Column(Modifier.padding(horizontal = HlSpace.safeH, vertical = HlSpace.xl)) {
+        Text(stringResource(error.message), style = Hl.type.body, color = Hl.colors.content, modifier = Modifier.widthIn(max = 640.dp))
+        Spacer(Modifier.height(HlSpace.l))
+        HlButton(stringResource(R.string.retry), onRetry, Modifier.focusRequester(focus), icon = Icons.Filled.Refresh, emphasis = Emphasis.Primary)
+    }
+}
+
+private val ArtworkKind.title
+    get() = when (this) {
+        ArtworkKind.POSTER -> R.string.artwork_poster
+        ArtworkKind.BACKDROP -> R.string.artwork_backdrop
+        ArtworkKind.LOGO -> R.string.artwork_logo
+    }
+
+/** Choices are shown at the shape they are used in. */
+private val ArtworkKind.cardWidth: Dp
+    get() = when (this) {
+        ArtworkKind.POSTER -> 150.dp
+        ArtworkKind.BACKDROP, ArtworkKind.LOGO -> 240.dp
+    }
+
+private val ArtworkKind.aspectRatio: Float
+    get() = if (this == ArtworkKind.POSTER) 2f / 3f else 16f / 9f
+
+val EditError.message
+    get() = when (this) {
+        EditError.OFFLINE -> R.string.edit_error_offline
+        EditError.NO_KEY -> R.string.edit_error_no_key
+        EditError.FAILED -> R.string.edit_error_failed
+    }

@@ -24,6 +24,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import app.houselights.core.ArtworkKind
 import app.houselights.core.Library
 import app.houselights.core.LibraryKind
 import app.houselights.core.MediaItem
@@ -37,6 +38,8 @@ import androidx.compose.runtime.mutableStateOf
 import kotlinx.coroutines.delay
 import app.houselights.ui.detail.DetailScreen
 import app.houselights.ui.detail.NfoScreen
+import app.houselights.ui.edit.ArtworkScreen
+import app.houselights.ui.edit.IdentifyScreen
 import app.houselights.ui.home.HomeScreen
 import app.houselights.ui.library.LibraryScreen
 import app.houselights.ui.onboarding.AddFolderScreen
@@ -213,7 +216,20 @@ private fun AppNavigation(onPlay: (MediaItem, Boolean) -> Unit) {
                 onPlay = onPlay,
                 onOpenItem = ::openItem,
                 onOpenNfo = { nav.navigate("nfo/$it") },
+                onEditArtwork = { id, kind -> nav.navigate("artwork/$id/${kind.name}") },
+                onIdentify = { nav.navigate("identify/$it") },
             )
+        }
+        composable("artwork/{id}/{kind}") { entry ->
+            val args = entry.arguments!!
+            ArtworkScreen(
+                itemId = args.getString("id")!!,
+                kind = ArtworkKind.valueOf(args.getString("kind")!!),
+                onDone = { nav.popBackStack() },
+            )
+        }
+        composable("identify/{id}") { entry ->
+            IdentifyScreen(entry.arguments!!.getString("id")!!, onDone = { nav.popBackStack() })
         }
         composable("nfo/{id}") { entry -> NfoScreen(entry.arguments!!.getString("id")!!) }
         composable("settings") {

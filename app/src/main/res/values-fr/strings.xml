@@ -243,4 +243,49 @@
     <string name="unreachable">injoignable</string>
     <string name="testing">test…</string>
     <string name="version">Houselights %s</string>
+    <!-- Modifier les images et l'identification -->
+    <string name="edit">Modifier</string>
+    <string name="edit_title">Modifier « %s »</string>
+    <string name="artwork_poster">Affiche</string>
+    <string name="artwork_poster_desc">L\'image des rangées et de la bibliothèque</string>
+    <string name="artwork_backdrop">Fond d\'écran</string>
+    <string name="artwork_backdrop_desc">L\'image derrière cette fiche et sur l\'accueil</string>
+    <string name="artwork_logo">Logo</string>
+    <string name="artwork_logo_desc">Le titre dessiné en haut de cette fiche</string>
+    <string name="identify">Identifier</string>
+    <string name="identify_menu_desc">Associer à un autre titre de TMDB</string>
+    <plurals name="image_count">
+        <item quantity="one">%d image</item>
+        <item quantity="other">%d images</item>
+    </plurals>
+    <string name="artwork_hint">Votre choix est conservé lors des analyses. « Automatique » laisse Houselights choisir.</string>
+    <string name="artwork_offline">Les images en ligne ne sont pas disponibles : identifiez d\'abord ce titre, ou vérifiez la connexion.</string>
+    <string name="artwork_empty">Aucune image trouvée pour ce titre.</string>
+    <string name="artwork_automatic">Automatique</string>
+    <string name="artwork_no_text">Sans texte</string>
+    <string name="artwork_any_language">Toutes langues</string>
+    <string name="artwork_local_file">Fichier local</string>
+    <string name="artwork_from_nfo">Lien du NFO</string>
+    <string name="artwork_title_in_type">Titre en texte</string>
+    <string name="identify_desc">Recherchez le titre exact sur TMDB. Votre choix prime sur l\'association automatique et est conservé lors des prochaines analyses.</string>
+    <string name="identify_file">Fichier</string>
+    <string name="identify_folder">Dossier</string>
+    <string name="identify_current">Associé à</string>
+    <string name="identify_none">Pas encore identifié</string>
+    <string name="identify_manual">Votre choix</string>
+    <string name="identify_automatic">Automatique</string>
+    <string name="identify_reset">Rétablir l\'automatique</string>
+    <string name="search">Rechercher</string>
+    <string name="search_placeholder">Titre, ou identifiant IMDb (tt…)</string>
+    <string name="searching">Recherche…</string>
+    <string name="identifying">Association en cours…</string>
+    <string name="search_empty">Aucun résultat. Essayez un autre titre, sans l\'année, ou un identifiant IMDb (tt…).</string>
+    <plurals name="result_count">
+        <item quantity="one">%d résultat</item>
+        <item quantity="other">%d résultats</item>
+    </plurals>
+    <string name="result_current">Actuel</string>
+    <string name="edit_error_offline">TMDB est injoignable. Vérifiez la connexion, puis réessayez.</string>
+    <string name="edit_error_no_key">Ajoutez une clé TMDB dans les réglages pour rechercher et lister les images.</string>
+    <string name="edit_error_failed">L\'opération n\'a pas abouti. Réessayez dans un instant.</string>
 </resources>

@@ -22,6 +22,8 @@ data class DetailState(
     val selectedSeasonId: String? = null,
     val episodes: List<MediaItem> = emptyList(),
     val similar: List<MediaItem> = emptyList(),
+    /** Artwork and identification can be changed. */
+    val canEdit: Boolean = false,
 )
 
 class DetailViewModel(private val app: AppContainer, private val itemId: String) : ViewModel() {
@@ -52,7 +54,7 @@ class DetailViewModel(private val app: AppContainer, private val itemId: String)
                 } else {
                     DetailState(item = item, capabilities = provider.capabilities, similar = similar.await())
                 }
-            }.onSuccess { _state.value = it }
+            }.onSuccess { loaded -> _state.value = loaded.copy(canEdit = loaded.item?.let { app.provider.editor?.canEdit(it) } == true) }
                 .onFailure { e -> _state.update { it.copy(error = e.message ?: e.javaClass.simpleName) } }
         }
     }

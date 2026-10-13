@@ -15,6 +15,7 @@ import app.houselights.core.LibraryKind
 import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
 import app.houselights.core.MediaProvider
+import app.houselights.core.MetadataEditor
 import app.houselights.core.NfoDocument
 import app.houselights.core.Page
 import app.houselights.core.PlaybackOptions
@@ -27,8 +28,12 @@ import app.houselights.core.SortOption
 import app.houselights.core.UserState
 import app.houselights.providers.local.TmdbClient.Companion.ImageType
 
-/** Library built by [LibraryScanner] from the user's SMB shares. */
-class LocalProvider(private val context: Context, private val dao: LibraryDao) : MediaProvider {
+/** Library built by [LibraryScanner] from the user's network folders. */
+class LocalProvider(
+    private val context: Context,
+    private val dao: LibraryDao,
+    override val editor: MetadataEditor,
+) : MediaProvider {
     override val name: String = context.getString(R.string.source_local)
 
     override val capabilities = ProviderCapabilities(markPlayed = true, favorites = true, similar = true, pathMapping = false)
@@ -268,9 +273,13 @@ class LocalProvider(private val context: Context, private val dao: LibraryDao) :
                 badges = e.badges.split('|').filter { it.isNotBlank() },
                 media = media,
                 hasNfo = e.nfo != null,
-                poster = (e.posterPath ?: show?.posterPath)?.let { image(it, ImageType.POSTER) },
-                backdrop = (e.backdropPath ?: show?.backdropPath)?.let { image(it, ImageType.BACKDROP) },
-                logo = (e.logoPath ?: show?.logoPath)?.let { image(it, ImageType.LOGO) },
+                // Seasons and episodes show their series' artwork when they have none.
+                poster = (shown(e.userPosterPath, e.posterPath) ?: show?.let { shown(it.userPosterPath, it.posterPath) })
+                    ?.let { image(it, ImageType.POSTER) },
+                backdrop = (shown(e.userBackdropPath, e.backdropPath) ?: show?.let { shown(it.userBackdropPath, it.backdropPath) })
+                    ?.let { image(it, ImageType.BACKDROP) },
+                logo = (shown(e.userLogoPath, e.logoPath) ?: show?.let { shown(it.userLogoPath, it.logoPath) })
+                    ?.let { image(it, ImageType.LOGO) },
                 thumb = e.stillPath?.let { image(it, ImageType.STILL) },
                 user = UserState(
                     played = e.played || (unplayed == 0 && seasonCount != null && seasonCount > 0),
@@ -294,8 +303,15 @@ class LocalProvider(private val context: Context, private val dao: LibraryDao) :
         private const val WATCHED_RATIO = 0.9
         private const val MIN_RESUME_MS = 60_000L
 
+        /** The user's choice over the automatic value; an empty choice means none (a logo set in type). */
+        private fun shown(user: String?, automatic: String?): String? = when {
+            user == null -> automatic
+            user.isEmpty() -> null
+            else -> user
+        }
+
         /** A cached local file, a full URL from an NFO, or a TMDB path. */
-        private fun image(path: String, type: ImageType) = when {
+        fun image(path: String, type: ImageType) = when {
             path.startsWith("file:") || path.startsWith("http") -> ImageRef(path) { path }
             else -> ImageRef("tmdb:$path") { w -> TmdbClient.imageUrl(path, type, w) }
         }

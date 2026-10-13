@@ -40,6 +40,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.tv.material3.Text
 import app.houselights.R
+import app.houselights.core.ArtworkKind
 import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
 import app.houselights.core.ProviderCapabilities
@@ -65,6 +66,7 @@ import app.houselights.ui.design.components.HlModal
 import app.houselights.ui.design.components.TechSpecs
 import app.houselights.ui.design.components.TitleArt
 import app.houselights.ui.design.components.rememberAmbientColor
+import app.houselights.ui.edit.EditMenu
 import app.houselights.ui.home.ErrorMessage
 import app.houselights.ui.util.appContainer
 import app.houselights.ui.util.formatDuration
@@ -76,6 +78,8 @@ fun DetailScreen(
     onPlay: (MediaItem, Boolean) -> Unit,
     onOpenItem: (String) -> Unit,
     onOpenNfo: (String) -> Unit,
+    onEditArtwork: (String, ArtworkKind) -> Unit,
+    onIdentify: (String) -> Unit,
 ) {
     val app = appContainer()
     val vm = viewModel(key = "detail-$itemId") { DetailViewModel(app, itemId) }
@@ -96,6 +100,15 @@ fun DetailScreen(
     val media = item.media?.takeIf { it.video != null || it.audio.isNotEmpty() }
     if (showTech && media != null) {
         HlModal(stringResource(R.string.tech_details), onDismiss = { showTech = false }) { TechSpecs(media) }
+    }
+    var showEdit by remember { mutableStateOf(false) }
+    if (showEdit) {
+        EditMenu(
+            title = item.title,
+            onDismiss = { showEdit = false },
+            onArtwork = { kind -> showEdit = false; onEditArtwork(item.id, kind) },
+            onIdentify = { showEdit = false; onIdentify(item.id) },
+        )
     }
 
     CompositionLocalProvider(LocalAmbient provides rememberAmbientColor(item.backdrop)) {
@@ -119,6 +132,7 @@ fun DetailScreen(
                                 onOpenSeries = { item.seriesId?.let(onOpenItem) },
                                 onOpenNfo = { onOpenNfo(item.id) },
                                 onShowTech = if (media != null) ({ showTech = true }) else null,
+                                onEdit = if (state.canEdit) ({ showEdit = true }) else null,
                                 modifier = Modifier.padding(start = HlSpace.safeH, bottom = HlSpace.l).align(Alignment.BottomStart),
                             )
                         }
@@ -167,6 +181,7 @@ private fun Hero(
     onOpenSeries: () -> Unit,
     onOpenNfo: () -> Unit,
     onShowTech: (() -> Unit)?,
+    onEdit: (() -> Unit)?,
     modifier: Modifier,
 ) {
     val playFocus = remember { FocusRequester() }
@@ -258,6 +273,9 @@ private fun Hero(
                     stringResource(if (item.user.favorite) R.string.favorite else R.string.add_favorite),
                     onClick = onToggleFavorite,
                 )
+            }
+            if (onEdit != null) {
+                HlIconButton(HlIcons.Edit, stringResource(R.string.edit), onClick = onEdit)
             }
         }
     }

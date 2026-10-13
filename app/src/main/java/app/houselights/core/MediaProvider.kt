@@ -75,4 +75,7 @@ interface MediaProvider {
 
     /** A sample server-side file path, shown in settings to help writing path mappings. */
     suspend fun samplePath(): String? = null
+
+    /** Artwork and identification editing, when this backend supports it. */
+    val editor: MetadataEditor? get() = null
 }

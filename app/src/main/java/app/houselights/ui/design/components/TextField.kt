@@ -39,6 +39,9 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.Text
 import app.houselights.ui.design.Hl
@@ -73,6 +76,15 @@ fun HlTextField(
         editing -> c.tungsten
         boxFocused -> c.focus
         else -> c.outline
+    }
+
+    // Always one line of body text tall. Empty, a field would otherwise take the platform
+    // font's line height and stand taller than its neighbours.
+    val textStyle = Hl.type.body.copy(color = c.content)
+    val measurer = rememberTextMeasurer()
+    val density = LocalDensity.current
+    val lineHeight = remember(textStyle, density) {
+        with(density) { measurer.measure("Ag", textStyle.copy(lineHeight = TextUnit.Unspecified)).size.height.toDp() }
     }
 
     LaunchedEffect(editing) {
@@ -115,7 +127,7 @@ fun HlTextField(
                 value = value,
                 onValueChange = onValueChange,
                 singleLine = true,
-                textStyle = Hl.type.body.copy(color = c.content),
+                textStyle = textStyle,
                 cursorBrush = SolidColor(if (editing) c.tungsten else Color.Transparent),
                 visualTransformation = if (password) PasswordVisualTransformation() else VisualTransformation.None,
                 keyboardOptions = KeyboardOptions(
@@ -130,6 +142,7 @@ fun HlTextField(
                 }),
                 modifier = Modifier
                     .fillMaxWidth()
+                    .height(lineHeight)
                     .focusRequester(fieldFocus)
                     .focusProperties { canFocus = editing }
                     .onFocusChanged {
@@ -139,7 +152,8 @@ fun HlTextField(
                     },
                 decorationBox = { inner ->
                     Box {
-                        if (value.isEmpty()) {
+                        // Only a real placeholder: an empty one would change the field's height.
+                        if (value.isEmpty() && placeholder.isNotEmpty()) {
                             Text(placeholder, style = Hl.type.body, color = c.contentTertiary)
                         }
                         inner()

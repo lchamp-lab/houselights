@@ -253,4 +253,49 @@
     <string name="unreachable">unreachable</string>
     <string name="testing">testing…</string>
     <string name="version">Houselights %s</string>
+    <!-- Editing artwork and identification -->
+    <string name="edit">Edit</string>
+    <string name="edit_title">Edit “%s”</string>
+    <string name="artwork_poster">Poster</string>
+    <string name="artwork_poster_desc">Shown in rows and in the library</string>
+    <string name="artwork_backdrop">Backdrop</string>
+    <string name="artwork_backdrop_desc">Behind this page and on the home screen</string>
+    <string name="artwork_logo">Logo</string>
+    <string name="artwork_logo_desc">The title drawn at the top of this page</string>
+    <string name="identify">Identify</string>
+    <string name="identify_menu_desc">Match with another TMDB title</string>
+    <plurals name="image_count">
+        <item quantity="one">%d image</item>
+        <item quantity="other">%d images</item>
+    </plurals>
+    <string name="artwork_hint">Your choice is kept by later scans. “Automatic” lets Houselights choose.</string>
+    <string name="artwork_offline">Online images are unavailable: identify this title first, or check the connection.</string>
+    <string name="artwork_empty">No image found for this title.</string>
+    <string name="artwork_automatic">Automatic</string>
+    <string name="artwork_no_text">No text</string>
+    <string name="artwork_any_language">Any language</string>
+    <string name="artwork_local_file">Local file</string>
+    <string name="artwork_from_nfo">NFO link</string>
+    <string name="artwork_title_in_type">Title in type</string>
+    <string name="identify_desc">Search for the exact title on TMDB. Your choice takes precedence over automatic matching and is kept by later scans.</string>
+    <string name="identify_file">File</string>
+    <string name="identify_folder">Folder</string>
+    <string name="identify_current">Matched with</string>
+    <string name="identify_none">Not identified yet</string>
+    <string name="identify_manual">Your choice</string>
+    <string name="identify_automatic">Automatic</string>
+    <string name="identify_reset">Back to automatic</string>
+    <string name="search">Search</string>
+    <string name="search_placeholder">Title, or IMDb id (tt…)</string>
+    <string name="searching">Searching…</string>
+    <string name="identifying">Matching…</string>
+    <string name="search_empty">No result. Try another title, without the year, or an IMDb id (tt…).</string>
+    <plurals name="result_count">
+        <item quantity="one">%d result</item>
+        <item quantity="other">%d results</item>
+    </plurals>
+    <string name="result_current">Current</string>
+    <string name="edit_error_offline">TMDB could not be reached. Check the connection, then try again.</string>
+    <string name="edit_error_no_key">Add a TMDB key in Settings to search and list images.</string>
+    <string name="edit_error_failed">This could not be done. Try again in a moment.</string>
 </resources>

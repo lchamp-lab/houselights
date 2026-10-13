@@ -9,6 +9,7 @@ import app.houselights.providers.jellyfin.JellyfinProvider
 import app.houselights.providers.local.ArtworkCache
 import app.houselights.providers.local.LibraryDatabase
 import app.houselights.providers.local.LibraryScanner
+import app.houselights.providers.local.LocalEditor
 import app.houselights.providers.local.LocalProvider
 import app.houselights.providers.local.TmdbClient
 import app.houselights.settings.SettingsStore
@@ -73,7 +74,7 @@ class AppContainer(private val app: Application) {
             val source = settings.state.value.source ?: error("No library source configured")
             cached?.takeIf { it.first == source }?.let { return it.second }
             val created = when (source) {
-                SourceConfig.Local -> LocalProvider(app, database.dao())
+                SourceConfig.Local -> LocalProvider(app, database.dao(), LocalEditor(database.dao(), scanner, ::tmdbKey))
                 is SourceConfig.Jellyfin -> JellyfinProvider(source, settings.state.value.deviceId)
             }
             cached = source to created

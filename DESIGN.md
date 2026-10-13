@@ -29,7 +29,7 @@ size or a font**: they use the tokens and components below.
 | `HlSize` | `Dimens.kt` | poster 112 dp, landscape 220, episode 264, avatar 76, icon 20, progress 3, focus border 2 |
 | `HlFocus` | `Dimens.kt` | focus scale (artwork 1.10, cards 1.06, controls 1.04), sibling dim 0.38, glow 18 dp |
 | `HlMotion` | `Motion.kt` | `FAST` 150, `STANDARD` 250, `SLOW` 600, `DIM` 700 ms; `SETTLE` 220 ms before a backdrop changes |
-| `HlIcons` | `Icons.kt` | line icons drawn for the app (folder, server, display, playback, lamp); core Material icons for the rest |
+| `HlIcons` | `Icons.kt` | line icons drawn for the app (folder, server, display, playback, document, storage, edit, poster, backdrop, logo, search, lamp); core Material icons for the rest |
 | `HlBringIntoView` | `Scroll.kt` | lists scroll only as much as needed; replaces the TV default that pivots focus to a third of the screen |
 | `revealOnFocus()` | `Scroll.kt` | when focus enters a group (row and header, hero and buttons, settings section), the whole group comes into view |
 | `keepVerticalFocus()` | `Scroll.kt` | up and down never leave a column (settings panes, forms); only left and right do |
@@ -42,15 +42,17 @@ size or a font**: they use the tokens and components below.
 | `rememberAmbientColor` | the light a picture spills into the room, animated |
 | `PosterCard`, `LandscapeCard`, `PersonCard` | artwork with the shared focus treatment (`ArtworkSurface`) |
 | `MediaRow` | horizontal row with header and focus restoration; dims the other cards when one is focused |
-| `HeroInfo`, `TitleArt`, `MetaLine`, `Badge` | what a title is: clear logo or condensed title, facts, formats |
+| `HeroInfo`, `TitleArt`, `MetaLine`, `Badge` | what a title is: clear logo or condensed title, facts, formats; a `lit` badge marks a state (in use, your choice) |
 | `HlButton` (`Primary`, `Secondary`), `HlIconButton` | pill actions; the icon button shows its label only when focused |
 | `HlTab`, `HlSegmented` | navigation, sorting and exclusive choices; the tungsten line marks the selection |
 | `HlListItem` | a choice in a vertical list, with an optional icon in a lit disc |
 | `HlMenuButton`, `MenuSection`, `MenuOption` | icon button opening a sectioned menu: closes on choice (sorting) or stays open (filters) |
 | `DefinitionList` | label and value pairs on a quiet panel (settings, NFO) |
-| `HlModal` | panel over the dimmed room for details on demand; focus stays inside, Back or Close dismisses |
+| `HlModal` | panel over the dimmed room for details on demand or a short list of actions; focus stays inside (on Close, or on `initialFocus`), Back or Close dismisses |
+| `ArtworkChoiceCard`, `SelectedMark` | one artwork to choose from, at the shape it is used in, captioned; the one in use carries the tungsten check |
+| `HlResultItem` | a search result: poster, name, year, original title and overview, styled like `HlListItem` |
 | `TechSpecs` | spec sheet of a file (video, audio tracks, subtitles by language, container, size, bitrate, duration), shown in an `HlModal` |
-| `HlTextField` | TV text field: focusable box first, keyboard on OK; tungsten while typing |
+| `HlTextField` | TV text field: focusable box first, keyboard on OK; tungsten while typing; always one line of body text tall, empty or not |
 | `HlFormScaffold`, `StatusPanel`, `FieldLabel` | setup screens: explanation and live status on the left, form on the right |
 | `PosterWall` | tilted, drifting wall of posters (welcome) |
 | `HouseLights` | fade to black before the player starts and back after |

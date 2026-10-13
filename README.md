@@ -17,6 +17,9 @@ player's own menus all keep working.
     clearlogo.png…) take precedence, and NFO ids identify titles exactly. Technical details (resolution, HDR,
     Dolby Vision, audio formats, subtitles) are read from the files themselves. Resume points, watched state
     and favorites are stored locally.
+    Each film or show can be corrected from its page: pick its poster, backdrop or logo among every image TMDB
+    has (with a live preview), or identify it manually by title, year or IMDb id. These choices are kept by
+    later scans and full refreshes, and "Automatic" hands the decision back to Houselights.
   - **Jellyfin**: browses your server and reports playback progress back to it.
   - Emby and Plex: planned.
 - **Native playback**: files are opened directly by the Zidoo player (`smb://`, `nfs://` or HTTP). Progress

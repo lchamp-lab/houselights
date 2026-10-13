@@ -29,6 +29,9 @@ data class TmdbSearchResult(
     val firstAirDate: String? = null,
     val popularity: Double = 0.0,
     val posterPath: String? = null,
+    val originalTitle: String? = null,
+    val originalName: String? = null,
+    val overview: String? = null,
 )
 
 @Serializable
@@ -50,7 +53,21 @@ data class TmdbCrewMember(val name: String, val job: String? = null)
 data class TmdbCredits(val cast: List<TmdbCastMember> = emptyList(), val crew: List<TmdbCrewMember> = emptyList())
 
 @Serializable
-data class TmdbImage(val filePath: String, @SerialName("iso_639_1") val iso6391: String? = null, val voteAverage: Double = 0.0)
+data class TmdbImage(
+    val filePath: String,
+    @SerialName("iso_639_1") val iso6391: String? = null,
+    val voteAverage: Double = 0.0,
+    val width: Int = 0,
+    val height: Int = 0,
+)
+
+/** Every image of a title, for the artwork pickers. */
+@Serializable
+data class TmdbImageSet(
+    val posters: List<TmdbImage> = emptyList(),
+    val backdrops: List<TmdbImage> = emptyList(),
+    val logos: List<TmdbImage> = emptyList(),
+)
 
 @Serializable
 data class TmdbImages(val logos: List<TmdbImage> = emptyList())
@@ -74,6 +91,7 @@ data class TmdbContentRatings(val results: List<TmdbContentRating> = emptyList()
 data class TmdbMovie(
     val id: Int,
     val title: String,
+    val imdbId: String? = null,
     val originalTitle: String? = null,
     val overview: String? = null,
     val tagline: String? = null,
@@ -166,6 +184,12 @@ interface TmdbApi {
         @Query("external_source") source: String = "imdb_id",
     ): TmdbFindResult
 
+    @GET("movie/{id}/images")
+    suspend fun movieImages(@Path("id") id: Int, @Query("include_image_language") languages: String): TmdbImageSet
+
+    @GET("tv/{id}/images")
+    suspend fun tvImages(@Path("id") id: Int, @Query("include_image_language") languages: String): TmdbImageSet
+
     @GET("trending/movie/week")
     suspend fun trendingMovies(@Query("language") language: String): TmdbPage<TmdbSearchResult>
 
@@ -177,7 +201,7 @@ interface TmdbApi {
 class TmdbClient(apiKey: String) {
     private val locale: Locale = Locale.getDefault()
     val language: String = locale.toLanguageTag().ifBlank { "en-US" }
-    private val languageCode: String = locale.language.ifBlank { "en" }
+    val languageCode: String = locale.language.ifBlank { "en" }
     val region: String = locale.country.ifBlank { "US" }
     private val imageLanguages = listOf(languageCode, "en", "null").distinct().joinToString(",")
 
@@ -213,9 +237,29 @@ class TmdbClient(apiKey: String) {
         return api.movie(hit.id, language, imageLanguages)
     }
 
-    suspend fun movieById(id: Int): TmdbMovie? = runCatching { api.movie(id, language, imageLanguages) }.getOrNull()
+    suspend fun movieById(id: Int): TmdbMovie? = runCatching { movie(id) }.getOrNull()
 
-    suspend fun tvById(id: Int): TmdbTv? = runCatching { api.tv(id, language, imageLanguages) }.getOrNull()
+    suspend fun tvById(id: Int): TmdbTv? = runCatching { tv(id) }.getOrNull()
+
+    /** Like [movieById], but a network error or an unknown id throws instead of returning null. */
+    suspend fun movie(id: Int): TmdbMovie = api.movie(id, language, imageLanguages)
+
+    suspend fun tv(id: Int): TmdbTv = api.tv(id, language, imageLanguages)
+
+    /** Search results, for manual identification. */
+    suspend fun searchMovies(query: String, year: Int?): List<TmdbSearchResult> = api.searchMovie(query, year, language).results
+
+    suspend fun searchShows(query: String, year: Int?): List<TmdbSearchResult> = api.searchTv(query, year, language).results
+
+    /** The film or show an IMDb id points to, as a search result. */
+    suspend fun findImdb(imdbId: String, show: Boolean): TmdbSearchResult? {
+        val r = api.find(imdbId)
+        return if (show) r.tvResults.firstOrNull() else r.movieResults.firstOrNull()
+    }
+
+    /** Every poster, backdrop and logo of a title: in the device language, in English and without text. */
+    suspend fun images(tmdbId: Int, show: Boolean): TmdbImageSet =
+        if (show) api.tvImages(tmdbId, imageLanguages) else api.movieImages(tmdbId, imageLanguages)
 
     /** TMDB ids of the film and show matching an IMDb id. */
     suspend fun findByImdb(imdbId: String): Pair<Int?, Int?> = runCatching {

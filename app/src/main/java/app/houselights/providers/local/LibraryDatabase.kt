@@ -85,6 +85,11 @@ data class ItemEntity(
     /** The NFO file next to the video (or the show), and its raw content. */
     val nfoPath: String? = null,
     val nfo: String? = null,
+    /** Choices made by the user; scans never override them. */
+    val userTmdbId: Int? = null,
+    val userPosterPath: String? = null,
+    val userBackdropPath: String? = null,
+    val userLogoPath: String? = null,
     val addedAt: Long,
     /** Last TMDB lookup (successful or not); null = never tried. */
     val matchedAt: Long? = null,
@@ -144,6 +149,10 @@ interface LibraryDao {
     @Query("SELECT * FROM items WHERE parentId = :parentId ORDER BY seasonNumber, episodeNumber, sortTitle")
     suspend fun children(parentId: Long): List<ItemEntity>
 
+    /** Forget TMDB details of a show's seasons and episodes, so the next scan fetches them again. */
+    @Query("UPDATE items SET matchedAt = NULL WHERE seriesId = :seriesId")
+    suspend fun unmatchChildren(seriesId: Long)
+
     @Query("SELECT * FROM items WHERE seriesId = :seriesId AND kind = 'EPISODE' ORDER BY seasonNumber, episodeNumber")
     suspend fun episodesOfSeries(seriesId: Long): List<ItemEntity>
 
@@ -197,12 +206,53 @@ interface LibraryDao {
     @Query("DELETE FROM items WHERE sourceId = :sourceId")
     suspend fun deleteItemsOfSource(sourceId: Long)
 
+    /**
+     * Saves what a scan found without touching what the user owns: artwork and match choices,
+     * favourite, watched state and resume point may have changed while the scan was working.
+     */
+    @Transaction
+    suspend fun saveScanned(item: ItemEntity) {
+        val current = item(item.id) ?: return
+        update(
+            item.copy(
+                userTmdbId = current.userTmdbId,
+                userPosterPath = current.userPosterPath,
+                userBackdropPath = current.userBackdropPath,
+                userLogoPath = current.userLogoPath,
+                positionMs = current.positionMs,
+                durationMs = current.durationMs,
+                played = current.played,
+                favorite = current.favorite,
+                lastPlayedAt = current.lastPlayedAt,
+            )
+        )
+    }
+
+    @Query("UPDATE items SET userPosterPath = :path WHERE id = :id")
+    suspend fun setUserPoster(id: Long, path: String?)
+
+    @Query("UPDATE items SET userBackdropPath = :path WHERE id = :id")
+    suspend fun setUserBackdrop(id: Long, path: String?)
+
+    @Query("UPDATE items SET userLogoPath = :path WHERE id = :id")
+    suspend fun setUserLogo(id: Long, path: String?)
+
+    @Query("UPDATE items SET userTmdbId = :tmdbId WHERE id = :id")
+    suspend fun setUserTmdbId(id: Long, tmdbId: Int?)
+
+    /** After a new match: artwork chosen for the previous title no longer applies. */
+    @Query("UPDATE items SET userPosterPath = NULL, userBackdropPath = NULL, userLogoPath = NULL WHERE id = :id")
+    suspend fun clearUserArtwork(id: Long)
+
     /** Every cached local image the library still points to. */
     @Query(
         "SELECT posterPath FROM items WHERE posterPath LIKE 'file:%' " +
             "UNION SELECT backdropPath FROM items WHERE backdropPath LIKE 'file:%' " +
             "UNION SELECT logoPath FROM items WHERE logoPath LIKE 'file:%' " +
             "UNION SELECT stillPath FROM items WHERE stillPath LIKE 'file:%' " +
+            "UNION SELECT userPosterPath FROM items WHERE userPosterPath LIKE 'file:%' " +
+            "UNION SELECT userBackdropPath FROM items WHERE userBackdropPath LIKE 'file:%' " +
+            "UNION SELECT userLogoPath FROM items WHERE userLogoPath LIKE 'file:%' " +
             "UNION SELECT profilePath FROM `cast` WHERE profilePath LIKE 'file:%'"
     )
     suspend fun cachedArtworkPaths(): List<String>
@@ -228,7 +278,7 @@ interface LibraryDao {
     }
 }
 
-@Database(entities = [SourceEntity::class, ItemEntity::class, CastEntity::class], version = 4, exportSchema = false)
+@Database(entities = [SourceEntity::class, ItemEntity::class, CastEntity::class], version = 5, exportSchema = false)
 abstract class LibraryDatabase : RoomDatabase() {
     abstract fun dao(): LibraryDao
 
@@ -252,9 +302,18 @@ abstract class LibraryDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE items ADD COLUMN userTmdbId INTEGER")
+                db.execSQL("ALTER TABLE items ADD COLUMN userPosterPath TEXT")
+                db.execSQL("ALTER TABLE items ADD COLUMN userBackdropPath TEXT")
+                db.execSQL("ALTER TABLE items ADD COLUMN userLogoPath TEXT")
+            }
+        }
+
         fun create(context: Context): LibraryDatabase =
             Room.databaseBuilder(context, LibraryDatabase::class.java, "library.db")
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
                 .build()
     }
 }

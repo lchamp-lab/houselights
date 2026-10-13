@@ -42,7 +42,8 @@ import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
 
 /**
- * A panel over the dimmed room, for details on demand. Focus stays inside; Back or
+ * A panel over the dimmed room, for details on demand or a short list of actions. Focus
+ * stays inside, on "Close" first unless [initialFocus] names another element; Back or
  * "Close" dismisses it.
  */
 @Composable
@@ -51,6 +52,7 @@ fun HlModal(
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
     width: Dp = 860.dp,
+    initialFocus: FocusRequester? = null,
     content: @Composable () -> Unit,
 ) {
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
@@ -60,7 +62,7 @@ fun HlModal(
 
         val visible = remember { MutableTransitionState(false).apply { targetState = true } }
         val closeFocus = remember { FocusRequester() }
-        LaunchedEffect(Unit) { runCatching { closeFocus.requestFocus() } }
+        LaunchedEffect(Unit) { runCatching { (initialFocus ?: closeFocus).requestFocus() } }
         val c = Hl.colors
 
         Box(Modifier.fillMaxSize().background(c.background.copy(alpha = 0.72f)), contentAlignment = Alignment.Center) {

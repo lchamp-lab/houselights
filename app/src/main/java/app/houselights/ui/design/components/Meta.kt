@@ -67,15 +67,16 @@ fun MetaLine(item: MediaItem, modifier: Modifier = Modifier, showGenres: Boolean
     }
 }
 
-/** Hairline badge for ratings and technical formats. */
+/** Hairline badge for ratings and technical formats; [lit] in tungsten for a state (in use). */
 @Composable
-fun Badge(text: String, modifier: Modifier = Modifier) {
+fun Badge(text: String, modifier: Modifier = Modifier, lit: Boolean = false) {
+    val c = Hl.colors
     Text(
         text,
         style = Hl.type.badge,
-        color = Hl.colors.contentSecondary,
+        color = if (lit) c.tungsten else c.contentSecondary,
         modifier = modifier
-            .border(HlSize.hairline, Hl.colors.outline, HlShapes.badge)
+            .border(HlSize.hairline, if (lit) c.tungsten.copy(alpha = 0.6f) else c.outline, HlShapes.badge)
             .padding(horizontal = 6.dp, vertical = 2.dp),
     )
 }

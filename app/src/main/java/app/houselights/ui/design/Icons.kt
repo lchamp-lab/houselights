@@ -90,6 +90,42 @@ object HlIcons {
         moveTo(4.5f, 12f); quadTo(4.5f, 14.5f, 12f, 14.5f); quadTo(19.5f, 14.5f, 19.5f, 12f)
     }
 
+    /** Edit: a pencil. */
+    val Edit = icon("Edit") {
+        moveTo(4.5f, 19.5f); lineTo(5.25f, 15.75f); lineTo(15.5f, 5.5f); quadTo(16.5f, 4.5f, 17.5f, 5.5f)
+        lineTo(18.5f, 6.5f); quadTo(19.5f, 7.5f, 18.5f, 8.5f); lineTo(8.25f, 18.75f); close()
+        moveTo(13.75f, 7.25f); lineTo(16.75f, 10.25f)
+    }
+
+    /** Poster: an upright picture. */
+    val Poster = icon("Poster") {
+        moveTo(6f, 3.5f); lineTo(18f, 3.5f); lineTo(18f, 20.5f); lineTo(6f, 20.5f); close()
+        moveTo(6f, 16f); lineTo(9.5f, 12.5f); lineTo(12.5f, 15.5f); lineTo(14.5f, 13.5f); lineTo(18f, 17f)
+    }
+
+    /** Backdrop: a wide picture. */
+    val Backdrop = icon("Backdrop") {
+        moveTo(3f, 5.5f); lineTo(21f, 5.5f); lineTo(21f, 18.5f); lineTo(3f, 18.5f); close()
+        moveTo(3f, 15f); lineTo(8f, 10.5f); lineTo(12f, 14f); lineTo(15f, 11.5f); lineTo(21f, 16.5f)
+        moveTo(16.5f, 8.75f); lineTo(16.75f, 8.75f)
+    }
+
+    /** Logo: the title as type. */
+    val Logo = icon("Logo") {
+        moveTo(5f, 6.5f); lineTo(5f, 5f); lineTo(19f, 5f); lineTo(19f, 6.5f)
+        moveTo(12f, 5f); lineTo(12f, 19f)
+        moveTo(9f, 19f); lineTo(15f, 19f)
+    }
+
+    /** Search: a magnifying glass. */
+    val Search = icon("Search") {
+        moveTo(17f, 10.5f)
+        arcTo(6.5f, 6.5f, 0f, true, true, 4f, 10.5f)
+        arcTo(6.5f, 6.5f, 0f, true, true, 17f, 10.5f)
+        close()
+        moveTo(15.25f, 15.25f); lineTo(20f, 20f)
+    }
+
     /** About: the house light itself. */
     val Lamp = icon("Lamp") {
         moveTo(6f, 11f); quadTo(6f, 5f, 12f, 5f); quadTo(18f, 5f, 18f, 11f); close()
