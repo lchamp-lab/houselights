@@ -92,6 +92,8 @@ import app.houselights.ui.design.components.ProgressLine
 import app.houselights.ui.design.components.ScreenTitle
 import app.houselights.ui.design.components.Wordmark
 import app.houselights.ui.util.appContainer
+import app.houselights.ui.util.formatBytes
+import coil.imageLoader
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
@@ -99,6 +101,7 @@ private enum class Pane(val label: Int, val icon: ImageVector) {
     Library(R.string.section_source, HlIcons.Folder),
     Playback(R.string.section_playback, HlIcons.Playback),
     Display(R.string.section_display, HlIcons.Display),
+    Storage(R.string.section_storage, HlIcons.Storage),
     About(R.string.section_about, HlIcons.Lamp),
 }
 
@@ -176,6 +179,7 @@ private fun PaneContent(pane: Pane, s: AppSettings, onAddFolder: () -> Unit, onC
             Pane.Library -> libraryPane(s, onAddFolder, onChangeSource)
             Pane.Playback -> playbackPane(s)
             Pane.Display -> displayPane(s)
+            Pane.Storage -> storagePane()
             Pane.About -> aboutPane(s)
         }
     }
@@ -460,6 +464,92 @@ private fun DisplayInfo() {
         stringResource(R.string.label_render) to "${view.rootView.width}×${view.rootView.height} px   ${view.resources.displayMetrics.densityDpi} dpi",
         stringResource(R.string.label_modes) to modes,
     )
+}
+
+// --- Storage ---------------------------------------------------------------------------------
+
+private fun LazyListScope.storagePane() {
+    item { Section { PaneHeader(stringResource(R.string.section_storage), stringResource(R.string.storage_desc)); StorageInfo() } }
+}
+
+private data class StorageStats(
+    val artworkFiles: Int,
+    val artworkBytes: Long,
+    val imageCacheBytes: Long,
+    val imageCacheMax: Long,
+    val databaseBytes: Long,
+)
+
+@OptIn(coil.annotation.ExperimentalCoilApi::class)
+@Composable
+private fun StorageInfo() {
+    val app = appContainer()
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var stats by remember { mutableStateOf<StorageStats?>(null) }
+    var message by remember { mutableStateOf<String?>(null) }
+
+    suspend fun refresh() {
+        stats = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            val usage = app.artwork.usage()
+            val disk = context.imageLoader.diskCache
+            val db = context.getDatabasePath("library.db")
+            StorageStats(
+                artworkFiles = usage.files,
+                artworkBytes = usage.bytes,
+                imageCacheBytes = disk?.size ?: 0L,
+                imageCacheMax = disk?.maxSize ?: 0L,
+                // Room keeps recent writes in a write-ahead log next to the file.
+                databaseBytes = listOf(db, java.io.File(db.path + "-wal")).sumOf { if (it.exists()) it.length() else 0L },
+            )
+        }
+    }
+    LaunchedEffect(Unit) { refresh() }
+
+    Column(verticalArrangement = Arrangement.spacedBy(HlSpace.m)) {
+        stats?.let { st ->
+            InfoList(
+                stringResource(R.string.storage_artwork) to if (st.artworkFiles == 0) stringResource(R.string.storage_none) else
+                    pluralStringResource(R.plurals.file_count, st.artworkFiles, st.artworkFiles) + "   " + formatBytes(st.artworkBytes),
+                stringResource(R.string.storage_image_cache) to
+                    stringResource(R.string.storage_of, formatBytes(st.imageCacheBytes), formatBytes(st.imageCacheMax)),
+                stringResource(R.string.storage_database) to formatBytes(st.databaseBytes),
+            )
+        }
+        Hint(stringResource(R.string.storage_hint))
+        Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.s)) {
+            HlButton(
+                stringResource(R.string.cleanup_now),
+                {
+                    scope.launch {
+                        val result = app.scanner.cleanup()
+                        message = if (result.deletedFiles == 0) context.getString(R.string.cleanup_nothing)
+                        else context.getString(
+                            R.string.cleanup_done,
+                            context.resources.getQuantityString(R.plurals.file_count, result.deletedFiles, result.deletedFiles),
+                            formatBytes(context, result.freedBytes),
+                        )
+                        refresh()
+                    }
+                },
+                icon = Icons.Filled.Refresh,
+                emphasis = Emphasis.Primary,
+            )
+            HlButton(
+                stringResource(R.string.clear_image_cache),
+                {
+                    scope.launch {
+                        context.imageLoader.memoryCache?.clear()
+                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { context.imageLoader.diskCache?.clear() }
+                        message = context.getString(R.string.image_cache_cleared)
+                        refresh()
+                    }
+                },
+                icon = Icons.Filled.Close,
+            )
+        }
+        message?.let { Hint(it, Hl.colors.content) }
+    }
 }
 
 // --- About -----------------------------------------------------------------------------------

@@ -29,6 +29,7 @@ import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.util.formatBytes
 import app.houselights.ui.util.formatDuration
 import app.houselights.ui.util.languageName
 import java.util.Locale
@@ -129,20 +130,12 @@ private fun SubtitleColumn(tracks: List<SubtitleTrack>, modifier: Modifier) {
 private fun FileFacts(media: MediaInfo) {
     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.xxl)) {
         media.container?.let { Fact(stringResource(R.string.tech_container), it) }
-        media.sizeBytes?.let { Fact(stringResource(R.string.tech_size), fileSize(it)) }
+        media.sizeBytes?.let { Fact(stringResource(R.string.tech_size), formatBytes(it)) }
         media.bitrateKbps?.let { kbps ->
             Fact(stringResource(R.string.tech_bitrate), stringResource(R.string.mbps, String.format(Locale.getDefault(), "%.1f", kbps / 1000.0)))
         }
         media.durationMs?.let { Fact(stringResource(R.string.tech_duration), formatDuration(it)) }
     }
-}
-
-/** Decimal units, as drives and NAS report them; "Go" in French. */
-@Composable
-private fun fileSize(bytes: Long): String = if (bytes >= 1_000_000_000L) {
-    stringResource(R.string.gigabytes, String.format(Locale.getDefault(), "%.2f", bytes / 1e9))
-} else {
-    stringResource(R.string.megabytes, String.format(Locale.getDefault(), "%.0f", bytes / 1e6))
 }
 
 @Composable

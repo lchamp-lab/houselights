@@ -197,6 +197,20 @@ interface LibraryDao {
     @Query("DELETE FROM items WHERE sourceId = :sourceId")
     suspend fun deleteItemsOfSource(sourceId: Long)
 
+    /** Every cached local image the library still points to. */
+    @Query(
+        "SELECT posterPath FROM items WHERE posterPath LIKE 'file:%' " +
+            "UNION SELECT backdropPath FROM items WHERE backdropPath LIKE 'file:%' " +
+            "UNION SELECT logoPath FROM items WHERE logoPath LIKE 'file:%' " +
+            "UNION SELECT stillPath FROM items WHERE stillPath LIKE 'file:%' " +
+            "UNION SELECT profilePath FROM `cast` WHERE profilePath LIKE 'file:%'"
+    )
+    suspend fun cachedArtworkPaths(): List<String>
+
+    /** Cast rows of items that no longer exist. */
+    @Query("DELETE FROM `cast` WHERE itemId NOT IN (SELECT id FROM items)")
+    suspend fun deleteOrphanCast(): Int
+
     // Cast
     @Query("SELECT * FROM `cast` WHERE itemId = :itemId ORDER BY ord")
     suspend fun cast(itemId: Long): List<CastEntity>

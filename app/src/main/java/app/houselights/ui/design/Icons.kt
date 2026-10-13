@@ -83,6 +83,13 @@ object HlIcons {
         moveTo(9f, 16f); lineTo(15.5f, 16f)
     }
 
+    /** Storage: a stack of disks. */
+    val Storage = icon("Storage") {
+        moveTo(4.5f, 6.5f); quadTo(4.5f, 4f, 12f, 4f); quadTo(19.5f, 4f, 19.5f, 6.5f); quadTo(19.5f, 9f, 12f, 9f); quadTo(4.5f, 9f, 4.5f, 6.5f); close()
+        moveTo(4.5f, 6.5f); lineTo(4.5f, 17.5f); quadTo(4.5f, 20f, 12f, 20f); quadTo(19.5f, 20f, 19.5f, 17.5f); lineTo(19.5f, 6.5f)
+        moveTo(4.5f, 12f); quadTo(4.5f, 14.5f, 12f, 14.5f); quadTo(19.5f, 14.5f, 19.5f, 12f)
+    }
+
     /** About: the house light itself. */
     val Lamp = icon("Lamp") {
         moveTo(6f, 11f); quadTo(6f, 5f, 12f, 5f); quadTo(18f, 5f, 18f, 11f); close()

@@ -54,7 +54,16 @@ class Sidecars(files: List<RemoteFile>, videos: List<RemoteFile>) {
     }
 }
 
-/** Local artwork copied once from the NAS into app storage, so Coil can load it like any image. */
+/** What a cleanup removed. */
+data class CleanupResult(val deletedFiles: Int, val freedBytes: Long)
+
+/** Files and bytes held by the cache. */
+data class CacheUsage(val files: Int, val bytes: Long)
+
+/**
+ * Local artwork copied once from the NAS into app storage, so Coil can load it like any image.
+ * Copies no longer referenced by the library are removed by [sweep].
+ */
 class ArtworkCache(private val dir: File) {
     /** "file://…" path of the cached copy; read again only when the file changes size. */
     suspend fun copy(source: SourceEntity, file: RemoteFile): String? = runCatching {
@@ -67,6 +76,41 @@ class ArtworkCache(private val dir: File) {
         }
         "file://${target.absolutePath}"
     }.getOrNull()
+
+    fun usage(): CacheUsage {
+        val files = dir.walkTopDown().filter { it.isFile }.toList()
+        return CacheUsage(files.size, files.sumOf { it.length() })
+    }
+
+    /**
+     * Deletes every cached file that [referenced] ("file://…" paths, as stored in the
+     * library) does not mention, then the folders left empty. Never touches anything
+     * outside the cache folder.
+     */
+    fun sweep(referenced: Collection<String>): CleanupResult {
+        if (!dir.isDirectory) return CleanupResult(0, 0)
+        val root = dir.canonicalFile
+        val keep = referenced.mapNotNull { path ->
+            runCatching { File(path.removePrefix("file://")).canonicalPath }.getOrNull()
+        }.toSet()
+        var deleted = 0
+        var freed = 0L
+        root.walkBottomUp().forEach { file ->
+            when {
+                file == root -> Unit
+                !file.canonicalPath.startsWith(root.path + File.separator) -> Unit
+                file.isFile && file.canonicalPath !in keep -> {
+                    val size = file.length()
+                    if (file.delete()) {
+                        deleted++
+                        freed += size
+                    }
+                }
+                file.isDirectory && file.list().isNullOrEmpty() -> file.delete()
+            }
+        }
+        return CleanupResult(deleted, freed)
+    }
 
     companion object {
         private const val MAX_BYTES = 30 shl 20

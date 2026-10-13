@@ -168,6 +168,24 @@
     <string name="settings_title">Réglages</string>
     <string name="welcome_tagline">Vos films, sur grand écran.</string>
     <string name="section_about">À propos</string>
+    <string name="section_storage">Stockage</string>
+    <string name="storage_desc">Ce que Houselights conserve sur cet appareil.</string>
+    <string name="storage_artwork">Images locales copiées</string>
+    <string name="storage_image_cache">Cache des images en ligne</string>
+    <string name="storage_database">Base de la bibliothèque</string>
+    <string name="storage_of">%1$s sur %2$s</string>
+    <string name="storage_none">Aucune</string>
+    <string name="storage_hint">Les copies d\'images locales qui ne servent plus sont supprimées automatiquement après chaque analyse. Le cache des images en ligne s\'allège de lui-même lorsqu\'il est plein.</string>
+    <string name="cleanup_now">Nettoyer maintenant</string>
+    <string name="cleanup_done">%1$s supprimés, %2$s libérés</string>
+    <string name="cleanup_nothing">Rien à nettoyer</string>
+    <string name="clear_image_cache">Vider le cache des images</string>
+    <string name="image_cache_cleared">Cache des images vidé</string>
+    <string name="kilobytes">%s Ko</string>
+    <plurals name="file_count">
+        <item quantity="one">%d fichier</item>
+        <item quantity="other">%d fichiers</item>
+    </plurals>
     <string name="library_desc">Les dossiers que Houselights analyse pour construire votre bibliothèque. Les nouveaux fichiers sont repérés à chaque démarrage.</string>
     <string name="playback_desc">Comment le lecteur Zidoo accède aux fichiers de votre serveur.</string>
     <string name="display_desc">Résolution de l\'interface. Pendant la lecture, le lecteur Zidoo choisit son propre mode (fréquence, HDR).</string>

@@ -79,3 +79,16 @@ fun languageName(code: String?): String? {
         ?.replaceFirstChar { it.titlecase(java.util.Locale.getDefault()) }
         ?: code
 }
+
+/** Decimal units, as drives and NAS report them; "Go", "Mo", "Ko" in French. */
+fun formatBytes(context: Context, bytes: Long): String {
+    val locale = java.util.Locale.getDefault()
+    return when {
+        bytes >= 1_000_000_000L -> context.getString(R.string.gigabytes, String.format(locale, "%.2f", bytes / 1e9))
+        bytes >= 1_000_000L -> context.getString(R.string.megabytes, String.format(locale, "%.1f", bytes / 1e6))
+        else -> context.getString(R.string.kilobytes, String.format(locale, "%.0f", bytes / 1e3))
+    }
+}
+
+@Composable
+fun formatBytes(bytes: Long): String = formatBytes(LocalContext.current, bytes)

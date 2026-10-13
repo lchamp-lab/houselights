@@ -39,7 +39,7 @@ class HouselightsApp : Application(), ImageLoaderFactory {
         .diskCache {
             DiskCache.Builder()
                 .directory(cacheDir.resolve("images"))
-                .maxSizeBytes(1024L * 1024 * 1024)
+                .maxSizeBytes(1_000_000_000L) // 1 GB, shown as such in Settings > Storage.
                 .build()
         }
         .crossfade(300)
@@ -52,11 +52,12 @@ class AppContainer(private val app: Application) {
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     val settings = SettingsStore(app, scope)
     val database = LibraryDatabase.create(app)
+    val artwork = ArtworkCache(app.filesDir.resolve("artwork"))
     val scanner = LibraryScanner(
         dao = database.dao(),
         tmdbKey = { tmdbKey() },
         scope = scope,
-        artwork = ArtworkCache(app.filesDir.resolve("artwork")),
+        artwork = artwork,
     )
     val playback = PlaybackManager(app, scope)
 

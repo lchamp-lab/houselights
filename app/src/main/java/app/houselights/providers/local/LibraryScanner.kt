@@ -13,6 +13,9 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 
 data class ScanState(
     val running: Boolean = false,
@@ -44,6 +47,7 @@ class LibraryScanner(
     val changed: SharedFlow<Unit> = _changed
 
     private var job: Job? = null
+    private val lock = Mutex()
 
     /** Shows already looked up during the current scan (full refresh only). */
     private val refreshedSeries = mutableSetOf<Long>()
@@ -51,19 +55,43 @@ class LibraryScanner(
     fun scanAll(refreshMetadata: Boolean = false) {
         if (job?.isActive == true) return
         job = scope.launch(Dispatchers.IO) {
-            refreshedSeries.clear()
-            val errors = mutableMapOf<String, ScanError>()
-            for (source in dao.sources()) {
-                runCatching { scan(source, refreshMetadata) }.onFailure { e ->
-                    Log.w(TAG, "Scan of ${source.name} failed", e)
-                    errors[source.name] = ScanErrors.classify(e)
-                }
-            }
-            dao.deleteEmptySeasons()
-            dao.deleteEmptySeries()
-            _state.value = ScanState(errors = errors)
-            _changed.emit(Unit)
+            lock.withLock { scanAllLocked(refreshMetadata) }
         }
+    }
+
+    /**
+     * Removes cached artwork and cast rows nothing refers to anymore. Runs after every scan,
+     * and on demand from the settings; never at the same time as a scan.
+     */
+    suspend fun cleanup(): CleanupResult = withContext(Dispatchers.IO) {
+        lock.withLock { cleanupLocked() }
+    }
+
+    private suspend fun cleanupLocked(): CleanupResult {
+        val orphanCast = dao.deleteOrphanCast()
+        // Based on what the library references, not on what the NAS shows: an unreachable
+        // NAS never causes artwork to be deleted.
+        val result = artwork.sweep(dao.cachedArtworkPaths())
+        if (result.deletedFiles > 0 || orphanCast > 0) {
+            Log.i(TAG, "Cleanup: ${result.deletedFiles} images (${result.freedBytes / 1024} KB), $orphanCast cast rows")
+        }
+        return result
+    }
+
+    private suspend fun scanAllLocked(refreshMetadata: Boolean) {
+        refreshedSeries.clear()
+        val errors = mutableMapOf<String, ScanError>()
+        for (source in dao.sources()) {
+            runCatching { scan(source, refreshMetadata) }.onFailure { e ->
+                Log.w(TAG, "Scan of ${source.name} failed", e)
+                errors[source.name] = ScanErrors.classify(e)
+            }
+        }
+        dao.deleteEmptySeasons()
+        dao.deleteEmptySeries()
+        runCatching { cleanupLocked() }.onFailure { Log.w(TAG, "Cleanup failed", it) }
+        _state.value = ScanState(errors = errors)
+        _changed.emit(Unit)
     }
 
     private suspend fun scan(source: SourceEntity, refreshMetadata: Boolean) {

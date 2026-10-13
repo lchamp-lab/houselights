@@ -178,6 +178,24 @@
     <string name="settings_title">Settings</string>
     <string name="welcome_tagline">Your films, on the big screen.</string>
     <string name="section_about">About</string>
+    <string name="section_storage">Storage</string>
+    <string name="storage_desc">What Houselights keeps on this device.</string>
+    <string name="storage_artwork">Copied local images</string>
+    <string name="storage_image_cache">Online image cache</string>
+    <string name="storage_database">Library database</string>
+    <string name="storage_of">%1$s of %2$s</string>
+    <string name="storage_none">None</string>
+    <string name="storage_hint">Copies of local images that are no longer used are removed automatically after each scan. The online image cache is trimmed on its own when full.</string>
+    <string name="cleanup_now">Clean up now</string>
+    <string name="cleanup_done">%1$s removed, %2$s freed</string>
+    <string name="cleanup_nothing">Nothing to clean up</string>
+    <string name="clear_image_cache">Clear image cache</string>
+    <string name="image_cache_cleared">Image cache cleared</string>
+    <string name="kilobytes">%s KB</string>
+    <plurals name="file_count">
+        <item quantity="one">%d file</item>
+        <item quantity="other">%d files</item>
+    </plurals>
     <string name="library_desc">The folders Houselights scans to build your library. New files are picked up each time the app starts.</string>
     <string name="playback_desc">How the Zidoo player reaches the files of your server.</string>
     <string name="display_desc">Resolution of the interface. During playback the Zidoo player picks its own mode (frame rate, HDR).</string>
