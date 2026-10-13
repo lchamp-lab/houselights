@@ -12,10 +12,11 @@ import kotlinx.coroutines.withContext
  * The export must allow non-privileged ports, as a regular app cannot bind ports below 1024.
  */
 object NfsBrowser : RemoteBrowser {
-    override suspend fun listVideos(source: SourceEntity): List<RemoteFile> = withContext(Dispatchers.IO) {
-        val results = mutableListOf<RemoteFile>()
-        walk(root(source), "", 0, results)
-        results
+    override suspend fun list(source: SourceEntity): Listing = withContext(Dispatchers.IO) {
+        val videos = mutableListOf<RemoteFile>()
+        val sidecars = mutableListOf<RemoteFile>()
+        walk(root(source), "", 0, videos, sidecars)
+        Listing(videos, sidecars)
     }
 
     override suspend fun test(source: SourceEntity): Int = withContext(Dispatchers.IO) {
@@ -38,15 +39,16 @@ object NfsBrowser : RemoteBrowser {
 
     private fun root(source: SourceEntity): Nfs3File = Nfs3File(mount(source), "/" + source.path.trim('/'))
 
-    private fun walk(dir: Nfs3File, relative: String, depth: Int, out: MutableList<RemoteFile>) {
+    private fun walk(dir: Nfs3File, relative: String, depth: Int, out: MutableList<RemoteFile>, sidecars: MutableList<RemoteFile>) {
         if (depth > RemoteBrowser.MAX_DEPTH) return
         for (entry in dir.listFiles()) {
             val name = entry.name
             if (RemoteBrowser.skip(name)) continue
             val rel = if (relative.isEmpty()) name else "$relative/$name"
             when {
-                entry.isDirectory -> walk(entry, rel, depth + 1, out)
+                entry.isDirectory -> walk(entry, rel, depth + 1, out, sidecars)
                 RemoteBrowser.isWanted(name) -> out += RemoteFile(rel, entry.length())
+                RemoteBrowser.isSidecar(name) -> sidecars += RemoteFile(rel, entry.length())
             }
         }
     }

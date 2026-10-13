@@ -15,6 +15,7 @@ import app.houselights.core.LibraryKind
 import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
 import app.houselights.core.MediaProvider
+import app.houselights.core.NfoDocument
 import app.houselights.core.Page
 import app.houselights.core.PlaybackOptions
 import app.houselights.core.PlaybackPlan
@@ -120,9 +121,18 @@ class LocalProvider(private val context: Context, private val dao: LibraryDao) :
         val entity = dao.item(id.toLong()) ?: error("Item $id not found")
         val castSource = if (entity.kind == ItemKind.MOVIE || entity.kind == ItemKind.SERIES) entity.id else entity.seriesId
         val cast = castSource?.let { dao.cast(it) }.orEmpty().map { c ->
-            Person(c.name, c.character, c.profilePath?.let { tmdbImage(it, ImageType.PROFILE) })
+            Person(c.name, c.character, c.profilePath?.let { image(it, ImageType.PROFILE) })
         }
         return Mapper().map(entity).copy(cast = cast)
+    }
+
+    override suspend fun nfo(item: MediaItem): NfoDocument? {
+        val e = dao.item(item.id.toLong()) ?: return null
+        val text = e.nfo ?: return null
+        val source = dao.sources().firstOrNull { it.id == e.sourceId }
+        val path = listOfNotNull(source?.let { "${it.protocol.name.lowercase()}://${it.host}/${it.share}/${it.path}".trimEnd('/') }, e.nfoPath)
+            .joinToString("/")
+        return NfoDocument(path, text)
     }
 
     override suspend fun seasons(series: MediaItem): List<MediaItem> {
@@ -257,10 +267,11 @@ class LocalProvider(private val context: Context, private val dao: LibraryDao) :
                 directors = e.directors.split('|').filter { it.isNotBlank() },
                 badges = e.badges.split('|').filter { it.isNotBlank() },
                 media = media,
-                poster = (e.posterPath ?: show?.posterPath)?.let { tmdbImage(it, ImageType.POSTER) },
-                backdrop = (e.backdropPath ?: show?.backdropPath)?.let { tmdbImage(it, ImageType.BACKDROP) },
-                logo = (e.logoPath ?: show?.logoPath)?.let { tmdbImage(it, ImageType.LOGO) },
-                thumb = e.stillPath?.let { tmdbImage(it, ImageType.STILL) },
+                hasNfo = e.nfo != null,
+                poster = (e.posterPath ?: show?.posterPath)?.let { image(it, ImageType.POSTER) },
+                backdrop = (e.backdropPath ?: show?.backdropPath)?.let { image(it, ImageType.BACKDROP) },
+                logo = (e.logoPath ?: show?.logoPath)?.let { image(it, ImageType.LOGO) },
+                thumb = e.stillPath?.let { image(it, ImageType.STILL) },
                 user = UserState(
                     played = e.played || (unplayed == 0 && seasonCount != null && seasonCount > 0),
                     favorite = e.favorite,
@@ -283,8 +294,11 @@ class LocalProvider(private val context: Context, private val dao: LibraryDao) :
         private const val WATCHED_RATIO = 0.9
         private const val MIN_RESUME_MS = 60_000L
 
-        private fun tmdbImage(path: String, type: ImageType) =
-            ImageRef("tmdb:$path") { w -> TmdbClient.imageUrl(path, type, w) }
+        /** A cached local file, a full URL from an NFO, or a TMDB path. */
+        private fun image(path: String, type: ImageType) = when {
+            path.startsWith("file:") || path.startsWith("http") -> ImageRef(path) { path }
+            else -> ImageRef("tmdb:$path") { w -> TmdbClient.imageUrl(path, type, w) }
+        }
 
         /**
          * URI the Zidoo player opens directly:

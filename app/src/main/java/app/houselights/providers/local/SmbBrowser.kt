@@ -23,10 +23,11 @@ object SmbBrowser : RemoteBrowser {
             .build()
     )
 
-    override suspend fun listVideos(source: SourceEntity): List<RemoteFile> = withSession(source) { share ->
-        val results = mutableListOf<RemoteFile>()
-        walk(share, source.path.trim('/'), "", 0, results)
-        results
+    override suspend fun list(source: SourceEntity): Listing = withSession(source) { share ->
+        val videos = mutableListOf<RemoteFile>()
+        val sidecars = mutableListOf<RemoteFile>()
+        walk(share, source.path.trim('/'), "", 0, videos, sidecars)
+        Listing(videos, sidecars)
     }
 
     override suspend fun test(source: SourceEntity): Int = withSession(source) { share ->
@@ -54,7 +55,14 @@ object SmbBrowser : RemoteBrowser {
         }
     }
 
-    private fun walk(share: DiskShare, root: String, relative: String, depth: Int, out: MutableList<RemoteFile>) {
+    private fun walk(
+        share: DiskShare,
+        root: String,
+        relative: String,
+        depth: Int,
+        out: MutableList<RemoteFile>,
+        sidecars: MutableList<RemoteFile>,
+    ) {
         if (depth > RemoteBrowser.MAX_DEPTH) return
         val dir = listOf(root, relative).filter { it.isNotEmpty() }.joinToString("/")
         for (entry in share.list(dir.replace('/', '\\'))) {
@@ -63,8 +71,9 @@ object SmbBrowser : RemoteBrowser {
             val rel = if (relative.isEmpty()) name else "$relative/$name"
             val isDir = entry.fileAttributes and FileAttributes.FILE_ATTRIBUTE_DIRECTORY.value != 0L
             when {
-                isDir -> walk(share, root, rel, depth + 1, out)
+                isDir -> walk(share, root, rel, depth + 1, out, sidecars)
                 RemoteBrowser.isWanted(name) -> out += RemoteFile(rel, entry.endOfFile)
+                RemoteBrowser.isSidecar(name) -> sidecars += RemoteFile(rel, entry.endOfFile)
             }
         }
     }

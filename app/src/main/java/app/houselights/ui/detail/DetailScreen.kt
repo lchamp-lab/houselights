@@ -44,6 +44,7 @@ import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
 import app.houselights.core.ProviderCapabilities
 import app.houselights.ui.design.Hl
+import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.LocalAmbient
@@ -74,6 +75,7 @@ fun DetailScreen(
     itemId: String,
     onPlay: (MediaItem, Boolean) -> Unit,
     onOpenItem: (String) -> Unit,
+    onOpenNfo: (String) -> Unit,
 ) {
     val app = appContainer()
     val vm = viewModel(key = "detail-$itemId") { DetailViewModel(app, itemId) }
@@ -110,6 +112,7 @@ fun DetailScreen(
                                 onTogglePlayed = vm::togglePlayed,
                                 onToggleFavorite = vm::toggleFavorite,
                                 onOpenSeries = { item.seriesId?.let(onOpenItem) },
+                                onOpenNfo = { onOpenNfo(item.id) },
                                 modifier = Modifier.padding(start = HlSpace.safeH, bottom = HlSpace.l).align(Alignment.BottomStart),
                             )
                         }
@@ -165,6 +168,7 @@ private fun Hero(
     onTogglePlayed: () -> Unit,
     onToggleFavorite: () -> Unit,
     onOpenSeries: () -> Unit,
+    onOpenNfo: () -> Unit,
     modifier: Modifier,
 ) {
     val playFocus = remember { FocusRequester() }
@@ -243,6 +247,9 @@ private fun Hero(
                     onClick = onTogglePlayed,
                     modifier = if (target == null) Modifier.focusRequester(playFocus) else Modifier,
                 )
+            }
+            if (item.hasNfo) {
+                HlIconButton(HlIcons.Document, stringResource(R.string.nfo), onClick = onOpenNfo)
             }
             if (capabilities?.favorites == true) {
                 HlIconButton(

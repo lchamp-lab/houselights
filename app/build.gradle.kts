@@ -82,4 +82,6 @@ dependencies {
     implementation("com.emc.ecs:nfs-client:1.1.0")
 
     testImplementation("junit:junit:4.13.2")
+    // XmlPullParser implementation for JVM tests (Android provides its own).
+    testImplementation("net.sf.kxml:kxml2:2.3.0")
 }

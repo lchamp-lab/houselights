@@ -1,6 +1,9 @@
 package app.houselights.providers.local
 
 import android.util.Log
+import app.houselights.core.NfoActor
+import app.houselights.core.NfoInfo
+import app.houselights.core.NfoParser
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -30,6 +33,7 @@ class LibraryScanner(
     private val dao: LibraryDao,
     private val tmdbKey: () -> String?,
     private val scope: CoroutineScope,
+    private val artwork: ArtworkCache,
 ) {
     private val _state = MutableStateFlow(ScanState())
     val state: StateFlow<ScanState> = _state
@@ -64,7 +68,9 @@ class LibraryScanner(
 
     private suspend fun scan(source: SourceEntity, refreshMetadata: Boolean) {
         _state.update { it.copy(running = true, sourceName = source.name, processed = 0, total = 0, current = null) }
-        val files = RemoteBrowser.of(source).listVideos(source)
+        val listing = RemoteBrowser.of(source).list(source)
+        val files = listing.videos
+        val sidecars = Sidecars(listing.sidecars, files)
         val known = dao.filesOf(source.id).associateBy { it.filePath }
 
         val present = files.map { it.relativePath }.toSet()
@@ -74,7 +80,12 @@ class LibraryScanner(
         val tmdb = tmdbKey()?.takeIf { it.isNotBlank() }?.let(::TmdbClient)
         val todo = files.filter { f ->
             val item = known[f.relativePath]
-            item == null || item.mediaInfo == null || (tmdb != null && (item.matchedAt == null || refreshMetadata))
+            val local = sidecars.forVideo(f)
+            item == null || item.mediaInfo == null || refreshMetadata ||
+                (tmdb != null && item.matchedAt == null) ||
+                // An NFO or artwork placed next to the file since the last scan.
+                (local.nfo != null && item.nfoPath != local.nfo.relativePath) ||
+                (local.poster != null && item.posterPath?.startsWith("file:") != true)
         }
         _state.update { it.copy(total = todo.size) }
         Log.i(TAG, "${source.name}: ${files.size} files, ${missing.size} removed, ${todo.size} to process")
@@ -84,8 +95,8 @@ class LibraryScanner(
             _state.update { it.copy(processed = index, current = file.relativePath.substringAfterLast('/')) }
             runCatching {
                 when (source.kind) {
-                    SourceKind.MOVIES -> processMovie(source, file, known[file.relativePath], tmdb, refreshMetadata)
-                    SourceKind.SHOWS -> processEpisode(source, file, known[file.relativePath], tmdb, seasons, refreshMetadata)
+                    SourceKind.MOVIES -> processMovie(source, file, known[file.relativePath], tmdb, sidecars, refreshMetadata)
+                    SourceKind.SHOWS -> processEpisode(source, file, known[file.relativePath], tmdb, seasons, sidecars, refreshMetadata)
                 }
             }.onFailure { Log.w(TAG, "Failed on ${file.relativePath}", it) }
             if (index % 5 == 4) _changed.emit(Unit)
@@ -101,6 +112,7 @@ class LibraryScanner(
         file: RemoteFile,
         existing: ItemEntity?,
         tmdb: TmdbClient?,
+        sidecars: Sidecars,
         refreshMetadata: Boolean,
     ) {
         val now = System.currentTimeMillis()
@@ -109,6 +121,7 @@ class LibraryScanner(
         // "Title (Year)/movie.mkv": the folder name is often more reliable than the file name.
         val fromFolder = folders.lastOrNull()?.let(FilenameParser::parseMovie)
         val parsed = if (fromFile.year == null && fromFolder?.year != null) fromFolder else fromFile
+        val local = sidecars.forVideo(file)
 
         var item = existing ?: ItemEntity(
             kind = ItemKind.MOVIE,
@@ -123,35 +136,59 @@ class LibraryScanner(
         )
         if (existing == null) item = item.copy(id = dao.insert(item))
         item = withMediaInfo(source, file, item)
-        if (tmdb == null || (item.matchedAt != null && !refreshMetadata)) return
 
-        val movie = tmdb.findMovie(parsed.title, parsed.year)
-        if (movie == null) {
-            dao.update(item.copy(matchedAt = now))
-            return
+        val nfoText = local.nfo?.let { readText(source, it) }
+        val nfo = nfoText?.let(NfoParser::parse)
+        val needsTmdb = tmdb != null && (item.matchedAt == null || refreshMetadata || nfo != null)
+        if (nfo == null && !needsTmdb && local.poster == null && local.fanart == null && local.logo == null) return
+
+        // Identify exactly when the NFO carries an id; search by title otherwise.
+        val movie = if (!needsTmdb) null else {
+            val id = nfo?.tmdbId ?: nfo?.imdbId?.let { tmdb!!.findByImdb(it).first }
+            id?.let { tmdb!!.movieById(it) } ?: tmdb!!.findMovie(nfo?.title ?: parsed.title, nfo?.year ?: parsed.year)
         }
-        dao.update(
-            item.copy(
-                tmdbId = movie.id,
-                title = movie.title,
-                sortTitle = sortKey(movie.title),
-                originalTitle = movie.originalTitle,
-                overview = movie.overview?.ifBlank { null },
-                tagline = movie.tagline?.ifBlank { null },
-                year = movie.releaseDate?.take(4)?.toIntOrNull() ?: parsed.year,
-                runtimeMin = movie.runtime?.takeIf { it > 0 },
-                certification = tmdb.movieCertification(movie),
-                rating = movie.voteAverage?.takeIf { it > 0 },
-                genres = movie.genres.joinToString("|") { it.name },
-                directors = movie.credits.crew.filter { it.job == "Director" }.joinToString("|") { it.name },
-                posterPath = movie.posterPath,
-                backdropPath = movie.backdropPath,
-                logoPath = tmdb.pickLogo(movie.images),
-                matchedAt = now,
-            )
-        )
-        dao.replaceCast(item.id, castOf(item.id, movie.credits))
+        val title = nfo?.title ?: movie?.title ?: item.title
+        item = item.copy(
+            tmdbId = movie?.id ?: nfo?.tmdbId ?: item.tmdbId,
+            title = title,
+            sortTitle = sortKey(nfo?.sortTitle ?: title),
+            originalTitle = nfo?.originalTitle ?: movie?.originalTitle ?: item.originalTitle,
+            overview = nfo?.plot ?: movie?.overview?.ifBlank { null } ?: item.overview,
+            tagline = nfo?.tagline ?: movie?.tagline?.ifBlank { null } ?: item.tagline,
+            year = nfo?.year ?: nfo?.premiered?.take(4)?.toIntOrNull() ?: movie?.releaseDate?.take(4)?.toIntOrNull() ?: item.year,
+            runtimeMin = nfo?.runtimeMin ?: movie?.runtime?.takeIf { it > 0 } ?: item.runtimeMin,
+            certification = nfo?.certification ?: movie?.let { tmdb?.movieCertification(it) } ?: item.certification,
+            rating = nfo?.rating ?: movie?.voteAverage?.takeIf { it > 0 } ?: item.rating,
+            genres = nfo?.genres?.takeIf { it.isNotEmpty() }?.joinToString("|") ?: movie?.genres?.joinToString("|") { it.name } ?: item.genres,
+            directors = nfo?.directors?.takeIf { it.isNotEmpty() }?.joinToString("|")
+                ?: movie?.credits?.crew?.filter { it.job == "Director" }?.joinToString("|") { it.name } ?: item.directors,
+            posterPath = local.poster?.let { artwork.copy(source, it) } ?: nfo?.posterUrl ?: movie?.posterPath ?: item.posterPath,
+            backdropPath = local.fanart?.let { artwork.copy(source, it) } ?: nfo?.fanartUrl ?: movie?.backdropPath ?: item.backdropPath,
+            logoPath = local.logo?.let { artwork.copy(source, it) } ?: nfo?.logoUrl ?: movie?.let { tmdb?.pickLogo(it.images) } ?: item.logoPath,
+            stillPath = local.thumb?.let { artwork.copy(source, it) } ?: item.stillPath,
+            nfoPath = local.nfo?.relativePath,
+            nfo = nfoText,
+            matchedAt = if (tmdb != null || nfo != null) now else item.matchedAt,
+        ).withNfoStreams(nfo)
+        dao.update(item)
+        when {
+            nfo != null && nfo.actors.isNotEmpty() -> dao.replaceCast(item.id, castOf(item.id, nfo.actors))
+            movie != null -> dao.replaceCast(item.id, castOf(item.id, movie.credits))
+        }
     }
+
+    /** NFO stream details stand in when the file itself could not be read. */
+    private fun ItemEntity.withNfoStreams(nfo: NfoInfo?): ItemEntity {
+        val streams = nfo?.streams ?: return this
+        val media = MediaProbe.decode(mediaInfo)
+        if (media?.video != null) return this
+        val merged = NfoStreamDetails.toMediaInfo(streams, media)
+        return copy(mediaInfo = MediaProbe.encode(merged), badges = merged.badges().ifEmpty { badges.split('|') }.joinToString("|"))
+    }
+
+    private suspend fun readText(source: SourceEntity, file: RemoteFile): String? = runCatching {
+        String(RemoteBrowser.of(source).readPrefix(source, file.relativePath, 1 shl 20), Charsets.UTF_8)
+    }.getOrNull()
 
     // --- TV shows ------------------------------------------------------------------------------
 
@@ -161,16 +198,21 @@ class LibraryScanner(
         existing: ItemEntity?,
         tmdb: TmdbClient?,
         seasons: SeasonCache,
+        sidecars: Sidecars,
         refreshMetadata: Boolean,
     ) {
         val now = System.currentTimeMillis()
         val folders = file.relativePath.split('/').dropLast(1)
         val parsed = FilenameParser.parseEpisode(file.relativePath.substringAfterLast('/'), folders) ?: return
         val showTitle = parsed.showTitle ?: return
+        val showDir = folders.firstOrNull { FilenameParser.seasonFromFolder(it) == null } ?: ""
         val showYear = folders.firstOrNull()?.let { FilenameParser.parseMovie(it).year }
 
-        val series = series(source, showTitle, showYear, tmdb, refreshMetadata, now)
-        val season = season(source, series, parsed.season, seasons, now)
+        val series = series(source, showTitle, showYear, showDir, sidecars, tmdb, refreshMetadata, now)
+        val season = season(source, series, parsed.season, seasons, now, sidecars.seasonPoster(showDir, parsed.season))
+        val local = sidecars.forVideo(file)
+        val nfoText = local.nfo?.let { readText(source, it) }
+        val nfo = nfoText?.let(NfoParser::parse)
         val meta = series.tmdbId?.let { seasons.get(it, parsed.season) }?.episodes
             ?.firstOrNull { it.episodeNumber == parsed.episode }
 
@@ -189,16 +231,18 @@ class LibraryScanner(
             seriesId = series.id,
             seasonNumber = parsed.season,
             episodeNumber = parsed.episode,
-            title = meta?.name ?: base.title,
+            title = nfo?.title ?: meta?.name ?: base.title,
             sortTitle = "%03d-%04d".format(parsed.season, parsed.episode),
-            overview = meta?.overview?.ifBlank { null } ?: base.overview,
-            stillPath = meta?.stillPath ?: base.stillPath,
-            runtimeMin = meta?.runtime ?: base.runtimeMin,
-            rating = meta?.voteAverage?.takeIf { it > 0 } ?: base.rating,
-            year = meta?.airDate?.take(4)?.toIntOrNull() ?: base.year,
-            matchedAt = if (tmdb != null) now else base.matchedAt,
+            overview = nfo?.plot ?: meta?.overview?.ifBlank { null } ?: base.overview,
+            stillPath = local.thumb?.let { artwork.copy(source, it) } ?: meta?.stillPath ?: base.stillPath,
+            runtimeMin = nfo?.runtimeMin ?: meta?.runtime ?: base.runtimeMin,
+            rating = nfo?.rating ?: meta?.voteAverage?.takeIf { it > 0 } ?: base.rating,
+            year = nfo?.premiered?.take(4)?.toIntOrNull() ?: meta?.airDate?.take(4)?.toIntOrNull() ?: base.year,
+            nfoPath = local.nfo?.relativePath,
+            nfo = nfoText,
+            matchedAt = if (tmdb != null || nfo != null) now else base.matchedAt,
         )
-        val probed = if (episode.mediaInfo == null) mediaFields(source, file, episode) else episode
+        val probed = (if (episode.mediaInfo == null) mediaFields(source, file, episode) else episode).withNfoStreams(nfo)
         if (existing == null) {
             dao.insert(probed)
             // New episode: the show moves up in "recently added".
@@ -226,6 +270,8 @@ class LibraryScanner(
         source: SourceEntity,
         title: String,
         year: Int?,
+        showDir: String,
+        sidecars: Sidecars,
         tmdb: TmdbClient?,
         refreshMetadata: Boolean,
         now: Long,
@@ -241,36 +287,59 @@ class LibraryScanner(
             addedAt = now,
         ).let { it.copy(id = dao.insert(it)) }
 
-        val needsLookup = tmdb != null && (series.matchedAt == null || (refreshMetadata && series.id !in refreshedSeries))
-        if (!needsLookup) return series
+        if (series.id in refreshedSeries) return series
+        val local = sidecars.forShow(showDir)
+        val nfoChanged = local.nfo != null && series.nfoPath != local.nfo.relativePath
+        val needsLookup = series.matchedAt == null || refreshMetadata || nfoChanged ||
+            (local.poster != null && series.posterPath?.startsWith("file:") != true)
+        if (!needsLookup || (tmdb == null && local.nfo == null && local.poster == null)) return series
         refreshedSeries += series.id
-        val tv = tmdb!!.findTv(title, year)
-        series = if (tv == null) series.copy(matchedAt = now) else series.copy(
-            tmdbId = tv.id,
-            title = tv.name,
-            sortTitle = sortKey(tv.name),
-            originalTitle = tv.originalName,
-            overview = tv.overview?.ifBlank { null },
-            tagline = tv.tagline?.ifBlank { null },
-            year = tv.firstAirDate?.take(4)?.toIntOrNull() ?: year,
-            endYear = tv.lastAirDate?.take(4)?.toIntOrNull(),
-            continuing = tv.status == "Returning Series" || tv.status == "In Production",
-            runtimeMin = tv.episodeRunTime.firstOrNull(),
-            certification = tmdb.tvCertification(tv),
-            rating = tv.voteAverage?.takeIf { it > 0 },
-            genres = tv.genres.joinToString("|") { it.name },
-            directors = "",
-            posterPath = tv.posterPath,
-            backdropPath = tv.backdropPath,
-            logoPath = tmdb.pickLogo(tv.images),
+
+        val nfoText = local.nfo?.let { readText(source, it) }
+        val nfo = nfoText?.let(NfoParser::parse)
+        val tv = tmdb?.let { t ->
+            val id = nfo?.tmdbId ?: nfo?.imdbId?.let { t.findByImdb(it).second }
+            id?.let { t.tvById(it) } ?: t.findTv(nfo?.title ?: title, nfo?.year ?: year)
+        }
+        val name = nfo?.title ?: tv?.name ?: series.title
+        series = series.copy(
+            tmdbId = tv?.id ?: nfo?.tmdbId ?: series.tmdbId,
+            title = name,
+            sortTitle = sortKey(nfo?.sortTitle ?: name),
+            originalTitle = nfo?.originalTitle ?: tv?.originalName ?: series.originalTitle,
+            overview = nfo?.plot ?: tv?.overview?.ifBlank { null } ?: series.overview,
+            tagline = nfo?.tagline ?: tv?.tagline?.ifBlank { null } ?: series.tagline,
+            year = nfo?.year ?: nfo?.premiered?.take(4)?.toIntOrNull() ?: tv?.firstAirDate?.take(4)?.toIntOrNull() ?: year,
+            endYear = tv?.lastAirDate?.take(4)?.toIntOrNull() ?: series.endYear,
+            continuing = nfo?.status?.let { it.contains("Continuing", true) || it.contains("Returning", true) }
+                ?: (tv?.status == "Returning Series" || tv?.status == "In Production"),
+            runtimeMin = nfo?.runtimeMin ?: tv?.episodeRunTime?.firstOrNull() ?: series.runtimeMin,
+            certification = nfo?.certification ?: tv?.let { tmdb.tvCertification(it) } ?: series.certification,
+            rating = nfo?.rating ?: tv?.voteAverage?.takeIf { it > 0 } ?: series.rating,
+            genres = nfo?.genres?.takeIf { it.isNotEmpty() }?.joinToString("|") ?: tv?.genres?.joinToString("|") { it.name } ?: series.genres,
+            posterPath = local.poster?.let { artwork.copy(source, it) } ?: nfo?.posterUrl ?: tv?.posterPath ?: series.posterPath,
+            backdropPath = local.fanart?.let { artwork.copy(source, it) } ?: nfo?.fanartUrl ?: tv?.backdropPath ?: series.backdropPath,
+            logoPath = local.logo?.let { artwork.copy(source, it) } ?: nfo?.logoUrl ?: tv?.let { tmdb.pickLogo(it.images) } ?: series.logoPath,
+            nfoPath = local.nfo?.relativePath,
+            nfo = nfoText,
             matchedAt = now,
         )
         dao.update(series)
-        if (tv != null) dao.replaceCast(series.id, castOf(series.id, tv.credits))
+        when {
+            nfo != null && nfo.actors.isNotEmpty() -> dao.replaceCast(series.id, castOf(series.id, nfo.actors))
+            tv != null -> dao.replaceCast(series.id, castOf(series.id, tv.credits))
+        }
         return series
     }
 
-    private suspend fun season(source: SourceEntity, series: ItemEntity, number: Int, cache: SeasonCache, now: Long): ItemEntity {
+    private suspend fun season(
+        source: SourceEntity,
+        series: ItemEntity,
+        number: Int,
+        cache: SeasonCache,
+        now: Long,
+        localPoster: RemoteFile?,
+    ): ItemEntity {
         var season = dao.season(series.id, number) ?: ItemEntity(
             kind = ItemKind.SEASON,
             sourceId = source.id,
@@ -294,6 +363,9 @@ class LibraryScanner(
             )
             dao.update(season)
         }
+        if (localPoster != null && season.posterPath?.startsWith("file:") != true) {
+            artwork.copy(source, localPoster)?.let { season = season.copy(posterPath = it); dao.update(season) }
+        }
         return season
     }
 
@@ -313,6 +385,11 @@ class LibraryScanner(
         private val ARTICLES = Regex("""(?i)^(the|a|an|le|la|les|l'|un|une|des)\s+""")
 
         fun sortKey(title: String): String = ARTICLES.replace(title.trim(), "").lowercase()
+
+        private fun castOf(itemId: Long, actors: List<NfoActor>) =
+            actors.sortedBy { it.order ?: Int.MAX_VALUE }.take(30).mapIndexed { i, a ->
+                CastEntity(itemId, i, a.name, a.role?.ifBlank { null }, a.thumb)
+            }
 
         private fun castOf(itemId: Long, credits: TmdbCredits) =
             credits.cast.sortedBy { it.order }.take(30).mapIndexed { i, c ->

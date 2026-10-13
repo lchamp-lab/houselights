@@ -6,9 +6,12 @@ data class RemoteFile(
     val size: Long,
 )
 
+/** Videos of a folder, and the files that describe them (NFO, artwork). */
+data class Listing(val videos: List<RemoteFile>, val sidecars: List<RemoteFile>)
+
 /** Lists the video files of a network folder, whatever the protocol. */
 interface RemoteBrowser {
-    suspend fun listVideos(source: SourceEntity): List<RemoteFile>
+    suspend fun list(source: SourceEntity): Listing
 
     /** Number of entries at the source root; throws with a readable message on failure. */
     suspend fun test(source: SourceEntity): Int
@@ -30,6 +33,10 @@ interface RemoteBrowser {
                 name.equals("\$RECYCLE.BIN", ignoreCase = true) || name.equals("System Volume Information", ignoreCase = true)
 
         fun isWanted(name: String) = FilenameParser.isVideo(name) && !isSample(name)
+
+        private val SIDECAR_EXTENSIONS = setOf("nfo", "jpg", "jpeg", "png", "webp", "tbn")
+
+        fun isSidecar(name: String) = name.substringAfterLast('.', "").lowercase() in SIDECAR_EXTENSIONS
 
         private fun isSample(name: String) =
             Regex("""(?i)(^|[ ._-])sample([ ._-]|$)""").containsMatchIn(name.substringBeforeLast('.'))

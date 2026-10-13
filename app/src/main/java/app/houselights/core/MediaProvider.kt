@@ -4,6 +4,11 @@ package app.houselights.core
 @kotlinx.serialization.Serializable
 data class PathMapping(val from: String, val to: String)
 
+/** An NFO file: where it is and what it says. */
+data class NfoDocument(val path: String, val text: String) {
+    val info: NfoInfo? by lazy { NfoParser.parse(text) }
+}
+
 data class PlaybackOptions(val pathMappings: List<PathMapping>, val forceHttp: Boolean)
 
 /** Receives playback progress so the backend can keep resume points and watched state. */
@@ -64,6 +69,9 @@ interface MediaProvider {
         }
         return null
     }
+
+    /** The NFO file describing [item], when there is one. */
+    suspend fun nfo(item: MediaItem): NfoDocument? = null
 
     /** A sample server-side file path, shown in settings to help writing path mappings. */
     suspend fun samplePath(): String? = null

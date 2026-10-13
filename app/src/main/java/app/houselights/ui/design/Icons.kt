@@ -65,6 +65,14 @@ object HlIcons {
         moveTo(4f, 5f); lineTo(20f, 5f); lineTo(14f, 12.5f); lineTo(14f, 18.5f); lineTo(10f, 20f); lineTo(10f, 12.5f); close()
     }
 
+    /** A document: the NFO file. */
+    val Document = icon("Document") {
+        moveTo(6f, 3.5f); lineTo(14f, 3.5f); lineTo(18.5f, 8f); lineTo(18.5f, 20.5f); lineTo(6f, 20.5f); close()
+        moveTo(14f, 3.5f); lineTo(14f, 8f); lineTo(18.5f, 8f)
+        moveTo(9f, 12.5f); lineTo(15.5f, 12.5f)
+        moveTo(9f, 16f); lineTo(15.5f, 16f)
+    }
+
     /** About: the house light itself. */
     val Lamp = icon("Lamp") {
         moveTo(6f, 11f); quadTo(6f, 5f, 12f, 5f); quadTo(18f, 5f, 18f, 11f); close()

@@ -13,7 +13,10 @@ player's own menus all keep working.
   with cast, seasons and episodes, and the house lights dimming before the film starts.
 - **Library sources**
   - **My files**: scans NFS or SMB shares on your NAS, identifies movies and TV shows from file and folder names,
-    and fetches artwork and details from TMDB. Resume points, watched state and favorites are stored locally.
+    and fetches artwork and details from TMDB. Kodi-style NFO files and local artwork (poster.jpg, fanart.jpg,
+    clearlogo.png…) take precedence, and NFO ids identify titles exactly. Technical details (resolution, HDR,
+    Dolby Vision, audio formats, subtitles) are read from the files themselves. Resume points, watched state
+    and favorites are stored locally.
   - **Jellyfin**: browses your server and reports playback progress back to it.
   - Emby and Plex: planned.
 - **Native playback**: files are opened directly by the Zidoo player (`smb://`, `nfs://` or HTTP). Progress

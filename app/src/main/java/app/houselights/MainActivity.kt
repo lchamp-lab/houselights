@@ -36,6 +36,7 @@ import app.houselights.ui.design.components.HouseLights
 import androidx.compose.runtime.mutableStateOf
 import kotlinx.coroutines.delay
 import app.houselights.ui.detail.DetailScreen
+import app.houselights.ui.detail.NfoScreen
 import app.houselights.ui.home.HomeScreen
 import app.houselights.ui.library.LibraryScreen
 import app.houselights.ui.onboarding.AddFolderScreen
@@ -211,8 +212,10 @@ private fun AppNavigation(onPlay: (MediaItem, Boolean) -> Unit) {
                 itemId = entry.arguments!!.getString("id")!!,
                 onPlay = onPlay,
                 onOpenItem = ::openItem,
+                onOpenNfo = { nav.navigate("nfo/$it") },
             )
         }
+        composable("nfo/{id}") { entry -> NfoScreen(entry.arguments!!.getString("id")!!) }
         composable("settings") {
             SettingsScreen(
                 onAddFolder = { nav.navigate("folder/add") },

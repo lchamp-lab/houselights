@@ -35,6 +35,12 @@ data class TmdbSearchResult(
 data class TmdbGenre(val name: String)
 
 @Serializable
+data class TmdbFindResult(
+    val movieResults: List<TmdbSearchResult> = emptyList(),
+    val tvResults: List<TmdbSearchResult> = emptyList(),
+)
+
+@Serializable
 data class TmdbCastMember(val name: String, val character: String? = null, val profilePath: String? = null, val order: Int = 0)
 
 @Serializable
@@ -154,6 +160,12 @@ interface TmdbApi {
         @Query("append_to_response") append: String = "credits,images,content_ratings",
     ): TmdbTv
 
+    @GET("find/{id}")
+    suspend fun find(
+        @Path("id") externalId: String,
+        @Query("external_source") source: String = "imdb_id",
+    ): TmdbFindResult
+
     @GET("trending/movie/week")
     suspend fun trendingMovies(@Query("language") language: String): TmdbPage<TmdbSearchResult>
 
@@ -200,6 +212,16 @@ class TmdbClient(apiKey: String) {
             ?: return null
         return api.movie(hit.id, language, imageLanguages)
     }
+
+    suspend fun movieById(id: Int): TmdbMovie? = runCatching { api.movie(id, language, imageLanguages) }.getOrNull()
+
+    suspend fun tvById(id: Int): TmdbTv? = runCatching { api.tv(id, language, imageLanguages) }.getOrNull()
+
+    /** TMDB ids of the film and show matching an IMDb id. */
+    suspend fun findByImdb(imdbId: String): Pair<Int?, Int?> = runCatching {
+        val r = api.find(imdbId)
+        r.movieResults.firstOrNull()?.id to r.tvResults.firstOrNull()?.id
+    }.getOrDefault(null to null)
 
     suspend fun findTv(title: String, year: Int?): TmdbTv? {
         val hit = api.searchTv(title, year, language).results.firstOrNull()

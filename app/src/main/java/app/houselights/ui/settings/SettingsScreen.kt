@@ -82,6 +82,7 @@ import app.houselights.ui.design.revealOnFocus
 import app.houselights.ui.design.components.Backdrop
 import app.houselights.ui.design.components.BackdropStyle
 import app.houselights.ui.design.components.Badge
+import app.houselights.ui.design.components.DefinitionList
 import app.houselights.ui.design.components.Emphasis
 import app.houselights.ui.design.components.HlButton
 import app.houselights.ui.design.components.HlIconButton
@@ -537,25 +538,8 @@ private fun Choice(title: String, description: String?, options: List<String>, s
     }
 }
 
-/** Label and value pairs, aligned in two columns. */
 @Composable
-private fun InfoList(vararg rows: Pair<String, String>) {
-    Column(
-        Modifier
-            .fillMaxWidth()
-            .clip(HlShapes.panel)
-            .background(Hl.colors.surface.copy(alpha = 0.6f))
-            .padding(horizontal = HlSpace.l, vertical = HlSpace.m),
-        verticalArrangement = Arrangement.spacedBy(HlSpace.s),
-    ) {
-        rows.forEach { (label, value) ->
-            Row {
-                Text(label, style = Hl.type.bodySmall, color = Hl.colors.contentTertiary, modifier = Modifier.width(220.dp))
-                Text(value, style = Hl.type.bodySmall, color = Hl.colors.content)
-            }
-        }
-    }
-}
+private fun InfoList(vararg rows: Pair<String, String>) = DefinitionList(rows.toList())
 
 @Composable
 private fun Hint(text: String, color: Color = Hl.colors.contentSecondary) {

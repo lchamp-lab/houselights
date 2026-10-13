@@ -82,6 +82,9 @@ data class ItemEntity(
     val badges: String = "",
     /** [app.houselights.core.MediaInfo] as JSON; null until the file has been read. */
     val mediaInfo: String? = null,
+    /** The NFO file next to the video (or the show), and its raw content. */
+    val nfoPath: String? = null,
+    val nfo: String? = null,
     val addedAt: Long,
     /** Last TMDB lookup (successful or not); null = never tried. */
     val matchedAt: Long? = null,
@@ -211,7 +214,7 @@ interface LibraryDao {
     }
 }
 
-@Database(entities = [SourceEntity::class, ItemEntity::class, CastEntity::class], version = 3, exportSchema = false)
+@Database(entities = [SourceEntity::class, ItemEntity::class, CastEntity::class], version = 4, exportSchema = false)
 abstract class LibraryDatabase : RoomDatabase() {
     abstract fun dao(): LibraryDao
 
@@ -228,9 +231,16 @@ abstract class LibraryDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE items ADD COLUMN nfoPath TEXT")
+                db.execSQL("ALTER TABLE items ADD COLUMN nfo TEXT")
+            }
+        }
+
         fun create(context: Context): LibraryDatabase =
             Room.databaseBuilder(context, LibraryDatabase::class.java, "library.db")
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
                 .build()
     }
 }

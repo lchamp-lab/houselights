@@ -46,6 +46,8 @@ data class MediaItem(
     val badges: List<String> = emptyList(),
     /** What the file contains, when known (playable items only). */
     val media: MediaInfo? = null,
+    /** A Kodi-style NFO describes this item ([MediaProvider.nfo] returns it). */
+    val hasNfo: Boolean = false,
     val poster: ImageRef? = null,
     val backdrop: ImageRef? = null,
     val logo: ImageRef? = null,

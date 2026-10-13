@@ -6,6 +6,7 @@ import app.houselights.core.MediaProvider
 import app.houselights.core.SourceConfig
 import app.houselights.player.PlaybackManager
 import app.houselights.providers.jellyfin.JellyfinProvider
+import app.houselights.providers.local.ArtworkCache
 import app.houselights.providers.local.LibraryDatabase
 import app.houselights.providers.local.LibraryScanner
 import app.houselights.providers.local.LocalProvider
@@ -55,6 +56,7 @@ class AppContainer(private val app: Application) {
         dao = database.dao(),
         tmdbKey = { tmdbKey() },
         scope = scope,
+        artwork = ArtworkCache(app.filesDir.resolve("artwork")),
     )
     val playback = PlaybackManager(app, scope)
 
