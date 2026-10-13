@@ -1,5 +1,5 @@
 <resources>
-    <style name="Theme.Posterwall" parent="android:Theme.Material.NoActionBar">
+    <style name="Theme.Houselights" parent="android:Theme.Material.NoActionBar">
         <item name="android:windowBackground">@color/background</item>
         <item name="android:colorBackground">@color/background</item>
         <item name="android:windowNoTitle">true</item>

@@ -17,11 +17,11 @@ val localProps = Properties().apply {
 val tmdbApiKey: String = localProps.getProperty("tmdb.apiKey") ?: System.getenv("TMDB_API_KEY") ?: ""
 
 android {
-    namespace = "app.posterwall"
+    namespace = "app.houselights"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "app.posterwall"
+        applicationId = "app.houselights"
         minSdk = 28 // Zidoo Z1000 Pro : Android 9
         targetSdk = 35
         versionCode = 1

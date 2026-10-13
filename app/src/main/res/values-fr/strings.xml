@@ -1,6 +1,6 @@
 <resources>
     <string name="source_local">Mes fichiers</string>
-    <string name="source_local_desc">Tes vidéos sur un NAS ou un partage réseau (SMB). Posterwall les scanne et récupère affiches et infos sur TMDB.</string>
+    <string name="source_local_desc">Tes vidéos sur un NAS ou un partage réseau (SMB). Houselights les scanne et récupère affiches et infos sur TMDB.</string>
     <string name="source_jellyfin">Serveur Jellyfin</string>
     <string name="source_jellyfin_desc">Utilise la bibliothèque de ton serveur Jellyfin.</string>
     <string name="sources_coming_soon">Emby et Plex : bientôt.</string>
@@ -114,5 +114,5 @@
     <string name="reachable">joignable</string>
     <string name="unreachable">injoignable</string>
     <string name="testing">test…</string>
-    <string name="version">Posterwall %s</string>
+    <string name="version">Houselights %s</string>
 </resources>

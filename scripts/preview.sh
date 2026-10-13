@@ -7,7 +7,7 @@ export JAVA_HOME="${JAVA_HOME:-$HOME/.local/share/jdk-17}"
 export ANDROID_HOME="${ANDROID_HOME:-$HOME/Android/Sdk}"
 SDK="$ANDROID_HOME"
 ADB="$SDK/platform-tools/adb"
-AVD=posterwall-tv
+AVD=houselights-tv
 IMAGE="system-images;android-28;android-tv;x86"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
@@ -36,6 +36,6 @@ fi
 
 echo "Compilation et installation…"
 "$ROOT/gradlew" -p "$ROOT" installDebug --console=plain -q
-"$ADB" -e shell am start -n app.posterwall/.MainActivity >/dev/null
-echo "Posterwall est lancé. Flèches = navigation, Entrée = valider, Échap = retour."
+"$ADB" -e shell am start -n app.houselights/.MainActivity >/dev/null
+echo "Houselights est lancé. Flèches = navigation, Entrée = valider, Échap = retour."
 echo "Jellyfin sur ce PC ? Utilise l'adresse 10.0.2.2:8096 dans l'émulateur."

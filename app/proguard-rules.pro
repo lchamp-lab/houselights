@@ -1,11 +1,11 @@
 -keepattributes *Annotation*, InnerClasses, Signature, Exceptions
--keep,includedescriptorclasses class app.posterwall.**$$serializer { *; }
--keepclassmembers class app.posterwall.** { *** Companion; }
--keepclasseswithmembers class app.posterwall.** { kotlinx.serialization.KSerializer serializer(...); }
+-keep,includedescriptorclasses class app.houselights.**$$serializer { *; }
+-keepclassmembers class app.houselights.** { *** Companion; }
+-keepclasseswithmembers class app.houselights.** { kotlinx.serialization.KSerializer serializer(...); }
 -keep,allowobfuscation,allowshrinking interface retrofit2.Call
 -keep,allowobfuscation,allowshrinking class retrofit2.Response
 -keep,allowobfuscation,allowshrinking class kotlin.coroutines.Continuation
--keep interface app.posterwall.data.JellyfinApi { *; }
+-keep interface app.houselights.data.JellyfinApi { *; }
 -dontwarn okhttp3.internal.platform.**
 -dontwarn org.conscrypt.**
 

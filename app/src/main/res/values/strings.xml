@@ -1,9 +1,9 @@
 <resources>
-    <string name="app_name" translatable="false">Posterwall</string>
+    <string name="app_name" translatable="false">Houselights</string>
 
     <!-- Sources -->
     <string name="source_local">My files</string>
-    <string name="source_local_desc">Videos on your NAS or a network share (SMB). Posterwall scans them and fetches posters and details from TMDB.</string>
+    <string name="source_local_desc">Videos on your NAS or a network share (SMB). Houselights scans them and fetches posters and details from TMDB.</string>
     <string name="source_jellyfin">Jellyfin server</string>
     <string name="source_jellyfin_desc">Use the library of your Jellyfin server.</string>
     <string name="sources_coming_soon">Emby and Plex: coming soon.</string>
@@ -124,5 +124,5 @@
     <string name="reachable">reachable</string>
     <string name="unreachable">unreachable</string>
     <string name="testing">testing…</string>
-    <string name="version">Posterwall %s</string>
+    <string name="version">Houselights %s</string>
 </resources>

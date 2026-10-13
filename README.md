@@ -1,4 +1,4 @@
-# Posterwall
+# Houselights
 
 A cinema-style media browser for **Zidoo** players (Android TV boxes such as the Z1000 Pro, Z9X, UHD series)
 that keeps playback in the **native Zidoo player** — so HDR10, HDR10+, Dolby Vision, audio passthrough and the
@@ -40,7 +40,7 @@ To try the app in an Android TV emulator: `scripts/preview.sh`.
 ## Project layout
 
 ```
-app/src/main/java/app/posterwall/
+app/src/main/java/app/houselights/
   core/         backend-independent model and the MediaProvider interface
   providers/    local (SMB + TMDB + Room), jellyfin
   player/       Zidoo player launch, progress tracking, path mapping
