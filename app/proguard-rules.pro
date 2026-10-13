@@ -18,3 +18,9 @@
 -keep class org.bouncycastle.jcajce.provider.** { *; }
 -keep class org.bouncycastle.jce.provider.** { *; }
 -dontwarn org.bouncycastle.**
+
+# nfs-client (NFSv3) runs on Netty 3, which references optional logging and codec libraries.
+-keep class com.emc.ecs.nfsclient.** { *; }
+-keep class org.jboss.netty.** { *; }
+-dontwarn org.jboss.netty.**
+-dontwarn org.apache.commons.lang3.**

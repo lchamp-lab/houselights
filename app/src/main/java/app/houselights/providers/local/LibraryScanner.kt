@@ -64,7 +64,7 @@ class LibraryScanner(
 
     private suspend fun scan(source: SourceEntity, refreshMetadata: Boolean) {
         _state.update { it.copy(running = true, sourceName = source.name, processed = 0, total = 0, current = null) }
-        val files = SmbBrowser.listVideos(source)
+        val files = RemoteBrowser.of(source).listVideos(source)
         val known = dao.filesOf(source.id).associateBy { it.filePath }
 
         val present = files.map { it.relativePath }.toSet()

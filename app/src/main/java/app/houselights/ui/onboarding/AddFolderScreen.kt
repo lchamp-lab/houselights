@@ -31,7 +31,8 @@ import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import app.houselights.R
 import app.houselights.core.SourceConfig
-import app.houselights.providers.local.SmbBrowser
+import app.houselights.providers.local.Protocol
+import app.houselights.providers.local.RemoteBrowser
 import app.houselights.providers.local.SourceEntity
 import app.houselights.providers.local.SourceKind
 import app.houselights.ui.components.ActionButton
@@ -50,6 +51,7 @@ fun AddFolderScreen(onAdded: () -> Unit) {
     val scope = rememberCoroutineScope()
 
     var kind by remember { mutableStateOf(SourceKind.MOVIES) }
+    var protocol by remember { mutableStateOf(Protocol.NFS) }
     var host by remember { mutableStateOf("") }
     var share by remember { mutableStateOf("") }
     var path by remember { mutableStateOf("") }
@@ -63,11 +65,12 @@ fun AddFolderScreen(onAdded: () -> Unit) {
     fun source() = SourceEntity(
         name = path.trim('/').substringAfterLast('/').ifBlank { share.trim('/') },
         kind = kind,
-        host = host.trim().removePrefix("smb://").trimEnd('/'),
+        protocol = protocol,
+        host = host.trim().removePrefix("smb://").removePrefix("nfs://").trimEnd('/'),
         share = share.trim().trim('/'),
         path = path.trim().trim('/'),
-        username = user.trim(),
-        password = password,
+        username = if (protocol == Protocol.SMB) user.trim() else "",
+        password = if (protocol == Protocol.SMB) password else "",
     )
 
     fun test(then: (() -> Unit)? = null) {
@@ -75,7 +78,7 @@ fun AddFolderScreen(onAdded: () -> Unit) {
         busy = true
         message = null
         scope.launch {
-            runCatching { SmbBrowser.test(source()) }
+            runCatching { source().let { RemoteBrowser.of(it).test(it) } }
                 .onSuccess { count ->
                     message = context.getString(R.string.test_ok, count)
                     then?.invoke()
@@ -112,20 +115,40 @@ fun AddFolderScreen(onAdded: () -> Unit) {
                 Chip(stringResource(R.string.library_shows), kind == SourceKind.SHOWS, { kind = SourceKind.SHOWS })
             }
             Spacer(Modifier.height(16.dp))
+            Text(stringResource(R.string.field_protocol), style = MaterialTheme.typography.labelMedium, color = Palette.TextDim)
+            Spacer(Modifier.height(6.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Chip("NFS", protocol == Protocol.NFS, { protocol = Protocol.NFS })
+                Chip("SMB", protocol == Protocol.SMB, { protocol = Protocol.SMB })
+            }
+            Spacer(Modifier.height(16.dp))
             TvTextField(stringResource(R.string.field_host), host, { host = it }, placeholder = "192.168.1.10", keyboardType = KeyboardType.Uri)
             Spacer(Modifier.height(12.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                TvTextField(stringResource(R.string.field_share), share, { share = it }, placeholder = "media", modifier = Modifier.width(220.dp))
+                TvTextField(
+                    stringResource(if (protocol == Protocol.NFS) R.string.field_export else R.string.field_share),
+                    share, { share = it },
+                    placeholder = if (protocol == Protocol.NFS) "/volume1/media" else "media",
+                    modifier = Modifier.width(220.dp),
+                )
                 TvTextField(stringResource(R.string.field_path), path, { path = it }, placeholder = "films", modifier = Modifier.width(328.dp))
             }
-            Spacer(Modifier.height(12.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                TvTextField(stringResource(R.string.field_user), user, { user = it }, modifier = Modifier.width(274.dp))
-                TvTextField(
-                    stringResource(R.string.field_password), password, { password = it },
-                    password = true, imeAction = ImeAction.Done, modifier = Modifier.width(274.dp),
-                )
+            if (protocol == Protocol.SMB) {
+                Spacer(Modifier.height(12.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    TvTextField(stringResource(R.string.field_user), user, { user = it }, modifier = Modifier.width(274.dp))
+                    TvTextField(
+                        stringResource(R.string.field_password), password, { password = it },
+                        password = true, imeAction = ImeAction.Done, modifier = Modifier.width(274.dp),
+                    )
+                }
             }
+            Spacer(Modifier.height(12.dp))
+            Text(
+                stringResource(if (protocol == Protocol.NFS) R.string.nfs_hint else R.string.smb_hint),
+                style = MaterialTheme.typography.bodyMedium,
+                color = Palette.TextFaint,
+            )
             Spacer(Modifier.height(24.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 ActionButton(stringResource(R.string.add), { add() }, primary = true)

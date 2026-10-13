@@ -155,7 +155,7 @@ private fun FolderRow(source: SourceEntity, onRemove: () -> Unit) {
         Column(Modifier.width(620.dp)) {
             Text("${source.name}  ·  $kind", color = Palette.Text)
             Text(
-                "smb://${source.host}/${source.share}/${source.path}".trimEnd('/') + "  ·  " +
+                "${source.protocol.name.lowercase()}://${source.host}/${source.share}/${source.path}".trimEnd('/') + "  ·  " +
                     stringResource(R.string.last_scan, lastScan),
                 style = MaterialTheme.typography.bodyMedium,
                 color = Palette.TextFaint,

@@ -16,7 +16,8 @@ object FilenameParser {
     private val NXNN = Regex("""(?i)(?<![a-z0-9])(\d{1,2})x(\d{2,3})(?![0-9])""")
     private val LEADING_EPISODE = Regex("""(?i)^(?:e|ep|episode|épisode)?[ ._-]?(\d{1,3})(?![0-9])""")
     private val SEASON_FOLDER = Regex("""(?i)^(?:season|saison|staffel|temporada|s)[ ._-]?(\d{1,2})$""")
-    private val BRACKETS = Regex("""\[[^]]*]|\{[^}]*}""")
+    // Android's ICU engine needs closing brackets and braces escaped, unlike the JVM.
+    private val BRACKETS = Regex("""\[[^\]]*\]|\{[^\}]*\}""")
 
     /** Release tags: everything from the first one on is noise. */
     private val JUNK = Regex(

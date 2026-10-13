@@ -124,7 +124,7 @@ fun TvTextField(
                 ),
                 keyboardActions = KeyboardActions(onAny = {
                     stopEditing()
-                    if (imeAction == ImeAction.Next) focusManager.moveFocus(FocusDirection.Down)
+                    if (imeAction == ImeAction.Next) focusManager.moveFocus(FocusDirection.Next)
                     onImeAction()
                 }),
                 modifier = Modifier

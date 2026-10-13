@@ -14,18 +14,24 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.Transaction
 import androidx.room.Update
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import androidx.sqlite.db.SupportSQLiteQuery
 import kotlinx.coroutines.flow.Flow
 
 enum class SourceKind { MOVIES, SHOWS }
 
-/** An SMB folder the user added, holding either movies or TV shows. */
+enum class Protocol { SMB, NFS }
+
+/** A network folder the user added, holding either movies or TV shows. */
 @Entity(tableName = "sources")
 data class SourceEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val name: String,
     val kind: SourceKind,
+    val protocol: Protocol = Protocol.SMB,
     val host: String,
+    /** SMB share name, or NFS export path; stored without leading or trailing slash. */
     val share: String,
     /** Folder inside the share, without leading or trailing slash ("" for the share root). */
     val path: String,
@@ -190,12 +196,20 @@ interface LibraryDao {
     }
 }
 
-@Database(entities = [SourceEntity::class, ItemEntity::class, CastEntity::class], version = 1, exportSchema = false)
+@Database(entities = [SourceEntity::class, ItemEntity::class, CastEntity::class], version = 2, exportSchema = false)
 abstract class LibraryDatabase : RoomDatabase() {
     abstract fun dao(): LibraryDao
 
     companion object {
+        private val MIGRATION_1_2 = object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE sources ADD COLUMN protocol TEXT NOT NULL DEFAULT 'SMB'")
+            }
+        }
+
         fun create(context: Context): LibraryDatabase =
-            Room.databaseBuilder(context, LibraryDatabase::class.java, "library.db").build()
+            Room.databaseBuilder(context, LibraryDatabase::class.java, "library.db")
+                .addMigrations(MIGRATION_1_2)
+                .build()
     }
 }

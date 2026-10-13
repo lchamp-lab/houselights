@@ -121,7 +121,7 @@ class LocalProvider(private val context: Context, private val dao: LibraryDao) :
         val source = dao.sources().firstOrNull { it.id == entity.sourceId } ?: error("Source of ${item.title} was removed")
         val media = Mapper().map(entity)
         return PlaybackPlan.Launch(
-            uri = smbUri(source, file),
+            uri = fileUri(source, file),
             container = FilenameParser.extension(file),
             title = listOfNotNull(media.seriesTitle, media.episodeLabel, media.title).joinToString(" · "),
             backdropUrl = media.backdrop?.url(1920),
@@ -237,11 +237,19 @@ class LocalProvider(private val context: Context, private val dao: LibraryDao) :
         private fun tmdbImage(path: String, type: ImageType) =
             ImageRef("tmdb:$path") { w -> TmdbClient.imageUrl(path, type, w) }
 
-        /** smb://user:password@host/share/folder/file — the format the Zidoo player opens directly. */
-        fun smbUri(source: SourceEntity, relativePath: String): String {
-            val auth = if (source.username.isBlank()) "" else "${Uri.encode(source.username)}:${Uri.encode(source.password)}@"
-            val path = listOf(source.share, source.path.trim('/'), relativePath).filter { it.isNotEmpty() }.joinToString("/")
-            return "smb://$auth${source.host}/$path"
+        /**
+         * URI the Zidoo player opens directly:
+         * smb://user:password@host/share/folder/file or nfs://host/export/folder/file.
+         */
+        fun fileUri(source: SourceEntity, relativePath: String): String {
+            val path = listOf(source.share.trim('/'), source.path.trim('/'), relativePath).filter { it.isNotEmpty() }.joinToString("/")
+            return when (source.protocol) {
+                Protocol.NFS -> "nfs://${source.host}/$path"
+                Protocol.SMB -> {
+                    val auth = if (source.username.isBlank()) "" else "${Uri.encode(source.username)}:${Uri.encode(source.password)}@"
+                    "smb://$auth${source.host}/$path"
+                }
+            }
         }
     }
 }
