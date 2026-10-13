@@ -42,8 +42,10 @@ data class MediaItem(
     val genres: List<String> = emptyList(),
     val cast: List<Person> = emptyList(),
     val directors: List<String> = emptyList(),
-    /** Short technical labels: 4K, DOLBY VISION, ATMOS... */
+    /** Short technical labels: 4K, Dolby Vision, TrueHD Atmos... */
     val badges: List<String> = emptyList(),
+    /** What the file contains, when known (playable items only). */
+    val media: MediaInfo? = null,
     val poster: ImageRef? = null,
     val backdrop: ImageRef? = null,
     val logo: ImageRef? = null,

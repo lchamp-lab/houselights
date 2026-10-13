@@ -1,6 +1,7 @@
 package app.houselights.providers.local
 
 import com.emc.ecs.nfsclient.nfs.io.Nfs3File
+import com.emc.ecs.nfsclient.nfs.io.NfsFileInputStream
 import com.emc.ecs.nfsclient.nfs.nfs3.Nfs3
 import com.emc.ecs.nfsclient.rpc.CredentialUnix
 import kotlinx.coroutines.Dispatchers
@@ -21,10 +22,21 @@ object NfsBrowser : RemoteBrowser {
         root(source).list().count { !RemoteBrowser.skip(it) }
     }
 
-    private fun root(source: SourceEntity): Nfs3File {
-        val nfs = Nfs3(source.host, "/" + source.share.trim('/'), CredentialUnix(), 3)
-        return Nfs3File(nfs, "/" + source.path.trim('/'))
+    override suspend fun readPrefix(source: SourceEntity, relativePath: String, length: Int): ByteArray = withContext(Dispatchers.IO) {
+        val path = "/" + listOf(source.path.trim('/'), relativePath).filter { it.isNotEmpty() }.joinToString("/")
+        NfsFileInputStream(Nfs3File(mount(source), path), 0L, 256 * 1024).use { it.readUpTo(length) }
     }
+
+    /** One mount per export, reused across files. */
+    private val mounts = mutableMapOf<String, Nfs3>()
+
+    @Synchronized
+    private fun mount(source: SourceEntity): Nfs3 {
+        val export = "/" + source.share.trim('/')
+        return mounts.getOrPut("${source.host}:$export") { Nfs3(source.host, export, CredentialUnix(), 3) }
+    }
+
+    private fun root(source: SourceEntity): Nfs3File = Nfs3File(mount(source), "/" + source.path.trim('/'))
 
     private fun walk(dir: Nfs3File, relative: String, depth: Int, out: MutableList<RemoteFile>) {
         if (depth > RemoteBrowser.MAX_DEPTH) return

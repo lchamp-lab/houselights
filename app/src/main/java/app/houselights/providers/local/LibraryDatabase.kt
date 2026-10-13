@@ -80,6 +80,8 @@ data class ItemEntity(
     val filePath: String? = null,
     val fileSize: Long? = null,
     val badges: String = "",
+    /** [app.houselights.core.MediaInfo] as JSON; null until the file has been read. */
+    val mediaInfo: String? = null,
     val addedAt: Long,
     /** Last TMDB lookup (successful or not); null = never tried. */
     val matchedAt: Long? = null,
@@ -209,7 +211,7 @@ interface LibraryDao {
     }
 }
 
-@Database(entities = [SourceEntity::class, ItemEntity::class, CastEntity::class], version = 2, exportSchema = false)
+@Database(entities = [SourceEntity::class, ItemEntity::class, CastEntity::class], version = 3, exportSchema = false)
 abstract class LibraryDatabase : RoomDatabase() {
     abstract fun dao(): LibraryDao
 
@@ -220,9 +222,15 @@ abstract class LibraryDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE items ADD COLUMN mediaInfo TEXT")
+            }
+        }
+
         fun create(context: Context): LibraryDatabase =
             Room.databaseBuilder(context, LibraryDatabase::class.java, "library.db")
-                .addMigrations(MIGRATION_1_2)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
                 .build()
     }
 }

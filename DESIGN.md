@@ -46,6 +46,8 @@ size or a font**: they use the tokens and components below.
 | `HlButton` (`Primary`, `Secondary`), `HlIconButton` | pill actions; the icon button shows its label only when focused |
 | `HlTab`, `HlSegmented` | navigation, sorting and exclusive choices; the tungsten line marks the selection |
 | `HlListItem` | a choice in a vertical list, with an optional icon in a lit disc |
+| `HlMenuButton`, `MenuSection`, `MenuOption` | icon button opening a sectioned menu: closes on choice (sorting) or stays open (filters) |
+| `TechSpecs` | spec sheet of a file: video, audio tracks, subtitles by language, then container, size, bitrate, duration |
 | `HlTextField` | TV text field: focusable box first, keyboard on OK; tungsten while typing |
 | `HlFormScaffold`, `StatusPanel`, `FieldLabel` | setup screens: explanation and live status on the left, form on the right |
 | `PosterWall` | tilted, drifting wall of posters (welcome) |

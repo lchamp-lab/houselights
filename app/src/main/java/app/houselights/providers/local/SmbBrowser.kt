@@ -1,12 +1,16 @@
 package app.houselights.providers.local
 
+import com.hierynomus.msdtyp.AccessMask
 import com.hierynomus.msfscc.FileAttributes
+import com.hierynomus.mssmb2.SMB2CreateDisposition
+import com.hierynomus.mssmb2.SMB2ShareAccess
 import com.hierynomus.smbj.SMBClient
 import com.hierynomus.smbj.SmbConfig
 import com.hierynomus.smbj.auth.AuthenticationContext
 import com.hierynomus.smbj.share.DiskShare
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.util.EnumSet
 import java.util.concurrent.TimeUnit
 
 /** Lists video files of an SMB folder. */
@@ -27,6 +31,18 @@ object SmbBrowser : RemoteBrowser {
 
     override suspend fun test(source: SourceEntity): Int = withSession(source) { share ->
         share.list(source.path.trim('/').replace('/', '\\')).count { !RemoteBrowser.skip(it.fileName) }
+    }
+
+    override suspend fun readPrefix(source: SourceEntity, relativePath: String, length: Int): ByteArray = withSession(source) { share ->
+        val path = listOf(source.path.trim('/'), relativePath).filter { it.isNotEmpty() }.joinToString("\\") { it.replace('/', '\\') }
+        share.openFile(
+            path,
+            EnumSet.of(AccessMask.GENERIC_READ),
+            null,
+            SMB2ShareAccess.ALL,
+            SMB2CreateDisposition.FILE_OPEN,
+            null,
+        ).use { file -> file.inputStream.use { it.readUpTo(length) } }
     }
 
     private suspend fun <T> withSession(source: SourceEntity, block: (DiskShare) -> T): T = withContext(Dispatchers.IO) {

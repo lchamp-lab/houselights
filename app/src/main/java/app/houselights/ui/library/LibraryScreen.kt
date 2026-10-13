@@ -50,6 +50,7 @@ import app.houselights.ui.design.HlMotion
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.LocalAmbient
 import app.houselights.ui.design.components.Backdrop
+import app.houselights.ui.design.components.BadgeRow
 import app.houselights.ui.design.components.BackdropStyle
 import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.components.HlMenuButton
@@ -142,6 +143,10 @@ fun LibraryScreen(
                         Text(it.title, style = Hl.type.label, color = Hl.colors.content, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         Spacer(Modifier.width(HlSpace.m))
                         MetaLine(it, showGenres = false)
+                        if (it.badges.isNotEmpty()) {
+                            Spacer(Modifier.width(HlSpace.l))
+                            BadgeRow(it.badges.take(4))
+                        }
                     }
                 }
                 when {

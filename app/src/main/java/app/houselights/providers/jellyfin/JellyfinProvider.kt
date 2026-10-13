@@ -1,7 +1,12 @@
 package app.houselights.providers.jellyfin
 
 import android.util.Log
+import app.houselights.core.AudioTrack
+import app.houselights.core.HdrFormat
 import app.houselights.core.HomeSection
+import app.houselights.core.MediaInfo
+import app.houselights.core.SubtitleTrack
+import app.houselights.core.VideoInfo
 import app.houselights.core.ImageRef
 import app.houselights.core.Library
 import app.houselights.core.LibraryFacets
@@ -209,7 +214,8 @@ class JellyfinProvider(config: SourceConfig.Jellyfin, deviceId: String) : MediaP
                 Person(it.name ?: "", it.role, image(it.id, "Primary", it.primaryImageTag))
             },
             directors = dto.people.filter { it.type == "Director" }.mapNotNull { it.name },
-            badges = techBadges(dto),
+            badges = mediaInfo(dto)?.badges().orEmpty(),
+            media = mediaInfo(dto),
             poster = poster,
             backdrop = backdrop,
             logo = image(dto.id, "Logo", dto.imageTags["Logo"]) ?: image(dto.parentLogoItemId, "Logo", dto.parentLogoImageTag),
@@ -242,48 +248,82 @@ class JellyfinProvider(config: SourceConfig.Jellyfin, deviceId: String) : MediaP
             else -> LibraryKind.MIXED
         }
 
-        /** Technical badges derived from the first media source streams. */
-        fun techBadges(item: BaseItem): List<String> {
-            val streams = item.mediaSources.firstOrNull()?.mediaStreams ?: return emptyList()
-            val video = streams.firstOrNull { it.type == "Video" }
-            val audio = streams.firstOrNull { it.type == "Audio" && it.isDefault } ?: streams.firstOrNull { it.type == "Audio" }
-            return buildList {
-                video?.width?.let { w ->
-                    add(
+        /** What the first media source contains, in the shared [MediaInfo] model. */
+        fun mediaInfo(item: BaseItem): MediaInfo? {
+            val source = item.mediaSources.firstOrNull() ?: return null
+            val streams = source.mediaStreams
+            val video = streams.firstOrNull { it.type == "Video" }?.let { v ->
+                val range = v.videoRangeType.orEmpty()
+                VideoInfo(
+                    codec = when (v.codec?.lowercase()) {
+                        "hevc", "h265" -> "HEVC"
+                        "h264", "avc" -> "AVC"
+                        "av1" -> "AV1"
+                        "vp9" -> "VP9"
+                        "mpeg2video" -> "MPEG-2"
+                        "vc1" -> "VC-1"
+                        else -> v.codec?.uppercase() ?: "?"
+                    },
+                    width = v.width,
+                    height = v.height,
+                    bitDepth = v.bitDepth,
+                    hdr = buildList {
+                        if (range.startsWith("DOVI")) add(HdrFormat.DOLBY_VISION)
                         when {
-                            w >= 3800 -> "4K"
-                            w >= 1900 -> "1080p"
-                            w >= 1260 -> "720p"
-                            else -> "SD"
+                            range == "HDR10Plus" -> add(HdrFormat.HDR10_PLUS)
+                            range == "HDR10" || range == "DOVIWithHDR10" -> add(HdrFormat.HDR10)
+                            range == "HLG" || range == "DOVIWithHLG" -> add(HdrFormat.HLG)
                         }
-                    )
-                }
-                when {
-                    video?.videoRangeType?.startsWith("DOVI") == true -> add("Dolby Vision")
-                    video?.videoRangeType == "HDR10Plus" -> add("HDR10+")
-                    video?.videoRangeType == "HDR10" -> add("HDR10")
-                    video?.videoRangeType == "HLG" -> add("HLG")
-                }
-                if (audio != null) {
-                    val title = (audio.displayTitle ?: "") + " " + (audio.profile ?: "")
-                    when {
-                        title.contains("Atmos", ignoreCase = true) -> add("Atmos")
-                        title.contains("DTS:X", ignoreCase = true) -> add("DTS:X")
-                    }
-                    when (audio.codec?.lowercase()) {
-                        "truehd" -> add("TrueHD")
-                        "dts" -> add(if (title.contains("MA")) "DTS-HD MA" else "DTS")
-                        "eac3" -> add("DD+")
-                        "ac3" -> add("DD")
-                        "flac" -> add("FLAC")
-                    }
-                    when (audio.channels) {
-                        8 -> add("7.1")
-                        6 -> add("5.1")
-                        2 -> add("2.0")
-                    }
-                }
-            }.distinct()
+                    },
+                    dolbyVisionProfile = v.dvProfile,
+                )
+            }
+            val audio = streams.filter { it.type == "Audio" }.map { a ->
+                val profile = "${a.profile.orEmpty()} ${a.displayTitle.orEmpty()} ${a.title.orEmpty()}"
+                AudioTrack(
+                    codec = when (a.codec?.lowercase()) {
+                        "truehd" -> "TrueHD"
+                        "dts" -> if (profile.contains("MA")) "DTS-HD MA" else if (profile.contains("HRA")) "DTS-HD HRA" else "DTS"
+                        "eac3" -> "E-AC3"
+                        "ac3" -> "AC3"
+                        "aac" -> "AAC"
+                        "flac" -> "FLAC"
+                        "opus" -> "Opus"
+                        else -> if (a.codec?.startsWith("pcm") == true) "PCM" else a.codec?.uppercase() ?: "?"
+                    },
+                    channels = a.channels,
+                    language = a.language,
+                    title = a.title,
+                    atmos = profile.contains("Atmos", ignoreCase = true),
+                    dtsX = profile.contains("DTS:X", ignoreCase = true),
+                    default = a.isDefault,
+                )
+            }
+            val subtitles = streams.filter { it.type == "Subtitle" }.map { s ->
+                SubtitleTrack(
+                    language = s.language,
+                    title = s.title,
+                    format = when (s.codec?.lowercase()) {
+                        "subrip", "srt" -> "SRT"
+                        "pgssub", "pgs" -> "PGS"
+                        "ass", "ssa" -> "ASS"
+                        "dvdsub", "vobsub" -> "VobSub"
+                        "webvtt" -> "WebVTT"
+                        else -> s.codec?.uppercase() ?: "?"
+                    },
+                    forced = s.isForced,
+                    hearingImpaired = s.isHearingImpaired || s.title?.contains("SDH", ignoreCase = true) == true,
+                    default = s.isDefault,
+                )
+            }
+            return MediaInfo(
+                container = source.container?.substringBefore(',')?.uppercase(),
+                sizeBytes = source.size,
+                durationMs = (source.runTimeTicks ?: item.runTimeTicks)?.div(TICKS_PER_MS),
+                video = video,
+                audio = audio,
+                subtitles = subtitles,
+            )
         }
     }
 }

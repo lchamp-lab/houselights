@@ -13,6 +13,9 @@ interface RemoteBrowser {
     /** Number of entries at the source root; throws with a readable message on failure. */
     suspend fun test(source: SourceEntity): Int
 
+    /** The first [length] bytes of a file (fewer if the file is shorter). */
+    suspend fun readPrefix(source: SourceEntity, relativePath: String, length: Int): ByteArray
+
     companion object {
         const val MAX_DEPTH = 6
 
@@ -31,4 +34,18 @@ interface RemoteBrowser {
         private fun isSample(name: String) =
             Regex("""(?i)(^|[ ._-])sample([ ._-]|$)""").containsMatchIn(name.substringBeforeLast('.'))
     }
+}
+
+/** Reads until [length] bytes or the end of the stream. */
+internal fun java.io.InputStream.readUpTo(length: Int): ByteArray {
+    val out = java.io.ByteArrayOutputStream(minOf(length, 1 shl 20))
+    val buffer = ByteArray(64 * 1024)
+    var total = 0
+    while (total < length) {
+        val n = read(buffer, 0, minOf(buffer.size, length - total))
+        if (n < 0) break
+        out.write(buffer, 0, n)
+        total += n
+    }
+    return out.toByteArray()
 }

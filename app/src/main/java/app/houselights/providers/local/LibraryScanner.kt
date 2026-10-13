@@ -74,7 +74,7 @@ class LibraryScanner(
         val tmdb = tmdbKey()?.takeIf { it.isNotBlank() }?.let(::TmdbClient)
         val todo = files.filter { f ->
             val item = known[f.relativePath]
-            item == null || (tmdb != null && (item.matchedAt == null || refreshMetadata))
+            item == null || item.mediaInfo == null || (tmdb != null && (item.matchedAt == null || refreshMetadata))
         }
         _state.update { it.copy(total = todo.size) }
         Log.i(TAG, "${source.name}: ${files.size} files, ${missing.size} removed, ${todo.size} to process")
@@ -84,7 +84,7 @@ class LibraryScanner(
             _state.update { it.copy(processed = index, current = file.relativePath.substringAfterLast('/')) }
             runCatching {
                 when (source.kind) {
-                    SourceKind.MOVIES -> processMovie(source, file, known[file.relativePath], tmdb)
+                    SourceKind.MOVIES -> processMovie(source, file, known[file.relativePath], tmdb, refreshMetadata)
                     SourceKind.SHOWS -> processEpisode(source, file, known[file.relativePath], tmdb, seasons, refreshMetadata)
                 }
             }.onFailure { Log.w(TAG, "Failed on ${file.relativePath}", it) }
@@ -96,7 +96,13 @@ class LibraryScanner(
 
     // --- Movies --------------------------------------------------------------------------------
 
-    private suspend fun processMovie(source: SourceEntity, file: RemoteFile, existing: ItemEntity?, tmdb: TmdbClient?) {
+    private suspend fun processMovie(
+        source: SourceEntity,
+        file: RemoteFile,
+        existing: ItemEntity?,
+        tmdb: TmdbClient?,
+        refreshMetadata: Boolean,
+    ) {
         val now = System.currentTimeMillis()
         val folders = file.relativePath.split('/').dropLast(1)
         val fromFile = FilenameParser.parseMovie(file.relativePath.substringAfterLast('/'))
@@ -116,7 +122,8 @@ class LibraryScanner(
             addedAt = now,
         )
         if (existing == null) item = item.copy(id = dao.insert(item))
-        if (tmdb == null) return
+        item = withMediaInfo(source, file, item)
+        if (tmdb == null || (item.matchedAt != null && !refreshMetadata)) return
 
         val movie = tmdb.findMovie(parsed.title, parsed.year)
         if (movie == null) {
@@ -191,13 +198,28 @@ class LibraryScanner(
             year = meta?.airDate?.take(4)?.toIntOrNull() ?: base.year,
             matchedAt = if (tmdb != null) now else base.matchedAt,
         )
+        val probed = if (episode.mediaInfo == null) mediaFields(source, file, episode) else episode
         if (existing == null) {
-            dao.insert(episode)
+            dao.insert(probed)
             // New episode: the show moves up in "recently added".
             dao.update(series.copy(addedAt = now))
         } else {
-            dao.update(episode)
+            dao.update(probed)
         }
+    }
+
+    /** Reads the file once and stores what it contains, with format badges for filters. */
+    private suspend fun withMediaInfo(source: SourceEntity, file: RemoteFile, item: ItemEntity): ItemEntity {
+        if (item.mediaInfo != null) return item
+        val updated = mediaFields(source, file, item)
+        dao.update(updated)
+        return updated
+    }
+
+    private suspend fun mediaFields(source: SourceEntity, file: RemoteFile, item: ItemEntity): ItemEntity {
+        val media = MediaProbe.probe(source, file)
+        val badges = media.badges().ifEmpty { FilenameParser.badges(file.relativePath) }
+        return item.copy(mediaInfo = MediaProbe.encode(media), badges = badges.joinToString("|"))
     }
 
     private suspend fun series(

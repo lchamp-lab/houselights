@@ -96,6 +96,7 @@ data class MediaSource(
     @SerialName("Container") val container: String? = null,
     @SerialName("Name") val name: String? = null,
     @SerialName("Size") val size: Long? = null,
+    @SerialName("RunTimeTicks") val runTimeTicks: Long? = null,
     @SerialName("MediaStreams") val mediaStreams: List<MediaStream> = emptyList(),
 )
 
@@ -112,6 +113,11 @@ data class MediaStream(
     @SerialName("Height") val height: Int? = null,
     @SerialName("VideoRangeType") val videoRangeType: String? = null,
     @SerialName("Channels") val channels: Int? = null,
+    @SerialName("BitDepth") val bitDepth: Int? = null,
+    @SerialName("Title") val title: String? = null,
+    @SerialName("IsForced") val isForced: Boolean = false,
+    @SerialName("IsHearingImpaired") val isHearingImpaired: Boolean = false,
+    @SerialName("DvProfile") val dvProfile: Int? = null,
 )
 
 @Serializable

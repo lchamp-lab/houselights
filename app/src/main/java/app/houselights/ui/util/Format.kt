@@ -62,3 +62,20 @@ fun scanErrorText(context: Context, error: ScanError, host: String): String = wh
 
 @Composable
 fun scanErrorText(error: ScanError, host: String): String = scanErrorText(LocalContext.current, error, host)
+
+/** ISO 639-2/B codes that Java does not resolve, mapped to their two-letter form. */
+private val BIBLIOGRAPHIC = mapOf(
+    "fre" to "fr", "ger" to "de", "dut" to "nl", "chi" to "zh", "cze" to "cs", "gre" to "el", "per" to "fa",
+    "rum" to "ro", "slo" to "sk", "alb" to "sq", "arm" to "hy", "baq" to "eu", "bur" to "my", "geo" to "ka",
+    "ice" to "is", "mac" to "mk", "mao" to "mi", "may" to "ms", "tib" to "bo", "wel" to "cy",
+)
+
+/** "eng", "en-US" or "fre" as a language name in the interface language ("Anglais", "Français"). */
+fun languageName(code: String?): String? {
+    if (code.isNullOrBlank()) return null
+    val tag = BIBLIOGRAPHIC[code.lowercase()] ?: code
+    val name = java.util.Locale.forLanguageTag(tag).getDisplayLanguage(java.util.Locale.getDefault())
+    return name.takeIf { it.isNotBlank() && !it.equals(tag, ignoreCase = true) }
+        ?.replaceFirstChar { it.titlecase(java.util.Locale.getDefault()) }
+        ?: code
+}

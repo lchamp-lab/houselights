@@ -59,6 +59,10 @@ fun HeroInfo(item: MediaItem?, modifier: Modifier = Modifier, overviewLines: Int
                 Spacer(Modifier.height(HlSpace.xs))
             }
             MetaLine(shown)
+            if (shown.badges.isNotEmpty()) {
+                Spacer(Modifier.height(HlSpace.s))
+                BadgeRow(shown.badges.take(5))
+            }
             if (shown.progress > 0f) {
                 Spacer(Modifier.height(HlSpace.s))
                 Row(verticalAlignment = Alignment.CenterVertically) {

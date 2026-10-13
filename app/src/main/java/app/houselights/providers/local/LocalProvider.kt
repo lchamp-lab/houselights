@@ -237,6 +237,7 @@ class LocalProvider(private val context: Context, private val dao: LibraryDao) :
                     else -> e.title
                 }
             }
+            val media = MediaProbe.decode(e.mediaInfo)
             val unplayed = if (e.kind == ItemKind.SERIES) dao.episodesOfSeries(e.id).count { !it.played } else null
             val seasonCount = if (e.kind == ItemKind.SERIES) dao.children(e.id).count { it.kind == ItemKind.SEASON } else null
             return MediaItem(
@@ -249,12 +250,13 @@ class LocalProvider(private val context: Context, private val dao: LibraryDao) :
                 year = e.year,
                 endYear = e.endYear,
                 continuing = e.continuing,
-                runtimeMs = e.durationMs ?: e.runtimeMin?.let { it * 60_000L },
+                runtimeMs = e.durationMs ?: media?.durationMs ?: e.runtimeMin?.let { it * 60_000L },
                 officialRating = e.certification,
                 communityRating = e.rating,
                 genres = e.genres.split('|').filter { it.isNotBlank() },
                 directors = e.directors.split('|').filter { it.isNotBlank() },
                 badges = e.badges.split('|').filter { it.isNotBlank() },
+                media = media,
                 poster = (e.posterPath ?: show?.posterPath)?.let { tmdbImage(it, ImageType.POSTER) },
                 backdrop = (e.backdropPath ?: show?.backdropPath)?.let { tmdbImage(it, ImageType.BACKDROP) },
                 logo = (e.logoPath ?: show?.logoPath)?.let { tmdbImage(it, ImageType.LOGO) },

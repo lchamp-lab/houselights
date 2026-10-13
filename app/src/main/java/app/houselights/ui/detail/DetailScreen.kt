@@ -60,6 +60,8 @@ import app.houselights.ui.design.components.MediaRow
 import app.houselights.ui.design.components.MetaLine
 import app.houselights.ui.design.components.PersonCard
 import app.houselights.ui.design.components.PosterCard
+import app.houselights.ui.design.components.SectionHeader
+import app.houselights.ui.design.components.TechSpecs
 import app.houselights.ui.design.components.TitleArt
 import app.houselights.ui.design.components.rememberAmbientColor
 import app.houselights.ui.home.ErrorMessage
@@ -122,6 +124,15 @@ fun DetailScreen(
                                 onFocus = { focusedEpisode = it },
                                 onPlay = { ep -> onPlay(ep, ep.user.positionMs > 0) },
                             )
+                        }
+                    }
+
+                    item.media?.takeIf { it.video != null || it.audio.isNotEmpty() }?.let { media ->
+                        item(key = "tech") {
+                            Column(Modifier.padding(horizontal = HlSpace.safeH).revealOnFocus()) {
+                                SectionHeader(stringResource(R.string.tech_details), Modifier.padding(bottom = HlSpace.s))
+                                TechSpecs(media)
+                            }
                         }
                     }
 
