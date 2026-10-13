@@ -177,7 +177,10 @@ private fun TmdbKey() {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Spacer(Modifier.height(6.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.Bottom) {
-            TvTextField(stringResource(R.string.tmdb_key), key, { key = it; saved = false }, modifier = Modifier.width(520.dp))
+            TvTextField(
+                stringResource(R.string.tmdb_key), key, { key = it; saved = false },
+                password = true, modifier = Modifier.width(520.dp),
+            )
             ActionButton(
                 stringResource(if (saved) R.string.saved else R.string.save),
                 { scope.launch { app.settings.setTmdbApiKey(key); saved = true } },
