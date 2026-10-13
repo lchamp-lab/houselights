@@ -240,7 +240,7 @@ class JellyfinProvider(config: SourceConfig.Jellyfin, deviceId: String) : MediaP
                     )
                 }
                 when {
-                    video?.videoRangeType?.startsWith("DOVI") == true -> add("DOLBY VISION")
+                    video?.videoRangeType?.startsWith("DOVI") == true -> add("Dolby Vision")
                     video?.videoRangeType == "HDR10Plus" -> add("HDR10+")
                     video?.videoRangeType == "HDR10" -> add("HDR10")
                     video?.videoRangeType == "HLG" -> add("HLG")
@@ -248,11 +248,11 @@ class JellyfinProvider(config: SourceConfig.Jellyfin, deviceId: String) : MediaP
                 if (audio != null) {
                     val title = (audio.displayTitle ?: "") + " " + (audio.profile ?: "")
                     when {
-                        title.contains("Atmos", ignoreCase = true) -> add("ATMOS")
+                        title.contains("Atmos", ignoreCase = true) -> add("Atmos")
                         title.contains("DTS:X", ignoreCase = true) -> add("DTS:X")
                     }
                     when (audio.codec?.lowercase()) {
-                        "truehd" -> add("TRUEHD")
+                        "truehd" -> add("TrueHD")
                         "dts" -> add(if (title.contains("MA")) "DTS-HD MA" else "DTS")
                         "eac3" -> add("DD+")
                         "ac3" -> add("DD")

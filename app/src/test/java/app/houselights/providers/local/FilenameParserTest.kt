@@ -61,7 +61,7 @@ class FilenameParserTest {
     @Test
     fun badges() {
         assertEquals(
-            listOf("4K", "DOLBY VISION", "ATMOS", "TRUEHD", "REMUX"),
+            listOf("4K", "Dolby Vision", "Atmos", "TrueHD", "Remux"),
             FilenameParser.badges("Dune.Part.Two.2024.2160p.UHD.BluRay.REMUX.DV.HDR.HEVC.TrueHD.Atmos-FGT.mkv"),
         )
         assertEquals(emptyList<String>(), FilenameParser.badges("Top Gun Maverick.mkv"))

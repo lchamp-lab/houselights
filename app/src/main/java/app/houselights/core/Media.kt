@@ -67,9 +67,9 @@ data class MediaItem(
             return if (user.positionMs > 0 && total > 0) (user.positionMs.toFloat() / total).coerceIn(0f, 1f) else 0f
         }
 
-    /** "S1 · E3" for an episode. */
+    /** "S1 E3" for an episode. */
     val episodeLabel: String?
-        get() = if (kind == MediaKind.EPISODE && episodeNumber != null) "S${seasonNumber ?: 0} · E$episodeNumber" else null
+        get() = if (kind == MediaKind.EPISODE && episodeNumber != null) "S${seasonNumber ?: 0} E$episodeNumber" else null
 
     /** Best 16:9 artwork for landscape cards. */
     val landscape: ImageRef? get() = thumb ?: backdrop

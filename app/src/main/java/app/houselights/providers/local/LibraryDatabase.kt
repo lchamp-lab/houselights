@@ -157,6 +157,10 @@ interface LibraryDao {
     @Query("SELECT COUNT(*) FROM items WHERE kind = :kind")
     suspend fun count(kind: ItemKind): Int
 
+    /** Films and shows found in a source (not seasons or episodes). */
+    @Query("SELECT COUNT(*) FROM items WHERE sourceId = :sourceId AND kind IN ('MOVIE','SERIES')")
+    fun observeTitleCount(sourceId: Long): Flow<Int>
+
     @RawQuery
     suspend fun query(query: SupportSQLiteQuery): List<ItemEntity>
 

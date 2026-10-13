@@ -1,8 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A wall sconce casting tungsten light downwards. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
     android:width="108dp" android:height="108dp"
     android:viewportWidth="108" android:viewportHeight="108">
-    <path android:fillColor="#1F222A" android:pathData="M28,40h14v26h-14z" />
-    <path android:fillColor="#1F222A" android:pathData="M66,40h14v26h-14z" />
-    <path android:fillColor="#E9B949" android:pathData="M44,34h20v38h-20z" />
-    <path android:fillColor="#07080B" android:pathData="M51,46l8,7l-8,7z" />
+    <path android:pathData="M54,40 L80,82 L28,82 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="linear"
+                android:startX="54" android:startY="40" android:endX="54" android:endY="82"
+                android:startColor="#8CF2B66D" android:endColor="#00F2B66D" />
+        </aapt:attr>
+    </path>
+    <path android:fillColor="#F2B66D" android:pathData="M40,40 A14,14 0 0,1 68,40 Z" />
+    <path android:fillColor="#F2F0EB" android:pathData="M52,26 L56,26 L56,28 L52,28 Z" />
 </vector>

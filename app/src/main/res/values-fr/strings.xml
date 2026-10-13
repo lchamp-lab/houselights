@@ -1,10 +1,10 @@
 <resources>
     <string name="source_local">Mes fichiers</string>
-    <string name="source_local_desc">Tes vidéos sur un NAS ou un partage réseau (NFS ou SMB). Houselights les scanne et récupère affiches et infos sur TMDB.</string>
+    <string name="source_local_desc">Vos vidéos sur un NAS ou un partage réseau (NFS ou SMB). Houselights les analyse et récupère affiches et informations sur TMDB.</string>
     <string name="source_jellyfin">Serveur Jellyfin</string>
-    <string name="source_jellyfin_desc">Utilise la bibliothèque de ton serveur Jellyfin.</string>
+    <string name="source_jellyfin_desc">Utilisez la bibliothèque de votre serveur Jellyfin.</string>
     <string name="sources_coming_soon">Emby et Plex : bientôt.</string>
-    <string name="welcome_title">Choisis ta bibliothèque</string>
+    <string name="welcome_title">Choisissez votre bibliothèque</string>
 
     <string name="library_movies">Films</string>
     <string name="library_shows">Séries</string>
@@ -12,7 +12,9 @@
     <string name="library_mixed">Bibliothèque</string>
     <string name="section_continue">Reprendre</string>
     <string name="section_next_up">À suivre</string>
-    <string name="section_latest">Ajoutés récemment · %s</string>
+    <string name="section_latest">Ajouts récents dans %s</string>
+    <string name="section_latest_movies">Films ajoutés récemment</string>
+    <string name="section_latest_shows">Séries ajoutées récemment</string>
     <string name="section_recent">Ajoutés récemment</string>
     <string name="section_favorites">Favoris</string>
     <string name="section_unwatched">Non vus</string>
@@ -27,8 +29,12 @@
     <string name="error_unreachable">Impossible de joindre la bibliothèque</string>
     <string name="retry">Réessayer</string>
     <string name="empty">Rien pour l\'instant.</string>
-    <string name="home_empty_local">Ta bibliothèque est vide. Ajoute un dossier dans les Réglages.</string>
-    <string name="home_scanning">Scan de tes fichiers… %1$d / %2$d</string>
+    <plurals name="title_count">
+        <item quantity="one">%d titre</item>
+        <item quantity="other">%d titres</item>
+    </plurals>
+    <string name="home_empty_local">Aucun film pour l\'instant. Ajoutez le dossier qui les contient dans les Réglages.</string>
+    <string name="home_scanning">Analyse de vos fichiers… %1$d / %2$d</string>
 
     <string name="nav_settings">Réglages</string>
     <string name="resume_at">Reprendre à %s</string>
@@ -39,14 +45,16 @@
     <string name="filter_unwatched">Non vus</string>
 
     <string name="play">Lire</string>
-    <string name="resume">Reprendre · %s</string>
+    <string name="resume">Reprendre</string>
+    <string name="time_left">Il reste %s</string>
+    <string name="nav_home">Accueil</string>
     <string name="from_start">Depuis le début</string>
     <string name="watched">Vu</string>
     <string name="mark_watched">Marquer comme vu</string>
     <string name="favorite">Favori</string>
     <string name="add_favorite">Ajouter aux favoris</string>
     <string name="view_series">Voir la série</string>
-    <string name="directed_by">Réalisation  %s</string>
+    <string name="directed_by">Réalisé par %s</string>
     <string name="cast">Distribution</string>
     <string name="similar">Dans la même veine</string>
     <string name="episodes">Épisodes</string>
@@ -54,13 +62,15 @@
     <string name="no_player">Aucun lecteur vidéo disponible</string>
 
     <string name="add_folder">Ajouter un dossier</string>
+    <string name="add_folder_desc">Indiquez où se trouvent vos films ou vos séries sur le NAS. Testez la connexion avant d\'ajouter le dossier.</string>
+    <string name="jellyfin_desc">Saisissez l\'adresse de votre serveur et vos identifiants Jellyfin.</string>
     <string name="folder_kind">Contenu</string>
     <string name="field_name">Nom</string>
     <string name="field_protocol">Protocole</string>
     <string name="field_host">Adresse du NAS</string>
     <string name="field_export">Export NFS</string>
-    <string name="nfs_hint">NFS ne demande aucun mot de passe : le NAS fait confiance à l\'adresse IP de cet appareil. Sur le NAS, autorise cette IP (lecture seule suffit) et active les connexions depuis les ports non privilégiés (supérieurs à 1024).</string>
-    <string name="smb_hint">Le mot de passe est enregistré sur cet appareil et transmis au lecteur Zidoo. Préfère un compte dédié en lecture seule.</string>
+    <string name="nfs_hint">NFS ne demande aucun mot de passe : le NAS fait confiance à l\'adresse IP de cet appareil. Sur le NAS, autorisez cette adresse (la lecture seule suffit) et activez les connexions depuis les ports non privilégiés (supérieurs à 1024).</string>
+    <string name="smb_hint">Le mot de passe est enregistré sur cet appareil et transmis au lecteur Zidoo. Privilégiez un compte dédié en lecture seule.</string>
     <string name="field_share">Partage</string>
     <string name="field_path">Dossier (facultatif)</string>
     <string name="field_user">Utilisateur</string>
@@ -68,6 +78,14 @@
     <string name="test_connection">Tester</string>
     <string name="test_ok">Connexion réussie : %d éléments trouvés</string>
     <string name="test_failed">Échec de connexion : %s</string>
+    <string name="error_nas_unreachable">%s ne répond pas. Vérifiez que le NAS est allumé et connecté au réseau.</string>
+    <string name="error_access_denied">Le NAS a refusé l\'accès. En NFS, autorisez l\'adresse IP de cet appareil sur le partage ; en SMB, vérifiez les droits du compte.</string>
+    <string name="error_login_failed">Le NAS a refusé l\'identifiant ou le mot de passe.</string>
+    <string name="error_not_found">Ce partage ou ce dossier n\'existe pas sur le NAS. Vérifiez son orthographe.</string>
+    <string name="error_host_missing">Indiquez l\'adresse du NAS.</string>
+    <string name="error_export_missing">Indiquez l\'export NFS, par exemple /volume1/media.</string>
+    <string name="error_share_missing">Indiquez le nom du dossier partagé, par exemple media.</string>
+    <string name="error_scan_other">Impossible de lire le dossier : %s</string>
     <string name="add">Ajouter</string>
 
     <string name="jellyfin_title">Connexion à Jellyfin</string>
@@ -79,26 +97,45 @@
     <string name="error_connect">Connexion impossible à %1$s : %2$s</string>
 
     <string name="settings_title">Réglages</string>
+    <string name="welcome_tagline">Vos films, sur grand écran.</string>
+    <string name="section_about">À propos</string>
+    <string name="library_desc">Les dossiers que Houselights analyse pour construire votre bibliothèque. Les nouveaux fichiers sont repérés à chaque démarrage.</string>
+    <string name="playback_desc">Comment le lecteur Zidoo accède aux fichiers de votre serveur.</string>
+    <string name="display_desc">Résolution de l\'interface. Pendant la lecture, le lecteur Zidoo choisit son propre mode (fréquence, HDR).</string>
+    <string name="tmdb_desc">Les affiches et les informations proviennent de TMDB.</string>
+    <string name="change_source_desc">Vos dossiers sont conservés : vous pourrez y revenir à tout moment.</string>
+    <string name="label_server">Serveur</string>
+    <string name="label_address">Adresse</string>
+    <string name="label_user">Utilisateur</string>
+    <string name="label_hdmi">Sortie HDMI</string>
+    <string name="label_render">Rendu de l\'interface</string>
+    <string name="label_modes">Modes disponibles</string>
+    <string name="label_version">Version</string>
+    <string name="label_player">Lecteur Zidoo</string>
+    <string name="label_api">API de contrôle</string>
+    <string name="label_license">Licence</string>
+    <string name="tmdb_attribution">Ce produit utilise l\'API TMDB mais n\'est ni approuvé ni certifié par TMDB.</string>
     <string name="section_source">Bibliothèque</string>
     <string name="connected_as">Connecté en tant que %s</string>
     <string name="change_source">Changer de source</string>
     <string name="folders">Dossiers</string>
     <string name="remove">Retirer</string>
-    <string name="scan_now">Scanner maintenant</string>
-    <string name="refresh_metadata">Rafraîchir toutes les infos</string>
-    <string name="scanning">Scan de %1$s… %2$d / %3$d</string>
-    <string name="last_scan">Dernier scan : %s</string>
+    <string name="scan_now">Analyser maintenant</string>
+    <string name="refresh_metadata">Actualiser toutes les informations</string>
+    <string name="scanning">Analyse de %1$s… %2$d / %3$d</string>
+    <string name="last_scan">Dernière analyse : %s</string>
     <string name="never">jamais</string>
+    <string name="just_now">à l\'instant</string>
     <string name="tmdb_key">Clé API TMDB</string>
-    <string name="tmdb_key_builtin">Laisse vide pour utiliser la clé intégrée à l\'app.</string>
-    <string name="tmdb_key_missing">Aucune clé TMDB : impossible de récupérer affiches et infos. Clé gratuite sur themoviedb.org.</string>
+    <string name="tmdb_key_builtin">Laissez vide pour utiliser la clé intégrée à l\'application.</string>
+    <string name="tmdb_key_missing">Aucune clé TMDB : impossible de récupérer affiches et informations. Une clé gratuite est disponible sur themoviedb.org.</string>
     <string name="save">Enregistrer</string>
     <string name="saved">Enregistré</string>
     <string name="section_playback">Lecture</string>
     <string name="source_label">Source</string>
     <string name="network_path">Chemin réseau (SMB/NFS)</string>
     <string name="http_stream">Flux HTTP</string>
-    <string name="path_mapping_help">Le lecteur Zidoo lit directement le fichier sur le NAS : qualité maximale, sans transcodage. Indique comment traduire le chemin vu par le serveur en chemin réseau. Sans correspondance, la lecture passe par le flux HTTP (lecture directe, sans transcodage non plus).</string>
+    <string name="path_mapping_help">Le lecteur Zidoo lit directement le fichier sur le NAS : qualité maximale, sans transcodage. Indiquez comment traduire le chemin vu par le serveur en chemin réseau. Sans correspondance, la lecture passe par le flux HTTP (lecture directe, sans transcodage non plus).</string>
     <string name="sample_path">Exemple de chemin côté serveur : %s</string>
     <string name="server_path">Chemin serveur</string>
     <string name="add_mapping">Ajouter une correspondance</string>
@@ -106,7 +143,7 @@
     <string name="mapping_none">aucune correspondance → flux HTTP</string>
     <string name="section_display">Affichage</string>
     <string name="ui_label">Interface</string>
-    <string name="ui_4k">4K · 60 Hz</string>
+    <string name="ui_4k">4K 60 Hz</string>
     <string name="ui_system">Mode du système</string>
     <string name="hdmi_output">Sortie HDMI : %1$d×%2$d @ %3$s</string>
     <string name="ui_render">Rendu de l\'interface : %1$d×%2$d px (%3$d dpi)</string>

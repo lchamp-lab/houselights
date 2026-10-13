@@ -9,6 +9,7 @@ import app.houselights.providers.jellyfin.JellyfinProvider
 import app.houselights.providers.local.LibraryDatabase
 import app.houselights.providers.local.LibraryScanner
 import app.houselights.providers.local.LocalProvider
+import app.houselights.providers.local.TmdbClient
 import app.houselights.settings.SettingsStore
 import coil.ImageLoader
 import coil.ImageLoaderFactory
@@ -52,7 +53,7 @@ class AppContainer(private val app: Application) {
     val database = LibraryDatabase.create(app)
     val scanner = LibraryScanner(
         dao = database.dao(),
-        tmdbKey = { settings.state.value.tmdbApiKey ?: BuildConfig.TMDB_API_KEY.ifBlank { null } },
+        tmdbKey = { tmdbKey() },
         scope = scope,
     )
     val playback = PlaybackManager(app, scope)
@@ -75,6 +76,15 @@ class AppContainer(private val app: Application) {
             cached = source to created
             return created
         }
+
+    /** TMDB key in use: the user's own, else the one built into the APK. */
+    fun tmdbKey(): String? = settings.state.value.tmdbApiKey ?: BuildConfig.TMDB_API_KEY.ifBlank { null }
+
+    /** Poster URLs of trending films, or nothing when TMDB is unreachable. */
+    suspend fun trendingPosters(widthPx: Int): List<String> = runCatching {
+        val key = tmdbKey() ?: return emptyList()
+        TmdbClient(key).trendingPosterPaths().map { TmdbClient.imageUrl(it, TmdbClient.Companion.ImageType.POSTER, widthPx) }
+    }.getOrDefault(emptyList())
 
     fun libraryTitle(kind: LibraryKind): String = app.getString(
         when (kind) {

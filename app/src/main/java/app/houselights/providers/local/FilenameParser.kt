@@ -83,17 +83,17 @@ object FilenameParser {
                 has("720p") -> add("720p")
             }
             when {
-                has("dv", "dovi", """dolby[ ._-]?vision""") -> add("DOLBY VISION")
+                has("dv", "dovi", """dolby[ ._-]?vision""") -> add("Dolby Vision")
                 has("""hdr10\+""", "hdr10plus") -> add("HDR10+")
                 has("hdr10", "hdr") -> add("HDR")
             }
-            if (has("atmos")) add("ATMOS")
+            if (has("atmos")) add("Atmos")
             when {
-                has("truehd") -> add("TRUEHD")
+                has("truehd") -> add("TrueHD")
                 has("""dts[ ._-]?hd([ ._-]?ma)?""") -> add("DTS-HD MA")
                 has("""dts[ ._-]?x""") -> add("DTS:X")
             }
-            if (has("remux")) add("REMUX")
+            if (has("remux")) add("Remux")
         }
     }
 

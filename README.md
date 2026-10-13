@@ -8,10 +8,11 @@ player's own menus all keep working.
 
 ## Features
 
-- Immersive 10-foot UI built with Jetpack Compose for TV: full-screen backdrops, clear logos, poster rows,
-  detail pages with cast, seasons and episodes. Designed for D-pad navigation.
+- Cinematic 10-foot UI built with Jetpack Compose for TV on a dedicated design system ([DESIGN.md](DESIGN.md)):
+  full-screen backdrops whose light spills into the room, clear logos, poster rows and walls, detail pages
+  with cast, seasons and episodes, and the house lights dimming before the film starts.
 - **Library sources**
-  - **My files**: scans SMB shares on your NAS, identifies movies and TV shows from file and folder names,
+  - **My files**: scans NFS or SMB shares on your NAS, identifies movies and TV shows from file and folder names,
     and fetches artwork and details from TMDB. Resume points, watched state and favorites are stored locally.
   - **Jellyfin**: browses your server and reports playback progress back to it.
   - Emby and Plex: planned.
@@ -44,16 +45,18 @@ app/src/main/java/app/houselights/
   core/         backend-independent model and the MediaProvider interface
   providers/    local (SMB + TMDB + Room), jellyfin
   player/       Zidoo player launch, progress tracking, path mapping
-  ui/           Compose for TV screens and components
+  ui/design/    design system: tokens and components (see DESIGN.md)
+  ui/           Compose for TV screens
 ```
 
 ## Security notes
 
-The Zidoo player receives SMB credentials inside the file URI, and Android logs started intents.
-Use a **dedicated read-only NAS account** for your player.
+Prefer NFS: it needs no credentials. With SMB, the Zidoo player receives the credentials inside the file URI,
+and Android logs started intents, so use a **dedicated read-only NAS account** for your player.
 
 ## License
 
-[GPL-3.0](LICENSE)
+[GPL-3.0](LICENSE). The Archivo typeface is licensed under the SIL Open Font License 1.1
+([third_party/archivo/OFL.txt](third_party/archivo/OFL.txt)).
 
 This product uses the TMDB API but is not endorsed or certified by TMDB.

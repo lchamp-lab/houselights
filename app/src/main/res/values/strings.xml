@@ -16,7 +16,9 @@
     <string name="library_mixed">Library</string>
     <string name="section_continue">Continue watching</string>
     <string name="section_next_up">Next up</string>
-    <string name="section_latest">Recently added · %s</string>
+    <string name="section_latest">Recently added in %s</string>
+    <string name="section_latest_movies">Recently added movies</string>
+    <string name="section_latest_shows">Recently added shows</string>
     <string name="section_recent">Recently added</string>
     <string name="section_favorites">Favorites</string>
     <string name="section_unwatched">Unwatched</string>
@@ -32,7 +34,11 @@
     <string name="error_unreachable">Can\'t reach the library</string>
     <string name="retry">Retry</string>
     <string name="empty">Nothing here yet.</string>
-    <string name="home_empty_local">Your library is empty. Add a folder in Settings.</string>
+    <plurals name="title_count">
+        <item quantity="one">%d title</item>
+        <item quantity="other">%d titles</item>
+    </plurals>
+    <string name="home_empty_local">No films yet. Add the folder that holds them in Settings.</string>
     <string name="home_scanning">Scanning your files… %1$d / %2$d</string>
 
     <!-- Browsing -->
@@ -46,14 +52,16 @@
 
     <!-- Details -->
     <string name="play">Play</string>
-    <string name="resume">Resume · %s</string>
+    <string name="resume">Resume</string>
+    <string name="time_left">%s left</string>
+    <string name="nav_home">Home</string>
     <string name="from_start">From the beginning</string>
     <string name="watched">Watched</string>
     <string name="mark_watched">Mark as watched</string>
     <string name="favorite">Favorite</string>
     <string name="add_favorite">Add to favorites</string>
     <string name="view_series">View series</string>
-    <string name="directed_by">Directed by  %s</string>
+    <string name="directed_by">Directed by %s</string>
     <string name="cast">Cast</string>
     <string name="similar">More like this</string>
     <string name="episodes">Episodes</string>
@@ -62,6 +70,8 @@
 
     <!-- Local folders -->
     <string name="add_folder">Add a folder</string>
+    <string name="add_folder_desc">Tell Houselights where your films or shows live on the NAS. Test the connection before adding the folder.</string>
+    <string name="jellyfin_desc">Enter the address of your server and your Jellyfin credentials.</string>
     <string name="folder_kind">Contents</string>
     <string name="field_name">Name</string>
     <string name="field_protocol">Protocol</string>
@@ -76,6 +86,14 @@
     <string name="test_connection">Test</string>
     <string name="test_ok">Connected: %d items found</string>
     <string name="test_failed">Connection failed: %s</string>
+    <string name="error_nas_unreachable">%s does not answer. Check that the NAS is on and connected to the network.</string>
+    <string name="error_access_denied">The NAS refused access. For NFS, allow this device\'s IP address on the share; for SMB, check the account\'s permissions.</string>
+    <string name="error_login_failed">The NAS rejected the user name or password.</string>
+    <string name="error_not_found">This share or folder does not exist on the NAS. Check its spelling.</string>
+    <string name="error_host_missing">Enter the address of the NAS.</string>
+    <string name="error_export_missing">Enter the NFS export, for example /volume1/media.</string>
+    <string name="error_share_missing">Enter the name of the shared folder, for example media.</string>
+    <string name="error_scan_other">The folder could not be read: %s</string>
     <string name="add">Add</string>
 
     <!-- Jellyfin -->
@@ -89,6 +107,24 @@
 
     <!-- Settings -->
     <string name="settings_title">Settings</string>
+    <string name="welcome_tagline">Your films, on the big screen.</string>
+    <string name="section_about">About</string>
+    <string name="library_desc">The folders Houselights scans to build your library. New files are picked up each time the app starts.</string>
+    <string name="playback_desc">How the Zidoo player reaches the files of your server.</string>
+    <string name="display_desc">Resolution of the interface. During playback the Zidoo player picks its own mode (frame rate, HDR).</string>
+    <string name="tmdb_desc">Posters and details come from TMDB.</string>
+    <string name="change_source_desc">Your folders are kept: you can come back to them at any time.</string>
+    <string name="label_server">Server</string>
+    <string name="label_address">Address</string>
+    <string name="label_user">User</string>
+    <string name="label_hdmi">HDMI output</string>
+    <string name="label_render">Interface rendering</string>
+    <string name="label_modes">Available modes</string>
+    <string name="label_version">Version</string>
+    <string name="label_player">Zidoo player</string>
+    <string name="label_api">Control API</string>
+    <string name="label_license">License</string>
+    <string name="tmdb_attribution">This product uses the TMDB API but is not endorsed or certified by TMDB.</string>
     <string name="section_source">Library</string>
     <string name="connected_as">Signed in as %s</string>
     <string name="change_source">Change source</string>
@@ -99,6 +135,7 @@
     <string name="scanning">Scanning %1$s… %2$d / %3$d</string>
     <string name="last_scan">Last scan: %s</string>
     <string name="never">never</string>
+    <string name="just_now">just now</string>
     <string name="tmdb_key">TMDB API key</string>
     <string name="tmdb_key_builtin">Leave empty to use the key built into the app.</string>
     <string name="tmdb_key_missing">No TMDB key: posters and details can\'t be fetched. Get a free key at themoviedb.org.</string>
@@ -116,7 +153,7 @@
     <string name="mapping_none">no match → HTTP stream</string>
     <string name="section_display">Display</string>
     <string name="ui_label">Interface</string>
-    <string name="ui_4k">4K · 60 Hz</string>
+    <string name="ui_4k">4K 60 Hz</string>
     <string name="ui_system">System mode</string>
     <string name="hdmi_output">HDMI output: %1$d×%2$d @ %3$s</string>
     <string name="ui_render">Interface rendering: %1$d×%2$d px (%3$d dpi)</string>

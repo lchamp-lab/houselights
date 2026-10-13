@@ -1,4 +1,4 @@
-package app.houselights.ui.components
+package app.houselights.ui.design.components
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -17,17 +17,12 @@ import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -36,26 +31,23 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
-import androidx.tv.material3.Button
-import androidx.tv.material3.ButtonDefaults
-import androidx.tv.material3.Icon
-import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
-import app.houselights.ui.theme.Palette
+import app.houselights.ui.design.Hl
+import app.houselights.ui.design.HlShapes
+import app.houselights.ui.design.HlSize
+import app.houselights.ui.design.HlSpace
 
 @Composable
-fun TvTextField(
+fun HlTextField(
     label: String,
     value: String,
     onValueChange: (String) -> Unit,
@@ -74,8 +66,14 @@ fun TvTextField(
     val fieldFocus = remember { FocusRequester() }
     val keyboard = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
-    val shape = RoundedCornerShape(8.dp)
-    val active = boxFocused || fieldFocused
+    val shape = HlShapes.field
+    val c = Hl.colors
+    // Focus outlines in projector white; typing lights the tungsten lamp.
+    val borderColor = when {
+        editing -> c.tungsten
+        boxFocused -> c.focus
+        else -> c.outline
+    }
 
     LaunchedEffect(editing) {
         if (editing) {
@@ -90,8 +88,11 @@ fun TvTextField(
     }
 
     Column(modifier) {
-        Text(label, style = MaterialTheme.typography.labelMedium, color = Palette.TextDim)
-        Spacer(Modifier.height(6.dp))
+        // An empty label leaves the naming to a setting title placed above the field.
+        if (label.isNotEmpty()) {
+            Text(label, style = Hl.type.caption, color = c.contentSecondary)
+            Spacer(Modifier.height(HlSpace.xs - 2.dp))
+        }
         Box(
             Modifier
                 .fillMaxWidth()
@@ -106,16 +107,16 @@ fun TvTextField(
                 }
                 .focusable()
                 .clip(shape)
-                .background(if (active) Palette.SurfaceHigh else Palette.Surface)
-                .border(BorderStroke(2.dp, if (active) Palette.Accent else Palette.SurfaceHigh), shape)
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+                .background(if (boxFocused || editing) c.surfaceRaised else c.surface)
+                .border(BorderStroke(if (boxFocused || editing) HlSize.focusBorder else HlSize.hairline, borderColor), shape)
+                .padding(horizontal = HlSpace.m, vertical = HlSpace.s),
         ) {
             BasicTextField(
                 value = value,
                 onValueChange = onValueChange,
                 singleLine = true,
-                textStyle = MaterialTheme.typography.bodyLarge.copy(color = Palette.Text),
-                cursorBrush = SolidColor(if (editing) Palette.Accent else Color.Transparent),
+                textStyle = Hl.type.body.copy(color = c.content),
+                cursorBrush = SolidColor(if (editing) c.tungsten else Color.Transparent),
                 visualTransformation = if (password) PasswordVisualTransformation() else VisualTransformation.None,
                 keyboardOptions = KeyboardOptions(
                     keyboardType = if (password) KeyboardType.Password else keyboardType,
@@ -139,46 +140,12 @@ fun TvTextField(
                 decorationBox = { inner ->
                     Box {
                         if (value.isEmpty()) {
-                            Text(placeholder, style = MaterialTheme.typography.bodyLarge, color = Palette.TextFaint)
+                            Text(placeholder, style = Hl.type.body, color = c.contentTertiary)
                         }
                         inner()
                     }
                 },
             )
-        }
-    }
-}
-
-/** Action button (light background when focused). */
-@Composable
-fun ActionButton(
-    text: String,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    icon: ImageVector? = null,
-    primary: Boolean = false,
-) {
-    Button(
-        onClick = onClick,
-        modifier = modifier,
-        shape = ButtonDefaults.shape(RoundedCornerShape(8.dp)),
-        colors = ButtonDefaults.colors(
-            containerColor = if (primary) Palette.Accent else Palette.Text.copy(alpha = 0.12f),
-            contentColor = if (primary) Palette.OnAccent else Palette.Text,
-            focusedContainerColor = Palette.Text,
-            focusedContentColor = Palette.Background,
-            pressedContainerColor = Palette.Text,
-            pressedContentColor = Palette.Background,
-        ),
-        scale = ButtonDefaults.scale(focusedScale = 1.06f),
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 20.dp, vertical = 10.dp),
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
-            if (icon != null) {
-                Icon(icon, contentDescription = null, modifier = Modifier.size(20.dp))
-                Spacer(Modifier.width(8.dp))
-            }
-            Text(text, style = MaterialTheme.typography.titleMedium)
         }
     }
 }

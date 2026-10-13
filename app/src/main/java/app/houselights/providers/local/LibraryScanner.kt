@@ -18,7 +18,7 @@ data class ScanState(
     val total: Int = 0,
     val current: String? = null,
     /** Last error per source name, kept after the scan ends. */
-    val errors: Map<String, String> = emptyMap(),
+    val errors: Map<String, ScanError> = emptyMap(),
 )
 
 /**
@@ -48,11 +48,11 @@ class LibraryScanner(
         if (job?.isActive == true) return
         job = scope.launch(Dispatchers.IO) {
             refreshedSeries.clear()
-            val errors = mutableMapOf<String, String>()
+            val errors = mutableMapOf<String, ScanError>()
             for (source in dao.sources()) {
                 runCatching { scan(source, refreshMetadata) }.onFailure { e ->
                     Log.w(TAG, "Scan of ${source.name} failed", e)
-                    errors[source.name] = e.message ?: e.javaClass.simpleName
+                    errors[source.name] = ScanErrors.classify(e)
                 }
             }
             dao.deleteEmptySeasons()

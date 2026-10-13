@@ -28,6 +28,7 @@ data class TmdbSearchResult(
     val releaseDate: String? = null,
     val firstAirDate: String? = null,
     val popularity: Double = 0.0,
+    val posterPath: String? = null,
 )
 
 @Serializable
@@ -153,6 +154,9 @@ interface TmdbApi {
         @Query("append_to_response") append: String = "credits,images,content_ratings",
     ): TmdbTv
 
+    @GET("trending/movie/week")
+    suspend fun trendingMovies(@Query("language") language: String): TmdbPage<TmdbSearchResult>
+
     @GET("tv/{id}/season/{season}")
     suspend fun season(@Path("id") id: Int, @Path("season") season: Int, @Query("language") language: String): TmdbSeason
 }
@@ -205,6 +209,9 @@ class TmdbClient(apiKey: String) {
     }
 
     suspend fun season(tvId: Int, season: Int): TmdbSeason? = runCatching { api.season(tvId, season, language) }.getOrNull()
+
+    /** Posters of this week's trending films, for the welcome screen's wall. */
+    suspend fun trendingPosterPaths(): List<String> = api.trendingMovies(language).results.mapNotNull { it.posterPath }
 
     /** Logo in the device language, else English, else language-neutral. */
     fun pickLogo(images: TmdbImages): String? =
