@@ -1,10 +1,10 @@
 package app.houselights.ui.design.components
 
+import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.focusable
-import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -19,9 +19,15 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawOutline
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEvent
 import androidx.compose.ui.input.key.KeyEventType
@@ -37,41 +43,47 @@ import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlInset
 import app.houselights.ui.design.HlSpace
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 /**
  * Text or tables longer than the space they have, read with the remote: the area takes focus
  * (outlined in projector white) only when there is something to scroll, and up and down then
- * scroll it until an end, where focus moves on. [framed] sets it on a quiet panel.
+ * scroll it until an end, where focus moves on. [framed] sets it on a quiet panel; unframed (in a
+ * sheet), its edges are square, so a hairline at its top stays whole, and its focus ring stands
+ * outside the content, clear of its text and rules.
  */
 @Composable
 fun HlScrollArea(
     modifier: Modifier = Modifier,
     framed: Boolean = true,
-    padding: Dp = if (framed) HlInset.card else HlSpace.xxs,
+    padding: Dp = if (framed) HlInset.card else HlSpace.none,
     content: @Composable BoxScope.() -> Unit,
 ) {
     val scroll = rememberScrollState()
     val scope = rememberCoroutineScope()
     val step = with(LocalDensity.current) { HlSize.scrollStep.toPx() }
+    val keys = remember(scroll, scope) { KeyScroll(scroll, scope) }
     var focused by remember { mutableStateOf(false) }
     val c = Hl.colors
+    val edge = if (framed) {
+        Modifier
+            .clip(HlShapes.panel)
+            .background(c.surface.copy(alpha = HlAlpha.QUIET_SURFACE))
+            .border(
+                if (focused) HlSize.focusBorder else HlSize.hairline,
+                if (focused) c.focus else c.outline.copy(alpha = HlAlpha.BORDER),
+                HlShapes.panel,
+            )
+    } else {
+        Modifier.ringOutside(focused, c.focus).clipToBounds()
+    }
     Box(
         modifier
             .fillMaxWidth()
-            .clip(HlShapes.panel)
-            .background(if (framed) c.surface.copy(alpha = HlAlpha.QUIET_SURFACE) else Color.Transparent)
-            .border(
-                if (focused) HlSize.focusBorder else HlSize.hairline,
-                when {
-                    focused -> c.focus
-                    framed -> c.outline.copy(alpha = HlAlpha.BORDER)
-                    else -> Color.Transparent
-                },
-                HlShapes.panel,
-            )
+            .then(edge)
             .onFocusChanged { focused = it.isFocused }
-            .onKeyEvent { scrollBy(it, scroll, scope, step) }
+            .onKeyEvent { keys.onKey(it, step) }
             .focusProperties { canFocus = scroll.maxValue > 0 }
             .focusable()
             .verticalScroll(scroll)
@@ -80,19 +92,45 @@ fun HlScrollArea(
     )
 }
 
-private fun scrollBy(event: KeyEvent, scroll: ScrollState, scope: CoroutineScope, step: Float): Boolean {
-    if (event.type != KeyEventType.KeyDown) return false
-    return when (event.key) {
-        Key.DirectionDown -> {
-            if (scroll.value >= scroll.maxValue) return false
-            scope.launch { scroll.animateScrollBy(step) }
-            true
+/** The focus ring of an unframed area, drawn a gap outside its bounds, clear of the content. */
+private fun Modifier.ringOutside(shown: Boolean, color: Color): Modifier = drawBehind {
+    if (!shown) return@drawBehind
+    val width = HlSize.focusBorder.toPx()
+    val reach = HlSize.focusRingGap.toPx() + width / 2
+    val ring = Size(size.width + reach * 2, size.height + reach * 2)
+    translate(-reach, -reach) {
+        drawOutline(HlShapes.panel.createOutline(ring, layoutDirection, this), color, style = Stroke(width))
+    }
+}
+
+/**
+ * Up and down scroll one step per press. A key held down adds its steps to where the scroll is
+ * heading and the motion carries on, keeping its speed, instead of starting over from rest at
+ * each repeat.
+ */
+private class KeyScroll(private val scroll: ScrollState, private val scope: CoroutineScope) {
+    private val position = Animatable(0f)
+    private var target = 0f
+    private var motion: Job? = null
+
+    fun onKey(event: KeyEvent, step: Float): Boolean {
+        val direction = when {
+            event.type != KeyEventType.KeyDown -> 0
+            event.key == Key.DirectionDown && scroll.value < scroll.maxValue -> 1
+            event.key == Key.DirectionUp && scroll.value > 0 -> -1
+            else -> 0
         }
-        Key.DirectionUp -> {
-            if (scroll.value <= 0) return false
-            scope.launch { scroll.animateScrollBy(-step) }
-            true
+        // At an end, the key moves focus on.
+        if (direction == 0) return false
+        val moving = motion?.isActive == true
+        target = ((if (moving) target else scroll.value.toFloat()) + direction * step).coerceIn(0f, scroll.maxValue.toFloat())
+        val to = target
+        // Read now: by the time this motion takes over, the one it replaces has stopped.
+        val velocity = position.velocity
+        motion = scope.launch {
+            if (!moving) position.snapTo(scroll.value.toFloat())
+            position.animateTo(to, initialVelocity = velocity) { scroll.dispatchRawDelta(value - scroll.value) }
         }
-        else -> false
+        return true
     }
 }

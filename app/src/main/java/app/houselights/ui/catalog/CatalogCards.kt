@@ -199,7 +199,7 @@ private fun LandscapeRow() {
     }
 }
 
-/** The cast row of a detail page: names of one and two lines side by side, so the roles part. */
+/** The cast row of a detail page: names of one and two lines side by side, their roles in line. */
 @Composable
 private fun CastRow() {
     val photo = shippedImage(R.drawable.banner)

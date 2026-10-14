@@ -33,11 +33,19 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.findRootCoordinates
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.IntRect
+import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupPositionProvider
 import androidx.compose.ui.window.PopupProperties
 import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.Icon
@@ -49,13 +57,16 @@ import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
+import kotlin.math.roundToInt
 
 data class MenuOption(val label: String, val selected: Boolean, val onSelect: () -> Unit)
 
 data class MenuSection(val title: String?, val options: List<MenuOption>)
 
 /**
- * A button that opens a small menu of exclusive options, grouped in sections.
+ * A button that opens a small menu of exclusive options, grouped in sections, against its end
+ * edge: below the button when the room down to the safe area holds it, else above. It never
+ * leaves the safe area; a longer menu scrolls inside.
  * With [closeOnSelect] (sorting) a choice closes the menu; without it (filters) the menu
  * stays open so choices can be combined. Back always closes it.
  */
@@ -70,30 +81,65 @@ fun HlMenuButton(
     closeOnSelect: Boolean = true,
 ) {
     var open by remember { mutableStateOf(false) }
-    var anchorHeight by remember { mutableIntStateOf(0) }
-    val gap = with(LocalDensity.current) { HlSpace.xs.roundToPx() }
-    Box(modifier.onSizeChanged { anchorHeight = it.height }) {
+    // The most room the screen leaves a menu, above or below the button.
+    var room by remember { mutableIntStateOf(0) }
+    val density = LocalDensity.current
+    val position = remember(density) { MenuPosition(density) }
+    Box(modifier.onGloballyPositioned { room = position.room(it) }) {
         HlButton(text, onClick = { open = true }, icon = icon, detail = detail, emphasis = emphasis)
         if (open) {
             Popup(
-                alignment = Alignment.TopEnd,
-                offset = IntOffset(0, anchorHeight + gap),
+                popupPositionProvider = position,
                 onDismissRequest = { open = false },
                 properties = PopupProperties(focusable = true),
             ) {
-                MenuPanel(sections, onDone = { if (closeOnSelect) open = false })
+                MenuPanel(sections, maxHeight = with(density) { room.toDp() }, onDone = { if (closeOnSelect) open = false })
             }
         }
     }
 }
 
+/**
+ * Where a menu opens: against the end edge of its button, below it when the room down to the
+ * safe area holds the menu, else above. The menu is no taller than the larger of the two rooms,
+ * so it fits on one side.
+ */
+private class MenuPosition(density: Density) : PopupPositionProvider {
+    private val gap = with(density) { HlSpace.xs.roundToPx() }
+    private val safeH = with(density) { HlSpace.safeH.roundToPx() }
+    private val safeV = with(density) { HlSpace.safeV.roundToPx() }
+
+    /** The larger of the rooms above and below the button, inside the safe area. */
+    fun room(button: LayoutCoordinates): Int {
+        val bounds = button.boundsInRoot()
+        val above = bounds.top.roundToInt() - gap - safeV
+        val below = button.findRootCoordinates().size.height - safeV - bounds.bottom.roundToInt() - gap
+        return maxOf(above, below, 0)
+    }
+
+    override fun calculatePosition(
+        anchorBounds: IntRect,
+        windowSize: IntSize,
+        layoutDirection: LayoutDirection,
+        popupContentSize: IntSize,
+    ): IntOffset {
+        val below = windowSize.height - safeV - anchorBounds.bottom - gap
+        val y = if (popupContentSize.height <= below) anchorBounds.bottom + gap else anchorBounds.top - gap - popupContentSize.height
+        val x = if (layoutDirection == LayoutDirection.Ltr) anchorBounds.right - popupContentSize.width else anchorBounds.left
+        return IntOffset(
+            x.coerceIn(safeH, maxOf(safeH, windowSize.width - safeH - popupContentSize.width)),
+            y.coerceIn(safeV, maxOf(safeV, windowSize.height - safeV - popupContentSize.height)),
+        )
+    }
+}
+
 @Composable
-private fun MenuPanel(sections: List<MenuSection>, onDone: () -> Unit) {
+private fun MenuPanel(sections: List<MenuSection>, maxHeight: Dp, onDone: () -> Unit) {
     val c = Hl.colors
     val first = remember { FocusRequester() }
     LaunchedEffect(Unit) { runCatching { first.requestFocus() } }
     HlPanel(
-        Modifier.width(HlLayout.menuWidth).heightIn(max = HlLayout.menuMaxHeight),
+        Modifier.width(HlLayout.menuWidth).heightIn(max = maxHeight),
         level = PanelLevel.Raised,
         padding = HlInset.tight,
         shape = HlShapes.sheet,

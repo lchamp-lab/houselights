@@ -1,8 +1,10 @@
 package app.houselights.ui.design.components
 
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -22,8 +24,9 @@ import app.houselights.ui.design.HlSpace
 /**
  * A sheet to read, centred over the dimmed room: details on demand, such as the technical sheet.
  * What it is ([title], in the voice of the poster) and what it is about ([facts]), its content,
- * and the Back hint; no button to close it, Back does. It grows in and fades out. For acting on
- * something, use [HlSideSheet].
+ * and the Back hint; no button to close it, Back does. It grows in and fades out. It never leaves
+ * the safe area: longer content scrolls, in one area, between the header and the hint, which
+ * stay. For acting on something, use [HlSideSheet].
  */
 @Composable
 fun HlModal(
@@ -39,6 +42,7 @@ fun HlModal(
         HlPanel(
             modifier
                 .align(Alignment.Center)
+                .padding(vertical = HlSpace.safeV)
                 .width(width)
                 .graphicsLayer {
                     val p = progress()
@@ -57,7 +61,9 @@ fun HlModal(
                 FactRow(facts)
             }
             Spacer(Modifier.height(HlSpace.m))
-            content(sheet)
+            HlScrollArea(Modifier.weight(1f, fill = false), framed = false) {
+                Column { content(sheet) }
+            }
             Spacer(Modifier.height(HlSpace.m))
             BackHint()
         }

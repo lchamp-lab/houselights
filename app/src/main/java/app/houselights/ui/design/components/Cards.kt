@@ -249,7 +249,10 @@ fun LandscapeCard(
     }
 }
 
-/** Cast member: round portrait, name over two lines at most, and role. Focusable so the row can scroll. */
+/**
+ * Cast member: round portrait, name over two lines (always two tall, so the roles of a row line
+ * up), and role. Focusable so the row can scroll.
+ */
 @Composable
 fun PersonCard(person: Person, modifier: Modifier = Modifier) {
     val px = HlSize.avatar.toPx()
@@ -269,6 +272,7 @@ fun PersonCard(person: Person, modifier: Modifier = Modifier) {
             style = Hl.type.meta,
             color = Hl.colors.content,
             maxLines = 2,
+            minLines = 2,
             overflow = TextOverflow.Ellipsis,
             textAlign = TextAlign.Center,
         )
