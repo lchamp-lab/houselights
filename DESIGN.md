@@ -25,13 +25,19 @@ every build (see *Guard*).
 ## Identity: the typography of film materials
 
 Nothing is added for decoration. Houselights is recognised by its type and its vocabulary, applied
-with discipline everywhere: one family, **Archivo**, at three widths that are three voices.
+with discipline everywhere: one family, **Archivo**, whose widths are the voices of the interface.
 
 | Voice | Width | What it says | Styles |
 |---|---|---|---|
-| The poster | condensed (70) | titles, names in the billing block, large figures | `display`, `headline`, `billing`, `wordmark`, `figure` |
-| Reading | normal (100) | overviews, descriptions, names in lists, values | `title`, `lead`, `body`, `meta`, `caption`, `detail`, `code` |
-| Technical | wide (112), tabular figures | formats, controls, every number that lines up | `label`, `spec`, `badge` |
+| The poster | condensed (70) | titles, names in the billing block, large figures, what a panel is about | `display`, `headline`, `figure`, `subject`, `billing`, `wordmark` |
+| Reading | normal (100) | overviews, descriptions, names in lists, values | `title`, `lead`, `body`, `entry`, `meta`, `caption`, `detail` |
+| Controls | wide (112) | the words of buttons and of the options of a track | `label` |
+| Technical | expanded (125), tabular figures | formats and specifications: short, set apart | `spec`, `badge` |
+
+Each width declares only the weights its styles use, so the system never fakes a bold
+(`TypeScaleTest`). **One family is the rule; a second face is justified only by what the text is,
+never to decorate:** raw text read as written, whose columns must line up, uses the system's
+monospaced face (`code`, the NFO). Scripts Archivo does not cover fall back to the system font.
 
 The technical voice speaks the vocabulary of a Blu-ray case: formats by their names (`Ultra HD`,
 `Full HD`, `Dolby Vision`, `HDR10`, `TrueHD Atmos`), aspect ratios written `2,39:1`, the frame size as
@@ -73,16 +79,18 @@ style, so durations, sizes and counts line up and do not jitter.
 | `display` | 64 / 70 | title of a detail page without logo |
 | `headline` | 44 / 48 | screen titles, home hero title without logo |
 | `figure` | 32 / 36 | a figure that states something (storage used) |
+| `subject` | 32 / 36 | what a panel or a sheet is about ("Modifier", "Fiche technique") |
 | `title` | 24 / 30 | pane and dialog titles, taglines |
 | `lead` | 20 / 26 | row headers, names of cards and results, episode names |
 | `spec` | 20 / 26 | headline of a technical sheet |
 | `billing` / `billingJoin` | 18 and 14 / 24 | the billing block, capitals with case-sensitive forms |
 | `body` | 16 / 24 | overviews, descriptions |
-| `label` | 16 / 20 | buttons, tabs, menu entries, setting names |
+| `entry` | 16 / 20 | a name to read in a list: a setting, a menu option, a navigation entry, a title in a line |
+| `label` | 16 / 20 | the words of buttons and of the options of a track |
 | `meta` | 16 / 20 | facts and values: year, runtime, score, sizes; names under artwork |
 | `caption` | 14 / 20 | secondary lines: hints, roles, paths, group titles |
 | `detail` | 14 / 18 | the line under a name in a row, an entry or a choice; tighter than `caption`, so two lines read as one block |
-| `code` | 14 / 22 | raw text read as written (NFO XML) |
+| `code` | 14 / 22 | raw text read as written (NFO XML), in the system's monospaced face |
 | `badge` | 12 / 16 | format and rating badges |
 | `wordmark` / `wordmarkHero` | 22 / 24 and 80 / 84 | the Houselights wordmark |
 

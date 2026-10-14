@@ -74,7 +74,7 @@ fun HlModal(
             ) {
                 HlPanel(modifier.width(width), level = PanelLevel.Raised, padding = HlSpace.xl) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(title, style = Hl.type.title, color = c.content, modifier = Modifier.weight(1f))
+                        Text(title, style = Hl.type.subject, color = c.content, modifier = Modifier.weight(1f))
                         HlButton(stringResource(R.string.close), onDismiss, Modifier.focusRequester(closeFocus), icon = Icons.Filled.Close)
                     }
                     Spacer(Modifier.height(HlSpace.l))

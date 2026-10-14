@@ -96,13 +96,14 @@ fun CatalogScreen() {
             }
 
             item {
-                Group("Type: the voice of the poster, of reading, technical", still = true) {
+                Group("Type: the voices of the poster, of reading, of controls, technical", still = true) {
                     listOf(
-                        "display" to t.display, "headline" to t.headline, "title" to t.title, "lead" to t.lead,
-                        "body" to t.body, "caption" to t.caption, "detail" to t.detail,
-                        "label" to t.label, "meta" to t.meta,
-                        "figure" to t.figure, "spec" to t.spec, "badge" to t.badge, "code" to t.code,
+                        "display" to t.display, "headline" to t.headline, "figure" to t.figure, "subject" to t.subject,
                         "billing" to t.billing, "wordmark" to t.wordmark,
+                        "title" to t.title, "lead" to t.lead, "body" to t.body, "entry" to t.entry, "meta" to t.meta,
+                        "caption" to t.caption, "detail" to t.detail, "code" to t.code,
+                        "label" to t.label,
+                        "spec" to t.spec, "badge" to t.badge,
                     ).forEach { (name, style) -> Specimen(name, style) }
                 }
             }

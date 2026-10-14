@@ -13,26 +13,34 @@ import androidx.compose.ui.unit.sp
 import app.houselights.R
 
 /**
- * One family, Archivo, at three widths that are three voices:
- * - condensed, the voice of the poster: titles and the billing block;
- * - normal, the voice of reading: overviews, descriptions, values;
- * - wide, the technical voice: formats, controls and every number.
+ * One family, Archivo, whose widths are the voices of the interface:
+ * - condensed, the voice of the poster: titles, names in the billing block, large figures;
+ * - normal, the voice of reading: overviews, descriptions, names, values;
+ * - wide, the voice of controls: buttons and the options of a track;
+ * - expanded, the technical voice: formats and specifications, short and set apart.
+ *
+ * Each width declares only the weights its styles use, so none is ever faked. The one other face
+ * is the system's monospaced one, for raw text that must line up as written ([mono]).
  */
 object HlFonts {
     @OptIn(ExperimentalTextApi::class)
-    private fun archivo(width: Float) = FontFamily(
-        listOf(400, 500, 600, 700).map { w ->
+    private fun archivo(width: Float, vararg weights: FontWeight) = FontFamily(
+        weights.map { w ->
             Font(
                 R.font.archivo,
-                weight = FontWeight(w),
-                variationSettings = FontVariation.Settings(FontVariation.weight(w), FontVariation.width(width)),
+                weight = w,
+                variationSettings = FontVariation.Settings(FontVariation.weight(w.weight), FontVariation.width(width)),
             )
         }
     )
 
-    val condensed = archivo(70f)
-    val text = archivo(100f)
-    val wide = archivo(112f)
+    val condensed = archivo(70f, FontWeight.Normal, FontWeight.Medium, FontWeight.SemiBold, FontWeight.Bold)
+    val text = archivo(100f, FontWeight.Normal, FontWeight.Medium, FontWeight.SemiBold)
+    val wide = archivo(112f, FontWeight.SemiBold)
+    val expanded = archivo(125f, FontWeight.SemiBold)
+
+    /** Code read as written (NFO XML): one weight on Android 9, and every character already the same width. */
+    val mono = FontFamily.Monospace
 }
 
 /** Tabular figures: numbers keep the same width, so they line up in columns and do not jitter. */
@@ -55,6 +63,8 @@ data class HlType(
     val headline: TextStyle,
     /** Large figures that state something (storage used, a film's definition). */
     val figure: TextStyle,
+    /** What a panel or a sheet is about: "Modifier", "Fiche technique". */
+    val subject: TextStyle,
     /** Names in the billing block, set like the credits at the foot of a poster. */
     val billing: TextStyle,
     /** The small words between them: "a film by", "with", "and". */
@@ -71,6 +81,8 @@ data class HlType(
     val lead: TextStyle,
     /** Overviews, descriptions, paragraphs. */
     val body: TextStyle,
+    /** A name to read in a list: a setting, a menu option, a navigation entry, a title in a line. */
+    val entry: TextStyle,
     /** Facts and values: year, runtime, score, sizes; tabular figures. */
     val meta: TextStyle,
     /** Secondary lines: hints, roles, paths, group titles. */
@@ -83,9 +95,11 @@ data class HlType(
     /** Raw text to read as written (NFO XML). */
     val code: TextStyle,
 
-    // The technical voice (wide, tabular figures).
-    /** Buttons, tabs, menu entries, setting names. */
+    // The voice of controls (wide).
+    /** Buttons and the options of a track. */
     val label: TextStyle,
+
+    // The technical voice (expanded, tabular figures).
     /** The headline of a technical sheet: definition, ratio, codec. */
     val spec: TextStyle,
     /** Format and rating badges: Ultra HD, Dolby Vision, 12. */
@@ -95,6 +109,8 @@ data class HlType(
 val HouselightsType = HlType(
     display = TextStyle(fontFamily = HlFonts.condensed, fontWeight = FontWeight.Bold, fontSize = 64.sp, lineHeight = 70.sp, letterSpacing = (-0.01).em),
     headline = TextStyle(fontFamily = HlFonts.condensed, fontWeight = FontWeight.Bold, fontSize = 44.sp, lineHeight = 48.sp, letterSpacing = (-0.005).em),
+    figure = TextStyle(fontFamily = HlFonts.condensed, fontWeight = FontWeight.SemiBold, fontSize = 32.sp, lineHeight = 36.sp, fontFeatureSettings = FIGURES),
+    subject = TextStyle(fontFamily = HlFonts.condensed, fontWeight = FontWeight.SemiBold, fontSize = 32.sp, lineHeight = 36.sp),
     billing = TextStyle(fontFamily = HlFonts.condensed, fontWeight = FontWeight.Medium, fontSize = 18.sp, lineHeight = 24.sp, letterSpacing = 0.04.em, fontFeatureSettings = CAPITALS),
     billingJoin = TextStyle(fontFamily = HlFonts.condensed, fontWeight = FontWeight.Normal, fontSize = 14.sp, lineHeight = 24.sp, letterSpacing = 0.02.em),
     wordmark = TextStyle(fontFamily = HlFonts.condensed, fontWeight = FontWeight.SemiBold, fontSize = 22.sp, lineHeight = 24.sp, letterSpacing = 0.02.em),
@@ -103,15 +119,22 @@ val HouselightsType = HlType(
     title = TextStyle(fontFamily = HlFonts.text, fontWeight = FontWeight.SemiBold, fontSize = 24.sp, lineHeight = 30.sp),
     lead = TextStyle(fontFamily = HlFonts.text, fontWeight = FontWeight.SemiBold, fontSize = 20.sp, lineHeight = 26.sp),
     body = TextStyle(fontFamily = HlFonts.text, fontWeight = FontWeight.Normal, fontSize = 16.sp, lineHeight = 24.sp),
+    entry = TextStyle(fontFamily = HlFonts.text, fontWeight = FontWeight.SemiBold, fontSize = 16.sp, lineHeight = 20.sp),
+    meta = TextStyle(fontFamily = HlFonts.text, fontWeight = FontWeight.Medium, fontSize = 16.sp, lineHeight = 20.sp, fontFeatureSettings = FIGURES),
     caption = TextStyle(fontFamily = HlFonts.text, fontWeight = FontWeight.Normal, fontSize = 14.sp, lineHeight = 20.sp),
     detail = TextStyle(fontFamily = HlFonts.text, fontWeight = FontWeight.Normal, fontSize = 14.sp, lineHeight = 18.sp),
+    code = TextStyle(fontFamily = HlFonts.mono, fontWeight = FontWeight.Normal, fontSize = 14.sp, lineHeight = 22.sp),
 
     label = TextStyle(fontFamily = HlFonts.wide, fontWeight = FontWeight.SemiBold, fontSize = 16.sp, lineHeight = 20.sp, letterSpacing = 0.01.em, fontFeatureSettings = FIGURES),
-    meta = TextStyle(fontFamily = HlFonts.text, fontWeight = FontWeight.Medium, fontSize = 16.sp, lineHeight = 20.sp, fontFeatureSettings = FIGURES),
-    figure = TextStyle(fontFamily = HlFonts.condensed, fontWeight = FontWeight.SemiBold, fontSize = 32.sp, lineHeight = 36.sp, fontFeatureSettings = FIGURES),
-    spec = TextStyle(fontFamily = HlFonts.wide, fontWeight = FontWeight.SemiBold, fontSize = 20.sp, lineHeight = 26.sp, letterSpacing = 0.01.em, fontFeatureSettings = FIGURES),
-    badge = TextStyle(fontFamily = HlFonts.wide, fontWeight = FontWeight.SemiBold, fontSize = 12.sp, lineHeight = 16.sp, letterSpacing = 0.06.em, fontFeatureSettings = FIGURES),
-    code = TextStyle(fontFamily = HlFonts.text, fontWeight = FontWeight.Normal, fontSize = 14.sp, lineHeight = 22.sp, fontFeatureSettings = FIGURES),
+
+    spec = TextStyle(
+        fontFamily = HlFonts.expanded, fontWeight = FontWeight.SemiBold, fontSize = 20.sp, lineHeight = 26.sp,
+        letterSpacing = 0.01.em, fontFeatureSettings = FIGURES,
+    ),
+    badge = TextStyle(
+        fontFamily = HlFonts.expanded, fontWeight = FontWeight.SemiBold, fontSize = 12.sp, lineHeight = 16.sp,
+        letterSpacing = 0.06.em, fontFeatureSettings = FIGURES,
+    ),
 )
 
 val LocalHlType = staticCompositionLocalOf { HouselightsType }

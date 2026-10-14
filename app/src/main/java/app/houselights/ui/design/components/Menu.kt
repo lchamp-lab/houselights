@@ -142,7 +142,7 @@ private fun MenuItem(label: String, selected: Boolean, onClick: () -> Unit, modi
                 }
             }
             Spacer(Modifier.width(HlSpace.s))
-            Text(label, style = Hl.type.label)
+            Text(label, style = Hl.type.entry)
         }
     }
 }

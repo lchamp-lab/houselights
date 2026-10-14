@@ -3,6 +3,8 @@ package app.houselights.ui.design.components
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.padding
@@ -100,10 +102,16 @@ fun Badge(text: String, modifier: Modifier = Modifier, lit: Boolean = false) {
     )
 }
 
+/** Formats of a title, in the order given; they wrap to a second line rather than run out of room. */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun BadgeRow(badges: List<String>, modifier: Modifier = Modifier) {
     if (badges.isEmpty()) return
-    Row(modifier, horizontalArrangement = Arrangement.spacedBy(HlSpace.xs)) { badges.forEach { Badge(Definition.label(it)) } }
+    FlowRow(
+        modifier,
+        horizontalArrangement = Arrangement.spacedBy(HlSpace.xs),
+        verticalArrangement = Arrangement.spacedBy(HlSpace.xs),
+    ) { badges.forEach { Badge(Definition.label(it)) } }
 }
 
 /**

@@ -170,7 +170,7 @@ fun LibraryScreen(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     shown?.let {
-                        Text(it.title, style = Hl.type.label, color = Hl.colors.content, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(it.title, style = Hl.type.entry, color = Hl.colors.content, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         Spacer(Modifier.width(HlSpace.m))
                         MetaLine(it, showGenres = false)
                         if (it.badges.isNotEmpty()) {

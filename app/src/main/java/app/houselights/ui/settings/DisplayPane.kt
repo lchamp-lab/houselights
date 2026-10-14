@@ -90,7 +90,7 @@ private fun CurrentOutput() {
             },
         )
         Column(Modifier.padding(horizontal = HlSpace.l, vertical = HlSpace.s)) {
-            Text(stringResource(R.string.label_modes), style = Hl.type.label, color = Hl.colors.content)
+            Text(stringResource(R.string.label_modes), style = Hl.type.entry, color = Hl.colors.content)
             Spacer(Modifier.height(HlSpace.s))
             FlowRow(horizontalArrangement = Arrangement.spacedBy(HlSpace.xs), verticalArrangement = Arrangement.spacedBy(HlSpace.xs)) {
                 modes.forEach { Badge(it) }

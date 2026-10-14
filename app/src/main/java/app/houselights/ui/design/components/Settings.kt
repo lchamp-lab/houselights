@@ -84,7 +84,7 @@ fun HlNavItem(
             )
             Spacer(Modifier.width(HlSpace.s))
             Column {
-                Text(title, style = Hl.type.label, maxLines = 1)
+                Text(title, style = Hl.type.entry, maxLines = 1)
                 if (summary != null) {
                     Spacer(Modifier.height(HlSpace.xxs))
                     Text(
@@ -149,7 +149,7 @@ fun HlSettingRow(
                 Spacer(Modifier.width(HlSpace.m))
             }
             Column(Modifier.weight(1f)) {
-                Text(title, style = Hl.type.label, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(title, style = Hl.type.entry, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 if (description != null) {
                     Spacer(Modifier.height(HlSpace.xxs))
                     Text(
