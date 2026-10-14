@@ -7,9 +7,9 @@ size or a font**: they use the tokens and components below.
 
 ## Principles
 
-1. **Light is the identity.** The room is pure black (`#000000`). Two lights live in it: the screen's,
-   picked from the focused backdrop (`LocalAmbient`) and spilling onto the room, and the house lights,
-   warm tungsten, on the walls and on the floor below what has focus. Nothing else glows.
+1. **One light source.** The room is pure black (`#000000`), like the masking around a screen. Color comes
+   from the artwork: the *ambient light* (`LocalAmbient`) is picked from the focused backdrop and spills
+   onto the room and around the focused card. Tungsten, the only fixed accent, is used sparingly.
 2. **Ten-foot first.** Nothing below 12 sp. Content stays inside the overscan-safe area
    (`HlSpace.safeH` / `safeV`). Every focusable element shows an unmistakable focus state.
 3. **Calm motion.** Motion answers the user (focus, opening, playing). There are two exceptions.
@@ -21,22 +21,16 @@ size or a font**: they use the tokens and components below.
 
 ## The screen and the room
 
-Houselights is an auditorium, and its light is what tells it apart. Nothing is added for decoration:
-artwork is the lit screen, the interface is the room around it, and the room has house lights.
+Houselights is an auditorium, and this is what tells it apart. Nothing is added for decoration: the
+identity comes from treating artwork as the lit screen and the interface as the room around it.
 
-- **Wall lights.** Sconces wash the side walls with tungsten (`WallLights`, drawn by every
-  `Backdrop` and the welcome screen). Their strength is the room light (`LocalRoomLight`): up while
-  browsing, half down on a title's page (`RoomLight.DIMMED`), out when the film starts. It changes
-  over `DIM`, so going to a film feels like the room settling.
-- **Aisle light.** What has focus is lit from the floor: a warm pool below the focused artwork or
-  button (`Modifier.aisleLight`), like the step lights of a theatre. It replaces any glow around cards.
-- **House lights down.** Playing a title runs one cue (`HouseLightCue`, `DIM`): the room fades first
+- **House lights.** Playing a title runs one cue (`HouseLightCue`, `DIM`): the room fades first
   (text, buttons, rows: `Modifier.houseLit`), the scrims lift so the picture shows whole, the
   screen's light spills further into the dark room, then black and the player. Coming
   back runs the cue backwards.
 - **Billing block.** On a detail page, director and leading cast are set like poster credits:
-  small words ("a film by", "with") between names in condensed capitals. A line breaks only
-  between names.
+  small words ("a film by", "with") between names in condensed capitals, on one line: it keeps as
+  many leading names as fit, and never breaks inside a name.
 
 ## Tokens
 
@@ -47,11 +41,9 @@ artwork is the lit screen, the interface is the room around it, and the room has
 | `HlSpace` | `Dimens.kt` | 4 dp grid: `xxs` 4 … `xxl` 48, plus `safeH` 48 / `safeV` 28 |
 | `HlShapes` | `Dimens.kt` | radius follows hierarchy: `artwork` 4 dp, `field` 6, `panel` 10, `control` pill, `avatar` circle |
 | `HlSize` | `Dimens.kt` | poster 112 dp, landscape 220, episode 264, avatar 76, icon 20, progress 3, focus border 2 |
-| `HlFocus` | `Dimens.kt` | focus scale (artwork 1.10, cards 1.06, controls 1.04), sibling dim 0.38 |
+| `HlFocus` | `Dimens.kt` | focus scale (artwork 1.10, cards 1.06, controls 1.04), sibling dim 0.38, glow 18 dp |
 | `HlMotion` | `Motion.kt` | `FAST` 150, `STANDARD` 250, `SLOW` 600, `DIM` 1000 ms; `SETTLE` 220 ms before a backdrop changes |
-| `LocalRoomLight`, `RoomLight` | `Auditorium.kt` | how lit the room is (read while drawing): `UP` while browsing, `DIMMED` on a title's page, 0 for the film |
 | `LocalHouseLights`, `HouseLightCue` | `Auditorium.kt` | how far the house lights are down (read while drawing), and the order of the cue: room, scrims, black |
-| `aisleLight` | `Auditorium.kt` | warm pool of light on the floor below what has focus |
 | `HlIcons` | `Icons.kt` | line icons drawn for the app (folder, server, display, playback, document, storage, edit, poster, backdrop, logo, search, lamp); core Material icons for the rest |
 | `HlBringIntoView` | `Scroll.kt` | lists scroll only as much as needed; replaces the TV default that pivots focus to a third of the screen |
 | `revealOnFocus()` | `Scroll.kt` | when focus enters a group (row and header, hero and buttons, settings section), the whole group comes into view |
@@ -79,7 +71,6 @@ artwork is the lit screen, the interface is the room around it, and the room has
 | `HlTextField` | TV text field: focusable box first, keyboard on OK; tungsten while typing; always one line of body text tall, empty or not |
 | `HlFormScaffold`, `StatusPanel`, `FieldLabel` | setup screens: explanation and live status on the left, form on the right |
 | `PosterWall` | tilted, drifting wall of posters (welcome) |
-| `WallLights` | the sconces on the side walls; strength follows the room light |
 | `HouseLights` | the last step of the cue: black over everything before the player starts |
 | `CardSkeleton`, `ProgressLine` | loading placeholders and progress |
 
@@ -87,9 +78,9 @@ artwork is the lit screen, the interface is the room around it, and the room has
 
 Focus must read from the couch:
 
-- **Artwork** grows, gets a 2 dp projector-white outline and an aisle light below it. Its neighbours
+- **Artwork** grows, gets a 2 dp projector-white outline and glows with the ambient light. Its neighbours
   in the same row or grid dim.
-- **Controls** turn projector white with black content; buttons also get the aisle light.
+- **Controls** turn projector white with black content.
 - **Text fields** get a white outline when focused and a tungsten outline while typing.
 
 ## Adding a screen

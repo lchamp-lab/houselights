@@ -33,7 +33,6 @@ import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.components.HlListItem
 import app.houselights.ui.design.components.PosterWall
-import app.houselights.ui.design.components.WallLights
 import app.houselights.ui.design.components.Wordmark
 import app.houselights.ui.util.appContainer
 import app.houselights.ui.util.toPx
@@ -80,7 +79,6 @@ fun WelcomeScreen(onLocal: () -> Unit, onJellyfin: () -> Unit) {
                 )
             )
         )
-        WallLights()
 
         Row(
             Modifier.fillMaxSize().padding(horizontal = HlSpace.safeH + HlSpace.m),

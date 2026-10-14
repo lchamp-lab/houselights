@@ -49,4 +49,5 @@ object HlFocus {
     const val CONTROL_SCALE = 1.04f
     /** Dim applied to the other cards of a row while one of them has focus. */
     const val SIBLING_DIM = 0.38f
+    val glow = 18.dp
 }

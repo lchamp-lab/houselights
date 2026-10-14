@@ -26,7 +26,6 @@ import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
-import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import app.houselights.core.ArtworkKind
@@ -39,8 +38,6 @@ import app.houselights.core.SourceConfig
 import app.houselights.ui.util.appContainer
 import app.houselights.ui.design.HlMotion
 import app.houselights.ui.design.LocalHouseLights
-import app.houselights.ui.design.LocalRoomLight
-import app.houselights.ui.design.RoomLight
 import app.houselights.ui.design.components.HouseLights
 import androidx.compose.runtime.mutableStateOf
 import kotlinx.coroutines.delay
@@ -175,98 +172,84 @@ private fun AppNavigation(onPlay: (MediaItem, Boolean) -> Unit) {
         nav.navigate("library/${library.id}?kind=${library.kind.name}&title=${Uri.encode(library.title ?: "")}")
     fun goHome() = nav.navigate("home") { popUpTo(0) { inclusive = true } }
 
-    // The house lights go half down on a title's page, as the film gets close, and out for it.
-    val route = nav.currentBackStackEntryAsState().value?.destination?.route
-    val nearFilm = route != null && NEAR_FILM.any { route.startsWith(it) }
-    val level = animateFloatAsState(
-        if (nearFilm) RoomLight.DIMMED else RoomLight.UP,
-        tween(HlMotion.DIM, easing = HlMotion.standard),
-        label = "room",
-    )
-    val lightsDown = LocalHouseLights.current
-    CompositionLocalProvider(LocalRoomLight provides { level.value * (1f - lightsDown()) }) {
-        NavHost(nav, startDestination = start) {
-            composable("welcome") {
-                WelcomeScreen(
-                    onLocal = {
-                        // Folders added before are kept when switching sources: reuse them.
-                        scope.launch {
-                            if (app.database.dao().sources().isEmpty()) {
-                                nav.navigate("folder/add")
-                            } else {
-                                app.settings.setSource(SourceConfig.Local)
-                                goHome()
-                            }
+    NavHost(nav, startDestination = start) {
+        composable("welcome") {
+            WelcomeScreen(
+                onLocal = {
+                    // Folders added before are kept when switching sources: reuse them.
+                    scope.launch {
+                        if (app.database.dao().sources().isEmpty()) {
+                            nav.navigate("folder/add")
+                        } else {
+                            app.settings.setSource(SourceConfig.Local)
+                            goHome()
                         }
-                    },
-                    onJellyfin = { nav.navigate("jellyfin/login") },
-                )
-            }
-            composable("jellyfin/login") { JellyfinLoginScreen(onLoggedIn = ::goHome) }
-            composable("folder/add") {
-                AddFolderScreen(onAdded = {
-                    // First folder: go to the home screen; otherwise back to settings.
-                    if (!nav.popBackStack("settings", inclusive = false)) goHome()
-                })
-            }
-            composable("home") {
-                HomeScreen(
-                    onOpenItem = { openItem(it.id) },
-                    onOpenLibrary = ::openLibrary,
-                    onOpenSettings = { nav.navigate("settings") },
-                )
-            }
-            composable(
-                "library/{id}?kind={kind}&title={title}",
-                arguments = listOf(
-                    navArgument("id") { type = NavType.StringType },
-                    navArgument("kind") { type = NavType.StringType; defaultValue = LibraryKind.MIXED.name },
-                    navArgument("title") { type = NavType.StringType; defaultValue = "" },
-                ),
-            ) { entry ->
-                val args = entry.arguments!!
-                val library = Library(
-                    id = args.getString("id")!!,
-                    kind = LibraryKind.valueOf(args.getString("kind")!!),
-                    title = args.getString("title")?.ifBlank { null },
-                )
-                LibraryScreen(
-                    library = library,
-                    title = library.title ?: app.libraryTitle(library.kind),
-                    onOpenItem = { openItem(it.id) },
-                )
-            }
-            composable("item/{id}") { entry ->
-                DetailScreen(
-                    itemId = entry.arguments!!.getString("id")!!,
-                    onPlay = onPlay,
-                    onOpenItem = ::openItem,
-                    onOpenNfo = { nav.navigate("nfo/$it") },
-                    onEditArtwork = { id, kind -> nav.navigate("artwork/$id/${kind.name}") },
-                    onIdentify = { nav.navigate("identify/$it") },
-                )
-            }
-            composable("artwork/{id}/{kind}") { entry ->
-                val args = entry.arguments!!
-                ArtworkScreen(
-                    itemId = args.getString("id")!!,
-                    kind = ArtworkKind.valueOf(args.getString("kind")!!),
-                    onDone = { nav.popBackStack() },
-                )
-            }
-            composable("identify/{id}") { entry ->
-                IdentifyScreen(entry.arguments!!.getString("id")!!, onDone = { nav.popBackStack() })
-            }
-            composable("nfo/{id}") { entry -> NfoScreen(entry.arguments!!.getString("id")!!) }
-            composable("settings") {
-                SettingsScreen(
-                    onAddFolder = { nav.navigate("folder/add") },
-                    onChangeSource = { nav.navigate("welcome") { popUpTo(0) { inclusive = true } } },
-                )
-            }
+                    }
+                },
+                onJellyfin = { nav.navigate("jellyfin/login") },
+            )
+        }
+        composable("jellyfin/login") { JellyfinLoginScreen(onLoggedIn = ::goHome) }
+        composable("folder/add") {
+            AddFolderScreen(onAdded = {
+                // First folder: go to the home screen; otherwise back to settings.
+                if (!nav.popBackStack("settings", inclusive = false)) goHome()
+            })
+        }
+        composable("home") {
+            HomeScreen(
+                onOpenItem = { openItem(it.id) },
+                onOpenLibrary = ::openLibrary,
+                onOpenSettings = { nav.navigate("settings") },
+            )
+        }
+        composable(
+            "library/{id}?kind={kind}&title={title}",
+            arguments = listOf(
+                navArgument("id") { type = NavType.StringType },
+                navArgument("kind") { type = NavType.StringType; defaultValue = LibraryKind.MIXED.name },
+                navArgument("title") { type = NavType.StringType; defaultValue = "" },
+            ),
+        ) { entry ->
+            val args = entry.arguments!!
+            val library = Library(
+                id = args.getString("id")!!,
+                kind = LibraryKind.valueOf(args.getString("kind")!!),
+                title = args.getString("title")?.ifBlank { null },
+            )
+            LibraryScreen(
+                library = library,
+                title = library.title ?: app.libraryTitle(library.kind),
+                onOpenItem = { openItem(it.id) },
+            )
+        }
+        composable("item/{id}") { entry ->
+            DetailScreen(
+                itemId = entry.arguments!!.getString("id")!!,
+                onPlay = onPlay,
+                onOpenItem = ::openItem,
+                onOpenNfo = { nav.navigate("nfo/$it") },
+                onEditArtwork = { id, kind -> nav.navigate("artwork/$id/${kind.name}") },
+                onIdentify = { nav.navigate("identify/$it") },
+            )
+        }
+        composable("artwork/{id}/{kind}") { entry ->
+            val args = entry.arguments!!
+            ArtworkScreen(
+                itemId = args.getString("id")!!,
+                kind = ArtworkKind.valueOf(args.getString("kind")!!),
+                onDone = { nav.popBackStack() },
+            )
+        }
+        composable("identify/{id}") { entry ->
+            IdentifyScreen(entry.arguments!!.getString("id")!!, onDone = { nav.popBackStack() })
+        }
+        composable("nfo/{id}") { entry -> NfoScreen(entry.arguments!!.getString("id")!!) }
+        composable("settings") {
+            SettingsScreen(
+                onAddFolder = { nav.navigate("folder/add") },
+                onChangeSource = { nav.navigate("welcome") { popUpTo(0) { inclusive = true } } },
+            )
         }
     }
 }
-
-/** Screens about one title, where the room is dimmed. */
-private val NEAR_FILM = listOf("item/", "nfo/", "artwork/", "identify/")
