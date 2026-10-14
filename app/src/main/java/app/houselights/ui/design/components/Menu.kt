@@ -17,8 +17,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -56,12 +54,14 @@ import androidx.tv.material3.Icon
 import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
 import app.houselights.ui.design.Hl
+import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlInset
 import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlMotion
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.scrollEdges
 import kotlin.math.roundToInt
 
 data class MenuOption(val label: String, val selected: Boolean, val onSelect: () -> Unit)
@@ -173,7 +173,8 @@ private fun MenuPanel(sections: List<MenuSection>, maxHeight: Dp, motion: SheetM
         padding = HlInset.tight,
         shape = HlShapes.sheet,
     ) {
-        Column(Modifier.verticalScroll(rememberScrollState())) {
+        val scroll = rememberScrollState()
+        Column(Modifier.scrollEdges(scroll, c.surfaceRaised).verticalScroll(scroll)) {
         sections.forEachIndexed { s, section ->
             if (s > 0) {
                 Spacer(Modifier.height(HlSpace.s))
@@ -205,7 +206,7 @@ private fun MenuItem(label: String, selected: Boolean, onClick: () -> Unit, modi
         onClick = onClick,
         modifier = modifier.fillMaxWidth().height(HlSize.segment).semantics { this.selected = selected },
         shape = ClickableSurfaceDefaults.shape(HlShapes.row),
-        scale = ClickableSurfaceDefaults.scale(focusedScale = 1f),
+        scale = rowScale(),
         colors = ClickableSurfaceDefaults.colors(
             containerColor = Color.Transparent,
             contentColor = if (selected) c.content else c.contentSecondary,
@@ -217,7 +218,8 @@ private fun MenuItem(label: String, selected: Boolean, onClick: () -> Unit, modi
         Row(Modifier.fillMaxHeight().padding(horizontal = HlSpace.s), verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.size(HlSize.icon)) {
                 if (selected) {
-                    Icon(Icons.Filled.Check, contentDescription = null, tint = if (focused) c.onFocus else c.tungsten, modifier = Modifier.size(HlSize.icon))
+                    val ink = if (focused) c.onFocus else c.tungsten
+                    Icon(HlIcons.Check, contentDescription = null, tint = ink, modifier = Modifier.size(HlSize.icon))
                 }
             }
             Spacer(Modifier.width(HlSpace.s))

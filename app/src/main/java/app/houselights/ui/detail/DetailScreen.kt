@@ -17,9 +17,6 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -383,7 +380,7 @@ private fun Actions(
         // A toggle says what OK does; its lit icon says where the title stands.
         if (capabilities?.markPlayed == true) {
             HlIconButton(
-                Icons.Filled.Check,
+                HlIcons.Check,
                 stringResource(if (item.user.played) R.string.mark_unwatched else R.string.mark_watched),
                 onClick = onTogglePlayed,
                 modifier = Modifier.focusKey(WATCHED, memory),
@@ -409,7 +406,7 @@ private fun Actions(
         }
         if (capabilities?.favorites == true && item.kind != MediaKind.COLLECTION) {
             HlIconButton(
-                if (item.user.favorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                if (item.user.favorite) HlIcons.HeartFilled else HlIcons.Heart,
                 stringResource(if (item.user.favorite) R.string.remove_favorite else R.string.add_favorite),
                 onClick = onToggleFavorite,
                 modifier = Modifier.focusKey(FAVORITE, memory),

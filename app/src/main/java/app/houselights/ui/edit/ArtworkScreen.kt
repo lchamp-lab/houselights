@@ -12,8 +12,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -34,6 +32,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.tv.material3.Text
+import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.components.HlEmptyState
 import app.houselights.ui.design.components.FactRow
 import app.houselights.ui.design.HlLayout
@@ -48,6 +47,7 @@ import app.houselights.ui.design.HlMotion
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.LocalAmbient
 import app.houselights.ui.design.components.ArtworkChoiceCard
+import app.houselights.ui.design.components.AttentionNote
 import app.houselights.ui.design.components.Backdrop
 import app.houselights.ui.design.components.BackdropStyle
 import app.houselights.ui.design.components.CardSkeleton
@@ -58,7 +58,7 @@ import app.houselights.ui.design.components.MetaLine
 import app.houselights.ui.design.components.ScreenTitle
 import app.houselights.ui.design.components.TitleArt
 import app.houselights.ui.design.components.rememberAmbientColor
-import app.houselights.ui.util.UiError
+import app.houselights.ui.home.ErrorIntertitle
 import app.houselights.ui.util.appContainer
 import app.houselights.ui.util.FACT_GAP
 import app.houselights.ui.util.formatDimensions
@@ -68,7 +68,8 @@ import kotlinx.coroutines.launch
 
 /**
  * Choosing one piece of artwork. The page behind previews the focused choice where it will
- * be used: the backdrop behind the title, the logo above it; posters are seen in the row.
+ * be used: the backdrop behind the title, the logo above it. A poster is its own preview: no room
+ * is kept for one, and the choices come larger, right under the header.
  */
 @Composable
 fun ArtworkScreen(itemId: String, kind: ArtworkKind, onDone: () -> Unit) {
@@ -95,21 +96,20 @@ fun ArtworkScreen(itemId: String, kind: ArtworkKind, onDone: () -> Unit) {
             Backdrop(backdrop, if (kind == ArtworkKind.POSTER) BackdropStyle.Quiet else BackdropStyle.Full)
             Column(Modifier.fillMaxSize().padding(top = HlSpace.safeV, bottom = HlSpace.m)) {
                 Header(kind, item, choices)
-                Box(
-                    Modifier.weight(1f).fillMaxWidth().padding(horizontal = HlSpace.safeH, vertical = HlSpace.m),
-                    contentAlignment = Alignment.BottomStart,
-                ) {
-                    if (item != null) Preview(kind, item, preview)
+                if (kind == ArtworkKind.POSTER) {
+                    Spacer(Modifier.height(HlSpace.m))
+                } else {
+                    Box(
+                        Modifier.weight(1f).fillMaxWidth().padding(horizontal = HlSpace.safeH, vertical = HlSpace.m),
+                        contentAlignment = Alignment.BottomStart,
+                    ) {
+                        if (item != null) Preview(kind, item, preview)
+                    }
                 }
                 when {
-                    state.error != null -> Problem(state.error!!, vm::load)
+                    state.error != null -> ErrorIntertitle(state.error!!, vm::load, ChoicesPadding)
                     choices == null -> Skeletons(kind)
-                    choices.options.isEmpty() -> Text(
-                        stringResource(R.string.artwork_empty),
-                        style = Hl.type.body,
-                        color = Hl.colors.contentSecondary,
-                        modifier = Modifier.padding(horizontal = HlSpace.safeH, vertical = HlSpace.xl),
-                    )
+                    choices.options.isEmpty() -> HlEmptyState(stringResource(R.string.artwork_empty), ChoicesPadding, backHint = true)
                     else -> Choices(
                         kind = kind,
                         item = item!!,
@@ -130,16 +130,16 @@ private fun Header(kind: ArtworkKind, item: MediaItem?, choices: ArtworkChoices?
         Spacer(Modifier.height(HlSpace.xxs))
         FactRow(listOf(item?.title, choices?.let { pluralStringResource(R.plurals.image_count, it.options.size, it.options.size) }))
         Spacer(Modifier.height(HlSpace.xs))
-        Text(
-            stringResource(if (choices != null && !choices.onlineAvailable) R.string.artwork_offline else R.string.artwork_hint),
-            style = Hl.type.caption,
-            color = if (choices != null && !choices.onlineAvailable) Hl.colors.tungsten else Hl.colors.contentSecondary,
-            modifier = Modifier.widthIn(max = HlLayout.readable),
-        )
+        val reading = Modifier.widthIn(max = HlLayout.readable)
+        if (choices != null && !choices.onlineAvailable) {
+            AttentionNote(stringResource(R.string.artwork_offline), reading, style = Hl.type.caption)
+        } else {
+            Text(stringResource(R.string.artwork_hint), style = Hl.type.caption, color = Hl.colors.contentSecondary, modifier = reading)
+        }
     }
 }
 
-/** The title as the detail page will show it with the focused choice. */
+/** The title as the detail page will show it with the focused choice; a poster shows in its row. */
 @Composable
 private fun Preview(kind: ArtworkKind, item: MediaItem, preview: ArtworkOption?) {
     when (kind) {
@@ -208,25 +208,17 @@ private fun describe(kind: ArtworkKind, option: ArtworkOption): String = when (o
 private fun size(option: ArtworkOption): String? =
     if (option.width > 0 && option.height > 0) formatDimensions(option.width, option.height) else null
 
+/** Where the choices go, and what takes their place while they load or when there are none. */
+private val ChoicesPadding = Modifier.padding(horizontal = HlSpace.safeH, vertical = HlSpace.m)
+
 @Composable
 private fun Skeletons(kind: ArtworkKind) {
     Row(
-        Modifier.padding(horizontal = HlSpace.safeH, vertical = HlSpace.m),
+        ChoicesPadding,
         horizontalArrangement = Arrangement.spacedBy(HlSpace.m),
     ) {
         repeat(8) { CardSkeleton(kind.cardWidth, kind.aspectRatio) }
     }
-}
-
-@Composable
-private fun Problem(error: UiError, onRetry: () -> Unit) {
-    HlEmptyState(
-        stringResource(error.message),
-        Modifier.padding(horizontal = HlSpace.safeH, vertical = HlSpace.xl),
-        action = stringResource(R.string.retry),
-        actionIcon = Icons.Filled.Refresh,
-        onAction = onRetry,
-    )
 }
 
 private val ArtworkKind.title

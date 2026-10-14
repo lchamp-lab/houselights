@@ -15,8 +15,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -63,6 +61,7 @@ import app.houselights.ui.design.components.HlSettingRow
 import app.houselights.ui.design.components.HlSideSheet
 import app.houselights.ui.design.components.HlStatus
 import app.houselights.ui.design.components.HlTextField
+import app.houselights.ui.design.components.MeterInk
 import app.houselights.ui.design.components.MeterLegend
 import app.houselights.ui.design.components.MeterSegment
 import app.houselights.ui.design.components.PanelLevel
@@ -119,6 +118,10 @@ fun CatalogScreen() {
                 }
             }
 
+            // The three gestures of the small surfaces, side by side, before the components that use them.
+            catalogGestures()
+            catalogIcons()
+
             item {
                 Group("Controls") {
                     Row(
@@ -137,7 +140,6 @@ fun CatalogScreen() {
                     HlSegmented((1..12).map { "Saison $it" }, selected = season, onSelect = { season = it }, selectOnFocus = true, scrollable = true)
                     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.xs)) {
                         listOf("Ultra HD", "Dolby Vision", "HDR10", "TrueHD Atmos", "7.1", "12").forEach { Badge(it) }
-                        Badge("Your choice", lit = true)
                     }
                     FactRow(listOf("2026", "1 h 53", "8,2"))
                 }
@@ -159,9 +161,16 @@ fun CatalogScreen() {
                         HlStatus(StatusState.Attention, "Can’t play", detail = "The Zidoo player isn’t installed.")
                     }
                     Column(Modifier.widthIn(max = HlLayout.readable), verticalArrangement = Arrangement.spacedBy(HlSpace.xs)) {
-                        HlMeter(listOf(MeterSegment(0.3f, c.content), MeterSegment(0.1f, c.tungsten), MeterSegment(0.05f, c.contentSecondary)))
-                        MeterLegend("Online images", "300 MB", c.content)
-                        MeterLegend("Local images", "100 MB", c.tungsten)
+                        HlMeter(
+                            listOf(
+                                MeterSegment(0.3f, MeterInk.Primary),
+                                MeterSegment(0.1f, MeterInk.Secondary),
+                                MeterSegment(0.05f, MeterInk.Tertiary),
+                            ),
+                        )
+                        MeterLegend("Online images", "300 MB", MeterInk.Primary)
+                        MeterLegend("Local images", "100 MB", MeterInk.Secondary)
+                        MeterLegend("Database", "20 MB", MeterInk.Tertiary)
                     }
                 }
             }
@@ -184,16 +193,16 @@ fun CatalogScreen() {
                     HlListItem("List item", "Its description", {}, icon = HlIcons.Folder)
                     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.xl)) {
                         HlEmptyState(
-                            "What happened, and what to do about it.",
+                            "Empty or error state",
                             Modifier.weight(1f),
-                            title = "Empty or error state",
+                            message = "What happened, and what to do about it.",
                             action = "Try again",
                             secondaryAction = "Look closer",
                         )
                         HlEmptyState(
-                            "Nothing fixes it here: Back is the way out.",
+                            "No action",
                             Modifier.weight(1f),
-                            title = "No action",
+                            message = "Nothing fixes it here: Back is the way out.",
                             backHint = true,
                         )
                     }
@@ -206,14 +215,17 @@ fun CatalogScreen() {
                     var reading by remember { mutableStateOf(false) }
                     var asking by remember { mutableStateOf(false) }
                     var keyed by remember { mutableStateOf(false) }
+                    var long by remember { mutableStateOf(false) }
                     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.s)) {
                         HlButton("Side sheet", { side = true })
                         HlButton("Reading sheet", { reading = true })
                         HlButton("An action that asks first", { asking = true })
                         HlButton("A status, a field", { keyed = true })
+                        HlButton("More rows than it holds", { long = true })
                     }
                     if (asking) SheetQuestion(onDismiss = { asking = false })
                     if (keyed) SheetStatusField(onDismiss = { keyed = false })
+                    if (long) SheetLong(onDismiss = { long = false })
                     if (side) {
                         HlSideSheet(
                             "Modifier",
@@ -290,10 +302,10 @@ fun CatalogScreen() {
                         HlIconButton(HlIcons.Restart, "Depuis le début", {})
                         HlButton("Voir la série", {})
                         // Toggles name what OK does; lit, the icon says the episode is watched, a favourite.
-                        HlIconButton(Icons.Filled.Check, "Marquer comme non vu", {}, lit = true)
+                        HlIconButton(HlIcons.Check, "Marquer comme non vu", {}, lit = true)
                         HlIconButton(HlIcons.Info, "Fiche technique", {})
                         HlIconButton(HlIcons.Document, "Fichier NFO", {})
-                        HlIconButton(Icons.Filled.Favorite, "Retirer des favoris", {}, lit = true)
+                        HlIconButton(HlIcons.HeartFilled, "Retirer des favoris", {}, lit = true)
                         HlIconButton(HlIcons.Edit, "Modifier", {})
                     }
                     var library by remember { mutableIntStateOf(0) }
@@ -323,8 +335,15 @@ fun CatalogScreen() {
             }
 
             catalogStress()
+            catalogBrand()
 
-            item { Wordmark(style = t.wordmarkHero) }
+            item {
+                // Type alone, flat: large over the welcome wall, the size of a subject in About.
+                Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.xl)) {
+                    Wordmark(Modifier.alignByBaseline(), style = t.wordmarkHero)
+                    Wordmark(Modifier.alignByBaseline())
+                }
+            }
         }
     }
 }
@@ -336,7 +355,7 @@ private fun ControlStates() {
         ControlCase("detail lit: a state it names") { HlButton("Filtrer", {}, icon = HlIcons.Filter, detail = "Non vus", detailLit = true) }
         ControlCase("disabled: focus outlines it") { HlButton("Ajouter", {}, icon = HlIcons.Folder, enabled = false) }
         ControlCase("busy: the screen's words") {
-            HlButton("Tester", {}, icon = HlIcons.Restart, busy = true, busyLabel = "Vérification…")
+            HlButton("Tester", {}, icon = HlIcons.Test, busy = true, busyLabel = "Vérification…")
         }
     }
     Row(
@@ -354,7 +373,10 @@ private fun ControlStates() {
         ControlCase("OK: busy for 3 s, its width kept") {
             HlButton("Se connecter", { busy = true }, emphasis = Emphasis.Primary, busy = busy, busyLabel = "Connexion…")
         }
-        ControlCase("round, disabled") { HlIconButton(HlIcons.Edit, "Modifier", {}, enabled = false) }
+        // A round button's label takes no room of its own: the case keeps the room a row of them keeps.
+        ControlCase("round, disabled") {
+            HlIconButton(HlIcons.Edit, "Modifier", {}, Modifier.padding(bottom = HlLayout.iconLabelRoom), enabled = false)
+        }
     }
     ControlCase("a label longer than a reading column stops with an ellipsis") {
         HlButton("Ajouter « Le Seigneur des anneaux : la Communauté de l’anneau, version longue » à vos favoris", {})
@@ -405,6 +427,20 @@ private fun SheetQuestion(onDismiss: () -> Unit) {
     }
 }
 
+/** A sheet with more rows than it holds: they fade into it at an edge with more beyond. */
+@Composable
+private fun SheetLong(onDismiss: () -> Unit) {
+    HlSideSheet(
+        "Collections",
+        onDismiss = onDismiss,
+        description = "Rows past the sheet fade at its edge; focus stays clear of it.",
+    ) { sheet ->
+        for (n in 1..CATALOG_LONG_ROWS) {
+            HlSettingRow("Collection $n", description = "Regroupe les films d’une saga", onClick = sheet::dismiss)
+        }
+    }
+}
+
 /** Where a setting stands, at the head of its sheet; then a field and the action that checks it. */
 @Composable
 private fun SheetStatusField(onDismiss: () -> Unit) {
@@ -439,6 +475,9 @@ private fun SheetStatusField(onDismiss: () -> Unit) {
         HlButton("Enregistrer", { checking = true }, emphasis = Emphasis.Primary, busy = checking, busyLabel = "Vérification…")
     }
 }
+
+/** More rows than a side sheet holds. */
+private const val CATALOG_LONG_ROWS = 14
 
 /** How long the catalogue's busy buttons work before they give their answer. */
 private const val CATALOG_BUSY_MS = 3_000L

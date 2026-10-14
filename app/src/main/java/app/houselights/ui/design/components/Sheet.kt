@@ -60,6 +60,7 @@ import app.houselights.ui.design.HlMotion
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.scrollEdges
 import app.houselights.ui.util.toPx
 import coil.compose.AsyncImage
 
@@ -172,6 +173,7 @@ fun HlSideSheet(
     content: @Composable ColumnScope.(sheet: SheetScope) -> Unit,
 ) {
     SheetWindow(onDismiss, HlAlpha.SCRIM_SIDE, initialFocus) { progress, sheet ->
+        val body = rememberScrollState()
         Row(
             modifier
                 .align(Alignment.CenterEnd)
@@ -190,8 +192,9 @@ fun HlSideSheet(
                 Spacer(Modifier.height(HlSpace.m))
                 HlDivider()
                 Spacer(Modifier.height(HlSpace.m))
+                // Its rows fade into the sheet where there are more.
                 Column(
-                    Modifier.weight(1f).verticalScroll(rememberScrollState()),
+                    Modifier.weight(1f).scrollEdges(body, Hl.colors.surfaceRaised).verticalScroll(body),
                     verticalArrangement = Arrangement.spacedBy(HlSpace.xxs),
                 ) { content(sheet) }
                 Spacer(Modifier.height(HlSpace.m))
@@ -278,19 +281,12 @@ fun SheetConfirm(
     }
 }
 
-/** The card a [SheetConfirm] asks with, in place of the rows of its sheet. */
+/** The intertitle a [SheetConfirm] asks with, in place of the rows of its sheet. */
 @Composable
 private fun ConfirmCard(question: String, consequence: String, confirm: String, onConfirm: () -> Unit, onCancel: () -> Unit) {
-    val c = Hl.colors
     val cancel = remember { FocusRequester() }
     LaunchedEffect(Unit) { runCatching { cancel.requestFocus() } }
-    Column {
-        Box(Modifier.width(HlSize.intertitleRule).height(HlSize.intertitleRuleWeight).background(c.tungsten))
-        Spacer(Modifier.height(HlSpace.m))
-        Text(question, style = Hl.type.subject, color = c.content)
-        Spacer(Modifier.height(HlSpace.xs))
-        Text(consequence, style = Hl.type.body, color = c.contentSecondary)
-        Spacer(Modifier.height(HlSpace.l))
+    Intertitle(question, message = consequence, attention = true) {
         Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.s)) {
             HlButton(stringResource(R.string.cancel), onClick = onCancel, modifier = Modifier.focusRequester(cancel))
             PillButton(confirm, onClick = onConfirm, caution = true)

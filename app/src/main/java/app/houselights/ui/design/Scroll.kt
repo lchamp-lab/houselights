@@ -1,6 +1,14 @@
 package app.houselights.ui.design
 
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.gestures.ScrollableState
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.gestures.BringIntoViewSpec
 import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
 import androidx.compose.runtime.Composable
@@ -86,6 +94,37 @@ fun RowScroll(content: @Composable () -> Unit) {
 
 /** Wider than any row's start padding, so the first card always scrolls fully home. */
 private val ROW_MARGIN = HlSpace.safeH + HlSpace.xl
+
+/**
+ * What scrolls fades into [color], the surface it scrolls on, over [HlSpace.fadeEdge] at the top
+ * and the bottom, on each side only while there is more that way: a line cut at the edge reads as
+ * more to come, not as a defect. A gradient of the surface's own colour over the content, without
+ * a layer, so the surface must be opaque there (the black room, a raised sheet). An edge comes and
+ * goes over [HlMotion.FAST] as an end is reached. Focus stays clear of it: a list keeps
+ * [HlFocus.edge] (wider) from its ends, and one that rests against its top comes back to
+ * [HlSpace.fadeEdge] (`ListScroll`). Not for rows of posters: [RowScroll] keeps their ends open.
+ */
+fun Modifier.scrollEdges(state: ScrollableState, color: Color): Modifier = composed {
+    val top by animateFloatAsState(if (state.canScrollBackward) 1f else 0f, tween(HlMotion.FAST), label = "fadeTop")
+    val bottom by animateFloatAsState(if (state.canScrollForward) 1f else 0f, tween(HlMotion.FAST), label = "fadeBottom")
+    drawWithContent {
+        drawContent()
+        val length = HlSpace.fadeEdge.toPx().coerceAtMost(size.height / 2)
+        val edge = Size(size.width, length)
+        val clear = color.copy(alpha = 0f)
+        if (top > 0f) {
+            drawRect(Brush.verticalGradient(0f to color.copy(alpha = color.alpha * top), 1f to clear, endY = length), size = edge)
+        }
+        if (bottom > 0f) {
+            val from = size.height - length
+            drawRect(
+                Brush.verticalGradient(0f to clear, 1f to color.copy(alpha = color.alpha * bottom), startY = from, endY = size.height),
+                topLeft = Offset(0f, from),
+                size = edge,
+            )
+        }
+    }
+}
 
 /**
  * Keeps vertical navigation inside this column: up or down at its edges does nothing instead

@@ -56,7 +56,6 @@ import app.houselights.core.LibraryFilter
 import app.houselights.core.Quality
 import app.houselights.core.SortOption
 import app.houselights.core.WatchStatus
-import app.houselights.ui.design.components.HlButton
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlMotion
 import app.houselights.ui.design.HlSpace
@@ -195,14 +194,17 @@ fun LibraryScreen(
                 when {
                     state.loading && state.items.isEmpty() -> SkeletonWall()
                     state.items.isEmpty() && state.error != null -> ErrorMessage(state.error!!, vm::retry)
-                    state.items.isEmpty() && state.filter.activeCount > 0 -> Column(Modifier.padding(HlSpace.safeH)) {
-                        Text(stringResource(R.string.no_match), style = Hl.type.body, color = Hl.colors.contentSecondary)
-                        Spacer(Modifier.height(HlSpace.l))
-                        HlButton(stringResource(R.string.reset_filters), { vm.setFilter(LibraryFilter()) }, icon = HlIcons.Filter)
-                    }
-                    state.items.isEmpty() -> HlEmptyState(
-                        stringResource(R.string.empty),
+                    state.items.isEmpty() && state.filter.activeCount > 0 -> HlEmptyState(
+                        stringResource(R.string.no_match),
                         Modifier.padding(start = HlSpace.safeH, top = HlSpace.l),
+                        action = stringResource(R.string.reset_filters),
+                        actionIcon = HlIcons.Filter,
+                        onAction = { vm.setFilter(LibraryFilter()) },
+                    )
+                    state.items.isEmpty() -> HlEmptyState(
+                        stringResource(if (library.kind == LibraryKind.COLLECTIONS) R.string.empty_collections else R.string.empty_title),
+                        Modifier.padding(start = HlSpace.safeH, top = HlSpace.l),
+                        backHint = true,
                     )
                     // The wall starts under the header: a line of posters comes back to where the first rests.
                     else -> CompositionLocalProvider(LocalGroupFocused provides gridHasFocus) {

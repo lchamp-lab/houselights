@@ -9,8 +9,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyListScope
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
@@ -28,6 +26,7 @@ import app.houselights.R
 import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
 import app.houselights.ui.design.Hl
+import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.textRoom
@@ -204,7 +203,7 @@ private fun StressTopBar(libraries: List<String>) {
             scrollable = true,
             onArtwork = true,
         )
-        HlIconButton(Icons.Filled.Settings, stringResource(R.string.nav_settings), onClick = {}, onArtwork = true)
+        HlIconButton(HlIcons.Settings, stringResource(R.string.nav_settings), onClick = {}, onArtwork = true)
     }
 }
 

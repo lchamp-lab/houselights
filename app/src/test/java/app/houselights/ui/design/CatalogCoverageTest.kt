@@ -36,4 +36,15 @@ class CatalogCoverageTest {
         val stale = elsewhere.keys - declared
         assertTrue("Exceptions for components that no longer exist: ${stale.joinToString()}", stale.isEmpty())
     }
+
+    /** Every glyph of `HlIcons` is on the catalogue's icon sheet, so a new one is seen at its sizes. */
+    @Test
+    fun theCatalogueShowsEveryIcon() {
+        val icons = File("src/main/java/app/houselights/ui/design/Icons.kt").readText()
+        val declared = Regex("""^\s*val (\w+) = icon\(""", RegexOption.MULTILINE).findAll(icons).map { it.groupValues[1] }.toList()
+        assertTrue("No icons found in Icons.kt", declared.isNotEmpty())
+        val sheet = catalog.resolve("CatalogIcons.kt").readText()
+        val missing = declared.filter { !Regex("""\bHlIcons\.$it\b""").containsMatchIn(sheet) }
+        assertTrue("Not on the catalogue's icon sheet: ${missing.joinToString()}", missing.isEmpty())
+    }
 }

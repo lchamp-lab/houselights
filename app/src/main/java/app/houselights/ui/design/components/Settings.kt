@@ -16,8 +16,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
@@ -33,6 +31,7 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.tv.material3.ClickableSurfaceDefaults
+import androidx.tv.material3.ClickableSurfaceScale
 import androidx.tv.material3.Icon
 import androidx.tv.material3.LocalContentColor
 import androidx.tv.material3.Surface
@@ -67,7 +66,7 @@ fun HlNavItem(
         onClick = onFocused,
         modifier = modifier.fillMaxWidth().onFocusChanged { if (it.isFocused) onFocused() },
         shape = ClickableSurfaceDefaults.shape(HlShapes.row),
-        scale = ClickableSurfaceDefaults.scale(focusedScale = HlFocus.CONTROL_SCALE),
+        scale = rowScale(),
         colors = ClickableSurfaceDefaults.colors(
             containerColor = if (selected) c.content.copy(alpha = HlAlpha.CONTROL_FILL) else Color.Transparent,
             contentColor = if (selected) c.content else c.contentSecondary,
@@ -79,12 +78,8 @@ fun HlNavItem(
         interactionSource = interaction,
     ) {
         Row(Modifier.padding(horizontal = HlSpace.m, vertical = HlSpace.s), verticalAlignment = Alignment.CenterVertically) {
-            Icon(
-                icon,
-                contentDescription = null,
-                tint = if (selected && !focused) c.tungsten else LocalContentColor.current,
-                modifier = Modifier.size(HlSize.icon),
-            )
+            // The current entry is white, as the current option of a track: where you are is not a state.
+            Icon(icon, contentDescription = null, modifier = Modifier.size(HlSize.icon))
             Spacer(Modifier.width(HlSpace.s))
             Column {
                 Text(title, style = Hl.type.entry, maxLines = 1)
@@ -209,7 +204,7 @@ fun HlSettingRow(
         modifier = modifier.fillMaxWidth(),
         enabled = enabled,
         shape = ClickableSurfaceDefaults.shape(HlShapes.row),
-        scale = controlScale(),
+        scale = rowScale(),
         border = disabledFocusBorder(HlShapes.row),
         colors = ClickableSurfaceDefaults.colors(
             containerColor = c.content.copy(alpha = HlAlpha.WELL),
@@ -227,6 +222,14 @@ fun HlSettingRow(
         Content(focused && enabled)
     }
 }
+
+/**
+ * A row as wide as its column keeps its size with focus, enabled or not: growing by a share of
+ * its width would take it past its inset. Its white fill says focus.
+ */
+@Composable
+internal fun rowScale(): ClickableSurfaceScale =
+    ClickableSurfaceDefaults.scale(focusedScale = HlFocus.ROW_SCALE, focusedDisabledScale = HlFocus.ROW_SCALE)
 
 /**
  * A row's quieter words (its description, its value), by state: [onFocus] on a focused row,
@@ -280,12 +283,13 @@ fun HlChoiceSheet(
 }
 
 /**
- * The check of the current choice, at the end of its row: tungsten at rest, the focused content
- * colour on a lit row. Sheets whose choices lead elsewhere mark the current one with it too.
+ * The check of the current choice, at the end of its row: your choice, in tungsten at rest, the
+ * focused content colour on a lit row. Sheets whose choices lead elsewhere mark the current one
+ * with it too.
  */
 @Composable
 internal fun ChoiceCheck() {
     val content = LocalContentColor.current
     val tint = if (content == Hl.colors.onFocus) content else Hl.colors.tungsten
-    Icon(Icons.Filled.Check, contentDescription = null, tint = tint, modifier = Modifier.size(HlSize.icon))
+    Icon(HlIcons.Check, contentDescription = null, tint = tint, modifier = Modifier.size(HlSize.icon))
 }

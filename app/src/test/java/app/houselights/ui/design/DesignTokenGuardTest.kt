@@ -27,13 +27,18 @@ class DesignTokenGuardTest {
         Regex("""[\w)]\s*[-+*/]\s*Hl(Space|Size|Layout|Inset)\.[a-z]""") to "arithmetic on a token: name the measure in Dimens.kt",
         // A raw image is left blank when it fails: the design system's show the title or an empty frame.
         Regex("""\bAsyncImage\(""") to "an image: use ArtworkImage, PosterThumb or RowPreview",
+        // Tungsten is a closed list of states: a screen says the state, the component lights it.
+        Regex("""\.tungsten\b""") to "tungsten: say the state (HlStatus, AttentionNote, lit, valueLit, detailLit)",
     )
 
     /**
      * Deliberate exceptions, as "path:fragment of the line". Keep this list short and say why;
      * a value needed twice belongs in the design system instead.
      */
-    private val allowed = emptyList<String>()
+    private val allowed = listOf(
+        // The catalogue's swatch of the colour itself.
+        "catalog/CatalogScreen.kt:\"tungsten\" to c.tungsten",
+    )
 
     @Test
     fun screensUseTheDesignSystem() {
@@ -68,15 +73,44 @@ class DesignTokenGuardTest {
         assertTrue("Toast in: ${found.joinToString()}", found.isEmpty())
     }
 
+    /**
+     * One family of icons, drawn for the app (`HlIcons`), everywhere, the design system included.
+     * Play is the one glyph taken from Material, filled, as on a remote.
+     */
+    @Test
+    fun oneFamilyOfIcons() {
+        val sources = File("src/main/java")
+        assertTrue("Sources not found from ${File(".").absolutePath}", sources.isDirectory)
+        val found = sources.walkTopDown()
+            .filter { it.isFile && it.extension == "kt" }
+            .flatMap { file ->
+                file.readLines().mapIndexedNotNull { i, line ->
+                    if (materialIcon.containsMatchIn(line)) "${file.relativeTo(sources).path}:${i + 1}: ${line.trim()}" else null
+                }
+            }
+            .toList()
+        assertTrue("Material icons, draw them in HlIcons:\n" + found.joinToString("\n"), found.isEmpty())
+    }
+
+    /** A Material icon other than Play, used or imported. */
+    private val materialIcon = Regex(
+        """\bIcons\.(Filled|Default|Outlined|Rounded|Sharp|TwoTone|AutoMirrored)\.(?!PlayArrow\b)""" +
+            """|material\.icons\.(filled|outlined|rounded|sharp|twotone|automirrored)\.(?!PlayArrow\b)""",
+    )
+
     @Test
     fun theGuardCatchesWhatItShould() {
         val samples = listOf(
             "Modifier.padding(12.dp)", "fontSize = 13.sp", "Color(0xFF000000)", "Color.Black",
             "c.surface.copy(alpha = 0.7f)", "RoundedCornerShape(4.dp)", "FontFamily.Monospace",
             "padding(end = HlSpace.safeH - HlSpace.m)", "width = HlSize.posterThumb + HlSpace.xs", "HlSize.poster * 1.3f",
-            "AsyncImage(model = url, contentDescription = null)",
+            "AsyncImage(model = url, contentDescription = null)", "color = c.tungsten", "tint = Hl.colors.tungsten",
         )
         samples.forEach { sample -> assertTrue(sample, rules.any { it.first.containsMatchIn(sample) }) }
+        listOf("Icons.Filled.Check", "Icons.Default.Settings", "import androidx.compose.material.icons.filled.Star")
+            .forEach { assertTrue(it, materialIcon.containsMatchIn(it)) }
+        listOf("Icons.Filled.PlayArrow", "import androidx.compose.material.icons.filled.PlayArrow", "HlIcons.Check")
+            .forEach { assertTrue(it, !materialIcon.containsMatchIn(it)) }
         val fine = listOf(
             "Modifier.padding(0.dp)", "screenWidthDp.dp", "HlSpace.l", "Hl.colors.content.copy(alpha = HlAlpha.WELL)",
             "{ HlSpace.m -> it }", "screenHeight * HlLayout.DETAIL_HERO_SHARE", "spacedBy(HlSpace.xs)",
