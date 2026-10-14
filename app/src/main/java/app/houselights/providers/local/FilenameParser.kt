@@ -1,5 +1,7 @@
 package app.houselights.providers.local
 
+import app.houselights.core.Definition
+
 data class ParsedMovie(val title: String, val year: Int?)
 
 data class ParsedEpisode(val showTitle: String?, val season: Int, val episode: Int)
@@ -78,9 +80,9 @@ object FilenameParser {
         fun has(vararg tokens: String) = tokens.any { Regex("""(?<![a-z0-9])$it(?![a-z0-9])""").containsMatchIn(n) }
         return buildList {
             when {
-                has("2160p", "4k", "uhd") -> add("4K")
-                has("1080p", "1080i") -> add("1080p")
-                has("720p") -> add("720p")
+                has("2160p", "4k", "uhd") -> add(Definition.ULTRA_HD.token)
+                has("1080p", "1080i") -> add(Definition.FULL_HD.token)
+                has("720p") -> add(Definition.HD.token)
             }
             when {
                 has("dv", "dovi", """dolby[ ._-]?vision""") -> add("Dolby Vision")

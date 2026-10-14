@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import androidx.sqlite.db.SimpleSQLiteQuery
 import app.houselights.R
+import app.houselights.core.Definition
 import app.houselights.core.HomeSection
 import app.houselights.core.ImageRef
 import app.houselights.core.Library
@@ -90,7 +91,7 @@ class LocalProvider(
         }
         when (filter.quality) {
             null -> {}
-            Quality.UHD_4K -> where.append(" AND ('|' || badges || '|') LIKE '%|4K|%'")
+            Quality.UHD_4K -> where.append(" AND ('|' || badges || '|') LIKE '%|${Definition.ULTRA_HD.token}|%'")
             Quality.HDR -> where.append(" AND (badges LIKE '%HDR%' OR badges LIKE '%Dolby Vision%')")
             Quality.DOLBY_VISION -> where.append(" AND badges LIKE '%Dolby Vision%'")
         }
@@ -115,7 +116,7 @@ class LocalProvider(
             genres = dao.genresOf(kind).flatMap { it.split('|') }.filter { it.isNotBlank() }.distinct().sorted(),
             decades = dao.yearsOf(kind).map { it / 10 * 10 }.distinct().sortedDescending(),
             qualities = buildList {
-                if ("4K" in badges) add(Quality.UHD_4K)
+                if (Definition.ULTRA_HD.token in badges) add(Quality.UHD_4K)
                 if (badges.any { it.startsWith("HDR") } || "Dolby Vision" in badges) add(Quality.HDR)
                 if ("Dolby Vision" in badges) add(Quality.DOLBY_VISION)
             },
