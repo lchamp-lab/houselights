@@ -21,6 +21,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -54,6 +55,7 @@ import app.houselights.ui.design.HlMotion
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.LocalAmbient
 import app.houselights.ui.design.components.Backdrop
+import app.houselights.ui.design.components.CollectionLight
 import app.houselights.ui.design.components.BadgeRow
 import app.houselights.ui.design.components.BackdropStyle
 import app.houselights.ui.design.HlIcons
@@ -98,6 +100,13 @@ fun LibraryScreen(
     val gridFocus = remember { FocusRequester() }
     var gridHasFocus by remember { mutableStateOf(false) }
     val gridState = rememberLazyGridState()
+    // The posters on the top row of the wall as it is shown, left to right.
+    val wallPosters by remember {
+        derivedStateOf {
+            val first = gridState.layoutInfo.visibleItemsInfo.firstOrNull()?.index ?: 0
+            state.items.drop(first - first % COLUMNS).take(COLUMNS).mapNotNull { it.poster }
+        }
+    }
     val scope = rememberCoroutineScope()
     var focusedOnce by remember { mutableStateOf(false) }
     LaunchedEffect(state.items.isNotEmpty()) {
@@ -110,6 +119,8 @@ fun LibraryScreen(
     CompositionLocalProvider(LocalAmbient provides rememberAmbientColor(shown?.backdrop)) {
         Box(Modifier.fillMaxSize()) {
             Backdrop(shown?.backdrop, BackdropStyle.Quiet)
+            // Nothing selected: no film on the screen, the room takes the colours of the wall.
+            CollectionLight(wallPosters, lit = shown == null)
             Column(Modifier.fillMaxSize()) {
                 Row(
                     Modifier.fillMaxWidth().padding(start = HlSpace.safeH, end = HlSpace.safeH - HlSpace.m, top = HlSpace.safeV),
@@ -140,9 +151,8 @@ fun LibraryScreen(
                 }
                 // What is under the cursor, without taking space from the wall. Only while a
                 // poster has focus: on the filter or sort buttons, nothing is under the cursor.
-                // The backdrop keeps the last title, so moving to the buttons never flashes.
                 val infoAlpha by animateFloatAsState(
-                    if (gridHasFocus) 1f else 0f,
+                    if (gridHasFocus && shown != null) 1f else 0f,
                     tween(HlMotion.FAST, easing = HlMotion.standard),
                     label = "info",
                 )
@@ -179,7 +189,11 @@ fun LibraryScreen(
                         contentPadding = PaddingValues(start = HlSpace.safeH, end = HlSpace.safeH, top = HlSpace.m, bottom = HlSpace.xxl),
                         horizontalArrangement = Arrangement.spacedBy(HlSpace.l),
                         verticalArrangement = Arrangement.spacedBy(HlSpace.l),
-                        modifier = Modifier.fillMaxSize().onFocusChanged { gridHasFocus = it.hasFocus },
+                        modifier = Modifier.fillMaxSize().onFocusChanged {
+                            gridHasFocus = it.hasFocus
+                            // Leaving the wall leaves nothing selected; returning focuses a poster again.
+                            if (!it.hasFocus) focused = null
+                        },
                     ) {
                         itemsIndexed(state.items, key = { _, it -> it.id }) { index, item ->
                             PosterCard(
