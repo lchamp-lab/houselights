@@ -1,7 +1,7 @@
 <resources>
     <style name="Theme.Houselights" parent="android:Theme.Material.NoActionBar">
-        <item name="android:windowBackground">@color/background</item>
-        <item name="android:colorBackground">@color/background</item>
+        <item name="android:windowBackground">@color/room</item>
+        <item name="android:colorBackground">@color/room</item>
         <item name="android:windowNoTitle">true</item>
         <item name="android:windowFullscreen">true</item>
     </style>

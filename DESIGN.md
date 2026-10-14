@@ -56,7 +56,7 @@ The technical voice speaks the vocabulary of a Blu-ray case: formats by their na
 
 | Token | Value | Role |
 |---|---|---|
-| `background` | `#000000` | the room; masks over artwork |
+| `background` | `#000000` | the room; masks over artwork; before Compose draws, the window and the launcher icon's ground (`@color/room`) |
 | `surface` / `surfaceRaised` | `#121110` / `#1D1B19` | quiet panels / dialogs, menus, focused fields |
 | `outline` | `#3A3632` | hairlines, badge borders |
 | `content` | `#F2F0EB` | projector white: primary text |
@@ -261,7 +261,8 @@ Focus must read from the couch:
 font, colour, opacity or shape written in a screen, and on arithmetic with a token (`safeH - m`): an
 alignment worked out in a screen gets a name in `Dimens.kt`. `SpacingGridTest` keeps `HlSpace` and
 `HlInset` on the 4 dp grid; `TypeScaleTest` keeps the type scale honest, `ContrastTest` the contrasts,
-`ScrimTest` the floor of the veils, `CatalogCoverageTest` the catalogue complete.
+`ScrimTest` the floor of the veils, `ResourceTokensTest` the resources in step with the tokens,
+`CatalogCoverageTest` the catalogue complete.
 Deliberate exceptions go in the guard's `allowed` list, with the reason; a value needed twice belongs
 in the design system instead.
 
