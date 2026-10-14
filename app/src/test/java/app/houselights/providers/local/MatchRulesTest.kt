@@ -11,26 +11,26 @@ class MatchRulesTest {
 
     @Test
     fun withoutManualMatchTheNfoAlwaysApplies() {
-        assertFalse(LibraryScanner.describesOther(nfo.copy(tmdbId = 1), userTmdbId = null, imdbId = null))
+        assertFalse(MetadataMerge.describesOther(nfo.copy(tmdbId = 1), userTmdbId = null, imdbId = null))
     }
 
     @Test
     fun nfoNamingAnotherTmdbTitleIsSetAside() {
-        assertTrue(LibraryScanner.describesOther(nfo.copy(tmdbId = 1), userTmdbId = 2, imdbId = null))
-        assertFalse(LibraryScanner.describesOther(nfo.copy(tmdbId = 2), userTmdbId = 2, imdbId = null))
+        assertTrue(MetadataMerge.describesOther(nfo.copy(tmdbId = 1), userTmdbId = 2, imdbId = null))
+        assertFalse(MetadataMerge.describesOther(nfo.copy(tmdbId = 2), userTmdbId = 2, imdbId = null))
     }
 
     @Test
     fun imdbIdsAreComparedWhenTheNfoHasNoTmdbId() {
         val linked = nfo.copy(imdbId = "tt0111161")
-        assertFalse(LibraryScanner.describesOther(linked, userTmdbId = 278, imdbId = "TT0111161"))
-        assertTrue(LibraryScanner.describesOther(linked, userTmdbId = 680, imdbId = "tt0110912"))
-        assertFalse("unknown: the NFO is kept", LibraryScanner.describesOther(linked, userTmdbId = 680, imdbId = null))
+        assertFalse(MetadataMerge.describesOther(linked, userTmdbId = 278, imdbId = "TT0111161"))
+        assertTrue(MetadataMerge.describesOther(linked, userTmdbId = 680, imdbId = "tt0110912"))
+        assertFalse("unknown: the NFO is kept", MetadataMerge.describesOther(linked, userTmdbId = 680, imdbId = null))
     }
 
     @Test
     fun nfoWithoutIdsDescribesTheFile() {
-        assertFalse(LibraryScanner.describesOther(nfo, userTmdbId = 2, imdbId = "tt0110912"))
+        assertFalse(MetadataMerge.describesOther(nfo, userTmdbId = 2, imdbId = "tt0110912"))
     }
 
     @Test

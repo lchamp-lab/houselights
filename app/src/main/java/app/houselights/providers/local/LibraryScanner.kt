@@ -288,7 +288,7 @@ class LibraryScanner(
             kind = ItemKind.MOVIE,
             sourceId = source.id,
             title = parsed.title,
-            sortTitle = sortKey(parsed.title),
+            sortTitle = MetadataMerge.sortKey(parsed.title),
             year = parsed.year,
             filePath = file.relativePath,
             fileSize = file.size,
@@ -307,7 +307,7 @@ class LibraryScanner(
         if (nfo == null && !needsTmdb && !sidecarsRemoved && local.poster == null && local.fanart == null && local.logo == null) return
 
         val movie = if (needsTmdb) lookupMovie(tmdb!!, item.userTmdbId, nfo, parsed, known = item.tmdbId) else null
-        if (sidecarsRemoved) item = item.withoutDetails(parsed.title, parsed.year)
+        if (sidecarsRemoved) item = MetadataMerge.withoutDetails(item, parsed.title, parsed.year)
         val art = LocalArt(
             poster = local.poster?.let { artwork.copy(source, it) },
             fanart = local.fanart?.let { artwork.copy(source, it) },
@@ -325,7 +325,8 @@ class LibraryScanner(
         dao.setUserTmdbId(item.id, tmdbId)
         if (movie?.id != item.tmdbId) dao.clearUserArtwork(item.id)
         val fresh = dao.item(item.id) ?: return
-        saveMovie(fresh.withoutDetails(parsed.title, parsed.year), nfo, movie, LocalArt.of(fresh), tmdb, System.currentTimeMillis())
+        val cleared = MetadataMerge.withoutDetails(fresh, parsed.title, parsed.year)
+        saveMovie(cleared, nfo, movie, LocalArt.of(fresh), tmdb, System.currentTimeMillis())
     }
 
     /**
@@ -338,7 +339,7 @@ class LibraryScanner(
         return id?.let { tmdb.movieById(it) } ?: tmdb.findMovie(nfo?.title ?: parsed.title, nfo?.year ?: parsed.year)
     }
 
-    /** Details: NFO, then TMDB, then what [base] had. Artwork: local files, NFO, TMDB. */
+    /** Saves a film's details (see [MetadataMerge]) and its cast. */
     private suspend fun saveMovie(
         base: ItemEntity,
         nfoInfo: NfoInfo?,
@@ -348,36 +349,15 @@ class LibraryScanner(
         now: Long,
         refresh: Boolean = false,
     ) {
-        val nfo = nfoInfo?.takeUnless { describesOther(it, base.userTmdbId, movie?.imdbId) }
+        val nfo = nfoInfo?.takeUnless { MetadataMerge.describesOther(it, base.userTmdbId, movie?.imdbId) }
         // Without a fresh TMDB answer, the collection already known stays.
         val collectionId = collection(nfo, movie, tmdb, now, refresh) ?: base.collectionId.takeIf { movie == null }
-        val title = nfo?.title ?: movie?.title ?: base.title
-        val item = base.copy(
-            tmdbId = movie?.id ?: nfo?.tmdbId ?: base.tmdbId,
-            title = title,
-            sortTitle = sortKey(nfo?.sortTitle ?: title),
-            originalTitle = nfo?.originalTitle ?: movie?.originalTitle ?: base.originalTitle,
-            overview = nfo?.plot ?: movie?.overview?.ifBlank { null } ?: base.overview,
-            tagline = nfo?.tagline ?: movie?.tagline?.ifBlank { null } ?: base.tagline,
-            year = nfo?.year ?: yearOf(nfo?.premiered) ?: yearOf(movie?.releaseDate) ?: base.year,
-            runtimeMin = nfo?.runtimeMin ?: movie?.runtime?.takeIf { it > 0 } ?: base.runtimeMin,
-            certification = nfo?.certification ?: movie?.let { tmdb?.movieCertification(it) } ?: base.certification,
-            rating = nfo?.rating ?: movie?.voteAverage?.takeIf { it > 0 } ?: base.rating,
-            genres = nfo?.genres?.takeIf { it.isNotEmpty() }?.joinToString("|") ?: movie?.genres?.joinToString("|") { it.name } ?: base.genres,
-            directors = nfo?.directors?.takeIf { it.isNotEmpty() }?.joinToString("|")
-                ?: movie?.credits?.crew?.filter { it.job == "Director" }?.joinToString("|") { it.name } ?: base.directors,
-            posterPath = art.poster ?: nfo?.posterUrl ?: movie?.posterPath ?: base.posterPath,
-            backdropPath = art.fanart ?: nfo?.fanartUrl ?: movie?.backdropPath ?: base.backdropPath,
-            logoPath = art.logo ?: nfo?.logoUrl ?: movie?.let { tmdb?.pickLogo(it.images) } ?: base.logoPath,
-            stillPath = art.thumb ?: base.stillPath,
-            collectionId = collectionId,
-            matchedAt = if (tmdb != null || nfoInfo != null) now else base.matchedAt,
-        ).withNfoStreams(nfoInfo) // What the file contains does not depend on the match.
+        val details = movie?.details(tmdb?.movieCertification(movie), tmdb?.pickLogo(movie.images))
+        val matchedAt = if (tmdb != null || nfoInfo != null) now else base.matchedAt
+        val item = MetadataMerge.merge(base, nfo, details, art).copy(collectionId = collectionId, matchedAt = matchedAt)
+            .withNfoStreams(nfoInfo) // What the file contains does not depend on the match.
         dao.saveScanned(item)
-        when {
-            nfo != null && nfo.actors.isNotEmpty() -> dao.replaceCast(item.id, castOf(item.id, nfo.actors))
-            movie != null -> dao.replaceCast(item.id, castOf(item.id, movie.credits))
-        }
+        MetadataMerge.cast(item.id, nfo, movie?.credits)?.let { dao.replaceCast(item.id, it) }
     }
 
     /**
@@ -396,7 +376,7 @@ class LibraryScanner(
             matchKey = key,
             tmdbId = tmdbId,
             name = name,
-            sortTitle = sortKey(name),
+            sortTitle = MetadataMerge.sortKey(name),
             posterPath = ref?.posterPath.takeIf { tmdbId == ref?.id },
             backdropPath = ref?.backdropPath.takeIf { tmdbId == ref?.id },
         ).let { it.copy(id = dao.insertCollection(it)) }
@@ -405,7 +385,7 @@ class LibraryScanner(
                 val shown = nfo?.collection ?: full.name
                 c = c.copy(
                     name = shown,
-                    sortTitle = sortKey(shown),
+                    sortTitle = MetadataMerge.sortKey(shown),
                     overview = full.overview?.ifBlank { null } ?: c.overview,
                     posterPath = full.posterPath ?: c.posterPath,
                     backdropPath = full.backdropPath ?: c.backdropPath,
@@ -534,7 +514,7 @@ class LibraryScanner(
             sourceId = source.id,
             matchKey = key,
             title = title,
-            sortTitle = sortKey(title),
+            sortTitle = MetadataMerge.sortKey(title),
             year = year,
             addedAt = now,
         ).let { it.copy(id = dao.insert(it)) }
@@ -567,7 +547,7 @@ class LibraryScanner(
         if (tv?.id != series.tmdbId) dao.clearUserArtwork(series.id)
         val fresh = dao.item(series.id) ?: return
         val now = System.currentTimeMillis()
-        val saved = saveShow(fresh.withoutDetails(title, year), nfo, tv, LocalArt.of(fresh), tmdb, now)
+        val saved = saveShow(MetadataMerge.withoutDetails(fresh, title, year), nfo, tv, LocalArt.of(fresh), tmdb, now)
         refreshSeasons(saved, tmdb, now)
     }
 
@@ -587,36 +567,13 @@ class LibraryScanner(
         return id?.let { tmdb.tvById(it) } ?: tmdb.findTv(nfo?.title ?: title, nfo?.year ?: year)
     }
 
-    /** Details: NFO, then TMDB, then what [base] had. Artwork: local files, NFO, TMDB. */
+    /** Saves a show's details (see [MetadataMerge]) and its cast. */
     private suspend fun saveShow(base: ItemEntity, nfoInfo: NfoInfo?, tv: TmdbTv?, art: LocalArt, tmdb: TmdbClient?, now: Long): ItemEntity {
-        val nfo = nfoInfo?.takeUnless { describesOther(it, base.userTmdbId, null) }
-        val name = nfo?.title ?: tv?.name ?: base.title
-        val series = base.copy(
-            tmdbId = tv?.id ?: nfo?.tmdbId ?: base.tmdbId,
-            title = name,
-            sortTitle = sortKey(nfo?.sortTitle ?: name),
-            originalTitle = nfo?.originalTitle ?: tv?.originalName ?: base.originalTitle,
-            overview = nfo?.plot ?: tv?.overview?.ifBlank { null } ?: base.overview,
-            tagline = nfo?.tagline ?: tv?.tagline?.ifBlank { null } ?: base.tagline,
-            year = nfo?.year ?: yearOf(nfo?.premiered) ?: yearOf(tv?.firstAirDate) ?: base.year,
-            endYear = yearOf(tv?.lastAirDate) ?: base.endYear,
-            continuing = nfo?.status?.let { it.contains("Continuing", true) || it.contains("Returning", true) }
-                ?: tv?.let { it.status == "Returning Series" || it.status == "In Production" }
-                ?: base.continuing,
-            runtimeMin = nfo?.runtimeMin ?: tv?.episodeRunTime?.firstOrNull() ?: base.runtimeMin,
-            certification = nfo?.certification ?: tv?.let { tmdb?.tvCertification(it) } ?: base.certification,
-            rating = nfo?.rating ?: tv?.voteAverage?.takeIf { it > 0 } ?: base.rating,
-            genres = nfo?.genres?.takeIf { it.isNotEmpty() }?.joinToString("|") ?: tv?.genres?.joinToString("|") { it.name } ?: base.genres,
-            posterPath = art.poster ?: nfo?.posterUrl ?: tv?.posterPath ?: base.posterPath,
-            backdropPath = art.fanart ?: nfo?.fanartUrl ?: tv?.backdropPath ?: base.backdropPath,
-            logoPath = art.logo ?: nfo?.logoUrl ?: tv?.let { tmdb?.pickLogo(it.images) } ?: base.logoPath,
-            matchedAt = now,
-        )
+        val nfo = nfoInfo?.takeUnless { MetadataMerge.describesOther(it, base.userTmdbId, null) }
+        val details = tv?.details(tmdb?.tvCertification(tv), tmdb?.pickLogo(tv.images))
+        val series = MetadataMerge.merge(base, nfo, details, art).copy(matchedAt = now)
         dao.saveScanned(series)
-        when {
-            nfo != null && nfo.actors.isNotEmpty() -> dao.replaceCast(series.id, castOf(series.id, nfo.actors))
-            tv != null -> dao.replaceCast(series.id, castOf(series.id, tv.credits))
-        }
+        MetadataMerge.cast(series.id, nfo, tv?.credits)?.let { dao.replaceCast(series.id, it) }
         return series
     }
 
@@ -690,29 +647,11 @@ class LibraryScanner(
         }
     }
 
-    /** Artwork found next to the video or the show, already copied into the app. */
-    private data class LocalArt(
-        val poster: String? = null,
-        val fanart: String? = null,
-        val logo: String? = null,
-        val thumb: String? = null,
-    ) {
-        companion object {
-            /** What [item] already uses from local files. */
-            fun of(item: ItemEntity) = LocalArt(item.posterPath.local(), item.backdropPath.local(), item.logoPath.local(), item.stillPath.local())
-
-            private fun String?.local() = this?.takeIf { it.isCachedArtwork() }
-        }
-    }
-
     companion object {
         private const val TAG = "LibraryScanner"
         private const val MAX_UNREACHABLE = 3
         private const val MAX_NFO_BYTES = 1 shl 20
         private const val MAX_PAUSE_MS = 4 * 60 * 60_000L
-        private val ARTICLES = Regex("""(?i)^(the|a|an|le|la|les|l'|un|une|des)\s+""")
-
-        fun sortKey(title: String): String = ARTICLES.replace(title.trim(), "").lowercase()
 
         /** Title and year of a film, from its file name or its folder ("Title (Year)/movie.mkv"). */
         fun parseMovie(relativePath: String): ParsedMovie {
@@ -721,47 +660,5 @@ class LibraryScanner(
             val fromFolder = relativePath.split('/').dropLast(1).lastOrNull()?.let(FilenameParser::parseMovie)
             return if (fromFile.year == null && fromFolder?.year != null) fromFolder else fromFile
         }
-
-        /**
-         * True when the NFO names another title than the one the user matched the file with:
-         * it then no longer describes this file.
-         */
-        fun describesOther(nfo: NfoInfo, userTmdbId: Int?, imdbId: String?): Boolean = when {
-            userTmdbId == null -> false
-            nfo.tmdbId != null -> nfo.tmdbId != userTmdbId
-            nfo.imdbId != null && imdbId != null -> !nfo.imdbId.equals(imdbId, ignoreCase = true)
-            else -> false
-        }
-
-        /** Only what the file or folder name says: details of a previous match are dropped. */
-        private fun ItemEntity.withoutDetails(title: String, year: Int?) = copy(
-            tmdbId = null,
-            title = title,
-            sortTitle = sortKey(title),
-            originalTitle = null,
-            overview = null,
-            tagline = null,
-            year = year,
-            endYear = null,
-            runtimeMin = null,
-            certification = null,
-            rating = null,
-            genres = "",
-            directors = "",
-            posterPath = null,
-            backdropPath = null,
-            logoPath = null,
-            stillPath = null,
-        )
-
-        private fun castOf(itemId: Long, actors: List<NfoActor>) =
-            actors.sortedBy { it.order ?: Int.MAX_VALUE }.take(30).mapIndexed { i, a ->
-                CastEntity(itemId, i, a.name, a.role?.ifBlank { null }, a.thumb)
-            }
-
-        private fun castOf(itemId: Long, credits: TmdbCredits) =
-            credits.cast.sortedBy { it.order }.take(30).mapIndexed { i, c ->
-                CastEntity(itemId, i, c.name, c.character?.ifBlank { null }, c.profilePath)
-            }
     }
 }
