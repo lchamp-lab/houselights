@@ -1,0 +1,40 @@
+# Built on detekt's defaults (buildUponDefaultConfig); only what Compose and this codebase need differs.
+# Existing findings live in app/detekt-baseline.xml: new code must pass.
+
+naming:
+  FunctionNaming:
+    # Composables are named like types.
+    ignoreAnnotated: ['Composable']
+  TopLevelPropertyNaming:
+    # Design tokens and composition locals are PascalCase (HlSpace, LocalHlType).
+    constantPattern: '[A-Z][A-Za-z0-9_]*'
+  MatchingDeclarationName:
+    active: false
+
+complexity:
+  LongParameterList:
+    # Composables take their styling as parameters with defaults.
+    ignoreDefaultParameters: true
+    ignoreAnnotated: ['Composable']
+  LongMethod:
+    ignoreAnnotated: ['Composable']
+  TooManyFunctions:
+    thresholdInFiles: 30
+    thresholdInClasses: 25
+    ignorePrivate: true
+
+style:
+  MagicNumber:
+    # Layout values, colours and timings are read where they are used.
+    ignoreAnnotated: ['Composable', 'Preview']
+    ignorePropertyDeclaration: true
+    ignoreCompanionObjectPropertyDeclaration: true
+    ignoreNamedArgument: true
+  UnusedPrivateMember:
+    ignoreAnnotated: ['Preview']
+  MaxLineLength:
+    maxLineLength: 140
+  ReturnCount:
+    max: 4
+  WildcardImport:
+    active: true
