@@ -39,6 +39,8 @@ class ContrastTest {
         "focus" to c.focus,
         // Whatever sits on artwork, on its plate over the worst image: a white one.
         "PLATE on a white image" to c.background.over(HlAlpha.PLATE, Color.White),
+        // A text column over a backdrop: the left veil at the floor a white image gets.
+        "the veil's floor on a white image" to c.background.over(HlScrim.need(1f), Color.White),
     )
 
     /** Every pair the system draws, as role, surface, use. */
@@ -49,6 +51,9 @@ class ContrastTest {
         "content" on "CONTROL_FILL", "content" on "CONTROL_FILL_STRONG", "content" on "FOCUS_QUIET on WELL",
         // On artwork: a round button's icon and a track's options at rest, on their plate.
         "content" on "PLATE on a white image",
+        // A title's name, facts, overview and quietest words (genres, the billing block's joins).
+        "content" on "the veil's floor on a white image", "contentSecondary" on "the veil's floor on a white image",
+        "contentTertiary" on "the veil's floor on a white image",
         // Descriptions, labels, a selected entry's summary, a button's detail at rest.
         "contentSecondary" on "background", "contentSecondary" on "surface", "contentSecondary" on "surfaceRaised",
         "contentSecondary" on "QUIET_SURFACE", "contentSecondary" on "WELL", "contentSecondary" on "WELL on surfaceRaised",

@@ -110,6 +110,8 @@ object HlLayout {
     val readable = 640.dp
     /** Text set beside artwork (heroes, detail pages). */
     val readableNarrow = 520.dp
+    /** How far a backdrop's left veil takes to fade out, past the text column. */
+    val veilFade = 240.dp
     /** Side column of two-pane screens: navigation (settings), and explanation (setup forms). */
     val sideColumn = 280.dp
     val sideColumnWide = 340.dp

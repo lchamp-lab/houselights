@@ -72,7 +72,8 @@ The technical voice speaks the vocabulary of a Blu-ray case: formats by their na
 `HlAlpha` names every opacity, by role: `QUIET_SURFACE`, `CONTROL_FILL` / `CONTROL_FILL_STRONG`,
 `WELL`, `BORDER`, `DIVIDER`, `SCRIM` / `SCRIM_SIDE`, `PLATE`, `TRACK`, `FOCUS_QUIET`, `LIT_DISC`,
 `ARTWORK_EDGE`, `WORDMARK_GLOW`. `PLATE` is the plate under whatever sits on artwork: a card's marks
-and progress, and the controls laid over a backdrop.
+and progress, and the controls laid over a backdrop. The veils laid over artwork are recipes, in
+`HlScrim` (see *Veils*).
 
 **Contrast.** Text reaches 4.5:1 and icons and marks 3:1 on the surface they really sit on, each
 translucent layer composed over what lies under it. `ContrastTest` lists every pair the system
@@ -89,6 +90,23 @@ longer depends on the picture: a card's marks and progress line, and the control
 `onArtwork` (the home bar's track and settings button). On that plate the options of a track at rest
 are `content`: `contentSecondary` is forbidden there (≈ 3.47:1 over a white image). Focus does not
 change.
+
+### Veils (`Scrim.kt`)
+
+`HlScrim` holds the recipes of what is laid over artwork, never loose numbers: the **left veil**
+behind the text column, the **top veil** under the top bar, the **bottom fade** to black, the
+**ambient spill** below a backdrop, the **collection light**, and the **welcome wall** (its veil and
+the tungsten halo behind the wordmark). The left veil follows the text column in dp, `safeH` +
+`readableNarrow`, then fades out over `HlLayout.veilFade`: never a share of a screen assumed 960 dp
+wide.
+
+Under the text column the left veil keeps a **floor**, read from the small copy of the backdrop the
+ambient light is picked from (`ArtworkSample`): the opacity the column's quietest text
+(`contentTertiary`: genres, the billing block's small words) needs for 4.5:1, through the other
+veils and under the spill, wherever the veil falls short. A dark image keeps its veil; a white one
+gets 0.875, more where the spill adds its light (the overview alone would need 0.79, but quieter
+words sit above and below it). A highlight smaller than a twentieth of the column does not count
+(`FLOOR_QUANTILE`). The picture is never cropped or letterboxed for it, and nothing lights it.
 
 ### Type (`Type.kt`)
 
@@ -128,7 +146,7 @@ font. No other font is shipped; line heights leave room for the fallback.
 | `HlInset` | inner padding of containers, by what they hold: `tight` 8 (menus, results with a thumbnail), `compact` 12 (dense rows), `card` 24 (panels, cards), `sheet` 32 (sheets) |
 | `HlShapes` | radius follows hierarchy: `badge` 3, `artwork` 4, `field` 6, `row` 8 (rows that can be chosen), `panel` 12, `sheet` 16 (sheets and menus), `control` pill, `avatar` circle. A shape set close inside another keeps their corners parallel: **outer radius = inner radius + gap** (a menu: 8 + 8 = 16; a result: 4 + 8 = 12) |
 | `HlSize` | artwork (poster 112, landscape 220, episode 264, avatar 76 in a column of 120, thumbnails), `control` 48 for every button, icons 20, discs 52, marks 20, dots 8, setting rows 64, previews in a row (48 tall, a slot of 84), meter 10 |
-| `HlLayout` | measures of layout parts: reading widths (640, 520), side columns (280, 340), pane top 72, the reading sheet (864) and the side sheet (520), title art, hero, info line, track table columns |
+| `HlLayout` | measures of layout parts: reading widths (640, 520), the left veil's fade past them (240), side columns (280, 340), pane top 72, the reading sheet (864) and the side sheet (520), title art, hero, info line, track table columns |
 | `HlControl` | inner padding of buttons and track options, badges; the gap between an icon and its text (8) |
 | `HlFocus` | focus scale (artwork 1.10, cards 1.06, controls 1.04), siblings stepping back (dim 0.3, colour kept 0.3), ambient glow 18 dp |
 
@@ -151,7 +169,7 @@ without the prefix (`MenuOption`, `MeterLegend`, `PosterCard`, `BillingBlock`, `
 
 | Component | Use |
 |---|---|
-| `Backdrop` (`Hero`, `Full`, `Quiet`) | full-screen artwork faded to black where text sits, plus the ambient light; its scrims lift when the lights go down |
+| `Backdrop` (`Hero`, `Full`, `Quiet`) | full-screen artwork under the `HlScrim` veils, with a floor under the text column on a light image, plus the ambient light; its veils lift when the lights go down |
 | `rememberAmbientColor`, `CollectionLight` | the light a picture spills into the room; the colours of a wall when nothing is selected |
 | `PosterCard`, `LandscapeCard`, `PersonCard`, `ArtworkSurface`, `ArtworkImage` | artwork with the shared focus treatment and a faint edge at rest (see *Cards*) |
 | `MediaRow` | horizontal row with header and focus restoration; dims the other cards when one is focused |
@@ -243,7 +261,7 @@ Focus must read from the couch:
 font, colour, opacity or shape written in a screen, and on arithmetic with a token (`safeH - m`): an
 alignment worked out in a screen gets a name in `Dimens.kt`. `SpacingGridTest` keeps `HlSpace` and
 `HlInset` on the 4 dp grid; `TypeScaleTest` keeps the type scale honest, `ContrastTest` the contrasts,
-`CatalogCoverageTest` the catalogue complete.
+`ScrimTest` the floor of the veils, `CatalogCoverageTest` the catalogue complete.
 Deliberate exceptions go in the guard's `allowed` list, with the reason; a value needed twice belongs
 in the design system instead.
 

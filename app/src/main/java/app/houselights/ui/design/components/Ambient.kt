@@ -1,6 +1,7 @@
 package app.houselights.ui.design.components
 
 import android.content.Context
+import android.graphics.Bitmap
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
@@ -26,12 +27,17 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.core.graphics.drawable.toBitmap
 import androidx.palette.graphics.Palette
 import app.houselights.core.ImageRef
+import app.houselights.ui.design.ArtworkSample
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlMotion
+import app.houselights.ui.design.HlScrim
+import app.houselights.ui.design.greyOf
 import coil.imageLoader
 import coil.request.ImageRequest
 import coil.request.SuccessResult
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
 private const val SAMPLE_PX = 96
@@ -50,24 +56,52 @@ fun rememberAmbientColor(image: ImageRef?): Color {
             target = fallback
             return@LaunchedEffect
         }
-        target = ambientColorOf(context, image) ?: fallback
+        target = backdropSample(context, image)?.let { toneOf(it) } ?: fallback
     }
     val color by animateColorAsState(target, tween(HlMotion.SLOW, easing = HlMotion.standard), label = "ambient")
     return color
 }
 
 /**
- * The ambient tone of [image], or null when it cannot be loaded. [sourcePx] picks the file to sample:
+ * How bright each part of a backdrop is, for the veil laid over it: read from the same tiny copy
+ * as its light. Null without a picture; the last one stays while the next loads.
+ */
+@Composable
+internal fun rememberArtworkSample(image: ImageRef?): ArtworkSample? {
+    val context = LocalContext.current
+    var sample by remember { mutableStateOf<ArtworkSample?>(null) }
+    LaunchedEffect(image) {
+        sample = image?.let { backdropSample(context, it) }?.let { withContext(Dispatchers.Default) { sampleOf(it) } }
+    }
+    return sample
+}
+
+/**
+ * A tiny copy of [image], or null when it cannot be loaded. [sourcePx] picks the file to sample:
  * the one a card already shows comes from the cache instead of the network.
  */
-private suspend fun ambientColorOf(context: Context, image: ImageRef, sourcePx: Int = SAMPLE_PX): Color? {
+private suspend fun decodeSample(context: Context, image: ImageRef, sourcePx: Int = SAMPLE_PX): Bitmap? {
     val request = ImageRequest.Builder(context)
         .data(image.url(sourcePx))
         .size(SAMPLE_PX, SAMPLE_PX * 9 / 16)
-        .allowHardware(false) // Palette needs to read the pixels.
+        .allowHardware(false) // Palette and the veil need to read the pixels.
         .build()
-    val bitmap = (context.imageLoader.execute(request) as? SuccessResult)?.drawable?.toBitmap() ?: return null
-    return withContext(Dispatchers.Default) { ambientOf(Palette.from(bitmap).maximumColorCount(16).generate()) }
+    return (context.imageLoader.execute(request) as? SuccessResult)?.drawable?.toBitmap()
+}
+
+/** The light and the veil of a backdrop take turns: the second finds the copy decoded, in memory. */
+private val backdropSampling = Mutex()
+
+private suspend fun backdropSample(context: Context, image: ImageRef): Bitmap? =
+    backdropSampling.withLock { decodeSample(context, image) }
+
+private suspend fun toneOf(bitmap: Bitmap): Color? =
+    withContext(Dispatchers.Default) { ambientOf(Palette.from(bitmap).maximumColorCount(16).generate()) }
+
+private fun sampleOf(bitmap: Bitmap): ArtworkSample {
+    val pixels = IntArray(bitmap.width * bitmap.height)
+    bitmap.getPixels(pixels, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
+    return ArtworkSample(bitmap.width, bitmap.height, FloatArray(pixels.size) { greyOf(Color(pixels[it])) })
 }
 
 /**
@@ -84,7 +118,9 @@ fun CollectionLight(posters: List<ImageRef>, lit: Boolean, modifier: Modifier = 
     LaunchedEffect(posters, lit) {
         // Only while the light shows. The wall's posters are in the cache: tones come from there, in parallel.
         if (!lit) return@LaunchedEffect
-        tones = coroutineScope { posters.map { async { ambientColorOf(context, it, posterPx) } }.awaitAll() }.filterNotNull()
+        tones = coroutineScope {
+            posters.map { async { decodeSample(context, it, posterPx)?.let { bitmap -> toneOf(bitmap) } } }.awaitAll()
+        }.filterNotNull()
     }
     val light by animateFloatAsState(if (lit) 1f else 0f, tween(HlMotion.SLOW, easing = HlMotion.standard), label = "collection")
     Crossfade(tones, modifier.fillMaxSize(), tween(HlMotion.SLOW, easing = HlMotion.standard), label = "tones") { colors ->
@@ -93,14 +129,14 @@ fun CollectionLight(posters: List<ImageRef>, lit: Boolean, modifier: Modifier = 
                 if (light <= 0f || colors.isEmpty()) return@drawBehind
                 val column = size.width / colors.size
                 colors.forEachIndexed { i, tone ->
-                    val center = Offset(column * (i + 0.5f), -size.height * 0.12f)
-                    val radius = size.height * 0.95f
+                    val center = Offset(column * (i + 0.5f), size.height * HlScrim.COLLECTION_Y)
+                    val radius = size.height * HlScrim.COLLECTION_RADIUS
                     // Taller than wide: each glow stays over its column and blends with its neighbours.
-                    scale(scaleX = (column * 1.25f) / radius, scaleY = 1f, pivot = center) {
+                    scale(scaleX = (column * HlScrim.COLLECTION_SPREAD) / radius, scaleY = 1f, pivot = center) {
                         drawCircle(
                             Brush.radialGradient(
-                                0f to tone.copy(alpha = 0.36f * light),
-                                0.55f to tone.copy(alpha = 0.11f * light),
+                                0f to tone.copy(alpha = HlScrim.COLLECTION_CORE * light),
+                                HlScrim.COLLECTION_MID_AT to tone.copy(alpha = HlScrim.COLLECTION_MID * light),
                                 1f to Color.Transparent,
                                 center = center,
                                 radius = radius,
@@ -121,6 +157,6 @@ private fun ambientOf(palette: Palette): Color? {
     android.graphics.Color.colorToHSV(swatch.rgb, hsv)
     // Never garish: tame saturation, fixed brightness so every film glows the same amount.
     hsv[1] = hsv[1].coerceIn(0.25f, 0.7f)
-    hsv[2] = 0.62f
+    hsv[2] = HlScrim.AMBIENT_VALUE
     return Color(android.graphics.Color.HSVToColor(hsv))
 }
