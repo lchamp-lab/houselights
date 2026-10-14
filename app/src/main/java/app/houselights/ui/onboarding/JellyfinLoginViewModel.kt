@@ -60,7 +60,7 @@ class JellyfinLoginViewModel(private val app: AppContainer) : ViewModel() {
                 val (reached, info) = JellyfinClient.reach(server, deviceId)
                 address = reached
                 val auth = JellyfinClient(reached, deviceId, token = null).api.authenticate(AuthRequest(user.trim(), password))
-                app.settings.setSource(SourceConfig.Jellyfin(reached, info.serverName, auth.user.id, auth.user.name, auth.accessToken))
+                app.sources.switchTo(SourceConfig.Jellyfin(reached, info.serverName, auth.user.id, auth.user.name, auth.accessToken))
             }.onSuccess {
                 onLoggedIn()
             }.onFailure { e ->
