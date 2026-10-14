@@ -32,6 +32,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.tv.material3.Border
 import androidx.tv.material3.ClickableSurfaceDefaults
@@ -150,7 +151,8 @@ fun HlDivider(modifier: Modifier = Modifier, vertical: Boolean = false) {
 
 /**
  * Facts on one line, separated by space and never by punctuation: "2026   2 h 02   12". Empty
- * facts are left out.
+ * facts are left out, and so are those past the room, whole and from the last: put the ones that
+ * matter first. A single fact too long for the line ends in an ellipsis.
  */
 @Composable
 fun FactRow(
@@ -159,8 +161,10 @@ fun FactRow(
     style: TextStyle = Hl.type.meta,
     color: Color = Hl.colors.contentSecondary,
 ) {
-    Row(modifier, horizontalArrangement = Arrangement.spacedBy(HlSpace.fact), verticalAlignment = Alignment.CenterVertically) {
-        facts.filterNotNull().filter { it.isNotBlank() }.forEach { Text(it, style = style, color = color, maxLines = 1) }
+    OneLine(modifier) {
+        facts.filterNotNull().filter { it.isNotBlank() }.forEach {
+            Text(it, style = style, color = color, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
     }
 }
 

@@ -3,6 +3,7 @@ package app.houselights.ui.design
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.unit.dp
+import kotlin.math.roundToInt
 
 /** 4 dp grid. [safeH]/[safeV] keep content inside the TV overscan-safe area (~5 %). */
 object HlSpace {
@@ -198,6 +199,17 @@ object HlFocus {
      */
     const val SIBLING_DIM = 0.3f
     const val SIBLING_SATURATION = 0.3f
+    /**
+     * The colour of a card stepping back goes in this many steps, so its image recomposes this
+     * many times at most over the 250 ms; the dimming stays continuous, read while drawing.
+     */
+    const val RECEDE_STEPS = 3
+
+    /** The step of colour lost for how far a card has stepped back: 0 in front, [RECEDE_STEPS] behind. */
+    fun recedeStep(recede: Float): Int = (recede.coerceIn(0f, 1f) * RECEDE_STEPS).roundToInt()
+
+    /** How much of its colour an image keeps at [step]: all of it in front, [SIBLING_SATURATION] behind. */
+    fun saturationAt(step: Int): Float = 1f - step.toFloat() / RECEDE_STEPS * (1f - SIBLING_SATURATION)
     val glow = 18.dp
     /**
      * How far a vertical list keeps what has focus from its top and bottom: the safe area, so

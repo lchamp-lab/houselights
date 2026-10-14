@@ -152,7 +152,7 @@ font. No other font is shipped; line heights leave room for the fallback.
 | `HlSize` | artwork (poster 112, landscape 220, episode 264, avatar 76 in a column of 120, thumbnails), `control` 48 for every button, icons 20, discs 52, marks 20, dots 8, setting rows 64, previews in a row (48 tall, a slot of 84), meter 10, the short rules of a loading title (48, 24) |
 | `HlLayout` | measures of layout parts: reading widths (640, 520), the left veil's fade past them (240), side columns (280, 340), pane top 72, the reading sheet (864) and the side sheet (520), title art, hero, info line, track table columns, the label of a round button (160 wide at most, 28 of room under its row) |
 | `HlControl` | inner padding of buttons and track options, badges; the gap between an icon and its text (8) |
-| `HlFocus` | focus scale (artwork 1.10, cards 1.06, controls 1.04), siblings stepping back (dim 0.3, colour kept 0.3), ambient glow 18 dp, `edge` 28 (`safeV`): how far a list keeps focus from its ends |
+| `HlFocus` | focus scale (artwork 1.10, cards 1.06, controls 1.04), siblings stepping back (dim 0.3, colour kept 0.3, in `RECEDE_STEPS` 3), ambient glow 18 dp, `edge` 28 (`safeV`): how far a list keeps focus from its ends |
 
 ### Motion, icons, scrolling
 
@@ -174,11 +174,12 @@ without the prefix (`MenuOption`, `MeterLegend`, `PosterCard`, `BillingBlock`, `
 | Component | Use |
 |---|---|
 | `Backdrop` (`Hero`, `Full`, `Quiet`) | full-screen artwork under the `HlScrim` veils, with a floor under the text column on a light image, plus the ambient light; its veils lift when the lights go down |
-| `rememberAmbientColor`, `CollectionLight` | the light a picture spills into the room; the colours of a wall when nothing is selected |
+| `rememberAmbientColor`, `CollectionLight` | the light a picture spills into the room; the colours of a wall when nothing is selected. The light is a state, provided as a function (`LocalAmbient provides { ambient.value }`) and read while drawing, like the house lights: as it changes over `SLOW`, only the backdrop's spill and the focused card's glow follow it, nothing recomposes the screen |
 | `PosterCard`, `LandscapeCard`, `PersonCard`, `ArtworkSurface`, `ArtworkImage` | artwork with the shared focus treatment and a faint edge at rest (see *Cards*) |
 | `MediaRow` | horizontal row with header; focus coming back into it lands on its last card; dims the other cards when one is focused |
 | `HeroInfo`, `TitleArt`, `EpisodeHeading`, `MetaLine`, `BillingBlock` | what a title is: clear logo or condensed title, facts, credits |
-| `Badge`, `BadgeRow`, `FactRow` | formats and ratings (a `lit` badge marks a state); facts on one line, spaced, never punctuated |
+| `TitleLine` | the line naming the title under focus over a wall: its name, facts and formats on one line of fixed height. Short of room, the formats go first, from the last, then the name ends in an ellipsis |
+| `Badge`, `BadgeRow`, `FactRow` | formats and ratings (a `lit` badge marks a state), wrapping, or on one line (`oneLine`) where the last ones go; facts on one line, spaced, never punctuated |
 | `HlButton` (`Primary`, `Secondary`), `HlIconButton` | pill and round actions, all 48 dp tall; the icon button shows its label under it when focused. The label takes no room (a row with something below keeps `HlLayout.iconLabelRoom` for it), stays inside the safe area, hides while a sheet is open, and is not read out: the icon carries the name. Over an image (`onArtwork`) the button rests on a plate |
 | `HlSegmented` | the one way to show where you are or what is chosen among a few: home navigation, seasons (`scrollable`), NFO views, form choices. In a track, **white means current**: one white pill sits under the current option and slides to the option chosen (`STANDARD`, emphasized). The option under focus but not chosen is a grey pill; focus on the current option draws a ring around the pill, travelling with it. Focus entering a track, from any side, lands on the current option, never on the nearest one; to accessibility services the options are tabs, the current one selected. A long track scrolls as one piece, pill included. Over an image (`onArtwork`), the track is a plate and its options are white. There is no standalone tab |
 | `HlPanel` (`Quiet`, `Raised`, `lit`), `HlPanelButton` | the one panel recipe, and its focusable form |
@@ -209,12 +210,24 @@ rest, sparingly:
   scan found). Progress is the tungsten line at the foot, on its plate. A format (Ultra HD) is not
   a mark: most titles have one, so it would tell nothing apart; it stays in the header, the info
   line, the filter.
-- **Without artwork**, the title is set like a one-sheet: a short rule, the name in `cardTitle`, the
-  year in the technical voice.
+- **Without artwork**, or when it fails to load (a NAS asleep, a file gone), the title is set like a
+  one-sheet: a short rule, the name in `cardTitle`, the year in the technical voice. `ArtworkImage`
+  takes that fallback and shows it in place of a failed image, so a wall is never a row of blanks.
+  A small picture with no title to set (`PosterThumb`, `RowPreview`, a folder's cover) is an empty
+  frame instead: the room, edged by a `contentDecorative` hairline, never a grey box.
 - **An episode** reads as a number in tabular figures, its name, then its length and where it stands.
 - **A person** has a name two lines tall, even a short one, so the roles of a cast row line up.
 - **Stepping back**, the image loses colour through its own filter (`ArtworkImage`): no layer is drawn
-  per card.
+  per card. The colour goes in three steps (`RECEDE_STEPS`), so an image recomposes three times at
+  most while the darkening, drawn, stays continuous. Entering a row moves every card of it at once:
+  on the player's small processor, that is the moment that counts.
+
+**Read aloud.** To accessibility services a card is one element: what it shows (the image's
+title, or its one-sheet), then where it stands, in words (`stateDescription`): "6 épisodes non
+vus", "vu", "nouveau, en cours, 40 %". The mark itself is not read. A person does nothing when
+chosen: it is read "name, role", once, and not as a button. What is chosen says so (`selected`):
+the checked row of a choice sheet, the checked option of a menu, the result and the artwork in
+use, like the current option of a track.
 
 ## Sheets
 
@@ -248,8 +261,7 @@ Focus must read from the couch:
 
 - **Artwork** grows, gets a 2 dp projector-white outline and glows with the ambient light. Its
   neighbours in the same row or grid step back: darker and with less colour (`SIBLING_DIM`,
-  `SIBLING_SATURATION`, through `Modifier.receding()`), never grey. A row without focus keeps
-  its colours.
+  `SIBLING_SATURATION`, see *Cards*), never grey. A row without focus keeps its colours.
 - **Controls, rows and navigation** turn projector white with black content.
 - **Track options** are the exception: white is the current option, so focus on another option is
   a grey pill, and focus on the current one a ring around it. Focus coming into a track lands on
@@ -308,6 +320,10 @@ screen: it goes to the log.
 - A number never leaves its unit: `3,27 Go`, `2 h 02`, `10 bits`, `3840 × 1608` (`formatDuration`,
   `formatDimensions`, `formatBytes`, `formatRatio` in `ui/util/Format.kt`).
 - Facts are separated by layout (`FactRow`). Inside a single text (a button's detail), `FACT_GAP`.
+  A line of facts never cuts one: short of room, it leaves out whole facts from the end, as the
+  billing block leaves out names, so the ones that matter come first (`MetaLine`: year, length,
+  rating, score, then genres, one by one). Only a fact alone on a line too short ends in an
+  ellipsis. Label and value pairs (`DefinitionList`) sit on one first baseline.
 - Values are words a person uses: "Détecté", "Hors ligne", "Aucune", never "absent" or "0 fichier".
 - A failure says what happened and what to do ("Le dossier n’a pas pu être lu. Réessayez, ou
   vérifiez le partage sur le NAS."), never an exception's text: that goes to the log only.
@@ -322,7 +338,9 @@ screen: it goes to the log.
 
 `DesignTokenGuardTest` reads every file under `ui/` except `ui/design/` and fails on a size, text size,
 font, colour, opacity or shape written in a screen, and on arithmetic with a token (`safeH - m`): an
-alignment worked out in a screen gets a name in `Dimens.kt`. `SpacingGridTest` keeps `HlSpace` and
+alignment worked out in a screen gets a name in `Dimens.kt`. A screen never loads an image itself
+(`AsyncImage`): it goes through `ArtworkImage`, `PosterThumb` or `RowPreview`, which know what to
+show when it fails. `SpacingGridTest` keeps `HlSpace` and
 `HlInset` on the 4 dp grid; `TypeScaleTest` keeps the type scale honest, `ContrastTest` the contrasts,
 `ScrimTest` the floor of the veils, `ResourceTokensTest` the resources in step with the tokens,
 `CatalogCoverageTest` the catalogue complete.

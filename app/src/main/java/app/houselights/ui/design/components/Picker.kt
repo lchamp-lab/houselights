@@ -15,10 +15,16 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -63,18 +69,19 @@ fun ArtworkChoiceCard(
     Column(modifier.width(width)) {
         ArtworkSurface(
             onClick,
-            Modifier.fillMaxWidth().aspectRatio(aspectRatio),
+            Modifier.fillMaxWidth().aspectRatio(aspectRatio).semantics { this.selected = selected },
             focusedScale = HlFocus.CARD_SCALE,
             onFocused = onFocused,
         ) {
             val url = image?.url(width.toPx())
             when {
+                // An image that fails says which choice it was, set like a one-sheet.
                 url != null -> ArtworkImage(
                     url,
                     title,
                     Modifier.fillMaxSize().padding(if (fit) HlSpace.m else HlSpace.none),
                     contentScale = if (fit) ContentScale.Fit else ContentScale.Crop,
-                )
+                ) { FallbackArtwork(title, null) }
                 placeholder != null -> Text(
                     placeholder,
                     style = Hl.type.headline,
@@ -121,7 +128,7 @@ fun HlResultItem(
     busy: String? = null,
 ) {
     val c = Hl.colors
-    HlPanelButton(onClick, modifier.fillMaxWidth(), lit = mark != null) {
+    HlPanelButton(onClick, modifier.fillMaxWidth().semantics { selected = mark != null }, lit = mark != null) {
         Row(Modifier.padding(HlInset.tight)) {
             PosterThumb(poster, width = HlSize.posterThumbLarge)
             Spacer(Modifier.width(HlSpace.m))
@@ -152,13 +159,24 @@ fun HlResultItem(
     }
 }
 
-/** A small poster in a list, at [width]; an empty frame when there is no artwork. */
+/** A small poster in a list, at [width]; an empty frame when there is none, or it fails to load. */
 @Composable
 fun PosterThumb(poster: ImageRef?, modifier: Modifier = Modifier, width: Dp = HlSize.posterThumb) {
-    Box(modifier.width(width).aspectRatio(2f / 3f).clip(HlShapes.artwork).background(Hl.colors.surfaceRaised)) {
-        poster?.url(width.toPx())?.let { url ->
-            AsyncImage(model = url, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+    val url = poster?.url(width.toPx())
+    var failed by remember(url) { mutableStateOf(false) }
+    val frame = modifier.width(width).aspectRatio(2f / 3f)
+    if (url == null || failed) {
+        EmptyFrame(frame)
+    } else {
+        Box(frame.clip(HlShapes.artwork).background(Hl.colors.surfaceRaised)) {
+            AsyncImage(
+                model = url,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                onError = { failed = true },
+                modifier = Modifier.fillMaxSize(),
+            )
+            Box(Modifier.fillMaxSize().border(HlSize.hairline, Hl.colors.content.copy(alpha = HlAlpha.ARTWORK_EDGE), HlShapes.artwork))
         }
-        Box(Modifier.fillMaxSize().border(HlSize.hairline, Hl.colors.content.copy(alpha = HlAlpha.ARTWORK_EDGE), HlShapes.artwork))
     }
 }

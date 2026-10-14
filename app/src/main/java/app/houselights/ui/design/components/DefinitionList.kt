@@ -21,16 +21,22 @@ import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSpace
 
 /**
- * Label and value pairs in two aligned columns. Set inside a panel or a block already, so it adds
- * no box of its own.
+ * Label and value pairs in two aligned columns, each pair on its first baseline. Set inside a
+ * panel or a block already, so it adds no box of its own.
  */
 @Composable
 fun DefinitionList(rows: List<Pair<String, String>>, modifier: Modifier = Modifier, labelWidth: Dp = HlLayout.definitionLabel) {
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(HlSpace.xs)) {
         rows.forEach { (label, value) ->
+            // Two sizes on one first baseline, as on the back of a case.
             Row {
-                Text(label, style = Hl.type.caption, color = Hl.colors.contentSecondary, modifier = Modifier.width(labelWidth))
-                Text(value, style = Hl.type.meta, color = Hl.colors.content)
+                Text(
+                    label,
+                    style = Hl.type.caption,
+                    color = Hl.colors.contentSecondary,
+                    modifier = Modifier.width(labelWidth).alignByBaseline(),
+                )
+                Text(value, style = Hl.type.meta, color = Hl.colors.content, modifier = Modifier.alignByBaseline())
             }
         }
     }

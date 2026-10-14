@@ -350,6 +350,14 @@
         <item quantity="one">%d in Ultra HD</item>
         <item quantity="other">%d in Ultra HD</item>
     </plurals>
+    <!-- Where a card stands, read out after its title by accessibility services -->
+    <string name="card_watched">watched</string>
+    <string name="card_new">new</string>
+    <string name="card_in_progress">in progress, %d%%</string>
+    <plurals name="card_unwatched">
+        <item quantity="one">%d unwatched episode</item>
+        <item quantity="other">%d unwatched episodes</item>
+    </plurals>
     <!-- Collections -->
     <plurals name="film_count">
         <item quantity="one">%d film</item>
