@@ -194,6 +194,7 @@
     <plurals name="source_local_folders">
         <item quantity="one">%d dossier sur votre NAS</item>
         <item quantity="other">%d dossiers sur votre NAS</item>
+        <item quantity="many">%d dossiers sur votre NAS</item>
     </plurals>
     <string name="source_jellyfin_other">Un autre serveur, ou un autre compte</string>
     <string name="sign_out">Se déconnecter</string>

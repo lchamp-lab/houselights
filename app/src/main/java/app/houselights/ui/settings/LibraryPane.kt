@@ -482,10 +482,10 @@ private fun SourceSheet(source: SourceConfig?, onDismiss: () -> Unit, onUseFolde
             description = foldersLine(folders.size),
             icon = HlIcons.Folder,
             onClick = {
-                when (source) {
-                    SourceConfig.Local -> sheet.dismiss()
-                    is SourceConfig.Jellyfin -> confirming = true
-                    null -> onUseFolders()
+                when {
+                    source is SourceConfig.Jellyfin -> confirming = true
+                    source == SourceConfig.Local && folders.isNotEmpty() -> sheet.dismiss()
+                    else -> onUseFolders()
                 }
             },
             chevron = false,
