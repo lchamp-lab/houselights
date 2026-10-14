@@ -38,3 +38,8 @@ style:
     max: 4
   WildcardImport:
     active: true
+
+performance:
+  SpreadOperator:
+    # Only used to pass a handful of migrations or arguments once; the copy costs nothing.
+    active: false

@@ -3,6 +3,7 @@ package app.houselights
 import android.app.Application
 import app.houselights.core.LibraryKind
 import app.houselights.core.MediaProvider
+import app.houselights.core.Secrets
 import app.houselights.core.SourceConfig
 import app.houselights.player.PlaybackManager
 import app.houselights.providers.jellyfin.JellyfinProvider
@@ -51,8 +52,8 @@ class HouselightsApp : Application(), ImageLoaderFactory {
 /** Manual dependency container, created once per process. */
 class AppContainer(private val app: Application) {
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
-    val settings = SettingsStore(app, scope)
-    val database = LibraryDatabase.create(app)
+    val settings = SettingsStore(app, scope, Secrets.device)
+    val database = LibraryDatabase.create(app, Secrets.device)
     val artwork = ArtworkCache(app.filesDir.resolve("artwork"))
     val scanner = LibraryScanner(
         dao = database.dao(),

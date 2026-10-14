@@ -3,6 +3,7 @@ package app.houselights.player
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ApplicationInfo
 import android.net.Uri
 import android.util.Log
 import app.houselights.core.PlaybackPlan
@@ -35,9 +36,13 @@ class PlaybackManager(private val context: Context, private val scope: Coroutine
     /** Emits when playback ends: screens reload resume points and watched state. */
     val playbackEnded: SharedFlow<Unit> = _playbackEnded
 
-    /** Builds the intent for the Zidoo player, or the system video player elsewhere. */
+    /**
+     * Builds the intent for the Zidoo player, or for any video player elsewhere.
+     *
+     * Only the Zidoo player, installed as part of the system, receives a URI with credentials: another
+     * app answering a generic video intent never does. Throws [CredentialsNotShared] in that case.
+     */
     fun intentFor(plan: PlaybackPlan.Launch): Intent {
-        session = Session(plan.reporter, plan.startMs)
         Log.i(TAG, "Launch ${plan.title} -> ${Redact.uri(plan.uri)}")
 
         val zidoo = Intent(Intent.ACTION_VIEW).apply {
@@ -54,14 +59,26 @@ class PlaybackManager(private val context: Context, private val scope: Coroutine
             }
             putExtra("return_result", true)
         }
-        if (zidoo.resolveActivity(context.packageManager) != null) return zidoo
-
-        return Intent(Intent.ACTION_VIEW).apply {
-            setDataAndType(Uri.parse(plan.uri), "video/*")
-            putExtra("title", plan.title)
-            putExtra("position", plan.startMs.toInt())
-            putExtra("return_result", true)
+        val intent = if (isSystemZidooPlayer() && zidoo.resolveActivity(context.packageManager) != null) {
+            zidoo
+        } else {
+            if (Redact.hasUserInfo(plan.uri)) throw CredentialsNotShared()
+            Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(Uri.parse(plan.uri), "video/*")
+                putExtra("title", plan.title)
+                putExtra("position", plan.startMs.toInt())
+                putExtra("return_result", true)
+            }
         }
+        session = Session(plan.reporter, plan.startMs)
+        return intent
+    }
+
+    /** The Zidoo player is a system app; an app installed under its package name elsewhere is not. */
+    private fun isSystemZidooPlayer(): Boolean = try {
+        context.packageManager.getApplicationInfo(ZIDOO_PACKAGE, 0).flags and ApplicationInfo.FLAG_SYSTEM != 0
+    } catch (_: Exception) {
+        false
     }
 
     /** Call right after the player activity was started. */
@@ -107,6 +124,9 @@ class PlaybackManager(private val context: Context, private val scope: Coroutine
     private suspend fun report(block: suspend () -> Unit) {
         runCatching { block() }.onFailure { Log.w(TAG, "Progress report failed", it) }
     }
+
+    /** The file needs credentials and only the Zidoo player may receive them. */
+    class CredentialsNotShared : Exception("Credentials are only given to the Zidoo player")
 
     companion object {
         private const val TAG = "Playback"

@@ -131,6 +131,7 @@
     <string name="episodes">Episodes</string>
     <string name="play_error">Can’t play: %s</string>
     <string name="no_player">No video player available</string>
+    <string name="player_credentials">This folder needs a password: only the Zidoo player can play it</string>
 
     <!-- Local folders -->
     <string name="add_folder">Add a folder</string>

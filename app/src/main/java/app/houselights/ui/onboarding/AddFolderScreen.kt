@@ -30,6 +30,7 @@ import app.houselights.core.SourceConfig
 import app.houselights.providers.local.Protocol
 import app.houselights.providers.local.RemoteBrowser
 import app.houselights.providers.local.ScanErrors
+import app.houselights.providers.local.Secret
 import app.houselights.providers.local.SourceEntity
 import app.houselights.providers.local.SourceKind
 import app.houselights.ui.design.Hl
@@ -87,7 +88,7 @@ fun AddFolderScreen(onAdded: () -> Unit) {
         share = share.trim().trim('/'),
         path = path.trim().trim('/'),
         username = if (protocol == Protocol.SMB) user.trim() else "",
-        password = if (protocol == Protocol.SMB) password else "",
+        password = Secret(if (protocol == Protocol.SMB) password else ""),
     )
 
     fun test(then: (() -> Unit)? = null) {

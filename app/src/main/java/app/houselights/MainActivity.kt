@@ -37,6 +37,7 @@ import app.houselights.core.MediaItem
 import app.houselights.core.PlaybackOptions
 import app.houselights.core.PlaybackPlan
 import app.houselights.core.SourceConfig
+import app.houselights.player.PlaybackManager
 import app.houselights.ui.util.appContainer
 import app.houselights.ui.design.HlMotion
 import app.houselights.ui.design.LocalHouseLights
@@ -149,9 +150,12 @@ class MainActivity : ComponentActivity() {
                         is PlaybackPlan.Launch -> try {
                             playerLauncher.launch(container.playback.intentFor(plan))
                             container.playback.onPlayerLaunched()
-                        } catch (e: ActivityNotFoundException) {
+                        } catch (_: ActivityNotFoundException) {
                             lightsDown.value = false
                             toast(getString(R.string.no_player))
+                        } catch (_: PlaybackManager.CredentialsNotShared) {
+                            lightsDown.value = false
+                            toast(getString(R.string.player_credentials))
                         }
                         is PlaybackPlan.Delegated -> plan.start()
                     }

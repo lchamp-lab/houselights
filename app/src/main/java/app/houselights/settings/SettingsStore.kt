@@ -1,6 +1,7 @@
 package app.houselights.settings
 
 import android.content.Context
+import androidx.datastore.core.DataMigration
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
@@ -8,6 +9,7 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import app.houselights.core.PathMapping
+import app.houselights.core.Secrets
 import app.houselights.core.SourceConfig
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.SharingStarted
@@ -18,7 +20,35 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.util.UUID
 
-private val Context.dataStore by preferencesDataStore(name = "settings")
+private val Context.dataStore by preferencesDataStore(
+    name = "settings",
+    produceMigrations = { listOf(SealSecrets(Secrets.device)) },
+)
+
+private object Keys {
+    val source = stringPreferencesKey("source")
+    val deviceId = stringPreferencesKey("device_id")
+    val mappings = stringPreferencesKey("path_mappings")
+    val forceHttp = booleanPreferencesKey("force_http")
+    val ui4k = booleanPreferencesKey("ui_4k")
+    val tmdbKey = stringPreferencesKey("tmdb_api_key")
+    val collectionMin = intPreferencesKey("collection_min_films")
+}
+
+/** The settings that hold a secret: the source (with its server token) and a personal TMDB key. */
+private val SECRET_KEYS = listOf(Keys.source, Keys.tmdbKey)
+
+/** Seals secrets written in plain text before sealing existed. */
+private class SealSecrets(private val secrets: Secrets) : DataMigration<Preferences> {
+    override suspend fun shouldMigrate(currentData: Preferences) =
+        SECRET_KEYS.any { key -> currentData[key]?.let { !secrets.isSealed(it) } == true }
+
+    override suspend fun migrate(currentData: Preferences): Preferences = currentData.toMutablePreferences().apply {
+        for (key in SECRET_KEYS) this[key]?.takeUnless(secrets::isSealed)?.let { this[key] = secrets.seal(it) }
+    }
+
+    override suspend fun cleanUp() = Unit
+}
 
 data class AppSettings(
     val loaded: Boolean = false,
@@ -33,17 +63,11 @@ data class AppSettings(
     val collectionMinFilms: Int = 2,
 )
 
-class SettingsStore(private val context: Context, scope: CoroutineScope) {
-    private object Keys {
-        val source = stringPreferencesKey("source")
-        val deviceId = stringPreferencesKey("device_id")
-        val mappings = stringPreferencesKey("path_mappings")
-        val forceHttp = booleanPreferencesKey("force_http")
-        val ui4k = booleanPreferencesKey("ui_4k")
-        val tmdbKey = stringPreferencesKey("tmdb_api_key")
-        val collectionMin = intPreferencesKey("collection_min_films")
-    }
-
+class SettingsStore(
+    private val context: Context,
+    scope: CoroutineScope,
+    private val secrets: Secrets = Secrets.device,
+) {
     private val json = Json { ignoreUnknownKeys = true }
 
     val state: StateFlow<AppSettings> = context.dataStore.data
@@ -52,14 +76,14 @@ class SettingsStore(private val context: Context, scope: CoroutineScope) {
 
     private fun Preferences.toSettings() = AppSettings(
         loaded = true,
-        source = this[Keys.source]?.let { runCatching { json.decodeFromString<SourceConfig>(it) }.getOrNull() },
+        source = this[Keys.source]?.let(secrets::open)?.let { runCatching { json.decodeFromString<SourceConfig>(it) }.getOrNull() },
         deviceId = this[Keys.deviceId] ?: "",
         pathMappings = this[Keys.mappings]
             ?.let { runCatching { json.decodeFromString<List<PathMapping>>(it) }.getOrNull() }
             ?: emptyList(),
         forceHttp = this[Keys.forceHttp] ?: false,
         ui4k = this[Keys.ui4k] ?: true,
-        tmdbApiKey = this[Keys.tmdbKey]?.takeIf { it.isNotBlank() },
+        tmdbApiKey = this[Keys.tmdbKey]?.let(secrets::open)?.takeIf { it.isNotBlank() },
         collectionMinFilms = this[Keys.collectionMin] ?: 2,
     )
 
@@ -73,7 +97,7 @@ class SettingsStore(private val context: Context, scope: CoroutineScope) {
 
     suspend fun setSource(source: SourceConfig?) {
         context.dataStore.edit {
-            if (source == null) it.remove(Keys.source) else it[Keys.source] = json.encodeToString(source)
+            if (source == null) it.remove(Keys.source) else it[Keys.source] = secrets.seal(json.encodeToString(source))
         }
     }
 
@@ -95,7 +119,7 @@ class SettingsStore(private val context: Context, scope: CoroutineScope) {
 
     suspend fun setTmdbApiKey(value: String?) {
         context.dataStore.edit {
-            if (value.isNullOrBlank()) it.remove(Keys.tmdbKey) else it[Keys.tmdbKey] = value.trim()
+            if (value.isNullOrBlank()) it.remove(Keys.tmdbKey) else it[Keys.tmdbKey] = secrets.seal(value.trim())
         }
     }
 }

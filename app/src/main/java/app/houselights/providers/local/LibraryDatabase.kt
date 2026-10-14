@@ -8,20 +8,40 @@ import androidx.room.Index
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.PrimaryKey
+import androidx.room.ProvidedTypeConverter
 import androidx.room.Query
 import androidx.room.RawQuery
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.Transaction
+import androidx.room.TypeConverter
+import androidx.room.TypeConverters
 import androidx.room.Update
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import androidx.sqlite.db.SupportSQLiteQuery
+import app.houselights.core.Secrets
 import kotlinx.coroutines.flow.Flow
 
 enum class SourceKind { MOVIES, SHOWS }
 
 enum class Protocol { SMB, NFS }
+
+/** A password as the app uses it. The database keeps it sealed (see [SecretConverter]); it never prints. */
+data class Secret(val value: String) {
+    override fun toString() = "Secret(***)"
+}
+
+/** Seals [Secret] columns on the way to the database, opens them on the way back. */
+@ProvidedTypeConverter
+class SecretConverter(private val secrets: Secrets) {
+    @TypeConverter
+    fun seal(secret: Secret): String = secrets.seal(secret.value)
+
+    /** A secret that can no longer be opened reads as empty: the folder then asks for its password. */
+    @TypeConverter
+    fun open(stored: String): Secret = Secret(secrets.open(stored) ?: "")
+}
 
 /** A network folder the user added, holding either movies or TV shows. */
 @Entity(tableName = "sources")
@@ -36,7 +56,7 @@ data class SourceEntity(
     /** Folder inside the share, without leading or trailing slash ("" for the share root). */
     val path: String,
     val username: String,
-    val password: String,
+    val password: Secret,
     val domain: String = "",
     val lastScanAt: Long = 0,
 )
@@ -45,7 +65,10 @@ enum class ItemKind { MOVIE, SERIES, SEASON, EPISODE }
 
 @Entity(
     tableName = "items",
-    indices = [Index("parentId"), Index("seriesId"), Index(value = ["sourceId", "filePath"]), Index("matchKey"), Index("collectionId")],
+    indices = [
+        Index("parentId"), Index("seriesId"), Index(value = ["sourceId", "filePath"]), Index("matchKey"), Index("collectionId"),
+        Index(value = ["kind", "sortTitle"]), Index(value = ["kind", "addedAt"]), Index(value = ["kind", "lastPlayedAt"]),
+    ],
 )
 data class ItemEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
@@ -346,7 +369,8 @@ interface LibraryDao {
     }
 }
 
-@Database(entities = [SourceEntity::class, ItemEntity::class, CastEntity::class, CollectionEntity::class], version = 6)
+@Database(entities = [SourceEntity::class, ItemEntity::class, CastEntity::class, CollectionEntity::class], version = 7)
+@TypeConverters(SecretConverter::class)
 abstract class LibraryDatabase : RoomDatabase() {
     abstract fun dao(): LibraryDao
 
@@ -394,9 +418,29 @@ abstract class LibraryDatabase : RoomDatabase() {
             }
         }
 
-        fun create(context: Context): LibraryDatabase =
+        /** Seals the passwords stored in plain text so far, and indexes what lists sort and filter on. */
+        internal fun migration6To7(secrets: Secrets) = object : Migration(startVersion = 6, endVersion = 7) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.query("SELECT id, password FROM sources").use { rows ->
+                    while (rows.moveToNext()) {
+                        val password = rows.getString(1)
+                        if (password.isEmpty() || secrets.isSealed(password)) continue
+                        db.execSQL("UPDATE sources SET password = ? WHERE id = ?", arrayOf<Any>(secrets.seal(password), rows.getLong(0)))
+                    }
+                }
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_items_kind_sortTitle` ON `items` (`kind`, `sortTitle`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_items_kind_addedAt` ON `items` (`kind`, `addedAt`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_items_kind_lastPlayedAt` ON `items` (`kind`, `lastPlayedAt`)")
+            }
+        }
+
+        internal fun migrations(secrets: Secrets) =
+            arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, migration6To7(secrets))
+
+        fun create(context: Context, secrets: Secrets): LibraryDatabase =
             Room.databaseBuilder(context, LibraryDatabase::class.java, "library.db")
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
+                .addTypeConverter(SecretConverter(secrets))
+                .addMigrations(*migrations(secrets))
                 .build()
     }
 }

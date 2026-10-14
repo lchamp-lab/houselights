@@ -49,7 +49,7 @@ object SmbBrowser : RemoteBrowser {
     private suspend fun <T> withSession(source: SourceEntity, block: (DiskShare) -> T): T = withContext(Dispatchers.IO) {
         client.connect(source.host).use { connection ->
             val auth = if (source.username.isBlank()) AuthenticationContext.guest()
-            else AuthenticationContext(source.username, source.password.toCharArray(), source.domain.ifBlank { null })
+            else AuthenticationContext(source.username, source.password.value.toCharArray(), source.domain.ifBlank { null })
             val session = connection.authenticate(auth)
             (session.connectShare(source.share) as DiskShare).use(block)
         }

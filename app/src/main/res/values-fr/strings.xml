@@ -124,6 +124,7 @@
     <string name="episodes">Épisodes</string>
     <string name="play_error">Lecture impossible : %s</string>
     <string name="no_player">Aucun lecteur vidéo disponible</string>
+    <string name="player_credentials">Ce dossier est protégé par un mot de passe : seul le lecteur Zidoo peut le lire</string>
 
     <string name="add_folder">Ajouter un dossier</string>
     <string name="add_folder_desc">Indiquez où se trouvent vos films ou vos séries sur le NAS. Testez la connexion avant d’ajouter le dossier.</string>

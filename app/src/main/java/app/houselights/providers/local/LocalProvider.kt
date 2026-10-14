@@ -404,14 +404,22 @@ class LocalProvider(
          * smb://user:password@host/share/folder/file or nfs://host/export/folder/file.
          */
         fun fileUri(source: SourceEntity, relativePath: String): String {
-            val path = listOf(source.share.trim('/'), source.path.trim('/'), relativePath).filter { it.isNotEmpty() }.joinToString("/")
+            val path = listOf(source.share.trim('/'), source.path.trim('/'), relativePath).filter { it.isNotEmpty() }
+                .joinToString("/") { escapeUriPath(it) }
             return when (source.protocol) {
                 Protocol.NFS -> "nfs://${source.host}/$path"
                 Protocol.SMB -> {
-                    val auth = if (source.username.isBlank()) "" else "${Uri.encode(source.username)}:${Uri.encode(source.password)}@"
+                    val auth = if (source.username.isBlank()) "" else "${Uri.encode(source.username)}:${Uri.encode(source.password.value)}@"
                     "smb://$auth${source.host}/$path"
                 }
             }
         }
+
+        /**
+         * Escapes the characters that would end or alter a URI path ("%", "#", "?"). Spaces and
+         * accents stay as they are, as the Zidoo player has always received them.
+         */
+        internal fun escapeUriPath(path: String): String =
+            path.replace("%", "%25").replace("#", "%23").replace("?", "%3F")
     }
 }

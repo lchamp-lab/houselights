@@ -24,4 +24,12 @@ class RedactTest {
     fun keepsPlainUris() {
         assertEquals("nfs://nas/export/film.mkv", Redact.uri("nfs://nas/export/film.mkv"))
     }
+
+    @Test
+    fun findsCredentials() {
+        assertEquals(true, Redact.hasUserInfo("smb://zidoo:secret@nas/media/film.mkv"))
+        assertEquals(true, Redact.hasUserInfo("smb://zidoo@nas/media/film.mkv"))
+        assertEquals(false, Redact.hasUserInfo("smb://nas/media/film@home.mkv"))
+        assertEquals(false, Redact.hasUserInfo("nfs://nas/export/film.mkv"))
+    }
 }
