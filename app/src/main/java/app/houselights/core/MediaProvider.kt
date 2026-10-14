@@ -4,10 +4,21 @@ package app.houselights.core
 @kotlinx.serialization.Serializable
 data class PathMapping(val from: String, val to: String)
 
-/** An NFO file: where it is and what it says. */
+/** An NFO file: where it is and what it says, its words set for display ([text] stays as written). */
 data class NfoDocument(val path: String, val text: String) {
-    val info: NfoInfo? by lazy { NfoParser.parse(text) }
+    val info: NfoInfo? by lazy { NfoParser.parse(text)?.typeset() }
 }
+
+private fun NfoInfo.typeset() = copy(
+    title = Typeset.text(title),
+    originalTitle = Typeset.text(originalTitle),
+    plot = Typeset.text(plot),
+    tagline = Typeset.text(tagline),
+    directors = directors.map { Typeset.text(it) },
+    studios = studios.map { Typeset.text(it) },
+    actors = actors.map { it.copy(name = Typeset.text(it.name), role = Typeset.text(it.role)) },
+    collection = Typeset.text(collection),
+)
 
 data class PlaybackOptions(val pathMappings: List<PathMapping>, val forceHttp: Boolean)
 

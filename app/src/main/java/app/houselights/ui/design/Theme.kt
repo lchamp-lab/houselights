@@ -9,7 +9,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
 import androidx.tv.material3.LocalContentColor
+import androidx.tv.material3.LocalTextStyle
 import androidx.tv.material3.MaterialTheme
+import androidx.tv.material3.Typography
 import androidx.tv.material3.darkColorScheme
 import app.houselights.ui.util.screenWidthPx
 
@@ -44,11 +46,27 @@ fun HouselightsTheme(content: @Composable () -> Unit) {
             LocalHlType provides HouselightsType,
             LocalBringIntoViewSpec provides rememberListScroll(),
         ) {
-            MaterialTheme(colorScheme = scheme) {
-                CompositionLocalProvider(LocalContentColor provides c.content, content = content)
+            MaterialTheme(colorScheme = scheme, typography = materialTypography) {
+                // A text without a style still speaks in the voice of reading, never in tv-material's.
+                CompositionLocalProvider(
+                    LocalContentColor provides c.content,
+                    LocalTextStyle provides HouselightsType.body,
+                    content = content,
+                )
             }
         }
     }
+}
+
+/** tv-material's roles in Archivo, for the components that read them (a Button's label). */
+private val materialTypography = with(HouselightsType) {
+    Typography(
+        displayLarge = display, displayMedium = headline, displaySmall = subject,
+        headlineLarge = headline, headlineMedium = subject, headlineSmall = title,
+        titleLarge = title, titleMedium = lead, titleSmall = entry,
+        bodyLarge = body, bodyMedium = body, bodySmall = caption,
+        labelLarge = label, labelMedium = label, labelSmall = badge,
+    )
 }
 
 /**

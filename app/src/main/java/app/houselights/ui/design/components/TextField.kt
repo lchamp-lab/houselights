@@ -14,6 +14,7 @@ import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -182,6 +183,11 @@ private fun FieldBox(
                 .height(lineHeight)
                 .focusRequester(fieldFocus)
                 .focusProperties { canFocus = editing }
+                .leaveVertically(editing) { direction ->
+                    boxFocus.requestFocus()
+                    editing = false
+                    focusManager.moveFocus(direction)
+                }
                 .onFocusChanged {
                     val wasFocused = fieldFocused
                     fieldFocused = it.isFocused
@@ -200,6 +206,24 @@ private fun FieldBox(
                 KeyHint(Modifier.wrapContentHeight(unbounded = true).background(c.surfaceRaised).padding(start = HlSpace.s))
             }
         }
+    }
+}
+
+/**
+ * Back closes the keyboard without telling the app, and the field would keep the remote: while
+ * [editing], up or down, meaningless on one line, end typing and [leave] that way.
+ */
+private fun Modifier.leaveVertically(editing: Boolean, leave: (FocusDirection) -> Unit): Modifier = onPreviewKeyEvent { event ->
+    val direction = when (event.key) {
+        Key.DirectionUp -> FocusDirection.Up
+        Key.DirectionDown -> FocusDirection.Down
+        else -> null
+    }
+    if (editing && direction != null && event.type == KeyEventType.KeyDown) {
+        leave(direction)
+        true
+    } else {
+        false
     }
 }
 

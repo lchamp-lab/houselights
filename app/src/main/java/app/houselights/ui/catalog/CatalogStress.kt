@@ -30,7 +30,10 @@ import app.houselights.core.MediaKind
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.textRoom
+import app.houselights.ui.design.components.BadgeRow
 import app.houselights.ui.design.components.FactRow
+import app.houselights.ui.design.components.HeroInfo
 import app.houselights.ui.design.components.HlIconButton
 import app.houselights.ui.design.components.HlSegmented
 import app.houselights.ui.design.components.PosterCard
@@ -50,6 +53,7 @@ import kotlin.math.roundToInt
 internal fun LazyListScope.catalogStress() {
     item { StressTopBarSection() }
     item { StressInfoLineSection() }
+    item { StressHeroSection() }
     item { StressScriptsSection() }
     item { StressScriptsOnPosterSection() }
     item { StressFactsSection() }
@@ -88,6 +92,30 @@ private fun StressInfoLineSection() {
             }
         }
     }
+}
+
+@Composable
+private fun StressHeroSection() {
+    // The home hero's frame keeps one height whatever has focus, so the rows stay put; it grows with
+    // the text scale, as the text does (textRoom).
+    Group("Home hero", still = true) {
+        Column(verticalArrangement = Arrangement.spacedBy(HlSpace.xl)) {
+            Column {
+                StressHero()
+                StressCaption("Two-line title without logo, badges, progress and overview, in the hero's frame (on surface)")
+            }
+            Column {
+                val density = LocalDensity.current
+                CompositionLocalProvider(LocalDensity provides Density(density.density, STRESS_LARGEST_TEXT)) { StressHero() }
+                StressCaption("The same at Android’s largest text size, 1.3: the frame grows with it")
+            }
+        }
+    }
+}
+
+@Composable
+private fun StressHero() {
+    HeroInfo(STRESS_HERO, Modifier.background(Hl.colors.surface).height(textRoom(HlLayout.hero)))
 }
 
 @Composable
@@ -233,6 +261,16 @@ private val STRESS_INFO = MediaItem(
     officialRating = "16",
     communityRating = 8.2,
     badges = listOf("4K", "Dolby Vision", "HDR10+", "HDR10", "HLG", "TrueHD Atmos", "7.1"),
+)
+
+private val STRESS_HERO = sample("La Petite Marchande d’allumettes et le grand magasin", 2026, positionMs = 3_600_000).copy(
+    runtimeMs = 9_720_000,
+    officialRating = "16",
+    communityRating = 8.2,
+    genres = listOf("Comédie", "Drame", "Fantastique"),
+    badges = listOf("4K", "Dolby Vision", "HDR10+", "TrueHD Atmos", "7.1"),
+    overview = "La veille de Noël, une petite marchande d’allumettes se glisse dans le plus grand magasin de la ville${NBSP}: " +
+        "chaque allumette qu’elle frotte allume un rayon, une vitrine, un souvenir, jusqu’à la fermeture des portes.",
 )
 
 private val STRESS_FACTS = listOf(

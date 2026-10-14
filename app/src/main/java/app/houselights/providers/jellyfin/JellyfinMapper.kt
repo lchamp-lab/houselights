@@ -42,8 +42,9 @@ internal class JellyfinMapper(private val client: JellyfinClient) {
         return MediaItem(
             id = dto.id,
             kind = kind,
-            title = dto.name ?: "",
-            originalTitle = dto.originalTitle,
+            // Text is set for display; the server sorts and searches what it stores.
+            title = Typeset.text(dto.name.orEmpty()),
+            originalTitle = Typeset.text(dto.originalTitle),
             overview = Typeset.text(dto.overview),
             tagline = Typeset.text(dto.taglines.firstOrNull()),
             year = dto.productionYear,
@@ -55,9 +56,9 @@ internal class JellyfinMapper(private val client: JellyfinClient) {
             communityRating = dto.communityRating,
             genres = dto.genres,
             cast = dto.people.filter { it.type == "Actor" }.take(30).map {
-                Person(it.name ?: "", it.role, image(it.id, "Primary", it.primaryImageTag))
+                Person(Typeset.text(it.name.orEmpty()), Typeset.text(it.role), image(it.id, "Primary", it.primaryImageTag))
             },
-            directors = dto.people.filter { it.type == "Director" }.mapNotNull { it.name },
+            directors = dto.people.filter { it.type == "Director" }.mapNotNull { it.name }.map { Typeset.text(it) },
             badges = media?.badges().orEmpty(),
             media = media,
             poster = poster,
@@ -71,7 +72,7 @@ internal class JellyfinMapper(private val client: JellyfinClient) {
                 unplayedCount = dto.userData?.unplayedItemCount,
             ),
             seriesId = dto.seriesId,
-            seriesTitle = dto.seriesName,
+            seriesTitle = Typeset.text(dto.seriesName),
             seasonId = dto.seasonId,
             seasonNumber = if (kind == MediaKind.SEASON) dto.indexNumber else dto.parentIndexNumber,
             episodeNumber = if (kind == MediaKind.EPISODE) dto.indexNumber else null,

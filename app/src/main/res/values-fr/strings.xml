@@ -3,7 +3,6 @@
     <string name="source_local_desc">Vos vidéos sur un NAS ou un partage réseau (NFS ou SMB). Houselights les analyse et récupère affiches et informations sur TMDB.</string>
     <string name="source_jellyfin">Serveur Jellyfin</string>
     <string name="source_jellyfin_desc">Utilisez la bibliothèque de votre serveur Jellyfin.</string>
-    <string name="sources_coming_soon">Emby et Plex : bientôt.</string>
     <string name="welcome_title">Choisissez votre bibliothèque</string>
 
     <string name="library_movies">Films</string>
@@ -31,7 +30,7 @@
         <item quantity="other">%d titres</item>
         <item quantity="many">%d titres</item>
     </plurals>
-    <string name="home_empty_local">Aucun film pour l’instant. Ajoutez le dossier qui les contient dans les Réglages.</string>
+    <string name="home_empty_local">Aucun film pour l’instant. Ajoutez le dossier qui les contient.</string>
     <string name="home_scanning">Analyse de vos fichiers… %1$d / %2$d</string>
     <string name="home_scan_failed">L’analyse n’a pas abouti</string>
     <string name="home_see_folders">Voir les dossiers</string>
@@ -75,18 +74,17 @@
     <string name="from_start">Depuis le début</string>
     <string name="watched">Vu</string>
     <string name="mark_watched">Marquer comme vu</string>
-    <string name="favorite">Favori</string>
+    <string name="mark_unwatched">Marquer comme non vu</string>
     <string name="add_favorite">Ajouter aux favoris</string>
+    <string name="remove_favorite">Retirer des favoris</string>
     <string name="view_series">Voir la série</string>
     <string name="cast">Distribution</string>
     <string name="tech_details">Fiche technique</string>
-    <string name="tech_info">Infos techniques</string>
     <string name="sheet_back_hint">Retour pour fermer</string>
     <string name="cancel">Annuler</string>
     <string name="control_busy">En cours</string>
     <string name="key_ok">OK</string>
     <string name="key_hint_type">saisir</string>
-    <string name="nfo">NFO</string>
     <string name="nfo_title">Fichier NFO</string>
     <string name="nfo_desc">La description de ce titre écrite par votre gestionnaire de médias. Ses informations priment sur celles de TMDB.</string>
     <string name="nfo_tab_info">Informations</string>
@@ -94,7 +92,7 @@
     <string name="nfo_state_full">Fiche complète</string>
     <string name="nfo_state_link">Lien seulement</string>
     <string name="nfo_state_unreadable">Illisible</string>
-    <string name="nfo_state_reading">Lecture…</string>
+    <string name="nfo_state_reading">Ouverture…</string>
     <string name="nfo_block_details">Détails</string>
     <string name="label_file">Fichier</string>
     <string name="nfo_unreadable">Ce NFO n’a pas pu être lu comme du XML.</string>
@@ -132,7 +130,7 @@
     <string name="player_credentials">Ce dossier est protégé par un mot de passe : seul le lecteur Zidoo peut le lire.</string>
 
     <string name="add_folder">Ajouter un dossier</string>
-    <string name="add_folder_desc">Indiquez où se trouvent vos films ou vos séries sur le NAS. Testez la connexion avant d’ajouter le dossier.</string>
+    <string name="add_folder_desc">Indiquez où se trouvent vos films ou vos séries sur le NAS. Houselights teste la connexion avant d’ajouter le dossier.</string>
     <string name="jellyfin_desc">Saisissez l’adresse de votre serveur et vos identifiants Jellyfin.</string>
     <string name="folder_kind">Contenu</string>
     <string name="field_protocol">Protocole</string>
@@ -234,7 +232,8 @@
     <string name="scan_now">Analyser maintenant</string>
     <string name="scan_now_desc">Cherche les nouveaux fichiers</string>
     <string name="refresh_metadata">Actualiser toutes les informations</string>
-    <string name="last_scan">Dernière analyse : %s</string>
+    <string name="last_scan">Analysé %s</string>
+    <string name="never_scanned">Jamais analysé</string>
     <string name="never">jamais</string>
     <string name="just_now">à l’instant</string>
     <string name="tmdb_key">Clé API TMDB</string>
@@ -257,11 +256,11 @@
     <string name="server_path">Chemin serveur</string>
     <string name="add_mapping">Ajouter une correspondance</string>
     <string name="mapping_result">Résultat : %s</string>
-    <string name="mapping_none">aucune correspondance → flux HTTP</string>
+    <string name="mapping_none">aucune correspondance : lecture par le flux HTTP</string>
     <string name="section_display">Affichage</string>
     <string name="ui_4k">4K 60 Hz</string>
     <string name="ui_system">Mode du système</string>
-    <string name="testing">test…</string>
+    <string name="testing">Vérification…</string>
     <!-- Modifier les images et l'identification -->
     <string name="billing_by">un film de</string>
     <string name="billing_with">avec</string>
@@ -328,7 +327,7 @@
     <string name="error_action_edit_tmdb_key">Modifier la clé</string>
     <!-- Settings rows -->
     <string name="nav_version">Version %s</string>
-    <string name="scan_running">Analyse %1$d sur %2$d</string>
+    <string name="scan_running">Analyse %1$d / %2$d</string>
     <string name="refresh_metadata_desc">Récupère à nouveau affiches et informations sur TMDB</string>
     <string name="remove_folder">Retirer ce dossier</string>
     <string name="remove_folder_desc">Ses titres quittent la bibliothèque ; rien n’est supprimé sur le NAS.</string>

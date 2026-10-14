@@ -48,8 +48,9 @@ The technical voice speaks the vocabulary of a Blu-ray case: formats by their na
 
 - **House lights.** Playing a title runs one cue (`HouseLightCue`, `DIM`): the room fades first (text,
   buttons, rows: `Modifier.houseLit`), the scrims lift so the picture shows whole, then black and the
-  player. Coming back runs the cue backwards. While the lights go down the remote waits: a second OK
-  does nothing, Back brings the lights up again and nothing plays.
+  player. The player starts when the room is dark, not after a fixed time: the cue runs while the
+  title is being prepared. Coming back runs the cue backwards. While the lights go down the remote
+  waits: a second OK does nothing, Back brings the lights up again and nothing plays.
 - **Billing block.** On a detail page, director and leading cast read as a sentence, "a film by NAME
   with NAME, NAME and NAME": names in condensed capitals, small words and commas receding. On one line:
   it keeps as many leading names as fit, and never breaks inside a name.
@@ -119,15 +120,18 @@ words sit above and below it). A highlight smaller than a twentieth of the colum
 
 Eight sizes with clear steps: **12 · 14 · 16 · 20 · 24 · 32 · 44 · 64 sp**, plus 80 for the wordmark as
 a subject. Line heights sit on a 2 sp grid. Numbers use tabular figures (`tnum`) in every technical
-style, so durations, sizes and counts line up and do not jitter.
+style and wherever a figure changes under the eye (`figure`, `meta`, `label`, `caption`, `detail`),
+so durations, sizes and counts line up and do not jitter. A text without a style is `body`
+(`HouselightsTheme` provides it, and maps tv-material's roles onto the scale): never tv-material's
+own face.
 
 | Style | Size / line | Role (one each) |
 |---|---|---|
-| `display` | 64 / 70 | title of a detail page without logo |
+| `display` | 64 / 72 | title of a detail page without logo |
 | `headline` | 44 / 48 | screen titles, home hero title without logo |
 | `figure` | 32 / 36 | a figure that states something (storage used) |
 | `subject` | 32 / 36 | what a panel or a sheet is about ("Modifier", "Fiche technique") |
-| `cardTitle` | 20 / 22 | a title set on a card without artwork, like a plain one-sheet |
+| `cardTitle` | 20 / 24 | a title set on a card without artwork, like a plain one-sheet |
 | `title` | 24 / 30 | pane and dialog titles, taglines |
 | `lead` | 20 / 26 | row headers, names of cards and results, episode names |
 | `spec` | 20 / 26 | headline of a technical sheet |
@@ -143,7 +147,15 @@ style, so durations, sizes and counts line up and do not jitter.
 | `wordmark` / `wordmarkHero` | 22 / 24 and 80 / 84 | the Houselights wordmark |
 
 Archivo covers Latin (with Vietnamese); Greek, Cyrillic, Thai or Korean names fall back to the system
-font. No other font is shipped; line heights leave room for the fallback.
+font. No other font is shipped; line heights leave room for the fallback, and for Vietnamese: in
+the condensed bold of `display` and `cardTitle`, a stacked mark (ổ, ế) rises to 0.92 em and a
+descender falls to 0.20 em, so their lines are 1.125 and 1.2 em apart. A capital with a stacked
+mark (Ổ, 1.05 em) right under a descender can still touch it; the catalogue's stress shows both.
+
+A frame that holds text is never a fixed height in dp, which the viewer's text scale would
+overflow: it is a minimum (`heightIn(min = …)`), or, where it must not move with what it shows (the
+home hero, an episode's overview), `textRoom(height)`, a height given at the default text size
+that grows with the text.
 
 ### Space and size (`Dimens.kt`)
 
@@ -161,7 +173,7 @@ font. No other font is shipped; line heights leave room for the fallback.
 
 | Token | File | Content |
 |---|---|---|
-| `HlMotion` | `Motion.kt` | `FAST` 150, `STANDARD` 250, `SLOW` 600, `DIM` 1000 ms; `SETTLE` 220 ms before a backdrop changes; `SKELETON_DELAY` 400 ms before a placeholder shows; `WALL_DRIFT`; `ENTER_SCALE`, where a reading sheet and a menu grow from |
+| `HlMotion`, `awaitMotion` | `Motion.kt` | `FAST` 150, `STANDARD` 250, `SLOW` 600, `DIM` 1000 ms; `SETTLE` 220 ms before a backdrop changes; `SKELETON_DELAY` 400 ms before a placeholder shows; `WALL_DRIFT`; `ENTER_SCALE`, where a reading sheet and a menu grow from. What follows a motion waits for its end (`awaitMotion`, or the animated value itself), never a fixed `delay`: with animations off, everything settles without moving and nothing waits |
 | `LocalHouseLights`, `HouseLightCue` | `Auditorium.kt` | how far the house lights are down (read while drawing), and the order of the cue |
 | `HlIcons` | `Icons.kt` | line icons drawn for the app (24 dp grid, 1.75 stroke): places, actions (Restart, Edit), marks (Check), the remote's Back; core Material icons for the rest |
 | `rememberListScroll`, `ListScroll`, `RowScroll` | `Scroll.kt` | lists scroll only as much as needed (`EdgeScroll`), never against the edge of the screen: a list keeps focus `HlFocus.edge` from its top and bottom, so the last row stops inside the safe area; a list that starts under a header or a hero (`ListScroll(top)`) brings its rows back to where its first one rests; rows keep focus 80 dp from the sides, so the first card always scrolls home |
@@ -183,7 +195,7 @@ without the prefix (`MenuOption`, `MeterLegend`, `PosterCard`, `BillingBlock`, `
 | `HeroInfo`, `TitleArt`, `EpisodeHeading`, `MetaLine`, `BillingBlock` | what a title is: clear logo or condensed title, facts, credits |
 | `TitleLine` | the line naming the title under focus over a wall: its name, facts and formats on one line of fixed height. Short of room, the formats go first, from the last, then the name ends in an ellipsis |
 | `Badge`, `BadgeRow`, `FactRow` | formats and ratings (a `lit` badge marks a state), wrapping, or on one line (`oneLine`) where the last ones go; facts on one line, spaced, never punctuated |
-| `HlButton` (`Primary`, `Secondary`), `HlIconButton` | pill and round actions, all 48 dp tall; the icon button shows its label under it when focused. The label takes no room (a row with something below keeps `HlLayout.iconLabelRoom` for it), stays inside the safe area, hides while a sheet is open, and is not read out: the icon carries the name. Over an image (`onArtwork`) the button rests on a plate. A pill's label stops at `readableNarrow` and its detail at one line, with an ellipsis; `detailLit` lights the detail of a state (an active filter) instead of borrowing the primary emphasis. Not `enabled`, a control keeps focus, outlined, and ignores OK. `busy`, a pill is at work: the quiet dot of a pending state where its icon was, the words the screen gives (`busyLabel`: "Connexion…", "Vérification…"), its width kept, OK ignored, read out as in progress; nothing spins |
+| `HlButton` (`Primary`, `Secondary`), `HlIconButton` | pill and round actions, all 48 dp tall; the icon button shows its label under it when focused. The label takes no room (a row with something below keeps `HlLayout.iconLabelRoom` for it), stays inside the safe area, hides while a sheet is open, and is not read out: the icon carries the name. A toggle names what OK does ("Marquer comme vu", "Retirer des favoris") and shows where things stand with its icon, tungsten at rest when `lit`. Over an image (`onArtwork`) the button rests on a plate. A pill's label stops at `readableNarrow` and its detail at one line, with an ellipsis; `detailLit` lights the detail of a state (an active filter) instead of borrowing the primary emphasis. Not `enabled`, a control keeps focus, outlined, and ignores OK. `busy`, a pill is at work: the quiet dot of a pending state where its icon was, the words the screen gives (`busyLabel`: "Connexion…", "Vérification…"), its width kept, OK ignored, read out as in progress; nothing spins |
 | `HlSegmented` | the one way to show where you are or what is chosen among a few: home navigation, seasons (`scrollable`), NFO views, form choices. In a track, **white means current**: one white pill sits under the current option and slides to the option chosen (`STANDARD`, emphasized). The option under focus but not chosen is a grey pill; focus on the current option draws a ring around the pill, travelling with it. Focus entering a track, from any side, lands on the current option, never on the nearest one; to accessibility services the options are tabs, the current one selected. A long track scrolls as one piece, pill included. Over an image (`onArtwork`), the track is a plate and its options are white. There is no standalone tab |
 | `HlPanel` (`Quiet`, `Raised`, `lit`), `HlPanelButton` | the one panel recipe, and its focusable form (not `enabled`: a faint well, what it draws in `LocalContentColor` goes tertiary) |
 | `HlIconDisc`, `HlDivider`, `HlStatus`, `HlMeter`, `MeterLegend` | an icon in a disc (lit when on), a hairline, a state with its light (tungsten when on or calling for attention) and why, under it, a segmented gauge |
@@ -194,7 +206,7 @@ without the prefix (`MenuOption`, `MeterLegend`, `PosterCard`, `BillingBlock`, `
 | `HlMenuButton`, `MenuSection`, `MenuOption` | a button opening a sectioned menu anchored to its end edge (sort, filters): below it when the room down to the safe area holds the menu, else above; never past the safe area, a longer menu scrolls inside. It moves like a sheet, growing from the button's corner and leaving the same way; a sort applies once the menu has gone, so the wall reorders on its own. The button names what it does and its detail what is set: "Trier", "Titre"; the options say the order ("Titre, de A à Z") |
 | `HlModal` | a sheet to read, centred over the dimmed room (the technical sheet), never past the safe area: longer content scrolls; Back closes it |
 | `HlTwoPane`, `HlFormScaffold`, `StatusPanel`, `FieldLabel` | two-pane screens: navigation or explanation on the left, content on the right. `StatusPanel` is where a setup stands, beside its form: its state with its light first, then what is set up, large (an address in the technical voice), its path and kind, and what was found under a hairline; lit while the state is on |
-| `HlTextField` | TV text field: focusable box first, keyboard on OK; focused and waiting, it says so at its end ("OK saisir", `KeyHint`); tungsten while typing, and only then. Every field has a name, read out even when the screen hides it because its sheet already names it. One line under it: what to type (`supporting`), or what is wrong (`error`), in tungsten after the attention light, its edge unchanged. A placeholder is an example, from the resources ("Ex. : 192.168.1.10"). A setting typed in a field is saved when the field is left (its keyboard action, or focus moving on), never while typing, and its result line then says "Enregistré" |
+| `HlTextField` | TV text field: focusable box first, keyboard on OK; focused and waiting, it says so at its end ("OK saisir", `KeyHint`); tungsten while typing, and only then. Every field has a name, read out even when the screen hides it because its sheet already names it. One line under it: what to type (`supporting`), or what is wrong (`error`), in tungsten after the attention light, its edge unchanged. A placeholder is an example, from the resources ("Ex. : 192.168.1.10"). A setting typed in a field is saved when the field is left (its keyboard action, or focus moving on), never while typing, and its result line then says "Enregistré". Once the keyboard is closed, up or down end typing and move on (Back closes it without telling the app) |
 | `HlScrollArea` | long content read with the remote; focusable only when it has something to scroll; a key held down scrolls in one motion. Framed on a quiet panel, or unframed inside a sheet: square edges, so a hairline at its top stays whole, and the focus ring outside the content |
 | `TechSpecs`, `InfoBlock`, `DefinitionList` | the technical sheet, set like the back of a Blu-ray case: one block per subject (a hairline, its name, what it says), every track listed; it does not scroll itself, the sheet scrolls it whole. The NFO is laid out the same way |
 | `ArtworkChoiceCard`, `SelectedMark` | one artwork to choose from, at the shape it is used in |
@@ -331,7 +343,14 @@ screen: it goes to the log.
 - French uses *vous*, typographic apostrophes (’), and a no-break space before `: ; ! ?` and inside
   `« »`. Archivo has no narrow no-break space, so the normal one (U+00A0) is used.
 - A number never leaves its unit: `3,27 Go`, `2 h 02`, `10 bits`, `3840 × 1608` (`formatDuration`,
-  `formatDimensions`, `formatBytes`, `formatRatio` in `ui/util/Format.kt`).
+  `formatDimensions`, `formatBytes`, `formatRatio` in `ui/util/Format.kt`). What is left of a title
+  is a duration, "Il reste 1 h 26", never a timecode; progress reads "3 / 9", everywhere.
+- A button says what OK does, and a toggle says it too: "Marquer comme vu", then "Marquer comme non
+  vu"; its lit icon carries the state. A button bears the name of what it opens ("Fiche technique",
+  "Fichier NFO"). An empty screen always offers a verb ("Ajouter un dossier"), never a place.
+- A time inside a sentence goes on in lower case, "Analysé il y a 3 minutes", "Jamais analysé"; set
+  alone as a value, it takes a capital, "Il y a 3 minutes" (`relativeTime`). No arrow in a sentence:
+  words ("aucune correspondance : lecture par le flux HTTP").
 - Facts are separated by layout (`FactRow`). Inside a single text (a button's detail), `FACT_GAP`.
   A line of facts never cuts one: short of room, it leaves out whole facts from the end, as the
   billing block leaves out names, so the ones that matter come first (`MetaLine`: year, length,
@@ -342,8 +361,11 @@ screen: it goes to the log.
   "Vérification…". An example in a field starts "Ex. :" and lives in the resources.
 - A failure says what happened and what to do ("Le dossier n’a pas pu être lu. Réessayez, ou
   vérifiez le partage sur le NAS."), never an exception's text: that goes to the log only.
-- Text written elsewhere (TMDB, NFO, servers) goes through `Typeset.text`, so `»`, `:` and `!` never
-  start a line.
+- Text written elsewhere (TMDB, NFO, servers) goes through `Typeset.text` in the mappers, for display
+  only (sorting and searching read it as written): an apostrophe between two letters becomes ’,
+  three dots …, a balanced pair of straight double quotes « … » in French; `»`, `:` and `!` never
+  start a line. Single quotes are left alone: they elide as often as they quote (Rock 'n' Roll).
+  `StringsTest` holds the resources to the same rules, and values-fr to every key of values.
 - Say only what the app can know. Some players list stand-in display modes: the Zidoo lists 1080p
   at 30 Hz while it sends 2160p60, set in its own menu. There, Affichage says the player sets its
   output and where ("Réglages du lecteur > Affichage"), shows no mode and no rate, and offers no
@@ -358,7 +380,7 @@ alignment worked out in a screen gets a name in `Dimens.kt`. A screen never load
 show when it fails. `SpacingGridTest` keeps `HlSpace` and
 `HlInset` on the 4 dp grid; `TypeScaleTest` keeps the type scale honest, `ContrastTest` the contrasts,
 `ScrimTest` the floor of the veils, `ResourceTokensTest` the resources in step with the tokens,
-`CatalogCoverageTest` the catalogue complete.
+`StringsTest` the French typography of the resources, `CatalogCoverageTest` the catalogue complete.
 Deliberate exceptions go in the guard's `allowed` list, with the reason; a value needed twice belongs
 in the design system instead.
 
@@ -369,8 +391,9 @@ review changes on a real screen. Each component is laid out as a row of its stat
 lit, loading, failed, empty), each named underneath; focus is checked live with the remote. The
 catalogue shows components as they are, defects included: that is how they are seen. Its sections
 live in `ui/catalog` (`CatalogScreen` for tokens, controls and sheets; `CatalogForms`, `CatalogCards`,
-`CatalogReading`; `CatalogStress` for the longest French labels, the fullest rows, the scripts
-Archivo lacks and a line on the device: size in dp, density, text scale). `CatalogCoverageTest` fails
+`CatalogReading`; `CatalogStress` for the longest French labels, the fullest rows, the home hero at
+the largest text size, the scripts Archivo lacks and a line on the device: size in dp, density, text
+scale). `CatalogCoverageTest` fails
 when a public component of `ui/design/components` is missing; the few that fill the screen are listed
 there with the reason.
 

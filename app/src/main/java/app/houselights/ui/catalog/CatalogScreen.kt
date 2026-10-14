@@ -15,6 +15,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -69,6 +71,7 @@ import app.houselights.ui.design.components.SheetConfirm
 import app.houselights.ui.design.components.StatusState
 import app.houselights.ui.design.components.Wordmark
 import kotlinx.coroutines.delay
+import app.houselights.ui.util.NBSP
 
 /**
  * Every token and component of the design system in its states, for review on a real screen.
@@ -277,13 +280,20 @@ fun CatalogScreen() {
                         verticalAlignment = Alignment.Top,
                     ) {
                         // An episode in progress, with every capability: the fullest row of a detail page.
-                        HlButton("Reprendre", {}, icon = Icons.Filled.PlayArrow, detail = "1:02:33", emphasis = Emphasis.Primary)
+                        HlButton(
+                            "Reprendre",
+                            {},
+                            icon = Icons.Filled.PlayArrow,
+                            detail = "Il reste 1${NBSP}h${NBSP}26",
+                            emphasis = Emphasis.Primary,
+                        )
                         HlIconButton(HlIcons.Restart, "Depuis le début", {})
                         HlButton("Voir la série", {})
-                        HlIconButton(HlIcons.Info, "Marquer comme vu", {})
-                        HlIconButton(HlIcons.Info, "Infos techniques", {})
-                        HlIconButton(HlIcons.Document, "NFO", {})
-                        HlIconButton(HlIcons.Info, "Ajouter aux favoris", {})
+                        // Toggles name what OK does; lit, the icon says the episode is watched, a favourite.
+                        HlIconButton(Icons.Filled.Check, "Marquer comme non vu", {}, lit = true)
+                        HlIconButton(HlIcons.Info, "Fiche technique", {})
+                        HlIconButton(HlIcons.Document, "Fichier NFO", {})
+                        HlIconButton(Icons.Filled.Favorite, "Retirer des favoris", {}, lit = true)
                         HlIconButton(HlIcons.Edit, "Modifier", {})
                     }
                     var library by remember { mutableIntStateOf(0) }

@@ -38,11 +38,6 @@ fun formatRatio(ratio: Float): String = String.format(java.util.Locale.getDefaul
 /** "3840 × 2160". */
 fun formatDimensions(width: Int, height: Int): String = "$width$NBSP×$NBSP$height"
 
-fun formatTimecode(ms: Long): String {
-    val s = ms / 1000
-    return if (s >= 3600) "%d:%02d:%02d".format(s / 3600, (s % 3600) / 60, s % 60) else "%d:%02d".format(s / 60, s % 60)
-}
-
 @Composable
 fun libraryName(kind: LibraryKind): String = stringResource(
     when (kind) {
