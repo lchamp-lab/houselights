@@ -37,6 +37,7 @@ import app.houselights.ui.design.components.HlIconButton
 import app.houselights.ui.design.components.HlSegmented
 import app.houselights.ui.design.components.HlEmptyState
 import app.houselights.ui.design.HlLayout
+import app.houselights.ui.design.rememberRowState
 import app.houselights.R
 import app.houselights.core.HomeSection
 import app.houselights.core.Library
@@ -163,7 +164,11 @@ private fun Sections(
     ) {
         sections.forEachIndexed { sectionIndex, section ->
             item(key = "${section.type}-${section.libraryName}-${section.libraryKind}") {
-                MediaRow(header = sectionTitle(section), spacing = if (section.landscape) HlSpace.l else HlSpace.m) {
+                MediaRow(
+                    header = sectionTitle(section),
+                    spacing = if (section.landscape) HlSpace.l else HlSpace.m,
+                    state = rememberRowState(section.items.map { it.id }),
+                ) {
                     itemsIndexed(section.items, key = { _, it -> it.id }) { index, item ->
                         val mod = if (sectionIndex == focusSection && index == focusIndex) Modifier.focusRequester(firstFocus) else Modifier
                         val focus = { onFocus(sectionIndex, index, item) }
