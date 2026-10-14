@@ -35,6 +35,16 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.Paint
+import androidx.compose.ui.graphics.ColorMatrix
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.composed
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.focus.onFocusChanged
@@ -115,10 +125,10 @@ fun ArtworkSurface(
 ) {
     val interaction = remember { MutableInteractionSource() }
     val focused by interaction.collectIsFocusedAsState()
-    val dim by animateFloatAsState(
-        if (LocalGroupFocused.current && !focused) HlFocus.SIBLING_DIM else 0f,
+    val recede = animateFloatAsState(
+        if (LocalGroupFocused.current && !focused) 1f else 0f,
         tween(HlMotion.STANDARD, easing = HlMotion.standard),
-        label = "dim",
+        label = "recede",
     )
     val c = Hl.colors
     Surface(
@@ -137,8 +147,36 @@ fun ArtworkSurface(
         ),
         interactionSource = interaction,
     ) {
-        content()
-        if (dim > 0f) Box(Modifier.fillMaxSize().background(c.background.copy(alpha = dim)))
+        // Read while drawing: stepping back never recomposes the row.
+        CompositionLocalProvider(LocalArtworkRecede provides { recede.value }) { content() }
+        Box(Modifier.fillMaxSize().drawBehind { drawRect(c.background.copy(alpha = recede.value * HlFocus.SIBLING_DIM)) })
+    }
+}
+
+/** How far the artwork of a card steps back: 0 in front, 1 behind the focused card. */
+val LocalArtworkRecede = staticCompositionLocalOf<() -> Float> { { 0f } }
+
+/**
+ * Artwork that steps back loses part of its colour ([HlFocus.SIBLING_SATURATION]). Drawn through
+ * a colour-filtered layer, which Android 9 supports, unlike blend modes and render effects.
+ */
+fun Modifier.receding(): Modifier = composed {
+    val recede = LocalArtworkRecede.current
+    val paint = remember { Paint() }
+    val matrix = remember { ColorMatrix() }
+    drawWithContent {
+        val r = recede()
+        if (r <= 0f) {
+            drawContent()
+            return@drawWithContent
+        }
+        matrix.setToSaturation(1f - r * (1f - HlFocus.SIBLING_SATURATION))
+        paint.colorFilter = ColorFilter.colorMatrix(matrix)
+        drawIntoCanvas { canvas ->
+            canvas.saveLayer(Rect(Offset.Zero, size), paint)
+            drawContent()
+            canvas.restore()
+        }
     }
 }
 
@@ -218,7 +256,7 @@ fun PersonCard(person: Person, modifier: Modifier = Modifier) {
 
 @Composable
 private fun Artwork(url: String, description: String, modifier: Modifier = Modifier) {
-    AsyncImage(model = url, contentDescription = description, contentScale = ContentScale.Crop, modifier = modifier.fillMaxSize())
+    AsyncImage(model = url, contentDescription = description, contentScale = ContentScale.Crop, modifier = modifier.fillMaxSize().receding())
 }
 
 /** No artwork: the title, set like a plain one-sheet. */

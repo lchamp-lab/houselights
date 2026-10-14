@@ -72,7 +72,7 @@ fun ArtworkChoiceCard(
                     model = url,
                     contentDescription = title,
                     contentScale = if (fit) ContentScale.Fit else ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize().padding(if (fit) HlSpace.m else 0.dp),
+                    modifier = Modifier.fillMaxSize().padding(if (fit) HlSpace.m else 0.dp).receding(),
                 )
                 placeholder != null -> Text(
                     placeholder,

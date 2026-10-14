@@ -97,7 +97,7 @@ font. No other font is shipped; line heights leave room for the fallback.
 | `HlSize` | artwork (poster 112, landscape 220, episode 264, avatar 76, thumbnails), `control` 48 for every button, icons 20, discs 52, marks 24, dots 8, setting rows 64, meter 10 |
 | `HlLayout` | measures of layout parts: reading widths (640, 520), side columns (280, 340), pane top 72, dialogs (640, 860, 864), title art, hero, info line, track table columns |
 | `HlControl` | inner padding of buttons and track options, badges, menu entries |
-| `HlFocus` | focus scale (artwork 1.10, cards 1.06, controls 1.04), sibling dim 0.38, ambient glow 18 dp |
+| `HlFocus` | focus scale (artwork 1.10, cards 1.06, controls 1.04), siblings stepping back (dim 0.3, colour kept 0.3), ambient glow 18 dp |
 
 ### Motion, icons, scrolling
 
@@ -141,7 +141,9 @@ font. No other font is shipped; line heights leave room for the fallback.
 Focus must read from the couch:
 
 - **Artwork** grows, gets a 2 dp projector-white outline and glows with the ambient light. Its
-  neighbours in the same row or grid dim.
+  neighbours in the same row or grid step back: darker and with less colour (`SIBLING_DIM`,
+  `SIBLING_SATURATION`, through `Modifier.receding()`), never grey. A row without focus keeps
+  its colours.
 - **Controls, rows and navigation** turn projector white with black content.
 - **Track options** are the exception: white is the current option, so focus on another option is
   a grey pill, and focus on the current one a ring around it.

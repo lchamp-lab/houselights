@@ -143,7 +143,11 @@ object HlFocus {
     const val ARTWORK_SCALE = 1.1f
     const val CARD_SCALE = 1.06f
     const val CONTROL_SCALE = 1.04f
-    /** Dim applied to the other cards of a row while one of them has focus. */
-    const val SIBLING_DIM = 0.38f
+    /**
+     * The other cards of a row step back while one of them has focus: darker by this much, and
+     * with this much of their colour left. Partly, not grey: the wall stays inviting.
+     */
+    const val SIBLING_DIM = 0.3f
+    const val SIBLING_SATURATION = 0.3f
     val glow = 18.dp
 }
