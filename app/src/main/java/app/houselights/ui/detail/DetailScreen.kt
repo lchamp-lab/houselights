@@ -49,6 +49,7 @@ import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.LocalAmbient
+import app.houselights.ui.design.RowScroll
 import app.houselights.ui.design.revealOnFocus
 import app.houselights.ui.design.components.Backdrop
 import app.houselights.ui.design.components.BackdropStyle
@@ -283,7 +284,7 @@ private fun Hero(
 
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
-private fun Seasons(seasons: List<MediaItem>, selectedId: String?, onSelect: (String) -> Unit) {
+private fun Seasons(seasons: List<MediaItem>, selectedId: String?, onSelect: (String) -> Unit) = RowScroll {
     LazyRow(
         modifier = Modifier.focusRestorer(),
         contentPadding = PaddingValues(horizontal = HlSpace.safeH - HlSpace.m),

@@ -2,6 +2,10 @@ package app.houselights.ui.design
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.gestures.BringIntoViewSpec
+import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.runtime.remember
@@ -33,6 +37,36 @@ val HlBringIntoView = object : BringIntoViewSpec {
         }
     }
 }
+
+/**
+ * Rows keep what has focus [ROW_MARGIN] away from both ends of the screen. The minimal spec
+ * above would stop a row scrolled back to its first card with that card against the screen
+ * edge; with a margin wider than the row's padding, the row comes back to where it rests, and
+ * moving right always lets the next card peek in.
+ */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun RowScroll(content: @Composable () -> Unit) {
+    val margin = with(LocalDensity.current) { ROW_MARGIN.toPx() }
+    val spec = remember(margin) {
+        object : BringIntoViewSpec {
+            override fun calculateScrollDistance(offset: Float, size: Float, containerSize: Float): Float {
+                val start = margin
+                val end = containerSize - margin
+                val trailing = offset + size
+                return when {
+                    offset >= start && trailing <= end -> 0f
+                    offset < start || size > end - start -> offset - start
+                    else -> trailing - end
+                }
+            }
+        }
+    }
+    CompositionLocalProvider(LocalBringIntoViewSpec provides spec, content = content)
+}
+
+/** Wider than any row's start padding, so the first card always scrolls fully home. */
+private val ROW_MARGIN = HlSpace.safeH + HlSpace.xl
 
 /**
  * Keeps vertical navigation inside this column: up or down at its edges does nothing instead
