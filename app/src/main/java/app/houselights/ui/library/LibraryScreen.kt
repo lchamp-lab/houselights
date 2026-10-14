@@ -39,9 +39,11 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.tv.material3.Text
+import app.houselights.ui.design.HlLayout
 import app.houselights.R
 import app.houselights.core.Definition
 import app.houselights.core.Library
+import app.houselights.core.LibraryKind
 import app.houselights.core.MediaItem
 import app.houselights.core.LibraryFacets
 import app.houselights.core.LibraryFilter
@@ -130,13 +132,18 @@ fun LibraryScreen(
                     Spacer(Modifier.width(HlSpace.m))
                     if (state.total > 0) {
                         Text(
-                            pluralStringResource(R.plurals.title_count, state.total, state.total),
+                            pluralStringResource(
+                                if (library.kind == LibraryKind.COLLECTIONS) R.plurals.collection_count else R.plurals.title_count,
+                                state.total,
+                                state.total,
+                            ),
                             style = Hl.type.meta,
                             color = Hl.colors.contentTertiary,
                         )
                     }
                     Spacer(Modifier.weight(1f))
-                    FilterButton(state.filter, state.facets, vm::setFilter)
+                    // Collections are browsed by name or date; filters belong to films.
+                    if (library.kind != LibraryKind.COLLECTIONS) FilterButton(state.filter, state.facets, vm::setFilter)
                     Spacer(Modifier.width(HlSpace.s))
                     HlMenuButton(
                         text = sortLabel(state.sort),
@@ -157,7 +164,7 @@ fun LibraryScreen(
                     label = "info",
                 )
                 Row(
-                    Modifier.padding(start = HlSpace.safeH, top = HlSpace.xs).height(24.dp).graphicsLayer { alpha = infoAlpha },
+                    Modifier.padding(start = HlSpace.safeH, top = HlSpace.xs).height(HlLayout.infoLine).graphicsLayer { alpha = infoAlpha },
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     shown?.let {

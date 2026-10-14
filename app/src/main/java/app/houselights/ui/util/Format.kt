@@ -11,16 +11,32 @@ import app.houselights.core.SectionType
 import app.houselights.providers.local.ScanError
 import app.houselights.providers.local.ScanErrorKind
 
+/** No-break space: keeps a number with its unit, and French punctuation with its word. */
+const val NBSP = '\u00A0'
+
+/** "2 h 02", "1 h", "45 min": never split across lines. */
 fun formatDuration(ms: Long): String {
     val totalMin = ms / 60_000
     val h = totalMin / 60
     val m = totalMin % 60
     return when {
-        h > 0 && m > 0 -> "$h h ${"%02d".format(m)}"
-        h > 0 -> "$h h"
-        else -> "$m min"
+        h > 0 && m > 0 -> "$h${NBSP}h$NBSP${"%02d".format(m)}"
+        h > 0 -> "$h${NBSP}h"
+        else -> "$m${NBSP}min"
     }
 }
+
+/**
+ * Between facts inside one piece of text (a button's detail, a card's caption), where a layout
+ * gap is not possible: as wide as three spaces, breaking only after it.
+ */
+const val FACT_GAP = "$NBSP$NBSP "
+
+/** "2,39:1", "1,85:1": the way aspect ratios are written, in the local decimal style. */
+fun formatRatio(ratio: Float): String = String.format(java.util.Locale.getDefault(), "%.2f", ratio) + ":1"
+
+/** "3840 × 2160". */
+fun formatDimensions(width: Int, height: Int): String = "$width$NBSP×$NBSP$height"
 
 fun formatTimecode(ms: Long): String {
     val s = ms / 1000
@@ -82,11 +98,16 @@ fun languageName(code: String?): String? {
 
 /** Decimal units, as drives and NAS report them; "Go", "Mo", "Ko" in French. */
 fun formatBytes(context: Context, bytes: Long): String {
-    val locale = java.util.Locale.getDefault()
+    // Whole amounts lose their decimals: "1 Go", not "1,00 Go".
+    fun amount(value: Double, decimals: Int): String {
+        val locale = java.util.Locale.getDefault()
+        val rounded = String.format(locale, "%.${decimals}f", value)
+        return if (String.format(locale, "%.${decimals}f", Math.rint(value)) == rounded) String.format(locale, "%.0f", value) else rounded
+    }
     return when {
-        bytes >= 1_000_000_000L -> context.getString(R.string.gigabytes, String.format(locale, "%.2f", bytes / 1e9))
-        bytes >= 1_000_000L -> context.getString(R.string.megabytes, String.format(locale, "%.1f", bytes / 1e6))
-        else -> context.getString(R.string.kilobytes, String.format(locale, "%.0f", bytes / 1e3))
+        bytes >= 1_000_000_000L -> context.getString(R.string.gigabytes, amount(bytes / 1e9, 2))
+        bytes >= 1_000_000L -> context.getString(R.string.megabytes, amount(bytes / 1e6, 1))
+        else -> context.getString(R.string.kilobytes, amount(bytes / 1e3, 0))
     }
 }
 

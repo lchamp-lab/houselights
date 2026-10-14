@@ -24,6 +24,10 @@ data class DetailState(
     val similar: List<MediaItem> = emptyList(),
     /** Artwork and identification can be changed. */
     val canEdit: Boolean = false,
+    /** For a film: the collection it belongs to. */
+    val collection: MediaItem? = null,
+    /** For a collection: its films; for a film: the other films of its collection. */
+    val collectionFilms: List<MediaItem> = emptyList(),
 )
 
 class DetailViewModel(private val app: AppContainer, private val itemId: String) : ViewModel() {
@@ -51,8 +55,15 @@ class DetailViewModel(private val app: AppContainer, private val itemId: String)
                         ?: seasons.firstOrNull()?.id
                     val episodes = seasons.firstOrNull { it.id == seasonId }?.let { provider.episodes(item, it) } ?: emptyList()
                     DetailState(item, null, provider.capabilities, next, seasons, seasonId, episodes, similar.await())
+                } else if (item.kind == MediaKind.COLLECTION) {
+                    val films = provider.collectionItems(item)
+                    DetailState(item = item, capabilities = provider.capabilities, nextUp = provider.nextUp(item), collectionFilms = films)
                 } else {
-                    DetailState(item = item, capabilities = provider.capabilities, similar = similar.await())
+                    val collection = provider.collectionOf(item)
+                    val saga = collection?.let { c -> provider.collectionItems(c).filter { it.id != item.id } }.orEmpty()
+                    // Films of the same saga are shown as such, not again as "similar".
+                    val similarFilms = similar.await().filter { s -> saga.none { it.id == s.id } }
+                    DetailState(item = item, capabilities = provider.capabilities, similar = similarFilms, collection = collection, collectionFilms = saga)
                 }
             }.onSuccess { loaded -> _state.value = loaded.copy(canEdit = loaded.item?.let { app.provider.editor?.canEdit(it) } == true) }
                 .onFailure { e -> _state.update { it.copy(error = e.message ?: e.javaClass.simpleName) } }

@@ -48,6 +48,8 @@ data class MediaItem(
     val media: MediaInfo? = null,
     /** A Kodi-style NFO describes this item ([MediaProvider.nfo] returns it). */
     val hasNfo: Boolean = false,
+    /** Name of the video file, when the backend knows it. */
+    val fileName: String? = null,
     val poster: ImageRef? = null,
     val backdrop: ImageRef? = null,
     val logo: ImageRef? = null,
@@ -60,6 +62,8 @@ data class MediaItem(
     val seasonNumber: Int? = null,
     val episodeNumber: Int? = null,
     val childCount: Int? = null,
+    /** For a collection: its films released so far, owned or not, when known. */
+    val totalCount: Int? = null,
     /** True when built from a lightweight list response; [MediaProvider.item] returns the full entry. */
     val partial: Boolean = false,
 ) {

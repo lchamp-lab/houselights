@@ -34,6 +34,9 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.tv.material3.Text
+import app.houselights.ui.design.components.HlEmptyState
+import app.houselights.ui.design.components.FactRow
+import app.houselights.ui.design.HlLayout
 import app.houselights.R
 import app.houselights.core.ArtworkChoices
 import app.houselights.core.ArtworkKind
@@ -56,6 +59,8 @@ import app.houselights.ui.design.components.ScreenTitle
 import app.houselights.ui.design.components.TitleArt
 import app.houselights.ui.design.components.rememberAmbientColor
 import app.houselights.ui.util.appContainer
+import app.houselights.ui.util.FACT_GAP
+import app.houselights.ui.util.formatDimensions
 import app.houselights.ui.util.languageName
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -121,18 +126,13 @@ private fun Header(kind: ArtworkKind, item: MediaItem?, choices: ArtworkChoices?
     Column(Modifier.padding(horizontal = HlSpace.safeH)) {
         ScreenTitle(stringResource(kind.title))
         Spacer(Modifier.height(HlSpace.xxs))
-        Row(horizontalArrangement = Arrangement.spacedBy(18.dp)) {
-            item?.let { Text(it.title, style = Hl.type.meta, color = Hl.colors.content) }
-            choices?.let {
-                Text(pluralStringResource(R.plurals.image_count, it.options.size, it.options.size), style = Hl.type.meta, color = Hl.colors.contentSecondary)
-            }
-        }
+        FactRow(listOf(item?.title, choices?.let { pluralStringResource(R.plurals.image_count, it.options.size, it.options.size) }))
         Spacer(Modifier.height(HlSpace.xs))
         Text(
             stringResource(if (choices != null && !choices.onlineAvailable) R.string.artwork_offline else R.string.artwork_hint),
             style = Hl.type.caption,
-            color = if (choices != null && !choices.onlineAvailable) Hl.colors.tungsten else Hl.colors.contentTertiary,
-            modifier = Modifier.widthIn(max = 640.dp),
+            color = if (choices != null && !choices.onlineAvailable) Hl.colors.tungsten else Hl.colors.contentSecondary,
+            modifier = Modifier.widthIn(max = HlLayout.readable),
         )
     }
 }
@@ -142,15 +142,16 @@ private fun Header(kind: ArtworkKind, item: MediaItem?, choices: ArtworkChoices?
 private fun Preview(kind: ArtworkKind, item: MediaItem, preview: ArtworkOption?) {
     when (kind) {
         ArtworkKind.BACKDROP -> Column {
-            TitleArt(item.title, item.logo, maxWidth = 380.dp, maxHeight = 96.dp, style = Hl.type.headline)
+            // As the detail page shows it.
+            TitleArt(item.title, item.logo, maxWidth = HlLayout.titleArtWidth, maxHeight = HlLayout.titleArtHeight)
             Spacer(Modifier.height(HlSpace.m))
             MetaLine(item)
         }
         ArtworkKind.LOGO -> TitleArt(
             title = item.title,
             logo = preview?.image,
-            maxWidth = 440.dp,
-            maxHeight = 112.dp,
+            maxWidth = HlLayout.titleArtWidth,
+            maxHeight = HlLayout.titleArtHeight,
         )
         ArtworkKind.POSTER -> Unit
     }
@@ -179,7 +180,7 @@ private fun Choices(
                 image = option.image,
                 selected = option == choices.selected,
                 title = if (automatic) stringResource(R.string.artwork_automatic) else describe(kind, option),
-                caption = if (automatic) listOfNotNull(describe(kind, option), size(option)).joinToString(" · ") else size(option),
+                caption = if (automatic) listOfNotNull(describe(kind, option), size(option)).joinToString(FACT_GAP) else size(option),
                 onClick = { onChoose(option) },
                 width = kind.cardWidth,
                 aspectRatio = kind.aspectRatio,
@@ -203,7 +204,7 @@ private fun describe(kind: ArtworkKind, option: ArtworkOption): String = when (o
 }
 
 private fun size(option: ArtworkOption): String? =
-    if (option.width > 0 && option.height > 0) "${option.width} × ${option.height}" else null
+    if (option.width > 0 && option.height > 0) formatDimensions(option.width, option.height) else null
 
 @Composable
 private fun Skeletons(kind: ArtworkKind) {
@@ -217,13 +218,13 @@ private fun Skeletons(kind: ArtworkKind) {
 
 @Composable
 private fun Problem(error: EditError, onRetry: () -> Unit) {
-    val focus = remember { FocusRequester() }
-    LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
-    Column(Modifier.padding(horizontal = HlSpace.safeH, vertical = HlSpace.xl)) {
-        Text(stringResource(error.message), style = Hl.type.body, color = Hl.colors.content, modifier = Modifier.widthIn(max = 640.dp))
-        Spacer(Modifier.height(HlSpace.l))
-        HlButton(stringResource(R.string.retry), onRetry, Modifier.focusRequester(focus), icon = Icons.Filled.Refresh, emphasis = Emphasis.Primary)
-    }
+    HlEmptyState(
+        stringResource(error.message),
+        Modifier.padding(horizontal = HlSpace.safeH, vertical = HlSpace.xl),
+        action = stringResource(R.string.retry),
+        actionIcon = Icons.Filled.Refresh,
+        onAction = onRetry,
+    )
 }
 
 private val ArtworkKind.title
@@ -236,8 +237,8 @@ private val ArtworkKind.title
 /** Choices are shown at the shape they are used in. */
 private val ArtworkKind.cardWidth: Dp
     get() = when (this) {
-        ArtworkKind.POSTER -> 150.dp
-        ArtworkKind.BACKDROP, ArtworkKind.LOGO -> 240.dp
+        ArtworkKind.POSTER -> HlLayout.posterChoice
+        ArtworkKind.BACKDROP, ArtworkKind.LOGO -> HlLayout.landscapeChoice
     }
 
 private val ArtworkKind.aspectRatio: Float

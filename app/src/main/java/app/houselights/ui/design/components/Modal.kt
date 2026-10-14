@@ -36,6 +36,8 @@ import androidx.compose.ui.window.DialogWindowProvider
 import androidx.tv.material3.Text
 import app.houselights.R
 import app.houselights.ui.design.Hl
+import app.houselights.ui.design.HlAlpha
+import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlMotion
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
@@ -51,7 +53,7 @@ fun HlModal(
     title: String,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
-    width: Dp = 860.dp,
+    width: Dp = HlLayout.dialog,
     initialFocus: FocusRequester? = null,
     content: @Composable () -> Unit,
 ) {
@@ -65,19 +67,12 @@ fun HlModal(
         LaunchedEffect(Unit) { runCatching { (initialFocus ?: closeFocus).requestFocus() } }
         val c = Hl.colors
 
-        Box(Modifier.fillMaxSize().background(c.background.copy(alpha = 0.72f)), contentAlignment = Alignment.Center) {
+        Box(Modifier.fillMaxSize().background(c.background.copy(alpha = HlAlpha.SCRIM)), contentAlignment = Alignment.Center) {
             AnimatedVisibility(
                 visibleState = visible,
-                enter = fadeIn(tween(HlMotion.STANDARD)) + scaleIn(tween(HlMotion.STANDARD, easing = HlMotion.emphasized), initialScale = 0.96f),
+                enter = fadeIn(tween(HlMotion.STANDARD)) + scaleIn(tween(HlMotion.STANDARD, easing = HlMotion.emphasized), initialScale = HlMotion.ENTER_SCALE),
             ) {
-                Column(
-                    modifier
-                        .width(width)
-                        .clip(HlShapes.panel)
-                        .background(c.surfaceRaised)
-                        .border(HlSize.hairline, c.outline, HlShapes.panel)
-                        .padding(HlSpace.xl),
-                ) {
+                HlPanel(modifier.width(width), level = PanelLevel.Raised, padding = HlSpace.xl) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(title, style = Hl.type.title, color = c.content, modifier = Modifier.weight(1f))
                         HlButton(stringResource(R.string.close), onDismiss, Modifier.focusRequester(closeFocus), icon = Icons.Filled.Close)

@@ -36,6 +36,8 @@ data class NfoInfo(
     val imdbId: String? = null,
     val tvdbId: String? = null,
     val collection: String? = null,
+    /** TMDB id of the collection, when the NFO gives it (tinyMediaManager, Kodi). */
+    val collectionTmdbId: Int? = null,
     val season: Int? = null,
     val episode: Int? = null,
     val status: String? = null,
@@ -119,7 +121,11 @@ object NfoParser {
                 "tmdbid" -> info = info.copy(tmdbId = p.text()?.toIntOrNull())
                 "imdbid" -> info = info.copy(imdbId = p.text())
                 "id" -> p.text()?.let { id -> if (id.startsWith("tt")) info = info.copy(imdbId = info.imdbId ?: id) }
-                "set" -> info = info.copy(collection = setName(p))
+                "set" -> {
+                    val id = p.getAttributeValue(null, "tmdbcolid")?.toIntOrNull()
+                    info = info.copy(collection = setName(p), collectionTmdbId = id ?: info.collectionTmdbId)
+                }
+                "tmdbcolid", "tmdbCollectionId" -> info = info.copy(collectionTmdbId = p.text()?.toIntOrNull() ?: info.collectionTmdbId)
                 "season" -> info = info.copy(season = p.text()?.toIntOrNull())
                 "episode" -> info = info.copy(episode = p.text()?.toIntOrNull())
                 "status" -> info = info.copy(status = p.text())

@@ -87,6 +87,21 @@ data class TmdbContentRating(@SerialName("iso_3166_1") val iso31661: String, val
 @Serializable
 data class TmdbContentRatings(val results: List<TmdbContentRating> = emptyList())
 
+/** The collection a film belongs to, as its details name it. */
+@Serializable
+data class TmdbCollectionRef(val id: Int, val name: String, val posterPath: String? = null, val backdropPath: String? = null)
+
+/** A collection: its films ("parts"), released or announced. */
+@Serializable
+data class TmdbCollection(
+    val id: Int,
+    val name: String,
+    val overview: String? = null,
+    val posterPath: String? = null,
+    val backdropPath: String? = null,
+    val parts: List<TmdbSearchResult> = emptyList(),
+)
+
 @Serializable
 data class TmdbMovie(
     val id: Int,
@@ -104,6 +119,7 @@ data class TmdbMovie(
     val credits: TmdbCredits = TmdbCredits(),
     val images: TmdbImages = TmdbImages(),
     val releaseDates: TmdbReleaseDates = TmdbReleaseDates(),
+    val belongsToCollection: TmdbCollectionRef? = null,
 )
 
 @Serializable
@@ -190,6 +206,9 @@ interface TmdbApi {
     @GET("tv/{id}/images")
     suspend fun tvImages(@Path("id") id: Int, @Query("include_image_language") languages: String): TmdbImageSet
 
+    @GET("collection/{id}")
+    suspend fun collection(@Path("id") id: Int, @Query("language") language: String): TmdbCollection
+
     @GET("trending/movie/week")
     suspend fun trendingMovies(@Query("language") language: String): TmdbPage<TmdbSearchResult>
 
@@ -275,6 +294,8 @@ class TmdbClient(apiKey: String) {
     }
 
     suspend fun season(tvId: Int, season: Int): TmdbSeason? = runCatching { api.season(tvId, season, language) }.getOrNull()
+
+    suspend fun collection(id: Int): TmdbCollection? = runCatching { api.collection(id, language) }.getOrNull()
 
     /** Posters of this week's trending films, for the welcome screen's wall. */
     suspend fun trendingPosterPaths(): List<String> = api.trendingMovies(language).results.mapNotNull { it.posterPath }

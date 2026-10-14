@@ -43,6 +43,8 @@ import androidx.tv.material3.Icon
 import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
 import app.houselights.ui.design.Hl
+import app.houselights.ui.design.HlControl
+import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
@@ -89,24 +91,20 @@ private fun MenuPanel(sections: List<MenuSection>, onDone: () -> Unit) {
     val c = Hl.colors
     val first = remember { FocusRequester() }
     LaunchedEffect(Unit) { runCatching { first.requestFocus() } }
-    Column(
-        Modifier
-            .width(320.dp)
-            .heightIn(max = 460.dp)
-            .clip(HlShapes.panel)
-            .background(c.surfaceRaised)
-            .border(HlSize.hairline, c.outline, HlShapes.panel)
-            .verticalScroll(rememberScrollState())
-            .padding(HlSpace.s),
+    HlPanel(
+        Modifier.width(HlLayout.menuWidth).heightIn(max = HlLayout.menuMaxHeight),
+        level = PanelLevel.Raised,
+        padding = HlSpace.s,
     ) {
+        Column(Modifier.verticalScroll(rememberScrollState())) {
         sections.forEachIndexed { s, section ->
             if (s > 0) {
                 Spacer(Modifier.height(HlSpace.s))
-                Box(Modifier.fillMaxWidth().height(HlSize.hairline).background(c.outline.copy(alpha = 0.6f)))
+                HlDivider()
                 Spacer(Modifier.height(HlSpace.s))
             }
             section.title?.let {
-                Text(it, style = Hl.type.caption, color = c.contentTertiary, modifier = Modifier.padding(horizontal = HlSpace.s, vertical = HlSpace.xxs))
+                Text(it, style = Hl.type.caption, color = c.contentSecondary, modifier = Modifier.padding(horizontal = HlSpace.s, vertical = HlSpace.xxs))
             }
             val initial = section.options.indexOfFirst { it.selected }.coerceAtLeast(0)
             section.options.forEachIndexed { i, option ->
@@ -114,6 +112,7 @@ private fun MenuPanel(sections: List<MenuSection>, onDone: () -> Unit) {
                 val mod = if (s == 0 && i == initial) Modifier.focusRequester(first) else Modifier
                 MenuItem(option.label, option.selected, onClick = { option.onSelect(); onDone() }, modifier = mod)
             }
+        }
         }
     }
 }
@@ -136,7 +135,7 @@ private fun MenuItem(label: String, selected: Boolean, onClick: () -> Unit, modi
         ),
         interactionSource = interaction,
     ) {
-        Row(Modifier.padding(horizontal = HlSpace.s, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.padding(horizontal = HlSpace.s, vertical = HlControl.menuItemPaddingV), verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.size(HlSize.icon)) {
                 if (selected) {
                     Icon(Icons.Filled.Check, contentDescription = null, tint = if (focused) c.onFocus else c.tungsten, modifier = Modifier.size(HlSize.icon))

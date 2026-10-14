@@ -44,6 +44,22 @@ data class VideoInfo(
     val dolbyVisionProfile: Int? = null,
 ) {
     val definition: Definition? get() = Definition.of(width)
+
+    /**
+     * Width over height, snapped to the ratio films are made in when it is within 1 %: 2.39 for a
+     * 3832 × 1600 scope film, 1.78 for 16:9.
+     */
+    val aspectRatio: Float?
+        get() {
+            val w = width ?: return null
+            val h = height?.takeIf { it > 0 } ?: return null
+            val raw = w.toFloat() / h
+            return RATIOS.minBy { kotlin.math.abs(it - raw) }.takeIf { kotlin.math.abs(it - raw) / raw < 0.01f } ?: raw
+        }
+
+    private companion object {
+        val RATIOS = floatArrayOf(1.33f, 1.37f, 1.66f, 1.78f, 1.85f, 1.9f, 2f, 2.2f, 2.35f, 2.39f, 2.55f, 2.76f).toList()
+    }
 }
 
 @Serializable

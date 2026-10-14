@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
@@ -46,18 +47,23 @@ import app.houselights.core.MediaKind
 import app.houselights.core.ProviderCapabilities
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlIcons
+import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.LocalAmbient
+import app.houselights.ui.design.LocalHouseLights
+import app.houselights.ui.design.houseLit
 import app.houselights.ui.design.RowScroll
 import app.houselights.ui.design.revealOnFocus
 import app.houselights.ui.design.components.Backdrop
 import app.houselights.ui.design.components.BackdropStyle
 import app.houselights.ui.design.components.BadgeRow
+import app.houselights.ui.design.components.BillingBlock
+import app.houselights.ui.design.components.EpisodeHeading
 import app.houselights.ui.design.components.Emphasis
 import app.houselights.ui.design.components.HlButton
 import app.houselights.ui.design.components.HlIconButton
-import app.houselights.ui.design.components.HlTab
+import app.houselights.ui.design.components.HlSegmented
 import app.houselights.ui.design.components.LandscapeCard
 import app.houselights.ui.design.components.MediaRow
 import app.houselights.ui.design.components.MetaLine
@@ -70,6 +76,7 @@ import app.houselights.ui.design.components.rememberAmbientColor
 import app.houselights.ui.edit.EditMenu
 import app.houselights.ui.home.ErrorMessage
 import app.houselights.ui.util.appContainer
+import app.houselights.ui.util.FACT_GAP
 import app.houselights.ui.util.formatDuration
 import app.houselights.ui.util.formatTimecode
 
@@ -90,7 +97,7 @@ fun DetailScreen(
     if (item == null) {
         Box(Modifier.fillMaxSize()) {
             Backdrop(null, BackdropStyle.Full)
-            state.error?.let { Box(Modifier.padding(top = 96.dp)) { ErrorMessage(it, vm::load) } }
+            state.error?.let { Box(Modifier.padding(top = HlLayout.errorTop)) { ErrorMessage(it, vm::load) } }
         }
         return
     }
@@ -100,7 +107,9 @@ fun DetailScreen(
     var showTech by remember { mutableStateOf(false) }
     val media = item.media?.takeIf { it.video != null || it.audio.isNotEmpty() }
     if (showTech && media != null) {
-        HlModal(stringResource(R.string.tech_details), onDismiss = { showTech = false }) { TechSpecs(media) }
+        HlModal(stringResource(R.string.tech_details), onDismiss = { showTech = false }, width = HlLayout.dialogWide) {
+            TechSpecs(media, fileName = item.fileName)
+        }
     }
     var showEdit by remember { mutableStateOf(false) }
     if (showEdit) {
@@ -117,12 +126,13 @@ fun DetailScreen(
             Backdrop(item.backdrop, BackdropStyle.Full)
 
             LazyColumn(
-                    Modifier.fillMaxSize(),
+                    Modifier.fillMaxSize().houseLit(LocalHouseLights.current),
                     contentPadding = PaddingValues(bottom = HlSpace.xxl),
                     verticalArrangement = Arrangement.spacedBy(HlSpace.l),
                 ) {
                     item(key = "hero") {
-                        Box(Modifier.fillMaxWidth().height(screenHeight * 0.9f).revealOnFocus()) {
+                        // At least most of the screen; taller rather than squeezed when the text is long.
+                        Box(Modifier.fillMaxWidth().heightIn(min = screenHeight * 0.9f).revealOnFocus()) {
                             Hero(
                                 item = item,
                                 nextUp = state.nextUp,
@@ -134,7 +144,7 @@ fun DetailScreen(
                                 onOpenNfo = { onOpenNfo(item.id) },
                                 onShowTech = if (media != null) ({ showTech = true }) else null,
                                 onEdit = if (state.canEdit) ({ showEdit = true }) else null,
-                                modifier = Modifier.padding(start = HlSpace.safeH, bottom = HlSpace.l).align(Alignment.BottomStart),
+                                modifier = Modifier.padding(start = HlSpace.safeH, top = HlSpace.safeV + HlSpace.m, bottom = HlSpace.l).align(Alignment.BottomStart),
                             )
                         }
                     }
@@ -156,7 +166,25 @@ fun DetailScreen(
                         }
                     }
 
-                            if (item.cast.isNotEmpty()) {
+                    if (item.kind == MediaKind.COLLECTION && state.collectionFilms.isNotEmpty()) {
+                        item(key = "films") {
+                            MediaRow(stringResource(R.string.library_movies)) {
+                                items(state.collectionFilms, key = { it.id }) { f -> PosterCard(f, onClick = { onOpenItem(f.id) }) }
+                            }
+                        }
+                    }
+
+                    // A film's saga: the collection itself first, then its other films in order.
+                    state.collection?.let { collection ->
+                        item(key = "collection") {
+                            MediaRow(collection.title) {
+                                item(key = collection.id) { PosterCard(collection, onClick = { onOpenItem(collection.id) }) }
+                                items(state.collectionFilms, key = { it.id }) { f -> PosterCard(f, onClick = { onOpenItem(f.id) }) }
+                            }
+                        }
+                    }
+
+                    if (item.cast.isNotEmpty()) {
                         item(key = "cast") {
                             MediaRow(stringResource(R.string.cast), spacing = HlSpace.s) {
                                 items(item.cast) { PersonCard(it) }
@@ -194,20 +222,16 @@ private fun Hero(
     LaunchedEffect(item.id) { runCatching { playFocus.requestFocus() } }
     val isEpisode = item.kind == MediaKind.EPISODE
 
-    Column(modifier.widthIn(max = 520.dp)) {
+    Column(modifier.widthIn(max = HlLayout.readableNarrow)) {
         TitleArt(
             title = if (isEpisode) item.seriesTitle ?: item.title else item.title,
             logo = item.logo,
-            maxWidth = 440.dp,
-            maxHeight = 112.dp,
+            maxWidth = HlLayout.titleArtWidth,
+            maxHeight = HlLayout.titleArtHeight,
         )
         Spacer(Modifier.height(HlSpace.l))
         if (isEpisode) {
-            Text(
-                listOfNotNull(item.episodeLabel, item.title).joinToString("   "),
-                style = Hl.type.title,
-                color = Hl.colors.content,
-            )
+            EpisodeHeading(item.episodeLabel, item.title)
             Spacer(Modifier.height(HlSpace.xs))
         }
         MetaLine(item)
@@ -223,25 +247,29 @@ private fun Hero(
             Spacer(Modifier.height(if (item.tagline != null) HlSpace.xs else HlSpace.l))
             Text(item.overview, style = Hl.type.body, color = Hl.colors.contentSecondary, maxLines = 3, overflow = TextOverflow.Ellipsis)
         }
-        if (item.directors.isNotEmpty()) {
-            Spacer(Modifier.height(HlSpace.s))
-            Text(stringResource(R.string.directed_by, item.directors.joinToString(", ")), style = Hl.type.caption, color = Hl.colors.contentTertiary)
+        if (item.directors.isNotEmpty() || item.cast.isNotEmpty()) {
+            Spacer(Modifier.height(HlSpace.m))
+            BillingBlock(item.directors, item.cast.map { it.name })
         }
         Spacer(Modifier.height(HlSpace.xl))
 
         Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.s), verticalAlignment = Alignment.Top) {
-            // A series plays through its next episode.
-            val target = if (item.kind == MediaKind.SERIES) nextUp else item.takeIf { it.isPlayable }
+            // A series plays through its next episode, a collection through its next film.
+            val target = if (item.kind == MediaKind.SERIES || item.kind == MediaKind.COLLECTION) nextUp else item.takeIf { it.isPlayable }
             if (target != null) {
                 val resumeMs = target.user.positionMs
-                val episode = if (item.kind == MediaKind.SERIES) target.episodeLabel else null
+                val episode = when (item.kind) {
+                    MediaKind.SERIES -> target.episodeLabel
+                    MediaKind.COLLECTION -> target.title
+                    else -> null
+                }
                 if (resumeMs > 0) {
                     HlButton(
                         stringResource(R.string.resume),
                         onClick = { onPlay(target, true) },
                         modifier = Modifier.focusRequester(playFocus),
                         icon = Icons.Filled.PlayArrow,
-                        detail = listOfNotNull(episode, formatTimecode(resumeMs)).joinToString("   "),
+                        detail = listOfNotNull(episode, formatTimecode(resumeMs)).joinToString(FACT_GAP),
                         emphasis = Emphasis.Primary,
                     )
                     HlButton(stringResource(R.string.from_start), onClick = { onPlay(target, false) })
@@ -273,7 +301,7 @@ private fun Hero(
             if (item.hasNfo) {
                 HlIconButton(HlIcons.Document, stringResource(R.string.nfo), onClick = onOpenNfo)
             }
-            if (capabilities?.favorites == true) {
+            if (capabilities?.favorites == true && item.kind != MediaKind.COLLECTION) {
                 HlIconButton(
                     if (item.user.favorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
                     stringResource(if (item.user.favorite) R.string.favorite else R.string.add_favorite),
@@ -289,16 +317,15 @@ private fun Hero(
 
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
-private fun Seasons(seasons: List<MediaItem>, selectedId: String?, onSelect: (String) -> Unit) = RowScroll {
-    LazyRow(
-        modifier = Modifier.focusRestorer(),
-        contentPadding = PaddingValues(horizontal = HlSpace.safeH - HlSpace.m),
-        horizontalArrangement = Arrangement.spacedBy(HlSpace.xxs),
-    ) {
-        items(seasons, key = { it.id }) { s ->
-            HlTab(s.title, selected = s.id == selectedId, onClick = { onSelect(s.id) }, onFocused = { onSelect(s.id) })
-        }
-    }
+private fun Seasons(seasons: List<MediaItem>, selectedId: String?, onSelect: (String) -> Unit) {
+    HlSegmented(
+        options = seasons.map { it.title },
+        selected = seasons.indexOfFirst { it.id == selectedId },
+        onSelect = { onSelect(seasons[it].id) },
+        modifier = Modifier.padding(horizontal = HlSpace.safeH),
+        selectOnFocus = true,
+        scrollable = true,
+    )
 }
 
 @Composable
@@ -316,7 +343,7 @@ private fun Episodes(
                     item = ep,
                     onClick = { onPlay(ep) },
                     width = HlSize.episode,
-                    title = listOfNotNull(ep.episodeNumber?.toString(), ep.title).joinToString("   "),
+                    title = listOfNotNull(ep.episodeNumber?.toString(), ep.title).joinToString(FACT_GAP),
                     subtitle = ep.runtimeMs?.let(::formatDuration),
                     onFocused = { onFocus(ep) },
                 )
@@ -325,11 +352,11 @@ private fun Episodes(
         val shown = focused?.takeIf { f -> episodes.any { it.id == f.id } }
         Text(
             shown?.overview ?: "",
-            style = Hl.type.bodySmall,
+            style = Hl.type.caption,
             color = Hl.colors.contentSecondary,
             maxLines = 3,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(horizontal = HlSpace.safeH).widthIn(max = 720.dp).height(64.dp),
+            modifier = Modifier.padding(horizontal = HlSpace.safeH).widthIn(max = HlLayout.readable).height(HlLayout.episodeOverview),
         )
     }
 }

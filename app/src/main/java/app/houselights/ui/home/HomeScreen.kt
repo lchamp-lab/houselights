@@ -22,6 +22,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import kotlinx.coroutines.launch
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -33,6 +36,10 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.tv.material3.Text
+import app.houselights.ui.design.components.HlIconButton
+import app.houselights.ui.design.components.HlSegmented
+import app.houselights.ui.design.components.HlEmptyState
+import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.rememberRowState
 import app.houselights.R
 import app.houselights.core.HomeSection
@@ -41,6 +48,8 @@ import app.houselights.core.MediaItem
 import app.houselights.core.SourceConfig
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlMotion
+import app.houselights.ui.design.LocalHouseLights
+import app.houselights.ui.design.houseLit
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.LocalAmbient
@@ -51,7 +60,6 @@ import app.houselights.ui.design.components.CardSkeleton
 import app.houselights.ui.design.components.Emphasis
 import app.houselights.ui.design.components.HeroInfo
 import app.houselights.ui.design.components.HlButton
-import app.houselights.ui.design.components.HlTab
 import app.houselights.ui.design.components.LandscapeCard
 import app.houselights.ui.design.components.MediaRow
 import app.houselights.ui.design.components.PosterCard
@@ -90,9 +98,9 @@ fun HomeScreen(
             val row = state.sections.getOrNull(vm.lastFocus.first) ?: state.sections.firstOrNull()
             val rowPosters = remember(row) { row?.items.orEmpty().take(ROW_TONES).mapNotNull { it.poster ?: it.backdrop } }
             CollectionLight(rowPosters, lit = shown == null)
-            Column(Modifier.fillMaxSize()) {
+            Column(Modifier.fillMaxSize().houseLit(LocalHouseLights.current)) {
                 TopBar(libraries = state.libraries, onLibrary = onOpenLibrary, onSettings = onOpenSettings)
-                HeroInfo(shown, Modifier.padding(start = HlSpace.safeH, top = HlSpace.xs).height(200.dp))
+                HeroInfo(shown, Modifier.padding(start = HlSpace.safeH, top = HlSpace.xs).height(HlLayout.hero))
                 Spacer(Modifier.height(HlSpace.s))
                 when {
                     state.loading && state.sections.isEmpty() -> SkeletonRows()
@@ -100,9 +108,7 @@ fun HomeScreen(
                     state.sections.isEmpty() && scan.running ->
                         Message(stringResource(R.string.home_scanning, scan.processed, scan.total))
                     state.sections.isEmpty() && settings.source == SourceConfig.Local ->
-                        Message(stringResource(R.string.home_empty_local)) {
-                            HlButton(stringResource(R.string.nav_settings), onOpenSettings, icon = Icons.Filled.Settings)
-                        }
+                        Message(stringResource(R.string.home_empty_local), stringResource(R.string.nav_settings), onOpenSettings)
                     state.sections.isEmpty() -> Message(stringResource(R.string.empty))
                     else -> Sections(
                         sections = state.sections,
@@ -122,17 +128,29 @@ fun HomeScreen(
 
 @Composable
 private fun TopBar(libraries: List<Library>, onLibrary: (Library) -> Unit, onSettings: () -> Unit) {
+    // Where you are among the libraries, in one track; settings apart, as an action.
     Row(
-        Modifier.fillMaxWidth().padding(start = HlSpace.safeH - HlSpace.m, end = HlSpace.safeH - HlSpace.m, top = HlSpace.safeV),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(HlSpace.xxs),
+        Modifier.fillMaxWidth().padding(start = HlSpace.safeH, end = HlSpace.safeH, top = HlSpace.safeV),
+        verticalAlignment = Alignment.Top,
     ) {
-        HlTab(stringResource(R.string.nav_home), selected = true, onClick = {})
-        libraries.forEach { library ->
-            HlTab(library.title ?: libraryName(library.kind), selected = false, onClick = { onLibrary(library) })
-        }
+        // The white slides to the library chosen, then it opens; back home, "Accueil" is lit again.
+        var current by remember { mutableIntStateOf(0) }
+        val scope = rememberCoroutineScope()
+        HlSegmented(
+            options = listOf(stringResource(R.string.nav_home)) + libraries.map { it.title ?: libraryName(it.kind) },
+            selected = current,
+            onSelect = { i ->
+                if (i > 0 && current == 0) {
+                    current = i
+                    scope.launch {
+                        delay(HlMotion.STANDARD.toLong())
+                        onLibrary(libraries[i - 1])
+                    }
+                }
+            },
+        )
         Spacer(Modifier.weight(1f))
-        HlTab("", selected = false, onClick = onSettings, icon = Icons.Filled.Settings)
+        HlIconButton(Icons.Filled.Settings, stringResource(R.string.nav_settings), onClick = onSettings)
     }
 }
 
@@ -193,29 +211,27 @@ private fun SkeletonRows() {
 }
 
 @Composable
-private fun Message(text: String, action: (@Composable () -> Unit)? = null) {
-    val focus = remember { FocusRequester() }
-    LaunchedEffect(action != null) { if (action != null) runCatching { focus.requestFocus() } }
-    Column(Modifier.padding(start = HlSpace.safeH, top = HlSpace.l)) {
-        Text(text, style = Hl.type.body, color = Hl.colors.contentSecondary, modifier = Modifier.widthIn(max = 560.dp))
-        if (action != null) {
-            Spacer(Modifier.height(HlSpace.l))
-            Box(Modifier.focusRequester(focus)) { action() }
-        }
-    }
+private fun Message(text: String, action: String? = null, onAction: () -> Unit = {}) {
+    HlEmptyState(
+        text,
+        Modifier.padding(start = HlSpace.safeH, top = HlSpace.l),
+        action = action,
+        actionIcon = Icons.Filled.Settings,
+        onAction = onAction,
+    )
 }
 
+/** The library could not be read: what happened, and a way to try again. */
 @Composable
 fun ErrorMessage(error: String, onRetry: () -> Unit) {
-    val focus = remember { FocusRequester() }
-    LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
-    Column(Modifier.padding(start = HlSpace.safeH, top = HlSpace.l)) {
-        Text(stringResource(R.string.error_unreachable), style = Hl.type.title, color = Hl.colors.content)
-        Spacer(Modifier.height(HlSpace.xs))
-        Text(error, style = Hl.type.bodySmall, color = Hl.colors.contentSecondary, modifier = Modifier.widthIn(max = 560.dp))
-        Spacer(Modifier.height(HlSpace.l))
-        HlButton(stringResource(R.string.retry), onRetry, Modifier.focusRequester(focus), icon = Icons.Filled.Refresh, emphasis = Emphasis.Primary)
-    }
+    HlEmptyState(
+        error,
+        Modifier.padding(start = HlSpace.safeH, top = HlSpace.l),
+        title = stringResource(R.string.error_unreachable),
+        action = stringResource(R.string.retry),
+        actionIcon = Icons.Filled.Refresh,
+        onAction = onRetry,
+    )
 }
 
 /** Posters of a row that lend their colours to the room, about what a row shows at once. */

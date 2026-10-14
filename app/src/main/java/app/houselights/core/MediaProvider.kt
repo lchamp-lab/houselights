@@ -62,13 +62,26 @@ interface MediaProvider {
     suspend fun setFavorite(item: MediaItem, favorite: Boolean) {}
     suspend fun playback(item: MediaItem, resume: Boolean, options: PlaybackOptions): PlaybackPlan
 
-    /** Episode to play for a series: first in-progress or unwatched one. */
+    /**
+     * What "Play" starts: for a series, the first in-progress or unwatched episode; for a
+     * collection, the first film in progress, else the first unwatched one in release order.
+     */
     suspend fun nextUp(series: MediaItem): MediaItem? {
+        if (series.kind == MediaKind.COLLECTION) {
+            val films = collectionItems(series)
+            return films.firstOrNull { it.user.positionMs > 0 && !it.user.played } ?: films.firstOrNull { !it.user.played } ?: films.firstOrNull()
+        }
         for (season in seasons(series).filter { (it.seasonNumber ?: 0) > 0 }) {
             episodes(series, season).firstOrNull { !it.user.played }?.let { return it }
         }
         return null
     }
+
+    /** The collection (saga) a film belongs to, when the library shows it. */
+    suspend fun collectionOf(item: MediaItem): MediaItem? = null
+
+    /** The films of a collection, in the order they came out. */
+    suspend fun collectionItems(collection: MediaItem): List<MediaItem> = emptyList()
 
     /** The NFO file describing [item], when there is one. */
     suspend fun nfo(item: MediaItem): NfoDocument? = null
