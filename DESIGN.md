@@ -181,6 +181,7 @@ rest, sparingly:
 - **Without artwork**, the title is set like a one-sheet: a short rule, the name in `cardTitle`, the
   year in the technical voice.
 - **An episode** reads as a number in tabular figures, its name, then its length and where it stands.
+- **A person** has a name two lines tall, even a short one, so the roles of a cast row line up.
 - **Stepping back**, the image loses colour through its own filter (`ArtworkImage`): no layer is drawn
   per card.
 
