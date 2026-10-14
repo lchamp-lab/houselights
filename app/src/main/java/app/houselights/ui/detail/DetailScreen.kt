@@ -150,9 +150,14 @@ fun DetailScreen(
                     }
 
                     if (item.kind == MediaKind.SERIES && state.seasons.isNotEmpty()) {
-                        item(key = "seasons") { Box(Modifier.revealOnFocus()) { Seasons(state.seasons, state.selectedSeasonId, vm::selectSeason) } }
+                        // A track with one option is no choice: a single season names the episode row instead.
+                        val single = state.seasons.singleOrNull()
+                        if (single == null) {
+                            item(key = "seasons") { Box(Modifier.revealOnFocus()) { Seasons(state.seasons, state.selectedSeasonId, vm::selectSeason) } }
+                        }
                         item(key = "episodes-${state.selectedSeasonId}") {
                             Episodes(
+                                header = single?.title,
                                 episodes = state.episodes,
                                 focused = focusedEpisode,
                                 onFocus = { focusedEpisode = it },
@@ -303,13 +308,14 @@ private fun Seasons(seasons: List<MediaItem>, selectedId: String?, onSelect: (St
 
 @Composable
 private fun Episodes(
+    header: String?,
     episodes: List<MediaItem>,
     focused: MediaItem?,
     onFocus: (MediaItem) -> Unit,
     onPlay: (MediaItem) -> Unit,
 ) {
     Column {
-        MediaRow(header = null, spacing = HlSpace.l) {
+        MediaRow(header = header, spacing = HlSpace.l) {
             items(episodes, key = { it.id }) { ep ->
                 LandscapeCard(
                     item = ep,
