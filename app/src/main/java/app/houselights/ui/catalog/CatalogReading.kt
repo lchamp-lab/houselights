@@ -321,7 +321,7 @@ private fun ReadingTechSheetSection() {
     Group("Technical sheet") {
         var open by remember { mutableStateOf<MediaItem?>(null) }
         ReadingRow {
-            ReadingCase("taller than the screen") { HlButton("3 audio, 14 subtitles", { open = READING_TECH_FULL }) }
+            ReadingCase("longer than the screen: its content scrolls") { HlButton("3 audio, 14 subtitles", { open = READING_TECH_FULL }) }
             ReadingCase("a lean file") { HlButton("1 audio, no subtitles", { open = READING_TECH_LEAN }) }
             ReadingCase("no video, unknown languages, no size") { HlButton("Sparse", { open = READING_TECH_SPARSE }) }
         }
@@ -435,7 +435,7 @@ private val READING_HERO_LONG = sample("Le Charme discret de la bourgeoisie", 19
         "de la police les en empêchent chaque fois, entre rêve et réalité, sans que rien ne trouble leurs bonnes manières.",
 )
 
-/** Three audio tracks and fourteen subtitles: the height a sheet must hold. */
+/** Three audio tracks and fourteen subtitles: longer than the screen, so the sheet scrolls. */
 private val READING_TECH_FULL = sample("Le Samouraï", 1967).copy(
     fileName = "Le Samouraï (1967) 2160p UHD Blu-ray Remux HEVC Dolby Vision TrueHD Atmos 7.1.mkv",
     media = MediaInfo(

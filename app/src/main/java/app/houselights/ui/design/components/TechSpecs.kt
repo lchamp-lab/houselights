@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -41,21 +40,19 @@ import java.util.Locale
  * The technical sheet of a file, set like the specifications on the back of a Blu-ray case: one
  * block per subject, each opened by a hairline and its name. The picture first, in the technical
  * voice; then every audio and subtitle track in aligned tables, the one the player starts with
- * marked; then the file itself.
+ * marked; then the file itself. It does not scroll itself: the sheet it is read in does, whole.
  */
 @Composable
 fun TechSpecs(media: MediaInfo, modifier: Modifier = Modifier, fileName: String? = null) {
     Column(modifier, verticalArrangement = Arrangement.spacedBy(HlSpace.m)) {
         media.video?.let { InfoBlock(stringResource(R.string.tech_video)) { PictureSpecs(media) } }
         if (media.audio.isNotEmpty() || media.subtitles.isNotEmpty()) {
-            HlScrollArea(Modifier.heightIn(max = HlLayout.specTables), framed = false, padding = HlSpace.none) {
-                Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.xl)) {
-                    if (media.audio.isNotEmpty()) {
-                        InfoBlock(stringResource(R.string.tech_audio), Modifier.weight(1.4f)) { AudioTable(media.audio) }
-                    }
-                    if (media.subtitles.isNotEmpty()) {
-                        InfoBlock(stringResource(R.string.tech_subtitles), Modifier.weight(1f)) { SubtitleTable(media.subtitles) }
-                    }
+            Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.xl)) {
+                if (media.audio.isNotEmpty()) {
+                    InfoBlock(stringResource(R.string.tech_audio), Modifier.weight(1.4f)) { AudioTable(media.audio) }
+                }
+                if (media.subtitles.isNotEmpty()) {
+                    InfoBlock(stringResource(R.string.tech_subtitles), Modifier.weight(1f)) { SubtitleTable(media.subtitles) }
                 }
             }
         }

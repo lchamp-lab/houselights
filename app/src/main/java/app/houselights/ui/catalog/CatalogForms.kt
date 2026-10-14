@@ -317,13 +317,13 @@ private fun FormChoiceSheet() {
 private fun FormScrollAreas() {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Top) {
         FormCase("framed, longer than its height", Modifier.weight(1f)) {
-            HlScrollArea(Modifier.height(HlLayout.specTables)) { FormReading(FORM_LONG_TEXT) }
+            HlScrollArea(Modifier.height(HlLayout.hero)) { FormReading(FORM_LONG_TEXT) }
         }
         FormCase("unframed, longer than its height: its ring stands outside", Modifier.weight(1f)) {
-            HlScrollArea(Modifier.height(HlLayout.specTables), framed = false) { FormReading(FORM_LONG_TEXT) }
+            HlScrollArea(Modifier.height(HlLayout.hero), framed = false) { FormReading(FORM_LONG_TEXT) }
         }
         FormCase("framed, fits: takes no focus", Modifier.weight(1f)) {
-            HlScrollArea(Modifier.height(HlLayout.specTables)) { FormReading(listOf(FORM_SHORT_TEXT)) }
+            HlScrollArea(Modifier.height(HlLayout.hero)) { FormReading(listOf(FORM_SHORT_TEXT)) }
         }
     }
 }
