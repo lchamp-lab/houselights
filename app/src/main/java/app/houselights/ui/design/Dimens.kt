@@ -151,8 +151,12 @@ object HlLayout {
     const val DETAIL_HERO_SHARE = 0.9f
     /** Where an error sits on an otherwise empty detail page. */
     val errorTop = 96.dp
-    /** Choice cards of the artwork pickers, at the shape they are used in. */
-    val posterChoice = 150.dp
+    /**
+     * Choice cards of the artwork pickers, at the shape they are used in. A poster is its own
+     * preview, so its choices take the room a preview would have: 180 wide, 270 tall, with their
+     * two lines under them, below the header and inside the safe area.
+     */
+    val posterChoice = 180.dp
     val landscapeChoice = 240.dp
     /** The two columns of the welcome screen. */
     val welcomeTagline = 380.dp
