@@ -43,4 +43,25 @@ class MigrationTest {
             context.deleteDatabase(name)
         }
     }
+
+    @Test
+    fun version8KeepsWhatLibrariesHoldFromBeingNew() = runTest {
+        val name = "migration-8-test.db"
+        context.deleteDatabase(name)
+        SchemaHistory.create(context, name, version = 7) {
+            val columns = "(id, name, kind, protocol, host, share, path, username, password, domain, lastScanAt)"
+            execSQL("INSERT INTO sources $columns VALUES (1, 'Films', 'MOVIES', 'NFS', 'nas', 'media', 'films', '', '', '', 1000)")
+            execSQL("INSERT INTO sources $columns VALUES (2, 'Séries', 'SHOWS', 'NFS', 'nas', 'media', 'series', '', '', '', 0)")
+        }
+        val db = Room.databaseBuilder(context, LibraryDatabase::class.java, name)
+            .addTypeConverter(SecretConverter(secrets))
+            .addMigrations(*LibraryDatabase.migrations(secrets))
+            .build()
+        try {
+            assertEquals(listOf(1L to 1000L, 2L to 0L), db.dao().firstScans().sortedBy { it.id }.map { it.id to it.firstScanAt })
+        } finally {
+            db.close()
+            context.deleteDatabase(name)
+        }
+    }
 }

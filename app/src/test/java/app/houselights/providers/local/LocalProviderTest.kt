@@ -69,11 +69,12 @@ class LocalProviderTest {
         played: Boolean = false,
         collectionId: Long? = null,
         runtimeMin: Int? = 100,
+        addedAt: Long = 0,
     ): Long = dao.insert(
         ItemEntity(
             kind = ItemKind.MOVIE, sourceId = source, title = title, sortTitle = title.lowercase(), year = year,
             genres = genres, played = played, collectionId = collectionId, runtimeMin = runtimeMin,
-            filePath = "$title.mkv", addedAt = 0,
+            filePath = "$title.mkv", addedAt = addedAt,
         )
     )
 
@@ -87,6 +88,19 @@ class LocalProviderTest {
         assertEquals(7, seen.size)
         assertEquals(7, seen.toSet().size)
         assertEquals(7, page().total)
+    }
+
+    @Test
+    fun onlyWhatCameAfterTheFirstScanIsAddedLater() = runTest {
+        movie("Alien", addedAt = 1_000)
+        // Before the first scan has ended, nothing is told apart.
+        assertEquals(listOf(null), page().items.map { it.addedAt })
+
+        dao.updateSource(dao.sources().single().copy(lastScanAt = 2_000, firstScanAt = 2_000))
+        movie("Aliens", addedAt = 3_000)
+        val added = page().items.associate { it.title to it.addedAt }
+        assertEquals(null, added["Alien"])
+        assertEquals(3_000L, added["Aliens"])
     }
 
     @Test

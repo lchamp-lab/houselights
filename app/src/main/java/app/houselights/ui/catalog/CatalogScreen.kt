@@ -182,6 +182,7 @@ fun CatalogScreen() {
                         PosterCard(sample("Playtime", 1967, played = true), {})
                         PosterCard(sample("Twin Peaks", 1990, kind = MediaKind.SERIES, unplayed = 6), {})
                         PosterCard(sample("La Nuit américaine", 1973, positionMs = 2_400_000), {})
+                        PosterCard(sample("Drive My Car", 2021, addedAt = System.currentTimeMillis()), {})
                         LandscapeCard(
                             sample("Pile ou face", 2025, positionMs = 2_400_000),
                             {},
@@ -287,6 +288,7 @@ private fun sample(
     played: Boolean = false,
     unplayed: Int? = null,
     positionMs: Long = 0,
+    addedAt: Long? = null,
 ) = MediaItem(
     id = "catalog-$title",
     kind = kind,
@@ -294,4 +296,5 @@ private fun sample(
     year = year,
     runtimeMs = 3_600_000,
     user = UserState(played = played, unplayedCount = unplayed, positionMs = positionMs),
+    addedAt = addedAt,
 )

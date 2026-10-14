@@ -19,6 +19,9 @@ interface LibraryDao {
     @Query("SELECT * FROM sources ORDER BY kind, name")
     suspend fun sources(): List<SourceEntity>
 
+    @Query("SELECT id, firstScanAt FROM sources")
+    suspend fun firstScans(): List<SourceFirstScan>
+
     @Insert
     suspend fun insertSource(source: SourceEntity): Long
 

@@ -189,7 +189,7 @@ class JellyfinProvider(config: SourceConfig.Jellyfin, deviceId: String) : MediaP
         private const val RESUME_KEY_SEPARATOR = "|"
         private const val COLLECTION_LIMIT = 200
         private val SUPPORTED_COLLECTIONS = setOf("movies", "tvshows", "boxsets", "homevideos", "musicvideos", null)
-        private const val ROW_FIELDS = "Overview,Genres,ProductionYear,OfficialRating,CommunityRating"
+        private const val ROW_FIELDS = "Overview,Genres,ProductionYear,OfficialRating,CommunityRating,DateCreated"
         private const val EPISODE_FIELDS = "Overview"
 
         private fun libraryKind(collectionType: String?) = when (collectionType) {

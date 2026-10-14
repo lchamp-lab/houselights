@@ -15,8 +15,10 @@ import app.houselights.providers.local.TmdbClient.Companion.ImageType
 internal class LocalMapper(private val dao: LibraryDao, private val context: Context) {
     private val series = mutableMapOf<Long, ItemEntity?>()
     private val counts = mutableMapOf<Long, SeriesCounts>()
+    private var firstScans: Map<Long, Long>? = null
 
     suspend fun mapAll(entities: List<ItemEntity>): List<MediaItem> {
+        if (firstScans == null) firstScans = dao.firstScans().associate { it.id to it.firstScanAt }
         val shows = entities.filter { it.kind == ItemKind.SERIES }.map { it.id }.filter { it !in counts }
         for (chunk in shows.chunked(SQL_IN_LIMIT)) {
             chunk.forEach { counts[it] = SeriesCounts(it, unplayed = 0, seasons = 0) }
@@ -32,7 +34,13 @@ internal class LocalMapper(private val dao: LibraryDao, private val context: Con
 
     /** True once what [e]'s card needs beyond its row is known (see [mapAll]). */
     private fun prepared(e: ItemEntity): Boolean =
-        (e.kind != ItemKind.SERIES || e.id in counts) && (e.seriesId == null || e.seriesId in series)
+        firstScans != null && (e.kind != ItemKind.SERIES || e.id in counts) && (e.seriesId == null || e.seriesId in series)
+
+    /** When [e] joined a library that was already there; null for what its first scan found. */
+    private fun addedLater(e: ItemEntity): Long? {
+        val first = firstScans?.get(e.sourceId) ?: 0L
+        return e.addedAt.takeIf { first > 0 && it > first }
+    }
 
     private fun titleOf(e: ItemEntity): String = e.title.ifBlank {
         when (e.kind) {
@@ -80,6 +88,7 @@ internal class LocalMapper(private val dao: LibraryDao, private val context: Con
             backdrop = artwork(e, show, ItemEntity::userBackdropPath, ItemEntity::backdropPath, ImageType.BACKDROP),
             logo = artwork(e, show, ItemEntity::userLogoPath, ItemEntity::logoPath, ImageType.LOGO),
             thumb = e.stillPath?.let { LocalProvider.image(it, ImageType.STILL) },
+            addedAt = addedLater(e),
             user = UserState(
                 played = e.played || (unplayed == 0 && seasonCount != null && seasonCount > 0),
                 favorite = e.favorite,

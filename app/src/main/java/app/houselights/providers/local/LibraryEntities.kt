@@ -54,7 +54,15 @@ data class SourceEntity(
     val password: Secret,
     val domain: String = "",
     val lastScanAt: Long = 0,
+    /**
+     * When its first complete scan ended: what that scan found was already there; titles added
+     * after it are new for a while. 0 until then.
+     */
+    val firstScanAt: Long = 0,
 )
+
+/** When a folder's first complete scan ended (see [SourceEntity.firstScanAt]). */
+data class SourceFirstScan(val id: Long, val firstScanAt: Long)
 
 /** The folder's address as people read it, never with credentials: "nfs://nas/volume1/media/films". */
 fun SourceEntity.address(withScheme: Boolean = true): String {

@@ -9,7 +9,7 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import app.houselights.core.Secrets
 
-@Database(entities = [SourceEntity::class, ItemEntity::class, CastEntity::class, CollectionEntity::class], version = 7)
+@Database(entities = [SourceEntity::class, ItemEntity::class, CastEntity::class, CollectionEntity::class], version = 8)
 @TypeConverters(SecretConverter::class, PipeList::class)
 abstract class LibraryDatabase : RoomDatabase() {
     abstract fun dao(): LibraryDao
@@ -61,6 +61,14 @@ abstract class LibraryDatabase : RoomDatabase() {
         }
 
         /** Seals the passwords stored in plain text so far, and indexes what lists sort and filter on. */
+        private val MIGRATION_7_8 = object : Migration(7, 8) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE sources ADD COLUMN firstScanAt INTEGER NOT NULL DEFAULT 0")
+                // What a library already holds was found by its first scans: none of it is new.
+                db.execSQL("UPDATE sources SET firstScanAt = lastScanAt")
+            }
+        }
+
         internal fun migration6To7(secrets: Secrets) = object : Migration(startVersion = 6, endVersion = 7) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.query("SELECT id, password FROM sources").use { rows ->
@@ -77,7 +85,7 @@ abstract class LibraryDatabase : RoomDatabase() {
         }
 
         internal fun migrations(secrets: Secrets) =
-            arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, migration6To7(secrets))
+            arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, migration6To7(secrets), MIGRATION_7_8)
 
         fun create(context: Context, secrets: Secrets): LibraryDatabase =
             Room.databaseBuilder(context, LibraryDatabase::class.java, NAME)

@@ -9,6 +9,7 @@ import app.houselights.core.SubtitleTrack
 import app.houselights.core.VideoInfo
 import app.houselights.core.ImageRef
 import app.houselights.core.MediaItem
+import app.houselights.core.epochMillisOf
 import app.houselights.core.MediaKind
 import app.houselights.core.Person
 import app.houselights.core.UserState
@@ -46,6 +47,7 @@ internal class JellyfinMapper(private val client: JellyfinClient) {
             overview = Typeset.text(dto.overview),
             tagline = Typeset.text(dto.taglines.firstOrNull()),
             year = dto.productionYear,
+            addedAt = epochMillisOf(dto.dateCreated),
             endYear = yearOf(dto.endDate),
             continuing = dto.status == "Continuing",
             runtimeMs = dto.runTimeTicks?.div(TICKS_PER_MS),

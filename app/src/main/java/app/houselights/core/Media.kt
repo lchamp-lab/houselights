@@ -30,6 +30,9 @@ data class UserState(
     val unplayedCount: Int? = null,
 )
 
+/** How long a title added to a library is marked new: a week. */
+const val NEW_FOR_MS = 7L * 24 * 60 * 60 * 1000
+
 data class MediaItem(
     val id: String,
     val kind: MediaKind,
@@ -68,8 +71,16 @@ data class MediaItem(
     val childCount: Int? = null,
     /** For a collection: its films released so far, owned or not, when known. */
     val totalCount: Int? = null,
+    /**
+     * When it joined its library (epoch ms), when that says something: a local folder leaves out what
+     * its first scan found, which was there already.
+     */
+    val addedAt: Long? = null,
 ) {
     val isPlayable get() = kind == MediaKind.MOVIE || kind == MediaKind.EPISODE || kind == MediaKind.VIDEO
+
+    /** Added to a library in the last [NEW_FOR_MS], and not watched yet. */
+    fun isNew(now: Long = System.currentTimeMillis()): Boolean = addedAt != null && !user.played && now - addedAt in 0 until NEW_FOR_MS
 
     val progress: Float
         get() {

@@ -298,7 +298,8 @@ private fun BoxScope.FallbackArtwork(title: String, year: Int?) {
 
 /**
  * One mark at most, at the top right, on a dark plate: the number of unwatched episodes of a show,
- * or the line check of a title watched. Progress has its own line at the foot of the card.
+ * the line check of a title watched, or the tungsten dot of a title new to the library. Progress
+ * has its own line at the foot of the card.
  */
 @Composable
 private fun StatusMark(item: MediaItem, modifier: Modifier) {
@@ -310,6 +311,9 @@ private fun StatusMark(item: MediaItem, modifier: Modifier) {
         }
         item.user.played -> Box(modifier.size(HlSize.mark).clip(HlShapes.avatar).background(plate), contentAlignment = Alignment.Center) {
             Icon(HlIcons.Check, contentDescription = null, tint = Hl.colors.content, modifier = Modifier.size(HlSize.markIcon))
+        }
+        item.isNew() -> Box(modifier.size(HlSize.mark).clip(HlShapes.avatar).background(plate), contentAlignment = Alignment.Center) {
+            Box(Modifier.size(HlSize.dot).clip(HlShapes.avatar).background(Hl.colors.tungsten))
         }
     }
 }

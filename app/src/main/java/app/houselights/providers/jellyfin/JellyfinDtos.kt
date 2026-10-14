@@ -46,6 +46,7 @@ data class BaseItem(
     @SerialName("Taglines") val taglines: List<String> = emptyList(),
     @SerialName("ProductionYear") val productionYear: Int? = null,
     @SerialName("PremiereDate") val premiereDate: String? = null,
+    @SerialName("DateCreated") val dateCreated: String? = null,
     @SerialName("EndDate") val endDate: String? = null,
     @SerialName("Status") val status: String? = null,
     @SerialName("OfficialRating") val officialRating: String? = null,
