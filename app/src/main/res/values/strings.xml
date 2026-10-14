@@ -37,7 +37,7 @@
         <item quantity="one">%d title</item>
         <item quantity="other">%d titles</item>
     </plurals>
-    <string name="home_empty_local">No films yet. Add the folder that holds them in Settings.</string>
+    <string name="home_empty_local">No films yet. Add the folder that holds them.</string>
     <string name="home_scanning">Scanning your files… %1$d / %2$d</string>
     <string name="home_scan_failed">The scan didn’t finish</string>
     <string name="home_see_folders">See the folders</string>
@@ -78,15 +78,14 @@
     <string name="from_start">From the beginning</string>
     <string name="watched">Watched</string>
     <string name="mark_watched">Mark as watched</string>
-    <string name="favorite">Favorite</string>
+    <string name="mark_unwatched">Mark as unwatched</string>
     <string name="add_favorite">Add to favorites</string>
+    <string name="remove_favorite">Remove from favorites</string>
     <string name="view_series">View series</string>
     <string name="cast">Cast</string>
     <string name="tech_details">Technical sheet</string>
-    <string name="tech_info">Technical info</string>
     <string name="sheet_back_hint">Back to close</string>
     <string name="cancel">Cancel</string>
-    <string name="nfo">NFO</string>
     <string name="nfo_title">NFO file</string>
     <string name="nfo_desc">The description of this title written by your media manager. Its details take precedence over TMDB.</string>
     <string name="nfo_tab_info">Details</string>

@@ -31,7 +31,7 @@
         <item quantity="other">%d titres</item>
         <item quantity="many">%d titres</item>
     </plurals>
-    <string name="home_empty_local">Aucun film pour l’instant. Ajoutez le dossier qui les contient dans les Réglages.</string>
+    <string name="home_empty_local">Aucun film pour l’instant. Ajoutez le dossier qui les contient.</string>
     <string name="home_scanning">Analyse de vos fichiers… %1$d / %2$d</string>
     <string name="home_scan_failed">L’analyse n’a pas abouti</string>
     <string name="home_see_folders">Voir les dossiers</string>
@@ -71,15 +71,14 @@
     <string name="from_start">Depuis le début</string>
     <string name="watched">Vu</string>
     <string name="mark_watched">Marquer comme vu</string>
-    <string name="favorite">Favori</string>
+    <string name="mark_unwatched">Marquer comme non vu</string>
     <string name="add_favorite">Ajouter aux favoris</string>
+    <string name="remove_favorite">Retirer des favoris</string>
     <string name="view_series">Voir la série</string>
     <string name="cast">Distribution</string>
     <string name="tech_details">Fiche technique</string>
-    <string name="tech_info">Infos techniques</string>
     <string name="sheet_back_hint">Retour pour fermer</string>
     <string name="cancel">Annuler</string>
-    <string name="nfo">NFO</string>
     <string name="nfo_title">Fichier NFO</string>
     <string name="nfo_desc">La description de ce titre écrite par votre gestionnaire de médias. Ses informations priment sur celles de TMDB.</string>
     <string name="nfo_tab_info">Informations</string>

@@ -66,8 +66,8 @@ class ContrastTest {
         "tungsten" on "WELL", "tungsten" on "WELL on surfaceRaised",
         // A focused control: its name, and the line under it.
         "onFocus" on "focus", "onFocusSecondary" on "focus",
-        // Marks: the selected entry's icon, the watched check and the new dot on their plate,
-        // a card's progress on its plate.
+        // Marks: the selected entry's icon, a lit round button's icon (watched, a favourite), the
+        // watched check and the new dot on their plate, a card's progress on its plate.
         ("tungsten" on "CONTROL_FILL").mark(),
         ("tungsten" on "PLATE on a white image").mark(),
     )

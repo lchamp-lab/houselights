@@ -142,7 +142,8 @@ fun HlButton(
  * stays as tall as its controls, and a row that does reserves [HlLayout.iconLabelRoom]. Near the
  * side of the screen, the label slides along to stay inside the safe area; under a sheet, which
  * has the window, it hides. The icon carries the name for accessibility. [onArtwork] sets the
- * button and its label on a dark plate, so they read over any image.
+ * button and its label on a dark plate, so they read over any image. A toggle names what OK does
+ * ("Marquer comme vu") and shows where things stand with its icon: [lit], tungsten at rest.
  */
 @Composable
 fun HlIconButton(
@@ -151,6 +152,7 @@ fun HlIconButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     onArtwork: Boolean = false,
+    lit: Boolean = false,
 ) {
     val interaction = remember { MutableInteractionSource() }
     val focused by interaction.collectIsFocusedAsState()
@@ -169,7 +171,7 @@ fun HlIconButton(
                 scale = ClickableSurfaceDefaults.scale(focusedScale = HlFocus.CONTROL_SCALE),
                 colors = ClickableSurfaceDefaults.colors(
                     containerColor = restFill,
-                    contentColor = c.content,
+                    contentColor = if (lit) c.tungsten else c.content,
                     focusedContainerColor = c.focus,
                     focusedContentColor = c.onFocus,
                     pressedContainerColor = c.focus,

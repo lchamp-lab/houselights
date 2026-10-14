@@ -249,6 +249,7 @@ private fun AppNavigation(nav: NavHostController, onPlay: (MediaItem, Boolean) -
                 onOpenItem = { openItem(it.id) },
                 onOpenLibrary = ::openLibrary,
                 onOpenSettings = { nav.navigate(Route.Settings) },
+                onAddFolder = { nav.navigate(Route.AddFolder) },
             )
         }
         composable<Route.Library> { entry ->

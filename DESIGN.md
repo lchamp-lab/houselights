@@ -179,7 +179,7 @@ without the prefix (`MenuOption`, `MeterLegend`, `PosterCard`, `BillingBlock`, `
 | `MediaRow` | horizontal row with header; focus coming back into it lands on its last card; dims the other cards when one is focused |
 | `HeroInfo`, `TitleArt`, `EpisodeHeading`, `MetaLine`, `BillingBlock` | what a title is: clear logo or condensed title, facts, credits |
 | `Badge`, `BadgeRow`, `FactRow` | formats and ratings (a `lit` badge marks a state); facts on one line, spaced, never punctuated |
-| `HlButton` (`Primary`, `Secondary`), `HlIconButton` | pill and round actions, all 48 dp tall; the icon button shows its label under it when focused. The label takes no room (a row with something below keeps `HlLayout.iconLabelRoom` for it), stays inside the safe area, hides while a sheet is open, and is not read out: the icon carries the name. Over an image (`onArtwork`) the button rests on a plate |
+| `HlButton` (`Primary`, `Secondary`), `HlIconButton` | pill and round actions, all 48 dp tall; the icon button shows its label under it when focused. A toggle names what OK does ("Marquer comme vu", "Retirer des favoris") and shows where things stand with its icon, tungsten at rest when `lit`. The label takes no room (a row with something below keeps `HlLayout.iconLabelRoom` for it), stays inside the safe area, hides while a sheet is open, and is not read out: the icon carries the name. Over an image (`onArtwork`) the button rests on a plate |
 | `HlSegmented` | the one way to show where you are or what is chosen among a few: home navigation, seasons (`scrollable`), NFO views, form choices. In a track, **white means current**: one white pill sits under the current option and slides to the option chosen (`STANDARD`, emphasized). The option under focus but not chosen is a grey pill; focus on the current option draws a ring around the pill, travelling with it. Focus entering a track, from any side, lands on the current option, never on the nearest one; to accessibility services the options are tabs, the current one selected. A long track scrolls as one piece, pill included. Over an image (`onArtwork`), the track is a plate and its options are white. There is no standalone tab |
 | `HlPanel` (`Quiet`, `Raised`, `lit`), `HlPanelButton` | the one panel recipe, and its focusable form |
 | `HlIconDisc`, `HlDivider`, `HlStatus`, `HlMeter`, `MeterLegend` | an icon in a disc (lit when on), a hairline, a state with its light (tungsten when on or calling for attention) and why, under it, a segmented gauge |
@@ -306,7 +306,11 @@ screen: it goes to the log.
 - French uses *vous*, typographic apostrophes (’), and a no-break space before `: ; ! ?` and inside
   `« »`. Archivo has no narrow no-break space, so the normal one (U+00A0) is used.
 - A number never leaves its unit: `3,27 Go`, `2 h 02`, `10 bits`, `3840 × 1608` (`formatDuration`,
-  `formatDimensions`, `formatBytes`, `formatRatio` in `ui/util/Format.kt`).
+  `formatDimensions`, `formatBytes`, `formatRatio` in `ui/util/Format.kt`). What is left of a title
+  is a duration, "Il reste 1 h 26", never a timecode.
+- A button says what OK does, and a toggle says it too: "Marquer comme vu", then "Marquer comme non
+  vu"; its lit icon carries the state. A button bears the name of what it opens ("Fiche technique",
+  "Fichier NFO"). An empty screen always offers a verb ("Ajouter un dossier"), never a place.
 - Facts are separated by layout (`FactRow`). Inside a single text (a button's detail), `FACT_GAP`.
 - Values are words a person uses: "Détecté", "Hors ligne", "Aucune", never "absent" or "0 fichier".
 - A failure says what happened and what to do ("Le dossier n’a pas pu être lu. Réessayez, ou
