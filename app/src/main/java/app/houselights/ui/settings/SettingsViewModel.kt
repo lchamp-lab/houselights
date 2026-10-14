@@ -7,7 +7,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
-import android.content.Context
 import app.houselights.AppContainer
 import app.houselights.core.PathMapping
 import app.houselights.core.SourceConfig
@@ -17,6 +16,7 @@ import app.houselights.providers.local.CleanupResult
 import app.houselights.providers.local.LocalLibrary
 import app.houselights.settings.AppSettings
 import app.houselights.ui.util.appContainer
+import coil.ImageLoader
 import coil.annotation.ExperimentalCoilApi
 import coil.imageLoader
 import kotlinx.coroutines.Dispatchers
@@ -40,7 +40,8 @@ internal data class StorageStats(
  * What the settings show and change. Changes run in the ViewModel's scope: leaving the screen while
  * one is written never cuts it off.
  */
-internal class SettingsViewModel(private val app: AppContainer, private val context: Context) : ViewModel() {
+/** Holds the image loader rather than a context, so nothing of a screen outlives it. */
+internal class SettingsViewModel(private val app: AppContainer, private val images: ImageLoader) : ViewModel() {
     val settings: StateFlow<AppSettings> = app.settings.state
     val library: LocalLibrary = app.library
 
@@ -58,12 +59,12 @@ internal class SettingsViewModel(private val app: AppContainer, private val cont
     fun refreshStorage() {
         viewModelScope.launch {
             val local = library.storage()
-            val images = context.imageLoader.diskCache
+            val disk = images.diskCache
             _storage.value = StorageStats(
                 artworkFiles = local.artworkFiles,
                 artworkBytes = local.artworkBytes,
-                imageCacheBytes = images?.size ?: 0L,
-                imageCacheMax = images?.maxSize ?: 0L,
+                imageCacheBytes = disk?.size ?: 0L,
+                imageCacheMax = disk?.maxSize ?: 0L,
                 databaseBytes = local.databaseBytes,
             )
         }
@@ -113,8 +114,8 @@ internal class SettingsViewModel(private val app: AppContainer, private val cont
 
     @OptIn(ExperimentalCoilApi::class)
     suspend fun clearImageCache() {
-        context.imageLoader.memoryCache?.clear()
-        withContext(Dispatchers.IO) { context.imageLoader.diskCache?.clear() }
+        images.memoryCache?.clear()
+        withContext(Dispatchers.IO) { images.diskCache?.clear() }
         refreshStorage()
     }
 
@@ -126,6 +127,6 @@ internal class SettingsViewModel(private val app: AppContainer, private val cont
 @Composable
 internal fun settingsViewModel(): SettingsViewModel {
     val app = appContainer()
-    val context = LocalContext.current.applicationContext
-    return viewModel { SettingsViewModel(app, context) }
+    val images = LocalContext.current.imageLoader
+    return viewModel { SettingsViewModel(app, images) }
 }

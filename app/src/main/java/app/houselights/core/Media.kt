@@ -1,8 +1,12 @@
 package app.houselights.core
 
+import androidx.annotation.Keep
+
 /** Kind of a library entry, independent of the backend it comes from. */
 enum class MediaKind { MOVIE, SERIES, SEASON, EPISODE, COLLECTION, FOLDER, VIDEO }
 
+/** Kept: a navigation route carries it. */
+@Keep
 enum class LibraryKind { MOVIES, SHOWS, COLLECTIONS, MIXED }
 
 /**

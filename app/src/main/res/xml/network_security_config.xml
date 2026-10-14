@@ -1,12 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Servers on the home network (NAS, Jellyfin, the Zidoo's own control API) often speak plain HTTP,
      so cleartext stays allowed by default. Services on the internet are reached over HTTPS only. -->
-<network-security-config>
-    <base-config cleartextTrafficPermitted="true">
+<network-security-config xmlns:tools="http://schemas.android.com/tools">
+    <!-- Home servers are reached by their address on the local network, which a domain rule cannot
+         name: cleartext is allowed by default, and refused for the internet services below. -->
+    <base-config cleartextTrafficPermitted="true" tools:ignore="InsecureBaseConfiguration">
         <trust-anchors>
             <certificates src="system" />
             <!-- Self-signed certificates of a home Jellyfin server, once the user installs them. -->
-            <certificates src="user" />
+            <certificates src="user" tools:ignore="AcceptsUserCertificates" />
         </trust-anchors>
     </base-config>
     <domain-config cleartextTrafficPermitted="false">

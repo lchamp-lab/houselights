@@ -21,6 +21,7 @@
     <plurals name="season_count">
         <item quantity="one">%d saison</item>
         <item quantity="other">%d saisons</item>
+        <item quantity="many">%d saisons</item>
     </plurals>
 
     <string name="error_unreachable">Impossible de joindre la bibliothèque</string>
@@ -29,6 +30,7 @@
     <plurals name="title_count">
         <item quantity="one">%d titre</item>
         <item quantity="other">%d titres</item>
+        <item quantity="many">%d titres</item>
     </plurals>
     <string name="home_empty_local">Aucun film pour l’instant. Ajoutez le dossier qui les contient dans les Réglages.</string>
     <string name="home_scanning">Analyse de vos fichiers… %1$d / %2$d</string>
@@ -54,6 +56,7 @@
     <plurals name="filter_count">
         <item quantity="one">%d filtre</item>
         <item quantity="other">%d filtres</item>
+        <item quantity="many">%d filtres</item>
     </plurals>
     <string name="show_all">Tous</string>
     <string name="sort_year">Année</string>
@@ -168,6 +171,7 @@
     <plurals name="file_count">
         <item quantity="one">%d fichier</item>
         <item quantity="other">%d fichiers</item>
+        <item quantity="many">%d fichiers</item>
     </plurals>
     <string name="playback_desc">Comment le lecteur Zidoo accède aux fichiers de votre serveur.</string>
     <string name="tmdb_desc">Les affiches et les informations proviennent de TMDB.</string>
@@ -226,6 +230,7 @@
     <plurals name="image_count">
         <item quantity="one">%d image</item>
         <item quantity="other">%d images</item>
+        <item quantity="many">%d images</item>
     </plurals>
     <string name="artwork_hint">Votre choix est conservé lors des analyses. « Automatique » laisse Houselights choisir.</string>
     <string name="artwork_offline">Les images en ligne ne sont pas disponibles : identifiez d’abord ce titre, ou vérifiez la connexion.</string>
@@ -252,6 +257,7 @@
     <plurals name="result_count">
         <item quantity="one">%d résultat</item>
         <item quantity="other">%d résultats</item>
+        <item quantity="many">%d résultats</item>
     </plurals>
     <string name="result_current">Actuel</string>
     <string name="error_offline">Le serveur ou le NAS ne répond pas. Vérifiez qu’il est allumé, puis réessayez.</string>
@@ -296,15 +302,18 @@
     <plurals name="uhd_count">
         <item quantity="one">%d en Ultra HD</item>
         <item quantity="other">%d en Ultra HD</item>
+        <item quantity="many">%d en Ultra HD</item>
     </plurals>
     <!-- Collections -->
     <plurals name="film_count">
         <item quantity="one">%d film</item>
         <item quantity="other">%d films</item>
+        <item quantity="many">%d films</item>
     </plurals>
     <plurals name="film_count_of">
         <item quantity="one">%1$d film sur %2$d</item>
         <item quantity="other">%1$d films sur %2$d</item>
+        <item quantity="many">%1$d films sur %2$d</item>
     </plurals>
     <string name="collections_setting">Collections</string>
     <string name="collections_setting_desc">Les films d’une même saga, réunis</string>
@@ -317,5 +326,6 @@
     <plurals name="collection_count">
         <item quantity="one">%d collection</item>
         <item quantity="other">%d collections</item>
+        <item quantity="many">%d collections</item>
     </plurals>
 </resources>

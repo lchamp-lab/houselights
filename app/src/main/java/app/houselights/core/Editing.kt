@@ -1,6 +1,9 @@
 package app.houselights.core
 
-/** The pieces of artwork a user can choose for a title. */
+import androidx.annotation.Keep
+
+/** The pieces of artwork a user can choose for a title. Kept: a navigation route carries it. */
+@Keep
 enum class ArtworkKind { POSTER, BACKDROP, LOGO }
 
 /** Where an artwork option comes from. */

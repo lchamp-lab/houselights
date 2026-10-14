@@ -1,8 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- TMDB attribution logo ("blue short"), converted unchanged from the official file:
      https://www.themoviedb.org/about/logos-attribution -->
+<!-- Kept as drawn by TMDB (size, long path): it is shown once, on the About pane. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:aapt="http://schemas.android.com/aapt"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:ignore="VectorRaster,VectorPath"
     android:width="273dp"
     android:height="36dp"
     android:viewportWidth="273.42"

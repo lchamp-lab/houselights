@@ -91,7 +91,9 @@ class PlaybackManager(
             }
         }
         session = Session(plan.reporter, plan.startMs)
-        saved.edit().putString(KEY_RESUME, plan.resumeKey).putLong(KEY_POSITION, plan.startMs).commit()
+        // Written before the player takes over: the platform finishes pending apply() writes before our
+        // activity stops, which launching the player does, so the resume point survives a killed process.
+        saved.edit().putString(KEY_RESUME, plan.resumeKey).putLong(KEY_POSITION, plan.startMs).apply()
         return intent
     }
 

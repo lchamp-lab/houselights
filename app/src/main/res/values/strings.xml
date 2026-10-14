@@ -1,4 +1,4 @@
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <string name="app_name" translatable="false">Houselights</string>
     <!-- Typographic placeholders: a value still coming, and one that isn't there. -->
     <string name="placeholder_pending" translatable="false">…</string>
@@ -147,7 +147,8 @@
     <string name="error_login_failed">The NAS rejected the user name or password.</string>
     <string name="error_not_found">This share or folder does not exist on the NAS. Check its spelling.</string>
     <string name="error_host_missing">Enter the address of the NAS.</string>
-    <string name="error_export_missing">Enter the NFS export, for example /volume1/media.</string>
+    <!-- /volume1 is how a Synology NAS names its first volume. -->
+    <string name="error_export_missing" tools:ignore="Typos">Enter the NFS export, for example /volume1/media.</string>
     <string name="error_share_missing">Enter the name of the shared folder, for example media.</string>
     <string name="error_scan_other">The folder could not be read: %s</string>
     <string name="add">Add</string>
