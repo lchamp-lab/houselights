@@ -75,6 +75,9 @@ import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.LocalAmbient
 import app.houselights.ui.design.RowScroll
 import app.houselights.ui.design.keepChildFocus
+import app.houselights.ui.design.rememberedInGroup
+import app.houselights.ui.design.LocalGroupFocus
+import app.houselights.ui.design.GroupFocus
 import app.houselights.ui.design.revealOnFocus
 import app.houselights.ui.util.toPx
 import coil.compose.AsyncImage
@@ -95,14 +98,15 @@ fun MediaRow(
     var rowFocused by remember { mutableStateOf(false) }
     Column(modifier.revealOnFocus()) {
         if (header != null) SectionHeader(header, Modifier.padding(start = HlSpace.safeH, bottom = HlSpace.xxs))
-        CompositionLocalProvider(LocalGroupFocused provides rowFocused) {
+        val group = remember { GroupFocus() }
+        CompositionLocalProvider(LocalGroupFocused provides rowFocused, LocalGroupFocus provides group) {
             RowScroll {
                 LazyRow(
                     state = state,
                     // Observe the row's focus group itself, so hasFocus covers every card.
                     modifier = Modifier
                         .onFocusChanged { rowFocused = it.hasFocus }
-                        .keepChildFocus(),
+                        .keepChildFocus(group),
                     // Room for a focused card to grow: a poster grows by 8.4 dp at the top and the bottom.
                     contentPadding = PaddingValues(horizontal = HlSpace.safeH, vertical = HlSpace.s),
                     horizontalArrangement = Arrangement.spacedBy(spacing),
@@ -150,7 +154,7 @@ fun ArtworkSurface(
     }
     Surface(
         onClick = onClick,
-        modifier = modifier.then(reading).onFocusChanged { if (it.isFocused) onFocused() },
+        modifier = modifier.rememberedInGroup().then(reading).onFocusChanged { if (it.isFocused) onFocused() },
         shape = ClickableSurfaceDefaults.shape(shape),
         scale = ClickableSurfaceDefaults.scale(focusedScale = focusedScale),
         border = ClickableSurfaceDefaults.border(

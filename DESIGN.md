@@ -319,7 +319,10 @@ moves to a neighbour, else to the action that adds one ("Ajouter un dossier").
 3. An action that changes its words stays one element: Lire becomes Reprendre on the same button,
    so a film stopped half way comes back with focus on it, even one started over.
 4. A row or a pane returns to the child it last had when the remote comes back into it
-   (`keepChildFocus`); never `focusRestorer`, which turns a request for one child into its own.
+   (`keepChildFocus`, its children marked `rememberedInGroup`): focus is redirected to that child.
+   Never `focusRestorer`, which turns a request for one child into its own and, in Compose 1.7,
+   crashes when the list changes under it; nor a restore by hand that cancels the move, which
+   cancels the restored focus with it.
 5. On screen: open something, come back, focus is on it, in its row, with the pane still open.
 
 **Back** goes in two steps (`BackToStart`). Deep in a screen, it first brings focus back to where
