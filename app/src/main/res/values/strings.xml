@@ -160,6 +160,8 @@
     <string name="signing_in">Signing in…</string>
     <string name="error_credentials">The server rejected these credentials.</string>
     <string name="error_connect">Can’t connect to %1$s: %2$s</string>
+    <string name="error_server_unreachable">Nothing answers at %s. Check the address and that Jellyfin is running.</string>
+    <string name="error_not_jellyfin">%s answers, but it doesn’t look like a Jellyfin server. Check the address and port.</string>
 
     <!-- Settings -->
     <string name="settings_title">Settings</string>

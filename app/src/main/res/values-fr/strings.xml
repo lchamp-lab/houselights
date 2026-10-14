@@ -148,6 +148,8 @@
     <string name="signing_in">Connexion…</string>
     <string name="error_credentials">Identifiants refusés par le serveur.</string>
     <string name="error_connect">Connexion impossible à %1$s : %2$s</string>
+    <string name="error_server_unreachable">Rien ne répond à %s. Vérifiez l’adresse et que Jellyfin est démarré.</string>
+    <string name="error_not_jellyfin">%s répond, mais ne semble pas être un serveur Jellyfin. Vérifiez l’adresse et le port.</string>
 
     <string name="settings_title">Réglages</string>
     <string name="welcome_tagline">Vos films, sur grand écran.</string>
