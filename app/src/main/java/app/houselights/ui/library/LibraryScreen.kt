@@ -39,7 +39,9 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.tv.material3.Text
+import app.houselights.ui.design.HlFocus
 import app.houselights.ui.design.HlLayout
+import app.houselights.ui.design.ListScroll
 import app.houselights.R
 import app.houselights.core.Definition
 import app.houselights.core.Library
@@ -192,10 +194,12 @@ fun LibraryScreen(
                         color = Hl.colors.contentSecondary,
                         modifier = Modifier.padding(HlSpace.safeH),
                     )
-                    else -> CompositionLocalProvider(LocalGroupFocused provides gridHasFocus) { LazyVerticalGrid(
+                    // The wall starts under the header: a line of posters comes back to where the first rests.
+                    else -> CompositionLocalProvider(LocalGroupFocused provides gridHasFocus) {
+                        ListScroll(top = HlSpace.m) { LazyVerticalGrid(
                         columns = GridCells.Fixed(COLUMNS),
                         state = gridState,
-                        contentPadding = PaddingValues(start = HlSpace.safeH, end = HlSpace.safeH, top = HlSpace.m, bottom = HlSpace.xxl),
+                        contentPadding = PaddingValues(start = HlSpace.safeH, end = HlSpace.safeH, top = HlSpace.m, bottom = HlFocus.edge),
                         horizontalArrangement = Arrangement.spacedBy(HlSpace.l),
                         verticalArrangement = Arrangement.spacedBy(HlSpace.l),
                         modifier = Modifier.fillMaxSize().onFocusChanged {
@@ -218,7 +222,7 @@ fun LibraryScreen(
                                 modifier = if (index == 0) Modifier.focusRequester(gridFocus) else Modifier,
                             )
                         }
-                    } }
+                    } } }
                 }
             }
         }

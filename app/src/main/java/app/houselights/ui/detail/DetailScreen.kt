@@ -47,6 +47,7 @@ import app.houselights.core.MediaKind
 import app.houselights.core.ProviderCapabilities
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlIcons
+import app.houselights.ui.design.HlFocus
 import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
@@ -133,7 +134,7 @@ fun DetailScreen(
 
             LazyColumn(
                     Modifier.fillMaxSize().houseLit(LocalHouseLights.current),
-                    contentPadding = PaddingValues(bottom = HlSpace.xxl),
+                    contentPadding = PaddingValues(bottom = HlFocus.edge),
                     verticalArrangement = Arrangement.spacedBy(HlSpace.l),
                 ) {
                     item(key = "hero") {

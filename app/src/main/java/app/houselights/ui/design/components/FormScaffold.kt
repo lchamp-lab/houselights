@@ -29,15 +29,19 @@ import androidx.compose.ui.unit.dp
 import androidx.tv.material3.Icon
 import androidx.tv.material3.Text
 import app.houselights.ui.design.Hl
+import app.houselights.ui.design.HlFocus
 import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.ListScroll
 import app.houselights.ui.design.keepVerticalFocus
 
 /**
  * The two-pane layout of setup and settings screens: what this is (and its navigation) in a
- * side column on the left, the content on the right, separated by a hairline.
+ * side column on the left, the content on the right, separated by a hairline. The side column
+ * stops at the safe area; the content runs to the foot of the screen and scrolls what has focus
+ * up to [HlFocus.edge], and back down to its own top, which is already inside the safe area.
  */
 @Composable
 fun HlTwoPane(
@@ -48,11 +52,11 @@ fun HlTwoPane(
     Box(Modifier.fillMaxSize()) {
         Backdrop(null, BackdropStyle.Quiet)
         Row(Modifier.fillMaxSize().padding(start = HlSpace.safeH, end = HlSpace.safeH, top = HlSpace.safeV)) {
-            Column(Modifier.width(sideWidth).fillMaxHeight(), content = side)
+            Column(Modifier.width(sideWidth).fillMaxHeight().padding(bottom = HlSpace.safeV), content = side)
             Spacer(Modifier.width(HlSpace.xl))
             HlDivider(Modifier.padding(vertical = HlSpace.xl), vertical = true)
             Spacer(Modifier.width(HlSpace.xl))
-            Box(Modifier.weight(1f).fillMaxHeight(), content = content)
+            Box(Modifier.weight(1f).fillMaxHeight()) { ListScroll(top = HlSpace.none) { content() } }
         }
     }
 }
@@ -77,7 +81,7 @@ fun HlFormScaffold(
     ) {
         Column(
             Modifier.fillMaxSize().keepVerticalFocus().verticalScroll(rememberScrollState())
-                .padding(top = HlLayout.paneTop, bottom = HlSpace.xxl, end = HlSpace.m),
+                .padding(top = HlLayout.paneTop, bottom = HlFocus.edge, end = HlSpace.m),
             verticalArrangement = Arrangement.spacedBy(HlSpace.l),
             content = form,
         )

@@ -190,4 +190,9 @@ object HlFocus {
     const val SIBLING_DIM = 0.3f
     const val SIBLING_SATURATION = 0.3f
     val glow = 18.dp
+    /**
+     * How far a vertical list keeps what has focus from its top and bottom: the safe area, so
+     * the last row stops inside it and a focused poster grows into the margin, not off the screen.
+     */
+    val edge = HlSpace.safeV
 }

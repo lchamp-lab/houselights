@@ -25,50 +25,62 @@ import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.unit.Dp
 import kotlinx.coroutines.launch
-import kotlin.math.abs
 
 /**
- * Lists scroll only by what is needed to reveal the focused element. The TV default pivots
- * focus to a third of the screen, which scrolls titles and heroes away for no reason.
+ * Scrolls only by what is needed to bring an element into the window [leading, containerSize −
+ * trailing] (px): never to a third of the screen as the TV default does, which scrolls titles and
+ * heroes away for no reason. An element longer than the window aligns its start with the window's.
  */
 @OptIn(ExperimentalFoundationApi::class)
-val HlBringIntoView = object : BringIntoViewSpec {
+class EdgeScroll(private val leading: Float, private val trailing: Float) : BringIntoViewSpec {
     override fun calculateScrollDistance(offset: Float, size: Float, containerSize: Float): Float {
-        val trailing = offset + size
+        val start = leading
+        val end = containerSize - trailing
+        val itemEnd = offset + size
         return when {
-            offset >= 0 && trailing <= containerSize -> 0f
-            offset < 0 && trailing > containerSize -> 0f
-            abs(offset) < abs(trailing - containerSize) -> offset
-            else -> trailing - containerSize
+            offset >= start && itemEnd <= end -> 0f
+            offset < start || size > end - start -> offset - start
+            else -> itemEnd - end
         }
     }
 }
 
 /**
- * Rows keep what has focus [ROW_MARGIN] away from both ends of the screen. The minimal spec
- * above would stop a row scrolled back to its first card with that card against the screen
- * edge; with a margin wider than the row's padding, the row comes back to where it rests, and
- * moving right always lets the next card peek in.
+ * How vertical lists scroll, provided for the whole app by [HouselightsTheme]: what has focus
+ * stops [HlFocus.edge] away from the bottom, so the last row rests inside the safe area and a
+ * focused poster grows into the margin rather than off the screen, and [top] away from the top.
+ */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun rememberListScroll(top: Dp = HlFocus.edge): BringIntoViewSpec {
+    val density = LocalDensity.current
+    return remember(density, top) { with(density) { EdgeScroll(top.toPx(), HlFocus.edge.toPx()) } }
+}
+
+/**
+ * For a list that starts below the top of the screen, under a hero or a header, already inside
+ * the safe area: its rows come back to [top], where its first row rests (its top padding), and
+ * the row above leaves the list whole instead of lingering as a sliver.
+ */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun ListScroll(top: Dp, content: @Composable () -> Unit) {
+    CompositionLocalProvider(LocalBringIntoViewSpec provides rememberListScroll(top), content = content)
+}
+
+/**
+ * Rows keep what has focus [ROW_MARGIN] away from both ends of the screen. With no margin, a row
+ * scrolled back to its first card would stop with that card against the screen edge; with a
+ * margin wider than the row's padding, the row comes back to where it rests, and moving right
+ * always lets the next card peek in.
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun RowScroll(content: @Composable () -> Unit) {
     val margin = with(LocalDensity.current) { ROW_MARGIN.toPx() }
-    val spec = remember(margin) {
-        object : BringIntoViewSpec {
-            override fun calculateScrollDistance(offset: Float, size: Float, containerSize: Float): Float {
-                val start = margin
-                val end = containerSize - margin
-                val trailing = offset + size
-                return when {
-                    offset >= start && trailing <= end -> 0f
-                    offset < start || size > end - start -> offset - start
-                    else -> trailing - end
-                }
-            }
-        }
-    }
+    val spec = remember(margin) { EdgeScroll(margin, margin) }
     CompositionLocalProvider(LocalBringIntoViewSpec provides spec, content = content)
 }
 
