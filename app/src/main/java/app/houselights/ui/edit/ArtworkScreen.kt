@@ -12,8 +12,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -34,6 +32,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.tv.material3.Text
+import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.components.HlEmptyState
 import app.houselights.ui.design.components.FactRow
 import app.houselights.ui.design.HlLayout
@@ -224,7 +223,7 @@ private fun Problem(error: UiError, onRetry: () -> Unit) {
         stringResource(error.message),
         Modifier.padding(horizontal = HlSpace.safeH, vertical = HlSpace.xl),
         action = stringResource(R.string.retry),
-        actionIcon = Icons.Filled.Refresh,
+        actionIcon = HlIcons.Refresh,
         onAction = onRetry,
     )
 }

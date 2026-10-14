@@ -16,8 +16,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
@@ -280,12 +278,13 @@ fun HlChoiceSheet(
 }
 
 /**
- * The check of the current choice, at the end of its row: tungsten at rest, the focused content
- * colour on a lit row. Sheets whose choices lead elsewhere mark the current one with it too.
+ * The check of the current choice, at the end of its row: your choice, in tungsten at rest, the
+ * focused content colour on a lit row. Sheets whose choices lead elsewhere mark the current one
+ * with it too.
  */
 @Composable
 internal fun ChoiceCheck() {
     val content = LocalContentColor.current
     val tint = if (content == Hl.colors.onFocus) content else Hl.colors.tungsten
-    Icon(Icons.Filled.Check, contentDescription = null, tint = tint, modifier = Modifier.size(HlSize.icon))
+    Icon(HlIcons.Check, contentDescription = null, tint = tint, modifier = Modifier.size(HlSize.icon))
 }

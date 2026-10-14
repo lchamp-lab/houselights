@@ -5,9 +5,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyListScope
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -24,6 +21,7 @@ import app.houselights.R
 import app.houselights.player.PathResolver
 import app.houselights.player.Redact
 import app.houselights.settings.AppSettings
+import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.components.ChoiceOption
 import app.houselights.ui.design.components.HlButton
@@ -104,7 +102,7 @@ private fun PathMappings() {
                     placeholder = "nfs://192.168.1.10/volume1/movies", onImeAction = vm::saveMappings,
                     modifier = Modifier.weight(1.3f).focusRequester(networks.getOrPut(index) { FocusRequester() }).then(save),
                 )
-                HlIconButton(Icons.Filled.Close, stringResource(R.string.remove), onClick = {
+                HlIconButton(HlIcons.Close, stringResource(R.string.remove), onClick = {
                     // Focus moves first, while the line above is where it was.
                     runCatching { (if (index > 0) networks.getValue(index - 1) else add).requestFocus() }
                     vm.removeMapping(index)
@@ -117,7 +115,7 @@ private fun PathMappings() {
                 vm.addMapping()
                 added = true
             },
-            icon = Icons.Filled.Add,
+            icon = HlIcons.Add,
             modifier = Modifier.focusRequester(add),
         )
         val result = samplePath?.let { path ->

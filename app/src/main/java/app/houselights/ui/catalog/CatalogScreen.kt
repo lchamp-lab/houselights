@@ -15,8 +15,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -118,6 +116,8 @@ fun CatalogScreen() {
                     ).forEach { (name, style) -> Specimen(name, style) }
                 }
             }
+
+            catalogIcons()
 
             item {
                 Group("Controls") {
@@ -290,10 +290,10 @@ fun CatalogScreen() {
                         HlIconButton(HlIcons.Restart, "Depuis le début", {})
                         HlButton("Voir la série", {})
                         // Toggles name what OK does; lit, the icon says the episode is watched, a favourite.
-                        HlIconButton(Icons.Filled.Check, "Marquer comme non vu", {}, lit = true)
+                        HlIconButton(HlIcons.Check, "Marquer comme non vu", {}, lit = true)
                         HlIconButton(HlIcons.Info, "Fiche technique", {})
                         HlIconButton(HlIcons.Document, "Fichier NFO", {})
-                        HlIconButton(Icons.Filled.Favorite, "Retirer des favoris", {}, lit = true)
+                        HlIconButton(HlIcons.HeartFilled, "Retirer des favoris", {}, lit = true)
                         HlIconButton(HlIcons.Edit, "Modifier", {})
                     }
                     var library by remember { mutableIntStateOf(0) }
@@ -336,7 +336,7 @@ private fun ControlStates() {
         ControlCase("detail lit: a state it names") { HlButton("Filtrer", {}, icon = HlIcons.Filter, detail = "Non vus", detailLit = true) }
         ControlCase("disabled: focus outlines it") { HlButton("Ajouter", {}, icon = HlIcons.Folder, enabled = false) }
         ControlCase("busy: the screen's words") {
-            HlButton("Tester", {}, icon = HlIcons.Restart, busy = true, busyLabel = "Vérification…")
+            HlButton("Tester", {}, icon = HlIcons.Test, busy = true, busyLabel = "Vérification…")
         }
     }
     Row(

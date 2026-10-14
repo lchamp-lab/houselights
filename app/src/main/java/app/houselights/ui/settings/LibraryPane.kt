@@ -13,9 +13,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyListScope
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -520,7 +517,7 @@ private fun foldersLine(count: Int): String =
 
 @Composable
 private fun PlusIcon() {
-    androidx.tv.material3.Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.width(HlSize.icon))
+    androidx.tv.material3.Icon(HlIcons.Add, contentDescription = null, modifier = Modifier.width(HlSize.icon))
 }
 
 /**
@@ -582,7 +579,7 @@ private fun TmdbKeySheet(onDismiss: () -> Unit) {
         HlButton(
             stringResource(R.string.save),
             onClick = ::save,
-            icon = Icons.Filled.Check,
+            icon = HlIcons.Check,
             emphasis = Emphasis.Primary,
             busy = checking,
             busyLabel = stringResource(R.string.checking),

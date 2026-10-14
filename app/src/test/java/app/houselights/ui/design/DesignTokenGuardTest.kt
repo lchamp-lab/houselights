@@ -68,6 +68,31 @@ class DesignTokenGuardTest {
         assertTrue("Toast in: ${found.joinToString()}", found.isEmpty())
     }
 
+    /**
+     * One family of icons, drawn for the app (`HlIcons`), everywhere, the design system included.
+     * Play is the one glyph taken from Material, filled, as on a remote.
+     */
+    @Test
+    fun oneFamilyOfIcons() {
+        val sources = File("src/main/java")
+        assertTrue("Sources not found from ${File(".").absolutePath}", sources.isDirectory)
+        val found = sources.walkTopDown()
+            .filter { it.isFile && it.extension == "kt" }
+            .flatMap { file ->
+                file.readLines().mapIndexedNotNull { i, line ->
+                    if (materialIcon.containsMatchIn(line)) "${file.relativeTo(sources).path}:${i + 1}: ${line.trim()}" else null
+                }
+            }
+            .toList()
+        assertTrue("Material icons, draw them in HlIcons:\n" + found.joinToString("\n"), found.isEmpty())
+    }
+
+    /** A Material icon other than Play, used or imported. */
+    private val materialIcon = Regex(
+        """\bIcons\.(Filled|Default|Outlined|Rounded|Sharp|TwoTone|AutoMirrored)\.(?!PlayArrow\b)""" +
+            """|material\.icons\.(filled|outlined|rounded|sharp|twotone|automirrored)\.(?!PlayArrow\b)""",
+    )
+
     @Test
     fun theGuardCatchesWhatItShould() {
         val samples = listOf(
@@ -77,6 +102,10 @@ class DesignTokenGuardTest {
             "AsyncImage(model = url, contentDescription = null)",
         )
         samples.forEach { sample -> assertTrue(sample, rules.any { it.first.containsMatchIn(sample) }) }
+        listOf("Icons.Filled.Check", "Icons.Default.Settings", "import androidx.compose.material.icons.filled.Star")
+            .forEach { assertTrue(it, materialIcon.containsMatchIn(it)) }
+        listOf("Icons.Filled.PlayArrow", "import androidx.compose.material.icons.filled.PlayArrow", "HlIcons.Check")
+            .forEach { assertTrue(it, !materialIcon.containsMatchIn(it)) }
         val fine = listOf(
             "Modifier.padding(0.dp)", "screenWidthDp.dp", "HlSpace.l", "Hl.colors.content.copy(alpha = HlAlpha.WELL)",
             "{ HlSpace.m -> it }", "screenHeight * HlLayout.DETAIL_HERO_SHARE", "spacedBy(HlSpace.xs)",
