@@ -34,11 +34,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ColorMatrix
@@ -66,6 +64,7 @@ import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.LocalAmbient
 import app.houselights.ui.design.RowScroll
+import app.houselights.ui.design.keepChildFocus
 import app.houselights.ui.design.revealOnFocus
 import app.houselights.ui.util.toPx
 import coil.compose.AsyncImage
@@ -73,8 +72,7 @@ import coil.compose.AsyncImage
 /** True while one card of the enclosing row or grid has focus: the others step back. */
 val LocalGroupFocused = compositionLocalOf { false }
 
-/** A horizontal row of cards with an optional header; restores focus to the last card. */
-@OptIn(ExperimentalComposeUiApi::class)
+/** A horizontal row of cards with an optional header; focus comes back into it on the last card. */
 @Composable
 fun MediaRow(
     header: String?,
@@ -93,7 +91,7 @@ fun MediaRow(
                     // Observe the row's focus group itself, so hasFocus covers every card.
                     modifier = Modifier
                         .onFocusChanged { rowFocused = it.hasFocus }
-                        .focusRestorer(),
+                        .keepChildFocus(),
                     // Room for a focused card to grow: a poster grows by 8.4 dp at the top and the bottom.
                     contentPadding = PaddingValues(horizontal = HlSpace.safeH, vertical = HlSpace.s),
                     horizontalArrangement = Arrangement.spacedBy(spacing),
