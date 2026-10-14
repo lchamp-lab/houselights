@@ -12,9 +12,9 @@ every build (see *Guard*).
    *ambient light* (`LocalAmbient`) is picked from the focused backdrop and spills onto the room. When
    nothing is selected, the room takes the colours of the posters on the wall (`CollectionLight`).
    Tungsten, the only fixed accent, marks **states**: in use, your choice, needs attention.
-2. **Ten-foot first.** Nothing below 12 sp, no content below 14 sp, every text colour at least 4.5:1
-   on every surface. Content stays inside the overscan-safe area (`HlSpace.safeH` / `safeV`). Every
-   focusable element shows an unmistakable focus state.
+2. **Ten-foot first.** Nothing below 12 sp, no content below 14 sp, every text at least 4.5:1 on the
+   surface it sits on (see *Contrast*). Content stays inside the overscan-safe area (`HlSpace.safeH` /
+   `safeV`). Every focusable element shows an unmistakable focus state.
 3. **Calm motion.** Motion answers the user (focus, opening, playing, choosing: the pill of a track
    slides to the option chosen). Two orchestrated moments only:
    the *house lights* going down before playback, and the *poster wall* drifting on the welcome screen.
@@ -59,15 +59,28 @@ The technical voice speaks the vocabulary of a Blu-ray case: formats by their na
 | `background` | `#000000` | the room; masks over artwork |
 | `surface` / `surfaceRaised` | `#121110` / `#1D1B19` | quiet panels / dialogs, menus, focused fields |
 | `outline` | `#3A3632` | hairlines, badge borders |
-| `content` | `#F2F0EB` | projector white: primary text, focus fill |
-| `contentSecondary` | `#A39E96` | secondary text (6.4:1 or more) |
-| `contentTertiary` | `#8C867E` | the quietest text, still 4.8:1 or more on every surface |
+| `content` | `#F2F0EB` | projector white: primary text |
+| `contentSecondary` | `#A39E96` | secondary text; 4.96:1 at worst, in a primary button |
+| `contentTertiary` | `#8C867E` | the quietest text: 4.76:1 on `surfaceRaised`, its lowest permitted surface |
 | `contentDecorative` | `#4A4642` | never text: empty frames, inactive marks |
 | `tungsten` | `#F2B66D` | states only |
+| `focus` | `#F2F0EB` | projector white again: the fill and outline of focus |
+| `onFocus` | `#000000` | a focused control's name and icon |
+| `onFocusSecondary` | `#5C5B59` | the line under that name (a summary, a runtime): black at 62 % on `focus`, 5.96:1 |
+| `ambientFallback` | `#3B2B1C` | the light spilled into the room when a title has no artwork |
 
 `HlAlpha` names every opacity, by role: `QUIET_SURFACE`, `CONTROL_FILL` / `CONTROL_FILL_STRONG`,
 `WELL`, `BORDER`, `DIVIDER`, `SCRIM` / `SCRIM_SIDE`, `PLATE`, `TRACK`, `FOCUS_QUIET`, `LIT_DISC`,
-`CONTROL_DETAIL`, `ARTWORK_EDGE`, `WORDMARK_GLOW`.
+`ARTWORK_EDGE`, `WORDMARK_GLOW`.
+
+**Contrast.** Text reaches 4.5:1 and icons and marks 3:1 on the surface they really sit on, each
+translucent layer composed over what lies under it. `ContrastTest` lists every pair the system
+draws and checks it on every build: a new pair goes there before a component uses it. The states of
+a control are named colours, never an opacity laid on the current one: the line under a name is
+`contentTertiary` at rest, `contentSecondary` when chosen, `onFocusSecondary` with focus. Two pairs
+are forbidden: `contentTertiary` on a `WELL` row inside a raised panel (≈ 4.09:1) and on
+`CONTROL_FILL_STRONG` (≈ 3.66:1). There, the quiet line stays `contentSecondary`, as in setting
+rows and buttons.
 
 ### Type (`Type.kt`)
 
@@ -220,15 +233,22 @@ Focus must read from the couch:
 `DesignTokenGuardTest` reads every file under `ui/` except `ui/design/` and fails on a size, text size,
 font, colour, opacity or shape written in a screen, and on arithmetic with a token (`safeH - m`): an
 alignment worked out in a screen gets a name in `Dimens.kt`. `SpacingGridTest` keeps `HlSpace` and
-`HlInset` on the 4 dp grid; `TypeScaleTest` keeps the type scale honest. Deliberate exceptions go in its `allowed` list,
-with the reason; a value needed twice belongs in the design system instead.
+`HlInset` on the 4 dp grid; `TypeScaleTest` keeps the type scale honest, `ContrastTest` the contrasts,
+`CatalogCoverageTest` the catalogue complete.
+Deliberate exceptions go in the guard's `allowed` list, with the reason; a value needed twice belongs
+in the design system instead.
 
 ## Catalogue
 
-Debug builds show **Settings > About > Design system**: every token and component in its states
-(the voices side by side, every card state, both sheets, and a stress section with the longest
-French labels and the fullest rows), to
-review changes on a real screen.
+Debug builds show **Settings > About > Design system**: every token and component in its states, to
+review changes on a real screen. Each component is laid out as a row of its states (at rest, chosen,
+lit, loading, failed, empty), each named underneath; focus is checked live with the remote. The
+catalogue shows components as they are, defects included: that is how they are seen. Its sections
+live in `ui/catalog` (`CatalogScreen` for tokens, controls and sheets; `CatalogForms`, `CatalogCards`,
+`CatalogReading`; `CatalogStress` for the longest French labels, the fullest rows, the scripts
+Archivo lacks and a line on the device: size in dp, density, text scale). `CatalogCoverageTest` fails
+when a public component of `ui/design/components` is missing; the few that fill the screen are listed
+there with the reason.
 
 ## Adding a screen
 

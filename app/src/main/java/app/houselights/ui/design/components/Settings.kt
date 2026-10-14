@@ -91,7 +91,11 @@ fun HlNavItem(
                     Text(
                         summary,
                         style = Hl.type.detail,
-                        color = LocalContentColor.current.copy(alpha = HlAlpha.CONTROL_DETAIL),
+                        color = when {
+                            focused -> c.onFocusSecondary
+                            selected -> c.contentSecondary
+                            else -> c.contentTertiary
+                        },
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -158,10 +162,11 @@ fun HlSettingRow(
                 Text(title, style = Hl.type.entry, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 if (description != null) {
                     Spacer(Modifier.height(HlSpace.xxs))
+                    // Secondary at rest: tertiary would fall to 4.09:1 on a row inside a raised sheet.
                     Text(
                         description,
                         style = Hl.type.detail,
-                        color = if (focused) LocalContentColor.current.copy(alpha = HlAlpha.CONTROL_DETAIL) else c.contentSecondary,
+                        color = if (focused) c.onFocusSecondary else c.contentSecondary,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                     )

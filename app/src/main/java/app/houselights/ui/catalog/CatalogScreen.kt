@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.foundation.focusable
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -32,16 +31,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.tv.material3.Text
-import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
-import app.houselights.core.UserState
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
-import app.houselights.ui.design.revealOnFocus
 import app.houselights.ui.design.components.Badge
 import app.houselights.ui.design.components.Backdrop
 import app.houselights.ui.design.components.BackdropStyle
@@ -67,7 +63,6 @@ import app.houselights.ui.design.components.MeterLegend
 import app.houselights.ui.design.components.MeterSegment
 import app.houselights.ui.design.components.PanelLevel
 import app.houselights.ui.design.components.ScreenTitle
-import app.houselights.ui.design.components.SectionHeader
 import app.houselights.ui.design.components.StatusState
 import app.houselights.ui.design.components.Wordmark
 
@@ -97,7 +92,8 @@ fun CatalogScreen() {
                         listOf(
                             "background" to c.background, "surface" to c.surface, "raised" to c.surfaceRaised,
                             "outline" to c.outline, "decorative" to c.contentDecorative, "tertiary" to c.contentTertiary,
-                            "secondary" to c.contentSecondary, "content" to c.content, "tungsten" to c.tungsten,
+                            "secondary" to c.contentSecondary, "content" to c.content, "on focus, detail" to c.onFocusSecondary,
+                            "tungsten" to c.tungsten,
                         ).forEach { (name, color) -> Swatch(name, color) }
                     }
                 }
@@ -236,6 +232,10 @@ fun CatalogScreen() {
                 }
             }
 
+            catalogForms()
+            catalogCards()
+            catalogReading()
+
             item {
                 // The longest French labels and the fullest rows the screens can meet: nothing here
                 // may be cut or pushed out.
@@ -277,20 +277,10 @@ fun CatalogScreen() {
                 }
             }
 
+            catalogStress()
+
             item { Wordmark(style = t.wordmarkHero) }
         }
-    }
-}
-
-/**
- * A section of the catalogue. Sections with nothing to focus ([still]) take focus themselves, so
- * the remote can step through every one.
- */
-@Composable
-private fun Group(title: String, modifier: Modifier = Modifier, still: Boolean = false, content: @Composable () -> Unit) {
-    Column(modifier.revealOnFocus().then(if (still) Modifier.focusable() else Modifier), verticalArrangement = Arrangement.spacedBy(HlSpace.m)) {
-        SectionHeader(title)
-        content()
     }
 }
 
@@ -310,22 +300,3 @@ private fun Specimen(name: String, style: TextStyle) {
         Text("Houselights 2,39:1 ${style.fontSize.value.toInt()} sp", style = style, color = Hl.colors.content, maxLines = 1, modifier = Modifier.padding(start = HlSpace.s))
     }
 }
-
-/** A title with no artwork, in the state asked for. */
-private fun sample(
-    title: String,
-    year: Int,
-    kind: MediaKind = MediaKind.MOVIE,
-    played: Boolean = false,
-    unplayed: Int? = null,
-    positionMs: Long = 0,
-    addedAt: Long? = null,
-) = MediaItem(
-    id = "catalog-$title",
-    kind = kind,
-    title = title,
-    year = year,
-    runtimeMs = 3_600_000,
-    user = UserState(played = played, unplayedCount = unplayed, positionMs = positionMs),
-    addedAt = addedAt,
-)

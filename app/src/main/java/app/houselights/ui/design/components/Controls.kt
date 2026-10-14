@@ -51,7 +51,6 @@ import androidx.compose.ui.unit.dp
 import androidx.tv.material3.Border
 import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.Icon
-import androidx.tv.material3.LocalContentColor
 import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
 import app.houselights.ui.design.Hl
@@ -83,6 +82,8 @@ fun HlButton(
     emphasis: Emphasis = Emphasis.Secondary,
 ) {
     val c = Hl.colors
+    val interaction = remember { MutableInteractionSource() }
+    val focused by interaction.collectIsFocusedAsState()
     // A Surface rather than tv-material's Button, whose content keeps a minimum height of its own
     // at the top of the control: here the content is centred in exactly the control height.
     Surface(
@@ -98,6 +99,7 @@ fun HlButton(
             pressedContentColor = c.onFocus,
         ),
         scale = ClickableSurfaceDefaults.scale(focusedScale = HlFocus.CONTROL_SCALE),
+        interactionSource = interaction,
     ) {
         Row(
             Modifier.align(Alignment.Center).padding(
@@ -113,7 +115,8 @@ fun HlButton(
             Text(text, style = Hl.type.label, maxLines = 1, softWrap = false)
             if (detail != null) {
                 Spacer(Modifier.width(HlSpace.s))
-                Text(detail, style = Hl.type.meta, color = LocalContentColor.current.copy(alpha = HlAlpha.CONTROL_DETAIL))
+                // Secondary at rest: tertiary would fall to 3.66:1 on a primary button.
+                Text(detail, style = Hl.type.meta, color = if (focused) c.onFocusSecondary else c.contentSecondary)
             }
         }
     }
