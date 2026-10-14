@@ -84,6 +84,7 @@ fun Backdrop(image: ImageRef?, style: BackdropStyle, modifier: Modifier = Modifi
                 )
             )
         )
+        WallLights()
         // Light from the picture, reflected on the room below it; stronger once the room is dark.
         Box(
             Modifier.fillMaxSize().drawBehind {

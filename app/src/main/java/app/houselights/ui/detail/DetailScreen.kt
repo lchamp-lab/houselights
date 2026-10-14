@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
@@ -124,7 +125,8 @@ fun DetailScreen(
                     verticalArrangement = Arrangement.spacedBy(HlSpace.l),
                 ) {
                     item(key = "hero") {
-                        Box(Modifier.fillMaxWidth().height(screenHeight * 0.9f).revealOnFocus()) {
+                        // At least most of the screen; taller rather than squeezed when the text is long.
+                        Box(Modifier.fillMaxWidth().heightIn(min = screenHeight * 0.9f).revealOnFocus()) {
                             Hero(
                                 item = item,
                                 nextUp = state.nextUp,
@@ -136,7 +138,7 @@ fun DetailScreen(
                                 onOpenNfo = { onOpenNfo(item.id) },
                                 onShowTech = if (media != null) ({ showTech = true }) else null,
                                 onEdit = if (state.canEdit) ({ showEdit = true }) else null,
-                                modifier = Modifier.padding(start = HlSpace.safeH, bottom = HlSpace.l).align(Alignment.BottomStart),
+                                modifier = Modifier.padding(start = HlSpace.safeH, top = HlSpace.safeV + HlSpace.m, bottom = HlSpace.l).align(Alignment.BottomStart),
                             )
                         }
                     }

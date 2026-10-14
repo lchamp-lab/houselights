@@ -2,6 +2,7 @@ package app.houselights.ui.design.components
 
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.padding
@@ -10,11 +11,13 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -92,7 +95,8 @@ fun BadgeRow(badges: List<String>, modifier: Modifier = Modifier) {
 
 /**
  * The credits at the foot of a poster: names in tall condensed capitals, joined by small
- * words ("a film by", "with"). The one place where Houselights sets words in capitals.
+ * words ("a film by", "with"). Always one line: it keeps as many leading names as fit. The one
+ * place where Houselights sets words in capitals.
  */
 @Composable
 fun BillingBlock(directors: List<String>, cast: List<String>, modifier: Modifier = Modifier) {
@@ -102,8 +106,8 @@ fun BillingBlock(directors: List<String>, cast: List<String>, modifier: Modifier
     val locale = Locale.getDefault()
     val by = stringResource(R.string.billing_by)
     val with = stringResource(R.string.billing_with)
-    val credits = buildAnnotatedString {
-        // A line may break between names, never inside one or after "with".
+    fun credits(castCount: Int) = buildAnnotatedString {
+        // Names never break inside, nor away from the word before them.
         fun join(word: String) = withStyle(t.billingJoin.toSpanStyle().copy(color = c.contentTertiary)) { append(word.unbreakable() + NBSP) }
         fun names(list: List<String>) = list.forEachIndexed { i, name ->
             if (i > 0) append(GAP)
@@ -113,18 +117,29 @@ fun BillingBlock(directors: List<String>, cast: List<String>, modifier: Modifier
             join(by)
             names(directors.take(1))
         }
-        if (cast.isNotEmpty()) {
+        if (castCount > 0) {
             if (directors.isNotEmpty()) append(GAP)
             join(with)
-            names(cast.take(3))
+            names(cast.take(castCount))
         }
     }
-    Text(credits, style = t.billing, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = modifier)
+    val measurer = rememberTextMeasurer()
+    BoxWithConstraints(modifier) {
+        val width = constraints.maxWidth
+        val line = remember(directors, cast, width) {
+            val most = minOf(cast.size, 3)
+            val least = if (directors.isEmpty()) minOf(1, most) else 0
+            (most downTo least).map(::credits)
+                .firstOrNull { measurer.measure(it, t.billing, softWrap = false, maxLines = 1).size.width <= width }
+                ?: credits(least)
+        }
+        Text(line, style = t.billing, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
 }
 
 private const val NBSP = "\u00A0"
 
-/** Between names: three spaces wide, no punctuation, and the only place a line may break. */
+/** Between names: three spaces wide, no punctuation. */
 private const val GAP = "$NBSP$NBSP "
 
 private fun String.unbreakable() = replace(' ', '\u00A0').replace('-', '\u2011')

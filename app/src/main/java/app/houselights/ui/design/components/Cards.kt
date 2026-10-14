@@ -47,7 +47,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.Border
 import androidx.tv.material3.ClickableSurfaceDefaults
-import androidx.tv.material3.Glow
 import androidx.tv.material3.Icon
 import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
@@ -59,7 +58,7 @@ import app.houselights.ui.design.HlMotion
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
-import app.houselights.ui.design.LocalAmbient
+import app.houselights.ui.design.aisleLight
 import app.houselights.ui.design.revealOnFocus
 import app.houselights.ui.util.toPx
 import coil.compose.AsyncImage
@@ -97,7 +96,7 @@ fun MediaRow(
 
 /**
  * Focus treatment shared by every piece of artwork: it grows, gets a thin projector-white
- * outline and glows with the ambient light, while its neighbours dim.
+ * outline and an aisle light on the floor below it, while its neighbours dim.
  */
 @Composable
 fun ArtworkSurface(
@@ -118,13 +117,14 @@ fun ArtworkSurface(
     val c = Hl.colors
     Surface(
         onClick = onClick,
-        modifier = modifier.onFocusChanged { if (it.isFocused) onFocused() },
+        modifier = modifier
+            .onFocusChanged { if (it.isFocused) onFocused() }
+            .aisleLight(focused, focusedScale),
         shape = ClickableSurfaceDefaults.shape(shape),
         scale = ClickableSurfaceDefaults.scale(focusedScale = focusedScale),
         border = ClickableSurfaceDefaults.border(
             focusedBorder = Border(BorderStroke(HlSize.focusBorder, c.focus), shape = shape),
         ),
-        glow = ClickableSurfaceDefaults.glow(focusedGlow = Glow(LocalAmbient.current, HlFocus.glow)),
         colors = ClickableSurfaceDefaults.colors(
             containerColor = c.surface,
             focusedContainerColor = c.surface,

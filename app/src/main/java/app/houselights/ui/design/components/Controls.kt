@@ -43,6 +43,7 @@ import app.houselights.ui.design.HlMotion
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.aisleLight
 
 enum class Emphasis { Primary, Secondary }
 
@@ -61,9 +62,12 @@ fun HlButton(
     emphasis: Emphasis = Emphasis.Secondary,
 ) {
     val c = Hl.colors
+    val interaction = remember { MutableInteractionSource() }
+    val focused by interaction.collectIsFocusedAsState()
     Button(
         onClick = onClick,
-        modifier = modifier,
+        modifier = modifier.aisleLight(focused, HlFocus.CONTROL_SCALE),
+        interactionSource = interaction,
         shape = ButtonDefaults.shape(HlShapes.control),
         colors = ButtonDefaults.colors(
             containerColor = c.content.copy(alpha = if (emphasis == Emphasis.Primary) 0.22f else 0.09f),
@@ -105,7 +109,7 @@ fun HlIconButton(
     Column(modifier.width(HlSize.iconButton), horizontalAlignment = Alignment.CenterHorizontally) {
         Surface(
             onClick = onClick,
-            modifier = Modifier.size(HlSize.iconButton),
+            modifier = Modifier.size(HlSize.iconButton).aisleLight(focused, HlFocus.CONTROL_SCALE),
             shape = ClickableSurfaceDefaults.shape(HlShapes.avatar),
             scale = ClickableSurfaceDefaults.scale(focusedScale = HlFocus.CONTROL_SCALE),
             colors = ClickableSurfaceDefaults.colors(
