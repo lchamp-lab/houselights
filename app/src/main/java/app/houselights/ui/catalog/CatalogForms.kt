@@ -72,38 +72,51 @@ private fun FormCase(caption: String, modifier: Modifier = Modifier, content: @C
 @Composable
 private fun FormTextFields() {
     Text(
-        "Focus outlines a field in projector white; OK opens the keyboard, and the edge turns tungsten while typing.",
+        "Focus outlines a field in projector white and shows, at its end, that OK types; OK opens the keyboard, " +
+            "and the edge turns tungsten while typing, and only then. Every field has a name, read out even when hidden.",
         style = Hl.type.caption,
         color = Hl.colors.contentTertiary,
     )
-    // Bottom-aligned, so a field without a label shows what it lacks next to the others.
+    // Bottom-aligned, so a field without its label shows next to the others.
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Bottom) {
         var host by remember { mutableStateOf("") }
         FormCase("empty, label and placeholder", Modifier.weight(1f)) {
-            HlTextField("Adresse du NAS", host, { host = it }, placeholder = "192.168.1.10", keyboardType = KeyboardType.Uri)
+            HlTextField("Adresse du NAS", host, { host = it }, placeholder = "Ex. : 192.168.1.10", keyboardType = KeyboardType.Uri)
         }
         var share by remember { mutableStateOf("media") }
         FormCase("filled", Modifier.weight(1f)) {
-            HlTextField("Partage", share, { share = it }, placeholder = "media")
+            HlTextField("Partage", share, { share = it }, placeholder = "Ex. : media")
         }
         var secret by remember { mutableStateOf("cinema1967") }
         FormCase("password", Modifier.weight(1f)) {
             HlTextField("Mot de passe", secret, { secret = it }, password = true, imeAction = ImeAction.Done)
         }
     }
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Bottom) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Top) {
         var key by remember { mutableStateOf("") }
-        FormCase("no label, no placeholder (TMDB key)", Modifier.weight(1f)) {
-            HlTextField("", key, { key = it }, password = true, imeAction = ImeAction.Done)
+        FormCase("label hidden, read out; placeholder, supporting line", Modifier.weight(1f)) {
+            HlTextField(
+                "Clé personnelle", key, { key = it },
+                placeholder = "Clé personnelle",
+                showLabel = false,
+                supporting = "Laissez vide pour utiliser la clé intégrée à l’application.",
+                password = true,
+                imeAction = ImeAction.Done,
+            )
+        }
+        var refused by remember { mutableStateOf("0123456789abcdef0123456789abcdef") }
+        FormCase("error: in tungsten under the field, its edge unchanged", Modifier.weight(1f)) {
+            HlTextField(
+                "Clé personnelle", refused, { refused = it },
+                showLabel = false,
+                error = "TMDB refuse cette clé",
+                password = true,
+                imeAction = ImeAction.Done,
+            )
         }
         var export by remember { mutableStateOf("/volume1/video/Films/Cinéma français/Nouvelle Vague/Restaurations 4K") }
         FormCase("value longer than the field", Modifier.weight(1f)) {
-            HlTextField("Export NFS", export, { export = it }, placeholder = "/volume1/media")
-        }
-        var user by remember { mutableStateOf("") }
-        FormCase("FieldLabel over an unlabelled field", Modifier.weight(1f)) {
-            FieldLabel("Utilisateur")
-            HlTextField("", user, { user = it })
+            HlTextField("Export NFS", export, { export = it }, placeholder = "Ex. : /volume1/media")
         }
     }
     var protocol by remember { mutableIntStateOf(0) }

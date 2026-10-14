@@ -126,8 +126,9 @@ internal fun SheetWindow(
  * A panel the full height of the screen, against its right edge, for acting on what the screen
  * shows (editing a title, the actions of a folder, the choices of a setting) while it stays in
  * view on the left. From the top: what the panel does ([title], in the voice of the poster), what
- * it is about ([artwork], [subject], [facts], [description]), a hairline, the rows, and the Back
- * hint. There is no Close button: Back closes, as choosing does through [SheetScope.dismiss].
+ * it is about ([artwork], [subject], [facts], where it stands as an [HlStatus] in [status],
+ * [description]), a hairline, the rows, and the Back hint. There is no Close button: Back closes,
+ * as choosing does through [SheetScope.dismiss].
  */
 @Composable
 fun HlSideSheet(
@@ -139,6 +140,7 @@ fun HlSideSheet(
     description: String? = null,
     artwork: (@Composable () -> Unit)? = null,
     initialFocus: FocusRequester? = null,
+    status: (@Composable () -> Unit)? = null,
     content: @Composable ColumnScope.(sheet: SheetScope) -> Unit,
 ) {
     SheetWindow(onDismiss, HlAlpha.SCRIM_SIDE, initialFocus) { progress, sheet ->
@@ -156,7 +158,7 @@ fun HlSideSheet(
                     .weight(1f)
                     .padding(start = HlInset.sheet, end = HlSpace.safeH, top = HlSpace.safeV, bottom = HlSpace.safeV),
             ) {
-                SheetHeader(title, subject, facts, description, artwork)
+                SheetHeader(title, subject, facts, description, artwork, status)
                 Spacer(Modifier.height(HlSpace.m))
                 HlDivider()
                 Spacer(Modifier.height(HlSpace.m))
@@ -178,6 +180,7 @@ private fun SheetHeader(
     facts: List<String?>,
     description: String?,
     artwork: (@Composable () -> Unit)?,
+    status: (@Composable () -> Unit)?,
 ) {
     val c = Hl.colors
     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -196,6 +199,10 @@ private fun SheetHeader(
                 FactRow(facts)
             }
         }
+    }
+    if (status != null) {
+        Spacer(Modifier.height(HlSpace.s))
+        status()
     }
     if (description != null) {
         Spacer(Modifier.height(HlSpace.s))

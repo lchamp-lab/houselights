@@ -74,7 +74,7 @@ fun JellyfinLoginScreen(onLoggedIn: () -> Unit) {
             label = stringResource(R.string.field_server),
             value = server,
             onValueChange = { vm.server = it },
-            placeholder = "192.168.1.10:8096",
+            placeholder = stringResource(R.string.placeholder_server),
             keyboardType = KeyboardType.Uri,
             modifier = Modifier.focusRequester(firstField),
         )

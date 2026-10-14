@@ -115,18 +115,19 @@ fun AddFolderScreen(onAdded: (switched: Boolean) -> Unit) {
         }
         HlTextField(
             stringResource(R.string.field_host), form.host, { v -> vm.edit { copy(host = v) } },
-            placeholder = "192.168.1.10", keyboardType = KeyboardType.Uri,
+            placeholder = stringResource(R.string.placeholder_host), keyboardType = KeyboardType.Uri,
         )
         Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.s)) {
             HlTextField(
                 stringResource(if (protocol == Protocol.NFS) R.string.field_export else R.string.field_share),
                 form.share, { v -> vm.edit { copy(share = v) } },
-                placeholder = if (protocol == Protocol.NFS) "/volume1/media" else "media",
+                placeholder = stringResource(shareExample(protocol)),
                 modifier = Modifier.weight(1f),
             )
             HlTextField(
                 stringResource(R.string.field_path), form.path, { v -> vm.edit { copy(path = v) } },
-                placeholder = if (kind == SourceKind.SHOWS) "series" else "films", modifier = Modifier.weight(1f),
+                placeholder = stringResource(pathExample(kind)),
+                modifier = Modifier.weight(1f),
             )
         }
         if (protocol == Protocol.SMB) {
@@ -181,6 +182,14 @@ private fun FolderActions(vm: AddFolderViewModel, onAdded: (switched: Boolean) -
         )
     }
 }
+
+/** An example of the share, by protocol. */
+private fun shareExample(protocol: Protocol): Int =
+    if (protocol == Protocol.NFS) R.string.placeholder_export else R.string.placeholder_share
+
+/** An example of the folder inside the share, by what it holds. */
+private fun pathExample(kind: SourceKind): Int =
+    if (kind == SourceKind.SHOWS) R.string.placeholder_path_shows else R.string.placeholder_path_movies
 
 /** Where the connection to the folder stands, and how to say it. */
 private fun connectionState(check: FolderCheck?, busy: Boolean): Pair<StatusState, Int> = when {

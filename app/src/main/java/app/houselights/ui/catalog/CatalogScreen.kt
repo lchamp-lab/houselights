@@ -59,6 +59,7 @@ import app.houselights.ui.design.components.HlSettingGroup
 import app.houselights.ui.design.components.HlSettingRow
 import app.houselights.ui.design.components.HlSideSheet
 import app.houselights.ui.design.components.HlStatus
+import app.houselights.ui.design.components.HlTextField
 import app.houselights.ui.design.components.MeterLegend
 import app.houselights.ui.design.components.MeterSegment
 import app.houselights.ui.design.components.PanelLevel
@@ -198,10 +199,13 @@ fun CatalogScreen() {
                 Group("Sheets") {
                     var side by remember { mutableStateOf(false) }
                     var reading by remember { mutableStateOf(false) }
+                    var keyed by remember { mutableStateOf(false) }
                     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.s)) {
                         HlButton("Side sheet", { side = true })
                         HlButton("Reading sheet", { reading = true })
+                        HlButton("A status, a field", { keyed = true })
                     }
+                    if (keyed) SheetStatusField(onDismiss = { keyed = false })
                     if (side) {
                         HlSideSheet(
                             "Modifier",
@@ -354,6 +358,41 @@ private fun ControlCase(caption: String, content: @Composable () -> Unit) {
         content()
         Spacer(Modifier.height(HlSpace.xs))
         Text(caption, style = Hl.type.caption, color = Hl.colors.contentTertiary)
+    }
+}
+
+/** Where a setting stands, at the head of its sheet; then a field and the action that checks it. */
+@Composable
+private fun SheetStatusField(onDismiss: () -> Unit) {
+    var key by remember { mutableStateOf("0123456789abcdef0123456789abcdef") }
+    var checking by remember { mutableStateOf(false) }
+    var refused by remember { mutableStateOf(false) }
+    LaunchedEffect(checking) {
+        if (checking) {
+            delay(CATALOG_BUSY_MS)
+            checking = false
+            refused = true
+        }
+    }
+    HlSideSheet(
+        "Clé API TMDB",
+        onDismiss = onDismiss,
+        description = "Les affiches et les informations proviennent de TMDB.",
+        status = { HlStatus(StatusState.On, "Clé intégrée") },
+    ) {
+        HlTextField(
+            "Clé personnelle", key, {
+                key = it
+                refused = false
+            },
+            placeholder = "Clé personnelle",
+            showLabel = false,
+            supporting = "Laissez vide pour utiliser la clé intégrée à l’application.",
+            error = if (refused) "TMDB refuse cette clé" else null,
+            password = true,
+        )
+        Spacer(Modifier.height(HlSpace.l))
+        HlButton("Enregistrer", { checking = true }, emphasis = Emphasis.Primary, busy = checking, busyLabel = "Vérification…")
     }
 }
 

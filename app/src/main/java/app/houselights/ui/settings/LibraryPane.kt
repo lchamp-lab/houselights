@@ -32,6 +32,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.tv.material3.Text
@@ -44,6 +45,7 @@ import app.houselights.providers.local.ScanError
 import app.houselights.providers.local.SourceEntity
 import app.houselights.providers.local.SourceKind
 import app.houselights.providers.local.TmdbClient.Companion.ImageType
+import app.houselights.providers.local.TmdbKeyCheck
 import app.houselights.providers.local.address
 import app.houselights.settings.AppSettings
 import app.houselights.ui.design.Hl
@@ -66,7 +68,9 @@ import app.houselights.ui.design.components.PosterThumb
 import app.houselights.ui.design.components.HlPanelButton
 import app.houselights.ui.design.components.HlSettingGroup
 import app.houselights.ui.design.components.HlSettingRow
+import app.houselights.ui.design.components.HlStatus
 import app.houselights.ui.design.components.HlTextField
+import app.houselights.ui.design.components.StatusState
 import app.houselights.ui.design.components.ProgressLine
 import app.houselights.ui.design.revealOnFocus
 import app.houselights.ui.util.scanErrorText
@@ -382,7 +386,7 @@ private fun LibraryActions(
         CollectionsRow()
         SourceRow(onUseFolders, onSignIn, rows.focus(SOURCE))
     }
-    if (editKey) TmdbKeyDialog(onDismiss = { editKey = false })
+    if (editKey) TmdbKeySheet(onDismiss = { editKey = false })
 }
 
 /** When a saga shows as a collection: from two films (default), always, or never. */
@@ -537,35 +541,103 @@ private fun PlusIcon() {
     androidx.tv.material3.Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.width(HlSize.icon))
 }
 
+/**
+ * The TMDB key: the one in use, at the head; a field for a personal key, checked with TMDB when
+ * saved (a key TMDB refuses is not kept); once there is one, the way back to the built-in key.
+ */
 @Composable
-private fun TmdbKeyDialog(onDismiss: () -> Unit) {
+private fun TmdbKeySheet(onDismiss: () -> Unit) {
     val vm = settingsViewModel()
     val s by vm.settings.collectAsStateWithLifecycle()
     var key by remember { mutableStateOf(s.tmdbApiKey ?: "") }
+    var checking by remember { mutableStateOf(false) }
+    var refused by remember { mutableStateOf(false) }
+    var unchecked by remember { mutableStateOf(false) }
     val field = remember { FocusRequester() }
     val hasBuiltIn = BuildConfig.TMDB_API_KEY.isNotBlank()
+    val personal = s.tmdbApiKey != null
     HlSideSheet(
         stringResource(R.string.tmdb_key),
         onDismiss,
         description = stringResource(R.string.tmdb_desc),
         initialFocus = field,
+        status = { TmdbKeyStatus(personal, hasBuiltIn, unchecked) },
     ) { sheet ->
-        HlTextField("", key, { key = it }, password = true, modifier = Modifier.fillMaxWidth().focusRequester(field))
-        Spacer(Modifier.height(HlSpace.s))
-        Text(
-            stringResource(if (hasBuiltIn) R.string.tmdb_key_builtin else R.string.tmdb_key_missing),
-            style = Hl.type.detail,
-            color = if (hasBuiltIn) Hl.colors.contentSecondary else Hl.colors.tungsten,
+        fun save() {
+            if (checking) return
+            checking = true
+            vm.saveTmdbApiKey(key) { check ->
+                checking = false
+                when (check) {
+                    TmdbKeyCheck.ACCEPTED -> sheet.dismiss()
+                    TmdbKeyCheck.REFUSED -> {
+                        refused = true
+                        runCatching { field.requestFocus() }
+                    }
+                    // Saved all the same: the sheet stays to say it could not be checked.
+                    TmdbKeyCheck.UNCHECKED -> unchecked = true
+                }
+            }
+        }
+        // The sheet already names the key: the field's label is only read out.
+        HlTextField(
+            stringResource(R.string.tmdb_key_personal),
+            key,
+            {
+                key = it
+                refused = false
+            },
+            Modifier.fillMaxWidth().focusRequester(field),
+            placeholder = stringResource(R.string.tmdb_key_personal),
+            showLabel = false,
+            supporting = stringResource(if (hasBuiltIn) R.string.tmdb_key_builtin else R.string.tmdb_key_free),
+            error = if (refused) stringResource(R.string.error_tmdb_key_refused_title) else null,
+            password = true,
+            imeAction = ImeAction.Done,
+            onImeAction = ::save,
         )
         Spacer(Modifier.height(HlSpace.l))
         HlButton(
             stringResource(R.string.save),
-            { vm.setTmdbApiKey(key) { sheet.dismiss() } },
+            onClick = ::save,
             icon = Icons.Filled.Check,
             emphasis = Emphasis.Primary,
+            busy = checking,
+            busyLabel = stringResource(R.string.checking),
+        )
+        if (personal && hasBuiltIn) {
+            Spacer(Modifier.height(HlSpace.l))
+            HlSettingRow(
+                stringResource(R.string.tmdb_key_revert),
+                description = stringResource(R.string.tmdb_key_revert_desc),
+                onClick = { vm.saveTmdbApiKey("") { sheet.dismiss() } },
+                chevron = false,
+            )
+        }
+    }
+}
+
+/**
+ * The key in use, at the head of its sheet: the user's own (said unchecked when TMDB could not be
+ * asked), the built-in one, or none, which calls for attention.
+ */
+@Composable
+private fun TmdbKeyStatus(personal: Boolean, hasBuiltIn: Boolean, unchecked: Boolean) {
+    when {
+        personal -> HlStatus(
+            StatusState.On,
+            stringResource(R.string.tmdb_key_personal),
+            detail = if (unchecked) stringResource(R.string.tmdb_key_unchecked) else null,
+        )
+        hasBuiltIn -> HlStatus(StatusState.On, stringResource(R.string.tmdb_key_builtin_state))
+        else -> HlStatus(
+            StatusState.Attention,
+            stringResource(R.string.tmdb_key_none),
+            detail = stringResource(R.string.tmdb_key_none_desc),
         )
     }
 }
+
 /** Posters in a source card's strip. */
 private const val STRIP = 6
 
