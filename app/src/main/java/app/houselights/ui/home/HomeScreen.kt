@@ -133,9 +133,11 @@ fun HomeScreen(
 
 @Composable
 private fun TopBar(libraries: List<Library>, onLibrary: (Library) -> Unit, onSettings: () -> Unit) {
-    // Where you are among the libraries, in one track; settings apart, as an action.
+    // Where you are among the libraries, in one track; settings apart, as an action. Both sit on
+    // the image, on their plates. A long track scrolls: the button always keeps its place.
     Row(
         Modifier.fillMaxWidth().padding(start = HlSpace.safeH, end = HlSpace.safeH, top = HlSpace.safeV),
+        horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.Top,
     ) {
         // The white slides to the library chosen, then it opens; back home, "Accueil" is lit again.
@@ -153,9 +155,11 @@ private fun TopBar(libraries: List<Library>, onLibrary: (Library) -> Unit, onSet
                     }
                 }
             },
+            modifier = Modifier.weight(1f, fill = false).padding(end = HlSpace.l),
+            scrollable = true,
+            onArtwork = true,
         )
-        Spacer(Modifier.weight(1f))
-        HlIconButton(Icons.Filled.Settings, stringResource(R.string.nav_settings), onClick = onSettings)
+        HlIconButton(Icons.Filled.Settings, stringResource(R.string.nav_settings), onClick = onSettings, onArtwork = true)
     }
 }
 

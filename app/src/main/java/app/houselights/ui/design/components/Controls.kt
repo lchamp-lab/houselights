@@ -133,7 +133,8 @@ fun HlButton(
  * takes no room: it overflows under the button, so a row that has nothing below it (the home bar)
  * stays as tall as its controls, and a row that does reserves [HlLayout.iconLabelRoom]. Near the
  * side of the screen, the label slides along to stay inside the safe area; under a sheet, which
- * has the window, it hides. The icon carries the name for accessibility.
+ * has the window, it hides. The icon carries the name for accessibility. [onArtwork] sets the
+ * button and its label on a dark plate, so they read over any image.
  */
 @Composable
 fun HlIconButton(
@@ -141,6 +142,7 @@ fun HlIconButton(
     label: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    onArtwork: Boolean = false,
 ) {
     val interaction = remember { MutableInteractionSource() }
     val focused by interaction.collectIsFocusedAsState()
@@ -148,6 +150,7 @@ fun HlIconButton(
     val shown = focused && LocalWindowInfo.current.isWindowFocused
     val labelAlpha by animateFloatAsState(if (shown) 1f else 0f, tween(HlMotion.FAST), label = "label")
     val c = Hl.colors
+    val restFill = if (onArtwork) c.background.copy(alpha = HlAlpha.PLATE) else c.content.copy(alpha = HlAlpha.CONTROL_FILL)
     Layout(
         modifier = modifier,
         content = {
@@ -157,7 +160,7 @@ fun HlIconButton(
                 shape = ClickableSurfaceDefaults.shape(HlShapes.avatar),
                 scale = ClickableSurfaceDefaults.scale(focusedScale = HlFocus.CONTROL_SCALE),
                 colors = ClickableSurfaceDefaults.colors(
-                    containerColor = c.content.copy(alpha = HlAlpha.CONTROL_FILL),
+                    containerColor = restFill,
                     contentColor = c.content,
                     focusedContainerColor = c.focus,
                     focusedContentColor = c.onFocus,
@@ -174,7 +177,18 @@ fun HlIconButton(
                 color = c.content,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.clearAndSetSemantics {}.graphicsLayer { alpha = labelAlpha },
+                modifier = Modifier
+                    .clearAndSetSemantics {}
+                    .graphicsLayer { alpha = labelAlpha }
+                    .then(
+                        if (onArtwork) {
+                            Modifier
+                                .background(c.background.copy(alpha = HlAlpha.PLATE), HlShapes.control)
+                                .padding(horizontal = HlSpace.xs)
+                        } else {
+                            Modifier
+                        },
+                    ),
             )
         },
     ) { measurables, constraints ->
@@ -251,7 +265,8 @@ fun HlListItem(
  * what is chosen (protocol, content type). The selected option is a softly lit pill; focus turns
  * an option projector white, like every control. With [selectOnFocus], moving onto an option
  * selects it, as tabs over content do on TV. [scrollable] lets a long track (seasons) scroll
- * within the screen.
+ * within the screen. [onArtwork] lays the track on a dark plate and its options in projector
+ * white, so it reads over any image.
  */
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
@@ -262,6 +277,7 @@ fun HlSegmented(
     modifier: Modifier = Modifier,
     selectOnFocus: Boolean = false,
     scrollable: Boolean = false,
+    onArtwork: Boolean = false,
 ) {
     val density = LocalDensity.current
     val places = remember(options.size) { mutableStateMapOf<Int, Pair<Float, Float>>() }
@@ -272,8 +288,9 @@ fun HlSegmented(
     val content = if (scrollable) Modifier.horizontalScroll(scroll).padding(horizontal = ringReach) else Modifier
 
     // Not clipped: the ring of a focused current option may reach past the track's edge.
+    val well = if (onArtwork) Hl.colors.background.copy(alpha = HlAlpha.PLATE) else Hl.colors.content.copy(alpha = HlAlpha.WELL)
     val track = modifier
-        .background(Hl.colors.content.copy(alpha = HlAlpha.WELL), HlShapes.control)
+        .background(well, HlShapes.control)
         .padding(vertical = HlSpace.xxs, horizontal = if (scrollable) HlSpace.none else HlSpace.xxs)
     RowScroll {
         Box(track) {
@@ -317,6 +334,7 @@ fun HlSegmented(
                         SegmentItem(
                             label,
                             selected = i == selected,
+                            onArtwork = onArtwork,
                             onClick = { onSelect(i) },
                             onFocused = { if (selectOnFocus) onSelect(i) },
                             modifier = Modifier.onPlaced { places[i] = it.positionInParent().x to it.size.width.toFloat() },
@@ -342,6 +360,7 @@ private const val NONE = -1
 private fun SegmentItem(
     text: String,
     selected: Boolean,
+    onArtwork: Boolean,
     onClick: () -> Unit,
     onFocused: () -> Unit,
     modifier: Modifier = Modifier,
@@ -349,7 +368,9 @@ private fun SegmentItem(
 ) {
     val c = Hl.colors
     val fade = tween<Color>(HlMotion.STANDARD, easing = HlMotion.emphasized)
-    val restContent by animateColorAsState(if (selected) c.onFocus else c.contentSecondary, fade, label = "segmentText")
+    // On the plate over an image, grey would fall to 3.5:1: the options at rest are white there.
+    val rest = if (onArtwork) c.content else c.contentSecondary
+    val restContent by animateColorAsState(if (selected) c.onFocus else rest, fade, label = "segmentText")
     val focusedContent by animateColorAsState(if (selected) c.onFocus else c.content, fade, label = "segmentFocusedText")
     // The white of the current option is the track's pill, under the options.
     val currentFill = Color.Transparent

@@ -56,7 +56,7 @@ The technical voice speaks the vocabulary of a Blu-ray case: formats by their na
 
 | Token | Value | Role |
 |---|---|---|
-| `background` | `#000000` | the room; masks over artwork |
+| `background` | `#000000` | the room; masks over artwork; before Compose draws, the window and the launcher icon's ground (`@color/room`) |
 | `surface` / `surfaceRaised` | `#121110` / `#1D1B19` | quiet panels / dialogs, menus, focused fields |
 | `outline` | `#3A3632` | hairlines, badge borders |
 | `content` | `#F2F0EB` | projector white: primary text |
@@ -71,7 +71,9 @@ The technical voice speaks the vocabulary of a Blu-ray case: formats by their na
 
 `HlAlpha` names every opacity, by role: `QUIET_SURFACE`, `CONTROL_FILL` / `CONTROL_FILL_STRONG`,
 `WELL`, `BORDER`, `DIVIDER`, `SCRIM` / `SCRIM_SIDE`, `PLATE`, `TRACK`, `FOCUS_QUIET`, `LIT_DISC`,
-`ARTWORK_EDGE`, `WORDMARK_GLOW`.
+`ARTWORK_EDGE`, `WORDMARK_GLOW`. `PLATE` is the plate under whatever sits on artwork: a card's marks
+and progress, and the controls laid over a backdrop. The veils laid over artwork are recipes, in
+`HlScrim` (see *Veils*).
 
 **Contrast.** Text reaches 4.5:1 and icons and marks 3:1 on the surface they really sit on, each
 translucent layer composed over what lies under it. `ContrastTest` lists every pair the system
@@ -81,6 +83,30 @@ a control are named colours, never an opacity laid on the current one: the line 
 are forbidden: `contentTertiary` on a `WELL` row inside a raised panel (≈ 4.09:1) and on
 `CONTROL_FILL_STRONG` (≈ 3.66:1). There, the quiet line stays `contentSecondary`, as in setting
 rows and buttons.
+
+**On artwork.** A translucent white fill is made for the dark room: over a light image it vanishes.
+What sits on an image takes a dark plate instead (`PLATE`, matte, never blurred), so its contrast no
+longer depends on the picture: a card's marks and progress line, and the controls that pass
+`onArtwork` (the home bar's track and settings button). On that plate the options of a track at rest
+are `content`: `contentSecondary` is forbidden there (≈ 3.47:1 over a white image). Focus does not
+change.
+
+### Veils (`Scrim.kt`)
+
+`HlScrim` holds the recipes of what is laid over artwork, never loose numbers: the **left veil**
+behind the text column, the **top veil** under the top bar, the **bottom fade** to black, the
+**ambient spill** below a backdrop, the **collection light**, and the **welcome wall** (its veil and
+the tungsten halo behind the wordmark). The left veil follows the text column in dp, `safeH` +
+`readableNarrow`, then fades out over `HlLayout.veilFade`: never a share of a screen assumed 960 dp
+wide.
+
+Under the text column the left veil keeps a **floor**, read from the small copy of the backdrop the
+ambient light is picked from (`ArtworkSample`): the opacity the column's quietest text
+(`contentTertiary`: genres, the billing block's small words) needs for 4.5:1, through the other
+veils and under the spill, wherever the veil falls short. A dark image keeps its veil; a white one
+gets 0.875, more where the spill adds its light (the overview alone would need 0.79, but quieter
+words sit above and below it). A highlight smaller than a twentieth of the column does not count
+(`FLOOR_QUANTILE`). The picture is never cropped or letterboxed for it, and nothing lights it.
 
 ### Type (`Type.kt`)
 
@@ -120,7 +146,7 @@ font. No other font is shipped; line heights leave room for the fallback.
 | `HlInset` | inner padding of containers, by what they hold: `tight` 8 (menus, results with a thumbnail), `compact` 12 (dense rows), `card` 24 (panels, cards), `sheet` 32 (sheets) |
 | `HlShapes` | radius follows hierarchy: `badge` 3, `artwork` 4, `field` 6, `row` 8 (rows that can be chosen), `panel` 12, `sheet` 16 (sheets and menus), `control` pill, `avatar` circle. A shape set close inside another keeps their corners parallel: **outer radius = inner radius + gap** (a menu: 8 + 8 = 16; a result: 4 + 8 = 12) |
 | `HlSize` | artwork (poster 112, landscape 220, episode 264, avatar 76 in a column of 120, thumbnails), `control` 48 for every button, icons 20, discs 52, marks 20, dots 8, setting rows 64, previews in a row (48 tall, a slot of 84), meter 10 |
-| `HlLayout` | measures of layout parts: reading widths (640, 520), side columns (280, 340), pane top 72, the reading sheet (864) and the side sheet (520), title art, hero, info line, track table columns, the label of a round button (160 wide at most, 28 of room under its row) |
+| `HlLayout` | measures of layout parts: reading widths (640, 520), the left veil's fade past them (240), side columns (280, 340), pane top 72, the reading sheet (864) and the side sheet (520), title art, hero, info line, track table columns, the label of a round button (160 wide at most, 28 of room under its row) |
 | `HlControl` | inner padding of buttons and track options, badges; the gap between an icon and its text (8) |
 | `HlFocus` | focus scale (artwork 1.10, cards 1.06, controls 1.04), siblings stepping back (dim 0.3, colour kept 0.3), ambient glow 18 dp, `edge` 28 (`safeV`): how far a list keeps focus from its ends |
 
@@ -143,14 +169,14 @@ without the prefix (`MenuOption`, `MeterLegend`, `PosterCard`, `BillingBlock`, `
 
 | Component | Use |
 |---|---|
-| `Backdrop` (`Hero`, `Full`, `Quiet`) | full-screen artwork faded to black where text sits, plus the ambient light; its scrims lift when the lights go down |
+| `Backdrop` (`Hero`, `Full`, `Quiet`) | full-screen artwork under the `HlScrim` veils, with a floor under the text column on a light image, plus the ambient light; its veils lift when the lights go down |
 | `rememberAmbientColor`, `CollectionLight` | the light a picture spills into the room; the colours of a wall when nothing is selected |
 | `PosterCard`, `LandscapeCard`, `PersonCard`, `ArtworkSurface`, `ArtworkImage` | artwork with the shared focus treatment and a faint edge at rest (see *Cards*) |
 | `MediaRow` | horizontal row with header and focus restoration; dims the other cards when one is focused |
 | `HeroInfo`, `TitleArt`, `EpisodeHeading`, `MetaLine`, `BillingBlock` | what a title is: clear logo or condensed title, facts, credits |
 | `Badge`, `BadgeRow`, `FactRow` | formats and ratings (a `lit` badge marks a state); facts on one line, spaced, never punctuated |
-| `HlButton` (`Primary`, `Secondary`), `HlIconButton` | pill and round actions, all 48 dp tall; the icon button shows its label under it when focused. The label takes no room (a row with something below keeps `HlLayout.iconLabelRoom` for it), stays inside the safe area, hides while a sheet is open, and is not read out: the icon carries the name |
-| `HlSegmented` | the one way to show where you are or what is chosen among a few: home navigation, seasons (`scrollable`), NFO views, form choices. In a track, **white means current**: one white pill sits under the current option and slides to the option chosen (`STANDARD`, emphasized). The option under focus but not chosen is a grey pill; focus on the current option draws a ring around the pill, travelling with it. A long track scrolls as one piece, pill included. There is no standalone tab |
+| `HlButton` (`Primary`, `Secondary`), `HlIconButton` | pill and round actions, all 48 dp tall; the icon button shows its label under it when focused. The label takes no room (a row with something below keeps `HlLayout.iconLabelRoom` for it), stays inside the safe area, hides while a sheet is open, and is not read out: the icon carries the name. Over an image (`onArtwork`) the button rests on a plate |
+| `HlSegmented` | the one way to show where you are or what is chosen among a few: home navigation, seasons (`scrollable`), NFO views, form choices. In a track, **white means current**: one white pill sits under the current option and slides to the option chosen (`STANDARD`, emphasized). The option under focus but not chosen is a grey pill; focus on the current option draws a ring around the pill, travelling with it. A long track scrolls as one piece, pill included. Over an image (`onArtwork`), the track is a plate and its options are white. There is no standalone tab |
 | `HlPanel` (`Quiet`, `Raised`, `lit`), `HlPanelButton` | the one panel recipe, and its focusable form |
 | `HlIconDisc`, `HlDivider`, `HlStatus`, `HlMeter`, `MeterLegend` | an icon in a disc (lit when on), a hairline, a state with its light, a segmented gauge |
 | `HlListItem`, `HlResultItem`, `PosterThumb` | choices in a list (icon in line with the name, what the choice brings in badges under a hairline, a chevron on focus); a search result with its poster |
@@ -165,7 +191,7 @@ without the prefix (`MenuOption`, `MeterLegend`, `PosterCard`, `BillingBlock`, `
 | `TechSpecs`, `InfoBlock`, `DefinitionList` | the technical sheet, set like the back of a Blu-ray case: one block per subject (a hairline, its name, what it says), every track listed; it does not scroll itself, the sheet scrolls it whole. The NFO is laid out the same way |
 | `ArtworkChoiceCard`, `SelectedMark` | one artwork to choose from, at the shape it is used in |
 | `HlEmptyState` | what happened and what to do, with the action focused |
-| `PosterWall`, `PosterWallScrim`, `HouseLights`, `CardSkeleton`, `ProgressLine` | welcome wall, playback cue, loading and progress |
+| `PosterWall`, `PosterWallScrim`, `HouseLights`, `CardSkeleton`, `ProgressLine` | welcome wall, playback cue, loading and progress (on a plate at the foot of a card, `onArtwork`; on a light track beside text) |
 
 ## Cards
 
@@ -176,8 +202,9 @@ rest, sparingly:
 - **One mark at most**, top right, on a dark plate the size of a mark: the number of unwatched
   episodes of a show, else the line check of a title watched, else the tungsten dot of a title new
   to its library (added in the last week, not watched; a local folder never counts what its first
-  scan found). Progress is the tungsten line at the foot. A format (Ultra HD) is not a mark: most
-  titles have one, so it would tell nothing apart; it stays in the header, the info line, the filter.
+  scan found). Progress is the tungsten line at the foot, on its plate. A format (Ultra HD) is not
+  a mark: most titles have one, so it would tell nothing apart; it stays in the header, the info
+  line, the filter.
 - **Without artwork**, the title is set like a one-sheet: a short rule, the name in `cardTitle`, the
   year in the technical voice.
 - **An episode** reads as a number in tabular figures, its name, then its length and where it stands.
@@ -247,6 +274,7 @@ a sliver. A row of cards keeps `HlSpace.s` above and below them, room for a post
 font, colour, opacity or shape written in a screen, and on arithmetic with a token (`safeH - m`): an
 alignment worked out in a screen gets a name in `Dimens.kt`. `SpacingGridTest` keeps `HlSpace` and
 `HlInset` on the 4 dp grid; `TypeScaleTest` keeps the type scale honest, `ContrastTest` the contrasts,
+`ScrimTest` the floor of the veils, `ResourceTokensTest` the resources in step with the tokens,
 `CatalogCoverageTest` the catalogue complete.
 Deliberate exceptions go in the guard's `allowed` list, with the reason; a value needed twice belongs
 in the design system instead.
