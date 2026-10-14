@@ -1,10 +1,12 @@
 package app.houselights
 
 import android.app.Application
+import android.util.Log
 import app.houselights.core.LibraryKind
 import app.houselights.core.MediaProvider
 import app.houselights.core.Secrets
 import app.houselights.core.SourceConfig
+import app.houselights.core.suspendRunCatching
 import app.houselights.player.PlaybackManager
 import app.houselights.providers.jellyfin.JellyfinProvider
 import app.houselights.providers.local.ArtworkCache
@@ -18,10 +20,12 @@ import coil.ImageLoader
 import coil.ImageLoaderFactory
 import coil.disk.DiskCache
 import coil.memory.MemoryCache
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
@@ -51,7 +55,14 @@ class HouselightsApp : Application(), ImageLoaderFactory {
 
 /** Manual dependency container, created once per process. */
 class AppContainer(private val app: Application) {
-    val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    /**
+     * Work that outlives screens (scans, playback reports). A failure nothing else caught is logged:
+     * a background task never takes the app down.
+     */
+    val scope = CoroutineScope(
+        SupervisorJob() + Dispatchers.Main.immediate +
+            CoroutineExceptionHandler { _, e -> Log.e("Houselights", "Background task failed", e) }
+    )
     val settings = SettingsStore(app, scope, Secrets.device)
     val database = LibraryDatabase.create(app, Secrets.device)
     val artwork = ArtworkCache(app.filesDir.resolve("artwork"))
@@ -61,7 +72,11 @@ class AppContainer(private val app: Application) {
         scope = scope,
         artwork = artwork,
     )
-    val playback = PlaybackManager(app, scope)
+    val playback = PlaybackManager(app, scope) { resumeKey ->
+        // After a restart, the source is known once the settings are read.
+        settings.state.first { it.loaded }
+        provider.reporter(resumeKey)
+    }
 
     /** Emits whenever library data may have changed (playback ended, scan progress). */
     val libraryChanged: Flow<Unit> = merge(playback.playbackEnded, scanner.changed)
@@ -86,7 +101,7 @@ class AppContainer(private val app: Application) {
     fun tmdbKey(): String? = settings.state.value.tmdbApiKey ?: BuildConfig.TMDB_API_KEY.ifBlank { null }
 
     /** Poster URLs of trending films, or nothing when TMDB is unreachable. */
-    suspend fun trendingPosters(widthPx: Int): List<String> = runCatching {
+    suspend fun trendingPosters(widthPx: Int): List<String> = suspendRunCatching {
         val key = tmdbKey() ?: return emptyList()
         TmdbClient(key).trendingPosterPaths().map { TmdbClient.imageUrl(it, TmdbClient.Companion.ImageType.POSTER, widthPx) }
     }.getOrDefault(emptyList())

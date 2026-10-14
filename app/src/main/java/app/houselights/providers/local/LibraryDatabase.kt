@@ -170,6 +170,26 @@ interface LibraryDao {
     @Update
     suspend fun updateSource(source: SourceEntity)
 
+    @Query("SELECT * FROM sources WHERE id = :id")
+    suspend fun source(id: Long): SourceEntity?
+
+    // What the user changes is written column by column, so it never overwrites a scan's work.
+
+    @Query(
+        "UPDATE items SET played = :played, positionMs = 0, " +
+            "lastPlayedAt = CASE WHEN :played THEN :now ELSE lastPlayedAt END WHERE id IN (:ids)"
+    )
+    suspend fun setPlayed(ids: List<Long>, played: Boolean, now: Long)
+
+    @Query("UPDATE items SET favorite = :favorite WHERE id = :id")
+    suspend fun setFavorite(id: Long, favorite: Boolean)
+
+    @Query(
+        "UPDATE items SET positionMs = :positionMs, durationMs = :durationMs, played = :played, " +
+            "lastPlayedAt = :lastPlayedAt WHERE id = :id"
+    )
+    suspend fun savePlayback(id: Long, positionMs: Long, durationMs: Long?, played: Boolean, lastPlayedAt: Long)
+
     @Query("DELETE FROM sources WHERE id = :id")
     suspend fun deleteSource(id: Long)
 
@@ -264,8 +284,22 @@ interface LibraryDao {
     @Query("DELETE FROM items WHERE kind = 'SERIES' AND id NOT IN (SELECT parentId FROM items WHERE kind = 'SEASON' AND parentId IS NOT NULL)")
     suspend fun deleteEmptySeries()
 
-    @Query("DELETE FROM items WHERE sourceId = :sourceId")
-    suspend fun deleteItemsOfSource(sourceId: Long)
+    /**
+     * Films and episodes of folders that are gone. Shows and seasons follow through [deleteEmptySeasons]
+     * and [deleteEmptySeries]: one show can gather episodes from several folders.
+     */
+    @Query("DELETE FROM items WHERE kind IN ('MOVIE', 'EPISODE') AND sourceId NOT IN (SELECT id FROM sources)")
+    suspend fun deleteOrphanItems()
+
+    /** Removes a folder and what was found in it, at once. */
+    @Transaction
+    suspend fun removeSource(id: Long) {
+        deleteSource(id)
+        deleteOrphanItems()
+        deleteEmptySeasons()
+        deleteEmptySeries()
+        deleteEmptyCollections()
+    }
 
     /**
      * Saves what a scan found without touching what the user owns: artwork and match choices,

@@ -2,9 +2,11 @@ package app.houselights.settings
 
 import android.content.Context
 import androidx.datastore.core.DataMigration
+import androidx.datastore.core.handlers.ReplaceFileCorruptionHandler
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -14,14 +16,18 @@ import app.houselights.core.SourceConfig
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import java.io.IOException
 import java.util.UUID
 
 private val Context.dataStore by preferencesDataStore(
     name = "settings",
+    // A damaged settings file starts over from the defaults instead of stopping the app at launch.
+    corruptionHandler = ReplaceFileCorruptionHandler { emptyPreferences() },
     produceMigrations = { listOf(SealSecrets(Secrets.device)) },
 )
 
@@ -74,6 +80,8 @@ class SettingsStore(
     private val json = Json { ignoreUnknownKeys = true }
 
     val state: StateFlow<AppSettings> = context.dataStore.data
+        // A file that can't be read gives the defaults: the app opens on its welcome screen, not on a blank one.
+        .catch { e -> if (e is IOException) emit(emptyPreferences()) else throw e }
         .map { it.toSettings() }
         .stateIn(scope, SharingStarted.Eagerly, AppSettings())
 

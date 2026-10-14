@@ -28,6 +28,7 @@ import app.houselights.core.SectionType
 import app.houselights.core.SortOption
 import app.houselights.core.SourceConfig
 import app.houselights.core.UserState
+import app.houselights.core.suspendRunCatching
 import app.houselights.player.PathResolver
 import app.houselights.player.Redact
 import kotlinx.coroutines.async
@@ -48,12 +49,12 @@ class JellyfinProvider(config: SourceConfig.Jellyfin, deviceId: String) : MediaP
             .map { Library(it.id, libraryKind(it.collectionType), it.name) }
 
     override suspend fun home(): List<HomeSection> = coroutineScope {
-        val resume = async { runCatching { api.resume(userId, 20, ROW_FIELDS).items }.getOrDefault(emptyList()) }
-        val nextUp = async { runCatching { api.nextUp(userId, 20, ROW_FIELDS).items }.getOrDefault(emptyList()) }
+        val resume = async { suspendRunCatching { api.resume(userId, 20, ROW_FIELDS).items }.getOrDefault(emptyList()) }
+        val nextUp = async { suspendRunCatching { api.nextUp(userId, 20, ROW_FIELDS).items }.getOrDefault(emptyList()) }
         val latest = libraries().map { lib ->
             async {
-                val items = runCatching { api.latest(userId, lib.id, 24, ROW_FIELDS) }.getOrDefault(emptyList())
-                HomeSection(SectionType.LATEST, items.map(::toMedia), landscape = false, libraryName = lib.title)
+                val items = suspendRunCatching { api.latest(userId, lib.id, 24, ROW_FIELDS) }.getOrDefault(emptyList())
+                HomeSection(SectionType.LATEST, items.map(::toMedia), landscape = false, libraryName = lib.title, libraryId = lib.id)
             }
         }
         buildList {
@@ -103,7 +104,7 @@ class JellyfinProvider(config: SourceConfig.Jellyfin, deviceId: String) : MediaP
     }
 
     override suspend fun libraryFacets(library: Library): LibraryFacets = LibraryFacets(
-        genres = runCatching { api.genres(userId, library.id).items.mapNotNull { it.name } }.getOrDefault(emptyList()),
+        genres = suspendRunCatching { api.genres(userId, library.id).items.mapNotNull { it.name } }.getOrDefault(emptyList()),
         // Jellyfin has no cheap decade listing; 4K is the only quality its API filters on.
         qualities = listOf(Quality.UHD_4K),
     )
@@ -118,10 +119,10 @@ class JellyfinProvider(config: SourceConfig.Jellyfin, deviceId: String) : MediaP
 
     override suspend fun nextUp(series: MediaItem): MediaItem? =
         if (series.kind == MediaKind.COLLECTION) super.nextUp(series)
-        else runCatching { api.nextUp(userId, 1, ROW_FIELDS, series.id).items.firstOrNull()?.let(::toMedia) }.getOrNull()
+        else suspendRunCatching { api.nextUp(userId, 1, ROW_FIELDS, series.id).items.firstOrNull()?.let(::toMedia) }.getOrNull()
 
     /** A collection (box set) holds its films directly. */
-    override suspend fun collectionItems(collection: MediaItem): List<MediaItem> = runCatching {
+    override suspend fun collectionItems(collection: MediaItem): List<MediaItem> = suspendRunCatching {
         api.items(
             userId = userId,
             parentId = collection.id,
@@ -137,7 +138,7 @@ class JellyfinProvider(config: SourceConfig.Jellyfin, deviceId: String) : MediaP
 
     override suspend fun similar(item: MediaItem): List<MediaItem> =
         if (item.kind == MediaKind.EPISODE) emptyList()
-        else runCatching { api.similar(item.id, userId, 16, ROW_FIELDS).items.map(::toMedia) }.getOrDefault(emptyList())
+        else suspendRunCatching { api.similar(item.id, userId, 16, ROW_FIELDS).items.map(::toMedia) }.getOrDefault(emptyList())
 
     override suspend fun setPlayed(item: MediaItem, played: Boolean) {
         if (played) api.markPlayed(item.id, userId) else api.markUnplayed(item.id, userId)
@@ -147,7 +148,7 @@ class JellyfinProvider(config: SourceConfig.Jellyfin, deviceId: String) : MediaP
         if (favorite) api.addFavorite(item.id, userId) else api.removeFavorite(item.id, userId)
     }
 
-    override suspend fun samplePath(): String? = runCatching {
+    override suspend fun samplePath(): String? = suspendRunCatching {
         api.items(userId, null, "Movie,Episode", true, "Random", "Ascending", 0, 1, "Path").items.firstOrNull()?.path
     }.getOrNull()
 
@@ -170,8 +171,12 @@ class JellyfinProvider(config: SourceConfig.Jellyfin, deviceId: String) : MediaP
             logoUrl = media.logo?.url(800),
             startMs = startMs,
             reporter = Reporter(full.id, source?.id),
+            resumeKey = listOfNotNull(full.id, source?.id).joinToString(RESUME_KEY_SEPARATOR),
         )
     }
+
+    override fun reporter(resumeKey: String): PlaybackReporter? =
+        resumeKey.split(RESUME_KEY_SEPARATOR).let { parts -> Reporter(parts[0], parts.getOrNull(1)) }
 
     private inner class Reporter(private val itemId: String, private val mediaSourceId: String?) : PlaybackReporter {
         private fun report(positionMs: Long, paused: Boolean = false) = PlaybackReport(
@@ -254,6 +259,7 @@ class JellyfinProvider(config: SourceConfig.Jellyfin, deviceId: String) : MediaP
 
     companion object {
         private const val TAG = "Jellyfin"
+        private const val RESUME_KEY_SEPARATOR = "|"
         private const val COLLECTION_LIMIT = 200
         private val SUPPORTED_COLLECTIONS = setOf("movies", "tvshows", "boxsets", "homevideos", "musicvideos", null)
         private const val ROW_FIELDS = "Overview,Genres,ProductionYear,OfficialRating,CommunityRating"

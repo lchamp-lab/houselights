@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import androidx.tv.material3.Text
 import app.houselights.R
 import app.houselights.core.SourceConfig
+import app.houselights.core.suspendRunCatching
 import app.houselights.providers.local.Protocol
 import app.houselights.providers.local.RemoteBrowser
 import app.houselights.providers.local.ScanErrors
@@ -108,7 +109,7 @@ fun AddFolderScreen(onAdded: () -> Unit) {
         result = null
         scope.launch {
             val s = source()
-            runCatching { RemoteBrowser.of(s).test(s) }
+            suspendRunCatching { RemoteBrowser.of(s).test(s) }
                 .onSuccess { count ->
                     success = true
                     result = context.getString(R.string.test_ok, count)

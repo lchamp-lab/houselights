@@ -30,3 +30,7 @@
     public static int d(...);
     public static int i(...);
 }
+
+# Navigation finds the enums of typed routes by their name.
+-keepnames class app.houselights.core.LibraryKind
+-keepnames class app.houselights.core.ArtworkKind

@@ -57,11 +57,11 @@ class LocalProvider(
             if (inProgress.isNotEmpty()) add(HomeSection(SectionType.CONTINUE, inProgress.map { mapper.map(it) }, landscape = true))
             val next = nextUpAcrossShows(exclude = inProgress.map { it.id }.toSet())
             if (next.isNotEmpty()) add(HomeSection(SectionType.NEXT_UP, next.map { mapper.map(it) }, landscape = true))
-            dao.latest(ItemKind.MOVIE, 24).takeIf { it.isNotEmpty() }?.let { items ->
-                add(HomeSection(SectionType.LATEST, items.map { mapper.map(it) }, landscape = false, libraryKind = LibraryKind.MOVIES))
-            }
-            dao.latest(ItemKind.SERIES, 24).takeIf { it.isNotEmpty() }?.let { items ->
-                add(HomeSection(SectionType.LATEST, items.map { mapper.map(it) }, landscape = false, libraryKind = LibraryKind.SHOWS))
+            for ((kind, library) in listOf(LibraryKind.MOVIES to MOVIES, LibraryKind.SHOWS to SHOWS)) {
+                val items = dao.latest(if (kind == LibraryKind.MOVIES) ItemKind.MOVIE else ItemKind.SERIES, 24)
+                if (items.isEmpty()) continue
+                val mapped = items.map { mapper.map(it) }
+                add(HomeSection(SectionType.LATEST, mapped, landscape = false, libraryKind = kind, libraryId = library))
             }
         }
     }
@@ -108,7 +108,9 @@ class LocalProvider(
             SortOption.YEAR -> "year DESC, sortTitle ASC"
             SortOption.RATING -> "rating DESC, sortTitle ASC"
         }
-        val items = dao.query(SimpleSQLiteQuery("SELECT * FROM items WHERE $where ORDER BY $order LIMIT $limit OFFSET $start", args.toTypedArray()))
+        // The id settles ties, so that pages never overlap nor skip a title.
+        val page = "SELECT * FROM items WHERE $where ORDER BY $order, id LIMIT $limit OFFSET $start"
+        val items = dao.query(SimpleSQLiteQuery(page, args.toTypedArray()))
         val total = dao.countQuery(SimpleSQLiteQuery("SELECT COUNT(*) FROM items WHERE $where", args.toTypedArray()))
         val mapper = Mapper()
         return Page(items.map { mapper.map(it) }, total)
@@ -127,7 +129,7 @@ class LocalProvider(
             SimpleSQLiteQuery(
                 "SELECT c.* FROM collections c JOIN (SELECT collectionId, COUNT(*) AS n, MAX(addedAt) AS added, " +
                     "MAX(year) AS lastYear, AVG(rating) AS rating FROM items WHERE kind = 'MOVIE' AND collectionId IS NOT NULL " +
-                    "GROUP BY collectionId HAVING n >= ?) s ON s.collectionId = c.id ORDER BY $order LIMIT $limit OFFSET $start",
+                    "GROUP BY collectionId HAVING n >= ?) s ON s.collectionId = c.id ORDER BY $order, c.id LIMIT $limit OFFSET $start",
                 arrayOf<Any>(min),
             )
         )
@@ -244,14 +246,12 @@ class LocalProvider(
                 else -> listOf(entity)
             }
         }
-        val now = System.currentTimeMillis()
-        targets.forEach { dao.update(it.copy(played = played, positionMs = 0, lastPlayedAt = if (played) now else it.lastPlayedAt)) }
+        dao.setPlayed(targets.map { it.id }, played, System.currentTimeMillis())
     }
 
     override suspend fun setFavorite(item: MediaItem, favorite: Boolean) {
         if (item.kind == MediaKind.COLLECTION) return
-        val entity = dao.item(item.id.toLong()) ?: return
-        dao.update(entity.copy(favorite = favorite))
+        dao.setFavorite(item.id.toLong(), favorite)
     }
 
     override suspend fun playback(item: MediaItem, resume: Boolean, options: PlaybackOptions): PlaybackPlan {
@@ -267,8 +267,11 @@ class LocalProvider(
             logoUrl = media.logo?.url(500),
             startMs = if (resume) entity.positionMs else 0L,
             reporter = Reporter(entity.id),
+            resumeKey = entity.id.toString(),
         )
     }
+
+    override fun reporter(resumeKey: String): PlaybackReporter? = resumeKey.toLongOrNull()?.let(::Reporter)
 
     private inner class Reporter(private val itemId: Long) : PlaybackReporter {
         override suspend fun started(positionMs: Long) = save(positionMs, null, finished = false)
@@ -282,17 +285,17 @@ class LocalProvider(
             val entity = dao.item(itemId) ?: return
             val duration = durationMs ?: entity.durationMs ?: entity.runtimeMin?.let { it * 60_000L }
             val watched = duration != null && duration > 0 && positionMs >= duration * WATCHED_RATIO
-            dao.update(
-                entity.copy(
-                    positionMs = when {
-                        finished && watched -> 0
-                        finished && positionMs < MIN_RESUME_MS -> entity.positionMs.takeIf { !entity.played } ?: 0
-                        else -> positionMs
-                    },
-                    durationMs = durationMs ?: entity.durationMs,
-                    played = entity.played || (finished && watched),
-                    lastPlayedAt = System.currentTimeMillis(),
-                )
+            // Only the playback columns: a scan may be writing the others at the same time.
+            dao.savePlayback(
+                id = entity.id,
+                positionMs = when {
+                    finished && watched -> 0
+                    finished && positionMs < MIN_RESUME_MS -> entity.positionMs.takeIf { !entity.played } ?: 0
+                    else -> positionMs
+                },
+                durationMs = durationMs ?: entity.durationMs,
+                played = entity.played || (finished && watched),
+                lastPlayedAt = System.currentTimeMillis(),
             )
         }
     }

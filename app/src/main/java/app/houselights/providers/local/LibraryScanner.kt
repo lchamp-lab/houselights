@@ -4,9 +4,9 @@ import android.util.Log
 import app.houselights.core.NfoActor
 import app.houselights.core.NfoInfo
 import app.houselights.core.NfoParser
+import app.houselights.core.suspendRunCatching
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -16,6 +16,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import java.util.Locale
 
 data class ScanState(
     val running: Boolean = false,
@@ -49,7 +50,6 @@ class LibraryScanner(
     /** Emits while scanning, so screens show new entries progressively. */
     val changed: SharedFlow<Unit> = _changed
 
-    private var job: Job? = null
     private val lock = Mutex()
 
     /** Shows already looked up during the current scan (full refresh only). */
@@ -59,27 +59,47 @@ class LibraryScanner(
     private val refreshedCollections = mutableSetOf<Long>()
 
     fun scanAll(refreshMetadata: Boolean = false) {
-        if (job?.isActive == true) {
+        synchronized(passes) {
             // A folder added or a refresh asked during a scan is not lost: one more pass follows.
-            pending = true
-            pendingRefresh = pendingRefresh || refreshMetadata
-            return
+            passes.ask(refreshMetadata)
+            if (passes.running) return
+            passes.running = true
         }
-        job = scope.launch(Dispatchers.IO) {
-            var refresh = refreshMetadata
-            do {
-                pending = false
-                scanAllSources(refresh)
-                refresh = pendingRefresh.also { pendingRefresh = false }
-            } while (pending)
+        scope.launch(Dispatchers.IO) {
+            try {
+                while (true) {
+                    val refresh = synchronized(passes) { passes.next() } ?: break
+                    scanAllSources(refresh)
+                }
+            } finally {
+                synchronized(passes) { passes.running = false }
+            }
         }
     }
 
-    @Volatile
-    private var pending = false
+    /** Scans asked for: one running, at most one more waiting. Guarded by its own monitor. */
+    private class Passes {
+        var running = false
+        private var waiting = false
+        private var refresh = false
 
-    @Volatile
-    private var pendingRefresh = false
+        fun ask(refreshMetadata: Boolean) {
+            waiting = true
+            refresh = refresh || refreshMetadata
+        }
+
+        /** The next pass to run (true: refresh metadata), or null when none is waiting: the loop ends. */
+        fun next(): Boolean? {
+            if (!waiting) {
+                running = false
+                return null
+            }
+            waiting = false
+            return refresh.also { refresh = false }
+        }
+    }
+
+    private val passes = Passes()
 
     /**
      * Scans unless the last scan ended less than [maxAgeMs] ago. A NAS cannot tell the app that
@@ -146,20 +166,39 @@ class LibraryScanner(
         refreshedSeries.clear()
         refreshedCollections.clear()
         val errors = mutableMapOf<String, ScanError>()
-        for (source in dao.sources()) {
-            runCatching { scan(source, refreshMetadata) }.onFailure { e ->
-                Log.w(TAG, "Scan of ${source.name} failed", e)
-                errors[source.name] = ScanErrors.classify(e)
+        try {
+            for (source in dao.sources()) {
+                suspendRunCatching { scan(source, refreshMetadata) }.onFailure { e ->
+                    Log.w(TAG, "Scan of ${source.name} failed", e)
+                    errors[source.name] = ScanErrors.classify(e)
+                }
             }
+            lock.withLock {
+                suspendRunCatching {
+                    // Rows a folder removed during the scan may have received meanwhile.
+                    dao.deleteOrphanItems()
+                    dao.deleteEmptySeasons()
+                    dao.deleteEmptySeries()
+                    dao.deleteEmptyCollections()
+                    cleanupLocked()
+                }.onFailure { Log.w(TAG, "Cleanup failed", it) }
+            }
+        } finally {
+            // Whatever happened, the scan is over: the settings must not show it running forever.
+            _state.value = ScanState(errors = errors)
+            lastScanEnd = System.currentTimeMillis()
         }
-        lock.withLock {
-            dao.deleteEmptySeasons()
-            dao.deleteEmptySeries()
-            dao.deleteEmptyCollections()
-            runCatching { cleanupLocked() }.onFailure { Log.w(TAG, "Cleanup failed", it) }
+        _changed.emit(Unit)
+    }
+
+    /**
+     * Removes a folder and everything found in it. Waits for the item being processed; a scan of that
+     * folder stops at its next file.
+     */
+    suspend fun removeSource(source: SourceEntity) {
+        withContext(Dispatchers.IO) {
+            lock.withLock { dao.removeSource(source.id) }
         }
-        _state.value = ScanState(errors = errors)
-        lastScanEnd = System.currentTimeMillis()
         _changed.emit(Unit)
     }
 
@@ -175,37 +214,46 @@ class LibraryScanner(
         if (missing.isNotEmpty()) lock.withLock { dao.deleteItems(missing) }
 
         val tmdb = client()
-        val todo = files.filter { f ->
-            val item = known[f.relativePath]
-            val local = sidecars.forVideo(f)
-            item == null || item.mediaInfo == null || refreshMetadata ||
-                (tmdb != null && item.matchedAt == null) ||
-                // An NFO or artwork placed next to the file, or removed, since the last scan.
-                item.nfoPath != local.nfo?.relativePath ||
-                (local.poster != null) != (item.posterPath?.startsWith("file:") == true)
-        }
+        val todo = files.filter { f -> needsWork(known[f.relativePath], sidecars.forVideo(f), tmdb != null, refreshMetadata) }
         _state.update { it.copy(total = todo.size) }
         Log.i(TAG, "${source.name}: ${files.size} files, ${missing.size} removed, ${todo.size} to process")
 
         val seasons = SeasonCache(tmdb)
+        var unreachable = 0
         todo.forEachIndexed { index, file ->
             _state.update { it.copy(processed = index, current = file.relativePath.substringAfterLast('/')) }
-            runCatching {
+            suspendRunCatching {
                 // One item at a time, so a choice made by the user waits for one item, not
                 // for the whole scan. Read again: the item may have been edited meanwhile.
                 lock.withLock {
+                    // The folder was removed meanwhile: nothing more is added to it.
+                    if (dao.source(source.id) == null) return@forEachIndexed
                     val existing = known[file.relativePath]?.let { dao.item(it.id) }
                     when (source.kind) {
                         SourceKind.MOVIES -> processMovie(source, file, existing, tmdb, sidecars, refreshMetadata)
                         SourceKind.SHOWS -> processEpisode(source, file, existing, tmdb, seasons, sidecars, refreshMetadata)
                     }
                 }
-            }.onFailure { Log.w(TAG, "Failed on ${file.relativePath}", it) }
+            }.onSuccess {
+                unreachable = 0
+            }.onFailure { e ->
+                Log.w(TAG, "Failed on ${file.relativePath}", e)
+                // A NAS that stops answering would fail every remaining file, each after long timeouts.
+                if (ScanErrors.isUnreachable(e) && ++unreachable >= MAX_UNREACHABLE) throw e
+            }
             if (index % 5 == 4) _changed.emit(Unit)
         }
         dao.updateSource(source.copy(lastScanAt = System.currentTimeMillis()))
         _changed.emit(Unit)
     }
+
+    /** A file is processed when new, not described yet, to refresh, or when its NFO or artwork changed. */
+    private fun needsWork(item: ItemEntity?, local: VideoSidecars, hasTmdb: Boolean, refreshMetadata: Boolean): Boolean =
+        item == null || item.mediaInfo == null || refreshMetadata ||
+            (hasTmdb && item.matchedAt == null) ||
+            // An NFO or artwork placed next to the file, or removed, since the last scan.
+            item.nfoPath != local.nfo?.relativePath ||
+            (local.poster != null) != (item.posterPath?.startsWith("file:") == true)
 
     // --- Movies --------------------------------------------------------------------------------
 
@@ -364,9 +412,10 @@ class LibraryScanner(
         return copy(mediaInfo = MediaProbe.encode(merged), badges = merged.badges().ifEmpty { badges.split('|') }.joinToString("|"))
     }
 
-    private suspend fun readText(source: SourceEntity, file: RemoteFile): String? = runCatching {
+    /** null when the file can't be read; a NAS that stops answering throws, so the file is tried again later. */
+    private suspend fun readText(source: SourceEntity, file: RemoteFile): String? = suspendRunCatching {
         String(RemoteBrowser.of(source).readPrefix(source, file.relativePath, 1 shl 20), Charsets.UTF_8)
-    }.getOrNull()
+    }.getOrElse { e -> if (ScanErrors.isUnreachable(e)) throw e else null }
 
     // --- TV shows ------------------------------------------------------------------------------
 
@@ -409,7 +458,7 @@ class LibraryScanner(
             seriesId = series.id,
             seasonNumber = parsed.season,
             episodeNumber = parsed.episode,
-            sortTitle = "%03d-%04d".format(parsed.season, parsed.episode),
+            sortTitle = "%03d-%04d".format(Locale.ROOT, parsed.season, parsed.episode),
             nfoPath = local.nfo?.relativePath,
             nfo = nfoText,
         ).withEpisodeDetails(
@@ -570,7 +619,7 @@ class LibraryScanner(
             seriesId = series.id,
             matchKey = "${series.id}:$number",
             title = "",
-            sortTitle = "%03d".format(number),
+            sortTitle = "%03d".format(Locale.ROOT, number),
             seasonNumber = number,
             addedAt = now,
         ).let { it.copy(id = dao.insert(it)) }
@@ -642,6 +691,7 @@ class LibraryScanner(
 
     companion object {
         private const val TAG = "LibraryScanner"
+        private const val MAX_UNREACHABLE = 3
         private val ARTICLES = Regex("""(?i)^(the|a|an|le|la|les|l'|un|une|des)\s+""")
 
         fun sortKey(title: String): String = ARTICLES.replace(title.trim(), "").lowercase()

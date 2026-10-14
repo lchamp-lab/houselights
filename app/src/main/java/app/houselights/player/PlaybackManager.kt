@@ -8,8 +8,10 @@ import android.net.Uri
 import android.util.Log
 import app.houselights.core.PlaybackPlan
 import app.houselights.core.PlaybackReporter
+import app.houselights.core.suspendRunCatching
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -22,7 +24,12 @@ import kotlinx.coroutines.launch
  * Position is tracked twice: by polling the Zidoo local API while playing, then from the
  * "position" extra the player returns when it closes.
  */
-class PlaybackManager(private val context: Context, private val scope: CoroutineScope) {
+class PlaybackManager(
+    private val context: Context,
+    private val scope: CoroutineScope,
+    /** The reporter of a playback the app started before it was stopped (see [PlaybackPlan.Launch.resumeKey]). */
+    private val reporterFor: suspend (String) -> PlaybackReporter?,
+) {
     private class Session(val reporter: PlaybackReporter?, var positionMs: Long) {
         var durationMs: Long? = null
         var paused = false
@@ -30,6 +37,12 @@ class PlaybackManager(private val context: Context, private val scope: Coroutine
 
     private var session: Session? = null
     private var pollJob: Job? = null
+
+    /**
+     * The session, written down before the player starts: on a 2 GB player, Android may stop the app
+     * while the film plays. The result then reaches a new process, which finds what was playing here.
+     */
+    private val saved = context.getSharedPreferences("playback", Context.MODE_PRIVATE)
 
     private val _playbackEnded = MutableSharedFlow<Unit>(extraBufferCapacity = 4)
 
@@ -71,7 +84,14 @@ class PlaybackManager(private val context: Context, private val scope: Coroutine
             }
         }
         session = Session(plan.reporter, plan.startMs)
+        saved.edit().putString(KEY_RESUME, plan.resumeKey).putLong(KEY_POSITION, plan.startMs).commit()
         return intent
+    }
+
+    /** The player could not be started after all. */
+    fun onLaunchFailed() {
+        session = null
+        saved.edit().clear().apply()
     }
 
     /** The Zidoo player is a system app; an app installed under its package name elsewhere is not. */
@@ -94,6 +114,7 @@ class PlaybackManager(private val context: Context, private val scope: Coroutine
                     s.positionMs = state.positionMs
                     s.durationMs = state.durationMs
                     s.paused = state.paused
+                    saved.edit().putLong(KEY_POSITION, state.positionMs).apply()
                 }
                 // Poll locally every 2 s, report to the backend every ~10 s.
                 if (ticks++ % 5 == 0) report { s.reporter?.progress(s.positionMs, s.durationMs, s.paused) }
@@ -104,13 +125,22 @@ class PlaybackManager(private val context: Context, private val scope: Coroutine
 
     /** Player result: final position in ms when the player returns it. */
     fun onPlayerResult(data: Intent?) {
-        val s = session ?: return
+        val live = session
+        val resumeKey = saved.getString(KEY_RESUME, null)
+        val savedPosition = saved.getLong(KEY_POSITION, 0)
         session = null
-        pollJob?.cancel()
+        saved.edit().clear().apply()
+        if (live == null && resumeKey == null) return
+        val poll = pollJob
+        pollJob = null
         val returned = data?.getIntExtra("position", -1) ?: -1
-        if (returned > 0) s.positionMs = returned.toLong()
-        Log.i(TAG, "Playback ended at ${s.positionMs} / ${s.durationMs} ms")
         scope.launch {
+            // The last progress report is done before the final one is sent.
+            poll?.cancelAndJoin()
+            // No live session: the app was stopped while the film played.
+            val s = live ?: Session(resumeKey?.let { reporterFor(it) }, savedPosition)
+            if (returned > 0) s.positionMs = returned.toLong()
+            Log.i(TAG, "Playback ended at ${s.positionMs} / ${s.durationMs} ms")
             report { s.reporter?.stopped(s.positionMs, s.durationMs) }
             _playbackEnded.emit(Unit)
         }
@@ -122,7 +152,7 @@ class PlaybackManager(private val context: Context, private val scope: Coroutine
     }
 
     private suspend fun report(block: suspend () -> Unit) {
-        runCatching { block() }.onFailure { Log.w(TAG, "Progress report failed", it) }
+        suspendRunCatching { block() }.onFailure { Log.w(TAG, "Progress report failed", it) }
     }
 
     /** The file needs credentials and only the Zidoo player may receive them. */
@@ -130,6 +160,8 @@ class PlaybackManager(private val context: Context, private val scope: Coroutine
 
     companion object {
         private const val TAG = "Playback"
+        private const val KEY_RESUME = "resume_key"
+        private const val KEY_POSITION = "position_ms"
         const val ZIDOO_PACKAGE = "com.android.gallery3d"
         const val ZIDOO_ACTIVITY = "com.android.gallery3d.app.MovieActivity"
     }

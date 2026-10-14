@@ -177,7 +177,7 @@ private fun Sections(
         verticalArrangement = Arrangement.spacedBy(HlSpace.xs),
     ) {
         sections.forEachIndexed { sectionIndex, section ->
-            item(key = "${section.type}-${section.libraryName}-${section.libraryKind}") {
+            item(key = "${section.type}-${section.libraryId}") {
                 MediaRow(
                     header = sectionTitle(section),
                     spacing = if (section.landscape) HlSpace.l else HlSpace.m,

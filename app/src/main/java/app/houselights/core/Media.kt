@@ -94,6 +94,8 @@ data class HomeSection(
     /** Library of a [SectionType.LATEST] section: its name when the backend has one, else its kind. */
     val libraryName: String? = null,
     val libraryKind: LibraryKind? = null,
+    /** Library of a [SectionType.LATEST] section; with [type], identifies the row. */
+    val libraryId: String? = null,
 )
 
 enum class SortOption { TITLE, ADDED, YEAR, RATING }

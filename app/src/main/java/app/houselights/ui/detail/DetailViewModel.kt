@@ -6,7 +6,10 @@ import app.houselights.AppContainer
 import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
 import app.houselights.core.ProviderCapabilities
+import app.houselights.core.suspendRunCatching
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
@@ -39,9 +42,14 @@ class DetailViewModel(private val app: AppContainer, private val itemId: String)
         viewModelScope.launch { app.libraryChanged.collect { load() } }
     }
 
+    private var loadJob: Job? = null
+
     fun load() {
-        viewModelScope.launch {
-            runCatching {
+        // A newer load replaces an older one: two loads never finish out of order.
+        loadJob?.cancel()
+        loadJob = viewModelScope.launch {
+            // In a scope of its own, a failed parallel request ends up here instead of crashing the app.
+            suspendRunCatching { coroutineScope {
                 val provider = app.provider
                 val item = provider.item(itemId)
                 val similar = async { if (provider.capabilities.similar) provider.similar(item) else emptyList() }
@@ -65,7 +73,7 @@ class DetailViewModel(private val app: AppContainer, private val itemId: String)
                     val similarFilms = similar.await().filter { s -> saga.none { it.id == s.id } }
                     DetailState(item = item, capabilities = provider.capabilities, similar = similarFilms, collection = collection, collectionFilms = saga)
                 }
-            }.onSuccess { loaded -> _state.value = loaded.copy(canEdit = loaded.item?.let { app.provider.editor?.canEdit(it) } == true) }
+            } }.onSuccess { loaded -> _state.value = loaded.copy(canEdit = loaded.item?.let { app.provider.editor?.canEdit(it) } == true) }
                 .onFailure { e -> _state.update { it.copy(error = e.message ?: e.javaClass.simpleName) } }
         }
     }
@@ -77,7 +85,7 @@ class DetailViewModel(private val app: AppContainer, private val itemId: String)
         val season = s.seasons.firstOrNull { it.id == seasonId } ?: return
         _state.update { it.copy(selectedSeasonId = seasonId) }
         viewModelScope.launch {
-            runCatching { app.provider.episodes(series, season) }
+            suspendRunCatching { app.provider.episodes(series, season) }
                 .onSuccess { eps -> _state.update { it.copy(episodes = eps) } }
         }
     }
@@ -85,14 +93,14 @@ class DetailViewModel(private val app: AppContainer, private val itemId: String)
     fun togglePlayed() {
         val item = _state.value.item ?: return
         viewModelScope.launch {
-            runCatching { app.provider.setPlayed(item, !item.user.played) }.onSuccess { load() }
+            suspendRunCatching { app.provider.setPlayed(item, !item.user.played) }.onSuccess { load() }
         }
     }
 
     fun toggleFavorite() {
         val item = _state.value.item ?: return
         viewModelScope.launch {
-            runCatching { app.provider.setFavorite(item, !item.user.favorite) }.onSuccess { load() }
+            suspendRunCatching { app.provider.setFavorite(item, !item.user.favorite) }.onSuccess { load() }
         }
     }
 }

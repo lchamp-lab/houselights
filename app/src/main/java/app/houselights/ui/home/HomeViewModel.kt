@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import app.houselights.AppContainer
 import app.houselights.core.HomeSection
 import app.houselights.core.Library
+import app.houselights.core.suspendRunCatching
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -34,7 +35,7 @@ class HomeViewModel(private val app: AppContainer) : ViewModel() {
     fun load() {
         job?.cancel()
         job = viewModelScope.launch {
-            runCatching {
+            suspendRunCatching {
                 val provider = app.provider
                 provider.libraries() to provider.home()
             }.onSuccess { (libraries, sections) ->

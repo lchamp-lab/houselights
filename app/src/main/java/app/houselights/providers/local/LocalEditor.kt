@@ -10,6 +10,7 @@ import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
 import app.houselights.core.MetadataEditor
 import app.houselights.core.NfoParser
+import app.houselights.core.suspendRunCatching
 import app.houselights.providers.local.TmdbClient.Companion.ImageType
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -33,7 +34,7 @@ class LocalEditor(
     override suspend fun artwork(item: MediaItem, kind: ArtworkKind): ArtworkChoices = withContext(Dispatchers.IO) {
         val e = entity(item)
         val tmdb = client()
-        val online = e.tmdbId?.let { id -> tmdb?.let { runCatching { it.images(id, e.kind == ItemKind.SERIES) }.getOrNull() } }
+        val online = e.tmdbId?.let { id -> tmdb?.let { suspendRunCatching { it.images(id, e.kind == ItemKind.SERIES) }.getOrNull() } }
         val images = when (kind) {
             ArtworkKind.POSTER -> online?.posters
             ArtworkKind.BACKDROP -> online?.backdrops

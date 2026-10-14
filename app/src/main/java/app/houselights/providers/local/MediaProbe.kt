@@ -2,6 +2,7 @@ package app.houselights.providers.local
 
 import android.util.Log
 import app.houselights.core.MediaInfo
+import app.houselights.core.suspendRunCatching
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
@@ -18,12 +19,15 @@ object MediaProbe {
 
     fun decode(text: String?): MediaInfo? = text?.let { runCatching { json.decodeFromString<MediaInfo>(it) }.getOrNull() }
 
-    /** Never throws: an unreadable file still gets its container and size. */
+    /**
+     * An unreadable file still gets its container and size. Throws only when the NAS can't be reached,
+     * so that a passing failure is not kept as the file's description.
+     */
     suspend fun probe(source: SourceEntity, file: RemoteFile): MediaInfo {
         val ext = FilenameParser.extension(file.relativePath)
         val basic = MediaInfo(container = ext.uppercase().ifBlank { null }, sizeBytes = file.size.takeIf { it > 0 })
         if (ext !in MATROSKA) return basic
-        return runCatching {
+        return suspendRunCatching {
             val browser = RemoteBrowser.of(source)
             var bytes = browser.readPrefix(source, file.relativePath, FIRST_READ)
             repeat(2) {
@@ -38,6 +42,8 @@ object MediaProbe {
             }
             basic
         }.getOrElse { e ->
+            // A NAS that stops answering throws: the file is probed again at the next scan.
+            if (ScanErrors.isUnreachable(e)) throw e
             Log.w(TAG, "Could not read ${file.relativePath}", e)
             basic
         }

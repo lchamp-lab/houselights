@@ -6,6 +6,7 @@ import com.emc.ecs.nfsclient.nfs.nfs3.Nfs3
 import com.emc.ecs.nfsclient.rpc.CredentialUnix
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.io.IOException
 
 /**
  * Lists video files of an NFSv3 export. No credentials: the NAS trusts the client IP.
@@ -13,31 +14,49 @@ import kotlinx.coroutines.withContext
  */
 object NfsBrowser : RemoteBrowser {
     override suspend fun list(source: SourceEntity): Listing = withContext(Dispatchers.IO) {
-        val videos = mutableListOf<RemoteFile>()
-        val sidecars = mutableListOf<RemoteFile>()
-        walk(root(source), "", 0, videos, sidecars)
-        Listing(videos, sidecars)
+        withMount(source) { nfs ->
+            val videos = mutableListOf<RemoteFile>()
+            val sidecars = mutableListOf<RemoteFile>()
+            walk(root(nfs, source), "", 0, videos, sidecars)
+            Listing(videos, sidecars)
+        }
     }
 
     override suspend fun test(source: SourceEntity): Int = withContext(Dispatchers.IO) {
-        root(source).list().count { !RemoteBrowser.skip(it) }
+        withMount(source) { nfs -> root(nfs, source).list().count { !RemoteBrowser.skip(it) } }
     }
 
     override suspend fun readPrefix(source: SourceEntity, relativePath: String, length: Int): ByteArray = withContext(Dispatchers.IO) {
         val path = "/" + listOf(source.path.trim('/'), relativePath).filter { it.isNotEmpty() }.joinToString("/")
-        NfsFileInputStream(Nfs3File(mount(source), path), 0L, 256 * 1024).use { it.readUpTo(length) }
+        withMount(source) { nfs -> NfsFileInputStream(Nfs3File(nfs, path), 0L, 256 * 1024).use { it.readUpTo(length) } }
     }
 
     /** One mount per export, reused across files. */
     private val mounts = mutableMapOf<String, Nfs3>()
 
+    private fun key(source: SourceEntity) = "${source.host}:/${source.share.trim('/')}"
+
     @Synchronized
-    private fun mount(source: SourceEntity): Nfs3 {
-        val export = "/" + source.share.trim('/')
-        return mounts.getOrPut("${source.host}:$export") { Nfs3(source.host, export, CredentialUnix(), 3) }
+    private fun mount(source: SourceEntity): Nfs3 =
+        mounts.getOrPut(key(source)) { Nfs3(source.host, "/" + source.share.trim('/'), CredentialUnix(), 3) }
+
+    @Synchronized
+    private fun forget(source: SourceEntity) {
+        mounts.remove(key(source))
     }
 
-    private fun root(source: SourceEntity): Nfs3File = Nfs3File(mount(source), "/" + source.path.trim('/'))
+    /**
+     * Runs [block] on the export's mount. A mount can go stale (the NAS restarted, its address
+     * changed): after a failure it is made again, and the block tried once more.
+     */
+    private fun <T> withMount(source: SourceEntity, block: (Nfs3) -> T): T = try {
+        block(mount(source))
+    } catch (_: IOException) {
+        forget(source)
+        block(mount(source))
+    }
+
+    private fun root(nfs: Nfs3, source: SourceEntity): Nfs3File = Nfs3File(nfs, "/" + source.path.trim('/'))
 
     private fun walk(dir: Nfs3File, relative: String, depth: Int, out: MutableList<RemoteFile>, sidecars: MutableList<RemoteFile>) {
         if (depth > RemoteBrowser.MAX_DEPTH) return

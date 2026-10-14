@@ -12,6 +12,10 @@ enum class ScanErrorKind { UNREACHABLE, ACCESS_DENIED, LOGIN_FAILED, NOT_FOUND, 
 data class ScanError(val kind: ScanErrorKind, val detail: String)
 
 object ScanErrors {
+    /** The NAS (not TMDB) can't be reached: worth trying again later, not worth going on now. */
+    fun isUnreachable(e: Throwable): Boolean =
+        generateSequence(e) { it.cause }.none { it is TmdbUnreachableException } && classify(e).kind == ScanErrorKind.UNREACHABLE
+
     /** Maps SMB, NFS and socket failures to a [ScanErrorKind]; the raw message stays in [ScanError.detail]. */
     fun classify(e: Throwable): ScanError {
         val chain = generateSequence(e) { it.cause }.toList()

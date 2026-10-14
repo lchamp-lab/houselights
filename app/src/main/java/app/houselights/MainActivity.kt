@@ -1,7 +1,6 @@
 package app.houselights
 
 import android.content.ActivityNotFoundException
-import android.net.Uri
 import android.os.Bundle
 import android.util.Log
 import android.view.Display
@@ -25,18 +24,16 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
-import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import androidx.navigation.navArgument
-import app.houselights.core.ArtworkKind
+import androidx.navigation.toRoute
 import app.houselights.core.Library
-import app.houselights.core.LibraryKind
 import app.houselights.core.MediaItem
 import app.houselights.core.PlaybackOptions
 import app.houselights.core.PlaybackPlan
 import app.houselights.core.SourceConfig
+import app.houselights.core.suspendRunCatching
 import app.houselights.player.PlaybackManager
 import app.houselights.ui.util.appContainer
 import app.houselights.ui.design.HlMotion
@@ -142,7 +139,7 @@ class MainActivity : ComponentActivity() {
         lifecycleScope.launch {
             val s = container.settings.state.value
             lightsDown.value = true
-            runCatching { container.provider.playback(item, resume, PlaybackOptions(s.pathMappings, s.forceHttp)) }
+            suspendRunCatching { container.provider.playback(item, resume, PlaybackOptions(s.pathMappings, s.forceHttp)) }
                 .onSuccess { plan ->
                     // Let the room go dark before the player takes over the screen.
                     delay(HlMotion.DIM.toLong())
@@ -151,6 +148,7 @@ class MainActivity : ComponentActivity() {
                             playerLauncher.launch(container.playback.intentFor(plan))
                             container.playback.onPlayerLaunched()
                         } catch (_: ActivityNotFoundException) {
+                            container.playback.onLaunchFailed()
                             lightsDown.value = false
                             toast(getString(R.string.no_player))
                         } catch (_: PlaybackManager.CredentialsNotShared) {
@@ -178,95 +176,79 @@ private fun AppNavigation(onPlay: (MediaItem, Boolean) -> Unit) {
 
     val nav = rememberNavController()
     val scope = rememberCoroutineScope()
-    val start = remember { if (settings.source != null) "home" else "welcome" }
+    val start: Any = remember { if (settings.source != null) Route.Home else Route.Welcome }
 
-    fun openItem(id: String) = nav.navigate("item/$id")
-    fun openLibrary(library: Library) =
-        nav.navigate("library/${library.id}?kind=${library.kind.name}&title=${Uri.encode(library.title ?: "")}")
-    fun goHome() = nav.navigate("home") { popUpTo(0) { inclusive = true } }
+    fun openItem(id: String) = nav.navigate(Route.Item(id))
+    fun openLibrary(library: Library) = nav.navigate(Route.Library(library.id, library.kind, library.title))
+    fun goHome() = nav.navigate(Route.Home) { popUpTo(0) { inclusive = true } }
 
     NavHost(nav, startDestination = start) {
-        composable("welcome") {
+        composable<Route.Welcome> {
             WelcomeScreen(
                 onLocal = {
                     // Folders added before are kept when switching sources: reuse them.
                     scope.launch {
                         if (app.database.dao().sources().isEmpty()) {
-                            nav.navigate("folder/add")
+                            nav.navigate(Route.AddFolder)
                         } else {
                             app.settings.setSource(SourceConfig.Local)
                             goHome()
                         }
                     }
                 },
-                onJellyfin = { nav.navigate("jellyfin/login") },
+                onJellyfin = { nav.navigate(Route.JellyfinLogin) },
             )
         }
-        composable("jellyfin/login") { JellyfinLoginScreen(onLoggedIn = ::goHome) }
-        composable("folder/add") {
+        composable<Route.JellyfinLogin> { JellyfinLoginScreen(onLoggedIn = ::goHome) }
+        composable<Route.AddFolder> {
             AddFolderScreen(onAdded = {
                 // First folder: go to the home screen; otherwise back to settings.
-                if (!nav.popBackStack("settings", inclusive = false)) goHome()
+                if (!nav.popBackStack<Route.Settings>(inclusive = false)) goHome()
             })
         }
-        composable("home") {
+        composable<Route.Home> {
             HomeScreen(
                 onOpenItem = { openItem(it.id) },
                 onOpenLibrary = ::openLibrary,
-                onOpenSettings = { nav.navigate("settings") },
+                onOpenSettings = { nav.navigate(Route.Settings) },
             )
         }
-        composable(
-            "library/{id}?kind={kind}&title={title}",
-            arguments = listOf(
-                navArgument("id") { type = NavType.StringType },
-                navArgument("kind") { type = NavType.StringType; defaultValue = LibraryKind.MIXED.name },
-                navArgument("title") { type = NavType.StringType; defaultValue = "" },
-            ),
-        ) { entry ->
-            val args = entry.arguments!!
-            val library = Library(
-                id = args.getString("id")!!,
-                kind = LibraryKind.valueOf(args.getString("kind")!!),
-                title = args.getString("title")?.ifBlank { null },
-            )
+        composable<Route.Library> { entry ->
+            val route = entry.toRoute<Route.Library>()
+            val library = Library(id = route.id, kind = route.kind, title = route.title?.ifBlank { null })
             LibraryScreen(
                 library = library,
                 title = library.title ?: app.libraryTitle(library.kind),
                 onOpenItem = { openItem(it.id) },
             )
         }
-        composable("item/{id}") { entry ->
+        composable<Route.Item> { entry ->
             DetailScreen(
-                itemId = entry.arguments!!.getString("id")!!,
+                itemId = entry.toRoute<Route.Item>().id,
                 onPlay = onPlay,
                 onOpenItem = ::openItem,
-                onOpenNfo = { nav.navigate("nfo/$it") },
-                onEditArtwork = { id, kind -> nav.navigate("artwork/$id/${kind.name}") },
-                onIdentify = { nav.navigate("identify/$it") },
+                onOpenNfo = { nav.navigate(Route.Nfo(it)) },
+                onEditArtwork = { id, kind -> nav.navigate(Route.Artwork(id, kind)) },
+                onIdentify = { nav.navigate(Route.Identify(it)) },
             )
         }
-        composable("artwork/{id}/{kind}") { entry ->
-            val args = entry.arguments!!
-            ArtworkScreen(
-                itemId = args.getString("id")!!,
-                kind = ArtworkKind.valueOf(args.getString("kind")!!),
-                onDone = { nav.popBackStack() },
-            )
+        composable<Route.Artwork> { entry ->
+            val route = entry.toRoute<Route.Artwork>()
+            ArtworkScreen(itemId = route.id, kind = route.kind, onDone = { nav.popBackStack() })
         }
-        composable("identify/{id}") { entry ->
-            IdentifyScreen(entry.arguments!!.getString("id")!!, onDone = { nav.popBackStack() })
+        composable<Route.Identify> { entry ->
+            IdentifyScreen(entry.toRoute<Route.Identify>().id, onDone = { nav.popBackStack() })
         }
-        composable("nfo/{id}") { entry -> NfoScreen(entry.arguments!!.getString("id")!!) }
-        composable("settings") {
+        composable<Route.Nfo> { entry -> NfoScreen(entry.toRoute<Route.Nfo>().id) }
+        composable<Route.Settings> {
             SettingsScreen(
-                onAddFolder = { nav.navigate("folder/add") },
-                onChangeSource = { nav.navigate("welcome") { popUpTo(0) { inclusive = true } } },
-                onOpenCatalog = { nav.navigate("catalog") },
+                onAddFolder = { nav.navigate(Route.AddFolder) },
+                onChangeSource = { nav.navigate(Route.Welcome) { popUpTo(0) { inclusive = true } } },
+                onOpenCatalog = { nav.navigate(Route.Catalog) },
             )
         }
         // Debug builds only: every component in its states, for design review.
-        if (BuildConfig.DEBUG) composable("catalog") { CatalogScreen() }
+        if (BuildConfig.DEBUG) composable<Route.Catalog> { CatalogScreen() }
     }
 }
 

@@ -24,6 +24,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import app.houselights.R
 import app.houselights.core.SourceConfig
+import app.houselights.core.suspendRunCatching
 import app.houselights.providers.jellyfin.AuthRequest
 import app.houselights.providers.jellyfin.DiscoveredServer
 import app.houselights.providers.jellyfin.JellyfinClient
@@ -67,7 +68,7 @@ fun JellyfinLoginScreen(onLoggedIn: () -> Unit) {
         error = null
         scope.launch {
             var url = JellyfinClient.normalizeUrl(server)
-            runCatching {
+            suspendRunCatching {
                 val deviceId = app.settings.ensureDeviceId()
                 val (reached, info) = JellyfinClient.reach(server, deviceId)
                 url = reached

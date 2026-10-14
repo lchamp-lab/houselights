@@ -30,6 +30,8 @@ sealed interface PlaybackPlan {
         val logoUrl: String?,
         val startMs: Long,
         val reporter: PlaybackReporter?,
+        /** Names the reporter again ([MediaProvider.reporter]) if the app is stopped while the film plays. */
+        val resumeKey: String? = null,
     ) : PlaybackPlan
 
     /** The backend starts playback itself (e.g. Home Theater) and tracks progress on its own. */
@@ -61,6 +63,9 @@ interface MediaProvider {
     suspend fun setPlayed(item: MediaItem, played: Boolean) {}
     suspend fun setFavorite(item: MediaItem, favorite: Boolean) {}
     suspend fun playback(item: MediaItem, resume: Boolean, options: PlaybackOptions): PlaybackPlan
+
+    /** The reporter of a playback started earlier, from its [PlaybackPlan.Launch.resumeKey]. */
+    fun reporter(resumeKey: String): PlaybackReporter? = null
 
     /**
      * What "Play" starts: for a series, the first in-progress or unwatched episode; for a

@@ -7,11 +7,13 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonNamingStrategy
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
+import retrofit2.HttpException
 import retrofit2.Retrofit
 import retrofit2.converter.kotlinx.serialization.asConverterFactory
 import retrofit2.http.GET
 import retrofit2.http.Path
 import retrofit2.http.Query
+import java.io.IOException
 import java.util.Locale
 import java.util.concurrent.TimeUnit
 
@@ -216,6 +218,9 @@ interface TmdbApi {
     suspend fun season(@Path("id") id: Int, @Path("season") season: Int, @Query("language") language: String): TmdbSeason
 }
 
+/** TMDB could not be reached (no network, DNS, timeout), now or a moment ago. */
+class TmdbUnreachableException(cause: IOException?) : IOException("TMDB is unreachable", cause)
+
 /** TMDB v3 client; metadata in the device language. */
 class TmdbClient(apiKey: String) {
     private val locale: Locale = Locale.getDefault()
@@ -232,12 +237,23 @@ class TmdbClient(apiKey: String) {
         namingStrategy = JsonNamingStrategy.SnakeCase
     }
 
+    /** Until when calls fail at once, after TMDB could not be reached. */
+    @Volatile
+    private var unreachableUntil = 0L
+
     private val http = OkHttpClient.Builder()
         .connectTimeout(10, TimeUnit.SECONDS)
         .readTimeout(20, TimeUnit.SECONDS)
         .addInterceptor { chain ->
+            // Once TMDB is out of reach, the next files of a scan don't each wait for a timeout.
+            if (System.currentTimeMillis() < unreachableUntil) throw TmdbUnreachableException(null)
             val url = chain.request().url.newBuilder().addQueryParameter("api_key", apiKey).build()
-            chain.proceed(chain.request().newBuilder().url(url).build())
+            try {
+                chain.proceed(chain.request().newBuilder().url(url).build())
+            } catch (e: IOException) {
+                unreachableUntil = System.currentTimeMillis() + UNREACHABLE_PAUSE_MS
+                throw TmdbUnreachableException(e)
+            }
         }
         .build()
 
@@ -256,11 +272,12 @@ class TmdbClient(apiKey: String) {
         return api.movie(hit.id, language, imageLanguages)
     }
 
-    suspend fun movieById(id: Int): TmdbMovie? = runCatching { movie(id) }.getOrNull()
+    /** null when TMDB has no such film. A network failure throws: it must never read as "not found". */
+    suspend fun movieById(id: Int): TmdbMovie? = unlessMissing { movie(id) }
 
-    suspend fun tvById(id: Int): TmdbTv? = runCatching { tv(id) }.getOrNull()
+    suspend fun tvById(id: Int): TmdbTv? = unlessMissing { tv(id) }
 
-    /** Like [movieById], but a network error or an unknown id throws instead of returning null. */
+    /** Like [movieById], but an unknown id throws instead of returning null. */
     suspend fun movie(id: Int): TmdbMovie = api.movie(id, language, imageLanguages)
 
     suspend fun tv(id: Int): TmdbTv = api.tv(id, language, imageLanguages)
@@ -281,10 +298,10 @@ class TmdbClient(apiKey: String) {
         if (show) api.tvImages(tmdbId, imageLanguages) else api.movieImages(tmdbId, imageLanguages)
 
     /** TMDB ids of the film and show matching an IMDb id. */
-    suspend fun findByImdb(imdbId: String): Pair<Int?, Int?> = runCatching {
+    suspend fun findByImdb(imdbId: String): Pair<Int?, Int?> = unlessMissing {
         val r = api.find(imdbId)
         r.movieResults.firstOrNull()?.id to r.tvResults.firstOrNull()?.id
-    }.getOrDefault(null to null)
+    } ?: (null to null)
 
     suspend fun findTv(title: String, year: Int?): TmdbTv? {
         val hit = api.searchTv(title, year, language).results.firstOrNull()
@@ -293,9 +310,16 @@ class TmdbClient(apiKey: String) {
         return api.tv(hit.id, language, imageLanguages)
     }
 
-    suspend fun season(tvId: Int, season: Int): TmdbSeason? = runCatching { api.season(tvId, season, language) }.getOrNull()
+    suspend fun season(tvId: Int, season: Int): TmdbSeason? = unlessMissing { api.season(tvId, season, language) }
 
-    suspend fun collection(id: Int): TmdbCollection? = runCatching { api.collection(id, language) }.getOrNull()
+    suspend fun collection(id: Int): TmdbCollection? = unlessMissing { api.collection(id, language) }
+
+    /** The answer, or null when TMDB says it has no such entry (404); any other failure throws. */
+    private inline fun <T> unlessMissing(block: () -> T): T? = try {
+        block()
+    } catch (e: HttpException) {
+        if (e.code() == HTTP_NOT_FOUND) null else throw e
+    }
 
     /** Posters of this week's trending films, for the welcome screen's wall. */
     suspend fun trendingPosterPaths(): List<String> = api.trendingMovies(language).results.mapNotNull { it.posterPath }
@@ -314,6 +338,8 @@ class TmdbClient(apiKey: String) {
         tv.contentRatings.results.firstOrNull { it.iso31661 == region }?.rating?.takeIf { it.isNotBlank() }
 
     companion object {
+        private const val HTTP_NOT_FOUND = 404
+        private const val UNREACHABLE_PAUSE_MS = 60_000L
         private const val IMAGE_BASE = "https://image.tmdb.org/t/p/"
         private val POSTER_SIZES = listOf(92, 154, 185, 342, 500, 780)
         private val BACKDROP_SIZES = listOf(300, 780, 1280)

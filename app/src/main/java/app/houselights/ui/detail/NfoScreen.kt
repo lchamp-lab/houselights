@@ -41,6 +41,7 @@ import androidx.tv.material3.Text
 import app.houselights.R
 import app.houselights.core.NfoDocument
 import app.houselights.core.NfoInfo
+import app.houselights.core.suspendRunCatching
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlLayout
@@ -67,7 +68,7 @@ fun NfoScreen(itemId: String) {
     var tab by remember { mutableIntStateOf(0) }
     val tabsFocus = remember { FocusRequester() }
     LaunchedEffect(itemId) {
-        runCatching {
+        suspendRunCatching {
             val item = app.provider.item(itemId)
             title = item.title
             document = app.provider.nfo(item)

@@ -1,6 +1,8 @@
 package app.houselights.providers.local
 
+import app.houselights.core.suspendRunCatching
 import java.io.File
+import java.util.Locale
 import java.security.MessageDigest
 
 /** Files that tools like Kodi, tinyMediaManager or Jellyfin place next to a video or a show. */
@@ -45,8 +47,11 @@ class Sidecars(files: List<RemoteFile>, videos: List<RemoteFile>) {
         thumb = find(showDir, IMAGES.map { "landscape.$it" }),
     )
 
-    fun seasonPoster(showDir: String, season: Int): RemoteFile? =
-        find(showDir, IMAGES.map { "season%02d-poster.$it".format(season) } + if (season == 0) IMAGES.map { "season-specials-poster.$it" } else emptyList())
+    fun seasonPoster(showDir: String, season: Int): RemoteFile? {
+        val numbered = IMAGES.map { "season%02d-poster.$it".format(Locale.ROOT, season) }
+        val specials = if (season == 0) IMAGES.map { "season-specials-poster.$it" } else emptyList()
+        return find(showDir, numbered + specials)
+    }
 
     companion object {
         private val IMAGES = listOf("jpg", "jpeg", "png", "webp")
@@ -66,13 +71,21 @@ data class CacheUsage(val files: Int, val bytes: Long)
  */
 class ArtworkCache(private val dir: File) {
     /** "file://…" path of the cached copy; read again only when the file changes size. */
-    suspend fun copy(source: SourceEntity, file: RemoteFile): String? = runCatching {
+    suspend fun copy(source: SourceEntity, file: RemoteFile): String? = suspendRunCatching {
         val ext = file.relativePath.substringAfterLast('.', "jpg").lowercase().let { if (it == "tbn") "jpg" else it }
+        // An image too large for the cache is left to TMDB rather than kept cut off.
+        if (file.size > MAX_BYTES) return null
         val target = File(dir, "${source.id}/${hash("${file.relativePath}:${file.size}")}.$ext")
         if (!target.exists()) {
             target.parentFile?.mkdirs()
             val bytes = RemoteBrowser.of(source).readPrefix(source, file.relativePath, MAX_BYTES)
-            target.writeBytes(bytes)
+            // Written aside then renamed: an interrupted copy never passes for a cached image.
+            val partial = File(target.parentFile, "${target.name}.part")
+            partial.writeBytes(bytes)
+            if (!partial.renameTo(target)) {
+                partial.delete()
+                error("Could not store ${target.name}")
+            }
         }
         "file://${target.absolutePath}"
     }.getOrNull()
@@ -116,6 +129,6 @@ class ArtworkCache(private val dir: File) {
         private const val MAX_BYTES = 30 shl 20
 
         private fun hash(s: String): String =
-            MessageDigest.getInstance("SHA-1").digest(s.toByteArray()).joinToString("") { "%02x".format(it) }.take(24)
+            MessageDigest.getInstance("SHA-1").digest(s.toByteArray()).joinToString("") { "%02x".format(Locale.ROOT, it) }.take(24)
     }
 }

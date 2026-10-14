@@ -56,6 +56,7 @@ import app.houselights.R
 import app.houselights.core.Definition
 import app.houselights.core.PathMapping
 import app.houselights.core.SourceConfig
+import app.houselights.core.suspendRunCatching
 import app.houselights.player.PathResolver
 import app.houselights.player.PlaybackManager
 import app.houselights.player.ZidooStatus
@@ -258,11 +259,7 @@ private fun Sources() {
                     description = stringResource(R.string.remove_folder_desc),
                     onClick = {
                         actionsFor = null
-                        scope.launch {
-                            app.database.dao().deleteItemsOfSource(source.id)
-                            app.database.dao().deleteSource(source.id)
-                            app.scanner.scanAll()
-                        }
+                        scope.launch { app.scanner.removeSource(source) }
                     },
                     chevron = false,
                 )
@@ -530,7 +527,7 @@ private fun PathMappings(s: AppSettings) {
     val mappings = remember { mutableStateListOf<PathMapping>().apply { addAll(s.pathMappings) } }
     var saved by remember { mutableStateOf(false) }
     var samplePath by remember { mutableStateOf<String?>(null) }
-    LaunchedEffect(Unit) { samplePath = runCatching { app.provider.samplePath() }.getOrNull() }
+    LaunchedEffect(Unit) { samplePath = suspendRunCatching { app.provider.samplePath() }.getOrNull() }
 
     Column(Modifier.padding(horizontal = HlSpace.l), verticalArrangement = Arrangement.spacedBy(HlSpace.s)) {
         Hint(stringResource(R.string.path_mapping_help))

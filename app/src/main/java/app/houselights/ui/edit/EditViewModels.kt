@@ -10,6 +10,7 @@ import app.houselights.core.Identity
 import app.houselights.core.MatchCandidate
 import app.houselights.core.MediaItem
 import app.houselights.core.MetadataEditor
+import app.houselights.core.suspendRunCatching
 import app.houselights.providers.local.NoTmdbKeyException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -46,7 +47,7 @@ class ArtworkViewModel(private val app: AppContainer, private val itemId: String
     fun load() {
         _state.update { it.copy(error = null) }
         viewModelScope.launch {
-            runCatching {
+            suspendRunCatching {
                 val item = app.provider.item(itemId)
                 ArtworkState(item, app.editor().artwork(item, kind))
             }.onSuccess { _state.value = it }
@@ -57,7 +58,7 @@ class ArtworkViewModel(private val app: AppContainer, private val itemId: String
     /** True once the choice is saved. */
     suspend fun choose(option: ArtworkOption): Boolean {
         val item = _state.value.item ?: return false
-        return runCatching { app.editor().setArtwork(item, kind, option) }
+        return suspendRunCatching { app.editor().setArtwork(item, kind, option) }
             .onFailure { e -> _state.update { it.copy(error = e.toEditError()) } }
             .isSuccess
     }
@@ -82,7 +83,7 @@ class IdentifyViewModel(private val app: AppContainer, private val itemId: Strin
 
     init {
         viewModelScope.launch {
-            runCatching {
+            suspendRunCatching {
                 val item = app.provider.item(itemId)
                 item to app.editor().identity(item)
             }.onSuccess { (item, identity) ->
@@ -103,7 +104,7 @@ class IdentifyViewModel(private val app: AppContainer, private val itemId: Strin
         search?.cancel()
         _state.update { it.copy(searching = true, error = null) }
         search = viewModelScope.launch {
-            runCatching { app.editor().search(item, s.query, s.year.toIntOrNull()) }
+            suspendRunCatching { app.editor().search(item, s.query, s.year.toIntOrNull()) }
                 .onSuccess { results -> _state.update { it.copy(searching = false, results = results) } }
                 .onFailure { e -> _state.update { it.copy(searching = false, error = e.toEditError()) } }
         }
@@ -113,7 +114,7 @@ class IdentifyViewModel(private val app: AppContainer, private val itemId: Strin
     suspend fun identify(candidate: MatchCandidate?): Boolean {
         val item = _state.value.item ?: return false
         _state.update { it.copy(identifying = true, error = null) }
-        return runCatching { app.editor().identify(item, candidate) }
+        return suspendRunCatching { app.editor().identify(item, candidate) }
             .onFailure { e -> _state.update { it.copy(identifying = false, error = e.toEditError()) } }
             .isSuccess
     }
