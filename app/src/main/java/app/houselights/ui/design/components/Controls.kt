@@ -9,7 +9,6 @@ import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
@@ -30,8 +29,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.Border
-import androidx.tv.material3.Button
-import androidx.tv.material3.ButtonDefaults
 import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.Icon
 import androidx.tv.material3.LocalContentColor
@@ -61,11 +58,13 @@ fun HlButton(
     emphasis: Emphasis = Emphasis.Secondary,
 ) {
     val c = Hl.colors
-    Button(
+    // A Surface rather than tv-material's Button, whose content keeps a minimum height of its own
+    // at the top of the control: here the content is centred in exactly the control height.
+    Surface(
         onClick = onClick,
-        modifier = modifier,
-        shape = ButtonDefaults.shape(HlShapes.control),
-        colors = ButtonDefaults.colors(
+        modifier = modifier.height(HlSize.control),
+        shape = ClickableSurfaceDefaults.shape(HlShapes.control),
+        colors = ClickableSurfaceDefaults.colors(
             containerColor = c.content.copy(alpha = if (emphasis == Emphasis.Primary) 0.22f else 0.09f),
             contentColor = c.content,
             focusedContainerColor = c.focus,
@@ -73,17 +72,21 @@ fun HlButton(
             pressedContainerColor = c.focus,
             pressedContentColor = c.onFocus,
         ),
-        scale = ButtonDefaults.scale(focusedScale = HlFocus.CONTROL_SCALE),
-        contentPadding = PaddingValues(start = if (icon != null) 20.dp else 24.dp, end = 24.dp, top = 11.dp, bottom = 11.dp),
+        scale = ClickableSurfaceDefaults.scale(focusedScale = HlFocus.CONTROL_SCALE),
     ) {
-        if (icon != null) {
-            Icon(icon, contentDescription = null, modifier = Modifier.size(HlSize.icon))
-            Spacer(Modifier.width(HlSpace.xs + 2.dp))
-        }
-        Text(text, style = Hl.type.label, maxLines = 1, softWrap = false)
-        if (detail != null) {
-            Spacer(Modifier.width(HlSpace.s))
-            Text(detail, style = Hl.type.meta, color = LocalContentColor.current.copy(alpha = 0.62f))
+        Row(
+            Modifier.align(Alignment.Center).padding(start = if (icon != null) 20.dp else 24.dp, end = 24.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            if (icon != null) {
+                Icon(icon, contentDescription = null, modifier = Modifier.size(HlSize.icon))
+                Spacer(Modifier.width(HlSpace.xs + 2.dp))
+            }
+            Text(text, style = Hl.type.label, maxLines = 1, softWrap = false)
+            if (detail != null) {
+                Spacer(Modifier.width(HlSpace.s))
+                Text(detail, style = Hl.type.meta, color = LocalContentColor.current.copy(alpha = 0.62f))
+            }
         }
     }
 }

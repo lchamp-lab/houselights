@@ -35,7 +35,9 @@ object HlSize {
     val landscape = 220.dp
     val episode = 264.dp
     val avatar = 76.dp
-    val iconButton = 48.dp
+    /** Height of every control: pill buttons and round icon buttons line up. */
+    val control = 48.dp
+    val iconButton = control
     val icon = 20.dp
     val progress = 3.dp
     val focusBorder = 2.dp
