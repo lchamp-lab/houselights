@@ -18,6 +18,7 @@ import androidx.compose.ui.unit.dp
 import androidx.tv.material3.Icon
 import androidx.tv.material3.Text
 import app.houselights.R
+import app.houselights.core.Definition
 import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
 import app.houselights.ui.design.Hl
@@ -84,5 +85,5 @@ fun Badge(text: String, modifier: Modifier = Modifier, lit: Boolean = false) {
 @Composable
 fun BadgeRow(badges: List<String>, modifier: Modifier = Modifier) {
     if (badges.isEmpty()) return
-    Row(modifier, horizontalArrangement = Arrangement.spacedBy(HlSpace.xs)) { badges.forEach { Badge(it) } }
+    Row(modifier, horizontalArrangement = Arrangement.spacedBy(HlSpace.xs)) { badges.forEach { Badge(Definition.label(it)) } }
 }

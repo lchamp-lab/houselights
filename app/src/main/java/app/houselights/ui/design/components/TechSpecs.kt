@@ -60,7 +60,7 @@ private fun VideoColumn(media: MediaInfo, modifier: Modifier) {
     Column(modifier) {
         ColumnTitle(stringResource(R.string.tech_video))
         Text(
-            listOfNotNull(v.resolution, v.codec, v.bitDepth?.let { stringResource(R.string.bit_depth, it) }).joinToString("   "),
+            listOfNotNull(v.definition?.label, v.codec, v.bitDepth?.let { stringResource(R.string.bit_depth, it) }).joinToString("   "),
             style = Hl.type.label,
             color = Hl.colors.content,
         )

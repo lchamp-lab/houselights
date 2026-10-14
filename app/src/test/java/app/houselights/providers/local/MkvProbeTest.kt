@@ -1,5 +1,6 @@
 package app.houselights.providers.local
 
+import app.houselights.core.Definition
 import app.houselights.core.HdrFormat
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -55,7 +56,7 @@ class MkvProbeTest {
         val v = info.video!!
         assertEquals("HEVC", v.codec)
         assertEquals(3840, v.width)
-        assertEquals("4K", v.resolution)
+        assertEquals(Definition.ULTRA_HD, v.definition)
         assertEquals(10, v.bitDepth)
         assertEquals(listOf(HdrFormat.DOLBY_VISION, HdrFormat.HDR10), v.hdr)
         assertEquals(8, v.dolbyVisionProfile)

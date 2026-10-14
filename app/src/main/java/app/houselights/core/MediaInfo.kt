@@ -2,6 +2,33 @@ package app.houselights.core
 
 import kotlinx.serialization.Serializable
 
+/**
+ * Picture definition. [token] is what badges store and filters match, and never changes;
+ * [label] is the name shown, from the same family as the other formats (Ultra HD Blu-ray,
+ * Dolby Vision, HDR10).
+ */
+enum class Definition(val token: String, val label: String) {
+    ULTRA_HD("4K", "Ultra HD"),
+    FULL_HD("1080p", "Full HD"),
+    HD("720p", "HD"),
+    SD("SD", "SD"),
+    ;
+
+    companion object {
+        /** From the frame width: wide films are shorter than their definition's height. */
+        fun of(width: Int?): Definition? = when {
+            width == null -> null
+            width >= 3200 -> ULTRA_HD
+            width >= 1800 -> FULL_HD
+            width >= 1200 -> HD
+            else -> SD
+        }
+
+        /** How a badge is shown: definitions by name, any other format as it is. */
+        fun label(badge: String): String = entries.firstOrNull { it.token == badge }?.label ?: badge
+    }
+}
+
 /** High dynamic range formats, best first. */
 @Serializable
 enum class HdrFormat { DOLBY_VISION, HDR10_PLUS, HDR10, HLG }
@@ -16,17 +43,7 @@ data class VideoInfo(
     val hdr: List<HdrFormat> = emptyList(),
     val dolbyVisionProfile: Int? = null,
 ) {
-    /** 4K, 1080p, 720p or SD, from the frame size (wide films are shorter than 2160). */
-    val resolution: String?
-        get() {
-            val w = width ?: return null
-            return when {
-                w >= 3200 -> "4K"
-                w >= 1800 -> "1080p"
-                w >= 1200 -> "720p"
-                else -> "SD"
-            }
-        }
+    val definition: Definition? get() = Definition.of(width)
 }
 
 @Serializable
@@ -97,7 +114,7 @@ data class MediaInfo(
 
     /** Short format marks for badges and filters: 4K, Dolby Vision, HDR10, TrueHD Atmos, 7.1. */
     fun badges(): List<String> = buildList {
-        video?.resolution?.let(::add)
+        video?.definition?.let { add(it.token) }
         video?.hdr?.forEach { add(hdrLabel(it)) }
         // Show the best audio of the file, which is what a home cinema will pick.
         val best = audio.maxByOrNull { audioRank(it) }
