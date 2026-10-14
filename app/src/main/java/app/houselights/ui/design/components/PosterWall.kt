@@ -24,6 +24,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
@@ -65,6 +66,8 @@ fun PosterWall(urls: List<String>, modifier: Modifier = Modifier, opacity: Float
                     rotationZ = -9f
                     translationY = -drift * cycle.toPx()
                     alpha = opacity
+                    // Posters never overlap: fading each one is the same picture, without an offscreen layer.
+                    compositingStrategy = CompositingStrategy.ModulateAlpha
                 },
         ) {
             repeat(COLUMNS) { col ->

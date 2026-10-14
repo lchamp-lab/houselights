@@ -54,13 +54,13 @@ class LocalProvider(
         val mapper = Mapper()
         val inProgress = dao.inProgress(20)
         return buildList {
-            if (inProgress.isNotEmpty()) add(HomeSection(SectionType.CONTINUE, inProgress.map { mapper.map(it) }, landscape = true))
+            if (inProgress.isNotEmpty()) add(HomeSection(SectionType.CONTINUE, mapper.mapAll(inProgress), landscape = true))
             val next = nextUpAcrossShows(exclude = inProgress.map { it.id }.toSet())
-            if (next.isNotEmpty()) add(HomeSection(SectionType.NEXT_UP, next.map { mapper.map(it) }, landscape = true))
+            if (next.isNotEmpty()) add(HomeSection(SectionType.NEXT_UP, mapper.mapAll(next), landscape = true))
             for ((kind, library) in listOf(LibraryKind.MOVIES to MOVIES, LibraryKind.SHOWS to SHOWS)) {
                 val items = dao.latest(if (kind == LibraryKind.MOVIES) ItemKind.MOVIE else ItemKind.SERIES, 24)
                 if (items.isEmpty()) continue
-                val mapped = items.map { mapper.map(it) }
+                val mapped = mapper.mapAll(items)
                 add(HomeSection(SectionType.LATEST, mapped, landscape = false, libraryKind = kind, libraryId = library))
             }
         }
@@ -103,17 +103,18 @@ class LocalProvider(
             Quality.DOLBY_VISION -> where.append(" AND badges LIKE '%Dolby Vision%'")
         }
         val order = when (sort) {
-            SortOption.TITLE -> "sortTitle COLLATE NOCASE ASC"
+            // Sort keys are lower case already: a plain order can follow the (kind, sortTitle) index.
+            SortOption.TITLE -> "sortTitle ASC"
             SortOption.ADDED -> "addedAt DESC"
             SortOption.YEAR -> "year DESC, sortTitle ASC"
             SortOption.RATING -> "rating DESC, sortTitle ASC"
         }
         // The id settles ties, so that pages never overlap nor skip a title.
-        val page = "SELECT * FROM items WHERE $where ORDER BY $order, id LIMIT $limit OFFSET $start"
+        val page = "SELECT $ITEM_ROW FROM items WHERE $where ORDER BY $order, id LIMIT $limit OFFSET $start"
         val items = dao.query(SimpleSQLiteQuery(page, args.toTypedArray()))
         val total = dao.countQuery(SimpleSQLiteQuery("SELECT COUNT(*) FROM items WHERE $where", args.toTypedArray()))
         val mapper = Mapper()
-        return Page(items.map { mapper.map(it) }, total)
+        return Page(mapper.mapAll(items), total)
     }
 
     /** Collections holding enough films, sorted like films: by name, latest addition, latest film, rating. */
@@ -182,7 +183,7 @@ class LocalProvider(
     override suspend fun collectionItems(collection: MediaItem): List<MediaItem> {
         val key = (LocalId.parse(collection.id) as? LocalId.Collection)?.key ?: return emptyList()
         val mapper = Mapper()
-        return dao.collectionFilms(key).map { mapper.map(it) }
+        return mapper.mapAll(dao.collectionFilms(key))
     }
 
     /**
@@ -225,13 +226,13 @@ class LocalProvider(
     override suspend fun seasons(series: MediaItem): List<MediaItem> {
         val mapper = Mapper()
         val key = itemKey(series) ?: return emptyList()
-        return dao.children(key).filter { it.kind == ItemKind.SEASON }.map { mapper.map(it) }
+        return mapper.mapAll(dao.childRows(key).filter { it.kind == ItemKind.SEASON })
     }
 
     override suspend fun episodes(series: MediaItem, season: MediaItem): List<MediaItem> {
         val mapper = Mapper()
         val key = itemKey(season) ?: return emptyList()
-        return dao.children(key).map { mapper.map(it) }
+        return mapper.mapAll(dao.childRows(key))
     }
 
     override suspend fun nextUp(series: MediaItem): MediaItem? =
@@ -244,7 +245,7 @@ class LocalProvider(
         if (entity.kind != ItemKind.MOVIE && entity.kind != ItemKind.SERIES) return emptyList()
         val genre = entity.genres.split('|').firstOrNull { it.isNotBlank() } ?: return emptyList()
         val mapper = Mapper()
-        return dao.byGenre(entity.kind, genre, entity.id, 16).map { mapper.map(it) }
+        return mapper.mapAll(dao.byGenre(entity.kind, genre, entity.id, SIMILAR))
     }
 
     override suspend fun setPlayed(item: MediaItem, played: Boolean) {
@@ -253,7 +254,7 @@ class LocalProvider(
             val entity = entity(item) ?: return
             when (entity.kind) {
                 ItemKind.SERIES -> dao.episodesOfSeries(entity.id)
-                ItemKind.SEASON -> dao.children(entity.id)
+                ItemKind.SEASON -> dao.childRows(entity.id)
                 else -> listOf(entity)
             }
         }
@@ -313,8 +314,7 @@ class LocalProvider(
 
     /** Next episode of each show recently watched, skipping ones already in progress. */
     private suspend fun nextUpAcrossShows(exclude: Set<Long>): List<ItemEntity> {
-        val seriesIds = dao.recentlyPlayedEpisodes().mapNotNull { it.seriesId }.distinct().take(20)
-        return seriesIds.mapNotNull { nextEpisode(dao.episodesOfSeries(it)) }.filter { it.id !in exclude }
+        return dao.recentlyPlayedSeries(NEXT_UP_SHOWS).mapNotNull { nextEpisode(dao.episodesOfSeries(it)) }.filter { it.id !in exclude }
     }
 
     /** First in-progress episode, else the one after the last watched, else the first unwatched. */
@@ -324,28 +324,54 @@ class LocalProvider(
         return episodes.drop(lastWatched + 1).firstOrNull { !it.played } ?: episodes.firstOrNull { !it.played }
     }
 
-    /** Maps entities, looking up each parent series once. */
+    /**
+     * Maps entities. [mapAll] reads what cards need beyond their own row (the parent show, a show's
+     * counts) in one query for the whole list, instead of one per title.
+     */
     private inner class Mapper {
         private val series = mutableMapOf<Long, ItemEntity?>()
+        private val counts = mutableMapOf<Long, SeriesCounts>()
+
+        suspend fun mapAll(entities: List<ItemEntity>): List<MediaItem> {
+            val shows = entities.filter { it.kind == ItemKind.SERIES }.map { it.id }.filter { it !in counts }
+            for (chunk in shows.chunked(SQL_IN_LIMIT)) {
+                chunk.forEach { counts[it] = SeriesCounts(it, unplayed = 0, seasons = 0) }
+                dao.seriesCounts(chunk).forEach { counts[it.seriesId] = it }
+            }
+            val parents = entities.mapNotNull { it.seriesId }.distinct().filter { it !in series }
+            for (chunk in parents.chunked(SQL_IN_LIMIT)) {
+                chunk.forEach { series[it] = null }
+                dao.rows(chunk).forEach { series[it.id] = it }
+            }
+            return entities.map { map(it) }
+        }
+
+        /** True once what [e]'s card needs beyond its row is known (see [mapAll]). */
+        private fun prepared(e: ItemEntity): Boolean =
+            (e.kind != ItemKind.SERIES || e.id in counts) && (e.seriesId == null || e.seriesId in series)
+
+        private fun titleOf(e: ItemEntity): String = e.title.ifBlank {
+            when (e.kind) {
+                ItemKind.SEASON -> context.getString(R.string.season_number, e.seasonNumber ?: 0)
+                ItemKind.EPISODE -> context.getString(R.string.episode_number, e.episodeNumber ?: 0)
+                else -> e.title
+            }
+        }
 
         suspend fun map(e: ItemEntity): MediaItem {
-            val show = e.seriesId?.let { id -> series.getOrPut(id) { dao.item(id) } }
+            if (!prepared(e)) return mapAll(listOf(e)).single()
+            val show = e.seriesId?.let { series[it] }
             val kind = when (e.kind) {
                 ItemKind.MOVIE -> MediaKind.MOVIE
                 ItemKind.SERIES -> MediaKind.SERIES
                 ItemKind.SEASON -> MediaKind.SEASON
                 ItemKind.EPISODE -> MediaKind.EPISODE
             }
-            val title = e.title.ifBlank {
-                when (e.kind) {
-                    ItemKind.SEASON -> context.getString(R.string.season_number, e.seasonNumber ?: 0)
-                    ItemKind.EPISODE -> context.getString(R.string.episode_number, e.episodeNumber ?: 0)
-                    else -> e.title
-                }
-            }
+            val title = titleOf(e)
             val media = MediaProbe.decode(e.mediaInfo)
-            val unplayed = if (e.kind == ItemKind.SERIES) dao.episodesOfSeries(e.id).count { !it.played } else null
-            val seasonCount = if (e.kind == ItemKind.SERIES) dao.children(e.id).count { it.kind == ItemKind.SEASON } else null
+            val showCounts = counts[e.id]?.takeIf { e.kind == ItemKind.SERIES }
+            val unplayed = showCounts?.unplayed
+            val seasonCount = showCounts?.seasons
             return MediaItem(
                 id = e.id.toString(),
                 kind = kind,
@@ -363,7 +389,7 @@ class LocalProvider(
                 directors = e.directors.split('|').filter { it.isNotBlank() },
                 badges = e.badges.split('|').filter { it.isNotBlank() },
                 media = media,
-                hasNfo = e.nfo != null,
+                hasNfo = e.nfoPath != null,
                 fileName = e.filePath?.substringAfterLast('/'),
                 // Seasons and episodes show their series' artwork when they have none.
                 poster = (shown(e.userPosterPath, e.posterPath) ?: show?.let { shown(it.userPosterPath, it.posterPath) })
@@ -395,6 +421,11 @@ class LocalProvider(
         const val COLLECTIONS = "collections"
 
         private const val WATCHED_RATIO = 0.9
+        private const val NEXT_UP_SHOWS = 20
+        private const val SIMILAR = 16
+
+        /** SQLite allows at most 999 values in a statement. */
+        private const val SQL_IN_LIMIT = 500
         private const val MIN_RESUME_MS = 60_000L
 
         /** The user's choice over the automatic value; an empty choice means none (a logo set in type). */

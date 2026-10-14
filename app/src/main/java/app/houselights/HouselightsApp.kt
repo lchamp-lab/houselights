@@ -2,11 +2,13 @@ package app.houselights
 
 import android.app.Application
 import android.util.Log
+import app.houselights.core.Http
 import app.houselights.core.LibraryKind
 import app.houselights.core.MediaProvider
 import app.houselights.core.Secrets
 import app.houselights.core.SourceConfig
 import app.houselights.core.suspendRunCatching
+import app.houselights.core.throttleLatest
 import app.houselights.player.PlaybackManager
 import app.houselights.providers.jellyfin.JellyfinProvider
 import app.houselights.providers.local.ArtworkCache
@@ -24,11 +26,12 @@ import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.merge
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import okhttp3.OkHttpClient
 
 class HouselightsApp : Application(), ImageLoaderFactory {
     lateinit var container: AppContainer
@@ -40,8 +43,9 @@ class HouselightsApp : Application(), ImageLoaderFactory {
     }
 
     override fun newImageLoader(): ImageLoader = ImageLoader.Builder(this)
-        .okHttpClient { OkHttpClient() }
-        .memoryCache { MemoryCache.Builder(this).maxSizePercent(0.25).build() }
+        .okHttpClient { Http.client }
+        // A fixed budget: on a 2 GB player, a share of the large heap would hold 100 MB of pictures or more.
+        .memoryCache { MemoryCache.Builder(this).maxSizeBytes(IMAGE_MEMORY_BYTES).build() }
         .diskCache {
             DiskCache.Builder()
                 .directory(cacheDir.resolve("images"))
@@ -66,20 +70,34 @@ class AppContainer(private val app: Application) {
     val settings = SettingsStore(app, scope, Secrets.device)
     val database = LibraryDatabase.create(app, Secrets.device)
     val artwork = ArtworkCache(app.filesDir.resolve("artwork"))
-    val scanner = LibraryScanner(
-        dao = database.dao(),
-        tmdbKey = { tmdbKey() },
-        scope = scope,
-        artwork = artwork,
-    )
     val playback = PlaybackManager(app, scope) { resumeKey ->
         // After a restart, the source is known once the settings are read.
         settings.state.first { it.loaded }
         provider.reporter(resumeKey)
     }
+    val scanner = LibraryScanner(
+        dao = database.dao(),
+        tmdb = ::tmdb,
+        scope = scope,
+        artwork = artwork,
+        playing = playback.playing,
+    )
 
-    /** Emits whenever library data may have changed (playback ended, scan progress). */
-    val libraryChanged: Flow<Unit> = merge(playback.playbackEnded, scanner.changed)
+    private val _libraryVersion = MutableStateFlow(0L)
+
+    /**
+     * Moves on when library data may have changed (playback ended, scan progress), at most every few
+     * seconds. Screens on display reload when it moves; screens behind others when they come back.
+     */
+    val libraryVersion: StateFlow<Long> = _libraryVersion
+
+    init {
+        scope.launch {
+            merge(playback.playbackEnded, scanner.changed)
+                .throttleLatest(LIBRARY_CHANGE_MS)
+                .collect { _libraryVersion.update { it + 1 } }
+        }
+    }
 
     @Volatile
     private var cached: Pair<SourceConfig, MediaProvider>? = null
@@ -90,7 +108,9 @@ class AppContainer(private val app: Application) {
             val source = settings.state.value.source ?: error("No library source configured")
             cached?.takeIf { it.first == source }?.let { return it.second }
             val created = when (source) {
-                SourceConfig.Local -> LocalProvider(app, database.dao(), LocalEditor(database.dao(), scanner, ::tmdbKey)) { settings.state.value.collectionMinFilms }
+                SourceConfig.Local -> LocalProvider(app, database.dao(), LocalEditor(database.dao(), scanner, ::tmdb)) {
+                    settings.state.value.collectionMinFilms
+                }
                 is SourceConfig.Jellyfin -> JellyfinProvider(source, settings.state.value.deviceId)
             }
             cached = source to created
@@ -100,10 +120,20 @@ class AppContainer(private val app: Application) {
     /** TMDB key in use: the user's own, else the one built into the APK. */
     fun tmdbKey(): String? = settings.state.value.tmdbApiKey ?: BuildConfig.TMDB_API_KEY.ifBlank { null }
 
+    @Volatile
+    private var tmdbClient: TmdbClient? = null
+
+    /** The TMDB client for the key in use, made once and kept while the key and language stay. */
+    fun tmdb(): TmdbClient? {
+        val key = tmdbKey()?.takeIf { it.isNotBlank() } ?: return null
+        tmdbClient?.takeIf { it.fits(key) }?.let { return it }
+        return TmdbClient(key).also { tmdbClient = it }
+    }
+
     /** Poster URLs of trending films, or nothing when TMDB is unreachable. */
     suspend fun trendingPosters(widthPx: Int): List<String> = suspendRunCatching {
-        val key = tmdbKey() ?: return emptyList()
-        TmdbClient(key).trendingPosterPaths().map { TmdbClient.imageUrl(it, TmdbClient.Companion.ImageType.POSTER, widthPx) }
+        val tmdb = tmdb() ?: return emptyList()
+        tmdb.trendingPosterPaths().map { TmdbClient.imageUrl(it, TmdbClient.Companion.ImageType.POSTER, widthPx) }
     }.getOrDefault(emptyList())
 
     fun libraryTitle(kind: LibraryKind): String = app.getString(
@@ -119,3 +149,9 @@ class AppContainer(private val app: Application) {
         scope.launch { settings.ensureDeviceId() }
     }
 }
+
+/** Scan progress refreshes screens at most this often. */
+private const val LIBRARY_CHANGE_MS = 3_000L
+
+/** Decoded pictures kept in memory: a few backdrops and the posters of several rows. */
+private const val IMAGE_MEMORY_BYTES = 64 * 1024 * 1024

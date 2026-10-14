@@ -36,6 +36,7 @@ import app.houselights.core.SourceConfig
 import app.houselights.core.suspendRunCatching
 import app.houselights.player.PlaybackManager
 import app.houselights.ui.util.appContainer
+import coil.imageLoader
 import app.houselights.ui.design.HlMotion
 import app.houselights.ui.design.LocalHouseLights
 import app.houselights.ui.design.components.HouseLights
@@ -145,6 +146,8 @@ class MainActivity : ComponentActivity() {
                     delay(HlMotion.DIM.toLong())
                     when (plan) {
                         is PlaybackPlan.Launch -> try {
+                            // The player needs the memory more than pictures that load again from disk.
+                            imageLoader.memoryCache?.clear()
                             playerLauncher.launch(container.playback.intentFor(plan))
                             container.playback.onPlayerLaunched()
                         } catch (_: ActivityNotFoundException) {

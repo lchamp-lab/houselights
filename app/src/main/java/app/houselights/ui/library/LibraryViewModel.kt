@@ -34,12 +34,12 @@ class LibraryViewModel(private val app: AppContainer, private val library: Libra
     init {
         reset()
         loadFacets()
-        viewModelScope.launch {
-            app.libraryChanged.collect {
-                refresh()
-                loadFacets()
-            }
-        }
+    }
+
+    /** The library changed (a scan, a film watched): show what it holds now, without losing the place. */
+    fun onLibraryChanged() {
+        refresh()
+        loadFacets()
     }
 
     fun setSort(sort: SortOption) {

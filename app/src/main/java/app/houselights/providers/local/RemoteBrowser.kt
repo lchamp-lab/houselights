@@ -17,6 +17,7 @@ interface RemoteBrowser {
     suspend fun test(source: SourceEntity): Int
 
     /** The first [length] bytes of a file (fewer if the file is shorter). */
+    /** The first [length] bytes of a file, or all of it when shorter: pass a length close to what is needed. */
     suspend fun readPrefix(source: SourceEntity, relativePath: String, length: Int): ByteArray
 
     companion object {
@@ -38,21 +39,20 @@ interface RemoteBrowser {
 
         fun isSidecar(name: String) = name.substringAfterLast('.', "").lowercase() in SIDECAR_EXTENSIONS
 
-        private fun isSample(name: String) =
-            Regex("""(?i)(^|[ ._-])sample([ ._-]|$)""").containsMatchIn(name.substringBeforeLast('.'))
+        private val SAMPLE = Regex("""(?i)(^|[ ._-])sample([ ._-]|$)""")
+
+        private fun isSample(name: String) = SAMPLE.containsMatchIn(name.substringBeforeLast('.'))
     }
 }
 
-/** Reads until [length] bytes or the end of the stream. */
+/** Reads until [length] bytes or the end of the stream, straight into the array it returns. */
 internal fun java.io.InputStream.readUpTo(length: Int): ByteArray {
-    val out = java.io.ByteArrayOutputStream(minOf(length, 1 shl 20))
-    val buffer = ByteArray(64 * 1024)
+    val bytes = ByteArray(length)
     var total = 0
     while (total < length) {
-        val n = read(buffer, 0, minOf(buffer.size, length - total))
+        val n = read(bytes, total, length - total)
         if (n < 0) break
-        out.write(buffer, 0, n)
         total += n
     }
-    return out.toByteArray()
+    return if (total == length) bytes else bytes.copyOf(total)
 }

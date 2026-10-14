@@ -2,6 +2,7 @@ package app.houselights.providers.jellyfin
 
 import android.os.Build
 import app.houselights.BuildConfig
+import app.houselights.core.Http
 import app.houselights.core.SourceConfig
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.SerializationException
@@ -18,7 +19,7 @@ import java.util.concurrent.TimeUnit
 class JellyfinClient(serverUrl: String, private val deviceId: String, private val token: String?) {
     val baseUrl: String = normalizeUrl(serverUrl)
 
-    private val http: OkHttpClient = OkHttpClient.Builder()
+    private val http: OkHttpClient = Http.client.newBuilder()
         .connectTimeout(10, TimeUnit.SECONDS)
         .readTimeout(30, TimeUnit.SECONDS)
         .addInterceptor { chain ->

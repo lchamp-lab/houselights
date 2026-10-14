@@ -189,7 +189,7 @@ class LocalProviderTest {
         assertNull(LocalId.parse("tt0113277"))
     }
 
-    private object NoEditor : MetadataEditor {
+    internal object NoEditor : MetadataEditor {
         override fun canEdit(item: MediaItem) = false
         override suspend fun artwork(item: MediaItem, kind: ArtworkKind): ArtworkChoices = error("unused")
         override suspend fun setArtwork(item: MediaItem, kind: ArtworkKind, option: ArtworkOption) = error("unused")

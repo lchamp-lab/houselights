@@ -1,12 +1,12 @@
 package app.houselights.providers.local
 
+import app.houselights.core.Http
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonNamingStrategy
 import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.OkHttpClient
 import retrofit2.HttpException
 import retrofit2.Retrofit
 import retrofit2.converter.kotlinx.serialization.asConverterFactory
@@ -222,8 +222,12 @@ interface TmdbApi {
 class TmdbUnreachableException(cause: IOException?) : IOException("TMDB is unreachable", cause)
 
 /** TMDB v3 client; metadata in the device language. */
-class TmdbClient(apiKey: String) {
+class TmdbClient(private val apiKey: String) {
     private val locale: Locale = Locale.getDefault()
+
+    /** Still right for [key] and the device language: a client lives as long as both stay the same. */
+    fun fits(key: String): Boolean = key == apiKey && locale == Locale.getDefault()
+
     val language: String = locale.toLanguageTag().ifBlank { "en-US" }
     val languageCode: String = locale.language.ifBlank { "en" }
     val region: String = locale.country.ifBlank { "US" }
@@ -241,7 +245,7 @@ class TmdbClient(apiKey: String) {
     @Volatile
     private var unreachableUntil = 0L
 
-    private val http = OkHttpClient.Builder()
+    private val http = Http.client.newBuilder()
         .connectTimeout(10, TimeUnit.SECONDS)
         .readTimeout(20, TimeUnit.SECONDS)
         .addInterceptor { chain ->

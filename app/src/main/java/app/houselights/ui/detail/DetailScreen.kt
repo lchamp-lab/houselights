@@ -75,6 +75,7 @@ import app.houselights.ui.design.components.TitleArt
 import app.houselights.ui.design.components.rememberAmbientColor
 import app.houselights.ui.edit.EditMenu
 import app.houselights.ui.home.ErrorMessage
+import app.houselights.ui.util.ReloadOnLibraryChange
 import app.houselights.ui.util.appContainer
 import app.houselights.ui.util.FACT_GAP
 import app.houselights.ui.util.formatDuration
@@ -91,6 +92,7 @@ fun DetailScreen(
 ) {
     val app = appContainer()
     val vm = viewModel(key = "detail-$itemId") { DetailViewModel(app, itemId) }
+    ReloadOnLibraryChange { vm.load() }
     val state by vm.state.collectAsStateWithLifecycle()
     val item = state.item
 

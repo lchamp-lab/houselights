@@ -69,6 +69,7 @@ import app.houselights.ui.design.components.MetaLine
 import app.houselights.ui.design.components.PosterCard
 import app.houselights.ui.design.components.ScreenTitle
 import app.houselights.ui.design.components.rememberAmbientColor
+import app.houselights.ui.util.ReloadOnLibraryChange
 import app.houselights.ui.util.appContainer
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -84,6 +85,7 @@ fun LibraryScreen(
 ) {
     val app = appContainer()
     val vm = viewModel(key = "library-${library.id}") { LibraryViewModel(app, library) }
+    ReloadOnLibraryChange { vm.onLibraryChanged() }
     val state by vm.state.collectAsStateWithLifecycle()
 
     var focused by remember { mutableStateOf<MediaItem?>(null) }

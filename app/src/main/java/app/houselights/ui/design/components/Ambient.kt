@@ -56,10 +56,13 @@ fun rememberAmbientColor(image: ImageRef?): Color {
     return color
 }
 
-/** The ambient tone of [image], or null when it cannot be loaded. */
-private suspend fun ambientColorOf(context: Context, image: ImageRef): Color? {
+/**
+ * The ambient tone of [image], or null when it cannot be loaded. [sourcePx] picks the file to sample:
+ * the one a card already shows comes from the cache instead of the network.
+ */
+private suspend fun ambientColorOf(context: Context, image: ImageRef, sourcePx: Int = SAMPLE_PX): Color? {
     val request = ImageRequest.Builder(context)
-        .data(image.url(SAMPLE_PX))
+        .data(image.url(sourcePx))
         .size(SAMPLE_PX, SAMPLE_PX * 9 / 16)
         .allowHardware(false) // Palette needs to read the pixels.
         .build()
@@ -76,10 +79,12 @@ private suspend fun ambientColorOf(context: Context, image: ImageRef): Color? {
 @Composable
 fun CollectionLight(posters: List<ImageRef>, lit: Boolean, modifier: Modifier = Modifier) {
     val context = LocalContext.current
+    val posterPx = posterPx()
     var tones by remember { mutableStateOf<List<Color>>(emptyList()) }
-    LaunchedEffect(posters) {
-        // Posters fill the cache as the wall loads: tones come from there, in parallel.
-        tones = coroutineScope { posters.map { async { ambientColorOf(context, it) } }.awaitAll() }.filterNotNull()
+    LaunchedEffect(posters, lit) {
+        // Only while the light shows. The wall's posters are in the cache: tones come from there, in parallel.
+        if (!lit) return@LaunchedEffect
+        tones = coroutineScope { posters.map { async { ambientColorOf(context, it, posterPx) } }.awaitAll() }.filterNotNull()
     }
     val light by animateFloatAsState(if (lit) 1f else 0f, tween(HlMotion.SLOW, easing = HlMotion.standard), label = "collection")
     Crossfade(tones, modifier.fillMaxSize(), tween(HlMotion.SLOW, easing = HlMotion.standard), label = "tones") { colors ->

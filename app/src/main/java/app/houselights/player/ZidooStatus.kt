@@ -1,5 +1,6 @@
 package app.houselights.player
 
+import app.houselights.core.Http
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
@@ -7,7 +8,6 @@ import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.longOrNull
-import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.util.concurrent.TimeUnit
 
@@ -22,7 +22,7 @@ data class ZidooPlayState(
 object ZidooStatus {
     private const val BASE = "http://127.0.0.1:9529"
 
-    private val http = OkHttpClient.Builder()
+    private val http = Http.client.newBuilder()
         .connectTimeout(2, TimeUnit.SECONDS)
         .readTimeout(2, TimeUnit.SECONDS)
         .build()

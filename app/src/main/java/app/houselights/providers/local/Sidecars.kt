@@ -74,11 +74,11 @@ class ArtworkCache(private val dir: File) {
     suspend fun copy(source: SourceEntity, file: RemoteFile): String? = suspendRunCatching {
         val ext = file.relativePath.substringAfterLast('.', "jpg").lowercase().let { if (it == "tbn") "jpg" else it }
         // An image too large for the cache is left to TMDB rather than kept cut off.
-        if (file.size > MAX_BYTES) return null
+        if (file.size !in 1..MAX_BYTES.toLong()) return null
         val target = File(dir, "${source.id}/${hash("${file.relativePath}:${file.size}")}.$ext")
         if (!target.exists()) {
             target.parentFile?.mkdirs()
-            val bytes = RemoteBrowser.of(source).readPrefix(source, file.relativePath, MAX_BYTES)
+            val bytes = RemoteBrowser.of(source).readPrefix(source, file.relativePath, file.size.toInt())
             // Written aside then renamed: an interrupted copy never passes for a cached image.
             val partial = File(target.parentFile, "${target.name}.part")
             partial.writeBytes(bytes)

@@ -1,6 +1,7 @@
 package app.houselights.providers.local
 
 import app.houselights.core.Definition
+import java.util.concurrent.ConcurrentHashMap
 
 data class ParsedMovie(val title: String, val year: Int?)
 
@@ -74,10 +75,15 @@ object FilenameParser {
         return ParsedEpisode(show, season, episode)
     }
 
+    /** A release-name token as a whole word ("hdr" but not "hdrip"), compiled once per token. */
+    private val tokenRegexes = ConcurrentHashMap<String, Regex>()
+
+    private fun tokenRegex(token: String) = tokenRegexes.getOrPut(token) { Regex("""(?<![a-z0-9])$token(?![a-z0-9])""") }
+
     /** Technical hints readable from release names. */
     fun badges(name: String): List<String> {
         val n = name.lowercase()
-        fun has(vararg tokens: String) = tokens.any { Regex("""(?<![a-z0-9])$it(?![a-z0-9])""").containsMatchIn(n) }
+        fun has(vararg tokens: String) = tokens.any { tokenRegex(it).containsMatchIn(n) }
         return buildList {
             when {
                 has("2160p", "4k", "uhd") -> add(Definition.ULTRA_HD.token)

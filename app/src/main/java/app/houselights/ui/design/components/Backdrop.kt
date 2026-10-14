@@ -30,13 +30,15 @@ enum class BackdropStyle(
     val fadeFrom: Float,
     /** Strength of the left scrim behind text. */
     val leftScrim: Float,
+    /** Widest file worth asking for; null: as wide as the screen. */
+    val maxWidthPx: Int? = null,
 ) {
     /** Home: the picture owns the top of the screen, rows sit on black below. */
     Hero(1f, 0.3f, 0.96f),
     /** Detail: the picture fills the screen behind the text. */
     Full(1f, 0.55f, 0.97f),
-    /** Library, settings: a quiet reminder of the picture behind content. */
-    Quiet(0.28f, 0.2f, 0.6f),
+    /** Library, settings: a quiet reminder of the picture behind content; dimmed this much, a lighter file does. */
+    Quiet(0.28f, 0.2f, 0.6f, maxWidthPx = 1280),
 }
 
 /**
@@ -49,7 +51,8 @@ fun Backdrop(image: ImageRef?, style: BackdropStyle, modifier: Modifier = Modifi
     val black = Hl.colors.background
     val ambient = LocalAmbient.current
     val lights = LocalHouseLights.current
-    val url = image?.url(screenWidthPx())
+    val screen = screenWidthPx()
+    val url = image?.url(style.maxWidthPx?.coerceAtMost(screen) ?: screen)
     Box(modifier.fillMaxSize().background(black)) {
         Crossfade(targetState = url, animationSpec = tween(HlMotion.SLOW, easing = HlMotion.standard), label = "backdrop") { u ->
             if (u != null) {

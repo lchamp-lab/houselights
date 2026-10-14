@@ -29,7 +29,6 @@ class HomeViewModel(private val app: AppContainer) : ViewModel() {
 
     init {
         load()
-        viewModelScope.launch { app.libraryChanged.collect { load() } }
     }
 
     fun load() {

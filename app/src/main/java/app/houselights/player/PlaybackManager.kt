@@ -14,7 +14,9 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
@@ -43,6 +45,11 @@ class PlaybackManager(
      * while the film plays. The result then reaches a new process, which finds what was playing here.
      */
     private val saved = context.getSharedPreferences("playback", Context.MODE_PRIVATE)
+
+    private val _playing = MutableStateFlow(false)
+
+    /** True while the player shows a film: the NAS and the network are its own. */
+    val playing: StateFlow<Boolean> = _playing
 
     private val _playbackEnded = MutableSharedFlow<Unit>(extraBufferCapacity = 4)
 
@@ -91,6 +98,7 @@ class PlaybackManager(
     /** The player could not be started after all. */
     fun onLaunchFailed() {
         session = null
+        _playing.value = false
         saved.edit().clear().apply()
     }
 
@@ -104,6 +112,7 @@ class PlaybackManager(
     /** Call right after the player activity was started. */
     fun onPlayerLaunched() {
         val s = session ?: return
+        _playing.value = true
         scope.launch { report { s.reporter?.started(s.positionMs) } }
         pollJob?.cancel()
         pollJob = scope.launch {
@@ -129,6 +138,7 @@ class PlaybackManager(
         val resumeKey = saved.getString(KEY_RESUME, null)
         val savedPosition = saved.getLong(KEY_POSITION, 0)
         session = null
+        _playing.value = false
         saved.edit().clear().apply()
         if (live == null && resumeKey == null) return
         val poll = pollJob

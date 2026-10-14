@@ -181,6 +181,10 @@ fun Modifier.receding(): Modifier = composed {
 }
 
 /** 2:3 poster. With [width] null it fills the grid cell. */
+/** Width a poster is asked for: its own, or a little more than a row's when it fills a grid cell. */
+@Composable
+fun posterPx(width: Dp? = null): Int = (width ?: HlSize.poster * 1.3f).toPx()
+
 @Composable
 fun PosterCard(
     item: MediaItem,
@@ -190,7 +194,7 @@ fun PosterCard(
     onFocused: () -> Unit = {},
 ) {
     val sized = if (width != null) modifier.width(width) else modifier.fillMaxWidth()
-    val px = (width ?: HlSize.poster * 1.3f).toPx()
+    val px = posterPx(width)
     ArtworkSurface(onClick, sized.aspectRatio(2f / 3f), onFocused = onFocused) {
         val url = item.poster?.url(px)
         if (url == null) FallbackTitle(item.title) else Artwork(url, item.title)

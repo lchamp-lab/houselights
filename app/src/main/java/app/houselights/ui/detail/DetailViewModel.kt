@@ -39,7 +39,6 @@ class DetailViewModel(private val app: AppContainer, private val itemId: String)
 
     init {
         load()
-        viewModelScope.launch { app.libraryChanged.collect { load() } }
     }
 
     private var loadJob: Job? = null

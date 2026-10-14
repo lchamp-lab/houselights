@@ -12,10 +12,12 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import java.util.Locale
 
 data class ScanState(
@@ -38,9 +40,12 @@ data class ScanState(
  */
 class LibraryScanner(
     private val dao: LibraryDao,
-    private val tmdbKey: () -> String?,
+    /** The TMDB client in use, or null without a key. */
+    private val tmdb: () -> TmdbClient?,
     private val scope: CoroutineScope,
     private val artwork: ArtworkCache,
+    /** True while a film plays: the scan waits, so as not to read the NAS while the player streams from it. */
+    private val playing: StateFlow<Boolean> = MutableStateFlow(false),
 ) {
     private val _state = MutableStateFlow(ScanState())
     val state: StateFlow<ScanState> = _state
@@ -149,7 +154,7 @@ class LibraryScanner(
         _changed.emit(Unit)
     }
 
-    private fun client(): TmdbClient? = tmdbKey()?.takeIf { it.isNotBlank() }?.let(::TmdbClient)
+    private fun client(): TmdbClient? = tmdb()
 
     private suspend fun cleanupLocked(): CleanupResult {
         val orphanCast = dao.deleteOrphanCast()
@@ -166,9 +171,10 @@ class LibraryScanner(
         refreshedSeries.clear()
         refreshedCollections.clear()
         val errors = mutableMapOf<String, ScanError>()
+        var changed = false
         try {
             for (source in dao.sources()) {
-                suspendRunCatching { scan(source, refreshMetadata) }.onFailure { e ->
+                suspendRunCatching { changed = scan(source, refreshMetadata) || changed }.onFailure { e ->
                     Log.w(TAG, "Scan of ${source.name} failed", e)
                     errors[source.name] = ScanErrors.classify(e)
                 }
@@ -180,15 +186,18 @@ class LibraryScanner(
                     dao.deleteEmptySeasons()
                     dao.deleteEmptySeries()
                     dao.deleteEmptyCollections()
-                    cleanupLocked()
+                    // Pictures only become unused when titles change or go.
+                    if (changed) cleanupLocked()
                 }.onFailure { Log.w(TAG, "Cleanup failed", it) }
             }
         } finally {
             // Whatever happened, the scan is over: the settings must not show it running forever.
             _state.value = ScanState(errors = errors)
             lastScanEnd = System.currentTimeMillis()
+            SmbBrowser.closeAll()
         }
-        _changed.emit(Unit)
+        // A scan that found nothing new leaves screens as they are.
+        if (changed) _changed.emit(Unit)
     }
 
     /**
@@ -202,7 +211,8 @@ class LibraryScanner(
         _changed.emit(Unit)
     }
 
-    private suspend fun scan(source: SourceEntity, refreshMetadata: Boolean) {
+    /** True when the library changed: files were added, updated or removed. */
+    private suspend fun scan(source: SourceEntity, refreshMetadata: Boolean): Boolean {
         _state.update { it.copy(running = true, sourceName = source.name, processed = 0, total = 0, current = null) }
         val listing = RemoteBrowser.of(source).list(source)
         val files = listing.videos
@@ -221,6 +231,8 @@ class LibraryScanner(
         val seasons = SeasonCache(tmdb)
         var unreachable = 0
         todo.forEachIndexed { index, file ->
+            // Bounded, should the player never report back.
+            withTimeoutOrNull(MAX_PAUSE_MS) { playing.first { !it } }
             _state.update { it.copy(processed = index, current = file.relativePath.substringAfterLast('/')) }
             suspendRunCatching {
                 // One item at a time, so a choice made by the user waits for one item, not
@@ -244,7 +256,9 @@ class LibraryScanner(
             if (index % 5 == 4) _changed.emit(Unit)
         }
         dao.updateSource(source.copy(lastScanAt = System.currentTimeMillis()))
-        _changed.emit(Unit)
+        val changed = missing.isNotEmpty() || todo.isNotEmpty()
+        if (changed) _changed.emit(Unit)
+        return changed
     }
 
     /** A file is processed when new, not described yet, to refresh, or when its NFO or artwork changed. */
@@ -414,7 +428,8 @@ class LibraryScanner(
 
     /** null when the file can't be read; a NAS that stops answering throws, so the file is tried again later. */
     private suspend fun readText(source: SourceEntity, file: RemoteFile): String? = suspendRunCatching {
-        String(RemoteBrowser.of(source).readPrefix(source, file.relativePath, 1 shl 20), Charsets.UTF_8)
+        val length = file.size.coerceIn(0, MAX_NFO_BYTES.toLong()).toInt().takeIf { it > 0 } ?: MAX_NFO_BYTES
+        String(RemoteBrowser.of(source).readPrefix(source, file.relativePath, length), Charsets.UTF_8)
     }.getOrElse { e -> if (ScanErrors.isUnreachable(e)) throw e else null }
 
     // --- TV shows ------------------------------------------------------------------------------
@@ -692,6 +707,8 @@ class LibraryScanner(
     companion object {
         private const val TAG = "LibraryScanner"
         private const val MAX_UNREACHABLE = 3
+        private const val MAX_NFO_BYTES = 1 shl 20
+        private const val MAX_PAUSE_MS = 4 * 60 * 60_000L
         private val ARTICLES = Regex("""(?i)^(the|a|an|le|la|les|l'|un|une|des)\s+""")
 
         fun sortKey(title: String): String = ARTICLES.replace(title.trim(), "").lowercase()

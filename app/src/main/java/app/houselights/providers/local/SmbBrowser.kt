@@ -7,14 +7,19 @@ import com.hierynomus.mssmb2.SMB2ShareAccess
 import com.hierynomus.smbj.SMBClient
 import com.hierynomus.smbj.SmbConfig
 import com.hierynomus.smbj.auth.AuthenticationContext
+import com.hierynomus.smbj.common.SMBRuntimeException
+import com.hierynomus.smbj.connection.Connection
 import com.hierynomus.smbj.share.DiskShare
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.io.IOException
 import java.util.EnumSet
 import java.util.concurrent.TimeUnit
 
 /** Lists video files of an SMB folder. */
 object SmbBrowser : RemoteBrowser {
+    /** A session unused this long is closed rather than reused: the NAS may have dropped it. */
+    private const val IDLE_MS = 60_000L
 
     private val client = SMBClient(
         SmbConfig.builder()
@@ -46,12 +51,73 @@ object SmbBrowser : RemoteBrowser {
         ).use { file -> file.inputStream.use { it.readUpTo(length) } }
     }
 
+    /** An open share, kept for the next file: a scan reads several files per title. */
+    private class OpenShare(val connection: Connection, val share: DiskShare) {
+        var lastUse = System.currentTimeMillis()
+
+        fun close() {
+            try {
+                connection.close()
+            } catch (_: IOException) {
+                // Already gone.
+            }
+        }
+    }
+
+    /** Guarded by itself; one operation at a time per share. */
+    private val open = mutableMapOf<String, OpenShare>()
+
+    private fun key(source: SourceEntity) = "${source.username}@${source.domain}/${source.host}/${source.share}"
+
+    /**
+     * Runs [block] on the folder's share, connecting and signing in only when no recent session is open.
+     * A session kept from before may have been dropped by the NAS: then a new one is opened, once.
+     */
     private suspend fun <T> withSession(source: SourceEntity, block: (DiskShare) -> T): T = withContext(Dispatchers.IO) {
-        client.connect(source.host).use { connection ->
+        val key = key(source)
+        synchronized(open) {
+            val kept = open.remove(key)?.takeIf { it.share.isConnected && System.currentTimeMillis() - it.lastUse < IDLE_MS }
+            if (kept != null) {
+                try {
+                    return@withContext block(kept.share).also { kept.lastUse = System.currentTimeMillis(); open[key] = kept }
+                } catch (_: IOException) {
+                    kept.close()
+                } catch (_: SMBRuntimeException) {
+                    kept.close()
+                }
+            }
+            val fresh = connect(source)
+            var stored = false
+            try {
+                block(fresh.share).also {
+                    open[key] = fresh
+                    stored = true
+                }
+            } finally {
+                if (!stored) fresh.close()
+            }
+        }
+    }
+
+    private fun connect(source: SourceEntity): OpenShare {
+        val connection = client.connect(source.host)
+        var opened: OpenShare? = null
+        try {
             val auth = if (source.username.isBlank()) AuthenticationContext.guest()
             else AuthenticationContext(source.username, source.password.value.toCharArray(), source.domain.ifBlank { null })
-            val session = connection.authenticate(auth)
-            (session.connectShare(source.share) as DiskShare).use(block)
+            val share = connection.authenticate(auth).connectShare(source.share) as DiskShare
+            opened = OpenShare(connection, share)
+            return opened
+        } finally {
+            if (opened == null) connection.close()
+        }
+    }
+
+    /** Closes the sessions kept open; called when a scan ends. */
+    fun closeAll() {
+        synchronized(open) {
+            open.values.forEach { it.close() }
+            open.clear()
         }
     }
 

@@ -64,6 +64,7 @@ import app.houselights.ui.design.components.LandscapeCard
 import app.houselights.ui.design.components.MediaRow
 import app.houselights.ui.design.components.PosterCard
 import app.houselights.ui.design.components.rememberAmbientColor
+import app.houselights.ui.util.ReloadOnLibraryChange
 import app.houselights.ui.util.appContainer
 import app.houselights.ui.util.libraryName
 import app.houselights.ui.util.sectionTitle
@@ -77,6 +78,7 @@ fun HomeScreen(
 ) {
     val app = appContainer()
     val vm = viewModel { HomeViewModel(app) }
+    ReloadOnLibraryChange { vm.load() }
     val state by vm.state.collectAsStateWithLifecycle()
     val scan by app.scanner.state.collectAsStateWithLifecycle()
     val settings by app.settings.state.collectAsStateWithLifecycle()

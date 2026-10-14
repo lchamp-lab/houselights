@@ -26,7 +26,8 @@ class NoTmdbKeyException : IllegalStateException("No TMDB key")
 class LocalEditor(
     private val dao: LibraryDao,
     private val scanner: LibraryScanner,
-    private val tmdbKey: () -> String?,
+    /** The TMDB client in use, or null without a key. */
+    private val tmdb: () -> TmdbClient?,
 ) : MetadataEditor {
 
     override fun canEdit(item: MediaItem): Boolean = item.kind == MediaKind.MOVIE || item.kind == MediaKind.SERIES
@@ -159,7 +160,7 @@ class LocalEditor(
     private suspend fun entity(item: MediaItem): ItemEntity =
         (LocalId.parse(item.id) as? LocalId.Item)?.let { dao.item(it.key) } ?: error("Item ${item.id} can't be edited")
 
-    private fun client(): TmdbClient? = tmdbKey()?.takeIf { it.isNotBlank() }?.let(::TmdbClient)
+    private fun client(): TmdbClient? = tmdb()
 
     private fun TmdbSearchResult.toCandidate(): MatchCandidate {
         val name = title ?: name ?: ""
