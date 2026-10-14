@@ -28,6 +28,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -38,6 +39,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.graphics.Shape
@@ -132,7 +134,10 @@ fun ArtworkSurface(
         border = ClickableSurfaceDefaults.border(
             focusedBorder = Border(BorderStroke(HlSize.focusBorder, c.focus), shape = shape),
         ),
-        glow = ClickableSurfaceDefaults.glow(focusedGlow = Glow(LocalAmbient.current, HlFocus.glow)),
+        // Only the focused card reads the light, so the light changing recomposes that card alone.
+        glow = ClickableSurfaceDefaults.glow(
+            focusedGlow = Glow(if (focused) LocalAmbient.current() else Color.Transparent, HlFocus.glow),
+        ),
         colors = ClickableSurfaceDefaults.colors(
             containerColor = c.surface,
             focusedContainerColor = c.surface,
@@ -154,7 +159,8 @@ val LocalArtworkRecede = staticCompositionLocalOf<() -> Float> { { 0f } }
  * Artwork as a card shows it; [fallback] takes its place when there is none, or when it fails to
  * load (a NAS asleep, a file gone), so a card is never left blank. When its card steps back it
  * loses part of its colour ([HlFocus.SIBLING_SATURATION]) through the image's own colour filter:
- * no offscreen layer per card, and only this image recomposes while it steps back.
+ * no offscreen layer per card, and only this image recomposes, once per step
+ * ([HlFocus.RECEDE_STEPS]).
  */
 @Composable
 fun ArtworkImage(
@@ -168,10 +174,10 @@ fun ArtworkImage(
     if (url == null || failed) {
         Box(modifier, content = fallback)
     } else {
-        val recede = LocalArtworkRecede.current()
-        val filter = remember(recede) {
-            if (recede <= 0f) null
-            else ColorFilter.colorMatrix(ColorMatrix().apply { setToSaturation(1f - recede * (1f - HlFocus.SIBLING_SATURATION)) })
+        val recede = LocalArtworkRecede.current
+        val step by remember(recede) { derivedStateOf { HlFocus.recedeStep(recede()) } }
+        val filter = remember(step) {
+            if (step == 0) null else ColorFilter.colorMatrix(ColorMatrix().apply { setToSaturation(HlFocus.saturationAt(step)) })
         }
         AsyncImage(
             model = url,

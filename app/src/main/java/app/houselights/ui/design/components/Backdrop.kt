@@ -101,12 +101,13 @@ fun Backdrop(image: ImageRef?, style: BackdropStyle, modifier: Modifier = Modifi
                 Brush.verticalGradient(*HlScrim.down(style.fadeFrom).colorStops(black))
             )
         )
-        // Light from the picture, reflected on the room below it; stronger once the room is dark.
+        // Light from the picture, reflected on the room below it; stronger once the room is dark. Read
+        // here, while drawing: the light's animation redraws this layer alone.
         Box(
             Modifier.fillMaxSize().drawBehind {
                 drawRect(
                     Brush.radialGradient(
-                        0f to ambient.copy(alpha = HlScrim.SPILL + HlScrim.SPILL_DARK * (1f - HouseLightCue.room(lights()))),
+                        0f to ambient().copy(alpha = HlScrim.SPILL + HlScrim.SPILL_DARK * (1f - HouseLightCue.room(lights()))),
                         1f to Color.Transparent,
                         center = Offset(size.width * HlScrim.SPILL_X, size.height * HlScrim.SPILL_Y),
                         radius = size.width * HlScrim.SPILL_RADIUS,

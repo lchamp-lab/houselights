@@ -152,7 +152,7 @@ font. No other font is shipped; line heights leave room for the fallback.
 | `HlSize` | artwork (poster 112, landscape 220, episode 264, avatar 76 in a column of 120, thumbnails), `control` 48 for every button, icons 20, discs 52, marks 20, dots 8, setting rows 64, previews in a row (48 tall, a slot of 84), meter 10, the short rules of a loading title (48, 24) |
 | `HlLayout` | measures of layout parts: reading widths (640, 520), the left veil's fade past them (240), side columns (280, 340), pane top 72, the reading sheet (864) and the side sheet (520), title art, hero, info line, track table columns, the label of a round button (160 wide at most, 28 of room under its row) |
 | `HlControl` | inner padding of buttons and track options, badges; the gap between an icon and its text (8) |
-| `HlFocus` | focus scale (artwork 1.10, cards 1.06, controls 1.04), siblings stepping back (dim 0.3, colour kept 0.3), ambient glow 18 dp, `edge` 28 (`safeV`): how far a list keeps focus from its ends |
+| `HlFocus` | focus scale (artwork 1.10, cards 1.06, controls 1.04), siblings stepping back (dim 0.3, colour kept 0.3, in `RECEDE_STEPS` 3), ambient glow 18 dp, `edge` 28 (`safeV`): how far a list keeps focus from its ends |
 
 ### Motion, icons, scrolling
 
@@ -174,7 +174,7 @@ without the prefix (`MenuOption`, `MeterLegend`, `PosterCard`, `BillingBlock`, `
 | Component | Use |
 |---|---|
 | `Backdrop` (`Hero`, `Full`, `Quiet`) | full-screen artwork under the `HlScrim` veils, with a floor under the text column on a light image, plus the ambient light; its veils lift when the lights go down |
-| `rememberAmbientColor`, `CollectionLight` | the light a picture spills into the room; the colours of a wall when nothing is selected |
+| `rememberAmbientColor`, `CollectionLight` | the light a picture spills into the room; the colours of a wall when nothing is selected. The light is a state, provided as a function (`LocalAmbient provides { ambient.value }`) and read while drawing, like the house lights: as it changes over `SLOW`, only the backdrop's spill and the focused card's glow follow it, nothing recomposes the screen |
 | `PosterCard`, `LandscapeCard`, `PersonCard`, `ArtworkSurface`, `ArtworkImage` | artwork with the shared focus treatment and a faint edge at rest (see *Cards*) |
 | `MediaRow` | horizontal row with header; focus coming back into it lands on its last card; dims the other cards when one is focused |
 | `HeroInfo`, `TitleArt`, `EpisodeHeading`, `MetaLine`, `BillingBlock` | what a title is: clear logo or condensed title, facts, credits |
@@ -218,7 +218,9 @@ rest, sparingly:
 - **An episode** reads as a number in tabular figures, its name, then its length and where it stands.
 - **A person** has a name two lines tall, even a short one, so the roles of a cast row line up.
 - **Stepping back**, the image loses colour through its own filter (`ArtworkImage`): no layer is drawn
-  per card.
+  per card. The colour goes in three steps (`RECEDE_STEPS`), so an image recomposes three times at
+  most while the darkening, drawn, stays continuous. Entering a row moves every card of it at once:
+  on the player's small processor, that is the moment that counts.
 
 ## Sheets
 
@@ -252,8 +254,7 @@ Focus must read from the couch:
 
 - **Artwork** grows, gets a 2 dp projector-white outline and glows with the ambient light. Its
   neighbours in the same row or grid step back: darker and with less colour (`SIBLING_DIM`,
-  `SIBLING_SATURATION`, through `Modifier.receding()`), never grey. A row without focus keeps
-  its colours.
+  `SIBLING_SATURATION`, see *Cards*), never grey. A row without focus keeps its colours.
 - **Controls, rows and navigation** turn projector white with black content.
 - **Track options** are the exception: white is the current option, so focus on another option is
   a grey pill, and focus on the current one a ring around it. Focus coming into a track lands on

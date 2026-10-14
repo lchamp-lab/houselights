@@ -138,7 +138,8 @@ fun LibraryScreen(
         runCatching { gridFocus.requestFocus() }
     }
 
-    CompositionLocalProvider(LocalAmbient provides rememberAmbientColor(shown?.backdrop)) {
+    val ambient = rememberAmbientColor(shown?.backdrop)
+    CompositionLocalProvider(LocalAmbient provides { ambient.value }) {
         Box(Modifier.fillMaxSize()) {
             Backdrop(shown?.backdrop, BackdropStyle.Quiet)
             // Nothing selected: no film on the screen, the room takes the colours of the wall.

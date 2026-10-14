@@ -174,7 +174,8 @@ fun DetailScreen(
         )
     }
 
-    CompositionLocalProvider(LocalAmbient provides rememberAmbientColor(item.backdrop)) {
+    val ambient = rememberAmbientColor(item.backdrop)
+    CompositionLocalProvider(LocalAmbient provides { ambient.value }) {
         Box(
             Modifier.fillMaxSize().onPreviewKeyEvent {
                 if (it.type == KeyEventType.KeyDown && it.key in OK_KEYS) app.playback.clearProblem()

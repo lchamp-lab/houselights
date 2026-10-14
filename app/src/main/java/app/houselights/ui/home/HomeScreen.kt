@@ -129,7 +129,7 @@ fun HomeScreen(
         rows.animateScrollToItem(0)
     }
 
-    CompositionLocalProvider(LocalAmbient provides ambient) {
+    CompositionLocalProvider(LocalAmbient provides { ambient.value }) {
         Box(Modifier.fillMaxSize()) {
             Backdrop(shown?.backdrop, BackdropStyle.Hero)
             // Nothing selected (focus on the tabs): no film on the screen, the room takes the

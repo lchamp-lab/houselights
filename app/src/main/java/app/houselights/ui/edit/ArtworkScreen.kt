@@ -89,7 +89,8 @@ fun ArtworkScreen(itemId: String, kind: ArtworkKind, onDone: () -> Unit) {
     val preview = shown ?: choices?.selected
     val backdrop = if (kind == ArtworkKind.BACKDROP) preview?.image else item?.backdrop
 
-    CompositionLocalProvider(LocalAmbient provides rememberAmbientColor(backdrop)) {
+    val ambient = rememberAmbientColor(backdrop)
+    CompositionLocalProvider(LocalAmbient provides { ambient.value }) {
         Box(Modifier.fillMaxSize()) {
             Backdrop(backdrop, if (kind == ArtworkKind.POSTER) BackdropStyle.Quiet else BackdropStyle.Full)
             Column(Modifier.fillMaxSize().padding(top = HlSpace.safeV, bottom = HlSpace.m)) {
