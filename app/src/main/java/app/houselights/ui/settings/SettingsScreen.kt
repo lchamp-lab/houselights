@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.runtime.Composable
@@ -16,7 +17,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.pluralStringResource
@@ -102,7 +107,11 @@ fun SettingsScreen(
         },
     ) {
         val rows = remember(pane) { PaneRows(memory, pane.name) }
-        PaneContent(pane, s, storage, onAddFolder, onUseFolders, onSignIn, onOpenCatalog, rows, list, onFocusIn = { inPane = it })
+        PaneContent(
+            pane, s, storage, onAddFolder, onUseFolders, onSignIn, onOpenCatalog, rows, list,
+            entry = memory.requester(paneKey(pane)),
+            onFocusIn = { inPane = it },
+        )
     }
 }
 
@@ -136,6 +145,7 @@ private fun summary(pane: Pane, s: AppSettings, titles: Int, stats: StorageStats
 }
 
 /** The rows of [pane]. Focus coming back from the navigation returns to the row it left. */
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 private fun PaneContent(
     pane: Pane,
@@ -147,11 +157,18 @@ private fun PaneContent(
     onOpenCatalog: () -> Unit,
     rows: PaneRows,
     list: LazyListState,
+    entry: FocusRequester,
     onFocusIn: (Boolean) -> Unit,
 ) {
     LazyColumn(
         state = list,
-        modifier = Modifier.fillMaxSize().onFocusChanged { onFocusIn(it.hasFocus) }.keepVerticalFocus(),
+        modifier = Modifier
+            .fillMaxSize()
+            .onFocusChanged { onFocusIn(it.hasFocus) }
+            .keepVerticalFocus()
+            // Left goes back to the pane's own entry, not to the nearest one, which would open another pane.
+            .focusProperties { exit = { direction -> if (direction == FocusDirection.Left) entry else FocusRequester.Default } }
+            .focusGroup(),
         contentPadding = PaddingValues(bottom = HlFocus.edge, end = HlSpace.m),
         verticalArrangement = Arrangement.spacedBy(HlSpace.l),
     ) {

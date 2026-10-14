@@ -2,6 +2,8 @@ package app.houselights.ui.catalog
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
@@ -206,12 +208,25 @@ private fun Frames() {
 }
 
 /** "Ultra HD 60 Hz" in the technical voice, its frame size beside it, as Affichage sets it. */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun CurrentOutput() {
-    Row {
-        Text("Ultra HD 60${NBSP}Hz", style = Hl.type.spec, color = Hl.colors.content, modifier = Modifier.alignByBaseline())
-        Spacer(Modifier.width(HlSpace.fact))
-        Text(formatDimensions(3840, 2160), style = Hl.type.meta, color = Hl.colors.contentSecondary, modifier = Modifier.alignByBaseline())
+    // Short of room, the frame size goes under, whole: a number never breaks.
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(HlSpace.fact)) {
+        Text(
+            "Ultra HD 60${NBSP}Hz",
+            style = Hl.type.spec,
+            color = Hl.colors.content,
+            softWrap = false,
+            modifier = Modifier.alignByBaseline(),
+        )
+        Text(
+            formatDimensions(3840, 2160),
+            style = Hl.type.meta,
+            color = Hl.colors.contentSecondary,
+            softWrap = false,
+            modifier = Modifier.alignByBaseline(),
+        )
     }
 }
 

@@ -373,7 +373,10 @@ private fun ControlStates() {
         ControlCase("OK: busy for 3 s, its width kept") {
             HlButton("Se connecter", { busy = true }, emphasis = Emphasis.Primary, busy = busy, busyLabel = "Connexion…")
         }
-        ControlCase("round, disabled") { HlIconButton(HlIcons.Edit, "Modifier", {}, enabled = false) }
+        // A round button's label takes no room of its own: the case keeps the room a row of them keeps.
+        ControlCase("round, disabled") {
+            HlIconButton(HlIcons.Edit, "Modifier", {}, Modifier.padding(bottom = HlLayout.iconLabelRoom), enabled = false)
+        }
     }
     ControlCase("a label longer than a reading column stops with an ellipsis") {
         HlButton("Ajouter « Le Seigneur des anneaux : la Communauté de l’anneau, version longue » à vos favoris", {})

@@ -1,7 +1,10 @@
 package app.houselights.ui.settings
 
+import android.view.Display
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
@@ -16,7 +19,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.tv.material3.Text
-import android.view.Display
 import app.houselights.R
 import app.houselights.core.Definition
 import app.houselights.settings.AppSettings
@@ -124,22 +126,25 @@ private fun PlayerOutput() {
 }
 
 /** The mode in service: its definition and rate in the technical voice, its frame size beside them. */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun SystemOutput() {
     val mode = LocalView.current.display?.mode ?: return
     InfoBlock(stringResource(R.string.current_output)) {
-        Row {
+        // Short of room, the frame size goes under, whole: a number never breaks.
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(HlSpace.fact)) {
             Text(
                 "${definition(mode.physicalWidth, mode.physicalHeight)} ${hz(mode.refreshRate)}${NBSP}Hz",
                 style = Hl.type.spec,
                 color = Hl.colors.content,
+                softWrap = false,
                 modifier = Modifier.alignByBaseline(),
             )
-            Spacer(Modifier.width(HlSpace.fact))
             Text(
                 formatDimensions(mode.physicalWidth, mode.physicalHeight),
                 style = Hl.type.meta,
                 color = Hl.colors.contentSecondary,
+                softWrap = false,
                 modifier = Modifier.alignByBaseline(),
             )
         }
