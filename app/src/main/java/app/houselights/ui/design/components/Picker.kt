@@ -106,7 +106,8 @@ fun SelectedMark(modifier: Modifier = Modifier) {
 /**
  * A title found by a search, set like a small one-sheet: its poster, its name in the voice of the
  * poster, facts (year, original title), three lines of overview. The title in use ([mark]) is
- * edged in tungsten and says so next to its name.
+ * edged in tungsten and says so next to its name. While it is being chosen, [busy] says so there
+ * instead ("Association…").
  */
 @Composable
 fun HlResultItem(
@@ -117,6 +118,7 @@ fun HlResultItem(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     mark: String? = null,
+    busy: String? = null,
 ) {
     val c = Hl.colors
     HlPanelButton(onClick, modifier.fillMaxWidth(), lit = mark != null) {
@@ -133,9 +135,10 @@ fun HlResultItem(
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f, fill = false),
                     )
-                    if (mark != null) {
-                        Spacer(Modifier.width(HlSpace.s))
-                        Badge(mark, lit = true)
+                    if (busy != null || mark != null) Spacer(Modifier.width(HlSpace.s))
+                    when {
+                        busy != null -> HlStatus(StatusState.Pending, busy)
+                        mark != null -> Badge(mark, lit = true)
                     }
                 }
                 Spacer(Modifier.height(HlSpace.xxs))

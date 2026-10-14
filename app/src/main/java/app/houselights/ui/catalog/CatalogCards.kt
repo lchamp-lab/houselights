@@ -35,6 +35,7 @@ import app.houselights.ui.design.components.ArtworkChoiceCard
 import app.houselights.ui.design.components.ArtworkImage
 import app.houselights.ui.design.components.ArtworkSurface
 import app.houselights.ui.design.components.CardSkeleton
+import app.houselights.ui.design.components.HeroSkeleton
 import app.houselights.ui.design.components.HlResultItem
 import app.houselights.ui.design.components.LandscapeCard
 import app.houselights.ui.design.components.MediaRow
@@ -57,7 +58,7 @@ internal fun LazyListScope.catalogCards() {
     item { Group("Artwork surface and image") { Surfaces() } }
     item { Group("Landscape card") { LandscapeRow() } }
     item { Group("Person card: one line, two lines, long role, no photo") { CastRow() } }
-    item { Group("Progress line: on the room, on projector white", still = true) { ProgressLines() } }
+    item { Group("Progress line: on artwork, dark and white; beside text", still = true) { ProgressLines() } }
     item { Group("Card skeleton: the shapes screens ask for", still = true) { Skeletons() } }
     item { Group("Artwork choice: poster") { ChoiceRow(ArtworkKind.POSTER) } }
     item { Group("Artwork choice: backdrop") { ChoiceRow(ArtworkKind.BACKDROP) } }
@@ -199,7 +200,7 @@ private fun LandscapeRow() {
     }
 }
 
-/** The cast row of a detail page: names of one and two lines side by side, so the roles part. */
+/** The cast row of a detail page: names of one and two lines side by side, their roles in line. */
 @Composable
 private fun CastRow() {
     val photo = shippedImage(R.drawable.banner)
@@ -217,21 +218,25 @@ private fun CastRow() {
     }
 }
 
-/** At the foot of a poster: on the dark room, and on projector white, a light poster's worst case. */
+/**
+ * At the foot of a poster, on its plate: over a dark image, and over projector white, a light
+ * poster's worst case. Then beside text, off the artwork (a hero, a pane), on its light track.
+ */
 @Composable
 private fun ProgressLines() {
     val c = Hl.colors
-    listOf("room" to c.background, "white" to c.content).forEach { (ground, color) ->
+    listOf("dark image" to c.background, "white image" to c.content).forEach { (ground, color) ->
         Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Top) {
             listOf(0f to "0%: not drawn", 0.4f to "40%", 1f to "100%").forEach { (progress, label) ->
                 StateCaption("$ground, $label", width = HlSize.poster) {
                     Box(Modifier.width(HlSize.poster).height(HlSpace.l).background(color)) {
-                        ProgressLine(progress, Modifier.align(Alignment.BottomCenter))
+                        ProgressLine(progress, Modifier.align(Alignment.BottomCenter), onArtwork = true)
                     }
                 }
             }
         }
     }
+    StateCaption("beside text, 40%", width = HlSize.progressShort) { ProgressLine(0.4f, Modifier.width(HlSize.progressShort)) }
 }
 
 /** Every footprint a screen asks a placeholder for, and the landscape one no screen asks for. */
@@ -244,6 +249,7 @@ private fun Skeletons() {
             CardSkeleton(HlLayout.landscapeChoice, 16f / 9f)
         }
         StateCaption("landscape row: unused", width = HlSize.landscape) { CardSkeleton(HlSize.landscape, 16f / 9f) }
+        StateCaption("title and facts (detail page)", width = HlSize.landscape) { HeroSkeleton() }
     }
 }
 
@@ -340,6 +346,14 @@ private fun Results() {
         }
         StateCaption("rest, long overview", Modifier.weight(1f)) {
             HlResultItem(poster, "Les Sept Samouraïs", listOf("1954", "七人の侍"), SEVEN_SAMURAI_OVERVIEW, {})
+        }
+    }
+    Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Top) {
+        StateCaption("being matched", Modifier.weight(1f)) {
+            HlResultItem(poster, "Le Samouraï", listOf("1967", null), SAMURAI_OVERVIEW, {}, busy = "Association…")
+        }
+        StateCaption("being matched, the current one", Modifier.weight(1f)) {
+            HlResultItem(poster, "Le Samouraï", listOf("1967", null), SAMURAI_OVERVIEW, {}, mark = "Actuel", busy = "Association…")
         }
     }
     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Top) {

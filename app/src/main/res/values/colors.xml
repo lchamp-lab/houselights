@@ -1,3 +1,7 @@
 <resources>
-    <color name="background">#FF07080B</color>
+    <!--
+        The room: the window before Compose draws its first frame, and the launcher icon's ground.
+        ResourceTokensTest keeps it HouselightsColors.background.
+    -->
+    <color name="room">#FF000000</color>
 </resources>

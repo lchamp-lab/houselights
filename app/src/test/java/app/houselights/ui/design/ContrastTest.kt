@@ -37,8 +37,10 @@ class ContrastTest {
         "CONTROL_FILL_STRONG" to c.content.over(HlAlpha.CONTROL_FILL_STRONG, c.background),
         "FOCUS_QUIET on WELL" to c.content.over(HlAlpha.FOCUS_QUIET, c.content.over(HlAlpha.WELL, c.background)),
         "focus" to c.focus,
-        // A card's mark over the worst artwork: a white image.
+        // Whatever sits on artwork, on its plate over the worst image: a white one.
         "PLATE on a white image" to c.background.over(HlAlpha.PLATE, Color.White),
+        // A text column over a backdrop: the left veil at the floor a white image gets.
+        "the veil's floor on a white image" to c.background.over(HlScrim.need(1f), Color.White),
     )
 
     /** Every pair the system draws, as role, surface, use. */
@@ -47,7 +49,11 @@ class ContrastTest {
         "content" on "background", "content" on "surface", "content" on "surfaceRaised",
         "content" on "QUIET_SURFACE", "content" on "WELL", "content" on "WELL on surfaceRaised",
         "content" on "CONTROL_FILL", "content" on "CONTROL_FILL_STRONG", "content" on "FOCUS_QUIET on WELL",
+        // On artwork: a round button's icon and a track's options at rest, on their plate.
         "content" on "PLATE on a white image",
+        // A title's name, facts, overview and quietest words (genres, the billing block's joins).
+        "content" on "the veil's floor on a white image", "contentSecondary" on "the veil's floor on a white image",
+        "contentTertiary" on "the veil's floor on a white image",
         // Descriptions, labels, a selected entry's summary, a button's detail at rest.
         "contentSecondary" on "background", "contentSecondary" on "surface", "contentSecondary" on "surfaceRaised",
         "contentSecondary" on "QUIET_SURFACE", "contentSecondary" on "WELL", "contentSecondary" on "WELL on surfaceRaised",
@@ -60,7 +66,8 @@ class ContrastTest {
         "tungsten" on "WELL", "tungsten" on "WELL on surfaceRaised",
         // A focused control: its name, and the line under it.
         "onFocus" on "focus", "onFocusSecondary" on "focus",
-        // Marks: the selected entry's icon, the watched check and the new dot on their plate.
+        // Marks: the selected entry's icon, the watched check and the new dot on their plate,
+        // a card's progress on its plate.
         ("tungsten" on "CONTROL_FILL").mark(),
         ("tungsten" on "PLATE on a white image").mark(),
     )
@@ -69,6 +76,8 @@ class ContrastTest {
     private val forbidden = listOf(
         "contentTertiary" on "WELL on surfaceRaised",
         "contentTertiary" on "CONTROL_FILL_STRONG",
+        // On artwork, the options of a track at rest are white: grey on the plate falls to 3.5:1.
+        "contentSecondary" on "PLATE on a white image",
     )
 
     @Test

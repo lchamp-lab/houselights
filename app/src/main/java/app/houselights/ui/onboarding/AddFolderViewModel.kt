@@ -1,5 +1,6 @@
 package app.houselights.ui.onboarding
 
+import android.util.Log
 import androidx.annotation.StringRes
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -103,17 +104,24 @@ class AddFolderViewModel(private val app: AppContainer) : ViewModel() {
                     check = FolderCheck.Reachable(count)
                     then?.invoke()
                 }
-                .onFailure { e -> check = FolderCheck.Failed(ScanErrors.classify(e), source.host) }
+                .onFailure { e ->
+                    Log.w("AddFolder", "Test of ${source.host} failed", e)
+                    check = FolderCheck.Failed(ScanErrors.classify(e), source.host)
+                }
             busy = false
         }
     }
 
-    /** Tests the folder, then adds it to the library and makes the local library the source. */
-    fun add(onAdded: () -> Unit) = test {
+    /**
+     * Tests the folder, then adds it to the library and makes the local library the source;
+     * [onAdded] hears whether the source changed (it was a server, or nothing yet).
+     */
+    fun add(onAdded: (switched: Boolean) -> Unit) = test {
         viewModelScope.launch {
             app.library.addFolder(form.toSource())
-            app.settings.setSource(SourceConfig.Local)
-            onAdded()
+            val switched = app.settings.state.value.source != SourceConfig.Local
+            if (switched) app.sources.switchTo(SourceConfig.Local)
+            onAdded(switched)
         }
     }
 }

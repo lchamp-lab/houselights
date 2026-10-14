@@ -24,7 +24,6 @@
         <item quantity="many">%d saisons</item>
     </plurals>
 
-    <string name="error_unreachable">Impossible de joindre la bibliothèque</string>
     <string name="retry">Réessayer</string>
     <string name="empty">Rien pour l’instant.</string>
     <plurals name="title_count">
@@ -34,6 +33,8 @@
     </plurals>
     <string name="home_empty_local">Aucun film pour l’instant. Ajoutez le dossier qui les contient dans les Réglages.</string>
     <string name="home_scanning">Analyse de vos fichiers… %1$d / %2$d</string>
+    <string name="home_scan_failed">L’analyse n’a pas abouti</string>
+    <string name="home_see_folders">Voir les dossiers</string>
 
     <string name="nav_settings">Réglages</string>
     <string name="sort_title">Titre</string>
@@ -118,9 +119,9 @@
     <string name="gigabytes">%s Go</string>
     <string name="megabytes">%s Mo</string>
     <string name="similar">Dans la même veine</string>
-    <string name="play_error">Lecture impossible : %s</string>
-    <string name="no_player">Aucun lecteur vidéo disponible</string>
-    <string name="player_credentials">Ce dossier est protégé par un mot de passe : seul le lecteur Zidoo peut le lire</string>
+    <string name="play_failed">Lecture impossible</string>
+    <string name="no_player">Le lecteur Zidoo n’est pas installé.</string>
+    <string name="player_credentials">Ce dossier est protégé par un mot de passe : seul le lecteur Zidoo peut le lire.</string>
 
     <string name="add_folder">Ajouter un dossier</string>
     <string name="add_folder_desc">Indiquez où se trouvent vos films ou vos séries sur le NAS. Testez la connexion avant d’ajouter le dossier.</string>
@@ -152,7 +153,7 @@
     <string name="error_host_missing">Indiquez l’adresse du NAS.</string>
     <string name="error_export_missing">Indiquez l’export NFS, par exemple /volume1/media.</string>
     <string name="error_share_missing">Indiquez le nom du dossier partagé, par exemple media.</string>
-    <string name="error_scan_other">Impossible de lire le dossier : %s</string>
+    <string name="error_scan_other">Le dossier n’a pas pu être lu. Réessayez, ou vérifiez le partage sur le NAS.</string>
     <string name="add">Ajouter</string>
 
     <string name="jellyfin_title">Connexion à Jellyfin</string>
@@ -161,7 +162,7 @@
     <string name="sign_in">Se connecter</string>
     <string name="signing_in">Connexion…</string>
     <string name="error_credentials">Identifiants refusés par le serveur.</string>
-    <string name="error_connect">Connexion impossible à %1$s : %2$s</string>
+    <string name="error_server_unexpected">Le serveur a répondu de façon inattendue. Vérifiez l’adresse, puis réessayez.</string>
     <string name="error_server_unreachable">Rien ne répond à %s. Vérifiez l’adresse et que Jellyfin est démarré.</string>
     <string name="error_not_jellyfin">%s répond, mais ne semble pas être un serveur Jellyfin. Vérifiez l’adresse et le port.</string>
 
@@ -186,7 +187,21 @@
     </plurals>
     <string name="playback_desc">Comment le lecteur Zidoo accède aux fichiers de votre serveur.</string>
     <string name="tmdb_desc">Les affiches et les informations proviennent de TMDB.</string>
-    <string name="change_source_desc">Vos dossiers sont conservés : vous pourrez y revenir à tout moment.</string>
+    <string name="change_source_local_desc">Vos dossiers sont conservés : vous pourrez y revenir à tout moment.</string>
+    <string name="change_source_jellyfin_desc">Ce serveur reste connecté jusqu’à ce que la nouvelle source soit prête.</string>
+    <string name="change_source">Changer de source</string>
+    <string name="reconnect">Se reconnecter</string>
+    <string name="source_local_first">Ajoutez un premier dossier de votre NAS</string>
+    <plurals name="source_local_folders">
+        <item quantity="one">%d dossier sur votre NAS</item>
+        <item quantity="other">%d dossiers sur votre NAS</item>
+        <item quantity="many">%d dossiers sur votre NAS</item>
+    </plurals>
+    <string name="source_jellyfin_other">Un autre serveur, ou un autre compte</string>
+    <string name="sign_out">Se déconnecter</string>
+    <string name="sign_out_confirm">Se déconnecter de « %s » ?</string>
+    <string name="sign_out_desc">Houselights oubliera ce serveur sur cet appareil ; vos dossiers prendront sa place.</string>
+    <string name="sign_out_first_folder">Houselights oubliera ce serveur sur cet appareil une fois votre premier dossier ajouté.</string>
     <string name="label_server">Serveur</string>
     <string name="label_connection">Connexion</string>
     <string name="connection_encrypted">Chiffrée (HTTPS)</string>
@@ -262,7 +277,7 @@
     <string name="search">Rechercher</string>
     <string name="search_placeholder">Titre, ou identifiant IMDb (tt…)</string>
     <string name="searching">Recherche…</string>
-    <string name="identifying">Association en cours…</string>
+    <string name="identifying">Association…</string>
     <string name="search_empty">Aucun résultat. Essayez un autre titre, sans l’année, ou un identifiant IMDb (tt…).</string>
     <plurals name="result_count">
         <item quantity="one">%d résultat</item>
@@ -271,12 +286,23 @@
     </plurals>
     <string name="identify_state_matched">Identifié</string>
     <string name="result_current">Actuel</string>
+    <string name="error_offline_title">Bibliothèque injoignable</string>
     <string name="error_offline">Le serveur ou le NAS ne répond pas. Vérifiez qu’il est allumé, puis réessayez.</string>
-    <string name="error_denied">Le serveur a refusé la connexion. Reconnectez-vous depuis les réglages.</string>
+    <string name="error_denied_title">Connexion refusée</string>
+    <string name="error_denied">Le serveur a refusé la connexion. Reconnectez-vous pour continuer.</string>
+    <string name="error_gone_title">Ce titre n’est plus là</string>
     <string name="error_gone">Ce titre n’est plus dans la bibliothèque.</string>
-    <string name="error_tmdb_offline">TMDB est injoignable. Vérifiez la connexion, puis réessayez.</string>
+    <string name="error_tmdb_offline_title">TMDB injoignable</string>
+    <string name="error_tmdb_offline">TMDB ne répond pas. Vérifiez la connexion à Internet, puis réessayez.</string>
+    <string name="error_no_tmdb_key_title">Clé TMDB manquante</string>
     <string name="error_no_tmdb_key">Ajoutez une clé TMDB dans les réglages pour rechercher et lister les images.</string>
-    <string name="error_failed">L’opération n’a pas abouti. Réessayez dans un instant.</string>
+    <string name="error_tmdb_key_refused_title">TMDB refuse cette clé</string>
+    <string name="error_tmdb_key_refused">TMDB n’accepte pas la clé enregistrée dans les réglages. Vérifiez-la, ou remplacez-la.</string>
+    <string name="error_failed_title">L’opération n’a pas abouti</string>
+    <string name="error_failed">Réessayez dans un instant.</string>
+    <string name="error_action_reconnect">Se reconnecter</string>
+    <string name="error_action_add_tmdb_key">Ajouter une clé</string>
+    <string name="error_action_edit_tmdb_key">Modifier la clé</string>
     <!-- Settings rows -->
     <string name="nav_version">Version %s</string>
     <string name="scan_running">Analyse %1$d sur %2$d</string>

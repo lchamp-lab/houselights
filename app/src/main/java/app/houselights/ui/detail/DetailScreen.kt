@@ -22,6 +22,7 @@ import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -33,7 +34,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusRestorer
-import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -47,6 +52,7 @@ import app.houselights.core.MediaKind
 import app.houselights.core.ProviderCapabilities
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlIcons
+import app.houselights.ui.design.HlFocus
 import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
@@ -64,6 +70,9 @@ import app.houselights.ui.design.components.Emphasis
 import app.houselights.ui.design.components.HlButton
 import app.houselights.ui.design.components.HlIconButton
 import app.houselights.ui.design.components.HlSegmented
+import app.houselights.ui.design.components.HeroSkeleton
+import app.houselights.ui.design.components.HlStatus
+import app.houselights.ui.design.components.StatusState
 import app.houselights.ui.design.components.LandscapeCard
 import app.houselights.ui.design.components.MediaRow
 import app.houselights.ui.design.components.MetaLine
@@ -80,6 +89,8 @@ import app.houselights.ui.util.appContainer
 import app.houselights.ui.util.FACT_GAP
 import app.houselights.ui.util.formatDuration
 import app.houselights.ui.util.formatTimecode
+import app.houselights.ui.util.screenHeight
+import app.houselights.ui.util.skeletonDelayPassed
 
 @Composable
 fun DetailScreen(
@@ -95,16 +106,25 @@ fun DetailScreen(
     ReloadOnLibraryChange { vm.load() }
     val state by vm.state.collectAsStateWithLifecycle()
     val item = state.item
+    // A failure to play stays until the next action (OK, wherever it is pressed) or the next screen.
+    DisposableEffect(Unit) { onDispose { app.playback.clearProblem() } }
 
     if (item == null) {
         Box(Modifier.fillMaxSize()) {
             Backdrop(null, BackdropStyle.Full)
-            state.error?.let { Box(Modifier.padding(top = HlLayout.errorTop)) { ErrorMessage(it, vm::load) } }
+            Box(Modifier.padding(top = HlLayout.errorTop)) {
+                val error = state.error
+                when {
+                    error != null -> ErrorMessage(error, vm::load)
+                    // Where the title and its facts will be, once loading takes long enough to be seen.
+                    skeletonDelayPassed() -> HeroSkeleton(Modifier.padding(start = HlSpace.safeH, top = HlSpace.l))
+                }
+            }
         }
         return
     }
 
-    val screenHeight = LocalConfiguration.current.screenHeightDp.dp
+    val screenHeight = screenHeight()
     var focusedEpisode by remember { mutableStateOf<MediaItem?>(null) }
     var showTech by remember { mutableStateOf(false) }
     val media = item.media?.takeIf { it.video != null || it.audio.isNotEmpty() }
@@ -128,12 +148,17 @@ fun DetailScreen(
     }
 
     CompositionLocalProvider(LocalAmbient provides rememberAmbientColor(item.backdrop)) {
-        Box(Modifier.fillMaxSize()) {
+        Box(
+            Modifier.fillMaxSize().onPreviewKeyEvent {
+                if (it.type == KeyEventType.KeyDown && it.key in OK_KEYS) app.playback.clearProblem()
+                false
+            },
+        ) {
             Backdrop(item.backdrop, BackdropStyle.Full)
 
             LazyColumn(
                     Modifier.fillMaxSize().houseLit(LocalHouseLights.current),
-                    contentPadding = PaddingValues(bottom = HlSpace.xxl),
+                    contentPadding = PaddingValues(bottom = HlFocus.edge),
                     verticalArrangement = Arrangement.spacedBy(HlSpace.l),
                 ) {
                     item(key = "hero") {
@@ -275,7 +300,13 @@ private fun Hero(
         }
         Spacer(Modifier.height(HlSpace.xl))
 
-        Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.s), verticalAlignment = Alignment.Top) {
+        val problem by appContainer().playback.playbackProblem.collectAsStateWithLifecycle()
+        // Room under the actions for the label of a round button: nothing moves when it shows.
+        Row(
+            Modifier.padding(bottom = HlLayout.iconLabelRoom),
+            horizontalArrangement = Arrangement.spacedBy(HlSpace.s),
+            verticalAlignment = Alignment.Top,
+        ) {
             // A series plays through its next episode, a collection through its next film.
             val target = if (item.kind == MediaKind.SERIES || item.kind == MediaKind.COLLECTION) nextUp else item.takeIf { it.isPlayable }
             if (target != null) {
@@ -332,6 +363,15 @@ private fun Hero(
             }
             if (onEdit != null) {
                 HlIconButton(HlIcons.Edit, stringResource(R.string.edit), onClick = onEdit)
+            }
+            // Why the last title asked for did not play, beside the actions that asked for it.
+            problem?.let {
+                HlStatus(
+                    StatusState.Attention,
+                    stringResource(R.string.play_failed),
+                    Modifier.align(Alignment.CenterVertically).padding(start = HlSpace.m).weight(1f, fill = false),
+                    detail = stringResource(it.message),
+                )
             }
         }
     }
@@ -394,3 +434,6 @@ private fun Episodes(
         )
     }
 }
+
+/** The keys that act on what has focus. */
+private val OK_KEYS = setOf(Key.DirectionCenter, Key.Enter, Key.NumPadEnter)

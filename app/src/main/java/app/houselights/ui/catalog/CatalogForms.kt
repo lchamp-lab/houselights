@@ -218,8 +218,9 @@ private fun FormMenus() {
     // On the right, as in the library bar: the popup hangs from the button's right edge.
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(HlSpace.s), verticalAlignment = Alignment.Top) {
         Text(
-            "A popup under the button, at its full height wherever the button sits. Sort closes on a choice; " +
-                "filters stay open so choices combine, and scroll inside.",
+            "A popup hanging from the button, inside the safe area: below it when the room down to the safe area " +
+                "holds it, else above (scroll this group to the foot of the screen); a longer menu scrolls inside. " +
+                "Sort closes on a choice; filters stay open so choices combine.",
             style = Hl.type.caption,
             color = Hl.colors.contentTertiary,
             modifier = Modifier.weight(1f),
@@ -317,13 +318,13 @@ private fun FormChoiceSheet() {
 private fun FormScrollAreas() {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Top) {
         FormCase("framed, longer than its height", Modifier.weight(1f)) {
-            HlScrollArea(Modifier.height(HlLayout.specTables)) { FormReading(FORM_LONG_TEXT) }
+            HlScrollArea(Modifier.height(HlLayout.hero)) { FormReading(FORM_LONG_TEXT) }
         }
-        FormCase("unframed, longer than its height", Modifier.weight(1f)) {
-            HlScrollArea(Modifier.height(HlLayout.specTables), framed = false) { FormReading(FORM_LONG_TEXT) }
+        FormCase("unframed, longer than its height: its ring stands outside", Modifier.weight(1f)) {
+            HlScrollArea(Modifier.height(HlLayout.hero), framed = false) { FormReading(FORM_LONG_TEXT) }
         }
         FormCase("framed, fits: takes no focus", Modifier.weight(1f)) {
-            HlScrollArea(Modifier.height(HlLayout.specTables)) { FormReading(listOf(FORM_SHORT_TEXT)) }
+            HlScrollArea(Modifier.height(HlLayout.hero)) { FormReading(listOf(FORM_SHORT_TEXT)) }
         }
     }
 }

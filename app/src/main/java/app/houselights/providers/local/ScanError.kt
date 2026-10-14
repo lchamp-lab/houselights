@@ -9,14 +9,15 @@ import java.net.UnknownHostException
 /** Why a folder could not be read, in terms the user can act on. */
 enum class ScanErrorKind { UNREACHABLE, ACCESS_DENIED, LOGIN_FAILED, NOT_FOUND, OTHER }
 
-data class ScanError(val kind: ScanErrorKind, val detail: String)
+/** A failure as the interface tells it; the exception itself goes to the log where it is caught. */
+data class ScanError(val kind: ScanErrorKind)
 
 object ScanErrors {
     /** The NAS (not TMDB) can't be reached: worth trying again later, not worth going on now. */
     fun isUnreachable(e: Throwable): Boolean =
         generateSequence(e) { it.cause }.none { it is TmdbUnreachableException } && classify(e).kind == ScanErrorKind.UNREACHABLE
 
-    /** Maps SMB, NFS and socket failures to a [ScanErrorKind]; the raw message stays in [ScanError.detail]. */
+    /** Maps SMB, NFS and socket failures to a [ScanErrorKind]. */
     fun classify(e: Throwable): ScanError {
         val chain = generateSequence(e) { it.cause }.toList()
         val text = chain.joinToString(" ") { "${it.javaClass.simpleName} ${it.message}" }
@@ -32,6 +33,6 @@ object ScanErrors {
                 text.contains("ERR_NOENT") || text.contains("PATH_NOT_FOUND") -> ScanErrorKind.NOT_FOUND
             else -> ScanErrorKind.OTHER
         }
-        return ScanError(kind, e.message ?: e.javaClass.simpleName)
+        return ScanError(kind)
     }
 }

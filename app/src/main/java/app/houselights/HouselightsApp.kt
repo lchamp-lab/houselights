@@ -19,6 +19,7 @@ import app.houselights.providers.local.LocalLibrary
 import app.houselights.providers.local.LocalProvider
 import app.houselights.providers.local.TmdbClient
 import app.houselights.settings.SettingsStore
+import app.houselights.settings.SourceSwitcher
 import coil.ImageLoader
 import coil.ImageLoaderFactory
 import coil.disk.DiskCache
@@ -69,6 +70,9 @@ class AppContainer(private val app: Application) {
             CoroutineExceptionHandler { _, e -> Log.e("Houselights", "Background task failed", e) }
     )
     val settings = SettingsStore(app, scope, Secrets.device)
+
+    /** The one way to change the source: the current one stays until the new one is saved. */
+    val sources = SourceSwitcher({ settings.state.value }, { settings.setSource(it) }, scope)
     val database = LibraryDatabase.create(app, Secrets.device)
     val artwork = ArtworkCache(app.filesDir.resolve("artwork"))
     val playback = PlaybackManager(app, scope) { resumeKey ->

@@ -15,6 +15,12 @@ import java.util.concurrent.TimeUnit
 /** TMDB could not be reached (no network, DNS, timeout), now or a moment ago. */
 class TmdbUnreachableException(cause: IOException?) : IOException("TMDB is unreachable", cause)
 
+/**
+ * TMDB refused the API key (401): to be changed in the settings, not a server to sign in to again.
+ * An [IOException], as anything an OkHttp interceptor throws must be.
+ */
+class TmdbKeyRefusedException : IOException("TMDB refused the API key")
+
 /** TMDB v3 client; metadata in the device language. */
 class TmdbClient(private val apiKey: String) {
     private val locale: Locale = Locale.getDefault()
@@ -46,12 +52,17 @@ class TmdbClient(private val apiKey: String) {
             // Once TMDB is out of reach, the next files of a scan don't each wait for a timeout.
             if (System.currentTimeMillis() < unreachableUntil) throw TmdbUnreachableException(null)
             val url = chain.request().url.newBuilder().addQueryParameter("api_key", apiKey).build()
-            try {
+            val response = try {
                 chain.proceed(chain.request().newBuilder().url(url).build())
             } catch (e: IOException) {
                 unreachableUntil = System.currentTimeMillis() + UNREACHABLE_PAUSE_MS
                 throw TmdbUnreachableException(e)
             }
+            if (response.code == HTTP_UNAUTHORIZED) {
+                response.close()
+                throw TmdbKeyRefusedException()
+            }
+            response
         }
         .build()
 
@@ -136,6 +147,7 @@ class TmdbClient(private val apiKey: String) {
         tv.contentRatings.results.firstOrNull { it.iso31661 == region }?.rating?.takeIf { it.isNotBlank() }
 
     companion object {
+        private const val HTTP_UNAUTHORIZED = 401
         private const val HTTP_NOT_FOUND = 404
         private const val UNREACHABLE_PAUSE_MS = 60_000L
         private const val IMAGE_BASE = "https://image.tmdb.org/t/p/"

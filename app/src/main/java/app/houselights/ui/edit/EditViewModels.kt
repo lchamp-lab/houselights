@@ -70,6 +70,8 @@ data class IdentifyState(
     /** Null until a search has run. */
     val results: List<MatchCandidate>? = null,
     val identifying: Boolean = false,
+    /** The result being matched while [identifying]; null when going back to automatic matching. */
+    val chosenId: String? = null,
     val error: UiError? = null,
 )
 
@@ -107,12 +109,17 @@ class IdentifyViewModel(private val app: AppContainer, private val itemId: Strin
         }
     }
 
-    /** Matches the title with [candidate], or goes back to automatic matching. True once done. */
+    /**
+     * Matches the title with [candidate], or goes back to automatic matching. True once done. One at
+     * a time: a second OK while matching changes nothing. The results stay as they are.
+     */
     suspend fun identify(candidate: MatchCandidate?): Boolean {
-        val item = _state.value.item ?: return false
-        _state.update { it.copy(identifying = true, error = null) }
+        val s = _state.value
+        val item = s.item ?: return false
+        if (s.identifying) return false
+        _state.update { it.copy(identifying = true, chosenId = candidate?.id, error = null) }
         return suspendRunCatching { app.editor().identify(item, candidate) }
-            .onFailure { e -> _state.update { it.copy(identifying = false, error = e.reported()) } }
+            .onFailure { e -> _state.update { it.copy(identifying = false, chosenId = null, error = e.reported()) } }
             .isSuccess
     }
 }

@@ -95,6 +95,9 @@ object HlSize {
     val rowPreviewWide = 84.dp
     /** Progress shown beside text (time left). */
     val progressShort = 120.dp
+    /** The short rules standing for a title and its facts while a page loads. */
+    val skeletonTitle = 48.dp
+    val skeletonFacts = 24.dp
     val progress = 3.dp
     /** An option inside a segmented track: with the track's padding, as tall as a control. */
     val segment = 40.dp
@@ -106,10 +109,18 @@ object HlSize {
 
 /** Widths and heights of layout parts. */
 object HlLayout {
+    /**
+     * The width every screen is laid out for, in dp: the TV canvas, 960 × 540. The density follows
+     * the screen's real width (×2 for a 1080p interface), not what the device declares: the Zidoo
+     * declares 240 dpi, which would draw everything a quarter smaller than designed.
+     */
+    const val CANVAS_WIDTH = 960f
     /** Longest comfortable line of reading text. */
     val readable = 640.dp
     /** Text set beside artwork (heroes, detail pages). */
     val readableNarrow = 520.dp
+    /** How far a backdrop's left veil takes to fade out, past the text column. */
+    val veilFade = 240.dp
     /** Side column of two-pane screens: navigation (settings), and explanation (setup forms). */
     val sideColumn = 280.dp
     val sideColumnWide = 340.dp
@@ -145,14 +156,19 @@ object HlLayout {
     val sideSheet = 520.dp
     /** Widest value on the right of a setting row. */
     val rowValue = 360.dp
-    /** Dropdown menus (sort, filters). */
+    /** Widest label under a round icon button; a longer one ends in an ellipsis. */
+    val iconLabel = 160.dp
+    /**
+     * Room a row of round buttons keeps under itself for the label of the one with focus: the gap
+     * ([HlSpace.xs]) and one caption line (20). The label takes none of its own.
+     */
+    val iconLabelRoom = 28.dp
+    /** Dropdown menus (sort, filters); their height is the room the screen leaves them. */
     val menuWidth = 320.dp
-    val menuMaxHeight = 460.dp
-    /** Columns of the technical sheet's track tables, and the height they scroll in. */
+    /** Columns of the technical sheet's track tables. */
     val specLanguage = 120.dp
     val specFormat = 136.dp
     val specLayout = 48.dp
-    val specTables = 240.dp
     /** Height of long text panels (NFO). */
     val textPanel = 440.dp
     /** Label column of label and value lists, and its short form inside a narrow panel. */
@@ -183,4 +199,9 @@ object HlFocus {
     const val SIBLING_DIM = 0.3f
     const val SIBLING_SATURATION = 0.3f
     val glow = 18.dp
+    /**
+     * How far a vertical list keeps what has focus from its top and bottom: the safe area, so
+     * the last row stops inside it and a focused poster grows into the margin, not off the screen.
+     */
+    val edge = HlSpace.safeV
 }

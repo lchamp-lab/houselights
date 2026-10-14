@@ -166,7 +166,8 @@ fun FactRow(
 
 /**
  * What a screen says when it has nothing to show or could not load: a sentence that says what
- * happened, and the action that fixes it, focused.
+ * happened, and the action that fixes it, focused. [secondaryAction] is a quieter way out beside it
+ * (where to look more closely). With no action, [backHint] says that Back is the way out.
  */
 @Composable
 fun HlEmptyState(
@@ -176,6 +177,9 @@ fun HlEmptyState(
     action: String? = null,
     actionIcon: ImageVector? = null,
     onAction: () -> Unit = {},
+    secondaryAction: String? = null,
+    onSecondaryAction: () -> Unit = {},
+    backHint: Boolean = false,
 ) {
     val focus = remember { FocusRequester() }
     LaunchedEffect(action != null) { if (action != null) runCatching { focus.requestFocus() } }
@@ -187,33 +191,49 @@ fun HlEmptyState(
         Text(message, style = Hl.type.body, color = Hl.colors.contentSecondary)
         if (action != null) {
             Spacer(Modifier.height(HlSpace.l))
-            HlButton(action, onAction, Modifier.focusRequester(focus), icon = actionIcon, emphasis = Emphasis.Primary)
+            Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.s)) {
+                HlButton(action, onAction, Modifier.focusRequester(focus), icon = actionIcon, emphasis = Emphasis.Primary)
+                if (secondaryAction != null) HlButton(secondaryAction, onSecondaryAction)
+            }
+        } else if (backHint) {
+            Spacer(Modifier.height(HlSpace.l))
+            BackHint()
         }
     }
 }
 
-/** The state of something the app depends on. */
-enum class StatusState { On, Off, Pending }
+/** The state of something the app depends on; [Attention] when something went wrong with it. */
+enum class StatusState { On, Off, Pending, Attention }
 
-/** A state in words with its light: a tungsten dot when on, an empty one when off. */
+/**
+ * A state in words with its light: a tungsten dot when on or calling for attention, an empty one
+ * when off. [detail] says why, under the words and aligned with them.
+ */
 @Composable
-fun HlStatus(state: StatusState, text: String, modifier: Modifier = Modifier) {
+fun HlStatus(state: StatusState, text: String, modifier: Modifier = Modifier, detail: String? = null) {
     val c = Hl.colors
-    Row(modifier, verticalAlignment = Alignment.CenterVertically) {
-        Box(
-            Modifier
-                .size(HlSize.dot)
-                .clip(HlShapes.avatar)
-                .then(
-                    when (state) {
-                        StatusState.On -> Modifier.background(c.tungsten)
-                        StatusState.Pending -> Modifier.background(c.contentDecorative)
-                        StatusState.Off -> Modifier.border(HlSize.hairline, c.contentTertiary, HlShapes.avatar)
-                    }
-                )
-        )
-        Spacer(Modifier.width(HlSpace.xs))
-        Text(text, style = Hl.type.meta, color = if (state == StatusState.On) c.content else c.contentSecondary)
+    Column(modifier) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                Modifier
+                    .size(HlSize.dot)
+                    .clip(HlShapes.avatar)
+                    .then(
+                        when (state) {
+                            StatusState.On, StatusState.Attention -> Modifier.background(c.tungsten)
+                            StatusState.Pending -> Modifier.background(c.contentDecorative)
+                            StatusState.Off -> Modifier.border(HlSize.hairline, c.contentTertiary, HlShapes.avatar)
+                        }
+                    )
+            )
+            Spacer(Modifier.width(HlSpace.xs))
+            val strong = state == StatusState.On || state == StatusState.Attention
+            Text(text, style = Hl.type.meta, color = if (strong) c.content else c.contentSecondary)
+        }
+        if (detail != null) {
+            Spacer(Modifier.height(HlSpace.xxs))
+            Text(detail, style = Hl.type.detail, color = c.contentSecondary, modifier = Modifier.padding(start = HlSize.dot + HlSpace.xs))
+        }
     }
 }
 

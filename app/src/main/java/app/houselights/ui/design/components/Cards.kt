@@ -94,7 +94,8 @@ fun MediaRow(
                     modifier = Modifier
                         .onFocusChanged { rowFocused = it.hasFocus }
                         .focusRestorer(),
-                    contentPadding = PaddingValues(horizontal = HlSpace.safeH, vertical = HlSpace.m),
+                    // Room for a focused card to grow: a poster grows by 8.4 dp at the top and the bottom.
+                    contentPadding = PaddingValues(horizontal = HlSpace.safeH, vertical = HlSpace.s),
                     horizontalArrangement = Arrangement.spacedBy(spacing),
                     content = content,
                 )
@@ -190,7 +191,7 @@ fun PosterCard(
         val url = item.poster?.url(px)
         if (url == null) FallbackArtwork(item.title, item.year) else ArtworkImage(url, item.title, Modifier.fillMaxSize())
         StatusMark(item, Modifier.align(Alignment.TopEnd).padding(HlSpace.xs))
-        ProgressLine(item.progress, Modifier.align(Alignment.BottomCenter))
+        ProgressLine(item.progress, Modifier.align(Alignment.BottomCenter), onArtwork = true)
     }
 }
 
@@ -223,7 +224,7 @@ fun LandscapeCard(
                 ArtworkImage(url, item.title, Modifier.fillMaxSize())
             }
             StatusMark(item, Modifier.align(Alignment.TopEnd).padding(HlSpace.xs))
-            ProgressLine(item.progress, Modifier.align(Alignment.BottomCenter))
+            ProgressLine(item.progress, Modifier.align(Alignment.BottomCenter), onArtwork = true)
         }
         if (title != null) {
             Spacer(Modifier.height(HlSpace.s))
@@ -249,7 +250,10 @@ fun LandscapeCard(
     }
 }
 
-/** Cast member: round portrait, name over two lines at most, and role. Focusable so the row can scroll. */
+/**
+ * Cast member: round portrait, name over two lines (always two tall, so the roles of a row line
+ * up), and role. Focusable so the row can scroll.
+ */
 @Composable
 fun PersonCard(person: Person, modifier: Modifier = Modifier) {
     val px = HlSize.avatar.toPx()
@@ -269,6 +273,7 @@ fun PersonCard(person: Person, modifier: Modifier = Modifier) {
             style = Hl.type.meta,
             color = Hl.colors.content,
             maxLines = 2,
+            minLines = 2,
             overflow = TextOverflow.Ellipsis,
             textAlign = TextAlign.Center,
         )
@@ -318,17 +323,22 @@ private fun StatusMark(item: MediaItem, modifier: Modifier) {
     }
 }
 
-/** Tungsten progress line, only for titles in progress. */
+/**
+ * Tungsten progress line, only for titles in progress. On artwork ([onArtwork]: the foot of a
+ * card), its track is a dark plate, so the line reads over the lightest image.
+ */
 @Composable
-fun ProgressLine(progress: Float, modifier: Modifier = Modifier) {
+fun ProgressLine(progress: Float, modifier: Modifier = Modifier, onArtwork: Boolean = false) {
     if (progress <= 0f) return
-    Box(modifier.fillMaxWidth().height(HlSize.progress).background(Hl.colors.content.copy(alpha = HlAlpha.TRACK))) {
+    val track = if (onArtwork) Hl.colors.background.copy(alpha = HlAlpha.PLATE) else Hl.colors.content.copy(alpha = HlAlpha.TRACK)
+    Box(modifier.fillMaxWidth().height(HlSize.progress).background(track)) {
         Box(Modifier.fillMaxWidth(progress).height(HlSize.progress).background(Hl.colors.tungsten))
     }
 }
 
-/** Placeholder card while a row loads: same footprint, no shimmer. */
+/** Placeholder card while a row loads: same footprint, no shimmer. A null [width] fills a grid cell. */
 @Composable
-fun CardSkeleton(width: Dp, aspectRatio: Float, modifier: Modifier = Modifier) {
-    Box(modifier.width(width).aspectRatio(aspectRatio).clip(HlShapes.artwork).background(Hl.colors.surface))
+fun CardSkeleton(width: Dp?, aspectRatio: Float, modifier: Modifier = Modifier) {
+    val sized = if (width != null) modifier.width(width) else modifier
+    Box(sized.aspectRatio(aspectRatio).clip(HlShapes.artwork).background(Hl.colors.surface))
 }

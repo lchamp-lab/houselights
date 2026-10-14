@@ -36,6 +36,6 @@ fi
 
 echo "Building and installing…"
 "$ROOT/gradlew" -p "$ROOT" installDebug --console=plain -q
-"$ADB" -e shell am start -n app.houselights/.MainActivity >/dev/null
+"$ADB" -e shell am start -n app.houselights.debug/app.houselights.MainActivity >/dev/null
 echo "Houselights is running. Arrows = navigate, Enter = select, Esc = back."
 echo "Jellyfin on this computer? Use 10.0.2.2:8096 as the server address in the emulator."

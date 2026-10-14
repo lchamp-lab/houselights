@@ -1,34 +1,48 @@
 package app.houselights.ui.design.components
 
 import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.toSize
 import app.houselights.core.ImageRef
 import app.houselights.ui.design.Hl
+import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlMotion
+import app.houselights.ui.design.HlScrim
+import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.HouseLightCue
 import app.houselights.ui.design.LocalHouseLights
 import app.houselights.ui.design.LocalAmbient
+import app.houselights.ui.design.colorStops
 import app.houselights.ui.util.screenWidthPx
 import coil.compose.AsyncImage
+import kotlin.math.max
 
 enum class BackdropStyle(
     /** Opacity of the picture itself. */
     val imageAlpha: Float,
-    /** Where the bottom fade to black starts (fraction of the height). */
+    /** Where the bottom fade to black starts (share of the height). */
     val fadeFrom: Float,
-    /** Strength of the left scrim behind text. */
+    /** Strength of the left veil behind text, at the screen's edge. */
     val leftScrim: Float,
     /** Widest file worth asking for; null: as wide as the screen. */
     val maxWidthPx: Int? = null,
@@ -42,9 +56,10 @@ enum class BackdropStyle(
 }
 
 /**
- * Full-screen picture on pure black, faded where text sits, plus the ambient light it
- * spills into the room ([LocalAmbient]). When the house lights go down, the scrims lift and
- * the picture shows whole.
+ * Full-screen picture on pure black, veiled where text sits, plus the ambient light it spills into
+ * the room ([LocalAmbient]). The veils are [HlScrim]'s; under the text column, the left veil keeps
+ * the floor the picture needs, so the quietest text reads on the lightest image while a dark one
+ * keeps its veil. When the house lights go down, the veils lift and the picture shows whole.
  */
 @Composable
 fun Backdrop(image: ImageRef?, style: BackdropStyle, modifier: Modifier = Modifier) {
@@ -53,7 +68,17 @@ fun Backdrop(image: ImageRef?, style: BackdropStyle, modifier: Modifier = Modifi
     val lights = LocalHouseLights.current
     val screen = screenWidthPx()
     val url = image?.url(style.maxWidthPx?.coerceAtMost(screen) ?: screen)
-    Box(modifier.fillMaxSize().background(black)) {
+    val density = LocalDensity.current
+    // The text column of heroes and detail pages; the veil follows it, whatever the screen's width.
+    val column = with(density) { (HlSpace.safeH + HlLayout.readableNarrow).toPx() }
+    val fade = with(density) { HlLayout.veilFade.toPx() }
+    var bounds by remember { mutableStateOf(Size.Zero) }
+    val sample = rememberArtworkSample(image)
+    val needed = remember(sample, bounds, style) {
+        sample?.floor(bounds, column, style.imageAlpha, style.leftScrim, HlScrim.down(style.fadeFrom)) ?: 0f
+    }
+    val floor by animateFloatAsState(needed, tween(HlMotion.SLOW, easing = HlMotion.standard), label = "floor")
+    Box(modifier.fillMaxSize().background(black).onSizeChanged { bounds = it.toSize() }) {
         Crossfade(targetState = url, animationSpec = tween(HlMotion.SLOW, easing = HlMotion.standard), label = "backdrop") { u ->
             if (u != null) {
                 AsyncImage(
@@ -67,24 +92,13 @@ fun Backdrop(image: ImageRef?, style: BackdropStyle, modifier: Modifier = Modifi
             }
         }
         Box(
-            Modifier.fillMaxSize().graphicsLayer { alpha = HouseLightCue.scrims(lights()) }.background(
-                Brush.horizontalGradient(
-                    0f to black.copy(alpha = style.leftScrim),
-                    0.34f to black.copy(alpha = style.leftScrim * 0.9f),
-                    0.58f to black.copy(alpha = style.leftScrim * 0.5f),
-                    0.85f to Color.Transparent,
-                )
-            )
+            Modifier.fillMaxSize().graphicsLayer { alpha = HouseLightCue.scrims(lights()) }.drawBehind {
+                drawRect(leftVeil(black, style.leftScrim, floor, column, fade))
+            }
         )
         Box(
             Modifier.fillMaxSize().graphicsLayer { alpha = HouseLightCue.scrims(lights()) }.background(
-                Brush.verticalGradient(
-                    0f to black.copy(alpha = 0.45f),
-                    0.14f to Color.Transparent,
-                    style.fadeFrom to Color.Transparent,
-                    (style.fadeFrom + 0.3f).coerceAtMost(0.98f) to black.copy(alpha = 0.92f),
-                    1f to black,
-                )
+                Brush.verticalGradient(*HlScrim.down(style.fadeFrom).colorStops(black))
             )
         )
         // Light from the picture, reflected on the room below it; stronger once the room is dark.
@@ -92,13 +106,24 @@ fun Backdrop(image: ImageRef?, style: BackdropStyle, modifier: Modifier = Modifi
             Modifier.fillMaxSize().drawBehind {
                 drawRect(
                     Brush.radialGradient(
-                        0f to ambient.copy(alpha = 0.22f + 0.14f * (1f - HouseLightCue.room(lights()))),
+                        0f to ambient.copy(alpha = HlScrim.SPILL + HlScrim.SPILL_DARK * (1f - HouseLightCue.room(lights()))),
                         1f to Color.Transparent,
-                        center = Offset(size.width * 0.28f, size.height * 1.05f),
-                        radius = size.width * 0.62f,
+                        center = Offset(size.width * HlScrim.SPILL_X, size.height * HlScrim.SPILL_Y),
+                        radius = size.width * HlScrim.SPILL_RADIUS,
                     )
                 )
             }
         )
     }
+}
+
+/**
+ * The left veil: [strength] at the screen's edge, easing along the [column] (px) as [HlScrim.LEFT]
+ * says but never under [floor], then fading out over [fade] px.
+ */
+private fun leftVeil(black: Color, strength: Float, floor: Float, column: Float, fade: Float): Brush {
+    val end = column + fade
+    val stops = HlScrim.LEFT.map { it.at * column / end to black.copy(alpha = max(it.alpha * strength, floor)) } +
+        (1f to Color.Transparent)
+    return Brush.horizontalGradient(*stops.toTypedArray(), startX = 0f, endX = end)
 }

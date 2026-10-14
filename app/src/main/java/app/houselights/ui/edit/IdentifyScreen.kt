@@ -47,6 +47,7 @@ import app.houselights.ui.design.components.Emphasis
 import app.houselights.ui.design.components.FieldLabel
 import app.houselights.ui.design.components.HlButton
 import app.houselights.ui.design.components.HlFormScaffold
+import app.houselights.ui.design.components.HlStatus
 import app.houselights.ui.design.components.HlResultItem
 import app.houselights.ui.design.components.HlTextField
 import app.houselights.ui.design.components.FactRow
@@ -133,13 +134,17 @@ fun IdentifyScreen(itemId: String, onDone: () -> Unit) {
         }
         HlButton(stringResource(R.string.search), onClick = vm::search, icon = HlIcons.Search, emphasis = Emphasis.Primary)
 
+        // What is going on shows above the results, which stay in place, and so does focus.
+        val error = state.error
+        when {
+            state.identifying -> HlStatus(StatusState.Pending, stringResource(R.string.identifying))
+            state.searching -> HlStatus(StatusState.Pending, stringResource(R.string.searching))
+            error != null -> HlStatus(StatusState.Attention, stringResource(error.title), detail = stringResource(error.message))
+        }
         val results = state.results
         when {
-            state.identifying -> Status(stringResource(R.string.identifying))
-            state.searching -> Status(stringResource(R.string.searching))
-            state.error != null -> Status(stringResource(state.error!!.message), problem = true)
             results == null -> Unit
-            results.isEmpty() -> Status(stringResource(R.string.search_empty))
+            results.isEmpty() -> if (!state.searching && error == null) Status(stringResource(R.string.search_empty))
             else -> Column(verticalArrangement = Arrangement.spacedBy(HlSpace.s)) {
                 SectionHeader(pluralStringResource(R.plurals.result_count, results.size, results.size))
                 results.forEachIndexed { i, candidate ->
@@ -150,6 +155,7 @@ fun IdentifyScreen(itemId: String, onDone: () -> Unit) {
                         overview = candidate.overview,
                         onClick = { identify(candidate) },
                         mark = stringResource(R.string.result_current).takeIf { candidate.id == identity?.current?.id },
+                        busy = stringResource(R.string.identifying).takeIf { state.identifying && candidate.id == state.chosenId },
                         modifier = if (i == 0) Modifier.focusRequester(firstResult) else Modifier,
                     )
                 }
@@ -176,6 +182,6 @@ private fun CurrentMatch(current: MatchCandidate, manual: Boolean) {
 }
 
 @Composable
-private fun Status(text: String, problem: Boolean = false) {
-    Text(text, style = Hl.type.body, color = if (problem) Hl.colors.tungsten else Hl.colors.contentSecondary)
+private fun Status(text: String) {
+    Text(text, style = Hl.type.body, color = Hl.colors.contentSecondary)
 }

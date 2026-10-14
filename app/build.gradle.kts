@@ -34,6 +34,7 @@ android {
         versionCode = 1
         versionName = "0.1.0"
         buildConfigField("String", "TMDB_API_KEY", "\"$tmdbApiKey\"")
+        manifestPlaceholders["appLabel"] = "@string/app_name"
     }
 
     signingConfigs {
@@ -48,6 +49,12 @@ android {
     }
 
     buildTypes {
+        // Debug builds install beside the release one, so trying a change never costs a library.
+        debug {
+            applicationIdSuffix = ".debug"
+            // Only the launcher says so: the interface keeps its wordmark.
+            manifestPlaceholders["appLabel"] = "Houselights debug"
+        }
         release {
             isMinifyEnabled = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")

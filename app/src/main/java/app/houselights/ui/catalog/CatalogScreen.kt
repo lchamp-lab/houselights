@@ -114,7 +114,11 @@ fun CatalogScreen() {
 
             item {
                 Group("Controls") {
-                    Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.s), verticalAlignment = Alignment.Top) {
+                    Row(
+                        Modifier.padding(bottom = HlLayout.iconLabelRoom),
+                        horizontalArrangement = Arrangement.spacedBy(HlSpace.s),
+                        verticalAlignment = Alignment.Top,
+                    ) {
                         HlButton("Lire", {}, icon = Icons.Filled.PlayArrow, detail = "1 h 53", emphasis = Emphasis.Primary)
                         HlButton("Secondary", {})
                         HlIconButton(HlIcons.Info, "Icon button", {})
@@ -144,6 +148,7 @@ fun CatalogScreen() {
                         HlStatus(StatusState.On, "Online")
                         HlStatus(StatusState.Pending, "Testing")
                         HlStatus(StatusState.Off, "Offline")
+                        HlStatus(StatusState.Attention, "Can’t play", detail = "The Zidoo player isn’t installed.")
                     }
                     Column(Modifier.widthIn(max = HlLayout.readable), verticalArrangement = Arrangement.spacedBy(HlSpace.xs)) {
                         HlMeter(listOf(MeterSegment(0.3f, c.content), MeterSegment(0.1f, c.tungsten), MeterSegment(0.05f, c.contentSecondary)))
@@ -169,7 +174,21 @@ fun CatalogScreen() {
                         }
                     }
                     HlListItem("List item", "Its description", {}, icon = HlIcons.Folder)
-                    HlEmptyState("What happened, and what to do about it.", title = "Empty or error state", action = "Try again")
+                    Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.xl)) {
+                        HlEmptyState(
+                            "What happened, and what to do about it.",
+                            Modifier.weight(1f),
+                            title = "Empty or error state",
+                            action = "Try again",
+                            secondaryAction = "Look closer",
+                        )
+                        HlEmptyState(
+                            "Nothing fixes it here: Back is the way out.",
+                            Modifier.weight(1f),
+                            title = "No action",
+                            backHint = true,
+                        )
+                    }
                 }
             }
 
@@ -240,7 +259,12 @@ fun CatalogScreen() {
                 // The longest French labels and the fullest rows the screens can meet: nothing here
                 // may be cut or pushed out.
                 Group("Stress") {
-                    Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.s), verticalAlignment = Alignment.Top) {
+                    // Room for the labels, as the detail page keeps it.
+                    Row(
+                        Modifier.padding(bottom = HlLayout.iconLabelRoom),
+                        horizontalArrangement = Arrangement.spacedBy(HlSpace.s),
+                        verticalAlignment = Alignment.Top,
+                    ) {
                         // An episode in progress, with every capability: the fullest row of a detail page.
                         HlButton("Reprendre", {}, icon = Icons.Filled.PlayArrow, detail = "1:02:33", emphasis = Emphasis.Primary)
                         HlIconButton(HlIcons.Restart, "Depuis le début", {})

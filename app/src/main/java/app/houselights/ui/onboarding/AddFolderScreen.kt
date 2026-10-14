@@ -44,7 +44,7 @@ private val KINDS = listOf(SourceKind.MOVIES, SourceKind.SHOWS)
 
 /** Adds a network folder to the local library, after an optional connection test. */
 @Composable
-fun AddFolderScreen(onAdded: () -> Unit) {
+fun AddFolderScreen(onAdded: (switched: Boolean) -> Unit) {
     val app = appContainer()
     val vm = viewModel { AddFolderViewModel(app) }
     val form = vm.form

@@ -31,8 +31,10 @@ import androidx.compose.ui.unit.dp
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlMotion
+import app.houselights.ui.design.HlScrim
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.colorStops
 import coil.compose.AsyncImage
 
 private val POSTER_W = HlSize.posterWall
@@ -47,7 +49,7 @@ private const val ROWS = 4
  * [ROWS] posters.
  */
 @Composable
-fun PosterWall(urls: List<String>, modifier: Modifier = Modifier, opacity: Float = 0.3f) {
+fun PosterWall(urls: List<String>, modifier: Modifier = Modifier, opacity: Float = HlScrim.WALL) {
     if (urls.isEmpty()) return
     val drift by rememberInfiniteTransition(label = "wall").animateFloat(
         initialValue = 0f,
@@ -98,25 +100,16 @@ fun PosterWall(urls: List<String>, modifier: Modifier = Modifier, opacity: Float
 fun PosterWallScrim() {
     val black = Hl.colors.background
     val tungsten = Hl.colors.tungsten
-    Box(
-        Modifier.fillMaxSize().background(
-            Brush.horizontalGradient(
-                0f to black.copy(alpha = 0.92f),
-                0.42f to black.copy(alpha = 0.55f),
-                0.6f to black.copy(alpha = 0.7f),
-                1f to black.copy(alpha = 0.94f),
-            )
-        )
-    )
-    Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0f to black, 0.2f to Color.Transparent, 0.8f to Color.Transparent, 1f to black)))
+    Box(Modifier.fillMaxSize().background(Brush.horizontalGradient(*HlScrim.WALL_ACROSS.colorStops(black))))
+    Box(Modifier.fillMaxSize().background(Brush.verticalGradient(*HlScrim.WALL_DOWN.colorStops(black))))
     Box(
         Modifier.fillMaxSize().drawBehind {
             drawRect(
                 Brush.radialGradient(
-                    0f to tungsten.copy(alpha = 0.16f),
+                    0f to tungsten.copy(alpha = HlScrim.WELCOME_HALO),
                     1f to Color.Transparent,
-                    center = Offset(size.width * 0.27f, size.height * 0.39f),
-                    radius = size.width * 0.47f,
+                    center = Offset(size.width * HlScrim.WELCOME_HALO_X, size.height * HlScrim.WELCOME_HALO_Y),
+                    radius = size.width * HlScrim.WELCOME_HALO_RADIUS,
                 )
             )
         }

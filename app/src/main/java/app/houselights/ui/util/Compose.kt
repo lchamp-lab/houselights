@@ -5,16 +5,20 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.houselights.AppContainer
 import app.houselights.HouselightsApp
+import app.houselights.ui.design.HlMotion
+import kotlinx.coroutines.delay
 
 @Composable
 fun appContainer(): AppContainer = (LocalContext.current.applicationContext as HouselightsApp).container
@@ -37,9 +41,35 @@ fun ReloadOnLibraryChange(reload: () -> Unit) {
     }
 }
 
+/**
+ * False until the caller has been shown for [HlMotion.SKELETON_DELAY]: a placeholder waits for it,
+ * so a slow load shows one and a quick load never flashes.
+ */
+@Composable
+fun skeletonDelayPassed(): Boolean {
+    val passed by produceState(false) {
+        delay(HlMotion.SKELETON_DELAY)
+        value = true
+    }
+    return passed
+}
+
 /** Size in physical pixels, to request images at the size they are displayed. */
 @Composable
 fun Dp.toPx(): Int = with(LocalDensity.current) { this@toPx.roundToPx() }
 
+/** The screen in physical pixels, whatever density the device declares. */
 @Composable
-fun screenWidthPx(): Int = LocalConfiguration.current.screenWidthDp.dp.toPx()
+fun screenSizePx(): IntSize {
+    // Read so a configuration change recomposes the callers.
+    LocalConfiguration.current
+    val metrics = LocalContext.current.resources.displayMetrics
+    return IntSize(metrics.widthPixels, metrics.heightPixels)
+}
+
+@Composable
+fun screenWidthPx(): Int = screenSizePx().width
+
+/** The screen's height on the canvas the app lays out for (540 dp on a TV). */
+@Composable
+fun screenHeight(): Dp = with(LocalDensity.current) { screenSizePx().height.toDp() }
