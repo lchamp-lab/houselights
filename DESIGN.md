@@ -307,10 +307,13 @@ screen: it goes to the log.
   `« »`. Archivo has no narrow no-break space, so the normal one (U+00A0) is used.
 - A number never leaves its unit: `3,27 Go`, `2 h 02`, `10 bits`, `3840 × 1608` (`formatDuration`,
   `formatDimensions`, `formatBytes`, `formatRatio` in `ui/util/Format.kt`). What is left of a title
-  is a duration, "Il reste 1 h 26", never a timecode.
+  is a duration, "Il reste 1 h 26", never a timecode; progress reads "3 / 9", everywhere.
 - A button says what OK does, and a toggle says it too: "Marquer comme vu", then "Marquer comme non
   vu"; its lit icon carries the state. A button bears the name of what it opens ("Fiche technique",
   "Fichier NFO"). An empty screen always offers a verb ("Ajouter un dossier"), never a place.
+- A time inside a sentence goes on in lower case, "Analysé il y a 3 minutes", "Jamais analysé"; set
+  alone as a value, it takes a capital, "Il y a 3 minutes" (`relativeTime`). No arrow in a sentence:
+  words ("aucune correspondance : lecture par le flux HTTP").
 - Facts are separated by layout (`FactRow`). Inside a single text (a button's detail), `FACT_GAP`.
 - Values are words a person uses: "Détecté", "Hors ligne", "Aucune", never "absent" or "0 fichier".
 - A failure says what happened and what to do ("Le dossier n’a pas pu être lu. Réessayez, ou
@@ -319,6 +322,7 @@ screen: it goes to the log.
   only (sorting and searching read it as written): an apostrophe between two letters becomes ’,
   three dots …, a balanced pair of straight double quotes « … » in French; `»`, `:` and `!` never
   start a line. Single quotes are left alone: they elide as often as they quote (Rock 'n' Roll).
+  `StringsTest` holds the resources to the same rules, and values-fr to every key of values.
 - Say only what the app can know. Some players list stand-in display modes: the Zidoo lists 1080p
   at 30 Hz while it sends 2160p60, set in its own menu. There, Affichage says the player sets its
   output and where ("Réglages du lecteur > Affichage"), shows no mode and no rate, and offers no
@@ -331,7 +335,7 @@ font, colour, opacity or shape written in a screen, and on arithmetic with a tok
 alignment worked out in a screen gets a name in `Dimens.kt`. `SpacingGridTest` keeps `HlSpace` and
 `HlInset` on the 4 dp grid; `TypeScaleTest` keeps the type scale honest, `ContrastTest` the contrasts,
 `ScrimTest` the floor of the veils, `ResourceTokensTest` the resources in step with the tokens,
-`CatalogCoverageTest` the catalogue complete.
+`StringsTest` the French typography of the resources, `CatalogCoverageTest` the catalogue complete.
 Deliberate exceptions go in the guard's `allowed` list, with the reason; a value needed twice belongs
 in the design system instead.
 

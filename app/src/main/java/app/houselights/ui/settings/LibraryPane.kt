@@ -299,7 +299,7 @@ private fun SourceCard(
                         listOf(
                             pluralStringResource(R.plurals.title_count, count, count),
                             if (ultraHd > 0) pluralStringResource(R.plurals.uhd_count, ultraHd, ultraHd) else null,
-                            stringResource(R.string.last_scan, relativeTime(source.lastScanAt)),
+                            lastScanned(source.lastScanAt),
                         ),
                     )
                 }
@@ -356,7 +356,11 @@ private fun LibraryActions(
         )
         HlSettingRow(
             stringResource(R.string.scan_now),
-            value = if (scan.running) stringResource(R.string.scan_running, scan.processed, scan.total) else relativeTime(lastScan),
+            value = if (scan.running) {
+                stringResource(R.string.scan_running, scan.processed, scan.total)
+            } else {
+                relativeTime(lastScan, alone = true)
+            },
             valueLit = scan.running,
             onClick = { vm.library.scan() },
             chevron = false,

@@ -9,7 +9,6 @@
     <string name="source_local_desc">Videos on your NAS or a network share (NFS or SMB). Houselights scans them and fetches posters and details from TMDB.</string>
     <string name="source_jellyfin">Jellyfin server</string>
     <string name="source_jellyfin_desc">Use the library of your Jellyfin server.</string>
-    <string name="sources_coming_soon">Emby and Plex: coming soon.</string>
     <string name="welcome_title">Choose your library</string>
 
     <!-- Libraries and sections -->
@@ -93,7 +92,7 @@
     <string name="nfo_state_full">Full description</string>
     <string name="nfo_state_link">Link only</string>
     <string name="nfo_state_unreadable">Unreadable</string>
-    <string name="nfo_state_reading">Reading…</string>
+    <string name="nfo_state_reading">Opening…</string>
     <string name="nfo_block_details">Details</string>
     <string name="label_file">File</string>
     <string name="nfo_unreadable">This NFO could not be read as XML.</string>
@@ -131,7 +130,7 @@
 
     <!-- Local folders -->
     <string name="add_folder">Add a folder</string>
-    <string name="add_folder_desc">Tell Houselights where your films or shows live on the NAS. Test the connection before adding the folder.</string>
+    <string name="add_folder_desc">Say where your films or shows are on the NAS. Houselights tests the connection before adding the folder.</string>
     <string name="jellyfin_desc">Enter the address of your server and your Jellyfin credentials.</string>
     <string name="folder_kind">Contents</string>
     <string name="field_protocol">Protocol</string>
@@ -225,7 +224,8 @@
     <string name="remove">Remove</string>
     <string name="scan_now">Scan now</string>
     <string name="refresh_metadata">Refresh all details</string>
-    <string name="last_scan">Last scan: %s</string>
+    <string name="last_scan">Scanned %s</string>
+    <string name="never_scanned">Never scanned</string>
     <string name="never">never</string>
     <string name="just_now">just now</string>
     <string name="tmdb_key">TMDB API key</string>
@@ -241,11 +241,11 @@
     <string name="server_path">Server path</string>
     <string name="add_mapping">Add a mapping</string>
     <string name="mapping_result">Result: %s</string>
-    <string name="mapping_none">no match → HTTP stream</string>
+    <string name="mapping_none">no match: plays the HTTP stream</string>
     <string name="section_display">Display</string>
     <string name="ui_4k">4K 60 Hz</string>
     <string name="ui_system">System mode</string>
-    <string name="testing">testing…</string>
+    <string name="testing">Checking…</string>
     <!-- Editing artwork and identification -->
     <string name="billing_by">a film by</string>
     <string name="billing_with">with</string>
@@ -310,7 +310,7 @@
     <string name="error_action_edit_tmdb_key">Change the key</string>
     <!-- Settings rows -->
     <string name="nav_version">Version %s</string>
-    <string name="scan_running">Scanning %1$d of %2$d</string>
+    <string name="scan_running">Scanning %1$d / %2$d</string>
     <string name="refresh_metadata_desc">Fetch artwork and details from TMDB again</string>
     <string name="remove_folder">Remove this folder</string>
     <string name="remove_folder_desc">Its titles leave the library; nothing is deleted on the NAS.</string>
