@@ -1,6 +1,7 @@
 package app.houselights.ui.settings
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
@@ -16,17 +17,21 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.tv.material3.Text
 import app.houselights.BuildConfig
 import app.houselights.R
 import app.houselights.player.PlaybackManager
 import app.houselights.player.ZidooStatus
 import app.houselights.ui.design.Hl
+import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.components.DefinitionRow
 import app.houselights.ui.design.components.FactRow
 import app.houselights.ui.design.components.HlSettingGroup
 import app.houselights.ui.design.components.HlSettingRow
 import app.houselights.ui.design.components.HlStatus
+import app.houselights.ui.design.components.InfoBlock
 import app.houselights.ui.design.components.StatusState
 import app.houselights.ui.design.components.Wordmark
 
@@ -53,6 +58,7 @@ private fun AboutBrand() {
     }
 }
 
+/** What the app works with on this device, read like the back of a case: each with its light. */
 @Composable
 private fun AboutStatus() {
     val context = LocalContext.current
@@ -61,19 +67,15 @@ private fun AboutStatus() {
         runCatching { context.packageManager.getPackageInfo(PlaybackManager.ZIDOO_PACKAGE, 0) }.isSuccess
     }
     LaunchedEffect(Unit) { api = ZidooStatus.isAvailable() }
-    HlSettingGroup(stringResource(R.string.about_status)) {
-        HlSettingRow(
-            stringResource(R.string.label_player),
-            trailing = {
+    InfoBlock(stringResource(R.string.about_status)) {
+        Column(verticalArrangement = Arrangement.spacedBy(HlSpace.xs)) {
+            DefinitionRow(stringResource(R.string.label_player)) {
                 HlStatus(
                     if (player) StatusState.On else StatusState.Off,
                     stringResource(if (player) R.string.detected else R.string.not_detected),
                 )
-            },
-        )
-        HlSettingRow(
-            stringResource(R.string.label_api),
-            trailing = {
+            }
+            DefinitionRow(stringResource(R.string.label_api)) {
                 HlStatus(
                     when (api) {
                         null -> StatusState.Pending
@@ -88,26 +90,30 @@ private fun AboutStatus() {
                         }
                     ),
                 )
-            },
-        )
+            }
+        }
     }
 }
 
+/** Whose work the app stands on, as the credits at the foot of a poster read: who did what. */
 @Composable
 private fun AboutCredits() {
-    HlSettingGroup(stringResource(R.string.about_credits)) {
-        HlSettingRow(
-            stringResource(R.string.credit_data),
-            trailing = {
+    InfoBlock(stringResource(R.string.about_credits)) {
+        Column(verticalArrangement = Arrangement.spacedBy(HlSpace.xs)) {
+            // The logo has no baseline: it sits level with the top of its label.
+            DefinitionRow(stringResource(R.string.credit_data)) {
                 Image(
                     painterResource(R.drawable.tmdb_logo),
                     contentDescription = "TMDB",
                     modifier = Modifier.height(HlSize.inlineIcon),
                 )
-            },
-        )
-        Hint(stringResource(R.string.tmdb_attribution), Modifier.padding(horizontal = HlSpace.l))
-        HlSettingRow(stringResource(R.string.credit_font), value = stringResource(R.string.credit_font_value))
+            }
+            // What TMDB asks to be said, under its logo, in the column of values.
+            Hint(stringResource(R.string.tmdb_attribution), Modifier.padding(start = HlLayout.definitionLabel))
+            DefinitionRow(stringResource(R.string.credit_font)) {
+                Text(stringResource(R.string.credit_font_value), style = Hl.type.meta, color = Hl.colors.content)
+            }
+        }
     }
 }
 private const val LICENSE = "GPL-3.0"

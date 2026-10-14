@@ -224,7 +224,6 @@
     <string name="connection_plain">Non chiffrée (HTTP)</string>
     <string name="label_address">Adresse</string>
     <string name="label_user">Utilisateur</string>
-    <string name="label_hdmi">Sortie HDMI</string>
     <string name="label_render">Rendu de l’interface</string>
     <string name="label_modes">Modes disponibles</string>
     <string name="label_player">Lecteur Zidoo</string>
@@ -261,7 +260,7 @@
     <string name="mapping_result">Résultat : %s</string>
     <string name="mapping_none">aucune correspondance : lecture par le flux HTTP</string>
     <string name="section_display">Affichage</string>
-    <string name="ui_4k">4K 60 Hz</string>
+    <string name="ui_4k">Ultra HD 60 Hz</string>
     <string name="ui_system">Mode du système</string>
     <string name="testing">Vérification…</string>
     <!-- Modifier les images et l'identification -->
@@ -358,7 +357,7 @@
     <string name="not_detected">Non détecté</string>
     <string name="online">En ligne</string>
     <string name="offline">Hors ligne</string>
-    <string name="about_credits">Crédits</string>
+    <string name="about_credits">Générique</string>
     <string name="credit_data">Données des films</string>
     <string name="credit_font">Police</string>
     <string name="credit_font_value">Archivo, SIL Open Font License</string>
