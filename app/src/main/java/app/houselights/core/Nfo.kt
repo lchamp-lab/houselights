@@ -15,9 +15,23 @@ data class NfoStreams(
     val subtitleLanguages: List<String> = emptyList(),
 )
 
+/** What an NFO describes: its root element, or only links to a title (a TMDB or IMDb address). */
+enum class NfoKind(val root: String?) {
+    MOVIE("movie"),
+    SHOW("tvshow"),
+    EPISODE("episodedetails"),
+    MUSIC_VIDEO("musicvideo"),
+    LINK(null),
+    ;
+
+    companion object {
+        fun ofRoot(name: String): NfoKind? = entries.firstOrNull { it.root == name }
+    }
+}
+
 /** What a Kodi-style NFO says about a film, a show or an episode. Blank fields are null. */
 data class NfoInfo(
-    val kind: String,
+    val kind: NfoKind,
     val title: String? = null,
     val originalTitle: String? = null,
     val sortTitle: String? = null,
@@ -64,7 +78,7 @@ object NfoParser {
         val imdb = IMDB_ID.find(text)?.value
         return when {
             parsed != null -> parsed.copy(tmdbId = parsed.tmdbId ?: tmdb, imdbId = parsed.imdbId ?: imdb)
-            tmdb != null || imdb != null -> NfoInfo(kind = "link", tmdbId = tmdb, imdbId = imdb)
+            tmdb != null || imdb != null -> NfoInfo(kind = NfoKind.LINK, tmdbId = tmdb, imdbId = imdb)
             else -> null
         }
     }
@@ -77,10 +91,9 @@ object NfoParser {
         while (p.eventType != XmlPullParser.START_TAG) {
             if (p.next() == XmlPullParser.END_DOCUMENT) return null
         }
-        val root = p.name
-        if (root !in setOf("movie", "tvshow", "episodedetails", "musicvideo")) return null
+        val kind = NfoKind.ofRoot(p.name) ?: return null
 
-        var info = NfoInfo(kind = root)
+        var info = NfoInfo(kind = kind)
         val genres = mutableListOf<String>()
         val directors = mutableListOf<String>()
         val studios = mutableListOf<String>()

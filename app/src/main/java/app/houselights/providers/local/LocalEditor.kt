@@ -34,7 +34,7 @@ class LocalEditor(
 
     override fun canEdit(item: MediaItem): Boolean = item.kind == MediaKind.MOVIE || item.kind == MediaKind.SERIES
 
-    override suspend fun artwork(item: MediaItem, kind: ArtworkKind): ArtworkChoices = withContext(Dispatchers.IO) {
+    override suspend fun artwork(item: MediaItem, kind: ArtworkKind): ArtworkChoices {
         val e = entity(item)
         val tmdb = client()
         val online = e.tmdbId?.let { id -> tmdb?.let { suspendRunCatching { it.images(id, e.kind == ItemKind.SERIES) }.getOrNull() } }
@@ -51,7 +51,8 @@ class LocalEditor(
             compareBy<TmdbImage> { preference.indexOf(it.iso6391).let { i -> if (i < 0) preference.size else i } }
                 .thenByDescending { it.voteAverage }
         )
-        val nfo = e.nfo?.let(NfoParser::parse)
+        // Up to 1 MB of XML: parsed away from the main thread.
+        val nfo = e.nfo?.let { text -> withContext(Dispatchers.Default) { NfoParser.parse(text) } }
         val nfoUrl = when (kind) {
             ArtworkKind.POSTER -> nfo?.posterUrl
             ArtworkKind.BACKDROP -> nfo?.fanartUrl
@@ -86,7 +87,7 @@ class LocalEditor(
             )
         }
         val options = values.map(::option)
-        ArtworkChoices(
+        return ArtworkChoices(
             options = options,
             automatic = automatic?.let { a -> options.first { it.value == a } },
             selected = current?.let { c -> options.first { it.value == c } },
@@ -95,20 +96,18 @@ class LocalEditor(
     }
 
     override suspend fun setArtwork(item: MediaItem, kind: ArtworkKind, option: ArtworkOption) {
-        withContext(Dispatchers.IO) {
-            val e = entity(item)
-            // Choosing what automatic matching would use is going back to automatic.
-            val value = option.value.takeIf { it != e.automaticValue(kind) }
-            when (kind) {
-                ArtworkKind.POSTER -> dao.setUserPoster(e.id, value)
-                ArtworkKind.BACKDROP -> dao.setUserBackdrop(e.id, value)
-                ArtworkKind.LOGO -> dao.setUserLogo(e.id, value)
-            }
+        val e = entity(item)
+        // Choosing what automatic matching would use is going back to automatic.
+        val value = option.value.takeIf { it != e.automaticValue(kind) }
+        when (kind) {
+            ArtworkKind.POSTER -> dao.setUserPoster(e.id, value)
+            ArtworkKind.BACKDROP -> dao.setUserBackdrop(e.id, value)
+            ArtworkKind.LOGO -> dao.setUserLogo(e.id, value)
         }
         scanner.notifyChanged()
     }
 
-    override suspend fun identity(item: MediaItem): Identity = withContext(Dispatchers.IO) {
+    override suspend fun identity(item: MediaItem): Identity {
         val e = entity(item)
         val (query, year, fileName) = when (e.kind) {
             ItemKind.MOVIE -> {
@@ -122,7 +121,7 @@ class LocalEditor(
                 Triple(parsed.title, parsed.year, folder?.ifEmpty { null })
             }
         }
-        Identity(
+        return Identity(
             fileName = fileName,
             query = query,
             year = year,
@@ -141,17 +140,17 @@ class LocalEditor(
         )
     }
 
-    override suspend fun search(item: MediaItem, query: String, year: Int?): List<MatchCandidate> = withContext(Dispatchers.IO) {
+    override suspend fun search(item: MediaItem, query: String, year: Int?): List<MatchCandidate> {
         val tmdb = client() ?: throw NoTmdbKeyException()
         val show = entity(item).kind == ItemKind.SERIES
         val q = query.trim()
-        if (IMDB_ID.matches(q)) return@withContext listOfNotNull(tmdb.findImdb(q.lowercase(), show)?.toCandidate())
-        if (q.isEmpty()) return@withContext emptyList()
+        if (IMDB_ID.matches(q)) return listOfNotNull(tmdb.findImdb(q.lowercase(), show)?.toCandidate())
+        if (q.isEmpty()) return emptyList()
         suspend fun find(y: Int?) = if (show) tmdb.searchShows(q, y) else tmdb.searchMovies(q, y)
         // The year narrows results, but is often off by one in file names: complete without it.
         val withYear = find(year)
         val results = if (year != null && withYear.size < 5) withYear + find(null) else withYear
-        results.distinctBy { it.id }.take(MAX_RESULTS).map { it.toCandidate() }
+        return results.distinctBy { it.id }.take(MAX_RESULTS).map { it.toCandidate() }
     }
 
     override suspend fun identify(item: MediaItem, candidate: MatchCandidate?) {

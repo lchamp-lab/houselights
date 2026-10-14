@@ -51,10 +51,16 @@ fun MediaItem.launch(uri: String, container: String?, startMs: Long, reporter: P
         resumeKey = resumeKey,
     )
 
+/**
+ * What a source can do, read by screens instead of asking which source it is. Editing artwork and
+ * matches is [MediaProvider.editor]; an NFO belongs to an item ([MediaItem.hasNfo]); a function a
+ * source does not offer returns nothing ([MediaProvider.collectionOf], [MediaProvider.similar]).
+ */
 data class ProviderCapabilities(
     val markPlayed: Boolean,
     val favorites: Boolean,
     val similar: Boolean,
+    /** Its file paths can be mapped to network paths the player opens itself (settings, Playback). */
     val pathMapping: Boolean,
 )
 

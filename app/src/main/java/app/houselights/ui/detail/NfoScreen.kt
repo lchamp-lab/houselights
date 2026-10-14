@@ -43,6 +43,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.houselights.R
 import app.houselights.core.NfoDocument
 import app.houselights.core.NfoInfo
+import app.houselights.core.NfoKind
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlLayout
@@ -106,7 +107,7 @@ fun NfoScreen(itemId: String) {
 private fun NfoDetails(info: NfoInfo?) = ScrollablePanel {
     when {
         info == null -> Text(stringResource(R.string.nfo_unreadable), style = Hl.type.body, color = Hl.colors.contentSecondary)
-        info.kind == "link" -> {
+        info.kind == NfoKind.LINK -> {
             Text(stringResource(R.string.nfo_link_only), style = Hl.type.body, color = Hl.colors.contentSecondary)
             DefinitionList(ids(info))
         }

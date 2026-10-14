@@ -111,6 +111,11 @@ font. No other font is shipped; line heights leave room for the fallback.
 
 ## Components
 
+Names say what a component is. `Hl` marks the building blocks that stand for a platform control or
+container: buttons, fields, panels, dialogs, lists, menus, settings rows (`HlButton`, `HlModal`,
+`HlSettingRow`). Parts of those blocks and the pieces made for this app are named for what they show,
+without the prefix (`MenuOption`, `MeterLegend`, `PosterCard`, `BillingBlock`, `TechSpecs`).
+
 | Component | Use |
 |---|---|
 | `Backdrop` (`Hero`, `Full`, `Quiet`) | full-screen artwork faded to black where text sits, plus the ambient light; its scrims lift when the lights go down |

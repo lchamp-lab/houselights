@@ -31,6 +31,7 @@ import app.houselights.core.SortOption
 import app.houselights.core.Typeset
 import app.houselights.core.UserState
 import app.houselights.providers.local.TmdbClient.Companion.ImageType
+import app.houselights.core.CollectionThreshold
 
 /** Library built by [LibraryScanner] from the user's network folders. */
 class LocalProvider(
@@ -38,7 +39,7 @@ class LocalProvider(
     private val dao: LibraryDao,
     override val editor: MetadataEditor,
     /** Films of a collection the library needs to show it; 0 hides collections. */
-    private val collectionMinFilms: () -> Int = { 2 },
+    private val collectionMinFilms: () -> Int = { CollectionThreshold.DEFAULT },
 ) : MediaProvider {
 
     override val capabilities = ProviderCapabilities(markPlayed = true, favorites = true, similar = true, pathMapping = false)

@@ -44,6 +44,9 @@ internal class SettingsViewModel(private val app: AppContainer, private val cont
     val settings: StateFlow<AppSettings> = app.settings.state
     val library: LocalLibrary = app.library
 
+    /** What the current source can do; the settings show what applies to it. */
+    val capabilities get() = app.provider.capabilities
+
     private val _storage = MutableStateFlow<StorageStats?>(null)
     val storage: StateFlow<StorageStats?> = _storage
 

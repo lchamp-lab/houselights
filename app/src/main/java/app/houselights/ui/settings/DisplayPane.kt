@@ -33,6 +33,7 @@ import app.houselights.ui.util.FACT_GAP
 import app.houselights.ui.util.formatDimensions
 import kotlin.math.abs
 import kotlin.math.roundToInt
+import app.houselights.ui.util.NBSP
 
 internal fun LazyListScope.displayPane(s: AppSettings) {
     item {
@@ -75,7 +76,7 @@ private fun CurrentOutput() {
         .map { "${it.physicalHeight}p${hz(it.refreshRate)}" }
         .distinct()
     HlSettingGroup(stringResource(R.string.current_output)) {
-        val output = "${mode.physicalHeight}p$FACT_GAP${hz(mode.refreshRate)}${Typography.nbsp}Hz"
+        val output = "${mode.physicalHeight}p$FACT_GAP${hz(mode.refreshRate)}${NBSP}Hz"
         HlSettingRow(stringResource(R.string.label_hdmi), value = output)
         HlSettingRow(
             stringResource(R.string.label_render),
@@ -83,7 +84,7 @@ private fun CurrentOutput() {
                 FactRow(
                     listOf(
                         formatDimensions(view.rootView.width, view.rootView.height),
-                        "${view.resources.displayMetrics.densityDpi}${Typography.nbsp}dpi",
+                        "${view.resources.displayMetrics.densityDpi}${NBSP}dpi",
                     ),
                 )
             },

@@ -41,7 +41,7 @@ class NfoParserTest {
     @Test
     fun parsesKodiMovie() {
         val nfo = NfoParser.parse(movie)!!
-        assertEquals("movie", nfo.kind)
+        assertEquals(NfoKind.MOVIE, nfo.kind)
         assertEquals("Bugonia", nfo.title)
         assertEquals(2025, nfo.year)
         assertEquals(7.3, nfo.rating!!, 0.001)
@@ -62,7 +62,7 @@ class NfoParserTest {
     @Test
     fun linkOnlyNfo() {
         val nfo = NfoParser.parse("https://www.themoviedb.org/movie/701387-bugonia")!!
-        assertEquals("link", nfo.kind)
+        assertEquals(NfoKind.LINK, nfo.kind)
         assertEquals(701387, nfo.tmdbId)
         assertEquals("tt0133093", NfoParser.parse("https://www.imdb.com/title/tt0133093/")!!.imdbId)
     }
@@ -70,7 +70,7 @@ class NfoParserTest {
     @Test
     fun episode() {
         val nfo = NfoParser.parse("<episodedetails><title>Pilot</title><season>1</season><episode>2</episode><aired>2022-02-18</aired></episodedetails>")!!
-        assertEquals("episodedetails", nfo.kind)
+        assertEquals(NfoKind.EPISODE, nfo.kind)
         assertEquals(1, nfo.season)
         assertEquals(2, nfo.episode)
     }

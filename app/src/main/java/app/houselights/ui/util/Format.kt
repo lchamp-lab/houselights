@@ -12,7 +12,7 @@ import app.houselights.providers.local.ScanError
 import app.houselights.providers.local.ScanErrorKind
 
 /** No-break space: keeps a number with its unit, and French punctuation with its word. */
-const val NBSP = '\u00A0'
+const val NBSP = Typography.nbsp
 
 /** "2 h 02", "1 h", "45 min": never split across lines. */
 fun formatDuration(ms: Long): String {

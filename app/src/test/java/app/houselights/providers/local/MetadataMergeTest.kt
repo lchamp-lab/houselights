@@ -2,6 +2,7 @@ package app.houselights.providers.local
 
 import app.houselights.core.NfoActor
 import app.houselights.core.NfoInfo
+import app.houselights.core.NfoKind
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -24,7 +25,7 @@ class MetadataMergeTest {
 
     @Test
     fun theNfoWinsThenTmdbThenWhatWasKnown() {
-        val nfo = NfoInfo(kind = "movie", title = "Heat (version longue)", genres = listOf("Policier"))
+        val nfo = NfoInfo(kind = NfoKind.MOVIE, title = "Heat (version longue)", genres = listOf("Policier"))
         val merged = MetadataMerge.merge(film, nfo, tmdb, LocalArt())
         assertEquals("Heat (version longue)", merged.title)
         assertEquals(listOf("Policier"), merged.genres)
@@ -39,7 +40,7 @@ class MetadataMergeTest {
 
     @Test
     fun artworkComesFromLocalFilesThenTheNfoThenTmdb() {
-        val nfo = NfoInfo(kind = "movie", posterUrl = "https://nfo/poster.jpg", fanartUrl = "https://nfo/fanart.jpg")
+        val nfo = NfoInfo(kind = NfoKind.MOVIE, posterUrl = "https://nfo/poster.jpg", fanartUrl = "https://nfo/fanart.jpg")
         val local = LocalArt(poster = "file:///cache/poster.jpg")
         val merged = MetadataMerge.merge(film, nfo, tmdb, local)
         assertEquals("file:///cache/poster.jpg", merged.posterPath)
@@ -70,9 +71,9 @@ class MetadataMergeTest {
 
     @Test
     fun theNfosActorsWinWhenItListsAny() {
-        val nfo = NfoInfo(kind = "movie", actors = listOf(NfoActor("Robert De Niro", "Neil McCauley", thumb = null, order = 0)))
+        val nfo = NfoInfo(kind = NfoKind.MOVIE, actors = listOf(NfoActor("Robert De Niro", "Neil McCauley", thumb = null, order = 0)))
         assertEquals(listOf("Robert De Niro"), MetadataMerge.cast(7, nfo, TmdbCredits())?.map { it.name })
-        assertEquals(listOf("Al Pacino"), MetadataMerge.cast(7, NfoInfo(kind = "movie"), heatCredits)?.map { it.name })
+        assertEquals(listOf("Al Pacino"), MetadataMerge.cast(7, NfoInfo(kind = NfoKind.MOVIE), heatCredits)?.map { it.name })
         assertNull(MetadataMerge.cast(7, nfo = null, credits = null))
     }
 

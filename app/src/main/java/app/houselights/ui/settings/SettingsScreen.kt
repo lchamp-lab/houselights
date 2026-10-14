@@ -54,7 +54,7 @@ private enum class Pane(val label: Int, val icon: ImageVector) {
 fun SettingsScreen(onAddFolder: () -> Unit, onChangeSource: () -> Unit, onOpenCatalog: () -> Unit = {}) {
     val vm = settingsViewModel()
     val s by vm.settings.collectAsStateWithLifecycle()
-    val panes = if (s.source is SourceConfig.Jellyfin) Pane.entries else Pane.entries - Pane.Playback
+    val panes = if (s.source != null && vm.capabilities.pathMapping) Pane.entries else Pane.entries - Pane.Playback
     var pane by rememberSaveable { mutableStateOf(Pane.Library) }
     val firstFocus = remember { FocusRequester() }
     LaunchedEffect(Unit) { runCatching { firstFocus.requestFocus() } }

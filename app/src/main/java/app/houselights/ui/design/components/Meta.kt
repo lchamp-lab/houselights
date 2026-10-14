@@ -35,6 +35,7 @@ import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.util.formatDuration
 import java.util.Locale
+import app.houselights.ui.util.NBSP
 
 /**
  * Facts about a title, separated by space rather than punctuation: year, length,
@@ -155,6 +156,5 @@ fun BillingBlock(directors: List<String>, cast: List<String>, modifier: Modifier
     }
 }
 
-private const val NBSP = "\u00A0"
 
-private fun String.unbreakable() = replace(' ', '\u00A0').replace('-', '\u2011')
+private fun String.unbreakable() = replace(' ', NBSP).replace('-', '\u2011')

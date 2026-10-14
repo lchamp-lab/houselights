@@ -23,6 +23,7 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.io.IOException
 import java.util.UUID
+import app.houselights.core.CollectionThreshold
 
 private val Context.dataStore by preferencesDataStore(
     name = "settings",
@@ -69,7 +70,7 @@ data class AppSettings(
     /** User-provided TMDB key, overrides the one built into the APK. */
     val tmdbApiKey: String? = null,
     /** How many films of a collection the library needs to show it; 0 hides collections. */
-    val collectionMinFilms: Int = 2,
+    val collectionMinFilms: Int = CollectionThreshold.DEFAULT,
 )
 
 class SettingsStore(
@@ -96,7 +97,7 @@ class SettingsStore(
         forceHttp = this[Keys.forceHttp] ?: false,
         ui4k = this[Keys.ui4k] ?: true,
         tmdbApiKey = this[Keys.tmdbKey]?.let(secrets::open)?.takeIf { it.isNotBlank() },
-        collectionMinFilms = this[Keys.collectionMin] ?: 2,
+        collectionMinFilms = this[Keys.collectionMin] ?: CollectionThreshold.DEFAULT,
     )
 
     suspend fun ensureDeviceId(): String {

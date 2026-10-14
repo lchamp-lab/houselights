@@ -65,6 +65,7 @@ import app.houselights.ui.design.revealOnFocus
 import app.houselights.ui.util.scanErrorText
 import coil.compose.AsyncImage
 import kotlinx.coroutines.launch
+import app.houselights.core.CollectionThreshold
 
 internal fun LazyListScope.libraryPane(s: AppSettings, onAddFolder: () -> Unit, onChangeSource: () -> Unit) {
     when (val source = s.source) {
@@ -272,10 +273,12 @@ private fun CollectionsRow() {
     val vm = settingsViewModel()
     val s by vm.settings.collectAsStateWithLifecycle()
     var choose by remember { mutableStateOf(false) }
+    @Composable
+    fun option(label: Int, description: Int) = ChoiceOption(stringResource(label), stringResource(description))
     val options = listOf(
-        COLLECTIONS_FROM_TWO to ChoiceOption(stringResource(R.string.collections_two), stringResource(R.string.collections_two_desc)),
-        COLLECTIONS_ALL to ChoiceOption(stringResource(R.string.collections_all), stringResource(R.string.collections_all_desc)),
-        COLLECTIONS_OFF to ChoiceOption(stringResource(R.string.collections_off), stringResource(R.string.collections_off_desc)),
+        CollectionThreshold.TWO_FILMS to option(R.string.collections_two, R.string.collections_two_desc),
+        CollectionThreshold.ANY to option(R.string.collections_all, R.string.collections_all_desc),
+        CollectionThreshold.HIDDEN to option(R.string.collections_off, R.string.collections_off_desc),
     )
     val current = options.indexOfFirst { it.first == s.collectionMinFilms }.coerceAtLeast(0)
     HlSettingRow(
@@ -344,7 +347,3 @@ private const val STRIP = 6
 
 /** A scan that has just started still shows a sliver of progress. */
 private const val PROGRESS_MIN = 0.02f
-/** Films of a saga the library needs to show it as a collection. */
-private const val COLLECTIONS_FROM_TWO = 2
-private const val COLLECTIONS_ALL = 1
-private const val COLLECTIONS_OFF = 0

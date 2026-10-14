@@ -1,13 +1,14 @@
 package app.houselights.providers.local
 
 import app.houselights.core.NfoInfo
+import app.houselights.core.NfoKind
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class MatchRulesTest {
-    private val nfo = NfoInfo(kind = "movie", title = "Colony")
+    private val nfo = NfoInfo(kind = NfoKind.MOVIE, title = "Colony")
 
     @Test
     fun withoutManualMatchTheNfoAlwaysApplies() {

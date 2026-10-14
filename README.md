@@ -81,6 +81,25 @@ app/src/main/java/app/houselights/
   ui/           Compose for TV screens
 ```
 
+## Conventions
+
+- Text people read follows the device's language: dates, durations, sizes, decimal commas. Data the app
+  keeps or compares (sort keys, file names in the cache, numbers in file names) is written with
+  `Locale.ROOT`, so a device in Arabic or Persian sorts and finds files like any other.
+- Providers throw; screens turn failures into a `UiError`, a message people can act on, and log the
+  failure itself. Cancellation is not a failure (`suspendRunCatching`).
+- `Dispatchers.IO` wraps blocking reads only (SMB, NFS, files); Room and Retrofit suspend on their own.
+- What a source can do is read from `ProviderCapabilities`, never from which source it is.
+
+## Sources
+
+Both sources show the same home, libraries, detail pages, technical sheets and playback. What only
+"My files" offers, because the app builds that library itself:
+
+- a film's saga on its page (Jellyfin's collections show as a library of their own);
+- choosing a title's poster, backdrop and logo, and correcting its match;
+- the NFO viewer, the decade filter, and quality filters beyond Ultra HD (HDR, Dolby Vision).
+
 ## Security notes
 
 - Prefer NFS: it needs no credentials. With SMB, the Zidoo player receives the credentials inside the file

@@ -3,6 +3,8 @@ package app.houselights.providers.jellyfin
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
+// Jellyfin's REST types, named as its API names them (BaseItemDto is BaseItem here).
+
 @Serializable
 data class PublicSystemInfo(
     @SerialName("ServerName") val serverName: String? = null,
@@ -51,7 +53,7 @@ data class BaseItem(
     @SerialName("CriticRating") val criticRating: Double? = null,
     @SerialName("RunTimeTicks") val runTimeTicks: Long? = null,
     @SerialName("Genres") val genres: List<String> = emptyList(),
-    @SerialName("People") val people: List<Person> = emptyList(),
+    @SerialName("People") val people: List<BaseItemPerson> = emptyList(),
     @SerialName("Studios") val studios: List<NameId> = emptyList(),
     @SerialName("ImageTags") val imageTags: Map<String, String> = emptyMap(),
     @SerialName("BackdropImageTags") val backdropImageTags: List<String> = emptyList(),
@@ -121,7 +123,7 @@ data class MediaStream(
 )
 
 @Serializable
-data class Person(
+data class BaseItemPerson(
     @SerialName("Id") val id: String? = null,
     @SerialName("Name") val name: String? = null,
     @SerialName("Role") val role: String? = null,
