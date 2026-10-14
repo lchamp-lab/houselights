@@ -205,7 +205,7 @@ private fun MenuItem(label: String, selected: Boolean, onClick: () -> Unit, modi
         onClick = onClick,
         modifier = modifier.fillMaxWidth().height(HlSize.segment).semantics { this.selected = selected },
         shape = ClickableSurfaceDefaults.shape(HlShapes.row),
-        scale = ClickableSurfaceDefaults.scale(focusedScale = 1f),
+        scale = rowScale(),
         colors = ClickableSurfaceDefaults.colors(
             containerColor = Color.Transparent,
             contentColor = if (selected) c.content else c.contentSecondary,

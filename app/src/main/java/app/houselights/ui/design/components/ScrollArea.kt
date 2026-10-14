@@ -38,6 +38,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlAlpha
+import app.houselights.ui.design.HlFocus
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlInset
@@ -96,7 +97,8 @@ fun HlScrollArea(
 private fun Modifier.ringOutside(shown: Boolean, color: Color): Modifier = drawBehind {
     if (!shown) return@drawBehind
     val width = HlSize.focusBorder.toPx()
-    val reach = HlSize.focusRingGap.toPx() + width / 2
+    // The middle of the stroke, the ring standing [HlFocus.ring] outside the bounds.
+    val reach = HlFocus.ring.toPx() - width / 2
     val ring = Size(size.width + reach * 2, size.height + reach * 2)
     translate(-reach, -reach) {
         drawOutline(HlShapes.panel.createOutline(ring, layoutDirection, this), color, style = Stroke(width))

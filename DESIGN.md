@@ -177,7 +177,7 @@ that grows with the text.
 | `HlSize` | artwork (poster 112, landscape 220, episode 264, avatar 76 in a column of 120, thumbnails), `control` 48 for every button, icons 20, discs 52, marks 20, dots 8, setting rows 64, previews in a row (48 tall, a slot of 84), meter 10, the short rules of a loading title (48, 24), the short rule heading a question (`intertitleRule`, 24 by 2) |
 | `HlLayout` | measures of layout parts: reading widths (640, 520), the left veil's fade past them (240), side columns (280, 340), pane top 72, the reading sheet (864) and the side sheet (520), title art, hero, info line, track table columns, the label of a round button (160 wide at most, 28 of room under its row) |
 | `HlControl` | inner padding of buttons and track options, badges; the gap between an icon and its text (8) |
-| `HlFocus` | focus scale (artwork 1.10, cards 1.06, controls 1.04), siblings stepping back (dim 0.3, colour kept 0.3, in `RECEDE_STEPS` 3), ambient glow 18 dp, `edge` 28 (`safeV`): how far a list keeps focus from its ends |
+| `HlFocus` | focus scale by family (artwork 1.10, cards 1.06, pills and discs 1.04, panels 1.02, rows 1), `reach(size, scale)`: how far a focused element reaches past its ends, the room its container keeps; `ring` 5, how far a focus ring stands outside; siblings stepping back (dim 0.3, colour kept 0.3, in `RECEDE_STEPS` 3), ambient glow 18 dp, `edge` 28 (`safeV`): how far a list keeps focus from its ends |
 
 ### Motion, icons, scrolling
 
@@ -294,17 +294,24 @@ Focus must read from the couch:
 - **Artwork** grows, gets a 2 dp projector-white outline and glows with the ambient light. Its
   neighbours in the same row or grid step back: darker and with less colour (`SIBLING_DIM`,
   `SIBLING_SATURATION`, see *Cards*), never grey. A row without focus keeps its colours.
-- **Controls, rows and navigation** turn projector white with black content.
+- **Controls, rows and navigation** turn projector white with black content. Pills and discs grow a
+  little (`CONTROL_SCALE`, 1.04); rows as wide as their column (setting rows, navigation entries,
+  menu options) do not grow at all (`ROW_SCALE`, 1): the white fill says it.
 - **Track options** are the exception: white is the current option, so focus on another option is
   a grey pill, and focus on the current one a ring around it. Focus coming into a track lands on
   the current option (`focusProperties.enter`), so the white and the focus meet where you are.
-- **Panels** that can be chosen are raised and outlined in projector white.
+- **Panels** that can be chosen (folder cards, list items, results) are raised, outlined in
+  projector white and grow by 1.02 (`PANEL_SCALE`).
 - **Areas to read** (`HlScrollArea`) are outlined in projector white; an unframed one draws its ring
   a gap outside the content, clear of its text and rules.
 - **Text fields** get a white outline when focused, with "OK saisir" at their end, and a tungsten
   outline while typing.
 - **Disabled controls** keep focus, so the remote reaches them: an outline in projector white,
   never the white fill, which would offer an action.
+
+Growth is a share of the size, so each family has its own scale: 1.04 would take a 500 dp row
+10 dp past its inset and the safe area. `HlFocus.reach(size, scale)` says how far an element grows
+past its ends, the room its container keeps for it (`FocusReachTest`).
 
 What has focus stays inside the safe area. A list stops it `HlFocus.edge` (28 dp, `safeV`) from the
 top and the bottom of the screen, and keeps that much padding at its foot so the last row can come

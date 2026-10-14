@@ -2,6 +2,7 @@ package app.houselights.ui.design
 
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlin.math.roundToInt
 
@@ -191,11 +192,33 @@ object HlControl {
     val badgePaddingV = 2.dp
 }
 
-/** How much a focused element grows: artwork the most, controls the least. */
+/**
+ * How much a focused element grows, by family: artwork the most, wide things the least. Growth is
+ * a share of the size, so the wider the element, the less it may grow: 1.04 takes a 500 dp row
+ * 10 dp past its inset and the safe area ([reach]).
+ */
 object HlFocus {
     const val ARTWORK_SCALE = 1.1f
     const val CARD_SCALE = 1.06f
+    /** Pills and discs: buttons, round buttons, the options of a track. */
     const val CONTROL_SCALE = 1.04f
+    /** Panels that can be chosen: folder cards, list items, results. */
+    const val PANEL_SCALE = 1.02f
+    /**
+     * Rows as wide as their column (setting rows, navigation entries, menu options) do not grow:
+     * their white fill says focus.
+     */
+    const val ROW_SCALE = 1f
+
+    /**
+     * How far an element [size] long reaches past each of its ends when it grows to [scale]: the
+     * room the container around it keeps.
+     */
+    fun reach(size: Dp, scale: Float): Dp = size * (scale - 1f) / 2
+
+    /** How far a focus ring stands outside what it surrounds: its gap, then its width. */
+    val ring = HlSize.focusRingGap + HlSize.focusBorder
+
     /**
      * The other cards of a row step back while one of them has focus: darker by this much, and
      * with this much of their colour left. Partly, not grey: the wall stays inviting.
