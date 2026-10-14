@@ -101,7 +101,7 @@ private fun summary(pane: Pane, s: AppSettings, titles: Int, stats: StorageStats
         else -> pluralStringResource(R.plurals.title_count, titles, titles)
     }
     Pane.Playback -> stringResource(if (s.forceHttp) R.string.http_stream else R.string.network_path)
-    Pane.Display -> stringResource(if (s.ui4k) R.string.ui_4k else R.string.ui_system)
+    Pane.Display -> displaySummary(s)
     Pane.Storage -> stats?.let { formatBytes(it.total) }
     Pane.About -> stringResource(R.string.nav_version, BuildConfig.VERSION_NAME)
 }
