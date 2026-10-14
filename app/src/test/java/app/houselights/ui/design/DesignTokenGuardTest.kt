@@ -27,13 +27,18 @@ class DesignTokenGuardTest {
         Regex("""[\w)]\s*[-+*/]\s*Hl(Space|Size|Layout|Inset)\.[a-z]""") to "arithmetic on a token: name the measure in Dimens.kt",
         // A raw image is left blank when it fails: the design system's show the title or an empty frame.
         Regex("""\bAsyncImage\(""") to "an image: use ArtworkImage, PosterThumb or RowPreview",
+        // Tungsten is a closed list of states: a screen says the state, the component lights it.
+        Regex("""\.tungsten\b""") to "tungsten: say the state (HlStatus, AttentionNote, lit, valueLit, detailLit)",
     )
 
     /**
      * Deliberate exceptions, as "path:fragment of the line". Keep this list short and say why;
      * a value needed twice belongs in the design system instead.
      */
-    private val allowed = emptyList<String>()
+    private val allowed = listOf(
+        // The catalogue's swatch of the colour itself.
+        "catalog/CatalogScreen.kt:\"tungsten\" to c.tungsten",
+    )
 
     @Test
     fun screensUseTheDesignSystem() {
@@ -99,7 +104,7 @@ class DesignTokenGuardTest {
             "Modifier.padding(12.dp)", "fontSize = 13.sp", "Color(0xFF000000)", "Color.Black",
             "c.surface.copy(alpha = 0.7f)", "RoundedCornerShape(4.dp)", "FontFamily.Monospace",
             "padding(end = HlSpace.safeH - HlSpace.m)", "width = HlSize.posterThumb + HlSpace.xs", "HlSize.poster * 1.3f",
-            "AsyncImage(model = url, contentDescription = null)",
+            "AsyncImage(model = url, contentDescription = null)", "color = c.tungsten", "tint = Hl.colors.tungsten",
         )
         samples.forEach { sample -> assertTrue(sample, rules.any { it.first.containsMatchIn(sample) }) }
         listOf("Icons.Filled.Check", "Icons.Default.Settings", "import androidx.compose.material.icons.filled.Star")

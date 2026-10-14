@@ -77,12 +77,8 @@ fun HlNavItem(
         interactionSource = interaction,
     ) {
         Row(Modifier.padding(horizontal = HlSpace.m, vertical = HlSpace.s), verticalAlignment = Alignment.CenterVertically) {
-            Icon(
-                icon,
-                contentDescription = null,
-                tint = if (selected && !focused) c.tungsten else LocalContentColor.current,
-                modifier = Modifier.size(HlSize.icon),
-            )
+            // The current entry is white, as the current option of a track: where you are is not a state.
+            Icon(icon, contentDescription = null, modifier = Modifier.size(HlSize.icon))
             Spacer(Modifier.width(HlSpace.s))
             Column {
                 Text(title, style = Hl.type.entry, maxLines = 1)

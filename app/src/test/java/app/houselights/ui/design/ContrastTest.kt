@@ -53,7 +53,8 @@ class ContrastTest {
         "content" on "CONTROL_FILL", "content" on "CONTROL_FILL_STRONG", "content" on "FOCUS_QUIET on WELL",
         // On artwork: a round button's icon and a track's options at rest, on their plate.
         "content" on "PLATE on a white image",
-        // A title's name, facts, overview and quietest words (genres, the billing block's joins).
+        // A title's name, facts (the score and its star), overview and quietest words (genres, the
+        // billing block's joins).
         "content" on "the veil's floor on a white image", "contentSecondary" on "the veil's floor on a white image",
         "contentTertiary" on "the veil's floor on a white image",
         // Descriptions, labels, a selected entry's summary, a button's detail at rest.
@@ -63,15 +64,19 @@ class ContrastTest {
         // Hints, placeholders, an entry's summary at rest; never on a raised WELL or a strong fill.
         "contentTertiary" on "background", "contentTertiary" on "surface", "contentTertiary" on "surfaceRaised",
         "contentTertiary" on "QUIET_SURFACE", "contentTertiary" on "WELL",
-        // A value the user chose, a failed result, the wordmark.
+        // A value the user chose, the check of the current choice, a failed result, the wordmark.
         "tungsten" on "background", "tungsten" on "surfaceRaised", "tungsten" on "QUIET_SURFACE",
         "tungsten" on "WELL", "tungsten" on "WELL on surfaceRaised",
+        // What needs attention beside what it concerns, over a backdrop (images that cannot be fetched).
+        "tungsten" on "the veil's floor on a white image",
         // A focused control: its name, and the line under it.
         "onFocus" on "focus", "onFocusSecondary" on "focus",
-        // Marks: the selected entry's icon, a lit round button's icon (watched, a favourite), the
-        // watched check and the new dot on their plate, a card's progress on its plate.
+        // Marks: a lit round button's icon (watched, a favourite), the check of your choice and the
+        // new dot on their plate, a card's progress on its plate. The watched check is white (above).
         ("tungsten" on "CONTROL_FILL").mark(),
         ("tungsten" on "PLATE on a white image").mark(),
+        // A meter's inks on its track, a gap apart: projector white, secondary, and tertiary (below).
+        ("content" on "WELL").mark(), ("contentSecondary" on "WELL").mark(),
         // A button's detail lit at rest (an active filter), on a secondary or a primary button.
         "tungsten" on "CONTROL_FILL", "tungsten" on "CONTROL_FILL_STRONG",
         // A question asked in a sheet: Cancel, and the action asked about, its label tungsten at rest.

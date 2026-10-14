@@ -28,6 +28,7 @@ import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.components.HlMeter
 import app.houselights.ui.design.components.HlSettingGroup
 import app.houselights.ui.design.components.HlSettingRow
+import app.houselights.ui.design.components.MeterInk
 import app.houselights.ui.design.components.MeterLegend
 import app.houselights.ui.design.components.MeterSegment
 import app.houselights.ui.design.revealOnFocus
@@ -67,17 +68,17 @@ private fun StorageSummary(st: StorageStats?) {
         HlMeter(
             st?.let {
                 listOf(
-                    MeterSegment(it.imageCacheBytes / capacity, c.content),
-                    MeterSegment(it.artworkBytes / capacity, c.tungsten),
-                    MeterSegment(it.databaseBytes / capacity, c.contentSecondary),
+                    MeterSegment(it.imageCacheBytes / capacity, MeterInk.Primary),
+                    MeterSegment(it.artworkBytes / capacity, MeterInk.Secondary),
+                    MeterSegment(it.databaseBytes / capacity, MeterInk.Tertiary),
                 )
             }.orEmpty(),
         )
         Spacer(Modifier.height(HlSpace.m))
         Column(verticalArrangement = Arrangement.spacedBy(HlSpace.xs)) {
-            MeterLegend(stringResource(R.string.storage_image_cache), st?.let { formatBytes(it.imageCacheBytes) } ?: dash, c.content)
-            MeterLegend(stringResource(R.string.storage_artwork), st?.let { artworkUse(it) } ?: dash, c.tungsten)
-            MeterLegend(stringResource(R.string.storage_database), st?.let { formatBytes(it.databaseBytes) } ?: dash, c.contentSecondary)
+            MeterLegend(stringResource(R.string.storage_image_cache), st?.let { formatBytes(it.imageCacheBytes) } ?: dash, MeterInk.Primary)
+            MeterLegend(stringResource(R.string.storage_artwork), st?.let { artworkUse(it) } ?: dash, MeterInk.Secondary)
+            MeterLegend(stringResource(R.string.storage_database), st?.let { formatBytes(it.databaseBytes) } ?: dash, MeterInk.Tertiary)
         }
         st?.let {
             Spacer(Modifier.height(HlSpace.m))

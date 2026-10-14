@@ -61,6 +61,7 @@ import app.houselights.ui.design.components.HlSettingRow
 import app.houselights.ui.design.components.HlSideSheet
 import app.houselights.ui.design.components.HlStatus
 import app.houselights.ui.design.components.HlTextField
+import app.houselights.ui.design.components.MeterInk
 import app.houselights.ui.design.components.MeterLegend
 import app.houselights.ui.design.components.MeterSegment
 import app.houselights.ui.design.components.PanelLevel
@@ -159,9 +160,16 @@ fun CatalogScreen() {
                         HlStatus(StatusState.Attention, "Can’t play", detail = "The Zidoo player isn’t installed.")
                     }
                     Column(Modifier.widthIn(max = HlLayout.readable), verticalArrangement = Arrangement.spacedBy(HlSpace.xs)) {
-                        HlMeter(listOf(MeterSegment(0.3f, c.content), MeterSegment(0.1f, c.tungsten), MeterSegment(0.05f, c.contentSecondary)))
-                        MeterLegend("Online images", "300 MB", c.content)
-                        MeterLegend("Local images", "100 MB", c.tungsten)
+                        HlMeter(
+                            listOf(
+                                MeterSegment(0.3f, MeterInk.Primary),
+                                MeterSegment(0.1f, MeterInk.Secondary),
+                                MeterSegment(0.05f, MeterInk.Tertiary),
+                            ),
+                        )
+                        MeterLegend("Online images", "300 MB", MeterInk.Primary)
+                        MeterLegend("Local images", "100 MB", MeterInk.Secondary)
+                        MeterLegend("Database", "20 MB", MeterInk.Tertiary)
                     }
                 }
             }

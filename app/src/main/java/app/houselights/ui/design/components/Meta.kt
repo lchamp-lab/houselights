@@ -72,13 +72,7 @@ fun MetaLine(item: MediaItem, modifier: Modifier = Modifier, showGenres: Boolean
         years?.let { Text(it, style = Hl.type.meta, color = c.content, maxLines = 1, overflow = TextOverflow.Ellipsis) }
         length?.let { Text(it, style = Hl.type.meta, color = c.contentSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis) }
         item.officialRating?.let { Badge(it) }
-        item.communityRating?.let { score ->
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(HlIcons.Star, contentDescription = null, tint = c.tungsten, modifier = Modifier.size(HlSize.inlineIcon))
-                Spacer(Modifier.width(HlSpace.xxs))
-                Text(String.format(Locale.getDefault(), "%.1f", score), style = Hl.type.meta, color = c.contentSecondary)
-            }
-        }
+        item.communityRating?.let { Score(it) }
         // Genres go one by one, from the last, as the names of the billing block do.
         if (showGenres) item.genres.take(3).forEachIndexed { i, genre ->
             Text(
@@ -90,6 +84,20 @@ fun MetaLine(item: MediaItem, modifier: Modifier = Modifier, showGenres: Boolean
                 modifier = if (i == 0) Modifier else Modifier.layoutId(Continued),
             )
         }
+    }
+}
+
+/**
+ * A score out of ten, as a fact among the others: the line star, then the figure, both quiet. A
+ * score is not a state: it never lights.
+ */
+@Composable
+fun Score(score: Double, modifier: Modifier = Modifier) {
+    val c = Hl.colors
+    Row(modifier, verticalAlignment = Alignment.CenterVertically) {
+        Icon(HlIcons.Star, contentDescription = null, tint = c.contentSecondary, modifier = Modifier.size(HlSize.inlineIcon))
+        Spacer(Modifier.width(HlSpace.xxs))
+        Text(String.format(Locale.getDefault(), "%.1f", score), style = Hl.type.meta, color = c.contentSecondary)
     }
 }
 

@@ -28,7 +28,11 @@ data class HlColors(
     val contentTertiary: Color,
     /** Never for text: dividers, empty thumbnails, inactive marks. */
     val contentDecorative: Color,
-    /** House-light accent. Only for progress, the active tab and the wordmark. */
+    /**
+     * The house light. States only: in use, your choice, needs attention; the wordmark is the one
+     * exception. Never focus, a place, a fact or a series of data. Screens reach it through the
+     * components' states (`HlStatus`, `AttentionNote`, `lit`, `valueLit`, `detailLit`), never by name.
+     */
     val tungsten: Color,
     /** Focus outline and filled focused controls. */
     val focus: Color,

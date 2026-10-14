@@ -47,6 +47,7 @@ import app.houselights.ui.design.HlMotion
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.LocalAmbient
 import app.houselights.ui.design.components.ArtworkChoiceCard
+import app.houselights.ui.design.components.AttentionNote
 import app.houselights.ui.design.components.Backdrop
 import app.houselights.ui.design.components.BackdropStyle
 import app.houselights.ui.design.components.CardSkeleton
@@ -129,12 +130,12 @@ private fun Header(kind: ArtworkKind, item: MediaItem?, choices: ArtworkChoices?
         Spacer(Modifier.height(HlSpace.xxs))
         FactRow(listOf(item?.title, choices?.let { pluralStringResource(R.plurals.image_count, it.options.size, it.options.size) }))
         Spacer(Modifier.height(HlSpace.xs))
-        Text(
-            stringResource(if (choices != null && !choices.onlineAvailable) R.string.artwork_offline else R.string.artwork_hint),
-            style = Hl.type.caption,
-            color = if (choices != null && !choices.onlineAvailable) Hl.colors.tungsten else Hl.colors.contentSecondary,
-            modifier = Modifier.widthIn(max = HlLayout.readable),
-        )
+        val reading = Modifier.widthIn(max = HlLayout.readable)
+        if (choices != null && !choices.onlineAvailable) {
+            AttentionNote(stringResource(R.string.artwork_offline), reading, style = Hl.type.caption)
+        } else {
+            Text(stringResource(R.string.artwork_hint), style = Hl.type.caption, color = Hl.colors.contentSecondary, modifier = reading)
+        }
     }
 }
 

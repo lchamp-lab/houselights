@@ -334,7 +334,7 @@ fun HlIconButton(
 
 /**
  * A choice in a vertical list (sources, servers): a quiet panel, lifted with a projector-white
- * outline when focused. Its icon stands in line with the name and lights up with focus; [badges]
+ * outline when focused. Its icon stands in line with the name, turning white with focus; [badges]
  * say what the choice brings, in the technical voice, under a hairline; a chevron shows on focus
  * that it leads on. [descriptionLines] keeps choices shown side by side the same height.
  */
@@ -356,7 +356,7 @@ fun HlListItem(
                     Icon(
                         icon,
                         contentDescription = null,
-                        tint = if (focused) c.tungsten else c.contentSecondary,
+                        tint = if (focused) c.content else c.contentSecondary,
                         modifier = Modifier.size(HlSize.discIcon),
                     )
                     Spacer(Modifier.width(HlSpace.s))
