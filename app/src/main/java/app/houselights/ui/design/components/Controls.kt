@@ -58,6 +58,7 @@ import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlAlpha
 import app.houselights.ui.design.HlControl
 import app.houselights.ui.design.HlFocus
+import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlInset
 import app.houselights.ui.design.HlMotion
 import app.houselights.ui.design.HlShapes
@@ -163,8 +164,10 @@ fun HlIconButton(
 }
 
 /**
- * A choice in a vertical list (sources, options): a quiet panel, lifted with a projector-white
- * outline when focused. The optional icon sits in a disc that lights up with focus.
+ * A choice in a vertical list (sources, servers): a quiet panel, lifted with a projector-white
+ * outline when focused. Its icon stands in line with the name and lights up with focus; [badges]
+ * say what the choice brings, in the technical voice, under a hairline; a chevron shows on focus
+ * that it leads on. [descriptionLines] keeps choices shown side by side the same height.
  */
 @Composable
 fun HlListItem(
@@ -173,19 +176,39 @@ fun HlListItem(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     icon: ImageVector? = null,
+    badges: List<String> = emptyList(),
+    descriptionLines: Int = 1,
 ) {
+    val c = Hl.colors
     HlPanelButton(onClick, modifier.fillMaxWidth()) { focused ->
-        Row(Modifier.padding(HlInset.card), verticalAlignment = Alignment.CenterVertically) {
-            if (icon != null) {
-                HlIconDisc(icon, lit = focused)
-                Spacer(Modifier.width(HlSpace.l))
-            }
-            Column {
-                Text(title, style = Hl.type.lead, color = Hl.colors.content)
-                if (description != null) {
-                    Spacer(Modifier.height(HlSpace.xxs))
-                    Text(description, style = Hl.type.detail, color = Hl.colors.contentSecondary)
+        Column(Modifier.padding(HlInset.card)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (icon != null) {
+                    Icon(
+                        icon,
+                        contentDescription = null,
+                        tint = if (focused) c.tungsten else c.contentSecondary,
+                        modifier = Modifier.size(HlSize.discIcon),
+                    )
+                    Spacer(Modifier.width(HlSpace.s))
                 }
+                Text(title, style = Hl.type.lead, color = c.content, modifier = Modifier.weight(1f))
+                Icon(
+                    HlIcons.Chevron,
+                    contentDescription = null,
+                    tint = c.content,
+                    modifier = Modifier.size(HlSize.icon).alpha(if (focused) 1f else 0f),
+                )
+            }
+            if (description != null) {
+                Spacer(Modifier.height(HlSpace.xs))
+                Text(description, style = Hl.type.detail, color = c.contentSecondary, minLines = descriptionLines)
+            }
+            if (badges.isNotEmpty()) {
+                Spacer(Modifier.height(HlSpace.m))
+                HlDivider()
+                Spacer(Modifier.height(HlSpace.s))
+                Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.xs)) { badges.forEach { Badge(it) } }
             }
         }
     }

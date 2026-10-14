@@ -65,6 +65,8 @@ data class HlType(
     val figure: TextStyle,
     /** What a panel or a sheet is about: "Modifier", "Fiche technique". */
     val subject: TextStyle,
+    /** A title set on a card that has no artwork, like a plain one-sheet. */
+    val cardTitle: TextStyle,
     /** Names in the billing block, set like the credits at the foot of a poster. */
     val billing: TextStyle,
     /** The small words between them: "a film by", "with", "and". */
@@ -111,6 +113,7 @@ val HouselightsType = HlType(
     headline = TextStyle(fontFamily = HlFonts.condensed, fontWeight = FontWeight.Bold, fontSize = 44.sp, lineHeight = 48.sp, letterSpacing = (-0.005).em),
     figure = TextStyle(fontFamily = HlFonts.condensed, fontWeight = FontWeight.SemiBold, fontSize = 32.sp, lineHeight = 36.sp, fontFeatureSettings = FIGURES),
     subject = TextStyle(fontFamily = HlFonts.condensed, fontWeight = FontWeight.SemiBold, fontSize = 32.sp, lineHeight = 36.sp),
+    cardTitle = TextStyle(fontFamily = HlFonts.condensed, fontWeight = FontWeight.Bold, fontSize = 20.sp, lineHeight = 22.sp),
     billing = TextStyle(fontFamily = HlFonts.condensed, fontWeight = FontWeight.Medium, fontSize = 18.sp, lineHeight = 24.sp, letterSpacing = 0.04.em, fontFeatureSettings = CAPITALS),
     billingJoin = TextStyle(fontFamily = HlFonts.condensed, fontWeight = FontWeight.Normal, fontSize = 14.sp, lineHeight = 24.sp, letterSpacing = 0.02.em),
     wordmark = TextStyle(fontFamily = HlFonts.condensed, fontWeight = FontWeight.SemiBold, fontSize = 22.sp, lineHeight = 24.sp, letterSpacing = 0.02.em),

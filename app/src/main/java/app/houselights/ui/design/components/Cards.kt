@@ -4,6 +4,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -11,6 +12,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
@@ -23,8 +25,6 @@ import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.compositionLocalOf
@@ -32,29 +32,21 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
-import androidx.compose.ui.graphics.Paint
-import androidx.compose.ui.graphics.ColorMatrix
-import androidx.compose.ui.graphics.ColorFilter
-import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.composed
-import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.dp
 import androidx.tv.material3.Border
 import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.Glow
@@ -67,6 +59,7 @@ import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlAlpha
 import app.houselights.ui.design.HlControl
 import app.houselights.ui.design.HlFocus
+import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlMotion
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
@@ -112,7 +105,8 @@ fun MediaRow(
 
 /**
  * Focus treatment shared by every piece of artwork: it grows, gets a thin projector-white
- * outline and glows with the ambient light, while its neighbours dim.
+ * outline and glows with the ambient light, while its neighbours dim. At rest, a faint edge keeps
+ * dark artwork from dissolving into the black room.
  */
 @Composable
 fun ArtworkSurface(
@@ -147,8 +141,9 @@ fun ArtworkSurface(
         ),
         interactionSource = interaction,
     ) {
-        // Read while drawing: stepping back never recomposes the row.
+        // Read while drawing, or by the image alone: stepping back never recomposes the row.
         CompositionLocalProvider(LocalArtworkRecede provides { recede.value }) { content() }
+        Box(Modifier.fillMaxSize().border(HlSize.hairline, c.content.copy(alpha = HlAlpha.ARTWORK_EDGE), shape))
         Box(Modifier.fillMaxSize().drawBehind { drawRect(c.background.copy(alpha = recede.value * HlFocus.SIBLING_DIM)) })
     }
 }
@@ -157,34 +152,30 @@ fun ArtworkSurface(
 val LocalArtworkRecede = staticCompositionLocalOf<() -> Float> { { 0f } }
 
 /**
- * Artwork that steps back loses part of its colour ([HlFocus.SIBLING_SATURATION]). Drawn through
- * a colour-filtered layer, which Android 9 supports, unlike blend modes and render effects.
+ * Artwork as a card shows it. When its card steps back it loses part of its colour
+ * ([HlFocus.SIBLING_SATURATION]) through the image's own colour filter: no offscreen layer per
+ * card, and only this image recomposes while it steps back.
  */
-fun Modifier.receding(): Modifier = composed {
-    val recede = LocalArtworkRecede.current
-    val paint = remember { Paint() }
-    val matrix = remember { ColorMatrix() }
-    drawWithContent {
-        val r = recede()
-        if (r <= 0f) {
-            drawContent()
-            return@drawWithContent
-        }
-        matrix.setToSaturation(1f - r * (1f - HlFocus.SIBLING_SATURATION))
-        paint.colorFilter = ColorFilter.colorMatrix(matrix)
-        drawIntoCanvas { canvas ->
-            canvas.saveLayer(Rect(Offset.Zero, size), paint)
-            drawContent()
-            canvas.restore()
-        }
+@Composable
+fun ArtworkImage(
+    url: String,
+    description: String?,
+    modifier: Modifier = Modifier,
+    contentScale: ContentScale = ContentScale.Crop,
+) {
+    val recede = LocalArtworkRecede.current()
+    val filter = remember(recede) {
+        if (recede <= 0f) null
+        else ColorFilter.colorMatrix(ColorMatrix().apply { setToSaturation(1f - recede * (1f - HlFocus.SIBLING_SATURATION)) })
     }
+    AsyncImage(model = url, contentDescription = description, contentScale = contentScale, colorFilter = filter, modifier = modifier)
 }
 
-/** 2:3 poster. With [width] null it fills the grid cell. */
 /** Width a poster is asked for: its own, or a little more than a row's when it fills a grid cell. */
 @Composable
 fun posterPx(width: Dp? = null): Int = (width ?: HlSize.poster * 1.3f).toPx()
 
+/** 2:3 poster. With [width] null it fills the grid cell. */
 @Composable
 fun PosterCard(
     item: MediaItem,
@@ -197,13 +188,16 @@ fun PosterCard(
     val px = posterPx(width)
     ArtworkSurface(onClick, sized.aspectRatio(2f / 3f), onFocused = onFocused) {
         val url = item.poster?.url(px)
-        if (url == null) FallbackTitle(item.title) else Artwork(url, item.title)
+        if (url == null) FallbackArtwork(item.title, item.year) else ArtworkImage(url, item.title, Modifier.fillMaxSize())
         StatusMark(item, Modifier.align(Alignment.TopEnd).padding(HlSpace.xs))
         ProgressLine(item.progress, Modifier.align(Alignment.BottomCenter))
     }
 }
 
-/** 16:9 still or thumb, with an optional caption below. */
+/**
+ * 16:9 still or thumb, with an optional caption below: a [number] in tabular figures (an
+ * episode's), its [title], then [facts] (length, where it stands).
+ */
 @Composable
 fun LandscapeCard(
     item: MediaItem,
@@ -211,7 +205,8 @@ fun LandscapeCard(
     modifier: Modifier = Modifier,
     width: Dp = HlSize.landscape,
     title: String? = null,
-    subtitle: String? = null,
+    number: String? = null,
+    facts: List<String?> = emptyList(),
     onFocused: () -> Unit = {},
 ) {
     Column(modifier.width(width)) {
@@ -222,16 +217,34 @@ fun LandscapeCard(
             onFocused = onFocused,
         ) {
             val url = item.landscape?.url(width.toPx())
-            if (url == null) FallbackTitle(title ?: item.title) else Artwork(url, item.title)
+            if (url == null) {
+                FallbackArtwork(title ?: item.title, item.year.takeIf { title == null })
+            } else {
+                ArtworkImage(url, item.title, Modifier.fillMaxSize())
+            }
             StatusMark(item, Modifier.align(Alignment.TopEnd).padding(HlSpace.xs))
             ProgressLine(item.progress, Modifier.align(Alignment.BottomCenter))
         }
         if (title != null) {
             Spacer(Modifier.height(HlSpace.s))
-            Text(title, style = Hl.type.meta, color = Hl.colors.content, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Row {
+                if (number != null) {
+                    Text(number, style = Hl.type.meta, color = Hl.colors.contentTertiary, modifier = Modifier.alignByBaseline())
+                    Spacer(Modifier.width(HlSpace.xs))
+                }
+                Text(
+                    title,
+                    style = Hl.type.entry,
+                    color = Hl.colors.content,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.alignByBaseline(),
+                )
+            }
         }
-        if (subtitle != null) {
-            Text(subtitle, style = Hl.type.caption, color = Hl.colors.contentTertiary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        if (facts.any { !it.isNullOrBlank() }) {
+            Spacer(Modifier.height(HlSpace.xxs))
+            FactRow(facts, style = Hl.type.detail, color = Hl.colors.contentTertiary)
         }
     }
 }
@@ -248,7 +261,7 @@ fun PersonCard(person: Person, modifier: Modifier = Modifier) {
                 color = Hl.colors.contentTertiary,
                 modifier = Modifier.align(Alignment.Center),
             )
-            person.image?.url(px)?.let { Artwork(it, person.name, Modifier.clip(HlShapes.avatar)) }
+            person.image?.url(px)?.let { ArtworkImage(it, person.name, Modifier.fillMaxSize().clip(HlShapes.avatar)) }
         }
         Spacer(Modifier.height(HlSpace.s))
         Text(
@@ -265,39 +278,38 @@ fun PersonCard(person: Person, modifier: Modifier = Modifier) {
     }
 }
 
+/**
+ * No artwork: the title set like a one-sheet, in the voice of the poster, low on the card under a
+ * short rule, with its year in the technical voice.
+ */
 @Composable
-private fun Artwork(url: String, description: String, modifier: Modifier = Modifier) {
-    AsyncImage(model = url, contentDescription = description, contentScale = ContentScale.Crop, modifier = modifier.fillMaxSize().receding())
+private fun BoxScope.FallbackArtwork(title: String, year: Int?) {
+    val c = Hl.colors
+    Column(Modifier.align(Alignment.BottomStart).padding(HlSpace.s)) {
+        Box(Modifier.width(HlSpace.l).height(HlSize.hairline).background(c.contentSecondary))
+        Spacer(Modifier.height(HlSpace.xs))
+        Text(title, style = Hl.type.cardTitle, color = c.content, maxLines = 4, overflow = TextOverflow.Ellipsis)
+        if (year != null) {
+            Spacer(Modifier.height(HlSpace.xxs))
+            Text(year.toString(), style = Hl.type.badge, color = c.contentTertiary)
+        }
+    }
 }
 
-/** No artwork: the title, set like a plain one-sheet. */
-@Composable
-private fun BoxScope.FallbackTitle(title: String) {
-    Text(
-        title,
-        style = Hl.type.lead,
-        color = Hl.colors.contentSecondary,
-        textAlign = TextAlign.Center,
-        maxLines = 4,
-        overflow = TextOverflow.Ellipsis,
-        modifier = Modifier.align(Alignment.Center).padding(HlSpace.s),
-    )
-}
-
-/** Watched check, or the number of unwatched episodes of a show. */
+/**
+ * One mark at most, at the top right, on a dark plate: the number of unwatched episodes of a show,
+ * or the line check of a title watched. Progress has its own line at the foot of the card.
+ */
 @Composable
 private fun StatusMark(item: MediaItem, modifier: Modifier) {
     val unplayed = item.user.unplayedCount ?: 0
     val plate = Hl.colors.background.copy(alpha = HlAlpha.PLATE)
     when {
-        item.user.played -> Box(
-            modifier.size(HlSize.mark).clip(HlShapes.avatar).background(plate),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(Icons.Filled.Check, contentDescription = null, tint = Hl.colors.content, modifier = Modifier.size(HlSize.markIcon))
-        }
         unplayed > 0 -> Box(modifier.clip(HlShapes.control).background(plate).padding(horizontal = HlSpace.xs, vertical = HlControl.badgePaddingV)) {
             Text("$unplayed", style = Hl.type.badge, color = Hl.colors.content)
+        }
+        item.user.played -> Box(modifier.size(HlSize.mark).clip(HlShapes.avatar).background(plate), contentAlignment = Alignment.Center) {
+            Icon(HlIcons.Check, contentDescription = null, tint = Hl.colors.content, modifier = Modifier.size(HlSize.markIcon))
         }
     }
 }

@@ -74,18 +74,23 @@ fun WelcomeScreen(onLocal: () -> Unit, onJellyfin: () -> Unit) {
             Column(Modifier.width(HlLayout.welcomeChoices), verticalArrangement = Arrangement.spacedBy(HlSpace.s)) {
                 Text(stringResource(R.string.welcome_title), style = Hl.type.lead, color = Hl.colors.content)
                 Spacer(Modifier.height(HlSpace.xxs))
+                // The same height side by side; under each, how it reaches your films.
                 HlListItem(
                     stringResource(R.string.source_local),
                     stringResource(R.string.source_local_desc),
                     onLocal,
                     Modifier.focusRequester(focus),
                     icon = HlIcons.Folder,
+                    badges = listOf("NFS", "SMB", "TMDB"),
+                    descriptionLines = CHOICE_LINES,
                 )
                 HlListItem(
                     stringResource(R.string.source_jellyfin),
                     stringResource(R.string.source_jellyfin_desc),
                     onJellyfin,
                     icon = HlIcons.Server,
+                    badges = listOf("HTTPS", "HTTP"),
+                    descriptionLines = CHOICE_LINES,
                 )
                 Spacer(Modifier.height(HlSpace.xxs))
                 Text(stringResource(R.string.sources_coming_soon), style = Hl.type.caption, color = Hl.colors.contentTertiary)
@@ -93,3 +98,6 @@ fun WelcomeScreen(onLocal: () -> Unit, onJellyfin: () -> Unit) {
         }
     }
 }
+
+/** Lines of description each welcome choice keeps room for: the longest one's. */
+private const val CHOICE_LINES = 3

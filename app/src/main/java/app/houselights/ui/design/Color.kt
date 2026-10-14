@@ -73,6 +73,8 @@ object HlAlpha {
     const val SCRIM = 0.72f
     /** The room beside a side sheet, still to be read: `background` at this opacity. */
     const val SCRIM_SIDE = 0.6f
+    /** The edge of artwork at rest, so a dark poster keeps its outline on the black room: `content`. */
+    const val ARTWORK_EDGE = 0.12f
     /** Plates under marks drawn over artwork (watched check, counts): `background`. */
     const val PLATE = 0.72f
     /** Progress track over artwork: `content` at this opacity. */

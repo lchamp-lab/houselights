@@ -126,6 +126,11 @@ object HlIcons {
         moveTo(15.25f, 15.25f); lineTo(20f, 20f)
     }
 
+    /** Done: a check, drawn with the same line as every other icon. */
+    val Check = icon("Check") {
+        moveTo(5f, 12.5f); lineTo(9.75f, 17f); lineTo(19f, 7.5f)
+    }
+
     /** Play from the start: an arrow turning back to the top. */
     val Restart = icon("Restart") {
         moveTo(12f, 5.25f)

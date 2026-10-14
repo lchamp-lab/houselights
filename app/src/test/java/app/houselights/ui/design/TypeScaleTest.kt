@@ -12,7 +12,7 @@ import org.junit.Test
 class TypeScaleTest {
     private val styles: Map<String, TextStyle> = with(HouselightsType) {
         mapOf(
-            "display" to display, "headline" to headline, "figure" to figure, "subject" to subject,
+            "display" to display, "headline" to headline, "figure" to figure, "subject" to subject, "cardTitle" to cardTitle,
             "billing" to billing, "billingJoin" to billingJoin, "wordmark" to wordmark, "wordmarkHero" to wordmarkHero,
             "title" to title, "lead" to lead, "body" to body, "entry" to entry, "meta" to meta,
             "caption" to caption, "detail" to detail, "code" to code,

@@ -31,6 +31,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.tv.material3.Text
+import app.houselights.core.MediaItem
+import app.houselights.core.MediaKind
+import app.houselights.core.UserState
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlLayout
@@ -47,6 +50,8 @@ import app.houselights.ui.design.components.HlButton
 import app.houselights.ui.design.components.HlEmptyState
 import app.houselights.ui.design.components.HlIconButton
 import app.houselights.ui.design.components.HlIconDisc
+import app.houselights.ui.design.components.LandscapeCard
+import app.houselights.ui.design.components.PosterCard
 import app.houselights.ui.design.components.HlListItem
 import app.houselights.ui.design.components.HlMeter
 import app.houselights.ui.design.components.HlNavItem
@@ -170,6 +175,36 @@ fun CatalogScreen() {
             }
 
             item {
+                // Without artwork every card shows its typographic fallback; the marks sit on top.
+                Group("Cards") {
+                    Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Top) {
+                        PosterCard(sample("Le Samouraï", 1967), {})
+                        PosterCard(sample("Playtime", 1967, played = true), {})
+                        PosterCard(sample("Twin Peaks", 1990, kind = MediaKind.SERIES, unplayed = 6), {})
+                        PosterCard(sample("La Nuit américaine", 1973, positionMs = 2_400_000), {})
+                        LandscapeCard(
+                            sample("Pile ou face", 2025, positionMs = 2_400_000),
+                            {},
+                            width = HlSize.episode,
+                            title = "Pile ou face",
+                            number = "1",
+                            facts = listOf("1 h", "Il reste 20 min"),
+                        )
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m)) {
+                        HlListItem(
+                            "Mes fichiers", "Vos vidéos sur un NAS ou un partage réseau (NFS ou SMB).", {},
+                            Modifier.weight(1f), icon = HlIcons.Folder, badges = listOf("NFS", "SMB", "TMDB"), descriptionLines = 2,
+                        )
+                        HlListItem(
+                            "Serveur Jellyfin", "Votre serveur Jellyfin.", {},
+                            Modifier.weight(1f), icon = HlIcons.Server, badges = listOf("HTTPS", "HTTP"), descriptionLines = 2,
+                        )
+                    }
+                }
+            }
+
+            item {
                 // The longest French labels and the fullest rows the screens can meet: nothing here
                 // may be cut or pushed out.
                 Group("Stress") {
@@ -243,3 +278,20 @@ private fun Specimen(name: String, style: TextStyle) {
         Text("Houselights 2,39:1 ${style.fontSize.value.toInt()} sp", style = style, color = Hl.colors.content, maxLines = 1, modifier = Modifier.padding(start = HlSpace.s))
     }
 }
+
+/** A title with no artwork, in the state asked for. */
+private fun sample(
+    title: String,
+    year: Int,
+    kind: MediaKind = MediaKind.MOVIE,
+    played: Boolean = false,
+    unplayed: Int? = null,
+    positionMs: Long = 0,
+) = MediaItem(
+    id = "catalog-$title",
+    kind = kind,
+    title = title,
+    year = year,
+    runtimeMs = 3_600_000,
+    user = UserState(played = played, unplayedCount = unplayed, positionMs = positionMs),
+)

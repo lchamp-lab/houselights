@@ -350,6 +350,17 @@ private fun Seasons(seasons: List<MediaItem>, selectedId: String?, onSelect: (St
     )
 }
 
+/** Where an episode stands, in words: watched, or the time left; nothing when not started. */
+@Composable
+private fun episodeState(ep: MediaItem): String? {
+    val left = (ep.runtimeMs ?: 0L) - ep.user.positionMs
+    return when {
+        ep.user.played -> stringResource(R.string.watched)
+        ep.user.positionMs > 0 && left > 0 -> stringResource(R.string.time_left, formatDuration(left))
+        else -> null
+    }
+}
+
 @Composable
 private fun Episodes(
     header: String?,
@@ -365,8 +376,9 @@ private fun Episodes(
                     item = ep,
                     onClick = { onPlay(ep) },
                     width = HlSize.episode,
-                    title = listOfNotNull(ep.episodeNumber?.toString(), ep.title).joinToString(FACT_GAP),
-                    subtitle = ep.runtimeMs?.let(::formatDuration),
+                    title = ep.title,
+                    number = ep.episodeNumber?.toString(),
+                    facts = listOf(ep.runtimeMs?.let(::formatDuration), episodeState(ep)),
                     onFocused = { onFocus(ep) },
                 )
             }

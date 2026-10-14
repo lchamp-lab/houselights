@@ -2,6 +2,7 @@ package app.houselights.ui.design.components
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -13,8 +14,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -23,7 +22,6 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.dp
 import androidx.tv.material3.Border
 import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.Icon
@@ -31,7 +29,9 @@ import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
 import app.houselights.core.ImageRef
 import app.houselights.ui.design.Hl
+import app.houselights.ui.design.HlAlpha
 import app.houselights.ui.design.HlFocus
+import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlInset
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
@@ -69,11 +69,11 @@ fun ArtworkChoiceCard(
         ) {
             val url = image?.url(width.toPx())
             when {
-                url != null -> AsyncImage(
-                    model = url,
-                    contentDescription = title,
+                url != null -> ArtworkImage(
+                    url,
+                    title,
+                    Modifier.fillMaxSize().padding(if (fit) HlSpace.m else HlSpace.none),
                     contentScale = if (fit) ContentScale.Fit else ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize().padding(if (fit) HlSpace.m else 0.dp).receding(),
                 )
                 placeholder != null -> Text(
                     placeholder,
@@ -99,7 +99,7 @@ fun ArtworkChoiceCard(
 @Composable
 fun SelectedMark(modifier: Modifier = Modifier) {
     Box(modifier.size(HlSize.mark).clip(HlShapes.avatar).background(Hl.colors.tungsten), contentAlignment = Alignment.Center) {
-        Icon(Icons.Filled.Check, contentDescription = null, tint = Hl.colors.background, modifier = Modifier.size(HlSize.markIcon))
+        Icon(HlIcons.Check, contentDescription = null, tint = Hl.colors.background, modifier = Modifier.size(HlSize.markIcon))
     }
 }
 
@@ -148,5 +148,6 @@ fun PosterThumb(poster: ImageRef?, modifier: Modifier = Modifier, width: Dp = Hl
         poster?.url(width.toPx())?.let { url ->
             AsyncImage(model = url, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
         }
+        Box(Modifier.fillMaxSize().border(HlSize.hairline, Hl.colors.content.copy(alpha = HlAlpha.ARTWORK_EDGE), HlShapes.artwork))
     }
 }

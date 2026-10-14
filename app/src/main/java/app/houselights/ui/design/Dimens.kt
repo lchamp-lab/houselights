@@ -75,8 +75,8 @@ object HlSize {
     val disc = 52.dp
     val discIcon = 24.dp
     /** Round mark over artwork (watched, selected). */
-    val mark = 24.dp
-    val markIcon = 16.dp
+    val mark = 20.dp
+    val markIcon = 14.dp
     /** Status dot (default track, online). */
     val dot = 8.dp
     /** An icon set in a line of text (rating star). */
