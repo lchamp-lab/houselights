@@ -161,7 +161,7 @@ without the prefix (`MenuOption`, `MeterLegend`, `PosterCard`, `BillingBlock`, `
 | `HlModal` | a sheet to read, centred over the dimmed room (the technical sheet); Back closes it |
 | `HlTwoPane`, `HlFormScaffold`, `StatusPanel`, `FieldLabel` | two-pane screens: navigation or explanation on the left, content on the right. `StatusPanel` is where a setup stands, beside its form: its state with its light first, then what is set up, large (an address in the technical voice), its path and kind, and what was found under a hairline; lit while the state is on |
 | `HlTextField` | TV text field: focusable box first, keyboard on OK; tungsten while typing |
-| `HlScrollArea` | long content read with the remote; focusable only when it has something to scroll |
+| `HlScrollArea` | long content read with the remote; focusable only when it has something to scroll; a key held down scrolls in one motion. Framed on a quiet panel, or unframed inside a sheet: square edges, so a hairline at its top stays whole, and the focus ring outside the content |
 | `TechSpecs`, `InfoBlock`, `DefinitionList` | the technical sheet, set like the back of a Blu-ray case: one block per subject (a hairline, its name, what it says); the NFO is laid out the same way |
 | `ArtworkChoiceCard`, `SelectedMark` | one artwork to choose from, at the shape it is used in |
 | `HlEmptyState` | what happened and what to do, with the action focused |
@@ -215,6 +215,8 @@ Focus must read from the couch:
 - **Track options** are the exception: white is the current option, so focus on another option is
   a grey pill, and focus on the current one a ring around it.
 - **Panels** that can be chosen are raised and outlined in projector white.
+- **Areas to read** (`HlScrollArea`) are outlined in projector white; an unframed one draws its ring
+  a gap outside the content, clear of its text and rules.
 - **Text fields** get a white outline when focused and a tungsten outline while typing.
 
 ## Writing

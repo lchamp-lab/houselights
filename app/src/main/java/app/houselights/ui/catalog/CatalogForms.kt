@@ -319,7 +319,7 @@ private fun FormScrollAreas() {
         FormCase("framed, longer than its height", Modifier.weight(1f)) {
             HlScrollArea(Modifier.height(HlLayout.specTables)) { FormReading(FORM_LONG_TEXT) }
         }
-        FormCase("unframed, longer than its height", Modifier.weight(1f)) {
+        FormCase("unframed, longer than its height: its ring stands outside", Modifier.weight(1f)) {
             HlScrollArea(Modifier.height(HlLayout.specTables), framed = false) { FormReading(FORM_LONG_TEXT) }
         }
         FormCase("framed, fits: takes no focus", Modifier.weight(1f)) {
