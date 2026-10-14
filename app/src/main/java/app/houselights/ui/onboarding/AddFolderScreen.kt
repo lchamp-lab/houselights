@@ -68,7 +68,16 @@ fun AddFolderScreen(onAdded: () -> Unit) {
     var success by remember { mutableStateOf(false) }
     var busy by remember { mutableStateOf(false) }
     val focus = remember { FocusRequester() }
-    LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
+    LaunchedEffect(Unit) {
+        runCatching { focus.requestFocus() }
+        // A second folder is most often on the same NAS: start from the last one added.
+        app.database.dao().sources().maxByOrNull { it.id }?.let { last ->
+            protocol = last.protocol
+            host = last.host
+            share = if (last.protocol == Protocol.NFS) "/${last.share}" else last.share
+            user = last.username
+        }
+    }
 
     fun source() = SourceEntity(
         name = path.trim('/').substringAfterLast('/').ifBlank { share.trim('/').substringAfterLast('/') },
@@ -173,7 +182,7 @@ fun AddFolderScreen(onAdded: () -> Unit) {
                 placeholder = if (protocol == Protocol.NFS) "/volume1/media" else "media",
                 modifier = Modifier.width(260.dp),
             )
-            HlTextField(stringResource(R.string.field_path), path, { path = it; success = false }, placeholder = "films", modifier = Modifier.width(320.dp))
+            HlTextField(stringResource(R.string.field_path), path, { path = it; success = false }, placeholder = if (kind == SourceKind.SHOWS) "series" else "films", modifier = Modifier.width(320.dp))
         }
         if (protocol == Protocol.SMB) {
             Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.s)) {
