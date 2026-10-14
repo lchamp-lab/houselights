@@ -300,6 +300,7 @@ private fun Hero(
         }
         Spacer(Modifier.height(HlSpace.xl))
 
+        val problem by appContainer().playback.playbackProblem.collectAsStateWithLifecycle()
         // Room under the actions for the label of a round button: nothing moves when it shows.
         Row(
             Modifier.padding(bottom = HlLayout.iconLabelRoom),
@@ -363,16 +364,15 @@ private fun Hero(
             if (onEdit != null) {
                 HlIconButton(HlIcons.Edit, stringResource(R.string.edit), onClick = onEdit)
             }
-        }
-        // Why the last title asked for did not play, under the actions that asked for it.
-        val problem by appContainer().playback.playbackProblem.collectAsStateWithLifecycle()
-        problem?.let {
-            HlStatus(
-                StatusState.Attention,
-                stringResource(R.string.play_failed),
-                Modifier.padding(top = HlSpace.l).widthIn(max = HlLayout.readableNarrow),
-                detail = stringResource(it.message),
-            )
+            // Why the last title asked for did not play, beside the actions that asked for it.
+            problem?.let {
+                HlStatus(
+                    StatusState.Attention,
+                    stringResource(R.string.play_failed),
+                    Modifier.align(Alignment.CenterVertically).padding(start = HlSpace.m).weight(1f, fill = false),
+                    detail = stringResource(it.message),
+                )
+            }
         }
     }
 }
