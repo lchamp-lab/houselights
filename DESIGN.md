@@ -291,6 +291,10 @@ screen: it goes to the log.
   vérifiez le partage sur le NAS."), never an exception's text: that goes to the log only.
 - Text written elsewhere (TMDB, NFO, servers) goes through `Typeset.text`, so `»`, `:` and `!` never
   start a line.
+- Say only what the app can know. Some players list stand-in display modes: the Zidoo lists 1080p
+  at 30 Hz while it sends 2160p60, set in its own menu. There, Affichage says the player sets its
+  output and where ("Réglages du lecteur > Affichage"), shows no mode and no rate, and offers no
+  choice that would do nothing; "4K 60 Hz" is offered only where the system lists it (`DisplayModes`).
 
 ## Guard
 
