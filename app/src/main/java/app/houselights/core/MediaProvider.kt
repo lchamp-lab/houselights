@@ -33,9 +33,6 @@ sealed interface PlaybackPlan {
         /** Names the reporter again ([MediaProvider.reporter]) if the app is stopped while the film plays. */
         val resumeKey: String? = null,
     ) : PlaybackPlan
-
-    /** The backend starts playback itself (e.g. Home Theater) and tracks progress on its own. */
-    class Delegated(val start: suspend () -> Unit) : PlaybackPlan
 }
 
 data class ProviderCapabilities(
@@ -47,7 +44,6 @@ data class ProviderCapabilities(
 
 /** A media library backend: Home Theater, Jellyfin, Emby, Plex... */
 interface MediaProvider {
-    val name: String
     val capabilities: ProviderCapabilities
 
     suspend fun libraries(): List<Library>

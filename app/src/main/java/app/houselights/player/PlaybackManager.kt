@@ -156,11 +156,6 @@ class PlaybackManager(
         }
     }
 
-    /** For delegated playback, refresh screens when the user comes back. */
-    fun notifyChanged() {
-        _playbackEnded.tryEmit(Unit)
-    }
-
     private suspend fun report(block: suspend () -> Unit) {
         suspendRunCatching { block() }.onFailure { Log.w(TAG, "Progress report failed", it) }
     }

@@ -19,9 +19,7 @@
     <string name="section_latest">Recently added in %s</string>
     <string name="section_latest_movies">Recently added movies</string>
     <string name="section_latest_shows">Recently added shows</string>
-    <string name="section_recent">Recently added</string>
     <string name="section_favorites">Favorites</string>
-    <string name="section_unwatched">Unwatched</string>
     <string name="season_number">Season %d</string>
     <string name="episode_number">Episode %d</string>
     <plurals name="season_count">
@@ -30,7 +28,6 @@
     </plurals>
 
     <!-- States -->
-    <string name="loading">Loading…</string>
     <string name="error_unreachable">Can’t reach the library</string>
     <string name="retry">Retry</string>
     <string name="empty">Nothing here yet.</string>
@@ -43,11 +40,9 @@
 
     <!-- Browsing -->
     <string name="nav_settings">Settings</string>
-    <string name="resume_at">Resume at %s</string>
     <string name="sort_title">Title</string>
     <string name="sort_added">Date added</string>
     <string name="sort_by">Sort by</string>
-    <string name="sort">Sort</string>
     <string name="filter">Filter</string>
     <string name="filter_status">Status</string>
     <string name="status_in_progress">In progress</string>
@@ -66,7 +61,6 @@
         <item quantity="one">%d filter</item>
         <item quantity="other">%d filters</item>
     </plurals>
-    <string name="show">Show</string>
     <string name="show_all">All</string>
     <string name="sort_year">Year</string>
     <string name="sort_rating">Rating</string>
@@ -109,8 +103,6 @@
     <string name="label_plot">Plot</string>
     <string name="label_cast">Cast</string>
     <string name="label_episode">Episode</string>
-    <string name="label_file">File</string>
-    <string name="tech_video">Video</string>
     <string name="tech_audio">Audio</string>
     <string name="tech_subtitles">Subtitles</string>
     <string name="tech_container">Container</string>
@@ -120,7 +112,6 @@
     <string name="bit_depth">%d-bit</string>
     <string name="dv_profile">Dolby Vision profile %d</string>
     <string name="sdr">SDR</string>
-    <string name="default_track">default</string>
     <string name="forced_subs">forced</string>
     <string name="sdh_subs">SDH</string>
     <string name="unknown_language">Unknown language</string>
@@ -128,7 +119,6 @@
     <string name="gigabytes">%s GB</string>
     <string name="megabytes">%s MB</string>
     <string name="similar">More like this</string>
-    <string name="episodes">Episodes</string>
     <string name="play_error">Can’t play: %s</string>
     <string name="no_player">No video player available</string>
     <string name="player_credentials">This folder needs a password: only the Zidoo player can play it</string>
@@ -138,7 +128,6 @@
     <string name="add_folder_desc">Tell Houselights where your films or shows live on the NAS. Test the connection before adding the folder.</string>
     <string name="jellyfin_desc">Enter the address of your server and your Jellyfin credentials.</string>
     <string name="folder_kind">Contents</string>
-    <string name="field_name">Name</string>
     <string name="field_protocol">Protocol</string>
     <string name="field_host">NAS address</string>
     <string name="field_export">NFS export</string>
@@ -150,7 +139,6 @@
     <string name="field_password">Password</string>
     <string name="test_connection">Test</string>
     <string name="test_ok">Connected: %d items found</string>
-    <string name="test_failed">Connection failed: %s</string>
     <string name="error_nas_unreachable">%s does not answer. Check that the NAS is on and connected to the network.</string>
     <string name="error_access_denied">The NAS refused access. For NFS, allow this device’s IP address on the share; for SMB, check the account’s permissions.</string>
     <string name="error_login_failed">The NAS rejected the user name or password.</string>
@@ -175,13 +163,10 @@
     <string name="welcome_tagline">Your films, on the big screen.</string>
     <string name="section_about">About</string>
     <string name="section_storage">Storage</string>
-    <string name="storage_desc">What Houselights keeps on this device.</string>
     <string name="storage_artwork">Copied local images</string>
     <string name="storage_image_cache">Online image cache</string>
     <string name="storage_database">Library database</string>
-    <string name="storage_of">%1$s of %2$s</string>
     <string name="storage_none">None</string>
-    <string name="storage_hint">Copies of local images that are no longer used are removed automatically after each scan. The online image cache is trimmed on its own when full.</string>
     <string name="cleanup_now">Clean up now</string>
     <string name="cleanup_done">%1$s removed, %2$s freed</string>
     <string name="cleanup_nothing">Nothing to clean up</string>
@@ -192,9 +177,7 @@
         <item quantity="one">%d file</item>
         <item quantity="other">%d files</item>
     </plurals>
-    <string name="library_desc">The folders Houselights scans to build your library. New files are picked up each time the app starts.</string>
     <string name="playback_desc">How the Zidoo player reaches the files of your server.</string>
-    <string name="display_desc">Resolution of the interface. During playback the Zidoo player picks its own mode (frame rate, HDR).</string>
     <string name="tmdb_desc">Posters and details come from TMDB.</string>
     <string name="change_source_desc">Your folders are kept: you can come back to them at any time.</string>
     <string name="label_server">Server</string>
@@ -206,19 +189,13 @@
     <string name="label_hdmi">HDMI output</string>
     <string name="label_render">Interface rendering</string>
     <string name="label_modes">Available modes</string>
-    <string name="label_version">Version</string>
     <string name="label_player">Zidoo player</string>
     <string name="label_api">Control API</string>
-    <string name="label_license">License</string>
     <string name="tmdb_attribution">This product uses the TMDB API but is not endorsed or certified by TMDB.</string>
     <string name="section_source">Library</string>
-    <string name="connected_as">Signed in as %s</string>
-    <string name="change_source">Change source</string>
-    <string name="folders">Folders</string>
     <string name="remove">Remove</string>
     <string name="scan_now">Scan now</string>
     <string name="refresh_metadata">Refresh all details</string>
-    <string name="scanning">Scanning %1$s… %2$d / %3$d</string>
     <string name="last_scan">Last scan: %s</string>
     <string name="never">never</string>
     <string name="just_now">just now</string>
@@ -228,7 +205,6 @@
     <string name="save">Save</string>
     <string name="saved">Saved</string>
     <string name="section_playback">Playback</string>
-    <string name="source_label">Source</string>
     <string name="network_path">Network path (SMB/NFS)</string>
     <string name="http_stream">HTTP stream</string>
     <string name="path_mapping_help">The Zidoo player opens files straight from your NAS: best quality, no transcoding. Tell it how to turn the path seen by the server into a network path. Without a match, playback uses the HTTP stream (direct play, no transcoding either).</string>
@@ -238,20 +214,9 @@
     <string name="mapping_result">Result: %s</string>
     <string name="mapping_none">no match → HTTP stream</string>
     <string name="section_display">Display</string>
-    <string name="ui_label">Interface</string>
     <string name="ui_4k">4K 60 Hz</string>
     <string name="ui_system">System mode</string>
-    <string name="hdmi_output">HDMI output: %1$d×%2$d @ %3$s</string>
-    <string name="ui_render">Interface rendering: %1$d×%2$d px (%3$d dpi)</string>
-    <string name="modes_available">Available modes: %s</string>
-    <string name="native_player">Native player (%1$s): %2$s</string>
-    <string name="control_api">Control API (port 9529): %s</string>
-    <string name="present">installed</string>
-    <string name="absent">missing</string>
-    <string name="reachable">reachable</string>
-    <string name="unreachable">unreachable</string>
     <string name="testing">testing…</string>
-    <string name="version">Houselights %s</string>
     <!-- Editing artwork and identification -->
     <string name="billing_by">a film by</string>
     <string name="billing_with">with</string>

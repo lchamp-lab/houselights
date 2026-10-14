@@ -64,8 +64,6 @@ data class MediaItem(
     val childCount: Int? = null,
     /** For a collection: its films released so far, owned or not, when known. */
     val totalCount: Int? = null,
-    /** True when built from a lightweight list response; [MediaProvider.item] returns the full entry. */
-    val partial: Boolean = false,
 ) {
     val isPlayable get() = kind == MediaKind.MOVIE || kind == MediaKind.EPISODE || kind == MediaKind.VIDEO
 
@@ -85,7 +83,7 @@ data class MediaItem(
 
 data class Library(val id: String, val kind: LibraryKind, val title: String?)
 
-enum class SectionType { CONTINUE, NEXT_UP, LATEST, RECENT, FAVORITES, UNWATCHED }
+enum class SectionType { CONTINUE, NEXT_UP, LATEST }
 
 data class HomeSection(
     val type: SectionType,

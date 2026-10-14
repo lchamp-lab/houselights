@@ -158,7 +158,6 @@ class MainActivity : ComponentActivity() {
                             lightsDown.value = false
                             toast(getString(R.string.player_credentials))
                         }
-                        is PlaybackPlan.Delegated -> plan.start()
                     }
                 }
                 .onFailure {

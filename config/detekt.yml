@@ -22,6 +22,8 @@ complexity:
     thresholdInFiles: 30
     thresholdInClasses: 25
     ignorePrivate: true
+    # A Room DAO is a list of queries.
+    ignoreAnnotated: ['Dao']
 
 style:
   MagicNumber:

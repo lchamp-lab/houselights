@@ -15,9 +15,7 @@
     <string name="section_latest">Ajouts récents dans %s</string>
     <string name="section_latest_movies">Films ajoutés récemment</string>
     <string name="section_latest_shows">Séries ajoutées récemment</string>
-    <string name="section_recent">Ajoutés récemment</string>
     <string name="section_favorites">Favoris</string>
-    <string name="section_unwatched">Non vus</string>
     <string name="season_number">Saison %d</string>
     <string name="episode_number">Épisode %d</string>
     <plurals name="season_count">
@@ -25,7 +23,6 @@
         <item quantity="other">%d saisons</item>
     </plurals>
 
-    <string name="loading">Chargement…</string>
     <string name="error_unreachable">Impossible de joindre la bibliothèque</string>
     <string name="retry">Réessayer</string>
     <string name="empty">Rien pour l’instant.</string>
@@ -37,11 +34,9 @@
     <string name="home_scanning">Analyse de vos fichiers… %1$d / %2$d</string>
 
     <string name="nav_settings">Réglages</string>
-    <string name="resume_at">Reprendre à %s</string>
     <string name="sort_title">Titre</string>
     <string name="sort_added">Date d’ajout</string>
     <string name="sort_by">Trier par</string>
-    <string name="sort">Trier</string>
     <string name="filter">Filtrer</string>
     <string name="filter_status">Statut</string>
     <string name="status_in_progress">En cours</string>
@@ -60,7 +55,6 @@
         <item quantity="one">%d filtre</item>
         <item quantity="other">%d filtres</item>
     </plurals>
-    <string name="show">Afficher</string>
     <string name="show_all">Tous</string>
     <string name="sort_year">Année</string>
     <string name="sort_rating">Note</string>
@@ -102,8 +96,6 @@
     <string name="label_plot">Résumé</string>
     <string name="label_cast">Distribution</string>
     <string name="label_episode">Épisode</string>
-    <string name="label_file">Fichier</string>
-    <string name="tech_video">Vidéo</string>
     <string name="tech_audio">Audio</string>
     <string name="tech_subtitles">Sous-titres</string>
     <string name="tech_container">Conteneur</string>
@@ -113,7 +105,6 @@
     <string name="bit_depth">%d bits</string>
     <string name="dv_profile">Dolby Vision profil %d</string>
     <string name="sdr">SDR</string>
-    <string name="default_track">par défaut</string>
     <string name="forced_subs">forcés</string>
     <string name="sdh_subs">SDH</string>
     <string name="unknown_language">Langue inconnue</string>
@@ -121,7 +112,6 @@
     <string name="gigabytes">%s Go</string>
     <string name="megabytes">%s Mo</string>
     <string name="similar">Dans la même veine</string>
-    <string name="episodes">Épisodes</string>
     <string name="play_error">Lecture impossible : %s</string>
     <string name="no_player">Aucun lecteur vidéo disponible</string>
     <string name="player_credentials">Ce dossier est protégé par un mot de passe : seul le lecteur Zidoo peut le lire</string>
@@ -130,7 +120,6 @@
     <string name="add_folder_desc">Indiquez où se trouvent vos films ou vos séries sur le NAS. Testez la connexion avant d’ajouter le dossier.</string>
     <string name="jellyfin_desc">Saisissez l’adresse de votre serveur et vos identifiants Jellyfin.</string>
     <string name="folder_kind">Contenu</string>
-    <string name="field_name">Nom</string>
     <string name="field_protocol">Protocole</string>
     <string name="field_host">Adresse du NAS</string>
     <string name="field_export">Export NFS</string>
@@ -142,7 +131,6 @@
     <string name="field_password">Mot de passe</string>
     <string name="test_connection">Tester</string>
     <string name="test_ok">Connexion réussie : %d éléments trouvés</string>
-    <string name="test_failed">Échec de connexion : %s</string>
     <string name="error_nas_unreachable">%s ne répond pas. Vérifiez que le NAS est allumé et connecté au réseau.</string>
     <string name="error_access_denied">Le NAS a refusé l’accès. En NFS, autorisez l’adresse IP de cet appareil sur le partage ; en SMB, vérifiez les droits du compte.</string>
     <string name="error_login_failed">Le NAS a refusé l’identifiant ou le mot de passe.</string>
@@ -165,13 +153,10 @@
     <string name="welcome_tagline">Vos films, sur grand écran.</string>
     <string name="section_about">À propos</string>
     <string name="section_storage">Stockage</string>
-    <string name="storage_desc">Ce que Houselights conserve sur cet appareil.</string>
     <string name="storage_artwork">Images locales copiées</string>
     <string name="storage_image_cache">Cache des images en ligne</string>
     <string name="storage_database">Base de la bibliothèque</string>
-    <string name="storage_of">%1$s sur %2$s</string>
     <string name="storage_none">Aucune</string>
-    <string name="storage_hint">Les copies d’images locales qui ne servent plus sont supprimées automatiquement après chaque analyse. Le cache des images en ligne s’allège de lui-même lorsqu’il est plein.</string>
     <string name="cleanup_now">Nettoyer maintenant</string>
     <string name="cleanup_done">%1$s supprimés, %2$s libérés</string>
     <string name="cleanup_nothing">Rien à nettoyer</string>
@@ -182,9 +167,7 @@
         <item quantity="one">%d fichier</item>
         <item quantity="other">%d fichiers</item>
     </plurals>
-    <string name="library_desc">Les dossiers que Houselights analyse pour construire votre bibliothèque. Les nouveaux fichiers sont repérés à chaque démarrage.</string>
     <string name="playback_desc">Comment le lecteur Zidoo accède aux fichiers de votre serveur.</string>
-    <string name="display_desc">Résolution de l’interface. Pendant la lecture, le lecteur Zidoo choisit son propre mode (fréquence, HDR).</string>
     <string name="tmdb_desc">Les affiches et les informations proviennent de TMDB.</string>
     <string name="change_source_desc">Vos dossiers sont conservés : vous pourrez y revenir à tout moment.</string>
     <string name="label_server">Serveur</string>
@@ -196,19 +179,13 @@
     <string name="label_hdmi">Sortie HDMI</string>
     <string name="label_render">Rendu de l’interface</string>
     <string name="label_modes">Modes disponibles</string>
-    <string name="label_version">Version</string>
     <string name="label_player">Lecteur Zidoo</string>
     <string name="label_api">API de contrôle</string>
-    <string name="label_license">Licence</string>
     <string name="tmdb_attribution">Ce produit utilise l’API TMDB mais n’est ni approuvé ni certifié par TMDB.</string>
     <string name="section_source">Bibliothèque</string>
-    <string name="connected_as">Connecté en tant que %s</string>
-    <string name="change_source">Changer de source</string>
-    <string name="folders">Dossiers</string>
     <string name="remove">Retirer</string>
     <string name="scan_now">Analyser maintenant</string>
     <string name="refresh_metadata">Actualiser toutes les informations</string>
-    <string name="scanning">Analyse de %1$s… %2$d / %3$d</string>
     <string name="last_scan">Dernière analyse : %s</string>
     <string name="never">jamais</string>
     <string name="just_now">à l’instant</string>
@@ -218,7 +195,6 @@
     <string name="save">Enregistrer</string>
     <string name="saved">Enregistré</string>
     <string name="section_playback">Lecture</string>
-    <string name="source_label">Source</string>
     <string name="network_path">Chemin réseau (SMB/NFS)</string>
     <string name="http_stream">Flux HTTP</string>
     <string name="path_mapping_help">Le lecteur Zidoo lit directement le fichier sur le NAS : qualité maximale, sans transcodage. Indiquez comment traduire le chemin vu par le serveur en chemin réseau. Sans correspondance, la lecture passe par le flux HTTP (lecture directe, sans transcodage non plus).</string>
@@ -228,20 +204,9 @@
     <string name="mapping_result">Résultat : %s</string>
     <string name="mapping_none">aucune correspondance → flux HTTP</string>
     <string name="section_display">Affichage</string>
-    <string name="ui_label">Interface</string>
     <string name="ui_4k">4K 60 Hz</string>
     <string name="ui_system">Mode du système</string>
-    <string name="hdmi_output">Sortie HDMI : %1$d×%2$d @ %3$s</string>
-    <string name="ui_render">Rendu de l’interface : %1$d×%2$d px (%3$d dpi)</string>
-    <string name="modes_available">Modes disponibles : %s</string>
-    <string name="native_player">Lecteur natif (%1$s) : %2$s</string>
-    <string name="control_api">API de contrôle (port 9529) : %s</string>
-    <string name="present">présent</string>
-    <string name="absent">absent</string>
-    <string name="reachable">joignable</string>
-    <string name="unreachable">injoignable</string>
     <string name="testing">test…</string>
-    <string name="version">Houselights %s</string>
     <!-- Modifier les images et l'identification -->
     <string name="billing_by">un film de</string>
     <string name="billing_with">avec</string>

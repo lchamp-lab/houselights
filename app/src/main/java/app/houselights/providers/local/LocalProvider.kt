@@ -39,7 +39,6 @@ class LocalProvider(
     /** Films of a collection the library needs to show it; 0 hides collections. */
     private val collectionMinFilms: () -> Int = { 2 },
 ) : MediaProvider {
-    override val name: String = context.getString(R.string.source_local)
 
     override val capabilities = ProviderCapabilities(markPlayed = true, favorites = true, similar = true, pathMapping = false)
 

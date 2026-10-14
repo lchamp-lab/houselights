@@ -62,9 +62,6 @@ fun sectionTitle(section: HomeSection): String = when (section.type) {
         section.libraryKind == LibraryKind.SHOWS -> stringResource(R.string.section_latest_shows)
         else -> stringResource(R.string.section_latest_movies)
     }
-    SectionType.RECENT -> stringResource(R.string.section_recent)
-    SectionType.FAVORITES -> stringResource(R.string.section_favorites)
-    SectionType.UNWATCHED -> stringResource(R.string.section_unwatched)
 }
 
 /** A scan or connection failure, explained with what to check. */

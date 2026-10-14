@@ -9,9 +9,9 @@
     <ID>CyclomaticComplexMethod:DetailScreen.kt$@Composable fun DetailScreen( itemId: String, onPlay: (MediaItem, Boolean) -&gt; Unit, onOpenItem: (String) -&gt; Unit, onOpenNfo: (String) -&gt; Unit, onEditArtwork: (String, ArtworkKind) -&gt; Unit, onIdentify: (String) -&gt; Unit, )</ID>
     <ID>CyclomaticComplexMethod:DetailScreen.kt$@Composable private fun Hero( item: MediaItem, nextUp: MediaItem?, capabilities: ProviderCapabilities?, onPlay: (MediaItem, Boolean) -&gt; Unit, onTogglePlayed: () -&gt; Unit, onToggleFavorite: () -&gt; Unit, onOpenSeries: () -&gt; Unit, onOpenNfo: () -&gt; Unit, onShowTech: (() -&gt; Unit)?, onEdit: (() -&gt; Unit)?, modifier: Modifier, )</ID>
     <ID>CyclomaticComplexMethod:IdentifyScreen.kt$@Composable fun IdentifyScreen(itemId: String, onDone: () -&gt; Unit)</ID>
+    <ID>CyclomaticComplexMethod:JellyfinMapper.kt$JellyfinMapper$fun toMedia(dto: BaseItem): MediaItem</ID>
+    <ID>CyclomaticComplexMethod:JellyfinMapper.kt$JellyfinMapper.Companion$fun mediaInfo(item: BaseItem): MediaInfo?</ID>
     <ID>CyclomaticComplexMethod:JellyfinProvider.kt$JellyfinProvider$override suspend fun libraryPage(library: Library, sort: SortOption, filter: LibraryFilter, start: Int, limit: Int): Page</ID>
-    <ID>CyclomaticComplexMethod:JellyfinProvider.kt$JellyfinProvider$private fun toMedia(dto: BaseItem): MediaItem</ID>
-    <ID>CyclomaticComplexMethod:JellyfinProvider.kt$JellyfinProvider.Companion$fun mediaInfo(item: BaseItem): MediaInfo?</ID>
     <ID>CyclomaticComplexMethod:LibraryScanner.kt$LibraryScanner$private suspend fun collection(nfo: NfoInfo?, movie: TmdbMovie?, tmdb: TmdbClient?, now: Long, refresh: Boolean): Long?</ID>
     <ID>CyclomaticComplexMethod:LibraryScanner.kt$LibraryScanner$private suspend fun processMovie( source: SourceEntity, file: RemoteFile, existing: ItemEntity?, tmdb: TmdbClient?, sidecars: Sidecars, refreshMetadata: Boolean, )</ID>
     <ID>CyclomaticComplexMethod:LibraryScanner.kt$LibraryScanner$private suspend fun saveMovie( base: ItemEntity, nfoInfo: NfoInfo?, movie: TmdbMovie?, art: LocalArt, tmdb: TmdbClient?, now: Long, refresh: Boolean = false, )</ID>
@@ -34,7 +34,7 @@
     <ID>CyclomaticComplexMethod:TextField.kt$@Composable fun HlTextField( label: String, value: String, onValueChange: (String) -&gt; Unit, modifier: Modifier = Modifier, placeholder: String = "", password: Boolean = false, keyboardType: KeyboardType = KeyboardType.Text, imeAction: ImeAction = ImeAction.Next, onImeAction: () -&gt; Unit = {}, )</ID>
     <ID>ExplicitItLambdaParameter:HomeScreen.kt${ _, it -&gt; it.id }</ID>
     <ID>ExplicitItLambdaParameter:LibraryScreen.kt${ _, it -&gt; it.id }</ID>
-    <ID>LongMethod:JellyfinProvider.kt$JellyfinProvider.Companion$fun mediaInfo(item: BaseItem): MediaInfo?</ID>
+    <ID>LongMethod:JellyfinMapper.kt$JellyfinMapper.Companion$fun mediaInfo(item: BaseItem): MediaInfo?</ID>
     <ID>LongMethod:Nfo.kt$NfoParser$private fun parseXml(xml: String): NfoInfo?</ID>
     <ID>LongParameterList:JellyfinApi.kt$JellyfinApi$( @Query("userId") userId: String, @Query("parentId") parentId: String?, @Query("includeItemTypes") includeItemTypes: String?, @Query("recursive") recursive: Boolean, @Query("sortBy") sortBy: String, @Query("sortOrder") sortOrder: String, @Query("startIndex") startIndex: Int, @Query("limit") limit: Int, @Query("fields") fields: String, @Query("filters") filters: String? = null, @Query("genres") genres: String? = null, @Query("years") years: String? = null, @Query("is4K") is4K: Boolean? = null, )</ID>
     <ID>LongParameterList:LibraryScanner.kt$LibraryScanner$( base: ItemEntity, nfoInfo: NfoInfo?, movie: TmdbMovie?, art: LocalArt, tmdb: TmdbClient?, now: Long, refresh: Boolean = false, )</ID>
@@ -52,6 +52,7 @@
     <ID>MagicNumber:Ambient.kt$16</ID>
     <ID>MagicNumber:Ambient.kt$3</ID>
     <ID>MagicNumber:Ambient.kt$9</ID>
+    <ID>MagicNumber:ArtworkCache.kt$ArtworkCache.Companion$24</ID>
     <ID>MagicNumber:Auditorium.kt$HouseLightCue$0.05f</ID>
     <ID>MagicNumber:Auditorium.kt$HouseLightCue$0.3f</ID>
     <ID>MagicNumber:Auditorium.kt$HouseLightCue$0.4f</ID>
@@ -74,27 +75,24 @@
     <ID>MagicNumber:Format.kt$3600</ID>
     <ID>MagicNumber:Format.kt$60</ID>
     <ID>MagicNumber:Format.kt$60_000</ID>
-    <ID>MagicNumber:HouselightsApp.kt$HouselightsApp$0.25</ID>
     <ID>MagicNumber:HouselightsApp.kt$HouselightsApp$1_000_000_000L</ID>
     <ID>MagicNumber:HouselightsApp.kt$HouselightsApp$300</ID>
     <ID>MagicNumber:Icons.kt$HlIcons$24f</ID>
+    <ID>MagicNumber:JellyfinMapper.kt$JellyfinMapper$30</ID>
+    <ID>MagicNumber:JellyfinMapper.kt$JellyfinMapper$4</ID>
     <ID>MagicNumber:JellyfinProvider.kt$JellyfinProvider$16</ID>
     <ID>MagicNumber:JellyfinProvider.kt$JellyfinProvider$1920</ID>
     <ID>MagicNumber:JellyfinProvider.kt$JellyfinProvider$20</ID>
     <ID>MagicNumber:JellyfinProvider.kt$JellyfinProvider$24</ID>
-    <ID>MagicNumber:JellyfinProvider.kt$JellyfinProvider$30</ID>
-    <ID>MagicNumber:JellyfinProvider.kt$JellyfinProvider$4</ID>
     <ID>MagicNumber:JellyfinProvider.kt$JellyfinProvider$800</ID>
     <ID>MagicNumber:JellyfinProvider.kt$JellyfinProvider$9</ID>
     <ID>MagicNumber:LibraryScanner.kt$LibraryScanner$1024</ID>
-    <ID>MagicNumber:LibraryScanner.kt$LibraryScanner$20</ID>
     <ID>MagicNumber:LibraryScanner.kt$LibraryScanner$4</ID>
     <ID>MagicNumber:LibraryScanner.kt$LibraryScanner$5</ID>
     <ID>MagicNumber:LibraryScanner.kt$LibraryScanner.Companion$30</ID>
     <ID>MagicNumber:LocalEditor.kt$LocalEditor$4</ID>
     <ID>MagicNumber:LocalEditor.kt$LocalEditor$5</ID>
     <ID>MagicNumber:LocalProvider.kt$LocalProvider$10</ID>
-    <ID>MagicNumber:LocalProvider.kt$LocalProvider$16</ID>
     <ID>MagicNumber:LocalProvider.kt$LocalProvider$1920</ID>
     <ID>MagicNumber:LocalProvider.kt$LocalProvider$20</ID>
     <ID>MagicNumber:LocalProvider.kt$LocalProvider$24</ID>
@@ -142,13 +140,9 @@
     <ID>MagicNumber:PlaybackManager.kt$PlaybackManager$2_000</ID>
     <ID>MagicNumber:PlaybackManager.kt$PlaybackManager$4_000</ID>
     <ID>MagicNumber:PlaybackManager.kt$PlaybackManager$5</ID>
-    <ID>MagicNumber:RemoteBrowser.kt$1024</ID>
-    <ID>MagicNumber:RemoteBrowser.kt$20</ID>
-    <ID>MagicNumber:RemoteBrowser.kt$64</ID>
     <ID>MagicNumber:ServerDiscovery.kt$ServerDiscovery$4096</ID>
     <ID>MagicNumber:ServerDiscovery.kt$ServerDiscovery$7359</ID>
     <ID>MagicNumber:SettingsScreen.kt$100</ID>
-    <ID>MagicNumber:Sidecars.kt$ArtworkCache.Companion$24</ID>
     <ID>MagicNumber:Type.kt$HlFonts$400</ID>
     <ID>MagicNumber:Type.kt$HlFonts$500</ID>
     <ID>MagicNumber:Type.kt$HlFonts$600</ID>
@@ -173,12 +167,10 @@
     <ID>MaxLineLength:DetailViewModel.kt$DetailViewModel$DetailState(item = item, capabilities = provider.capabilities, similar = similarFilms, collection = collection, collectionFilms = saga)</ID>
     <ID>MaxLineLength:Hero.kt$Text(title, style = Hl.type.title, color = Hl.colors.content, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.alignByBaseline())</ID>
     <ID>MaxLineLength:Hero.kt$if (left &gt; 0) Text(stringResource(R.string.time_left, formatDuration(left)), style = Hl.type.caption, color = Hl.colors.contentSecondary)</ID>
-    <ID>MaxLineLength:HouselightsApp.kt$AppContainer$SourceConfig.Local -&gt; LocalProvider(app, database.dao(), LocalEditor(database.dao(), scanner, ::tmdbKey)) { settings.state.value.collectionMinFilms }</ID>
     <ID>MaxLineLength:Icons.kt$HlIcons$moveTo(4.5f, 6.5f)</ID>
-    <ID>MaxLineLength:LibraryDatabase.kt$LibraryDao$@Query("DELETE FROM items WHERE kind = 'SEASON' AND id NOT IN (SELECT parentId FROM items WHERE kind = 'EPISODE' AND parentId IS NOT NULL)")</ID>
-    <ID>MaxLineLength:LibraryDatabase.kt$LibraryDao$@Query("DELETE FROM items WHERE kind = 'SERIES' AND id NOT IN (SELECT parentId FROM items WHERE kind = 'SEASON' AND parentId IS NOT NULL)")</ID>
-    <ID>MaxLineLength:LibraryDatabase.kt$LibraryDao$@Query("SELECT * FROM items WHERE kind = :kind AND id != :excludeId AND genres LIKE '%' || :genre || '%' ORDER BY rating DESC LIMIT :limit")</ID>
-    <ID>MaxLineLength:LibraryDatabase.kt$LibraryDao$@Query("SELECT COUNT(*) FROM items WHERE sourceId = :sourceId AND filePath IS NOT NULL AND ('|' || badges || '|') LIKE '%|' || :token || '|%'")</ID>
+    <ID>MaxLineLength:LibraryDao.kt$LibraryDao$@Query("DELETE FROM items WHERE kind = 'SEASON' AND id NOT IN (SELECT parentId FROM items WHERE kind = 'EPISODE' AND parentId IS NOT NULL)")</ID>
+    <ID>MaxLineLength:LibraryDao.kt$LibraryDao$@Query("DELETE FROM items WHERE kind = 'SERIES' AND id NOT IN (SELECT parentId FROM items WHERE kind = 'SEASON' AND parentId IS NOT NULL)")</ID>
+    <ID>MaxLineLength:LibraryDao.kt$LibraryDao$@Query("SELECT COUNT(*) FROM items WHERE sourceId = :sourceId AND filePath IS NOT NULL AND ('|' || badges || '|') LIKE '%|' || :token || '|%'")</ID>
     <ID>MaxLineLength:LibraryScanner.kt$LibraryScanner$genres = nfo?.genres?.takeIf { it.isNotEmpty() }?.joinToString("|") ?: movie?.genres?.joinToString("|") { it.name } ?: base.genres</ID>
     <ID>MaxLineLength:LibraryScanner.kt$LibraryScanner$private suspend</ID>
     <ID>MaxLineLength:LibraryScanner.kt$LibraryScanner.LocalArt.Companion$fun</ID>
@@ -188,8 +180,6 @@
     <ID>MaxLineLength:LocalProvider.kt$LocalProvider$backdrop = (c.backdropPath ?: first?.let { shown(it.userBackdropPath, it.backdropPath) })?.let { image(it, ImageType.BACKDROP) }</ID>
     <ID>MaxLineLength:LocalProvider.kt$LocalProvider$if</ID>
     <ID>MaxLineLength:LocalProvider.kt$LocalProvider$val</ID>
-    <ID>MaxLineLength:LocalProvider.kt$LocalProvider$val items = dao.query(SimpleSQLiteQuery("SELECT * FROM items WHERE $where ORDER BY $order LIMIT $limit OFFSET $start", args.toTypedArray()))</ID>
-    <ID>MaxLineLength:LocalProvider.kt$LocalProvider.Companion$private fun collectionKey(id: String): Long?</ID>
     <ID>MaxLineLength:MediaProvider.kt$MediaProvider$return films.firstOrNull { it.user.positionMs &gt; 0 &amp;&amp; !it.user.played } ?: films.firstOrNull { !it.user.played } ?: films.firstOrNull()</ID>
     <ID>MaxLineLength:Menu.kt$Icon(Icons.Filled.Check, contentDescription = null, tint = if (focused) c.onFocus else c.tungsten, modifier = Modifier.size(HlSize.icon))</ID>
     <ID>MaxLineLength:Menu.kt$Row</ID>
@@ -216,7 +206,6 @@
     <ID>MaxLineLength:SettingsScreen.kt$Text(stringResource(R.string.storage_used), style = Hl.type.caption, color = c.contentSecondary, modifier = Modifier.padding(bottom = HlSpace.xxs))</ID>
     <ID>MaxLineLength:SettingsScreen.kt$st?.let { if (it.artworkFiles == 0) stringResource(R.string.storage_none) else pluralStringResource(R.plurals.file_count, it.artworkFiles, it.artworkFiles) + FACT_GAP + formatBytes(it.artworkBytes) } ?: dash</ID>
     <ID>MaxLineLength:Sidecars.kt$Sidecars$fanart = pick(IMAGES.map { "-fanart.$it" } + IMAGES.map { "-backdrop.$it" }, IMAGES.flatMap { listOf("fanart.$it", "backdrop.$it") })</ID>
-    <ID>MaxLineLength:Sidecars.kt$Sidecars$find(showDir, IMAGES.map { "season%02d-poster.$it".format(season) } + if (season == 0) IMAGES.map { "season-specials-poster.$it" } else emptyList())</ID>
     <ID>MaxLineLength:Sidecars.kt$Sidecars$poster = pick(IMAGES.map { "-poster.$it" } + listOf(".tbn"), IMAGES.flatMap { listOf("poster.$it", "folder.$it", "cover.$it") })</ID>
     <ID>MaxLineLength:TechSpecs.kt$Fact(stringResource(R.string.tech_bitrate), stringResource(R.string.mbps, String.format(Locale.getDefault(), "%.1f", kbps / 1000.0)))</ID>
     <ID>MaxLineLength:TechSpecs.kt$Text(language, style = Hl.type.meta, color = c.content, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.width(HlLayout.specLanguage))</ID>
@@ -241,10 +230,8 @@
     <ID>ReturnCount:MediaProbe.kt$MediaProbe$suspend fun probe(source: SourceEntity, file: RemoteFile): MediaInfo</ID>
     <ID>ReturnCount:MkvProbe.kt$MkvProbe$fun probe(bytes: ByteArray): Result</ID>
     <ID>ReturnCount:PathResolver.kt$PathResolver$fun resolve(serverPath: String?, mappings: List&lt;PathMapping&gt;): String?</ID>
-    <ID>SwallowedException:MainActivity.kt$MainActivity$e: ActivityNotFoundException</ID>
     <ID>ThrowingExceptionsWithoutMessageOrCause:MkvProbe.kt$MkvProbe.Reader$IndexOutOfBoundsException()</ID>
     <ID>TooManyFunctions:JellyfinApi.kt$JellyfinApi</ID>
-    <ID>TooManyFunctions:LibraryDatabase.kt$LibraryDao</ID>
     <ID>TooManyFunctions:MediaProvider.kt$MediaProvider</ID>
   </CurrentIssues>
 </SmellBaseline>
