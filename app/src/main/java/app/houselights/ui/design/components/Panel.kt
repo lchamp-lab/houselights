@@ -205,26 +205,35 @@ fun HlEmptyState(
 /** The state of something the app depends on; [Attention] when something went wrong with it. */
 enum class StatusState { On, Off, Pending, Attention }
 
-/** A state in words with its light: a tungsten dot when on or calling for attention, an empty one when off. */
+/**
+ * A state in words with its light: a tungsten dot when on or calling for attention, an empty one
+ * when off. [detail] says why, under the words and aligned with them.
+ */
 @Composable
-fun HlStatus(state: StatusState, text: String, modifier: Modifier = Modifier) {
+fun HlStatus(state: StatusState, text: String, modifier: Modifier = Modifier, detail: String? = null) {
     val c = Hl.colors
-    Row(modifier, verticalAlignment = Alignment.CenterVertically) {
-        Box(
-            Modifier
-                .size(HlSize.dot)
-                .clip(HlShapes.avatar)
-                .then(
-                    when (state) {
-                        StatusState.On, StatusState.Attention -> Modifier.background(c.tungsten)
-                        StatusState.Pending -> Modifier.background(c.contentDecorative)
-                        StatusState.Off -> Modifier.border(HlSize.hairline, c.contentTertiary, HlShapes.avatar)
-                    }
-                )
-        )
-        Spacer(Modifier.width(HlSpace.xs))
-        val strong = state == StatusState.On || state == StatusState.Attention
-        Text(text, style = Hl.type.meta, color = if (strong) c.content else c.contentSecondary)
+    Column(modifier) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                Modifier
+                    .size(HlSize.dot)
+                    .clip(HlShapes.avatar)
+                    .then(
+                        when (state) {
+                            StatusState.On, StatusState.Attention -> Modifier.background(c.tungsten)
+                            StatusState.Pending -> Modifier.background(c.contentDecorative)
+                            StatusState.Off -> Modifier.border(HlSize.hairline, c.contentTertiary, HlShapes.avatar)
+                        }
+                    )
+            )
+            Spacer(Modifier.width(HlSpace.xs))
+            val strong = state == StatusState.On || state == StatusState.Attention
+            Text(text, style = Hl.type.meta, color = if (strong) c.content else c.contentSecondary)
+        }
+        if (detail != null) {
+            Spacer(Modifier.height(HlSpace.xxs))
+            Text(detail, style = Hl.type.detail, color = c.contentSecondary, modifier = Modifier.padding(start = HlSize.dot + HlSpace.xs))
+        }
     }
 }
 

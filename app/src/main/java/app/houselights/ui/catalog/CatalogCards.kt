@@ -345,6 +345,14 @@ private fun Results() {
         }
     }
     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Top) {
+        StateCaption("being matched", Modifier.weight(1f)) {
+            HlResultItem(poster, "Le Samouraï", listOf("1967", null), SAMURAI_OVERVIEW, {}, busy = "Association…")
+        }
+        StateCaption("being matched, the current one", Modifier.weight(1f)) {
+            HlResultItem(poster, "Le Samouraï", listOf("1967", null), SAMURAI_OVERVIEW, {}, mark = "Actuel", busy = "Association…")
+        }
+    }
+    Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Top) {
         StateCaption("no poster, no overview", Modifier.weight(1f)) {
             HlResultItem(null, "Samouraï", listOf("2002", null), null, {})
         }

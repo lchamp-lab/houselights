@@ -263,7 +263,7 @@
     <string name="search">Rechercher</string>
     <string name="search_placeholder">Titre, ou identifiant IMDb (tt…)</string>
     <string name="searching">Recherche…</string>
-    <string name="identifying">Association en cours…</string>
+    <string name="identifying">Association…</string>
     <string name="search_empty">Aucun résultat. Essayez un autre titre, sans l’année, ou un identifiant IMDb (tt…).</string>
     <plurals name="result_count">
         <item quantity="one">%d résultat</item>

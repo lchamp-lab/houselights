@@ -85,7 +85,6 @@ import app.houselights.ui.design.components.rememberAmbientColor
 import app.houselights.ui.edit.EditMenu
 import app.houselights.ui.home.ErrorMessage
 import app.houselights.ui.util.ReloadOnLibraryChange
-import app.houselights.ui.util.UiError
 import app.houselights.ui.util.appContainer
 import app.houselights.ui.util.FACT_GAP
 import app.houselights.ui.util.formatDuration
@@ -361,17 +360,14 @@ private fun Hero(
         }
         // Why the last title asked for did not play, under the actions that asked for it.
         val problem by appContainer().playback.playbackProblem.collectAsStateWithLifecycle()
-        problem?.let { PlaybackProblem(it, Modifier.padding(top = HlSpace.l)) }
-    }
-}
-
-/** A title did not play: the attention light, then the reason. */
-@Composable
-private fun PlaybackProblem(error: UiError, modifier: Modifier = Modifier) {
-    Column(modifier.widthIn(max = HlLayout.readableNarrow)) {
-        HlStatus(StatusState.Attention, stringResource(R.string.play_failed))
-        Spacer(Modifier.height(HlSpace.xxs))
-        Text(stringResource(error.message), style = Hl.type.detail, color = Hl.colors.contentSecondary)
+        problem?.let {
+            HlStatus(
+                StatusState.Attention,
+                stringResource(R.string.play_failed),
+                Modifier.padding(top = HlSpace.l).widthIn(max = HlLayout.readableNarrow),
+                detail = stringResource(it.message),
+            )
+        }
     }
 }
 

@@ -144,7 +144,7 @@ fun CatalogScreen() {
                         HlStatus(StatusState.On, "Online")
                         HlStatus(StatusState.Pending, "Testing")
                         HlStatus(StatusState.Off, "Offline")
-                        HlStatus(StatusState.Attention, "Can’t play")
+                        HlStatus(StatusState.Attention, "Can’t play", detail = "The Zidoo player isn’t installed.")
                     }
                     Column(Modifier.widthIn(max = HlLayout.readable), verticalArrangement = Arrangement.spacedBy(HlSpace.xs)) {
                         HlMeter(listOf(MeterSegment(0.3f, c.content), MeterSegment(0.1f, c.tungsten), MeterSegment(0.05f, c.contentSecondary)))
