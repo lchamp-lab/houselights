@@ -2,11 +2,10 @@ package app.houselights.ui.settings
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -19,38 +18,46 @@ import androidx.compose.ui.res.stringResource
 import androidx.tv.material3.Text
 import android.view.Display
 import app.houselights.R
+import app.houselights.core.Definition
 import app.houselights.settings.AppSettings
 import app.houselights.settings.DisplayModes
 import app.houselights.settings.OutputControl
 import app.houselights.settings.outputModes
 import app.houselights.ui.design.Hl
+import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlSpace
-import app.houselights.ui.design.components.Badge
 import app.houselights.ui.design.components.ChoiceOption
 import app.houselights.ui.design.components.HlChoiceSheet
 import app.houselights.ui.design.components.HlSettingGroup
 import app.houselights.ui.design.components.HlSettingRow
+import app.houselights.ui.design.components.InfoBlock
+import app.houselights.ui.design.components.SpecTable
+import app.houselights.ui.design.components.SpecTableRow
 import app.houselights.ui.util.FACT_GAP
+import app.houselights.ui.util.NBSP
 import app.houselights.ui.util.formatDimensions
 import kotlin.math.abs
 import kotlin.math.roundToInt
-import app.houselights.ui.util.NBSP
 
 /**
- * What the screen receives, as far as the app can know it. Where the player sets its own output
- * (the Zidoo), the pane says so and where to change it, and shows no mode the system makes up.
+ * What the screen receives, as far as the app can know it, set like the back of a case: the output
+ * in service, the size the interface is drawn at, the modes the display lists with the dot on the
+ * one in service; then, where the interface can ask for Ultra HD, the row that does. Where the
+ * player sets its own output (the Zidoo), the pane says so and where to change it, and shows no
+ * mode the system makes up.
  */
 internal fun LazyListScope.displayPane(s: AppSettings) {
     item {
         val control = outputControl()
         Section(stringResource(R.string.section_display)) {
-            when (control) {
-                OutputControl.Player -> PlayerOutput()
-                OutputControl.System -> CurrentOutput()
-                OutputControl.Ui4k -> Column(verticalArrangement = Arrangement.spacedBy(HlSpace.l)) {
-                    InterfaceResolution(s)
-                    CurrentOutput()
+            Column(verticalArrangement = Arrangement.spacedBy(HlSpace.l)) {
+                when (control) {
+                    OutputControl.Player -> PlayerOutput()
+                    OutputControl.System, OutputControl.Ui4k -> SystemOutput()
                 }
+                RenderBlock()
+                if (control != OutputControl.Player) ModesBlock()
+                if (control == OutputControl.Ui4k) InterfaceResolution(s)
             }
         }
     }
@@ -73,7 +80,7 @@ private fun outputControl(): OutputControl {
     return remember(display) { DisplayModes.control(display?.outputModes().orEmpty()) }
 }
 
-/** "4K 60 Hz" or the system's mode: offered only where the system lists 4K at 60 Hz. */
+/** "Ultra HD 60 Hz" or the system's mode: offered only where the system lists Ultra HD at 60 Hz. */
 @Composable
 private fun InterfaceResolution(s: AppSettings) {
     val vm = settingsViewModel()
@@ -102,38 +109,39 @@ private fun InterfaceResolution(s: AppSettings) {
 }
 
 /**
- * The player sets its output in its own settings and scales the interface to it: who sets it,
- * where, and the size the interface is drawn at. No mode and no rate: those listed are stand-ins.
+ * The player sets its output in its own settings and scales the interface to it: who sets it, and
+ * where. No mode and no rate: those listed are stand-ins.
  */
 @Composable
 private fun PlayerOutput() {
-    HlSettingGroup(null) {
-        HlSettingRow(stringResource(R.string.label_hdmi), value = stringResource(R.string.output_by_player))
-        RenderRow()
-        Hint(stringResource(R.string.output_by_player_hint), Modifier.padding(horizontal = HlSpace.l))
+    InfoBlock(stringResource(R.string.current_output)) {
+        Column {
+            Text(stringResource(R.string.output_by_player), style = Hl.type.meta, color = Hl.colors.content)
+            Spacer(Modifier.height(HlSpace.xs))
+            Hint(stringResource(R.string.output_by_player_hint))
+        }
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
+/** The mode in service: its definition and rate in the technical voice, its frame size beside them. */
 @Composable
-private fun CurrentOutput() {
-    val view = LocalView.current
-    val display: Display = view.display ?: return
-    val mode = display.mode
-    val modes = display.supportedModes
-        .sortedWith(compareByDescending<Display.Mode> { it.physicalWidth }.thenByDescending { it.refreshRate })
-        .map { "${it.physicalHeight}p${hz(it.refreshRate)}" }
-        .distinct()
-    HlSettingGroup(stringResource(R.string.current_output)) {
-        val output = "${mode.physicalHeight}p$FACT_GAP${hz(mode.refreshRate)}${NBSP}Hz"
-        HlSettingRow(stringResource(R.string.label_hdmi), value = output)
-        RenderRow()
-        Column(Modifier.padding(horizontal = HlSpace.l, vertical = HlSpace.s)) {
-            Text(stringResource(R.string.label_modes), style = Hl.type.entry, color = Hl.colors.content)
-            Spacer(Modifier.height(HlSpace.s))
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(HlSpace.xs), verticalArrangement = Arrangement.spacedBy(HlSpace.xs)) {
-                modes.forEach { Badge(it) }
-            }
+private fun SystemOutput() {
+    val mode = LocalView.current.display?.mode ?: return
+    InfoBlock(stringResource(R.string.current_output)) {
+        Row {
+            Text(
+                "${definition(mode.physicalWidth, mode.physicalHeight)} ${hz(mode.refreshRate)}${NBSP}Hz",
+                style = Hl.type.spec,
+                color = Hl.colors.content,
+                modifier = Modifier.alignByBaseline(),
+            )
+            Spacer(Modifier.width(HlSpace.fact))
+            Text(
+                formatDimensions(mode.physicalWidth, mode.physicalHeight),
+                style = Hl.type.meta,
+                color = Hl.colors.contentSecondary,
+                modifier = Modifier.alignByBaseline(),
+            )
         }
     }
 }
@@ -143,10 +151,42 @@ private fun CurrentOutput() {
  * screen is laid out on the same canvas, whatever it says.
  */
 @Composable
-private fun RenderRow() {
+private fun RenderBlock() {
     val view = LocalView.current
-    HlSettingRow(stringResource(R.string.label_render), value = formatDimensions(view.rootView.width, view.rootView.height))
+    InfoBlock(stringResource(R.string.label_render)) {
+        Text(formatDimensions(view.rootView.width, view.rootView.height), style = Hl.type.meta, color = Hl.colors.content)
+    }
 }
+
+/**
+ * The modes the display lists, one row per frame size with the rates it comes in, largest first;
+ * the dot on the size in service. One row per size keeps a long list of rates to a few lines.
+ */
+@Composable
+private fun ModesBlock() {
+    val display: Display = LocalView.current.display ?: return
+    val current = display.mode
+    val rows = display.supportedModes
+        .groupBy { it.physicalWidth to it.physicalHeight }
+        .entries
+        .sortedByDescending { (size, _) -> size.first * size.second }
+        .map { (size, modes) ->
+            SpecTableRow(
+                name = definition(size.first, size.second),
+                values = listOf(
+                    formatDimensions(size.first, size.second),
+                    modes.map { it.refreshRate }.distinctBy(::hz).sorted().joinToString(FACT_GAP, transform = ::hz) + "${NBSP}Hz",
+                ),
+                inUse = size.first == current.physicalWidth && size.second == current.physicalHeight,
+            )
+        }
+    InfoBlock(stringResource(R.string.label_modes)) {
+        SpecTable(rows, columns = listOf(HlLayout.specFormat))
+    }
+}
+
+/** A frame size by the name on a Blu-ray case ("Ultra HD", "Full HD"), else by its lines ("576p"). */
+private fun definition(width: Int, height: Int): String = Definition.of(width)?.label ?: "${height}p"
 
 /** "60", or "59,94" for a fractional rate (written in the device's language). */
 private fun hz(hz: Float): String =

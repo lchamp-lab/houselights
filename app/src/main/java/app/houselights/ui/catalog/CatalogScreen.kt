@@ -118,6 +118,8 @@ fun CatalogScreen() {
                 }
             }
 
+            // The three gestures of the small surfaces, side by side, before the components that use them.
+            catalogGestures()
             catalogIcons()
 
             item {
@@ -191,16 +193,16 @@ fun CatalogScreen() {
                     HlListItem("List item", "Its description", {}, icon = HlIcons.Folder)
                     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.xl)) {
                         HlEmptyState(
-                            "What happened, and what to do about it.",
+                            "Empty or error state",
                             Modifier.weight(1f),
-                            title = "Empty or error state",
+                            message = "What happened, and what to do about it.",
                             action = "Try again",
                             secondaryAction = "Look closer",
                         )
                         HlEmptyState(
-                            "Nothing fixes it here: Back is the way out.",
+                            "No action",
                             Modifier.weight(1f),
-                            title = "No action",
+                            message = "Nothing fixes it here: Back is the way out.",
                             backHint = true,
                         )
                     }

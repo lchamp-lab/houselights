@@ -61,6 +61,29 @@ tungsten that is not a state. It appears twice: large on the welcome screen, whe
 of posters is the bold element, and at the size of a subject in About. The settings do not sign
 their column with it.
 
+## Gestures: the small surfaces
+
+The large surfaces carry the identity (the detail page, the billing block, the technical sheet).
+The small ones (a settings pane, a message, a scan going on) borrow **one** gesture from film
+materials, never two, and invent nothing. The catalogue shows the three side by side.
+
+- **The back of a case (A): what reads.** A state, a measure, a format is an `InfoBlock`: a
+  hairline, its name in `caption`, then what it says. Formats speak the technical voice ("Ultra HD
+  60 Hz"); sizes, counts and frame sizes stay in `meta`, tabular, as on the technical sheet. Pairs
+  are a `DefinitionList` (a state with its light goes in a `DefinitionRow`); several of a kind are a
+  `SpecTable`, the tungsten dot on the one in service. A block is flush with the title above it:
+  only what acts is a row, in its well. Affichage, Stockage's legend, À propos, a Jellyfin server.
+- **The intertitle (B): every message.** As in a silent film, and like the one-sheet of a title
+  without artwork: a short rule, one line in the voice of the poster (`subject`), one line to read
+  (`body`, secondary, `readableNarrow`), at most one action and a quieter one. A tungsten rule says
+  attention: a failure, a question that cannot be undone. It takes the place of what the screen
+  would show, from the top of that place, on the screen's margin: never centred, never a snackbar,
+  a Toast or a dialog. `HlEmptyState` for a screen, `SheetConfirm` in a sheet.
+- **The counter (C): what moves on.** The tungsten line, the count at its end in tabular figures
+  ("3 / 9", one string, `scan_progress`), the file being read in a quiet `detail` line
+  (`ScanProgress`). A duration reads "2 h 02", time left "Il reste 20 min"; a timecode only names a
+  frame of the film, never a button.
+
 ## Tokens
 
 ### Colour (`Color.kt`)
@@ -156,9 +179,9 @@ own face.
 | `display` | 64 / 72 | title of a detail page without logo |
 | `headline` | 44 / 48 | screen titles, home hero title without logo |
 | `figure` | 32 / 36 | a figure that states something (storage used) |
-| `subject` | 32 / 36 | what a panel or a sheet is about ("Modifier", "Fiche technique") |
+| `subject` | 32 / 36 | what a panel, a sheet or a settings pane is about ("Modifier", "Fiche technique", "Affichage"); the line of an intertitle |
 | `cardTitle` | 20 / 24 | a title set on a card without artwork, like a plain one-sheet |
-| `title` | 24 / 30 | pane and dialog titles, taglines |
+| `title` | 24 / 30 | taglines, an episode's name in its heading |
 | `lead` | 20 / 26 | row headers, names of cards and results, episode names |
 | `spec` | 20 / 26 | headline of a technical sheet |
 | `billing` / `billingJoin` | 18 and 14 / 24 | the billing block, capitals with case-sensitive forms |
@@ -190,7 +213,7 @@ that grows with the text.
 | `HlSpace` | 4 dp grid: `xxs` 4, `xs` 8, `s` 12, `m` 16, `l` 24, `xl` 32, `xxl` 48; `xxs` between a name and the line under it; `fact` 20 between facts; `safeH` 48 / `safeV` 28; `fadeEdge` 24, how far what scrolls fades at an edge |
 | `HlInset` | inner padding of containers, by what they hold: `tight` 8 (menus, results with a thumbnail), `compact` 12 (dense rows), `card` 24 (panels, cards), `sheet` 32 (sheets) |
 | `HlShapes` | radius follows hierarchy: `badge` 3, `artwork` 4, `field` 6, `row` 8 (rows that can be chosen), `panel` 12, `sheet` 16 (sheets and menus), `control` pill, `avatar` circle. A shape set close inside another keeps their corners parallel: **outer radius = inner radius + gap** (a menu: 8 + 8 = 16; a result: 4 + 8 = 12) |
-| `HlSize` | artwork (poster 112, landscape 220, episode 264, avatar 76 in a column of 120, thumbnails), `control` 48 for every button, icons 20, discs 52, marks 20, dots 8, setting rows 64, previews in a row (48 tall, a slot of 84), meter 10, the short rules of a loading title (48, 24), the short rule heading a question (`intertitleRule`, 24 by 2) |
+| `HlSize` | artwork (poster 112, landscape 220, episode 264, avatar 76 in a column of 120, thumbnails), `control` 48 for every button, icons 20, discs 52, marks 20, dots 8, setting rows 64, previews in a row (48 tall, a slot of 84), meter 10, the short rules of a loading title (48, 24), the short rule heading an intertitle (`intertitleRule`, 24 by 2) |
 | `HlLayout` | measures of layout parts: reading widths (640, 520), the left veil's fade past them (240), side columns (280, 340), pane top 72, the reading sheet (864) and the side sheet (520), title art, hero, info line, track table columns, the label of a round button (160 wide at most, 28 of room under its row) |
 | `HlControl` | inner padding of buttons and track options, badges; the gap between an icon and its text (8) |
 | `HlFocus` | focus scale by family (artwork 1.10, cards 1.06, pills and discs 1.04, panels 1.02, rows 1), `reach(size, scale)`: how far a focused element reaches past its ends, the room its container keeps; `ring` 5, how far a focus ring stands outside; siblings stepping back (dim 0.3, colour kept 0.3, in `RECEDE_STEPS` 3), ambient glow 18 dp, `edge` 28 (`safeV`): how far a list keeps focus from its ends |
@@ -227,7 +250,7 @@ without the prefix (`MenuOption`, `MeterLegend`, `PosterCard`, `BillingBlock`, `
 | `HlPanel` (`Quiet`, `Raised`, `lit`), `HlPanelButton` | the one panel recipe, and its focusable form (not `enabled`: a faint well, what it draws in `LocalContentColor` goes tertiary) |
 | `HlIconDisc`, `HlDivider`, `HlStatus`, `AttentionNote`, `HlMeter`, `MeterLegend` | an icon in a disc (lit when what it stands for is on, never for focus), a hairline, a state with its light (tungsten when on or calling for attention) and why, under it; what needs attention beside what it concerns (a folder that could not be read), the light by its first line and the words in tungsten, as under a field; a segmented gauge, its parts inked by rank (`MeterInk`: white, then the two greys of reading), a gap apart, never tungsten |
 | `HlListItem`, `HlResultItem`, `PosterThumb` | choices in a list (icon in line with the name, white with focus, what the choice brings in badges under a hairline, a chevron on focus); a search result with its poster, the one in use edged in tungsten and saying so with a light ("Actuel"), which says "Association…" in its place while it is being chosen: the results stay, and so does focus |
-| `HlNavItem`, `HlSettingGroup`, `HlSettingRow` | settings: navigation entries with what they are set to, the current one on a faint fill, white as the current option of a track; rows with their value, leading somewhere or stating it; a row not `enabled` stays on the room (see *Contrast*) |
+| `HlNavItem`, `HlSettingGroup`, `HlSettingRow` | settings: navigation entries with what they are set to, the current one on a faint fill, white as the current option of a track; rows with their value, leading somewhere or stating it; a row not `enabled` stays on the room (see *Contrast*) A pane is titled in the voice of the poster, like a sheet; what a pane only states (an output, a server, a status) is a block flush with that title, not a row (see *Gestures*) |
 | `HlSideSheet`, `SheetScope`, `RowPreview`, `SheetConfirm` | acting on what a screen shows, beside it: a panel against the right edge (see *Sheets*), where it stands in its header (`status`); rows can lead with a preview of the image they change; an action that cannot be undone asks first, in the sheet |
 | `HlChoiceSheet` | the choices of a setting, in a side sheet: the current one checked in tungsten and focused, choosing applies and closes, Back changes nothing |
 | `HlMenuButton`, `MenuSection`, `MenuOption` | a button opening a sectioned menu anchored to its end edge (sort, filters): below it when the room down to the safe area holds the menu, else above; never past the safe area, a longer menu scrolls inside, its options fading at an edge with more. It moves like a sheet, growing from the button's corner and leaving the same way; a sort applies once the menu has gone, so the wall reorders on its own. The button names what it does and its detail what is set: "Trier", "Titre"; the options say the order ("Titre, de A à Z") |
@@ -235,10 +258,12 @@ without the prefix (`MenuOption`, `MeterLegend`, `PosterCard`, `BillingBlock`, `
 | `HlTwoPane`, `HlFormScaffold`, `StatusPanel`, `FieldLabel` | two-pane screens: navigation or explanation on the left, content on the right; given the content's scroll `state`, the content fades into the room at an edge with more. `StatusPanel` is where a setup stands, beside its form: its state with its light first, then what is set up, large (an address in the technical voice), its path and kind, and what was found under a hairline; lit while the state is on |
 | `HlTextField` | TV text field: focusable box first, keyboard on OK; focused and waiting, it says so at its end ("OK saisir", `KeyHint`); tungsten while typing, and only then. Every field has a name, read out even when the screen hides it because its sheet already names it. One line under it: what to type (`supporting`), or what is wrong (`error`), in tungsten after the attention light, its edge unchanged. A placeholder is an example, from the resources ("Ex. : 192.168.1.10"). A setting typed in a field is saved when the field is left (its keyboard action, or focus moving on), never while typing, and its result line then says "Enregistré". Once the keyboard is closed, up or down end typing and move on (Back closes it without telling the app) |
 | `HlScrollArea` | long content read with the remote; focusable only when it has something to scroll; a key held down scrolls in one motion. Framed on a quiet panel, or unframed inside a sheet: square edges, so a hairline at its top stays whole, and the focus ring outside the content. Where there is more, the text fades into what the area sits on (`surface`: the panel, or the sheet) |
-| `TechSpecs`, `InfoBlock`, `DefinitionList` | the technical sheet, set like the back of a Blu-ray case: one block per subject (a hairline, its name, what it says), every track listed; it does not scroll itself, the sheet scrolls it whole. The NFO is laid out the same way |
+| `TechSpecs`, `InfoBlock`, `DefinitionList`, `DefinitionRow`, `SpecTable` | the technical sheet, set like the back of a Blu-ray case: one block per subject (a hairline, its name, what it says), every track listed; it does not scroll itself, the sheet scrolls it whole. The NFO and the settings that only state something are laid out the same way (see *Gestures*): pairs on one baseline, a value that is not text (a state and its light, a logo) in a `DefinitionRow`, rows of a kind in a `SpecTable` with aligned columns and the dot on the one in service |
 | `ArtworkChoiceCard`, `SelectedMark` | one artwork to choose from, at the shape it is used in; the one in use carries the check of your choice, the watched mark in tungsten. A backdrop or a logo is previewed on the page behind; a poster is its own preview, so its picker keeps no room for one and its choices come larger (`posterChoice`, 180 dp), right under the header |
-| `HlEmptyState` | what happened and what to do, with the action focused; a quieter way out beside it; with no action, the Back hint. An error (`UiError`) brings its own title, message and action (`ErrorAction`): try again on the spot, sign in again, add or change the TMDB key; a title that has gone has none, Back is the way out |
+| `HlEmptyState` | the intertitle of a screen with nothing to show or that could not load: a short rule (tungsten for `attention`), what happened in the voice of the poster, what to check, the action focused and a quieter way out beside it; with no action, the Back hint. An error (`UiError`, through `ErrorIntertitle` and `ErrorMessage`) brings its own title, message and action (`ErrorAction`), always with attention: try again on the spot, sign in again, add or change the TMDB key; a title that has gone has none, Back is the way out |
+| `ScanProgress` | a scan going on: what is read (`subject`, the first scan on home), the tungsten line and its count "3 / 9", the file being read; without a name, one line, the file after the count (a folder's card). Until the files are counted, a sliver and no count |
 | `PosterWall`, `PosterWallScrim`, `HouseLights`, `CardSkeleton`, `HeroSkeleton`, `ProgressLine` | welcome wall, playback cue, loading and progress (on a plate at the foot of a card, `onArtwork`; on a light track beside text). A placeholder has the footprint of what is coming (a wall of empty frames, two short rules where a title and its facts go), never a shimmer; outside home, it waits `SKELETON_DELAY`, so a quick load shows nothing (`skeletonDelayPassed`) |
+| `PosterStrip` | the latest posters of a folder side by side, at the head of its card (edge to edge, parted by hairlines) and of its sheet (small, spaced): a fixed number of places, the free ones empty frames, so every strip keeps one rhythm; with no poster yet, the folder's name set across it like a one-sheet |
 
 ## Cards
 
@@ -256,8 +281,11 @@ rest, sparingly:
 - **Without artwork**, or when it fails to load (a NAS asleep, a file gone), the title is set like a
   one-sheet: a short rule, the name in `cardTitle`, the year in the technical voice. `ArtworkImage`
   takes that fallback and shows it in place of a failed image, so a wall is never a row of blanks.
-  A small picture with no title to set (`PosterThumb`, `RowPreview`, a folder's cover) is an empty
-  frame instead: the room, edged by a `contentDecorative` hairline, never a grey box.
+  A picture with no title to set (`PosterThumb`, `RowPreview`, the free places of a `PosterStrip`)
+  is an **empty frame** instead, and so is a card still loading (`CardSkeleton`): the room, edged
+  like artwork at rest (`ARTWORK_EDGE`), with the one-sheet's short rule at its foot in
+  `contentDecorative`, waiting for a title (a frame too small for the rule keeps its edge alone).
+  Never a grey box, which reads as broken.
 - **An episode** reads as a number in tabular figures, its name, then its length and where it stands.
 - **A person** has a name two lines tall, even a short one, so the roles of a cast row line up.
 - **Stepping back**, the image loses colour through its own filter (`ArtworkImage`): no layer is drawn
@@ -377,8 +405,9 @@ A message goes where the action was, in the app's voice: no Toast (a test forbid
 no dialog. A title that does not play says so under the actions that asked for it: the attention
 light (`HlStatus`, `Attention`), "Lecture impossible", then the reason as a `detail` line; the next
 action or the next screen takes it away. A screen that could not load says what happened in place
-of what it would show (`HlEmptyState`), with what fixes it. Raw exception text never reaches the
-screen: it goes to the log.
+of what it would show, as an intertitle (`HlEmptyState`, see *Gestures*), with what fixes it; so
+does a screen with nothing to show yet, with the verb that fills it. Raw exception text never
+reaches the screen: it goes to the log.
 
 ## Writing
 
@@ -434,7 +463,8 @@ Debug builds show **Settings > About > Design system**: every token and componen
 review changes on a real screen. Each component is laid out as a row of its states (at rest, chosen,
 lit, loading, failed, empty), each named underneath; focus is checked live with the remote. The
 catalogue shows components as they are, defects included: that is how they are seen. Its sections
-live in `ui/catalog` (`CatalogScreen` for tokens, controls and sheets; `CatalogIcons` for every glyph,
+live in `ui/catalog` (`CatalogScreen` for tokens, controls and sheets; `CatalogGestures` for the three
+gestures, side by side then at the width screens give them; `CatalogIcons` for every glyph,
 the marks of done and your choice, and what tungsten never says; `CatalogForms`, `CatalogCards`,
 `CatalogReading`; `CatalogStress` for the longest French labels, the fullest rows, the home hero at
 the largest text size, the scripts Archivo lacks and a line on the device: size in dp, density, text

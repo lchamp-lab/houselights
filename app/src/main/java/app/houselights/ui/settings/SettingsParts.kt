@@ -28,14 +28,15 @@ import app.houselights.ui.design.focusKey
 import app.houselights.ui.design.revealOnFocus
 
 /**
- * First group of a pane: the space aligning it with the navigation, its title and first
- * settings, revealed together so going back up always shows the title.
+ * First group of a pane: the space aligning it with the navigation, its title, in the voice of the
+ * poster like the subject of a sheet, and its first settings, revealed together so going back up
+ * always shows the title.
  */
 @Composable
 internal fun Section(title: String, content: @Composable () -> Unit) {
     Column(Modifier.revealOnFocus()) {
         Spacer(Modifier.height(HlLayout.paneTop))
-        Text(title, style = Hl.type.title, color = Hl.colors.content)
+        Text(title, style = Hl.type.subject, color = Hl.colors.content)
         Spacer(Modifier.height(HlSpace.l))
         content()
     }
