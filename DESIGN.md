@@ -284,6 +284,13 @@ moves to a neighbour, else to the action that adds one ("Ajouter un dossier").
    (`keepChildFocus`); never `focusRestorer`, which turns a request for one child into its own.
 5. On screen: open something, come back, focus is on it, in its row, with the pane still open.
 
+**Back** goes in two steps (`BackToStart`). Deep in a screen, it first brings focus back to where
+the screen starts; from there, it leaves. Home: below the first row, Back goes up to the tabs, and
+the next one quits, with no "press again". A wall: past its first line, Back returns to the first
+poster, then home. Settings: from the pane, Back returns to its entry, then leaves. A detail page
+scrolled down: Back returns to the actions, then leaves. Sheets and menus are windows of their own
+and keep their Back; while the lights go down, Back brings them up.
+
 ## Messages
 
 A message goes where the action was, in the app's voice: no Toast (a test forbids it), no snackbar,

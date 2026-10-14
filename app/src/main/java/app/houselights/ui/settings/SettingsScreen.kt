@@ -15,6 +15,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -32,6 +33,7 @@ import app.houselights.ui.design.components.HlTwoPane
 import app.houselights.ui.design.components.ScreenTitle
 import app.houselights.ui.design.components.Wordmark
 import app.houselights.ui.design.keepVerticalFocus
+import app.houselights.ui.design.BackToStart
 import app.houselights.ui.design.FocusKey
 import app.houselights.ui.design.RestoreFocus
 import app.houselights.ui.design.focusKey
@@ -67,6 +69,9 @@ fun SettingsScreen(
     // Each arrival puts focus back on the row that opened another screen, else on the entry of the
     // pane open: the pane stays as it was left.
     RestoreFocus(memory, fallback = memory.requester(paneKey(pane.takeIf { it in panes } ?: panes.first())))
+    // From the pane on the right, Back returns to its entry; from the entries, it leaves.
+    var inPane by remember { mutableStateOf(false) }
+    BackToStart(away = inPane) { memory.focus(paneKey(pane)) }
     val storage by vm.storage.collectAsStateWithLifecycle()
     val titles by vm.library.titleCount.collectAsStateWithLifecycle(0)
 
@@ -92,7 +97,7 @@ fun SettingsScreen(
         },
     ) {
         val rows = remember(pane) { PaneRows(memory, pane.name) }
-        PaneContent(pane, s, storage, onAddFolder, onUseFolders, onSignIn, onOpenCatalog, rows)
+        PaneContent(pane, s, storage, onAddFolder, onUseFolders, onSignIn, onOpenCatalog, rows, onFocusIn = { inPane = it })
     }
 }
 
@@ -123,9 +128,10 @@ private fun PaneContent(
     onSignIn: () -> Unit,
     onOpenCatalog: () -> Unit,
     rows: PaneRows,
+    onFocusIn: (Boolean) -> Unit,
 ) {
     LazyColumn(
-        modifier = Modifier.fillMaxSize().keepVerticalFocus().keepChildFocus(),
+        modifier = Modifier.fillMaxSize().onFocusChanged { onFocusIn(it.hasFocus) }.keepVerticalFocus().keepChildFocus(),
         contentPadding = PaddingValues(bottom = HlFocus.edge, end = HlSpace.m),
         verticalArrangement = Arrangement.spacedBy(HlSpace.l),
     ) {

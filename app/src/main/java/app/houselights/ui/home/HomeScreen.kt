@@ -43,6 +43,7 @@ import app.houselights.ui.design.components.HlEmptyState
 import app.houselights.ui.design.HlFocus
 import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.ListScroll
+import app.houselights.ui.design.BackToStart
 import app.houselights.ui.design.FocusKey
 import app.houselights.ui.design.FocusMemory
 import app.houselights.ui.design.RestoreFocus
@@ -120,6 +121,12 @@ fun HomeScreen(
         if (index != null) rows.scrollToItem(index)
         index != null
     }
+    // Below the first row, Back goes up to the tabs; from the first row or the tabs, it leaves.
+    var focusedRow by remember { mutableStateOf<Int?>(null) }
+    BackToStart(away = backGoesUp(focusedRow)) {
+        memory.focus(TRACK)
+        rows.animateScrollToItem(0)
+    }
 
     CompositionLocalProvider(LocalAmbient provides ambient) {
         Box(Modifier.fillMaxSize()) {
@@ -150,8 +157,14 @@ fun HomeScreen(
                         memory = memory,
                         rows = rows,
                         onOpen = onOpenItem,
-                        onFocus = { item -> focused = item },
-                        onLeave = { focused = null },
+                        onFocus = { section, item ->
+                            focusedRow = section
+                            focused = item
+                        },
+                        onLeave = {
+                            focusedRow = null
+                            focused = null
+                        },
                     )
                 }
             }
@@ -204,7 +217,7 @@ private fun Sections(
     memory: FocusMemory,
     rows: LazyListState,
     onOpen: (MediaItem) -> Unit,
-    onFocus: (MediaItem) -> Unit,
+    onFocus: (section: Int, item: MediaItem) -> Unit,
     /** Focus left the rows (for the tabs above): nothing is selected anymore. */
     onLeave: () -> Unit,
 ) {
@@ -215,7 +228,7 @@ private fun Sections(
         contentPadding = PaddingValues(bottom = HlFocus.edge),
         verticalArrangement = Arrangement.spacedBy(HlSpace.xs),
     ) {
-        sections.forEach { section ->
+        sections.forEachIndexed { sectionIndex, section ->
             item(key = section.key) {
                 MediaRow(
                     header = sectionTitle(section),
@@ -226,7 +239,7 @@ private fun Sections(
                 ) {
                     items(section.items, key = { it.id }) { item ->
                         val mod = Modifier.focusKey(cardKey(section, item), memory)
-                        val focus = { onFocus(item) }
+                        val focus = { onFocus(sectionIndex, item) }
                         if (section.landscape) {
                             LandscapeCard(item, onClick = { onOpen(item) }, modifier = mod, onFocused = focus)
                         } else {
@@ -250,6 +263,9 @@ internal fun sectionIndex(sections: List<HomeSection>, key: String): Int? {
     val row = FocusKey.groups(key).lastOrNull() ?: return null
     return sections.indexOfFirst { FocusKey.section(it.key) == row }.takeIf { it >= 0 }
 }
+
+/** Back goes up to the tabs from below the first row; from the first row or the tabs, it leaves. */
+internal fun backGoesUp(focusedRow: Int?): Boolean = focusedRow != null && focusedRow > 0
 
 /** The library tabs, as one group: what they hold is the track's to focus. */
 private const val TRACK = "track"

@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Favorite
@@ -24,6 +25,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -60,6 +62,7 @@ import app.houselights.ui.design.LocalHouseLights
 import app.houselights.ui.design.houseLit
 import app.houselights.ui.design.RowScroll
 import app.houselights.ui.design.revealOnFocus
+import app.houselights.ui.design.BackToStart
 import app.houselights.ui.design.FocusKey
 import app.houselights.ui.design.FocusMemory
 import app.houselights.ui.design.RestoreFocus
@@ -122,6 +125,7 @@ fun DetailScreen(
     LaunchedEffect(Unit) {
         app.playback.playbackEnded.collect { if (memory.last == RESTART) memory.focus(PLAY) }
     }
+    val page = rememberLazyListState()
 
     if (item == null) {
         Box(Modifier.fillMaxSize()) {
@@ -136,6 +140,15 @@ fun DetailScreen(
             }
         }
         return
+    }
+
+    // Down the page, Back returns to the actions; from the top, it leaves.
+    val scrolled by remember {
+        derivedStateOf { backReturnsToActions(page.firstVisibleItemIndex, page.firstVisibleItemScrollOffset) }
+    }
+    BackToStart(away = scrolled) {
+        page.animateScrollToItem(0)
+        runCatching { actions.requestFocus() }
     }
 
     val screenHeight = screenHeight()
@@ -172,6 +185,7 @@ fun DetailScreen(
 
             LazyColumn(
                     Modifier.fillMaxSize().houseLit(LocalHouseLights.current),
+                    state = page,
                     contentPadding = PaddingValues(bottom = HlFocus.edge),
                     verticalArrangement = Arrangement.spacedBy(HlSpace.l),
                 ) {
@@ -499,6 +513,9 @@ private fun Episodes(
         )
     }
 }
+
+/** Back returns to the actions once the page has scrolled down; at its top, it leaves. */
+internal fun backReturnsToActions(firstVisibleItem: Int, offset: Int): Boolean = firstVisibleItem > 0 || offset > 0
 
 /** A row of the page as a group: a card gone since focus left it, focus comes back to its row. */
 private fun FocusMemory.rowGroup(row: String) = Modifier.focusRequester(requester(FocusKey.row(row)))

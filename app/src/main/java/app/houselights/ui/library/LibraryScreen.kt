@@ -42,6 +42,7 @@ import androidx.tv.material3.Text
 import app.houselights.ui.design.HlFocus
 import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.ListScroll
+import app.houselights.ui.design.BackToStart
 import app.houselights.ui.design.FocusKey
 import app.houselights.ui.design.RestoreFocus
 import app.houselights.ui.design.focusKey
@@ -132,6 +133,12 @@ fun LibraryScreen(
         if (index >= 0) gridState.scrollToItem(index)
         index >= 0
     }
+    // Past the first line, Back returns to the first poster; from the first line, it goes home.
+    var focusedIndex by remember { mutableStateOf<Int?>(null) }
+    BackToStart(away = backReturnsToFirst(focusedIndex)) {
+        gridState.animateScrollToItem(0)
+        runCatching { gridFocus.requestFocus() }
+    }
 
     CompositionLocalProvider(LocalAmbient provides rememberAmbientColor(shown?.backdrop)) {
         Box(Modifier.fillMaxSize()) {
@@ -215,7 +222,10 @@ fun LibraryScreen(
                         modifier = Modifier.fillMaxSize().onFocusChanged {
                             gridHasFocus = it.hasFocus
                             // Leaving the wall leaves nothing selected; returning focuses a poster again.
-                            if (!it.hasFocus) focused = null
+                            if (!it.hasFocus) {
+                                focused = null
+                                focusedIndex = null
+                            }
                         },
                     ) {
                         itemsIndexed(state.items, key = { _, it -> it.id }) { index, item ->
@@ -225,6 +235,7 @@ fun LibraryScreen(
                                 width = null,
                                 onFocused = {
                                     focused = item
+                                    focusedIndex = index
                                     // The first line sits under the padding: show it all.
                                     if (index < COLUMNS) scope.launch { gridState.animateScrollToItem(0) }
                                     if (index > state.items.size - COLUMNS * 3) vm.loadMore()
@@ -240,6 +251,9 @@ fun LibraryScreen(
         }
     }
 }
+
+/** Back returns to the first poster from past the first line of the wall; from the first line, it leaves. */
+internal fun backReturnsToFirst(focusedIndex: Int?): Boolean = focusedIndex != null && focusedIndex >= COLUMNS
 
 /** Empty frames where the wall will be, laid out like it, once loading takes long enough to be seen. */
 @Composable

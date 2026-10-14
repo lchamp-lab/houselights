@@ -1,5 +1,6 @@
 package app.houselights.ui.design
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.focusGroup
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -7,6 +8,7 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -20,6 +22,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import kotlinx.coroutines.launch
 
 /**
  * Stable keys for what can hold focus. A key says what an element is, never where it is, so it
@@ -166,4 +169,17 @@ fun Modifier.keepChildFocus(): Modifier = composed {
             }
         }
         .focusGroup()
+}
+
+/**
+ * Back in two steps. While [away] (focus deep in the screen: a lower row, past the first line of a
+ * wall, in the right pane), Back runs [toStart], which brings focus back to where the screen
+ * starts; from there, Back leaves the screen. Sheets and menus are windows of their own and keep
+ * their own Back.
+ */
+@Composable
+fun BackToStart(away: Boolean, toStart: suspend () -> Unit) {
+    val scope = rememberCoroutineScope()
+    val current by rememberUpdatedState(toStart)
+    BackHandler(enabled = away) { scope.launch { current() } }
 }
