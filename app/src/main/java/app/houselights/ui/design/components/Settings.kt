@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -85,9 +86,10 @@ fun HlNavItem(
             Column {
                 Text(title, style = Hl.type.label, maxLines = 1)
                 if (summary != null) {
+                    Spacer(Modifier.height(HlSpace.xxs))
                     Text(
                         summary,
-                        style = Hl.type.caption,
+                        style = Hl.type.detail,
                         color = LocalContentColor.current.copy(alpha = HlAlpha.CONTROL_DETAIL),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
@@ -149,9 +151,10 @@ fun HlSettingRow(
             Column(Modifier.weight(1f)) {
                 Text(title, style = Hl.type.label, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 if (description != null) {
+                    Spacer(Modifier.height(HlSpace.xxs))
                     Text(
                         description,
-                        style = Hl.type.caption,
+                        style = Hl.type.detail,
                         color = if (focused) LocalContentColor.current.copy(alpha = HlAlpha.CONTROL_DETAIL) else c.contentSecondary,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,

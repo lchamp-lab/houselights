@@ -69,8 +69,13 @@ data class HlType(
     val lead: TextStyle,
     /** Overviews, descriptions, paragraphs. */
     val body: TextStyle,
-    /** Secondary lines: hints, roles, paths, short descriptions. */
+    /** Secondary lines: hints, roles, paths, group titles. */
     val caption: TextStyle,
+    /**
+     * The line under a name in a row, an entry or a choice: what it does, what it is set to.
+     * Tighter than [caption], so that over two lines it reads as one block under its name.
+     */
+    val detail: TextStyle,
 
     // The technical voice (wide, tabular figures).
     /** Buttons, tabs, menu entries, setting names. */
@@ -99,6 +104,7 @@ val HouselightsType = HlType(
     lead = TextStyle(fontFamily = HlFonts.text, fontWeight = FontWeight.SemiBold, fontSize = 20.sp, lineHeight = 26.sp),
     body = TextStyle(fontFamily = HlFonts.text, fontWeight = FontWeight.Normal, fontSize = 16.sp, lineHeight = 24.sp),
     caption = TextStyle(fontFamily = HlFonts.text, fontWeight = FontWeight.Normal, fontSize = 14.sp, lineHeight = 20.sp),
+    detail = TextStyle(fontFamily = HlFonts.text, fontWeight = FontWeight.Normal, fontSize = 14.sp, lineHeight = 18.sp),
 
     label = TextStyle(fontFamily = HlFonts.wide, fontWeight = FontWeight.SemiBold, fontSize = 16.sp, lineHeight = 20.sp, letterSpacing = 0.01.em, fontFeatureSettings = FIGURES),
     meta = TextStyle(fontFamily = HlFonts.text, fontWeight = FontWeight.Medium, fontSize = 16.sp, lineHeight = 20.sp, fontFeatureSettings = FIGURES),

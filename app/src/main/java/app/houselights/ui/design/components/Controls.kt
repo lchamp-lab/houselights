@@ -182,7 +182,7 @@ fun HlListItem(
                 Text(title, style = Hl.type.lead, color = Hl.colors.content)
                 if (description != null) {
                     Spacer(Modifier.height(HlSpace.xxs))
-                    Text(description, style = Hl.type.caption, color = Hl.colors.contentSecondary)
+                    Text(description, style = Hl.type.detail, color = Hl.colors.contentSecondary)
                 }
             }
         }

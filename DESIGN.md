@@ -81,6 +81,7 @@ style, so durations, sizes and counts line up and do not jitter.
 | `label` | 16 / 20 | buttons, tabs, menu entries, setting names |
 | `meta` | 16 / 20 | facts and values: year, runtime, score, sizes; names under artwork |
 | `caption` | 14 / 20 | secondary lines: hints, roles, paths, group titles |
+| `detail` | 14 / 18 | the line under a name in a row, an entry or a choice; tighter than `caption`, so two lines read as one block |
 | `code` | 14 / 22 | raw text read as written (NFO XML) |
 | `badge` | 12 / 16 | format and rating badges |
 | `wordmark` / `wordmarkHero` | 22 / 24 and 80 / 84 | the Houselights wordmark |
@@ -92,7 +93,7 @@ font. No other font is shipped; line heights leave room for the fallback.
 
 | Token | Content |
 |---|---|
-| `HlSpace` | 4 dp grid: `xxs` 4, `xs` 8, `s` 12, `m` 16, `l` 24, `xl` 32, `xxl` 48; `fact` 20 between facts; `safeH` 48 / `safeV` 28 |
+| `HlSpace` | 4 dp grid: `xxs` 4, `xs` 8, `s` 12, `m` 16, `l` 24, `xl` 32, `xxl` 48; `xxs` between a name and the line under it; `fact` 20 between facts; `safeH` 48 / `safeV` 28 |
 | `HlShapes` | radius follows hierarchy: `artwork` 4, `badge` 3, `field` 6, `panel` 10, `control` pill, `avatar` circle |
 | `HlSize` | artwork (poster 112, landscape 220, episode 264, avatar 76, thumbnails), `control` 48 for every button, icons 20, discs 52, marks 24, dots 8, setting rows 64, meter 10 |
 | `HlLayout` | measures of layout parts: reading widths (640, 520), side columns (280, 340), pane top 72, dialogs (640, 860, 864), title art, hero, info line, track table columns |

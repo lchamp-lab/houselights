@@ -99,7 +99,8 @@ fun CatalogScreen() {
                 Group("Type: the voice of the poster, of reading, technical", still = true) {
                     listOf(
                         "display" to t.display, "headline" to t.headline, "title" to t.title, "lead" to t.lead,
-                        "body" to t.body, "caption" to t.caption, "label" to t.label, "meta" to t.meta,
+                        "body" to t.body, "caption" to t.caption, "detail" to t.detail,
+                        "label" to t.label, "meta" to t.meta,
                         "figure" to t.figure, "spec" to t.spec, "badge" to t.badge, "code" to t.code,
                         "billing" to t.billing, "wordmark" to t.wordmark,
                     ).forEach { (name, style) -> Specimen(name, style) }
