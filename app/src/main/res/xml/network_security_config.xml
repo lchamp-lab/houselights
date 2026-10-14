@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Servers on the home network (NAS, Jellyfin, the Zidoo's own control API) often speak plain HTTP,
+     so cleartext stays allowed by default. Services on the internet are reached over HTTPS only. -->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+            <!-- Self-signed certificates of a home Jellyfin server, once the user installs them. -->
+            <certificates src="user" />
+        </trust-anchors>
+    </base-config>
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">themoviedb.org</domain>
+        <domain includeSubdomains="true">tmdb.org</domain>
+    </domain-config>
+</network-security-config>

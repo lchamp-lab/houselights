@@ -48,6 +48,28 @@ settings. **Never commit it**: `local.properties` is git-ignored.
 
 To try the app in an Android TV emulator: `scripts/preview.sh`.
 
+Before a change is pushed, the same checks as CI (`.gitea/workflows/ci.yml`) run with
+`./gradlew testDebugUnitTest lintDebug detekt assembleRelease`. Lint and detekt keep today's findings in
+`app/lint-baseline.xml` and `app/detekt-baseline.xml`: new code has to pass.
+
+### Signing
+
+Release builds are signed with the debug key unless a `keystore.properties` file (git-ignored) sits at the
+root of the project:
+
+```properties
+storeFile=/path/to/houselights-release.jks
+storePassword=…
+keyAlias=houselights
+keyPassword=…
+```
+
+Choose before installing on a player: Android only updates an app signed with the same key, so changing keys
+later means uninstalling, and losing the library and watch history kept on the player.
+
+An APK given to other people should not carry your personal TMDB key: build it without one (users then enter
+their own), or with a key created for the project that you can revoke.
+
 ## Project layout
 
 ```
@@ -61,8 +83,18 @@ app/src/main/java/app/houselights/
 
 ## Security notes
 
-Prefer NFS: it needs no credentials. With SMB, the Zidoo player receives the credentials inside the file URI,
-and Android logs started intents, so use a **dedicated read-only NAS account** for your player.
+- Prefer NFS: it needs no credentials. With SMB, the Zidoo player receives the credentials inside the file
+  URI, and Android logs started intents (readable over adb), so use a **dedicated read-only NAS account** for
+  your player. Credentials are only ever given to the Zidoo player installed with the system: on another
+  device, a password-protected SMB folder can't be played.
+- Passwords, the Jellyfin token, a personal TMDB key and path mappings are stored sealed with a key kept in
+  the Android Keystore, and Android backup is off: copying the app's files elsewhere reveals none of them.
+- Jellyfin is reached over HTTPS when the server offers it; the settings show when the connection is not
+  encrypted. Signing out of Jellyfin (changing source) revokes the app's token on the server.
+- Artwork named by NFO files is fetched over HTTPS only. TMDB is reached over HTTPS only; plain HTTP stays
+  allowed for servers on the home network.
+- `nfs-client` depends on Netty 3.10 (end of life). Its known vulnerabilities concern HTTP and compression
+  codecs that NFS doesn't use; it is watched until a maintained NFS client replaces it.
 
 ## License
 

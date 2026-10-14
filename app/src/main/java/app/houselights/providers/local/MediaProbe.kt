@@ -30,7 +30,7 @@ object MediaProbe {
                 when (val result = MkvProbe.probe(bytes)) {
                     is MkvProbe.Result.Found -> return result.info.copy(sizeBytes = basic.sizeBytes)
                     is MkvProbe.Result.NeedMore -> {
-                        if (result.offset + FIRST_READ > MAX_READ) return basic
+                        if (result.offset !in 0..(MAX_READ - FIRST_READ)) return basic
                         bytes = browser.readPrefix(source, file.relativePath, (result.offset + FIRST_READ).toInt())
                     }
                     MkvProbe.Result.NotMatroska -> return basic

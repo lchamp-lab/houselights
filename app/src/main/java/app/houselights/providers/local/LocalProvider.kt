@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import androidx.sqlite.db.SimpleSQLiteQuery
 import app.houselights.R
+import app.houselights.core.NfoParser
 import app.houselights.core.Definition
 import app.houselights.core.HomeSection
 import app.houselights.core.ImageRef
@@ -395,7 +396,9 @@ class LocalProvider(
 
         /** A cached local file, a full URL from an NFO, or a TMDB path. */
         fun image(path: String, type: ImageType) = when {
-            path.startsWith("file:") || path.startsWith("http") -> ImageRef(path) { path }
+            path.startsWith("file:") -> ImageRef(path) { path }
+            // Also upgrades addresses read from NFO files before they were fetched over HTTPS only.
+            path.startsWith("http") -> (NfoParser.imageUrl(path) ?: path).let { url -> ImageRef(url) { url } }
             else -> ImageRef("tmdb:$path") { w -> TmdbClient.imageUrl(path, type, w) }
         }
 

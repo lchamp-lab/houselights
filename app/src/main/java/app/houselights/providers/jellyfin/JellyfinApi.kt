@@ -16,6 +16,10 @@ interface JellyfinApi {
     @POST("Users/AuthenticateByName")
     suspend fun authenticate(@Body body: AuthRequest): AuthResult
 
+    /** Ends the session of the token in the request: the server forgets it. */
+    @POST("Sessions/Logout")
+    suspend fun logout(): Response<Unit>
+
     @GET("UserViews")
     suspend fun views(@Query("userId") userId: String): ItemsResult
 

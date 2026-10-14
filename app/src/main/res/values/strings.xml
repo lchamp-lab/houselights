@@ -198,6 +198,9 @@
     <string name="tmdb_desc">Posters and details come from TMDB.</string>
     <string name="change_source_desc">Your folders are kept: you can come back to them at any time.</string>
     <string name="label_server">Server</string>
+    <string name="label_connection">Connection</string>
+    <string name="connection_encrypted">Encrypted (HTTPS)</string>
+    <string name="connection_plain">Not encrypted (HTTP)</string>
     <string name="label_address">Address</string>
     <string name="label_user">User</string>
     <string name="label_hdmi">HDMI output</string>

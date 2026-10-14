@@ -35,8 +35,11 @@ private object Keys {
     val collectionMin = intPreferencesKey("collection_min_films")
 }
 
-/** The settings that hold a secret: the source (with its server token) and a personal TMDB key. */
-private val SECRET_KEYS = listOf(Keys.source, Keys.tmdbKey)
+/**
+ * The settings that hold a secret: the source (with its server token), a personal TMDB key, and path
+ * mappings, whose network paths may carry a password.
+ */
+private val SECRET_KEYS = listOf(Keys.source, Keys.tmdbKey, Keys.mappings)
 
 /** Seals secrets written in plain text before sealing existed. */
 private class SealSecrets(private val secrets: Secrets) : DataMigration<Preferences> {
@@ -79,6 +82,7 @@ class SettingsStore(
         source = this[Keys.source]?.let(secrets::open)?.let { runCatching { json.decodeFromString<SourceConfig>(it) }.getOrNull() },
         deviceId = this[Keys.deviceId] ?: "",
         pathMappings = this[Keys.mappings]
+            ?.let(secrets::open)
             ?.let { runCatching { json.decodeFromString<List<PathMapping>>(it) }.getOrNull() }
             ?: emptyList(),
         forceHttp = this[Keys.forceHttp] ?: false,
@@ -102,7 +106,7 @@ class SettingsStore(
     }
 
     suspend fun setPathMappings(mappings: List<PathMapping>) {
-        context.dataStore.edit { it[Keys.mappings] = json.encodeToString(mappings) }
+        context.dataStore.edit { it[Keys.mappings] = secrets.seal(json.encodeToString(mappings)) }
     }
 
     suspend fun setForceHttp(value: Boolean) {

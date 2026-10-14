@@ -17,6 +17,12 @@ val localProps = Properties().apply {
 }
 val tmdbApiKey: String = localProps.getProperty("tmdb.apiKey") ?: System.getenv("TMDB_API_KEY") ?: ""
 
+// Release signing: keystore.properties (never committed) gives storeFile, storePassword, keyAlias and
+// keyPassword. Without it, release builds are signed with the debug key: fine to test, not to publish.
+val keystoreProps = Properties().apply {
+    rootProject.file("keystore.properties").takeIf { it.exists() }?.inputStream()?.use(::load)
+}
+
 android {
     namespace = "app.houselights"
     compileSdk = 35
@@ -30,11 +36,22 @@ android {
         buildConfigField("String", "TMDB_API_KEY", "\"$tmdbApiKey\"")
     }
 
+    signingConfigs {
+        if (!keystoreProps.isEmpty) {
+            create("release") {
+                storeFile = rootProject.file(keystoreProps.getProperty("storeFile"))
+                storePassword = keystoreProps.getProperty("storePassword")
+                keyAlias = keystoreProps.getProperty("keyAlias")
+                keyPassword = keystoreProps.getProperty("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
         }
     }
     compileOptions {
@@ -106,6 +123,14 @@ dependencies {
     ksp(libs.room.compiler)
     implementation(libs.smbj)
     implementation(libs.nfs.client)
+    constraints {
+        implementation(libs.bouncycastle.prov) {
+            because("CVE-2024-29857, CVE-2024-30171, CVE-2024-30172, CVE-2024-34447, CVE-2025-8916; pulled in by smbj")
+        }
+        implementation(libs.commons.lang3) {
+            because("CVE-2025-48924; pulled in by nfs-client")
+        }
+    }
 
     testImplementation(libs.junit)
     // XmlPullParser implementation for JVM tests (Android provides its own).

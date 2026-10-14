@@ -23,3 +23,10 @@
 -keep class org.jboss.netty.** { *; }
 -dontwarn org.jboss.netty.**
 -dontwarn org.apache.commons.lang3.**
+
+# Release builds keep warnings and errors in logcat, not the step-by-step log (titles, paths).
+-assumenosideeffects class android.util.Log {
+    public static int v(...);
+    public static int d(...);
+    public static int i(...);
+}

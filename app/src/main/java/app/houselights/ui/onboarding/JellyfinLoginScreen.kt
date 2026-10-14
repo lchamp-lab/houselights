@@ -57,8 +57,8 @@ fun JellyfinLoginScreen(onLoggedIn: () -> Unit) {
 
     LaunchedEffect(Unit) {
         runCatching { firstField.requestFocus() }
+        // Listed for the user to choose: any device on the network can answer a discovery.
         discovered = ServerDiscovery.discover()
-        if (server.isBlank()) discovered.firstOrNull()?.let { server = it.address }
     }
 
     fun login() {
@@ -66,11 +66,12 @@ fun JellyfinLoginScreen(onLoggedIn: () -> Unit) {
         busy = true
         error = null
         scope.launch {
-            val url = JellyfinClient.normalizeUrl(server)
+            var url = JellyfinClient.normalizeUrl(server)
             runCatching {
-                val api = JellyfinClient(url, app.settings.ensureDeviceId(), token = null).api
-                val info = api.publicInfo()
-                val auth = api.authenticate(AuthRequest(user.trim(), password))
+                val deviceId = app.settings.ensureDeviceId()
+                val (reached, info) = JellyfinClient.reach(server, deviceId)
+                url = reached
+                val auth = JellyfinClient(url, deviceId, token = null).api.authenticate(AuthRequest(user.trim(), password))
                 app.settings.setSource(
                     SourceConfig.Jellyfin(url, info.serverName, auth.user.id, auth.user.name, auth.accessToken)
                 )

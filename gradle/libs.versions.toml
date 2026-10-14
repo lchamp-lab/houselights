@@ -21,6 +21,9 @@ retrofit = "2.11.0"
 coil = "2.7.0"
 smbj = "0.13.0"
 nfs-client = "1.1.0"
+# Transitive versions raised for known vulnerabilities (see the constraints in app/build.gradle.kts).
+bouncycastle = "1.81"
+commons-lang3 = "3.18.0"
 
 junit = "4.13.2"
 kxml2 = "2.3.0"
@@ -58,6 +61,8 @@ retrofit-kotlinx-serialization = { module = "com.squareup.retrofit2:converter-ko
 coil-compose = { module = "io.coil-kt:coil-compose", version.ref = "coil" }
 smbj = { module = "com.hierynomus:smbj", version.ref = "smbj" }
 nfs-client = { module = "com.emc.ecs:nfs-client", version.ref = "nfs-client" }
+bouncycastle-prov = { module = "org.bouncycastle:bcprov-jdk18on", version.ref = "bouncycastle" }
+commons-lang3 = { module = "org.apache.commons:commons-lang3", version.ref = "commons-lang3" }
 
 junit = { module = "junit:junit", version.ref = "junit" }
 kxml2 = { module = "net.sf.kxml:kxml2", version.ref = "kxml2" }

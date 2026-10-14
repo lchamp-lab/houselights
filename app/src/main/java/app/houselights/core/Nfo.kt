@@ -70,7 +70,8 @@ object NfoParser {
     }
 
     private fun parseXml(xml: String): NfoInfo? {
-        if (xml.isBlank()) return null
+        // Entities are never needed in an NFO, and could expand or reach outside the file.
+        if (xml.isBlank() || xml.contains("<!ENTITY", ignoreCase = true)) return null
         val p = XmlPullParserFactory.newInstance().newPullParser()
         p.setInput(StringReader(xml))
         while (p.eventType != XmlPullParser.START_TAG) {
@@ -131,7 +132,7 @@ object NfoParser {
                 "status" -> info = info.copy(status = p.text())
                 "thumb" -> {
                     val aspect = p.getAttributeValue(null, "aspect")
-                    val url = p.text()?.takeIf { it.startsWith("http") }
+                    val url = p.text()?.let(::imageUrl)
                     when (aspect) {
                         "poster", null -> if (info.posterUrl == null) info = info.copy(posterUrl = url)
                         "clearlogo", "logo" -> if (info.logoUrl == null) info = info.copy(logoUrl = url)
@@ -152,6 +153,22 @@ object NfoParser {
         )
     }
 
+    /**
+     * An artwork address from an NFO, fetched over HTTPS only: "http://" is upgraded, so an NFO can't
+     * make the app call plain-HTTP servers on the home network. Anything else is ignored.
+     */
+    fun imageUrl(raw: String): String? = when {
+        raw.startsWith("https://") -> raw
+        raw.startsWith("http://") -> "https://" + raw.removePrefix("http://")
+        else -> null
+    }
+
+    /** Moves to the next event inside the element opened at [depth]; false at its end, or the document's. */
+    private fun XmlPullParser.nextWithin(depth: Int): Boolean {
+        val event = next()
+        return event != XmlPullParser.END_DOCUMENT && !(event == XmlPullParser.END_TAG && this.depth == depth)
+    }
+
     /** "France:12", "FR:12" or "Rated PG-13" → "12" / "PG-13". */
     private fun certification(raw: String?): String? =
         raw?.substringAfterLast(':')?.removePrefix("Rated ")?.trim()?.takeIf { it.isNotEmpty() }
@@ -160,12 +177,12 @@ object NfoParser {
         var default: Double? = null
         var first: Double? = null
         val depth = p.depth
-        while (!(p.next() == XmlPullParser.END_TAG && p.depth == depth)) {
+        while (p.nextWithin(depth)) {
             if (p.eventType == XmlPullParser.START_TAG && p.name == "rating") {
                 val isDefault = p.getAttributeValue(null, "default") == "true"
                 val ratingDepth = p.depth
                 var value: Double? = null
-                while (!(p.next() == XmlPullParser.END_TAG && p.depth == ratingDepth)) {
+                while (p.nextWithin(ratingDepth)) {
                     if (p.eventType == XmlPullParser.START_TAG && p.name == "value") value = p.text()?.replace(',', '.')?.toDoubleOrNull()
                 }
                 if (isDefault) default = value
@@ -181,12 +198,12 @@ object NfoParser {
         var thumb: String? = null
         var order: Int? = null
         val depth = p.depth
-        while (!(p.next() == XmlPullParser.END_TAG && p.depth == depth)) {
+        while (p.nextWithin(depth)) {
             if (p.eventType != XmlPullParser.START_TAG) continue
             when (p.name) {
                 "name" -> name = p.text()
                 "role" -> role = p.text()
-                "thumb" -> thumb = p.text()?.takeIf { it.startsWith("http") }
+                "thumb" -> thumb = p.text()?.let(::imageUrl)
                 "order" -> order = p.text()?.toIntOrNull()
                 else -> skip(p)
             }
@@ -199,7 +216,7 @@ object NfoParser {
         val depth = p.depth
         var name: String? = null
         val text = StringBuilder()
-        while (!(p.next() == XmlPullParser.END_TAG && p.depth == depth)) {
+        while (p.nextWithin(depth)) {
             when (p.eventType) {
                 XmlPullParser.TEXT -> text.append(p.text)
                 XmlPullParser.START_TAG -> if (p.name == "name") name = p.text() else skip(p)
@@ -211,8 +228,8 @@ object NfoParser {
     private fun fanart(p: XmlPullParser): String? {
         val depth = p.depth
         var url: String? = null
-        while (!(p.next() == XmlPullParser.END_TAG && p.depth == depth)) {
-            if (p.eventType == XmlPullParser.START_TAG && p.name == "thumb" && url == null) url = p.text()?.takeIf { it.startsWith("http") }
+        while (p.nextWithin(depth)) {
+            if (p.eventType == XmlPullParser.START_TAG && p.name == "thumb" && url == null) url = p.text()?.let(::imageUrl)
         }
         return url
     }
@@ -222,7 +239,7 @@ object NfoParser {
         val audio = mutableListOf<Triple<String?, String?, Int?>>()
         val subs = mutableListOf<String>()
         val depth = p.depth
-        while (!(p.next() == XmlPullParser.END_TAG && p.depth == depth)) {
+        while (p.nextWithin(depth)) {
             if (p.eventType != XmlPullParser.START_TAG) continue
             when (p.name) {
                 "video" -> fields(p).let { f ->
@@ -243,7 +260,7 @@ object NfoParser {
     private fun fields(p: XmlPullParser): Map<String, String> {
         val out = mutableMapOf<String, String>()
         val depth = p.depth
-        while (!(p.next() == XmlPullParser.END_TAG && p.depth == depth)) {
+        while (p.nextWithin(depth)) {
             if (p.eventType == XmlPullParser.START_TAG) p.text()?.let { out[p.name] = it }
         }
         return out
@@ -253,7 +270,7 @@ object NfoParser {
     private fun XmlPullParser.text(): String? {
         val depth = depth
         val sb = StringBuilder()
-        while (!(next() == XmlPullParser.END_TAG && this.depth == depth)) {
+        while (nextWithin(depth)) {
             if (eventType == XmlPullParser.TEXT) sb.append(text)
         }
         return sb.toString().trim().takeIf { it.isNotEmpty() }
@@ -261,6 +278,6 @@ object NfoParser {
 
     private fun skip(p: XmlPullParser) {
         val depth = p.depth
-        while (!(p.next() == XmlPullParser.END_TAG && p.depth == depth)) Unit
+        while (p.nextWithin(depth)) Unit
     }
 }

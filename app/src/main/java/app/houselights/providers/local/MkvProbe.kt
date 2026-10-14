@@ -338,6 +338,7 @@ object MkvProbe {
         fun skipElement() {
             readId()
             val size = readSize() ?: error("Unknown size")
+            require(size <= remaining) { "Element past the end" }
             pos += size.toInt()
         }
 
@@ -369,7 +370,7 @@ object MkvProbe {
         fun bytes(): ByteArray = bytes.copyOfRange(pos, end)
 
         private fun byte(i: Int): Int {
-            if (i >= end) throw IndexOutOfBoundsException()
+            if (i < 0 || i >= end) throw IndexOutOfBoundsException()
             return bytes[i].toInt() and 0xFF
         }
     }

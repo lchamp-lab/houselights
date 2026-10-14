@@ -59,6 +59,8 @@ import app.houselights.core.SourceConfig
 import app.houselights.player.PathResolver
 import app.houselights.player.PlaybackManager
 import app.houselights.player.ZidooStatus
+import app.houselights.player.Redact
+import app.houselights.providers.jellyfin.JellyfinClient
 import app.houselights.providers.local.LocalProvider
 import app.houselights.providers.local.ScanError
 import app.houselights.providers.local.SourceEntity
@@ -207,6 +209,11 @@ private fun LazyListScope.libraryPane(s: AppSettings, onAddFolder: () -> Unit, o
                     HlSettingGroup(null) {
                         HlSettingRow(stringResource(R.string.label_server), value = source.serverName ?: stringResource(R.string.source_jellyfin))
                         HlSettingRow(stringResource(R.string.label_address), value = source.serverUrl)
+                        val encrypted = JellyfinClient.isEncrypted(source.serverUrl)
+                        HlSettingRow(
+                            stringResource(R.string.label_connection),
+                            value = stringResource(if (encrypted) R.string.connection_encrypted else R.string.connection_plain),
+                        )
                         source.userName?.let { HlSettingRow(stringResource(R.string.label_user), value = it) }
                     }
                 }
@@ -439,7 +446,13 @@ private fun SourceRow(onChangeSource: () -> Unit) {
         stringResource(R.string.change_source_row),
         value = stringResource(if (s.source is SourceConfig.Jellyfin) R.string.source_jellyfin else R.string.source_local),
         description = stringResource(R.string.change_source_desc),
-        onClick = { scope.launch { app.settings.setSource(null); onChangeSource() } },
+        onClick = {
+            scope.launch {
+                (s.source as? SourceConfig.Jellyfin)?.let { JellyfinClient.signOut(it, s.deviceId) }
+                app.settings.setSource(null)
+                onChangeSource()
+            }
+        },
     )
 }
 
@@ -550,7 +563,7 @@ private fun PathMappings(s: AppSettings) {
             )
         }
         samplePath?.let { path ->
-            val resolved = PathResolver.resolve(path, mappings.toList())
+            val resolved = PathResolver.resolve(path, mappings.toList())?.let(Redact::uri)
             Hint(stringResource(R.string.mapping_result, resolved ?: stringResource(R.string.mapping_none)))
         }
     }

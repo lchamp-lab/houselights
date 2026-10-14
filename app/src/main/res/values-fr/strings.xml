@@ -188,6 +188,9 @@
     <string name="tmdb_desc">Les affiches et les informations proviennent de TMDB.</string>
     <string name="change_source_desc">Vos dossiers sont conservés : vous pourrez y revenir à tout moment.</string>
     <string name="label_server">Serveur</string>
+    <string name="label_connection">Connexion</string>
+    <string name="connection_encrypted">Chiffrée (HTTPS)</string>
+    <string name="connection_plain">Non chiffrée (HTTP)</string>
     <string name="label_address">Adresse</string>
     <string name="label_user">Utilisateur</string>
     <string name="label_hdmi">Sortie HDMI</string>
