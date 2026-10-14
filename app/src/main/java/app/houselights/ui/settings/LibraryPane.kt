@@ -76,20 +76,21 @@ import app.houselights.core.CollectionThreshold
 
 /**
  * The library: its folders or its server, then what can be done with it. [onUseFolders] makes the
- * folders the source (or adds the first one), [onSignIn] opens the Jellyfin sign-in. [addFolder]
- * focuses "Add a folder", where focus goes when the last folder is removed.
+ * folders the source (or adds the first one), [onSignIn] opens the Jellyfin sign-in. The rows that
+ * open another screen are keyed in [rows]; "Add a folder" is also where focus goes when the last
+ * folder is removed.
  */
 internal fun LazyListScope.libraryPane(
     s: AppSettings,
     onAddFolder: () -> Unit,
     onUseFolders: () -> Unit,
     onSignIn: () -> Unit,
-    addFolder: FocusRequester,
+    rows: PaneRows,
 ) {
     when (val source = s.source) {
         SourceConfig.Local -> {
-            item { Section(stringResource(R.string.section_source)) { Sources(addFolder) } }
-            item { LibraryActions(onAddFolder, onUseFolders, onSignIn, addFolder) }
+            item { Section(stringResource(R.string.section_source)) { Sources(rows.requester(ADD_FOLDER)) } }
+            item { LibraryActions(onAddFolder, onUseFolders, onSignIn, rows) }
         }
         is SourceConfig.Jellyfin -> {
             item {
@@ -110,8 +111,13 @@ internal fun LazyListScope.libraryPane(
             item {
                 HlSettingGroup(null) {
                     // A password changed or a device revoked: the sign-in opens filled in, on the password.
-                    HlSettingRow(stringResource(R.string.reconnect), description = source.userName, onClick = onSignIn)
-                    SourceRow(onUseFolders, onSignIn)
+                    HlSettingRow(
+                        stringResource(R.string.reconnect),
+                        rows.focus("reconnect"),
+                        description = source.userName,
+                        onClick = onSignIn,
+                    )
+                    SourceRow(onUseFolders, onSignIn, rows.focus(SOURCE))
                 }
             }
         }
@@ -326,7 +332,12 @@ private fun PosterCover(paths: List<String>) {
 }
 
 @Composable
-private fun LibraryActions(onAddFolder: () -> Unit, onUseFolders: () -> Unit, onSignIn: () -> Unit, addFolder: FocusRequester) {
+private fun LibraryActions(
+    onAddFolder: () -> Unit,
+    onUseFolders: () -> Unit,
+    onSignIn: () -> Unit,
+    rows: PaneRows,
+) {
     val vm = settingsViewModel()
     val s by vm.settings.collectAsStateWithLifecycle()
     val scan by vm.library.scan.collectAsStateWithLifecycle()
@@ -341,7 +352,7 @@ private fun LibraryActions(onAddFolder: () -> Unit, onUseFolders: () -> Unit, on
             onClick = onAddFolder,
             chevron = false,
             trailing = { PlusIcon() },
-            modifier = Modifier.focusRequester(addFolder),
+            modifier = rows.focus(ADD_FOLDER),
         )
         HlSettingRow(
             stringResource(R.string.scan_now),
@@ -369,7 +380,7 @@ private fun LibraryActions(onAddFolder: () -> Unit, onUseFolders: () -> Unit, on
             onClick = { editKey = true },
         )
         CollectionsRow()
-        SourceRow(onUseFolders, onSignIn)
+        SourceRow(onUseFolders, onSignIn, rows.focus(SOURCE))
     }
     if (editKey) TmdbKeyDialog(onDismiss = { editKey = false })
 }
@@ -408,13 +419,14 @@ private fun CollectionsRow() {
 
 /** The source in use, and what changing it keeps; OK opens [SourceSheet]. */
 @Composable
-private fun SourceRow(onUseFolders: () -> Unit, onSignIn: () -> Unit) {
+private fun SourceRow(onUseFolders: () -> Unit, onSignIn: () -> Unit, modifier: Modifier = Modifier) {
     val vm = settingsViewModel()
     val s by vm.settings.collectAsStateWithLifecycle()
     var choose by remember { mutableStateOf(false) }
     val server = s.source is SourceConfig.Jellyfin
     HlSettingRow(
         stringResource(R.string.change_source_row),
+        modifier,
         value = stringResource(if (server) R.string.source_jellyfin else R.string.source_local),
         description = stringResource(sourceKeeps(s.source)),
         onClick = { choose = true },
@@ -562,3 +574,6 @@ private const val HEADER_POSTERS = 3
 
 /** A scan that has just started still shows a sliver of progress. */
 private const val PROGRESS_MIN = 0.02f
+
+private const val ADD_FOLDER = "add_folder"
+private const val SOURCE = "source"
