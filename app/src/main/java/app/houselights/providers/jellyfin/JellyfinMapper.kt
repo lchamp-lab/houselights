@@ -2,6 +2,7 @@ package app.houselights.providers.jellyfin
 
 import app.houselights.core.Typeset
 import app.houselights.core.AudioTrack
+import app.houselights.core.Codecs
 import app.houselights.core.HdrFormat
 import app.houselights.core.MediaInfo
 import app.houselights.core.SubtitleTrack
@@ -11,6 +12,7 @@ import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
 import app.houselights.core.Person
 import app.houselights.core.UserState
+import app.houselights.core.yearOf
 
 /** Jellyfin's items as the app's [MediaItem]s, with their artwork at the size each place asks for. */
 internal class JellyfinMapper(private val client: JellyfinClient) {
@@ -44,7 +46,7 @@ internal class JellyfinMapper(private val client: JellyfinClient) {
             overview = Typeset.text(dto.overview),
             tagline = Typeset.text(dto.taglines.firstOrNull()),
             year = dto.productionYear,
-            endYear = dto.endDate?.take(4)?.toIntOrNull(),
+            endYear = yearOf(dto.endDate),
             continuing = dto.status == "Continuing",
             runtimeMs = dto.runTimeTicks?.div(TICKS_PER_MS),
             officialRating = dto.officialRating,
@@ -83,15 +85,7 @@ internal class JellyfinMapper(private val client: JellyfinClient) {
             val video = streams.firstOrNull { it.type == "Video" }?.let { v ->
                 val range = v.videoRangeType.orEmpty()
                 VideoInfo(
-                    codec = when (v.codec?.lowercase()) {
-                        "hevc", "h265" -> "HEVC"
-                        "h264", "avc" -> "AVC"
-                        "av1" -> "AV1"
-                        "vp9" -> "VP9"
-                        "mpeg2video" -> "MPEG-2"
-                        "vc1" -> "VC-1"
-                        else -> v.codec?.uppercase() ?: "?"
-                    },
+                    codec = Codecs.video(v.codec),
                     width = v.width,
                     height = v.height,
                     bitDepth = v.bitDepth,
@@ -109,16 +103,7 @@ internal class JellyfinMapper(private val client: JellyfinClient) {
             val audio = streams.filter { it.type == "Audio" }.map { a ->
                 val profile = "${a.profile.orEmpty()} ${a.displayTitle.orEmpty()} ${a.title.orEmpty()}"
                 AudioTrack(
-                    codec = when (a.codec?.lowercase()) {
-                        "truehd" -> "TrueHD"
-                        "dts" -> if (profile.contains("MA")) "DTS-HD MA" else if (profile.contains("HRA")) "DTS-HD HRA" else "DTS"
-                        "eac3" -> "E-AC3"
-                        "ac3" -> "AC3"
-                        "aac" -> "AAC"
-                        "flac" -> "FLAC"
-                        "opus" -> "Opus"
-                        else -> if (a.codec?.startsWith("pcm") == true) "PCM" else a.codec?.uppercase() ?: "?"
-                    },
+                    codec = Codecs.audio(a.codec, profile),
                     channels = a.channels,
                     language = a.language,
                     title = a.title,
@@ -131,14 +116,7 @@ internal class JellyfinMapper(private val client: JellyfinClient) {
                 SubtitleTrack(
                     language = s.language,
                     title = s.title,
-                    format = when (s.codec?.lowercase()) {
-                        "subrip", "srt" -> "SRT"
-                        "pgssub", "pgs" -> "PGS"
-                        "ass", "ssa" -> "ASS"
-                        "dvdsub", "vobsub" -> "VobSub"
-                        "webvtt" -> "WebVTT"
-                        else -> s.codec?.uppercase() ?: "?"
-                    },
+                    format = Codecs.subtitle(s.codec),
                     forced = s.isForced,
                     hearingImpaired = s.isHearingImpaired || s.title?.contains("SDH", ignoreCase = true) == true,
                     default = s.isDefault,

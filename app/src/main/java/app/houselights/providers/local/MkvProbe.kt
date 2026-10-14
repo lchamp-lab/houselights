@@ -1,6 +1,7 @@
 package app.houselights.providers.local
 
 import app.houselights.core.AudioTrack
+import app.houselights.core.Codecs
 import app.houselights.core.HdrFormat
 import app.houselights.core.MediaInfo
 import app.houselights.core.SubtitleTrack
@@ -243,8 +244,9 @@ object MkvProbe {
         fun toAudio(): AudioTrack {
             val n = nameLower
             val codec = when {
-                codecId == "A_DTS" && (n.contains("hd ma") || n.contains("hd-ma") || n.contains("dts-hd") || Regex("""\bma\b""").containsMatchIn(n)) -> "DTS-HD MA"
-                codecId == "A_DTS" && (n.contains("hra") || n.contains("hd hr")) -> "DTS-HD HRA"
+                codecId == "A_DTS" && (n.contains("hd ma") || n.contains("hd-ma") || n.contains("dts-hd") || MA.containsMatchIn(n)) ->
+                    Codecs.DTS_HD_MA
+                codecId == "A_DTS" && (n.contains("hra") || n.contains("hd hr")) -> Codecs.DTS_HD_HRA
                 else -> audioCodec(codecId)
             }
             return AudioTrack(
@@ -253,7 +255,7 @@ object MkvProbe {
                 language = language?.takeIf { it != "und" },
                 title = name,
                 atmos = n.contains("atmos"),
-                dtsX = codecId == "A_DTS" && Regex("""dts[:\- ]?x\b""").containsMatchIn(n),
+                dtsX = codecId == "A_DTS" && DTS_X.containsMatchIn(n),
                 default = default,
             )
         }
@@ -265,42 +267,46 @@ object MkvProbe {
                 title = name,
                 format = subtitleFormat(codecId),
                 forced = forced || n.contains("forced") || n.contains("forcé"),
-                hearingImpaired = hearingImpaired || Regex("""\bsdh\b""").containsMatchIn(n),
+                hearingImpaired = hearingImpaired || SDH.containsMatchIn(n),
                 default = default,
             )
         }
     }
 
+    private val MA = Regex("""\bma\b""")
+    private val DTS_X = Regex("""dts[:\- ]?x\b""")
+    private val SDH = Regex("""\bsdh\b""")
+
     private fun videoCodec(id: String) = when {
-        id == "V_MPEGH/ISO/HEVC" -> "HEVC"
-        id == "V_MPEG4/ISO/AVC" -> "AVC"
-        id == "V_AV1" -> "AV1"
-        id == "V_VP9" -> "VP9"
-        id.startsWith("V_MPEG2") -> "MPEG-2"
-        id == "V_MS/VFW/FOURCC" -> "VC-1"
+        id == "V_MPEGH/ISO/HEVC" -> Codecs.HEVC
+        id == "V_MPEG4/ISO/AVC" -> Codecs.AVC
+        id == "V_AV1" -> Codecs.AV1
+        id == "V_VP9" -> Codecs.VP9
+        id.startsWith("V_MPEG2") -> Codecs.MPEG2
+        id == "V_MS/VFW/FOURCC" -> Codecs.VC1
         else -> id.removePrefix("V_")
     }
 
     private fun audioCodec(id: String) = when {
-        id == "A_TRUEHD" -> "TrueHD"
-        id == "A_DTS" -> "DTS"
-        id == "A_EAC3" -> "E-AC3"
-        id == "A_AC3" -> "AC3"
-        id.startsWith("A_AAC") -> "AAC"
-        id == "A_FLAC" -> "FLAC"
-        id == "A_OPUS" -> "Opus"
-        id.startsWith("A_PCM") -> "PCM"
-        id == "A_MPEG/L3" -> "MP3"
+        id == "A_TRUEHD" -> Codecs.TRUEHD
+        id == "A_DTS" -> Codecs.DTS
+        id == "A_EAC3" -> Codecs.EAC3
+        id == "A_AC3" -> Codecs.AC3
+        id.startsWith("A_AAC") -> Codecs.AAC
+        id == "A_FLAC" -> Codecs.FLAC
+        id == "A_OPUS" -> Codecs.OPUS
+        id.startsWith("A_PCM") -> Codecs.PCM
+        id == "A_MPEG/L3" -> Codecs.MP3
         id == "A_VORBIS" -> "Vorbis"
         else -> id.removePrefix("A_")
     }
 
     private fun subtitleFormat(id: String) = when (id) {
-        "S_TEXT/UTF8" -> "SRT"
-        "S_HDMV/PGS" -> "PGS"
-        "S_TEXT/ASS", "S_TEXT/SSA", "S_ASS", "S_SSA" -> "ASS"
-        "S_VOBSUB" -> "VobSub"
-        "S_TEXT/WEBVTT" -> "WebVTT"
+        "S_TEXT/UTF8" -> Codecs.SRT
+        "S_HDMV/PGS" -> Codecs.PGS
+        "S_TEXT/ASS", "S_TEXT/SSA", "S_ASS", "S_SSA" -> Codecs.ASS
+        "S_VOBSUB" -> Codecs.VOBSUB
+        "S_TEXT/WEBVTT" -> Codecs.WEBVTT
         else -> id.removePrefix("S_")
     }
 

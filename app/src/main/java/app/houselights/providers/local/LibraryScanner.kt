@@ -5,6 +5,7 @@ import app.houselights.core.NfoActor
 import app.houselights.core.NfoInfo
 import app.houselights.core.NfoParser
 import app.houselights.core.suspendRunCatching
+import app.houselights.core.yearOf
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -267,7 +268,7 @@ class LibraryScanner(
             (hasTmdb && item.matchedAt == null) ||
             // An NFO or artwork placed next to the file, or removed, since the last scan.
             item.nfoPath != local.nfo?.relativePath ||
-            (local.poster != null) != (item.posterPath?.startsWith("file:") == true)
+            (local.poster != null) != (item.posterPath.isCachedArtwork())
 
     // --- Movies --------------------------------------------------------------------------------
 
@@ -301,7 +302,7 @@ class LibraryScanner(
         val nfo = nfoText?.let(NfoParser::parse)
         // Sidecars that disappeared leave details to TMDB again.
         val sidecarsRemoved = (item.nfoPath != null && local.nfo == null) ||
-            (local.poster == null && item.posterPath?.startsWith("file:") == true)
+            (local.poster == null && item.posterPath.isCachedArtwork())
         val needsTmdb = tmdb != null && (item.matchedAt == null || refreshMetadata || nfo != null || sidecarsRemoved)
         if (nfo == null && !needsTmdb && !sidecarsRemoved && local.poster == null && local.fanart == null && local.logo == null) return
 
@@ -358,7 +359,7 @@ class LibraryScanner(
             originalTitle = nfo?.originalTitle ?: movie?.originalTitle ?: base.originalTitle,
             overview = nfo?.plot ?: movie?.overview?.ifBlank { null } ?: base.overview,
             tagline = nfo?.tagline ?: movie?.tagline?.ifBlank { null } ?: base.tagline,
-            year = nfo?.year ?: nfo?.premiered?.take(4)?.toIntOrNull() ?: movie?.releaseDate?.take(4)?.toIntOrNull() ?: base.year,
+            year = nfo?.year ?: yearOf(nfo?.premiered) ?: yearOf(movie?.releaseDate) ?: base.year,
             runtimeMin = nfo?.runtimeMin ?: movie?.runtime?.takeIf { it > 0 } ?: base.runtimeMin,
             certification = nfo?.certification ?: movie?.let { tmdb?.movieCertification(it) } ?: base.certification,
             rating = nfo?.rating ?: movie?.voteAverage?.takeIf { it > 0 } ?: base.rating,
@@ -499,7 +500,7 @@ class LibraryScanner(
         stillPath = thumb ?: meta?.stillPath ?: stillPath,
         runtimeMin = nfo?.runtimeMin ?: meta?.runtime ?: runtimeMin,
         rating = nfo?.rating ?: meta?.voteAverage?.takeIf { it > 0 } ?: rating,
-        year = nfo?.premiered?.take(4)?.toIntOrNull() ?: meta?.airDate?.take(4)?.toIntOrNull() ?: year,
+        year = yearOf(nfo?.premiered) ?: yearOf(meta?.airDate) ?: year,
         matchedAt = matchedAt,
     )
 
@@ -542,7 +543,7 @@ class LibraryScanner(
         val local = sidecars.forShow(showDir)
         val nfoChanged = local.nfo != null && series.nfoPath != local.nfo.relativePath
         val needsLookup = series.matchedAt == null || refreshMetadata || nfoChanged ||
-            (local.poster != null && series.posterPath?.startsWith("file:") != true)
+            (local.poster != null && !series.posterPath.isCachedArtwork())
         if (!needsLookup || (tmdb == null && local.nfo == null && local.poster == null)) return series
         refreshedSeries += series.id
 
@@ -597,8 +598,8 @@ class LibraryScanner(
             originalTitle = nfo?.originalTitle ?: tv?.originalName ?: base.originalTitle,
             overview = nfo?.plot ?: tv?.overview?.ifBlank { null } ?: base.overview,
             tagline = nfo?.tagline ?: tv?.tagline?.ifBlank { null } ?: base.tagline,
-            year = nfo?.year ?: nfo?.premiered?.take(4)?.toIntOrNull() ?: tv?.firstAirDate?.take(4)?.toIntOrNull() ?: base.year,
-            endYear = tv?.lastAirDate?.take(4)?.toIntOrNull() ?: base.endYear,
+            year = nfo?.year ?: yearOf(nfo?.premiered) ?: yearOf(tv?.firstAirDate) ?: base.year,
+            endYear = yearOf(tv?.lastAirDate) ?: base.endYear,
             continuing = nfo?.status?.let { it.contains("Continuing", true) || it.contains("Returning", true) }
                 ?: tv?.let { it.status == "Returning Series" || it.status == "In Production" }
                 ?: base.continuing,
@@ -644,7 +645,7 @@ class LibraryScanner(
             season = season.withSeasonDetails(meta, now)
             dao.saveScanned(season)
         }
-        if (localPoster != null && season.posterPath?.startsWith("file:") != true) {
+        if (localPoster != null && !season.posterPath.isCachedArtwork()) {
             artwork.copy(source, localPoster)?.let { season = season.copy(posterPath = it); dao.saveScanned(season) }
         }
         return season
@@ -654,8 +655,8 @@ class LibraryScanner(
     private fun ItemEntity.withSeasonDetails(meta: TmdbSeason?, now: Long) = copy(
         title = meta?.name ?: "",
         overview = meta?.overview?.ifBlank { null },
-        posterPath = posterPath?.takeIf { it.startsWith("file:") } ?: meta?.posterPath,
-        year = meta?.airDate?.take(4)?.toIntOrNull(),
+        posterPath = posterPath?.takeIf { it.isCachedArtwork() } ?: meta?.posterPath,
+        year = yearOf(meta?.airDate),
         matchedAt = if (meta != null) now else null,
     )
 
@@ -672,7 +673,7 @@ class LibraryScanner(
                 val nfo = episode.nfo?.let(NfoParser::parse)
                 val episodeMeta = meta?.episodes?.firstOrNull { it.episodeNumber == episode.episodeNumber }
                 val cleared = episode.copy(title = "", overview = null, stillPath = null, runtimeMin = null, rating = null, year = null)
-                val thumb = episode.stillPath?.takeIf { it.startsWith("file:") }
+                val thumb = episode.stillPath?.takeIf { it.isCachedArtwork() }
                 dao.saveScanned(cleared.withEpisodeDetails(nfo, episodeMeta, thumb, if (episodeMeta != null) now else null))
             }
         }
@@ -700,7 +701,7 @@ class LibraryScanner(
             /** What [item] already uses from local files. */
             fun of(item: ItemEntity) = LocalArt(item.posterPath.local(), item.backdropPath.local(), item.logoPath.local(), item.stillPath.local())
 
-            private fun String?.local() = this?.takeIf { it.startsWith("file:") }
+            private fun String?.local() = this?.takeIf { it.isCachedArtwork() }
         }
     }
 

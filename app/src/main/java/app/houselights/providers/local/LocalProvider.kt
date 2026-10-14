@@ -23,6 +23,7 @@ import app.houselights.core.Page
 import app.houselights.core.PlaybackOptions
 import app.houselights.core.PlaybackPlan
 import app.houselights.core.PlaybackReporter
+import app.houselights.core.launch
 import app.houselights.core.Person
 import app.houselights.core.ProviderCapabilities
 import app.houselights.core.SectionType
@@ -217,7 +218,7 @@ class LocalProvider(
         val e = entity(item) ?: return null
         val text = e.nfo ?: return null
         val source = dao.sources().firstOrNull { it.id == e.sourceId }
-        val path = listOfNotNull(source?.let { "${it.protocol.name.lowercase()}://${it.host}/${it.share}/${it.path}".trimEnd('/') }, e.nfoPath)
+        val path = listOfNotNull(source?.address(), e.nfoPath)
             .joinToString("/")
         return NfoDocument(path, text)
     }
@@ -269,13 +270,8 @@ class LocalProvider(
         val entity = entity(item) ?: error("Item ${item.id} not found")
         val file = entity.filePath ?: error("${item.title} has no file")
         val source = dao.sources().firstOrNull { it.id == entity.sourceId } ?: error("Source of ${item.title} was removed")
-        val media = Mapper().map(entity)
-        return PlaybackPlan.Launch(
-            uri = fileUri(source, file),
-            container = FilenameParser.extension(file),
-            title = listOfNotNull(media.seriesTitle, media.episodeLabel, media.title).joinToString(" · "),
-            backdropUrl = media.backdrop?.url(1920),
-            logoUrl = media.logo?.url(500),
+        return Mapper().map(entity).launch(
+            fileUri(source, file), FilenameParser.extension(file),
             startMs = if (resume) entity.positionMs else 0L,
             reporter = Reporter(entity.id),
             resumeKey = entity.id.toString(),
@@ -436,7 +432,7 @@ class LocalProvider(
 
         /** A cached local file, a full URL from an NFO, or a TMDB path. */
         fun image(path: String, type: ImageType) = when {
-            path.startsWith("file:") -> ImageRef(path) { path }
+            path.isCachedArtwork() -> ImageRef(path) { path }
             // Also upgrades addresses read from NFO files before they were fetched over HTTPS only.
             path.startsWith("http") -> (NfoParser.imageUrl(path) ?: path).let { url -> ImageRef(url) { url } }
             else -> ImageRef("tmdb:$path") { w -> TmdbClient.imageUrl(path, type, w) }

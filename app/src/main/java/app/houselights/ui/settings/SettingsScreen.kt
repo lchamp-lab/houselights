@@ -66,6 +66,7 @@ import app.houselights.providers.local.LocalProvider
 import app.houselights.providers.local.ScanError
 import app.houselights.providers.local.SourceEntity
 import app.houselights.providers.local.SourceKind
+import app.houselights.providers.local.address
 import app.houselights.providers.local.TmdbClient.Companion.ImageType
 import app.houselights.settings.AppSettings
 import app.houselights.ui.design.Hl
@@ -303,7 +304,7 @@ private fun SourceCard(
             }
             Spacer(Modifier.height(HlSpace.xxs))
             Text(
-                listOf(source.host, source.share, source.path).filter { it.isNotBlank() }.joinToString("/"),
+                source.address(withScheme = false),
                 style = Hl.type.caption,
                 color = c.contentSecondary,
                 maxLines = 1,

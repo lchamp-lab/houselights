@@ -45,6 +45,13 @@ data class SourceEntity(
     val lastScanAt: Long = 0,
 )
 
+/** The folder's address as people read it, never with credentials: "nfs://nas/volume1/media/films". */
+fun SourceEntity.address(withScheme: Boolean = true): String {
+    val folder = listOf(share, path).map { it.trim('/') }.filter { it.isNotEmpty() }.joinToString("/")
+    val address = listOf(host, folder).filter { it.isNotEmpty() }.joinToString("/")
+    return if (withScheme) "${protocol.name.lowercase()}://$address" else address
+}
+
 enum class ItemKind { MOVIE, SERIES, SEASON, EPISODE }
 
 /**

@@ -29,6 +29,7 @@ import app.houselights.R
 import app.houselights.core.SourceConfig
 import app.houselights.core.suspendRunCatching
 import app.houselights.providers.local.Protocol
+import app.houselights.providers.local.address
 import app.houselights.providers.local.RemoteBrowser
 import app.houselights.providers.local.ScanErrors
 import app.houselights.providers.local.Secret
@@ -134,8 +135,7 @@ fun AddFolderScreen(onAdded: () -> Unit) {
 
     // Live preview of the address the player will open, without credentials.
     val s = source()
-    val preview = "${protocol.name.lowercase()}://${s.host.ifBlank { "…" }}/" +
-        listOf(s.share, s.path).filter { it.isNotEmpty() }.joinToString("/")
+    val preview = s.copy(host = s.host.ifBlank { "…" }).address()
 
     HlFormScaffold(
         title = stringResource(R.string.add_folder),

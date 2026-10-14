@@ -11,6 +11,7 @@ import app.houselights.core.MediaKind
 import app.houselights.core.MetadataEditor
 import app.houselights.core.NfoParser
 import app.houselights.core.suspendRunCatching
+import app.houselights.core.yearOf
 import app.houselights.providers.local.TmdbClient.Companion.ImageType
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -74,7 +75,7 @@ class LocalEditor(
                 image = value.takeIf { it != NONE }?.let { LocalProvider.image(it, kind.imageType) },
                 origin = when {
                     value == NONE -> ArtworkOrigin.NONE
-                    value.startsWith("file:") -> ArtworkOrigin.LOCAL_FILE
+                    value.isCachedArtwork() -> ArtworkOrigin.LOCAL_FILE
                     value.startsWith("http") -> ArtworkOrigin.NFO
                     else -> ArtworkOrigin.ONLINE
                 },
@@ -168,7 +169,7 @@ class LocalEditor(
             id = id.toString(),
             title = name,
             originalTitle = (originalTitle ?: originalName)?.takeIf { it != name },
-            year = (releaseDate ?: firstAirDate)?.take(4)?.toIntOrNull(),
+            year = yearOf(releaseDate ?: firstAirDate),
             overview = overview?.ifBlank { null },
             poster = posterPath?.let { LocalProvider.image(it, ImageType.POSTER) },
         )

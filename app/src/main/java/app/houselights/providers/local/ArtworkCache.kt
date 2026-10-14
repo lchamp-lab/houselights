@@ -5,6 +5,9 @@ import java.io.File
 import java.util.Locale
 import java.security.MessageDigest
 
+/** True for artwork copied from the NAS into the cache ("file://..."), rather than a TMDB or NFO address. */
+internal fun String?.isCachedArtwork(): Boolean = this?.startsWith("file:") == true
+
 /** What a cleanup removed. */
 data class CleanupResult(val deletedFiles: Int, val freedBytes: Long)
 

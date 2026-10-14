@@ -149,9 +149,9 @@ data class MediaInfo(
         private fun audioRank(track: AudioTrack): Int {
             val codec = when {
                 track.atmos || track.dtsX -> 100
-                track.codec == "TrueHD" || track.codec == "DTS-HD MA" || track.codec == "PCM" || track.codec == "FLAC" -> 80
-                track.codec.startsWith("DTS") -> 60
-                track.codec == "E-AC3" -> 50
+                Codecs.isLossless(track.codec) -> 80
+                track.codec.startsWith(Codecs.DTS) -> 60
+                track.codec == Codecs.EAC3 -> 50
                 else -> 30
             }
             return codec + (track.channels ?: 0)

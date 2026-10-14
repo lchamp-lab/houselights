@@ -35,6 +35,22 @@ sealed interface PlaybackPlan {
     ) : PlaybackPlan
 }
 
+private const val PLAYER_BACKDROP_PX = 1920
+private const val PLAYER_LOGO_PX = 500
+
+/** Playback of this item: while it starts, the player shows the title with its backdrop and logo. */
+fun MediaItem.launch(uri: String, container: String?, startMs: Long, reporter: PlaybackReporter?, resumeKey: String?) =
+    PlaybackPlan.Launch(
+        uri = uri,
+        container = container,
+        title = listOfNotNull(seriesTitle, episodeLabel, title).joinToString(" · "),
+        backdropUrl = backdrop?.url(PLAYER_BACKDROP_PX),
+        logoUrl = logo?.url(PLAYER_LOGO_PX),
+        startMs = startMs,
+        reporter = reporter,
+        resumeKey = resumeKey,
+    )
+
 data class ProviderCapabilities(
     val markPlayed: Boolean,
     val favorites: Boolean,

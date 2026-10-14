@@ -15,6 +15,7 @@ import app.houselights.core.Page
 import app.houselights.core.PlaybackOptions
 import app.houselights.core.PlaybackPlan
 import app.houselights.core.PlaybackReporter
+import app.houselights.core.launch
 import app.houselights.core.ProviderCapabilities
 import app.houselights.core.SectionType
 import app.houselights.core.SortOption
@@ -154,13 +155,8 @@ class JellyfinProvider(config: SourceConfig.Jellyfin, deviceId: String) : MediaP
         val startMs = if (resume) media.user.positionMs else 0L
         Log.i(TAG, "Play ${full.name} -> ${Redact.uri(uri)} (start ${startMs} ms)")
 
-        return PlaybackPlan.Launch(
-            uri = uri,
-            container = container,
-            title = listOfNotNull(media.seriesTitle, media.episodeLabel, media.title).joinToString(" · "),
-            backdropUrl = media.backdrop?.url(1920),
-            logoUrl = media.logo?.url(800),
-            startMs = startMs,
+        return media.launch(
+            uri, container, startMs,
             reporter = Reporter(full.id, source?.id),
             resumeKey = listOfNotNull(full.id, source?.id).joinToString(RESUME_KEY_SEPARATOR),
         )
