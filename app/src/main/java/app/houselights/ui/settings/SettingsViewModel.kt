@@ -2,6 +2,8 @@ package app.houselights.ui.settings
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.ViewModel
@@ -91,10 +93,54 @@ internal class SettingsViewModel(private val app: AppContainer, private val imag
         }
     }
 
-    fun setPathMappings(mappings: List<PathMapping>, done: () -> Unit) {
+    private val _mappings = mutableStateListOf<PathMapping>().apply { addAll(app.settings.state.value.pathMappings) }
+
+    /** The path mappings as typed, lines not yet complete included: they outlive panes and scrolling. */
+    val mappings: List<PathMapping> = _mappings
+
+    private var mappingsEdited = false
+
+    /** True once the mappings have been saved, until the next edit. */
+    var mappingsSaved by mutableStateOf(false)
+        private set
+
+    fun editMapping(index: Int, mapping: PathMapping) {
+        _mappings[index] = mapping
+        mappingsEdited = true
+        mappingsSaved = false
+    }
+
+    fun addMapping() {
+        _mappings += PathMapping("", "")
+    }
+
+    fun removeMapping(index: Int) {
+        _mappings.removeAt(index)
+        mappingsEdited = true
+        saveMappings()
+    }
+
+    /**
+     * Saves the complete lines, when a field is left rather than while typing: a path typed halfway
+     * is never used to play.
+     */
+    fun saveMappings() {
+        if (!mappingsEdited) return
+        mappingsEdited = false
+        val complete = completeMappings()
         viewModelScope.launch {
-            app.settings.setPathMappings(mappings.filter { it.from.isNotBlank() && it.to.isNotBlank() })
-            done()
+            app.settings.setPathMappings(complete)
+            mappingsSaved = true
+        }
+    }
+
+    private fun completeMappings() = _mappings.filter { it.from.isNotBlank() && it.to.isNotBlank() }
+
+    override fun onCleared() {
+        // Settings left from inside a field still keep what was typed.
+        if (mappingsEdited) {
+            val complete = completeMappings()
+            app.scope.launch { app.settings.setPathMappings(complete) }
         }
     }
 
