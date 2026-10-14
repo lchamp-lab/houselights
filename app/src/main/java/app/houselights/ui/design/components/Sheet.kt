@@ -278,19 +278,12 @@ fun SheetConfirm(
     }
 }
 
-/** The card a [SheetConfirm] asks with, in place of the rows of its sheet. */
+/** The intertitle a [SheetConfirm] asks with, in place of the rows of its sheet. */
 @Composable
 private fun ConfirmCard(question: String, consequence: String, confirm: String, onConfirm: () -> Unit, onCancel: () -> Unit) {
-    val c = Hl.colors
     val cancel = remember { FocusRequester() }
     LaunchedEffect(Unit) { runCatching { cancel.requestFocus() } }
-    Column {
-        Box(Modifier.width(HlSize.intertitleRule).height(HlSize.intertitleRuleWeight).background(c.tungsten))
-        Spacer(Modifier.height(HlSpace.m))
-        Text(question, style = Hl.type.subject, color = c.content)
-        Spacer(Modifier.height(HlSpace.xs))
-        Text(consequence, style = Hl.type.body, color = c.contentSecondary)
-        Spacer(Modifier.height(HlSpace.l))
+    Intertitle(question, message = consequence, attention = true) {
         Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.s)) {
             HlButton(stringResource(R.string.cancel), onClick = onCancel, modifier = Modifier.focusRequester(cancel))
             PillButton(confirm, onClick = onConfirm, caution = true)

@@ -59,6 +59,7 @@ import app.houselights.core.MediaItem
 import app.houselights.core.SourceConfig
 import app.houselights.providers.local.ScanError
 import app.houselights.providers.local.ScanState
+import app.houselights.providers.local.SourceEntity
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlMotion
 import app.houselights.ui.design.awaitMotion
@@ -78,6 +79,7 @@ import app.houselights.ui.design.components.HlButton
 import app.houselights.ui.design.components.LandscapeCard
 import app.houselights.ui.design.components.MediaRow
 import app.houselights.ui.design.components.PosterCard
+import app.houselights.ui.design.components.ScanProgress
 import app.houselights.ui.design.components.rememberAmbientColor
 import app.houselights.ui.util.ReloadOnLibraryChange
 import app.houselights.ui.util.appContainer
@@ -101,6 +103,7 @@ fun HomeScreen(
     ReloadOnLibraryChange { vm.load() }
     val state by vm.state.collectAsStateWithLifecycle()
     val scan by app.library.scan.collectAsStateWithLifecycle()
+    val folders by app.library.folders.collectAsStateWithLifecycle(null)
     val settings by app.settings.state.collectAsStateWithLifecycle()
 
     var focused by remember { mutableStateOf<MediaItem?>(null) }
@@ -154,33 +157,48 @@ fun HomeScreen(
                     },
                     onSettings = onOpenSettings,
                 )
-                // Its height holds the text at the viewer's size, and stays the same whatever has focus.
-                HeroInfo(shown, Modifier.padding(start = HlSpace.safeH, top = HlSpace.xs).height(textRoom(HlLayout.hero)))
-                Spacer(Modifier.height(HlSpace.s))
-                when {
-                    state.sections.isEmpty() ->
+                // A folder read for the first time: the counter stays above the rows, which fill in
+                // under it as titles are found.
+                val firstScan = firstScan(scan, state.sections.isEmpty(), folders)
+                if (state.sections.isEmpty() && !state.loading) {
+                    // Nothing to show yet: what the screen says starts where the title under focus would.
+                    val message = Modifier.padding(start = HlSpace.safeH, top = HlSpace.l)
+                    if (firstScan) {
+                        FirstScan(scan, message)
+                    } else {
                         NoRows(
                             state,
                             scan,
+                            folders,
                             local = settings.source == SourceConfig.Local,
                             onReload = vm::load,
                             onSettings = onOpenSettings,
                             onAddFolder = onAddFolder,
+                            modifier = message,
                         )
-                    else -> Sections(
-                        sections = state.sections,
-                        memory = memory,
-                        rows = rows,
-                        onOpen = onOpenItem,
-                        onFocus = { section, item ->
-                            focusedRow = section
-                            focused = item
-                        },
-                        onLeave = {
-                            focusedRow = null
-                            focused = null
-                        },
-                    )
+                    }
+                } else {
+                    // Its height holds the text at the viewer's size, and stays the same whatever has focus.
+                    HeroInfo(shown, Modifier.padding(start = HlSpace.safeH, top = HlSpace.xs).height(textRoom(HlLayout.hero)))
+                    Spacer(Modifier.height(HlSpace.s))
+                    if (firstScan) FirstScan(scan, Modifier.padding(start = HlSpace.safeH, bottom = HlSpace.m))
+                    when {
+                        state.sections.isEmpty() -> SkeletonRows()
+                        else -> Sections(
+                            sections = state.sections,
+                            memory = memory,
+                            rows = rows,
+                            onOpen = onOpenItem,
+                            onFocus = { section, item ->
+                                focusedRow = section
+                                focused = item
+                            },
+                            onLeave = {
+                                focusedRow = null
+                                focused = null
+                            },
+                        )
+                    }
                 }
             }
         }
@@ -311,29 +329,43 @@ private fun SkeletonRows() {
     }
 }
 
+/** A folder read for the first time, or a scan going on while home has nothing to show. */
+private fun firstScan(scan: ScanState, empty: Boolean, folders: List<SourceEntity>?): Boolean =
+    scan.running && (empty || folders.orEmpty().any { it.name == scan.sourceName && it.lastScanAt <= 0 })
+
+/** The first scan, counted: what is being read, how far it has gone, the file being read. */
 @Composable
-private fun Message(text: String) {
-    HlEmptyState(text, Modifier.padding(start = HlSpace.safeH, top = HlSpace.l))
+private fun FirstScan(scan: ScanState, modifier: Modifier) {
+    ScanProgress(
+        scan.processed,
+        scan.total,
+        modifier,
+        label = stringResource(R.string.home_scanning),
+        current = scan.current,
+        lineWidth = HlLayout.readableNarrow,
+    )
 }
 
-/** No rows yet: loading, a failure, a scan under way or failed, or a library still empty. */
+/** No rows and nothing loading: a failure, a scan that failed, or a library still empty. */
 @Composable
 private fun NoRows(
     state: HomeState,
     scan: ScanState,
+    folders: List<SourceEntity>?,
     local: Boolean,
     onReload: () -> Unit,
     onSettings: () -> Unit,
     onAddFolder: () -> Unit,
+    modifier: Modifier,
 ) {
     when {
-        state.loading -> SkeletonRows()
-        state.error != null -> ErrorMessage(state.error, onReload)
-        scan.running -> Message(stringResource(R.string.home_scanning, scan.processed, scan.total))
+        state.error != null -> ErrorIntertitle(state.error, onReload, modifier)
+        // Folders are still being read: nothing to say about them yet.
+        local && folders == null -> Unit
         // Not "add a folder" when there is one: its scan failed, and it says why.
-        local && scan.errors.isNotEmpty() -> ScanFailed(scan.errors, onSettings)
-        local -> NoFilms(onAddFolder, onSettings)
-        else -> Message(stringResource(R.string.empty))
+        local && scan.errors.isNotEmpty() -> ScanFailed(scan.errors, folders.orEmpty(), onSettings, modifier)
+        local -> NoFilms(folders.orEmpty(), onAddFolder, onSettings, modifier)
+        else -> HlEmptyState(stringResource(R.string.empty_title), modifier, message = stringResource(R.string.empty_server))
     }
 }
 
@@ -342,11 +374,11 @@ private fun NoRows(
  * beside it the folders already there.
  */
 @Composable
-private fun NoFilms(onAddFolder: () -> Unit, onSettings: () -> Unit) {
-    val folders = appContainer().library.folders.collectAsStateWithLifecycle(null).value ?: return
+private fun NoFilms(folders: List<SourceEntity>, onAddFolder: () -> Unit, onSettings: () -> Unit, modifier: Modifier) {
     HlEmptyState(
-        stringResource(R.string.home_empty_local),
-        Modifier.padding(start = HlSpace.safeH, top = HlSpace.l),
+        stringResource(R.string.home_empty_title),
+        modifier,
+        message = stringResource(R.string.home_empty_local),
         action = stringResource(R.string.add_folder),
         actionIcon = Icons.Filled.Add,
         onAction = onAddFolder,
@@ -357,14 +389,14 @@ private fun NoFilms(onAddFolder: () -> Unit, onSettings: () -> Unit) {
 
 /** Nothing to show because the folders could not be read: why, a way to scan again, and the folders. */
 @Composable
-private fun ScanFailed(errors: Map<String, ScanError>, onSettings: () -> Unit) {
+private fun ScanFailed(errors: Map<String, ScanError>, folders: List<SourceEntity>, onSettings: () -> Unit, modifier: Modifier) {
     val library = appContainer().library
-    val folders = library.folders.collectAsStateWithLifecycle(null).value ?: return
     val (name, error) = errors.entries.first()
     HlEmptyState(
-        scanErrorText(error, folders.firstOrNull { it.name == name }?.host ?: name),
-        Modifier.padding(start = HlSpace.safeH, top = HlSpace.l),
-        title = stringResource(R.string.home_scan_failed),
+        stringResource(R.string.home_scan_failed),
+        modifier,
+        message = scanErrorText(error, folders.firstOrNull { it.name == name }?.host ?: name),
+        attention = true,
         action = stringResource(R.string.retry),
         actionIcon = Icons.Filled.Refresh,
         onAction = { library.scan() },
@@ -373,19 +405,27 @@ private fun ScanFailed(errors: Map<String, ScanError>, onSettings: () -> Unit) {
     )
 }
 
-/**
- * A screen could not load: what happened, what to check, and what fixes it. Trying again is the
- * screen's own [onRetry]; the other actions lead where the problem is fixed ([LocalErrorFix]). An
- * error no action fixes leaves the way out to Back.
- */
+/** An [ErrorIntertitle] where a screen's content would start: on its margin, under its header. */
 @Composable
 fun ErrorMessage(error: UiError, onRetry: () -> Unit) {
+    ErrorIntertitle(error, onRetry, Modifier.padding(start = HlSpace.safeH, top = HlSpace.l))
+}
+
+/**
+ * Something could not load: what happened, what to check, and what fixes it, as an intertitle that
+ * calls for attention, in place of what would have been shown. Trying again is the screen's own
+ * [onRetry]; the other actions lead where the problem is fixed ([LocalErrorFix]). An error no
+ * action fixes leaves the way out to Back.
+ */
+@Composable
+fun ErrorIntertitle(error: UiError, onRetry: () -> Unit, modifier: Modifier = Modifier) {
     val action = error.action
     val fix = LocalErrorFix.current
     HlEmptyState(
-        stringResource(error.message),
-        Modifier.padding(start = HlSpace.safeH, top = HlSpace.l),
-        title = stringResource(error.title),
+        stringResource(error.title),
+        modifier,
+        message = stringResource(error.message),
+        attention = true,
         action = action?.let { stringResource(it.label) },
         actionIcon = Icons.Filled.Refresh.takeIf { action == ErrorAction.RETRY },
         onAction = { if (action == ErrorAction.RETRY) onRetry() else action?.let(fix) },

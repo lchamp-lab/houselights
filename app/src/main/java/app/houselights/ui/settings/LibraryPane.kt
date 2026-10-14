@@ -1,13 +1,9 @@
 package app.houselights.ui.settings
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -26,7 +22,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.res.pluralStringResource
@@ -41,6 +36,7 @@ import app.houselights.core.SourceConfig
 import app.houselights.providers.jellyfin.JellyfinClient
 import app.houselights.providers.local.LocalProvider
 import app.houselights.providers.local.ScanError
+import app.houselights.providers.local.ScanState
 import app.houselights.providers.local.SourceEntity
 import app.houselights.providers.local.SourceKind
 import app.houselights.providers.local.TmdbClient.Companion.ImageType
@@ -50,11 +46,10 @@ import app.houselights.settings.AppSettings
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlInset
-import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
-import app.houselights.ui.design.components.ArtworkImage
+import app.houselights.ui.design.components.DefinitionList
 import app.houselights.ui.design.components.Badge
 import app.houselights.ui.design.components.ChoiceCheck
 import app.houselights.ui.design.components.ChoiceOption
@@ -64,7 +59,7 @@ import app.houselights.ui.design.components.HlButton
 import app.houselights.ui.design.components.HlChoiceSheet
 import app.houselights.ui.design.components.HlDivider
 import app.houselights.ui.design.components.HlSideSheet
-import app.houselights.ui.design.components.PosterThumb
+import app.houselights.ui.design.components.PosterStrip
 import app.houselights.ui.design.components.HlPanelButton
 import app.houselights.ui.design.components.HlSettingGroup
 import app.houselights.ui.design.components.HlSettingRow
@@ -72,7 +67,7 @@ import app.houselights.ui.design.components.HlStatus
 import app.houselights.ui.design.components.HlTextField
 import app.houselights.ui.design.components.SheetConfirm
 import app.houselights.ui.design.components.StatusState
-import app.houselights.ui.design.components.ProgressLine
+import app.houselights.ui.design.components.ScanProgress
 import app.houselights.ui.design.revealOnFocus
 import app.houselights.ui.util.scanErrorText
 import kotlinx.coroutines.launch
@@ -99,17 +94,17 @@ internal fun LazyListScope.libraryPane(
         is SourceConfig.Jellyfin -> {
             item {
                 Section(stringResource(R.string.source_jellyfin)) {
-                    HlSettingGroup(null) {
-                        val server = source.serverName ?: stringResource(R.string.source_jellyfin)
-                        HlSettingRow(stringResource(R.string.label_server), value = server)
-                        HlSettingRow(stringResource(R.string.label_address), value = source.serverUrl)
-                        val encrypted = JellyfinClient.isEncrypted(source.serverUrl)
-                        HlSettingRow(
-                            stringResource(R.string.label_connection),
-                            value = stringResource(if (encrypted) R.string.connection_encrypted else R.string.connection_plain),
-                        )
-                        source.userName?.let { HlSettingRow(stringResource(R.string.label_user), value = it) }
-                    }
+                    // States, not settings: read as the back of a case, flush with the title.
+                    val encrypted = JellyfinClient.isEncrypted(source.serverUrl)
+                    DefinitionList(
+                        listOfNotNull(
+                            stringResource(R.string.label_server) to (source.serverName ?: stringResource(R.string.source_jellyfin)),
+                            stringResource(R.string.label_address) to source.serverUrl,
+                            stringResource(R.string.label_connection) to
+                                stringResource(if (encrypted) R.string.connection_encrypted else R.string.connection_plain),
+                            source.userName?.let { stringResource(R.string.label_user) to it },
+                        ),
+                    )
                 }
             }
             item {
@@ -156,9 +151,7 @@ private fun Sources(addFolder: FocusRequester) {
             key(source.id) {
                 SourceCard(
                     source,
-                    scanning = scan.running && scan.sourceName == source.name,
-                    progress = if (scan.total > 0) scan.processed.toFloat() / scan.total else 0f,
-                    current = scan.current,
+                    scan = scan.takeIf { it.running && it.sourceName == source.name },
                     error = scan.errors[source.name],
                     onClick = { actionsFor = source },
                     modifier = Modifier.focusRequester(cards.getOrPut(source.id) { FocusRequester() }),
@@ -195,7 +188,19 @@ private fun SourceActions(source: SourceEntity, onDismiss: () -> Unit, onRemove:
         onDismiss = onDismiss,
         facts = listOf(kind.takeIf { !source.name.equals(it, ignoreCase = true) }, source.protocol.name),
         description = source.address(withScheme = false),
-        artwork = if (posters.isEmpty()) null else ({ PosterFan(posters) }),
+        artwork = if (posters.isEmpty()) {
+            null
+        } else {
+            {
+                PosterStrip(
+                    remember(posters) { posters.map { LocalProvider.image(it, ImageType.POSTER) } },
+                    HEADER_POSTERS,
+                    slotWidth = HlSize.rowPreviewPoster,
+                    gap = HlSpace.xxs,
+                    shape = HlShapes.artwork,
+                )
+            }
+        },
         initialFocus = scan,
     ) { sheet ->
         SheetConfirm(
@@ -226,29 +231,18 @@ private fun SourceActions(source: SourceEntity, onDismiss: () -> Unit, onRemove:
     }
 }
 
-/** The latest posters of a folder, side by side, at the head of its sheet. */
-@Composable
-private fun PosterFan(paths: List<String>) {
-    Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.xxs)) {
-        paths.take(HEADER_POSTERS).forEach { path ->
-            PosterThumb(LocalProvider.image(path, ImageType.POSTER), width = HlSize.rowPreviewPoster)
-        }
-    }
-}
-
 @Composable
 private fun sourceName(source: SourceEntity) = source.name.replaceFirstChar { it.uppercase() }
 
 /**
- * A watched folder, headed by its latest posters as a cover from edge to edge; then its name and
- * kind, where it lives, and how its last scan went (or the scan going on). OK opens its actions.
+ * A watched folder, headed by its latest posters from edge to edge (its name, set like a one-sheet,
+ * before it has any); then its name and kind, where it lives, and how its last scan went, or the
+ * [scan] going on through it. OK opens its actions.
  */
 @Composable
 private fun SourceCard(
     source: SourceEntity,
-    scanning: Boolean,
-    progress: Float,
-    current: String?,
+    scan: ScanState?,
     error: ScanError?,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -262,7 +256,7 @@ private fun SourceCard(
 
     HlPanelButton(onClick, modifier.fillMaxWidth()) {
         Column {
-            PosterCover(posters)
+            PosterStrip(remember(posters) { posters.map { LocalProvider.image(it, ImageType.POSTER) } }, STRIP, name = sourceName(source))
             Column(Modifier.padding(HlInset.card)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(HlSpace.s)) {
                     Text(sourceName(source), style = Hl.type.lead, color = c.content)
@@ -279,17 +273,7 @@ private fun SourceCard(
                 )
                 Spacer(Modifier.height(HlSpace.m))
                 when {
-                    scanning -> Row(verticalAlignment = Alignment.CenterVertically) {
-                        ProgressLine(progress.coerceAtLeast(PROGRESS_MIN), Modifier.width(HlSize.progressShort))
-                        Spacer(Modifier.width(HlSpace.s))
-                        Text(
-                            current ?: "",
-                            style = Hl.type.detail,
-                            color = c.contentSecondary,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
+                    scan != null -> ScanProgress(scan.processed, scan.total, current = scan.current)
                     error != null -> Text(scanErrorText(error, source.host), style = Hl.type.detail, color = c.tungsten)
                     else -> FactRow(
                         listOf(
@@ -298,24 +282,6 @@ private fun SourceCard(
                             lastScanned(source.lastScanAt),
                         ),
                     )
-                }
-            }
-        }
-    }
-}
-
-/**
- * The latest posters of a folder, side by side from edge to edge at the head of its card, parted
- * by hairlines; the slots still free keep their frame, so every cover has the same rhythm.
- */
-@Composable
-private fun PosterCover(paths: List<String>) {
-    val widthPx = with(androidx.compose.ui.platform.LocalDensity.current) { HlSize.poster.roundToPx() }
-    Row(Modifier.fillMaxWidth().background(Hl.colors.background), horizontalArrangement = Arrangement.spacedBy(HlSize.hairline)) {
-        repeat(STRIP) { i ->
-            Box(Modifier.weight(1f).aspectRatio(2f / 3f).background(Hl.colors.surfaceRaised)) {
-                paths.getOrNull(i)?.let { path ->
-                    ArtworkImage(LocalProvider.image(path, ImageType.POSTER).url(widthPx), null, Modifier.fillMaxSize())
                 }
             }
         }
@@ -347,8 +313,9 @@ private fun LibraryActions(
         )
         HlSettingRow(
             stringResource(R.string.scan_now),
+            // The counter's notation, as on the card of the folder being read.
             value = if (scan.running) {
-                stringResource(R.string.scan_running, scan.processed, scan.total)
+                stringResource(R.string.scan_progress, scan.processed, scan.total)
             } else {
                 relativeTime(lastScan, alone = true)
             },
@@ -625,9 +592,6 @@ private const val STRIP = 6
 
 /** Posters at the head of a folder's sheet. */
 private const val HEADER_POSTERS = 3
-
-/** A scan that has just started still shows a sliver of progress. */
-private const val PROGRESS_MIN = 0.02f
 
 private const val ADD_FOLDER = "add_folder"
 private const val SOURCE = "source"

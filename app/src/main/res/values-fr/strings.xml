@@ -24,14 +24,17 @@
     </plurals>
 
     <string name="retry">Réessayer</string>
-    <string name="empty">Rien pour l’instant.</string>
+    <string name="empty_title">Aucun titre pour l’instant</string>
+    <string name="empty_collections">Aucune collection pour l’instant</string>
+    <string name="empty_server">Le serveur ne propose aucun film ni aucune série à ce compte.</string>
     <plurals name="title_count">
         <item quantity="one">%d titre</item>
         <item quantity="other">%d titres</item>
         <item quantity="many">%d titres</item>
     </plurals>
-    <string name="home_empty_local">Aucun film pour l’instant. Ajoutez le dossier qui les contient.</string>
-    <string name="home_scanning">Analyse de vos fichiers… %1$d / %2$d</string>
+    <string name="home_empty_title">Aucun film pour l’instant</string>
+    <string name="home_empty_local">Ajoutez le dossier qui les contient.</string>
+    <string name="home_scanning">Analyse de vos fichiers</string>
     <string name="home_scan_failed">L’analyse n’a pas abouti</string>
     <string name="home_see_folders">Voir les dossiers</string>
 
@@ -51,8 +54,8 @@
     <string name="filter_quality">Qualité</string>
     <string name="all_qualities">Toutes les qualités</string>
     <string name="quality_hdr">HDR</string>
-    <string name="reset_filters">Réinitialiser les filtres</string>
-    <string name="no_match">Aucun titre ne correspond à ces filtres.</string>
+    <string name="reset_filters">Retirer les filtres</string>
+    <string name="no_match">Aucun titre avec ces filtres</string>
     <plurals name="filter_count">
         <item quantity="one">%d filtre</item>
         <item quantity="other">%d filtres</item>
@@ -281,7 +284,7 @@
     </plurals>
     <string name="artwork_hint">Votre choix est conservé lors des analyses. « Automatique » laisse Houselights choisir.</string>
     <string name="artwork_offline">Les images en ligne ne sont pas disponibles : identifiez d’abord ce titre, ou vérifiez la connexion.</string>
-    <string name="artwork_empty">Aucune image trouvée pour ce titre.</string>
+    <string name="artwork_empty">Aucune image pour ce titre</string>
     <string name="artwork_automatic">Automatique</string>
     <string name="artwork_no_text">Sans texte</string>
     <string name="artwork_any_language">Toutes langues</string>
@@ -300,7 +303,8 @@
     <string name="search_placeholder">Titre, ou identifiant IMDb (tt…)</string>
     <string name="searching">Recherche…</string>
     <string name="identifying">Association…</string>
-    <string name="search_empty">Aucun résultat. Essayez un autre titre, sans l’année, ou un identifiant IMDb (tt…).</string>
+    <string name="search_empty">Aucun résultat</string>
+    <string name="search_empty_hint">Essayez un autre titre, sans l’année, ou un identifiant IMDb (tt…).</string>
     <plurals name="result_count">
         <item quantity="one">%d résultat</item>
         <item quantity="other">%d résultats</item>
@@ -327,7 +331,6 @@
     <string name="error_action_edit_tmdb_key">Modifier la clé</string>
     <!-- Settings rows -->
     <string name="nav_version">Version %s</string>
-    <string name="scan_running">Analyse %1$d / %2$d</string>
     <string name="refresh_metadata_desc">Récupère à nouveau affiches et informations sur TMDB</string>
     <string name="remove_folder">Retirer ce dossier</string>
     <string name="remove_folder_desc">Ses titres quittent la bibliothèque ; rien n’est supprimé sur le NAS.</string>

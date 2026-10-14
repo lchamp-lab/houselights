@@ -12,8 +12,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -58,7 +56,7 @@ import app.houselights.ui.design.components.MetaLine
 import app.houselights.ui.design.components.ScreenTitle
 import app.houselights.ui.design.components.TitleArt
 import app.houselights.ui.design.components.rememberAmbientColor
-import app.houselights.ui.util.UiError
+import app.houselights.ui.home.ErrorIntertitle
 import app.houselights.ui.util.appContainer
 import app.houselights.ui.util.FACT_GAP
 import app.houselights.ui.util.formatDimensions
@@ -102,14 +100,9 @@ fun ArtworkScreen(itemId: String, kind: ArtworkKind, onDone: () -> Unit) {
                     if (item != null) Preview(kind, item, preview)
                 }
                 when {
-                    state.error != null -> Problem(state.error!!, vm::load)
+                    state.error != null -> ErrorIntertitle(state.error!!, vm::load, ChoicesPadding)
                     choices == null -> Skeletons(kind)
-                    choices.options.isEmpty() -> Text(
-                        stringResource(R.string.artwork_empty),
-                        style = Hl.type.body,
-                        color = Hl.colors.contentSecondary,
-                        modifier = Modifier.padding(horizontal = HlSpace.safeH, vertical = HlSpace.xl),
-                    )
+                    choices.options.isEmpty() -> HlEmptyState(stringResource(R.string.artwork_empty), ChoicesPadding, backHint = true)
                     else -> Choices(
                         kind = kind,
                         item = item!!,
@@ -208,25 +201,17 @@ private fun describe(kind: ArtworkKind, option: ArtworkOption): String = when (o
 private fun size(option: ArtworkOption): String? =
     if (option.width > 0 && option.height > 0) formatDimensions(option.width, option.height) else null
 
+/** Where the choices go, and what takes their place while they load or when there are none. */
+private val ChoicesPadding = Modifier.padding(horizontal = HlSpace.safeH, vertical = HlSpace.m)
+
 @Composable
 private fun Skeletons(kind: ArtworkKind) {
     Row(
-        Modifier.padding(horizontal = HlSpace.safeH, vertical = HlSpace.m),
+        ChoicesPadding,
         horizontalArrangement = Arrangement.spacedBy(HlSpace.m),
     ) {
         repeat(8) { CardSkeleton(kind.cardWidth, kind.aspectRatio) }
     }
-}
-
-@Composable
-private fun Problem(error: UiError, onRetry: () -> Unit) {
-    HlEmptyState(
-        stringResource(error.message),
-        Modifier.padding(horizontal = HlSpace.safeH, vertical = HlSpace.xl),
-        action = stringResource(R.string.retry),
-        actionIcon = Icons.Filled.Refresh,
-        onAction = onRetry,
-    )
 }
 
 private val ArtworkKind.title

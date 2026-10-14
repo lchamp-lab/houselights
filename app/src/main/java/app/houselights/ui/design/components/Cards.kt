@@ -39,9 +39,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ColorMatrix
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.pluralStringResource
@@ -61,6 +64,7 @@ import androidx.tv.material3.Icon
 import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
 import app.houselights.R
+import app.houselights.core.ImageRef
 import app.houselights.core.MediaItem
 import app.houselights.core.Person
 import app.houselights.ui.design.Hl
@@ -359,14 +363,68 @@ internal fun BoxScope.FallbackArtwork(title: String, year: Int?) {
 }
 
 /**
- * Where a small picture would be and is not, or failed to load: the room, edged by a quiet
- * hairline, like an empty frame in a foyer. Never a grey box, which reads as broken.
+ * Where a picture would be and is not yet, or failed to load: an empty frame in a foyer. The room
+ * shows through it, edged like artwork at rest, with the short rule of a one-sheet at its foot
+ * waiting for a title, in the quietest grey; a frame too small to hold the rule keeps its edge
+ * alone. Never a grey box, which reads as broken. Loading cards, the free places of a strip and
+ * the thumbnails with nothing to show are all this frame.
  */
 @Composable
-internal fun EmptyFrame(modifier: Modifier = Modifier) {
+internal fun EmptyFrame(modifier: Modifier = Modifier, shape: Shape = HlShapes.artwork) {
     val c = Hl.colors
-    Box(modifier.clip(HlShapes.artwork).background(c.background).border(HlSize.hairline, c.contentDecorative, HlShapes.artwork))
+    val rule = c.contentDecorative
+    Box(
+        modifier
+            .clip(shape)
+            .background(c.background)
+            .drawBehind {
+                val inset = HlSpace.s.toPx()
+                val length = HlSpace.l.toPx()
+                if (size.width >= length + 2 * inset && size.height >= length + 2 * inset) {
+                    val weight = HlSize.hairline.toPx()
+                    drawRect(rule, Offset(inset, size.height - inset - weight), Size(length, weight))
+                }
+            }
+            .border(HlSize.hairline, c.content.copy(alpha = HlAlpha.ARTWORK_EDGE), shape),
+    )
 }
+
+/**
+ * The latest posters of a folder side by side, at the head of its card or its sheet: [slots]
+ * places parted by [gap], each [slotWidth] wide or sharing the strip's width, the places still free
+ * left as empty frames, so every strip keeps the same rhythm. With no poster at all, [name] is set
+ * across the strip like a one-sheet. A poster that fails to load leaves an empty frame.
+ */
+@Composable
+fun PosterStrip(
+    posters: List<ImageRef>,
+    slots: Int,
+    modifier: Modifier = Modifier,
+    name: String? = null,
+    slotWidth: Dp? = null,
+    gap: Dp = HlSize.hairline,
+    shape: Shape = RectangleShape,
+) {
+    val c = Hl.colors
+    if (posters.isEmpty() && name != null) {
+        Box(modifier.fillMaxWidth().aspectRatio(slots * POSTER_RATIO).background(c.background)) { FallbackArtwork(name, null) }
+        return
+    }
+    val px = (slotWidth ?: HlSize.poster).toPx()
+    Row(modifier.background(c.background), horizontalArrangement = Arrangement.spacedBy(gap)) {
+        repeat(slots) { i ->
+            val slot = (if (slotWidth != null) Modifier.width(slotWidth) else Modifier.weight(1f)).aspectRatio(POSTER_RATIO)
+            val poster = posters.getOrNull(i)
+            if (poster == null) {
+                EmptyFrame(slot, shape)
+            } else {
+                ArtworkImage(poster.url(px), null, slot.clip(shape)) { EmptyFrame(Modifier.fillMaxSize(), shape) }
+            }
+        }
+    }
+}
+
+private const val POSTER_RATIO = 2f / 3f
 
 /**
  * One mark at most, at the top right, on a dark plate: the number of unwatched episodes of a show,
@@ -424,9 +482,12 @@ fun ProgressLine(progress: Float, modifier: Modifier = Modifier, onArtwork: Bool
     }
 }
 
-/** Placeholder card while a row loads: same footprint, no shimmer. A null [width] fills a grid cell. */
+/**
+ * A card while its row loads: an empty frame with the card's footprint, no shimmer. A null [width]
+ * fills a grid cell.
+ */
 @Composable
 fun CardSkeleton(width: Dp?, aspectRatio: Float, modifier: Modifier = Modifier) {
     val sized = if (width != null) modifier.width(width) else modifier
-    Box(sized.aspectRatio(aspectRatio).clip(HlShapes.artwork).background(Hl.colors.surface))
+    EmptyFrame(sized.aspectRatio(aspectRatio))
 }

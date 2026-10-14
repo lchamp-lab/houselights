@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -177,15 +176,18 @@ fun FactRow(
 }
 
 /**
- * What a screen says when it has nothing to show or could not load: a sentence that says what
- * happened, and the action that fixes it, focused. [secondaryAction] is a quieter way out beside it
- * (where to look more closely). With no action, [backHint] says that Back is the way out.
+ * What a screen says when it has nothing to show or could not load, as an intertitle: what
+ * happened ([title], in the voice of the poster), what to check ([message]), and the action that
+ * fixes it, focused; [secondaryAction] is a quieter way out beside it (where to look more closely).
+ * A failure calls for [attention]: its rule is tungsten. With no action, [backHint] says that Back
+ * is the way out. It takes the place of what the screen would show, from the top of that place.
  */
 @Composable
 fun HlEmptyState(
-    message: String,
+    title: String,
     modifier: Modifier = Modifier,
-    title: String? = null,
+    message: String? = null,
+    attention: Boolean = false,
     action: String? = null,
     actionIcon: ImageVector? = null,
     onAction: () -> Unit = {},
@@ -195,23 +197,22 @@ fun HlEmptyState(
 ) {
     val focus = remember { FocusRequester() }
     LaunchedEffect(action != null) { if (action != null) runCatching { focus.requestFocus() } }
-    Column(modifier.widthIn(max = HlLayout.readable)) {
-        if (title != null) {
-            Text(title, style = Hl.type.lead, color = Hl.colors.content)
-            Spacer(Modifier.height(HlSpace.xs))
-        }
-        Text(message, style = Hl.type.body, color = Hl.colors.contentSecondary)
-        if (action != null) {
-            Spacer(Modifier.height(HlSpace.l))
-            Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.s)) {
-                HlButton(action, onAction, Modifier.focusRequester(focus), icon = actionIcon, emphasis = Emphasis.Primary)
-                if (secondaryAction != null) HlButton(secondaryAction, onSecondaryAction)
-            }
-        } else if (backHint) {
-            Spacer(Modifier.height(HlSpace.l))
-            BackHint()
-        }
-    }
+    Intertitle(
+        title,
+        modifier,
+        message = message,
+        attention = attention,
+        actions = when {
+            action != null -> ({
+                Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.s)) {
+                    HlButton(action, onAction, Modifier.focusRequester(focus), icon = actionIcon, emphasis = Emphasis.Primary)
+                    if (secondaryAction != null) HlButton(secondaryAction, onSecondaryAction)
+                }
+            })
+            backHint -> ({ BackHint() })
+            else -> null
+        },
+    )
 }
 
 /** The state of something the app depends on; [Attention] when something went wrong with it. */
@@ -285,13 +286,23 @@ fun HlMeter(segments: List<MeterSegment>, modifier: Modifier = Modifier) {
     }
 }
 
-/** A line of a meter's legend: its colour, what it is, how much. */
+/**
+ * A line of a meter's legend, read as a table like the back of a case: its colour, what it is in a
+ * column of its own, then how much, on the same baseline, in tabular figures that line up.
+ */
 @Composable
 fun MeterLegend(label: String, value: String, color: Color, modifier: Modifier = Modifier) {
-    Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Box(Modifier.size(HlSize.dot).clip(HlShapes.avatar).background(color))
+    Row(modifier.fillMaxWidth()) {
+        Box(Modifier.align(Alignment.CenterVertically).size(HlSize.dot).clip(HlShapes.avatar).background(color))
         Spacer(Modifier.width(HlSpace.s))
-        Text(label, style = Hl.type.caption, color = Hl.colors.contentSecondary, modifier = Modifier.weight(1f))
-        Text(value, style = Hl.type.meta, color = Hl.colors.content)
+        Text(
+            label,
+            style = Hl.type.caption,
+            color = Hl.colors.contentSecondary,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.width(HlLayout.definitionLabel).alignByBaseline(),
+        )
+        Text(value, style = Hl.type.meta, color = Hl.colors.content, modifier = Modifier.alignByBaseline())
     }
 }
