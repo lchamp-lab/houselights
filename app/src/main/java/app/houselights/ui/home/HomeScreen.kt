@@ -30,6 +30,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.res.stringResource
@@ -140,9 +141,11 @@ fun HomeScreen(
                 TopBar(
                     libraries = state.libraries,
                     memory = memory,
+                    // Back from a library, focus enters the track on that library's tab.
+                    returnTo = state.libraries.indexOfFirst { memory.last == trackTab(it) }.takeIf { it >= 0 }?.plus(1),
                     onLibrary = { library ->
                         // Coming back from the library finds focus on its tab.
-                        memory.record(FocusKey.within(TRACK, FocusKey.tab(library.id)))
+                        memory.record(trackTab(library))
                         onOpenLibrary(library)
                     },
                     onSettings = onOpenSettings,
@@ -173,7 +176,13 @@ fun HomeScreen(
 }
 
 @Composable
-private fun TopBar(libraries: List<Library>, memory: FocusMemory, onLibrary: (Library) -> Unit, onSettings: () -> Unit) {
+private fun TopBar(
+    libraries: List<Library>,
+    memory: FocusMemory,
+    returnTo: Int?,
+    onLibrary: (Library) -> Unit,
+    onSettings: () -> Unit,
+) {
     // Where you are among the libraries, in one track; settings apart, as an action. Both sit on
     // the image, on their plates. A long track scrolls: the button always keeps its place.
     Row(
@@ -200,6 +209,7 @@ private fun TopBar(libraries: List<Library>, memory: FocusMemory, onLibrary: (Li
             modifier = Modifier.weight(1f, fill = false).padding(end = HlSpace.l).focusRequester(memory.requester(TRACK)),
             scrollable = true,
             onArtwork = true,
+            enterAt = returnTo ?: current,
         )
         HlIconButton(
             Icons.Filled.Settings,
@@ -221,6 +231,9 @@ private fun Sections(
     /** Focus left the rows (for the tabs above): nothing is selected anymore. */
     onLeave: () -> Unit,
 ) {
+    // Up from the first row goes to the tabs, whichever card it starts from: the track is one
+    // group, and the settings button, nearer some cards, is not where Up means to go.
+    val toTabs = Modifier.focusProperties { up = memory.requester(TRACK) }
     // The rows start under the hero: each comes back to the top of the list, where the first rests.
     ListScroll(top = HlSpace.none) { LazyColumn(
         state = rows,
@@ -238,7 +251,7 @@ private fun Sections(
                     state = rememberRowState(section.items.map { it.id }),
                 ) {
                     items(section.items, key = { it.id }) { item ->
-                        val mod = Modifier.focusKey(cardKey(section, item), memory)
+                        val mod = Modifier.focusKey(cardKey(section, item), memory).then(if (sectionIndex == 0) toTabs else Modifier)
                         val focus = { onFocus(sectionIndex, item) }
                         if (section.landscape) {
                             LandscapeCard(item, onClick = { onOpen(item) }, modifier = mod, onFocused = focus)
@@ -269,6 +282,9 @@ internal fun backGoesUp(focusedRow: Int?): Boolean = focusedRow != null && focus
 
 /** The library tabs, as one group: what they hold is the track's to focus. */
 private const val TRACK = "track"
+
+/** The key a library's tab is remembered by. */
+private fun trackTab(library: Library) = FocusKey.within(TRACK, FocusKey.tab(library.id))
 
 /** Same footprint as the real rows, so nothing jumps when data arrives. */
 @Composable

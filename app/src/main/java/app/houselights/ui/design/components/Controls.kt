@@ -276,7 +276,8 @@ fun HlListItem(
  * accessibility services the options are tabs, the current one selected. With [selectOnFocus],
  * moving onto an option selects it, as tabs over content do on TV. [scrollable] lets a long
  * track (seasons) scroll within the screen. [onArtwork] lays the track on a dark plate and its
- * options in projector white, so it reads over any image.
+ * options in projector white, so it reads over any image. [enterAt] is where focus enters when it
+ * is not the current option: the option a screen sends you back to (the library just left).
  */
 @Composable
 fun HlSegmented(
@@ -287,6 +288,7 @@ fun HlSegmented(
     selectOnFocus: Boolean = false,
     scrollable: Boolean = false,
     onArtwork: Boolean = false,
+    enterAt: Int = selected,
 ) {
     val density = LocalDensity.current
     val places = remember(options.size) { mutableStateMapOf<Int, Pair<Float, Float>>() }
@@ -339,7 +341,7 @@ fun HlSegmented(
                             .background(white, HlShapes.control),
                     )
                 }
-                Row(Modifier.enterOn(requesters, selected).selectableGroup(), horizontalArrangement = Arrangement.spacedBy(HlSpace.xxs)) {
+                Row(Modifier.enterOn(requesters, enterAt).selectableGroup(), horizontalArrangement = Arrangement.spacedBy(HlSpace.xxs)) {
                     options.forEachIndexed { i, label ->
                         SegmentItem(
                             label,
