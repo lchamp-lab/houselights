@@ -51,6 +51,12 @@ enum class UiError(@StringRes val title: Int, @StringRes val message: Int, val a
     /** What was asked for is no longer in the library: Back is the way out. */
     GONE(R.string.error_gone_title, R.string.error_gone, null),
 
+    /** No video player on this device: the Zidoo player is missing. */
+    NO_PLAYER(R.string.play_failed, R.string.no_player, null),
+
+    /** The file needs credentials, and only the Zidoo player may receive them. */
+    CREDENTIALS(R.string.play_failed, R.string.player_credentials, null),
+
     /** Anything else: the details are in the log. */
     FAILED(R.string.error_failed_title, R.string.error_failed, ErrorAction.RETRY),
 }

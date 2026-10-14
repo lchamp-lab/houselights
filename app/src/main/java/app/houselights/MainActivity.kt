@@ -4,7 +4,7 @@ import android.content.ActivityNotFoundException
 import android.os.Bundle
 import android.util.Log
 import android.view.Display
-import android.widget.Toast
+import android.view.KeyEvent
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
@@ -38,12 +38,15 @@ import app.houselights.core.suspendRunCatching
 import app.houselights.player.PlaybackManager
 import app.houselights.ui.util.ErrorAction
 import app.houselights.ui.util.LocalErrorFix
+import app.houselights.ui.util.UiError
 import app.houselights.ui.util.appContainer
+import app.houselights.ui.util.toUiError
 import coil.imageLoader
 import app.houselights.ui.design.HlMotion
 import app.houselights.ui.design.LocalHouseLights
 import app.houselights.ui.design.components.HouseLights
 import androidx.compose.runtime.mutableStateOf
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import app.houselights.ui.catalog.CatalogScreen
 import app.houselights.ui.detail.DetailScreen
@@ -74,6 +77,9 @@ class MainActivity : ComponentActivity() {
 
     /** House lights: down while the player starts, back up when the user returns. */
     private val lightsDown = mutableStateOf(false)
+
+    /** The cue under way, until the player takes over: Back stops it. */
+    private var cue: Job? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -141,10 +147,27 @@ class MainActivity : ComponentActivity() {
         lightsDown.value = false
     }
 
+    /**
+     * While the lights go down the remote waits: Back brings them up again and nothing plays, other
+     * keys are held (a second OK never starts a second playback). The system's own keys still work.
+     */
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean = when {
+        !lightsDown.value -> super.dispatchKeyEvent(event)
+        event.keyCode == KeyEvent.KEYCODE_BACK -> {
+            if (event.action == KeyEvent.ACTION_UP) cancelCue()
+            true
+        }
+        event.isSystem -> super.dispatchKeyEvent(event)
+        else -> true
+    }
+
     private fun play(item: MediaItem, resume: Boolean) {
-        lifecycleScope.launch {
+        // One cue at a time.
+        if (lightsDown.value) return
+        container.playback.clearProblem()
+        lightsDown.value = true
+        cue = lifecycleScope.launch {
             val s = container.settings.state.value
-            lightsDown.value = true
             suspendRunCatching { container.provider.playback(item, resume, PlaybackOptions(s.pathMappings, s.forceHttp)) }
                 .onSuccess { plan ->
                     // Let the room go dark before the player takes over the screen.
@@ -157,22 +180,30 @@ class MainActivity : ComponentActivity() {
                             container.playback.onPlayerLaunched()
                         } catch (_: ActivityNotFoundException) {
                             container.playback.onLaunchFailed()
-                            lightsDown.value = false
-                            toast(getString(R.string.no_player))
+                            failed(UiError.NO_PLAYER)
                         } catch (_: PlaybackManager.CredentialsNotShared) {
-                            lightsDown.value = false
-                            toast(getString(R.string.player_credentials))
+                            failed(UiError.CREDENTIALS)
                         }
                     }
                 }
                 .onFailure {
-                    lightsDown.value = false
-                    toast(getString(R.string.play_error, it.message ?: it.javaClass.simpleName))
+                    Log.w("Playback", "Playback failed", it)
+                    failed(it.toUiError())
                 }
         }
     }
 
-    private fun toast(text: String) = Toast.makeText(this, text, Toast.LENGTH_LONG).show()
+    /** The lights come back up, and the detail page says why nothing plays. */
+    private fun failed(error: UiError) {
+        lightsDown.value = false
+        container.playback.reportProblem(error)
+    }
+
+    private fun cancelCue() {
+        cue?.cancel()
+        cue = null
+        lightsDown.value = false
+    }
 }
 
 @Composable

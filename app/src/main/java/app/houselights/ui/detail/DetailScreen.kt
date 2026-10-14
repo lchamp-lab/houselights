@@ -22,6 +22,7 @@ import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -33,6 +34,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusRestorer
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -64,6 +70,8 @@ import app.houselights.ui.design.components.Emphasis
 import app.houselights.ui.design.components.HlButton
 import app.houselights.ui.design.components.HlIconButton
 import app.houselights.ui.design.components.HlSegmented
+import app.houselights.ui.design.components.HlStatus
+import app.houselights.ui.design.components.StatusState
 import app.houselights.ui.design.components.LandscapeCard
 import app.houselights.ui.design.components.MediaRow
 import app.houselights.ui.design.components.MetaLine
@@ -76,6 +84,7 @@ import app.houselights.ui.design.components.rememberAmbientColor
 import app.houselights.ui.edit.EditMenu
 import app.houselights.ui.home.ErrorMessage
 import app.houselights.ui.util.ReloadOnLibraryChange
+import app.houselights.ui.util.UiError
 import app.houselights.ui.util.appContainer
 import app.houselights.ui.util.FACT_GAP
 import app.houselights.ui.util.formatDuration
@@ -95,6 +104,8 @@ fun DetailScreen(
     ReloadOnLibraryChange { vm.load() }
     val state by vm.state.collectAsStateWithLifecycle()
     val item = state.item
+    // A failure to play stays until the next action (OK, wherever it is pressed) or the next screen.
+    DisposableEffect(Unit) { onDispose { app.playback.clearProblem() } }
 
     if (item == null) {
         Box(Modifier.fillMaxSize()) {
@@ -128,7 +139,12 @@ fun DetailScreen(
     }
 
     CompositionLocalProvider(LocalAmbient provides rememberAmbientColor(item.backdrop)) {
-        Box(Modifier.fillMaxSize()) {
+        Box(
+            Modifier.fillMaxSize().onPreviewKeyEvent {
+                if (it.type == KeyEventType.KeyDown && it.key in OK_KEYS) app.playback.clearProblem()
+                false
+            },
+        ) {
             Backdrop(item.backdrop, BackdropStyle.Full)
 
             LazyColumn(
@@ -334,6 +350,19 @@ private fun Hero(
                 HlIconButton(HlIcons.Edit, stringResource(R.string.edit), onClick = onEdit)
             }
         }
+        // Why the last title asked for did not play, under the actions that asked for it.
+        val problem by appContainer().playback.playbackProblem.collectAsStateWithLifecycle()
+        problem?.let { PlaybackProblem(it, Modifier.padding(top = HlSpace.l)) }
+    }
+}
+
+/** A title did not play: the attention light, then the reason. */
+@Composable
+private fun PlaybackProblem(error: UiError, modifier: Modifier = Modifier) {
+    Column(modifier.widthIn(max = HlLayout.readableNarrow)) {
+        HlStatus(StatusState.Attention, stringResource(R.string.play_failed))
+        Spacer(Modifier.height(HlSpace.xxs))
+        Text(stringResource(error.message), style = Hl.type.detail, color = Hl.colors.contentSecondary)
     }
 }
 
@@ -394,3 +423,6 @@ private fun Episodes(
         )
     }
 }
+
+/** The keys that act on what has focus. */
+private val OK_KEYS = setOf(Key.DirectionCenter, Key.Enter, Key.NumPadEnter)

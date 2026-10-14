@@ -45,7 +45,8 @@ The technical voice speaks the vocabulary of a Blu-ray case: formats by their na
 
 - **House lights.** Playing a title runs one cue (`HouseLightCue`, `DIM`): the room fades first (text,
   buttons, rows: `Modifier.houseLit`), the scrims lift so the picture shows whole, then black and the
-  player. Coming back runs the cue backwards.
+  player. Coming back runs the cue backwards. While the lights go down the remote waits: a second OK
+  does nothing, Back brings the lights up again and nothing plays.
 - **Billing block.** On a detail page, director and leading cast read as a sentence, "a film by NAME
   with NAME, NAME and NAME": names in condensed capitals, small words and commas receding. On one line:
   it keeps as many leading names as fit, and never breaks inside a name.
@@ -152,7 +153,7 @@ without the prefix (`MenuOption`, `MeterLegend`, `PosterCard`, `BillingBlock`, `
 | `HlButton` (`Primary`, `Secondary`), `HlIconButton` | pill and round actions, all 48 dp tall; the icon button shows its label when focused |
 | `HlSegmented` | the one way to show where you are or what is chosen among a few: home navigation, seasons (`scrollable`), NFO views, form choices. In a track, **white means current**: one white pill sits under the current option and slides to the option chosen (`STANDARD`, emphasized). The option under focus but not chosen is a grey pill; focus on the current option draws a ring around the pill, travelling with it. A long track scrolls as one piece, pill included. There is no standalone tab |
 | `HlPanel` (`Quiet`, `Raised`, `lit`), `HlPanelButton` | the one panel recipe, and its focusable form |
-| `HlIconDisc`, `HlDivider`, `HlStatus`, `HlMeter`, `MeterLegend` | an icon in a disc (lit when on), a hairline, a state with its light, a segmented gauge |
+| `HlIconDisc`, `HlDivider`, `HlStatus`, `HlMeter`, `MeterLegend` | an icon in a disc (lit when on), a hairline, a state with its light (tungsten when on or calling for attention), a segmented gauge |
 | `HlListItem`, `HlResultItem`, `PosterThumb` | choices in a list (icon in line with the name, what the choice brings in badges under a hairline, a chevron on focus); a search result with its poster |
 | `HlNavItem`, `HlSettingGroup`, `HlSettingRow` | settings: navigation entries with what they are set to; rows with their value, leading somewhere or stating it |
 | `HlSideSheet`, `SheetScope`, `RowPreview` | acting on what a screen shows, beside it: a panel against the right edge (see *Sheets*); rows can lead with a preview of the image they change |
@@ -216,6 +217,15 @@ Focus must read from the couch:
   a grey pill, and focus on the current one a ring around it.
 - **Panels** that can be chosen are raised and outlined in projector white.
 - **Text fields** get a white outline when focused and a tungsten outline while typing.
+
+## Messages
+
+A message goes where the action was, in the app's voice: no Toast (a test forbids it), no snackbar,
+no dialog. A title that does not play says so under the actions that asked for it: the attention
+light (`HlStatus`, `Attention`), "Lecture impossible", then the reason as a `detail` line; the next
+action or the next screen takes it away. A screen that could not load says what happened in place
+of what it would show (`HlEmptyState`), with what fixes it. Raw exception text never reaches the
+screen: it goes to the log.
 
 ## Writing
 

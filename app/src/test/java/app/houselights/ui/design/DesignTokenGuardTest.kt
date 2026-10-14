@@ -53,6 +53,19 @@ class DesignTokenGuardTest {
         assertTrue("Screens go around the design system:\n" + violations.joinToString("\n"), violations.isEmpty())
     }
 
+    /** A message goes where the action was, in the app's own voice: never in a system Toast. */
+    @Test
+    fun noToast() {
+        val sources = File("src/main/java")
+        assertTrue("Sources not found from ${File(".").absolutePath}", sources.isDirectory)
+        val toast = Regex("""\bandroid\.widget\.Toast\b""")
+        val found = sources.walkTopDown()
+            .filter { it.isFile && it.extension == "kt" && toast.containsMatchIn(it.readText()) }
+            .map { it.relativeTo(sources).path }
+            .toList()
+        assertTrue("Toast in: ${found.joinToString()}", found.isEmpty())
+    }
+
     @Test
     fun theGuardCatchesWhatItShould() {
         val samples = listOf(

@@ -124,9 +124,9 @@
     <string name="gigabytes">%s GB</string>
     <string name="megabytes">%s MB</string>
     <string name="similar">More like this</string>
-    <string name="play_error">Can’t play: %s</string>
-    <string name="no_player">No video player available</string>
-    <string name="player_credentials">This folder needs a password: only the Zidoo player can play it</string>
+    <string name="play_failed">Can’t play</string>
+    <string name="no_player">The Zidoo player isn’t installed.</string>
+    <string name="player_credentials">This folder needs a password: only the Zidoo player can play it.</string>
 
     <!-- Local folders -->
     <string name="add_folder">Add a folder</string>

@@ -202,10 +202,10 @@ fun HlEmptyState(
     }
 }
 
-/** The state of something the app depends on. */
-enum class StatusState { On, Off, Pending }
+/** The state of something the app depends on; [Attention] when something went wrong with it. */
+enum class StatusState { On, Off, Pending, Attention }
 
-/** A state in words with its light: a tungsten dot when on, an empty one when off. */
+/** A state in words with its light: a tungsten dot when on or calling for attention, an empty one when off. */
 @Composable
 fun HlStatus(state: StatusState, text: String, modifier: Modifier = Modifier) {
     val c = Hl.colors
@@ -216,14 +216,15 @@ fun HlStatus(state: StatusState, text: String, modifier: Modifier = Modifier) {
                 .clip(HlShapes.avatar)
                 .then(
                     when (state) {
-                        StatusState.On -> Modifier.background(c.tungsten)
+                        StatusState.On, StatusState.Attention -> Modifier.background(c.tungsten)
                         StatusState.Pending -> Modifier.background(c.contentDecorative)
                         StatusState.Off -> Modifier.border(HlSize.hairline, c.contentTertiary, HlShapes.avatar)
                     }
                 )
         )
         Spacer(Modifier.width(HlSpace.xs))
-        Text(text, style = Hl.type.meta, color = if (state == StatusState.On) c.content else c.contentSecondary)
+        val strong = state == StatusState.On || state == StatusState.Attention
+        Text(text, style = Hl.type.meta, color = if (strong) c.content else c.contentSecondary)
     }
 }
 
