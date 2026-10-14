@@ -20,6 +20,8 @@ object HlSpace {
     val safeV = 28.dp
     /** Between facts on one line (year, runtime, rating): wider than a word space. */
     val fact = 20.dp
+    /** How far what scrolls fades into its surface, at an edge with more beyond it (`scrollEdges`). */
+    val fadeEdge = l
 }
 
 /**

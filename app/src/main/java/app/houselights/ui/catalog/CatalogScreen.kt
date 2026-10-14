@@ -206,14 +206,17 @@ fun CatalogScreen() {
                     var reading by remember { mutableStateOf(false) }
                     var asking by remember { mutableStateOf(false) }
                     var keyed by remember { mutableStateOf(false) }
+                    var long by remember { mutableStateOf(false) }
                     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.s)) {
                         HlButton("Side sheet", { side = true })
                         HlButton("Reading sheet", { reading = true })
                         HlButton("An action that asks first", { asking = true })
                         HlButton("A status, a field", { keyed = true })
+                        HlButton("More rows than it holds", { long = true })
                     }
                     if (asking) SheetQuestion(onDismiss = { asking = false })
                     if (keyed) SheetStatusField(onDismiss = { keyed = false })
+                    if (long) SheetLong(onDismiss = { long = false })
                     if (side) {
                         HlSideSheet(
                             "Modifier",
@@ -411,6 +414,20 @@ private fun SheetQuestion(onDismiss: () -> Unit) {
     }
 }
 
+/** A sheet with more rows than it holds: they fade into it at an edge with more beyond. */
+@Composable
+private fun SheetLong(onDismiss: () -> Unit) {
+    HlSideSheet(
+        "Collections",
+        onDismiss = onDismiss,
+        description = "Rows past the sheet fade at its edge; focus stays clear of it.",
+    ) { sheet ->
+        for (n in 1..CATALOG_LONG_ROWS) {
+            HlSettingRow("Collection $n", description = "Regroupe les films d’une saga", onClick = sheet::dismiss)
+        }
+    }
+}
+
 /** Where a setting stands, at the head of its sheet; then a field and the action that checks it. */
 @Composable
 private fun SheetStatusField(onDismiss: () -> Unit) {
@@ -445,6 +462,9 @@ private fun SheetStatusField(onDismiss: () -> Unit) {
         HlButton("Enregistrer", { checking = true }, emphasis = Emphasis.Primary, busy = checking, busyLabel = "Vérification…")
     }
 }
+
+/** More rows than a side sheet holds. */
+private const val CATALOG_LONG_ROWS = 14
 
 /** How long the catalogue's busy buttons work before they give their answer. */
 private const val CATALOG_BUSY_MS = 3_000L

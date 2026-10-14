@@ -83,6 +83,7 @@ fun SettingsScreen(
     val titles by vm.library.titleCount.collectAsStateWithLifecycle(0)
 
     HlTwoPane(
+        state = list,
         side = {
             ScreenTitle(stringResource(R.string.settings_title))
             Spacer(Modifier.height(HlSpace.xl))

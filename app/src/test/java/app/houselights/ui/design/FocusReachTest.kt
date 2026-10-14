@@ -28,4 +28,10 @@ class FocusReachTest {
         assertTrue(HlFocus.reach(HlSize.poster * posterHeight, HlFocus.ARTWORK_SCALE) <= HlSpace.s)
         assertTrue(HlFocus.reach(HlLayout.posterChoice * posterHeight, HlFocus.CARD_SCALE) <= HlSpace.s)
     }
+
+    @Test
+    fun focusStaysClearOfTheFades() {
+        // A list keeps focus HlFocus.edge from its ends: past the fade of what scrolls.
+        assertTrue(HlSpace.fadeEdge <= HlFocus.edge)
+    }
 }

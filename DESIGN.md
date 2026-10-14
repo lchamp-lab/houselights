@@ -171,7 +171,7 @@ that grows with the text.
 
 | Token | Content |
 |---|---|
-| `HlSpace` | 4 dp grid: `xxs` 4, `xs` 8, `s` 12, `m` 16, `l` 24, `xl` 32, `xxl` 48; `xxs` between a name and the line under it; `fact` 20 between facts; `safeH` 48 / `safeV` 28 |
+| `HlSpace` | 4 dp grid: `xxs` 4, `xs` 8, `s` 12, `m` 16, `l` 24, `xl` 32, `xxl` 48; `xxs` between a name and the line under it; `fact` 20 between facts; `safeH` 48 / `safeV` 28; `fadeEdge` 24, how far what scrolls fades at an edge |
 | `HlInset` | inner padding of containers, by what they hold: `tight` 8 (menus, results with a thumbnail), `compact` 12 (dense rows), `card` 24 (panels, cards), `sheet` 32 (sheets) |
 | `HlShapes` | radius follows hierarchy: `badge` 3, `artwork` 4, `field` 6, `row` 8 (rows that can be chosen), `panel` 12, `sheet` 16 (sheets and menus), `control` pill, `avatar` circle. A shape set close inside another keeps their corners parallel: **outer radius = inner radius + gap** (a menu: 8 + 8 = 16; a result: 4 + 8 = 12) |
 | `HlSize` | artwork (poster 112, landscape 220, episode 264, avatar 76 in a column of 120, thumbnails), `control` 48 for every button, icons 20, discs 52, marks 20, dots 8, setting rows 64, previews in a row (48 tall, a slot of 84), meter 10, the short rules of a loading title (48, 24), the short rule heading a question (`intertitleRule`, 24 by 2) |
@@ -187,6 +187,7 @@ that grows with the text.
 | `LocalHouseLights`, `HouseLightCue` | `Auditorium.kt` | how far the house lights are down (read while drawing), and the order of the cue |
 | `HlIcons` | `Icons.kt` | line icons drawn for the app (24 dp grid, 1.75 stroke): places, actions (Restart, Edit), marks (Check), the remote's Back; core Material icons for the rest |
 | `rememberListScroll`, `ListScroll`, `RowScroll` | `Scroll.kt` | lists scroll only as much as needed (`EdgeScroll`), never against the edge of the screen: a list keeps focus `HlFocus.edge` from its top and bottom, so the last row stops inside the safe area; a list that starts under a header or a hero (`ListScroll(top)`) brings its rows back to where its first one rests; rows keep focus 80 dp from the sides, so the first card always scrolls home |
+| `scrollEdges(state, color)` | `Scroll.kt` | what scrolls fades into its surface over `HlSpace.fadeEdge`, at the top and the bottom, on a side only while there is more that way: a line cut at the edge reads as more to come. A gradient of the surface's own colour over the content, no layer, so only on an opaque surface: the room in `HlTwoPane`, the raised sheet of `HlSideSheet` and of menus, the panel or the sheet of `HlScrollArea`. Never on rows of posters, whose ends stay open |
 | `revealOnFocus()`, `keepVerticalFocus()` | `Scroll.kt` | a group comes fully into view when focus enters it; up and down never leave a column |
 
 ## Components
@@ -213,11 +214,11 @@ without the prefix (`MenuOption`, `MeterLegend`, `PosterCard`, `BillingBlock`, `
 | `HlNavItem`, `HlSettingGroup`, `HlSettingRow` | settings: navigation entries with what they are set to; rows with their value, leading somewhere or stating it; a row not `enabled` stays on the room (see *Contrast*) |
 | `HlSideSheet`, `SheetScope`, `RowPreview`, `SheetConfirm` | acting on what a screen shows, beside it: a panel against the right edge (see *Sheets*), where it stands in its header (`status`); rows can lead with a preview of the image they change; an action that cannot be undone asks first, in the sheet |
 | `HlChoiceSheet` | the choices of a setting, in a side sheet: focus on the current one, choosing applies and closes, Back changes nothing |
-| `HlMenuButton`, `MenuSection`, `MenuOption` | a button opening a sectioned menu anchored to its end edge (sort, filters): below it when the room down to the safe area holds the menu, else above; never past the safe area, a longer menu scrolls inside. It moves like a sheet, growing from the button's corner and leaving the same way; a sort applies once the menu has gone, so the wall reorders on its own. The button names what it does and its detail what is set: "Trier", "Titre"; the options say the order ("Titre, de A à Z") |
+| `HlMenuButton`, `MenuSection`, `MenuOption` | a button opening a sectioned menu anchored to its end edge (sort, filters): below it when the room down to the safe area holds the menu, else above; never past the safe area, a longer menu scrolls inside, its options fading at an edge with more. It moves like a sheet, growing from the button's corner and leaving the same way; a sort applies once the menu has gone, so the wall reorders on its own. The button names what it does and its detail what is set: "Trier", "Titre"; the options say the order ("Titre, de A à Z") |
 | `HlModal` | a sheet to read, centred over the dimmed room (the technical sheet), never past the safe area: longer content scrolls; Back closes it |
-| `HlTwoPane`, `HlFormScaffold`, `StatusPanel`, `FieldLabel` | two-pane screens: navigation or explanation on the left, content on the right. `StatusPanel` is where a setup stands, beside its form: its state with its light first, then what is set up, large (an address in the technical voice), its path and kind, and what was found under a hairline; lit while the state is on |
+| `HlTwoPane`, `HlFormScaffold`, `StatusPanel`, `FieldLabel` | two-pane screens: navigation or explanation on the left, content on the right; given the content's scroll `state`, the content fades into the room at an edge with more. `StatusPanel` is where a setup stands, beside its form: its state with its light first, then what is set up, large (an address in the technical voice), its path and kind, and what was found under a hairline; lit while the state is on |
 | `HlTextField` | TV text field: focusable box first, keyboard on OK; focused and waiting, it says so at its end ("OK saisir", `KeyHint`); tungsten while typing, and only then. Every field has a name, read out even when the screen hides it because its sheet already names it. One line under it: what to type (`supporting`), or what is wrong (`error`), in tungsten after the attention light, its edge unchanged. A placeholder is an example, from the resources ("Ex. : 192.168.1.10"). A setting typed in a field is saved when the field is left (its keyboard action, or focus moving on), never while typing, and its result line then says "Enregistré". Once the keyboard is closed, up or down end typing and move on (Back closes it without telling the app) |
-| `HlScrollArea` | long content read with the remote; focusable only when it has something to scroll; a key held down scrolls in one motion. Framed on a quiet panel, or unframed inside a sheet: square edges, so a hairline at its top stays whole, and the focus ring outside the content |
+| `HlScrollArea` | long content read with the remote; focusable only when it has something to scroll; a key held down scrolls in one motion. Framed on a quiet panel, or unframed inside a sheet: square edges, so a hairline at its top stays whole, and the focus ring outside the content. Where there is more, the text fades into what the area sits on (`surface`: the panel, or the sheet) |
 | `TechSpecs`, `InfoBlock`, `DefinitionList` | the technical sheet, set like the back of a Blu-ray case: one block per subject (a hairline, its name, what it says), every track listed; it does not scroll itself, the sheet scrolls it whole. The NFO is laid out the same way |
 | `ArtworkChoiceCard`, `SelectedMark` | one artwork to choose from, at the shape it is used in |
 | `HlEmptyState` | what happened and what to do, with the action focused; a quieter way out beside it; with no action, the Back hint. An error (`UiError`) brings its own title, message and action (`ErrorAction`): try again on the spot, sign in again, add or change the TMDB key; a title that has gone has none, Back is the way out |
@@ -263,7 +264,8 @@ Focus stays inside; when a sheet has gone, focus is back where it was.
 - **To act: `HlSideSheet`.** A panel the full height of the screen against its right edge (520 dp),
   so the page it acts on stays in view, under a lighter scrim (`SCRIM_SIDE`). From the top: what
   it does, in the voice of the poster (`subject`: "Modifier"); what it is about (a name, facts, a
-  line of description, and artwork when it helps); a hairline; the rows; the Back hint at its foot.
+  line of description, and artwork when it helps); a hairline; the rows, which fade into the sheet
+  at an edge with more; the Back hint at its foot.
   Rows that change an image show it as it is now (`RowPreview`), at the shape it is used in. Every
   action row says what it does in one line ("Cherche les nouveaux fichiers"), so the rows of a
   sheet keep one height.
@@ -320,6 +322,9 @@ under a header or a hero, is already inside the safe area: it brings its rows ba
 where the first one rests (`ListScroll(top)`), so the row above leaves whole instead of lingering as
 a sliver. A row of cards keeps `HlSpace.s` above and below them, room for a poster to grow (8.4 dp at
 1.10). The label of a round button overflows under it and slides along to stay inside the safe area.
+Where what scrolls fades at an edge (`scrollEdges`), focus stays clear of the fade: a list keeps
+`HlFocus.edge` from its ends, wider than `HlSpace.fadeEdge`, and `HlTwoPane` brings its rows back
+down to `fadeEdge`, so the row above dissolves into the room instead of being cut.
 
 Focus is never left nowhere. When what holds it goes away (a folder removed, a line deleted), it
 moves to a neighbour, else to the action that adds one ("Ajouter un dossier").
@@ -422,4 +427,5 @@ there with the reason.
 Start from `Backdrop`, `HlTwoPane` or `HlFormScaffold`, compose existing components, and add a token
 or component here before using a new value twice. A vertical list ends with
 `contentPadding(bottom = HlFocus.edge)`; if it starts below the top of the screen, it sits in
-`ListScroll(top = its top padding)`. `HlTwoPane` does this for its content pane.
+`ListScroll(top = its top padding)`. `HlTwoPane` does this for its content pane; give it the
+content's scroll state, and the content fades at its edges.
