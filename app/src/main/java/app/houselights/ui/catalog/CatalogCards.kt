@@ -1,0 +1,396 @@
+package app.houselights.ui.catalog
+
+import androidx.annotation.DrawableRes
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.lazy.items
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.Dp
+import androidx.tv.material3.Text
+import app.houselights.R
+import app.houselights.core.ArtworkKind
+import app.houselights.core.ImageRef
+import app.houselights.core.MediaKind
+import app.houselights.core.Person
+import app.houselights.ui.design.Hl
+import app.houselights.ui.design.HlIcons
+import app.houselights.ui.design.HlLayout
+import app.houselights.ui.design.HlShapes
+import app.houselights.ui.design.HlSize
+import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.components.ArtworkChoiceCard
+import app.houselights.ui.design.components.ArtworkImage
+import app.houselights.ui.design.components.ArtworkSurface
+import app.houselights.ui.design.components.CardSkeleton
+import app.houselights.ui.design.components.HlResultItem
+import app.houselights.ui.design.components.LandscapeCard
+import app.houselights.ui.design.components.MediaRow
+import app.houselights.ui.design.components.PersonCard
+import app.houselights.ui.design.components.PosterCard
+import app.houselights.ui.design.components.PosterThumb
+import app.houselights.ui.design.components.PreviewShape
+import app.houselights.ui.design.components.ProgressLine
+import app.houselights.ui.design.components.RowPreview
+import app.houselights.ui.design.components.SelectedMark
+import app.houselights.ui.util.FACT_GAP
+import app.houselights.ui.util.formatDimensions
+
+// Artwork comes from the app's own resources, and a failed image from a file that cannot exist:
+// nothing here needs the network.
+
+/** Cards, artwork and the parts of the pickers, each in the states it has today. */
+internal fun LazyListScope.catalogCards() {
+    item { Group("Media row: poster cards, the others step back") { PosterRow() } }
+    item { Group("Artwork surface and image") { Surfaces() } }
+    item { Group("Landscape card") { LandscapeRow() } }
+    item { Group("Person card: one line, two lines, long role, no photo") { CastRow() } }
+    item { Group("Progress line: on the room, on projector white", still = true) { ProgressLines() } }
+    item { Group("Card skeleton: the shapes screens ask for", still = true) { Skeletons() } }
+    item { Group("Artwork choice: poster") { ChoiceRow(ArtworkKind.POSTER) } }
+    item { Group("Artwork choice: backdrop") { ChoiceRow(ArtworkKind.BACKDROP) } }
+    item {
+        Group("Artwork choice: logo, and the selected mark") {
+            ChoiceRow(ArtworkKind.LOGO)
+            SelectedMarks()
+        }
+    }
+    item { Group("Search result") { Results() } }
+    item { Group("Poster thumb and row preview", still = true) { Thumbs() } }
+}
+
+private const val BROKEN_URL = "file:///nonexistent/poster.jpg"
+
+/** Artwork that fails to load. */
+private val brokenImage = ImageRef("catalog-broken") { BROKEN_URL }
+
+/** Artwork the app ships with, so a card shows a real image without the network. */
+@Composable
+private fun shippedImage(@DrawableRes id: Int): ImageRef {
+    val pkg = LocalContext.current.packageName
+    return remember(pkg, id) { ImageRef("catalog-res-$id") { "android.resource://$pkg/$id" } }
+}
+
+/** One state of a component, named underneath. */
+@Composable
+private fun StateCaption(state: String, modifier: Modifier = Modifier, width: Dp? = null, content: @Composable () -> Unit) {
+    Column(if (width == null) modifier else modifier.width(width), verticalArrangement = Arrangement.spacedBy(HlSpace.s)) {
+        content()
+        Text(state, style = Hl.type.caption, color = Hl.colors.contentTertiary)
+    }
+}
+
+/** Posters in a row as home and the detail page lay them out: focus one and the others step back. */
+@Composable
+private fun PosterRow() {
+    val art = shippedImage(R.drawable.banner)
+    val now = System.currentTimeMillis()
+    val cards = listOf(
+        "rest, no artwork" to sample("Le Samouraï", 1967),
+        "artwork" to sample("Houselights", 2026).copy(poster = art),
+        "watched" to sample("Playtime", 1967, played = true).copy(poster = art),
+        "in progress, 40%" to sample("La Nuit américaine", 1973, positionMs = 1_440_000).copy(poster = art),
+        "new this week" to sample("Drive My Car", 2021, addedAt = now),
+        "6 unwatched" to sample("Twin Peaks", 1990, kind = MediaKind.SERIES, unplayed = 6),
+        "1234 unwatched, long title" to sample(
+            "Les Aventures extraordinaires d’Adèle Blanc-Sec et le secret de la momie",
+            2010,
+            kind = MediaKind.SERIES,
+            unplayed = 1234,
+        ),
+        "image failed" to sample("Pierrot le Fou", 1965).copy(poster = brokenImage),
+    )
+    MediaRow("Ajoutés récemment") {
+        items(cards) { (state, media) -> StateCaption(state, width = HlSize.poster) { PosterCard(media, {}) } }
+    }
+}
+
+/** The focus treatment alone, and the image inside it, loaded or failed. */
+@Composable
+private fun Surfaces() {
+    val art = shippedImage(R.drawable.banner).url(0)
+    Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Top) {
+        StateCaption("surface alone", width = HlSize.landscape) {
+            ArtworkSurface({}, Modifier.width(HlSize.landscape).aspectRatio(16f / 9f)) {}
+        }
+        StateCaption("image", width = HlSize.landscape) {
+            ArtworkSurface({}, Modifier.width(HlSize.landscape).aspectRatio(16f / 9f)) {
+                ArtworkImage(art, "Houselights", Modifier.fillMaxSize())
+            }
+        }
+        StateCaption("image failed: blank", width = HlSize.landscape) {
+            ArtworkSurface({}, Modifier.width(HlSize.landscape).aspectRatio(16f / 9f)) {
+                ArtworkImage(BROKEN_URL, "Pierrot le Fou", Modifier.fillMaxSize())
+            }
+        }
+        StateCaption("round, as a person", width = HlSize.personColumn) {
+            ArtworkSurface({}, Modifier.size(HlSize.avatar), shape = HlShapes.avatar) {
+                ArtworkImage(art, null, Modifier.fillMaxSize())
+            }
+        }
+    }
+}
+
+/** Home's landscape cards, without a caption, then episodes as the detail page lists them. */
+@Composable
+private fun LandscapeRow() {
+    val art = shippedImage(R.drawable.banner)
+    val now = System.currentTimeMillis()
+    val longName = "Où l’on comprend enfin pourquoi les hiboux ne sont pas ce qu’ils semblent être"
+    MediaRow(header = null, spacing = HlSpace.l) {
+        item {
+            StateCaption("home: no artwork, 40%", width = HlSize.landscape) {
+                LandscapeCard(sample("La Nuit américaine", 1973, positionMs = 1_440_000), {})
+            }
+        }
+        item {
+            StateCaption("home: artwork, new", width = HlSize.landscape) {
+                LandscapeCard(sample("Houselights", 2026, addedAt = now).copy(thumb = art), {})
+            }
+        }
+        item {
+            StateCaption("episode: rest, no artwork", width = HlSize.episode) {
+                LandscapeCard(
+                    sample("Pile ou face", 2025, kind = MediaKind.EPISODE),
+                    {},
+                    width = HlSize.episode,
+                    title = "Pile ou face",
+                    number = "1",
+                    facts = listOf("1 h", null),
+                )
+            }
+        }
+        item {
+            StateCaption("episode: long name, artwork, 40%", width = HlSize.episode) {
+                LandscapeCard(
+                    sample(longName, 2025, kind = MediaKind.EPISODE, positionMs = 1_440_000).copy(thumb = art),
+                    {},
+                    width = HlSize.episode,
+                    title = longName,
+                    number = "12",
+                    facts = listOf("1 h", "Il reste 36 min"),
+                )
+            }
+        }
+        item {
+            StateCaption("episode: watched, image failed", width = HlSize.episode) {
+                LandscapeCard(
+                    sample("Le Retour", 2025, kind = MediaKind.EPISODE, played = true).copy(thumb = brokenImage),
+                    {},
+                    width = HlSize.episode,
+                    title = "Le Retour",
+                    number = "3",
+                    facts = listOf("1 h", "Vu"),
+                )
+            }
+        }
+    }
+}
+
+/** The cast row of a detail page: names of one and two lines side by side, so the roles part. */
+@Composable
+private fun CastRow() {
+    val photo = shippedImage(R.drawable.banner)
+    val cast = listOf(
+        "one line, no photo" to Person("Alain Delon", "Jef Costello", null),
+        "two lines" to Person("Maria de Medeiros Esteves", "Fabienne", null),
+        "long role" to Person("François Périer", "Le commissaire chargé de l’enquête", null),
+        "photo" to Person("Nathalie Delon", "Jane Lagrange", photo),
+        "photo failed" to Person("Cathy Rosier", "La pianiste", brokenImage),
+        "no role" to Person("Jacques Leroy", null, null),
+        "name cut" to Person("Maria de Medeiros Esteves Vitorino de Almeida", "Elle-même", null),
+    )
+    MediaRow(header = null, spacing = HlSpace.s) {
+        items(cast) { (state, person) -> StateCaption(state, width = HlSize.personColumn) { PersonCard(person) } }
+    }
+}
+
+/** At the foot of a poster: on the dark room, and on projector white, a light poster's worst case. */
+@Composable
+private fun ProgressLines() {
+    val c = Hl.colors
+    listOf("room" to c.background, "white" to c.content).forEach { (ground, color) ->
+        Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Top) {
+            listOf(0f to "0%: not drawn", 0.4f to "40%", 1f to "100%").forEach { (progress, label) ->
+                StateCaption("$ground, $label", width = HlSize.poster) {
+                    Box(Modifier.width(HlSize.poster).height(HlSpace.l).background(color)) {
+                        ProgressLine(progress, Modifier.align(Alignment.BottomCenter))
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** Every footprint a screen asks a placeholder for, and the landscape one no screen asks for. */
+@Composable
+private fun Skeletons() {
+    Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Top) {
+        StateCaption("poster row (home)", width = HlSize.poster) { CardSkeleton(HlSize.poster, 2f / 3f) }
+        StateCaption("poster choice", width = HlLayout.posterChoice) { CardSkeleton(HlLayout.posterChoice, 2f / 3f) }
+        StateCaption("backdrop or logo choice", width = HlLayout.landscapeChoice) {
+            CardSkeleton(HlLayout.landscapeChoice, 16f / 9f)
+        }
+        StateCaption("landscape row: unused", width = HlSize.landscape) { CardSkeleton(HlSize.landscape, 16f / 9f) }
+    }
+}
+
+/** An option of a picker, in one state. */
+private class ArtworkChoiceSample(
+    val state: String,
+    val image: ImageRef?,
+    val chosen: Boolean,
+    val title: String,
+    val caption: String?,
+    val placeholder: String? = null,
+)
+
+/** The options of one artwork picker as its screen lays them out, after its loading placeholder. */
+@Composable
+private fun ChoiceRow(kind: ArtworkKind) {
+    val picture = shippedImage(if (kind == ArtworkKind.LOGO) R.drawable.ic_launcher_foreground else R.drawable.banner)
+    val options = when (kind) {
+        ArtworkKind.POSTER -> listOf(
+            ArtworkChoiceSample("chosen", picture, true, "Automatique", "Français$FACT_GAP${formatDimensions(2000, 3000)}"),
+            ArtworkChoiceSample("rest", picture, false, "Anglais", formatDimensions(2000, 3000)),
+            ArtworkChoiceSample("image failed", brokenImage, false, "Fichier local", null),
+        )
+        ArtworkKind.BACKDROP -> listOf(
+            ArtworkChoiceSample("chosen", picture, true, "Sans texte", formatDimensions(3840, 2160)),
+            ArtworkChoiceSample("rest", picture, false, "Lien du NFO", null),
+            ArtworkChoiceSample("image failed", brokenImage, false, "Fichier local", null),
+        )
+        ArtworkKind.LOGO -> listOf(
+            ArtworkChoiceSample("chosen", picture, true, "Automatique", "Toutes langues$FACT_GAP${formatDimensions(800, 310)}"),
+            ArtworkChoiceSample("rest", picture, false, "Français", formatDimensions(800, 310)),
+            ArtworkChoiceSample("title in type", null, false, "Titre en texte", null, placeholder = "Le Samouraï"),
+            ArtworkChoiceSample(
+                "title in type, chosen, long",
+                null,
+                true,
+                "Titre en texte",
+                null,
+                placeholder = "Les Aventures extraordinaires d’Adèle Blanc-Sec",
+            ),
+            ArtworkChoiceSample("image failed", brokenImage, false, "Anglais", null),
+        )
+    }
+    val width = if (kind == ArtworkKind.POSTER) HlLayout.posterChoice else HlLayout.landscapeChoice
+    val ratio = if (kind == ArtworkKind.POSTER) 2f / 3f else 16f / 9f
+    MediaRow(header = null) {
+        item { StateCaption("loading", width = width) { CardSkeleton(width, ratio) } }
+        items(options) { option ->
+            StateCaption(option.state, width = width) {
+                ArtworkChoiceCard(
+                    image = option.image,
+                    selected = option.chosen,
+                    title = option.title,
+                    caption = option.caption,
+                    onClick = {},
+                    width = width,
+                    aspectRatio = ratio,
+                    fit = kind == ArtworkKind.LOGO,
+                    placeholder = option.placeholder,
+                )
+            }
+        }
+    }
+}
+
+/** The check of the choice in use, alone on the room and on a white image. */
+@Composable
+private fun SelectedMarks() {
+    Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.l), verticalAlignment = Alignment.Top) {
+        StateCaption("selected mark") { SelectedMark() }
+        StateCaption("on a white image") {
+            Box(Modifier.size(HlSize.disc).background(Hl.colors.content), contentAlignment = Alignment.Center) { SelectedMark() }
+        }
+    }
+}
+
+private const val SAMURAI_OVERVIEW =
+    "Jef Costello, tueur à gages solitaire et méthodique, abat le patron d’une boîte de nuit. Vu par plusieurs " +
+        "témoins, il s’est pourtant forgé un alibi parfait. Mais le commissaire chargé de l’enquête ne croit pas à " +
+        "son innocence, et ses commanditaires préfèrent se débarrasser de lui."
+
+private const val SEVEN_SAMURAI_OVERVIEW =
+    "Dans le Japon médiéval, des paysans las d’être pillés chaque année par des bandits engagent sept samouraïs " +
+        "sans maître pour défendre leur village. Contre un peu de riz, ces guerriers vont leur apprendre à se " +
+        "battre, et découvrir ce que vaut la parole donnée."
+
+/** Results of a search, about as wide as the identify form gives them. */
+@Composable
+private fun Results() {
+    val poster = shippedImage(R.drawable.banner)
+    Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Top) {
+        StateCaption("current, long overview", Modifier.weight(1f)) {
+            HlResultItem(poster, "Le Samouraï", listOf("1967", null), SAMURAI_OVERVIEW, {}, mark = "Actuel")
+        }
+        StateCaption("rest, long overview", Modifier.weight(1f)) {
+            HlResultItem(poster, "Les Sept Samouraïs", listOf("1954", "七人の侍"), SEVEN_SAMURAI_OVERVIEW, {})
+        }
+    }
+    Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Top) {
+        StateCaption("no poster, no overview", Modifier.weight(1f)) {
+            HlResultItem(null, "Samouraï", listOf("2002", null), null, {})
+        }
+        StateCaption("poster failed, long title", Modifier.weight(1f)) {
+            HlResultItem(
+                brokenImage,
+                "Le Dernier Samouraï : l’histoire vraie de la rébellion de Satsuma et de ses derniers guerriers",
+                listOf("2003", "The Last Samurai"),
+                "En 1876, un ancien officier de l’armée américaine est engagé pour former l’armée impériale japonaise.",
+                {},
+            )
+        }
+    }
+}
+
+/** Small posters of lists, then the previews at the head of the edit menu's rows. */
+@Composable
+private fun Thumbs() {
+    val art = shippedImage(R.drawable.banner)
+    val logo = shippedImage(R.drawable.ic_launcher_foreground)
+    Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Top) {
+        listOf(
+            Triple("thumb", art, HlSize.posterThumb),
+            Triple("thumb, none", null, HlSize.posterThumb),
+            Triple("thumb, failed", brokenImage, HlSize.posterThumb),
+            Triple("large", art, HlSize.posterThumbLarge),
+            Triple("row size", art, HlSize.rowPreviewPoster),
+            Triple("row size, none", null, HlSize.rowPreviewPoster),
+        ).forEach { (state, image, width) ->
+            StateCaption(state, width = HlSize.posterThumbLarge) { PosterThumb(image, width = width) }
+        }
+    }
+    Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Top) {
+        listOf(
+            Triple("poster", art, PreviewShape.Poster),
+            Triple("backdrop", art, PreviewShape.Backdrop),
+            Triple("logo", logo, PreviewShape.Logo),
+            Triple("poster, failed", brokenImage, PreviewShape.Poster),
+            Triple("logo, failed", brokenImage, PreviewShape.Logo),
+        ).forEach { (state, image, shape) ->
+            StateCaption(state, width = HlSize.rowPreviewWide) { RowPreview(image, shape) }
+        }
+    }
+    Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Top) {
+        StateCaption("poster, none", width = HlSize.rowPreviewWide) { RowPreview(null, PreviewShape.Poster) }
+        StateCaption("backdrop, none", width = HlSize.rowPreviewWide) { RowPreview(null, PreviewShape.Backdrop) }
+        StateCaption("logo, none", width = HlSize.rowPreviewWide) { RowPreview(null, PreviewShape.Logo) }
+        StateCaption("logo, none, icon", width = HlSize.rowPreviewWide) { RowPreview(null, PreviewShape.Logo, icon = HlIcons.Logo) }
+        StateCaption("icon (identify)", width = HlSize.rowPreviewWide) { RowPreview(null, PreviewShape.Backdrop, icon = HlIcons.Search) }
+    }
+}

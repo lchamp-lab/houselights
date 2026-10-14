@@ -233,15 +233,22 @@ Focus must read from the couch:
 `DesignTokenGuardTest` reads every file under `ui/` except `ui/design/` and fails on a size, text size,
 font, colour, opacity or shape written in a screen, and on arithmetic with a token (`safeH - m`): an
 alignment worked out in a screen gets a name in `Dimens.kt`. `SpacingGridTest` keeps `HlSpace` and
-`HlInset` on the 4 dp grid; `TypeScaleTest` keeps the type scale honest. Deliberate exceptions go in its `allowed` list,
-with the reason; a value needed twice belongs in the design system instead.
+`HlInset` on the 4 dp grid; `TypeScaleTest` keeps the type scale honest, `ContrastTest` the contrasts,
+`CatalogCoverageTest` the catalogue complete.
+Deliberate exceptions go in the guard's `allowed` list, with the reason; a value needed twice belongs
+in the design system instead.
 
 ## Catalogue
 
-Debug builds show **Settings > About > Design system**: every token and component in its states
-(the voices side by side, every card state, both sheets, and a stress section with the longest
-French labels and the fullest rows), to
-review changes on a real screen.
+Debug builds show **Settings > About > Design system**: every token and component in its states, to
+review changes on a real screen. Each component is laid out as a row of its states (at rest, chosen,
+lit, loading, failed, empty), each named underneath; focus is checked live with the remote. The
+catalogue shows components as they are, defects included: that is how they are seen. Its sections
+live in `ui/catalog` (`CatalogScreen` for tokens, controls and sheets; `CatalogForms`, `CatalogCards`,
+`CatalogReading`; `CatalogStress` for the longest French labels, the fullest rows, the scripts
+Archivo lacks and a line on the device: size in dp, density, text scale). `CatalogCoverageTest` fails
+when a public component of `ui/design/components` is missing; the few that fill the screen are listed
+there with the reason.
 
 ## Adding a screen
 
