@@ -145,9 +145,8 @@ object HlLayout {
     val sideSheet = 520.dp
     /** Widest value on the right of a setting row. */
     val rowValue = 360.dp
-    /** Dropdown menus (sort, filters). */
+    /** Dropdown menus (sort, filters); their height is the room the screen leaves them. */
     val menuWidth = 320.dp
-    val menuMaxHeight = 460.dp
     /** Columns of the technical sheet's track tables. */
     val specLanguage = 120.dp
     val specFormat = 136.dp

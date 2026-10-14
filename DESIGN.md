@@ -157,7 +157,7 @@ without the prefix (`MenuOption`, `MeterLegend`, `PosterCard`, `BillingBlock`, `
 | `HlNavItem`, `HlSettingGroup`, `HlSettingRow` | settings: navigation entries with what they are set to; rows with their value, leading somewhere or stating it |
 | `HlSideSheet`, `SheetScope`, `RowPreview` | acting on what a screen shows, beside it: a panel against the right edge (see *Sheets*); rows can lead with a preview of the image they change |
 | `HlChoiceSheet` | the choices of a setting, in a side sheet: focus on the current one, choosing applies and closes, Back changes nothing |
-| `HlMenuButton`, `MenuSection`, `MenuOption` | a button opening a sectioned menu anchored to it (sort, filters) |
+| `HlMenuButton`, `MenuSection`, `MenuOption` | a button opening a sectioned menu anchored to its end edge (sort, filters): below it when the room down to the safe area holds the menu, else above; never past the safe area, a longer menu scrolls inside |
 | `HlModal` | a sheet to read, centred over the dimmed room (the technical sheet), never past the safe area: longer content scrolls; Back closes it |
 | `HlTwoPane`, `HlFormScaffold`, `StatusPanel`, `FieldLabel` | two-pane screens: navigation or explanation on the left, content on the right. `StatusPanel` is where a setup stands, beside its form: its state with its light first, then what is set up, large (an address in the technical voice), its path and kind, and what was found under a hairline; lit while the state is on |
 | `HlTextField` | TV text field: focusable box first, keyboard on OK; tungsten while typing |
