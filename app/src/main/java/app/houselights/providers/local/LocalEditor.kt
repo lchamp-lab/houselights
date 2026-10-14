@@ -156,7 +156,8 @@ class LocalEditor(
         scanner.identify(entity(item).id, candidate?.id?.toInt())
     }
 
-    private suspend fun entity(item: MediaItem): ItemEntity = dao.item(item.id.toLong()) ?: error("Item ${item.id} not found")
+    private suspend fun entity(item: MediaItem): ItemEntity =
+        (LocalId.parse(item.id) as? LocalId.Item)?.let { dao.item(it.key) } ?: error("Item ${item.id} can't be edited")
 
     private fun client(): TmdbClient? = tmdbKey()?.takeIf { it.isNotBlank() }?.let(::TmdbClient)
 

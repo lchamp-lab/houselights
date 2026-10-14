@@ -153,9 +153,17 @@ class LocalProvider(
         )
     }
 
+    /** The library row of a film, show, season or episode; null for a collection. */
+    private fun itemKey(item: MediaItem): Long? = (LocalId.parse(item.id) as? LocalId.Item)?.key
+
+    private suspend fun entity(item: MediaItem): ItemEntity? = itemKey(item)?.let { dao.item(it) }
+
     override suspend fun item(id: String): MediaItem {
-        collectionKey(id)?.let { key -> return mapCollection(dao.collection(key) ?: error("Collection $id not found")) }
-        val entity = dao.item(id.toLong()) ?: error("Item $id not found")
+        val entity = when (val local = LocalId.parse(id)) {
+            is LocalId.Collection -> return mapCollection(dao.collection(local.key) ?: error("Collection $id not found"))
+            is LocalId.Item -> dao.item(local.key)
+            null -> null
+        } ?: error("Item $id not found")
         val castSource = if (entity.kind == ItemKind.MOVIE || entity.kind == ItemKind.SERIES) entity.id else entity.seriesId
         val cast = castSource?.let { dao.cast(it) }.orEmpty().map { c ->
             Person(c.name, c.character, c.profilePath?.let { image(it, ImageType.PROFILE) })
@@ -166,13 +174,13 @@ class LocalProvider(
     override suspend fun collectionOf(item: MediaItem): MediaItem? {
         if (item.kind != MediaKind.MOVIE) return null
         val min = collectionMinFilms().takeIf { it > 0 } ?: return null
-        val collection = dao.item(item.id.toLong())?.collectionId?.let { dao.collection(it) } ?: return null
+        val collection = entity(item)?.collectionId?.let { dao.collection(it) } ?: return null
         val films = dao.collectionFilms(collection.id)
         return if (films.size >= min) mapCollection(collection, films) else null
     }
 
     override suspend fun collectionItems(collection: MediaItem): List<MediaItem> {
-        val key = collectionKey(collection.id) ?: return emptyList()
+        val key = (LocalId.parse(collection.id) as? LocalId.Collection)?.key ?: return emptyList()
         val mapper = Mapper()
         return dao.collectionFilms(key).map { mapper.map(it) }
     }
@@ -187,7 +195,7 @@ class LocalProvider(
         val first = members.firstOrNull()
         val unplayed = members.count { !it.played }
         return MediaItem(
-            id = COLLECTION_ID + c.id,
+            id = LocalId.ofCollection(c.id),
             kind = MediaKind.COLLECTION,
             title = c.name,
             overview = Typeset.text(c.overview),
@@ -206,7 +214,7 @@ class LocalProvider(
 
     override suspend fun nfo(item: MediaItem): NfoDocument? {
         if (item.kind == MediaKind.COLLECTION) return null
-        val e = dao.item(item.id.toLong()) ?: return null
+        val e = entity(item) ?: return null
         val text = e.nfo ?: return null
         val source = dao.sources().firstOrNull { it.id == e.sourceId }
         val path = listOfNotNull(source?.let { "${it.protocol.name.lowercase()}://${it.host}/${it.share}/${it.path}".trimEnd('/') }, e.nfoPath)
@@ -216,21 +224,23 @@ class LocalProvider(
 
     override suspend fun seasons(series: MediaItem): List<MediaItem> {
         val mapper = Mapper()
-        return dao.children(series.id.toLong()).filter { it.kind == ItemKind.SEASON }.map { mapper.map(it) }
+        val key = itemKey(series) ?: return emptyList()
+        return dao.children(key).filter { it.kind == ItemKind.SEASON }.map { mapper.map(it) }
     }
 
     override suspend fun episodes(series: MediaItem, season: MediaItem): List<MediaItem> {
         val mapper = Mapper()
-        return dao.children(season.id.toLong()).map { mapper.map(it) }
+        val key = itemKey(season) ?: return emptyList()
+        return dao.children(key).map { mapper.map(it) }
     }
 
     override suspend fun nextUp(series: MediaItem): MediaItem? =
         if (series.kind == MediaKind.COLLECTION) super.nextUp(series)
-        else nextEpisode(dao.episodesOfSeries(series.id.toLong()))?.let { Mapper().map(it) }
+        else itemKey(series)?.let { nextEpisode(dao.episodesOfSeries(it)) }?.let { Mapper().map(it) }
 
     override suspend fun similar(item: MediaItem): List<MediaItem> {
         if (item.kind == MediaKind.COLLECTION) return emptyList()
-        val entity = dao.item(item.id.toLong()) ?: return emptyList()
+        val entity = entity(item) ?: return emptyList()
         if (entity.kind != ItemKind.MOVIE && entity.kind != ItemKind.SERIES) return emptyList()
         val genre = entity.genres.split('|').firstOrNull { it.isNotBlank() } ?: return emptyList()
         val mapper = Mapper()
@@ -238,8 +248,9 @@ class LocalProvider(
     }
 
     override suspend fun setPlayed(item: MediaItem, played: Boolean) {
-        val targets = collectionKey(item.id)?.let { dao.collectionFilms(it) } ?: run {
-            val entity = dao.item(item.id.toLong()) ?: return
+        val local = LocalId.parse(item.id)
+        val targets = if (local is LocalId.Collection) dao.collectionFilms(local.key) else {
+            val entity = entity(item) ?: return
             when (entity.kind) {
                 ItemKind.SERIES -> dao.episodesOfSeries(entity.id)
                 ItemKind.SEASON -> dao.children(entity.id)
@@ -251,11 +262,11 @@ class LocalProvider(
 
     override suspend fun setFavorite(item: MediaItem, favorite: Boolean) {
         if (item.kind == MediaKind.COLLECTION) return
-        dao.setFavorite(item.id.toLong(), favorite)
+        itemKey(item)?.let { dao.setFavorite(it, favorite) }
     }
 
     override suspend fun playback(item: MediaItem, resume: Boolean, options: PlaybackOptions): PlaybackPlan {
-        val entity = dao.item(item.id.toLong()) ?: error("Item ${item.id} not found")
+        val entity = entity(item) ?: error("Item ${item.id} not found")
         val file = entity.filePath ?: error("${item.title} has no file")
         val source = dao.sources().firstOrNull { it.id == entity.sourceId } ?: error("Source of ${item.title} was removed")
         val media = Mapper().map(entity)
@@ -383,10 +394,6 @@ class LocalProvider(
         const val SHOWS = "shows"
         const val COLLECTIONS = "collections"
 
-        /** Collections share the item id space of navigation: "c12" is collection 12. */
-        private const val COLLECTION_ID = "c"
-
-        private fun collectionKey(id: String): Long? = id.takeIf { it.startsWith(COLLECTION_ID) }?.drop(COLLECTION_ID.length)?.toLongOrNull()
         private const val WATCHED_RATIO = 0.9
         private const val MIN_RESUME_MS = 60_000L
 
