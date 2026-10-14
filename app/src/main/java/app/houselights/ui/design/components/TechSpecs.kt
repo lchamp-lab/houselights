@@ -46,32 +46,20 @@ import java.util.Locale
 @Composable
 fun TechSpecs(media: MediaInfo, modifier: Modifier = Modifier, fileName: String? = null) {
     Column(modifier, verticalArrangement = Arrangement.spacedBy(HlSpace.m)) {
-        media.video?.let { SpecBlock(stringResource(R.string.tech_video)) { PictureSpecs(media) } }
+        media.video?.let { InfoBlock(stringResource(R.string.tech_video)) { PictureSpecs(media) } }
         if (media.audio.isNotEmpty() || media.subtitles.isNotEmpty()) {
             HlScrollArea(Modifier.heightIn(max = HlLayout.specTables), framed = false, padding = HlSpace.none) {
                 Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.xl)) {
                     if (media.audio.isNotEmpty()) {
-                        SpecBlock(stringResource(R.string.tech_audio), Modifier.weight(1.4f)) { AudioTable(media.audio) }
+                        InfoBlock(stringResource(R.string.tech_audio), Modifier.weight(1.4f)) { AudioTable(media.audio) }
                     }
                     if (media.subtitles.isNotEmpty()) {
-                        SpecBlock(stringResource(R.string.tech_subtitles), Modifier.weight(1f)) { SubtitleTable(media.subtitles) }
+                        InfoBlock(stringResource(R.string.tech_subtitles), Modifier.weight(1f)) { SubtitleTable(media.subtitles) }
                     }
                 }
             }
         }
-        SpecBlock(stringResource(R.string.tech_file)) { FileSpecs(media, fileName) }
-    }
-}
-
-/** One subject of the sheet: a hairline, its name, then what it says. */
-@Composable
-private fun SpecBlock(title: String, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
-    Column(modifier) {
-        HlDivider()
-        Spacer(Modifier.height(HlSpace.xs))
-        Text(title, style = Hl.type.caption, color = Hl.colors.contentSecondary)
-        Spacer(Modifier.height(HlSpace.xs))
-        content()
+        InfoBlock(stringResource(R.string.tech_file)) { FileSpecs(media, fileName) }
     }
 }
 

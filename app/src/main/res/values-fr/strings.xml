@@ -83,23 +83,23 @@
     <string name="nfo_desc">La description de ce titre écrite par votre gestionnaire de médias. Ses informations priment sur celles de TMDB.</string>
     <string name="nfo_tab_info">Informations</string>
     <string name="nfo_tab_xml">XML</string>
+    <string name="nfo_state_full">Fiche complète</string>
+    <string name="nfo_state_link">Lien seulement</string>
+    <string name="nfo_state_unreadable">Illisible</string>
+    <string name="nfo_state_reading">Lecture…</string>
+    <string name="nfo_block_details">Détails</string>
+    <string name="label_file">Fichier</string>
     <string name="nfo_unreadable">Ce NFO n’a pas pu être lu comme du XML.</string>
     <string name="nfo_link_only">Ce NFO contient seulement un lien vers une fiche ; Houselights s’en sert pour identifier le titre.</string>
     <string name="label_title">Titre</string>
-    <string name="label_original_title">Titre original</string>
     <string name="label_year">Année</string>
-    <string name="label_runtime">Durée</string>
-    <string name="label_rating">Note</string>
-    <string name="label_certification">Classification</string>
     <string name="label_genres">Genres</string>
     <string name="label_directors">Réalisation</string>
     <string name="label_studios">Studios</string>
     <string name="label_collection">Collection</string>
     <string name="label_ids">Identifiants</string>
-    <string name="label_tagline">Slogan</string>
     <string name="label_plot">Résumé</string>
     <string name="label_cast">Distribution</string>
-    <string name="label_episode">Épisode</string>
     <string name="tech_video">Vidéo</string>
     <string name="tech_audio">Audio</string>
     <string name="tech_subtitles">Sous-titres</string>
@@ -136,7 +136,15 @@
     <string name="field_user">Utilisateur</string>
     <string name="field_password">Mot de passe</string>
     <string name="test_connection">Tester</string>
-    <string name="test_ok">Connexion réussie : %d éléments trouvés</string>
+    <string name="connection_untested">Connexion non testée</string>
+    <string name="connection_testing">Connexion en cours…</string>
+    <string name="connection_ok">Connexion réussie</string>
+    <string name="connection_failed">Connexion impossible</string>
+    <plurals name="entries_found">
+        <item quantity="one">%d élément trouvé</item>
+        <item quantity="other">%d éléments trouvés</item>
+        <item quantity="many">%d éléments trouvés</item>
+    </plurals>
     <string name="error_nas_unreachable">%s ne répond pas. Vérifiez que le NAS est allumé et connecté au réseau.</string>
     <string name="error_access_denied">Le NAS a refusé l’accès. En NFS, autorisez l’adresse IP de cet appareil sur le partage ; en SMB, vérifiez les droits du compte.</string>
     <string name="error_login_failed">Le NAS a refusé l’identifiant ou le mot de passe.</string>
@@ -261,6 +269,7 @@
         <item quantity="other">%d résultats</item>
         <item quantity="many">%d résultats</item>
     </plurals>
+    <string name="identify_state_matched">Identifié</string>
     <string name="result_current">Actuel</string>
     <string name="error_offline">Le serveur ou le NAS ne répond pas. Vérifiez qu’il est allumé, puis réessayez.</string>
     <string name="error_denied">Le serveur a refusé la connexion. Reconnectez-vous depuis les réglages.</string>

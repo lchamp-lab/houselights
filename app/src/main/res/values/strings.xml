@@ -90,23 +90,23 @@
     <string name="nfo_desc">The description of this title written by your media manager. Its details take precedence over TMDB.</string>
     <string name="nfo_tab_info">Details</string>
     <string name="nfo_tab_xml">XML</string>
+    <string name="nfo_state_full">Full description</string>
+    <string name="nfo_state_link">Link only</string>
+    <string name="nfo_state_unreadable">Unreadable</string>
+    <string name="nfo_state_reading">Reading…</string>
+    <string name="nfo_block_details">Details</string>
+    <string name="label_file">File</string>
     <string name="nfo_unreadable">This NFO could not be read as XML.</string>
     <string name="nfo_link_only">This NFO only links to a title page; Houselights uses it to identify the title.</string>
     <string name="label_title">Title</string>
-    <string name="label_original_title">Original title</string>
     <string name="label_year">Year</string>
-    <string name="label_runtime">Runtime</string>
-    <string name="label_rating">Rating</string>
-    <string name="label_certification">Certification</string>
     <string name="label_genres">Genres</string>
     <string name="label_directors">Directors</string>
     <string name="label_studios">Studios</string>
     <string name="label_collection">Collection</string>
     <string name="label_ids">Identifiers</string>
-    <string name="label_tagline">Tagline</string>
     <string name="label_plot">Plot</string>
     <string name="label_cast">Cast</string>
-    <string name="label_episode">Episode</string>
     <string name="tech_video">Video</string>
     <string name="tech_audio">Audio</string>
     <string name="tech_subtitles">Subtitles</string>
@@ -144,7 +144,14 @@
     <string name="field_user">User</string>
     <string name="field_password">Password</string>
     <string name="test_connection">Test</string>
-    <string name="test_ok">Connected: %d items found</string>
+    <string name="connection_untested">Connection not tested</string>
+    <string name="connection_testing">Connecting…</string>
+    <string name="connection_ok">Connected</string>
+    <string name="connection_failed">Cannot connect</string>
+    <plurals name="entries_found">
+        <item quantity="one">%d item found</item>
+        <item quantity="other">%d items found</item>
+    </plurals>
     <string name="error_nas_unreachable">%s does not answer. Check that the NAS is on and connected to the network.</string>
     <string name="error_access_denied">The NAS refused access. For NFS, allow this device’s IP address on the share; for SMB, check the account’s permissions.</string>
     <string name="error_login_failed">The NAS rejected the user name or password.</string>
@@ -269,6 +276,7 @@
         <item quantity="one">%d result</item>
         <item quantity="other">%d results</item>
     </plurals>
+    <string name="identify_state_matched">Identified</string>
     <string name="result_current">Current</string>
     <string name="error_offline">The server or the NAS doesn’t answer. Check that it is on, then try again.</string>
     <string name="error_denied">The server refused the connection. Sign in again from Settings.</string>

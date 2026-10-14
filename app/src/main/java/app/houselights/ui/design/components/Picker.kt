@@ -104,8 +104,9 @@ fun SelectedMark(modifier: Modifier = Modifier) {
 }
 
 /**
- * A title found by a search: poster, name, facts (year, original title), a short overview.
- * [mark] (the title in use) sits next to the name.
+ * A title found by a search, set like a small one-sheet: its poster, its name in the voice of the
+ * poster, facts (year, original title), three lines of overview. The title in use ([mark]) is
+ * edged in tungsten and says so next to its name.
  */
 @Composable
 fun HlResultItem(
@@ -118,13 +119,20 @@ fun HlResultItem(
     mark: String? = null,
 ) {
     val c = Hl.colors
-    HlPanelButton(onClick, modifier.fillMaxWidth()) {
+    HlPanelButton(onClick, modifier.fillMaxWidth(), lit = mark != null) {
         Row(Modifier.padding(HlInset.tight)) {
-            PosterThumb(poster)
+            PosterThumb(poster, width = HlSize.posterThumbLarge)
             Spacer(Modifier.width(HlSpace.m))
-            Column(Modifier.weight(1f).padding(vertical = HlSpace.xxs)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(title, style = Hl.type.lead, color = c.content, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+            Column(Modifier.weight(1f).padding(top = HlSpace.xs, end = HlSpace.s, bottom = HlSpace.xs)) {
+                Row(verticalAlignment = Alignment.Top) {
+                    Text(
+                        title,
+                        style = Hl.type.cardTitle,
+                        color = c.content,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false),
+                    )
                     if (mark != null) {
                         Spacer(Modifier.width(HlSpace.s))
                         Badge(mark, lit = true)
@@ -134,7 +142,7 @@ fun HlResultItem(
                 FactRow(facts)
                 if (overview != null) {
                     Spacer(Modifier.height(HlSpace.xs))
-                    Text(overview, style = Hl.type.caption, color = c.contentSecondary, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    Text(overview, style = Hl.type.detail, color = c.contentSecondary, maxLines = 3, overflow = TextOverflow.Ellipsis)
                 }
             }
         }

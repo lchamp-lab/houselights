@@ -82,13 +82,15 @@ fun HlPanel(
 
 /**
  * A panel that can be chosen (list entries, results, source cards): quiet at rest, raised with a
- * projector-white outline when focused. [content] receives the focus state.
+ * projector-white outline when focused. [lit] edges it in tungsten at rest: the choice in use.
+ * [content] receives the focus state.
  */
 @Composable
 fun HlPanelButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     onFocused: () -> Unit = {},
+    lit: Boolean = false,
     content: @Composable (focused: Boolean) -> Unit,
 ) {
     val c = Hl.colors
@@ -100,7 +102,10 @@ fun HlPanelButton(
         shape = ClickableSurfaceDefaults.shape(HlShapes.panel),
         scale = ClickableSurfaceDefaults.scale(focusedScale = HlFocus.CONTROL_SCALE),
         border = ClickableSurfaceDefaults.border(
-            border = Border(BorderStroke(HlSize.hairline, c.outline.copy(alpha = HlAlpha.BORDER)), shape = HlShapes.panel),
+            border = Border(
+                BorderStroke(HlSize.hairline, (if (lit) c.tungsten else c.outline).copy(alpha = HlAlpha.BORDER)),
+                shape = HlShapes.panel,
+            ),
             focusedBorder = Border(BorderStroke(HlSize.focusBorder, c.focus), shape = HlShapes.panel),
         ),
         colors = ClickableSurfaceDefaults.colors(

@@ -53,6 +53,7 @@ import app.houselights.ui.design.components.FactRow
 import app.houselights.ui.design.components.PosterThumb
 import app.houselights.ui.design.components.SectionHeader
 import app.houselights.ui.design.components.StatusPanel
+import app.houselights.ui.design.components.StatusState
 import app.houselights.ui.util.appContainer
 import app.houselights.ui.util.toPx
 import coil.compose.AsyncImage
@@ -87,18 +88,22 @@ fun IdentifyScreen(itemId: String, onDone: () -> Unit) {
         title = stringResource(R.string.identify),
         description = stringResource(R.string.identify_desc),
         aside = {
+            // The file or folder, then what it is matched with now, on one sheet.
             StatusPanel(
-                icon = HlIcons.Search,
+                state = if (identity?.current != null) StatusState.On else StatusState.Off,
+                stateText = stringResource(if (identity?.current != null) R.string.identify_state_matched else R.string.identify_none),
                 label = stringResource(if (isShow) R.string.identify_folder else R.string.identify_file),
                 value = identity?.fileName ?: state.item?.title ?: stringResource(R.string.placeholder_pending),
-                lit = identity?.current != null,
-                result = null,
-                resultIsError = false,
+                valueStyle = Hl.type.entry,
+                content = identity?.current?.let { current ->
+                    {
+                        Text(stringResource(R.string.identify_current), style = Hl.type.caption, color = Hl.colors.contentSecondary)
+                        Spacer(Modifier.height(HlSpace.s))
+                        CurrentMatch(current, identity.manual)
+                    }
+                },
             )
             if (identity != null) {
-                Spacer(Modifier.height(HlSpace.l))
-                FieldLabel(stringResource(R.string.identify_current))
-                CurrentMatch(identity.current, identity.manual)
                 if (identity.manual) {
                     Spacer(Modifier.height(HlSpace.m))
                     HlButton(stringResource(R.string.identify_reset), onClick = { identify(null) })
@@ -155,17 +160,13 @@ fun IdentifyScreen(itemId: String, onDone: () -> Unit) {
 
 /** The title this one is matched with now, and who chose it. */
 @Composable
-private fun CurrentMatch(current: MatchCandidate?, manual: Boolean) {
+private fun CurrentMatch(current: MatchCandidate, manual: Boolean) {
     val c = Hl.colors
-    if (current == null) {
-        Text(stringResource(R.string.identify_none), style = Hl.type.body, color = c.contentSecondary)
-        return
-    }
     Row {
         PosterThumb(current.poster, width = HlSize.posterThumbLarge)
         Spacer(Modifier.width(HlSpace.m))
         Column {
-            Text(current.title, style = Hl.type.lead, color = c.content, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Text(current.title, style = Hl.type.cardTitle, color = c.content, maxLines = 2, overflow = TextOverflow.Ellipsis)
             Spacer(Modifier.height(HlSpace.xxs))
             FactRow(listOf(current.year?.toString(), current.originalTitle))
             Spacer(Modifier.height(HlSpace.s))

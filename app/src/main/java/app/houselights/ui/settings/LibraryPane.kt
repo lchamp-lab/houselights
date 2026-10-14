@@ -205,8 +205,8 @@ private fun PosterFan(paths: List<String>) {
 private fun sourceName(source: SourceEntity) = source.name.replaceFirstChar { it.uppercase() }
 
 /**
- * A watched folder: a strip of its latest posters, its name and where it lives, how many titles
- * it holds and how its last scan went. OK opens its actions.
+ * A watched folder, headed by its latest posters as a cover from edge to edge; then its name and
+ * kind, where it lives, and how its last scan went (or the scan going on). OK opens its actions.
  */
 @Composable
 private fun SourceCard(
@@ -225,65 +225,69 @@ private fun SourceCard(
     val kind = stringResource(if (source.kind == SourceKind.MOVIES) R.string.library_movies else R.string.library_shows)
 
     HlPanelButton(onClick, Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(HlInset.card)) {
-            PosterStrip(posters)
-            Spacer(Modifier.height(HlSpace.l))
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(HlSpace.s)) {
-                Text(sourceName(source), style = Hl.type.lead, color = c.content)
-                if (!source.name.equals(kind, ignoreCase = true)) Badge(kind)
-                Badge(source.protocol.name)
-            }
-            Spacer(Modifier.height(HlSpace.xxs))
-            Text(
-                source.address(withScheme = false),
-                style = Hl.type.caption,
-                color = c.contentSecondary,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Spacer(Modifier.height(HlSpace.s))
-            if (scanning) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    ProgressLine(progress.coerceAtLeast(PROGRESS_MIN), Modifier.width(HlSize.progressShort))
-                    Spacer(Modifier.width(HlSpace.s))
-                    Text(current ?: "", style = Hl.type.caption, color = c.contentSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Column {
+            PosterCover(posters)
+            Column(Modifier.padding(HlInset.card)) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(HlSpace.s)) {
+                    Text(sourceName(source), style = Hl.type.lead, color = c.content)
+                    if (!source.name.equals(kind, ignoreCase = true)) Badge(kind)
+                    Badge(source.protocol.name)
                 }
-            } else {
-                FactRow(
-                    listOf(
-                        pluralStringResource(R.plurals.title_count, count, count),
-                        if (ultraHd > 0) pluralStringResource(R.plurals.uhd_count, ultraHd, ultraHd) else null,
-                        stringResource(R.string.last_scan, relativeTime(source.lastScanAt)),
-                    ),
+                Spacer(Modifier.height(HlSpace.xxs))
+                Text(
+                    source.address(withScheme = false),
+                    style = Hl.type.meta,
+                    color = c.contentSecondary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
-            }
-            if (error != null) {
-                Spacer(Modifier.height(HlSpace.xs))
-                Text(scanErrorText(error, source.host), style = Hl.type.caption, color = c.tungsten)
+                Spacer(Modifier.height(HlSpace.m))
+                when {
+                    scanning -> Row(verticalAlignment = Alignment.CenterVertically) {
+                        ProgressLine(progress.coerceAtLeast(PROGRESS_MIN), Modifier.width(HlSize.progressShort))
+                        Spacer(Modifier.width(HlSpace.s))
+                        Text(
+                            current ?: "",
+                            style = Hl.type.detail,
+                            color = c.contentSecondary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                    error != null -> Text(scanErrorText(error, source.host), style = Hl.type.detail, color = c.tungsten)
+                    else -> FactRow(
+                        listOf(
+                            pluralStringResource(R.plurals.title_count, count, count),
+                            if (ultraHd > 0) pluralStringResource(R.plurals.uhd_count, ultraHd, ultraHd) else null,
+                            stringResource(R.string.last_scan, relativeTime(source.lastScanAt)),
+                        ),
+                    )
+                }
             }
         }
     }
 }
 
-/** The latest posters of a folder, at the same size whatever their number. */
+/**
+ * The latest posters of a folder, side by side from edge to edge at the head of its card, parted
+ * by hairlines; the slots still free keep their frame, so every cover has the same rhythm.
+ */
 @Composable
-private fun PosterStrip(paths: List<String>) {
-    if (paths.isEmpty()) return
+private fun PosterCover(paths: List<String>) {
     val widthPx = with(androidx.compose.ui.platform.LocalDensity.current) { HlSize.poster.roundToPx() }
-    Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.xs)) {
-        paths.take(STRIP).forEach { path ->
-            Box(Modifier.weight(1f).aspectRatio(2f / 3f).clip(HlShapes.artwork).background(Hl.colors.surfaceRaised)) {
-                AsyncImage(
-                    model = LocalProvider.image(path, ImageType.POSTER).url(widthPx),
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize(),
-                )
+    Row(Modifier.fillMaxWidth().background(Hl.colors.background), horizontalArrangement = Arrangement.spacedBy(HlSize.hairline)) {
+        repeat(STRIP) { i ->
+            Box(Modifier.weight(1f).aspectRatio(2f / 3f).background(Hl.colors.surfaceRaised)) {
+                paths.getOrNull(i)?.let { path ->
+                    AsyncImage(
+                        model = LocalProvider.image(path, ImageType.POSTER).url(widthPx),
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                }
             }
         }
-        // Free slots keep each poster at the width it has in a full strip.
-        val free = STRIP - paths.size.coerceAtMost(STRIP)
-        if (free > 0) Spacer(Modifier.weight(free.toFloat()))
     }
 }
 

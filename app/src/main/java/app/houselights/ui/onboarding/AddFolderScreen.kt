@@ -14,6 +14,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -33,6 +34,7 @@ import app.houselights.ui.design.components.HlFormScaffold
 import app.houselights.ui.design.components.HlSegmented
 import app.houselights.ui.design.components.HlTextField
 import app.houselights.ui.design.components.StatusPanel
+import app.houselights.ui.design.components.StatusState
 import app.houselights.ui.util.appContainer
 import app.houselights.ui.util.scanErrorText
 
@@ -52,26 +54,32 @@ fun AddFolderScreen(onAdded: () -> Unit) {
     val result = when (check) {
         null -> null
         is FolderCheck.Incomplete -> stringResource(check.message)
-        is FolderCheck.Reachable -> stringResource(R.string.test_ok, check.entries)
+        is FolderCheck.Reachable -> pluralStringResource(R.plurals.entries_found, check.entries, check.entries)
         is FolderCheck.Failed -> scanErrorText(check.error, check.host)
     }
     val success = check is FolderCheck.Reachable
     val kind = form.kind
     val protocol = form.protocol
 
-    // Live preview of the address the player will open, without credentials.
+    // Live preview of the address the player will open, without credentials: the host, then its path.
     val s = form.toSource()
-    val preview = s.copy(host = s.host.ifBlank { stringResource(R.string.placeholder_pending) }).address()
+    val folder = "/" + listOf(s.share, s.path).map { it.trim('/') }.filter { it.isNotEmpty() }.joinToString("/")
+    val (state, stateText) = connectionState(check, vm.busy)
 
     HlFormScaffold(
         title = stringResource(R.string.add_folder),
         description = stringResource(R.string.add_folder_desc),
         aside = {
             StatusPanel(
-                icon = HlIcons.Folder,
+                state = state,
+                stateText = stringResource(stateText),
                 label = stringResource(R.string.label_address),
-                value = preview,
-                lit = success,
+                value = s.host.ifBlank { stringResource(R.string.placeholder_pending) },
+                detail = folder.takeIf { it.length > 1 },
+                badges = listOf(
+                    protocol.name,
+                    stringResource(if (kind == SourceKind.MOVIES) R.string.library_movies else R.string.library_shows),
+                ),
                 result = result,
                 resultIsError = !success,
             )
@@ -135,4 +143,12 @@ fun AddFolderScreen(onAdded: () -> Unit) {
             HlButton(stringResource(R.string.test_connection), { vm.test() }, icon = Icons.Filled.Refresh)
         }
     }
+}
+
+/** Where the connection to the folder stands, and how to say it. */
+private fun connectionState(check: FolderCheck?, busy: Boolean): Pair<StatusState, Int> = when {
+    busy -> StatusState.Pending to R.string.connection_testing
+    check is FolderCheck.Reachable -> StatusState.On to R.string.connection_ok
+    check is FolderCheck.Failed -> StatusState.Off to R.string.connection_failed
+    else -> StatusState.Off to R.string.connection_untested
 }

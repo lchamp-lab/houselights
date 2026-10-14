@@ -23,7 +23,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.Icon
 import androidx.tv.material3.Text
@@ -83,30 +84,51 @@ fun HlFormScaffold(
     }
 }
 
-/** Status of a setup screen: an icon in a disc, a label and a value, then a result line. */
+/**
+ * Where a setup stands, beside its form: the state with its light first ("Connexion réussie"),
+ * then what is being set up, [label] and [value] large in [valueStyle] (the technical voice by
+ * default: an address), [detail] quieter (its path), [badges] for its kind; under a hairline,
+ * [content] for what was found and the [result] of the last attempt (tungsten when it failed).
+ * Lit in tungsten while the state is on.
+ */
 @Composable
 fun StatusPanel(
-    icon: ImageVector,
+    state: StatusState,
+    stateText: String,
     label: String,
     value: String,
-    lit: Boolean,
-    result: String?,
-    resultIsError: Boolean,
     modifier: Modifier = Modifier,
+    valueStyle: TextStyle = Hl.type.spec,
+    detail: String? = null,
+    badges: List<String> = emptyList(),
+    result: String? = null,
+    resultIsError: Boolean = false,
+    content: (@Composable ColumnScope.() -> Unit)? = null,
 ) {
     val c = Hl.colors
-    HlPanel(modifier.fillMaxWidth(), lit = lit) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            HlIconDisc(icon, lit = lit)
-            Spacer(Modifier.width(HlSpace.m))
-            Column {
-                Text(label, style = Hl.type.caption, color = c.contentSecondary)
-                Text(value, style = Hl.type.meta, color = c.content, maxLines = 3)
-            }
+    HlPanel(modifier.fillMaxWidth(), lit = state == StatusState.On) {
+        HlStatus(state, stateText)
+        Spacer(Modifier.height(HlSpace.l))
+        Text(label, style = Hl.type.caption, color = c.contentSecondary)
+        Spacer(Modifier.height(HlSpace.xxs))
+        Text(value, style = valueStyle, color = c.content, maxLines = 3, overflow = TextOverflow.Ellipsis)
+        if (detail != null) {
+            Spacer(Modifier.height(HlSpace.xxs))
+            Text(detail, style = Hl.type.meta, color = c.contentSecondary, maxLines = 2, overflow = TextOverflow.Ellipsis)
         }
-        if (result != null) {
+        if (badges.isNotEmpty()) {
+            Spacer(Modifier.height(HlSpace.s))
+            Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.xs)) { badges.forEach { Badge(it) } }
+        }
+        if (content != null || result != null) {
+            Spacer(Modifier.height(HlSpace.l))
+            HlDivider()
             Spacer(Modifier.height(HlSpace.m))
-            Text(result, style = Hl.type.caption, color = if (resultIsError) c.tungsten else c.content)
+            content?.invoke(this)
+            if (result != null) {
+                if (content != null) Spacer(Modifier.height(HlSpace.m))
+                Text(result, style = Hl.type.detail, color = if (resultIsError) c.tungsten else c.content)
+            }
         }
     }
 }

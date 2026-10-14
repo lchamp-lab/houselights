@@ -26,6 +26,7 @@ import app.houselights.ui.design.components.HlFormScaffold
 import app.houselights.ui.design.components.HlListItem
 import app.houselights.ui.design.components.HlTextField
 import app.houselights.ui.design.components.StatusPanel
+import app.houselights.ui.design.components.StatusState
 import app.houselights.ui.util.appContainer
 
 @Composable
@@ -51,10 +52,11 @@ fun JellyfinLoginScreen(onLoggedIn: () -> Unit) {
         description = stringResource(R.string.jellyfin_desc),
         aside = {
             StatusPanel(
-                icon = HlIcons.Server,
+                state = if (vm.busy) StatusState.Pending else StatusState.Off,
+                stateText = stringResource(loginState(vm.busy, failed = error != null)),
                 label = stringResource(R.string.field_server),
                 value = server.ifBlank { stringResource(R.string.placeholder_pending) },
-                lit = false,
+                badges = listOf("Jellyfin"),
                 result = error,
                 resultIsError = true,
             )
@@ -87,4 +89,11 @@ fun JellyfinLoginScreen(onLoggedIn: () -> Unit) {
             emphasis = Emphasis.Primary,
         )
     }
+}
+
+/** How to say where signing in stands. */
+private fun loginState(busy: Boolean, failed: Boolean): Int = when {
+    busy -> R.string.connection_testing
+    failed -> R.string.connection_failed
+    else -> R.string.connection_untested
 }
