@@ -3,7 +3,6 @@ package app.houselights.providers.local
 import android.content.Context
 import android.net.Uri
 import androidx.sqlite.db.SimpleSQLiteQuery
-import app.houselights.R
 import app.houselights.core.NfoParser
 import app.houselights.core.NotFoundException
 import app.houselights.core.Definition
@@ -52,7 +51,7 @@ class LocalProvider(
     }
 
     override suspend fun home(): List<HomeSection> {
-        val mapper = Mapper()
+        val mapper = LocalMapper(dao, context)
         val inProgress = dao.inProgress(20)
         return buildList {
             if (inProgress.isNotEmpty()) add(HomeSection(SectionType.CONTINUE, mapper.mapAll(inProgress), landscape = true))
@@ -114,7 +113,7 @@ class LocalProvider(
         val page = "SELECT $ITEM_ROW FROM items WHERE $where ORDER BY $order, id LIMIT $limit OFFSET $start"
         val items = dao.query(SimpleSQLiteQuery(page, args.toTypedArray()))
         val total = dao.countQuery(SimpleSQLiteQuery("SELECT COUNT(*) FROM items WHERE $where", args.toTypedArray()))
-        val mapper = Mapper()
+        val mapper = LocalMapper(dao, context)
         return Page(mapper.mapAll(items), total)
     }
 
@@ -170,7 +169,7 @@ class LocalProvider(
         val cast = castSource?.let { dao.cast(it) }.orEmpty().map { c ->
             Person(c.name, c.character, c.profilePath?.let { image(it, ImageType.PROFILE) })
         }
-        return Mapper().map(entity).copy(cast = cast)
+        return LocalMapper(dao, context).map(entity).copy(cast = cast)
     }
 
     override suspend fun collectionOf(item: MediaItem): MediaItem? {
@@ -183,7 +182,7 @@ class LocalProvider(
 
     override suspend fun collectionItems(collection: MediaItem): List<MediaItem> {
         val key = (LocalId.parse(collection.id) as? LocalId.Collection)?.key ?: return emptyList()
-        val mapper = Mapper()
+        val mapper = LocalMapper(dao, context)
         return mapper.mapAll(dao.collectionFilms(key))
     }
 
@@ -225,27 +224,27 @@ class LocalProvider(
     }
 
     override suspend fun seasons(series: MediaItem): List<MediaItem> {
-        val mapper = Mapper()
+        val mapper = LocalMapper(dao, context)
         val key = itemKey(series) ?: return emptyList()
         return mapper.mapAll(dao.childRows(key).filter { it.kind == ItemKind.SEASON })
     }
 
     override suspend fun episodes(series: MediaItem, season: MediaItem): List<MediaItem> {
-        val mapper = Mapper()
+        val mapper = LocalMapper(dao, context)
         val key = itemKey(season) ?: return emptyList()
         return mapper.mapAll(dao.childRows(key))
     }
 
     override suspend fun nextUp(series: MediaItem): MediaItem? =
         if (series.kind == MediaKind.COLLECTION) super.nextUp(series)
-        else itemKey(series)?.let { nextEpisode(dao.episodesOfSeries(it)) }?.let { Mapper().map(it) }
+        else itemKey(series)?.let { nextEpisode(dao.episodesOfSeries(it)) }?.let { LocalMapper(dao, context).map(it) }
 
     override suspend fun similar(item: MediaItem): List<MediaItem> {
         if (item.kind == MediaKind.COLLECTION) return emptyList()
         val entity = entity(item) ?: return emptyList()
         if (entity.kind != ItemKind.MOVIE && entity.kind != ItemKind.SERIES) return emptyList()
         val genre = entity.genres.firstOrNull() ?: return emptyList()
-        val mapper = Mapper()
+        val mapper = LocalMapper(dao, context)
         return mapper.mapAll(dao.byGenre(entity.kind, genre, entity.id, SIMILAR))
     }
 
@@ -271,42 +270,15 @@ class LocalProvider(
         val entity = entity(item) ?: throw NotFoundException("Item ${item.id}")
         val file = entity.filePath ?: error("${item.title} has no file")
         val source = dao.sources().firstOrNull { it.id == entity.sourceId } ?: error("Source of ${item.title} was removed")
-        return Mapper().map(entity).launch(
+        return LocalMapper(dao, context).map(entity).launch(
             fileUri(source, file), FilenameParser.extension(file),
             startMs = if (resume) entity.positionMs else 0L,
-            reporter = Reporter(entity.id),
+            reporter = LocalReporter(dao, entity.id),
             resumeKey = entity.id.toString(),
         )
     }
 
-    override fun reporter(resumeKey: String): PlaybackReporter? = resumeKey.toLongOrNull()?.let(::Reporter)
-
-    private inner class Reporter(private val itemId: Long) : PlaybackReporter {
-        override suspend fun started(positionMs: Long) = save(positionMs, null, finished = false)
-
-        override suspend fun progress(positionMs: Long, durationMs: Long?, paused: Boolean) =
-            save(positionMs, durationMs, finished = false)
-
-        override suspend fun stopped(positionMs: Long, durationMs: Long?) = save(positionMs, durationMs, finished = true)
-
-        private suspend fun save(positionMs: Long, durationMs: Long?, finished: Boolean) {
-            val entity = dao.item(itemId) ?: return
-            val duration = durationMs ?: entity.durationMs ?: entity.runtimeMin?.let { it * 60_000L }
-            val watched = duration != null && duration > 0 && positionMs >= duration * WATCHED_RATIO
-            // Only the playback columns: a scan may be writing the others at the same time.
-            dao.savePlayback(
-                id = entity.id,
-                positionMs = when {
-                    finished && watched -> 0
-                    finished && positionMs < MIN_RESUME_MS -> entity.positionMs.takeIf { !entity.played } ?: 0
-                    else -> positionMs
-                },
-                durationMs = durationMs ?: entity.durationMs,
-                played = entity.played || (finished && watched),
-                lastPlayedAt = System.currentTimeMillis(),
-            )
-        }
-    }
+    override fun reporter(resumeKey: String): PlaybackReporter? = resumeKey.toLongOrNull()?.let { LocalReporter(dao, it) }
 
     /** Next episode of each show recently watched, skipping ones already in progress. */
     private suspend fun nextUpAcrossShows(exclude: Set<Long>): List<ItemEntity> {
@@ -320,112 +292,17 @@ class LocalProvider(
         return episodes.drop(lastWatched + 1).firstOrNull { !it.played } ?: episodes.firstOrNull { !it.played }
     }
 
-    /**
-     * Maps entities. [mapAll] reads what cards need beyond their own row (the parent show, a show's
-     * counts) in one query for the whole list, instead of one per title.
-     */
-    private inner class Mapper {
-        private val series = mutableMapOf<Long, ItemEntity?>()
-        private val counts = mutableMapOf<Long, SeriesCounts>()
-
-        suspend fun mapAll(entities: List<ItemEntity>): List<MediaItem> {
-            val shows = entities.filter { it.kind == ItemKind.SERIES }.map { it.id }.filter { it !in counts }
-            for (chunk in shows.chunked(SQL_IN_LIMIT)) {
-                chunk.forEach { counts[it] = SeriesCounts(it, unplayed = 0, seasons = 0) }
-                dao.seriesCounts(chunk).forEach { counts[it.seriesId] = it }
-            }
-            val parents = entities.mapNotNull { it.seriesId }.distinct().filter { it !in series }
-            for (chunk in parents.chunked(SQL_IN_LIMIT)) {
-                chunk.forEach { series[it] = null }
-                dao.rows(chunk).forEach { series[it.id] = it }
-            }
-            return entities.map { map(it) }
-        }
-
-        /** True once what [e]'s card needs beyond its row is known (see [mapAll]). */
-        private fun prepared(e: ItemEntity): Boolean =
-            (e.kind != ItemKind.SERIES || e.id in counts) && (e.seriesId == null || e.seriesId in series)
-
-        private fun titleOf(e: ItemEntity): String = e.title.ifBlank {
-            when (e.kind) {
-                ItemKind.SEASON -> context.getString(R.string.season_number, e.seasonNumber ?: 0)
-                ItemKind.EPISODE -> context.getString(R.string.episode_number, e.episodeNumber ?: 0)
-                else -> e.title
-            }
-        }
-
-        suspend fun map(e: ItemEntity): MediaItem {
-            if (!prepared(e)) return mapAll(listOf(e)).single()
-            val show = e.seriesId?.let { series[it] }
-            val kind = when (e.kind) {
-                ItemKind.MOVIE -> MediaKind.MOVIE
-                ItemKind.SERIES -> MediaKind.SERIES
-                ItemKind.SEASON -> MediaKind.SEASON
-                ItemKind.EPISODE -> MediaKind.EPISODE
-            }
-            val title = titleOf(e)
-            val media = MediaProbe.decode(e.mediaInfo)
-            val showCounts = counts[e.id]?.takeIf { e.kind == ItemKind.SERIES }
-            val unplayed = showCounts?.unplayed
-            val seasonCount = showCounts?.seasons
-            return MediaItem(
-                id = e.id.toString(),
-                kind = kind,
-                title = title,
-                originalTitle = e.originalTitle,
-                overview = Typeset.text(e.overview),
-                tagline = Typeset.text(e.tagline),
-                year = e.year,
-                endYear = e.endYear,
-                continuing = e.continuing,
-                runtimeMs = e.durationMs ?: media?.durationMs ?: e.runtimeMin?.let { it * 60_000L },
-                officialRating = e.certification,
-                communityRating = e.rating,
-                genres = e.genres,
-                directors = e.directors,
-                badges = e.badges,
-                media = media,
-                hasNfo = e.nfoPath != null,
-                fileName = e.filePath?.substringAfterLast('/'),
-                // Seasons and episodes show their series' artwork when they have none.
-                poster = (shown(e.userPosterPath, e.posterPath) ?: show?.let { shown(it.userPosterPath, it.posterPath) })
-                    ?.let { image(it, ImageType.POSTER) },
-                backdrop = (shown(e.userBackdropPath, e.backdropPath) ?: show?.let { shown(it.userBackdropPath, it.backdropPath) })
-                    ?.let { image(it, ImageType.BACKDROP) },
-                logo = (shown(e.userLogoPath, e.logoPath) ?: show?.let { shown(it.userLogoPath, it.logoPath) })
-                    ?.let { image(it, ImageType.LOGO) },
-                thumb = e.stillPath?.let { image(it, ImageType.STILL) },
-                user = UserState(
-                    played = e.played || (unplayed == 0 && seasonCount != null && seasonCount > 0),
-                    favorite = e.favorite,
-                    positionMs = e.positionMs,
-                    unplayedCount = unplayed,
-                ),
-                seriesId = e.seriesId?.toString(),
-                seriesTitle = show?.title,
-                seasonId = if (e.kind == ItemKind.EPISODE) e.parentId?.toString() else null,
-                seasonNumber = e.seasonNumber,
-                episodeNumber = e.episodeNumber,
-                childCount = seasonCount,
-            )
-        }
-    }
-
     companion object {
         const val MOVIES = "movies"
         const val SHOWS = "shows"
         const val COLLECTIONS = "collections"
 
-        private const val WATCHED_RATIO = 0.9
         private const val NEXT_UP_SHOWS = 20
         private const val SIMILAR = 16
 
-        /** SQLite allows at most 999 values in a statement. */
-        private const val SQL_IN_LIMIT = 500
-        private const val MIN_RESUME_MS = 60_000L
 
         /** The user's choice over the automatic value; an empty choice means none (a logo set in type). */
-        private fun shown(user: String?, automatic: String?): String? = when {
+        internal fun shown(user: String?, automatic: String?): String? = when {
             user == null -> automatic
             user.isEmpty() -> null
             else -> user
