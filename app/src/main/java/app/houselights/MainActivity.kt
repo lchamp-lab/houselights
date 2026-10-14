@@ -22,7 +22,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -81,11 +83,17 @@ class MainActivity : ComponentActivity() {
                 .distinctUntilChanged()
                 .collect(::applyDisplayMode)
         }
-        if (savedInstanceState == null) {
-            // Incremental scan on launch: picks up files added since last time.
-            lifecycleScope.launch {
-                val settings = container.settings.state.first { it.loaded }
-                if (settings.source == SourceConfig.Local) container.scanner.scanAll()
+        // New files on the NAS show up by themselves: an incremental scan when the app opens or
+        // comes back to the front (unless one just ran), then every few minutes while it is shown.
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                container.settings.state.first { it.loaded }
+                while (true) {
+                    if (container.settings.state.value.source == SourceConfig.Local) {
+                        container.scanner.scanIfStale(RESCAN_AFTER_MS)
+                    }
+                    delay(RESCAN_EVERY_MS)
+                }
             }
         }
 
@@ -257,3 +265,9 @@ private fun AppNavigation(onPlay: (MediaItem, Boolean) -> Unit) {
         if (BuildConfig.DEBUG) composable("catalog") { CatalogScreen() }
     }
 }
+
+/** Coming back to the app looks for new files, unless a scan ended this recently. */
+private const val RESCAN_AFTER_MS = 2 * 60_000L
+
+/** While the app is on screen, it looks for new files this often. */
+private const val RESCAN_EVERY_MS = 10 * 60_000L

@@ -56,9 +56,40 @@ class LibraryScanner(
     private val refreshedSeries = mutableSetOf<Long>()
 
     fun scanAll(refreshMetadata: Boolean = false) {
-        if (job?.isActive == true) return
-        job = scope.launch(Dispatchers.IO) { scanAllSources(refreshMetadata) }
+        if (job?.isActive == true) {
+            // A folder added or a refresh asked during a scan is not lost: one more pass follows.
+            pending = true
+            pendingRefresh = pendingRefresh || refreshMetadata
+            return
+        }
+        job = scope.launch(Dispatchers.IO) {
+            var refresh = refreshMetadata
+            do {
+                pending = false
+                scanAllSources(refresh)
+                refresh = pendingRefresh.also { pendingRefresh = false }
+            } while (pending)
+        }
     }
+
+    @Volatile
+    private var pending = false
+
+    @Volatile
+    private var pendingRefresh = false
+
+    /**
+     * Scans unless the last scan ended less than [maxAgeMs] ago. A NAS cannot tell the app that
+     * files were added, so the app looks again by itself; an incremental scan only lists the
+     * folders and processes what is new, which keeps it light.
+     */
+    fun scanIfStale(maxAgeMs: Long) {
+        if (System.currentTimeMillis() - lastScanEnd < maxAgeMs) return
+        scanAll()
+    }
+
+    @Volatile
+    private var lastScanEnd = 0L
 
     /**
      * Removes cached artwork and cast rows nothing refers to anymore. Runs after every scan,
@@ -121,6 +152,7 @@ class LibraryScanner(
             runCatching { cleanupLocked() }.onFailure { Log.w(TAG, "Cleanup failed", it) }
         }
         _state.value = ScanState(errors = errors)
+        lastScanEnd = System.currentTimeMillis()
         _changed.emit(Unit)
     }
 
