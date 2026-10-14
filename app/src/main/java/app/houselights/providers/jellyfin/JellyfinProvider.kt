@@ -1,6 +1,7 @@
 package app.houselights.providers.jellyfin
 
 import android.util.Log
+import app.houselights.core.Typeset
 import app.houselights.core.AudioTrack
 import app.houselights.core.HdrFormat
 import app.houselights.core.HomeSection
@@ -201,8 +202,8 @@ class JellyfinProvider(config: SourceConfig.Jellyfin, deviceId: String) : MediaP
             kind = kind,
             title = dto.name ?: "",
             originalTitle = dto.originalTitle,
-            overview = dto.overview,
-            tagline = dto.taglines.firstOrNull(),
+            overview = Typeset.text(dto.overview),
+            tagline = Typeset.text(dto.taglines.firstOrNull()),
             year = dto.productionYear,
             endYear = dto.endDate?.take(4)?.toIntOrNull(),
             continuing = dto.status == "Continuing",
