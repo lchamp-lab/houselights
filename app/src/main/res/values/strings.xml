@@ -255,6 +255,7 @@
     <!-- Editing artwork and identification -->
     <string name="billing_by">a film by</string>
     <string name="billing_with">with</string>
+    <string name="billing_and">and</string>
     <string name="edit">Edit</string>
     <string name="edit_title">Edit “%s”</string>
     <string name="artwork_poster">Poster</string>

@@ -94,9 +94,9 @@ fun BadgeRow(badges: List<String>, modifier: Modifier = Modifier) {
 }
 
 /**
- * The credits at the foot of a poster: names in tall condensed capitals, joined by small
- * words ("a film by", "with"). Always one line: it keeps as many leading names as fit. The one
- * place where Houselights sets words in capitals.
+ * The credits at the foot of a poster, read as a sentence: "a film by NAME with NAME, NAME and
+ * NAME". Names in tall condensed capitals; the small words and commas recede. Always one line:
+ * it keeps as many leading names as fit. The one place where Houselights sets words in capitals.
  */
 @Composable
 fun BillingBlock(directors: List<String>, cast: List<String>, modifier: Modifier = Modifier) {
@@ -106,11 +106,17 @@ fun BillingBlock(directors: List<String>, cast: List<String>, modifier: Modifier
     val locale = Locale.getDefault()
     val by = stringResource(R.string.billing_by)
     val with = stringResource(R.string.billing_with)
+    val and = stringResource(R.string.billing_and)
     fun credits(castCount: Int) = buildAnnotatedString {
         // Names never break inside, nor away from the word before them.
         fun join(word: String) = withStyle(t.billingJoin.toSpanStyle().copy(color = c.contentTertiary)) { append(word.unbreakable() + NBSP) }
+        fun comma() = withStyle(t.billing.toSpanStyle().copy(color = c.contentTertiary)) { append(", ") }
         fun names(list: List<String>) = list.forEachIndexed { i, name ->
-            if (i > 0) append(GAP)
+            when {
+                i == 0 -> Unit
+                i == list.lastIndex -> { append(" "); join(and) }
+                else -> comma()
+            }
             withStyle(t.billing.toSpanStyle().copy(color = c.contentSecondary)) { append(name.uppercase(locale).unbreakable()) }
         }
         if (directors.isNotEmpty()) {
@@ -118,7 +124,7 @@ fun BillingBlock(directors: List<String>, cast: List<String>, modifier: Modifier
             names(directors.take(1))
         }
         if (castCount > 0) {
-            if (directors.isNotEmpty()) append(GAP)
+            if (directors.isNotEmpty()) append(" ")
             join(with)
             names(cast.take(castCount))
         }
@@ -138,8 +144,5 @@ fun BillingBlock(directors: List<String>, cast: List<String>, modifier: Modifier
 }
 
 private const val NBSP = "\u00A0"
-
-/** Between names: three spaces wide, no punctuation. */
-private const val GAP = "$NBSP$NBSP "
 
 private fun String.unbreakable() = replace(' ', '\u00A0').replace('-', '\u2011')

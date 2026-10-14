@@ -245,6 +245,7 @@
     <!-- Modifier les images et l'identification -->
     <string name="billing_by">un film de</string>
     <string name="billing_with">avec</string>
+    <string name="billing_and">et</string>
     <string name="edit">Modifier</string>
     <string name="edit_title">Modifier « %s »</string>
     <string name="artwork_poster">Affiche</string>

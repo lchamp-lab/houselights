@@ -29,8 +29,9 @@ identity comes from treating artwork as the lit screen and the interface as the 
   screen's light spills further into the dark room, then black and the player. Coming
   back runs the cue backwards.
 - **Billing block.** On a detail page, director and leading cast are set like poster credits:
-  small words ("a film by", "with") between names in condensed capitals, on one line: it keeps as
-  many leading names as fit, and never breaks inside a name.
+  read as a sentence, "a film by NAME with NAME, NAME and NAME": names in condensed capitals, the
+  small words and commas receding. On one line: it keeps as many leading names as fit, and never
+  breaks inside a name.
 
 ## Tokens
 
