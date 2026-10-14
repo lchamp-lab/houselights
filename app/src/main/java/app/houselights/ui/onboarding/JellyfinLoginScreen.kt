@@ -34,7 +34,8 @@ fun JellyfinLoginScreen(onLoggedIn: () -> Unit) {
     val app = appContainer()
     val vm = viewModel { JellyfinLoginViewModel(app) }
     val firstField = remember { FocusRequester() }
-    LaunchedEffect(Unit) { runCatching { firstField.requestFocus() } }
+    val passwordField = remember { FocusRequester() }
+    LaunchedEffect(Unit) { runCatching { (if (vm.again) passwordField else firstField).requestFocus() } }
     val server = vm.server
     val discovered = vm.discovered
     val error = when (val e = vm.error) {
@@ -81,6 +82,7 @@ fun JellyfinLoginScreen(onLoggedIn: () -> Unit) {
         HlTextField(
             stringResource(R.string.field_password), vm.password, { vm.password = it },
             password = true, imeAction = ImeAction.Done, onImeAction = ::login,
+            modifier = Modifier.focusRequester(passwordField),
         )
         HlButton(
             stringResource(if (vm.busy) R.string.signing_in else R.string.sign_in),

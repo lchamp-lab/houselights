@@ -99,7 +99,13 @@ internal fun LazyListScope.libraryPane(s: AppSettings, onAddFolder: () -> Unit, 
                     }
                 }
             }
-            item { HlSettingGroup(null) { SourceRow(onUseFolders, onSignIn) } }
+            item {
+                HlSettingGroup(null) {
+                    // A password changed or a device revoked: the sign-in opens filled in, on the password.
+                    HlSettingRow(stringResource(R.string.reconnect), description = source.userName, onClick = onSignIn)
+                    SourceRow(onUseFolders, onSignIn)
+                }
+            }
         }
         null -> {}
     }

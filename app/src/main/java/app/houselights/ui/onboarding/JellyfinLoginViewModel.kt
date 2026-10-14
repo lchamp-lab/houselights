@@ -45,7 +45,16 @@ class JellyfinLoginViewModel(private val app: AppContainer) : ViewModel() {
     var discovered by mutableStateOf<List<DiscoveredServer>>(emptyList())
         private set
 
+    /** Signing in again to the server in use: its address and the user are filled in, only the password is asked. */
+    val again: Boolean
+
     init {
+        val current = app.settings.state.value.source as? SourceConfig.Jellyfin
+        again = current != null
+        if (current != null) {
+            server = current.serverUrl
+            user = current.userName.orEmpty()
+        }
         viewModelScope.launch { discovered = ServerDiscovery.discover() }
     }
 

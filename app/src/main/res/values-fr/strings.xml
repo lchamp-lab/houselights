@@ -189,6 +189,7 @@
     <string name="change_source_local_desc">Vos dossiers sont conservés : vous pourrez y revenir à tout moment.</string>
     <string name="change_source_jellyfin_desc">Ce serveur reste connecté jusqu’à ce que la nouvelle source soit prête.</string>
     <string name="change_source">Changer de source</string>
+    <string name="reconnect">Se reconnecter</string>
     <string name="source_local_first">Ajoutez un premier dossier de votre NAS</string>
     <plurals name="source_local_folders">
         <item quantity="one">%d dossier sur votre NAS</item>
