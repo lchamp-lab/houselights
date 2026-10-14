@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -30,14 +29,12 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.tv.material3.Border
 import androidx.tv.material3.ClickableSurfaceDefaults
-import androidx.tv.material3.Icon
 import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
 import app.houselights.core.ImageRef
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlAlpha
 import app.houselights.ui.design.HlFocus
-import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlInset
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
@@ -47,7 +44,7 @@ import coil.compose.AsyncImage
 
 /**
  * One artwork to choose from, at the shape it is used in, with a caption saying what it is.
- * The one in use carries the tungsten check.
+ * The one in use carries the check of your choice, in tungsten ([SelectedMark]).
  */
 @Composable
 fun ArtworkChoiceCard(
@@ -102,19 +99,17 @@ fun ArtworkChoiceCard(
     }
 }
 
-/** The tungsten check of the choice in use. */
+/** The choice in use: the watched mark's check, in tungsten, on the same dark plate. */
 @Composable
 fun SelectedMark(modifier: Modifier = Modifier) {
-    Box(modifier.size(HlSize.mark).clip(HlShapes.avatar).background(Hl.colors.tungsten), contentAlignment = Alignment.Center) {
-        Icon(HlIcons.Check, contentDescription = null, tint = Hl.colors.background, modifier = Modifier.size(HlSize.markIcon))
-    }
+    CheckMark(modifier, choice = true)
 }
 
 /**
  * A title found by a search, set like a small one-sheet: its poster, its name in the voice of the
  * poster, facts (year, original title), three lines of overview. The title in use ([mark]) is
- * edged in tungsten and says so next to its name. While it is being chosen, [busy] says so there
- * instead ("Association…").
+ * edged in tungsten and says so next to its name, with the light of a state ("Actuel"). While it
+ * is being chosen, [busy] says so there instead ("Association…").
  */
 @Composable
 fun HlResultItem(
@@ -145,7 +140,7 @@ fun HlResultItem(
                     if (busy != null || mark != null) Spacer(Modifier.width(HlSpace.s))
                     when {
                         busy != null -> HlStatus(StatusState.Pending, busy)
-                        mark != null -> Badge(mark, lit = true)
+                        mark != null -> HlStatus(StatusState.On, mark)
                     }
                 }
                 Spacer(Modifier.height(HlSpace.xxs))

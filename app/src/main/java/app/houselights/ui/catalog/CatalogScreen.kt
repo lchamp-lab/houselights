@@ -138,7 +138,6 @@ fun CatalogScreen() {
                     HlSegmented((1..12).map { "Saison $it" }, selected = season, onSelect = { season = it }, selectOnFocus = true, scrollable = true)
                     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.xs)) {
                         listOf("Ultra HD", "Dolby Vision", "HDR10", "TrueHD Atmos", "7.1", "12").forEach { Badge(it) }
-                        Badge("Your choice", lit = true)
                     }
                     FactRow(listOf("2026", "1 h 53", "8,2"))
                 }

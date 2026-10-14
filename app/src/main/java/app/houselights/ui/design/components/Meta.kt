@@ -30,7 +30,6 @@ import app.houselights.core.Definition
 import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
 import app.houselights.ui.design.Hl
-import app.houselights.ui.design.HlAlpha
 import app.houselights.ui.design.HlControl
 import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlShapes
@@ -101,16 +100,19 @@ fun Score(score: Double, modifier: Modifier = Modifier) {
     }
 }
 
-/** Hairline badge for ratings and technical formats; [lit] in tungsten for a state (in use). */
+/**
+ * Hairline badge for what a case would print: formats, age ratings, protocols. Never a state: a
+ * choice says so with its light ([HlStatus]) or its check.
+ */
 @Composable
-fun Badge(text: String, modifier: Modifier = Modifier, lit: Boolean = false) {
+fun Badge(text: String, modifier: Modifier = Modifier) {
     val c = Hl.colors
     Text(
         text,
         style = Hl.type.badge,
-        color = if (lit) c.tungsten else c.contentSecondary,
+        color = c.contentSecondary,
         modifier = modifier
-            .border(HlSize.hairline, if (lit) c.tungsten.copy(alpha = HlAlpha.BORDER) else c.outline, HlShapes.badge)
+            .border(HlSize.hairline, c.outline, HlShapes.badge)
             .padding(horizontal = HlControl.badgePaddingH, vertical = HlControl.badgePaddingV),
     )
 }

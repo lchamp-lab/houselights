@@ -42,7 +42,6 @@ import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
-import app.houselights.ui.design.components.Badge
 import app.houselights.ui.design.components.Emphasis
 import app.houselights.ui.design.components.FieldLabel
 import app.houselights.ui.design.components.HlButton
@@ -177,7 +176,12 @@ private fun CurrentMatch(current: MatchCandidate, manual: Boolean) {
             Spacer(Modifier.height(HlSpace.xxs))
             FactRow(listOf(current.year?.toString(), current.originalTitle))
             Spacer(Modifier.height(HlSpace.s))
-            Badge(stringResource(if (manual) R.string.identify_manual else R.string.identify_automatic), lit = manual)
+            // Your choice is a state, with its light; automatic is how it was done, a plain word.
+            if (manual) {
+                HlStatus(StatusState.On, stringResource(R.string.identify_manual))
+            } else {
+                Text(stringResource(R.string.identify_automatic), style = Hl.type.meta, color = c.contentSecondary)
+            }
         }
     }
 }
