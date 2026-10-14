@@ -56,6 +56,8 @@ object HlSize {
     /** An icon set in a line of text (rating star). */
     val inlineIcon = 16.dp
     val meter = 10.dp
+    /** How far one press of up or down scrolls a long text. */
+    val scrollStep = 120.dp
     /** Minimum height of a setting row. */
     val row = 64.dp
     /** Progress shown beside text (time left). */
@@ -91,13 +93,21 @@ object HlLayout {
     val hero = 200.dp
     /** Width of dialogs. */
     val dialog = 860.dp
-    val dialogWide = 1040.dp
+    /** As wide as the safe area allows (960 dp screen less the side margins). */
+    val dialogWide = 864.dp
     val dialogNarrow = 640.dp
     /** Widest value on the right of a setting row. */
     val rowValue = 360.dp
     /** Dropdown menus (sort, filters). */
     val menuWidth = 320.dp
     val menuMaxHeight = 460.dp
+    /** Columns of the technical sheet's track tables, and the height they scroll in. */
+    val specLanguage = 120.dp
+    val specFormat = 136.dp
+    val specLayout = 48.dp
+    val specTables = 240.dp
+    /** Height of long text panels (NFO). */
+    val textPanel = 440.dp
     /** Label column of label and value lists. */
     val definitionLabel = 220.dp
 }

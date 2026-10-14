@@ -84,7 +84,7 @@
     <string name="add_favorite">Add to favorites</string>
     <string name="view_series">View series</string>
     <string name="cast">Cast</string>
-    <string name="tech_details">Technical details</string>
+    <string name="tech_details">Technical sheet</string>
     <string name="tech_info">Technical info</string>
     <string name="close">Close</string>
     <string name="nfo">NFO</string>
@@ -115,7 +115,7 @@
     <string name="tech_subtitles">Subtitles</string>
     <string name="tech_container">Container</string>
     <string name="tech_size">Size</string>
-    <string name="tech_bitrate">Bitrate</string>
+    <string name="tech_bitrate">Average bitrate</string>
     <string name="tech_duration">Duration</string>
     <string name="bit_depth">%d-bit</string>
     <string name="dv_profile">Dolby Vision profile %d</string>
@@ -127,10 +127,6 @@
     <string name="mbps">%s Mb/s</string>
     <string name="gigabytes">%s GB</string>
     <string name="megabytes">%s MB</string>
-    <plurals name="more_tracks">
-        <item quantity="one">+%d more track</item>
-        <item quantity="other">+%d more tracks</item>
-    </plurals>
     <string name="similar">More like this</string>
     <string name="episodes">Episodes</string>
     <string name="play_error">Can’t play: %s</string>

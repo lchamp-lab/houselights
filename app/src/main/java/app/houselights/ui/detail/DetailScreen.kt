@@ -107,7 +107,9 @@ fun DetailScreen(
     var showTech by remember { mutableStateOf(false) }
     val media = item.media?.takeIf { it.video != null || it.audio.isNotEmpty() }
     if (showTech && media != null) {
-        HlModal(stringResource(R.string.tech_details), onDismiss = { showTech = false }) { TechSpecs(media) }
+        HlModal(stringResource(R.string.tech_details), onDismiss = { showTech = false }, width = HlLayout.dialogWide) {
+            TechSpecs(media, fileName = item.fileName)
+        }
     }
     var showEdit by remember { mutableStateOf(false) }
     if (showEdit) {

@@ -32,6 +32,9 @@ fun formatDuration(ms: Long): String {
  */
 const val FACT_GAP = "$NBSP$NBSP "
 
+/** "2,39:1", "1,85:1": the way aspect ratios are written, in the local decimal style. */
+fun formatRatio(ratio: Float): String = String.format(java.util.Locale.getDefault(), "%.2f", ratio) + ":1"
+
 /** "3840 × 2160". */
 fun formatDimensions(width: Int, height: Int): String = "$width$NBSP×$NBSP$height"
 

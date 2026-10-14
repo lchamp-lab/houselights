@@ -77,7 +77,7 @@
     <string name="add_favorite">Ajouter aux favoris</string>
     <string name="view_series">Voir la série</string>
     <string name="cast">Distribution</string>
-    <string name="tech_details">Détails techniques</string>
+    <string name="tech_details">Fiche technique</string>
     <string name="tech_info">Infos techniques</string>
     <string name="close">Fermer</string>
     <string name="nfo">NFO</string>
@@ -108,7 +108,7 @@
     <string name="tech_subtitles">Sous-titres</string>
     <string name="tech_container">Conteneur</string>
     <string name="tech_size">Taille</string>
-    <string name="tech_bitrate">Débit</string>
+    <string name="tech_bitrate">Débit moyen</string>
     <string name="tech_duration">Durée</string>
     <string name="bit_depth">%d bits</string>
     <string name="dv_profile">Dolby Vision profil %d</string>
@@ -120,10 +120,6 @@
     <string name="mbps">%s Mb/s</string>
     <string name="gigabytes">%s Go</string>
     <string name="megabytes">%s Mo</string>
-    <plurals name="more_tracks">
-        <item quantity="one">+%d autre piste</item>
-        <item quantity="other">+%d autres pistes</item>
-    </plurals>
     <string name="similar">Dans la même veine</string>
     <string name="episodes">Épisodes</string>
     <string name="play_error">Lecture impossible : %s</string>

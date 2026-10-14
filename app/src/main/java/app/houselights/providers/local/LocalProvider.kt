@@ -274,6 +274,7 @@ class LocalProvider(
                 badges = e.badges.split('|').filter { it.isNotBlank() },
                 media = media,
                 hasNfo = e.nfo != null,
+                fileName = e.filePath?.substringAfterLast('/'),
                 // Seasons and episodes show their series' artwork when they have none.
                 poster = (shown(e.userPosterPath, e.posterPath) ?: show?.let { shown(it.userPosterPath, it.posterPath) })
                     ?.let { image(it, ImageType.POSTER) },

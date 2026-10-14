@@ -48,6 +48,8 @@ data class MediaItem(
     val media: MediaInfo? = null,
     /** A Kodi-style NFO describes this item ([MediaProvider.nfo] returns it). */
     val hasNfo: Boolean = false,
+    /** Name of the video file, when the backend knows it. */
+    val fileName: String? = null,
     val poster: ImageRef? = null,
     val backdrop: ImageRef? = null,
     val logo: ImageRef? = null,
