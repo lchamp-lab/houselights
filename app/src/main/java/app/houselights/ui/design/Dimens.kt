@@ -145,6 +145,13 @@ object HlLayout {
     val sideSheet = 520.dp
     /** Widest value on the right of a setting row. */
     val rowValue = 360.dp
+    /** Widest label under a round icon button; a longer one ends in an ellipsis. */
+    val iconLabel = 160.dp
+    /**
+     * Room a row of round buttons keeps under itself for the label of the one with focus: the gap
+     * ([HlSpace.xs]) and one caption line (20). The label takes none of its own.
+     */
+    val iconLabelRoom = 28.dp
     /** Dropdown menus (sort, filters). */
     val menuWidth = 320.dp
     val menuMaxHeight = 460.dp
