@@ -15,6 +15,8 @@ abstract class LibraryDatabase : RoomDatabase() {
     abstract fun dao(): LibraryDao
 
     companion object {
+        const val NAME = "library.db"
+
         private val MIGRATION_1_2 = object : Migration(1, 2) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE sources ADD COLUMN protocol TEXT NOT NULL DEFAULT 'SMB'")
@@ -78,7 +80,7 @@ abstract class LibraryDatabase : RoomDatabase() {
             arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, migration6To7(secrets))
 
         fun create(context: Context, secrets: Secrets): LibraryDatabase =
-            Room.databaseBuilder(context, LibraryDatabase::class.java, "library.db")
+            Room.databaseBuilder(context, LibraryDatabase::class.java, NAME)
                 .addTypeConverter(SecretConverter(secrets))
                 .addMigrations(*migrations(secrets))
                 .build()

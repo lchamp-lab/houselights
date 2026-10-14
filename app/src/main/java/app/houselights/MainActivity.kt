@@ -190,7 +190,7 @@ private fun AppNavigation(onPlay: (MediaItem, Boolean) -> Unit) {
                 onLocal = {
                     // Folders added before are kept when switching sources: reuse them.
                     scope.launch {
-                        if (app.database.dao().sources().isEmpty()) {
+                        if (!app.library.hasFolders()) {
                             nav.navigate(Route.AddFolder)
                         } else {
                             app.settings.setSource(SourceConfig.Local)

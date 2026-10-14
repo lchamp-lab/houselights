@@ -15,6 +15,7 @@ import app.houselights.providers.local.ArtworkCache
 import app.houselights.providers.local.LibraryDatabase
 import app.houselights.providers.local.LibraryScanner
 import app.houselights.providers.local.LocalEditor
+import app.houselights.providers.local.LocalLibrary
 import app.houselights.providers.local.LocalProvider
 import app.houselights.providers.local.TmdbClient
 import app.houselights.settings.SettingsStore
@@ -82,6 +83,7 @@ class AppContainer(private val app: Application) {
         artwork = artwork,
         playing = playback.playing,
     )
+    val library = LocalLibrary(app, database.dao(), scanner, artwork)
 
     private val _libraryVersion = MutableStateFlow(0L)
 

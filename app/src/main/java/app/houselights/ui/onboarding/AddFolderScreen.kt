@@ -74,7 +74,7 @@ fun AddFolderScreen(onAdded: () -> Unit) {
     LaunchedEffect(Unit) {
         runCatching { focus.requestFocus() }
         // A second folder is most often on the same NAS: start from the last one added.
-        app.database.dao().sources().maxByOrNull { it.id }?.let { last ->
+        app.library.lastFolder()?.let { last ->
             protocol = last.protocol
             host = last.host
             share = if (last.protocol == Protocol.NFS) "/${last.share}" else last.share
@@ -126,9 +126,8 @@ fun AddFolderScreen(onAdded: () -> Unit) {
 
     fun add() = test {
         scope.launch {
-            app.database.dao().insertSource(source())
+            app.library.addFolder(source())
             app.settings.setSource(SourceConfig.Local)
-            app.scanner.scanAll()
             onAdded()
         }
     }

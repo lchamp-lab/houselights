@@ -80,7 +80,7 @@ fun HomeScreen(
     val vm = viewModel { HomeViewModel(app) }
     ReloadOnLibraryChange { vm.load() }
     val state by vm.state.collectAsStateWithLifecycle()
-    val scan by app.scanner.state.collectAsStateWithLifecycle()
+    val scan by app.library.scan.collectAsStateWithLifecycle()
     val settings by app.settings.state.collectAsStateWithLifecycle()
 
     var focused by remember { mutableStateOf<MediaItem?>(null) }
