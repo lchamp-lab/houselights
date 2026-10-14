@@ -43,7 +43,7 @@ fun JellyfinLoginScreen(onLoggedIn: () -> Unit) {
         LoginError.Refused -> stringResource(R.string.error_credentials)
         is LoginError.Unreachable -> stringResource(R.string.error_server_unreachable, e.address)
         is LoginError.NotJellyfin -> stringResource(R.string.error_not_jellyfin, e.address)
-        is LoginError.Failed -> stringResource(R.string.error_connect, e.address, e.detail)
+        LoginError.Failed -> stringResource(R.string.error_server_unexpected)
     }
 
     fun login() = vm.login(onLoggedIn)

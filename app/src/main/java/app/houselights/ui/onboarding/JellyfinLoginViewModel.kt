@@ -29,7 +29,8 @@ sealed interface LoginError {
     /** Something answered at [address], but not a Jellyfin server. */
     data class NotJellyfin(val address: String) : LoginError
 
-    data class Failed(val address: String, val detail: String) : LoginError
+    /** Anything else: the details are in the log. */
+    data object Failed : LoginError
 }
 
 class JellyfinLoginViewModel(private val app: AppContainer) : ViewModel() {
@@ -78,7 +79,7 @@ class JellyfinLoginViewModel(private val app: AppContainer) : ViewModel() {
                     e is HttpException && e.code() == HTTP_UNAUTHORIZED -> LoginError.Refused
                     e is SerializationException -> LoginError.NotJellyfin(address)
                     e is IOException -> LoginError.Unreachable(address)
-                    else -> LoginError.Failed(address, e.message ?: e.javaClass.simpleName)
+                    else -> LoginError.Failed
                 }
             }
             busy = false

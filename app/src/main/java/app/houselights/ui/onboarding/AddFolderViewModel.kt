@@ -1,5 +1,6 @@
 package app.houselights.ui.onboarding
 
+import android.util.Log
 import androidx.annotation.StringRes
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -103,7 +104,10 @@ class AddFolderViewModel(private val app: AppContainer) : ViewModel() {
                     check = FolderCheck.Reachable(count)
                     then?.invoke()
                 }
-                .onFailure { e -> check = FolderCheck.Failed(ScanErrors.classify(e), source.host) }
+                .onFailure { e ->
+                    Log.w("AddFolder", "Test of ${source.host} failed", e)
+                    check = FolderCheck.Failed(ScanErrors.classify(e), source.host)
+                }
             busy = false
         }
     }

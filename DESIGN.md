@@ -230,6 +230,8 @@ Focus must read from the couch:
   `formatDimensions`, `formatBytes`, `formatRatio` in `ui/util/Format.kt`).
 - Facts are separated by layout (`FactRow`). Inside a single text (a button's detail), `FACT_GAP`.
 - Values are words a person uses: "Détecté", "Hors ligne", "Aucune", never "absent" or "0 fichier".
+- A failure says what happened and what to do ("Le dossier n’a pas pu être lu. Réessayez, ou
+  vérifiez le partage sur le NAS."), never an exception's text: that goes to the log only.
 - Text written elsewhere (TMDB, NFO, servers) goes through `Typeset.text`, so `»`, `:` and `!` never
   start a line.
 

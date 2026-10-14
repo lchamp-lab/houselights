@@ -160,7 +160,7 @@
     <!-- /volume1 is how a Synology NAS names its first volume. -->
     <string name="error_export_missing" tools:ignore="Typos">Enter the NFS export, for example /volume1/media.</string>
     <string name="error_share_missing">Enter the name of the shared folder, for example media.</string>
-    <string name="error_scan_other">The folder could not be read: %s</string>
+    <string name="error_scan_other">The folder could not be read. Try again, or check the share on the NAS.</string>
     <string name="add">Add</string>
 
     <!-- Jellyfin -->
@@ -170,7 +170,7 @@
     <string name="sign_in">Sign in</string>
     <string name="signing_in">Signing in…</string>
     <string name="error_credentials">The server rejected these credentials.</string>
-    <string name="error_connect">Can’t connect to %1$s: %2$s</string>
+    <string name="error_server_unexpected">The server answered in an unexpected way. Check the address, then try again.</string>
     <string name="error_server_unreachable">Nothing answers at %s. Check the address and that Jellyfin is running.</string>
     <string name="error_not_jellyfin">%s answers, but it doesn’t look like a Jellyfin server. Check the address and port.</string>
 

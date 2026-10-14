@@ -152,7 +152,7 @@
     <string name="error_host_missing">Indiquez l’adresse du NAS.</string>
     <string name="error_export_missing">Indiquez l’export NFS, par exemple /volume1/media.</string>
     <string name="error_share_missing">Indiquez le nom du dossier partagé, par exemple media.</string>
-    <string name="error_scan_other">Impossible de lire le dossier : %s</string>
+    <string name="error_scan_other">Le dossier n’a pas pu être lu. Réessayez, ou vérifiez le partage sur le NAS.</string>
     <string name="add">Ajouter</string>
 
     <string name="jellyfin_title">Connexion à Jellyfin</string>
@@ -161,7 +161,7 @@
     <string name="sign_in">Se connecter</string>
     <string name="signing_in">Connexion…</string>
     <string name="error_credentials">Identifiants refusés par le serveur.</string>
-    <string name="error_connect">Connexion impossible à %1$s : %2$s</string>
+    <string name="error_server_unexpected">Le serveur a répondu de façon inattendue. Vérifiez l’adresse, puis réessayez.</string>
     <string name="error_server_unreachable">Rien ne répond à %s. Vérifiez l’adresse et que Jellyfin est démarré.</string>
     <string name="error_not_jellyfin">%s répond, mais ne semble pas être un serveur Jellyfin. Vérifiez l’adresse et le port.</string>
 
