@@ -21,6 +21,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
@@ -40,12 +41,13 @@ import app.houselights.ui.design.keepVerticalFocus
 @Composable
 fun HlTwoPane(
     side: @Composable ColumnScope.() -> Unit,
+    sideWidth: Dp = HlLayout.sideColumn,
     content: @Composable BoxScope.() -> Unit,
 ) {
     Box(Modifier.fillMaxSize()) {
         Backdrop(null, BackdropStyle.Quiet)
         Row(Modifier.fillMaxSize().padding(start = HlSpace.safeH, end = HlSpace.safeH, top = HlSpace.safeV)) {
-            Column(Modifier.width(HlLayout.sideColumn).fillMaxHeight(), content = side)
+            Column(Modifier.width(sideWidth).fillMaxHeight(), content = side)
             Spacer(Modifier.width(HlSpace.xl))
             HlDivider(Modifier.padding(vertical = HlSpace.xl), vertical = true)
             Spacer(Modifier.width(HlSpace.xl))
@@ -70,6 +72,7 @@ fun HlFormScaffold(
             Spacer(Modifier.height(HlSpace.xl))
             aside()
         },
+        sideWidth = HlLayout.sideColumnWide,
     ) {
         Column(
             Modifier.fillMaxSize().keepVerticalFocus().verticalScroll(rememberScrollState())

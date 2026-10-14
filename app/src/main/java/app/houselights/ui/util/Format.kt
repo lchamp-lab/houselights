@@ -95,11 +95,16 @@ fun languageName(code: String?): String? {
 
 /** Decimal units, as drives and NAS report them; "Go", "Mo", "Ko" in French. */
 fun formatBytes(context: Context, bytes: Long): String {
-    val locale = java.util.Locale.getDefault()
+    // Whole amounts lose their decimals: "1 Go", not "1,00 Go".
+    fun amount(value: Double, decimals: Int): String {
+        val locale = java.util.Locale.getDefault()
+        val rounded = String.format(locale, "%.${decimals}f", value)
+        return if (String.format(locale, "%.${decimals}f", Math.rint(value)) == rounded) String.format(locale, "%.0f", value) else rounded
+    }
     return when {
-        bytes >= 1_000_000_000L -> context.getString(R.string.gigabytes, String.format(locale, "%.2f", bytes / 1e9))
-        bytes >= 1_000_000L -> context.getString(R.string.megabytes, String.format(locale, "%.1f", bytes / 1e6))
-        else -> context.getString(R.string.kilobytes, String.format(locale, "%.0f", bytes / 1e3))
+        bytes >= 1_000_000_000L -> context.getString(R.string.gigabytes, amount(bytes / 1e9, 2))
+        bytes >= 1_000_000L -> context.getString(R.string.megabytes, amount(bytes / 1e6, 1))
+        else -> context.getString(R.string.kilobytes, amount(bytes / 1e3, 0))
     }
 }
 

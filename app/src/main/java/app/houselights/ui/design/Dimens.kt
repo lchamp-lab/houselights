@@ -56,6 +56,8 @@ object HlSize {
     /** An icon set in a line of text (rating star). */
     val inlineIcon = 16.dp
     val meter = 10.dp
+    /** Minimum height of a setting row. */
+    val row = 64.dp
     /** Progress shown beside text (time left). */
     val progressShort = 120.dp
     val progress = 3.dp
@@ -72,8 +74,9 @@ object HlLayout {
     val readable = 640.dp
     /** Text set beside artwork (heroes, detail pages). */
     val readableNarrow = 520.dp
-    /** Side column of two-pane screens (settings, setup). */
-    val sideColumn = 320.dp
+    /** Side column of two-pane screens: navigation (settings), and explanation (setup forms). */
+    val sideColumn = 280.dp
+    val sideColumnWide = 340.dp
     /** Where the content of a two-pane screen starts, level with its first navigation entry. */
     val paneTop = 72.dp
     /** Text fields of a form. */
@@ -89,6 +92,9 @@ object HlLayout {
     /** Width of dialogs. */
     val dialog = 860.dp
     val dialogWide = 1040.dp
+    val dialogNarrow = 640.dp
+    /** Widest value on the right of a setting row. */
+    val rowValue = 360.dp
     /** Dropdown menus (sort, filters). */
     val menuWidth = 320.dp
     val menuMaxHeight = 460.dp

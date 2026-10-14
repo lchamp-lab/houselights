@@ -234,3 +234,14 @@ fun HlMeter(segments: List<MeterSegment>, modifier: Modifier = Modifier) {
         if (free > 0f) Spacer(Modifier.weight(free))
     }
 }
+
+/** A line of a meter's legend: its colour, what it is, how much. */
+@Composable
+fun MeterLegend(label: String, value: String, color: Color, modifier: Modifier = Modifier) {
+    Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.size(HlSize.dot).clip(HlShapes.avatar).background(color))
+        Spacer(Modifier.width(HlSpace.s))
+        Text(label, style = Hl.type.caption, color = Hl.colors.contentSecondary, modifier = Modifier.weight(1f))
+        Text(value, style = Hl.type.meta, color = Hl.colors.content)
+    }
+}

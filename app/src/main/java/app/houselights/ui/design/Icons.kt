@@ -126,6 +126,11 @@ object HlIcons {
         moveTo(15.25f, 15.25f); lineTo(20f, 20f)
     }
 
+    /** Opens what a row leads to. */
+    val Chevron = icon("Chevron") {
+        moveTo(9.5f, 6f); lineTo(15.5f, 12f); lineTo(9.5f, 18f)
+    }
+
     /** About: the house light itself. */
     val Lamp = icon("Lamp") {
         moveTo(6f, 11f); quadTo(6f, 5f, 12f, 5f); quadTo(18f, 5f, 18f, 11f); close()

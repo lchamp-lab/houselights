@@ -184,6 +184,21 @@ interface LibraryDao {
     @Query("SELECT COUNT(*) FROM items WHERE sourceId = :sourceId AND kind IN ('MOVIE','SERIES')")
     fun observeTitleCount(sourceId: Long): Flow<Int>
 
+    @Query("SELECT COUNT(*) FROM items WHERE kind IN ('MOVIE','SERIES')")
+    fun observeAllTitleCount(): Flow<Int>
+
+    /** Posters of the latest titles of a source, the user's choice first. */
+    @Query(
+        "SELECT COALESCE(NULLIF(userPosterPath, ''), posterPath) FROM items " +
+            "WHERE sourceId = :sourceId AND kind IN ('MOVIE','SERIES') " +
+            "AND COALESCE(NULLIF(userPosterPath, ''), posterPath) IS NOT NULL ORDER BY addedAt DESC LIMIT :limit"
+    )
+    fun observePosters(sourceId: Long, limit: Int): Flow<List<String>>
+
+    /** Files of a source in Ultra HD (their badges carry the definition token). */
+    @Query("SELECT COUNT(*) FROM items WHERE sourceId = :sourceId AND filePath IS NOT NULL AND ('|' || badges || '|') LIKE '%|' || :token || '|%'")
+    fun observeDefinitionCount(sourceId: Long, token: String): Flow<Int>
+
     @RawQuery
     suspend fun query(query: SupportSQLiteQuery): List<ItemEntity>
 
