@@ -76,7 +76,8 @@
     <string name="cast">Distribution</string>
     <string name="tech_details">Fiche technique</string>
     <string name="tech_info">Infos techniques</string>
-    <string name="close">Fermer</string>
+    <string name="sheet_back_hint">Retour pour fermer</string>
+    <string name="cancel">Annuler</string>
     <string name="nfo">NFO</string>
     <string name="nfo_title">Fichier NFO</string>
     <string name="nfo_desc">La description de ce titre écrite par votre gestionnaire de médias. Ses informations priment sur celles de TMDB.</string>
@@ -99,9 +100,11 @@
     <string name="label_plot">Résumé</string>
     <string name="label_cast">Distribution</string>
     <string name="label_episode">Épisode</string>
+    <string name="tech_video">Vidéo</string>
     <string name="tech_audio">Audio</string>
     <string name="tech_subtitles">Sous-titres</string>
     <string name="tech_container">Conteneur</string>
+    <string name="tech_file">Fichier</string>
     <string name="tech_size">Taille</string>
     <string name="tech_bitrate">Débit moyen</string>
     <string name="tech_duration">Durée</string>
@@ -218,11 +221,10 @@
     <string name="billing_with">avec</string>
     <string name="billing_and">et</string>
     <string name="edit">Modifier</string>
-    <string name="edit_title">Modifier « %s »</string>
     <string name="artwork_poster">Affiche</string>
-    <string name="artwork_poster_desc">L’image des rangées et de la bibliothèque</string>
+    <string name="artwork_poster_desc">Dans les rangées et la bibliothèque</string>
     <string name="artwork_backdrop">Fond d’écran</string>
-    <string name="artwork_backdrop_desc">L’image derrière cette fiche et sur l’accueil</string>
+    <string name="artwork_backdrop_desc">Derrière cette fiche et sur l’accueil</string>
     <string name="artwork_logo">Logo</string>
     <string name="artwork_logo_desc">Le titre dessiné en haut de cette fiche</string>
     <string name="identify">Identifier</string>
@@ -272,6 +274,7 @@
     <string name="refresh_metadata_desc">Récupère à nouveau affiches et informations sur TMDB</string>
     <string name="remove_folder">Retirer ce dossier</string>
     <string name="remove_folder_desc">Ses titres quittent la bibliothèque ; rien n’est supprimé sur le NAS.</string>
+    <string name="remove_folder_confirm">Retirer « %s » ?</string>
     <string name="tmdb_builtin_short">Intégrée</string>
     <string name="tmdb_personal">Personnelle</string>
     <string name="tmdb_missing_short">Manquante</string>

@@ -133,6 +133,14 @@ object HlIcons {
         moveTo(14.5f, 2.75f); lineTo(12f, 5.25f); lineTo(14.5f, 7.75f)
     }
 
+    /** The Back key of the remote: an arrow turning back. */
+    val Back = icon("Back") {
+        moveTo(4.75f, 10f); lineTo(15f, 10f)
+        arcTo(4.5f, 4.5f, 0f, false, true, 15f, 19f)
+        lineTo(11f, 19f)
+        moveTo(8.75f, 6f); lineTo(4.75f, 10f); lineTo(8.75f, 14f)
+    }
+
     /** Opens what a row leads to. */
     val Chevron = icon("Chevron") {
         moveTo(9.5f, 6f); lineTo(15.5f, 12f); lineTo(9.5f, 18f)

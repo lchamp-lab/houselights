@@ -86,6 +86,13 @@ object HlSize {
     val scrollStep = 120.dp
     /** Minimum height of a setting row. */
     val row = 64.dp
+    /**
+     * An image previewed at the head of a row: its height, the width of a poster at that height,
+     * and the width of its slot (a backdrop).
+     */
+    val rowPreview = 48.dp
+    val rowPreviewPoster = 32.dp
+    val rowPreviewWide = 84.dp
     /** Progress shown beside text (time left). */
     val progressShort = 120.dp
     val progress = 3.dp
@@ -132,11 +139,10 @@ object HlLayout {
     /** The two columns of the welcome screen. */
     val welcomeTagline = 380.dp
     val welcomeChoices = 430.dp
-    /** Width of dialogs. */
-    val dialog = 860.dp
-    /** As wide as the safe area allows (960 dp screen less the side margins). */
-    val dialogWide = 864.dp
-    val dialogNarrow = 640.dp
+    /** A sheet to read: as wide as the safe area allows (960 dp screen less the side margins). */
+    val dialog = 864.dp
+    /** A side sheet: 440 dp of content between its inset and the safe area, the page still in view. */
+    val sideSheet = 520.dp
     /** Widest value on the right of a setting row. */
     val rowValue = 360.dp
     /** Dropdown menus (sort, filters). */

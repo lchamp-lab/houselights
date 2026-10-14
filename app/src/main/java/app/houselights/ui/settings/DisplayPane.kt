@@ -59,6 +59,7 @@ internal fun LazyListScope.displayPane(s: AppSettings) {
                 selected = if (s.ui4k) 0 else 1,
                 onSelect = { vm.setUi4k(it == 0) },
                 onDismiss = { choose = false },
+                description = stringResource(R.string.ui_resolution_desc),
             )
         }
     }

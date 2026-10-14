@@ -71,6 +71,8 @@ object HlAlpha {
     const val DIVIDER = 0.5f
     /** The room behind a dialog: `background` at this opacity. */
     const val SCRIM = 0.72f
+    /** The room beside a side sheet, still to be read: `background` at this opacity. */
+    const val SCRIM_SIDE = 0.6f
     /** Plates under marks drawn over artwork (watched check, counts): `background`. */
     const val PLATE = 0.72f
     /** Progress track over artwork: `content` at this opacity. */

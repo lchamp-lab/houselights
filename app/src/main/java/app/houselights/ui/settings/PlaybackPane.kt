@@ -59,6 +59,7 @@ internal fun LazyListScope.playbackPane(s: AppSettings) {
                 selected = if (s.forceHttp) 1 else 0,
                 onSelect = { vm.setForceHttp(it == 1) },
                 onDismiss = { choose = false },
+                description = stringResource(R.string.playback_desc),
             )
         }
     }

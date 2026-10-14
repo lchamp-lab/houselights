@@ -83,7 +83,8 @@
     <string name="cast">Cast</string>
     <string name="tech_details">Technical sheet</string>
     <string name="tech_info">Technical info</string>
-    <string name="close">Close</string>
+    <string name="sheet_back_hint">Back to close</string>
+    <string name="cancel">Cancel</string>
     <string name="nfo">NFO</string>
     <string name="nfo_title">NFO file</string>
     <string name="nfo_desc">The description of this title written by your media manager. Its details take precedence over TMDB.</string>
@@ -106,9 +107,11 @@
     <string name="label_plot">Plot</string>
     <string name="label_cast">Cast</string>
     <string name="label_episode">Episode</string>
+    <string name="tech_video">Video</string>
     <string name="tech_audio">Audio</string>
     <string name="tech_subtitles">Subtitles</string>
     <string name="tech_container">Container</string>
+    <string name="tech_file">File</string>
     <string name="tech_size">Size</string>
     <string name="tech_bitrate">Average bitrate</string>
     <string name="tech_duration">Duration</string>
@@ -228,7 +231,6 @@
     <string name="billing_with">with</string>
     <string name="billing_and">and</string>
     <string name="edit">Edit</string>
-    <string name="edit_title">Edit “%s”</string>
     <string name="artwork_poster">Poster</string>
     <string name="artwork_poster_desc">Shown in rows and in the library</string>
     <string name="artwork_backdrop">Backdrop</string>
@@ -280,6 +282,7 @@
     <string name="refresh_metadata_desc">Fetch artwork and details from TMDB again</string>
     <string name="remove_folder">Remove this folder</string>
     <string name="remove_folder_desc">Its titles leave the library; nothing is deleted on the NAS.</string>
+    <string name="remove_folder_confirm">Remove “%s”?</string>
     <string name="tmdb_builtin_short">Built in</string>
     <string name="tmdb_personal">Your key</string>
     <string name="tmdb_missing_short">Missing</string>

@@ -38,31 +38,40 @@ import app.houselights.ui.util.languageName
 import java.util.Locale
 
 /**
- * The technical sheet of a file, set like the specifications on the back of a Blu-ray case:
- * the picture first, in the technical voice; then every audio and subtitle track in aligned
- * tables, the one the player starts with marked; then the file itself.
+ * The technical sheet of a file, set like the specifications on the back of a Blu-ray case: one
+ * block per subject, each opened by a hairline and its name. The picture first, in the technical
+ * voice; then every audio and subtitle track in aligned tables, the one the player starts with
+ * marked; then the file itself.
  */
 @Composable
 fun TechSpecs(media: MediaInfo, modifier: Modifier = Modifier, fileName: String? = null) {
-    Column(modifier) {
-        media.video?.let {
-            PictureSpecs(media)
-            Spacer(Modifier.height(HlSpace.l))
-            HlDivider()
-            Spacer(Modifier.height(HlSpace.l))
-        }
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(HlSpace.m)) {
+        media.video?.let { SpecBlock(stringResource(R.string.tech_video)) { PictureSpecs(media) } }
         if (media.audio.isNotEmpty() || media.subtitles.isNotEmpty()) {
-            HlScrollArea(Modifier.heightIn(max = HlLayout.specTables), framed = false) {
+            HlScrollArea(Modifier.heightIn(max = HlLayout.specTables), framed = false, padding = HlSpace.none) {
                 Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.xl)) {
-                    if (media.audio.isNotEmpty()) AudioTable(media.audio, Modifier.weight(1.4f))
-                    if (media.subtitles.isNotEmpty()) SubtitleTable(media.subtitles, Modifier.weight(1f))
+                    if (media.audio.isNotEmpty()) {
+                        SpecBlock(stringResource(R.string.tech_audio), Modifier.weight(1.4f)) { AudioTable(media.audio) }
+                    }
+                    if (media.subtitles.isNotEmpty()) {
+                        SpecBlock(stringResource(R.string.tech_subtitles), Modifier.weight(1f)) { SubtitleTable(media.subtitles) }
+                    }
                 }
             }
-            Spacer(Modifier.height(HlSpace.l))
-            HlDivider()
-            Spacer(Modifier.height(HlSpace.m))
         }
-        FileSpecs(media, fileName)
+        SpecBlock(stringResource(R.string.tech_file)) { FileSpecs(media, fileName) }
+    }
+}
+
+/** One subject of the sheet: a hairline, its name, then what it says. */
+@Composable
+private fun SpecBlock(title: String, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
+    Column(modifier) {
+        HlDivider()
+        Spacer(Modifier.height(HlSpace.xs))
+        Text(title, style = Hl.type.caption, color = Hl.colors.contentSecondary)
+        Spacer(Modifier.height(HlSpace.xs))
+        content()
     }
 }
 
@@ -90,12 +99,11 @@ private fun PictureSpecs(media: MediaInfo) {
 }
 
 @Composable
-private fun AudioTable(tracks: List<AudioTrack>, modifier: Modifier) {
+private fun AudioTable(tracks: List<AudioTrack>) {
     // The track the player starts with comes first.
     val ordered = tracks.sortedByDescending { it.default }
     val main = ordered.first()
-    Column(modifier) {
-        TableTitle(stringResource(R.string.tech_audio))
+    Column {
         ordered.forEach { t ->
             SpecRow(
                 marked = t === main,
@@ -108,11 +116,10 @@ private fun AudioTable(tracks: List<AudioTrack>, modifier: Modifier) {
 }
 
 @Composable
-private fun SubtitleTable(tracks: List<SubtitleTrack>, modifier: Modifier) {
+private fun SubtitleTable(tracks: List<SubtitleTrack>) {
     val forced = stringResource(R.string.forced_subs)
     val sdh = stringResource(R.string.sdh_subs)
-    Column(modifier) {
-        TableTitle(stringResource(R.string.tech_subtitles))
+    Column {
         tracks.sortedByDescending { it.default }.forEach { t ->
             SpecRow(
                 marked = t.default,
@@ -124,11 +131,6 @@ private fun SubtitleTable(tracks: List<SubtitleTrack>, modifier: Modifier) {
             )
         }
     }
-}
-
-@Composable
-private fun TableTitle(text: String) {
-    Text(text, style = Hl.type.caption, color = Hl.colors.contentSecondary, modifier = Modifier.padding(start = HlSize.dot + HlSpace.s, bottom = HlSpace.xs))
 }
 
 /**
@@ -163,7 +165,7 @@ private fun FileSpecs(media: MediaInfo, fileName: String?) {
         media.durationMs?.let { Fact(stringResource(R.string.tech_duration), formatDuration(it)) }
     }
     if (fileName != null) {
-        Spacer(Modifier.height(HlSpace.m))
+        Spacer(Modifier.height(HlSpace.s))
         Text(fileName, style = Hl.type.caption, color = Hl.colors.contentTertiary, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }

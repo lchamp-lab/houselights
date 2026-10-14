@@ -122,7 +122,8 @@ fun HlSettingGroup(title: String?, modifier: Modifier = Modifier, content: @Comp
  * on the right. With [onClick] the row is a control that turns projector white with focus and
  * leads somewhere ([chevron]); without it, the row only states a value. [valueLit] marks a value
  * the user chose or something that needs attention, in tungsten. [trailing] replaces the value
- * with another element (a status, badges).
+ * with another element (a status, badges); [leading] replaces the icon with a preview of what the
+ * row changes ([RowPreview]).
  */
 @Composable
 fun HlSettingRow(
@@ -135,6 +136,7 @@ fun HlSettingRow(
     onClick: (() -> Unit)? = null,
     chevron: Boolean = onClick != null,
     trailing: (@Composable RowScope.() -> Unit)? = null,
+    leading: (@Composable () -> Unit)? = null,
 ) {
     val c = Hl.colors
     @Composable
@@ -145,7 +147,10 @@ fun HlSettingRow(
                 .padding(horizontal = HlInset.card, vertical = HlInset.compact),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            if (icon != null) {
+            if (leading != null) {
+                leading()
+                Spacer(Modifier.width(HlSpace.m))
+            } else if (icon != null) {
                 Icon(icon, contentDescription = null, modifier = Modifier.size(HlSize.icon))
                 Spacer(Modifier.width(HlSpace.m))
             }
@@ -216,8 +221,9 @@ fun HlSettingRow(
 data class ChoiceOption(val label: String, val description: String? = null)
 
 /**
- * The choices of a setting, in a dialog opened from its row: focus starts on the current one,
- * choosing closes the dialog, Back closes it without changing anything.
+ * The choices of a setting, in a side sheet opened from its row and headed by the setting's name
+ * and [description]: focus starts on the current one; choosing applies it at once (the check moves)
+ * and closes the sheet; Back closes it without changing anything.
  */
 @Composable
 fun HlChoiceSheet(
@@ -226,20 +232,22 @@ fun HlChoiceSheet(
     selected: Int,
     onSelect: (Int) -> Unit,
     onDismiss: () -> Unit,
+    description: String? = null,
 ) {
     val current = remember { FocusRequester() }
-    HlModal(title, onDismiss, width = HlLayout.dialogNarrow, initialFocus = current) {
-        Column(verticalArrangement = Arrangement.spacedBy(HlSpace.xxs)) {
-            options.forEachIndexed { i, option ->
-                HlSettingRow(
-                    title = option.label,
-                    description = option.description,
-                    onClick = { onSelect(i); onDismiss() },
-                    chevron = false,
-                    trailing = if (i == selected) ({ Icon(Icons.Filled.Check, contentDescription = null, tint = checkTint(), modifier = Modifier.size(HlSize.icon)) }) else null,
-                    modifier = if (i == selected) Modifier.focusRequester(current) else Modifier,
-                )
-            }
+    HlSideSheet(title, onDismiss, description = description, initialFocus = current) { sheet ->
+        options.forEachIndexed { i, option ->
+            HlSettingRow(
+                title = option.label,
+                description = option.description,
+                onClick = {
+                    onSelect(i)
+                    sheet.dismiss()
+                },
+                chevron = false,
+                trailing = if (i == selected) ({ Icon(Icons.Filled.Check, contentDescription = null, tint = checkTint(), modifier = Modifier.size(HlSize.icon)) }) else null,
+                modifier = if (i == selected) Modifier.focusRequester(current) else Modifier,
+            )
         }
     }
 }

@@ -17,6 +17,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -56,7 +57,9 @@ import app.houselights.ui.design.components.Emphasis
 import app.houselights.ui.design.components.FactRow
 import app.houselights.ui.design.components.HlButton
 import app.houselights.ui.design.components.HlChoiceSheet
-import app.houselights.ui.design.components.HlModal
+import app.houselights.ui.design.components.HlDivider
+import app.houselights.ui.design.components.HlSideSheet
+import app.houselights.ui.design.components.PosterThumb
 import app.houselights.ui.design.components.HlPanelButton
 import app.houselights.ui.design.components.HlSettingGroup
 import app.houselights.ui.design.components.HlSettingRow
@@ -118,23 +121,82 @@ private fun Sources() {
         }
     }
     actionsFor?.let { source ->
-        HlModal(sourceName(source), onDismiss = { actionsFor = null }, width = HlLayout.dialogNarrow) {
-            HlSettingGroup(null) {
-                HlSettingRow(
-                    stringResource(R.string.scan_now),
-                    onClick = { vm.library.scan(); actionsFor = null },
-                    chevron = false,
-                )
-                HlSettingRow(
-                    stringResource(R.string.remove_folder),
-                    description = stringResource(R.string.remove_folder_desc),
+        SourceActions(
+            source,
+            onDismiss = { actionsFor = null },
+            // Launched from here: the sheet has left the composition by the time it runs.
+            onRemove = { scope.launch { vm.library.removeFolder(source) } },
+        )
+    }
+}
+
+/**
+ * What can be done with a watched folder, beside the list: scan it now, or remove it, which asks
+ * first, in the sheet itself, with focus on Cancel.
+ */
+@Composable
+private fun SourceActions(source: SourceEntity, onDismiss: () -> Unit, onRemove: () -> Unit) {
+    val vm = settingsViewModel()
+    val posters by remember(source.id) { vm.library.latestPosters(source, HEADER_POSTERS) }.collectAsStateWithLifecycle(emptyList())
+    val kind = stringResource(if (source.kind == SourceKind.MOVIES) R.string.library_movies else R.string.library_shows)
+    var confirming by remember { mutableStateOf(false) }
+    var backFromConfirm by remember { mutableStateOf(false) }
+    val scan = remember { FocusRequester() }
+    val remove = remember { FocusRequester() }
+    val cancel = remember { FocusRequester() }
+    HlSideSheet(
+        title = sourceName(source),
+        onDismiss = onDismiss,
+        facts = listOf(kind.takeIf { !source.name.equals(it, ignoreCase = true) }, source.protocol.name),
+        description = source.address(withScheme = false),
+        artwork = if (posters.isEmpty()) null else ({ PosterFan(posters) }),
+        initialFocus = scan,
+    ) { sheet ->
+        if (!confirming) {
+            LaunchedEffect(backFromConfirm) { if (backFromConfirm) runCatching { remove.requestFocus() } }
+            HlSettingRow(
+                stringResource(R.string.scan_now),
+                onClick = { sheet.dismiss { vm.library.scan() } },
+                chevron = false,
+                modifier = Modifier.focusRequester(scan),
+            )
+            Spacer(Modifier.height(HlSpace.s))
+            HlDivider()
+            Spacer(Modifier.height(HlSpace.s))
+            HlSettingRow(
+                stringResource(R.string.remove_folder),
+                description = stringResource(R.string.remove_folder_desc),
+                onClick = { confirming = true },
+                chevron = false,
+                modifier = Modifier.focusRequester(remove),
+            )
+        } else {
+            LaunchedEffect(Unit) { runCatching { cancel.requestFocus() } }
+            Text(stringResource(R.string.remove_folder_confirm, sourceName(source)), style = Hl.type.lead, color = Hl.colors.content)
+            Spacer(Modifier.height(HlSpace.xs))
+            Text(stringResource(R.string.remove_folder_desc), style = Hl.type.body, color = Hl.colors.contentSecondary)
+            Spacer(Modifier.height(HlSpace.l))
+            Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.s)) {
+                HlButton(
+                    stringResource(R.string.cancel),
                     onClick = {
-                        actionsFor = null
-                        scope.launch { vm.library.removeFolder(source) }
+                        confirming = false
+                        backFromConfirm = true
                     },
-                    chevron = false,
+                    modifier = Modifier.focusRequester(cancel),
                 )
+                HlButton(stringResource(R.string.remove), onClick = { sheet.dismiss(onRemove) })
             }
+        }
+    }
+}
+
+/** The latest posters of a folder, side by side, at the head of its sheet. */
+@Composable
+private fun PosterFan(paths: List<String>) {
+    Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.xxs)) {
+        paths.take(HEADER_POSTERS).forEach { path ->
+            PosterThumb(LocalProvider.image(path, ImageType.POSTER), width = HlSize.rowPreviewPoster)
         }
     }
 }
@@ -295,6 +357,7 @@ private fun CollectionsRow() {
             selected = current,
             onSelect = { i -> vm.setCollectionMinFilms(options[i].first) },
             onDismiss = { choose = false },
+            description = stringResource(R.string.collections_setting_desc),
         )
     }
 }
@@ -323,28 +386,33 @@ private fun TmdbKeyDialog(onDismiss: () -> Unit) {
     var key by remember { mutableStateOf(s.tmdbApiKey ?: "") }
     val field = remember { FocusRequester() }
     val hasBuiltIn = BuildConfig.TMDB_API_KEY.isNotBlank()
-    HlModal(stringResource(R.string.tmdb_key), onDismiss, width = HlLayout.dialogNarrow, initialFocus = field) {
-        Column(verticalArrangement = Arrangement.spacedBy(HlSpace.m)) {
-            Text(stringResource(R.string.tmdb_desc), style = Hl.type.body, color = Hl.colors.contentSecondary)
-            Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.s), verticalAlignment = Alignment.CenterVertically) {
-                HlTextField("", key, { key = it }, password = true, modifier = Modifier.weight(1f).focusRequester(field))
-                HlButton(
-                    stringResource(R.string.save),
-                    { vm.setTmdbApiKey(key, onDismiss) },
-                    icon = Icons.Filled.Check,
-                    emphasis = Emphasis.Primary,
-                )
-            }
-            Text(
-                stringResource(if (hasBuiltIn) R.string.tmdb_key_builtin else R.string.tmdb_key_missing),
-                style = Hl.type.caption,
-                color = if (hasBuiltIn) Hl.colors.contentSecondary else Hl.colors.tungsten,
-            )
-        }
+    HlSideSheet(
+        stringResource(R.string.tmdb_key),
+        onDismiss,
+        description = stringResource(R.string.tmdb_desc),
+        initialFocus = field,
+    ) { sheet ->
+        HlTextField("", key, { key = it }, password = true, modifier = Modifier.fillMaxWidth().focusRequester(field))
+        Spacer(Modifier.height(HlSpace.s))
+        Text(
+            stringResource(if (hasBuiltIn) R.string.tmdb_key_builtin else R.string.tmdb_key_missing),
+            style = Hl.type.detail,
+            color = if (hasBuiltIn) Hl.colors.contentSecondary else Hl.colors.tungsten,
+        )
+        Spacer(Modifier.height(HlSpace.l))
+        HlButton(
+            stringResource(R.string.save),
+            { vm.setTmdbApiKey(key) { sheet.dismiss() } },
+            icon = Icons.Filled.Check,
+            emphasis = Emphasis.Primary,
+        )
     }
 }
 /** Posters in a source card's strip. */
 private const val STRIP = 6
+
+/** Posters at the head of a folder's sheet. */
+private const val HEADER_POSTERS = 3
 
 /** A scan that has just started still shows a sliver of progress. */
 private const val PROGRESS_MIN = 0.02f
