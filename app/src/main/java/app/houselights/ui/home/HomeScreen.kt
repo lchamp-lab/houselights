@@ -15,10 +15,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -39,6 +35,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.tv.material3.Text
+import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.components.HlIconButton
 import app.houselights.ui.design.components.HlSegmented
 import app.houselights.ui.design.components.HlEmptyState
@@ -225,7 +222,7 @@ private fun TopBar(
             enterAt = returnTo ?: current,
         )
         HlIconButton(
-            Icons.Filled.Settings,
+            HlIcons.Settings,
             stringResource(R.string.nav_settings),
             onClick = onSettings,
             modifier = Modifier.focusKey(FocusKey.action("settings"), memory),
@@ -348,7 +345,7 @@ private fun NoFilms(onAddFolder: () -> Unit, onSettings: () -> Unit) {
         stringResource(R.string.home_empty_local),
         Modifier.padding(start = HlSpace.safeH, top = HlSpace.l),
         action = stringResource(R.string.add_folder),
-        actionIcon = Icons.Filled.Add,
+        actionIcon = HlIcons.Add,
         onAction = onAddFolder,
         secondaryAction = stringResource(R.string.home_see_folders).takeIf { folders.isNotEmpty() },
         onSecondaryAction = onSettings,
@@ -366,7 +363,7 @@ private fun ScanFailed(errors: Map<String, ScanError>, onSettings: () -> Unit) {
         Modifier.padding(start = HlSpace.safeH, top = HlSpace.l),
         title = stringResource(R.string.home_scan_failed),
         action = stringResource(R.string.retry),
-        actionIcon = Icons.Filled.Refresh,
+        actionIcon = HlIcons.Refresh,
         onAction = { library.scan() },
         secondaryAction = stringResource(R.string.home_see_folders),
         onSecondaryAction = onSettings,
@@ -387,7 +384,7 @@ fun ErrorMessage(error: UiError, onRetry: () -> Unit) {
         Modifier.padding(start = HlSpace.safeH, top = HlSpace.l),
         title = stringResource(error.title),
         action = action?.let { stringResource(it.label) },
-        actionIcon = Icons.Filled.Refresh.takeIf { action == ErrorAction.RETRY },
+        actionIcon = HlIcons.Refresh.takeIf { action == ErrorAction.RETRY },
         onAction = { if (action == ErrorAction.RETRY) onRetry() else action?.let(fix) },
         backHint = action == null,
     )

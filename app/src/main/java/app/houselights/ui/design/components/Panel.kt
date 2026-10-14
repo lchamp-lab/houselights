@@ -31,6 +31,7 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -131,7 +132,7 @@ fun HlPanelButton(
     }
 }
 
-/** An icon in a disc; [lit] in tungsten for the thing that is on or focused. */
+/** An icon in a disc; [lit] in tungsten while what it stands for is on (in use, chosen), never for focus. */
 @Composable
 fun HlIconDisc(icon: ImageVector, modifier: Modifier = Modifier, lit: Boolean = false) {
     val c = Hl.colors
@@ -259,12 +260,42 @@ internal fun StatusDot(state: StatusState, modifier: Modifier = Modifier) {
     )
 }
 
+/**
+ * What needs attention, beside what it concerns (a folder that could not be read, images that
+ * cannot be fetched): the attention light by the first line, then the words in tungsten, as under
+ * a field. A screen never sets tungsten itself: it says attention through this, or [HlStatus].
+ */
+@Composable
+fun AttentionNote(text: String, modifier: Modifier = Modifier, style: TextStyle = Hl.type.detail) {
+    Row(modifier) {
+        // As tall as the first line, so the light sits beside it.
+        val line = with(LocalDensity.current) { style.lineHeight.toDp() }
+        Box(Modifier.height(line), contentAlignment = Alignment.Center) { StatusDot(StatusState.Attention) }
+        Spacer(Modifier.width(HlSpace.xs))
+        Text(text, style = style, color = Hl.colors.tungsten)
+    }
+}
+
+/**
+ * The ink of a part of a [HlMeter], by rank: projector white, then the two greys of reading. A
+ * share of a capacity is not a state, so a meter never lights: parts are told apart by their
+ * order, the gap between them and the legend.
+ */
+enum class MeterInk { Primary, Secondary, Tertiary }
+
+@Composable
+private fun MeterInk.color(): Color = when (this) {
+    MeterInk.Primary -> Hl.colors.content
+    MeterInk.Secondary -> Hl.colors.contentSecondary
+    MeterInk.Tertiary -> Hl.colors.contentTertiary
+}
+
 /** One part of a [HlMeter]. */
-data class MeterSegment(val fraction: Float, val color: Color)
+data class MeterSegment(val fraction: Float, val ink: MeterInk)
 
 /**
  * A segmented gauge: how a capacity is shared. Segments are drawn left to right on a faint
- * track; what is left of the track is free.
+ * track, a gap apart; what is left of the track is free.
  */
 @Composable
 fun HlMeter(segments: List<MeterSegment>, modifier: Modifier = Modifier) {
@@ -275,21 +306,22 @@ fun HlMeter(segments: List<MeterSegment>, modifier: Modifier = Modifier) {
             .height(HlSize.meter)
             .clip(HlShapes.control)
             .background(c.content.copy(alpha = HlAlpha.WELL)),
+        horizontalArrangement = Arrangement.spacedBy(HlSize.meterGap),
     ) {
         segments.filter { it.fraction > 0f }.forEach { s ->
             // A sliver stays visible however small the part.
-            Box(Modifier.fillMaxHeight().weight(s.fraction.coerceAtLeast(0.006f)).background(s.color))
+            Box(Modifier.fillMaxHeight().weight(s.fraction.coerceAtLeast(0.006f)).background(s.ink.color()))
         }
         val free = 1f - segments.sumOf { it.fraction.toDouble() }.toFloat()
         if (free > 0f) Spacer(Modifier.weight(free))
     }
 }
 
-/** A line of a meter's legend: its colour, what it is, how much. */
+/** A line of a meter's legend: its ink, what it is, how much. */
 @Composable
-fun MeterLegend(label: String, value: String, color: Color, modifier: Modifier = Modifier) {
+fun MeterLegend(label: String, value: String, ink: MeterInk, modifier: Modifier = Modifier) {
     Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Box(Modifier.size(HlSize.dot).clip(HlShapes.avatar).background(color))
+        Box(Modifier.size(HlSize.dot).clip(HlShapes.avatar).background(ink.color()))
         Spacer(Modifier.width(HlSpace.s))
         Text(label, style = Hl.type.caption, color = Hl.colors.contentSecondary, modifier = Modifier.weight(1f))
         Text(value, style = Hl.type.meta, color = Hl.colors.content)

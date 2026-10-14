@@ -15,8 +15,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -63,6 +61,7 @@ import app.houselights.ui.design.components.HlSettingRow
 import app.houselights.ui.design.components.HlSideSheet
 import app.houselights.ui.design.components.HlStatus
 import app.houselights.ui.design.components.HlTextField
+import app.houselights.ui.design.components.MeterInk
 import app.houselights.ui.design.components.MeterLegend
 import app.houselights.ui.design.components.MeterSegment
 import app.houselights.ui.design.components.PanelLevel
@@ -119,6 +118,8 @@ fun CatalogScreen() {
                 }
             }
 
+            catalogIcons()
+
             item {
                 Group("Controls") {
                     Row(
@@ -137,7 +138,6 @@ fun CatalogScreen() {
                     HlSegmented((1..12).map { "Saison $it" }, selected = season, onSelect = { season = it }, selectOnFocus = true, scrollable = true)
                     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.xs)) {
                         listOf("Ultra HD", "Dolby Vision", "HDR10", "TrueHD Atmos", "7.1", "12").forEach { Badge(it) }
-                        Badge("Your choice", lit = true)
                     }
                     FactRow(listOf("2026", "1 h 53", "8,2"))
                 }
@@ -159,9 +159,16 @@ fun CatalogScreen() {
                         HlStatus(StatusState.Attention, "Can’t play", detail = "The Zidoo player isn’t installed.")
                     }
                     Column(Modifier.widthIn(max = HlLayout.readable), verticalArrangement = Arrangement.spacedBy(HlSpace.xs)) {
-                        HlMeter(listOf(MeterSegment(0.3f, c.content), MeterSegment(0.1f, c.tungsten), MeterSegment(0.05f, c.contentSecondary)))
-                        MeterLegend("Online images", "300 MB", c.content)
-                        MeterLegend("Local images", "100 MB", c.tungsten)
+                        HlMeter(
+                            listOf(
+                                MeterSegment(0.3f, MeterInk.Primary),
+                                MeterSegment(0.1f, MeterInk.Secondary),
+                                MeterSegment(0.05f, MeterInk.Tertiary),
+                            ),
+                        )
+                        MeterLegend("Online images", "300 MB", MeterInk.Primary)
+                        MeterLegend("Local images", "100 MB", MeterInk.Secondary)
+                        MeterLegend("Database", "20 MB", MeterInk.Tertiary)
                     }
                 }
             }
@@ -290,10 +297,10 @@ fun CatalogScreen() {
                         HlIconButton(HlIcons.Restart, "Depuis le début", {})
                         HlButton("Voir la série", {})
                         // Toggles name what OK does; lit, the icon says the episode is watched, a favourite.
-                        HlIconButton(Icons.Filled.Check, "Marquer comme non vu", {}, lit = true)
+                        HlIconButton(HlIcons.Check, "Marquer comme non vu", {}, lit = true)
                         HlIconButton(HlIcons.Info, "Fiche technique", {})
                         HlIconButton(HlIcons.Document, "Fichier NFO", {})
-                        HlIconButton(Icons.Filled.Favorite, "Retirer des favoris", {}, lit = true)
+                        HlIconButton(HlIcons.HeartFilled, "Retirer des favoris", {}, lit = true)
                         HlIconButton(HlIcons.Edit, "Modifier", {})
                     }
                     var library by remember { mutableIntStateOf(0) }
@@ -336,7 +343,7 @@ private fun ControlStates() {
         ControlCase("detail lit: a state it names") { HlButton("Filtrer", {}, icon = HlIcons.Filter, detail = "Non vus", detailLit = true) }
         ControlCase("disabled: focus outlines it") { HlButton("Ajouter", {}, icon = HlIcons.Folder, enabled = false) }
         ControlCase("busy: the screen's words") {
-            HlButton("Tester", {}, icon = HlIcons.Restart, busy = true, busyLabel = "Vérification…")
+            HlButton("Tester", {}, icon = HlIcons.Test, busy = true, busyLabel = "Vérification…")
         }
     }
     Row(

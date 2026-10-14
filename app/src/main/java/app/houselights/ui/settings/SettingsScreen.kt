@@ -48,7 +48,7 @@ private enum class Pane(val label: Int, val icon: ImageVector) {
     Playback(R.string.section_playback, HlIcons.Playback),
     Display(R.string.section_display, HlIcons.Display),
     Storage(R.string.section_storage, HlIcons.Storage),
-    About(R.string.section_about, HlIcons.Lamp),
+    About(R.string.section_about, HlIcons.Info),
 }
 
 /**

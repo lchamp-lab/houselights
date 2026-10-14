@@ -4,8 +4,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
@@ -87,7 +85,7 @@ fun JellyfinLoginScreen(onLoggedIn: () -> Unit) {
         HlButton(
             stringResource(R.string.sign_in),
             ::login,
-            icon = Icons.Filled.Check,
+            icon = HlIcons.Check,
             emphasis = Emphasis.Primary,
             busy = vm.busy,
             busyLabel = stringResource(R.string.signing_in),

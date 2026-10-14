@@ -12,8 +12,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -34,6 +32,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.tv.material3.Text
+import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.components.HlEmptyState
 import app.houselights.ui.design.components.FactRow
 import app.houselights.ui.design.HlLayout
@@ -48,6 +47,7 @@ import app.houselights.ui.design.HlMotion
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.LocalAmbient
 import app.houselights.ui.design.components.ArtworkChoiceCard
+import app.houselights.ui.design.components.AttentionNote
 import app.houselights.ui.design.components.Backdrop
 import app.houselights.ui.design.components.BackdropStyle
 import app.houselights.ui.design.components.CardSkeleton
@@ -130,12 +130,12 @@ private fun Header(kind: ArtworkKind, item: MediaItem?, choices: ArtworkChoices?
         Spacer(Modifier.height(HlSpace.xxs))
         FactRow(listOf(item?.title, choices?.let { pluralStringResource(R.plurals.image_count, it.options.size, it.options.size) }))
         Spacer(Modifier.height(HlSpace.xs))
-        Text(
-            stringResource(if (choices != null && !choices.onlineAvailable) R.string.artwork_offline else R.string.artwork_hint),
-            style = Hl.type.caption,
-            color = if (choices != null && !choices.onlineAvailable) Hl.colors.tungsten else Hl.colors.contentSecondary,
-            modifier = Modifier.widthIn(max = HlLayout.readable),
-        )
+        val reading = Modifier.widthIn(max = HlLayout.readable)
+        if (choices != null && !choices.onlineAvailable) {
+            AttentionNote(stringResource(R.string.artwork_offline), reading, style = Hl.type.caption)
+        } else {
+            Text(stringResource(R.string.artwork_hint), style = Hl.type.caption, color = Hl.colors.contentSecondary, modifier = reading)
+        }
     }
 }
 
@@ -224,7 +224,7 @@ private fun Problem(error: UiError, onRetry: () -> Unit) {
         stringResource(error.message),
         Modifier.padding(horizontal = HlSpace.safeH, vertical = HlSpace.xl),
         action = stringResource(R.string.retry),
-        actionIcon = Icons.Filled.Refresh,
+        actionIcon = HlIcons.Refresh,
         onAction = onRetry,
     )
 }

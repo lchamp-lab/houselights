@@ -16,8 +16,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
@@ -79,12 +77,8 @@ fun HlNavItem(
         interactionSource = interaction,
     ) {
         Row(Modifier.padding(horizontal = HlSpace.m, vertical = HlSpace.s), verticalAlignment = Alignment.CenterVertically) {
-            Icon(
-                icon,
-                contentDescription = null,
-                tint = if (selected && !focused) c.tungsten else LocalContentColor.current,
-                modifier = Modifier.size(HlSize.icon),
-            )
+            // The current entry is white, as the current option of a track: where you are is not a state.
+            Icon(icon, contentDescription = null, modifier = Modifier.size(HlSize.icon))
             Spacer(Modifier.width(HlSpace.s))
             Column {
                 Text(title, style = Hl.type.entry, maxLines = 1)
@@ -280,12 +274,13 @@ fun HlChoiceSheet(
 }
 
 /**
- * The check of the current choice, at the end of its row: tungsten at rest, the focused content
- * colour on a lit row. Sheets whose choices lead elsewhere mark the current one with it too.
+ * The check of the current choice, at the end of its row: your choice, in tungsten at rest, the
+ * focused content colour on a lit row. Sheets whose choices lead elsewhere mark the current one
+ * with it too.
  */
 @Composable
 internal fun ChoiceCheck() {
     val content = LocalContentColor.current
     val tint = if (content == Hl.colors.onFocus) content else Hl.colors.tungsten
-    Icon(Icons.Filled.Check, contentDescription = null, tint = tint, modifier = Modifier.size(HlSize.icon))
+    Icon(HlIcons.Check, contentDescription = null, tint = tint, modifier = Modifier.size(HlSize.icon))
 }

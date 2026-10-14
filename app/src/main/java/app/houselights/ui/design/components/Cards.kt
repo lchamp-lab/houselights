@@ -383,12 +383,26 @@ private fun StatusMark(item: MediaItem, modifier: Modifier) {
         unplayed > 0 -> Box(mark.clip(HlShapes.control).background(plate).padding(horizontal = HlSpace.xs, vertical = HlControl.badgePaddingV)) {
             Text("$unplayed", style = Hl.type.badge, color = Hl.colors.content)
         }
-        item.user.played -> Box(mark.size(HlSize.mark).clip(HlShapes.avatar).background(plate), contentAlignment = Alignment.Center) {
-            Icon(HlIcons.Check, contentDescription = null, tint = Hl.colors.content, modifier = Modifier.size(HlSize.markIcon))
-        }
+        item.user.played -> CheckMark(mark)
         item.isNew() -> Box(mark.size(HlSize.mark).clip(HlShapes.avatar).background(plate), contentAlignment = Alignment.Center) {
             Box(Modifier.size(HlSize.dot).clip(HlShapes.avatar).background(Hl.colors.tungsten))
         }
+    }
+}
+
+/**
+ * The line check over artwork, on the dark plate of a mark: projector white for done (watched),
+ * tungsten for [choice], the one in use ([SelectedMark]). The same glyph, only its ink differs.
+ */
+@Composable
+internal fun CheckMark(modifier: Modifier = Modifier, choice: Boolean = false) {
+    val c = Hl.colors
+    Box(
+        modifier.size(HlSize.mark).clip(HlShapes.avatar).background(c.background.copy(alpha = HlAlpha.PLATE)),
+        contentAlignment = Alignment.Center,
+    ) {
+        val ink = if (choice) c.tungsten else c.content
+        Icon(HlIcons.Check, contentDescription = null, tint = ink, modifier = Modifier.size(HlSize.markIcon))
     }
 }
 

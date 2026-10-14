@@ -83,6 +83,8 @@ object HlSize {
     /** An icon set in a line of text (rating star). */
     val inlineIcon = 16.dp
     val meter = 10.dp
+    /** Between two parts of a meter, so two greys never touch. */
+    val meterGap = 2.dp
     /** How far one press of up or down scrolls a long text. */
     val scrollStep = 120.dp
     /** Minimum height of a setting row. */

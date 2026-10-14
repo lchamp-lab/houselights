@@ -5,9 +5,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -163,7 +160,7 @@ private fun FolderActions(vm: AddFolderViewModel, onAdded: (switched: Boolean) -
                 adding = true
                 vm.add(onAdded)
             },
-            icon = Icons.Filled.Add,
+            icon = HlIcons.Add,
             emphasis = Emphasis.Primary,
             enabled = adding || !busy,
             busy = busy && adding,
@@ -175,7 +172,7 @@ private fun FolderActions(vm: AddFolderViewModel, onAdded: (switched: Boolean) -
                 adding = false
                 vm.test()
             },
-            icon = Icons.Filled.Refresh,
+            icon = HlIcons.Test,
             enabled = !adding || !busy,
             busy = busy && !adding,
             busyLabel = checking,

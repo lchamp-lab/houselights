@@ -5,11 +5,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Star
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -23,14 +19,12 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.tv.material3.Icon
 import androidx.tv.material3.Text
 import app.houselights.R
 import app.houselights.core.NfoInfo
 import app.houselights.core.NfoKind
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlLayout
-import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.components.Badge
 import app.houselights.ui.design.components.DefinitionList
@@ -38,13 +32,13 @@ import app.houselights.ui.design.components.FactRow
 import app.houselights.ui.design.components.HlFormScaffold
 import app.houselights.ui.design.components.HlScrollArea
 import app.houselights.ui.design.components.HlSegmented
+import app.houselights.ui.design.components.Score
 import app.houselights.ui.design.components.InfoBlock
 import app.houselights.ui.design.components.StatusPanel
 import app.houselights.ui.design.components.StatusState
 import app.houselights.ui.util.LoadState
 import app.houselights.ui.util.appContainer
 import app.houselights.ui.util.formatDuration
-import java.util.Locale
 
 /** Shows the NFO of a title: its details laid out, or the XML as written. */
 @Composable
@@ -151,7 +145,6 @@ private fun NfoDetails(info: NfoInfo?) = ScrollablePanel {
 /** Episode, year, length, rating and score on one line, as on a detail page. */
 @Composable
 private fun Facts(info: NfoInfo) {
-    val c = Hl.colors
     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.fact), verticalAlignment = Alignment.CenterVertically) {
         FactRow(
             listOf(
@@ -161,13 +154,7 @@ private fun Facts(info: NfoInfo) {
             ),
         )
         info.certification?.let { Badge(it) }
-        info.rating?.let { score ->
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Filled.Star, contentDescription = null, tint = c.tungsten, modifier = Modifier.size(HlSize.inlineIcon))
-                Spacer(Modifier.width(HlSpace.xxs))
-                Text(String.format(Locale.getDefault(), "%.1f", score), style = Hl.type.meta, color = c.contentSecondary)
-            }
-        }
+        info.rating?.let { Score(it) }
     }
 }
 
