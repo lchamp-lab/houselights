@@ -319,6 +319,9 @@
     <string name="ui_4k_desc">Une interface nette sur les téléviseurs 4K</string>
     <string name="ui_system_desc">Le mode choisi par le système</string>
     <string name="current_output">Sortie actuelle</string>
+    <string name="display_by_player">Réglé par le lecteur</string>
+    <string name="output_by_player">Réglée par le lecteur</string>
+    <string name="output_by_player_hint">Le lecteur met l’interface à l’échelle de sa sortie. Résolution, fréquence d’images et HDR se choisissent dans Réglages du lecteur &gt; Affichage.</string>
     <string name="storage_used">utilisés sur cet appareil</string>
     <string name="storage_cache_limit">Les images en ligne sont conservées jusqu’à %s ; les plus anciennes partent d’abord.</string>
     <string name="cleanup_desc">Supprime les copies d’images locales qui ne servent plus</string>

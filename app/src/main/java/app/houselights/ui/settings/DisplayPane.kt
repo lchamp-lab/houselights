@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -21,11 +20,13 @@ import androidx.tv.material3.Text
 import android.view.Display
 import app.houselights.R
 import app.houselights.settings.AppSettings
+import app.houselights.settings.DisplayModes
+import app.houselights.settings.OutputControl
+import app.houselights.settings.outputModes
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.components.Badge
 import app.houselights.ui.design.components.ChoiceOption
-import app.houselights.ui.design.components.FactRow
 import app.houselights.ui.design.components.HlChoiceSheet
 import app.houselights.ui.design.components.HlSettingGroup
 import app.houselights.ui.design.components.HlSettingRow
@@ -35,35 +36,82 @@ import kotlin.math.abs
 import kotlin.math.roundToInt
 import app.houselights.ui.util.NBSP
 
+/**
+ * What the screen receives, as far as the app can know it. Where the player sets its own output
+ * (the Zidoo), the pane says so and where to change it, and shows no mode the system makes up.
+ */
 internal fun LazyListScope.displayPane(s: AppSettings) {
     item {
-        val vm = settingsViewModel()
-        var choose by remember { mutableStateOf(false) }
+        val control = outputControl()
         Section(stringResource(R.string.section_display)) {
-            HlSettingGroup(null) {
-                HlSettingRow(
-                    stringResource(R.string.ui_resolution),
-                    value = stringResource(if (s.ui4k) R.string.ui_4k else R.string.ui_system),
-                    description = stringResource(R.string.ui_resolution_desc),
-                    onClick = { choose = true },
-                )
+            when (control) {
+                OutputControl.Player -> PlayerOutput()
+                OutputControl.System -> CurrentOutput()
+                OutputControl.Ui4k -> Column(verticalArrangement = Arrangement.spacedBy(HlSpace.l)) {
+                    InterfaceResolution(s)
+                    CurrentOutput()
+                }
             }
         }
-        if (choose) {
-            HlChoiceSheet(
-                title = stringResource(R.string.ui_resolution),
-                options = listOf(
-                    ChoiceOption(stringResource(R.string.ui_4k), stringResource(R.string.ui_4k_desc)),
-                    ChoiceOption(stringResource(R.string.ui_system), stringResource(R.string.ui_system_desc)),
-                ),
-                selected = if (s.ui4k) 0 else 1,
-                onSelect = { vm.setUi4k(it == 0) },
-                onDismiss = { choose = false },
-                description = stringResource(R.string.ui_resolution_desc),
-            )
-        }
     }
-    item { CurrentOutput() }
+}
+
+/** What Affichage is set to, under its name: never a mode the app cannot ask for. */
+@Composable
+internal fun displaySummary(s: AppSettings): String = stringResource(
+    when (outputControl()) {
+        OutputControl.Ui4k -> if (s.ui4k) R.string.ui_4k else R.string.ui_system
+        OutputControl.System -> R.string.ui_system
+        OutputControl.Player -> R.string.display_by_player
+    },
+)
+
+/** Who sets the output on this device, from the modes its display lists. */
+@Composable
+private fun outputControl(): OutputControl {
+    val display = LocalView.current.display
+    return remember(display) { DisplayModes.control(display?.outputModes().orEmpty()) }
+}
+
+/** "4K 60 Hz" or the system's mode: offered only where the system lists 4K at 60 Hz. */
+@Composable
+private fun InterfaceResolution(s: AppSettings) {
+    val vm = settingsViewModel()
+    var choose by remember { mutableStateOf(false) }
+    HlSettingGroup(null) {
+        HlSettingRow(
+            stringResource(R.string.ui_resolution),
+            value = stringResource(if (s.ui4k) R.string.ui_4k else R.string.ui_system),
+            description = stringResource(R.string.ui_resolution_desc),
+            onClick = { choose = true },
+        )
+    }
+    if (choose) {
+        HlChoiceSheet(
+            title = stringResource(R.string.ui_resolution),
+            options = listOf(
+                ChoiceOption(stringResource(R.string.ui_4k), stringResource(R.string.ui_4k_desc)),
+                ChoiceOption(stringResource(R.string.ui_system), stringResource(R.string.ui_system_desc)),
+            ),
+            selected = if (s.ui4k) 0 else 1,
+            onSelect = { vm.setUi4k(it == 0) },
+            onDismiss = { choose = false },
+            description = stringResource(R.string.ui_resolution_desc),
+        )
+    }
+}
+
+/**
+ * The player sets its output in its own settings and scales the interface to it: who sets it,
+ * where, and the size the interface is drawn at. No mode and no rate: those listed are stand-ins.
+ */
+@Composable
+private fun PlayerOutput() {
+    HlSettingGroup(null) {
+        HlSettingRow(stringResource(R.string.label_hdmi), value = stringResource(R.string.output_by_player))
+        RenderRow()
+        Hint(stringResource(R.string.output_by_player_hint), Modifier.padding(horizontal = HlSpace.l))
+    }
 }
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -79,17 +127,7 @@ private fun CurrentOutput() {
     HlSettingGroup(stringResource(R.string.current_output)) {
         val output = "${mode.physicalHeight}p$FACT_GAP${hz(mode.refreshRate)}${NBSP}Hz"
         HlSettingRow(stringResource(R.string.label_hdmi), value = output)
-        HlSettingRow(
-            stringResource(R.string.label_render),
-            trailing = {
-                FactRow(
-                    listOf(
-                        formatDimensions(view.rootView.width, view.rootView.height),
-                        "${view.resources.displayMetrics.densityDpi}${NBSP}dpi",
-                    ),
-                )
-            },
-        )
+        RenderRow()
         Column(Modifier.padding(horizontal = HlSpace.l, vertical = HlSpace.s)) {
             Text(stringResource(R.string.label_modes), style = Hl.type.entry, color = Hl.colors.content)
             Spacer(Modifier.height(HlSpace.s))
@@ -98,6 +136,16 @@ private fun CurrentOutput() {
             }
         }
     }
+}
+
+/**
+ * The size the interface is drawn at, in pixels. Not the density the device declares: every
+ * screen is laid out on the same canvas, whatever it says.
+ */
+@Composable
+private fun RenderRow() {
+    val view = LocalView.current
+    HlSettingRow(stringResource(R.string.label_render), value = formatDimensions(view.rootView.width, view.rootView.height))
 }
 
 /** "60", or "59,94" for a fractional rate (written in the device's language). */

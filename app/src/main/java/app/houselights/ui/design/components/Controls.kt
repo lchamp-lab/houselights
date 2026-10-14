@@ -20,7 +20,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.focus.focusRestorer
+import androidx.compose.foundation.focusGroup
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -39,7 +43,11 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.findRootCoordinates
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -262,13 +270,14 @@ fun HlListItem(
 
 /**
  * Exclusive options in one pill track: where you are (home navigation, seasons, NFO views) or
- * what is chosen (protocol, content type). The selected option is a softly lit pill; focus turns
- * an option projector white, like every control. With [selectOnFocus], moving onto an option
- * selects it, as tabs over content do on TV. [scrollable] lets a long track (seasons) scroll
- * within the screen. [onArtwork] lays the track on a dark plate and its options in projector
- * white, so it reads over any image.
+ * what is chosen (protocol, content type). The current option sits on the track's one white
+ * pill; focus on another option is a grey pill, focus on the current one a ring around it. Focus
+ * entering the track, from any side, lands on the current option, never on the nearest one; to
+ * accessibility services the options are tabs, the current one selected. With [selectOnFocus],
+ * moving onto an option selects it, as tabs over content do on TV. [scrollable] lets a long
+ * track (seasons) scroll within the screen. [onArtwork] lays the track on a dark plate and its
+ * options in projector white, so it reads over any image.
  */
-@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun HlSegmented(
     options: List<String>,
@@ -281,6 +290,7 @@ fun HlSegmented(
 ) {
     val density = LocalDensity.current
     val places = remember(options.size) { mutableStateMapOf<Int, Pair<Float, Float>>() }
+    val requesters = remember(options.size) { List(options.size) { FocusRequester() } }
     var focusedIndex by remember { mutableIntStateOf(NONE) }
     // A long track (seasons) scrolls as one piece: the pill moves with the options.
     val scroll = rememberScrollState()
@@ -329,7 +339,7 @@ fun HlSegmented(
                             .background(white, HlShapes.control),
                     )
                 }
-                Row(Modifier.focusRestorer(), horizontalArrangement = Arrangement.spacedBy(HlSpace.xxs)) {
+                Row(Modifier.enterOn(requesters, selected).selectableGroup(), horizontalArrangement = Arrangement.spacedBy(HlSpace.xxs)) {
                     options.forEachIndexed { i, label ->
                         SegmentItem(
                             label,
@@ -337,7 +347,9 @@ fun HlSegmented(
                             onArtwork = onArtwork,
                             onClick = { onSelect(i) },
                             onFocused = { if (selectOnFocus) onSelect(i) },
-                            modifier = Modifier.onPlaced { places[i] = it.positionInParent().x to it.size.width.toFloat() },
+                            modifier = Modifier
+                                .focusRequester(requesters[i])
+                                .onPlaced { places[i] = it.positionInParent().x to it.size.width.toFloat() },
                             onFocusChange = { has -> if (has) focusedIndex = i else if (focusedIndex == i) focusedIndex = NONE },
                         )
                     }
@@ -348,6 +360,15 @@ fun HlSegmented(
 }
 
 private const val NONE = -1
+
+/**
+ * A group that focus enters on the option at [current], from any side: where you are, not the
+ * nearest option. With no current option, the nearest one.
+ */
+@OptIn(ExperimentalComposeUiApi::class)
+private fun Modifier.enterOn(requesters: List<FocusRequester>, current: Int): Modifier = this
+    .focusProperties { enter = { requesters.getOrNull(current) ?: FocusRequester.Default } }
+    .focusGroup()
 
 /**
  * One option of a [HlSegmented] track; never used alone. In a track, projector white says where
@@ -377,6 +398,10 @@ private fun SegmentItem(
     Surface(
         onClick = onClick,
         modifier = modifier
+            .semantics {
+                role = Role.Tab
+                this.selected = selected
+            }
             .height(HlSize.segment)
             .onFocusChanged {
                 onFocusChange(it.isFocused)
