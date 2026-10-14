@@ -152,7 +152,7 @@
     <string name="error_host_missing">Indiquez l’adresse du NAS.</string>
     <string name="error_export_missing">Indiquez l’export NFS, par exemple /volume1/media.</string>
     <string name="error_share_missing">Indiquez le nom du dossier partagé, par exemple media.</string>
-    <string name="error_scan_other">Impossible de lire le dossier : %s</string>
+    <string name="error_scan_other">Le dossier n’a pas pu être lu. Réessayez, ou vérifiez le partage sur le NAS.</string>
     <string name="add">Ajouter</string>
 
     <string name="jellyfin_title">Connexion à Jellyfin</string>
@@ -161,7 +161,7 @@
     <string name="sign_in">Se connecter</string>
     <string name="signing_in">Connexion…</string>
     <string name="error_credentials">Identifiants refusés par le serveur.</string>
-    <string name="error_connect">Connexion impossible à %1$s : %2$s</string>
+    <string name="error_server_unexpected">Le serveur a répondu de façon inattendue. Vérifiez l’adresse, puis réessayez.</string>
     <string name="error_server_unreachable">Rien ne répond à %s. Vérifiez l’adresse et que Jellyfin est démarré.</string>
     <string name="error_not_jellyfin">%s répond, mais ne semble pas être un serveur Jellyfin. Vérifiez l’adresse et le port.</string>
 
@@ -186,7 +186,21 @@
     </plurals>
     <string name="playback_desc">Comment le lecteur Zidoo accède aux fichiers de votre serveur.</string>
     <string name="tmdb_desc">Les affiches et les informations proviennent de TMDB.</string>
-    <string name="change_source_desc">Vos dossiers sont conservés : vous pourrez y revenir à tout moment.</string>
+    <string name="change_source_local_desc">Vos dossiers sont conservés : vous pourrez y revenir à tout moment.</string>
+    <string name="change_source_jellyfin_desc">Ce serveur reste connecté jusqu’à ce que la nouvelle source soit prête.</string>
+    <string name="change_source">Changer de source</string>
+    <string name="reconnect">Se reconnecter</string>
+    <string name="source_local_first">Ajoutez un premier dossier de votre NAS</string>
+    <plurals name="source_local_folders">
+        <item quantity="one">%d dossier sur votre NAS</item>
+        <item quantity="other">%d dossiers sur votre NAS</item>
+        <item quantity="many">%d dossiers sur votre NAS</item>
+    </plurals>
+    <string name="source_jellyfin_other">Un autre serveur, ou un autre compte</string>
+    <string name="sign_out">Se déconnecter</string>
+    <string name="sign_out_confirm">Se déconnecter de « %s » ?</string>
+    <string name="sign_out_desc">Houselights oubliera ce serveur sur cet appareil ; vos dossiers prendront sa place.</string>
+    <string name="sign_out_first_folder">Houselights oubliera ce serveur sur cet appareil une fois votre premier dossier ajouté.</string>
     <string name="label_server">Serveur</string>
     <string name="label_connection">Connexion</string>
     <string name="connection_encrypted">Chiffrée (HTTPS)</string>

@@ -186,7 +186,7 @@ without the prefix (`MenuOption`, `MeterLegend`, `PosterCard`, `BillingBlock`, `
 | `HlMenuButton`, `MenuSection`, `MenuOption` | a button opening a sectioned menu anchored to its end edge (sort, filters): below it when the room down to the safe area holds the menu, else above; never past the safe area, a longer menu scrolls inside |
 | `HlModal` | a sheet to read, centred over the dimmed room (the technical sheet), never past the safe area: longer content scrolls; Back closes it |
 | `HlTwoPane`, `HlFormScaffold`, `StatusPanel`, `FieldLabel` | two-pane screens: navigation or explanation on the left, content on the right. `StatusPanel` is where a setup stands, beside its form: its state with its light first, then what is set up, large (an address in the technical voice), its path and kind, and what was found under a hairline; lit while the state is on |
-| `HlTextField` | TV text field: focusable box first, keyboard on OK; tungsten while typing |
+| `HlTextField` | TV text field: focusable box first, keyboard on OK; tungsten while typing. A setting typed in a field is saved when the field is left (its keyboard action, or focus moving on), never while typing, and its result line then says "Enregistré" |
 | `HlScrollArea` | long content read with the remote; focusable only when it has something to scroll; a key held down scrolls in one motion. Framed on a quiet panel, or unframed inside a sheet: square edges, so a hairline at its top stays whole, and the focus ring outside the content |
 | `TechSpecs`, `InfoBlock`, `DefinitionList` | the technical sheet, set like the back of a Blu-ray case: one block per subject (a hairline, its name, what it says), every track listed; it does not scroll itself, the sheet scrolls it whole. The NFO is laid out the same way |
 | `ArtworkChoiceCard`, `SelectedMark` | one artwork to choose from, at the shape it is used in |
@@ -233,6 +233,11 @@ Content closes a sheet through `SheetScope.dismiss(then)`: the sheet leaves, the
 of it and `then` runs; keys are ignored while it leaves, so a second OK cannot choose twice. An
 action that opens another screen closes the sheet at once instead.
 
+A choice that needs another screen to happen (a new source needs a folder or a sign-in) is set
+like the choices of `HlChoiceSheet`, the current one checked, and changes nothing until that
+screen succeeds: Back from it finds everything as it was. The source changes in one place,
+`SourceSwitcher`, which saves the new source before a server left behind forgets the app.
+
 ## Focus
 
 Focus must read from the couch:
@@ -257,6 +262,9 @@ where the first one rests (`ListScroll(top)`), so the row above leaves whole ins
 a sliver. A row of cards keeps `HlSpace.s` above and below them, room for a poster to grow (8.4 dp at
 1.10). The label of a round button overflows under it and slides along to stay inside the safe area.
 
+Focus is never left nowhere. When what holds it goes away (a folder removed, a line deleted), it
+moves to a neighbour, else to the action that adds one ("Ajouter un dossier").
+
 ## Writing
 
 - French uses *vous*, typographic apostrophes (’), and a no-break space before `: ; ! ?` and inside
@@ -265,6 +273,8 @@ a sliver. A row of cards keeps `HlSpace.s` above and below them, room for a post
   `formatDimensions`, `formatBytes`, `formatRatio` in `ui/util/Format.kt`).
 - Facts are separated by layout (`FactRow`). Inside a single text (a button's detail), `FACT_GAP`.
 - Values are words a person uses: "Détecté", "Hors ligne", "Aucune", never "absent" or "0 fichier".
+- A failure says what happened and what to do ("Le dossier n’a pas pu être lu. Réessayez, ou
+  vérifiez le partage sur le NAS."), never an exception's text: that goes to the log only.
 - Text written elsewhere (TMDB, NFO, servers) goes through `Typeset.text`, so `»`, `:` and `!` never
   start a line.
 

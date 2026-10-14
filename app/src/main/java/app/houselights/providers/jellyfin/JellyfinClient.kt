@@ -129,6 +129,8 @@ class JellyfinClient(serverUrl: String, private val deviceId: String, private va
                     JellyfinClient(config.serverUrl, deviceId, config.accessToken).api.logout()
                 } catch (_: IOException) {
                     // The token stays valid on the server; it can be revoked from Jellyfin's dashboard.
+                } catch (_: HttpException) {
+                    // The server had already forgotten it.
                 }
             }
         }

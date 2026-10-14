@@ -160,7 +160,7 @@
     <!-- /volume1 is how a Synology NAS names its first volume. -->
     <string name="error_export_missing" tools:ignore="Typos">Enter the NFS export, for example /volume1/media.</string>
     <string name="error_share_missing">Enter the name of the shared folder, for example media.</string>
-    <string name="error_scan_other">The folder could not be read: %s</string>
+    <string name="error_scan_other">The folder could not be read. Try again, or check the share on the NAS.</string>
     <string name="add">Add</string>
 
     <!-- Jellyfin -->
@@ -170,7 +170,7 @@
     <string name="sign_in">Sign in</string>
     <string name="signing_in">Signing in…</string>
     <string name="error_credentials">The server rejected these credentials.</string>
-    <string name="error_connect">Can’t connect to %1$s: %2$s</string>
+    <string name="error_server_unexpected">The server answered in an unexpected way. Check the address, then try again.</string>
     <string name="error_server_unreachable">Nothing answers at %s. Check the address and that Jellyfin is running.</string>
     <string name="error_not_jellyfin">%s answers, but it doesn’t look like a Jellyfin server. Check the address and port.</string>
 
@@ -195,7 +195,20 @@
     </plurals>
     <string name="playback_desc">How the Zidoo player reaches the files of your server.</string>
     <string name="tmdb_desc">Posters and details come from TMDB.</string>
-    <string name="change_source_desc">Your folders are kept: you can come back to them at any time.</string>
+    <string name="change_source_local_desc">Your folders are kept: you can come back to them at any time.</string>
+    <string name="change_source_jellyfin_desc">This server stays connected until the new source is ready.</string>
+    <string name="change_source">Change source</string>
+    <string name="reconnect">Sign in again</string>
+    <string name="source_local_first">Add a first folder from your NAS</string>
+    <plurals name="source_local_folders">
+        <item quantity="one">%d folder on your NAS</item>
+        <item quantity="other">%d folders on your NAS</item>
+    </plurals>
+    <string name="source_jellyfin_other">Another server, or another account</string>
+    <string name="sign_out">Sign out</string>
+    <string name="sign_out_confirm">Sign out of “%s”?</string>
+    <string name="sign_out_desc">Houselights will forget this server on this device; your folders take its place.</string>
+    <string name="sign_out_first_folder">Houselights will forget this server on this device once your first folder is added.</string>
     <string name="label_server">Server</string>
     <string name="label_connection">Connection</string>
     <string name="connection_encrypted">Encrypted (HTTPS)</string>

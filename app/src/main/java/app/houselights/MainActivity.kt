@@ -184,28 +184,27 @@ private fun AppNavigation(onPlay: (MediaItem, Boolean) -> Unit) {
     fun openLibrary(library: Library) = nav.navigate(Route.Library(library.id, library.kind, library.title))
     fun goHome() = nav.navigate(Route.Home) { popUpTo(0) { inclusive = true } }
 
+    /** "My files": the folders added before are kept across sources, else the first one is added. */
+    fun useFolders() {
+        scope.launch {
+            if (!app.library.hasFolders()) {
+                nav.navigate(Route.AddFolder)
+            } else {
+                app.sources.switchTo(SourceConfig.Local)
+                goHome()
+            }
+        }
+    }
+
     NavHost(nav, startDestination = start) {
         composable<Route.Welcome> {
-            WelcomeScreen(
-                onLocal = {
-                    // Folders added before are kept when switching sources: reuse them.
-                    scope.launch {
-                        if (!app.library.hasFolders()) {
-                            nav.navigate(Route.AddFolder)
-                        } else {
-                            app.settings.setSource(SourceConfig.Local)
-                            goHome()
-                        }
-                    }
-                },
-                onJellyfin = { nav.navigate(Route.JellyfinLogin) },
-            )
+            WelcomeScreen(onLocal = ::useFolders, onJellyfin = { nav.navigate(Route.JellyfinLogin) })
         }
         composable<Route.JellyfinLogin> { JellyfinLoginScreen(onLoggedIn = ::goHome) }
         composable<Route.AddFolder> {
-            AddFolderScreen(onAdded = {
-                // First folder: go to the home screen; otherwise back to settings.
-                if (!nav.popBackStack<Route.Settings>(inclusive = false)) goHome()
+            AddFolderScreen(onAdded = { switched ->
+                // A new source or a first folder: the home screen; another folder: back to settings.
+                if (switched || !nav.popBackStack<Route.Settings>(inclusive = false)) goHome()
             })
         }
         composable<Route.Home> {
@@ -243,9 +242,11 @@ private fun AppNavigation(onPlay: (MediaItem, Boolean) -> Unit) {
         }
         composable<Route.Nfo> { entry -> NfoScreen(entry.toRoute<Route.Nfo>().id) }
         composable<Route.Settings> {
+            // Changing the source leaves the settings below: Back returns to them, the source intact.
             SettingsScreen(
                 onAddFolder = { nav.navigate(Route.AddFolder) },
-                onChangeSource = { nav.navigate(Route.Welcome) { popUpTo(0) { inclusive = true } } },
+                onUseFolders = ::useFolders,
+                onSignIn = { nav.navigate(Route.JellyfinLogin) },
                 onOpenCatalog = { nav.navigate(Route.Catalog) },
             )
         }

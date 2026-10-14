@@ -29,7 +29,8 @@ sealed interface LoginError {
     /** Something answered at [address], but not a Jellyfin server. */
     data class NotJellyfin(val address: String) : LoginError
 
-    data class Failed(val address: String, val detail: String) : LoginError
+    /** Anything else: the details are in the log. */
+    data object Failed : LoginError
 }
 
 class JellyfinLoginViewModel(private val app: AppContainer) : ViewModel() {
@@ -45,7 +46,16 @@ class JellyfinLoginViewModel(private val app: AppContainer) : ViewModel() {
     var discovered by mutableStateOf<List<DiscoveredServer>>(emptyList())
         private set
 
+    /** Signing in again to the server in use: its address and the user are filled in, only the password is asked. */
+    val again: Boolean
+
     init {
+        val current = app.settings.state.value.source as? SourceConfig.Jellyfin
+        again = current != null
+        if (current != null) {
+            server = current.serverUrl
+            user = current.userName.orEmpty()
+        }
         viewModelScope.launch { discovered = ServerDiscovery.discover() }
     }
 
@@ -60,7 +70,7 @@ class JellyfinLoginViewModel(private val app: AppContainer) : ViewModel() {
                 val (reached, info) = JellyfinClient.reach(server, deviceId)
                 address = reached
                 val auth = JellyfinClient(reached, deviceId, token = null).api.authenticate(AuthRequest(user.trim(), password))
-                app.settings.setSource(SourceConfig.Jellyfin(reached, info.serverName, auth.user.id, auth.user.name, auth.accessToken))
+                app.sources.switchTo(SourceConfig.Jellyfin(reached, info.serverName, auth.user.id, auth.user.name, auth.accessToken))
             }.onSuccess {
                 onLoggedIn()
             }.onFailure { e ->
@@ -69,7 +79,7 @@ class JellyfinLoginViewModel(private val app: AppContainer) : ViewModel() {
                     e is HttpException && e.code() == HTTP_UNAUTHORIZED -> LoginError.Refused
                     e is SerializationException -> LoginError.NotJellyfin(address)
                     e is IOException -> LoginError.Unreachable(address)
-                    else -> LoginError.Failed(address, e.message ?: e.javaClass.simpleName)
+                    else -> LoginError.Failed
                 }
             }
             busy = false
