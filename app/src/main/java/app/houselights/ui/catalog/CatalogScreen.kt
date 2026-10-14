@@ -19,7 +19,10 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.foundation.focusable
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.Alignment
@@ -81,7 +84,7 @@ fun CatalogScreen() {
             item { ScreenTitle("Design system") }
 
             item {
-                Group("Colour", Modifier.focusRequester(first)) {
+                Group("Colour", Modifier.focusRequester(first), still = true) {
                     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m)) {
                         listOf(
                             "background" to c.background, "surface" to c.surface, "raised" to c.surfaceRaised,
@@ -93,7 +96,7 @@ fun CatalogScreen() {
             }
 
             item {
-                Group("Type: the voice of the poster, of reading, technical") {
+                Group("Type: the voice of the poster, of reading, technical", still = true) {
                     listOf(
                         "display" to t.display, "headline" to t.headline, "title" to t.title, "lead" to t.lead,
                         "body" to t.body, "caption" to t.caption, "label" to t.label, "meta" to t.meta,
@@ -110,8 +113,10 @@ fun CatalogScreen() {
                         HlButton("Secondary", {})
                         HlIconButton(HlIcons.Info, "Icon button", {})
                     }
-                    HlSegmented(listOf("Accueil", "Films", "Séries"), selected = 0, onSelect = {})
-                    HlSegmented((1..12).map { "Saison $it" }, selected = 2, onSelect = {}, scrollable = true)
+                    var place by remember { mutableIntStateOf(0) }
+                    var season by remember { mutableIntStateOf(2) }
+                    HlSegmented(listOf("Accueil", "Films", "Séries"), selected = place, onSelect = { place = it })
+                    HlSegmented((1..12).map { "Saison $it" }, selected = season, onSelect = { season = it }, selectOnFocus = true, scrollable = true)
                     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.xs)) {
                         listOf("Ultra HD", "Dolby Vision", "HDR10", "TrueHD Atmos", "7.1", "12").forEach { Badge(it) }
                         Badge("Your choice", lit = true)
@@ -167,10 +172,13 @@ fun CatalogScreen() {
     }
 }
 
-/** A section of the catalogue; it takes focus itself, so the remote can step through all of them. */
+/**
+ * A section of the catalogue. Sections with nothing to focus ([still]) take focus themselves, so
+ * the remote can step through every one.
+ */
 @Composable
-private fun Group(title: String, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
-    Column(modifier.revealOnFocus().focusable(), verticalArrangement = Arrangement.spacedBy(HlSpace.m)) {
+private fun Group(title: String, modifier: Modifier = Modifier, still: Boolean = false, content: @Composable () -> Unit) {
+    Column(modifier.revealOnFocus().then(if (still) Modifier.focusable() else Modifier), verticalArrangement = Arrangement.spacedBy(HlSpace.m)) {
         SectionHeader(title)
         content()
     }

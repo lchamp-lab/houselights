@@ -75,6 +75,8 @@ object HlAlpha {
     const val PLATE = 0.72f
     /** Progress track over artwork: `content` at this opacity. */
     const val TRACK = 0.22f
+    /** Focus on an option of a track that is not the current one: `content` at this opacity. */
+    const val FOCUS_QUIET = 0.3f
     /** A lit icon disc: `tungsten` at this opacity. */
     const val LIT_DISC = 0.18f
     /** Secondary text inside a control (runtime in a button): content colour at this opacity. */

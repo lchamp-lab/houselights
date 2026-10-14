@@ -22,6 +22,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import kotlinx.coroutines.launch
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -130,10 +133,21 @@ private fun TopBar(libraries: List<Library>, onLibrary: (Library) -> Unit, onSet
         Modifier.fillMaxWidth().padding(start = HlSpace.safeH, end = HlSpace.safeH, top = HlSpace.safeV),
         verticalAlignment = Alignment.Top,
     ) {
+        // The white slides to the library chosen, then it opens; back home, "Accueil" is lit again.
+        var current by remember { mutableIntStateOf(0) }
+        val scope = rememberCoroutineScope()
         HlSegmented(
             options = listOf(stringResource(R.string.nav_home)) + libraries.map { it.title ?: libraryName(it.kind) },
-            selected = 0,
-            onSelect = { i -> if (i > 0) onLibrary(libraries[i - 1]) },
+            selected = current,
+            onSelect = { i ->
+                if (i > 0 && current == 0) {
+                    current = i
+                    scope.launch {
+                        delay(HlMotion.STANDARD.toLong())
+                        onLibrary(libraries[i - 1])
+                    }
+                }
+            },
         )
         Spacer(Modifier.weight(1f))
         HlIconButton(Icons.Filled.Settings, stringResource(R.string.nav_settings), onClick = onSettings)

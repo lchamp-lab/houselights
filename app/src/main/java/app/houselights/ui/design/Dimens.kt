@@ -6,6 +6,7 @@ import androidx.compose.ui.unit.dp
 
 /** 4 dp grid. [safeH]/[safeV] keep content inside the TV overscan-safe area (~5 %). */
 object HlSpace {
+    val none = 0.dp
     val xxs = 4.dp
     val xs = 8.dp
     val s = 12.dp
@@ -66,6 +67,8 @@ object HlSize {
     /** An option inside a segmented track: with the track's padding, as tall as a control. */
     val segment = 40.dp
     val focusBorder = 2.dp
+    /** Space between a control and the focus ring drawn around it. */
+    val focusRingGap = 3.dp
     val hairline = 1.dp
 }
 

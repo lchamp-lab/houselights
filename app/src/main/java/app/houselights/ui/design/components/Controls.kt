@@ -4,6 +4,8 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -20,12 +22,25 @@ import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.ExperimentalComposeUiApi
-import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import kotlin.math.roundToInt
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.layout.positionInParent
+import androidx.compose.ui.layout.onPlaced
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
@@ -191,49 +206,113 @@ fun HlSegmented(
     selectOnFocus: Boolean = false,
     scrollable: Boolean = false,
 ) {
+    val density = LocalDensity.current
+    val places = remember(options.size) { mutableStateMapOf<Int, Pair<Float, Float>>() }
+    var focusedIndex by remember { mutableIntStateOf(NONE) }
+    // A long track (seasons) scrolls as one piece: the pill moves with the options.
+    val scroll = rememberScrollState()
+    val ringReach = HlSize.focusRingGap + HlSize.focusBorder
+    val content = if (scrollable) Modifier.horizontalScroll(scroll).padding(horizontal = ringReach) else Modifier
+
+    // Not clipped: the ring of a focused current option may reach past the track's edge.
     val track = modifier
-        .clip(HlShapes.control)
-        .background(Hl.colors.content.copy(alpha = HlAlpha.WELL))
-        .padding(HlSpace.xxs)
-    @Composable
-    fun Item(i: Int, label: String) = SegmentItem(
-        label,
-        selected = i == selected,
-        onClick = { onSelect(i) },
-        onFocused = { if (selectOnFocus) onSelect(i) },
-    )
-    if (scrollable) {
-        RowScroll {
-            LazyRow(
-                track.focusRestorer(),
-                horizontalArrangement = Arrangement.spacedBy(HlSpace.xxs),
-            ) {
-                itemsIndexed(options) { i, label -> Item(i, label) }
+        .background(Hl.colors.content.copy(alpha = HlAlpha.WELL), HlShapes.control)
+        .padding(vertical = HlSpace.xxs, horizontal = if (scrollable) HlSpace.none else HlSpace.xxs)
+    RowScroll {
+        Box(track) {
+            Box(content) {
+                // One white pill, under the options, that slides to the option chosen.
+                places[selected]?.let { (x, w) ->
+                    val slide = tween<Float>(HlMotion.STANDARD, easing = HlMotion.emphasized)
+                    val left by animateFloatAsState(x, slide, label = "pillX")
+                    val width by animateFloatAsState(w, slide, label = "pillWidth")
+                    val onCurrent = focusedIndex == selected
+                    val grow by animateFloatAsState(if (onCurrent) HlFocus.CONTROL_SCALE else 1f, tween(HlMotion.FAST), label = "pillScale")
+                    // Focus on the current option: a ring around the pill, travelling with it.
+                    val ring by animateFloatAsState(if (onCurrent) 1f else 0f, tween(HlMotion.FAST), label = "pillRing")
+                    val ringGap = with(density) { HlSize.focusRingGap.toPx() }
+                    val ringWidth = with(density) { HlSize.focusBorder.toPx() }
+                    val white = Hl.colors.focus
+                    Box(
+                        Modifier
+                            .offset { IntOffset(left.roundToInt(), 0) }
+                            .width(with(density) { width.toDp() })
+                            .height(HlSize.segment)
+                            .graphicsLayer { scaleX = grow; scaleY = grow }
+                            .drawBehind {
+                                if (ring > 0f) {
+                                    val outset = ringGap + ringWidth / 2
+                                    val ringSize = Size(size.width + outset * 2, size.height + outset * 2)
+                                    drawRoundRect(
+                                        color = white.copy(alpha = ring),
+                                        topLeft = Offset(-outset, -outset),
+                                        size = ringSize,
+                                        cornerRadius = CornerRadius(ringSize.height / 2),
+                                        style = Stroke(ringWidth),
+                                    )
+                                }
+                            }
+                            .background(white, HlShapes.control),
+                    )
+                }
+                Row(Modifier.focusRestorer(), horizontalArrangement = Arrangement.spacedBy(HlSpace.xxs)) {
+                    options.forEachIndexed { i, label ->
+                        SegmentItem(
+                            label,
+                            selected = i == selected,
+                            onClick = { onSelect(i) },
+                            onFocused = { if (selectOnFocus) onSelect(i) },
+                            modifier = Modifier.onPlaced { places[i] = it.positionInParent().x to it.size.width.toFloat() },
+                            onFocusChange = { has -> if (has) focusedIndex = i else if (focusedIndex == i) focusedIndex = NONE },
+                        )
+                    }
+                }
             }
-        }
-    } else {
-        Row(track, horizontalArrangement = Arrangement.spacedBy(HlSpace.xxs)) {
-            options.forEachIndexed { i, label -> Item(i, label) }
         }
     }
 }
 
-/** One option of a [HlSegmented] track; never used alone. */
+private const val NONE = -1
+
+/**
+ * One option of a [HlSegmented] track; never used alone. In a track, projector white says where
+ * you are: the current option is white whether or not it has focus. Moving along the track lights
+ * the option under focus in grey until it is chosen; focus on the current option draws a ring
+ * around it. (Everywhere else, focus is white; the track is the one place where white means
+ * "current".)
+ */
 @Composable
-private fun SegmentItem(text: String, selected: Boolean, onClick: () -> Unit, onFocused: () -> Unit) {
+private fun SegmentItem(
+    text: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    onFocused: () -> Unit,
+    modifier: Modifier = Modifier,
+    onFocusChange: (Boolean) -> Unit = {},
+) {
     val c = Hl.colors
+    val fade = tween<Color>(HlMotion.STANDARD, easing = HlMotion.emphasized)
+    val restContent by animateColorAsState(if (selected) c.onFocus else c.contentSecondary, fade, label = "segmentText")
+    val focusedContent by animateColorAsState(if (selected) c.onFocus else c.content, fade, label = "segmentFocusedText")
+    // The white of the current option is the track's pill, under the options.
+    val currentFill = Color.Transparent
     Surface(
         onClick = onClick,
-        modifier = Modifier.height(HlSize.segment).onFocusChanged { if (it.isFocused) onFocused() },
+        modifier = modifier
+            .height(HlSize.segment)
+            .onFocusChanged {
+                onFocusChange(it.isFocused)
+                if (it.isFocused) onFocused()
+            },
         shape = ClickableSurfaceDefaults.shape(HlShapes.control),
         scale = ClickableSurfaceDefaults.scale(focusedScale = HlFocus.CONTROL_SCALE),
         colors = ClickableSurfaceDefaults.colors(
-            containerColor = if (selected) c.content.copy(alpha = HlAlpha.CONTROL_FILL_STRONG) else Color.Transparent,
-            contentColor = if (selected) c.content else c.contentSecondary,
-            focusedContainerColor = c.focus,
-            focusedContentColor = c.onFocus,
-            pressedContainerColor = c.focus,
-            pressedContentColor = c.onFocus,
+            containerColor = if (selected) currentFill else Color.Transparent,
+            contentColor = restContent,
+            focusedContainerColor = if (selected) currentFill else c.content.copy(alpha = HlAlpha.FOCUS_QUIET),
+            focusedContentColor = focusedContent,
+            pressedContainerColor = if (selected) currentFill else c.content.copy(alpha = HlAlpha.FOCUS_QUIET),
+            pressedContentColor = focusedContent,
         ),
     ) {
         Text(

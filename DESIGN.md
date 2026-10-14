@@ -15,7 +15,8 @@ every build (see *Guard*).
 2. **Ten-foot first.** Nothing below 12 sp, no content below 14 sp, every text colour at least 4.5:1
    on every surface. Content stays inside the overscan-safe area (`HlSpace.safeH` / `safeV`). Every
    focusable element shows an unmistakable focus state.
-3. **Calm motion.** Motion answers the user (focus, opening, playing). Two orchestrated moments only:
+3. **Calm motion.** Motion answers the user (focus, opening, playing, choosing: the pill of a track
+   slides to the option chosen). Two orchestrated moments only:
    the *house lights* going down before playback, and the *poster wall* drifting on the welcome screen.
 4. **Words do one job.** Sentence case, no all-caps labels, no punctuation between facts (layout space
    separates them). In French, the interface uses *vous*. The one exception to capitals is the billing
@@ -119,7 +120,7 @@ font. No other font is shipped; line heights leave room for the fallback.
 | `HeroInfo`, `TitleArt`, `EpisodeHeading`, `MetaLine`, `BillingBlock` | what a title is: clear logo or condensed title, facts, credits |
 | `Badge`, `BadgeRow`, `FactRow` | formats and ratings (a `lit` badge marks a state); facts on one line, spaced, never punctuated |
 | `HlButton` (`Primary`, `Secondary`), `HlIconButton` | pill and round actions, all 48 dp tall; the icon button shows its label when focused |
-| `HlSegmented` | the one way to show where you are or what is chosen among a few: home navigation, seasons (`scrollable`), NFO views, form choices. The selected option is a softly lit pill, focus turns it projector white; there is no standalone tab |
+| `HlSegmented` | the one way to show where you are or what is chosen among a few: home navigation, seasons (`scrollable`), NFO views, form choices. In a track, **white means current**: one white pill sits under the current option and slides to the option chosen (`STANDARD`, emphasized). The option under focus but not chosen is a grey pill; focus on the current option draws a ring around the pill, travelling with it. A long track scrolls as one piece, pill included. There is no standalone tab |
 | `HlPanel` (`Quiet`, `Raised`, `lit`), `HlPanelButton` | the one panel recipe, and its focusable form |
 | `HlIconDisc`, `HlDivider`, `HlStatus`, `HlMeter`, `MeterLegend` | an icon in a disc (lit when on), a hairline, a state with its light, a segmented gauge |
 | `HlListItem`, `HlResultItem`, `PosterThumb` | choices in a list; a search result with its poster |
@@ -141,7 +142,9 @@ Focus must read from the couch:
 
 - **Artwork** grows, gets a 2 dp projector-white outline and glows with the ambient light. Its
   neighbours in the same row or grid dim.
-- **Controls, rows, navigation and track options** turn projector white with black content.
+- **Controls, rows and navigation** turn projector white with black content.
+- **Track options** are the exception: white is the current option, so focus on another option is
+  a grey pill, and focus on the current one a ring around it.
 - **Panels** that can be chosen are raised and outlined in projector white.
 - **Text fields** get a white outline when focused and a tungsten outline while typing.
 
