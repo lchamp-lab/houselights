@@ -26,6 +26,7 @@ import app.houselights.core.Person
 import app.houselights.core.ProviderCapabilities
 import app.houselights.core.SectionType
 import app.houselights.core.SortOption
+import app.houselights.core.Typeset
 import app.houselights.core.UserState
 import app.houselights.providers.local.TmdbClient.Companion.ImageType
 
@@ -261,8 +262,8 @@ class LocalProvider(
                 kind = kind,
                 title = title,
                 originalTitle = e.originalTitle,
-                overview = e.overview,
-                tagline = e.tagline,
+                overview = Typeset.text(e.overview),
+                tagline = Typeset.text(e.tagline),
                 year = e.year,
                 endYear = e.endYear,
                 continuing = e.continuing,
