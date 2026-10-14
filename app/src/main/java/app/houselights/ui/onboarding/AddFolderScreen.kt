@@ -171,16 +171,16 @@ fun AddFolderScreen(onAdded: () -> Unit) {
                 stringResource(if (protocol == Protocol.NFS) R.string.field_export else R.string.field_share),
                 share, { share = it; success = false },
                 placeholder = if (protocol == Protocol.NFS) "/volume1/media" else "media",
-                modifier = Modifier.width(260.dp),
+                modifier = Modifier.weight(1f),
             )
-            HlTextField(stringResource(R.string.field_path), path, { path = it; success = false }, placeholder = "films", modifier = Modifier.width(320.dp))
+            HlTextField(stringResource(R.string.field_path), path, { path = it; success = false }, placeholder = "films", modifier = Modifier.weight(1f))
         }
         if (protocol == Protocol.SMB) {
             Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.s)) {
-                HlTextField(stringResource(R.string.field_user), user, { user = it; success = false }, modifier = Modifier.width(260.dp))
+                HlTextField(stringResource(R.string.field_user), user, { user = it; success = false }, modifier = Modifier.weight(1f))
                 HlTextField(
                     stringResource(R.string.field_password), password, { password = it; success = false },
-                    password = true, imeAction = ImeAction.Done, modifier = Modifier.width(320.dp),
+                    password = true, imeAction = ImeAction.Done, modifier = Modifier.weight(1f),
                 )
             }
         }

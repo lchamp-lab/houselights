@@ -43,12 +43,14 @@ import app.houselights.core.NfoDocument
 import app.houselights.core.NfoInfo
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlIcons
+import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.components.DefinitionList
 import app.houselights.ui.design.components.FieldLabel
 import app.houselights.ui.design.components.HlFormScaffold
+import app.houselights.ui.design.components.HlScrollArea
 import app.houselights.ui.design.components.HlSegmented
 import app.houselights.ui.design.components.StatusPanel
 import app.houselights.ui.util.FACT_GAP
@@ -152,7 +154,7 @@ private fun XmlView(text: String) {
     ScrollablePanel {
         Text(
             text.trim(),
-            style = Hl.type.caption.copy(fontFamily = FontFamily.Monospace, fontSize = 13.sp, lineHeight = 20.sp),
+            style = Hl.type.code,
             color = Hl.colors.contentSecondary,
         )
     }
@@ -164,41 +166,7 @@ private fun XmlView(text: String) {
  */
 @Composable
 private fun ScrollablePanel(content: @Composable () -> Unit) {
-    val scroll = rememberScrollState()
-    val scope = rememberCoroutineScope()
-    var focused by remember { mutableStateOf(false) }
-    val c = Hl.colors
-    Box(
-        Modifier
-            .fillMaxWidth()
-            .height(440.dp)
-            .clip(HlShapes.panel)
-            .background(c.surface.copy(alpha = 0.7f))
-            .border(if (focused) HlSize.focusBorder else HlSize.hairline, if (focused) c.focus else c.outline.copy(alpha = 0.6f), HlShapes.panel)
-            .onFocusChanged { focused = it.isFocused }
-            .onKeyEvent { event -> scrollBy(event, scroll, scope) }
-            .focusable()
-            .verticalScroll(scroll)
-            .padding(HlSpace.l),
-    ) {
+    HlScrollArea(Modifier.height(HlLayout.textPanel)) {
         Column(verticalArrangement = Arrangement.spacedBy(HlSpace.s)) { content() }
-    }
-}
-
-private fun scrollBy(event: androidx.compose.ui.input.key.KeyEvent, scroll: ScrollState, scope: kotlinx.coroutines.CoroutineScope): Boolean {
-    if (event.type != KeyEventType.KeyDown) return false
-    val step = 240f
-    return when (event.key) {
-        Key.DirectionDown -> {
-            if (scroll.value >= scroll.maxValue) return false
-            scope.launch { scroll.animateScrollBy(step) }
-            true
-        }
-        Key.DirectionUp -> {
-            if (scroll.value <= 0) return false
-            scope.launch { scroll.animateScrollBy(-step) }
-            true
-        }
-        else -> false
     }
 }

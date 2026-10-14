@@ -33,6 +33,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.tv.material3.Text
+import app.houselights.ui.design.components.HlEmptyState
+import app.houselights.ui.design.HlLayout
 import app.houselights.R
 import app.houselights.core.HomeSection
 import app.houselights.core.Library
@@ -93,7 +95,7 @@ fun HomeScreen(
             CollectionLight(rowPosters, lit = shown == null)
             Column(Modifier.fillMaxSize().houseLit(LocalHouseLights.current)) {
                 TopBar(libraries = state.libraries, onLibrary = onOpenLibrary, onSettings = onOpenSettings)
-                HeroInfo(shown, Modifier.padding(start = HlSpace.safeH, top = HlSpace.xs).height(200.dp))
+                HeroInfo(shown, Modifier.padding(start = HlSpace.safeH, top = HlSpace.xs).height(HlLayout.hero))
                 Spacer(Modifier.height(HlSpace.s))
                 when {
                     state.loading && state.sections.isEmpty() -> SkeletonRows()
@@ -101,9 +103,7 @@ fun HomeScreen(
                     state.sections.isEmpty() && scan.running ->
                         Message(stringResource(R.string.home_scanning, scan.processed, scan.total))
                     state.sections.isEmpty() && settings.source == SourceConfig.Local ->
-                        Message(stringResource(R.string.home_empty_local)) {
-                            HlButton(stringResource(R.string.nav_settings), onOpenSettings, icon = Icons.Filled.Settings)
-                        }
+                        Message(stringResource(R.string.home_empty_local), stringResource(R.string.nav_settings), onOpenSettings)
                     state.sections.isEmpty() -> Message(stringResource(R.string.empty))
                     else -> Sections(
                         sections = state.sections,
@@ -190,29 +190,27 @@ private fun SkeletonRows() {
 }
 
 @Composable
-private fun Message(text: String, action: (@Composable () -> Unit)? = null) {
-    val focus = remember { FocusRequester() }
-    LaunchedEffect(action != null) { if (action != null) runCatching { focus.requestFocus() } }
-    Column(Modifier.padding(start = HlSpace.safeH, top = HlSpace.l)) {
-        Text(text, style = Hl.type.body, color = Hl.colors.contentSecondary, modifier = Modifier.widthIn(max = 560.dp))
-        if (action != null) {
-            Spacer(Modifier.height(HlSpace.l))
-            Box(Modifier.focusRequester(focus)) { action() }
-        }
-    }
+private fun Message(text: String, action: String? = null, onAction: () -> Unit = {}) {
+    HlEmptyState(
+        text,
+        Modifier.padding(start = HlSpace.safeH, top = HlSpace.l),
+        action = action,
+        actionIcon = Icons.Filled.Settings,
+        onAction = onAction,
+    )
 }
 
+/** The library could not be read: what happened, and a way to try again. */
 @Composable
 fun ErrorMessage(error: String, onRetry: () -> Unit) {
-    val focus = remember { FocusRequester() }
-    LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
-    Column(Modifier.padding(start = HlSpace.safeH, top = HlSpace.l)) {
-        Text(stringResource(R.string.error_unreachable), style = Hl.type.title, color = Hl.colors.content)
-        Spacer(Modifier.height(HlSpace.xs))
-        Text(error, style = Hl.type.caption, color = Hl.colors.contentSecondary, modifier = Modifier.widthIn(max = 560.dp))
-        Spacer(Modifier.height(HlSpace.l))
-        HlButton(stringResource(R.string.retry), onRetry, Modifier.focusRequester(focus), icon = Icons.Filled.Refresh, emphasis = Emphasis.Primary)
-    }
+    HlEmptyState(
+        error,
+        Modifier.padding(start = HlSpace.safeH, top = HlSpace.l),
+        title = stringResource(R.string.error_unreachable),
+        action = stringResource(R.string.retry),
+        actionIcon = Icons.Filled.Refresh,
+        onAction = onRetry,
+    )
 }
 
 /** Posters of a row that lend their colours to the room, about what a row shows at once. */

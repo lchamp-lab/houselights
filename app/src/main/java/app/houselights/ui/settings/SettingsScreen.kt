@@ -120,7 +120,7 @@ private enum class Pane(val label: Int, val icon: ImageVector) {
  * right, the selected one as rows of settings with their value. Focus selects a category.
  */
 @Composable
-fun SettingsScreen(onAddFolder: () -> Unit, onChangeSource: () -> Unit) {
+fun SettingsScreen(onAddFolder: () -> Unit, onChangeSource: () -> Unit, onOpenCatalog: () -> Unit = {}) {
     val app = appContainer()
     val s by app.settings.state.collectAsStateWithLifecycle()
     val panes = if (s.source is SourceConfig.Jellyfin) Pane.entries else Pane.entries - Pane.Playback
@@ -151,7 +151,7 @@ fun SettingsScreen(onAddFolder: () -> Unit, onChangeSource: () -> Unit) {
             if (pane != Pane.About) Wordmark(Modifier.padding(start = HlSpace.m, bottom = HlSpace.l))
         },
     ) {
-        PaneContent(pane, s, storage, onAddFolder, onChangeSource)
+        PaneContent(pane, s, storage, onAddFolder, onChangeSource, onOpenCatalog)
     }
 }
 
@@ -170,7 +170,14 @@ private fun summary(pane: Pane, s: AppSettings, titles: Int, stats: StorageStats
 
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
-private fun PaneContent(pane: Pane, s: AppSettings, storage: StorageState, onAddFolder: () -> Unit, onChangeSource: () -> Unit) {
+private fun PaneContent(
+    pane: Pane,
+    s: AppSettings,
+    storage: StorageState,
+    onAddFolder: () -> Unit,
+    onChangeSource: () -> Unit,
+    onOpenCatalog: () -> Unit,
+) {
     LazyColumn(
         modifier = Modifier.fillMaxSize().keepVerticalFocus().focusRestorer(),
         contentPadding = PaddingValues(bottom = HlSpace.xxl, end = HlSpace.m),
@@ -181,7 +188,7 @@ private fun PaneContent(pane: Pane, s: AppSettings, storage: StorageState, onAdd
             Pane.Playback -> playbackPane(s)
             Pane.Display -> displayPane(s)
             Pane.Storage -> storagePane(storage)
-            Pane.About -> aboutPane()
+            Pane.About -> aboutPane(onOpenCatalog)
         }
     }
 }
@@ -707,10 +714,12 @@ private fun StorageActions(storage: StorageState) {
 
 // --- About -----------------------------------------------------------------------------------
 
-private fun LazyListScope.aboutPane() {
+private fun LazyListScope.aboutPane(onOpenCatalog: () -> Unit) {
     item { AboutBrand() }
     item { AboutStatus() }
     item { AboutCredits() }
+    // For whoever works on the app: the design system on this screen.
+    if (BuildConfig.DEBUG) item { HlSettingGroup(null) { HlSettingRow(CATALOG, onClick = onOpenCatalog) } }
 }
 
 /** The house light and its name, with what this copy is. */
@@ -826,3 +835,6 @@ private const val STRIP = 6
 private const val PROGRESS_MIN = 0.02f
 
 private const val LICENSE = "GPL-3.0"
+
+/** Debug builds only, not translated. */
+private const val CATALOG = "Design system"

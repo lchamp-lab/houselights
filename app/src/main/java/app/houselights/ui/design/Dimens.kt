@@ -91,6 +91,18 @@ object HlLayout {
     val heroTitleHeight = 100.dp
     /** Height of the browsing hero above the rows (home). */
     val hero = 200.dp
+    /** The line naming the focused title above a poster wall (library). */
+    val infoLine = 24.dp
+    /** Overview of the focused episode under the episode row: three lines of caption. */
+    val episodeOverview = 64.dp
+    /** Where an error sits on an otherwise empty detail page. */
+    val errorTop = 96.dp
+    /** Choice cards of the artwork pickers, at the shape they are used in. */
+    val posterChoice = 150.dp
+    val landscapeChoice = 240.dp
+    /** The two columns of the welcome screen. */
+    val welcomeTagline = 380.dp
+    val welcomeChoices = 430.dp
     /** Width of dialogs. */
     val dialog = 860.dp
     /** As wide as the safe area allows (960 dp screen less the side margins). */

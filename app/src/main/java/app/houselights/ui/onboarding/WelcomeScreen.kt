@@ -30,9 +30,12 @@ import androidx.tv.material3.Text
 import app.houselights.R
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlIcons
+import app.houselights.ui.design.HlLayout
+import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.components.HlListItem
 import app.houselights.ui.design.components.PosterWall
+import app.houselights.ui.design.components.PosterWallScrim
 import app.houselights.ui.design.components.Wordmark
 import app.houselights.ui.util.appContainer
 import app.houselights.ui.util.toPx
@@ -43,60 +46,33 @@ fun WelcomeScreen(onLocal: () -> Unit, onJellyfin: () -> Unit) {
     val app = appContainer()
     val focus = remember { FocusRequester() }
     var posters by remember { mutableStateOf<List<String>>(emptyList()) }
-    val posterPx = 148.dp.toPx()
+    val posterPx = HlSize.posterWall.toPx()
     LaunchedEffect(Unit) {
         runCatching { focus.requestFocus() }
         posters = app.trendingPosters(posterPx)
     }
     val black = Hl.colors.background
-    val tungsten = Hl.colors.tungsten
 
     Box(Modifier.fillMaxSize().background(black)) {
         PosterWall(posters)
-        // Darken the wall where text sits, keep it visible in the middle, and light the wordmark.
-        Box(
-            Modifier.fillMaxSize().background(
-                Brush.horizontalGradient(
-                    0f to black.copy(alpha = 0.92f),
-                    0.42f to black.copy(alpha = 0.55f),
-                    0.6f to black.copy(alpha = 0.7f),
-                    1f to black.copy(alpha = 0.94f),
-                )
-            )
-        )
-        Box(
-            Modifier.fillMaxSize().background(
-                Brush.verticalGradient(0f to black, 0.2f to Color.Transparent, 0.8f to Color.Transparent, 1f to black)
-            )
-        )
-        Box(
-            Modifier.fillMaxSize().background(
-                Brush.radialGradient(
-                    0f to tungsten.copy(alpha = 0.16f),
-                    1f to Color.Transparent,
-                    center = androidx.compose.ui.geometry.Offset(520f, 420f),
-                    radius = 900f,
-                )
-            )
-        )
-
+        PosterWallScrim()
         Row(
             Modifier.fillMaxSize().padding(horizontal = HlSpace.safeH + HlSpace.m),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(Modifier.weight(1f)) {
-                Wordmark(style = Hl.type.display.copy(fontSize = 76.sp, lineHeight = 76.sp))
+                Wordmark(style = Hl.type.wordmarkHero)
                 Spacer(Modifier.height(HlSpace.m))
                 Text(
                     stringResource(R.string.welcome_tagline),
                     style = Hl.type.title,
                     color = Hl.colors.contentSecondary,
-                    modifier = Modifier.widthIn(max = 380.dp),
+                    modifier = Modifier.widthIn(max = HlLayout.welcomeTagline),
                 )
             }
             Spacer(Modifier.width(HlSpace.xl))
-            Column(Modifier.width(470.dp), verticalArrangement = Arrangement.spacedBy(HlSpace.s)) {
-                Text(stringResource(R.string.welcome_title), style = Hl.type.lead, color = Hl.colors.content.copy(alpha = 0.86f))
+            Column(Modifier.width(HlLayout.welcomeChoices), verticalArrangement = Arrangement.spacedBy(HlSpace.s)) {
+                Text(stringResource(R.string.welcome_title), style = Hl.type.lead, color = Hl.colors.content)
                 Spacer(Modifier.height(HlSpace.xxs))
                 HlListItem(
                     stringResource(R.string.source_local),

@@ -97,7 +97,7 @@ fun DetailScreen(
     if (item == null) {
         Box(Modifier.fillMaxSize()) {
             Backdrop(null, BackdropStyle.Full)
-            state.error?.let { Box(Modifier.padding(top = 96.dp)) { ErrorMessage(it, vm::load) } }
+            state.error?.let { Box(Modifier.padding(top = HlLayout.errorTop)) { ErrorMessage(it, vm::load) } }
         }
         return
     }
@@ -199,7 +199,7 @@ private fun Hero(
     LaunchedEffect(item.id) { runCatching { playFocus.requestFocus() } }
     val isEpisode = item.kind == MediaKind.EPISODE
 
-    Column(modifier.widthIn(max = 520.dp)) {
+    Column(modifier.widthIn(max = HlLayout.readableNarrow)) {
         TitleArt(
             title = if (isEpisode) item.seriesTitle ?: item.title else item.title,
             logo = item.logo,
@@ -329,7 +329,7 @@ private fun Episodes(
             color = Hl.colors.contentSecondary,
             maxLines = 3,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(horizontal = HlSpace.safeH).widthIn(max = 720.dp).height(64.dp),
+            modifier = Modifier.padding(horizontal = HlSpace.safeH).widthIn(max = HlLayout.readable).height(HlLayout.episodeOverview),
         )
     }
 }

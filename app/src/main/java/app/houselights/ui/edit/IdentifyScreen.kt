@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.tv.material3.Text
+import app.houselights.ui.design.HlLayout
 import app.houselights.R
 import app.houselights.core.MatchCandidate
 import app.houselights.core.MediaKind
@@ -119,7 +120,7 @@ fun IdentifyScreen(itemId: String, onDone: () -> Unit) {
                 label = stringResource(R.string.label_year),
                 value = state.year,
                 onValueChange = vm::setYear,
-                modifier = Modifier.width(112.dp),
+                modifier = Modifier.width(HlLayout.fieldShort),
                 keyboardType = KeyboardType.Number,
                 imeAction = ImeAction.Search,
                 onImeAction = vm::search,

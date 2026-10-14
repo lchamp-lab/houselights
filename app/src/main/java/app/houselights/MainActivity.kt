@@ -41,6 +41,7 @@ import app.houselights.ui.design.LocalHouseLights
 import app.houselights.ui.design.components.HouseLights
 import androidx.compose.runtime.mutableStateOf
 import kotlinx.coroutines.delay
+import app.houselights.ui.catalog.CatalogScreen
 import app.houselights.ui.detail.DetailScreen
 import app.houselights.ui.detail.NfoScreen
 import app.houselights.ui.edit.ArtworkScreen
@@ -249,7 +250,10 @@ private fun AppNavigation(onPlay: (MediaItem, Boolean) -> Unit) {
             SettingsScreen(
                 onAddFolder = { nav.navigate("folder/add") },
                 onChangeSource = { nav.navigate("welcome") { popUpTo(0) { inclusive = true } } },
+                onOpenCatalog = { nav.navigate("catalog") },
             )
         }
+        // Debug builds only: every component in its states, for design review.
+        if (BuildConfig.DEBUG) composable("catalog") { CatalogScreen() }
     }
 }

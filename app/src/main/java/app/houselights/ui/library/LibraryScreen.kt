@@ -39,6 +39,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.tv.material3.Text
+import app.houselights.ui.design.HlLayout
 import app.houselights.R
 import app.houselights.core.Definition
 import app.houselights.core.Library
@@ -157,7 +158,7 @@ fun LibraryScreen(
                     label = "info",
                 )
                 Row(
-                    Modifier.padding(start = HlSpace.safeH, top = HlSpace.xs).height(24.dp).graphicsLayer { alpha = infoAlpha },
+                    Modifier.padding(start = HlSpace.safeH, top = HlSpace.xs).height(HlLayout.infoLine).graphicsLayer { alpha = infoAlpha },
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     shown?.let {

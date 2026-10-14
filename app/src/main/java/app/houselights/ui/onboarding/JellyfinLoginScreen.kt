@@ -111,12 +111,12 @@ fun JellyfinLoginScreen(onLoggedIn: () -> Unit) {
             onValueChange = { server = it },
             placeholder = "192.168.1.10:8096",
             keyboardType = KeyboardType.Uri,
-            modifier = Modifier.width(600.dp).focusRequester(firstField),
+            modifier = Modifier.focusRequester(firstField),
         )
-        HlTextField(stringResource(R.string.field_user), user, { user = it }, modifier = Modifier.width(600.dp))
+        HlTextField(stringResource(R.string.field_user), user, { user = it })
         HlTextField(
             stringResource(R.string.field_password), password, { password = it },
-            password = true, imeAction = ImeAction.Done, onImeAction = ::login, modifier = Modifier.width(600.dp),
+            password = true, imeAction = ImeAction.Done, onImeAction = ::login,
         )
         HlButton(
             stringResource(if (busy) R.string.signing_in else R.string.sign_in),

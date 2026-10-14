@@ -1,91 +1,171 @@
 # Houselights design system
 
 Houselights is named after the lights of a cinema auditorium, which dim before the film starts.
-The interface follows that idea. The room is dark and quiet, and the light comes from the films themselves.
-Everything lives in `app/src/main/java/app/houselights/ui/design`. **Screens never hard-code a color, a
-size or a font**: they use the tokens and components below.
+The interface follows that idea: the room is dark and quiet, and the light comes from the films.
+Everything lives in `app/src/main/java/app/houselights/ui/design`. **Screens never hard-code a colour,
+a size, an opacity or a font**: they use the tokens and components below, and a test checks it on
+every build (see *Guard*).
 
 ## Principles
 
-1. **One light source.** The room is pure black (`#000000`), like the masking around a screen. Color comes
-   from the artwork: the *ambient light* (`LocalAmbient`) is picked from the focused backdrop and spills
-   onto the room and around the focused card. Tungsten, the only fixed accent, is used sparingly.
-2. **Ten-foot first.** Nothing below 12 sp. Content stays inside the overscan-safe area
-   (`HlSpace.safeH` / `safeV`). Every focusable element shows an unmistakable focus state.
-3. **Calm motion.** Motion answers the user (focus, opening, playing). There are two exceptions.
-   The *house lights* fade to black before playback (`HouseLights`). The *poster wall* drifts slowly
-   on the welcome screen.
-4. **Words do one job.** Sentence case, no all-caps labels, no decorative punctuation between facts
-   (spacing separates them). In French, the interface uses *vous*. The one exception is the billing
-   block, set in capitals like the credits at the foot of a poster.
+1. **One light source.** The room is pure black (`#000000`). Colour comes from the artwork: the
+   *ambient light* (`LocalAmbient`) is picked from the focused backdrop and spills onto the room. When
+   nothing is selected, the room takes the colours of the posters on the wall (`CollectionLight`).
+   Tungsten, the only fixed accent, marks **states**: selected, in use, your choice, needs attention.
+2. **Ten-foot first.** Nothing below 12 sp, no content below 14 sp, every text colour at least 4.5:1
+   on every surface. Content stays inside the overscan-safe area (`HlSpace.safeH` / `safeV`). Every
+   focusable element shows an unmistakable focus state.
+3. **Calm motion.** Motion answers the user (focus, opening, playing). Two orchestrated moments only:
+   the *house lights* going down before playback, and the *poster wall* drifting on the welcome screen.
+4. **Words do one job.** Sentence case, no all-caps labels, no punctuation between facts (layout space
+   separates them). In French, the interface uses *vous*. The one exception to capitals is the billing
+   block, set like the credits at the foot of a poster.
 
-## The screen and the room
+## Identity: the typography of film materials
 
-Houselights is an auditorium, and this is what tells it apart. Nothing is added for decoration: the
-identity comes from treating artwork as the lit screen and the interface as the room around it.
+Nothing is added for decoration. Houselights is recognised by its type and its vocabulary, applied
+with discipline everywhere: one family, **Archivo**, at three widths that are three voices.
 
-- **House lights.** Playing a title runs one cue (`HouseLightCue`, `DIM`): the room fades first
-  (text, buttons, rows: `Modifier.houseLit`), the scrims lift so the picture shows whole, the
-  screen's light spills further into the dark room, then black and the player. Coming
-  back runs the cue backwards.
-- **Billing block.** On a detail page, director and leading cast are set like poster credits:
-  read as a sentence, "a film by NAME with NAME, NAME and NAME": names in condensed capitals, the
-  small words and commas receding. On one line: it keeps as many leading names as fit, and never
-  breaks inside a name.
+| Voice | Width | What it says | Styles |
+|---|---|---|---|
+| The poster | condensed (70) | titles, names in the billing block, large figures | `display`, `headline`, `billing`, `wordmark`, `figure` |
+| Reading | normal (100) | overviews, descriptions, names in lists, values | `title`, `lead`, `body`, `caption`, `meta` |
+| Technical | wide (112), tabular figures | formats, controls, every number that lines up | `label`, `spec`, `badge` |
+
+The technical voice speaks the vocabulary of a Blu-ray case: formats by their names (`Ultra HD`,
+`Full HD`, `Dolby Vision`, `HDR10`, `TrueHD Atmos`), aspect ratios written `2,39:1`, the frame size as
+`3840 × 1608`. Two moments carry the identity further:
+
+- **House lights.** Playing a title runs one cue (`HouseLightCue`, `DIM`): the room fades first (text,
+  buttons, rows: `Modifier.houseLit`), the scrims lift so the picture shows whole, then black and the
+  player. Coming back runs the cue backwards.
+- **Billing block.** On a detail page, director and leading cast read as a sentence, "a film by NAME
+  with NAME, NAME and NAME": names in condensed capitals, small words and commas receding. On one line:
+  it keeps as many leading names as fit, and never breaks inside a name.
 
 ## Tokens
 
+### Colour (`Color.kt`)
+
+| Token | Value | Role |
+|---|---|---|
+| `background` | `#000000` | the room; masks over artwork |
+| `surface` / `surfaceRaised` | `#121110` / `#1D1B19` | quiet panels / dialogs, menus, focused fields |
+| `outline` | `#3A3632` | hairlines, badge borders |
+| `content` | `#F2F0EB` | projector white: primary text, focus fill |
+| `contentSecondary` | `#A39E96` | secondary text (6.4:1 or more) |
+| `contentTertiary` | `#8C867E` | the quietest text, still 4.8:1 or more on every surface |
+| `contentDecorative` | `#4A4642` | never text: empty frames, inactive marks |
+| `tungsten` | `#F2B66D` | states only |
+
+`HlAlpha` names every opacity, by role: `QUIET_SURFACE`, `CONTROL_FILL` / `CONTROL_FILL_STRONG`,
+`WELL`, `BORDER`, `DIVIDER`, `SCRIM`, `PLATE`, `TRACK`, `LIT_DISC`, `CONTROL_DETAIL`.
+
+### Type (`Type.kt`)
+
+Eight sizes with clear steps: **12 · 14 · 16 · 20 · 24 · 32 · 44 · 64 sp**, plus 80 for the wordmark as
+a subject. Line heights sit on a 2 sp grid. Numbers use tabular figures (`tnum`) in every technical
+style, so durations, sizes and counts line up and do not jitter.
+
+| Style | Size / line | Role (one each) |
+|---|---|---|
+| `display` | 64 / 70 | title of a detail page without logo |
+| `headline` | 44 / 48 | screen titles, home hero title without logo |
+| `figure` | 32 / 36 | a figure that states something (storage used) |
+| `title` | 24 / 30 | pane and dialog titles, taglines |
+| `lead` | 20 / 26 | row headers, names of cards and results, episode names |
+| `spec` | 20 / 26 | headline of a technical sheet |
+| `billing` / `billingJoin` | 18 and 14 / 24 | the billing block, capitals with case-sensitive forms |
+| `body` | 16 / 24 | overviews, descriptions |
+| `label` | 16 / 20 | buttons, tabs, menu entries, setting names |
+| `meta` | 16 / 20 | facts and values: year, runtime, score, sizes; names under artwork |
+| `caption` | 14 / 20 | secondary lines: hints, roles, paths, group titles |
+| `code` | 14 / 22 | raw text read as written (NFO XML) |
+| `badge` | 12 / 16 | format and rating badges |
+| `wordmark` / `wordmarkHero` | 22 / 24 and 80 / 84 | the Houselights wordmark |
+
+Archivo covers Latin (with Vietnamese); Greek, Cyrillic, Thai or Korean names fall back to the system
+font. No other font is shipped; line heights leave room for the fallback.
+
+### Space and size (`Dimens.kt`)
+
+| Token | Content |
+|---|---|
+| `HlSpace` | 4 dp grid: `xxs` 4, `xs` 8, `s` 12, `m` 16, `l` 24, `xl` 32, `xxl` 48; `fact` 20 between facts; `safeH` 48 / `safeV` 28 |
+| `HlShapes` | radius follows hierarchy: `artwork` 4, `badge` 3, `field` 6, `panel` 10, `control` pill, `avatar` circle |
+| `HlSize` | artwork (poster 112, landscape 220, episode 264, avatar 76, thumbnails), `control` 48 for every button, icons 20, discs 52, marks 24, dots 8, setting rows 64, meter 10 |
+| `HlLayout` | measures of layout parts: reading widths (640, 520), side columns (280, 340), pane top 72, dialogs (640, 860, 864), title art, hero, info line, track table columns |
+| `HlControl` | inner padding of tabs and buttons (rows offset by it line up with the safe area), badges, menu entries |
+| `HlFocus` | focus scale (artwork 1.10, cards 1.06, controls 1.04), sibling dim 0.38, ambient glow 18 dp |
+
+### Motion, icons, scrolling
+
 | Token | File | Content |
 |---|---|---|
-| `Hl.colors` | `Color.kt` | `background` black, `surface` / `surfaceRaised`, `outline`, `content` (projector white `#F2F0EB`) / `contentSecondary` / `contentTertiary`, `tungsten` `#F2B66D`, `focus` / `onFocus`, `ambientFallback` |
-| `Hl.type` | `Type.kt` | Archivo, one family at three widths: **condensed** (`display`, `headline`, `wordmark`), **normal** (`title`, `body`, `bodySmall`, `meta`, `caption`), **wide** (`section`, `label`, `badge`) |
-| `HlSpace` | `Dimens.kt` | 4 dp grid: `xxs` 4 … `xxl` 48, plus `safeH` 48 / `safeV` 28 |
-| `HlShapes` | `Dimens.kt` | radius follows hierarchy: `artwork` 4 dp, `field` 6, `panel` 10, `control` pill, `avatar` circle |
-| `HlSize` | `Dimens.kt` | poster 112 dp, landscape 220, episode 264, avatar 76, icon 20, progress 3, focus border 2 |
-| `HlFocus` | `Dimens.kt` | focus scale (artwork 1.10, cards 1.06, controls 1.04), sibling dim 0.38, glow 18 dp |
-| `HlMotion` | `Motion.kt` | `FAST` 150, `STANDARD` 250, `SLOW` 600, `DIM` 1000 ms; `SETTLE` 220 ms before a backdrop changes |
-| `LocalHouseLights`, `HouseLightCue` | `Auditorium.kt` | how far the house lights are down (read while drawing), and the order of the cue: room, scrims, black |
-| `HlIcons` | `Icons.kt` | line icons drawn for the app (folder, server, display, playback, document, storage, edit, poster, backdrop, logo, search, lamp); core Material icons for the rest |
-| `HlBringIntoView` | `Scroll.kt` | lists scroll only as much as needed; replaces the TV default that pivots focus to a third of the screen |
-| `revealOnFocus()` | `Scroll.kt` | when focus enters a group (row and header, hero and buttons, settings section), the whole group comes into view |
-| `keepVerticalFocus()` | `Scroll.kt` | up and down never leave a column (settings panes, forms); only left and right do |
+| `HlMotion` | `Motion.kt` | `FAST` 150, `STANDARD` 250, `SLOW` 600, `DIM` 1000 ms; `SETTLE` 220 ms before a backdrop changes; `WALL_DRIFT`; `ENTER_SCALE` |
+| `LocalHouseLights`, `HouseLightCue` | `Auditorium.kt` | how far the house lights are down (read while drawing), and the order of the cue |
+| `HlIcons` | `Icons.kt` | line icons drawn for the app (24 dp grid, 1.75 stroke); core Material icons for the rest |
+| `HlBringIntoView`, `RowScroll` | `Scroll.kt` | lists scroll only as much as needed; rows keep focus 80 dp from the edges, so the first card always scrolls home |
+| `revealOnFocus()`, `keepVerticalFocus()` | `Scroll.kt` | a group comes fully into view when focus enters it; up and down never leave a column |
 
 ## Components
 
 | Component | Use |
 |---|---|
 | `Backdrop` (`Hero`, `Full`, `Quiet`) | full-screen artwork faded to black where text sits, plus the ambient light; its scrims lift when the lights go down |
-| `BillingBlock` | poster-style credits on detail pages |
-| `rememberAmbientColor` | the light a picture spills into the room, animated |
-| `CollectionLight` | when no title is selected (focus on tabs, filters, sort): no film on the screen, the room takes the colours of the posters on the wall, each glowing above its column |
-| `PosterCard`, `LandscapeCard`, `PersonCard` | artwork with the shared focus treatment (`ArtworkSurface`) |
+| `rememberAmbientColor`, `CollectionLight` | the light a picture spills into the room; the colours of a wall when nothing is selected |
+| `PosterCard`, `LandscapeCard`, `PersonCard`, `ArtworkSurface` | artwork with the shared focus treatment |
 | `MediaRow` | horizontal row with header and focus restoration; dims the other cards when one is focused |
-| `HeroInfo`, `TitleArt`, `MetaLine`, `Badge` | what a title is: clear logo or condensed title, facts, formats; a `lit` badge marks a state (in use, your choice) |
-| `HlButton` (`Primary`, `Secondary`), `HlIconButton` | pill actions; the icon button shows its label only when focused |
-| `HlTab`, `HlSegmented` | navigation, sorting and exclusive choices; the tungsten line marks the selection |
-| `HlListItem` | a choice in a vertical list, with an optional icon in a lit disc |
-| `HlMenuButton`, `MenuSection`, `MenuOption` | icon button opening a sectioned menu: closes on choice (sorting) or stays open (filters) |
-| `DefinitionList` | label and value pairs on a quiet panel (settings, NFO) |
-| `HlModal` | panel over the dimmed room for details on demand or a short list of actions; focus stays inside (on Close, or on `initialFocus`), Back or Close dismisses |
-| `ArtworkChoiceCard`, `SelectedMark` | one artwork to choose from, at the shape it is used in, captioned; the one in use carries the tungsten check |
-| `HlResultItem` | a search result: poster, name, year, original title and overview, styled like `HlListItem` |
-| `TechSpecs` | spec sheet of a file (video, audio tracks, subtitles by language, container, size, bitrate, duration), shown in an `HlModal` |
-| `HlTextField` | TV text field: focusable box first, keyboard on OK; tungsten while typing; always one line of body text tall, empty or not |
-| `HlFormScaffold`, `StatusPanel`, `FieldLabel` | setup screens: explanation and live status on the left, form on the right |
-| `PosterWall` | tilted, drifting wall of posters (welcome) |
-| `HouseLights` | the last step of the cue: black over everything before the player starts |
-| `CardSkeleton`, `ProgressLine` | loading placeholders and progress |
+| `HeroInfo`, `TitleArt`, `EpisodeHeading`, `MetaLine`, `BillingBlock` | what a title is: clear logo or condensed title, facts, credits |
+| `Badge`, `BadgeRow`, `FactRow` | formats and ratings (a `lit` badge marks a state); facts on one line, spaced, never punctuated |
+| `HlButton` (`Primary`, `Secondary`), `HlIconButton` | pill and round actions, all 48 dp tall; the icon button shows its label when focused |
+| `HlTab`, `HlSegmented` | navigation and exclusive choices in place; the tungsten line marks the selection |
+| `HlPanel` (`Quiet`, `Raised`, `lit`), `HlPanelButton` | the one panel recipe, and its focusable form |
+| `HlIconDisc`, `HlDivider`, `HlStatus`, `HlMeter`, `MeterLegend` | an icon in a disc (lit when on), a hairline, a state with its light, a segmented gauge |
+| `HlListItem`, `HlResultItem`, `PosterThumb` | choices in a list; a search result with its poster |
+| `HlNavItem`, `HlSettingGroup`, `HlSettingRow` | settings: navigation entries with what they are set to; rows with their value, leading somewhere or stating it |
+| `HlChoiceSheet` | the choices of a setting, in a dialog: focus on the current one, Back changes nothing |
+| `HlMenuButton`, `MenuSection`, `MenuOption` | a button opening a sectioned menu (sort, filters) |
+| `HlModal` | a raised panel over the dimmed room; focus stays inside, Back or Close dismisses |
+| `HlTwoPane`, `HlFormScaffold`, `StatusPanel`, `FieldLabel` | two-pane screens: navigation or explanation on the left, content on the right |
+| `HlTextField` | TV text field: focusable box first, keyboard on OK; tungsten while typing |
+| `HlScrollArea` | long content read with the remote; focusable only when it has something to scroll |
+| `TechSpecs` | the technical sheet, set like the back of a Blu-ray case |
+| `ArtworkChoiceCard`, `SelectedMark` | one artwork to choose from, at the shape it is used in |
+| `HlEmptyState` | what happened and what to do, with the action focused |
+| `PosterWall`, `PosterWallScrim`, `HouseLights`, `CardSkeleton`, `ProgressLine` | welcome wall, playback cue, loading and progress |
 
 ## Focus
 
 Focus must read from the couch:
 
-- **Artwork** grows, gets a 2 dp projector-white outline and glows with the ambient light. Its neighbours
-  in the same row or grid dim.
-- **Controls** turn projector white with black content.
+- **Artwork** grows, gets a 2 dp projector-white outline and glows with the ambient light. Its
+  neighbours in the same row or grid dim.
+- **Controls, rows and navigation** turn projector white with black content.
+- **Panels** that can be chosen are raised and outlined in projector white.
 - **Text fields** get a white outline when focused and a tungsten outline while typing.
+
+## Writing
+
+- French uses *vous*, typographic apostrophes (’), and a no-break space before `: ; ! ?` and inside
+  `« »`. Archivo has no narrow no-break space, so the normal one (U+00A0) is used.
+- A number never leaves its unit: `3,27 Go`, `2 h 02`, `10 bits`, `3840 × 1608` (`formatDuration`,
+  `formatDimensions`, `formatBytes`, `formatRatio` in `ui/util/Format.kt`).
+- Facts are separated by layout (`FactRow`). Inside a single text (a button's detail), `FACT_GAP`.
+- Values are words a person uses: "Détecté", "Hors ligne", "Aucune", never "absent" or "0 fichier".
+
+## Guard
+
+`DesignTokenGuardTest` reads every file under `ui/` except `ui/design/` and fails on a size, text size,
+font, colour, opacity or shape written in a screen. Deliberate exceptions go in its `allowed` list,
+with the reason; a value needed twice belongs in the design system instead.
+
+## Catalogue
+
+Debug builds show **Settings > About > Design system**: every token and component in its states, to
+review changes on a real screen.
 
 ## Adding a screen
 
-Start from `Backdrop` or `HlFormScaffold`, compose existing components, and add a token or component
-here before using a new value twice.
+Start from `Backdrop`, `HlTwoPane` or `HlFormScaffold`, compose existing components, and add a token
+or component here before using a new value twice.
