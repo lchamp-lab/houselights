@@ -146,10 +146,10 @@ without the prefix (`MenuOption`, `MeterLegend`, `PosterCard`, `BillingBlock`, `
 | `HlChoiceSheet` | the choices of a setting, in a side sheet: focus on the current one, choosing applies and closes, Back changes nothing |
 | `HlMenuButton`, `MenuSection`, `MenuOption` | a button opening a sectioned menu anchored to it (sort, filters) |
 | `HlModal` | a sheet to read, centred over the dimmed room (the technical sheet); Back closes it |
-| `HlTwoPane`, `HlFormScaffold`, `StatusPanel`, `FieldLabel` | two-pane screens: navigation or explanation on the left, content on the right |
+| `HlTwoPane`, `HlFormScaffold`, `StatusPanel`, `FieldLabel` | two-pane screens: navigation or explanation on the left, content on the right. `StatusPanel` is where a setup stands, beside its form: its state with its light first, then what is set up, large (an address in the technical voice), its path and kind, and what was found under a hairline; lit while the state is on |
 | `HlTextField` | TV text field: focusable box first, keyboard on OK; tungsten while typing |
 | `HlScrollArea` | long content read with the remote; focusable only when it has something to scroll |
-| `TechSpecs` | the technical sheet, set like the back of a Blu-ray case |
+| `TechSpecs`, `InfoBlock`, `DefinitionList` | the technical sheet, set like the back of a Blu-ray case: one block per subject (a hairline, its name, what it says); the NFO is laid out the same way |
 | `ArtworkChoiceCard`, `SelectedMark` | one artwork to choose from, at the shape it is used in |
 | `HlEmptyState` | what happened and what to do, with the action focused |
 | `PosterWall`, `PosterWallScrim`, `HouseLights`, `CardSkeleton`, `ProgressLine` | welcome wall, playback cue, loading and progress |
