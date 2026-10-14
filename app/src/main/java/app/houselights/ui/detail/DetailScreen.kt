@@ -134,7 +134,7 @@ fun DetailScreen(
                 ) {
                     item(key = "hero") {
                         // At least most of the screen; taller rather than squeezed when the text is long.
-                        Box(Modifier.fillMaxWidth().heightIn(min = screenHeight * 0.9f).revealOnFocus()) {
+                        Box(Modifier.fillMaxWidth().heightIn(min = screenHeight * HlLayout.DETAIL_HERO_SHARE).revealOnFocus()) {
                             Hero(
                                 item = item,
                                 nextUp = state.nextUp,
@@ -150,7 +150,7 @@ fun DetailScreen(
                                     .padding(
                                         start = HlSpace.safeH,
                                         end = HlSpace.safeH,
-                                        top = HlSpace.safeV + HlSpace.m,
+                                        top = HlSpace.safeV,
                                         bottom = HlSpace.l,
                                     )
                                     .align(Alignment.BottomStart),

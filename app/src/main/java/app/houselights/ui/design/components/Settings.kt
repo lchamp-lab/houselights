@@ -39,6 +39,7 @@ import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlAlpha
 import app.houselights.ui.design.HlFocus
 import app.houselights.ui.design.HlIcons
+import app.houselights.ui.design.HlInset
 import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
@@ -63,7 +64,7 @@ fun HlNavItem(
     Surface(
         onClick = onFocused,
         modifier = modifier.fillMaxWidth().onFocusChanged { if (it.isFocused) onFocused() },
-        shape = ClickableSurfaceDefaults.shape(HlShapes.panel),
+        shape = ClickableSurfaceDefaults.shape(HlShapes.row),
         scale = ClickableSurfaceDefaults.scale(focusedScale = HlFocus.CONTROL_SCALE),
         colors = ClickableSurfaceDefaults.colors(
             containerColor = if (selected) c.content.copy(alpha = HlAlpha.CONTROL_FILL) else Color.Transparent,
@@ -141,7 +142,7 @@ fun HlSettingRow(
         Row(
             // Rows that can be chosen are taller targets; rows that state a value stay compact.
             Modifier.fillMaxWidth().heightIn(min = if (onClick != null) HlSize.row else HlSize.control)
-                .padding(horizontal = HlSpace.l, vertical = HlSpace.s),
+                .padding(horizontal = HlInset.card, vertical = HlInset.compact),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             if (icon != null) {
@@ -195,7 +196,7 @@ fun HlSettingRow(
     Surface(
         onClick = onClick,
         modifier = modifier.fillMaxWidth(),
-        shape = ClickableSurfaceDefaults.shape(HlShapes.panel),
+        shape = ClickableSurfaceDefaults.shape(HlShapes.row),
         scale = ClickableSurfaceDefaults.scale(focusedScale = HlFocus.CONTROL_SCALE),
         colors = ClickableSurfaceDefaults.colors(
             containerColor = c.content.copy(alpha = HlAlpha.WELL),

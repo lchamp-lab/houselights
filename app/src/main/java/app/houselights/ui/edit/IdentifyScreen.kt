@@ -162,7 +162,7 @@ private fun CurrentMatch(current: MatchCandidate?, manual: Boolean) {
         return
     }
     Row {
-        PosterThumb(current.poster, width = HlSize.posterThumb + HlSpace.xs)
+        PosterThumb(current.poster, width = HlSize.posterThumbLarge)
         Spacer(Modifier.width(HlSpace.m))
         Column {
             Text(current.title, style = Hl.type.lead, color = c.content, maxLines = 2, overflow = TextOverflow.Ellipsis)

@@ -57,7 +57,7 @@ fun WelcomeScreen(onLocal: () -> Unit, onJellyfin: () -> Unit) {
         PosterWall(posters)
         PosterWallScrim()
         Row(
-            Modifier.fillMaxSize().padding(horizontal = HlSpace.safeH + HlSpace.m),
+            Modifier.fillMaxSize().padding(horizontal = HlSpace.safeH),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(Modifier.weight(1f)) {

@@ -32,6 +32,7 @@ import androidx.tv.material3.Text
 import app.houselights.core.ImageRef
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlFocus
+import app.houselights.ui.design.HlInset
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
@@ -118,7 +119,7 @@ fun HlResultItem(
 ) {
     val c = Hl.colors
     HlPanelButton(onClick, modifier.fillMaxWidth()) {
-        Row(Modifier.padding(HlSpace.s)) {
+        Row(Modifier.padding(HlInset.tight)) {
             PosterThumb(poster)
             Spacer(Modifier.width(HlSpace.m))
             Column(Modifier.weight(1f).padding(vertical = HlSpace.xxs)) {

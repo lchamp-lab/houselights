@@ -29,6 +29,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.Dp
@@ -40,6 +41,7 @@ import androidx.tv.material3.Text
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlAlpha
 import app.houselights.ui.design.HlFocus
+import app.houselights.ui.design.HlInset
 import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
@@ -63,15 +65,16 @@ fun HlPanel(
     modifier: Modifier = Modifier,
     level: PanelLevel = PanelLevel.Quiet,
     lit: Boolean = false,
-    padding: Dp = HlSpace.l,
+    padding: Dp = HlInset.card,
+    shape: Shape = HlShapes.panel,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val c = Hl.colors
     Column(
         modifier
-            .clip(HlShapes.panel)
+            .clip(shape)
             .background(if (level == PanelLevel.Raised) c.surfaceRaised else c.surface.copy(alpha = HlAlpha.QUIET_SURFACE))
-            .border(HlSize.hairline, if (lit) c.tungsten.copy(alpha = HlAlpha.BORDER) else c.outline.copy(alpha = HlAlpha.BORDER), HlShapes.panel)
+            .border(HlSize.hairline, if (lit) c.tungsten.copy(alpha = HlAlpha.BORDER) else c.outline.copy(alpha = HlAlpha.BORDER), shape)
             .padding(padding),
         content = content,
     )

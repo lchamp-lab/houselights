@@ -37,6 +37,7 @@ import androidx.tv.material3.Text
 import app.houselights.R
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlAlpha
+import app.houselights.ui.design.HlInset
 import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlMotion
 import app.houselights.ui.design.HlShapes
@@ -72,7 +73,7 @@ fun HlModal(
                 visibleState = visible,
                 enter = fadeIn(tween(HlMotion.STANDARD)) + scaleIn(tween(HlMotion.STANDARD, easing = HlMotion.emphasized), initialScale = HlMotion.ENTER_SCALE),
             ) {
-                HlPanel(modifier.width(width), level = PanelLevel.Raised, padding = HlSpace.xl) {
+                HlPanel(modifier.width(width), level = PanelLevel.Raised, padding = HlInset.sheet, shape = HlShapes.sheet) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(title, style = Hl.type.subject, color = c.content, modifier = Modifier.weight(1f))
                         HlButton(stringResource(R.string.close), onDismiss, Modifier.focusRequester(closeFocus), icon = Icons.Filled.Close)

@@ -22,6 +22,9 @@ class DesignTokenGuardTest {
         Regex("""Color\.(Black|White)\b""") to "black or white: use Hl.colors.background or content",
         Regex("""\.copy\(alpha\s*=\s*\d""") to "an opacity: use HlAlpha",
         Regex("""RoundedCornerShape\(""") to "a shape: use HlShapes",
+        // A sum of tokens is an alignment worked out in a screen: it gets a name in the design system.
+        Regex("""\bHl(Space|Size|Layout|Inset)\.[a-z]\w*\s*[-+*/](?!>)""") to "arithmetic on a token: name the measure in Dimens.kt",
+        Regex("""[\w)]\s*[-+*/]\s*Hl(Space|Size|Layout|Inset)\.[a-z]""") to "arithmetic on a token: name the measure in Dimens.kt",
     )
 
     /**
@@ -39,7 +42,8 @@ class DesignTokenGuardTest {
             .flatMap { file ->
                 val path = file.relativeTo(ui).path
                 file.readLines().mapIndexedNotNull { i, line ->
-                    if (line.trimStart().startsWith("import ")) return@mapIndexedNotNull null
+                    val code = line.trimStart()
+                    if (code.startsWith("import ") || code.startsWith("//") || code.startsWith("*")) return@mapIndexedNotNull null
                     val rule = rules.firstOrNull { (pattern, _) -> pattern.containsMatchIn(line) } ?: return@mapIndexedNotNull null
                     if (allowed.any { it.substringBefore(':') == path && line.contains(it.substringAfter(':')) }) return@mapIndexedNotNull null
                     "$path:${i + 1}: ${rule.second}\n    ${line.trim()}"
@@ -54,9 +58,13 @@ class DesignTokenGuardTest {
         val samples = listOf(
             "Modifier.padding(12.dp)", "fontSize = 13.sp", "Color(0xFF000000)", "Color.Black",
             "c.surface.copy(alpha = 0.7f)", "RoundedCornerShape(4.dp)", "FontFamily.Monospace",
+            "padding(end = HlSpace.safeH - HlSpace.m)", "width = HlSize.posterThumb + HlSpace.xs", "HlSize.poster * 1.3f",
         )
         samples.forEach { sample -> assertTrue(sample, rules.any { it.first.containsMatchIn(sample) }) }
-        val fine = listOf("Modifier.padding(0.dp)", "screenWidthDp.dp", "HlSpace.l", "Hl.colors.content.copy(alpha = HlAlpha.WELL)")
+        val fine = listOf(
+            "Modifier.padding(0.dp)", "screenWidthDp.dp", "HlSpace.l", "Hl.colors.content.copy(alpha = HlAlpha.WELL)",
+            "{ HlSpace.m -> it }", "screenHeight * HlLayout.DETAIL_HERO_SHARE", "spacedBy(HlSpace.xs)",
+        )
         fine.forEach { sample -> assertTrue(sample, rules.none { it.first.containsMatchIn(sample) }) }
     }
 }

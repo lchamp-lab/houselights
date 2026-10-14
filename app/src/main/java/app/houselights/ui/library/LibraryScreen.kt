@@ -127,7 +127,7 @@ fun LibraryScreen(
             CollectionLight(wallPosters, lit = shown == null)
             Column(Modifier.fillMaxSize()) {
                 Row(
-                    Modifier.fillMaxWidth().padding(start = HlSpace.safeH, end = HlSpace.safeH - HlSpace.m, top = HlSpace.safeV),
+                    Modifier.fillMaxWidth().padding(start = HlSpace.safeH, end = HlSpace.safeH, top = HlSpace.safeV),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     ScreenTitle(title)

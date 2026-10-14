@@ -102,10 +102,11 @@ font. No other font is shipped; line heights leave room for the fallback.
 | Token | Content |
 |---|---|
 | `HlSpace` | 4 dp grid: `xxs` 4, `xs` 8, `s` 12, `m` 16, `l` 24, `xl` 32, `xxl` 48; `xxs` between a name and the line under it; `fact` 20 between facts; `safeH` 48 / `safeV` 28 |
-| `HlShapes` | radius follows hierarchy: `artwork` 4, `badge` 3, `field` 6, `panel` 10, `control` pill, `avatar` circle |
+| `HlInset` | inner padding of containers, by what they hold: `tight` 8 (menus, results with a thumbnail), `compact` 12 (dense rows), `card` 24 (panels, cards), `sheet` 32 (sheets) |
+| `HlShapes` | radius follows hierarchy: `badge` 3, `artwork` 4, `field` 6, `row` 8 (rows that can be chosen), `panel` 12, `sheet` 16 (sheets and menus), `control` pill, `avatar` circle. A shape set close inside another keeps their corners parallel: **outer radius = inner radius + gap** (a menu: 8 + 8 = 16; a result: 4 + 8 = 12) |
 | `HlSize` | artwork (poster 112, landscape 220, episode 264, avatar 76, thumbnails), `control` 48 for every button, icons 20, discs 52, marks 24, dots 8, setting rows 64, meter 10 |
 | `HlLayout` | measures of layout parts: reading widths (640, 520), side columns (280, 340), pane top 72, dialogs (640, 860, 864), title art, hero, info line, track table columns |
-| `HlControl` | inner padding of buttons and track options, badges, menu entries |
+| `HlControl` | inner padding of buttons and track options, badges; the gap between an icon and its text (8) |
 | `HlFocus` | focus scale (artwork 1.10, cards 1.06, controls 1.04), siblings stepping back (dim 0.3, colour kept 0.3), ambient glow 18 dp |
 
 ### Motion, icons, scrolling
@@ -178,7 +179,9 @@ Focus must read from the couch:
 ## Guard
 
 `DesignTokenGuardTest` reads every file under `ui/` except `ui/design/` and fails on a size, text size,
-font, colour, opacity or shape written in a screen. Deliberate exceptions go in its `allowed` list,
+font, colour, opacity or shape written in a screen, and on arithmetic with a token (`safeH - m`): an
+alignment worked out in a screen gets a name in `Dimens.kt`. `SpacingGridTest` keeps `HlSpace` and
+`HlInset` on the 4 dp grid; `TypeScaleTest` keeps the type scale honest. Deliberate exceptions go in its `allowed` list,
 with the reason; a value needed twice belongs in the design system instead.
 
 ## Catalogue

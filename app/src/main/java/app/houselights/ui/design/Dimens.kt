@@ -21,16 +21,37 @@ object HlSpace {
 }
 
 /**
- * Corner radii follow hierarchy: printed artwork is nearly square, interactive controls are
- * pills, people are circles.
+ * Corner radii follow hierarchy: printed artwork is nearly square, rows less round than the
+ * panels that hold them, panels less round than the sheets above the room; interactive controls
+ * are pills, people are circles. A shape set close inside another keeps their corners parallel:
+ * outer radius = inner radius + the gap between them (a menu: 8 + 8 = 16; a result: 4 + 8 = 12).
  */
 object HlShapes {
+    val badge = RoundedCornerShape(3.dp)
     val artwork = RoundedCornerShape(4.dp)
     val field = RoundedCornerShape(6.dp)
-    val panel = RoundedCornerShape(10.dp)
-    val badge = RoundedCornerShape(3.dp)
+    /** Rows that can be chosen: settings, navigation entries, menu options. */
+    val row = RoundedCornerShape(8.dp)
+    val panel = RoundedCornerShape(12.dp)
+    /** Sheets and menus above the room. */
+    val sheet = RoundedCornerShape(16.dp)
     val control = RoundedCornerShape(percent = 50)
     val avatar = CircleShape
+}
+
+/**
+ * Inner padding of containers, by how much they hold. Each container takes the one of its kind,
+ * so the same kind of thing breathes the same everywhere.
+ */
+object HlInset {
+    /** Containers whose rows carry their own padding (menus), or that hold a thumbnail (results). */
+    val tight = HlSpace.xs
+    /** Dense rows and lines inside a container. */
+    val compact = HlSpace.s
+    /** Panels and cards. */
+    val card = HlSpace.l
+    /** Sheets above the room. */
+    val sheet = HlSpace.xl
 }
 
 object HlSize {
@@ -39,6 +60,8 @@ object HlSize {
     val posterWall = 148.dp
     /** Poster thumbnail in a list (search results, source cards). */
     val posterThumb = 64.dp
+    /** Poster of the title in use, a step above the results listed under it. */
+    val posterThumbLarge = 72.dp
     val landscape = 220.dp
     val episode = 264.dp
     val avatar = 76.dp
@@ -99,6 +122,8 @@ object HlLayout {
     val infoLine = 24.dp
     /** Overview of the focused episode under the episode row: three lines of caption. */
     val episodeOverview = 64.dp
+    /** Share of the screen the top of a detail page takes at least: the next row only peeks in. */
+    const val DETAIL_HERO_SHARE = 0.9f
     /** Where an error sits on an otherwise empty detail page. */
     val errorTop = 96.dp
     /** Choice cards of the artwork pickers, at the shape they are used in. */
@@ -134,8 +159,7 @@ object HlControl {
     val buttonPaddingH = 24.dp
     val buttonPaddingIcon = 20.dp
     /** Between an icon and its text inside a control. */
-    val iconGap = 10.dp
-    val menuItemPaddingV = 10.dp
+    val iconGap = 8.dp
     val badgePaddingH = 6.dp
     val badgePaddingV = 2.dp
 }

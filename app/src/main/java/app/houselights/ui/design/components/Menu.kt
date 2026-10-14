@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -43,7 +44,7 @@ import androidx.tv.material3.Icon
 import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
 import app.houselights.ui.design.Hl
-import app.houselights.ui.design.HlControl
+import app.houselights.ui.design.HlInset
 import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
@@ -94,7 +95,8 @@ private fun MenuPanel(sections: List<MenuSection>, onDone: () -> Unit) {
     HlPanel(
         Modifier.width(HlLayout.menuWidth).heightIn(max = HlLayout.menuMaxHeight),
         level = PanelLevel.Raised,
-        padding = HlSpace.s,
+        padding = HlInset.tight,
+        shape = HlShapes.sheet,
     ) {
         Column(Modifier.verticalScroll(rememberScrollState())) {
         sections.forEachIndexed { s, section ->
@@ -124,8 +126,8 @@ private fun MenuItem(label: String, selected: Boolean, onClick: () -> Unit, modi
     val focused by interaction.collectIsFocusedAsState()
     Surface(
         onClick = onClick,
-        modifier = modifier.fillMaxWidth(),
-        shape = ClickableSurfaceDefaults.shape(HlShapes.field),
+        modifier = modifier.fillMaxWidth().height(HlSize.segment),
+        shape = ClickableSurfaceDefaults.shape(HlShapes.row),
         scale = ClickableSurfaceDefaults.scale(focusedScale = 1f),
         colors = ClickableSurfaceDefaults.colors(
             containerColor = Color.Transparent,
@@ -135,7 +137,7 @@ private fun MenuItem(label: String, selected: Boolean, onClick: () -> Unit, modi
         ),
         interactionSource = interaction,
     ) {
-        Row(Modifier.padding(horizontal = HlSpace.s, vertical = HlControl.menuItemPaddingV), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.fillMaxHeight().padding(horizontal = HlSpace.s), verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.size(HlSize.icon)) {
                 if (selected) {
                     Icon(Icons.Filled.Check, contentDescription = null, tint = if (focused) c.onFocus else c.tungsten, modifier = Modifier.size(HlSize.icon))

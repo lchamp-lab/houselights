@@ -34,6 +34,7 @@ import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlAlpha
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
+import app.houselights.ui.design.HlInset
 import app.houselights.ui.design.HlSpace
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -47,7 +48,7 @@ import kotlinx.coroutines.launch
 fun HlScrollArea(
     modifier: Modifier = Modifier,
     framed: Boolean = true,
-    padding: Dp = if (framed) HlSpace.l else HlSpace.xxs,
+    padding: Dp = if (framed) HlInset.card else HlSpace.xxs,
     content: @Composable BoxScope.() -> Unit,
 ) {
     val scroll = rememberScrollState()

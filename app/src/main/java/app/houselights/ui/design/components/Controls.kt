@@ -58,6 +58,7 @@ import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlAlpha
 import app.houselights.ui.design.HlControl
 import app.houselights.ui.design.HlFocus
+import app.houselights.ui.design.HlInset
 import app.houselights.ui.design.HlMotion
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
@@ -174,7 +175,7 @@ fun HlListItem(
     icon: ImageVector? = null,
 ) {
     HlPanelButton(onClick, modifier.fillMaxWidth()) { focused ->
-        Row(Modifier.padding(HlSpace.l), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.padding(HlInset.card), verticalAlignment = Alignment.CenterVertically) {
             if (icon != null) {
                 HlIconDisc(icon, lit = focused)
                 Spacer(Modifier.width(HlSpace.l))

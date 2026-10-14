@@ -45,6 +45,7 @@ import app.houselights.providers.local.TmdbClient.Companion.ImageType
 import app.houselights.providers.local.address
 import app.houselights.settings.AppSettings
 import app.houselights.ui.design.Hl
+import app.houselights.ui.design.HlInset
 import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
@@ -162,7 +163,7 @@ private fun SourceCard(
     val kind = stringResource(if (source.kind == SourceKind.MOVIES) R.string.library_movies else R.string.library_shows)
 
     HlPanelButton(onClick, Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(HlSpace.l)) {
+        Column(Modifier.padding(HlInset.card)) {
             PosterStrip(posters)
             Spacer(Modifier.height(HlSpace.l))
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(HlSpace.s)) {
