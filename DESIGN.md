@@ -222,6 +222,13 @@ rest, sparingly:
   most while the darkening, drawn, stays continuous. Entering a row moves every card of it at once:
   on the player's small processor, that is the moment that counts.
 
+**Read aloud.** To accessibility services a card is one element: what it shows (the image's
+title, or its one-sheet), then where it stands, in words (`stateDescription`): "6 épisodes non
+vus", "vu", "nouveau, en cours, 40 %". The mark itself is not read. A person does nothing when
+chosen: it is read "name, role", once, and not as a button. What is chosen says so (`selected`):
+the checked row of a choice sheet, the checked option of a menu, the result and the artwork in
+use, like the current option of a track.
+
 ## Sheets
 
 Two kinds of sheet, both over the room dimmed by our own scrim, both closed by Back (there is no

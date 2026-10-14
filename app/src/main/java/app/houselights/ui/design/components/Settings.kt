@@ -29,6 +29,8 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.Icon
@@ -251,7 +253,8 @@ fun HlChoiceSheet(
                 },
                 chevron = false,
                 trailing = if (i == selected) ({ ChoiceCheck() }) else null,
-                modifier = if (i == selected) Modifier.focusRequester(current) else Modifier,
+                modifier = (if (i == selected) Modifier.focusRequester(current) else Modifier)
+                    .semantics { this.selected = i == selected },
             )
         }
     }

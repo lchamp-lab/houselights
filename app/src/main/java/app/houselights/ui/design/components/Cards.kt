@@ -44,6 +44,13 @@ import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.focused
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -53,6 +60,7 @@ import androidx.tv.material3.Glow
 import androidx.tv.material3.Icon
 import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
+import app.houselights.R
 import app.houselights.core.MediaItem
 import app.houselights.core.Person
 import app.houselights.ui.design.Hl
@@ -70,6 +78,7 @@ import app.houselights.ui.design.keepChildFocus
 import app.houselights.ui.design.revealOnFocus
 import app.houselights.ui.util.toPx
 import coil.compose.AsyncImage
+import kotlin.math.roundToInt
 
 /** True while one card of the enclosing row or grid has focus: the others step back. */
 val LocalGroupFocused = compositionLocalOf { false }
@@ -107,7 +116,9 @@ fun MediaRow(
 /**
  * Focus treatment shared by every piece of artwork: it grows, gets a thin projector-white
  * outline and glows with the ambient light, while its neighbours dim. At rest, a faint edge keeps
- * dark artwork from dissolving into the black room.
+ * dark artwork from dissolving into the black room. To accessibility services it is one element:
+ * what it holds, then [stateDescription] (watched, new, in progress). A card that does nothing
+ * when chosen, focusable only so its row scrolls, says [readAs] alone and announces no action.
  */
 @Composable
 fun ArtworkSurface(
@@ -116,6 +127,8 @@ fun ArtworkSurface(
     shape: Shape = HlShapes.artwork,
     focusedScale: Float = HlFocus.ARTWORK_SCALE,
     onFocused: () -> Unit = {},
+    stateDescription: String? = null,
+    readAs: String? = null,
     content: @Composable BoxScope.() -> Unit,
 ) {
     val interaction = remember { MutableInteractionSource() }
@@ -126,9 +139,18 @@ fun ArtworkSurface(
         label = "recede",
     )
     val c = Hl.colors
+    // Outside the surface's own semantics: clearing them drops its click, keeping its focus said.
+    val reading = if (readAs != null) {
+        Modifier.clearAndSetSemantics {
+            contentDescription = readAs
+            this.focused = focused
+        }
+    } else {
+        Modifier.semantics(mergeDescendants = true) { stateDescription?.let { this.stateDescription = it } }
+    }
     Surface(
         onClick = onClick,
-        modifier = modifier.onFocusChanged { if (it.isFocused) onFocused() },
+        modifier = modifier.then(reading).onFocusChanged { if (it.isFocused) onFocused() },
         shape = ClickableSurfaceDefaults.shape(shape),
         scale = ClickableSurfaceDefaults.scale(focusedScale = focusedScale),
         border = ClickableSurfaceDefaults.border(
@@ -205,7 +227,7 @@ fun PosterCard(
 ) {
     val sized = if (width != null) modifier.width(width) else modifier.fillMaxWidth()
     val px = posterPx(width)
-    ArtworkSurface(onClick, sized.aspectRatio(2f / 3f), onFocused = onFocused) {
+    ArtworkSurface(onClick, sized.aspectRatio(2f / 3f), onFocused = onFocused, stateDescription = cardState(item)) {
         ArtworkImage(item.poster?.url(px), item.title, Modifier.fillMaxSize()) { FallbackArtwork(item.title, item.year) }
         StatusMark(item, Modifier.align(Alignment.TopEnd).padding(HlSpace.xs))
         ProgressLine(item.progress, Modifier.align(Alignment.BottomCenter), onArtwork = true)
@@ -233,6 +255,7 @@ fun LandscapeCard(
             Modifier.fillMaxWidth().aspectRatio(16f / 9f),
             focusedScale = HlFocus.CARD_SCALE,
             onFocused = onFocused,
+            stateDescription = cardState(item),
         ) {
             ArtworkImage(item.landscape?.url(width.toPx()), item.title, Modifier.fillMaxSize()) {
                 FallbackArtwork(title ?: item.title, item.year.takeIf { title == null })
@@ -266,13 +289,19 @@ fun LandscapeCard(
 
 /**
  * Cast member: round portrait, name over two lines (always two tall, so the roles of a row line
- * up), and role. Focusable so the row can scroll.
+ * up), and role. Focusable so the row can scroll, but it does nothing: it is read "name, role",
+ * once, and not as a button.
  */
 @Composable
 fun PersonCard(person: Person, modifier: Modifier = Modifier) {
     val px = HlSize.avatar.toPx()
     Column(modifier.width(HlSize.personColumn), horizontalAlignment = Alignment.CenterHorizontally) {
-        ArtworkSurface(onClick = {}, modifier = Modifier.size(HlSize.avatar), shape = HlShapes.avatar) {
+        ArtworkSurface(
+            onClick = {},
+            modifier = Modifier.size(HlSize.avatar),
+            shape = HlShapes.avatar,
+            readAs = listOfNotNull(person.name, person.role).joinToString(", "),
+        ) {
             Text(
                 person.name.split(' ').mapNotNull { it.firstOrNull()?.uppercase() }.take(2).joinToString(""),
                 style = Hl.type.lead,
@@ -282,6 +311,7 @@ fun PersonCard(person: Person, modifier: Modifier = Modifier) {
             person.image?.url(px)?.let { ArtworkImage(it, person.name, Modifier.fillMaxSize().clip(HlShapes.avatar)) }
         }
         Spacer(Modifier.height(HlSpace.s))
+        // Said by the portrait already.
         Text(
             person.name,
             style = Hl.type.meta,
@@ -290,9 +320,18 @@ fun PersonCard(person: Person, modifier: Modifier = Modifier) {
             minLines = 2,
             overflow = TextOverflow.Ellipsis,
             textAlign = TextAlign.Center,
+            modifier = Modifier.clearAndSetSemantics {},
         )
         person.role?.let {
-            Text(it, style = Hl.type.caption, color = Hl.colors.contentTertiary, maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center)
+            Text(
+                it,
+                style = Hl.type.caption,
+                color = Hl.colors.contentTertiary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.clearAndSetSemantics {},
+            )
         }
     }
 }
@@ -334,18 +373,39 @@ internal fun EmptyFrame(modifier: Modifier = Modifier) {
 private fun StatusMark(item: MediaItem, modifier: Modifier) {
     val unplayed = item.user.unplayedCount ?: 0
     val plate = Hl.colors.background.copy(alpha = HlAlpha.PLATE)
+    // The card's state description says it in words: the bare number is not read.
+    val mark = modifier.clearAndSetSemantics {}
     when {
-        unplayed > 0 -> Box(modifier.clip(HlShapes.control).background(plate).padding(horizontal = HlSpace.xs, vertical = HlControl.badgePaddingV)) {
+        unplayed > 0 -> Box(mark.clip(HlShapes.control).background(plate).padding(horizontal = HlSpace.xs, vertical = HlControl.badgePaddingV)) {
             Text("$unplayed", style = Hl.type.badge, color = Hl.colors.content)
         }
-        item.user.played -> Box(modifier.size(HlSize.mark).clip(HlShapes.avatar).background(plate), contentAlignment = Alignment.Center) {
+        item.user.played -> Box(mark.size(HlSize.mark).clip(HlShapes.avatar).background(plate), contentAlignment = Alignment.Center) {
             Icon(HlIcons.Check, contentDescription = null, tint = Hl.colors.content, modifier = Modifier.size(HlSize.markIcon))
         }
-        item.isNew() -> Box(modifier.size(HlSize.mark).clip(HlShapes.avatar).background(plate), contentAlignment = Alignment.Center) {
+        item.isNew() -> Box(mark.size(HlSize.mark).clip(HlShapes.avatar).background(plate), contentAlignment = Alignment.Center) {
             Box(Modifier.size(HlSize.dot).clip(HlShapes.avatar).background(Hl.colors.tungsten))
         }
     }
 }
+
+/**
+ * Where a card stands, for accessibility services, as its mark and progress line show it:
+ * "6 épisodes non vus", "vu", "nouveau, en cours, 40 %". Null when it shows nothing.
+ */
+@Composable
+private fun cardState(item: MediaItem): String? {
+    val unplayed = item.user.unplayedCount ?: 0
+    val mark = when {
+        unplayed > 0 -> pluralStringResource(R.plurals.card_unwatched, unplayed, unplayed)
+        item.user.played -> stringResource(R.string.card_watched)
+        item.isNew() -> stringResource(R.string.card_new)
+        else -> null
+    }
+    val progress = item.progress.takeIf { it > 0f }?.let { stringResource(R.string.card_in_progress, (it * PERCENT).roundToInt()) }
+    return listOfNotNull(mark, progress).joinToString(", ").ifEmpty { null }
+}
+
+private const val PERCENT = 100
 
 /**
  * Tungsten progress line, only for titles in progress. On artwork ([onArtwork]: the foot of a

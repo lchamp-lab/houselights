@@ -23,6 +23,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -67,7 +69,7 @@ fun ArtworkChoiceCard(
     Column(modifier.width(width)) {
         ArtworkSurface(
             onClick,
-            Modifier.fillMaxWidth().aspectRatio(aspectRatio),
+            Modifier.fillMaxWidth().aspectRatio(aspectRatio).semantics { this.selected = selected },
             focusedScale = HlFocus.CARD_SCALE,
             onFocused = onFocused,
         ) {
@@ -126,7 +128,7 @@ fun HlResultItem(
     busy: String? = null,
 ) {
     val c = Hl.colors
-    HlPanelButton(onClick, modifier.fillMaxWidth(), lit = mark != null) {
+    HlPanelButton(onClick, modifier.fillMaxWidth().semantics { selected = mark != null }, lit = mark != null) {
         Row(Modifier.padding(HlInset.tight)) {
             PosterThumb(poster, width = HlSize.posterThumbLarge)
             Spacer(Modifier.width(HlSpace.m))
