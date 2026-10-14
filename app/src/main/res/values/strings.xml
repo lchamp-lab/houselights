@@ -325,6 +325,9 @@
     <string name="ui_4k_desc">A sharp interface on 4K TVs</string>
     <string name="ui_system_desc">The mode chosen by the system</string>
     <string name="current_output">Current output</string>
+    <string name="display_by_player">Set by the player</string>
+    <string name="output_by_player">Set by the player</string>
+    <string name="output_by_player_hint">The player scales the interface to its output. Resolution, frame rate and HDR are chosen in Player settings &gt; Display.</string>
     <string name="storage_used">used on this device</string>
     <string name="storage_cache_limit">Online images are kept up to %s; the oldest go first.</string>
     <string name="cleanup_desc">Removes copies of local images no longer in use</string>

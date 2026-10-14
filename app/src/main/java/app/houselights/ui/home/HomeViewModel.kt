@@ -27,9 +27,6 @@ class HomeViewModel(private val app: AppContainer) : ViewModel() {
     val state: StateFlow<HomeState> = _state
     private var job: Job? = null
 
-    /** Last focused card (section, position), restored when coming back from a detail screen. */
-    var lastFocus: Pair<Int, Int> = 0 to 0
-
     init {
         load()
     }

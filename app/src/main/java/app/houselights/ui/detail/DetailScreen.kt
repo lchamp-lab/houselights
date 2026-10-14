@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Favorite
@@ -24,6 +25,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -33,7 +35,6 @@ import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
@@ -61,6 +62,12 @@ import app.houselights.ui.design.LocalHouseLights
 import app.houselights.ui.design.houseLit
 import app.houselights.ui.design.RowScroll
 import app.houselights.ui.design.revealOnFocus
+import app.houselights.ui.design.BackToStart
+import app.houselights.ui.design.FocusKey
+import app.houselights.ui.design.FocusMemory
+import app.houselights.ui.design.RestoreFocus
+import app.houselights.ui.design.focusKey
+import app.houselights.ui.design.rememberFocusMemory
 import app.houselights.ui.design.components.Backdrop
 import app.houselights.ui.design.components.BackdropStyle
 import app.houselights.ui.design.components.BadgeRow
@@ -109,6 +116,17 @@ fun DetailScreen(
     // A failure to play stays until the next action (OK, wherever it is pressed) or the next screen.
     DisposableEffect(Unit) { onDispose { app.playback.clearProblem() } }
 
+    // Each arrival puts focus back on what opened another screen (Modifier, the NFO, a film of a
+    // row); a first visit starts on the first action, the play button.
+    val memory = rememberFocusMemory()
+    val actions = remember { FocusRequester() }
+    RestoreFocus(memory, actions, ready = item != null)
+    // A film started over is resumed next: back from the player, focus is on the play button.
+    LaunchedEffect(Unit) {
+        app.playback.playbackEnded.collect { if (memory.last == RESTART) memory.focus(PLAY) }
+    }
+    val page = rememberLazyListState()
+
     if (item == null) {
         Box(Modifier.fillMaxSize()) {
             Backdrop(null, BackdropStyle.Full)
@@ -122,6 +140,15 @@ fun DetailScreen(
             }
         }
         return
+    }
+
+    // Down the page, Back returns to the actions; from the top, it leaves.
+    val scrolled by remember {
+        derivedStateOf { backReturnsToActions(page.firstVisibleItemIndex, page.firstVisibleItemScrollOffset) }
+    }
+    BackToStart(away = scrolled) {
+        page.animateScrollToItem(0)
+        runCatching { actions.requestFocus() }
     }
 
     val screenHeight = screenHeight()
@@ -158,6 +185,7 @@ fun DetailScreen(
 
             LazyColumn(
                     Modifier.fillMaxSize().houseLit(LocalHouseLights.current),
+                    state = page,
                     contentPadding = PaddingValues(bottom = HlFocus.edge),
                     verticalArrangement = Arrangement.spacedBy(HlSpace.l),
                 ) {
@@ -175,6 +203,8 @@ fun DetailScreen(
                                 onOpenNfo = { onOpenNfo(item.id) },
                                 onShowTech = if (media != null) ({ showTech = true }) else null,
                                 onEdit = if (state.canEdit) ({ showEdit = true }) else null,
+                                memory = memory,
+                                actions = actions,
                                 modifier = Modifier
                                     .padding(
                                         start = HlSpace.safeH,
@@ -197,6 +227,7 @@ fun DetailScreen(
                             Episodes(
                                 header = single?.title,
                                 episodes = state.episodes,
+                                memory = memory,
                                 focused = focusedEpisode,
                                 onFocus = { focusedEpisode = it },
                                 onPlay = { ep -> onPlay(ep, ep.user.positionMs > 0) },
@@ -206,8 +237,10 @@ fun DetailScreen(
 
                     if (item.kind == MediaKind.COLLECTION && state.collectionFilms.isNotEmpty()) {
                         item(key = "films") {
-                            MediaRow(stringResource(R.string.library_movies)) {
-                                items(state.collectionFilms, key = { it.id }) { f -> PosterCard(f, onClick = { onOpenItem(f.id) }) }
+                            MediaRow(stringResource(R.string.library_movies), memory.rowGroup(FILMS)) {
+                                items(state.collectionFilms, key = { it.id }) { f ->
+                                    PosterCard(f, onClick = { onOpenItem(f.id) }, modifier = memory.card(FILMS, f))
+                                }
                             }
                         }
                     }
@@ -215,9 +248,17 @@ fun DetailScreen(
                     // A film's saga: the collection itself first, then its other films in order.
                     state.collection?.let { collection ->
                         item(key = "collection") {
-                            MediaRow(collection.title) {
-                                item(key = collection.id) { PosterCard(collection, onClick = { onOpenItem(collection.id) }) }
-                                items(state.collectionFilms, key = { it.id }) { f -> PosterCard(f, onClick = { onOpenItem(f.id) }) }
+                            MediaRow(collection.title, memory.rowGroup(SAGA)) {
+                                item(key = collection.id) {
+                                    PosterCard(
+                                        collection,
+                                        onClick = { onOpenItem(collection.id) },
+                                        modifier = memory.card(SAGA, collection),
+                                    )
+                                }
+                                items(state.collectionFilms, key = { it.id }) { f ->
+                                    PosterCard(f, onClick = { onOpenItem(f.id) }, modifier = memory.card(SAGA, f))
+                                }
                             }
                         }
                     }
@@ -232,8 +273,10 @@ fun DetailScreen(
 
                     if (state.similar.isNotEmpty()) {
                         item(key = "similar") {
-                            MediaRow(stringResource(R.string.similar)) {
-                                items(state.similar, key = { it.id }) { s -> PosterCard(s, onClick = { onOpenItem(s.id) }) }
+                            MediaRow(stringResource(R.string.similar), memory.rowGroup(SIMILAR)) {
+                                items(state.similar, key = { it.id }) { s ->
+                                    PosterCard(s, onClick = { onOpenItem(s.id) }, modifier = memory.card(SIMILAR, s))
+                                }
                             }
                         }
                     }
@@ -254,10 +297,10 @@ private fun Hero(
     onOpenNfo: () -> Unit,
     onShowTech: (() -> Unit)?,
     onEdit: (() -> Unit)?,
+    memory: FocusMemory,
+    actions: FocusRequester,
     modifier: Modifier,
 ) {
-    val playFocus = remember { FocusRequester() }
-    LaunchedEffect(item.id) { runCatching { playFocus.requestFocus() } }
     val isEpisode = item.kind == MediaKind.EPISODE
 
     Column(modifier) {
@@ -300,80 +343,114 @@ private fun Hero(
         }
         Spacer(Modifier.height(HlSpace.xl))
 
-        val problem by appContainer().playback.playbackProblem.collectAsStateWithLifecycle()
-        // Room under the actions for the label of a round button: nothing moves when it shows.
-        Row(
-            Modifier.padding(bottom = HlLayout.iconLabelRoom),
-            horizontalArrangement = Arrangement.spacedBy(HlSpace.s),
-            verticalAlignment = Alignment.Top,
-        ) {
-            // A series plays through its next episode, a collection through its next film.
-            val target = if (item.kind == MediaKind.SERIES || item.kind == MediaKind.COLLECTION) nextUp else item.takeIf { it.isPlayable }
-            if (target != null) {
-                val resumeMs = target.user.positionMs
-                val episode = when (item.kind) {
-                    MediaKind.SERIES -> target.episodeLabel
-                    MediaKind.COLLECTION -> target.title
-                    else -> null
-                }
-                if (resumeMs > 0) {
-                    HlButton(
-                        stringResource(R.string.resume),
-                        onClick = { onPlay(target, true) },
-                        modifier = Modifier.focusRequester(playFocus),
-                        icon = Icons.Filled.PlayArrow,
-                        detail = listOfNotNull(episode, formatTimecode(resumeMs)).joinToString(FACT_GAP),
-                        emphasis = Emphasis.Primary,
-                    )
-                    HlIconButton(HlIcons.Restart, stringResource(R.string.from_start), onClick = { onPlay(target, false) })
-                } else {
-                    HlButton(
-                        stringResource(R.string.play),
-                        onClick = { onPlay(target, false) },
-                        modifier = Modifier.focusRequester(playFocus),
-                        icon = Icons.Filled.PlayArrow,
-                        detail = episode ?: target.runtimeMs?.let(::formatDuration),
-                        emphasis = Emphasis.Primary,
-                    )
-                }
-            }
-            if (isEpisode && item.seriesId != null) {
-                HlButton(stringResource(R.string.view_series), onClick = onOpenSeries)
-            }
-            if (capabilities?.markPlayed == true) {
-                HlIconButton(
-                    Icons.Filled.Check,
-                    stringResource(if (item.user.played) R.string.watched else R.string.mark_watched),
-                    onClick = onTogglePlayed,
-                    modifier = if (target == null) Modifier.focusRequester(playFocus) else Modifier,
-                )
-            }
-            if (onShowTech != null) {
-                HlIconButton(HlIcons.Info, stringResource(R.string.tech_info), onClick = onShowTech)
-            }
-            if (item.hasNfo) {
-                HlIconButton(HlIcons.Document, stringResource(R.string.nfo), onClick = onOpenNfo)
-            }
-            if (capabilities?.favorites == true && item.kind != MediaKind.COLLECTION) {
-                HlIconButton(
-                    if (item.user.favorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
-                    stringResource(if (item.user.favorite) R.string.favorite else R.string.add_favorite),
-                    onClick = onToggleFavorite,
-                )
-            }
-            if (onEdit != null) {
-                HlIconButton(HlIcons.Edit, stringResource(R.string.edit), onClick = onEdit)
-            }
-            // Why the last title asked for did not play, beside the actions that asked for it.
-            problem?.let {
-                HlStatus(
-                    StatusState.Attention,
-                    stringResource(R.string.play_failed),
-                    Modifier.align(Alignment.CenterVertically).padding(start = HlSpace.m).weight(1f, fill = false),
-                    detail = stringResource(it.message),
-                )
-            }
+        Actions(
+            item, nextUp, capabilities, onPlay, onTogglePlayed, onToggleFavorite, onOpenSeries, onOpenNfo, onShowTech, onEdit,
+            memory, actions,
+        )
+    }
+}
+
+/**
+ * What can be done with the title, in one row. Room under it for the label of a round button:
+ * nothing moves when it shows. [actions] focuses the first of them.
+ */
+@Composable
+private fun Actions(
+    item: MediaItem,
+    nextUp: MediaItem?,
+    capabilities: ProviderCapabilities?,
+    onPlay: (MediaItem, Boolean) -> Unit,
+    onTogglePlayed: () -> Unit,
+    onToggleFavorite: () -> Unit,
+    onOpenSeries: () -> Unit,
+    onOpenNfo: () -> Unit,
+    onShowTech: (() -> Unit)?,
+    onEdit: (() -> Unit)?,
+    memory: FocusMemory,
+    actions: FocusRequester,
+) {
+    val problem by appContainer().playback.playbackProblem.collectAsStateWithLifecycle()
+    Row(
+        Modifier.focusRequester(actions).padding(bottom = HlLayout.iconLabelRoom),
+        horizontalArrangement = Arrangement.spacedBy(HlSpace.s),
+        verticalAlignment = Alignment.Top,
+    ) {
+        PlayButtons(item, nextUp, memory, onPlay)
+        if (item.kind == MediaKind.EPISODE && item.seriesId != null) {
+            HlButton(stringResource(R.string.view_series), onClick = onOpenSeries, modifier = Modifier.focusKey(SERIES, memory))
         }
+        if (capabilities?.markPlayed == true) {
+            HlIconButton(
+                Icons.Filled.Check,
+                stringResource(if (item.user.played) R.string.watched else R.string.mark_watched),
+                onClick = onTogglePlayed,
+                modifier = Modifier.focusKey(WATCHED, memory),
+            )
+        }
+        if (onShowTech != null) {
+            HlIconButton(HlIcons.Info, stringResource(R.string.tech_info), onClick = onShowTech, modifier = Modifier.focusKey(TECH, memory))
+        }
+        if (item.hasNfo) {
+            HlIconButton(HlIcons.Document, stringResource(R.string.nfo), onClick = onOpenNfo, modifier = Modifier.focusKey(NFO, memory))
+        }
+        if (capabilities?.favorites == true && item.kind != MediaKind.COLLECTION) {
+            HlIconButton(
+                if (item.user.favorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                stringResource(if (item.user.favorite) R.string.favorite else R.string.add_favorite),
+                onClick = onToggleFavorite,
+                modifier = Modifier.focusKey(FAVORITE, memory),
+            )
+        }
+        if (onEdit != null) {
+            HlIconButton(HlIcons.Edit, stringResource(R.string.edit), onClick = onEdit, modifier = Modifier.focusKey(EDIT, memory))
+        }
+        // Why the last title asked for did not play, beside the actions that asked for it.
+        problem?.let {
+            HlStatus(
+                StatusState.Attention,
+                stringResource(R.string.play_failed),
+                Modifier.align(Alignment.CenterVertically).padding(start = HlSpace.m).weight(1f, fill = false),
+                detail = stringResource(it.message),
+            )
+        }
+    }
+}
+
+/**
+ * One button that says Lire or Reprendre, so that a film ended half seen keeps focus on it, and
+ * beside it, once started, the way to start over. A series plays through its next episode, a
+ * collection through its next film.
+ */
+@Composable
+private fun PlayButtons(item: MediaItem, nextUp: MediaItem?, memory: FocusMemory, onPlay: (MediaItem, Boolean) -> Unit) {
+    val series = item.kind == MediaKind.SERIES || item.kind == MediaKind.COLLECTION
+    val target = (if (series) nextUp else item.takeIf { it.isPlayable }) ?: return
+    val resumeMs = target.user.positionMs
+    val resume = resumeMs > 0
+    val episode = when (item.kind) {
+        MediaKind.SERIES -> target.episodeLabel
+        MediaKind.COLLECTION -> target.title
+        else -> null
+    }
+    HlButton(
+        stringResource(if (resume) R.string.resume else R.string.play),
+        onClick = { onPlay(target, resume) },
+        modifier = Modifier.focusKey(PLAY, memory),
+        icon = Icons.Filled.PlayArrow,
+        detail = if (resume) {
+            listOfNotNull(episode, formatTimecode(resumeMs)).joinToString(FACT_GAP)
+        } else {
+            episode ?: target.runtimeMs?.let(::formatDuration)
+        },
+        emphasis = Emphasis.Primary,
+    )
+    if (resume) {
+        HlIconButton(
+            HlIcons.Restart,
+            stringResource(R.string.from_start),
+            onClick = { onPlay(target, false) },
+            modifier = Modifier.focusKey(RESTART, memory),
+        )
     }
 }
 
@@ -405,15 +482,17 @@ private fun episodeState(ep: MediaItem): String? {
 private fun Episodes(
     header: String?,
     episodes: List<MediaItem>,
+    memory: FocusMemory,
     focused: MediaItem?,
     onFocus: (MediaItem) -> Unit,
     onPlay: (MediaItem) -> Unit,
 ) {
     Column {
-        MediaRow(header = header, spacing = HlSpace.l) {
+        MediaRow(header = header, modifier = memory.rowGroup(EPISODES), spacing = HlSpace.l) {
             items(episodes, key = { it.id }) { ep ->
                 LandscapeCard(
                     item = ep,
+                    modifier = memory.card(EPISODES, ep),
                     onClick = { onPlay(ep) },
                     width = HlSize.episode,
                     title = ep.title,
@@ -434,6 +513,29 @@ private fun Episodes(
         )
     }
 }
+
+/** Back returns to the actions once the page has scrolled down; at its top, it leaves. */
+internal fun backReturnsToActions(firstVisibleItem: Int, offset: Int): Boolean = firstVisibleItem > 0 || offset > 0
+
+/** A row of the page as a group: a card gone since focus left it, focus comes back to its row. */
+private fun FocusMemory.rowGroup(row: String) = Modifier.focusRequester(requester(FocusKey.row(row)))
+
+/** A card of a row of the page: the same title may sit in two rows. */
+private fun FocusMemory.card(row: String, item: MediaItem) =
+    Modifier.focusKey(FocusKey.within(FocusKey.row(row), FocusKey.item(item.id)), this)
+
+private val PLAY = FocusKey.action("play")
+private val RESTART = FocusKey.action("restart")
+private val SERIES = FocusKey.action("series")
+private val WATCHED = FocusKey.action("watched")
+private val TECH = FocusKey.action("tech")
+private val NFO = FocusKey.action("nfo")
+private val FAVORITE = FocusKey.action("favorite")
+private val EDIT = FocusKey.action("edit")
+private const val EPISODES = "episodes"
+private const val FILMS = "films"
+private const val SAGA = "collection"
+private const val SIMILAR = "similar"
 
 /** The keys that act on what has focus. */
 private val OK_KEYS = setOf(Key.DirectionCenter, Key.Enter, Key.NumPadEnter)

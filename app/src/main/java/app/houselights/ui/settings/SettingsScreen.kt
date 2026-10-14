@@ -1,5 +1,6 @@
 package app.houselights.ui.settings
 
+import android.view.Display
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -8,35 +9,39 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.ExperimentalComposeUiApi
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.focus.focusRestorer
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import android.view.Display
 import app.houselights.BuildConfig
 import app.houselights.R
 import app.houselights.core.SourceConfig
 import app.houselights.settings.AppSettings
-import app.houselights.ui.design.HlIcons
+import app.houselights.ui.design.BackToStart
+import app.houselights.ui.design.FocusKey
+import app.houselights.ui.design.FocusMemory
 import app.houselights.ui.design.HlFocus
+import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.RestoreFocus
 import app.houselights.ui.design.components.HlNavItem
 import app.houselights.ui.design.components.HlTwoPane
 import app.houselights.ui.design.components.ScreenTitle
 import app.houselights.ui.design.components.Wordmark
+import app.houselights.ui.design.focusKey
+import app.houselights.ui.design.keepChildFocus
 import app.houselights.ui.design.keepVerticalFocus
+import app.houselights.ui.design.rememberFocusMemory
 import app.houselights.ui.util.formatBytes
 
 private enum class Pane(val label: Int, val icon: ImageVector) {
@@ -63,8 +68,20 @@ fun SettingsScreen(
     val s by vm.settings.collectAsStateWithLifecycle()
     val panes = if (s.source != null && vm.capabilities.pathMapping) Pane.entries else Pane.entries - Pane.Playback
     var pane by rememberSaveable { mutableStateOf(Pane.Library) }
-    val firstFocus = remember { FocusRequester() }
-    LaunchedEffect(Unit) { runCatching { firstFocus.requestFocus() } }
+    val memory = rememberFocusMemory()
+    // Each pane keeps where it was scrolled, across the screens it opens.
+    val list = rememberSaveable(pane, saver = LazyListState.Saver) { LazyListState() }
+    // Each arrival puts focus back on the row that opened another screen, else on the entry of the
+    // pane open: the pane stays as it was left.
+    RestoreFocus(
+        memory,
+        fallback = memory.requester(paneKey(pane.takeIf { it in panes } ?: panes.first())),
+        // The panes are laid out with the settings as stored, not with the defaults shown before.
+        ready = s.loaded,
+    ) { key -> revealRow(list, key, memory) }
+    // From the pane on the right, Back returns to its entry; from the entries, it leaves.
+    var inPane by remember { mutableStateOf(false) }
+    BackToStart(away = inPane) { memory.focus(paneKey(pane)) }
     val storage by vm.storage.collectAsStateWithLifecycle()
     val titles by vm.library.titleCount.collectAsStateWithLifecycle(0)
 
@@ -73,14 +90,14 @@ fun SettingsScreen(
             ScreenTitle(stringResource(R.string.settings_title))
             Spacer(Modifier.height(HlSpace.xl))
             Column(Modifier.keepVerticalFocus(), verticalArrangement = Arrangement.spacedBy(HlSpace.xxs)) {
-                panes.forEachIndexed { i, p ->
+                panes.forEach { p ->
                     HlNavItem(
                         icon = p.icon,
                         title = stringResource(p.label),
                         summary = summary(p, s, titles, storage),
                         selected = p == pane,
                         onFocused = { pane = p },
-                        modifier = if (i == 0) Modifier.focusRequester(firstFocus) else Modifier,
+                        modifier = Modifier.focusKey(paneKey(p), memory),
                     )
                 }
             }
@@ -89,9 +106,26 @@ fun SettingsScreen(
             if (pane != Pane.About) Wordmark(Modifier.padding(start = HlSpace.m, bottom = HlSpace.l))
         },
     ) {
-        PaneContent(pane, s, storage, onAddFolder, onUseFolders, onSignIn, onOpenCatalog)
+        val rows = remember(pane) { PaneRows(memory, pane.name) }
+        PaneContent(pane, s, storage, onAddFolder, onUseFolders, onSignIn, onOpenCatalog, rows, list, onFocusIn = { inPane = it })
     }
 }
+
+/**
+ * Brings the row [key] names into the pane's [list], item by item until it is there (a pane holds a
+ * dozen items at most), and focuses it.
+ */
+private suspend fun revealRow(list: LazyListState, key: String, memory: FocusMemory): Boolean {
+    for (i in 0 until list.layoutInfo.totalItemsCount) {
+        list.scrollToItem(i)
+        withFrameNanos { }
+        if (memory.focus(key)) return true
+    }
+    return false
+}
+
+/** A pane's entry in the navigation; its rows are keyed within it. */
+private fun paneKey(pane: Pane) = FocusKey.pane(pane.name)
 
 /** What a category is set to, under its name. */
 @Composable
@@ -101,12 +135,12 @@ private fun summary(pane: Pane, s: AppSettings, titles: Int, stats: StorageStats
         else -> pluralStringResource(R.plurals.title_count, titles, titles)
     }
     Pane.Playback -> stringResource(if (s.forceHttp) R.string.http_stream else R.string.network_path)
-    Pane.Display -> stringResource(if (s.ui4k) R.string.ui_4k else R.string.ui_system)
+    Pane.Display -> displaySummary(s)
     Pane.Storage -> stats?.let { formatBytes(it.total) }
     Pane.About -> stringResource(R.string.nav_version, BuildConfig.VERSION_NAME)
 }
 
-@OptIn(ExperimentalComposeUiApi::class)
+/** The rows of [pane]. Focus coming back from the navigation returns to the row it left. */
 @Composable
 private fun PaneContent(
     pane: Pane,
@@ -116,19 +150,22 @@ private fun PaneContent(
     onUseFolders: () -> Unit,
     onSignIn: () -> Unit,
     onOpenCatalog: () -> Unit,
+    rows: PaneRows,
+    list: LazyListState,
+    onFocusIn: (Boolean) -> Unit,
 ) {
-    val addFolder = remember { FocusRequester() }
     LazyColumn(
-        modifier = Modifier.fillMaxSize().keepVerticalFocus().focusRestorer(),
+        state = list,
+        modifier = Modifier.fillMaxSize().onFocusChanged { onFocusIn(it.hasFocus) }.keepVerticalFocus().keepChildFocus(),
         contentPadding = PaddingValues(bottom = HlFocus.edge, end = HlSpace.m),
         verticalArrangement = Arrangement.spacedBy(HlSpace.l),
     ) {
         when (pane) {
-            Pane.Library -> libraryPane(s, onAddFolder, onUseFolders, onSignIn, addFolder)
+            Pane.Library -> libraryPane(s, onAddFolder, onUseFolders, onSignIn, rows)
             Pane.Playback -> playbackPane(s)
             Pane.Display -> displayPane(s)
             Pane.Storage -> storagePane(storage)
-            Pane.About -> aboutPane(onOpenCatalog)
+            Pane.About -> aboutPane(onOpenCatalog, rows)
         }
     }
 }

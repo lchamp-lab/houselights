@@ -67,7 +67,8 @@ import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
-import kotlin.math.abs
+import app.houselights.settings.DisplayModes
+import app.houselights.settings.outputModes
 
 class MainActivity : ComponentActivity() {
     private val container by lazy { appContainer() }
@@ -127,20 +128,18 @@ class MainActivity : ComponentActivity() {
     }
 
     /**
-     * Requests 2160p60 output for the interface. The Zidoo player then switches to the
-     * mode it needs (native frame rate, HDR...) during playback.
+     * Asks for 2160p60 for the interface where the system lists it. A player that lists only
+     * stand-in modes (the Zidoo) sets its output in its own settings: there nothing is asked, and
+     * the stored choice waits for a device where it works.
      */
     private fun applyDisplayMode(ui4k: Boolean) {
         @Suppress("DEPRECATION")
         val display: Display = window.decorView.display ?: windowManager.defaultDisplay
-        val target = if (ui4k) {
-            display.supportedModes
-                .filter { it.physicalWidth >= 3840 && it.physicalHeight >= 2160 }
-                .minByOrNull { abs(it.refreshRate - 60f) }
-                ?.takeIf { abs(it.refreshRate - 60f) < 1f }
-        } else null
-        Log.i("Display", "Current mode ${display.mode}, target $target")
-        window.attributes = window.attributes.apply { preferredDisplayModeId = target?.modeId ?: 0 }
+        val modes = display.outputModes()
+        val control = DisplayModes.control(modes)
+        val target = if (ui4k) DisplayModes.ui4k(modes) else null
+        Log.i("Display", "Current mode ${display.mode}, listed $modes ($control), target $target")
+        window.attributes = window.attributes.apply { preferredDisplayModeId = target?.id ?: 0 }
     }
 
     override fun onResume() {
