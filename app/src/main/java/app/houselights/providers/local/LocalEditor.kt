@@ -12,6 +12,7 @@ import app.houselights.core.MetadataEditor
 import app.houselights.core.NoTmdbKeyException
 import app.houselights.core.NotFoundException
 import app.houselights.core.NfoParser
+import app.houselights.core.Typeset
 import app.houselights.core.suspendRunCatching
 import app.houselights.core.yearOf
 import app.houselights.providers.local.TmdbClient.Companion.ImageType
@@ -128,10 +129,10 @@ class LocalEditor(
             current = e.tmdbId?.let {
                 MatchCandidate(
                     id = it.toString(),
-                    title = e.title,
-                    originalTitle = e.originalTitle?.takeIf { o -> o != e.title },
+                    title = Typeset.text(e.title),
+                    originalTitle = Typeset.text(e.originalTitle?.takeIf { o -> o != e.title }),
                     year = e.year,
-                    overview = e.overview,
+                    overview = Typeset.text(e.overview),
                     poster = (e.userPosterPath ?: e.posterPath)?.let { p -> LocalProvider.image(p, ImageType.POSTER) },
                 )
             },
@@ -167,10 +168,10 @@ class LocalEditor(
         val name = title ?: name ?: ""
         return MatchCandidate(
             id = id.toString(),
-            title = name,
-            originalTitle = (originalTitle ?: originalName)?.takeIf { it != name },
+            title = Typeset.text(name),
+            originalTitle = Typeset.text((originalTitle ?: originalName)?.takeIf { it != name }),
             year = yearOf(releaseDate ?: firstAirDate),
-            overview = overview?.ifBlank { null },
+            overview = Typeset.text(overview?.ifBlank { null }),
             poster = posterPath?.let { LocalProvider.image(it, ImageType.POSTER) },
         )
     }

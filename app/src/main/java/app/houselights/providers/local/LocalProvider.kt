@@ -168,7 +168,7 @@ class LocalProvider(
         } ?: throw NotFoundException("Item $id")
         val castSource = if (entity.kind == ItemKind.MOVIE || entity.kind == ItemKind.SERIES) entity.id else entity.seriesId
         val cast = castSource?.let { dao.cast(it) }.orEmpty().map { c ->
-            Person(c.name, c.character, c.profilePath?.let { image(it, ImageType.PROFILE) })
+            Person(Typeset.text(c.name), Typeset.text(c.character), c.profilePath?.let { image(it, ImageType.PROFILE) })
         }
         return LocalMapper(dao, context).map(entity).copy(cast = cast)
     }
@@ -199,7 +199,7 @@ class LocalProvider(
         return MediaItem(
             id = LocalId.ofCollection(c.id),
             kind = MediaKind.COLLECTION,
-            title = c.name,
+            title = Typeset.text(c.name),
             overview = Typeset.text(c.overview),
             year = years.minOrNull(),
             endYear = years.maxOrNull()?.takeIf { it != years.minOrNull() },

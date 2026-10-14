@@ -311,8 +311,10 @@ screen: it goes to the log.
 - Values are words a person uses: "Détecté", "Hors ligne", "Aucune", never "absent" or "0 fichier".
 - A failure says what happened and what to do ("Le dossier n’a pas pu être lu. Réessayez, ou
   vérifiez le partage sur le NAS."), never an exception's text: that goes to the log only.
-- Text written elsewhere (TMDB, NFO, servers) goes through `Typeset.text`, so `»`, `:` and `!` never
-  start a line.
+- Text written elsewhere (TMDB, NFO, servers) goes through `Typeset.text` in the mappers, for display
+  only (sorting and searching read it as written): an apostrophe between two letters becomes ’,
+  three dots …, a balanced pair of straight double quotes « … » in French; `»`, `:` and `!` never
+  start a line. Single quotes are left alone: they elide as often as they quote (Rock 'n' Roll).
 - Say only what the app can know. Some players list stand-in display modes: the Zidoo lists 1080p
   at 30 Hz while it sends 2160p60, set in its own menu. There, Affichage says the player sets its
   output and where ("Réglages du lecteur > Affichage"), shows no mode and no rate, and offers no
