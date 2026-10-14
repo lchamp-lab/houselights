@@ -68,7 +68,8 @@ import kotlinx.coroutines.launch
 
 /**
  * Choosing one piece of artwork. The page behind previews the focused choice where it will
- * be used: the backdrop behind the title, the logo above it; posters are seen in the row.
+ * be used: the backdrop behind the title, the logo above it. A poster is its own preview: no room
+ * is kept for one, and the choices come larger, right under the header.
  */
 @Composable
 fun ArtworkScreen(itemId: String, kind: ArtworkKind, onDone: () -> Unit) {
@@ -95,11 +96,15 @@ fun ArtworkScreen(itemId: String, kind: ArtworkKind, onDone: () -> Unit) {
             Backdrop(backdrop, if (kind == ArtworkKind.POSTER) BackdropStyle.Quiet else BackdropStyle.Full)
             Column(Modifier.fillMaxSize().padding(top = HlSpace.safeV, bottom = HlSpace.m)) {
                 Header(kind, item, choices)
-                Box(
-                    Modifier.weight(1f).fillMaxWidth().padding(horizontal = HlSpace.safeH, vertical = HlSpace.m),
-                    contentAlignment = Alignment.BottomStart,
-                ) {
-                    if (item != null) Preview(kind, item, preview)
+                if (kind == ArtworkKind.POSTER) {
+                    Spacer(Modifier.height(HlSpace.m))
+                } else {
+                    Box(
+                        Modifier.weight(1f).fillMaxWidth().padding(horizontal = HlSpace.safeH, vertical = HlSpace.m),
+                        contentAlignment = Alignment.BottomStart,
+                    ) {
+                        if (item != null) Preview(kind, item, preview)
+                    }
                 }
                 when {
                     state.error != null -> Problem(state.error!!, vm::load)
@@ -139,7 +144,7 @@ private fun Header(kind: ArtworkKind, item: MediaItem?, choices: ArtworkChoices?
     }
 }
 
-/** The title as the detail page will show it with the focused choice. */
+/** The title as the detail page will show it with the focused choice; a poster shows in its row. */
 @Composable
 private fun Preview(kind: ArtworkKind, item: MediaItem, preview: ArtworkOption?) {
     when (kind) {

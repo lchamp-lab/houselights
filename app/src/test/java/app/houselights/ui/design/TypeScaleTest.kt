@@ -45,9 +45,9 @@ class TypeScaleTest {
 
     @Test
     fun sizesStayOnTheScale() {
-        // Billing and the wordmark are set to their own measure; everything else uses the scale.
+        // Billing and the welcome's wordmark are set to their own measure; everything else uses the scale.
         val scale = setOf(12f, 14f, 16f, 20f, 24f, 32f, 44f, 64f)
-        val ownMeasure = setOf("billing", "wordmark", "wordmarkHero")
+        val ownMeasure = setOf("billing", "wordmarkHero")
         styles.filterKeys { it !in ownMeasure }.forEach { (name, style) ->
             assertTrue("$name is ${style.fontSize}", style.fontSize.value in scale)
             assertEquals("$name: line height on the 2 sp grid", 0f, style.lineHeight.value % 2f)

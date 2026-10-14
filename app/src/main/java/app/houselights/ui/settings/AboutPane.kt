@@ -42,7 +42,7 @@ internal fun LazyListScope.aboutPane(onOpenCatalog: () -> Unit, rows: PaneRows) 
 @Composable
 private fun AboutBrand() {
     Column {
-        Wordmark(style = Hl.type.wordmarkHero)
+        Wordmark(style = Hl.type.wordmark)
         Spacer(Modifier.height(HlSpace.xs))
         FactRow(
             listOf(

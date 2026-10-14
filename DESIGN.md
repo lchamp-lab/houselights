@@ -55,6 +55,12 @@ The technical voice speaks the vocabulary of a Blu-ray case: formats by their na
   with NAME, NAME and NAME": names in condensed capitals, small words and commas receding. On one line:
   it keeps as many leading names as fit, and never breaks inside a name.
 
+**The wordmark** is type and nothing else: "Houselights" in the condensed SemiBold, in tungsten, flat,
+with no halo, glow or shadow; the light in the room comes from the films. It is the one use of
+tungsten that is not a state. It appears twice: large on the welcome screen, where the drifting wall
+of posters is the bold element, and at the size of a subject in About. The settings do not sign
+their column with it.
+
 ## Tokens
 
 ### Colour (`Color.kt`)
@@ -72,11 +78,10 @@ The technical voice speaks the vocabulary of a Blu-ray case: formats by their na
 | `focus` | `#F2F0EB` | projector white again: the fill and outline of focus |
 | `onFocus` | `#000000` | a focused control's name and icon |
 | `onFocusSecondary` | `#5C5B59` | the line under that name (a summary, a runtime): black at 62 % on `focus`, 5.96:1 |
-| `ambientFallback` | `#3B2B1C` | the light spilled into the room when a title has no artwork |
 
 `HlAlpha` names every opacity, by role: `QUIET_SURFACE`, `CONTROL_FILL` / `CONTROL_FILL_STRONG`,
 `WELL`, `BORDER`, `DIVIDER`, `SCRIM` / `SCRIM_SIDE`, `PLATE`, `TRACK`, `FOCUS_QUIET`, `LIT_DISC`,
-`ARTWORK_EDGE`, `WORDMARK_GLOW`. `PLATE` is the plate under whatever sits on artwork: a card's marks
+`ARTWORK_EDGE`. `PLATE` is the plate under whatever sits on artwork: a card's marks
 and progress, and the controls laid over a backdrop. The veils laid over artwork are recipes, in
 `HlScrim` (see *Veils*).
 
@@ -119,10 +124,15 @@ change.
 
 `HlScrim` holds the recipes of what is laid over artwork, never loose numbers: the **left veil**
 behind the text column, the **top veil** under the top bar, the **bottom fade** to black, the
-**ambient spill** below a backdrop, the **collection light**, and the **welcome wall** (its veil and
-the tungsten halo behind the wordmark). The left veil follows the text column in dp, `safeH` +
-`readableNarrow`, then fades out over `HlLayout.veilFade`: never a share of a screen assumed 960 dp
-wide.
+**ambient spill** below a backdrop, the **collection light**, and the **welcome wall** (its veil;
+nothing lights the wordmark, the posters are the light of that screen). The left veil follows the
+text column in dp, `safeH` + `readableNarrow`, then fades out over `HlLayout.veilFade`: never a
+share of a screen assumed 960 dp wide.
+
+**No picture, no light.** Without artwork, `Backdrop(null)` is the black room: no warm glow stands
+in for a picture. The ambient light of a title without a backdrop, or whose backdrop fails to load,
+is transparent (`LocalAmbient` too, by default): it spills nothing and lights no card. Where a wall
+of posters shows with nothing selected, the posters light the room (`CollectionLight`).
 
 Under the text column the left veil keeps a **floor**, read from the small copy of the backdrop the
 ambient light is picked from (`ArtworkSample`): the opacity the column's quietest text
@@ -134,8 +144,8 @@ words sit above and below it). A highlight smaller than a twentieth of the colum
 
 ### Type (`Type.kt`)
 
-Eight sizes with clear steps: **12 · 14 · 16 · 20 · 24 · 32 · 44 · 64 sp**, plus 80 for the wordmark as
-a subject. Line heights sit on a 2 sp grid. Numbers use tabular figures (`tnum`) in every technical
+Eight sizes with clear steps: **12 · 14 · 16 · 20 · 24 · 32 · 44 · 64 sp**, plus 80 for the wordmark on
+the welcome screen. Line heights sit on a 2 sp grid. Numbers use tabular figures (`tnum`) in every technical
 style and wherever a figure changes under the eye (`figure`, `meta`, `label`, `caption`, `detail`),
 so durations, sizes and counts line up and do not jitter. A text without a style is `body`
 (`HouselightsTheme` provides it, and maps tv-material's roles onto the scale): never tv-material's
@@ -160,7 +170,7 @@ own face.
 | `detail` | 14 / 18 | the line under a name in a row, an entry or a choice; tighter than `caption`, so two lines read as one block |
 | `code` | 14 / 22 | raw text read as written (NFO XML), in the system's monospaced face |
 | `badge` | 12 / 16 | format and rating badges |
-| `wordmark` / `wordmarkHero` | 22 / 24 and 80 / 84 | the Houselights wordmark |
+| `wordmark` / `wordmarkHero` | 32 / 36 and 80 / 84 | the Houselights wordmark: the size of a subject in About, large over the welcome wall |
 
 Archivo covers Latin (with Vietnamese); Greek, Cyrillic, Thai or Korean names fall back to the system
 font. No other font is shipped; line heights leave room for the fallback, and for Vietnamese: in
@@ -177,13 +187,13 @@ that grows with the text.
 
 | Token | Content |
 |---|---|
-| `HlSpace` | 4 dp grid: `xxs` 4, `xs` 8, `s` 12, `m` 16, `l` 24, `xl` 32, `xxl` 48; `xxs` between a name and the line under it; `fact` 20 between facts; `safeH` 48 / `safeV` 28 |
+| `HlSpace` | 4 dp grid: `xxs` 4, `xs` 8, `s` 12, `m` 16, `l` 24, `xl` 32, `xxl` 48; `xxs` between a name and the line under it; `fact` 20 between facts; `safeH` 48 / `safeV` 28; `fadeEdge` 24, how far what scrolls fades at an edge |
 | `HlInset` | inner padding of containers, by what they hold: `tight` 8 (menus, results with a thumbnail), `compact` 12 (dense rows), `card` 24 (panels, cards), `sheet` 32 (sheets) |
 | `HlShapes` | radius follows hierarchy: `badge` 3, `artwork` 4, `field` 6, `row` 8 (rows that can be chosen), `panel` 12, `sheet` 16 (sheets and menus), `control` pill, `avatar` circle. A shape set close inside another keeps their corners parallel: **outer radius = inner radius + gap** (a menu: 8 + 8 = 16; a result: 4 + 8 = 12) |
 | `HlSize` | artwork (poster 112, landscape 220, episode 264, avatar 76 in a column of 120, thumbnails), `control` 48 for every button, icons 20, discs 52, marks 20, dots 8, setting rows 64, previews in a row (48 tall, a slot of 84), meter 10, the short rules of a loading title (48, 24), the short rule heading a question (`intertitleRule`, 24 by 2) |
 | `HlLayout` | measures of layout parts: reading widths (640, 520), the left veil's fade past them (240), side columns (280, 340), pane top 72, the reading sheet (864) and the side sheet (520), title art, hero, info line, track table columns, the label of a round button (160 wide at most, 28 of room under its row) |
 | `HlControl` | inner padding of buttons and track options, badges; the gap between an icon and its text (8) |
-| `HlFocus` | focus scale (artwork 1.10, cards 1.06, controls 1.04), siblings stepping back (dim 0.3, colour kept 0.3, in `RECEDE_STEPS` 3), ambient glow 18 dp, `edge` 28 (`safeV`): how far a list keeps focus from its ends |
+| `HlFocus` | focus scale by family (artwork 1.10, cards 1.06, pills and discs 1.04, panels 1.02, rows 1), `reach(size, scale)`: how far a focused element reaches past its ends, the room its container keeps; `ring` 5, how far a focus ring stands outside; siblings stepping back (dim 0.3, colour kept 0.3, in `RECEDE_STEPS` 3), ambient glow 18 dp, `edge` 28 (`safeV`): how far a list keeps focus from its ends |
 
 ### Motion, icons, scrolling
 
@@ -193,6 +203,7 @@ that grows with the text.
 | `LocalHouseLights`, `HouseLightCue` | `Auditorium.kt` | how far the house lights are down (read while drawing), and the order of the cue |
 | `HlIcons` | `Icons.kt` | every icon of the app, drawn on one line (24 dp grid, 1.75 stroke, round caps and joins): places (Folder, Server, Display, Storage), actions (Add, Edit, Refresh, Restart, Test, Close, Settings), marks (Check, Star, Attention), the remote's Back. Play is the one glyph taken from Material, filled, as on a remote; a state that must read as on is the same drawing filled (a favourite: `Heart`, `HeartFilled`). No other Material icon (a test forbids it); the catalogue shows every glyph at 24 and 20 dp, on the room and in a focused control |
 | `rememberListScroll`, `ListScroll`, `RowScroll` | `Scroll.kt` | lists scroll only as much as needed (`EdgeScroll`), never against the edge of the screen: a list keeps focus `HlFocus.edge` from its top and bottom, so the last row stops inside the safe area; a list that starts under a header or a hero (`ListScroll(top)`) brings its rows back to where its first one rests; rows keep focus 80 dp from the sides, so the first card always scrolls home |
+| `scrollEdges(state, color)` | `Scroll.kt` | what scrolls fades into its surface over `HlSpace.fadeEdge`, at the top and the bottom, on a side only while there is more that way: a line cut at the edge reads as more to come. A gradient of the surface's own colour over the content, no layer, so only on an opaque surface: the room in `HlTwoPane`, the raised sheet of `HlSideSheet` and of menus, the panel or the sheet of `HlScrollArea`. Never on rows of posters, whose ends stay open |
 | `revealOnFocus()`, `keepVerticalFocus()` | `Scroll.kt` | a group comes fully into view when focus enters it; up and down never leave a column |
 
 ## Components
@@ -219,13 +230,13 @@ without the prefix (`MenuOption`, `MeterLegend`, `PosterCard`, `BillingBlock`, `
 | `HlNavItem`, `HlSettingGroup`, `HlSettingRow` | settings: navigation entries with what they are set to, the current one on a faint fill, white as the current option of a track; rows with their value, leading somewhere or stating it; a row not `enabled` stays on the room (see *Contrast*) |
 | `HlSideSheet`, `SheetScope`, `RowPreview`, `SheetConfirm` | acting on what a screen shows, beside it: a panel against the right edge (see *Sheets*), where it stands in its header (`status`); rows can lead with a preview of the image they change; an action that cannot be undone asks first, in the sheet |
 | `HlChoiceSheet` | the choices of a setting, in a side sheet: the current one checked in tungsten and focused, choosing applies and closes, Back changes nothing |
-| `HlMenuButton`, `MenuSection`, `MenuOption` | a button opening a sectioned menu anchored to its end edge (sort, filters): below it when the room down to the safe area holds the menu, else above; never past the safe area, a longer menu scrolls inside. It moves like a sheet, growing from the button's corner and leaving the same way; a sort applies once the menu has gone, so the wall reorders on its own. The button names what it does and its detail what is set: "Trier", "Titre"; the options say the order ("Titre, de A à Z") |
+| `HlMenuButton`, `MenuSection`, `MenuOption` | a button opening a sectioned menu anchored to its end edge (sort, filters): below it when the room down to the safe area holds the menu, else above; never past the safe area, a longer menu scrolls inside, its options fading at an edge with more. It moves like a sheet, growing from the button's corner and leaving the same way; a sort applies once the menu has gone, so the wall reorders on its own. The button names what it does and its detail what is set: "Trier", "Titre"; the options say the order ("Titre, de A à Z") |
 | `HlModal` | a sheet to read, centred over the dimmed room (the technical sheet), never past the safe area: longer content scrolls; Back closes it |
-| `HlTwoPane`, `HlFormScaffold`, `StatusPanel`, `FieldLabel` | two-pane screens: navigation or explanation on the left, content on the right. `StatusPanel` is where a setup stands, beside its form: its state with its light first, then what is set up, large (an address in the technical voice), its path and kind, and what was found under a hairline; lit while the state is on |
+| `HlTwoPane`, `HlFormScaffold`, `StatusPanel`, `FieldLabel` | two-pane screens: navigation or explanation on the left, content on the right; given the content's scroll `state`, the content fades into the room at an edge with more. `StatusPanel` is where a setup stands, beside its form: its state with its light first, then what is set up, large (an address in the technical voice), its path and kind, and what was found under a hairline; lit while the state is on |
 | `HlTextField` | TV text field: focusable box first, keyboard on OK; focused and waiting, it says so at its end ("OK saisir", `KeyHint`); tungsten while typing, and only then. Every field has a name, read out even when the screen hides it because its sheet already names it. One line under it: what to type (`supporting`), or what is wrong (`error`), in tungsten after the attention light, its edge unchanged. A placeholder is an example, from the resources ("Ex. : 192.168.1.10"). A setting typed in a field is saved when the field is left (its keyboard action, or focus moving on), never while typing, and its result line then says "Enregistré". Once the keyboard is closed, up or down end typing and move on (Back closes it without telling the app) |
-| `HlScrollArea` | long content read with the remote; focusable only when it has something to scroll; a key held down scrolls in one motion. Framed on a quiet panel, or unframed inside a sheet: square edges, so a hairline at its top stays whole, and the focus ring outside the content |
+| `HlScrollArea` | long content read with the remote; focusable only when it has something to scroll; a key held down scrolls in one motion. Framed on a quiet panel, or unframed inside a sheet: square edges, so a hairline at its top stays whole, and the focus ring outside the content. Where there is more, the text fades into what the area sits on (`surface`: the panel, or the sheet) |
 | `TechSpecs`, `InfoBlock`, `DefinitionList` | the technical sheet, set like the back of a Blu-ray case: one block per subject (a hairline, its name, what it says), every track listed; it does not scroll itself, the sheet scrolls it whole. The NFO is laid out the same way |
-| `ArtworkChoiceCard`, `SelectedMark` | one artwork to choose from, at the shape it is used in; the one in use carries the check of your choice, the watched mark in tungsten |
+| `ArtworkChoiceCard`, `SelectedMark` | one artwork to choose from, at the shape it is used in; the one in use carries the check of your choice, the watched mark in tungsten. A backdrop or a logo is previewed on the page behind; a poster is its own preview, so its picker keeps no room for one and its choices come larger (`posterChoice`, 180 dp), right under the header |
 | `HlEmptyState` | what happened and what to do, with the action focused; a quieter way out beside it; with no action, the Back hint. An error (`UiError`) brings its own title, message and action (`ErrorAction`): try again on the spot, sign in again, add or change the TMDB key; a title that has gone has none, Back is the way out |
 | `PosterWall`, `PosterWallScrim`, `HouseLights`, `CardSkeleton`, `HeroSkeleton`, `ProgressLine` | welcome wall, playback cue, loading and progress (on a plate at the foot of a card, `onArtwork`; on a light track beside text). A placeholder has the footprint of what is coming (a wall of empty frames, two short rules where a title and its facts go), never a shimmer; outside home, it waits `SKELETON_DELAY`, so a quick load shows nothing (`skeletonDelayPassed`) |
 
@@ -270,7 +281,8 @@ Focus stays inside; when a sheet has gone, focus is back where it was.
 - **To act: `HlSideSheet`.** A panel the full height of the screen against its right edge (520 dp),
   so the page it acts on stays in view, under a lighter scrim (`SCRIM_SIDE`). From the top: what
   it does, in the voice of the poster (`subject`: "Modifier"); what it is about (a name, facts, a
-  line of description, and artwork when it helps); a hairline; the rows; the Back hint at its foot.
+  line of description, and artwork when it helps); a hairline; the rows, which fade into the sheet
+  at an edge with more; the Back hint at its foot.
   Rows that change an image show it as it is now (`RowPreview`), at the shape it is used in. Every
   action row says what it does in one line ("Cherche les nouveaux fichiers"), so the rows of a
   sheet keep one height.
@@ -301,17 +313,24 @@ Focus must read from the couch:
 - **Artwork** grows, gets a 2 dp projector-white outline and glows with the ambient light. Its
   neighbours in the same row or grid step back: darker and with less colour (`SIBLING_DIM`,
   `SIBLING_SATURATION`, see *Cards*), never grey. A row without focus keeps its colours.
-- **Controls, rows and navigation** turn projector white with black content.
+- **Controls, rows and navigation** turn projector white with black content. Pills and discs grow a
+  little (`CONTROL_SCALE`, 1.04); rows as wide as their column (setting rows, navigation entries,
+  menu options) do not grow at all (`ROW_SCALE`, 1): the white fill says it.
 - **Track options** are the exception: white is the current option, so focus on another option is
   a grey pill, and focus on the current one a ring around it. Focus coming into a track lands on
   the current option (`focusProperties.enter`), so the white and the focus meet where you are.
-- **Panels** that can be chosen are raised and outlined in projector white.
+- **Panels** that can be chosen (folder cards, list items, results) are raised, outlined in
+  projector white and grow by 1.02 (`PANEL_SCALE`).
 - **Areas to read** (`HlScrollArea`) are outlined in projector white; an unframed one draws its ring
   a gap outside the content, clear of its text and rules.
 - **Text fields** get a white outline when focused, with "OK saisir" at their end, and a tungsten
   outline while typing.
 - **Disabled controls** keep focus, so the remote reaches them: an outline in projector white,
   never the white fill, which would offer an action.
+
+Growth is a share of the size, so each family has its own scale: 1.04 would take a 500 dp row
+10 dp past its inset and the safe area. `HlFocus.reach(size, scale)` says how far an element grows
+past its ends, the room its container keeps for it (`FocusReachTest`).
 
 What has focus stays inside the safe area. A list stops it `HlFocus.edge` (28 dp, `safeV`) from the
 top and the bottom of the screen, and keeps that much padding at its foot so the last row can come
@@ -320,6 +339,9 @@ under a header or a hero, is already inside the safe area: it brings its rows ba
 where the first one rests (`ListScroll(top)`), so the row above leaves whole instead of lingering as
 a sliver. A row of cards keeps `HlSpace.s` above and below them, room for a poster to grow (8.4 dp at
 1.10). The label of a round button overflows under it and slides along to stay inside the safe area.
+Where what scrolls fades at an edge (`scrollEdges`), focus stays clear of the fade: a list keeps
+`HlFocus.edge` from its ends, wider than `HlSpace.fadeEdge`, and `HlTwoPane` brings its rows back
+down to `fadeEdge`, so the row above dissolves into the room instead of being cut.
 
 Focus is never left nowhere. When what holds it goes away (a folder removed, a line deleted), it
 moves to a neighbour, else to the action that adds one ("Ajouter un dossier").
@@ -425,4 +447,5 @@ there with the reason. It fails too when a glyph of `HlIcons` is not on the icon
 Start from `Backdrop`, `HlTwoPane` or `HlFormScaffold`, compose existing components, and add a token
 or component here before using a new value twice. A vertical list ends with
 `contentPadding(bottom = HlFocus.edge)`; if it starts below the top of the screen, it sits in
-`ListScroll(top = its top padding)`. `HlTwoPane` does this for its content pane.
+`ListScroll(top = its top padding)`. `HlTwoPane` does this for its content pane; give it the
+content's scroll state, and the content fades at its edges.

@@ -2,6 +2,7 @@ package app.houselights.ui.design.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.ScrollableState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -36,19 +37,24 @@ import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.ListScroll
 import app.houselights.ui.design.keepVerticalFocus
+import app.houselights.ui.design.scrollEdges
 
 /**
  * The two-pane layout of setup and settings screens: what this is (and its navigation) in a
  * side column on the left, the content on the right, separated by a hairline. The side column
  * stops at the safe area; the content runs to the foot of the screen and scrolls what has focus
  * up to [HlFocus.edge], and back down to its own top, which is already inside the safe area.
+ * Given the content's scroll [state], its edges fade into the room where there is more
+ * (`scrollEdges`), and focus comes back down to [HlSpace.fadeEdge] from the top, clear of the fade.
  */
 @Composable
 fun HlTwoPane(
     side: @Composable ColumnScope.() -> Unit,
     sideWidth: Dp = HlLayout.sideColumn,
+    state: ScrollableState? = null,
     content: @Composable BoxScope.() -> Unit,
 ) {
+    val room = Hl.colors.background
     Box(Modifier.fillMaxSize()) {
         Backdrop(null, BackdropStyle.Quiet)
         Row(Modifier.fillMaxSize().padding(start = HlSpace.safeH, end = HlSpace.safeH, top = HlSpace.safeV)) {
@@ -56,7 +62,10 @@ fun HlTwoPane(
             Spacer(Modifier.width(HlSpace.xl))
             HlDivider(Modifier.padding(vertical = HlSpace.xl), vertical = true)
             Spacer(Modifier.width(HlSpace.xl))
-            Box(Modifier.weight(1f).fillMaxHeight()) { ListScroll(top = HlSpace.none) { content() } }
+            val fades = if (state != null) Modifier.scrollEdges(state, room) else Modifier
+            Box(Modifier.weight(1f).fillMaxHeight().then(fades)) {
+                ListScroll(top = if (state != null) HlSpace.fadeEdge else HlSpace.none) { content() }
+            }
         }
     }
 }
@@ -69,6 +78,7 @@ fun HlFormScaffold(
     aside: @Composable ColumnScope.() -> Unit,
     form: @Composable ColumnScope.() -> Unit,
 ) {
+    val scroll = rememberScrollState()
     HlTwoPane(
         side = {
             ScreenTitle(title)
@@ -78,9 +88,10 @@ fun HlFormScaffold(
             aside()
         },
         sideWidth = HlLayout.sideColumnWide,
+        state = scroll,
     ) {
         Column(
-            Modifier.fillMaxSize().keepVerticalFocus().verticalScroll(rememberScrollState())
+            Modifier.fillMaxSize().keepVerticalFocus().verticalScroll(scroll)
                 .padding(top = HlLayout.paneTop, bottom = HlFocus.edge, end = HlSpace.m),
             verticalArrangement = Arrangement.spacedBy(HlSpace.l),
             content = form,

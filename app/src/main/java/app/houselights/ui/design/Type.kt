@@ -80,9 +80,9 @@ data class HlType(
     val billing: TextStyle,
     /** The small words between them: "a film by", "with", "and". */
     val billingJoin: TextStyle,
-    /** The Houselights wordmark. */
+    /** The Houselights wordmark, at the size of a subject: what About is about. */
     val wordmark: TextStyle,
-    /** The wordmark as the subject of a screen (welcome, about). */
+    /** The wordmark over the welcome wall, the one place it is large. */
     val wordmarkHero: TextStyle,
 
     // The voice of reading (normal width).
@@ -128,7 +128,9 @@ val HouselightsType = HlType(
     cardTitle = TextStyle(fontFamily = HlFonts.condensed, fontWeight = FontWeight.Bold, fontSize = 20.sp, lineHeight = 24.sp),
     billing = TextStyle(fontFamily = HlFonts.condensed, fontWeight = FontWeight.Medium, fontSize = 18.sp, lineHeight = 24.sp, letterSpacing = 0.04.em, fontFeatureSettings = CAPITALS),
     billingJoin = TextStyle(fontFamily = HlFonts.condensed, fontWeight = FontWeight.Normal, fontSize = 14.sp, lineHeight = 24.sp, letterSpacing = 0.02.em),
-    wordmark = TextStyle(fontFamily = HlFonts.condensed, fontWeight = FontWeight.SemiBold, fontSize = 22.sp, lineHeight = 24.sp, letterSpacing = 0.02.em),
+    wordmark = TextStyle(
+        fontFamily = HlFonts.condensed, fontWeight = FontWeight.SemiBold, fontSize = 32.sp, lineHeight = 36.sp, letterSpacing = 0.01.em,
+    ),
     wordmarkHero = TextStyle(fontFamily = HlFonts.condensed, fontWeight = FontWeight.SemiBold, fontSize = 80.sp, lineHeight = 84.sp, letterSpacing = 0.01.em),
 
     title = TextStyle(fontFamily = HlFonts.text, fontWeight = FontWeight.SemiBold, fontSize = 24.sp, lineHeight = 30.sp),

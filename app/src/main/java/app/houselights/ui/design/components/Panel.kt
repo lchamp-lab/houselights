@@ -106,7 +106,7 @@ fun HlPanelButton(
         modifier = modifier.onFocusChanged { if (it.isFocused) onFocused() },
         enabled = enabled,
         shape = ClickableSurfaceDefaults.shape(HlShapes.panel),
-        scale = ClickableSurfaceDefaults.scale(focusedScale = HlFocus.CONTROL_SCALE, focusedDisabledScale = HlFocus.CONTROL_SCALE),
+        scale = ClickableSurfaceDefaults.scale(focusedScale = HlFocus.PANEL_SCALE, focusedDisabledScale = HlFocus.PANEL_SCALE),
         border = ClickableSurfaceDefaults.border(
             border = Border(
                 BorderStroke(HlSize.hairline, (if (lit) c.tungsten else c.outline).copy(alpha = HlAlpha.BORDER)),

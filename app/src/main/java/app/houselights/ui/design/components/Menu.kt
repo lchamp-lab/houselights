@@ -61,6 +61,7 @@ import app.houselights.ui.design.HlMotion
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.scrollEdges
 import kotlin.math.roundToInt
 
 data class MenuOption(val label: String, val selected: Boolean, val onSelect: () -> Unit)
@@ -172,7 +173,8 @@ private fun MenuPanel(sections: List<MenuSection>, maxHeight: Dp, motion: SheetM
         padding = HlInset.tight,
         shape = HlShapes.sheet,
     ) {
-        Column(Modifier.verticalScroll(rememberScrollState())) {
+        val scroll = rememberScrollState()
+        Column(Modifier.scrollEdges(scroll, c.surfaceRaised).verticalScroll(scroll)) {
         sections.forEachIndexed { s, section ->
             if (s > 0) {
                 Spacer(Modifier.height(HlSpace.s))
@@ -204,7 +206,7 @@ private fun MenuItem(label: String, selected: Boolean, onClick: () -> Unit, modi
         onClick = onClick,
         modifier = modifier.fillMaxWidth().height(HlSize.segment).semantics { this.selected = selected },
         shape = ClickableSurfaceDefaults.shape(HlShapes.row),
-        scale = ClickableSurfaceDefaults.scale(focusedScale = 1f),
+        scale = rowScale(),
         colors = ClickableSurfaceDefaults.colors(
             containerColor = Color.Transparent,
             contentColor = if (selected) c.content else c.contentSecondary,

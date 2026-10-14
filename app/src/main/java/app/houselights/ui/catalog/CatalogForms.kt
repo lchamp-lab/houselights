@@ -341,11 +341,12 @@ private fun FormChoiceSheet() {
 @Composable
 private fun FormScrollAreas() {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Top) {
-        FormCase("framed, longer than its height", Modifier.weight(1f)) {
+        FormCase("framed, longer than its height: it fades where there is more", Modifier.weight(1f)) {
             HlScrollArea(Modifier.height(HlLayout.hero)) { FormReading(FORM_LONG_TEXT) }
         }
         FormCase("unframed, longer than its height: its ring stands outside", Modifier.weight(1f)) {
-            HlScrollArea(Modifier.height(HlLayout.hero), framed = false) { FormReading(FORM_LONG_TEXT) }
+            // In a sheet it fades into the sheet; here, into the room.
+            HlScrollArea(Modifier.height(HlLayout.hero), framed = false, surface = Hl.colors.background) { FormReading(FORM_LONG_TEXT) }
         }
         FormCase("framed, fits: takes no focus", Modifier.weight(1f)) {
             HlScrollArea(Modifier.height(HlLayout.hero)) { FormReading(listOf(FORM_SHORT_TEXT)) }

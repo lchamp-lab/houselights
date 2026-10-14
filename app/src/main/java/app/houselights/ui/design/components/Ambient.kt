@@ -29,7 +29,6 @@ import androidx.core.graphics.drawable.toBitmap
 import androidx.palette.graphics.Palette
 import app.houselights.core.ImageRef
 import app.houselights.ui.design.ArtworkSample
-import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlMotion
 import app.houselights.ui.design.HlScrim
 import app.houselights.ui.design.greyOf
@@ -46,19 +45,19 @@ private const val SAMPLE_PX = 96
 /**
  * The light a picture spills into the room: a calm, mid-bright tone picked from a tiny
  * copy of the artwork, animated when the artwork changes. A state, read while drawing: screens
- * provide it as `LocalAmbient provides { ambient.value }`.
+ * provide it as `LocalAmbient provides { ambient.value }`. No picture, or one that fails to load,
+ * gives no light: transparent, and the room stays black.
  */
 @Composable
 fun rememberAmbientColor(image: ImageRef?): State<Color> {
     val context = LocalContext.current
-    val fallback = Hl.colors.ambientFallback
-    var target by remember { mutableStateOf(fallback) }
+    var target by remember { mutableStateOf(Color.Transparent) }
     LaunchedEffect(image) {
         if (image == null) {
-            target = fallback
+            target = Color.Transparent
             return@LaunchedEffect
         }
-        target = backdropSample(context, image)?.let { toneOf(it) } ?: fallback
+        target = backdropSample(context, image)?.let { toneOf(it) } ?: Color.Transparent
     }
     return animateColorAsState(target, tween(HlMotion.SLOW, easing = HlMotion.standard), label = "ambient")
 }

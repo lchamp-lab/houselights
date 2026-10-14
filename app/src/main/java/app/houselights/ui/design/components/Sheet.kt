@@ -60,6 +60,7 @@ import app.houselights.ui.design.HlMotion
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.scrollEdges
 import app.houselights.ui.util.toPx
 import coil.compose.AsyncImage
 
@@ -172,6 +173,7 @@ fun HlSideSheet(
     content: @Composable ColumnScope.(sheet: SheetScope) -> Unit,
 ) {
     SheetWindow(onDismiss, HlAlpha.SCRIM_SIDE, initialFocus) { progress, sheet ->
+        val body = rememberScrollState()
         Row(
             modifier
                 .align(Alignment.CenterEnd)
@@ -190,8 +192,9 @@ fun HlSideSheet(
                 Spacer(Modifier.height(HlSpace.m))
                 HlDivider()
                 Spacer(Modifier.height(HlSpace.m))
+                // Its rows fade into the sheet where there are more.
                 Column(
-                    Modifier.weight(1f).verticalScroll(rememberScrollState()),
+                    Modifier.weight(1f).scrollEdges(body, Hl.colors.surfaceRaised).verticalScroll(body),
                     verticalArrangement = Arrangement.spacedBy(HlSpace.xxs),
                 ) { content(sheet) }
                 Spacer(Modifier.height(HlSpace.m))

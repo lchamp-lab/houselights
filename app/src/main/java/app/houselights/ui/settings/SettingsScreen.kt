@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.runtime.Composable
@@ -37,7 +36,6 @@ import app.houselights.ui.design.RestoreFocus
 import app.houselights.ui.design.components.HlNavItem
 import app.houselights.ui.design.components.HlTwoPane
 import app.houselights.ui.design.components.ScreenTitle
-import app.houselights.ui.design.components.Wordmark
 import app.houselights.ui.design.focusKey
 import app.houselights.ui.design.keepVerticalFocus
 import app.houselights.ui.design.rememberFocusMemory
@@ -85,6 +83,7 @@ fun SettingsScreen(
     val titles by vm.library.titleCount.collectAsStateWithLifecycle(0)
 
     HlTwoPane(
+        state = list,
         side = {
             ScreenTitle(stringResource(R.string.settings_title))
             Spacer(Modifier.height(HlSpace.xl))
@@ -100,9 +99,6 @@ fun SettingsScreen(
                     )
                 }
             }
-            Spacer(Modifier.weight(1f))
-            // The About pane shows the wordmark itself.
-            if (pane != Pane.About) Wordmark(Modifier.padding(start = HlSpace.m, bottom = HlSpace.l))
         },
     ) {
         val rows = remember(pane) { PaneRows(memory, pane.name) }

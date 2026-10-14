@@ -25,6 +25,7 @@ import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.translate
@@ -38,10 +39,12 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlAlpha
+import app.houselights.ui.design.HlFocus
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlInset
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.scrollEdges
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -51,13 +54,15 @@ import kotlinx.coroutines.launch
  * (outlined in projector white) only when there is something to scroll, and up and down then
  * scroll it until an end, where focus moves on. [framed] sets it on a quiet panel; unframed (in a
  * sheet), its edges are square, so a hairline at its top stays whole, and its focus ring stands
- * outside the content, clear of its text and rules.
+ * outside the content, clear of its text and rules. Where there is more to read, the text fades
+ * into [surface], what the area sits on: the quiet panel framed, a raised sheet unframed.
  */
 @Composable
 fun HlScrollArea(
     modifier: Modifier = Modifier,
     framed: Boolean = true,
     padding: Dp = if (framed) HlInset.card else HlSpace.none,
+    surface: Color = if (framed) quietPanel() else Hl.colors.surfaceRaised,
     content: @Composable BoxScope.() -> Unit,
 ) {
     val scroll = rememberScrollState()
@@ -86,17 +91,23 @@ fun HlScrollArea(
             .onKeyEvent { keys.onKey(it, step) }
             .focusProperties { canFocus = scroll.maxValue > 0 }
             .focusable()
+            .scrollEdges(scroll, surface)
             .verticalScroll(scroll)
             .padding(padding),
         content = content,
     )
 }
 
+/** The quiet panel as it shows on the room: opaque, so an edge can fade into it. */
+@Composable
+private fun quietPanel(): Color = Hl.colors.surface.copy(alpha = HlAlpha.QUIET_SURFACE).compositeOver(Hl.colors.background)
+
 /** The focus ring of an unframed area, drawn a gap outside its bounds, clear of the content. */
 private fun Modifier.ringOutside(shown: Boolean, color: Color): Modifier = drawBehind {
     if (!shown) return@drawBehind
     val width = HlSize.focusBorder.toPx()
-    val reach = HlSize.focusRingGap.toPx() + width / 2
+    // The middle of the stroke, the ring standing [HlFocus.ring] outside the bounds.
+    val reach = HlFocus.ring.toPx() - width / 2
     val ring = Size(size.width + reach * 2, size.height + reach * 2)
     translate(-reach, -reach) {
         drawOutline(HlShapes.panel.createOutline(ring, layoutDirection, this), color, style = Stroke(width))

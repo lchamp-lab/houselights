@@ -31,6 +31,7 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.tv.material3.ClickableSurfaceDefaults
+import androidx.tv.material3.ClickableSurfaceScale
 import androidx.tv.material3.Icon
 import androidx.tv.material3.LocalContentColor
 import androidx.tv.material3.Surface
@@ -65,7 +66,7 @@ fun HlNavItem(
         onClick = onFocused,
         modifier = modifier.fillMaxWidth().onFocusChanged { if (it.isFocused) onFocused() },
         shape = ClickableSurfaceDefaults.shape(HlShapes.row),
-        scale = ClickableSurfaceDefaults.scale(focusedScale = HlFocus.CONTROL_SCALE),
+        scale = rowScale(),
         colors = ClickableSurfaceDefaults.colors(
             containerColor = if (selected) c.content.copy(alpha = HlAlpha.CONTROL_FILL) else Color.Transparent,
             contentColor = if (selected) c.content else c.contentSecondary,
@@ -203,7 +204,7 @@ fun HlSettingRow(
         modifier = modifier.fillMaxWidth(),
         enabled = enabled,
         shape = ClickableSurfaceDefaults.shape(HlShapes.row),
-        scale = controlScale(),
+        scale = rowScale(),
         border = disabledFocusBorder(HlShapes.row),
         colors = ClickableSurfaceDefaults.colors(
             containerColor = c.content.copy(alpha = HlAlpha.WELL),
@@ -221,6 +222,14 @@ fun HlSettingRow(
         Content(focused && enabled)
     }
 }
+
+/**
+ * A row as wide as its column keeps its size with focus, enabled or not: growing by a share of
+ * its width would take it past its inset. Its white fill says focus.
+ */
+@Composable
+internal fun rowScale(): ClickableSurfaceScale =
+    ClickableSurfaceDefaults.scale(focusedScale = HlFocus.ROW_SCALE, focusedDisabledScale = HlFocus.ROW_SCALE)
 
 /**
  * A row's quieter words (its description, its value), by state: [onFocus] on a focused row,

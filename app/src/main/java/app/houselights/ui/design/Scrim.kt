@@ -92,15 +92,6 @@ object HlScrim {
     val WALL_DOWN = listOf(VeilStop(0f, 1f), VeilStop(0.2f, 0f), VeilStop(0.8f, 0f), VeilStop(1f, 1f))
 
     /**
-     * The tungsten halo behind the welcome wordmark: its opacity in its centre, the centre and the
-     * radius as shares of the screen's width ([WELCOME_HALO_X], [WELCOME_HALO_RADIUS]) and height.
-     */
-    const val WELCOME_HALO = 0.16f
-    const val WELCOME_HALO_X = 0.27f
-    const val WELCOME_HALO_Y = 0.39f
-    const val WELCOME_HALO_RADIUS = 0.47f
-
-    /**
      * The share of the text column's points that sets its floor: a highlight smaller than a
      * twentieth of the column (a lamp, a reflection) does not darken all of it; an overview's worth
      * of light does.
