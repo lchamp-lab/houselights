@@ -46,6 +46,8 @@ import app.houselights.core.HomeSection
 import app.houselights.core.Library
 import app.houselights.core.MediaItem
 import app.houselights.core.SourceConfig
+import app.houselights.providers.local.ScanError
+import app.houselights.providers.local.ScanState
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlMotion
 import app.houselights.ui.design.LocalHouseLights
@@ -67,6 +69,7 @@ import app.houselights.ui.design.components.rememberAmbientColor
 import app.houselights.ui.util.ReloadOnLibraryChange
 import app.houselights.ui.util.appContainer
 import app.houselights.ui.util.libraryName
+import app.houselights.ui.util.scanErrorText
 import app.houselights.ui.util.sectionTitle
 import app.houselights.ui.util.ErrorAction
 import app.houselights.ui.util.LocalErrorFix
@@ -108,13 +111,8 @@ fun HomeScreen(
                 HeroInfo(shown, Modifier.padding(start = HlSpace.safeH, top = HlSpace.xs).height(HlLayout.hero))
                 Spacer(Modifier.height(HlSpace.s))
                 when {
-                    state.loading && state.sections.isEmpty() -> SkeletonRows()
-                    state.error != null && state.sections.isEmpty() -> ErrorMessage(state.error!!, vm::load)
-                    state.sections.isEmpty() && scan.running ->
-                        Message(stringResource(R.string.home_scanning, scan.processed, scan.total))
-                    state.sections.isEmpty() && settings.source == SourceConfig.Local ->
-                        Message(stringResource(R.string.home_empty_local), stringResource(R.string.nav_settings), onOpenSettings)
-                    state.sections.isEmpty() -> Message(stringResource(R.string.empty))
+                    state.sections.isEmpty() ->
+                        NoRows(state, scan, local = settings.source == SourceConfig.Local, onReload = vm::load, onSettings = onOpenSettings)
                     else -> Sections(
                         sections = state.sections,
                         initialFocus = vm.lastFocus,
@@ -223,6 +221,38 @@ private fun Message(text: String, action: String? = null, onAction: () -> Unit =
         action = action,
         actionIcon = Icons.Filled.Settings,
         onAction = onAction,
+    )
+}
+
+/** No rows yet: loading, a failure, a scan under way or failed, or a library still empty. */
+@Composable
+private fun NoRows(state: HomeState, scan: ScanState, local: Boolean, onReload: () -> Unit, onSettings: () -> Unit) {
+    when {
+        state.loading -> SkeletonRows()
+        state.error != null -> ErrorMessage(state.error, onReload)
+        scan.running -> Message(stringResource(R.string.home_scanning, scan.processed, scan.total))
+        // Not "add a folder" when there is one: its scan failed, and it says why.
+        local && scan.errors.isNotEmpty() -> ScanFailed(scan.errors, onSettings)
+        local -> Message(stringResource(R.string.home_empty_local), stringResource(R.string.nav_settings), onSettings)
+        else -> Message(stringResource(R.string.empty))
+    }
+}
+
+/** Nothing to show because the folders could not be read: why, a way to scan again, and the folders. */
+@Composable
+private fun ScanFailed(errors: Map<String, ScanError>, onSettings: () -> Unit) {
+    val library = appContainer().library
+    val folders = library.folders.collectAsStateWithLifecycle(null).value ?: return
+    val (name, error) = errors.entries.first()
+    HlEmptyState(
+        scanErrorText(error, folders.firstOrNull { it.name == name }?.host ?: name),
+        Modifier.padding(start = HlSpace.safeH, top = HlSpace.l),
+        title = stringResource(R.string.home_scan_failed),
+        action = stringResource(R.string.retry),
+        actionIcon = Icons.Filled.Refresh,
+        onAction = { library.scan() },
+        secondaryAction = stringResource(R.string.home_see_folders),
+        onSecondaryAction = onSettings,
     )
 }
 

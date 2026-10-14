@@ -39,6 +39,8 @@
     </plurals>
     <string name="home_empty_local">No films yet. Add the folder that holds them in Settings.</string>
     <string name="home_scanning">Scanning your files… %1$d / %2$d</string>
+    <string name="home_scan_failed">The scan didn’t finish</string>
+    <string name="home_see_folders">See the folders</string>
 
     <!-- Browsing -->
     <string name="nav_settings">Settings</string>
