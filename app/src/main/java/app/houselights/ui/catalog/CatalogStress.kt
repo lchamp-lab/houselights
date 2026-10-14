@@ -4,7 +4,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -23,7 +22,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Density
 import androidx.tv.material3.Text
 import app.houselights.R
@@ -32,12 +30,11 @@ import app.houselights.core.MediaKind
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlSpace
-import app.houselights.ui.design.components.BadgeRow
 import app.houselights.ui.design.components.FactRow
 import app.houselights.ui.design.components.HlIconButton
 import app.houselights.ui.design.components.HlSegmented
-import app.houselights.ui.design.components.MetaLine
 import app.houselights.ui.design.components.PosterCard
+import app.houselights.ui.design.components.TitleLine
 import app.houselights.ui.util.NBSP
 import app.houselights.ui.util.formatDuration
 import app.houselights.ui.util.screenSizePx
@@ -80,7 +77,7 @@ private fun StressInfoLineSection() {
         Column(verticalArrangement = Arrangement.spacedBy(HlSpace.xl)) {
             Column {
                 StressInfoLine(STRESS_INFO)
-                StressCaption("60-character title, a rating, a score and seven formats")
+                StressCaption("60-character title, a rating, a score and seven formats: the formats go first, then the title")
             }
             Column {
                 val density = LocalDensity.current
@@ -126,7 +123,7 @@ private fun StressFactsSection() {
         Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.l), verticalAlignment = Alignment.Top) {
             Column(Modifier.width(HlLayout.sideColumn)) {
                 FactRow(STRESS_FACTS, Modifier.fillMaxWidth().background(Hl.colors.surface))
-                StressCaption("In sideColumn, on surface to show its edge")
+                StressCaption("In sideColumn, on surface to show its edge: the last facts go whole")
             }
             Column {
                 FactRow(STRESS_FACTS)
@@ -183,18 +180,10 @@ private fun StressTopBar(libraries: List<String>) {
     }
 }
 
-/** The line naming the focused title above the library's wall, composed as LibraryScreen does. */
+/** The line naming the focused title above the library's wall, at the height LibraryScreen gives it. */
 @Composable
 private fun StressInfoLine(item: MediaItem) {
-    Row(Modifier.height(HlLayout.infoLine), verticalAlignment = Alignment.CenterVertically) {
-        Text(item.title, style = Hl.type.entry, color = Hl.colors.content, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        Spacer(Modifier.width(HlSpace.m))
-        MetaLine(item, showGenres = false)
-        if (item.badges.isNotEmpty()) {
-            Spacer(Modifier.width(HlSpace.l))
-            BadgeRow(item.badges.take(4))
-        }
-    }
+    TitleLine(item, Modifier.height(HlLayout.infoLine))
 }
 
 /** One cell per script, each a side column wide, so the rows line up. */

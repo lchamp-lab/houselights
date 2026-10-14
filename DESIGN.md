@@ -178,7 +178,8 @@ without the prefix (`MenuOption`, `MeterLegend`, `PosterCard`, `BillingBlock`, `
 | `PosterCard`, `LandscapeCard`, `PersonCard`, `ArtworkSurface`, `ArtworkImage` | artwork with the shared focus treatment and a faint edge at rest (see *Cards*) |
 | `MediaRow` | horizontal row with header; focus coming back into it lands on its last card; dims the other cards when one is focused |
 | `HeroInfo`, `TitleArt`, `EpisodeHeading`, `MetaLine`, `BillingBlock` | what a title is: clear logo or condensed title, facts, credits |
-| `Badge`, `BadgeRow`, `FactRow` | formats and ratings (a `lit` badge marks a state); facts on one line, spaced, never punctuated |
+| `TitleLine` | the line naming the title under focus over a wall: its name, facts and formats on one line of fixed height. Short of room, the formats go first, from the last, then the name ends in an ellipsis |
+| `Badge`, `BadgeRow`, `FactRow` | formats and ratings (a `lit` badge marks a state), wrapping, or on one line (`oneLine`) where the last ones go; facts on one line, spaced, never punctuated |
 | `HlButton` (`Primary`, `Secondary`), `HlIconButton` | pill and round actions, all 48 dp tall; the icon button shows its label under it when focused. The label takes no room (a row with something below keeps `HlLayout.iconLabelRoom` for it), stays inside the safe area, hides while a sheet is open, and is not read out: the icon carries the name. Over an image (`onArtwork`) the button rests on a plate |
 | `HlSegmented` | the one way to show where you are or what is chosen among a few: home navigation, seasons (`scrollable`), NFO views, form choices. In a track, **white means current**: one white pill sits under the current option and slides to the option chosen (`STANDARD`, emphasized). The option under focus but not chosen is a grey pill; focus on the current option draws a ring around the pill, travelling with it. Focus entering a track, from any side, lands on the current option, never on the nearest one; to accessibility services the options are tabs, the current one selected. A long track scrolls as one piece, pill included. Over an image (`onArtwork`), the track is a plate and its options are white. There is no standalone tab |
 | `HlPanel` (`Quiet`, `Raised`, `lit`), `HlPanelButton` | the one panel recipe, and its focusable form |
@@ -311,6 +312,10 @@ screen: it goes to the log.
 - A number never leaves its unit: `3,27 Go`, `2 h 02`, `10 bits`, `3840 × 1608` (`formatDuration`,
   `formatDimensions`, `formatBytes`, `formatRatio` in `ui/util/Format.kt`).
 - Facts are separated by layout (`FactRow`). Inside a single text (a button's detail), `FACT_GAP`.
+  A line of facts never cuts one: short of room, it leaves out whole facts from the end, as the
+  billing block leaves out names, so the ones that matter come first (`MetaLine`: year, length,
+  rating, score, then genres, one by one). Only a fact alone on a line too short ends in an
+  ellipsis. Label and value pairs (`DefinitionList`) sit on one first baseline.
 - Values are words a person uses: "Détecté", "Hors ligne", "Aucune", never "absent" or "0 fichier".
 - A failure says what happened and what to do ("Le dossier n’a pas pu être lu. Réessayez, ou
   vérifiez le partage sur le NAS."), never an exception's text: that goes to the log only.
