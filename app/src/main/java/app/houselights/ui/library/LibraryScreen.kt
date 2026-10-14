@@ -57,7 +57,6 @@ import app.houselights.core.LibraryFilter
 import app.houselights.core.Quality
 import app.houselights.core.SortOption
 import app.houselights.core.WatchStatus
-import app.houselights.ui.design.components.Emphasis
 import app.houselights.ui.design.components.HlButton
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlMotion
@@ -167,14 +166,13 @@ fun LibraryScreen(
                     // Collections are browsed by name or date; filters belong to films.
                     if (library.kind != LibraryKind.COLLECTIONS) FilterButton(state.filter, state.facets, vm::setFilter)
                     Spacer(Modifier.width(HlSpace.s))
+                    // "Trier", and how it is sorted now: alone, "Titre" would read as a title.
                     HlMenuButton(
-                        text = sortLabel(state.sort),
+                        text = stringResource(R.string.sort),
                         icon = HlIcons.Sort,
+                        detail = sortLabel(state.sort),
                         sections = listOf(
-                            MenuSection(
-                                stringResource(R.string.sort_by),
-                                SortOption.entries.map { opt -> MenuOption(sortLabel(opt), state.sort == opt) { vm.setSort(opt) } },
-                            ),
+                            MenuSection(null, SortOption.entries.map { MenuOption(sortOrder(it), state.sort == it) { vm.setSort(it) } }),
                         ),
                     )
                 }
@@ -281,6 +279,17 @@ private fun sortLabel(sort: SortOption): String = stringResource(
     }
 )
 
+/** A sort as the menu offers it: what it sorts on, and in which order. */
+@Composable
+private fun sortOrder(sort: SortOption): String = stringResource(
+    when (sort) {
+        SortOption.TITLE -> R.string.sort_title_order
+        SortOption.ADDED -> R.string.sort_added_order
+        SortOption.YEAR -> R.string.sort_year_order
+        SortOption.RATING -> R.string.sort_rating_order
+    }
+)
+
 /** Filter menu: status, genre, decade and quality, combined; stays open while choosing. */
 @Composable
 private fun FilterButton(filter: LibraryFilter, facets: LibraryFacets, onChange: (LibraryFilter) -> Unit) {
@@ -347,7 +356,8 @@ private fun FilterButton(filter: LibraryFilter, facets: LibraryFacets, onChange:
         icon = HlIcons.Filter,
         sections = sections,
         detail = detail,
-        emphasis = if (filter.activeCount > 0) Emphasis.Primary else Emphasis.Secondary,
+        // An active filter is a state, not the main action: its detail is lit, the button stays secondary.
+        detailLit = filter.activeCount > 0,
         closeOnSelect = false,
     )
 }

@@ -39,7 +39,7 @@
     <string name="nav_settings">Réglages</string>
     <string name="sort_title">Titre</string>
     <string name="sort_added">Date d’ajout</string>
-    <string name="sort_by">Trier par</string>
+    <string name="sort">Trier</string>
     <string name="filter">Filtrer</string>
     <string name="filter_status">Statut</string>
     <string name="status_in_progress">En cours</string>
@@ -62,6 +62,10 @@
     <string name="show_all">Tous</string>
     <string name="sort_year">Année</string>
     <string name="sort_rating">Note</string>
+    <string name="sort_title_order">Titre, de A à Z</string>
+    <string name="sort_added_order">Date d’ajout, récents d’abord</string>
+    <string name="sort_year_order">Année, récents d’abord</string>
+    <string name="sort_rating_order">Note, meilleures d’abord</string>
     <string name="filter_unwatched">Non vus</string>
 
     <string name="play">Lire</string>

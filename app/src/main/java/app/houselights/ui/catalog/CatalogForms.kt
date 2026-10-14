@@ -29,7 +29,6 @@ import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.components.ChoiceOption
-import app.houselights.ui.design.components.Emphasis
 import app.houselights.ui.design.components.FactRow
 import app.houselights.ui.design.components.FieldLabel
 import app.houselights.ui.design.components.HlChoiceSheet
@@ -259,9 +258,10 @@ private fun FormMenus() {
 private fun FormSortMenu() {
     var sort by remember { mutableIntStateOf(1) }
     HlMenuButton(
-        text = FORM_SORTS[sort],
+        text = "Trier",
         icon = HlIcons.Sort,
-        sections = listOf(MenuSection("Trier par", FORM_SORTS.mapIndexed { i, label -> MenuOption(label, sort == i) { sort = i } })),
+        detail = FORM_SORTS[sort],
+        sections = listOf(MenuSection(null, FORM_SORT_ORDERS.mapIndexed { i, label -> MenuOption(label, sort == i) { sort = i } })),
     )
 }
 
@@ -309,7 +309,7 @@ private fun FormFilterMenu(initial: FormFilters) {
         icon = HlIcons.Filter,
         sections = sections,
         detail = detail,
-        emphasis = if (f.active > 0) Emphasis.Primary else Emphasis.Secondary,
+        detailLit = f.active > 0,
         closeOnSelect = false,
     )
 }
@@ -361,6 +361,9 @@ private fun FormReading(paragraphs: List<String>) {
 }
 
 private val FORM_SORTS = listOf("Titre", "Date d’ajout", "Année", "Note")
+
+private val FORM_SORT_ORDERS =
+    listOf("Titre, de A à Z", "Date d’ajout, récents d’abord", "Année, récents d’abord", "Note, meilleures d’abord")
 
 private val FORM_STATUSES = listOf("Tous", "Non vus", "En cours", "Vus", "Favoris")
 
