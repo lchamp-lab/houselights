@@ -14,7 +14,10 @@ every build (see *Guard*).
    Tungsten, the only fixed accent, marks **states**: in use, your choice, needs attention.
 2. **Ten-foot first.** Nothing below 12 sp, no content below 14 sp, every text at least 4.5:1 on the
    surface it sits on (see *Contrast*). Content stays inside the overscan-safe area (`HlSpace.safeH` /
-   `safeV`). Every focusable element shows an unmistakable focus state.
+   `safeV`). Every focusable element shows an unmistakable focus state. Every screen is laid out on
+   the TV canvas, 960 × 540 dp (`HlLayout.CANVAS_WIDTH`): `HouselightsTheme` sets the density from
+   the screen's real width, not from what the device declares (the Zidoo declares 240 dpi, which
+   would draw everything a quarter smaller); the system's text scale stays the viewer's.
 3. **Calm motion.** Motion answers the user (focus, opening, playing, choosing: the pill of a track
    slides to the option chosen). Two orchestrated moments only:
    the *house lights* going down before playback, and the *poster wall* drifting on the welcome screen.

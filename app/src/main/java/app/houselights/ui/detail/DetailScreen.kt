@@ -39,7 +39,6 @@ import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -90,6 +89,7 @@ import app.houselights.ui.util.appContainer
 import app.houselights.ui.util.FACT_GAP
 import app.houselights.ui.util.formatDuration
 import app.houselights.ui.util.formatTimecode
+import app.houselights.ui.util.screenHeight
 import app.houselights.ui.util.skeletonDelayPassed
 
 @Composable
@@ -124,7 +124,7 @@ fun DetailScreen(
         return
     }
 
-    val screenHeight = LocalConfiguration.current.screenHeightDp.dp
+    val screenHeight = screenHeight()
     var focusedEpisode by remember { mutableStateOf<MediaItem?>(null) }
     var showTech by remember { mutableStateOf(false) }
     val media = item.media?.takeIf { it.video != null || it.audio.isNotEmpty() }

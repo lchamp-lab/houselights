@@ -11,6 +11,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -57,5 +58,18 @@ fun skeletonDelayPassed(): Boolean {
 @Composable
 fun Dp.toPx(): Int = with(LocalDensity.current) { this@toPx.roundToPx() }
 
+/** The screen in physical pixels, whatever density the device declares. */
 @Composable
-fun screenWidthPx(): Int = LocalConfiguration.current.screenWidthDp.dp.toPx()
+fun screenSizePx(): IntSize {
+    // Read so a configuration change recomposes the callers.
+    LocalConfiguration.current
+    val metrics = LocalContext.current.resources.displayMetrics
+    return IntSize(metrics.widthPixels, metrics.heightPixels)
+}
+
+@Composable
+fun screenWidthPx(): Int = screenSizePx().width
+
+/** The screen's height on the canvas the app lays out for (540 dp on a TV). */
+@Composable
+fun screenHeight(): Dp = with(LocalDensity.current) { screenSizePx().height.toDp() }

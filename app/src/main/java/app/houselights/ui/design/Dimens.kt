@@ -109,6 +109,12 @@ object HlSize {
 
 /** Widths and heights of layout parts. */
 object HlLayout {
+    /**
+     * The width every screen is laid out for, in dp: the TV canvas, 960 × 540. The density follows
+     * the screen's real width (×2 for a 1080p interface), not what the device declares: the Zidoo
+     * declares 240 dpi, which would draw everything a quarter smaller than designed.
+     */
+    const val CANVAS_WIDTH = 960f
     /** Longest comfortable line of reading text. */
     val readable = 640.dp
     /** Text set beside artwork (heroes, detail pages). */

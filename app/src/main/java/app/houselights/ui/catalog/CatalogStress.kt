@@ -20,7 +20,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -40,9 +40,11 @@ import app.houselights.ui.design.components.MetaLine
 import app.houselights.ui.design.components.PosterCard
 import app.houselights.ui.util.NBSP
 import app.houselights.ui.util.formatDuration
+import app.houselights.ui.util.screenSizePx
 import java.text.DecimalFormat
 import java.text.DecimalFormatSymbols
 import java.util.Locale
+import kotlin.math.roundToInt
 
 /**
  * The fullest content the screens can meet, rebuilt from the components they use, and the device
@@ -137,16 +139,20 @@ private fun StressFactsSection() {
 @Composable
 private fun StressDeviceSection() {
     Group("Device", still = true) {
-        val config = LocalConfiguration.current
+        val screen = screenSizePx()
         val density = LocalDensity.current
+        val declared = LocalContext.current.resources.displayMetrics.density
+        val canvas = with(density) {
+            "${screen.width.toDp().value.roundToInt()}$NBSP×$NBSP${screen.height.toDp().value.roundToInt()}${NBSP}dp"
+        }
         Column {
             Text(
-                "${config.screenWidthDp}$NBSP×$NBSP${config.screenHeightDp}${NBSP}dp, " +
-                    "densité ${stressDecimal(density.density)}, échelle du texte ${stressDecimal(density.fontScale)}",
+                "$canvas, écran ${screen.width}$NBSP×$NBSP${screen.height}${NBSP}px, densité ${stressDecimal(density.density)} " +
+                    "(annoncée ${stressDecimal(declared)}), échelle du texte ${stressDecimal(density.fontScale)}",
                 style = Hl.type.meta,
                 color = Hl.colors.content,
             )
-            StressCaption("Screen size, density and text scale, as Compose sees them")
+            StressCaption("The canvas the app lays out on, the real screen, and the density the device declares")
         }
     }
 }
