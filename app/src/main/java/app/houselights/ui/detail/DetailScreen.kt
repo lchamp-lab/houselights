@@ -70,6 +70,7 @@ import app.houselights.ui.design.components.Emphasis
 import app.houselights.ui.design.components.HlButton
 import app.houselights.ui.design.components.HlIconButton
 import app.houselights.ui.design.components.HlSegmented
+import app.houselights.ui.design.components.HeroSkeleton
 import app.houselights.ui.design.components.HlStatus
 import app.houselights.ui.design.components.StatusState
 import app.houselights.ui.design.components.LandscapeCard
@@ -89,6 +90,7 @@ import app.houselights.ui.util.appContainer
 import app.houselights.ui.util.FACT_GAP
 import app.houselights.ui.util.formatDuration
 import app.houselights.ui.util.formatTimecode
+import app.houselights.ui.util.skeletonDelayPassed
 
 @Composable
 fun DetailScreen(
@@ -110,7 +112,14 @@ fun DetailScreen(
     if (item == null) {
         Box(Modifier.fillMaxSize()) {
             Backdrop(null, BackdropStyle.Full)
-            state.error?.let { Box(Modifier.padding(top = HlLayout.errorTop)) { ErrorMessage(it, vm::load) } }
+            Box(Modifier.padding(top = HlLayout.errorTop)) {
+                val error = state.error
+                when {
+                    error != null -> ErrorMessage(error, vm::load)
+                    // Where the title and its facts will be, once loading takes long enough to be seen.
+                    skeletonDelayPassed() -> HeroSkeleton(Modifier.padding(start = HlSpace.safeH, top = HlSpace.l))
+                }
+            }
         }
         return
     }

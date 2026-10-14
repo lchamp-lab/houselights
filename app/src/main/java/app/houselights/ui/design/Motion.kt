@@ -16,6 +16,8 @@ object HlMotion {
     const val DIM = 1000
     /** Wait for focus to settle before loading a new backdrop. */
     const val SETTLE = 220L
+    /** Placeholders wait this long: a slow load shows them, a quick one never flashes. */
+    const val SKELETON_DELAY = 400L
     /** One loop of the welcome poster wall: slow enough to be felt more than seen. */
     const val WALL_DRIFT = 140_000
     /** Dialogs grow from this scale as they appear. */

@@ -327,8 +327,9 @@ fun ProgressLine(progress: Float, modifier: Modifier = Modifier) {
     }
 }
 
-/** Placeholder card while a row loads: same footprint, no shimmer. */
+/** Placeholder card while a row loads: same footprint, no shimmer. A null [width] fills a grid cell. */
 @Composable
-fun CardSkeleton(width: Dp, aspectRatio: Float, modifier: Modifier = Modifier) {
-    Box(modifier.width(width).aspectRatio(aspectRatio).clip(HlShapes.artwork).background(Hl.colors.surface))
+fun CardSkeleton(width: Dp?, aspectRatio: Float, modifier: Modifier = Modifier) {
+    val sized = if (width != null) modifier.width(width) else modifier
+    Box(sized.aspectRatio(aspectRatio).clip(HlShapes.artwork).background(Hl.colors.surface))
 }

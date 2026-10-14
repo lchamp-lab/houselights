@@ -35,6 +35,7 @@ import app.houselights.ui.design.components.ArtworkChoiceCard
 import app.houselights.ui.design.components.ArtworkImage
 import app.houselights.ui.design.components.ArtworkSurface
 import app.houselights.ui.design.components.CardSkeleton
+import app.houselights.ui.design.components.HeroSkeleton
 import app.houselights.ui.design.components.HlResultItem
 import app.houselights.ui.design.components.LandscapeCard
 import app.houselights.ui.design.components.MediaRow
@@ -244,6 +245,7 @@ private fun Skeletons() {
             CardSkeleton(HlLayout.landscapeChoice, 16f / 9f)
         }
         StateCaption("landscape row: unused", width = HlSize.landscape) { CardSkeleton(HlSize.landscape, 16f / 9f) }
+        StateCaption("title and facts (detail page)", width = HlSize.landscape) { HeroSkeleton() }
     }
 }
 

@@ -95,6 +95,9 @@ object HlSize {
     val rowPreviewWide = 84.dp
     /** Progress shown beside text (time left). */
     val progressShort = 120.dp
+    /** The short rules standing for a title and its facts while a page loads. */
+    val skeletonTitle = 48.dp
+    val skeletonFacts = 24.dp
     val progress = 3.dp
     /** An option inside a segmented track: with the track's padding, as tall as a control. */
     val segment = 40.dp
