@@ -17,9 +17,13 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.Lifecycle
@@ -80,6 +84,9 @@ class MainActivity : ComponentActivity() {
     /** House lights: down while the player starts, back up when the user returns. */
     private val lightsDown = mutableStateOf(false)
 
+    /** How far down the lights are as drawn, 0 to 1: the player waits for the room to be dark. */
+    private var lightsLevel: State<Float> = mutableFloatStateOf(0f)
+
     /** The cue under way, until the player takes over: Back stops it. */
     private var cue: Job? = null
 
@@ -117,6 +124,7 @@ class MainActivity : ComponentActivity() {
                     tween(HlMotion.DIM, easing = LinearEasing),
                     label = "houselights",
                 )
+                SideEffect { lightsLevel = lights }
                 CompositionLocalProvider(LocalHouseLights provides { lights.value }, LocalErrorFix provides fixError) {
                     Box(Modifier.fillMaxSize().background(HouselightsColors.background)) {
                         AppNavigation(nav, onPlay = ::play)
@@ -144,7 +152,8 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        lightsDown.value = false
+        // Back from the player, or from elsewhere during the cue: the lights come up, nothing plays.
+        cancelCue()
     }
 
     /**
@@ -172,8 +181,9 @@ class MainActivity : ComponentActivity() {
             val s = container.settings.state.value
             suspendRunCatching { container.provider.playback(item, resume, PlaybackOptions(s.pathMappings, s.forceHttp)) }
                 .onSuccess { plan ->
-                    // Let the room go dark before the player takes over the screen.
-                    delay(HlMotion.DIM.toLong())
+                    // The room goes dark before the player takes over the screen: the cue ran while
+                    // the plan was resolved, and with animations off it is already over.
+                    snapshotFlow { lightsLevel.value }.first { it >= 1f }
                     when (plan) {
                         is PlaybackPlan.Launch -> try {
                             // The player needs the memory more than pictures that load again from disk.

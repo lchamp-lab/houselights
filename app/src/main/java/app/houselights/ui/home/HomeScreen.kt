@@ -61,6 +61,8 @@ import app.houselights.providers.local.ScanError
 import app.houselights.providers.local.ScanState
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlMotion
+import app.houselights.ui.design.awaitMotion
+import app.houselights.ui.design.textRoom
 import app.houselights.ui.design.LocalHouseLights
 import app.houselights.ui.design.houseLit
 import app.houselights.ui.design.HlSize
@@ -152,7 +154,8 @@ fun HomeScreen(
                     },
                     onSettings = onOpenSettings,
                 )
-                HeroInfo(shown, Modifier.padding(start = HlSpace.safeH, top = HlSpace.xs).height(HlLayout.hero))
+                // Its height holds the text at the viewer's size, and stays the same whatever has focus.
+                HeroInfo(shown, Modifier.padding(start = HlSpace.safeH, top = HlSpace.xs).height(textRoom(HlLayout.hero)))
                 Spacer(Modifier.height(HlSpace.s))
                 when {
                     state.sections.isEmpty() ->
@@ -199,7 +202,8 @@ private fun TopBar(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.Top,
     ) {
-        // The white slides to the library chosen, then it opens; back home, "Accueil" is lit again.
+        // The white slides to the library chosen, then it opens (at once when animations are off);
+        // back home, "Accueil" is lit again.
         var current by remember { mutableIntStateOf(0) }
         val scope = rememberCoroutineScope()
         HlSegmented(
@@ -209,7 +213,7 @@ private fun TopBar(
                 if (i > 0 && current == 0) {
                     current = i
                     scope.launch {
-                        delay(HlMotion.STANDARD.toLong())
+                        awaitMotion(HlMotion.STANDARD)
                         onLibrary(libraries[i - 1])
                     }
                 }

@@ -48,8 +48,9 @@ The technical voice speaks the vocabulary of a Blu-ray case: formats by their na
 
 - **House lights.** Playing a title runs one cue (`HouseLightCue`, `DIM`): the room fades first (text,
   buttons, rows: `Modifier.houseLit`), the scrims lift so the picture shows whole, then black and the
-  player. Coming back runs the cue backwards. While the lights go down the remote waits: a second OK
-  does nothing, Back brings the lights up again and nothing plays.
+  player. The player starts when the room is dark, not after a fixed time: the cue runs while the
+  title is being prepared. Coming back runs the cue backwards. While the lights go down the remote
+  waits: a second OK does nothing, Back brings the lights up again and nothing plays.
 - **Billing block.** On a detail page, director and leading cast read as a sentence, "a film by NAME
   with NAME, NAME and NAME": names in condensed capitals, small words and commas receding. On one line:
   it keeps as many leading names as fit, and never breaks inside a name.
@@ -116,15 +117,18 @@ words sit above and below it). A highlight smaller than a twentieth of the colum
 
 Eight sizes with clear steps: **12 · 14 · 16 · 20 · 24 · 32 · 44 · 64 sp**, plus 80 for the wordmark as
 a subject. Line heights sit on a 2 sp grid. Numbers use tabular figures (`tnum`) in every technical
-style, so durations, sizes and counts line up and do not jitter.
+style and wherever a figure changes under the eye (`figure`, `meta`, `label`, `caption`, `detail`),
+so durations, sizes and counts line up and do not jitter. A text without a style is `body`
+(`HouselightsTheme` provides it, and maps tv-material's roles onto the scale): never tv-material's
+own face.
 
 | Style | Size / line | Role (one each) |
 |---|---|---|
-| `display` | 64 / 70 | title of a detail page without logo |
+| `display` | 64 / 72 | title of a detail page without logo |
 | `headline` | 44 / 48 | screen titles, home hero title without logo |
 | `figure` | 32 / 36 | a figure that states something (storage used) |
 | `subject` | 32 / 36 | what a panel or a sheet is about ("Modifier", "Fiche technique") |
-| `cardTitle` | 20 / 22 | a title set on a card without artwork, like a plain one-sheet |
+| `cardTitle` | 20 / 24 | a title set on a card without artwork, like a plain one-sheet |
 | `title` | 24 / 30 | pane and dialog titles, taglines |
 | `lead` | 20 / 26 | row headers, names of cards and results, episode names |
 | `spec` | 20 / 26 | headline of a technical sheet |
@@ -140,7 +144,15 @@ style, so durations, sizes and counts line up and do not jitter.
 | `wordmark` / `wordmarkHero` | 22 / 24 and 80 / 84 | the Houselights wordmark |
 
 Archivo covers Latin (with Vietnamese); Greek, Cyrillic, Thai or Korean names fall back to the system
-font. No other font is shipped; line heights leave room for the fallback.
+font. No other font is shipped; line heights leave room for the fallback, and for Vietnamese: in
+the condensed bold of `display` and `cardTitle`, a stacked mark (ổ, ế) rises to 0.92 em and a
+descender falls to 0.20 em, so their lines are 1.125 and 1.2 em apart. A capital with a stacked
+mark (Ổ, 1.05 em) right under a descender can still touch it; the catalogue's stress shows both.
+
+A frame that holds text is never a fixed height in dp, which the viewer's text scale would
+overflow: it is a minimum (`heightIn(min = …)`), or, where it must not move with what it shows (the
+home hero, an episode's overview), `textRoom(height)`, a height given at the default text size
+that grows with the text.
 
 ### Space and size (`Dimens.kt`)
 
@@ -158,7 +170,7 @@ font. No other font is shipped; line heights leave room for the fallback.
 
 | Token | File | Content |
 |---|---|---|
-| `HlMotion` | `Motion.kt` | `FAST` 150, `STANDARD` 250, `SLOW` 600, `DIM` 1000 ms; `SETTLE` 220 ms before a backdrop changes; `SKELETON_DELAY` 400 ms before a placeholder shows; `WALL_DRIFT`; `ENTER_SCALE` |
+| `HlMotion`, `awaitMotion` | `Motion.kt` | `FAST` 150, `STANDARD` 250, `SLOW` 600, `DIM` 1000 ms; `SETTLE` 220 ms before a backdrop changes; `SKELETON_DELAY` 400 ms before a placeholder shows; `WALL_DRIFT`; `ENTER_SCALE`. What follows a motion waits for its end (`awaitMotion`, or the animated value itself), never a fixed `delay`: with animations off, everything settles without moving and nothing waits |
 | `LocalHouseLights`, `HouseLightCue` | `Auditorium.kt` | how far the house lights are down (read while drawing), and the order of the cue |
 | `HlIcons` | `Icons.kt` | line icons drawn for the app (24 dp grid, 1.75 stroke): places, actions (Restart, Edit), marks (Check), the remote's Back; core Material icons for the rest |
 | `rememberListScroll`, `ListScroll`, `RowScroll` | `Scroll.kt` | lists scroll only as much as needed (`EdgeScroll`), never against the edge of the screen: a list keeps focus `HlFocus.edge` from its top and bottom, so the last row stops inside the safe area; a list that starts under a header or a hero (`ListScroll(top)`) brings its rows back to where its first one rests; rows keep focus 80 dp from the sides, so the first card always scrolls home |
@@ -346,8 +358,9 @@ review changes on a real screen. Each component is laid out as a row of its stat
 lit, loading, failed, empty), each named underneath; focus is checked live with the remote. The
 catalogue shows components as they are, defects included: that is how they are seen. Its sections
 live in `ui/catalog` (`CatalogScreen` for tokens, controls and sheets; `CatalogForms`, `CatalogCards`,
-`CatalogReading`; `CatalogStress` for the longest French labels, the fullest rows, the scripts
-Archivo lacks and a line on the device: size in dp, density, text scale). `CatalogCoverageTest` fails
+`CatalogReading`; `CatalogStress` for the longest French labels, the fullest rows, the home hero at
+the largest text size, the scripts Archivo lacks and a line on the device: size in dp, density, text
+scale). `CatalogCoverageTest` fails
 when a public component of `ui/design/components` is missing; the few that fill the screen are listed
 there with the reason.
 

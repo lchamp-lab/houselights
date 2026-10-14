@@ -57,6 +57,7 @@ import app.houselights.ui.design.HlFocus
 import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.textRoom
 import app.houselights.ui.design.LocalAmbient
 import app.houselights.ui.design.LocalHouseLights
 import app.houselights.ui.design.houseLit
@@ -522,7 +523,11 @@ private fun Episodes(
             color = Hl.colors.contentSecondary,
             maxLines = 3,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(horizontal = HlSpace.safeH).widthIn(max = HlLayout.readable).height(HlLayout.episodeOverview),
+            // Three lines at the viewer's text size, so the page stays still as focus moves; more if a script needs it.
+            modifier = Modifier
+                .padding(horizontal = HlSpace.safeH)
+                .widthIn(max = HlLayout.readable)
+                .heightIn(min = textRoom(HlLayout.episodeOverview)),
         )
     }
 }
