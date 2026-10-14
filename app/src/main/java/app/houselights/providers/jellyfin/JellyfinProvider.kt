@@ -20,6 +20,7 @@ import app.houselights.core.ProviderCapabilities
 import app.houselights.core.SectionType
 import app.houselights.core.SortOption
 import app.houselights.core.SourceConfig
+import app.houselights.core.Typeset
 import app.houselights.core.suspendRunCatching
 import app.houselights.player.PathResolver
 import app.houselights.player.Redact
@@ -38,7 +39,7 @@ class JellyfinProvider(config: SourceConfig.Jellyfin, deviceId: String) : MediaP
     override suspend fun libraries(): List<Library> =
         api.views(userId).items
             .filter { it.collectionType in SUPPORTED_COLLECTIONS }
-            .map { Library(it.id, libraryKind(it.collectionType), it.name) }
+            .map { Library(it.id, libraryKind(it.collectionType), Typeset.text(it.name)) }
 
     override suspend fun home(): List<HomeSection> = coroutineScope {
         val resume = async { suspendRunCatching { api.resume(userId, 20, ROW_FIELDS).items }.getOrDefault(emptyList()) }

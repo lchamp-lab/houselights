@@ -74,7 +74,7 @@ fun JellyfinLoginScreen(onLoggedIn: () -> Unit) {
             label = stringResource(R.string.field_server),
             value = server,
             onValueChange = { vm.server = it },
-            placeholder = "192.168.1.10:8096",
+            placeholder = stringResource(R.string.placeholder_server),
             keyboardType = KeyboardType.Uri,
             modifier = Modifier.focusRequester(firstField),
         )
@@ -85,10 +85,12 @@ fun JellyfinLoginScreen(onLoggedIn: () -> Unit) {
             modifier = Modifier.focusRequester(passwordField),
         )
         HlButton(
-            stringResource(if (vm.busy) R.string.signing_in else R.string.sign_in),
+            stringResource(R.string.sign_in),
             ::login,
             icon = Icons.Filled.Check,
             emphasis = Emphasis.Primary,
+            busy = vm.busy,
+            busyLabel = stringResource(R.string.signing_in),
         )
     }
 }

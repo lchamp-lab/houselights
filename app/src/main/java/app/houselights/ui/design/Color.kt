@@ -96,5 +96,9 @@ object HlAlpha {
     const val WORDMARK_GLOW = 0.55f
 }
 
-/** Light spilling from the current artwork; animated by the screen that owns the backdrop. */
-val LocalAmbient = staticCompositionLocalOf { HouselightsColors.ambientFallback }
+/**
+ * Light spilling from the current artwork; animated by the screen that owns the backdrop. A
+ * function, so that what draws with it reads it while drawing: the light changing over 600 ms
+ * never recomposes the screen.
+ */
+val LocalAmbient = staticCompositionLocalOf<() -> Color> { { HouselightsColors.ambientFallback } }

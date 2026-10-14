@@ -3,7 +3,6 @@
     <string name="source_local_desc">Vos vidéos sur un NAS ou un partage réseau (NFS ou SMB). Houselights les analyse et récupère affiches et informations sur TMDB.</string>
     <string name="source_jellyfin">Serveur Jellyfin</string>
     <string name="source_jellyfin_desc">Utilisez la bibliothèque de votre serveur Jellyfin.</string>
-    <string name="sources_coming_soon">Emby et Plex : bientôt.</string>
     <string name="welcome_title">Choisissez votre bibliothèque</string>
 
     <string name="library_movies">Films</string>
@@ -31,7 +30,7 @@
         <item quantity="other">%d titres</item>
         <item quantity="many">%d titres</item>
     </plurals>
-    <string name="home_empty_local">Aucun film pour l’instant. Ajoutez le dossier qui les contient dans les Réglages.</string>
+    <string name="home_empty_local">Aucun film pour l’instant. Ajoutez le dossier qui les contient.</string>
     <string name="home_scanning">Analyse de vos fichiers… %1$d / %2$d</string>
     <string name="home_scan_failed">L’analyse n’a pas abouti</string>
     <string name="home_see_folders">Voir les dossiers</string>
@@ -39,7 +38,7 @@
     <string name="nav_settings">Réglages</string>
     <string name="sort_title">Titre</string>
     <string name="sort_added">Date d’ajout</string>
-    <string name="sort_by">Trier par</string>
+    <string name="sort">Trier</string>
     <string name="filter">Filtrer</string>
     <string name="filter_status">Statut</string>
     <string name="status_in_progress">En cours</string>
@@ -62,6 +61,10 @@
     <string name="show_all">Tous</string>
     <string name="sort_year">Année</string>
     <string name="sort_rating">Note</string>
+    <string name="sort_title_order">Titre, de A à Z</string>
+    <string name="sort_added_order">Date d’ajout, récents d’abord</string>
+    <string name="sort_year_order">Année, récents d’abord</string>
+    <string name="sort_rating_order">Note, meilleures d’abord</string>
     <string name="filter_unwatched">Non vus</string>
 
     <string name="play">Lire</string>
@@ -71,15 +74,17 @@
     <string name="from_start">Depuis le début</string>
     <string name="watched">Vu</string>
     <string name="mark_watched">Marquer comme vu</string>
-    <string name="favorite">Favori</string>
+    <string name="mark_unwatched">Marquer comme non vu</string>
     <string name="add_favorite">Ajouter aux favoris</string>
+    <string name="remove_favorite">Retirer des favoris</string>
     <string name="view_series">Voir la série</string>
     <string name="cast">Distribution</string>
     <string name="tech_details">Fiche technique</string>
-    <string name="tech_info">Infos techniques</string>
     <string name="sheet_back_hint">Retour pour fermer</string>
     <string name="cancel">Annuler</string>
-    <string name="nfo">NFO</string>
+    <string name="control_busy">En cours</string>
+    <string name="key_ok">OK</string>
+    <string name="key_hint_type">saisir</string>
     <string name="nfo_title">Fichier NFO</string>
     <string name="nfo_desc">La description de ce titre écrite par votre gestionnaire de médias. Ses informations priment sur celles de TMDB.</string>
     <string name="nfo_tab_info">Informations</string>
@@ -87,13 +92,14 @@
     <string name="nfo_state_full">Fiche complète</string>
     <string name="nfo_state_link">Lien seulement</string>
     <string name="nfo_state_unreadable">Illisible</string>
-    <string name="nfo_state_reading">Lecture…</string>
+    <string name="nfo_state_reading">Ouverture…</string>
     <string name="nfo_block_details">Détails</string>
     <string name="label_file">Fichier</string>
     <string name="nfo_unreadable">Ce NFO n’a pas pu être lu comme du XML.</string>
     <string name="nfo_link_only">Ce NFO contient seulement un lien vers une fiche ; Houselights s’en sert pour identifier le titre.</string>
     <string name="label_title">Titre</string>
     <string name="label_year">Année</string>
+    <string name="placeholder_year">2025</string>
     <string name="label_genres">Genres</string>
     <string name="label_directors">Réalisation</string>
     <string name="label_studios">Studios</string>
@@ -124,7 +130,7 @@
     <string name="player_credentials">Ce dossier est protégé par un mot de passe : seul le lecteur Zidoo peut le lire.</string>
 
     <string name="add_folder">Ajouter un dossier</string>
-    <string name="add_folder_desc">Indiquez où se trouvent vos films ou vos séries sur le NAS. Testez la connexion avant d’ajouter le dossier.</string>
+    <string name="add_folder_desc">Indiquez où se trouvent vos films ou vos séries sur le NAS. Houselights teste la connexion avant d’ajouter le dossier.</string>
     <string name="jellyfin_desc">Saisissez l’adresse de votre serveur et vos identifiants Jellyfin.</string>
     <string name="folder_kind">Contenu</string>
     <string name="field_protocol">Protocole</string>
@@ -136,6 +142,11 @@
     <string name="field_path">Dossier (facultatif)</string>
     <string name="field_user">Utilisateur</string>
     <string name="field_password">Mot de passe</string>
+    <string name="placeholder_host">Ex. : 192.168.1.10</string>
+    <string name="placeholder_export">Ex. : /volume1/media</string>
+    <string name="placeholder_share">Ex. : media</string>
+    <string name="placeholder_path_movies">Ex. : films</string>
+    <string name="placeholder_path_shows">Ex. : séries</string>
     <string name="test_connection">Tester</string>
     <string name="connection_untested">Connexion non testée</string>
     <string name="connection_testing">Connexion en cours…</string>
@@ -159,8 +170,10 @@
     <string name="jellyfin_title">Connexion à Jellyfin</string>
     <string name="servers_found">Serveurs trouvés sur le réseau</string>
     <string name="field_server">Adresse du serveur</string>
+    <string name="placeholder_server">Ex. : 192.168.1.10:8096</string>
     <string name="sign_in">Se connecter</string>
     <string name="signing_in">Connexion…</string>
+    <string name="checking">Vérification…</string>
     <string name="error_credentials">Identifiants refusés par le serveur.</string>
     <string name="error_server_unexpected">Le serveur a répondu de façon inattendue. Vérifiez l’adresse, puis réessayez.</string>
     <string name="error_server_unreachable">Rien ne répond à %s. Vérifiez l’adresse et que Jellyfin est démarré.</string>
@@ -217,13 +230,22 @@
     <string name="section_source">Bibliothèque</string>
     <string name="remove">Retirer</string>
     <string name="scan_now">Analyser maintenant</string>
+    <string name="scan_now_desc">Cherche les nouveaux fichiers</string>
     <string name="refresh_metadata">Actualiser toutes les informations</string>
-    <string name="last_scan">Dernière analyse : %s</string>
+    <string name="last_scan">Analysé %s</string>
+    <string name="never_scanned">Jamais analysé</string>
     <string name="never">jamais</string>
     <string name="just_now">à l’instant</string>
     <string name="tmdb_key">Clé API TMDB</string>
     <string name="tmdb_key_builtin">Laissez vide pour utiliser la clé intégrée à l’application.</string>
-    <string name="tmdb_key_missing">Aucune clé TMDB : impossible de récupérer affiches et informations. Une clé gratuite est disponible sur themoviedb.org.</string>
+    <string name="tmdb_key_builtin_state">Clé intégrée</string>
+    <string name="tmdb_key_personal">Clé personnelle</string>
+    <string name="tmdb_key_none">Aucune clé</string>
+    <string name="tmdb_key_none_desc">Sans clé, ni affiches ni informations.</string>
+    <string name="tmdb_key_free">Une clé gratuite est disponible sur themoviedb.org.</string>
+    <string name="tmdb_key_unchecked">Enregistrée sans vérification : TMDB ne répond pas.</string>
+    <string name="tmdb_key_revert">Revenir à la clé intégrée</string>
+    <string name="tmdb_key_revert_desc">Houselights oublie votre clé et reprend la sienne</string>
     <string name="save">Enregistrer</string>
     <string name="saved">Enregistré</string>
     <string name="section_playback">Lecture</string>
@@ -234,11 +256,11 @@
     <string name="server_path">Chemin serveur</string>
     <string name="add_mapping">Ajouter une correspondance</string>
     <string name="mapping_result">Résultat : %s</string>
-    <string name="mapping_none">aucune correspondance → flux HTTP</string>
+    <string name="mapping_none">aucune correspondance : lecture par le flux HTTP</string>
     <string name="section_display">Affichage</string>
     <string name="ui_4k">4K 60 Hz</string>
     <string name="ui_system">Mode du système</string>
-    <string name="testing">test…</string>
+    <string name="testing">Vérification…</string>
     <!-- Modifier les images et l'identification -->
     <string name="billing_by">un film de</string>
     <string name="billing_with">avec</string>
@@ -305,10 +327,11 @@
     <string name="error_action_edit_tmdb_key">Modifier la clé</string>
     <!-- Settings rows -->
     <string name="nav_version">Version %s</string>
-    <string name="scan_running">Analyse %1$d sur %2$d</string>
+    <string name="scan_running">Analyse %1$d / %2$d</string>
     <string name="refresh_metadata_desc">Récupère à nouveau affiches et informations sur TMDB</string>
     <string name="remove_folder">Retirer ce dossier</string>
     <string name="remove_folder_desc">Ses titres quittent la bibliothèque ; rien n’est supprimé sur le NAS.</string>
+    <string name="remove_folder_row_desc">Ses titres quittent la bibliothèque</string>
     <string name="remove_folder_confirm">Retirer « %s » ?</string>
     <string name="tmdb_builtin_short">Intégrée</string>
     <string name="tmdb_personal">Personnelle</string>
@@ -344,6 +367,15 @@
         <item quantity="one">%d en Ultra HD</item>
         <item quantity="other">%d en Ultra HD</item>
         <item quantity="many">%d en Ultra HD</item>
+    </plurals>
+    <!-- Where a card stands, read out after its title by accessibility services -->
+    <string name="card_watched">vu</string>
+    <string name="card_new">nouveau</string>
+    <string name="card_in_progress">en cours, %d %%</string>
+    <plurals name="card_unwatched">
+        <item quantity="one">%d épisode non vu</item>
+        <item quantity="other">%d épisodes non vus</item>
+        <item quantity="many">%d épisodes non vus</item>
     </plurals>
     <!-- Collections -->
     <plurals name="film_count">

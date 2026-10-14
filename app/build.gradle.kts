@@ -60,6 +60,15 @@ android {
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
         }
+        // Optimised like a release, beside it and signed with the debug key: what the player really
+        // runs, to measure frames and start-up without installing the release package.
+        create("bench") {
+            initWith(getByName("release"))
+            applicationIdSuffix = ".bench"
+            signingConfig = signingConfigs.getByName("debug")
+            matchingFallbacks += "release"
+            manifestPlaceholders["appLabel"] = "Houselights bench"
+        }
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17

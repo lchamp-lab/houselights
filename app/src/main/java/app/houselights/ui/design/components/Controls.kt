@@ -30,6 +30,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.composed
 import kotlin.math.roundToInt
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.IntOffset
@@ -62,6 +63,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.Border
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.stateDescription
+import androidx.tv.material3.ClickableSurfaceBorder
+import androidx.tv.material3.ClickableSurfaceScale
+import app.houselights.R
 import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.Icon
 import androidx.tv.material3.Surface
@@ -82,8 +91,13 @@ import app.houselights.ui.design.RowScroll
 enum class Emphasis { Primary, Secondary }
 
 /**
- * Pill button. Every button turns projector white when focused; the primary one is
- * brighter at rest so the main action reads first.
+ * Pill button. Every button turns projector white when focused; the primary one is brighter at
+ * rest so the main action reads first. The label stops at [HlLayout.readableNarrow] and the
+ * [detail] at one line, both with an ellipsis; [detailLit] sets the detail in tungsten at rest,
+ * for a state it names (an active filter). Not [enabled], the button sits in a faint well with
+ * tertiary words and ignores OK; it keeps focus, outlined, so the remote still reaches it.
+ * [busy], it is at work: the quiet dot of a pending state in place of its icon, [busyLabel] in
+ * place of its label ("Connexion…"), its width kept, OK ignored. No spinner: nothing turns.
  */
 @Composable
 fun HlButton(
@@ -94,47 +108,138 @@ fun HlButton(
     /** Secondary information inside the button: runtime, resume point. */
     detail: String? = null,
     emphasis: Emphasis = Emphasis.Secondary,
+    detailLit: Boolean = false,
+    enabled: Boolean = true,
+    busy: Boolean = false,
+    busyLabel: String = text,
+) = PillButton(text, onClick, modifier, icon, detail, emphasis, detailLit, enabled, busy, busyLabel)
+
+/**
+ * The pill of [HlButton]. [caution] sets the label in tungsten at rest: the action a question
+ * asks about, which cannot be undone ([SheetConfirm]). Attention, never red.
+ */
+@Composable
+internal fun PillButton(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    icon: ImageVector? = null,
+    detail: String? = null,
+    emphasis: Emphasis = Emphasis.Secondary,
+    detailLit: Boolean = false,
+    enabled: Boolean = true,
+    busy: Boolean = false,
+    busyLabel: String = text,
+    caution: Boolean = false,
 ) {
     val c = Hl.colors
     val interaction = remember { MutableInteractionSource() }
     val focused by interaction.collectIsFocusedAsState()
+    val busyState = stringResource(R.string.control_busy)
+    val fill = if (emphasis == Emphasis.Primary) HlAlpha.CONTROL_FILL_STRONG else HlAlpha.CONTROL_FILL
     // A Surface rather than tv-material's Button, whose content keeps a minimum height of its own
     // at the top of the control: here the content is centred in exactly the control height.
     Surface(
-        onClick = onClick,
-        modifier = modifier.height(HlSize.control),
+        onClick = { if (!busy) onClick() },
+        modifier = modifier.height(HlSize.control).semantics { if (busy) stateDescription = busyState },
+        enabled = enabled,
         shape = ClickableSurfaceDefaults.shape(HlShapes.control),
         colors = ClickableSurfaceDefaults.colors(
-            containerColor = c.content.copy(alpha = if (emphasis == Emphasis.Primary) HlAlpha.CONTROL_FILL_STRONG else HlAlpha.CONTROL_FILL),
-            contentColor = c.content,
+            containerColor = c.content.copy(alpha = fill),
+            contentColor = if (caution) c.tungsten else c.content,
             focusedContainerColor = c.focus,
             focusedContentColor = c.onFocus,
             pressedContainerColor = c.focus,
             pressedContentColor = c.onFocus,
+            disabledContainerColor = c.content.copy(alpha = HlAlpha.WELL),
+            disabledContentColor = c.contentTertiary,
         ),
-        scale = ClickableSurfaceDefaults.scale(focusedScale = HlFocus.CONTROL_SCALE),
+        border = disabledFocusBorder(HlShapes.control),
+        scale = controlScale(),
         interactionSource = interaction,
     ) {
         Row(
-            Modifier.align(Alignment.Center).padding(
-                start = if (icon != null) HlControl.buttonPaddingIcon else HlControl.buttonPaddingH,
-                end = HlControl.buttonPaddingH,
-            ),
+            Modifier
+                .align(Alignment.Center)
+                .keepWidthWhile(busy)
+                .padding(
+                    start = if (icon != null || busy) HlControl.buttonPaddingIcon else HlControl.buttonPaddingH,
+                    end = HlControl.buttonPaddingH,
+                ),
+            horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            if (icon != null) {
-                Icon(icon, contentDescription = null, modifier = Modifier.size(HlSize.icon))
+            if (busy) {
+                Box(Modifier.size(HlSize.icon), contentAlignment = Alignment.Center) { StatusDot(StatusState.Pending) }
                 Spacer(Modifier.width(HlControl.iconGap))
-            }
-            Text(text, style = Hl.type.label, maxLines = 1, softWrap = false)
-            if (detail != null) {
-                Spacer(Modifier.width(HlSpace.s))
-                // Secondary at rest: tertiary would fall to 3.66:1 on a primary button.
-                Text(detail, style = Hl.type.meta, color = if (focused) c.onFocusSecondary else c.contentSecondary)
+                ButtonLabel(busyLabel)
+            } else {
+                // A disabled button keeps its well under focus: white would offer an action.
+                ButtonContent(text, icon, detail, detailColor(focused && enabled, enabled, detailLit))
             }
         }
     }
 }
+
+/** What a button says at rest: its icon, its label, its detail. */
+@Composable
+private fun ButtonContent(text: String, icon: ImageVector?, detail: String?, detailColor: Color) {
+    if (icon != null) {
+        Icon(icon, contentDescription = null, modifier = Modifier.size(HlSize.icon))
+        Spacer(Modifier.width(HlControl.iconGap))
+    }
+    ButtonLabel(text)
+    if (detail != null) {
+        Spacer(Modifier.width(HlSpace.s))
+        Text(detail, style = Hl.type.meta, color = detailColor, maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
+    }
+}
+
+/** The line under a button's name, by state. Secondary at rest: tertiary falls to 3.66:1 on a primary button. */
+@Composable
+private fun detailColor(onWhite: Boolean, enabled: Boolean, lit: Boolean): Color {
+    val c = Hl.colors
+    return when {
+        onWhite -> c.onFocusSecondary
+        !enabled -> c.contentTertiary
+        lit -> c.tungsten
+        else -> c.contentSecondary
+    }
+}
+
+/** Measures the content at rest, and keeps at least that width while [busy]: the row around it does not move. */
+private fun Modifier.keepWidthWhile(busy: Boolean): Modifier = composed {
+    var rest by remember { mutableIntStateOf(0) }
+    val density = LocalDensity.current
+    if (busy) widthIn(min = with(density) { rest.toDp() }) else onSizeChanged { rest = it.width }
+}
+
+/** The words of a button, on one line, no wider than a reading column. */
+@Composable
+private fun ButtonLabel(text: String) {
+    Text(
+        text,
+        style = Hl.type.label,
+        maxLines = 1,
+        softWrap = false,
+        overflow = TextOverflow.Ellipsis,
+        modifier = Modifier.widthIn(max = HlLayout.readableNarrow),
+    )
+}
+
+/**
+ * Focus on a disabled control: the outline of focus in projector white, never the white fill,
+ * which would offer an action.
+ */
+@Composable
+internal fun disabledFocusBorder(shape: Shape): ClickableSurfaceBorder = ClickableSurfaceDefaults.border(
+    focusedDisabledBorder = Border(BorderStroke(HlSize.focusBorder, Hl.colors.focus), shape = shape),
+)
+
+/** A control grows with focus, enabled or not. */
+@Composable
+internal fun controlScale(): ClickableSurfaceScale =
+    ClickableSurfaceDefaults.scale(focusedScale = HlFocus.CONTROL_SCALE, focusedDisabledScale = HlFocus.CONTROL_SCALE)
 
 /**
  * Round icon button; its label appears under it while focused, keeping the row quiet. The label
@@ -142,7 +247,10 @@ fun HlButton(
  * stays as tall as its controls, and a row that does reserves [HlLayout.iconLabelRoom]. Near the
  * side of the screen, the label slides along to stay inside the safe area; under a sheet, which
  * has the window, it hides. The icon carries the name for accessibility. [onArtwork] sets the
- * button and its label on a dark plate, so they read over any image.
+ * button and its label on a dark plate, so they read over any image. Not [enabled], its icon goes
+ * quiet and OK does nothing; focus still reaches it, outlined, and still shows its label. A toggle
+ * names what OK does ("Marquer comme vu") and shows where things stand with its icon: [lit],
+ * tungsten at rest.
  */
 @Composable
 fun HlIconButton(
@@ -151,6 +259,8 @@ fun HlIconButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     onArtwork: Boolean = false,
+    enabled: Boolean = true,
+    lit: Boolean = false,
 ) {
     val interaction = remember { MutableInteractionSource() }
     val focused by interaction.collectIsFocusedAsState()
@@ -165,15 +275,20 @@ fun HlIconButton(
             Surface(
                 onClick = onClick,
                 modifier = Modifier.size(HlSize.iconButton),
+                enabled = enabled,
                 shape = ClickableSurfaceDefaults.shape(HlShapes.avatar),
-                scale = ClickableSurfaceDefaults.scale(focusedScale = HlFocus.CONTROL_SCALE),
+                scale = controlScale(),
+                border = disabledFocusBorder(HlShapes.avatar),
                 colors = ClickableSurfaceDefaults.colors(
                     containerColor = restFill,
-                    contentColor = c.content,
+                    contentColor = if (lit) c.tungsten else c.content,
                     focusedContainerColor = c.focus,
                     focusedContentColor = c.onFocus,
                     pressedContainerColor = c.focus,
                     pressedContentColor = c.onFocus,
+                    // On its plate over an image, tertiary would fall under 3:1: the quiet icon is secondary there.
+                    disabledContainerColor = if (onArtwork) restFill else c.content.copy(alpha = HlAlpha.WELL),
+                    disabledContentColor = if (onArtwork) c.contentSecondary else c.contentTertiary,
                 ),
                 interactionSource = interaction,
             ) {

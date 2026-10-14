@@ -1,13 +1,17 @@
 package app.houselights.ui.design
 
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.ExperimentalTextApi
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontVariation
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import app.houselights.R
@@ -53,6 +57,11 @@ private const val CAPITALS = "case, tnum"
  * Type scale for a TV seen from the couch, eight sizes with clear steps:
  * 12 · 14 · 16 · 20 · 24 · 32 · 44 · 64 sp, line heights on a 2 sp grid. Nothing below 12 sp, and
  * no content below 14 sp. Each style has one role.
+ *
+ * Two lines of a title set in the voice of the poster ([display], [cardTitle]) leave room for
+ * Vietnamese: in Archivo condensed bold, a stacked mark (ổ, ế) rises to 0.92 em and a descender
+ * (g, y) falls to 0.20 em, 1.12 em together, so their lines are 1.125 and 1.2 em apart. A capital
+ * with a stacked mark (Ổ, 1.05 em) can still touch a descender right above it.
  */
 @Immutable
 data class HlType(
@@ -87,11 +96,12 @@ data class HlType(
     val entry: TextStyle,
     /** Facts and values: year, runtime, score, sizes; tabular figures. */
     val meta: TextStyle,
-    /** Secondary lines: hints, roles, paths, group titles. */
+    /** Secondary lines: hints, roles, paths, group titles; tabular figures (time left, counts). */
     val caption: TextStyle,
     /**
      * The line under a name in a row, an entry or a choice: what it does, what it is set to.
      * Tighter than [caption], so that over two lines it reads as one block under its name.
+     * Tabular figures: a count or a time under a name does not jitter as it changes.
      */
     val detail: TextStyle,
     /** Raw text to read as written (NFO XML). */
@@ -109,11 +119,13 @@ data class HlType(
 )
 
 val HouselightsType = HlType(
-    display = TextStyle(fontFamily = HlFonts.condensed, fontWeight = FontWeight.Bold, fontSize = 64.sp, lineHeight = 70.sp, letterSpacing = (-0.01).em),
+    display = TextStyle(
+        fontFamily = HlFonts.condensed, fontWeight = FontWeight.Bold, fontSize = 64.sp, lineHeight = 72.sp, letterSpacing = (-0.01).em,
+    ),
     headline = TextStyle(fontFamily = HlFonts.condensed, fontWeight = FontWeight.Bold, fontSize = 44.sp, lineHeight = 48.sp, letterSpacing = (-0.005).em),
     figure = TextStyle(fontFamily = HlFonts.condensed, fontWeight = FontWeight.SemiBold, fontSize = 32.sp, lineHeight = 36.sp, fontFeatureSettings = FIGURES),
     subject = TextStyle(fontFamily = HlFonts.condensed, fontWeight = FontWeight.SemiBold, fontSize = 32.sp, lineHeight = 36.sp),
-    cardTitle = TextStyle(fontFamily = HlFonts.condensed, fontWeight = FontWeight.Bold, fontSize = 20.sp, lineHeight = 22.sp),
+    cardTitle = TextStyle(fontFamily = HlFonts.condensed, fontWeight = FontWeight.Bold, fontSize = 20.sp, lineHeight = 24.sp),
     billing = TextStyle(fontFamily = HlFonts.condensed, fontWeight = FontWeight.Medium, fontSize = 18.sp, lineHeight = 24.sp, letterSpacing = 0.04.em, fontFeatureSettings = CAPITALS),
     billingJoin = TextStyle(fontFamily = HlFonts.condensed, fontWeight = FontWeight.Normal, fontSize = 14.sp, lineHeight = 24.sp, letterSpacing = 0.02.em),
     wordmark = TextStyle(fontFamily = HlFonts.condensed, fontWeight = FontWeight.SemiBold, fontSize = 22.sp, lineHeight = 24.sp, letterSpacing = 0.02.em),
@@ -124,8 +136,12 @@ val HouselightsType = HlType(
     body = TextStyle(fontFamily = HlFonts.text, fontWeight = FontWeight.Normal, fontSize = 16.sp, lineHeight = 24.sp),
     entry = TextStyle(fontFamily = HlFonts.text, fontWeight = FontWeight.SemiBold, fontSize = 16.sp, lineHeight = 20.sp),
     meta = TextStyle(fontFamily = HlFonts.text, fontWeight = FontWeight.Medium, fontSize = 16.sp, lineHeight = 20.sp, fontFeatureSettings = FIGURES),
-    caption = TextStyle(fontFamily = HlFonts.text, fontWeight = FontWeight.Normal, fontSize = 14.sp, lineHeight = 20.sp),
-    detail = TextStyle(fontFamily = HlFonts.text, fontWeight = FontWeight.Normal, fontSize = 14.sp, lineHeight = 18.sp),
+    caption = TextStyle(
+        fontFamily = HlFonts.text, fontWeight = FontWeight.Normal, fontSize = 14.sp, lineHeight = 20.sp, fontFeatureSettings = FIGURES,
+    ),
+    detail = TextStyle(
+        fontFamily = HlFonts.text, fontWeight = FontWeight.Normal, fontSize = 14.sp, lineHeight = 18.sp, fontFeatureSettings = FIGURES,
+    ),
     code = TextStyle(fontFamily = HlFonts.mono, fontWeight = FontWeight.Normal, fontSize = 14.sp, lineHeight = 22.sp),
 
     label = TextStyle(fontFamily = HlFonts.wide, fontWeight = FontWeight.SemiBold, fontSize = 16.sp, lineHeight = 20.sp, letterSpacing = 0.01.em, fontFeatureSettings = FIGURES),
@@ -141,3 +157,12 @@ val HouselightsType = HlType(
 )
 
 val LocalHlType = staticCompositionLocalOf { HouselightsType }
+
+/**
+ * Room kept for text, given at the default text size: it grows with the viewer's text scale as the
+ * text does, so a frame that holds text (an episode's overview, the home hero) neither cuts it nor
+ * moves with what it shows.
+ */
+@Composable
+@ReadOnlyComposable
+fun textRoom(height: Dp): Dp = with(LocalDensity.current) { height.value.sp.toDp() }

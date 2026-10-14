@@ -43,6 +43,7 @@ import app.houselights.ui.design.components.InfoBlock
 import app.houselights.ui.design.components.MetaLine
 import app.houselights.ui.design.components.TechSpecs
 import app.houselights.ui.design.components.TitleArt
+import app.houselights.ui.design.components.TitleLine
 import app.houselights.ui.util.NBSP
 
 /**
@@ -55,6 +56,7 @@ internal fun LazyListScope.catalogReading() {
     item { ReadingEpisodeHeadingSection() }
     item { ReadingMetaLineSection() }
     item { ReadingBadgeRowSection() }
+    item { ReadingTitleLineSection() }
     item { ReadingBillingBlockSection() }
     // A hero is as tall as on the home screen; each takes the reading measure it has there.
     item { ReadingHeroInfoSection() }
@@ -145,8 +147,29 @@ private fun ReadingMetaLineSection() {
             }
         }
         ReadingRow {
-            ReadingCase("long genres", Modifier.width(HlLayout.readableNarrow)) { MetaLine(READING_LONG_GENRES) }
+            ReadingCase("long genres: the last goes whole", Modifier.width(HlLayout.readableNarrow)) { MetaLine(READING_LONG_GENRES) }
+            ReadingCase("in a side column: genres, then the score, go", Modifier.width(HlLayout.sideColumn)) {
+                MetaLine(READING_LONG_GENRES)
+            }
         }
+        ReadingRow {
+            ReadingCase("narrower still: down to the year", Modifier.width(HlLayout.definitionLabelShort)) { MetaLine(READING_FILM) }
+        }
+    }
+}
+
+@Composable
+private fun ReadingTitleLineSection() {
+    // As wide as the library gives it: the screen inside the safe area.
+    Group("Title line", still = true) {
+        ReadingCase("short name, its facts and four formats") { TitleLine(READING_LINE_SHORT, Modifier.height(HlLayout.infoLine)) }
+        ReadingCase("long name: the formats go first, from the last") {
+            TitleLine(READING_LINE_SHORT.copy(title = READING_LINE_LONG), Modifier.height(HlLayout.infoLine))
+        }
+        ReadingCase("longer still: the name ends in an ellipsis, the facts stay") {
+            TitleLine(READING_LINE_SHORT.copy(title = "$READING_LINE_LONG, $READING_LINE_LONG"), Modifier.height(HlLayout.infoLine))
+        }
+        ReadingCase("no facts, no formats") { TitleLine(sample("Sans titre", 0).copy(year = null, runtimeMs = null)) }
     }
 }
 
@@ -166,6 +189,11 @@ private fun ReadingBadgeRowSection() {
                 BadgeRow(listOf("4K", "1080p", "720p", "SD", "DTS-HD MA", "5.1"))
             }
             ReadingCase("no badges: draws nothing", Modifier.weight(1f)) { BadgeRow(emptyList()) }
+        }
+        ReadingRow {
+            ReadingCase("on one line, in a side column: the last ones go", Modifier.width(HlLayout.sideColumn)) {
+                BadgeRow(listOf("4K", "Dolby Vision", "HDR10+", "HDR10", "TrueHD Atmos", "DTS:X", "7.1", "16"), oneLine = true)
+            }
         }
     }
 }
@@ -300,7 +328,7 @@ private fun ReadingDefinitionListSection() {
             }
         }
         ReadingRow {
-            ReadingCase("labels longer than their column", Modifier.weight(1f)) {
+            ReadingCase("labels longer than their column: the value on their first line", Modifier.weight(1f)) {
                 DefinitionList(
                     listOf(
                         "Fréquence d’images" to "23,976${NBSP}im/s",
@@ -391,6 +419,10 @@ private val READING_COLLECTION = sample("Trois Couleurs", 1993, kind = MediaKind
     totalCount = 3,
     genres = listOf("Drame"),
 )
+
+private val READING_LINE_SHORT = READING_FILM.copy(badges = listOf("4K", "Dolby Vision", "HDR10", "TrueHD Atmos", "7.1"))
+
+private val READING_LINE_LONG = "Le Seigneur des anneaux$NBSP: Le Retour du roi, version longue"
 
 private val READING_LONG_GENRES = sample("Le Voyage de Chihiro", 2001).copy(
     runtimeMs = 7_500_000,

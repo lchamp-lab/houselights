@@ -8,6 +8,7 @@ import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
@@ -18,6 +19,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
@@ -225,25 +227,41 @@ fun RestoreFocus(
 }
 
 /**
+ * The child of a group that last had focus, which comes back when the remote returns to the group
+ * (a row of cards, the rows of a pane). Children say they had it through [rememberedInGroup].
+ */
+@Stable
+class GroupFocus {
+    internal var last: FocusRequester? = null
+}
+
+/** The [GroupFocus] of the group around, if any: its children report to it. */
+val LocalGroupFocus = staticCompositionLocalOf<GroupFocus?> { null }
+
+/**
  * A group that gives focus back to the child it last had when the remote brings focus back into
- * it (a row of cards, the rows of a pane). Unlike `focusRestorer`, a request for one of its
- * children (a [FocusMemory] bringing focus back) reaches that child, not the one it remembers.
+ * it. Focus is redirected to that child's requester: restoring it by hand and cancelling the move,
+ * as `focusRestorer` does in Compose 1.7, cancels the restored focus with the move, and
+ * `focusRestorer` itself releases a pinned item twice when the list changes under it (a crash). A
+ * request by name (Enter) goes where it asks; with no child remembered, focus enters as it would.
  */
 @OptIn(ExperimentalComposeUiApi::class)
-fun Modifier.keepChildFocus(): Modifier = composed {
-    val group = remember { FocusRequester() }
-    focusRequester(group)
-        .focusProperties {
-            exit = {
-                group.saveFocusedChild()
-                FocusRequester.Default
-            }
-            // A request names its element (Enter); only a move of the remote returns to the last child.
-            enter = { direction ->
-                if (direction != FocusDirection.Enter && group.restoreFocusedChild()) FocusRequester.Cancel else FocusRequester.Default
-            }
-        }
-        .focusGroup()
+fun Modifier.keepChildFocus(group: GroupFocus): Modifier = this
+    .focusProperties {
+        enter = { direction -> group.last.takeIf { direction != FocusDirection.Enter } ?: FocusRequester.Default }
+    }
+    .focusGroup()
+
+/** Reports to the [GroupFocus] around that this element had focus, while it is there. */
+fun Modifier.rememberedInGroup(): Modifier = composed {
+    val group = LocalGroupFocus.current
+    if (group == null) {
+        this
+    } else {
+        val self = remember { FocusRequester() }
+        DisposableEffect(group, self) { onDispose { if (group.last === self) group.last = null } }
+        focusRequester(self).onFocusChanged { if (it.isFocused) group.last = self }
+    }
 }
 
 /**

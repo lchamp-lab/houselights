@@ -127,6 +127,7 @@ fun IdentifyScreen(itemId: String, onDone: () -> Unit) {
                 value = state.year,
                 onValueChange = vm::setYear,
                 modifier = Modifier.width(HlLayout.fieldShort),
+                placeholder = stringResource(R.string.placeholder_year),
                 keyboardType = KeyboardType.Number,
                 imeAction = ImeAction.Search,
                 onImeAction = vm::search,

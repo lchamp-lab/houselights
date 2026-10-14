@@ -57,6 +57,7 @@ import app.houselights.ui.design.HlFocus
 import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.textRoom
 import app.houselights.ui.design.LocalAmbient
 import app.houselights.ui.design.LocalHouseLights
 import app.houselights.ui.design.houseLit
@@ -95,7 +96,6 @@ import app.houselights.ui.util.ReloadOnLibraryChange
 import app.houselights.ui.util.appContainer
 import app.houselights.ui.util.FACT_GAP
 import app.houselights.ui.util.formatDuration
-import app.houselights.ui.util.formatTimecode
 import app.houselights.ui.util.screenHeight
 import app.houselights.ui.util.skeletonDelayPassed
 
@@ -174,7 +174,8 @@ fun DetailScreen(
         )
     }
 
-    CompositionLocalProvider(LocalAmbient provides rememberAmbientColor(item.backdrop)) {
+    val ambient = rememberAmbientColor(item.backdrop)
+    CompositionLocalProvider(LocalAmbient provides { ambient.value }) {
         Box(
             Modifier.fillMaxSize().onPreviewKeyEvent {
                 if (it.type == KeyEventType.KeyDown && it.key in OK_KEYS) app.playback.clearProblem()
@@ -379,26 +380,40 @@ private fun Actions(
         if (item.kind == MediaKind.EPISODE && item.seriesId != null) {
             HlButton(stringResource(R.string.view_series), onClick = onOpenSeries, modifier = Modifier.focusKey(SERIES, memory))
         }
+        // A toggle says what OK does; its lit icon says where the title stands.
         if (capabilities?.markPlayed == true) {
             HlIconButton(
                 Icons.Filled.Check,
-                stringResource(if (item.user.played) R.string.watched else R.string.mark_watched),
+                stringResource(if (item.user.played) R.string.mark_unwatched else R.string.mark_watched),
                 onClick = onTogglePlayed,
                 modifier = Modifier.focusKey(WATCHED, memory),
+                lit = item.user.played,
             )
         }
+        // A button bears the name of what it opens.
         if (onShowTech != null) {
-            HlIconButton(HlIcons.Info, stringResource(R.string.tech_info), onClick = onShowTech, modifier = Modifier.focusKey(TECH, memory))
+            HlIconButton(
+                HlIcons.Info,
+                stringResource(R.string.tech_details),
+                onClick = onShowTech,
+                modifier = Modifier.focusKey(TECH, memory),
+            )
         }
         if (item.hasNfo) {
-            HlIconButton(HlIcons.Document, stringResource(R.string.nfo), onClick = onOpenNfo, modifier = Modifier.focusKey(NFO, memory))
+            HlIconButton(
+                HlIcons.Document,
+                stringResource(R.string.nfo_title),
+                onClick = onOpenNfo,
+                modifier = Modifier.focusKey(NFO, memory),
+            )
         }
         if (capabilities?.favorites == true && item.kind != MediaKind.COLLECTION) {
             HlIconButton(
                 if (item.user.favorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
-                stringResource(if (item.user.favorite) R.string.favorite else R.string.add_favorite),
+                stringResource(if (item.user.favorite) R.string.remove_favorite else R.string.add_favorite),
                 onClick = onToggleFavorite,
                 modifier = Modifier.focusKey(FAVORITE, memory),
+                lit = item.user.favorite,
             )
         }
         if (onEdit != null) {
@@ -425,8 +440,7 @@ private fun Actions(
 private fun PlayButtons(item: MediaItem, nextUp: MediaItem?, memory: FocusMemory, onPlay: (MediaItem, Boolean) -> Unit) {
     val series = item.kind == MediaKind.SERIES || item.kind == MediaKind.COLLECTION
     val target = (if (series) nextUp else item.takeIf { it.isPlayable }) ?: return
-    val resumeMs = target.user.positionMs
-    val resume = resumeMs > 0
+    val resume = target.user.positionMs > 0
     val episode = when (item.kind) {
         MediaKind.SERIES -> target.episodeLabel
         MediaKind.COLLECTION -> target.title
@@ -438,7 +452,7 @@ private fun PlayButtons(item: MediaItem, nextUp: MediaItem?, memory: FocusMemory
         modifier = Modifier.focusKey(PLAY, memory),
         icon = Icons.Filled.PlayArrow,
         detail = if (resume) {
-            listOfNotNull(episode, formatTimecode(resumeMs)).joinToString(FACT_GAP)
+            listOfNotNull(episode, timeLeft(target)).joinToString(FACT_GAP)
         } else {
             episode ?: target.runtimeMs?.let(::formatDuration)
         },
@@ -469,13 +483,14 @@ private fun Seasons(seasons: List<MediaItem>, selectedId: String?, onSelect: (St
 
 /** Where an episode stands, in words: watched, or the time left; nothing when not started. */
 @Composable
-private fun episodeState(ep: MediaItem): String? {
-    val left = (ep.runtimeMs ?: 0L) - ep.user.positionMs
-    return when {
-        ep.user.played -> stringResource(R.string.watched)
-        ep.user.positionMs > 0 && left > 0 -> stringResource(R.string.time_left, formatDuration(left))
-        else -> null
-    }
+private fun episodeState(ep: MediaItem): String? =
+    if (ep.user.played) stringResource(R.string.watched) else timeLeft(ep)
+
+/** "Il reste 1 h 26" for a title started: a duration, never a timecode, never "0 min"; nothing when unknown. */
+@Composable
+private fun timeLeft(item: MediaItem): String? {
+    val left = (item.runtimeMs ?: 0L) - item.user.positionMs
+    return if (item.user.positionMs > 0 && left > 0) stringResource(R.string.time_left, formatDuration(maxOf(left, MINUTE_MS))) else null
 }
 
 @Composable
@@ -509,7 +524,11 @@ private fun Episodes(
             color = Hl.colors.contentSecondary,
             maxLines = 3,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(horizontal = HlSpace.safeH).widthIn(max = HlLayout.readable).height(HlLayout.episodeOverview),
+            // Three lines at the viewer's text size, so the page stays still as focus moves; more if a script needs it.
+            modifier = Modifier
+                .padding(horizontal = HlSpace.safeH)
+                .widthIn(max = HlLayout.readable)
+                .heightIn(min = textRoom(HlLayout.episodeOverview)),
         )
     }
 }
@@ -536,6 +555,7 @@ private const val EPISODES = "episodes"
 private const val FILMS = "films"
 private const val SAGA = "collection"
 private const val SIMILAR = "similar"
+private const val MINUTE_MS = 60_000L
 
 /** The keys that act on what has focus. */
 private val OK_KEYS = setOf(Key.DirectionCenter, Key.Enter, Key.NumPadEnter)

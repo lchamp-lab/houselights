@@ -59,7 +59,8 @@ internal class LocalMapper(private val dao: LibraryDao, private val context: Con
             ItemKind.SEASON -> MediaKind.SEASON
             ItemKind.EPISODE -> MediaKind.EPISODE
         }
-        val title = titleOf(e)
+        // Text is set for display; sorting reads the entity, as written.
+        val title = Typeset.text(titleOf(e))
         val media = MediaProbe.decode(e.mediaInfo)
         val showCounts = counts[e.id]?.takeIf { e.kind == ItemKind.SERIES }
         val unplayed = showCounts?.unplayed
@@ -68,7 +69,7 @@ internal class LocalMapper(private val dao: LibraryDao, private val context: Con
             id = e.id.toString(),
             kind = kind,
             title = title,
-            originalTitle = e.originalTitle,
+            originalTitle = Typeset.text(e.originalTitle),
             overview = Typeset.text(e.overview),
             tagline = Typeset.text(e.tagline),
             year = e.year,
@@ -78,7 +79,7 @@ internal class LocalMapper(private val dao: LibraryDao, private val context: Con
             officialRating = e.certification,
             communityRating = e.rating,
             genres = e.genres,
-            directors = e.directors,
+            directors = e.directors.map { Typeset.text(it) },
             badges = e.badges,
             media = media,
             hasNfo = e.nfoPath != null,
@@ -96,7 +97,7 @@ internal class LocalMapper(private val dao: LibraryDao, private val context: Con
                 unplayedCount = unplayed,
             ),
             seriesId = e.seriesId?.toString(),
-            seriesTitle = show?.title,
+            seriesTitle = Typeset.text(show?.title),
             seasonId = if (e.kind == ItemKind.EPISODE) e.parentId?.toString() else null,
             seasonNumber = e.seasonNumber,
             episodeNumber = e.episodeNumber,

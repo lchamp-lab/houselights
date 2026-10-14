@@ -4,11 +4,13 @@ import androidx.annotation.DrawableRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyListScope
@@ -93,6 +95,17 @@ private fun StateCaption(state: String, modifier: Modifier = Modifier, width: Dp
     }
 }
 
+/** What a screen puts in an image's fallback slot: here, its name, low on the card. */
+@Composable
+private fun BoxScope.FallbackSample(title: String) {
+    Text(
+        title,
+        style = Hl.type.cardTitle,
+        color = Hl.colors.content,
+        modifier = Modifier.align(Alignment.BottomStart).padding(HlSpace.s),
+    )
+}
+
 /** Posters in a row as home and the detail page lay them out: focus one and the others step back. */
 @Composable
 private fun PosterRow() {
@@ -111,14 +124,14 @@ private fun PosterRow() {
             kind = MediaKind.SERIES,
             unplayed = 1234,
         ),
-        "image failed" to sample("Pierrot le Fou", 1965).copy(poster = brokenImage),
+        "image failed: set in type" to sample("Pierrot le Fou", 1965).copy(poster = brokenImage),
     )
     MediaRow("Ajoutés récemment") {
         items(cards) { (state, media) -> StateCaption(state, width = HlSize.poster) { PosterCard(media, {}) } }
     }
 }
 
-/** The focus treatment alone, and the image inside it, loaded or failed. */
+/** The focus treatment alone, and the image inside it: loaded, or failed with its fallback in its place. */
 @Composable
 private fun Surfaces() {
     val art = shippedImage(R.drawable.banner).url(0)
@@ -131,9 +144,9 @@ private fun Surfaces() {
                 ArtworkImage(art, "Houselights", Modifier.fillMaxSize())
             }
         }
-        StateCaption("image failed: blank", width = HlSize.landscape) {
+        StateCaption("image failed: its fallback", width = HlSize.landscape) {
             ArtworkSurface({}, Modifier.width(HlSize.landscape).aspectRatio(16f / 9f)) {
-                ArtworkImage(BROKEN_URL, "Pierrot le Fou", Modifier.fillMaxSize())
+                ArtworkImage(BROKEN_URL, "Pierrot le Fou", Modifier.fillMaxSize()) { FallbackSample("Pierrot le Fou") }
             }
         }
         StateCaption("round, as a person", width = HlSize.personColumn) {
@@ -186,7 +199,7 @@ private fun LandscapeRow() {
             }
         }
         item {
-            StateCaption("episode: watched, image failed", width = HlSize.episode) {
+            StateCaption("episode: watched, image failed: set in type", width = HlSize.episode) {
                 LandscapeCard(
                     sample("Le Retour", 2025, kind = MediaKind.EPISODE, played = true).copy(thumb = brokenImage),
                     {},
@@ -209,7 +222,7 @@ private fun CastRow() {
         "two lines" to Person("Maria de Medeiros Esteves", "Fabienne", null),
         "long role" to Person("François Périer", "Le commissaire chargé de l’enquête", null),
         "photo" to Person("Nathalie Delon", "Jane Lagrange", photo),
-        "photo failed" to Person("Cathy Rosier", "La pianiste", brokenImage),
+        "photo failed: initials" to Person("Cathy Rosier", "La pianiste", brokenImage),
         "no role" to Person("Jacques Leroy", null, null),
         "name cut" to Person("Maria de Medeiros Esteves Vitorino de Almeida", "Elle-même", null),
     )
@@ -271,12 +284,12 @@ private fun ChoiceRow(kind: ArtworkKind) {
         ArtworkKind.POSTER -> listOf(
             ArtworkChoiceSample("chosen", picture, true, "Automatique", "Français$FACT_GAP${formatDimensions(2000, 3000)}"),
             ArtworkChoiceSample("rest", picture, false, "Anglais", formatDimensions(2000, 3000)),
-            ArtworkChoiceSample("image failed", brokenImage, false, "Fichier local", null),
+            ArtworkChoiceSample("image failed: set in type", brokenImage, false, "Fichier local", null),
         )
         ArtworkKind.BACKDROP -> listOf(
             ArtworkChoiceSample("chosen", picture, true, "Sans texte", formatDimensions(3840, 2160)),
             ArtworkChoiceSample("rest", picture, false, "Lien du NFO", null),
-            ArtworkChoiceSample("image failed", brokenImage, false, "Fichier local", null),
+            ArtworkChoiceSample("image failed: set in type", brokenImage, false, "Fichier local", null),
         )
         ArtworkKind.LOGO -> listOf(
             ArtworkChoiceSample("chosen", picture, true, "Automatique", "Toutes langues$FACT_GAP${formatDimensions(800, 310)}"),
@@ -290,7 +303,7 @@ private fun ChoiceRow(kind: ArtworkKind) {
                 null,
                 placeholder = "Les Aventures extraordinaires d’Adèle Blanc-Sec",
             ),
-            ArtworkChoiceSample("image failed", brokenImage, false, "Anglais", null),
+            ArtworkChoiceSample("image failed: set in type", brokenImage, false, "Anglais", null),
         )
     }
     val width = if (kind == ArtworkKind.POSTER) HlLayout.posterChoice else HlLayout.landscapeChoice
@@ -360,7 +373,7 @@ private fun Results() {
         StateCaption("no poster, no overview", Modifier.weight(1f)) {
             HlResultItem(null, "Samouraï", listOf("2002", null), null, {})
         }
-        StateCaption("poster failed, long title", Modifier.weight(1f)) {
+        StateCaption("poster failed: empty frame, long title", Modifier.weight(1f)) {
             HlResultItem(
                 brokenImage,
                 "Le Dernier Samouraï : l’histoire vraie de la rébellion de Satsuma et de ses derniers guerriers",
@@ -380,11 +393,11 @@ private fun Thumbs() {
     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Top) {
         listOf(
             Triple("thumb", art, HlSize.posterThumb),
-            Triple("thumb, none", null, HlSize.posterThumb),
-            Triple("thumb, failed", brokenImage, HlSize.posterThumb),
+            Triple("thumb, none: empty frame", null, HlSize.posterThumb),
+            Triple("thumb, failed: empty frame", brokenImage, HlSize.posterThumb),
             Triple("large", art, HlSize.posterThumbLarge),
             Triple("row size", art, HlSize.rowPreviewPoster),
-            Triple("row size, none", null, HlSize.rowPreviewPoster),
+            Triple("row size, none: empty frame", null, HlSize.rowPreviewPoster),
         ).forEach { (state, image, width) ->
             StateCaption(state, width = HlSize.posterThumbLarge) { PosterThumb(image, width = width) }
         }
@@ -394,16 +407,19 @@ private fun Thumbs() {
             Triple("poster", art, PreviewShape.Poster),
             Triple("backdrop", art, PreviewShape.Backdrop),
             Triple("logo", logo, PreviewShape.Logo),
-            Triple("poster, failed", brokenImage, PreviewShape.Poster),
-            Triple("logo, failed", brokenImage, PreviewShape.Logo),
+            Triple("poster, failed: empty frame", brokenImage, PreviewShape.Poster),
+            Triple("logo, failed: empty frame", brokenImage, PreviewShape.Logo),
         ).forEach { (state, image, shape) ->
             StateCaption(state, width = HlSize.rowPreviewWide) { RowPreview(image, shape) }
         }
+        StateCaption("logo, failed, icon", width = HlSize.rowPreviewWide) {
+            RowPreview(brokenImage, PreviewShape.Logo, icon = HlIcons.Logo)
+        }
     }
     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Top) {
-        StateCaption("poster, none", width = HlSize.rowPreviewWide) { RowPreview(null, PreviewShape.Poster) }
-        StateCaption("backdrop, none", width = HlSize.rowPreviewWide) { RowPreview(null, PreviewShape.Backdrop) }
-        StateCaption("logo, none", width = HlSize.rowPreviewWide) { RowPreview(null, PreviewShape.Logo) }
+        StateCaption("poster, none: empty frame", width = HlSize.rowPreviewWide) { RowPreview(null, PreviewShape.Poster) }
+        StateCaption("backdrop, none: empty frame", width = HlSize.rowPreviewWide) { RowPreview(null, PreviewShape.Backdrop) }
+        StateCaption("logo, none: empty frame", width = HlSize.rowPreviewWide) { RowPreview(null, PreviewShape.Logo) }
         StateCaption("logo, none, icon", width = HlSize.rowPreviewWide) { RowPreview(null, PreviewShape.Logo, icon = HlIcons.Logo) }
         StateCaption("icon (identify)", width = HlSize.rowPreviewWide) { RowPreview(null, PreviewShape.Backdrop, icon = HlIcons.Search) }
     }

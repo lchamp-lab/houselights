@@ -18,6 +18,7 @@ import kotlinx.coroutines.coroutineScope
 import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -44,10 +45,11 @@ private const val SAMPLE_PX = 96
 
 /**
  * The light a picture spills into the room: a calm, mid-bright tone picked from a tiny
- * copy of the artwork, animated when the artwork changes.
+ * copy of the artwork, animated when the artwork changes. A state, read while drawing: screens
+ * provide it as `LocalAmbient provides { ambient.value }`.
  */
 @Composable
-fun rememberAmbientColor(image: ImageRef?): Color {
+fun rememberAmbientColor(image: ImageRef?): State<Color> {
     val context = LocalContext.current
     val fallback = Hl.colors.ambientFallback
     var target by remember { mutableStateOf(fallback) }
@@ -58,8 +60,7 @@ fun rememberAmbientColor(image: ImageRef?): Color {
         }
         target = backdropSample(context, image)?.let { toneOf(it) } ?: fallback
     }
-    val color by animateColorAsState(target, tween(HlMotion.SLOW, easing = HlMotion.standard), label = "ambient")
-    return color
+    return animateColorAsState(target, tween(HlMotion.SLOW, easing = HlMotion.standard), label = "ambient")
 }
 
 /**

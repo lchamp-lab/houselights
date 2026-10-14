@@ -39,7 +39,6 @@ import app.houselights.ui.design.components.HlTwoPane
 import app.houselights.ui.design.components.ScreenTitle
 import app.houselights.ui.design.components.Wordmark
 import app.houselights.ui.design.focusKey
-import app.houselights.ui.design.keepChildFocus
 import app.houselights.ui.design.keepVerticalFocus
 import app.houselights.ui.design.rememberFocusMemory
 import app.houselights.ui.util.formatBytes
@@ -156,7 +155,7 @@ private fun PaneContent(
 ) {
     LazyColumn(
         state = list,
-        modifier = Modifier.fillMaxSize().onFocusChanged { onFocusIn(it.hasFocus) }.keepVerticalFocus().keepChildFocus(),
+        modifier = Modifier.fillMaxSize().onFocusChanged { onFocusIn(it.hasFocus) }.keepVerticalFocus(),
         contentPadding = PaddingValues(bottom = HlFocus.edge, end = HlSpace.m),
         verticalArrangement = Arrangement.spacedBy(HlSpace.l),
     ) {

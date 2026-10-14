@@ -1,5 +1,6 @@
 package app.houselights.ui.design.components
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.rememberTransition
@@ -24,6 +25,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -33,6 +35,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.key.onPreviewKeyEvent
@@ -71,17 +74,24 @@ class SheetScope internal constructor(private val close: (then: () -> Unit) -> U
 }
 
 /**
- * The window under every sheet and modal: the room dimmed by our own scrim (not the platform's
- * grey one, nor its window animation), an entrance and an exit, keys ignored while leaving, and
- * [onDismiss] only once gone. [content] reads its progress (0 gone, 1 shown) while drawing.
+ * How a sheet or a menu comes and goes: it comes in as it is composed; [SheetScope.dismiss] takes
+ * it away with the same motion, then tells its owner ([rememberSheetMotion]'s `onDismiss`) and runs
+ * `then`. [progress] (0 gone, 1 shown) is read while drawing; while it is [leaving], keys are
+ * ignored, so a second OK cannot choose twice.
  */
-@Composable
-internal fun SheetWindow(
-    onDismiss: () -> Unit,
-    scrim: Float,
-    initialFocus: FocusRequester?,
-    content: @Composable BoxScope.(progress: () -> Float, sheet: SheetScope) -> Unit,
+@Stable
+internal class SheetMotion(
+    private val shown: MutableTransitionState<Boolean>,
+    private val animated: State<Float>,
+    val sheet: SheetScope,
 ) {
+    val progress: Float get() = animated.value
+    val leaving: Boolean get() = !shown.targetState
+}
+
+/** The motion of a sheet or a menu: [STANDARD][HlMotion.STANDARD], emphasized, in and out. */
+@Composable
+internal fun rememberSheetMotion(onDismiss: () -> Unit): SheetMotion {
     val shown = remember { MutableTransitionState(false).apply { targetState = true } }
     var then by remember { mutableStateOf({}) }
     val sheet = remember {
@@ -102,7 +112,26 @@ internal fun SheetWindow(
             then()
         }
     }
-    Dialog(onDismissRequest = { sheet.dismiss() }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+    return remember { SheetMotion(shown, progress, sheet) }
+}
+
+/** Keys go nowhere while a sheet or a menu leaves. */
+internal fun Modifier.stillWhileLeaving(motion: SheetMotion): Modifier = onPreviewKeyEvent { motion.leaving }
+
+/**
+ * The window under every sheet and modal: the room dimmed by our own scrim (not the platform's
+ * grey one, nor its window animation), the motion of [rememberSheetMotion], and [onDismiss] only
+ * once gone. [content] reads its progress (0 gone, 1 shown) while drawing.
+ */
+@Composable
+internal fun SheetWindow(
+    onDismiss: () -> Unit,
+    scrim: Float,
+    initialFocus: FocusRequester?,
+    content: @Composable BoxScope.(progress: () -> Float, sheet: SheetScope) -> Unit,
+) {
+    val motion = rememberSheetMotion(onDismiss)
+    Dialog(onDismissRequest = { motion.sheet.dismiss() }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         val window = (LocalView.current.parent as? DialogWindowProvider)?.window
         SideEffect {
             window?.setDimAmount(0f)
@@ -113,11 +142,10 @@ internal fun SheetWindow(
         Box(
             Modifier
                 .fillMaxSize()
-                // While it leaves, a second OK must not choose again.
-                .onPreviewKeyEvent { !shown.targetState }
-                .drawBehind { drawRect(room.copy(alpha = scrim * progress.value)) },
+                .stillWhileLeaving(motion)
+                .drawBehind { drawRect(room.copy(alpha = scrim * motion.progress)) },
         ) {
-            content({ progress.value }, sheet)
+            content({ motion.progress }, motion.sheet)
         }
     }
 }
@@ -126,8 +154,9 @@ internal fun SheetWindow(
  * A panel the full height of the screen, against its right edge, for acting on what the screen
  * shows (editing a title, the actions of a folder, the choices of a setting) while it stays in
  * view on the left. From the top: what the panel does ([title], in the voice of the poster), what
- * it is about ([artwork], [subject], [facts], [description]), a hairline, the rows, and the Back
- * hint. There is no Close button: Back closes, as choosing does through [SheetScope.dismiss].
+ * it is about ([artwork], [subject], [facts], where it stands as an [HlStatus] in [status],
+ * [description]), a hairline, the rows, and the Back hint. There is no Close button: Back closes,
+ * as choosing does through [SheetScope.dismiss].
  */
 @Composable
 fun HlSideSheet(
@@ -139,6 +168,7 @@ fun HlSideSheet(
     description: String? = null,
     artwork: (@Composable () -> Unit)? = null,
     initialFocus: FocusRequester? = null,
+    status: (@Composable () -> Unit)? = null,
     content: @Composable ColumnScope.(sheet: SheetScope) -> Unit,
 ) {
     SheetWindow(onDismiss, HlAlpha.SCRIM_SIDE, initialFocus) { progress, sheet ->
@@ -156,7 +186,7 @@ fun HlSideSheet(
                     .weight(1f)
                     .padding(start = HlInset.sheet, end = HlSpace.safeH, top = HlSpace.safeV, bottom = HlSpace.safeV),
             ) {
-                SheetHeader(title, subject, facts, description, artwork)
+                SheetHeader(title, subject, facts, description, artwork, status)
                 Spacer(Modifier.height(HlSpace.m))
                 HlDivider()
                 Spacer(Modifier.height(HlSpace.m))
@@ -178,6 +208,7 @@ private fun SheetHeader(
     facts: List<String?>,
     description: String?,
     artwork: (@Composable () -> Unit)?,
+    status: (@Composable () -> Unit)?,
 ) {
     val c = Hl.colors
     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -197,9 +228,73 @@ private fun SheetHeader(
             }
         }
     }
+    if (status != null) {
+        Spacer(Modifier.height(HlSpace.s))
+        status()
+    }
     if (description != null) {
         Spacer(Modifier.height(HlSpace.s))
         Text(description, style = Hl.type.detail, color = c.contentSecondary)
+    }
+}
+
+/**
+ * An action that cannot be undone asks first, in its side sheet. [rows] show until then: they
+ * receive `ask`, for the row that asks, and `origin`, the modifier that names that row. Asking
+ * puts a card in their place: a short tungsten rule (attention), the [question] in the voice of
+ * the poster, its [consequence], then Cancel, focused, and [confirm], its label tungsten at rest,
+ * never red. Cancel, or Back, brings the rows back with focus on the row that asked, then runs
+ * [onCancel]; [confirm] runs [onConfirm].
+ */
+@Composable
+fun SheetConfirm(
+    question: String,
+    consequence: String,
+    confirm: String,
+    onConfirm: () -> Unit,
+    onCancel: () -> Unit = {},
+    rows: @Composable (ask: () -> Unit, origin: Modifier) -> Unit,
+) {
+    var asking by remember { mutableStateOf(false) }
+    // Cancelled: focus goes back to the row that asked, once it is there again.
+    var answered by remember { mutableStateOf(false) }
+    val origin = remember { FocusRequester() }
+    if (asking) {
+        val cancel = {
+            asking = false
+            answered = true
+            onCancel()
+        }
+        BackHandler(onBack = cancel)
+        ConfirmCard(question, consequence, confirm, onConfirm, cancel)
+    } else {
+        rows({ asking = true }, Modifier.focusRequester(origin))
+        if (answered) {
+            LaunchedEffect(Unit) {
+                answered = false
+                runCatching { origin.requestFocus() }
+            }
+        }
+    }
+}
+
+/** The card a [SheetConfirm] asks with, in place of the rows of its sheet. */
+@Composable
+private fun ConfirmCard(question: String, consequence: String, confirm: String, onConfirm: () -> Unit, onCancel: () -> Unit) {
+    val c = Hl.colors
+    val cancel = remember { FocusRequester() }
+    LaunchedEffect(Unit) { runCatching { cancel.requestFocus() } }
+    Column {
+        Box(Modifier.width(HlSize.intertitleRule).height(HlSize.intertitleRuleWeight).background(c.tungsten))
+        Spacer(Modifier.height(HlSpace.m))
+        Text(question, style = Hl.type.subject, color = c.content)
+        Spacer(Modifier.height(HlSpace.xs))
+        Text(consequence, style = Hl.type.body, color = c.contentSecondary)
+        Spacer(Modifier.height(HlSpace.l))
+        Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.s)) {
+            HlButton(stringResource(R.string.cancel), onClick = onCancel, modifier = Modifier.focusRequester(cancel))
+            PillButton(confirm, onClick = onConfirm, caution = true)
+        }
     }
 }
 
@@ -219,33 +314,31 @@ enum class PreviewShape { Poster, Backdrop, Logo }
 
 /**
  * An image as it is used, small, at the head of a row: a poster, a backdrop, a logo on its dark
- * plate. Every preview takes the same slot, so the names of the rows line up; with no image, the
- * slot shows [icon], or an empty frame.
+ * plate. Every preview takes the same slot, so the names of the rows line up; with no image, or
+ * one that fails to load, the slot shows [icon], or an empty frame.
  */
 @Composable
 fun RowPreview(image: ImageRef?, shape: PreviewShape, modifier: Modifier = Modifier, icon: ImageVector? = null) {
     val c = Hl.colors
     val width: Dp = if (shape == PreviewShape.Poster) HlSize.rowPreviewPoster else HlSize.rowPreviewWide
+    val url = image?.url(width.toPx())
+    var failed by remember(url) { mutableStateOf(false) }
     Box(modifier.width(HlSize.rowPreviewWide).height(HlSize.rowPreview), contentAlignment = Alignment.Center) {
-        if (image == null && icon != null) {
-            Icon(icon, contentDescription = null, tint = c.contentSecondary, modifier = Modifier.size(HlSize.discIcon))
-            return@Box
-        }
-        Box(
-            Modifier
-                .width(width)
-                .height(HlSize.rowPreview)
-                .clip(HlShapes.artwork)
-                .background(if (shape == PreviewShape.Logo) c.background else c.surface),
-        ) {
-            image?.url(width.toPx())?.let { url ->
+        val frame = Modifier.width(width).height(HlSize.rowPreview)
+        when {
+            url != null && !failed -> Box(
+                frame.clip(HlShapes.artwork).background(if (shape == PreviewShape.Logo) c.background else c.surface),
+            ) {
                 AsyncImage(
                     model = url,
                     contentDescription = null,
                     contentScale = if (shape == PreviewShape.Logo) ContentScale.Fit else ContentScale.Crop,
+                    onError = { failed = true },
                     modifier = Modifier.fillMaxSize().padding(if (shape == PreviewShape.Logo) HlSpace.xxs else HlSpace.none),
                 )
             }
+            icon != null -> Icon(icon, contentDescription = null, tint = c.contentSecondary, modifier = Modifier.size(HlSize.discIcon))
+            else -> EmptyFrame(frame)
         }
     }
 }

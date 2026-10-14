@@ -92,8 +92,6 @@ fun WelcomeScreen(onLocal: () -> Unit, onJellyfin: () -> Unit) {
                     badges = listOf("HTTPS", "HTTP"),
                     descriptionLines = CHOICE_LINES,
                 )
-                Spacer(Modifier.height(HlSpace.xxs))
-                Text(stringResource(R.string.sources_coming_soon), style = Hl.type.caption, color = Hl.colors.contentTertiary)
             }
         }
     }

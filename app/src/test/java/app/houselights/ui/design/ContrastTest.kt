@@ -35,6 +35,8 @@ class ContrastTest {
         "WELL on surfaceRaised" to c.content.over(HlAlpha.WELL, c.surfaceRaised),
         "CONTROL_FILL" to c.content.over(HlAlpha.CONTROL_FILL, c.background),
         "CONTROL_FILL_STRONG" to c.content.over(HlAlpha.CONTROL_FILL_STRONG, c.background),
+        // A button in a side sheet.
+        "CONTROL_FILL on surfaceRaised" to c.content.over(HlAlpha.CONTROL_FILL, c.surfaceRaised),
         "FOCUS_QUIET on WELL" to c.content.over(HlAlpha.FOCUS_QUIET, c.content.over(HlAlpha.WELL, c.background)),
         "focus" to c.focus,
         // Whatever sits on artwork, on its plate over the worst image: a white one.
@@ -66,10 +68,18 @@ class ContrastTest {
         "tungsten" on "WELL", "tungsten" on "WELL on surfaceRaised",
         // A focused control: its name, and the line under it.
         "onFocus" on "focus", "onFocusSecondary" on "focus",
-        // Marks: the selected entry's icon, the watched check and the new dot on their plate,
-        // a card's progress on its plate.
+        // Marks: the selected entry's icon, a lit round button's icon (watched, a favourite), the
+        // watched check and the new dot on their plate, a card's progress on its plate.
         ("tungsten" on "CONTROL_FILL").mark(),
         ("tungsten" on "PLATE on a white image").mark(),
+        // A button's detail lit at rest (an active filter), on a secondary or a primary button.
+        "tungsten" on "CONTROL_FILL", "tungsten" on "CONTROL_FILL_STRONG",
+        // A question asked in a sheet: Cancel, and the action asked about, its label tungsten at rest.
+        "content" on "CONTROL_FILL on surfaceRaised", "tungsten" on "CONTROL_FILL on surfaceRaised",
+        // A disabled control on the room: its words (above) and its icon, tertiary in its well; on
+        // its plate over an image, a round button's icon stays secondary.
+        ("contentTertiary" on "WELL").mark(),
+        ("contentSecondary" on "PLATE on a white image").mark(),
     )
 
     /** Pairs DESIGN.md forbids by name; if one passes one day, the rule there can go. */

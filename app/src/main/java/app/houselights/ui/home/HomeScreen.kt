@@ -16,6 +16,7 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.runtime.Composable
@@ -60,6 +61,8 @@ import app.houselights.providers.local.ScanError
 import app.houselights.providers.local.ScanState
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlMotion
+import app.houselights.ui.design.awaitMotion
+import app.houselights.ui.design.textRoom
 import app.houselights.ui.design.LocalHouseLights
 import app.houselights.ui.design.houseLit
 import app.houselights.ui.design.HlSize
@@ -91,6 +94,7 @@ fun HomeScreen(
     onOpenItem: (MediaItem) -> Unit,
     onOpenLibrary: (Library) -> Unit,
     onOpenSettings: () -> Unit,
+    onAddFolder: () -> Unit,
 ) {
     val app = appContainer()
     val vm = viewModel { HomeViewModel(app) }
@@ -129,7 +133,7 @@ fun HomeScreen(
         rows.animateScrollToItem(0)
     }
 
-    CompositionLocalProvider(LocalAmbient provides ambient) {
+    CompositionLocalProvider(LocalAmbient provides { ambient.value }) {
         Box(Modifier.fillMaxSize()) {
             Backdrop(shown?.backdrop, BackdropStyle.Hero)
             // Nothing selected (focus on the tabs): no film on the screen, the room takes the
@@ -150,11 +154,19 @@ fun HomeScreen(
                     },
                     onSettings = onOpenSettings,
                 )
-                HeroInfo(shown, Modifier.padding(start = HlSpace.safeH, top = HlSpace.xs).height(HlLayout.hero))
+                // Its height holds the text at the viewer's size, and stays the same whatever has focus.
+                HeroInfo(shown, Modifier.padding(start = HlSpace.safeH, top = HlSpace.xs).height(textRoom(HlLayout.hero)))
                 Spacer(Modifier.height(HlSpace.s))
                 when {
                     state.sections.isEmpty() ->
-                        NoRows(state, scan, local = settings.source == SourceConfig.Local, onReload = vm::load, onSettings = onOpenSettings)
+                        NoRows(
+                            state,
+                            scan,
+                            local = settings.source == SourceConfig.Local,
+                            onReload = vm::load,
+                            onSettings = onOpenSettings,
+                            onAddFolder = onAddFolder,
+                        )
                     else -> Sections(
                         sections = state.sections,
                         memory = memory,
@@ -190,7 +202,8 @@ private fun TopBar(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.Top,
     ) {
-        // The white slides to the library chosen, then it opens; back home, "Accueil" is lit again.
+        // The white slides to the library chosen, then it opens (at once when animations are off);
+        // back home, "Accueil" is lit again.
         var current by remember { mutableIntStateOf(0) }
         val scope = rememberCoroutineScope()
         HlSegmented(
@@ -200,7 +213,7 @@ private fun TopBar(
                 if (i > 0 && current == 0) {
                     current = i
                     scope.launch {
-                        delay(HlMotion.STANDARD.toLong())
+                        awaitMotion(HlMotion.STANDARD)
                         onLibrary(libraries[i - 1])
                     }
                 }
@@ -299,28 +312,47 @@ private fun SkeletonRows() {
 }
 
 @Composable
-private fun Message(text: String, action: String? = null, onAction: () -> Unit = {}) {
-    HlEmptyState(
-        text,
-        Modifier.padding(start = HlSpace.safeH, top = HlSpace.l),
-        action = action,
-        actionIcon = Icons.Filled.Settings,
-        onAction = onAction,
-    )
+private fun Message(text: String) {
+    HlEmptyState(text, Modifier.padding(start = HlSpace.safeH, top = HlSpace.l))
 }
 
 /** No rows yet: loading, a failure, a scan under way or failed, or a library still empty. */
 @Composable
-private fun NoRows(state: HomeState, scan: ScanState, local: Boolean, onReload: () -> Unit, onSettings: () -> Unit) {
+private fun NoRows(
+    state: HomeState,
+    scan: ScanState,
+    local: Boolean,
+    onReload: () -> Unit,
+    onSettings: () -> Unit,
+    onAddFolder: () -> Unit,
+) {
     when {
         state.loading -> SkeletonRows()
         state.error != null -> ErrorMessage(state.error, onReload)
         scan.running -> Message(stringResource(R.string.home_scanning, scan.processed, scan.total))
         // Not "add a folder" when there is one: its scan failed, and it says why.
         local && scan.errors.isNotEmpty() -> ScanFailed(scan.errors, onSettings)
-        local -> Message(stringResource(R.string.home_empty_local), stringResource(R.string.nav_settings), onSettings)
+        local -> NoFilms(onAddFolder, onSettings)
         else -> Message(stringResource(R.string.empty))
     }
+}
+
+/**
+ * Folders without a film yet, or none at all: a verb, adding the folder that holds them, and
+ * beside it the folders already there.
+ */
+@Composable
+private fun NoFilms(onAddFolder: () -> Unit, onSettings: () -> Unit) {
+    val folders = appContainer().library.folders.collectAsStateWithLifecycle(null).value ?: return
+    HlEmptyState(
+        stringResource(R.string.home_empty_local),
+        Modifier.padding(start = HlSpace.safeH, top = HlSpace.l),
+        action = stringResource(R.string.add_folder),
+        actionIcon = Icons.Filled.Add,
+        onAction = onAddFolder,
+        secondaryAction = stringResource(R.string.home_see_folders).takeIf { folders.isNotEmpty() },
+        onSecondaryAction = onSettings,
+    )
 }
 
 /** Nothing to show because the folders could not be read: why, a way to scan again, and the folders. */

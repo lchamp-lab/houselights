@@ -34,7 +34,6 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -57,7 +56,6 @@ import app.houselights.core.LibraryFilter
 import app.houselights.core.Quality
 import app.houselights.core.SortOption
 import app.houselights.core.WatchStatus
-import app.houselights.ui.design.components.Emphasis
 import app.houselights.ui.design.components.HlButton
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlMotion
@@ -65,14 +63,13 @@ import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.LocalAmbient
 import app.houselights.ui.design.components.Backdrop
 import app.houselights.ui.design.components.CollectionLight
-import app.houselights.ui.design.components.BadgeRow
+import app.houselights.ui.design.components.TitleLine
 import app.houselights.ui.design.components.BackdropStyle
 import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.components.HlMenuButton
 import app.houselights.ui.design.components.MenuOption
 import app.houselights.ui.design.components.MenuSection
 import app.houselights.ui.design.components.LocalGroupFocused
-import app.houselights.ui.design.components.MetaLine
 import app.houselights.ui.design.components.PosterCard
 import app.houselights.ui.design.components.ScreenTitle
 import app.houselights.ui.design.components.rememberAmbientColor
@@ -140,7 +137,8 @@ fun LibraryScreen(
         runCatching { gridFocus.requestFocus() }
     }
 
-    CompositionLocalProvider(LocalAmbient provides rememberAmbientColor(shown?.backdrop)) {
+    val ambient = rememberAmbientColor(shown?.backdrop)
+    CompositionLocalProvider(LocalAmbient provides { ambient.value }) {
         Box(Modifier.fillMaxSize()) {
             Backdrop(shown?.backdrop, BackdropStyle.Quiet)
             // Nothing selected: no film on the screen, the room takes the colours of the wall.
@@ -167,14 +165,13 @@ fun LibraryScreen(
                     // Collections are browsed by name or date; filters belong to films.
                     if (library.kind != LibraryKind.COLLECTIONS) FilterButton(state.filter, state.facets, vm::setFilter)
                     Spacer(Modifier.width(HlSpace.s))
+                    // "Trier", and how it is sorted now: alone, "Titre" would read as a title.
                     HlMenuButton(
-                        text = sortLabel(state.sort),
+                        text = stringResource(R.string.sort),
                         icon = HlIcons.Sort,
+                        detail = sortLabel(state.sort),
                         sections = listOf(
-                            MenuSection(
-                                stringResource(R.string.sort_by),
-                                SortOption.entries.map { opt -> MenuOption(sortLabel(opt), state.sort == opt) { vm.setSort(opt) } },
-                            ),
+                            MenuSection(null, SortOption.entries.map { MenuOption(sortOrder(it), state.sort == it) { vm.setSort(it) } }),
                         ),
                     )
                 }
@@ -185,19 +182,15 @@ fun LibraryScreen(
                     tween(HlMotion.FAST, easing = HlMotion.standard),
                     label = "info",
                 )
-                Row(
-                    Modifier.padding(start = HlSpace.safeH, top = HlSpace.xs).height(HlLayout.infoLine).graphicsLayer { alpha = infoAlpha },
-                    verticalAlignment = Alignment.CenterVertically,
+                // One line inside the safe area: a long name drops the formats first, then ends in an ellipsis.
+                Box(
+                    Modifier
+                        .padding(start = HlSpace.safeH, end = HlSpace.safeH, top = HlSpace.xs)
+                        .height(HlLayout.infoLine)
+                        .graphicsLayer { alpha = infoAlpha },
+                    contentAlignment = Alignment.CenterStart,
                 ) {
-                    shown?.let {
-                        Text(it.title, style = Hl.type.entry, color = Hl.colors.content, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        Spacer(Modifier.width(HlSpace.m))
-                        MetaLine(it, showGenres = false)
-                        if (it.badges.isNotEmpty()) {
-                            Spacer(Modifier.width(HlSpace.l))
-                            BadgeRow(it.badges.take(4))
-                        }
-                    }
+                    shown?.let { TitleLine(it) }
                 }
                 when {
                     state.loading && state.items.isEmpty() -> SkeletonWall()
@@ -281,6 +274,17 @@ private fun sortLabel(sort: SortOption): String = stringResource(
     }
 )
 
+/** A sort as the menu offers it: what it sorts on, and in which order. */
+@Composable
+private fun sortOrder(sort: SortOption): String = stringResource(
+    when (sort) {
+        SortOption.TITLE -> R.string.sort_title_order
+        SortOption.ADDED -> R.string.sort_added_order
+        SortOption.YEAR -> R.string.sort_year_order
+        SortOption.RATING -> R.string.sort_rating_order
+    }
+)
+
 /** Filter menu: status, genre, decade and quality, combined; stays open while choosing. */
 @Composable
 private fun FilterButton(filter: LibraryFilter, facets: LibraryFacets, onChange: (LibraryFilter) -> Unit) {
@@ -347,7 +351,8 @@ private fun FilterButton(filter: LibraryFilter, facets: LibraryFacets, onChange:
         icon = HlIcons.Filter,
         sections = sections,
         detail = detail,
-        emphasis = if (filter.activeCount > 0) Emphasis.Primary else Emphasis.Secondary,
+        // An active filter is a state, not the main action: its detail is lit, the button stays secondary.
+        detailLit = filter.activeCount > 0,
         closeOnSelect = false,
     )
 }

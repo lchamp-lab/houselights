@@ -32,6 +32,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.tv.material3.Border
 import androidx.tv.material3.ClickableSurfaceDefaults
@@ -83,7 +84,8 @@ fun HlPanel(
 /**
  * A panel that can be chosen (list entries, results, source cards): quiet at rest, raised with a
  * projector-white outline when focused. [lit] edges it in tungsten at rest: the choice in use.
- * [content] receives the focus state.
+ * Not [enabled], it sits in a faint well with tertiary content (what [content] draws in
+ * `LocalContentColor`), keeps focus and ignores OK. [content] receives the focus state.
  */
 @Composable
 fun HlPanelButton(
@@ -91,22 +93,27 @@ fun HlPanelButton(
     modifier: Modifier = Modifier,
     onFocused: () -> Unit = {},
     lit: Boolean = false,
+    enabled: Boolean = true,
     content: @Composable (focused: Boolean) -> Unit,
 ) {
     val c = Hl.colors
     val interaction = remember { MutableInteractionSource() }
     val focused by interaction.collectIsFocusedAsState()
+    val outline = Border(BorderStroke(HlSize.focusBorder, c.focus), shape = HlShapes.panel)
     Surface(
         onClick = onClick,
         modifier = modifier.onFocusChanged { if (it.isFocused) onFocused() },
+        enabled = enabled,
         shape = ClickableSurfaceDefaults.shape(HlShapes.panel),
-        scale = ClickableSurfaceDefaults.scale(focusedScale = HlFocus.CONTROL_SCALE),
+        scale = ClickableSurfaceDefaults.scale(focusedScale = HlFocus.CONTROL_SCALE, focusedDisabledScale = HlFocus.CONTROL_SCALE),
         border = ClickableSurfaceDefaults.border(
             border = Border(
                 BorderStroke(HlSize.hairline, (if (lit) c.tungsten else c.outline).copy(alpha = HlAlpha.BORDER)),
                 shape = HlShapes.panel,
             ),
-            focusedBorder = Border(BorderStroke(HlSize.focusBorder, c.focus), shape = HlShapes.panel),
+            focusedBorder = outline,
+            disabledBorder = Border(BorderStroke(HlSize.hairline, c.outline.copy(alpha = HlAlpha.BORDER)), shape = HlShapes.panel),
+            focusedDisabledBorder = outline,
         ),
         colors = ClickableSurfaceDefaults.colors(
             containerColor = c.surface.copy(alpha = HlAlpha.QUIET_SURFACE),
@@ -115,6 +122,8 @@ fun HlPanelButton(
             focusedContentColor = c.content,
             pressedContainerColor = c.surfaceRaised,
             pressedContentColor = c.content,
+            disabledContainerColor = c.content.copy(alpha = HlAlpha.WELL),
+            disabledContentColor = c.contentTertiary,
         ),
         interactionSource = interaction,
     ) {
@@ -150,7 +159,8 @@ fun HlDivider(modifier: Modifier = Modifier, vertical: Boolean = false) {
 
 /**
  * Facts on one line, separated by space and never by punctuation: "2026   2 h 02   12". Empty
- * facts are left out.
+ * facts are left out, and so are those past the room, whole and from the last: put the ones that
+ * matter first. A single fact too long for the line ends in an ellipsis.
  */
 @Composable
 fun FactRow(
@@ -159,8 +169,10 @@ fun FactRow(
     style: TextStyle = Hl.type.meta,
     color: Color = Hl.colors.contentSecondary,
 ) {
-    Row(modifier, horizontalArrangement = Arrangement.spacedBy(HlSpace.fact), verticalAlignment = Alignment.CenterVertically) {
-        facts.filterNotNull().filter { it.isNotBlank() }.forEach { Text(it, style = style, color = color, maxLines = 1) }
+    OneLine(modifier) {
+        facts.filterNotNull().filter { it.isNotBlank() }.forEach {
+            Text(it, style = style, color = color, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
     }
 }
 
@@ -214,18 +226,7 @@ fun HlStatus(state: StatusState, text: String, modifier: Modifier = Modifier, de
     val c = Hl.colors
     Column(modifier) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                Modifier
-                    .size(HlSize.dot)
-                    .clip(HlShapes.avatar)
-                    .then(
-                        when (state) {
-                            StatusState.On, StatusState.Attention -> Modifier.background(c.tungsten)
-                            StatusState.Pending -> Modifier.background(c.contentDecorative)
-                            StatusState.Off -> Modifier.border(HlSize.hairline, c.contentTertiary, HlShapes.avatar)
-                        }
-                    )
-            )
+            StatusDot(state)
             Spacer(Modifier.width(HlSpace.xs))
             val strong = state == StatusState.On || state == StatusState.Attention
             Text(text, style = Hl.type.meta, color = if (strong) c.content else c.contentSecondary)
@@ -235,6 +236,27 @@ fun HlStatus(state: StatusState, text: String, modifier: Modifier = Modifier, de
             Text(detail, style = Hl.type.detail, color = c.contentSecondary, modifier = Modifier.padding(start = HlSize.dot + HlSpace.xs))
         }
     }
+}
+
+/**
+ * The light of a [StatusState]: tungsten when on or calling for attention, quiet while pending,
+ * an empty ring when off. Also where a busy button's icon was, and before a field's error.
+ */
+@Composable
+internal fun StatusDot(state: StatusState, modifier: Modifier = Modifier) {
+    val c = Hl.colors
+    Box(
+        modifier
+            .size(HlSize.dot)
+            .clip(HlShapes.avatar)
+            .then(
+                when (state) {
+                    StatusState.On, StatusState.Attention -> Modifier.background(c.tungsten)
+                    StatusState.Pending -> Modifier.background(c.contentDecorative)
+                    StatusState.Off -> Modifier.border(HlSize.hairline, c.contentTertiary, HlShapes.avatar)
+                }
+            )
+    )
 }
 
 /** One part of a [HlMeter]. */

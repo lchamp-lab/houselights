@@ -2,6 +2,8 @@ package app.houselights.ui.design
 
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animate
+import androidx.compose.animation.core.tween
 
 /**
  * Motion answers the user: focus, opening, playing. The only orchestrated moment is
@@ -25,4 +27,14 @@ object HlMotion {
 
     val standard = FastOutSlowInEasing
     val emphasized = CubicBezierEasing(0.2f, 0f, 0f, 1f)
+}
+
+/**
+ * Waits while a motion of [durationMs] plays, at the pace the system sets for animations: what
+ * follows a motion (a screen opening once the pill has slid) comes when it ends, and at once when
+ * animations are off. Never a fixed delay, which would hold a still screen. Call it from a
+ * composition's scope: its frame clock drives the motion.
+ */
+suspend fun awaitMotion(durationMs: Int) {
+    animate(0f, 1f, animationSpec = tween(durationMs)) { _, _ -> }
 }
