@@ -30,12 +30,12 @@ import app.houselights.ui.design.components.HlStatus
 import app.houselights.ui.design.components.StatusState
 import app.houselights.ui.design.components.Wordmark
 
-internal fun LazyListScope.aboutPane(onOpenCatalog: () -> Unit) {
+internal fun LazyListScope.aboutPane(onOpenCatalog: () -> Unit, rows: PaneRows) {
     item { AboutBrand() }
     item { AboutStatus() }
     item { AboutCredits() }
     // For whoever works on the app: the design system on this screen.
-    if (BuildConfig.DEBUG) item { HlSettingGroup(null) { HlSettingRow(CATALOG, onClick = onOpenCatalog) } }
+    if (BuildConfig.DEBUG) item { HlSettingGroup(null) { HlSettingRow(CATALOG, rows.focus("catalog"), onClick = onOpenCatalog) } }
 }
 
 /** The house light and its name, with what this copy is. */

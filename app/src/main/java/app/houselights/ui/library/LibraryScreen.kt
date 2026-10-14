@@ -42,6 +42,10 @@ import androidx.tv.material3.Text
 import app.houselights.ui.design.HlFocus
 import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.ListScroll
+import app.houselights.ui.design.FocusKey
+import app.houselights.ui.design.RestoreFocus
+import app.houselights.ui.design.focusKey
+import app.houselights.ui.design.rememberFocusMemory
 import app.houselights.R
 import app.houselights.core.Definition
 import app.houselights.core.Library
@@ -121,12 +125,12 @@ fun LibraryScreen(
         }
     }
     val scope = rememberCoroutineScope()
-    var focusedOnce by remember { mutableStateOf(false) }
-    LaunchedEffect(state.items.isNotEmpty()) {
-        if (state.items.isNotEmpty() && !focusedOnce) {
-            focusedOnce = true
-            runCatching { gridFocus.requestFocus() }
-        }
+    // Each arrival puts focus back on the poster left, else on the first one.
+    val memory = rememberFocusMemory()
+    RestoreFocus(memory, gridFocus, ready = state.items.isNotEmpty()) { key ->
+        val index = FocusKey.itemId(key)?.let { id -> state.items.indexOfFirst { it.id == id } } ?: -1
+        if (index >= 0) gridState.scrollToItem(index)
+        index >= 0
     }
 
     CompositionLocalProvider(LocalAmbient provides rememberAmbientColor(shown?.backdrop)) {
@@ -225,7 +229,9 @@ fun LibraryScreen(
                                     if (index < COLUMNS) scope.launch { gridState.animateScrollToItem(0) }
                                     if (index > state.items.size - COLUMNS * 3) vm.loadMore()
                                 },
-                                modifier = if (index == 0) Modifier.focusRequester(gridFocus) else Modifier,
+                                modifier = Modifier
+                                    .focusKey(FocusKey.item(item.id), memory)
+                                    .then(if (index == 0) Modifier.focusRequester(gridFocus) else Modifier),
                             )
                         }
                     } } }

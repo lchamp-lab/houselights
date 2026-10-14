@@ -12,7 +12,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
@@ -28,7 +30,6 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.res.stringResource
@@ -42,6 +43,11 @@ import app.houselights.ui.design.components.HlEmptyState
 import app.houselights.ui.design.HlFocus
 import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.ListScroll
+import app.houselights.ui.design.FocusKey
+import app.houselights.ui.design.FocusMemory
+import app.houselights.ui.design.RestoreFocus
+import app.houselights.ui.design.focusKey
+import app.houselights.ui.design.rememberFocusMemory
 import app.houselights.ui.design.rememberRowState
 import app.houselights.R
 import app.houselights.core.HomeSection
@@ -100,16 +106,40 @@ fun HomeScreen(
     }
     val ambient = rememberAmbientColor(shown?.backdrop)
 
+    val memory = rememberFocusMemory()
+    val rows = rememberLazyListState()
+    // Each arrival puts focus back where it was: a card (by its row and its id), a tab, the
+    // settings button; on a first visit, the first card.
+    val first = state.sections.firstOrNull()
+    RestoreFocus(
+        memory,
+        fallback = first?.items?.firstOrNull()?.let { memory.requester(cardKey(first, it)) },
+        ready = state.sections.isNotEmpty(),
+    ) { key ->
+        val index = sectionIndex(state.sections, key)
+        if (index != null) rows.scrollToItem(index)
+        index != null
+    }
+
     CompositionLocalProvider(LocalAmbient provides ambient) {
         Box(Modifier.fillMaxSize()) {
             Backdrop(shown?.backdrop, BackdropStyle.Hero)
             // Nothing selected (focus on the tabs): no film on the screen, the room takes the
             // colours of the row the viewer was browsing.
-            val row = state.sections.getOrNull(vm.lastFocus.first) ?: state.sections.firstOrNull()
+            val row = memory.last?.let { sectionIndex(state.sections, it) }?.let(state.sections::getOrNull) ?: first
             val rowPosters = remember(row) { row?.items.orEmpty().take(ROW_TONES).mapNotNull { it.poster ?: it.backdrop } }
             CollectionLight(rowPosters, lit = shown == null)
             Column(Modifier.fillMaxSize().houseLit(LocalHouseLights.current)) {
-                TopBar(libraries = state.libraries, onLibrary = onOpenLibrary, onSettings = onOpenSettings)
+                TopBar(
+                    libraries = state.libraries,
+                    memory = memory,
+                    onLibrary = { library ->
+                        // Coming back from the library finds focus on its tab.
+                        memory.record(FocusKey.within(TRACK, FocusKey.tab(library.id)))
+                        onOpenLibrary(library)
+                    },
+                    onSettings = onOpenSettings,
+                )
                 HeroInfo(shown, Modifier.padding(start = HlSpace.safeH, top = HlSpace.xs).height(HlLayout.hero))
                 Spacer(Modifier.height(HlSpace.s))
                 when {
@@ -117,12 +147,10 @@ fun HomeScreen(
                         NoRows(state, scan, local = settings.source == SourceConfig.Local, onReload = vm::load, onSettings = onOpenSettings)
                     else -> Sections(
                         sections = state.sections,
-                        initialFocus = vm.lastFocus,
+                        memory = memory,
+                        rows = rows,
                         onOpen = onOpenItem,
-                        onFocus = { section, index, item ->
-                            vm.lastFocus = section to index
-                            focused = item
-                        },
+                        onFocus = { item -> focused = item },
                         onLeave = { focused = null },
                     )
                 }
@@ -132,7 +160,7 @@ fun HomeScreen(
 }
 
 @Composable
-private fun TopBar(libraries: List<Library>, onLibrary: (Library) -> Unit, onSettings: () -> Unit) {
+private fun TopBar(libraries: List<Library>, memory: FocusMemory, onLibrary: (Library) -> Unit, onSettings: () -> Unit) {
     // Where you are among the libraries, in one track; settings apart, as an action. Both sit on
     // the image, on their plates. A long track scrolls: the button always keeps its place.
     Row(
@@ -155,47 +183,50 @@ private fun TopBar(libraries: List<Library>, onLibrary: (Library) -> Unit, onSet
                     }
                 }
             },
-            modifier = Modifier.weight(1f, fill = false).padding(end = HlSpace.l),
+            // Focus coming back to the track lands where the track's own rule puts it.
+            modifier = Modifier.weight(1f, fill = false).padding(end = HlSpace.l).focusRequester(memory.requester(TRACK)),
             scrollable = true,
             onArtwork = true,
         )
-        HlIconButton(Icons.Filled.Settings, stringResource(R.string.nav_settings), onClick = onSettings, onArtwork = true)
+        HlIconButton(
+            Icons.Filled.Settings,
+            stringResource(R.string.nav_settings),
+            onClick = onSettings,
+            modifier = Modifier.focusKey(FocusKey.action("settings"), memory),
+            onArtwork = true,
+        )
     }
 }
 
 @Composable
 private fun Sections(
     sections: List<HomeSection>,
-    initialFocus: Pair<Int, Int>,
+    memory: FocusMemory,
+    rows: LazyListState,
     onOpen: (MediaItem) -> Unit,
-    onFocus: (section: Int, index: Int, item: MediaItem) -> Unit,
+    onFocus: (MediaItem) -> Unit,
     /** Focus left the rows (for the tabs above): nothing is selected anymore. */
     onLeave: () -> Unit,
 ) {
-    val firstFocus = remember { FocusRequester() }
-    // If the remembered card no longer exists (data reloaded), start from the first one.
-    val (focusSection, focusIndex) = initialFocus
-        .takeIf { (s, i) -> i < (sections.getOrNull(s)?.items?.size ?: 0) } ?: (0 to 0)
-    LaunchedEffect(sections.isNotEmpty()) {
-        if (sections.isNotEmpty()) runCatching { firstFocus.requestFocus() }
-    }
-
     // The rows start under the hero: each comes back to the top of the list, where the first rests.
     ListScroll(top = HlSpace.none) { LazyColumn(
+        state = rows,
         modifier = Modifier.fillMaxSize().onFocusChanged { if (!it.hasFocus) onLeave() },
         contentPadding = PaddingValues(bottom = HlFocus.edge),
         verticalArrangement = Arrangement.spacedBy(HlSpace.xs),
     ) {
-        sections.forEachIndexed { sectionIndex, section ->
-            item(key = "${section.type}-${section.libraryId}") {
+        sections.forEach { section ->
+            item(key = section.key) {
                 MediaRow(
                     header = sectionTitle(section),
+                    // A card gone since focus left it: focus comes back to its row.
+                    modifier = Modifier.focusRequester(memory.requester(FocusKey.section(section.key))),
                     spacing = if (section.landscape) HlSpace.l else HlSpace.m,
                     state = rememberRowState(section.items.map { it.id }),
                 ) {
-                    itemsIndexed(section.items, key = { _, it -> it.id }) { index, item ->
-                        val mod = if (sectionIndex == focusSection && index == focusIndex) Modifier.focusRequester(firstFocus) else Modifier
-                        val focus = { onFocus(sectionIndex, index, item) }
+                    items(section.items, key = { it.id }) { item ->
+                        val mod = Modifier.focusKey(cardKey(section, item), memory)
+                        val focus = { onFocus(item) }
                         if (section.landscape) {
                             LandscapeCard(item, onClick = { onOpen(item) }, modifier = mod, onFocused = focus)
                         } else {
@@ -207,6 +238,21 @@ private fun Sections(
         }
     } }
 }
+
+/** A row of home, whatever its position: its kind and its library. */
+internal val HomeSection.key: String get() = "$type-$libraryId"
+
+/** A card of home: the same title may be in two rows. */
+internal fun cardKey(section: HomeSection, item: MediaItem) = FocusKey.within(FocusKey.section(section.key), FocusKey.item(item.id))
+
+/** The row of [sections] holding what [key] names; null for the tabs, the settings button, a row gone. */
+internal fun sectionIndex(sections: List<HomeSection>, key: String): Int? {
+    val row = FocusKey.groups(key).lastOrNull() ?: return null
+    return sections.indexOfFirst { FocusKey.section(it.key) == row }.takeIf { it >= 0 }
+}
+
+/** The library tabs, as one group: what they hold is the track's to focus. */
+private const val TRACK = "track"
 
 /** Same footprint as the real rows, so nothing jumps when data arrives. */
 @Composable

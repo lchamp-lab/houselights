@@ -19,6 +19,9 @@ import app.houselights.R
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.FocusKey
+import app.houselights.ui.design.FocusMemory
+import app.houselights.ui.design.focusKey
 import app.houselights.ui.design.components.HlButton
 import app.houselights.ui.design.revealOnFocus
 
@@ -52,6 +55,20 @@ internal fun Confirm(question: String, consequence: String, action: String, onCa
         HlButton(stringResource(R.string.cancel), onClick = onCancel, modifier = Modifier.focusRequester(cancel))
         HlButton(action, onClick = onConfirm)
     }
+}
+
+/**
+ * The rows of a pane that focus comes back to, keyed in the screen's memory under the pane's entry:
+ * coming back from the screen a row opened finds that row, else the entry.
+ */
+internal class PaneRows(private val memory: FocusMemory, private val pane: String) {
+    private fun key(row: String) = FocusKey.within(FocusKey.pane(pane), FocusKey.row(row))
+
+    /** Names a row that opens another screen. */
+    fun focus(row: String): Modifier = Modifier.focusKey(key(row), memory)
+
+    /** Focuses that row from the pane itself (after a folder is removed). */
+    fun requester(row: String): FocusRequester = memory.requester(key(row))
 }
 
 /** A line of explanation under a group, in the reading measure. */

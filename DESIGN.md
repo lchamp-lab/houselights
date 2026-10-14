@@ -176,7 +176,7 @@ without the prefix (`MenuOption`, `MeterLegend`, `PosterCard`, `BillingBlock`, `
 | `Backdrop` (`Hero`, `Full`, `Quiet`) | full-screen artwork under the `HlScrim` veils, with a floor under the text column on a light image, plus the ambient light; its veils lift when the lights go down |
 | `rememberAmbientColor`, `CollectionLight` | the light a picture spills into the room; the colours of a wall when nothing is selected |
 | `PosterCard`, `LandscapeCard`, `PersonCard`, `ArtworkSurface`, `ArtworkImage` | artwork with the shared focus treatment and a faint edge at rest (see *Cards*) |
-| `MediaRow` | horizontal row with header and focus restoration; dims the other cards when one is focused |
+| `MediaRow` | horizontal row with header; focus coming back into it lands on its last card; dims the other cards when one is focused |
 | `HeroInfo`, `TitleArt`, `EpisodeHeading`, `MetaLine`, `BillingBlock` | what a title is: clear logo or condensed title, facts, credits |
 | `Badge`, `BadgeRow`, `FactRow` | formats and ratings (a `lit` badge marks a state); facts on one line, spaced, never punctuated |
 | `HlButton` (`Primary`, `Secondary`), `HlIconButton` | pill and round actions, all 48 dp tall; the icon button shows its label under it when focused. The label takes no room (a row with something below keeps `HlLayout.iconLabelRoom` for it), stays inside the safe area, hides while a sheet is open, and is not read out: the icon carries the name. Over an image (`onArtwork`) the button rests on a plate |
@@ -268,6 +268,21 @@ a sliver. A row of cards keeps `HlSpace.s` above and below them, room for a post
 
 Focus is never left nowhere. When what holds it goes away (a folder removed, a line deleted), it
 moves to a neighbour, else to the action that adds one ("Ajouter un dossier").
+
+**Coming back** to a screen finds focus on what was left, by what it is, not where it sat
+(`Focus.kt`). For each screen:
+
+1. Every element that opens another screen, and every card of a list, has a stable key (`focusKey`,
+   `FocusKey`): `item:<id>`, `action:edit`, `pane:Library/row:source`. A card's key names its row
+   (`section:…/item:42`), and the row or the pane takes focus when the card has gone.
+2. The screen keeps its `FocusMemory` with its destination (`rememberFocusMemory`) and brings focus
+   back once laid out (`RestoreFocus`), scrolling its list to the element first. A first visit
+   starts where the screen starts: the first card, Lire, the entry of the pane open.
+3. An action that changes its words stays one element: Lire becomes Reprendre on the same button,
+   so a film stopped half way comes back with focus on it, even one started over.
+4. A row or a pane returns to the child it last had when the remote comes back into it
+   (`keepChildFocus`); never `focusRestorer`, which turns a request for one child into its own.
+5. On screen: open something, come back, focus is on it, in its row, with the pane still open.
 
 ## Messages
 
