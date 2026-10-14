@@ -155,8 +155,9 @@ object HlLayout {
     val specTables = 240.dp
     /** Height of long text panels (NFO). */
     val textPanel = 440.dp
-    /** Label column of label and value lists. */
+    /** Label column of label and value lists, and its short form inside a narrow panel. */
     val definitionLabel = 220.dp
+    val definitionLabelShort = 120.dp
 }
 
 /** Inner padding of pill controls and of the options of a segmented track. */

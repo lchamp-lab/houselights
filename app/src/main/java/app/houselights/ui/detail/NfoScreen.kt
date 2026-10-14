@@ -138,7 +138,11 @@ private fun NfoDetails(info: NfoInfo?) = ScrollablePanel {
                 info.studios.takeIf { it.isNotEmpty() }?.let { add(stringResource(R.string.label_studios) to it.joinToString(", ")) }
                 info.collection?.let { add(stringResource(R.string.label_collection) to it) }
             }
-            if (details.isNotEmpty()) InfoBlock(stringResource(R.string.nfo_block_details)) { DefinitionList(details) }
+            if (details.isNotEmpty()) {
+                InfoBlock(stringResource(R.string.nfo_block_details)) {
+                    DefinitionList(details, labelWidth = HlLayout.definitionLabelShort)
+                }
+            }
             Identifiers(info)
         }
     }
@@ -167,20 +171,19 @@ private fun Facts(info: NfoInfo) {
     }
 }
 
-/** Who made it, then who plays whom, in two columns. */
+/** Who made it, then who plays whom: names in two columns, each with what they did. */
 @Composable
 private fun Credits(info: NfoInfo) {
     val c = Hl.colors
+    val directing = stringResource(R.string.label_directors)
+    val credits = info.directors.map { it to directing } + info.actors.take(ACTORS).map { it.name to it.role }
     Column(verticalArrangement = Arrangement.spacedBy(HlSpace.s)) {
-        if (info.directors.isNotEmpty()) {
-            DefinitionList(listOf(stringResource(R.string.label_directors) to info.directors.joinToString(", ")))
-        }
-        info.actors.take(ACTORS).chunked(2).forEach { pair ->
+        credits.chunked(2).forEach { pair ->
             Row {
-                pair.forEach { actor ->
+                pair.forEach { (name, role) ->
                     Column(Modifier.weight(1f)) {
-                        Text(actor.name, style = Hl.type.entry, color = c.content)
-                        actor.role?.let { Text(it, style = Hl.type.detail, color = c.contentSecondary) }
+                        Text(name, style = Hl.type.entry, color = c.content)
+                        role?.let { Text(it, style = Hl.type.detail, color = c.contentSecondary) }
                     }
                 }
                 if (pair.size == 1) Spacer(Modifier.weight(1f))
