@@ -222,6 +222,9 @@ Focus must read from the couch:
 - **Panels** that can be chosen are raised and outlined in projector white.
 - **Text fields** get a white outline when focused and a tungsten outline while typing.
 
+Focus is never left nowhere. When what holds it goes away (a folder removed, a line deleted), it
+moves to a neighbour, else to the action that adds one ("Ajouter un dossier").
+
 ## Writing
 
 - French uses *vous*, typographic apostrophes (’), and a no-break space before `: ; ! ?` and inside

@@ -116,13 +116,14 @@ private fun PaneContent(
     onSignIn: () -> Unit,
     onOpenCatalog: () -> Unit,
 ) {
+    val addFolder = remember { FocusRequester() }
     LazyColumn(
         modifier = Modifier.fillMaxSize().keepVerticalFocus().focusRestorer(),
         contentPadding = PaddingValues(bottom = HlSpace.xxl, end = HlSpace.m),
         verticalArrangement = Arrangement.spacedBy(HlSpace.l),
     ) {
         when (pane) {
-            Pane.Library -> libraryPane(s, onAddFolder, onUseFolders, onSignIn)
+            Pane.Library -> libraryPane(s, onAddFolder, onUseFolders, onSignIn, addFolder)
             Pane.Playback -> playbackPane(s)
             Pane.Display -> displayPane(s)
             Pane.Storage -> storagePane(storage)

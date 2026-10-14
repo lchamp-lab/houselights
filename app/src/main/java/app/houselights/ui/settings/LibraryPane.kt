@@ -19,6 +19,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -75,13 +76,20 @@ import app.houselights.core.CollectionThreshold
 
 /**
  * The library: its folders or its server, then what can be done with it. [onUseFolders] makes the
- * folders the source (or adds the first one), [onSignIn] opens the Jellyfin sign-in.
+ * folders the source (or adds the first one), [onSignIn] opens the Jellyfin sign-in. [addFolder]
+ * focuses "Add a folder", where focus goes when the last folder is removed.
  */
-internal fun LazyListScope.libraryPane(s: AppSettings, onAddFolder: () -> Unit, onUseFolders: () -> Unit, onSignIn: () -> Unit) {
+internal fun LazyListScope.libraryPane(
+    s: AppSettings,
+    onAddFolder: () -> Unit,
+    onUseFolders: () -> Unit,
+    onSignIn: () -> Unit,
+    addFolder: FocusRequester,
+) {
     when (val source = s.source) {
         SourceConfig.Local -> {
-            item { Section(stringResource(R.string.section_source)) { Sources() } }
-            item { LibraryActions(onAddFolder, onUseFolders, onSignIn) }
+            item { Section(stringResource(R.string.section_source)) { Sources(addFolder) } }
+            item { LibraryActions(onAddFolder, onUseFolders, onSignIn, addFolder) }
         }
         is SourceConfig.Jellyfin -> {
             item {
@@ -111,25 +119,41 @@ internal fun LazyListScope.libraryPane(s: AppSettings, onAddFolder: () -> Unit, 
     }
 }
 
-/** One card per watched folder. */
+/**
+ * One card per watched folder. The card of a folder removed takes focus with it: focus moves on to
+ * the next card, else to [addFolder].
+ */
 @Composable
-private fun Sources() {
+private fun Sources(addFolder: FocusRequester) {
     val vm = settingsViewModel()
     val scope = rememberCoroutineScope()
     val sources by vm.library.folders.collectAsStateWithLifecycle(emptyList())
     val scan by vm.library.scan.collectAsStateWithLifecycle()
     var actionsFor by remember { mutableStateOf<SourceEntity?>(null) }
+    val cards = remember { mutableMapOf<Long, FocusRequester>() }
+    // The folder being removed, and where focus goes once its card has gone.
+    var removing by remember { mutableStateOf<Pair<Long, FocusRequester>?>(null) }
+    LaunchedEffect(sources) {
+        val (id, next) = removing ?: return@LaunchedEffect
+        if (sources.none { it.id == id }) {
+            removing = null
+            runCatching { next.requestFocus() }
+        }
+    }
 
     Column(verticalArrangement = Arrangement.spacedBy(HlSpace.s)) {
         sources.forEach { source ->
-            SourceCard(
-                source,
-                scanning = scan.running && scan.sourceName == source.name,
-                progress = if (scan.total > 0) scan.processed.toFloat() / scan.total else 0f,
-                current = scan.current,
-                error = scan.errors[source.name],
-                onClick = { actionsFor = source },
-            )
+            key(source.id) {
+                SourceCard(
+                    source,
+                    scanning = scan.running && scan.sourceName == source.name,
+                    progress = if (scan.total > 0) scan.processed.toFloat() / scan.total else 0f,
+                    current = scan.current,
+                    error = scan.errors[source.name],
+                    onClick = { actionsFor = source },
+                    modifier = Modifier.focusRequester(cards.getOrPut(source.id) { FocusRequester() }),
+                )
+            }
         }
     }
     actionsFor?.let { source ->
@@ -137,7 +161,11 @@ private fun Sources() {
             source,
             onDismiss = { actionsFor = null },
             // Launched from here: the sheet has left the composition by the time it runs.
-            onRemove = { scope.launch { vm.library.removeFolder(source) } },
+            onRemove = {
+                val next = sources.getOrNull(sources.indexOfFirst { it.id == source.id } + 1)
+                removing = source.id to (next?.let { cards[it.id] } ?: addFolder)
+                scope.launch { vm.library.removeFolder(source) }
+            },
         )
     }
 }
@@ -221,6 +249,7 @@ private fun SourceCard(
     current: String?,
     error: ScanError?,
     onClick: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val c = Hl.colors
     val library = settingsViewModel().library
@@ -229,7 +258,7 @@ private fun SourceCard(
     val posters by remember(source.id) { library.latestPosters(source, STRIP) }.collectAsStateWithLifecycle(emptyList())
     val kind = stringResource(if (source.kind == SourceKind.MOVIES) R.string.library_movies else R.string.library_shows)
 
-    HlPanelButton(onClick, Modifier.fillMaxWidth()) {
+    HlPanelButton(onClick, modifier.fillMaxWidth()) {
         Column {
             PosterCover(posters)
             Column(Modifier.padding(HlInset.card)) {
@@ -297,7 +326,7 @@ private fun PosterCover(paths: List<String>) {
 }
 
 @Composable
-private fun LibraryActions(onAddFolder: () -> Unit, onUseFolders: () -> Unit, onSignIn: () -> Unit) {
+private fun LibraryActions(onAddFolder: () -> Unit, onUseFolders: () -> Unit, onSignIn: () -> Unit, addFolder: FocusRequester) {
     val vm = settingsViewModel()
     val s by vm.settings.collectAsStateWithLifecycle()
     val scan by vm.library.scan.collectAsStateWithLifecycle()
@@ -307,7 +336,13 @@ private fun LibraryActions(onAddFolder: () -> Unit, onUseFolders: () -> Unit, on
     val hasBuiltIn = BuildConfig.TMDB_API_KEY.isNotBlank()
 
     HlSettingGroup(null, Modifier.revealOnFocus()) {
-        HlSettingRow(stringResource(R.string.add_folder), onClick = onAddFolder, chevron = false, trailing = { PlusIcon() })
+        HlSettingRow(
+            stringResource(R.string.add_folder),
+            onClick = onAddFolder,
+            chevron = false,
+            trailing = { PlusIcon() },
+            modifier = Modifier.focusRequester(addFolder),
+        )
         HlSettingRow(
             stringResource(R.string.scan_now),
             value = if (scan.running) stringResource(R.string.scan_running, scan.processed, scan.total) else relativeTime(lastScan),
