@@ -94,7 +94,8 @@ fun MediaRow(
                     modifier = Modifier
                         .onFocusChanged { rowFocused = it.hasFocus }
                         .focusRestorer(),
-                    contentPadding = PaddingValues(horizontal = HlSpace.safeH, vertical = HlSpace.m),
+                    // Room for a focused card to grow: a poster grows by 8.4 dp at the top and the bottom.
+                    contentPadding = PaddingValues(horizontal = HlSpace.safeH, vertical = HlSpace.s),
                     horizontalArrangement = Arrangement.spacedBy(spacing),
                     content = content,
                 )

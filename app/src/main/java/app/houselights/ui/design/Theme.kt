@@ -37,7 +37,7 @@ fun HouselightsTheme(content: @Composable () -> Unit) {
     CompositionLocalProvider(
         LocalHlColors provides c,
         LocalHlType provides HouselightsType,
-        LocalBringIntoViewSpec provides HlBringIntoView,
+        LocalBringIntoViewSpec provides rememberListScroll(),
     ) {
         MaterialTheme(colorScheme = scheme) {
             CompositionLocalProvider(LocalContentColor provides c.content, content = content)

@@ -145,6 +145,13 @@ object HlLayout {
     val sideSheet = 520.dp
     /** Widest value on the right of a setting row. */
     val rowValue = 360.dp
+    /** Widest label under a round icon button; a longer one ends in an ellipsis. */
+    val iconLabel = 160.dp
+    /**
+     * Room a row of round buttons keeps under itself for the label of the one with focus: the gap
+     * ([HlSpace.xs]) and one caption line (20). The label takes none of its own.
+     */
+    val iconLabelRoom = 28.dp
     /** Dropdown menus (sort, filters); their height is the room the screen leaves them. */
     val menuWidth = 320.dp
     /** Columns of the technical sheet's track tables. */
@@ -181,4 +188,9 @@ object HlFocus {
     const val SIBLING_DIM = 0.3f
     const val SIBLING_SATURATION = 0.3f
     val glow = 18.dp
+    /**
+     * How far a vertical list keeps what has focus from its top and bottom: the safe area, so
+     * the last row stops inside it and a focused poster grows into the margin, not off the screen.
+     */
+    val edge = HlSpace.safeV
 }

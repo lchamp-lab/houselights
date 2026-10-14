@@ -47,6 +47,7 @@ import app.houselights.core.MediaKind
 import app.houselights.core.ProviderCapabilities
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlIcons
+import app.houselights.ui.design.HlFocus
 import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
@@ -133,7 +134,7 @@ fun DetailScreen(
 
             LazyColumn(
                     Modifier.fillMaxSize().houseLit(LocalHouseLights.current),
-                    contentPadding = PaddingValues(bottom = HlSpace.xxl),
+                    contentPadding = PaddingValues(bottom = HlFocus.edge),
                     verticalArrangement = Arrangement.spacedBy(HlSpace.l),
                 ) {
                     item(key = "hero") {
@@ -275,7 +276,12 @@ private fun Hero(
         }
         Spacer(Modifier.height(HlSpace.xl))
 
-        Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.s), verticalAlignment = Alignment.Top) {
+        // Room under the actions for the label of a round button: nothing moves when it shows.
+        Row(
+            Modifier.padding(bottom = HlLayout.iconLabelRoom),
+            horizontalArrangement = Arrangement.spacedBy(HlSpace.s),
+            verticalAlignment = Alignment.Top,
+        ) {
             // A series plays through its next episode, a collection through its next film.
             val target = if (item.kind == MediaKind.SERIES || item.kind == MediaKind.COLLECTION) nextUp else item.takeIf { it.isPlayable }
             if (target != null) {

@@ -39,7 +39,9 @@ import androidx.tv.material3.Text
 import app.houselights.ui.design.components.HlIconButton
 import app.houselights.ui.design.components.HlSegmented
 import app.houselights.ui.design.components.HlEmptyState
+import app.houselights.ui.design.HlFocus
 import app.houselights.ui.design.HlLayout
+import app.houselights.ui.design.ListScroll
 import app.houselights.ui.design.rememberRowState
 import app.houselights.R
 import app.houselights.core.HomeSection
@@ -174,9 +176,10 @@ private fun Sections(
         if (sections.isNotEmpty()) runCatching { firstFocus.requestFocus() }
     }
 
-    LazyColumn(
+    // The rows start under the hero: each comes back to the top of the list, where the first rests.
+    ListScroll(top = HlSpace.none) { LazyColumn(
         modifier = Modifier.fillMaxSize().onFocusChanged { if (!it.hasFocus) onLeave() },
-        contentPadding = PaddingValues(bottom = HlSpace.xxl),
+        contentPadding = PaddingValues(bottom = HlFocus.edge),
         verticalArrangement = Arrangement.spacedBy(HlSpace.xs),
     ) {
         sections.forEachIndexed { sectionIndex, section ->
@@ -198,7 +201,7 @@ private fun Sections(
                 }
             }
         }
-    }
+    } }
 }
 
 /** Same footprint as the real rows, so nothing jumps when data arrives. */

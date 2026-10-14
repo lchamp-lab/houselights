@@ -120,9 +120,9 @@ font. No other font is shipped; line heights leave room for the fallback.
 | `HlInset` | inner padding of containers, by what they hold: `tight` 8 (menus, results with a thumbnail), `compact` 12 (dense rows), `card` 24 (panels, cards), `sheet` 32 (sheets) |
 | `HlShapes` | radius follows hierarchy: `badge` 3, `artwork` 4, `field` 6, `row` 8 (rows that can be chosen), `panel` 12, `sheet` 16 (sheets and menus), `control` pill, `avatar` circle. A shape set close inside another keeps their corners parallel: **outer radius = inner radius + gap** (a menu: 8 + 8 = 16; a result: 4 + 8 = 12) |
 | `HlSize` | artwork (poster 112, landscape 220, episode 264, avatar 76 in a column of 120, thumbnails), `control` 48 for every button, icons 20, discs 52, marks 20, dots 8, setting rows 64, previews in a row (48 tall, a slot of 84), meter 10 |
-| `HlLayout` | measures of layout parts: reading widths (640, 520), side columns (280, 340), pane top 72, the reading sheet (864) and the side sheet (520), title art, hero, info line, track table columns |
+| `HlLayout` | measures of layout parts: reading widths (640, 520), side columns (280, 340), pane top 72, the reading sheet (864) and the side sheet (520), title art, hero, info line, track table columns, the label of a round button (160 wide at most, 28 of room under its row) |
 | `HlControl` | inner padding of buttons and track options, badges; the gap between an icon and its text (8) |
-| `HlFocus` | focus scale (artwork 1.10, cards 1.06, controls 1.04), siblings stepping back (dim 0.3, colour kept 0.3), ambient glow 18 dp |
+| `HlFocus` | focus scale (artwork 1.10, cards 1.06, controls 1.04), siblings stepping back (dim 0.3, colour kept 0.3), ambient glow 18 dp, `edge` 28 (`safeV`): how far a list keeps focus from its ends |
 
 ### Motion, icons, scrolling
 
@@ -131,7 +131,7 @@ font. No other font is shipped; line heights leave room for the fallback.
 | `HlMotion` | `Motion.kt` | `FAST` 150, `STANDARD` 250, `SLOW` 600, `DIM` 1000 ms; `SETTLE` 220 ms before a backdrop changes; `WALL_DRIFT`; `ENTER_SCALE` |
 | `LocalHouseLights`, `HouseLightCue` | `Auditorium.kt` | how far the house lights are down (read while drawing), and the order of the cue |
 | `HlIcons` | `Icons.kt` | line icons drawn for the app (24 dp grid, 1.75 stroke): places, actions (Restart, Edit), marks (Check), the remote's Back; core Material icons for the rest |
-| `HlBringIntoView`, `RowScroll` | `Scroll.kt` | lists scroll only as much as needed; rows keep focus 80 dp from the edges, so the first card always scrolls home |
+| `rememberListScroll`, `ListScroll`, `RowScroll` | `Scroll.kt` | lists scroll only as much as needed (`EdgeScroll`), never against the edge of the screen: a list keeps focus `HlFocus.edge` from its top and bottom, so the last row stops inside the safe area; a list that starts under a header or a hero (`ListScroll(top)`) brings its rows back to where its first one rests; rows keep focus 80 dp from the sides, so the first card always scrolls home |
 | `revealOnFocus()`, `keepVerticalFocus()` | `Scroll.kt` | a group comes fully into view when focus enters it; up and down never leave a column |
 
 ## Components
@@ -149,7 +149,7 @@ without the prefix (`MenuOption`, `MeterLegend`, `PosterCard`, `BillingBlock`, `
 | `MediaRow` | horizontal row with header and focus restoration; dims the other cards when one is focused |
 | `HeroInfo`, `TitleArt`, `EpisodeHeading`, `MetaLine`, `BillingBlock` | what a title is: clear logo or condensed title, facts, credits |
 | `Badge`, `BadgeRow`, `FactRow` | formats and ratings (a `lit` badge marks a state); facts on one line, spaced, never punctuated |
-| `HlButton` (`Primary`, `Secondary`), `HlIconButton` | pill and round actions, all 48 dp tall; the icon button shows its label when focused |
+| `HlButton` (`Primary`, `Secondary`), `HlIconButton` | pill and round actions, all 48 dp tall; the icon button shows its label under it when focused. The label takes no room (a row with something below keeps `HlLayout.iconLabelRoom` for it), stays inside the safe area, hides while a sheet is open, and is not read out: the icon carries the name |
 | `HlSegmented` | the one way to show where you are or what is chosen among a few: home navigation, seasons (`scrollable`), NFO views, form choices. In a track, **white means current**: one white pill sits under the current option and slides to the option chosen (`STANDARD`, emphasized). The option under focus but not chosen is a grey pill; focus on the current option draws a ring around the pill, travelling with it. A long track scrolls as one piece, pill included. There is no standalone tab |
 | `HlPanel` (`Quiet`, `Raised`, `lit`), `HlPanelButton` | the one panel recipe, and its focusable form |
 | `HlIconDisc`, `HlDivider`, `HlStatus`, `HlMeter`, `MeterLegend` | an icon in a disc (lit when on), a hairline, a state with its light, a segmented gauge |
@@ -222,6 +222,14 @@ Focus must read from the couch:
   a gap outside the content, clear of its text and rules.
 - **Text fields** get a white outline when focused and a tungsten outline while typing.
 
+What has focus stays inside the safe area. A list stops it `HlFocus.edge` (28 dp, `safeV`) from the
+top and the bottom of the screen, and keeps that much padding at its foot so the last row can come
+up to it; a focused poster grows into the margin, never off the screen. A list that starts lower,
+under a header or a hero, is already inside the safe area: it brings its rows back to its own top,
+where the first one rests (`ListScroll(top)`), so the row above leaves whole instead of lingering as
+a sliver. A row of cards keeps `HlSpace.s` above and below them, room for a poster to grow (8.4 dp at
+1.10). The label of a round button overflows under it and slides along to stay inside the safe area.
+
 ## Writing
 
 - French uses *vous*, typographic apostrophes (’), and a no-break space before `: ; ! ?` and inside
@@ -258,4 +266,6 @@ there with the reason.
 ## Adding a screen
 
 Start from `Backdrop`, `HlTwoPane` or `HlFormScaffold`, compose existing components, and add a token
-or component here before using a new value twice.
+or component here before using a new value twice. A vertical list ends with
+`contentPadding(bottom = HlFocus.edge)`; if it starts below the top of the screen, it sits in
+`ListScroll(top = its top padding)`. `HlTwoPane` does this for its content pane.

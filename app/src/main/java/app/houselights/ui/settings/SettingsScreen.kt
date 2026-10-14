@@ -30,6 +30,7 @@ import app.houselights.R
 import app.houselights.core.SourceConfig
 import app.houselights.settings.AppSettings
 import app.houselights.ui.design.HlIcons
+import app.houselights.ui.design.HlFocus
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.components.HlNavItem
 import app.houselights.ui.design.components.HlTwoPane
@@ -111,7 +112,7 @@ private fun PaneContent(
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize().keepVerticalFocus().focusRestorer(),
-        contentPadding = PaddingValues(bottom = HlSpace.xxl, end = HlSpace.m),
+        contentPadding = PaddingValues(bottom = HlFocus.edge, end = HlSpace.m),
         verticalArrangement = Arrangement.spacedBy(HlSpace.l),
     ) {
         when (pane) {

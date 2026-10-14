@@ -114,7 +114,11 @@ fun CatalogScreen() {
 
             item {
                 Group("Controls") {
-                    Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.s), verticalAlignment = Alignment.Top) {
+                    Row(
+                        Modifier.padding(bottom = HlLayout.iconLabelRoom),
+                        horizontalArrangement = Arrangement.spacedBy(HlSpace.s),
+                        verticalAlignment = Alignment.Top,
+                    ) {
                         HlButton("Lire", {}, icon = Icons.Filled.PlayArrow, detail = "1 h 53", emphasis = Emphasis.Primary)
                         HlButton("Secondary", {})
                         HlIconButton(HlIcons.Info, "Icon button", {})
@@ -240,7 +244,12 @@ fun CatalogScreen() {
                 // The longest French labels and the fullest rows the screens can meet: nothing here
                 // may be cut or pushed out.
                 Group("Stress") {
-                    Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.s), verticalAlignment = Alignment.Top) {
+                    // Room for the labels, as the detail page keeps it.
+                    Row(
+                        Modifier.padding(bottom = HlLayout.iconLabelRoom),
+                        horizontalArrangement = Arrangement.spacedBy(HlSpace.s),
+                        verticalAlignment = Alignment.Top,
+                    ) {
                         // An episode in progress, with every capability: the fullest row of a detail page.
                         HlButton("Reprendre", {}, icon = Icons.Filled.PlayArrow, detail = "1:02:33", emphasis = Emphasis.Primary)
                         HlIconButton(HlIcons.Restart, "Depuis le début", {})

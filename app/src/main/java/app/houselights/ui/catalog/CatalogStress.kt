@@ -159,7 +159,8 @@ private fun StressDeviceSection() {
 @Composable
 private fun StressTopBar(libraries: List<String>) {
     Row(
-        Modifier.fillMaxWidth().background(Hl.colors.content).padding(top = HlSpace.safeV, bottom = HlSpace.m),
+        // The label of the settings button shows on the image, under the bar, as it does at home.
+        Modifier.fillMaxWidth().background(Hl.colors.content).padding(top = HlSpace.safeV, bottom = HlLayout.iconLabelRoom),
         verticalAlignment = Alignment.Top,
     ) {
         var current by remember { mutableIntStateOf(0) }
