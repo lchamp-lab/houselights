@@ -71,7 +71,8 @@ The technical voice speaks the vocabulary of a Blu-ray case: formats by their na
 
 `HlAlpha` names every opacity, by role: `QUIET_SURFACE`, `CONTROL_FILL` / `CONTROL_FILL_STRONG`,
 `WELL`, `BORDER`, `DIVIDER`, `SCRIM` / `SCRIM_SIDE`, `PLATE`, `TRACK`, `FOCUS_QUIET`, `LIT_DISC`,
-`ARTWORK_EDGE`, `WORDMARK_GLOW`.
+`ARTWORK_EDGE`, `WORDMARK_GLOW`. `PLATE` is the plate under whatever sits on artwork: a card's marks
+and progress, and the controls laid over a backdrop.
 
 **Contrast.** Text reaches 4.5:1 and icons and marks 3:1 on the surface they really sit on, each
 translucent layer composed over what lies under it. `ContrastTest` lists every pair the system
@@ -81,6 +82,13 @@ a control are named colours, never an opacity laid on the current one: the line 
 are forbidden: `contentTertiary` on a `WELL` row inside a raised panel (≈ 4.09:1) and on
 `CONTROL_FILL_STRONG` (≈ 3.66:1). There, the quiet line stays `contentSecondary`, as in setting
 rows and buttons.
+
+**On artwork.** A translucent white fill is made for the dark room: over a light image it vanishes.
+What sits on an image takes a dark plate instead (`PLATE`, matte, never blurred), so its contrast no
+longer depends on the picture: a card's marks and progress line, and the controls that pass
+`onArtwork` (the home bar's track and settings button). On that plate the options of a track at rest
+are `content`: `contentSecondary` is forbidden there (≈ 3.47:1 over a white image). Focus does not
+change.
 
 ### Type (`Type.kt`)
 
@@ -149,8 +157,8 @@ without the prefix (`MenuOption`, `MeterLegend`, `PosterCard`, `BillingBlock`, `
 | `MediaRow` | horizontal row with header and focus restoration; dims the other cards when one is focused |
 | `HeroInfo`, `TitleArt`, `EpisodeHeading`, `MetaLine`, `BillingBlock` | what a title is: clear logo or condensed title, facts, credits |
 | `Badge`, `BadgeRow`, `FactRow` | formats and ratings (a `lit` badge marks a state); facts on one line, spaced, never punctuated |
-| `HlButton` (`Primary`, `Secondary`), `HlIconButton` | pill and round actions, all 48 dp tall; the icon button shows its label when focused |
-| `HlSegmented` | the one way to show where you are or what is chosen among a few: home navigation, seasons (`scrollable`), NFO views, form choices. In a track, **white means current**: one white pill sits under the current option and slides to the option chosen (`STANDARD`, emphasized). The option under focus but not chosen is a grey pill; focus on the current option draws a ring around the pill, travelling with it. A long track scrolls as one piece, pill included. There is no standalone tab |
+| `HlButton` (`Primary`, `Secondary`), `HlIconButton` | pill and round actions, all 48 dp tall; the icon button shows its label when focused, and rests on a plate over an image (`onArtwork`) |
+| `HlSegmented` | the one way to show where you are or what is chosen among a few: home navigation, seasons (`scrollable`), NFO views, form choices. In a track, **white means current**: one white pill sits under the current option and slides to the option chosen (`STANDARD`, emphasized). The option under focus but not chosen is a grey pill; focus on the current option draws a ring around the pill, travelling with it. A long track scrolls as one piece, pill included. Over an image (`onArtwork`), the track is a plate and its options are white. There is no standalone tab |
 | `HlPanel` (`Quiet`, `Raised`, `lit`), `HlPanelButton` | the one panel recipe, and its focusable form |
 | `HlIconDisc`, `HlDivider`, `HlStatus`, `HlMeter`, `MeterLegend` | an icon in a disc (lit when on), a hairline, a state with its light, a segmented gauge |
 | `HlListItem`, `HlResultItem`, `PosterThumb` | choices in a list (icon in line with the name, what the choice brings in badges under a hairline, a chevron on focus); a search result with its poster |
@@ -165,7 +173,7 @@ without the prefix (`MenuOption`, `MeterLegend`, `PosterCard`, `BillingBlock`, `
 | `TechSpecs`, `InfoBlock`, `DefinitionList` | the technical sheet, set like the back of a Blu-ray case: one block per subject (a hairline, its name, what it says); the NFO is laid out the same way |
 | `ArtworkChoiceCard`, `SelectedMark` | one artwork to choose from, at the shape it is used in |
 | `HlEmptyState` | what happened and what to do, with the action focused |
-| `PosterWall`, `PosterWallScrim`, `HouseLights`, `CardSkeleton`, `ProgressLine` | welcome wall, playback cue, loading and progress |
+| `PosterWall`, `PosterWallScrim`, `HouseLights`, `CardSkeleton`, `ProgressLine` | welcome wall, playback cue, loading and progress (on a plate at the foot of a card, `onArtwork`; on a light track beside text) |
 
 ## Cards
 
@@ -176,8 +184,9 @@ rest, sparingly:
 - **One mark at most**, top right, on a dark plate the size of a mark: the number of unwatched
   episodes of a show, else the line check of a title watched, else the tungsten dot of a title new
   to its library (added in the last week, not watched; a local folder never counts what its first
-  scan found). Progress is the tungsten line at the foot. A format (Ultra HD) is not a mark: most
-  titles have one, so it would tell nothing apart; it stays in the header, the info line, the filter.
+  scan found). Progress is the tungsten line at the foot, on its plate. A format (Ultra HD) is not
+  a mark: most titles have one, so it would tell nothing apart; it stays in the header, the info
+  line, the filter.
 - **Without artwork**, the title is set like a one-sheet: a short rule, the name in `cardTitle`, the
   year in the technical voice.
 - **An episode** reads as a number in tabular figures, its name, then its length and where it stands.

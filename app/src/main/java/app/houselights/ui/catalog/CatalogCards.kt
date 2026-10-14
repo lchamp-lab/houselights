@@ -57,7 +57,7 @@ internal fun LazyListScope.catalogCards() {
     item { Group("Artwork surface and image") { Surfaces() } }
     item { Group("Landscape card") { LandscapeRow() } }
     item { Group("Person card: one line, two lines, long role, no photo") { CastRow() } }
-    item { Group("Progress line: on the room, on projector white", still = true) { ProgressLines() } }
+    item { Group("Progress line: on artwork, dark and white; beside text", still = true) { ProgressLines() } }
     item { Group("Card skeleton: the shapes screens ask for", still = true) { Skeletons() } }
     item { Group("Artwork choice: poster") { ChoiceRow(ArtworkKind.POSTER) } }
     item { Group("Artwork choice: backdrop") { ChoiceRow(ArtworkKind.BACKDROP) } }
@@ -217,21 +217,25 @@ private fun CastRow() {
     }
 }
 
-/** At the foot of a poster: on the dark room, and on projector white, a light poster's worst case. */
+/**
+ * At the foot of a poster, on its plate: over a dark image, and over projector white, a light
+ * poster's worst case. Then beside text, off the artwork (a hero, a pane), on its light track.
+ */
 @Composable
 private fun ProgressLines() {
     val c = Hl.colors
-    listOf("room" to c.background, "white" to c.content).forEach { (ground, color) ->
+    listOf("dark image" to c.background, "white image" to c.content).forEach { (ground, color) ->
         Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Top) {
             listOf(0f to "0%: not drawn", 0.4f to "40%", 1f to "100%").forEach { (progress, label) ->
                 StateCaption("$ground, $label", width = HlSize.poster) {
                     Box(Modifier.width(HlSize.poster).height(HlSpace.l).background(color)) {
-                        ProgressLine(progress, Modifier.align(Alignment.BottomCenter))
+                        ProgressLine(progress, Modifier.align(Alignment.BottomCenter), onArtwork = true)
                     }
                 }
             }
         }
     }
+    StateCaption("beside text, 40%", width = HlSize.progressShort) { ProgressLine(0.4f, Modifier.width(HlSize.progressShort)) }
 }
 
 /** Every footprint a screen asks a placeholder for, and the landscape one no screen asks for. */

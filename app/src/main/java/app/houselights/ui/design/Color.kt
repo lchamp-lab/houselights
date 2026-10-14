@@ -81,9 +81,12 @@ object HlAlpha {
     const val SCRIM_SIDE = 0.6f
     /** The edge of artwork at rest, so a dark poster keeps its outline on the black room: `content`. */
     const val ARTWORK_EDGE = 0.12f
-    /** Plates under marks drawn over artwork (watched check, counts): `background`. */
+    /**
+     * The plate under whatever sits on artwork, whatever the image: a card's marks and progress
+     * track, and the controls laid over a backdrop (the home bar's track and button): `background`.
+     */
     const val PLATE = 0.72f
-    /** Progress track over artwork: `content` at this opacity. */
+    /** Progress track beside text, off the artwork (a hero, a pane): `content` at this opacity. */
     const val TRACK = 0.22f
     /** Focus on an option of a track that is not the current one: `content` at this opacity. */
     const val FOCUS_QUIET = 0.3f

@@ -160,6 +160,7 @@ private fun StressDeviceSection() {
 private fun StressTopBar(libraries: List<String>) {
     Row(
         Modifier.fillMaxWidth().background(Hl.colors.content).padding(top = HlSpace.safeV, bottom = HlSpace.m),
+        horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.Top,
     ) {
         var current by remember { mutableIntStateOf(0) }
@@ -167,9 +168,11 @@ private fun StressTopBar(libraries: List<String>) {
             options = listOf(stringResource(R.string.nav_home)) + libraries,
             selected = current,
             onSelect = { current = it },
+            modifier = Modifier.weight(1f, fill = false).padding(end = HlSpace.l),
+            scrollable = true,
+            onArtwork = true,
         )
-        Spacer(Modifier.weight(1f))
-        HlIconButton(Icons.Filled.Settings, stringResource(R.string.nav_settings), onClick = {})
+        HlIconButton(Icons.Filled.Settings, stringResource(R.string.nav_settings), onClick = {}, onArtwork = true)
     }
 }
 
