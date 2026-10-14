@@ -86,6 +86,7 @@
     <string name="tech_info">Technical info</string>
     <string name="sheet_back_hint">Back to close</string>
     <string name="cancel">Cancel</string>
+    <string name="control_busy">In progress</string>
     <string name="nfo">NFO</string>
     <string name="nfo_title">NFO file</string>
     <string name="nfo_desc">The description of this title written by your media manager. Its details take precedence over TMDB.</string>
@@ -170,6 +171,7 @@
     <string name="field_server">Server address</string>
     <string name="sign_in">Sign in</string>
     <string name="signing_in">Signing in…</string>
+    <string name="checking">Checking…</string>
     <string name="error_credentials">The server rejected these credentials.</string>
     <string name="error_server_unexpected">The server answered in an unexpected way. Check the address, then try again.</string>
     <string name="error_server_unreachable">Nothing answers at %s. Check the address and that Jellyfin is running.</string>

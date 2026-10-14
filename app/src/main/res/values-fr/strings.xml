@@ -79,6 +79,7 @@
     <string name="tech_info">Infos techniques</string>
     <string name="sheet_back_hint">Retour pour fermer</string>
     <string name="cancel">Annuler</string>
+    <string name="control_busy">En cours</string>
     <string name="nfo">NFO</string>
     <string name="nfo_title">Fichier NFO</string>
     <string name="nfo_desc">La description de ce titre écrite par votre gestionnaire de médias. Ses informations priment sur celles de TMDB.</string>
@@ -161,6 +162,7 @@
     <string name="field_server">Adresse du serveur</string>
     <string name="sign_in">Se connecter</string>
     <string name="signing_in">Connexion…</string>
+    <string name="checking">Vérification…</string>
     <string name="error_credentials">Identifiants refusés par le serveur.</string>
     <string name="error_server_unexpected">Le serveur a répondu de façon inattendue. Vérifiez l’adresse, puis réessayez.</string>
     <string name="error_server_unreachable">Rien ne répond à %s. Vérifiez l’adresse et que Jellyfin est démarré.</string>

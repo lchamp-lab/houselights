@@ -65,6 +65,7 @@ import app.houselights.ui.design.components.PanelLevel
 import app.houselights.ui.design.components.ScreenTitle
 import app.houselights.ui.design.components.StatusState
 import app.houselights.ui.design.components.Wordmark
+import kotlinx.coroutines.delay
 
 /**
  * Every token and component of the design system in its states, for review on a real screen.
@@ -123,6 +124,7 @@ fun CatalogScreen() {
                         HlButton("Secondary", {})
                         HlIconButton(HlIcons.Info, "Icon button", {})
                     }
+                    ControlStates()
                     var place by remember { mutableIntStateOf(0) }
                     var season by remember { mutableIntStateOf(2) }
                     HlSegmented(listOf("Accueil", "Films", "Séries"), selected = place, onSelect = { place = it })
@@ -307,6 +309,56 @@ fun CatalogScreen() {
         }
     }
 }
+
+/** Buttons, round buttons and setting rows in their states, each named underneath. */
+@Composable
+private fun ControlStates() {
+    Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Top) {
+        ControlCase("detail lit: a state it names") { HlButton("Filtrer", {}, icon = HlIcons.Filter, detail = "Non vus", detailLit = true) }
+        ControlCase("disabled: focus outlines it") { HlButton("Ajouter", {}, icon = HlIcons.Folder, enabled = false) }
+        ControlCase("busy: the screen's words") {
+            HlButton("Tester", {}, icon = HlIcons.Restart, busy = true, busyLabel = "Vérification…")
+        }
+    }
+    Row(
+        Modifier.padding(bottom = HlLayout.iconLabelRoom),
+        horizontalArrangement = Arrangement.spacedBy(HlSpace.m),
+        verticalAlignment = Alignment.Top,
+    ) {
+        var busy by remember { mutableStateOf(false) }
+        LaunchedEffect(busy) {
+            if (busy) {
+                delay(CATALOG_BUSY_MS)
+                busy = false
+            }
+        }
+        ControlCase("OK: busy for 3 s, its width kept") {
+            HlButton("Se connecter", { busy = true }, emphasis = Emphasis.Primary, busy = busy, busyLabel = "Connexion…")
+        }
+        ControlCase("round, disabled") { HlIconButton(HlIcons.Edit, "Modifier", {}, enabled = false) }
+    }
+    ControlCase("a label longer than a reading column stops with an ellipsis") {
+        HlButton("Ajouter « Le Seigneur des anneaux : la Communauté de l’anneau, version longue » à vos favoris", {})
+    }
+    Column(Modifier.widthIn(max = HlLayout.readable)) {
+        ControlCase("setting row, disabled: tertiary words, focus outlines it; never in a raised sheet") {
+            HlSettingRow("Analyser maintenant", description = "Aucun dossier à analyser", onClick = {}, chevron = false, enabled = false)
+        }
+    }
+}
+
+/** One state of a control, named underneath. */
+@Composable
+private fun ControlCase(caption: String, content: @Composable () -> Unit) {
+    Column {
+        content()
+        Spacer(Modifier.height(HlSpace.xs))
+        Text(caption, style = Hl.type.caption, color = Hl.colors.contentTertiary)
+    }
+}
+
+/** How long the catalogue's busy buttons work before they give their answer. */
+private const val CATALOG_BUSY_MS = 3_000L
 
 @Composable
 private fun Swatch(name: String, color: Color) {

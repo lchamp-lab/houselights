@@ -10,7 +10,10 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -138,10 +141,44 @@ fun AddFolderScreen(onAdded: (switched: Boolean) -> Unit) {
                 )
             }
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.s)) {
-            HlButton(stringResource(R.string.add), { vm.add(onAdded) }, icon = Icons.Filled.Add, emphasis = Emphasis.Primary)
-            HlButton(stringResource(R.string.test_connection), { vm.test() }, icon = Icons.Filled.Refresh)
-        }
+        FolderActions(vm, onAdded)
+    }
+}
+
+/**
+ * Add, and Test. Both test the folder first: the one pressed says so while the check runs, the
+ * other waits.
+ */
+@Composable
+private fun FolderActions(vm: AddFolderViewModel, onAdded: (switched: Boolean) -> Unit) {
+    // Which button started the check under way.
+    var adding by remember { mutableStateOf(false) }
+    val checking = stringResource(R.string.checking)
+    val busy = vm.busy
+    Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.s)) {
+        HlButton(
+            stringResource(R.string.add),
+            {
+                adding = true
+                vm.add(onAdded)
+            },
+            icon = Icons.Filled.Add,
+            emphasis = Emphasis.Primary,
+            enabled = adding || !busy,
+            busy = busy && adding,
+            busyLabel = checking,
+        )
+        HlButton(
+            stringResource(R.string.test_connection),
+            {
+                adding = false
+                vm.test()
+            },
+            icon = Icons.Filled.Refresh,
+            enabled = !adding || !busy,
+            busy = busy && !adding,
+            busyLabel = checking,
+        )
     }
 }
 

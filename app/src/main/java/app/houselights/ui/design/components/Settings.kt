@@ -127,7 +127,9 @@ fun HlSettingGroup(title: String?, modifier: Modifier = Modifier, content: @Comp
  * leads somewhere ([chevron]); without it, the row only states a value. [valueLit] marks a value
  * the user chose or something that needs attention, in tungsten. [trailing] replaces the value
  * with another element (a status, badges); [leading] replaces the icon with a preview of what the
- * row changes ([RowPreview]).
+ * row changes ([RowPreview]). Not [enabled], its words go tertiary and OK does nothing; focus
+ * still reaches it, outlined. Only on the room: in a raised sheet tertiary would fall under 4.5:1,
+ * and a sheet leaves out an action that cannot be taken.
  */
 @Composable
 fun HlSettingRow(
@@ -141,6 +143,7 @@ fun HlSettingRow(
     chevron: Boolean = onClick != null,
     trailing: (@Composable RowScope.() -> Unit)? = null,
     leading: (@Composable () -> Unit)? = null,
+    enabled: Boolean = true,
 ) {
     val c = Hl.colors
     @Composable
@@ -166,7 +169,7 @@ fun HlSettingRow(
                     Text(
                         description,
                         style = Hl.type.detail,
-                        color = if (focused) c.onFocusSecondary else c.contentSecondary,
+                        color = rowLineColor(focused, enabled, lit = false, onFocus = c.onFocusSecondary),
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -178,11 +181,7 @@ fun HlSettingRow(
                 value != null -> Text(
                     value,
                     style = Hl.type.meta,
-                    color = when {
-                        focused -> LocalContentColor.current
-                        valueLit -> c.tungsten
-                        else -> c.contentSecondary
-                    },
+                    color = rowLineColor(focused, enabled, valueLit, onFocus = LocalContentColor.current),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.widthIn(max = HlLayout.rowValue),
@@ -206,8 +205,10 @@ fun HlSettingRow(
     Surface(
         onClick = onClick,
         modifier = modifier.fillMaxWidth(),
+        enabled = enabled,
         shape = ClickableSurfaceDefaults.shape(HlShapes.row),
-        scale = ClickableSurfaceDefaults.scale(focusedScale = HlFocus.CONTROL_SCALE),
+        scale = controlScale(),
+        border = disabledFocusBorder(HlShapes.row),
         colors = ClickableSurfaceDefaults.colors(
             containerColor = c.content.copy(alpha = HlAlpha.WELL),
             contentColor = c.content,
@@ -215,10 +216,28 @@ fun HlSettingRow(
             focusedContentColor = c.onFocus,
             pressedContainerColor = c.focus,
             pressedContentColor = c.onFocus,
+            disabledContainerColor = c.content.copy(alpha = HlAlpha.WELL),
+            disabledContentColor = c.contentTertiary,
         ),
         interactionSource = interaction,
     ) {
-        Content(focused)
+        // A disabled row keeps its well under focus: its words stay as they are.
+        Content(focused && enabled)
+    }
+}
+
+/**
+ * A row's quieter words (its description, its value), by state: [onFocus] on a focused row,
+ * tertiary on a disabled one, tungsten when [lit], else secondary.
+ */
+@Composable
+private fun rowLineColor(focused: Boolean, enabled: Boolean, lit: Boolean, onFocus: Color): Color {
+    val c = Hl.colors
+    return when {
+        focused -> onFocus
+        !enabled -> c.contentTertiary
+        lit -> c.tungsten
+        else -> c.contentSecondary
     }
 }
 

@@ -176,6 +176,16 @@ private fun FormPanelButtons() {
                 FormFolder("Séries", "nas-salon.local/media/series", listOf("86 titres", "Analysé il y a 2 h"))
             }
         }
+        FormCase("disabled: a faint well, focus outlines it", Modifier.weight(1f)) {
+            // Its words in LocalContentColor, which follows the state.
+            HlPanelButton({}, Modifier.fillMaxWidth(), enabled = false) {
+                Column(Modifier.padding(HlInset.card)) {
+                    Text("Concerts", style = Hl.type.lead)
+                    Spacer(Modifier.height(HlSpace.xxs))
+                    Text("Aucun dossier", style = Hl.type.meta)
+                }
+            }
+        }
     }
 }
 

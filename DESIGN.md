@@ -86,7 +86,10 @@ a control are named colours, never an opacity laid on the current one: the line 
 `contentTertiary` at rest, `contentSecondary` when chosen, `onFocusSecondary` with focus. Two pairs
 are forbidden: `contentTertiary` on a `WELL` row inside a raised panel (≈ 4.09:1) and on
 `CONTROL_FILL_STRONG` (≈ 3.66:1). There, the quiet line stays `contentSecondary`, as in setting
-rows and buttons.
+rows and buttons. A line that names a state (`detailLit`: an active filter) is `tungsten` at rest
+and `onFocusSecondary` with focus. A **disabled** control sits in a `WELL` with `contentTertiary`
+words, on the room only: inside a raised sheet that pair is the forbidden one, and a sheet leaves
+out an action that cannot be taken.
 
 **On artwork.** A translucent white fill is made for the dark room: over a light image it vanishes.
 What sits on an image takes a dark plate instead (`PLATE`, matte, never blurred), so its contrast no
@@ -179,12 +182,12 @@ without the prefix (`MenuOption`, `MeterLegend`, `PosterCard`, `BillingBlock`, `
 | `MediaRow` | horizontal row with header; focus coming back into it lands on its last card; dims the other cards when one is focused |
 | `HeroInfo`, `TitleArt`, `EpisodeHeading`, `MetaLine`, `BillingBlock` | what a title is: clear logo or condensed title, facts, credits |
 | `Badge`, `BadgeRow`, `FactRow` | formats and ratings (a `lit` badge marks a state); facts on one line, spaced, never punctuated |
-| `HlButton` (`Primary`, `Secondary`), `HlIconButton` | pill and round actions, all 48 dp tall; the icon button shows its label under it when focused. The label takes no room (a row with something below keeps `HlLayout.iconLabelRoom` for it), stays inside the safe area, hides while a sheet is open, and is not read out: the icon carries the name. Over an image (`onArtwork`) the button rests on a plate |
+| `HlButton` (`Primary`, `Secondary`), `HlIconButton` | pill and round actions, all 48 dp tall; the icon button shows its label under it when focused. The label takes no room (a row with something below keeps `HlLayout.iconLabelRoom` for it), stays inside the safe area, hides while a sheet is open, and is not read out: the icon carries the name. Over an image (`onArtwork`) the button rests on a plate. A pill's label stops at `readableNarrow` and its detail at one line, with an ellipsis; `detailLit` lights the detail of a state (an active filter) instead of borrowing the primary emphasis. Not `enabled`, a control keeps focus, outlined, and ignores OK. `busy`, a pill is at work: the quiet dot of a pending state where its icon was, the words the screen gives (`busyLabel`: "Connexion…", "Vérification…"), its width kept, OK ignored, read out as in progress; nothing spins |
 | `HlSegmented` | the one way to show where you are or what is chosen among a few: home navigation, seasons (`scrollable`), NFO views, form choices. In a track, **white means current**: one white pill sits under the current option and slides to the option chosen (`STANDARD`, emphasized). The option under focus but not chosen is a grey pill; focus on the current option draws a ring around the pill, travelling with it. Focus entering a track, from any side, lands on the current option, never on the nearest one; to accessibility services the options are tabs, the current one selected. A long track scrolls as one piece, pill included. Over an image (`onArtwork`), the track is a plate and its options are white. There is no standalone tab |
-| `HlPanel` (`Quiet`, `Raised`, `lit`), `HlPanelButton` | the one panel recipe, and its focusable form |
+| `HlPanel` (`Quiet`, `Raised`, `lit`), `HlPanelButton` | the one panel recipe, and its focusable form (not `enabled`: a faint well, what it draws in `LocalContentColor` goes tertiary) |
 | `HlIconDisc`, `HlDivider`, `HlStatus`, `HlMeter`, `MeterLegend` | an icon in a disc (lit when on), a hairline, a state with its light (tungsten when on or calling for attention) and why, under it, a segmented gauge |
 | `HlListItem`, `HlResultItem`, `PosterThumb` | choices in a list (icon in line with the name, what the choice brings in badges under a hairline, a chevron on focus); a search result with its poster, which says "Association…" in place of its mark while it is being chosen: the results stay, and so does focus |
-| `HlNavItem`, `HlSettingGroup`, `HlSettingRow` | settings: navigation entries with what they are set to; rows with their value, leading somewhere or stating it |
+| `HlNavItem`, `HlSettingGroup`, `HlSettingRow` | settings: navigation entries with what they are set to; rows with their value, leading somewhere or stating it; a row not `enabled` stays on the room (see *Contrast*) |
 | `HlSideSheet`, `SheetScope`, `RowPreview` | acting on what a screen shows, beside it: a panel against the right edge (see *Sheets*); rows can lead with a preview of the image they change |
 | `HlChoiceSheet` | the choices of a setting, in a side sheet: focus on the current one, choosing applies and closes, Back changes nothing |
 | `HlMenuButton`, `MenuSection`, `MenuOption` | a button opening a sectioned menu anchored to its end edge (sort, filters): below it when the room down to the safe area holds the menu, else above; never past the safe area, a longer menu scrolls inside |
@@ -258,6 +261,8 @@ Focus must read from the couch:
 - **Areas to read** (`HlScrollArea`) are outlined in projector white; an unframed one draws its ring
   a gap outside the content, clear of its text and rules.
 - **Text fields** get a white outline when focused and a tungsten outline while typing.
+- **Disabled controls** keep focus, so the remote reaches them: an outline in projector white,
+  never the white fill, which would offer an action.
 
 What has focus stays inside the safe area. A list stops it `HlFocus.edge` (28 dp, `safeV`) from the
 top and the bottom of the screen, and keeps that much padding at its foot so the last row can come
@@ -309,6 +314,8 @@ screen: it goes to the log.
   `formatDimensions`, `formatBytes`, `formatRatio` in `ui/util/Format.kt`).
 - Facts are separated by layout (`FactRow`). Inside a single text (a button's detail), `FACT_GAP`.
 - Values are words a person uses: "Détecté", "Hors ligne", "Aucune", never "absent" or "0 fichier".
+- What is under way ends in an ellipsis and says what is done, not the control: "Connexion…",
+  "Vérification…".
 - A failure says what happened and what to do ("Le dossier n’a pas pu être lu. Réessayez, ou
   vérifiez le partage sur le NAS."), never an exception's text: that goes to the log only.
 - Text written elsewhere (TMDB, NFO, servers) goes through `Typeset.text`, so `»`, `:` and `!` never
