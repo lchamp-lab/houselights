@@ -323,6 +323,7 @@ fun CatalogScreen() {
             }
 
             catalogStress()
+            catalogBrand()
 
             item { Wordmark(style = t.wordmarkHero) }
         }
