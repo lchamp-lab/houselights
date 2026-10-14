@@ -46,12 +46,14 @@ import app.houselights.providers.local.TmdbClient.Companion.ImageType
 import app.houselights.providers.local.address
 import app.houselights.settings.AppSettings
 import app.houselights.ui.design.Hl
+import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlInset
 import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.components.Badge
+import app.houselights.ui.design.components.ChoiceCheck
 import app.houselights.ui.design.components.ChoiceOption
 import app.houselights.ui.design.components.Emphasis
 import app.houselights.ui.design.components.FactRow
@@ -71,11 +73,15 @@ import coil.compose.AsyncImage
 import kotlinx.coroutines.launch
 import app.houselights.core.CollectionThreshold
 
-internal fun LazyListScope.libraryPane(s: AppSettings, onAddFolder: () -> Unit, onChangeSource: () -> Unit) {
+/**
+ * The library: its folders or its server, then what can be done with it. [onUseFolders] makes the
+ * folders the source (or adds the first one), [onSignIn] opens the Jellyfin sign-in.
+ */
+internal fun LazyListScope.libraryPane(s: AppSettings, onAddFolder: () -> Unit, onUseFolders: () -> Unit, onSignIn: () -> Unit) {
     when (val source = s.source) {
         SourceConfig.Local -> {
             item { Section(stringResource(R.string.section_source)) { Sources() } }
-            item { LibraryActions(onAddFolder, onChangeSource) }
+            item { LibraryActions(onAddFolder, onUseFolders, onSignIn) }
         }
         is SourceConfig.Jellyfin -> {
             item {
@@ -93,7 +99,7 @@ internal fun LazyListScope.libraryPane(s: AppSettings, onAddFolder: () -> Unit, 
                     }
                 }
             }
-            item { HlSettingGroup(null) { SourceRow(onChangeSource) } }
+            item { HlSettingGroup(null) { SourceRow(onUseFolders, onSignIn) } }
         }
         null -> {}
     }
@@ -143,7 +149,6 @@ private fun SourceActions(source: SourceEntity, onDismiss: () -> Unit, onRemove:
     var backFromConfirm by remember { mutableStateOf(false) }
     val scan = remember { FocusRequester() }
     val remove = remember { FocusRequester() }
-    val cancel = remember { FocusRequester() }
     HlSideSheet(
         title = sourceName(source),
         onDismiss = onDismiss,
@@ -171,22 +176,16 @@ private fun SourceActions(source: SourceEntity, onDismiss: () -> Unit, onRemove:
                 modifier = Modifier.focusRequester(remove),
             )
         } else {
-            LaunchedEffect(Unit) { runCatching { cancel.requestFocus() } }
-            Text(stringResource(R.string.remove_folder_confirm, sourceName(source)), style = Hl.type.lead, color = Hl.colors.content)
-            Spacer(Modifier.height(HlSpace.xs))
-            Text(stringResource(R.string.remove_folder_desc), style = Hl.type.body, color = Hl.colors.contentSecondary)
-            Spacer(Modifier.height(HlSpace.l))
-            Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.s)) {
-                HlButton(
-                    stringResource(R.string.cancel),
-                    onClick = {
-                        confirming = false
-                        backFromConfirm = true
-                    },
-                    modifier = Modifier.focusRequester(cancel),
-                )
-                HlButton(stringResource(R.string.remove), onClick = { sheet.dismiss(onRemove) })
-            }
+            Confirm(
+                question = stringResource(R.string.remove_folder_confirm, sourceName(source)),
+                consequence = stringResource(R.string.remove_folder_desc),
+                action = stringResource(R.string.remove),
+                onCancel = {
+                    confirming = false
+                    backFromConfirm = true
+                },
+                onConfirm = { sheet.dismiss(onRemove) },
+            )
         }
     }
 }
@@ -292,7 +291,7 @@ private fun PosterCover(paths: List<String>) {
 }
 
 @Composable
-private fun LibraryActions(onAddFolder: () -> Unit, onChangeSource: () -> Unit) {
+private fun LibraryActions(onAddFolder: () -> Unit, onUseFolders: () -> Unit, onSignIn: () -> Unit) {
     val vm = settingsViewModel()
     val s by vm.settings.collectAsStateWithLifecycle()
     val scan by vm.library.scan.collectAsStateWithLifecycle()
@@ -329,7 +328,7 @@ private fun LibraryActions(onAddFolder: () -> Unit, onChangeSource: () -> Unit) 
             onClick = { editKey = true },
         )
         CollectionsRow()
-        SourceRow(onChangeSource)
+        SourceRow(onUseFolders, onSignIn)
     }
     if (editKey) TmdbKeyDialog(onDismiss = { editKey = false })
 }
@@ -366,17 +365,119 @@ private fun CollectionsRow() {
     }
 }
 
+/** The source in use, and what changing it keeps; OK opens [SourceSheet]. */
 @Composable
-private fun SourceRow(onChangeSource: () -> Unit) {
+private fun SourceRow(onUseFolders: () -> Unit, onSignIn: () -> Unit) {
     val vm = settingsViewModel()
     val s by vm.settings.collectAsStateWithLifecycle()
+    var choose by remember { mutableStateOf(false) }
+    val server = s.source is SourceConfig.Jellyfin
     HlSettingRow(
         stringResource(R.string.change_source_row),
-        value = stringResource(if (s.source is SourceConfig.Jellyfin) R.string.source_jellyfin else R.string.source_local),
-        description = stringResource(R.string.change_source_desc),
-        onClick = { vm.changeSource(onChangeSource) },
+        value = stringResource(if (server) R.string.source_jellyfin else R.string.source_local),
+        description = stringResource(sourceKeeps(s.source)),
+        onClick = { choose = true },
     )
+    if (choose) {
+        // Both choices open another screen: the sheet closes at once.
+        SourceSheet(
+            source = s.source,
+            onDismiss = { choose = false },
+            onUseFolders = {
+                choose = false
+                onUseFolders()
+            },
+            onSignIn = {
+                choose = false
+                onSignIn()
+            },
+        )
+    }
 }
+
+/** What changing from [source] keeps, said under the row and at the head of its sheet. */
+private fun sourceKeeps(source: SourceConfig?): Int =
+    if (source is SourceConfig.Jellyfin) R.string.change_source_jellyfin_desc else R.string.change_source_local_desc
+
+/**
+ * Where the library comes from: your folders or a Jellyfin server, the current one checked. A
+ * choice leads to what the new source needs (the folders kept, a first folder, signing in); the
+ * current source stays until the new one is saved. Leaving a server for the folders asks first.
+ */
+@Composable
+private fun SourceSheet(source: SourceConfig?, onDismiss: () -> Unit, onUseFolders: () -> Unit, onSignIn: () -> Unit) {
+    val vm = settingsViewModel()
+    val folders by vm.library.folders.collectAsStateWithLifecycle(emptyList())
+    val server = source as? SourceConfig.Jellyfin
+    var confirming by remember { mutableStateOf(false) }
+    var backFromConfirm by remember { mutableStateOf(false) }
+    val local = remember { FocusRequester() }
+    val jellyfin = remember { FocusRequester() }
+    val serverName = server?.serverName ?: stringResource(R.string.source_jellyfin)
+    HlSideSheet(
+        title = stringResource(R.string.change_source),
+        onDismiss = onDismiss,
+        subject = if (server != null) serverName else stringResource(R.string.source_local),
+        facts = sourceFacts(server),
+        description = stringResource(sourceKeeps(source)),
+        initialFocus = if (server != null) jellyfin else local,
+    ) { sheet ->
+        if (confirming) {
+            Confirm(
+                question = stringResource(R.string.sign_out_confirm, serverName),
+                consequence = stringResource(if (folders.isEmpty()) R.string.sign_out_first_folder else R.string.sign_out_desc),
+                action = stringResource(R.string.sign_out),
+                onCancel = {
+                    confirming = false
+                    backFromConfirm = true
+                },
+                onConfirm = onUseFolders,
+            )
+            return@HlSideSheet
+        }
+        LaunchedEffect(backFromConfirm) { if (backFromConfirm) runCatching { local.requestFocus() } }
+        HlSettingRow(
+            stringResource(R.string.source_local),
+            description = foldersLine(folders.size),
+            icon = HlIcons.Folder,
+            onClick = {
+                when (source) {
+                    SourceConfig.Local -> sheet.dismiss()
+                    is SourceConfig.Jellyfin -> confirming = true
+                    null -> onUseFolders()
+                }
+            },
+            chevron = false,
+            trailing = if (source == SourceConfig.Local) ({ ChoiceCheck() }) else null,
+            modifier = Modifier.focusRequester(local),
+        )
+        HlSettingRow(
+            stringResource(R.string.source_jellyfin),
+            description = stringResource(if (server != null) R.string.source_jellyfin_other else R.string.source_jellyfin_desc),
+            icon = HlIcons.Server,
+            onClick = onSignIn,
+            chevron = false,
+            trailing = if (server != null) ({ ChoiceCheck() }) else null,
+            modifier = Modifier.focusRequester(jellyfin),
+        )
+    }
+}
+
+/** What the current source is, under its name: the server's kind and user, or the titles of the folders. */
+@Composable
+private fun sourceFacts(server: SourceConfig.Jellyfin?): List<String?> {
+    val titles by settingsViewModel().library.titleCount.collectAsStateWithLifecycle(0)
+    return if (server != null) {
+        listOf(stringResource(R.string.source_jellyfin).takeIf { server.serverName != null }, server.userName)
+    } else {
+        listOf(pluralStringResource(R.plurals.title_count, titles, titles))
+    }
+}
+
+/** What choosing the folders brings: those already added, or the first one to add. */
+@Composable
+private fun foldersLine(count: Int): String =
+    if (count == 0) stringResource(R.string.source_local_first) else pluralStringResource(R.plurals.source_local_folders, count, count)
 
 @Composable
 private fun PlusIcon() {

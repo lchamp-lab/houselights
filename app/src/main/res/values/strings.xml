@@ -195,7 +195,19 @@
     </plurals>
     <string name="playback_desc">How the Zidoo player reaches the files of your server.</string>
     <string name="tmdb_desc">Posters and details come from TMDB.</string>
-    <string name="change_source_desc">Your folders are kept: you can come back to them at any time.</string>
+    <string name="change_source_local_desc">Your folders are kept: you can come back to them at any time.</string>
+    <string name="change_source_jellyfin_desc">This server stays connected until the new source is ready.</string>
+    <string name="change_source">Change source</string>
+    <string name="source_local_first">Add a first folder from your NAS</string>
+    <plurals name="source_local_folders">
+        <item quantity="one">%d folder on your NAS</item>
+        <item quantity="other">%d folders on your NAS</item>
+    </plurals>
+    <string name="source_jellyfin_other">Another server, or another account</string>
+    <string name="sign_out">Sign out</string>
+    <string name="sign_out_confirm">Sign out of “%s”?</string>
+    <string name="sign_out_desc">Houselights will forget this server on this device; your folders take its place.</string>
+    <string name="sign_out_first_folder">Houselights will forget this server on this device once your first folder is added.</string>
     <string name="label_server">Server</string>
     <string name="label_connection">Connection</string>
     <string name="connection_encrypted">Encrypted (HTTPS)</string>

@@ -203,6 +203,11 @@ Content closes a sheet through `SheetScope.dismiss(then)`: the sheet leaves, the
 of it and `then` runs; keys are ignored while it leaves, so a second OK cannot choose twice. An
 action that opens another screen closes the sheet at once instead.
 
+A choice that needs another screen to happen (a new source needs a folder or a sign-in) is set
+like the choices of `HlChoiceSheet`, the current one checked, and changes nothing until that
+screen succeeds: Back from it finds everything as it was. The source changes in one place,
+`SourceSwitcher`, which saves the new source before a server left behind forgets the app.
+
 ## Focus
 
 Focus must read from the couch:

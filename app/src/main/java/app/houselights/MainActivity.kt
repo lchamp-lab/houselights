@@ -242,9 +242,11 @@ private fun AppNavigation(onPlay: (MediaItem, Boolean) -> Unit) {
         }
         composable<Route.Nfo> { entry -> NfoScreen(entry.toRoute<Route.Nfo>().id) }
         composable<Route.Settings> {
+            // Changing the source leaves the settings below: Back returns to them, the source intact.
             SettingsScreen(
                 onAddFolder = { nav.navigate(Route.AddFolder) },
-                onChangeSource = { nav.navigate(Route.Welcome) { popUpTo(0) { inclusive = true } } },
+                onUseFolders = ::useFolders,
+                onSignIn = { nav.navigate(Route.JellyfinLogin) },
                 onOpenCatalog = { nav.navigate(Route.Catalog) },
             )
         }

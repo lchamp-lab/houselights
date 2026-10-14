@@ -250,16 +250,20 @@ fun HlChoiceSheet(
                     sheet.dismiss()
                 },
                 chevron = false,
-                trailing = if (i == selected) ({ Icon(Icons.Filled.Check, contentDescription = null, tint = checkTint(), modifier = Modifier.size(HlSize.icon)) }) else null,
+                trailing = if (i == selected) ({ ChoiceCheck() }) else null,
                 modifier = if (i == selected) Modifier.focusRequester(current) else Modifier,
             )
         }
     }
 }
 
-/** The check of the current choice: tungsten at rest, the focused content colour on a lit row. */
+/**
+ * The check of the current choice, at the end of its row: tungsten at rest, the focused content
+ * colour on a lit row. Sheets whose choices lead elsewhere mark the current one with it too.
+ */
 @Composable
-private fun checkTint(): Color {
+internal fun ChoiceCheck() {
     val content = LocalContentColor.current
-    return if (content == Hl.colors.onFocus) content else Hl.colors.tungsten
+    val tint = if (content == Hl.colors.onFocus) content else Hl.colors.tungsten
+    Icon(Icons.Filled.Check, contentDescription = null, tint = tint, modifier = Modifier.size(HlSize.icon))
 }

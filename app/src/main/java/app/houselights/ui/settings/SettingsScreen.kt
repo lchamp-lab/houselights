@@ -49,9 +49,15 @@ private enum class Pane(val label: Int, val icon: ImageVector) {
 /**
  * Settings in two panes: the categories on the left, each with what it is set to now; on the
  * right, the selected one as rows of settings with their value. Focus selects a category.
+ * [onUseFolders] makes the folders the source (or adds the first), [onSignIn] signs in to Jellyfin.
  */
 @Composable
-fun SettingsScreen(onAddFolder: () -> Unit, onChangeSource: () -> Unit, onOpenCatalog: () -> Unit = {}) {
+fun SettingsScreen(
+    onAddFolder: () -> Unit,
+    onUseFolders: () -> Unit,
+    onSignIn: () -> Unit,
+    onOpenCatalog: () -> Unit = {},
+) {
     val vm = settingsViewModel()
     val s by vm.settings.collectAsStateWithLifecycle()
     val panes = if (s.source != null && vm.capabilities.pathMapping) Pane.entries else Pane.entries - Pane.Playback
@@ -82,7 +88,7 @@ fun SettingsScreen(onAddFolder: () -> Unit, onChangeSource: () -> Unit, onOpenCa
             if (pane != Pane.About) Wordmark(Modifier.padding(start = HlSpace.m, bottom = HlSpace.l))
         },
     ) {
-        PaneContent(pane, s, storage, onAddFolder, onChangeSource, onOpenCatalog)
+        PaneContent(pane, s, storage, onAddFolder, onUseFolders, onSignIn, onOpenCatalog)
     }
 }
 
@@ -106,7 +112,8 @@ private fun PaneContent(
     s: AppSettings,
     storage: StorageStats?,
     onAddFolder: () -> Unit,
-    onChangeSource: () -> Unit,
+    onUseFolders: () -> Unit,
+    onSignIn: () -> Unit,
     onOpenCatalog: () -> Unit,
 ) {
     LazyColumn(
@@ -115,7 +122,7 @@ private fun PaneContent(
         verticalArrangement = Arrangement.spacedBy(HlSpace.l),
     ) {
         when (pane) {
-            Pane.Library -> libraryPane(s, onAddFolder, onChangeSource)
+            Pane.Library -> libraryPane(s, onAddFolder, onUseFolders, onSignIn)
             Pane.Playback -> playbackPane(s)
             Pane.Display -> displayPane(s)
             Pane.Storage -> storagePane(storage)

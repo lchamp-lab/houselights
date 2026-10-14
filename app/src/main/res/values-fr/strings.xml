@@ -186,7 +186,19 @@
     </plurals>
     <string name="playback_desc">Comment le lecteur Zidoo accède aux fichiers de votre serveur.</string>
     <string name="tmdb_desc">Les affiches et les informations proviennent de TMDB.</string>
-    <string name="change_source_desc">Vos dossiers sont conservés : vous pourrez y revenir à tout moment.</string>
+    <string name="change_source_local_desc">Vos dossiers sont conservés : vous pourrez y revenir à tout moment.</string>
+    <string name="change_source_jellyfin_desc">Ce serveur reste connecté jusqu’à ce que la nouvelle source soit prête.</string>
+    <string name="change_source">Changer de source</string>
+    <string name="source_local_first">Ajoutez un premier dossier de votre NAS</string>
+    <plurals name="source_local_folders">
+        <item quantity="one">%d dossier sur votre NAS</item>
+        <item quantity="other">%d dossiers sur votre NAS</item>
+    </plurals>
+    <string name="source_jellyfin_other">Un autre serveur, ou un autre compte</string>
+    <string name="sign_out">Se déconnecter</string>
+    <string name="sign_out_confirm">Se déconnecter de « %s » ?</string>
+    <string name="sign_out_desc">Houselights oubliera ce serveur sur cet appareil ; vos dossiers prendront sa place.</string>
+    <string name="sign_out_first_folder">Houselights oubliera ce serveur sur cet appareil une fois votre premier dossier ajouté.</string>
     <string name="label_server">Serveur</string>
     <string name="label_connection">Connexion</string>
     <string name="connection_encrypted">Chiffrée (HTTPS)</string>

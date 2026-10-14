@@ -9,9 +9,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import app.houselights.AppContainer
 import app.houselights.core.PathMapping
-import app.houselights.core.SourceConfig
 import app.houselights.core.suspendRunCatching
-import app.houselights.providers.jellyfin.JellyfinClient
 import app.houselights.providers.local.CleanupResult
 import app.houselights.providers.local.LocalLibrary
 import app.houselights.settings.AppSettings
@@ -96,16 +94,6 @@ internal class SettingsViewModel(private val app: AppContainer, private val imag
     fun setPathMappings(mappings: List<PathMapping>, done: () -> Unit) {
         viewModelScope.launch {
             app.settings.setPathMappings(mappings.filter { it.from.isNotBlank() && it.to.isNotBlank() })
-            done()
-        }
-    }
-
-    /** Leaves the current source; a Jellyfin server forgets the app's token first. */
-    fun changeSource(done: () -> Unit) {
-        viewModelScope.launch {
-            val s = settings.value
-            (s.source as? SourceConfig.Jellyfin)?.let { JellyfinClient.signOut(it, s.deviceId) }
-            app.settings.setSource(null)
             done()
         }
     }
