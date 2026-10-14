@@ -168,6 +168,47 @@ fun CatalogScreen() {
                 }
             }
 
+            item {
+                // The longest French labels and the fullest rows the screens can meet: nothing here
+                // may be cut or pushed out.
+                Group("Stress") {
+                    Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.s), verticalAlignment = Alignment.Top) {
+                        // An episode in progress, with every capability: the fullest row of a detail page.
+                        HlButton("Reprendre", {}, icon = Icons.Filled.PlayArrow, detail = "1:02:33", emphasis = Emphasis.Primary)
+                        HlIconButton(HlIcons.Restart, "Depuis le début", {})
+                        HlButton("Voir la série", {})
+                        HlIconButton(HlIcons.Info, "Marquer comme vu", {})
+                        HlIconButton(HlIcons.Info, "Infos techniques", {})
+                        HlIconButton(HlIcons.Document, "NFO", {})
+                        HlIconButton(HlIcons.Info, "Ajouter aux favoris", {})
+                        HlIconButton(HlIcons.Edit, "Modifier", {})
+                    }
+                    var library by remember { mutableIntStateOf(0) }
+                    HlSegmented(
+                        listOf("Accueil", "Films 4K HDR", "Séries d’animation", "Documentaires", "Concerts et spectacles"),
+                        selected = library,
+                        onSelect = { library = it },
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.xs)) {
+                        listOf("Ultra HD", "Dolby Vision", "HDR10+", "HDR10", "TrueHD Atmos", "DTS:X", "7.1", "16").forEach { Badge(it) }
+                    }
+                    Column(Modifier.widthIn(max = HlLayout.readable)) {
+                        HlSettingRow(
+                            "Actualiser toutes les informations",
+                            description = "Récupère à nouveau affiches et informations sur TMDB",
+                            onClick = {},
+                            chevron = false,
+                        )
+                        HlSettingRow(
+                            "Fréquence d’affichage automatique",
+                            value = "Selon le film, 23,976 Hz",
+                            description = "Adapte la fréquence de l’écran à celle du film",
+                            onClick = {},
+                        )
+                    }
+                }
+            }
+
             item { Wordmark(style = t.wordmarkHero) }
         }
     }

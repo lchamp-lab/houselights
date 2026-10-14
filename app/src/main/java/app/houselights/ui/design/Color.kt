@@ -81,6 +81,8 @@ object HlAlpha {
     const val LIT_DISC = 0.18f
     /** Secondary text inside a control (runtime in a button): content colour at this opacity. */
     const val CONTROL_DETAIL = 0.62f
+    /** The glow of the wordmark's own lamp: `tungsten` at this opacity. */
+    const val WORDMARK_GLOW = 0.55f
 }
 
 /** Light spilling from the current artwork; animated by the screen that owns the backdrop. */

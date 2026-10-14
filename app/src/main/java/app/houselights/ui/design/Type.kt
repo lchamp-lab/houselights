@@ -53,6 +53,8 @@ data class HlType(
     val display: TextStyle,
     /** Screen titles, the home hero title without logo. */
     val headline: TextStyle,
+    /** Large figures that state something (storage used, a film's definition). */
+    val figure: TextStyle,
     /** Names in the billing block, set like the credits at the foot of a poster. */
     val billing: TextStyle,
     /** The small words between them: "a film by", "with", "and". */
@@ -69,6 +71,8 @@ data class HlType(
     val lead: TextStyle,
     /** Overviews, descriptions, paragraphs. */
     val body: TextStyle,
+    /** Facts and values: year, runtime, score, sizes; tabular figures. */
+    val meta: TextStyle,
     /** Secondary lines: hints, roles, paths, group titles. */
     val caption: TextStyle,
     /**
@@ -76,20 +80,16 @@ data class HlType(
      * Tighter than [caption], so that over two lines it reads as one block under its name.
      */
     val detail: TextStyle,
+    /** Raw text to read as written (NFO XML). */
+    val code: TextStyle,
 
     // The technical voice (wide, tabular figures).
     /** Buttons, tabs, menu entries, setting names. */
     val label: TextStyle,
-    /** Facts and values: year, runtime, score, sizes. */
-    val meta: TextStyle,
-    /** Large figures that state something (storage used, a film's definition). */
-    val figure: TextStyle,
     /** The headline of a technical sheet: definition, ratio, codec. */
     val spec: TextStyle,
     /** Format and rating badges: Ultra HD, Dolby Vision, 12. */
     val badge: TextStyle,
-    /** Raw text to read as written (NFO XML). */
-    val code: TextStyle,
 )
 
 val HouselightsType = HlType(

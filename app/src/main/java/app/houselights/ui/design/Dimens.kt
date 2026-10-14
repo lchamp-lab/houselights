@@ -42,6 +42,8 @@ object HlSize {
     val landscape = 220.dp
     val episode = 264.dp
     val avatar = 76.dp
+    /** Column of a cast member: the portrait, then a name over two lines at most. */
+    val personColumn = 120.dp
     /** Height of every control: pill buttons and round icon buttons line up. */
     val control = 48.dp
     val iconButton = control

@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -172,7 +173,7 @@ fun HlListItem(
     modifier: Modifier = Modifier,
     icon: ImageVector? = null,
 ) {
-    HlPanelButton(onClick, modifier) { focused ->
+    HlPanelButton(onClick, modifier.fillMaxWidth()) { focused ->
         Row(Modifier.padding(HlSpace.l), verticalAlignment = Alignment.CenterVertically) {
             if (icon != null) {
                 HlIconDisc(icon, lit = focused)

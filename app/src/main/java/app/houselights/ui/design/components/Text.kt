@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.tv.material3.Text
 import app.houselights.R
 import app.houselights.ui.design.Hl
+import app.houselights.ui.design.HlAlpha
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.util.toPx
 import app.houselights.core.ImageRef
@@ -36,13 +37,16 @@ fun ScreenTitle(text: String, modifier: Modifier = Modifier) {
     Text(text, style = Hl.type.headline, color = Hl.colors.content, modifier = modifier)
 }
 
+/** How far the wordmark's glow spreads, in pixels. */
+private const val WORDMARK_GLOW_BLUR = 24f
+
 /** "Houselights", lit by its own lamp. */
 @Composable
 fun Wordmark(modifier: Modifier = Modifier, style: TextStyle = Hl.type.wordmark) {
     val tungsten = Hl.colors.tungsten
     Text(
         stringResource(R.string.app_name),
-        style = style.copy(shadow = Shadow(tungsten.copy(alpha = 0.55f), blurRadius = 24f)),
+        style = style.copy(shadow = Shadow(tungsten.copy(alpha = HlAlpha.WORDMARK_GLOW), blurRadius = WORDMARK_GLOW_BLUR)),
         color = tungsten,
         maxLines = 1,
         softWrap = false,

@@ -236,11 +236,11 @@ fun LandscapeCard(
     }
 }
 
-/** Cast member: round portrait, name and role. Focusable so the row can scroll. */
+/** Cast member: round portrait, name over two lines at most, and role. Focusable so the row can scroll. */
 @Composable
 fun PersonCard(person: Person, modifier: Modifier = Modifier) {
     val px = HlSize.avatar.toPx()
-    Column(modifier.width(HlSize.avatar + HlSpace.xl), horizontalAlignment = Alignment.CenterHorizontally) {
+    Column(modifier.width(HlSize.personColumn), horizontalAlignment = Alignment.CenterHorizontally) {
         ArtworkSurface(onClick = {}, modifier = Modifier.size(HlSize.avatar), shape = HlShapes.avatar) {
             Text(
                 person.name.split(' ').mapNotNull { it.firstOrNull()?.uppercase() }.take(2).joinToString(""),
@@ -251,7 +251,14 @@ fun PersonCard(person: Person, modifier: Modifier = Modifier) {
             person.image?.url(px)?.let { Artwork(it, person.name, Modifier.clip(HlShapes.avatar)) }
         }
         Spacer(Modifier.height(HlSpace.s))
-        Text(person.name, style = Hl.type.meta, color = Hl.colors.content, maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center)
+        Text(
+            person.name,
+            style = Hl.type.meta,
+            color = Hl.colors.content,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.Center,
+        )
         person.role?.let {
             Text(it, style = Hl.type.caption, color = Hl.colors.contentTertiary, maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center)
         }

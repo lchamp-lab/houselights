@@ -30,7 +30,7 @@ with discipline everywhere: one family, **Archivo**, at three widths that are th
 | Voice | Width | What it says | Styles |
 |---|---|---|---|
 | The poster | condensed (70) | titles, names in the billing block, large figures | `display`, `headline`, `billing`, `wordmark`, `figure` |
-| Reading | normal (100) | overviews, descriptions, names in lists, values | `title`, `lead`, `body`, `caption`, `meta` |
+| Reading | normal (100) | overviews, descriptions, names in lists, values | `title`, `lead`, `body`, `meta`, `caption`, `detail`, `code` |
 | Technical | wide (112), tabular figures | formats, controls, every number that lines up | `label`, `spec`, `badge` |
 
 The technical voice speaks the vocabulary of a Blu-ray case: formats by their names (`Ultra HD`,

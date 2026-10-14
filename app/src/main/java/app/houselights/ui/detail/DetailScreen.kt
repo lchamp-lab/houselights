@@ -146,7 +146,14 @@ fun DetailScreen(
                                 onOpenNfo = { onOpenNfo(item.id) },
                                 onShowTech = if (media != null) ({ showTech = true }) else null,
                                 onEdit = if (state.canEdit) ({ showEdit = true }) else null,
-                                modifier = Modifier.padding(start = HlSpace.safeH, top = HlSpace.safeV + HlSpace.m, bottom = HlSpace.l).align(Alignment.BottomStart),
+                                modifier = Modifier
+                                    .padding(
+                                        start = HlSpace.safeH,
+                                        end = HlSpace.safeH,
+                                        top = HlSpace.safeV + HlSpace.m,
+                                        bottom = HlSpace.l,
+                                    )
+                                    .align(Alignment.BottomStart),
                             )
                         }
                     }
@@ -224,34 +231,43 @@ private fun Hero(
     LaunchedEffect(item.id) { runCatching { playFocus.requestFocus() } }
     val isEpisode = item.kind == MediaKind.EPISODE
 
-    Column(modifier.widthIn(max = HlLayout.readableNarrow)) {
-        TitleArt(
-            title = if (isEpisode) item.seriesTitle ?: item.title else item.title,
-            logo = item.logo,
-            maxWidth = HlLayout.titleArtWidth,
-            maxHeight = HlLayout.titleArtHeight,
-        )
-        Spacer(Modifier.height(HlSpace.l))
-        if (isEpisode) {
-            EpisodeHeading(item.episodeLabel, item.title)
-            Spacer(Modifier.height(HlSpace.xs))
-        }
-        MetaLine(item)
-        if (item.badges.isNotEmpty()) {
-            Spacer(Modifier.height(HlSpace.s))
-            BadgeRow(item.badges)
-        }
-        item.tagline?.let {
+    Column(modifier) {
+        // The text keeps a reading measure; the actions below may run wider, within the safe area.
+        Column(Modifier.widthIn(max = HlLayout.readableNarrow)) {
+            TitleArt(
+                title = if (isEpisode) item.seriesTitle ?: item.title else item.title,
+                logo = item.logo,
+                maxWidth = HlLayout.titleArtWidth,
+                maxHeight = HlLayout.titleArtHeight,
+            )
             Spacer(Modifier.height(HlSpace.l))
-            Text(it, style = Hl.type.title, color = Hl.colors.content)
-        }
-        if (!item.overview.isNullOrBlank()) {
-            Spacer(Modifier.height(if (item.tagline != null) HlSpace.xs else HlSpace.l))
-            Text(item.overview, style = Hl.type.body, color = Hl.colors.contentSecondary, maxLines = 3, overflow = TextOverflow.Ellipsis)
-        }
-        if (item.directors.isNotEmpty() || item.cast.isNotEmpty()) {
-            Spacer(Modifier.height(HlSpace.m))
-            BillingBlock(item.directors, item.cast.map { it.name })
+            if (isEpisode) {
+                EpisodeHeading(item.episodeLabel, item.title)
+                Spacer(Modifier.height(HlSpace.xs))
+            }
+            MetaLine(item)
+            if (item.badges.isNotEmpty()) {
+                Spacer(Modifier.height(HlSpace.s))
+                BadgeRow(item.badges)
+            }
+            item.tagline?.let {
+                Spacer(Modifier.height(HlSpace.l))
+                Text(it, style = Hl.type.title, color = Hl.colors.content)
+            }
+            if (!item.overview.isNullOrBlank()) {
+                Spacer(Modifier.height(if (item.tagline != null) HlSpace.xs else HlSpace.l))
+                Text(
+                    item.overview,
+                    style = Hl.type.body,
+                    color = Hl.colors.contentSecondary,
+                    maxLines = 3,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            if (item.directors.isNotEmpty() || item.cast.isNotEmpty()) {
+                Spacer(Modifier.height(HlSpace.m))
+                BillingBlock(item.directors, item.cast.map { it.name })
+            }
         }
         Spacer(Modifier.height(HlSpace.xl))
 
@@ -274,7 +290,7 @@ private fun Hero(
                         detail = listOfNotNull(episode, formatTimecode(resumeMs)).joinToString(FACT_GAP),
                         emphasis = Emphasis.Primary,
                     )
-                    HlButton(stringResource(R.string.from_start), onClick = { onPlay(target, false) })
+                    HlIconButton(HlIcons.Restart, stringResource(R.string.from_start), onClick = { onPlay(target, false) })
                 } else {
                     HlButton(
                         stringResource(R.string.play),
