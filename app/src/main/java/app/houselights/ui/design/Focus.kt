@@ -1,7 +1,12 @@
+@file:OptIn(ExperimentalFoundationApi::class)
+
 package app.houselights.ui.design
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.focusGroup
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
@@ -22,7 +27,11 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.node.LayoutAwareModifierNode
+import androidx.compose.ui.node.ModifierNodeElement
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * Stable keys for what can hold focus. A key says what an element is, never where it is, so it
@@ -70,6 +79,16 @@ class FocusMemory(initial: String? = null) {
 
     private val requesters = HashMap<String, FocusRequester>()
 
+    /**
+     * Keyed elements laid out on the screen. A list composes the next items ahead without showing
+     * them; focus put there would be invisible, so the memory only focuses what is placed.
+     */
+    private val placed = HashSet<String>()
+
+    internal fun placed(key: String, isPlaced: Boolean) {
+        if (isPlaced) placed += key else placed -= key
+    }
+
     /** What focuses [key]: for a group holding keyed elements, or an element focused by the screen itself. */
     fun requester(key: String): FocusRequester = requesters.getOrPut(key) { FocusRequester() }
 
@@ -78,8 +97,27 @@ class FocusMemory(initial: String? = null) {
         last = key
     }
 
-    /** Focuses [key] now; false when nothing with that key is on screen. */
-    fun focus(key: String): Boolean = requesters[key]?.let { runCatching { it.requestFocus() }.isSuccess } == true
+    /**
+     * Focuses [key] now; false when nothing with that key is on screen. A group (a row, a pane, the
+     * tabs) carries no key of its own and is focused whenever it is there.
+     */
+    fun focus(key: String): Boolean {
+        val requester = requesters[key] ?: return false
+        if (key in keyed && key !in placed) return false
+        return runCatching { requester.requestFocus() }.isSuccess
+    }
+
+    /** Keys given to elements through [focusKey], as opposed to groups focused by the screen. */
+    private val keyed = HashSet<String>()
+
+    private val bringers = HashMap<String, BringIntoViewRequester>()
+
+    internal fun bringer(key: String): BringIntoViewRequester = bringers.getOrPut(key) { BringIntoViewRequester() }
+
+    internal fun keyed(key: String): FocusRequester {
+        keyed += key
+        return requester(key)
+    }
 
     /**
      * Brings focus back once the screen is laid out: on what had it last; else on it once [reveal]
@@ -89,7 +127,23 @@ class FocusMemory(initial: String? = null) {
     suspend fun restore(fallback: FocusRequester?, reveal: suspend (key: String) -> Boolean = { false }): Boolean {
         withFrameNanos { }
         val revealed: suspend (String) -> Boolean = { key -> reveal(key).also { if (it) withFrameNanos { } } }
-        return restoreFocus(last, ::focus, revealed) { fallback != null && runCatching { fallback.requestFocus() }.isSuccess }
+        val restored = restoreFocus(last, ::focus, revealed) { fallback != null && runCatching { fallback.requestFocus() }.isSuccess }
+        last?.let { key -> bringers[key]?.let { keepInView(key, it) } }
+        return restored
+    }
+
+    /**
+     * What a screen shows may still arrive above the element just focused (a pane's folders, a
+     * row's titles) and push it out of view: for a moment, the element is brought back into view
+     * after each frame, until the viewer moves on.
+     */
+    private suspend fun keepInView(key: String, bringer: BringIntoViewRequester) {
+        withTimeoutOrNull(KEEP_IN_VIEW_MS) {
+            while (last == key && key in placed) {
+                runCatching { bringer.bringIntoView() }
+                withFrameNanos { }
+            }
+        }
     }
 
     companion object {
@@ -123,7 +177,28 @@ fun rememberFocusMemory(): FocusMemory = rememberSaveable(saver = FocusMemory.Sa
 
 /** Names this element [key] in [memory]: focus on it is remembered, and coming back finds it. */
 fun Modifier.focusKey(key: String, memory: FocusMemory): Modifier =
-    focusRequester(memory.requester(key)).onFocusChanged { if (it.hasFocus) memory.record(key) }
+    bringIntoViewRequester(memory.bringer(key))
+        .focusRequester(memory.keyed(key))
+        .onFocusChanged { if (it.hasFocus) memory.record(key) }
+        .then(PlacedElement(key, memory))
+
+/** How long an element brought back keeps being held in view while its screen fills in. */
+private const val KEEP_IN_VIEW_MS = 1_200L
+
+/** Tells [memory] whether the element named [key] is laid out on the screen. */
+private data class PlacedElement(val key: String, val memory: FocusMemory) : ModifierNodeElement<PlacedNode>() {
+    override fun create() = PlacedNode(key, memory)
+    override fun update(node: PlacedNode) {
+        if (node.key != key) node.memory.placed(node.key, false)
+        node.key = key
+        node.memory = memory
+    }
+}
+
+private class PlacedNode(var key: String, var memory: FocusMemory) : Modifier.Node(), LayoutAwareModifierNode {
+    override fun onPlaced(coordinates: LayoutCoordinates) = memory.placed(key, coordinates.isAttached)
+    override fun onDetach() = memory.placed(key, false)
+}
 
 /**
  * Brings focus back each time the screen arrives, on a first visit or coming back, as soon as it
