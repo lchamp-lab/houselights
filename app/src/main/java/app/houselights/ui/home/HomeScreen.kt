@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.tv.material3.Text
+import app.houselights.ui.design.rememberRowState
 import app.houselights.R
 import app.houselights.core.HomeSection
 import app.houselights.core.Library
@@ -159,7 +160,11 @@ private fun Sections(
     ) {
         sections.forEachIndexed { sectionIndex, section ->
             item(key = "${section.type}-${section.libraryName}-${section.libraryKind}") {
-                MediaRow(header = sectionTitle(section), spacing = if (section.landscape) HlSpace.l else HlSpace.m) {
+                MediaRow(
+                    header = sectionTitle(section),
+                    spacing = if (section.landscape) HlSpace.l else HlSpace.m,
+                    state = rememberRowState(section.items.map { it.id }),
+                ) {
                     itemsIndexed(section.items, key = { _, it -> it.id }) { index, item ->
                         val mod = if (sectionIndex == focusSection && index == focusIndex) Modifier.focusRequester(firstFocus) else Modifier
                         val focus = { onFocus(sectionIndex, index, item) }

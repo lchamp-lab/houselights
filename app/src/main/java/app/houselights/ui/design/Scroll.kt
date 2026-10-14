@@ -8,6 +8,13 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.foundation.relocation.bringIntoViewRequester
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
@@ -93,4 +100,25 @@ fun Modifier.revealOnFocus(): Modifier = composed {
     this
         .bringIntoViewRequester(requester)
         .onFocusChanged { if (it.hasFocus) scope.launch { requester.bringIntoView() } }
+}
+
+/**
+ * State of a row whose content can change while it is shown (new titles found by a scan). A list
+ * keeps showing the item it was showing first, so titles arriving in front would land out of
+ * sight on the left. If the row was at its start, it stays there and the new titles show; if the
+ * viewer had moved along it, nothing moves under them.
+ */
+@Composable
+fun rememberRowState(keys: List<Any>): LazyListState {
+    val state = rememberLazyListState()
+    val first = keys.firstOrNull()
+    var shownFirst by remember { mutableStateOf(first) }
+    LaunchedEffect(first) {
+        // Let the list place itself with the new content first.
+        withFrameNanos { }
+        val was = keys.indexOf(shownFirst)
+        if (was > 0 && state.firstVisibleItemIndex == was) state.scrollToItem(0)
+        shownFirst = first
+    }
+    return state
 }
