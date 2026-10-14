@@ -35,6 +35,7 @@ import app.houselights.ui.design.components.ArtworkChoiceCard
 import app.houselights.ui.design.components.ArtworkImage
 import app.houselights.ui.design.components.ArtworkSurface
 import app.houselights.ui.design.components.CardSkeleton
+import app.houselights.ui.design.components.HeroSkeleton
 import app.houselights.ui.design.components.HlResultItem
 import app.houselights.ui.design.components.LandscapeCard
 import app.houselights.ui.design.components.MediaRow
@@ -248,6 +249,7 @@ private fun Skeletons() {
             CardSkeleton(HlLayout.landscapeChoice, 16f / 9f)
         }
         StateCaption("landscape row: unused", width = HlSize.landscape) { CardSkeleton(HlSize.landscape, 16f / 9f) }
+        StateCaption("title and facts (detail page)", width = HlSize.landscape) { HeroSkeleton() }
     }
 }
 
@@ -344,6 +346,14 @@ private fun Results() {
         }
         StateCaption("rest, long overview", Modifier.weight(1f)) {
             HlResultItem(poster, "Les Sept Samouraïs", listOf("1954", "七人の侍"), SEVEN_SAMURAI_OVERVIEW, {})
+        }
+    }
+    Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Top) {
+        StateCaption("being matched", Modifier.weight(1f)) {
+            HlResultItem(poster, "Le Samouraï", listOf("1967", null), SAMURAI_OVERVIEW, {}, busy = "Association…")
+        }
+        StateCaption("being matched, the current one", Modifier.weight(1f)) {
+            HlResultItem(poster, "Le Samouraï", listOf("1967", null), SAMURAI_OVERVIEW, {}, mark = "Actuel", busy = "Association…")
         }
     }
     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Top) {

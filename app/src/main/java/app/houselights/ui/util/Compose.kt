@@ -5,6 +5,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalConfiguration
@@ -15,6 +16,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.houselights.AppContainer
 import app.houselights.HouselightsApp
+import app.houselights.ui.design.HlMotion
+import kotlinx.coroutines.delay
 
 @Composable
 fun appContainer(): AppContainer = (LocalContext.current.applicationContext as HouselightsApp).container
@@ -35,6 +38,19 @@ fun ReloadOnLibraryChange(reload: () -> Unit) {
             reload()
         }
     }
+}
+
+/**
+ * False until the caller has been shown for [HlMotion.SKELETON_DELAY]: a placeholder waits for it,
+ * so a slow load shows one and a quick load never flashes.
+ */
+@Composable
+fun skeletonDelayPassed(): Boolean {
+    val passed by produceState(false) {
+        delay(HlMotion.SKELETON_DELAY)
+        value = true
+    }
+    return passed
 }
 
 /** Size in physical pixels, to request images at the size they are displayed. */

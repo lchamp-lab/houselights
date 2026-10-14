@@ -148,6 +148,7 @@ fun CatalogScreen() {
                         HlStatus(StatusState.On, "Online")
                         HlStatus(StatusState.Pending, "Testing")
                         HlStatus(StatusState.Off, "Offline")
+                        HlStatus(StatusState.Attention, "Can’t play", detail = "The Zidoo player isn’t installed.")
                     }
                     Column(Modifier.widthIn(max = HlLayout.readable), verticalArrangement = Arrangement.spacedBy(HlSpace.xs)) {
                         HlMeter(listOf(MeterSegment(0.3f, c.content), MeterSegment(0.1f, c.tungsten), MeterSegment(0.05f, c.contentSecondary)))
@@ -173,7 +174,21 @@ fun CatalogScreen() {
                         }
                     }
                     HlListItem("List item", "Its description", {}, icon = HlIcons.Folder)
-                    HlEmptyState("What happened, and what to do about it.", title = "Empty or error state", action = "Try again")
+                    Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.xl)) {
+                        HlEmptyState(
+                            "What happened, and what to do about it.",
+                            Modifier.weight(1f),
+                            title = "Empty or error state",
+                            action = "Try again",
+                            secondaryAction = "Look closer",
+                        )
+                        HlEmptyState(
+                            "Nothing fixes it here: Back is the way out.",
+                            Modifier.weight(1f),
+                            title = "No action",
+                            backHint = true,
+                        )
+                    }
                 }
             }
 

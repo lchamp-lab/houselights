@@ -5,7 +5,9 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -88,5 +90,19 @@ fun EpisodeHeading(label: String?, title: String, modifier: Modifier = Modifier)
     Row(modifier, horizontalArrangement = Arrangement.spacedBy(HlSpace.fact)) {
         label?.let { Text(it, style = Hl.type.meta, color = Hl.colors.contentSecondary, modifier = Modifier.alignByBaseline()) }
         Text(title, style = Hl.type.title, color = Hl.colors.content, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.alignByBaseline())
+    }
+}
+
+/**
+ * Where a title and its facts will be while a detail page loads: two short rules, quiet, no
+ * shimmer. Screens show it after [HlMotion.SKELETON_DELAY].
+ */
+@Composable
+fun HeroSkeleton(modifier: Modifier = Modifier) {
+    val rule = Hl.colors.contentDecorative
+    Column(modifier) {
+        Box(Modifier.width(HlSize.skeletonTitle).height(HlSize.hairline).background(rule))
+        Spacer(Modifier.height(HlSpace.l))
+        Box(Modifier.width(HlSize.skeletonFacts).height(HlSize.hairline).background(rule))
     }
 }

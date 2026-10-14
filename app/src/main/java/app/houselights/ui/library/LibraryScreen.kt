@@ -71,12 +71,19 @@ import app.houselights.ui.design.components.MetaLine
 import app.houselights.ui.design.components.PosterCard
 import app.houselights.ui.design.components.ScreenTitle
 import app.houselights.ui.design.components.rememberAmbientColor
+import app.houselights.ui.design.components.CardSkeleton
+import app.houselights.ui.design.components.HlEmptyState
+import app.houselights.ui.home.ErrorMessage
 import app.houselights.ui.util.ReloadOnLibraryChange
 import app.houselights.ui.util.appContainer
+import app.houselights.ui.util.skeletonDelayPassed
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 private const val COLUMNS = 7
+
+/** Rows of empty frames while the wall loads: more than the screen shows, like the wall itself. */
+private const val SKELETON_ROWS = 3
 
 /** A wall of posters, with the focused title named in the header. */
 @Composable
@@ -182,17 +189,16 @@ fun LibraryScreen(
                     }
                 }
                 when {
-                    state.loading && state.items.isEmpty() -> Unit
+                    state.loading && state.items.isEmpty() -> SkeletonWall()
+                    state.items.isEmpty() && state.error != null -> ErrorMessage(state.error!!, vm::retry)
                     state.items.isEmpty() && state.filter.activeCount > 0 -> Column(Modifier.padding(HlSpace.safeH)) {
                         Text(stringResource(R.string.no_match), style = Hl.type.body, color = Hl.colors.contentSecondary)
                         Spacer(Modifier.height(HlSpace.l))
                         HlButton(stringResource(R.string.reset_filters), { vm.setFilter(LibraryFilter()) }, icon = HlIcons.Filter)
                     }
-                    state.items.isEmpty() -> Text(
-                        state.error?.let { stringResource(it.message) } ?: stringResource(R.string.empty),
-                        style = Hl.type.body,
-                        color = Hl.colors.contentSecondary,
-                        modifier = Modifier.padding(HlSpace.safeH),
+                    state.items.isEmpty() -> HlEmptyState(
+                        stringResource(R.string.empty),
+                        Modifier.padding(start = HlSpace.safeH, top = HlSpace.l),
                     )
                     // The wall starts under the header: a line of posters comes back to where the first rests.
                     else -> CompositionLocalProvider(LocalGroupFocused provides gridHasFocus) {
@@ -224,6 +230,22 @@ fun LibraryScreen(
                         }
                     } } }
                 }
+            }
+        }
+    }
+}
+
+/** Empty frames where the wall will be, laid out like it, once loading takes long enough to be seen. */
+@Composable
+private fun SkeletonWall() {
+    if (!skeletonDelayPassed()) return
+    Column(
+        Modifier.padding(start = HlSpace.safeH, end = HlSpace.safeH, top = HlSpace.m),
+        verticalArrangement = Arrangement.spacedBy(HlSpace.l),
+    ) {
+        repeat(SKELETON_ROWS) {
+            Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.l)) {
+                repeat(COLUMNS) { CardSkeleton(null, 2f / 3f, Modifier.weight(1f)) }
             }
         }
     }

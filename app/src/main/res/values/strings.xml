@@ -31,7 +31,6 @@
     </plurals>
 
     <!-- States -->
-    <string name="error_unreachable">Can’t reach the library</string>
     <string name="retry">Retry</string>
     <string name="empty">Nothing here yet.</string>
     <plurals name="title_count">
@@ -40,6 +39,8 @@
     </plurals>
     <string name="home_empty_local">No films yet. Add the folder that holds them in Settings.</string>
     <string name="home_scanning">Scanning your files… %1$d / %2$d</string>
+    <string name="home_scan_failed">The scan didn’t finish</string>
+    <string name="home_see_folders">See the folders</string>
 
     <!-- Browsing -->
     <string name="nav_settings">Settings</string>
@@ -125,9 +126,9 @@
     <string name="gigabytes">%s GB</string>
     <string name="megabytes">%s MB</string>
     <string name="similar">More like this</string>
-    <string name="play_error">Can’t play: %s</string>
-    <string name="no_player">No video player available</string>
-    <string name="player_credentials">This folder needs a password: only the Zidoo player can play it</string>
+    <string name="play_failed">Can’t play</string>
+    <string name="no_player">The Zidoo player isn’t installed.</string>
+    <string name="player_credentials">This folder needs a password: only the Zidoo player can play it.</string>
 
     <!-- Local folders -->
     <string name="add_folder">Add a folder</string>
@@ -291,12 +292,23 @@
     </plurals>
     <string name="identify_state_matched">Identified</string>
     <string name="result_current">Current</string>
+    <string name="error_offline_title">Library unreachable</string>
     <string name="error_offline">The server or the NAS doesn’t answer. Check that it is on, then try again.</string>
-    <string name="error_denied">The server refused the connection. Sign in again from Settings.</string>
+    <string name="error_denied_title">Connection refused</string>
+    <string name="error_denied">The server refused the connection. Sign in again to go on.</string>
+    <string name="error_gone_title">This title is gone</string>
     <string name="error_gone">This title is no longer in the library.</string>
-    <string name="error_tmdb_offline">TMDB could not be reached. Check the connection, then try again.</string>
+    <string name="error_tmdb_offline_title">TMDB unreachable</string>
+    <string name="error_tmdb_offline">TMDB doesn’t answer. Check the internet connection, then try again.</string>
+    <string name="error_no_tmdb_key_title">No TMDB key</string>
     <string name="error_no_tmdb_key">Add a TMDB key in Settings to search and list images.</string>
-    <string name="error_failed">This could not be done. Try again in a moment.</string>
+    <string name="error_tmdb_key_refused_title">TMDB refuses this key</string>
+    <string name="error_tmdb_key_refused">TMDB doesn’t accept the key saved in Settings. Check it, or replace it.</string>
+    <string name="error_failed_title">This could not be done</string>
+    <string name="error_failed">Try again in a moment.</string>
+    <string name="error_action_reconnect">Sign in again</string>
+    <string name="error_action_add_tmdb_key">Add a key</string>
+    <string name="error_action_edit_tmdb_key">Change the key</string>
     <!-- Settings rows -->
     <string name="nav_version">Version %s</string>
     <string name="scan_running">Scanning %1$d of %2$d</string>
