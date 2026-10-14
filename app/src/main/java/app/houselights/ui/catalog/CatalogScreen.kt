@@ -21,6 +21,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.focus.FocusRequester
@@ -54,11 +55,13 @@ import app.houselights.ui.design.components.LandscapeCard
 import app.houselights.ui.design.components.PosterCard
 import app.houselights.ui.design.components.HlListItem
 import app.houselights.ui.design.components.HlMeter
+import app.houselights.ui.design.components.HlModal
 import app.houselights.ui.design.components.HlNavItem
 import app.houselights.ui.design.components.HlPanel
 import app.houselights.ui.design.components.HlSegmented
 import app.houselights.ui.design.components.HlSettingGroup
 import app.houselights.ui.design.components.HlSettingRow
+import app.houselights.ui.design.components.HlSideSheet
 import app.houselights.ui.design.components.HlStatus
 import app.houselights.ui.design.components.MeterLegend
 import app.houselights.ui.design.components.MeterSegment
@@ -171,6 +174,34 @@ fun CatalogScreen() {
                     }
                     HlListItem("List item", "Its description", {}, icon = HlIcons.Folder)
                     HlEmptyState("What happened, and what to do about it.", title = "Empty or error state", action = "Try again")
+                }
+            }
+
+            item {
+                Group("Sheets") {
+                    var side by remember { mutableStateOf(false) }
+                    var reading by remember { mutableStateOf(false) }
+                    Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.s)) {
+                        HlButton("Side sheet", { side = true })
+                        HlButton("Reading sheet", { reading = true })
+                    }
+                    if (side) {
+                        HlSideSheet(
+                            "Modifier",
+                            onDismiss = { side = false },
+                            subject = "Le Samouraï",
+                            facts = listOf("1967"),
+                            description = "A panel to act on what the screen shows, which stays in view.",
+                        ) { sheet ->
+                            HlSettingRow("Affiche", description = "Dans les rangées et la bibliothèque", onClick = sheet::dismiss)
+                            HlSettingRow("Fond d’écran", description = "Derrière cette fiche et sur l’accueil", onClick = sheet::dismiss)
+                        }
+                    }
+                    if (reading) {
+                        HlModal("Fiche technique", onDismiss = { reading = false }, facts = listOf("Le Samouraï", "1967")) {
+                            Text("A sheet to read; Back closes it.", style = t.body, color = c.contentSecondary)
+                        }
+                    }
                 }
             }
 

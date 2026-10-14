@@ -66,7 +66,8 @@ The technical voice speaks the vocabulary of a Blu-ray case: formats by their na
 | `tungsten` | `#F2B66D` | states only |
 
 `HlAlpha` names every opacity, by role: `QUIET_SURFACE`, `CONTROL_FILL` / `CONTROL_FILL_STRONG`,
-`WELL`, `BORDER`, `DIVIDER`, `SCRIM`, `PLATE`, `TRACK`, `LIT_DISC`, `CONTROL_DETAIL`.
+`WELL`, `BORDER`, `DIVIDER`, `SCRIM` / `SCRIM_SIDE`, `PLATE`, `TRACK`, `FOCUS_QUIET`, `LIT_DISC`,
+`CONTROL_DETAIL`, `ARTWORK_EDGE`, `WORDMARK_GLOW`.
 
 ### Type (`Type.kt`)
 
@@ -80,6 +81,7 @@ style, so durations, sizes and counts line up and do not jitter.
 | `headline` | 44 / 48 | screen titles, home hero title without logo |
 | `figure` | 32 / 36 | a figure that states something (storage used) |
 | `subject` | 32 / 36 | what a panel or a sheet is about ("Modifier", "Fiche technique") |
+| `cardTitle` | 20 / 22 | a title set on a card without artwork, like a plain one-sheet |
 | `title` | 24 / 30 | pane and dialog titles, taglines |
 | `lead` | 20 / 26 | row headers, names of cards and results, episode names |
 | `spec` | 20 / 26 | headline of a technical sheet |
@@ -104,7 +106,7 @@ font. No other font is shipped; line heights leave room for the fallback.
 | `HlSpace` | 4 dp grid: `xxs` 4, `xs` 8, `s` 12, `m` 16, `l` 24, `xl` 32, `xxl` 48; `xxs` between a name and the line under it; `fact` 20 between facts; `safeH` 48 / `safeV` 28 |
 | `HlInset` | inner padding of containers, by what they hold: `tight` 8 (menus, results with a thumbnail), `compact` 12 (dense rows), `card` 24 (panels, cards), `sheet` 32 (sheets) |
 | `HlShapes` | radius follows hierarchy: `badge` 3, `artwork` 4, `field` 6, `row` 8 (rows that can be chosen), `panel` 12, `sheet` 16 (sheets and menus), `control` pill, `avatar` circle. A shape set close inside another keeps their corners parallel: **outer radius = inner radius + gap** (a menu: 8 + 8 = 16; a result: 4 + 8 = 12) |
-| `HlSize` | artwork (poster 112, landscape 220, episode 264, avatar 76, thumbnails), `control` 48 for every button, icons 20, discs 52, marks 24, dots 8, setting rows 64, meter 10 |
+| `HlSize` | artwork (poster 112, landscape 220, episode 264, avatar 76 in a column of 120, thumbnails), `control` 48 for every button, icons 20, discs 52, marks 20, dots 8, setting rows 64, previews in a row (48 tall, a slot of 84), meter 10 |
 | `HlLayout` | measures of layout parts: reading widths (640, 520), side columns (280, 340), pane top 72, the reading sheet (864) and the side sheet (520), title art, hero, info line, track table columns |
 | `HlControl` | inner padding of buttons and track options, badges; the gap between an icon and its text (8) |
 | `HlFocus` | focus scale (artwork 1.10, cards 1.06, controls 1.04), siblings stepping back (dim 0.3, colour kept 0.3), ambient glow 18 dp |
@@ -115,7 +117,7 @@ font. No other font is shipped; line heights leave room for the fallback.
 |---|---|---|
 | `HlMotion` | `Motion.kt` | `FAST` 150, `STANDARD` 250, `SLOW` 600, `DIM` 1000 ms; `SETTLE` 220 ms before a backdrop changes; `WALL_DRIFT`; `ENTER_SCALE` |
 | `LocalHouseLights`, `HouseLightCue` | `Auditorium.kt` | how far the house lights are down (read while drawing), and the order of the cue |
-| `HlIcons` | `Icons.kt` | line icons drawn for the app (24 dp grid, 1.75 stroke); core Material icons for the rest |
+| `HlIcons` | `Icons.kt` | line icons drawn for the app (24 dp grid, 1.75 stroke): places, actions (Restart, Edit), marks (Check), the remote's Back; core Material icons for the rest |
 | `HlBringIntoView`, `RowScroll` | `Scroll.kt` | lists scroll only as much as needed; rows keep focus 80 dp from the edges, so the first card always scrolls home |
 | `revealOnFocus()`, `keepVerticalFocus()` | `Scroll.kt` | a group comes fully into view when focus enters it; up and down never leave a column |
 
@@ -130,7 +132,7 @@ without the prefix (`MenuOption`, `MeterLegend`, `PosterCard`, `BillingBlock`, `
 |---|---|
 | `Backdrop` (`Hero`, `Full`, `Quiet`) | full-screen artwork faded to black where text sits, plus the ambient light; its scrims lift when the lights go down |
 | `rememberAmbientColor`, `CollectionLight` | the light a picture spills into the room; the colours of a wall when nothing is selected |
-| `PosterCard`, `LandscapeCard`, `PersonCard`, `ArtworkSurface` | artwork with the shared focus treatment |
+| `PosterCard`, `LandscapeCard`, `PersonCard`, `ArtworkSurface`, `ArtworkImage` | artwork with the shared focus treatment and a faint edge at rest (see *Cards*) |
 | `MediaRow` | horizontal row with header and focus restoration; dims the other cards when one is focused |
 | `HeroInfo`, `TitleArt`, `EpisodeHeading`, `MetaLine`, `BillingBlock` | what a title is: clear logo or condensed title, facts, credits |
 | `Badge`, `BadgeRow`, `FactRow` | formats and ratings (a `lit` badge marks a state); facts on one line, spaced, never punctuated |
@@ -138,7 +140,7 @@ without the prefix (`MenuOption`, `MeterLegend`, `PosterCard`, `BillingBlock`, `
 | `HlSegmented` | the one way to show where you are or what is chosen among a few: home navigation, seasons (`scrollable`), NFO views, form choices. In a track, **white means current**: one white pill sits under the current option and slides to the option chosen (`STANDARD`, emphasized). The option under focus but not chosen is a grey pill; focus on the current option draws a ring around the pill, travelling with it. A long track scrolls as one piece, pill included. There is no standalone tab |
 | `HlPanel` (`Quiet`, `Raised`, `lit`), `HlPanelButton` | the one panel recipe, and its focusable form |
 | `HlIconDisc`, `HlDivider`, `HlStatus`, `HlMeter`, `MeterLegend` | an icon in a disc (lit when on), a hairline, a state with its light, a segmented gauge |
-| `HlListItem`, `HlResultItem`, `PosterThumb` | choices in a list; a search result with its poster |
+| `HlListItem`, `HlResultItem`, `PosterThumb` | choices in a list (icon in line with the name, what the choice brings in badges under a hairline, a chevron on focus); a search result with its poster |
 | `HlNavItem`, `HlSettingGroup`, `HlSettingRow` | settings: navigation entries with what they are set to; rows with their value, leading somewhere or stating it |
 | `HlSideSheet`, `SheetScope`, `RowPreview` | acting on what a screen shows, beside it: a panel against the right edge (see *Sheets*); rows can lead with a preview of the image they change |
 | `HlChoiceSheet` | the choices of a setting, in a side sheet: focus on the current one, choosing applies and closes, Back changes nothing |
@@ -151,6 +153,23 @@ without the prefix (`MenuOption`, `MeterLegend`, `PosterCard`, `BillingBlock`, `
 | `ArtworkChoiceCard`, `SelectedMark` | one artwork to choose from, at the shape it is used in |
 | `HlEmptyState` | what happened and what to do, with the action focused |
 | `PosterWall`, `PosterWallScrim`, `HouseLights`, `CardSkeleton`, `ProgressLine` | welcome wall, playback cue, loading and progress |
+
+## Cards
+
+Artwork carries no text: the top of the screen names what is under focus. The card itself says the
+rest, sparingly:
+
+- **At rest**, a faint edge (`ARTWORK_EDGE`) keeps dark artwork from dissolving into the black room.
+- **One mark at most**, top right, on a dark plate the size of a mark: the number of unwatched
+  episodes of a show, else the line check of a title watched, else the tungsten dot of a title new
+  to its library (added in the last week, not watched; a local folder never counts what its first
+  scan found). Progress is the tungsten line at the foot. A format (Ultra HD) is not a mark: most
+  titles have one, so it would tell nothing apart; it stays in the header, the info line, the filter.
+- **Without artwork**, the title is set like a one-sheet: a short rule, the name in `cardTitle`, the
+  year in the technical voice.
+- **An episode** reads as a number in tabular figures, its name, then its length and where it stands.
+- **Stepping back**, the image loses colour through its own filter (`ArtworkImage`): no layer is drawn
+  per card.
 
 ## Sheets
 
@@ -206,7 +225,9 @@ with the reason; a value needed twice belongs in the design system instead.
 
 ## Catalogue
 
-Debug builds show **Settings > About > Design system**: every token and component in its states, to
+Debug builds show **Settings > About > Design system**: every token and component in its states
+(the voices side by side, every card state, both sheets, and a stress section with the longest
+French labels and the fullest rows), to
 review changes on a real screen.
 
 ## Adding a screen
