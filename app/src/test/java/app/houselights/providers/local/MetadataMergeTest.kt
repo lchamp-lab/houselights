@@ -11,7 +11,7 @@ import org.junit.Test
 class MetadataMergeTest {
     private val film = ItemEntity(
         kind = ItemKind.MOVIE, sourceId = 1, title = "heat 1995", sortTitle = "heat 1995", year = 1995,
-        overview = "Known before", genres = "Known", addedAt = 0,
+        overview = "Known before", genres = listOf("Known"), addedAt = 0,
     )
     private val tmdb = TmdbMovie(
         id = 949, title = "Heat", originalTitle = "Heat", overview = "", tagline = "A Los Angeles crime saga",
@@ -27,13 +27,13 @@ class MetadataMergeTest {
         val nfo = NfoInfo(kind = "movie", title = "Heat (version longue)", genres = listOf("Policier"))
         val merged = MetadataMerge.merge(film, nfo, tmdb, LocalArt())
         assertEquals("Heat (version longue)", merged.title)
-        assertEquals("Policier", merged.genres)
+        assertEquals(listOf("Policier"), merged.genres)
         // TMDB's overview is empty: what was known stays.
         assertEquals("Known before", merged.overview)
         assertEquals("A Los Angeles crime saga", merged.tagline)
         assertEquals(170, merged.runtimeMin)
         assertEquals("12", merged.certification)
-        assertEquals("Michael Mann", merged.directors)
+        assertEquals(listOf("Michael Mann"), merged.directors)
         assertEquals(949, merged.tmdbId)
     }
 
@@ -49,11 +49,11 @@ class MetadataMergeTest {
 
     @Test
     fun showsTakeTheirStatusAndKeepTheirDirectors() {
-        val show = film.copy(kind = ItemKind.SERIES, directors = "Kept")
+        val show = film.copy(kind = ItemKind.SERIES, directors = listOf("Kept"))
         val tv = TmdbTv(id = 1, name = "MobLand", firstAirDate = "2025-03-30", lastAirDate = "2025-06-01", status = "Returning Series")
             .details(certification = null, logo = null)
         val merged = MetadataMerge.merge(show, nfo = null, tv, LocalArt())
-        assertEquals("Kept", merged.directors)
+        assertEquals(listOf("Kept"), merged.directors)
         assertTrue(merged.continuing)
         assertEquals(2025, merged.endYear)
         assertEquals("mobland", merged.sortTitle)
@@ -64,7 +64,7 @@ class MetadataMergeTest {
         val cleared = MetadataMerge.withoutDetails(film.copy(posterPath = "/old.jpg"), "Heat", 1995)
         assertNull(cleared.posterPath)
         assertNull(cleared.overview)
-        assertEquals("", cleared.genres)
+        assertEquals(emptyList<String>(), cleared.genres)
         assertEquals("heat", cleared.sortTitle)
     }
 

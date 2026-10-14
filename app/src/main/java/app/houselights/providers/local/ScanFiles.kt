@@ -22,7 +22,7 @@ internal class ScanFiles(private val dao: LibraryDao, val artwork: ArtworkCache)
     suspend fun mediaFields(source: SourceEntity, file: RemoteFile, item: ItemEntity): ItemEntity {
         val media = MediaProbe.probe(source, file)
         val badges = media.badges().ifEmpty { FilenameParser.badges(file.relativePath) }
-        return item.copy(mediaInfo = MediaProbe.encode(media), badges = badges.joinToString("|"))
+        return item.copy(mediaInfo = MediaProbe.encode(media), badges = badges)
     }
 
     private companion object {
@@ -36,5 +36,5 @@ internal fun ItemEntity.withNfoStreams(nfo: NfoInfo?): ItemEntity {
     val media = MediaProbe.decode(mediaInfo)
     if (media?.video != null) return this
     val merged = NfoStreamDetails.toMediaInfo(streams, media)
-    return copy(mediaInfo = MediaProbe.encode(merged), badges = merged.badges().ifEmpty { badges.split('|') }.joinToString("|"))
+    return copy(mediaInfo = MediaProbe.encode(merged), badges = merged.badges().ifEmpty { badges })
 }

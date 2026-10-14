@@ -32,7 +32,7 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
             year = parsed.year,
             filePath = file.relativePath,
             fileSize = file.size,
-            badges = FilenameParser.badges(file.relativePath).joinToString("|"),
+            badges = FilenameParser.badges(file.relativePath),
             addedAt = now,
         )
         if (existing == null) item = item.copy(id = dao.insert(item))

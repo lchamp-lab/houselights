@@ -143,9 +143,9 @@ class LocalProvider(
         val kind = if (library.id == SHOWS) ItemKind.SERIES else ItemKind.MOVIE
         // Shows carry no technical badges themselves: look at their episodes.
         val badgeKind = if (kind == ItemKind.SERIES) ItemKind.EPISODE else kind
-        val badges = dao.badgesOf(badgeKind).flatMap { it.split('|') }.toSet()
+        val badges = dao.badgesOf(badgeKind).flatMap(PipeList::fromText).toSet()
         return LibraryFacets(
-            genres = dao.genresOf(kind).flatMap { it.split('|') }.filter { it.isNotBlank() }.distinct().sorted(),
+            genres = dao.genresOf(kind).flatMap(PipeList::fromText).distinct().sorted(),
             decades = dao.yearsOf(kind).map { it / 10 * 10 }.distinct().sortedDescending(),
             qualities = buildList {
                 if (Definition.ULTRA_HD.token in badges) add(Quality.UHD_4K)
@@ -204,7 +204,7 @@ class LocalProvider(
             year = years.minOrNull(),
             endYear = years.maxOrNull()?.takeIf { it != years.minOrNull() },
             communityRating = members.mapNotNull { it.rating }.takeIf { it.isNotEmpty() }?.average(),
-            genres = members.flatMap { it.genres.split('|') }.filter { it.isNotBlank() }
+            genres = members.flatMap { it.genres }
                 .groupingBy { it }.eachCount().entries.sortedByDescending { it.value }.take(3).map { it.key },
             poster = (c.posterPath ?: first?.let { shown(it.userPosterPath, it.posterPath) })?.let { image(it, ImageType.POSTER) },
             backdrop = (c.backdropPath ?: first?.let { shown(it.userBackdropPath, it.backdropPath) })?.let { image(it, ImageType.BACKDROP) },
@@ -244,7 +244,7 @@ class LocalProvider(
         if (item.kind == MediaKind.COLLECTION) return emptyList()
         val entity = entity(item) ?: return emptyList()
         if (entity.kind != ItemKind.MOVIE && entity.kind != ItemKind.SERIES) return emptyList()
-        val genre = entity.genres.split('|').firstOrNull { it.isNotBlank() } ?: return emptyList()
+        val genre = entity.genres.firstOrNull() ?: return emptyList()
         val mapper = Mapper()
         return mapper.mapAll(dao.byGenre(entity.kind, genre, entity.id, SIMILAR))
     }
@@ -381,9 +381,9 @@ class LocalProvider(
                 runtimeMs = e.durationMs ?: media?.durationMs ?: e.runtimeMin?.let { it * 60_000L },
                 officialRating = e.certification,
                 communityRating = e.rating,
-                genres = e.genres.split('|').filter { it.isNotBlank() },
-                directors = e.directors.split('|').filter { it.isNotBlank() },
-                badges = e.badges.split('|').filter { it.isNotBlank() },
+                genres = e.genres,
+                directors = e.directors,
+                badges = e.badges,
                 media = media,
                 hasNfo = e.nfoPath != null,
                 fileName = e.filePath?.substringAfterLast('/'),

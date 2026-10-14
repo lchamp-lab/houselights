@@ -65,7 +65,7 @@ class LocalProviderTest {
     private suspend fun movie(
         title: String,
         year: Int? = 2020,
-        genres: String = "",
+        genres: List<String> = emptyList(),
         played: Boolean = false,
         collectionId: Long? = null,
         runtimeMin: Int? = 100,
@@ -91,8 +91,8 @@ class LocalProviderTest {
 
     @Test
     fun genreMatchesAWholeEntry() = runTest {
-        movie("Heat", genres = "Action|Drame")
-        movie("Ratatouille", genres = "Animation")
+        movie("Heat", genres = listOf("Action", "Drame"))
+        movie("Ratatouille", genres = listOf("Animation"))
         assertEquals(listOf("Heat"), page(LibraryFilter(genre = "Action")).items.map { it.title })
         assertEquals(emptyList<String>(), page(LibraryFilter(genre = "Act")).items.map { it.title })
     }

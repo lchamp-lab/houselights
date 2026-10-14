@@ -16,6 +16,17 @@ data class Secret(val value: String) {
     override fun toString() = "Secret(***)"
 }
 
+/**
+ * Lists stored as "A|B|C": SQL filters still match one entry with ('|' || genres || '|') LIKE '%|A|%'.
+ */
+object PipeList {
+    @TypeConverter
+    fun toText(list: List<String>): String = list.joinToString("|")
+
+    @TypeConverter
+    fun fromText(text: String): List<String> = text.split('|').filter { it.isNotBlank() }
+}
+
 /** Seals [Secret] columns on the way to the database, opens them on the way back. */
 @ProvidedTypeConverter
 class SecretConverter(private val secrets: Secrets) {
@@ -97,8 +108,8 @@ data class ItemEntity(
     val runtimeMin: Int? = null,
     val certification: String? = null,
     val rating: Double? = null,
-    val genres: String = "",
-    val directors: String = "",
+    val genres: List<String> = emptyList(),
+    val directors: List<String> = emptyList(),
     val posterPath: String? = null,
     val backdropPath: String? = null,
     val logoPath: String? = null,
@@ -108,7 +119,7 @@ data class ItemEntity(
     /** Path relative to the source folder, for movies and episodes. */
     val filePath: String? = null,
     val fileSize: Long? = null,
-    val badges: String = "",
+    val badges: List<String> = emptyList(),
     /** [app.houselights.core.MediaInfo] as JSON; null until the file has been read. */
     val mediaInfo: String? = null,
     /** The NFO file next to the video (or the show), and its raw content. */

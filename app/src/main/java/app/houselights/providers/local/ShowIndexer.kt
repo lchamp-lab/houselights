@@ -45,7 +45,7 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
             sortTitle = "",
             filePath = file.relativePath,
             fileSize = file.size,
-            badges = FilenameParser.badges(file.relativePath).joinToString("|"),
+            badges = FilenameParser.badges(file.relativePath),
             addedAt = now,
         )
         val episode = base.copy(

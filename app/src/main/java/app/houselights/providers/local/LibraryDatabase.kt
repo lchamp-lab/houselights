@@ -10,7 +10,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 import app.houselights.core.Secrets
 
 @Database(entities = [SourceEntity::class, ItemEntity::class, CastEntity::class, CollectionEntity::class], version = 7)
-@TypeConverters(SecretConverter::class)
+@TypeConverters(SecretConverter::class, PipeList::class)
 abstract class LibraryDatabase : RoomDatabase() {
     abstract fun dao(): LibraryDao
 

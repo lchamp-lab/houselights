@@ -111,7 +111,7 @@ object MetadataMerge {
             runtimeMin = nfo?.runtimeMin ?: tmdb?.runtimeMin ?: base.runtimeMin,
             certification = nfo?.certification ?: tmdb?.certification ?: base.certification,
             rating = nfo?.rating ?: tmdb?.rating ?: base.rating,
-            genres = nfo?.genres?.takeIf { it.isNotEmpty() }?.joinToString("|") ?: tmdb?.genres?.joinToString("|") ?: base.genres,
+            genres = nfo?.genres?.takeIf { it.isNotEmpty() } ?: tmdb?.genres ?: base.genres,
             directors = if (show) base.directors else directors(nfo, tmdb) ?: base.directors,
             posterPath = art.poster ?: nfo?.posterUrl ?: tmdb?.posterPath ?: base.posterPath,
             backdropPath = art.fanart ?: nfo?.fanartUrl ?: tmdb?.backdropPath ?: base.backdropPath,
@@ -124,8 +124,8 @@ object MetadataMerge {
         nfo?.status?.let { it.contains("Continuing", ignoreCase = true) || it.contains("Returning", ignoreCase = true) }
             ?: tmdb?.continuing
 
-    private fun directors(nfo: NfoInfo?, tmdb: TmdbDetails?): String? =
-        nfo?.directors?.takeIf { it.isNotEmpty() }?.joinToString("|") ?: tmdb?.directors?.joinToString("|")
+    private fun directors(nfo: NfoInfo?, tmdb: TmdbDetails?): List<String>? =
+        nfo?.directors?.takeIf { it.isNotEmpty() } ?: tmdb?.directors
 
     /**
      * True when the NFO names another title than the one the user matched the file with:
@@ -151,8 +151,8 @@ object MetadataMerge {
         runtimeMin = null,
         certification = null,
         rating = null,
-        genres = "",
-        directors = "",
+        genres = emptyList(),
+        directors = emptyList(),
         posterPath = null,
         backdropPath = null,
         logoPath = null,

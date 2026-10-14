@@ -85,7 +85,7 @@ class LargeLibraryTest {
         kind = kind, sourceId = source, title = title, sortTitle = title.lowercase(), parentId = parentId, seriesId = seriesId,
         seasonNumber = season, episodeNumber = episode, addedAt = addedAt, nfo = nfo, nfoPath = nfo?.let { "$title.nfo" },
         filePath = if (kind == ItemKind.MOVIE || kind == ItemKind.EPISODE) "$title.mkv" else null, played = played,
-        lastPlayedAt = lastPlayedAt, genres = "Drame",
+        lastPlayedAt = lastPlayedAt, genres = listOf("Drame"),
     )
 
     private inline fun <T> measure(label: String, block: () -> T): Pair<T, Int> {
