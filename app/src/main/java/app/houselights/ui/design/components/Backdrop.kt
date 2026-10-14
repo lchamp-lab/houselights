@@ -3,18 +3,11 @@ package app.houselights.ui.design.components
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.BiasAlignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.geometry.Offset
@@ -24,7 +17,6 @@ import androidx.compose.ui.layout.ContentScale
 import app.houselights.core.ImageRef
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlMotion
-import app.houselights.ui.design.HlScreen
 import app.houselights.ui.design.HouseLightCue
 import app.houselights.ui.design.LocalHouseLights
 import app.houselights.ui.design.LocalAmbient
@@ -48,38 +40,27 @@ enum class BackdropStyle(
 }
 
 /**
- * The screen: the picture projected at the film's aspect ratio ([ratio], see [HlScreen]),
- * framed by black masking that glides when the ratio changes, faded where text sits, and
- * spilling its light into the room ([LocalAmbient]). When the house lights go down, the
- * scrims lift and the picture shows whole.
+ * Full-screen picture on pure black, faded where text sits, plus the ambient light it
+ * spills into the room ([LocalAmbient]). When the house lights go down, the scrims lift and
+ * the picture shows whole.
  */
 @Composable
-fun Backdrop(image: ImageRef?, style: BackdropStyle, modifier: Modifier = Modifier, ratio: Float = HlScreen.DISPLAY) {
+fun Backdrop(image: ImageRef?, style: BackdropStyle, modifier: Modifier = Modifier) {
     val black = Hl.colors.background
     val ambient = LocalAmbient.current
     val lights = LocalHouseLights.current
     val url = image?.url(screenWidthPx())
-    // Constant-width masking, motorised like a cinema's: it travels, it does not jump.
-    val screenRatio by animateFloatAsState(
-        ratio.coerceAtLeast(HlScreen.DISPLAY),
-        tween(HlMotion.SLOW, easing = HlMotion.emphasized),
-        label = "masking",
-    )
-    BoxWithConstraints(modifier.fillMaxSize().background(black)) {
-        val screenHeight = (maxWidth / screenRatio).coerceAtMost(maxHeight)
-        Box(Modifier.fillMaxWidth().height(screenHeight).align(Alignment.Center).clipToBounds()) {
-            Crossfade(targetState = url, animationSpec = tween(HlMotion.SLOW, easing = HlMotion.standard), label = "backdrop") { u ->
-                if (u != null) {
-                    AsyncImage(
-                        model = u,
-                        contentDescription = null,
-                        contentScale = ContentScale.Crop,
-                        // Faces sit in the upper part of most stills: keep them when masking crops.
-                        alignment = BiasAlignment(1f, -0.35f),
-                        alpha = style.imageAlpha,
-                        modifier = Modifier.fillMaxSize(),
-                    )
-                }
+    Box(modifier.fillMaxSize().background(black)) {
+        Crossfade(targetState = url, animationSpec = tween(HlMotion.SLOW, easing = HlMotion.standard), label = "backdrop") { u ->
+            if (u != null) {
+                AsyncImage(
+                    model = u,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    alignment = Alignment.TopEnd,
+                    alpha = style.imageAlpha,
+                    modifier = Modifier.fillMaxSize(),
+                )
             }
         }
         Box(

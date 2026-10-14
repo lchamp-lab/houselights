@@ -22,16 +22,11 @@ size or a font**: they use the tokens and components below.
 ## The screen and the room
 
 Houselights is an auditorium, and this is what tells it apart. Nothing is added for decoration: the
-identity comes from treating artwork as a projected screen and the interface as the room around it.
+identity comes from treating artwork as the lit screen and the interface as the room around it.
 
-- **Masking.** Backdrops are projected at the film's own aspect ratio, read from the file
-  (`HlScreen.ratioOf`). Flat films and television fill the display; scope films get black masking
-  above and below, at the ratios a projection booth uses (1.85, 1.90, 2.00, 2.20, 2.39, 2.76). When
-  the ratio changes, the masking travels (`SLOW`), like the motorised masking of a cinema. Controls
-  that sit at the top of the screen simply end up on the masking.
 - **House lights.** Playing a title runs one cue (`HouseLightCue`, `DIM`): the room fades first
-  (text, buttons, rows: `Modifier.houseLit`), the scrims lift so the picture shows whole inside its
-  masking, the screen's light spills further into the dark room, then black and the player. Coming
+  (text, buttons, rows: `Modifier.houseLit`), the scrims lift so the picture shows whole, the
+  screen's light spills further into the dark room, then black and the player. Coming
   back runs the cue backwards.
 - **Billing block.** On a detail page, director and leading cast are set like poster credits:
   small words ("a film by", "with") between names in condensed capitals. A line breaks only
@@ -48,7 +43,6 @@ identity comes from treating artwork as a projected screen and the interface as 
 | `HlSize` | `Dimens.kt` | poster 112 dp, landscape 220, episode 264, avatar 76, icon 20, progress 3, focus border 2 |
 | `HlFocus` | `Dimens.kt` | focus scale (artwork 1.10, cards 1.06, controls 1.04), sibling dim 0.38, glow 18 dp |
 | `HlMotion` | `Motion.kt` | `FAST` 150, `STANDARD` 250, `SLOW` 600, `DIM` 1000 ms; `SETTLE` 220 ms before a backdrop changes |
-| `HlScreen` | `Auditorium.kt` | the screen's aspect ratio for a title, snapped to projection ratios; `DISPLAY` (16:9) means no masking |
 | `LocalHouseLights`, `HouseLightCue` | `Auditorium.kt` | how far the house lights are down (read while drawing), and the order of the cue: room, scrims, black |
 | `HlIcons` | `Icons.kt` | line icons drawn for the app (folder, server, display, playback, document, storage, edit, poster, backdrop, logo, search, lamp); core Material icons for the rest |
 | `HlBringIntoView` | `Scroll.kt` | lists scroll only as much as needed; replaces the TV default that pivots focus to a third of the screen |
@@ -59,7 +53,7 @@ identity comes from treating artwork as a projected screen and the interface as 
 
 | Component | Use |
 |---|---|
-| `Backdrop` (`Hero`, `Full`, `Quiet`) | the screen: artwork at the title's ratio inside black masking, faded where text sits, plus the ambient light; its scrims lift when the lights go down |
+| `Backdrop` (`Hero`, `Full`, `Quiet`) | full-screen artwork faded to black where text sits, plus the ambient light; its scrims lift when the lights go down |
 | `BillingBlock` | poster-style credits on detail pages |
 | `rememberAmbientColor` | the light a picture spills into the room, animated |
 | `PosterCard`, `LandscapeCard`, `PersonCard` | artwork with the shared focus treatment (`ArtworkSurface`) |

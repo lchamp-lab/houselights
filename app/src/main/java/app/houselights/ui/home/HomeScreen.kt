@@ -39,7 +39,6 @@ import app.houselights.core.MediaItem
 import app.houselights.core.SourceConfig
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlMotion
-import app.houselights.ui.design.HlScreen
 import app.houselights.ui.design.LocalHouseLights
 import app.houselights.ui.design.houseLit
 import app.houselights.ui.design.HlSize
@@ -84,7 +83,7 @@ fun HomeScreen(
 
     CompositionLocalProvider(LocalAmbient provides ambient) {
         Box(Modifier.fillMaxSize()) {
-            Backdrop(shown?.backdrop, BackdropStyle.Hero, ratio = HlScreen.ratioOf(shown))
+            Backdrop(shown?.backdrop, BackdropStyle.Hero)
             Column(Modifier.fillMaxSize().houseLit(LocalHouseLights.current)) {
                 TopBar(libraries = state.libraries, onLibrary = onOpenLibrary, onSettings = onOpenSettings)
                 HeroInfo(shown, Modifier.padding(start = HlSpace.safeH, top = HlSpace.xs).height(200.dp))

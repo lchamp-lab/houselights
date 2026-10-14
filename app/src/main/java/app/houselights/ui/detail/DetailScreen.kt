@@ -49,7 +49,6 @@ import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.LocalAmbient
-import app.houselights.ui.design.HlScreen
 import app.houselights.ui.design.LocalHouseLights
 import app.houselights.ui.design.houseLit
 import app.houselights.ui.design.revealOnFocus
@@ -117,7 +116,7 @@ fun DetailScreen(
 
     CompositionLocalProvider(LocalAmbient provides rememberAmbientColor(item.backdrop)) {
         Box(Modifier.fillMaxSize()) {
-            Backdrop(item.backdrop, BackdropStyle.Full, ratio = HlScreen.ratioOf(item))
+            Backdrop(item.backdrop, BackdropStyle.Full)
 
             LazyColumn(
                     Modifier.fillMaxSize().houseLit(LocalHouseLights.current),

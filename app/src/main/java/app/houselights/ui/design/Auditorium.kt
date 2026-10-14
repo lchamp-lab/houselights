@@ -3,27 +3,6 @@ package app.houselights.ui.design
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
-import app.houselights.core.MediaItem
-import kotlin.math.abs
-
-/**
- * The screen. Artwork is projected at the film's own aspect ratio, measured in the file, and
- * framed by black masking as in a cinema: flat films and television fill the display, scope
- * films get masking above and below. The masking stops at the ratios a projection booth uses.
- */
-object HlScreen {
-    /** The display itself, 16:9: no masking. */
-    const val DISPLAY = 16f / 9f
-
-    private val STOPS = floatArrayOf(1.85f, 1.90f, 2.00f, 2.20f, 2.39f, 2.76f)
-
-    /** Ratio of the screen for [item]; the display's when the picture is not wider than it. */
-    fun ratioOf(item: MediaItem?): Float {
-        val raw = item?.media?.video?.aspectRatio ?: return DISPLAY
-        if (raw < 1.82f) return DISPLAY
-        return STOPS.minBy { abs(it - raw) }
-    }
-}
 
 /**
  * How far the house lights are down: 0 while browsing, 1 when the film starts. A function, so
