@@ -25,6 +25,8 @@ class DesignTokenGuardTest {
         // A sum of tokens is an alignment worked out in a screen: it gets a name in the design system.
         Regex("""\bHl(Space|Size|Layout|Inset)\.[a-z]\w*\s*[-+*/](?!>)""") to "arithmetic on a token: name the measure in Dimens.kt",
         Regex("""[\w)]\s*[-+*/]\s*Hl(Space|Size|Layout|Inset)\.[a-z]""") to "arithmetic on a token: name the measure in Dimens.kt",
+        // A raw image is left blank when it fails: the design system's show the title or an empty frame.
+        Regex("""\bAsyncImage\(""") to "an image: use ArtworkImage, PosterThumb or RowPreview",
     )
 
     /**
@@ -72,6 +74,7 @@ class DesignTokenGuardTest {
             "Modifier.padding(12.dp)", "fontSize = 13.sp", "Color(0xFF000000)", "Color.Black",
             "c.surface.copy(alpha = 0.7f)", "RoundedCornerShape(4.dp)", "FontFamily.Monospace",
             "padding(end = HlSpace.safeH - HlSpace.m)", "width = HlSize.posterThumb + HlSpace.xs", "HlSize.poster * 1.3f",
+            "AsyncImage(model = url, contentDescription = null)",
         )
         samples.forEach { sample -> assertTrue(sample, rules.any { it.first.containsMatchIn(sample) }) }
         val fine = listOf(

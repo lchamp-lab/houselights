@@ -219,33 +219,31 @@ enum class PreviewShape { Poster, Backdrop, Logo }
 
 /**
  * An image as it is used, small, at the head of a row: a poster, a backdrop, a logo on its dark
- * plate. Every preview takes the same slot, so the names of the rows line up; with no image, the
- * slot shows [icon], or an empty frame.
+ * plate. Every preview takes the same slot, so the names of the rows line up; with no image, or
+ * one that fails to load, the slot shows [icon], or an empty frame.
  */
 @Composable
 fun RowPreview(image: ImageRef?, shape: PreviewShape, modifier: Modifier = Modifier, icon: ImageVector? = null) {
     val c = Hl.colors
     val width: Dp = if (shape == PreviewShape.Poster) HlSize.rowPreviewPoster else HlSize.rowPreviewWide
+    val url = image?.url(width.toPx())
+    var failed by remember(url) { mutableStateOf(false) }
     Box(modifier.width(HlSize.rowPreviewWide).height(HlSize.rowPreview), contentAlignment = Alignment.Center) {
-        if (image == null && icon != null) {
-            Icon(icon, contentDescription = null, tint = c.contentSecondary, modifier = Modifier.size(HlSize.discIcon))
-            return@Box
-        }
-        Box(
-            Modifier
-                .width(width)
-                .height(HlSize.rowPreview)
-                .clip(HlShapes.artwork)
-                .background(if (shape == PreviewShape.Logo) c.background else c.surface),
-        ) {
-            image?.url(width.toPx())?.let { url ->
+        val frame = Modifier.width(width).height(HlSize.rowPreview)
+        when {
+            url != null && !failed -> Box(
+                frame.clip(HlShapes.artwork).background(if (shape == PreviewShape.Logo) c.background else c.surface),
+            ) {
                 AsyncImage(
                     model = url,
                     contentDescription = null,
                     contentScale = if (shape == PreviewShape.Logo) ContentScale.Fit else ContentScale.Crop,
+                    onError = { failed = true },
                     modifier = Modifier.fillMaxSize().padding(if (shape == PreviewShape.Logo) HlSpace.xxs else HlSpace.none),
                 )
             }
+            icon != null -> Icon(icon, contentDescription = null, tint = c.contentSecondary, modifier = Modifier.size(HlSize.discIcon))
+            else -> EmptyFrame(frame)
         }
     }
 }

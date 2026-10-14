@@ -151,23 +151,37 @@ fun ArtworkSurface(
 val LocalArtworkRecede = staticCompositionLocalOf<() -> Float> { { 0f } }
 
 /**
- * Artwork as a card shows it. When its card steps back it loses part of its colour
- * ([HlFocus.SIBLING_SATURATION]) through the image's own colour filter: no offscreen layer per
- * card, and only this image recomposes while it steps back.
+ * Artwork as a card shows it; [fallback] takes its place when there is none, or when it fails to
+ * load (a NAS asleep, a file gone), so a card is never left blank. When its card steps back it
+ * loses part of its colour ([HlFocus.SIBLING_SATURATION]) through the image's own colour filter:
+ * no offscreen layer per card, and only this image recomposes while it steps back.
  */
 @Composable
 fun ArtworkImage(
-    url: String,
+    url: String?,
     description: String?,
     modifier: Modifier = Modifier,
     contentScale: ContentScale = ContentScale.Crop,
+    fallback: @Composable BoxScope.() -> Unit = {},
 ) {
-    val recede = LocalArtworkRecede.current()
-    val filter = remember(recede) {
-        if (recede <= 0f) null
-        else ColorFilter.colorMatrix(ColorMatrix().apply { setToSaturation(1f - recede * (1f - HlFocus.SIBLING_SATURATION)) })
+    var failed by remember(url) { mutableStateOf(false) }
+    if (url == null || failed) {
+        Box(modifier, content = fallback)
+    } else {
+        val recede = LocalArtworkRecede.current()
+        val filter = remember(recede) {
+            if (recede <= 0f) null
+            else ColorFilter.colorMatrix(ColorMatrix().apply { setToSaturation(1f - recede * (1f - HlFocus.SIBLING_SATURATION)) })
+        }
+        AsyncImage(
+            model = url,
+            contentDescription = description,
+            contentScale = contentScale,
+            colorFilter = filter,
+            onError = { failed = true },
+            modifier = modifier,
+        )
     }
-    AsyncImage(model = url, contentDescription = description, contentScale = contentScale, colorFilter = filter, modifier = modifier)
 }
 
 /** Width a poster is asked for: its own, or a little more than a row's when it fills a grid cell. */
@@ -186,8 +200,7 @@ fun PosterCard(
     val sized = if (width != null) modifier.width(width) else modifier.fillMaxWidth()
     val px = posterPx(width)
     ArtworkSurface(onClick, sized.aspectRatio(2f / 3f), onFocused = onFocused) {
-        val url = item.poster?.url(px)
-        if (url == null) FallbackArtwork(item.title, item.year) else ArtworkImage(url, item.title, Modifier.fillMaxSize())
+        ArtworkImage(item.poster?.url(px), item.title, Modifier.fillMaxSize()) { FallbackArtwork(item.title, item.year) }
         StatusMark(item, Modifier.align(Alignment.TopEnd).padding(HlSpace.xs))
         ProgressLine(item.progress, Modifier.align(Alignment.BottomCenter), onArtwork = true)
     }
@@ -215,11 +228,8 @@ fun LandscapeCard(
             focusedScale = HlFocus.CARD_SCALE,
             onFocused = onFocused,
         ) {
-            val url = item.landscape?.url(width.toPx())
-            if (url == null) {
+            ArtworkImage(item.landscape?.url(width.toPx()), item.title, Modifier.fillMaxSize()) {
                 FallbackArtwork(title ?: item.title, item.year.takeIf { title == null })
-            } else {
-                ArtworkImage(url, item.title, Modifier.fillMaxSize())
             }
             StatusMark(item, Modifier.align(Alignment.TopEnd).padding(HlSpace.xs))
             ProgressLine(item.progress, Modifier.align(Alignment.BottomCenter), onArtwork = true)
@@ -282,11 +292,11 @@ fun PersonCard(person: Person, modifier: Modifier = Modifier) {
 }
 
 /**
- * No artwork: the title set like a one-sheet, in the voice of the poster, low on the card under a
- * short rule, with its year in the technical voice.
+ * No artwork, or none that loads: the title set like a one-sheet, in the voice of the poster, low
+ * on the card under a short rule, with its year in the technical voice.
  */
 @Composable
-private fun BoxScope.FallbackArtwork(title: String, year: Int?) {
+internal fun BoxScope.FallbackArtwork(title: String, year: Int?) {
     val c = Hl.colors
     Column(Modifier.align(Alignment.BottomStart).padding(HlSpace.s)) {
         Box(Modifier.width(HlSpace.l).height(HlSize.hairline).background(c.contentSecondary))
@@ -297,6 +307,16 @@ private fun BoxScope.FallbackArtwork(title: String, year: Int?) {
             Text(year.toString(), style = Hl.type.badge, color = c.contentTertiary)
         }
     }
+}
+
+/**
+ * Where a small picture would be and is not, or failed to load: the room, edged by a quiet
+ * hairline, like an empty frame in a foyer. Never a grey box, which reads as broken.
+ */
+@Composable
+internal fun EmptyFrame(modifier: Modifier = Modifier) {
+    val c = Hl.colors
+    Box(modifier.clip(HlShapes.artwork).background(c.background).border(HlSize.hairline, c.contentDecorative, HlShapes.artwork))
 }
 
 /**

@@ -209,8 +209,11 @@ rest, sparingly:
   scan found). Progress is the tungsten line at the foot, on its plate. A format (Ultra HD) is not
   a mark: most titles have one, so it would tell nothing apart; it stays in the header, the info
   line, the filter.
-- **Without artwork**, the title is set like a one-sheet: a short rule, the name in `cardTitle`, the
-  year in the technical voice.
+- **Without artwork**, or when it fails to load (a NAS asleep, a file gone), the title is set like a
+  one-sheet: a short rule, the name in `cardTitle`, the year in the technical voice. `ArtworkImage`
+  takes that fallback and shows it in place of a failed image, so a wall is never a row of blanks.
+  A small picture with no title to set (`PosterThumb`, `RowPreview`, a folder's cover) is an empty
+  frame instead: the room, edged by a `contentDecorative` hairline, never a grey box.
 - **An episode** reads as a number in tabular figures, its name, then its length and where it stands.
 - **A person** has a name two lines tall, even a short one, so the roles of a cast row line up.
 - **Stepping back**, the image loses colour through its own filter (`ArtworkImage`): no layer is drawn
@@ -322,7 +325,9 @@ screen: it goes to the log.
 
 `DesignTokenGuardTest` reads every file under `ui/` except `ui/design/` and fails on a size, text size,
 font, colour, opacity or shape written in a screen, and on arithmetic with a token (`safeH - m`): an
-alignment worked out in a screen gets a name in `Dimens.kt`. `SpacingGridTest` keeps `HlSpace` and
+alignment worked out in a screen gets a name in `Dimens.kt`. A screen never loads an image itself
+(`AsyncImage`): it goes through `ArtworkImage`, `PosterThumb` or `RowPreview`, which know what to
+show when it fails. `SpacingGridTest` keeps `HlSpace` and
 `HlInset` on the 4 dp grid; `TypeScaleTest` keeps the type scale honest, `ContrastTest` the contrasts,
 `ScrimTest` the floor of the veils, `ResourceTokensTest` the resources in step with the tokens,
 `CatalogCoverageTest` the catalogue complete.

@@ -29,7 +29,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -53,6 +52,7 @@ import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.components.ArtworkImage
 import app.houselights.ui.design.components.Badge
 import app.houselights.ui.design.components.ChoiceCheck
 import app.houselights.ui.design.components.ChoiceOption
@@ -70,7 +70,6 @@ import app.houselights.ui.design.components.HlTextField
 import app.houselights.ui.design.components.ProgressLine
 import app.houselights.ui.design.revealOnFocus
 import app.houselights.ui.util.scanErrorText
-import coil.compose.AsyncImage
 import kotlinx.coroutines.launch
 import app.houselights.core.CollectionThreshold
 
@@ -319,12 +318,7 @@ private fun PosterCover(paths: List<String>) {
         repeat(STRIP) { i ->
             Box(Modifier.weight(1f).aspectRatio(2f / 3f).background(Hl.colors.surfaceRaised)) {
                 paths.getOrNull(i)?.let { path ->
-                    AsyncImage(
-                        model = LocalProvider.image(path, ImageType.POSTER).url(widthPx),
-                        contentDescription = null,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize(),
-                    )
+                    ArtworkImage(LocalProvider.image(path, ImageType.POSTER).url(widthPx), null, Modifier.fillMaxSize())
                 }
             }
         }
