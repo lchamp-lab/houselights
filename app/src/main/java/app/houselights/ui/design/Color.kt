@@ -21,7 +21,10 @@ data class HlColors(
     /** Primary text: projector white. */
     val content: Color,
     val contentSecondary: Color,
-    /** The quietest text; still at least 4.5:1 on every surface. */
+    /**
+     * The quietest text: 4.76:1 on [surfaceRaised], but never on a `WELL` row inside a raised panel
+     * nor on `CONTROL_FILL_STRONG` (see ContrastTest).
+     */
     val contentTertiary: Color,
     /** Never for text: dividers, empty thumbnails, inactive marks. */
     val contentDecorative: Color,
@@ -31,6 +34,8 @@ data class HlColors(
     val focus: Color,
     /** Content drawn on [focus]. */
     val onFocus: Color,
+    /** The line under a name in a focused control (a summary, a runtime): black at 62 % on [focus]. */
+    val onFocusSecondary: Color,
     /** Light spill used when a title has no artwork. */
     val ambientFallback: Color,
 )
@@ -47,6 +52,7 @@ val HouselightsColors = HlColors(
     tungsten = Color(0xFFF2B66D),
     focus = Color(0xFFF2F0EB),
     onFocus = Color(0xFF000000),
+    onFocusSecondary = Color(0xFF5C5B59),
     ambientFallback = Color(0xFF3B2B1C),
 )
 
@@ -83,8 +89,6 @@ object HlAlpha {
     const val FOCUS_QUIET = 0.3f
     /** A lit icon disc: `tungsten` at this opacity. */
     const val LIT_DISC = 0.18f
-    /** Secondary text inside a control (runtime in a button): content colour at this opacity. */
-    const val CONTROL_DETAIL = 0.62f
     /** The glow of the wordmark's own lamp: `tungsten` at this opacity. */
     const val WORDMARK_GLOW = 0.55f
 }
