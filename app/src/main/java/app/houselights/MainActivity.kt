@@ -1,5 +1,6 @@
 package app.houselights
 
+import android.annotation.SuppressLint
 import android.content.ActivityNotFoundException
 import android.os.Bundle
 import android.util.Log
@@ -151,6 +152,8 @@ class MainActivity : ComponentActivity() {
      * While the lights go down the remote waits: Back brings them up again and nothing plays, other
      * keys are held (a second OK never starts a second playback). The system's own keys still work.
      */
+    // This is Activity.dispatchKeyEvent; lint sees androidx.core's restricted overload of the same name.
+    @SuppressLint("RestrictedApi")
     override fun dispatchKeyEvent(event: KeyEvent): Boolean = when {
         !lightsDown.value -> super.dispatchKeyEvent(event)
         event.keyCode == KeyEvent.KEYCODE_BACK -> {
