@@ -329,23 +329,25 @@ private fun SourceCard(
     }
 }
 
-/** The latest posters of a folder, side by side across the card; empty frames make up the count. */
+/** The latest posters of a folder, at the same size whatever their number. */
 @Composable
 private fun PosterStrip(paths: List<String>) {
+    if (paths.isEmpty()) return
     val widthPx = with(androidx.compose.ui.platform.LocalDensity.current) { HlSize.poster.roundToPx() }
     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.xs)) {
-        repeat(STRIP) { i ->
+        paths.take(STRIP).forEach { path ->
             Box(Modifier.weight(1f).aspectRatio(2f / 3f).clip(HlShapes.artwork).background(Hl.colors.surfaceRaised)) {
-                paths.getOrNull(i)?.let { path ->
-                    AsyncImage(
-                        model = LocalProvider.image(path, ImageType.POSTER).url(widthPx),
-                        contentDescription = null,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize(),
-                    )
-                }
+                AsyncImage(
+                    model = LocalProvider.image(path, ImageType.POSTER).url(widthPx),
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize(),
+                )
             }
         }
+        // Free slots keep each poster at the width it has in a full strip.
+        val free = STRIP - paths.size.coerceAtMost(STRIP)
+        if (free > 0) Spacer(Modifier.weight(free.toFloat()))
     }
 }
 

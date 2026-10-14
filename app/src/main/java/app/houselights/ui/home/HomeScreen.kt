@@ -33,6 +33,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.tv.material3.Text
+import app.houselights.ui.design.components.HlIconButton
+import app.houselights.ui.design.components.HlSegmented
 import app.houselights.ui.design.components.HlEmptyState
 import app.houselights.ui.design.HlLayout
 import app.houselights.R
@@ -54,7 +56,6 @@ import app.houselights.ui.design.components.CardSkeleton
 import app.houselights.ui.design.components.Emphasis
 import app.houselights.ui.design.components.HeroInfo
 import app.houselights.ui.design.components.HlButton
-import app.houselights.ui.design.components.HlTab
 import app.houselights.ui.design.components.LandscapeCard
 import app.houselights.ui.design.components.MediaRow
 import app.houselights.ui.design.components.PosterCard
@@ -123,17 +124,18 @@ fun HomeScreen(
 
 @Composable
 private fun TopBar(libraries: List<Library>, onLibrary: (Library) -> Unit, onSettings: () -> Unit) {
+    // Where you are among the libraries, in one track; settings apart, as an action.
     Row(
-        Modifier.fillMaxWidth().padding(start = HlSpace.safeH - HlSpace.m, end = HlSpace.safeH - HlSpace.m, top = HlSpace.safeV),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(HlSpace.xxs),
+        Modifier.fillMaxWidth().padding(start = HlSpace.safeH, end = HlSpace.safeH, top = HlSpace.safeV),
+        verticalAlignment = Alignment.Top,
     ) {
-        HlTab(stringResource(R.string.nav_home), selected = true, onClick = {})
-        libraries.forEach { library ->
-            HlTab(library.title ?: libraryName(library.kind), selected = false, onClick = { onLibrary(library) })
-        }
+        HlSegmented(
+            options = listOf(stringResource(R.string.nav_home)) + libraries.map { it.title ?: libraryName(it.kind) },
+            selected = 0,
+            onSelect = { i -> if (i > 0) onLibrary(libraries[i - 1]) },
+        )
         Spacer(Modifier.weight(1f))
-        HlTab("", selected = false, onClick = onSettings, icon = Icons.Filled.Settings)
+        HlIconButton(Icons.Filled.Settings, stringResource(R.string.nav_settings), onClick = onSettings)
     }
 }
 

@@ -18,6 +18,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.focus.focusRestorer
+import androidx.compose.ui.ExperimentalComposeUiApi
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -42,6 +46,7 @@ import app.houselights.ui.design.HlMotion
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.RowScroll
 
 enum class Emphasis { Primary, Secondary }
 
@@ -141,63 +146,6 @@ fun HlIconButton(
 }
 
 /**
- * Text tab and toggle (navigation, sorting, seasons). Selected shows a short tungsten
- * line, like a lit footlight; focus fills it with projector white.
- */
-@Composable
-fun HlTab(
-    text: String,
-    selected: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    icon: ImageVector? = null,
-    onFocused: () -> Unit = {},
-) {
-    val interaction = remember { MutableInteractionSource() }
-    val focused by interaction.collectIsFocusedAsState()
-    val c = Hl.colors
-    Surface(
-        onClick = onClick,
-        modifier = modifier.onFocusChanged { if (it.isFocused) onFocused() },
-        shape = ClickableSurfaceDefaults.shape(HlShapes.control),
-        scale = ClickableSurfaceDefaults.scale(focusedScale = HlFocus.CONTROL_SCALE),
-        colors = ClickableSurfaceDefaults.colors(
-            containerColor = Color.Transparent,
-            contentColor = if (selected) c.content else c.contentSecondary,
-            focusedContainerColor = c.focus,
-            focusedContentColor = c.onFocus,
-            pressedContainerColor = c.focus,
-            pressedContentColor = c.onFocus,
-        ),
-        interactionSource = interaction,
-    ) {
-        Row(
-            Modifier.padding(
-                horizontal = if (icon != null && text.isEmpty()) HlControl.tabPaddingIcon else HlControl.tabPaddingH,
-                vertical = HlControl.tabPaddingV,
-            ),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            if (icon != null) {
-                Icon(icon, contentDescription = text.ifEmpty { null }, modifier = Modifier.size(HlSize.icon))
-                if (text.isNotEmpty()) Spacer(Modifier.width(HlSpace.xs))
-            }
-            if (text.isNotEmpty()) Text(text, style = Hl.type.label)
-        }
-        if (selected && !focused) {
-            Box(
-                Modifier
-                    .align(Alignment.BottomCenter)
-                    .offset(y = -HlSize.footlightHeight)
-                    .size(width = HlSize.footlightWidth, height = HlSize.footlightHeight)
-                    .clip(HlShapes.control)
-                    .background(c.tungsten)
-            )
-        }
-    }
-}
-
-/**
  * A choice in a vertical list (sources, options): a quiet panel, lifted with a projector-white
  * outline when focused. The optional icon sits in a disc that lights up with focus.
  */
@@ -227,9 +175,13 @@ fun HlListItem(
 }
 
 /**
- * Exclusive options in one pill track (content type, protocol, display mode). With
- * [selectOnFocus], moving onto an option selects it, as tabs over content do on TV.
+ * Exclusive options in one pill track: where you are (home navigation, seasons, NFO views) or
+ * what is chosen (protocol, content type). The selected option is a softly lit pill; focus turns
+ * an option projector white, like every control. With [selectOnFocus], moving onto an option
+ * selects it, as tabs over content do on TV. [scrollable] lets a long track (seasons) scroll
+ * within the screen.
  */
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun HlSegmented(
     options: List<String>,
@@ -237,16 +189,59 @@ fun HlSegmented(
     onSelect: (Int) -> Unit,
     modifier: Modifier = Modifier,
     selectOnFocus: Boolean = false,
+    scrollable: Boolean = false,
 ) {
-    Row(
-        modifier
-            .clip(HlShapes.control)
-            .background(Hl.colors.content.copy(alpha = HlAlpha.WELL))
-            .padding(HlSpace.xxs),
-        horizontalArrangement = Arrangement.spacedBy(HlSpace.xxs),
-    ) {
-        options.forEachIndexed { i, label ->
-            HlTab(label, selected = i == selected, onClick = { onSelect(i) }, onFocused = { if (selectOnFocus) onSelect(i) })
+    val track = modifier
+        .clip(HlShapes.control)
+        .background(Hl.colors.content.copy(alpha = HlAlpha.WELL))
+        .padding(HlSpace.xxs)
+    @Composable
+    fun Item(i: Int, label: String) = SegmentItem(
+        label,
+        selected = i == selected,
+        onClick = { onSelect(i) },
+        onFocused = { if (selectOnFocus) onSelect(i) },
+    )
+    if (scrollable) {
+        RowScroll {
+            LazyRow(
+                track.focusRestorer(),
+                horizontalArrangement = Arrangement.spacedBy(HlSpace.xxs),
+            ) {
+                itemsIndexed(options) { i, label -> Item(i, label) }
+            }
         }
+    } else {
+        Row(track, horizontalArrangement = Arrangement.spacedBy(HlSpace.xxs)) {
+            options.forEachIndexed { i, label -> Item(i, label) }
+        }
+    }
+}
+
+/** One option of a [HlSegmented] track; never used alone. */
+@Composable
+private fun SegmentItem(text: String, selected: Boolean, onClick: () -> Unit, onFocused: () -> Unit) {
+    val c = Hl.colors
+    Surface(
+        onClick = onClick,
+        modifier = Modifier.height(HlSize.segment).onFocusChanged { if (it.isFocused) onFocused() },
+        shape = ClickableSurfaceDefaults.shape(HlShapes.control),
+        scale = ClickableSurfaceDefaults.scale(focusedScale = HlFocus.CONTROL_SCALE),
+        colors = ClickableSurfaceDefaults.colors(
+            containerColor = if (selected) c.content.copy(alpha = HlAlpha.CONTROL_FILL_STRONG) else Color.Transparent,
+            contentColor = if (selected) c.content else c.contentSecondary,
+            focusedContainerColor = c.focus,
+            focusedContentColor = c.onFocus,
+            pressedContainerColor = c.focus,
+            pressedContentColor = c.onFocus,
+        ),
+    ) {
+        Text(
+            text,
+            style = Hl.type.label,
+            maxLines = 1,
+            softWrap = false,
+            modifier = Modifier.align(Alignment.Center).padding(horizontal = HlControl.tabPaddingH),
+        )
     }
 }

@@ -63,7 +63,7 @@ import app.houselights.ui.design.components.EpisodeHeading
 import app.houselights.ui.design.components.Emphasis
 import app.houselights.ui.design.components.HlButton
 import app.houselights.ui.design.components.HlIconButton
-import app.houselights.ui.design.components.HlTab
+import app.houselights.ui.design.components.HlSegmented
 import app.houselights.ui.design.components.LandscapeCard
 import app.houselights.ui.design.components.MediaRow
 import app.houselights.ui.design.components.MetaLine
@@ -290,16 +290,15 @@ private fun Hero(
 
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
-private fun Seasons(seasons: List<MediaItem>, selectedId: String?, onSelect: (String) -> Unit) = RowScroll {
-    LazyRow(
-        modifier = Modifier.focusRestorer(),
-        contentPadding = PaddingValues(horizontal = HlSpace.safeH - HlSpace.m),
-        horizontalArrangement = Arrangement.spacedBy(HlSpace.xxs),
-    ) {
-        items(seasons, key = { it.id }) { s ->
-            HlTab(s.title, selected = s.id == selectedId, onClick = { onSelect(s.id) }, onFocused = { onSelect(s.id) })
-        }
-    }
+private fun Seasons(seasons: List<MediaItem>, selectedId: String?, onSelect: (String) -> Unit) {
+    HlSegmented(
+        options = seasons.map { it.title },
+        selected = seasons.indexOfFirst { it.id == selectedId },
+        onSelect = { onSelect(seasons[it].id) },
+        modifier = Modifier.padding(horizontal = HlSpace.safeH),
+        selectOnFocus = true,
+        scrollable = true,
+    )
 }
 
 @Composable

@@ -52,7 +52,6 @@ import app.houselights.ui.design.components.HlSegmented
 import app.houselights.ui.design.components.HlSettingGroup
 import app.houselights.ui.design.components.HlSettingRow
 import app.houselights.ui.design.components.HlStatus
-import app.houselights.ui.design.components.HlTab
 import app.houselights.ui.design.components.MeterLegend
 import app.houselights.ui.design.components.MeterSegment
 import app.houselights.ui.design.components.PanelLevel
@@ -110,10 +109,9 @@ fun CatalogScreen() {
                         HlButton("Lire", {}, icon = Icons.Filled.PlayArrow, detail = "1 h 53", emphasis = Emphasis.Primary)
                         HlButton("Secondary", {})
                         HlIconButton(HlIcons.Info, "Icon button", {})
-                        HlTab("Tab", selected = true, onClick = {})
-                        HlTab("Tab", selected = false, onClick = {})
                     }
-                    HlSegmented(listOf("One", "Two", "Three"), selected = 1, onSelect = {})
+                    HlSegmented(listOf("Accueil", "Films", "Séries"), selected = 0, onSelect = {})
+                    HlSegmented((1..12).map { "Saison $it" }, selected = 2, onSelect = {}, scrollable = true)
                     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.xs)) {
                         listOf("Ultra HD", "Dolby Vision", "HDR10", "TrueHD Atmos", "7.1", "12").forEach { Badge(it) }
                         Badge("Your choice", lit = true)

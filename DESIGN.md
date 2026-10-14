@@ -11,7 +11,7 @@ every build (see *Guard*).
 1. **One light source.** The room is pure black (`#000000`). Colour comes from the artwork: the
    *ambient light* (`LocalAmbient`) is picked from the focused backdrop and spills onto the room. When
    nothing is selected, the room takes the colours of the posters on the wall (`CollectionLight`).
-   Tungsten, the only fixed accent, marks **states**: selected, in use, your choice, needs attention.
+   Tungsten, the only fixed accent, marks **states**: in use, your choice, needs attention.
 2. **Ten-foot first.** Nothing below 12 sp, no content below 14 sp, every text colour at least 4.5:1
    on every surface. Content stays inside the overscan-safe area (`HlSpace.safeH` / `safeV`). Every
    focusable element shows an unmistakable focus state.
@@ -95,7 +95,7 @@ font. No other font is shipped; line heights leave room for the fallback.
 | `HlShapes` | radius follows hierarchy: `artwork` 4, `badge` 3, `field` 6, `panel` 10, `control` pill, `avatar` circle |
 | `HlSize` | artwork (poster 112, landscape 220, episode 264, avatar 76, thumbnails), `control` 48 for every button, icons 20, discs 52, marks 24, dots 8, setting rows 64, meter 10 |
 | `HlLayout` | measures of layout parts: reading widths (640, 520), side columns (280, 340), pane top 72, dialogs (640, 860, 864), title art, hero, info line, track table columns |
-| `HlControl` | inner padding of tabs and buttons (rows offset by it line up with the safe area), badges, menu entries |
+| `HlControl` | inner padding of buttons and track options, badges, menu entries |
 | `HlFocus` | focus scale (artwork 1.10, cards 1.06, controls 1.04), sibling dim 0.38, ambient glow 18 dp |
 
 ### Motion, icons, scrolling
@@ -119,7 +119,7 @@ font. No other font is shipped; line heights leave room for the fallback.
 | `HeroInfo`, `TitleArt`, `EpisodeHeading`, `MetaLine`, `BillingBlock` | what a title is: clear logo or condensed title, facts, credits |
 | `Badge`, `BadgeRow`, `FactRow` | formats and ratings (a `lit` badge marks a state); facts on one line, spaced, never punctuated |
 | `HlButton` (`Primary`, `Secondary`), `HlIconButton` | pill and round actions, all 48 dp tall; the icon button shows its label when focused |
-| `HlTab`, `HlSegmented` | navigation and exclusive choices in place; the tungsten line marks the selection |
+| `HlSegmented` | the one way to show where you are or what is chosen among a few: home navigation, seasons (`scrollable`), NFO views, form choices. The selected option is a softly lit pill, focus turns it projector white; there is no standalone tab |
 | `HlPanel` (`Quiet`, `Raised`, `lit`), `HlPanelButton` | the one panel recipe, and its focusable form |
 | `HlIconDisc`, `HlDivider`, `HlStatus`, `HlMeter`, `MeterLegend` | an icon in a disc (lit when on), a hairline, a state with its light, a segmented gauge |
 | `HlListItem`, `HlResultItem`, `PosterThumb` | choices in a list; a search result with its poster |
@@ -141,7 +141,7 @@ Focus must read from the couch:
 
 - **Artwork** grows, gets a 2 dp projector-white outline and glows with the ambient light. Its
   neighbours in the same row or grid dim.
-- **Controls, rows and navigation** turn projector white with black content.
+- **Controls, rows, navigation and track options** turn projector white with black content.
 - **Panels** that can be chosen are raised and outlined in projector white.
 - **Text fields** get a white outline when focused and a tungsten outline while typing.
 
@@ -153,6 +153,8 @@ Focus must read from the couch:
   `formatDimensions`, `formatBytes`, `formatRatio` in `ui/util/Format.kt`).
 - Facts are separated by layout (`FactRow`). Inside a single text (a button's detail), `FACT_GAP`.
 - Values are words a person uses: "Détecté", "Hors ligne", "Aucune", never "absent" or "0 fichier".
+- Text written elsewhere (TMDB, NFO, servers) goes through `Typeset.text`, so `»`, `:` and `!` never
+  start a line.
 
 ## Guard
 

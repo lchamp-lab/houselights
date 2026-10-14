@@ -63,9 +63,8 @@ object HlSize {
     /** Progress shown beside text (time left). */
     val progressShort = 120.dp
     val progress = 3.dp
-    /** The lit line under a selected tab. */
-    val footlightWidth = 16.dp
-    val footlightHeight = 2.dp
+    /** An option inside a segmented track: with the track's padding, as tall as a control. */
+    val segment = 40.dp
     val focusBorder = 2.dp
     val hairline = 1.dp
 }
@@ -124,12 +123,9 @@ object HlLayout {
     val definitionLabel = 220.dp
 }
 
-/** Inner padding of tabs and pill controls: rows offset by it so text lines up with the safe area. */
+/** Inner padding of pill controls and of the options of a segmented track. */
 object HlControl {
     val tabPaddingH = 16.dp
-    val tabPaddingV = 8.dp
-    /** A tab that is only an icon (settings). */
-    val tabPaddingIcon = 10.dp
     val buttonPaddingH = 24.dp
     val buttonPaddingIcon = 20.dp
     /** Between an icon and its text inside a control. */
