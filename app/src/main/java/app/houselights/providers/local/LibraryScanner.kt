@@ -1,11 +1,8 @@
 package app.houselights.providers.local
 
 import android.util.Log
-import app.houselights.core.NfoActor
-import app.houselights.core.NfoInfo
-import app.houselights.core.NfoParser
+import app.houselights.core.NoTmdbKeyException
 import app.houselights.core.suspendRunCatching
-import app.houselights.core.yearOf
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -19,7 +16,6 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
-import java.util.Locale
 
 data class ScanState(
     val running: Boolean = false,
@@ -58,11 +54,9 @@ class LibraryScanner(
 
     private val lock = Mutex()
 
-    /** Shows already looked up during the current scan (full refresh only). */
-    private val refreshedSeries = mutableSetOf<Long>()
-
-    /** Collections already asked to TMDB during the current scan. */
-    private val refreshedCollections = mutableSetOf<Long>()
+    private val files = ScanFiles(dao, artwork)
+    private val movies = MovieIndexer(dao, files)
+    private val shows = ShowIndexer(dao, files)
 
     fun scanAll(refreshMetadata: Boolean = false) {
         synchronized(passes) {
@@ -140,12 +134,12 @@ class LibraryScanner(
      */
     suspend fun identify(itemId: Long, tmdbId: Int?) {
         withContext(Dispatchers.IO) {
-            val tmdb = client() ?: error("No TMDB key")
+            val tmdb = client() ?: throw NoTmdbKeyException()
             lock.withLock {
                 val item = dao.item(itemId) ?: return@withLock
                 when (item.kind) {
-                    ItemKind.MOVIE -> identifyMovie(item, tmdbId, tmdb)
-                    ItemKind.SERIES -> identifyShow(item, tmdbId, tmdb)
+                    ItemKind.MOVIE -> movies.identify(item, tmdbId, tmdb)
+                    ItemKind.SERIES -> shows.identify(item, tmdbId, tmdb)
                     else -> error("Only films and shows can be identified")
                 }
                 // The film may have left its collection for another one.
@@ -169,8 +163,8 @@ class LibraryScanner(
     }
 
     private suspend fun scanAllSources(refreshMetadata: Boolean) {
-        refreshedSeries.clear()
-        refreshedCollections.clear()
+        movies.startPass()
+        shows.startPass()
         val errors = mutableMapOf<String, ScanError>()
         var changed = false
         try {
@@ -229,7 +223,7 @@ class LibraryScanner(
         _state.update { it.copy(total = todo.size) }
         Log.i(TAG, "${source.name}: ${files.size} files, ${missing.size} removed, ${todo.size} to process")
 
-        val seasons = SeasonCache(tmdb)
+        val seasons = ShowIndexer.SeasonCache(tmdb)
         var unreachable = 0
         todo.forEachIndexed { index, file ->
             // Bounded, should the player never report back.
@@ -243,8 +237,8 @@ class LibraryScanner(
                     if (dao.source(source.id) == null) return@forEachIndexed
                     val existing = known[file.relativePath]?.let { dao.item(it.id) }
                     when (source.kind) {
-                        SourceKind.MOVIES -> processMovie(source, file, existing, tmdb, sidecars, refreshMetadata)
-                        SourceKind.SHOWS -> processEpisode(source, file, existing, tmdb, seasons, sidecars, refreshMetadata)
+                        SourceKind.MOVIES -> movies.process(source, file, existing, tmdb, sidecars, refreshMetadata)
+                        SourceKind.SHOWS -> shows.process(source, file, existing, tmdb, seasons, sidecars, refreshMetadata)
                     }
                 }
             }.onSuccess {
@@ -262,6 +256,9 @@ class LibraryScanner(
         return changed
     }
 
+    /** The show's name and year as its folder gives them, through one of its episodes. */
+    suspend fun showQuery(series: ItemEntity): ParsedMovie = shows.showQuery(series)
+
     /** A file is processed when new, not described yet, to refresh, or when its NFO or artwork changed. */
     private fun needsWork(item: ItemEntity?, local: VideoSidecars, hasTmdb: Boolean, refreshMetadata: Boolean): Boolean =
         item == null || item.mediaInfo == null || refreshMetadata ||
@@ -270,387 +267,9 @@ class LibraryScanner(
             item.nfoPath != local.nfo?.relativePath ||
             (local.poster != null) != (item.posterPath.isCachedArtwork())
 
-    // --- Movies --------------------------------------------------------------------------------
-
-    private suspend fun processMovie(
-        source: SourceEntity,
-        file: RemoteFile,
-        existing: ItemEntity?,
-        tmdb: TmdbClient?,
-        sidecars: Sidecars,
-        refreshMetadata: Boolean,
-    ) {
-        val now = System.currentTimeMillis()
-        val parsed = parseMovie(file.relativePath)
-        val local = sidecars.forVideo(file)
-
-        var item = existing ?: ItemEntity(
-            kind = ItemKind.MOVIE,
-            sourceId = source.id,
-            title = parsed.title,
-            sortTitle = MetadataMerge.sortKey(parsed.title),
-            year = parsed.year,
-            filePath = file.relativePath,
-            fileSize = file.size,
-            badges = FilenameParser.badges(file.relativePath).joinToString("|"),
-            addedAt = now,
-        )
-        if (existing == null) item = item.copy(id = dao.insert(item))
-        item = withMediaInfo(source, file, item)
-
-        val nfoText = local.nfo?.let { readText(source, it) }
-        val nfo = nfoText?.let(NfoParser::parse)
-        // Sidecars that disappeared leave details to TMDB again.
-        val sidecarsRemoved = (item.nfoPath != null && local.nfo == null) ||
-            (local.poster == null && item.posterPath.isCachedArtwork())
-        val needsTmdb = tmdb != null && (item.matchedAt == null || refreshMetadata || nfo != null || sidecarsRemoved)
-        if (nfo == null && !needsTmdb && !sidecarsRemoved && local.poster == null && local.fanart == null && local.logo == null) return
-
-        val movie = if (needsTmdb) lookupMovie(tmdb!!, item.userTmdbId, nfo, parsed, known = item.tmdbId) else null
-        if (sidecarsRemoved) item = MetadataMerge.withoutDetails(item, parsed.title, parsed.year)
-        val art = LocalArt(
-            poster = local.poster?.let { artwork.copy(source, it) },
-            fanart = local.fanart?.let { artwork.copy(source, it) },
-            logo = local.logo?.let { artwork.copy(source, it) },
-            thumb = local.thumb?.let { artwork.copy(source, it) },
-        )
-        saveMovie(item.copy(nfoPath = local.nfo?.relativePath, nfo = nfoText), nfo, movie, art, tmdb, now, refreshMetadata)
-    }
-
-    private suspend fun identifyMovie(item: ItemEntity, tmdbId: Int?, tmdb: TmdbClient) {
-        val parsed = parseMovie(item.filePath ?: return)
-        val nfo = item.nfo?.let(NfoParser::parse)
-        // Fetched before anything changes: an unreachable TMDB throws here.
-        val movie = if (tmdbId != null) tmdb.movie(tmdbId) else lookupMovie(tmdb, null, nfo, parsed)
-        dao.setUserTmdbId(item.id, tmdbId)
-        if (movie?.id != item.tmdbId) dao.clearUserArtwork(item.id)
-        val fresh = dao.item(item.id) ?: return
-        val cleared = MetadataMerge.withoutDetails(fresh, parsed.title, parsed.year)
-        saveMovie(cleared, nfo, movie, LocalArt.of(fresh), tmdb, System.currentTimeMillis())
-    }
-
-    /**
-     * The user's match first, then the NFO's ids, then the title the film was already matched
-     * with ([known]: a refresh does not re-identify it), then a search by title.
-     */
-    private suspend fun lookupMovie(tmdb: TmdbClient, userTmdbId: Int?, nfo: NfoInfo?, parsed: ParsedMovie, known: Int? = null): TmdbMovie? {
-        userTmdbId?.let { return tmdb.movieById(it) }
-        val id = nfo?.tmdbId ?: nfo?.imdbId?.let { tmdb.findByImdb(it).first } ?: known
-        return id?.let { tmdb.movieById(it) } ?: tmdb.findMovie(nfo?.title ?: parsed.title, nfo?.year ?: parsed.year)
-    }
-
-    /** Saves a film's details (see [MetadataMerge]) and its cast. */
-    private suspend fun saveMovie(
-        base: ItemEntity,
-        nfoInfo: NfoInfo?,
-        movie: TmdbMovie?,
-        art: LocalArt,
-        tmdb: TmdbClient?,
-        now: Long,
-        refresh: Boolean = false,
-    ) {
-        val nfo = nfoInfo?.takeUnless { MetadataMerge.describesOther(it, base.userTmdbId, movie?.imdbId) }
-        // Without a fresh TMDB answer, the collection already known stays.
-        val collectionId = collection(nfo, movie, tmdb, now, refresh) ?: base.collectionId.takeIf { movie == null }
-        val details = movie?.details(tmdb?.movieCertification(movie), tmdb?.pickLogo(movie.images))
-        val matchedAt = if (tmdb != null || nfoInfo != null) now else base.matchedAt
-        val item = MetadataMerge.merge(base, nfo, details, art).copy(collectionId = collectionId, matchedAt = matchedAt)
-            .withNfoStreams(nfoInfo) // What the file contains does not depend on the match.
-        dao.saveScanned(item)
-        MetadataMerge.cast(item.id, nfo, movie?.credits)?.let { dao.replaceCast(item.id, it) }
-    }
-
-    /**
-     * The collection a film belongs to: the NFO's set first (what the user's media manager
-     * decided), then TMDB's. Created when first met; its details are asked to TMDB once, or
-     * again on a full refresh. Returns null when the film is in no collection.
-     */
-    private suspend fun collection(nfo: NfoInfo?, movie: TmdbMovie?, tmdb: TmdbClient?, now: Long, refresh: Boolean): Long? {
-        val ref = movie?.belongsToCollection
-        val name = nfo?.collection ?: ref?.name ?: return null
-        // A set of the user's own ("Marvel") is not TMDB's collection, even if the film is in one.
-        val tmdbId = nfo?.collectionTmdbId
-            ?: ref?.id?.takeIf { nfo?.collection == null || CollectionRules.sameName(nfo.collection, ref.name) }
-        val key = CollectionRules.key(tmdbId, name)
-        var c = dao.collectionByKey(key) ?: CollectionEntity(
-            matchKey = key,
-            tmdbId = tmdbId,
-            name = name,
-            sortTitle = MetadataMerge.sortKey(name),
-            posterPath = ref?.posterPath.takeIf { tmdbId == ref?.id },
-            backdropPath = ref?.backdropPath.takeIf { tmdbId == ref?.id },
-        ).let { it.copy(id = dao.insertCollection(it)) }
-        if (tmdbId != null && tmdb != null && (c.fetchedAt == null || refresh) && refreshedCollections.add(c.id)) {
-            tmdb.collection(tmdbId)?.let { full ->
-                val shown = nfo?.collection ?: full.name
-                c = c.copy(
-                    name = shown,
-                    sortTitle = MetadataMerge.sortKey(shown),
-                    overview = full.overview?.ifBlank { null } ?: c.overview,
-                    posterPath = full.posterPath ?: c.posterPath,
-                    backdropPath = full.backdropPath ?: c.backdropPath,
-                    partCount = CollectionRules.released(full.parts.map { it.releaseDate }, CollectionRules.today()),
-                    fetchedAt = now,
-                )
-                dao.updateCollection(c)
-            }
-        }
-        return c.id
-    }
-
-    /** NFO stream details stand in when the file itself could not be read. */
-    private fun ItemEntity.withNfoStreams(nfo: NfoInfo?): ItemEntity {
-        val streams = nfo?.streams ?: return this
-        val media = MediaProbe.decode(mediaInfo)
-        if (media?.video != null) return this
-        val merged = NfoStreamDetails.toMediaInfo(streams, media)
-        return copy(mediaInfo = MediaProbe.encode(merged), badges = merged.badges().ifEmpty { badges.split('|') }.joinToString("|"))
-    }
-
-    /** null when the file can't be read; a NAS that stops answering throws, so the file is tried again later. */
-    private suspend fun readText(source: SourceEntity, file: RemoteFile): String? = suspendRunCatching {
-        val length = file.size.coerceIn(0, MAX_NFO_BYTES.toLong()).toInt().takeIf { it > 0 } ?: MAX_NFO_BYTES
-        String(RemoteBrowser.of(source).readPrefix(source, file.relativePath, length), Charsets.UTF_8)
-    }.getOrElse { e -> if (ScanErrors.isUnreachable(e)) throw e else null }
-
-    // --- TV shows ------------------------------------------------------------------------------
-
-    private suspend fun processEpisode(
-        source: SourceEntity,
-        file: RemoteFile,
-        existing: ItemEntity?,
-        tmdb: TmdbClient?,
-        seasons: SeasonCache,
-        sidecars: Sidecars,
-        refreshMetadata: Boolean,
-    ) {
-        val now = System.currentTimeMillis()
-        val folders = file.relativePath.split('/').dropLast(1)
-        val parsed = FilenameParser.parseEpisode(file.relativePath.substringAfterLast('/'), folders) ?: return
-        val showTitle = parsed.showTitle ?: return
-        val showDir = folders.firstOrNull { FilenameParser.seasonFromFolder(it) == null } ?: ""
-        val showYear = folders.firstOrNull()?.let { FilenameParser.parseMovie(it).year }
-
-        val series = series(source, showTitle, showYear, showDir, sidecars, tmdb, refreshMetadata, now)
-        val season = season(source, series, parsed.season, seasons, now, sidecars.seasonPoster(showDir, parsed.season))
-        val local = sidecars.forVideo(file)
-        val nfoText = local.nfo?.let { readText(source, it) }
-        val nfo = nfoText?.let(NfoParser::parse)
-        val meta = series.tmdbId?.let { seasons.get(it, parsed.season) }?.episodes
-            ?.firstOrNull { it.episodeNumber == parsed.episode }
-
-        val base = existing ?: ItemEntity(
-            kind = ItemKind.EPISODE,
-            sourceId = source.id,
-            title = "",
-            sortTitle = "",
-            filePath = file.relativePath,
-            fileSize = file.size,
-            badges = FilenameParser.badges(file.relativePath).joinToString("|"),
-            addedAt = now,
-        )
-        val episode = base.copy(
-            parentId = season.id,
-            seriesId = series.id,
-            seasonNumber = parsed.season,
-            episodeNumber = parsed.episode,
-            sortTitle = "%03d-%04d".format(Locale.ROOT, parsed.season, parsed.episode),
-            nfoPath = local.nfo?.relativePath,
-            nfo = nfoText,
-        ).withEpisodeDetails(
-            nfo = nfo,
-            meta = meta,
-            thumb = local.thumb?.let { artwork.copy(source, it) },
-            matchedAt = if (tmdb != null || nfo != null) now else base.matchedAt,
-        )
-        val probed = (if (episode.mediaInfo == null) mediaFields(source, file, episode) else episode).withNfoStreams(nfo)
-        if (existing == null) {
-            dao.insert(probed)
-            // New episode: the show moves up in "recently added".
-            dao.saveScanned(series.copy(addedAt = now))
-        } else {
-            dao.saveScanned(probed)
-        }
-    }
-
-    /** Details: NFO, then TMDB, then what the episode had. */
-    private fun ItemEntity.withEpisodeDetails(nfo: NfoInfo?, meta: TmdbEpisode?, thumb: String?, matchedAt: Long?) = copy(
-        title = nfo?.title ?: meta?.name ?: title,
-        overview = nfo?.plot ?: meta?.overview?.ifBlank { null } ?: overview,
-        stillPath = thumb ?: meta?.stillPath ?: stillPath,
-        runtimeMin = nfo?.runtimeMin ?: meta?.runtime ?: runtimeMin,
-        rating = nfo?.rating ?: meta?.voteAverage?.takeIf { it > 0 } ?: rating,
-        year = yearOf(nfo?.premiered) ?: yearOf(meta?.airDate) ?: year,
-        matchedAt = matchedAt,
-    )
-
-    /** Reads the file once and stores what it contains, with format badges for filters. */
-    private suspend fun withMediaInfo(source: SourceEntity, file: RemoteFile, item: ItemEntity): ItemEntity {
-        if (item.mediaInfo != null) return item
-        val updated = mediaFields(source, file, item)
-        dao.saveScanned(updated)
-        return updated
-    }
-
-    private suspend fun mediaFields(source: SourceEntity, file: RemoteFile, item: ItemEntity): ItemEntity {
-        val media = MediaProbe.probe(source, file)
-        val badges = media.badges().ifEmpty { FilenameParser.badges(file.relativePath) }
-        return item.copy(mediaInfo = MediaProbe.encode(media), badges = badges.joinToString("|"))
-    }
-
-    private suspend fun series(
-        source: SourceEntity,
-        title: String,
-        year: Int?,
-        showDir: String,
-        sidecars: Sidecars,
-        tmdb: TmdbClient?,
-        refreshMetadata: Boolean,
-        now: Long,
-    ): ItemEntity {
-        val key = FilenameParser.showKey(title)
-        val series = dao.seriesByKey(key) ?: ItemEntity(
-            kind = ItemKind.SERIES,
-            sourceId = source.id,
-            matchKey = key,
-            title = title,
-            sortTitle = MetadataMerge.sortKey(title),
-            year = year,
-            addedAt = now,
-        ).let { it.copy(id = dao.insert(it)) }
-
-        if (series.id in refreshedSeries) return series
-        val local = sidecars.forShow(showDir)
-        val nfoChanged = local.nfo != null && series.nfoPath != local.nfo.relativePath
-        val needsLookup = series.matchedAt == null || refreshMetadata || nfoChanged ||
-            (local.poster != null && !series.posterPath.isCachedArtwork())
-        if (!needsLookup || (tmdb == null && local.nfo == null && local.poster == null)) return series
-        refreshedSeries += series.id
-
-        val nfoText = local.nfo?.let { readText(source, it) }
-        val nfo = nfoText?.let(NfoParser::parse)
-        val tv = tmdb?.let { lookupShow(it, series.userTmdbId, nfo, title, year) }
-        val art = LocalArt(
-            poster = local.poster?.let { artwork.copy(source, it) },
-            fanart = local.fanart?.let { artwork.copy(source, it) },
-            logo = local.logo?.let { artwork.copy(source, it) },
-        )
-        return saveShow(series.copy(nfoPath = local.nfo?.relativePath, nfo = nfoText), nfo, tv, art, tmdb, now)
-    }
-
-    private suspend fun identifyShow(series: ItemEntity, tmdbId: Int?, tmdb: TmdbClient) {
-        val (title, year) = showQuery(series)
-        val nfo = series.nfo?.let(NfoParser::parse)
-        // Fetched before anything changes: an unreachable TMDB throws here.
-        val tv = if (tmdbId != null) tmdb.tv(tmdbId) else lookupShow(tmdb, null, nfo, title, year)
-        dao.setUserTmdbId(series.id, tmdbId)
-        if (tv?.id != series.tmdbId) dao.clearUserArtwork(series.id)
-        val fresh = dao.item(series.id) ?: return
-        val now = System.currentTimeMillis()
-        val saved = saveShow(MetadataMerge.withoutDetails(fresh, title, year), nfo, tv, LocalArt.of(fresh), tmdb, now)
-        refreshSeasons(saved, tmdb, now)
-    }
-
-    /** The show's name and year as its folder gives them, through one of its episodes. */
-    suspend fun showQuery(series: ItemEntity): ParsedMovie {
-        val path = dao.episodesOfSeries(series.id).firstNotNullOfOrNull { it.filePath }
-            ?: return ParsedMovie(series.title, series.year)
-        val folders = path.split('/').dropLast(1)
-        val title = FilenameParser.parseEpisode(path.substringAfterLast('/'), folders)?.showTitle ?: series.title
-        return ParsedMovie(title, folders.firstOrNull()?.let { FilenameParser.parseMovie(it).year })
-    }
-
-    /** The user's match first, then the NFO's ids, then a search by title. */
-    private suspend fun lookupShow(tmdb: TmdbClient, userTmdbId: Int?, nfo: NfoInfo?, title: String, year: Int?): TmdbTv? {
-        userTmdbId?.let { return tmdb.tvById(it) }
-        val id = nfo?.tmdbId ?: nfo?.imdbId?.let { tmdb.findByImdb(it).second }
-        return id?.let { tmdb.tvById(it) } ?: tmdb.findTv(nfo?.title ?: title, nfo?.year ?: year)
-    }
-
-    /** Saves a show's details (see [MetadataMerge]) and its cast. */
-    private suspend fun saveShow(base: ItemEntity, nfoInfo: NfoInfo?, tv: TmdbTv?, art: LocalArt, tmdb: TmdbClient?, now: Long): ItemEntity {
-        val nfo = nfoInfo?.takeUnless { MetadataMerge.describesOther(it, base.userTmdbId, null) }
-        val details = tv?.details(tmdb?.tvCertification(tv), tmdb?.pickLogo(tv.images))
-        val series = MetadataMerge.merge(base, nfo, details, art).copy(matchedAt = now)
-        dao.saveScanned(series)
-        MetadataMerge.cast(series.id, nfo, tv?.credits)?.let { dao.replaceCast(series.id, it) }
-        return series
-    }
-
-    private suspend fun season(
-        source: SourceEntity,
-        series: ItemEntity,
-        number: Int,
-        cache: SeasonCache,
-        now: Long,
-        localPoster: RemoteFile?,
-    ): ItemEntity {
-        var season = dao.season(series.id, number) ?: ItemEntity(
-            kind = ItemKind.SEASON,
-            sourceId = source.id,
-            parentId = series.id,
-            seriesId = series.id,
-            matchKey = "${series.id}:$number",
-            title = "",
-            sortTitle = "%03d".format(Locale.ROOT, number),
-            seasonNumber = number,
-            addedAt = now,
-        ).let { it.copy(id = dao.insert(it)) }
-
-        val meta = series.tmdbId?.let { cache.get(it, number) }
-        if (meta != null && season.matchedAt == null) {
-            season = season.withSeasonDetails(meta, now)
-            dao.saveScanned(season)
-        }
-        if (localPoster != null && !season.posterPath.isCachedArtwork()) {
-            artwork.copy(source, localPoster)?.let { season = season.copy(posterPath = it); dao.saveScanned(season) }
-        }
-        return season
-    }
-
-    /** TMDB's season details; a local poster stays. Without details, the next scan asks again. */
-    private fun ItemEntity.withSeasonDetails(meta: TmdbSeason?, now: Long) = copy(
-        title = meta?.name ?: "",
-        overview = meta?.overview?.ifBlank { null },
-        posterPath = posterPath?.takeIf { it.isCachedArtwork() } ?: meta?.posterPath,
-        year = yearOf(meta?.airDate),
-        matchedAt = if (meta != null) now else null,
-    )
-
-    /**
-     * After a new match, seasons and episodes take the new show's details at once, from
-     * what the library already knows of their files (NFO, local thumbs).
-     */
-    private suspend fun refreshSeasons(series: ItemEntity, tmdb: TmdbClient, now: Long) {
-        val cache = SeasonCache(tmdb)
-        for (season in dao.children(series.id).filter { it.kind == ItemKind.SEASON }) {
-            val meta = series.tmdbId?.let { id -> season.seasonNumber?.let { cache.get(id, it) } }
-            dao.saveScanned(season.withSeasonDetails(meta, now))
-            for (episode in dao.children(season.id)) {
-                val nfo = episode.nfo?.let(NfoParser::parse)
-                val episodeMeta = meta?.episodes?.firstOrNull { it.episodeNumber == episode.episodeNumber }
-                val cleared = episode.copy(title = "", overview = null, stillPath = null, runtimeMin = null, rating = null, year = null)
-                val thumb = episode.stillPath?.takeIf { it.isCachedArtwork() }
-                dao.saveScanned(cleared.withEpisodeDetails(nfo, episodeMeta, thumb, if (episodeMeta != null) now else null))
-            }
-        }
-    }
-
-    /** One TMDB season request per (show, season) during a scan. */
-    private class SeasonCache(private val tmdb: TmdbClient?) {
-        private val cache = mutableMapOf<Pair<Int, Int>, TmdbSeason?>()
-        suspend fun get(tvId: Int, season: Int): TmdbSeason? {
-            if (tmdb == null) return null
-            val key = tvId to season
-            if (key !in cache) cache[key] = tmdb.season(tvId, season)
-            return cache[key]
-        }
-    }
-
     companion object {
         private const val TAG = "LibraryScanner"
         private const val MAX_UNREACHABLE = 3
-        private const val MAX_NFO_BYTES = 1 shl 20
         private const val MAX_PAUSE_MS = 4 * 60 * 60_000L
 
         /** Title and year of a film, from its file name or its folder ("Title (Year)/movie.mkv"). */

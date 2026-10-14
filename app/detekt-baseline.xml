@@ -2,21 +2,14 @@
 <SmellBaseline>
   <ManuallySuppressedIssues></ManuallySuppressedIssues>
   <CurrentIssues>
-    <ID>ComplexCondition:LibraryScanner.kt$LibraryScanner$!needsLookup || (tmdb == null &amp;&amp; local.nfo == null &amp;&amp; local.poster == null)</ID>
-    <ID>ComplexCondition:LibraryScanner.kt$LibraryScanner$nfo == null &amp;&amp; !needsTmdb &amp;&amp; !sidecarsRemoved &amp;&amp; local.poster == null &amp;&amp; local.fanart == null &amp;&amp; local.logo == null</ID>
-    <ID>ComplexCondition:LibraryScanner.kt$LibraryScanner$tmdbId != null &amp;&amp; tmdb != null &amp;&amp; (c.fetchedAt == null || refresh) &amp;&amp; refreshedCollections.add(c.id)</ID>
-    <ID>CyclomaticComplexMethod:AddFolderScreen.kt$@Composable fun AddFolderScreen(onAdded: () -&gt; Unit)</ID>
+    <ID>ComplexCondition:MovieIndexer.kt$MovieIndexer$nfo == null &amp;&amp; !needsTmdb &amp;&amp; !sidecarsRemoved &amp;&amp; local.poster == null &amp;&amp; local.fanart == null &amp;&amp; local.logo == null</ID>
+    <ID>ComplexCondition:MovieIndexer.kt$MovieIndexer$tmdbId != null &amp;&amp; tmdb != null &amp;&amp; (c.fetchedAt == null || refresh) &amp;&amp; refreshedCollections.add(c.id)</ID>
+    <ID>ComplexCondition:ShowIndexer.kt$ShowIndexer$!needsLookup || (tmdb == null &amp;&amp; local.nfo == null &amp;&amp; local.poster == null)</ID>
     <ID>CyclomaticComplexMethod:DetailScreen.kt$@Composable fun DetailScreen( itemId: String, onPlay: (MediaItem, Boolean) -&gt; Unit, onOpenItem: (String) -&gt; Unit, onOpenNfo: (String) -&gt; Unit, onEditArtwork: (String, ArtworkKind) -&gt; Unit, onIdentify: (String) -&gt; Unit, )</ID>
     <ID>CyclomaticComplexMethod:DetailScreen.kt$@Composable private fun Hero( item: MediaItem, nextUp: MediaItem?, capabilities: ProviderCapabilities?, onPlay: (MediaItem, Boolean) -&gt; Unit, onTogglePlayed: () -&gt; Unit, onToggleFavorite: () -&gt; Unit, onOpenSeries: () -&gt; Unit, onOpenNfo: () -&gt; Unit, onShowTech: (() -&gt; Unit)?, onEdit: (() -&gt; Unit)?, modifier: Modifier, )</ID>
     <ID>CyclomaticComplexMethod:IdentifyScreen.kt$@Composable fun IdentifyScreen(itemId: String, onDone: () -&gt; Unit)</ID>
     <ID>CyclomaticComplexMethod:JellyfinMapper.kt$JellyfinMapper$fun toMedia(dto: BaseItem): MediaItem</ID>
-    <ID>CyclomaticComplexMethod:JellyfinMapper.kt$JellyfinMapper.Companion$fun mediaInfo(item: BaseItem): MediaInfo?</ID>
     <ID>CyclomaticComplexMethod:JellyfinProvider.kt$JellyfinProvider$override suspend fun libraryPage(library: Library, sort: SortOption, filter: LibraryFilter, start: Int, limit: Int): Page</ID>
-    <ID>CyclomaticComplexMethod:LibraryScanner.kt$LibraryScanner$private suspend fun collection(nfo: NfoInfo?, movie: TmdbMovie?, tmdb: TmdbClient?, now: Long, refresh: Boolean): Long?</ID>
-    <ID>CyclomaticComplexMethod:LibraryScanner.kt$LibraryScanner$private suspend fun processMovie( source: SourceEntity, file: RemoteFile, existing: ItemEntity?, tmdb: TmdbClient?, sidecars: Sidecars, refreshMetadata: Boolean, )</ID>
-    <ID>CyclomaticComplexMethod:LibraryScanner.kt$LibraryScanner$private suspend fun saveMovie( base: ItemEntity, nfoInfo: NfoInfo?, movie: TmdbMovie?, art: LocalArt, tmdb: TmdbClient?, now: Long, refresh: Boolean = false, )</ID>
-    <ID>CyclomaticComplexMethod:LibraryScanner.kt$LibraryScanner$private suspend fun saveShow(base: ItemEntity, nfoInfo: NfoInfo?, tv: TmdbTv?, art: LocalArt, tmdb: TmdbClient?, now: Long): ItemEntity</ID>
-    <ID>CyclomaticComplexMethod:LibraryScanner.kt$LibraryScanner$private suspend fun series( source: SourceEntity, title: String, year: Int?, showDir: String, sidecars: Sidecars, tmdb: TmdbClient?, refreshMetadata: Boolean, now: Long, ): ItemEntity</ID>
     <ID>CyclomaticComplexMethod:LibraryScreen.kt$@Composable fun LibraryScreen( library: Library, title: String, onOpenItem: (MediaItem) -&gt; Unit, )</ID>
     <ID>CyclomaticComplexMethod:LocalEditor.kt$LocalEditor$override suspend fun artwork(item: MediaItem, kind: ArtworkKind): ArtworkChoices</ID>
     <ID>CyclomaticComplexMethod:LocalProvider.kt$LocalProvider$override suspend fun libraryPage(library: Library, sort: SortOption, filter: LibraryFilter, start: Int, limit: Int): Page</ID>
@@ -26,23 +19,23 @@
     <ID>CyclomaticComplexMethod:Meta.kt$@Composable fun MetaLine(item: MediaItem, modifier: Modifier = Modifier, showGenres: Boolean = true)</ID>
     <ID>CyclomaticComplexMethod:MkvProbe.kt$MkvProbe$fun probe(bytes: ByteArray): Result</ID>
     <ID>CyclomaticComplexMethod:MkvProbe.kt$MkvProbe$private fun parseTracks(r: Reader): Tracks</ID>
+    <ID>CyclomaticComplexMethod:MovieIndexer.kt$MovieIndexer$private suspend fun collection(nfo: NfoInfo?, movie: TmdbMovie?, tmdb: TmdbClient?, now: Long, refresh: Boolean): Long?</ID>
+    <ID>CyclomaticComplexMethod:MovieIndexer.kt$MovieIndexer$suspend fun process( source: SourceEntity, file: RemoteFile, existing: ItemEntity?, tmdb: TmdbClient?, sidecars: Sidecars, refreshMetadata: Boolean, )</ID>
     <ID>CyclomaticComplexMethod:Nfo.kt$NfoParser$private fun parseXml(xml: String): NfoInfo?</ID>
     <ID>CyclomaticComplexMethod:NfoScreen.kt$@Composable private fun NfoDetails(info: NfoInfo?)</ID>
-    <ID>CyclomaticComplexMethod:NfoStreamDetails.kt$NfoStreamDetails$fun toMediaInfo(streams: NfoStreams, base: MediaInfo?): MediaInfo</ID>
     <ID>CyclomaticComplexMethod:ScanError.kt$ScanErrors$fun classify(e: Throwable): ScanError</ID>
-    <ID>CyclomaticComplexMethod:SettingsScreen.kt$@Composable private fun StorageSummary(st: StorageStats?)</ID>
+    <ID>CyclomaticComplexMethod:ShowIndexer.kt$ShowIndexer$private suspend fun series( source: SourceEntity, title: String, year: Int?, showDir: String, sidecars: Sidecars, tmdb: TmdbClient?, refreshMetadata: Boolean, now: Long, ): ItemEntity</ID>
     <ID>CyclomaticComplexMethod:TextField.kt$@Composable fun HlTextField( label: String, value: String, onValueChange: (String) -&gt; Unit, modifier: Modifier = Modifier, placeholder: String = "", password: Boolean = false, keyboardType: KeyboardType = KeyboardType.Text, imeAction: ImeAction = ImeAction.Next, onImeAction: () -&gt; Unit = {}, )</ID>
     <ID>ExplicitItLambdaParameter:HomeScreen.kt${ _, it -&gt; it.id }</ID>
     <ID>ExplicitItLambdaParameter:LibraryScreen.kt${ _, it -&gt; it.id }</ID>
-    <ID>LongMethod:JellyfinMapper.kt$JellyfinMapper.Companion$fun mediaInfo(item: BaseItem): MediaInfo?</ID>
     <ID>LongMethod:Nfo.kt$NfoParser$private fun parseXml(xml: String): NfoInfo?</ID>
     <ID>LongParameterList:JellyfinApi.kt$JellyfinApi$( @Query("userId") userId: String, @Query("parentId") parentId: String?, @Query("includeItemTypes") includeItemTypes: String?, @Query("recursive") recursive: Boolean, @Query("sortBy") sortBy: String, @Query("sortOrder") sortOrder: String, @Query("startIndex") startIndex: Int, @Query("limit") limit: Int, @Query("fields") fields: String, @Query("filters") filters: String? = null, @Query("genres") genres: String? = null, @Query("years") years: String? = null, @Query("is4K") is4K: Boolean? = null, )</ID>
-    <ID>LongParameterList:LibraryScanner.kt$LibraryScanner$( base: ItemEntity, nfoInfo: NfoInfo?, movie: TmdbMovie?, art: LocalArt, tmdb: TmdbClient?, now: Long, refresh: Boolean = false, )</ID>
-    <ID>LongParameterList:LibraryScanner.kt$LibraryScanner$( source: SourceEntity, file: RemoteFile, existing: ItemEntity?, tmdb: TmdbClient?, seasons: SeasonCache, sidecars: Sidecars, refreshMetadata: Boolean, )</ID>
-    <ID>LongParameterList:LibraryScanner.kt$LibraryScanner$( source: SourceEntity, file: RemoteFile, existing: ItemEntity?, tmdb: TmdbClient?, sidecars: Sidecars, refreshMetadata: Boolean, )</ID>
-    <ID>LongParameterList:LibraryScanner.kt$LibraryScanner$( source: SourceEntity, series: ItemEntity, number: Int, cache: SeasonCache, now: Long, localPoster: RemoteFile?, )</ID>
-    <ID>LongParameterList:LibraryScanner.kt$LibraryScanner$( source: SourceEntity, title: String, year: Int?, showDir: String, sidecars: Sidecars, tmdb: TmdbClient?, refreshMetadata: Boolean, now: Long, )</ID>
-    <ID>LongParameterList:LibraryScanner.kt$LibraryScanner$(base: ItemEntity, nfoInfo: NfoInfo?, tv: TmdbTv?, art: LocalArt, tmdb: TmdbClient?, now: Long)</ID>
+    <ID>LongParameterList:MovieIndexer.kt$MovieIndexer$( base: ItemEntity, nfoInfo: NfoInfo?, movie: TmdbMovie?, art: LocalArt, tmdb: TmdbClient?, now: Long, refresh: Boolean = false, )</ID>
+    <ID>LongParameterList:MovieIndexer.kt$MovieIndexer$( source: SourceEntity, file: RemoteFile, existing: ItemEntity?, tmdb: TmdbClient?, sidecars: Sidecars, refreshMetadata: Boolean, )</ID>
+    <ID>LongParameterList:ShowIndexer.kt$ShowIndexer$( source: SourceEntity, file: RemoteFile, existing: ItemEntity?, tmdb: TmdbClient?, seasons: SeasonCache, sidecars: Sidecars, refreshMetadata: Boolean, )</ID>
+    <ID>LongParameterList:ShowIndexer.kt$ShowIndexer$( source: SourceEntity, series: ItemEntity, number: Int, cache: SeasonCache, now: Long, localPoster: RemoteFile?, )</ID>
+    <ID>LongParameterList:ShowIndexer.kt$ShowIndexer$( source: SourceEntity, title: String, year: Int?, showDir: String, sidecars: Sidecars, tmdb: TmdbClient?, refreshMetadata: Boolean, now: Long, )</ID>
+    <ID>LongParameterList:ShowIndexer.kt$ShowIndexer$(base: ItemEntity, nfoInfo: NfoInfo?, tv: TmdbTv?, art: LocalArt, tmdb: TmdbClient?, now: Long)</ID>
     <ID>LongParameterList:SmbBrowser.kt$SmbBrowser$( share: DiskShare, root: String, relative: String, depth: Int, out: MutableList&lt;RemoteFile&gt;, sidecars: MutableList&lt;RemoteFile&gt;, )</ID>
     <ID>LoopWithTooManyJumpStatements:MkvProbe.kt$MkvProbe$while</ID>
     <ID>LoopWithTooManyJumpStatements:Nfo.kt$NfoParser$while</ID>
@@ -79,25 +72,18 @@
     <ID>MagicNumber:HouselightsApp.kt$HouselightsApp$300</ID>
     <ID>MagicNumber:Icons.kt$HlIcons$24f</ID>
     <ID>MagicNumber:JellyfinMapper.kt$JellyfinMapper$30</ID>
-    <ID>MagicNumber:JellyfinMapper.kt$JellyfinMapper$4</ID>
     <ID>MagicNumber:JellyfinProvider.kt$JellyfinProvider$16</ID>
-    <ID>MagicNumber:JellyfinProvider.kt$JellyfinProvider$1920</ID>
     <ID>MagicNumber:JellyfinProvider.kt$JellyfinProvider$20</ID>
     <ID>MagicNumber:JellyfinProvider.kt$JellyfinProvider$24</ID>
-    <ID>MagicNumber:JellyfinProvider.kt$JellyfinProvider$800</ID>
     <ID>MagicNumber:JellyfinProvider.kt$JellyfinProvider$9</ID>
     <ID>MagicNumber:LibraryScanner.kt$LibraryScanner$1024</ID>
     <ID>MagicNumber:LibraryScanner.kt$LibraryScanner$4</ID>
     <ID>MagicNumber:LibraryScanner.kt$LibraryScanner$5</ID>
-    <ID>MagicNumber:LibraryScanner.kt$LibraryScanner.Companion$30</ID>
-    <ID>MagicNumber:LocalEditor.kt$LocalEditor$4</ID>
     <ID>MagicNumber:LocalEditor.kt$LocalEditor$5</ID>
     <ID>MagicNumber:LocalProvider.kt$LocalProvider$10</ID>
-    <ID>MagicNumber:LocalProvider.kt$LocalProvider$1920</ID>
     <ID>MagicNumber:LocalProvider.kt$LocalProvider$20</ID>
     <ID>MagicNumber:LocalProvider.kt$LocalProvider$24</ID>
     <ID>MagicNumber:LocalProvider.kt$LocalProvider$3</ID>
-    <ID>MagicNumber:LocalProvider.kt$LocalProvider$500</ID>
     <ID>MagicNumber:LocalProvider.kt$LocalProvider$9</ID>
     <ID>MagicNumber:LocalProvider.kt$LocalProvider.Mapper$60_000L</ID>
     <ID>MagicNumber:LocalProvider.kt$LocalProvider.Reporter$60_000L</ID>
@@ -142,14 +128,11 @@
     <ID>MagicNumber:PlaybackManager.kt$PlaybackManager$5</ID>
     <ID>MagicNumber:ServerDiscovery.kt$ServerDiscovery$4096</ID>
     <ID>MagicNumber:ServerDiscovery.kt$ServerDiscovery$7359</ID>
-    <ID>MagicNumber:SettingsScreen.kt$100</ID>
     <ID>MagicNumber:Type.kt$HlFonts$400</ID>
     <ID>MagicNumber:Type.kt$HlFonts$500</ID>
     <ID>MagicNumber:Type.kt$HlFonts$600</ID>
     <ID>MagicNumber:Type.kt$HlFonts$700</ID>
     <ID>MagicNumber:ZidooStatus.kt$ZidooStatus$200</ID>
-    <ID>MaxLineLength:AddFolderScreen.kt$HlTextField(stringResource(R.string.field_host), host, { host = it; success = false }, placeholder = "192.168.1.10", keyboardType = KeyboardType.Uri)</ID>
-    <ID>MaxLineLength:AddFolderScreen.kt$HlTextField(stringResource(R.string.field_path), path, { path = it; success = false }, placeholder = if (kind == SourceKind.SHOWS) "series" else "films", modifier = Modifier.weight(1f))</ID>
     <ID>MaxLineLength:Cards.kt$AsyncImage(model = url, contentDescription = description, contentScale = ContentScale.Crop, modifier = modifier.fillMaxSize().receding())</ID>
     <ID>MaxLineLength:Cards.kt$Text(it, style = Hl.type.caption, color = Hl.colors.contentTertiary, maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center)</ID>
     <ID>MaxLineLength:Cards.kt$Text(person.name, style = Hl.type.meta, color = Hl.colors.content, maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center)</ID>
@@ -171,25 +154,21 @@
     <ID>MaxLineLength:LibraryDao.kt$LibraryDao$@Query("DELETE FROM items WHERE kind = 'SEASON' AND id NOT IN (SELECT parentId FROM items WHERE kind = 'EPISODE' AND parentId IS NOT NULL)")</ID>
     <ID>MaxLineLength:LibraryDao.kt$LibraryDao$@Query("DELETE FROM items WHERE kind = 'SERIES' AND id NOT IN (SELECT parentId FROM items WHERE kind = 'SEASON' AND parentId IS NOT NULL)")</ID>
     <ID>MaxLineLength:LibraryDao.kt$LibraryDao$@Query("SELECT COUNT(*) FROM items WHERE sourceId = :sourceId AND filePath IS NOT NULL AND ('|' || badges || '|') LIKE '%|' || :token || '|%'")</ID>
-    <ID>MaxLineLength:LibraryScanner.kt$LibraryScanner$genres = nfo?.genres?.takeIf { it.isNotEmpty() }?.joinToString("|") ?: movie?.genres?.joinToString("|") { it.name } ?: base.genres</ID>
-    <ID>MaxLineLength:LibraryScanner.kt$LibraryScanner$private suspend</ID>
-    <ID>MaxLineLength:LibraryScanner.kt$LibraryScanner.LocalArt.Companion$fun</ID>
     <ID>MaxLineLength:LibraryScreen.kt$WatchStatus.entries.map { st -&gt; MenuOption(statusLabels.getValue(st), filter.status == st) { onChange(filter.copy(status = st)) } }</ID>
     <ID>MaxLineLength:LibraryScreen.kt$facets.qualities.map { q -&gt; MenuOption(qualityLabels.getValue(q), filter.quality == q) { onChange(filter.copy(quality = q)) } }</ID>
     <ID>MaxLineLength:LibraryScreen.kt$listOf(MenuOption(stringResource(R.string.all_qualities), filter.quality == null) { onChange(filter.copy(quality = null)) })</ID>
     <ID>MaxLineLength:LocalProvider.kt$LocalProvider$backdrop = (c.backdropPath ?: first?.let { shown(it.userBackdropPath, it.backdropPath) })?.let { image(it, ImageType.BACKDROP) }</ID>
     <ID>MaxLineLength:LocalProvider.kt$LocalProvider$if</ID>
-    <ID>MaxLineLength:LocalProvider.kt$LocalProvider$val</ID>
     <ID>MaxLineLength:MediaProvider.kt$MediaProvider$return films.firstOrNull { it.user.positionMs &gt; 0 &amp;&amp; !it.user.played } ?: films.firstOrNull { !it.user.played } ?: films.firstOrNull()</ID>
     <ID>MaxLineLength:Menu.kt$Icon(Icons.Filled.Check, contentDescription = null, tint = if (focused) c.onFocus else c.tungsten, modifier = Modifier.size(HlSize.icon))</ID>
     <ID>MaxLineLength:Menu.kt$Row</ID>
     <ID>MaxLineLength:Menu.kt$Text(it, style = Hl.type.caption, color = c.contentSecondary, modifier = Modifier.padding(horizontal = HlSpace.s, vertical = HlSpace.xxs))</ID>
     <ID>MaxLineLength:Meta.kt$fun</ID>
-    <ID>MaxLineLength:MkvProbe.kt$MkvProbe.Entry$codecId == "A_DTS" &amp;&amp; (n.contains("hd ma") || n.contains("hd-ma") || n.contains("dts-hd") || Regex("""\bma\b""").containsMatchIn(n)) -&gt; "DTS-HD MA"</ID>
     <ID>MaxLineLength:MkvProbeTest.kt$MkvProbeTest$el(0xE0, raw(0xB0, byteArrayOf(0x0F, 0x00)), raw(0xBA, byteArrayOf(0x08, 0x70)), el(0x55B0, uint(0x55BA, 16), uint(0x55B2, 10)))</ID>
     <ID>MaxLineLength:MkvProbeTest.kt$MkvProbeTest$val atmos = el(0xAE, uint(0x83, 2), str(0x86, "A_TRUEHD"), str(0x22B59C, "eng"), str(0x536E, "Dolby Atmos 7.1 Mix"), el(0xE1, uint(0x9F, 8)))</ID>
     <ID>MaxLineLength:MkvProbeTest.kt$MkvProbeTest$val info = el(0x1549A966, raw(0x2AD7B1, byteArrayOf(0x0F, 0x42, 0x40)), raw(0x4489, java.nio.ByteBuffer.allocate(8).putDouble(7_094_000.0).array()))</ID>
     <ID>MaxLineLength:Modal.kt$enter = fadeIn(tween(HlMotion.STANDARD)) + scaleIn(tween(HlMotion.STANDARD, easing = HlMotion.emphasized), initialScale = HlMotion.ENTER_SCALE)</ID>
+    <ID>MaxLineLength:MovieIndexer.kt$MovieIndexer$private suspend</ID>
     <ID>MaxLineLength:NfoParserTest.kt$NfoParserTest$val nfo = NfoParser.parse("&lt;episodedetails&gt;&lt;title&gt;Pilot&lt;/title&gt;&lt;season&gt;1&lt;/season&gt;&lt;episode&gt;2&lt;/episode&gt;&lt;aired&gt;2022-02-18&lt;/aired&gt;&lt;/episodedetails&gt;")!!</ID>
     <ID>MaxLineLength:NfoScreen.kt$add(stringResource(R.string.label_cast) to actors.take(8).joinToString("\n") { a -&gt; listOfNotNull(a.name, a.role).joinToString(FACT_GAP) })</ID>
     <ID>MaxLineLength:NfoScreen.kt$if (info.season != null &amp;&amp; info.episode != null) add(stringResource(R.string.label_episode) to "S${info.season} E${info.episode}")</ID>
@@ -201,10 +180,7 @@
     <ID>MaxLineLength:ScanErrorsTest.kt$ScanErrorsTest$assertEquals(ScanErrorKind.LOGIN_FAILED, kind(RuntimeException("STATUS_LOGON_FAILURE (0xc000006d): Authentication failed for 'zidoo'")))</ID>
     <ID>MaxLineLength:ScanErrorsTest.kt$ScanErrorsTest$assertEquals(ScanErrorKind.UNREACHABLE, kind(IOException("rpc error, server: 192.168.1.20, RPC error: waiting for connection to be established, but failed /192.168.1.20:111")))</ID>
     <ID>MaxLineLength:Settings.kt$trailing = if (i == selected) ({ Icon(Icons.Filled.Check, contentDescription = null, tint = checkTint(), modifier = Modifier.size(HlSize.icon)) }) else null</ID>
-    <ID>MaxLineLength:SettingsScreen.kt$HlSettingRow(stringResource(R.string.label_hdmi), value = "${mode.physicalHeight}p$FACT_GAP${hz(mode.refreshRate)}${Typography.nbsp}Hz")</ID>
-    <ID>MaxLineLength:SettingsScreen.kt$HlSettingRow(stringResource(R.string.label_server), value = source.serverName ?: stringResource(R.string.source_jellyfin))</ID>
-    <ID>MaxLineLength:SettingsScreen.kt$Text(stringResource(R.string.storage_used), style = Hl.type.caption, color = c.contentSecondary, modifier = Modifier.padding(bottom = HlSpace.xxs))</ID>
-    <ID>MaxLineLength:SettingsScreen.kt$st?.let { if (it.artworkFiles == 0) stringResource(R.string.storage_none) else pluralStringResource(R.plurals.file_count, it.artworkFiles, it.artworkFiles) + FACT_GAP + formatBytes(it.artworkBytes) } ?: dash</ID>
+    <ID>MaxLineLength:ShowIndexer.kt$ShowIndexer$private suspend</ID>
     <ID>MaxLineLength:Sidecars.kt$Sidecars$fanart = pick(IMAGES.map { "-fanart.$it" } + IMAGES.map { "-backdrop.$it" }, IMAGES.flatMap { listOf("fanart.$it", "backdrop.$it") })</ID>
     <ID>MaxLineLength:Sidecars.kt$Sidecars$poster = pick(IMAGES.map { "-poster.$it" } + listOf(".tbn"), IMAGES.flatMap { listOf("poster.$it", "folder.$it", "cover.$it") })</ID>
     <ID>MaxLineLength:TechSpecs.kt$Fact(stringResource(R.string.tech_bitrate), stringResource(R.string.mbps, String.format(Locale.getDefault(), "%.1f", kbps / 1000.0)))</ID>
