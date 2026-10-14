@@ -17,6 +17,9 @@ import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -36,6 +39,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.tv.material3.Text
 import app.houselights.R
+import app.houselights.core.Definition
 import app.houselights.core.Library
 import app.houselights.core.MediaItem
 import app.houselights.core.LibraryFacets
@@ -134,9 +138,16 @@ fun LibraryScreen(
                         ),
                     )
                 }
-                // What is under the cursor, without taking space from the wall.
+                // What is under the cursor, without taking space from the wall. Only while a
+                // poster has focus: on the filter or sort buttons, nothing is under the cursor.
+                // The backdrop keeps the last title, so moving to the buttons never flashes.
+                val infoAlpha by animateFloatAsState(
+                    if (gridHasFocus) 1f else 0f,
+                    tween(HlMotion.FAST, easing = HlMotion.standard),
+                    label = "info",
+                )
                 Row(
-                    Modifier.padding(start = HlSpace.safeH, top = HlSpace.xs).height(24.dp),
+                    Modifier.padding(start = HlSpace.safeH, top = HlSpace.xs).height(24.dp).graphicsLayer { alpha = infoAlpha },
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     shown?.let {
@@ -212,7 +223,7 @@ private fun FilterButton(filter: LibraryFilter, facets: LibraryFacets, onChange:
         WatchStatus.FAVORITES to stringResource(R.string.section_favorites),
     )
     val qualityLabels = mapOf(
-        Quality.UHD_4K to "4K",
+        Quality.UHD_4K to Definition.ULTRA_HD.label,
         Quality.HDR to stringResource(R.string.quality_hdr),
         Quality.DOLBY_VISION to "Dolby Vision",
     )
