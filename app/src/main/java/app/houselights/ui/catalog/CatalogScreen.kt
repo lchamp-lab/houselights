@@ -335,6 +335,7 @@ fun CatalogScreen() {
             }
 
             catalogStress()
+            catalogBrand()
 
             item {
                 // Type alone, flat: large over the welcome wall, the size of a subject in About.

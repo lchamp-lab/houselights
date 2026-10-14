@@ -442,6 +442,33 @@ reaches the screen: it goes to the log.
   output and where ("Réglages du lecteur > Affichage"), shows no mode and no rate, and offers no
   choice that would do nothing; "4K 60 Hz" is offered only where the system lists it (`DisplayModes`).
 
+## Brand (proposal, not chosen yet)
+
+The launcher icon and the TV banner are the app's first frame, before the room. Those shipped
+today (a lamp and its beam in a gradient; a wordmark under a halo, in pixels) are being redrawn.
+Four directions wait in the catalogue (**Brand**), each as an adaptive icon foreground
+(`brand_icon_<name>_foreground`) and a banner (`brand_banner_<name>`); the manifest keeps the old
+pair until one is chosen. Every direction holds to the same rules:
+
+- **The room.** The ground is `@color/room`, pure black. No gradient, no glow, no beam, no halo.
+- **Tungsten** is the wordmark's, or the one thing lit; nothing else is coloured.
+- **The type is the app's.** The outlines come from `archivo.ttf` at the app's widths (condensed 70:
+  the wordmark's SemiBold, a title's Bold), set with the font's kerning and converted to paths once.
+- **Sizes.** The icon's art stays inside the 66 dp safe circle of its 108 dp layer, so no launcher's
+  mask cuts it. The banner is 160 × 90 dp, Android TV's banner (320 × 180 px at xhdpi), drawn on a
+  320 × 180 grid, and the name reads at that size.
+
+| Direction | Icon | Banner |
+|---|---|---|
+| Monogram (`monogram`) | an H set like a film's title, condensed Bold | the H as a large initial, the wordmark on its baseline |
+| Wordmark (`wordmark`) | the name on two lines, like a title on a poster | the name at the foot of a dark room |
+| Your seat (`seat`) | the room from above: the screen lit, the house dark, one seat in tungsten, yours ("your choice") | the name in the screen's place, in projector white |
+| Three steps (`steps`) | the house lights going down in three steps; the house rising in tiers | the sign a capital high, then the name |
+
+Once one is chosen, it becomes `ic_launcher_foreground` (with a `<monochrome>` version) and
+`banner.xml`; `banner.png`, its lint exception and the other candidates go, and this section says
+what the brand is.
+
 ## Guard
 
 `DesignTokenGuardTest` reads every file under `ui/` except `ui/design/` and fails on a size, text size,
@@ -468,7 +495,8 @@ gestures, side by side then at the width screens give them; `CatalogIcons` for e
 the marks of done and your choice, and what tungsten never says; `CatalogForms`, `CatalogCards`,
 `CatalogReading`; `CatalogStress` for the longest French labels, the fullest rows, the home hero at
 the largest text size, the scripts Archivo lacks and a line on the device: size in dp, density, text
-scale). `CatalogCoverageTest` fails
+scale; `CatalogBrand` for the launcher icon and the TV banner, drawn by Android at a launcher's size).
+`CatalogCoverageTest` fails
 when a public component of `ui/design/components` is missing; the few that fill the screen are listed
 there with the reason. It fails too when a glyph of `HlIcons` is not on the icon sheet.
 

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Three steps: the house lights going down in three steps, the rake of the house. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <path android:fillColor="#F2B66D" android:pathData="M34.17,32.35L49.02,32.35L49.02,45.35L63.88,45.35L63.88,58.35L78.74,58.35L78.74,71.35L34.17,71.35Z" />
+</vector>
