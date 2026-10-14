@@ -188,12 +188,12 @@ fun LibraryScreen(
                 }
                 when {
                     state.loading && state.items.isEmpty() -> SkeletonWall()
+                    state.items.isEmpty() && state.error != null -> ErrorMessage(state.error!!, vm::retry)
                     state.items.isEmpty() && state.filter.activeCount > 0 -> Column(Modifier.padding(HlSpace.safeH)) {
                         Text(stringResource(R.string.no_match), style = Hl.type.body, color = Hl.colors.contentSecondary)
                         Spacer(Modifier.height(HlSpace.l))
                         HlButton(stringResource(R.string.reset_filters), { vm.setFilter(LibraryFilter()) }, icon = HlIcons.Filter)
                     }
-                    state.items.isEmpty() && state.error != null -> ErrorMessage(state.error!!, vm::retry)
                     state.items.isEmpty() -> HlEmptyState(
                         stringResource(R.string.empty),
                         Modifier.padding(start = HlSpace.safeH, top = HlSpace.l),
