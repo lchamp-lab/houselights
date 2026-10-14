@@ -324,7 +324,13 @@ fun CatalogScreen() {
 
             catalogStress()
 
-            item { Wordmark(style = t.wordmarkHero) }
+            item {
+                // Type alone, flat: large over the welcome wall, the size of a subject in About.
+                Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.xl)) {
+                    Wordmark(Modifier.alignByBaseline(), style = t.wordmarkHero)
+                    Wordmark(Modifier.alignByBaseline())
+                }
+            }
         }
     }
 }

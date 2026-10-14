@@ -36,8 +36,6 @@ data class HlColors(
     val onFocus: Color,
     /** The line under a name in a focused control (a summary, a runtime): black at 62 % on [focus]. */
     val onFocusSecondary: Color,
-    /** Light spill used when a title has no artwork. */
-    val ambientFallback: Color,
 )
 
 val HouselightsColors = HlColors(
@@ -53,7 +51,6 @@ val HouselightsColors = HlColors(
     focus = Color(0xFFF2F0EB),
     onFocus = Color(0xFF000000),
     onFocusSecondary = Color(0xFF5C5B59),
-    ambientFallback = Color(0xFF3B2B1C),
 )
 
 val LocalHlColors = staticCompositionLocalOf { HouselightsColors }
@@ -92,13 +89,11 @@ object HlAlpha {
     const val FOCUS_QUIET = 0.3f
     /** A lit icon disc: `tungsten` at this opacity. */
     const val LIT_DISC = 0.18f
-    /** The glow of the wordmark's own lamp: `tungsten` at this opacity. */
-    const val WORDMARK_GLOW = 0.55f
 }
 
 /**
  * Light spilling from the current artwork; animated by the screen that owns the backdrop. A
  * function, so that what draws with it reads it while drawing: the light changing over 600 ms
- * never recomposes the screen.
+ * never recomposes the screen. Without artwork there is no light: transparent, the room stays black.
  */
-val LocalAmbient = staticCompositionLocalOf<() -> Color> { { HouselightsColors.ambientFallback } }
+val LocalAmbient = staticCompositionLocalOf<() -> Color> { { Color.Transparent } }

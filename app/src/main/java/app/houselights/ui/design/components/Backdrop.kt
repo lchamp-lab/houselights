@@ -60,6 +60,7 @@ enum class BackdropStyle(
  * the room ([LocalAmbient]). The veils are [HlScrim]'s; under the text column, the left veil keeps
  * the floor the picture needs, so the quietest text reads on the lightest image while a dark one
  * keeps its veil. When the house lights go down, the veils lift and the picture shows whole.
+ * Without a picture ([image] null) it is the black room: nothing glows in its place.
  */
 @Composable
 fun Backdrop(image: ImageRef?, style: BackdropStyle, modifier: Modifier = Modifier) {
@@ -102,12 +103,15 @@ fun Backdrop(image: ImageRef?, style: BackdropStyle, modifier: Modifier = Modifi
             )
         )
         // Light from the picture, reflected on the room below it; stronger once the room is dark. Read
-        // here, while drawing: the light's animation redraws this layer alone.
+        // here, while drawing: the light's animation redraws this layer alone. No picture, no light
+        // (a transparent tone): the room stays black.
         Box(
             Modifier.fillMaxSize().drawBehind {
+                val tone = ambient()
+                if (tone.alpha == 0f) return@drawBehind
                 drawRect(
                     Brush.radialGradient(
-                        0f to ambient().copy(alpha = HlScrim.SPILL + HlScrim.SPILL_DARK * (1f - HouseLightCue.room(lights()))),
+                        0f to tone.copy(alpha = tone.alpha * (HlScrim.SPILL + HlScrim.SPILL_DARK * (1f - HouseLightCue.room(lights())))),
                         1f to Color.Transparent,
                         center = Offset(size.width * HlScrim.SPILL_X, size.height * HlScrim.SPILL_Y),
                         radius = size.width * HlScrim.SPILL_RADIUS,

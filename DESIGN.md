@@ -55,6 +55,12 @@ The technical voice speaks the vocabulary of a Blu-ray case: formats by their na
   with NAME, NAME and NAME": names in condensed capitals, small words and commas receding. On one line:
   it keeps as many leading names as fit, and never breaks inside a name.
 
+**The wordmark** is type and nothing else: "Houselights" in the condensed SemiBold, in tungsten, flat,
+with no halo, glow or shadow; the light in the room comes from the films. It is the one use of
+tungsten that is not a state. It appears twice: large on the welcome screen, where the drifting wall
+of posters is the bold element, and at the size of a subject in About. The settings do not sign
+their column with it.
+
 ## Tokens
 
 ### Colour (`Color.kt`)
@@ -72,11 +78,10 @@ The technical voice speaks the vocabulary of a Blu-ray case: formats by their na
 | `focus` | `#F2F0EB` | projector white again: the fill and outline of focus |
 | `onFocus` | `#000000` | a focused control's name and icon |
 | `onFocusSecondary` | `#5C5B59` | the line under that name (a summary, a runtime): black at 62 % on `focus`, 5.96:1 |
-| `ambientFallback` | `#3B2B1C` | the light spilled into the room when a title has no artwork |
 
 `HlAlpha` names every opacity, by role: `QUIET_SURFACE`, `CONTROL_FILL` / `CONTROL_FILL_STRONG`,
 `WELL`, `BORDER`, `DIVIDER`, `SCRIM` / `SCRIM_SIDE`, `PLATE`, `TRACK`, `FOCUS_QUIET`, `LIT_DISC`,
-`ARTWORK_EDGE`, `WORDMARK_GLOW`. `PLATE` is the plate under whatever sits on artwork: a card's marks
+`ARTWORK_EDGE`. `PLATE` is the plate under whatever sits on artwork: a card's marks
 and progress, and the controls laid over a backdrop. The veils laid over artwork are recipes, in
 `HlScrim` (see *Veils*).
 
@@ -103,10 +108,15 @@ change.
 
 `HlScrim` holds the recipes of what is laid over artwork, never loose numbers: the **left veil**
 behind the text column, the **top veil** under the top bar, the **bottom fade** to black, the
-**ambient spill** below a backdrop, the **collection light**, and the **welcome wall** (its veil and
-the tungsten halo behind the wordmark). The left veil follows the text column in dp, `safeH` +
-`readableNarrow`, then fades out over `HlLayout.veilFade`: never a share of a screen assumed 960 dp
-wide.
+**ambient spill** below a backdrop, the **collection light**, and the **welcome wall** (its veil;
+nothing lights the wordmark, the posters are the light of that screen). The left veil follows the
+text column in dp, `safeH` + `readableNarrow`, then fades out over `HlLayout.veilFade`: never a
+share of a screen assumed 960 dp wide.
+
+**No picture, no light.** Without artwork, `Backdrop(null)` is the black room: no warm glow stands
+in for a picture. The ambient light of a title without a backdrop, or whose backdrop fails to load,
+is transparent (`LocalAmbient` too, by default): it spills nothing and lights no card. Where a wall
+of posters shows with nothing selected, the posters light the room (`CollectionLight`).
 
 Under the text column the left veil keeps a **floor**, read from the small copy of the backdrop the
 ambient light is picked from (`ArtworkSample`): the opacity the column's quietest text
@@ -118,8 +128,8 @@ words sit above and below it). A highlight smaller than a twentieth of the colum
 
 ### Type (`Type.kt`)
 
-Eight sizes with clear steps: **12 · 14 · 16 · 20 · 24 · 32 · 44 · 64 sp**, plus 80 for the wordmark as
-a subject. Line heights sit on a 2 sp grid. Numbers use tabular figures (`tnum`) in every technical
+Eight sizes with clear steps: **12 · 14 · 16 · 20 · 24 · 32 · 44 · 64 sp**, plus 80 for the wordmark on
+the welcome screen. Line heights sit on a 2 sp grid. Numbers use tabular figures (`tnum`) in every technical
 style and wherever a figure changes under the eye (`figure`, `meta`, `label`, `caption`, `detail`),
 so durations, sizes and counts line up and do not jitter. A text without a style is `body`
 (`HouselightsTheme` provides it, and maps tv-material's roles onto the scale): never tv-material's
@@ -144,7 +154,7 @@ own face.
 | `detail` | 14 / 18 | the line under a name in a row, an entry or a choice; tighter than `caption`, so two lines read as one block |
 | `code` | 14 / 22 | raw text read as written (NFO XML), in the system's monospaced face |
 | `badge` | 12 / 16 | format and rating badges |
-| `wordmark` / `wordmarkHero` | 22 / 24 and 80 / 84 | the Houselights wordmark |
+| `wordmark` / `wordmarkHero` | 32 / 36 and 80 / 84 | the Houselights wordmark: the size of a subject in About, large over the welcome wall |
 
 Archivo covers Latin (with Vietnamese); Greek, Cyrillic, Thai or Korean names fall back to the system
 font. No other font is shipped; line heights leave room for the fallback, and for Vietnamese: in

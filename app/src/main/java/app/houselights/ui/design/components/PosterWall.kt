@@ -15,9 +15,6 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -93,25 +90,12 @@ fun PosterWall(urls: List<String>, modifier: Modifier = Modifier, opacity: Float
 }
 
 /**
- * The light over the welcome wall: darker where text sits, the wall visible in the middle, and a
- * tungsten glow behind the wordmark.
+ * The veil over the welcome wall: darker where text sits, the wall visible in the middle. Nothing
+ * lights the wordmark: the wall is the light of this screen.
  */
 @Composable
 fun PosterWallScrim() {
     val black = Hl.colors.background
-    val tungsten = Hl.colors.tungsten
     Box(Modifier.fillMaxSize().background(Brush.horizontalGradient(*HlScrim.WALL_ACROSS.colorStops(black))))
     Box(Modifier.fillMaxSize().background(Brush.verticalGradient(*HlScrim.WALL_DOWN.colorStops(black))))
-    Box(
-        Modifier.fillMaxSize().drawBehind {
-            drawRect(
-                Brush.radialGradient(
-                    0f to tungsten.copy(alpha = HlScrim.WELCOME_HALO),
-                    1f to Color.Transparent,
-                    center = Offset(size.width * HlScrim.WELCOME_HALO_X, size.height * HlScrim.WELCOME_HALO_Y),
-                    radius = size.width * HlScrim.WELCOME_HALO_RADIUS,
-                )
-            )
-        }
-    )
 }
