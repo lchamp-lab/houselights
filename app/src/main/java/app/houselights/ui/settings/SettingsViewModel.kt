@@ -14,6 +14,8 @@ import app.houselights.core.PathMapping
 import app.houselights.core.suspendRunCatching
 import app.houselights.providers.local.CleanupResult
 import app.houselights.providers.local.LocalLibrary
+import app.houselights.providers.local.TmdbClient
+import app.houselights.providers.local.TmdbKeyCheck
 import app.houselights.settings.AppSettings
 import app.houselights.ui.util.appContainer
 import coil.ImageLoader
@@ -86,10 +88,16 @@ internal class SettingsViewModel(private val app: AppContainer, private val imag
         }
     }
 
-    fun setTmdbApiKey(key: String, done: () -> Unit) {
+    /**
+     * Saves a personal TMDB key once TMDB has taken it. A key TMDB refuses is not saved; one it could
+     * not check (out of reach) is saved all the same. A blank key goes back to the built-in one.
+     */
+    fun saveTmdbApiKey(key: String, done: (TmdbKeyCheck) -> Unit) {
         viewModelScope.launch {
-            app.settings.setTmdbApiKey(key)
-            done()
+            val typed = key.trim()
+            val check = if (typed.isEmpty()) TmdbKeyCheck.ACCEPTED else TmdbClient(typed).checkKey()
+            if (check != TmdbKeyCheck.REFUSED) app.settings.setTmdbApiKey(typed)
+            done(check)
         }
     }
 

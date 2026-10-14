@@ -100,6 +100,9 @@ object HlSize {
     val skeletonTitle = 48.dp
     val skeletonFacts = 24.dp
     val progress = 3.dp
+    /** The short rule heading a card that speaks, like an intertitle: a question asked in a sheet. */
+    val intertitleRule = 24.dp
+    val intertitleRuleWeight = 2.dp
     /** An option inside a segmented track: with the track's padding, as tall as a control. */
     val segment = 40.dp
     val focusBorder = 2.dp

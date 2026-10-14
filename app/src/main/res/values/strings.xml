@@ -46,7 +46,7 @@
     <string name="nav_settings">Settings</string>
     <string name="sort_title">Title</string>
     <string name="sort_added">Date added</string>
-    <string name="sort_by">Sort by</string>
+    <string name="sort">Sort</string>
     <string name="filter">Filter</string>
     <string name="filter_status">Status</string>
     <string name="status_in_progress">In progress</string>
@@ -68,6 +68,10 @@
     <string name="show_all">All</string>
     <string name="sort_year">Year</string>
     <string name="sort_rating">Rating</string>
+    <string name="sort_title_order">Title, A to Z</string>
+    <string name="sort_added_order">Date added, newest first</string>
+    <string name="sort_year_order">Year, newest first</string>
+    <string name="sort_rating_order">Rating, highest first</string>
     <string name="filter_unwatched">Unwatched</string>
 
     <!-- Details -->
@@ -86,6 +90,9 @@
     <string name="tech_info">Technical info</string>
     <string name="sheet_back_hint">Back to close</string>
     <string name="cancel">Cancel</string>
+    <string name="control_busy">In progress</string>
+    <string name="key_ok">OK</string>
+    <string name="key_hint_type">type</string>
     <string name="nfo">NFO</string>
     <string name="nfo_title">NFO file</string>
     <string name="nfo_desc">The description of this title written by your media manager. Its details take precedence over TMDB.</string>
@@ -101,6 +108,7 @@
     <string name="nfo_link_only">This NFO only links to a title page; Houselights uses it to identify the title.</string>
     <string name="label_title">Title</string>
     <string name="label_year">Year</string>
+    <string name="placeholder_year">2025</string>
     <string name="label_genres">Genres</string>
     <string name="label_directors">Directors</string>
     <string name="label_studios">Studios</string>
@@ -144,6 +152,11 @@
     <string name="field_path">Folder (optional)</string>
     <string name="field_user">User</string>
     <string name="field_password">Password</string>
+    <string name="placeholder_host">e.g. 192.168.1.10</string>
+    <string name="placeholder_export" tools:ignore="Typos">e.g. /volume1/media</string>
+    <string name="placeholder_share">e.g. media</string>
+    <string name="placeholder_path_movies">e.g. movies</string>
+    <string name="placeholder_path_shows">e.g. shows</string>
     <string name="test_connection">Test</string>
     <string name="connection_untested">Connection not tested</string>
     <string name="connection_testing">Connecting…</string>
@@ -168,8 +181,10 @@
     <string name="jellyfin_title">Connect to Jellyfin</string>
     <string name="servers_found">Servers found on the network</string>
     <string name="field_server">Server address</string>
+    <string name="placeholder_server">e.g. 192.168.1.10:8096</string>
     <string name="sign_in">Sign in</string>
     <string name="signing_in">Signing in…</string>
+    <string name="checking">Checking…</string>
     <string name="error_credentials">The server rejected these credentials.</string>
     <string name="error_server_unexpected">The server answered in an unexpected way. Check the address, then try again.</string>
     <string name="error_server_unreachable">Nothing answers at %s. Check the address and that Jellyfin is running.</string>
@@ -225,13 +240,21 @@
     <string name="section_source">Library</string>
     <string name="remove">Remove</string>
     <string name="scan_now">Scan now</string>
+    <string name="scan_now_desc">Looks for new files</string>
     <string name="refresh_metadata">Refresh all details</string>
     <string name="last_scan">Last scan: %s</string>
     <string name="never">never</string>
     <string name="just_now">just now</string>
     <string name="tmdb_key">TMDB API key</string>
     <string name="tmdb_key_builtin">Leave empty to use the key built into the app.</string>
-    <string name="tmdb_key_missing">No TMDB key: posters and details can’t be fetched. Get a free key at themoviedb.org.</string>
+    <string name="tmdb_key_builtin_state">Built-in key</string>
+    <string name="tmdb_key_personal">Personal key</string>
+    <string name="tmdb_key_none">No key</string>
+    <string name="tmdb_key_none_desc">Without one, no posters and no details.</string>
+    <string name="tmdb_key_free">Get a free key at themoviedb.org.</string>
+    <string name="tmdb_key_unchecked">Saved without checking: TMDB isn’t answering.</string>
+    <string name="tmdb_key_revert">Back to the built-in key</string>
+    <string name="tmdb_key_revert_desc">Houselights forgets your key and uses its own</string>
     <string name="save">Save</string>
     <string name="saved">Saved</string>
     <string name="section_playback">Playback</string>
@@ -315,6 +338,7 @@
     <string name="refresh_metadata_desc">Fetch artwork and details from TMDB again</string>
     <string name="remove_folder">Remove this folder</string>
     <string name="remove_folder_desc">Its titles leave the library; nothing is deleted on the NAS.</string>
+    <string name="remove_folder_row_desc">Its titles leave the library</string>
     <string name="remove_folder_confirm">Remove “%s”?</string>
     <string name="tmdb_builtin_short">Built in</string>
     <string name="tmdb_personal">Your key</string>

@@ -4,7 +4,10 @@ import app.houselights.core.Http
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonNamingStrategy
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.Request
 import retrofit2.HttpException
 import retrofit2.Retrofit
 import retrofit2.converter.kotlinx.serialization.asConverterFactory
@@ -20,6 +23,15 @@ class TmdbUnreachableException(cause: IOException?) : IOException("TMDB is unrea
  * An [IOException], as anything an OkHttp interceptor throws must be.
  */
 class TmdbKeyRefusedException : IOException("TMDB refused the API key")
+
+/** What TMDB says of a key. */
+enum class TmdbKeyCheck {
+    ACCEPTED,
+    REFUSED,
+
+    /** TMDB could not say: out of reach, or failing. */
+    UNCHECKED,
+}
 
 /** TMDB v3 client; metadata in the device language. */
 class TmdbClient(private val apiKey: String) {
@@ -67,11 +79,26 @@ class TmdbClient(private val apiKey: String) {
         .build()
 
     private val api: TmdbApi = Retrofit.Builder()
-        .baseUrl("https://api.themoviedb.org/3/")
+        .baseUrl(BASE_URL)
         .client(http)
         .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
         .build()
         .create(TmdbApi::class.java)
+
+    /**
+     * Whether TMDB takes this client's key, asked by its lightest call: `authentication` answers 200
+     * for a key it takes, 401 for one it refuses.
+     */
+    suspend fun checkKey(): TmdbKeyCheck = try {
+        val request = Request.Builder().url(BASE_URL + "authentication").build()
+        withContext(Dispatchers.IO) {
+            http.newCall(request).execute().use { if (it.isSuccessful) TmdbKeyCheck.ACCEPTED else TmdbKeyCheck.UNCHECKED }
+        }
+    } catch (_: TmdbKeyRefusedException) {
+        TmdbKeyCheck.REFUSED
+    } catch (_: IOException) {
+        TmdbKeyCheck.UNCHECKED
+    }
 
     /** Best movie match; retries without the year, which is often off by one in file names. */
     suspend fun findMovie(title: String, year: Int?): TmdbMovie? {
@@ -147,6 +174,7 @@ class TmdbClient(private val apiKey: String) {
         tv.contentRatings.results.firstOrNull { it.iso31661 == region }?.rating?.takeIf { it.isNotBlank() }
 
     companion object {
+        private const val BASE_URL = "https://api.themoviedb.org/3/"
         private const val HTTP_UNAUTHORIZED = 401
         private const val HTTP_NOT_FOUND = 404
         private const val UNREACHABLE_PAUSE_MS = 60_000L

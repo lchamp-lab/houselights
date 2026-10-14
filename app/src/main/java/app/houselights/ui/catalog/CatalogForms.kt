@@ -29,7 +29,6 @@ import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.components.ChoiceOption
-import app.houselights.ui.design.components.Emphasis
 import app.houselights.ui.design.components.FactRow
 import app.houselights.ui.design.components.FieldLabel
 import app.houselights.ui.design.components.HlChoiceSheet
@@ -72,38 +71,51 @@ private fun FormCase(caption: String, modifier: Modifier = Modifier, content: @C
 @Composable
 private fun FormTextFields() {
     Text(
-        "Focus outlines a field in projector white; OK opens the keyboard, and the edge turns tungsten while typing.",
+        "Focus outlines a field in projector white and shows, at its end, that OK types; OK opens the keyboard, " +
+            "and the edge turns tungsten while typing, and only then. Every field has a name, read out even when hidden.",
         style = Hl.type.caption,
         color = Hl.colors.contentTertiary,
     )
-    // Bottom-aligned, so a field without a label shows what it lacks next to the others.
+    // Bottom-aligned, so a field without its label shows next to the others.
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Bottom) {
         var host by remember { mutableStateOf("") }
         FormCase("empty, label and placeholder", Modifier.weight(1f)) {
-            HlTextField("Adresse du NAS", host, { host = it }, placeholder = "192.168.1.10", keyboardType = KeyboardType.Uri)
+            HlTextField("Adresse du NAS", host, { host = it }, placeholder = "Ex. : 192.168.1.10", keyboardType = KeyboardType.Uri)
         }
         var share by remember { mutableStateOf("media") }
         FormCase("filled", Modifier.weight(1f)) {
-            HlTextField("Partage", share, { share = it }, placeholder = "media")
+            HlTextField("Partage", share, { share = it }, placeholder = "Ex. : media")
         }
         var secret by remember { mutableStateOf("cinema1967") }
         FormCase("password", Modifier.weight(1f)) {
             HlTextField("Mot de passe", secret, { secret = it }, password = true, imeAction = ImeAction.Done)
         }
     }
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Bottom) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Top) {
         var key by remember { mutableStateOf("") }
-        FormCase("no label, no placeholder (TMDB key)", Modifier.weight(1f)) {
-            HlTextField("", key, { key = it }, password = true, imeAction = ImeAction.Done)
+        FormCase("label hidden, read out; placeholder, supporting line", Modifier.weight(1f)) {
+            HlTextField(
+                "Clé personnelle", key, { key = it },
+                placeholder = "Clé personnelle",
+                showLabel = false,
+                supporting = "Laissez vide pour utiliser la clé intégrée à l’application.",
+                password = true,
+                imeAction = ImeAction.Done,
+            )
+        }
+        var refused by remember { mutableStateOf("0123456789abcdef0123456789abcdef") }
+        FormCase("error: in tungsten under the field, its edge unchanged", Modifier.weight(1f)) {
+            HlTextField(
+                "Clé personnelle", refused, { refused = it },
+                showLabel = false,
+                error = "TMDB refuse cette clé",
+                password = true,
+                imeAction = ImeAction.Done,
+            )
         }
         var export by remember { mutableStateOf("/volume1/video/Films/Cinéma français/Nouvelle Vague/Restaurations 4K") }
         FormCase("value longer than the field", Modifier.weight(1f)) {
-            HlTextField("Export NFS", export, { export = it }, placeholder = "/volume1/media")
-        }
-        var user by remember { mutableStateOf("") }
-        FormCase("FieldLabel over an unlabelled field", Modifier.weight(1f)) {
-            FieldLabel("Utilisateur")
-            HlTextField("", user, { user = it })
+            HlTextField("Export NFS", export, { export = it }, placeholder = "Ex. : /volume1/media")
         }
     }
     var protocol by remember { mutableIntStateOf(0) }
@@ -176,6 +188,16 @@ private fun FormPanelButtons() {
                 FormFolder("Séries", "nas-salon.local/media/series", listOf("86 titres", "Analysé il y a 2 h"))
             }
         }
+        FormCase("disabled: a faint well, focus outlines it", Modifier.weight(1f)) {
+            // Its words in LocalContentColor, which follows the state.
+            HlPanelButton({}, Modifier.fillMaxWidth(), enabled = false) {
+                Column(Modifier.padding(HlInset.card)) {
+                    Text("Concerts", style = Hl.type.lead)
+                    Spacer(Modifier.height(HlSpace.xxs))
+                    Text("Aucun dossier", style = Hl.type.meta)
+                }
+            }
+        }
     }
 }
 
@@ -220,7 +242,8 @@ private fun FormMenus() {
         Text(
             "A popup hanging from the button, inside the safe area: below it when the room down to the safe area " +
                 "holds it, else above (scroll this group to the foot of the screen); a longer menu scrolls inside. " +
-                "Sort closes on a choice; filters stay open so choices combine.",
+                "It grows from the button's corner and leaves the same way. Sort closes on a choice and applies once " +
+                "the menu has gone; filters stay open so choices combine, and an active one lights the detail.",
             style = Hl.type.caption,
             color = Hl.colors.contentTertiary,
             modifier = Modifier.weight(1f),
@@ -235,9 +258,10 @@ private fun FormMenus() {
 private fun FormSortMenu() {
     var sort by remember { mutableIntStateOf(1) }
     HlMenuButton(
-        text = FORM_SORTS[sort],
+        text = "Trier",
         icon = HlIcons.Sort,
-        sections = listOf(MenuSection("Trier par", FORM_SORTS.mapIndexed { i, label -> MenuOption(label, sort == i) { sort = i } })),
+        detail = FORM_SORTS[sort],
+        sections = listOf(MenuSection(null, FORM_SORT_ORDERS.mapIndexed { i, label -> MenuOption(label, sort == i) { sort = i } })),
     )
 }
 
@@ -285,7 +309,7 @@ private fun FormFilterMenu(initial: FormFilters) {
         icon = HlIcons.Filter,
         sections = sections,
         detail = detail,
-        emphasis = if (f.active > 0) Emphasis.Primary else Emphasis.Secondary,
+        detailLit = f.active > 0,
         closeOnSelect = false,
     )
 }
@@ -337,6 +361,9 @@ private fun FormReading(paragraphs: List<String>) {
 }
 
 private val FORM_SORTS = listOf("Titre", "Date d’ajout", "Année", "Note")
+
+private val FORM_SORT_ORDERS =
+    listOf("Titre, de A à Z", "Date d’ajout, récents d’abord", "Année, récents d’abord", "Note, meilleures d’abord")
 
 private val FORM_STATUSES = listOf("Tous", "Non vus", "En cours", "Vus", "Favoris")
 

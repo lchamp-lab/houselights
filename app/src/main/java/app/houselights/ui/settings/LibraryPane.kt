@@ -31,6 +31,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.tv.material3.Text
@@ -43,6 +44,7 @@ import app.houselights.providers.local.ScanError
 import app.houselights.providers.local.SourceEntity
 import app.houselights.providers.local.SourceKind
 import app.houselights.providers.local.TmdbClient.Companion.ImageType
+import app.houselights.providers.local.TmdbKeyCheck
 import app.houselights.providers.local.address
 import app.houselights.settings.AppSettings
 import app.houselights.ui.design.Hl
@@ -66,7 +68,10 @@ import app.houselights.ui.design.components.PosterThumb
 import app.houselights.ui.design.components.HlPanelButton
 import app.houselights.ui.design.components.HlSettingGroup
 import app.houselights.ui.design.components.HlSettingRow
+import app.houselights.ui.design.components.HlStatus
 import app.houselights.ui.design.components.HlTextField
+import app.houselights.ui.design.components.SheetConfirm
+import app.houselights.ui.design.components.StatusState
 import app.houselights.ui.design.components.ProgressLine
 import app.houselights.ui.design.revealOnFocus
 import app.houselights.ui.util.scanErrorText
@@ -177,17 +182,14 @@ private fun Sources(addFolder: FocusRequester) {
 
 /**
  * What can be done with a watched folder, beside the list: scan it now, or remove it, which asks
- * first, in the sheet itself, with focus on Cancel.
+ * first, in the sheet itself ([SheetConfirm]).
  */
 @Composable
 private fun SourceActions(source: SourceEntity, onDismiss: () -> Unit, onRemove: () -> Unit) {
     val vm = settingsViewModel()
     val posters by remember(source.id) { vm.library.latestPosters(source, HEADER_POSTERS) }.collectAsStateWithLifecycle(emptyList())
     val kind = stringResource(if (source.kind == SourceKind.MOVIES) R.string.library_movies else R.string.library_shows)
-    var confirming by remember { mutableStateOf(false) }
-    var backFromConfirm by remember { mutableStateOf(false) }
     val scan = remember { FocusRequester() }
-    val remove = remember { FocusRequester() }
     HlSideSheet(
         title = sourceName(source),
         onDismiss = onDismiss,
@@ -196,34 +198,29 @@ private fun SourceActions(source: SourceEntity, onDismiss: () -> Unit, onRemove:
         artwork = if (posters.isEmpty()) null else ({ PosterFan(posters) }),
         initialFocus = scan,
     ) { sheet ->
-        if (!confirming) {
-            LaunchedEffect(backFromConfirm) { if (backFromConfirm) runCatching { remove.requestFocus() } }
+        SheetConfirm(
+            question = stringResource(R.string.remove_folder_confirm, sourceName(source)),
+            consequence = stringResource(R.string.remove_folder_desc),
+            confirm = stringResource(R.string.remove),
+            onConfirm = { sheet.dismiss(onRemove) },
+        ) { ask, origin ->
+            // Every action says what it does, in one line: the rows keep one height.
             HlSettingRow(
                 stringResource(R.string.scan_now),
+                Modifier.focusRequester(scan),
+                description = stringResource(R.string.scan_now_desc),
                 onClick = { sheet.dismiss { vm.library.scan() } },
                 chevron = false,
-                modifier = Modifier.focusRequester(scan),
             )
             Spacer(Modifier.height(HlSpace.s))
             HlDivider()
             Spacer(Modifier.height(HlSpace.s))
             HlSettingRow(
                 stringResource(R.string.remove_folder),
-                description = stringResource(R.string.remove_folder_desc),
-                onClick = { confirming = true },
+                origin,
+                description = stringResource(R.string.remove_folder_row_desc),
+                onClick = ask,
                 chevron = false,
-                modifier = Modifier.focusRequester(remove),
-            )
-        } else {
-            Confirm(
-                question = stringResource(R.string.remove_folder_confirm, sourceName(source)),
-                consequence = stringResource(R.string.remove_folder_desc),
-                action = stringResource(R.string.remove),
-                onCancel = {
-                    confirming = false
-                    backFromConfirm = true
-                },
-                onConfirm = { sheet.dismiss(onRemove) },
             )
         }
     }
@@ -376,7 +373,7 @@ private fun LibraryActions(
         CollectionsRow()
         SourceRow(onUseFolders, onSignIn, rows.focus(SOURCE))
     }
-    if (editKey) TmdbKeyDialog(onDismiss = { editKey = false })
+    if (editKey) TmdbKeySheet(onDismiss = { editKey = false })
 }
 
 /** When a saga shows as a collection: from two films (default), always, or never. */
@@ -456,8 +453,6 @@ private fun SourceSheet(source: SourceConfig?, onDismiss: () -> Unit, onUseFolde
     val vm = settingsViewModel()
     val folders by vm.library.folders.collectAsStateWithLifecycle(emptyList())
     val server = source as? SourceConfig.Jellyfin
-    var confirming by remember { mutableStateOf(false) }
-    var backFromConfirm by remember { mutableStateOf(false) }
     val local = remember { FocusRequester() }
     val jellyfin = remember { FocusRequester() }
     val serverName = server?.serverName ?: stringResource(R.string.source_jellyfin)
@@ -469,44 +464,37 @@ private fun SourceSheet(source: SourceConfig?, onDismiss: () -> Unit, onUseFolde
         description = stringResource(sourceKeeps(source)),
         initialFocus = if (server != null) jellyfin else local,
     ) { sheet ->
-        if (confirming) {
-            Confirm(
-                question = stringResource(R.string.sign_out_confirm, serverName),
-                consequence = stringResource(if (folders.isEmpty()) R.string.sign_out_first_folder else R.string.sign_out_desc),
-                action = stringResource(R.string.sign_out),
-                onCancel = {
-                    confirming = false
-                    backFromConfirm = true
+        SheetConfirm(
+            question = stringResource(R.string.sign_out_confirm, serverName),
+            consequence = stringResource(if (folders.isEmpty()) R.string.sign_out_first_folder else R.string.sign_out_desc),
+            confirm = stringResource(R.string.sign_out),
+            onConfirm = onUseFolders,
+        ) { ask, origin ->
+            HlSettingRow(
+                stringResource(R.string.source_local),
+                origin.focusRequester(local),
+                description = foldersLine(folders.size),
+                icon = HlIcons.Folder,
+                onClick = {
+                    when {
+                        source is SourceConfig.Jellyfin -> ask()
+                        source == SourceConfig.Local && folders.isNotEmpty() -> sheet.dismiss()
+                        else -> onUseFolders()
+                    }
                 },
-                onConfirm = onUseFolders,
+                chevron = false,
+                trailing = if (source == SourceConfig.Local) ({ ChoiceCheck() }) else null,
             )
-            return@HlSideSheet
+            HlSettingRow(
+                stringResource(R.string.source_jellyfin),
+                Modifier.focusRequester(jellyfin),
+                description = stringResource(if (server != null) R.string.source_jellyfin_other else R.string.source_jellyfin_desc),
+                icon = HlIcons.Server,
+                onClick = onSignIn,
+                chevron = false,
+                trailing = if (server != null) ({ ChoiceCheck() }) else null,
+            )
         }
-        LaunchedEffect(backFromConfirm) { if (backFromConfirm) runCatching { local.requestFocus() } }
-        HlSettingRow(
-            stringResource(R.string.source_local),
-            description = foldersLine(folders.size),
-            icon = HlIcons.Folder,
-            onClick = {
-                when {
-                    source is SourceConfig.Jellyfin -> confirming = true
-                    source == SourceConfig.Local && folders.isNotEmpty() -> sheet.dismiss()
-                    else -> onUseFolders()
-                }
-            },
-            chevron = false,
-            trailing = if (source == SourceConfig.Local) ({ ChoiceCheck() }) else null,
-            modifier = Modifier.focusRequester(local),
-        )
-        HlSettingRow(
-            stringResource(R.string.source_jellyfin),
-            description = stringResource(if (server != null) R.string.source_jellyfin_other else R.string.source_jellyfin_desc),
-            icon = HlIcons.Server,
-            onClick = onSignIn,
-            chevron = false,
-            trailing = if (server != null) ({ ChoiceCheck() }) else null,
-            modifier = Modifier.focusRequester(jellyfin),
-        )
     }
 }
 
@@ -531,35 +519,103 @@ private fun PlusIcon() {
     androidx.tv.material3.Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.width(HlSize.icon))
 }
 
+/**
+ * The TMDB key: the one in use, at the head; a field for a personal key, checked with TMDB when
+ * saved (a key TMDB refuses is not kept); once there is one, the way back to the built-in key.
+ */
 @Composable
-private fun TmdbKeyDialog(onDismiss: () -> Unit) {
+private fun TmdbKeySheet(onDismiss: () -> Unit) {
     val vm = settingsViewModel()
     val s by vm.settings.collectAsStateWithLifecycle()
     var key by remember { mutableStateOf(s.tmdbApiKey ?: "") }
+    var checking by remember { mutableStateOf(false) }
+    var refused by remember { mutableStateOf(false) }
+    var unchecked by remember { mutableStateOf(false) }
     val field = remember { FocusRequester() }
     val hasBuiltIn = BuildConfig.TMDB_API_KEY.isNotBlank()
+    val personal = s.tmdbApiKey != null
     HlSideSheet(
         stringResource(R.string.tmdb_key),
         onDismiss,
         description = stringResource(R.string.tmdb_desc),
         initialFocus = field,
+        status = { TmdbKeyStatus(personal, hasBuiltIn, unchecked) },
     ) { sheet ->
-        HlTextField("", key, { key = it }, password = true, modifier = Modifier.fillMaxWidth().focusRequester(field))
-        Spacer(Modifier.height(HlSpace.s))
-        Text(
-            stringResource(if (hasBuiltIn) R.string.tmdb_key_builtin else R.string.tmdb_key_missing),
-            style = Hl.type.detail,
-            color = if (hasBuiltIn) Hl.colors.contentSecondary else Hl.colors.tungsten,
+        fun save() {
+            if (checking) return
+            checking = true
+            vm.saveTmdbApiKey(key) { check ->
+                checking = false
+                when (check) {
+                    TmdbKeyCheck.ACCEPTED -> sheet.dismiss()
+                    TmdbKeyCheck.REFUSED -> {
+                        refused = true
+                        runCatching { field.requestFocus() }
+                    }
+                    // Saved all the same: the sheet stays to say it could not be checked.
+                    TmdbKeyCheck.UNCHECKED -> unchecked = true
+                }
+            }
+        }
+        // The sheet already names the key: the field's label is only read out.
+        HlTextField(
+            stringResource(R.string.tmdb_key_personal),
+            key,
+            {
+                key = it
+                refused = false
+            },
+            Modifier.fillMaxWidth().focusRequester(field),
+            placeholder = stringResource(R.string.tmdb_key_personal),
+            showLabel = false,
+            supporting = stringResource(if (hasBuiltIn) R.string.tmdb_key_builtin else R.string.tmdb_key_free),
+            error = if (refused) stringResource(R.string.error_tmdb_key_refused_title) else null,
+            password = true,
+            imeAction = ImeAction.Done,
+            onImeAction = ::save,
         )
         Spacer(Modifier.height(HlSpace.l))
         HlButton(
             stringResource(R.string.save),
-            { vm.setTmdbApiKey(key) { sheet.dismiss() } },
+            onClick = ::save,
             icon = Icons.Filled.Check,
             emphasis = Emphasis.Primary,
+            busy = checking,
+            busyLabel = stringResource(R.string.checking),
+        )
+        if (personal && hasBuiltIn) {
+            Spacer(Modifier.height(HlSpace.l))
+            HlSettingRow(
+                stringResource(R.string.tmdb_key_revert),
+                description = stringResource(R.string.tmdb_key_revert_desc),
+                onClick = { vm.saveTmdbApiKey("") { sheet.dismiss() } },
+                chevron = false,
+            )
+        }
+    }
+}
+
+/**
+ * The key in use, at the head of its sheet: the user's own (said unchecked when TMDB could not be
+ * asked), the built-in one, or none, which calls for attention.
+ */
+@Composable
+private fun TmdbKeyStatus(personal: Boolean, hasBuiltIn: Boolean, unchecked: Boolean) {
+    when {
+        personal -> HlStatus(
+            StatusState.On,
+            stringResource(R.string.tmdb_key_personal),
+            detail = if (unchecked) stringResource(R.string.tmdb_key_unchecked) else null,
+        )
+        hasBuiltIn -> HlStatus(StatusState.On, stringResource(R.string.tmdb_key_builtin_state))
+        else -> HlStatus(
+            StatusState.Attention,
+            stringResource(R.string.tmdb_key_none),
+            detail = stringResource(R.string.tmdb_key_none_desc),
         )
     }
 }
+
 /** Posters in a source card's strip. */
 private const val STRIP = 6
 

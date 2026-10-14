@@ -44,6 +44,7 @@ import app.houselights.ui.design.components.BackdropStyle
 import app.houselights.ui.design.components.Emphasis
 import app.houselights.ui.design.components.FactRow
 import app.houselights.ui.design.components.HlButton
+import app.houselights.ui.design.components.HlDivider
 import app.houselights.ui.design.components.HlEmptyState
 import app.houselights.ui.design.components.HlIconButton
 import app.houselights.ui.design.components.HlIconDisc
@@ -59,12 +60,15 @@ import app.houselights.ui.design.components.HlSettingGroup
 import app.houselights.ui.design.components.HlSettingRow
 import app.houselights.ui.design.components.HlSideSheet
 import app.houselights.ui.design.components.HlStatus
+import app.houselights.ui.design.components.HlTextField
 import app.houselights.ui.design.components.MeterLegend
 import app.houselights.ui.design.components.MeterSegment
 import app.houselights.ui.design.components.PanelLevel
 import app.houselights.ui.design.components.ScreenTitle
+import app.houselights.ui.design.components.SheetConfirm
 import app.houselights.ui.design.components.StatusState
 import app.houselights.ui.design.components.Wordmark
+import kotlinx.coroutines.delay
 
 /**
  * Every token and component of the design system in its states, for review on a real screen.
@@ -123,6 +127,7 @@ fun CatalogScreen() {
                         HlButton("Secondary", {})
                         HlIconButton(HlIcons.Info, "Icon button", {})
                     }
+                    ControlStates()
                     var place by remember { mutableIntStateOf(0) }
                     var season by remember { mutableIntStateOf(2) }
                     HlSegmented(listOf("Accueil", "Films", "Séries"), selected = place, onSelect = { place = it })
@@ -196,10 +201,16 @@ fun CatalogScreen() {
                 Group("Sheets") {
                     var side by remember { mutableStateOf(false) }
                     var reading by remember { mutableStateOf(false) }
+                    var asking by remember { mutableStateOf(false) }
+                    var keyed by remember { mutableStateOf(false) }
                     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.s)) {
                         HlButton("Side sheet", { side = true })
                         HlButton("Reading sheet", { reading = true })
+                        HlButton("An action that asks first", { asking = true })
+                        HlButton("A status, a field", { keyed = true })
                     }
+                    if (asking) SheetQuestion(onDismiss = { asking = false })
+                    if (keyed) SheetStatusField(onDismiss = { keyed = false })
                     if (side) {
                         HlSideSheet(
                             "Modifier",
@@ -307,6 +318,120 @@ fun CatalogScreen() {
         }
     }
 }
+
+/** Buttons, round buttons and setting rows in their states, each named underneath. */
+@Composable
+private fun ControlStates() {
+    Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Top) {
+        ControlCase("detail lit: a state it names") { HlButton("Filtrer", {}, icon = HlIcons.Filter, detail = "Non vus", detailLit = true) }
+        ControlCase("disabled: focus outlines it") { HlButton("Ajouter", {}, icon = HlIcons.Folder, enabled = false) }
+        ControlCase("busy: the screen's words") {
+            HlButton("Tester", {}, icon = HlIcons.Restart, busy = true, busyLabel = "Vérification…")
+        }
+    }
+    Row(
+        Modifier.padding(bottom = HlLayout.iconLabelRoom),
+        horizontalArrangement = Arrangement.spacedBy(HlSpace.m),
+        verticalAlignment = Alignment.Top,
+    ) {
+        var busy by remember { mutableStateOf(false) }
+        LaunchedEffect(busy) {
+            if (busy) {
+                delay(CATALOG_BUSY_MS)
+                busy = false
+            }
+        }
+        ControlCase("OK: busy for 3 s, its width kept") {
+            HlButton("Se connecter", { busy = true }, emphasis = Emphasis.Primary, busy = busy, busyLabel = "Connexion…")
+        }
+        ControlCase("round, disabled") { HlIconButton(HlIcons.Edit, "Modifier", {}, enabled = false) }
+    }
+    ControlCase("a label longer than a reading column stops with an ellipsis") {
+        HlButton("Ajouter « Le Seigneur des anneaux : la Communauté de l’anneau, version longue » à vos favoris", {})
+    }
+    Column(Modifier.widthIn(max = HlLayout.readable)) {
+        ControlCase("setting row, disabled: tertiary words, focus outlines it; never in a raised sheet") {
+            HlSettingRow("Analyser maintenant", description = "Aucun dossier à analyser", onClick = {}, chevron = false, enabled = false)
+        }
+    }
+}
+
+/** One state of a control, named underneath. */
+@Composable
+private fun ControlCase(caption: String, content: @Composable () -> Unit) {
+    Column {
+        content()
+        Spacer(Modifier.height(HlSpace.xs))
+        Text(caption, style = Hl.type.caption, color = Hl.colors.contentTertiary)
+    }
+}
+
+/** A folder's sheet: removing it asks first, in the sheet, with focus on Cancel. */
+@Composable
+private fun SheetQuestion(onDismiss: () -> Unit) {
+    HlSideSheet(
+        "Films",
+        onDismiss = onDismiss,
+        facts = listOf("NFS"),
+        description = "192.168.1.10/volume1/media/films",
+    ) { sheet ->
+        SheetConfirm(
+            question = "Retirer « Films » ?",
+            consequence = "Ses titres quittent la bibliothèque ; rien n’est supprimé sur le NAS.",
+            confirm = "Retirer",
+            onConfirm = { sheet.dismiss() },
+        ) { ask, origin ->
+            HlSettingRow(
+                "Analyser maintenant",
+                description = "Cherche les nouveaux fichiers",
+                onClick = { sheet.dismiss() },
+                chevron = false,
+            )
+            Spacer(Modifier.height(HlSpace.s))
+            HlDivider()
+            Spacer(Modifier.height(HlSpace.s))
+            HlSettingRow("Retirer ce dossier", origin, description = "Ses titres quittent la bibliothèque", onClick = ask, chevron = false)
+        }
+    }
+}
+
+/** Where a setting stands, at the head of its sheet; then a field and the action that checks it. */
+@Composable
+private fun SheetStatusField(onDismiss: () -> Unit) {
+    var key by remember { mutableStateOf("0123456789abcdef0123456789abcdef") }
+    var checking by remember { mutableStateOf(false) }
+    var refused by remember { mutableStateOf(false) }
+    LaunchedEffect(checking) {
+        if (checking) {
+            delay(CATALOG_BUSY_MS)
+            checking = false
+            refused = true
+        }
+    }
+    HlSideSheet(
+        "Clé API TMDB",
+        onDismiss = onDismiss,
+        description = "Les affiches et les informations proviennent de TMDB.",
+        status = { HlStatus(StatusState.On, "Clé intégrée") },
+    ) {
+        HlTextField(
+            "Clé personnelle", key, {
+                key = it
+                refused = false
+            },
+            placeholder = "Clé personnelle",
+            showLabel = false,
+            supporting = "Laissez vide pour utiliser la clé intégrée à l’application.",
+            error = if (refused) "TMDB refuse cette clé" else null,
+            password = true,
+        )
+        Spacer(Modifier.height(HlSpace.l))
+        HlButton("Enregistrer", { checking = true }, emphasis = Emphasis.Primary, busy = checking, busyLabel = "Vérification…")
+    }
+}
+
+/** How long the catalogue's busy buttons work before they give their answer. */
+private const val CATALOG_BUSY_MS = 3_000L
 
 @Composable
 private fun Swatch(name: String, color: Color) {

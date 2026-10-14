@@ -10,7 +10,10 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -112,18 +115,19 @@ fun AddFolderScreen(onAdded: (switched: Boolean) -> Unit) {
         }
         HlTextField(
             stringResource(R.string.field_host), form.host, { v -> vm.edit { copy(host = v) } },
-            placeholder = "192.168.1.10", keyboardType = KeyboardType.Uri,
+            placeholder = stringResource(R.string.placeholder_host), keyboardType = KeyboardType.Uri,
         )
         Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.s)) {
             HlTextField(
                 stringResource(if (protocol == Protocol.NFS) R.string.field_export else R.string.field_share),
                 form.share, { v -> vm.edit { copy(share = v) } },
-                placeholder = if (protocol == Protocol.NFS) "/volume1/media" else "media",
+                placeholder = stringResource(shareExample(protocol)),
                 modifier = Modifier.weight(1f),
             )
             HlTextField(
                 stringResource(R.string.field_path), form.path, { v -> vm.edit { copy(path = v) } },
-                placeholder = if (kind == SourceKind.SHOWS) "series" else "films", modifier = Modifier.weight(1f),
+                placeholder = stringResource(pathExample(kind)),
+                modifier = Modifier.weight(1f),
             )
         }
         if (protocol == Protocol.SMB) {
@@ -138,12 +142,54 @@ fun AddFolderScreen(onAdded: (switched: Boolean) -> Unit) {
                 )
             }
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.s)) {
-            HlButton(stringResource(R.string.add), { vm.add(onAdded) }, icon = Icons.Filled.Add, emphasis = Emphasis.Primary)
-            HlButton(stringResource(R.string.test_connection), { vm.test() }, icon = Icons.Filled.Refresh)
-        }
+        FolderActions(vm, onAdded)
     }
 }
+
+/**
+ * Add, and Test. Both test the folder first: the one pressed says so while the check runs, the
+ * other waits.
+ */
+@Composable
+private fun FolderActions(vm: AddFolderViewModel, onAdded: (switched: Boolean) -> Unit) {
+    // Which button started the check under way.
+    var adding by remember { mutableStateOf(false) }
+    val checking = stringResource(R.string.checking)
+    val busy = vm.busy
+    Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.s)) {
+        HlButton(
+            stringResource(R.string.add),
+            {
+                adding = true
+                vm.add(onAdded)
+            },
+            icon = Icons.Filled.Add,
+            emphasis = Emphasis.Primary,
+            enabled = adding || !busy,
+            busy = busy && adding,
+            busyLabel = checking,
+        )
+        HlButton(
+            stringResource(R.string.test_connection),
+            {
+                adding = false
+                vm.test()
+            },
+            icon = Icons.Filled.Refresh,
+            enabled = !adding || !busy,
+            busy = busy && !adding,
+            busyLabel = checking,
+        )
+    }
+}
+
+/** An example of the share, by protocol. */
+private fun shareExample(protocol: Protocol): Int =
+    if (protocol == Protocol.NFS) R.string.placeholder_export else R.string.placeholder_share
+
+/** An example of the folder inside the share, by what it holds. */
+private fun pathExample(kind: SourceKind): Int =
+    if (kind == SourceKind.SHOWS) R.string.placeholder_path_shows else R.string.placeholder_path_movies
 
 /** Where the connection to the folder stands, and how to say it. */
 private fun connectionState(check: FolderCheck?, busy: Boolean): Pair<StatusState, Int> = when {

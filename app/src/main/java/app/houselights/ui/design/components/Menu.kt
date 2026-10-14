@@ -32,6 +32,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.boundsInRoot
@@ -56,6 +58,7 @@ import androidx.tv.material3.Text
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlInset
 import app.houselights.ui.design.HlLayout
+import app.houselights.ui.design.HlMotion
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
@@ -68,9 +71,12 @@ data class MenuSection(val title: String?, val options: List<MenuOption>)
 /**
  * A button that opens a small menu of exclusive options, grouped in sections, against its end
  * edge: below the button when the room down to the safe area holds it, else above. It never
- * leaves the safe area; a longer menu scrolls inside.
- * With [closeOnSelect] (sorting) a choice closes the menu; without it (filters) the menu
- * stays open so choices can be combined. Back always closes it.
+ * leaves the safe area; a longer menu scrolls inside. It grows from the button's corner and
+ * leaves the same way, with the motion of a sheet.
+ * With [closeOnSelect] (sorting) a choice closes the menu and applies once it has gone, so the
+ * change is seen on its own; without it (filters) the menu stays open so choices can be combined.
+ * Back always closes it. [detailLit] lights the button's detail at rest: it names a state (an
+ * active filter).
  */
 @Composable
 fun HlMenuButton(
@@ -80,6 +86,7 @@ fun HlMenuButton(
     modifier: Modifier = Modifier,
     detail: String? = null,
     emphasis: Emphasis = Emphasis.Secondary,
+    detailLit: Boolean = false,
     closeOnSelect: Boolean = true,
 ) {
     var open by remember { mutableStateOf(false) }
@@ -88,14 +95,15 @@ fun HlMenuButton(
     val density = LocalDensity.current
     val position = remember(density) { MenuPosition(density) }
     Box(modifier.onGloballyPositioned { room = position.room(it) }) {
-        HlButton(text, onClick = { open = true }, icon = icon, detail = detail, emphasis = emphasis)
+        HlButton(text, onClick = { open = true }, icon = icon, detail = detail, emphasis = emphasis, detailLit = detailLit)
         if (open) {
+            val motion = rememberSheetMotion(onDismiss = { open = false })
             Popup(
                 popupPositionProvider = position,
-                onDismissRequest = { open = false },
+                onDismissRequest = { motion.sheet.dismiss() },
                 properties = PopupProperties(focusable = true),
             ) {
-                MenuPanel(sections, maxHeight = with(density) { room.toDp() }, onDone = { if (closeOnSelect) open = false })
+                MenuPanel(sections, maxHeight = with(density) { room.toDp() }, motion, position, closeOnSelect)
             }
         }
     }
@@ -110,6 +118,10 @@ private class MenuPosition(density: Density) : PopupPositionProvider {
     private val gap = with(density) { HlSpace.xs.roundToPx() }
     private val safeH = with(density) { HlSpace.safeH.roundToPx() }
     private val safeV = with(density) { HlSpace.safeV.roundToPx() }
+
+    /** The corner of the button the menu grows from: the end one, below or above it. */
+    var origin by mutableStateOf(TransformOrigin(1f, 0f))
+        private set
 
     /** The larger of the rooms above and below the button, inside the safe area. */
     fun room(button: LayoutCoordinates): Int {
@@ -126,8 +138,12 @@ private class MenuPosition(density: Density) : PopupPositionProvider {
         popupContentSize: IntSize,
     ): IntOffset {
         val below = windowSize.height - safeV - anchorBounds.bottom - gap
-        val y = if (popupContentSize.height <= below) anchorBounds.bottom + gap else anchorBounds.top - gap - popupContentSize.height
-        val x = if (layoutDirection == LayoutDirection.Ltr) anchorBounds.right - popupContentSize.width else anchorBounds.left
+        val opensBelow = popupContentSize.height <= below
+        val y = if (opensBelow) anchorBounds.bottom + gap else anchorBounds.top - gap - popupContentSize.height
+        val ltr = layoutDirection == LayoutDirection.Ltr
+        val x = if (ltr) anchorBounds.right - popupContentSize.width else anchorBounds.left
+        val corner = TransformOrigin(if (ltr) 1f else 0f, if (opensBelow) 0f else 1f)
+        if (corner != origin) origin = corner
         return IntOffset(
             x.coerceIn(safeH, maxOf(safeH, windowSize.width - safeH - popupContentSize.width)),
             y.coerceIn(safeV, maxOf(safeV, windowSize.height - safeV - popupContentSize.height)),
@@ -136,12 +152,23 @@ private class MenuPosition(density: Density) : PopupPositionProvider {
 }
 
 @Composable
-private fun MenuPanel(sections: List<MenuSection>, maxHeight: Dp, onDone: () -> Unit) {
+private fun MenuPanel(sections: List<MenuSection>, maxHeight: Dp, motion: SheetMotion, position: MenuPosition, closeOnSelect: Boolean) {
     val c = Hl.colors
     val first = remember { FocusRequester() }
     LaunchedEffect(Unit) { runCatching { first.requestFocus() } }
     HlPanel(
-        Modifier.width(HlLayout.menuWidth).heightIn(max = maxHeight),
+        Modifier
+            .width(HlLayout.menuWidth)
+            .heightIn(max = maxHeight)
+            .stillWhileLeaving(motion)
+            .graphicsLayer {
+                val p = motion.progress
+                val scale = HlMotion.ENTER_SCALE + (1f - HlMotion.ENTER_SCALE) * p
+                alpha = p
+                scaleX = scale
+                scaleY = scale
+                transformOrigin = position.origin
+            },
         level = PanelLevel.Raised,
         padding = HlInset.tight,
         shape = HlShapes.sheet,
@@ -160,7 +187,9 @@ private fun MenuPanel(sections: List<MenuSection>, maxHeight: Dp, onDone: () -> 
             section.options.forEachIndexed { i, option ->
                 // Focus starts on the current choice of the first section.
                 val mod = if (s == 0 && i == initial) Modifier.focusRequester(first) else Modifier
-                MenuItem(option.label, option.selected, onClick = { option.onSelect(); onDone() }, modifier = mod)
+                // A choice that closes the menu applies once it has gone: the change is seen on its own.
+                val choose = if (closeOnSelect) ({ motion.sheet.dismiss(option.onSelect) }) else option.onSelect
+                MenuItem(option.label, option.selected, onClick = choose, modifier = mod)
             }
         }
         }
