@@ -24,7 +24,6 @@
         <item quantity="many">%d saisons</item>
     </plurals>
 
-    <string name="error_unreachable">Impossible de joindre la bibliothèque</string>
     <string name="retry">Réessayer</string>
     <string name="empty">Rien pour l’instant.</string>
     <plurals name="title_count">
@@ -271,12 +270,23 @@
     </plurals>
     <string name="identify_state_matched">Identifié</string>
     <string name="result_current">Actuel</string>
+    <string name="error_offline_title">Bibliothèque injoignable</string>
     <string name="error_offline">Le serveur ou le NAS ne répond pas. Vérifiez qu’il est allumé, puis réessayez.</string>
-    <string name="error_denied">Le serveur a refusé la connexion. Reconnectez-vous depuis les réglages.</string>
+    <string name="error_denied_title">Connexion refusée</string>
+    <string name="error_denied">Le serveur a refusé la connexion. Reconnectez-vous pour continuer.</string>
+    <string name="error_gone_title">Ce titre n’est plus là</string>
     <string name="error_gone">Ce titre n’est plus dans la bibliothèque.</string>
-    <string name="error_tmdb_offline">TMDB est injoignable. Vérifiez la connexion, puis réessayez.</string>
+    <string name="error_tmdb_offline_title">TMDB injoignable</string>
+    <string name="error_tmdb_offline">TMDB ne répond pas. Vérifiez la connexion à Internet, puis réessayez.</string>
+    <string name="error_no_tmdb_key_title">Clé TMDB manquante</string>
     <string name="error_no_tmdb_key">Ajoutez une clé TMDB dans les réglages pour rechercher et lister les images.</string>
-    <string name="error_failed">L’opération n’a pas abouti. Réessayez dans un instant.</string>
+    <string name="error_tmdb_key_refused_title">TMDB refuse cette clé</string>
+    <string name="error_tmdb_key_refused">TMDB n’accepte pas la clé enregistrée dans les réglages. Vérifiez-la, ou remplacez-la.</string>
+    <string name="error_failed_title">L’opération n’a pas abouti</string>
+    <string name="error_failed">Réessayez dans un instant.</string>
+    <string name="error_action_reconnect">Se reconnecter</string>
+    <string name="error_action_add_tmdb_key">Ajouter une clé</string>
+    <string name="error_action_edit_tmdb_key">Modifier la clé</string>
     <!-- Settings rows -->
     <string name="nav_version">Version %s</string>
     <string name="scan_running">Analyse %1$d sur %2$d</string>

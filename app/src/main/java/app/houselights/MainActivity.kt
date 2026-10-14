@@ -24,6 +24,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -35,6 +36,8 @@ import app.houselights.core.PlaybackPlan
 import app.houselights.core.SourceConfig
 import app.houselights.core.suspendRunCatching
 import app.houselights.player.PlaybackManager
+import app.houselights.ui.util.ErrorAction
+import app.houselights.ui.util.LocalErrorFix
 import app.houselights.ui.util.appContainer
 import coil.imageLoader
 import app.houselights.ui.design.HlMotion
@@ -98,15 +101,17 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             HouselightsTheme {
+                val nav = rememberNavController()
+                val fixError = remember(nav) { nav::fixError }
                 // One cue for the whole app; its steps (room, scrims, black) are in HouseLightCue.
                 val lights = animateFloatAsState(
                     if (lightsDown.value) 1f else 0f,
                     tween(HlMotion.DIM, easing = LinearEasing),
                     label = "houselights",
                 )
-                CompositionLocalProvider(LocalHouseLights provides { lights.value }) {
+                CompositionLocalProvider(LocalHouseLights provides { lights.value }, LocalErrorFix provides fixError) {
                     Box(Modifier.fillMaxSize().background(HouselightsColors.background)) {
-                        AppNavigation(onPlay = ::play)
+                        AppNavigation(nav, onPlay = ::play)
                         HouseLights()
                     }
                 }
@@ -171,12 +176,11 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-private fun AppNavigation(onPlay: (MediaItem, Boolean) -> Unit) {
+private fun AppNavigation(nav: NavHostController, onPlay: (MediaItem, Boolean) -> Unit) {
     val app = appContainer()
     val settings by app.settings.state.collectAsStateWithLifecycle()
     if (!settings.loaded) return
 
-    val nav = rememberNavController()
     val scope = rememberCoroutineScope()
     val start: Any = remember { if (settings.source != null) Route.Home else Route.Welcome }
 
@@ -252,6 +256,13 @@ private fun AppNavigation(onPlay: (MediaItem, Boolean) -> Unit) {
         // Debug builds only: every component in its states, for design review.
         if (BuildConfig.DEBUG) composable<Route.Catalog> { CatalogScreen() }
     }
+}
+
+/** What fixes an error, when it is not trying again (each screen does that itself): where it is fixed. */
+private fun NavHostController.fixError(action: ErrorAction) = when (action) {
+    ErrorAction.RECONNECT -> navigate(Route.JellyfinLogin)
+    ErrorAction.ADD_TMDB_KEY, ErrorAction.EDIT_TMDB_KEY -> navigate(Route.Settings)
+    ErrorAction.RETRY -> Unit
 }
 
 /** Coming back to the app looks for new files, unless a scan ended this recently. */

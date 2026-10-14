@@ -164,7 +164,7 @@ without the prefix (`MenuOption`, `MeterLegend`, `PosterCard`, `BillingBlock`, `
 | `HlScrollArea` | long content read with the remote; focusable only when it has something to scroll |
 | `TechSpecs`, `InfoBlock`, `DefinitionList` | the technical sheet, set like the back of a Blu-ray case: one block per subject (a hairline, its name, what it says); the NFO is laid out the same way |
 | `ArtworkChoiceCard`, `SelectedMark` | one artwork to choose from, at the shape it is used in |
-| `HlEmptyState` | what happened and what to do, with the action focused |
+| `HlEmptyState` | what happened and what to do, with the action focused; a quieter way out beside it; with no action, the Back hint. An error (`UiError`) brings its own title, message and action (`ErrorAction`): try again on the spot, sign in again, add or change the TMDB key; a title that has gone has none, Back is the way out |
 | `PosterWall`, `PosterWallScrim`, `HouseLights`, `CardSkeleton`, `ProgressLine` | welcome wall, playback cue, loading and progress |
 
 ## Cards

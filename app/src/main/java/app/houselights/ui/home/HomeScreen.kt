@@ -68,6 +68,8 @@ import app.houselights.ui.util.ReloadOnLibraryChange
 import app.houselights.ui.util.appContainer
 import app.houselights.ui.util.libraryName
 import app.houselights.ui.util.sectionTitle
+import app.houselights.ui.util.ErrorAction
+import app.houselights.ui.util.LocalErrorFix
 import app.houselights.ui.util.UiError
 import kotlinx.coroutines.delay
 
@@ -224,16 +226,23 @@ private fun Message(text: String, action: String? = null, onAction: () -> Unit =
     )
 }
 
-/** The library could not be read: what happened, and a way to try again. */
+/**
+ * A screen could not load: what happened, what to check, and what fixes it. Trying again is the
+ * screen's own [onRetry]; the other actions lead where the problem is fixed ([LocalErrorFix]). An
+ * error no action fixes leaves the way out to Back.
+ */
 @Composable
 fun ErrorMessage(error: UiError, onRetry: () -> Unit) {
+    val action = error.action
+    val fix = LocalErrorFix.current
     HlEmptyState(
         stringResource(error.message),
         Modifier.padding(start = HlSpace.safeH, top = HlSpace.l),
-        title = stringResource(R.string.error_unreachable),
-        action = stringResource(R.string.retry),
-        actionIcon = Icons.Filled.Refresh,
-        onAction = onRetry,
+        title = stringResource(error.title),
+        action = action?.let { stringResource(it.label) },
+        actionIcon = Icons.Filled.Refresh.takeIf { action == ErrorAction.RETRY },
+        onAction = { if (action == ErrorAction.RETRY) onRetry() else action?.let(fix) },
+        backHint = action == null,
     )
 }
 

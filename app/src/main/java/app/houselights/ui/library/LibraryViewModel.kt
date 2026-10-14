@@ -44,6 +44,9 @@ class LibraryViewModel(private val app: AppContainer, private val library: Libra
         loadFacets()
     }
 
+    /** After a failure: load again from the first page. */
+    fun retry() = reset()
+
     fun setSort(sort: SortOption) {
         if (sort == _state.value.sort) return
         _state.update { it.copy(sort = sort) }

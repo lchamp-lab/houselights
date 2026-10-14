@@ -69,6 +69,8 @@ import app.houselights.ui.design.components.MetaLine
 import app.houselights.ui.design.components.PosterCard
 import app.houselights.ui.design.components.ScreenTitle
 import app.houselights.ui.design.components.rememberAmbientColor
+import app.houselights.ui.design.components.HlEmptyState
+import app.houselights.ui.home.ErrorMessage
 import app.houselights.ui.util.ReloadOnLibraryChange
 import app.houselights.ui.util.appContainer
 import kotlinx.coroutines.delay
@@ -186,11 +188,10 @@ fun LibraryScreen(
                         Spacer(Modifier.height(HlSpace.l))
                         HlButton(stringResource(R.string.reset_filters), { vm.setFilter(LibraryFilter()) }, icon = HlIcons.Filter)
                     }
-                    state.items.isEmpty() -> Text(
-                        state.error?.let { stringResource(it.message) } ?: stringResource(R.string.empty),
-                        style = Hl.type.body,
-                        color = Hl.colors.contentSecondary,
-                        modifier = Modifier.padding(HlSpace.safeH),
+                    state.items.isEmpty() && state.error != null -> ErrorMessage(state.error!!, vm::retry)
+                    state.items.isEmpty() -> HlEmptyState(
+                        stringResource(R.string.empty),
+                        Modifier.padding(start = HlSpace.safeH, top = HlSpace.l),
                     )
                     else -> CompositionLocalProvider(LocalGroupFocused provides gridHasFocus) { LazyVerticalGrid(
                         columns = GridCells.Fixed(COLUMNS),

@@ -166,7 +166,8 @@ fun FactRow(
 
 /**
  * What a screen says when it has nothing to show or could not load: a sentence that says what
- * happened, and the action that fixes it, focused.
+ * happened, and the action that fixes it, focused. [secondaryAction] is a quieter way out beside it
+ * (where to look more closely). With no action, [backHint] says that Back is the way out.
  */
 @Composable
 fun HlEmptyState(
@@ -176,6 +177,9 @@ fun HlEmptyState(
     action: String? = null,
     actionIcon: ImageVector? = null,
     onAction: () -> Unit = {},
+    secondaryAction: String? = null,
+    onSecondaryAction: () -> Unit = {},
+    backHint: Boolean = false,
 ) {
     val focus = remember { FocusRequester() }
     LaunchedEffect(action != null) { if (action != null) runCatching { focus.requestFocus() } }
@@ -187,7 +191,13 @@ fun HlEmptyState(
         Text(message, style = Hl.type.body, color = Hl.colors.contentSecondary)
         if (action != null) {
             Spacer(Modifier.height(HlSpace.l))
-            HlButton(action, onAction, Modifier.focusRequester(focus), icon = actionIcon, emphasis = Emphasis.Primary)
+            Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.s)) {
+                HlButton(action, onAction, Modifier.focusRequester(focus), icon = actionIcon, emphasis = Emphasis.Primary)
+                if (secondaryAction != null) HlButton(secondaryAction, onSecondaryAction)
+            }
+        } else if (backHint) {
+            Spacer(Modifier.height(HlSpace.l))
+            BackHint()
         }
     }
 }

@@ -169,7 +169,21 @@ fun CatalogScreen() {
                         }
                     }
                     HlListItem("List item", "Its description", {}, icon = HlIcons.Folder)
-                    HlEmptyState("What happened, and what to do about it.", title = "Empty or error state", action = "Try again")
+                    Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.xl)) {
+                        HlEmptyState(
+                            "What happened, and what to do about it.",
+                            Modifier.weight(1f),
+                            title = "Empty or error state",
+                            action = "Try again",
+                            secondaryAction = "Look closer",
+                        )
+                        HlEmptyState(
+                            "Nothing fixes it here: Back is the way out.",
+                            Modifier.weight(1f),
+                            title = "No action",
+                            backHint = true,
+                        )
+                    }
                 }
             }
 
