@@ -58,6 +58,7 @@ import app.houselights.ui.design.components.MetaLine
 import app.houselights.ui.design.components.ScreenTitle
 import app.houselights.ui.design.components.TitleArt
 import app.houselights.ui.design.components.rememberAmbientColor
+import app.houselights.ui.util.UiError
 import app.houselights.ui.util.appContainer
 import app.houselights.ui.util.FACT_GAP
 import app.houselights.ui.util.formatDimensions
@@ -217,7 +218,7 @@ private fun Skeletons(kind: ArtworkKind) {
 }
 
 @Composable
-private fun Problem(error: EditError, onRetry: () -> Unit) {
+private fun Problem(error: UiError, onRetry: () -> Unit) {
     HlEmptyState(
         stringResource(error.message),
         Modifier.padding(horizontal = HlSpace.safeH, vertical = HlSpace.xl),
@@ -244,9 +245,3 @@ private val ArtworkKind.cardWidth: Dp
 private val ArtworkKind.aspectRatio: Float
     get() = if (this == ArtworkKind.POSTER) 2f / 3f else 16f / 9f
 
-val EditError.message
-    get() = when (this) {
-        EditError.OFFLINE -> R.string.edit_error_offline
-        EditError.NO_KEY -> R.string.edit_error_no_key
-        EditError.FAILED -> R.string.edit_error_failed
-    }

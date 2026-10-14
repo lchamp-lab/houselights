@@ -90,7 +90,7 @@ fun IdentifyScreen(itemId: String, onDone: () -> Unit) {
             StatusPanel(
                 icon = HlIcons.Search,
                 label = stringResource(if (isShow) R.string.identify_folder else R.string.identify_file),
-                value = identity?.fileName ?: state.item?.title ?: "…",
+                value = identity?.fileName ?: state.item?.title ?: stringResource(R.string.placeholder_pending),
                 lit = identity?.current != null,
                 result = null,
                 resultIsError = false,

@@ -1,5 +1,8 @@
 <resources>
     <string name="app_name" translatable="false">Houselights</string>
+    <!-- Typographic placeholders: a value still coming, and one that isn't there. -->
+    <string name="placeholder_pending" translatable="false">…</string>
+    <string name="placeholder_none" translatable="false">–</string>
 
     <!-- Sources -->
     <string name="source_local">My files</string>
@@ -262,9 +265,12 @@
         <item quantity="other">%d results</item>
     </plurals>
     <string name="result_current">Current</string>
-    <string name="edit_error_offline">TMDB could not be reached. Check the connection, then try again.</string>
-    <string name="edit_error_no_key">Add a TMDB key in Settings to search and list images.</string>
-    <string name="edit_error_failed">This could not be done. Try again in a moment.</string>
+    <string name="error_offline">The server or the NAS doesn’t answer. Check that it is on, then try again.</string>
+    <string name="error_denied">The server refused the connection. Sign in again from Settings.</string>
+    <string name="error_gone">This title is no longer in the library.</string>
+    <string name="error_tmdb_offline">TMDB could not be reached. Check the connection, then try again.</string>
+    <string name="error_no_tmdb_key">Add a TMDB key in Settings to search and list images.</string>
+    <string name="error_failed">This could not be done. Try again in a moment.</string>
     <!-- Settings rows -->
     <string name="nav_version">Version %s</string>
     <string name="scan_running">Scanning %1$d of %2$d</string>

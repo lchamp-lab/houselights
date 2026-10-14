@@ -10,6 +10,8 @@ import app.houselights.core.LibraryFilter
 import app.houselights.core.MediaItem
 import app.houselights.core.SortOption
 import app.houselights.core.suspendRunCatching
+import app.houselights.ui.util.UiError
+import app.houselights.ui.util.toUiError
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -20,7 +22,7 @@ data class LibraryState(
     val items: List<MediaItem> = emptyList(),
     val total: Int = 0,
     val loading: Boolean = true,
-    val error: String? = null,
+    val error: UiError? = null,
     val sort: SortOption = SortOption.TITLE,
     val filter: LibraryFilter = LibraryFilter(),
     val facets: LibraryFacets = LibraryFacets(),
@@ -97,7 +99,8 @@ class LibraryViewModel(private val app: AppContainer, private val library: Libra
                 // A title added meanwhile can shift pages: never show one twice (the grid is keyed by id).
                 _state.update { it.copy(items = (it.items + page.items).distinctBy(MediaItem::id), total = page.total, loading = false) }
             }.onFailure { e ->
-                _state.update { it.copy(loading = false, error = e.message ?: e.javaClass.simpleName) }
+                Log.w(TAG, "Library page failed", e)
+                _state.update { it.copy(loading = false, error = e.toUiError()) }
             }
         }
     }

@@ -93,7 +93,7 @@ fun JellyfinLoginScreen(onLoggedIn: () -> Unit) {
             StatusPanel(
                 icon = HlIcons.Server,
                 label = stringResource(R.string.field_server),
-                value = server.ifBlank { "…" },
+                value = server.ifBlank { stringResource(R.string.placeholder_pending) },
                 lit = false,
                 result = error,
                 resultIsError = true,

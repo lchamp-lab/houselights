@@ -1,5 +1,6 @@
 package app.houselights.ui.edit
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import app.houselights.AppContainer
@@ -11,21 +12,17 @@ import app.houselights.core.MatchCandidate
 import app.houselights.core.MediaItem
 import app.houselights.core.MetadataEditor
 import app.houselights.core.suspendRunCatching
-import app.houselights.providers.local.NoTmdbKeyException
+import app.houselights.ui.util.UiError
+import app.houselights.ui.util.toUiError
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import java.io.IOException
 
-/** Why an edit could not be done, shown in words the user can act on. */
-enum class EditError { OFFLINE, NO_KEY, FAILED }
-
-private fun Throwable.toEditError() = when (this) {
-    is NoTmdbKeyException -> EditError.NO_KEY
-    is IOException -> EditError.OFFLINE
-    else -> EditError.FAILED
+private fun Throwable.reported(): UiError {
+    Log.w("Edit", "Edit failed", this)
+    return toUiError()
 }
 
 private fun AppContainer.editor(): MetadataEditor = provider.editor ?: error("This source cannot be edited")
@@ -33,7 +30,7 @@ private fun AppContainer.editor(): MetadataEditor = provider.editor ?: error("Th
 data class ArtworkState(
     val item: MediaItem? = null,
     val choices: ArtworkChoices? = null,
-    val error: EditError? = null,
+    val error: UiError? = null,
 )
 
 class ArtworkViewModel(private val app: AppContainer, private val itemId: String, private val kind: ArtworkKind) : ViewModel() {
@@ -51,7 +48,7 @@ class ArtworkViewModel(private val app: AppContainer, private val itemId: String
                 val item = app.provider.item(itemId)
                 ArtworkState(item, app.editor().artwork(item, kind))
             }.onSuccess { _state.value = it }
-                .onFailure { e -> _state.update { it.copy(error = e.toEditError()) } }
+                .onFailure { e -> _state.update { it.copy(error = e.reported()) } }
         }
     }
 
@@ -59,7 +56,7 @@ class ArtworkViewModel(private val app: AppContainer, private val itemId: String
     suspend fun choose(option: ArtworkOption): Boolean {
         val item = _state.value.item ?: return false
         return suspendRunCatching { app.editor().setArtwork(item, kind, option) }
-            .onFailure { e -> _state.update { it.copy(error = e.toEditError()) } }
+            .onFailure { e -> _state.update { it.copy(error = e.reported()) } }
             .isSuccess
     }
 }
@@ -73,7 +70,7 @@ data class IdentifyState(
     /** Null until a search has run. */
     val results: List<MatchCandidate>? = null,
     val identifying: Boolean = false,
-    val error: EditError? = null,
+    val error: UiError? = null,
 )
 
 class IdentifyViewModel(private val app: AppContainer, private val itemId: String) : ViewModel() {
@@ -89,8 +86,8 @@ class IdentifyViewModel(private val app: AppContainer, private val itemId: Strin
             }.onSuccess { (item, identity) ->
                 _state.update { it.copy(item = item, identity = identity, query = identity.query, year = identity.year?.toString() ?: "") }
                 // What automatic matching would search, so the right title is often one press away.
-                if (identity.canSearch) search() else _state.update { it.copy(error = EditError.NO_KEY) }
-            }.onFailure { e -> _state.update { it.copy(error = e.toEditError()) } }
+                if (identity.canSearch) search() else _state.update { it.copy(error = UiError.NO_TMDB_KEY) }
+            }.onFailure { e -> _state.update { it.copy(error = e.reported()) } }
         }
     }
 
@@ -106,7 +103,7 @@ class IdentifyViewModel(private val app: AppContainer, private val itemId: Strin
         search = viewModelScope.launch {
             suspendRunCatching { app.editor().search(item, s.query, s.year.toIntOrNull()) }
                 .onSuccess { results -> _state.update { it.copy(searching = false, results = results) } }
-                .onFailure { e -> _state.update { it.copy(searching = false, error = e.toEditError()) } }
+                .onFailure { e -> _state.update { it.copy(searching = false, error = e.reported()) } }
         }
     }
 
@@ -115,7 +112,7 @@ class IdentifyViewModel(private val app: AppContainer, private val itemId: Strin
         val item = _state.value.item ?: return false
         _state.update { it.copy(identifying = true, error = null) }
         return suspendRunCatching { app.editor().identify(item, candidate) }
-            .onFailure { e -> _state.update { it.copy(identifying = false, error = e.toEditError()) } }
+            .onFailure { e -> _state.update { it.copy(identifying = false, error = e.reported()) } }
             .isSuccess
     }
 }

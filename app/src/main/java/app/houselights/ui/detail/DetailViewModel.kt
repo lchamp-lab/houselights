@@ -1,5 +1,6 @@
 package app.houselights.ui.detail
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import app.houselights.AppContainer
@@ -7,6 +8,8 @@ import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
 import app.houselights.core.ProviderCapabilities
 import app.houselights.core.suspendRunCatching
+import app.houselights.ui.util.UiError
+import app.houselights.ui.util.toUiError
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -17,7 +20,7 @@ import kotlinx.coroutines.launch
 
 data class DetailState(
     val item: MediaItem? = null,
-    val error: String? = null,
+    val error: UiError? = null,
     val capabilities: ProviderCapabilities? = null,
     /** For a series: the episode "Play" starts. */
     val nextUp: MediaItem? = null,
@@ -73,7 +76,10 @@ class DetailViewModel(private val app: AppContainer, private val itemId: String)
                     DetailState(item = item, capabilities = provider.capabilities, similar = similarFilms, collection = collection, collectionFilms = saga)
                 }
             } }.onSuccess { loaded -> _state.value = loaded.copy(canEdit = loaded.item?.let { app.provider.editor?.canEdit(it) } == true) }
-                .onFailure { e -> _state.update { it.copy(error = e.message ?: e.javaClass.simpleName) } }
+                .onFailure { e ->
+                    Log.w(TAG, "Detail of $itemId failed", e)
+                    _state.update { it.copy(error = e.toUiError()) }
+                }
         }
     }
 
@@ -103,3 +109,5 @@ class DetailViewModel(private val app: AppContainer, private val itemId: String)
         }
     }
 }
+
+private const val TAG = "Detail"

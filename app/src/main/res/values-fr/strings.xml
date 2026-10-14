@@ -252,9 +252,12 @@
         <item quantity="other">%d résultats</item>
     </plurals>
     <string name="result_current">Actuel</string>
-    <string name="edit_error_offline">TMDB est injoignable. Vérifiez la connexion, puis réessayez.</string>
-    <string name="edit_error_no_key">Ajoutez une clé TMDB dans les réglages pour rechercher et lister les images.</string>
-    <string name="edit_error_failed">L’opération n’a pas abouti. Réessayez dans un instant.</string>
+    <string name="error_offline">Le serveur ou le NAS ne répond pas. Vérifiez qu’il est allumé, puis réessayez.</string>
+    <string name="error_denied">Le serveur a refusé la connexion. Reconnectez-vous depuis les réglages.</string>
+    <string name="error_gone">Ce titre n’est plus dans la bibliothèque.</string>
+    <string name="error_tmdb_offline">TMDB est injoignable. Vérifiez la connexion, puis réessayez.</string>
+    <string name="error_no_tmdb_key">Ajoutez une clé TMDB dans les réglages pour rechercher et lister les images.</string>
+    <string name="error_failed">L’opération n’a pas abouti. Réessayez dans un instant.</string>
     <!-- Settings rows -->
     <string name="nav_version">Version %s</string>
     <string name="scan_running">Analyse %1$d sur %2$d</string>

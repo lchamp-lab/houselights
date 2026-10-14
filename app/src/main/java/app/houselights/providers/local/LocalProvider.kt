@@ -5,6 +5,7 @@ import android.net.Uri
 import androidx.sqlite.db.SimpleSQLiteQuery
 import app.houselights.R
 import app.houselights.core.NfoParser
+import app.houselights.core.NotFoundException
 import app.houselights.core.Definition
 import app.houselights.core.HomeSection
 import app.houselights.core.ImageRef
@@ -161,10 +162,10 @@ class LocalProvider(
 
     override suspend fun item(id: String): MediaItem {
         val entity = when (val local = LocalId.parse(id)) {
-            is LocalId.Collection -> return mapCollection(dao.collection(local.key) ?: error("Collection $id not found"))
+            is LocalId.Collection -> return mapCollection(dao.collection(local.key) ?: throw NotFoundException("Collection $id"))
             is LocalId.Item -> dao.item(local.key)
             null -> null
-        } ?: error("Item $id not found")
+        } ?: throw NotFoundException("Item $id")
         val castSource = if (entity.kind == ItemKind.MOVIE || entity.kind == ItemKind.SERIES) entity.id else entity.seriesId
         val cast = castSource?.let { dao.cast(it) }.orEmpty().map { c ->
             Person(c.name, c.character, c.profilePath?.let { image(it, ImageType.PROFILE) })
@@ -267,7 +268,7 @@ class LocalProvider(
     }
 
     override suspend fun playback(item: MediaItem, resume: Boolean, options: PlaybackOptions): PlaybackPlan {
-        val entity = entity(item) ?: error("Item ${item.id} not found")
+        val entity = entity(item) ?: throw NotFoundException("Item ${item.id}")
         val file = entity.filePath ?: error("${item.title} has no file")
         val source = dao.sources().firstOrNull { it.id == entity.sourceId } ?: error("Source of ${item.title} was removed")
         return Mapper().map(entity).launch(

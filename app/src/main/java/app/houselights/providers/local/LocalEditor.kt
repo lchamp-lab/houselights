@@ -9,6 +9,8 @@ import app.houselights.core.MatchCandidate
 import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
 import app.houselights.core.MetadataEditor
+import app.houselights.core.NoTmdbKeyException
+import app.houselights.core.NotFoundException
 import app.houselights.core.NfoParser
 import app.houselights.core.suspendRunCatching
 import app.houselights.core.yearOf
@@ -17,7 +19,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 /** TMDB is not configured: there is nothing to search or list online. */
-class NoTmdbKeyException : IllegalStateException("No TMDB key")
 
 /**
  * The user's choices for the local library. They are stored apart from what scans find
@@ -159,7 +160,7 @@ class LocalEditor(
     }
 
     private suspend fun entity(item: MediaItem): ItemEntity =
-        (LocalId.parse(item.id) as? LocalId.Item)?.let { dao.item(it.key) } ?: error("Item ${item.id} can't be edited")
+        (LocalId.parse(item.id) as? LocalId.Item)?.let { dao.item(it.key) } ?: throw NotFoundException("Item ${item.id}")
 
     private fun client(): TmdbClient? = tmdb()
 

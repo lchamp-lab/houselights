@@ -187,7 +187,7 @@ fun LibraryScreen(
                         HlButton(stringResource(R.string.reset_filters), { vm.setFilter(LibraryFilter()) }, icon = HlIcons.Filter)
                     }
                     state.items.isEmpty() -> Text(
-                        state.error ?: stringResource(R.string.empty),
+                        state.error?.let { stringResource(it.message) } ?: stringResource(R.string.empty),
                         style = Hl.type.body,
                         color = Hl.colors.contentSecondary,
                         modifier = Modifier.padding(HlSpace.safeH),

@@ -68,6 +68,7 @@ import app.houselights.ui.util.ReloadOnLibraryChange
 import app.houselights.ui.util.appContainer
 import app.houselights.ui.util.libraryName
 import app.houselights.ui.util.sectionTitle
+import app.houselights.ui.util.UiError
 import kotlinx.coroutines.delay
 
 @Composable
@@ -225,9 +226,9 @@ private fun Message(text: String, action: String? = null, onAction: () -> Unit =
 
 /** The library could not be read: what happened, and a way to try again. */
 @Composable
-fun ErrorMessage(error: String, onRetry: () -> Unit) {
+fun ErrorMessage(error: UiError, onRetry: () -> Unit) {
     HlEmptyState(
-        error,
+        stringResource(error.message),
         Modifier.padding(start = HlSpace.safeH, top = HlSpace.l),
         title = stringResource(R.string.error_unreachable),
         action = stringResource(R.string.retry),

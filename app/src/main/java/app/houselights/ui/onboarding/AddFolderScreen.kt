@@ -118,7 +118,7 @@ fun AddFolderScreen(onAdded: () -> Unit) {
                 }
                 .onFailure { e ->
                     success = false
-                    result = scanErrorText(context, ScanErrors.classify(e), s.host.ifBlank { "?" })
+                    result = scanErrorText(context, ScanErrors.classify(e), s.host)
                 }
             busy = false
         }
@@ -134,7 +134,7 @@ fun AddFolderScreen(onAdded: () -> Unit) {
 
     // Live preview of the address the player will open, without credentials.
     val s = source()
-    val preview = s.copy(host = s.host.ifBlank { "…" }).address()
+    val preview = s.copy(host = s.host.ifBlank { stringResource(R.string.placeholder_pending) }).address()
 
     HlFormScaffold(
         title = stringResource(R.string.add_folder),

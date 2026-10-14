@@ -50,7 +50,7 @@ private fun artworkUse(st: StorageStats): String =
 @Composable
 private fun StorageSummary(st: StorageStats?) {
     val c = Hl.colors
-    val dash = "–"
+    val dash = stringResource(R.string.placeholder_none)
     Column(Modifier.widthIn(max = HlLayout.readable)) {
         Row(verticalAlignment = Alignment.Bottom) {
             Text(st?.let { formatBytes(it.total) } ?: dash, style = Hl.type.figure, color = c.content)

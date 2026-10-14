@@ -38,10 +38,11 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.tv.material3.Text
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.houselights.R
 import app.houselights.core.NfoDocument
 import app.houselights.core.NfoInfo
-import app.houselights.core.suspendRunCatching
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlLayout
@@ -55,38 +56,33 @@ import app.houselights.ui.design.components.HlScrollArea
 import app.houselights.ui.design.components.HlSegmented
 import app.houselights.ui.design.components.StatusPanel
 import app.houselights.ui.util.FACT_GAP
+import app.houselights.ui.util.LoadState
 import app.houselights.ui.util.appContainer
-import kotlinx.coroutines.launch
+import app.houselights.ui.util.formatDuration
 import java.util.Locale
 
 /** Shows the NFO of a title: its details laid out, or the XML as written. */
 @Composable
 fun NfoScreen(itemId: String) {
     val app = appContainer()
-    var document by remember { mutableStateOf<NfoDocument?>(null) }
-    var title by remember { mutableStateOf("") }
+    val vm = viewModel(key = "nfo-$itemId") { NfoViewModel(app, itemId) }
+    val state by vm.state.collectAsStateWithLifecycle()
     var tab by remember { mutableIntStateOf(0) }
     val tabsFocus = remember { FocusRequester() }
-    LaunchedEffect(itemId) {
-        suspendRunCatching {
-            val item = app.provider.item(itemId)
-            title = item.title
-            document = app.provider.nfo(item)
-        }
-        runCatching { tabsFocus.requestFocus() }
-    }
-    val doc = document
+    LaunchedEffect(Unit) { runCatching { tabsFocus.requestFocus() } }
+    val loaded = state.document
+    val doc = (loaded as? LoadState.Ready)?.value
     HlFormScaffold(
         title = stringResource(R.string.nfo_title),
         description = stringResource(R.string.nfo_desc),
         aside = {
             StatusPanel(
                 icon = HlIcons.Document,
-                label = title,
-                value = doc?.path?.substringAfterLast('/') ?: "…",
+                label = state.title,
+                value = doc?.path?.substringAfterLast('/') ?: stringResource(R.string.placeholder_pending),
                 lit = doc?.info != null,
-                result = doc?.path,
-                resultIsError = false,
+                result = (loaded as? LoadState.Failed)?.let { stringResource(it.error.message) } ?: doc?.path,
+                resultIsError = loaded is LoadState.Failed,
             )
         },
     ) {
@@ -120,7 +116,7 @@ private fun NfoDetails(info: NfoInfo?) = ScrollablePanel {
                 info.originalTitle?.takeIf { it != info.title }?.let { add(stringResource(R.string.label_original_title) to it) }
                 if (info.season != null && info.episode != null) add(stringResource(R.string.label_episode) to "S${info.season} E${info.episode}")
                 (info.year?.toString() ?: info.premiered)?.let { add(stringResource(R.string.label_year) to it) }
-                info.runtimeMin?.let { add(stringResource(R.string.label_runtime) to "$it min") }
+                info.runtimeMin?.let { add(stringResource(R.string.label_runtime) to formatDuration(it * MS_PER_MINUTE)) }
                 info.certification?.let { add(stringResource(R.string.label_certification) to it) }
                 info.rating?.let { add(stringResource(R.string.label_rating) to String.format(Locale.getDefault(), "%.1f", it)) }
                 info.genres.takeIf { it.isNotEmpty() }?.let { add(stringResource(R.string.label_genres) to it.joinToString(", ")) }
@@ -171,3 +167,5 @@ private fun ScrollablePanel(content: @Composable () -> Unit) {
         Column(verticalArrangement = Arrangement.spacedBy(HlSpace.s)) { content() }
     }
 }
+
+private const val MS_PER_MINUTE = 60_000L
