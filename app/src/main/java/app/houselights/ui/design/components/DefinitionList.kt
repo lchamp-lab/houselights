@@ -14,24 +14,20 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.Text
 import app.houselights.ui.design.Hl
+import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSpace
 
 /** Label and value pairs in two aligned columns, on a quiet panel (settings, NFO, diagnostics). */
 @Composable
-fun DefinitionList(rows: List<Pair<String, String>>, modifier: Modifier = Modifier, labelWidth: Dp = 220.dp) {
-    Column(
-        modifier
-            .fillMaxWidth()
-            .clip(HlShapes.panel)
-            .background(Hl.colors.surface.copy(alpha = 0.6f))
-            .padding(horizontal = HlSpace.l, vertical = HlSpace.m),
-        verticalArrangement = Arrangement.spacedBy(HlSpace.s),
-    ) {
-        rows.forEach { (label, value) ->
-            Row {
-                Text(label, style = Hl.type.bodySmall, color = Hl.colors.contentTertiary, modifier = Modifier.width(labelWidth))
-                Text(value, style = Hl.type.bodySmall, color = Hl.colors.content)
+fun DefinitionList(rows: List<Pair<String, String>>, modifier: Modifier = Modifier, labelWidth: Dp = HlLayout.definitionLabel) {
+    HlPanel(modifier.fillMaxWidth()) {
+        Column(verticalArrangement = Arrangement.spacedBy(HlSpace.s)) {
+            rows.forEach { (label, value) ->
+                Row {
+                    Text(label, style = Hl.type.caption, color = Hl.colors.contentSecondary, modifier = Modifier.width(labelWidth))
+                    Text(value, style = Hl.type.meta, color = Hl.colors.content)
+                }
             }
         }
     }

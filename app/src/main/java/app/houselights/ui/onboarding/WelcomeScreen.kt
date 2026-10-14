@@ -96,7 +96,7 @@ fun WelcomeScreen(onLocal: () -> Unit, onJellyfin: () -> Unit) {
             }
             Spacer(Modifier.width(HlSpace.xl))
             Column(Modifier.width(470.dp), verticalArrangement = Arrangement.spacedBy(HlSpace.s)) {
-                Text(stringResource(R.string.welcome_title), style = Hl.type.section, color = Hl.colors.content.copy(alpha = 0.86f))
+                Text(stringResource(R.string.welcome_title), style = Hl.type.lead, color = Hl.colors.content.copy(alpha = 0.86f))
                 Spacer(Modifier.height(HlSpace.xxs))
                 HlListItem(
                     stringResource(R.string.source_local),

@@ -47,6 +47,7 @@ import app.houselights.core.MediaKind
 import app.houselights.core.ProviderCapabilities
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlIcons
+import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.LocalAmbient
@@ -58,6 +59,7 @@ import app.houselights.ui.design.components.Backdrop
 import app.houselights.ui.design.components.BackdropStyle
 import app.houselights.ui.design.components.BadgeRow
 import app.houselights.ui.design.components.BillingBlock
+import app.houselights.ui.design.components.EpisodeHeading
 import app.houselights.ui.design.components.Emphasis
 import app.houselights.ui.design.components.HlButton
 import app.houselights.ui.design.components.HlIconButton
@@ -74,6 +76,7 @@ import app.houselights.ui.design.components.rememberAmbientColor
 import app.houselights.ui.edit.EditMenu
 import app.houselights.ui.home.ErrorMessage
 import app.houselights.ui.util.appContainer
+import app.houselights.ui.util.FACT_GAP
 import app.houselights.ui.util.formatDuration
 import app.houselights.ui.util.formatTimecode
 
@@ -198,16 +201,12 @@ private fun Hero(
         TitleArt(
             title = if (isEpisode) item.seriesTitle ?: item.title else item.title,
             logo = item.logo,
-            maxWidth = 440.dp,
-            maxHeight = 112.dp,
+            maxWidth = HlLayout.titleArtWidth,
+            maxHeight = HlLayout.titleArtHeight,
         )
         Spacer(Modifier.height(HlSpace.l))
         if (isEpisode) {
-            Text(
-                listOfNotNull(item.episodeLabel, item.title).joinToString("   "),
-                style = Hl.type.title,
-                color = Hl.colors.content,
-            )
+            EpisodeHeading(item.episodeLabel, item.title)
             Spacer(Modifier.height(HlSpace.xs))
         }
         MetaLine(item)
@@ -241,7 +240,7 @@ private fun Hero(
                         onClick = { onPlay(target, true) },
                         modifier = Modifier.focusRequester(playFocus),
                         icon = Icons.Filled.PlayArrow,
-                        detail = listOfNotNull(episode, formatTimecode(resumeMs)).joinToString("   "),
+                        detail = listOfNotNull(episode, formatTimecode(resumeMs)).joinToString(FACT_GAP),
                         emphasis = Emphasis.Primary,
                     )
                     HlButton(stringResource(R.string.from_start), onClick = { onPlay(target, false) })
@@ -315,7 +314,7 @@ private fun Episodes(
                     item = ep,
                     onClick = { onPlay(ep) },
                     width = HlSize.episode,
-                    title = listOfNotNull(ep.episodeNumber?.toString(), ep.title).joinToString("   "),
+                    title = listOfNotNull(ep.episodeNumber?.toString(), ep.title).joinToString(FACT_GAP),
                     subtitle = ep.runtimeMs?.let(::formatDuration),
                     onFocused = { onFocus(ep) },
                 )
@@ -324,7 +323,7 @@ private fun Episodes(
         val shown = focused?.takeIf { f -> episodes.any { it.id == f.id } }
         Text(
             shown?.overview ?: "",
-            style = Hl.type.bodySmall,
+            style = Hl.type.caption,
             color = Hl.colors.contentSecondary,
             maxLines = 3,
             overflow = TextOverflow.Ellipsis,

@@ -39,6 +39,7 @@ import app.houselights.core.MediaKind
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlShapes
+import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.components.Badge
 import app.houselights.ui.design.components.Emphasis
@@ -47,6 +48,8 @@ import app.houselights.ui.design.components.HlButton
 import app.houselights.ui.design.components.HlFormScaffold
 import app.houselights.ui.design.components.HlResultItem
 import app.houselights.ui.design.components.HlTextField
+import app.houselights.ui.design.components.FactRow
+import app.houselights.ui.design.components.PosterThumb
 import app.houselights.ui.design.components.SectionHeader
 import app.houselights.ui.design.components.StatusPanel
 import app.houselights.ui.util.appContainer
@@ -137,7 +140,7 @@ fun IdentifyScreen(itemId: String, onDone: () -> Unit) {
                     HlResultItem(
                         poster = candidate.poster,
                         title = candidate.title,
-                        meta = listOfNotNull(candidate.year?.toString(), candidate.originalTitle).joinToString("   ").ifEmpty { null },
+                        facts = listOf(candidate.year?.toString(), candidate.originalTitle),
                         overview = candidate.overview,
                         onClick = { identify(candidate) },
                         mark = stringResource(R.string.result_current).takeIf { candidate.id == identity?.current?.id },
@@ -157,20 +160,13 @@ private fun CurrentMatch(current: MatchCandidate?, manual: Boolean) {
         Text(stringResource(R.string.identify_none), style = Hl.type.body, color = c.contentSecondary)
         return
     }
-    val posterWidth = 72.dp
     Row {
-        Box(Modifier.width(posterWidth).aspectRatio(2f / 3f).clip(HlShapes.artwork).background(c.surface)) {
-            current.poster?.url(posterWidth.toPx())?.let {
-                AsyncImage(model = it, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
-            }
-        }
+        PosterThumb(current.poster, width = HlSize.posterThumb + HlSpace.xs)
         Spacer(Modifier.width(HlSpace.m))
         Column {
-            Text(current.title, style = Hl.type.title, color = c.content, maxLines = 2, overflow = TextOverflow.Ellipsis)
-            listOfNotNull(current.year?.toString(), current.originalTitle).joinToString("   ").ifEmpty { null }?.let {
-                Spacer(Modifier.height(HlSpace.xxs))
-                Text(it, style = Hl.type.meta, color = c.contentSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            }
+            Text(current.title, style = Hl.type.lead, color = c.content, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Spacer(Modifier.height(HlSpace.xxs))
+            FactRow(listOf(current.year?.toString(), current.originalTitle))
             Spacer(Modifier.height(HlSpace.s))
             Badge(stringResource(if (manual) R.string.identify_manual else R.string.identify_automatic), lit = manual)
         }

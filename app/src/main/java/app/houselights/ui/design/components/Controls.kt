@@ -35,6 +35,8 @@ import androidx.tv.material3.LocalContentColor
 import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
 import app.houselights.ui.design.Hl
+import app.houselights.ui.design.HlAlpha
+import app.houselights.ui.design.HlControl
 import app.houselights.ui.design.HlFocus
 import app.houselights.ui.design.HlMotion
 import app.houselights.ui.design.HlShapes
@@ -65,7 +67,7 @@ fun HlButton(
         modifier = modifier.height(HlSize.control),
         shape = ClickableSurfaceDefaults.shape(HlShapes.control),
         colors = ClickableSurfaceDefaults.colors(
-            containerColor = c.content.copy(alpha = if (emphasis == Emphasis.Primary) 0.22f else 0.09f),
+            containerColor = c.content.copy(alpha = if (emphasis == Emphasis.Primary) HlAlpha.CONTROL_FILL_STRONG else HlAlpha.CONTROL_FILL),
             contentColor = c.content,
             focusedContainerColor = c.focus,
             focusedContentColor = c.onFocus,
@@ -75,17 +77,20 @@ fun HlButton(
         scale = ClickableSurfaceDefaults.scale(focusedScale = HlFocus.CONTROL_SCALE),
     ) {
         Row(
-            Modifier.align(Alignment.Center).padding(start = if (icon != null) 20.dp else 24.dp, end = 24.dp),
+            Modifier.align(Alignment.Center).padding(
+                start = if (icon != null) HlControl.buttonPaddingIcon else HlControl.buttonPaddingH,
+                end = HlControl.buttonPaddingH,
+            ),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             if (icon != null) {
                 Icon(icon, contentDescription = null, modifier = Modifier.size(HlSize.icon))
-                Spacer(Modifier.width(HlSpace.xs + 2.dp))
+                Spacer(Modifier.width(HlControl.iconGap))
             }
             Text(text, style = Hl.type.label, maxLines = 1, softWrap = false)
             if (detail != null) {
                 Spacer(Modifier.width(HlSpace.s))
-                Text(detail, style = Hl.type.meta, color = LocalContentColor.current.copy(alpha = 0.62f))
+                Text(detail, style = Hl.type.meta, color = LocalContentColor.current.copy(alpha = HlAlpha.CONTROL_DETAIL))
             }
         }
     }
@@ -112,7 +117,7 @@ fun HlIconButton(
             shape = ClickableSurfaceDefaults.shape(HlShapes.avatar),
             scale = ClickableSurfaceDefaults.scale(focusedScale = HlFocus.CONTROL_SCALE),
             colors = ClickableSurfaceDefaults.colors(
-                containerColor = c.content.copy(alpha = 0.09f),
+                containerColor = c.content.copy(alpha = HlAlpha.CONTROL_FILL),
                 contentColor = c.content,
                 focusedContainerColor = c.focus,
                 focusedContentColor = c.onFocus,
@@ -167,7 +172,10 @@ fun HlTab(
         interactionSource = interaction,
     ) {
         Row(
-            Modifier.padding(horizontal = if (icon != null && text.isEmpty()) 10.dp else 16.dp, vertical = 8.dp),
+            Modifier.padding(
+                horizontal = if (icon != null && text.isEmpty()) HlControl.tabPaddingIcon else HlControl.tabPaddingH,
+                vertical = HlControl.tabPaddingV,
+            ),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             if (icon != null) {
@@ -180,8 +188,8 @@ fun HlTab(
             Box(
                 Modifier
                     .align(Alignment.BottomCenter)
-                    .offset(y = (-2).dp)
-                    .size(width = 16.dp, height = 2.dp)
+                    .offset(y = -HlSize.footlightHeight)
+                    .size(width = HlSize.footlightWidth, height = HlSize.footlightHeight)
                     .clip(HlShapes.control)
                     .background(c.tungsten)
             )
@@ -190,8 +198,8 @@ fun HlTab(
 }
 
 /**
- * A choice in a vertical list (sources, options): quiet at rest, lifted onto a panel with
- * a projector-white outline when focused. The optional icon sits in a lit disc.
+ * A choice in a vertical list (sources, options): a quiet panel, lifted with a projector-white
+ * outline when focused. The optional icon sits in a disc that lights up with focus.
  */
 @Composable
 fun HlListItem(
@@ -201,46 +209,17 @@ fun HlListItem(
     modifier: Modifier = Modifier,
     icon: ImageVector? = null,
 ) {
-    val c = Hl.colors
-    val interaction = remember { MutableInteractionSource() }
-    val focused by interaction.collectIsFocusedAsState()
-    Surface(
-        onClick = onClick,
-        modifier = modifier,
-        shape = ClickableSurfaceDefaults.shape(HlShapes.panel),
-        scale = ClickableSurfaceDefaults.scale(focusedScale = HlFocus.CONTROL_SCALE),
-        border = ClickableSurfaceDefaults.border(
-            border = Border(BorderStroke(HlSize.hairline, c.outline.copy(alpha = 0.6f)), shape = HlShapes.panel),
-            focusedBorder = Border(BorderStroke(HlSize.focusBorder, c.focus), shape = HlShapes.panel),
-        ),
-        colors = ClickableSurfaceDefaults.colors(
-            containerColor = c.surface.copy(alpha = 0.72f),
-            contentColor = c.content,
-            focusedContainerColor = c.surfaceRaised,
-            focusedContentColor = c.content,
-            pressedContainerColor = c.surfaceRaised,
-            pressedContentColor = c.content,
-        ),
-        interactionSource = interaction,
-    ) {
-        Row(Modifier.padding(horizontal = HlSpace.l, vertical = HlSpace.l), verticalAlignment = Alignment.CenterVertically) {
+    HlPanelButton(onClick, modifier) { focused ->
+        Row(Modifier.padding(HlSpace.l), verticalAlignment = Alignment.CenterVertically) {
             if (icon != null) {
-                Box(
-                    Modifier
-                        .size(52.dp)
-                        .clip(HlShapes.avatar)
-                        .background(if (focused) c.tungsten.copy(alpha = 0.18f) else c.content.copy(alpha = 0.06f)),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(icon, contentDescription = null, tint = if (focused) c.tungsten else c.contentSecondary, modifier = Modifier.size(26.dp))
-                }
+                HlIconDisc(icon, lit = focused)
                 Spacer(Modifier.width(HlSpace.l))
             }
             Column {
-                Text(title, style = Hl.type.title)
+                Text(title, style = Hl.type.lead, color = Hl.colors.content)
                 if (description != null) {
                     Spacer(Modifier.height(HlSpace.xxs))
-                    Text(description, style = Hl.type.bodySmall, color = c.contentSecondary)
+                    Text(description, style = Hl.type.caption, color = Hl.colors.contentSecondary)
                 }
             }
         }
@@ -262,7 +241,7 @@ fun HlSegmented(
     Row(
         modifier
             .clip(HlShapes.control)
-            .background(Hl.colors.content.copy(alpha = 0.06f))
+            .background(Hl.colors.content.copy(alpha = HlAlpha.WELL))
             .padding(HlSpace.xxs),
         horizontalArrangement = Arrangement.spacedBy(HlSpace.xxs),
     ) {

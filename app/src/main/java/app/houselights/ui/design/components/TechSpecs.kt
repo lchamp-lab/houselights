@@ -70,7 +70,7 @@ private fun VideoColumn(media: MediaInfo, modifier: Modifier) {
                 stringResource(R.string.dv_profile, v.dolbyVisionProfile)
             } else MediaInfo.hdrLabel(format)
         }.ifEmpty { listOf(stringResource(R.string.sdr)) }
-        dynamic.forEach { Text(it, style = Hl.type.bodySmall, color = Hl.colors.contentSecondary) }
+        dynamic.forEach { Text(it, style = Hl.type.caption, color = Hl.colors.contentSecondary) }
         if (v.width != null && v.height != null) {
             Text("${v.width} × ${v.height}", style = Hl.type.caption, color = Hl.colors.contentTertiary)
         }
@@ -95,7 +95,7 @@ private fun AudioColumn(tracks: List<AudioTrack>, modifier: Modifier) {
                 )
                 Text(
                     listOfNotNull(t.format, t.layout).joinToString("  "),
-                    style = Hl.type.bodySmall,
+                    style = Hl.type.caption,
                     color = Hl.colors.contentSecondary,
                     maxLines = 1,
                 )
@@ -119,7 +119,7 @@ private fun SubtitleColumn(tracks: List<SubtitleTrack>, modifier: Modifier) {
                 Text(language, style = Hl.type.label, color = Hl.colors.content, modifier = Modifier.width(120.dp), maxLines = 1, overflow = TextOverflow.Ellipsis)
                 val details = subs.map { it.format }.distinct() +
                     listOfNotNull(forced.takeIf { subs.any { it.forced } }, sdh.takeIf { subs.any { it.hearingImpaired } })
-                Text(details.joinToString(", "), style = Hl.type.bodySmall, color = Hl.colors.contentSecondary, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Text(details.joinToString(", "), style = Hl.type.caption, color = Hl.colors.contentSecondary, maxLines = 2, overflow = TextOverflow.Ellipsis)
             }
         }
         if (byLanguage.size > MAX_SUBTITLE_LANGUAGES) More(byLanguage.size - MAX_SUBTITLE_LANGUAGES)
@@ -148,7 +148,7 @@ private fun RowScope.Fact(label: String, value: String) {
 
 @Composable
 private fun ColumnTitle(text: String) {
-    Text(text, style = Hl.type.section, color = Hl.colors.contentTertiary, modifier = Modifier.padding(bottom = HlSpace.s))
+    Text(text, style = Hl.type.lead, color = Hl.colors.contentTertiary, modifier = Modifier.padding(bottom = HlSpace.s))
 }
 
 /** The default track, marked with a small tungsten light. */

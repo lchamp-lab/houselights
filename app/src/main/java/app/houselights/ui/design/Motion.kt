@@ -16,6 +16,10 @@ object HlMotion {
     const val DIM = 1000
     /** Wait for focus to settle before loading a new backdrop. */
     const val SETTLE = 220L
+    /** One loop of the welcome poster wall: slow enough to be felt more than seen. */
+    const val WALL_DRIFT = 140_000
+    /** Dialogs grow from this scale as they appear. */
+    const val ENTER_SCALE = 0.96f
 
     val standard = FastOutSlowInEasing
     val emphasized = CubicBezierEasing(0.2f, 0f, 0f, 1f)

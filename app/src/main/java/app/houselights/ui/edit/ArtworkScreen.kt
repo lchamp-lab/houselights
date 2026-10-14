@@ -56,6 +56,8 @@ import app.houselights.ui.design.components.ScreenTitle
 import app.houselights.ui.design.components.TitleArt
 import app.houselights.ui.design.components.rememberAmbientColor
 import app.houselights.ui.util.appContainer
+import app.houselights.ui.util.FACT_GAP
+import app.houselights.ui.util.formatDimensions
 import app.houselights.ui.util.languageName
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -179,7 +181,7 @@ private fun Choices(
                 image = option.image,
                 selected = option == choices.selected,
                 title = if (automatic) stringResource(R.string.artwork_automatic) else describe(kind, option),
-                caption = if (automatic) listOfNotNull(describe(kind, option), size(option)).joinToString("   ") else size(option),
+                caption = if (automatic) listOfNotNull(describe(kind, option), size(option)).joinToString(FACT_GAP) else size(option),
                 onClick = { onChoose(option) },
                 width = kind.cardWidth,
                 aspectRatio = kind.aspectRatio,
@@ -203,7 +205,7 @@ private fun describe(kind: ArtworkKind, option: ArtworkOption): String = when (o
 }
 
 private fun size(option: ArtworkOption): String? =
-    if (option.width > 0 && option.height > 0) "${option.width} × ${option.height}" else null
+    if (option.width > 0 && option.height > 0) formatDimensions(option.width, option.height) else null
 
 @Composable
 private fun Skeletons(kind: ArtworkKind) {

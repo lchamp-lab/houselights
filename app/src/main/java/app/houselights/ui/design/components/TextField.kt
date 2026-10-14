@@ -103,7 +103,7 @@ fun HlTextField(
         // An empty label leaves the naming to a setting title placed above the field.
         if (label.isNotEmpty()) {
             Text(label, style = Hl.type.caption, color = c.contentSecondary)
-            Spacer(Modifier.height(HlSpace.xs - 2.dp))
+            Spacer(Modifier.height(HlSpace.xs))
         }
         Box(
             Modifier

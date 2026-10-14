@@ -28,6 +28,8 @@ import app.houselights.core.Definition
 import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
 import app.houselights.ui.design.Hl
+import app.houselights.ui.design.HlAlpha
+import app.houselights.ui.design.HlControl
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
@@ -51,13 +53,13 @@ fun MetaLine(item: MediaItem, modifier: Modifier = Modifier, showGenres: Boolean
     }
     val length = if (item.kind == MediaKind.SERIES) seasons else item.runtimeMs?.let(::formatDuration)
 
-    Row(modifier, horizontalArrangement = Arrangement.spacedBy(18.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(modifier, horizontalArrangement = Arrangement.spacedBy(HlSpace.fact), verticalAlignment = Alignment.CenterVertically) {
         years?.let { Text(it, style = Hl.type.meta, color = c.content) }
         length?.let { Text(it, style = Hl.type.meta, color = c.contentSecondary) }
         item.officialRating?.let { Badge(it) }
         item.communityRating?.let { score ->
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Filled.Star, contentDescription = null, tint = c.tungsten, modifier = Modifier.size(14.dp))
+                Icon(Icons.Filled.Star, contentDescription = null, tint = c.tungsten, modifier = Modifier.size(HlSize.inlineIcon))
                 Spacer(Modifier.width(HlSpace.xxs))
                 Text(String.format(Locale.getDefault(), "%.1f", score), style = Hl.type.meta, color = c.contentSecondary)
             }
@@ -83,8 +85,8 @@ fun Badge(text: String, modifier: Modifier = Modifier, lit: Boolean = false) {
         style = Hl.type.badge,
         color = if (lit) c.tungsten else c.contentSecondary,
         modifier = modifier
-            .border(HlSize.hairline, if (lit) c.tungsten.copy(alpha = 0.6f) else c.outline, HlShapes.badge)
-            .padding(horizontal = 6.dp, vertical = 2.dp),
+            .border(HlSize.hairline, if (lit) c.tungsten.copy(alpha = HlAlpha.BORDER) else c.outline, HlShapes.badge)
+            .padding(horizontal = HlControl.badgePaddingH, vertical = HlControl.badgePaddingV),
     )
 }
 

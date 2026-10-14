@@ -21,7 +21,10 @@ data class HlColors(
     /** Primary text: projector white. */
     val content: Color,
     val contentSecondary: Color,
+    /** The quietest text; still at least 4.5:1 on every surface. */
     val contentTertiary: Color,
+    /** Never for text: dividers, empty thumbnails, inactive marks. */
+    val contentDecorative: Color,
     /** House-light accent. Only for progress, the active tab and the wordmark. */
     val tungsten: Color,
     /** Focus outline and filled focused controls. */
@@ -39,7 +42,8 @@ val HouselightsColors = HlColors(
     outline = Color(0xFF3A3632),
     content = Color(0xFFF2F0EB),
     contentSecondary = Color(0xFFA39E96),
-    contentTertiary = Color(0xFF6B6660),
+    contentTertiary = Color(0xFF8C867E),
+    contentDecorative = Color(0xFF4A4642),
     tungsten = Color(0xFFF2B66D),
     focus = Color(0xFFF2F0EB),
     onFocus = Color(0xFF000000),
@@ -47,6 +51,35 @@ val HouselightsColors = HlColors(
 )
 
 val LocalHlColors = staticCompositionLocalOf { HouselightsColors }
+
+/**
+ * Opacities, by role. Translucent layers are always one of these, applied to the colour the
+ * role names, so the same thing looks the same everywhere.
+ */
+object HlAlpha {
+    /** Quiet panels on the room: `surface` at this opacity. */
+    const val QUIET_SURFACE = 0.72f
+    /** Unfocused secondary controls: `content` at this opacity. */
+    const val CONTROL_FILL = 0.09f
+    /** Unfocused primary controls and selected navigation: `content` at this opacity. */
+    const val CONTROL_FILL_STRONG = 0.2f
+    /** Faint tracks and wells (segmented track, meter track): `content` at this opacity. */
+    const val WELL = 0.06f
+    /** Panel borders: `outline` at this opacity. */
+    const val BORDER = 0.6f
+    /** Dividers: `outline` at this opacity. */
+    const val DIVIDER = 0.5f
+    /** The room behind a dialog: `background` at this opacity. */
+    const val SCRIM = 0.72f
+    /** Plates under marks drawn over artwork (watched check, counts): `background`. */
+    const val PLATE = 0.72f
+    /** Progress track over artwork: `content` at this opacity. */
+    const val TRACK = 0.22f
+    /** A lit icon disc: `tungsten` at this opacity. */
+    const val LIT_DISC = 0.18f
+    /** Secondary text inside a control (runtime in a button): content colour at this opacity. */
+    const val CONTROL_DETAIL = 0.62f
+}
 
 /** Light spilling from the current artwork; animated by the screen that owns the backdrop. */
 val LocalAmbient = staticCompositionLocalOf { HouselightsColors.ambientFallback }

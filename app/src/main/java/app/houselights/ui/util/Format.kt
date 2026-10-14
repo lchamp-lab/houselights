@@ -11,16 +11,29 @@ import app.houselights.core.SectionType
 import app.houselights.providers.local.ScanError
 import app.houselights.providers.local.ScanErrorKind
 
+/** No-break space: keeps a number with its unit, and French punctuation with its word. */
+const val NBSP = '\u00A0'
+
+/** "2 h 02", "1 h", "45 min": never split across lines. */
 fun formatDuration(ms: Long): String {
     val totalMin = ms / 60_000
     val h = totalMin / 60
     val m = totalMin % 60
     return when {
-        h > 0 && m > 0 -> "$h h ${"%02d".format(m)}"
-        h > 0 -> "$h h"
-        else -> "$m min"
+        h > 0 && m > 0 -> "$h${NBSP}h$NBSP${"%02d".format(m)}"
+        h > 0 -> "$h${NBSP}h"
+        else -> "$m${NBSP}min"
     }
 }
+
+/**
+ * Between facts inside one piece of text (a button's detail, a card's caption), where a layout
+ * gap is not possible: as wide as three spaces, breaking only after it.
+ */
+const val FACT_GAP = "$NBSP$NBSP "
+
+/** "3840 × 2160". */
+fun formatDimensions(width: Int, height: Int): String = "$width$NBSP×$NBSP$height"
 
 fun formatTimecode(ms: Long): String {
     val s = ms / 1000

@@ -606,7 +606,7 @@ private fun PaneHeader(title: String, description: String?) {
         Text(title, style = Hl.type.title, color = Hl.colors.content)
         if (description != null) {
             Spacer(Modifier.height(HlSpace.xs))
-            Text(description, style = Hl.type.bodySmall, color = Hl.colors.contentSecondary)
+            Text(description, style = Hl.type.caption, color = Hl.colors.contentSecondary)
         }
     }
 }
@@ -633,7 +633,7 @@ private fun InfoList(vararg rows: Pair<String, String>) = DefinitionList(rows.to
 
 @Composable
 private fun Hint(text: String, color: Color = Hl.colors.contentSecondary) {
-    Text(text, style = Hl.type.bodySmall, color = color, modifier = Modifier.widthIn(max = 680.dp))
+    Text(text, style = Hl.type.caption, color = color, modifier = Modifier.widthIn(max = 680.dp))
 }
 
 private fun fmtHz(hz: Float): String =

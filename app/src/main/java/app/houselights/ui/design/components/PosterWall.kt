@@ -25,11 +25,14 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlShapes
+import app.houselights.ui.design.HlMotion
+import app.houselights.ui.design.HlSize
+import app.houselights.ui.design.HlSpace
 import coil.compose.AsyncImage
 
-private val POSTER_W = 148.dp
+private val POSTER_W = HlSize.posterWall
 private val POSTER_H = POSTER_W * 1.5f
-private val GAP = 18.dp
+private val GAP = HlSpace.fact
 private const val COLUMNS = 9
 private const val ROWS = 4
 
@@ -44,7 +47,7 @@ fun PosterWall(urls: List<String>, modifier: Modifier = Modifier, opacity: Float
     val drift by rememberInfiniteTransition(label = "wall").animateFloat(
         initialValue = 0f,
         targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween(140_000, easing = LinearEasing)),
+        animationSpec = infiniteRepeatable(tween(HlMotion.WALL_DRIFT, easing = LinearEasing)),
         label = "drift",
     )
     val cycle = (POSTER_H + GAP) * ROWS

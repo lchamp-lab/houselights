@@ -209,7 +209,7 @@ fun ErrorMessage(error: String, onRetry: () -> Unit) {
     Column(Modifier.padding(start = HlSpace.safeH, top = HlSpace.l)) {
         Text(stringResource(R.string.error_unreachable), style = Hl.type.title, color = Hl.colors.content)
         Spacer(Modifier.height(HlSpace.xs))
-        Text(error, style = Hl.type.bodySmall, color = Hl.colors.contentSecondary, modifier = Modifier.widthIn(max = 560.dp))
+        Text(error, style = Hl.type.caption, color = Hl.colors.contentSecondary, modifier = Modifier.widthIn(max = 560.dp))
         Spacer(Modifier.height(HlSpace.l))
         HlButton(stringResource(R.string.retry), onRetry, Modifier.focusRequester(focus), icon = Icons.Filled.Refresh, emphasis = Emphasis.Primary)
     }

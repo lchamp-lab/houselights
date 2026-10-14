@@ -51,6 +51,7 @@ import app.houselights.ui.design.components.FieldLabel
 import app.houselights.ui.design.components.HlFormScaffold
 import app.houselights.ui.design.components.HlSegmented
 import app.houselights.ui.design.components.StatusPanel
+import app.houselights.ui.util.FACT_GAP
 import app.houselights.ui.util.appContainer
 import kotlinx.coroutines.launch
 import java.util.Locale
@@ -126,7 +127,7 @@ private fun NfoDetails(info: NfoInfo?) = ScrollablePanel {
                 addAll(ids(info))
                 info.tagline?.let { add(stringResource(R.string.label_tagline) to it) }
                 info.actors.takeIf { it.isNotEmpty() }?.let { actors ->
-                    add(stringResource(R.string.label_cast) to actors.take(8).joinToString("\n") { a -> listOfNotNull(a.name, a.role).joinToString("   ") })
+                    add(stringResource(R.string.label_cast) to actors.take(8).joinToString("\n") { a -> listOfNotNull(a.name, a.role).joinToString(FACT_GAP) })
                 }
             }
             DefinitionList(rows)
@@ -142,7 +143,7 @@ private fun NfoDetails(info: NfoInfo?) = ScrollablePanel {
 @Composable
 private fun ids(info: NfoInfo): List<Pair<String, String>> {
     val ids = listOfNotNull(info.tmdbId?.let { "TMDB $it" }, info.imdbId?.let { "IMDb $it" }, info.tvdbId?.let { "TVDB $it" })
-    return if (ids.isEmpty()) emptyList() else listOf(stringResource(R.string.label_ids) to ids.joinToString("   "))
+    return if (ids.isEmpty()) emptyList() else listOf(stringResource(R.string.label_ids) to ids.joinToString(FACT_GAP))
 }
 
 /** The NFO as written, in a monospaced face since it is code. */

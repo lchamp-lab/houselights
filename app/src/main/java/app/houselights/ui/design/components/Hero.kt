@@ -24,6 +24,8 @@ import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlMotion
+import app.houselights.ui.design.HlLayout
+import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.util.formatDuration
 
@@ -38,24 +40,18 @@ fun HeroInfo(item: MediaItem?, modifier: Modifier = Modifier, overviewLines: Int
         modifier = modifier,
     ) { shown ->
         if (shown == null) return@AnimatedContent
-        Column(Modifier.widthIn(max = 520.dp), verticalArrangement = Arrangement.Bottom) {
+        Column(Modifier.widthIn(max = HlLayout.readableNarrow), verticalArrangement = Arrangement.Bottom) {
             val episode = shown.kind == MediaKind.EPISODE
             TitleArt(
                 title = if (episode) shown.seriesTitle ?: shown.title else shown.title,
                 logo = shown.logo,
-                maxWidth = 380.dp,
-                maxHeight = 100.dp,
+                maxWidth = HlLayout.heroTitleWidth,
+                maxHeight = HlLayout.heroTitleHeight,
                 style = Hl.type.headline,
             )
             Spacer(Modifier.height(HlSpace.m))
             if (episode) {
-                Text(
-                    listOfNotNull(shown.episodeLabel, shown.title).joinToString("   "),
-                    style = Hl.type.title,
-                    color = Hl.colors.content,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
+                EpisodeHeading(shown.episodeLabel, shown.title)
                 Spacer(Modifier.height(HlSpace.xs))
             }
             MetaLine(shown)
@@ -66,7 +62,7 @@ fun HeroInfo(item: MediaItem?, modifier: Modifier = Modifier, overviewLines: Int
             if (shown.progress > 0f) {
                 Spacer(Modifier.height(HlSpace.s))
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    ProgressLine(shown.progress, Modifier.width(120.dp))
+                    ProgressLine(shown.progress, Modifier.width(HlSize.progressShort))
                     Spacer(Modifier.width(HlSpace.s))
                     val left = (shown.runtimeMs ?: 0L) - shown.user.positionMs
                     if (left > 0) Text(stringResource(R.string.time_left, formatDuration(left)), style = Hl.type.caption, color = Hl.colors.contentSecondary)
@@ -83,5 +79,14 @@ fun HeroInfo(item: MediaItem?, modifier: Modifier = Modifier, overviewLines: Int
                 )
             }
         }
+    }
+}
+
+/** "S1 E3" then the episode's name, aligned on their baseline. */
+@Composable
+fun EpisodeHeading(label: String?, title: String, modifier: Modifier = Modifier) {
+    Row(modifier, horizontalArrangement = Arrangement.spacedBy(HlSpace.fact)) {
+        label?.let { Text(it, style = Hl.type.meta, color = Hl.colors.contentSecondary, modifier = Modifier.alignByBaseline()) }
+        Text(title, style = Hl.type.title, color = Hl.colors.content, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.alignByBaseline())
     }
 }

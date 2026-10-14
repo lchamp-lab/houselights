@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.tv.material3.Text
 import app.houselights.R
 import app.houselights.ui.design.Hl
+import app.houselights.ui.design.HlSpace
 import app.houselights.ui.util.toPx
 import app.houselights.core.ImageRef
 import coil.compose.AsyncImage
@@ -26,7 +27,7 @@ import androidx.compose.ui.res.stringResource
 /** Row and section header, sentence case. */
 @Composable
 fun SectionHeader(text: String, modifier: Modifier = Modifier) {
-    Text(text, style = Hl.type.section, color = Hl.colors.content.copy(alpha = 0.86f), modifier = modifier)
+    Text(text, style = Hl.type.lead, color = Hl.colors.content, modifier = modifier)
 }
 
 /** Screen title (library name, settings). */
@@ -77,7 +78,7 @@ fun TitleArt(
             color = Hl.colors.content,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
-            modifier = modifier.widthIn(max = maxWidth + 160.dp),
+            modifier = modifier.widthIn(max = maxWidth + HlSpace.xxl * 3),
         )
     }
 }

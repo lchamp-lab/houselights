@@ -54,6 +54,8 @@ import androidx.tv.material3.Text
 import app.houselights.core.MediaItem
 import app.houselights.core.Person
 import app.houselights.ui.design.Hl
+import app.houselights.ui.design.HlAlpha
+import app.houselights.ui.design.HlControl
 import app.houselights.ui.design.HlFocus
 import app.houselights.ui.design.HlMotion
 import app.houselights.ui.design.HlShapes
@@ -136,7 +138,7 @@ fun ArtworkSurface(
         interactionSource = interaction,
     ) {
         content()
-        if (dim > 0f) Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = dim)))
+        if (dim > 0f) Box(Modifier.fillMaxSize().background(c.background.copy(alpha = dim)))
     }
 }
 
@@ -184,7 +186,7 @@ fun LandscapeCard(
         }
         if (title != null) {
             Spacer(Modifier.height(HlSpace.s))
-            Text(title, style = Hl.type.label, color = Hl.colors.content, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(title, style = Hl.type.meta, color = Hl.colors.content, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         if (subtitle != null) {
             Text(subtitle, style = Hl.type.caption, color = Hl.colors.contentTertiary, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -196,18 +198,18 @@ fun LandscapeCard(
 @Composable
 fun PersonCard(person: Person, modifier: Modifier = Modifier) {
     val px = HlSize.avatar.toPx()
-    Column(modifier.width(HlSize.avatar + 28.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+    Column(modifier.width(HlSize.avatar + HlSpace.xl), horizontalAlignment = Alignment.CenterHorizontally) {
         ArtworkSurface(onClick = {}, modifier = Modifier.size(HlSize.avatar), shape = HlShapes.avatar) {
             Text(
                 person.name.split(' ').mapNotNull { it.firstOrNull()?.uppercase() }.take(2).joinToString(""),
-                style = Hl.type.title,
+                style = Hl.type.lead,
                 color = Hl.colors.contentTertiary,
                 modifier = Modifier.align(Alignment.Center),
             )
             person.image?.url(px)?.let { Artwork(it, person.name, Modifier.clip(HlShapes.avatar)) }
         }
         Spacer(Modifier.height(HlSpace.s))
-        Text(person.name, style = Hl.type.caption, color = Hl.colors.content, maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center)
+        Text(person.name, style = Hl.type.meta, color = Hl.colors.content, maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center)
         person.role?.let {
             Text(it, style = Hl.type.caption, color = Hl.colors.contentTertiary, maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center)
         }
@@ -224,7 +226,7 @@ private fun Artwork(url: String, description: String, modifier: Modifier = Modif
 private fun BoxScope.FallbackTitle(title: String) {
     Text(
         title,
-        style = Hl.type.title.copy(fontFamily = Hl.type.headline.fontFamily),
+        style = Hl.type.lead,
         color = Hl.colors.contentSecondary,
         textAlign = TextAlign.Center,
         maxLines = 4,
@@ -237,15 +239,15 @@ private fun BoxScope.FallbackTitle(title: String) {
 @Composable
 private fun StatusMark(item: MediaItem, modifier: Modifier) {
     val unplayed = item.user.unplayedCount ?: 0
-    val plate = Color.Black.copy(alpha = 0.72f)
+    val plate = Hl.colors.background.copy(alpha = HlAlpha.PLATE)
     when {
         item.user.played -> Box(
-            modifier.size(24.dp).clip(HlShapes.avatar).background(plate),
+            modifier.size(HlSize.mark).clip(HlShapes.avatar).background(plate),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(Icons.Filled.Check, contentDescription = null, tint = Hl.colors.content, modifier = Modifier.size(15.dp))
+            Icon(Icons.Filled.Check, contentDescription = null, tint = Hl.colors.content, modifier = Modifier.size(HlSize.markIcon))
         }
-        unplayed > 0 -> Box(modifier.clip(HlShapes.control).background(plate).padding(horizontal = HlSpace.xs, vertical = 3.dp)) {
+        unplayed > 0 -> Box(modifier.clip(HlShapes.control).background(plate).padding(horizontal = HlSpace.xs, vertical = HlControl.badgePaddingV)) {
             Text("$unplayed", style = Hl.type.badge, color = Hl.colors.content)
         }
     }
@@ -255,7 +257,7 @@ private fun StatusMark(item: MediaItem, modifier: Modifier) {
 @Composable
 fun ProgressLine(progress: Float, modifier: Modifier = Modifier) {
     if (progress <= 0f) return
-    Box(modifier.fillMaxWidth().height(HlSize.progress).background(Color.White.copy(alpha = 0.22f))) {
+    Box(modifier.fillMaxWidth().height(HlSize.progress).background(Hl.colors.content.copy(alpha = HlAlpha.TRACK))) {
         Box(Modifier.fillMaxWidth(progress).height(HlSize.progress).background(Hl.colors.tungsten))
     }
 }
