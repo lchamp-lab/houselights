@@ -60,6 +60,7 @@ import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.LocalAmbient
+import app.houselights.ui.design.RowScroll
 import app.houselights.ui.design.revealOnFocus
 import app.houselights.ui.util.toPx
 import coil.compose.AsyncImage
@@ -81,16 +82,18 @@ fun MediaRow(
     Column(modifier.revealOnFocus()) {
         if (header != null) SectionHeader(header, Modifier.padding(start = HlSpace.safeH, bottom = HlSpace.xxs))
         CompositionLocalProvider(LocalGroupFocused provides rowFocused) {
-            LazyRow(
-                state = state,
-                // Observe the row's focus group itself, so hasFocus covers every card.
-                modifier = Modifier
-                    .onFocusChanged { rowFocused = it.hasFocus }
-                    .focusRestorer(),
-                contentPadding = PaddingValues(horizontal = HlSpace.safeH, vertical = HlSpace.m),
-                horizontalArrangement = Arrangement.spacedBy(spacing),
-                content = content,
-            )
+            RowScroll {
+                LazyRow(
+                    state = state,
+                    // Observe the row's focus group itself, so hasFocus covers every card.
+                    modifier = Modifier
+                        .onFocusChanged { rowFocused = it.hasFocus }
+                        .focusRestorer(),
+                    contentPadding = PaddingValues(horizontal = HlSpace.safeH, vertical = HlSpace.m),
+                    horizontalArrangement = Arrangement.spacedBy(spacing),
+                    content = content,
+                )
+            }
         }
     }
 }
