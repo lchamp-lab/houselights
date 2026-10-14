@@ -70,6 +70,7 @@ import app.houselights.ui.design.components.HlSettingGroup
 import app.houselights.ui.design.components.HlSettingRow
 import app.houselights.ui.design.components.HlStatus
 import app.houselights.ui.design.components.HlTextField
+import app.houselights.ui.design.components.SheetConfirm
 import app.houselights.ui.design.components.StatusState
 import app.houselights.ui.design.components.ProgressLine
 import app.houselights.ui.design.revealOnFocus
@@ -182,17 +183,14 @@ private fun Sources(addFolder: FocusRequester) {
 
 /**
  * What can be done with a watched folder, beside the list: scan it now, or remove it, which asks
- * first, in the sheet itself, with focus on Cancel.
+ * first, in the sheet itself ([SheetConfirm]).
  */
 @Composable
 private fun SourceActions(source: SourceEntity, onDismiss: () -> Unit, onRemove: () -> Unit) {
     val vm = settingsViewModel()
     val posters by remember(source.id) { vm.library.latestPosters(source, HEADER_POSTERS) }.collectAsStateWithLifecycle(emptyList())
     val kind = stringResource(if (source.kind == SourceKind.MOVIES) R.string.library_movies else R.string.library_shows)
-    var confirming by remember { mutableStateOf(false) }
-    var backFromConfirm by remember { mutableStateOf(false) }
     val scan = remember { FocusRequester() }
-    val remove = remember { FocusRequester() }
     HlSideSheet(
         title = sourceName(source),
         onDismiss = onDismiss,
@@ -201,34 +199,29 @@ private fun SourceActions(source: SourceEntity, onDismiss: () -> Unit, onRemove:
         artwork = if (posters.isEmpty()) null else ({ PosterFan(posters) }),
         initialFocus = scan,
     ) { sheet ->
-        if (!confirming) {
-            LaunchedEffect(backFromConfirm) { if (backFromConfirm) runCatching { remove.requestFocus() } }
+        SheetConfirm(
+            question = stringResource(R.string.remove_folder_confirm, sourceName(source)),
+            consequence = stringResource(R.string.remove_folder_desc),
+            confirm = stringResource(R.string.remove),
+            onConfirm = { sheet.dismiss(onRemove) },
+        ) { ask, origin ->
+            // Every action says what it does, in one line: the rows keep one height.
             HlSettingRow(
                 stringResource(R.string.scan_now),
+                Modifier.focusRequester(scan),
+                description = stringResource(R.string.scan_now_desc),
                 onClick = { sheet.dismiss { vm.library.scan() } },
                 chevron = false,
-                modifier = Modifier.focusRequester(scan),
             )
             Spacer(Modifier.height(HlSpace.s))
             HlDivider()
             Spacer(Modifier.height(HlSpace.s))
             HlSettingRow(
                 stringResource(R.string.remove_folder),
-                description = stringResource(R.string.remove_folder_desc),
-                onClick = { confirming = true },
+                origin,
+                description = stringResource(R.string.remove_folder_row_desc),
+                onClick = ask,
                 chevron = false,
-                modifier = Modifier.focusRequester(remove),
-            )
-        } else {
-            Confirm(
-                question = stringResource(R.string.remove_folder_confirm, sourceName(source)),
-                consequence = stringResource(R.string.remove_folder_desc),
-                action = stringResource(R.string.remove),
-                onCancel = {
-                    confirming = false
-                    backFromConfirm = true
-                },
-                onConfirm = { sheet.dismiss(onRemove) },
             )
         }
     }
@@ -466,8 +459,6 @@ private fun SourceSheet(source: SourceConfig?, onDismiss: () -> Unit, onUseFolde
     val vm = settingsViewModel()
     val folders by vm.library.folders.collectAsStateWithLifecycle(emptyList())
     val server = source as? SourceConfig.Jellyfin
-    var confirming by remember { mutableStateOf(false) }
-    var backFromConfirm by remember { mutableStateOf(false) }
     val local = remember { FocusRequester() }
     val jellyfin = remember { FocusRequester() }
     val serverName = server?.serverName ?: stringResource(R.string.source_jellyfin)
@@ -479,44 +470,37 @@ private fun SourceSheet(source: SourceConfig?, onDismiss: () -> Unit, onUseFolde
         description = stringResource(sourceKeeps(source)),
         initialFocus = if (server != null) jellyfin else local,
     ) { sheet ->
-        if (confirming) {
-            Confirm(
-                question = stringResource(R.string.sign_out_confirm, serverName),
-                consequence = stringResource(if (folders.isEmpty()) R.string.sign_out_first_folder else R.string.sign_out_desc),
-                action = stringResource(R.string.sign_out),
-                onCancel = {
-                    confirming = false
-                    backFromConfirm = true
+        SheetConfirm(
+            question = stringResource(R.string.sign_out_confirm, serverName),
+            consequence = stringResource(if (folders.isEmpty()) R.string.sign_out_first_folder else R.string.sign_out_desc),
+            confirm = stringResource(R.string.sign_out),
+            onConfirm = onUseFolders,
+        ) { ask, origin ->
+            HlSettingRow(
+                stringResource(R.string.source_local),
+                origin.focusRequester(local),
+                description = foldersLine(folders.size),
+                icon = HlIcons.Folder,
+                onClick = {
+                    when {
+                        source is SourceConfig.Jellyfin -> ask()
+                        source == SourceConfig.Local && folders.isNotEmpty() -> sheet.dismiss()
+                        else -> onUseFolders()
+                    }
                 },
-                onConfirm = onUseFolders,
+                chevron = false,
+                trailing = if (source == SourceConfig.Local) ({ ChoiceCheck() }) else null,
             )
-            return@HlSideSheet
+            HlSettingRow(
+                stringResource(R.string.source_jellyfin),
+                Modifier.focusRequester(jellyfin),
+                description = stringResource(if (server != null) R.string.source_jellyfin_other else R.string.source_jellyfin_desc),
+                icon = HlIcons.Server,
+                onClick = onSignIn,
+                chevron = false,
+                trailing = if (server != null) ({ ChoiceCheck() }) else null,
+            )
         }
-        LaunchedEffect(backFromConfirm) { if (backFromConfirm) runCatching { local.requestFocus() } }
-        HlSettingRow(
-            stringResource(R.string.source_local),
-            description = foldersLine(folders.size),
-            icon = HlIcons.Folder,
-            onClick = {
-                when {
-                    source is SourceConfig.Jellyfin -> confirming = true
-                    source == SourceConfig.Local && folders.isNotEmpty() -> sheet.dismiss()
-                    else -> onUseFolders()
-                }
-            },
-            chevron = false,
-            trailing = if (source == SourceConfig.Local) ({ ChoiceCheck() }) else null,
-            modifier = Modifier.focusRequester(local),
-        )
-        HlSettingRow(
-            stringResource(R.string.source_jellyfin),
-            description = stringResource(if (server != null) R.string.source_jellyfin_other else R.string.source_jellyfin_desc),
-            icon = HlIcons.Server,
-            onClick = onSignIn,
-            chevron = false,
-            trailing = if (server != null) ({ ChoiceCheck() }) else null,
-            modifier = Modifier.focusRequester(jellyfin),
-        )
     }
 }
 

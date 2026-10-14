@@ -152,7 +152,7 @@ font. No other font is shipped; line heights leave room for the fallback.
 | `HlSpace` | 4 dp grid: `xxs` 4, `xs` 8, `s` 12, `m` 16, `l` 24, `xl` 32, `xxl` 48; `xxs` between a name and the line under it; `fact` 20 between facts; `safeH` 48 / `safeV` 28 |
 | `HlInset` | inner padding of containers, by what they hold: `tight` 8 (menus, results with a thumbnail), `compact` 12 (dense rows), `card` 24 (panels, cards), `sheet` 32 (sheets) |
 | `HlShapes` | radius follows hierarchy: `badge` 3, `artwork` 4, `field` 6, `row` 8 (rows that can be chosen), `panel` 12, `sheet` 16 (sheets and menus), `control` pill, `avatar` circle. A shape set close inside another keeps their corners parallel: **outer radius = inner radius + gap** (a menu: 8 + 8 = 16; a result: 4 + 8 = 12) |
-| `HlSize` | artwork (poster 112, landscape 220, episode 264, avatar 76 in a column of 120, thumbnails), `control` 48 for every button, icons 20, discs 52, marks 20, dots 8, setting rows 64, previews in a row (48 tall, a slot of 84), meter 10, the short rules of a loading title (48, 24) |
+| `HlSize` | artwork (poster 112, landscape 220, episode 264, avatar 76 in a column of 120, thumbnails), `control` 48 for every button, icons 20, discs 52, marks 20, dots 8, setting rows 64, previews in a row (48 tall, a slot of 84), meter 10, the short rules of a loading title (48, 24), the short rule heading a question (`intertitleRule`, 24 by 2) |
 | `HlLayout` | measures of layout parts: reading widths (640, 520), the left veil's fade past them (240), side columns (280, 340), pane top 72, the reading sheet (864) and the side sheet (520), title art, hero, info line, track table columns, the label of a round button (160 wide at most, 28 of room under its row) |
 | `HlControl` | inner padding of buttons and track options, badges; the gap between an icon and its text (8) |
 | `HlFocus` | focus scale (artwork 1.10, cards 1.06, controls 1.04), siblings stepping back (dim 0.3, colour kept 0.3), ambient glow 18 dp, `edge` 28 (`safeV`): how far a list keeps focus from its ends |
@@ -161,7 +161,7 @@ font. No other font is shipped; line heights leave room for the fallback.
 
 | Token | File | Content |
 |---|---|---|
-| `HlMotion` | `Motion.kt` | `FAST` 150, `STANDARD` 250, `SLOW` 600, `DIM` 1000 ms; `SETTLE` 220 ms before a backdrop changes; `SKELETON_DELAY` 400 ms before a placeholder shows; `WALL_DRIFT`; `ENTER_SCALE` |
+| `HlMotion` | `Motion.kt` | `FAST` 150, `STANDARD` 250, `SLOW` 600, `DIM` 1000 ms; `SETTLE` 220 ms before a backdrop changes; `SKELETON_DELAY` 400 ms before a placeholder shows; `WALL_DRIFT`; `ENTER_SCALE`, where a reading sheet and a menu grow from |
 | `LocalHouseLights`, `HouseLightCue` | `Auditorium.kt` | how far the house lights are down (read while drawing), and the order of the cue |
 | `HlIcons` | `Icons.kt` | line icons drawn for the app (24 dp grid, 1.75 stroke): places, actions (Restart, Edit), marks (Check), the remote's Back; core Material icons for the rest |
 | `rememberListScroll`, `ListScroll`, `RowScroll` | `Scroll.kt` | lists scroll only as much as needed (`EdgeScroll`), never against the edge of the screen: a list keeps focus `HlFocus.edge` from its top and bottom, so the last row stops inside the safe area; a list that starts under a header or a hero (`ListScroll(top)`) brings its rows back to where its first one rests; rows keep focus 80 dp from the sides, so the first card always scrolls home |
@@ -188,9 +188,9 @@ without the prefix (`MenuOption`, `MeterLegend`, `PosterCard`, `BillingBlock`, `
 | `HlIconDisc`, `HlDivider`, `HlStatus`, `HlMeter`, `MeterLegend` | an icon in a disc (lit when on), a hairline, a state with its light (tungsten when on or calling for attention) and why, under it, a segmented gauge |
 | `HlListItem`, `HlResultItem`, `PosterThumb` | choices in a list (icon in line with the name, what the choice brings in badges under a hairline, a chevron on focus); a search result with its poster, which says "Association…" in place of its mark while it is being chosen: the results stay, and so does focus |
 | `HlNavItem`, `HlSettingGroup`, `HlSettingRow` | settings: navigation entries with what they are set to; rows with their value, leading somewhere or stating it; a row not `enabled` stays on the room (see *Contrast*) |
-| `HlSideSheet`, `SheetScope`, `RowPreview` | acting on what a screen shows, beside it: a panel against the right edge (see *Sheets*), where it stands in its header (`status`); rows can lead with a preview of the image they change |
+| `HlSideSheet`, `SheetScope`, `RowPreview`, `SheetConfirm` | acting on what a screen shows, beside it: a panel against the right edge (see *Sheets*), where it stands in its header (`status`); rows can lead with a preview of the image they change; an action that cannot be undone asks first, in the sheet |
 | `HlChoiceSheet` | the choices of a setting, in a side sheet: focus on the current one, choosing applies and closes, Back changes nothing |
-| `HlMenuButton`, `MenuSection`, `MenuOption` | a button opening a sectioned menu anchored to its end edge (sort, filters): below it when the room down to the safe area holds the menu, else above; never past the safe area, a longer menu scrolls inside |
+| `HlMenuButton`, `MenuSection`, `MenuOption` | a button opening a sectioned menu anchored to its end edge (sort, filters): below it when the room down to the safe area holds the menu, else above; never past the safe area, a longer menu scrolls inside. It moves like a sheet, growing from the button's corner and leaving the same way; a sort applies once the menu has gone, so the wall reorders on its own |
 | `HlModal` | a sheet to read, centred over the dimmed room (the technical sheet), never past the safe area: longer content scrolls; Back closes it |
 | `HlTwoPane`, `HlFormScaffold`, `StatusPanel`, `FieldLabel` | two-pane screens: navigation or explanation on the left, content on the right. `StatusPanel` is where a setup stands, beside its form: its state with its light first, then what is set up, large (an address in the technical voice), its path and kind, and what was found under a hairline; lit while the state is on |
 | `HlTextField` | TV text field: focusable box first, keyboard on OK; focused and waiting, it says so at its end ("OK saisir", `KeyHint`); tungsten while typing, and only then. Every field has a name, read out even when the screen hides it because its sheet already names it. One line under it: what to type (`supporting`), or what is wrong (`error`), in tungsten after the attention light, its edge unchanged. A placeholder is an example, from the resources ("Ex. : 192.168.1.10"). A setting typed in a field is saved when the field is left (its keyboard action, or focus moving on), never while typing, and its result line then says "Enregistré" |
@@ -229,8 +229,14 @@ Focus stays inside; when a sheet has gone, focus is back where it was.
   so the page it acts on stays in view, under a lighter scrim (`SCRIM_SIDE`). From the top: what
   it does, in the voice of the poster (`subject`: "Modifier"); what it is about (a name, facts, a
   line of description, and artwork when it helps); a hairline; the rows; the Back hint at its foot.
-  Rows that change an image show it as it is now (`RowPreview`), at the shape it is used in. An
-  action that cannot be undone asks first, in the sheet itself, with focus on Cancel.
+  Rows that change an image show it as it is now (`RowPreview`), at the shape it is used in. Every
+  action row says what it does in one line ("Cherche les nouveaux fichiers"), so the rows of a
+  sheet keep one height.
+- **Asking first: `SheetConfirm`.** An action that cannot be undone asks in the sheet itself, as a
+  card in place of its rows, the way an intertitle stops a film: a short tungsten rule (attention),
+  the question in the voice of the poster ("Retirer « Films » ?"), what follows, then Cancel,
+  focused, and the action, its label tungsten at rest. Never red: tungsten already says attention.
+  Cancel or Back brings the rows back with focus on the row that asked.
 - **To read: `HlModal`.** A sheet centred on the screen (864 dp, radius `sheet`), for details on
   demand: what it is (`subject`), what it is about, the content, the Back hint. It never leaves the
   safe area: when the content is longer, it scrolls in one area between the header and the hint,
@@ -238,7 +244,8 @@ Focus stays inside; when a sheet has gone, focus is back where it was.
 
 Content closes a sheet through `SheetScope.dismiss(then)`: the sheet leaves, then its owner hears
 of it and `then` runs; keys are ignored while it leaves, so a second OK cannot choose twice. An
-action that opens another screen closes the sheet at once instead.
+action that opens another screen closes the sheet at once instead. Menus come and go with the same
+motion (`rememberSheetMotion`).
 
 A choice that needs another screen to happen (a new source needs a folder or a sign-in) is set
 like the choices of `HlChoiceSheet`, the current one checked, and changes nothing until that

@@ -228,6 +228,7 @@
     <string name="section_source">Bibliothèque</string>
     <string name="remove">Retirer</string>
     <string name="scan_now">Analyser maintenant</string>
+    <string name="scan_now_desc">Cherche les nouveaux fichiers</string>
     <string name="refresh_metadata">Actualiser toutes les informations</string>
     <string name="last_scan">Dernière analyse : %s</string>
     <string name="never">jamais</string>
@@ -327,6 +328,7 @@
     <string name="refresh_metadata_desc">Récupère à nouveau affiches et informations sur TMDB</string>
     <string name="remove_folder">Retirer ce dossier</string>
     <string name="remove_folder_desc">Ses titres quittent la bibliothèque ; rien n’est supprimé sur le NAS.</string>
+    <string name="remove_folder_row_desc">Ses titres quittent la bibliothèque</string>
     <string name="remove_folder_confirm">Retirer « %s » ?</string>
     <string name="tmdb_builtin_short">Intégrée</string>
     <string name="tmdb_personal">Personnelle</string>

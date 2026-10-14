@@ -243,7 +243,8 @@ private fun FormMenus() {
         Text(
             "A popup hanging from the button, inside the safe area: below it when the room down to the safe area " +
                 "holds it, else above (scroll this group to the foot of the screen); a longer menu scrolls inside. " +
-                "Sort closes on a choice; filters stay open so choices combine.",
+                "It grows from the button's corner and leaves the same way. Sort closes on a choice and applies once " +
+                "the menu has gone; filters stay open so choices combine, and an active one lights the detail.",
             style = Hl.type.caption,
             color = Hl.colors.contentTertiary,
             modifier = Modifier.weight(1f),

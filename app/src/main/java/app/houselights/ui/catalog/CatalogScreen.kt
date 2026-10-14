@@ -44,6 +44,7 @@ import app.houselights.ui.design.components.BackdropStyle
 import app.houselights.ui.design.components.Emphasis
 import app.houselights.ui.design.components.FactRow
 import app.houselights.ui.design.components.HlButton
+import app.houselights.ui.design.components.HlDivider
 import app.houselights.ui.design.components.HlEmptyState
 import app.houselights.ui.design.components.HlIconButton
 import app.houselights.ui.design.components.HlIconDisc
@@ -64,6 +65,7 @@ import app.houselights.ui.design.components.MeterLegend
 import app.houselights.ui.design.components.MeterSegment
 import app.houselights.ui.design.components.PanelLevel
 import app.houselights.ui.design.components.ScreenTitle
+import app.houselights.ui.design.components.SheetConfirm
 import app.houselights.ui.design.components.StatusState
 import app.houselights.ui.design.components.Wordmark
 import kotlinx.coroutines.delay
@@ -199,12 +201,15 @@ fun CatalogScreen() {
                 Group("Sheets") {
                     var side by remember { mutableStateOf(false) }
                     var reading by remember { mutableStateOf(false) }
+                    var asking by remember { mutableStateOf(false) }
                     var keyed by remember { mutableStateOf(false) }
                     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.s)) {
                         HlButton("Side sheet", { side = true })
                         HlButton("Reading sheet", { reading = true })
+                        HlButton("An action that asks first", { asking = true })
                         HlButton("A status, a field", { keyed = true })
                     }
+                    if (asking) SheetQuestion(onDismiss = { asking = false })
                     if (keyed) SheetStatusField(onDismiss = { keyed = false })
                     if (side) {
                         HlSideSheet(
@@ -358,6 +363,35 @@ private fun ControlCase(caption: String, content: @Composable () -> Unit) {
         content()
         Spacer(Modifier.height(HlSpace.xs))
         Text(caption, style = Hl.type.caption, color = Hl.colors.contentTertiary)
+    }
+}
+
+/** A folder's sheet: removing it asks first, in the sheet, with focus on Cancel. */
+@Composable
+private fun SheetQuestion(onDismiss: () -> Unit) {
+    HlSideSheet(
+        "Films",
+        onDismiss = onDismiss,
+        facts = listOf("NFS"),
+        description = "192.168.1.10/volume1/media/films",
+    ) { sheet ->
+        SheetConfirm(
+            question = "Retirer « Films » ?",
+            consequence = "Ses titres quittent la bibliothèque ; rien n’est supprimé sur le NAS.",
+            confirm = "Retirer",
+            onConfirm = { sheet.dismiss() },
+        ) { ask, origin ->
+            HlSettingRow(
+                "Analyser maintenant",
+                description = "Cherche les nouveaux fichiers",
+                onClick = { sheet.dismiss() },
+                chevron = false,
+            )
+            Spacer(Modifier.height(HlSpace.s))
+            HlDivider()
+            Spacer(Modifier.height(HlSpace.s))
+            HlSettingRow("Retirer ce dossier", origin, description = "Ses titres quittent la bibliothèque", onClick = ask, chevron = false)
+        }
     }
 }
 
