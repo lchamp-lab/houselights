@@ -74,7 +74,7 @@ class AppContainer(private val app: Application) {
             val source = settings.state.value.source ?: error("No library source configured")
             cached?.takeIf { it.first == source }?.let { return it.second }
             val created = when (source) {
-                SourceConfig.Local -> LocalProvider(app, database.dao(), LocalEditor(database.dao(), scanner, ::tmdbKey))
+                SourceConfig.Local -> LocalProvider(app, database.dao(), LocalEditor(database.dao(), scanner, ::tmdbKey)) { settings.state.value.collectionMinFilms }
                 is SourceConfig.Jellyfin -> JellyfinProvider(source, settings.state.value.deviceId)
             }
             cached = source to created

@@ -117,7 +117,23 @@ class JellyfinProvider(config: SourceConfig.Jellyfin, deviceId: String) : MediaP
         api.episodes(series.id, userId, season.id, EPISODE_FIELDS).items.map(::toMedia)
 
     override suspend fun nextUp(series: MediaItem): MediaItem? =
-        runCatching { api.nextUp(userId, 1, ROW_FIELDS, series.id).items.firstOrNull()?.let(::toMedia) }.getOrNull()
+        if (series.kind == MediaKind.COLLECTION) super.nextUp(series)
+        else runCatching { api.nextUp(userId, 1, ROW_FIELDS, series.id).items.firstOrNull()?.let(::toMedia) }.getOrNull()
+
+    /** A collection (box set) holds its films directly. */
+    override suspend fun collectionItems(collection: MediaItem): List<MediaItem> = runCatching {
+        api.items(
+            userId = userId,
+            parentId = collection.id,
+            includeItemTypes = "Movie",
+            recursive = true,
+            sortBy = "ProductionYear,PremiereDate,SortName",
+            sortOrder = "Ascending",
+            startIndex = 0,
+            limit = COLLECTION_LIMIT,
+            fields = ROW_FIELDS,
+        ).items.map(::toMedia)
+    }.getOrDefault(emptyList())
 
     override suspend fun similar(item: MediaItem): List<MediaItem> =
         if (item.kind == MediaKind.EPISODE) emptyList()
@@ -238,6 +254,7 @@ class JellyfinProvider(config: SourceConfig.Jellyfin, deviceId: String) : MediaP
 
     companion object {
         private const val TAG = "Jellyfin"
+        private const val COLLECTION_LIMIT = 200
         private val SUPPORTED_COLLECTIONS = setOf("movies", "tvshows", "boxsets", "homevideos", "musicvideos", null)
         private const val ROW_FIELDS = "Overview,Genres,ProductionYear,OfficialRating,CommunityRating"
         private const val EPISODE_FIELDS = "Overview"

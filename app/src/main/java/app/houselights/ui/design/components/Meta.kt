@@ -45,13 +45,22 @@ fun MetaLine(item: MediaItem, modifier: Modifier = Modifier, showGenres: Boolean
     val c = Hl.colors
     val seasons = item.childCount?.takeIf { item.kind == MediaKind.SERIES && it > 0 }
         ?.let { pluralStringResource(R.plurals.season_count, it, it) }
+    val films = item.childCount?.takeIf { item.kind == MediaKind.COLLECTION }?.let { owned ->
+        item.totalCount?.let { total -> pluralStringResource(R.plurals.film_count_of, owned, owned, total) }
+            ?: pluralStringResource(R.plurals.film_count, owned, owned)
+    }
     val years = when {
+        item.kind == MediaKind.COLLECTION && item.year != null && item.endYear != null -> "${item.year} – ${item.endYear}"
         item.kind != MediaKind.SERIES -> item.year?.toString()
         item.year != null && item.continuing -> "${item.year} –"
         item.year != null && item.endYear != null && item.endYear != item.year -> "${item.year} – ${item.endYear}"
         else -> item.year?.toString()
     }
-    val length = if (item.kind == MediaKind.SERIES) seasons else item.runtimeMs?.let(::formatDuration)
+    val length = when (item.kind) {
+        MediaKind.SERIES -> seasons
+        MediaKind.COLLECTION -> films
+        else -> item.runtimeMs?.let(::formatDuration)
+    }
 
     Row(modifier, horizontalArrangement = Arrangement.spacedBy(HlSpace.fact), verticalAlignment = Alignment.CenterVertically) {
         years?.let { Text(it, style = Hl.type.meta, color = c.content) }

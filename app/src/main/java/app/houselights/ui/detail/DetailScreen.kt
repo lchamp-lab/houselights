@@ -166,7 +166,25 @@ fun DetailScreen(
                         }
                     }
 
-                            if (item.cast.isNotEmpty()) {
+                    if (item.kind == MediaKind.COLLECTION && state.collectionFilms.isNotEmpty()) {
+                        item(key = "films") {
+                            MediaRow(stringResource(R.string.library_movies)) {
+                                items(state.collectionFilms, key = { it.id }) { f -> PosterCard(f, onClick = { onOpenItem(f.id) }) }
+                            }
+                        }
+                    }
+
+                    // A film's saga: the collection itself first, then its other films in order.
+                    state.collection?.let { collection ->
+                        item(key = "collection") {
+                            MediaRow(collection.title) {
+                                item(key = collection.id) { PosterCard(collection, onClick = { onOpenItem(collection.id) }) }
+                                items(state.collectionFilms, key = { it.id }) { f -> PosterCard(f, onClick = { onOpenItem(f.id) }) }
+                            }
+                        }
+                    }
+
+                    if (item.cast.isNotEmpty()) {
                         item(key = "cast") {
                             MediaRow(stringResource(R.string.cast), spacing = HlSpace.s) {
                                 items(item.cast) { PersonCard(it) }
@@ -236,11 +254,15 @@ private fun Hero(
         Spacer(Modifier.height(HlSpace.xl))
 
         Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.s), verticalAlignment = Alignment.Top) {
-            // A series plays through its next episode.
-            val target = if (item.kind == MediaKind.SERIES) nextUp else item.takeIf { it.isPlayable }
+            // A series plays through its next episode, a collection through its next film.
+            val target = if (item.kind == MediaKind.SERIES || item.kind == MediaKind.COLLECTION) nextUp else item.takeIf { it.isPlayable }
             if (target != null) {
                 val resumeMs = target.user.positionMs
-                val episode = if (item.kind == MediaKind.SERIES) target.episodeLabel else null
+                val episode = when (item.kind) {
+                    MediaKind.SERIES -> target.episodeLabel
+                    MediaKind.COLLECTION -> target.title
+                    else -> null
+                }
                 if (resumeMs > 0) {
                     HlButton(
                         stringResource(R.string.resume),
@@ -279,7 +301,7 @@ private fun Hero(
             if (item.hasNfo) {
                 HlIconButton(HlIcons.Document, stringResource(R.string.nfo), onClick = onOpenNfo)
             }
-            if (capabilities?.favorites == true) {
+            if (capabilities?.favorites == true && item.kind != MediaKind.COLLECTION) {
                 HlIconButton(
                     if (item.user.favorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
                     stringResource(if (item.user.favorite) R.string.favorite else R.string.add_favorite),

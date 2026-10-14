@@ -45,7 +45,7 @@ enum class ItemKind { MOVIE, SERIES, SEASON, EPISODE }
 
 @Entity(
     tableName = "items",
-    indices = [Index("parentId"), Index("seriesId"), Index(value = ["sourceId", "filePath"]), Index("matchKey")],
+    indices = [Index("parentId"), Index("seriesId"), Index(value = ["sourceId", "filePath"]), Index("matchKey"), Index("collectionId")],
 )
 data class ItemEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
@@ -90,6 +90,8 @@ data class ItemEntity(
     val userPosterPath: String? = null,
     val userBackdropPath: String? = null,
     val userLogoPath: String? = null,
+    /** The collection a film belongs to ([CollectionEntity]). */
+    val collectionId: Long? = null,
     val addedAt: Long,
     /** Last TMDB lookup (successful or not); null = never tried. */
     val matchedAt: Long? = null,
@@ -98,6 +100,27 @@ data class ItemEntity(
     val played: Boolean = false,
     val favorite: Boolean = false,
     val lastPlayedAt: Long? = null,
+)
+
+/**
+ * A collection of films (a saga): from the NFO's set or TMDB's "belongs to collection". Its films
+ * point to it ([ItemEntity.collectionId]); it is removed once none is left.
+ */
+@Entity(tableName = "collections", indices = [Index(value = ["matchKey"], unique = true)])
+data class CollectionEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    /** "tmdb:<id>" when TMDB knows the collection, else "name:<normalised name>". */
+    val matchKey: String,
+    val tmdbId: Int? = null,
+    val name: String,
+    val sortTitle: String,
+    val overview: String? = null,
+    val posterPath: String? = null,
+    val backdropPath: String? = null,
+    /** Films of the collection released so far, owned or not; null until TMDB was asked. */
+    val partCount: Int? = null,
+    /** Last time TMDB was asked for the collection; null = never. */
+    val fetchedAt: Long? = null,
 )
 
 @Entity(tableName = "cast", primaryKeys = ["itemId", "ord"])
@@ -276,6 +299,36 @@ interface LibraryDao {
     @Query("DELETE FROM `cast` WHERE itemId NOT IN (SELECT id FROM items)")
     suspend fun deleteOrphanCast(): Int
 
+    // Collections
+    @Query("SELECT * FROM collections WHERE matchKey = :key LIMIT 1")
+    suspend fun collectionByKey(key: String): CollectionEntity?
+
+    @Query("SELECT * FROM collections WHERE id = :id")
+    suspend fun collection(id: Long): CollectionEntity?
+
+    @Insert
+    suspend fun insertCollection(collection: CollectionEntity): Long
+
+    @Update
+    suspend fun updateCollection(collection: CollectionEntity)
+
+    /** Films of a collection, in the order they came out. */
+    @Query("SELECT * FROM items WHERE collectionId = :collectionId AND kind = 'MOVIE' ORDER BY year IS NULL, year, sortTitle")
+    suspend fun collectionFilms(collectionId: Long): List<ItemEntity>
+
+    /** Collections holding at least [minFilms] films of the library. */
+    @Query(
+        "SELECT COUNT(*) FROM (SELECT collectionId FROM items WHERE kind = 'MOVIE' AND collectionId IS NOT NULL " +
+            "GROUP BY collectionId HAVING COUNT(*) >= :minFilms)"
+    )
+    suspend fun collectionCount(minFilms: Int): Int
+
+    @RawQuery
+    suspend fun collectionQuery(query: SupportSQLiteQuery): List<CollectionEntity>
+
+    @Query("DELETE FROM collections WHERE id NOT IN (SELECT collectionId FROM items WHERE collectionId IS NOT NULL)")
+    suspend fun deleteEmptyCollections()
+
     // Cast
     @Query("SELECT * FROM `cast` WHERE itemId = :itemId ORDER BY ord")
     suspend fun cast(itemId: Long): List<CastEntity>
@@ -293,7 +346,7 @@ interface LibraryDao {
     }
 }
 
-@Database(entities = [SourceEntity::class, ItemEntity::class, CastEntity::class], version = 5, exportSchema = false)
+@Database(entities = [SourceEntity::class, ItemEntity::class, CastEntity::class, CollectionEntity::class], version = 6, exportSchema = false)
 abstract class LibraryDatabase : RoomDatabase() {
     abstract fun dao(): LibraryDao
 
@@ -326,9 +379,24 @@ abstract class LibraryDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `collections` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                        "`matchKey` TEXT NOT NULL, `tmdbId` INTEGER, `name` TEXT NOT NULL, `sortTitle` TEXT NOT NULL, " +
+                        "`overview` TEXT, `posterPath` TEXT, `backdropPath` TEXT, `partCount` INTEGER, `fetchedAt` INTEGER)"
+                )
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_collections_matchKey` ON `collections` (`matchKey`)")
+                db.execSQL("ALTER TABLE items ADD COLUMN collectionId INTEGER")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_items_collectionId` ON `items` (`collectionId`)")
+                // Films already in the library learn their collection at the next scan.
+                db.execSQL("UPDATE items SET matchedAt = NULL WHERE kind = 'MOVIE'")
+            }
+        }
+
         fun create(context: Context): LibraryDatabase =
             Room.databaseBuilder(context, LibraryDatabase::class.java, "library.db")
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
                 .build()
     }
 }

@@ -333,4 +333,25 @@
         <item quantity="one">%d in Ultra HD</item>
         <item quantity="other">%d in Ultra HD</item>
     </plurals>
+    <!-- Collections -->
+    <plurals name="film_count">
+        <item quantity="one">%d film</item>
+        <item quantity="other">%d films</item>
+    </plurals>
+    <plurals name="film_count_of">
+        <item quantity="one">%1$d film of %2$d</item>
+        <item quantity="other">%1$d films of %2$d</item>
+    </plurals>
+    <string name="collections_setting">Collections</string>
+    <string name="collections_setting_desc">Films of the same saga, gathered</string>
+    <string name="collections_two">From 2 films</string>
+    <string name="collections_two_desc">A saga appears once you have at least two of its films</string>
+    <string name="collections_all">All</string>
+    <string name="collections_all_desc">Even when you have a single film of the saga</string>
+    <string name="collections_off">Hidden</string>
+    <string name="collections_off_desc">No Collections library and no saga row</string>
+    <plurals name="collection_count">
+        <item quantity="one">%d collection</item>
+        <item quantity="other">%d collections</item>
+    </plurals>
 </resources>

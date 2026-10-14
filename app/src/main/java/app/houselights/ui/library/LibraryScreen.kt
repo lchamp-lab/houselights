@@ -43,6 +43,7 @@ import app.houselights.ui.design.HlLayout
 import app.houselights.R
 import app.houselights.core.Definition
 import app.houselights.core.Library
+import app.houselights.core.LibraryKind
 import app.houselights.core.MediaItem
 import app.houselights.core.LibraryFacets
 import app.houselights.core.LibraryFilter
@@ -131,13 +132,18 @@ fun LibraryScreen(
                     Spacer(Modifier.width(HlSpace.m))
                     if (state.total > 0) {
                         Text(
-                            pluralStringResource(R.plurals.title_count, state.total, state.total),
+                            pluralStringResource(
+                                if (library.kind == LibraryKind.COLLECTIONS) R.plurals.collection_count else R.plurals.title_count,
+                                state.total,
+                                state.total,
+                            ),
                             style = Hl.type.meta,
                             color = Hl.colors.contentTertiary,
                         )
                     }
                     Spacer(Modifier.weight(1f))
-                    FilterButton(state.filter, state.facets, vm::setFilter)
+                    // Collections are browsed by name or date; filters belong to films.
+                    if (library.kind != LibraryKind.COLLECTIONS) FilterButton(state.filter, state.facets, vm::setFilter)
                     Spacer(Modifier.width(HlSpace.s))
                     HlMenuButton(
                         text = sortLabel(state.sort),

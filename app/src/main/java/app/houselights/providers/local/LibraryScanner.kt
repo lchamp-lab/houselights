@@ -55,6 +55,9 @@ class LibraryScanner(
     /** Shows already looked up during the current scan (full refresh only). */
     private val refreshedSeries = mutableSetOf<Long>()
 
+    /** Collections already asked to TMDB during the current scan. */
+    private val refreshedCollections = mutableSetOf<Long>()
+
     fun scanAll(refreshMetadata: Boolean = false) {
         if (job?.isActive == true) {
             // A folder added or a refresh asked during a scan is not lost: one more pass follows.
@@ -119,6 +122,8 @@ class LibraryScanner(
                     ItemKind.SERIES -> identifyShow(item, tmdbId, tmdb)
                     else -> error("Only films and shows can be identified")
                 }
+                // The film may have left its collection for another one.
+                dao.deleteEmptyCollections()
             }
         }
         _changed.emit(Unit)
@@ -139,6 +144,7 @@ class LibraryScanner(
 
     private suspend fun scanAllSources(refreshMetadata: Boolean) {
         refreshedSeries.clear()
+        refreshedCollections.clear()
         val errors = mutableMapOf<String, ScanError>()
         for (source in dao.sources()) {
             runCatching { scan(source, refreshMetadata) }.onFailure { e ->
@@ -149,6 +155,7 @@ class LibraryScanner(
         lock.withLock {
             dao.deleteEmptySeasons()
             dao.deleteEmptySeries()
+            dao.deleteEmptyCollections()
             runCatching { cleanupLocked() }.onFailure { Log.w(TAG, "Cleanup failed", it) }
         }
         _state.value = ScanState(errors = errors)
@@ -236,7 +243,7 @@ class LibraryScanner(
         val needsTmdb = tmdb != null && (item.matchedAt == null || refreshMetadata || nfo != null || sidecarsRemoved)
         if (nfo == null && !needsTmdb && !sidecarsRemoved && local.poster == null && local.fanart == null && local.logo == null) return
 
-        val movie = if (needsTmdb) lookupMovie(tmdb!!, item.userTmdbId, nfo, parsed) else null
+        val movie = if (needsTmdb) lookupMovie(tmdb!!, item.userTmdbId, nfo, parsed, known = item.tmdbId) else null
         if (sidecarsRemoved) item = item.withoutDetails(parsed.title, parsed.year)
         val art = LocalArt(
             poster = local.poster?.let { artwork.copy(source, it) },
@@ -244,7 +251,7 @@ class LibraryScanner(
             logo = local.logo?.let { artwork.copy(source, it) },
             thumb = local.thumb?.let { artwork.copy(source, it) },
         )
-        saveMovie(item.copy(nfoPath = local.nfo?.relativePath, nfo = nfoText), nfo, movie, art, tmdb, now)
+        saveMovie(item.copy(nfoPath = local.nfo?.relativePath, nfo = nfoText), nfo, movie, art, tmdb, now, refreshMetadata)
     }
 
     private suspend fun identifyMovie(item: ItemEntity, tmdbId: Int?, tmdb: TmdbClient) {
@@ -258,16 +265,29 @@ class LibraryScanner(
         saveMovie(fresh.withoutDetails(parsed.title, parsed.year), nfo, movie, LocalArt.of(fresh), tmdb, System.currentTimeMillis())
     }
 
-    /** The user's match first, then the NFO's ids, then a search by title. */
-    private suspend fun lookupMovie(tmdb: TmdbClient, userTmdbId: Int?, nfo: NfoInfo?, parsed: ParsedMovie): TmdbMovie? {
+    /**
+     * The user's match first, then the NFO's ids, then the title the film was already matched
+     * with ([known]: a refresh does not re-identify it), then a search by title.
+     */
+    private suspend fun lookupMovie(tmdb: TmdbClient, userTmdbId: Int?, nfo: NfoInfo?, parsed: ParsedMovie, known: Int? = null): TmdbMovie? {
         userTmdbId?.let { return tmdb.movieById(it) }
-        val id = nfo?.tmdbId ?: nfo?.imdbId?.let { tmdb.findByImdb(it).first }
+        val id = nfo?.tmdbId ?: nfo?.imdbId?.let { tmdb.findByImdb(it).first } ?: known
         return id?.let { tmdb.movieById(it) } ?: tmdb.findMovie(nfo?.title ?: parsed.title, nfo?.year ?: parsed.year)
     }
 
     /** Details: NFO, then TMDB, then what [base] had. Artwork: local files, NFO, TMDB. */
-    private suspend fun saveMovie(base: ItemEntity, nfoInfo: NfoInfo?, movie: TmdbMovie?, art: LocalArt, tmdb: TmdbClient?, now: Long) {
+    private suspend fun saveMovie(
+        base: ItemEntity,
+        nfoInfo: NfoInfo?,
+        movie: TmdbMovie?,
+        art: LocalArt,
+        tmdb: TmdbClient?,
+        now: Long,
+        refresh: Boolean = false,
+    ) {
         val nfo = nfoInfo?.takeUnless { describesOther(it, base.userTmdbId, movie?.imdbId) }
+        // Without a fresh TMDB answer, the collection already known stays.
+        val collectionId = collection(nfo, movie, tmdb, now, refresh) ?: base.collectionId.takeIf { movie == null }
         val title = nfo?.title ?: movie?.title ?: base.title
         val item = base.copy(
             tmdbId = movie?.id ?: nfo?.tmdbId ?: base.tmdbId,
@@ -287,6 +307,7 @@ class LibraryScanner(
             backdropPath = art.fanart ?: nfo?.fanartUrl ?: movie?.backdropPath ?: base.backdropPath,
             logoPath = art.logo ?: nfo?.logoUrl ?: movie?.let { tmdb?.pickLogo(it.images) } ?: base.logoPath,
             stillPath = art.thumb ?: base.stillPath,
+            collectionId = collectionId,
             matchedAt = if (tmdb != null || nfoInfo != null) now else base.matchedAt,
         ).withNfoStreams(nfoInfo) // What the file contains does not depend on the match.
         dao.saveScanned(item)
@@ -294,6 +315,44 @@ class LibraryScanner(
             nfo != null && nfo.actors.isNotEmpty() -> dao.replaceCast(item.id, castOf(item.id, nfo.actors))
             movie != null -> dao.replaceCast(item.id, castOf(item.id, movie.credits))
         }
+    }
+
+    /**
+     * The collection a film belongs to: the NFO's set first (what the user's media manager
+     * decided), then TMDB's. Created when first met; its details are asked to TMDB once, or
+     * again on a full refresh. Returns null when the film is in no collection.
+     */
+    private suspend fun collection(nfo: NfoInfo?, movie: TmdbMovie?, tmdb: TmdbClient?, now: Long, refresh: Boolean): Long? {
+        val ref = movie?.belongsToCollection
+        val name = nfo?.collection ?: ref?.name ?: return null
+        // A set of the user's own ("Marvel") is not TMDB's collection, even if the film is in one.
+        val tmdbId = nfo?.collectionTmdbId
+            ?: ref?.id?.takeIf { nfo?.collection == null || CollectionRules.sameName(nfo.collection, ref.name) }
+        val key = CollectionRules.key(tmdbId, name)
+        var c = dao.collectionByKey(key) ?: CollectionEntity(
+            matchKey = key,
+            tmdbId = tmdbId,
+            name = name,
+            sortTitle = sortKey(name),
+            posterPath = ref?.posterPath.takeIf { tmdbId == ref?.id },
+            backdropPath = ref?.backdropPath.takeIf { tmdbId == ref?.id },
+        ).let { it.copy(id = dao.insertCollection(it)) }
+        if (tmdbId != null && tmdb != null && (c.fetchedAt == null || refresh) && refreshedCollections.add(c.id)) {
+            tmdb.collection(tmdbId)?.let { full ->
+                val shown = nfo?.collection ?: full.name
+                c = c.copy(
+                    name = shown,
+                    sortTitle = sortKey(shown),
+                    overview = full.overview?.ifBlank { null } ?: c.overview,
+                    posterPath = full.posterPath ?: c.posterPath,
+                    backdropPath = full.backdropPath ?: c.backdropPath,
+                    partCount = CollectionRules.released(full.parts.map { it.releaseDate }, CollectionRules.today()),
+                    fetchedAt = now,
+                )
+                dao.updateCollection(c)
+            }
+        }
+        return c.id
     }
 
     /** NFO stream details stand in when the file itself could not be read. */

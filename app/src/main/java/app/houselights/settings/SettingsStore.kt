@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import app.houselights.core.PathMapping
@@ -28,6 +29,8 @@ data class AppSettings(
     val ui4k: Boolean = true,
     /** User-provided TMDB key, overrides the one built into the APK. */
     val tmdbApiKey: String? = null,
+    /** How many films of a collection the library needs to show it; 0 hides collections. */
+    val collectionMinFilms: Int = 2,
 )
 
 class SettingsStore(private val context: Context, scope: CoroutineScope) {
@@ -38,6 +41,7 @@ class SettingsStore(private val context: Context, scope: CoroutineScope) {
         val forceHttp = booleanPreferencesKey("force_http")
         val ui4k = booleanPreferencesKey("ui_4k")
         val tmdbKey = stringPreferencesKey("tmdb_api_key")
+        val collectionMin = intPreferencesKey("collection_min_films")
     }
 
     private val json = Json { ignoreUnknownKeys = true }
@@ -56,6 +60,7 @@ class SettingsStore(private val context: Context, scope: CoroutineScope) {
         forceHttp = this[Keys.forceHttp] ?: false,
         ui4k = this[Keys.ui4k] ?: true,
         tmdbApiKey = this[Keys.tmdbKey]?.takeIf { it.isNotBlank() },
+        collectionMinFilms = this[Keys.collectionMin] ?: 2,
     )
 
     suspend fun ensureDeviceId(): String {
@@ -82,6 +87,10 @@ class SettingsStore(private val context: Context, scope: CoroutineScope) {
 
     suspend fun setUi4k(value: Boolean) {
         context.dataStore.edit { it[Keys.ui4k] = value }
+    }
+
+    suspend fun setCollectionMinFilms(value: Int) {
+        context.dataStore.edit { it[Keys.collectionMin] = value }
     }
 
     suspend fun setTmdbApiKey(value: String?) {

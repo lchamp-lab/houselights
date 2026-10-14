@@ -323,4 +323,25 @@
         <item quantity="one">%d en Ultra HD</item>
         <item quantity="other">%d en Ultra HD</item>
     </plurals>
+    <!-- Collections -->
+    <plurals name="film_count">
+        <item quantity="one">%d film</item>
+        <item quantity="other">%d films</item>
+    </plurals>
+    <plurals name="film_count_of">
+        <item quantity="one">%1$d film sur %2$d</item>
+        <item quantity="other">%1$d films sur %2$d</item>
+    </plurals>
+    <string name="collections_setting">Collections</string>
+    <string name="collections_setting_desc">Les films d’une même saga, réunis</string>
+    <string name="collections_two">À partir de 2 films</string>
+    <string name="collections_two_desc">Une saga apparaît dès que vous en avez au moins deux films</string>
+    <string name="collections_all">Toutes</string>
+    <string name="collections_all_desc">Même quand vous n’avez qu’un film de la saga</string>
+    <string name="collections_off">Masquées</string>
+    <string name="collections_off_desc">Ni bibliothèque Collections, ni rangée de saga</string>
+    <plurals name="collection_count">
+        <item quantity="one">%d collection</item>
+        <item quantity="other">%d collections</item>
+    </plurals>
 </resources>

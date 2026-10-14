@@ -388,9 +388,46 @@ private fun LibraryActions(onAddFolder: () -> Unit, onChangeSource: () -> Unit) 
             valueLit = s.tmdbApiKey != null || !hasBuiltIn,
             onClick = { editKey = true },
         )
+        CollectionsRow()
         SourceRow(onChangeSource)
     }
     if (editKey) TmdbKeyDialog(onDismiss = { editKey = false })
+}
+
+/** When a saga shows as a collection: from two films (default), always, or never. */
+@Composable
+private fun CollectionsRow() {
+    val app = appContainer()
+    val s by app.settings.state.collectAsStateWithLifecycle()
+    val scope = rememberCoroutineScope()
+    var choose by remember { mutableStateOf(false) }
+    val options = listOf(
+        COLLECTIONS_FROM_TWO to ChoiceOption(stringResource(R.string.collections_two), stringResource(R.string.collections_two_desc)),
+        COLLECTIONS_ALL to ChoiceOption(stringResource(R.string.collections_all), stringResource(R.string.collections_all_desc)),
+        COLLECTIONS_OFF to ChoiceOption(stringResource(R.string.collections_off), stringResource(R.string.collections_off_desc)),
+    )
+    val current = options.indexOfFirst { it.first == s.collectionMinFilms }.coerceAtLeast(0)
+    HlSettingRow(
+        stringResource(R.string.collections_setting),
+        value = options[current].second.label,
+        description = stringResource(R.string.collections_setting_desc),
+        onClick = { choose = true },
+    )
+    if (choose) {
+        HlChoiceSheet(
+            title = stringResource(R.string.collections_setting),
+            options = options.map { it.second },
+            selected = current,
+            onSelect = { i ->
+                scope.launch {
+                    app.settings.setCollectionMinFilms(options[i].first)
+                    // Libraries and detail pages read the setting: let them reload.
+                    app.scanner.notifyChanged()
+                }
+            },
+            onDismiss = { choose = false },
+        )
+    }
 }
 
 @Composable
@@ -837,6 +874,11 @@ private const val STRIP = 6
 private const val PROGRESS_MIN = 0.02f
 
 private const val LICENSE = "GPL-3.0"
+
+/** Films of a saga the library needs to show it as a collection. */
+private const val COLLECTIONS_FROM_TWO = 2
+private const val COLLECTIONS_ALL = 1
+private const val COLLECTIONS_OFF = 0
 
 /** Debug builds only, not translated. */
 private const val CATALOG = "Design system"
