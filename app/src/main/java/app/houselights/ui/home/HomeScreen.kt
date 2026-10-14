@@ -27,6 +27,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -45,6 +46,7 @@ import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.LocalAmbient
 import app.houselights.ui.design.components.Backdrop
+import app.houselights.ui.design.components.CollectionLight
 import app.houselights.ui.design.components.BackdropStyle
 import app.houselights.ui.design.components.CardSkeleton
 import app.houselights.ui.design.components.Emphasis
@@ -84,6 +86,11 @@ fun HomeScreen(
     CompositionLocalProvider(LocalAmbient provides ambient) {
         Box(Modifier.fillMaxSize()) {
             Backdrop(shown?.backdrop, BackdropStyle.Hero)
+            // Nothing selected (focus on the tabs): no film on the screen, the room takes the
+            // colours of the row the viewer was browsing.
+            val row = state.sections.getOrNull(vm.lastFocus.first) ?: state.sections.firstOrNull()
+            val rowPosters = remember(row) { row?.items.orEmpty().take(ROW_TONES).mapNotNull { it.poster ?: it.backdrop } }
+            CollectionLight(rowPosters, lit = shown == null)
             Column(Modifier.fillMaxSize().houseLit(LocalHouseLights.current)) {
                 TopBar(libraries = state.libraries, onLibrary = onOpenLibrary, onSettings = onOpenSettings)
                 HeroInfo(shown, Modifier.padding(start = HlSpace.safeH, top = HlSpace.xs).height(200.dp))
@@ -106,6 +113,7 @@ fun HomeScreen(
                             vm.lastFocus = section to index
                             focused = item
                         },
+                        onLeave = { focused = null },
                     )
                 }
             }
@@ -135,6 +143,8 @@ private fun Sections(
     initialFocus: Pair<Int, Int>,
     onOpen: (MediaItem) -> Unit,
     onFocus: (section: Int, index: Int, item: MediaItem) -> Unit,
+    /** Focus left the rows (for the tabs above): nothing is selected anymore. */
+    onLeave: () -> Unit,
 ) {
     val firstFocus = remember { FocusRequester() }
     // If the remembered card no longer exists (data reloaded), start from the first one.
@@ -145,7 +155,7 @@ private fun Sections(
     }
 
     LazyColumn(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier.fillMaxSize().onFocusChanged { if (!it.hasFocus) onLeave() },
         contentPadding = PaddingValues(bottom = HlSpace.xxl),
         verticalArrangement = Arrangement.spacedBy(HlSpace.xs),
     ) {
@@ -204,3 +214,6 @@ fun ErrorMessage(error: String, onRetry: () -> Unit) {
         HlButton(stringResource(R.string.retry), onRetry, Modifier.focusRequester(focus), icon = Icons.Filled.Refresh, emphasis = Emphasis.Primary)
     }
 }
+
+/** Posters of a row that lend their colours to the room, about what a row shows at once. */
+private const val ROW_TONES = 7

@@ -1,6 +1,19 @@
 package app.houselights.ui.design.components
 
+import android.content.Context
+import androidx.compose.animation.Crossfade
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.drawscope.scale
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -37,16 +50,64 @@ fun rememberAmbientColor(image: ImageRef?): Color {
             target = fallback
             return@LaunchedEffect
         }
-        val request = ImageRequest.Builder(context)
-            .data(image.url(SAMPLE_PX))
-            .size(SAMPLE_PX, SAMPLE_PX * 9 / 16)
-            .allowHardware(false) // Palette needs to read the pixels.
-            .build()
-        val bitmap = (context.imageLoader.execute(request) as? SuccessResult)?.drawable?.toBitmap() ?: return@LaunchedEffect
-        target = withContext(Dispatchers.Default) { ambientOf(Palette.from(bitmap).maximumColorCount(16).generate()) } ?: fallback
+        target = ambientColorOf(context, image) ?: fallback
     }
     val color by animateColorAsState(target, tween(HlMotion.SLOW, easing = HlMotion.standard), label = "ambient")
     return color
+}
+
+/** The ambient tone of [image], or null when it cannot be loaded. */
+private suspend fun ambientColorOf(context: Context, image: ImageRef): Color? {
+    val request = ImageRequest.Builder(context)
+        .data(image.url(SAMPLE_PX))
+        .size(SAMPLE_PX, SAMPLE_PX * 9 / 16)
+        .allowHardware(false) // Palette needs to read the pixels.
+        .build()
+    val bitmap = (context.imageLoader.execute(request) as? SuccessResult)?.drawable?.toBitmap() ?: return null
+    return withContext(Dispatchers.Default) { ambientOf(Palette.from(bitmap).maximumColorCount(16).generate()) }
+}
+
+/**
+ * The light of a collection, for when no title is selected: each of [posters] (the top row
+ * of a wall, left to right) lends its tone to a soft, wide glow above its own column, so the
+ * room takes the colours of what is on the wall without showing any one film. It fades in
+ * and out with [lit].
+ */
+@Composable
+fun CollectionLight(posters: List<ImageRef>, lit: Boolean, modifier: Modifier = Modifier) {
+    val context = LocalContext.current
+    var tones by remember { mutableStateOf<List<Color>>(emptyList()) }
+    LaunchedEffect(posters) {
+        // Posters fill the cache as the wall loads: tones come from there, in parallel.
+        tones = coroutineScope { posters.map { async { ambientColorOf(context, it) } }.awaitAll() }.filterNotNull()
+    }
+    val light by animateFloatAsState(if (lit) 1f else 0f, tween(HlMotion.SLOW, easing = HlMotion.standard), label = "collection")
+    Crossfade(tones, modifier.fillMaxSize(), tween(HlMotion.SLOW, easing = HlMotion.standard), label = "tones") { colors ->
+        Box(
+            Modifier.fillMaxSize().drawBehind {
+                if (light <= 0f || colors.isEmpty()) return@drawBehind
+                val column = size.width / colors.size
+                colors.forEachIndexed { i, tone ->
+                    val center = Offset(column * (i + 0.5f), -size.height * 0.12f)
+                    val radius = size.height * 0.95f
+                    // Taller than wide: each glow stays over its column and blends with its neighbours.
+                    scale(scaleX = (column * 1.25f) / radius, scaleY = 1f, pivot = center) {
+                        drawCircle(
+                            Brush.radialGradient(
+                                0f to tone.copy(alpha = 0.36f * light),
+                                0.55f to tone.copy(alpha = 0.11f * light),
+                                1f to Color.Transparent,
+                                center = center,
+                                radius = radius,
+                            ),
+                            radius = radius,
+                            center = center,
+                        )
+                    }
+                }
+            }
+        )
+    }
 }
 
 private fun ambientOf(palette: Palette): Color? {

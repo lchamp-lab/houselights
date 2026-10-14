@@ -57,6 +57,7 @@ identity comes from treating artwork as the lit screen and the interface as the 
 | `Backdrop` (`Hero`, `Full`, `Quiet`) | full-screen artwork faded to black where text sits, plus the ambient light; its scrims lift when the lights go down |
 | `BillingBlock` | poster-style credits on detail pages |
 | `rememberAmbientColor` | the light a picture spills into the room, animated |
+| `CollectionLight` | when no title is selected (focus on tabs, filters, sort): no film on the screen, the room takes the colours of the posters on the wall, each glowing above its column |
 | `PosterCard`, `LandscapeCard`, `PersonCard` | artwork with the shared focus treatment (`ArtworkSurface`) |
 | `MediaRow` | horizontal row with header and focus restoration; dims the other cards when one is focused |
 | `HeroInfo`, `TitleArt`, `MetaLine`, `Badge` | what a title is: clear logo or condensed title, facts, formats; a `lit` badge marks a state (in use, your choice) |
