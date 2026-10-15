@@ -15,20 +15,21 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import app.houselights.ui.design.Hl
-import app.houselights.ui.design.HlShapes
+import app.houselights.ui.design.HlAlpha
 import app.houselights.ui.design.HlMotion
 import app.houselights.ui.design.HlScrim
+import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.colorStops
@@ -80,7 +81,10 @@ fun PosterWall(urls: List<String>, modifier: Modifier = Modifier, opacity: Float
                             model = urls[(col * 5 + (row % ROWS) * 11) % urls.size],
                             contentDescription = null,
                             contentScale = ContentScale.Crop,
-                            modifier = Modifier.size(POSTER_W, POSTER_H).clip(HlShapes.artwork).background(Hl.colors.surface),
+                            modifier = Modifier
+                                .size(POSTER_W, POSTER_H)
+                                .clip(HlShapes.artwork)
+                                .background(Hl.colors.content.copy(alpha = HlAlpha.FILL)),
                         )
                     }
                 }

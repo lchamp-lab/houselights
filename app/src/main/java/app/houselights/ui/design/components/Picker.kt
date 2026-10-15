@@ -39,6 +39,7 @@ import app.houselights.ui.design.HlInset
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.groundStep
 import app.houselights.ui.util.toPx
 import coil.compose.AsyncImage
 
@@ -163,7 +164,7 @@ fun PosterThumb(poster: ImageRef?, modifier: Modifier = Modifier, width: Dp = Hl
     if (url == null || failed) {
         EmptyFrame(frame)
     } else {
-        Box(frame.clip(HlShapes.artwork).background(Hl.colors.surfaceRaised)) {
+        Box(frame.clip(HlShapes.artwork).background(Hl.colors.content.copy(alpha = groundStep()))) {
             AsyncImage(
                 model = url,
                 contentDescription = null,
@@ -171,7 +172,7 @@ fun PosterThumb(poster: ImageRef?, modifier: Modifier = Modifier, width: Dp = Hl
                 onError = { failed = true },
                 modifier = Modifier.fillMaxSize(),
             )
-            Box(Modifier.fillMaxSize().border(HlSize.hairline, Hl.colors.content.copy(alpha = HlAlpha.ARTWORK_EDGE), HlShapes.artwork))
+            Box(Modifier.fillMaxSize().border(HlSize.hairline, Hl.colors.content.copy(alpha = HlAlpha.EDGE_ARTWORK), HlShapes.artwork))
         }
     }
 }

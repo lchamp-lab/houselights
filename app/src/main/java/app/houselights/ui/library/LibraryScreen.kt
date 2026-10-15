@@ -157,7 +157,7 @@ fun LibraryScreen(
                                 state.total,
                             ),
                             style = Hl.type.meta,
-                            color = Hl.colors.contentTertiary,
+                            color = Hl.colors.contentSecondary,
                         )
                     }
                     Spacer(Modifier.weight(1f))

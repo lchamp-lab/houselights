@@ -84,10 +84,11 @@ import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.LocalAmbient
 import app.houselights.ui.design.LocalGroupFocus
 import app.houselights.ui.design.RowScroll
+import app.houselights.ui.design.emberLight
+import app.houselights.ui.design.groundStep
 import app.houselights.ui.design.keepChildFocus
 import app.houselights.ui.design.rememberedInGroup
 import app.houselights.ui.design.revealOnFocus
-import app.houselights.ui.design.emberLight
 import app.houselights.ui.util.toPx
 import coil.compose.AsyncImage
 import kotlin.math.roundToInt
@@ -190,15 +191,15 @@ fun ArtworkSurface(
             focusedBorder = Border(BorderStroke(HlSize.focusBorder, c.focus), shape = shape),
         ),
         colors = ClickableSurfaceDefaults.colors(
-            containerColor = c.surface,
-            focusedContainerColor = c.surface,
-            pressedContainerColor = c.surface,
+            containerColor = c.content.copy(alpha = HlAlpha.FILL),
+            focusedContainerColor = c.content.copy(alpha = HlAlpha.FILL),
+            pressedContainerColor = c.content.copy(alpha = HlAlpha.FILL),
         ),
         interactionSource = interaction,
     ) {
         // Read while drawing, or by the image alone: stepping back never recomposes the row.
         CompositionLocalProvider(LocalArtworkRecede provides { recede.value }) { content() }
-        Box(Modifier.fillMaxSize().border(HlSize.hairline, c.content.copy(alpha = HlAlpha.ARTWORK_EDGE), shape))
+        Box(Modifier.fillMaxSize().border(HlSize.hairline, c.content.copy(alpha = HlAlpha.EDGE_ARTWORK), shape))
         Box(Modifier.fillMaxSize().drawBehind { drawRect(c.background.copy(alpha = recede.value * HlFocus.SIBLING_DIM)) })
     }
 }
@@ -320,7 +321,7 @@ fun LandscapeCard(
             Spacer(Modifier.height(HlSpace.s))
             Row {
                 if (number != null) {
-                    Text(number, style = Hl.type.meta, color = Hl.colors.contentTertiary, modifier = Modifier.alignByBaseline())
+                    Text(number, style = Hl.type.meta, color = Hl.colors.contentSecondary, modifier = Modifier.alignByBaseline())
                     Spacer(Modifier.width(HlSpace.xs))
                 }
                 Text(
@@ -335,7 +336,7 @@ fun LandscapeCard(
         }
         if (facts.any { !it.isNullOrBlank() }) {
             Spacer(Modifier.height(HlSpace.xxs))
-            FactRow(facts, style = Hl.type.detail, color = Hl.colors.contentTertiary)
+            FactRow(facts, style = Hl.type.detail)
         }
     }
 }
@@ -408,10 +409,10 @@ internal fun BoxScope.FallbackArtwork(title: String, year: Int?) {
 }
 
 /**
- * Where a picture would be and is not yet, or failed to load: an empty frame in a foyer. The room
- * shows through it, edged like artwork at rest, with the short rule of a one-sheet at its foot
- * waiting for a title, in the quietest grey; a frame too small to hold the rule keeps its edge
- * alone. Never a grey box, which reads as broken. Loading cards, the free places of a strip and
+ * Where a picture would be and is not yet, or failed to load: an empty frame in a foyer, one step
+ * up from its ground so a TV still shows it, edged like artwork at rest, with the short rule of a
+ * one-sheet at its foot waiting for a title, in the quietest grey; a frame too small to hold the
+ * rule keeps its edge alone. Loading cards, the free places of a strip and
  * the thumbnails with nothing to show are all this frame.
  */
 @Composable
@@ -421,7 +422,7 @@ internal fun EmptyFrame(modifier: Modifier = Modifier, shape: Shape = HlShapes.a
     Box(
         modifier
             .clip(shape)
-            .background(c.background)
+            .background(c.content.copy(alpha = groundStep()))
             .drawBehind {
                 val inset = HlSpace.s.toPx()
                 val length = HlSpace.l.toPx()
@@ -430,7 +431,7 @@ internal fun EmptyFrame(modifier: Modifier = Modifier, shape: Shape = HlShapes.a
                     drawRect(rule, Offset(inset, size.height - inset - weight), Size(length, weight))
                 }
             }
-            .border(HlSize.hairline, c.content.copy(alpha = HlAlpha.ARTWORK_EDGE), shape),
+            .border(HlSize.hairline, c.content.copy(alpha = HlAlpha.EDGE_ARTWORK), shape),
     )
 }
 
@@ -479,7 +480,7 @@ private const val POSTER_RATIO = 2f / 3f
 @Composable
 private fun StatusMark(item: MediaItem, modifier: Modifier) {
     val unplayed = item.user.unplayedCount ?: 0
-    val plate = Hl.colors.background.copy(alpha = HlAlpha.PLATE)
+    val plate = Hl.colors.background.copy(alpha = HlAlpha.VEIL)
     // The card's state description says it in words: the bare number is not read.
     val mark = modifier.clearAndSetSemantics {}
     when {
@@ -501,7 +502,7 @@ private fun StatusMark(item: MediaItem, modifier: Modifier) {
 internal fun CheckMark(modifier: Modifier = Modifier, choice: Boolean = false) {
     val c = Hl.colors
     Box(
-        modifier.size(HlSize.mark).clip(HlShapes.avatar).background(c.background.copy(alpha = HlAlpha.PLATE)),
+        modifier.size(HlSize.mark).clip(HlShapes.avatar).background(c.background.copy(alpha = HlAlpha.VEIL)),
         contentAlignment = Alignment.Center,
     ) {
         val ink = if (choice) c.ember else c.content
@@ -536,7 +537,7 @@ private const val PERCENT = 100
 @Composable
 fun ProgressLine(progress: Float, modifier: Modifier = Modifier, onArtwork: Boolean = false) {
     if (progress <= 0f) return
-    val track = if (onArtwork) Hl.colors.background.copy(alpha = HlAlpha.PLATE) else Hl.colors.content.copy(alpha = HlAlpha.TRACK)
+    val track = if (onArtwork) Hl.colors.background.copy(alpha = HlAlpha.VEIL) else Hl.colors.content.copy(alpha = HlAlpha.FILL_STRONG)
     Box(modifier.fillMaxWidth().height(HlSize.progress).background(track)) {
         Box(Modifier.fillMaxWidth(progress).height(HlSize.progress).background(Hl.colors.emberLight()))
     }

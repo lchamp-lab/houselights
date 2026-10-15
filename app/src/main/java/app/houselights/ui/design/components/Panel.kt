@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -48,7 +49,9 @@ import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.LocalGround
 import app.houselights.ui.design.emberLight
+import app.houselights.ui.design.groundStep
 
 /** How far a panel stands out from the room. */
 enum class PanelLevel {
@@ -73,20 +76,22 @@ fun HlPanel(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val c = Hl.colors
+    val raised = level == PanelLevel.Raised
     Column(
         modifier
             .clip(shape)
-            .background(if (level == PanelLevel.Raised) c.surfaceRaised else c.surface.copy(alpha = HlAlpha.QUIET_SURFACE))
+            .background(if (raised) c.surfaceRaised else c.content.copy(alpha = groundStep()))
             .then(
                 if (lit) {
                     Modifier.border(HlSize.hairline, c.emberLight(), shape)
                 } else {
-                    Modifier.border(HlSize.hairline, c.outline.copy(alpha = HlAlpha.BORDER), shape)
+                    Modifier.border(HlSize.hairline, c.outline.copy(alpha = HlAlpha.EDGE), shape)
                 },
             )
             .padding(padding),
-        content = content,
-    )
+    ) {
+        if (raised) CompositionLocalProvider(LocalGround provides c.surfaceRaised) { content() } else content()
+    }
 }
 
 /**
@@ -108,6 +113,7 @@ fun HlPanelButton(
     val interaction = remember { MutableInteractionSource() }
     val focused by interaction.collectIsFocusedAsState()
     val outline = Border(BorderStroke(HlSize.focusBorder, c.focus), shape = HlShapes.panel)
+    val step = groundStep()
     Surface(
         onClick = onClick,
         modifier = modifier.onFocusChanged { if (it.isFocused) onFocused() },
@@ -119,22 +125,22 @@ fun HlPanelButton(
                 if (lit) {
                     BorderStroke(HlSize.hairline, c.emberLight())
                 } else {
-                    BorderStroke(HlSize.hairline, c.outline.copy(alpha = HlAlpha.BORDER))
+                    BorderStroke(HlSize.hairline, c.outline.copy(alpha = HlAlpha.EDGE))
                 },
                 shape = HlShapes.panel,
             ),
             focusedBorder = outline,
-            disabledBorder = Border(BorderStroke(HlSize.hairline, c.outline.copy(alpha = HlAlpha.BORDER)), shape = HlShapes.panel),
+            disabledBorder = Border(BorderStroke(HlSize.hairline, c.outline.copy(alpha = HlAlpha.EDGE)), shape = HlShapes.panel),
             focusedDisabledBorder = outline,
         ),
         colors = ClickableSurfaceDefaults.colors(
-            containerColor = c.surface.copy(alpha = HlAlpha.QUIET_SURFACE),
+            containerColor = c.content.copy(alpha = step),
             contentColor = c.content,
-            focusedContainerColor = c.surfaceRaised,
+            focusedContainerColor = c.content.copy(alpha = step),
             focusedContentColor = c.content,
-            pressedContainerColor = c.surfaceRaised,
+            pressedContainerColor = c.content.copy(alpha = step),
             pressedContentColor = c.content,
-            disabledContainerColor = c.content.copy(alpha = HlAlpha.WELL),
+            disabledContainerColor = c.content.copy(alpha = HlAlpha.FILL_FAINT),
             disabledContentColor = c.contentTertiary,
         ),
         interactionSource = interaction,
@@ -153,9 +159,9 @@ fun HlIconDisc(icon: ImageVector, modifier: Modifier = Modifier, lit: Boolean = 
             .clip(HlShapes.avatar)
             .then(
                 if (lit) {
-                    Modifier.background(c.emberLight(HlAlpha.LIT_DISC))
+                    Modifier.background(c.emberLight(HlAlpha.FILL_STRONG))
                 } else {
-                    Modifier.background(c.content.copy(alpha = HlAlpha.WELL))
+                    Modifier.background(c.content.copy(alpha = HlAlpha.FILL_FAINT))
                 },
             ),
         contentAlignment = Alignment.Center,
@@ -167,7 +173,7 @@ fun HlIconDisc(icon: ImageVector, modifier: Modifier = Modifier, lit: Boolean = 
 /** A hairline that separates groups. */
 @Composable
 fun HlDivider(modifier: Modifier = Modifier, vertical: Boolean = false) {
-    val color = Hl.colors.outline.copy(alpha = HlAlpha.DIVIDER)
+    val color = Hl.colors.outline.copy(alpha = HlAlpha.EDGE)
     if (vertical) {
         Box(modifier.width(HlSize.hairline).fillMaxHeight().background(color))
     } else {
@@ -339,7 +345,7 @@ fun HlMeter(segments: List<MeterSegment>, modifier: Modifier = Modifier) {
             .fillMaxWidth()
             .height(HlSize.meter)
             .clip(HlShapes.control)
-            .background(c.content.copy(alpha = HlAlpha.WELL)),
+            .background(c.content.copy(alpha = HlAlpha.FILL_FAINT)),
         horizontalArrangement = Arrangement.spacedBy(HlSize.meterGap),
     ) {
         segments.filter { it.fraction > 0f }.forEach { s ->

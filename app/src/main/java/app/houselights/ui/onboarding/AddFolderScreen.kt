@@ -87,7 +87,7 @@ fun AddFolderScreen(onAdded: (switched: Boolean) -> Unit) {
             Text(
                 stringResource(if (protocol == Protocol.NFS) R.string.nfs_hint else R.string.smb_hint),
                 style = Hl.type.caption,
-                color = Hl.colors.contentTertiary,
+                color = Hl.colors.contentSecondary,
             )
         },
     ) {

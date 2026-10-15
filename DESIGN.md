@@ -89,33 +89,47 @@ materials, never two, and invent nothing. The catalogue shows the three side by 
 
 ### Colour (`Color.kt`)
 
-| Token | Value | Role |
-|---|---|---|
-| `background` | `#000000` | the room; masks over artwork; before Compose draws, the window and the launcher icon's ground (`@color/room`) |
-| `surface` / `surfaceRaised` | `#0C0C0E` / `#131316` | quiet panels / side sheets, dialogs, menus, focused fields |
-| `outline` | `#33333A` | hairlines, badge borders |
-| `content` | `#F4F4F5` | projector white: primary text |
-| `contentSecondary` | `#A3A3AB` | secondary text; 5.21:1 at worst, in a primary button |
-| `contentTertiary` | `#8C8C95` | the quietest text: 5.56:1 on `surfaceRaised`, its lowest permitted surface |
-| `contentDecorative` | `#45454C` | never text: empty frames, inactive marks |
-| `ember` | `#FF7A4D` | states only, a closed list (below); the wordmark is the one exception. Solid, for what is too small for a gradient: a dot, a check, a word |
-| `emberFrom`, `emberTo` | `#FF9F1C` → `#FF2E63` | the ember light (`emberLight()`): the same states where they have room, a gradient from start to end across what they fill. The wordmark, a progress line and the counter, the rule of an intertitle that calls for attention, the edge of a field being typed in, the edge and disc of what is lit |
-| `focus` | `#F4F4F5` | projector white again: the fill and outline of focus |
-| `onFocus` | `#000000` | a focused control's name and icon |
-| `onFocusSecondary` | `#5D5D5D` | the line under that name (a summary, a runtime): black at 62 % on `focus`, 6.01:1 |
+Two levels. **`HlPalette`** holds the colours themselves, named by what they are: a ramp of
+neutrals named by their lightness (`N0` black, `N8`, `N21`, `N28`, `N36`, `N57`, `N65`, `N96`
+projector white) and the three embers. **`HlColors`** names their roles, and only roles reach a
+component; a colour changes in one place.
+
+| Role | Palette | Value | Role |
+|---|---|---|---|
+| `background` | `N0` | `#000000` | the room; masks over artwork; before Compose draws, the window and the launcher icon's ground (`@color/room`) |
+| `surfaceRaised` | `N8` | `#131316` | glass: side sheets, menus, dialogs, opaque over the dimmed room |
+| `outline` | `N21` | `#33333A` | badge borders, and every edge at `EDGE` |
+| `content` | `N96` | `#F4F4F5` | projector white: what is read first (titles, values, the year and the runtime of a hero) |
+| `contentSecondary` | `N65` | `#A3A3AB` | what explains: summaries, descriptions, facts, hints; 5.21:1 at worst, in a primary button |
+| `contentTertiary` | `N57` | `#8C8C95` | what is guessed: joins, placeholders, key hints, the disabled; 5.56:1 on `surfaceRaised` |
+| `contentDecorative` | `N28` | `#45454C` | never text: the rule of an empty frame, a skeleton |
+| `ember` | `Ember` | `#FF7A4D` | states only, a closed list (below); the wordmark is the one exception. Solid, for what is too small for a gradient: a dot, a check, a word |
+| `emberFrom`, `emberTo` | `EmberStart`, `EmberEnd` | `#FF9F1C` → `#FF2E63` | the ember light (`emberLight()`): the same states where they have room, a gradient from start to end across what they fill. The wordmark, a progress line and the counter, the rule of an intertitle that calls for attention, the edge of a field being typed in, the edge and disc of what is lit |
+| `focus` | `N96` | `#F4F4F5` | projector white again: the fill and outline of focus |
+| `onFocus` | `N0` | `#000000` | a focused control's name and icon |
+| `onFocusSecondary` | `N36` | `#5D5D5D` | the line under that name (a summary, a runtime): black at 62 % on `focus`, 6.01:1 |
 
 **The neutrals are neutral.** Greys and whites carry no hue of their own, only a breath of cool:
 the warmth belongs to the films and to the ember light, and a warm grey beside them reads dull.
-Depth is one ramp: the room (`#000000`), `surface`, `surfaceRaised` (a side sheet, a menu), then
-the white fills of controls laid on them by opacity (`WELL`, `CONTROL_FILL`), and focus in projector
-white. Each step is darker than the one a layer would have in a lit room: a sheet is black glass
-over the dimmed film, set off by its hairline, not a grey slab.
 
-`HlAlpha` names every opacity, by role: `QUIET_SURFACE`, `CONTROL_FILL` / `CONTROL_FILL_STRONG`,
-`WELL`, `BORDER`, `DIVIDER`, `SCRIM` / `SCRIM_SIDE`, `PLATE`, `TRACK`, `FOCUS_QUIET`, `LIT_DISC`,
-`ARTWORK_EDGE`. `PLATE` is the plate under whatever sits on artwork: a card's marks
-and progress, and the controls laid over a backdrop. The veils laid over artwork are recipes, in
-`HlScrim` (see *Veils*).
+**Three materials.** The room (`background`). Glass (`surfaceRaised`): a side sheet, a menu, a
+dialog, opaque over the dimmed film and set off by its hairline, never a grey slab; it is the
+ground of what it holds (`LocalGround`). Fills: everything that stands on a ground, `content` laid
+over it by opacity, so it is always one step up from what is below. A thing on its ground (a quiet
+panel, a field, an empty frame, an image's ground, a list entry) takes `groundStep()`: `FILL` (9 %)
+on the room, a step a TV still shows (#161616, video level 35, where the room is 16); `FILL_FAINT`
+(6 %) on glass, already a step up. What must hide what is under it or fade into it reads the
+ground opaque (`groundFill`). Then focus, in projector white.
+
+`HlAlpha` names every opacity, in three families. Fills, `content` over its ground: `FILL_FAINT`
+(6 %: wells, tracks, rows at rest, the disabled), `FILL` (9 %: secondary controls at rest, things on
+the room), `FILL_STRONG` (20 %: primary controls at rest, a progress line's track off the artwork,
+a lit disc in ember), `FILL_FOCUS` (30 %: focus on a track option that is not current). Veils,
+`background` over a picture or the room: `VEIL_SIDE` (60 %: beside a side sheet), `VEIL` (80 %:
+behind a dialog, and the plate under whatever sits on artwork). Edges: `EDGE` (`outline` at 60 %:
+every container's edge and divider) and `EDGE_ARTWORK` (`content` at 12 %: around a picture). The
+catalogue's black-level chart (`BLACK_LEVELS`) is the place to check on a TV that a fill still
+reads. The veils laid over artwork are recipes, in `HlScrim` (see *Veils*).
 
 **Ember is a closed list.** It says four things and nothing else. *In use*: a title's progress,
 a scan, the track playing, the setup in use, a field being typed in. *Your choice*: the check of the
@@ -142,15 +156,15 @@ translucent layer composed over what lies under it. `ContrastTest` lists every p
 draws and checks it on every build: a new pair goes there before a component uses it. The states of
 a control are named colours, never an opacity laid on the current one: the line under a name is
 `contentTertiary` at rest, `contentSecondary` when chosen, `onFocusSecondary` with focus. One pair
-is forbidden: `contentTertiary` on `CONTROL_FILL_STRONG` (≈ 3.90:1). There, the quiet line stays
+is forbidden: `contentTertiary` on `FILL_STRONG` (≈ 3.90:1). There, the quiet line stays
 `contentSecondary`, as in setting rows and buttons. A line that names a state (`detailLit`: an
 active filter) is `ember` at rest and `onFocusSecondary` with focus. A **disabled** control sits in
-a `WELL` with `contentTertiary` words, on the room only: a sheet leaves out an action that cannot be
+a `FILL_FAINT` well with `contentTertiary` words, on the room only: a sheet leaves out an action that cannot be
 taken. Marks reach 3:1 too: the ends of the ember gradient on every ground they are drawn on, the
 pending dot, the ring of a state that is off.
 
 **On artwork.** A translucent white fill is made for the dark room: over a light image it vanishes.
-What sits on an image takes a dark plate instead (`PLATE`, matte, never blurred), so its contrast no
+What sits on an image takes a dark plate instead (`VEIL`, matte, never blurred), so its contrast no
 longer depends on the picture: a card's marks and progress line, and the controls that pass
 `onArtwork` (the home bar's track and settings button). The plate is black at 80 %: over a white
 image the raspberry end of a progress line still reaches 3.5:1. On it the options of a track at
@@ -270,7 +284,7 @@ without the prefix (`MenuOption`, `MeterLegend`, `PosterCard`, `BillingBlock`, `
 | `HlModal` | a sheet to read, centred over the dimmed room (the technical sheet), never past the safe area: longer content scrolls; Back closes it |
 | `HlTwoPane`, `HlFormScaffold`, `StatusPanel`, `FieldLabel` | two-pane screens: navigation or explanation on the left, content on the right; given the content's scroll `state`, the content fades into the room at an edge with more. `StatusPanel` is where a setup stands, beside its form: its state with its light first, then what is set up, large (an address in the technical voice), its path and kind, and what was found under a hairline; lit while the state is on |
 | `HlTextField` | TV text field: focusable box first, keyboard on OK; focused and waiting, it says so at its end ("OK saisir", `KeyHint`); ember while typing, and only then. Every field has a name, read out even when the screen hides it because its sheet already names it. One line under it: what to type (`supporting`), or what is wrong (`error`), in ember after the attention light, its edge unchanged. A placeholder is an example, from the resources ("Ex. : 192.168.1.10"). A setting typed in a field is saved when the field is left (its keyboard action, or focus moving on), never while typing, and its result line then says "Enregistré". Once the keyboard is closed, up or down end typing and move on (Back closes it without telling the app) |
-| `HlScrollArea` | long content read with the remote; focusable only when it has something to scroll; a key held down scrolls in one motion. Framed on a quiet panel, or unframed inside a sheet: square edges, so a hairline at its top stays whole, and the focus ring outside the content. Where there is more, the text fades into what the area sits on (`surface`: the panel, or the sheet) |
+| `HlScrollArea` | long content read with the remote; focusable only when it has something to scroll; a key held down scrolls in one motion. Framed on a quiet panel, or unframed inside a sheet: square edges, so a hairline at its top stays whole, and the focus ring outside the content. Where there is more, the text fades into what the area sits on (the panel's fill as it shows, or the sheet's glass) |
 | `TechSpecs`, `InfoBlock`, `DefinitionList`, `DefinitionRow`, `SpecTable` | the technical sheet, set like the back of a Blu-ray case: one block per subject (a hairline, its name, what it says), every track listed; it does not scroll itself, the sheet scrolls it whole. The NFO and the settings that only state something are laid out the same way (see *Gestures*): pairs on one baseline, a value that is not text (a state and its light, a logo) in a `DefinitionRow`, rows of a kind in a `SpecTable` with aligned columns and the dot on the one in service |
 | `ArtworkChoiceCard`, `SelectedMark` | one artwork to choose from, at the shape it is used in; the one in use carries the check of your choice, the watched mark in ember. A backdrop or a logo is previewed on the page behind; a poster is its own preview, so its picker keeps no room for one and its choices come larger (`posterChoice`, 180 dp), right under the header |
 | `HlEmptyState` | the intertitle of a screen with nothing to show or that could not load: a short rule (ember for `attention`), what happened in the voice of the poster, what to check, the action focused and a quieter way out beside it; with no action, the Back hint. An error (`UiError`, through `ErrorIntertitle` and `ErrorMessage`) brings its own title, message and action (`ErrorAction`), always with attention: try again on the spot, sign in again, add or change the TMDB key; a title that has gone has none, Back is the way out |
@@ -283,7 +297,7 @@ without the prefix (`MenuOption`, `MeterLegend`, `PosterCard`, `BillingBlock`, `
 Artwork carries no text: the top of the screen names what is under focus. The card itself says the
 rest, sparingly:
 
-- **At rest**, a faint edge (`ARTWORK_EDGE`) keeps dark artwork from dissolving into the black room.
+- **At rest**, a faint edge (`EDGE_ARTWORK`) keeps dark artwork from dissolving into the black room.
 - **One mark at most**, top right, on a dark plate the size of a mark: the number of unwatched
   episodes of a show, else the line check of a title watched (white; the same check in ember is
   your choice, on an artwork to choose), else the ember dot of a title new
@@ -295,10 +309,11 @@ rest, sparingly:
   one-sheet: a short rule, the name in `cardTitle`, the year in the technical voice. `ArtworkImage`
   takes that fallback and shows it in place of a failed image, so a wall is never a row of blanks.
   A picture with no title to set (`PosterThumb`, `RowPreview`, the free places of a `PosterStrip`)
-  is an **empty frame** instead, and so is a card still loading (`CardSkeleton`): the room, edged
-  like artwork at rest (`ARTWORK_EDGE`), with the one-sheet's short rule at its foot in
-  `contentDecorative`, waiting for a title (a frame too small for the rule keeps its edge alone).
-  Never a grey box, which reads as broken.
+  is an **empty frame** instead, and so is a card still loading (`CardSkeleton`): one step up from
+  its ground (`groundStep()`), so a TV still shows where it is, edged like artwork at rest
+  (`EDGE_ARTWORK`), with the one-sheet's short rule at its foot in `contentDecorative`, waiting for
+  a title (a frame too small for the rule keeps its edge alone). Never a lighter box: the frame,
+  its edge and its rule say a picture belongs there.
 - **An episode** reads as a number in tabular figures, its name, then its length and where it stands.
 - **A person** has a name two lines tall, even a short one, so the roles of a cast row line up.
 - **Stepping back**, the image loses colour through its own filter (`ArtworkImage`): no layer is drawn
@@ -320,7 +335,7 @@ Close button: on a remote, Back already says it), both leaving with the motion t
 Focus stays inside; when a sheet has gone, focus is back where it was.
 
 - **To act: `HlSideSheet`.** A panel the full height of the screen against its right edge (520 dp),
-  so the page it acts on stays in view, under a lighter scrim (`SCRIM_SIDE`). From the top: what
+  so the page it acts on stays in view, under a lighter veil (`VEIL_SIDE`). From the top: what
   it does, in the voice of the poster (`subject`: "Modifier"); what it is about (a name, facts, a
   line of description, and artwork when it helps); a hairline; the rows, which fade into the sheet
   at an edge with more; the Back hint at its foot.

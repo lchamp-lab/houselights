@@ -40,10 +40,13 @@ import androidx.compose.ui.unit.Dp
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlAlpha
 import app.houselights.ui.design.HlFocus
+import app.houselights.ui.design.HlInset
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
-import app.houselights.ui.design.HlInset
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.LocalGround
+import app.houselights.ui.design.groundFill
+import app.houselights.ui.design.groundStep
 import app.houselights.ui.design.scrollEdges
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -62,7 +65,7 @@ fun HlScrollArea(
     modifier: Modifier = Modifier,
     framed: Boolean = true,
     padding: Dp = if (framed) HlInset.card else HlSpace.none,
-    surface: Color = if (framed) quietPanel() else Hl.colors.surfaceRaised,
+    surface: Color = if (framed) groundFill(groundStep()) else LocalGround.current,
     content: @Composable BoxScope.() -> Unit,
 ) {
     val scroll = rememberScrollState()
@@ -74,10 +77,10 @@ fun HlScrollArea(
     val edge = if (framed) {
         Modifier
             .clip(HlShapes.panel)
-            .background(c.surface.copy(alpha = HlAlpha.QUIET_SURFACE))
+            .background(c.content.copy(alpha = groundStep()))
             .border(
                 if (focused) HlSize.focusBorder else HlSize.hairline,
-                if (focused) c.focus else c.outline.copy(alpha = HlAlpha.BORDER),
+                if (focused) c.focus else c.outline.copy(alpha = HlAlpha.EDGE),
                 HlShapes.panel,
             )
     } else {
@@ -97,10 +100,6 @@ fun HlScrollArea(
         content = content,
     )
 }
-
-/** The quiet panel as it shows on the room: opaque, so an edge can fade into it. */
-@Composable
-private fun quietPanel(): Color = Hl.colors.surface.copy(alpha = HlAlpha.QUIET_SURFACE).compositeOver(Hl.colors.background)
 
 /** The focus ring of an unframed area, drawn a gap outside its bounds, clear of the content. */
 private fun Modifier.ringOutside(shown: Boolean, color: Color): Modifier = drawBehind {

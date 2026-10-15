@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.Stable
@@ -60,6 +61,8 @@ import app.houselights.ui.design.HlMotion
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.LocalGround
+import app.houselights.ui.design.groundStep
 import app.houselights.ui.design.scrollEdges
 import app.houselights.ui.util.toPx
 import coil.compose.AsyncImage
@@ -172,8 +175,10 @@ fun HlSideSheet(
     status: (@Composable () -> Unit)? = null,
     content: @Composable ColumnScope.(sheet: SheetScope) -> Unit,
 ) {
-    SheetWindow(onDismiss, HlAlpha.SCRIM_SIDE, initialFocus) { progress, sheet ->
+    SheetWindow(onDismiss, HlAlpha.VEIL_SIDE, initialFocus) { progress, sheet ->
         val body = rememberScrollState()
+        // Glass: the ground of the rows and fields it holds.
+        CompositionLocalProvider(LocalGround provides Hl.colors.surfaceRaised) {
         Row(
             modifier
                 .align(Alignment.CenterEnd)
@@ -200,6 +205,7 @@ fun HlSideSheet(
                 Spacer(Modifier.height(HlSpace.m))
                 BackHint()
             }
+        }
         }
     }
 }
@@ -321,9 +327,10 @@ fun RowPreview(image: ImageRef?, shape: PreviewShape, modifier: Modifier = Modif
     var failed by remember(url) { mutableStateOf(false) }
     Box(modifier.width(HlSize.rowPreviewWide).height(HlSize.rowPreview), contentAlignment = Alignment.Center) {
         val frame = Modifier.width(width).height(HlSize.rowPreview)
+        val step = groundStep()
         when {
             url != null && !failed -> Box(
-                frame.clip(HlShapes.artwork).background(if (shape == PreviewShape.Logo) c.background else c.surface),
+                frame.clip(HlShapes.artwork).background(if (shape == PreviewShape.Logo) c.background else c.content.copy(alpha = step)),
             ) {
                 AsyncImage(
                     model = url,

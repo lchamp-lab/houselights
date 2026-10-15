@@ -38,7 +38,7 @@ fun HlModal(
     initialFocus: FocusRequester? = null,
     content: @Composable ColumnScope.(sheet: SheetScope) -> Unit,
 ) {
-    SheetWindow(onDismiss, HlAlpha.SCRIM, initialFocus) { progress, sheet ->
+    SheetWindow(onDismiss, HlAlpha.VEIL, initialFocus) { progress, sheet ->
         HlPanel(
             modifier
                 .align(Alignment.Center)
