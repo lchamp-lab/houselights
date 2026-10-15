@@ -219,4 +219,29 @@ class ArtworkSample(val width: Int, val height: Int, private val grey: FloatArra
         needs.sort()
         return needs[(needs.lastIndex * HlScrim.FLOOR_QUANTILE).roundToInt()]
     }
+
+    /**
+     * The opacity a veil laid over the whole picture needs for the quietest text to read anywhere
+     * on it (a page's rows, which run the screen's width): what [HlScrim.FLOOR_QUANTILE] of the
+     * points shown need, laid as [floor] lays them, with the spill over them. 0 on a dark picture.
+     */
+    fun floorAcross(screen: Size, imageAlpha: Float, down: List<VeilStop>): Float {
+        if (grey.isEmpty() || screen.isEmpty()) return 0f
+        val scale = max(screen.width / width, screen.height / height)
+        val left = screen.width - width * scale
+        val cols = ceil(-left / scale - MIDDLE).toInt().coerceAtLeast(0)..(width - 1)
+        val rows = 0..kotlin.math.floor(screen.height / scale - MIDDLE).toInt().coerceAtMost(height - 1)
+        val needs = FloatArray(cols.count() * rows.count())
+        var count = 0
+        for (row in rows) {
+            val y = (row + MIDDLE) * scale
+            val through = imageAlpha * (1f - down.alphaAt(y / screen.height))
+            for (col in cols) {
+                val x = left + (col + MIDDLE) * scale
+                needs[count++] = HlScrim.need(grey[row * width + col] * through, HlScrim.spillAt(x, y, screen))
+            }
+        }
+        needs.sort()
+        return needs[(needs.lastIndex * HlScrim.FLOOR_QUANTILE).roundToInt()]
+    }
 }

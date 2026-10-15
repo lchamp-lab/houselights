@@ -1,5 +1,9 @@
 package app.houselights.ui.detail
 
+import app.houselights.ui.design.HlMotion
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -173,6 +177,18 @@ fun DetailScreen(
         )
     }
 
+    // Down the page the film steps back: the rows read on the room, not on a face. A page that
+    // comes back already scrolled is dark at once; then the veil follows the page over SLOW.
+    val recede = remember { Animatable(0f) }
+    LaunchedEffect(page) {
+        var first = true
+        snapshotFlow { scrolled }.collect { away ->
+            val target = if (away) 1f else 0f
+            if (first) recede.snapTo(target) else recede.animateTo(target, tween(HlMotion.SLOW, easing = HlMotion.standard))
+            first = false
+        }
+    }
+
     val ambient = rememberAmbientColor(item.backdrop)
     CompositionLocalProvider(LocalAmbient provides { ambient.value }) {
         Box(
@@ -181,7 +197,7 @@ fun DetailScreen(
                 false
             },
         ) {
-            Backdrop(item.backdrop, BackdropStyle.Full)
+            Backdrop(item.backdrop, BackdropStyle.Full, recede = { recede.value })
 
             // The page turns by whole blocks: a row coming into view rises to the safe area, and
             // the gap between blocks, wider than that keyline, takes the one above off the screen.

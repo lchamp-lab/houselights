@@ -33,6 +33,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.toSize
 import app.houselights.core.ImageRef
 import app.houselights.ui.design.Hl
+import app.houselights.ui.design.HlAlpha
 import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlMotion
 import app.houselights.ui.design.HlScrim
@@ -74,7 +75,7 @@ enum class BackdropStyle(
  * filled its whole budget. One picture gives way to the next by the alpha of those layers.
  */
 @Composable
-fun Backdrop(image: ImageRef?, style: BackdropStyle, modifier: Modifier = Modifier) {
+fun Backdrop(image: ImageRef?, style: BackdropStyle, modifier: Modifier = Modifier, recede: () -> Float = { 0f }) {
     val context = LocalContext.current
     val density = LocalDensity.current
     // The text column of heroes and detail pages; the veil follows it, whatever the screen's width.
@@ -91,7 +92,7 @@ fun Backdrop(image: ImageRef?, style: BackdropStyle, modifier: Modifier = Modifi
         }
     }
     FadeBetween(shown, modifier.fillMaxSize().onSizeChanged { bounds = it.toSize() }) { prepared, alpha ->
-        if (prepared != null) BackdropPicture(prepared, style, bounds, column, fade, alpha)
+        if (prepared != null) BackdropPicture(prepared, style, bounds, column, fade, alpha, recede)
     }
 }
 
@@ -111,11 +112,16 @@ private fun BackdropPicture(
     column: Float,
     fade: Float,
     alpha: () -> Float,
+    recede: () -> Float,
 ) {
     val black = Hl.colors.background
     val lights = LocalHouseLights.current
     val floor = remember(prepared, bounds, style) {
         prepared.sample.floor(bounds, column, style.imageAlpha, style.leftScrim, HlScrim.down(style.fadeFrom))
+    }
+    // Stepping back, the picture takes the veil text needs over all of it, never less than VEIL.
+    val receded = remember(prepared, bounds, style) {
+        max(HlAlpha.VEIL, prepared.sample.floorAcross(bounds, style.imageAlpha, HlScrim.down(style.fadeFrom)))
     }
     val tone = prepared.tone
     Box(
@@ -153,6 +159,9 @@ private fun BackdropPicture(
                         )
                     )
                 }
+                // The film steps back while what is read is elsewhere on the page.
+                val back = recede()
+                if (back > 0f) drawRect(black, alpha = back * receded * scrims)
             }
         )
     }

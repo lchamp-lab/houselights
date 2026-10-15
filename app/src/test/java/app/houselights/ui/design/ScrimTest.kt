@@ -64,6 +64,26 @@ class ScrimTest {
         assertEquals(0f, sample(192, 54) { x, _ -> if (x < 96) 1f else 0f }.floor(screen, column, 1f, strength, detail), 0f)
     }
 
+    @Test
+    fun aWhitePictureStepsBackFarEnoughForTheQuietestText() {
+        val white = sample(32, 18) { _, _ -> 1f }
+        assertTrue(white.floorAcross(screen, 1f, detail) >= HlScrim.need(1f) - 0.0001f)
+    }
+
+    @Test
+    fun aDarkPictureStepsBackByItsVeilAlone() {
+        val dark = sample(32, 18) { _, _ -> 0.1f }
+        assertEquals(0f, dark.floorAcross(screen, 1f, detail), 0.0001f)
+    }
+
+    @Test
+    fun aLightCornerOutsideTheColumnCountsWhenThePageRunsTheWidth() {
+        // White on the last quarter only, past the text column: the column ignores it, the page does not.
+        val right = sample(32, 18) { x, _ -> if (x >= 24) 1f else 0.1f }
+        assertEquals(0f, right.floor(screen, column, 1f, strength, detail), 0.0001f)
+        assertTrue(right.floorAcross(screen, 1f, detail) >= HlScrim.need(1f) - 0.0001f)
+    }
+
     private fun sample(width: Int, height: Int, grey: (x: Int, y: Int) -> Float) =
         ArtworkSample(width, height, FloatArray(width * height) { grey(it % width, it / width) })
 
