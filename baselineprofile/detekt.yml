@@ -1,0 +1,6 @@
+# The journeys are test code: they press the remote a number of times (right 6, down 3), which
+# reads better as the number itself than as a constant per press. detekt leaves MagicNumber out of
+# test sources; a com.android.test module keeps its tests in src/main, so it is said here.
+style:
+  MagicNumber:
+    active: false

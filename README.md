@@ -40,7 +40,7 @@ Requirements: JDK 17 and the Android SDK (platform 35).
 echo "tmdb.apiKey=YOUR_KEY" >> local.properties
 
 ./gradlew assembleRelease
-adb install app/build/outputs/apk/release/app-release.apk
+scripts/install.sh release          # the APK with its baseline profile, compiled at install
 ```
 
 The key can also come from the `TMDB_API_KEY` environment variable (CI), or be entered by users in the app
@@ -70,6 +70,73 @@ later means uninstalling, and losing the library and watch history kept on the p
 An APK given to other people should not carry your personal TMDB key: build it without one (users then enter
 their own), or with a key created for the project that you can revoke.
 
+## Performance
+
+The players Houselights runs on are small machines. Two tools keep it smooth on them.
+
+### Baseline profile
+
+An app is shipped as bytecode: until Android compiles it, it runs interpreted and compiles on the fly,
+and browsing stutters. This is the state of every fresh install and of every update. The baseline profile
+lists the code of the main journeys (start-up, home's rows, a library's wall, a detail page, a series, the
+settings), for Android to compile ahead of time. When it does depends on how the app is installed:
+
+- **With `scripts/install.sh`** (`adb`, the APK and its dex metadata `.dm` in one session): compiled
+  during the installation, smooth from the first launch.
+- **The APK alone** (a file manager, a downloader app): `profileinstaller` hands the profile to Android at
+  the first launch, and Android compiles it in the background, when the player is plugged in **and idle**:
+  in standby, screen off, for a while. A player never left in standby keeps running the interpreter.
+
+Measured on a Zidoo Z1000 Pro (bench build, the same journey, frames over 16.7 ms), home and a detail page:
+
+| State | Home | Detail |
+|---|---|---|
+| Just installed, nothing compiled | 7 to 12 % | 3 to 5 % |
+| Installed with `scripts/install.sh` | 0.6 to 0.8 % | 0.7 to 1.6 % |
+| APK alone, after the background compilation | 0.5 to 0.7 % | 0.4 to 0.9 % |
+
+The profile is checked in (`app/src/main/generated/baselineProfiles/`), so building needs no device.
+Generate it again after a change to the screens, before a release:
+
+```sh
+# The library the journeys browse: a NAS folder the emulator reads over NFS (git-ignored file).
+cat >> local.properties <<'PROPS'
+baselineprofile.host=192.168.1.10
+baselineprofile.export=/volume1/media
+baselineprofile.movies=films
+baselineprofile.shows=series
+PROPS
+
+scripts/preview.sh                      # the Android TV 9 emulator
+adb root                                # Android 9 needs root to collect a profile
+ANDROID_SERIAL=emulator-5554 ./gradlew :app:generateBaselineProfile
+```
+
+The journeys live in `baselineprofile/` (`Journeys.kt`): on a fresh install they add the folders through
+the app itself, then browse by what the screen says, in the device's language.
+
+### Benchmarks
+
+On the player itself, not the emulator, the same journeys measure cold start-up and frames while browsing,
+without any compilation (a fresh install) and with the baseline profile:
+
+```sh
+ANDROID_SERIAL=<player> ./gradlew :baselineprofile:connectedBenchmarkReleaseAndroidTest
+```
+
+Cold start-up empties the page cache first, which needs root: on a player's user build it is skipped.
+Results: `baselineprofile/build/outputs/connected_android_test_additional_output/`, with a Perfetto trace
+per run. On the Zidoo (CPU time of a frame, main and render threads, 5 runs each):
+
+| Journey | No compilation, P95 / P99 | Baseline profile, P95 / P99 |
+|---|---|---|
+| Home's rows | 39 / 77 ms | 33 / 45 ms |
+| A film's page, down to its cast | 45 / 176 ms | 36 / 60 ms |
+
+To measure by hand, install the `bench` build (optimised like a release, beside it) with
+`scripts/install.sh bench`, then read `adb shell dumpsys gfxinfo app.houselights.bench`. An APK installed
+alone measures the interpreter, not what a viewer sees after the first night.
+
 ## Project layout
 
 ```
@@ -79,6 +146,7 @@ app/src/main/java/app/houselights/
   player/       Zidoo player launch, progress tracking, path mapping
   ui/design/    design system: tokens and components (see DESIGN.md)
   ui/           Compose for TV screens
+baselineprofile/  baseline profile generator and benchmarks (macrobenchmark), run on a device
 ```
 
 ## Conventions
