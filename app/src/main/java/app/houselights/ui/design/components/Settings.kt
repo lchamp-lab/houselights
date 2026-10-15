@@ -36,6 +36,7 @@ import androidx.tv.material3.Icon
 import androidx.tv.material3.LocalContentColor
 import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
+import app.houselights.ui.design.HlSettingRowDefaults
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlAlpha
 import app.houselights.ui.design.HlFocus
@@ -182,7 +183,7 @@ fun HlSettingRow(
                         color = rowLineColor(focused, enabled, valueLit || valueAttention, onFocus = LocalContentColor.current),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.widthIn(max = HlLayout.rowValue),
+                        modifier = Modifier.widthIn(max = HlSettingRowDefaults.valueWidth),
                     )
                 }
             }

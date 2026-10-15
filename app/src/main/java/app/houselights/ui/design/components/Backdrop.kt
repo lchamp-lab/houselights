@@ -32,6 +32,7 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.toSize
 import app.houselights.core.ImageRef
+import app.houselights.ui.design.BackdropDefaults
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlAlpha
 import app.houselights.ui.design.HlLayout
@@ -80,7 +81,7 @@ fun Backdrop(image: ImageRef?, style: BackdropStyle, modifier: Modifier = Modifi
     val density = LocalDensity.current
     // The text column of heroes and detail pages; the veil follows it, whatever the screen's width.
     val column = with(density) { (HlSpace.safeH + HlLayout.readableNarrow).toPx() }
-    val fade = with(density) { HlLayout.veilFade.toPx() }
+    val fade = with(density) { BackdropDefaults.veilFade.toPx() }
     val screen = screenWidthPx()
     val url = image?.url(style.maxWidthPx?.coerceAtMost(screen) ?: screen)
     var bounds by remember { mutableStateOf(Size.Zero) }

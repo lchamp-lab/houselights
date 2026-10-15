@@ -19,7 +19,7 @@ object HlScrim {
     /**
      * The left veil behind the text column (`HlSpace.safeH` + `HlLayout.readableNarrow`): at each
      * share of the column, the share of its style's strength it keeps. Past the column it fades out
-     * over `HlLayout.veilFade`. Under the column it never drops below the floor of the picture
+     * over `BackdropDefaults.veilFade`. Under the column it never drops below the floor of the picture
      * ([ArtworkSample.floor]).
      */
     val LEFT = listOf(VeilStop(0f, 1f), VeilStop(0.6f, 0.9f), VeilStop(1f, 0.5f))

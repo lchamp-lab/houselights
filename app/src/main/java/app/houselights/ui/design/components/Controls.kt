@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -75,6 +76,7 @@ import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.Icon
 import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
+import app.houselights.ui.design.HlIconButtonDefaults
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlAlpha
 import app.houselights.ui.design.HlControl
@@ -225,11 +227,30 @@ private fun ButtonLabel(text: String) {
 }
 
 /**
+ * A row of actions (a pill, then round buttons) that keeps room under itself for the label a round
+ * button shows with focus, so nothing moves when it shows and what follows never lies under it.
+ * The screen does not need to know the label is there.
+ */
+@Composable
+fun HlActionRow(
+    modifier: Modifier = Modifier,
+    horizontalArrangement: Arrangement.Horizontal = Arrangement.spacedBy(HlSpace.s),
+    content: @Composable RowScope.() -> Unit,
+) {
+    Row(
+        Modifier.padding(bottom = HlIconButtonDefaults.labelRoom).then(modifier),
+        horizontalArrangement = horizontalArrangement,
+        verticalAlignment = Alignment.Top,
+        content = content,
+    )
+}
+
+/**
  * Round icon button; its label appears under it while focused, keeping the row quiet. The label
  * takes no room: it overflows under the button, so a row that has nothing below it (the home bar)
- * stays as tall as its controls, and a row that does reserves [HlLayout.iconLabelRoom]. The label
+ * stays as tall as its controls, and a row that has something below is an [HlActionRow]. The label
  * is centred under the button, even at the edge of the safe area; only where it would come closer
- * than [HlLayout.iconLabelEdge] to the side of the screen does it align with the button's edge.
+ * than [HlIconButtonDefaults.labelEdge] to the side of the screen does it align with the button's edge.
  * Under a sheet, which has the window, it hides. The icon carries the name for accessibility. The
  * label always sits on a dark plate; on a picture ([OnArtwork]) the button sits on one too, so it
  * reads over any image. Not [enabled], its icon goes quiet and OK does nothing; focus still
@@ -290,9 +311,9 @@ fun HlIconButton(
         },
     ) { measurables, constraints ->
         val button = measurables[0].measure(constraints)
-        val text = measurables[1].measure(Constraints(maxWidth = HlLayout.iconLabel.roundToPx()))
+        val text = measurables[1].measure(Constraints(maxWidth = HlIconButtonDefaults.labelWidth.roundToPx()))
         val gap = HlSpace.xs.roundToPx()
-        val edge = HlLayout.iconLabelEdge.roundToPx()
+        val edge = HlIconButtonDefaults.labelEdge.roundToPx()
         layout(button.width, button.height) {
             button.place(0, 0)
             val x = coordinates?.let { here ->

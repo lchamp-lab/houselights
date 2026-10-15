@@ -53,6 +53,7 @@ import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.Icon
 import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
+import app.houselights.ui.design.HlMenuDefaults
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlInset
@@ -158,7 +159,7 @@ private fun MenuPanel(sections: List<MenuSection>, maxHeight: Dp, motion: SheetM
     LaunchedEffect(Unit) { runCatching { first.requestFocus() } }
     HlPanel(
         Modifier
-            .width(HlLayout.menuWidth)
+            .width(HlMenuDefaults.width)
             .heightIn(max = maxHeight)
             .stillWhileLeaving(motion)
             .graphicsLayer {

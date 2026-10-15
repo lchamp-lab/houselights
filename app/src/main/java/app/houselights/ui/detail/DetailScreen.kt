@@ -79,6 +79,7 @@ import app.houselights.ui.design.components.FormatLine
 import app.houselights.ui.design.components.BillingBlock
 import app.houselights.ui.design.components.EpisodeHeading
 import app.houselights.ui.design.components.Emphasis
+import app.houselights.ui.design.components.HlActionRow
 import app.houselights.ui.design.components.HlButton
 import app.houselights.ui.design.components.HlIconButton
 import app.houselights.ui.design.components.HlSegmented
@@ -390,11 +391,7 @@ private fun Actions(
     actions: FocusRequester,
 ) {
     val problem by appContainer().playback.playbackProblem.collectAsStateWithLifecycle()
-    Row(
-        Modifier.focusRequester(actions).padding(bottom = HlLayout.iconLabelRoom).fadeOutsideSafeArea(),
-        horizontalArrangement = Arrangement.spacedBy(HlSpace.s),
-        verticalAlignment = Alignment.Top,
-    ) {
+    HlActionRow(Modifier.focusRequester(actions).fadeOutsideSafeArea()) {
         PlayButtons(item, nextUp, memory, onPlay)
         if (item.kind == MediaKind.EPISODE && item.seriesId != null) {
             HlButton(stringResource(R.string.view_series), onClick = onOpenSeries, modifier = Modifier.focusKey(SERIES, memory))

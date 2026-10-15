@@ -48,6 +48,7 @@ import app.houselights.ui.design.components.BackdropStyle
 import app.houselights.ui.design.components.Badge
 import app.houselights.ui.design.components.Emphasis
 import app.houselights.ui.design.components.FactRow
+import app.houselights.ui.design.components.HlActionRow
 import app.houselights.ui.design.components.HlButton
 import app.houselights.ui.design.components.HlDivider
 import app.houselights.ui.design.components.HlEmptyState
@@ -157,11 +158,7 @@ fun CatalogScreen() {
 
             item {
                 Group("Controls") {
-                    Row(
-                        Modifier.padding(bottom = HlLayout.iconLabelRoom),
-                        horizontalArrangement = Arrangement.spacedBy(HlSpace.s),
-                        verticalAlignment = Alignment.Top,
-                    ) {
+                    HlActionRow {
                         HlButton("Lire", {}, icon = Icons.Filled.PlayArrow, detail = "1 h 53", emphasis = Emphasis.Primary)
                         HlButton("Secondary", {})
                         HlIconButton(HlIcons.Info, "Icon button", {})
@@ -320,11 +317,7 @@ fun CatalogScreen() {
                 // may be cut or pushed out.
                 Group("Stress") {
                     // Room for the labels, as the detail page keeps it.
-                    Row(
-                        Modifier.padding(bottom = HlLayout.iconLabelRoom),
-                        horizontalArrangement = Arrangement.spacedBy(HlSpace.s),
-                        verticalAlignment = Alignment.Top,
-                    ) {
+                    HlActionRow {
                         // An episode in progress, with every capability: the fullest row of a detail page.
                         HlButton(
                             "Reprendre",
@@ -392,11 +385,7 @@ private fun ControlStates() {
             HlButton("Tester", {}, icon = HlIcons.Test, busy = true, busyLabel = "Vérification…")
         }
     }
-    Row(
-        Modifier.padding(bottom = HlLayout.iconLabelRoom),
-        horizontalArrangement = Arrangement.spacedBy(HlSpace.m),
-        verticalAlignment = Alignment.Top,
-    ) {
+    HlActionRow(horizontalArrangement = Arrangement.spacedBy(HlSpace.m)) {
         var busy by remember { mutableStateOf(false) }
         LaunchedEffect(busy) {
             if (busy) {
@@ -409,7 +398,7 @@ private fun ControlStates() {
         }
         // A round button's label takes no room of its own: the case keeps the room a row of them keeps.
         ControlCase("round, disabled") {
-            HlIconButton(HlIcons.Edit, "Modifier", {}, Modifier.padding(bottom = HlLayout.iconLabelRoom), enabled = false)
+            HlActionRow { HlIconButton(HlIcons.Edit, "Modifier", {}, enabled = false) }
         }
     }
     ControlCase("a label longer than a reading column stops with an ellipsis") {

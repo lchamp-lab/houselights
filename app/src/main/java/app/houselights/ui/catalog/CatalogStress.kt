@@ -25,6 +25,7 @@ import androidx.tv.material3.Text
 import app.houselights.R
 import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
+import app.houselights.ui.design.HlIconButtonDefaults
 import app.houselights.ui.design.OnArtwork
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlAlpha
@@ -191,7 +192,7 @@ private fun StressDeviceSection() {
 private fun StressTopBar(libraries: List<String>) = OnArtwork {
     Row(
         // The label of the settings button shows on the image, under the bar, as it does at home.
-        Modifier.fillMaxWidth().background(Hl.colors.content).padding(top = HlSpace.safeV, bottom = HlLayout.iconLabelRoom),
+        Modifier.fillMaxWidth().background(Hl.colors.content).padding(top = HlSpace.safeV, bottom = HlIconButtonDefaults.labelRoom),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.Top,
     ) {

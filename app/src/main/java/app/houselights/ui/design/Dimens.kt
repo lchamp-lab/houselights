@@ -136,15 +136,11 @@ object HlLayout {
      * way back to the next one.
      */
     val captionMeasure = 400.dp
-    /** How far a backdrop's left veil takes to fade out, past the text column. */
-    val veilFade = 240.dp
     /** Side column of two-pane screens: navigation (settings), and explanation (setup forms). */
     val sideColumn = 280.dp
     val sideColumnWide = 340.dp
     /** Where the content of a two-pane screen starts, level with its first navigation entry. */
     val paneTop = 72.dp
-    /** Text fields of a form. */
-    val field = 400.dp
     val fieldShort = 120.dp
     /** Clear logo or title of a detail page, and of a browsing hero. */
     val titleArtWidth = 440.dp
@@ -171,7 +167,7 @@ object HlLayout {
      * (`lead`, 26), its gap ([HlSpace.xxs]) and padding ([HlSpace.s]), then a strip of its images
      * ([HlSpace.s]), which ends at the screen's edge. The header stays inside the safe area.
      */
-    val detailPeek = detailGap + 26.dp + HlSpace.xxs + HlSpace.s + HlSpace.s
+    private val detailPeek = detailGap + 26.dp + HlSpace.xxs + HlSpace.s + HlSpace.s
     /** The least a detail page's hero takes of a [screen] that tall: all of it but [detailPeek]. */
     fun detailHeroMin(screen: Dp): Dp = screen - detailPeek
     /** Where an error sits on an otherwise empty detail page. */
@@ -186,37 +182,68 @@ object HlLayout {
     /** The two columns of the welcome screen. */
     val welcomeTagline = 380.dp
     val welcomeChoices = 430.dp
-    /** A sheet to read: as wide as the safe area allows (960 dp screen less the side margins). */
-    val dialog = 864.dp
-    /** A side sheet: 440 dp of content between its inset and the safe area, the page still in view. */
-    val sideSheet = 520.dp
-    /** Widest value on the right of a setting row. */
-    val rowValue = 360.dp
-    /** Widest label under a round icon button; a longer one ends in an ellipsis. */
-    val iconLabel = 200.dp
-    /**
-     * Room a row of round buttons keeps under itself for the label of the one with focus: the gap
-     * ([HlSpace.xs]) and the label on its plate (one caption line, 18, and its padding, 2 × 4), on the grid. The
-     * label takes none of its own.
-     */
-    val iconLabelRoom = 36.dp
-
-    /**
-     * How close to a side of the screen a round button's label may come: brief and passing, it may
-     * go past the safe area ([HlSpace.safeH]) so a button at its edge keeps its label centred.
-     */
-    val iconLabelEdge = HlSpace.l
-    /** Dropdown menus (sort, filters); their height is the room the screen leaves them. */
-    val menuWidth = 320.dp
     /** Columns of the technical sheet's track tables. */
     val specLanguage = 120.dp
     val specFormat = 136.dp
-    val specLayout = 48.dp
     /** Height of long text panels (NFO). */
     val textPanel = 440.dp
     /** Label column of label and value lists, and its short form inside a narrow panel. */
     val definitionLabel = 220.dp
     val definitionLabelShort = 120.dp
+}
+
+/*
+ * Parts of components: measures a component keeps to itself, so that no screen needs to know them.
+ * A screen lays out with HlLayout; a component's own proportions live with it here.
+ */
+
+/** A sheet to read ([HlModal]): as wide as the safe area allows (960 dp less the side margins). */
+internal object HlModalDefaults {
+    val width = 864.dp
+}
+
+/** A side sheet: 440 dp of content between its inset and the safe area, the page still in view. */
+internal object HlSideSheetDefaults {
+    val width = 520.dp
+}
+
+/** The widest value on the right of a setting row. */
+internal object HlSettingRowDefaults {
+    val valueWidth = 360.dp
+}
+
+/** The label a round button shows under it with focus. */
+internal object HlIconButtonDefaults {
+    /** Widest label; a longer one ends in an ellipsis. */
+    val labelWidth = 200.dp
+
+    /**
+     * Room a row of round buttons keeps under itself for the label of the one with focus: the gap
+     * ([HlSpace.xs]) and the label on its plate (one caption line, 18, and its padding, 2 × 4), on
+     * the grid. The label takes none of its own; [HlActionRow] keeps it.
+     */
+    val labelRoom = 36.dp
+
+    /**
+     * How close to a side of the screen the label may come: brief and passing, it may go past the
+     * safe area ([HlSpace.safeH]) so a button at its edge keeps its label centred.
+     */
+    val labelEdge = HlSpace.l
+}
+
+/** Menus anchored to a button (sort); their height is the room the screen leaves them. */
+internal object HlMenuDefaults {
+    val width = 320.dp
+}
+
+/** The technical sheet's narrowest column: a track's channel layout (7.1). */
+internal object TechSpecsDefaults {
+    val layoutColumn = 48.dp
+}
+
+/** How far a backdrop's left veil takes to fade out, past the text column. */
+internal object BackdropDefaults {
+    val veilFade = 240.dp
 }
 
 /** Inner padding of pill controls and of the options of a segmented track. */

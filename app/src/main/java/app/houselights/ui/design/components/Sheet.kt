@@ -52,6 +52,7 @@ import androidx.tv.material3.Icon
 import androidx.tv.material3.Text
 import app.houselights.R
 import app.houselights.core.ImageRef
+import app.houselights.ui.design.HlSideSheetDefaults
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlAlpha
 import app.houselights.ui.design.HlIcons
@@ -183,7 +184,7 @@ fun HlSideSheet(
         Row(
             modifier
                 .align(Alignment.CenterEnd)
-                .width(HlLayout.sideSheet)
+                .width(HlSideSheetDefaults.width)
                 .fillMaxHeight()
                 .graphicsLayer { translationX = size.width * (1f - progress()) }
                 .background(Hl.colors.surfaceRaised),
