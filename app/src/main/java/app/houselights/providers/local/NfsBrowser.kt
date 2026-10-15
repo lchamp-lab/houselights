@@ -26,9 +26,10 @@ object NfsBrowser : RemoteBrowser {
         withMount(source) { nfs -> root(nfs, source).list().count { !RemoteBrowser.skip(it) } }
     }
 
-    override suspend fun readPrefix(source: SourceEntity, relativePath: String, length: Int): ByteArray = withContext(Dispatchers.IO) {
+    override suspend fun readAt(source: SourceEntity, relativePath: String, offset: Long, length: Int): ByteArray =
+        withContext(Dispatchers.IO) {
         val path = "/" + listOf(source.path.trim('/'), relativePath).filter { it.isNotEmpty() }.joinToString("/")
-        withMount(source) { nfs -> NfsFileInputStream(Nfs3File(nfs, path), 0L, 256 * 1024).use { it.readUpTo(length) } }
+        withMount(source) { nfs -> NfsFileInputStream(Nfs3File(nfs, path), offset, 256 * 1024).use { it.readUpTo(length) } }
     }
 
     /** One mount per export, reused across files. */

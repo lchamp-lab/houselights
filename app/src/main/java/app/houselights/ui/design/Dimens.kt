@@ -238,9 +238,14 @@ internal object HlMenuDefaults {
     val width = 320.dp
 }
 
-/** The technical sheet's narrowest column: a track's channel layout (7.1). */
+/**
+ * The technical sheet's columns: a track's format by its full name ("Dolby Digital Plus Atmos"),
+ * its channel layout (7.1), its bitrate ("4 054 kb/s").
+ */
 internal object TechSpecsDefaults {
+    val soundColumn = 208.dp
     val layoutColumn = 48.dp
+    val bitrateColumn = 88.dp
 }
 
 /**

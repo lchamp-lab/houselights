@@ -125,7 +125,9 @@
     <string name="tech_bitrate">Débit moyen</string>
     <string name="tech_duration">Durée</string>
     <string name="bit_depth">%d bits</string>
-    <string name="dv_profile">Dolby Vision profil %d</string>
+    <string name="frame_rate">%1$s i/s</string>
+    <string name="audio_bitrate">%1$s kb/s</string>
+    <string name="dv_profile">Dolby Vision profil %1$s</string>
     <string name="sdr">SDR</string>
     <string name="forced_subs">forcés</string>
     <string name="sdh_subs">SDH</string>

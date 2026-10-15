@@ -21,9 +21,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.tv.material3.Text
 import app.houselights.R
 import app.houselights.core.AudioTrack
+import app.houselights.core.Formats
 import app.houselights.core.HdrFormat
 import app.houselights.core.MediaInfo
 import app.houselights.core.SubtitleTrack
+import app.houselights.core.TrackNames
 import app.houselights.ui.design.TechSpecsDefaults
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlLayout
@@ -50,7 +52,7 @@ fun TechSpecs(media: MediaInfo, modifier: Modifier = Modifier, fileName: String?
         if (media.audio.isNotEmpty() || media.subtitles.isNotEmpty()) {
             Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.xl)) {
                 if (media.audio.isNotEmpty()) {
-                    InfoBlock(stringResource(R.string.tech_audio), Modifier.weight(1.4f)) { AudioTable(media.audio) }
+                    InfoBlock(stringResource(R.string.tech_audio), Modifier.weight(AUDIO_SHARE)) { AudioTable(media.audio) }
                 }
                 if (media.subtitles.isNotEmpty()) {
                     InfoBlock(stringResource(R.string.tech_subtitles), Modifier.weight(1f)) { SubtitleTable(media.subtitles) }
@@ -61,7 +63,10 @@ fun TechSpecs(media: MediaInfo, modifier: Modifier = Modifier, fileName: String?
     }
 }
 
-/** "Ultra HD   2,39:1   HEVC   10 bits", then the dynamic range and the exact frame size. */
+/** The audio tracks' share of the width beside the subtitles': their format, layout and bitrate need it. */
+private const val AUDIO_SHARE = 2.2f
+
+/** "Ultra HD   2,39:1   HEVC   10 bits   23,976 i/s", then the dynamic range and the exact frame size. */
 @Composable
 private fun PictureSpecs(media: MediaInfo) {
     val v = media.video ?: return
@@ -71,17 +76,47 @@ private fun PictureSpecs(media: MediaInfo) {
             v.aspectRatio?.let(::formatRatio),
             v.codec,
             v.bitDepth?.let { stringResource(R.string.bit_depth, it) },
+            v.frameRate?.let { frameRateLabel(it) },
         ),
         style = Hl.type.spec,
         color = Hl.colors.content,
     )
     Spacer(Modifier.height(HlSpace.xs))
+    // Dolby Vision by its profile and what its base layer plays as: "profil 8.1".
     val dynamic = v.hdr.map { format ->
-        if (format == HdrFormat.DOLBY_VISION && v.dolbyVisionProfile != null) stringResource(R.string.dv_profile, v.dolbyVisionProfile)
+        val profile = v.dolbyVisionProfile?.let { p -> v.dolbyVisionCompatibility?.let { "$p.$it" } ?: "$p" }
+        if (format == HdrFormat.DOLBY_VISION && profile != null) stringResource(R.string.dv_profile, profile)
         else MediaInfo.hdrLabel(format)
     }.ifEmpty { listOf(stringResource(R.string.sdr)) }
     val size = if (v.width != null && v.height != null) formatDimensions(v.width, v.height) else null
-    FactRow(dynamic + size)
+    FactRow(dynamic + size + v.bitrateKbps?.let { megabits(it.toLong()) })
+}
+
+/** A bitrate in megabits a second, to the tenth: "15,3 Mb/s". */
+@Composable
+private fun megabits(kbps: Long): String =
+    stringResource(R.string.mbps, String.format(Locale.getDefault(), "%.1f", kbps / KBPS_PER_MBPS))
+
+private const val KBPS_PER_MBPS = 1000.0
+
+/**
+ * A track's language as a sheet names it: by its region too when another track speaks the same
+ * language from elsewhere ("Français (France)", "Français (Canada)"), else by its language alone.
+ */
+@Composable
+private fun trackLanguages(tracks: List<Pair<String?, String?>>): List<String> {
+    val unknown = stringResource(R.string.unknown_language)
+    val names = tracks.map { (language, _) -> languageName(language) ?: unknown }
+    val regions = tracks.map { (language, title) -> TrackNames.region(language, title) }
+    return names.mapIndexed { i, name ->
+        val alike = names.indices.filter { names[it] == name }
+        val region = regions[i]
+        if (region != null && alike.size > 1 && alike.map { regions[it] }.distinct().size > 1) {
+            "$name (${java.util.Locale("", region).getDisplayCountry(Locale.getDefault())})"
+        } else {
+            name
+        }
+    }
 }
 
 @Composable
@@ -89,13 +124,19 @@ private fun AudioTable(tracks: List<AudioTrack>) {
     // The track the player starts with comes first.
     val ordered = tracks.sortedByDescending { it.default }
     val main = ordered.first()
+    val languages = trackLanguages(ordered.map { it.language to it.title })
     Column {
-        ordered.forEach { t ->
+        ordered.forEachIndexed { i, t ->
             SpecRow(
                 marked = t === main,
-                language = languageName(t.language) ?: stringResource(R.string.unknown_language),
-                cells = listOf(t.format to HlLayout.specFormat, (t.layout ?: "") to TechSpecsDefaults.layoutColumn),
-                note = t.title?.takeIf { it.isNotBlank() },
+                language = languages[i],
+                cells = listOf(
+                    Formats.soundName(t) to TechSpecsDefaults.soundColumn,
+                    (t.layout ?: "") to TechSpecsDefaults.layoutColumn,
+                    (t.bitrateKbps?.let { audioBitrateLabel(it) } ?: "") to TechSpecsDefaults.bitrateColumn,
+                ),
+                // Its title only when it says more than the row: a commentary, a restored version.
+                note = TrackNames.note(t.title, t.language),
             )
         }
     }
@@ -105,11 +146,13 @@ private fun AudioTable(tracks: List<AudioTrack>) {
 private fun SubtitleTable(tracks: List<SubtitleTrack>) {
     val forced = stringResource(R.string.forced_subs)
     val sdh = stringResource(R.string.sdh_subs)
+    val ordered = tracks.sortedByDescending { it.default }
+    val languages = trackLanguages(ordered.map { it.language to it.title })
     Column {
-        tracks.sortedByDescending { it.default }.forEach { t ->
+        ordered.forEachIndexed { i, t ->
             SpecRow(
                 marked = t.default,
-                language = languageName(t.language) ?: stringResource(R.string.unknown_language),
+                language = languages[i],
                 cells = listOf(t.format to TechSpecsDefaults.layoutColumn),
                 // The dot already says which one is used by default.
                 note = listOfNotNull(forced.takeIf { t.forced }, sdh.takeIf { t.hearingImpaired })
@@ -145,9 +188,7 @@ private fun FileSpecs(media: MediaInfo, fileName: String?) {
     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.xxl)) {
         media.container?.let { Fact(stringResource(R.string.tech_container), it) }
         media.sizeBytes?.let { Fact(stringResource(R.string.tech_size), formatBytes(it)) }
-        media.bitrateKbps?.let { kbps ->
-            Fact(stringResource(R.string.tech_bitrate), stringResource(R.string.mbps, String.format(Locale.getDefault(), "%.1f", kbps / 1000.0)))
-        }
+        media.bitrateKbps?.let { Fact(stringResource(R.string.tech_bitrate), megabits(it)) }
         media.durationMs?.let { Fact(stringResource(R.string.tech_duration), formatDuration(it)) }
     }
     if (fileName != null) {
