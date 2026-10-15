@@ -14,3 +14,5 @@ dependencyResolutionManagement {
 }
 rootProject.name = "Houselights"
 include(":app")
+// Generates the app's baseline profile and measures it (macrobenchmark); see README, Performance.
+include(":baselineprofile")

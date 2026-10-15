@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- The journeys read the app's strings, in the device's language, to find their way. -->
+    <queries>
+        <package android:name="app.houselights" />
+    </queries>
+</manifest>

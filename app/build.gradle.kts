@@ -8,6 +8,7 @@ plugins {
     alias(libs.plugins.ksp)
     alias(libs.plugins.room)
     alias(libs.plugins.detekt)
+    alias(libs.plugins.baselineprofile)
 }
 
 // TMDB key: from local.properties (tmdb.apiKey) or the TMDB_API_KEY environment variable (CI).
@@ -96,6 +97,18 @@ room {
     schemaDirectory("$projectDir/schemas")
 }
 
+// The code of the main journeys (start-up, browsing home and a library, a detail page, settings),
+// compiled ahead of time from the first launch instead of interpreted until the player compiles it
+// overnight. Generated on a device by :baselineprofile (README, Performance) and checked in, so a
+// build never needs a device: src/main/generated/baselineProfiles.
+baselineProfile {
+    automaticGenerationDuringBuild = false
+    saveInSrc = true
+    mergeIntoMain = true
+    // Startup classes laid out first in the dex file of minified builds.
+    dexLayoutOptimization = true
+}
+
 detekt {
     buildUponDefaultConfig = true
     config.setFrom(rootProject.file("config/detekt.yml"))
@@ -125,6 +138,9 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.navigation.compose)
     implementation(libs.androidx.datastore.preferences)
+    // Installs the baseline profile on players that do not get apps from Google Play.
+    implementation(libs.androidx.profileinstaller)
+    baselineProfile(project(":baselineprofile"))
 
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.serialization.json)
