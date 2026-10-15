@@ -29,6 +29,40 @@ enum class Definition(val token: String, val label: String) {
     }
 }
 
+/**
+ * The formats a title shows, as words, from the badges stored for it (which filters and searches
+ * read as they are): definitions by name, nothing said twice (a Dolby Vision file carries its HDR10
+ * base, and a name's "HDR" says no more), "TrueHD" and "Atmos" read in a name as one format, and
+ * no more than [MAX]: past four, they say little a title's name has not.
+ */
+object Formats {
+    const val MAX = 4
+
+    fun shown(badges: List<String>, max: Int = MAX): List<String> {
+        val labels = badges.map(Definition::label).distinct()
+        val dolbyVision = DOLBY_VISION in labels
+        val merged = if (TRUEHD in labels && ATMOS in labels) TRUEHD_ATMOS else null
+        return labels
+            .filterNot { dolbyVision && (it == HDR10 || it == HDR) }
+            .mapNotNull { label ->
+                when {
+                    merged == null -> label
+                    label == TRUEHD -> merged
+                    label == ATMOS -> null
+                    else -> label
+                }
+            }
+            .take(max)
+    }
+
+    private const val DOLBY_VISION = "Dolby Vision"
+    private const val HDR10 = "HDR10"
+    private const val HDR = "HDR"
+    private const val TRUEHD = "TrueHD"
+    private const val ATMOS = "Atmos"
+    private const val TRUEHD_ATMOS = "TrueHD Atmos"
+}
+
 /** High dynamic range formats, best first. */
 @Serializable
 enum class HdrFormat { DOLBY_VISION, HDR10_PLUS, HDR10, HLG }

@@ -63,6 +63,7 @@ fun TitleArt(
     maxHeight: Dp,
     style: TextStyle = Hl.type.display,
     modifier: Modifier = Modifier,
+    maxLines: Int = 2,
 ) {
     val url = logo?.url(maxWidth.toPx())
     var failed by remember(url) { mutableStateOf(false) }
@@ -80,7 +81,7 @@ fun TitleArt(
             title,
             style = style,
             color = Hl.colors.content,
-            maxLines = 2,
+            maxLines = maxLines,
             overflow = TextOverflow.Ellipsis,
             modifier = modifier.widthIn(max = maxWidth + HlSpace.xxl * 3),
         )

@@ -49,6 +49,7 @@ import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.Ground
 import app.houselights.ui.design.LocalGround
 import app.houselights.ui.design.emberLight
 import app.houselights.ui.design.groundStep
@@ -90,7 +91,7 @@ fun HlPanel(
             )
             .padding(padding),
     ) {
-        if (raised) CompositionLocalProvider(LocalGround provides c.surfaceRaised) { content() } else content()
+        if (raised) CompositionLocalProvider(LocalGround provides Ground.Glass) { content() } else content()
     }
 }
 
@@ -112,36 +113,24 @@ fun HlPanelButton(
     val c = Hl.colors
     val interaction = remember { MutableInteractionSource() }
     val focused by interaction.collectIsFocusedAsState()
-    val outline = Border(BorderStroke(HlSize.focusBorder, c.focus), shape = HlShapes.panel)
     val step = groundStep()
+    val edge = Border(BorderStroke(HlSize.hairline, c.outline.copy(alpha = HlAlpha.EDGE)), shape = HlShapes.panel)
     Surface(
         onClick = onClick,
         modifier = modifier.onFocusChanged { if (it.isFocused) onFocused() },
         enabled = enabled,
         shape = ClickableSurfaceDefaults.shape(HlShapes.panel),
-        scale = ClickableSurfaceDefaults.scale(focusedScale = HlFocus.PANEL_SCALE, focusedDisabledScale = HlFocus.PANEL_SCALE),
-        border = ClickableSurfaceDefaults.border(
-            border = Border(
-                if (lit) {
-                    BorderStroke(HlSize.hairline, c.emberLight())
-                } else {
-                    BorderStroke(HlSize.hairline, c.outline.copy(alpha = HlAlpha.EDGE))
-                },
-                shape = HlShapes.panel,
-            ),
-            focusedBorder = outline,
-            disabledBorder = Border(BorderStroke(HlSize.hairline, c.outline.copy(alpha = HlAlpha.EDGE)), shape = HlShapes.panel),
-            focusedDisabledBorder = outline,
+        scale = FocusStyle.scale(Lift.Panel),
+        border = FocusStyle.lift(
+            HlShapes.panel,
+            rest = if (lit) Border(BorderStroke(HlSize.hairline, c.emberLight()), shape = HlShapes.panel) else edge,
+            disabled = edge,
         ),
-        colors = ClickableSurfaceDefaults.colors(
-            containerColor = c.content.copy(alpha = step),
-            contentColor = c.content,
-            focusedContainerColor = c.content.copy(alpha = step),
-            focusedContentColor = c.content,
-            pressedContainerColor = c.content.copy(alpha = step),
-            pressedContentColor = c.content,
-            disabledContainerColor = c.content.copy(alpha = HlAlpha.FILL_FAINT),
-            disabledContentColor = c.contentTertiary,
+        colors = FocusStyle.still(
+            rest = c.content.copy(alpha = step),
+            restContent = c.content,
+            disabled = c.content.copy(alpha = HlAlpha.FILL_FAINT),
+            disabledContent = c.contentTertiary,
         ),
         interactionSource = interaction,
     ) {

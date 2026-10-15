@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -75,6 +76,7 @@ import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.Icon
 import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
+import app.houselights.ui.design.HlIconButtonDefaults
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlAlpha
 import app.houselights.ui.design.HlControl
@@ -86,6 +88,7 @@ import app.houselights.ui.design.HlMotion
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.groundPlate
 import app.houselights.ui.design.RowScroll
 
 enum class Emphasis { Primary, Secondary }
@@ -144,18 +147,14 @@ internal fun PillButton(
         modifier = modifier.height(HlSize.control).semantics { if (busy) stateDescription = busyState },
         enabled = enabled,
         shape = ClickableSurfaceDefaults.shape(HlShapes.control),
-        colors = ClickableSurfaceDefaults.colors(
-            containerColor = c.content.copy(alpha = fill),
-            contentColor = if (caution) c.ember else c.content,
-            focusedContainerColor = c.focus,
-            focusedContentColor = c.onFocus,
-            pressedContainerColor = c.focus,
-            pressedContentColor = c.onFocus,
-            disabledContainerColor = c.content.copy(alpha = HlAlpha.FILL_FAINT),
-            disabledContentColor = c.contentTertiary,
+        colors = FocusStyle.fill(
+            rest = c.content.copy(alpha = fill),
+            restContent = if (caution) c.ember else c.content,
+            disabled = c.content.copy(alpha = HlAlpha.FILL_FAINT),
+            disabledContent = c.contentTertiary,
         ),
-        border = disabledFocusBorder(HlShapes.control),
-        scale = controlScale(),
+        border = FocusStyle.disabledRing(HlShapes.control),
+        scale = FocusStyle.scale(FocusStyle.Fill.Pill),
         interactionSource = interaction,
     ) {
         Row(
@@ -228,30 +227,35 @@ private fun ButtonLabel(text: String) {
 }
 
 /**
- * Focus on a disabled control: the outline of focus in projector white, never the white fill,
- * which would offer an action.
+ * A row of actions (a pill, then round buttons) that keeps room under itself for the label a round
+ * button shows with focus, so nothing moves when it shows and what follows never lies under it.
+ * The screen does not need to know the label is there.
  */
 @Composable
-internal fun disabledFocusBorder(shape: Shape): ClickableSurfaceBorder = ClickableSurfaceDefaults.border(
-    focusedDisabledBorder = Border(BorderStroke(HlSize.focusBorder, Hl.colors.focus), shape = shape),
-)
-
-/** A control grows with focus, enabled or not. */
-@Composable
-internal fun controlScale(): ClickableSurfaceScale =
-    ClickableSurfaceDefaults.scale(focusedScale = HlFocus.CONTROL_SCALE, focusedDisabledScale = HlFocus.CONTROL_SCALE)
+fun HlActionRow(
+    modifier: Modifier = Modifier,
+    horizontalArrangement: Arrangement.Horizontal = Arrangement.spacedBy(HlSpace.s),
+    content: @Composable RowScope.() -> Unit,
+) {
+    Row(
+        Modifier.padding(bottom = HlIconButtonDefaults.labelRoom).then(modifier),
+        horizontalArrangement = horizontalArrangement,
+        verticalAlignment = Alignment.Top,
+        content = content,
+    )
+}
 
 /**
  * Round icon button; its label appears under it while focused, keeping the row quiet. The label
  * takes no room: it overflows under the button, so a row that has nothing below it (the home bar)
- * stays as tall as its controls, and a row that does reserves [HlLayout.iconLabelRoom]. The label
+ * stays as tall as its controls, and a row that has something below is an [HlActionRow]. The label
  * is centred under the button, even at the edge of the safe area; only where it would come closer
- * than [HlLayout.iconLabelEdge] to the side of the screen does it align with the button's edge.
+ * than [HlIconButtonDefaults.labelEdge] to the side of the screen does it align with the button's edge.
  * Under a sheet, which has the window, it hides. The icon carries the name for accessibility. The
- * label always sits on a dark plate; [onArtwork] sets the button on one too, so it reads over any image. Not [enabled], its icon goes
- * quiet and OK does nothing; focus still reaches it, outlined, and still shows its label. A toggle
- * names what OK does ("Marquer comme vu") and shows where things stand with its icon: [lit],
- * ember at rest.
+ * label always sits on a dark plate; on a picture ([OnArtwork]) the button sits on one too, so it
+ * reads over any image. Not [enabled], its icon goes quiet and OK does nothing; focus still
+ * reaches it, outlined, and still shows its label. A toggle names what OK does ("Marquer comme
+ * vu") and shows where things stand with its icon: [lit], ember at rest.
  */
 @Composable
 fun HlIconButton(
@@ -259,7 +263,6 @@ fun HlIconButton(
     label: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    onArtwork: Boolean = false,
     enabled: Boolean = true,
     lit: Boolean = false,
 ) {
@@ -269,7 +272,8 @@ fun HlIconButton(
     val shown = focused && LocalWindowInfo.current.isWindowFocused
     val labelAlpha by animateFloatAsState(if (shown) 1f else 0f, tween(HlMotion.FAST), label = "label")
     val c = Hl.colors
-    val restFill = if (onArtwork) c.background.copy(alpha = HlAlpha.VEIL) else c.content.copy(alpha = HlAlpha.FILL)
+    val plate = groundPlate()
+    val restFill = plate ?: c.content.copy(alpha = HlAlpha.FILL)
     Layout(
         modifier = modifier,
         content = {
@@ -278,18 +282,14 @@ fun HlIconButton(
                 modifier = Modifier.size(HlSize.iconButton),
                 enabled = enabled,
                 shape = ClickableSurfaceDefaults.shape(HlShapes.avatar),
-                scale = controlScale(),
-                border = disabledFocusBorder(HlShapes.avatar),
-                colors = ClickableSurfaceDefaults.colors(
-                    containerColor = restFill,
-                    contentColor = if (lit) c.ember else c.content,
-                    focusedContainerColor = c.focus,
-                    focusedContentColor = c.onFocus,
-                    pressedContainerColor = c.focus,
-                    pressedContentColor = c.onFocus,
+                scale = FocusStyle.scale(FocusStyle.Fill.Pill),
+                border = FocusStyle.disabledRing(HlShapes.avatar),
+                colors = FocusStyle.fill(
+                    rest = restFill,
+                    restContent = if (lit) c.ember else c.content,
                     // On its plate over an image, the quiet icon is secondary, as all quiet things on artwork.
-                    disabledContainerColor = if (onArtwork) restFill else c.content.copy(alpha = HlAlpha.FILL_FAINT),
-                    disabledContentColor = if (onArtwork) c.contentSecondary else c.contentTertiary,
+                    disabled = plate ?: c.content.copy(alpha = HlAlpha.FILL_FAINT),
+                    disabledContent = if (plate != null) c.contentSecondary else c.contentTertiary,
                 ),
                 interactionSource = interaction,
             ) {
@@ -311,9 +311,9 @@ fun HlIconButton(
         },
     ) { measurables, constraints ->
         val button = measurables[0].measure(constraints)
-        val text = measurables[1].measure(Constraints(maxWidth = HlLayout.iconLabel.roundToPx()))
+        val text = measurables[1].measure(Constraints(maxWidth = HlIconButtonDefaults.labelWidth.roundToPx()))
         val gap = HlSpace.xs.roundToPx()
-        val edge = HlLayout.iconLabelEdge.roundToPx()
+        val edge = HlIconButtonDefaults.labelEdge.roundToPx()
         layout(button.width, button.height) {
             button.place(0, 0)
             val x = coordinates?.let { here ->
@@ -400,8 +400,8 @@ fun HlListItem(
  * chosen. Focus entering the track, from any side, lands on the current option, never on the
  * nearest one; to accessibility services the options are tabs, the current one selected. With
  * [selectOnFocus], moving onto an option selects it, as tabs over content do on TV. [scrollable]
- * lets a long track (seasons) scroll within the screen. [onArtwork] lays the track on a dark
- * plate, so it reads over any image. [enterAt] is where focus enters when it is not the current
+ * lets a long track (seasons) scroll within the screen. On a picture ([OnArtwork]) the track is
+ * a dark plate, so it reads over any image. [enterAt] is where focus enters when it is not the current
  * option: the option a screen sends you back to (the library just left). [onFocusChange] hears
  * which option has focus, null once focus has left the track.
  */
@@ -413,7 +413,6 @@ fun HlSegmented(
     modifier: Modifier = Modifier,
     selectOnFocus: Boolean = false,
     scrollable: Boolean = false,
-    onArtwork: Boolean = false,
     enterAt: Int = selected,
     onFocusChange: (Int?) -> Unit = {},
 ) {
@@ -426,7 +425,7 @@ fun HlSegmented(
     val scroll = rememberScrollState()
     val content = if (scrollable) Modifier.horizontalScroll(scroll).padding(horizontal = HlSpace.xxs) else Modifier
 
-    val well = if (onArtwork) Hl.colors.background.copy(alpha = HlAlpha.VEIL) else Hl.colors.content.copy(alpha = HlAlpha.FILL_FAINT)
+    val well = groundPlate() ?: Hl.colors.content.copy(alpha = HlAlpha.FILL_FAINT)
     val track = modifier
         .background(well, HlShapes.control)
         .padding(vertical = HlSpace.xxs, horizontal = if (scrollable) HlSpace.none else HlSpace.xxs)
@@ -514,15 +513,8 @@ private fun SegmentItem(
                 if (it.isFocused) onFocused()
             },
         shape = ClickableSurfaceDefaults.shape(HlShapes.control),
-        scale = ClickableSurfaceDefaults.scale(focusedScale = HlFocus.CONTROL_SCALE),
-        colors = ClickableSurfaceDefaults.colors(
-            containerColor = Color.Transparent,
-            contentColor = rest,
-            focusedContainerColor = c.focus,
-            focusedContentColor = c.onFocus,
-            pressedContainerColor = c.focus,
-            pressedContentColor = c.onFocus,
-        ),
+        scale = FocusStyle.scale(FocusStyle.Fill.Pill),
+        colors = FocusStyle.fill(rest = Color.Transparent, restContent = rest),
     ) {
         Text(
             text,

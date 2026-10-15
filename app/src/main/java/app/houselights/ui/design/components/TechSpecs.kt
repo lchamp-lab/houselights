@@ -24,6 +24,7 @@ import app.houselights.core.AudioTrack
 import app.houselights.core.HdrFormat
 import app.houselights.core.MediaInfo
 import app.houselights.core.SubtitleTrack
+import app.houselights.ui.design.TechSpecsDefaults
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlShapes
@@ -93,7 +94,7 @@ private fun AudioTable(tracks: List<AudioTrack>) {
             SpecRow(
                 marked = t === main,
                 language = languageName(t.language) ?: stringResource(R.string.unknown_language),
-                cells = listOf(t.format to HlLayout.specFormat, (t.layout ?: "") to HlLayout.specLayout),
+                cells = listOf(t.format to HlLayout.specFormat, (t.layout ?: "") to TechSpecsDefaults.layoutColumn),
                 note = t.title?.takeIf { it.isNotBlank() },
             )
         }
@@ -109,7 +110,7 @@ private fun SubtitleTable(tracks: List<SubtitleTrack>) {
             SpecRow(
                 marked = t.default,
                 language = languageName(t.language) ?: stringResource(R.string.unknown_language),
-                cells = listOf(t.format to HlLayout.specLayout),
+                cells = listOf(t.format to TechSpecsDefaults.layoutColumn),
                 // The dot already says which one is used by default.
                 note = listOfNotNull(forced.takeIf { t.forced }, sdh.takeIf { t.hearingImpaired })
                     .joinToString(", ").ifEmpty { null },

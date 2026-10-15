@@ -53,6 +53,7 @@ import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.Icon
 import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
+import app.houselights.ui.design.HlMenuDefaults
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlInset
@@ -158,7 +159,7 @@ private fun MenuPanel(sections: List<MenuSection>, maxHeight: Dp, motion: SheetM
     LaunchedEffect(Unit) { runCatching { first.requestFocus() } }
     HlPanel(
         Modifier
-            .width(HlLayout.menuWidth)
+            .width(HlMenuDefaults.width)
             .heightIn(max = maxHeight)
             .stillWhileLeaving(motion)
             .graphicsLayer {
@@ -211,13 +212,8 @@ private fun MenuItem(label: String, selected: Boolean, onClick: () -> Unit, modi
         onClick = onClick,
         modifier = modifier.fillMaxWidth().height(HlSize.segment).semantics { this.selected = selected },
         shape = ClickableSurfaceDefaults.shape(HlShapes.row),
-        scale = rowScale(),
-        colors = ClickableSurfaceDefaults.colors(
-            containerColor = Color.Transparent,
-            contentColor = if (selected) c.content else c.contentSecondary,
-            focusedContainerColor = c.focus,
-            focusedContentColor = c.onFocus,
-        ),
+        scale = FocusStyle.scale(FocusStyle.Fill.Row),
+        colors = FocusStyle.fill(rest = Color.Transparent, restContent = if (selected) c.content else c.contentSecondary),
         interactionSource = interaction,
     ) {
         Row(Modifier.fillMaxHeight().padding(horizontal = HlSpace.s), verticalAlignment = Alignment.CenterVertically) {

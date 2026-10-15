@@ -59,7 +59,7 @@ internal class PaneRows(private val memory: FocusMemory, private val pane: Strin
 /** A line of explanation under a group, in the reading measure. */
 @Composable
 internal fun Hint(text: String, modifier: Modifier = Modifier) {
-    Text(text, style = Hl.type.caption, color = Hl.colors.contentSecondary, modifier = modifier.widthIn(max = HlLayout.readable))
+    Text(text, style = Hl.type.caption, color = Hl.colors.contentSecondary, modifier = modifier.widthIn(max = HlLayout.captionMeasure))
 }
 
 /** When something happened, in words: see the other [relativeTime]. */

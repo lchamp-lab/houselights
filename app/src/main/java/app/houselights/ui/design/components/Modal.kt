@@ -13,6 +13,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.Dp
 import androidx.tv.material3.Text
+import app.houselights.ui.design.HlModalDefaults
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlAlpha
 import app.houselights.ui.design.HlInset
@@ -34,7 +35,7 @@ fun HlModal(
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
     facts: List<String?> = emptyList(),
-    width: Dp = HlLayout.dialog,
+    width: Dp = HlModalDefaults.width,
     initialFocus: FocusRequester? = null,
     content: @Composable ColumnScope.(sheet: SheetScope) -> Unit,
 ) {

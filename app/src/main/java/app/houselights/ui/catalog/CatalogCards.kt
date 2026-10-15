@@ -27,6 +27,7 @@ import app.houselights.core.ArtworkKind
 import app.houselights.core.ImageRef
 import app.houselights.core.MediaKind
 import app.houselights.core.Person
+import app.houselights.ui.design.OnArtwork
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlLayout
@@ -243,7 +244,7 @@ private fun ProgressLines() {
             listOf(0f to "0%: not drawn", 0.4f to "40%", 1f to "100%").forEach { (progress, label) ->
                 StateCaption("$ground, $label", width = HlSize.poster) {
                     Box(Modifier.width(HlSize.poster).height(HlSpace.l).background(color)) {
-                        ProgressLine(progress, Modifier.align(Alignment.BottomCenter), onArtwork = true)
+                        OnArtwork { ProgressLine(progress, Modifier.align(Alignment.BottomCenter)) }
                     }
                 }
             }

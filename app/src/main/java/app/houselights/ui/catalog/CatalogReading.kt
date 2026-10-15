@@ -32,7 +32,7 @@ import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.components.Badge
-import app.houselights.ui.design.components.BadgeRow
+import app.houselights.ui.design.components.FormatLine
 import app.houselights.ui.design.components.BillingBlock
 import app.houselights.ui.design.components.DefinitionList
 import app.houselights.ui.design.components.EpisodeHeading
@@ -176,24 +176,31 @@ private fun ReadingTitleLineSection() {
 
 @Composable
 private fun ReadingBadgeRowSection() {
-    Group("Badge row", still = true) {
+    Group("Formats: words, no frames; a mark keeps its frame", still = true) {
         ReadingRow {
-            ReadingCase("a film’s formats", Modifier.width(HlLayout.readableNarrow)) {
-                BadgeRow(listOf("4K", "Dolby Vision", "HDR10", "TrueHD Atmos", "7.1"))
+            ReadingCase("a film’s formats: Dolby Vision says its HDR10", Modifier.width(HlLayout.readableNarrow)) {
+                FormatLine(listOf("4K", "Dolby Vision", "HDR10", "TrueHD Atmos", "7.1"))
             }
-            ReadingCase("every format, in a side column", Modifier.width(HlLayout.sideColumn)) {
-                BadgeRow(listOf("4K", "Dolby Vision", "HDR10+", "HDR10", "TrueHD Atmos", "DTS:X", "7.1", "16"))
+            ReadingCase("a name’s TrueHD and Atmos, read as one", Modifier.width(HlLayout.sideColumn)) {
+                FormatLine(listOf("4K", "Dolby Vision", "HDR", "Atmos", "TrueHD"))
             }
         }
         ReadingRow {
-            ReadingCase("definitions by name", Modifier.width(HlLayout.readableNarrow)) {
-                BadgeRow(listOf("4K", "1080p", "720p", "SD", "DTS-HD MA", "5.1"))
+            ReadingCase("four at most, definitions by name", Modifier.width(HlLayout.readableNarrow)) {
+                FormatLine(listOf("1080p", "HDR10+", "DTS-HD MA", "5.1", "Remux"))
             }
-            ReadingCase("no badges: draws nothing", Modifier.weight(1f)) { BadgeRow(emptyList()) }
+            ReadingCase("no formats: draws nothing", Modifier.weight(1f)) { FormatLine(emptyList()) }
         }
         ReadingRow {
-            ReadingCase("on one line, in a side column: the last ones go", Modifier.width(HlLayout.sideColumn)) {
-                BadgeRow(listOf("4K", "Dolby Vision", "HDR10+", "HDR10", "TrueHD Atmos", "DTS:X", "7.1", "16"), oneLine = true)
+            ReadingCase("in a side column: the last ones go", Modifier.width(HlLayout.sideColumn)) {
+                FormatLine(listOf("4K", "Dolby Vision", "HDR10+", "TrueHD Atmos", "DTS:X", "7.1"))
+            }
+            ReadingCase("marks keep a frame: a rating, a key, an id", Modifier.weight(1f)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.xs)) {
+                    Badge("12")
+                    Badge("OK")
+                    Badge("TMDB 5511")
+                }
             }
         }
     }

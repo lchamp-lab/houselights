@@ -1,5 +1,6 @@
 package app.houselights.ui.design.components
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
@@ -44,7 +45,7 @@ import app.houselights.ui.design.HlInset
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
-import app.houselights.ui.design.LocalGround
+import app.houselights.ui.design.groundColor
 import app.houselights.ui.design.groundFill
 import app.houselights.ui.design.groundStep
 import app.houselights.ui.design.scrollEdges
@@ -65,7 +66,7 @@ fun HlScrollArea(
     modifier: Modifier = Modifier,
     framed: Boolean = true,
     padding: Dp = if (framed) HlInset.card else HlSpace.none,
-    surface: Color = if (framed) groundFill(groundStep()) else LocalGround.current,
+    surface: Color = if (framed) groundFill(groundStep()) else groundColor(),
     content: @Composable BoxScope.() -> Unit,
 ) {
     val scroll = rememberScrollState()
@@ -78,13 +79,9 @@ fun HlScrollArea(
         Modifier
             .clip(HlShapes.panel)
             .background(c.content.copy(alpha = groundStep()))
-            .border(
-                if (focused) HlSize.focusBorder else HlSize.hairline,
-                if (focused) c.focus else c.outline.copy(alpha = HlAlpha.EDGE),
-                HlShapes.panel,
-            )
+            .border(if (focused) FocusStyle.ring() else BorderStroke(HlSize.hairline, c.outline.copy(alpha = HlAlpha.EDGE)), HlShapes.panel)
     } else {
-        Modifier.ringOutside(focused, c.focus).clipToBounds()
+        Modifier.ringOutside(focused, FocusStyle.ringColor()).clipToBounds()
     }
     Box(
         modifier

@@ -52,6 +52,7 @@ import androidx.tv.material3.Icon
 import androidx.tv.material3.Text
 import app.houselights.R
 import app.houselights.core.ImageRef
+import app.houselights.ui.design.HlSideSheetDefaults
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlAlpha
 import app.houselights.ui.design.HlIcons
@@ -61,6 +62,7 @@ import app.houselights.ui.design.HlMotion
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.Ground
 import app.houselights.ui.design.LocalGround
 import app.houselights.ui.design.groundStep
 import app.houselights.ui.design.scrollEdges
@@ -178,11 +180,11 @@ fun HlSideSheet(
     SheetWindow(onDismiss, HlAlpha.VEIL_SIDE, initialFocus) { progress, sheet ->
         val body = rememberScrollState()
         // Glass: the ground of the rows and fields it holds.
-        CompositionLocalProvider(LocalGround provides Hl.colors.surfaceRaised) {
+        CompositionLocalProvider(LocalGround provides Ground.Glass) {
         Row(
             modifier
                 .align(Alignment.CenterEnd)
-                .width(HlLayout.sideSheet)
+                .width(HlSideSheetDefaults.width)
                 .fillMaxHeight()
                 .graphicsLayer { translationX = size.width * (1f - progress()) }
                 .background(Hl.colors.surfaceRaised),

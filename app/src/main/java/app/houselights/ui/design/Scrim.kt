@@ -19,7 +19,7 @@ object HlScrim {
     /**
      * The left veil behind the text column (`HlSpace.safeH` + `HlLayout.readableNarrow`): at each
      * share of the column, the share of its style's strength it keeps. Past the column it fades out
-     * over `HlLayout.veilFade`. Under the column it never drops below the floor of the picture
+     * over `BackdropDefaults.veilFade`. Under the column it never drops below the floor of the picture
      * ([ArtworkSample.floor]).
      */
     val LEFT = listOf(VeilStop(0f, 1f), VeilStop(0.6f, 0.9f), VeilStop(1f, 0.5f))
@@ -214,6 +214,31 @@ class ArtworkSample(val width: Int, val height: Int, private val grey: FloatArra
                 val x = left + (col + MIDDLE) * scale
                 val need = HlScrim.need(grey[row * width + col] * through, HlScrim.spillAt(x, y, screen))
                 needs[count++] = if (need > strength * HlScrim.LEFT.alphaAt(x / column)) need else 0f
+            }
+        }
+        needs.sort()
+        return needs[(needs.lastIndex * HlScrim.FLOOR_QUANTILE).roundToInt()]
+    }
+
+    /**
+     * The opacity a veil laid over the whole picture needs for the quietest text to read anywhere
+     * on it (a page's rows, which run the screen's width): what [HlScrim.FLOOR_QUANTILE] of the
+     * points shown need, laid as [floor] lays them, with the spill over them. 0 on a dark picture.
+     */
+    fun floorAcross(screen: Size, imageAlpha: Float, down: List<VeilStop>): Float {
+        if (grey.isEmpty() || screen.isEmpty()) return 0f
+        val scale = max(screen.width / width, screen.height / height)
+        val left = screen.width - width * scale
+        val cols = ceil(-left / scale - MIDDLE).toInt().coerceAtLeast(0)..(width - 1)
+        val rows = 0..kotlin.math.floor(screen.height / scale - MIDDLE).toInt().coerceAtMost(height - 1)
+        val needs = FloatArray(cols.count() * rows.count())
+        var count = 0
+        for (row in rows) {
+            val y = (row + MIDDLE) * scale
+            val through = imageAlpha * (1f - down.alphaAt(y / screen.height))
+            for (col in cols) {
+                val x = left + (col + MIDDLE) * scale
+                needs[count++] = HlScrim.need(grey[row * width + col] * through, HlScrim.spillAt(x, y, screen))
             }
         }
         needs.sort()

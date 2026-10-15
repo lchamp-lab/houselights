@@ -66,6 +66,7 @@ import app.houselights.providers.local.ScanState
 import app.houselights.providers.local.SourceEntity
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlMotion
+import app.houselights.ui.design.OnArtwork
 import app.houselights.ui.design.awaitMotion
 import app.houselights.ui.design.textRoom
 import app.houselights.ui.design.LocalHouseLights
@@ -88,6 +89,7 @@ import app.houselights.ui.design.components.rememberAmbientColor
 import app.houselights.ui.util.ReloadOnLibraryChange
 import app.houselights.ui.util.appContainer
 import app.houselights.ui.util.libraryName
+import app.houselights.ui.util.timeLeft
 import app.houselights.ui.util.scanErrorText
 import app.houselights.ui.util.sectionTitle
 import app.houselights.ui.util.ErrorAction
@@ -190,12 +192,12 @@ fun HomeScreen(
                 } else {
                     // Its height holds the text at the viewer's size, and stays the same whatever has focus:
                     // the title under focus, or, focus on the tabs, the place a tab leads to.
-                    val heroSlot = Modifier.padding(start = HlSpace.safeH, top = HlSpace.xs).height(textRoom(HlLayout.hero))
+                    val heroSlot = Modifier.padding(start = HlSpace.safeH, top = HlSpace.l).height(textRoom(HlLayout.hero))
                     Crossfade(place, label = "place", animationSpec = tween(HlMotion.STANDARD)) { shownPlace ->
                         if (shownPlace != null) PlaceHeading(placeName(shownPlace), placeFacts(shownPlace, state), heroSlot)
                         else HeroInfo(shown, heroSlot)
                     }
-                    Spacer(Modifier.height(HlSpace.s))
+                    Spacer(Modifier.height(HlSpace.l))
                     if (firstScan) FirstScan(scan, Modifier.padding(start = HlSpace.safeH, bottom = HlSpace.m))
                     when {
                         state.sections.isEmpty() -> SkeletonRows()
@@ -231,7 +233,7 @@ private fun TopBar(
 ) {
     // Where you are among the libraries, in one track; settings apart, as an action. Both sit on
     // the image, on their plates. A long track scrolls: the button always keeps its place.
-    Row(
+    OnArtwork { Row(
         Modifier.fillMaxWidth().padding(start = HlSpace.safeH, end = HlSpace.safeH, top = HlSpace.safeV),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.Top,
@@ -255,7 +257,6 @@ private fun TopBar(
             // Focus coming back to the track lands where the track's own rule puts it.
             modifier = Modifier.weight(1f, fill = false).padding(end = HlSpace.l).focusRequester(memory.requester(TRACK)),
             scrollable = true,
-            onArtwork = true,
             enterAt = returnTo ?: current,
             onFocusChange = onFocusTab,
         )
@@ -264,9 +265,8 @@ private fun TopBar(
             stringResource(R.string.nav_settings),
             onClick = onSettings,
             modifier = Modifier.focusKey(FocusKey.action("settings"), memory),
-            onArtwork = true,
         )
-    }
+    } }
 }
 
 @Composable
@@ -303,7 +303,15 @@ private fun Sections(
                         val mod = Modifier.focusKey(cardKey(section, item), memory).then(if (sectionIndex == 0) toTabs else Modifier)
                         val focus = { onFocus(sectionIndex, item) }
                         if (section.landscape) {
-                            LandscapeCard(item, onClick = { onOpen(item) }, modifier = mod, onFocused = focus)
+                            // Named under the picture, as an episode is: a still does not say which film it is.
+                            LandscapeCard(
+                                item,
+                                onClick = { onOpen(item) },
+                                modifier = mod,
+                                title = item.seriesTitle ?: item.title,
+                                facts = listOf(item.episodeLabel, timeLeft(item)),
+                                onFocused = focus,
+                            )
                         } else {
                             PosterCard(item, onClick = { onOpen(item) }, modifier = mod, onFocused = focus)
                         }

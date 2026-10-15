@@ -1,5 +1,7 @@
 package app.houselights.ui.design.components
 
+import androidx.compose.foundation.layout.heightIn
+import app.houselights.ui.design.textRoom
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
@@ -49,6 +51,7 @@ import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.pluralStringResource
@@ -81,6 +84,9 @@ import app.houselights.ui.design.HlScrim
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.groundPlate
+import app.houselights.ui.design.LocalGround
+import app.houselights.ui.design.Ground
 import app.houselights.ui.design.fadeOutsideSafeArea
 import app.houselights.ui.design.LocalAmbient
 import app.houselights.ui.design.LocalGroupFocus
@@ -141,7 +147,7 @@ fun ArtworkSurface(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     shape: Shape = HlShapes.artwork,
-    focusedScale: Float = HlFocus.ARTWORK_SCALE,
+    lift: Lift = Lift.Artwork,
     onFocused: () -> Unit = {},
     stateDescription: String? = null,
     readAs: String? = null,
@@ -166,7 +172,7 @@ fun ArtworkSurface(
     }
     // The card grows inside its own layer; the light around it grows with it.
     val grown by animateFloatAsState(
-        if (focused) focusedScale else 1f,
+        if (focused) lift.scale else 1f,
         tween(HlMotion.STANDARD, easing = HlMotion.standard),
         label = "grown",
     )
@@ -188,41 +194,50 @@ fun ArtworkSurface(
             .onFocusChanged { if (it.isFocused) onFocused() }
             .drawBehind { drawGlow(tone, grown, reach, shape) },
         shape = ClickableSurfaceDefaults.shape(shape),
-        scale = ClickableSurfaceDefaults.scale(focusedScale = focusedScale),
-        border = ClickableSurfaceDefaults.border(
-            focusedBorder = Border(BorderStroke(HlSize.focusBorder, c.focus), shape = shape),
-        ),
-        colors = ClickableSurfaceDefaults.colors(
-            containerColor = c.content.copy(alpha = HlAlpha.FILL),
-            focusedContainerColor = c.content.copy(alpha = HlAlpha.FILL),
-            pressedContainerColor = c.content.copy(alpha = HlAlpha.FILL),
-        ),
+        scale = FocusStyle.scale(lift),
+        border = FocusStyle.lift(shape),
+        colors = FocusStyle.still(rest = c.content.copy(alpha = HlAlpha.FILL), restContent = c.content),
         interactionSource = interaction,
     ) {
         // Read while drawing, or by the image alone: stepping back never recomposes the row.
-        CompositionLocalProvider(LocalArtworkRecede provides { recede.value }) { content() }
+        // What a card holds lies on its picture: its marks and progress take their plate.
+        CompositionLocalProvider(LocalArtworkRecede provides { recede.value }, LocalGround provides Ground.Artwork) { content() }
         Box(Modifier.fillMaxSize().border(HlSize.hairline, c.content.copy(alpha = HlAlpha.EDGE_ARTWORK), shape))
-        Box(Modifier.fillMaxSize().drawBehind { drawRect(c.background.copy(alpha = recede.value * HlFocus.SIBLING_DIM)) })
+        Box(
+            Modifier.fillMaxSize().drawBehind {
+                // Nothing drawn in front: a clear rectangle still costs the chip a pass over the card.
+                val dim = recede.value * HlFocus.SIBLING_DIM
+                if (dim > 0f) drawRect(c.background.copy(alpha = dim))
+            }
+        )
     }
 }
 
 /**
  * The light around a focused card: rings of [tone] out to [reach] past the card grown to [grown],
- * fading with the distance. Drawn outside the card's layer, so it scales by hand.
+ * fading with the distance. Drawn outside the card's layer, so it scales by hand. Each ring is
+ * drawn once, as a band, at the light all the rings stacked from it outward would give: the same
+ * light as rounded rectangles laid one over another, for the area of a ring rather than of a card
+ * each time (on the player's graphics chip, sixteen cards' worth of pixels per frame).
  */
 private fun DrawScope.drawGlow(tone: Color, grown: Float, reach: Float, shape: Shape) {
     if (tone.alpha == 0f) return
     val grow = Offset(size.width * (grown - 1f) / 2f, size.height * (grown - 1f) / 2f)
     val corner = (shape as? RoundedCornerShape)?.topStart?.toPx(size, this) ?: 0f
-    for (i in 1..HlScrim.GLOW_STEPS) {
-        val t = i / HlScrim.GLOW_STEPS.toFloat()
-        val out = reach * t
-        val fade = 1f - t
+    val steps = HlScrim.GLOW_STEPS
+    val band = reach / steps
+    // How much of what is under the light still shows through the rings, from the outermost in.
+    var through = 1f
+    for (k in steps downTo 1) {
+        through *= 1f - tone.alpha * HlScrim.GLOW_LAYER * (1f - k / steps.toFloat())
+        // The band's middle line: a stroke is drawn half inside, half outside it.
+        val middle = band * k - band / 2
         drawRoundRect(
-            color = tone.copy(alpha = tone.alpha * HlScrim.GLOW_LAYER * fade),
-            topLeft = Offset(-grow.x - out, -grow.y - out),
-            size = Size(size.width + 2 * (grow.x + out), size.height + 2 * (grow.y + out)),
-            cornerRadius = CornerRadius(corner + out),
+            color = tone.copy(alpha = 1f - through),
+            topLeft = Offset(-grow.x - middle, -grow.y - middle),
+            size = Size(size.width + 2 * (grow.x + middle), size.height + 2 * (grow.y + middle)),
+            cornerRadius = CornerRadius(corner + middle),
+            style = Stroke(width = band),
         )
     }
 }
@@ -284,7 +299,7 @@ fun PosterCard(
     ArtworkSurface(onClick, sized.aspectRatio(2f / 3f), onFocused = onFocused, stateDescription = cardState(item), light = poster) {
         ArtworkImage(poster, item.title, Modifier.fillMaxSize()) { FallbackArtwork(item.title, item.year) }
         StatusMark(item, Modifier.align(Alignment.TopEnd).padding(HlSpace.xs))
-        ProgressLine(item.progress, Modifier.align(Alignment.BottomCenter), onArtwork = true)
+        ProgressLine(item.progress, Modifier.align(Alignment.BottomCenter))
     }
 }
 
@@ -308,7 +323,7 @@ fun LandscapeCard(
         ArtworkSurface(
             onClick,
             Modifier.fillMaxWidth().aspectRatio(16f / 9f),
-            focusedScale = HlFocus.CARD_SCALE,
+            lift = Lift.Card,
             onFocused = onFocused,
             stateDescription = cardState(item),
             light = still,
@@ -317,7 +332,7 @@ fun LandscapeCard(
                 FallbackArtwork(title ?: item.title, item.year.takeIf { title == null })
             }
             StatusMark(item, Modifier.align(Alignment.TopEnd).padding(HlSpace.xs))
-            ProgressLine(item.progress, Modifier.align(Alignment.BottomCenter), onArtwork = true)
+            ProgressLine(item.progress, Modifier.align(Alignment.BottomCenter))
         }
         if (title != null) {
             Spacer(Modifier.height(HlSpace.s))
@@ -368,18 +383,20 @@ fun PersonCard(person: Person, modifier: Modifier = Modifier) {
             person.image?.url(px)?.let { ArtworkImage(it, person.name, Modifier.fillMaxSize().clip(HlShapes.avatar)) }
         }
         Spacer(Modifier.height(HlSpace.s))
-        // Said by the portrait already.
-        Text(
-            person.name,
-            style = Hl.type.meta,
-            color = Hl.colors.content,
-            maxLines = 2,
-            minLines = 2,
-            overflow = TextOverflow.Ellipsis,
-            textAlign = TextAlign.Center,
-            // Each line fades by its own width before the screen's edge; the portrait may peek.
-            modifier = Modifier.clearAndSetSemantics {}.fadeOutsideSafeArea(),
-        )
+        // Two lines of room, the name at their foot: a short name sits on its role, and the roles of
+        // a row stay level. Said by the portrait already.
+        Box(Modifier.fillMaxWidth().heightIn(min = textRoom(HlSize.personName)), contentAlignment = Alignment.BottomCenter) {
+            Text(
+                person.name,
+                style = Hl.type.meta,
+                color = Hl.colors.content,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.Center,
+                // Each line fades by its own width before the screen's edge; the portrait may peek.
+                modifier = Modifier.clearAndSetSemantics {}.fadeOutsideSafeArea(),
+            )
+        }
         person.role?.let {
             Text(
                 it,
@@ -535,13 +552,13 @@ private const val PERCENT = 100
 
 /**
  * Progress line in the ember light, its whole gradient across what is done, only for titles in
- * progress. On artwork ([onArtwork]: the foot of a
- * card), its track is a dark plate, so the line reads over the lightest image.
+ * progress. On a picture (the foot of a card, [OnArtwork]), its track is the ground's dark plate
+ * ([groundPlate]), so the line reads over the lightest image.
  */
 @Composable
-fun ProgressLine(progress: Float, modifier: Modifier = Modifier, onArtwork: Boolean = false) {
+fun ProgressLine(progress: Float, modifier: Modifier = Modifier) {
     if (progress <= 0f) return
-    val track = if (onArtwork) Hl.colors.background.copy(alpha = HlAlpha.VEIL) else Hl.colors.content.copy(alpha = HlAlpha.FILL_STRONG)
+    val track = groundPlate() ?: Hl.colors.content.copy(alpha = HlAlpha.FILL_STRONG)
     Box(modifier.fillMaxWidth().height(HlSize.progress).background(track)) {
         Box(Modifier.fillMaxWidth(progress).height(HlSize.progress).background(Hl.colors.emberLight()))
     }

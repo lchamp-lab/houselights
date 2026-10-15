@@ -1,5 +1,10 @@
 package app.houselights.ui.detail
 
+import app.houselights.ui.util.timeLeft
+import app.houselights.ui.design.HlMotion
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -70,10 +75,11 @@ import app.houselights.ui.design.focusKey
 import app.houselights.ui.design.rememberFocusMemory
 import app.houselights.ui.design.components.Backdrop
 import app.houselights.ui.design.components.BackdropStyle
-import app.houselights.ui.design.components.BadgeRow
+import app.houselights.ui.design.components.FormatLine
 import app.houselights.ui.design.components.BillingBlock
 import app.houselights.ui.design.components.EpisodeHeading
 import app.houselights.ui.design.components.Emphasis
+import app.houselights.ui.design.components.HlActionRow
 import app.houselights.ui.design.components.HlButton
 import app.houselights.ui.design.components.HlIconButton
 import app.houselights.ui.design.components.HlSegmented
@@ -173,6 +179,18 @@ fun DetailScreen(
         )
     }
 
+    // Down the page the film steps back: the rows read on the room, not on a face. A page that
+    // comes back already scrolled is dark at once; then the veil follows the page over SLOW.
+    val recede = remember { Animatable(0f) }
+    LaunchedEffect(page) {
+        var first = true
+        snapshotFlow { scrolled }.collect { away ->
+            val target = if (away) 1f else 0f
+            if (first) recede.snapTo(target) else recede.animateTo(target, tween(HlMotion.SLOW, easing = HlMotion.standard))
+            first = false
+        }
+    }
+
     val ambient = rememberAmbientColor(item.backdrop)
     CompositionLocalProvider(LocalAmbient provides { ambient.value }) {
         Box(
@@ -181,7 +199,7 @@ fun DetailScreen(
                 false
             },
         ) {
-            Backdrop(item.backdrop, BackdropStyle.Full)
+            Backdrop(item.backdrop, BackdropStyle.Full, recede = { recede.value })
 
             // The page turns by whole blocks: a row coming into view rises to the safe area, and
             // the gap between blocks, wider than that keyline, takes the one above off the screen.
@@ -322,11 +340,12 @@ private fun Hero(
             MetaLine(item)
             if (item.badges.isNotEmpty()) {
                 Spacer(Modifier.height(HlSpace.s))
-                BadgeRow(item.badges)
+                FormatLine(item.badges)
             }
+            // The tagline introduces the overview, quieter than the title above it.
             item.tagline?.let {
                 Spacer(Modifier.height(HlSpace.l))
-                Text(it, style = Hl.type.title, color = Hl.colors.content)
+                Text(it, style = Hl.type.lead, color = Hl.colors.contentSecondary)
             }
             if (!item.overview.isNullOrBlank()) {
                 Spacer(Modifier.height(if (item.tagline != null) HlSpace.xs else HlSpace.l))
@@ -372,11 +391,7 @@ private fun Actions(
     actions: FocusRequester,
 ) {
     val problem by appContainer().playback.playbackProblem.collectAsStateWithLifecycle()
-    Row(
-        Modifier.focusRequester(actions).padding(bottom = HlLayout.iconLabelRoom).fadeOutsideSafeArea(),
-        horizontalArrangement = Arrangement.spacedBy(HlSpace.s),
-        verticalAlignment = Alignment.Top,
-    ) {
+    HlActionRow(Modifier.focusRequester(actions).fadeOutsideSafeArea()) {
         PlayButtons(item, nextUp, memory, onPlay)
         if (item.kind == MediaKind.EPISODE && item.seriesId != null) {
             HlButton(stringResource(R.string.view_series), onClick = onOpenSeries, modifier = Modifier.focusKey(SERIES, memory))
@@ -487,13 +502,6 @@ private fun Seasons(seasons: List<MediaItem>, selectedId: String?, onSelect: (St
 private fun episodeState(ep: MediaItem): String? =
     if (ep.user.played) stringResource(R.string.watched) else timeLeft(ep)
 
-/** "Il reste 1 h 26" for a title started: a duration, never a timecode, never "0 min"; nothing when unknown. */
-@Composable
-private fun timeLeft(item: MediaItem): String? {
-    val left = (item.runtimeMs ?: 0L) - item.user.positionMs
-    return if (item.user.positionMs > 0 && left > 0) stringResource(R.string.time_left, formatDuration(maxOf(left, MINUTE_MS))) else null
-}
-
 @Composable
 private fun Episodes(
     header: String?,
@@ -558,7 +566,6 @@ private const val EPISODES = "episodes"
 private const val FILMS = "films"
 private const val SAGA = "collection"
 private const val SIMILAR = "similar"
-private const val MINUTE_MS = 60_000L
 
 /** The keys that act on what has focus. */
 private val OK_KEYS = setOf(Key.DirectionCenter, Key.Enter, Key.NumPadEnter)

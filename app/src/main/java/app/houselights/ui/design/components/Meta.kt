@@ -26,7 +26,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.tv.material3.Icon
 import androidx.tv.material3.Text
 import app.houselights.R
-import app.houselights.core.Definition
+import app.houselights.core.Formats
 import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
 import app.houselights.ui.design.Hl
@@ -45,7 +45,7 @@ import app.houselights.ui.util.NBSP
  * what does not fit is left out whole, from the end.
  */
 @Composable
-fun MetaLine(item: MediaItem, modifier: Modifier = Modifier, showGenres: Boolean = true) {
+fun MetaLine(item: MediaItem, modifier: Modifier = Modifier, showGenres: Boolean = true, formats: List<String> = emptyList()) {
     val c = Hl.colors
     val seasons = item.childCount?.takeIf { item.kind == MediaKind.SERIES && it > 0 }
         ?.let { pluralStringResource(R.plurals.season_count, it, it) }
@@ -66,12 +66,15 @@ fun MetaLine(item: MediaItem, modifier: Modifier = Modifier, showGenres: Boolean
         else -> item.runtimeMs?.let(::formatDuration)
     }
 
-    // In order of what matters: when the line runs out of room, genres go first, then the score.
+    // In order of what matters: when the line runs out of room, genres go first, then the formats,
+    // then the score.
+    val shownFormats = remember(formats) { Formats.shown(formats) }
     OneLine(modifier) {
         years?.let { Text(it, style = Hl.type.meta, color = c.content, maxLines = 1, overflow = TextOverflow.Ellipsis) }
         length?.let { Text(it, style = Hl.type.meta, color = c.contentSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis) }
         item.officialRating?.let { Badge(it) }
         item.communityRating?.let { Score(it) }
+        shownFormats.forEach { FormatWord(it) }
         // Genres go one by one, from the last, as the names of the billing block do.
         if (showGenres) item.genres.take(3).forEachIndexed { i, genre ->
             Text(
@@ -101,8 +104,9 @@ fun Score(score: Double, modifier: Modifier = Modifier) {
 }
 
 /**
- * Hairline badge for what a case would print: formats, age ratings, protocols. Never a state: a
- * choice says so with its light ([HlStatus]) or its check.
+ * A mark set in a hairline frame, as a case prints a certificate: an age rating, a key of the
+ * remote ("OK"), an identifier, a protocol. Never a state (a choice says so with its light,
+ * [HlStatus], or its check), and never a format: formats are words ([FormatLine]).
  */
 @Composable
 fun Badge(text: String, modifier: Modifier = Modifier) {
@@ -117,23 +121,22 @@ fun Badge(text: String, modifier: Modifier = Modifier) {
     )
 }
 
-/**
- * Formats of a title, in the order given; they wrap to a second line rather than run out of room.
- * On [oneLine] (a line of fixed height), the last ones are left out instead.
- */
-@OptIn(ExperimentalLayoutApi::class)
+/** One format, as a word in the technical voice, quiet: no frame. */
 @Composable
-fun BadgeRow(badges: List<String>, modifier: Modifier = Modifier, oneLine: Boolean = false) {
-    if (badges.isEmpty()) return
-    if (oneLine) {
-        OneLine(modifier, spacing = HlSpace.xs, squeezeFirst = false) { badges.forEach { Badge(Definition.label(it)) } }
-        return
-    }
-    FlowRow(
-        modifier,
-        horizontalArrangement = Arrangement.spacedBy(HlSpace.xs),
-        verticalArrangement = Arrangement.spacedBy(HlSpace.xs),
-    ) { badges.forEach { Badge(Definition.label(it)) } }
+private fun FormatWord(text: String) {
+    Text(text, style = Hl.type.badge, color = Hl.colors.contentSecondary, maxLines = 1, softWrap = false)
+}
+
+/**
+ * The formats of a title, as words in the technical voice, a fact's space apart, without frames:
+ * what a case would print, read rather than boxed. At most [Formats.MAX], nothing said twice
+ * ([Formats.shown]); on one line, the last ones go first when room runs short.
+ */
+@Composable
+fun FormatLine(badges: List<String>, modifier: Modifier = Modifier, max: Int = Formats.MAX) {
+    val shown = remember(badges, max) { Formats.shown(badges, max) }
+    if (shown.isEmpty()) return
+    OneLine(modifier, spacing = HlSpace.fact, squeezeFirst = false) { shown.forEach { FormatWord(it) } }
 }
 
 /**
@@ -147,7 +150,7 @@ fun TitleLine(item: MediaItem, modifier: Modifier = Modifier) {
         contents = listOf(
             { Text(item.title, style = Hl.type.entry, color = Hl.colors.content, maxLines = 1, overflow = TextOverflow.Ellipsis) },
             { MetaLine(item, showGenres = false) },
-            { BadgeRow(item.badges.take(TITLE_LINE_BADGES), oneLine = true) },
+            { FormatLine(item.badges, max = TITLE_LINE_BADGES) },
         ),
         modifier = modifier,
     ) { (title, facts, badges), constraints ->

@@ -118,13 +118,15 @@ component; a colour changes in one place.
 the warmth belongs to the films and to the ember light, and a warm grey beside them reads dull.
 
 **Three materials.** The room (`background`). Glass (`surfaceRaised`): a side sheet, a menu, a
-dialog, opaque over the dimmed film and set off by its hairline, never a grey slab; it is the
-ground of what it holds (`LocalGround`). Fills: everything that stands on a ground, `content` laid
+dialog, opaque over the dimmed film and set off by its hairline, never a grey slab. **A component
+reads what it lies on** (`LocalGround`: `Ground.Room`, `Glass`, `Artwork`) rather than being told:
+sheets and raised panels provide glass, artwork surfaces and `OnArtwork { }` provide a picture
+(`GroundTest`). Fills: everything that stands on a ground, `content` laid
 over it by opacity, so it is always one step up from what is below. A thing on its ground (a quiet
 panel, a field, an empty frame, an image's ground, a list entry) takes `groundStep()`: `FILL` (9 %)
 on the room, a step a TV still shows (#161616, video level 35, where the room is 16); `FILL_FAINT`
 (6 %) on glass, already a step up. What must hide what is under it or fade into it reads the
-ground opaque (`groundFill`). Then focus, in projector white.
+ground opaque (`groundColor`, `groundFill`). Then focus, in projector white.
 
 `HlAlpha` names every opacity, in three families. Fills, `content` over its ground: `FILL_FAINT`
 (6 %: wells, tracks, rows at rest, the disabled), `FILL` (9 %: secondary controls at rest, things on
@@ -153,8 +155,8 @@ holds screens to it.
 ember says your choice. Over artwork both sit on the same dark plate (`SelectedMark` is the
 watched mark in ember); in a list, a sheet or a menu the check stands alone. In words, a choice
 takes the light of a state (`HlStatus` On: "Votre choix", "Actuel"); how something was done is a
-plain `meta` word without light ("Automatique"). A `Badge` is what a case would print, formats, age
-ratings and protocols: never a state.
+plain `meta` word without light ("Automatique"). A `Badge` is a mark a case would print in a frame,
+an age rating or a protocol; formats are words (`FormatLine`). Neither is ever a state.
 
 **Contrast.** Text reaches 4.5:1 and icons and marks 3:1 on the surface they really sit on, each
 translucent layer composed over what lies under it. `ContrastTest` lists every pair the system
@@ -170,8 +172,8 @@ pending dot, the ring of a state that is off.
 
 **On artwork.** A translucent white fill is made for the dark room: over a light image it vanishes.
 What sits on an image takes a dark plate instead (`VEIL`, matte, never blurred), so its contrast no
-longer depends on the picture: a card's marks and progress line, and the controls that pass
-`onArtwork` (the home bar's track and settings button). The plate is black at 80 %: over a white
+longer depends on the picture (`groundPlate()`): a card's marks and progress line, and the
+controls laid on a picture with `OnArtwork { }` (the home bar's track and settings button). The plate is black at 80 %: over a white
 image the raspberry end of a progress line still reaches 3.5:1. On it the options of a track at
 rest keep their inks (the current one in `content` on its pill, the others in `contentSecondary`,
 5:1 on the plate over a white image). Focus does not change.
@@ -182,7 +184,7 @@ rest keep their inks (the current one in `content` on its pill, the others in `c
 behind the text column, the **top veil** under the top bar, the **bottom fade** to black, the
 **ambient spill** below a backdrop, the **collection light**, and the **welcome wall** (its veil;
 nothing lights the wordmark, the posters are the light of that screen). The left veil follows the
-text column in dp, `safeH` + `readableNarrow`, then fades out over `HlLayout.veilFade`: never a
+text column in dp, `safeH` + `readableNarrow`, then fades out over `BackdropDefaults.veilFade`: never a
 share of a screen assumed 960 dp wide.
 
 **No picture, no light.** Without artwork, `Backdrop(null)` is the black room: no warm glow stands
@@ -233,8 +235,8 @@ family, weight or tracking (`DesignTokenGuardTest`): it picks another role, or t
 | `headline` | 44 / 48 | poster, Bold | screen titles, home hero title without logo |
 | `subject` | 32 / 36 | poster, SemiBold | what a panel, a sheet or a settings pane is about ("Modifier", "Fiche technique", "Affichage"); the line of an intertitle; a figure that states something (storage used) |
 | `cardTitle` | 20 / 24 | poster, Bold | a title set on a card without artwork, like a plain one-sheet |
-| `title` | 24 / 30 | reading, SemiBold | taglines, an episode's name in its heading |
-| `lead` | 20 / 26 | reading, SemiBold | row headers, names of cards and results, episode names |
+| `title` | 24 / 30 | reading, SemiBold | an episode's name in its heading |
+| `lead` | 20 / 26 | reading, SemiBold | row headers, names of cards and results, episode names; a detail page's tagline, in `contentSecondary`, which introduces the overview and never competes with the title |
 | `body` | 16 / 24 | reading, Regular | overviews, descriptions |
 | `entry` | 16 / 20 | reading, SemiBold | a name to read or to choose: a setting, a menu option, a navigation entry, a title in a line, the words of a button and of the options of a track |
 | `meta` | 16 / 20 | reading, Regular | facts and values: year, runtime, score, sizes; names under artwork |
@@ -265,7 +267,8 @@ that grows with the text.
 | `HlInset` | inner padding of containers, by what they hold: `tight` 8 (menus, results with a thumbnail), `compact` 12 (dense rows), `card` 24 (panels, cards), `sheet` 32 (sheets) |
 | `HlShapes` | radius follows hierarchy: `badge` 3, `artwork` 4, `field` 6, `row` 8 (rows that can be chosen), `panel` 12, `sheet` 16 (sheets and menus), `control` pill, `avatar` circle. A shape set close inside another keeps their corners parallel: **outer radius = inner radius + gap** (a menu: 8 + 8 = 16; a result: 4 + 8 = 12) |
 | `HlSize` | artwork (poster 112, landscape 220, episode 264, avatar 76 in a column of 120, thumbnails), `control` 48 for every button, icons 20, discs 52, marks 20, dots 8, setting rows 64, previews in a row (48 tall, a slot of 84), meter 10, the short rules of a loading title (48, 24), the short rule heading an intertitle (`intertitleRule`, 24 by 2) |
-| `HlLayout` | measures of layout parts: reading widths (640, 520), the left veil's fade past them (240), side columns (280, 340), pane top 72, the reading sheet (864) and the side sheet (520), title art, hero, info line, track table columns, the label of a round button (200 wide at most, its plate included, 36 of room under its row) |
+| `HlLayout` | **the screens' grid**, every measure read by a screen (`LayoutTokensTest`): reading widths (640, 520; a caption 400, about 66 characters at 14 sp), side columns (280, 340), pane top 72, title art, the home hero's band (168), the detail page's gap and least hero (`detailGap`, `detailHeroMin`), the info line, track table columns |
+| `…Defaults` | **parts of components**, internal, which no screen needs to know: `HlModalDefaults` (the reading sheet, 864), `HlSideSheetDefaults` (520), `HlSettingRowDefaults` (widest value, 360), `HlIconButtonDefaults` (the label: 200 wide at most, 36 of room under its row, 24 from the screen's side), `HlMenuDefaults` (320), `TechSpecsDefaults`, `BackdropDefaults` (the left veil's fade past the column, 240) |
 | `HlControl` | inner padding of buttons and track options, badges; the gap between an icon and its text (8) |
 | `HlFocus` | focus scale by family (artwork 1.10, cards 1.06, pills and discs 1.04, panels 1.02, rows 1), `reach(size, scale)`: how far a focused element reaches past its ends, the room its container keeps; `ring` 5, how far a focus ring stands outside; siblings stepping back (dim 0.3, colour kept 0.3, in `RECEDE_STEPS` 3), the glow of focused artwork, 20 dp, `edge` 28 (`safeV`): how far a list keeps focus from its ends |
 
@@ -273,12 +276,37 @@ that grows with the text.
 
 | Token | File | Content |
 |---|---|---|
-| `HlMotion`, `awaitMotion` | `Motion.kt` | `FAST` 150, `STANDARD` 250, `SLOW` 600, `DIM` 1000 ms; `SETTLE` 220 ms before a backdrop changes; `SKELETON_DELAY` 400 ms before a placeholder shows; `WALL_DRIFT`; `ENTER_SCALE`, where a reading sheet and a menu grow from. What follows a motion waits for its end (`awaitMotion`, or the animated value itself), never a fixed `delay`: with animations off, everything settles without moving and nothing waits |
+| `HlMotion`, `awaitMotion` | `Motion.kt` | `FAST` 150, `STANDARD` 250, `SLOW` 600, `DIM` 1000 ms; `SETTLE` 300 ms before the title under focus changes the screen (after the focus motion, so the new title is laid out on a still frame); `SKELETON_DELAY` 400 ms before a placeholder shows; `WALL_DRIFT`; `ENTER_SCALE`, where a reading sheet and a menu grow from. What follows a motion waits for its end (`awaitMotion`, or the animated value itself), never a fixed `delay`: with animations off, everything settles without moving and nothing waits |
 | `LocalHouseLights`, `HouseLightCue` | `Auditorium.kt` | how far the house lights are down (read while drawing), and the order of the cue |
 | `HlIcons` | `Icons.kt` | every icon of the app, drawn on one line (24 dp grid, 1.75 stroke, round caps and joins): places (Folder, Server, Display, Storage), actions (Add, Edit, Refresh, Restart, Test, Close, Settings), marks (Check, Star, Attention), the remote's Back. Play is the one glyph taken from Material, filled, as on a remote; a state that must read as on is the same drawing filled (a favourite: `Heart`, `HeartFilled`). No other Material icon (a test forbids it); the catalogue shows every glyph at 24 and 20 dp, on the room and in a focused control |
 | `rememberListScroll`, `ListScroll`, `RowScroll` | `Scroll.kt` | lists scroll only as much as needed (`EdgeScroll`), never against the edge of the screen: a list keeps focus `HlFocus.edge` from its top and bottom, so the last row stops inside the safe area; a list that starts under a header or a hero (`ListScroll(top)`) brings its rows back to where its first one rests; rows keep focus 80 dp from the sides, so the first card always scrolls home |
 | `scrollEdges(state, color)` | `Scroll.kt` | what scrolls fades into its surface over `HlSpace.fadeEdge`, at the top and the bottom, on a side only while there is more that way: a line cut at the edge reads as more to come. A gradient of the surface's own colour over the content, no layer, so only on an opaque surface: the room in `HlTwoPane`, the raised sheet of `HlSideSheet` and of menus, the panel or the sheet of `HlScrollArea`. Never on rows of posters, whose ends stay open |
 | `revealOnFocus()`, `keepVerticalFocus()` | `Scroll.kt` | a group comes fully into view when focus enters it; up and down never leave a column |
+| `scrollsAsBlock()`, `ListScroll(top, toTop = true)` | `Scroll.kt` | a block (a row with its header, a hero, an episode row with its overview) scrolls as one: whichever card asks to be seen, the list brings the whole block; with `toTop`, a page of blocks brings each one that has to move to its top keyline, so the page turns by whole blocks |
+| `fadeOutsideSafeArea()` | `Scroll.kt` | a line of text fades out across the safe area's margin, gone at the screen's edge, by where it sits on the screen as rows and pages scroll: a layer's alpha, no offscreen buffer, no recomposition. In components only (row headers, captions, cast names and roles, the overview of an episode, a hero's text and actions) |
+
+## Layout: bands, blocks, the edge of the screen
+
+The screen is a TV's, seen from three metres, through an overscan that may crop its margins.
+
+- **No word is cut by the screen.** A picture may pass the safe area and invite the eye on (the
+  next card, the next row); a word may not: what would reach the edge fades out across the margin
+  first (`fadeOutsideSafeArea`). A line cut at the edge of the screen reads as a defect; one cut
+  at the edge of an opaque surface fades into it (`scrollEdges`).
+- **Pages turn by whole blocks.** A row moves with its header, a hero with its actions
+  (`scrollsAsBlock`); on a detail page and on home a block that has to move comes to the top
+  keyline, and the gap between blocks (`HlLayout.detailGap`, 32, wider than the keyline) takes
+  the one above off the screen. The first view of a detail page is its hero less the first
+  row's header and a strip of its images (`HlLayout.detailHeroMin`): only pictures show below.
+- **Home is three bands**, left-aligned on `safeH`: the bar (the track and the settings button,
+  on their plates), a gap of `HlSpace.l`, the hero's band (`HlLayout.hero`, 168: a logo, one line
+  of facts, two lines of overview or the progress), a gap of `HlSpace.l`, the rows. A focused
+  poster of the first row and the captions of a first row of stills end inside the safe area
+  (`HomeLayoutTest`).
+- **Three vertical gaps**: `HlSpace.s` within a block, `HlSpace.l` between the bands of home,
+  `HlSpace.xl` between the blocks of a page that scrolls.
+- **Measures of reading**: a paragraph beside artwork `readableNarrow` (520), a caption
+  `captionMeasure` (400, about 66 characters at 14 sp), the reading column `readable` (640).
 
 ## Components
 
@@ -289,15 +317,15 @@ without the prefix (`MenuOption`, `MeterLegend`, `PosterCard`, `BillingBlock`, `
 
 | Component | Use |
 |---|---|
-| `Backdrop` (`Hero`, `Full`, `Quiet`) | full-screen artwork under the `HlScrim` veils, with a floor under the text column on a light image, plus the ambient light; its veils lift when the lights go down |
-| `rememberAmbientColor`, `CollectionLight` | the light a picture spills into the room; the colours of a wall when nothing is selected. The light is a state, provided as a function (`LocalAmbient provides { ambient.value }`) and read while drawing, like the house lights: as it changes over `SLOW`, only the backdrop's spill and the focused card's glow follow it, nothing recomposes the screen |
+| `Backdrop` (`Hero`, `Full`, `Quiet`) | full-screen artwork under the `HlScrim` veils, with a floor under the text column on a light image, plus the light it spills; its veils lift when the lights go down. **Drawn once per picture**: the next picture is prepared off screen (decoded at the screen's size, its floor and its tone read from its tiny copy) while the last one stays, then the picture, its veils and its light go into one cached layer, and the two layers cross-fade by their own alpha. **It steps back** (`recede`) while what is read is elsewhere on the page: a detail page scrolled down to its rows lays a veil over the whole picture, `VEIL` or more on a light one (`ArtworkSample.floorAcross`: what the quietest text needs anywhere on it), over `SLOW`, lifted when focus comes back to the actions. Each frame lays one texture: drawn layer by layer every frame, the veils took the player's whole graphics budget (see *Performance*) |
+| `rememberAmbientColor`, `CollectionLight` | the light a picture spills into the room; the colours of a wall when nothing is selected. The light is a state, provided as a function (`LocalAmbient provides { ambient.value }`) and read while drawing, like the house lights: as it changes over `SLOW`, the focused card's glow follows it, nothing recomposes the screen. The backdrop's own spill is the tone of its picture, set in its layer |
 | `PosterCard`, `LandscapeCard`, `PersonCard`, `ArtworkSurface`, `ArtworkImage` | artwork with the shared focus treatment and a faint edge at rest (see *Cards*) |
 | `MediaRow` | horizontal row with header; focus coming back into it lands on its last card; dims the other cards when one is focused |
-| `HeroInfo`, `TitleArt`, `EpisodeHeading`, `MetaLine`, `BillingBlock`, `PlaceHeading` | what a title is: clear logo or condensed title, facts, credits. With focus on home's tabs, nothing is selected yet: `PlaceHeading` names where OK leads, in its place (the library's name in `display`, what it holds: "9 titres", "7 en Ultra HD"; home, the titles started), and the room takes the colours of that library's latest posters (`MediaProvider.librarySummary`) |
+| `HeroInfo`, `TitleArt`, `EpisodeHeading`, `MetaLine`, `BillingBlock`, `PlaceHeading` | what a title is: clear logo or condensed title, facts, credits. The browsing hero names, the detail page tells: in its band (`HlLayout.hero`, 168) it has a logo at most 76 tall (or the name on one line), one line of facts and formats (an episode's number and name instead), then where it stands (progress and time left) or two lines of overview. The detail page adds the formats on their own line, the tagline, three lines of overview and the billing block. With focus on home's tabs, nothing is selected yet: `PlaceHeading` names where OK leads, in its place (the library's name in `display`, what it holds: "9 titres", "7 en Ultra HD"; home, the titles started), and the room takes the colours of that library's latest posters (`MediaProvider.librarySummary`) |
 | `TitleLine` | the line naming the title under focus over a wall: its name, facts and formats on one line of fixed height. Short of room, the formats go first, from the last, then the name ends in an ellipsis |
-| `Badge`, `BadgeRow`, `FactRow`, `Score` | what a case would print: formats, age ratings, protocols, never a state; wrapping, or on one line (`oneLine`) where the last ones go; facts on one line, spaced, never punctuated; a score, the line star and its figure, quiet: a fact, it never lights |
-| `HlButton` (`Primary`, `Secondary`), `HlIconButton` | pill and round actions, all 48 dp tall; the icon button shows its label under it when focused. The label takes no room (a row with something below keeps `HlLayout.iconLabelRoom` for it), always sits on a dark plate, a pill padded 12 × 4 (`HlControl.labelPadding*`) 8 below the button, so it reads over any picture; it is centred under the button, even at the edge of the safe area; only where it would come closer than 24 to the side of the screen (`HlLayout.iconLabelEdge`) does it align with the button's edge, hides while a sheet is open, and is not read out: the icon carries the name. A toggle names what OK does ("Marquer comme vu", "Retirer des favoris") and shows where things stand with its icon: ember at rest when `lit` for your choice (a favourite's heart fills), its shape alone for what is done (watched: the check filled in a disc, `HlIcons.CheckFilled`, in white). Over an image (`onArtwork`) the button rests on a plate. A pill's label stops at `readableNarrow` and its detail at one line, with an ellipsis; `detailLit` lights the detail of a state (an active filter) instead of borrowing the primary emphasis. Not `enabled`, a control keeps focus, outlined, and ignores OK. `busy`, a pill is at work: the quiet dot of a pending state where its icon was, the words the screen gives (`busyLabel`: "Connexion…", "Vérification…"), its width kept, OK ignored, read out as in progress; nothing spins |
-| `HlSegmented` | the one way to show where you are or what is chosen among a few: home navigation, seasons (`scrollable`), NFO views, form choices. **Focus is white, as on every control**: the option under focus is the white pill, black words, grown by `CONTROL_SCALE`. Where you are is quieter and says it twice: the current option sits on the track's one pill of `FILL_STRONG`, which slides to the option chosen (`STANDARD`, emphasized), and its words are projector white while the others are grey. The pill against its well is only a step (≈ 1.7:1): the words and the `selected` semantics carry the state, the pill confirms it. Focus entering a track, from any side, lands on the current option, never on the nearest one; to accessibility services the options are tabs, the current one selected. A long track scrolls as one piece, pill included. Over an image (`onArtwork`), the track is a plate. `onFocusChange` tells a screen which option has focus (home names the library under focus). There is no standalone tab |
+| `FormatLine`, `Badge`, `FactRow`, `Score` | **Formats are words**, not boxes: `FormatLine` sets them in the technical voice, `contentSecondary`, a fact's space apart, four at most and nothing said twice (`Formats.shown`: Dolby Vision carries its HDR10 base, a name's TrueHD and Atmos are one format); on one line, the last ones go first. `MetaLine(formats = …)` puts them after the score on the hero's one line of facts. A `Badge` (a hairline frame) is a mark a case prints as a mark: an age rating, a key of the remote ("OK"), an identifier, a protocol; never a format, never a state. Facts on one line, spaced, never punctuated; a score, the line star and its figure, quiet: a fact, it never lights |
+| `HlButton` (`Primary`, `Secondary`), `HlIconButton` | pill and round actions, all 48 dp tall; the icon button shows its label under it when focused. The label takes no room (a row of actions with something below is an `HlActionRow`, which keeps the room for it: the screen never needs to know the label is there), always sits on a dark plate, a pill padded 12 × 4 (`HlControl.labelPadding*`) 8 below the button, so it reads over any picture; it is centred under the button, even at the edge of the safe area; only where it would come closer than 24 to the side of the screen (`HlIconButtonDefaults.labelEdge`) does it align with the button's edge, hides while a sheet is open, and is not read out: the icon carries the name. A toggle names what OK does ("Marquer comme vu", "Retirer des favoris") and shows where things stand with its icon: ember at rest when `lit` for your choice (a favourite's heart fills), its shape alone for what is done (watched: the check filled in a disc, `HlIcons.CheckFilled`, in white). On a picture (`OnArtwork`) the button rests on a plate. A pill's label stops at `readableNarrow` and its detail at one line, with an ellipsis; `detailLit` lights the detail of a state (an active filter) instead of borrowing the primary emphasis. Not `enabled`, a control keeps focus, outlined, and ignores OK. `busy`, a pill is at work: the quiet dot of a pending state where its icon was, the words the screen gives (`busyLabel`: "Connexion…", "Vérification…"), its width kept, OK ignored, read out as in progress; nothing spins |
+| `HlSegmented` | the one way to show where you are or what is chosen among a few: home navigation, seasons (`scrollable`), NFO views, form choices. **Focus is white, as on every control**: the option under focus is the white pill, black words, grown by `CONTROL_SCALE`. Where you are is quieter and says it twice: the current option sits on the track's one pill of `FILL_STRONG`, which slides to the option chosen (`STANDARD`, emphasized), and its words are projector white while the others are grey. The pill against its well is only a step (≈ 1.7:1): the words and the `selected` semantics carry the state, the pill confirms it. Focus entering a track, from any side, lands on the current option, never on the nearest one; to accessibility services the options are tabs, the current one selected. A long track scrolls as one piece, pill included. On a picture (`OnArtwork`), the track is a plate. `onFocusChange` tells a screen which option has focus (home names the library under focus). There is no standalone tab |
 | `HlPanel` (`Quiet`, `Raised`, `lit`), `HlPanelButton` | the one panel recipe, and its focusable form (not `enabled`: a faint well, what it draws in `LocalContentColor` goes tertiary) |
 | `HlIconDisc`, `HlDivider`, `HlStatus`, `AttentionNote`, `HlMeter`, `MeterLegend` | an icon in a disc (lit when what it stands for is on, never for focus), a hairline, a state with its light (`StatusLight`: an ember dot when on, a white one when done, a quiet one pending, an empty ring off, the circled exclamation in ember for attention) and why, under it; what needs attention beside what it concerns (a folder that could not be read, a failed attempt in a `StatusPanel`), the mark by its first line and the words in ember, as under a field; a segmented gauge, its parts inked by rank (`MeterInk`: white, then the two greys of reading), a gap apart, never ember |
 | `HlListItem`, `HlResultItem`, `PosterThumb` | choices in a list (icon in line with the name, white with focus, what the choice brings in badges under a hairline, a chevron on focus); a search result with its poster, the one in use edged in ember and saying so with a light ("Actuel"), which says "Association…" in its place while it is being chosen: the results stay, and so does focus |
@@ -313,7 +341,7 @@ without the prefix (`MenuOption`, `MeterLegend`, `PosterCard`, `BillingBlock`, `
 | `ArtworkChoiceCard`, `SelectedMark` | one artwork to choose from, at the shape it is used in; the one in use carries the check of your choice, the watched mark in ember. A backdrop or a logo is previewed on the page behind; a poster is its own preview, so its picker keeps no room for one and its choices come larger (`posterChoice`, 180 dp), right under the header |
 | `HlEmptyState` | the intertitle of a screen with nothing to show or that could not load: a short rule (ember for `attention`), what happened in the voice of the poster, what to check, the action focused and a quieter way out beside it; with no action, the Back hint. An error (`UiError`, through `ErrorIntertitle` and `ErrorMessage`) brings its own title, message and action (`ErrorAction`), always with attention: try again on the spot, sign in again, add or change the TMDB key; a title that has gone has none, Back is the way out |
 | `ScanProgress` | a scan going on: what is read (`subject`, the first scan on home), the ember line and its count "3 / 9", the file being read; without a name, one line, the file after the count (a folder's card). Until the files are counted, a sliver and no count |
-| `PosterWall`, `PosterWallScrim`, `HouseLights`, `CardSkeleton`, `HeroSkeleton`, `ProgressLine` | welcome wall, playback cue, loading and progress (on a plate at the foot of a card, `onArtwork`; on a light track beside text). A placeholder has the footprint of what is coming (a wall of empty frames, two short rules where a title and its facts go), never a shimmer; outside home, it waits `SKELETON_DELAY`, so a quick load shows nothing (`skeletonDelayPassed`) |
+| `PosterWall`, `PosterWallScrim`, `HouseLights`, `CardSkeleton`, `HeroSkeleton`, `ProgressLine` | welcome wall, playback cue, loading and progress (on a plate at the foot of a card, which lies on its picture; on a light track beside text). A placeholder has the footprint of what is coming (a wall of empty frames, two short rules where a title and its facts go), never a shimmer; outside home, it waits `SKELETON_DELAY`, so a quick load shows nothing (`skeletonDelayPassed`) |
 | `PosterStrip` | the latest posters of a folder side by side, at the head of its card (edge to edge, parted by hairlines) and of its sheet (small, spaced): a fixed number of places, the free ones empty frames, so every strip keeps one rhythm; with no poster yet, the folder's name set across it like a one-sheet |
 
 ## Cards
@@ -388,7 +416,13 @@ screen succeeds: Back from it finds everything as it was. The source changes in 
 
 ## Focus
 
-Focus must read from the couch:
+Focus must read from the couch. It is said in one place, `FocusStyle` (`components/FocusStyle.kt`):
+projector white in three gestures, **fill** (controls, rows, the options of a track: `FocusStyle.fill`,
+`Fill.Pill` grows 1.04, `Fill.Row` not at all), **lift** (artwork and panels rise by their family,
+`Lift.Artwork`, `Lift.Card`, `Lift.Panel`, and take the white outline: `FocusStyle.lift`) and
+**ring** (what is read or typed in: `FocusStyle.ring`). What cannot act keeps focus outlined, never
+filled (`disabledRing`). No component writes a focused colour, border or scale of its own, and every
+clickable surface takes one of the gestures (`FocusStyleGuardTest`): a fourth cannot creep in.
 
 - **Artwork** grows, gets a 2 dp projector-white outline and glows with its own light: the tone
   its picture is mostly made of, by area and a little by saturation (`rememberGlowColor`; a red
@@ -519,6 +553,20 @@ room to the width of a screen and sets the name on it, in the wordmark's type, p
 Both are vectors: `ic_launcher_foreground` (also its `<monochrome>` layer) and `banner.xml`. The
 catalogue (**Brand**) shows them as a launcher draws them, on black, grey and light grounds.
 
+## Performance
+
+The player is a small machine: its graphics chip fills a 1080p screen only a few times per frame.
+Every full-screen layer drawn each frame costs a share of that budget, and what fills the screen
+must be drawn once and kept: a backdrop is one cached layer (`Backdrop`), the window is the only
+black under the screens (no second background at the root), a clear rectangle is not drawn (a card
+stepping back draws its dimming only when it is dimmed), and a glow is drawn as rings that do not
+overlap (`drawGlow`), never as stacked rectangles. Measure on the player, with the app compiled as
+the device compiles it (`cmd package compile -m speed-profile`, or `speed` for the state after a
+few days of use): a debug build or a freshly installed one runs its code interpreted, and shows
+jank the user never sees. `dumpsys gfxinfo <package> framestats` separates the main thread
+(composition, layout, drawing) from the wait for a display buffer (the graphics chip);
+`setprop debug.hwui.overdraw show` paints what is drawn several times.
+
 ## Guard
 
 `DesignTokenGuardTest` reads every file under `ui/` except `ui/design/` and fails on a size, text size,
@@ -530,7 +578,9 @@ other than Play: icons are drawn in `HlIcons`. A screen never loads an image its
 show when it fails. `SpacingGridTest` keeps `HlSpace` and
 `HlInset` on the 4 dp grid; `TypeScaleTest` keeps the type scale honest, `ContrastTest` the contrasts,
 `ScrimTest` the floor of the veils, `ResourceTokensTest` the resources in step with the tokens,
-`StringsTest` the French typography of the resources, `CatalogCoverageTest` the catalogue complete.
+`StringsTest` the French typography of the resources, `CatalogCoverageTest` the catalogue complete,
+`FocusStyleGuardTest` focus in one place, `GroundTest` the grounds, `LayoutTokensTest` the grid,
+`DesignDocTest` this document: every name of the system it cites is still declared in the code.
 Deliberate exceptions go in the guard's `allowed` list, with the reason; a value needed twice belongs
 in the design system instead.
 

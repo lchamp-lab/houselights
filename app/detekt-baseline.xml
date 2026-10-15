@@ -16,7 +16,7 @@
     <ID>CyclomaticComplexMethod:LocalProvider.kt$LocalProvider$override suspend fun libraryPage(library: Library, sort: SortOption, filter: LibraryFilter, start: Int, limit: Int): Page</ID>
     <ID>CyclomaticComplexMethod:LocalReporter.kt$LocalReporter$private suspend fun save(positionMs: Long, durationMs: Long?, finished: Boolean)</ID>
     <ID>CyclomaticComplexMethod:Meta.kt$@Composable fun BillingBlock(directors: List&lt;String&gt;, cast: List&lt;String&gt;, modifier: Modifier = Modifier)</ID>
-    <ID>CyclomaticComplexMethod:Meta.kt$@Composable fun MetaLine(item: MediaItem, modifier: Modifier = Modifier, showGenres: Boolean = true)</ID>
+    <ID>CyclomaticComplexMethod:Meta.kt$@Composable fun MetaLine(item: MediaItem, modifier: Modifier = Modifier, showGenres: Boolean = true, formats: List&lt;String&gt; = emptyList())</ID>
     <ID>CyclomaticComplexMethod:MkvProbe.kt$MkvProbe$fun probe(bytes: ByteArray): Result</ID>
     <ID>CyclomaticComplexMethod:MkvProbe.kt$MkvProbe$private fun parseTracks(r: Reader): Tracks</ID>
     <ID>CyclomaticComplexMethod:MovieIndexer.kt$MovieIndexer$private suspend fun collection(nfo: NfoInfo?, movie: TmdbMovie?, tmdb: TmdbClient?, now: Long, refresh: Boolean): Long?</ID>
