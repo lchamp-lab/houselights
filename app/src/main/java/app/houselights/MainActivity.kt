@@ -126,7 +126,8 @@ class MainActivity : ComponentActivity() {
                 )
                 SideEffect { lightsLevel = lights }
                 CompositionLocalProvider(LocalHouseLights provides { lights.value }, LocalErrorFix provides fixError) {
-                    Box(Modifier.fillMaxSize().background(HouselightsColors.background)) {
+                    // The window is the black room already (@color/room): no second black under every screen.
+                    Box(Modifier.fillMaxSize()) {
                         AppNavigation(nav, onPlay = ::play)
                         HouseLights()
                     }

@@ -49,6 +49,7 @@ import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.pluralStringResource
@@ -202,27 +203,41 @@ fun ArtworkSurface(
         // Read while drawing, or by the image alone: stepping back never recomposes the row.
         CompositionLocalProvider(LocalArtworkRecede provides { recede.value }) { content() }
         Box(Modifier.fillMaxSize().border(HlSize.hairline, c.content.copy(alpha = HlAlpha.EDGE_ARTWORK), shape))
-        Box(Modifier.fillMaxSize().drawBehind { drawRect(c.background.copy(alpha = recede.value * HlFocus.SIBLING_DIM)) })
+        Box(
+            Modifier.fillMaxSize().drawBehind {
+                // Nothing drawn in front: a clear rectangle still costs the chip a pass over the card.
+                val dim = recede.value * HlFocus.SIBLING_DIM
+                if (dim > 0f) drawRect(c.background.copy(alpha = dim))
+            }
+        )
     }
 }
 
 /**
  * The light around a focused card: rings of [tone] out to [reach] past the card grown to [grown],
- * fading with the distance. Drawn outside the card's layer, so it scales by hand.
+ * fading with the distance. Drawn outside the card's layer, so it scales by hand. Each ring is
+ * drawn once, as a band, at the light all the rings stacked from it outward would give: the same
+ * light as rounded rectangles laid one over another, for the area of a ring rather than of a card
+ * each time (on the player's graphics chip, sixteen cards' worth of pixels per frame).
  */
 private fun DrawScope.drawGlow(tone: Color, grown: Float, reach: Float, shape: Shape) {
     if (tone.alpha == 0f) return
     val grow = Offset(size.width * (grown - 1f) / 2f, size.height * (grown - 1f) / 2f)
     val corner = (shape as? RoundedCornerShape)?.topStart?.toPx(size, this) ?: 0f
-    for (i in 1..HlScrim.GLOW_STEPS) {
-        val t = i / HlScrim.GLOW_STEPS.toFloat()
-        val out = reach * t
-        val fade = 1f - t
+    val steps = HlScrim.GLOW_STEPS
+    val band = reach / steps
+    // How much of what is under the light still shows through the rings, from the outermost in.
+    var through = 1f
+    for (k in steps downTo 1) {
+        through *= 1f - tone.alpha * HlScrim.GLOW_LAYER * (1f - k / steps.toFloat())
+        // The band's middle line: a stroke is drawn half inside, half outside it.
+        val middle = band * k - band / 2
         drawRoundRect(
-            color = tone.copy(alpha = tone.alpha * HlScrim.GLOW_LAYER * fade),
-            topLeft = Offset(-grow.x - out, -grow.y - out),
-            size = Size(size.width + 2 * (grow.x + out), size.height + 2 * (grow.y + out)),
-            cornerRadius = CornerRadius(corner + out),
+            color = tone.copy(alpha = 1f - through),
+            topLeft = Offset(-grow.x - middle, -grow.y - middle),
+            size = Size(size.width + 2 * (grow.x + middle), size.height + 2 * (grow.y + middle)),
+            cornerRadius = CornerRadius(corner + middle),
+            style = Stroke(width = band),
         )
     }
 }

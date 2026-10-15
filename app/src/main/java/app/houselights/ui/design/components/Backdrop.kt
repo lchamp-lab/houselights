@@ -3,7 +3,15 @@ package app.houselights.ui.design.components
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.key
+import androidx.compose.animation.core.updateTransition
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.foundation.background
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
@@ -34,7 +42,6 @@ import app.houselights.ui.design.LocalHouseLights
 import app.houselights.ui.design.LocalAmbient
 import app.houselights.ui.design.colorStops
 import app.houselights.ui.util.screenWidthPx
-import coil.compose.AsyncImage
 import kotlin.math.max
 
 enum class BackdropStyle(
@@ -57,68 +64,123 @@ enum class BackdropStyle(
 
 /**
  * Full-screen picture on pure black, veiled where text sits, plus the ambient light it spills into
- * the room ([LocalAmbient]). The veils are [HlScrim]'s; under the text column, the left veil keeps
- * the floor the picture needs, so the quietest text reads on the lightest image while a dark one
- * keeps its veil. When the house lights go down, the veils lift and the picture shows whole.
- * Without a picture ([image] null) it is the black room: nothing glows in its place.
+ * the room. The veils are [HlScrim]'s; under the text column, the left veil keeps the floor the
+ * picture needs, so the quietest text reads on the lightest image while a dark one keeps its veil.
+ * When the house lights go down, the veils lift and the picture shows whole. Without a picture
+ * ([image] null) it is the black room: nothing glows in its place.
+ *
+ * A picture, its veils and its light are drawn once, into a layer of their own, and each frame then
+ * lays that one texture: on the player's small graphics chip, drawn layer by layer each frame, they
+ * filled its whole budget. One picture gives way to the next by the alpha of those layers.
  */
 @Composable
 fun Backdrop(image: ImageRef?, style: BackdropStyle, modifier: Modifier = Modifier) {
-    val black = Hl.colors.background
-    val ambient = LocalAmbient.current
-    val lights = LocalHouseLights.current
-    val screen = screenWidthPx()
-    val url = image?.url(style.maxWidthPx?.coerceAtMost(screen) ?: screen)
+    val context = LocalContext.current
     val density = LocalDensity.current
     // The text column of heroes and detail pages; the veil follows it, whatever the screen's width.
     val column = with(density) { (HlSpace.safeH + HlLayout.readableNarrow).toPx() }
     val fade = with(density) { HlLayout.veilFade.toPx() }
+    val screen = screenWidthPx()
+    val url = image?.url(style.maxWidthPx?.coerceAtMost(screen) ?: screen)
     var bounds by remember { mutableStateOf(Size.Zero) }
-    val sample = rememberArtworkSample(image)
-    val needed = remember(sample, bounds, style) {
-        sample?.floor(bounds, column, style.imageAlpha, style.leftScrim, HlScrim.down(style.fadeFrom)) ?: 0f
-    }
-    val floor by animateFloatAsState(needed, tween(HlMotion.SLOW, easing = HlMotion.standard), label = "floor")
-    Box(modifier.fillMaxSize().background(black).onSizeChanged { bounds = it.toSize() }) {
-        Crossfade(targetState = url, animationSpec = tween(HlMotion.SLOW, easing = HlMotion.standard), label = "backdrop") { u ->
-            if (u != null) {
-                AsyncImage(
-                    model = u,
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    alignment = Alignment.TopEnd,
-                    alpha = style.imageAlpha,
-                    modifier = Modifier.fillMaxSize(),
-                )
-            }
+    // The next picture is prepared before it shows; until then the last one stays.
+    var shown by remember { mutableStateOf<PreparedBackdrop?>(null) }
+    LaunchedEffect(url) {
+        shown = if (image == null || url == null) null else {
+            prepareBackdrop(context, image, url, screen, screen * BACKDROP_HEIGHT / BACKDROP_WIDTH)
         }
-        Box(
-            Modifier.fillMaxSize().graphicsLayer { alpha = HouseLightCue.scrims(lights()) }.drawBehind {
-                drawRect(leftVeil(black, style.leftScrim, floor, column, fade))
+    }
+    FadeBetween(shown, modifier.fillMaxSize().onSizeChanged { bounds = it.toSize() }) { prepared, alpha ->
+        if (prepared != null) BackdropPicture(prepared, style, bounds, column, fade, alpha)
+    }
+}
+
+/** The shape a backdrop is asked for: the screen's. */
+private const val BACKDROP_WIDTH = 16
+private const val BACKDROP_HEIGHT = 9
+
+/**
+ * One picture of a [Backdrop], with its veils and its light, as one cached layer at [alpha]. All of
+ * it is ready before it shows, so the layer is drawn once; only the house lights draw it again.
+ */
+@Composable
+private fun BackdropPicture(
+    prepared: PreparedBackdrop,
+    style: BackdropStyle,
+    bounds: Size,
+    column: Float,
+    fade: Float,
+    alpha: () -> Float,
+) {
+    val black = Hl.colors.background
+    val lights = LocalHouseLights.current
+    val floor = remember(prepared, bounds, style) {
+        prepared.sample.floor(bounds, column, style.imageAlpha, style.leftScrim, HlScrim.down(style.fadeFrom))
+    }
+    val tone = prepared.tone
+    Box(
+        Modifier
+            .fillMaxSize()
+            .graphicsLayer {
+                compositingStrategy = CompositingStrategy.Offscreen
+                this.alpha = alpha()
             }
+            .background(black),
+    ) {
+        Image(
+            prepared.picture,
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            alignment = Alignment.TopEnd,
+            alpha = style.imageAlpha,
+            modifier = Modifier.fillMaxSize(),
         )
-        Box(
-            Modifier.fillMaxSize().graphicsLayer { alpha = HouseLightCue.scrims(lights()) }.background(
-                Brush.verticalGradient(*HlScrim.down(style.fadeFrom).colorStops(black))
-            )
-        )
-        // Light from the picture, reflected on the room below it; stronger once the room is dark. Read
-        // here, while drawing: the light's animation redraws this layer alone. No picture, no light
-        // (a transparent tone): the room stays black.
         Box(
             Modifier.fillMaxSize().drawBehind {
-                val tone = ambient()
-                if (tone.alpha == 0f) return@drawBehind
-                drawRect(
-                    Brush.radialGradient(
-                        0f to tone.copy(alpha = tone.alpha * (HlScrim.SPILL + HlScrim.SPILL_DARK * (1f - HouseLightCue.room(lights())))),
-                        1f to Color.Transparent,
-                        center = Offset(size.width * HlScrim.SPILL_X, size.height * HlScrim.SPILL_Y),
-                        radius = size.width * HlScrim.SPILL_RADIUS,
+                // The veils lift as the house lights go down; the light, stronger once the room is dark.
+                val scrims = HouseLightCue.scrims(lights())
+                drawRect(leftVeil(black, style.leftScrim, floor, column, fade), alpha = scrims)
+                drawRect(Brush.verticalGradient(*HlScrim.down(style.fadeFrom).colorStops(black)), alpha = scrims)
+                // Light from the picture, reflected on the room below it.
+                if (tone.alpha > 0f) {
+                    val spill = HlScrim.SPILL + HlScrim.SPILL_DARK * (1f - HouseLightCue.room(lights()))
+                    drawRect(
+                        Brush.radialGradient(
+                            0f to tone.copy(alpha = tone.alpha * spill),
+                            1f to Color.Transparent,
+                            center = Offset(size.width * HlScrim.SPILL_X, size.height * HlScrim.SPILL_Y),
+                            radius = size.width * HlScrim.SPILL_RADIUS,
+                        )
                     )
-                )
+                }
             }
         )
+    }
+}
+
+/**
+ * [Crossfade], with the alpha handed to the content instead of laid on a layer of its own: a
+ * content that is a cached layer takes it as that layer's alpha, and fades for the cost of one
+ * texture rather than two.
+ */
+@Composable
+private fun <T> FadeBetween(target: T, modifier: Modifier, content: @Composable (T, alpha: () -> Float) -> Unit) {
+    val transition = updateTransition(target, label = "backdrop")
+    val shown = remember { mutableStateListOf(transition.currentState) }
+    if (transition.currentState == transition.targetState && (shown.size != 1 || shown[0] != transition.targetState)) {
+        shown.removeAll { it != transition.targetState }
+    }
+    if (transition.targetState !in shown) shown.add(transition.targetState)
+    Box(modifier) {
+        shown.forEach { state ->
+            key(state) {
+                val alpha = transition.animateFloat(
+                    transitionSpec = { tween(HlMotion.SLOW, easing = HlMotion.standard) },
+                    label = "backdropAlpha",
+                ) { if (it == state) 1f else 0f }
+                content(state) { alpha.value }
+            }
+        }
     }
 }
 

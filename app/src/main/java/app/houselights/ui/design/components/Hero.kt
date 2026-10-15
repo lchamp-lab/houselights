@@ -36,7 +36,8 @@ import app.houselights.ui.util.formatDuration
 fun HeroInfo(item: MediaItem?, modifier: Modifier = Modifier, overviewLines: Int = 3) {
     AnimatedContent(
         targetState = item,
-        transitionSpec = { fadeIn(tween(HlMotion.STANDARD)) togetherWith fadeOut(tween(HlMotion.FAST)) },
+        // The hero keeps its height: no size to animate, so a change re-measures nothing per frame.
+        transitionSpec = { (fadeIn(tween(HlMotion.STANDARD)) togetherWith fadeOut(tween(HlMotion.FAST))).using(null) },
         contentKey = { it?.id },
         label = "hero",
         modifier = modifier,

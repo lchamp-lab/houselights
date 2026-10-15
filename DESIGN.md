@@ -289,8 +289,8 @@ without the prefix (`MenuOption`, `MeterLegend`, `PosterCard`, `BillingBlock`, `
 
 | Component | Use |
 |---|---|
-| `Backdrop` (`Hero`, `Full`, `Quiet`) | full-screen artwork under the `HlScrim` veils, with a floor under the text column on a light image, plus the ambient light; its veils lift when the lights go down |
-| `rememberAmbientColor`, `CollectionLight` | the light a picture spills into the room; the colours of a wall when nothing is selected. The light is a state, provided as a function (`LocalAmbient provides { ambient.value }`) and read while drawing, like the house lights: as it changes over `SLOW`, only the backdrop's spill and the focused card's glow follow it, nothing recomposes the screen |
+| `Backdrop` (`Hero`, `Full`, `Quiet`) | full-screen artwork under the `HlScrim` veils, with a floor under the text column on a light image, plus the light it spills; its veils lift when the lights go down. **Drawn once per picture**: the next picture is prepared off screen (decoded at the screen's size, its floor and its tone read from its tiny copy) while the last one stays, then the picture, its veils and its light go into one cached layer, and the two layers cross-fade by their own alpha. Each frame lays one texture: drawn layer by layer every frame, the veils took the player's whole graphics budget (see *Performance*) |
+| `rememberAmbientColor`, `CollectionLight` | the light a picture spills into the room; the colours of a wall when nothing is selected. The light is a state, provided as a function (`LocalAmbient provides { ambient.value }`) and read while drawing, like the house lights: as it changes over `SLOW`, the focused card's glow follows it, nothing recomposes the screen. The backdrop's own spill is the tone of its picture, set in its layer |
 | `PosterCard`, `LandscapeCard`, `PersonCard`, `ArtworkSurface`, `ArtworkImage` | artwork with the shared focus treatment and a faint edge at rest (see *Cards*) |
 | `MediaRow` | horizontal row with header; focus coming back into it lands on its last card; dims the other cards when one is focused |
 | `HeroInfo`, `TitleArt`, `EpisodeHeading`, `MetaLine`, `BillingBlock`, `PlaceHeading` | what a title is: clear logo or condensed title, facts, credits. With focus on home's tabs, nothing is selected yet: `PlaceHeading` names where OK leads, in its place (the library's name in `display`, what it holds: "9 titres", "7 en Ultra HD"; home, the titles started), and the room takes the colours of that library's latest posters (`MediaProvider.librarySummary`) |
@@ -518,6 +518,20 @@ room to the width of a screen and sets the name on it, in the wordmark's type, p
 
 Both are vectors: `ic_launcher_foreground` (also its `<monochrome>` layer) and `banner.xml`. The
 catalogue (**Brand**) shows them as a launcher draws them, on black, grey and light grounds.
+
+## Performance
+
+The player is a small machine: its graphics chip fills a 1080p screen only a few times per frame.
+Every full-screen layer drawn each frame costs a share of that budget, and what fills the screen
+must be drawn once and kept: a backdrop is one cached layer (`Backdrop`), the window is the only
+black under the screens (no second background at the root), a clear rectangle is not drawn (a card
+stepping back draws its dimming only when it is dimmed), and a glow is drawn as rings that do not
+overlap (`drawGlow`), never as stacked rectangles. Measure on the player, with the app compiled as
+the device compiles it (`cmd package compile -m speed-profile`, or `speed` for the state after a
+few days of use): a debug build or a freshly installed one runs its code interpreted, and shows
+jank the user never sees. `dumpsys gfxinfo <package> framestats` separates the main thread
+(composition, layout, drawing) from the wait for a display buffer (the graphics chip);
+`setprop debug.hwui.overdraw show` paints what is drawn several times.
 
 ## Guard
 

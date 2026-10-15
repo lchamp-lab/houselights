@@ -24,6 +24,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
+import coil.size.Scale
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.graphics.drawable.toBitmap
 import androidx.palette.graphics.Palette
@@ -63,18 +66,28 @@ fun rememberAmbientColor(image: ImageRef?): State<Color> {
 }
 
 /**
- * How bright each part of a backdrop is, for the veil laid over it: read from the same tiny copy
- * as its light. Null without a picture; the last one stays while the next loads.
+ * A backdrop ready to be shown: its [picture] decoded at the size of the screen, how bright each
+ * part of it is ([sample], for the veil laid over it) and the [tone] it spills into the room. A
+ * picture that cannot be loaded leaves nothing: no picture, no light.
  */
-@Composable
-internal fun rememberArtworkSample(image: ImageRef?): ArtworkSample? {
-    val context = LocalContext.current
-    var sample by remember { mutableStateOf<ArtworkSample?>(null) }
-    LaunchedEffect(image) {
-        sample = image?.let { backdropSample(context, it) }?.let { withContext(Dispatchers.Default) { sampleOf(it) } }
+internal class PreparedBackdrop(val picture: ImageBitmap, val sample: ArtworkSample, val tone: Color)
+
+/**
+ * Prepares the backdrop [image] at [url], [widthPx] by [heightPx], before it shows: the picture and
+ * its tiny copy are read in parallel, off the main thread. Null when the picture cannot be loaded.
+ */
+internal suspend fun prepareBackdrop(context: Context, image: ImageRef, url: String, widthPx: Int, heightPx: Int): PreparedBackdrop? =
+    coroutineScope {
+        val picture = async {
+            val request = ImageRequest.Builder(context).data(url).size(widthPx, heightPx).scale(Scale.FILL).build()
+            (context.imageLoader.execute(request) as? SuccessResult)?.drawable?.toBitmap()?.asImageBitmap()
+        }
+        val small = backdropSample(context, image)
+        val sample = small?.let { withContext(Dispatchers.Default) { sampleOf(it) } }
+        val tone = small?.let { toneOf(it) } ?: Color.Transparent
+        val decoded = picture.await()
+        if (decoded == null || sample == null) null else PreparedBackdrop(decoded, sample, tone)
     }
-    return sample
-}
 
 /**
  * A tiny copy of [image], or null when it cannot be loaded. [sourcePx] picks the file to sample:
