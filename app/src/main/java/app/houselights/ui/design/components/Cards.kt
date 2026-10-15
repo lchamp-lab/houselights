@@ -360,9 +360,9 @@ fun LandscapeCard(
 }
 
 /**
- * Cast member: round portrait, name over two lines (always two tall, so the roles of a row line
- * up), and role. Focusable so the row can scroll, but it does nothing: it is read "name, role",
- * once, and not as a button.
+ * Cast member: round portrait, then under it the name (two lines at most) and the role, so every
+ * name of a row starts at the same height. Focusable so the row can scroll, but it does nothing:
+ * it is read "name, role", once, and not as a button.
  */
 @Composable
 fun PersonCard(person: Person, modifier: Modifier = Modifier) {
@@ -383,20 +383,17 @@ fun PersonCard(person: Person, modifier: Modifier = Modifier) {
             person.image?.url(px)?.let { ArtworkImage(it, person.name, Modifier.fillMaxSize().clip(HlShapes.avatar)) }
         }
         Spacer(Modifier.height(HlSpace.s))
-        // Two lines of room, the name at their foot: a short name sits on its role, and the roles of
-        // a row stay level. Said by the portrait already.
-        Box(Modifier.fillMaxWidth().heightIn(min = textRoom(HlSize.personName)), contentAlignment = Alignment.BottomCenter) {
-            Text(
-                person.name,
-                style = Hl.type.meta,
-                color = Hl.colors.content,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                textAlign = TextAlign.Center,
-                // Each line fades by its own width before the screen's edge; the portrait may peek.
-                modifier = Modifier.clearAndSetSemantics {}.fadeOutsideSafeArea(),
-            )
-        }
+        // Said by the portrait already.
+        Text(
+            person.name,
+            style = Hl.type.meta,
+            color = Hl.colors.content,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.Center,
+            // Each line fades by its own width before the screen's edge; the portrait may peek.
+            modifier = Modifier.clearAndSetSemantics {}.fadeOutsideSafeArea(),
+        )
         person.role?.let {
             Text(
                 it,
