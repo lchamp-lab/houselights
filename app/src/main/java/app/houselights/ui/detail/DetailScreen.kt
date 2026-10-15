@@ -255,17 +255,10 @@ fun DetailScreen(
                         }
                     }
 
-                    // A film's saga: the collection itself first, then its other films in order.
-                    state.collection?.let { collection ->
+                    // A film's saga: its other films in order, under the saga's name; none, no row.
+                    state.collection?.takeIf { state.collectionFilms.isNotEmpty() }?.let { collection ->
                         item(key = "collection") {
                             MediaRow(collection.title, memory.rowGroup(SAGA)) {
-                                item(key = collection.id) {
-                                    PosterCard(
-                                        collection,
-                                        onClick = { onOpenItem(collection.id) },
-                                        modifier = memory.card(SAGA, collection),
-                                    )
-                                }
                                 items(state.collectionFilms, key = { it.id }) { f ->
                                     PosterCard(f, onClick = { onOpenItem(f.id) }, modifier = memory.card(SAGA, f))
                                 }
