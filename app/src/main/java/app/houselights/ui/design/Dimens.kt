@@ -71,6 +71,8 @@ object HlSize {
     val avatar = 76.dp
     /** Column of a cast member: the portrait, then a name over two lines at most. */
     val personColumn = 120.dp
+    /** The room of a cast member's name: two lines of `meta` (2 × 20), the name at their foot. */
+    val personName = 40.dp
     /** Height of every control: pill buttons and round icon buttons line up. */
     val control = 48.dp
     val iconButton = control

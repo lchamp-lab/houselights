@@ -43,10 +43,14 @@ internal fun LazyListScope.aboutPane(onOpenCatalog: () -> Unit, rows: PaneRows) 
     if (BuildConfig.DEBUG) item { HlSettingGroup(null) { HlSettingRow(CATALOG, rows.focus("catalog"), onClick = onOpenCatalog) } }
 }
 
-/** The house light and its name, with what this copy is. */
+/**
+ * The house light and its name, with what this copy is. The wordmark stands where every pane has its
+ * title, level with the first navigation entry: moving between panes, the title does not jump.
+ */
 @Composable
 private fun AboutBrand() {
     Column {
+        Spacer(Modifier.height(HlLayout.paneTop))
         Wordmark(style = Hl.type.wordmark)
         Spacer(Modifier.height(HlSpace.xs))
         FactRow(

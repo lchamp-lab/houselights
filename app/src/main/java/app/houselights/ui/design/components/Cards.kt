@@ -1,5 +1,7 @@
 package app.houselights.ui.design.components
 
+import androidx.compose.foundation.layout.heightIn
+import app.houselights.ui.design.textRoom
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
@@ -381,18 +383,20 @@ fun PersonCard(person: Person, modifier: Modifier = Modifier) {
             person.image?.url(px)?.let { ArtworkImage(it, person.name, Modifier.fillMaxSize().clip(HlShapes.avatar)) }
         }
         Spacer(Modifier.height(HlSpace.s))
-        // Said by the portrait already.
-        Text(
-            person.name,
-            style = Hl.type.meta,
-            color = Hl.colors.content,
-            maxLines = 2,
-            minLines = 2,
-            overflow = TextOverflow.Ellipsis,
-            textAlign = TextAlign.Center,
-            // Each line fades by its own width before the screen's edge; the portrait may peek.
-            modifier = Modifier.clearAndSetSemantics {}.fadeOutsideSafeArea(),
-        )
+        // Two lines of room, the name at their foot: a short name sits on its role, and the roles of
+        // a row stay level. Said by the portrait already.
+        Box(Modifier.fillMaxWidth().heightIn(min = textRoom(HlSize.personName)), contentAlignment = Alignment.BottomCenter) {
+            Text(
+                person.name,
+                style = Hl.type.meta,
+                color = Hl.colors.content,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.Center,
+                // Each line fades by its own width before the screen's edge; the portrait may peek.
+                modifier = Modifier.clearAndSetSemantics {}.fadeOutsideSafeArea(),
+            )
+        }
         person.role?.let {
             Text(
                 it,
