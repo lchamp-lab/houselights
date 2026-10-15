@@ -11,50 +11,46 @@ import kotlin.math.max
 import kotlin.math.roundToInt
 
 /**
- * The veils laid over artwork so that what sits on it reads, and the light artwork spills into the
- * room. Recipes, not loose numbers: veils are `background` at these opacities, lights their own
- * colour; positions are shares of the screen (or of the wall, or the column) as each says.
+ * The veils laid over artwork so that what sits on it reads, and the lights artwork gives (a card's
+ * glow, a collection's). Recipes, not loose numbers: veils are `background` at these opacities, lights their own
+ * colour; positions are shares of the screen (or of the wall, or the column) as each says. A veil
+ * runs through its stops as a smooth curve ([alphaAt]), never as straight lines meeting at an angle:
+ * the eye sees each angle as a line across the picture.
  */
 object HlScrim {
     /**
      * The left veil behind the text column (`HlSpace.safeH` + `HlLayout.readableNarrow`): at each
-     * share of the column, the share of its style's strength it keeps. Past the column it fades out
-     * over `BackdropDefaults.veilFade`. Under the column it never drops below the floor of the picture
-     * ([ArtworkSample.floor]).
+     * edge of the column's bands, evenly spaced, the share of its style's strength it keeps. Under
+     * the column, a band never takes less than what this picture needs there ([ArtworkSample.leftVeil]);
+     * past it the veil fades out at the pace `BackdropDefaults.veilFade` sets.
      */
-    val LEFT = listOf(VeilStop(0f, 1f), VeilStop(0.6f, 0.9f), VeilStop(1f, 0.5f))
+    val LEFT = listOf(VeilStop(0f, 1f), VeilStop(0.25f, 0.94f), VeilStop(0.5f, 0.8f), VeilStop(0.75f, 0.6f), VeilStop(1f, 0.42f))
+
+    /**
+     * The contrast the quietest text keeps over the picture, band by band across the column: 4.5:1
+     * over its left half, where every line starts and the title, its facts and the billing sit; then
+     * less, so the veil eases into the picture before the column ends instead of after it. Only the
+     * ends of the longest lines reach the last quarter: there the quietest words keep 3:1 and the
+     * overview (`contentSecondary`) 4:1, against 4.7:1 over the third quarter.
+     */
+    val LEFT_CONTRAST = listOf(4.5f, 4.5f, 3.5f, 3f)
 
     /** The top veil, under the top bar: its opacity at the top edge, gone by this share of the height. */
     const val TOP = 0.45f
     const val TOP_END = 0.14f
 
     /**
-     * The bottom fade: from where the style starts it, it reaches [FADE] over this share of the
-     * height (by [FADE_END_MAX] at the latest), then black at the foot.
+     * Down the screen: the top veil, then the bottom fade, in one stroke from [fadeFrom] to [foot] at
+     * [fadeTo] (black by default), shares of the height past [TOP_END], and [foot] on to the bottom.
+     * One long stroke: the picture melts into the black; a fade that reaches near black early, then
+     * creeps to it, shows where the black begins.
      */
-    const val FADE_LENGTH = 0.3f
-    const val FADE = 0.92f
-    const val FADE_END_MAX = 0.98f
-
-    /** Down the screen: the top veil, then the bottom fade from [fadeFrom], a share of the height. */
-    fun down(fadeFrom: Float) = listOf(
-        VeilStop(0f, TOP),
-        VeilStop(TOP_END, 0f),
-        VeilStop(fadeFrom, 0f),
-        VeilStop((fadeFrom + FADE_LENGTH).coerceAtMost(FADE_END_MAX), FADE),
-        VeilStop(1f, 1f),
-    )
-
-    /**
-     * The light a backdrop spills on the room below it: the ambient tone at [SPILL] in its centre,
-     * [SPILL_DARK] more once the room is dark, fading out at its radius. Centre and radius are shares
-     * of the screen's width ([SPILL_X], [SPILL_RADIUS]) and height ([SPILL_Y]: below the screen).
-     */
-    const val SPILL = 0.22f
-    const val SPILL_DARK = 0.14f
-    const val SPILL_X = 0.28f
-    const val SPILL_Y = 1.05f
-    const val SPILL_RADIUS = 0.62f
+    fun down(fadeFrom: Float, fadeTo: Float, foot: Float = 1f): List<VeilStop> {
+        require(fadeFrom > TOP_END && fadeTo > fadeFrom && fadeTo <= 1f && foot in 0f..1f) {
+            "fade from $fadeFrom to $foot at $fadeTo"
+        }
+        return listOf(VeilStop(0f, TOP), VeilStop(TOP_END, 0f), VeilStop(fadeFrom, 0f), VeilStop(fadeTo, foot))
+    }
 
     /**
      * A card's own light while it has focus: the most vivid tone of its artwork, brighter than the
@@ -80,31 +76,40 @@ object HlScrim {
     const val GLOW_STEPS = 16
     const val GLOW_LAYER = 0.06f
 
-    /**
-     * How bright the ambient tone is, every film alike: its HSV value. No tone is a lighter grey,
-     * so it bounds what the spill adds under text.
-     */
+    /** How bright the ambient tone is, every film alike: its HSV value. */
     const val AMBIENT_VALUE = 0.62f
 
-    /** The spill's opacity at [x], [y] on a screen of [screen], at rest. */
-    fun spillAt(x: Float, y: Float, screen: Size): Float {
-        val radius = screen.width * SPILL_RADIUS
-        val distance = hypot(x - screen.width * SPILL_X, y - screen.height * SPILL_Y)
-        return SPILL * (1f - distance / radius).coerceAtLeast(0f)
-    }
+    /** The room's light is never garish: its saturation within these bounds, at [AMBIENT_VALUE]. */
+    const val AMBIENT_SATURATION_MIN = 0.25f
+    const val AMBIENT_SATURATION_MAX = 0.7f
 
     /**
-     * The light of a collection when no title is selected: each tone glows over its column from
-     * above the screen ([COLLECTION_Y] of the height), at [COLLECTION_CORE] in its centre and
-     * [COLLECTION_MID] by [COLLECTION_MID_AT] of its radius ([COLLECTION_RADIUS] of the height),
-     * [COLLECTION_SPREAD] columns wide.
+     * The light of a collection when no title is selected: pools of the colours its wall is made
+     * of, cast across the room on a diagonal. The heaviest colour comes in from the top right, the
+     * next answers it from the bottom left, a third lies low under the wall; the title's corner
+     * stays dark. As many colours as pools; with fewer, they come round again.
      */
-    const val COLLECTION_CORE = 0.36f
-    const val COLLECTION_MID = 0.11f
-    const val COLLECTION_MID_AT = 0.55f
-    const val COLLECTION_Y = -0.12f
-    const val COLLECTION_RADIUS = 0.95f
-    const val COLLECTION_SPREAD = 1.25f
+    val COLLECTION_POOLS = listOf(
+        LightPool(x = 1f, y = -0.08f, radius = 1.15f, core = 0.4f, stretch = 1.35f),
+        LightPool(x = 0f, y = 1.08f, radius = 1.1f, core = 0.38f, stretch = 1.35f),
+        LightPool(x = 0.72f, y = 1.12f, radius = 0.6f, core = 0.24f, stretch = 1.5f),
+    )
+
+    /** Colours of a wall closer in hue than this (degrees) are one: the next must differ to show. */
+    const val COLLECTION_HUE_APART = 40f
+
+    /** How a light dies out from its centre to its rim: a curve, flat at the rim, so it draws no edge. */
+    val FALLOFF = listOf(VeilStop(0f, 1f), VeilStop(1f, 0f))
+
+    /** How much of the collection light falls at [x], [y] on a [screen]: its pools laid one over another. */
+    fun collectionAt(x: Float, y: Float, screen: Size): Float {
+        var through = 1f
+        for (pool in COLLECTION_POOLS) {
+            val distance = hypot((x - screen.width * pool.x) / pool.stretch, y - screen.height * pool.y)
+            through *= 1f - pool.core * FALLOFF.alphaAt(distance / (screen.height * pool.radius))
+        }
+        return 1f - through
+    }
 
     /** The welcome wall: its posters at this opacity. */
     const val WALL = 0.3f
@@ -116,41 +121,38 @@ object HlScrim {
     val WALL_DOWN = listOf(VeilStop(0f, 1f), VeilStop(0.2f, 0f), VeilStop(0.8f, 0f), VeilStop(1f, 1f))
 
     /**
-     * The share of the text column's points that sets its floor: a highlight smaller than a
-     * twentieth of the column (a lamp, a reflection) does not darken all of it; an overview's worth
-     * of light does.
+     * The share of a band's points that sets its floor: a highlight smaller than a twentieth of the
+     * band (a lamp, a reflection) does not darken it; an overview's worth of light does.
      */
     const val FLOOR_QUANTILE = 0.95f
 
-    /** Floors are rounded up to the next half per cent, so rounding never takes text under 4.5:1. */
+    /** Floors are rounded up to the next half per cent, so rounding never takes text under its contrast. */
     private const val FLOOR_STEP = 0.005f
     private const val TEXT_CONTRAST = 4.5f
     private const val FLARE = 0.05f
 
-    /** The lightest ground, as an sRGB grey, on which [text] keeps 4.5:1. */
-    fun ceiling(text: Color): Float {
-        val luminance = (text.luminance() + FLARE) / TEXT_CONTRAST - FLARE
+    /** The lightest ground, as an sRGB grey, on which [text] keeps [contrast] (4.5:1 by default). */
+    fun ceiling(text: Color, contrast: Float = TEXT_CONTRAST): Float {
+        val luminance = (text.luminance() + FLARE) / contrast - FLARE
         return ColorSpaces.Srgb.oetf(luminance.toDouble()).toFloat()
     }
 
     /** The quietest text a column holds: genres, the billing block's small words. */
     private val quietest = ceiling(HouselightsColors.contentTertiary)
 
+    /** The quietest text's ceiling in each band of the column, at its [LEFT_CONTRAST]. */
+    private val quietestAcross = LEFT_CONTRAST.map { ceiling(HouselightsColors.contentTertiary, it) }
+
+    /** The ceiling the left veil keeps the quietest text under in [band] of the column. */
+    fun leftCeiling(band: Int): Float = quietestAcross[band]
+
     /**
      * The opacity the left veil needs over one point of a picture for text to keep 4.5:1 there:
      * text whose [ceiling] is given, the quietest by default. [grey] is how bright the point shows
-     * through the other veils, as an sRGB grey (1: white); [spill], the ambient light's opacity
-     * there, laid over at its brightest. 0 on a dark point, 1 where even black would not do.
+     * through the other veils, as an sRGB grey (1: white). 0 on a dark point.
      */
-    fun need(grey: Float, spill: Float = 0f, ceiling: Float = quietest): Float {
-        val allowed = ceiling - spill * AMBIENT_VALUE
-        val shown = grey * (1f - spill)
-        return when {
-            shown <= allowed.coerceAtLeast(0f) -> 0f
-            allowed <= 0f -> 1f
-            else -> roundUp(1f - allowed / shown)
-        }
-    }
+    fun need(grey: Float, ceiling: Float = quietest): Float =
+        if (grey <= ceiling) 0f else roundUp(1f - ceiling / grey)
 
     private fun roundUp(alpha: Float) = (ceil(alpha / FLOOR_STEP) * FLOOR_STEP).coerceAtMost(1f)
 }
@@ -159,17 +161,62 @@ object HlScrim {
 @Immutable
 data class VeilStop(val at: Float, val alpha: Float)
 
-/** The opacity of a veil at [at], between its stops. */
+/**
+ * A pool of light: its centre ([x], a share of the width, and [y], of the height: beyond the screen
+ * when it comes from outside), its [radius] in heights, its opacity in its centre ([core]), and how
+ * much wider than tall it spreads ([stretch]).
+ */
+@Immutable
+data class LightPool(val x: Float, val y: Float, val radius: Float, val core: Float, val stretch: Float)
+
+/**
+ * The opacity of a veil at [at]: a monotone cubic through its stops, flat at the first and the last
+ * and wherever the veil turns, so it never overshoots a stop and its slope never jumps.
+ */
 fun List<VeilStop>.alphaAt(at: Float): Float {
     val next = indexOfFirst { it.at >= at }
     if (next == -1) return last().alpha
     if (next == 0) return first().alpha
     val (from, to) = this[next - 1] to this[next]
-    return from.alpha + (to.alpha - from.alpha) * (at - from.at) / (to.at - from.at)
+    val width = to.at - from.at
+    if (width <= 0f) return to.alpha
+    // Cubic Hermite: how much of each stop's value, and of each stop's slope, at s along the way.
+    val s = (at - from.at) / width
+    val rest = 1 - s
+    val fromShare = (1 + 2 * s) * rest * rest
+    return fromShare * from.alpha + (1 - fromShare) * to.alpha +
+        (s * rest * rest * slopeAt(next - 1) - s * s * rest * slopeAt(next)) * width
 }
 
-/** A veil's stops in [color], for a gradient. */
-fun List<VeilStop>.colorStops(color: Color): Array<Pair<Float, Color>> = map { it.at to color.copy(alpha = it.alpha) }.toTypedArray()
+/** The veil's slope at its stop [i] (Fritsch–Carlson): 0 at the ends and where it turns. */
+private fun List<VeilStop>.slopeAt(i: Int): Float {
+    if (i == 0 || i == lastIndex) return 0f
+    val before = this[i].at - this[i - 1].at
+    val after = this[i + 1].at - this[i].at
+    if (before <= 0f || after <= 0f) return 0f
+    val into = (this[i].alpha - this[i - 1].alpha) / before
+    val out = (this[i + 1].alpha - this[i].alpha) / after
+    if (into * out <= 0f) return 0f
+    val w1 = 2 * after + before
+    val w2 = after + 2 * before
+    return (w1 + w2) / (w1 / into + w2 / out)
+}
+
+/** How finely a veil's curve is laid out as a gradient: straight between these steps, too short to see. */
+private const val VEIL_STEPS = 32
+
+/**
+ * A veil's curve in [color], for a gradient: from its first stop to its last, in [VEIL_STEPS], each
+ * at the curve's share of [color]'s alpha. Lights are laid out the same way: a tone, along its fall.
+ */
+fun List<VeilStop>.colorStops(color: Color): Array<Pair<Float, Color>> {
+    val from = first().at
+    val to = last().at
+    return Array(VEIL_STEPS + 1) {
+        val at = from + (to - from) * it / VEIL_STEPS
+        at to color.copy(alpha = color.alpha * alphaAt(at))
+    }
+}
 
 /** How bright [color] is over the black room, as the sRGB grey of the same luminance: 0 black, 1 white. */
 fun greyOf(color: Color): Float = ColorSpaces.Srgb.oetf(color.luminance().toDouble()).toFloat() * color.alpha
@@ -189,14 +236,17 @@ class ArtworkSample(val width: Int, val height: Int, private val grey: FloatArra
     }
 
     /**
-     * The least opacity the left veil keeps under the text column, the first [column] px of a
-     * [screen] where the picture is cropped to fill from its top end (as `Backdrop` lays it), at
-     * [imageAlpha] and under the veils [down] it: what [HlScrim.FLOOR_QUANTILE] of the column's
-     * points need, with the ambient spill over them, where the veil's own [strength] (at the edge,
-     * easing as [HlScrim.LEFT] says) falls short. 0 on a dark picture: the veil stays as it is.
+     * The left veil over the text column, the first [column] px of a [screen] where the picture is
+     * cropped to fill from its top end (as `Backdrop` lays it), at [imageAlpha] and under the veils
+     * [down] it: [HlScrim.LEFT] at [strength], its stops as shares of the column. Where that falls
+     * short in a band, the band takes what [HlScrim.FLOOR_QUANTILE] of its points need for the
+     * band's contrast ([HlScrim.LEFT_CONTRAST]); and no band is
+     * lighter than one to its right, so the veil only ever eases towards the picture, as dark as
+     * this picture needs where it needs it. On a dark picture it is [HlScrim.LEFT] as it is.
      */
-    fun floor(screen: Size, column: Float, imageAlpha: Float, strength: Float, down: List<VeilStop>): Float {
-        if (grey.isEmpty() || screen.isEmpty()) return 0f
+    fun leftVeil(screen: Size, column: Float, imageAlpha: Float, strength: Float, down: List<VeilStop>): List<VeilStop> {
+        val veil = HlScrim.LEFT.map { VeilStop(it.at, it.alpha * strength) }
+        if (grey.isEmpty() || screen.isEmpty() || column <= 0f) return veil
         // Cropped to fill: as wide or as tall as the screen, its right edge on the screen's.
         val scale = max(screen.width / width, screen.height / height)
         val left = screen.width - width * scale
@@ -204,26 +254,37 @@ class ArtworkSample(val width: Int, val height: Int, private val grey: FloatArra
         val firstCol = ceil(-left / scale - MIDDLE).toInt().coerceAtLeast(0)
         val cols = firstCol..kotlin.math.floor((column - left) / scale - MIDDLE).toInt().coerceAtMost(width - 1)
         val rows = 0..kotlin.math.floor(screen.height / scale - MIDDLE).toInt().coerceAtMost(height - 1)
-        if (cols.isEmpty()) return 0f
-        val needs = FloatArray(cols.count() * rows.count())
-        var count = 0
-        for (row in rows) {
-            val y = (row + MIDDLE) * scale
-            val through = imageAlpha * (1f - down.alphaAt(y / screen.height))
-            for (col in cols) {
-                val x = left + (col + MIDDLE) * scale
-                val need = HlScrim.need(grey[row * width + col] * through, HlScrim.spillAt(x, y, screen))
-                needs[count++] = if (need > strength * HlScrim.LEFT.alphaAt(x / column)) need else 0f
+        if (cols.isEmpty()) return veil
+        val bands = veil.size - 1
+        check(HlScrim.LEFT_CONTRAST.size == bands) { "a contrast for each of the $bands bands" }
+        val needs = Array(bands) { FloatArray(cols.count() * rows.count()) }
+        val counts = IntArray(bands)
+        for (col in cols) {
+            val x = left + (col + MIDDLE) * scale
+            val band = (x / column * bands).toInt().coerceIn(0, bands - 1)
+            val held = veil.alphaAt(x / column)
+            for (row in rows) {
+                val y = (row + MIDDLE) * scale
+                val through = imageAlpha * (1f - down.alphaAt(y / screen.height))
+                val need = HlScrim.need(grey[row * width + col] * through, HlScrim.leftCeiling(band))
+                needs[band][counts[band]++] = if (need > held) need else 0f
             }
         }
-        needs.sort()
-        return needs[(needs.lastIndex * HlScrim.FLOOR_QUANTILE).roundToInt()]
+        val floors = FloatArray(bands) { band ->
+            val points = needs[band].copyOf(counts[band]).apply { sort() }
+            if (points.isEmpty()) 0f else points[(points.lastIndex * HlScrim.FLOOR_QUANTILE).roundToInt()]
+        }
+        // From the right: a band keeps what any band to its right needs.
+        for (band in bands - 2 downTo 0) floors[band] = max(floors[band], floors[band + 1])
+        // A band runs between its two stops: both keep its floor (the left one, its left neighbour's,
+        // which is no less), and so does the curve between them, which never dips below a stop.
+        return veil.mapIndexed { i, stop -> VeilStop(stop.at, max(stop.alpha, floors[(i - 1).coerceAtLeast(0)])) }
     }
 
     /**
      * The opacity a veil laid over the whole picture needs for the quietest text to read anywhere
      * on it (a page's rows, which run the screen's width): what [HlScrim.FLOOR_QUANTILE] of the
-     * points shown need, laid as [floor] lays them, with the spill over them. 0 on a dark picture.
+     * points shown need, laid as [leftVeil] lays them. 0 on a dark picture.
      */
     fun floorAcross(screen: Size, imageAlpha: Float, down: List<VeilStop>): Float {
         if (grey.isEmpty() || screen.isEmpty()) return 0f
@@ -236,10 +297,7 @@ class ArtworkSample(val width: Int, val height: Int, private val grey: FloatArra
         for (row in rows) {
             val y = (row + MIDDLE) * scale
             val through = imageAlpha * (1f - down.alphaAt(y / screen.height))
-            for (col in cols) {
-                val x = left + (col + MIDDLE) * scale
-                needs[count++] = HlScrim.need(grey[row * width + col] * through, HlScrim.spillAt(x, y, screen))
-            }
+            for (col in cols) needs[count++] = HlScrim.need(grey[row * width + col] * through)
         }
         needs.sort()
         return needs[(needs.lastIndex * HlScrim.FLOOR_QUANTILE).roundToInt()]

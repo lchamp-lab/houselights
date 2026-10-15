@@ -9,7 +9,8 @@ every build (see *Guard*).
 ## Principles
 
 1. **One light source.** The room is pure black (`#000000`). Colour comes from the artwork: the
-   *ambient light* (`LocalAmbient`) is picked from the focused backdrop and spills onto the room. When
+   *ambient light* (`LocalAmbient`) is picked from the focused backdrop and lights the card that has
+   focus; the backdrop itself spills nothing on the room, its picture melts into it. When
    nothing is selected, the room takes the colours of the posters on the wall (`CollectionLight`).
    Ember, the only fixed accent, marks **states**: in use, your choice, needs attention. It is a
    light, not an ink: a gradient from bright orange to raspberry wherever it has room to show.
@@ -182,23 +183,55 @@ rest keep their inks (the current one in `content` on its pill, the others in `c
 
 `HlScrim` holds the recipes of what is laid over artwork, never loose numbers: the **left veil**
 behind the text column, the **top veil** under the top bar, the **bottom fade** to black, the
-**ambient spill** below a backdrop, the **collection light**, and the **welcome wall** (its veil;
+**collection light**, and the **welcome wall** (its veil;
 nothing lights the wordmark, the posters are the light of that screen). The left veil follows the
-text column in dp, `safeH` + `readableNarrow`, then fades out over `BackdropDefaults.veilFade`: never a
-share of a screen assumed 960 dp wide.
+text column in dp, `safeH` + `readableNarrow`, then fades out at one pace, over
+`BackdropDefaults.veilFade` from full strength and sooner from a lighter column end: never a share of
+a screen assumed 960 dp wide.
+
+**No veil draws a line.** A veil runs through its stops as one smooth curve (a monotone cubic, flat
+where it starts, ends or turns, `alphaAt`), laid out as a gradient in 32 steps (`colorStops`):
+straight lines meeting at an angle show as a line across the picture, the eye sharpens any change of
+slope. The bottom fade is one stroke from where its style starts it to black (`fadeFrom` to
+`fadeTo`): a fade that reaches near black early, then creeps to it, shows where the black begins.
+On a detail page it runs from 45 % of the height to the foot, so the picture melts into its rows.
+A dimmed picture (`Quiet`: the wall of posters) is already quiet: its fade stops at what the
+quietest text needs over a white picture at its dimness (`BackdropStyle.foot`, 0.46 at 28 %), so
+the picture stays in the room down to the foot of the screen instead of leaving a black half.
+
+**The collection light.** With nothing selected, the room takes the colours the wall is made of:
+every poster shown counts alike, each of its colours by the area it covers and a little more when
+saturated, as a card's glow picks its own; greys, near-black and near-white give none; close hues
+are one colour (`COLLECTION_HUE_APART`, 40°), tamed like the ambient light (`AMBIENT_SATURATION_*`,
+`AMBIENT_VALUE`). They are cast as pools on a diagonal (`COLLECTION_POOLS`): the heaviest from the
+top right; from the bottom left, the colour that answers it, the one that weighs most once its
+distance across the hue wheel counts too (a red wall answered in teal, not in a neighbouring ochre:
+a chord, not a muddle); a third low under the wall; the title's corner
+stays dark, so the words there keep 4.5:1 over any wall (`collectionAt`, `ScrimTest`). Each pool
+dies out as a curve (`FALLOFF`), drawn once; the light comes and goes by its layer's alpha.
 
 **No picture, no light.** Without artwork, `Backdrop(null)` is the black room: no warm glow stands
 in for a picture. The ambient light of a title without a backdrop, or whose backdrop fails to load,
-is transparent (`LocalAmbient` too, by default): it spills nothing and lights no card. Where a wall
+is transparent (`LocalAmbient` too, by default): it lights no card. Where a wall
 of posters shows with nothing selected, the posters light the room (`CollectionLight`).
 
-Under the text column the left veil keeps a **floor**, read from the small copy of the backdrop the
-ambient light is picked from (`ArtworkSample`): the opacity the column's quietest text
-(`contentTertiary`: genres, the billing block's small words) needs for 4.5:1, through the other
-veils and under the spill, wherever the veil falls short. A dark image keeps its veil; a white one
-gets 0.85, more where the spill adds its light (the overview alone would need 0.775, but quieter
-words sit above and below it). A highlight smaller than a twentieth of the column does not count
-(`FLOOR_QUANTILE`). The picture is never cropped or letterboxed for it, and nothing lights it.
+Under the text column the left veil keeps a **floor**, band by band (the four bands between the
+stops of `HlScrim.LEFT`), read from the small copy of the backdrop the ambient light is picked from
+(`ArtworkSample.leftVeil`): the opacity the column's quietest text (`contentTertiary`: genres, the
+billing block's small words) needs for 4.5:1, through the other veils, wherever
+the veil falls short. No band is lighter than one to its right: the veil only ever eases towards the
+picture, as dark as the picture needs where it needs it, instead of one flat level over the whole
+column. A dark image keeps its veil; a white one gets 0.85 over the left half (the overview alone
+would need 0.775, but quieter words sit above and below it). A
+highlight smaller than a twentieth of a band does not count (`FLOOR_QUANTILE`).
+
+**The column's one exception to 4.5:1** (`HlScrim.LEFT_CONTRAST`): the right half of the column
+bends the rule, so the veil eases into the picture before the column ends instead of after it,
+and a fiche shows more than the third of its picture beyond the text. Over the left half, where
+every line starts and the title, its facts and the billing sit, the quietest text keeps 4.5:1;
+over the third quarter, 3.5:1 (the overview 4.7:1); over the last, which only the ends of the
+longest lines reach, 3:1 (the overview 4:1). Nowhere else does text go under 4.5:1. The picture is never cropped or letterboxed
+for it, and nothing lights it.
 
 ### Type (`Type.kt`)
 
@@ -268,7 +301,7 @@ that grows with the text.
 | `HlShapes` | radius follows hierarchy: `badge` 3, `artwork` 4, `field` 6, `row` 8 (rows that can be chosen), `panel` 12, `sheet` 16 (sheets and menus), `control` pill, `avatar` circle. A shape set close inside another keeps their corners parallel: **outer radius = inner radius + gap** (a menu: 8 + 8 = 16; a result: 4 + 8 = 12) |
 | `HlSize` | artwork (poster 112, landscape 220, episode 264, avatar 76 in a column of 120, thumbnails), `control` 48 for every button, icons 20, discs 52, marks 20, dots 8, setting rows 64, previews in a row (48 tall, a slot of 84), meter 10, the short rules of a loading title (48, 24), the short rule heading an intertitle (`intertitleRule`, 24 by 2) |
 | `HlLayout` | **the screens' grid**, every measure read by a screen (`LayoutTokensTest`): reading widths (640, 520; a caption 400, about 66 characters at 14 sp), side columns (280, 340), pane top 72, title art, the home hero's band (168), the detail page's gap and least hero (`detailGap`, `detailHeroMin`), the info line, track table columns |
-| `…Defaults` | **parts of components**, internal, which no screen needs to know: `HlModalDefaults` (the reading sheet, 864), `HlSideSheetDefaults` (520), `HlSettingRowDefaults` (widest value, 360), `HlIconButtonDefaults` (the label: 200 wide at most, 36 of room under its row, 24 from the screen's side), `HlMenuDefaults` (320), `TechSpecsDefaults`, `BackdropDefaults` (the left veil's fade past the column, 240) |
+| `…Defaults` | **parts of components**, internal, which no screen needs to know: `HlModalDefaults` (the reading sheet, 864), `HlSideSheetDefaults` (520), `HlSettingRowDefaults` (widest value, 360), `HlIconButtonDefaults` (the label: 200 wide at most, 36 of room under its row, 24 from the screen's side), `HlMenuDefaults` (320), `TechSpecsDefaults`, `BackdropDefaults` (the left veil's fade past the column from full strength, 420; a lighter one fades sooner, at the same slow pace, so its end never reads as an edge) |
 | `HlControl` | inner padding of buttons and track options, badges; the gap between an icon and its text (8) |
 | `HlFocus` | focus scale by family (artwork 1.10, cards 1.06, pills and discs 1.04, panels 1.02, rows 1), `reach(size, scale)`: how far a focused element reaches past its ends, the room its container keeps; `ring` 5, how far a focus ring stands outside; siblings stepping back (dim 0.3, colour kept 0.3, in `RECEDE_STEPS` 3), the glow of focused artwork, 20 dp, `edge` 28 (`safeV`): how far a list keeps focus from its ends |
 
@@ -317,8 +350,8 @@ without the prefix (`MenuOption`, `MeterLegend`, `PosterCard`, `BillingBlock`, `
 
 | Component | Use |
 |---|---|
-| `Backdrop` (`Hero`, `Full`, `Quiet`) | full-screen artwork under the `HlScrim` veils, with a floor under the text column on a light image, plus the light it spills; its veils lift when the lights go down. **Drawn once per picture**: the next picture is prepared off screen (decoded at the screen's size, its floor and its tone read from its tiny copy) while the last one stays, then the picture, its veils and its light go into one cached layer, and the two layers cross-fade by their own alpha. **It steps back** (`recede`) while what is read is elsewhere on the page: a detail page scrolled down to its rows lays a veil over the whole picture, `VEIL` or more on a light one (`ArtworkSample.floorAcross`: what the quietest text needs anywhere on it), over `SLOW`, lifted when focus comes back to the actions. Each frame lays one texture: drawn layer by layer every frame, the veils took the player's whole graphics budget (see *Performance*) |
-| `rememberAmbientColor`, `CollectionLight` | the light a picture spills into the room; the colours of a wall when nothing is selected. The light is a state, provided as a function (`LocalAmbient provides { ambient.value }`) and read while drawing, like the house lights: as it changes over `SLOW`, the focused card's glow follows it, nothing recomposes the screen. The backdrop's own spill is the tone of its picture, set in its layer |
+| `Backdrop` (`Hero`, `Full`, `Quiet`) | full-screen artwork under the `HlScrim` veils, with a floor under each band of the text column on a light image; its veils lift when the lights go down. Nothing glows under it: a light spilled on the room under the text cost the veil darkness and drew an arc on the black. **Drawn once per picture**: the next picture is prepared off screen (decoded at the screen's size, its floor read from its tiny copy) while the last one stays, then the picture and its veils go into one cached layer, and the two layers cross-fade by their own alpha. **It steps back** (`recede`) while what is read is elsewhere on the page: a detail page scrolled down to its rows lays a veil over the whole picture, `VEIL` or more on a light one (`ArtworkSample.floorAcross`: what the quietest text needs anywhere on it), over `SLOW`, lifted when focus comes back to the actions. Each frame lays one texture: drawn layer by layer every frame, the veils took the player's whole graphics budget (see *Performance*) |
+| `rememberAmbientColor`, `CollectionLight` | the light of a picture, which the focused card glows with; the colours of a wall when nothing is selected, cast as pools on a diagonal (see *Veils*). The light is a state, provided as a function (`LocalAmbient provides { ambient.value }`) and read while drawing, like the house lights: as it changes over `SLOW`, the focused card's glow follows it, nothing recomposes the screen |
 | `PosterCard`, `LandscapeCard`, `PersonCard`, `ArtworkSurface`, `ArtworkImage` | artwork with the shared focus treatment and a faint edge at rest (see *Cards*) |
 | `MediaRow` | horizontal row with header; focus coming back into it lands on its last card; dims the other cards when one is focused |
 | `HeroInfo`, `TitleArt`, `EpisodeHeading`, `MetaLine`, `BillingBlock`, `PlaceHeading` | what a title is: clear logo or condensed title, facts, credits. The browsing hero names, the detail page tells: in its band (`HlLayout.hero`, 168) it has a logo at most 76 tall (or the name on one line), one line of facts and formats (an episode's number and name instead), then where it stands (progress and time left) or two lines of overview. The detail page adds the formats on their own line, the tagline, three lines of overview and the billing block. With focus on home's tabs, nothing is selected yet: `PlaceHeading` names where OK leads, in its place (the library's name in `display`, what it holds: "9 titres", "7 en Ultra HD"; home, the titles started), and the room takes the colours of that library's latest posters (`MediaProvider.librarySummary`) |
@@ -577,7 +610,7 @@ other than Play: icons are drawn in `HlIcons`. A screen never loads an image its
 (`AsyncImage`): it goes through `ArtworkImage`, `PosterThumb` or `RowPreview`, which know what to
 show when it fails. `SpacingGridTest` keeps `HlSpace` and
 `HlInset` on the 4 dp grid; `TypeScaleTest` keeps the type scale honest, `ContrastTest` the contrasts,
-`ScrimTest` the floor of the veils, `ResourceTokensTest` the resources in step with the tokens,
+`ScrimTest` the floor of the veils, band by band, and veils without a line, `ResourceTokensTest` the resources in step with the tokens,
 `StringsTest` the French typography of the resources, `CatalogCoverageTest` the catalogue complete,
 `FocusStyleGuardTest` focus in one place, `GroundTest` the grounds, `LayoutTokensTest` the grid,
 `DesignDocTest` this document: every name of the system it cites is still declared in the code.

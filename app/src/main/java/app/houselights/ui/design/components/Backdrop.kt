@@ -23,7 +23,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -42,6 +41,7 @@ import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.HouseLightCue
 import app.houselights.ui.design.LocalHouseLights
 import app.houselights.ui.design.LocalAmbient
+import app.houselights.ui.design.VeilStop
 import app.houselights.ui.design.colorStops
 import app.houselights.ui.util.screenWidthPx
 import kotlin.math.max
@@ -49,29 +49,44 @@ import kotlin.math.max
 enum class BackdropStyle(
     /** Opacity of the picture itself. */
     val imageAlpha: Float,
-    /** Where the bottom fade to black starts (share of the height). */
+    /** Where the bottom fade starts, and where it is done (shares of the height). */
     val fadeFrom: Float,
-    /** Strength of the left veil behind text, at the screen's edge. */
+    val fadeTo: Float,
+    /** Strength of the left veil behind text, at the screen's edge, before the picture asks for more. */
     val leftScrim: Float,
     /** Widest file worth asking for; null: as wide as the screen. */
     val maxWidthPx: Int? = null,
 ) {
     /** Home: the picture owns the top of the screen, rows sit on black below. */
-    Hero(1f, 0.3f, 0.96f),
-    /** Detail: the picture fills the screen behind the text. */
-    Full(1f, 0.55f, 0.97f),
-    /** Library, settings: a quiet reminder of the picture behind content; dimmed this much, a lighter file does. */
-    Quiet(0.28f, 0.2f, 0.6f, maxWidthPx = 1280),
+    Hero(1f, 0.22f, 0.68f, 0.85f),
+    /** Detail: the picture fills the screen behind the text, and melts into the black of its rows. */
+    Full(1f, 0.45f, 1f, 0.85f),
+    /**
+     * Library (the wall of posters), settings: a quiet reminder of the picture behind content, down
+     * to the foot of the screen; dimmed this much, a lighter file does.
+     */
+    Quiet(0.28f, 0.2f, 0.75f, 0.6f, maxWidthPx = 1280),
+    ;
+
+    /**
+     * How dark the bottom fade ends. A picture shown whole melts into black. A dimmed one is already
+     * quiet: it only takes what the quietest text needs over the lightest picture at its dimness, so
+     * it stays in the room down to the foot of the screen instead of leaving it black.
+     */
+    val foot: Float = if (imageAlpha < 1f) HlScrim.need(imageAlpha) else 1f
+
+    /** Its veils down the screen: the top veil, then its bottom fade. */
+    val down: List<VeilStop> = HlScrim.down(fadeFrom, fadeTo, foot)
 }
 
 /**
- * Full-screen picture on pure black, veiled where text sits, plus the ambient light it spills into
- * the room. The veils are [HlScrim]'s; under the text column, the left veil keeps the floor the
- * picture needs, so the quietest text reads on the lightest image while a dark one keeps its veil.
- * When the house lights go down, the veils lift and the picture shows whole. Without a picture
- * ([image] null) it is the black room: nothing glows in its place.
+ * Full-screen picture on pure black, veiled where text sits. The veils are [HlScrim]'s; under the
+ * text column, the left veil takes, band by band, what the picture needs, so the quietest text reads
+ * on the lightest image while a dark one keeps its veil. Nothing glows under it: the picture melts
+ * into the room. When the house lights go down, the veils lift and the picture shows whole. Without
+ * a picture ([image] null) it is the black room: nothing glows in its place.
  *
- * A picture, its veils and its light are drawn once, into a layer of their own, and each frame then
+ * A picture and its veils are drawn once, into a layer of their own, and each frame then
  * lays that one texture: on the player's small graphics chip, drawn layer by layer each frame, they
  * filled its whole budget. One picture gives way to the next by the alpha of those layers.
  */
@@ -102,7 +117,7 @@ private const val BACKDROP_WIDTH = 16
 private const val BACKDROP_HEIGHT = 9
 
 /**
- * One picture of a [Backdrop], with its veils and its light, as one cached layer at [alpha]. All of
+ * One picture of a [Backdrop], with its veils, as one cached layer at [alpha]. All of
  * it is ready before it shows, so the layer is drawn once; only the house lights draw it again.
  */
 @Composable
@@ -117,14 +132,13 @@ private fun BackdropPicture(
 ) {
     val black = Hl.colors.background
     val lights = LocalHouseLights.current
-    val floor = remember(prepared, bounds, style) {
-        prepared.sample.floor(bounds, column, style.imageAlpha, style.leftScrim, HlScrim.down(style.fadeFrom))
+    val veil = remember(prepared, bounds, style) {
+        prepared.sample.leftVeil(bounds, column, style.imageAlpha, style.leftScrim, style.down)
     }
     // Stepping back, the picture takes the veil text needs over all of it, never less than VEIL.
     val receded = remember(prepared, bounds, style) {
-        max(HlAlpha.VEIL, prepared.sample.floorAcross(bounds, style.imageAlpha, HlScrim.down(style.fadeFrom)))
+        max(HlAlpha.VEIL, prepared.sample.floorAcross(bounds, style.imageAlpha, style.down))
     }
-    val tone = prepared.tone
     Box(
         Modifier
             .fillMaxSize()
@@ -146,22 +160,10 @@ private fun BackdropPicture(
         )
         Box(
             Modifier.fillMaxSize().drawBehind {
-                // The veils lift as the house lights go down; the light, stronger once the room is dark.
+                // The veils lift as the house lights go down.
                 val scrims = HouseLightCue.scrims(lights())
-                drawRect(leftVeil(black, style.leftScrim, floor, column, fade), alpha = scrims)
-                drawRect(Brush.verticalGradient(*HlScrim.down(style.fadeFrom).colorStops(black)), alpha = scrims)
-                // Light from the picture, reflected on the room below it.
-                if (tone.alpha > 0f) {
-                    val spill = HlScrim.SPILL + HlScrim.SPILL_DARK * (1f - HouseLightCue.room(lights()))
-                    drawRect(
-                        Brush.radialGradient(
-                            0f to tone.copy(alpha = tone.alpha * spill),
-                            1f to Color.Transparent,
-                            center = Offset(size.width * HlScrim.SPILL_X, size.height * HlScrim.SPILL_Y),
-                            radius = size.width * HlScrim.SPILL_RADIUS,
-                        )
-                    )
-                }
+                drawRect(leftVeil(black, veil, column, fade), alpha = scrims)
+                drawRect(Brush.verticalGradient(*style.down.colorStops(black)), alpha = scrims)
             }
         )
     }
@@ -194,12 +196,12 @@ private fun <T> FadeBetween(target: T, modifier: Modifier, content: @Composable 
 }
 
 /**
- * The left veil: [strength] at the screen's edge, easing along the [column] (px) as [HlScrim.LEFT]
- * says but never under [floor], then fading out over [fade] px.
+ * The left veil: [veil] along the [column] (px), its stops as shares of it, then fading out at one
+ * pace whatever its strength, over [fade] px for a full one: a light veil is gone sooner, a dark one
+ * takes the room it needs to fade without an edge.
  */
-private fun leftVeil(black: Color, strength: Float, floor: Float, column: Float, fade: Float): Brush {
-    val end = column + fade
-    val stops = HlScrim.LEFT.map { it.at * column / end to black.copy(alpha = max(it.alpha * strength, floor)) } +
-        (1f to Color.Transparent)
-    return Brush.horizontalGradient(*stops.toTypedArray(), startX = 0f, endX = end)
+private fun leftVeil(black: Color, veil: List<VeilStop>, column: Float, fade: Float): Brush {
+    val end = column + fade * veil.last().alpha
+    val stops = veil.map { VeilStop(it.at * column / end, it.alpha) } + VeilStop(1f, 0f)
+    return Brush.horizontalGradient(*stops.colorStops(black), startX = 0f, endX = end)
 }
