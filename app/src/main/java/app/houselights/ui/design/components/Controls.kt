@@ -136,7 +136,7 @@ internal fun PillButton(
     val interaction = remember { MutableInteractionSource() }
     val focused by interaction.collectIsFocusedAsState()
     val busyState = stringResource(R.string.control_busy)
-    val fill = if (emphasis == Emphasis.Primary) HlAlpha.CONTROL_FILL_STRONG else HlAlpha.CONTROL_FILL
+    val fill = if (emphasis == Emphasis.Primary) HlAlpha.FILL_STRONG else HlAlpha.FILL
     // A Surface rather than tv-material's Button, whose content keeps a minimum height of its own
     // at the top of the control: here the content is centred in exactly the control height.
     Surface(
@@ -151,7 +151,7 @@ internal fun PillButton(
             focusedContentColor = c.onFocus,
             pressedContainerColor = c.focus,
             pressedContentColor = c.onFocus,
-            disabledContainerColor = c.content.copy(alpha = HlAlpha.WELL),
+            disabledContainerColor = c.content.copy(alpha = HlAlpha.FILL_FAINT),
             disabledContentColor = c.contentTertiary,
         ),
         border = disabledFocusBorder(HlShapes.control),
@@ -170,7 +170,7 @@ internal fun PillButton(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             if (busy) {
-                Box(Modifier.size(HlSize.icon), contentAlignment = Alignment.Center) { StatusDot(StatusState.Pending) }
+                Box(Modifier.size(HlSize.icon), contentAlignment = Alignment.Center) { StatusLight(StatusState.Pending) }
                 Spacer(Modifier.width(HlControl.iconGap))
                 ButtonLabel(busyLabel)
             } else {
@@ -195,7 +195,7 @@ private fun ButtonContent(text: String, icon: ImageVector?, detail: String?, det
     }
 }
 
-/** The line under a button's name, by state. Secondary at rest: tertiary falls to 3.66:1 on a primary button. */
+/** The line under a button's name, by state. Secondary at rest: tertiary falls to 3.9:1 on a primary button. */
 @Composable
 private fun detailColor(onWhite: Boolean, enabled: Boolean, lit: Boolean): Color {
     val c = Hl.colors
@@ -269,7 +269,7 @@ fun HlIconButton(
     val shown = focused && LocalWindowInfo.current.isWindowFocused
     val labelAlpha by animateFloatAsState(if (shown) 1f else 0f, tween(HlMotion.FAST), label = "label")
     val c = Hl.colors
-    val restFill = if (onArtwork) c.background.copy(alpha = HlAlpha.PLATE) else c.content.copy(alpha = HlAlpha.CONTROL_FILL)
+    val restFill = if (onArtwork) c.background.copy(alpha = HlAlpha.VEIL) else c.content.copy(alpha = HlAlpha.FILL)
     Layout(
         modifier = modifier,
         content = {
@@ -287,8 +287,8 @@ fun HlIconButton(
                     focusedContentColor = c.onFocus,
                     pressedContainerColor = c.focus,
                     pressedContentColor = c.onFocus,
-                    // On its plate over an image, tertiary would fall under 3:1: the quiet icon is secondary there.
-                    disabledContainerColor = if (onArtwork) restFill else c.content.copy(alpha = HlAlpha.WELL),
+                    // On its plate over an image, the quiet icon is secondary, as all quiet things on artwork.
+                    disabledContainerColor = if (onArtwork) restFill else c.content.copy(alpha = HlAlpha.FILL_FAINT),
                     disabledContentColor = if (onArtwork) c.contentSecondary else c.contentTertiary,
                 ),
                 interactionSource = interaction,
@@ -305,7 +305,7 @@ fun HlIconButton(
                 modifier = Modifier
                     .clearAndSetSemantics {}
                     .graphicsLayer { alpha = labelAlpha }
-                    .background(c.background.copy(alpha = HlAlpha.PLATE), HlShapes.control)
+                    .background(c.background.copy(alpha = HlAlpha.VEIL), HlShapes.control)
                     .padding(horizontal = HlControl.labelPaddingH, vertical = HlControl.labelPaddingV),
             )
         },
@@ -424,7 +424,7 @@ fun HlSegmented(
     val content = if (scrollable) Modifier.horizontalScroll(scroll).padding(horizontal = ringReach) else Modifier
 
     // Not clipped: the ring of a focused current option may reach past the track's edge.
-    val well = if (onArtwork) Hl.colors.background.copy(alpha = HlAlpha.PLATE) else Hl.colors.content.copy(alpha = HlAlpha.WELL)
+    val well = if (onArtwork) Hl.colors.background.copy(alpha = HlAlpha.VEIL) else Hl.colors.content.copy(alpha = HlAlpha.FILL_FAINT)
     val track = modifier
         .background(well, HlShapes.control)
         .padding(vertical = HlSpace.xxs, horizontal = if (scrollable) HlSpace.none else HlSpace.xxs)
@@ -442,7 +442,9 @@ fun HlSegmented(
                     val ring by animateFloatAsState(if (onCurrent) 1f else 0f, tween(HlMotion.FAST), label = "pillRing")
                     val ringGap = with(density) { HlSize.focusRingGap.toPx() }
                     val ringWidth = with(density) { HlSize.focusBorder.toPx() }
-                    val white = Hl.colors.focus
+                    // The pill says where you are (current, projector white); the ring says focus.
+                    val current = Hl.colors.content
+                    val ringColor = Hl.colors.focus
                     Box(
                         Modifier
                             .offset { IntOffset(left.roundToInt(), 0) }
@@ -454,7 +456,7 @@ fun HlSegmented(
                                     val outset = ringGap + ringWidth / 2
                                     val ringSize = Size(size.width + outset * 2, size.height + outset * 2)
                                     drawRoundRect(
-                                        color = white.copy(alpha = ring),
+                                        color = ringColor.copy(alpha = ring),
                                         topLeft = Offset(-outset, -outset),
                                         size = ringSize,
                                         cornerRadius = CornerRadius(ringSize.height / 2),
@@ -462,7 +464,7 @@ fun HlSegmented(
                                     )
                                 }
                             }
-                            .background(white, HlShapes.control),
+                            .background(current, HlShapes.control),
                     )
                 }
                 Row(Modifier.enterOn(requesters, enterAt).selectableGroup(), horizontalArrangement = Arrangement.spacedBy(HlSpace.xxs)) {
@@ -515,7 +517,7 @@ private fun SegmentItem(
 ) {
     val c = Hl.colors
     val fade = tween<Color>(HlMotion.STANDARD, easing = HlMotion.emphasized)
-    // On the plate over an image, grey would fall to 3.5:1: the options at rest are white there.
+    // On the plate over an image the options at rest are white, as everything that reads there.
     val rest = if (onArtwork) c.content else c.contentSecondary
     val restContent by animateColorAsState(if (selected) c.onFocus else rest, fade, label = "segmentText")
     val focusedContent by animateColorAsState(if (selected) c.onFocus else c.content, fade, label = "segmentFocusedText")
@@ -538,9 +540,9 @@ private fun SegmentItem(
         colors = ClickableSurfaceDefaults.colors(
             containerColor = if (selected) currentFill else Color.Transparent,
             contentColor = restContent,
-            focusedContainerColor = if (selected) currentFill else c.content.copy(alpha = HlAlpha.FOCUS_QUIET),
+            focusedContainerColor = if (selected) currentFill else c.content.copy(alpha = HlAlpha.FILL_FOCUS),
             focusedContentColor = focusedContent,
-            pressedContainerColor = if (selected) currentFill else c.content.copy(alpha = HlAlpha.FOCUS_QUIET),
+            pressedContainerColor = if (selected) currentFill else c.content.copy(alpha = HlAlpha.FILL_FOCUS),
             pressedContentColor = focusedContent,
         ),
     ) {

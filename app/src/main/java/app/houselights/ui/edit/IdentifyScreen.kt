@@ -92,7 +92,12 @@ fun IdentifyScreen(itemId: String, onDone: () -> Unit) {
         aside = {
             // The file or folder, then what it is matched with now, on one sheet.
             StatusPanel(
-                state = if (identity?.current != null) StatusState.On else StatusState.Off,
+                // A match you chose is lit; one the app found is a fact.
+                state = when {
+                    identity?.current == null -> StatusState.Off
+                    identity.manual -> StatusState.On
+                    else -> StatusState.Done
+                },
                 stateText = stringResource(if (identity?.current != null) R.string.identify_state_matched else R.string.identify_none),
                 label = stringResource(if (isShow) R.string.identify_folder else R.string.identify_file),
                 value = identity?.fileName ?: state.item?.title ?: stringResource(R.string.placeholder_pending),

@@ -26,10 +26,10 @@ import app.houselights.R
 import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
 import app.houselights.ui.design.Hl
+import app.houselights.ui.design.HlAlpha
 import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlSpace
-import app.houselights.ui.design.textRoom
 import app.houselights.ui.design.components.BadgeRow
 import app.houselights.ui.design.components.FactRow
 import app.houselights.ui.design.components.HeroInfo
@@ -37,6 +37,7 @@ import app.houselights.ui.design.components.HlIconButton
 import app.houselights.ui.design.components.HlSegmented
 import app.houselights.ui.design.components.PosterCard
 import app.houselights.ui.design.components.TitleLine
+import app.houselights.ui.design.textRoom
 import app.houselights.ui.util.NBSP
 import app.houselights.ui.util.formatDuration
 import app.houselights.ui.util.screenSizePx
@@ -101,7 +102,7 @@ private fun StressHeroSection() {
         Column(verticalArrangement = Arrangement.spacedBy(HlSpace.xl)) {
             Column {
                 StressHero()
-                StressCaption("Two-line title without logo, badges, progress and overview, in the hero's frame (on surface)")
+                StressCaption("Two-line title without logo, badges, progress and overview, in the hero's frame (on a fill)")
             }
             Column {
                 val density = LocalDensity.current
@@ -114,7 +115,7 @@ private fun StressHeroSection() {
 
 @Composable
 private fun StressHero() {
-    HeroInfo(STRESS_HERO, Modifier.background(Hl.colors.surface).height(textRoom(HlLayout.hero)))
+    HeroInfo(STRESS_HERO, Modifier.background(Hl.colors.content.copy(alpha = HlAlpha.FILL)).height(textRoom(HlLayout.hero)))
 }
 
 @Composable
@@ -149,8 +150,8 @@ private fun StressFactsSection() {
     Group("Six facts in a side column", still = true) {
         Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.l), verticalAlignment = Alignment.Top) {
             Column(Modifier.width(HlLayout.sideColumn)) {
-                FactRow(STRESS_FACTS, Modifier.fillMaxWidth().background(Hl.colors.surface))
-                StressCaption("In sideColumn, on surface to show its edge: the last facts go whole")
+                FactRow(STRESS_FACTS, Modifier.fillMaxWidth().background(Hl.colors.content.copy(alpha = HlAlpha.FILL)))
+                StressCaption("In sideColumn, on a fill to show its edge: the last facts go whole")
             }
             Column {
                 FactRow(STRESS_FACTS)

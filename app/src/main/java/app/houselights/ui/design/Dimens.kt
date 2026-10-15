@@ -83,6 +83,8 @@ object HlSize {
     val markIcon = 14.dp
     /** Status dot (default track, online). */
     val dot = 8.dp
+    /** The box a state's light sits in, so words line up after a dot or the attention mark. */
+    val statusLight = 16.dp
     /** An icon set in a line of text (rating star). */
     val inlineIcon = 16.dp
     val meter = 10.dp
@@ -170,7 +172,7 @@ object HlLayout {
     /** Widest value on the right of a setting row. */
     val rowValue = 360.dp
     /** Widest label under a round icon button; a longer one ends in an ellipsis. */
-    val iconLabel = 160.dp
+    val iconLabel = 200.dp
     /**
      * Room a row of round buttons keeps under itself for the label of the one with focus: the gap
      * ([HlSpace.xs]) and the label on its plate (one caption line, 20, and its padding, 2 × 4). The

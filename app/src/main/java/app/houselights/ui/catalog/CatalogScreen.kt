@@ -23,24 +23,29 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.text.TextStyle
 import androidx.tv.material3.Text
 import app.houselights.core.MediaKind
 import app.houselights.ui.design.Hl
+import app.houselights.ui.design.HlAlpha
 import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlLayout
+import app.houselights.ui.design.HlPalette
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
-import app.houselights.ui.design.components.Badge
 import app.houselights.ui.design.components.Backdrop
 import app.houselights.ui.design.components.BackdropStyle
+import app.houselights.ui.design.components.Badge
 import app.houselights.ui.design.components.Emphasis
 import app.houselights.ui.design.components.FactRow
 import app.houselights.ui.design.components.HlButton
@@ -48,8 +53,6 @@ import app.houselights.ui.design.components.HlDivider
 import app.houselights.ui.design.components.HlEmptyState
 import app.houselights.ui.design.components.HlIconButton
 import app.houselights.ui.design.components.HlIconDisc
-import app.houselights.ui.design.components.LandscapeCard
-import app.houselights.ui.design.components.PosterCard
 import app.houselights.ui.design.components.HlListItem
 import app.houselights.ui.design.components.HlMeter
 import app.houselights.ui.design.components.HlModal
@@ -61,16 +64,20 @@ import app.houselights.ui.design.components.HlSettingRow
 import app.houselights.ui.design.components.HlSideSheet
 import app.houselights.ui.design.components.HlStatus
 import app.houselights.ui.design.components.HlTextField
+import app.houselights.ui.design.components.LandscapeCard
 import app.houselights.ui.design.components.MeterInk
 import app.houselights.ui.design.components.MeterLegend
 import app.houselights.ui.design.components.MeterSegment
 import app.houselights.ui.design.components.PanelLevel
+import app.houselights.ui.design.components.PosterCard
 import app.houselights.ui.design.components.ScreenTitle
 import app.houselights.ui.design.components.SheetConfirm
 import app.houselights.ui.design.components.StatusState
 import app.houselights.ui.design.components.Wordmark
-import kotlinx.coroutines.delay
+import app.houselights.ui.design.emberLight
 import app.houselights.ui.util.NBSP
+import kotlin.math.roundToInt
+import kotlinx.coroutines.delay
 
 /**
  * Every token and component of the design system in its states, for review on a real screen.
@@ -94,13 +101,39 @@ fun CatalogScreen() {
 
             item {
                 Group("Colour", Modifier.focusRequester(first), still = true) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m)) {
-                        listOf(
-                            "background" to c.background, "surface" to c.surface, "raised" to c.surfaceRaised,
-                            "outline" to c.outline, "decorative" to c.contentDecorative, "tertiary" to c.contentTertiary,
-                            "secondary" to c.contentSecondary, "content" to c.content, "on focus, detail" to c.onFocusSecondary,
-                            "ember" to c.ember,
-                        ).forEach { (name, color) -> Swatch(name, color) }
+                    Column(verticalArrangement = Arrangement.spacedBy(HlSpace.l)) {
+                        // The palette: the colours themselves, named by their lightness.
+                        Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m)) {
+                            listOf(
+                                "N0" to HlPalette.N0, "N8" to HlPalette.N8, "N21" to HlPalette.N21, "N28" to HlPalette.N28,
+                                "N36" to HlPalette.N36, "N57" to HlPalette.N57, "N65" to HlPalette.N65, "N96" to HlPalette.N96,
+                                "Ember" to HlPalette.Ember, "EmberStart" to HlPalette.EmberStart, "EmberEnd" to HlPalette.EmberEnd,
+                            ).forEach { (name, color) -> Swatch(name, color) }
+                        }
+                        // The roles that name them, as components use them.
+                        Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m)) {
+                            listOf(
+                                "background" to c.background, "fill" to c.content.copy(alpha = HlAlpha.FILL).compositeOver(c.background),
+                                "raised" to c.surfaceRaised, "outline" to c.outline, "decorative" to c.contentDecorative,
+                                "tertiary" to c.contentTertiary, "secondary" to c.contentSecondary, "content" to c.content,
+                                "focus" to c.focus, "on focus" to c.onFocus, "on focus, detail" to c.onFocusSecondary, "ember" to c.ember,
+                            ).forEach { (name, color) -> Swatch(name, color) }
+                            Swatch("ember light", c.emberLight())
+                        }
+                        // Look at it on the TV: every step should stand apart from the room.
+                        Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Bottom) {
+                            Swatch("room", c.background)
+                            HlAlpha.BLACK_LEVELS.forEach { level ->
+                                val step = c.content.copy(alpha = level).compositeOver(c.background)
+                                Swatch("white ${(level * PERCENT).roundToInt()} %", step)
+                            }
+                            Text(
+                                "Black levels: on the TV each step stands apart from the room, or its blacks are crushed.",
+                                style = Hl.type.caption,
+                                color = c.contentSecondary,
+                                modifier = Modifier.padding(start = HlSpace.m).widthIn(max = HlLayout.readableNarrow),
+                            )
+                        }
                     }
                 }
             }
@@ -156,6 +189,7 @@ fun CatalogScreen() {
                         HlIconDisc(HlIcons.Folder)
                         HlIconDisc(HlIcons.Folder, lit = true)
                         HlStatus(StatusState.On, "Online")
+                        HlStatus(StatusState.Done, "Found")
                         HlStatus(StatusState.Pending, "Testing")
                         HlStatus(StatusState.Off, "Offline")
                         HlStatus(StatusState.Attention, "Can’t play", detail = "The Zidoo player isn’t installed.")
@@ -483,9 +517,12 @@ private const val CATALOG_LONG_ROWS = 14
 private const val CATALOG_BUSY_MS = 3_000L
 
 @Composable
-private fun Swatch(name: String, color: Color) {
+private fun Swatch(name: String, color: Color) = Swatch(name, SolidColor(color))
+
+@Composable
+private fun Swatch(name: String, brush: Brush) {
     Column {
-        Box(Modifier.size(HlSize.disc).clip(HlShapes.panel).background(color))
+        Box(Modifier.size(HlSize.disc).clip(HlShapes.panel).background(brush))
         Spacer(Modifier.height(HlSpace.xxs))
         Text(name, style = Hl.type.caption, color = Hl.colors.contentSecondary)
     }
@@ -498,3 +535,5 @@ private fun Specimen(name: String, style: TextStyle) {
         Text("Houselights 2,39:1 ${style.fontSize.value.toInt()} sp", style = style, color = Hl.colors.content, maxLines = 1, modifier = Modifier.padding(start = HlSpace.s))
     }
 }
+
+private const val PERCENT = 100

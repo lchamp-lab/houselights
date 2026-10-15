@@ -21,7 +21,8 @@ import app.houselights.R
  * - condensed, the voice of the poster: titles, names in the billing block, large figures;
  * - normal, the voice of reading: overviews, descriptions, names, values;
  * - wide, the voice of controls: buttons and the options of a track;
- * - expanded, the technical voice: formats and specifications, short and set apart.
+ * - expanded, the technical voice: formats and specifications, short and set apart;
+ * - the brand, expanded and heavy: the wordmark alone.
  *
  * Each width declares only the weights its styles use, so none is ever faked. The one other face
  * is the system's monospaced one, for raw text that must line up as written ([mono]).
@@ -42,10 +43,18 @@ object HlFonts {
     val text = archivo(100f, FontWeight.Normal, FontWeight.Medium, FontWeight.SemiBold)
     val wide = archivo(112f, FontWeight.SemiBold)
     val expanded = archivo(125f, FontWeight.SemiBold)
+    /** The weight of the wordmark, between Bold and ExtraBold. */
+    val brandWeight = FontWeight(720)
+
+    /** The wordmark's: expanded, at [brandWeight], as the banner draws it. */
+    val brand = archivo(125f, brandWeight)
 
     /** Code read as written (NFO XML): one weight on Android 9, and every character already the same width. */
     val mono = FontFamily.Monospace
 }
+
+/** The wordmark's letters, drawn a little closer, as on the banner. */
+private val BRAND_TRACKING = (-0.016).em
 
 /** Tabular figures: numbers keep the same width, so they line up in columns and do not jitter. */
 private const val FIGURES = "tnum"
@@ -128,10 +137,13 @@ val HouselightsType = HlType(
     cardTitle = TextStyle(fontFamily = HlFonts.condensed, fontWeight = FontWeight.Bold, fontSize = 20.sp, lineHeight = 24.sp),
     billing = TextStyle(fontFamily = HlFonts.condensed, fontWeight = FontWeight.Medium, fontSize = 18.sp, lineHeight = 24.sp, letterSpacing = 0.04.em, fontFeatureSettings = CAPITALS),
     billingJoin = TextStyle(fontFamily = HlFonts.condensed, fontWeight = FontWeight.Normal, fontSize = 14.sp, lineHeight = 24.sp, letterSpacing = 0.02.em),
+    // As wide on screen as the condensed name it replaces: 136 dp in About, 352 over the welcome wall.
     wordmark = TextStyle(
-        fontFamily = HlFonts.condensed, fontWeight = FontWeight.SemiBold, fontSize = 32.sp, lineHeight = 36.sp, letterSpacing = 0.01.em,
+        fontFamily = HlFonts.brand, fontWeight = HlFonts.brandWeight, fontSize = 20.sp, lineHeight = 24.sp, letterSpacing = BRAND_TRACKING,
     ),
-    wordmarkHero = TextStyle(fontFamily = HlFonts.condensed, fontWeight = FontWeight.SemiBold, fontSize = 80.sp, lineHeight = 84.sp, letterSpacing = 0.01.em),
+    wordmarkHero = TextStyle(
+        fontFamily = HlFonts.brand, fontWeight = HlFonts.brandWeight, fontSize = 52.sp, lineHeight = 60.sp, letterSpacing = BRAND_TRACKING,
+    ),
 
     title = TextStyle(fontFamily = HlFonts.text, fontWeight = FontWeight.SemiBold, fontSize = 24.sp, lineHeight = 30.sp),
     lead = TextStyle(fontFamily = HlFonts.text, fontWeight = FontWeight.SemiBold, fontSize = 20.sp, lineHeight = 26.sp),

@@ -51,7 +51,11 @@ fun JellyfinLoginScreen(onLoggedIn: () -> Unit) {
         description = stringResource(R.string.jellyfin_desc),
         aside = {
             StatusPanel(
-                state = if (vm.busy) StatusState.Pending else StatusState.Off,
+                state = when {
+                    vm.busy -> StatusState.Pending
+                    error != null -> StatusState.Attention
+                    else -> StatusState.Off
+                },
                 stateText = stringResource(loginState(vm.busy, failed = error != null)),
                 label = stringResource(R.string.field_server),
                 value = server.ifBlank { stringResource(R.string.placeholder_pending) },

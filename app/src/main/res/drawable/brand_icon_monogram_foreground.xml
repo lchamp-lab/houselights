@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!-- Monogram: an H set like a film's title, Archivo condensed Bold, alone in the room. -->
-<vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="108dp" android:height="108dp"
-    android:viewportWidth="108" android:viewportHeight="108">
-    <path android:fillColor="#F2B66D" android:pathData="M36.6 81v-54.1h10.6v22.1h13.7v-22.1h10.5v54.1h-10.5v-22.9h-13.7v22.9z" />
-</vector>

@@ -1,6 +1,7 @@
 package app.houselights.ui.design
 
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathFillType
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
@@ -119,6 +120,24 @@ object HlIcons {
     val Check = icon("Check") {
         moveTo(5f, 12.5f); lineTo(9.75f, 17f); lineTo(19f, 7.5f)
     }
+
+    /**
+     * Done, as a toggle shows it: [Check] cut out of a filled disc, so it reads as on by its
+     * shape, whatever its ink.
+     */
+    val CheckFilled = ImageVector.Builder("CheckFilled", 24.dp, 24.dp, 24f, 24f).apply {
+        path(fill = SolidColor(Color.Black), pathFillType = PathFillType.EvenOdd) {
+            moveTo(21.5f, 12f)
+            arcTo(9.5f, 9.5f, 0f, true, true, 2.5f, 12f)
+            arcTo(9.5f, 9.5f, 0f, true, true, 21.5f, 12f)
+            close()
+            moveTo(6.8f, 13.13f); lineTo(10.63f, 16.83f); lineTo(17.33f, 9.9f)
+            arcTo(1.15f, 1.15f, 0f, false, false, 15.67f, 8.3f)
+            lineTo(10.57f, 13.57f); lineTo(8.4f, 11.47f)
+            arcTo(1.15f, 1.15f, 0f, false, false, 6.8f, 13.13f)
+            close()
+        }
+    }.build()
 
     /** Play from the start: an arrow turning back to the top. */
     val Restart = icon("Restart") {

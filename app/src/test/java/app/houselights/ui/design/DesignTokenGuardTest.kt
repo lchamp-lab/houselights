@@ -112,7 +112,7 @@ class DesignTokenGuardTest {
         listOf("Icons.Filled.PlayArrow", "import androidx.compose.material.icons.filled.PlayArrow", "HlIcons.Check")
             .forEach { assertTrue(it, !materialIcon.containsMatchIn(it)) }
         val fine = listOf(
-            "Modifier.padding(0.dp)", "screenWidthDp.dp", "HlSpace.l", "Hl.colors.content.copy(alpha = HlAlpha.WELL)",
+            "Modifier.padding(0.dp)", "screenWidthDp.dp", "HlSpace.l", "Hl.colors.content.copy(alpha = HlAlpha.FILL_FAINT)",
             "{ HlSpace.m -> it }", "screenHeight * HlLayout.DETAIL_HERO_SHARE", "spacedBy(HlSpace.xs)",
         )
         fine.forEach { sample -> assertTrue(sample, rules.none { it.first.containsMatchIn(sample) }) }

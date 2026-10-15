@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -42,12 +43,15 @@ import androidx.tv.material3.Text
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlAlpha
 import app.houselights.ui.design.HlFocus
+import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlInset
 import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.LocalGround
 import app.houselights.ui.design.emberLight
+import app.houselights.ui.design.groundStep
 
 /** How far a panel stands out from the room. */
 enum class PanelLevel {
@@ -72,20 +76,22 @@ fun HlPanel(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val c = Hl.colors
+    val raised = level == PanelLevel.Raised
     Column(
         modifier
             .clip(shape)
-            .background(if (level == PanelLevel.Raised) c.surfaceRaised else c.surface.copy(alpha = HlAlpha.QUIET_SURFACE))
+            .background(if (raised) c.surfaceRaised else c.content.copy(alpha = groundStep()))
             .then(
                 if (lit) {
-                    Modifier.border(HlSize.hairline, c.emberLight(HlAlpha.BORDER), shape)
+                    Modifier.border(HlSize.hairline, c.emberLight(), shape)
                 } else {
-                    Modifier.border(HlSize.hairline, c.outline.copy(alpha = HlAlpha.BORDER), shape)
+                    Modifier.border(HlSize.hairline, c.outline.copy(alpha = HlAlpha.EDGE), shape)
                 },
             )
             .padding(padding),
-        content = content,
-    )
+    ) {
+        if (raised) CompositionLocalProvider(LocalGround provides c.surfaceRaised) { content() } else content()
+    }
 }
 
 /**
@@ -107,6 +113,7 @@ fun HlPanelButton(
     val interaction = remember { MutableInteractionSource() }
     val focused by interaction.collectIsFocusedAsState()
     val outline = Border(BorderStroke(HlSize.focusBorder, c.focus), shape = HlShapes.panel)
+    val step = groundStep()
     Surface(
         onClick = onClick,
         modifier = modifier.onFocusChanged { if (it.isFocused) onFocused() },
@@ -116,24 +123,24 @@ fun HlPanelButton(
         border = ClickableSurfaceDefaults.border(
             border = Border(
                 if (lit) {
-                    BorderStroke(HlSize.hairline, c.emberLight(HlAlpha.BORDER))
+                    BorderStroke(HlSize.hairline, c.emberLight())
                 } else {
-                    BorderStroke(HlSize.hairline, c.outline.copy(alpha = HlAlpha.BORDER))
+                    BorderStroke(HlSize.hairline, c.outline.copy(alpha = HlAlpha.EDGE))
                 },
                 shape = HlShapes.panel,
             ),
             focusedBorder = outline,
-            disabledBorder = Border(BorderStroke(HlSize.hairline, c.outline.copy(alpha = HlAlpha.BORDER)), shape = HlShapes.panel),
+            disabledBorder = Border(BorderStroke(HlSize.hairline, c.outline.copy(alpha = HlAlpha.EDGE)), shape = HlShapes.panel),
             focusedDisabledBorder = outline,
         ),
         colors = ClickableSurfaceDefaults.colors(
-            containerColor = c.surface.copy(alpha = HlAlpha.QUIET_SURFACE),
+            containerColor = c.content.copy(alpha = step),
             contentColor = c.content,
-            focusedContainerColor = c.surfaceRaised,
+            focusedContainerColor = c.content.copy(alpha = step),
             focusedContentColor = c.content,
-            pressedContainerColor = c.surfaceRaised,
+            pressedContainerColor = c.content.copy(alpha = step),
             pressedContentColor = c.content,
-            disabledContainerColor = c.content.copy(alpha = HlAlpha.WELL),
+            disabledContainerColor = c.content.copy(alpha = HlAlpha.FILL_FAINT),
             disabledContentColor = c.contentTertiary,
         ),
         interactionSource = interaction,
@@ -152,9 +159,9 @@ fun HlIconDisc(icon: ImageVector, modifier: Modifier = Modifier, lit: Boolean = 
             .clip(HlShapes.avatar)
             .then(
                 if (lit) {
-                    Modifier.background(c.emberLight(HlAlpha.LIT_DISC))
+                    Modifier.background(c.emberLight(HlAlpha.FILL_STRONG))
                 } else {
-                    Modifier.background(c.content.copy(alpha = HlAlpha.WELL))
+                    Modifier.background(c.content.copy(alpha = HlAlpha.FILL_FAINT))
                 },
             ),
         contentAlignment = Alignment.Center,
@@ -166,7 +173,7 @@ fun HlIconDisc(icon: ImageVector, modifier: Modifier = Modifier, lit: Boolean = 
 /** A hairline that separates groups. */
 @Composable
 fun HlDivider(modifier: Modifier = Modifier, vertical: Boolean = false) {
-    val color = Hl.colors.outline.copy(alpha = HlAlpha.DIVIDER)
+    val color = Hl.colors.outline.copy(alpha = HlAlpha.EDGE)
     if (vertical) {
         Box(modifier.width(HlSize.hairline).fillMaxHeight().background(color))
     } else {
@@ -233,49 +240,64 @@ fun HlEmptyState(
     )
 }
 
-/** The state of something the app depends on; [Attention] when something went wrong with it. */
-enum class StatusState { On, Off, Pending, Attention }
+/**
+ * The state of something the app depends on. [On]: in use or your choice, the ember light.
+ * [Done]: a fact that holds (a file read, a match found by the app), projector white, like a title
+ * watched. [Off]: not there or not yet. [Pending]: at work. [Attention]: something went wrong.
+ */
+enum class StatusState { On, Done, Off, Pending, Attention }
 
 /**
- * A state in words with its light: a ember dot when on or calling for attention, an empty one
- * when off. [detail] says why, under the words and aligned with them.
+ * A state in words with its light (see [StatusLight]). [detail] says why, under the words and
+ * aligned with them.
  */
 @Composable
 fun HlStatus(state: StatusState, text: String, modifier: Modifier = Modifier, detail: String? = null) {
     val c = Hl.colors
     Column(modifier) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            StatusDot(state)
+            StatusLight(state)
             Spacer(Modifier.width(HlSpace.xs))
-            val strong = state == StatusState.On || state == StatusState.Attention
+            val strong = state != StatusState.Off && state != StatusState.Pending
             Text(text, style = Hl.type.meta, color = if (strong) c.content else c.contentSecondary)
         }
         if (detail != null) {
             Spacer(Modifier.height(HlSpace.xxs))
-            Text(detail, style = Hl.type.detail, color = c.contentSecondary, modifier = Modifier.padding(start = HlSize.dot + HlSpace.xs))
+            Text(
+                detail,
+                style = Hl.type.detail,
+                color = c.contentSecondary,
+                modifier = Modifier.padding(start = HlSize.statusLight + HlSpace.xs),
+            )
         }
     }
 }
 
 /**
- * The light of a [StatusState]: ember when on or calling for attention, quiet while pending,
- * an empty ring when off. Also where a busy button's icon was, and before a field's error.
+ * The light of a [StatusState], in a box of its own width so words line up after any of them: an
+ * ember dot when on, a white one when done, a quiet one while pending, an empty ring when off,
+ * and for attention the circled exclamation mark in ember: never the same mark as on, so the two
+ * are told apart without their colour. Also where a busy button's icon was, and before an error.
+ * [ink] replaces every colour (a light on a focused row takes the row's ink).
  */
 @Composable
-internal fun StatusDot(state: StatusState, modifier: Modifier = Modifier) {
+internal fun StatusLight(state: StatusState, modifier: Modifier = Modifier, ink: Color? = null) {
     val c = Hl.colors
-    Box(
-        modifier
-            .size(HlSize.dot)
-            .clip(HlShapes.avatar)
-            .then(
-                when (state) {
-                    StatusState.On, StatusState.Attention -> Modifier.background(c.ember)
-                    StatusState.Pending -> Modifier.background(c.contentDecorative)
-                    StatusState.Off -> Modifier.border(HlSize.hairline, c.contentTertiary, HlShapes.avatar)
-                }
-            )
-    )
+    Box(modifier.size(HlSize.statusLight), contentAlignment = Alignment.Center) {
+        if (state == StatusState.Attention) {
+            Icon(HlIcons.Attention, contentDescription = null, tint = ink ?: c.ember, modifier = Modifier.size(HlSize.statusLight))
+            return@Box
+        }
+        val dot = Modifier.size(HlSize.dot).clip(HlShapes.avatar)
+        Box(
+            when (state) {
+                StatusState.On -> dot.background(ink ?: c.ember)
+                StatusState.Done -> dot.background(ink ?: c.content)
+                StatusState.Pending -> dot.background(ink ?: c.contentTertiary)
+                else -> dot.border(HlSize.hairline, ink ?: c.contentTertiary, HlShapes.avatar)
+            }
+        )
+    }
 }
 
 /**
@@ -288,7 +310,7 @@ fun AttentionNote(text: String, modifier: Modifier = Modifier, style: TextStyle 
     Row(modifier) {
         // As tall as the first line, so the light sits beside it.
         val line = with(LocalDensity.current) { style.lineHeight.toDp() }
-        Box(Modifier.height(line), contentAlignment = Alignment.Center) { StatusDot(StatusState.Attention) }
+        Box(Modifier.height(line), contentAlignment = Alignment.Center) { StatusLight(StatusState.Attention) }
         Spacer(Modifier.width(HlSpace.xs))
         Text(text, style = style, color = Hl.colors.ember)
     }
@@ -323,7 +345,7 @@ fun HlMeter(segments: List<MeterSegment>, modifier: Modifier = Modifier) {
             .fillMaxWidth()
             .height(HlSize.meter)
             .clip(HlShapes.control)
-            .background(c.content.copy(alpha = HlAlpha.WELL)),
+            .background(c.content.copy(alpha = HlAlpha.FILL_FAINT)),
         horizontalArrangement = Arrangement.spacedBy(HlSize.meterGap),
     ) {
         segments.filter { it.fraction > 0f }.forEach { s ->

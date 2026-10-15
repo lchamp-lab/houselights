@@ -34,7 +34,7 @@ fun HouselightsTheme(content: @Composable () -> Unit) {
         onPrimary = c.onFocus,
         background = c.background,
         onBackground = c.content,
-        surface = c.surface,
+        surface = c.surfaceRaised,
         onSurface = c.content,
         surfaceVariant = c.surfaceRaised,
         onSurfaceVariant = c.contentSecondary,

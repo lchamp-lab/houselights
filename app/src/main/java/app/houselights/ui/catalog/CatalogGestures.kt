@@ -173,7 +173,7 @@ private fun Jackets() {
         Column(verticalArrangement = Arrangement.spacedBy(HlSpace.l)) {
             InfoBlock("État") {
                 Column(verticalArrangement = Arrangement.spacedBy(HlSpace.xs)) {
-                    DefinitionRow("Lecteur Zidoo") { HlStatus(StatusState.On, "Détecté") }
+                    DefinitionRow("Lecteur Zidoo") { HlStatus(StatusState.Done, "Détecté") }
                     DefinitionRow("API de contrôle") { HlStatus(StatusState.Pending, "Vérification…") }
                 }
             }

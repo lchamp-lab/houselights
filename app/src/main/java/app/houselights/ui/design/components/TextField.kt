@@ -57,10 +57,13 @@ import androidx.compose.ui.unit.dp
 import androidx.tv.material3.Text
 import app.houselights.R
 import app.houselights.ui.design.Hl
+import app.houselights.ui.design.HlAlpha
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.emberLight
+import app.houselights.ui.design.groundFill
+import app.houselights.ui.design.groundStep
 
 /**
  * A text field for the remote: a focusable box first, the keyboard on OK. Focused and waiting, it
@@ -135,7 +138,6 @@ private fun FieldBox(
     val focusManager = LocalFocusManager.current
     val shape = HlShapes.field
     val c = Hl.colors
-    val lit = boxFocused || editing
 
     // Always one line of body text tall. Empty, a field would otherwise take the platform
     // font's line height and stand taller than its neighbours.
@@ -161,7 +163,7 @@ private fun FieldBox(
             .openOnOk(waiting = !editing) { editing = true }
             .focusable()
             .clip(shape)
-            .background(if (lit) c.surfaceRaised else c.surface)
+            .background(c.content.copy(alpha = groundStep()))
             .border(fieldEdge(editing, boxFocused), shape)
             .padding(horizontal = HlSpace.m, vertical = HlSpace.s),
     ) {
@@ -204,7 +206,7 @@ private fun FieldBox(
         if (boxFocused && !editing) {
             // Over the end of the text, on the field's own surface; never taller than the field.
             Box(Modifier.matchParentSize(), contentAlignment = Alignment.CenterEnd) {
-                KeyHint(Modifier.wrapContentHeight(unbounded = true).background(c.surfaceRaised).padding(start = HlSpace.s))
+                KeyHint(Modifier.wrapContentHeight(unbounded = true).background(groundFill(groundStep())).padding(start = HlSpace.s))
             }
         }
     }
@@ -285,7 +287,7 @@ private fun FieldMessage(error: String?, supporting: String?) {
         if (error != null) {
             // As tall as the first line, so the light sits beside it.
             val line = with(LocalDensity.current) { style.lineHeight.toDp() }
-            Box(Modifier.height(line), contentAlignment = Alignment.Center) { StatusDot(StatusState.Attention) }
+            Box(Modifier.height(line), contentAlignment = Alignment.Center) { StatusLight(StatusState.Attention) }
             Spacer(Modifier.width(HlSpace.xs))
         }
         Text(text, style = style, color = if (error != null) c.ember else c.contentSecondary)

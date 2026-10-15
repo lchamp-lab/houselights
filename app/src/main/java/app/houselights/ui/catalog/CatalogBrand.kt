@@ -33,62 +33,23 @@ import app.houselights.ui.design.HlSpace
 import kotlin.math.roundToInt
 
 /**
- * The launcher icon and the TV banner: what the app ships today, then the directions proposed to
- * replace it, side by side. Drawn by Android as a launcher draws them (the icon cut by this
- * device's mask), at the size a launcher shows them on this screen, then twice as close.
+ * The launcher icon and the TV banner, La Salle: drawn by Android as a launcher draws them (the
+ * icon cut by this device's mask), at the size a launcher shows them on this screen, then twice
+ * as close.
  */
 internal fun LazyListScope.catalogBrand() {
     item {
-        Group("Brand: the icon and banner shipped today", still = true) {
+        Group("Brand: La Salle, the icon and the banner", still = true) {
             BrandSample(
-                "A lamp and its beam in a gradient; a white wordmark under a warm halo, in pixels.",
+                "An H made of the two walls of a room in perspective, their panels going down from bright orange " +
+                    "to raspberry as they near the white screen. On the banner the name is set on the screen, " +
+                    "in lowercase, Archivo expanded: the wordmark.",
                 icon = R.mipmap.ic_launcher,
                 banner = R.drawable.banner,
             )
         }
     }
-    brandDirections.forEach { direction ->
-        item {
-            Group("Brand, proposal: ${direction.name}", still = true) {
-                BrandSample(direction.says, direction.foreground, direction.banner, foreground = true)
-            }
-        }
-    }
 }
-
-/** A direction for the icon and the banner, as its two drawables. */
-private class BrandDirection(val name: String, val says: String, @DrawableRes val foreground: Int, @DrawableRes val banner: Int)
-
-private val brandDirections = listOf(
-    BrandDirection(
-        "Monogram",
-        "An H set like a film’s title, condensed Bold, alone in the room. " +
-            "The banner sets it as a large initial, the wordmark on its baseline.",
-        R.drawable.brand_icon_monogram_foreground,
-        R.drawable.brand_banner_monogram,
-    ),
-    BrandDirection(
-        "Wordmark",
-        "The name as the welcome screen sets it: on two lines in the icon, like a title on a poster; " +
-            "at the foot of a dark room on the banner.",
-        R.drawable.brand_icon_wordmark_foreground,
-        R.drawable.brand_banner_wordmark,
-    ),
-    BrandDirection(
-        "Your seat",
-        "The room from above: the screen lit, the house dark, one seat lit in ember, yours. " +
-            "On the banner, the name is on the screen.",
-        R.drawable.brand_icon_seat_foreground,
-        R.drawable.brand_banner_seat,
-    ),
-    BrandDirection(
-        "Three steps",
-        "The house lights going down in three steps, and the house rising in tiers. " +
-            "On the banner, the sign stands a capital high before the name.",
-        R.drawable.brand_icon_steps_foreground,
-        R.drawable.brand_banner_steps,
-    ),
-)
 
 /** The launcher icon as a launcher draws it: an adaptive icon, cut by this device's mask. */
 private fun launcherIcon(context: Context, @DrawableRes icon: Int, foreground: Boolean): Drawable? {

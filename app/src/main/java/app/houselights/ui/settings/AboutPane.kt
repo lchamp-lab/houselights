@@ -71,7 +71,7 @@ private fun AboutStatus() {
         Column(verticalArrangement = Arrangement.spacedBy(HlSpace.xs)) {
             DefinitionRow(stringResource(R.string.label_player)) {
                 HlStatus(
-                    if (player) StatusState.On else StatusState.Off,
+                    if (player) StatusState.Done else StatusState.Off,
                     stringResource(if (player) R.string.detected else R.string.not_detected),
                 )
             }

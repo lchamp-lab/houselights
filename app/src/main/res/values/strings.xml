@@ -1,5 +1,6 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
     <string name="app_name" translatable="false">Houselights</string>
+    <string name="wordmark" translatable="false">houselights</string>
     <!-- Typographic placeholders: a value still coming, and one that isn't there. -->
     <string name="placeholder_pending" translatable="false">…</string>
     <string name="placeholder_none" translatable="false">–</string>

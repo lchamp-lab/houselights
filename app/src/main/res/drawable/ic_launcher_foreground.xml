@@ -1,16 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- A wall sconce casting tungsten light downwards. -->
+<!-- La Salle: an H made of the two walls of a room in perspective, its panels going down from bright orange to raspberry as they near the white screen. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:aapt="http://schemas.android.com/aapt"
     android:width="108dp" android:height="108dp"
     android:viewportWidth="108" android:viewportHeight="108">
-    <path android:pathData="M54,40 L80,82 L28,82 Z">
-        <aapt:attr name="android:fillColor">
-            <gradient android:type="linear"
-                android:startX="54" android:startY="40" android:endX="54" android:endY="82"
-                android:startColor="#8CF2B66D" android:endColor="#00F2B66D" />
-        </aapt:attr>
-    </path>
-    <path android:fillColor="#F2B66D" android:pathData="M40,40 A14,14 0 0,1 68,40 Z" />
-    <path android:fillColor="#F2F0EB" android:pathData="M52,26 L56,26 L56,28 L52,28 Z" />
+    <path android:fillColor="#FF9F1C" android:pathData="M12 14 L27.12 28.4 L27.12 79.6 L12 94Z" />
+    <path android:fillColor="#FF6640" android:pathData="M28.37 29.6 L34.45 35.39 L34.45 72.61 L28.37 78.4Z" />
+    <path android:fillColor="#FF2E63" android:pathData="M35.36 36.25 L39 39.71 L39 68.29 L35.36 71.75Z" />
+    <path android:fillColor="#FF9F1C" android:pathData="M96 14 L80.88 28.4 L80.88 79.6 L96 94Z" />
+    <path android:fillColor="#FF6640" android:pathData="M79.62 29.6 L73.55 35.39 L73.55 72.61 L79.62 78.4Z" />
+    <path android:fillColor="#FF2E63" android:pathData="M72.64 36.25 L69 39.71 L69 68.29 L72.64 71.75Z" />
+    <path android:fillColor="#F4F4F5" android:pathData="M40.6,47.3h26.8v13.4h-26.8Z" />
 </vector>

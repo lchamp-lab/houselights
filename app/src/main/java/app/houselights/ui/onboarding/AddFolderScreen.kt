@@ -87,7 +87,7 @@ fun AddFolderScreen(onAdded: (switched: Boolean) -> Unit) {
             Text(
                 stringResource(if (protocol == Protocol.NFS) R.string.nfs_hint else R.string.smb_hint),
                 style = Hl.type.caption,
-                color = Hl.colors.contentTertiary,
+                color = Hl.colors.contentSecondary,
             )
         },
     ) {
@@ -192,6 +192,6 @@ private fun pathExample(kind: SourceKind): Int =
 private fun connectionState(check: FolderCheck?, busy: Boolean): Pair<StatusState, Int> = when {
     busy -> StatusState.Pending to R.string.connection_testing
     check is FolderCheck.Reachable -> StatusState.On to R.string.connection_ok
-    check is FolderCheck.Failed -> StatusState.Off to R.string.connection_failed
+    check is FolderCheck.Failed -> StatusState.Attention to R.string.connection_failed
     else -> StatusState.Off to R.string.connection_untested
 }
