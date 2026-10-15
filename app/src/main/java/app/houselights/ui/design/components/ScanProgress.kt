@@ -40,7 +40,7 @@ fun ScanProgress(
     val fraction = if (total > 0) processed.toFloat() / total else 0f
     val file: @Composable (Modifier) -> Unit = { m ->
         if (current != null) {
-            Text(current, style = Hl.type.detail, color = c.contentTertiary, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = m)
+            Text(current, style = Hl.type.caption, color = c.contentTertiary, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = m)
         }
     }
     Column(modifier.semantics(mergeDescendants = true) { progressBarRangeInfo = ProgressBarRangeInfo(fraction, 0f..1f) }) {

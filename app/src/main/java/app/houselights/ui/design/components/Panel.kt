@@ -265,7 +265,7 @@ fun HlStatus(state: StatusState, text: String, modifier: Modifier = Modifier, de
             Spacer(Modifier.height(HlSpace.xxs))
             Text(
                 detail,
-                style = Hl.type.detail,
+                style = Hl.type.caption,
                 color = c.contentSecondary,
                 modifier = Modifier.padding(start = HlSize.statusLight + HlSpace.xs),
             )
@@ -306,7 +306,7 @@ internal fun StatusLight(state: StatusState, modifier: Modifier = Modifier, ink:
  * a field. A screen never sets ember itself: it says attention through this, or [HlStatus].
  */
 @Composable
-fun AttentionNote(text: String, modifier: Modifier = Modifier, style: TextStyle = Hl.type.detail) {
+fun AttentionNote(text: String, modifier: Modifier = Modifier, style: TextStyle = Hl.type.caption) {
     Row(modifier) {
         // As tall as the first line, so the light sits beside it.
         val line = with(LocalDensity.current) { style.lineHeight.toDp() }

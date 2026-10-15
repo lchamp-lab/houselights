@@ -33,13 +33,16 @@ with discipline everywhere: one family, **Archivo**, whose widths are the voices
 
 | Voice | Width | What it says | Styles |
 |---|---|---|---|
-| The poster | condensed (70) | titles, names in the billing block, large figures, what a panel is about | `display`, `headline`, `figure`, `subject`, `billing`, `wordmark` |
-| Reading | normal (100) | overviews, descriptions, names in lists, values | `title`, `lead`, `body`, `entry`, `meta`, `caption`, `detail` |
-| Controls | wide (112) | the words of buttons and of the options of a track | `label` |
+| The poster | condensed (70) | titles, what a panel is about, large figures; the billing block | `display`, `headline`, `subject`, `cardTitle`; `billing` |
+| Reading | normal (100) | everything read or chosen: overviews, names in lists, the words of buttons, values | `title`, `lead`, `body`, `entry`, `meta`, `caption`, `group` |
 | Technical | expanded (125), tabular figures | formats and specifications: short, set apart | `spec`, `badge` |
+| The brand | expanded (125), weight 720 | the wordmark alone | `wordmark` |
 
-Each width declares only the weights its styles use, so the system never fakes a bold
-(`TypeScaleTest`). **One family is the rule; a second face is justified only by what the text is,
+Three voices, no more: a width between two of them reads as a mistake, not as a voice (the
+buttons once spoke in a fourth, wide, width; they read now as what they are, names you choose).
+**Three weights carry the scale, each with one meaning: Regular reads, SemiBold names, Bold
+announces** (the titles of the poster). Medium is the billing block's alone. Each width declares
+only the weights its styles use, so the system never fakes a bold (`TypeScaleTest`). **One family is the rule; a second face is justified only by what the text is,
 never to decorate:** raw text read as written, whose columns must line up, uses the system's
 monospaced face (`code`, the NFO). Scripts Archivo does not cover fall back to the system font.
 
@@ -83,7 +86,7 @@ materials, never two, and invent nothing. The catalogue shows the three side by 
   would show, from the top of that place, on the screen's margin: never centred, never a snackbar,
   a Toast or a dialog. `HlEmptyState` for a screen, `SheetConfirm` in a sheet.
 - **The counter (C): what moves on.** The ember line, the count at its end in tabular figures
-  ("3 / 9", one string, `scan_progress`), the file being read in a quiet `detail` line
+  ("3 / 9", one string, `scan_progress`), the file being read in a quiet `caption` line
   (`ScanProgress`). A duration reads "2 h 02", time left "Il reste 20 min"; a timecode only names a
   frame of the film, never a button.
 
@@ -196,33 +199,51 @@ words sit above and below it). A highlight smaller than a twentieth of the colum
 
 ### Type (`Type.kt`)
 
-Eight sizes with clear steps: **12 · 14 · 16 · 20 · 24 · 32 · 44 · 64 sp**, plus 80 for the wordmark on
-the welcome screen. Line heights sit on a 2 sp grid. Numbers use tabular figures (`tnum`) in every technical
-style and wherever a figure changes under the eye (`figure`, `meta`, `label`, `caption`, `detail`),
-so durations, sizes and counts line up and do not jitter. A text without a style is `body`
-(`HouselightsTheme` provides it, and maps tv-material's roles onto the scale): never tv-material's
-own face.
+Eight sizes with clear steps: **12 · 14 · 16 · 20 · 24 · 32 · 44 · 64 sp**. Line heights sit on a
+2 sp grid. **Fourteen roles**, one job each, are all a screen chooses from; two signatures, the
+billing block and the wordmark, are set to their own measure (18 and 52 sp) and only their
+components use them. Numbers use tabular figures (`tnum`) in every technical style and wherever a
+figure changes under the eye (`subject`, `meta`, `caption`), so durations, sizes and counts line up
+and do not jitter.
 
-| Style | Size / line | Role (one each) |
-|---|---|---|
-| `display` | 64 / 72 | title of a detail page without logo |
-| `headline` | 44 / 48 | screen titles, home hero title without logo |
-| `figure` | 32 / 36 | a figure that states something (storage used) |
-| `subject` | 32 / 36 | what a panel, a sheet or a settings pane is about ("Modifier", "Fiche technique", "Affichage"); the line of an intertitle |
-| `cardTitle` | 20 / 24 | a title set on a card without artwork, like a plain one-sheet |
-| `title` | 24 / 30 | taglines, an episode's name in its heading |
-| `lead` | 20 / 26 | row headers, names of cards and results, episode names |
-| `spec` | 20 / 26 | headline of a technical sheet |
-| `billing` / `billingJoin` | 18 and 14 / 24 | the billing block, capitals with case-sensitive forms |
-| `body` | 16 / 24 | overviews, descriptions |
-| `entry` | 16 / 20 | a name to read in a list: a setting, a menu option, a navigation entry, a title in a line |
-| `label` | 16 / 20 | the words of buttons and of the options of a track |
-| `meta` | 16 / 20 | facts and values: year, runtime, score, sizes; names under artwork |
-| `caption` | 14 / 20 | secondary lines: hints, roles, paths, group titles |
-| `detail` | 14 / 18 | the line under a name in a row, an entry or a choice; tighter than `caption`, so two lines read as one block |
-| `code` | 14 / 22 | raw text read as written (NFO XML), in the system's monospaced face |
-| `badge` | 12 / 16 | format and rating badges |
-| `wordmark` / `wordmarkHero` | 32 / 36 and 80 / 84 | the Houselights wordmark: the size of a subject in About, large over the welcome wall |
+- **Tracking follows size** (`trackingFor`), so no style sets its own: −0.01 em from 44 sp, none
+  from 16 to 32, +0.01 em at 14, +0.02 em at 12. Light text on a black room spreads on a
+  television: a small letter needs the air to stay apart, a large one has more than it needs.
+  The signatures keep theirs: the billing block's capitals +0.04 em (capitals always need air), its
+  small condensed words +0.02 em, the wordmark −0.016 em, as the banner sets it.
+- **A text's box keeps to its letters** (`LineHeightStyle` with `Trim.Both`): the room a line
+  height adds goes between lines only, never above the first or under the last. Spaces between
+  texts are measured from the type, as the spacing tokens are, and a capital sits in the middle of
+  a pill or a badge. It is Compose's default, written down so an update cannot move every text.
+- **Titles break into balanced lines** (`LineBreak.Heading`: the voice of the poster, `title`,
+  `lead`), so two lines of a title are about as long, never one word left over; **paragraphs break
+  for reading** (`LineBreak.Paragraph`: `body`, `caption`), the whole paragraph weighed. Nothing is
+  hyphenated. Single lines (`entry`, `meta`, the technical voice) break simply.
+- OpenType: `tnum` as above; `case` for the billing block's capitals, never with `tnum` (Archivo's
+  `case` comes after it and sets proportional figures again).
+
+A text without a style is `body` (`HouselightsTheme` provides it, and maps tv-material's roles onto
+the scale): never tv-material's own face. A screen never overrides a style's size, line height,
+family, weight or tracking (`DesignTokenGuardTest`): it picks another role, or the role is missing.
+
+| Style | Size / line | Voice, weight | Role (one each) |
+|---|---|---|---|
+| `display` | 64 / 72 | poster, Bold | title of a detail page without logo |
+| `headline` | 44 / 48 | poster, Bold | screen titles, home hero title without logo |
+| `subject` | 32 / 36 | poster, SemiBold | what a panel, a sheet or a settings pane is about ("Modifier", "Fiche technique", "Affichage"); the line of an intertitle; a figure that states something (storage used) |
+| `cardTitle` | 20 / 24 | poster, Bold | a title set on a card without artwork, like a plain one-sheet |
+| `title` | 24 / 30 | reading, SemiBold | taglines, an episode's name in its heading |
+| `lead` | 20 / 26 | reading, SemiBold | row headers, names of cards and results, episode names |
+| `body` | 16 / 24 | reading, Regular | overviews, descriptions |
+| `entry` | 16 / 20 | reading, SemiBold | a name to read or to choose: a setting, a menu option, a navigation entry, a title in a line, the words of a button and of the options of a track |
+| `meta` | 16 / 20 | reading, Regular | facts and values: year, runtime, score, sizes; names under artwork |
+| `caption` | 14 / 18 | reading, Regular | secondary lines: hints, roles, paths, labels of a value, the line under a name in a row, an entry or a choice; its lines close, so two read as one block under their name |
+| `group` | 14 / 18 | reading, SemiBold | the title over a group of facts, settings or options ("Vidéo", "État"): above its labels, not among them |
+| `code` | 14 / 22 | monospace, Regular | raw text read as written (NFO XML), in the system's monospaced face |
+| `spec` | 20 / 26 | technical, SemiBold | headline of a technical sheet |
+| `badge` | 12 / 16 | technical, SemiBold | format and rating badges |
+| `billing` / `billingJoin` | 18 and 14 / 24 | signature | the billing block: condensed capitals with case-sensitive forms, and its small words |
+| `wordmark` / `wordmarkHero` | 20 / 24 and 52 / 60 | signature | the Houselights wordmark: the size of a subject in About, large over the welcome wall |
 
 Archivo covers Latin (with Vietnamese); Greek, Cyrillic, Thai or Korean names fall back to the system
 font. No other font is shipped; line heights leave room for the fallback, and for Vietnamese: in
@@ -437,7 +458,7 @@ and keep their Back; while the lights go down, Back brings them up.
 
 A message goes where the action was, in the app's voice: no Toast (a test forbids it), no snackbar,
 no dialog. A title that does not play says so under the actions that asked for it: the attention
-light (`HlStatus`, `Attention`), "Lecture impossible", then the reason as a `detail` line; the next
+light (`HlStatus`, `Attention`), "Lecture impossible", then the reason as a `caption` line; the next
 action or the next screen takes it away. A screen that could not load says what happened in place
 of what it would show, as an intertitle (`HlEmptyState`, see *Gestures*), with what fixes it; so
 does a screen with nothing to show yet, with the verb that fills it. Raw exception text never

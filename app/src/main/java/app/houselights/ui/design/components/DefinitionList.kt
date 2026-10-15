@@ -66,7 +66,7 @@ fun InfoBlock(title: String, modifier: Modifier = Modifier, content: @Composable
     Column(modifier) {
         HlDivider()
         Spacer(Modifier.height(HlSpace.xs))
-        Text(title, style = Hl.type.caption, color = Hl.colors.contentSecondary)
+        Text(title, style = Hl.type.group, color = Hl.colors.contentSecondary)
         Spacer(Modifier.height(HlSpace.xs))
         content()
     }

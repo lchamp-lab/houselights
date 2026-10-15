@@ -149,8 +149,8 @@ object HlLayout {
     val hero = 200.dp
     /** The line naming the focused title above a poster wall (library). */
     val infoLine = 24.dp
-    /** Overview of the focused episode under the episode row: three lines of caption. */
-    val episodeOverview = 64.dp
+    /** Overview of the focused episode under the episode row: three lines of caption (3 × 18), on the grid. */
+    val episodeOverview = 56.dp
     /** Share of the screen the top of a detail page takes at least: the next row only peeks in. */
     const val DETAIL_HERO_SHARE = 0.9f
     /** Where an error sits on an otherwise empty detail page. */
@@ -175,7 +175,7 @@ object HlLayout {
     val iconLabel = 200.dp
     /**
      * Room a row of round buttons keeps under itself for the label of the one with focus: the gap
-     * ([HlSpace.xs]) and the label on its plate (one caption line, 20, and its padding, 2 × 4). The
+     * ([HlSpace.xs]) and the label on its plate (one caption line, 18, and its padding, 2 × 4), on the grid. The
      * label takes none of its own.
      */
     val iconLabelRoom = 36.dp

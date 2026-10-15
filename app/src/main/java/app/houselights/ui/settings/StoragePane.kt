@@ -54,7 +54,7 @@ private fun StorageSummary(st: StorageStats?) {
     val dash = stringResource(R.string.placeholder_none)
     Column(Modifier.widthIn(max = HlLayout.readable)) {
         Row(verticalAlignment = Alignment.Bottom) {
-            Text(st?.let { formatBytes(it.total) } ?: dash, style = Hl.type.figure, color = c.content)
+            Text(st?.let { formatBytes(it.total) } ?: dash, style = Hl.type.subject, color = c.content)
             Spacer(Modifier.width(HlSpace.s))
             Text(
                 stringResource(R.string.storage_used),
