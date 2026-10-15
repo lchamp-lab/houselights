@@ -200,12 +200,8 @@ private class SafeAreaFadeNode : Modifier.Node(), LayoutModifierNode, GlobalPosi
         val origin = root.localPositionOf(coordinates, Offset.Zero)
         val density = requireDensity()
         shown = safeAreaAlpha(
-            left = origin.x,
-            top = origin.y,
-            right = origin.x + coordinates.size.width,
-            bottom = origin.y + coordinates.size.height,
-            screenWidth = root.size.width.toFloat(),
-            screenHeight = root.size.height.toFloat(),
+            Rect(origin, coordinates.size.toSize()),
+            root.size.toSize(),
             marginH = with(density) { HlSpace.safeH.toPx() },
             marginV = with(density) { HlSpace.safeV.toPx() },
         )
@@ -213,24 +209,15 @@ private class SafeAreaFadeNode : Modifier.Node(), LayoutModifierNode, GlobalPosi
 }
 
 /**
- * How much of a text placed at [left], [top], [right], [bottom] on a screen [screenWidth] by
- * [screenHeight] shows: all of it inside the safe area, none where it reaches the screen's edge,
- * in between across the margin, by the side that comes closest.
+ * How much of a text at [bounds] on a [screen] shows: all of it inside the safe area ([marginH] at
+ * the sides, [marginV] at the top and the bottom), none where it reaches the screen's edge, in
+ * between across the margin, by the side that comes closest.
  */
-internal fun safeAreaAlpha(
-    left: Float,
-    top: Float,
-    right: Float,
-    bottom: Float,
-    screenWidth: Float,
-    screenHeight: Float,
-    marginH: Float,
-    marginV: Float,
-): Float = minOf(
-    marginShare(left, marginH),
-    marginShare(screenWidth - right, marginH),
-    marginShare(top, marginV),
-    marginShare(screenHeight - bottom, marginV),
+internal fun safeAreaAlpha(bounds: Rect, screen: Size, marginH: Float, marginV: Float): Float = minOf(
+    marginShare(bounds.left, marginH),
+    marginShare(screen.width - bounds.right, marginH),
+    marginShare(bounds.top, marginV),
+    marginShare(screen.height - bounds.bottom, marginV),
 )
 
 /** How far into its margin a side stands, from 0 at the screen's edge to 1 at the safe area. */

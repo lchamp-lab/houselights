@@ -219,7 +219,9 @@ fun DetailScreen(
                         // A track with one option is no choice: a single season names the episode row instead.
                         val single = state.seasons.singleOrNull()
                         if (single == null) {
-                            item(key = "seasons") { Box(Modifier.scrollsAsBlock()) { Seasons(state.seasons, state.selectedSeasonId, vm::selectSeason) } }
+                            item(key = "seasons") {
+                                Box(Modifier.scrollsAsBlock()) { Seasons(state.seasons, state.selectedSeasonId, vm::selectSeason) }
+                            }
                         }
                         item(key = "episodes-${state.selectedSeasonId}") {
                             Episodes(

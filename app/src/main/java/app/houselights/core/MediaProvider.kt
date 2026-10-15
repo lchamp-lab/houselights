@@ -47,6 +47,9 @@ sealed interface PlaybackPlan {
 }
 
 private const val PLAYER_BACKDROP_PX = 1920
+
+/** Posters a library's summary brings: about what a row shows at once, to light the room. */
+private const val SUMMARY_POSTERS = 7
 private const val PLAYER_LOGO_PX = 500
 
 /** Playback of this item: while it starts, the player shows the title with its backdrop and logo. */
@@ -85,6 +88,20 @@ interface MediaProvider {
 
     /** Genres, decades and qualities present in [library], to build the filter menu. */
     suspend fun libraryFacets(library: Library): LibraryFacets = LibraryFacets()
+
+    /**
+     * What [library] holds, for home: its count, its latest posters and, for films, how many are
+     * in Ultra HD. Two light pages of the library by default; a source may do it in one query.
+     */
+    suspend fun librarySummary(library: Library): LibrarySummary {
+        val latest = libraryPage(library, SortOption.ADDED, LibraryFilter(), 0, SUMMARY_POSTERS)
+        val uhd = if (library.kind == LibraryKind.MOVIES) {
+            libraryPage(library, SortOption.ADDED, LibraryFilter(quality = Quality.UHD_4K), 0, 1).total
+        } else {
+            null
+        }
+        return LibrarySummary(latest.total, latest.items.mapNotNull { it.poster ?: it.backdrop }, uhd)
+    }
     suspend fun item(id: String): MediaItem
     suspend fun seasons(series: MediaItem): List<MediaItem>
     suspend fun episodes(series: MediaItem, season: MediaItem): List<MediaItem>

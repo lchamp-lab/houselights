@@ -1,5 +1,12 @@
 package app.houselights.ui.home
 
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.tween
+import androidx.compose.ui.res.pluralStringResource
+import app.houselights.core.LibrarySummary
+import app.houselights.core.SectionType
+import app.houselights.core.LibraryKind
+import app.houselights.ui.design.components.PlaceHeading
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -104,6 +111,9 @@ fun HomeScreen(
     val settings by app.settings.state.collectAsStateWithLifecycle()
 
     var focused by remember { mutableStateOf<MediaItem?>(null) }
+    // The tab under focus, while focus is on the track: home names the place it leads to.
+    var tab by remember { mutableStateOf<Int?>(null) }
+    val place = placeOnTabs(tab, state.libraries, state.summaries)
     // The backdrop only changes once focus settles: no image load on every scroll step.
     var shown by remember { mutableStateOf<MediaItem?>(null) }
     LaunchedEffect(focused) {
@@ -140,7 +150,9 @@ fun HomeScreen(
             // colours of the row the viewer was browsing.
             val row = memory.last?.let { sectionIndex(state.sections, it) }?.let(state.sections::getOrNull) ?: first
             val rowPosters = remember(row) { row?.items.orEmpty().take(ROW_TONES).mapNotNull { it.poster ?: it.backdrop } }
-            CollectionLight(rowPosters, lit = shown == null)
+            // A library's tab under focus: the room takes the colours of that library's latest posters.
+            val lightPosters = (place as? Place.Shelf)?.summary?.posters?.takeIf { it.isNotEmpty() } ?: rowPosters
+            CollectionLight(lightPosters, lit = shown == null)
             Column(Modifier.fillMaxSize().houseLit(LocalHouseLights.current)) {
                 TopBar(
                     libraries = state.libraries,
@@ -153,6 +165,7 @@ fun HomeScreen(
                         onOpenLibrary(library)
                     },
                     onSettings = onOpenSettings,
+                    onFocusTab = { tab = it },
                 )
                 // A folder read for the first time: the counter stays above the rows, which fill in
                 // under it as titles are found.
@@ -175,8 +188,13 @@ fun HomeScreen(
                         )
                     }
                 } else {
-                    // Its height holds the text at the viewer's size, and stays the same whatever has focus.
-                    HeroInfo(shown, Modifier.padding(start = HlSpace.safeH, top = HlSpace.xs).height(textRoom(HlLayout.hero)))
+                    // Its height holds the text at the viewer's size, and stays the same whatever has focus:
+                    // the title under focus, or, focus on the tabs, the place a tab leads to.
+                    val heroSlot = Modifier.padding(start = HlSpace.safeH, top = HlSpace.xs).height(textRoom(HlLayout.hero))
+                    Crossfade(place, label = "place", animationSpec = tween(HlMotion.STANDARD)) { shownPlace ->
+                        if (shownPlace != null) PlaceHeading(placeName(shownPlace), placeFacts(shownPlace, state), heroSlot)
+                        else HeroInfo(shown, heroSlot)
+                    }
                     Spacer(Modifier.height(HlSpace.s))
                     if (firstScan) FirstScan(scan, Modifier.padding(start = HlSpace.safeH, bottom = HlSpace.m))
                     when {
@@ -209,6 +227,7 @@ private fun TopBar(
     returnTo: Int?,
     onLibrary: (Library) -> Unit,
     onSettings: () -> Unit,
+    onFocusTab: (Int?) -> Unit,
 ) {
     // Where you are among the libraries, in one track; settings apart, as an action. Both sit on
     // the image, on their plates. A long track scrolls: the button always keeps its place.
@@ -238,6 +257,7 @@ private fun TopBar(
             scrollable = true,
             onArtwork = true,
             enterAt = returnTo ?: current,
+            onFocusChange = onFocusTab,
         )
         HlIconButton(
             HlIcons.Settings,
@@ -292,6 +312,42 @@ private fun Sections(
             }
         }
     } }
+}
+
+/** Where a tab of home leads, named while it has focus: home itself, or a library and what it holds. */
+internal sealed interface Place {
+    data object Home : Place
+    data class Shelf(val library: Library, val summary: LibrarySummary?) : Place
+}
+
+/** The place [tab] leads to: the first tab is home, the others the [libraries] in order; null off the track. */
+internal fun placeOnTabs(tab: Int?, libraries: List<Library>, summaries: Map<String, LibrarySummary>): Place? = when {
+    tab == null -> null
+    tab == 0 -> Place.Home
+    else -> libraries.getOrNull(tab - 1)?.let { Place.Shelf(it, summaries[it.id]) }
+}
+
+@Composable
+private fun placeName(place: Place): String = when (place) {
+    Place.Home -> stringResource(R.string.nav_home)
+    is Place.Shelf -> place.library.title ?: libraryName(place.library.kind)
+}
+
+/** What a place holds: home, the titles started; a library, its count and its films in Ultra HD. */
+@Composable
+private fun placeFacts(place: Place, state: HomeState): List<String?> = when (place) {
+    Place.Home -> {
+        val started = state.sections.filter { it.type == SectionType.CONTINUE }.sumOf { it.items.size }
+        listOf(started.takeIf { it > 0 }?.let { pluralStringResource(R.plurals.home_in_progress, it, it) })
+    }
+    is Place.Shelf -> {
+        val summary = place.summary
+        val count = summary?.total?.let { total ->
+            val plural = if (place.library.kind == LibraryKind.COLLECTIONS) R.plurals.collection_count else R.plurals.title_count
+            pluralStringResource(plural, total, total)
+        }
+        listOf(count, summary?.uhd?.takeIf { it > 0 }?.let { pluralStringResource(R.plurals.uhd_count, it, it) })
+    }
 }
 
 /** A row of home, whatever its position: its kind and its library. */
