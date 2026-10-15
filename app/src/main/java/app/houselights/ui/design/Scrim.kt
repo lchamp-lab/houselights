@@ -65,6 +65,13 @@ object HlScrim {
     const val GLOW_SATURATION_MAX = 0.85f
     const val GLOW_GREY = 0.12f
 
+    /** Which tones of a picture may give its glow: not the near-black, not the near-white. */
+    const val GLOW_LIGHTNESS_MIN = 0.12f
+    const val GLOW_LIGHTNESS_MAX = 0.92f
+
+    /** How much a tone counts by its area alone, before its saturation adds to it. */
+    const val GLOW_AREA_WEIGHT = 0.35f
+
     /**
      * The glow is drawn, not cast: a shadow can only darken, and on the black room it does not show.
      * It is [GLOW_STEPS] rounded rings out to `HlFocus.glow`, each at [GLOW_LAYER] of the tone and

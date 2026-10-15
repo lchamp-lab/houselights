@@ -128,9 +128,16 @@ fun rememberGlowColor(url: String?, active: Boolean): State<Color> {
     return animateColorAsState(target, tween(HlMotion.STANDARD, easing = HlMotion.standard), label = "glow")
 }
 
+/**
+ * The colour a picture is mostly made of, not its most vivid detail: a red title on a teal poster
+ * glows teal. Each tone counts by the area it covers, a little more when it is saturated, so a
+ * large grey sky does not always win; near-black and near-white do not count.
+ */
 private fun glowOf(palette: Palette): Color? {
-    val swatch = palette.vibrantSwatch ?: palette.lightVibrantSwatch ?: palette.darkVibrantSwatch
-        ?: palette.mutedSwatch ?: palette.dominantSwatch ?: return null
+    val swatch = palette.swatches
+        .filter { it.hsl[2] in HlScrim.GLOW_LIGHTNESS_MIN..HlScrim.GLOW_LIGHTNESS_MAX }
+        .maxByOrNull { it.population * (HlScrim.GLOW_AREA_WEIGHT + it.hsl[1]) }
+        ?: palette.dominantSwatch ?: return null
     val hsv = FloatArray(3)
     android.graphics.Color.colorToHSV(swatch.rgb, hsv)
     // A colour glows vivid; a grey picture glows white rather than in a hue it does not have.

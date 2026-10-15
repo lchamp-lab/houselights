@@ -338,8 +338,9 @@ screen succeeds: Back from it finds everything as it was. The source changes in 
 
 Focus must read from the couch:
 
-- **Artwork** grows, gets a 2 dp projector-white outline and glows with its own light: the most
-  vivid tone of its picture (`rememberGlowColor`), drawn as rings around it, since a cast shadow
+- **Artwork** grows, gets a 2 dp projector-white outline and glows with its own light: the tone
+  its picture is mostly made of, by area and a little by saturation (`rememberGlowColor`; a red
+  title on a teal poster glows teal), drawn as rings around it, since a cast shadow
   cannot light the black room. The tone is read once per picture and kept, so focus coming back
   finds the same light at once. Artwork without its own picture glows with the room's light. Its
   neighbours in the same row or grid step back: darker and with less colour (`SIBLING_DIM`,
