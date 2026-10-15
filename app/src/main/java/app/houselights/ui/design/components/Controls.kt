@@ -311,7 +311,7 @@ fun HlIconButton(
     ) { measurables, constraints ->
         val button = measurables[0].measure(constraints)
         val text = measurables[1].measure(Constraints(maxWidth = HlLayout.iconLabel.roundToPx()))
-        val gap = HlSpace.xxs.roundToPx()
+        val gap = HlSpace.xs.roundToPx()
         val safe = HlSpace.safeH.roundToPx()
         layout(button.width, button.height) {
             button.place(0, 0)

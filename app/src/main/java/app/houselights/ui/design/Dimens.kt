@@ -173,10 +173,10 @@ object HlLayout {
     val iconLabel = 160.dp
     /**
      * Room a row of round buttons keeps under itself for the label of the one with focus: the gap
-     * ([HlSpace.xxs]) and the label on its plate (one caption line, 20, and its padding, 2 × 4). The
+     * ([HlSpace.xs]) and the label on its plate (one caption line, 20, and its padding, 2 × 4). The
      * label takes none of its own.
      */
-    val iconLabelRoom = 32.dp
+    val iconLabelRoom = 36.dp
     /** Dropdown menus (sort, filters); their height is the room the screen leaves them. */
     val menuWidth = 320.dp
     /** Columns of the technical sheet's track tables. */
