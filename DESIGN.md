@@ -56,10 +56,12 @@ The technical voice speaks the vocabulary of a Blu-ray case: formats by their na
   with NAME, NAME and NAME": names in condensed capitals, small words and commas receding. On one line:
   it keeps as many leading names as fit, and never breaks inside a name.
 
-**The wordmark** is type and nothing else: "Houselights" in the condensed SemiBold, in the ember
-light across its letters (`emberLight`), with no halo, glow or shadow; the light in the room comes
-from the films. It is the one use of ember that is not a state. It appears twice: large on the welcome screen, where the drifting wall
-of posters is the bold element, and at the size of a subject in About. The settings do not sign
+**The wordmark** is type and nothing else: "houselights" in lowercase, Archivo expanded (width 125)
+at weight 720, its letters a little closer (`HlFonts.brand`), as the banner sets it on the screen of
+La Salle; in the ember light across its letters (`emberLight`), with no halo, glow or shadow; the
+light in the room comes from the films. It is the one use of ember that is not a state. It appears
+twice: large on the welcome screen (52 sp), where the drifting wall of posters is the bold element,
+and at the size of a subject in About (20 sp), each as wide as the condensed name it replaced. The settings do not sign
 their column with it.
 
 ## Gestures: the small surfaces
@@ -474,32 +476,25 @@ reaches the screen: it goes to the log.
   output and where ("Réglages du lecteur > Affichage"), shows no mode and no rate, and offers no
   choice that would do nothing; "4K 60 Hz" is offered only where the system lists it (`DisplayModes`).
 
-## Brand (proposal, not chosen yet)
+## Brand: La Salle
 
-The launcher icon and the TV banner are the app's first frame, before the room. Those shipped
-today (a lamp and its beam in a gradient; a wordmark under a halo, in pixels) are being redrawn.
-Four directions wait in the catalogue (**Brand**), each as an adaptive icon foreground
-(`brand_icon_<name>_foreground`) and a banner (`brand_banner_<name>`); the manifest keeps the old
-pair until one is chosen. Every direction holds to the same rules:
+The launcher icon and the TV banner are the app's first frame, before the room. **La Salle**: an H
+made of the two walls of a room in perspective, their panels going down from bright orange to
+raspberry, the ember light, as they near the white screen between them. The banner opens the same
+room to the width of a screen and sets the name on it, in the wordmark's type, projector white.
 
-- **The room.** The ground is `@color/room`, pure black. No gradient, no glow, no beam, no halo.
-- **Ember** is the wordmark's, or the one thing lit; nothing else is coloured.
-- **The type is the app's.** The outlines come from `archivo.ttf` at the app's widths (condensed 70:
-  the wordmark's SemiBold, a title's Bold), set with the font's kerning and converted to paths once.
-- **Sizes.** The icon's art stays inside the 66 dp safe circle of its 108 dp layer, so no launcher's
-  mask cuts it. The banner is 160 × 90 dp, Android TV's banner (320 × 180 px at xhdpi), drawn on a
-  320 × 180 grid, and the name reads at that size.
+- **The room.** The icon's ground is `@color/room`, pure black (the adaptive icon's background);
+  the banner's ceiling and floor are neutrals of the palette. No glow, no beam, no halo.
+- **Ember** in three flat steps, `EmberStart`, the middle of the light and `EmberEnd`: a gradient
+  drawn as panels, so it holds at 48 dp and in one colour.
+- **The type is the app's.** The name's outlines come from `archivo.ttf` at the wordmark's width
+  and weight, converted to paths once.
+- **Sizes.** The walls run to the edges of the icon's 108 dp layer, so every launcher's mask cuts
+  them the same way; the screen stays inside the 66 dp safe circle. The banner is drawn on a
+  320 × 180 grid, Android TV's banner, as a vector (`banner.xml`), sharp at any density.
 
-| Direction | Icon | Banner |
-|---|---|---|
-| Monogram (`monogram`) | an H set like a film's title, condensed Bold | the H as a large initial, the wordmark on its baseline |
-| Wordmark (`wordmark`) | the name on two lines, like a title on a poster | the name at the foot of a dark room |
-| Your seat (`seat`) | the room from above: the screen lit, the house dark, one seat in ember, yours ("your choice") | the name in the screen's place, in projector white |
-| Three steps (`steps`) | the house lights going down in three steps; the house rising in tiers | the sign a capital high, then the name |
-
-Once one is chosen, it becomes `ic_launcher_foreground` (with a `<monochrome>` version) and
-`banner.xml`; `banner.png`, its lint exception and the other candidates go, and this section says
-what the brand is.
+Both are vectors: `ic_launcher_foreground` (also its `<monochrome>` layer) and `banner.xml`. The
+catalogue (**Brand**) shows them as a launcher draws them, on black, grey and light grounds.
 
 ## Guard
 

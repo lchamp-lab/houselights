@@ -102,7 +102,7 @@ private fun StressHeroSection() {
         Column(verticalArrangement = Arrangement.spacedBy(HlSpace.xl)) {
             Column {
                 StressHero()
-                StressCaption("Two-line title without logo, badges, progress and overview, in the hero's frame (on surface)")
+                StressCaption("Two-line title without logo, badges, progress and overview, in the hero's frame (on a fill)")
             }
             Column {
                 val density = LocalDensity.current
@@ -151,7 +151,7 @@ private fun StressFactsSection() {
         Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.l), verticalAlignment = Alignment.Top) {
             Column(Modifier.width(HlLayout.sideColumn)) {
                 FactRow(STRESS_FACTS, Modifier.fillMaxWidth().background(Hl.colors.content.copy(alpha = HlAlpha.FILL)))
-                StressCaption("In sideColumn, on surface to show its edge: the last facts go whole")
+                StressCaption("In sideColumn, on a fill to show its edge: the last facts go whole")
             }
             Column {
                 FactRow(STRESS_FACTS)

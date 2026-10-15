@@ -89,8 +89,6 @@ android {
         abortOnError = true
         checkReleaseBuilds = true
         baseline = file("lint-baseline.xml")
-        // The TV banner is drawn at xhdpi, the one density Android TV launchers ask for.
-        disable += "IconMissingDensityFolder"
     }
 }
 

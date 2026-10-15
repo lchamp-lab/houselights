@@ -37,14 +37,15 @@ fun ScreenTitle(text: String, modifier: Modifier = Modifier) {
 }
 
 /**
- * "Houselights", set in type and nothing else: condensed, in the ember light across its letters.
- * No halo or shadow: the light in the room comes from the films. [style] is its size: `wordmark` by default (About),
+ * "houselights", set in type and nothing else: lowercase, Archivo expanded and heavy, as the banner
+ * sets it on the screen of La Salle, in the ember light across its letters. No halo or shadow: the
+ * light in the room comes from the films. [style] is its size: `wordmark` by default (About),
  * `wordmarkHero` over the welcome wall.
  */
 @Composable
 fun Wordmark(modifier: Modifier = Modifier, style: TextStyle = Hl.type.wordmark) {
     Text(
-        stringResource(R.string.app_name),
+        stringResource(R.string.wordmark),
         // The brush in the style wins over any colour the text would take.
         style = style.copy(brush = Hl.colors.emberLight()),
         maxLines = 1,
