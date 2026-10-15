@@ -400,7 +400,8 @@ rest, sparingly:
   a title (a frame too small for the rule keeps its edge alone). Never a lighter box: the frame,
   its edge and its rule say a picture belongs there.
 - **An episode** reads as a number in tabular figures, its name, then its length and where it stands.
-- **A person** has a name two lines tall, even a short one, so the roles of a cast row line up.
+- **A person**'s name starts right under the portrait, its role right under it: the names of a
+  cast row start level, a long one takes a second line.
 - **Stepping back**, the image loses colour through its own filter (`ArtworkImage`): no layer is drawn
   per card. The colour goes in three steps (`RECEDE_STEPS`), so an image recomposes three times at
   most while the darkening, drawn, stays continuous. Entering a row moves every card of it at once:
