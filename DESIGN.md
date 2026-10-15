@@ -282,6 +282,31 @@ that grows with the text.
 | `rememberListScroll`, `ListScroll`, `RowScroll` | `Scroll.kt` | lists scroll only as much as needed (`EdgeScroll`), never against the edge of the screen: a list keeps focus `HlFocus.edge` from its top and bottom, so the last row stops inside the safe area; a list that starts under a header or a hero (`ListScroll(top)`) brings its rows back to where its first one rests; rows keep focus 80 dp from the sides, so the first card always scrolls home |
 | `scrollEdges(state, color)` | `Scroll.kt` | what scrolls fades into its surface over `HlSpace.fadeEdge`, at the top and the bottom, on a side only while there is more that way: a line cut at the edge reads as more to come. A gradient of the surface's own colour over the content, no layer, so only on an opaque surface: the room in `HlTwoPane`, the raised sheet of `HlSideSheet` and of menus, the panel or the sheet of `HlScrollArea`. Never on rows of posters, whose ends stay open |
 | `revealOnFocus()`, `keepVerticalFocus()` | `Scroll.kt` | a group comes fully into view when focus enters it; up and down never leave a column |
+| `scrollsAsBlock()`, `ListScroll(top, toTop = true)` | `Scroll.kt` | a block (a row with its header, a hero, an episode row with its overview) scrolls as one: whichever card asks to be seen, the list brings the whole block; with `toTop`, a page of blocks brings each one that has to move to its top keyline, so the page turns by whole blocks |
+| `fadeOutsideSafeArea()` | `Scroll.kt` | a line of text fades out across the safe area's margin, gone at the screen's edge, by where it sits on the screen as rows and pages scroll: a layer's alpha, no offscreen buffer, no recomposition. In components only (row headers, captions, cast names and roles, the overview of an episode, a hero's text and actions) |
+
+## Layout: bands, blocks, the edge of the screen
+
+The screen is a TV's, seen from three metres, through an overscan that may crop its margins.
+
+- **No word is cut by the screen.** A picture may pass the safe area and invite the eye on (the
+  next card, the next row); a word may not: what would reach the edge fades out across the margin
+  first (`fadeOutsideSafeArea`). A line cut at the edge of the screen reads as a defect; one cut
+  at the edge of an opaque surface fades into it (`scrollEdges`).
+- **Pages turn by whole blocks.** A row moves with its header, a hero with its actions
+  (`scrollsAsBlock`); on a detail page and on home a block that has to move comes to the top
+  keyline, and the gap between blocks (`HlLayout.detailGap`, 32, wider than the keyline) takes
+  the one above off the screen. The first view of a detail page is its hero less the first
+  row's header and a strip of its images (`HlLayout.detailHeroMin`): only pictures show below.
+- **Home is three bands**, left-aligned on `safeH`: the bar (the track and the settings button,
+  on their plates), a gap of `HlSpace.l`, the hero's band (`HlLayout.hero`, 168: a logo, one line
+  of facts, two lines of overview or the progress), a gap of `HlSpace.l`, the rows. A focused
+  poster of the first row and the captions of a first row of stills end inside the safe area
+  (`HomeLayoutTest`).
+- **Three vertical gaps**: `HlSpace.s` within a block, `HlSpace.l` between the bands of home,
+  `HlSpace.xl` between the blocks of a page that scrolls.
+- **Measures of reading**: a paragraph beside artwork `readableNarrow` (520), a caption
+  `captionMeasure` (400, about 66 characters at 14 sp), the reading column `readable` (640).
 
 ## Components
 
@@ -554,7 +579,8 @@ show when it fails. `SpacingGridTest` keeps `HlSpace` and
 `HlInset` on the 4 dp grid; `TypeScaleTest` keeps the type scale honest, `ContrastTest` the contrasts,
 `ScrimTest` the floor of the veils, `ResourceTokensTest` the resources in step with the tokens,
 `StringsTest` the French typography of the resources, `CatalogCoverageTest` the catalogue complete,
-`FocusStyleGuardTest` focus in one place, `GroundTest` the grounds, `LayoutTokensTest` the grid.
+`FocusStyleGuardTest` focus in one place, `GroundTest` the grounds, `LayoutTokensTest` the grid,
+`DesignDocTest` this document: every name of the system it cites is still declared in the code.
 Deliberate exceptions go in the guard's `allowed` list, with the reason; a value needed twice belongs
 in the design system instead.
 
