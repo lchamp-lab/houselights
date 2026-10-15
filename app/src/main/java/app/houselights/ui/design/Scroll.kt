@@ -34,22 +34,42 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.unit.Dp
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.findRootCoordinates
+import androidx.compose.ui.layout.Measurable
+import androidx.compose.ui.layout.MeasureResult
+import androidx.compose.ui.layout.MeasureScope
+import androidx.compose.ui.node.GlobalPositionAwareModifierNode
+import androidx.compose.ui.node.LayoutModifierNode
+import androidx.compose.ui.node.ModifierNodeElement
+import androidx.compose.ui.node.requireDensity
+import androidx.compose.ui.platform.InspectorInfo
+import androidx.compose.ui.unit.Constraints
 import kotlinx.coroutines.launch
 
 /**
  * Scrolls only by what is needed to bring an element into the window [leading, containerSize −
  * trailing] (px): never to a third of the screen as the TV default does, which scrolls titles and
  * heroes away for no reason. An element longer than the window aligns its start with the window's.
+ * With [toTop], an element that has to move comes to the start of the window instead of its end:
+ * the page turns by whole blocks, and the one above leaves whole rather than as a sliver of text.
+ * An element already inside the window never moves.
  */
 @OptIn(ExperimentalFoundationApi::class)
-class EdgeScroll(private val leading: Float, private val trailing: Float) : BringIntoViewSpec {
+class EdgeScroll(
+    private val leading: Float,
+    private val trailing: Float,
+    private val toTop: Boolean = false,
+) : BringIntoViewSpec {
     override fun calculateScrollDistance(offset: Float, size: Float, containerSize: Float): Float {
         val start = leading
         val end = containerSize - trailing
         val itemEnd = offset + size
         return when {
             offset >= start && itemEnd <= end -> 0f
-            offset < start || size > end - start -> offset - start
+            toTop || offset < start || size > end - start -> offset - start
             else -> itemEnd - end
         }
     }
@@ -62,20 +82,23 @@ class EdgeScroll(private val leading: Float, private val trailing: Float) : Brin
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun rememberListScroll(top: Dp = HlFocus.edge): BringIntoViewSpec {
+fun rememberListScroll(top: Dp = HlFocus.edge, toTop: Boolean = false): BringIntoViewSpec {
     val density = LocalDensity.current
-    return remember(density, top) { with(density) { EdgeScroll(top.toPx(), HlFocus.edge.toPx()) } }
+    return remember(density, top, toTop) { with(density) { EdgeScroll(top.toPx(), HlFocus.edge.toPx(), toTop) } }
 }
 
 /**
  * For a list that starts below the top of the screen, under a hero or a header, already inside
  * the safe area: its rows come back to [top], where its first row rests (its top padding), and
- * the row above leaves the list whole instead of lingering as a sliver.
+ * the row above leaves the list whole instead of lingering as a sliver. With [toTop], a page of
+ * blocks (a detail page: its hero, then its rows): every block that has to move comes to [top],
+ * so the page shows whole blocks; with a gap between them at least [top] wide, the one above has
+ * left the screen entirely.
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun ListScroll(top: Dp, content: @Composable () -> Unit) {
-    CompositionLocalProvider(LocalBringIntoViewSpec provides rememberListScroll(top), content = content)
+fun ListScroll(top: Dp, toTop: Boolean = false, content: @Composable () -> Unit) {
+    CompositionLocalProvider(LocalBringIntoViewSpec provides rememberListScroll(top, toTop), content = content)
 }
 
 /**
@@ -125,6 +148,81 @@ fun Modifier.scrollEdges(state: ScrollableState, color: Color): Modifier = compo
         }
     }
 }
+
+/**
+ * Words never meet the edge of the screen: what this modifier holds (a line of text) is opaque
+ * inside the safe area and fades out across its margin ([HlSpace.safeH] at the sides,
+ * [HlSpace.safeV] at the top and the bottom), gone where it would touch the edge. Pictures may
+ * peek past the safe area and invite the eye on; a word cut by the screen reads as a defect, and
+ * the margin is where an overscanning TV crops. Read from where the text sits on the screen as
+ * rows and pages scroll: a layer's alpha, set while placing, with no offscreen buffer and no
+ * recomposition. For text only, inside components: a row's header, a card's caption.
+ */
+fun Modifier.fadeOutsideSafeArea(): Modifier = this then FadeOutsideSafeArea
+
+private data object FadeOutsideSafeArea : ModifierNodeElement<SafeAreaFadeNode>() {
+    override fun create() = SafeAreaFadeNode()
+    override fun update(node: SafeAreaFadeNode) = Unit
+    override fun InspectorInfo.inspectableProperties() {
+        name = "fadeOutsideSafeArea"
+    }
+}
+
+private class SafeAreaFadeNode : Modifier.Node(), LayoutModifierNode, GlobalPositionAwareModifierNode {
+    private var shown by mutableFloatStateOf(1f)
+
+    override fun MeasureScope.measure(measurable: Measurable, constraints: Constraints): MeasureResult {
+        val placeable = measurable.measure(constraints)
+        return layout(placeable.width, placeable.height) {
+            placeable.placeWithLayer(0, 0) {
+                alpha = shown
+                compositingStrategy = CompositingStrategy.ModulateAlpha
+            }
+        }
+    }
+
+    override fun onGloballyPositioned(coordinates: LayoutCoordinates) {
+        val root = coordinates.findRootCoordinates()
+        // Where the text really is, cut or not: bounds in the root unclipped by the lists it scrolls in.
+        val origin = root.localPositionOf(coordinates, Offset.Zero)
+        val density = requireDensity()
+        shown = safeAreaAlpha(
+            left = origin.x,
+            top = origin.y,
+            right = origin.x + coordinates.size.width,
+            bottom = origin.y + coordinates.size.height,
+            screenWidth = root.size.width.toFloat(),
+            screenHeight = root.size.height.toFloat(),
+            marginH = with(density) { HlSpace.safeH.toPx() },
+            marginV = with(density) { HlSpace.safeV.toPx() },
+        )
+    }
+}
+
+/**
+ * How much of a text placed at [left], [top], [right], [bottom] on a screen [screenWidth] by
+ * [screenHeight] shows: all of it inside the safe area, none where it reaches the screen's edge,
+ * in between across the margin, by the side that comes closest.
+ */
+internal fun safeAreaAlpha(
+    left: Float,
+    top: Float,
+    right: Float,
+    bottom: Float,
+    screenWidth: Float,
+    screenHeight: Float,
+    marginH: Float,
+    marginV: Float,
+): Float = minOf(
+    marginShare(left, marginH),
+    marginShare(screenWidth - right, marginH),
+    marginShare(top, marginV),
+    marginShare(screenHeight - bottom, marginV),
+)
+
+/** How far into its margin a side stands, from 0 at the screen's edge to 1 at the safe area. */
+private fun marginShare(distance: Float, margin: Float): Float =
+    if (margin <= 0f) 1f else (distance / margin).coerceIn(0f, 1f)
 
 /**
  * Keeps vertical navigation inside this column: up or down at its edges does nothing instead
