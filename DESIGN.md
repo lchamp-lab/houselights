@@ -129,7 +129,7 @@ ground opaque (`groundFill`). Then focus, in projector white.
 `HlAlpha` names every opacity, in three families. Fills, `content` over its ground: `FILL_FAINT`
 (6 %: wells, tracks, rows at rest, the disabled), `FILL` (9 %: secondary controls at rest, things on
 the room), `FILL_STRONG` (20 %: primary controls at rest, a progress line's track off the artwork,
-a lit disc in ember), `FILL_FOCUS` (30 %: focus on a track option that is not current). Veils,
+a lit disc in ember, the current option of a track). Veils,
 `background` over a picture or the room: `VEIL_SIDE` (60 %: beside a side sheet), `VEIL` (80 %:
 behind a dialog, and the plate under whatever sits on artwork). Edges: `EDGE` (`outline` at 60 %:
 every container's edge and divider) and `EDGE_ARTWORK` (`content` at 12 %: around a picture). The
@@ -144,7 +144,7 @@ the one invitation. The wordmark is the one exception. What is done or simply tr
 white: a title watched, a file read, a match the app found (`StatusState.Done`). Never colour alone:
 every ember state comes with a second sign, a shape, a mark or a word; attention has its own mark,
 the circled exclamation, never the dot of a state that is on. It never marks focus (projector
-white), where you are (white, like the current option of a track), a fact (a score is grey) or a
+white), where you are (the current option of a track, a step of fill under white words), a fact (a score is grey) or a
 series of data (a meter's parts are white and grey). A screen never names it: it says the state and
 the component lights it (`HlStatus`, `AttentionNote`, `lit`, `valueLit`, `detailLit`); the guard
 holds screens to it.
@@ -173,7 +173,8 @@ What sits on an image takes a dark plate instead (`VEIL`, matte, never blurred),
 longer depends on the picture: a card's marks and progress line, and the controls that pass
 `onArtwork` (the home bar's track and settings button). The plate is black at 80 %: over a white
 image the raspberry end of a progress line still reaches 3.5:1. On it the options of a track at
-rest are `content`, as everything that reads on artwork. Focus does not change.
+rest keep their inks (the current one in `content` on its pill, the others in `contentSecondary`,
+5:1 on the plate over a white image). Focus does not change.
 
 ### Veils (`Scrim.kt`)
 
@@ -296,11 +297,11 @@ without the prefix (`MenuOption`, `MeterLegend`, `PosterCard`, `BillingBlock`, `
 | `TitleLine` | the line naming the title under focus over a wall: its name, facts and formats on one line of fixed height. Short of room, the formats go first, from the last, then the name ends in an ellipsis |
 | `Badge`, `BadgeRow`, `FactRow`, `Score` | what a case would print: formats, age ratings, protocols, never a state; wrapping, or on one line (`oneLine`) where the last ones go; facts on one line, spaced, never punctuated; a score, the line star and its figure, quiet: a fact, it never lights |
 | `HlButton` (`Primary`, `Secondary`), `HlIconButton` | pill and round actions, all 48 dp tall; the icon button shows its label under it when focused. The label takes no room (a row with something below keeps `HlLayout.iconLabelRoom` for it), always sits on a dark plate, a pill padded 12 × 4 (`HlControl.labelPadding*`) 8 below the button, so it reads over any picture; it is centred under the button, even at the edge of the safe area; only where it would come closer than 24 to the side of the screen (`HlLayout.iconLabelEdge`) does it align with the button's edge, hides while a sheet is open, and is not read out: the icon carries the name. A toggle names what OK does ("Marquer comme vu", "Retirer des favoris") and shows where things stand with its icon: ember at rest when `lit` for your choice (a favourite's heart fills), its shape alone for what is done (watched: the check filled in a disc, `HlIcons.CheckFilled`, in white). Over an image (`onArtwork`) the button rests on a plate. A pill's label stops at `readableNarrow` and its detail at one line, with an ellipsis; `detailLit` lights the detail of a state (an active filter) instead of borrowing the primary emphasis. Not `enabled`, a control keeps focus, outlined, and ignores OK. `busy`, a pill is at work: the quiet dot of a pending state where its icon was, the words the screen gives (`busyLabel`: "Connexion…", "Vérification…"), its width kept, OK ignored, read out as in progress; nothing spins |
-| `HlSegmented` | the one way to show where you are or what is chosen among a few: home navigation, seasons (`scrollable`), NFO views, form choices. In a track, **white means current**: one white pill sits under the current option and slides to the option chosen (`STANDARD`, emphasized). The option under focus but not chosen is a grey pill; focus on the current option draws a ring around the pill, travelling with it. Focus entering a track, from any side, lands on the current option, never on the nearest one; to accessibility services the options are tabs, the current one selected. A long track scrolls as one piece, pill included. Over an image (`onArtwork`), the track is a plate and its options are white. There is no standalone tab |
+| `HlSegmented` | the one way to show where you are or what is chosen among a few: home navigation, seasons (`scrollable`), NFO views, form choices. **Focus is white, as on every control**: the option under focus is the white pill, black words, grown by `CONTROL_SCALE`. Where you are is quieter and says it twice: the current option sits on the track's one pill of `FILL_STRONG`, which slides to the option chosen (`STANDARD`, emphasized), and its words are projector white while the others are grey. The pill against its well is only a step (≈ 1.7:1): the words and the `selected` semantics carry the state, the pill confirms it. Focus entering a track, from any side, lands on the current option, never on the nearest one; to accessibility services the options are tabs, the current one selected. A long track scrolls as one piece, pill included. Over an image (`onArtwork`), the track is a plate. `onFocusChange` tells a screen which option has focus (home names the library under focus). There is no standalone tab |
 | `HlPanel` (`Quiet`, `Raised`, `lit`), `HlPanelButton` | the one panel recipe, and its focusable form (not `enabled`: a faint well, what it draws in `LocalContentColor` goes tertiary) |
 | `HlIconDisc`, `HlDivider`, `HlStatus`, `AttentionNote`, `HlMeter`, `MeterLegend` | an icon in a disc (lit when what it stands for is on, never for focus), a hairline, a state with its light (`StatusLight`: an ember dot when on, a white one when done, a quiet one pending, an empty ring off, the circled exclamation in ember for attention) and why, under it; what needs attention beside what it concerns (a folder that could not be read, a failed attempt in a `StatusPanel`), the mark by its first line and the words in ember, as under a field; a segmented gauge, its parts inked by rank (`MeterInk`: white, then the two greys of reading), a gap apart, never ember |
 | `HlListItem`, `HlResultItem`, `PosterThumb` | choices in a list (icon in line with the name, white with focus, what the choice brings in badges under a hairline, a chevron on focus); a search result with its poster, the one in use edged in ember and saying so with a light ("Actuel"), which says "Association…" in its place while it is being chosen: the results stay, and so does focus |
-| `HlNavItem`, `HlSettingGroup`, `HlSettingRow` | settings: navigation entries with what they are set to, the current one on a faint fill, white as the current option of a track; rows with their value, leading somewhere or stating it; a row not `enabled` stays on the room (see *Contrast*) A pane is titled in the voice of the poster, like a sheet; what a pane only states (an output, a server, a status) is a block flush with that title, not a row (see *Gestures*) |
+| `HlNavItem`, `HlSettingGroup`, `HlSettingRow` | settings: navigation entries with what they are set to, the current one on a faint fill, its words white, as the current option of a track; rows with their value, leading somewhere or stating it; a row not `enabled` stays on the room (see *Contrast*) A pane is titled in the voice of the poster, like a sheet; what a pane only states (an output, a server, a status) is a block flush with that title, not a row (see *Gestures*) |
 | `HlSideSheet`, `SheetScope`, `RowPreview`, `SheetConfirm` | acting on what a screen shows, beside it: a panel against the right edge (see *Sheets*), where it stands in its header (`status`); rows can lead with a preview of the image they change; an action that cannot be undone asks first, in the sheet |
 | `HlChoiceSheet` | the choices of a setting, in a side sheet: the current one checked in ember and focused, choosing applies and closes, Back changes nothing |
 | `HlMenuButton`, `MenuSection`, `MenuOption` | a button opening a sectioned menu anchored to its end edge (sort, filters): below it when the room down to the safe area holds the menu, else above; never past the safe area, a longer menu scrolls inside, its options fading at an edge with more. It moves like a sheet, growing from the button's corner and leaving the same way; a sort applies once the menu has gone, so the wall reorders on its own. The button names what it does and its detail what is set: "Trier", "Titre"; the options say the order ("Titre, de A à Z") |
@@ -399,9 +400,10 @@ Focus must read from the couch:
 - **Controls, rows and navigation** turn projector white with black content. Pills and discs grow a
   little (`CONTROL_SCALE`, 1.04); rows as wide as their column (setting rows, navigation entries,
   menu options) do not grow at all (`ROW_SCALE`, 1): the white fill says it.
-- **Track options** are the exception: white is the current option, so focus on another option is
-  a grey pill, and focus on the current one a ring around it. Focus coming into a track lands on
-  the current option (`focusProperties.enter`), so the white and the focus meet where you are.
+- **Track options** follow the rule: the option under focus is the white pill. The current one is
+  never white unless it has focus: a quiet pill under white words. Nothing on a screen is ever
+  brighter than focus. Focus coming into a track lands on the current option
+  (`focusProperties.enter`), so the focus and where you are meet.
 - **Panels** that can be chosen (folder cards, list items, results) are raised, outlined in
   projector white and grow by 1.02 (`PANEL_SCALE`).
 - **Areas to read** (`HlScrollArea`) are outlined in projector white; an unframed one draws its ring
