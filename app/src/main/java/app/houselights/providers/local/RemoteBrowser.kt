@@ -16,9 +16,11 @@ interface RemoteBrowser {
     /** Number of entries at the source root; throws with a readable message on failure. */
     suspend fun test(source: SourceEntity): Int
 
-    /** The first [length] bytes of a file (fewer if the file is shorter). */
     /** The first [length] bytes of a file, or all of it when shorter: pass a length close to what is needed. */
-    suspend fun readPrefix(source: SourceEntity, relativePath: String, length: Int): ByteArray
+    suspend fun readPrefix(source: SourceEntity, relativePath: String, length: Int): ByteArray = readAt(source, relativePath, 0, length)
+
+    /** [length] bytes of a file from [offset], fewer past its end: what a file keeps at its end (its tags). */
+    suspend fun readAt(source: SourceEntity, relativePath: String, offset: Long, length: Int): ByteArray
 
     companion object {
         const val MAX_DEPTH = 6

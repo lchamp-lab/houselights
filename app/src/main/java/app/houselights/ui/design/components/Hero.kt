@@ -63,7 +63,7 @@ fun HeroInfo(item: MediaItem?, modifier: Modifier = Modifier) {
             if (episode) {
                 EpisodeHeading(shown.episodeLabel, shown.title, style = Hl.type.entry)
             } else {
-                MetaLine(shown, showGenres = false, formats = shown.badges)
+                MetaLine(shown, showGenres = false)
             }
             Spacer(Modifier.height(HlSpace.s))
             if (shown.progress > 0f) {

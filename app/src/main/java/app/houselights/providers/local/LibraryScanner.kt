@@ -260,9 +260,12 @@ class LibraryScanner(
     /** The show's name and year as its folder gives them, through one of its episodes. */
     suspend fun showQuery(series: ItemEntity): ParsedMovie = shows.showQuery(series)
 
-    /** A file is processed when new, not described yet, to refresh, or when its NFO or artwork changed. */
+    /**
+     * A file is processed when new, not described yet or by an older probe, to refresh, or when its
+     * NFO or artwork changed.
+     */
     private fun needsWork(item: ItemEntity?, local: VideoSidecars, hasTmdb: Boolean, refreshMetadata: Boolean): Boolean =
-        item == null || item.mediaInfo == null || refreshMetadata ||
+        item == null || MediaProbe.isStale(item.mediaInfo) || refreshMetadata ||
             (hasTmdb && item.matchedAt == null) ||
             // An NFO or artwork placed next to the file, or removed, since the last scan.
             item.nfoPath != local.nfo?.relativePath ||

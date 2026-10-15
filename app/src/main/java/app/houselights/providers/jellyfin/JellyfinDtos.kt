@@ -121,6 +121,10 @@ data class MediaStream(
     @SerialName("IsForced") val isForced: Boolean = false,
     @SerialName("IsHearingImpaired") val isHearingImpaired: Boolean = false,
     @SerialName("DvProfile") val dvProfile: Int? = null,
+    @SerialName("RealFrameRate") val realFrameRate: Float? = null,
+    @SerialName("BitRate") val bitRate: Int? = null,
+    @SerialName("DvBlSignalCompatibilityId") val dvCompatibility: Int? = null,
+    @SerialName("AverageFrameRate") val averageFrameRate: Float? = null,
 )
 
 @Serializable

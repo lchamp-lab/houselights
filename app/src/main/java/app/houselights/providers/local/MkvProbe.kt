@@ -9,12 +9,25 @@ import app.houselights.core.VideoInfo
 
 /**
  * Reads the track list of a Matroska (MKV, WebM) file from its first bytes: codecs, frame
- * size, HDR and Dolby Vision signalling, audio channels, languages and subtitles.
- * Only the headers are parsed; nothing is decoded.
+ * size and rate, HDR and Dolby Vision signalling, audio channels, languages and subtitles. Then
+ * what the headers do not say, from the first frames of each track ([Bitstreams]): Atmos, the
+ * layers of DTS, HDR10+; a track's name stands in only when none of its frames was read. Nothing
+ * is decoded.
  */
 object MkvProbe {
     sealed interface Result {
-        data class Found(val info: MediaInfo) : Result
+        /**
+         * The file's tracks. [tagsAt]: where its tags lie (with mkvmerge, at its end), for
+         * [bitrates]; [videoUid], [audioUids]: the tracks' UIDs, which the tags name them by;
+         * [framesRead]: whether every track whose frames tell more had some in the bytes read.
+         */
+        data class Found(
+            val info: MediaInfo,
+            val tagsAt: Long? = null,
+            val videoUid: Long? = null,
+            val audioUids: List<Long?> = emptyList(),
+            val framesRead: Boolean = true,
+        ) : Result
         /** Tracks start beyond the bytes read: read up to [offset] + some, and try again. */
         data class NeedMore(val offset: Long) : Result
         data object NotMatroska : Result
@@ -32,7 +45,19 @@ object MkvProbe {
     private const val DURATION = 0x4489L
     private const val TRACKS = 0x1654AE6BL
     private const val CLUSTER = 0x1F43B675L
+    private const val SIMPLE_BLOCK = 0xA3L
+    private const val BLOCK_GROUP = 0xA0L
+    private const val BLOCK = 0xA1L
+    private const val TAGS = 0x1254C367L
+    private const val TAG = 0x7373L
+    private const val TARGETS = 0x63C0L
+    private const val TAG_TRACK_UID = 0x63C5L
+    private const val SIMPLE_TAG = 0x67C8L
+    private const val TAG_NAME = 0x45A3L
+    private const val TAG_STRING = 0x4487L
     private const val TRACK_ENTRY = 0xAEL
+    private const val TRACK_NUMBER = 0xD7L
+    private const val TRACK_UID = 0x73C5L
     private const val TRACK_TYPE = 0x83L
     private const val FLAG_DEFAULT = 0x88L
     private const val FLAG_FORCED = 0x55AAL
@@ -42,6 +67,8 @@ object MkvProbe {
     private const val LANGUAGE_BCP47 = 0x22B59DL
     private const val CODEC_ID = 0x86L
     private const val CODEC_PRIVATE = 0x63A2L
+    private const val DEFAULT_DURATION = 0x23E383L
+    private const val NANOS_PER_SECOND = 1e9f
     private const val VIDEO = 0xE0L
     private const val PIXEL_WIDTH = 0xB0L
     private const val PIXEL_HEIGHT = 0xBAL
@@ -64,16 +91,27 @@ object MkvProbe {
         r.readSize() // Usually "unknown": read children until the data runs out.
         val segmentStart = r.pos
 
-        var tracksOffset: Long? = null
+        var seek = emptyMap<Long, Long>()
         var timestampScale = 1_000_000L
         var durationTicks: Double? = null
-        var tracks: Tracks? = null
+        var entries: List<Entry>? = null
+        val frames = mutableMapOf<Int, MutableList<IntRange>>()
 
         while (r.remaining > 0) {
             val start = r.pos
             val id = runCatching { r.readId() }.getOrNull() ?: break
-            val size = runCatching { r.readSize() }.getOrNull() ?: break
-            if (id == CLUSTER) break
+            val read = runCatching { r.readSize() }
+            if (read.isFailure) break
+            val size = read.getOrNull()
+            if (id == CLUSTER) {
+                // The first frames of each track, as far as what was read goes.
+                val tracks = entries ?: break
+                val end = size?.let { (r.pos + it).coerceAtMost(bytes.size.toLong()).toInt() } ?: bytes.size
+                collectFrames(Reader(bytes, r.pos, end), tracks, frames)
+                if (size == null || r.pos + size > bytes.size || tracks.all { it.hasFrames(frames, enough = true) }) break
+                r.pos = (r.pos + size).toInt()
+                continue
+            }
             val end = r.pos + (size ?: break)
             if (end > bytes.size) {
                 // Element cut by the end of what was read: worth reading more only for Tracks.
@@ -81,38 +119,87 @@ object MkvProbe {
                 break
             }
             when (id) {
-                SEEK_HEAD -> tracksOffset = seekTracks(Reader(bytes, r.pos, end.toInt()))?.let { segmentStart + it }
+                SEEK_HEAD -> seek = seekPositions(Reader(bytes, r.pos, end.toInt())).mapValues { segmentStart + it.value }
                 INFO -> Reader(bytes, r.pos, end.toInt()).children { cid, c ->
                     when (cid) {
                         TIMESTAMP_SCALE -> timestampScale = c.uint()
                         DURATION -> durationTicks = c.float()
                     }
                 }
-                TRACKS -> tracks = parseTracks(Reader(bytes, r.pos, end.toInt()))
+                TRACKS -> entries = parseTracks(Reader(bytes, r.pos, end.toInt()))
             }
             r.pos = end.toInt()
         }
 
-        val t = tracks
-        if (t == null) {
-            return tracksOffset?.takeIf { it >= bytes.size }?.let { Result.NeedMore(it) } ?: Result.NotMatroska
-        }
+        val tracks = entries ?: return seek[TRACKS]?.takeIf { it >= bytes.size }?.let { Result.NeedMore(it) } ?: Result.NotMatroska
+        return found(bytes, tracks, frames, seek[TAGS], durationTicks?.let { (it * timestampScale / 1_000_000).toLong() })
+    }
+
+    /** The file's tracks, each as its frames say it when some were read. */
+    private fun found(
+        bytes: ByteArray,
+        tracks: List<Entry>,
+        frames: Map<Int, List<IntRange>>,
+        tagsAt: Long?,
+        durationMs: Long?,
+    ): Result.Found {
+        val video = tracks.firstOrNull { it.type == TYPE_VIDEO }
+        val audio = tracks.filter { it.type == TYPE_AUDIO }
         return Result.Found(
             MediaInfo(
                 container = "MKV",
-                durationMs = durationTicks?.let { (it * timestampScale / 1_000_000).toLong() },
-                video = t.video,
-                audio = t.audio,
-                subtitles = t.subtitles,
-            )
+                durationMs = durationMs,
+                video = video?.toVideo(bytes, frames[video.number].orEmpty()),
+                audio = audio.map { it.toAudio(bytes, frames[it.number].orEmpty()) },
+                subtitles = tracks.filter { it.type == TYPE_SUBTITLE }.map { it.toSubtitle() },
+            ),
+            tagsAt = tagsAt,
+            videoUid = video?.uid,
+            audioUids = audio.map { it.uid },
+            framesRead = (listOfNotNull(video) + audio).all { it.hasFrames(frames, enough = false) },
         )
     }
 
-    private class Tracks(val video: VideoInfo?, val audio: List<AudioTrack>, val subtitles: List<SubtitleTrack>)
+    /**
+     * The bitrate mkvmerge measured for each track (its statistics tags: BPS, in bits a second),
+     * by track UID, from a Tags element at the start of [bytes]. Empty when there is none.
+     */
+    fun bitrates(bytes: ByteArray): Map<Long, Long> {
+        val r = Reader(bytes)
+        if (r.remaining < 4 || runCatching { r.readId() }.getOrNull() != TAGS) return emptyMap()
+        val size = runCatching { r.readSize() }.getOrNull() ?: return emptyMap()
+        val tags = Reader(bytes, r.pos, (r.pos + size).coerceAtMost(bytes.size.toLong()).toInt())
+        val found = mutableMapOf<Long, Long>()
+        tags.children { id, tag ->
+            if (id != TAG) return@children
+            var uid: Long? = null
+            var bps: Long? = null
+            tag.children { tid, t ->
+                when (tid) {
+                    TARGETS -> t.children { gid, g -> if (gid == TAG_TRACK_UID) uid = g.uint() }
+                    SIMPLE_TAG -> {
+                        var name: String? = null
+                        var value: String? = null
+                        t.children { sid, v ->
+                            when (sid) {
+                                TAG_NAME -> name = v.string()
+                                TAG_STRING -> value = v.string()
+                            }
+                        }
+                        if (name == "BPS") bps = value?.trim()?.toLongOrNull()
+                    }
+                }
+            }
+            val track = uid
+            val rate = bps
+            if (track != null && rate != null) found[track] = rate
+        }
+        return found
+    }
 
-    /** Position of Tracks relative to the segment data, from the SeekHead. */
-    private fun seekTracks(r: Reader): Long? {
-        var found: Long? = null
+    /** Positions relative to the segment data, by element ID, from the SeekHead. */
+    private fun seekPositions(r: Reader): Map<Long, Long> {
+        val found = mutableMapOf<Long, Long>()
         r.children { id, seek ->
             if (id != SEEK) return@children
             var target = 0L
@@ -123,21 +210,40 @@ object MkvProbe {
                     SEEK_POSITION -> position = c.uint()
                 }
             }
-            if (target == TRACKS) found = position
+            position?.let { found[target] = it }
         }
         return found
     }
 
-    private fun parseTracks(r: Reader): Tracks {
-        var video: VideoInfo? = null
-        val audio = mutableListOf<AudioTrack>()
-        val subtitles = mutableListOf<SubtitleTrack>()
+    /** The first frames of the tracks that tell more by them, from a cluster's blocks. */
+    private fun collectFrames(cluster: Reader, tracks: List<Entry>, frames: MutableMap<Int, MutableList<IntRange>>) {
+        val wanted = tracks.filter { it.framesWanted > 0 }.associateBy { it.number }
+        fun block(b: Reader) {
+            val number = runCatching { b.readSize() }.getOrNull()?.toInt() ?: return
+            val track = wanted[number] ?: return
+            val list = frames.getOrPut(number) { mutableListOf() }
+            if (list.size >= track.framesWanted || b.remaining < BLOCK_HEADER) return
+            val lacing = (b.bytes[b.pos + 2].toInt() shr 1) and LACING_BITS
+            list += Bitstreams.laced(b.bytes, b.pos + BLOCK_HEADER, b.end, lacing).take(track.framesWanted - list.size)
+        }
+        cluster.children { id, child ->
+            when (id) {
+                SIMPLE_BLOCK -> block(child)
+                BLOCK_GROUP -> child.children { gid, g -> if (gid == BLOCK) block(g) }
+            }
+        }
+    }
+
+    private fun parseTracks(r: Reader): List<Entry> {
+        val entries = mutableListOf<Entry>()
         r.children { id, entry ->
             if (id != TRACK_ENTRY) return@children
             val e = Entry()
             entry.children { cid, c ->
                 when (cid) {
                     TRACK_TYPE -> e.type = c.uint().toInt()
+                    TRACK_NUMBER -> e.number = c.uint().toInt()
+                    TRACK_UID -> e.uid = c.uint()
                     FLAG_DEFAULT -> e.default = c.uint() == 1L
                     FLAG_FORCED -> e.forced = c.uint() == 1L
                     FLAG_HEARING_IMPAIRED -> e.hearingImpaired = c.uint() == 1L
@@ -146,6 +252,7 @@ object MkvProbe {
                     LANGUAGE_BCP47 -> e.language = c.string()
                     CODEC_ID -> e.codecId = c.string()
                     CODEC_PRIVATE -> e.codecPrivate = c.bytes()
+                    DEFAULT_DURATION -> e.frameNanos = c.uint()
                     VIDEO -> c.children { vid, v ->
                         when (vid) {
                             PIXEL_WIDTH -> e.width = v.uint().toInt()
@@ -178,17 +285,27 @@ object MkvProbe {
                     }
                 }
             }
-            when (e.type) {
-                1 -> if (video == null) video = e.toVideo()
-                2 -> audio += e.toAudio()
-                17 -> subtitles += e.toSubtitle()
-            }
+            entries += e
         }
-        return Tracks(video, audio, subtitles)
+        return entries
     }
+
+    private const val TYPE_VIDEO = 1
+    private const val TYPE_AUDIO = 2
+    private const val TYPE_SUBTITLE = 17
+
+    /** A Block's track number is followed by its timestamp (2 bytes) and its flags (1). */
+    private const val BLOCK_HEADER = 3
+    private const val LACING_BITS = 3
+
+    /** How many frames a track's format is read from: TrueHD's major sync may come a few frames in. */
+    private const val FRAMES_TRUEHD = 16
+    private const val FRAMES_OTHER = 4
 
     private class Entry {
         var type = 0
+        var number = 0
+        var uid: Long? = null
         var default = true // Matroska default for FlagDefault.
         var forced = false
         var hearingImpaired = false
@@ -204,22 +321,36 @@ object MkvProbe {
         var dolbyVision = false
         var dvProfile: Int? = null
         var dvCompatibility: Int? = null
+        /** How long one frame lasts, in nanoseconds: 41708333 for 23.976 frames a second. */
+        var frameNanos: Long? = null
 
         private val nameLower get() = name?.lowercase() ?: ""
 
-        fun toVideo(): VideoInfo {
+        /** How many of its first frames tell this track's format; none for a format its header says whole. */
+        val framesWanted: Int
+            get() = when {
+                type == TYPE_VIDEO && codecId == HEVC_ID -> FRAMES_OTHER
+                type != TYPE_AUDIO -> 0
+                codecId == TRUEHD_ID -> FRAMES_TRUEHD
+                codecId == EAC3_ID || codecId == AC3_ID || codecId == DTS_ID -> FRAMES_OTHER
+                else -> 0
+            }
+
+        /** Whether this track has frames to be read from: any ([enough] false), or all it wants. */
+        fun hasFrames(frames: Map<Int, List<IntRange>>, enough: Boolean): Boolean {
+            if (framesWanted == 0) return true
+            val count = frames[number]?.size ?: 0
+            return if (enough) count >= framesWanted else count > 0
+        }
+
+        fun toVideo(bytes: ByteArray, frames: List<IntRange>): VideoInfo {
+            // What the stream signals: HDR10+ dynamic metadata, an HDR10 mastering display.
+            val stream = if (codecId == HEVC_ID && frames.isNotEmpty()) Bitstreams.hevcRanges(bytes, frames, nalLengthSize()) else null
             val hdr = buildList {
                 if (dolbyVision) add(HdrFormat.DOLBY_VISION)
-                if (nameLower.contains("hdr10+")) add(HdrFormat.HDR10_PLUS)
-                when (transfer) {
-                    16 -> add(HdrFormat.HDR10) // SMPTE ST 2084 (PQ)
-                    18 -> add(HdrFormat.HLG)
-                }
-                // Many files only signal the HDR10 or HLG base layer through Dolby Vision.
-                when {
-                    dvProfile == 7 || dvCompatibility == 1 || dvCompatibility == 6 -> add(HdrFormat.HDR10)
-                    dvCompatibility == 4 -> add(HdrFormat.HLG)
-                }
+                if (stream?.contains(HdrFormat.HDR10_PLUS) ?: nameLower.contains("hdr10+")) add(HdrFormat.HDR10_PLUS)
+                addAll(baseRanges())
+                if (stream?.contains(HdrFormat.HDR10) == true && transfer != HLG_TRANSFER) add(HdrFormat.HDR10)
             }.distinct()
             return VideoInfo(
                 codec = videoCodec(codecId),
@@ -228,8 +359,27 @@ object MkvProbe {
                 bitDepth = bitsPerChannel?.takeIf { it > 0 } ?: bitDepthFromPrivate(),
                 hdr = hdr,
                 dolbyVisionProfile = dvProfile,
+                frameRate = frameNanos?.takeIf { it > 0 }?.let { NANOS_PER_SECOND / it },
+                dolbyVisionCompatibility = dvCompatibility.takeIf { dolbyVision },
             )
         }
+
+        /** The range the headers say: the transfer of the colour, or the base layer under Dolby Vision. */
+        private fun baseRanges(): List<HdrFormat> = buildList {
+            when (transfer) {
+                16 -> add(HdrFormat.HDR10) // SMPTE ST 2084 (PQ)
+                18 -> add(HdrFormat.HLG)
+            }
+            // Many files only signal the HDR10 or HLG base layer through Dolby Vision.
+            when {
+                dvProfile == 7 || dvCompatibility == 1 || dvCompatibility == 6 -> add(HdrFormat.HDR10)
+                dvCompatibility == 4 -> add(HdrFormat.HLG)
+            }
+        }
+
+        /** HEVC: hvcC byte 21 holds lengthSizeMinusOne, the size of the length before each NAL unit. */
+        private fun nalLengthSize(): Int = codecPrivate?.takeIf { it.size > HVCC_LENGTH_SIZE_AT }
+            ?.let { (it[HVCC_LENGTH_SIZE_AT].toInt() and NAL_LENGTH_SIZE_BITS) + 1 } ?: DEFAULT_NAL_LENGTH_SIZE
 
         /** HEVC: hvcC byte 17 holds bitDepthLumaMinus8. AVC: High 10 profile is 110. */
         private fun bitDepthFromPrivate(): Int? {
@@ -241,23 +391,37 @@ object MkvProbe {
             }
         }
 
-        fun toAudio(): AudioTrack {
+        /**
+         * The track as its frames say it: Atmos in TrueHD or Dolby Digital Plus, the layers of DTS.
+         * Its name stands in only when none of its frames was read.
+         */
+        fun toAudio(bytes: ByteArray, frames: List<IntRange>): AudioTrack {
             val n = nameLower
-            val codec = when {
-                codecId == "A_DTS" && (n.contains("hd ma") || n.contains("hd-ma") || n.contains("dts-hd") || MA.containsMatchIn(n)) ->
-                    Codecs.DTS_HD_MA
-                codecId == "A_DTS" && (n.contains("hra") || n.contains("hd hr")) -> Codecs.DTS_HD_HRA
-                else -> audioCodec(codecId)
-            }
+            val dts = if (codecId == DTS_ID) frames.firstNotNullOfOrNull { Bitstreams.dts(bytes, it.first, it.last + 1) } else null
             return AudioTrack(
-                codec = codec,
+                codec = dts?.let(::dtsCodec) ?: codecByName(n),
                 channels = channels,
                 language = language?.takeIf { it != "und" },
                 title = name,
-                atmos = n.contains("atmos"),
-                dtsX = codecId == "A_DTS" && DTS_X.containsMatchIn(n),
+                atmos = streamAtmos(bytes, frames) ?: n.contains("atmos"),
+                dtsX = if (dts != null) dts == Bitstreams.Dts.X else codecId == DTS_ID && DTS_X.containsMatchIn(n),
                 default = default,
             )
+        }
+
+        /** Atmos as the frames say it, in TrueHD or Dolby Digital Plus; null when none was read. */
+        private fun streamAtmos(bytes: ByteArray, frames: List<IntRange>): Boolean? = when (codecId) {
+            TRUEHD_ID -> frames.mapNotNull { Bitstreams.trueHdAtmos(bytes, it.first, it.last + 1) }
+            EAC3_ID, AC3_ID -> frames.mapNotNull { Bitstreams.dolbyAtmos(bytes, it.first, it.last + 1) }
+            else -> emptyList()
+        }.takeIf { it.isNotEmpty() }?.any { it }
+
+        /** The codec when no frame told it: the layers of DTS-HD, by the track's name. */
+        private fun codecByName(n: String): String = when {
+            codecId == DTS_ID && (n.contains("hd ma") || n.contains("hd-ma") || n.contains("dts-hd") || MA.containsMatchIn(n)) ->
+                Codecs.DTS_HD_MA
+            codecId == DTS_ID && (n.contains("hra") || n.contains("hd hr")) -> Codecs.DTS_HD_HRA
+            else -> audioCodec(codecId)
         }
 
         fun toSubtitle(): SubtitleTrack {
@@ -273,9 +437,26 @@ object MkvProbe {
         }
     }
 
+    private const val HEVC_ID = "V_MPEGH/ISO/HEVC"
+    private const val TRUEHD_ID = "A_TRUEHD"
+    private const val EAC3_ID = "A_EAC3"
+    private const val AC3_ID = "A_AC3"
+    private const val DTS_ID = "A_DTS"
+    private const val HLG_TRANSFER = 18
+    private const val HVCC_LENGTH_SIZE_AT = 21
+    private const val NAL_LENGTH_SIZE_BITS = 0x03
+    private const val DEFAULT_NAL_LENGTH_SIZE = 4
+
     private val MA = Regex("""\bma\b""")
     private val DTS_X = Regex("""dts[:\- ]?x\b""")
     private val SDH = Regex("""\bsdh\b""")
+
+    private fun dtsCodec(dts: Bitstreams.Dts) = when (dts) {
+        Bitstreams.Dts.X, Bitstreams.Dts.MASTER_AUDIO -> Codecs.DTS_HD_MA
+        Bitstreams.Dts.HIGH_RESOLUTION -> Codecs.DTS_HD_HRA
+        Bitstreams.Dts.EXPRESS -> Codecs.DTS_EXPRESS
+        Bitstreams.Dts.CORE -> Codecs.DTS
+    }
 
     private fun videoCodec(id: String) = when {
         id == "V_MPEGH/ISO/HEVC" -> Codecs.HEVC

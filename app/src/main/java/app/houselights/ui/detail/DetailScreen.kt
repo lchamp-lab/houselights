@@ -75,7 +75,7 @@ import app.houselights.ui.design.focusKey
 import app.houselights.ui.design.rememberFocusMemory
 import app.houselights.ui.design.components.Backdrop
 import app.houselights.ui.design.components.BackdropStyle
-import app.houselights.ui.design.components.FormatLine
+import app.houselights.ui.design.components.FormatLines
 import app.houselights.ui.design.components.BillingBlock
 import app.houselights.ui.design.components.EpisodeHeading
 import app.houselights.ui.design.components.Emphasis
@@ -338,9 +338,10 @@ private fun Hero(
                 Spacer(Modifier.height(HlSpace.xs))
             }
             MetaLine(item)
-            if (item.badges.isNotEmpty()) {
+            // The picture, then the sound, as the back of a case lists them.
+            if (item.badges.isNotEmpty() || item.media?.video != null || item.media?.audio?.isNotEmpty() == true) {
                 Spacer(Modifier.height(HlSpace.s))
-                FormatLine(item.badges)
+                FormatLines(item)
             }
             // The tagline introduces the overview, quieter than the title above it.
             item.tagline?.let {

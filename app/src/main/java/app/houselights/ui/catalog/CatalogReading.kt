@@ -32,7 +32,7 @@ import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.components.Badge
-import app.houselights.ui.design.components.FormatLine
+import app.houselights.ui.design.components.FormatLines
 import app.houselights.ui.design.components.BillingBlock
 import app.houselights.ui.design.components.DefinitionList
 import app.houselights.ui.design.components.EpisodeHeading
@@ -163,38 +163,38 @@ private fun ReadingMetaLineSection() {
 private fun ReadingTitleLineSection() {
     // As wide as the library gives it: the screen inside the safe area.
     Group("Title line", still = true) {
-        ReadingCase("short name, its facts and four formats") { TitleLine(READING_LINE_SHORT, Modifier.height(HlLayout.infoLine)) }
-        ReadingCase("long name: the formats go first, from the last") {
+        ReadingCase("short name and its facts; formats are the page’s") {
+            TitleLine(READING_LINE_SHORT, Modifier.height(HlLayout.infoLine))
+        }
+        ReadingCase("long name: it takes what the facts leave") {
             TitleLine(READING_LINE_SHORT.copy(title = READING_LINE_LONG), Modifier.height(HlLayout.infoLine))
         }
         ReadingCase("longer still: the name ends in an ellipsis, the facts stay") {
             TitleLine(READING_LINE_SHORT.copy(title = "$READING_LINE_LONG, $READING_LINE_LONG"), Modifier.height(HlLayout.infoLine))
         }
-        ReadingCase("no facts, no formats") { TitleLine(sample("Sans titre", 0).copy(year = null, runtimeMs = null)) }
+        ReadingCase("no facts") { TitleLine(sample("Sans titre", 0).copy(year = null, runtimeMs = null)) }
     }
 }
 
 @Composable
 private fun ReadingBadgeRowSection() {
-    Group("Formats: words, no frames; a mark keeps its frame", still = true) {
+    Group("Formats: words on a page, no frames; a mark keeps its frame", still = true) {
         ReadingRow {
-            ReadingCase("a film’s formats: Dolby Vision says its HDR10", Modifier.width(HlLayout.readableNarrow)) {
-                FormatLine(listOf("4K", "Dolby Vision", "HDR10", "TrueHD Atmos", "7.1"))
+            ReadingCase("from the file: codec and rate, the sound by its full name", Modifier.width(HlLayout.readableNarrow)) {
+                FormatLines(READING_TECH_FULL)
             }
-            ReadingCase("a name’s TrueHD and Atmos, read as one", Modifier.width(HlLayout.sideColumn)) {
-                FormatLine(listOf("4K", "Dolby Vision", "HDR", "Atmos", "TrueHD"))
+            ReadingCase("a lean file", Modifier.width(HlLayout.sideColumn)) { FormatLines(READING_TECH_LEAN) }
+        }
+        ReadingRow {
+            ReadingCase("from badges: Dolby Vision says its HDR10; TrueHD, Atmos: one", Modifier.width(HlLayout.readableNarrow)) {
+                FormatLines(sample("Le Samouraï", 1967).copy(badges = listOf("4K", "Dolby Vision", "HDR10", "Atmos", "TrueHD", "7.1")))
+            }
+            ReadingCase("Dolby Digital Plus for E-AC3; a remux is not a format", Modifier.width(HlLayout.sideColumn)) {
+                FormatLines(sample("Playtime", 1967).copy(badges = listOf("1080p", "E-AC3", "5.1", "Remux")))
             }
         }
         ReadingRow {
-            ReadingCase("four at most, definitions by name", Modifier.width(HlLayout.readableNarrow)) {
-                FormatLine(listOf("1080p", "HDR10+", "DTS-HD MA", "5.1", "Remux"))
-            }
-            ReadingCase("no formats: draws nothing", Modifier.weight(1f)) { FormatLine(emptyList()) }
-        }
-        ReadingRow {
-            ReadingCase("in a side column: the last ones go", Modifier.width(HlLayout.sideColumn)) {
-                FormatLine(listOf("4K", "Dolby Vision", "HDR10+", "TrueHD Atmos", "DTS:X", "7.1"))
-            }
+            ReadingCase("no formats: draws nothing", Modifier.width(HlLayout.readableNarrow)) { FormatLines(sample("Sans titre", 0)) }
             ReadingCase("marks keep a frame: a rating, a key, an id", Modifier.weight(1f)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.xs)) {
                     Badge("12")
@@ -497,6 +497,7 @@ private val READING_TECH_FULL = sample("Le Samouraï", 1967).copy(
             bitDepth = 10,
             hdr = listOf(HdrFormat.DOLBY_VISION, HdrFormat.HDR10),
             dolbyVisionProfile = 7,
+            frameRate = 24000f / 1001f,
         ),
         audio = listOf(
             AudioTrack(codec = Codecs.TRUEHD, channels = 8, language = "fre", title = "Version restaurée", atmos = true, default = true),
@@ -531,7 +532,7 @@ private val READING_TECH_LEAN = sample("Playtime", 1967).copy(
         container = "MP4",
         sizeBytes = 2_150_000_000,
         durationMs = 7_440_000,
-        video = VideoInfo(codec = Codecs.AVC, width = 1920, height = 872, bitDepth = 8),
+        video = VideoInfo(codec = Codecs.AVC, width = 1920, height = 872, bitDepth = 8, frameRate = 25f),
         audio = listOf(AudioTrack(codec = Codecs.AAC, channels = 2, language = "fre", default = true)),
     ),
 )

@@ -39,7 +39,8 @@ object SmbBrowser : RemoteBrowser {
         share.list(source.path.trim('/').replace('/', '\\')).count { !RemoteBrowser.skip(it.fileName) }
     }
 
-    override suspend fun readPrefix(source: SourceEntity, relativePath: String, length: Int): ByteArray = withSession(source) { share ->
+    override suspend fun readAt(source: SourceEntity, relativePath: String, offset: Long, length: Int): ByteArray =
+        withSession(source) { share ->
         val path = listOf(source.path.trim('/'), relativePath).filter { it.isNotEmpty() }.joinToString("\\") { it.replace('/', '\\') }
         share.openFile(
             path,
@@ -48,7 +49,16 @@ object SmbBrowser : RemoteBrowser {
             SMB2ShareAccess.ALL,
             SMB2CreateDisposition.FILE_OPEN,
             null,
-        ).use { file -> file.inputStream.use { it.readUpTo(length) } }
+        ).use { file ->
+            val bytes = ByteArray(length)
+            var total = 0
+            while (total < length) {
+                val n = file.read(bytes, offset + total, total, length - total)
+                if (n <= 0) break
+                total += n
+            }
+            if (total == length) bytes else bytes.copyOf(total)
+        }
     }
 
     /** An open share, kept for the next file: a scan reads several files per title. */

@@ -3,6 +3,7 @@ package app.houselights.ui.design.components
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
@@ -26,6 +27,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.tv.material3.Icon
 import androidx.tv.material3.Text
 import app.houselights.R
+import app.houselights.core.FormatFamily
 import app.houselights.core.Formats
 import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
@@ -36,6 +38,7 @@ import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.util.formatDuration
+import java.text.NumberFormat
 import java.util.Locale
 import app.houselights.ui.util.NBSP
 
@@ -45,7 +48,7 @@ import app.houselights.ui.util.NBSP
  * what does not fit is left out whole, from the end.
  */
 @Composable
-fun MetaLine(item: MediaItem, modifier: Modifier = Modifier, showGenres: Boolean = true, formats: List<String> = emptyList()) {
+fun MetaLine(item: MediaItem, modifier: Modifier = Modifier, showGenres: Boolean = true) {
     val c = Hl.colors
     val seasons = item.childCount?.takeIf { item.kind == MediaKind.SERIES && it > 0 }
         ?.let { pluralStringResource(R.plurals.season_count, it, it) }
@@ -66,15 +69,12 @@ fun MetaLine(item: MediaItem, modifier: Modifier = Modifier, showGenres: Boolean
         else -> item.runtimeMs?.let(::formatDuration)
     }
 
-    // In order of what matters: when the line runs out of room, genres go first, then the formats,
-    // then the score.
-    val shownFormats = remember(formats) { Formats.shown(formats) }
+    // In order of what matters: when the line runs out of room, genres go first, then the score.
     OneLine(modifier) {
         years?.let { Text(it, style = Hl.type.meta, color = c.content, maxLines = 1, overflow = TextOverflow.Ellipsis) }
         length?.let { Text(it, style = Hl.type.meta, color = c.contentSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis) }
         item.officialRating?.let { Badge(it) }
         item.communityRating?.let { Score(it) }
-        shownFormats.forEach { FormatWord(it) }
         // Genres go one by one, from the last, as the names of the billing block do.
         if (showGenres) item.genres.take(3).forEachIndexed { i, genre ->
             Text(
@@ -106,7 +106,7 @@ fun Score(score: Double, modifier: Modifier = Modifier) {
 /**
  * A mark set in a hairline frame, as a case prints a certificate: an age rating, a key of the
  * remote ("OK"), an identifier, a protocol. Never a state (a choice says so with its light,
- * [HlStatus], or its check), and never a format: formats are words ([FormatLine]).
+ * [HlStatus], or its check), and never a format: formats are words ([FormatLines]).
  */
 @Composable
 fun Badge(text: String, modifier: Modifier = Modifier) {
@@ -128,21 +128,51 @@ private fun FormatWord(text: String) {
 }
 
 /**
- * The formats of a title, as words in the technical voice, a fact's space apart, without frames:
- * what a case would print, read rather than boxed. At most [Formats.MAX], nothing said twice
- * ([Formats.shown]); on one line, the last ones go first when room runs short.
+ * A title's formats, on its page only (a wall, home's hero say what a title is, not how it is
+ * made): words in the technical voice, a fact's space apart, without frames, as the back of a
+ * case lists them. The picture on one line (definition, range, codec, frame rate), the sound on the
+ * next (its best track by the name on the case, its channels, its bitrate), nothing said twice
+ * ([Formats]). From what the file holds; from the badges stored for the title when it was not read.
  */
 @Composable
-fun FormatLine(badges: List<String>, modifier: Modifier = Modifier, max: Int = Formats.MAX) {
-    val shown = remember(badges, max) { Formats.shown(badges, max) }
-    if (shown.isEmpty()) return
-    OneLine(modifier, spacing = HlSpace.fact, squeezeFirst = false) { shown.forEach { FormatWord(it) } }
+fun FormatLines(item: MediaItem, modifier: Modifier = Modifier) {
+    val video = item.media?.video
+    val audio = item.media?.audio.orEmpty()
+    val marks = remember(item.badges) { Formats.fromBadges(item.badges) }
+    val frames = video?.frameRate?.let { frameRateLabel(it) }
+    val picture = remember(video, frames) {
+        video?.let { Formats.picture(it) + listOfNotNull(frames) } ?: marks.filter { it.family == FormatFamily.PICTURE }.map { it.label }
+    }
+    val rate = Formats.bestTrack(audio)?.bitrateKbps?.let { audioBitrateLabel(it) }
+    val sound = remember(audio, rate) {
+        (Formats.sound(audio) + listOfNotNull(rate)).ifEmpty { marks.filter { it.family == FormatFamily.SOUND }.map { it.label } }
+    }
+    if (picture.isEmpty() && sound.isEmpty()) return
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(HlSpace.xxs)) {
+        listOf(picture, sound).filter { it.isNotEmpty() }.forEach { words ->
+            OneLine(spacing = HlSpace.fact, squeezeFirst = false) { words.forEach { FormatWord(it) } }
+        }
+    }
 }
 
+/** A frame rate as the screen reads it: "23,976 i/s", "25 i/s". */
+@Composable
+fun frameRateLabel(fps: Float): String {
+    val number = NumberFormat.getNumberInstance(Locale.getDefault()).apply { maximumFractionDigits = FRAME_RATE_DIGITS }
+    return stringResource(R.string.frame_rate, number.format(Formats.frameRate(fps)))
+}
+
+private const val FRAME_RATE_DIGITS = 3
+
+/** An audio track's bitrate as the screen reads it: "768 kb/s", "4 054 kb/s". */
+@Composable
+fun audioBitrateLabel(kbps: Int): String =
+    stringResource(R.string.audio_bitrate, NumberFormat.getIntegerInstance(Locale.getDefault()).format(kbps))
+
 /**
- * The line naming a title over a wall: its name, its facts, its formats, on one line of fixed
- * height. When room runs short, the formats go first, from the last; then the name gives way,
- * with an ellipsis. The facts stay, dropping their own from the end only past that.
+ * The line naming a title over a wall: its name and its facts, on one line of fixed height; its
+ * formats are its page's. When room runs short, the name gives way, with an ellipsis. The facts
+ * stay, dropping their own from the end only past that.
  */
 @Composable
 fun TitleLine(item: MediaItem, modifier: Modifier = Modifier) {
@@ -150,31 +180,23 @@ fun TitleLine(item: MediaItem, modifier: Modifier = Modifier) {
         contents = listOf(
             { Text(item.title, style = Hl.type.entry, color = Hl.colors.content, maxLines = 1, overflow = TextOverflow.Ellipsis) },
             { MetaLine(item, showGenres = false) },
-            { FormatLine(item.badges, max = TITLE_LINE_BADGES) },
         ),
         modifier = modifier,
-    ) { (title, facts, badges), constraints ->
+    ) { (title, facts), constraints ->
         val loose = constraints.copy(minWidth = 0, minHeight = 0)
         val afterTitle = HlSpace.m.roundToPx()
-        val beforeBadges = HlSpace.l.roundToPx()
-        // The facts are measured first, so the name takes what they leave, and the formats the rest.
+        // The facts are measured first, so the name takes what they leave.
         val factsLine = facts.firstOrNull()?.measure(loose)?.takeIf { it.width > 0 }
         val factsRoom = factsLine?.let { it.width + afterTitle } ?: 0
         val name = title.first().measure(loose.copy(maxWidth = (loose.maxWidth - factsRoom).coerceAtLeast(0)))
-        val left = loose.maxWidth - name.width - factsRoom - beforeBadges
-        val formats = badges.firstOrNull()?.takeIf { left > 0 }?.measure(loose.copy(maxWidth = left))?.takeIf { it.width > 0 }
-        val width = name.width + factsRoom + (formats?.let { it.width + beforeBadges } ?: 0)
-        val height = listOfNotNull(name, factsLine, formats).maxOf { it.height }.coerceIn(constraints.minHeight, constraints.maxHeight)
+        val width = name.width + factsRoom
+        val height = listOfNotNull(name, factsLine).maxOf { it.height }.coerceIn(constraints.minHeight, constraints.maxHeight)
         layout(width.coerceIn(constraints.minWidth, constraints.maxWidth), height) {
             name.placeRelative(0, (height - name.height) / 2)
             factsLine?.placeRelative(name.width + afterTitle, (height - factsLine.height) / 2)
-            formats?.placeRelative(name.width + factsRoom + beforeBadges, (height - formats.height) / 2)
         }
     }
 }
-
-/** Formats a [TitleLine] shows at most: past four, they say little a title's name has not. */
-private const val TITLE_LINE_BADGES = 4
 
 /**
  * Children on one line, [spacing] apart, kept from the first for as long as they fit whole: those

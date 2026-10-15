@@ -15,6 +15,7 @@ object Codecs {
     const val TRUEHD = "TrueHD"
     const val DTS_HD_MA = "DTS-HD MA"
     const val DTS_HD_HRA = "DTS-HD HRA"
+    const val DTS_EXPRESS = "DTS Express"
     const val DTS = "DTS"
     const val EAC3 = "E-AC3"
     const val AC3 = "AC3"

@@ -11,9 +11,9 @@ internal class ScanFiles(private val dao: LibraryDao, val artwork: ArtworkCache)
         String(RemoteBrowser.of(source).readPrefix(source, file.relativePath, length), Charsets.UTF_8)
     }.getOrElse { e -> if (ScanErrors.isUnreachable(e)) throw e else null }
 
-    /** Reads the file once and stores what it contains, with format badges for filters. */
+    /** Reads the file once (again for an older probe) and stores what it contains, with format badges for filters. */
     suspend fun withMediaInfo(source: SourceEntity, file: RemoteFile, item: ItemEntity): ItemEntity {
-        if (item.mediaInfo != null) return item
+        if (!MediaProbe.isStale(item.mediaInfo)) return item
         val updated = mediaFields(source, file, item)
         dao.saveScanned(updated)
         return updated
