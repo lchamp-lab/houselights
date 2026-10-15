@@ -4,25 +4,31 @@ import app.houselights.ui.design.components.labelX
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
-/** A round button's label sits under it: centred, else aligned with its edge, never past the safe area. */
+/** A round button's label sits under it: centred, else aligned with its edge, never past the label's edge. */
 class IconLabelTest {
     private val screen = 1920
     private val safe = 96
+    private val edge = 48
     private val button = 96
 
     @Test
-    fun centredInTheMiddleOfTheScreen() = assertEquals(-20, labelX(button, 136, left = 800, screen = screen, safe = safe))
+    fun centredInTheMiddleOfTheScreen() = assertEquals(-20, labelX(button, 136, left = 800, screen = screen, edge = edge))
 
     @Test
-    fun alignedWithTheButtonsEndNearTheRightEdge() =
-        assertEquals(button - 136, labelX(button, 136, left = screen - safe - button, screen = screen, safe = safe))
+    fun centredUnderAButtonAtTheEdgeOfTheSafeArea() =
+        assertEquals(-20, labelX(button, 136, left = screen - safe - button, screen = screen, edge = edge))
 
     @Test
-    fun alignedWithTheButtonsStartNearTheLeftEdge() = assertEquals(0, labelX(button, 136, left = safe, screen = screen, safe = safe))
+    fun alignedWithTheButtonsEndWhenCentredItWouldReachTheSide() =
+        assertEquals(button - 136, labelX(button, 136, left = screen - edge - button, screen = screen, edge = edge))
 
     @Test
-    fun aLabelWiderThanTheRoomStaysInsideTheSafeArea() {
-        val left = screen - safe - button
-        assertEquals(screen - safe - left - 300, labelX(button, 300, left = left, screen = screen, safe = safe))
+    fun alignedWithTheButtonsStartWhenCentredItWouldReachTheSide() =
+        assertEquals(0, labelX(button, 136, left = edge, screen = screen, edge = edge))
+
+    @Test
+    fun aButtonPastTheEdgeHoldsItsLabelInside() {
+        val left = screen - edge - button + 28
+        assertEquals(screen - edge - left - 136, labelX(button, 136, left = left, screen = screen, edge = edge))
     }
 }

@@ -177,6 +177,12 @@ object HlLayout {
      * label takes none of its own.
      */
     val iconLabelRoom = 36.dp
+
+    /**
+     * How close to a side of the screen a round button's label may come: brief and passing, it may
+     * go past the safe area ([HlSpace.safeH]) so a button at its edge keeps its label centred.
+     */
+    val iconLabelEdge = HlSpace.l
     /** Dropdown menus (sort, filters); their height is the room the screen leaves them. */
     val menuWidth = 320.dp
     /** Columns of the technical sheet's track tables. */

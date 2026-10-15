@@ -244,10 +244,11 @@ internal fun controlScale(): ClickableSurfaceScale =
 /**
  * Round icon button; its label appears under it while focused, keeping the row quiet. The label
  * takes no room: it overflows under the button, so a row that has nothing below it (the home bar)
- * stays as tall as its controls, and a row that does reserves [HlLayout.iconLabelRoom]. Near the
- * side of the screen, the label slides along to stay inside the safe area; under a sheet, which
- * has the window, it hides. The icon carries the name for accessibility. [onArtwork] sets the
- * button and its label on a dark plate, so they read over any image. Not [enabled], its icon goes
+ * stays as tall as its controls, and a row that does reserves [HlLayout.iconLabelRoom]. The label
+ * is centred under the button, even at the edge of the safe area; only where it would come closer
+ * than [HlLayout.iconLabelEdge] to the side of the screen does it align with the button's edge.
+ * Under a sheet, which has the window, it hides. The icon carries the name for accessibility. The
+ * label always sits on a dark plate; [onArtwork] sets the button on one too, so it reads over any image. Not [enabled], its icon goes
  * quiet and OK does nothing; focus still reaches it, outlined, and still shows its label. A toggle
  * names what OK does ("Marquer comme vu") and shows where things stand with its icon: [lit],
  * tungsten at rest.
@@ -312,13 +313,13 @@ fun HlIconButton(
         val button = measurables[0].measure(constraints)
         val text = measurables[1].measure(Constraints(maxWidth = HlLayout.iconLabel.roundToPx()))
         val gap = HlSpace.xs.roundToPx()
-        val safe = HlSpace.safeH.roundToPx()
+        val edge = HlLayout.iconLabelEdge.roundToPx()
         layout(button.width, button.height) {
             button.place(0, 0)
             val x = coordinates?.let { here ->
                 val screen = here.findRootCoordinates()
                 val left = screen.localPositionOf(here, Offset.Zero).x.roundToInt()
-                labelX(button.width, text.width, left, screen.size.width, safe)
+                labelX(button.width, text.width, left, screen.size.width, edge)
             } ?: ((button.width - text.width) / 2)
             text.place(x, button.height + gap)
         }
@@ -327,16 +328,17 @@ fun HlIconButton(
 
 /**
  * Where a round button's label starts, from the button's left: centred under it; when that would
- * cross the safe area, aligned with the button's edge on that side; past that, inside the area.
+ * come closer than [edge] to a side of the screen, aligned with the button's edge on that side;
+ * past that, held at [edge].
  */
-internal fun labelX(button: Int, label: Int, left: Int, screen: Int, safe: Int): Int {
+internal fun labelX(button: Int, label: Int, left: Int, screen: Int, edge: Int): Int {
     val centred = (button - label) / 2
     val x = when {
-        left + centred + label > screen - safe -> button - label
-        left + centred < safe -> 0
+        left + centred + label > screen - edge -> button - label
+        left + centred < edge -> 0
         else -> centred
     }
-    return x.coerceAtMost(screen - safe - left - label).coerceAtLeast(safe - left)
+    return x.coerceAtMost(screen - edge - left - label).coerceAtLeast(edge - left)
 }
 
 /**
