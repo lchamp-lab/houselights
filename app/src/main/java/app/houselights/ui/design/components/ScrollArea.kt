@@ -1,5 +1,6 @@
 package app.houselights.ui.design.components
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
@@ -78,13 +79,9 @@ fun HlScrollArea(
         Modifier
             .clip(HlShapes.panel)
             .background(c.content.copy(alpha = groundStep()))
-            .border(
-                if (focused) HlSize.focusBorder else HlSize.hairline,
-                if (focused) c.focus else c.outline.copy(alpha = HlAlpha.EDGE),
-                HlShapes.panel,
-            )
+            .border(if (focused) FocusStyle.ring() else BorderStroke(HlSize.hairline, c.outline.copy(alpha = HlAlpha.EDGE)), HlShapes.panel)
     } else {
-        Modifier.ringOutside(focused, c.focus).clipToBounds()
+        Modifier.ringOutside(focused, FocusStyle.ringColor()).clipToBounds()
     }
     Box(
         modifier

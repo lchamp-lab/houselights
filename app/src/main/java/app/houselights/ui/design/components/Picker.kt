@@ -68,7 +68,7 @@ fun ArtworkChoiceCard(
         ArtworkSurface(
             onClick,
             Modifier.fillMaxWidth().aspectRatio(aspectRatio).semantics { this.selected = selected },
-            focusedScale = HlFocus.CARD_SCALE,
+            lift = Lift.Card,
             onFocused = onFocused,
         ) {
             val url = image?.url(width.toPx())

@@ -247,7 +247,7 @@ private fun fieldEdge(editing: Boolean, focused: Boolean): BorderStroke {
     val c = Hl.colors
     return when {
         editing -> BorderStroke(HlSize.focusBorder, c.emberLight())
-        focused -> BorderStroke(HlSize.focusBorder, c.focus)
+        focused -> FocusStyle.ring()
         else -> BorderStroke(HlSize.hairline, c.outline)
     }
 }

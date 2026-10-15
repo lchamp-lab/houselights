@@ -211,13 +211,8 @@ private fun MenuItem(label: String, selected: Boolean, onClick: () -> Unit, modi
         onClick = onClick,
         modifier = modifier.fillMaxWidth().height(HlSize.segment).semantics { this.selected = selected },
         shape = ClickableSurfaceDefaults.shape(HlShapes.row),
-        scale = rowScale(),
-        colors = ClickableSurfaceDefaults.colors(
-            containerColor = Color.Transparent,
-            contentColor = if (selected) c.content else c.contentSecondary,
-            focusedContainerColor = c.focus,
-            focusedContentColor = c.onFocus,
-        ),
+        scale = FocusStyle.scale(FocusStyle.Fill.Row),
+        colors = FocusStyle.fill(rest = Color.Transparent, restContent = if (selected) c.content else c.contentSecondary),
         interactionSource = interaction,
     ) {
         Row(Modifier.fillMaxHeight().padding(horizontal = HlSpace.s), verticalAlignment = Alignment.CenterVertically) {

@@ -142,7 +142,7 @@ fun ArtworkSurface(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     shape: Shape = HlShapes.artwork,
-    focusedScale: Float = HlFocus.ARTWORK_SCALE,
+    lift: Lift = Lift.Artwork,
     onFocused: () -> Unit = {},
     stateDescription: String? = null,
     readAs: String? = null,
@@ -167,7 +167,7 @@ fun ArtworkSurface(
     }
     // The card grows inside its own layer; the light around it grows with it.
     val grown by animateFloatAsState(
-        if (focused) focusedScale else 1f,
+        if (focused) lift.scale else 1f,
         tween(HlMotion.STANDARD, easing = HlMotion.standard),
         label = "grown",
     )
@@ -189,15 +189,9 @@ fun ArtworkSurface(
             .onFocusChanged { if (it.isFocused) onFocused() }
             .drawBehind { drawGlow(tone, grown, reach, shape) },
         shape = ClickableSurfaceDefaults.shape(shape),
-        scale = ClickableSurfaceDefaults.scale(focusedScale = focusedScale),
-        border = ClickableSurfaceDefaults.border(
-            focusedBorder = Border(BorderStroke(HlSize.focusBorder, c.focus), shape = shape),
-        ),
-        colors = ClickableSurfaceDefaults.colors(
-            containerColor = c.content.copy(alpha = HlAlpha.FILL),
-            focusedContainerColor = c.content.copy(alpha = HlAlpha.FILL),
-            pressedContainerColor = c.content.copy(alpha = HlAlpha.FILL),
-        ),
+        scale = FocusStyle.scale(lift),
+        border = FocusStyle.lift(shape),
+        colors = FocusStyle.still(rest = c.content.copy(alpha = HlAlpha.FILL), restContent = c.content),
         interactionSource = interaction,
     ) {
         // Read while drawing, or by the image alone: stepping back never recomposes the row.
@@ -323,7 +317,7 @@ fun LandscapeCard(
         ArtworkSurface(
             onClick,
             Modifier.fillMaxWidth().aspectRatio(16f / 9f),
-            focusedScale = HlFocus.CARD_SCALE,
+            lift = Lift.Card,
             onFocused = onFocused,
             stateDescription = cardState(item),
             light = still,

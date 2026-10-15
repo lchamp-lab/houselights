@@ -144,18 +144,14 @@ internal fun PillButton(
         modifier = modifier.height(HlSize.control).semantics { if (busy) stateDescription = busyState },
         enabled = enabled,
         shape = ClickableSurfaceDefaults.shape(HlShapes.control),
-        colors = ClickableSurfaceDefaults.colors(
-            containerColor = c.content.copy(alpha = fill),
-            contentColor = if (caution) c.ember else c.content,
-            focusedContainerColor = c.focus,
-            focusedContentColor = c.onFocus,
-            pressedContainerColor = c.focus,
-            pressedContentColor = c.onFocus,
-            disabledContainerColor = c.content.copy(alpha = HlAlpha.FILL_FAINT),
-            disabledContentColor = c.contentTertiary,
+        colors = FocusStyle.fill(
+            rest = c.content.copy(alpha = fill),
+            restContent = if (caution) c.ember else c.content,
+            disabled = c.content.copy(alpha = HlAlpha.FILL_FAINT),
+            disabledContent = c.contentTertiary,
         ),
-        border = disabledFocusBorder(HlShapes.control),
-        scale = controlScale(),
+        border = FocusStyle.disabledRing(HlShapes.control),
+        scale = FocusStyle.scale(FocusStyle.Fill.Pill),
         interactionSource = interaction,
     ) {
         Row(
@@ -228,20 +224,6 @@ private fun ButtonLabel(text: String) {
 }
 
 /**
- * Focus on a disabled control: the outline of focus in projector white, never the white fill,
- * which would offer an action.
- */
-@Composable
-internal fun disabledFocusBorder(shape: Shape): ClickableSurfaceBorder = ClickableSurfaceDefaults.border(
-    focusedDisabledBorder = Border(BorderStroke(HlSize.focusBorder, Hl.colors.focus), shape = shape),
-)
-
-/** A control grows with focus, enabled or not. */
-@Composable
-internal fun controlScale(): ClickableSurfaceScale =
-    ClickableSurfaceDefaults.scale(focusedScale = HlFocus.CONTROL_SCALE, focusedDisabledScale = HlFocus.CONTROL_SCALE)
-
-/**
  * Round icon button; its label appears under it while focused, keeping the row quiet. The label
  * takes no room: it overflows under the button, so a row that has nothing below it (the home bar)
  * stays as tall as its controls, and a row that does reserves [HlLayout.iconLabelRoom]. The label
@@ -278,18 +260,14 @@ fun HlIconButton(
                 modifier = Modifier.size(HlSize.iconButton),
                 enabled = enabled,
                 shape = ClickableSurfaceDefaults.shape(HlShapes.avatar),
-                scale = controlScale(),
-                border = disabledFocusBorder(HlShapes.avatar),
-                colors = ClickableSurfaceDefaults.colors(
-                    containerColor = restFill,
-                    contentColor = if (lit) c.ember else c.content,
-                    focusedContainerColor = c.focus,
-                    focusedContentColor = c.onFocus,
-                    pressedContainerColor = c.focus,
-                    pressedContentColor = c.onFocus,
+                scale = FocusStyle.scale(FocusStyle.Fill.Pill),
+                border = FocusStyle.disabledRing(HlShapes.avatar),
+                colors = FocusStyle.fill(
+                    rest = restFill,
+                    restContent = if (lit) c.ember else c.content,
                     // On its plate over an image, the quiet icon is secondary, as all quiet things on artwork.
-                    disabledContainerColor = if (onArtwork) restFill else c.content.copy(alpha = HlAlpha.FILL_FAINT),
-                    disabledContentColor = if (onArtwork) c.contentSecondary else c.contentTertiary,
+                    disabled = if (onArtwork) restFill else c.content.copy(alpha = HlAlpha.FILL_FAINT),
+                    disabledContent = if (onArtwork) c.contentSecondary else c.contentTertiary,
                 ),
                 interactionSource = interaction,
             ) {
@@ -514,15 +492,8 @@ private fun SegmentItem(
                 if (it.isFocused) onFocused()
             },
         shape = ClickableSurfaceDefaults.shape(HlShapes.control),
-        scale = ClickableSurfaceDefaults.scale(focusedScale = HlFocus.CONTROL_SCALE),
-        colors = ClickableSurfaceDefaults.colors(
-            containerColor = Color.Transparent,
-            contentColor = rest,
-            focusedContainerColor = c.focus,
-            focusedContentColor = c.onFocus,
-            pressedContainerColor = c.focus,
-            pressedContentColor = c.onFocus,
-        ),
+        scale = FocusStyle.scale(FocusStyle.Fill.Pill),
+        colors = FocusStyle.fill(rest = Color.Transparent, restContent = rest),
     ) {
         Text(
             text,

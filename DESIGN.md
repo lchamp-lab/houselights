@@ -388,7 +388,13 @@ screen succeeds: Back from it finds everything as it was. The source changes in 
 
 ## Focus
 
-Focus must read from the couch:
+Focus must read from the couch. It is said in one place, `FocusStyle` (`components/FocusStyle.kt`):
+projector white in three gestures, **fill** (controls, rows, the options of a track: `FocusStyle.fill`,
+`Fill.Pill` grows 1.04, `Fill.Row` not at all), **lift** (artwork and panels rise by their family,
+`Lift.Artwork`, `Lift.Card`, `Lift.Panel`, and take the white outline: `FocusStyle.lift`) and
+**ring** (what is read or typed in: `FocusStyle.ring`). What cannot act keeps focus outlined, never
+filled (`disabledRing`). No component writes a focused colour, border or scale of its own, and every
+clickable surface takes one of the gestures (`FocusStyleGuardTest`): a fourth cannot creep in.
 
 - **Artwork** grows, gets a 2 dp projector-white outline and glows with its own light: the tone
   its picture is mostly made of, by area and a little by saturation (`rememberGlowColor`; a red
@@ -544,7 +550,8 @@ other than Play: icons are drawn in `HlIcons`. A screen never loads an image its
 show when it fails. `SpacingGridTest` keeps `HlSpace` and
 `HlInset` on the 4 dp grid; `TypeScaleTest` keeps the type scale honest, `ContrastTest` the contrasts,
 `ScrimTest` the floor of the veils, `ResourceTokensTest` the resources in step with the tokens,
-`StringsTest` the French typography of the resources, `CatalogCoverageTest` the catalogue complete.
+`StringsTest` the French typography of the resources, `CatalogCoverageTest` the catalogue complete,
+`FocusStyleGuardTest` focus in one place.
 Deliberate exceptions go in the guard's `allowed` list, with the reason; a value needed twice belongs
 in the design system instead.
 

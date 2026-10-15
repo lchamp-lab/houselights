@@ -66,14 +66,10 @@ fun HlNavItem(
         onClick = onFocused,
         modifier = modifier.fillMaxWidth().onFocusChanged { if (it.isFocused) onFocused() },
         shape = ClickableSurfaceDefaults.shape(HlShapes.row),
-        scale = rowScale(),
-        colors = ClickableSurfaceDefaults.colors(
-            containerColor = if (selected) c.content.copy(alpha = HlAlpha.FILL) else Color.Transparent,
-            contentColor = if (selected) c.content else c.contentSecondary,
-            focusedContainerColor = c.focus,
-            focusedContentColor = c.onFocus,
-            pressedContainerColor = c.focus,
-            pressedContentColor = c.onFocus,
+        scale = FocusStyle.scale(FocusStyle.Fill.Row),
+        colors = FocusStyle.fill(
+            rest = if (selected) c.content.copy(alpha = HlAlpha.FILL) else Color.Transparent,
+            restContent = if (selected) c.content else c.contentSecondary,
         ),
         interactionSource = interaction,
     ) {
@@ -210,17 +206,12 @@ fun HlSettingRow(
         modifier = modifier.fillMaxWidth(),
         enabled = enabled,
         shape = ClickableSurfaceDefaults.shape(HlShapes.row),
-        scale = rowScale(),
-        border = disabledFocusBorder(HlShapes.row),
-        colors = ClickableSurfaceDefaults.colors(
-            containerColor = c.content.copy(alpha = HlAlpha.FILL_FAINT),
-            contentColor = c.content,
-            focusedContainerColor = c.focus,
-            focusedContentColor = c.onFocus,
-            pressedContainerColor = c.focus,
-            pressedContentColor = c.onFocus,
-            disabledContainerColor = c.content.copy(alpha = HlAlpha.FILL_FAINT),
-            disabledContentColor = c.contentTertiary,
+        scale = FocusStyle.scale(FocusStyle.Fill.Row),
+        border = FocusStyle.disabledRing(HlShapes.row),
+        colors = FocusStyle.fill(
+            rest = c.content.copy(alpha = HlAlpha.FILL_FAINT),
+            restContent = c.content,
+            disabledContent = c.contentTertiary,
         ),
         interactionSource = interaction,
     ) {
@@ -229,13 +220,6 @@ fun HlSettingRow(
     }
 }
 
-/**
- * A row as wide as its column keeps its size with focus, enabled or not: growing by a share of
- * its width would take it past its inset. Its white fill says focus.
- */
-@Composable
-internal fun rowScale(): ClickableSurfaceScale =
-    ClickableSurfaceDefaults.scale(focusedScale = HlFocus.ROW_SCALE, focusedDisabledScale = HlFocus.ROW_SCALE)
 
 /**
  * A row's quieter words (its description, its value), by state: [onFocus] on a focused row,
