@@ -119,14 +119,14 @@ private fun SubtitleTable(tracks: List<SubtitleTrack>) {
 }
 
 /**
- * One track: a tungsten dot when it is the one in use, its language, aligned format columns,
+ * One track: a ember dot when it is the one in use, its language, aligned format columns,
  * and its name or flags in the quietest tone.
  */
 @Composable
 private fun SpecRow(marked: Boolean, language: String, cells: List<Pair<String, androidx.compose.ui.unit.Dp>>, note: String?) {
     val c = Hl.colors
     Row(Modifier.fillMaxWidth().padding(vertical = HlSpace.xxs), verticalAlignment = Alignment.CenterVertically) {
-        Box(Modifier.size(HlSize.dot).clip(HlShapes.avatar).background(if (marked) c.tungsten else Color.Transparent))
+        Box(Modifier.size(HlSize.dot).clip(HlShapes.avatar).background(if (marked) c.ember else Color.Transparent))
         Spacer(Modifier.width(HlSpace.s))
         Text(language, style = Hl.type.meta, color = c.content, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.width(HlLayout.specLanguage))
         cells.forEach { (text, width) ->

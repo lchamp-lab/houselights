@@ -76,7 +76,7 @@ private val brandDirections = listOf(
     ),
     BrandDirection(
         "Your seat",
-        "The room from above: the screen lit, the house dark, one seat lit in tungsten, yours. " +
+        "The room from above: the screen lit, the house dark, one seat lit in ember, yours. " +
             "On the banner, the name is on the screen.",
         R.drawable.brand_icon_seat_foreground,
         R.drawable.brand_banner_seat,

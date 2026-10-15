@@ -72,7 +72,7 @@ private fun FormCase(caption: String, modifier: Modifier = Modifier, content: @C
 private fun FormTextFields() {
     Text(
         "Focus outlines a field in projector white and shows, at its end, that OK types; OK opens the keyboard, " +
-            "and the edge turns tungsten while typing, and only then. Every field has a name, read out even when hidden.",
+            "and the edge turns ember while typing, and only then. Every field has a name, read out even when hidden.",
         style = Hl.type.caption,
         color = Hl.colors.contentTertiary,
     )
@@ -104,7 +104,7 @@ private fun FormTextFields() {
             )
         }
         var refused by remember { mutableStateOf("0123456789abcdef0123456789abcdef") }
-        FormCase("error: in tungsten under the field, its edge unchanged", Modifier.weight(1f)) {
+        FormCase("error: in ember under the field, its edge unchanged", Modifier.weight(1f)) {
             HlTextField(
                 "Clé personnelle", refused, { refused = it },
                 showLabel = false,
@@ -146,7 +146,7 @@ private fun FormStatusPanels() {
                 detail = "/volume1/media/films", badges = nfs, result = "128 éléments trouvés",
             )
         }
-        FormCase("off: failed, the result in tungsten", Modifier.width(HlLayout.sideColumnWide)) {
+        FormCase("off: failed, the result in ember", Modifier.width(HlLayout.sideColumnWide)) {
             StatusPanel(
                 StatusState.Off, "Connexion impossible", "Adresse", "nas-salon.local",
                 detail = "/films", badges = listOf("SMB", "Films"),

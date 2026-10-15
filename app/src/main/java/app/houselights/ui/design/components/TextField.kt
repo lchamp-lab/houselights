@@ -4,68 +4,69 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.focusable
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.VisualTransformation
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.text.rememberTextMeasurer
-import androidx.compose.ui.unit.TextUnit
-import androidx.compose.ui.unit.dp
-import androidx.tv.material3.Text
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.wrapContentHeight
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.error
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.TextUnit
+import androidx.compose.ui.unit.dp
+import androidx.tv.material3.Text
 import app.houselights.R
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.emberLight
 
 /**
  * A text field for the remote: a focusable box first, the keyboard on OK. Focused and waiting, it
- * says so at its end ([KeyHint]: OK, type); its edge turns tungsten while typing, and only then.
+ * says so at its end ([KeyHint]: OK, type); its edge turns ember while typing, and only then.
  * Every field has a [label], read out even when [showLabel] is false because what surrounds the
- * field already names it (the title of its sheet). Under it, one line: [error] in tungsten after
+ * field already names it (the title of its sheet). Under it, one line: [error] in ember after
  * the attention light, else [supporting] (what to type, what leaving it empty does). [placeholder]
  * shows an example while the field is empty ("Ex. : 192.168.1.10").
  */
@@ -169,7 +170,7 @@ private fun FieldBox(
             onValueChange = onValueChange,
             singleLine = true,
             textStyle = textStyle,
-            cursorBrush = SolidColor(if (editing) c.tungsten else Color.Transparent),
+            cursorBrush = SolidColor(if (editing) c.ember else Color.Transparent),
             visualTransformation = if (password) PasswordVisualTransformation() else VisualTransformation.None,
             keyboardOptions = keyboardOptions,
             keyboardActions = KeyboardActions(onAny = {
@@ -238,12 +239,12 @@ private fun Modifier.openOnOk(waiting: Boolean, open: () -> Unit): Modifier = on
     }
 }
 
-/** A field's edge: a hairline at rest, projector white with focus, tungsten while typing. */
+/** A field's edge: a hairline at rest, projector white with focus, ember while typing. */
 @Composable
 private fun fieldEdge(editing: Boolean, focused: Boolean): BorderStroke {
     val c = Hl.colors
     return when {
-        editing -> BorderStroke(HlSize.focusBorder, c.tungsten)
+        editing -> BorderStroke(HlSize.focusBorder, c.emberLight())
         focused -> BorderStroke(HlSize.focusBorder, c.focus)
         else -> BorderStroke(HlSize.hairline, c.outline)
     }
@@ -271,8 +272,8 @@ internal fun KeyHint(modifier: Modifier = Modifier) {
 }
 
 /**
- * The line under a field: what is wrong, in tungsten after the attention light; else what to type,
- * quiet. The field's edge does not change for an error: tungsten there means typing.
+ * The line under a field: what is wrong, in ember after the attention light; else what to type,
+ * quiet. The field's edge does not change for an error: ember there means typing.
  */
 @Composable
 private fun FieldMessage(error: String?, supporting: String?) {
@@ -287,6 +288,6 @@ private fun FieldMessage(error: String?, supporting: String?) {
             Box(Modifier.height(line), contentAlignment = Alignment.Center) { StatusDot(StatusState.Attention) }
             Spacer(Modifier.width(HlSpace.xs))
         }
-        Text(text, style = style, color = if (error != null) c.tungsten else c.contentSecondary)
+        Text(text, style = style, color = if (error != null) c.ember else c.contentSecondary)
     }
 }

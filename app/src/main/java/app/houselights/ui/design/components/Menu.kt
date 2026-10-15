@@ -218,7 +218,7 @@ private fun MenuItem(label: String, selected: Boolean, onClick: () -> Unit, modi
         Row(Modifier.fillMaxHeight().padding(horizontal = HlSpace.s), verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.size(HlSize.icon)) {
                 if (selected) {
-                    val ink = if (focused) c.onFocus else c.tungsten
+                    val ink = if (focused) c.onFocus else c.ember
                     Icon(HlIcons.Check, contentDescription = null, tint = ink, modifier = Modifier.size(HlSize.icon))
                 }
             }

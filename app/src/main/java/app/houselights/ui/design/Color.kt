@@ -2,11 +2,12 @@ package app.houselights.ui.design
 
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 
 /**
  * Semantic colors. The room is pure black, like the masking around a cinema screen;
- * the only light comes from the artwork (see [LocalAmbient]) and a sparse tungsten accent.
+ * the only light comes from the artwork (see [LocalAmbient]) and a sparse ember accent.
  */
 @Immutable
 data class HlColors(
@@ -33,7 +34,14 @@ data class HlColors(
      * exception. Never focus, a place, a fact or a series of data. Screens reach it through the
      * components' states (`HlStatus`, `AttentionNote`, `lit`, `valueLit`, `detailLit`), never by name.
      */
-    val tungsten: Color,
+    val ember: Color,
+    /**
+     * The house light where it has room to show as light, not ink: from [emberFrom] to
+     * [emberTo] along the wordmark, a progress line, a rule, a lit edge ([emberLight]). What
+     * is too small for a gradient to read (a dot, a check, a word) takes [ember], drawn from it.
+     */
+    val emberFrom: Color,
+    val emberTo: Color,
     /** Focus outline and filled focused controls. */
     val focus: Color,
     /** Content drawn on [focus]. */
@@ -51,13 +59,19 @@ val HouselightsColors = HlColors(
     contentSecondary = Color(0xFFA39E96),
     contentTertiary = Color(0xFF8C867E),
     contentDecorative = Color(0xFF4A4642),
-    tungsten = Color(0xFFF2B66D),
+    ember = Color(0xFFFF7A4D),
+    emberFrom = Color(0xFFFF9F1C),
+    emberTo = Color(0xFFFF2E63),
     focus = Color(0xFFF2F0EB),
     onFocus = Color(0xFF000000),
     onFocusSecondary = Color(0xFF5C5B59),
 )
 
 val LocalHlColors = staticCompositionLocalOf { HouselightsColors }
+
+/** The house light as a gradient across what it fills, from start to end; at [alpha] for an edge. */
+fun HlColors.emberLight(alpha: Float = 1f): Brush =
+    Brush.horizontalGradient(listOf(emberFrom.copy(alpha = alpha), emberTo.copy(alpha = alpha)))
 
 /**
  * Opacities, by role. Translucent layers are always one of these, applied to the colour the
@@ -91,7 +105,7 @@ object HlAlpha {
     const val TRACK = 0.22f
     /** Focus on an option of a track that is not the current one: `content` at this opacity. */
     const val FOCUS_QUIET = 0.3f
-    /** A lit icon disc: `tungsten` at this opacity. */
+    /** A lit icon disc: `ember` at this opacity. */
     const val LIT_DISC = 0.18f
 }
 

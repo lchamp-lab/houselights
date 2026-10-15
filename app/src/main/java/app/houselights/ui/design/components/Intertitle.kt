@@ -14,10 +14,11 @@ import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.emberLight
 
 /**
  * A card that speaks, set like the intertitle of a silent film and the one-sheet of a title without
- * artwork: a short rule, tungsten when it calls for [attention]; one line in the voice of the poster
+ * artwork: a short rule, ember when it calls for [attention]; one line in the voice of the poster
  * ([title]); one line to read ([message], in the narrow reading measure); then what to do ([actions]:
  * at most one action and a quieter one, or the Back hint). Every message of the app takes this form:
  * an empty screen, a failure, a question asked in a sheet. It starts where its zone starts, on the
@@ -47,7 +48,7 @@ internal fun Intertitle(
     }
 }
 
-/** The short rule heading an intertitle: the grey of a one-sheet's, tungsten for attention. */
+/** The short rule heading an intertitle: the grey of a one-sheet's, ember for attention. */
 @Composable
 private fun IntertitleRule(attention: Boolean) {
     val c = Hl.colors
@@ -55,6 +56,6 @@ private fun IntertitleRule(attention: Boolean) {
         Modifier
             .width(HlSize.intertitleRule)
             .height(HlSize.intertitleRuleWeight)
-            .background(if (attention) c.tungsten else c.contentSecondary),
+            .then(if (attention) Modifier.background(c.emberLight()) else Modifier.background(c.contentSecondary)),
     )
 }

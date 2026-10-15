@@ -47,6 +47,7 @@ import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.emberLight
 
 /** How far a panel stands out from the room. */
 enum class PanelLevel {
@@ -59,7 +60,7 @@ enum class PanelLevel {
 
 /**
  * The one panel of the design system: a rounded, quietly lit area with a hairline edge. [lit]
- * draws the edge in tungsten, for something that is on or chosen.
+ * draws the edge in ember, for something that is on or chosen.
  */
 @Composable
 fun HlPanel(
@@ -75,7 +76,13 @@ fun HlPanel(
         modifier
             .clip(shape)
             .background(if (level == PanelLevel.Raised) c.surfaceRaised else c.surface.copy(alpha = HlAlpha.QUIET_SURFACE))
-            .border(HlSize.hairline, if (lit) c.tungsten.copy(alpha = HlAlpha.BORDER) else c.outline.copy(alpha = HlAlpha.BORDER), shape)
+            .then(
+                if (lit) {
+                    Modifier.border(HlSize.hairline, c.emberLight(HlAlpha.BORDER), shape)
+                } else {
+                    Modifier.border(HlSize.hairline, c.outline.copy(alpha = HlAlpha.BORDER), shape)
+                },
+            )
             .padding(padding),
         content = content,
     )
@@ -83,7 +90,7 @@ fun HlPanel(
 
 /**
  * A panel that can be chosen (list entries, results, source cards): quiet at rest, raised with a
- * projector-white outline when focused. [lit] edges it in tungsten at rest: the choice in use.
+ * projector-white outline when focused. [lit] edges it in ember at rest: the choice in use.
  * Not [enabled], it sits in a faint well with tertiary content (what [content] draws in
  * `LocalContentColor`), keeps focus and ignores OK. [content] receives the focus state.
  */
@@ -108,7 +115,11 @@ fun HlPanelButton(
         scale = ClickableSurfaceDefaults.scale(focusedScale = HlFocus.PANEL_SCALE, focusedDisabledScale = HlFocus.PANEL_SCALE),
         border = ClickableSurfaceDefaults.border(
             border = Border(
-                BorderStroke(HlSize.hairline, (if (lit) c.tungsten else c.outline).copy(alpha = HlAlpha.BORDER)),
+                if (lit) {
+                    BorderStroke(HlSize.hairline, c.emberLight(HlAlpha.BORDER))
+                } else {
+                    BorderStroke(HlSize.hairline, c.outline.copy(alpha = HlAlpha.BORDER))
+                },
                 shape = HlShapes.panel,
             ),
             focusedBorder = outline,
@@ -131,7 +142,7 @@ fun HlPanelButton(
     }
 }
 
-/** An icon in a disc; [lit] in tungsten while what it stands for is on (in use, chosen), never for focus. */
+/** An icon in a disc; [lit] in ember while what it stands for is on (in use, chosen), never for focus. */
 @Composable
 fun HlIconDisc(icon: ImageVector, modifier: Modifier = Modifier, lit: Boolean = false) {
     val c = Hl.colors
@@ -139,10 +150,16 @@ fun HlIconDisc(icon: ImageVector, modifier: Modifier = Modifier, lit: Boolean = 
         modifier
             .size(HlSize.disc)
             .clip(HlShapes.avatar)
-            .background(if (lit) c.tungsten.copy(alpha = HlAlpha.LIT_DISC) else c.content.copy(alpha = HlAlpha.WELL)),
+            .then(
+                if (lit) {
+                    Modifier.background(c.emberLight(HlAlpha.LIT_DISC))
+                } else {
+                    Modifier.background(c.content.copy(alpha = HlAlpha.WELL))
+                },
+            ),
         contentAlignment = Alignment.Center,
     ) {
-        Icon(icon, contentDescription = null, tint = if (lit) c.tungsten else c.contentSecondary, modifier = Modifier.size(HlSize.discIcon))
+        Icon(icon, contentDescription = null, tint = if (lit) c.ember else c.contentSecondary, modifier = Modifier.size(HlSize.discIcon))
     }
 }
 
@@ -180,7 +197,7 @@ fun FactRow(
  * What a screen says when it has nothing to show or could not load, as an intertitle: what
  * happened ([title], in the voice of the poster), what to check ([message]), and the action that
  * fixes it, focused; [secondaryAction] is a quieter way out beside it (where to look more closely).
- * A failure calls for [attention]: its rule is tungsten. With no action, [backHint] says that Back
+ * A failure calls for [attention]: its rule is ember. With no action, [backHint] says that Back
  * is the way out. It takes the place of what the screen would show, from the top of that place.
  */
 @Composable
@@ -220,7 +237,7 @@ fun HlEmptyState(
 enum class StatusState { On, Off, Pending, Attention }
 
 /**
- * A state in words with its light: a tungsten dot when on or calling for attention, an empty one
+ * A state in words with its light: a ember dot when on or calling for attention, an empty one
  * when off. [detail] says why, under the words and aligned with them.
  */
 @Composable
@@ -241,7 +258,7 @@ fun HlStatus(state: StatusState, text: String, modifier: Modifier = Modifier, de
 }
 
 /**
- * The light of a [StatusState]: tungsten when on or calling for attention, quiet while pending,
+ * The light of a [StatusState]: ember when on or calling for attention, quiet while pending,
  * an empty ring when off. Also where a busy button's icon was, and before a field's error.
  */
 @Composable
@@ -253,7 +270,7 @@ internal fun StatusDot(state: StatusState, modifier: Modifier = Modifier) {
             .clip(HlShapes.avatar)
             .then(
                 when (state) {
-                    StatusState.On, StatusState.Attention -> Modifier.background(c.tungsten)
+                    StatusState.On, StatusState.Attention -> Modifier.background(c.ember)
                     StatusState.Pending -> Modifier.background(c.contentDecorative)
                     StatusState.Off -> Modifier.border(HlSize.hairline, c.contentTertiary, HlShapes.avatar)
                 }
@@ -263,8 +280,8 @@ internal fun StatusDot(state: StatusState, modifier: Modifier = Modifier) {
 
 /**
  * What needs attention, beside what it concerns (a folder that could not be read, images that
- * cannot be fetched): the attention light by the first line, then the words in tungsten, as under
- * a field. A screen never sets tungsten itself: it says attention through this, or [HlStatus].
+ * cannot be fetched): the attention light by the first line, then the words in ember, as under
+ * a field. A screen never sets ember itself: it says attention through this, or [HlStatus].
  */
 @Composable
 fun AttentionNote(text: String, modifier: Modifier = Modifier, style: TextStyle = Hl.type.detail) {
@@ -273,7 +290,7 @@ fun AttentionNote(text: String, modifier: Modifier = Modifier, style: TextStyle 
         val line = with(LocalDensity.current) { style.lineHeight.toDp() }
         Box(Modifier.height(line), contentAlignment = Alignment.Center) { StatusDot(StatusState.Attention) }
         Spacer(Modifier.width(HlSpace.xs))
-        Text(text, style = style, color = Hl.colors.tungsten)
+        Text(text, style = style, color = Hl.colors.ember)
     }
 }
 

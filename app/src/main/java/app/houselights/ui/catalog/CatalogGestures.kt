@@ -69,14 +69,14 @@ private fun SideBySide() {
                 }
             }
         }
-        Gesture("intertitle: a short rule, tungsten for attention, one action", Modifier.weight(1f)) {
+        Gesture("intertitle: a short rule, ember for attention, one action", Modifier.weight(1f)) {
             Intertitle(
                 "Bibliothèque injoignable",
                 message = "192.168.1.20 ne répond pas. Vérifiez que le NAS est allumé.",
                 attention = true,
             ) { HlButton("Réessayer", {}, emphasis = Emphasis.Primary) }
         }
-        Gesture("counter: the tungsten line, the count, the file", Modifier.weight(1f)) {
+        Gesture("counter: the ember line, the count, the file", Modifier.weight(1f)) {
             ScanProgress(3, 9, label = "Analyse de vos fichiers", current = "Bugonia (2025).mkv")
         }
     }

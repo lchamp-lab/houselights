@@ -136,7 +136,7 @@
     <ID>MaxLineLength:Cards.kt$Text(person.name, style = Hl.type.meta, color = Hl.colors.content, maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center)</ID>
     <ID>MaxLineLength:Cards.kt$unplayed &gt; 0</ID>
     <ID>MaxLineLength:CatalogScreen.kt$Column</ID>
-    <ID>MaxLineLength:CatalogScreen.kt$HlMeter(listOf(MeterSegment(0.3f, c.content), MeterSegment(0.1f, c.tungsten), MeterSegment(0.05f, c.contentSecondary)))</ID>
+    <ID>MaxLineLength:CatalogScreen.kt$HlMeter(listOf(MeterSegment(0.3f, c.content), MeterSegment(0.1f, c.ember), MeterSegment(0.05f, c.contentSecondary)))</ID>
     <ID>MaxLineLength:CatalogScreen.kt$HlSegmented((1..12).map { "Saison $it" }, selected = season, onSelect = { season = it }, selectOnFocus = true, scrollable = true)</ID>
     <ID>MaxLineLength:CatalogScreen.kt$HlSettingRow("Your choice", value = "Chosen", valueLit = true, description = "A line of description", onClick = {})</ID>
     <ID>MaxLineLength:CatalogScreen.kt$Text("Houselights 2,39:1 ${style.fontSize.value.toInt()} sp", style = style, color = Hl.colors.content, maxLines = 1, modifier = Modifier.padding(start = HlSpace.s))</ID>
@@ -158,7 +158,7 @@
     <ID>MaxLineLength:LocalProvider.kt$LocalProvider$backdrop = (c.backdropPath ?: first?.let { shown(it.userBackdropPath, it.backdropPath) })?.let { image(it, ImageType.BACKDROP) }</ID>
     <ID>MaxLineLength:LocalProvider.kt$LocalProvider$if</ID>
     <ID>MaxLineLength:MediaProvider.kt$MediaProvider$return films.firstOrNull { it.user.positionMs &gt; 0 &amp;&amp; !it.user.played } ?: films.firstOrNull { !it.user.played } ?: films.firstOrNull()</ID>
-    <ID>MaxLineLength:Menu.kt$Icon(Icons.Filled.Check, contentDescription = null, tint = if (focused) c.onFocus else c.tungsten, modifier = Modifier.size(HlSize.icon))</ID>
+    <ID>MaxLineLength:Menu.kt$Icon(Icons.Filled.Check, contentDescription = null, tint = if (focused) c.onFocus else c.ember, modifier = Modifier.size(HlSize.icon))</ID>
     <ID>MaxLineLength:Menu.kt$Row</ID>
     <ID>MaxLineLength:Menu.kt$Text(it, style = Hl.type.caption, color = c.contentSecondary, modifier = Modifier.padding(horizontal = HlSpace.s, vertical = HlSpace.xxs))</ID>
     <ID>MaxLineLength:Meta.kt$fun</ID>
