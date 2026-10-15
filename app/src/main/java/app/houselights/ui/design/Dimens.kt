@@ -243,9 +243,13 @@ internal object TechSpecsDefaults {
     val layoutColumn = 48.dp
 }
 
-/** How far a backdrop's left veil takes to fade out, past the text column. */
+/**
+ * How far a backdrop's left veil takes to fade out past the text column, from full strength: one
+ * that ends the column lighter fades out sooner, at the same pace. A slow pace: over a light
+ * picture, a quicker fade reads as the edge of a dark panel rather than as light falling off.
+ */
 internal object BackdropDefaults {
-    val veilFade = 240.dp
+    val veilFade = 420.dp
 }
 
 /** Inner padding of pill controls and of the options of a segmented track. */

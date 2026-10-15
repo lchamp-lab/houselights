@@ -51,13 +51,15 @@
     <ID>MagicNumber:Auditorium.kt$HouseLightCue$0.4f</ID>
     <ID>MagicNumber:Auditorium.kt$HouseLightCue$0.58f</ID>
     <ID>MagicNumber:Auditorium.kt$HouseLightCue$3f</ID>
-    <ID>MagicNumber:Backdrop.kt$BackdropStyle.Full$0.55f</ID>
-    <ID>MagicNumber:Backdrop.kt$BackdropStyle.Full$0.97f</ID>
-    <ID>MagicNumber:Backdrop.kt$BackdropStyle.Hero$0.3f</ID>
-    <ID>MagicNumber:Backdrop.kt$BackdropStyle.Hero$0.96f</ID>
+    <ID>MagicNumber:Backdrop.kt$BackdropStyle.Full$0.45f</ID>
+    <ID>MagicNumber:Backdrop.kt$BackdropStyle.Full$0.85f</ID>
+    <ID>MagicNumber:Backdrop.kt$BackdropStyle.Hero$0.22f</ID>
+    <ID>MagicNumber:Backdrop.kt$BackdropStyle.Hero$0.68f</ID>
+    <ID>MagicNumber:Backdrop.kt$BackdropStyle.Hero$0.85f</ID>
     <ID>MagicNumber:Backdrop.kt$BackdropStyle.Quiet$0.28f</ID>
     <ID>MagicNumber:Backdrop.kt$BackdropStyle.Quiet$0.2f</ID>
     <ID>MagicNumber:Backdrop.kt$BackdropStyle.Quiet$0.6f</ID>
+    <ID>MagicNumber:Backdrop.kt$BackdropStyle.Quiet$0.75f</ID>
     <ID>MagicNumber:EditViewModels.kt$IdentifyViewModel$4</ID>
     <ID>MagicNumber:Format.kt$1000</ID>
     <ID>MagicNumber:Format.kt$1_000_000L</ID>

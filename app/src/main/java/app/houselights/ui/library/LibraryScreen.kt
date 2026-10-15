@@ -114,12 +114,9 @@ fun LibraryScreen(
     val gridFocus = remember { FocusRequester() }
     var gridHasFocus by remember { mutableStateOf(false) }
     val gridState = rememberLazyGridState()
-    // The posters on the top row of the wall as it is shown, left to right.
+    // The posters of the wall as it is shown: the room takes their colours.
     val wallPosters by remember {
-        derivedStateOf {
-            val first = gridState.layoutInfo.visibleItemsInfo.firstOrNull()?.index ?: 0
-            state.items.drop(first - first % COLUMNS).take(COLUMNS).mapNotNull { it.poster }
-        }
+        derivedStateOf { gridState.layoutInfo.visibleItemsInfo.mapNotNull { state.items.getOrNull(it.index)?.poster } }
     }
     val scope = rememberCoroutineScope()
     // Each arrival puts focus back on the poster left, else on the first one.
