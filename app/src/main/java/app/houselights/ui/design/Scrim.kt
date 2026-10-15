@@ -78,7 +78,7 @@ object HlScrim {
      * fading with the distance, so the light is brightest against the card and dies out softly.
      */
     const val GLOW_STEPS = 16
-    const val GLOW_LAYER = 0.09f
+    const val GLOW_LAYER = 0.06f
 
     /**
      * How bright the ambient tone is, every film alike: its HSV value. No tone is a lighter grey,
