@@ -99,7 +99,7 @@ fun CatalogScreen() {
                             "background" to c.background, "surface" to c.surface, "raised" to c.surfaceRaised,
                             "outline" to c.outline, "decorative" to c.contentDecorative, "tertiary" to c.contentTertiary,
                             "secondary" to c.contentSecondary, "content" to c.content, "on focus, detail" to c.onFocusSecondary,
-                            "tungsten" to c.tungsten,
+                            "ember" to c.ember,
                         ).forEach { (name, color) -> Swatch(name, color) }
                     }
                 }

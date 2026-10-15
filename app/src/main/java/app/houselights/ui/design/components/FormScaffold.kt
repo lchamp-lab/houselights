@@ -103,8 +103,8 @@ fun HlFormScaffold(
  * Where a setup stands, beside its form: the state with its light first ("Connexion réussie"),
  * then what is being set up, [label] and [value] large in [valueStyle] (the technical voice by
  * default: an address), [detail] quieter (its path), [badges] for its kind; under a hairline,
- * [content] for what was found and the [result] of the last attempt (tungsten when it failed).
- * Lit in tungsten while the state is on.
+ * [content] for what was found and the [result] of the last attempt (ember when it failed).
+ * Lit in ember while the state is on.
  */
 @Composable
 fun StatusPanel(
@@ -142,7 +142,7 @@ fun StatusPanel(
             content?.invoke(this)
             if (result != null) {
                 if (content != null) Spacer(Modifier.height(HlSpace.m))
-                Text(result, style = Hl.type.detail, color = if (resultIsError) c.tungsten else c.content)
+                Text(result, style = Hl.type.detail, color = if (resultIsError) c.ember else c.content)
             }
         }
     }

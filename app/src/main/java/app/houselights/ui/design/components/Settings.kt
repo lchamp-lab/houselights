@@ -122,7 +122,7 @@ fun HlSettingGroup(title: String?, modifier: Modifier = Modifier, content: @Comp
  * One setting: its name (and a line of description if needed) on the left, what it is set to
  * on the right. With [onClick] the row is a control that turns projector white with focus and
  * leads somewhere ([chevron]); without it, the row only states a value. [valueLit] marks a value
- * the user chose or something that needs attention, in tungsten. [trailing] replaces the value
+ * the user chose or something that needs attention, in ember. [trailing] replaces the value
  * with another element (a status, badges); [leading] replaces the icon with a preview of what the
  * row changes ([RowPreview]). Not [enabled], its words go tertiary and OK does nothing; focus
  * still reaches it, outlined. Only on the room: in a raised sheet tertiary would fall under 4.5:1,
@@ -233,7 +233,7 @@ internal fun rowScale(): ClickableSurfaceScale =
 
 /**
  * A row's quieter words (its description, its value), by state: [onFocus] on a focused row,
- * tertiary on a disabled one, tungsten when [lit], else secondary.
+ * tertiary on a disabled one, ember when [lit], else secondary.
  */
 @Composable
 private fun rowLineColor(focused: Boolean, enabled: Boolean, lit: Boolean, onFocus: Color): Color {
@@ -241,7 +241,7 @@ private fun rowLineColor(focused: Boolean, enabled: Boolean, lit: Boolean, onFoc
     return when {
         focused -> onFocus
         !enabled -> c.contentTertiary
-        lit -> c.tungsten
+        lit -> c.ember
         else -> c.contentSecondary
     }
 }
@@ -283,13 +283,13 @@ fun HlChoiceSheet(
 }
 
 /**
- * The check of the current choice, at the end of its row: your choice, in tungsten at rest, the
+ * The check of the current choice, at the end of its row: your choice, in ember at rest, the
  * focused content colour on a lit row. Sheets whose choices lead elsewhere mark the current one
  * with it too.
  */
 @Composable
 internal fun ChoiceCheck() {
     val content = LocalContentColor.current
-    val tint = if (content == Hl.colors.onFocus) content else Hl.colors.tungsten
+    val tint = if (content == Hl.colors.onFocus) content else Hl.colors.ember
     Icon(HlIcons.Check, contentDescription = null, tint = tint, modifier = Modifier.size(HlSize.icon))
 }

@@ -44,7 +44,7 @@ import coil.compose.AsyncImage
 
 /**
  * One artwork to choose from, at the shape it is used in, with a caption saying what it is.
- * The one in use carries the check of your choice, in tungsten ([SelectedMark]).
+ * The one in use carries the check of your choice, in ember ([SelectedMark]).
  */
 @Composable
 fun ArtworkChoiceCard(
@@ -99,7 +99,7 @@ fun ArtworkChoiceCard(
     }
 }
 
-/** The choice in use: the watched mark's check, in tungsten, on the same dark plate. */
+/** The choice in use: the watched mark's check, in ember, on the same dark plate. */
 @Composable
 fun SelectedMark(modifier: Modifier = Modifier) {
     CheckMark(modifier, choice = true)
@@ -108,7 +108,7 @@ fun SelectedMark(modifier: Modifier = Modifier) {
 /**
  * A title found by a search, set like a small one-sheet: its poster, its name in the voice of the
  * poster, facts (year, original title), three lines of overview. The title in use ([mark]) is
- * edged in tungsten and says so next to its name, with the light of a state ("Actuel"). While it
+ * edged in ember and says so next to its name, with the light of a state ("Actuel"). While it
  * is being chosen, [busy] says so there instead ("Association…").
  */
 @Composable

@@ -77,7 +77,7 @@ fun InfoBlock(title: String, modifier: Modifier = Modifier, content: @Composable
 data class SpecTableRow(val name: String, val values: List<String>, val inUse: Boolean = false)
 
 /**
- * Rows read as a table, like the tracks of the technical sheet: the tungsten dot on the row in
+ * Rows read as a table, like the tracks of the technical sheet: the ember dot on the row in
  * service, its name, then each value in its column, all in `meta` with tabular figures so the
  * figures line up down the table. [columns] gives the width of each value column but the last,
  * which takes what is left and wraps. Set in an [InfoBlock]; it adds no box of its own.
@@ -95,7 +95,7 @@ fun SpecTable(rows: List<SpecTableRow>, columns: List<Dp>, modifier: Modifier = 
                             .align(Alignment.CenterVertically)
                             .size(HlSize.dot)
                             .clip(HlShapes.avatar)
-                            .then(if (row.inUse) Modifier.background(c.tungsten) else Modifier),
+                            .then(if (row.inUse) Modifier.background(c.ember) else Modifier),
                     )
                     Spacer(Modifier.width(HlSpace.s))
                 }

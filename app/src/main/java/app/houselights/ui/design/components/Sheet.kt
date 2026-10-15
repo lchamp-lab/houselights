@@ -244,8 +244,8 @@ private fun SheetHeader(
 /**
  * An action that cannot be undone asks first, in its side sheet. [rows] show until then: they
  * receive `ask`, for the row that asks, and `origin`, the modifier that names that row. Asking
- * puts a card in their place: a short tungsten rule (attention), the [question] in the voice of
- * the poster, its [consequence], then Cancel, focused, and [confirm], its label tungsten at rest,
+ * puts a card in their place: a short ember rule (attention), the [question] in the voice of
+ * the poster, its [consequence], then Cancel, focused, and [confirm], its label ember at rest,
  * never red. Cancel, or Back, brings the rows back with focus on the row that asked, then runs
  * [onCancel]; [confirm] runs [onConfirm].
  */

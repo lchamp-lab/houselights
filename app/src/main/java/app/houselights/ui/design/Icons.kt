@@ -115,7 +115,7 @@ object HlIcons {
         moveTo(15.25f, 15.25f); lineTo(20f, 20f)
     }
 
-    /** A check: done (watched) in projector white, your choice in tungsten. */
+    /** A check: done (watched) in projector white, your choice in ember. */
     val Check = icon("Check") {
         moveTo(5f, 12.5f); lineTo(9.75f, 17f); lineTo(19f, 7.5f)
     }

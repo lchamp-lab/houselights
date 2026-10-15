@@ -93,7 +93,7 @@ enum class Emphasis { Primary, Secondary }
 /**
  * Pill button. Every button turns projector white when focused; the primary one is brighter at
  * rest so the main action reads first. The label stops at [HlLayout.readableNarrow] and the
- * [detail] at one line, both with an ellipsis; [detailLit] sets the detail in tungsten at rest,
+ * [detail] at one line, both with an ellipsis; [detailLit] sets the detail in ember at rest,
  * for a state it names (an active filter). Not [enabled], the button sits in a faint well with
  * tertiary words and ignores OK; it keeps focus, outlined, so the remote still reaches it.
  * [busy], it is at work: the quiet dot of a pending state in place of its icon, [busyLabel] in
@@ -115,7 +115,7 @@ fun HlButton(
 ) = PillButton(text, onClick, modifier, icon, detail, emphasis, detailLit, enabled, busy, busyLabel)
 
 /**
- * The pill of [HlButton]. [caution] sets the label in tungsten at rest: the action a question
+ * The pill of [HlButton]. [caution] sets the label in ember at rest: the action a question
  * asks about, which cannot be undone ([SheetConfirm]). Attention, never red.
  */
 @Composable
@@ -146,7 +146,7 @@ internal fun PillButton(
         shape = ClickableSurfaceDefaults.shape(HlShapes.control),
         colors = ClickableSurfaceDefaults.colors(
             containerColor = c.content.copy(alpha = fill),
-            contentColor = if (caution) c.tungsten else c.content,
+            contentColor = if (caution) c.ember else c.content,
             focusedContainerColor = c.focus,
             focusedContentColor = c.onFocus,
             pressedContainerColor = c.focus,
@@ -202,7 +202,7 @@ private fun detailColor(onWhite: Boolean, enabled: Boolean, lit: Boolean): Color
     return when {
         onWhite -> c.onFocusSecondary
         !enabled -> c.contentTertiary
-        lit -> c.tungsten
+        lit -> c.ember
         else -> c.contentSecondary
     }
 }
@@ -251,7 +251,7 @@ internal fun controlScale(): ClickableSurfaceScale =
  * label always sits on a dark plate; [onArtwork] sets the button on one too, so it reads over any image. Not [enabled], its icon goes
  * quiet and OK does nothing; focus still reaches it, outlined, and still shows its label. A toggle
  * names what OK does ("Marquer comme vu") and shows where things stand with its icon: [lit],
- * tungsten at rest.
+ * ember at rest.
  */
 @Composable
 fun HlIconButton(
@@ -282,7 +282,7 @@ fun HlIconButton(
                 border = disabledFocusBorder(HlShapes.avatar),
                 colors = ClickableSurfaceDefaults.colors(
                     containerColor = restFill,
-                    contentColor = if (lit) c.tungsten else c.content,
+                    contentColor = if (lit) c.ember else c.content,
                     focusedContainerColor = c.focus,
                     focusedContentColor = c.onFocus,
                     pressedContainerColor = c.focus,

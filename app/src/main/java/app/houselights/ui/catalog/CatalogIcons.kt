@@ -37,11 +37,11 @@ import app.houselights.ui.design.components.Score
 import app.houselights.ui.design.components.SelectedMark
 import app.houselights.ui.design.components.StatusState
 
-/** Every glyph of the app; the marks that say done and your choice; what tungsten never says. */
+/** Every glyph of the app; the marks that say done and your choice; what ember never says. */
 internal fun LazyListScope.catalogIcons() {
     item { Group("Icons: one line, 1.75 on a 24 grid, at 24 and 20; Play the one filled glyph", still = true) { IconSheet() } }
     item { Group("Done and your choice: one check, two inks; in words, a light") { Marks() } }
-    item { Group("Tungsten, states only: a score is a fact; attention sits beside what it concerns", still = true) { Facts() } }
+    item { Group("Ember, states only: a score is a fact; attention sits beside what it concerns", still = true) { Facts() } }
 }
 
 /** The glyphs in the order of [HlIcons], each on the room and on projector white; Play last. */
@@ -87,7 +87,7 @@ private fun Sizes(icon: ImageVector, ink: Color, modifier: Modifier) {
 }
 
 /**
- * Done and your choice are one check: white for done, tungsten for your choice, on the same plate
+ * Done and your choice are one check: white for done, ember for your choice, on the same plate
  * over artwork and bare in a list. A choice in words takes the light of a state; how a thing was
  * done is a plain word.
  */
@@ -116,7 +116,7 @@ private fun Marks() {
             Text("Automatique", style = Hl.type.meta, color = c.contentSecondary)
         }
     }
-    Case("the current choice of a sheet: tungsten at rest", Modifier.width(HlLayout.sideColumnWide)) {
+    Case("the current choice of a sheet: ember at rest", Modifier.width(HlLayout.sideColumnWide)) {
         HlSettingRow("Mes fichiers", description = "3 dossiers", onClick = {}, chevron = false, trailing = { ChoiceCheck() })
     }
 }

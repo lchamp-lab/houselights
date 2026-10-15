@@ -20,7 +20,7 @@ class ContrastTest {
         "content" to c.content,
         "contentSecondary" to c.contentSecondary,
         "contentTertiary" to c.contentTertiary,
-        "tungsten" to c.tungsten,
+        "ember" to c.ember,
         "onFocus" to c.onFocus,
         "onFocusSecondary" to c.onFocusSecondary,
     )
@@ -65,22 +65,22 @@ class ContrastTest {
         "contentTertiary" on "background", "contentTertiary" on "surface", "contentTertiary" on "surfaceRaised",
         "contentTertiary" on "QUIET_SURFACE", "contentTertiary" on "WELL",
         // A value the user chose, the check of the current choice, a failed result, the wordmark.
-        "tungsten" on "background", "tungsten" on "surfaceRaised", "tungsten" on "QUIET_SURFACE",
-        "tungsten" on "WELL", "tungsten" on "WELL on surfaceRaised",
+        "ember" on "background", "ember" on "surfaceRaised", "ember" on "QUIET_SURFACE",
+        "ember" on "WELL", "ember" on "WELL on surfaceRaised",
         // What needs attention beside what it concerns, over a backdrop (images that cannot be fetched).
-        "tungsten" on "the veil's floor on a white image",
+        "ember" on "the veil's floor on a white image",
         // A focused control: its name, and the line under it.
         "onFocus" on "focus", "onFocusSecondary" on "focus",
         // Marks: a lit round button's icon (watched, a favourite), the check of your choice and the
         // new dot on their plate, a card's progress on its plate. The watched check is white (above).
-        ("tungsten" on "CONTROL_FILL").mark(),
-        ("tungsten" on "PLATE on a white image").mark(),
+        ("ember" on "CONTROL_FILL").mark(),
+        ("ember" on "PLATE on a white image").mark(),
         // A meter's inks on its track, a gap apart: projector white, secondary, and tertiary (below).
         ("content" on "WELL").mark(), ("contentSecondary" on "WELL").mark(),
         // A button's detail lit at rest (an active filter), on a secondary or a primary button.
-        "tungsten" on "CONTROL_FILL", "tungsten" on "CONTROL_FILL_STRONG",
-        // A question asked in a sheet: Cancel, and the action asked about, its label tungsten at rest.
-        "content" on "CONTROL_FILL on surfaceRaised", "tungsten" on "CONTROL_FILL on surfaceRaised",
+        "ember" on "CONTROL_FILL", "ember" on "CONTROL_FILL_STRONG",
+        // A question asked in a sheet: Cancel, and the action asked about, its label ember at rest.
+        "content" on "CONTROL_FILL on surfaceRaised", "ember" on "CONTROL_FILL on surfaceRaised",
         // A disabled control on the room: its words (above) and its icon, tertiary in its well; on
         // its plate over an image, a round button's icon stays secondary.
         ("contentTertiary" on "WELL").mark(),

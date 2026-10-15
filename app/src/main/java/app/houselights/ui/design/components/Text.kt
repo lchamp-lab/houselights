@@ -18,6 +18,7 @@ import androidx.tv.material3.Text
 import app.houselights.R
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.emberLight
 import app.houselights.ui.util.toPx
 import app.houselights.core.ImageRef
 import coil.compose.AsyncImage
@@ -36,16 +37,16 @@ fun ScreenTitle(text: String, modifier: Modifier = Modifier) {
 }
 
 /**
- * "Houselights", set in type and nothing else: condensed, tungsten, flat. No halo or shadow: the
- * light in the room comes from the films. [style] is its size: `wordmark` by default (About),
+ * "Houselights", set in type and nothing else: condensed, in the ember light across its letters.
+ * No halo or shadow: the light in the room comes from the films. [style] is its size: `wordmark` by default (About),
  * `wordmarkHero` over the welcome wall.
  */
 @Composable
 fun Wordmark(modifier: Modifier = Modifier, style: TextStyle = Hl.type.wordmark) {
     Text(
         stringResource(R.string.app_name),
-        style = style,
-        color = Hl.colors.tungsten,
+        // The brush in the style wins over any colour the text would take.
+        style = style.copy(brush = Hl.colors.emberLight()),
         maxLines = 1,
         softWrap = false,
         modifier = modifier,

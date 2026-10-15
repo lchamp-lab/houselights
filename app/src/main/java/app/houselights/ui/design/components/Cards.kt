@@ -87,6 +87,7 @@ import app.houselights.ui.design.RowScroll
 import app.houselights.ui.design.keepChildFocus
 import app.houselights.ui.design.rememberedInGroup
 import app.houselights.ui.design.revealOnFocus
+import app.houselights.ui.design.emberLight
 import app.houselights.ui.util.toPx
 import coil.compose.AsyncImage
 import kotlin.math.roundToInt
@@ -472,7 +473,7 @@ private const val POSTER_RATIO = 2f / 3f
 
 /**
  * One mark at most, at the top right, on a dark plate: the number of unwatched episodes of a show,
- * the line check of a title watched, or the tungsten dot of a title new to the library. Progress
+ * the line check of a title watched, or the ember dot of a title new to the library. Progress
  * has its own line at the foot of the card.
  */
 @Composable
@@ -487,14 +488,14 @@ private fun StatusMark(item: MediaItem, modifier: Modifier) {
         }
         item.user.played -> CheckMark(mark)
         item.isNew() -> Box(mark.size(HlSize.mark).clip(HlShapes.avatar).background(plate), contentAlignment = Alignment.Center) {
-            Box(Modifier.size(HlSize.dot).clip(HlShapes.avatar).background(Hl.colors.tungsten))
+            Box(Modifier.size(HlSize.dot).clip(HlShapes.avatar).background(Hl.colors.ember))
         }
     }
 }
 
 /**
  * The line check over artwork, on the dark plate of a mark: projector white for done (watched),
- * tungsten for [choice], the one in use ([SelectedMark]). The same glyph, only its ink differs.
+ * ember for [choice], the one in use ([SelectedMark]). The same glyph, only its ink differs.
  */
 @Composable
 internal fun CheckMark(modifier: Modifier = Modifier, choice: Boolean = false) {
@@ -503,7 +504,7 @@ internal fun CheckMark(modifier: Modifier = Modifier, choice: Boolean = false) {
         modifier.size(HlSize.mark).clip(HlShapes.avatar).background(c.background.copy(alpha = HlAlpha.PLATE)),
         contentAlignment = Alignment.Center,
     ) {
-        val ink = if (choice) c.tungsten else c.content
+        val ink = if (choice) c.ember else c.content
         Icon(HlIcons.Check, contentDescription = null, tint = ink, modifier = Modifier.size(HlSize.markIcon))
     }
 }
@@ -528,7 +529,8 @@ private fun cardState(item: MediaItem): String? {
 private const val PERCENT = 100
 
 /**
- * Tungsten progress line, only for titles in progress. On artwork ([onArtwork]: the foot of a
+ * Progress line in the ember light, its whole gradient across what is done, only for titles in
+ * progress. On artwork ([onArtwork]: the foot of a
  * card), its track is a dark plate, so the line reads over the lightest image.
  */
 @Composable
@@ -536,7 +538,7 @@ fun ProgressLine(progress: Float, modifier: Modifier = Modifier, onArtwork: Bool
     if (progress <= 0f) return
     val track = if (onArtwork) Hl.colors.background.copy(alpha = HlAlpha.PLATE) else Hl.colors.content.copy(alpha = HlAlpha.TRACK)
     Box(modifier.fillMaxWidth().height(HlSize.progress).background(track)) {
-        Box(Modifier.fillMaxWidth(progress).height(HlSize.progress).background(Hl.colors.tungsten))
+        Box(Modifier.fillMaxWidth(progress).height(HlSize.progress).background(Hl.colors.emberLight()))
     }
 }
 

@@ -11,7 +11,8 @@ every build (see *Guard*).
 1. **One light source.** The room is pure black (`#000000`). Colour comes from the artwork: the
    *ambient light* (`LocalAmbient`) is picked from the focused backdrop and spills onto the room. When
    nothing is selected, the room takes the colours of the posters on the wall (`CollectionLight`).
-   Tungsten, the only fixed accent, marks **states**: in use, your choice, needs attention.
+   Ember, the only fixed accent, marks **states**: in use, your choice, needs attention. It is a
+   light, not an ink: a gradient from bright orange to raspberry wherever it has room to show.
 2. **Ten-foot first.** Nothing below 12 sp, no content below 14 sp, every text at least 4.5:1 on the
    surface it sits on (see *Contrast*). Content stays inside the overscan-safe area (`HlSpace.safeH` /
    `safeV`). Every focusable element shows an unmistakable focus state. Every screen is laid out on
@@ -55,9 +56,9 @@ The technical voice speaks the vocabulary of a Blu-ray case: formats by their na
   with NAME, NAME and NAME": names in condensed capitals, small words and commas receding. On one line:
   it keeps as many leading names as fit, and never breaks inside a name.
 
-**The wordmark** is type and nothing else: "Houselights" in the condensed SemiBold, in tungsten, flat,
-with no halo, glow or shadow; the light in the room comes from the films. It is the one use of
-tungsten that is not a state. It appears twice: large on the welcome screen, where the drifting wall
+**The wordmark** is type and nothing else: "Houselights" in the condensed SemiBold, in the ember
+light across its letters (`emberLight`), with no halo, glow or shadow; the light in the room comes
+from the films. It is the one use of ember that is not a state. It appears twice: large on the welcome screen, where the drifting wall
 of posters is the bold element, and at the size of a subject in About. The settings do not sign
 their column with it.
 
@@ -71,15 +72,15 @@ materials, never two, and invent nothing. The catalogue shows the three side by 
   hairline, its name in `caption`, then what it says. Formats speak the technical voice ("Ultra HD
   60 Hz"); sizes, counts and frame sizes stay in `meta`, tabular, as on the technical sheet. Pairs
   are a `DefinitionList` (a state with its light goes in a `DefinitionRow`); several of a kind are a
-  `SpecTable`, the tungsten dot on the one in service. A block is flush with the title above it:
+  `SpecTable`, the ember dot on the one in service. A block is flush with the title above it:
   only what acts is a row, in its well. Affichage, Stockage's legend, À propos, a Jellyfin server.
 - **The intertitle (B): every message.** As in a silent film, and like the one-sheet of a title
   without artwork: a short rule, one line in the voice of the poster (`subject`), one line to read
-  (`body`, secondary, `readableNarrow`), at most one action and a quieter one. A tungsten rule says
+  (`body`, secondary, `readableNarrow`), at most one action and a quieter one. A ember rule says
   attention: a failure, a question that cannot be undone. It takes the place of what the screen
   would show, from the top of that place, on the screen's margin: never centred, never a snackbar,
   a Toast or a dialog. `HlEmptyState` for a screen, `SheetConfirm` in a sheet.
-- **The counter (C): what moves on.** The tungsten line, the count at its end in tabular figures
+- **The counter (C): what moves on.** The ember line, the count at its end in tabular figures
   ("3 / 9", one string, `scan_progress`), the file being read in a quiet `detail` line
   (`ScanProgress`). A duration reads "2 h 02", time left "Il reste 20 min"; a timecode only names a
   frame of the film, never a button.
@@ -97,7 +98,8 @@ materials, never two, and invent nothing. The catalogue shows the three side by 
 | `contentSecondary` | `#A39E96` | secondary text; 4.96:1 at worst, in a primary button |
 | `contentTertiary` | `#8C867E` | the quietest text: 4.76:1 on `surfaceRaised`, its lowest permitted surface |
 | `contentDecorative` | `#4A4642` | never text: empty frames, inactive marks |
-| `tungsten` | `#F2B66D` | states only, a closed list (below); the wordmark is the one exception |
+| `ember` | `#FF7A4D` | states only, a closed list (below); the wordmark is the one exception. Solid, for what is too small for a gradient: a dot, a check, a word |
+| `emberFrom`, `emberTo` | `#FF9F1C` → `#FF2E63` | the ember light (`emberLight()`): the same states where they have room, a gradient from start to end across what they fill. The wordmark, a progress line and the counter, the rule of an intertitle that calls for attention, the edge of a field being typed in, the edge and disc of what is lit |
 | `focus` | `#F2F0EB` | projector white again: the fill and outline of focus |
 | `onFocus` | `#000000` | a focused control's name and icon |
 | `onFocusSecondary` | `#5C5B59` | the line under that name (a summary, a runtime): black at 62 % on `focus`, 5.96:1 |
@@ -108,7 +110,7 @@ materials, never two, and invent nothing. The catalogue shows the three side by 
 and progress, and the controls laid over a backdrop. The veils laid over artwork are recipes, in
 `HlScrim` (see *Veils*).
 
-**Tungsten is a closed list.** It says three things and nothing else. *In use*: a title's progress,
+**Ember is a closed list.** It says three things and nothing else. *In use*: a title's progress,
 the track playing, the setup in use, a field being typed in. *Your choice*: the check of the current
 choice, a value or a match you chose, an active filter. *Needs attention*: an error and its light,
 the action a question asks about. The wordmark is the one exception. It never marks focus (projector
@@ -118,8 +120,8 @@ the component lights it (`HlStatus`, `AttentionNote`, `lit`, `valueLit`, `detail
 holds screens to it.
 
 **Your choice, written one way.** One glyph, `HlIcons.Check`, two inks: white says done (watched),
-tungsten says your choice. Over artwork both sit on the same dark plate (`SelectedMark` is the
-watched mark in tungsten); in a list, a sheet or a menu the check stands alone. In words, a choice
+ember says your choice. Over artwork both sit on the same dark plate (`SelectedMark` is the
+watched mark in ember); in a list, a sheet or a menu the check stands alone. In words, a choice
 takes the light of a state (`HlStatus` On: "Votre choix", "Actuel"); how something was done is a
 plain `meta` word without light ("Automatique"). A `Badge` is what a case would print, formats, age
 ratings and protocols: never a state.
@@ -131,7 +133,7 @@ a control are named colours, never an opacity laid on the current one: the line 
 `contentTertiary` at rest, `contentSecondary` when chosen, `onFocusSecondary` with focus. Two pairs
 are forbidden: `contentTertiary` on a `WELL` row inside a raised panel (≈ 4.09:1) and on
 `CONTROL_FILL_STRONG` (≈ 3.66:1). There, the quiet line stays `contentSecondary`, as in setting
-rows and buttons. A line that names a state (`detailLit`: an active filter) is `tungsten` at rest
+rows and buttons. A line that names a state (`detailLit`: an active filter) is `ember` at rest
 and `onFocusSecondary` with focus. A **disabled** control sits in a `WELL` with `contentTertiary`
 words, on the room only: inside a raised sheet that pair is the forbidden one, and a sheet leaves
 out an action that cannot be taken.
@@ -245,23 +247,23 @@ without the prefix (`MenuOption`, `MeterLegend`, `PosterCard`, `BillingBlock`, `
 | `HeroInfo`, `TitleArt`, `EpisodeHeading`, `MetaLine`, `BillingBlock` | what a title is: clear logo or condensed title, facts, credits |
 | `TitleLine` | the line naming the title under focus over a wall: its name, facts and formats on one line of fixed height. Short of room, the formats go first, from the last, then the name ends in an ellipsis |
 | `Badge`, `BadgeRow`, `FactRow`, `Score` | what a case would print: formats, age ratings, protocols, never a state; wrapping, or on one line (`oneLine`) where the last ones go; facts on one line, spaced, never punctuated; a score, the line star and its figure, quiet: a fact, it never lights |
-| `HlButton` (`Primary`, `Secondary`), `HlIconButton` | pill and round actions, all 48 dp tall; the icon button shows its label under it when focused. The label takes no room (a row with something below keeps `HlLayout.iconLabelRoom` for it), always sits on a dark plate, a pill padded 12 × 4 (`HlControl.labelPadding*`) 8 below the button, so it reads over any picture; it is centred under the button, even at the edge of the safe area; only where it would come closer than 24 to the side of the screen (`HlLayout.iconLabelEdge`) does it align with the button's edge, hides while a sheet is open, and is not read out: the icon carries the name. A toggle names what OK does ("Marquer comme vu", "Retirer des favoris") and shows where things stand with its icon, tungsten at rest when `lit` (a favourite's heart fills). Over an image (`onArtwork`) the button rests on a plate. A pill's label stops at `readableNarrow` and its detail at one line, with an ellipsis; `detailLit` lights the detail of a state (an active filter) instead of borrowing the primary emphasis. Not `enabled`, a control keeps focus, outlined, and ignores OK. `busy`, a pill is at work: the quiet dot of a pending state where its icon was, the words the screen gives (`busyLabel`: "Connexion…", "Vérification…"), its width kept, OK ignored, read out as in progress; nothing spins |
+| `HlButton` (`Primary`, `Secondary`), `HlIconButton` | pill and round actions, all 48 dp tall; the icon button shows its label under it when focused. The label takes no room (a row with something below keeps `HlLayout.iconLabelRoom` for it), always sits on a dark plate, a pill padded 12 × 4 (`HlControl.labelPadding*`) 8 below the button, so it reads over any picture; it is centred under the button, even at the edge of the safe area; only where it would come closer than 24 to the side of the screen (`HlLayout.iconLabelEdge`) does it align with the button's edge, hides while a sheet is open, and is not read out: the icon carries the name. A toggle names what OK does ("Marquer comme vu", "Retirer des favoris") and shows where things stand with its icon, ember at rest when `lit` (a favourite's heart fills). Over an image (`onArtwork`) the button rests on a plate. A pill's label stops at `readableNarrow` and its detail at one line, with an ellipsis; `detailLit` lights the detail of a state (an active filter) instead of borrowing the primary emphasis. Not `enabled`, a control keeps focus, outlined, and ignores OK. `busy`, a pill is at work: the quiet dot of a pending state where its icon was, the words the screen gives (`busyLabel`: "Connexion…", "Vérification…"), its width kept, OK ignored, read out as in progress; nothing spins |
 | `HlSegmented` | the one way to show where you are or what is chosen among a few: home navigation, seasons (`scrollable`), NFO views, form choices. In a track, **white means current**: one white pill sits under the current option and slides to the option chosen (`STANDARD`, emphasized). The option under focus but not chosen is a grey pill; focus on the current option draws a ring around the pill, travelling with it. Focus entering a track, from any side, lands on the current option, never on the nearest one; to accessibility services the options are tabs, the current one selected. A long track scrolls as one piece, pill included. Over an image (`onArtwork`), the track is a plate and its options are white. There is no standalone tab |
 | `HlPanel` (`Quiet`, `Raised`, `lit`), `HlPanelButton` | the one panel recipe, and its focusable form (not `enabled`: a faint well, what it draws in `LocalContentColor` goes tertiary) |
-| `HlIconDisc`, `HlDivider`, `HlStatus`, `AttentionNote`, `HlMeter`, `MeterLegend` | an icon in a disc (lit when what it stands for is on, never for focus), a hairline, a state with its light (tungsten when on or calling for attention) and why, under it; what needs attention beside what it concerns (a folder that could not be read), the light by its first line and the words in tungsten, as under a field; a segmented gauge, its parts inked by rank (`MeterInk`: white, then the two greys of reading), a gap apart, never tungsten |
-| `HlListItem`, `HlResultItem`, `PosterThumb` | choices in a list (icon in line with the name, white with focus, what the choice brings in badges under a hairline, a chevron on focus); a search result with its poster, the one in use edged in tungsten and saying so with a light ("Actuel"), which says "Association…" in its place while it is being chosen: the results stay, and so does focus |
+| `HlIconDisc`, `HlDivider`, `HlStatus`, `AttentionNote`, `HlMeter`, `MeterLegend` | an icon in a disc (lit when what it stands for is on, never for focus), a hairline, a state with its light (ember when on or calling for attention) and why, under it; what needs attention beside what it concerns (a folder that could not be read), the light by its first line and the words in ember, as under a field; a segmented gauge, its parts inked by rank (`MeterInk`: white, then the two greys of reading), a gap apart, never ember |
+| `HlListItem`, `HlResultItem`, `PosterThumb` | choices in a list (icon in line with the name, white with focus, what the choice brings in badges under a hairline, a chevron on focus); a search result with its poster, the one in use edged in ember and saying so with a light ("Actuel"), which says "Association…" in its place while it is being chosen: the results stay, and so does focus |
 | `HlNavItem`, `HlSettingGroup`, `HlSettingRow` | settings: navigation entries with what they are set to, the current one on a faint fill, white as the current option of a track; rows with their value, leading somewhere or stating it; a row not `enabled` stays on the room (see *Contrast*) A pane is titled in the voice of the poster, like a sheet; what a pane only states (an output, a server, a status) is a block flush with that title, not a row (see *Gestures*) |
 | `HlSideSheet`, `SheetScope`, `RowPreview`, `SheetConfirm` | acting on what a screen shows, beside it: a panel against the right edge (see *Sheets*), where it stands in its header (`status`); rows can lead with a preview of the image they change; an action that cannot be undone asks first, in the sheet |
-| `HlChoiceSheet` | the choices of a setting, in a side sheet: the current one checked in tungsten and focused, choosing applies and closes, Back changes nothing |
+| `HlChoiceSheet` | the choices of a setting, in a side sheet: the current one checked in ember and focused, choosing applies and closes, Back changes nothing |
 | `HlMenuButton`, `MenuSection`, `MenuOption` | a button opening a sectioned menu anchored to its end edge (sort, filters): below it when the room down to the safe area holds the menu, else above; never past the safe area, a longer menu scrolls inside, its options fading at an edge with more. It moves like a sheet, growing from the button's corner and leaving the same way; a sort applies once the menu has gone, so the wall reorders on its own. The button names what it does and its detail what is set: "Trier", "Titre"; the options say the order ("Titre, de A à Z") |
 | `HlModal` | a sheet to read, centred over the dimmed room (the technical sheet), never past the safe area: longer content scrolls; Back closes it |
 | `HlTwoPane`, `HlFormScaffold`, `StatusPanel`, `FieldLabel` | two-pane screens: navigation or explanation on the left, content on the right; given the content's scroll `state`, the content fades into the room at an edge with more. `StatusPanel` is where a setup stands, beside its form: its state with its light first, then what is set up, large (an address in the technical voice), its path and kind, and what was found under a hairline; lit while the state is on |
-| `HlTextField` | TV text field: focusable box first, keyboard on OK; focused and waiting, it says so at its end ("OK saisir", `KeyHint`); tungsten while typing, and only then. Every field has a name, read out even when the screen hides it because its sheet already names it. One line under it: what to type (`supporting`), or what is wrong (`error`), in tungsten after the attention light, its edge unchanged. A placeholder is an example, from the resources ("Ex. : 192.168.1.10"). A setting typed in a field is saved when the field is left (its keyboard action, or focus moving on), never while typing, and its result line then says "Enregistré". Once the keyboard is closed, up or down end typing and move on (Back closes it without telling the app) |
+| `HlTextField` | TV text field: focusable box first, keyboard on OK; focused and waiting, it says so at its end ("OK saisir", `KeyHint`); ember while typing, and only then. Every field has a name, read out even when the screen hides it because its sheet already names it. One line under it: what to type (`supporting`), or what is wrong (`error`), in ember after the attention light, its edge unchanged. A placeholder is an example, from the resources ("Ex. : 192.168.1.10"). A setting typed in a field is saved when the field is left (its keyboard action, or focus moving on), never while typing, and its result line then says "Enregistré". Once the keyboard is closed, up or down end typing and move on (Back closes it without telling the app) |
 | `HlScrollArea` | long content read with the remote; focusable only when it has something to scroll; a key held down scrolls in one motion. Framed on a quiet panel, or unframed inside a sheet: square edges, so a hairline at its top stays whole, and the focus ring outside the content. Where there is more, the text fades into what the area sits on (`surface`: the panel, or the sheet) |
 | `TechSpecs`, `InfoBlock`, `DefinitionList`, `DefinitionRow`, `SpecTable` | the technical sheet, set like the back of a Blu-ray case: one block per subject (a hairline, its name, what it says), every track listed; it does not scroll itself, the sheet scrolls it whole. The NFO and the settings that only state something are laid out the same way (see *Gestures*): pairs on one baseline, a value that is not text (a state and its light, a logo) in a `DefinitionRow`, rows of a kind in a `SpecTable` with aligned columns and the dot on the one in service |
-| `ArtworkChoiceCard`, `SelectedMark` | one artwork to choose from, at the shape it is used in; the one in use carries the check of your choice, the watched mark in tungsten. A backdrop or a logo is previewed on the page behind; a poster is its own preview, so its picker keeps no room for one and its choices come larger (`posterChoice`, 180 dp), right under the header |
-| `HlEmptyState` | the intertitle of a screen with nothing to show or that could not load: a short rule (tungsten for `attention`), what happened in the voice of the poster, what to check, the action focused and a quieter way out beside it; with no action, the Back hint. An error (`UiError`, through `ErrorIntertitle` and `ErrorMessage`) brings its own title, message and action (`ErrorAction`), always with attention: try again on the spot, sign in again, add or change the TMDB key; a title that has gone has none, Back is the way out |
-| `ScanProgress` | a scan going on: what is read (`subject`, the first scan on home), the tungsten line and its count "3 / 9", the file being read; without a name, one line, the file after the count (a folder's card). Until the files are counted, a sliver and no count |
+| `ArtworkChoiceCard`, `SelectedMark` | one artwork to choose from, at the shape it is used in; the one in use carries the check of your choice, the watched mark in ember. A backdrop or a logo is previewed on the page behind; a poster is its own preview, so its picker keeps no room for one and its choices come larger (`posterChoice`, 180 dp), right under the header |
+| `HlEmptyState` | the intertitle of a screen with nothing to show or that could not load: a short rule (ember for `attention`), what happened in the voice of the poster, what to check, the action focused and a quieter way out beside it; with no action, the Back hint. An error (`UiError`, through `ErrorIntertitle` and `ErrorMessage`) brings its own title, message and action (`ErrorAction`), always with attention: try again on the spot, sign in again, add or change the TMDB key; a title that has gone has none, Back is the way out |
+| `ScanProgress` | a scan going on: what is read (`subject`, the first scan on home), the ember line and its count "3 / 9", the file being read; without a name, one line, the file after the count (a folder's card). Until the files are counted, a sliver and no count |
 | `PosterWall`, `PosterWallScrim`, `HouseLights`, `CardSkeleton`, `HeroSkeleton`, `ProgressLine` | welcome wall, playback cue, loading and progress (on a plate at the foot of a card, `onArtwork`; on a light track beside text). A placeholder has the footprint of what is coming (a wall of empty frames, two short rules where a title and its facts go), never a shimmer; outside home, it waits `SKELETON_DELAY`, so a quick load shows nothing (`skeletonDelayPassed`) |
 | `PosterStrip` | the latest posters of a folder side by side, at the head of its card (edge to edge, parted by hairlines) and of its sheet (small, spaced): a fixed number of places, the free ones empty frames, so every strip keeps one rhythm; with no poster yet, the folder's name set across it like a one-sheet |
 
@@ -272,10 +274,10 @@ rest, sparingly:
 
 - **At rest**, a faint edge (`ARTWORK_EDGE`) keeps dark artwork from dissolving into the black room.
 - **One mark at most**, top right, on a dark plate the size of a mark: the number of unwatched
-  episodes of a show, else the line check of a title watched (white; the same check in tungsten is
-  your choice, on an artwork to choose), else the tungsten dot of a title new
+  episodes of a show, else the line check of a title watched (white; the same check in ember is
+  your choice, on an artwork to choose), else the ember dot of a title new
   to its library (added in the last week, not watched; a local folder never counts what its first
-  scan found). Progress is the tungsten line at the foot, on its plate. A format (Ultra HD) is not
+  scan found). Progress is the ember line at the foot, on its plate. A format (Ultra HD) is not
   a mark: most titles have one, so it would tell nothing apart; it stays in the header, the info
   line, the filter.
 - **Without artwork**, or when it fails to load (a NAS asleep, a file gone), the title is set like a
@@ -315,9 +317,9 @@ Focus stays inside; when a sheet has gone, focus is back where it was.
   action row says what it does in one line ("Cherche les nouveaux fichiers"), so the rows of a
   sheet keep one height.
 - **Asking first: `SheetConfirm`.** An action that cannot be undone asks in the sheet itself, as a
-  card in place of its rows, the way an intertitle stops a film: a short tungsten rule (attention),
+  card in place of its rows, the way an intertitle stops a film: a short ember rule (attention),
   the question in the voice of the poster ("Retirer « Films » ?"), what follows, then Cancel,
-  focused, and the action, its label tungsten at rest. Never red: tungsten already says attention.
+  focused, and the action, its label ember at rest. Never red: ember already says attention.
   Cancel or Back brings the rows back with focus on the row that asked.
 - **To read: `HlModal`.** A sheet centred on the screen (864 dp, radius `sheet`), for details on
   demand: what it is (`subject`), what it is about, the content, the Back hint. It never leaves the
@@ -355,7 +357,7 @@ Focus must read from the couch:
   projector white and grow by 1.02 (`PANEL_SCALE`).
 - **Areas to read** (`HlScrollArea`) are outlined in projector white; an unframed one draws its ring
   a gap outside the content, clear of its text and rules.
-- **Text fields** get a white outline when focused, with "OK saisir" at their end, and a tungsten
+- **Text fields** get a white outline when focused, with "OK saisir" at their end, and a ember
   outline while typing.
 - **Disabled controls** keep focus, so the remote reaches them: an outline in projector white,
   never the white fill, which would offer an action.
@@ -455,7 +457,7 @@ Four directions wait in the catalogue (**Brand**), each as an adaptive icon fore
 pair until one is chosen. Every direction holds to the same rules:
 
 - **The room.** The ground is `@color/room`, pure black. No gradient, no glow, no beam, no halo.
-- **Tungsten** is the wordmark's, or the one thing lit; nothing else is coloured.
+- **Ember** is the wordmark's, or the one thing lit; nothing else is coloured.
 - **The type is the app's.** The outlines come from `archivo.ttf` at the app's widths (condensed 70:
   the wordmark's SemiBold, a title's Bold), set with the font's kerning and converted to paths once.
 - **Sizes.** The icon's art stays inside the 66 dp safe circle of its 108 dp layer, so no launcher's
@@ -466,7 +468,7 @@ pair until one is chosen. Every direction holds to the same rules:
 |---|---|---|
 | Monogram (`monogram`) | an H set like a film's title, condensed Bold | the H as a large initial, the wordmark on its baseline |
 | Wordmark (`wordmark`) | the name on two lines, like a title on a poster | the name at the foot of a dark room |
-| Your seat (`seat`) | the room from above: the screen lit, the house dark, one seat in tungsten, yours ("your choice") | the name in the screen's place, in projector white |
+| Your seat (`seat`) | the room from above: the screen lit, the house dark, one seat in ember, yours ("your choice") | the name in the screen's place, in projector white |
 | Three steps (`steps`) | the house lights going down in three steps; the house rising in tiers | the sign a capital high, then the name |
 
 Once one is chosen, it becomes `ic_launcher_foreground` (with a `<monochrome>` version) and
@@ -476,7 +478,7 @@ what the brand is.
 ## Guard
 
 `DesignTokenGuardTest` reads every file under `ui/` except `ui/design/` and fails on a size, text size,
-font, colour, opacity or shape written in a screen, on tungsten named in a screen (it says the state
+font, colour, opacity or shape written in a screen, on ember named in a screen (it says the state
 instead), and on arithmetic with a token (`safeH - m`): an alignment worked out in a screen gets a
 name in `Dimens.kt`. Across the whole app, the design system included, it fails on a Material icon
 other than Play: icons are drawn in `HlIcons`. A screen never loads an image itself
@@ -496,7 +498,7 @@ lit, loading, failed, empty), each named underneath; focus is checked live with 
 catalogue shows components as they are, defects included: that is how they are seen. Its sections
 live in `ui/catalog` (`CatalogScreen` for tokens, controls and sheets; `CatalogGestures` for the three
 gestures, side by side then at the width screens give them; `CatalogIcons` for every glyph,
-the marks of done and your choice, and what tungsten never says; `CatalogForms`, `CatalogCards`,
+the marks of done and your choice, and what ember never says; `CatalogForms`, `CatalogCards`,
 `CatalogReading`; `CatalogStress` for the longest French labels, the fullest rows, the home hero at
 the largest text size, the scripts Archivo lacks and a line on the device: size in dp, density, text
 scale; `CatalogBrand` for the launcher icon and the TV banner, drawn by Android at a launcher's size).

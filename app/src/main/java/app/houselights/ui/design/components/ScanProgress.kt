@@ -21,7 +21,7 @@ import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
 
 /**
- * A scan going on, read like the counter of a projection booth: the tungsten line, the count at
+ * A scan going on, read like the counter of a projection booth: the ember line, the count at
  * its end ("3 / 9", in tabular figures, so it does not jitter as it climbs), then the file being
  * read, quiet. [label] says what is counted, in the voice of the poster, above the line (the first
  * scan, on home); without one, the counter keeps to a single line and the file follows the count
