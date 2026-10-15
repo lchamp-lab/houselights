@@ -300,36 +300,43 @@ fun HlIconButton(
                 color = c.content,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
+                // Always on its plate: the label may fall on any picture, on home as on a detail page.
                 modifier = Modifier
                     .clearAndSetSemantics {}
                     .graphicsLayer { alpha = labelAlpha }
-                    .then(
-                        if (onArtwork) {
-                            Modifier
-                                .background(c.background.copy(alpha = HlAlpha.PLATE), HlShapes.control)
-                                .padding(horizontal = HlSpace.xs)
-                        } else {
-                            Modifier
-                        },
-                    ),
+                    .background(c.background.copy(alpha = HlAlpha.PLATE), HlShapes.control)
+                    .padding(horizontal = HlControl.labelPaddingH, vertical = HlControl.labelPaddingV),
             )
         },
     ) { measurables, constraints ->
         val button = measurables[0].measure(constraints)
         val text = measurables[1].measure(Constraints(maxWidth = HlLayout.iconLabel.roundToPx()))
-        val gap = HlSpace.xs.roundToPx()
+        val gap = HlSpace.xxs.roundToPx()
         val safe = HlSpace.safeH.roundToPx()
         layout(button.width, button.height) {
             button.place(0, 0)
-            val centred = (button.width - text.width) / 2
             val x = coordinates?.let { here ->
                 val screen = here.findRootCoordinates()
                 val left = screen.localPositionOf(here, Offset.Zero).x.roundToInt()
-                centred.coerceAtMost(screen.size.width - safe - left - text.width).coerceAtLeast(safe - left)
-            } ?: centred
+                labelX(button.width, text.width, left, screen.size.width, safe)
+            } ?: ((button.width - text.width) / 2)
             text.place(x, button.height + gap)
         }
     }
+}
+
+/**
+ * Where a round button's label starts, from the button's left: centred under it; when that would
+ * cross the safe area, aligned with the button's edge on that side; past that, inside the area.
+ */
+internal fun labelX(button: Int, label: Int, left: Int, screen: Int, safe: Int): Int {
+    val centred = (button - label) / 2
+    val x = when {
+        left + centred + label > screen - safe -> button - label
+        left + centred < safe -> 0
+        else -> centred
+    }
+    return x.coerceAtMost(screen - safe - left - label).coerceAtLeast(safe - left)
 }
 
 /**

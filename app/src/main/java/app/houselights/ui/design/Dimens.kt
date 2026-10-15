@@ -173,9 +173,10 @@ object HlLayout {
     val iconLabel = 160.dp
     /**
      * Room a row of round buttons keeps under itself for the label of the one with focus: the gap
-     * ([HlSpace.xs]) and one caption line (20). The label takes none of its own.
+     * ([HlSpace.xxs]) and the label on its plate (one caption line, 20, and its padding, 2 × 4). The
+     * label takes none of its own.
      */
-    val iconLabelRoom = 28.dp
+    val iconLabelRoom = 32.dp
     /** Dropdown menus (sort, filters); their height is the room the screen leaves them. */
     val menuWidth = 320.dp
     /** Columns of the technical sheet's track tables. */
@@ -191,6 +192,9 @@ object HlLayout {
 
 /** Inner padding of pill controls and of the options of a segmented track. */
 object HlControl {
+    /** A round button's label on its plate: room around the words, so the plate reads as a pill. */
+    val labelPaddingH = 12.dp
+    val labelPaddingV = 4.dp
     val tabPaddingH = 16.dp
     val buttonPaddingH = 24.dp
     val buttonPaddingIcon = 20.dp
