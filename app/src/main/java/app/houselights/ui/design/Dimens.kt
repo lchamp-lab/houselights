@@ -151,8 +151,19 @@ object HlLayout {
     val infoLine = 24.dp
     /** Overview of the focused episode under the episode row: three lines of caption (3 × 18), on the grid. */
     val episodeOverview = 56.dp
-    /** Share of the screen the top of a detail page takes at least: the next row only peeks in. */
-    const val DETAIL_HERO_SHARE = 0.9f
+    /**
+     * Between the blocks of a detail page (its hero, its rows): wider than the keyline a block
+     * comes to ([HlFocus.edge]), so the block above has left the screen when the next one is there.
+     */
+    val detailGap = HlSpace.xl
+    /**
+     * What shows of a detail page's first row under its hero: the gap, the row's header whole
+     * (`lead`, 26), its gap ([HlSpace.xxs]) and padding ([HlSpace.s]), then a strip of its images
+     * ([HlSpace.s]), which ends at the screen's edge. The header stays inside the safe area.
+     */
+    val detailPeek = detailGap + 26.dp + HlSpace.xxs + HlSpace.s + HlSpace.s
+    /** The least a detail page's hero takes of a [screen] that tall: all of it but [detailPeek]. */
+    fun detailHeroMin(screen: Dp): Dp = screen - detailPeek
     /** Where an error sits on an otherwise empty detail page. */
     val errorTop = 96.dp
     /**

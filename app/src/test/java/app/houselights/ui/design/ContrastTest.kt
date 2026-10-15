@@ -25,6 +25,7 @@ class ContrastTest {
         "emberTo" to c.emberTo,
         "onFocus" to c.onFocus,
         "onFocusSecondary" to c.onFocusSecondary,
+        "focus" to c.focus,
     )
 
     /** The surfaces the components compose, each over what it sits on. */
@@ -41,7 +42,9 @@ class ContrastTest {
         "FILL_STRONG" to c.content.over(HlAlpha.FILL_STRONG, c.background),
         // A button in a side sheet.
         "FILL on surfaceRaised" to c.content.over(HlAlpha.FILL, c.surfaceRaised),
-        "FILL_FOCUS on FILL_FAINT" to c.content.over(HlAlpha.FILL_FOCUS, c.content.over(HlAlpha.FILL_FAINT, c.background)),
+        // The current option of a track: its quiet pill in the track's well, or on the track's plate over an image.
+        "FILL_STRONG on FILL_FAINT" to c.content.over(HlAlpha.FILL_STRONG, c.content.over(HlAlpha.FILL_FAINT, c.background)),
+        "FILL_STRONG on VEIL on a white image" to c.content.over(HlAlpha.FILL_STRONG, c.background.over(HlAlpha.VEIL, Color.White)),
         "focus" to c.focus,
         // Whatever sits on artwork, on its plate over the worst image: a white one.
         "VEIL on a white image" to c.background.over(HlAlpha.VEIL, Color.White),
@@ -51,12 +54,14 @@ class ContrastTest {
 
     /** Every pair the system draws, as role, surface, use. */
     private val permitted = listOf(
-        // Primary text, the count of unwatched episodes on its plate, a track option under focus.
+        // Primary text, the count of unwatched episodes on its plate, the current option of a track.
         "content" on "background", "content" on "FILL", "content" on "surfaceRaised",
         "content" on "FILL", "content" on "FILL_FAINT", "content" on "FILL_FAINT on surfaceRaised",
-        "content" on "FILL", "content" on "FILL_STRONG", "content" on "FILL_FOCUS on FILL_FAINT",
-        // On artwork: a round button's icon and a track's options at rest, on their plate.
-        "content" on "VEIL on a white image",
+        "content" on "FILL", "content" on "FILL_STRONG", "content" on "FILL_STRONG on FILL_FAINT",
+        // On artwork: a round button's icon, the current option of a track, on their plate.
+        "content" on "VEIL on a white image", "content" on "FILL_STRONG on VEIL on a white image",
+        // The other options of a track at rest, in its well or on its plate over an image.
+        "contentSecondary" on "VEIL on a white image",
         // A title's name, facts (the score and its star), overview and quietest words (genres, the
         // billing block's joins).
         "content" on "the veil's floor on a white image", "contentSecondary" on "the veil's floor on a white image",
@@ -75,6 +80,10 @@ class ContrastTest {
         "ember" on "the veil's floor on a white image",
         // A focused control: its name, and the line under it.
         "onFocus" on "focus", "onFocusSecondary" on "focus",
+        // Focus itself, a white fill or outline, against what is around it: a track's well and its
+        // current pill, a plate over an image, the room (WCAG 2.4.13 asks 3:1 of a focus indicator).
+        ("focus" on "FILL_FAINT").mark(), ("focus" on "FILL_STRONG on FILL_FAINT").mark(),
+        ("focus" on "VEIL on a white image").mark(), ("focus" on "background").mark(),
         // Marks: a lit round button's icon (a favourite), the check of your choice and the
         // new dot on their plate, a card's progress on its plate. The watched check is white (above).
         ("ember" on "FILL").mark(),

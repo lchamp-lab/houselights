@@ -81,6 +81,7 @@ import app.houselights.ui.design.HlScrim
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.fadeOutsideSafeArea
 import app.houselights.ui.design.LocalAmbient
 import app.houselights.ui.design.LocalGroupFocus
 import app.houselights.ui.design.RowScroll
@@ -88,7 +89,7 @@ import app.houselights.ui.design.emberLight
 import app.houselights.ui.design.groundStep
 import app.houselights.ui.design.keepChildFocus
 import app.houselights.ui.design.rememberedInGroup
-import app.houselights.ui.design.revealOnFocus
+import app.houselights.ui.design.scrollsAsBlock
 import app.houselights.ui.util.toPx
 import coil.compose.AsyncImage
 import kotlin.math.roundToInt
@@ -106,8 +107,9 @@ fun MediaRow(
     content: LazyListScope.() -> Unit,
 ) {
     var rowFocused by remember { mutableStateOf(false) }
-    Column(modifier.revealOnFocus()) {
-        if (header != null) SectionHeader(header, Modifier.padding(start = HlSpace.safeH, bottom = HlSpace.xxs))
+    // One block for the list around it: whichever card asks to be seen, the row comes with its header.
+    Column(modifier.scrollsAsBlock()) {
+        if (header != null) SectionHeader(header, Modifier.padding(start = HlSpace.safeH, bottom = HlSpace.xxs).fadeOutsideSafeArea())
         val group = remember { GroupFocus() }
         CompositionLocalProvider(LocalGroupFocused provides rowFocused, LocalGroupFocus provides group) {
             RowScroll {
@@ -319,7 +321,8 @@ fun LandscapeCard(
         }
         if (title != null) {
             Spacer(Modifier.height(HlSpace.s))
-            Row {
+            // A caption fades before the screen's edge; the picture above it may peek.
+            Row(Modifier.fadeOutsideSafeArea()) {
                 if (number != null) {
                     Text(number, style = Hl.type.meta, color = Hl.colors.contentSecondary, modifier = Modifier.alignByBaseline())
                     Spacer(Modifier.width(HlSpace.xs))
@@ -336,7 +339,7 @@ fun LandscapeCard(
         }
         if (facts.any { !it.isNullOrBlank() }) {
             Spacer(Modifier.height(HlSpace.xxs))
-            FactRow(facts, style = Hl.type.caption)
+            FactRow(facts, Modifier.fadeOutsideSafeArea(), style = Hl.type.caption)
         }
     }
 }
@@ -374,7 +377,8 @@ fun PersonCard(person: Person, modifier: Modifier = Modifier) {
             minLines = 2,
             overflow = TextOverflow.Ellipsis,
             textAlign = TextAlign.Center,
-            modifier = Modifier.clearAndSetSemantics {},
+            // Each line fades by its own width before the screen's edge; the portrait may peek.
+            modifier = Modifier.clearAndSetSemantics {}.fadeOutsideSafeArea(),
         )
         person.role?.let {
             Text(
@@ -384,7 +388,7 @@ fun PersonCard(person: Person, modifier: Modifier = Modifier) {
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 textAlign = TextAlign.Center,
-                modifier = Modifier.clearAndSetSemantics {},
+                modifier = Modifier.clearAndSetSemantics {}.fadeOutsideSafeArea(),
             )
         }
     }

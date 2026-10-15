@@ -131,10 +131,11 @@ object HlAlpha {
      * empty frame, a placeholder. On the room it is #161616, a step a TV still shows.
      */
     const val FILL = 0.09f
-    /** A primary control at rest, a progress line's track off the artwork, a lit disc (in ember). */
+    /**
+     * A primary control at rest, a progress line's track off the artwork, a lit disc (in ember),
+     * the current option of a track.
+     */
     const val FILL_STRONG = 0.2f
-    /** Focus on an option of a track that is not the current one. */
-    const val FILL_FOCUS = 0.3f
 
     /** The room beside a side sheet, still to be read. */
     const val VEIL_SIDE = 0.6f

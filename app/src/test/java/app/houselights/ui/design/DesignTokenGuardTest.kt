@@ -114,7 +114,7 @@ class DesignTokenGuardTest {
             .forEach { assertTrue(it, !materialIcon.containsMatchIn(it)) }
         val fine = listOf(
             "Modifier.padding(0.dp)", "screenWidthDp.dp", "HlSpace.l", "Hl.colors.content.copy(alpha = HlAlpha.FILL_FAINT)",
-            "{ HlSpace.m -> it }", "screenHeight * HlLayout.DETAIL_HERO_SHARE", "spacedBy(HlSpace.xs)",
+            "{ HlSpace.m -> it }", "HlLayout.detailHeroMin(screenHeight)", "spacedBy(HlSpace.xs)",
         )
         fine.forEach { sample -> assertTrue(sample, rules.none { it.first.containsMatchIn(sample) }) }
     }

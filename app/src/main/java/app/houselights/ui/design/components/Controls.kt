@@ -394,14 +394,16 @@ fun HlListItem(
 
 /**
  * Exclusive options in one pill track: where you are (home navigation, seasons, NFO views) or
- * what is chosen (protocol, content type). The current option sits on the track's one white
- * pill; focus on another option is a grey pill, focus on the current one a ring around it. Focus
- * entering the track, from any side, lands on the current option, never on the nearest one; to
- * accessibility services the options are tabs, the current one selected. With [selectOnFocus],
- * moving onto an option selects it, as tabs over content do on TV. [scrollable] lets a long
- * track (seasons) scroll within the screen. [onArtwork] lays the track on a dark plate and its
- * options in projector white, so it reads over any image. [enterAt] is where focus enters when it
- * is not the current option: the option a screen sends you back to (the library just left).
+ * what is chosen (protocol, content type). Focus is projector white, as everywhere: the option
+ * under focus is the white pill. The current option sits on the track's quiet pill, one fill step
+ * up, its words in projector white while the others read in grey; that pill slides to the option
+ * chosen. Focus entering the track, from any side, lands on the current option, never on the
+ * nearest one; to accessibility services the options are tabs, the current one selected. With
+ * [selectOnFocus], moving onto an option selects it, as tabs over content do on TV. [scrollable]
+ * lets a long track (seasons) scroll within the screen. [onArtwork] lays the track on a dark
+ * plate, so it reads over any image. [enterAt] is where focus enters when it is not the current
+ * option: the option a screen sends you back to (the library just left). [onFocusChange] hears
+ * which option has focus, null once focus has left the track.
  */
 @Composable
 fun HlSegmented(
@@ -413,17 +415,17 @@ fun HlSegmented(
     scrollable: Boolean = false,
     onArtwork: Boolean = false,
     enterAt: Int = selected,
+    onFocusChange: (Int?) -> Unit = {},
 ) {
     val density = LocalDensity.current
     val places = remember(options.size) { mutableStateMapOf<Int, Pair<Float, Float>>() }
     val requesters = remember(options.size) { List(options.size) { FocusRequester() } }
     var focusedIndex by remember { mutableIntStateOf(NONE) }
-    // A long track (seasons) scrolls as one piece: the pill moves with the options.
+    // A long track (seasons) scrolls as one piece: the pill moves with the options. Its ends keep
+    // room for an option growing under focus.
     val scroll = rememberScrollState()
-    val ringReach = HlSize.focusRingGap + HlSize.focusBorder
-    val content = if (scrollable) Modifier.horizontalScroll(scroll).padding(horizontal = ringReach) else Modifier
+    val content = if (scrollable) Modifier.horizontalScroll(scroll).padding(horizontal = HlSpace.xxs) else Modifier
 
-    // Not clipped: the ring of a focused current option may reach past the track's edge.
     val well = if (onArtwork) Hl.colors.background.copy(alpha = HlAlpha.VEIL) else Hl.colors.content.copy(alpha = HlAlpha.FILL_FAINT)
     val track = modifier
         .background(well, HlShapes.control)
@@ -431,40 +433,17 @@ fun HlSegmented(
     RowScroll {
         Box(track) {
             Box(content) {
-                // One white pill, under the options, that slides to the option chosen.
+                // One quiet pill, under the options, that slides to the option chosen: where you are.
                 places[selected]?.let { (x, w) ->
                     val slide = tween<Float>(HlMotion.STANDARD, easing = HlMotion.emphasized)
                     val left by animateFloatAsState(x, slide, label = "pillX")
                     val width by animateFloatAsState(w, slide, label = "pillWidth")
-                    val onCurrent = focusedIndex == selected
-                    val grow by animateFloatAsState(if (onCurrent) HlFocus.CONTROL_SCALE else 1f, tween(HlMotion.FAST), label = "pillScale")
-                    // Focus on the current option: a ring around the pill, travelling with it.
-                    val ring by animateFloatAsState(if (onCurrent) 1f else 0f, tween(HlMotion.FAST), label = "pillRing")
-                    val ringGap = with(density) { HlSize.focusRingGap.toPx() }
-                    val ringWidth = with(density) { HlSize.focusBorder.toPx() }
-                    // The pill says where you are (current, projector white); the ring says focus.
-                    val current = Hl.colors.content
-                    val ringColor = Hl.colors.focus
                     Box(
                         Modifier
                             .offset { IntOffset(left.roundToInt(), 0) }
                             .width(with(density) { width.toDp() })
                             .height(HlSize.segment)
-                            .graphicsLayer { scaleX = grow; scaleY = grow }
-                            .drawBehind {
-                                if (ring > 0f) {
-                                    val outset = ringGap + ringWidth / 2
-                                    val ringSize = Size(size.width + outset * 2, size.height + outset * 2)
-                                    drawRoundRect(
-                                        color = ringColor.copy(alpha = ring),
-                                        topLeft = Offset(-outset, -outset),
-                                        size = ringSize,
-                                        cornerRadius = CornerRadius(ringSize.height / 2),
-                                        style = Stroke(ringWidth),
-                                    )
-                                }
-                            }
-                            .background(current, HlShapes.control),
+                            .background(Hl.colors.content.copy(alpha = HlAlpha.FILL_STRONG), HlShapes.control),
                     )
                 }
                 Row(Modifier.enterOn(requesters, enterAt).selectableGroup(), horizontalArrangement = Arrangement.spacedBy(HlSpace.xxs)) {
@@ -472,13 +451,20 @@ fun HlSegmented(
                         SegmentItem(
                             label,
                             selected = i == selected,
-                            onArtwork = onArtwork,
                             onClick = { onSelect(i) },
                             onFocused = { if (selectOnFocus) onSelect(i) },
                             modifier = Modifier
                                 .focusRequester(requesters[i])
                                 .onPlaced { places[i] = it.positionInParent().x to it.size.width.toFloat() },
-                            onFocusChange = { has -> if (has) focusedIndex = i else if (focusedIndex == i) focusedIndex = NONE },
+                            onFocusChange = { has ->
+                                if (has) {
+                                    focusedIndex = i
+                                    onFocusChange(i)
+                                } else if (focusedIndex == i) {
+                                    focusedIndex = NONE
+                                    onFocusChange(null)
+                                }
+                            },
                         )
                     }
                 }
@@ -499,17 +485,14 @@ private fun Modifier.enterOn(requesters: List<FocusRequester>, current: Int): Mo
     .focusGroup()
 
 /**
- * One option of a [HlSegmented] track; never used alone. In a track, projector white says where
- * you are: the current option is white whether or not it has focus. Moving along the track lights
- * the option under focus in grey until it is chosen; focus on the current option draws a ring
- * around it. (Everywhere else, focus is white; the track is the one place where white means
- * "current".)
+ * One option of a [HlSegmented] track; never used alone. Focus is the white pill, as on every
+ * control. At rest the current option's words are projector white, on the track's quiet pill
+ * drawn under the options; the others are grey, on the room or on the track's plate over an image.
  */
 @Composable
 private fun SegmentItem(
     text: String,
     selected: Boolean,
-    onArtwork: Boolean,
     onClick: () -> Unit,
     onFocused: () -> Unit,
     modifier: Modifier = Modifier,
@@ -517,12 +500,7 @@ private fun SegmentItem(
 ) {
     val c = Hl.colors
     val fade = tween<Color>(HlMotion.STANDARD, easing = HlMotion.emphasized)
-    // On the plate over an image the options at rest are white, as everything that reads there.
-    val rest = if (onArtwork) c.content else c.contentSecondary
-    val restContent by animateColorAsState(if (selected) c.onFocus else rest, fade, label = "segmentText")
-    val focusedContent by animateColorAsState(if (selected) c.onFocus else c.content, fade, label = "segmentFocusedText")
-    // The white of the current option is the track's pill, under the options.
-    val currentFill = Color.Transparent
+    val rest by animateColorAsState(if (selected) c.content else c.contentSecondary, fade, label = "segmentText")
     Surface(
         onClick = onClick,
         modifier = modifier
@@ -538,12 +516,12 @@ private fun SegmentItem(
         shape = ClickableSurfaceDefaults.shape(HlShapes.control),
         scale = ClickableSurfaceDefaults.scale(focusedScale = HlFocus.CONTROL_SCALE),
         colors = ClickableSurfaceDefaults.colors(
-            containerColor = if (selected) currentFill else Color.Transparent,
-            contentColor = restContent,
-            focusedContainerColor = if (selected) currentFill else c.content.copy(alpha = HlAlpha.FILL_FOCUS),
-            focusedContentColor = focusedContent,
-            pressedContainerColor = if (selected) currentFill else c.content.copy(alpha = HlAlpha.FILL_FOCUS),
-            pressedContentColor = focusedContent,
+            containerColor = Color.Transparent,
+            contentColor = rest,
+            focusedContainerColor = c.focus,
+            focusedContentColor = c.onFocus,
+            pressedContainerColor = c.focus,
+            pressedContentColor = c.onFocus,
         ),
     ) {
         Text(
