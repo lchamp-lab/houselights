@@ -129,7 +129,9 @@ private fun BackdropPicture(
             .fillMaxSize()
             .graphicsLayer {
                 compositingStrategy = CompositingStrategy.Offscreen
-                this.alpha = alpha()
+                // Stepping back is black laid over the picture; on the black room that is the
+                // layer's own alpha, which costs nothing, where a veil would draw the layer again.
+                this.alpha = alpha() * (1f - recede() * receded * HouseLightCue.scrims(lights()))
             }
             .background(black),
     ) {
@@ -159,9 +161,6 @@ private fun BackdropPicture(
                         )
                     )
                 }
-                // The film steps back while what is read is elsewhere on the page.
-                val back = recede()
-                if (back > 0f) drawRect(black, alpha = back * receded * scrims)
             }
         )
     }
