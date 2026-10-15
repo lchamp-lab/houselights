@@ -116,8 +116,23 @@
     <string name="label_ids">Identifiants</string>
     <string name="label_plot">Résumé</string>
     <string name="label_cast">Distribution</string>
-    <string name="tech_video">Vidéo</string>
-    <string name="tech_audio">Audio</string>
+    <string name="tech_video">Image</string>
+    <string name="tech_audio">Son</string>
+    <string name="tech_definition">Définition</string>
+    <string name="tech_aspect_ratio">Format d’image</string>
+    <string name="tech_dynamic_range">Plage dynamique</string>
+    <string name="tech_codec">Codec</string>
+    <string name="tech_frame_rate">Fréquence</string>
+    <string name="tech_video_bitrate">Débit</string>
+    <string name="tech_file_name">Nom</string>
+    <string name="tech_dv_profile">profil %1$s</string>
+    <string name="tech_base_layer">base %1$s</string>
+    <string name="tech_in_use">par défaut</string>
+    <plurals name="tech_track_count">
+        <item quantity="one">%d piste</item>
+        <item quantity="many">%d pistes</item>
+        <item quantity="other">%d pistes</item>
+    </plurals>
     <string name="tech_subtitles">Sous-titres</string>
     <string name="tech_container">Conteneur</string>
     <string name="tech_file">Fichier</string>
@@ -127,7 +142,6 @@
     <string name="bit_depth">%d bits</string>
     <string name="frame_rate">%1$s i/s</string>
     <string name="audio_bitrate">%1$s kb/s</string>
-    <string name="dv_profile">Dolby Vision profil %1$s</string>
     <string name="sdr">SDR</string>
     <string name="forced_subs">forcés</string>
     <string name="sdh_subs">SDH</string>

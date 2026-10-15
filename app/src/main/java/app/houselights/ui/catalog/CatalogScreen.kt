@@ -56,7 +56,6 @@ import app.houselights.ui.design.components.HlIconButton
 import app.houselights.ui.design.components.HlIconDisc
 import app.houselights.ui.design.components.HlListItem
 import app.houselights.ui.design.components.HlMeter
-import app.houselights.ui.design.components.HlModal
 import app.houselights.ui.design.components.HlNavItem
 import app.houselights.ui.design.components.HlPanel
 import app.houselights.ui.design.components.HlSegmented
@@ -243,13 +242,11 @@ fun CatalogScreen() {
             item {
                 Group("Sheets") {
                     var side by remember { mutableStateOf(false) }
-                    var reading by remember { mutableStateOf(false) }
                     var asking by remember { mutableStateOf(false) }
                     var keyed by remember { mutableStateOf(false) }
                     var long by remember { mutableStateOf(false) }
                     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.s)) {
                         HlButton("Side sheet", { side = true })
-                        HlButton("Reading sheet", { reading = true })
                         HlButton("An action that asks first", { asking = true })
                         HlButton("A status, a field", { keyed = true })
                         HlButton("More rows than it holds", { long = true })
@@ -267,11 +264,6 @@ fun CatalogScreen() {
                         ) { sheet ->
                             HlSettingRow("Affiche", description = "Dans les rangées et la bibliothèque", onClick = sheet::dismiss)
                             HlSettingRow("Fond d’écran", description = "Derrière cette fiche et sur l’accueil", onClick = sheet::dismiss)
-                        }
-                    }
-                    if (reading) {
-                        HlModal("Fiche technique", onDismiss = { reading = false }, facts = listOf("Le Samouraï", "1967")) {
-                            Text("A sheet to read; Back closes it.", style = t.body, color = c.contentSecondary)
                         }
                     }
                 }

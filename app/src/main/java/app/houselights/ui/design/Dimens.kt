@@ -199,11 +199,6 @@ object HlLayout {
  * A screen lays out with HlLayout; a component's own proportions live with it here.
  */
 
-/** A sheet to read ([HlModal]): as wide as the safe area allows (960 dp less the side margins). */
-internal object HlModalDefaults {
-    val width = 864.dp
-}
-
 /** A side sheet: 440 dp of content between its inset and the safe area, the page still in view. */
 internal object HlSideSheetDefaults {
     val width = 520.dp
@@ -239,13 +234,12 @@ internal object HlMenuDefaults {
 }
 
 /**
- * The technical sheet's columns: a track's format by its full name ("Dolby Digital Plus Atmos"),
- * its channel layout (7.1), its bitrate ("4 054 kb/s").
+ * The technical sheet's rows: their least height (a fact and its value on one line, as a menu
+ * option), and the widest their value goes beside its label ("Dolby Digital Plus Atmos   7.1").
  */
 internal object TechSpecsDefaults {
-    val soundColumn = 208.dp
-    val layoutColumn = 48.dp
-    val bitrateColumn = 88.dp
+    val rowHeight = 40.dp
+    val valueWidth = 240.dp
 }
 
 /**

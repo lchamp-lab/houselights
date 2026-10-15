@@ -158,11 +158,12 @@ internal fun SheetWindow(
 
 /**
  * A panel the full height of the screen, against its right edge, for acting on what the screen
- * shows (editing a title, the actions of a folder, the choices of a setting) while it stays in
- * view on the left. From the top: what the panel does ([title], in the voice of the poster), what
- * it is about ([artwork], [subject], [facts], where it stands as an [HlStatus] in [status],
- * [description]), a hairline, the rows, and the Back hint. There is no Close button: Back closes,
- * as choosing does through [SheetScope.dismiss].
+ * shows (editing a title, the actions of a folder, the choices of a setting) or reading its
+ * details (a title's technical sheet) while it stays in view on the left. From the top: what the
+ * panel does ([title], in the voice of the poster), what it is about ([artwork], and beside it
+ * [subject], [facts], where it stands as an [HlStatus] or its essentials in brief in [status];
+ * then [description]), a hairline, the rows, and the Back hint. There is no Close button: Back
+ * closes, as choosing does through [SheetScope.dismiss].
  */
 @Composable
 fun HlSideSheet(
@@ -237,11 +238,12 @@ private fun SheetHeader(
                 Spacer(Modifier.height(HlSpace.xxs))
                 FactRow(facts)
             }
+            // Beside the artwork, with what it is about.
+            if (status != null) {
+                Spacer(Modifier.height(HlSpace.s))
+                status()
+            }
         }
-    }
-    if (status != null) {
-        Spacer(Modifier.height(HlSpace.s))
-        status()
     }
     if (description != null) {
         Spacer(Modifier.height(HlSpace.s))

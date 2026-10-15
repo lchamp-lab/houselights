@@ -128,11 +128,12 @@ private fun FormatWord(text: String) {
 }
 
 /**
- * A title's formats, on its page only (a wall, home's hero say what a title is, not how it is
- * made): words in the technical voice, a fact's space apart, without frames, as the back of a
- * case lists them. The picture on one line (definition, range, codec, frame rate), the sound on the
- * next (its best track by the name on the case, its channels, its bitrate), nothing said twice
- * ([Formats]). From what the file holds; from the badges stored for the title when it was not read.
+ * A title's formats, on its page and at the head of its technical sheet only (a wall, home's
+ * hero say what a title is, not how it is made): words in the technical voice, a fact's space
+ * apart, without frames, as the back of a case lists them. The picture on one line (definition,
+ * range, codec, frame rate), the sound on the next (its best track by the name on the case, its
+ * channels, its bitrate), nothing said twice ([Formats]). From what the file holds; from the badges
+ * stored for the title when it was not read.
  */
 @Composable
 fun FormatLines(item: MediaItem, modifier: Modifier = Modifier) {

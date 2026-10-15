@@ -85,4 +85,15 @@ class FormatsTest {
         // A rate no standard is near is said to the thousandth.
         assertEquals(12.5, Formats.frameRate(12.5f), 0.0)
     }
+
+    @Test
+    fun rangesSayDolbyVisionWithoutItsBase() {
+        fun ranges(vararg hdr: HdrFormat) = Formats.ranges(VideoInfo(Codecs.HEVC, hdr = hdr.toList()))
+        assertEquals(listOf("Dolby Vision"), ranges(HdrFormat.DOLBY_VISION, HdrFormat.HDR10))
+        assertEquals(listOf("Dolby Vision"), ranges(HdrFormat.DOLBY_VISION, HdrFormat.HLG))
+        assertEquals(listOf("Dolby Vision", "HDR10+"), ranges(HdrFormat.DOLBY_VISION, HdrFormat.HDR10_PLUS, HdrFormat.HDR10))
+        assertEquals(listOf("HDR10+", "HDR10"), ranges(HdrFormat.HDR10_PLUS, HdrFormat.HDR10))
+        assertEquals(listOf("HLG"), ranges(HdrFormat.HLG))
+        assertEquals(emptyList<String>(), ranges())
+    }
 }
