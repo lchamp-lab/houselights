@@ -24,8 +24,8 @@ class ScrimTest {
 
     @Test
     fun onWhiteTheFloorIsTheOneDesignMdGives() {
-        assertEquals(0.875f, HlScrim.need(1f), 0.0001f)
-        assertEquals(0.79f, HlScrim.need(1f, ceiling = HlScrim.ceiling(c.contentSecondary)), 0.0001f)
+        assertEquals(0.85f, HlScrim.need(1f), 0.0001f)
+        assertEquals(0.775f, HlScrim.need(1f, ceiling = HlScrim.ceiling(c.contentSecondary)), 0.0001f)
     }
 
     @Test

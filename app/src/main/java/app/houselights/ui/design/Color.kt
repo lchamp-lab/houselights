@@ -8,6 +8,8 @@ import androidx.compose.ui.graphics.Color
 /**
  * Semantic colors. The room is pure black, like the masking around a cinema screen;
  * the only light comes from the artwork (see [LocalAmbient]) and a sparse ember accent.
+ * The neutrals are neutral, a breath cool: the warmth belongs to the films and to the ember.
+ * Depth is one ramp of them: the room, [surface], [surfaceRaised], then white fills by `HlAlpha`.
  */
 @Immutable
 data class HlColors(
@@ -23,8 +25,8 @@ data class HlColors(
     val content: Color,
     val contentSecondary: Color,
     /**
-     * The quietest text: 4.76:1 on [surfaceRaised], but never on a `WELL` row inside a raised panel
-     * nor on `CONTROL_FILL_STRONG` (see ContrastTest).
+     * The quietest text: 5.56:1 on [surfaceRaised], but never on `CONTROL_FILL_STRONG` (see
+     * ContrastTest).
      */
     val contentTertiary: Color,
     /** Never for text: dividers, empty thumbnails, inactive marks. */
@@ -52,19 +54,19 @@ data class HlColors(
 
 val HouselightsColors = HlColors(
     background = Color(0xFF000000),
-    surface = Color(0xFF121110),
-    surfaceRaised = Color(0xFF1D1B19),
-    outline = Color(0xFF3A3632),
-    content = Color(0xFFF2F0EB),
-    contentSecondary = Color(0xFFA39E96),
-    contentTertiary = Color(0xFF8C867E),
-    contentDecorative = Color(0xFF4A4642),
+    surface = Color(0xFF0C0C0E),
+    surfaceRaised = Color(0xFF131316),
+    outline = Color(0xFF33333A),
+    content = Color(0xFFF4F4F5),
+    contentSecondary = Color(0xFFA3A3AB),
+    contentTertiary = Color(0xFF8C8C95),
+    contentDecorative = Color(0xFF45454C),
     ember = Color(0xFFFF7A4D),
     emberFrom = Color(0xFFFF9F1C),
     emberTo = Color(0xFFFF2E63),
-    focus = Color(0xFFF2F0EB),
+    focus = Color(0xFFF4F4F5),
     onFocus = Color(0xFF000000),
-    onFocusSecondary = Color(0xFF5C5B59),
+    onFocusSecondary = Color(0xFF5D5D5D),
 )
 
 val LocalHlColors = staticCompositionLocalOf { HouselightsColors }

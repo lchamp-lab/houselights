@@ -89,7 +89,6 @@ class ContrastTest {
 
     /** Pairs DESIGN.md forbids by name; if one passes one day, the rule there can go. */
     private val forbidden = listOf(
-        "contentTertiary" on "WELL on surfaceRaised",
         "contentTertiary" on "CONTROL_FILL_STRONG",
         // On artwork, the options of a track at rest are white: grey on the plate falls to 3.5:1.
         "contentSecondary" on "PLATE on a white image",
