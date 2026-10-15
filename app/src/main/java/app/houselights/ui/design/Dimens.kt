@@ -130,6 +130,12 @@ object HlLayout {
     val readable = 640.dp
     /** Text set beside artwork (heroes, detail pages). */
     val readableNarrow = 520.dp
+    /**
+     * Longest line of a caption: about 66 characters at 14 sp (Archivo sets them about 6 dp apart),
+     * the measure the eye follows best. Read from three metres, a longer line loses the eye on its
+     * way back to the next one.
+     */
+    val captionMeasure = 400.dp
     /** How far a backdrop's left veil takes to fade out, past the text column. */
     val veilFade = 240.dp
     /** Side column of two-pane screens: navigation (settings), and explanation (setup forms). */
