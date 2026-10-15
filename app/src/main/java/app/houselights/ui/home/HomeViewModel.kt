@@ -6,7 +6,6 @@ import androidx.lifecycle.viewModelScope
 import app.houselights.AppContainer
 import app.houselights.core.HomeSection
 import app.houselights.core.Library
-import app.houselights.core.LibrarySummary
 import app.houselights.core.suspendRunCatching
 import app.houselights.ui.util.UiError
 import app.houselights.ui.util.toUiError
@@ -21,8 +20,6 @@ data class HomeState(
     val error: UiError? = null,
     val libraries: List<Library> = emptyList(),
     val sections: List<HomeSection> = emptyList(),
-    /** What each library holds, by id, for its tab: filled in after the rows, as each one answers. */
-    val summaries: Map<String, LibrarySummary> = emptyMap(),
 )
 
 class HomeViewModel(private val app: AppContainer) : ViewModel() {
@@ -42,14 +39,6 @@ class HomeViewModel(private val app: AppContainer) : ViewModel() {
                 provider.libraries() to provider.home()
             }.onSuccess { (libraries, sections) ->
                 _state.value = HomeState(loading = false, libraries = libraries, sections = sections)
-                // The rows first; each tab's summary as it comes, none of them holding the others.
-                libraries.forEach { library ->
-                    launch {
-                        suspendRunCatching { app.provider.librarySummary(library) }
-                            .onSuccess { summary -> _state.update { it.copy(summaries = it.summaries + (library.id to summary)) } }
-                            .onFailure { e -> Log.w(TAG, "Summary of ${library.id} failed", e) }
-                    }
-                }
             }.onFailure { e ->
                 Log.w(TAG, "Home failed", e)
                 _state.update { it.copy(loading = false, error = e.toUiError()) }

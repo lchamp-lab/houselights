@@ -35,7 +35,6 @@ import app.houselights.ui.design.components.BillingBlock
 import app.houselights.ui.design.components.DefinitionList
 import app.houselights.ui.design.components.EpisodeHeading
 import app.houselights.ui.design.components.HeroInfo
-import app.houselights.ui.design.components.PlaceHeading
 import app.houselights.ui.design.components.HlButton
 import app.houselights.ui.design.components.InfoBlock
 import app.houselights.ui.design.components.MetaLine
@@ -240,16 +239,8 @@ private fun ReadingHeroInfoSection() {
             ReadingCase("film, no artwork, in progress", Modifier.width(HlLayout.readableNarrow)) {
                 HeroInfo(READING_HERO_FILM, Modifier.height(HlLayout.hero))
             }
-            ReadingCase("nothing focused: draws nothing", Modifier.weight(1f)) {
+            ReadingCase("no rows yet: draws nothing", Modifier.weight(1f)) {
                 HeroInfo(null, Modifier.height(HlLayout.hero))
-            }
-        }
-        ReadingRow {
-            ReadingCase("a library's tab focused: the place", Modifier.width(HlLayout.readableNarrow)) {
-                PlaceHeading("Films", listOf("9 titres", "7 en Ultra HD"), Modifier.height(HlLayout.hero))
-            }
-            ReadingCase("home's tab, nothing started: its name alone", Modifier.weight(1f)) {
-                PlaceHeading("Accueil", listOf(null), Modifier.height(HlLayout.hero))
             }
         }
     }

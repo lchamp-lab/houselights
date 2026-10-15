@@ -402,8 +402,7 @@ fun HlListItem(
  * [selectOnFocus], moving onto an option selects it, as tabs over content do on TV. [scrollable]
  * lets a long track (seasons) scroll within the screen. On a picture ([OnArtwork]) the track is
  * a dark plate, so it reads over any image. [enterAt] is where focus enters when it is not the current
- * option: the option a screen sends you back to (the library just left). [onFocusChange] hears
- * which option has focus, null once focus has left the track.
+ * option: the option a screen sends you back to (the library just left).
  */
 @Composable
 fun HlSegmented(
@@ -414,12 +413,10 @@ fun HlSegmented(
     selectOnFocus: Boolean = false,
     scrollable: Boolean = false,
     enterAt: Int = selected,
-    onFocusChange: (Int?) -> Unit = {},
 ) {
     val density = LocalDensity.current
     val places = remember(options.size) { mutableStateMapOf<Int, Pair<Float, Float>>() }
     val requesters = remember(options.size) { List(options.size) { FocusRequester() } }
-    var focusedIndex by remember { mutableIntStateOf(NONE) }
     // A long track (seasons) scrolls as one piece: the pill moves with the options. Its ends keep
     // room for an option growing under focus.
     val scroll = rememberScrollState()
@@ -455,15 +452,6 @@ fun HlSegmented(
                             modifier = Modifier
                                 .focusRequester(requesters[i])
                                 .onPlaced { places[i] = it.positionInParent().x to it.size.width.toFloat() },
-                            onFocusChange = { has ->
-                                if (has) {
-                                    focusedIndex = i
-                                    onFocusChange(i)
-                                } else if (focusedIndex == i) {
-                                    focusedIndex = NONE
-                                    onFocusChange(null)
-                                }
-                            },
                         )
                     }
                 }
@@ -471,8 +459,6 @@ fun HlSegmented(
         }
     }
 }
-
-private const val NONE = -1
 
 /**
  * A group that focus enters on the option at [current], from any side: where you are, not the
@@ -495,7 +481,6 @@ private fun SegmentItem(
     onClick: () -> Unit,
     onFocused: () -> Unit,
     modifier: Modifier = Modifier,
-    onFocusChange: (Boolean) -> Unit = {},
 ) {
     val c = Hl.colors
     val fade = tween<Color>(HlMotion.STANDARD, easing = HlMotion.emphasized)
@@ -508,10 +493,7 @@ private fun SegmentItem(
                 this.selected = selected
             }
             .height(HlSize.segment)
-            .onFocusChanged {
-                onFocusChange(it.isFocused)
-                if (it.isFocused) onFocused()
-            },
+            .onFocusChanged { if (it.isFocused) onFocused() },
         shape = ClickableSurfaceDefaults.shape(HlShapes.control),
         scale = FocusStyle.scale(FocusStyle.Fill.Pill),
         colors = FocusStyle.fill(rest = Color.Transparent, restContent = rest),

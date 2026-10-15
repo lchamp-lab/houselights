@@ -137,9 +137,3 @@ data class LibraryFacets(
 )
 
 data class Page(val items: List<MediaItem>, val total: Int)
-
-/**
- * What a library holds, as home names it while its tab has focus: how many titles, how many of its
- * films are in Ultra HD (null where it is not counted), and its latest posters, which light the room.
- */
-data class LibrarySummary(val total: Int, val posters: List<ImageRef>, val uhd: Int? = null)

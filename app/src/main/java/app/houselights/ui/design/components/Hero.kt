@@ -105,22 +105,6 @@ fun EpisodeHeading(label: String?, title: String, modifier: Modifier = Modifier,
 }
 
 /**
- * The place focus is on, where the title under focus would be: a library's name in the voice of
- * the poster, and what it holds under it, over the light of its posters. Nothing is selected yet:
- * the name says where OK leads.
- */
-@Composable
-fun PlaceHeading(name: String, facts: List<String?>, modifier: Modifier = Modifier) {
-    Box(modifier) {
-        Column(Modifier.align(Alignment.BottomStart).widthIn(max = HlLayout.readableNarrow)) {
-            Text(name, style = Hl.type.display, color = Hl.colors.content, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Spacer(Modifier.height(HlSpace.xs))
-            FactRow(facts)
-        }
-    }
-}
-
-/**
  * Where a title and its facts will be while a detail page loads: two short rules, quiet, no
  * shimmer. Screens show it after [HlMotion.SKELETON_DELAY].
  */

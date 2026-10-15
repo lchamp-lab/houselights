@@ -10,8 +10,9 @@ every build (see *Guard*).
 
 1. **One light source.** The room is pure black (`#000000`). Colour comes from the artwork: the
    *ambient light* (`LocalAmbient`) is picked from the focused backdrop and lights the card that has
-   focus; the backdrop itself spills nothing on the room, its picture melts into it. When
-   nothing is selected, the room takes the colours of the posters on the wall (`CollectionLight`).
+   focus; the backdrop itself spills nothing on the room, its picture melts into it. A browsing
+   screen always shows a title: focus going up to the tabs or the buttons leaves the last one in
+   place, and before any, the first.
    Ember, the only fixed accent, marks **states**: in use, your choice, needs attention. It is a
    light, not an ink: a gradient from bright orange to raspberry wherever it has room to show.
 2. **Ten-foot first.** Nothing below 12 sp, no content below 14 sp, every text at least 4.5:1 on the
@@ -182,8 +183,8 @@ rest keep their inks (the current one in `content` on its pill, the others in `c
 ### Veils (`Scrim.kt`)
 
 `HlScrim` holds the recipes of what is laid over artwork, never loose numbers: the **left veil**
-behind the text column, the **top veil** under the top bar, the **bottom fade** to black, the
-**collection light**, and the **welcome wall** (its veil;
+behind the text column, the **top veil** under the top bar, the **bottom fade** to black, and
+the **welcome wall** (its veil;
 nothing lights the wordmark, the posters are the light of that screen). The left veil follows the
 text column in dp, `safeH` + `readableNarrow`, then fades out at one pace, over
 `BackdropDefaults.veilFade` from full strength and sooner from a lighter column end: never a share of
@@ -199,21 +200,9 @@ A dimmed picture (`Quiet`: the wall of posters) is already quiet: its fade stops
 quietest text needs over a white picture at its dimness (`BackdropStyle.foot`, 0.46 at 28 %), so
 the picture stays in the room down to the foot of the screen instead of leaving a black half.
 
-**The collection light.** With nothing selected, the room takes the colours the wall is made of:
-every poster shown counts alike, each of its colours by the area it covers and a little more when
-saturated, as a card's glow picks its own; greys, near-black and near-white give none; close hues
-are one colour (`COLLECTION_HUE_APART`, 40°), tamed like the ambient light (`AMBIENT_SATURATION_*`,
-`AMBIENT_VALUE`). They are cast as pools on a diagonal (`COLLECTION_POOLS`): the heaviest from the
-top right; from the bottom left, the colour that answers it, the one that weighs most once its
-distance across the hue wheel counts too (a red wall answered in teal, not in a neighbouring ochre:
-a chord, not a muddle); a third low under the wall; the title's corner
-stays dark, so the words there keep 4.5:1 over any wall (`collectionAt`, `ScrimTest`). Each pool
-dies out as a curve (`FALLOFF`), drawn once; the light comes and goes by its layer's alpha.
-
 **No picture, no light.** Without artwork, `Backdrop(null)` is the black room: no warm glow stands
 in for a picture. The ambient light of a title without a backdrop, or whose backdrop fails to load,
-is transparent (`LocalAmbient` too, by default): it lights no card. Where a wall
-of posters shows with nothing selected, the posters light the room (`CollectionLight`).
+is transparent (`LocalAmbient` too, by default): it lights no card.
 
 Under the text column the left veil keeps a **floor**, band by band (the four bands between the
 stops of `HlScrim.LEFT`), read from the small copy of the backdrop the ambient light is picked from
@@ -264,7 +253,7 @@ family, weight or tracking (`DesignTokenGuardTest`): it picks another role, or t
 
 | Style | Size / line | Voice, weight | Role (one each) |
 |---|---|---|---|
-| `display` | 64 / 72 | poster, Bold | title of a detail page without logo; the name of a place under its light (home, a tab focused) |
+| `display` | 64 / 72 | poster, Bold | title of a detail page without logo |
 | `headline` | 44 / 48 | poster, Bold | screen titles, home hero title without logo |
 | `subject` | 32 / 36 | poster, SemiBold | what a panel, a sheet or a settings pane is about ("Modifier", "Fiche technique", "Affichage"); the line of an intertitle; a figure that states something (storage used) |
 | `cardTitle` | 20 / 24 | poster, Bold | a title set on a card without artwork, like a plain one-sheet |
@@ -351,11 +340,11 @@ without the prefix (`MenuOption`, `MeterLegend`, `PosterCard`, `BillingBlock`, `
 | Component | Use |
 |---|---|
 | `Backdrop` (`Hero`, `Full`, `Quiet`) | full-screen artwork under the `HlScrim` veils, with a floor under each band of the text column on a light image; its veils lift when the lights go down. Nothing glows under it: a light spilled on the room under the text cost the veil darkness and drew an arc on the black. **Drawn once per picture**: the next picture is prepared off screen (decoded at the screen's size, its floor read from its tiny copy) while the last one stays, then the picture and its veils go into one cached layer, and the two layers cross-fade by their own alpha. **It steps back** (`recede`) while what is read is elsewhere on the page: a detail page scrolled down to its rows lays a veil over the whole picture, `VEIL` or more on a light one (`ArtworkSample.floorAcross`: what the quietest text needs anywhere on it), over `SLOW`, lifted when focus comes back to the actions. Each frame lays one texture: drawn layer by layer every frame, the veils took the player's whole graphics budget (see *Performance*) |
-| `rememberAmbientColor`, `CollectionLight` | the light of a picture, which the focused card glows with; the colours of a wall when nothing is selected, cast as pools on a diagonal (see *Veils*). The light is a state, provided as a function (`LocalAmbient provides { ambient.value }`) and read while drawing, like the house lights: as it changes over `SLOW`, the focused card's glow follows it, nothing recomposes the screen |
+| `rememberAmbientColor` | the light of a picture, which the focused card glows with. The light is a state, provided as a function (`LocalAmbient provides { ambient.value }`) and read while drawing, like the house lights: as it changes over `SLOW`, the focused card's glow follows it, nothing recomposes the screen |
 | `PosterCard`, `LandscapeCard`, `PersonCard`, `ArtworkSurface`, `ArtworkImage` | artwork with the shared focus treatment and a faint edge at rest (see *Cards*) |
 | `MediaRow` | horizontal row with header; focus coming back into it lands on its last card; dims the other cards when one is focused |
-| `HeroInfo`, `TitleArt`, `EpisodeHeading`, `MetaLine`, `BillingBlock`, `PlaceHeading` | what a title is: clear logo or condensed title, facts, credits. The browsing hero names, the detail page tells: in its band (`HlLayout.hero`, 168) it has a logo at most 76 tall (or the name on one line), one line of facts (an episode's number and name instead), then where it stands (progress and time left) or two lines of overview. The detail page adds the formats, on their own two lines (only a page speaks of how a title is made; a wall and home's hero say what it is), the tagline, three lines of overview and the billing block. With focus on home's tabs, nothing is selected yet: `PlaceHeading` names where OK leads, in its place (the library's name in `display`, what it holds: "9 titres", "7 en Ultra HD"; home, the titles started), and the room takes the colours of that library's latest posters (`MediaProvider.librarySummary`) |
-| `TitleLine` | the line naming the title under focus over a wall: its name and facts on one line of fixed height (its formats are its page's). Short of room, the name ends in an ellipsis |
+| `HeroInfo`, `TitleArt`, `EpisodeHeading`, `MetaLine`, `BillingBlock` | what a title is: clear logo or condensed title, facts, credits. The browsing hero names, the detail page tells: in its band (`HlLayout.hero`, 168) it has a logo at most 76 tall (or the name on one line), one line of facts (an episode's number and name instead), then where it stands (progress and time left) or two lines of overview. The detail page adds the formats, on their own two lines (only a page speaks of how a title is made; a wall and home's hero say what it is), the tagline, three lines of overview and the billing block. Focus on home's tabs, the hero keeps the title last selected, as a wall keeps it named under its buttons |
+| `TitleLine` | the line naming the title selected over a wall, which stays while focus is on the wall's buttons: its name and facts on one line of fixed height (its formats are its page's). Short of room, the name ends in an ellipsis |
 | `FormatLines`, `Badge`, `FactRow`, `Score` | **Formats are words**, not boxes, and a page's only (and the head of its technical sheet): `FormatLines` sets them in the technical voice, `contentSecondary`, a fact's space apart, as the back of a case lists them: the picture on one line (definition, range, codec, frame rate: "Ultra HD Dolby Vision HDR10+ HEVC 23,976 i/s"), the sound on the next (its best track by the name on the case, its channels, its bitrate: "Dolby TrueHD Atmos 7.1 4 054 kb/s"). Nothing is said twice (`Formats`: Dolby Vision carries its HDR10 base, a name's TrueHD and Atmos are one format); the names are the case's (Dolby Digital Plus, not E-AC3; DTS-HD Master Audio; LPCM). What a file holds is read from it (`MkvProbe`: its headers, then its tracks' first frames for Atmos, the layers of DTS and HDR10+, its tags for bitrates; a track's name only when no frame was read); a Jellyfin server says it for its own files. A `Badge` (a hairline frame) is a mark a case prints as a mark: an age rating, a key of the remote ("OK"), an identifier, a protocol; never a format, never a state. Facts on one line, spaced, never punctuated; a score, the line star and its figure, quiet: a fact, it never lights |
 | `HlButton` (`Primary`, `Secondary`), `HlIconButton` | pill and round actions, all 48 dp tall; the icon button shows its label under it when focused. The label takes no room (a row of actions with something below is an `HlActionRow`, which keeps the room for it: the screen never needs to know the label is there), always sits on a dark plate, a pill padded 12 × 4 (`HlControl.labelPadding*`) 8 below the button, so it reads over any picture; it is centred under the button, even at the edge of the safe area; only where it would come closer than 24 to the side of the screen (`HlIconButtonDefaults.labelEdge`) does it align with the button's edge, hides while a sheet is open, and is not read out: the icon carries the name. A toggle names what OK does ("Marquer comme vu", "Retirer des favoris") and shows where things stand with its icon: ember at rest when `lit` for your choice (a favourite's heart fills), its shape alone for what is done (watched: the check filled in a disc, `HlIcons.CheckFilled`, in white). On a picture (`OnArtwork`) the button rests on a plate. A pill's label stops at `readableNarrow` and its detail at one line, with an ellipsis; `detailLit` lights the detail of a state (an active filter) instead of borrowing the primary emphasis. Not `enabled`, a control keeps focus, outlined, and ignores OK. `busy`, a pill is at work: the quiet dot of a pending state where its icon was, the words the screen gives (`busyLabel`: "Connexion…", "Vérification…"), its width kept, OK ignored, read out as in progress; nothing spins |
 | `HlSegmented` | the one way to show where you are or what is chosen among a few: home navigation, seasons (`scrollable`), NFO views, form choices. **Focus is white, as on every control**: the option under focus is the white pill, black words, grown by `CONTROL_SCALE`. Where you are is quieter and says it twice: the current option sits on the track's one pill of `FILL_STRONG`, which slides to the option chosen (`STANDARD`, emphasized), and its words are projector white while the others are grey. The pill against its well is only a step (≈ 1.7:1): the words and the `selected` semantics carry the state, the pill confirms it. Focus entering a track, from any side, lands on the current option, never on the nearest one; to accessibility services the options are tabs, the current one selected. A long track scrolls as one piece, pill included. On a picture (`OnArtwork`), the track is a plate. `onFocusChange` tells a screen which option has focus (home names the library under focus). There is no standalone tab |
