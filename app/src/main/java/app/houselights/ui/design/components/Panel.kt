@@ -79,7 +79,7 @@ fun HlPanel(
             .background(if (level == PanelLevel.Raised) c.surfaceRaised else c.surface.copy(alpha = HlAlpha.QUIET_SURFACE))
             .then(
                 if (lit) {
-                    Modifier.border(HlSize.hairline, c.emberLight(HlAlpha.BORDER), shape)
+                    Modifier.border(HlSize.hairline, c.emberLight(), shape)
                 } else {
                     Modifier.border(HlSize.hairline, c.outline.copy(alpha = HlAlpha.BORDER), shape)
                 },
@@ -117,7 +117,7 @@ fun HlPanelButton(
         border = ClickableSurfaceDefaults.border(
             border = Border(
                 if (lit) {
-                    BorderStroke(HlSize.hairline, c.emberLight(HlAlpha.BORDER))
+                    BorderStroke(HlSize.hairline, c.emberLight())
                 } else {
                     BorderStroke(HlSize.hairline, c.outline.copy(alpha = HlAlpha.BORDER))
                 },

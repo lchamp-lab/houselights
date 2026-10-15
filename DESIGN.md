@@ -143,17 +143,18 @@ draws and checks it on every build: a new pair goes there before a component use
 a control are named colours, never an opacity laid on the current one: the line under a name is
 `contentTertiary` at rest, `contentSecondary` when chosen, `onFocusSecondary` with focus. One pair
 is forbidden: `contentTertiary` on `CONTROL_FILL_STRONG` (≈ 3.90:1). There, the quiet line stays
-`contentSecondary`, as in setting rows and buttons. A line that names a state (`detailLit`: an active filter) is `ember` at rest
-and `onFocusSecondary` with focus. A **disabled** control sits in a `WELL` with `contentTertiary`
-words, on the room only: inside a raised sheet that pair is the forbidden one, and a sheet leaves
-out an action that cannot be taken.
+`contentSecondary`, as in setting rows and buttons. A line that names a state (`detailLit`: an
+active filter) is `ember` at rest and `onFocusSecondary` with focus. A **disabled** control sits in
+a `WELL` with `contentTertiary` words, on the room only: a sheet leaves out an action that cannot be
+taken. Marks reach 3:1 too: the ends of the ember gradient on every ground they are drawn on, the
+pending dot, the ring of a state that is off.
 
 **On artwork.** A translucent white fill is made for the dark room: over a light image it vanishes.
 What sits on an image takes a dark plate instead (`PLATE`, matte, never blurred), so its contrast no
 longer depends on the picture: a card's marks and progress line, and the controls that pass
-`onArtwork` (the home bar's track and settings button). On that plate the options of a track at rest
-are `content`: `contentSecondary` is forbidden there (≈ 3.47:1 over a white image). Focus does not
-change.
+`onArtwork` (the home bar's track and settings button). The plate is black at 80 %: over a white
+image the raspberry end of a progress line still reaches 3.5:1. On it the options of a track at
+rest are `content`, as everything that reads on artwork. Focus does not change.
 
 ### Veils (`Scrim.kt`)
 

@@ -125,8 +125,7 @@ fun HlSettingGroup(title: String?, modifier: Modifier = Modifier, content: @Comp
  * the user chose, in ember; [valueAttention] one that needs attention, in ember after its mark. [trailing] replaces the value
  * with another element (a status, badges); [leading] replaces the icon with a preview of what the
  * row changes ([RowPreview]). Not [enabled], its words go tertiary and OK does nothing; focus
- * still reaches it, outlined. Only on the room: in a raised sheet tertiary would fall under 4.5:1,
- * and a sheet leaves out an action that cannot be taken.
+ * still reaches it, outlined. Only on the room: a sheet leaves out an action that cannot be taken.
  */
 @Composable
 fun HlSettingRow(
@@ -163,7 +162,7 @@ fun HlSettingRow(
                 Text(title, style = Hl.type.entry, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 if (description != null) {
                     Spacer(Modifier.height(HlSpace.xxs))
-                    // Secondary at rest: tertiary would fall to 4.09:1 on a row inside a raised sheet.
+                    // Secondary at rest: a description explains.
                     Text(
                         description,
                         style = Hl.type.detail,

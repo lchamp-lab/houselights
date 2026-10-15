@@ -195,7 +195,7 @@ private fun ButtonContent(text: String, icon: ImageVector?, detail: String?, det
     }
 }
 
-/** The line under a button's name, by state. Secondary at rest: tertiary falls to 3.66:1 on a primary button. */
+/** The line under a button's name, by state. Secondary at rest: tertiary falls to 3.9:1 on a primary button. */
 @Composable
 private fun detailColor(onWhite: Boolean, enabled: Boolean, lit: Boolean): Color {
     val c = Hl.colors
@@ -287,7 +287,7 @@ fun HlIconButton(
                     focusedContentColor = c.onFocus,
                     pressedContainerColor = c.focus,
                     pressedContentColor = c.onFocus,
-                    // On its plate over an image, tertiary would fall under 3:1: the quiet icon is secondary there.
+                    // On its plate over an image, the quiet icon is secondary, as all quiet things on artwork.
                     disabledContainerColor = if (onArtwork) restFill else c.content.copy(alpha = HlAlpha.WELL),
                     disabledContentColor = if (onArtwork) c.contentSecondary else c.contentTertiary,
                 ),
@@ -515,7 +515,7 @@ private fun SegmentItem(
 ) {
     val c = Hl.colors
     val fade = tween<Color>(HlMotion.STANDARD, easing = HlMotion.emphasized)
-    // On the plate over an image, grey would fall to 3.5:1: the options at rest are white there.
+    // On the plate over an image the options at rest are white, as everything that reads there.
     val rest = if (onArtwork) c.content else c.contentSecondary
     val restContent by animateColorAsState(if (selected) c.onFocus else rest, fade, label = "segmentText")
     val focusedContent by animateColorAsState(if (selected) c.onFocus else c.content, fade, label = "segmentFocusedText")

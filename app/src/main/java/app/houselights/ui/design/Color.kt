@@ -101,8 +101,16 @@ object HlAlpha {
     /**
      * The plate under whatever sits on artwork, whatever the image: a card's marks and progress
      * track, and the controls laid over a backdrop (the home bar's track and button): `background`.
+     * At 80 %, the raspberry end of a progress line keeps 3.5:1 over a white image.
      */
-    const val PLATE = 0.72f
+    const val PLATE = 0.8f
+
+    /**
+     * The steps of the black-level chart in the catalogue: `content` at each opacity on the room.
+     * On a TV that shows them all apart, a fill on the room reads; where the first ones merge into
+     * black, the TV crushes its blacks.
+     */
+    val BLACK_LEVELS = listOf(0.03f, 0.06f, 0.09f, 0.12f, 0.15f, 0.2f)
     /** Progress track beside text, off the artwork (a hero, a pane): `content` at this opacity. */
     const val TRACK = 0.22f
     /** Focus on an option of a track that is not the current one: `content` at this opacity. */

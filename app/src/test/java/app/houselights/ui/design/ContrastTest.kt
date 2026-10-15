@@ -21,6 +21,8 @@ class ContrastTest {
         "contentSecondary" to c.contentSecondary,
         "contentTertiary" to c.contentTertiary,
         "ember" to c.ember,
+        "emberFrom" to c.emberFrom,
+        "emberTo" to c.emberTo,
         "onFocus" to c.onFocus,
         "onFocusSecondary" to c.onFocusSecondary,
     )
@@ -35,6 +37,8 @@ class ContrastTest {
         "WELL on surfaceRaised" to c.content.over(HlAlpha.WELL, c.surfaceRaised),
         "CONTROL_FILL" to c.content.over(HlAlpha.CONTROL_FILL, c.background),
         "CONTROL_FILL_STRONG" to c.content.over(HlAlpha.CONTROL_FILL_STRONG, c.background),
+        // A progress line's track beside text, off the artwork.
+        "TRACK" to c.content.over(HlAlpha.TRACK, c.background),
         // A button in a side sheet.
         "CONTROL_FILL on surfaceRaised" to c.content.over(HlAlpha.CONTROL_FILL, c.surfaceRaised),
         "FOCUS_QUIET on WELL" to c.content.over(HlAlpha.FOCUS_QUIET, c.content.over(HlAlpha.WELL, c.background)),
@@ -85,13 +89,19 @@ class ContrastTest {
         // its plate over an image, a round button's icon stays secondary.
         ("contentTertiary" on "WELL").mark(),
         ("contentSecondary" on "PLATE on a white image").mark(),
+        // The ember light where it is drawn: the wordmark, a progress line on its track or plate,
+        // a lit edge, the counter of a scan. Both ends, since a gradient shows all of it.
+        ("emberFrom" on "background").mark(), ("emberTo" on "background").mark(),
+        ("emberFrom" on "surfaceRaised").mark(), ("emberTo" on "surfaceRaised").mark(),
+        ("emberFrom" on "TRACK").mark(), ("emberTo" on "TRACK").mark(),
+        ("emberFrom" on "PLATE on a white image").mark(), ("emberTo" on "PLATE on a white image").mark(),
+        // A state's light: pending, and the ring of off, on the room, in a sheet and in a busy button.
+        ("contentTertiary" on "background").mark(), ("contentTertiary" on "surfaceRaised").mark(),
+        ("contentTertiary" on "CONTROL_FILL_STRONG").mark(), ("contentTertiary" on "CONTROL_FILL").mark(),
     )
 
-    /** Pairs DESIGN.md forbids by name; if one passes one day, the rule there can go. */
     private val forbidden = listOf(
         "contentTertiary" on "CONTROL_FILL_STRONG",
-        // On artwork, the options of a track at rest are white: grey on the plate falls to 3.5:1.
-        "contentSecondary" on "PLATE on a white image",
     )
 
     @Test
