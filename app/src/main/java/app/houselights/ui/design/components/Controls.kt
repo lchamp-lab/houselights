@@ -86,6 +86,7 @@ import app.houselights.ui.design.HlMotion
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.groundPlate
 import app.houselights.ui.design.RowScroll
 
 enum class Emphasis { Primary, Secondary }
@@ -230,10 +231,10 @@ private fun ButtonLabel(text: String) {
  * is centred under the button, even at the edge of the safe area; only where it would come closer
  * than [HlLayout.iconLabelEdge] to the side of the screen does it align with the button's edge.
  * Under a sheet, which has the window, it hides. The icon carries the name for accessibility. The
- * label always sits on a dark plate; [onArtwork] sets the button on one too, so it reads over any image. Not [enabled], its icon goes
- * quiet and OK does nothing; focus still reaches it, outlined, and still shows its label. A toggle
- * names what OK does ("Marquer comme vu") and shows where things stand with its icon: [lit],
- * ember at rest.
+ * label always sits on a dark plate; on a picture ([OnArtwork]) the button sits on one too, so it
+ * reads over any image. Not [enabled], its icon goes quiet and OK does nothing; focus still
+ * reaches it, outlined, and still shows its label. A toggle names what OK does ("Marquer comme
+ * vu") and shows where things stand with its icon: [lit], ember at rest.
  */
 @Composable
 fun HlIconButton(
@@ -241,7 +242,6 @@ fun HlIconButton(
     label: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    onArtwork: Boolean = false,
     enabled: Boolean = true,
     lit: Boolean = false,
 ) {
@@ -251,7 +251,8 @@ fun HlIconButton(
     val shown = focused && LocalWindowInfo.current.isWindowFocused
     val labelAlpha by animateFloatAsState(if (shown) 1f else 0f, tween(HlMotion.FAST), label = "label")
     val c = Hl.colors
-    val restFill = if (onArtwork) c.background.copy(alpha = HlAlpha.VEIL) else c.content.copy(alpha = HlAlpha.FILL)
+    val plate = groundPlate()
+    val restFill = plate ?: c.content.copy(alpha = HlAlpha.FILL)
     Layout(
         modifier = modifier,
         content = {
@@ -266,8 +267,8 @@ fun HlIconButton(
                     rest = restFill,
                     restContent = if (lit) c.ember else c.content,
                     // On its plate over an image, the quiet icon is secondary, as all quiet things on artwork.
-                    disabled = if (onArtwork) restFill else c.content.copy(alpha = HlAlpha.FILL_FAINT),
-                    disabledContent = if (onArtwork) c.contentSecondary else c.contentTertiary,
+                    disabled = plate ?: c.content.copy(alpha = HlAlpha.FILL_FAINT),
+                    disabledContent = if (plate != null) c.contentSecondary else c.contentTertiary,
                 ),
                 interactionSource = interaction,
             ) {
@@ -378,8 +379,8 @@ fun HlListItem(
  * chosen. Focus entering the track, from any side, lands on the current option, never on the
  * nearest one; to accessibility services the options are tabs, the current one selected. With
  * [selectOnFocus], moving onto an option selects it, as tabs over content do on TV. [scrollable]
- * lets a long track (seasons) scroll within the screen. [onArtwork] lays the track on a dark
- * plate, so it reads over any image. [enterAt] is where focus enters when it is not the current
+ * lets a long track (seasons) scroll within the screen. On a picture ([OnArtwork]) the track is
+ * a dark plate, so it reads over any image. [enterAt] is where focus enters when it is not the current
  * option: the option a screen sends you back to (the library just left). [onFocusChange] hears
  * which option has focus, null once focus has left the track.
  */
@@ -391,7 +392,6 @@ fun HlSegmented(
     modifier: Modifier = Modifier,
     selectOnFocus: Boolean = false,
     scrollable: Boolean = false,
-    onArtwork: Boolean = false,
     enterAt: Int = selected,
     onFocusChange: (Int?) -> Unit = {},
 ) {
@@ -404,7 +404,7 @@ fun HlSegmented(
     val scroll = rememberScrollState()
     val content = if (scrollable) Modifier.horizontalScroll(scroll).padding(horizontal = HlSpace.xxs) else Modifier
 
-    val well = if (onArtwork) Hl.colors.background.copy(alpha = HlAlpha.VEIL) else Hl.colors.content.copy(alpha = HlAlpha.FILL_FAINT)
+    val well = groundPlate() ?: Hl.colors.content.copy(alpha = HlAlpha.FILL_FAINT)
     val track = modifier
         .background(well, HlShapes.control)
         .padding(vertical = HlSpace.xxs, horizontal = if (scrollable) HlSpace.none else HlSpace.xxs)

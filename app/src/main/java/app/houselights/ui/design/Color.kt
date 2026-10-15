@@ -1,6 +1,7 @@
 package app.houselights.ui.design
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.staticCompositionLocalOf
@@ -99,11 +100,30 @@ fun HlColors.emberLight(alpha: Float = 1f): Brush =
     Brush.horizontalGradient(listOf(emberFrom.copy(alpha = alpha), emberTo.copy(alpha = alpha)))
 
 /**
- * What a component lies on, opaque: the room, or the glass of a sheet, a menu or a dialog, which
- * provide it. Fills are translucent and need no ground; what must hide what is under it (the hint
- * at the end of a field) or fade into it (the edges of a scrolling area) reads it.
+ * What a component lies on, which decides how it stands out: the black [Room]; [Glass], the
+ * raised surface of a sheet, a menu or a dialog, already a step up; or [Artwork], a picture of
+ * any lightness, where what is laid must take a dark plate to read. Sheets and raised panels
+ * provide Glass, artwork surfaces and [OnArtwork] provide Artwork; a component reads it rather
+ * than being told.
  */
-val LocalGround = staticCompositionLocalOf { HouselightsColors.background }
+enum class Ground { Room, Glass, Artwork }
+
+val LocalGround = staticCompositionLocalOf { Ground.Room }
+
+/** Lays [content] on a picture: what it holds takes its plate ([groundPlate]) and reads over any image. */
+@Composable
+fun OnArtwork(content: @Composable () -> Unit) {
+    CompositionLocalProvider(LocalGround provides Ground.Artwork, content = content)
+}
+
+/**
+ * The ground's own colour, opaque: what must hide what is under it (the hint at the end of a
+ * field) or fade into it (the edges of a scrolling area) reads it. A picture's is the room's black,
+ * the black of its plate.
+ */
+@Composable
+@ReadOnlyComposable
+fun groundColor(): Color = if (LocalGround.current == Ground.Glass) Hl.colors.surfaceRaised else Hl.colors.background
 
 /**
  * The fill of a thing on its ground, one step up: `FILL` on the room, a step a TV still shows;
@@ -111,12 +131,20 @@ val LocalGround = staticCompositionLocalOf { HouselightsColors.background }
  */
 @Composable
 @ReadOnlyComposable
-fun groundStep(): Float = if (LocalGround.current == Hl.colors.background) HlAlpha.FILL else HlAlpha.FILL_FAINT
+fun groundStep(): Float = if (LocalGround.current == Ground.Glass) HlAlpha.FILL_FAINT else HlAlpha.FILL
 
 /** `content` at [alpha] laid on the ground, opaque: a fill as it shows. */
 @Composable
 @ReadOnlyComposable
-fun groundFill(alpha: Float): Color = Hl.colors.content.copy(alpha = alpha).compositeOver(LocalGround.current)
+fun groundFill(alpha: Float): Color = Hl.colors.content.copy(alpha = alpha).compositeOver(groundColor())
+
+/**
+ * The plate under what sits on a picture: black at `VEIL`, matte, so its contrast no longer
+ * depends on the image. Null off artwork, where a fill of `content` stands out instead.
+ */
+@Composable
+@ReadOnlyComposable
+fun groundPlate(): Color? = if (LocalGround.current == Ground.Artwork) Hl.colors.background.copy(alpha = HlAlpha.VEIL) else null
 
 /**
  * Opacities, by role, in three families: fills (`content` over whatever lies below), veils

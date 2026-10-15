@@ -61,6 +61,7 @@ import app.houselights.ui.design.HlMotion
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.Ground
 import app.houselights.ui.design.LocalGround
 import app.houselights.ui.design.groundStep
 import app.houselights.ui.design.scrollEdges
@@ -178,7 +179,7 @@ fun HlSideSheet(
     SheetWindow(onDismiss, HlAlpha.VEIL_SIDE, initialFocus) { progress, sheet ->
         val body = rememberScrollState()
         // Glass: the ground of the rows and fields it holds.
-        CompositionLocalProvider(LocalGround provides Hl.colors.surfaceRaised) {
+        CompositionLocalProvider(LocalGround provides Ground.Glass) {
         Row(
             modifier
                 .align(Alignment.CenterEnd)

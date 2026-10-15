@@ -25,6 +25,7 @@ import androidx.tv.material3.Text
 import app.houselights.R
 import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
+import app.houselights.ui.design.OnArtwork
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlAlpha
 import app.houselights.ui.design.HlIcons
@@ -187,7 +188,7 @@ private fun StressDeviceSection() {
  * bar keeps the width it has on screen; choosing a library only moves the pill.
  */
 @Composable
-private fun StressTopBar(libraries: List<String>) {
+private fun StressTopBar(libraries: List<String>) = OnArtwork {
     Row(
         // The label of the settings button shows on the image, under the bar, as it does at home.
         Modifier.fillMaxWidth().background(Hl.colors.content).padding(top = HlSpace.safeV, bottom = HlLayout.iconLabelRoom),
@@ -201,9 +202,8 @@ private fun StressTopBar(libraries: List<String>) {
             onSelect = { current = it },
             modifier = Modifier.weight(1f, fill = false).padding(end = HlSpace.l),
             scrollable = true,
-            onArtwork = true,
         )
-        HlIconButton(HlIcons.Settings, stringResource(R.string.nav_settings), onClick = {}, onArtwork = true)
+        HlIconButton(HlIcons.Settings, stringResource(R.string.nav_settings), onClick = {})
     }
 }
 

@@ -49,6 +49,7 @@ import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.Ground
 import app.houselights.ui.design.LocalGround
 import app.houselights.ui.design.emberLight
 import app.houselights.ui.design.groundStep
@@ -90,7 +91,7 @@ fun HlPanel(
             )
             .padding(padding),
     ) {
-        if (raised) CompositionLocalProvider(LocalGround provides c.surfaceRaised) { content() } else content()
+        if (raised) CompositionLocalProvider(LocalGround provides Ground.Glass) { content() } else content()
     }
 }
 

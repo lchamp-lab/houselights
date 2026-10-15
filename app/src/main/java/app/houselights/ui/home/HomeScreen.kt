@@ -66,6 +66,7 @@ import app.houselights.providers.local.ScanState
 import app.houselights.providers.local.SourceEntity
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlMotion
+import app.houselights.ui.design.OnArtwork
 import app.houselights.ui.design.awaitMotion
 import app.houselights.ui.design.textRoom
 import app.houselights.ui.design.LocalHouseLights
@@ -232,7 +233,7 @@ private fun TopBar(
 ) {
     // Where you are among the libraries, in one track; settings apart, as an action. Both sit on
     // the image, on their plates. A long track scrolls: the button always keeps its place.
-    Row(
+    OnArtwork { Row(
         Modifier.fillMaxWidth().padding(start = HlSpace.safeH, end = HlSpace.safeH, top = HlSpace.safeV),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.Top,
@@ -256,7 +257,6 @@ private fun TopBar(
             // Focus coming back to the track lands where the track's own rule puts it.
             modifier = Modifier.weight(1f, fill = false).padding(end = HlSpace.l).focusRequester(memory.requester(TRACK)),
             scrollable = true,
-            onArtwork = true,
             enterAt = returnTo ?: current,
             onFocusChange = onFocusTab,
         )
@@ -265,9 +265,8 @@ private fun TopBar(
             stringResource(R.string.nav_settings),
             onClick = onSettings,
             modifier = Modifier.focusKey(FocusKey.action("settings"), memory),
-            onArtwork = true,
         )
-    }
+    } }
 }
 
 @Composable

@@ -45,7 +45,7 @@ import app.houselights.ui.design.HlInset
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
-import app.houselights.ui.design.LocalGround
+import app.houselights.ui.design.groundColor
 import app.houselights.ui.design.groundFill
 import app.houselights.ui.design.groundStep
 import app.houselights.ui.design.scrollEdges
@@ -66,7 +66,7 @@ fun HlScrollArea(
     modifier: Modifier = Modifier,
     framed: Boolean = true,
     padding: Dp = if (framed) HlInset.card else HlSpace.none,
-    surface: Color = if (framed) groundFill(groundStep()) else LocalGround.current,
+    surface: Color = if (framed) groundFill(groundStep()) else groundColor(),
     content: @Composable BoxScope.() -> Unit,
 ) {
     val scroll = rememberScrollState()

@@ -82,6 +82,9 @@ import app.houselights.ui.design.HlScrim
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.groundPlate
+import app.houselights.ui.design.LocalGround
+import app.houselights.ui.design.Ground
 import app.houselights.ui.design.fadeOutsideSafeArea
 import app.houselights.ui.design.LocalAmbient
 import app.houselights.ui.design.LocalGroupFocus
@@ -195,7 +198,8 @@ fun ArtworkSurface(
         interactionSource = interaction,
     ) {
         // Read while drawing, or by the image alone: stepping back never recomposes the row.
-        CompositionLocalProvider(LocalArtworkRecede provides { recede.value }) { content() }
+        // What a card holds lies on its picture: its marks and progress take their plate.
+        CompositionLocalProvider(LocalArtworkRecede provides { recede.value }, LocalGround provides Ground.Artwork) { content() }
         Box(Modifier.fillMaxSize().border(HlSize.hairline, c.content.copy(alpha = HlAlpha.EDGE_ARTWORK), shape))
         Box(
             Modifier.fillMaxSize().drawBehind {
@@ -293,7 +297,7 @@ fun PosterCard(
     ArtworkSurface(onClick, sized.aspectRatio(2f / 3f), onFocused = onFocused, stateDescription = cardState(item), light = poster) {
         ArtworkImage(poster, item.title, Modifier.fillMaxSize()) { FallbackArtwork(item.title, item.year) }
         StatusMark(item, Modifier.align(Alignment.TopEnd).padding(HlSpace.xs))
-        ProgressLine(item.progress, Modifier.align(Alignment.BottomCenter), onArtwork = true)
+        ProgressLine(item.progress, Modifier.align(Alignment.BottomCenter))
     }
 }
 
@@ -326,7 +330,7 @@ fun LandscapeCard(
                 FallbackArtwork(title ?: item.title, item.year.takeIf { title == null })
             }
             StatusMark(item, Modifier.align(Alignment.TopEnd).padding(HlSpace.xs))
-            ProgressLine(item.progress, Modifier.align(Alignment.BottomCenter), onArtwork = true)
+            ProgressLine(item.progress, Modifier.align(Alignment.BottomCenter))
         }
         if (title != null) {
             Spacer(Modifier.height(HlSpace.s))
@@ -544,13 +548,13 @@ private const val PERCENT = 100
 
 /**
  * Progress line in the ember light, its whole gradient across what is done, only for titles in
- * progress. On artwork ([onArtwork]: the foot of a
- * card), its track is a dark plate, so the line reads over the lightest image.
+ * progress. On a picture (the foot of a card, [OnArtwork]), its track is the ground's dark plate
+ * ([groundPlate]), so the line reads over the lightest image.
  */
 @Composable
-fun ProgressLine(progress: Float, modifier: Modifier = Modifier, onArtwork: Boolean = false) {
+fun ProgressLine(progress: Float, modifier: Modifier = Modifier) {
     if (progress <= 0f) return
-    val track = if (onArtwork) Hl.colors.background.copy(alpha = HlAlpha.VEIL) else Hl.colors.content.copy(alpha = HlAlpha.FILL_STRONG)
+    val track = groundPlate() ?: Hl.colors.content.copy(alpha = HlAlpha.FILL_STRONG)
     Box(modifier.fillMaxWidth().height(HlSize.progress).background(track)) {
         Box(Modifier.fillMaxWidth(progress).height(HlSize.progress).background(Hl.colors.emberLight()))
     }
