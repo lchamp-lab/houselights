@@ -156,6 +156,7 @@ fun CatalogScreen() {
                         HlIconDisc(HlIcons.Folder)
                         HlIconDisc(HlIcons.Folder, lit = true)
                         HlStatus(StatusState.On, "Online")
+                        HlStatus(StatusState.Done, "Found")
                         HlStatus(StatusState.Pending, "Testing")
                         HlStatus(StatusState.Off, "Offline")
                         HlStatus(StatusState.Attention, "Can’t play", detail = "The Zidoo player isn’t installed.")

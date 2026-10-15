@@ -170,7 +170,7 @@ internal fun PillButton(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             if (busy) {
-                Box(Modifier.size(HlSize.icon), contentAlignment = Alignment.Center) { StatusDot(StatusState.Pending) }
+                Box(Modifier.size(HlSize.icon), contentAlignment = Alignment.Center) { StatusLight(StatusState.Pending) }
                 Spacer(Modifier.width(HlControl.iconGap))
                 ButtonLabel(busyLabel)
             } else {

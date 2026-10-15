@@ -57,10 +57,11 @@ fun NfoScreen(itemId: String) {
         description = stringResource(R.string.nfo_desc),
         aside = {
             StatusPanel(
+                // A file read is a fact; one that cannot be read needs attention.
                 state = when {
-                    info != null -> StatusState.On
+                    info != null -> StatusState.Done
                     loaded is LoadState.Loading -> StatusState.Pending
-                    else -> StatusState.Off
+                    else -> StatusState.Attention
                 },
                 stateText = stringResource(
                     when {

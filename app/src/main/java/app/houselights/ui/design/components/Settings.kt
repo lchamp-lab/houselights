@@ -122,7 +122,7 @@ fun HlSettingGroup(title: String?, modifier: Modifier = Modifier, content: @Comp
  * One setting: its name (and a line of description if needed) on the left, what it is set to
  * on the right. With [onClick] the row is a control that turns projector white with focus and
  * leads somewhere ([chevron]); without it, the row only states a value. [valueLit] marks a value
- * the user chose or something that needs attention, in ember. [trailing] replaces the value
+ * the user chose, in ember; [valueAttention] one that needs attention, in ember after its mark. [trailing] replaces the value
  * with another element (a status, badges); [leading] replaces the icon with a preview of what the
  * row changes ([RowPreview]). Not [enabled], its words go tertiary and OK does nothing; focus
  * still reaches it, outlined. Only on the room: in a raised sheet tertiary would fall under 4.5:1,
@@ -136,6 +136,7 @@ fun HlSettingRow(
     description: String? = null,
     icon: ImageVector? = null,
     valueLit: Boolean = false,
+    valueAttention: Boolean = false,
     onClick: (() -> Unit)? = null,
     chevron: Boolean = onClick != null,
     trailing: (@Composable RowScope.() -> Unit)? = null,
@@ -175,14 +176,20 @@ fun HlSettingRow(
             Spacer(Modifier.width(HlSpace.l))
             when {
                 trailing != null -> trailing()
-                value != null -> Text(
-                    value,
-                    style = Hl.type.meta,
-                    color = rowLineColor(focused, enabled, valueLit, onFocus = LocalContentColor.current),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.widthIn(max = HlLayout.rowValue),
-                )
+                value != null -> Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (valueAttention) {
+                        StatusLight(StatusState.Attention, ink = if (focused) LocalContentColor.current else null)
+                        Spacer(Modifier.width(HlSpace.xs))
+                    }
+                    Text(
+                        value,
+                        style = Hl.type.meta,
+                        color = rowLineColor(focused, enabled, valueLit || valueAttention, onFocus = LocalContentColor.current),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.widthIn(max = HlLayout.rowValue),
+                    )
+                }
             }
             if (chevron) {
                 Spacer(Modifier.width(HlSpace.s))

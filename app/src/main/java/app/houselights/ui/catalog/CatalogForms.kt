@@ -146,9 +146,9 @@ private fun FormStatusPanels() {
                 detail = "/volume1/media/films", badges = nfs, result = "128 éléments trouvés",
             )
         }
-        FormCase("off: failed, the result in ember", Modifier.width(HlLayout.sideColumnWide)) {
+        FormCase("attention: failed, its mark and the result as an attention note", Modifier.width(HlLayout.sideColumnWide)) {
             StatusPanel(
-                StatusState.Off, "Connexion impossible", "Adresse", "nas-salon.local",
+                StatusState.Attention, "Connexion impossible", "Adresse", "nas-salon.local",
                 detail = "/films", badges = listOf("SMB", "Films"),
                 result = "nas-salon.local ne répond pas. Vérifiez que le NAS est allumé et connecté au réseau.",
                 resultIsError = true,
@@ -156,9 +156,9 @@ private fun FormStatusPanels() {
         }
     }
     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Top) {
-        FormCase("on, with content; a long value stops at three lines", Modifier.width(HlLayout.sideColumnWide)) {
+        FormCase("done: a fact, white; a long value stops at three lines", Modifier.width(HlLayout.sideColumnWide)) {
             StatusPanel(
-                StatusState.On, "Identifié", "Fichier",
+                StatusState.Done, "Identifié", "Fichier",
                 "Le.Samourai.1967.REMASTERED.2160p.UHD.BluRay.HDR10.DTS-HD.MA.5.1.x265-HOUSELIGHTS.mkv",
                 valueStyle = Hl.type.entry,
                 content = {

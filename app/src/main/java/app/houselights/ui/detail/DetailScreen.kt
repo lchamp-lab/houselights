@@ -377,14 +377,14 @@ private fun Actions(
         if (item.kind == MediaKind.EPISODE && item.seriesId != null) {
             HlButton(stringResource(R.string.view_series), onClick = onOpenSeries, modifier = Modifier.focusKey(SERIES, memory))
         }
-        // A toggle says what OK does; its lit icon says where the title stands.
+        // A toggle says what OK does; its icon says where the title stands. Watched is done, not a
+        // choice: the check fills, in projector white.
         if (capabilities?.markPlayed == true) {
             HlIconButton(
-                HlIcons.Check,
+                if (item.user.played) HlIcons.CheckFilled else HlIcons.Check,
                 stringResource(if (item.user.played) R.string.mark_unwatched else R.string.mark_watched),
                 onClick = onTogglePlayed,
                 modifier = Modifier.focusKey(WATCHED, memory),
-                lit = item.user.played,
             )
         }
         // A button bears the name of what it opens.

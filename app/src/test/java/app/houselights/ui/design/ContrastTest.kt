@@ -71,7 +71,7 @@ class ContrastTest {
         "ember" on "the veil's floor on a white image",
         // A focused control: its name, and the line under it.
         "onFocus" on "focus", "onFocusSecondary" on "focus",
-        // Marks: a lit round button's icon (watched, a favourite), the check of your choice and the
+        // Marks: a lit round button's icon (a favourite), the check of your choice and the
         // new dot on their plate, a card's progress on its plate. The watched check is white (above).
         ("ember" on "CONTROL_FILL").mark(),
         ("ember" on "PLATE on a white image").mark(),

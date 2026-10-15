@@ -318,7 +318,6 @@ private fun LibraryActions(
             } else {
                 relativeTime(lastScan, alone = true)
             },
-            valueLit = scan.running,
             onClick = { vm.library.scan() },
             chevron = false,
         )
@@ -337,7 +336,9 @@ private fun LibraryActions(
                     else -> R.string.tmdb_missing_short
                 }
             ),
-            valueLit = s.tmdbApiKey != null || !hasBuiltIn,
+            // Your own key is your choice; none at all needs attention.
+            valueLit = s.tmdbApiKey != null,
+            valueAttention = s.tmdbApiKey == null && !hasBuiltIn,
             onClick = { editKey = true },
         )
         CollectionsRow()

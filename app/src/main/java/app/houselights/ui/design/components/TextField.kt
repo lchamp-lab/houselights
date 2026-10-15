@@ -285,7 +285,7 @@ private fun FieldMessage(error: String?, supporting: String?) {
         if (error != null) {
             // As tall as the first line, so the light sits beside it.
             val line = with(LocalDensity.current) { style.lineHeight.toDp() }
-            Box(Modifier.height(line), contentAlignment = Alignment.Center) { StatusDot(StatusState.Attention) }
+            Box(Modifier.height(line), contentAlignment = Alignment.Center) { StatusLight(StatusState.Attention) }
             Spacer(Modifier.width(HlSpace.xs))
         }
         Text(text, style = style, color = if (error != null) c.ember else c.contentSecondary)
