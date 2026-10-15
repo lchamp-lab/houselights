@@ -89,6 +89,56 @@ private suspend fun decodeSample(context: Context, image: ImageRef, sourcePx: In
     return (context.imageLoader.execute(request) as? SuccessResult)?.drawable?.toBitmap()
 }
 
+/** A tiny copy of the picture at [url], or null when it cannot be loaded. */
+private suspend fun decodeUrl(context: Context, url: String): Bitmap? {
+    val request = ImageRequest.Builder(context)
+        .data(url)
+        .size(SAMPLE_PX, SAMPLE_PX)
+        .allowHardware(false) // Palette reads the pixels.
+        .build()
+    return (context.imageLoader.execute(request) as? SuccessResult)?.drawable?.toBitmap()
+}
+
+/** Tones already read from artwork: focus coming back to a card finds its light at once. */
+private val glowTones = object : LinkedHashMap<String, Color>(GLOW_TONES, 0.75f, true) {
+    override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Color>) = size > GLOW_TONES
+}
+
+private const val GLOW_TONES = 200
+
+/**
+ * The light a card gives off while it has focus: the most vivid tone of its own artwork at [url],
+ * the same each time. It comes in with focus and goes with it; no picture, no light. Read from the
+ * picture the card already shows, so it is ready before the room's light has followed.
+ */
+@Composable
+fun rememberGlowColor(url: String?, active: Boolean): State<Color> {
+    val context = LocalContext.current
+    var tone by remember(url) { mutableStateOf(url?.let { synchronized(glowTones) { glowTones[it] } }) }
+    LaunchedEffect(url, active) {
+        if (!active || url == null || tone != null) return@LaunchedEffect
+        val bitmap = decodeUrl(context, url) ?: return@LaunchedEffect
+        val found = withContext(Dispatchers.Default) { glowOf(Palette.from(bitmap).maximumColorCount(16).generate()) }
+        if (found != null) {
+            synchronized(glowTones) { glowTones[url] = found }
+            tone = found
+        }
+    }
+    val target = if (active) tone ?: Color.Transparent else Color.Transparent
+    return animateColorAsState(target, tween(HlMotion.STANDARD, easing = HlMotion.standard), label = "glow")
+}
+
+private fun glowOf(palette: Palette): Color? {
+    val swatch = palette.vibrantSwatch ?: palette.lightVibrantSwatch ?: palette.darkVibrantSwatch
+        ?: palette.mutedSwatch ?: palette.dominantSwatch ?: return null
+    val hsv = FloatArray(3)
+    android.graphics.Color.colorToHSV(swatch.rgb, hsv)
+    // A colour glows vivid; a grey picture glows white rather than in a hue it does not have.
+    if (hsv[1] >= HlScrim.GLOW_GREY) hsv[1] = hsv[1].coerceIn(HlScrim.GLOW_SATURATION_MIN, HlScrim.GLOW_SATURATION_MAX)
+    hsv[2] = HlScrim.GLOW_VALUE
+    return Color(android.graphics.Color.HSVToColor(hsv))
+}
+
 /** The light and the veil of a backdrop take turns: the second finds the copy decoded, in memory. */
 private val backdropSampling = Mutex()
 

@@ -25,6 +25,7 @@ import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.compositionLocalOf
@@ -39,6 +40,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
@@ -46,7 +48,9 @@ import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -59,7 +63,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.tv.material3.Border
 import androidx.tv.material3.ClickableSurfaceDefaults
-import androidx.tv.material3.Glow
 import androidx.tv.material3.Icon
 import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
@@ -67,21 +70,22 @@ import app.houselights.R
 import app.houselights.core.ImageRef
 import app.houselights.core.MediaItem
 import app.houselights.core.Person
+import app.houselights.ui.design.GroupFocus
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlAlpha
 import app.houselights.ui.design.HlControl
 import app.houselights.ui.design.HlFocus
 import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlMotion
+import app.houselights.ui.design.HlScrim
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.LocalAmbient
+import app.houselights.ui.design.LocalGroupFocus
 import app.houselights.ui.design.RowScroll
 import app.houselights.ui.design.keepChildFocus
 import app.houselights.ui.design.rememberedInGroup
-import app.houselights.ui.design.LocalGroupFocus
-import app.houselights.ui.design.GroupFocus
 import app.houselights.ui.design.revealOnFocus
 import app.houselights.ui.util.toPx
 import coil.compose.AsyncImage
@@ -137,6 +141,7 @@ fun ArtworkSurface(
     onFocused: () -> Unit = {},
     stateDescription: String? = null,
     readAs: String? = null,
+    light: String? = null,
     content: @Composable BoxScope.() -> Unit,
 ) {
     val interaction = remember { MutableInteractionSource() }
@@ -147,6 +152,21 @@ fun ArtworkSurface(
         label = "recede",
     )
     val c = Hl.colors
+    // With focus, a card with its own picture ([light]) glows with that picture's colour; the others
+    // with the room's light.
+    val own by rememberGlowColor(light, focused)
+    val tone = when {
+        light != null -> own
+        focused -> LocalAmbient.current()
+        else -> Color.Transparent
+    }
+    // The card grows inside its own layer; the light around it grows with it.
+    val grown by animateFloatAsState(
+        if (focused) focusedScale else 1f,
+        tween(HlMotion.STANDARD, easing = HlMotion.standard),
+        label = "grown",
+    )
+    val reach = with(LocalDensity.current) { HlFocus.glow.toPx() }
     // Outside the surface's own semantics: clearing them drops its click, keeping its focus said.
     val reading = if (readAs != null) {
         Modifier.clearAndSetSemantics {
@@ -158,15 +178,15 @@ fun ArtworkSurface(
     }
     Surface(
         onClick = onClick,
-        modifier = modifier.rememberedInGroup().then(reading).onFocusChanged { if (it.isFocused) onFocused() },
+        modifier = modifier
+            .rememberedInGroup()
+            .then(reading)
+            .onFocusChanged { if (it.isFocused) onFocused() }
+            .drawBehind { drawGlow(tone, grown, reach, shape) },
         shape = ClickableSurfaceDefaults.shape(shape),
         scale = ClickableSurfaceDefaults.scale(focusedScale = focusedScale),
         border = ClickableSurfaceDefaults.border(
             focusedBorder = Border(BorderStroke(HlSize.focusBorder, c.focus), shape = shape),
-        ),
-        // Only the focused card reads the light, so the light changing recomposes that card alone.
-        glow = ClickableSurfaceDefaults.glow(
-            focusedGlow = Glow(if (focused) LocalAmbient.current() else Color.Transparent, HlFocus.glow),
         ),
         colors = ClickableSurfaceDefaults.colors(
             containerColor = c.surface,
@@ -179,6 +199,27 @@ fun ArtworkSurface(
         CompositionLocalProvider(LocalArtworkRecede provides { recede.value }) { content() }
         Box(Modifier.fillMaxSize().border(HlSize.hairline, c.content.copy(alpha = HlAlpha.ARTWORK_EDGE), shape))
         Box(Modifier.fillMaxSize().drawBehind { drawRect(c.background.copy(alpha = recede.value * HlFocus.SIBLING_DIM)) })
+    }
+}
+
+/**
+ * The light around a focused card: rings of [tone] out to [reach] past the card grown to [grown],
+ * fading with the distance. Drawn outside the card's layer, so it scales by hand.
+ */
+private fun DrawScope.drawGlow(tone: Color, grown: Float, reach: Float, shape: Shape) {
+    if (tone.alpha == 0f) return
+    val grow = Offset(size.width * (grown - 1f) / 2f, size.height * (grown - 1f) / 2f)
+    val corner = (shape as? RoundedCornerShape)?.topStart?.toPx(size, this) ?: 0f
+    for (i in 1..HlScrim.GLOW_STEPS) {
+        val t = i / HlScrim.GLOW_STEPS.toFloat()
+        val out = reach * t
+        val fade = 1f - t
+        drawRoundRect(
+            color = tone.copy(alpha = tone.alpha * HlScrim.GLOW_LAYER * fade),
+            topLeft = Offset(-grow.x - out, -grow.y - out),
+            size = Size(size.width + 2 * (grow.x + out), size.height + 2 * (grow.y + out)),
+            cornerRadius = CornerRadius(corner + out),
+        )
     }
 }
 
@@ -235,8 +276,9 @@ fun PosterCard(
 ) {
     val sized = if (width != null) modifier.width(width) else modifier.fillMaxWidth()
     val px = posterPx(width)
-    ArtworkSurface(onClick, sized.aspectRatio(2f / 3f), onFocused = onFocused, stateDescription = cardState(item)) {
-        ArtworkImage(item.poster?.url(px), item.title, Modifier.fillMaxSize()) { FallbackArtwork(item.title, item.year) }
+    val poster = item.poster?.url(px)
+    ArtworkSurface(onClick, sized.aspectRatio(2f / 3f), onFocused = onFocused, stateDescription = cardState(item), light = poster) {
+        ArtworkImage(poster, item.title, Modifier.fillMaxSize()) { FallbackArtwork(item.title, item.year) }
         StatusMark(item, Modifier.align(Alignment.TopEnd).padding(HlSpace.xs))
         ProgressLine(item.progress, Modifier.align(Alignment.BottomCenter), onArtwork = true)
     }
@@ -257,6 +299,7 @@ fun LandscapeCard(
     facts: List<String?> = emptyList(),
     onFocused: () -> Unit = {},
 ) {
+    val still = item.landscape?.url(width.toPx())
     Column(modifier.width(width)) {
         ArtworkSurface(
             onClick,
@@ -264,8 +307,9 @@ fun LandscapeCard(
             focusedScale = HlFocus.CARD_SCALE,
             onFocused = onFocused,
             stateDescription = cardState(item),
+            light = still,
         ) {
-            ArtworkImage(item.landscape?.url(width.toPx()), item.title, Modifier.fillMaxSize()) {
+            ArtworkImage(still, item.title, Modifier.fillMaxSize()) {
                 FallbackArtwork(title ?: item.title, item.year.takeIf { title == null })
             }
             StatusMark(item, Modifier.align(Alignment.TopEnd).padding(HlSpace.xs))

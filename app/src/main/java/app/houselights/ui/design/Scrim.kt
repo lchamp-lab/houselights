@@ -57,6 +57,23 @@ object HlScrim {
     const val SPILL_RADIUS = 0.62f
 
     /**
+     * A card's own light while it has focus: the most vivid tone of its artwork, brighter than the
+     * room's ([AMBIENT_VALUE]) so it reads as light around the card. A grey picture glows white.
+     */
+    const val GLOW_VALUE = 0.9f
+    const val GLOW_SATURATION_MIN = 0.45f
+    const val GLOW_SATURATION_MAX = 0.85f
+    const val GLOW_GREY = 0.12f
+
+    /**
+     * The glow is drawn, not cast: a shadow can only darken, and on the black room it does not show.
+     * It is [GLOW_STEPS] rounded rings out to `HlFocus.glow`, each at [GLOW_LAYER] of the tone and
+     * fading with the distance, so the light is brightest against the card and dies out softly.
+     */
+    const val GLOW_STEPS = 16
+    const val GLOW_LAYER = 0.09f
+
+    /**
      * How bright the ambient tone is, every film alike: its HSV value. No tone is a lighter grey,
      * so it bounds what the spill adds under text.
      */

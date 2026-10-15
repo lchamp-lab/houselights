@@ -216,7 +216,7 @@ that grows with the text.
 | `HlSize` | artwork (poster 112, landscape 220, episode 264, avatar 76 in a column of 120, thumbnails), `control` 48 for every button, icons 20, discs 52, marks 20, dots 8, setting rows 64, previews in a row (48 tall, a slot of 84), meter 10, the short rules of a loading title (48, 24), the short rule heading an intertitle (`intertitleRule`, 24 by 2) |
 | `HlLayout` | measures of layout parts: reading widths (640, 520), the left veil's fade past them (240), side columns (280, 340), pane top 72, the reading sheet (864) and the side sheet (520), title art, hero, info line, track table columns, the label of a round button (160 wide at most, 28 of room under its row) |
 | `HlControl` | inner padding of buttons and track options, badges; the gap between an icon and its text (8) |
-| `HlFocus` | focus scale by family (artwork 1.10, cards 1.06, pills and discs 1.04, panels 1.02, rows 1), `reach(size, scale)`: how far a focused element reaches past its ends, the room its container keeps; `ring` 5, how far a focus ring stands outside; siblings stepping back (dim 0.3, colour kept 0.3, in `RECEDE_STEPS` 3), ambient glow 18 dp, `edge` 28 (`safeV`): how far a list keeps focus from its ends |
+| `HlFocus` | focus scale by family (artwork 1.10, cards 1.06, pills and discs 1.04, panels 1.02, rows 1), `reach(size, scale)`: how far a focused element reaches past its ends, the room its container keeps; `ring` 5, how far a focus ring stands outside; siblings stepping back (dim 0.3, colour kept 0.3, in `RECEDE_STEPS` 3), the glow of focused artwork, 28 dp, `edge` 28 (`safeV`): how far a list keeps focus from its ends |
 
 ### Motion, icons, scrolling
 
@@ -338,7 +338,10 @@ screen succeeds: Back from it finds everything as it was. The source changes in 
 
 Focus must read from the couch:
 
-- **Artwork** grows, gets a 2 dp projector-white outline and glows with the ambient light. Its
+- **Artwork** grows, gets a 2 dp projector-white outline and glows with its own light: the most
+  vivid tone of its picture (`rememberGlowColor`), drawn as rings around it, since a cast shadow
+  cannot light the black room. The tone is read once per picture and kept, so focus coming back
+  finds the same light at once. Artwork without its own picture glows with the room's light. Its
   neighbours in the same row or grid step back: darker and with less colour (`SIBLING_DIM`,
   `SIBLING_SATURATION`, see *Cards*), never grey. A row without focus keeps its colours.
 - **Controls, rows and navigation** turn projector white with black content. Pills and discs grow a

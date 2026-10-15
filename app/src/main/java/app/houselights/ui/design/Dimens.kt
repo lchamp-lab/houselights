@@ -244,7 +244,7 @@ object HlFocus {
 
     /** How much of its colour an image keeps at [step]: all of it in front, [SIBLING_SATURATION] behind. */
     fun saturationAt(step: Int): Float = 1f - step.toFloat() / RECEDE_STEPS * (1f - SIBLING_SATURATION)
-    val glow = 18.dp
+    val glow = 28.dp
     /**
      * How far a vertical list keeps what has focus from its top and bottom: the safe area, so
      * the last row stops inside it and a focused poster grows into the margin, not off the screen.
