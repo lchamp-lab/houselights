@@ -16,7 +16,8 @@ class DesignTokenGuardTest {
     private val rules = listOf(
         Regex("""(?<![\w.])(?!0\.dp\b)\d+(\.\d+)?\.dp\b""") to "a size: use HlSpace, HlSize or HlLayout",
         Regex("""(?<![\w.])\d+(\.\d+)?\.sp\b""") to "a text size: use an Hl.type style",
-        Regex("""\b(fontSize|lineHeight|fontFamily)\s*=""") to "a text style override: use or add an Hl.type style",
+        Regex("""\b(fontSize|lineHeight|fontFamily|fontWeight|letterSpacing)\s*=""") to
+            "a text style override: use or add an Hl.type style",
         Regex("""FontFamily\.""") to "a font: use HlFonts through Hl.type",
         Regex("""Color\(0x""") to "a colour: use Hl.colors",
         Regex("""Color\.(Black|White)\b""") to "black or white: use Hl.colors.background or content",

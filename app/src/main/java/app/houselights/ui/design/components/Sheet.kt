@@ -243,7 +243,7 @@ private fun SheetHeader(
     }
     if (description != null) {
         Spacer(Modifier.height(HlSpace.s))
-        Text(description, style = Hl.type.detail, color = c.contentSecondary)
+        Text(description, style = Hl.type.caption, color = c.contentSecondary)
     }
 }
 

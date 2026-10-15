@@ -336,7 +336,7 @@ fun LandscapeCard(
         }
         if (facts.any { !it.isNullOrBlank() }) {
             Spacer(Modifier.height(HlSpace.xxs))
-            FactRow(facts, style = Hl.type.detail)
+            FactRow(facts, style = Hl.type.caption)
         }
     }
 }

@@ -219,7 +219,7 @@ private fun Modifier.keepWidthWhile(busy: Boolean): Modifier = composed {
 private fun ButtonLabel(text: String) {
     Text(
         text,
-        style = Hl.type.label,
+        style = Hl.type.entry,
         maxLines = 1,
         softWrap = false,
         overflow = TextOverflow.Ellipsis,
@@ -380,7 +380,7 @@ fun HlListItem(
             }
             if (description != null) {
                 Spacer(Modifier.height(HlSpace.xs))
-                Text(description, style = Hl.type.detail, color = c.contentSecondary, minLines = descriptionLines)
+                Text(description, style = Hl.type.caption, color = c.contentSecondary, minLines = descriptionLines)
             }
             if (badges.isNotEmpty()) {
                 Spacer(Modifier.height(HlSpace.m))
@@ -548,7 +548,7 @@ private fun SegmentItem(
     ) {
         Text(
             text,
-            style = Hl.type.label,
+            style = Hl.type.entry,
             maxLines = 1,
             softWrap = false,
             modifier = Modifier.align(Alignment.Center).padding(horizontal = HlControl.tabPaddingH),

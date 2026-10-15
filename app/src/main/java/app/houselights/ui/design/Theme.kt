@@ -65,7 +65,7 @@ private val materialTypography = with(HouselightsType) {
         headlineLarge = headline, headlineMedium = subject, headlineSmall = title,
         titleLarge = title, titleMedium = lead, titleSmall = entry,
         bodyLarge = body, bodyMedium = body, bodySmall = caption,
-        labelLarge = label, labelMedium = label, labelSmall = badge,
+        labelLarge = entry, labelMedium = entry, labelSmall = badge,
     )
 }
 

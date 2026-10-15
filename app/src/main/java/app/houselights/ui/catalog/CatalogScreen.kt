@@ -76,6 +76,7 @@ import app.houselights.ui.design.components.StatusState
 import app.houselights.ui.design.components.Wordmark
 import app.houselights.ui.design.emberLight
 import app.houselights.ui.util.NBSP
+import java.util.Locale
 import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
 
@@ -139,14 +140,13 @@ fun CatalogScreen() {
             }
 
             item {
-                Group("Type: the voices of the poster, of reading, of controls, technical", still = true) {
+                Group("Type: the voices of the poster, of reading, technical; then the signatures", still = true) {
                     listOf(
-                        "display" to t.display, "headline" to t.headline, "figure" to t.figure, "subject" to t.subject,
-                        "billing" to t.billing, "wordmark" to t.wordmark,
+                        "display" to t.display, "headline" to t.headline, "subject" to t.subject, "cardTitle" to t.cardTitle,
                         "title" to t.title, "lead" to t.lead, "body" to t.body, "entry" to t.entry, "meta" to t.meta,
-                        "caption" to t.caption, "detail" to t.detail, "code" to t.code,
-                        "label" to t.label,
+                        "caption" to t.caption, "group" to t.group, "code" to t.code,
                         "spec" to t.spec, "badge" to t.badge,
+                        "billing" to t.billing, "wordmark" to t.wordmark,
                     ).forEach { (name, style) -> Specimen(name, style) }
                 }
             }
@@ -531,9 +531,26 @@ private fun Swatch(name: String, brush: Brush) {
 @Composable
 private fun Specimen(name: String, style: TextStyle) {
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Text(name, style = Hl.type.caption, color = Hl.colors.contentTertiary, modifier = Modifier.width(HlLayout.specLanguage))
-        Text("Houselights 2,39:1 ${style.fontSize.value.toInt()} sp", style = style, color = Hl.colors.content, maxLines = 1, modifier = Modifier.padding(start = HlSpace.s))
+        Column(Modifier.width(HlLayout.specLanguage)) {
+            Text(name, style = Hl.type.caption, color = Hl.colors.contentSecondary)
+            Text(specimenMeasure(style), style = Hl.type.caption, color = Hl.colors.contentTertiary)
+        }
+        Text(
+            "Houselights 2,39:1 · Réglages",
+            style = style,
+            color = Hl.colors.content,
+            maxLines = 1,
+            modifier = Modifier.padding(start = HlSpace.s),
+        )
     }
+}
+
+/** A style's measure as the catalogue names it: size / line height, then its tracking when it has one. */
+private fun specimenMeasure(style: TextStyle): String {
+    val measure = "${style.fontSize.value.roundToInt()}/${style.lineHeight.value.roundToInt()}"
+    val tracking = style.letterSpacing.value
+    if (tracking == 0f) return measure
+    return "$measure ${"%+.3f".format(Locale.ROOT, tracking).trimEnd('0').replace('-', '\u2212')} em"
 }
 
 private const val PERCENT = 100

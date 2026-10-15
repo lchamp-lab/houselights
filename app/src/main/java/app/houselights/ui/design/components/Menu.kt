@@ -182,7 +182,12 @@ private fun MenuPanel(sections: List<MenuSection>, maxHeight: Dp, motion: SheetM
                 Spacer(Modifier.height(HlSpace.s))
             }
             section.title?.let {
-                Text(it, style = Hl.type.caption, color = c.contentSecondary, modifier = Modifier.padding(horizontal = HlSpace.s, vertical = HlSpace.xxs))
+                Text(
+                    it,
+                    style = Hl.type.group,
+                    color = c.contentSecondary,
+                    modifier = Modifier.padding(horizontal = HlSpace.s, vertical = HlSpace.xxs),
+                )
             }
             val initial = section.options.indexOfFirst { it.selected }.coerceAtLeast(0)
             section.options.forEachIndexed { i, option ->

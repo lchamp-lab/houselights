@@ -171,7 +171,7 @@ private fun Credits(info: NfoInfo) {
                 pair.forEach { (name, role) ->
                     Column(Modifier.weight(1f)) {
                         Text(name, style = Hl.type.entry, color = c.content)
-                        role?.let { Text(it, style = Hl.type.detail, color = c.contentSecondary) }
+                        role?.let { Text(it, style = Hl.type.caption, color = c.contentSecondary) }
                     }
                 }
                 if (pair.size == 1) Spacer(Modifier.weight(1f))

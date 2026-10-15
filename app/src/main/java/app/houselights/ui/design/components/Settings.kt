@@ -87,7 +87,7 @@ fun HlNavItem(
                     Spacer(Modifier.height(HlSpace.xxs))
                     Text(
                         summary,
-                        style = Hl.type.detail,
+                        style = Hl.type.caption,
                         color = when {
                             focused -> c.onFocusSecondary
                             selected -> c.contentSecondary
@@ -109,7 +109,7 @@ fun HlSettingGroup(title: String?, modifier: Modifier = Modifier, content: @Comp
         if (title != null) {
             Text(
                 title,
-                style = Hl.type.caption,
+                style = Hl.type.group,
                 color = Hl.colors.contentSecondary,
                 modifier = Modifier.padding(start = HlSpace.l, bottom = HlSpace.xs),
             )
@@ -165,7 +165,7 @@ fun HlSettingRow(
                     // Secondary at rest: a description explains.
                     Text(
                         description,
-                        style = Hl.type.detail,
+                        style = Hl.type.caption,
                         color = rowLineColor(focused, enabled, lit = false, onFocus = c.onFocusSecondary),
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,

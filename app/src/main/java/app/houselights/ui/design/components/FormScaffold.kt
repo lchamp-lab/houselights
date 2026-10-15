@@ -145,7 +145,7 @@ fun StatusPanel(
                 if (resultIsError) {
                     AttentionNote(result)
                 } else {
-                    Text(result, style = Hl.type.detail, color = c.content)
+                    Text(result, style = Hl.type.caption, color = c.content)
                 }
             }
         }
