@@ -262,8 +262,9 @@ private fun Sections(
     // Up from the first row goes to the tabs, whichever card it starts from: the track is one
     // group, and the settings button, nearer some cards, is not where Up means to go.
     val toTabs = Modifier.focusProperties { up = memory.requester(TRACK) }
-    // The rows start under the hero: each comes back to the top of the list, where the first rests.
-    ListScroll(top = HlSpace.none) { LazyColumn(
+    // The rows start under the hero: a row that has to move comes to the top of the list, where
+    // the first rests, and the one above leaves whole.
+    ListScroll(top = HlSpace.none, toTop = true) { LazyColumn(
         state = rows,
         modifier = Modifier.fillMaxSize().onFocusChanged { if (!it.hasFocus) onLeave() },
         contentPadding = PaddingValues(bottom = HlFocus.edge),

@@ -61,9 +61,17 @@ class ScrollTest {
     }
 
     @Test
-    fun aPageOfBlocksLeavesABlockInsideWhereItIs() {
+    fun aBlockOnItsWayUpKeepsMovingOnceInside() {
+        // Asked again on every frame: half way up, the block goes on to the keyline.
         val page = EdgeScroll(edge, edge, toTop = true)
-        assertEquals(0f, page.calculateScrollDistance(200f, 222f, screen))
+        assertEquals(edge, 200f - page.calculateScrollDistance(200f, 222f, screen))
+    }
+
+    @Test
+    fun aBlockAtTheKeylineStays() {
+        val page = EdgeScroll(edge, edge, toTop = true)
+        assertEquals(0f, page.calculateScrollDistance(edge, 222f, screen))
+        assertEquals(0f, page.calculateScrollDistance(edge + 0.2f, 222f, screen))
     }
 
     @Test

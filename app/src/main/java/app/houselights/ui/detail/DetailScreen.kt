@@ -59,7 +59,9 @@ import app.houselights.ui.design.LocalAmbient
 import app.houselights.ui.design.LocalHouseLights
 import app.houselights.ui.design.houseLit
 import app.houselights.ui.design.RowScroll
-import app.houselights.ui.design.revealOnFocus
+import app.houselights.ui.design.scrollsAsBlock
+import app.houselights.ui.design.ListScroll
+import app.houselights.ui.design.fadeOutsideSafeArea
 import app.houselights.ui.design.BackToStart
 import app.houselights.ui.design.FocusKey
 import app.houselights.ui.design.FocusMemory
@@ -181,15 +183,18 @@ fun DetailScreen(
         ) {
             Backdrop(item.backdrop, BackdropStyle.Full)
 
-            LazyColumn(
+            // The page turns by whole blocks: a row coming into view rises to the safe area, and
+            // the gap between blocks, wider than that keyline, takes the one above off the screen.
+            ListScroll(top = HlFocus.edge, toTop = true) { LazyColumn(
                     Modifier.fillMaxSize().houseLit(LocalHouseLights.current),
                     state = page,
                     contentPadding = PaddingValues(bottom = HlFocus.edge),
-                    verticalArrangement = Arrangement.spacedBy(HlSpace.l),
+                    verticalArrangement = Arrangement.spacedBy(HlLayout.detailGap),
                 ) {
                     item(key = "hero") {
-                        // At least most of the screen; taller rather than squeezed when the text is long.
-                        Box(Modifier.fillMaxWidth().heightIn(min = screenHeight * HlLayout.DETAIL_HERO_SHARE).revealOnFocus()) {
+                        // The screen less the first row's header and a strip of its images; taller
+                        // rather than squeezed when the text is long.
+                        Box(Modifier.fillMaxWidth().heightIn(min = HlLayout.detailHeroMin(screenHeight)).scrollsAsBlock()) {
                             Hero(
                                 item = item,
                                 nextUp = state.nextUp,
@@ -204,12 +209,7 @@ fun DetailScreen(
                                 memory = memory,
                                 actions = actions,
                                 modifier = Modifier
-                                    .padding(
-                                        start = HlSpace.safeH,
-                                        end = HlSpace.safeH,
-                                        top = HlSpace.safeV,
-                                        bottom = HlSpace.l,
-                                    )
+                                    .padding(start = HlSpace.safeH, end = HlSpace.safeH, top = HlSpace.safeV)
                                     .align(Alignment.BottomStart),
                             )
                         }
@@ -219,7 +219,7 @@ fun DetailScreen(
                         // A track with one option is no choice: a single season names the episode row instead.
                         val single = state.seasons.singleOrNull()
                         if (single == null) {
-                            item(key = "seasons") { Box(Modifier.revealOnFocus()) { Seasons(state.seasons, state.selectedSeasonId, vm::selectSeason) } }
+                            item(key = "seasons") { Box(Modifier.scrollsAsBlock()) { Seasons(state.seasons, state.selectedSeasonId, vm::selectSeason) } }
                         }
                         item(key = "episodes-${state.selectedSeasonId}") {
                             Episodes(
@@ -278,7 +278,7 @@ fun DetailScreen(
                             }
                         }
                     }
-                }
+                } }
         }
     }
 }
@@ -303,7 +303,9 @@ private fun Hero(
 
     Column(modifier) {
         // The text keeps a reading measure; the actions below may run wider, within the safe area.
-        Column(Modifier.widthIn(max = HlLayout.readableNarrow)) {
+        // At the end of a page the last rows cannot rise to the top: what is left of the hero above
+        // them fades out instead of showing a sliver.
+        Column(Modifier.widthIn(max = HlLayout.readableNarrow).fadeOutsideSafeArea()) {
             TitleArt(
                 title = if (isEpisode) item.seriesTitle ?: item.title else item.title,
                 logo = item.logo,
@@ -369,7 +371,7 @@ private fun Actions(
 ) {
     val problem by appContainer().playback.playbackProblem.collectAsStateWithLifecycle()
     Row(
-        Modifier.focusRequester(actions).padding(bottom = HlLayout.iconLabelRoom),
+        Modifier.focusRequester(actions).padding(bottom = HlLayout.iconLabelRoom).fadeOutsideSafeArea(),
         horizontalArrangement = Arrangement.spacedBy(HlSpace.s),
         verticalAlignment = Alignment.Top,
     ) {
@@ -499,7 +501,8 @@ private fun Episodes(
     onFocus: (MediaItem) -> Unit,
     onPlay: (MediaItem) -> Unit,
 ) {
-    Column {
+    // The row and the overview of its focused episode come into view together.
+    Column(Modifier.scrollsAsBlock()) {
         MediaRow(header = header, modifier = memory.rowGroup(EPISODES), spacing = HlSpace.l) {
             items(episodes, key = { it.id }) { ep ->
                 LandscapeCard(
@@ -525,7 +528,8 @@ private fun Episodes(
             modifier = Modifier
                 .padding(horizontal = HlSpace.safeH)
                 .widthIn(max = HlLayout.readable)
-                .heightIn(min = textRoom(HlLayout.episodeOverview)),
+                .heightIn(min = textRoom(HlLayout.episodeOverview))
+                .fadeOutsideSafeArea(),
         )
     }
 }

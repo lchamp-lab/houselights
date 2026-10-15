@@ -48,14 +48,23 @@ import androidx.compose.ui.node.requireDensity
 import androidx.compose.ui.platform.InspectorInfo
 import androidx.compose.ui.unit.Constraints
 import kotlinx.coroutines.launch
+import androidx.compose.foundation.relocation.BringIntoViewResponder
+import androidx.compose.foundation.relocation.bringIntoViewResponder
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.toSize
+import kotlin.math.abs
 
 /**
  * Scrolls only by what is needed to bring an element into the window [leading, containerSize −
  * trailing] (px): never to a third of the screen as the TV default does, which scrolls titles and
  * heroes away for no reason. An element longer than the window aligns its start with the window's.
- * With [toTop], an element that has to move comes to the start of the window instead of its end:
- * the page turns by whole blocks, and the one above leaves whole rather than as a sliver of text.
- * An element already inside the window never moves.
+ *
+ * With [toTop], a page of blocks ([scrollsAsBlock]): the block asked for always comes to the start
+ * of the window, so the page turns by whole blocks and the one above leaves whole rather than as a
+ * sliver of text. The distance is asked again on every frame of the motion, so it must hold all the
+ * way: a block on its way up keeps moving until it reaches the start, even once it is inside.
  */
 @OptIn(ExperimentalFoundationApi::class)
 class EdgeScroll(
@@ -68,12 +77,16 @@ class EdgeScroll(
         val end = containerSize - trailing
         val itemEnd = offset + size
         return when {
+            toTop -> if (abs(offset - start) < SETTLED) 0f else offset - start
             offset >= start && itemEnd <= end -> 0f
-            toTop || offset < start || size > end - start -> offset - start
+            offset < start || size > end - start -> offset - start
             else -> itemEnd - end
         }
     }
 }
+
+/** Under half a pixel from where it goes, a block has arrived. */
+private const val SETTLED = 0.5f
 
 /**
  * How vertical lists scroll, provided for the whole app by [HouselightsTheme]: what has focus
@@ -236,6 +249,27 @@ fun Modifier.keepVerticalFocus(): Modifier = this
         }
     }
     .focusGroup()
+
+/**
+ * This element scrolls as one block: whatever inside it asks to be seen (a card of a row, a button
+ * of a hero), the list around it brings the whole block, its header included. A row then comes in
+ * with its title whichever card focus lands on, and moving along it asks nothing more of the page.
+ */
+@OptIn(ExperimentalFoundationApi::class)
+fun Modifier.scrollsAsBlock(): Modifier = composed {
+    val block = remember { Block() }
+    this.onSizeChanged { block.size = it }.bringIntoViewResponder(block)
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+private class Block : BringIntoViewResponder {
+    var size = IntSize.Zero
+
+    override fun calculateRectForParent(localRect: Rect): Rect = Rect(Offset.Zero, size.toSize())
+
+    // The block does not scroll itself: the list around it does, for the rectangle above.
+    override suspend fun bringChildIntoView(localRect: () -> Rect?) = Unit
+}
 
 /**
  * When focus enters this element, scroll it fully into view, not only the focused child.
