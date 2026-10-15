@@ -92,17 +92,24 @@ materials, never two, and invent nothing. The catalogue shows the three side by 
 | Token | Value | Role |
 |---|---|---|
 | `background` | `#000000` | the room; masks over artwork; before Compose draws, the window and the launcher icon's ground (`@color/room`) |
-| `surface` / `surfaceRaised` | `#121110` / `#1D1B19` | quiet panels / dialogs, menus, focused fields |
-| `outline` | `#3A3632` | hairlines, badge borders |
-| `content` | `#F2F0EB` | projector white: primary text |
-| `contentSecondary` | `#A39E96` | secondary text; 4.96:1 at worst, in a primary button |
-| `contentTertiary` | `#8C867E` | the quietest text: 4.76:1 on `surfaceRaised`, its lowest permitted surface |
-| `contentDecorative` | `#4A4642` | never text: empty frames, inactive marks |
+| `surface` / `surfaceRaised` | `#0C0C0E` / `#131316` | quiet panels / side sheets, dialogs, menus, focused fields |
+| `outline` | `#33333A` | hairlines, badge borders |
+| `content` | `#F4F4F5` | projector white: primary text |
+| `contentSecondary` | `#A3A3AB` | secondary text; 5.21:1 at worst, in a primary button |
+| `contentTertiary` | `#8C8C95` | the quietest text: 5.56:1 on `surfaceRaised`, its lowest permitted surface |
+| `contentDecorative` | `#45454C` | never text: empty frames, inactive marks |
 | `ember` | `#FF7A4D` | states only, a closed list (below); the wordmark is the one exception. Solid, for what is too small for a gradient: a dot, a check, a word |
 | `emberFrom`, `emberTo` | `#FF9F1C` → `#FF2E63` | the ember light (`emberLight()`): the same states where they have room, a gradient from start to end across what they fill. The wordmark, a progress line and the counter, the rule of an intertitle that calls for attention, the edge of a field being typed in, the edge and disc of what is lit |
-| `focus` | `#F2F0EB` | projector white again: the fill and outline of focus |
+| `focus` | `#F4F4F5` | projector white again: the fill and outline of focus |
 | `onFocus` | `#000000` | a focused control's name and icon |
-| `onFocusSecondary` | `#5C5B59` | the line under that name (a summary, a runtime): black at 62 % on `focus`, 5.96:1 |
+| `onFocusSecondary` | `#5D5D5D` | the line under that name (a summary, a runtime): black at 62 % on `focus`, 6.01:1 |
+
+**The neutrals are neutral.** Greys and whites carry no hue of their own, only a breath of cool:
+the warmth belongs to the films and to the ember light, and a warm grey beside them reads dull.
+Depth is one ramp: the room (`#000000`), `surface`, `surfaceRaised` (a side sheet, a menu), then
+the white fills of controls laid on them by opacity (`WELL`, `CONTROL_FILL`), and focus in projector
+white. Each step is darker than the one a layer would have in a lit room: a sheet is black glass
+over the dimmed film, set off by its hairline, not a grey slab.
 
 `HlAlpha` names every opacity, by role: `QUIET_SURFACE`, `CONTROL_FILL` / `CONTROL_FILL_STRONG`,
 `WELL`, `BORDER`, `DIVIDER`, `SCRIM` / `SCRIM_SIDE`, `PLATE`, `TRACK`, `FOCUS_QUIET`, `LIT_DISC`,
@@ -130,10 +137,9 @@ ratings and protocols: never a state.
 translucent layer composed over what lies under it. `ContrastTest` lists every pair the system
 draws and checks it on every build: a new pair goes there before a component uses it. The states of
 a control are named colours, never an opacity laid on the current one: the line under a name is
-`contentTertiary` at rest, `contentSecondary` when chosen, `onFocusSecondary` with focus. Two pairs
-are forbidden: `contentTertiary` on a `WELL` row inside a raised panel (≈ 4.09:1) and on
-`CONTROL_FILL_STRONG` (≈ 3.66:1). There, the quiet line stays `contentSecondary`, as in setting
-rows and buttons. A line that names a state (`detailLit`: an active filter) is `ember` at rest
+`contentTertiary` at rest, `contentSecondary` when chosen, `onFocusSecondary` with focus. One pair
+is forbidden: `contentTertiary` on `CONTROL_FILL_STRONG` (≈ 3.90:1). There, the quiet line stays
+`contentSecondary`, as in setting rows and buttons. A line that names a state (`detailLit`: an active filter) is `ember` at rest
 and `onFocusSecondary` with focus. A **disabled** control sits in a `WELL` with `contentTertiary`
 words, on the room only: inside a raised sheet that pair is the forbidden one, and a sheet leaves
 out an action that cannot be taken.
@@ -163,7 +169,7 @@ Under the text column the left veil keeps a **floor**, read from the small copy 
 ambient light is picked from (`ArtworkSample`): the opacity the column's quietest text
 (`contentTertiary`: genres, the billing block's small words) needs for 4.5:1, through the other
 veils and under the spill, wherever the veil falls short. A dark image keeps its veil; a white one
-gets 0.875, more where the spill adds its light (the overview alone would need 0.79, but quieter
+gets 0.85, more where the spill adds its light (the overview alone would need 0.775, but quieter
 words sit above and below it). A highlight smaller than a twentieth of the column does not count
 (`FLOOR_QUANTILE`). The picture is never cropped or letterboxed for it, and nothing lights it.
 
