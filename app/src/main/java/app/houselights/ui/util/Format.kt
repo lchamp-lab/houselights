@@ -1,5 +1,6 @@
 package app.houselights.ui.util
 
+import app.houselights.core.MediaItem
 import android.content.Context
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
@@ -105,3 +106,15 @@ fun formatBytes(context: Context, bytes: Long): String {
 
 @Composable
 fun formatBytes(bytes: Long): String = formatBytes(LocalContext.current, bytes)
+
+/**
+ * "Il reste 1 h 26" for a title started: a duration, never a timecode, never "0 min" (a minute at
+ * least); nothing when it is not started or its length is unknown.
+ */
+@Composable
+fun timeLeft(item: MediaItem): String? {
+    val left = (item.runtimeMs ?: 0L) - item.user.positionMs
+    return if (item.user.positionMs > 0 && left > 0) stringResource(R.string.time_left, formatDuration(maxOf(left, MINUTE_MS))) else null
+}
+
+private const val MINUTE_MS = 60_000L

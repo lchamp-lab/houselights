@@ -30,7 +30,6 @@ import app.houselights.ui.design.HlAlpha
 import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlSpace
-import app.houselights.ui.design.components.BadgeRow
 import app.houselights.ui.design.components.FactRow
 import app.houselights.ui.design.components.HeroInfo
 import app.houselights.ui.design.components.HlIconButton

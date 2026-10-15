@@ -144,9 +144,13 @@ object HlLayout {
     val titleArtWidth = 440.dp
     val titleArtHeight = 112.dp
     val heroTitleWidth = 380.dp
-    val heroTitleHeight = 100.dp
-    /** Height of the browsing hero above the rows (home). */
-    val hero = 200.dp
+    val heroTitleHeight = 76.dp
+    /**
+     * The browsing hero's band (home), between the bar and the rows, [HlSpace.l] from each: a logo
+     * at most [heroTitleHeight] tall, a line of facts, two lines of overview, [HlSpace.s] apart
+     * (76 + 12 + 20 + 12 + 48). Under it, a focused poster's foot stays inside the safe area.
+     */
+    val hero = 168.dp
     /** The line naming the focused title above a poster wall (library). */
     val infoLine = 24.dp
     /** Overview of the focused episode under the episode row: three lines of caption (3 × 18), on the grid. */

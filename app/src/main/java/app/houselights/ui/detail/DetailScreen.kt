@@ -1,5 +1,6 @@
 package app.houselights.ui.detail
 
+import app.houselights.ui.util.timeLeft
 import app.houselights.ui.design.HlMotion
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.animation.core.tween
@@ -74,7 +75,7 @@ import app.houselights.ui.design.focusKey
 import app.houselights.ui.design.rememberFocusMemory
 import app.houselights.ui.design.components.Backdrop
 import app.houselights.ui.design.components.BackdropStyle
-import app.houselights.ui.design.components.BadgeRow
+import app.houselights.ui.design.components.FormatLine
 import app.houselights.ui.design.components.BillingBlock
 import app.houselights.ui.design.components.EpisodeHeading
 import app.houselights.ui.design.components.Emphasis
@@ -338,11 +339,12 @@ private fun Hero(
             MetaLine(item)
             if (item.badges.isNotEmpty()) {
                 Spacer(Modifier.height(HlSpace.s))
-                BadgeRow(item.badges)
+                FormatLine(item.badges)
             }
+            // The tagline introduces the overview, quieter than the title above it.
             item.tagline?.let {
                 Spacer(Modifier.height(HlSpace.l))
-                Text(it, style = Hl.type.title, color = Hl.colors.content)
+                Text(it, style = Hl.type.lead, color = Hl.colors.contentSecondary)
             }
             if (!item.overview.isNullOrBlank()) {
                 Spacer(Modifier.height(if (item.tagline != null) HlSpace.xs else HlSpace.l))
@@ -503,13 +505,6 @@ private fun Seasons(seasons: List<MediaItem>, selectedId: String?, onSelect: (St
 private fun episodeState(ep: MediaItem): String? =
     if (ep.user.played) stringResource(R.string.watched) else timeLeft(ep)
 
-/** "Il reste 1 h 26" for a title started: a duration, never a timecode, never "0 min"; nothing when unknown. */
-@Composable
-private fun timeLeft(item: MediaItem): String? {
-    val left = (item.runtimeMs ?: 0L) - item.user.positionMs
-    return if (item.user.positionMs > 0 && left > 0) stringResource(R.string.time_left, formatDuration(maxOf(left, MINUTE_MS))) else null
-}
-
 @Composable
 private fun Episodes(
     header: String?,
@@ -574,7 +569,6 @@ private const val EPISODES = "episodes"
 private const val FILMS = "films"
 private const val SAGA = "collection"
 private const val SIMILAR = "similar"
-private const val MINUTE_MS = 60_000L
 
 /** The keys that act on what has focus. */
 private val OK_KEYS = setOf(Key.DirectionCenter, Key.Enter, Key.NumPadEnter)

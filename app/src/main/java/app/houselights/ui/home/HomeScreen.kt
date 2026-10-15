@@ -88,6 +88,7 @@ import app.houselights.ui.design.components.rememberAmbientColor
 import app.houselights.ui.util.ReloadOnLibraryChange
 import app.houselights.ui.util.appContainer
 import app.houselights.ui.util.libraryName
+import app.houselights.ui.util.timeLeft
 import app.houselights.ui.util.scanErrorText
 import app.houselights.ui.util.sectionTitle
 import app.houselights.ui.util.ErrorAction
@@ -190,12 +191,12 @@ fun HomeScreen(
                 } else {
                     // Its height holds the text at the viewer's size, and stays the same whatever has focus:
                     // the title under focus, or, focus on the tabs, the place a tab leads to.
-                    val heroSlot = Modifier.padding(start = HlSpace.safeH, top = HlSpace.xs).height(textRoom(HlLayout.hero))
+                    val heroSlot = Modifier.padding(start = HlSpace.safeH, top = HlSpace.l).height(textRoom(HlLayout.hero))
                     Crossfade(place, label = "place", animationSpec = tween(HlMotion.STANDARD)) { shownPlace ->
                         if (shownPlace != null) PlaceHeading(placeName(shownPlace), placeFacts(shownPlace, state), heroSlot)
                         else HeroInfo(shown, heroSlot)
                     }
-                    Spacer(Modifier.height(HlSpace.s))
+                    Spacer(Modifier.height(HlSpace.l))
                     if (firstScan) FirstScan(scan, Modifier.padding(start = HlSpace.safeH, bottom = HlSpace.m))
                     when {
                         state.sections.isEmpty() -> SkeletonRows()
@@ -303,7 +304,15 @@ private fun Sections(
                         val mod = Modifier.focusKey(cardKey(section, item), memory).then(if (sectionIndex == 0) toTabs else Modifier)
                         val focus = { onFocus(sectionIndex, item) }
                         if (section.landscape) {
-                            LandscapeCard(item, onClick = { onOpen(item) }, modifier = mod, onFocused = focus)
+                            // Named under the picture, as an episode is: a still does not say which film it is.
+                            LandscapeCard(
+                                item,
+                                onClick = { onOpen(item) },
+                                modifier = mod,
+                                title = item.seriesTitle ?: item.title,
+                                facts = listOf(item.episodeLabel, timeLeft(item)),
+                                onFocused = focus,
+                            )
                         } else {
                             PosterCard(item, onClick = { onOpen(item) }, modifier = mod, onFocused = focus)
                         }
