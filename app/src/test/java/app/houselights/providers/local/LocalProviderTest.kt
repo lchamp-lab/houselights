@@ -6,7 +6,6 @@ import app.houselights.core.ArtworkChoices
 import app.houselights.core.ArtworkKind
 import app.houselights.core.ArtworkOption
 import app.houselights.core.Identity
-import app.houselights.core.Definition
 import app.houselights.core.Library
 import app.houselights.core.LibraryFilter
 import app.houselights.core.LibraryKind
@@ -102,18 +101,6 @@ class LocalProviderTest {
         val added = page().items.associate { it.title to it.addedAt }
         assertEquals(null, added["Alien"])
         assertEquals(3_000L, added["Aliens"])
-    }
-
-    @Test
-    fun aLibrarySummaryCountsItsTitlesAndItsFilmsInUltraHd() = runTest {
-        movie("A", addedAt = 1)
-        val uhd = movie("B", addedAt = 2)
-        dao.update(dao.item(uhd)!!.copy(badges = listOf(Definition.ULTRA_HD.token)))
-        val summary = provider.librarySummary(films)
-        assertEquals(2, summary.total)
-        assertEquals(1, summary.uhd)
-        // Collections are counted, not their definition.
-        assertEquals(null, provider.librarySummary(collections).uhd)
     }
 
     @Test

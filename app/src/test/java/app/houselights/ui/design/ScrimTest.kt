@@ -138,7 +138,6 @@ class ScrimTest {
             "wall across" to HlScrim.WALL_ACROSS,
             "wall down" to HlScrim.WALL_DOWN,
             "library" to BackdropStyle.Quiet.down,
-            "a light's fall" to HlScrim.FALLOFF,
         ).forEach { (name, veil) ->
             veil.forEach { stop ->
                 // The slope just before a stop and just after it: the same, where straight lines met at an angle.
@@ -168,27 +167,6 @@ class ScrimTest {
         // A picture shown whole still melts into black.
         assertEquals(1f, BackdropStyle.Full.foot, 0f)
         assertEquals(1f, BackdropStyle.Hero.foot, 0f)
-    }
-
-    @Test
-    fun theCollectionLightLeavesTheWordsReadable() {
-        // A tone is at most AMBIENT_VALUE bright; a grey of that value is the lightest it can be.
-        val most = HlScrim.ceiling(c.contentTertiary) / HlScrim.AMBIENT_VALUE
-        val zones = mapOf(
-            "the title of a wall" to (0f..0.45f to 0f..0.2f),
-            "the hero of home" to (0f..0.5f to 0.18f..0.5f),
-        )
-        zones.forEach { (zone, area) ->
-            val (across, down) = area
-            for (i in 0..20) for (j in 0..20) {
-                val x = screen.width * (across.start + (across.endInclusive - across.start) * i / 20)
-                val y = screen.height * (down.start + (down.endInclusive - down.start) * j / 20)
-                assertTrue("$zone at $x, $y", HlScrim.collectionAt(x, y, screen) <= most)
-            }
-        }
-        // And it lights the room: its pools are seen in the corners they come from.
-        assertTrue(HlScrim.collectionAt(screen.width, 0f, screen) > 0.3f)
-        assertTrue(HlScrim.collectionAt(0f, screen.height, screen) > 0.3f)
     }
 
     @Test

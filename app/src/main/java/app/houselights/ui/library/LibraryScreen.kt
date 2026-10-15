@@ -17,14 +17,11 @@ import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -61,7 +58,6 @@ import app.houselights.ui.design.HlMotion
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.LocalAmbient
 import app.houselights.ui.design.components.Backdrop
-import app.houselights.ui.design.components.CollectionLight
 import app.houselights.ui.design.components.TitleLine
 import app.houselights.ui.design.components.BackdropStyle
 import app.houselights.ui.design.HlIcons
@@ -98,26 +94,19 @@ fun LibraryScreen(
     ReloadOnLibraryChange { vm.onLibraryChanged() }
     val state by vm.state.collectAsStateWithLifecycle()
 
-    var focused by remember { mutableStateOf<MediaItem?>(null) }
+    // The title last selected stays on the screen while focus is on the buttons, and is found again
+    // coming back; before any, or once a filter takes it off the wall, the first title.
+    var selectedId by rememberSaveable { mutableStateOf<String?>(null) }
+    val selected = remember(selectedId, state.items) { state.items.find { it.id == selectedId } ?: state.items.firstOrNull() }
+    // The backdrop only changes once focus settles: no image load on every step across the wall.
     var shown by remember { mutableStateOf<MediaItem?>(null) }
-    LaunchedEffect(focused) {
-        delay(HlMotion.SETTLE)
-        shown = focused
-    }
-    // A title filtered out of the grid must not stay named in the header.
-    LaunchedEffect(state.items) {
-        if (shown != null && state.items.none { it.id == shown?.id }) {
-            focused = null
-            shown = null
-        }
+    LaunchedEffect(selected) {
+        if (shown != null) delay(HlMotion.SETTLE)
+        shown = selected
     }
     val gridFocus = remember { FocusRequester() }
     var gridHasFocus by remember { mutableStateOf(false) }
     val gridState = rememberLazyGridState()
-    // The posters of the wall as it is shown: the room takes their colours.
-    val wallPosters by remember {
-        derivedStateOf { gridState.layoutInfo.visibleItemsInfo.mapNotNull { state.items.getOrNull(it.index)?.poster } }
-    }
     val scope = rememberCoroutineScope()
     // Each arrival puts focus back on the poster left, else on the first one.
     val memory = rememberFocusMemory()
@@ -137,8 +126,6 @@ fun LibraryScreen(
     CompositionLocalProvider(LocalAmbient provides { ambient.value }) {
         Box(Modifier.fillMaxSize()) {
             Backdrop(shown?.backdrop, BackdropStyle.Quiet)
-            // Nothing selected: no film on the screen, the room takes the colours of the wall.
-            CollectionLight(wallPosters, lit = shown == null)
             Column(Modifier.fillMaxSize()) {
                 Row(
                     Modifier.fillMaxWidth().padding(start = HlSpace.safeH, end = HlSpace.safeH, top = HlSpace.safeV),
@@ -171,19 +158,12 @@ fun LibraryScreen(
                         ),
                     )
                 }
-                // What is under the cursor, without taking space from the wall. Only while a
-                // poster has focus: on the filter or sort buttons, nothing is under the cursor.
-                val infoAlpha by animateFloatAsState(
-                    if (gridHasFocus && shown != null) 1f else 0f,
-                    tween(HlMotion.FAST, easing = HlMotion.standard),
-                    label = "info",
-                )
-                // One line inside the safe area: a long name drops the formats first, then ends in an ellipsis.
+                // The title selected, named without taking space from the wall: one line inside the
+                // safe area, a long name drops its facts first, then ends in an ellipsis.
                 Box(
                     Modifier
                         .padding(start = HlSpace.safeH, end = HlSpace.safeH, top = HlSpace.xs)
-                        .height(HlLayout.infoLine)
-                        .graphicsLayer { alpha = infoAlpha },
+                        .height(HlLayout.infoLine),
                     contentAlignment = Alignment.CenterStart,
                 ) {
                     shown?.let { TitleLine(it) }
@@ -213,11 +193,8 @@ fun LibraryScreen(
                         verticalArrangement = Arrangement.spacedBy(HlSpace.l),
                         modifier = Modifier.fillMaxSize().onFocusChanged {
                             gridHasFocus = it.hasFocus
-                            // Leaving the wall leaves nothing selected; returning focuses a poster again.
-                            if (!it.hasFocus) {
-                                focused = null
-                                focusedIndex = null
-                            }
+                            // Leaving the wall for the buttons above: the title selected stays.
+                            if (!it.hasFocus) focusedIndex = null
                         },
                     ) {
                         itemsIndexed(state.items, key = { _, it -> it.id }) { index, item ->
@@ -226,7 +203,7 @@ fun LibraryScreen(
                                 onClick = { onOpenItem(item) },
                                 width = null,
                                 onFocused = {
-                                    focused = item
+                                    selectedId = item.id
                                     focusedIndex = index
                                     // The first line sits under the padding: show it all.
                                     if (index < COLUMNS) scope.launch { gridState.animateScrollToItem(0) }

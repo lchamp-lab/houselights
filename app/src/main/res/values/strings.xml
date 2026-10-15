@@ -45,10 +45,6 @@
     <string name="home_scan_failed">The scan didn’t finish</string>
     <string name="home_see_folders">See the folders</string>
     <!-- Home, its tab focused: how many titles are started -->
-    <plurals name="home_in_progress">
-        <item quantity="one">%d in progress</item>
-        <item quantity="other">%d in progress</item>
-    </plurals>
 
     <!-- Browsing -->
     <string name="nav_settings">Settings</string>

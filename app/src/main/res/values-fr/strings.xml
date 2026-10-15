@@ -38,11 +38,6 @@
     <string name="home_scan_failed">L’analyse n’a pas abouti</string>
     <string name="home_see_folders">Voir les dossiers</string>
     <!-- Home, its tab focused: how many titles are started -->
-    <plurals name="home_in_progress">
-        <item quantity="one">%d en cours</item>
-        <item quantity="other">%d en cours</item>
-        <item quantity="many">%d en cours</item>
-    </plurals>
 
     <string name="nav_settings">Réglages</string>
     <string name="sort_title">Titre</string>

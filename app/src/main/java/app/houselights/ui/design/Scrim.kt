@@ -6,7 +6,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.colorspace.ColorSpaces
 import androidx.compose.ui.graphics.luminance
 import kotlin.math.ceil
-import kotlin.math.hypot
 import kotlin.math.max
 import kotlin.math.roundToInt
 
@@ -83,34 +82,6 @@ object HlScrim {
     const val AMBIENT_SATURATION_MIN = 0.25f
     const val AMBIENT_SATURATION_MAX = 0.7f
 
-    /**
-     * The light of a collection when no title is selected: pools of the colours its wall is made
-     * of, cast across the room on a diagonal. The heaviest colour comes in from the top right, the
-     * next answers it from the bottom left, a third lies low under the wall; the title's corner
-     * stays dark. As many colours as pools; with fewer, they come round again.
-     */
-    val COLLECTION_POOLS = listOf(
-        LightPool(x = 1f, y = -0.08f, radius = 1.15f, core = 0.4f, stretch = 1.35f),
-        LightPool(x = 0f, y = 1.08f, radius = 1.1f, core = 0.38f, stretch = 1.35f),
-        LightPool(x = 0.72f, y = 1.12f, radius = 0.6f, core = 0.24f, stretch = 1.5f),
-    )
-
-    /** Colours of a wall closer in hue than this (degrees) are one: the next must differ to show. */
-    const val COLLECTION_HUE_APART = 40f
-
-    /** How a light dies out from its centre to its rim: a curve, flat at the rim, so it draws no edge. */
-    val FALLOFF = listOf(VeilStop(0f, 1f), VeilStop(1f, 0f))
-
-    /** How much of the collection light falls at [x], [y] on a [screen]: its pools laid one over another. */
-    fun collectionAt(x: Float, y: Float, screen: Size): Float {
-        var through = 1f
-        for (pool in COLLECTION_POOLS) {
-            val distance = hypot((x - screen.width * pool.x) / pool.stretch, y - screen.height * pool.y)
-            through *= 1f - pool.core * FALLOFF.alphaAt(distance / (screen.height * pool.radius))
-        }
-        return 1f - through
-    }
-
     /** The welcome wall: its posters at this opacity. */
     const val WALL = 0.3f
 
@@ -160,14 +131,6 @@ object HlScrim {
 /** A stop of a veil: where it is, as a share of its extent, and its opacity there. */
 @Immutable
 data class VeilStop(val at: Float, val alpha: Float)
-
-/**
- * A pool of light: its centre ([x], a share of the width, and [y], of the height: beyond the screen
- * when it comes from outside), its [radius] in heights, its opacity in its centre ([core]), and how
- * much wider than tall it spreads ([stretch]).
- */
-@Immutable
-data class LightPool(val x: Float, val y: Float, val radius: Float, val core: Float, val stretch: Float)
 
 /**
  * The opacity of a veil at [at]: a monotone cubic through its stops, flat at the first and the last
