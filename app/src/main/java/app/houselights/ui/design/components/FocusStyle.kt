@@ -31,8 +31,10 @@ enum class Lift(val scale: Float) {
  * - **lift**: a picture or a panel rises by its family's share and takes a white outline ([lift]);
  * - **ring**: what is read or typed in is circled in white ([ring]).
  *
- * What cannot act keeps focus, outlined, never filled: white would offer an action
- * ([disabledRing]). Components take their focus from here and nowhere else (FocusStyleGuardTest).
+ * A control that cannot act now keeps focus, outlined, never filled: white would offer an action
+ * ([disabledRing]). A row that is only read (a technical sheet's) is no disabled control: it fills
+ * white as every row, and OK does nothing. Components take their focus from here and nowhere else
+ * (FocusStyleGuardTest).
  */
 internal object FocusStyle {
     /** How a filled element grows: pills and discs a little, rows as wide as their column not at all. */

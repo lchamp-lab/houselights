@@ -91,7 +91,6 @@ import app.houselights.ui.design.components.MediaRow
 import app.houselights.ui.design.components.MetaLine
 import app.houselights.ui.design.components.PersonCard
 import app.houselights.ui.design.components.PosterCard
-import app.houselights.ui.design.components.HlModal
 import app.houselights.ui.design.components.TechSpecs
 import app.houselights.ui.design.components.TitleArt
 import app.houselights.ui.design.components.rememberAmbientColor
@@ -160,15 +159,8 @@ fun DetailScreen(
     var focusedEpisode by remember { mutableStateOf<MediaItem?>(null) }
     var showTech by remember { mutableStateOf(false) }
     val media = item.media?.takeIf { it.video != null || it.audio.isNotEmpty() }
-    if (showTech && media != null) {
-        HlModal(
-            stringResource(R.string.tech_details),
-            onDismiss = { showTech = false },
-            facts = listOf(item.title, item.year?.toString()),
-        ) {
-            TechSpecs(media, fileName = item.fileName)
-        }
-    }
+    // Beside the page: what the file holds, read row by row.
+    if (showTech && media != null) TechSpecs(item, onDismiss = { showTech = false })
     var showEdit by remember { mutableStateOf(false) }
     if (showEdit) {
         EditMenu(

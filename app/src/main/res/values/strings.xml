@@ -124,6 +124,20 @@
     <string name="label_plot">Plot</string>
     <string name="label_cast">Cast</string>
     <string name="tech_video">Video</string>
+    <string name="tech_definition">Resolution</string>
+    <string name="tech_aspect_ratio">Aspect ratio</string>
+    <string name="tech_dynamic_range">Dynamic range</string>
+    <string name="tech_codec">Codec</string>
+    <string name="tech_frame_rate">Frame rate</string>
+    <string name="tech_video_bitrate">Bitrate</string>
+    <string name="tech_file_name">Name</string>
+    <string name="tech_dv_profile">profile %1$s</string>
+    <string name="tech_base_layer">%1$s base</string>
+    <string name="tech_in_use">default</string>
+    <plurals name="tech_track_count">
+        <item quantity="one">%d track</item>
+        <item quantity="other">%d tracks</item>
+    </plurals>
     <string name="tech_audio">Audio</string>
     <string name="tech_subtitles">Subtitles</string>
     <string name="tech_container">Container</string>
@@ -134,7 +148,6 @@
     <string name="bit_depth">%d-bit</string>
     <string name="frame_rate">%1$s fps</string>
     <string name="audio_bitrate">%1$s kbps</string>
-    <string name="dv_profile">Dolby Vision profile %1$s</string>
     <string name="sdr">SDR</string>
     <string name="forced_subs">forced</string>
     <string name="sdh_subs">SDH</string>

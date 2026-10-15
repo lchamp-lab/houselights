@@ -34,10 +34,18 @@ object TrackNames {
         return text.takeIf { rest.sumOf { word -> word.count(Char::isLetter) } >= MIN_LETTERS }
     }
 
-    private fun languageNames(language: String?): Set<String> {
-        val primary = language?.substringBefore('-')?.substringBefore('_')?.lowercase()?.takeIf { it.isNotBlank() } ?: return emptySet()
+    /**
+     * A track's language as one code whatever the file wrote: "fre", "fra", "fr" and "fr-CA" are
+     * all "fr". Null when none is given.
+     */
+    fun language(code: String?): String? {
+        val primary = code?.substringBefore('-')?.substringBefore('_')?.lowercase()?.takeIf { it.isNotBlank() } ?: return null
         // Locale names two-letter codes only: "ger" and "deu" both go by "de".
-        val code = BIBLIOGRAPHIC[primary] ?: TWO_LETTERS[primary] ?: primary
+        return BIBLIOGRAPHIC[primary] ?: TWO_LETTERS[primary] ?: primary
+    }
+
+    private fun languageNames(language: String?): Set<String> {
+        val code = language(language) ?: return emptySet()
         val locale = java.util.Locale.forLanguageTag(code)
         return listOf(java.util.Locale.ENGLISH, java.util.Locale.FRENCH, locale)
             .map { locale.getDisplayLanguage(it).lowercase() }

@@ -38,4 +38,14 @@ class TrackNamesTest {
         assertEquals("FR", TrackNames.region("fre", "VFF  DD 5.1  384 kbps"))
         assertNull(TrackNames.region("en", "VO : English"))
     }
+
+    @Test
+    fun aLanguageGoesByOneCode() {
+        listOf("fr", "fre", "fra", "fr-CA", "FR_fr").forEach { assertEquals(it, "fr", TrackNames.language(it)) }
+        assertEquals("de", TrackNames.language("ger"))
+        assertEquals("de", TrackNames.language("deu"))
+        assertEquals("pt", TrackNames.language("pt-BR"))
+        assertNull(TrackNames.language(null))
+        assertNull(TrackNames.language(" "))
+    }
 }

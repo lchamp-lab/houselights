@@ -67,12 +67,16 @@ object Formats {
      * What a page says of a file's picture: its definition, its range (Dolby Vision with HDR10+ when
      * it has both, its HDR10 or HLG base unsaid), its codec. The frame rate is the screen's to write.
      */
-    fun picture(video: VideoInfo): List<String> {
-        val ranges = video.hdr.map(MediaInfo::hdrLabel)
+    fun picture(video: VideoInfo): List<String> =
+        listOfNotNull(video.definition?.label) + ranges(video) + listOfNotNull(video.codec.takeIf { it != Codecs.UNKNOWN })
+
+    /**
+     * A picture's ranges as a case names them: Dolby Vision, with HDR10+ when it has both, its
+     * HDR10 or HLG base unsaid. Empty for SDR.
+     */
+    fun ranges(video: VideoInfo): List<String> {
         val dolbyVision = HdrFormat.DOLBY_VISION in video.hdr
-        return listOfNotNull(video.definition?.label) +
-            ranges.filterNot { dolbyVision && (it == HDR10 || it == HLG) } +
-            listOfNotNull(video.codec.takeIf { it != Codecs.UNKNOWN })
+        return video.hdr.map(MediaInfo::hdrLabel).filterNot { dolbyVision && (it == HDR10 || it == HLG) }
     }
 
     /** What a page says of a file's sound: its best track by its full name, then its channels. */

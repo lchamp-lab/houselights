@@ -84,6 +84,8 @@ class ContrastTest {
         // current pill, a plate over an image, the room (WCAG 2.4.13 asks 3:1 of a focus indicator).
         ("focus" on "FILL_FAINT").mark(), ("focus" on "FILL_STRONG on FILL_FAINT").mark(),
         ("focus" on "VEIL on a white image").mark(), ("focus" on "background").mark(),
+        // A row read in a sheet: no well at rest, white on the sheet itself.
+        ("focus" on "surfaceRaised").mark(),
         // Marks: a lit round button's icon (a favourite), the check of your choice and the
         // new dot on their plate, a card's progress on its plate. The watched check is white (above).
         ("ember" on "FILL").mark(),

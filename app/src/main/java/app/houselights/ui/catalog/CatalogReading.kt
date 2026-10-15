@@ -16,9 +16,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
 import androidx.tv.material3.Text
-import app.houselights.R
 import app.houselights.core.AudioTrack
 import app.houselights.core.Codecs
 import app.houselights.core.HdrFormat
@@ -39,7 +37,6 @@ import app.houselights.ui.design.components.EpisodeHeading
 import app.houselights.ui.design.components.HeroInfo
 import app.houselights.ui.design.components.PlaceHeading
 import app.houselights.ui.design.components.HlButton
-import app.houselights.ui.design.components.HlModal
 import app.houselights.ui.design.components.InfoBlock
 import app.houselights.ui.design.components.MetaLine
 import app.houselights.ui.design.components.TechSpecs
@@ -361,26 +358,20 @@ private fun ReadingDefinitionListSection() {
 
 @Composable
 private fun ReadingTechSheetSection() {
-    // Opened as a detail page opens it: the same sheet, title and facts, no initial focus.
+    // Opened as a detail page opens it: the same panel, its first row focused.
     Group("Technical sheet") {
         var open by remember { mutableStateOf<MediaItem?>(null) }
         ReadingRow {
-            ReadingCase("longer than the screen: its content scrolls") { HlButton("3 audio, 14 subtitles", { open = READING_TECH_FULL }) }
+            ReadingCase("DV 8.1 and HDR10+, two French dubs, a note") { HlButton("Dolby", { open = READING_TECH_DOLBY }) }
+            ReadingCase("longer than the screen: its rows scroll") { HlButton("3 audio, 14 subtitles", { open = READING_TECH_FULL }) }
+        }
+        Spacer(Modifier.height(HlSpace.l))
+        ReadingRow {
             ReadingCase("a lean file") { HlButton("1 audio, no subtitles", { open = READING_TECH_LEAN }) }
-            ReadingCase("no video, unknown languages, no size") { HlButton("Sparse", { open = READING_TECH_SPARSE }) }
+            ReadingCase("nothing named, as a server gives it") { HlButton("Sparse", { open = READING_TECH_SPARSE }) }
+            ReadingCase("the longest words, side by side") { HlButton("Stress", { open = READING_TECH_STRESS }) }
         }
-        open?.let { shown ->
-            val media = shown.media
-            if (media != null) {
-                HlModal(
-                    stringResource(R.string.tech_details),
-                    onDismiss = { open = null },
-                    facts = listOf(shown.title, shown.year?.toString()),
-                ) {
-                    TechSpecs(media, fileName = shown.fileName)
-                }
-            }
-        }
+        open?.let { TechSpecs(it, onDismiss = { open = null }) }
     }
 }
 
@@ -526,6 +517,61 @@ private val READING_TECH_FULL = sample("Le Samouraï", 1967).copy(
     ),
 )
 
+/** The panel as designed: every picture row, the default dub first, a region where two dubs share a language. */
+private val READING_TECH_DOLBY = sample("Bugonia", 2025).copy(
+    fileName = "Bugonia (2025) 2160p WEB-DL DV HDR10+ DDP Atmos.mkv",
+    media = MediaInfo(
+        container = "MKV",
+        sizeBytes = 9_310_000_000,
+        durationMs = 7_080_000,
+        video = VideoInfo(
+            codec = Codecs.HEVC,
+            width = 3840,
+            height = 1608,
+            bitDepth = 10,
+            hdr = listOf(HdrFormat.DOLBY_VISION, HdrFormat.HDR10_PLUS, HdrFormat.HDR10),
+            dolbyVisionProfile = 8,
+            dolbyVisionCompatibility = 1,
+            frameRate = 24000f / 1001f,
+            bitrateKbps = 6_500,
+        ),
+        audio = listOf(
+            AudioTrack(codec = Codecs.EAC3, channels = 6, language = "fr-FR", atmos = true, default = true, bitrateKbps = 768),
+            AudioTrack(codec = Codecs.AC3, channels = 6, language = "fre", title = "VFQ", bitrateKbps = 640),
+            AudioTrack(codec = Codecs.TRUEHD, channels = 8, language = "eng", atmos = true, bitrateKbps = 2_857),
+            AudioTrack(codec = Codecs.AC3, channels = 6, language = "eng", title = "Compatibility Track", bitrateKbps = 448),
+        ),
+        subtitles = listOf(
+            SubtitleTrack(language = "fre", format = Codecs.SRT, forced = true, default = true),
+            SubtitleTrack(language = "fre", format = Codecs.SRT),
+            SubtitleTrack(language = "fre", format = Codecs.PGS, hearingImpaired = true),
+            SubtitleTrack(language = "eng", format = Codecs.PGS),
+            SubtitleTrack(language = "eng", format = Codecs.PGS, hearingImpaired = true),
+        ),
+    ),
+)
+
+/** The widest words a row can hold: a language with its region beside a format by its full name. */
+private val READING_TECH_STRESS = sample("Cidade de Deus", 2002).copy(
+    fileName = "Cidade.de.Deus.2002.REMASTERED.1080p.BluRay.REMUX.AVC.DDP.Atmos.7.1-GROUPWITHAVERYLONGNAME.mkv",
+    media = MediaInfo(
+        container = "MKV",
+        sizeBytes = 31_400_000_000,
+        durationMs = 7_800_000,
+        video = VideoInfo(codec = Codecs.AVC, width = 1920, height = 1040, bitDepth = 8, frameRate = 24000f / 1001f),
+        audio = listOf(
+            AudioTrack(codec = Codecs.EAC3, channels = 8, language = "pt-BR", atmos = true, default = true, bitrateKbps = 1_024),
+            AudioTrack(codec = Codecs.DTS_HD_MA, channels = 8, language = "pt-PT", bitrateKbps = 4_054),
+            AudioTrack(
+                codec = Codecs.AC3, channels = 2, language = "por",
+                title = "Commentaire audio du réalisateur Fernando Meirelles et de la co-réalisatrice Kátia Lund",
+                bitrateKbps = 192,
+            ),
+        ),
+        subtitles = listOf(SubtitleTrack(language = "pt-BR", format = Codecs.PGS, forced = true, hearingImpaired = true, default = true)),
+    ),
+)
+
 private val READING_TECH_LEAN = sample("Playtime", 1967).copy(
     fileName = "Playtime.mp4",
     media = MediaInfo(
@@ -537,7 +583,7 @@ private val READING_TECH_LEAN = sample("Playtime", 1967).copy(
     ),
 )
 
-/** A container, one track of each and nothing named: no picture block, no size, no file name. */
+/** A container, one track of each and nothing named: no picture section, no size, no file name (as a server gives it). */
 private val READING_TECH_SPARSE = sample("Pierrot le fou", 1965).copy(
     media = MediaInfo(
         container = "ISO",
