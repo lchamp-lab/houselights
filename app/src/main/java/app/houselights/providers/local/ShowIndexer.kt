@@ -13,6 +13,7 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
     /** A new scan looks shows up again. */
     fun startPass() = refreshedSeries.clear()
 
+    @Suppress("LongParameterList") // What a pass hands each file.
     suspend fun process(
         source: SourceEntity,
         file: RemoteFile,
@@ -85,6 +86,7 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
         matchedAt = matchedAt,
     )
 
+    @Suppress("LongParameterList", "CyclomaticComplexMethod") // The show an episode names, as the pass met it; one choice per sidecar.
     private suspend fun series(
         source: SourceEntity,
         title: String,
@@ -111,7 +113,8 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
         val nfoChanged = local.nfo != null && series.nfoPath != local.nfo.relativePath
         val needsLookup = series.matchedAt == null || refreshMetadata || nfoChanged ||
             (local.poster != null && !series.posterPath.isCachedArtwork())
-        if (!needsLookup || (!tmdb.open && local.nfo == null && local.poster == null)) return series
+        val nothingToRead = !tmdb.open && local.nfo == null && local.poster == null
+        if (!needsLookup || nothingToRead) return series
         // Once a pass, answered or not: a show TMDB did not answer stays unmatched, and so do its
         // episodes, until a later pass asks again.
         refreshedSeries += series.id
@@ -174,7 +177,15 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
      * Saves a show's details (see [MetadataMerge]) and its cast. Matched only when TMDB answered: a
      * show saved from its NFO or its poster alone is looked up at a later scan.
      */
-    private suspend fun saveShow(base: ItemEntity, nfoInfo: NfoInfo?, lookup: TmdbAnswer<TmdbTv>, art: LocalArt, tmdb: TmdbClient?, now: Long): ItemEntity {
+    @Suppress("LongParameterList") // One per source of a show's details, as for a film.
+    private suspend fun saveShow(
+        base: ItemEntity,
+        nfoInfo: NfoInfo?,
+        lookup: TmdbAnswer<TmdbTv>,
+        art: LocalArt,
+        tmdb: TmdbClient?,
+        now: Long,
+    ): ItemEntity {
         val tv = lookup.value
         val nfo = nfoInfo?.takeUnless { MetadataMerge.describesOther(it, base.userTmdbId, null) }
         val details = tv?.details(tmdb?.tvCertification(tv), tmdb?.pickLogo(tv.images))

@@ -11,6 +11,7 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
     /** A new scan asks TMDB again. */
     fun startPass() = refreshedCollections.clear()
 
+    @Suppress("LongParameterList", "CyclomaticComplexMethod") // What a pass hands each file; one choice per sidecar.
     suspend fun process(
         source: SourceEntity,
         file: RemoteFile,
@@ -51,7 +52,8 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
         val fetched = fetch(tmdb, item.userTmdbId, nfo, refreshMetadata, lookup)
         // Details dropped and none from TMDB: the next scan asks it again.
         if (sidecarsRemoved) {
-            item = MetadataMerge.withoutDetails(item, parsed.title, parsed.year).let { if (fetched.answered) it else it.copy(matchedAt = null) }
+            item = MetadataMerge.withoutDetails(item, parsed.title, parsed.year)
+                .let { if (fetched.answered) it else it.copy(matchedAt = null) }
         }
         val art = LocalArt(
             poster = local.poster?.let { files.copyArtwork(source, it) },
@@ -59,7 +61,7 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
             logo = local.logo?.let { files.copyArtwork(source, it) },
             thumb = local.thumb?.let { files.copyArtwork(source, it) },
         )
-        saveMovie(item.copy(nfoPath = kept.path, nfo = kept.text), nfo, fetched, art, tmdb.client, now)
+        saveMovie(item.copy(nfoPath = kept.path, nfo = kept.text), nfo, fetched, art, now)
     }
 
     /**
@@ -78,7 +80,7 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
             if (fetched.movie?.id != item.tmdbId) dao.clearUserArtwork(item.id)
             dao.item(item.id)?.let { fresh ->
                 val cleared = MetadataMerge.withoutDetails(fresh, parsed.title, parsed.year)
-                saveMovie(cleared, nfo, fetched, LocalArt.of(fresh), tmdb, System.currentTimeMillis())
+                saveMovie(cleared, nfo, fetched, LocalArt.of(fresh), System.currentTimeMillis())
             }
         }
     }
@@ -101,6 +103,8 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
         val nfo: NfoInfo?,
         val collection: CollectionPlan?,
         val collectionDetails: TmdbAnswer<TmdbCollection>,
+        /** What picks the film's certification and logo for the device's region and language. */
+        val client: TmdbClient?,
     ) {
         val movie: TmdbMovie? get() = lookup.value
 
@@ -124,12 +128,13 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
         val nfo = nfoInfo?.takeUnless { MetadataMerge.describesOther(it, userTmdbId, answer.value?.imdbId) }
         val plan = collectionOf(nfo, answer.value, refresh)
         val details = plan?.fetch?.let { id -> tmdb.ask { it.collection(id) } } ?: TmdbAnswer.Unanswered
-        return Fetched(answer, nfo, plan, details)
+        return Fetched(answer, nfo, plan, details, tmdb.client)
     }
 
     /** Saves a film's details (see [MetadataMerge]) and its cast. */
-    private suspend fun saveMovie(base: ItemEntity, nfoInfo: NfoInfo?, fetched: Fetched, art: LocalArt, tmdb: TmdbClient?, now: Long) {
+    private suspend fun saveMovie(base: ItemEntity, nfoInfo: NfoInfo?, fetched: Fetched, art: LocalArt, now: Long) {
         val movie = fetched.movie
+        val tmdb = fetched.client
         val nfo = fetched.nfo
         // Without a fresh TMDB answer, the collection already known stays.
         val collectionId = fetched.collection?.let { saveCollection(it, fetched.collectionDetails, now) }

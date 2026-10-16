@@ -114,25 +114,43 @@ class FakeTmdb : Interceptor {
         }.buffer()
     }
 
-    private fun answer(path: String, query: String?, year: String?): String? {
-        val parts = path.split('/')
+    /** The body TMDB answers [path] with; null for an entry it does not have. */
+    private fun answer(path: String, query: String?, year: String?): String? = when {
+        path == "authentication" -> "{\"success\":true}"
+        path.startsWith("search/") -> search(path, query, year)
+        path.startsWith("find/") -> encode(
+            TmdbFindResult.serializer(),
+            TmdbFindResult(
+                movieResults = movies.values.filter { it.imdbId == path.substringAfter('/') }
+                    .map { TmdbSearchResult(it.id, title = it.title) },
+            ),
+        )
+        path.endsWith("/images") -> encode(TmdbImageSet.serializer(), TmdbImageSet())
+        path.startsWith("trending/") -> page(emptyList())
+        else -> entry(path.split('/'))
+    }
+
+    private fun search(path: String, query: String?, year: String?): String = page(
+        if (path == "search/movie") {
+            movies.values.filter { it.title.equals(query, true) && matches(year, it.releaseDate) }
+                .map { TmdbSearchResult(it.id, title = it.title, releaseDate = it.releaseDate) }
+        } else {
+            shows.values.filter { it.name.equals(query, true) && matches(year, it.firstAirDate) }
+                .map { TmdbSearchResult(it.id, name = it.name, firstAirDate = it.firstAirDate) }
+        },
+    )
+
+    /** A film, a show, a season or a collection, by id. */
+    private fun entry(parts: List<String>): String? {
         fun id(at: Int) = parts.getOrNull(at)?.toIntOrNull()
-        return when {
-            path == "authentication" -> "{\"success\":true}"
-            path == "search/movie" -> page(movies.values.filter { it.title.equals(query, true) && matches(year, it.releaseDate) }
-                .map { TmdbSearchResult(it.id, title = it.title, releaseDate = it.releaseDate) })
-            path == "search/tv" -> page(shows.values.filter { it.name.equals(query, true) && matches(year, it.firstAirDate) }
-                .map { TmdbSearchResult(it.id, name = it.name, firstAirDate = it.firstAirDate) })
-            path.startsWith("find/") -> encode(
-                TmdbFindResult.serializer(),
-                TmdbFindResult(movieResults = movies.values.filter { it.imdbId == parts[1] }.map { TmdbSearchResult(it.id, title = it.title) }),
-            )
-            path.endsWith("/images") -> encode(TmdbImageSet.serializer(), TmdbImageSet())
-            parts[0] == "movie" -> movies[id(1)]?.let { encode(TmdbMovie.serializer(), it) }
-            parts[0] == "tv" && parts.size == 4 -> seasons[id(1) to id(3)]?.let { encode(TmdbSeason.serializer(), it) }
-            parts[0] == "tv" -> shows[id(1)]?.let { encode(TmdbTv.serializer(), it) }
-            parts[0] == "collection" -> collections[id(1)]?.let { encode(TmdbCollection.serializer(), it) }
-            path.startsWith("trending/") -> page(emptyList())
+        return when (parts[0]) {
+            "movie" -> movies[id(1)]?.let { encode(TmdbMovie.serializer(), it) }
+            "tv" -> if (parts.size == 4) {
+                seasons[id(1) to id(3)]?.let { encode(TmdbSeason.serializer(), it) }
+            } else {
+                shows[id(1)]?.let { encode(TmdbTv.serializer(), it) }
+            }
+            "collection" -> collections[id(1)]?.let { encode(TmdbCollection.serializer(), it) }
             else -> null
         }
     }

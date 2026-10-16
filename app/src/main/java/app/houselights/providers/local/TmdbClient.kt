@@ -97,16 +97,7 @@ class TmdbClient(
      * reach: read later, a stalled answer would pass for a NAS that stopped answering.
      */
     private fun intercept(chain: Interceptor.Chain): Response {
-        if (pauseWhenUnreachable && SystemClock.elapsedRealtime() < unreachableUntil) throw TmdbUnreachableException(null)
-        val url = chain.request().url.newBuilder().addQueryParameter("api_key", apiKey).build()
-        val response = try {
-            chain.proceed(chain.request().newBuilder().url(url).build()).let { if (it.isSuccessful) it.buffered() else it }
-        } catch (e: IOException) {
-            // A call given up on (a search replaced, a screen left) says nothing of TMDB.
-            if (chain.call().isCanceled()) throw e
-            pause()
-            throw TmdbUnreachableException(e)
-        }
+        val response = answer(chain)
         if (response.isSuccessful) return response
         val failure = when (val code = response.code) {
             HTTP_UNAUTHORIZED, HTTP_FORBIDDEN -> TmdbKeyRefusedException()
@@ -118,6 +109,18 @@ class TmdbClient(
         }
         response.close()
         throw failure
+    }
+
+    /** TMDB's answer, its body read; TMDB out of reach throws, and pauses a scan's client. */
+    private fun answer(chain: Interceptor.Chain): Response {
+        if (pauseWhenUnreachable && SystemClock.elapsedRealtime() < unreachableUntil) throw TmdbUnreachableException(null)
+        val url = chain.request().url.newBuilder().addQueryParameter("api_key", apiKey).build()
+        return try {
+            chain.proceed(chain.request().newBuilder().url(url).build()).let { if (it.isSuccessful) it.buffered() else it }
+        } catch (e: IOException) {
+            // A call given up on (a search replaced, a screen left) says nothing of TMDB.
+            throw if (chain.call().isCanceled()) e else TmdbUnreachableException(e).also { pause() }
+        }
     }
 
     private fun Response.buffered(): Response {

@@ -213,13 +213,11 @@ class LibraryScanner(
         val seasons = ShowIndexer.SeasonCache(tmdb)
         try {
             for (source in dao.sources()) {
-                val failure = suspendRunCatching { changed = scan(source, refreshMetadata, tmdb, seasons) || changed }
-                    .exceptionOrNull() ?: continue
-                Log.w(TAG, "Scan of ${source.name} failed", failure)
-                val error = if (outOfSpace(failure)) ScanError(ScanErrorKind.STORAGE_FULL) else ScanErrors.classify(failure)
-                errors[source.id] = error
+                val failure = suspendRunCatching { changed = scan(source, refreshMetadata, tmdb, seasons) || changed }.exceptionOrNull()
+                val error = failure?.let { errorOf(source, it) }
+                error?.let { errors[source.id] = it }
                 // Out of space, every other folder would fail the same way, file after file.
-                if (error.kind == ScanErrorKind.STORAGE_FULL) break
+                if (error?.kind == ScanErrorKind.STORAGE_FULL) break
             }
             lock.withLock {
                 suspendRunCatching {
@@ -279,30 +277,19 @@ class LibraryScanner(
                 "${missing.held.size} held, ${todo.size} to do",
         )
 
+        val folder = Folder(source, sidecars, known, refreshMetadata, tmdb, seasons)
         var unreachable = 0
         todo.forEachIndexed { index, file ->
             waitForThePlayer()
             _state.update { it.copy(processed = index, current = file.relativePath.substringAfterLast('/')) }
-            suspendRunCatching {
-                // One item at a time, so a choice made by the user waits for one item, not
-                // for the whole scan. Read again: the item may have been edited meanwhile.
-                lock.withLock {
-                    // The folder was removed meanwhile: nothing more is added to it.
-                    if (dao.source(source.id) == null) return@forEachIndexed
-                    val existing = known[file.relativePath]?.let { dao.item(it.id) }
-                    when (source.kind) {
-                        SourceKind.MOVIES -> movies.process(source, file, existing, tmdb, sidecars, refreshMetadata)
-                        SourceKind.SHOWS -> shows.process(source, file, existing, tmdb, seasons, sidecars, refreshMetadata)
-                    }
-                }
-            }.onSuccess {
+            suspendRunCatching { process(folder, file) }.onSuccess {
                 unreachable = 0
             }.onFailure { e ->
                 Log.w(TAG, "Failed on ${file.relativePath}", e)
-                // A device out of space would fail every remaining file the same way: the pass stops.
-                if (outOfSpace(e)) throw e
-                // A NAS that stops answering would fail every remaining file, each after long timeouts.
-                if (ScanErrors.isUnreachable(e) && ++unreachable >= MAX_UNREACHABLE) throw e
+                if (ScanErrors.isUnreachable(e)) unreachable++
+                // The device out of space, or a NAS that stopped answering: every remaining file would fail
+                // the same way, each after long timeouts.
+                if (outOfSpace(e) || unreachable >= MAX_UNREACHABLE) throw e
             }
             if (index % 5 == 4) _changed.emit(Unit)
         }
@@ -311,6 +298,38 @@ class LibraryScanner(
         val changed = missing.relinked.isNotEmpty() || missing.removed.isNotEmpty() || todo.isNotEmpty()
         if (changed) _changed.emit(Unit)
         return changed
+    }
+
+    /** Why [source] could not be scanned, as the settings tell it; the failure itself goes to the log. */
+    private fun errorOf(source: SourceEntity, failure: Throwable): ScanError {
+        Log.w(TAG, "Scan of ${source.name} failed", failure)
+        return if (outOfSpace(failure)) ScanError(ScanErrorKind.STORAGE_FULL) else ScanErrors.classify(failure)
+    }
+
+    /** A folder as one pass reads it: what each of its files is processed with. */
+    private class Folder(
+        val source: SourceEntity,
+        val sidecars: Sidecars,
+        /** Its files the library knows, by path. */
+        val known: Map<String?, ItemEntity>,
+        val refreshMetadata: Boolean,
+        val tmdb: TmdbPass,
+        val seasons: ShowIndexer.SeasonCache,
+    )
+
+    /**
+     * One file, under the lock: a choice made by the user waits for one item, not for the whole scan.
+     * Its row is read again, as it may have been edited meanwhile.
+     */
+    private suspend fun process(folder: Folder, file: RemoteFile) = lock.withLock {
+        val source = folder.source
+        // The folder was removed meanwhile: nothing more is added to it.
+        if (dao.source(source.id) == null) return@withLock
+        val existing = folder.known[file.relativePath]?.let { dao.item(it.id) }
+        when (source.kind) {
+            SourceKind.MOVIES -> movies.process(source, file, existing, folder.tmdb, folder.sidecars, folder.refreshMetadata)
+            SourceKind.SHOWS -> shows.process(source, file, existing, folder.tmdb, folder.seasons, folder.sidecars, folder.refreshMetadata)
+        }
     }
 
     /**
