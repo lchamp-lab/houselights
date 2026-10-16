@@ -3,7 +3,10 @@ package app.houselights.providers.local
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import app.houselights.core.Secrets
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
@@ -40,6 +43,9 @@ class LibraryScannerTest {
     private val passes = SupervisorJob()
     private var now = START
 
+    /** Since the device started: a second in. */
+    private var elapsed = 1_000L
+
     /** The most values one statement bound. */
     private val widest = AtomicInteger()
 
@@ -75,6 +81,7 @@ class LibraryScannerTest {
                 }
             },
             clock = { now },
+            elapsed = { elapsed },
         )
         films = folder("Films", SourceKind.MOVIES)
     }
@@ -130,6 +137,62 @@ class LibraryScannerTest {
         showsNas.reads.clear()
         scan()
         assertEquals("a pass with nothing new reads no file", 0, nas.reads.size + showsNas.reads.size)
+    }
+
+    /** A scan unless one ended less than ten minutes ago, as the app asks when it comes back, waited for. */
+    private suspend fun scanIfStale() {
+        scanner.scanIfStale(TEN_MINUTES)
+        passes.children.toList().forEach { it.join() }
+    }
+
+    @Test
+    fun theFirstScanAskedRunsEvenMomentsAfterTheDeviceStarted() = runTest {
+        nas.put("Dune (2021).mkv")
+        scanIfStale()
+        assertEquals(listOf("Dune (2021).mkv"), filePaths())
+    }
+
+    @Test
+    fun aScanEndedMomentsAgoIsNotRunAgain() = runTest {
+        nas.put("Dune (2021).mkv")
+        scan()
+        nas.put("Arrival (2016).mkv")
+        elapsed += TEN_MINUTES - 1
+        scanIfStale()
+        assertEquals(listOf("Dune (2021).mkv"), filePaths())
+
+        elapsed += 1
+        scanIfStale()
+        assertEquals(listOf("Arrival (2016).mkv", "Dune (2021).mkv"), filePaths())
+    }
+
+    @Test
+    fun theDateSetBackDoesNotHoldScans() = runTest {
+        nas.put("Dune (2021).mkv")
+        scan()
+        nas.put("Arrival (2016).mkv")
+        // The date goes back three hours; eleven minutes pass.
+        now -= 3 * HOUR
+        elapsed += TEN_MINUTES + 60_000
+        scanIfStale()
+        assertEquals(listOf("Arrival (2016).mkv", "Dune (2021).mkv"), filePaths())
+    }
+
+    @Test
+    fun aPassCutShortLetsTheNextOneStart() = runTest {
+        nas.put("Dune (2021).mkv")
+        val listing = CompletableDeferred<Unit>()
+        nas.onList = {
+            listing.complete(Unit)
+            awaitCancellation()
+        }
+        scanner.scanAll()
+        listing.await()
+        passes.children.toList().forEach { it.cancelAndJoin() }
+
+        nas.onList = null
+        scan()
+        assertEquals(listOf("Dune (2021).mkv"), filePaths())
     }
 
     @Test
@@ -593,5 +656,6 @@ class LibraryScannerTest {
         const val START = 1_800_000_000_000L
         const val HOUR = 60 * 60_000L
         const val OTHER_HOST = "192.168.1.30"
+        const val TEN_MINUTES = 10 * 60_000L
     }
 }

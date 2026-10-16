@@ -1,5 +1,6 @@
 package app.houselights.providers.local
 
+import android.os.SystemClock
 import android.util.Log
 import app.houselights.core.NoTmdbKeyException
 import app.houselights.core.suspendRunCatching
@@ -46,9 +47,12 @@ class LibraryScanner(
     private val playing: StateFlow<Boolean> = MutableStateFlow(false),
     /** How a folder is read; tests hand in a NAS of their own. */
     private val browsers: (SourceEntity) -> RemoteBrowser = RemoteBrowser::of,
+    /** The date, for what the library keeps: when a folder was scanned, a file first missed. */
     private val clock: () -> Long = System::currentTimeMillis,
     /** The TMDB client of what people ask ([identify]): one that asks TMDB every time. */
     private val interactiveTmdb: () -> TmdbClient? = tmdb,
+    /** The clock that only moves forward, for how long ago the last scan ended ([scanIfStale]). */
+    private val elapsed: () -> Long = SystemClock::elapsedRealtime,
 ) {
     private val _state = MutableStateFlow(ScanState())
     val state: StateFlow<ScanState> = _state
@@ -72,13 +76,17 @@ class LibraryScanner(
             passes.running = true
         }
         scope.launch(Dispatchers.IO) {
+            var ended = false
             try {
-                while (true) {
-                    val refresh = synchronized(passes) { passes.next() } ?: break
-                    scanAllSources(refresh)
+                while (!ended) {
+                    val refresh = synchronized(passes) { passes.next() }
+                    if (refresh == null) ended = true else scanAllSources(refresh)
                 }
             } finally {
-                synchronized(passes) { passes.running = false }
+                // Ended early (cancelled, failed): the next scan asked starts again. Ended by next(),
+                // which cleared the flag, the loop leaves it alone: a scan asked since may already
+                // have started another loop, whose flag is not this one's to clear.
+                if (!ended) synchronized(passes) { passes.running = false }
             }
         }
     }
@@ -113,12 +121,17 @@ class LibraryScanner(
      * folders and processes what is new, which keeps it light.
      */
     fun scanIfStale(maxAgeMs: Long) {
-        if (clock() - lastScanEnd < maxAgeMs) return
+        val end = lastScanEnd
+        if (end != null && elapsed() - end < maxAgeMs) return
         scanAll()
     }
 
+    /**
+     * When the last scan ended, on [elapsed]: the date set back (by hand, or by the network once the
+     * player started ahead) would hold scans for as long. Null until one ended.
+     */
     @Volatile
-    private var lastScanEnd = 0L
+    private var lastScanEnd: Long? = null
 
     /**
      * Removes cached artwork and cast rows nothing refers to anymore. Runs after every scan,
@@ -194,7 +207,7 @@ class LibraryScanner(
         } finally {
             // Whatever happened, the scan is over: the settings must not show it running forever.
             _state.value = ScanState(errors = errors)
-            lastScanEnd = clock()
+            lastScanEnd = elapsed()
             SmbBrowser.closeAll()
         }
         // A scan that found nothing new leaves screens as they are.
