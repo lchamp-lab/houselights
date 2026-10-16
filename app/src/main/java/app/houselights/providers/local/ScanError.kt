@@ -7,7 +7,22 @@ import java.net.SocketTimeoutException
 import java.net.UnknownHostException
 
 /** Why a folder could not be read, in terms the user can act on. */
-enum class ScanErrorKind { UNREACHABLE, ACCESS_DENIED, LOGIN_FAILED, NOT_FOUND, OTHER }
+enum class ScanErrorKind {
+    UNREACHABLE,
+    ACCESS_DENIED,
+    LOGIN_FAILED,
+    NOT_FOUND,
+
+    /** Listed without a single video while the library holds some: nothing was removed. */
+    EMPTY,
+    OTHER,
+}
+
+/**
+ * A folder listed empty while the library holds titles from it: more likely a disk not mounted
+ * behind the share than a library emptied, so the scan stops before it removes anything.
+ */
+class EmptyFolderException : IllegalStateException("The folder lists no video, yet the library holds some")
 
 /** A failure as the interface tells it; the exception itself goes to the log where it is caught. */
 data class ScanError(val kind: ScanErrorKind)
@@ -22,6 +37,7 @@ object ScanErrors {
         val chain = generateSequence(e) { it.cause }.toList()
         val text = chain.joinToString(" ") { "${it.javaClass.simpleName} ${it.message}" }
         val kind = when {
+            chain.any { it is EmptyFolderException } -> ScanErrorKind.EMPTY
             chain.any { it is UnknownHostException || it is NoRouteToHostException || it is ConnectException || it is SocketTimeoutException } ||
                 text.contains("waiting for connection", ignoreCase = true) ||
                 text.contains("timed out", ignoreCase = true) -> ScanErrorKind.UNREACHABLE

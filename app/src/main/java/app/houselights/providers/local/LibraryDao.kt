@@ -10,6 +10,15 @@ import androidx.room.Update
 import androidx.sqlite.db.SupportSQLiteQuery
 import kotlinx.coroutines.flow.Flow
 
+/**
+ * Ids bound by one statement at most: Android 9's SQLite (3.22) takes at most 999 values in a
+ * statement, and lists of ids can be longer. Robolectric's SQLite takes more: tests count them.
+ */
+internal const val SQL_IN_LIMIT = 500
+
+private const val SET_PLAYED =
+    "UPDATE items SET played = :played, positionMs = 0, lastPlayedAt = CASE WHEN :played THEN :now ELSE lastPlayedAt END"
+
 @Dao
 interface LibraryDao {
     // Sources
@@ -28,19 +37,57 @@ interface LibraryDao {
     @Update
     suspend fun updateSource(source: SourceEntity)
 
+    /**
+     * A folder's new address or sign-in, column by column: it keeps its id, so its titles and what the
+     * user did with them stay, and its kind and scan dates. [name] follows from the path.
+     */
+    @Query(
+        "UPDATE sources SET name = :name, protocol = :protocol, host = :host, share = :share, path = :path, " +
+            "username = :username, password = :password WHERE id = :id"
+    )
+    @Suppress("LongParameterList") // One per column written.
+    suspend fun updateConnection(
+        id: Long,
+        name: String,
+        protocol: Protocol,
+        host: String,
+        share: String,
+        path: String,
+        username: String,
+        password: Secret,
+    )
+
     @Query("SELECT * FROM sources WHERE id = :id")
     suspend fun source(id: Long): SourceEntity?
 
-    // What the user changes is written column by column, so it never overwrites a scan's work.
+    /**
+     * The end of a scan, written alone: the rest of the folder's row may have changed during the
+     * scan, and writing it again would seal its password again.
+     */
+    @Query("UPDATE sources SET lastScanAt = :at, firstScanAt = CASE WHEN firstScanAt = 0 THEN :at ELSE firstScanAt END WHERE id = :id")
+    suspend fun markScanned(id: Long, at: Long)
 
-    @Query(
-        "UPDATE items SET played = :played, positionMs = 0, " +
-            "lastPlayedAt = CASE WHEN :played THEN :now ELSE lastPlayedAt END WHERE id IN (:ids)"
-    )
-    suspend fun setPlayed(ids: List<Long>, played: Boolean, now: Long)
+    // What the user changes is written column by column, so it never overwrites a scan's work.
+    // Watched state goes by parent, never by a list of ids: a long show holds thousands of episodes.
+
+    @Query("$SET_PLAYED WHERE id = :id")
+    suspend fun setPlayed(id: Long, played: Boolean, now: Long)
+
+    @Query("$SET_PLAYED WHERE kind = 'EPISODE' AND seriesId = :seriesId")
+    suspend fun setSeriesPlayed(seriesId: Long, played: Boolean, now: Long)
+
+    @Query("$SET_PLAYED WHERE kind = 'EPISODE' AND parentId = :seasonId")
+    suspend fun setSeasonPlayed(seasonId: Long, played: Boolean, now: Long)
+
+    @Query("$SET_PLAYED WHERE kind = 'MOVIE' AND collectionId = :collectionId")
+    suspend fun setCollectionPlayed(collectionId: Long, played: Boolean, now: Long)
 
     @Query("UPDATE items SET favorite = :favorite WHERE id = :id")
     suspend fun setFavorite(id: Long, favorite: Boolean)
+
+    /** When it was played, alone: a report of the previous session may land meanwhile. */
+    @Query("UPDATE items SET lastPlayedAt = :now WHERE id = :id")
+    suspend fun setLastPlayedAt(id: Long, now: Long)
 
     @Query(
         "UPDATE items SET positionMs = :positionMs, durationMs = :durationMs, played = :played, " +
@@ -52,7 +99,9 @@ interface LibraryDao {
     suspend fun deleteSource(id: Long)
 
     // Items
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+
+    /** New rows only: a row inserted again fails, rather than replacing what the user did with it. */
+    @Insert
     suspend fun insert(item: ItemEntity): Long
 
     @Update
@@ -151,7 +200,50 @@ interface LibraryDao {
     suspend fun byGenre(kind: ItemKind, genre: String, excludeId: Long, limit: Int): List<ItemEntity>
 
     @Query("DELETE FROM items WHERE id IN (:ids)")
-    suspend fun deleteItems(ids: List<Long>)
+    suspend fun deleteItemBatch(ids: List<Long>)
+
+    /** Any number of items, [SQL_IN_LIMIT] per statement, all or none. */
+    @Transaction
+    suspend fun deleteItems(ids: List<Long>) = ids.chunked(SQL_IN_LIMIT).forEach { deleteItemBatch(it) }
+
+    /**
+     * Moves a row to the file that replaced its own (see [MissingFiles]): what the user did with the
+     * title stays. A file of another size is read again; one of the same size was only renamed.
+     */
+    @Query(
+        "UPDATE items SET filePath = :filePath, fileSize = :fileSize, " +
+            "mediaInfo = CASE WHEN fileSize = :fileSize THEN mediaInfo ELSE NULL END, missingSince = NULL WHERE id = :id"
+    )
+    suspend fun relink(id: Long, filePath: String, fileSize: Long)
+
+    @Query("UPDATE items SET missingSince = :since WHERE id IN (:ids)")
+    suspend fun setMissingSinceBatch(ids: List<Long>, since: Long?)
+
+    /**
+     * [since]: when a scan first missed their files (see [MissingFiles]); null once they are back.
+     * Any number of items, [SQL_IN_LIMIT] per statement, all or none.
+     */
+    @Transaction
+    suspend fun setMissingSince(ids: List<Long>, since: Long?) =
+        ids.chunked(SQL_IN_LIMIT).forEach { setMissingSinceBatch(it, since) }
+
+    /**
+     * What a scan made of the rows of files its folder no longer lists (see [MissingFiles]), in one
+     * transaction: a rename of a whole library is a few thousand rows.
+     */
+    @Transaction
+    suspend fun settleMissing(
+        relinked: List<Pair<Long, RemoteFile>>,
+        back: List<Long>,
+        held: List<Long>,
+        removed: List<Long>,
+        now: Long,
+    ) {
+        relinked.forEach { (id, file) -> relink(id, file.relativePath, file.size) }
+        setMissingSince(back, null)
+        setMissingSince(held, now)
+        deleteItems(removed)
+    }
 
     /** Seasons without episodes, then series without seasons. */
     @Query("DELETE FROM items WHERE kind = 'SEASON' AND id NOT IN (SELECT parentId FROM items WHERE kind = 'EPISODE' AND parentId IS NOT NULL)")

@@ -28,7 +28,7 @@ data class ScanState(
 )
 
 /**
- * Incremental scanner: lists the files of each source, removes the missing ones,
+ * Incremental scanner: lists the files of each source, removes the missing ones (see [MissingFiles]),
  * and identifies new ones on TMDB. Files already known are never looked up again,
  * unless they were never matched (no TMDB key at the time) or a full refresh is asked.
  *
@@ -43,6 +43,9 @@ class LibraryScanner(
     private val artwork: ArtworkCache,
     /** True while a film plays: the scan waits, so as not to read the NAS while the player streams from it. */
     private val playing: StateFlow<Boolean> = MutableStateFlow(false),
+    /** How a folder is read; tests hand in a NAS of their own. */
+    private val browsers: (SourceEntity) -> RemoteBrowser = RemoteBrowser::of,
+    private val clock: () -> Long = System::currentTimeMillis,
 ) {
     private val _state = MutableStateFlow(ScanState())
     val state: StateFlow<ScanState> = _state
@@ -54,7 +57,7 @@ class LibraryScanner(
 
     private val lock = Mutex()
 
-    private val files = ScanFiles(dao, artwork)
+    private val files = ScanFiles(dao, artwork, browsers)
     private val movies = MovieIndexer(dao, files)
     private val shows = ShowIndexer(dao, files)
 
@@ -107,7 +110,7 @@ class LibraryScanner(
      * folders and processes what is new, which keeps it light.
      */
     fun scanIfStale(maxAgeMs: Long) {
-        if (System.currentTimeMillis() - lastScanEnd < maxAgeMs) return
+        if (clock() - lastScanEnd < maxAgeMs) return
         scanAll()
     }
 
@@ -188,7 +191,7 @@ class LibraryScanner(
         } finally {
             // Whatever happened, the scan is over: the settings must not show it running forever.
             _state.value = ScanState(errors = errors)
-            lastScanEnd = System.currentTimeMillis()
+            lastScanEnd = clock()
             SmbBrowser.closeAll()
         }
         // A scan that found nothing new leaves screens as they are.
@@ -209,19 +212,23 @@ class LibraryScanner(
     /** True when the library changed: files were added, updated or removed. */
     private suspend fun scan(source: SourceEntity, refreshMetadata: Boolean): Boolean {
         _state.update { it.copy(running = true, sourceName = source.name, processed = 0, total = 0, current = null) }
-        val listing = RemoteBrowser.of(source).list(source)
+        val listing = browsers(source).list(source)
         val files = listing.videos
         val sidecars = Sidecars(listing.sidecars, files)
-        val known = dao.filesOf(source.id).associateBy { it.filePath }
-
-        val present = files.map { it.relativePath }.toSet()
-        val missing = known.values.filter { it.filePath !in present }.map { it.id }
-        if (missing.isNotEmpty()) lock.withLock { dao.deleteItems(missing) }
+        val listed = dao.filesOf(source.id)
+        if (files.isEmpty() && listed.isNotEmpty()) throw EmptyFolderException()
+        val missing = settleMissing(source.kind, listed, files)
+        // Renamed files took their rows along.
+        val known = (if (missing.relinked.isEmpty()) listed else dao.filesOf(source.id)).associateBy { it.filePath }
 
         val tmdb = client()
-        val todo = files.filter { f -> needsWork(known[f.relativePath], sidecars.forVideo(f), tmdb != null, refreshMetadata) }
+        val todo = files.filter { f -> needsWork(known[f.relativePath], f, sidecars.forVideo(f), tmdb != null, refreshMetadata) }
         _state.update { it.copy(total = todo.size) }
-        Log.i(TAG, "${source.name}: ${files.size} files, ${missing.size} removed, ${todo.size} to process")
+        Log.i(
+            TAG,
+            "${source.name}: ${files.size} files, ${missing.relinked.size} renamed, ${missing.removed.size} removed, " +
+                "${missing.held.size} held, ${todo.size} to do",
+        )
 
         val seasons = ShowIndexer.SeasonCache(tmdb)
         var unreachable = 0
@@ -250,22 +257,30 @@ class LibraryScanner(
             }
             if (index % 5 == 4) _changed.emit(Unit)
         }
-        val now = System.currentTimeMillis()
-        dao.updateSource(source.copy(lastScanAt = now, firstScanAt = source.firstScanAt.takeIf { it > 0 } ?: now))
-        val changed = missing.isNotEmpty() || todo.isNotEmpty()
+        dao.markScanned(source.id, clock())
+        // A file renamed is not always read again, but screens show its name.
+        val changed = missing.relinked.isNotEmpty() || missing.removed.isNotEmpty() || todo.isNotEmpty()
         if (changed) _changed.emit(Unit)
         return changed
+    }
+
+    /** Rows of files the folder no longer lists go, or wait a while (see [MissingFiles]). */
+    private suspend fun settleMissing(kind: SourceKind, known: List<ItemEntity>, files: List<RemoteFile>): MissingFiles.Outcome {
+        val now = clock()
+        val missing = MissingFiles.settle(kind, known, files, now)
+        lock.withLock { dao.settleMissing(missing.relinked, missing.back, missing.held, missing.removed, now) }
+        return missing
     }
 
     /** The show's name and year as its folder gives them, through one of its episodes. */
     suspend fun showQuery(series: ItemEntity): ParsedMovie = shows.showQuery(series)
 
     /**
-     * A file is processed when new, not described yet or by an older probe, to refresh, or when its
-     * NFO or artwork changed.
+     * A file is processed when new, not described yet or by an older probe, replaced (its size
+     * changed), to refresh, or when its NFO or artwork changed.
      */
-    private fun needsWork(item: ItemEntity?, local: VideoSidecars, hasTmdb: Boolean, refreshMetadata: Boolean): Boolean =
-        item == null || MediaProbe.isStale(item.mediaInfo) || refreshMetadata ||
+    private fun needsWork(item: ItemEntity?, file: RemoteFile, local: VideoSidecars, hasTmdb: Boolean, refreshMetadata: Boolean): Boolean =
+        item == null || MediaProbe.isStale(item.mediaInfo) || item.sizeChanged(file) || refreshMetadata ||
             (hasTmdb && item.matchedAt == null) ||
             // An NFO or artwork placed next to the file, or removed, since the last scan.
             item.nfoPath != local.nfo?.relativePath ||

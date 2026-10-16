@@ -49,10 +49,10 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
         val movie = if (needsTmdb) lookupMovie(tmdb!!, item.userTmdbId, nfo, parsed, known = item.tmdbId) else null
         if (sidecarsRemoved) item = MetadataMerge.withoutDetails(item, parsed.title, parsed.year)
         val art = LocalArt(
-            poster = local.poster?.let { files.artwork.copy(source, it) },
-            fanart = local.fanart?.let { files.artwork.copy(source, it) },
-            logo = local.logo?.let { files.artwork.copy(source, it) },
-            thumb = local.thumb?.let { files.artwork.copy(source, it) },
+            poster = local.poster?.let { files.copyArtwork(source, it) },
+            fanart = local.fanart?.let { files.copyArtwork(source, it) },
+            logo = local.logo?.let { files.copyArtwork(source, it) },
+            thumb = local.thumb?.let { files.copyArtwork(source, it) },
         )
         saveMovie(item.copy(nfoPath = local.nfo?.relativePath, nfo = nfoText), nfo, movie, art, tmdb, now, refreshMetadata)
     }

@@ -66,6 +66,7 @@ fun scanErrorText(context: Context, error: ScanError, host: String): String = wh
     ScanErrorKind.ACCESS_DENIED -> context.getString(R.string.error_access_denied)
     ScanErrorKind.LOGIN_FAILED -> context.getString(R.string.error_login_failed)
     ScanErrorKind.NOT_FOUND -> context.getString(R.string.error_not_found)
+    ScanErrorKind.EMPTY -> context.getString(R.string.error_folder_empty)
     ScanErrorKind.OTHER -> context.getString(R.string.error_scan_other)
 }
 

@@ -4,7 +4,11 @@ import app.houselights.core.PlaybackReporter
 
 /** Saves a local film or episode's progress as the player reports it. */
 internal class LocalReporter(private val dao: LibraryDao, private val itemId: Long) : PlaybackReporter {
-    override suspend fun started(positionMs: Long) = save(positionMs, null, finished = false)
+    /**
+     * Only says when it was played: where the player starts is not progress, and starting over must
+     * not lose the resume point before the viewer has watched anything.
+     */
+    override suspend fun started(positionMs: Long) = dao.setLastPlayedAt(itemId, System.currentTimeMillis())
 
     override suspend fun progress(positionMs: Long, durationMs: Long?, paused: Boolean) =
         save(positionMs, durationMs, finished = false)
@@ -14,17 +18,18 @@ internal class LocalReporter(private val dao: LibraryDao, private val itemId: Lo
     private suspend fun save(positionMs: Long, durationMs: Long?, finished: Boolean) {
         val entity = dao.item(itemId) ?: return
         val duration = durationMs ?: entity.durationMs ?: entity.runtimeMin?.let { it * MS_PER_MINUTE }
-        val watched = duration != null && duration > 0 && positionMs >= duration * WATCHED_RATIO
+        val watched = finished && duration != null && duration > 0 && positionMs >= duration * WATCHED_RATIO
         // Only the playback columns: a scan may be writing the others at the same time.
         dao.savePlayback(
             id = entity.id,
             positionMs = when {
-                finished && watched -> 0
-                finished && positionMs < MIN_RESUME_MS -> entity.positionMs.takeIf { !entity.played } ?: 0
+                watched -> 0
+                // Every report, not only the last one: the first ones come seconds after starting over.
+                positionMs < MIN_RESUME_MS -> if (entity.played) 0 else entity.positionMs
                 else -> positionMs
             },
             durationMs = durationMs ?: entity.durationMs,
-            played = entity.played || (finished && watched),
+            played = entity.played || watched,
             lastPlayedAt = System.currentTimeMillis(),
         )
     }
@@ -33,7 +38,7 @@ internal class LocalReporter(private val dao: LibraryDao, private val itemId: Lo
         /** Watched past this share of its length. */
         const val WATCHED_RATIO = 0.9
 
-        /** Stopped before this, a film keeps its previous resume point. */
+        /** Before this, a film keeps its previous resume point (none once watched): started over, or by mistake. */
         const val MIN_RESUME_MS = 60_000L
 
         const val MS_PER_MINUTE = 60_000L

@@ -19,10 +19,32 @@ val localProps = Properties().apply {
 val tmdbApiKey: String = localProps.getProperty("tmdb.apiKey") ?: System.getenv("TMDB_API_KEY") ?: ""
 
 // Release signing: keystore.properties (never committed) gives storeFile, storePassword, keyAlias and
-// keyPassword. Without it, release builds are signed with the debug key: fine to test, not to publish.
+// keyPassword. Android only updates an app signed with the same key, so a release signed with the debug
+// key of whatever machine built it could not be updated by one signed with yours: without the file,
+// packaging the release fails, unless -Phouselights.debugSignedRelease=true asks for the debug key (CI,
+// a build that will not be installed). bench and the builds :baselineprofile makes are always signed
+// with the debug key, whatever the file says (see androidComponents, below).
 val keystoreProps = Properties().apply {
     rootProject.file("keystore.properties").takeIf { it.exists() }?.inputStream()?.use(::load)
 }
+fun keystoreProp(name: String): String =
+    requireNotNull(keystoreProps.getProperty(name)?.takeIf { it.isNotBlank() }) { "keystore.properties: $name is missing" }
+val debugSignedRelease = providers.gradleProperty("houselights.debugSignedRelease").orNull.toBoolean()
+
+// The release's versionCode grows with every commit, so Android refuses to install a release over a
+// newer one, whose database it could not open: -PversionCode when given, else the number of commits
+// (CI checks out the whole history), else 1. Read through providers.exec, which the configuration
+// cache tracks. The other builds stay at 1 (androidComponents, below).
+val commitCount: Int? = runCatching {
+    providers.exec {
+        commandLine("git", "rev-list", "--count", "HEAD")
+        isIgnoreExitValue = true
+    }.standardOutput.asText.get().trim().toIntOrNull()
+}.getOrNull()
+val appVersionCode: Int = providers.gradleProperty("versionCode").orNull
+    ?.let { requireNotNull(it.toIntOrNull()) { "-PversionCode must be a whole number, not \"$it\"" } }
+    ?: commitCount
+    ?: 1
 
 android {
     namespace = "app.houselights"
@@ -32,6 +54,7 @@ android {
         applicationId = "app.houselights"
         minSdk = 28 // Zidoo Z1000 Pro : Android 9
         targetSdk = 35
+        // The release's own is set with its variant (androidComponents, below).
         versionCode = 1
         versionName = "0.1.0"
         buildConfigField("String", "TMDB_API_KEY", "\"$tmdbApiKey\"")
@@ -41,10 +64,10 @@ android {
     signingConfigs {
         if (!keystoreProps.isEmpty) {
             create("release") {
-                storeFile = rootProject.file(keystoreProps.getProperty("storeFile"))
-                storePassword = keystoreProps.getProperty("storePassword")
-                keyAlias = keystoreProps.getProperty("keyAlias")
-                keyPassword = keystoreProps.getProperty("keyPassword")
+                storeFile = rootProject.file(keystoreProp("storeFile"))
+                storePassword = keystoreProp("storePassword")
+                keyAlias = keystoreProp("keyAlias")
+                keyPassword = keystoreProp("keyPassword")
             }
         }
     }
@@ -59,6 +82,7 @@ android {
         release {
             isMinifyEnabled = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            // Without a key, packageRelease refuses the debug key unless asked (below).
             signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
         }
         // Optimised like a release, beside it and signed with the debug key: what the player really
@@ -90,6 +114,40 @@ android {
         abortOnError = true
         checkReleaseBuilds = true
         baseline = file("lint-baseline.xml")
+    }
+}
+
+// The builds :baselineprofile makes from the release (nonMinifiedRelease generates the profile,
+// benchmarkRelease measures) keep its package name, and the plugin hands them the release's key. On
+// a player that holds the real release, they would replace it, then be uninstalled when the run ends,
+// the library and watch history with them. Signed with the debug key, their installation fails there
+// instead. Registered after the plugin (applied above), so this runs once it has set its own.
+androidComponents {
+    finalizeDsl { android ->
+        listOf("nonMinifiedRelease", "benchmarkRelease").forEach { name ->
+            android.buildTypes.findByName(name)?.signingConfig = android.signingConfigs.getByName("debug")
+        }
+    }
+    // Only the release grows with each commit. Each change is tried on its own branch, and branches
+    // count different numbers of commits: debug and bench stay at 1, so that one installs over another
+    // (Android refuses a lower versionCode, and only uninstalling would get past it).
+    onVariants(selector().withBuildType("release")) { variant ->
+        variant.outputs.forEach { it.versionCode.set(appVersionCode) }
+    }
+}
+
+// Without a key, the release stops before its APK is written, and says why (see keystoreProps).
+if (keystoreProps.isEmpty && !debugSignedRelease) {
+    tasks.matching { it.name == "packageRelease" }.configureEach {
+        doFirst {
+            throw GradleException(
+                "No keystore.properties: this release would be signed with this machine's debug key, and a later " +
+                    "one signed with yours could only be installed after uninstalling it, which loses the library " +
+                    "and watch history kept on the player. Create your key first (README, Signing), or pass " +
+                    "-Phouselights.debugSignedRelease=true for a build that will not be installed; " +
+                    "scripts/install.sh bench installs an optimised build beside the release."
+            )
+        }
     }
 }
 

@@ -81,7 +81,7 @@ const val ITEM_ROW =
     "id, kind, sourceId, parentId, seriesId, matchKey, tmdbId, title, sortTitle, originalTitle, " +
     "overview, tagline, year, endYear, continuing, runtimeMin, certification, rating, genres, " +
     "directors, posterPath, backdropPath, logoPath, stillPath, seasonNumber, episodeNumber, filePath, " +
-    "fileSize, badges, mediaInfo, nfoPath, NULL AS nfo, userTmdbId, userPosterPath, userBackdropPath, " +
+    "fileSize, missingSince, badges, mediaInfo, nfoPath, NULL AS nfo, userTmdbId, userPosterPath, userBackdropPath, " +
     "userLogoPath, collectionId, addedAt, matchedAt, positionMs, durationMs, played, favorite, " +
     "lastPlayedAt"
 
@@ -127,6 +127,8 @@ data class ItemEntity(
     /** Path relative to the source folder, for movies and episodes. */
     val filePath: String? = null,
     val fileSize: Long? = null,
+    /** When a scan first missed the file: its row waits a while (see [MissingFiles]); null while the file is listed. */
+    val missingSince: Long? = null,
     val badges: List<String> = emptyList(),
     /** [app.houselights.core.MediaInfo] as JSON; null until the file has been read. */
     val mediaInfo: String? = null,

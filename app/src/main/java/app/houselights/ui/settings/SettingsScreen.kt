@@ -44,6 +44,7 @@ import app.houselights.ui.design.components.ScreenTitle
 import app.houselights.ui.design.focusKey
 import app.houselights.ui.design.keepVerticalFocus
 import app.houselights.ui.design.rememberFocusMemory
+import app.houselights.ui.onboarding.FolderField
 import app.houselights.ui.util.formatBytes
 
 private enum class Pane(val label: Int, val icon: ImageVector) {
@@ -57,11 +58,12 @@ private enum class Pane(val label: Int, val icon: ImageVector) {
 /**
  * Settings in two panes: the categories on the left, each with what it is set to now; on the
  * right, the selected one as rows of settings with their value. Focus selects a category.
+ * [onFolderForm] opens the form of a folder (a new one for null), focus on the field given;
  * [onUseFolders] makes the folders the source (or adds the first), [onSignIn] signs in to Jellyfin.
  */
 @Composable
 fun SettingsScreen(
-    onAddFolder: () -> Unit,
+    onFolderForm: (folderId: Long?, focus: FolderField) -> Unit,
     onUseFolders: () -> Unit,
     onSignIn: () -> Unit,
     onOpenCatalog: () -> Unit = {},
@@ -108,7 +110,7 @@ fun SettingsScreen(
     ) {
         val rows = remember(pane) { PaneRows(memory, pane.name) }
         PaneContent(
-            pane, s, storage, onAddFolder, onUseFolders, onSignIn, onOpenCatalog, rows, list,
+            pane, s, storage, onFolderForm, onUseFolders, onSignIn, onOpenCatalog, rows, list,
             entry = memory.requester(paneKey(pane)),
             onFocusIn = { inPane = it },
         )
@@ -151,7 +153,7 @@ private fun PaneContent(
     pane: Pane,
     s: AppSettings,
     storage: StorageStats?,
-    onAddFolder: () -> Unit,
+    onFolderForm: (folderId: Long?, focus: FolderField) -> Unit,
     onUseFolders: () -> Unit,
     onSignIn: () -> Unit,
     onOpenCatalog: () -> Unit,
@@ -173,7 +175,7 @@ private fun PaneContent(
         verticalArrangement = Arrangement.spacedBy(HlSpace.l),
     ) {
         when (pane) {
-            Pane.Library -> libraryPane(s, onAddFolder, onUseFolders, onSignIn, rows)
+            Pane.Library -> libraryPane(s, onFolderForm, onUseFolders, onSignIn, rows)
             Pane.Playback -> playbackPane(s)
             Pane.Display -> displayPane(s)
             Pane.Storage -> storagePane(storage)

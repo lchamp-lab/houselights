@@ -64,4 +64,35 @@ class MigrationTest {
             context.deleteDatabase(name)
         }
     }
+
+    @Test
+    fun version9KeepsEveryRowListed() = runTest {
+        val name = "migration-9-test.db"
+        context.deleteDatabase(name)
+        SchemaHistory.create(context, name, version = 8) {
+            execSQL(
+                "INSERT INTO sources (id, name, kind, protocol, host, share, path, username, password, domain, lastScanAt, firstScanAt) " +
+                    "VALUES (1, 'Films', 'MOVIES', 'NFS', 'nas', 'media', 'films', '', '', '', 1000, 1000)"
+            )
+            execSQL(
+                "INSERT INTO items (id, kind, sourceId, title, sortTitle, continuing, genres, directors, filePath, fileSize, " +
+                    "badges, addedAt, positionMs, played, favorite) " +
+                    "VALUES (1, 'MOVIE', 1, 'Dune', 'dune', 0, '', '', 'Dune.mkv', 42, '', 0, 600000, 0, 1)"
+            )
+        }
+        val db = Room.databaseBuilder(context, LibraryDatabase::class.java, name)
+            .addTypeConverter(SecretConverter(secrets))
+            .addMigrations(*LibraryDatabase.migrations(secrets))
+            .build()
+        try {
+            val dune = checkNotNull(db.dao().item(1))
+            assertEquals(null, dune.missingSince)
+            assertEquals("Dune.mkv" to 42L, dune.filePath to dune.fileSize)
+            assertEquals(600_000L, dune.positionMs)
+            assertTrue(dune.favorite)
+        } finally {
+            db.close()
+            context.deleteDatabase(name)
+        }
+    }
 }

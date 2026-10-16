@@ -159,6 +159,13 @@
     <!-- Local folders -->
     <string name="add_folder">Add a folder</string>
     <string name="add_folder_desc">Say where your films or shows are on the NAS. Houselights tests the connection before adding the folder.</string>
+    <string name="edit_folder">Edit folder</string>
+    <string name="edit_folder_desc">Change its address or sign-in. Houselights tests the connection before saving; its titles, what you’ve watched and your choices stay.</string>
+    <string name="edit_folder_row_desc">Its address or sign-in</string>
+    <string name="edit_folder_unreachable_desc">Its address may have changed</string>
+    <string name="edit_folder_login_desc">Enter the user name or password again</string>
+    <string name="edit_folder_not_found_desc">Its share or path may have changed</string>
+    <string name="password_kept">Unchanged</string>
     <string name="jellyfin_desc">Enter the address of your server and your Jellyfin credentials.</string>
     <string name="folder_kind">Contents</string>
     <string name="field_protocol">Protocol</string>
@@ -180,6 +187,9 @@
     <string name="connection_testing">Connecting…</string>
     <string name="connection_ok">Connected</string>
     <string name="connection_failed">Cannot connect</string>
+    <string name="folder_gone_state">Folder not found</string>
+    <string name="folder_gone">This folder is no longer in the library: it was removed meanwhile. Go back to the settings to add it again.</string>
+    <string name="saving">Saving…</string>
     <plurals name="entries_found">
         <item quantity="one">%d item found</item>
         <item quantity="other">%d items found</item>
@@ -193,6 +203,7 @@
     <string name="error_export_missing" tools:ignore="Typos">Enter the NFS export, for example /volume1/media.</string>
     <string name="error_share_missing">Enter the name of the shared folder, for example media.</string>
     <string name="error_scan_other">The folder could not be read. Try again, or check the share on the NAS.</string>
+    <string name="error_folder_empty">The folder looks empty on the NAS: nothing was removed. Check that its disk is mounted; if it is empty for good, remove it.</string>
     <string name="add">Add</string>
 
     <!-- Jellyfin -->
