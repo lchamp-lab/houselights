@@ -163,4 +163,36 @@ class MigrationTest {
             context.deleteDatabase(name)
         }
     }
+
+    @Test
+    fun version10KeepsEveryRowAsItWas() = runTest {
+        val name = "migration-10-test.db"
+        context.deleteDatabase(name)
+        SchemaHistory.create(context, name, version = 9) {
+            execSQL(
+                "INSERT INTO sources (id, name, kind, protocol, host, share, path, username, password, domain, lastScanAt, firstScanAt) " +
+                    "VALUES (1, 'Séries', 'SHOWS', 'NFS', 'nas', 'media', 'series', '', '', '', 1000, 1000)"
+            )
+            execSQL(
+                "INSERT INTO items (id, kind, sourceId, title, sortTitle, continuing, genres, directors, seasonNumber, episodeNumber, " +
+                    "filePath, fileSize, badges, nfoPath, addedAt, positionMs, played, favorite) " +
+                    "VALUES (1, 'EPISODE', 1, 'Pilot', 'pilot', 0, '', '', 1, 1, 'Show/S01E01.mkv', 42, '', 'Show/S01E01.nfo', 0, 0, 1, 0)"
+            )
+        }
+        val db = Room.databaseBuilder(context, LibraryDatabase::class.java, name)
+            .addTypeConverter(SecretConverter(secrets))
+            .addMigrations(*LibraryDatabase.migrations(secrets))
+            .build()
+        try {
+            val pilot = checkNotNull(db.dao().item(1))
+            assertEquals(null, pilot.lastEpisodeNumber)
+            assertEquals(emptyList<String>(), pilot.parts)
+            assertEquals(null, pilot.sidecarKey)
+            assertEquals("Show/S01E01.nfo", pilot.nfoPath)
+            assertTrue(pilot.played)
+        } finally {
+            db.close()
+            context.deleteDatabase(name)
+        }
+    }
 }

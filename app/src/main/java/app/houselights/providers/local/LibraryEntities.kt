@@ -80,9 +80,9 @@ enum class ItemKind { MOVIE, SERIES, SEASON, EPISODE }
 const val ITEM_ROW =
     "id, kind, sourceId, parentId, seriesId, matchKey, tmdbId, title, sortTitle, originalTitle, " +
     "overview, tagline, year, endYear, continuing, runtimeMin, certification, rating, genres, " +
-    "directors, posterPath, backdropPath, logoPath, stillPath, seasonNumber, episodeNumber, filePath, " +
-    "fileSize, missingSince, badges, mediaInfo, nfoPath, NULL AS nfo, userTmdbId, userPosterPath, userBackdropPath, " +
-    "userLogoPath, collectionId, addedAt, matchedAt, positionMs, durationMs, played, favorite, " +
+    "directors, posterPath, backdropPath, logoPath, stillPath, seasonNumber, episodeNumber, lastEpisodeNumber, filePath, " +
+    "parts, fileSize, missingSince, badges, mediaInfo, nfoPath, NULL AS nfo, sidecarKey, userTmdbId, userPosterPath, " +
+    "userBackdropPath, userLogoPath, collectionId, addedAt, matchedAt, positionMs, durationMs, played, favorite, " +
     "lastPlayedAt"
 
 /** What a show's card tells about its episodes (see [LibraryDao.seriesCounts]). */
@@ -124,8 +124,15 @@ data class ItemEntity(
     val stillPath: String? = null,
     val seasonNumber: Int? = null,
     val episodeNumber: Int? = null,
+    /** The last episode a file holds when it holds several (S01E01-E02); null for one. */
+    val lastEpisodeNumber: Int? = null,
     /** Path relative to the source folder, for movies and episodes. */
     val filePath: String? = null,
+    /**
+     * A film split in several files (CD1, CD2, part1…): the parts after the first, in order, relative
+     * like [filePath], which is the first.
+     */
+    val parts: List<String> = emptyList(),
     val fileSize: Long? = null,
     /** When a scan first missed the file: its row waits a while (see [MissingFiles]); null while the file is listed. */
     val missingSince: Long? = null,
@@ -135,6 +142,11 @@ data class ItemEntity(
     /** The NFO file next to the video (or the show), and its raw content. */
     val nfoPath: String? = null,
     val nfo: String? = null,
+    /**
+     * What the files beside it (NFO, artwork) were when last read: role, path, size and date of each.
+     * One changed in place is read again; null until read.
+     */
+    val sidecarKey: String? = null,
     /** Choices made by the user; scans never override them. */
     val userTmdbId: Int? = null,
     val userPosterPath: String? = null,

@@ -14,7 +14,7 @@ import app.houselights.core.suspendRunCatching
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-@Database(entities = [SourceEntity::class, ItemEntity::class, CastEntity::class, CollectionEntity::class], version = 9)
+@Database(entities = [SourceEntity::class, ItemEntity::class, CastEntity::class, CollectionEntity::class], version = 10)
 @TypeConverters(SecretConverter::class, PipeList::class)
 abstract class LibraryDatabase : RoomDatabase() {
     abstract fun dao(): LibraryDao
@@ -81,6 +81,15 @@ abstract class LibraryDatabase : RoomDatabase() {
             }
         }
 
+        /** Files holding several episodes, films in several parts, and what was read beside each file. */
+        private val MIGRATION_9_10 = object : Migration(9, 10) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE items ADD COLUMN lastEpisodeNumber INTEGER")
+                db.execSQL("ALTER TABLE items ADD COLUMN parts TEXT NOT NULL DEFAULT ''")
+                db.execSQL("ALTER TABLE items ADD COLUMN sidecarKey TEXT")
+            }
+        }
+
         /**
          * Seals the passwords stored in plain text so far, and indexes what lists sort and filter on.
          * A Keystore that cannot seal leaves a password as it is: read as plain text, it still signs
@@ -111,7 +120,7 @@ abstract class LibraryDatabase : RoomDatabase() {
 
         internal fun migrations(secrets: Secrets) = arrayOf(
             MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, migration6To7(secrets), MIGRATION_7_8,
-            MIGRATION_8_9,
+            MIGRATION_8_9, MIGRATION_9_10,
         )
 
         fun create(context: Context, secrets: Secrets): LibraryDatabase =
