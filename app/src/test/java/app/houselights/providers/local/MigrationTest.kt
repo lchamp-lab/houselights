@@ -236,4 +236,36 @@ class MigrationTest {
             context.deleteDatabase(name)
         }
     }
+
+    /** Two sagas named in Japanese made one, keyed "name:": their films are matched again, to find their own. */
+    @Test
+    fun version10MatchesAgainTheFilmsOfSagasWhoseNamesLeftNoWord() = runTest {
+        val name = "migration-10-sagas-test.db"
+        context.deleteDatabase(name)
+        SchemaHistory.create(context, name, version = 9) {
+            execSQL(
+                "INSERT INTO sources (id, name, kind, protocol, host, share, path, username, password, domain, lastScanAt, firstScanAt) " +
+                    "VALUES (1, 'Films', 'MOVIES', 'NFS', 'nas', 'media', 'films', '', '', '', 1000, 1000)"
+            )
+            execSQL("INSERT INTO collections (id, matchKey, name, sortTitle) VALUES (1, 'name:', '攻殻機動隊', '攻殻機動隊')")
+            execSQL("INSERT INTO collections (id, matchKey, name, sortTitle) VALUES (2, 'tmdb:531241', 'Top Gun', 'top gun')")
+            for ((id, collection) in listOf(1 to 1, 2 to 1, 3 to 2)) {
+                execSQL(
+                    "INSERT INTO items (id, kind, sourceId, title, sortTitle, continuing, genres, directors, filePath, fileSize, " +
+                        "badges, collectionId, addedAt, matchedAt, positionMs, played, favorite) " +
+                        "VALUES ($id, 'MOVIE', 1, 'Film $id', 'film $id', 0, '', '', 'Film $id.mkv', 42, '', $collection, 0, 500, 0, 0, 0)"
+                )
+            }
+        }
+        val db = Room.databaseBuilder(context, LibraryDatabase::class.java, name)
+            .addTypeConverter(SecretConverter(secrets))
+            .addMigrations(*LibraryDatabase.migrations(secrets))
+            .build()
+        try {
+            assertEquals(listOf(null, null, 500L), (1L..3L).map { checkNotNull(db.dao().item(it)).matchedAt })
+        } finally {
+            db.close()
+            context.deleteDatabase(name)
+        }
+    }
 }
