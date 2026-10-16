@@ -43,7 +43,8 @@ class PlaybackManager(
     private val reporterFor: suspend (String) -> PlaybackReporter?,
 ) {
     private class Session(
-        val reporter: PlaybackReporter?,
+        /** What reports the file playing: a film's next part's, once the player went on to it (see [follow]). */
+        var reporter: PlaybackReporter?,
         var positionMs: Long,
         /** A disc: it may open on a menu or an intro, whose length is not the title's (see [follow]). */
         val disc: Boolean = false,
@@ -247,24 +248,53 @@ class PlaybackManager(
     /**
      * Takes what the player says for the session. A status of another length is another file: the
      * player went on to the next one of its folder, at the end of the file or as "next" was pressed.
-     * Only a disc plays several lengths as one title: its film comes after a menu or an intro, whose
-     * length gives way to the film's, unless what played was a title, played to its end (the disc's
-     * menu comes back after its film).
+     * When that file is the title's next part ([nextPart]), the session follows it as it did the first,
+     * reported by its own reporter. Only a disc plays several lengths as one title: its film comes after
+     * a menu or an intro, whose length gives way to the film's, unless what played was a title, played to
+     * its end (the disc's menu comes back after its film).
      */
-    private fun follow(s: Session, state: ZidooPlayState) {
+    private suspend fun follow(s: Session, state: ZidooPlayState) {
         val launched = s.durationMs
         if (launched != null && abs(state.durationMs - launched) > maxOf(SAME_FILE_MS, launched / SAME_FILE_SHARE)) {
             val titleEnded = launched >= TITLE_MIN_MS && s.positionMs >= launched - END_POLLS * POLL_MS
             if (!s.disc || titleEnded) {
-                Log.i(TAG, "The player went on to another file ($launched -> ${state.durationMs} ms)")
-                s.switched = true
-                return
+                val next = s.nextPart(state, titleEnded)
+                if (next == null) {
+                    Log.i(TAG, "The player went on to another file ($launched -> ${state.durationMs} ms)")
+                    s.switched = true
+                    return
+                }
+                Log.i(TAG, "The player went on to the title's next part ($launched -> ${state.durationMs} ms)")
+                s.reporter = next.reporter
+                // A new process that gets the player's result reports this part, not the one before; not
+                // once the result has ended the session and cleared what was written down.
+                if (session === s) saved.edit().putString(KEY_RESUME, next.resumeKey).apply()
+            } else {
+                Log.i(TAG, "The title is ${state.durationMs} ms long, past a menu or an intro of $launched ms")
             }
-            Log.i(TAG, "The title is ${state.durationMs} ms long, past a menu or an intro of $launched ms")
         }
         s.positionMs = state.positionMs
         s.durationMs = state.durationMs
         s.paused = state.paused
+    }
+
+    /**
+     * The title's next part ([PlaybackReporter.next]), when it is what the player went on to: its file's
+     * name, when the player says what it plays; else the end of the file before ([ended]), where the
+     * player goes on by itself to the next file of its folder, which a film's next part is. Only a path
+     * tells a disc's next part from its menu.
+     */
+    private suspend fun Session.nextPart(state: ZidooPlayState, ended: Boolean): PlaybackReporter.Next? {
+        val next = suspendRunCatching { reporter?.next() }.getOrNull() ?: return null
+        val played = state.path
+        return next.takeIf { if (played != null) names(played, next.path) else ended && !disc }
+    }
+
+    /** The player's [path] names the file at [relativePath]: by its name, escaped or not, whatever its folder or mount. */
+    private fun names(path: String, relativePath: String): Boolean {
+        val name = relativePath.substringAfterLast('/')
+        val played = path.substringAfterLast('/')
+        return played.equals(name, ignoreCase = true) || Uri.decode(played).equals(name, ignoreCase = true)
     }
 
     /** Writes down where the session is: a new process finds it there if Android stops this one (see [saved]). */

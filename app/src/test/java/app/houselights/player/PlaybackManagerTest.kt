@@ -184,6 +184,99 @@ class PlaybackManagerTest {
         assertEquals("stopped 7150000 / $HEAT", reports.last())
     }
 
+    /** Part [n] of a film in [of] files, whose next part's file the player names [nextPath]. */
+    private fun part(n: Int, of: Int, nextPath: String = "Heat/Heat CD${n + 1}.mkv"): PlaybackReporter = object : PlaybackReporter {
+        override suspend fun started(positionMs: Long) {
+            reports += "part $n started $positionMs"
+        }
+
+        override suspend fun progress(positionMs: Long, durationMs: Long?, paused: Boolean) {
+            reports += "part $n progress $positionMs / $durationMs"
+        }
+
+        override suspend fun stopped(positionMs: Long, durationMs: Long?) {
+            reports += "part $n stopped $positionMs / $durationMs"
+        }
+
+        override suspend fun next() = if (n < of) PlaybackReporter.Next(nextPath, part(n + 1, of), "m1p${n + 1}") else null
+    }
+
+    private fun parts(at: String = "nfs://nas/films/Heat/Heat%20CD1.mkv", reporter: PlaybackReporter = part(1, of = 2)) =
+        plan(at).copy(reporter = reporter)
+
+    private fun playingFile(positionMs: Long, durationMs: Long, path: String?) =
+        PlayerAnswer.Playing(ZidooPlayState(playing = true, paused = false, positionMs = positionMs, durationMs = durationMs, path = path))
+
+    /**
+     * Lire on a film in two files: the player plays the first, then goes on by itself to the second, the
+     * next file of its folder. That is the film still: its last part is reported, the end of the film.
+     */
+    @Test
+    fun aFilmsNextPartIsFollowedToItsEnd() = runTest {
+        val manager = manager()
+        val kept = context.getSharedPreferences("playback", Context.MODE_PRIVATE)
+        manager.intentFor(parts())
+        val first = (1..10).map { playingFile(CD1 - 22_000 + it * 2_000L, CD1, "/mnt/nfs/nas/films/Heat/Heat CD1.mkv") }
+        val second = (1..10).map { playingFile(it * 2_000L, CD2, "/mnt/nfs/nas/films/Heat/Heat CD2.mkv") }
+        statuses += first + second
+        manager.onPlayerLaunched()
+        advanceTimeBy(4_000 + 2_000 * 19L + 1)
+        assertTrue("Tracking went on with the second part", polls >= 20)
+        assertTrue("The second part was reported: $reports", "part 2 progress 12000 / $CD2" in reports)
+        assertEquals("A new process reports the second part", "m1p2", kept.getString("resume_key", null))
+
+        manager.onPlayerResult(result(CD2.toInt() - 1_000))
+        advanceUntilIdle()
+        assertEquals("part 2 stopped ${CD2 - 1_000} / $CD2", reports.last())
+        assertFalse("The first part is not told it stopped elsewhere", reports.any { it.startsWith("part 1 stopped") })
+    }
+
+    /** A player that does not say what it plays: at the end of a part, it goes on to the next file of its folder, the next part. */
+    @Test
+    fun theNextPartIsTheFileAfterTheEndOfAPartWhenThePlayerNamesNone() = runTest {
+        val manager = manager()
+        manager.intentFor(parts())
+        statuses += listOf(playingFile(CD1 - 4_000, CD1, null), playingFile(CD1 - 2_000, CD1, null)) +
+            (1..10).map { playingFile(it * 2_000L, CD2, null) }
+        manager.onPlayerLaunched()
+        advanceTimeBy(4_000 + 2_000 * 11L + 1)
+        assertTrue("The second part was reported: $reports", "part 2 progress 18000 / $CD2" in reports)
+
+        manager.onPlayerResult(result(30_000))
+        advanceUntilIdle()
+        assertEquals("part 2 stopped 30000 / $CD2", reports.last())
+    }
+
+    /** A film in parts, then another file than its next part: that file is not the film's, tracking stops as for any other. */
+    @Test
+    fun anotherFileAfterAPartIsNotItsNextPart() = runTest {
+        // The player names another file at the end of the first part.
+        val manager = manager()
+        manager.intentFor(parts())
+        statuses += listOf(playingFile(CD1 - 4_000, CD1, "/mnt/nfs/Heat CD1.mkv"), playingFile(CD1 - 2_000, CD1, "/mnt/nfs/Heat CD1.mkv")) +
+            (1..10).map { playingFile(it * 2_000L, CD2, "/mnt/nfs/Heat - Trailer.mkv") }
+        manager.onPlayerLaunched()
+        advanceTimeBy(4_000 + 2_000 * 11L + 1)
+        assertEquals("Tracking stopped at the other file", 3, polls)
+        manager.onPlayerResult(result(30_000))
+        advanceUntilIdle()
+        assertEquals("part 1 stopped ${CD1 - 2_000} / $CD1", reports.last())
+
+        // "Next" pressed in the middle of the first part, the player naming nothing.
+        reports.clear()
+        statuses.clear()
+        polls = 0
+        val again = manager()
+        again.intentFor(parts())
+        statuses += listOf(playingFile(600_000, CD1, null), playingFile(30_000, CD2, null))
+        again.onPlayerLaunched()
+        advanceTimeBy(4_000 + 2_000 * 10L)
+        assertEquals("Tracking stopped at the other file", 2, polls)
+        again.onPlayerResult(result(30_000))
+        advanceUntilIdle()
+        assertEquals("part 1 stopped 600000 / $CD1", reports.last())
+    }
+
     /** An episode of 3 min 30 played to its end, then the player went on to the next one, about as long: it is another file. */
     @Test
     fun theNextShortEpisodeIsAnotherFile() = runTest {
@@ -374,5 +467,9 @@ class PlaybackManagerTest {
         const val HEAT = 10_200_000L
         const val FILM = 7_200_000L
         const val EPISODE = 210_000L
+
+        /** A film's two files. */
+        const val CD1 = 5_400_000L
+        const val CD2 = 4_800_000L
     }
 }

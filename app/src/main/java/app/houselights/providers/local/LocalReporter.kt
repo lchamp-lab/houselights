@@ -19,6 +19,13 @@ internal class LocalReporter(private val dao: LibraryDao, private val itemId: Lo
 
     override suspend fun stopped(positionMs: Long, durationMs: Long?) = save(positionMs, durationMs, finished = true)
 
+    /** The film's part after this one, while there is one: its file comes next in its folder. */
+    override suspend fun next(): PlaybackReporter.Next? {
+        // Part 2 is the first of the parts after the first file.
+        val path = dao.item(itemId)?.parts?.getOrNull(part - 1) ?: return null
+        return PlaybackReporter.Next(path, LocalReporter(dao, itemId, part + 1), LocalId.ofPart(itemId, part + 1))
+    }
+
     private suspend fun save(positionMs: Long, durationMs: Long?, finished: Boolean) {
         val entity = dao.item(itemId) ?: return
         val watched = finished && part > entity.parts.size && pastTheEnd(positionMs, durationMs ?: lengthOf(entity))

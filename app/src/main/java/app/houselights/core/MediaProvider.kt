@@ -29,6 +29,18 @@ interface PlaybackReporter {
     /** [durationMs] is the real file duration reported by the player, when known. */
     suspend fun progress(positionMs: Long, durationMs: Long?, paused: Boolean)
     suspend fun stopped(positionMs: Long, durationMs: Long?)
+
+    /**
+     * The file that goes on with the same title, a film's next part: the player plays the next file of
+     * its folder by itself, and the session follows it there. Null when what follows is another title.
+     */
+    suspend fun next(): Next? = null
+
+    /**
+     * The next file of a title: its [path], whose name tells it among what the player says it plays; what
+     * reports it; the key that names that reporter again ([PlaybackPlan.Launch.resumeKey]).
+     */
+    class Next(val path: String, val reporter: PlaybackReporter, val resumeKey: String?)
 }
 
 sealed interface PlaybackPlan {

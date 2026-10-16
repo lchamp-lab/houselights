@@ -307,6 +307,29 @@ class LocalProviderTest {
         }
     }
 
+    /** Lire, then the player goes on by itself from the first file to the second: the film's next part, then its end. */
+    @Test
+    fun aFilmPlayedFromPartToPartIsWatchedAtTheEndOfTheLast() = runTest {
+        val id = godfather()
+        val film = provider.item(id.toString())
+        val first = (provider.playback(film, resume = true, PlaybackOptions(emptyList(), false)) as PlaybackPlan.Launch).reporter!!
+        first.progress(positionMs = 87 * 60_000L, durationMs = 88 * 60_000L, paused = false)
+
+        val next = checkNotNull(first.next())
+        assertEquals("Le Parrain/Le Parrain CD2.avi", next.path)
+        assertEquals(LocalId.Item(id, part = 2), LocalId.parse(next.resumeKey!!))
+        assertNull("the last part has none after it", next.reporter.next())
+        next.reporter.progress(positionMs = 40 * 60_000L, durationMs = 87 * 60_000L, paused = false)
+        assertFalse(dao.item(id)!!.played)
+        next.reporter.stopped(positionMs = 86 * 60_000L, durationMs = 87 * 60_000L)
+        dao.item(id)!!.let {
+            assertTrue(it.played)
+            assertEquals(0L, it.positionMs)
+        }
+        // A film of one file has no next part.
+        assertNull(LocalReporter(dao, movie("Heat")).next())
+    }
+
     /**
      * The player is another app: a fanart or a clearlogo kept by the app is out of its reach. It gets
      * the web address that stands for it (the automatic choice, else the NFO's), never nothing.

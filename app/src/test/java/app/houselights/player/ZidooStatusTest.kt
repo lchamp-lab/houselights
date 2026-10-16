@@ -7,7 +7,7 @@ class ZidooStatusTest {
     @Test
     fun aFilmPlaying() {
         val body = """{"status":200,"video":{"status":1,"currentPosition":61000,"duration":7200000,"path":"/mnt/nfs/Heat.mkv"}}"""
-        val heat = ZidooPlayState(playing = true, paused = false, positionMs = 61000, durationMs = 7200000)
+        val heat = ZidooPlayState(playing = true, paused = false, positionMs = 61000, durationMs = 7200000, path = "/mnt/nfs/Heat.mkv")
         assertEquals(PlayerAnswer.Playing(heat), ZidooStatus.parse(body))
         val paused = """{"status":200,"video":{"status":0,"currentPosition":61000,"duration":7200000}}"""
         assertEquals(true, (ZidooStatus.parse(paused) as PlayerAnswer.Playing).state.paused)
