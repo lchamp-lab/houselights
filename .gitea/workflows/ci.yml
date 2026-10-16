@@ -1,4 +1,5 @@
-# Checks every push and pull request: unit tests, Android Lint, detekt, and a minified release build.
+# Checks every push and pull request: unit tests, Android Lint, detekt (with and without the compiler's
+# types), and a minified release build.
 # Needs a Gitea Actions runner with the "ubuntu-latest" label and 4 GB for its job container. TMDB_API_KEY is optional (a repository
 # secret): without it the app builds and users enter their own key.
 name: CI
@@ -35,12 +36,17 @@ jobs:
         # Needs a runner container of 4 GB: the whole check peaks at 3.5 GB with a 2 GB heap and the
         # Kotlin compiler inside Gradle (measured; at 1.4 GB the kernel kills it while compiling).
         # The release is only built, never published: the runner's debug key signs it.
+        # detektDebug and detektDebugUnitTest run the rules that need the compiler's types (coroutine
+        # dispatchers, !!, unsafe casts, ignored results) on the main and test sources, compiled for
+        # debug anyway. detektMain would compile and analyse the same sources once for each of seven
+        # variants (6.5 min on its own, measured). Each keeps its own baseline (app/detekt-baseline-*.xml).
+        # With them, the whole check from clean took 5.5 min and peaked at 2.9 GB with a 1.5 GB heap.
         run: >-
           ./gradlew --no-daemon --max-workers=2
           -Dorg.gradle.jvmargs="-Xmx2g -XX:MaxMetaspaceSize=512m -Dfile.encoding=UTF-8"
           -Pkotlin.compiler.execution.strategy=in-process
           -Phouselights.debugSignedRelease=true
-          testDebugUnitTest lintDebug detekt assembleRelease
+          testDebugUnitTest lintDebug detekt detektDebug detektDebugUnitTest assembleRelease
 
       - name: Reports
         if: failure()
