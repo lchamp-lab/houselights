@@ -22,7 +22,8 @@ val tmdbApiKey: String = localProps.getProperty("tmdb.apiKey") ?: System.getenv(
 // keyPassword. Android only updates an app signed with the same key, so a release signed with the debug
 // key of whatever machine built it could not be updated by one signed with yours: without the file,
 // packaging the release fails, unless -Phouselights.debugSignedRelease=true asks for the debug key (CI,
-// a build that will not be installed). bench and the benchmark builds are signed with the debug key.
+// a build that will not be installed). bench and the builds :baselineprofile makes are always signed
+// with the debug key, whatever the file says (see androidComponents, below).
 val keystoreProps = Properties().apply {
     rootProject.file("keystore.properties").takeIf { it.exists() }?.inputStream()?.use(::load)
 }
@@ -79,8 +80,7 @@ android {
         release {
             isMinifyEnabled = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            // The debug key stays for the builds made from this one (:baselineprofile's): packageRelease
-            // alone refuses it unless asked, below.
+            // Without a key, packageRelease refuses the debug key unless asked (below).
             signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
         }
         // Optimised like a release, beside it and signed with the debug key: what the player really
@@ -112,6 +112,19 @@ android {
         abortOnError = true
         checkReleaseBuilds = true
         baseline = file("lint-baseline.xml")
+    }
+}
+
+// The builds :baselineprofile makes from the release (nonMinifiedRelease generates the profile,
+// benchmarkRelease measures) keep its package name, and the plugin hands them the release's key. On
+// a player that holds the real release, they would replace it, then be uninstalled when the run ends,
+// the library and watch history with them. Signed with the debug key, their installation fails there
+// instead. Registered after the plugin (applied above), so this runs once it has set its own.
+androidComponents {
+    finalizeDsl { android ->
+        listOf("nonMinifiedRelease", "benchmarkRelease").forEach { name ->
+            android.buildTypes.findByName(name)?.signingConfig = android.signingConfigs.getByName("debug")
+        }
     }
 }
 
