@@ -57,7 +57,7 @@ import app.houselights.ui.design.components.ChoiceOption
 import app.houselights.ui.design.components.Emphasis
 import app.houselights.ui.design.components.FactRow
 import app.houselights.ui.design.components.HlButton
-import app.houselights.ui.design.components.HlChoiceSheet
+import app.houselights.ui.design.components.HlChoiceSetting
 import app.houselights.ui.design.components.HlDivider
 import app.houselights.ui.design.components.HlSideSheet
 import app.houselights.ui.design.components.PosterStrip
@@ -70,6 +70,7 @@ import app.houselights.ui.design.components.SheetConfirm
 import app.houselights.ui.design.components.StatusState
 import app.houselights.ui.design.components.ScanProgress
 import app.houselights.ui.design.revealOnFocus
+import app.houselights.ui.design.tryRequestFocus
 import app.houselights.ui.onboarding.FolderField
 import app.houselights.ui.util.UiError
 import app.houselights.ui.util.scanErrorText
@@ -145,7 +146,7 @@ private fun Sources(rows: PaneRows, onEdit: (folderId: Long, focus: FolderField)
         val (id, next) = removing ?: return@LaunchedEffect
         if (sources.none { it.id == id }) {
             removing = null
-            runCatching { next.requestFocus() }
+            next.tryRequestFocus()
         }
     }
 
@@ -415,7 +416,6 @@ private fun LibraryActions(
 private fun CollectionsRow() {
     val vm = settingsViewModel()
     val s by vm.settings.collectAsStateWithLifecycle()
-    var choose by remember { mutableStateOf(false) }
     @Composable
     fun option(label: Int, description: Int) = ChoiceOption(stringResource(label), stringResource(description))
     val options = listOf(
@@ -423,26 +423,16 @@ private fun CollectionsRow() {
         CollectionThreshold.ANY to option(R.string.collections_all, R.string.collections_all_desc),
         CollectionThreshold.HIDDEN to option(R.string.collections_off, R.string.collections_off_desc),
     )
-    val current = options.indexOfFirst { it.first == s.collectionMinFilms }.coerceAtLeast(0)
     val failure = rowFailure(vm.errorOf(SettingAction.COLLECTIONS))
-    HlSettingRow(
+    HlChoiceSetting(
         stringResource(R.string.collections_setting),
-        value = failure?.value ?: options[current].second.label,
+        options = options.map { it.second },
+        selected = options.indexOfFirst { it.first == s.collectionMinFilms }.coerceAtLeast(0),
+        onSelect = { i -> vm.setCollectionMinFilms(options[i].first) },
         description = stringResource(R.string.collections_setting_desc),
-        valueAttention = failure != null,
-        onClick = { choose = true },
+        attention = failure?.value,
     )
     RowFailureNote(failure)
-    if (choose) {
-        HlChoiceSheet(
-            title = stringResource(R.string.collections_setting),
-            options = options.map { it.second },
-            selected = current,
-            onSelect = { i -> vm.setCollectionMinFilms(options[i].first) },
-            onDismiss = { choose = false },
-            description = stringResource(R.string.collections_setting_desc),
-        )
-    }
 }
 
 /** The source in use, and what changing it keeps; OK opens [SourceSheet]. */
@@ -599,7 +589,7 @@ private fun TmdbKeySheet(issue: UiError?, onDismiss: () -> Unit) {
             if (attempt == null || attempt.number != waitingOn) return@LaunchedEffect
             when (attempt.outcome) {
                 ACCEPTED -> sheet.dismiss()
-                REFUSED -> runCatching { field.requestFocus() }
+                REFUSED -> field.tryRequestFocus()
                 else -> Unit
             }
         }

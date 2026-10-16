@@ -26,43 +26,33 @@ import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.components.ChoiceOption
 import app.houselights.ui.design.components.AttentionNote
 import app.houselights.ui.design.components.HlButton
-import app.houselights.ui.design.components.HlChoiceSheet
+import app.houselights.ui.design.components.HlChoiceSetting
 import app.houselights.ui.design.components.HlIconButton
 import app.houselights.ui.design.components.HlSettingGroup
-import app.houselights.ui.design.components.HlSettingRow
 import app.houselights.ui.design.components.HlTextField
 import app.houselights.ui.design.revealOnFocus
+import app.houselights.ui.design.tryRequestFocus
 import app.houselights.ui.util.FACT_GAP
 
 internal fun LazyListScope.playbackPane(s: AppSettings) {
     item {
         val vm = settingsViewModel()
-        var choose by remember { mutableStateOf(false) }
         val failure = rowFailure(vm.errorOf(SettingAction.FILE_ACCESS))
         Section(stringResource(R.string.section_playback)) {
             HlSettingGroup(null) {
-                HlSettingRow(
+                HlChoiceSetting(
                     stringResource(R.string.file_access),
-                    value = failure?.value ?: stringResource(if (s.forceHttp) R.string.http_stream else R.string.network_path),
+                    options = listOf(
+                        ChoiceOption(stringResource(R.string.network_path), stringResource(R.string.network_path_desc)),
+                        ChoiceOption(stringResource(R.string.http_stream), stringResource(R.string.http_stream_desc)),
+                    ),
+                    selected = if (s.forceHttp) 1 else 0,
+                    onSelect = { vm.setForceHttp(it == 1) },
                     description = stringResource(R.string.playback_desc),
-                    valueAttention = failure != null,
-                    onClick = { choose = true },
+                    attention = failure?.value,
                 )
                 RowFailureNote(failure)
             }
-        }
-        if (choose) {
-            HlChoiceSheet(
-                title = stringResource(R.string.file_access),
-                options = listOf(
-                    ChoiceOption(stringResource(R.string.network_path), stringResource(R.string.network_path_desc)),
-                    ChoiceOption(stringResource(R.string.http_stream), stringResource(R.string.http_stream_desc)),
-                ),
-                selected = if (s.forceHttp) 1 else 0,
-                onSelect = { vm.setForceHttp(it == 1) },
-                onDismiss = { choose = false },
-                description = stringResource(R.string.playback_desc),
-            )
         }
     }
     item { HlSettingGroup(stringResource(R.string.path_mappings), Modifier.revealOnFocus()) { PathMappings() } }
@@ -86,7 +76,7 @@ private fun PathMappings() {
     LaunchedEffect(mappings.size) {
         if (added) {
             added = false
-            runCatching { servers.getValue(mappings.lastIndex).requestFocus() }
+            servers[mappings.lastIndex]?.tryRequestFocus()
         }
     }
     val save = Modifier.onFocusChanged { if (!it.hasFocus) vm.saveMappings() }
@@ -108,7 +98,7 @@ private fun PathMappings() {
                 )
                 HlIconButton(HlIcons.Close, stringResource(R.string.remove), onClick = {
                     // Focus moves first, while the line above is where it was.
-                    runCatching { (if (index > 0) networks.getValue(index - 1) else add).requestFocus() }
+                    (if (index > 0) networks[index - 1] else add)?.tryRequestFocus()
                     vm.removeMapping(index)
                 })
             }

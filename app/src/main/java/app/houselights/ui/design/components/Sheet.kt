@@ -64,10 +64,10 @@ import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.Ground
 import app.houselights.ui.design.LocalGround
-import app.houselights.ui.design.groundStep
+import app.houselights.ui.design.groundStepFill
 import app.houselights.ui.design.scrollEdges
+import app.houselights.ui.design.tryRequestFocus
 import app.houselights.ui.util.toPx
-import coil.compose.AsyncImage
 
 /**
  * What the content of a sheet can do: close it, with its motion, then act once it has gone.
@@ -143,7 +143,7 @@ internal fun SheetWindow(
             window?.setDimAmount(0f)
             window?.setWindowAnimations(0)
         }
-        LaunchedEffect(Unit) { initialFocus?.let { runCatching { it.requestFocus() } } }
+        LaunchedEffect(Unit) { initialFocus?.tryRequestFocus() }
         val room = Hl.colors.background
         Box(
             Modifier
@@ -285,7 +285,7 @@ fun SheetConfirm(
         if (answered) {
             LaunchedEffect(Unit) {
                 answered = false
-                runCatching { origin.requestFocus() }
+                origin.tryRequestFocus()
             }
         }
     }
@@ -295,7 +295,7 @@ fun SheetConfirm(
 @Composable
 private fun ConfirmCard(question: String, consequence: String, confirm: String, onConfirm: () -> Unit, onCancel: () -> Unit) {
     val cancel = remember { FocusRequester() }
-    LaunchedEffect(Unit) { runCatching { cancel.requestFocus() } }
+    LaunchedEffect(Unit) { cancel.tryRequestFocus() }
     Intertitle(question, message = consequence, attention = true) {
         Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.s)) {
             HlButton(stringResource(R.string.cancel), onClick = onCancel, modifier = Modifier.focusRequester(cancel))
@@ -327,25 +327,24 @@ enum class PreviewShape { Poster, Backdrop, Logo }
 fun RowPreview(image: ImageRef?, shape: PreviewShape, modifier: Modifier = Modifier, icon: ImageVector? = null) {
     val c = Hl.colors
     val width: Dp = if (shape == PreviewShape.Poster) HlSize.rowPreviewPoster else HlSize.rowPreviewWide
-    val url = image?.url(width.toPx())
-    var failed by remember(url) { mutableStateOf(false) }
+    val logo = shape == PreviewShape.Logo
     Box(modifier.width(HlSize.rowPreviewWide).height(HlSize.rowPreview), contentAlignment = Alignment.Center) {
         val frame = Modifier.width(width).height(HlSize.rowPreview)
-        val step = groundStep()
-        when {
-            url != null && !failed -> Box(
-                frame.clip(HlShapes.artwork).background(if (shape == PreviewShape.Logo) c.background else c.content.copy(alpha = step)),
-            ) {
-                AsyncImage(
-                    model = url,
-                    contentDescription = null,
-                    contentScale = if (shape == PreviewShape.Logo) ContentScale.Fit else ContentScale.Crop,
-                    onError = { failed = true },
-                    modifier = Modifier.fillMaxSize().padding(if (shape == PreviewShape.Logo) HlSpace.xxs else HlSpace.none),
-                )
+        // The slot centres the picture, or what stands in for it at its own size.
+        ArtworkImage(
+            image?.url(width.toPx()),
+            description = null,
+            contentScale = if (logo) ContentScale.Fit else ContentScale.Crop,
+            picture = frame
+                .clip(HlShapes.artwork)
+                .background(if (logo) c.background else groundStepFill())
+                .padding(if (logo) HlSpace.xxs else HlSpace.none),
+        ) {
+            if (icon != null) {
+                Icon(icon, contentDescription = null, tint = c.contentSecondary, modifier = Modifier.size(HlSize.discIcon))
+            } else {
+                EmptyFrame(frame)
             }
-            icon != null -> Icon(icon, contentDescription = null, tint = c.contentSecondary, modifier = Modifier.size(HlSize.discIcon))
-            else -> EmptyFrame(frame)
         }
     }
 }

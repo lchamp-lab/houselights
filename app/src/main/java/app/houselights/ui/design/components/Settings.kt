@@ -1,7 +1,5 @@
 package app.houselights.ui.design.components
 
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,7 +16,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -30,11 +27,9 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.ClickableSurfaceScale
 import androidx.tv.material3.Icon
 import androidx.tv.material3.LocalContentColor
-import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
 import app.houselights.ui.design.HlSettingRowDefaults
 import app.houselights.ui.design.Hl
@@ -43,7 +38,6 @@ import app.houselights.ui.design.HlFocus
 import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlInset
 import app.houselights.ui.design.HlLayout
-import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
 
@@ -61,19 +55,12 @@ fun HlNavItem(
     modifier: Modifier = Modifier,
 ) {
     val c = Hl.colors
-    val interaction = remember { MutableInteractionSource() }
-    val focused by interaction.collectIsFocusedAsState()
-    Surface(
+    HlRowSurface(
         onClick = onFocused,
         modifier = modifier.fillMaxWidth().onFocusChanged { if (it.isFocused) onFocused() },
-        shape = ClickableSurfaceDefaults.shape(HlShapes.row),
-        scale = FocusStyle.scale(FocusStyle.Fill.Row),
-        colors = FocusStyle.fill(
-            rest = if (selected) c.content.copy(alpha = HlAlpha.FILL) else Color.Transparent,
-            restContent = if (selected) c.content else c.contentSecondary,
-        ),
-        interactionSource = interaction,
-    ) {
+        rest = if (selected) c.content.copy(alpha = HlAlpha.FILL) else Color.Transparent,
+        restContent = if (selected) c.content else c.contentSecondary,
+    ) { focused ->
         Row(Modifier.padding(horizontal = HlSpace.m, vertical = HlSpace.s), verticalAlignment = Alignment.CenterVertically) {
             // The current entry is white, as the current option of a track: where you are is not a state.
             Icon(icon, contentDescription = null, modifier = Modifier.size(HlSize.icon))
@@ -163,7 +150,7 @@ fun HlSettingRow(
                     Text(
                         description,
                         style = Hl.type.caption,
-                        color = rowLineColor(focused, enabled, lit = false, onFocus = c.onFocusSecondary),
+                        color = FocusStyle.quietInk(focused, enabled, lit = false),
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -180,7 +167,7 @@ fun HlSettingRow(
                     Text(
                         value,
                         style = Hl.type.meta,
-                        color = rowLineColor(focused, enabled, valueLit || valueAttention, onFocus = LocalContentColor.current),
+                        color = FocusStyle.quietInk(focused, enabled, valueLit || valueAttention, onFocus = LocalContentColor.current),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.widthIn(max = HlSettingRowDefaults.valueWidth),
@@ -200,40 +187,15 @@ fun HlSettingRow(
         }
         return
     }
-    val interaction = remember { MutableInteractionSource() }
-    val focused by interaction.collectIsFocusedAsState()
-    Surface(
+    HlRowSurface(
         onClick = onClick,
         modifier = modifier.fillMaxWidth(),
+        rest = c.content.copy(alpha = HlAlpha.FILL_FAINT),
         enabled = enabled,
-        shape = ClickableSurfaceDefaults.shape(HlShapes.row),
-        scale = FocusStyle.scale(FocusStyle.Fill.Row),
-        border = FocusStyle.disabledRing(HlShapes.row),
-        colors = FocusStyle.fill(
-            rest = c.content.copy(alpha = HlAlpha.FILL_FAINT),
-            restContent = c.content,
-            disabledContent = c.contentTertiary,
-        ),
-        interactionSource = interaction,
-    ) {
+        disabledContent = c.contentTertiary,
+    ) { focused ->
         // A disabled row keeps its well under focus: its words stay as they are.
         Content(focused && enabled)
-    }
-}
-
-
-/**
- * A row's quieter words (its description, its value), by state: [onFocus] on a focused row,
- * tertiary on a disabled one, ember when [lit], else secondary.
- */
-@Composable
-private fun rowLineColor(focused: Boolean, enabled: Boolean, lit: Boolean, onFocus: Color): Color {
-    val c = Hl.colors
-    return when {
-        focused -> onFocus
-        !enabled -> c.contentTertiary
-        lit -> c.ember
-        else -> c.contentSecondary
     }
 }
 

@@ -99,6 +99,9 @@ val LocalHlColors = staticCompositionLocalOf { HouselightsColors }
 fun HlColors.emberLight(alpha: Float = 1f): Brush =
     Brush.horizontalGradient(listOf(emberFrom.copy(alpha = alpha), emberTo.copy(alpha = alpha)))
 
+/** Every edge and divider of a container: [HlColors.outline] at `HlAlpha.EDGE`, written once. */
+val HlColors.edge: Color get() = outline.copy(alpha = HlAlpha.EDGE)
+
 /**
  * What a component lies on, which decides how it stands out: the black [Room]; [Glass], the
  * raised surface of a sheet, a menu or a dialog, already a step up; or [Artwork], a picture of
@@ -132,6 +135,14 @@ fun groundColor(): Color = if (LocalGround.current == Ground.Glass) Hl.colors.su
 @Composable
 @ReadOnlyComposable
 fun groundStep(): Float = if (LocalGround.current == Ground.Glass) HlAlpha.FILL_FAINT else HlAlpha.FILL
+
+/**
+ * A thing on its ground, one step up ([groundStep]), as it is laid: `content`, translucent, over
+ * what lies below. A quiet panel, a field, an empty frame, the ground an image loads on.
+ */
+@Composable
+@ReadOnlyComposable
+fun groundStepFill(): Color = Hl.colors.content.copy(alpha = groundStep())
 
 /** `content` at [alpha] laid on the ground, opaque: a fill as it shows. */
 @Composable

@@ -11,10 +11,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
@@ -29,9 +26,8 @@ import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.components.ChoiceOption
-import app.houselights.ui.design.components.HlChoiceSheet
+import app.houselights.ui.design.components.HlChoiceSetting
 import app.houselights.ui.design.components.HlSettingGroup
-import app.houselights.ui.design.components.HlSettingRow
 import app.houselights.ui.design.components.InfoBlock
 import app.houselights.ui.design.components.SpecTable
 import app.houselights.ui.design.components.SpecTableRow
@@ -86,30 +82,20 @@ private fun outputControl(): OutputControl {
 @Composable
 private fun InterfaceResolution(s: AppSettings) {
     val vm = settingsViewModel()
-    var choose by remember { mutableStateOf(false) }
     val failure = rowFailure(vm.errorOf(SettingAction.UI_RESOLUTION))
     HlSettingGroup(null) {
-        HlSettingRow(
+        HlChoiceSetting(
             stringResource(R.string.ui_resolution),
-            value = failure?.value ?: stringResource(if (s.ui4k) R.string.ui_4k else R.string.ui_system),
-            description = stringResource(R.string.ui_resolution_desc),
-            valueAttention = failure != null,
-            onClick = { choose = true },
-        )
-        RowFailureNote(failure)
-    }
-    if (choose) {
-        HlChoiceSheet(
-            title = stringResource(R.string.ui_resolution),
             options = listOf(
                 ChoiceOption(stringResource(R.string.ui_4k), stringResource(R.string.ui_4k_desc)),
                 ChoiceOption(stringResource(R.string.ui_system), stringResource(R.string.ui_system_desc)),
             ),
             selected = if (s.ui4k) 0 else 1,
             onSelect = { vm.setUi4k(it == 0) },
-            onDismiss = { choose = false },
             description = stringResource(R.string.ui_resolution_desc),
+            attention = failure?.value,
         )
+        RowFailureNote(failure)
     }
 }
 

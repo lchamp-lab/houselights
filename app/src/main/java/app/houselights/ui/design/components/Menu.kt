@@ -2,8 +2,6 @@ package app.houselights.ui.design.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -29,7 +27,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -49,9 +46,7 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupPositionProvider
 import androidx.compose.ui.window.PopupProperties
-import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.Icon
-import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
 import app.houselights.ui.design.HlMenuDefaults
 import app.houselights.ui.design.Hl
@@ -63,6 +58,7 @@ import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.scrollEdges
+import app.houselights.ui.design.tryRequestFocus
 import kotlin.math.roundToInt
 
 data class MenuOption(val label: String, val selected: Boolean, val onSelect: () -> Unit)
@@ -156,7 +152,7 @@ private class MenuPosition(density: Density) : PopupPositionProvider {
 private fun MenuPanel(sections: List<MenuSection>, maxHeight: Dp, motion: SheetMotion, position: MenuPosition, closeOnSelect: Boolean) {
     val c = Hl.colors
     val first = remember { FocusRequester() }
-    LaunchedEffect(Unit) { runCatching { first.requestFocus() } }
+    LaunchedEffect(Unit) { first.tryRequestFocus() }
     HlPanel(
         Modifier
             .width(HlMenuDefaults.width)
@@ -206,16 +202,11 @@ private fun MenuPanel(sections: List<MenuSection>, maxHeight: Dp, motion: SheetM
 @Composable
 private fun MenuItem(label: String, selected: Boolean, onClick: () -> Unit, modifier: Modifier) {
     val c = Hl.colors
-    val interaction = remember { MutableInteractionSource() }
-    val focused by interaction.collectIsFocusedAsState()
-    Surface(
+    HlRowSurface(
         onClick = onClick,
         modifier = modifier.fillMaxWidth().height(HlSize.segment).semantics { this.selected = selected },
-        shape = ClickableSurfaceDefaults.shape(HlShapes.row),
-        scale = FocusStyle.scale(FocusStyle.Fill.Row),
-        colors = FocusStyle.fill(rest = Color.Transparent, restContent = if (selected) c.content else c.contentSecondary),
-        interactionSource = interaction,
-    ) {
+        restContent = if (selected) c.content else c.contentSecondary,
+    ) { focused ->
         Row(Modifier.fillMaxHeight().padding(horizontal = HlSpace.s), verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.size(HlSize.icon)) {
                 if (selected) {
