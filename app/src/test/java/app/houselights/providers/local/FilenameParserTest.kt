@@ -41,6 +41,10 @@ class FilenameParserTest {
         assertEquals(ParsedMovie("Oppenheimer", null), movie("Oppenheimer.MULTi.2160p.WEB-DL.mkv"))
         assertEquals(ParsedMovie("Oppenheimer", null), movie("Oppenheimer.FRENCH.1080p.WEB.H264-GROUP.mkv"))
         assertEquals(ParsedMovie("Oppenheimer", null), movie("Oppenheimer (FRENCH) 1080p.mkv"))
+        // French encodes' own tags lead the run too, word tags before them included.
+        assertEquals(ParsedMovie("Oppenheimer", null), movie("Oppenheimer.FRENCH.HDLight.1080p.x264-GROUP.mkv"))
+        assertEquals(ParsedMovie("Oppenheimer", null), movie("Oppenheimer.FRENCH.4KLight.mkv"))
+        assertEquals(ParsedMovie("Le Film", null), movie("Le.Film.FRENCH.XViD-GROUP.avi"))
     }
 
     /** Films named by their titles alone. */

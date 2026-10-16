@@ -62,7 +62,7 @@ object FilenameParser {
     /** Release tags no title holds as a word: definition, source, codecs, French release languages. */
     private const val TECHNICAL_TAGS =
         """2160p|1080p|1080i|720p|576p|480p|uhd|hdr10\+?|hdr|dovi|dolby[ ._-]?vision|""" +
-            """blu[ ._-]?ray|bdrip|brrip|bdremux|remux|webrip|web[ ._-]?dl|hdtv|dvdrip|hdrip|""" +
+            """blu[ ._-]?ray|bdrip|brrip|bdremux|remux|webrip|web[ ._-]?dl|hdtv|dvdrip|hdrip|hdlight|4klight|xvid|divx|""" +
             """x264|x265|h[ ._]?264|h[ ._]?265|hevc|avc|av1|10bit|aac|ac3|eac3|dts|truehd|atmos|""" +
             """multi|truefrench|vff|vfq|vfi|vf2|vostfr|subfrench"""
 
