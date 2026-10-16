@@ -93,8 +93,9 @@ class TmdbClient(
 
     /**
      * Adds the key, and turns what TMDB answers into what it means: a key refused, an entry it does
-     * not have, a moment to wait. A body is read here, within the timeouts that tell TMDB is out of
-     * reach: read later, a stalled answer would pass for a NAS that stopped answering.
+     * not have, a moment to wait. Every body is read here, a failure's too, within the timeouts that
+     * tell TMDB is out of reach: read later by Retrofit, a stalled or reset answer would reach the
+     * scan as is, and pass for a NAS that stopped answering.
      */
     private fun intercept(chain: Interceptor.Chain): Response {
         val response = answer(chain)
@@ -116,16 +117,21 @@ class TmdbClient(
         if (pauseWhenUnreachable && SystemClock.elapsedRealtime() < unreachableUntil) throw TmdbUnreachableException(null)
         val url = chain.request().url.newBuilder().addQueryParameter("api_key", apiKey).build()
         return try {
-            chain.proceed(chain.request().newBuilder().url(url).build()).let { if (it.isSuccessful) it.buffered() else it }
+            chain.proceed(chain.request().newBuilder().url(url).build()).buffered()
         } catch (e: IOException) {
             // A call given up on (a search replaced, a screen left) says nothing of TMDB.
             throw if (chain.call().isCanceled()) e else TmdbUnreachableException(e).also { pause() }
         }
     }
 
+    /** The response with its body read, [MAX_BODY_BYTES] at most. */
     private fun Response.buffered(): Response {
         val body = body ?: return this
-        val bytes = body.bytes()
+        val bytes = body.use {
+            val source = it.source()
+            if (source.request(MAX_BODY_BYTES + 1)) throw IOException("TMDB answered more than $MAX_BODY_BYTES bytes")
+            source.buffer.readByteArray()
+        }
         return newBuilder().body(bytes.toResponseBody(body.contentType())).build()
     }
 
@@ -256,6 +262,9 @@ class TmdbClient(
         private const val HTTP_TOO_MANY_REQUESTS = 429
         private val GATEWAY_FAILURES = setOf(502, 503, 504)
         private const val UNREACHABLE_PAUSE_MS = 60_000L
+
+        /** The most of an answer held in memory: a film with its cast and images is well under 1 MB. */
+        private const val MAX_BODY_BYTES = 8L * 1024 * 1024
 
         /** The wait before asking again a gateway that failed, and the longest wait a 429 is granted. */
         private const val GATEWAY_RETRY_MS = 1_000L

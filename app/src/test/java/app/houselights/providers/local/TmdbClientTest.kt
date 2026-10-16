@@ -18,6 +18,8 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.shadows.ShadowSystemClock
 import java.io.IOException
+import java.net.SocketException
+import java.net.SocketTimeoutException
 import java.time.Duration
 import java.util.concurrent.TimeUnit
 
@@ -144,9 +146,24 @@ class TmdbClientTest {
 
     @Test
     fun anAnswerThatStallsIsTmdbOutOfReachNotTheNas() = runTest {
-        tmdb.stallBody = true
+        tmdb.bodyFailure = SocketTimeoutException("timeout")
         val e = failure<TmdbUnreachableException> { tmdb.client().movieById(438631) }
         assertFalse(ScanErrors.isUnreachable(e))
+    }
+
+    /** Retrofit reads a failure's body after the interceptors: read there, a reset would reach the scan as the NAS's. */
+    @Test
+    fun aFailureWhoseBodyBreaksOffIsTmdbOutOfReachNotTheNas() = runTest {
+        tmdb.status = 500
+        tmdb.bodyFailure = SocketException("Connection reset")
+        val e = failure<TmdbUnreachableException> { tmdb.client().movieById(438631) }
+        assertFalse(ScanErrors.isUnreachable(e))
+    }
+
+    @Test
+    fun anAnswerTooLargeToHoldIsNotRead() = runTest {
+        tmdb.movies[438631] = tmdb.movies.getValue(438631).copy(overview = "x".repeat(9 * 1024 * 1024))
+        failure<TmdbUnreachableException> { tmdb.client().movieById(438631) }
     }
 
     @Test

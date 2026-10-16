@@ -15,14 +15,13 @@ import okio.Source
 import okio.Timeout
 import okio.buffer
 import java.io.IOException
-import java.net.SocketTimeoutException
 import java.util.Collections
 import java.util.concurrent.CountDownLatch
 
 /**
  * TMDB in memory, in place of the network of a [TmdbClient] ([client]): films, shows, seasons and
  * collections by id, found by title or IMDb id. Every request is counted, and TMDB can be made to
- * fail, to answer a status, or to hold a request until it is cancelled.
+ * fail, to answer a status, to break off a body, or to hold a request until it is cancelled.
  */
 class FakeTmdb : Interceptor {
     val movies = Collections.synchronizedMap(linkedMapOf<Int, TmdbMovie>())
@@ -51,9 +50,9 @@ class FakeTmdb : Interceptor {
     @Volatile
     var failingPath: String? = null
 
-    /** When set, answers start, then their body stalls past the read timeout. */
+    /** When set, answers start, then reading their body throws it: a body stalled past the read timeout, a connection reset. */
     @Volatile
-    var stallBody: Boolean = false
+    var bodyFailure: IOException? = null
 
     /** When set, a request waits until its call is cancelled, after counting [held] down. */
     @Volatile
@@ -93,20 +92,23 @@ class FakeTmdb : Interceptor {
         failure?.let { throw it }
         failingPath?.let { if (path.startsWith(it)) throw IOException("timeout") }
         val code = synchronized(nextStatuses) { nextStatuses.removeFirstOrNull() } ?: status
-        if (code != null) return respond(chain, code, "{}")
-        val body = answer(path, url.queryParameter("query"), url.queryParameter("year") ?: url.queryParameter("first_air_date_year"))
-        if (stallBody) return respond(chain, OK, "").newBuilder().body(StalledBody).build()
-        return if (body == null) respond(chain, NOT_FOUND, "{}") else respond(chain, OK, body)
+        val response = if (code != null) {
+            respond(chain, code, "{}")
+        } else {
+            val body = answer(path, url.queryParameter("query"), url.queryParameter("year") ?: url.queryParameter("first_air_date_year"))
+            if (body == null) respond(chain, NOT_FOUND, "{}") else respond(chain, OK, body)
+        }
+        return bodyFailure?.let { response.newBuilder().body(FailingBody(it)).build() } ?: response
     }
 
-    /** A body whose bytes never come: reading it times out. */
-    private object StalledBody : ResponseBody() {
+    /** A body whose bytes never come: reading it throws [failure]. */
+    private class FailingBody(private val failure: IOException) : ResponseBody() {
         override fun contentType() = JSON
 
         override fun contentLength() = -1L
 
         override fun source(): BufferedSource = object : Source {
-            override fun read(sink: Buffer, byteCount: Long): Long = throw SocketTimeoutException("timeout")
+            override fun read(sink: Buffer, byteCount: Long): Long = throw failure
 
             override fun timeout() = Timeout.NONE
 
