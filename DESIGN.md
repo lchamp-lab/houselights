@@ -498,7 +498,8 @@ moves to a neighbour, else to the action that adds one ("Ajouter un dossier").
 
 1. Every element that opens another screen, and every card of a list, has a stable key (`focusKey`,
    `FocusKey`): `item:<id>`, `action:edit`, `pane:Library/row:source`. A card's key names its row
-   (`section:…/item:42`), and the row or the pane takes focus when the card has gone.
+   (`section:…/item:42`), and the row or the pane (`focusGroupKey`) takes focus when the card has gone,
+   if anything in it can take it; else focus goes where the screen starts.
 2. The screen keeps its `FocusMemory` with its destination (`rememberFocusMemory`) and brings focus
    back once laid out (`RestoreFocus`), scrolling its list to the element first. A first visit
    starts where the screen starts: the first card, Lire, the entry of the pane open.

@@ -29,7 +29,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.focus.focusProperties
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -49,6 +48,7 @@ import app.houselights.ui.design.BackToStart
 import app.houselights.ui.design.FocusKey
 import app.houselights.ui.design.FocusMemory
 import app.houselights.ui.design.RestoreFocus
+import app.houselights.ui.design.focusGroupKey
 import app.houselights.ui.design.focusKey
 import app.houselights.ui.design.rememberFocusMemory
 import app.houselights.ui.design.rememberRowState
@@ -220,7 +220,7 @@ private fun TopBar(
                 }
             },
             // Focus coming back to the track lands where the track's own rule puts it.
-            modifier = Modifier.weight(1f, fill = false).padding(end = HlSpace.l).focusRequester(memory.requester(TRACK)),
+            modifier = Modifier.weight(1f, fill = false).padding(end = HlSpace.l).focusGroupKey(TRACK, memory),
             scrollable = true,
             enterAt = returnTo ?: current,
         )
@@ -259,7 +259,7 @@ private fun Sections(
                 MediaRow(
                     header = sectionTitle(section),
                     // A card gone since focus left it: focus comes back to its row.
-                    modifier = Modifier.focusRequester(memory.requester(FocusKey.section(section.key))),
+                    modifier = Modifier.focusGroupKey(FocusKey.section(section.key), memory),
                     spacing = if (section.landscape) HlSpace.l else HlSpace.m,
                     state = rememberRowState(section.items.map { it.id }),
                 ) {

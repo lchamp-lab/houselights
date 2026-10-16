@@ -73,6 +73,7 @@ import app.houselights.ui.design.BackToStart
 import app.houselights.ui.design.FocusKey
 import app.houselights.ui.design.FocusMemory
 import app.houselights.ui.design.RestoreFocus
+import app.houselights.ui.design.focusGroupKey
 import app.houselights.ui.design.focusKey
 import app.houselights.ui.design.rememberFocusMemory
 import app.houselights.ui.design.tryRequestFocus
@@ -651,7 +652,7 @@ internal fun partOptions(parts: List<MediaItem>, labels: List<String>, onPlay: (
 internal fun backReturnsToActions(firstVisibleItem: Int, offset: Int): Boolean = firstVisibleItem > 0 || offset > 0
 
 /** A row of the page as a group: a card gone since focus left it, focus comes back to its row. */
-private fun FocusMemory.rowGroup(row: String) = Modifier.focusRequester(requester(FocusKey.row(row)))
+private fun FocusMemory.rowGroup(row: String) = Modifier.focusGroupKey(FocusKey.row(row), this)
 
 /** A card of a row of the page: the same title may sit in two rows. */
 private fun FocusMemory.card(row: String, item: MediaItem) =
