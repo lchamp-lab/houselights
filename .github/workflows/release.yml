@@ -1,0 +1,133 @@
+# Publishes a release when a tag vX.Y.Z (or vX.Y.Z-beta.N, a pre-release) is pushed: the checks of CI,
+# then the release APK signed with the project's key, its SHA-256, and notes made of the commits since
+# the previous tag (each one a sentence of what is now true).
+#
+# Repository secrets (Settings > Secrets and variables > Actions):
+#   HOUSELIGHTS_KEYSTORE           the release keystore, in base64 (base64 -w0 houselights-release.jks)
+#   HOUSELIGHTS_KEYSTORE_PASSWORD  its password (the store's and the key's, one in a PKCS12 keystore)
+#   TMDB_API_KEY                   optional: the project's TMDB key, never a personal one; without it users
+#                                  enter their own in the app's settings
+#
+# To release: set versionName in app/build.gradle.kts, commit, then tag that commit
+# (git tag -a v0.2.0 -m "Houselights 0.2.0" && git push origin v0.2.0).
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    environment: release
+    env:
+      # The project's signing certificate. A release signed with any other key could not update the app
+      # people have installed: the build stops rather than publish one.
+      CERT_SHA256: c42c70c6c8aeca07f838e3906e8fd10e1786339a30d463300e51c27e6a557073
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          # The whole history: versionCode is the number of commits, the notes go back to the last tag.
+          fetch-depth: 0
+
+      - name: The tag is the code's version
+        id: version
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          code="$(sed -n 's/^ *versionName = "\(.*\)"$/\1/p' app/build.gradle.kts)"
+          base="${tag%%-*}"
+          if [ "$base" != "$code" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME, but app/build.gradle.kts says versionName = \"$code\"."
+            exit 1
+          fi
+          echo "name=$tag" >> "$GITHUB_OUTPUT"
+          case "$tag" in *-*) echo "prerelease=--prerelease" >> "$GITHUB_OUTPUT" ;; *) echo "prerelease=" >> "$GITHUB_OUTPUT" ;; esac
+
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3
+
+      - uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4
+        with:
+          # A release builds from nothing a cache could have carried in.
+          cache-disabled: true
+
+      - name: Signing key
+        env:
+          KEYSTORE: ${{ secrets.HOUSELIGHTS_KEYSTORE }}
+          PASSWORD: ${{ secrets.HOUSELIGHTS_KEYSTORE_PASSWORD }}
+        run: |
+          if [ -z "$KEYSTORE" ] || [ -z "$PASSWORD" ]; then
+            echo "::error::The secrets HOUSELIGHTS_KEYSTORE and HOUSELIGHTS_KEYSTORE_PASSWORD are needed."
+            exit 1
+          fi
+          umask 077
+          echo "$KEYSTORE" | base64 -d > "$RUNNER_TEMP/houselights-release.jks"
+          printf 'storeFile=%s\nstorePassword=%s\nkeyAlias=houselights\nkeyPassword=%s\n' \
+            "$RUNNER_TEMP/houselights-release.jks" "$PASSWORD" "$PASSWORD" > keystore.properties
+
+      - name: Checks and the signed release
+        env:
+          TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
+        run: >-
+          ./gradlew --no-daemon --max-workers=2
+          -Dorg.gradle.jvmargs="-Xmx2g -XX:MaxMetaspaceSize=768m -Dfile.encoding=UTF-8"
+          -Pkotlin.compiler.execution.strategy=in-process
+          testDebugUnitTest lintDebug detekt detektDebug detektDebugUnitTest assembleRelease
+
+      - name: The APK bears the project's key
+        id: apk
+        run: |
+          built="$(ls app/build/outputs/apk/release/*.apk | head -n 1)"
+          apk="Houselights-${{ steps.version.outputs.name }}.apk"
+          cp "$built" "$apk"
+          apksigner="$(ls -d "$ANDROID_HOME"/build-tools/*/ | sort -V | tail -n 1)apksigner"
+          signed="$("$apksigner" verify --print-certs "$apk" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p')"
+          if [ "$signed" != "$CERT_SHA256" ]; then
+            echo "::error::The APK is signed with $signed, not the project's key $CERT_SHA256."
+            exit 1
+          fi
+          sha256sum "$apk" > "$apk.sha256"
+          # The same file under a name that never changes: .../releases/latest/download/Houselights.apk is
+          # always the latest release, a short address to type on a TV (README, Install).
+          cp "$apk" Houselights.apk
+          echo "file=$apk" >> "$GITHUB_OUTPUT"
+
+      - name: Notes
+        run: |
+          previous="$(git describe --tags --abbrev=0 "$GITHUB_REF_NAME^" 2>/dev/null || true)"
+          range="${previous:+$previous..}$GITHUB_REF_NAME"
+          {
+            echo "## What's new"
+            echo
+            git log --no-merges --format='- %s' "$range" -- app/src
+            echo
+            echo "## Install"
+            echo
+            echo "Download \`${{ steps.apk.outputs.file }}\` and install it on your player (README, Install)."
+            echo "It updates an earlier release in place, its library and watch history kept."
+            echo
+            echo "SHA-256 of the APK: \`$(cut -d' ' -f1 "${{ steps.apk.outputs.file }}.sha256")\`"
+            echo
+            echo "Signing certificate SHA-256: \`$CERT_SHA256\`"
+          } > notes.md
+
+      - name: Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          gh release create "$GITHUB_REF_NAME" --verify-tag
+          --title "Houselights ${{ steps.version.outputs.name }}"
+          --notes-file notes.md ${{ steps.version.outputs.prerelease }}
+          "${{ steps.apk.outputs.file }}" "${{ steps.apk.outputs.file }}.sha256" Houselights.apk
+
+      - name: Forget the key
+        if: always()
+        run: rm -f keystore.properties "$RUNNER_TEMP/houselights-release.jks"

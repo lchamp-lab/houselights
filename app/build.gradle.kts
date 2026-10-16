@@ -70,6 +70,9 @@ android {
                 storePassword = keystoreProp("storePassword")
                 keyAlias = keystoreProp("keyAlias")
                 keyPassword = keystoreProp("keyPassword")
+                // v3 as well as v2: a v3 signature can name the key that follows this one (key rotation,
+                // Android 9 and up), should the project ever have to change keys without uninstalling.
+                enableV3Signing = true
             }
         }
     }
