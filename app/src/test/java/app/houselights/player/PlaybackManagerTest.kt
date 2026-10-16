@@ -65,7 +65,8 @@ class PlaybackManagerTest {
         reporter = reporter, resumeKey = "m1",
     )
 
-    private fun playing(positionMs: Long, durationMs: Long = HEAT) = PlayerAnswer.Playing(ZidooPlayState(true, false, positionMs, durationMs))
+    private fun playing(positionMs: Long, durationMs: Long = HEAT) =
+        PlayerAnswer.Playing(ZidooPlayState(playing = true, paused = false, positionMs = positionMs, durationMs = durationMs))
 
     private fun result(positionMs: Int) = Intent().putExtra("position", positionMs)
 
@@ -174,22 +175,25 @@ class PlaybackManagerTest {
         assertEquals("stopped 3600000 / $FILM", reports.last())
     }
 
-    /** The player's API out of reach a while (a network hiccup): the film still plays, the NAS is still its own. */
+    /**
+     * The player's API out of reach a while: the film still plays, the NAS is still its own. The API
+     * is asked less often, never given up: once it says nothing plays, nothing does.
+     */
     @Test
     fun aPlayerOutOfReachIsStillPlaying() = runTest {
         val manager = manager()
         manager.intentFor(plan())
-        statuses += listOf(playing(10_000)) + List(40) { null }
+        statuses += listOf(playing(10_000)) + List(40) { null } + List(15) { PlayerAnswer.NothingPlays }
         manager.onPlayerLaunched()
-        advanceTimeBy(4_000 + 2_000 * 40L)
+        advanceTimeBy(4_000 + 2_000 * 16L)
         assertTrue(manager.playing.value)
-        // Tracking itself stops after some thirty seconds without an answer.
+        // Past some thirty seconds without an answer, it is asked every ten seconds.
         val pollsThen = polls
         advanceTimeBy(60_000)
-        assertEquals(pollsThen, polls)
+        assertTrue("Asked ${polls - pollsThen} times in a minute", polls - pollsThen <= 6)
+        assertTrue(manager.playing.value)
 
-        manager.onPlayerResult(result(20_000))
-        advanceUntilIdle()
+        advanceTimeBy(600_000)
         assertFalse(manager.playing.value)
     }
 
@@ -230,7 +234,8 @@ class PlaybackManagerTest {
     /** On a 2 GB player, Android may stop the app while the film plays: the result reaches a new process. */
     @Test
     fun aSessionOutlivesTheProcess() = runTest {
-        val first = manager()
+        // The process stopped: what it was doing goes with it, never to an end of its own.
+        val first = PlaybackManager(context, backgroundScope, status = { statuses.removeFirstOrNull() ?: PlayerAnswer.NoAnswer }) { null }
         first.intentFor(plan())
         statuses += playing(600_000)
         first.onPlayerLaunched()

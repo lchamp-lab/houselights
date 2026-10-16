@@ -159,16 +159,17 @@ class PlaybackManager(
      * Follows the player through its local API: every [POLL_MS] locally, every few polls to the
      * backend, and only what the player says now, never a position kept from before. It stops once
      * the player has gone on to another file, or after [SILENT_POLLS] polls in a row past a first
-     * status that the player says nothing plays, or that its API does not answer: the session waits
-     * for the player's result all the same. Only the player saying nothing plays ends [playing]:
-     * an API out of reach a moment says nothing of the film, whose NAS stays its own.
+     * status that the player says nothing plays: the session waits for the player's result all the
+     * same. Only that ends [playing]: an API out of reach says nothing of the film, whose NAS stays its
+     * own; past [SILENT_POLLS] polls without an answer, it is asked every [SLOW_POLL_MS] only, never
+     * given up, so that what it says next still counts.
      */
     private suspend fun track(s: Session) {
         delay(FIRST_POLL_MS)
         var tick = 0
         var idle = 0
         var unanswered = 0
-        while (currentCoroutineContext().isActive && idle < SILENT_POLLS && unanswered < SILENT_POLLS && !s.switched) {
+        while (currentCoroutineContext().isActive && !s.switched && idle < SILENT_POLLS) {
             when (val answer = status()) {
                 is PlayerAnswer.Playing -> {
                     idle = 0
@@ -187,13 +188,11 @@ class PlaybackManager(
                 }
             }
             tick++
-            delay(POLL_MS)
+            delay(if (unanswered >= SILENT_POLLS) SLOW_POLL_MS else POLL_MS)
         }
         if (idle >= SILENT_POLLS) {
             Log.i(TAG, "The player says nothing plays: tracking stops")
             _playing.value = false
-        } else if (unanswered >= SILENT_POLLS) {
-            Log.i(TAG, "The player's API no longer answers: tracking stops, playback goes on until its result")
         }
     }
 
@@ -265,10 +264,13 @@ class PlaybackManager(
         private const val REPORT_EVERY = 5
 
         /**
-         * Polls in a row, past a first status, that the player says nothing plays or does not answer
-         * before tracking stops: some thirty seconds.
+         * Polls in a row, past a first status, that the player says nothing plays before tracking
+         * stops, or does not answer before it is asked less often: some thirty seconds.
          */
         private const val SILENT_POLLS = 15
+
+        /** How often an API that has not answered a while is asked. */
+        private const val SLOW_POLL_MS = 10_000L
 
         /**
          * How close to its end, in polls, the file launched was when the player shows another: it
