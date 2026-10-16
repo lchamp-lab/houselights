@@ -30,6 +30,7 @@ import app.houselights.core.SectionType
 import app.houselights.core.SortOption
 import app.houselights.core.Typeset
 import app.houselights.core.UserState
+import app.houselights.core.escapeUriPath
 import app.houselights.providers.local.TmdbClient.Companion.ImageType
 import app.houselights.core.CollectionThreshold
 
@@ -332,12 +333,5 @@ class LocalProvider(
                 }
             }
         }
-
-        /**
-         * Escapes the characters that would end or alter a URI path ("%", "#", "?"). Spaces and
-         * accents stay as they are, as the Zidoo player has always received them.
-         */
-        internal fun escapeUriPath(path: String): String =
-            path.replace("%", "%25").replace("#", "%23").replace("?", "%3F")
     }
 }
