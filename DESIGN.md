@@ -609,6 +609,12 @@ show when it fails. `SpacingGridTest` keeps `HlSpace` and
 Deliberate exceptions go in the guard's `allowed` list, with the reason; a value needed twice belongs
 in the design system instead.
 
+What the remote does is tested as the remote does it, keys and Back, on Robolectric with the app's
+theme on the TV canvas (`ui/testing/Remote.kt`): a row's memory (`MediaRowFocusTest`), a sheet's
+Back (`SheetFocusTest`), a scroll area's steps and ends (`ScrollAreaTest`), a field's line
+(`TextFieldMessageTest`), focus brought back (`RestoreFocusTest`), a track's entry
+(`SegmentedFocusTest`). A focus rule that changes comes with its test.
+
 ## Catalogue
 
 Debug builds show **Settings > About > Design system**: every token and component in its states, to
