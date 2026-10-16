@@ -94,6 +94,7 @@ import app.houselights.ui.design.RowScroll
 import app.houselights.ui.design.emberLight
 import app.houselights.ui.design.groundStep
 import app.houselights.ui.design.keepChildFocus
+import app.houselights.ui.design.rememberGroupMember
 import app.houselights.ui.design.rememberedInGroup
 import app.houselights.ui.design.scrollsAsBlock
 import app.houselights.ui.util.toPx
@@ -177,6 +178,9 @@ fun ArtworkSurface(
         label = "grown",
     )
     val reach = with(LocalDensity.current) { HlFocus.glow.toPx() }
+    // Coming back into its row, focus returns to the card that had it last.
+    val group = LocalGroupFocus.current
+    val member = rememberGroupMember(group)
     // Outside the surface's own semantics: clearing them drops its click, keeping its focus said.
     val reading = if (readAs != null) {
         Modifier.clearAndSetSemantics {
@@ -189,7 +193,7 @@ fun ArtworkSurface(
     Surface(
         onClick = onClick,
         modifier = modifier
-            .rememberedInGroup()
+            .rememberedInGroup(group, member)
             .then(reading)
             .onFocusChanged { if (it.isFocused) onFocused() }
             .drawBehind { drawGlow(tone, grown, reach, shape) },

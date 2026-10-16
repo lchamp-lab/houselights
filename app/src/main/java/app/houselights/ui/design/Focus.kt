@@ -23,15 +23,17 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.composed
 import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.focus.FocusEventModifierNode
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.FocusState
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.node.LayoutAwareModifierNode
 import androidx.compose.ui.node.ModifierNodeElement
+import androidx.compose.ui.platform.InspectorInfo
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 
@@ -252,15 +254,41 @@ fun Modifier.keepChildFocus(group: GroupFocus): Modifier = this
     }
     .focusGroup()
 
-/** Reports to the [GroupFocus] around that this element had focus, while it is there. */
-fun Modifier.rememberedInGroup(): Modifier = composed {
-    val group = LocalGroupFocus.current
-    if (group == null) {
-        this
-    } else {
-        val self = remember { FocusRequester() }
-        DisposableEffect(group, self) { onDispose { if (group.last === self) group.last = null } }
-        focusRequester(self).onFocusChanged { if (it.isFocused) group.last = self }
+/**
+ * What focuses an element for [group], the [GroupFocus] around it if any ([LocalGroupFocus]): kept
+ * while the element is composed, and forgotten by the group when the element leaves. The element
+ * reports with it through [rememberedInGroup].
+ */
+@Composable
+fun rememberGroupMember(group: GroupFocus?): FocusRequester {
+    val self = remember { FocusRequester() }
+    if (group != null) DisposableEffect(group, self) { onDispose { if (group.last === self) group.last = null } }
+    return self
+}
+
+/**
+ * Reports to [group], the [GroupFocus] around if any, that this element, focused by [self]
+ * ([rememberGroupMember]), had focus, while it is there. Plain elements, not a `composed` modifier:
+ * equal from one composition to the next, so the surface they are set on still skips when its row
+ * is entered and every card of it recomposes.
+ */
+fun Modifier.rememberedInGroup(group: GroupFocus?, self: FocusRequester): Modifier =
+    if (group == null) this else focusRequester(self).then(GroupMemberElement(group, self))
+
+private data class GroupMemberElement(val group: GroupFocus, val self: FocusRequester) : ModifierNodeElement<GroupMemberNode>() {
+    override fun create() = GroupMemberNode(group, self)
+    override fun update(node: GroupMemberNode) {
+        node.group = group
+        node.self = self
+    }
+    override fun InspectorInfo.inspectableProperties() {
+        name = "rememberedInGroup"
+    }
+}
+
+private class GroupMemberNode(var group: GroupFocus, var self: FocusRequester) : Modifier.Node(), FocusEventModifierNode {
+    override fun onFocusEvent(focusState: FocusState) {
+        if (focusState.isFocused) group.last = self
     }
 }
 
