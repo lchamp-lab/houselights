@@ -149,7 +149,10 @@ internal object MissingFiles {
             SourceKind.SHOWS -> listOf(::episodeKey)
         }
         var rows = missing
-        var candidates = added
+        // A missing film's own part, its first gone a while (a disk of a pool offline), is not the film
+        // renamed: the row waits for its first part, as any missing film for its file.
+        val ownParts = missing.flatMapTo(HashSet()) { it.parts }
+        var candidates = added.filter { it.relativePath !in ownParts }
         return keys.flatMap { key ->
             pairs(rows, candidates, key).also { found ->
                 val ids = found.mapTo(HashSet()) { it.first.id }

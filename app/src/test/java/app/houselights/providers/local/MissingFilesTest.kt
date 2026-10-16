@@ -60,6 +60,25 @@ class MissingFilesTest {
         }
     }
 
+    /**
+     * A film's first part out of sight a while (a disk of a pool offline), its second still there, alone
+     * in the film's folder: that part is not the film renamed. The film waits for its first part, its parts
+     * as they were.
+     */
+    @Test
+    fun aFilmWhoseFirstPartIsGoneWaitsForIt() {
+        val dir = "Heat (1995)"
+        val heat = film(1, "$dir/Heat (1995) CD1.avi").copy(parts = listOf("$dir/Heat (1995) CD2.avi"))
+        val outcome = stacked(listOf(heat), "$dir/Heat (1995) CD2.avi")
+        assertEquals(emptyList<Pair<Long, RemoteFile>>(), outcome.relinked)
+        assertEquals(listOf(1L), outcome.held)
+        assertEquals(emptyList<Pair<Long, List<String>>>(), outcome.parts)
+
+        // Its first part renamed is the film still.
+        val renamed = stacked(listOf(heat), "$dir/Heat (1995).avi")
+        assertEquals(listOf(1L to RemoteFile("$dir/Heat (1995).avi", 1_000)), renamed.relinked)
+    }
+
     private companion object {
         const val NOW = 1_000_000L
         const val VOL_1 = 24
