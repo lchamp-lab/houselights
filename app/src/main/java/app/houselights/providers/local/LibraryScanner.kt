@@ -44,7 +44,9 @@ class LibraryScanner(
     /** True while a film plays: the scan waits, so as not to read the NAS while the player streams from it. */
     private val playing: StateFlow<Boolean> = MutableStateFlow(false),
     /** How a folder is read; tests hand in a NAS of their own. */
-    private val browsers: (SourceEntity) -> RemoteBrowser = RemoteBrowser::of,
+    private val browsers: (SourceEntity) -> RemoteBrowser,
+    /** Closes the sessions and mounts a pass kept open; called when it ends. */
+    private val closeIdle: () -> Unit = {},
     private val clock: () -> Long = System::currentTimeMillis,
 ) {
     private val _state = MutableStateFlow(ScanState())
@@ -192,7 +194,7 @@ class LibraryScanner(
             // Whatever happened, the scan is over: the settings must not show it running forever.
             _state.value = ScanState(errors = errors)
             lastScanEnd = clock()
-            SmbBrowser.closeAll()
+            closeIdle()
         }
         // A scan that found nothing new leaves screens as they are.
         if (changed) _changed.emit(Unit)

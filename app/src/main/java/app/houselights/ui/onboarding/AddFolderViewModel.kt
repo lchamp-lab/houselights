@@ -14,19 +14,15 @@ import app.houselights.core.SourceConfig
 import app.houselights.core.suspendRunCatching
 import app.houselights.providers.local.LocalLibrary
 import app.houselights.providers.local.Protocol
-import app.houselights.providers.local.RemoteBrowser
 import app.houselights.providers.local.ScanError
 import app.houselights.providers.local.ScanErrorKind
 import app.houselights.providers.local.ScanErrors
 import app.houselights.providers.local.Secret
-import app.houselights.providers.local.SmbBrowser
 import app.houselights.providers.local.SourceEntity
 import app.houselights.providers.local.SourceKind
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 /** A network folder as the form describes it, as typed. */
 data class FolderForm(
@@ -127,9 +123,9 @@ class AddFolderViewModel(
     /** Makes the folders the source; true when it changed (it was a server, or nothing yet). */
     private val useFolders: suspend () -> Boolean,
     /** Reads the first level of a folder: how many entries it holds. Throws when it cannot. */
-    private val probe: suspend (SourceEntity) -> Int = { RemoteBrowser.of(it).test(it) },
+    private val probe: suspend (SourceEntity) -> Int,
     /** Closes the SMB sessions kept open on a folder's share. */
-    private val forgetSessions: suspend (SourceEntity) -> Unit = { withContext(Dispatchers.IO) { SmbBrowser.forget(it) } },
+    private val forgetSessions: suspend (SourceEntity) -> Unit,
 ) : ViewModel() {
     constructor(app: AppContainer, folderId: Long? = null) : this(
         library = app.library,
@@ -140,6 +136,8 @@ class AddFolderViewModel(
             if (switched) app.sources.switchTo(SourceConfig.Local)
             switched
         },
+        probe = { app.remoteBrowsers.of(it).test(it) },
+        forgetSessions = app.remoteBrowsers::forget,
     )
 
     var form by mutableStateOf(FolderForm())

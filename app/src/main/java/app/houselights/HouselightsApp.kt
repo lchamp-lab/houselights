@@ -17,6 +17,7 @@ import app.houselights.providers.local.LibraryScanner
 import app.houselights.providers.local.LocalEditor
 import app.houselights.providers.local.LocalLibrary
 import app.houselights.providers.local.LocalProvider
+import app.houselights.providers.local.RemoteBrowsers
 import app.houselights.providers.local.TmdbClient
 import app.houselights.settings.SettingsStore
 import app.houselights.settings.SourceSwitcher
@@ -80,14 +81,19 @@ class AppContainer(private val app: Application) {
         settings.state.first { it.loaded }
         provider.reporter(resumeKey)
     }
+
+    /** The NAS browsers, and the sessions and mounts they keep between files. */
+    val remoteBrowsers = RemoteBrowsers()
     val scanner = LibraryScanner(
         dao = database.dao(),
         tmdb = ::tmdb,
         scope = scope,
         artwork = artwork,
         playing = playback.playing,
+        browsers = remoteBrowsers::of,
+        closeIdle = remoteBrowsers::closeIdle,
     )
-    val library = LocalLibrary(app, database.dao(), scanner, artwork)
+    val library = LocalLibrary(app, database.dao(), scanner, artwork, remoteBrowsers::forget)
 
     private val _libraryVersion = MutableStateFlow(0L)
 

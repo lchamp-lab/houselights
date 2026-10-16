@@ -9,7 +9,7 @@ data class RemoteFile(
 /** Videos of a folder, and the files that describe them (NFO, artwork). */
 data class Listing(val videos: List<RemoteFile>, val sidecars: List<RemoteFile>)
 
-/** Lists the video files of a network folder, whatever the protocol. */
+/** Lists the video files of a network folder, whatever the protocol; [RemoteBrowsers] has the app's. */
 interface RemoteBrowser {
     suspend fun list(source: SourceEntity): Listing
 
@@ -24,11 +24,6 @@ interface RemoteBrowser {
 
     companion object {
         const val MAX_DEPTH = 6
-
-        fun of(source: SourceEntity): RemoteBrowser = when (source.protocol) {
-            Protocol.SMB -> SmbBrowser
-            Protocol.NFS -> NfsBrowser
-        }
 
         /** Hidden files, Synology/QNAP system folders, recycle bins. */
         fun skip(name: String) =
