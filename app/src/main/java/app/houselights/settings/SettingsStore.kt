@@ -52,6 +52,23 @@ private object Keys {
  */
 private val SECRET_KEYS = listOf(Keys.source, Keys.tmdbKey, Keys.mappings)
 
+/** A setting that holds a secret, named for the screens that say it could not be read again. */
+enum class SecretSetting {
+    /** The source: a server's token. */
+    SOURCE,
+    TMDB_KEY,
+
+    /** Path mappings: their network paths may carry a password. */
+    PATH_MAPPINGS,
+}
+
+private val Preferences.Key<String>.secret: SecretSetting
+    get() = when (this) {
+        Keys.source -> SecretSetting.SOURCE
+        Keys.tmdbKey -> SecretSetting.TMDB_KEY
+        else -> SecretSetting.PATH_MAPPINGS
+    }
+
 private val sourceJson = Json { ignoreUnknownKeys = true }
 
 /** A source holds a secret, the server's token, unless it is the folders: those are never sealed. */
@@ -96,17 +113,20 @@ data class AppSettings(
     /** How many films of a collection the library needs to show it; 0 hides collections. */
     val collectionMinFilms: Int = CollectionThreshold.DEFAULT,
     /**
-     * A secret kept here (the source's token, path mappings, the TMDB key) could not be read again (the
-     * Keystore's key is gone, or a value no longer makes sense): it reads as not set, and is to be
-     * given again.
+     * The secrets kept here (the source's token, path mappings, the TMDB key) that could not be read
+     * again (the Keystore's key is gone, or a value no longer makes sense): each reads as not set, and
+     * is to be given again. Saving a new value puts it back.
      */
-    val lostSecrets: Boolean = false,
+    val lostSecrets: Set<SecretSetting> = emptySet(),
     /**
      * The settings file could not be read, again and again: not [loaded], and still tried, less and
      * less often. Never the defaults in its place, which would open on the welcome screen.
      */
     val readFailed: Boolean = false,
-)
+) {
+    /** The connection kept (a server and its token) could not be read again: the welcome screen says so. */
+    val lostSource: Boolean get() = SecretSetting.SOURCE in lostSecrets
+}
 
 class SettingsStore(
     private val dataStore: DataStore<Preferences>,
@@ -143,7 +163,7 @@ class SettingsStore(
     }
 
     private fun Preferences.toSettings(): AppSettings {
-        val lost = mutableListOf<String>()
+        val lost = mutableSetOf<SecretSetting>()
         val source = this[Keys.source]?.let { opened(Keys.source, it, lost) }?.let { decoded<SourceConfig>(Keys.source, it, lost) }
         val mappings = this[Keys.mappings]
             ?.let { opened(Keys.mappings, it, lost) }
@@ -157,27 +177,27 @@ class SettingsStore(
             ui4k = this[Keys.ui4k] ?: true,
             tmdbApiKey = this[Keys.tmdbKey]?.let { opened(Keys.tmdbKey, it, lost) }?.takeIf { it.isNotBlank() },
             collectionMinFilms = this[Keys.collectionMin] ?: CollectionThreshold.DEFAULT,
-            lostSecrets = lost.isNotEmpty(),
+            lostSecrets = lost,
         )
     }
 
     /** The plain text of a secret; when it can't be read, null, written down in [lost] and logged (never its value). */
-    private fun opened(key: Preferences.Key<String>, stored: String, lost: MutableList<String>): String? {
+    private fun opened(key: Preferences.Key<String>, stored: String, lost: MutableSet<SecretSetting>): String? {
         val plain = secrets.open(stored)
         if (plain == null) {
             Log.w(TAG, "${key.name} can no longer be decrypted")
-            lost += key.name
+            lost += key.secret
         }
         return plain
     }
 
     /** What [text] holds; when it no longer reads (a version that renamed a field), null, written down in [lost]. */
-    private inline fun <reified T> decoded(key: Preferences.Key<String>, text: String, lost: MutableList<String>): T? = try {
+    private inline fun <reified T> decoded(key: Preferences.Key<String>, text: String, lost: MutableSet<SecretSetting>): T? = try {
         json.decodeFromString<T>(text)
     } catch (e: IllegalArgumentException) {
         // A SerializationException among them: its message would quote the value.
         Log.w(TAG, "${key.name} no longer reads: ${e.javaClass.simpleName}")
-        lost += key.name
+        lost += key.secret
         null
     }
 

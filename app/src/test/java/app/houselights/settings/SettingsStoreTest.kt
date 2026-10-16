@@ -91,13 +91,35 @@ class SettingsStoreTest {
         val written = testSettings(folder.root, backgroundScope)
         written.setSource(home)
         written.state.first { it.source != null }
-        assertFalse(written.state.value.lostSecrets)
+        assertEquals(emptySet<SecretSetting>(), written.state.value.lostSecrets)
 
         val store = FlakyStore(failures = 0, prefs = stored(testSecrets()))
         val other = SettingsStore(store, backgroundScope, testSecrets())
         val read = other.state.first { it.loaded }
         assertEquals(null, read.source)
-        assertTrue(read.lostSecrets)
+        assertEquals(setOf(SecretSetting.SOURCE), read.lostSecrets)
+        assertTrue(read.lostSource)
+    }
+
+    /**
+     * Only the TMDB key is lost: the welcome screen says nothing of a connection, and the key saved
+     * again is no longer said lost.
+     */
+    @Test
+    fun eachSecretLostIsSaidApartAndAGoodOneSavedPutsItBack() = runTest {
+        val tmdbKey = stringPreferencesKey("tmdb_api_key")
+        val secrets = testSecrets()
+        val prefs = mutablePreferencesOf(sourceKey to Json.encodeToString<SourceConfig>(SourceConfig.Local), tmdbKey to testSecrets().seal("k3y"))
+        val settings = SettingsStore(FlakyStore(0, prefs), backgroundScope, secrets)
+        val read = settings.state.first { it.loaded }
+        assertEquals(SourceConfig.Local, read.source)
+        assertEquals(setOf(SecretSetting.TMDB_KEY), read.lostSecrets)
+        assertFalse(read.lostSource)
+
+        val written = testSettings(folder.root, backgroundScope, secrets)
+        written.setTmdbApiKey("n3w")
+        assertEquals("n3w", written.state.first { it.tmdbApiKey != null }.tmdbApiKey)
+        assertEquals(emptySet<SecretSetting>(), written.state.value.lostSecrets)
     }
 
     /** Sealing in the migration fails: the plain value stays, and the settings still open with it. */

@@ -46,7 +46,7 @@ import app.houselights.ui.util.toPx
 @Composable
 fun WelcomeScreen(onLocal: () -> Unit, onJellyfin: () -> Unit) {
     val app = appContainer()
-    val lostSecrets = app.settings.state.collectAsStateWithLifecycle().value.lostSecrets
+    val lostSource = app.settings.state.collectAsStateWithLifecycle().value.lostSource
     val focus = remember { FocusRequester() }
     var posters by remember { mutableStateOf<List<String>>(emptyList()) }
     val posterPx = HlSize.posterWall.toPx()
@@ -77,7 +77,7 @@ fun WelcomeScreen(onLocal: () -> Unit, onJellyfin: () -> Unit) {
             Column(Modifier.width(HlLayout.welcomeChoices), verticalArrangement = Arrangement.spacedBy(HlSpace.s)) {
                 Text(stringResource(R.string.welcome_title), style = Hl.type.lead, color = Hl.colors.content)
                 // Back here because the connection kept could not be read again: said, not left to guess.
-                if (lostSecrets) AttentionNote(stringResource(R.string.welcome_lost_secrets))
+                if (lostSource) AttentionNote(stringResource(R.string.welcome_lost_secrets))
                 Spacer(Modifier.height(HlSpace.xxs))
                 // The same height side by side; under each, how it reaches your films.
                 HlListItem(
