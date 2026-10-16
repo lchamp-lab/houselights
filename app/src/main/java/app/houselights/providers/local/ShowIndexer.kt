@@ -10,8 +10,14 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
     /** Shows already looked up during the current scan (full refresh only). */
     private val refreshedSeries = mutableSetOf<Long>()
 
-    /** A new scan looks shows up again. */
-    fun startPass() = refreshedSeries.clear()
+    /** Seasons a full refresh already gave TMDB's details again during the current scan. */
+    private val refreshedSeasons = mutableSetOf<Long>()
+
+    /** A new scan looks shows and seasons up again. */
+    fun startPass() {
+        refreshedSeries.clear()
+        refreshedSeasons.clear()
+    }
 
     @Suppress("LongParameterList") // What a pass hands each file.
     suspend fun process(
@@ -31,7 +37,7 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
         val showYear = folders.firstOrNull()?.let { FilenameParser.parseMovie(it).year }
 
         val series = series(source, showTitle, showYear, showDir, sidecars, tmdb, refreshMetadata, now)
-        val season = season(source, series, parsed.season, seasons, now, sidecars.seasonPoster(showDir, parsed.season))
+        val season = season(source, series, parsed.season, seasons, now, sidecars.seasonPoster(showDir, parsed.season), refreshMetadata)
         val local = sidecars.forVideo(file)
         val base = existing ?: ItemEntity(
             kind = ItemKind.EPISODE,
@@ -206,6 +212,12 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
         return series
     }
 
+    /**
+     * The season of an episode, with TMDB's details once, and again at a [refresh], once a pass (the
+     * [cache] asks TMDB once a pass too). A refresh TMDB does not answer leaves the season unmatched,
+     * as it does its show and episodes: a later pass asks again.
+     */
+    @Suppress("LongParameterList") // What a pass hands each episode's season.
     private suspend fun season(
         source: SourceEntity,
         series: ItemEntity,
@@ -213,6 +225,7 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
         cache: SeasonCache,
         now: Long,
         localPoster: RemoteFile?,
+        refresh: Boolean,
     ): ItemEntity {
         var season = dao.season(series.id, number) ?: ItemEntity(
             kind = ItemKind.SEASON,
@@ -226,9 +239,15 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
             addedAt = now,
         ).let { it.copy(id = dao.insert(it)) }
 
-        val meta = series.tmdbId?.let { cache.get(it, number).value }
-        if (meta != null && season.matchedAt == null) {
+        val answer = series.tmdbId?.let { cache.get(it, number) }
+        val meta = answer?.value
+        val refreshDue = refresh && season.matchedAt != null && season.id !in refreshedSeasons
+        if (meta != null && (season.matchedAt == null || refreshDue)) {
+            refreshedSeasons += season.id
             season = season.withSeasonDetails(meta, now)
+            dao.saveScanned(season)
+        } else if (refreshDue && answer == TmdbAnswer.Unanswered) {
+            season = season.copy(matchedAt = null)
             dao.saveScanned(season)
         }
         if (localPoster != null && !season.posterPath.isCachedArtwork()) {
