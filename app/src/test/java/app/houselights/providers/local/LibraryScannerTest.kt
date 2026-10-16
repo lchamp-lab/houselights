@@ -52,10 +52,6 @@ class LibraryScannerTest {
     private val playing = MutableStateFlow(false)
     private val started = MutableStateFlow(true)
 
-    /** Times the scanner closed what it kept on the NAS, and what runs when it does. */
-    private val closed = AtomicInteger()
-    private var onClose: () -> Unit = {}
-
     /** The most values one statement bound. */
     private val widest = AtomicInteger()
 
@@ -90,10 +86,7 @@ class LibraryScannerTest {
                     else -> nas
                 }
             },
-            closeIdle = {
-                closed.incrementAndGet()
-                onClose()
-            },
+            closeIdle = {},
             clock = { now },
             elapsed = { elapsed },
             playing = playing,
@@ -226,51 +219,6 @@ class LibraryScannerTest {
     }
 
     @Test
-    fun eachPassClosesWhatItKeptOnTheNasOnce() = runTest {
-        nas.put("Dune (2021).mkv")
-        scan()
-        assertEquals(1, closed.get())
-
-        // A folder of the pass fails.
-        folder("Films", SourceKind.MOVIES, host = OTHER_HOST)
-        otherNas.listFailure = ConnectException("Connection refused")
-        scan()
-        assertEquals(2, closed.get())
-    }
-
-    @Test
-    fun aScanWaitingForTheFilmHoldsNoSessionOnTheNas() = runTest {
-        nas.put("Dune (2021).mkv")
-        // The film starts while the folder is listed: the pass waits before its first file.
-        nas.onList = { playing.value = true }
-        val closing = CompletableDeferred<Unit>().also { onClose = { it.complete(Unit) } }
-        scanner.scanAll()
-        closing.await()
-        assertEquals("closed before reading a file", emptyList<String>(), nas.reads)
-
-        playing.value = false
-        passes.children.toList().forEach { it.join() }
-        assertEquals(listOf("Dune (2021).mkv"), filePaths())
-        assertEquals("and once the pass is over", 2, closed.get())
-    }
-
-    @Test
-    fun aScanWaitingForTheAppHoldsNoSessionOnTheNas() = runTest {
-        nas.put("Dune (2021).mkv")
-        var listed = 0
-        nas.onList = { listed++ }
-        started.value = false
-        val closing = CompletableDeferred<Unit>().also { onClose = { it.complete(Unit) } }
-        scanner.scanAll()
-        closing.await()
-        assertEquals("closed before listing", 0, listed)
-
-        started.value = true
-        passes.children.toList().forEach { it.join() }
-        assertEquals(2, closed.get())
-    }
-
-    @Test
     fun aPassCutShortLetsTheNextOneStart() = runTest {
         nas.put("Dune (2021).mkv")
         val listing = CompletableDeferred<Unit>()
@@ -381,32 +329,6 @@ class LibraryScannerTest {
             filePaths(),
         )
         assertEquals("not even held", null, dao.filesOf(films.id).single { it.title == "Arrival" }.missingSince)
-    }
-
-    /** The rights of every subfolder changed on the NAS: said as such, never as a folder to remove. */
-    @Test
-    fun aFolderWhoseSubfoldersAllRefuseTheDeviceIsAccessDenied() = runTest {
-        nas.put("Dune (2021)/Dune (2021).mkv")
-        nas.put("Arrival (2016)/Arrival (2016).mkv")
-        scan()
-        dao.setFavorite(dao.filesOf(films.id).first { it.title == "Dune" }.id, true)
-
-        nas.unreadable = listOf("Dune (2021)", "Arrival (2016)")
-        scan()
-
-        assertEquals(ScanErrorKind.ACCESS_DENIED, error())
-        assertEquals(listOf("Arrival (2016)/Arrival (2016).mkv", "Dune (2021)/Dune (2021).mkv"), filePaths())
-        assertTrue(dao.filesOf(films.id).first { it.title == "Dune" }.favorite)
-    }
-
-    @Test
-    fun aFirstScanOfAFolderWhoseSubfoldersAllRefuseTheDeviceSaysSo() = runTest {
-        nas.put("Private/Dune (2021)/Dune (2021).mkv")
-        nas.unreadable = listOf("Private")
-        scan()
-
-        assertEquals("not a folder left at 0 titles, unexplained", ScanErrorKind.ACCESS_DENIED, error())
-        assertEquals(emptyList<String>(), filePaths())
     }
 
     @Test

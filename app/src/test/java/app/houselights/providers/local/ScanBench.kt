@@ -7,6 +7,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import java.io.File
 import java.util.concurrent.atomic.AtomicInteger
@@ -39,15 +40,28 @@ class ScanBench(artworkDir: File, tmdbKey: Boolean = true) {
 
     val artwork = ArtworkCache(artworkDir) { freeSpace }
 
+    /** A film playing, the app on screen: what a scan waits for. */
+    val playing = MutableStateFlow(false)
+    val started = MutableStateFlow(true)
+
+    /** Times the scanner closed what it kept on the NAS, and what runs when it does. */
+    val closed = AtomicInteger()
+    var onClose: () -> Unit = {}
+
     val scanner = LibraryScanner(
         dao = dao,
         tmdb = { scanClient.takeIf { withTmdb } },
         scope = CoroutineScope(passes),
         artwork = artwork,
+        playing = playing,
         browsers = { own[it.id] ?: if (it.kind == SourceKind.SHOWS) showsNas else nas },
-        closeIdle = {},
+        closeIdle = {
+            closed.incrementAndGet()
+            onClose()
+        },
         clock = { now },
         interactiveTmdb = { tmdb.client().takeIf { withTmdb } },
+        started = started,
     )
 
     fun close() = db.close()

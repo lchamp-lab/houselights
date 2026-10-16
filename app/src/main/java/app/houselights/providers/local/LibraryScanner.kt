@@ -249,19 +249,19 @@ class LibraryScanner(
         val askUnmatched = down == null || elapsed() - down.at >= UNMATCHED_RETRY_MS
         try {
             val sources = dao.sources()
-            for ((index, source) in sources.withIndex()) {
+            val reached = mutableSetOf<Long>()
+            for (source in sources) {
+                reached += source.id
                 val failure = suspendRunCatching {
                     changed = scan(source, refreshMetadata, tmdb, seasons, askUnmatched) || changed
                 }.exceptionOrNull()
                 val error = failure?.let { errorOf(source, it) }
                 error?.let { errors[source.id] = it }
-                // Out of space, every other folder would fail the same way, file after file. Those not
-                // reached keep what their last scan said: one off stays off.
-                if (error?.kind == ScanErrorKind.STORAGE_FULL) {
-                    sources.drop(index + 1).forEach { left -> before[left.id]?.let { errors[left.id] = it } }
-                    break
-                }
+                // Out of space, every other folder would fail the same way, file after file.
+                if (error?.kind == ScanErrorKind.STORAGE_FULL) break
             }
+            // Folders the pass stopped before keep what their last scan said: one off stays off.
+            errors += before.filterKeys { id -> id !in reached && sources.any { it.id == id } }
             lock.withLock {
                 suspendRunCatching {
                     // Rows a folder removed during the scan may have received meanwhile.
