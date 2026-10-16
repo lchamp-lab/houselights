@@ -30,6 +30,7 @@ import app.houselights.core.SectionType
 import app.houselights.core.SortOption
 import app.houselights.core.Typeset
 import app.houselights.core.UserState
+import app.houselights.core.escapeUriPath
 import app.houselights.providers.local.TmdbClient.Companion.ImageType
 import app.houselights.core.CollectionThreshold
 
@@ -270,11 +271,15 @@ class LocalProvider(
         val entity = entity(item) ?: throw NotFoundException("Item ${item.id}")
         val file = entity.filePath ?: error("${item.title} has no file")
         val source = dao.sources().firstOrNull { it.id == entity.sourceId } ?: error("Source of ${item.title} was removed")
-        return LocalMapper(dao, context).map(entity).launch(
-            fileUri(source, file), FilenameParser.extension(file),
+        val mapper = LocalMapper(dao, context)
+        val container = FilenameParser.extension(file)
+        return mapper.forPlayer(entity, mapper.map(entity)).launch(
+            fileUri(source, file), container,
             startMs = if (resume) entity.positionMs else 0L,
             reporter = LocalReporter(dao, entity.id),
             resumeKey = entity.id.toString(),
+            // Scans list files: of a disc, only its image is one. A Blu-ray's or DVD's folder is read as the files it holds.
+            disc = container == DISC_IMAGE,
         )
     }
 
@@ -298,6 +303,9 @@ class LocalProvider(
         const val COLLECTIONS = "collections"
 
         private const val NEXT_UP_SHOWS = 20
+
+        /** The extension of a disc's image, the one disc a folder of files holds. */
+        private const val DISC_IMAGE = "iso"
         private const val SIMILAR = 16
 
 
@@ -331,12 +339,5 @@ class LocalProvider(
                 }
             }
         }
-
-        /**
-         * Escapes the characters that would end or alter a URI path ("%", "#", "?"). Spaces and
-         * accents stay as they are, as the Zidoo player has always received them.
-         */
-        internal fun escapeUriPath(path: String): String =
-            path.replace("%", "%25").replace("#", "%23").replace("?", "%3F")
     }
 }

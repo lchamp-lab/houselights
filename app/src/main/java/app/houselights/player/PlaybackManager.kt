@@ -5,14 +5,18 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.net.Uri
+import android.os.SystemClock
 import android.util.Log
+import app.houselights.R
 import app.houselights.core.PlaybackPlan
 import app.houselights.core.PlaybackReporter
+import app.houselights.core.isWebUrl
 import app.houselights.core.suspendRunCatching
 import app.houselights.ui.util.UiError
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -20,6 +24,7 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlin.math.abs
 
 /**
  * Launches the native Zidoo player and feeds playback progress back to the backend.
@@ -30,12 +35,28 @@ import kotlinx.coroutines.launch
 class PlaybackManager(
     private val context: Context,
     private val scope: CoroutineScope,
+    /** What the player says it plays now: the Zidoo local API. */
+    private val status: suspend () -> PlayerAnswer = ZidooStatus::playStatus,
+    /** Milliseconds that only go forward: how long the player has said nothing of its title. */
+    private val clock: () -> Long = SystemClock::elapsedRealtime,
     /** The reporter of a playback the app started before it was stopped (see [PlaybackPlan.Launch.resumeKey]). */
     private val reporterFor: suspend (String) -> PlaybackReporter?,
 ) {
-    private class Session(val reporter: PlaybackReporter?, var positionMs: Long) {
+    private class Session(
+        val reporter: PlaybackReporter?,
+        var positionMs: Long,
+        /** A disc: it may open on a menu or an intro, whose length is not the title's (see [follow]). */
+        val disc: Boolean = false,
+    ) {
+        /** The length of the title, from the player's first status (see [follow]). */
         var durationMs: Long? = null
         var paused = false
+
+        /** The player went on to another file (the next one of its folder): what it says is no longer this title's. */
+        var switched = false
+
+        /** The report that playback started: the one that it stopped waits for it. */
+        var started: Job? = null
     }
 
     private var session: Session? = null
@@ -76,8 +97,10 @@ class PlaybackManager(
     /**
      * Builds the intent for the Zidoo player, or for any video player elsewhere.
      *
-     * Only the Zidoo player, installed as part of the system, receives a URI with credentials: another
-     * app answering a generic video intent never does. Throws [CredentialsNotShared] in that case.
+     * Only the Zidoo player, installed as part of the system, receives a URI with a password: another
+     * app answering a generic video intent never does ([CredentialsNotShared]). A URI with a token in
+     * its query (Jellyfin's stream) goes elsewhere only through a chooser: the user picks the app,
+     * none takes it without being asked.
      */
     fun intentFor(plan: PlaybackPlan.Launch): Intent {
         Log.i(TAG, "Launch ${plan.title} -> ${Redact.uri(plan.uri)}")
@@ -86,8 +109,9 @@ class PlaybackManager(
             component = ComponentName(ZIDOO_PACKAGE, ZIDOO_ACTIVITY)
             setDataAndType(Uri.parse(plan.uri), "video/${plan.container ?: "*"}")
             putExtra("title", plan.title)
-            plan.backdropUrl?.let { putExtra("loading_image", it) }
-            plan.logoUrl?.let { putExtra("clearlogo_image", it) }
+            // The player is another app: a file of ours is out of its reach, a web address is not.
+            plan.backdropUrl?.takeIf(::isWebUrl)?.let { putExtra("loading_image", it) }
+            plan.logoUrl?.takeIf(::isWebUrl)?.let { putExtra("clearlogo_image", it) }
             if (plan.startMs > 0) {
                 putExtra("from_start", false)
                 putExtra("position", plan.startMs.toInt())
@@ -96,18 +120,20 @@ class PlaybackManager(
             }
             putExtra("return_result", true)
         }
-        val intent = if (isSystemZidooPlayer() && zidoo.resolveActivity(context.packageManager) != null) {
-            zidoo
-        } else {
-            if (Redact.hasUserInfo(plan.uri)) throw CredentialsNotShared()
-            Intent(Intent.ACTION_VIEW).apply {
-                setDataAndType(Uri.parse(plan.uri), "video/*")
-                putExtra("title", plan.title)
-                putExtra("position", plan.startMs.toInt())
-                putExtra("return_result", true)
+        val intent = when {
+            isSystemZidooPlayer() && zidoo.resolveActivity(context.packageManager) != null -> zidoo
+            Redact.hasUserInfo(plan.uri) -> throw CredentialsNotShared()
+            else -> {
+                val any = Intent(Intent.ACTION_VIEW).apply {
+                    setDataAndType(Uri.parse(plan.uri), "video/*")
+                    putExtra("title", plan.title)
+                    putExtra("position", plan.startMs.toInt())
+                    putExtra("return_result", true)
+                }
+                if (Redact.hasCredentials(plan.uri)) Intent.createChooser(any, context.getString(R.string.play_with)) else any
             }
         }
-        session = Session(plan.reporter, plan.startMs)
+        session = Session(plan.reporter, plan.startMs, plan.disc)
         // Written before the player takes over: the platform finishes pending apply() writes before our
         // activity stops, which launching the player does, so the resume point survives a killed process.
         saved.edit().putString(KEY_RESUME, plan.resumeKey).putLong(KEY_POSITION, plan.startMs).apply()
@@ -132,23 +158,99 @@ class PlaybackManager(
     fun onPlayerLaunched() {
         val s = session ?: return
         _playing.value = true
-        scope.launch { report { s.reporter?.started(s.positionMs) } }
+        s.started = scope.launch { report { s.reporter?.started(s.positionMs) } }
         pollJob?.cancel()
-        pollJob = scope.launch {
-            delay(4_000)
-            var ticks = 0
-            while (isActive) {
-                ZidooStatus.playStatus()?.let { state ->
-                    s.positionMs = state.positionMs
-                    s.durationMs = state.durationMs
-                    s.paused = state.paused
-                    saved.edit().putLong(KEY_POSITION, state.positionMs).apply()
+        pollJob = scope.launch { track(s) }
+    }
+
+    /**
+     * Follows the player through its local API: every [POLL_MS] locally, every few polls to the
+     * backend, and only what the player says now, never a position kept from before. It stops once
+     * the player has gone on to another file, or after [SILENT_POLLS] polls in a row past a first
+     * status that the player says nothing plays: the session waits for the player's result all the
+     * same. An API out of reach says nothing of the film, whose NAS stays its own: past [SILENT_POLLS]
+     * polls without an answer, it is asked every [SLOW_POLL_MS] only, so that what it says next still
+     * counts, until the title can no longer be playing ([silenceAllowedMs]). That also ends [playing]:
+     * an API gone with its player never holds the NAS for good.
+     */
+    private suspend fun track(s: Session) {
+        var heardAt = clock()
+        delay(FIRST_POLL_MS)
+        var tick = 0
+        var idle = 0
+        var unanswered = 0
+        while (currentCoroutineContext().isActive && !s.switched && idle < SILENT_POLLS) {
+            val answer = status()
+            when (answer) {
+                is PlayerAnswer.Playing -> {
+                    heardAt = clock()
+                    idle = 0
+                    unanswered = 0
+                    follow(s, answer.state)
+                    if (!s.switched && tick % REPORT_EVERY == 0) report { s.reporter?.progress(s.positionMs, s.durationMs, s.paused) }
                 }
-                // Poll locally every 2 s, report to the backend every ~10 s.
-                if (ticks++ % 5 == 0) report { s.reporter?.progress(s.positionMs, s.durationMs, s.paused) }
-                delay(2_000)
+                // Before a first status, the player may still be opening the file.
+                PlayerAnswer.NothingPlays -> if (s.durationMs != null) {
+                    idle++
+                    unanswered = 0
+                }
+                PlayerAnswer.NoAnswer -> if (s.durationMs != null) {
+                    unanswered++
+                    idle = 0
+                }
             }
+            if (s.silentTooLong(answer, heardAt)) {
+                Log.i(TAG, "The player has said nothing of the title for longer than it could play: tracking stops")
+                _playing.value = false
+                return
+            }
+            tick++
+            delay(if (unanswered >= SILENT_POLLS) SLOW_POLL_MS else POLL_MS)
         }
+        if (idle >= SILENT_POLLS) {
+            Log.i(TAG, "The player says nothing plays: tracking stops")
+            _playing.value = false
+        }
+    }
+
+    /** [answer] says nothing of the title again, and the player last spoke of it ([heardAt]) longer ago than it could still play. */
+    private fun Session.silentTooLong(answer: PlayerAnswer, heardAt: Long) =
+        answer !is PlayerAnswer.Playing && clock() - heardAt > silenceAllowedMs()
+
+    /**
+     * How long the player may say nothing of the title (no answer, or nothing playing) before the title
+     * can no longer be playing: what was left of it at the last status, and [SILENCE_MARGIN_MS] for a
+     * pause or a seek back. Before a first status its length is unknown: [UNHEARD_MAX_MS]. So it is
+     * when a disc has only shown a menu or an intro so far: what was left of it says nothing of the
+     * film to come.
+     */
+    private fun Session.silenceAllowedMs(): Long {
+        val title = durationMs?.takeUnless { disc && it < TITLE_MIN_MS } ?: return UNHEARD_MAX_MS
+        return (title - positionMs).coerceAtLeast(0) + SILENCE_MARGIN_MS
+    }
+
+    /**
+     * Takes what the player says for the session. A status of another length is another file: the
+     * player went on to the next one of its folder, at the end of the file or as "next" was pressed.
+     * Only a disc plays several lengths as one title: its film comes after a menu or an intro, whose
+     * length gives way to the film's, unless what played was a title, played to its end (the disc's
+     * menu comes back after its film).
+     */
+    private fun follow(s: Session, state: ZidooPlayState) {
+        val launched = s.durationMs
+        if (launched != null && abs(state.durationMs - launched) > maxOf(SAME_FILE_MS, launched / SAME_FILE_SHARE)) {
+            val titleEnded = launched >= TITLE_MIN_MS && s.positionMs >= launched - END_POLLS * POLL_MS
+            if (!s.disc || titleEnded) {
+                Log.i(TAG, "The player went on to another file ($launched -> ${state.durationMs} ms)")
+                s.switched = true
+                return
+            }
+            Log.i(TAG, "The title is ${state.durationMs} ms long, past a menu or an intro of $launched ms")
+        }
+        s.positionMs = state.positionMs
+        s.durationMs = state.durationMs
+        s.paused = state.paused
+        saved.edit().putLong(KEY_POSITION, state.positionMs).apply()
     }
 
     /** Player result: final position in ms when the player returns it. */
@@ -164,11 +266,13 @@ class PlaybackManager(
         pollJob = null
         val returned = data?.getIntExtra("position", -1) ?: -1
         scope.launch {
-            // The last progress report is done before the final one is sent.
+            // The last progress report is done, and the one that playback started, before the final one is sent.
             poll?.cancelAndJoin()
+            live?.started?.join()
             // No live session: the app was stopped while the film played.
             val s = live ?: Session(resumeKey?.let { reporterFor(it) }, savedPosition)
-            if (returned > 0) s.positionMs = returned.toLong()
+            // A position the player returns for another file is not this title's.
+            if (returned > 0 && !s.switched) s.positionMs = returned.toLong()
             Log.i(TAG, "Playback ended at ${s.positionMs} / ${s.durationMs} ms")
             report { s.reporter?.stopped(s.positionMs, s.durationMs) }
             _playbackEnded.emit(Unit)
@@ -186,6 +290,49 @@ class PlaybackManager(
         private const val TAG = "Playback"
         private const val KEY_RESUME = "resume_key"
         private const val KEY_POSITION = "position_ms"
+
+        /** The player takes a few seconds to open the file. */
+        private const val FIRST_POLL_MS = 4_000L
+        private const val POLL_MS = 2_000L
+
+        /** Progress goes to the backend every this many polls: some ten seconds. */
+        private const val REPORT_EVERY = 5
+
+        /**
+         * Polls in a row, past a first status, that the player says nothing plays before tracking
+         * stops, or does not answer before it is asked less often: some thirty seconds.
+         */
+        private const val SILENT_POLLS = 15
+
+        /** How often an API that has not answered a while is asked. */
+        private const val SLOW_POLL_MS = 10_000L
+
+        /** Past what was left of the title, how long the player may still say nothing of it (see [silenceAllowedMs]). */
+        private const val SILENCE_MARGIN_MS = 5 * 60_000L
+
+        /**
+         * How long a player that never gave the title's length may say nothing before it is taken to
+         * play no more: the longest cuts people watch run near four hours (and the scan waits for a
+         * player as long). Shorter, a long film whose player's API never answers would share its NAS
+         * with a scan; longer, a player that is gone would hold the scan for nothing.
+         */
+        private const val UNHEARD_MAX_MS = 4 * 60 * 60_000L
+
+        /**
+         * How close to its end, in polls, a disc's title was when the player shows another length: it
+         * played to its end, and the disc's menu came back.
+         */
+        private const val END_POLLS = 3
+
+        /** Shorter than this, what a disc plays first is its menu or an intro, never its title. */
+        private const val TITLE_MIN_MS = 5 * 60_000L
+
+        /**
+         * Two statuses of the same file agree on its length within this, or within a hundredth of it,
+         * room for a length the player refines as it reads (a transport stream's).
+         */
+        private const val SAME_FILE_MS = 2_000L
+        private const val SAME_FILE_SHARE = 100
         const val ZIDOO_PACKAGE = "com.android.gallery3d"
         const val ZIDOO_ACTIVITY = "com.android.gallery3d.app.MovieActivity"
     }

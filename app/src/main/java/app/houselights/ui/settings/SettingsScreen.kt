@@ -11,6 +11,7 @@ import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -31,6 +32,7 @@ import app.houselights.BuildConfig
 import app.houselights.R
 import app.houselights.core.SourceConfig
 import app.houselights.settings.AppSettings
+import app.houselights.settings.SecretSetting
 import app.houselights.ui.design.BackToStart
 import app.houselights.ui.design.FocusKey
 import app.houselights.ui.design.FocusMemory
@@ -38,6 +40,7 @@ import app.houselights.ui.design.HlFocus
 import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.RestoreFocus
+import app.houselights.ui.design.components.AttentionNote
 import app.houselights.ui.design.components.HlNavItem
 import app.houselights.ui.design.components.HlTwoPane
 import app.houselights.ui.design.components.ScreenTitle
@@ -45,9 +48,10 @@ import app.houselights.ui.design.focusKey
 import app.houselights.ui.design.keepVerticalFocus
 import app.houselights.ui.design.rememberFocusMemory
 import app.houselights.ui.onboarding.FolderField
+import app.houselights.ui.util.UiError
 import app.houselights.ui.util.formatBytes
 
-private enum class Pane(val label: Int, val icon: ImageVector) {
+internal enum class Pane(val label: Int, val icon: ImageVector) {
     Library(R.string.section_source, HlIcons.Folder),
     Playback(R.string.section_playback, HlIcons.Playback),
     Display(R.string.section_display, HlIcons.Display),
@@ -59,19 +63,26 @@ private enum class Pane(val label: Int, val icon: ImageVector) {
  * Settings in two panes: the categories on the left, each with what it is set to now; on the
  * right, the selected one as rows of settings with their value. Focus selects a category.
  * [onFolderForm] opens the form of a folder (a new one for null), focus on the field given;
- * [onUseFolders] makes the folders the source (or adds the first), [onSignIn] signs in to Jellyfin.
+ * [onUseFolders] makes the folders the source (or adds the first), and hands back why it could
+ * not, said on the source's row; [onSignIn] signs in to Jellyfin.
  */
 @Composable
 fun SettingsScreen(
     onFolderForm: (folderId: Long?, focus: FolderField) -> Unit,
-    onUseFolders: () -> Unit,
+    onUseFolders: (onError: (UiError) -> Unit) -> Unit,
     onSignIn: () -> Unit,
     onOpenCatalog: () -> Unit = {},
 ) {
     val vm = settingsViewModel()
+    val useFolders = {
+        vm.clearActionError()
+        onUseFolders { vm.actionFailed(SettingAction.SOURCE, it) }
+    }
     val s by vm.settings.collectAsStateWithLifecycle()
     val panes = if (s.source != null && vm.capabilities.pathMapping) Pane.entries else Pane.entries - Pane.Playback
     var pane by rememberSaveable { mutableStateOf(Pane.Library) }
+    // A change that failed is said in the pane it was made in, not in the next one.
+    LaunchedEffect(pane) { vm.clearActionError() }
     val memory = rememberFocusMemory()
     // Each pane keeps where it was scrolled, across the screens it opens.
     val list = rememberSaveable(pane, saver = LazyListState.Saver) { LazyListState() }
@@ -110,7 +121,7 @@ fun SettingsScreen(
     ) {
         val rows = remember(pane) { PaneRows(memory, pane.name) }
         PaneContent(
-            pane, s, storage, onFolderForm, onUseFolders, onSignIn, onOpenCatalog, rows, list,
+            pane, s, storage, onFolderForm, useFolders, onSignIn, onOpenCatalog, rows, list,
             entry = memory.requester(paneKey(pane)),
             onFocusIn = { inPane = it },
         )
@@ -129,6 +140,15 @@ private suspend fun revealRow(list: LazyListState, key: String, memory: FocusMem
     }
     return false
 }
+
+/** What [pane] says of a secret of its own that could not be read again, to be given again; null when none is lost. */
+internal fun lostSecretNote(pane: Pane, lost: Set<SecretSetting>): Int? = when {
+    pane == Pane.Library && SecretSetting.TMDB_KEY in lost -> R.string.settings_lost_tmdb_key
+    pane == Pane.Playback && SecretSetting.PATH_MAPPINGS in lost -> R.string.settings_lost_mappings
+    else -> null
+}
+
+private const val LOST_SECRET = "lost-secret"
 
 /** A pane's entry in the navigation; its rows are keyed within it. */
 private fun paneKey(pane: Pane) = FocusKey.pane(pane.name)
@@ -162,6 +182,7 @@ private fun PaneContent(
     entry: FocusRequester,
     onFocusIn: (Boolean) -> Unit,
 ) {
+    val vm = settingsViewModel()
     LazyColumn(
         state = list,
         modifier = Modifier
@@ -174,6 +195,9 @@ private fun PaneContent(
         contentPadding = PaddingValues(bottom = HlFocus.edge, end = HlSpace.m),
         verticalArrangement = Arrangement.spacedBy(HlSpace.l),
     ) {
+        // A secret of this pane that could not be read again: said at its head, where it is read first.
+        // A change that failed is said on its own row, where focus is.
+        lostSecretNote(pane, s.lostSecrets)?.let { note -> item(key = LOST_SECRET) { AttentionNote(stringResource(note)) } }
         when (pane) {
             Pane.Library -> libraryPane(s, onFolderForm, onUseFolders, onSignIn, rows)
             Pane.Playback -> playbackPane(s)

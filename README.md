@@ -204,6 +204,9 @@ Both sources show the same home, libraries, detail pages, technical sheets and p
   the Android Keystore, and Android backup is off: copying the app's files elsewhere reveals none of them.
 - Jellyfin is reached over HTTPS when the server offers it; the settings show when the connection is not
   encrypted. Signing out of Jellyfin (changing source) revokes the app's token on the server.
+- A Jellyfin stream played without path mappings carries the app's token in its URL (`api_key`). Outside
+  the Zidoo player, it goes to another video app only through Android's app chooser: you pick the app,
+  none takes the token without being asked.
 - Artwork named by NFO files is fetched over HTTPS only. TMDB is reached over HTTPS only; plain HTTP stays
   allowed for servers on the home network.
 - `nfs-client` depends on Netty 3.10 (end of life). Its known vulnerabilities concern HTTP and compression

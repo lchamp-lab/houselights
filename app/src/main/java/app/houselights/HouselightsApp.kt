@@ -5,12 +5,12 @@ import android.util.Log
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ProcessLifecycleOwner
 import app.houselights.core.Http
+import app.houselights.core.LibraryEvents
 import app.houselights.core.LibraryKind
 import app.houselights.core.MediaProvider
 import app.houselights.core.Secrets
 import app.houselights.core.SourceConfig
 import app.houselights.core.suspendRunCatching
-import app.houselights.core.throttleLatest
 import app.houselights.player.PlaybackManager
 import app.houselights.providers.jellyfin.JellyfinProvider
 import app.houselights.providers.local.ArtworkCache
@@ -31,15 +31,12 @@ import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.merge
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 class HouselightsApp : Application(), ImageLoaderFactory {
@@ -67,7 +64,7 @@ class HouselightsApp : Application(), ImageLoaderFactory {
 }
 
 /** Manual dependency container, created once per process. */
-class AppContainer(private val app: Application) {
+class AppContainer(private val app: Application) : LibraryEvents {
     /**
      * Work that outlives screens (scans, playback reports). A failure nothing else caught is logged:
      * a background task never takes the app down.
@@ -103,20 +100,13 @@ class AppContainer(private val app: Application) {
     )
     val library = LocalLibrary(app, database.dao(), scanner, artwork, remoteBrowsers::forget)
 
-    private val _libraryVersion = MutableStateFlow(0L)
+    private val changes = LibraryChanges(scope, listOf(playback.playbackEnded, scanner.changed))
 
-    /**
-     * Moves on when library data may have changed (playback ended, scan progress), at most every few
-     * seconds. Screens on display reload when it moves; screens behind others when they come back.
-     */
-    val libraryVersion: StateFlow<Long> = _libraryVersion
+    override val libraryVersion: StateFlow<Long> = changes.version
+
+    override fun libraryChanged() = changes.userChanged()
 
     init {
-        scope.launch {
-            merge(playback.playbackEnded, scanner.changed)
-                .throttleLatest(LIBRARY_CHANGE_MS)
-                .collect { _libraryVersion.update { it + 1 } }
-        }
         // A TMDB key saved, or removed for the built-in one: what TMDB said of the old one is forgotten,
         // and the titles it left unmatched are asked for at once.
         scope.launch {
@@ -187,11 +177,10 @@ class AppContainer(private val app: Application) {
 
     init {
         scope.launch { settings.ensureDeviceId() }
+        // Passwords a Keystore at fault left in plain text (migration 6 to 7): sealed once it seals again.
+        scope.launch { LibraryDatabase.sealPlainPasswords(database.dao(), Secrets.device) }
     }
 }
-
-/** Scan progress refreshes screens at most this often. */
-private const val LIBRARY_CHANGE_MS = 3_000L
 
 /** Decoded pictures kept in memory: a few backdrops and the posters of several rows. */
 private const val IMAGE_MEMORY_BYTES = 64 * 1024 * 1024

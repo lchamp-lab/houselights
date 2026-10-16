@@ -1,6 +1,7 @@
 package app.houselights.ui.onboarding
 
 import androidx.compose.foundation.background
+import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -33,17 +34,24 @@ import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import app.houselights.ui.design.components.AttentionNote
 import app.houselights.ui.design.components.HlListItem
 import app.houselights.ui.design.components.PosterWall
 import app.houselights.ui.design.components.PosterWallScrim
 import app.houselights.ui.design.components.Wordmark
+import app.houselights.ui.util.UiError
 import app.houselights.ui.util.appContainer
 import app.houselights.ui.util.toPx
 
-/** First launch: a lobby of this week's films behind the wordmark, then where yours are. */
+/**
+ * First launch: a lobby of this week's films behind the wordmark, then where yours are. [problem]
+ * says why the choice made last could not be saved.
+ */
 @Composable
-fun WelcomeScreen(onLocal: () -> Unit, onJellyfin: () -> Unit) {
+fun WelcomeScreen(onLocal: () -> Unit, onJellyfin: () -> Unit, problem: UiError? = null) {
     val app = appContainer()
+    val lostSource = app.settings.state.collectAsStateWithLifecycle().value.lostSource
     val focus = remember { FocusRequester() }
     var posters by remember { mutableStateOf<List<String>>(emptyList()) }
     val posterPx = HlSize.posterWall.toPx()
@@ -73,6 +81,9 @@ fun WelcomeScreen(onLocal: () -> Unit, onJellyfin: () -> Unit) {
             Spacer(Modifier.width(HlSpace.xl))
             Column(Modifier.width(HlLayout.welcomeChoices), verticalArrangement = Arrangement.spacedBy(HlSpace.s)) {
                 Text(stringResource(R.string.welcome_title), style = Hl.type.lead, color = Hl.colors.content)
+                // Back here because the connection kept could not be read again: said, not left to guess.
+                if (lostSource) AttentionNote(stringResource(R.string.welcome_lost_secrets))
+                problem?.let { AttentionNote(stringResource(welcomeProblem(it))) }
                 Spacer(Modifier.height(HlSpace.xxs))
                 // The same height side by side; under each, how it reaches your films.
                 HlListItem(
@@ -95,6 +106,16 @@ fun WelcomeScreen(onLocal: () -> Unit, onJellyfin: () -> Unit) {
             }
         }
     }
+}
+
+/**
+ * What the welcome screen says of [problem], the failure of the choice made last, and the form of the
+ * first folder it leads to: never to look in the settings, which neither leads to.
+ */
+@StringRes
+internal fun welcomeProblem(problem: UiError): Int = when (problem) {
+    UiError.NOT_SAVED -> R.string.error_not_saved_player
+    else -> problem.message
 }
 
 /** Lines of description each welcome choice keeps room for: the longest one's. */

@@ -24,6 +24,7 @@
     </plurals>
 
     <string name="retry">Réessayer</string>
+    <string name="retrying">Nouvel essai…</string>
     <string name="empty_title">Aucun titre pour l’instant</string>
     <string name="empty_collections">Aucune collection pour l’instant</string>
     <string name="empty_server">Le serveur ne propose aucun film ni aucune série à ce compte.</string>
@@ -147,7 +148,10 @@
     <string name="gigabytes">%s Go</string>
     <string name="megabytes">%s Mo</string>
     <string name="similar">Dans la même veine</string>
+    <string name="action_not_saved">Non enregistré</string>
+    <string name="action_not_done">Non effectué</string>
     <string name="play_failed">Lecture impossible</string>
+    <string name="play_with">Lire avec</string>
     <string name="no_player">Le lecteur Zidoo n’est pas installé.</string>
     <string name="player_credentials">Ce dossier est protégé par un mot de passe : seul le lecteur Zidoo peut le lire.</string>
 
@@ -183,6 +187,10 @@
     <string name="connection_failed">Connexion impossible</string>
     <string name="folder_gone_state">Dossier introuvable</string>
     <string name="folder_gone">Ce dossier ne fait plus partie de la bibliothèque : il a été retiré entre-temps. Revenez aux réglages pour l’ajouter à nouveau.</string>
+    <string name="folder_already_added">Ce dossier est déjà dans la bibliothèque, sous le nom « %s ».</string>
+    <string name="folder_overlaps">Ce dossier recoupe « %s », déjà dans la bibliothèque : ses titres apparaîtraient deux fois. Choisissez un autre dossier, ou modifiez celui-là dans les réglages.</string>
+    <string name="folder_overlaps_state">Déjà dans la bibliothèque</string>
+    <string name="folder_not_saved_state">Non enregistré</string>
     <string name="saving">Enregistrement…</string>
     <plurals name="entries_found">
         <item quantity="one">%d élément trouvé</item>
@@ -212,6 +220,11 @@
     <string name="error_server_unexpected">Le serveur a répondu de façon inattendue. Vérifiez l’adresse, puis réessayez.</string>
     <string name="error_server_unreachable">Rien ne répond à %s. Vérifiez l’adresse et que Jellyfin est démarré.</string>
     <string name="error_not_jellyfin">%s répond, mais ne semble pas être un serveur Jellyfin. Vérifiez l’adresse et le port.</string>
+    <string name="error_server_missing">Saisissez l’adresse du serveur, ou choisissez-en un trouvé sur le réseau.</string>
+    <string name="error_server_address">« %s » n’est pas une adresse de serveur. Saisissez son nom ou son adresse IP, avec son port s’il diffère de celui de Jellyfin.</string>
+    <string name="error_server_certificate">%s répond, mais son certificat est refusé : expiré, auto-signé ou établi pour un autre nom. Renouvelez-le sur le serveur, ou utilisez son adresse http://.</string>
+    <string name="error_server_old">%1$s fonctionne avec Jellyfin %2$s : Houselights demande la version 10.9 ou plus récente. Mettez le serveur à jour, puis réessayez.</string>
+    <string name="error_server_other">%1$s est un serveur %2$s : Houselights fonctionne avec Jellyfin 10.9 ou plus récent.</string>
 
     <string name="settings_title">Réglages</string>
     <string name="welcome_tagline">Vos films, sur grand écran.</string>
@@ -275,6 +288,9 @@
     <string name="tmdb_key_personal">Clé personnelle</string>
     <string name="tmdb_key_none">Aucune clé</string>
     <string name="tmdb_key_none_desc">Sans clé, ni affiches ni informations.</string>
+    <string name="tmdb_key_lost">Votre clé n’a pas pu être relue</string>
+    <string name="tmdb_key_lost_builtin">Saisissez-la à nouveau. D’ici là, la clé intégrée est utilisée.</string>
+    <string name="tmdb_key_lost_none">Saisissez-la à nouveau. D’ici là, ni affiches ni informations.</string>
     <string name="tmdb_key_free">Une clé gratuite est disponible sur themoviedb.org.</string>
     <string name="tmdb_key_unchecked">Enregistrée sans vérification : TMDB ne répond pas.</string>
     <string name="tmdb_scan_key_refused">TMDB a refusé cette clé pendant la dernière analyse : les titres attendent leurs détails.</string>
@@ -358,6 +374,18 @@
     <string name="error_tmdb_key_refused">TMDB n’accepte pas la clé enregistrée dans les réglages. Vérifiez-la, ou remplacez-la.</string>
     <string name="error_failed_title">L’opération n’a pas abouti</string>
     <string name="error_failed">Réessayez dans un instant.</string>
+    <string name="error_keystore_title">Coffre de l’appareil indisponible</string>
+    <string name="error_keystore">Le coffre de clés de l’appareil a refusé de chiffrer le mot de passe, rien n’a été enregistré. Redémarrez le lecteur, puis réessayez.</string>
+    <string name="error_keystore_sign_in">La connexion a réussi, mais le coffre de clés de l’appareil a refusé de chiffrer le jeton du serveur. Rien n’a été enregistré. Redémarrez le lecteur, puis reconnectez-vous.</string>
+    <string name="error_settings_title">Les réglages n’ont pas pu être lus</string>
+    <string name="error_settings">Le stockage du lecteur n’a pas répondu. Réessayez, et si cela dure, redémarrez le lecteur.</string>
+    <string name="error_not_saved_title">Rien n’a été enregistré</string>
+    <string name="error_not_saved">Le stockage du lecteur a refusé l’écriture. Libérez de la place dans les réglages, rubrique Stockage, puis réessayez.</string>
+    <string name="error_not_saved_player">Le stockage du lecteur a refusé l’écriture, rien n’a été enregistré. Libérez de la place sur le lecteur, puis réessayez.</string>
+    <string name="mappings_not_saved">Les correspondances n’ont pas été enregistrées. %s</string>
+    <string name="welcome_lost_secrets">La connexion enregistrée sur ce lecteur n’a pas pu être relue. Indiquez de nouveau où sont vos films.</string>
+    <string name="settings_lost_tmdb_key">Votre clé TMDB personnelle n’a pas pu être relue sur ce lecteur. Saisissez-la à nouveau dans Clé API TMDB.</string>
+    <string name="settings_lost_mappings">Les correspondances de chemins enregistrées sur ce lecteur n’ont pas pu être relues. Saisissez-les à nouveau ci-dessous.</string>
     <string name="error_action_reconnect">Se reconnecter</string>
     <string name="error_action_add_tmdb_key">Ajouter une clé</string>
     <string name="error_action_edit_tmdb_key">Modifier la clé</string>
@@ -367,7 +395,9 @@
     <string name="remove_folder">Retirer ce dossier</string>
     <string name="remove_folder_desc">Ses titres quittent la bibliothèque ; rien n’est supprimé sur le NAS.</string>
     <string name="remove_folder_row_desc">Ses titres quittent la bibliothèque</string>
+    <string name="folder_not_removed">Ce dossier n’a pas été retiré. %s</string>
     <string name="remove_folder_confirm">Retirer « %s » ?</string>
+    <string name="folder_removing">Retrait de « %s »…</string>
     <string name="tmdb_builtin_short">Intégrée</string>
     <string name="tmdb_personal">Personnelle</string>
     <string name="tmdb_missing_short">Manquante</string>

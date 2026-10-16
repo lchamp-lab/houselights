@@ -10,6 +10,8 @@ data class PublicSystemInfo(
     @SerialName("ServerName") val serverName: String? = null,
     @SerialName("Version") val version: String? = null,
     @SerialName("Id") val id: String? = null,
+    /** "Jellyfin Server"; another product (Emby) answers the same route. */
+    @SerialName("ProductName") val productName: String? = null,
 )
 
 @Serializable
@@ -101,6 +103,8 @@ data class MediaSource(
     @SerialName("Size") val size: Long? = null,
     @SerialName("RunTimeTicks") val runTimeTicks: Long? = null,
     @SerialName("MediaStreams") val mediaStreams: List<MediaStream> = emptyList(),
+    /** "VideoFile", or a disc: "Iso", "BluRay" (a BDMV folder), "Dvd" (a VIDEO_TS folder). */
+    @SerialName("VideoType") val videoType: String? = null,
 )
 
 @Serializable

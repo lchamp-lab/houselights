@@ -12,17 +12,20 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -45,8 +48,11 @@ import app.houselights.ui.util.ErrorAction
 import app.houselights.ui.util.LocalErrorFix
 import app.houselights.ui.util.UiError
 import app.houselights.ui.util.appContainer
+import app.houselights.ui.util.launchAction
 import app.houselights.ui.util.toUiError
+import app.houselights.ui.util.toWriteError
 import coil.imageLoader
+import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlMotion
 import app.houselights.ui.design.LocalHouseLights
 import app.houselights.ui.design.components.HouseLights
@@ -58,6 +64,7 @@ import app.houselights.ui.detail.DetailScreen
 import app.houselights.ui.detail.NfoScreen
 import app.houselights.ui.edit.ArtworkScreen
 import app.houselights.ui.edit.IdentifyScreen
+import app.houselights.ui.home.ErrorMessage
 import app.houselights.ui.home.HomeScreen
 import app.houselights.ui.library.LibraryScreen
 import app.houselights.ui.onboarding.AddFolderScreen
@@ -72,6 +79,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import app.houselights.settings.DisplayModes
+import app.houselights.settings.SettingsStore
 import app.houselights.settings.outputModes
 
 class MainActivity : ComponentActivity() {
@@ -223,7 +231,11 @@ class MainActivity : ComponentActivity() {
 private fun AppNavigation(nav: NavHostController, onPlay: (MediaItem, Boolean) -> Unit) {
     val app = appContainer()
     val settings by app.settings.state.collectAsStateWithLifecycle()
-    if (!settings.loaded) return
+    if (!settings.loaded) {
+        // Never a black screen: settings that cannot be read say so, and can be read again.
+        if (settings.readFailed) SettingsUnread(app.settings)
+        return
+    }
 
     val scope = rememberCoroutineScope()
     val start: Any = remember { if (settings.source != null) Route.Home else Route.Welcome }
@@ -232,9 +244,16 @@ private fun AppNavigation(nav: NavHostController, onPlay: (MediaItem, Boolean) -
     fun openLibrary(library: Library) = nav.navigate(Route.Library(library.id, library.kind, library.title))
     fun goHome() = nav.navigate(Route.Home) { popUpTo(0) { inclusive = true } }
 
-    /** "My files": the folders added before are kept across sources, else the first one is added. */
-    fun useFolders() {
-        scope.launch {
+    // Why choosing the folders on the welcome screen failed (the device's storage refused it): said
+    // there until it is left.
+    var sourceProblem by remember { mutableStateOf<UiError?>(null) }
+
+    /**
+     * "My files": the folders added before are kept across sources, else the first one is added. A
+     * failure goes to [onError]: the screen that asked says it, where focus is.
+     */
+    fun useFolders(onError: (UiError) -> Unit) {
+        scope.launchAction("Sources", "Choosing the folders", onError = onError, errorOf = Throwable::toWriteError) {
             if (!app.library.hasFolders()) {
                 nav.navigate(Route.AddFolder())
             } else {
@@ -246,7 +265,16 @@ private fun AppNavigation(nav: NavHostController, onPlay: (MediaItem, Boolean) -
 
     NavHost(nav, startDestination = start) {
         composable<Route.Welcome> {
-            WelcomeScreen(onLocal = ::useFolders, onJellyfin = { nav.navigate(Route.JellyfinLogin) })
+            // Never said again on a later visit (signed out, a connection lost).
+            DisposableEffect(Unit) { onDispose { sourceProblem = null } }
+            WelcomeScreen(
+                onLocal = {
+                    sourceProblem = null
+                    useFolders { sourceProblem = it }
+                },
+                onJellyfin = { nav.navigate(Route.JellyfinLogin) },
+                problem = sourceProblem,
+            )
         }
         composable<Route.JellyfinLogin> { JellyfinLoginScreen(onLoggedIn = ::goHome) }
         composable<Route.AddFolder> { entry ->
@@ -302,6 +330,15 @@ private fun AppNavigation(nav: NavHostController, onPlay: (MediaItem, Boolean) -
         }
         // Debug builds only: every component in its states, for design review.
         if (BuildConfig.DEBUG) composable<Route.Catalog> { CatalogScreen() }
+    }
+}
+
+/** The settings could not be read, again and again: said, with Réessayer, at work while they are read again. */
+@Composable
+private fun SettingsUnread(settings: SettingsStore) {
+    val reading by settings.reading.collectAsStateWithLifecycle()
+    Box(Modifier.fillMaxSize().padding(top = HlLayout.errorTop)) {
+        ErrorMessage(UiError.SETTINGS_UNREAD, settings::readAgain, retrying = reading)
     }
 }
 

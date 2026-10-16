@@ -1,6 +1,7 @@
 package app.houselights.ui.onboarding
 
 import android.content.Context
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.ViewModelStore
 import androidx.lifecycle.viewmodel.initializer
@@ -43,7 +44,9 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import app.houselights.ui.util.UiError
 import java.io.IOException
+import java.security.ProviderException
 import javax.crypto.KeyGenerator
 
 /**
@@ -121,20 +124,69 @@ class AddFolderViewModelTest {
             calls += "test ${folder.host} with ${folder.password.value}"
             12
         },
+        library: LocalLibrary = this.library,
+        useFolders: suspend () -> Boolean = {
+            calls += "use folders"
+            true
+        },
+        saved: SavedStateHandle = SavedStateHandle(),
     ): AddFolderViewModel {
         val factory = viewModelFactory {
             initializer {
                 AddFolderViewModel(
                     library, folderId, app,
-                    useFolders = {
-                        calls += "use folders"
-                        true
-                    },
+                    useFolders = useFolders,
                     probe = probe,
+                    saved = saved,
                 )
             }
         }
         return ViewModelProvider(forms, factory)[AddFolderViewModel::class.java]
+    }
+
+    /** What the platform keeps of [saved] in a new process: plain values only. */
+    private fun afterAStoppedProcess(saved: SavedStateHandle): SavedStateHandle {
+        // The form's ViewModel goes with its process.
+        forms.clear()
+        return SavedStateHandle(saved.keys().associateWith { saved.get<Any?>(it) })
+    }
+
+    /**
+     * Android stopped the app while the NAS's share was looked up in another one: the form comes back
+     * as it was typed, over the last folder added, but for its password, which is never kept.
+     */
+    @Test
+    fun aFolderTypedOutlivesAStoppedProcess() = runTest {
+        smbFolder()
+        val saved = SavedStateHandle()
+        val before = form(null, saved = saved)
+        advanceUntilIdle()
+        before.edit {
+            copy(kind = SourceKind.SHOWS, protocol = Protocol.SMB, host = "192.168.1.30", share = "video", path = "series", user = "lea")
+        }
+        before.edit { copy(password = "secret") }
+        assertFalse("the password is never kept", saved.keys().any { saved.get<Any?>(it) == "secret" })
+
+        val after = form(null, saved = afterAStoppedProcess(saved))
+        advanceUntilIdle()
+        assertEquals(FolderForm(SourceKind.SHOWS, Protocol.SMB, "192.168.1.30", "video", "series", "lea"), after.form)
+    }
+
+    /** A folder edited comes back with the changes typed, not as stored; its password left empty still keeps the stored one. */
+    @Test
+    fun aFolderEditedOutlivesAStoppedProcess() = runTest {
+        val id = smbFolder()
+        val saved = SavedStateHandle()
+        val before = form(id, saved = saved)
+        advanceUntilIdle()
+        before.edit { copy(host = "192.168.1.20") }
+
+        val after = form(id, saved = afterAStoppedProcess(saved))
+        advanceUntilIdle()
+        assertTrue(after.ready)
+        assertEquals("192.168.1.20", after.form.host)
+        assertEquals("films", after.form.path)
+        assertTrue(after.keepsPassword)
     }
 
     @Test
@@ -249,5 +301,96 @@ class AddFolderViewModelTest {
         assertEquals(ScanErrorKind.LOGIN_FAILED, (vm.check as FolderCheck.Failed).error.kind)
         assertEquals("192.168.1.10", dao.source(id)!!.host)
         assertFalse(vm.busy)
+    }
+
+    /** The same folder again, or one inside it: refused before the network, with the folder it would double. */
+    @Test
+    fun aFolderTheLibraryHoldsIsRefusedBeforeItIsTested() = runTest {
+        network.complete(Unit)
+        smbFolder()
+        val vm = form(null)
+        advanceUntilIdle()
+        vm.edit { copy(protocol = Protocol.SMB, host = "192.168.1.10", share = "media", path = "films/4K", user = "kodi") }
+        vm.submit { fail("added a folder the library holds") }
+        advanceUntilIdle()
+        val check = vm.check as FolderCheck.Overlaps
+        assertEquals("films", check.existing.name)
+        assertFalse(check.same)
+        assertEquals(emptyList<String>(), calls)
+        assertEquals(1, dao.sources().size)
+        assertFalse(vm.busy)
+    }
+
+    /** The storage full when the source changes: said in the form, never a crash. */
+    @Test
+    fun aFolderThatCannotBeSavedSaysWhy() = runTest {
+        val vm = form(null, useFolders = { throw IOException("No space left on device") })
+        advanceUntilIdle()
+        vm.edit { copy(protocol = Protocol.NFS, host = "192.168.1.10", share = "/volume1/media") }
+        vm.submit { fail("said saved") }
+        advanceUntilIdle()
+        assertEquals(FolderCheck.SaveFailed(UiError.NOT_SAVED), vm.check)
+        assertFalse(vm.busy)
+    }
+
+    /**
+     * The folder was added, but making the folders the source failed (the storage full): Add again
+     * makes them the source, without a test, and is done. Once they are, it is the same folder twice.
+     */
+    @Test
+    fun aFolderAddedWhoseSourceDidNotChangeIsDoneOnTheNextAdd() = runTest {
+        var full = true
+        var local = false
+        val vm = form(null, useFolders = {
+            calls += "use folders"
+            if (full) throw IOException("No space left on device")
+            !local.also { local = true }
+        })
+        advanceUntilIdle()
+        vm.edit { copy(protocol = Protocol.NFS, host = "192.168.1.10", share = "/volume1/media", path = "films") }
+        vm.submit { fail("said done") }
+        advanceUntilIdle()
+        assertEquals(FolderCheck.SaveFailed(UiError.NOT_SAVED), vm.check)
+        assertEquals(1, dao.sources().size)
+
+        full = false
+        var switched: Boolean? = null
+        vm.submit { switched = it }
+        advanceUntilIdle()
+        assertEquals(true, switched)
+        assertEquals(listOf("test 192.168.1.10 with ", "use folders", "use folders"), calls)
+
+        vm.submit { fail("added twice") }
+        advanceUntilIdle()
+        assertEquals(true, (vm.check as FolderCheck.Overlaps).same)
+        assertEquals(1, dao.sources().size)
+        assertFalse(vm.busy)
+    }
+
+    /** The Keystore refuses to seal the password: the folder is not added, and the form says why. */
+    @Test
+    fun aPasswordTheKeystoreCannotSealSaysWhy() = runTest {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val broken = Room.inMemoryDatabaseBuilder(context, LibraryDatabase::class.java)
+            .addTypeConverter(SecretConverter(Secrets { throw ProviderException("Keystore operation failed") }))
+            .allowMainThreadQueries()
+            .setQueryExecutor(Runnable::run)
+            .setTransactionExecutor(Runnable::run)
+            .build()
+        try {
+            val artwork = ArtworkCache(context.cacheDir.resolve("artwork"))
+            val idle = CoroutineScope(Job().apply { cancel() })
+            val scanner = LibraryScanner(broken.dao(), { null }, idle, artwork, browsers = { FakeRemoteBrowser() }, closeIdle = {})
+            val sealing = LocalLibrary(context, broken.dao(), scanner, artwork) {}
+            val vm = form(null, library = sealing)
+            advanceUntilIdle()
+            vm.edit { copy(protocol = Protocol.SMB, host = "192.168.1.10", share = "media", user = "kodi", password = "secret") }
+            vm.submit { fail("said saved") }
+            advanceUntilIdle()
+            assertEquals(FolderCheck.SaveFailed(UiError.KEYSTORE), vm.check)
+            assertTrue(broken.dao().sources().isEmpty())
+        } finally {
+            broken.close()
+        }
     }
 }

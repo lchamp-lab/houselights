@@ -30,19 +30,13 @@ import app.houselights.ui.util.appContainer
 @Composable
 fun JellyfinLoginScreen(onLoggedIn: () -> Unit) {
     val app = appContainer()
-    val vm = viewModel { JellyfinLoginViewModel(app) }
+    val vm: JellyfinLoginViewModel = viewModel(factory = JellyfinLoginViewModel.factory(app))
     val firstField = remember { FocusRequester() }
     val passwordField = remember { FocusRequester() }
     LaunchedEffect(Unit) { runCatching { (if (vm.again) passwordField else firstField).requestFocus() } }
     val server = vm.server
     val discovered = vm.discovered
-    val error = when (val e = vm.error) {
-        null -> null
-        LoginError.Refused -> stringResource(R.string.error_credentials)
-        is LoginError.Unreachable -> stringResource(R.string.error_server_unreachable, e.address)
-        is LoginError.NotJellyfin -> stringResource(R.string.error_not_jellyfin, e.address)
-        LoginError.Failed -> stringResource(R.string.error_server_unexpected)
-    }
+    val error = vm.error?.let { loginErrorText(it) }
 
     fun login() = vm.login(onLoggedIn)
 
@@ -97,9 +91,30 @@ fun JellyfinLoginScreen(onLoggedIn: () -> Unit) {
     }
 }
 
+/** Why signing in failed, in words that say what to check. */
+@Composable
+private fun loginErrorText(e: LoginError): String = when (e) {
+    LoginError.Refused -> stringResource(R.string.error_credentials)
+    LoginError.NoAddress -> stringResource(R.string.error_server_missing)
+    is LoginError.InvalidAddress -> stringResource(R.string.error_server_address, e.typed)
+    is LoginError.Unreachable -> stringResource(R.string.error_server_unreachable, e.address)
+    is LoginError.Certificate -> stringResource(R.string.error_server_certificate, e.address)
+    is LoginError.NotJellyfin -> stringResource(R.string.error_not_jellyfin, e.address)
+    is LoginError.Unsupported -> when {
+        e.product != null && e.product != JELLYFIN -> stringResource(R.string.error_server_other, e.address, e.product)
+        else -> stringResource(R.string.error_server_old, e.address, e.version.orEmpty())
+    }
+    LoginError.Keystore -> stringResource(R.string.error_keystore_sign_in)
+    LoginError.NotSaved -> stringResource(R.string.error_not_saved_player)
+    LoginError.Failed -> stringResource(R.string.error_server_unexpected)
+}
+
 /** How to say where signing in stands. */
 private fun loginState(busy: Boolean, failed: Boolean): Int = when {
     busy -> R.string.connection_testing
     failed -> R.string.connection_failed
     else -> R.string.connection_untested
 }
+
+/** The product name a Jellyfin server gives. */
+private const val JELLYFIN = "Jellyfin Server"

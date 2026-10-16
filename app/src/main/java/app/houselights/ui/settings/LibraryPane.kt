@@ -15,7 +15,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -41,6 +40,7 @@ import app.houselights.providers.local.TmdbClient.Companion.ImageType
 import app.houselights.providers.local.TmdbKeyCheck
 import app.houselights.providers.local.address
 import app.houselights.settings.AppSettings
+import app.houselights.settings.SecretSetting
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlInset
@@ -72,7 +72,6 @@ import app.houselights.ui.design.revealOnFocus
 import app.houselights.ui.onboarding.FolderField
 import app.houselights.ui.util.UiError
 import app.houselights.ui.util.scanErrorText
-import kotlinx.coroutines.launch
 import app.houselights.core.CollectionThreshold
 
 /**
@@ -134,7 +133,6 @@ internal fun LazyListScope.libraryPane(
 @Composable
 private fun Sources(rows: PaneRows, onEdit: (folderId: Long, focus: FolderField) -> Unit) {
     val vm = settingsViewModel()
-    val scope = rememberCoroutineScope()
     val sources by vm.library.folders.collectAsStateWithLifecycle(emptyList())
     val scan by vm.library.scan.collectAsStateWithLifecycle()
     var actionsFor by remember { mutableStateOf<SourceEntity?>(null) }
@@ -149,12 +147,17 @@ private fun Sources(rows: PaneRows, onEdit: (folderId: Long, focus: FolderField)
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(HlSpace.s)) {
+        // A folder being removed waits for the file a scan may be reading in it: said, not left to look kept.
+        sources.filter { it.id in vm.removing }.forEach { source ->
+            HlStatus(StatusState.Pending, stringResource(R.string.folder_removing, sourceName(source)))
+        }
         sources.forEach { source ->
             key(source.id) {
                 SourceCard(
                     source,
                     scan = scan.takeIf { it.running && it.sourceId == source.id },
                     error = scan.errors[source.id],
+                    removeError = vm.errorOf(SettingAction.REMOVE_FOLDER, source.id),
                     onClick = { actionsFor = source },
                     modifier = rows.focus(folderRow(source.id)),
                 )
@@ -167,11 +170,11 @@ private fun Sources(rows: PaneRows, onEdit: (folderId: Long, focus: FolderField)
             error = scan.errors[source.id],
             onDismiss = { actionsFor = null },
             onEdit = { focus -> onEdit(source.id, focus) },
-            // Launched from here: the sheet has left the composition by the time it runs.
+            // In the app's scope: leaving the pane while it waits for a scan's file never cuts it off.
             onRemove = {
                 val next = sources.getOrNull(sources.indexOfFirst { it.id == source.id } + 1)
                 removing = source.id to rows.requester(next?.let { folderRow(it.id) } ?: ADD_FOLDER)
-                scope.launch { vm.library.removeFolder(source) }
+                vm.removeFolder(source)
             },
         )
     }
@@ -285,13 +288,15 @@ private fun sourceName(source: SourceEntity) = source.name.replaceFirstChar { it
 /**
  * A watched folder, headed by its latest posters from edge to edge (its name, set like a one-sheet,
  * before it has any); then its name and kind, where it lives, and how its last scan went, or the
- * [scan] going on through it. OK opens its actions.
+ * [scan] going on through it. Removing it failed ([removeError]): said there, where focus is back.
+ * OK opens its actions.
  */
 @Composable
 private fun SourceCard(
     source: SourceEntity,
     scan: ScanState?,
     error: ScanError?,
+    removeError: UiError?,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -322,6 +327,7 @@ private fun SourceCard(
                 Spacer(Modifier.height(HlSpace.m))
                 when {
                     scan != null -> ScanProgress(scan.processed, scan.total, current = scan.current)
+                    removeError != null -> AttentionNote(stringResource(R.string.folder_not_removed, stringResource(removeError.message)))
                     error != null -> AttentionNote(scanErrorText(error, source.host))
                     else -> FactRow(
                         listOf(
@@ -413,12 +419,15 @@ private fun CollectionsRow() {
         CollectionThreshold.HIDDEN to option(R.string.collections_off, R.string.collections_off_desc),
     )
     val current = options.indexOfFirst { it.first == s.collectionMinFilms }.coerceAtLeast(0)
+    val failure = rowFailure(vm.errorOf(SettingAction.COLLECTIONS))
     HlSettingRow(
         stringResource(R.string.collections_setting),
-        value = options[current].second.label,
+        value = failure?.value ?: options[current].second.label,
         description = stringResource(R.string.collections_setting_desc),
+        valueAttention = failure != null,
         onClick = { choose = true },
     )
+    RowFailureNote(failure)
     if (choose) {
         HlChoiceSheet(
             title = stringResource(R.string.collections_setting),
@@ -438,13 +447,17 @@ private fun SourceRow(onUseFolders: () -> Unit, onSignIn: () -> Unit, modifier: 
     val s by vm.settings.collectAsStateWithLifecycle()
     var choose by remember { mutableStateOf(false) }
     val server = s.source is SourceConfig.Jellyfin
+    // Making the folders the source failed (the device's storage): said here, where focus comes back.
+    val failure = rowFailure(vm.errorOf(SettingAction.SOURCE))
     HlSettingRow(
         stringResource(R.string.change_source_row),
         modifier,
-        value = stringResource(if (server) R.string.source_jellyfin else R.string.source_local),
+        value = failure?.value ?: stringResource(if (server) R.string.source_jellyfin else R.string.source_local),
         description = stringResource(sourceKeeps(s.source)),
+        valueAttention = failure != null,
         onClick = { choose = true },
     )
+    RowFailureNote(failure)
     if (choose) {
         // Both choices open another screen: the sheet closes at once.
         SourceSheet(
@@ -545,16 +558,24 @@ private fun PlusIcon() {
 /**
  * The TMDB key: the one in use, at the head, with what the last scan met ([issue]); a field for a
  * personal key, checked with TMDB when saved (a key TMDB refuses is not kept); once there is one,
- * the way back to the built-in key.
+ * the way back to the built-in key. How the last key given went is the ViewModel's: the sheet may
+ * close while TMDB checks it, and open again on the work under way, then on its outcome.
  */
 @Composable
 private fun TmdbKeySheet(issue: UiError?, onDismiss: () -> Unit) {
     val vm = settingsViewModel()
     val s by vm.settings.collectAsStateWithLifecycle()
-    var key by remember { mutableStateOf(s.tmdbApiKey ?: "") }
-    var checking by remember { mutableStateOf(false) }
-    var refused by remember { mutableStateOf(false) }
-    var unchecked by remember { mutableStateOf(false) }
+    val attempt = vm.tmdbKey
+    val outcome = attempt?.outcome
+    // The key given last while it is checked or when it was not taken, else the one saved.
+    var key by remember { mutableStateOf(attempt?.takeIf { outcome != ACCEPTED }?.key ?: s.tmdbApiKey ?: "") }
+    // The attempt this sheet waits on: its own, or the one under way as it opened. One that ended
+    // before is no news: its key taken never closes this sheet.
+    var waitingOn by remember { mutableStateOf(attempt?.takeIf { outcome == null }?.number) }
+    val checking = vm.savingTmdbKey
+    val refused = outcome == REFUSED
+    val unchecked = outcome == UNCHECKED
+    val notSaved = (outcome as? TmdbKeySave.Failed)?.error
     val field = remember { FocusRequester() }
     val hasBuiltIn = BuildConfig.TMDB_API_KEY.isNotBlank()
     val personal = s.tmdbApiKey != null
@@ -563,23 +584,23 @@ private fun TmdbKeySheet(issue: UiError?, onDismiss: () -> Unit) {
         onDismiss,
         description = stringResource(R.string.tmdb_desc),
         initialFocus = field,
-        status = { TmdbKeyStatus(personal, hasBuiltIn, unchecked, issue.takeUnless { unchecked }) },
+        status = {
+            TmdbKeyStatus(personal, hasBuiltIn, unchecked, lost = SecretSetting.TMDB_KEY in s.lostSecrets, issue.takeUnless { unchecked })
+        },
     ) { sheet ->
-        fun save() {
-            if (checking) return
-            checking = true
-            vm.saveTmdbApiKey(key) { check ->
-                checking = false
-                when (check) {
-                    TmdbKeyCheck.ACCEPTED -> sheet.dismiss()
-                    TmdbKeyCheck.REFUSED -> {
-                        refused = true
-                        runCatching { field.requestFocus() }
-                    }
-                    // Saved all the same: the sheet stays to say it could not be checked.
-                    TmdbKeyCheck.UNCHECKED -> unchecked = true
-                }
+        // Taken: the sheet closes. Refused: focus goes back to the key. Not checked, or not saved: the
+        // sheet stays to say so.
+        LaunchedEffect(attempt) {
+            if (attempt == null || attempt.number != waitingOn) return@LaunchedEffect
+            when (attempt.outcome) {
+                ACCEPTED -> sheet.dismiss()
+                REFUSED -> runCatching { field.requestFocus() }
+                else -> Unit
             }
+        }
+
+        fun save(typed: String) {
+            vm.saveTmdbApiKey(typed)?.let { waitingOn = it }
         }
         // The sheet already names the key: the field's label is only read out.
         HlTextField(
@@ -587,21 +608,21 @@ private fun TmdbKeySheet(issue: UiError?, onDismiss: () -> Unit) {
             key,
             {
                 key = it
-                refused = false
+                vm.editTmdbKey()
             },
             Modifier.fillMaxWidth().focusRequester(field),
             placeholder = stringResource(R.string.tmdb_key_personal),
             showLabel = false,
             supporting = stringResource(if (hasBuiltIn) R.string.tmdb_key_builtin else R.string.tmdb_key_free),
-            error = if (refused) stringResource(R.string.error_tmdb_key_refused_title) else null,
+            error = keyError(refused, notSaved),
             password = true,
             imeAction = ImeAction.Done,
-            onImeAction = ::save,
+            onImeAction = { save(key) },
         )
         Spacer(Modifier.height(HlSpace.l))
         HlButton(
             stringResource(R.string.save),
-            onClick = ::save,
+            onClick = { save(key) },
             icon = HlIcons.Check,
             emphasis = Emphasis.Primary,
             busy = checking,
@@ -612,21 +633,41 @@ private fun TmdbKeySheet(issue: UiError?, onDismiss: () -> Unit) {
             HlSettingRow(
                 stringResource(R.string.tmdb_key_revert),
                 description = stringResource(R.string.tmdb_key_revert_desc),
-                onClick = { vm.saveTmdbApiKey("") { sheet.dismiss() } },
+                // Never refused nor left unchecked: taken, it closes the sheet too.
+                onClick = { save("") },
                 chevron = false,
             )
         }
     }
 }
 
+/** What a key typed meets, under its field: TMDB refused it, or it could not be saved. */
+@Composable
+private fun keyError(refused: Boolean, notSaved: UiError?): String? = when {
+    refused -> stringResource(R.string.error_tmdb_key_refused_title)
+    notSaved != null -> stringResource(notSaved.message)
+    else -> null
+}
+
+/** How saving a key went, as the TMDB sheet answers it. */
+private val ACCEPTED = TmdbKeySave.Checked(TmdbKeyCheck.ACCEPTED)
+private val REFUSED = TmdbKeySave.Checked(TmdbKeyCheck.REFUSED)
+private val UNCHECKED = TmdbKeySave.Checked(TmdbKeyCheck.UNCHECKED)
+
 /**
  * The key in use, at the head of its sheet: the user's own (said unchecked when TMDB could not be
- * asked), the built-in one, or none, which calls for attention; so does what the last scan met
- * ([issue]: the key refused, TMDB out of reach).
+ * asked), the built-in one, or none, which calls for attention. A key saved that could not be read
+ * again ([lost]) is said first: it is to be typed again. Then what the last scan met ([issue]: the
+ * key refused, TMDB out of reach).
  */
 @Composable
-private fun TmdbKeyStatus(personal: Boolean, hasBuiltIn: Boolean, unchecked: Boolean, issue: UiError?) {
+private fun TmdbKeyStatus(personal: Boolean, hasBuiltIn: Boolean, unchecked: Boolean, lost: Boolean, issue: UiError?) {
     when {
+        lost && !personal -> HlStatus(
+            StatusState.Attention,
+            stringResource(R.string.tmdb_key_lost),
+            detail = stringResource(if (hasBuiltIn) R.string.tmdb_key_lost_builtin else R.string.tmdb_key_lost_none),
+        )
         issue != null && (personal || hasBuiltIn) -> HlStatus(
             StatusState.Attention,
             stringResource(if (personal) R.string.tmdb_key_personal else R.string.tmdb_key_builtin_state),

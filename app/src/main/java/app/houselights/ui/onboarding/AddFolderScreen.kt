@@ -50,7 +50,7 @@ private val KINDS = listOf(SourceKind.MOVIES, SourceKind.SHOWS)
 @Composable
 fun AddFolderScreen(folderId: Long?, focusOn: FolderField = FolderField.FIRST, onDone: (switched: Boolean) -> Unit) {
     val app = appContainer()
-    val vm = viewModel { AddFolderViewModel(app, folderId) }
+    val vm: AddFolderViewModel = viewModel(factory = AddFolderViewModel.factory(app, folderId))
     val form = vm.form
     val focus = remember { FormFocus() }
     // Once a folder edited is read: its fields are then laid out (the password only for SMB).
@@ -220,6 +220,12 @@ private fun resultText(check: FolderCheck?, gone: Boolean): String? = if (gone) 
         is FolderCheck.Incomplete -> stringResource(check.message)
         is FolderCheck.Reachable -> pluralStringResource(R.plurals.entries_found, check.entries, check.entries)
         is FolderCheck.Failed -> scanErrorText(check.error, check.host)
+        is FolderCheck.Overlaps -> stringResource(
+            if (check.same) R.string.folder_already_added else R.string.folder_overlaps,
+            check.existing.name.replaceFirstChar { it.uppercase() },
+        )
+        // The first folder is added from the welcome screen, before the settings can be reached: never sent there.
+        is FolderCheck.SaveFailed -> stringResource(welcomeProblem(check.error))
     }
 }
 
@@ -237,5 +243,7 @@ private fun connectionState(check: FolderCheck?, testing: Boolean, gone: Boolean
     testing -> StatusState.Pending to R.string.connection_testing
     check is FolderCheck.Reachable -> StatusState.On to R.string.connection_ok
     check is FolderCheck.Failed -> StatusState.Attention to R.string.connection_failed
+    check is FolderCheck.Overlaps -> StatusState.Attention to R.string.folder_overlaps_state
+    check is FolderCheck.SaveFailed -> StatusState.Attention to R.string.folder_not_saved_state
     else -> StatusState.Off to R.string.connection_untested
 }

@@ -43,6 +43,8 @@ sealed interface PlaybackPlan {
         val reporter: PlaybackReporter?,
         /** Names the reporter again ([MediaProvider.reporter]) if the app is stopped while the film plays. */
         val resumeKey: String? = null,
+        /** A disc (an ISO, a Blu-ray or DVD folder): the player may open it on a menu or an intro before its title. */
+        val disc: Boolean = false,
     ) : PlaybackPlan
 }
 
@@ -51,17 +53,24 @@ private const val PLAYER_BACKDROP_PX = 1920
 private const val PLAYER_LOGO_PX = 500
 
 /** Playback of this item: while it starts, the player shows the title with its backdrop and logo. */
-fun MediaItem.launch(uri: String, container: String?, startMs: Long, reporter: PlaybackReporter?, resumeKey: String?) =
-    PlaybackPlan.Launch(
-        uri = uri,
-        container = container,
-        title = listOfNotNull(seriesTitle, episodeLabel, title).joinToString(" · "),
-        backdropUrl = backdrop?.url(PLAYER_BACKDROP_PX),
-        logoUrl = logo?.url(PLAYER_LOGO_PX),
-        startMs = startMs,
-        reporter = reporter,
-        resumeKey = resumeKey,
-    )
+fun MediaItem.launch(
+    uri: String,
+    container: String?,
+    startMs: Long,
+    reporter: PlaybackReporter?,
+    resumeKey: String?,
+    disc: Boolean = false,
+) = PlaybackPlan.Launch(
+    uri = uri,
+    container = container,
+    title = listOfNotNull(seriesTitle, episodeLabel, title).joinToString(" · "),
+    backdropUrl = backdrop?.url(PLAYER_BACKDROP_PX),
+    logoUrl = logo?.url(PLAYER_LOGO_PX),
+    startMs = startMs,
+    reporter = reporter,
+    resumeKey = resumeKey,
+    disc = disc,
+)
 
 /**
  * What a source can do, read by screens instead of asking which source it is. Editing artwork and

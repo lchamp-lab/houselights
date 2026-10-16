@@ -107,14 +107,18 @@ private fun StorageActions(storage: StorageStats?) {
     val scope = rememberCoroutineScope()
     var cleaned by remember { mutableStateOf<String?>(null) }
     var cleared by remember { mutableStateOf(false) }
+    // A cleanup that failed is said on its row, where focus is.
+    val cleanupFailure = rowFailure(vm.errorOf(SettingAction.CLEANUP), notDone = true)
+    val cacheFailure = rowFailure(vm.errorOf(SettingAction.CLEAR_IMAGE_CACHE), notDone = true)
     HlSettingGroup(null, Modifier.revealOnFocus()) {
         HlSettingRow(
             stringResource(R.string.cleanup_now),
             description = stringResource(R.string.cleanup_desc),
-            value = cleaned,
+            value = cleanupFailure?.value ?: cleaned,
+            valueAttention = cleanupFailure != null,
             onClick = {
                 scope.launch {
-                    val result = vm.cleanup()
+                    val result = vm.cleanup() ?: return@launch
                     cleaned = if (result.deletedFiles == 0) context.getString(R.string.cleanup_nothing)
                     else context.getString(
                         R.string.cleanup_done,
@@ -125,17 +129,18 @@ private fun StorageActions(storage: StorageStats?) {
             },
             chevron = false,
         )
+        RowFailureNote(cleanupFailure)
         HlSettingRow(
             stringResource(R.string.clear_image_cache),
             description = stringResource(R.string.clear_cache_desc),
-            value = if (cleared) stringResource(R.string.image_cache_cleared) else storage?.let { formatBytes(it.imageCacheBytes) },
+            value = cacheFailure?.value
+                ?: if (cleared) stringResource(R.string.image_cache_cleared) else storage?.let { formatBytes(it.imageCacheBytes) },
+            valueAttention = cacheFailure != null,
             onClick = {
-                scope.launch {
-                    vm.clearImageCache()
-                    cleared = true
-                }
+                scope.launch { cleared = vm.clearImageCache() }
             },
             chevron = false,
         )
+        RowFailureNote(cacheFailure)
     }
 }

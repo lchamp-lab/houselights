@@ -193,6 +193,87 @@ class LocalProviderTest {
         }
     }
 
+    /**
+     * The player is another app: a fanart or a clearlogo kept by the app is out of its reach. It gets
+     * the web address that stands for it (the automatic choice, else the NFO's), never nothing.
+     */
+    @Test
+    fun thePlayerGetsWebArtworkForWhatTheAppKeepsItself() = runTest {
+        val nfo = """<movie><title>Heat</title><fanart><thumb>http://assets.fanart.tv/heat.jpg</thumb></fanart></movie>"""
+        val id = dao.insert(
+            ItemEntity(
+                kind = ItemKind.MOVIE, sourceId = source, title = "Heat", sortTitle = "heat", filePath = "Heat.mkv", addedAt = 0,
+                // A sidecar fanart, kept as a file of the app's; the user chose a local logo over TMDB's.
+                backdropPath = "file:///data/artwork/heat-fanart.jpg",
+                logoPath = "/tmdbLogo.png",
+                userLogoPath = "file:///data/artwork/heat-logo.png",
+                nfoPath = "Heat.nfo",
+                nfo = nfo,
+            )
+        )
+        val item = provider.item(id.toString())
+        // Screens still show the files the app keeps.
+        assertEquals("file:///data/artwork/heat-fanart.jpg", item.backdrop?.url(1920))
+
+        val plan = provider.playback(item, resume = false, PlaybackOptions(emptyList(), false)) as PlaybackPlan.Launch
+        assertEquals("https://assets.fanart.tv/heat.jpg", plan.backdropUrl)
+        val logo = plan.logoUrl.orEmpty()
+        assertTrue("Not TMDB's logo: $logo", logo.startsWith("https://image.tmdb.org/") && logo.endsWith("/tmdbLogo.png"))
+    }
+
+    /**
+     * An episode whose backdrop is a file the app keeps, with no web address of its own: the player
+     * gets its show's from TMDB, never nothing. A logo the show chose none of stays none.
+     */
+    @Test
+    fun anEpisodeGetsItsShowsWebArtworkWhenItsOwnIsOutOfReach() = runTest {
+        val series = dao.insert(
+            ItemEntity(
+                kind = ItemKind.SERIES, sourceId = source, title = "Show", sortTitle = "show", addedAt = 0,
+                backdropPath = "/showBackdrop.jpg", logoPath = "/showLogo.png", userLogoPath = "",
+            )
+        )
+        val episode = dao.insert(
+            ItemEntity(
+                kind = ItemKind.EPISODE, sourceId = source, seriesId = series, title = "E1", sortTitle = "001-0001",
+                seasonNumber = 1, episodeNumber = 1, filePath = "Show/S01E01.mkv", addedAt = 0,
+                backdropPath = "file:///data/artwork/s01e01-fanart.jpg",
+            )
+        )
+        val item = provider.item(episode.toString())
+        assertEquals("file:///data/artwork/s01e01-fanart.jpg", item.backdrop?.url(1920))
+
+        val plan = provider.playback(item, resume = false, PlaybackOptions(emptyList(), false)) as PlaybackPlan.Launch
+        val backdrop = plan.backdropUrl.orEmpty()
+        assertTrue("Not the show's: $backdrop", backdrop.startsWith("https://image.tmdb.org/") && backdrop.endsWith("/showBackdrop.jpg"))
+        assertNull(plan.logoUrl)
+    }
+
+    /** A disc's image may open on a menu or an intro, a film's file never does: the player is followed accordingly. */
+    @Test
+    fun aDiscImageIsPlayedAsADisc() = runTest {
+        val options = PlaybackOptions(emptyList(), false)
+        val iso = dao.insert(
+            ItemEntity(kind = ItemKind.MOVIE, sourceId = source, title = "Heat", sortTitle = "heat", filePath = "Heat.ISO", addedAt = 0)
+        )
+        assertTrue((provider.playback(provider.item(iso.toString()), resume = false, options) as PlaybackPlan.Launch).disc)
+        val mkv = movie("Ronin")
+        assertFalse((provider.playback(provider.item(mkv.toString()), resume = false, options) as PlaybackPlan.Launch).disc)
+    }
+
+    /** The user chose no logo (the title set in type): the player gets none either. */
+    @Test
+    fun noLogoChosenIsNoLogoForThePlayer() = runTest {
+        val id = dao.insert(
+            ItemEntity(
+                kind = ItemKind.MOVIE, sourceId = source, title = "Heat", sortTitle = "heat", filePath = "Heat.mkv", addedAt = 0,
+                logoPath = "/tmdbLogo.png", userLogoPath = "",
+            )
+        )
+        val plan = provider.playback(provider.item(id.toString()), resume = false, PlaybackOptions(emptyList(), false))
+        assertNull((plan as PlaybackPlan.Launch).logoUrl)
+    }
+
     @Test
     fun favouritesAndUnknownIds() = runTest {
         val id = movie("Heat")

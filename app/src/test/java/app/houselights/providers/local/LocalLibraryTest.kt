@@ -69,7 +69,7 @@ class LocalLibraryTest {
             )
         )
 
-        assertTrue(library.updateFolder(id, EDITED))
+        assertEquals(FolderSave.Saved, library.updateFolder(id, EDITED))
 
         val edited = dao.source(id)!!
         assertEquals(1, dao.sources().size)
@@ -98,7 +98,7 @@ class LocalLibraryTest {
     fun aFolderRemovedMeanwhileStaysRemoved() = runTest {
         val id = folder()
         dao.removeSource(id)
-        assertFalse("the form hears that nothing was saved", library.updateFolder(id, EDITED))
+        assertEquals("the form hears that nothing was saved", FolderSave.Gone, library.updateFolder(id, EDITED))
         assertTrue(dao.sources().isEmpty())
     }
 
@@ -139,5 +139,55 @@ class LocalLibraryTest {
             name = "films-4k", kind = SourceKind.SHOWS, protocol = Protocol.SMB, host = "192.168.1.20", share = "video",
             path = "films-4k", username = "kodi", password = Secret("new"),
         )
+    }
+
+    private fun nfs(host: String, share: String, path: String, protocol: Protocol = Protocol.NFS) = SourceEntity(
+        name = path.substringAfterLast('/').ifBlank { share }, kind = SourceKind.MOVIES, protocol = protocol, host = host,
+        share = share, path = path, username = "", password = Secret(""),
+    )
+
+    /** The same folder twice, or one inside another: every title would show twice, so the second is refused. */
+    @Test
+    fun aFolderTheLibraryAlreadyHoldsIsNotAddedAgain() = runTest {
+        assertEquals(FolderSave.Saved, library.addFolder(nfs("nas", "volume1/media", "films")))
+        val films = dao.sources().single()
+
+        assertEquals(FolderSave.Overlaps(films), library.addFolder(nfs("NAS", "/volume1/media/", "films/")))
+        // The share's root holds the folder; a folder inside it is held by it.
+        assertEquals(FolderSave.Overlaps(films), library.addFolder(nfs("nas", "volume1/media", "")))
+        assertEquals(FolderSave.Overlaps(films), library.addFolder(nfs("nas", "volume1", "media/films/4K")))
+        assertEquals(1, dao.sources().size)
+
+        // A folder beside it, a name that only starts the same, another server or protocol: other files.
+        assertEquals(FolderSave.Saved, library.addFolder(nfs("nas", "volume1/media", "series")))
+        assertEquals(FolderSave.Saved, library.addFolder(nfs("nas", "volume1/media", "films-4k")))
+        assertEquals(FolderSave.Saved, library.addFolder(nfs("nas2", "volume1/media", "films")))
+        assertEquals(FolderSave.Saved, library.addFolder(nfs("nas", "volume1/media", "films", Protocol.SMB)))
+        assertEquals(5, dao.sources().size)
+
+        // An SMB share ignores case (Samba's default, Windows): the same folder, written another way.
+        val smb = dao.sources().single { it.protocol == Protocol.SMB }
+        assertEquals(FolderSave.Overlaps(smb), library.addFolder(nfs("nas", "Volume1/Media", "Films", Protocol.SMB)))
+        // An NFS path does not: another folder.
+        assertEquals(FolderSave.Saved, library.addFolder(nfs("nas", "volume1/media", "Films")))
+        assertEquals(6, dao.sources().size)
+
+        // An export "/" is the host's root: it holds every folder of the host, by the same protocol.
+        assertTrue(nfs("nas", "/", "").overlaps(films))
+        assertFalse(nfs("nas", "/", "").overlaps(smb))
+        assertTrue(library.addFolder(nfs("nas", "/", "")) is FolderSave.Overlaps)
+        assertEquals(FolderSave.Saved, library.addFolder(nfs("nas3", "/", "")))
+        assertEquals(FolderSave.Overlaps(dao.sources().single { it.host == "nas3" }), library.addFolder(nfs("nas3", "export", "films")))
+    }
+
+    @Test
+    fun aFolderEditedOntoAnotherIsNotSaved() = runTest {
+        library.addFolder(nfs("nas", "volume1/media", "films"))
+        library.addFolder(nfs("nas", "volume1/media", "series"))
+        val (films, series) = dao.sources().sortedBy { it.id }
+        assertEquals(FolderSave.Overlaps(films), library.updateFolder(series.id, nfs("nas", "volume1/media", "films")))
+        assertEquals("series", dao.source(series.id)!!.path)
+        // Editing a folder at its own address is no overlap.
+        assertEquals(FolderSave.Saved, library.updateFolder(films.id, nfs("192.168.1.10", "volume1/media", "films")))
     }
 }

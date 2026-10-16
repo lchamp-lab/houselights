@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -27,6 +28,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -77,6 +79,8 @@ import app.houselights.ui.design.components.Backdrop
 import app.houselights.ui.design.components.BackdropStyle
 import app.houselights.ui.design.components.FormatLines
 import app.houselights.ui.design.components.BillingBlock
+import app.houselights.ui.design.components.CardSkeleton
+import app.houselights.ui.design.components.SectionHeader
 import app.houselights.ui.design.components.EpisodeHeading
 import app.houselights.ui.design.components.Emphasis
 import app.houselights.ui.design.components.HlActionRow
@@ -96,12 +100,15 @@ import app.houselights.ui.design.components.TitleArt
 import app.houselights.ui.design.components.rememberAmbientColor
 import app.houselights.ui.edit.EditMenu
 import app.houselights.ui.home.ErrorMessage
+import app.houselights.ui.util.PartFailed
 import app.houselights.ui.util.ReloadOnLibraryChange
+import app.houselights.ui.util.retainedError
 import app.houselights.ui.util.appContainer
 import app.houselights.ui.util.FACT_GAP
 import app.houselights.ui.util.formatDuration
 import app.houselights.ui.util.screenHeight
 import app.houselights.ui.util.skeletonDelayPassed
+import app.houselights.ui.util.UiError
 
 @Composable
 fun DetailScreen(
@@ -113,8 +120,8 @@ fun DetailScreen(
     onIdentify: (String) -> Unit,
 ) {
     val app = appContainer()
-    val vm = viewModel(key = "detail-$itemId") { DetailViewModel(app, itemId) }
-    ReloadOnLibraryChange { vm.load() }
+    val vm: DetailViewModel = viewModel(key = "detail-$itemId", factory = DetailViewModel.factory(app, itemId))
+    ReloadOnLibraryChange { vm.onLibraryChanged() }
     val state by vm.state.collectAsStateWithLifecycle()
     val item = state.item
     // A failure to play stays until the next action (OK, wherever it is pressed) or the next screen.
@@ -135,9 +142,11 @@ fun DetailScreen(
         Box(Modifier.fillMaxSize()) {
             Backdrop(null, BackdropStyle.Full)
             Box(Modifier.padding(top = HlLayout.errorTop)) {
-                val error = state.error
+                // Trying again keeps the error on screen, its button at work, until the answer.
+                val loading = state.error == null
+                val error = retainedError(state.error, retrying = loading)
                 when {
-                    error != null -> ErrorMessage(error, vm::load)
+                    error != null -> ErrorMessage(error, vm::load, retrying = loading)
                     // Where the title and its facts will be, once loading takes long enough to be seen.
                     skeletonDelayPassed() -> HeroSkeleton(Modifier.padding(start = HlSpace.safeH, top = HlSpace.l))
                 }
@@ -187,7 +196,10 @@ fun DetailScreen(
     CompositionLocalProvider(LocalAmbient provides { ambient.value }) {
         Box(
             Modifier.fillMaxSize().onPreviewKeyEvent {
-                if (it.type == KeyEventType.KeyDown && it.key in OK_KEYS) app.playback.clearProblem()
+                if (it.type == KeyEventType.KeyDown && it.key in OK_KEYS) {
+                    app.playback.clearProblem()
+                    vm.clearActionError()
+                }
                 false
             },
         ) {
@@ -212,6 +224,7 @@ fun DetailScreen(
                                 onPlay = onPlay,
                                 onTogglePlayed = vm::togglePlayed,
                                 onToggleFavorite = vm::toggleFavorite,
+                                actionError = state.actionError,
                                 onOpenSeries = { item.seriesId?.let(onOpenItem) },
                                 onOpenNfo = { onOpenNfo(item.id) },
                                 onShowTech = if (media != null) ({ showTech = true }) else null,
@@ -234,14 +247,32 @@ fun DetailScreen(
                             }
                         }
                         item(key = "episodes-${state.selectedSeasonId}") {
-                            Episodes(
-                                header = single?.title,
-                                episodes = state.episodes,
-                                memory = memory,
-                                focused = focusedEpisode,
-                                onFocus = { focusedEpisode = it },
-                                onPlay = { ep -> onPlay(ep, ep.user.positionMs > 0) },
-                            )
+                            val failed = state.episodesError
+                            // Réessayer had focus: once the episodes are there, focus goes to them, not nowhere.
+                            LaunchedEffect(failed == null && state.episodes.isNotEmpty()) {
+                                if (failed == null && state.episodes.isNotEmpty() && memory.last == RETRY_EPISODES) {
+                                    withFrameNanos { }
+                                    memory.focus(FocusKey.row(EPISODES))
+                                }
+                            }
+                            when {
+                                failed != null -> EpisodesFailed(
+                                    single?.title,
+                                    failed,
+                                    retrying = state.episodesLoading,
+                                    onRetry = vm::retrySeason,
+                                    action = Modifier.focusKey(RETRY_EPISODES, memory),
+                                )
+                                state.episodesLoading && state.episodes.isEmpty() -> EpisodesSkeleton(single?.title)
+                                else -> Episodes(
+                                    header = single?.title,
+                                    episodes = state.episodes,
+                                    memory = memory,
+                                    focused = focusedEpisode,
+                                    onFocus = { focusedEpisode = it },
+                                    onPlay = { ep -> onPlay(ep, ep.user.positionMs > 0) },
+                                )
+                            }
                         }
                     }
 
@@ -296,6 +327,7 @@ private fun Hero(
     onPlay: (MediaItem, Boolean) -> Unit,
     onTogglePlayed: () -> Unit,
     onToggleFavorite: () -> Unit,
+    actionError: UiError?,
     onOpenSeries: () -> Unit,
     onOpenNfo: () -> Unit,
     onShowTech: (() -> Unit)?,
@@ -351,8 +383,8 @@ private fun Hero(
         Spacer(Modifier.height(HlSpace.xl))
 
         Actions(
-            item, nextUp, capabilities, onPlay, onTogglePlayed, onToggleFavorite, onOpenSeries, onOpenNfo, onShowTech, onEdit,
-            memory, actions,
+            item, nextUp, capabilities, onPlay, onTogglePlayed, onToggleFavorite, actionError, onOpenSeries, onOpenNfo, onShowTech,
+            onEdit, memory, actions,
         )
     }
 }
@@ -369,6 +401,7 @@ private fun Actions(
     onPlay: (MediaItem, Boolean) -> Unit,
     onTogglePlayed: () -> Unit,
     onToggleFavorite: () -> Unit,
+    actionError: UiError?,
     onOpenSeries: () -> Unit,
     onOpenNfo: () -> Unit,
     onShowTech: (() -> Unit)?,
@@ -421,16 +454,23 @@ private fun Actions(
         if (onEdit != null) {
             HlIconButton(HlIcons.Edit, stringResource(R.string.edit), onClick = onEdit, modifier = Modifier.focusKey(EDIT, memory))
         }
-        // Why the last title asked for did not play, beside the actions that asked for it.
-        problem?.let {
-            HlStatus(
-                StatusState.Attention,
-                stringResource(R.string.play_failed),
-                Modifier.align(Alignment.CenterVertically).padding(start = HlSpace.m).weight(1f, fill = false),
-                detail = stringResource(it.message),
-            )
-        }
+        ActionFailure(problem, actionError)
     }
+}
+
+/**
+ * Why the last title asked for did not play ([problem]), or a change did not take ([actionError]),
+ * beside the actions that asked for it.
+ */
+@Composable
+private fun RowScope.ActionFailure(problem: UiError?, actionError: UiError?) {
+    val (title, error) = problem?.let { R.string.play_failed to it } ?: actionError?.let { R.string.action_not_saved to it } ?: return
+    HlStatus(
+        StatusState.Attention,
+        stringResource(title),
+        Modifier.align(Alignment.CenterVertically).padding(start = HlSpace.m).weight(1f, fill = false),
+        detail = stringResource(error.message),
+    )
 }
 
 /**
@@ -530,6 +570,29 @@ private fun Episodes(
     }
 }
 
+/** Empty frames where a season's episodes will be, while they load. */
+@Composable
+private fun EpisodesSkeleton(header: String?) {
+    Column(Modifier.scrollsAsBlock()) {
+        header?.let { SectionHeader(it, Modifier.padding(start = HlSpace.safeH, bottom = HlSpace.xxs)) }
+        Row(Modifier.padding(start = HlSpace.safeH), horizontalArrangement = Arrangement.spacedBy(HlSpace.l)) {
+            repeat(EPISODE_SKELETONS) { CardSkeleton(HlSize.episode, 16f / 9f) }
+        }
+    }
+}
+
+/**
+ * A season's episodes could not load: why, where the row would be, and what fixes it; trying again
+ * ([retrying]), the row stays, its button at work and focused.
+ */
+@Composable
+private fun EpisodesFailed(header: String?, error: UiError, retrying: Boolean, onRetry: () -> Unit, action: Modifier) {
+    Column(Modifier.scrollsAsBlock().padding(horizontal = HlSpace.safeH)) {
+        header?.let { SectionHeader(it, Modifier.padding(bottom = HlSpace.xxs)) }
+        PartFailed(error, retrying, onRetry, action = action)
+    }
+}
+
 /** Back returns to the actions once the page has scrolled down; at its top, it leaves. */
 internal fun backReturnsToActions(firstVisibleItem: Int, offset: Int): Boolean = firstVisibleItem > 0 || offset > 0
 
@@ -549,9 +612,15 @@ private val NFO = FocusKey.action("nfo")
 private val FAVORITE = FocusKey.action("favorite")
 private val EDIT = FocusKey.action("edit")
 private const val EPISODES = "episodes"
+
+/** Réessayer of a season that failed, in its row: coming back, focus finds the row. */
+private val RETRY_EPISODES = FocusKey.within(FocusKey.row(EPISODES), FocusKey.action("retry"))
 private const val FILMS = "films"
 private const val SAGA = "collection"
 private const val SIMILAR = "similar"
+
+/** Frames shown while a season loads: as many episodes as the screen shows whole. */
+private const val EPISODE_SKELETONS = 3
 
 /** The keys that act on what has focus. */
 private val OK_KEYS = setOf(Key.DirectionCenter, Key.Enter, Key.NumPadEnter)

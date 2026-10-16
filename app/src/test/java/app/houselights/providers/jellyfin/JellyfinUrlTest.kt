@@ -28,6 +28,14 @@ class JellyfinUrlTest {
         assertEquals(emptyList<String>(), JellyfinClient.candidateUrls("  "))
     }
 
+    /** An IPv6 address's colons are not a port. */
+    @Test
+    fun anIpv6AddressGetsJellyfinsPorts() {
+        assertEquals("http://[fd00::5]:8096", JellyfinClient.normalizeUrl("[fd00::5]"))
+        assertEquals("http://[fd00::5]:9000", JellyfinClient.normalizeUrl("[fd00::5]:9000"))
+        assertEquals(listOf("https://[fd00::5]:8920", "http://[fd00::5]:8096"), JellyfinClient.candidateUrls("[fd00::5]"))
+    }
+
     @Test
     fun encryption() {
         assertTrue(JellyfinClient.isEncrypted("https://nas:8920"))

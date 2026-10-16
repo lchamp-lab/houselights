@@ -19,6 +19,18 @@ data class ZidooPlayState(
     val durationMs: Long,
 )
 
+/** What the player's local API answers to "what plays now?". */
+sealed interface PlayerAnswer {
+    /** A file plays, or is paused. */
+    data class Playing(val state: ZidooPlayState) : PlayerAnswer
+
+    /** The player says, in so many words, that nothing plays (status 804 or 806). */
+    data object NothingPlays : PlayerAnswer
+
+    /** No answer, or one that makes no sense: the API out of reach a moment says nothing of the film. */
+    data object NoAnswer : PlayerAnswer
+}
+
 object ZidooStatus {
     private const val BASE = "http://127.0.0.1:9529"
 
@@ -29,26 +41,37 @@ object ZidooStatus {
 
     private val json = Json { ignoreUnknownKeys = true }
 
-    /** null when the API is unreachable or nothing is playing (status 804/806). */
-    suspend fun playStatus(): ZidooPlayState? = withContext(Dispatchers.IO) {
+    /** What the player plays now; [PlayerAnswer.NoAnswer] when its API is out of reach. */
+    suspend fun playStatus(): PlayerAnswer = withContext(Dispatchers.IO) {
         runCatching {
-            val body = http.newCall(Request.Builder().url("$BASE/ZidooVideoPlay/getPlayStatus").build())
-                .execute().use { it.body?.string() } ?: return@runCatching null
-            val root = json.parseToJsonElement(body).jsonObject
-            if (root["status"]?.jsonPrimitive?.intOrNull != 200) return@runCatching null
-            val video = root["video"]?.jsonObject ?: return@runCatching null
-            val duration = video["duration"]?.jsonPrimitive?.longOrNull ?: 0L
-            if (duration <= 0) return@runCatching null
-            // Not formally documented: 1 = playing, 0 = paused, -1 = error.
-            val status = video["status"]?.jsonPrimitive?.intOrNull ?: -1
+            http.newCall(Request.Builder().url("$BASE/ZidooVideoPlay/getPlayStatus").build())
+                .execute().use { it.body?.string() }?.let(::parse)
+        }.getOrNull() ?: PlayerAnswer.NoAnswer
+    }
+
+    /** What an answer of getPlayStatus says: a file playing, nothing playing (status 804/806), or nothing that makes sense. */
+    internal fun parse(body: String): PlayerAnswer = runCatching {
+        val root = json.parseToJsonElement(body).jsonObject
+        val code = root["status"]?.jsonPrimitive?.intOrNull
+        if (code in NOTHING_PLAYS) return@runCatching PlayerAnswer.NothingPlays
+        val video = root["video"]?.jsonObject?.takeIf { code == HTTP_OK }
+        val duration = video?.get("duration")?.jsonPrimitive?.longOrNull?.takeIf { it > 0 } ?: return@runCatching PlayerAnswer.NoAnswer
+        // Not formally documented: 1 = playing, 0 = paused, -1 = error.
+        val status = video["status"]?.jsonPrimitive?.intOrNull ?: -1
+        PlayerAnswer.Playing(
             ZidooPlayState(
                 playing = status == 1,
                 paused = status == 0,
                 positionMs = video["currentPosition"]?.jsonPrimitive?.longOrNull ?: 0L,
                 durationMs = duration,
             )
-        }.getOrNull()
-    }
+        )
+    }.getOrDefault(PlayerAnswer.NoAnswer)
+
+    private const val HTTP_OK = 200
+
+    /** The answers that say nothing plays: no video open (804), the player not running (806). */
+    private val NOTHING_PLAYS = setOf(804, 806)
 
     /** True when the control API answers, i.e. we run on a Zidoo. */
     suspend fun isAvailable(): Boolean = withContext(Dispatchers.IO) {

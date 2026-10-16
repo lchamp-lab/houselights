@@ -32,6 +32,7 @@
 
     <!-- States -->
     <string name="retry">Retry</string>
+    <string name="retrying">Trying again…</string>
     <string name="empty_title">No titles yet</string>
     <string name="empty_collections">No collections yet</string>
     <string name="empty_server">The server offers no film or show to this account.</string>
@@ -154,7 +155,10 @@
     <string name="gigabytes">%s GB</string>
     <string name="megabytes">%s MB</string>
     <string name="similar">More like this</string>
+    <string name="action_not_saved">Not saved</string>
+    <string name="action_not_done">Not done</string>
     <string name="play_failed">Can’t play</string>
+    <string name="play_with">Play with</string>
     <string name="no_player">The Zidoo player isn’t installed.</string>
     <string name="player_credentials">This folder needs a password: only the Zidoo player can play it.</string>
 
@@ -191,6 +195,10 @@
     <string name="connection_failed">Cannot connect</string>
     <string name="folder_gone_state">Folder not found</string>
     <string name="folder_gone">This folder is no longer in the library: it was removed meanwhile. Go back to the settings to add it again.</string>
+    <string name="folder_already_added">This folder is already in the library, as “%s”.</string>
+    <string name="folder_overlaps">This folder overlaps “%s”, already in the library: its titles would show twice. Choose another folder, or edit that one in Settings.</string>
+    <string name="folder_overlaps_state">Already in the library</string>
+    <string name="folder_not_saved_state">Not saved</string>
     <string name="saving">Saving…</string>
     <plurals name="entries_found">
         <item quantity="one">%d item found</item>
@@ -221,6 +229,11 @@
     <string name="error_server_unexpected">The server answered in an unexpected way. Check the address, then try again.</string>
     <string name="error_server_unreachable">Nothing answers at %s. Check the address and that Jellyfin is running.</string>
     <string name="error_not_jellyfin">%s answers, but it doesn’t look like a Jellyfin server. Check the address and port.</string>
+    <string name="error_server_missing">Enter the address of the server, or choose one found on the network.</string>
+    <string name="error_server_address">“%s” is not a server address. Enter its name or IP address, with its port if it isn’t Jellyfin’s.</string>
+    <string name="error_server_certificate">%s answers, but its certificate is refused: expired, self-signed or made out to another name. Renew it on the server, or use its http:// address.</string>
+    <string name="error_server_old">%1$s runs Jellyfin %2$s: Houselights needs version 10.9 or later. Update the server, then try again.</string>
+    <string name="error_server_other">%1$s is a %2$s server: Houselights works with Jellyfin 10.9 or later.</string>
 
     <!-- Settings -->
     <string name="settings_title">Settings</string>
@@ -283,6 +296,9 @@
     <string name="tmdb_key_personal">Personal key</string>
     <string name="tmdb_key_none">No key</string>
     <string name="tmdb_key_none_desc">Without one, no posters and no details.</string>
+    <string name="tmdb_key_lost">Your key could not be read again</string>
+    <string name="tmdb_key_lost_builtin">Type it again. Until then, the built-in key is used.</string>
+    <string name="tmdb_key_lost_none">Type it again. Until then, there are no posters and no details.</string>
     <string name="tmdb_key_free">Get a free key at themoviedb.org.</string>
     <string name="tmdb_key_unchecked">Saved without checking: TMDB isn’t answering.</string>
     <string name="tmdb_scan_key_refused">TMDB refused this key during the last scan: titles wait for their details.</string>
@@ -364,6 +380,18 @@
     <string name="error_tmdb_key_refused">TMDB doesn’t accept the key saved in Settings. Check it, or replace it.</string>
     <string name="error_failed_title">This could not be done</string>
     <string name="error_failed">Try again in a moment.</string>
+    <string name="error_keystore_title">Device keystore unavailable</string>
+    <string name="error_keystore">This device’s keystore refused to seal the password, so nothing was saved. Restart the player, then try again.</string>
+    <string name="error_keystore_sign_in">Signed in, but this device’s keystore refused to seal the server’s token, so nothing was saved. Restart the player, then sign in again.</string>
+    <string name="error_settings_title">Settings could not be read</string>
+    <string name="error_settings">This player’s storage did not answer. Try again, and if it lasts, restart the player.</string>
+    <string name="error_not_saved_title">Nothing was saved</string>
+    <string name="error_not_saved">This player’s storage refused the write. Free some space in Settings, under Storage, then try again.</string>
+    <string name="error_not_saved_player">This player’s storage refused the write, so nothing was saved. Free some space on the player, then try again.</string>
+    <string name="mappings_not_saved">The mappings were not saved. %s</string>
+    <string name="welcome_lost_secrets">The connection saved on this player could not be read again. Choose where your films are once more.</string>
+    <string name="settings_lost_tmdb_key">Your personal TMDB key could not be read again on this player. Type it again under TMDB API key.</string>
+    <string name="settings_lost_mappings">The path mappings saved on this player could not be read again. Type them again below.</string>
     <string name="error_action_reconnect">Sign in again</string>
     <string name="error_action_add_tmdb_key">Add a key</string>
     <string name="error_action_edit_tmdb_key">Change the key</string>
@@ -374,7 +402,9 @@
     <string name="remove_folder">Remove this folder</string>
     <string name="remove_folder_desc">Its titles leave the library; nothing is deleted on the NAS.</string>
     <string name="remove_folder_row_desc">Its titles leave the library</string>
+    <string name="folder_not_removed">This folder was not removed. %s</string>
     <string name="remove_folder_confirm">Remove “%s”?</string>
+    <string name="folder_removing">Removing “%s”…</string>
     <string name="tmdb_builtin_short">Built in</string>
     <string name="tmdb_personal">Your key</string>
     <string name="tmdb_missing_short">Missing</string>
