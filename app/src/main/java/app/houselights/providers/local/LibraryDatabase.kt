@@ -10,6 +10,9 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import app.houselights.core.Secrets
 import app.houselights.core.SecretsUnavailableException
+import app.houselights.core.suspendRunCatching
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 @Database(entities = [SourceEntity::class, ItemEntity::class, CastEntity::class, CollectionEntity::class], version = 9)
 @TypeConverters(SecretConverter::class, PipeList::class)
@@ -80,9 +83,8 @@ abstract class LibraryDatabase : RoomDatabase() {
 
         /**
          * Seals the passwords stored in plain text so far, and indexes what lists sort and filter on.
-         * A Keystore that cannot seal leaves a password
-         * as it is: read as plain text, it still signs in, and it is sealed when the folder is next
-         * saved; the library still opens.
+         * A Keystore that cannot seal leaves a password as it is: read as plain text, it still signs
+         * in, and it is sealed at a later launch ([sealPlainPasswords]); the library still opens.
          */
         internal fun migration6To7(secrets: Secrets) = object : Migration(startVersion = 6, endVersion = 7) {
             override fun migrate(db: SupportSQLiteDatabase) {
@@ -93,7 +95,7 @@ abstract class LibraryDatabase : RoomDatabase() {
                         val sealed = try {
                             secrets.seal(password)
                         } catch (e: SecretsUnavailableException) {
-                            Log.w("Library", "The password of folder ${rows.getLong(0)} left unsealed", e)
+                            Log.w(TAG, "The password of folder ${rows.getLong(0)} left unsealed", e)
                             null
                         }
                         if (sealed != null) {
@@ -117,5 +119,25 @@ abstract class LibraryDatabase : RoomDatabase() {
                 .addTypeConverter(SecretConverter(secrets))
                 .addMigrations(*migrations(secrets))
                 .build()
+
+        /**
+         * Seals the passwords still in plain text, which migration 6 to 7 left when the Keystore could
+         * not seal: a scan never writes a folder's password, so without this they would stay so until
+         * the folder is saved again. Run at each launch, off the main thread; a Keystore that still
+         * cannot seal, or a write that fails, leaves them for the next launch, logged.
+         */
+        suspend fun sealPlainPasswords(dao: LibraryDao, secrets: Secrets) {
+            suspendRunCatching {
+                withContext(Dispatchers.IO) {
+                    val plain = dao.storedPasswords().filterNot { secrets.isSealed(it.password) }
+                    for (stored in plain) dao.sealPassword(stored.id, stored.password, secrets.seal(stored.password))
+                    plain.size
+                }
+            }
+                .onSuccess { if (it > 0) Log.i(TAG, "$it passwords left in plain text are sealed") }
+                .onFailure { Log.w(TAG, "Passwords left in plain text wait for the next launch", it) }
+        }
+
+        private const val TAG = "Library"
     }
 }

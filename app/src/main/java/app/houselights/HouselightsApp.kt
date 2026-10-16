@@ -164,6 +164,8 @@ class AppContainer(private val app: Application) : LibraryEvents {
 
     init {
         scope.launch { settings.ensureDeviceId() }
+        // Passwords a Keystore at fault left in plain text (migration 6 to 7): sealed once it seals again.
+        scope.launch { LibraryDatabase.sealPlainPasswords(database.dao(), Secrets.device) }
     }
 }
 
