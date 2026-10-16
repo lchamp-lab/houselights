@@ -110,8 +110,8 @@ internal object MissingFiles {
 
     /**
      * The films in several files (by their first part) whose files' rows were matched with two titles, by
-     * TMDB or by the user: two films, not one, which Kodi's names may join ("X Part 1" and "X Part 2" side
-     * by side, without a year). None of their rows gives way to another, and none takes the others' files
+     * TMDB or by the user: two films, not one, which Kodi's names may join ("X CD1" and "X CD2" for a film and
+     * its sequel). None of their rows gives way to another, and none takes the others' files
      * as its parts; the scan reads each as a title of its own ([Stacks.of]).
      */
     fun split(known: Collection<ItemEntity>, stacks: Stacks): Set<String> =

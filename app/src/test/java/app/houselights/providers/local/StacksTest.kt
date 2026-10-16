@@ -22,10 +22,9 @@ class StacksTest {
     fun kodisSuffixesEndTheName() {
         assertEquals(StackPart("Le Parrain (1972)", 1), part("Le Parrain (1972) CD1.avi"))
         assertEquals(StackPart("Le Parrain (1972)", 2), part("Le Parrain (1972) cd2.avi"))
-        assertEquals(StackPart("Film (2020)", 1, titleWord = true), part("Film (2020) - Part 1.mkv"))
-        assertEquals(StackPart("Film.2020", 2, titleWord = true), part("Film.2020.part.2.mkv"))
+        assertEquals(StackPart("Film (2020)", 1), part("Film (2020) - DVD 1.mkv"))
+        assertEquals(StackPart("Film.2020", 2), part("Film.2020.cd.2.mkv"))
         assertEquals(StackPart("Film", 3), part("Film_dvd_3.iso"))
-        assertEquals(StackPart("film", 4, titleWord = true), part("film-pt4.mkv"))
         assertEquals(StackPart("Film", 2), part("Film disc b.mkv"))
         assertEquals(StackPart("Film", 4), part("Film DISK-d.mkv"))
         assertEquals(StackPart("Film", 1), part("Film CDa.avi"))
@@ -37,6 +36,10 @@ class StacksTest {
         assertNull(part("Film (2020) CD1 [1080p].mkv"))
         assertNull(part("Harry Potter and the Deathly Hallows Part 1 (2010).mkv"))
         assertNull(part("Dune Part Two (2024).mkv"))
+        // "Part" and "pt" end films' names: the user's choice is that they make no part.
+        assertNull(part("Film (2020) - Part 1.mkv"))
+        assertNull(part("Film.2020.part.2.mkv"))
+        assertNull(part("film-pt4.mkv"))
         // One part from 1 to 9, or a letter from a to d; volumes are films of their own.
         assertNull(part("Film CD10.avi"))
         assertNull(part("Film part e.mkv"))
@@ -61,27 +64,23 @@ class StacksTest {
         assertEquals("Le Parrain (1972)/Le Parrain (1972).avi", stack.namedPath)
         assertEquals("Le Parrain (1972)/Le Parrain (1972) CD1.avi", godfather.firstOf("Le Parrain (1972)/Le Parrain (1972) CD2.avi"))
 
-        val dashed = stacks("Film (2020) - Part 1.mkv", "Film (2020) - Part 2.mkv", "Film (2020) - Part 3.mkv")
-        assertEquals(listOf("Film (2020) - Part 1.mkv"), dashed.titlePaths())
-        assertEquals(listOf("Film (2020) - Part 2.mkv", "Film (2020) - Part 3.mkv"), dashed.partsOf("Film (2020) - Part 1.mkv"))
+        val dashed = stacks("Film (2020) - DVD 1.mkv", "Film (2020) - DVD 2.mkv", "Film (2020) - DVD 3.mkv")
+        assertEquals(listOf("Film (2020) - DVD 1.mkv"), dashed.titlePaths())
+        assertEquals(listOf("Film (2020) - DVD 2.mkv", "Film (2020) - DVD 3.mkv"), dashed.partsOf("Film (2020) - DVD 1.mkv"))
         // Parts of one film may be written in two ways.
-        assertEquals(listOf("Heat/Heat CD1.avi"), stacks("Heat/Heat CD1.avi", "Heat/heat part 2.avi").titlePaths())
+        assertEquals(listOf("Heat/Heat CD1.avi"), stacks("Heat/Heat CD1.avi", "Heat/heat disc 2.avi").titlePaths())
     }
 
-    /**
-     * "Part 1" and "Part 2" end two films' names as well as one film's files': among other films and with no
-     * year, they are two films; with their year, or alone in a folder of their own, one. CDs and discs always are.
-     */
+    /** "Part 1" and "Part 2" end two films' names as well as one film's files': whatever the folder and the year, films of their own. */
     @Test
-    fun filesNamedPartAreOneFilmByTheirYearOrTheirOwnFolder() {
+    fun filesNamedPartAreFilmsOfTheirOwn() {
         val hallows = "Harry Potter and the Deathly Hallows"
         assertEquals(2, stacks("$hallows Part 1.mkv", "$hallows Part 2.mkv").titles.size)
         assertEquals(3, stacks("Films/Dune Part 1.mkv", "Films/Dune Part 2.mkv", "Films/Top Gun Maverick.mkv").titles.size)
         assertEquals(3, stacks("Mockingjay Pt1.mkv", "Mockingjay Pt2.mkv", "Colony.mkv").titles.size)
-
-        val dated = stacks("Film (2020) - Part 1.mkv", "Film (2020) - Part 2.mkv", "Colony.mkv")
-        assertEquals(listOf("Film (2020) - Part 1.mkv", "Colony.mkv"), dated.titlePaths())
-        assertEquals(listOf("Film/Film Part 1.mkv"), stacks("Film/Film Part 1.mkv", "Film/Film Part 2.mkv").titlePaths())
+        assertEquals(2, stacks("Film (2020) - Part 1.mkv", "Film (2020) - Part 2.mkv").titles.size)
+        assertEquals(2, stacks("Film/Film Part 1.mkv", "Film/Film Part 2.mkv").titles.size)
+        // CDs and discs always are one film.
         assertEquals(listOf("Heat CD1.avi", "Colony.mkv"), stacks("Heat CD1.avi", "Heat CD2.avi", "Colony.mkv").titlePaths())
         assertEquals(listOf("Heat disc 1.avi"), stacks("Heat disc 1.avi", "Heat disc 2.avi").titlePaths())
     }
@@ -95,7 +94,7 @@ class StacksTest {
         // A gap ends the film: the fourth part is a title of its own.
         assertEquals(listOf("Film CD1.avi", "Film CD4.avi"), stacks("Film CD1.avi", "Film CD2.avi", "Film CD4.avi").titlePaths())
         // The first part twice: which is the film's cannot be told.
-        assertEquals(3, stacks("Film CD1.avi", "Film part 1.avi", "Film CD2.avi").titles.size)
+        assertEquals(3, stacks("Film CD1.avi", "Film disc 1.avi", "Film CD2.avi").titles.size)
     }
 
     @Test
@@ -109,7 +108,7 @@ class StacksTest {
     @Test
     fun aFilmInSeveralFilesIsNamedWithoutThePart() {
         assertEquals("Le Parrain/Le Parrain (1972).avi", Stacks.filmPath("Le Parrain/Le Parrain (1972) CD1.avi", stacked = true))
-        assertEquals("Heat.avi", Stacks.filmPath("Heat - Part 1.avi", stacked = true))
+        assertEquals("Heat.avi", Stacks.filmPath("Heat - Disc 1.avi", stacked = true))
         // A film of one file keeps its name, whatever it ends with.
         assertEquals("Dune Part 2.mkv", Stacks.filmPath("Dune Part 2.mkv", stacked = false))
     }

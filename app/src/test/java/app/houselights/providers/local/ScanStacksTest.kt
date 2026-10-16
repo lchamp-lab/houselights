@@ -13,7 +13,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 
 /**
- * Films in several files (CD1, CD2, part 1…), as a scan meets them: one title under the first part,
+ * Films in several files (CD1, CD2, disc 1…), as a scan meets them: one title under the first part,
  * found by the film's NFO and artwork, whose parts may be renamed, added or gone without the title
  * being another.
  */
@@ -70,17 +70,17 @@ class ScanStacksTest {
         bench.dao.setFavorite(film.id, true)
         bench.dao.setPlayed(film.id, played = true, now = bench.now)
 
-        nas.rename("$DIR/Le Parrain (1972) CD2.mkv", "$DIR/Le Parrain (1972) - Part 2.mkv")
+        nas.rename("$DIR/Le Parrain (1972) CD2.mkv", "$DIR/Le Parrain (1972) - Disc 2.mkv")
         val told = bench.changesDuring { bench.scan() }
         val renamed = rows().single()
         assertEquals(film.id, renamed.id)
-        assertEquals(listOf("$DIR/Le Parrain (1972) - Part 2.mkv"), renamed.parts)
+        assertEquals(listOf("$DIR/Le Parrain (1972) - Disc 2.mkv"), renamed.parts)
         assertTrue(renamed.favorite && renamed.played)
         assertEquals(null, renamed.missingSince)
         assertTrue("screens show its parts", told > 0)
 
         // A part gone: the film of one file it now is keeps its row.
-        nas.remove("$DIR/Le Parrain (1972) - Part 2.mkv")
+        nas.remove("$DIR/Le Parrain (1972) - Disc 2.mkv")
         bench.scan()
         val alone = rows().single()
         assertEquals(film.id, alone.id)
