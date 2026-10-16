@@ -28,6 +28,8 @@ import app.houselights.player.Redact
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import okhttp3.OkHttpClient
 import retrofit2.HttpException
 import java.io.IOException
@@ -194,6 +196,12 @@ class JellyfinProvider(
     /** Counts playbacks started through this server: a report of an earlier one stops trying once a new one started. */
     private val sessions = AtomicLong()
 
+    /** Keeps reports in order across playbacks: a Playing never goes before the last playback's Stopped, nor a Stopped twice. */
+    private val reports = Mutex()
+
+    /** The last playback's Stopped while it waits to be tried again (see [retried]): the next Playing sends it first. Under [reports]. */
+    private var pendingStop: (suspend () -> Unit)? = null
+
     private inner class Reporter(private val itemId: String, private val mediaSourceId: String?) : PlaybackReporter {
         /** The playback this reporter speaks for: the latest when it was made, or the one it started. */
         private var session = sessions.get()
@@ -206,7 +214,14 @@ class JellyfinProvider(
         )
 
         override suspend fun started(positionMs: Long) {
-            session = sessions.incrementAndGet()
+            reports.withLock {
+                session = sessions.incrementAndGet()
+                // The last playback's Stopped, still to be tried again: once more now, before this Playing, then given up.
+                pendingStop?.let { stop ->
+                    pendingStop = null
+                    suspendRunCatching { stop() }.onFailure { Log.w(TAG, "The last playback's Stopped failed again: given up", it) }
+                }
+            }
             api.reportStart(report(positionMs))
         }
 
@@ -221,27 +236,40 @@ class JellyfinProvider(
      * did not take it: no connection (refused or timed out, no route, a name unknown) or the server
      * failing (5xx, "database is locked" during a scan). Anything else is not tried again: an answer
      * that timed out may come from a request the server did take, and a second Stopped would count the
-     * film twice. A new playback ([session] no longer the latest) ends the tries: a late Stopped would
-     * land after the next film's Playing, or mark again as watched what the user has just unmarked.
+     * film twice. While it waits, it is [pendingStop]: a new playback sends it once more before its own
+     * Playing, and the tries end there. A late Stopped would land after the next episode's Playing,
+     * and a dropped one would leave the episode unwatched. Each try holds [reports].
      */
     private suspend fun retried(session: Long, block: suspend () -> Unit) {
-        for (wait in retryDelaysMs) {
-            try {
-                return block()
-            } catch (e: IOException) {
-                if (!e.neverReachedTheServer()) throw e
-                Log.w(TAG, "Report failed, trying again in $wait ms", e)
-            } catch (e: HttpException) {
-                if (e.code() < HTTP_SERVER_ERROR) throw e
-                Log.w(TAG, "Report failed, trying again in $wait ms", e)
+        var tries = 0
+        while (true) {
+            val failure = reports.withLock {
+                // A new playback took it over, and sent it before its Playing.
+                if (tries > 0 && pendingStop !== block) return
+                pendingStop = null
+                val failure = failureToRetry(block) ?: return
+                if (tries == retryDelaysMs.size) throw failure
+                if (sessions.get() != session) {
+                    Log.i(TAG, "Another playback started before this report: it is not tried again")
+                    return
+                }
+                pendingStop = block
+                failure
             }
+            val wait = retryDelaysMs[tries++]
+            Log.w(TAG, "Report failed, trying again in $wait ms", failure)
             delay(wait)
-            if (sessions.get() != session) {
-                Log.i(TAG, "Another playback started: the report of the last one is not tried again")
-                return
-            }
         }
+    }
+
+    /** Null when [block] succeeds; its failure when it is one to try again (see [retried]). Any other is thrown. */
+    private suspend fun failureToRetry(block: suspend () -> Unit): Exception? = try {
         block()
+        null
+    } catch (e: IOException) {
+        if (e.neverReachedTheServer()) e else throw e
+    } catch (e: HttpException) {
+        if (e.code() >= HTTP_SERVER_ERROR) e else throw e
     }
 
     /** The request never got to the server: it can be sent again without the server taking it twice. */
