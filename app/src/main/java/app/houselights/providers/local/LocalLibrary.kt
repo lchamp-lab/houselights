@@ -20,6 +20,8 @@ class LocalLibrary(
     private val dao: LibraryDao,
     private val scanner: LibraryScanner,
     private val artwork: ArtworkCache,
+    /** Closes the sessions and mounts kept open on a folder's address; tests hand in their own. */
+    private val forget: suspend (SourceEntity) -> Unit = ::forgetConnections,
 ) {
     val folders: Flow<List<SourceEntity>> = dao.observeSources()
 
@@ -51,20 +53,21 @@ class LocalLibrary(
     /**
      * Gives the folder [id] the address and sign-in of [folder] (an IP or a password changed, SMB
      * became NFS), and looks again at what it holds. It stays the same folder: its titles keep what
-     * was watched and chosen, which removing and adding it again would lose. Its kind stays.
+     * was watched and chosen, which removing and adding it again would lose. Its kind stays. False
+     * when the folder is no longer in the library (removed meanwhile): nothing was saved.
      */
-    suspend fun updateFolder(id: Long, folder: SourceEntity) {
-        val before = dao.source(id) ?: return
-        with(folder) { dao.updateConnection(id, name, protocol, host, share, path, username, password) }
-        // A session or mount kept on the old address would still answer for the folder. Off the main
-        // thread: both wait for the network operation under way on it.
-        withContext(Dispatchers.IO) {
-            when (before.protocol) {
-                Protocol.SMB -> SmbBrowser.forget(before)
-                Protocol.NFS -> NfsBrowser.forget(before)
-            }
+    suspend fun updateFolder(id: Long, folder: SourceEntity): Boolean {
+        val before = dao.source(id) ?: return false
+        try {
+            with(folder) { dao.updateConnection(id, name, protocol, host, share, path, username, password) }
+            // A session or mount kept on the old address would still answer for the folder.
+            forget(before)
+        } finally {
+            // Even when the wait above is cut short: the folder may already have its new address,
+            // and its last error stays shown until a scan reads it again.
+            scanner.scanAll()
         }
-        scanner.scanAll()
+        return true
     }
 
     suspend fun removeFolder(folder: SourceEntity) = scanner.removeSource(folder)
@@ -85,5 +88,13 @@ class LocalLibrary(
             // Room keeps recent writes in a write-ahead log next to the file.
             databaseBytes = listOf(db, File(db.path + "-wal")).sumOf { if (it.exists()) it.length() else 0L },
         )
+    }
+}
+
+/** Off the main thread: both wait for the network operation under way on the folder. */
+private suspend fun forgetConnections(folder: SourceEntity) = withContext(Dispatchers.IO) {
+    when (folder.protocol) {
+        Protocol.SMB -> SmbBrowser.forget(folder)
+        Protocol.NFS -> NfsBrowser.forget(folder)
     }
 }

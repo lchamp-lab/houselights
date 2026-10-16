@@ -156,6 +156,7 @@
     <string name="edit_folder_row_desc">Son adresse ou ses identifiants</string>
     <string name="edit_folder_unreachable_desc">Son adresse a peut-être changé</string>
     <string name="edit_folder_login_desc">Saisissez à nouveau l’identifiant ou le mot de passe</string>
+    <string name="edit_folder_not_found_desc">Son partage ou son chemin a peut-être changé</string>
     <string name="password_kept">Inchangé</string>
     <string name="jellyfin_desc">Saisissez l’adresse de votre serveur et vos identifiants Jellyfin.</string>
     <string name="folder_kind">Contenu</string>
@@ -178,6 +179,9 @@
     <string name="connection_testing">Connexion en cours…</string>
     <string name="connection_ok">Connexion réussie</string>
     <string name="connection_failed">Connexion impossible</string>
+    <string name="folder_gone_state">Dossier introuvable</string>
+    <string name="folder_gone">Ce dossier ne fait plus partie de la bibliothèque : il a été retiré entre-temps. Revenez aux réglages pour l’ajouter à nouveau.</string>
+    <string name="saving">Enregistrement…</string>
     <plurals name="entries_found">
         <item quantity="one">%d élément trouvé</item>
         <item quantity="other">%d éléments trouvés</item>

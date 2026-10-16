@@ -250,7 +250,8 @@ private fun AppNavigation(nav: NavHostController, onPlay: (MediaItem, Boolean) -
         }
         composable<Route.JellyfinLogin> { JellyfinLoginScreen(onLoggedIn = ::goHome) }
         composable<Route.AddFolder> { entry ->
-            AddFolderScreen(entry.toRoute<Route.AddFolder>().folderId, onDone = { switched ->
+            val route = entry.toRoute<Route.AddFolder>()
+            AddFolderScreen(route.folderId, route.focus, onDone = { switched ->
                 // A new source or a first folder: the home screen; another folder, or one edited: back to settings.
                 if (switched || !nav.popBackStack<Route.Settings>(inclusive = false)) goHome()
             })
@@ -293,7 +294,7 @@ private fun AppNavigation(nav: NavHostController, onPlay: (MediaItem, Boolean) -
         composable<Route.Settings> {
             // Changing the source leaves the settings below: Back returns to them, the source intact.
             SettingsScreen(
-                onFolderForm = { nav.navigate(Route.AddFolder(it)) },
+                onFolderForm = { folderId, focus -> nav.navigate(Route.AddFolder(folderId, focus)) },
                 onUseFolders = ::useFolders,
                 onSignIn = { nav.navigate(Route.JellyfinLogin) },
                 onOpenCatalog = { nav.navigate(Route.Catalog) },

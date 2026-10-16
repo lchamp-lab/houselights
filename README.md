@@ -54,9 +54,14 @@ Before a change is pushed, the same checks as CI (`.gitea/workflows/ci.yml`) run
 without a signing key). Lint and detekt keep today's findings in `app/lint-baseline.xml` and
 `app/detekt-baseline.xml`: new code has to pass.
 
-Each build's `versionCode` is the number of commits (`git rev-list --count HEAD`), or `-PversionCode=…`
-when given: Android then refuses to install a build over a newer one, whose library database it could
-not open. CI checks out the whole history for it.
+The release's `versionCode` is the number of commits (`git rev-list --count HEAD`), or `-PversionCode=…`
+when given: Android then refuses to install a release over a newer one, whose library database it could
+not open. CI checks out the whole history for it. The debug and `bench` builds stay at 1, so that the
+build of a branch with fewer commits installs over another one; a database a newer branch changed may then
+not open, and clearing the app's data starts it afresh. A debug or `bench` build installed before this rule
+carries a higher `versionCode`, which Android will not go below: once, install the debug APK with
+`adb install -r -d app/build/outputs/apk/debug/app-debug.apk` (a debuggable app may go back, its data
+kept), and uninstall the bench build (`adb uninstall app.houselights.bench`).
 
 ### Signing
 
@@ -79,7 +84,8 @@ with the same key, so changing keys later means uninstalling, and losing the lib
 on the player. Without the file, `assembleRelease` stops before writing the APK and says so, rather than
 sign it with the debug key of the machine that built it. A build that will not be installed (CI, a check)
 can ask for that key all the same with `-Phouselights.debugSignedRelease=true`. The `bench` build, which
-installs beside the release, and the builds `:baselineprofile` makes keep the debug key.
+installs beside the release, and the builds `:baselineprofile` makes are always signed with the debug key,
+even with the file: those bear the release's package name (Benchmarks, below).
 
 An APK given to other people should not carry your personal TMDB key: build it without one (users then enter
 their own), or with a key created for the project that you can revoke.
@@ -131,12 +137,18 @@ the app itself, then browse by what the screen says, in the device's language.
 
 ### Benchmarks
 
-On the player itself, not the emulator, the same journeys measure cold start-up and frames while browsing,
+On a player, not the emulator, the same journeys measure cold start-up and frames while browsing,
 without any compilation (a fresh install) and with the baseline profile:
 
 ```sh
 ANDROID_SERIAL=<player> ./gradlew :baselineprofile:connectedBenchmarkReleaseAndroidTest
 ```
+
+**Never run it, or any `connected…ReleaseAndroidTest`, on a player that holds the release you watch with.**
+The build measured bears the release's package name (`app.houselights`), and the run ends by uninstalling
+it. Signed with the debug key, it cannot replace a release signed with yours: its installation fails. A
+release signed with this machine's debug key, though, would be replaced, then uninstalled, and the library
+and watch history with it. To measure on that player, install the `bench` build instead (below).
 
 Cold start-up empties the page cache first, which needs root: on a player's user build it is skipped.
 Results: `baselineprofile/build/outputs/connected_android_test_additional_output/`, with a Perfetto trace

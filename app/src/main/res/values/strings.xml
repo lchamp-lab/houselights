@@ -164,6 +164,7 @@
     <string name="edit_folder_row_desc">Its address or sign-in</string>
     <string name="edit_folder_unreachable_desc">Its address may have changed</string>
     <string name="edit_folder_login_desc">Enter the user name or password again</string>
+    <string name="edit_folder_not_found_desc">Its share or path may have changed</string>
     <string name="password_kept">Unchanged</string>
     <string name="jellyfin_desc">Enter the address of your server and your Jellyfin credentials.</string>
     <string name="folder_kind">Contents</string>
@@ -186,6 +187,9 @@
     <string name="connection_testing">Connecting…</string>
     <string name="connection_ok">Connected</string>
     <string name="connection_failed">Cannot connect</string>
+    <string name="folder_gone_state">Folder not found</string>
+    <string name="folder_gone">This folder is no longer in the library: it was removed meanwhile. Go back to the settings to add it again.</string>
+    <string name="saving">Saving…</string>
     <plurals name="entries_found">
         <item quantity="one">%d item found</item>
         <item quantity="other">%d items found</item>
