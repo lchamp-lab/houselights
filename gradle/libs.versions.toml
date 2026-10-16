@@ -19,7 +19,7 @@ serialization = "1.7.3"
 okhttp = "4.12.0"
 retrofit = "2.11.0"
 coil = "2.7.0"
-smbj = "0.13.0"
+smbj = "0.14.0"
 nfs-client = "1.1.0"
 # Transitive versions raised for known vulnerabilities (see the constraints in app/build.gradle.kts).
 bouncycastle = "1.81"
