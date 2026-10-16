@@ -59,7 +59,7 @@ jobs:
         # With them, the whole check from clean took 5.5 min and peaked at 2.9 GB with a 1.5 GB heap.
         run: >-
           ./gradlew --no-daemon --max-workers=2
-          -Dorg.gradle.jvmargs="-Xmx2g -XX:MaxMetaspaceSize=512m -Dfile.encoding=UTF-8"
+          -Dorg.gradle.jvmargs="-Xmx2g -XX:MaxMetaspaceSize=768m -Dfile.encoding=UTF-8"
           -Pkotlin.compiler.execution.strategy=in-process
           -Phouselights.debugSignedRelease=true
           testDebugUnitTest lintDebug detekt detektDebug detektDebugUnitTest assembleRelease

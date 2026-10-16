@@ -45,3 +45,8 @@ performance:
   SpreadOperator:
     # Only used to pass a handful of migrations or arguments once; the copy costs nothing.
     active: false
+
+coroutines:
+  InjectDispatcher:
+    # Dispatchers.IO wraps blocking reads only (SMB, NFS, files), where they happen; tests run them for real.
+    active: false

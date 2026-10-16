@@ -17,7 +17,7 @@ while [[ $# -gt 0 ]]; do
     case "$1" in
         --heap)
             [[ $# -ge 2 ]] || { echo "--heap needs a size, such as 2g." >&2; exit 1; }
-            options+=("-Dorg.gradle.jvmargs=-Xmx$2 -XX:MaxMetaspaceSize=512m -Dfile.encoding=UTF-8")
+            options+=("-Dorg.gradle.jvmargs=-Xmx$2 -XX:MaxMetaspaceSize=768m -Dfile.encoding=UTF-8")
             shift 2
             ;;
         --workers)
