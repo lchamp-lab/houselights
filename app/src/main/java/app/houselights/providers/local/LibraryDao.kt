@@ -68,7 +68,9 @@ interface LibraryDao {
     suspend fun deleteSource(id: Long)
 
     // Items
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+
+    /** New rows only: a row inserted again fails, rather than replacing what the user did with it. */
+    @Insert
     suspend fun insert(item: ItemEntity): Long
 
     @Update

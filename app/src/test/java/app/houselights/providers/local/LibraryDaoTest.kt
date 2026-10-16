@@ -1,5 +1,6 @@
 package app.houselights.providers.local
 
+import android.database.sqlite.SQLiteConstraintException
 import androidx.room.Room
 import androidx.room.withTransaction
 import androidx.test.core.app.ApplicationProvider
@@ -115,6 +116,18 @@ class LibraryDaoTest {
         assertEquals(1_200, dao.collectionFilms(collection).count { it.played })
         assertEquals(false, dao.item(other)?.played)
         assertFitsAndroid9()
+    }
+
+    @Test
+    fun aRowInsertedAgainFailsRatherThanReplacingIt() = runTest {
+        val id = films(1).single()
+        dao.savePlayback(id, positionMs = 600_000, durationMs = null, played = false, lastPlayedAt = 1)
+        val snapshot = checkNotNull(dao.item(id)).copy(positionMs = 0, lastPlayedAt = null)
+
+        val failure = runCatching { dao.insert(snapshot) }.exceptionOrNull()
+
+        assertTrue("$failure", failure is SQLiteConstraintException)
+        assertEquals(600_000L, dao.item(id)?.positionMs)
     }
 
     private companion object {
