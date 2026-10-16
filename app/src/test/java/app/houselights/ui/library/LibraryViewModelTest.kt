@@ -2,6 +2,7 @@ package app.houselights.ui.library
 
 import androidx.lifecycle.SavedStateHandle
 import app.houselights.core.Library
+import app.houselights.core.LibraryFacets
 import app.houselights.core.LibraryFilter
 import app.houselights.core.LibraryKind
 import app.houselights.core.Quality
@@ -175,5 +176,25 @@ class LibraryViewModelTest {
         val after = LibraryViewModel({ provider }, library, SavedStateHandle(saved.keys().associateWith { saved.get<Any?>(it) }))
         assertEquals(SortOption.ADDED, after.state.value.sort)
         assertEquals(LibraryFilter(WatchStatus.UNWATCHED, "Drame", 1990, Quality.UHD_4K), after.state.value.filter)
+    }
+
+    /** Two changes in a row: the filter menu offers what the library holds now, never an older answer coming late. */
+    @Test
+    fun theLatestFacetsWin() = runTest {
+        val vm = LibraryViewModel({ provider }, library)
+        advanceUntilIdle()
+        val older = provider.gate("facets")
+        vm.onLibraryChanged()
+        advanceUntilIdle()
+        val newer = provider.gate("facets")
+        vm.onLibraryChanged()
+        advanceUntilIdle()
+        provider.facets = LibraryFacets(genres = listOf("Drame"))
+        newer.complete(Unit)
+        advanceUntilIdle()
+        provider.facets = LibraryFacets(genres = listOf("Western"))
+        older.complete(Unit)
+        advanceUntilIdle()
+        assertEquals(listOf("Drame"), vm.state.value.facets.genres)
     }
 }

@@ -184,4 +184,46 @@ class EditViewModelsTest {
         assertEquals("1995", after.state.value.year)
         assertTrue("search Heat McCann" in provider.calls)
     }
+
+    /** Tried again twice: the latest choices show, never older ones finishing late. */
+    @Test
+    fun theLatestChoicesWin() = runTest {
+        val vm = ArtworkViewModel("m1", ArtworkKind.POSTER, { provider }, work = this)
+        advanceUntilIdle()
+        val before = provider.choices
+        val older = provider.gate("artwork m1 POSTER")
+        vm.load()
+        advanceUntilIdle()
+        val newer = provider.gate("artwork m1 POSTER")
+        vm.load()
+        advanceUntilIdle()
+        val other = ArtworkOption("p2", null, ArtworkOrigin.ONLINE)
+        val latest = ArtworkChoices(listOf(other), other, other, onlineAvailable = true)
+        provider.choices = latest
+        newer.complete(Unit)
+        advanceUntilIdle()
+        provider.choices = before
+        older.complete(Unit)
+        advanceUntilIdle()
+        assertEquals(latest, vm.state.value.choices)
+    }
+
+    /** A choice not saved is said in place of the choices; trying again shows them at once, the title kept. */
+    @Test
+    fun aFailedChoiceIsTriedAgainOverTheChoicesShown() = runTest {
+        val vm = ArtworkViewModel("m1", ArtworkKind.POSTER, { provider }, work = this)
+        advanceUntilIdle()
+        provider.fail = { if (it.startsWith("setArtwork")) IOException("NAS away") else null }
+        vm.choose(vm.state.value.choices!!.options.first())
+        advanceUntilIdle()
+        assertEquals(UiError.OFFLINE, vm.state.value.error)
+        assertEquals("Heat", vm.state.value.item?.title)
+
+        provider.fail = { null }
+        vm.load()
+        assertEquals(null, vm.state.value.error)
+        assertEquals(provider.choices, vm.state.value.choices)
+        advanceUntilIdle()
+        assertEquals(provider.choices, vm.state.value.choices)
+    }
 }
