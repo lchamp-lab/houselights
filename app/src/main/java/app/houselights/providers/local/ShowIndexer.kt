@@ -204,7 +204,13 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
     ): ItemEntity {
         val tv = lookup.value
         val ids = tv?.externalIds
-        val nfo = nfoInfo?.takeUnless { MetadataMerge.describesOther(it, base.userTmdbId, ids?.imdbId, ids?.tvdbId) }
+        // Matched by hand, a show TMDB gives nothing for now keeps what it had: an NFO only TMDB's
+        // ids can tell of (IMDb's, TVDB's) waits for them, rather than its title and cast win meanwhile.
+        val untold = base.userTmdbId != null && tv == null
+        val nfo = nfoInfo?.takeUnless {
+            untold && it.tmdbId == null && (it.imdbId != null || it.tvdbId != null) ||
+                MetadataMerge.describesOther(it, base.userTmdbId, ids?.imdbId, ids?.tvdbId)
+        }
         val details = tv?.details(tmdb?.tvCertification(tv), tmdb?.pickLogo(tv.images))
         val matchedAt = if (lookup is TmdbAnswer.Given) now else base.matchedAt.takeUnless { refresh }
         val series = MetadataMerge.merge(base, nfo, details, art).copy(matchedAt = matchedAt)

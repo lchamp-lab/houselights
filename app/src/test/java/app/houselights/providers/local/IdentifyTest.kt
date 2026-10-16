@@ -154,6 +154,21 @@ class IdentifyTest {
         assertEquals(listOf("Ricky Gervais"), bench.dao.cast(series.id).map { it.name })
     }
 
+    /** Without TMDB's answer, nothing tells whose show the NFO's ids name: the show keeps what it had meanwhile. */
+    @Test
+    fun aShowIdentifiedAsAnotherKeepsItWhileTmdbDoesNotAnswer() = runTest {
+        val series = theOffice()
+        bench.scanner.identify(series.id, OFFICE_US)
+
+        tmdb.failingPath = "tv/$OFFICE_US"
+        bench.scan(refreshMetadata = true)
+        val waiting = checkNotNull(bench.dao.item(series.id))
+        assertEquals("The Office", waiting.title)
+        assertEquals("About The Office", waiting.overview)
+        assertEquals(emptyList<String>(), bench.dao.cast(series.id).map { it.name })
+        assertNull("asked again at a later pass", waiting.matchedAt)
+    }
+
     private companion object {
         const val OFFICE_UK = 2996
         const val OFFICE_US = 2316
