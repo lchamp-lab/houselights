@@ -221,6 +221,34 @@ class LocalProviderTest {
         assertTrue("Not TMDB's logo: $logo", logo.startsWith("https://image.tmdb.org/") && logo.endsWith("/tmdbLogo.png"))
     }
 
+    /**
+     * An episode whose backdrop is a file the app keeps, with no web address of its own: the player
+     * gets its show's from TMDB, never nothing. A logo the show chose none of stays none.
+     */
+    @Test
+    fun anEpisodeGetsItsShowsWebArtworkWhenItsOwnIsOutOfReach() = runTest {
+        val series = dao.insert(
+            ItemEntity(
+                kind = ItemKind.SERIES, sourceId = source, title = "Show", sortTitle = "show", addedAt = 0,
+                backdropPath = "/showBackdrop.jpg", logoPath = "/showLogo.png", userLogoPath = "",
+            )
+        )
+        val episode = dao.insert(
+            ItemEntity(
+                kind = ItemKind.EPISODE, sourceId = source, seriesId = series, title = "E1", sortTitle = "001-0001",
+                seasonNumber = 1, episodeNumber = 1, filePath = "Show/S01E01.mkv", addedAt = 0,
+                backdropPath = "file:///data/artwork/s01e01-fanart.jpg",
+            )
+        )
+        val item = provider.item(episode.toString())
+        assertEquals("file:///data/artwork/s01e01-fanart.jpg", item.backdrop?.url(1920))
+
+        val plan = provider.playback(item, resume = false, PlaybackOptions(emptyList(), false)) as PlaybackPlan.Launch
+        val backdrop = plan.backdropUrl.orEmpty()
+        assertTrue("Not the show's: $backdrop", backdrop.startsWith("https://image.tmdb.org/") && backdrop.endsWith("/showBackdrop.jpg"))
+        assertNull(plan.logoUrl)
+    }
+
     /** A disc's image may open on a menu or an intro, a film's file never does: the player is followed accordingly. */
     @Test
     fun aDiscImageIsPlayedAsADisc() = runTest {
