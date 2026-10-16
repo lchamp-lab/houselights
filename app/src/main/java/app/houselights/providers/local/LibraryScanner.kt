@@ -43,6 +43,8 @@ class LibraryScanner(
     private val artwork: ArtworkCache,
     /** True while a film plays: the scan waits, so as not to read the NAS while the player streams from it. */
     private val playing: StateFlow<Boolean> = MutableStateFlow(false),
+    /** How a folder is read; tests hand in a NAS of their own. */
+    private val browsers: (SourceEntity) -> RemoteBrowser = RemoteBrowser::of,
 ) {
     private val _state = MutableStateFlow(ScanState())
     val state: StateFlow<ScanState> = _state
@@ -54,7 +56,7 @@ class LibraryScanner(
 
     private val lock = Mutex()
 
-    private val files = ScanFiles(dao, artwork)
+    private val files = ScanFiles(dao, artwork, browsers)
     private val movies = MovieIndexer(dao, files)
     private val shows = ShowIndexer(dao, files)
 
@@ -209,7 +211,7 @@ class LibraryScanner(
     /** True when the library changed: files were added, updated or removed. */
     private suspend fun scan(source: SourceEntity, refreshMetadata: Boolean): Boolean {
         _state.update { it.copy(running = true, sourceName = source.name, processed = 0, total = 0, current = null) }
-        val listing = RemoteBrowser.of(source).list(source)
+        val listing = browsers(source).list(source)
         val files = listing.videos
         val sidecars = Sidecars(listing.sidecars, files)
         val known = dao.filesOf(source.id).associateBy { it.filePath }

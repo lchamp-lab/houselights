@@ -45,12 +45,11 @@ object MediaProbe {
      * An unreadable file still gets its container and size. Throws only when the NAS can't be reached,
      * so that a passing failure is not kept as the file's description.
      */
-    suspend fun probe(source: SourceEntity, file: RemoteFile): MediaInfo {
+    suspend fun probe(source: SourceEntity, file: RemoteFile, browser: RemoteBrowser): MediaInfo {
         val ext = FilenameParser.extension(file.relativePath)
         val basic = MediaInfo(container = ext.uppercase().ifBlank { null }, sizeBytes = file.size.takeIf { it > 0 }, probedWith = VERSION)
         if (ext !in MATROSKA) return basic
         return suspendRunCatching {
-            val browser = RemoteBrowser.of(source)
             val result = readTracks(browser, source, file) ?: return basic
             val bitrates = readBitrates(browser, source, file, result.tagsAt)
             fun kbps(uid: Long?) = uid?.let(bitrates::get)?.let { ((it + BITS_PER_KILOBIT / 2) / BITS_PER_KILOBIT).toInt() }

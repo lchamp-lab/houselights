@@ -59,7 +59,7 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
         ).withEpisodeDetails(
             nfo = nfo,
             meta = meta,
-            thumb = local.thumb?.let { files.artwork.copy(source, it) },
+            thumb = local.thumb?.let { files.copyArtwork(source, it) },
             matchedAt = if (tmdb != null || nfo != null) now else base.matchedAt,
         )
         val probed = (if (MediaProbe.isStale(episode.mediaInfo)) files.mediaFields(source, file, episode) else episode).withNfoStreams(nfo)
@@ -116,9 +116,9 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
         val nfo = nfoText?.let(NfoParser::parse)
         val tv = tmdb?.let { lookupShow(it, series.userTmdbId, nfo, title, year) }
         val art = LocalArt(
-            poster = local.poster?.let { files.artwork.copy(source, it) },
-            fanart = local.fanart?.let { files.artwork.copy(source, it) },
-            logo = local.logo?.let { files.artwork.copy(source, it) },
+            poster = local.poster?.let { files.copyArtwork(source, it) },
+            fanart = local.fanart?.let { files.copyArtwork(source, it) },
+            logo = local.logo?.let { files.copyArtwork(source, it) },
         )
         return saveShow(series.copy(nfoPath = local.nfo?.relativePath, nfo = nfoText), nfo, tv, art, tmdb, now)
     }
@@ -188,7 +188,7 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
             dao.saveScanned(season)
         }
         if (localPoster != null && !season.posterPath.isCachedArtwork()) {
-            files.artwork.copy(source, localPoster)?.let { season = season.copy(posterPath = it); dao.saveScanned(season) }
+            files.copyArtwork(source, localPoster)?.let { season = season.copy(posterPath = it); dao.saveScanned(season) }
         }
         return season
     }
