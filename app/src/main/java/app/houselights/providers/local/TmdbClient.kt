@@ -2,6 +2,7 @@ package app.houselights.providers.local
 
 import android.os.SystemClock
 import app.houselights.core.Http
+import app.houselights.core.HttpStatus
 import app.houselights.core.NotFoundException
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.Json
@@ -110,9 +111,9 @@ class TmdbClient(
         val response = answer(chain)
         if (response.isSuccessful) return response
         val failure = when (val code = response.code) {
-            HTTP_UNAUTHORIZED, HTTP_FORBIDDEN -> TmdbKeyRefusedException()
-            HTTP_NOT_FOUND -> TmdbNotFoundException()
-            HTTP_TOO_MANY_REQUESTS -> TmdbBusyException(code, retryAfterMs(response.header("Retry-After")))
+            HttpStatus.UNAUTHORIZED, HttpStatus.FORBIDDEN -> TmdbKeyRefusedException()
+            HttpStatus.NOT_FOUND -> TmdbNotFoundException()
+            HttpStatus.TOO_MANY_REQUESTS -> TmdbBusyException(code, retryAfterMs(response.header("Retry-After")))
             in GATEWAY_FAILURES -> TmdbBusyException(code, GATEWAY_RETRY_MS)
             // Anything else reaches the caller as an HTTP failure (Retrofit's HttpException).
             else -> return response
@@ -280,10 +281,6 @@ class TmdbClient(
 
     companion object {
         private const val BASE_URL = "https://api.themoviedb.org/3/"
-        private const val HTTP_UNAUTHORIZED = 401
-        private const val HTTP_FORBIDDEN = 403
-        private const val HTTP_NOT_FOUND = 404
-        private const val HTTP_TOO_MANY_REQUESTS = 429
         private val GATEWAY_FAILURES = setOf(502, 503, 504)
         private const val UNREACHABLE_PAUSE_MS = 60_000L
 

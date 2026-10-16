@@ -25,6 +25,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -34,6 +35,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.text.TextStyle
 import androidx.tv.material3.Text
+import app.houselights.R
 import app.houselights.core.MediaKind
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlAlpha
@@ -53,7 +55,6 @@ import app.houselights.ui.design.components.HlButton
 import app.houselights.ui.design.components.HlDivider
 import app.houselights.ui.design.components.HlEmptyState
 import app.houselights.ui.design.components.HlIconButton
-import app.houselights.ui.design.components.HlIconDisc
 import app.houselights.ui.design.components.HlListItem
 import app.houselights.ui.design.components.HlMeter
 import app.houselights.ui.design.components.HlNavItem
@@ -148,7 +149,7 @@ fun CatalogScreen() {
                         "caption" to t.caption, "group" to t.group, "code" to t.code,
                         "spec" to t.spec, "badge" to t.badge,
                         "billing" to t.billing, "wordmark" to t.wordmark,
-                    ).forEach { (name, style) -> Specimen(name, style) }
+                    ).forEach { (name, style) -> StyleSpecimen(name, style) }
                 }
             }
 
@@ -183,8 +184,6 @@ fun CatalogScreen() {
                         HlPanel(Modifier.weight(1f), level = PanelLevel.Raised) { Text("Raised panel", style = t.lead, color = c.content) }
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.l), verticalAlignment = Alignment.CenterVertically) {
-                        HlIconDisc(HlIcons.Folder)
-                        HlIconDisc(HlIcons.Folder, lit = true)
                         HlStatus(StatusState.On, "Online")
                         HlStatus(StatusState.Done, "Found")
                         HlStatus(StatusState.Pending, "Testing")
@@ -320,24 +319,30 @@ fun CatalogScreen() {
                     HlActionRow {
                         // An episode in progress, with every capability: the fullest row of a detail page.
                         HlButton(
-                            "Reprendre",
+                            stringResource(R.string.resume),
                             {},
                             icon = Icons.Filled.PlayArrow,
-                            detail = "Il reste 1${NBSP}h${NBSP}26",
+                            detail = stringResource(R.string.time_left, "1${NBSP}h${NBSP}26"),
                             emphasis = Emphasis.Primary,
                         )
-                        HlIconButton(HlIcons.Restart, "Depuis le début", {})
-                        HlButton("Voir la série", {})
+                        HlIconButton(HlIcons.Restart, stringResource(R.string.from_start), {})
+                        HlButton(stringResource(R.string.view_series), {})
                         // Toggles name what OK does; lit, the icon says the episode is watched, a favourite.
-                        HlIconButton(HlIcons.Check, "Marquer comme non vu", {}, lit = true)
-                        HlIconButton(HlIcons.Info, "Fiche technique", {})
-                        HlIconButton(HlIcons.Document, "Fichier NFO", {})
-                        HlIconButton(HlIcons.HeartFilled, "Retirer des favoris", {}, lit = true)
-                        HlIconButton(HlIcons.Edit, "Modifier", {})
+                        HlIconButton(HlIcons.Check, stringResource(R.string.mark_unwatched), {}, lit = true)
+                        HlIconButton(HlIcons.Info, stringResource(R.string.tech_details), {})
+                        HlIconButton(HlIcons.Document, stringResource(R.string.nfo_title), {})
+                        HlIconButton(HlIcons.HeartFilled, stringResource(R.string.remove_favorite), {}, lit = true)
+                        HlIconButton(HlIcons.Edit, stringResource(R.string.edit), {})
                     }
                     var library by remember { mutableIntStateOf(0) }
                     HlSegmented(
-                        listOf("Accueil", "Films 4K HDR", "Séries d’animation", "Documentaires", "Concerts et spectacles"),
+                        listOf(
+                            stringResource(R.string.nav_home),
+                            "Films 4K HDR",
+                            "Séries d’animation",
+                            "Documentaires",
+                            "Concerts et spectacles",
+                        ),
                         selected = library,
                         onSelect = { library = it },
                     )
@@ -346,8 +351,8 @@ fun CatalogScreen() {
                     }
                     Column(Modifier.widthIn(max = HlLayout.readable)) {
                         HlSettingRow(
-                            "Actualiser toutes les informations",
-                            description = "Récupère à nouveau affiches et informations sur TMDB",
+                            stringResource(R.string.refresh_metadata),
+                            description = stringResource(R.string.refresh_metadata_desc),
                             onClick = {},
                             chevron = false,
                         )
@@ -379,9 +384,11 @@ fun CatalogScreen() {
 @Composable
 private fun ControlStates() {
     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Top) {
-        ControlCase("detail lit: a state it names") { HlButton("Filtrer", {}, icon = HlIcons.Filter, detail = "Non vus", detailLit = true) }
-        ControlCase("disabled: focus outlines it") { HlButton("Ajouter", {}, icon = HlIcons.Folder, enabled = false) }
-        ControlCase("busy: the screen's words") {
+        Specimen("detail lit: a state it names", gap = HlSpace.xs) {
+            HlButton("Filtrer", {}, icon = HlIcons.Filter, detail = "Non vus", detailLit = true)
+        }
+        Specimen("disabled: focus outlines it", gap = HlSpace.xs) { HlButton("Ajouter", {}, icon = HlIcons.Folder, enabled = false) }
+        Specimen("busy: the screen's words", gap = HlSpace.xs) {
             HlButton("Tester", {}, icon = HlIcons.Test, busy = true, busyLabel = "Vérification…")
         }
     }
@@ -393,31 +400,21 @@ private fun ControlStates() {
                 busy = false
             }
         }
-        ControlCase("OK: busy for 3 s, its width kept") {
+        Specimen("OK: busy for 3 s, its width kept", gap = HlSpace.xs) {
             HlButton("Se connecter", { busy = true }, emphasis = Emphasis.Primary, busy = busy, busyLabel = "Connexion…")
         }
         // A round button's label takes no room of its own: the case keeps the room a row of them keeps.
-        ControlCase("round, disabled") {
+        Specimen("round, disabled", gap = HlSpace.xs) {
             HlActionRow { HlIconButton(HlIcons.Edit, "Modifier", {}, enabled = false) }
         }
     }
-    ControlCase("a label longer than a reading column stops with an ellipsis") {
+    Specimen("a label longer than a reading column stops with an ellipsis", gap = HlSpace.xs) {
         HlButton("Ajouter « Le Seigneur des anneaux : la Communauté de l’anneau, version longue » à vos favoris", {})
     }
     Column(Modifier.widthIn(max = HlLayout.readable)) {
-        ControlCase("setting row, disabled: tertiary words, focus outlines it; never in a raised sheet") {
+        Specimen("setting row, disabled: tertiary words, focus outlines it; never in a raised sheet", gap = HlSpace.xs) {
             HlSettingRow("Analyser maintenant", description = "Aucun dossier à analyser", onClick = {}, chevron = false, enabled = false)
         }
-    }
-}
-
-/** One state of a control, named underneath. */
-@Composable
-private fun ControlCase(caption: String, content: @Composable () -> Unit) {
-    Column {
-        content()
-        Spacer(Modifier.height(HlSpace.xs))
-        Text(caption, style = Hl.type.caption, color = Hl.colors.contentTertiary)
     }
 }
 
@@ -518,7 +515,7 @@ private fun Swatch(name: String, brush: Brush) {
 }
 
 @Composable
-private fun Specimen(name: String, style: TextStyle) {
+private fun StyleSpecimen(name: String, style: TextStyle) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.width(HlLayout.specLanguage)) {
             Text(name, style = Hl.type.caption, color = Hl.colors.contentSecondary)

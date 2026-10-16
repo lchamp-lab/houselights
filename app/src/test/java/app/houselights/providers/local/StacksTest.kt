@@ -129,11 +129,9 @@ class StacksTest {
         assertEquals("$dir/Le Parrain (1972) CD2.nfo", own.forVideo(videos.titles.single()).nfo?.relativePath)
     }
 
-    private fun row(id: Long, path: String, parts: List<String> = emptyList()) = ItemEntity(
-        id = id, kind = ItemKind.MOVIE, sourceId = 1, title = path, sortTitle = path, filePath = path, parts = parts, addedAt = 0,
-    )
+    private fun row(id: Long, path: String, parts: List<String> = emptyList()) = KnownFile(id = id, filePath = path, parts = parts)
 
-    private fun settle(rows: List<ItemEntity>, vararg paths: String) =
+    private fun settle(rows: List<KnownFile>, vararg paths: String) =
         MissingFiles.settle(SourceKind.MOVIES, rows, stacks(*paths), NOW)
 
     @Test

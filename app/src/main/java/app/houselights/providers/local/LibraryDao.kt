@@ -123,11 +123,31 @@ interface LibraryDao {
     @Update
     suspend fun update(item: ItemEntity)
 
+    /** The whole row, its NFO text included: what a scan writes back, and what the player is handed artwork from. */
     @Query("SELECT * FROM items WHERE id = :id")
     suspend fun item(id: Long): ItemEntity?
 
+    /** The row as a title's page shows it ([ITEM_ROW]): all of it but its NFO text, which can weigh up to 1 MB. */
+    @Query("SELECT $ITEM_ROW FROM items WHERE id = :id")
+    suspend fun itemRow(id: Long): ItemEntity?
+
+    @Query("SELECT sourceId, nfoPath, nfo FROM items WHERE id = :id")
+    suspend fun nfoOf(id: Long): ItemNfo?
+
+    /** What a report of the player's progress needs of a title: read every ten seconds while it plays. */
+    @Query("SELECT parts, positionMs, durationMs, runtimeMin, played FROM items WHERE id = :id")
+    suspend fun playState(id: Long): PlayState?
+
+    /** The rows of a source's files, all but their NFO text: what the tests look at of a scan's work. */
     @Query("SELECT $ITEM_ROW FROM items WHERE sourceId = :sourceId AND filePath IS NOT NULL")
     suspend fun filesOf(sourceId: Long): List<ItemEntity>
+
+    /** A source's files, as a scan sorts what to do with them ([KnownFile]). */
+    @Query(
+        "SELECT id, filePath, parts, fileSize, missingSince, seriesId, tmdbId, userTmdbId, matchedAt, sidecarKey, probeVersion " +
+            "FROM items WHERE sourceId = :sourceId AND filePath IS NOT NULL"
+    )
+    suspend fun knownFiles(sourceId: Long): List<KnownFile>
 
     /** Whether the library holds a row for the file at [filePath] of a source. */
     @Query("SELECT EXISTS(SELECT 1 FROM items WHERE sourceId = :sourceId AND filePath = :filePath)")
@@ -145,7 +165,7 @@ interface LibraryDao {
      * "dir0", "0" coming right after "/", which the index on the source and path reads as a range.
      */
     @Query(
-        "SELECT $ITEM_ROW FROM items WHERE kind = 'EPISODE' AND sourceId = :sourceId " +
+        "SELECT $CARD_ROW FROM items WHERE kind = 'EPISODE' AND sourceId = :sourceId " +
             "AND filePath > :dir || '/' AND filePath < :dir || '0'"
     )
     suspend fun episodesUnder(sourceId: Long, dir: String): List<ItemEntity>
@@ -160,12 +180,12 @@ interface LibraryDao {
     @Query("SELECT * FROM items WHERE parentId = :parentId ORDER BY seasonNumber, episodeNumber, sortTitle")
     suspend fun children(parentId: Long): List<ItemEntity>
 
-    // --- Rows to show (see ITEM_ROW) ---
+    // --- Rows to show (see CARD_ROW) ---
 
-    @Query("SELECT $ITEM_ROW FROM items WHERE parentId = :parentId ORDER BY seasonNumber, episodeNumber, sortTitle")
+    @Query("SELECT $CARD_ROW FROM items WHERE parentId = :parentId ORDER BY seasonNumber, episodeNumber, sortTitle")
     suspend fun childRows(parentId: Long): List<ItemEntity>
 
-    @Query("SELECT $ITEM_ROW FROM items WHERE id IN (:ids)")
+    @Query("SELECT $CARD_ROW FROM items WHERE id IN (:ids)")
     suspend fun rows(ids: List<Long>): List<ItemEntity>
 
     /** Per show: episodes not watched yet, and seasons. One query for a whole page of shows. */
@@ -182,16 +202,26 @@ interface LibraryDao {
     )
     suspend fun recentlyPlayedSeries(limit: Int): List<Long>
 
-    @Query("SELECT $ITEM_ROW FROM items WHERE seriesId = :seriesId AND kind = 'EPISODE' ORDER BY seasonNumber, episodeNumber")
+    @Query("SELECT $CARD_ROW FROM items WHERE seriesId = :seriesId AND kind = 'EPISODE' ORDER BY seasonNumber, episodeNumber")
     suspend fun episodesOfSeries(seriesId: Long): List<ItemEntity>
 
+    /**
+     * Where each episode of the shows [seriesIds] stands, show by show, in their order: one light query for
+     * the next episode of many shows, rather than every row of each.
+     */
     @Query(
-        "SELECT $ITEM_ROW FROM items WHERE kind IN ('MOVIE','EPISODE') AND positionMs > 0 AND played = 0 " +
+        "SELECT id, seriesId, seasonNumber, episodeNumber, played, positionMs FROM items " +
+            "WHERE kind = 'EPISODE' AND seriesId IN (:seriesIds) ORDER BY seriesId, seasonNumber, episodeNumber, id"
+    )
+    suspend fun episodeStates(seriesIds: List<Long>): List<EpisodeState>
+
+    @Query(
+        "SELECT $CARD_ROW FROM items WHERE kind IN ('MOVIE','EPISODE') AND positionMs > 0 AND played = 0 " +
             "ORDER BY lastPlayedAt DESC LIMIT :limit"
     )
     suspend fun inProgress(limit: Int): List<ItemEntity>
 
-    @Query("SELECT $ITEM_ROW FROM items WHERE kind = :kind ORDER BY addedAt DESC, id DESC LIMIT :limit")
+    @Query("SELECT $CARD_ROW FROM items WHERE kind = :kind ORDER BY addedAt DESC, id DESC LIMIT :limit")
     suspend fun latest(kind: ItemKind, limit: Int): List<ItemEntity>
 
     @Query("SELECT COUNT(*) FROM items WHERE kind = :kind")
@@ -244,7 +274,7 @@ interface LibraryDao {
     suspend fun countQuery(query: SupportSQLiteQuery): Int
 
     @Query(
-        "SELECT $ITEM_ROW FROM items WHERE kind = :kind AND id != :excludeId AND genres LIKE '%' || :genre || '%' " +
+        "SELECT $CARD_ROW FROM items WHERE kind = :kind AND id != :excludeId AND genres LIKE '%' || :genre || '%' " +
             "ORDER BY rating DESC LIMIT :limit"
     )
     suspend fun byGenre(kind: ItemKind, genre: String, excludeId: Long, limit: Int): List<ItemEntity>
@@ -259,10 +289,13 @@ interface LibraryDao {
     /**
      * Moves a row to the file that replaced its own (see [MissingFiles]): what the user did with the
      * title stays. A file of another size is read again; one of the same size was only renamed.
+     * (SQLite reads the row as it was in every expression: fileSize is the old file's.)
      */
     @Query(
         "UPDATE items SET filePath = :filePath, fileSize = :fileSize, " +
-            "mediaInfo = CASE WHEN fileSize = :fileSize THEN mediaInfo ELSE NULL END, missingSince = NULL WHERE id = :id"
+            "mediaInfo = CASE WHEN fileSize = :fileSize THEN mediaInfo ELSE NULL END, " +
+            "probeVersion = CASE WHEN fileSize = :fileSize THEN probeVersion ELSE 0 END, " +
+            "fileDurationMs = CASE WHEN fileSize = :fileSize THEN fileDurationMs ELSE NULL END, missingSince = NULL WHERE id = :id"
     )
     suspend fun relink(id: Long, filePath: String, fileSize: Long)
 
@@ -439,8 +472,19 @@ interface LibraryDao {
     suspend fun updateCollection(collection: CollectionEntity)
 
     /** Films of a collection, in the order they came out. */
-    @Query("SELECT $ITEM_ROW FROM items WHERE collectionId = :collectionId AND kind = 'MOVIE' ORDER BY year IS NULL, year, sortTitle")
+    @Query("SELECT $CARD_ROW FROM items WHERE collectionId = :collectionId AND kind = 'MOVIE' ORDER BY year IS NULL, year, sortTitle")
     suspend fun collectionFilms(collectionId: Long): List<ItemEntity>
+
+    /**
+     * The films of the collections [collectionIds], as their cards tell of them: collection by collection,
+     * each in the order they came out ([collectionFilms]). One query for a whole page of collections.
+     */
+    @Query(
+        "SELECT collectionId, year, rating, genres, played, posterPath, userPosterPath, backdropPath, userBackdropPath " +
+            "FROM items WHERE kind = 'MOVIE' AND collectionId IN (:collectionIds) " +
+            "ORDER BY collectionId, year IS NULL, year, sortTitle, id"
+    )
+    suspend fun collectionMembers(collectionIds: List<Long>): List<CollectionMember>
 
     /** Collections holding at least [minFilms] films of the library. */
     @Query(

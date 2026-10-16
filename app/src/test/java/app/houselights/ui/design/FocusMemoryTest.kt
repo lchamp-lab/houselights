@@ -14,6 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -22,7 +23,9 @@ import androidx.compose.ui.test.performScrollToIndex
 import androidx.compose.ui.unit.dp
 import app.houselights.ui.design.components.HlButton
 import app.houselights.ui.design.components.HlSettingRow
+import app.houselights.ui.design.components.MediaRow
 import app.houselights.ui.testing.TV
+import app.houselights.ui.testing.press
 import app.houselights.ui.testing.setTvContent
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -79,6 +82,56 @@ class FocusMemoryTest {
         compose.runOnIdle {
             assertEquals(0, list.firstVisibleItemIndex)
             assertEquals(0, list.firstVisibleItemScrollOffset)
+        }
+    }
+
+    /**
+     * The card left has gone and its row is there, but nothing in it takes focus: the row says so,
+     * and the restore goes on to where the screen starts. A requester on the row would only have
+     * said the row was there, and left focus nowhere.
+     */
+    @Test
+    fun aGroupThatRefusesFocusLeavesItToTheFallback() {
+        val row = FocusKey.row("similar")
+        val memory = FocusMemory(initial = FocusKey.within(row, FocusKey.item("gone")))
+        val start = FocusRequester()
+        compose.setTvContent {
+            Column {
+                MediaRow(header = null, modifier = Modifier.focusGroupKey(row, memory)) {
+                    item { Box(Modifier.focusProperties { canFocus = false }.focusable().size(HlSize.control)) }
+                }
+                HlButton("Lire", onClick = {}, modifier = Modifier.focusRequester(start).testTag("start"))
+            }
+            RestoreFocus(memory, fallback = start)
+        }
+        compose.onNodeWithTag("start").assertIsFocused()
+        compose.runOnIdle { assertEquals(false, memory.focus(row)) }
+    }
+
+    /** The card left has gone from a row that has others: focus comes back to the row, and goes on from there. */
+    @Test
+    fun aGroupTakesFocusForTheCardGoneFromIt() {
+        val row = FocusKey.row("similar")
+        val memory = FocusMemory(initial = FocusKey.within(row, FocusKey.item("gone")))
+        val start = FocusRequester()
+        compose.setTvContent {
+            Column {
+                HlButton("Lire", onClick = {}, modifier = Modifier.focusRequester(start).testTag("start"))
+                MediaRow(header = null, modifier = Modifier.focusGroupKey(row, memory)) {
+                    items(listOf("a", "b"), key = { it }) { id ->
+                        val key = FocusKey.within(row, FocusKey.item(id))
+                        HlButton(id, onClick = {}, modifier = Modifier.focusKey(key, memory).testTag(id))
+                    }
+                }
+            }
+            RestoreFocus(memory, fallback = start)
+        }
+        compose.onNodeWithTag("a").assertIsFocused()
+        compose.press(Key.DirectionRight)
+        compose.onNodeWithTag("b").assertIsFocused()
+        compose.runOnIdle {
+            assertEquals(FocusKey.within(row, FocusKey.item("b")), memory.last)
+            assertTrue(memory.focus(row))
         }
     }
 

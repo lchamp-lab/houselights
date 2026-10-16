@@ -1,22 +1,8 @@
 package app.houselights.providers.local
 
-import android.database.sqlite.SQLiteFullException
-import android.system.ErrnoException
-import android.system.OsConstants
-import com.emc.ecs.nfsclient.mount.MountException
-import com.emc.ecs.nfsclient.mount.MountStatus
-import com.emc.ecs.nfsclient.nfs.NfsException
-import com.emc.ecs.nfsclient.nfs.NfsStatus
-import com.emc.ecs.nfsclient.rpc.RpcException
-import com.emc.ecs.nfsclient.rpc.RpcStatus
-import com.hierynomus.protocol.transport.TransportException
-import com.hierynomus.smbj.session.SMB2GuestSigningRequiredException
-import java.io.EOFException
-import java.io.FileNotFoundException
-import java.net.SocketException
-import java.net.SocketTimeoutException
-import java.net.UnknownHostException
-import java.util.concurrent.TimeoutException
+import app.houselights.core.FailureKind
+import app.houselights.core.causeChain
+import app.houselights.core.failureKind
 
 /** Why a folder could not be read, in terms the user can act on. */
 enum class ScanErrorKind {
@@ -44,83 +30,29 @@ data class ScanError(val kind: ScanErrorKind)
 
 object ScanErrors {
     /** The NAS (not TMDB) can't be reached: worth trying again later, not worth going on now. */
-    fun isUnreachable(e: Throwable): Boolean =
-        generateSequence(e) { it.cause }.none { it is TmdbUnreachableException } && classify(e).kind == ScanErrorKind.UNREACHABLE
+    fun isUnreachable(e: Throwable): Boolean = e.failureKind() == FailureKind.UNREACHABLE
 
-    /** Maps SMB, NFS, socket and storage failures to a [ScanErrorKind]: the first that fits, in this order. */
+    /** A failure as a folder's settings tell it: the scan's own words for what it met, else what the failure comes down to. */
     fun classify(e: Throwable): ScanError {
-        val chain = generateSequence(e) { it.cause }.toList()
-        val text = chain.joinToString(" ") { "${it.javaClass.simpleName} ${it.message}" }
+        val chain = e.causeChain()
         val kind = when {
             chain.any { it is EmptyFolderException } -> ScanErrorKind.EMPTY
             chain.any { it is UnreadableFolderException } -> ScanErrorKind.ACCESS_DENIED
-            storageFull(chain, text) -> ScanErrorKind.STORAGE_FULL
-            noAnswer(chain, text) -> ScanErrorKind.UNREACHABLE
-            signInRefused(chain, text) -> ScanErrorKind.LOGIN_FAILED
-            refused(chain, text) -> ScanErrorKind.ACCESS_DENIED
-            missing(chain, text) -> ScanErrorKind.NOT_FOUND
-            else -> ScanErrorKind.OTHER
+            else -> e.failureKind().scanErrorKind()
         }
         return ScanError(kind)
     }
 
-    /** The player's storage is full: Room says so with SQLiteFullException, a file written with ENOSPC. */
-    private fun storageFull(chain: List<Throwable>, text: String): Boolean =
-        chain.any { it is SQLiteFullException || it is ErrnoException && it.errno == OsConstants.ENOSPC } ||
-            text.contains("No space left on device", ignoreCase = true)
-
     /**
-     * The NAS does not answer, or stopped answering. smbj tells a request answered too late by a
-     * TimeoutException ("Timeout expired") inside its TransportException, a connection dropped by the
-     * socket's own error; nfs-client by an RpcException of status NETWORK_ERROR ("rpc request timeout",
-     * "the connection is broken", "tcp IO error") inside the NfsException or MountException of the
-     * request. A TransportException of its own (signing required, SMBv1) is not the network.
+     * What a folder's settings say of a [FailureKind]. TMDB's failures are told apart from the folders
+     * ([ScanState.tmdbIssue]); the others name nothing the folder's settings would fix.
      */
-    private fun noAnswer(chain: List<Throwable>, text: String): Boolean =
-        chain.any {
-            it is UnknownHostException || it is SocketException || it is SocketTimeoutException || it is EOFException ||
-                it is TimeoutException ||
-                // By identity: LOCAL_BINDING_ERROR, a port the device cannot take, has the same value.
-                it is RpcException && it.status === RpcStatus.NETWORK_ERROR ||
-                // The NAS asks to come back later (a disk waking, a file recalled from an archive).
-                it is NfsException && it.status?.value == NfsStatus.NFS3ERR_JUKEBOX.value
-        } || NO_ANSWER.any { text.contains(it, ignoreCase = true) }
-
-    /**
-     * The NAS refused the account, or a guest: smbj 0.14 does not sign in as a guest to a NAS that
-     * requires signing (Windows 11 24H2, recent Synology), as a guest has no key to sign with, and says
-     * so with an exception of its own, or a TransportException once the session asks to sign. Either
-     * way an account is to be entered.
-     */
-    private fun signInRefused(chain: List<Throwable>, text: String): Boolean =
-        text.contains("LOGON_FAILURE") || text.contains("ACCOUNT_") || text.contains("WRONG_PASSWORD") ||
-            chain.any { it is SMB2GuestSigningRequiredException || it is TransportException && it.message == NO_SIGNING_KEY }
-
-    /**
-     * The NAS refused the device or the account. nfs-client names a status by its number only: a mount
-     * refused says "returned state: 13", a request refused "NfsStatus:13".
-     */
-    private fun refused(chain: List<Throwable>, text: String): Boolean =
-        chain.any {
-            it is MountException && it.status?.value in MOUNT_REFUSED || it is NfsException && it.status?.value in NFS_REFUSED
-        } || REFUSED.any { text.contains(it) } || text.contains("AUTH_ERROR", ignoreCase = true) ||
-            text.contains("auth", ignoreCase = true) && text.contains("rpc", ignoreCase = true)
-
-    /** The share, the export or the folder is not there; nfs-client throws FileNotFoundException for NFS3ERR_NOENT. */
-    private fun missing(chain: List<Throwable>, text: String): Boolean =
-        chain.any { it is FileNotFoundException || it is MountException && it.status?.value == MountStatus.MNT3ERR_NOENT.value } ||
-            MISSING.any { text.contains(it) }
-
-    /** What smbj's Session says when it is to sign a request without a key: signed in as a guest. */
-    private const val NO_SIGNING_KEY = "Message signing is required, but no signing key is negotiated"
-
-    private val MOUNT_REFUSED = setOf(MountStatus.MNT3ERR_ACCES.value, MountStatus.MNT3ERR_PERM.value)
-    private val NFS_REFUSED = setOf(NfsStatus.NFS3ERR_ACCES.value, NfsStatus.NFS3ERR_PERM.value)
-    private val REFUSED = listOf("ACCESS_DENIED", "ERR_ACCES", "ERR_PERM")
-    private val MISSING = listOf("BAD_NETWORK_NAME", "NOT_FOUND", "ERR_NOENT", "PATH_NOT_FOUND")
-
-    private val NO_ANSWER = listOf(
-        "waiting for connection", "timed out", "rpc request timeout", "connection is broken", "tcp IO error",
-        "STATUS_IO_TIMEOUT", "STATUS_CONNECTION_DISCONNECTED", "STATUS_CONNECTION_RESET",
-    )
+    private fun FailureKind.scanErrorKind(): ScanErrorKind = when (this) {
+        FailureKind.UNREACHABLE -> ScanErrorKind.UNREACHABLE
+        FailureKind.LOGIN_FAILED -> ScanErrorKind.LOGIN_FAILED
+        FailureKind.ACCESS_DENIED -> ScanErrorKind.ACCESS_DENIED
+        FailureKind.MISSING -> ScanErrorKind.NOT_FOUND
+        FailureKind.STORAGE_FULL -> ScanErrorKind.STORAGE_FULL
+        else -> ScanErrorKind.OTHER
+    }
 }

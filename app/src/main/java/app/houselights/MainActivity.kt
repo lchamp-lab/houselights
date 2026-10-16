@@ -53,8 +53,10 @@ import app.houselights.ui.util.toUiError
 import app.houselights.ui.util.toWriteError
 import coil.imageLoader
 import app.houselights.ui.design.HlLayout
+import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.HlMotion
 import app.houselights.ui.design.LocalHouseLights
+import app.houselights.ui.design.components.HlErrorState
 import app.houselights.ui.design.components.HouseLights
 import androidx.compose.runtime.mutableStateOf
 import kotlinx.coroutines.Job
@@ -64,7 +66,6 @@ import app.houselights.ui.detail.DetailScreen
 import app.houselights.ui.detail.NfoScreen
 import app.houselights.ui.edit.ArtworkScreen
 import app.houselights.ui.edit.IdentifyScreen
-import app.houselights.ui.home.ErrorMessage
 import app.houselights.ui.home.HomeScreen
 import app.houselights.ui.library.LibraryScreen
 import app.houselights.ui.onboarding.AddFolderScreen
@@ -86,7 +87,7 @@ class MainActivity : ComponentActivity() {
     private val container by lazy { appContainer() }
 
     private val playerLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
-        container.playback.onPlayerResult(it.data)
+        container.player.onPlayerResult(it.data)
     }
 
     /** House lights: down while the player starts, back up when the user returns. */
@@ -197,10 +198,10 @@ class MainActivity : ComponentActivity() {
                         is PlaybackPlan.Launch -> try {
                             // The player needs the memory more than pictures that load again from disk.
                             imageLoader.memoryCache?.clear()
-                            playerLauncher.launch(container.playback.intentFor(plan))
-                            container.playback.onPlayerLaunched()
+                            playerLauncher.launch(container.player.intentFor(plan))
+                            container.player.onPlayerLaunched()
                         } catch (_: ActivityNotFoundException) {
-                            container.playback.onLaunchFailed()
+                            container.player.onLaunchFailed()
                             failed(UiError.NO_PLAYER)
                         } catch (_: PlaybackManager.CredentialsNotShared) {
                             failed(UiError.CREDENTIALS)
@@ -338,7 +339,7 @@ private fun AppNavigation(nav: NavHostController, onPlay: (MediaItem, Boolean) -
 private fun SettingsUnread(settings: SettingsStore) {
     val reading by settings.reading.collectAsStateWithLifecycle()
     Box(Modifier.fillMaxSize().padding(top = HlLayout.errorTop)) {
-        ErrorMessage(UiError.SETTINGS_UNREAD, settings::readAgain, retrying = reading)
+        HlErrorState(UiError.SETTINGS_UNREAD, settings::readAgain, Modifier.padding(start = HlSpace.safeH, top = HlSpace.l), reading)
     }
 }
 

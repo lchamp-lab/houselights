@@ -1,7 +1,6 @@
 package app.houselights.ui.detail
 
 import android.os.SystemClock
-import android.util.Log
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -20,8 +19,9 @@ import app.houselights.core.UserState
 import app.houselights.core.nextUpIn
 import app.houselights.core.suspendRunCatching
 import app.houselights.ui.design.HlMotion
+import app.houselights.ui.util.LatestJob
 import app.houselights.ui.util.UiError
-import app.houselights.ui.util.toUiError
+import app.houselights.ui.util.reported
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -72,23 +72,22 @@ class DetailViewModel(
     private val _state = MutableStateFlow(DetailState(selectedSeasonId = saved[SEASON]))
     val state: StateFlow<DetailState> = _state
 
+    private val loads = LatestJob(viewModelScope)
+
+    /** The episodes of the season chosen last: one at a time, so a slower answer never shows under another tab. */
+    private val seasonLoads = LatestJob(viewModelScope)
+
     init {
         load()
     }
 
-    private var loadJob: Job? = null
-
-    /** The episodes of the season chosen last: one at a time, so a slower answer never shows under another tab. */
-    private var seasonJob: Job? = null
-
     fun load() {
         // A newer load replaces an older one: two loads never finish out of order. It loads the
         // episodes of the season chosen itself.
-        loadJob?.cancel()
-        seasonJob?.cancel()
+        seasonLoads.cancel()
         // With no title shown yet, trying again shows: the error gives way to the load.
         if (_state.value.item == null) _state.update { it.copy(error = null) }
-        loadJob = viewModelScope.launch {
+        loads.launch {
             // In a scope of its own, a failed parallel request ends up here instead of crashing the app.
             suspendRunCatching { coroutineScope {
                 val source = provider()
@@ -136,8 +135,7 @@ class DetailViewModel(
                 _state.update { loaded.copy(canEdit = canEdit, actionError = it.actionError).keepingSeasonOf(it) }
             }
                 .onFailure { e ->
-                    Log.w(TAG, "Detail of $itemId failed", e)
-                    val error = e.toUiError()
+                    val error = e.reported(TAG, "Detail of $itemId")
                     // A season this load took over is not left loading: its row says why, with Réessayer.
                     _state.update { s ->
                         val rowError = s.episodesError ?: error.takeIf { s.episodesLoading }
@@ -183,19 +181,14 @@ class DetailViewModel(
     }
 
     private fun loadSeason(series: MediaItem, seasonId: String, settle: Boolean) {
-        seasonJob?.cancel()
-        seasonJob = viewModelScope.launch {
+        seasonLoads.launch {
             if (settle) delay(HlMotion.SETTLE)
             val season = _state.value.seasons.firstOrNull { it.id == seasonId } ?: return@launch
             val result = suspendRunCatching { provider().episodes(series, season) }
-            result.exceptionOrNull()?.let { Log.w(TAG, "Episodes of $seasonId failed", it) }
+            val error = result.exceptionOrNull()?.reported(TAG, "Episodes of $seasonId")
             _state.update {
                 if (it.selectedSeasonId != seasonId) return@update it
-                it.copy(
-                    episodes = result.getOrDefault(emptyList()),
-                    episodesLoading = false,
-                    episodesError = result.exceptionOrNull()?.toUiError(),
-                )
+                it.copy(episodes = result.getOrDefault(emptyList()), episodesLoading = false, episodesError = error)
             }
         }
     }
@@ -244,8 +237,8 @@ class DetailViewModel(
                     load()
                 }
                 .onFailure { e ->
-                    Log.w(TAG, "$what of $itemId failed", e)
-                    _state.update { it.copy(actionError = e.toUiError()) }
+                    val error = e.reported(TAG, "$what of $itemId")
+                    _state.update { it.copy(actionError = error) }
                 }
         }
     }

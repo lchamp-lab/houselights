@@ -30,8 +30,12 @@ object MkvProbe {
             val audioUids: List<Long?> = emptyList(),
             val framesRead: Boolean = true,
         ) : Result
-        /** Tracks start beyond the bytes read: read up to [offset] + some, and try again. */
-        data class NeedMore(val offset: Long) : Result
+        /**
+         * The tracks reach past the bytes read, as far as [upTo] at least: their end when the bytes
+         * cut them, their start when only the SeekHead tells where they lie. Read that far and some
+         * more, and try again.
+         */
+        data class NeedMore(val upTo: Long) : Result
         data object NotMatroska : Result
     }
 
@@ -100,7 +104,6 @@ object MkvProbe {
         val frames = mutableMapOf<Int, MutableList<IntRange>>()
 
         while (r.remaining > 0) {
-            val start = r.pos
             val id = runCatching { r.readId() }.getOrNull() ?: break
             val read = runCatching { r.readSize() }
             if (read.isFailure) break
@@ -116,8 +119,8 @@ object MkvProbe {
             }
             val end = r.pos + (size ?: break)
             if (end > bytes.size) {
-                // Element cut by the end of what was read: worth reading more only for Tracks.
-                if (id == TRACKS) return Result.NeedMore(start.toLong())
+                // Element cut by the end of what was read: worth reading more only for Tracks, to their end.
+                if (id == TRACKS) return Result.NeedMore(end)
                 break
             }
             when (id) {
@@ -392,8 +395,8 @@ object MkvProbe {
         private fun bitDepthFromPrivate(): Int? {
             val p = codecPrivate ?: return null
             return when {
-                codecId == "V_MPEGH/ISO/HEVC" && p.size > 17 -> (p[17].toInt() and 0x07) + 8
-                codecId == "V_MPEG4/ISO/AVC" && p.size > 1 -> if ((p[1].toInt() and 0xFF) == 110) 10 else 8
+                codecId == HEVC_ID && p.size > 17 -> (p[17].toInt() and 0x07) + 8
+                codecId == AVC_ID && p.size > 1 -> if ((p[1].toInt() and 0xFF) == 110) 10 else 8
                 else -> null
             }
         }
@@ -458,6 +461,7 @@ object MkvProbe {
     }
 
     private const val HEVC_ID = "V_MPEGH/ISO/HEVC"
+    private const val AVC_ID = "V_MPEG4/ISO/AVC"
     private const val TRUEHD_ID = "A_TRUEHD"
     private const val EAC3_ID = "A_EAC3"
     private const val AC3_ID = "A_AC3"
@@ -498,8 +502,8 @@ object MkvProbe {
 
     /** [codecPrivate]: what a track remuxed from an AVI (V_MS/VFW/FOURCC) is named by, its FOURCC. */
     private fun videoCodec(id: String, codecPrivate: ByteArray?) = when {
-        id == "V_MPEGH/ISO/HEVC" -> Codecs.HEVC
-        id == "V_MPEG4/ISO/AVC" -> Codecs.AVC
+        id == HEVC_ID -> Codecs.HEVC
+        id == AVC_ID -> Codecs.AVC
         id == "V_AV1" -> Codecs.AV1
         id == "V_VP9" -> Codecs.VP9
         id.startsWith("V_MPEG2") -> Codecs.MPEG2
@@ -511,10 +515,10 @@ object MkvProbe {
 
     /** [codecPrivate]: what a track remuxed from an AVI (A_MS/ACM) is named by, its format tag. */
     private fun audioCodec(id: String, codecPrivate: ByteArray?) = when {
-        id == "A_TRUEHD" -> Codecs.TRUEHD
-        id == "A_DTS" -> Codecs.DTS
-        id == "A_EAC3" -> Codecs.EAC3
-        id == "A_AC3" -> Codecs.AC3
+        id == TRUEHD_ID -> Codecs.TRUEHD
+        id == DTS_ID -> Codecs.DTS
+        id == EAC3_ID -> Codecs.EAC3
+        id == AC3_ID -> Codecs.AC3
         id.startsWith("A_AAC") -> Codecs.AAC
         id == "A_FLAC" -> Codecs.FLAC
         id == "A_OPUS" -> Codecs.OPUS
@@ -573,14 +577,9 @@ object MkvProbe {
 
         /** Element data size; null when the size is "unknown" (all value bits set). */
         fun readSize(): Long? {
-            val first = byte(pos)
-            val length = Integer.numberOfLeadingZeros(first) - 23
-            require(length in 1..8) { "Bad element size" }
-            var value = (first and (0xFF shr length)).toLong()
-            pos++
-            repeat(length - 1) { value = (value shl 8) or byte(pos++).toLong() }
-            val unknown = (1L shl (7 * length)) - 1
-            return if (value == unknown) null else value
+            val (value, length) = Ebml.vint(bytes, pos, end)
+            pos += length
+            return value.takeUnless { Ebml.isUnknown(it, length) }
         }
 
         fun skipElement() {

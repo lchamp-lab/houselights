@@ -2,7 +2,6 @@ package app.houselights.ui.catalog
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -95,9 +94,9 @@ private fun Sizes(icon: ImageVector, ink: Color, modifier: Modifier) {
 private fun Marks() {
     val c = Hl.colors
     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.xl), verticalAlignment = Alignment.Top) {
-        Case("watched") { CheckMark() }
-        Case("your choice") { SelectedMark() }
-        Case("on a white image") {
+        Specimen("watched") { CheckMark() }
+        Specimen("your choice") { SelectedMark() }
+        Specimen("on a white image") {
             Row(
                 Modifier.background(c.content).padding(HlSpace.s),
                 horizontalArrangement = Arrangement.spacedBy(HlSpace.s),
@@ -106,17 +105,17 @@ private fun Marks() {
                 SelectedMark()
             }
         }
-        Case("in words: its light") {
+        Specimen("in words: its light") {
             Column(verticalArrangement = Arrangement.spacedBy(HlSpace.xs)) {
                 HlStatus(StatusState.On, "Votre choix")
                 HlStatus(StatusState.On, "Actuel")
             }
         }
-        Case("how it was done: a plain word") {
+        Specimen("how it was done: a plain word") {
             Text("Automatique", style = Hl.type.meta, color = c.contentSecondary)
         }
     }
-    Case("the current choice of a sheet: ember at rest", Modifier.width(HlLayout.sideColumnWide)) {
+    Specimen("the current choice of a sheet: ember at rest", Modifier.width(HlLayout.sideColumnWide)) {
         HlSettingRow("Mes fichiers", description = "3 dossiers", onClick = {}, chevron = false, trailing = { ChoiceCheck() })
     }
 }
@@ -125,18 +124,10 @@ private fun Marks() {
 @Composable
 private fun Facts() {
     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.xl), verticalAlignment = Alignment.Top) {
-        Case("a score: the line star, quiet") { Score(8.2) }
-        Case("attention, beside what it concerns", Modifier.widthIn(max = HlLayout.sideColumnWide)) {
+        Specimen("a score: the line star, quiet") { Score(8.2) }
+        Specimen("attention, beside what it concerns", Modifier.widthIn(max = HlLayout.sideColumnWide)) {
             AttentionNote("Le dossier n’a pas pu être lu. Réessayez, ou vérifiez le partage sur le NAS.")
         }
     }
 }
 
-/** One state, named underneath. */
-@Composable
-private fun Case(caption: String, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
-    Column(modifier, verticalArrangement = Arrangement.spacedBy(HlSpace.s)) {
-        Box { content() }
-        Text(caption, style = Hl.type.caption, color = Hl.colors.contentTertiary)
-    }
-}

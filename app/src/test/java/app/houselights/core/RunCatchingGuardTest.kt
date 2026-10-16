@@ -20,14 +20,8 @@ class RunCatchingGuardTest {
      * one is usually a [suspendRunCatching] or a `tryRequestFocus` instead.
      */
     private val allowed = listOf(
-        // Blocking OkHttp calls only, under withContext(IO): nothing in them suspends or is cancelled.
-        "app/houselights/player/ZidooStatus.kt:runCatching {",
-        // Blocking socket reads and JSON only, under withContext(IO); the loop checks isActive itself.
-        "app/houselights/providers/jellyfin/ServerDiscovery.kt:runCatching {",
         // A pure parse of bytes already read, in a suspend fun: nothing in it suspends.
         "app/houselights/providers/local/MediaProbe.kt:runCatching { MkvProbe.bitrates(bytes) }",
-        // Not yet changed with its screen: becomes actions.tryRequestFocus().
-        "app/houselights/ui/detail/DetailScreen.kt:runCatching { actions.requestFocus() }",
     )
 
     @Test

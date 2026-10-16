@@ -1,5 +1,6 @@
 package app.houselights.ui.edit
 
+import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,7 +14,6 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -46,11 +46,10 @@ import app.houselights.core.ArtworkOrigin
 import app.houselights.core.MediaItem
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlSpace
-import app.houselights.ui.design.LocalAmbient
 import app.houselights.ui.design.components.ArtworkChoiceCard
 import app.houselights.ui.design.components.AttentionNote
-import app.houselights.ui.design.components.Backdrop
 import app.houselights.ui.design.components.BackdropStyle
+import app.houselights.ui.design.components.AmbientBackdrop
 import app.houselights.ui.design.components.CardSkeleton
 import app.houselights.ui.design.components.Emphasis
 import app.houselights.ui.design.components.HlButton
@@ -58,9 +57,9 @@ import app.houselights.ui.design.components.MediaRow
 import app.houselights.ui.design.components.MetaLine
 import app.houselights.ui.design.components.ScreenTitle
 import app.houselights.ui.design.components.TitleArt
-import app.houselights.ui.design.components.rememberAmbientColor
 import app.houselights.ui.design.tryRequestFocus
 import app.houselights.ui.design.components.HlErrorState
+import app.houselights.ui.util.UiError
 import app.houselights.ui.util.appContainer
 import app.houselights.ui.util.FACT_GAP
 import app.houselights.ui.util.formatDimensions
@@ -91,41 +90,37 @@ fun ArtworkScreen(itemId: String, kind: ArtworkKind, onDone: () -> Unit) {
     val preview = shown ?: choices?.selected
     val backdrop = if (kind == ArtworkKind.BACKDROP) preview?.image else item?.backdrop
 
-    val ambient = rememberAmbientColor(backdrop)
-    CompositionLocalProvider(LocalAmbient provides { ambient.value }) {
-        Box(Modifier.fillMaxSize()) {
-            Backdrop(backdrop, if (kind == ArtworkKind.POSTER) BackdropStyle.Quiet else BackdropStyle.Full)
-            Column(Modifier.fillMaxSize().padding(top = HlSpace.safeV, bottom = HlSpace.m)) {
-                Header(kind, item, choices)
-                if (kind == ArtworkKind.POSTER) {
-                    Spacer(Modifier.height(HlSpace.m))
-                } else {
-                    Box(
-                        Modifier.weight(1f).fillMaxWidth().padding(horizontal = HlSpace.safeH, vertical = HlSpace.m),
-                        contentAlignment = Alignment.BottomStart,
-                    ) {
-                        if (item != null) Preview(kind, item, preview)
-                    }
+    AmbientBackdrop(backdrop, if (kind == ArtworkKind.POSTER) BackdropStyle.Quiet else BackdropStyle.Full) {
+        Column(Modifier.fillMaxSize().padding(top = HlSpace.safeV, bottom = HlSpace.m)) {
+            Header(kind, item, choices, state.onlineError)
+            if (kind == ArtworkKind.POSTER) {
+                Spacer(Modifier.height(HlSpace.m))
+            } else {
+                Box(
+                    Modifier.weight(1f).fillMaxWidth().padding(horizontal = HlSpace.safeH, vertical = HlSpace.m),
+                    contentAlignment = Alignment.BottomStart,
+                ) {
+                    if (item != null) Preview(kind, item, preview)
                 }
-                when {
-                    state.error != null -> HlErrorState(state.error!!, vm::load, ChoicesPadding)
-                    choices == null -> Skeletons(kind)
-                    choices.options.isEmpty() -> HlEmptyState(stringResource(R.string.artwork_empty), ChoicesPadding, backHint = true)
-                    else -> Choices(
-                        kind = kind,
-                        item = item!!,
-                        choices = choices,
-                        onFocus = { focused = it },
-                        onChoose = vm::choose,
-                    )
-                }
+            }
+            when {
+                state.error != null -> HlErrorState(state.error!!, vm::load, ChoicesPadding)
+                choices == null -> Skeletons(kind)
+                choices.options.isEmpty() -> HlEmptyState(stringResource(R.string.artwork_empty), ChoicesPadding, backHint = true)
+                else -> Choices(
+                    kind = kind,
+                    item = item!!,
+                    choices = choices,
+                    onFocus = { focused = it },
+                    onChoose = vm::choose,
+                )
             }
         }
     }
 }
 
 @Composable
-private fun Header(kind: ArtworkKind, item: MediaItem?, choices: ArtworkChoices?) {
+private fun Header(kind: ArtworkKind, item: MediaItem?, choices: ArtworkChoices?, onlineError: UiError?) {
     Column(Modifier.padding(horizontal = HlSpace.safeH)) {
         ScreenTitle(stringResource(kind.title))
         Spacer(Modifier.height(HlSpace.xxs))
@@ -133,11 +128,21 @@ private fun Header(kind: ArtworkKind, item: MediaItem?, choices: ArtworkChoices?
         Spacer(Modifier.height(HlSpace.xs))
         val reading = Modifier.widthIn(max = HlLayout.readable)
         if (choices != null && !choices.onlineAvailable) {
-            AttentionNote(stringResource(R.string.artwork_offline), reading, style = Hl.type.caption)
+            AttentionNote(stringResource(onlineNote(onlineError)), reading, style = Hl.type.caption)
         } else {
             Text(stringResource(R.string.artwork_hint), style = Hl.type.caption, color = Hl.colors.contentSecondary, modifier = reading)
         }
     }
+}
+
+/**
+ * Why TMDB's images are not offered: a key to add or change, said as such, as Settings fix it;
+ * otherwise the title to identify first, or the connection to check.
+ */
+@StringRes
+private fun onlineNote(error: UiError?): Int = when (error) {
+    UiError.NO_TMDB_KEY, UiError.TMDB_KEY_REFUSED -> error.message
+    else -> R.string.artwork_offline
 }
 
 /** The title as the detail page will show it with the focused choice; a poster shows in its row. */

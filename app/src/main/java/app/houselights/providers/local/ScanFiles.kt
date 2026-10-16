@@ -74,7 +74,7 @@ internal class ScanFiles(
                 ?: probe.info
         }
         val badges = media.badges().ifEmpty { FilenameParser.badges(file.relativePath) }
-        return item.copy(mediaInfo = MediaProbe.encode(media), badges = badges, fileSize = file.size)
+        return item.withMedia(media).copy(badges = badges, fileSize = file.size)
     }
 
     /** The cached copy of an image placed next to a video or a show (see [ArtworkCache.copy]). */
@@ -104,5 +104,5 @@ internal fun ItemEntity.withNfoStreams(nfo: NfoInfo?): ItemEntity {
     val media = MediaProbe.decode(mediaInfo)
     if (media?.video != null) return this
     val merged = NfoStreamDetails.toMediaInfo(streams, media)
-    return copy(mediaInfo = MediaProbe.encode(merged), badges = merged.badges().ifEmpty { badges })
+    return withMedia(merged).copy(badges = merged.badges().ifEmpty { badges })
 }

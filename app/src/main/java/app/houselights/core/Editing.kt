@@ -41,6 +41,11 @@ data class ArtworkChoices(
     val selected: ArtworkOption?,
     /** False when online images could not be listed (title not identified, no key, offline). */
     val onlineAvailable: Boolean,
+    /**
+     * Why they could not be listed, when asking failed or could not be done (no key, the key refused,
+     * TMDB away): the screen says what fixes it. Null when they were, or the title is not identified.
+     */
+    val onlineError: FailureKind? = null,
 )
 
 /** A title of the image database the user can match a file with. */

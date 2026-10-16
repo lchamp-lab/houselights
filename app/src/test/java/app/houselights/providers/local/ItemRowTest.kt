@@ -22,10 +22,10 @@ import java.util.Collections
 import javax.crypto.KeyGenerator
 
 /**
- * [ITEM_ROW], written by hand, against the table Room makes of [ItemEntity]: a column it forgets
- * reads null in every list and in the scanner's index of files, without a word from Room (a
- * library page is a raw query). And the lists themselves: none reads the NFO text, which can
- * weigh up to 1 MB a title.
+ * [ITEM_ROW] and [CARD_ROW], written by hand, against the table Room makes of [ItemEntity]: a column
+ * they forget reads null in every list and on every page, without a word from Room (a library page is
+ * a raw query). And the lists themselves: none reads the NFO text, which can weigh up to 1 MB a title,
+ * nor what each file holds, kilobytes of JSON to decode for each card.
  */
 @RunWith(RobolectricTestRunner::class)
 class ItemRowTest {
@@ -76,10 +76,13 @@ class ItemRowTest {
         assertEquals("Named twice in ITEM_ROW", emptyList<String>(), row.groupBy { it }.filterValues { it.size > 1 }.keys.toList())
         assertTrue("ITEM_ROW reads the NFO text", "NULL AS nfo" in row)
         assertEquals(columns.sorted(), row.map { if (it == "NULL AS nfo") "nfo" else it }.sorted())
+
+        val card = CARD_ROW.split(',').map { it.trim() }
+        assertEquals("CARD_ROW is ITEM_ROW but what the file holds", row.map { if (it == "mediaInfo") "NULL AS mediaInfo" else it }, card)
     }
 
-    @Test
-    fun listsNeverReadTheNfoText() = runTest {
+    /** Every list a screen shows, each of its sorts and filters, as they query the library. */
+    private suspend fun browseEveryList(): List<String> {
         val films = Library(LocalProvider.MOVIES, LibraryKind.MOVIES, null)
         val shows = Library(LocalProvider.SHOWS, LibraryKind.SHOWS, null)
         val sagas = Library(LocalProvider.COLLECTIONS, LibraryKind.COLLECTIONS, null)
@@ -92,10 +95,44 @@ class ItemRowTest {
         val season = provider.seasons(severance).single()
         assertTrue(provider.episodes(severance, season).single().hasNfo)
         assertEquals(2, provider.collectionItems(page(sagas).items.single()).count { it.hasNfo })
+        return queries.toList()
+    }
 
-        val read = queries.toList()
-        assertTrue("No list went through ITEM_ROW: ${read.joinToString("\n")}", read.any { "NULL AS nfo" in it })
+    @Test
+    fun listsNeverReadTheNfoText() = runTest {
+        val read = browseEveryList()
+        assertTrue("No list went through CARD_ROW: ${read.joinToString("\n")}", read.any { "NULL AS nfo" in it })
         assertEquals("Lists reading the NFO text", emptyList<String>(), read.filter(::readsNfo).distinct())
+    }
+
+    @Test
+    fun listsNeverReadWhatFilesHold() = runTest {
+        val read = browseEveryList()
+        assertEquals("Lists reading what files hold", emptyList<String>(), read.filter { reads(it, "mediaInfo") }.distinct())
+    }
+
+    /**
+     * A title's page and what it does, and the reports of its progress every ten seconds while it plays,
+     * read its NFO text only to show it, on the screen of the NFO.
+     */
+    @Test
+    fun aTitleReadsItsNfoTextOnlyToShowIt() = runTest {
+        val films = Library(LocalProvider.MOVIES, LibraryKind.MOVIES, null)
+        val aliens = provider.libraryPage(films, SortOption.TITLE, LibraryFilter(), 0, 50).items.single { it.title == "Aliens" }
+        queries.clear()
+        val page = provider.item(aliens.id)
+        provider.similar(page)
+        assertEquals("Alien", provider.collectionOf(page)?.title)
+        provider.setFavorite(page, true)
+        provider.setPlayed(page, false)
+        checkNotNull(provider.reporter(aliens.id)).progress(120_000, 7_000_000, paused = false)
+        // Room checks what each write changed on a thread of its own, meanwhile.
+        val read = synchronized(queries) { queries.toList() }
+        assertEquals("Read the NFO text", emptyList<String>(), read.filter(::readsNfo).distinct())
+        assertTrue(page.hasNfo)
+
+        val nfo = checkNotNull(provider.nfo(page))
+        assertEquals("nfs://nas/media/Aliens.nfo" to "<movie><plot>Aliens</plot></movie>", nfo.path to nfo.text)
     }
 
     @Test
@@ -114,15 +151,18 @@ class ItemRowTest {
         ).forEach { assertFalse(it, readsNfo(it)) }
     }
 
-    /** Whether [sql] reads the NFO text of items: all their columns (`*`, `items.*`, an alias's), or that one by its name. */
-    private fun readsNfo(sql: String): Boolean {
-        val text = sql.replace(Regex("""\bNULL\s+AS\s+nfo\b""", RegexOption.IGNORE_CASE), "")
+    /** Whether [sql] reads the NFO text of items. */
+    private fun readsNfo(sql: String): Boolean = reads(sql, "nfo")
+
+    /** Whether [sql] reads [column] of items: all their columns (`*`, `items.*`, an alias's), or that one by its name. */
+    private fun reads(sql: String, column: String): Boolean {
+        val text = sql.replace(Regex("""\bNULL\s+AS\s+$column\b""", RegexOption.IGNORE_CASE), "")
         if (!Regex("""\bitems\b""", RegexOption.IGNORE_CASE).containsMatchIn(text)) return false
         val aliases = Regex("""\bitems\s+(?:AS\s+)?(\w+)""", RegexOption.IGNORE_CASE).findAll(text)
             .map { it.groupValues[1].lowercase() }.filter { it !in SQL_WORDS }.toSet() + "items"
         val everyColumn = Regex("""\bSELECT\s+\*\s+FROM\s+items\b""", RegexOption.IGNORE_CASE).containsMatchIn(text) ||
             Regex("""\b(\w+)\.\*""").findAll(text).any { it.groupValues[1].lowercase() in aliases }
-        return everyColumn || Regex("""\bnfo\b""", RegexOption.IGNORE_CASE).containsMatchIn(text)
+        return everyColumn || Regex("""\b$column\b""", RegexOption.IGNORE_CASE).containsMatchIn(text)
     }
 
     private companion object {

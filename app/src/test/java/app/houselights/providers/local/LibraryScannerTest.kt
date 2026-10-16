@@ -25,6 +25,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import java.net.ConnectException
 import java.net.SocketTimeoutException
+import java.util.Collections
 import java.util.concurrent.atomic.AtomicInteger
 import javax.crypto.KeyGenerator
 
@@ -58,6 +59,12 @@ class LibraryScannerTest {
     /** Transactions opened, those opened inside another not counted. */
     private val transactions = AtomicInteger()
     private val depth = AtomicInteger()
+
+    /** Statements run while [recording]. */
+    private val statements: MutableList<String> = Collections.synchronizedList(mutableListOf())
+
+    @Volatile
+    private var recording = false
     private lateinit var films: SourceEntity
 
     @Before
@@ -67,6 +74,7 @@ class LibraryScannerTest {
             .addTypeConverter(SecretConverter(Secrets { key }))
             .setQueryCallback({ sql, args ->
                 widest.accumulateAndGet(args.size, ::maxOf)
+                if (recording) statements += sql
                 when {
                     sql.startsWith("BEGIN") -> if (depth.getAndIncrement() == 0) transactions.incrementAndGet()
                     sql.startsWith("END") -> depth.decrementAndGet()
@@ -148,6 +156,24 @@ class LibraryScannerTest {
         assertEquals("a pass with nothing new reads no file", 0, nas.reads.size + showsNas.reads.size)
     }
 
+    /**
+     * A pass that finds nothing new reads what tells files apart, never their details nor what each file
+     * holds: it runs every ten minutes, on thousands of files.
+     */
+    @Test
+    fun aPassFindingNothingNewReadsNeitherDetailsNorWhatFilesHold() = runTest {
+        nas.put("Dune (2021)/Dune (2021).mkv")
+        nas.put("Arrival (2016).mkv")
+        scan()
+        recording = true
+        scan()
+        recording = false
+        val items = Regex("""\bitems\b""")
+        val reads = statements.filter { it.trimStart().startsWith("SELECT", ignoreCase = true) && items.containsMatchIn(it) }
+        assertTrue("the files known are read", reads.isNotEmpty())
+        assertEquals(emptyList<String>(), reads.filter { "mediaInfo" in it || "overview" in it })
+    }
+
     /** A scan unless one ended less than ten minutes ago, as the app asks when it comes back, waited for. */
     private suspend fun scanIfStale() {
         scanner.scanIfStale(TEN_MINUTES)
@@ -185,6 +211,25 @@ class LibraryScannerTest {
         elapsed += TEN_MINUTES + 60_000
         scanIfStale()
         assertEquals(listOf("Arrival (2016).mkv", "Dune (2021).mkv"), filePaths())
+    }
+
+    /** The app looks again every ten minutes: a pass that lasts longer (a first scan) is not followed by another. */
+    @Test
+    fun aScanUnderWayIsNotFollowedByAnother() = runTest {
+        nas.put("Dune (2021).mkv")
+        var listed = 0
+        nas.onList = { listed++ }
+        // The pass is under way, waiting for the film that plays.
+        playing.value = true
+        scanner.scanAll()
+        playing.subscriptionCount.first { it > 0 }
+        elapsed += TEN_MINUTES
+        scanner.scanIfStale(TEN_MINUTES)
+
+        playing.value = false
+        passes.children.toList().forEach { it.join() }
+        assertEquals("one pass", 1, listed)
+        assertEquals(listOf("Dune (2021).mkv"), filePaths())
     }
 
     @Test

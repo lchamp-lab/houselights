@@ -22,7 +22,8 @@ object CollectionRules {
      */
     fun sameName(a: String, b: String): Boolean {
         val words = words(a)
-        return if (words.isEmpty()) words(b).isEmpty() && whole(a) == whole(b) else words == words(b)
+        val others = words(b)
+        return if (words.isEmpty()) others.isEmpty() && whole(a) == whole(b) else words == others
     }
 
     /** Films of a collection released by [today]; announced ones do not count yet. */
@@ -33,10 +34,14 @@ object CollectionRules {
 
     private fun words(name: String): List<String> =
         Normalizer.normalize(name.lowercase(), Normalizer.Form.NFD)
-            .replace(Regex("\\p{M}"), "")
-            .split(Regex("[^a-z0-9]+"))
+            .replace(MARKS, "")
+            .split(NON_WORD)
             .filter { it.isNotEmpty() && it !in GENERIC }
 
     /** [name] in lower case, composed (NFC), its spaces run together: "Звёздные  войны" as "звёздные войны". */
-    private fun whole(name: String): String = Normalizer.normalize(name, Normalizer.Form.NFC).trim().lowercase().replace(Regex("\\s+"), " ")
+    private fun whole(name: String): String = Normalizer.normalize(name, Normalizer.Form.NFC).trim().lowercase().replace(SPACES, " ")
+
+    private val MARKS = Regex("\\p{M}")
+    private val NON_WORD = Regex("[^a-z0-9]+")
+    private val SPACES = Regex("\\s+")
 }

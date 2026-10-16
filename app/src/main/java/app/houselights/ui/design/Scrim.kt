@@ -11,7 +11,7 @@ import kotlin.math.roundToInt
 
 /**
  * The veils laid over artwork so that what sits on it reads, and the lights artwork gives (a card's
- * glow, a collection's). Recipes, not loose numbers: veils are `background` at these opacities, lights their own
+ * glow, the room's). Recipes, not loose numbers: veils are `background` at these opacities, lights their own
  * colour; positions are shares of the screen (or of the wall, or the column) as each says. A veil
  * runs through its stops as a smooth curve ([alphaAt]), never as straight lines meeting at an angle:
  * the eye sees each angle as a line across the picture.
