@@ -91,6 +91,8 @@ class RunCatchingGuardTest {
             ),
         )
         assertEquals(listOf(1), flagged("suspend fun ping() = withContext(Dispatchers.IO) { runCatching { http.get() }.isSuccess }"))
+        // Other modifiers stand between suspend and fun (inline, operator).
+        assertEquals(listOf(1), flagged("private suspend inline fun <T> load(read: () -> T) = runCatching { read() }.getOrNull()"))
     }
 
     /** Around a request for focus, anywhere, on its line or the next. */
@@ -166,6 +168,6 @@ class RunCatchingGuardTest {
     private fun indentOf(line: String) = line.length - line.trimStart().length
 
     private val runCatching = Regex("""(?<!\w)runCatching\b""")
-    private val suspendingStart = Regex("""\bsuspend\s+fun\b|\bwithContext\s*\(""")
+    private val suspendingStart = Regex("""\bsuspend\s+(\w+\s+)*fun\b|\bwithContext\s*\(""")
     private val aroundFocus = Regex("""(?<!\w)runCatching\s*\{[^}]*\brequestFocus\(""")
 }
