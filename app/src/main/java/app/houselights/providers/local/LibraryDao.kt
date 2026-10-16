@@ -153,7 +153,7 @@ interface LibraryDao {
      * "dir0", "0" coming right after "/", which the index on the source and path reads as a range.
      */
     @Query(
-        "SELECT $ITEM_ROW FROM items WHERE kind = 'EPISODE' AND sourceId = :sourceId " +
+        "SELECT $CARD_ROW FROM items WHERE kind = 'EPISODE' AND sourceId = :sourceId " +
             "AND filePath > :dir || '/' AND filePath < :dir || '0'"
     )
     suspend fun episodesUnder(sourceId: Long, dir: String): List<ItemEntity>
@@ -168,12 +168,12 @@ interface LibraryDao {
     @Query("SELECT * FROM items WHERE parentId = :parentId ORDER BY seasonNumber, episodeNumber, sortTitle")
     suspend fun children(parentId: Long): List<ItemEntity>
 
-    // --- Rows to show (see ITEM_ROW) ---
+    // --- Rows to show (see CARD_ROW) ---
 
-    @Query("SELECT $ITEM_ROW FROM items WHERE parentId = :parentId ORDER BY seasonNumber, episodeNumber, sortTitle")
+    @Query("SELECT $CARD_ROW FROM items WHERE parentId = :parentId ORDER BY seasonNumber, episodeNumber, sortTitle")
     suspend fun childRows(parentId: Long): List<ItemEntity>
 
-    @Query("SELECT $ITEM_ROW FROM items WHERE id IN (:ids)")
+    @Query("SELECT $CARD_ROW FROM items WHERE id IN (:ids)")
     suspend fun rows(ids: List<Long>): List<ItemEntity>
 
     /** Per show: episodes not watched yet, and seasons. One query for a whole page of shows. */
@@ -190,16 +190,16 @@ interface LibraryDao {
     )
     suspend fun recentlyPlayedSeries(limit: Int): List<Long>
 
-    @Query("SELECT $ITEM_ROW FROM items WHERE seriesId = :seriesId AND kind = 'EPISODE' ORDER BY seasonNumber, episodeNumber")
+    @Query("SELECT $CARD_ROW FROM items WHERE seriesId = :seriesId AND kind = 'EPISODE' ORDER BY seasonNumber, episodeNumber")
     suspend fun episodesOfSeries(seriesId: Long): List<ItemEntity>
 
     @Query(
-        "SELECT $ITEM_ROW FROM items WHERE kind IN ('MOVIE','EPISODE') AND positionMs > 0 AND played = 0 " +
+        "SELECT $CARD_ROW FROM items WHERE kind IN ('MOVIE','EPISODE') AND positionMs > 0 AND played = 0 " +
             "ORDER BY lastPlayedAt DESC LIMIT :limit"
     )
     suspend fun inProgress(limit: Int): List<ItemEntity>
 
-    @Query("SELECT $ITEM_ROW FROM items WHERE kind = :kind ORDER BY addedAt DESC, id DESC LIMIT :limit")
+    @Query("SELECT $CARD_ROW FROM items WHERE kind = :kind ORDER BY addedAt DESC, id DESC LIMIT :limit")
     suspend fun latest(kind: ItemKind, limit: Int): List<ItemEntity>
 
     @Query("SELECT COUNT(*) FROM items WHERE kind = :kind")
@@ -252,7 +252,7 @@ interface LibraryDao {
     suspend fun countQuery(query: SupportSQLiteQuery): Int
 
     @Query(
-        "SELECT $ITEM_ROW FROM items WHERE kind = :kind AND id != :excludeId AND genres LIKE '%' || :genre || '%' " +
+        "SELECT $CARD_ROW FROM items WHERE kind = :kind AND id != :excludeId AND genres LIKE '%' || :genre || '%' " +
             "ORDER BY rating DESC LIMIT :limit"
     )
     suspend fun byGenre(kind: ItemKind, genre: String, excludeId: Long, limit: Int): List<ItemEntity>
@@ -450,7 +450,7 @@ interface LibraryDao {
     suspend fun updateCollection(collection: CollectionEntity)
 
     /** Films of a collection, in the order they came out. */
-    @Query("SELECT $ITEM_ROW FROM items WHERE collectionId = :collectionId AND kind = 'MOVIE' ORDER BY year IS NULL, year, sortTitle")
+    @Query("SELECT $CARD_ROW FROM items WHERE collectionId = :collectionId AND kind = 'MOVIE' ORDER BY year IS NULL, year, sortTitle")
     suspend fun collectionFilms(collectionId: Long): List<ItemEntity>
 
     /** Collections holding at least [minFilms] films of the library. */

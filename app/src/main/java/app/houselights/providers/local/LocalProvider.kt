@@ -34,6 +34,8 @@ import app.houselights.core.UserState
 import app.houselights.core.escapeUriPath
 import app.houselights.providers.local.TmdbClient.Companion.ImageType
 import app.houselights.core.CollectionThreshold
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 /** Library built by [LibraryScanner] from the user's network folders. */
 class LocalProvider(
@@ -114,7 +116,7 @@ class LocalProvider(
             SortOption.RATING -> "rating DESC, sortTitle ASC"
         }
         // The id settles ties, so that pages never overlap nor skip a title.
-        val page = "SELECT $ITEM_ROW FROM items WHERE $where ORDER BY $order, id LIMIT $limit OFFSET $start"
+        val page = "SELECT $CARD_ROW FROM items WHERE $where ORDER BY $order, id LIMIT $limit OFFSET $start"
         val items = dao.query(SimpleSQLiteQuery(page, args.toTypedArray()))
         val total = dao.countQuery(SimpleSQLiteQuery("SELECT COUNT(*) FROM items WHERE $where", args.toTypedArray()))
         val mapper = LocalMapper(dao, context)
@@ -152,17 +154,22 @@ class LocalProvider(
         if (library.id == COLLECTIONS) return LibraryFacets()
         val kind = if (library.id == SHOWS) ItemKind.SERIES else ItemKind.MOVIE
         // Shows carry no technical badges themselves: look at their episodes.
-        val badgeKind = if (kind == ItemKind.SERIES) ItemKind.EPISODE else kind
-        val badges = dao.badgesOf(badgeKind).flatMap(PipeList::fromText).toSet()
-        return LibraryFacets(
-            genres = dao.genresOf(kind).flatMap(PipeList::fromText).distinct().sorted(),
-            decades = dao.yearsOf(kind).map { it / 10 * 10 }.distinct().sortedDescending(),
-            qualities = buildList {
-                if (Definition.ULTRA_HD.token in badges) add(Quality.UHD_4K)
-                if (badges.any { it.startsWith("HDR") } || "Dolby Vision" in badges) add(Quality.HDR)
-                if ("Dolby Vision" in badges) add(Quality.DOLBY_VISION)
-            },
-        )
+        val badgeLists = dao.badgesOf(if (kind == ItemKind.SERIES) ItemKind.EPISODE else kind)
+        val genreLists = dao.genresOf(kind)
+        val years = dao.yearsOf(kind)
+        // Every episode's badges, split off the main thread.
+        return withContext(Dispatchers.Default) {
+            val badges = badgeLists.flatMap(PipeList::fromText).toSet()
+            LibraryFacets(
+                genres = genreLists.flatMap(PipeList::fromText).distinct().sorted(),
+                decades = years.map { it / 10 * 10 }.distinct().sortedDescending(),
+                qualities = buildList {
+                    if (Definition.ULTRA_HD.token in badges) add(Quality.UHD_4K)
+                    if (badges.any { it.startsWith("HDR") } || "Dolby Vision" in badges) add(Quality.HDR)
+                    if ("Dolby Vision" in badges) add(Quality.DOLBY_VISION)
+                },
+            )
+        }
     }
 
     /** The library row of a film, show, season or episode; null for a collection. */
@@ -177,8 +184,9 @@ class LocalProvider(
             null -> null
         } ?: throw NotFoundException("Item $id")
         val castSource = if (entity.kind == ItemKind.MOVIE || entity.kind == ItemKind.SERIES) entity.id else entity.seriesId
-        val cast = castSource?.let { dao.cast(it) }.orEmpty().map { c ->
-            Person(Typeset.text(c.name), Typeset.text(c.character), c.profilePath?.let { image(it, ImageType.PROFILE) })
+        val people = castSource?.let { dao.cast(it) }.orEmpty()
+        val cast = withContext(Dispatchers.Default) {
+            people.map { c -> Person(Typeset.text(c.name), Typeset.text(c.character), c.profilePath?.let { image(it, ImageType.PROFILE) }) }
         }
         return LocalMapper(dao, context).map(entity).copy(cast = cast)
     }
@@ -203,6 +211,10 @@ class LocalProvider(
      */
     private suspend fun mapCollection(c: CollectionEntity, films: List<ItemEntity>? = null): MediaItem {
         val members = films ?: dao.collectionFilms(c.id)
+        return withContext(Dispatchers.Default) { collectionItem(c, members) }
+    }
+
+    private fun collectionItem(c: CollectionEntity, members: List<ItemEntity>): MediaItem {
         val years = members.mapNotNull { it.year }
         val first = members.firstOrNull()
         val unplayed = members.count { !it.played }

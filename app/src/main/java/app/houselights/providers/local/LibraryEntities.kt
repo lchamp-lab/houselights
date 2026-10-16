@@ -74,18 +74,31 @@ fun SourceEntity.address(withScheme: Boolean = true): String {
 
 enum class ItemKind { MOVIE, SERIES, SEASON, EPISODE }
 
-/**
- * Every column of an item but the NFO text, which can weigh up to 1 MB: what lists and the scanner's
- * file index read. Rows read this way have a null [ItemEntity.nfo]: they are shown, never written back.
- */
-const val ITEM_ROW =
+/** The columns of an item before what its file holds ([ItemEntity.mediaInfo]); see [ITEM_ROW]. */
+private const val ROW_HEAD =
     "id, kind, sourceId, parentId, seriesId, matchKey, tmdbId, title, sortTitle, originalTitle, " +
-    "overview, tagline, year, endYear, continuing, runtimeMin, certification, rating, genres, " +
-    "directors, posterPath, backdropPath, logoPath, stillPath, seasonNumber, episodeNumber, lastEpisodeNumber, filePath, " +
-    "parts, fileSize, missingSince, badges, mediaInfo, probeVersion, fileDurationMs, nfoPath, NULL AS nfo, sidecarKey, " +
-    "userTmdbId, userPosterPath, " +
-    "userBackdropPath, userLogoPath, collectionId, addedAt, matchedAt, positionMs, durationMs, played, favorite, " +
-    "lastPlayedAt"
+        "overview, tagline, year, endYear, continuing, runtimeMin, certification, rating, genres, " +
+        "directors, posterPath, backdropPath, logoPath, stillPath, seasonNumber, episodeNumber, lastEpisodeNumber, filePath, " +
+        "parts, fileSize, missingSince, badges, "
+
+/** The columns of an item after what its file holds, the NFO text left out; see [ITEM_ROW]. */
+private const val ROW_TAIL =
+    ", probeVersion, fileDurationMs, nfoPath, NULL AS nfo, sidecarKey, userTmdbId, userPosterPath, " +
+        "userBackdropPath, userLogoPath, collectionId, addedAt, matchedAt, positionMs, durationMs, played, favorite, " +
+        "lastPlayedAt"
+
+/**
+ * Every column of an item but the NFO text, which can weigh up to 1 MB: what a title's page reads. Rows read
+ * this way have a null [ItemEntity.nfo]: they are shown, never written back.
+ */
+const val ITEM_ROW = ROW_HEAD + "mediaInfo" + ROW_TAIL
+
+/**
+ * [ITEM_ROW] without what the file holds either ([ItemEntity.mediaInfo], kilobytes of JSON to decode for
+ * each card), which only a title's page shows: what lists read. Their length is the file's own column
+ * ([ItemEntity.fileDurationMs]). Rows read this way are shown, never written back either.
+ */
+const val CARD_ROW = ROW_HEAD + "NULL AS mediaInfo" + ROW_TAIL
 
 /**
  * A file of a folder, as a scan sorts what to do with it ([LibraryDao.knownFiles]): what tells a file renamed,

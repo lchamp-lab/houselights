@@ -10,6 +10,7 @@ import app.houselights.core.Library
 import app.houselights.core.LibraryFilter
 import app.houselights.core.LibraryKind
 import app.houselights.core.MatchCandidate
+import app.houselights.core.MediaInfo
 import app.houselights.core.MediaItem
 import app.houselights.core.MetadataEditor
 import app.houselights.core.PlaybackOptions
@@ -410,6 +411,22 @@ class LocalProviderTest {
         )
         val plan = provider.playback(provider.item(id.toString()), resume = false, PlaybackOptions(emptyList(), false))
         assertNull((plan as PlaybackPlan.Launch).logoUrl)
+    }
+
+    /** A card lasts as long as its file, read from its column: only a title's page decodes what its file holds. */
+    @Test
+    fun aCardLastsAsLongAsItsFile() = runTest {
+        val read = MediaInfo(container = "MKV", durationMs = 9_300_000, probedWith = MediaProbe.VERSION)
+        dao.insert(
+            ItemEntity(
+                kind = ItemKind.MOVIE, sourceId = source, title = "Dune", sortTitle = "dune", runtimeMin = 155, filePath = "Dune.mkv",
+                addedAt = 0,
+            ).withMedia(read)
+        )
+        val card = page().items.single()
+        assertEquals(9_300_000L, card.runtimeMs)
+        assertNull(card.media)
+        assertEquals(read, provider.item(card.id).media)
     }
 
     /** An NFO's address on TMDB, written at the original size by Kodi or Radarr, is asked for at the size shown. */
