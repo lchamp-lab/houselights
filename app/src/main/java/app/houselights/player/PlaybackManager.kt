@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.net.Uri
+import android.os.SystemClock
 import android.util.Log
 import app.houselights.R
 import app.houselights.core.PlaybackPlan
@@ -36,6 +37,8 @@ class PlaybackManager(
     private val scope: CoroutineScope,
     /** What the player says it plays now: the Zidoo local API. */
     private val status: suspend () -> PlayerAnswer = ZidooStatus::playStatus,
+    /** Milliseconds that only go forward: how long the player has said nothing of its title. */
+    private val clock: () -> Long = SystemClock::elapsedRealtime,
     /** The reporter of a playback the app started before it was stopped (see [PlaybackPlan.Launch.resumeKey]). */
     private val reporterFor: suspend (String) -> PlaybackReporter?,
 ) {
@@ -165,18 +168,22 @@ class PlaybackManager(
      * backend, and only what the player says now, never a position kept from before. It stops once
      * the player has gone on to another file, or after [SILENT_POLLS] polls in a row past a first
      * status that the player says nothing plays: the session waits for the player's result all the
-     * same. Only that ends [playing]: an API out of reach says nothing of the film, whose NAS stays its
-     * own; past [SILENT_POLLS] polls without an answer, it is asked every [SLOW_POLL_MS] only, never
-     * given up, so that what it says next still counts.
+     * same. An API out of reach says nothing of the film, whose NAS stays its own: past [SILENT_POLLS]
+     * polls without an answer, it is asked every [SLOW_POLL_MS] only, so that what it says next still
+     * counts, until the title can no longer be playing ([silenceAllowedMs]). That also ends [playing]:
+     * an API gone with its player never holds the NAS for good.
      */
     private suspend fun track(s: Session) {
+        var heardAt = clock()
         delay(FIRST_POLL_MS)
         var tick = 0
         var idle = 0
         var unanswered = 0
         while (currentCoroutineContext().isActive && !s.switched && idle < SILENT_POLLS) {
-            when (val answer = status()) {
+            val answer = status()
+            when (answer) {
                 is PlayerAnswer.Playing -> {
+                    heardAt = clock()
                     idle = 0
                     unanswered = 0
                     follow(s, answer.state)
@@ -192,6 +199,11 @@ class PlaybackManager(
                     idle = 0
                 }
             }
+            if (s.silentTooLong(answer, heardAt)) {
+                Log.i(TAG, "The player has said nothing of the title for longer than it could play: tracking stops")
+                _playing.value = false
+                return
+            }
             tick++
             delay(if (unanswered >= SILENT_POLLS) SLOW_POLL_MS else POLL_MS)
         }
@@ -200,6 +212,18 @@ class PlaybackManager(
             _playing.value = false
         }
     }
+
+    /** [answer] says nothing of the title again, and the player last spoke of it ([heardAt]) longer ago than it could still play. */
+    private fun Session.silentTooLong(answer: PlayerAnswer, heardAt: Long) =
+        answer !is PlayerAnswer.Playing && clock() - heardAt > silenceAllowedMs()
+
+    /**
+     * How long the player may say nothing of the title (no answer, or nothing playing) before the title
+     * can no longer be playing: what was left of it at the last status, and [SILENCE_MARGIN_MS] for a
+     * pause or a seek back. Before a first status its length is unknown: [UNHEARD_MAX_MS].
+     */
+    private fun Session.silenceAllowedMs(): Long =
+        durationMs?.let { (it - positionMs).coerceAtLeast(0) + SILENCE_MARGIN_MS } ?: UNHEARD_MAX_MS
 
     /**
      * Takes what the player says for the session. A status of another length is another file: the
@@ -278,6 +302,17 @@ class PlaybackManager(
 
         /** How often an API that has not answered a while is asked. */
         private const val SLOW_POLL_MS = 10_000L
+
+        /** Past what was left of the title, how long the player may still say nothing of it (see [silenceAllowedMs]). */
+        private const val SILENCE_MARGIN_MS = 5 * 60_000L
+
+        /**
+         * How long a player that never gave the title's length may say nothing before it is taken to
+         * play no more: the longest cuts people watch run near four hours (and the scan waits for a
+         * player as long). Shorter, a long film whose player's API never answers would share its NAS
+         * with a scan; longer, a player that is gone would hold the scan for nothing.
+         */
+        private const val UNHEARD_MAX_MS = 4 * 60 * 60_000L
 
         /**
          * How close to its end, in polls, a disc's title was when the player shows another length: it

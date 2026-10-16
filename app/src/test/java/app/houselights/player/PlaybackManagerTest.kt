@@ -13,6 +13,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.currentTime
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -58,7 +59,7 @@ class PlaybackManagerTest {
     private fun TestScope.manager() = PlaybackManager(context, this, status = {
         polls++
         statuses.removeFirstOrNull() ?: PlayerAnswer.NoAnswer
-    }) { null }
+    }, clock = { currentTime }) { null }
 
     private fun plan(uri: String = "nfs://nas/films/Heat.mkv", backdrop: String? = null, disc: Boolean = false) = PlaybackPlan.Launch(
         uri = uri, container = uri.substringAfterLast('.'), title = "Heat", backdropUrl = backdrop, logoUrl = null, startMs = 0,
@@ -226,6 +227,43 @@ class PlaybackManagerTest {
         assertTrue(manager.playing.value)
 
         advanceTimeBy(600_000)
+        assertFalse(manager.playing.value)
+    }
+
+    /**
+     * The API gone with its player, or answering without a video for ever: once more time went by than
+     * the film had left, and a margin, it can no longer be playing. The scan gets its NAS back.
+     */
+    @Test
+    fun aPlayerSilentLongerThanItsFilmHadLeftIsNoLongerPlaying() = runTest {
+        val manager = manager()
+        manager.intentFor(plan())
+        // 1 h 50 of a 2 h film.
+        statuses += playing(6_600_000, durationMs = FILM)
+        manager.onPlayerLaunched()
+        advanceTimeBy(4_000 + 14 * 60_000L)
+        assertTrue(manager.playing.value)
+        advanceTimeBy(2 * 60_000L)
+        assertFalse(manager.playing.value)
+        val pollsThen = polls
+        advanceTimeBy(60_000)
+        assertEquals("Still asked after it stopped", pollsThen, polls)
+
+        // The session waits for the player's result all the same.
+        manager.onPlayerResult(result(7_100_000))
+        advanceUntilIdle()
+        assertEquals("stopped 7100000 / $FILM", reports.last())
+    }
+
+    /** A player that never said what it plays is not playing for ever: past some four hours, the scan goes on. */
+    @Test
+    fun aPlayerThatNeverAnsweredIsNotPlayingForEver() = runTest {
+        val manager = manager()
+        manager.intentFor(plan())
+        manager.onPlayerLaunched()
+        advanceTimeBy(3 * 60 * 60_000L + 59 * 60_000L)
+        assertTrue(manager.playing.value)
+        advanceTimeBy(2 * 60_000L)
         assertFalse(manager.playing.value)
     }
 
