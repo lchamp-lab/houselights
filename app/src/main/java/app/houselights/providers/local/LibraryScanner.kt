@@ -334,12 +334,7 @@ class LibraryScanner(
         // A disc's streams make one title, extras none: rows of what is not one go as files gone do.
         val listing = ScanTitles.of(found)
         val listed = dao.filesOf(source.id)
-        // A film in several files (CD1, CD2…) is one title, under its first part; unless its files' rows were
-        // matched with two films: each is read as a title of its own then, its NFO and artwork its own.
-        val stacks = Stacks.of(source.kind, listing.videos).let { all ->
-            val apart = MissingFiles.split(listed, all)
-            if (apart.isEmpty()) all else Stacks.of(source.kind, listing.videos, apart)
-        }
+        val stacks = stacksOf(source.kind, listing.videos, listed)
         val files = stacks.titles
         val sidecars = Sidecars(listing.sidecars, files, stacks)
         if (found.videos.isEmpty() && listed.isNotEmpty()) throw EmptyFolderException()
@@ -373,6 +368,17 @@ class LibraryScanner(
         val changed = missing.relinked.isNotEmpty() || missing.removed.isNotEmpty() || missing.parts.isNotEmpty() || written > 0
         if (changed) _changed.emit(Unit)
         return changed
+    }
+
+    /**
+     * The films in several files (CD1, CD2…) among [videos], each one title under its first part; unless the
+     * rows of its files ([listed]) were matched with two films: each is read as a title of its own then, its
+     * NFO and artwork its own ([MissingFiles.split]).
+     */
+    private fun stacksOf(kind: SourceKind, videos: List<RemoteFile>, listed: List<ItemEntity>): Stacks {
+        val all = Stacks.of(kind, videos)
+        val apart = MissingFiles.split(listed, all)
+        return if (apart.isEmpty()) all else Stacks.of(kind, videos, apart)
     }
 
     /**
