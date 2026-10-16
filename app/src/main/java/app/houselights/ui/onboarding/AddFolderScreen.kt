@@ -35,6 +35,7 @@ import app.houselights.ui.design.components.HlSegmented
 import app.houselights.ui.design.components.HlTextField
 import app.houselights.ui.design.components.StatusPanel
 import app.houselights.ui.design.components.StatusState
+import app.houselights.ui.design.tryRequestFocus
 import app.houselights.ui.util.appContainer
 import app.houselights.ui.util.scanErrorText
 
@@ -206,7 +207,7 @@ private class FormFocus {
             FolderField.HOST -> host
             FolderField.PASSWORD -> password
         }
-        if (runCatching { wanted.requestFocus() }.isFailure) runCatching { first.requestFocus() }
+        if (!wanted.tryRequestFocus()) first.tryRequestFocus()
     }
 }
 

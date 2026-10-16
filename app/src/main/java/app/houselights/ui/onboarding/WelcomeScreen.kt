@@ -34,6 +34,7 @@ import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.tryRequestFocus
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.houselights.ui.design.components.AttentionNote
 import app.houselights.ui.design.components.HlListItem
@@ -56,7 +57,7 @@ fun WelcomeScreen(onLocal: () -> Unit, onJellyfin: () -> Unit, problem: UiError?
     var posters by remember { mutableStateOf<List<String>>(emptyList()) }
     val posterPx = HlSize.posterWall.toPx()
     LaunchedEffect(Unit) {
-        runCatching { focus.requestFocus() }
+        focus.tryRequestFocus()
         posters = app.trendingPosters(posterPx)
     }
     val black = Hl.colors.background

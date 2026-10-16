@@ -54,6 +54,7 @@ import app.houselights.ui.design.LocalGround
 import app.houselights.ui.design.edge
 import app.houselights.ui.design.emberLight
 import app.houselights.ui.design.groundStepFill
+import app.houselights.ui.design.tryRequestFocus
 
 /** How far a panel stands out from the room. */
 enum class PanelLevel {
@@ -249,7 +250,7 @@ fun HlEmptyState(
     busy: String? = null,
 ) {
     val focus = remember { FocusRequester() }
-    LaunchedEffect(action != null) { if (action != null) runCatching { focus.requestFocus() } }
+    LaunchedEffect(action != null) { if (action != null) focus.tryRequestFocus() }
     Intertitle(
         title,
         modifier,

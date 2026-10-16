@@ -56,6 +56,7 @@ import app.houselights.ui.design.components.PosterThumb
 import app.houselights.ui.design.components.SectionHeader
 import app.houselights.ui.design.components.StatusPanel
 import app.houselights.ui.design.components.StatusState
+import app.houselights.ui.design.tryRequestFocus
 import app.houselights.ui.util.appContainer
 import app.houselights.ui.util.retainedError
 import app.houselights.ui.util.toPx
@@ -84,7 +85,7 @@ fun IdentifyScreen(itemId: String, onDone: () -> Unit) {
         if (!focusedResults && !state.results.isNullOrEmpty()) {
             focusedResults = true
             withFrameNanos { }
-            runCatching { firstResult.requestFocus() }
+            firstResult.tryRequestFocus()
         }
     }
 

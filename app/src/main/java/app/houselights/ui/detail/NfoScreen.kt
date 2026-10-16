@@ -29,6 +29,7 @@ import app.houselights.core.NfoKind
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.tryRequestFocus
 import app.houselights.ui.design.components.Badge
 import app.houselights.ui.design.components.DefinitionList
 import app.houselights.ui.design.components.FactRow
@@ -58,7 +59,7 @@ fun NfoScreen(itemId: String) {
     val info = doc?.info
     // A failure takes the place of the tabs, and stays while trying again, its button at work.
     val failure = retainedError((loaded as? LoadState.Failed)?.error, retrying = loaded is LoadState.Loading)
-    LaunchedEffect(failure == null) { if (failure == null) runCatching { tabsFocus.requestFocus() } }
+    LaunchedEffect(failure == null) { if (failure == null) tabsFocus.tryRequestFocus() }
     HlFormScaffold(
         title = stringResource(R.string.nfo_title),
         description = stringResource(R.string.nfo_desc),

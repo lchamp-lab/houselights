@@ -58,6 +58,7 @@ import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.scrollEdges
+import app.houselights.ui.design.tryRequestFocus
 import kotlin.math.roundToInt
 
 data class MenuOption(val label: String, val selected: Boolean, val onSelect: () -> Unit)
@@ -151,7 +152,7 @@ private class MenuPosition(density: Density) : PopupPositionProvider {
 private fun MenuPanel(sections: List<MenuSection>, maxHeight: Dp, motion: SheetMotion, position: MenuPosition, closeOnSelect: Boolean) {
     val c = Hl.colors
     val first = remember { FocusRequester() }
-    LaunchedEffect(Unit) { runCatching { first.requestFocus() } }
+    LaunchedEffect(Unit) { first.tryRequestFocus() }
     HlPanel(
         Modifier
             .width(HlMenuDefaults.width)
