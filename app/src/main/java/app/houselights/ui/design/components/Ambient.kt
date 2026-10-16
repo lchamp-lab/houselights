@@ -14,6 +14,7 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
+import coil.size.Precision
 import coil.size.Scale
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.ImageBitmap
@@ -68,14 +69,22 @@ internal class PreparedBackdrop(val picture: ImageBitmap, val sample: ArtworkSam
 internal suspend fun prepareBackdrop(context: Context, image: ImageRef, url: String, widthPx: Int, heightPx: Int): PreparedBackdrop? =
     coroutineScope {
         val picture = async {
-            val request = ImageRequest.Builder(context).data(url).size(widthPx, heightPx).scale(Scale.FILL).build()
-            (context.imageLoader.execute(request) as? SuccessResult)?.drawable?.toBitmap()?.asImageBitmap()
+            (context.imageLoader.execute(backdropRequest(context, url, widthPx, heightPx)) as? SuccessResult)
+                ?.drawable?.toBitmap()?.asImageBitmap()
         }
         val small = backdropSample(context, image)
         val sample = small?.let { withContext(Dispatchers.Default) { sampleOf(it) } }
         val decoded = picture.await()
         if (decoded == null || sample == null) null else PreparedBackdrop(decoded, sample)
     }
+
+/**
+ * The picture of a backdrop at [url], to fill [widthPx] by [heightPx], never decoded larger than its
+ * file: a smaller one (1280 px on a 1920 px screen) is enlarged where it is drawn, once, into the
+ * backdrop's cached layer, instead of in memory, where it would take more than twice the room.
+ */
+internal fun backdropRequest(context: Context, url: String, widthPx: Int, heightPx: Int): ImageRequest =
+    ImageRequest.Builder(context).data(url).size(widthPx, heightPx).scale(Scale.FILL).precision(Precision.INEXACT).build()
 
 /** A tiny copy of [image], or null when it cannot be loaded. */
 private suspend fun decodeSample(context: Context, image: ImageRef): Bitmap? =
