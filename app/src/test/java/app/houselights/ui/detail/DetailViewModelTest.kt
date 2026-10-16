@@ -3,9 +3,14 @@ package app.houselights.ui.detail
 import app.houselights.ui.testing.FakeEvents
 import app.houselights.ui.testing.FakeProvider
 import app.houselights.ui.testing.MainDispatcherRule
+import app.houselights.ui.testing.episode
 import app.houselights.ui.testing.film
+import app.houselights.ui.testing.season
+import app.houselights.ui.testing.series
+import app.houselights.ui.design.HlMotion
 import app.houselights.ui.util.UiError
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -24,7 +29,12 @@ class DetailViewModelTest {
     @get:Rule
     val main = MainDispatcherRule()
 
-    private val provider = FakeProvider().apply { items["m1"] = film("m1", "Heat") }
+    private val provider = FakeProvider().apply {
+        items["m1"] = film("m1", "Heat")
+        items["show"] = series("show")
+        seasons = mapOf("show" to (1..3).map { season("s$it", it, "show") })
+        episodes = (1..3).associate { n -> "s$n" to (1..2).map { episode("s${n}e$it", "s$n", it) } }
+    }
     private val events = FakeEvents()
 
     private fun detail(id: String = "m1") = DetailViewModel(id, { provider }, events)
@@ -114,5 +124,88 @@ class DetailViewModelTest {
         assertEquals(UiError.OFFLINE, vm.state.value.actionError)
         vm.clearActionError()
         assertNull(vm.state.value.actionError)
+    }
+
+    private val DetailViewModel.shownEpisodes get() = state.value.episodes.map { it.id }
+
+    @Test
+    fun seasonsAnsweringOutOfOrderNeverShowAnotherSeason() = runTest {
+        val vm = detail("show")
+        advanceUntilIdle()
+        assertEquals(listOf("s1e1", "s1e2"), vm.shownEpisodes)
+
+        val slow = provider.gate("episodes s2")
+        vm.selectSeason("s2")
+        advanceTimeBy(HlMotion.SETTLE + 1)
+        assertTrue("episodes s2" in provider.calls)
+        vm.selectSeason("s3")
+        // The tab changes at once and its row empties: the season before never shows under it.
+        assertEquals("s3", vm.state.value.selectedSeasonId)
+        assertEquals(emptyList<String>(), vm.shownEpisodes)
+        assertTrue(vm.state.value.episodesLoading)
+        advanceUntilIdle()
+        assertEquals(listOf("s3e1", "s3e2"), vm.shownEpisodes)
+
+        // The slower answer comes last: it changes nothing.
+        slow.complete(Unit)
+        advanceUntilIdle()
+        assertEquals("s3", vm.state.value.selectedSeasonId)
+        assertEquals(listOf("s3e1", "s3e2"), vm.shownEpisodes)
+    }
+
+    @Test
+    fun crossingTabsLoadsOnlyTheOneFocusStopsOn() = runTest {
+        val vm = detail("show")
+        advanceUntilIdle()
+        vm.selectSeason("s2")
+        advanceTimeBy(HlMotion.SETTLE / 2)
+        vm.selectSeason("s3")
+        advanceUntilIdle()
+        assertEquals(listOf("episodes s1", "episodes s3"), provider.calls.filter { it.startsWith("episodes") })
+        assertEquals(listOf("s3e1", "s3e2"), vm.shownEpisodes)
+    }
+
+    @Test
+    fun aReloadKeepsTheSeasonChosenMeanwhile() = runTest {
+        val vm = detail("show")
+        advanceUntilIdle()
+        val reloading = provider.gate("episodes s1")
+        vm.load()
+        advanceUntilIdle()
+        vm.selectSeason("s2")
+        advanceUntilIdle()
+        reloading.complete(Unit)
+        advanceUntilIdle()
+        assertEquals("s2", vm.state.value.selectedSeasonId)
+        assertEquals(listOf("s2e1", "s2e2"), vm.shownEpisodes)
+    }
+
+    @Test
+    fun aReloadTakesOverASeasonStillToLoad() = runTest {
+        val vm = detail("show")
+        advanceUntilIdle()
+        vm.selectSeason("s2")
+        vm.load()
+        advanceUntilIdle()
+        assertEquals(1, provider.calls.count { it == "episodes s2" })
+        assertEquals("s2", vm.state.value.selectedSeasonId)
+        assertEquals(listOf("s2e1", "s2e2"), vm.shownEpisodes)
+    }
+
+    @Test
+    fun aSeasonThatFailedSaysSoAndCanBeTriedAgain() = runTest {
+        val vm = detail("show")
+        advanceUntilIdle()
+        provider.fail = { if (it == "episodes s2") IOException("Server away") else null }
+        vm.selectSeason("s2")
+        advanceUntilIdle()
+        assertEquals(UiError.OFFLINE, vm.state.value.episodesError)
+        assertEquals(emptyList<String>(), vm.shownEpisodes)
+
+        provider.fail = { null }
+        vm.retrySeason()
+        assertNull(vm.state.value.episodesError)
+        advanceUntilIdle()
+        assertEquals(listOf("s2e1", "s2e2"), vm.shownEpisodes)
     }
 }

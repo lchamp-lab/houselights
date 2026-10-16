@@ -14,11 +14,13 @@ import app.houselights.core.MediaProvider
 import app.houselights.core.ProviderCapabilities
 import app.houselights.core.UserState
 import app.houselights.core.suspendRunCatching
+import app.houselights.ui.design.HlMotion
 import app.houselights.ui.util.UiError
 import app.houselights.ui.util.toUiError
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
@@ -32,7 +34,10 @@ data class DetailState(
     val nextUp: MediaItem? = null,
     val seasons: List<MediaItem> = emptyList(),
     val selectedSeasonId: String? = null,
+    /** The episodes of [selectedSeasonId]; empty while they load ([episodesLoading]) or failed to ([episodesError]). */
     val episodes: List<MediaItem> = emptyList(),
+    val episodesLoading: Boolean = false,
+    val episodesError: UiError? = null,
     val similar: List<MediaItem> = emptyList(),
     /** Artwork and identification can be changed. */
     val canEdit: Boolean = false,
@@ -59,9 +64,14 @@ class DetailViewModel(
 
     private var loadJob: Job? = null
 
+    /** The episodes of the season chosen last: one at a time, so a slower answer never shows under another tab. */
+    private var seasonJob: Job? = null
+
     fun load() {
-        // A newer load replaces an older one: two loads never finish out of order.
+        // A newer load replaces an older one: two loads never finish out of order. It loads the
+        // episodes of the season chosen itself.
         loadJob?.cancel()
+        seasonJob?.cancel()
         loadJob = viewModelScope.launch {
             // In a scope of its own, a failed parallel request ends up here instead of crashing the app.
             suspendRunCatching { coroutineScope {
@@ -77,7 +87,15 @@ class DetailViewModel(
                         ?: seasons.firstOrNull { (it.seasonNumber ?: 0) > 0 }?.id
                         ?: seasons.firstOrNull()?.id
                     val episodes = seasons.firstOrNull { it.id == seasonId }?.let { source.episodes(item, it) } ?: emptyList()
-                    DetailState(item, null, source.capabilities, next, seasons, seasonId, episodes, similar.await())
+                    DetailState(
+                        item = item,
+                        capabilities = source.capabilities,
+                        nextUp = next,
+                        seasons = seasons,
+                        selectedSeasonId = seasonId,
+                        episodes = episodes,
+                        similar = similar.await(),
+                    )
                 } else if (item.kind == MediaKind.COLLECTION) {
                     val films = source.collectionItems(item)
                     DetailState(item = item, capabilities = source.capabilities, nextUp = source.nextUp(item), collectionFilms = films)
@@ -96,8 +114,9 @@ class DetailViewModel(
                 }
             } }.onSuccess { loaded ->
                 val canEdit = loaded.item?.let { provider().editor?.canEdit(it) } == true
-                // A failure said beside the actions stays until the next action.
-                _state.update { loaded.copy(canEdit = canEdit, actionError = it.actionError) }
+                // A failure said beside the actions stays until the next action; a season chosen while
+                // the page loaded again stays chosen.
+                _state.update { loaded.copy(canEdit = canEdit, actionError = it.actionError).keepingSeasonOf(it) }
             }
                 .onFailure { e ->
                     Log.w(TAG, "Detail of $itemId failed", e)
@@ -106,15 +125,42 @@ class DetailViewModel(
         }
     }
 
+    /**
+     * Shows the season's tab at once, its row emptied; its episodes load once focus has stopped on the
+     * tab (tabs are chosen as focus crosses them), unless another season was chosen meanwhile.
+     */
     fun selectSeason(seasonId: String) {
         val s = _state.value
         val series = s.item ?: return
-        if (seasonId == s.selectedSeasonId) return
-        val season = s.seasons.firstOrNull { it.id == seasonId } ?: return
-        _state.update { it.copy(selectedSeasonId = seasonId) }
-        viewModelScope.launch {
-            suspendRunCatching { provider().episodes(series, season) }
-                .onSuccess { eps -> _state.update { it.copy(episodes = eps) } }
+        if (seasonId == s.selectedSeasonId || s.seasons.none { it.id == seasonId }) return
+        _state.update { it.copy(selectedSeasonId = seasonId, episodes = emptyList(), episodesLoading = true, episodesError = null) }
+        loadSeason(series, seasonId, settle = true)
+    }
+
+    /** After the episodes of the season chosen failed to load: tries again. */
+    fun retrySeason() {
+        val s = _state.value
+        val series = s.item ?: return
+        val seasonId = s.selectedSeasonId ?: return
+        _state.update { it.copy(episodesLoading = true, episodesError = null) }
+        loadSeason(series, seasonId, settle = false)
+    }
+
+    private fun loadSeason(series: MediaItem, seasonId: String, settle: Boolean) {
+        seasonJob?.cancel()
+        seasonJob = viewModelScope.launch {
+            if (settle) delay(HlMotion.SETTLE)
+            val season = _state.value.seasons.firstOrNull { it.id == seasonId } ?: return@launch
+            val result = suspendRunCatching { provider().episodes(series, season) }
+            result.exceptionOrNull()?.let { Log.w(TAG, "Episodes of $seasonId failed", it) }
+            _state.update {
+                if (it.selectedSeasonId != seasonId) return@update it
+                it.copy(
+                    episodes = result.getOrDefault(emptyList()),
+                    episodesLoading = false,
+                    episodesError = result.exceptionOrNull()?.toUiError(),
+                )
+            }
         }
     }
 
@@ -164,6 +210,21 @@ class DetailViewModel(
             initializer { DetailViewModel(itemId, app::provider, app) }
         }
     }
+}
+
+/**
+ * This page as loaded, with the season chosen in [current] when one was chosen while it loaded (and
+ * the series still has it): the tab focus is on keeps its row.
+ */
+internal fun DetailState.keepingSeasonOf(current: DetailState): DetailState {
+    val chosen = current.selectedSeasonId
+    if (chosen == null || chosen == selectedSeasonId || seasons.none { it.id == chosen }) return this
+    return copy(
+        selectedSeasonId = chosen,
+        episodes = current.episodes,
+        episodesLoading = current.episodesLoading,
+        episodesError = current.episodesError,
+    )
 }
 
 private const val TAG = "Detail"

@@ -77,6 +77,8 @@ import app.houselights.ui.design.components.Backdrop
 import app.houselights.ui.design.components.BackdropStyle
 import app.houselights.ui.design.components.FormatLines
 import app.houselights.ui.design.components.BillingBlock
+import app.houselights.ui.design.components.CardSkeleton
+import app.houselights.ui.design.components.SectionHeader
 import app.houselights.ui.design.components.EpisodeHeading
 import app.houselights.ui.design.components.Emphasis
 import app.houselights.ui.design.components.HlActionRow
@@ -239,14 +241,19 @@ fun DetailScreen(
                             }
                         }
                         item(key = "episodes-${state.selectedSeasonId}") {
-                            Episodes(
-                                header = single?.title,
-                                episodes = state.episodes,
-                                memory = memory,
-                                focused = focusedEpisode,
-                                onFocus = { focusedEpisode = it },
-                                onPlay = { ep -> onPlay(ep, ep.user.positionMs > 0) },
-                            )
+                            val failed = state.episodesError
+                            when {
+                                failed != null -> EpisodesFailed(single?.title, failed, vm::retrySeason)
+                                state.episodesLoading && state.episodes.isEmpty() -> EpisodesSkeleton(single?.title)
+                                else -> Episodes(
+                                    header = single?.title,
+                                    episodes = state.episodes,
+                                    memory = memory,
+                                    focused = focusedEpisode,
+                                    onFocus = { focusedEpisode = it },
+                                    onPlay = { ep -> onPlay(ep, ep.user.positionMs > 0) },
+                                )
+                            }
                         }
                     }
 
@@ -539,6 +546,28 @@ private fun Episodes(
     }
 }
 
+/** Empty frames where a season's episodes will be, while they load. */
+@Composable
+private fun EpisodesSkeleton(header: String?) {
+    Column(Modifier.scrollsAsBlock()) {
+        header?.let { SectionHeader(it, Modifier.padding(start = HlSpace.safeH, bottom = HlSpace.xxs)) }
+        Row(Modifier.padding(start = HlSpace.safeH), horizontalArrangement = Arrangement.spacedBy(HlSpace.l)) {
+            repeat(EPISODE_SKELETONS) { CardSkeleton(HlSize.episode, 16f / 9f) }
+        }
+    }
+}
+
+/** A season's episodes could not load: why, where the row would be, and the way to try again. */
+@Composable
+private fun EpisodesFailed(header: String?, error: UiError, onRetry: () -> Unit) {
+    Column(Modifier.scrollsAsBlock().padding(horizontal = HlSpace.safeH)) {
+        header?.let { SectionHeader(it, Modifier.padding(bottom = HlSpace.xxs)) }
+        HlStatus(StatusState.Attention, stringResource(error.title), detail = stringResource(error.message))
+        Spacer(Modifier.height(HlSpace.s))
+        HlButton(stringResource(R.string.retry), onClick = onRetry, icon = HlIcons.Refresh)
+    }
+}
+
 /** Back returns to the actions once the page has scrolled down; at its top, it leaves. */
 internal fun backReturnsToActions(firstVisibleItem: Int, offset: Int): Boolean = firstVisibleItem > 0 || offset > 0
 
@@ -561,6 +590,9 @@ private const val EPISODES = "episodes"
 private const val FILMS = "films"
 private const val SAGA = "collection"
 private const val SIMILAR = "similar"
+
+/** Frames shown while a season loads: as many episodes as the screen shows whole. */
+private const val EPISODE_SKELETONS = 3
 
 /** The keys that act on what has focus. */
 private val OK_KEYS = setOf(Key.DirectionCenter, Key.Enter, Key.NumPadEnter)
