@@ -7,6 +7,8 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.currentTime
 import kotlinx.coroutines.test.runTest
+import okhttp3.HttpUrl
+import okhttp3.Interceptor
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -200,6 +202,17 @@ class TmdbClientTest {
     fun anAnswerTooLargeToHoldIsNotRead() = runTest {
         tmdb.movies[438631] = tmdb.movies.getValue(438631).copy(overview = "x".repeat(9 * 1024 * 1024))
         failure<TmdbUnreachableException> { tmdb.client().movieById(438631) }
+    }
+
+    /** A show comes with its IMDb and TVDB ids, which tell whether an NFO describes it. */
+    @Test
+    fun aShowComesWithItsIdsElsewhere() = runTest {
+        val asked = mutableListOf<HttpUrl>()
+        val client = TmdbClient("key", transport = Interceptor { chain -> asked += chain.request().url; tmdb.intercept(chain) })
+        tmdb.show(2316, "The Office", 2005)
+        tmdb.rawBody = """{"id":2316,"name":"The Office","external_ids":{"imdb_id":"tt0386676","tvdb_id":73244,"wikidata_id":"Q23831"}}"""
+        assertEquals(TmdbExternalIds("tt0386676", 73244), client.tv(2316).externalIds)
+        assertTrue("external_ids" in asked.single().queryParameter("append_to_response").orEmpty().split(','))
     }
 
     @Test

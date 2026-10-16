@@ -32,7 +32,8 @@ object NfoStreamDetails {
                 channels = channels,
                 language = language,
                 atmos = c.contains("atmos"),
-                dtsX = c.contains("dtsx") || c.contains("dts:x"),
+                // "dtshd_ma_x", "dtshd_ma_x_imax": DTS:X as Kodi 21 writes it.
+                dtsX = c.contains("dtsx") || c.contains("dts:x") || c.startsWith("dtshd_ma_x"),
             )
         }
         val subtitles = streams.subtitleLanguages.map { SubtitleTrack(language = it, format = Codecs.UNKNOWN) }

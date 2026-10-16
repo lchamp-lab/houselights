@@ -31,10 +31,13 @@ internal class ScanFiles(
     private val artwork: ArtworkCache,
     private val browsers: (SourceEntity) -> RemoteBrowser,
 ) {
-    /** A NAS that stops answering throws, so the file is tried again later; any other failure is [TextRead.Failed]. */
+    /**
+     * An NFO's text, in the encoding its bytes say ([NfoParser.decode]). A NAS that stops answering
+     * throws, so the file is tried again later; any other failure is [TextRead.Failed].
+     */
     suspend fun readText(source: SourceEntity, file: RemoteFile): TextRead = suspendRunCatching<TextRead> {
         val length = file.size.coerceIn(0, MAX_NFO_BYTES.toLong()).toInt().takeIf { it > 0 } ?: MAX_NFO_BYTES
-        TextRead.Text(String(browsers(source).readPrefix(source, file.relativePath, length), Charsets.UTF_8))
+        TextRead.Text(NfoParser.decode(browsers(source).readPrefix(source, file.relativePath, length)))
     }.getOrElse { e ->
         if (ScanErrors.isUnreachable(e)) throw e
         Log.w(TAG, "Could not read ${file.relativePath}; it is read again at the next scan", e)

@@ -1,5 +1,6 @@
 package app.houselights.providers.local
 
+import app.houselights.core.NfoParser
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -65,6 +66,20 @@ class ScanReadsTest {
         bench.scan()
         assertEquals(listOf("Dune (2021).mkv"), nas.reads)
         assertEquals(REMUX_BADGES, bench.item(films, "Dune (2021).mkv").badges)
+    }
+
+    /** An NFO an older media manager wrote in Latin-1 is read as it says, not as UTF-8. */
+    @Test
+    fun anNfoIsReadInTheEncodingItSays() = runTest {
+        val declaration = """<?xml version="1.0" encoding="ISO-8859-1"?>"""
+        val nfo = "$declaration<movie><title>Amélie</title><plot>Une serveuse à Montmartre.</plot></movie>".toByteArray(Charsets.ISO_8859_1)
+        nas.put("Amélie (2001).mkv")
+        nas.put("Amélie (2001).nfo", size = nfo.size.toLong(), bytes = nfo)
+        bench.scan()
+        val amelie = bench.item(films, "Amélie (2001).mkv")
+        assertEquals("Amélie", amelie.title)
+        assertEquals("Une serveuse à Montmartre.", amelie.overview)
+        assertEquals("kept as text, read again as it is", "Amélie", amelie.nfo?.let(NfoParser::parse)?.title)
     }
 
     @Test

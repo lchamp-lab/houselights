@@ -3,6 +3,9 @@ package app.houselights.core
 import org.xmlpull.v1.XmlPullParser
 import org.xmlpull.v1.XmlPullParserFactory
 import java.io.StringReader
+import java.nio.ByteBuffer
+import java.nio.CharBuffer
+import java.nio.charset.Charset
 
 data class NfoActor(val name: String, val role: String?, val thumb: String?, val order: Int?)
 
@@ -69,6 +72,30 @@ object NfoParser {
     private val TMDB_URL = Regex("""themoviedb\.org/(?:movie|tv)/(\d+)""")
     private val IMDB_ID = Regex("""\btt\d{6,9}\b""")
 
+    private val ENCODING = Regex("""^\s*<\?xml[^>]*?\bencoding\s*=\s*["']([A-Za-z][\w.:-]*)["']""")
+    private val BOMS = listOf(
+        byteArrayOf(0xEF.toByte(), 0xBB.toByte(), 0xBF.toByte()) to Charsets.UTF_8,
+        byteArrayOf(0xFE.toByte(), 0xFF.toByte()) to Charsets.UTF_16BE,
+        byteArrayOf(0xFF.toByte(), 0xFE.toByte()) to Charsets.UTF_16LE,
+    )
+    private val WINDOWS_1252: Charset = runCatching { Charset.forName("windows-1252") }.getOrDefault(Charsets.ISO_8859_1)
+    private const val XML_START_TEXT = "<?xml"
+    private val XML_START = XML_START_TEXT.toByteArray(Charsets.US_ASCII)
+
+    /**
+     * Declared by bytes that are not UTF-8, what they are read as Windows-1252 for: a false "UTF-8",
+     * plain ASCII, and "ISO-8859-1", which Windows writes for its 1252, quotes and dashes included.
+     */
+    private val WINDOWS_1252_NAMES = setOf(Charsets.UTF_8, Charsets.US_ASCII, Charsets.ISO_8859_1)
+    private const val LT: Byte = 0x3C // "<"
+    private const val NUL: Byte = 0
+
+    /** How far into a file its XML declaration is looked for. */
+    private const val DECLARATION_BYTES = 256
+
+    /** A rating's scale when it says none. */
+    private const val RATING_SCALE = 10.0
+
     fun parse(text: String): NfoInfo? {
         val xmlStart = text.indexOf('<')
         val xml = if (xmlStart >= 0) text.substring(xmlStart) else ""
@@ -81,6 +108,49 @@ object NfoParser {
             tmdb != null || imdb != null -> NfoInfo(kind = NfoKind.LINK, tmdbId = tmdb, imdbId = imdb)
             else -> null
         }
+    }
+
+    /**
+     * An NFO's text, from its bytes in the encoding they say: their byte order mark; else UTF-8 when
+     * they read as UTF-8, whatever their XML declaration says (.NET writes "utf-16" in the XML it
+     * saves in UTF-8); else the 8-bit encoding their declaration names; else Windows-1252, the
+     * Latin-1 of older media managers. A character cut by the end of what was read is left out.
+     */
+    fun decode(bytes: ByteArray): String {
+        bom(bytes)?.let { (charset, length) -> return String(bytes, length, bytes.size - length, charset) }
+        utf16(bytes)?.let { return String(bytes, it) }
+        return utf8(bytes) ?: String(bytes, declaredCharset(bytes)?.takeIf { it.isEightBit() && it !in WINDOWS_1252_NAMES } ?: WINDOWS_1252)
+    }
+
+    /** UTF-16 without a mark, told by its first character, "<" (XML 1.0, appendix F). */
+    private fun utf16(bytes: ByteArray): Charset? = when {
+        bytes.size < 2 -> null
+        bytes[0] == LT && bytes[1] == NUL -> Charsets.UTF_16LE
+        bytes[0] == NUL && bytes[1] == LT -> Charsets.UTF_16BE
+        else -> null
+    }
+
+    /** True when ASCII reads as itself: a declaration read in Latin-1 can only name such an encoding truly. */
+    private fun Charset.isEightBit() = String(XML_START, this) == XML_START_TEXT
+
+    /** The charset a byte order mark says, and the mark's length. */
+    private fun bom(bytes: ByteArray): Pair<Charset, Int>? = BOMS.firstOrNull { (mark, _) ->
+        bytes.size >= mark.size && mark.indices.all { bytes[it] == mark[it] }
+    }?.let { (mark, charset) -> charset to mark.size }
+
+    /** The charset an XML declaration names, when the device has it. */
+    private fun declaredCharset(bytes: ByteArray): Charset? {
+        val head = String(bytes, 0, minOf(bytes.size, DECLARATION_BYTES), Charsets.ISO_8859_1)
+        val name = ENCODING.find(head)?.groupValues?.get(1) ?: return null
+        return runCatching { Charset.forName(name) }.getOrNull()
+    }
+
+    /** The bytes as UTF-8; null when they are not. */
+    private fun utf8(bytes: ByteArray): String? {
+        val out = CharBuffer.allocate(bytes.size)
+        // Not the end of the input: a character cut by the end of what was read is left out, not malformed.
+        val result = Charsets.UTF_8.newDecoder().decode(ByteBuffer.wrap(bytes), out, false)
+        return if (result.isError) null else String(out.array(), 0, out.position())
     }
 
     private fun parseXml(xml: String): NfoInfo? {
@@ -186,6 +256,7 @@ object NfoParser {
     private fun certification(raw: String?): String? =
         raw?.substringAfterLast(':')?.removePrefix("Rated ")?.trim()?.takeIf { it.isNotEmpty() }
 
+    /** The default rating and the first, both out of 10: a Metacritic 78 out of 100 is a 7.8. */
     private fun ratings(p: XmlPullParser): Pair<Double?, Double?> {
         var default: Double? = null
         var first: Double? = null
@@ -193,10 +264,13 @@ object NfoParser {
         while (p.nextWithin(depth)) {
             if (p.eventType == XmlPullParser.START_TAG && p.name == "rating") {
                 val isDefault = p.getAttributeValue(null, "default") == "true"
+                val max = p.getAttributeValue(null, "max")?.replace(',', '.')?.toDoubleOrNull()?.takeIf { it > 0 } ?: RATING_SCALE
                 val ratingDepth = p.depth
                 var value: Double? = null
                 while (p.nextWithin(ratingDepth)) {
-                    if (p.eventType == XmlPullParser.START_TAG && p.name == "value") value = p.text()?.replace(',', '.')?.toDoubleOrNull()
+                    if (p.eventType == XmlPullParser.START_TAG && p.name == "value") {
+                        value = p.text()?.replace(',', '.')?.toDoubleOrNull()?.let { it * RATING_SCALE / max }
+                    }
                 }
                 if (isDefault) default = value
                 if (first == null) first = value

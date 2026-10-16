@@ -79,4 +79,67 @@ class NfoParserTest {
     fun garbage() {
         assertNull(NfoParser.parse("not an nfo"))
     }
+
+    private val amelie = "<movie><title>Le Fabuleux Destin d’Amélie Poulain</title><plot>Amélie, serveuse à Montmartre…</plot></movie>"
+
+    private fun titleOf(bytes: ByteArray) = NfoParser.parse(NfoParser.decode(bytes))?.title
+
+    /** Written by an older media manager, in the Latin-1 of Windows, and saying so or not. */
+    @Test
+    fun latin1NfoIsReadInItsEncoding() {
+        val windows = charset("windows-1252")
+        val declared = """<?xml version="1.0" encoding="ISO-8859-1"?>$amelie""".toByteArray(windows)
+        assertEquals("Le Fabuleux Destin d’Amélie Poulain", titleOf(declared))
+        assertEquals("Amélie, serveuse à Montmartre…", NfoParser.parse(NfoParser.decode(declared))?.plot)
+        assertEquals("not UTF-8: Windows-1252", "Le Fabuleux Destin d’Amélie Poulain", titleOf(amelie.toByteArray(windows)))
+        val lying = """<?xml version="1.0" encoding="UTF-8"?><movie><title>Amélie</title></movie>""".toByteArray(Charsets.ISO_8859_1)
+        assertEquals("Amélie", titleOf(lying))
+    }
+
+    @Test
+    fun utf8AndUtf16AreReadAsTheySay() {
+        assertEquals("Le Fabuleux Destin d’Amélie Poulain", titleOf(amelie.toByteArray()))
+        val bom = byteArrayOf(0xEF.toByte(), 0xBB.toByte(), 0xBF.toByte()) + amelie.toByteArray()
+        assertEquals("<movie>", NfoParser.decode(bom).take(7))
+        assertEquals("Le Fabuleux Destin d’Amélie Poulain", titleOf("﻿$amelie".toByteArray(Charsets.UTF_16LE)))
+        assertEquals("Le Fabuleux Destin d’Amélie Poulain", titleOf(amelie.toByteArray(Charsets.UTF_16LE)))
+        assertEquals("Le Fabuleux Destin d’Amélie Poulain", titleOf(amelie.toByteArray(Charsets.UTF_16BE)))
+    }
+
+    /**
+     * A declaration that does not say what the bytes are: .NET writes "utf-16" in the XML it saves
+     * in UTF-8, or in the Latin-1 of Windows. What was read right as UTF-8 before still is.
+     */
+    @Test
+    fun aDeclarationTheBytesBelieIsNotFollowed() {
+        val title = "<movie><title>Amélie</title></movie>"
+        val net = """<?xml version="1.0" encoding="utf-16"?>$title"""
+        assertEquals("Amélie", titleOf(net.toByteArray()))
+        assertEquals("Amélie", titleOf(net.toByteArray(charset("windows-1252"))))
+        assertEquals("Amélie", titleOf("""<?xml version="1.0" encoding="ISO-8859-1"?>$title""".toByteArray()))
+        // Not UTF-8, and in the encoding it declares.
+        val brat = """<?xml version="1.0" encoding="windows-1251"?><movie><title>Брат</title></movie>"""
+        assertEquals("Брат", titleOf(brat.toByteArray(charset("windows-1251"))))
+    }
+
+    /** An NFO longer than what a scan reads ends in the middle of a character: still UTF-8. */
+    @Test
+    fun utf8CutWithinACharacterStaysUtf8() {
+        val start = amelie.removeSuffix("</movie>") + "<tagline>Ét"
+        val bytes = "${start}é".toByteArray()
+        // The last character, "é", cut after its first byte.
+        assertEquals(start, NfoParser.decode(bytes.copyOf(bytes.size - 1)))
+    }
+
+    /** Kodi and tinyMediaManager keep each site's rating on its own scale. */
+    @Test
+    fun ratingsAreReadOutOfTen() {
+        fun rating(ratings: String) = NfoParser.parse("<movie><ratings>$ratings</ratings></movie>")?.rating
+        assertEquals(7.8, rating("""<rating name="metacritic" max="100" default="true"><value>78</value></rating>""")!!, 0.001)
+        assertEquals(8.2, rating("""<rating name="trakt" max="5"><value>4.1</value></rating>""")!!, 0.001)
+        assertEquals(7.1, rating("""<rating name="imdb"><value>7.1</value></rating>""")!!, 0.001)
+        val imdb = """<rating name="imdb" max="10"><value>7.6</value></rating>"""
+        val critics = """<rating name="tomatometerallcritics" max="100" default="true"><value>89</value></rating>"""
+        assertEquals(8.9, rating(imdb + critics)!!, 0.001)
+    }
 }

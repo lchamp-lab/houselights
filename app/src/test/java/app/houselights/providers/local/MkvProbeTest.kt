@@ -8,6 +8,8 @@ import org.junit.Assume.assumeTrue
 import org.junit.Test
 import java.io.ByteArrayOutputStream
 import java.io.File
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
 
 class MkvProbeTest {
     // --- Minimal EBML writer, enough to build a Matroska header ------------------------------
@@ -99,6 +101,52 @@ class MkvProbeTest {
         assertEquals(3840, info.video!!.width)
         assertEquals(10, info.video!!.bitDepth)
         assertEquals(6, info.audio.single().channels)
+    }
+
+    /** A file of [tracks] alone: its video track's codec and its audio track's. */
+    private fun codecs(vararg tracks: ByteArray): Pair<String?, String?> {
+        val segment = el(0x18538067, el(0x1654AE6B, *tracks))
+        val info = (MkvProbe.probe(el(0x1A45DFA3, str(0x4282, "matroska")) + segment) as MkvProbe.Result.Found).info
+        return info.video?.codec to info.audio.firstOrNull()?.codec
+    }
+
+    /** A BITMAPINFOHEADER, as an AVI holds it, for a picture compressed as [fourcc] says. */
+    private fun bitmapInfo(fourcc: String): ByteArray = ByteBuffer.allocate(40).order(ByteOrder.LITTLE_ENDIAN)
+        .putInt(40).putInt(720).putInt(304).putShort(1).putShort(24).put(fourcc.toByteArray(Charsets.US_ASCII)).array()
+
+    /** A WAVEFORMATEX, as an AVI holds it, for a sound of format [tag]; 6 channels at 48 kHz. */
+    private fun waveFormat(tag: Int): ByteArray = ByteBuffer.allocate(18).order(ByteOrder.LITTLE_ENDIAN)
+        .putShort(tag.toShort()).putShort(6).putInt(48_000).putInt(56_000).putShort(1).putShort(0).putShort(0).array()
+
+    private fun vfw(fourcc: String) = el(0xAE, uint(0xD7, 1), uint(0x83, 1), str(0x86, "V_MS/VFW/FOURCC"), raw(0x63A2, bitmapInfo(fourcc)))
+
+    private fun acm(tag: Int) =
+        el(0xAE, uint(0xD7, 2), uint(0x83, 2), str(0x86, "A_MS/ACM"), raw(0x63A2, waveFormat(tag)), el(0xE1, uint(0x9F, 6)))
+
+    /** An AVI remuxed as it was by mkvmerge: its tracks are named by their FOURCC and format tag, not by their codec ids. */
+    @Test
+    fun tracksFromAnAviAreNamedByTheirFourccAndFormatTag() {
+        assertEquals("MPEG-4" to "MP3", codecs(vfw("XVID"), acm(0x0055)))
+        assertEquals("MPEG-4" to "AC3", codecs(vfw("DX50"), acm(0x2000)))
+        assertEquals("MPEG-4" to "DTS", codecs(vfw("DIVX"), acm(0x2001)))
+        assertEquals("VC-1" to "PCM", codecs(vfw("WVC1"), acm(0x0001)))
+        assertEquals("VC-1" to "AAC", codecs(vfw("WMV3"), acm(0x00FF)))
+        assertEquals("AVC" to "?", codecs(vfw("H264"), acm(0x0161)))
+        // A FOURCC the app has no name for is shown as it is.
+        assertEquals("DIV3", codecs(vfw("DIV3")).first)
+        // WAVE_FORMAT_EXTENSIBLE: 24 bits, 5.1, then the format its SubFormat starts with.
+        val extensible = waveFormat(0xFFFE) + byteArrayOf(24, 0, 0x3F, 0, 0, 0, 0x01, 0x00)
+        assertEquals("PCM", codecs(el(0xAE, uint(0xD7, 2), uint(0x83, 2), str(0x86, "A_MS/ACM"), raw(0x63A2, extensible))).second)
+    }
+
+    @Test
+    fun avcAndMpeg4Part2AreTwoFormats() {
+        val asp = el(0xAE, uint(0xD7, 1), uint(0x83, 1), str(0x86, "V_MPEG4/ISO/ASP"))
+        assertEquals("MPEG-4", codecs(asp).first)
+        val avc = el(0xAE, uint(0xD7, 1), uint(0x83, 1), str(0x86, "V_MPEG4/ISO/AVC"))
+        assertEquals("AVC", codecs(avc).first)
+        // No header to tell: no name, rather than a wrong one.
+        assertEquals("?", codecs(el(0xAE, uint(0xD7, 1), uint(0x83, 1), str(0x86, "V_MS/VFW/FOURCC"))).first)
     }
 
     @Test

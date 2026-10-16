@@ -32,7 +32,7 @@ interface TmdbApi {
         @Path("id") id: Int,
         @Query("language") language: String,
         @Query("include_image_language") imageLanguages: String,
-        @Query("append_to_response") append: String = "credits,images,content_ratings",
+        @Query("append_to_response") append: String = "credits,images,content_ratings,external_ids",
     ): TmdbTv
 
     @GET("find/{id}")
