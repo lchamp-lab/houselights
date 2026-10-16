@@ -5,6 +5,7 @@ import app.houselights.core.Definition
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.util.Locale
@@ -45,9 +46,12 @@ class LocalLibrary(
 
     val scan: StateFlow<ScanState> = scanner.state
 
-    fun titleCount(folder: SourceEntity): Flow<Int> = dao.observeTitleCount(folder.id)
-
-    fun ultraHdCount(folder: SourceEntity): Flow<Int> = dao.observeDefinitionCount(folder.id, Definition.ULTRA_HD.token)
+    /**
+     * What each folder holds, by its id: one query for all of them, rather than two per folder, each
+     * run again at every write a scan makes.
+     */
+    val folderCounts: Flow<Map<Long, FolderCounts>> =
+        dao.observeFolderCounts(Definition.ULTRA_HD.token).map { counts -> counts.associateBy { it.sourceId } }
 
     /** Posters of the titles found last in [folder], the user's choice first. */
     fun latestPosters(folder: SourceEntity, limit: Int): Flow<List<String>> = dao.observePosters(folder.id, limit)

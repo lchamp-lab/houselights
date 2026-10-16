@@ -94,6 +94,7 @@ import app.houselights.ui.design.RowScroll
 import app.houselights.ui.design.emberLight
 import app.houselights.ui.design.groundStep
 import app.houselights.ui.design.keepChildFocus
+import app.houselights.ui.design.rememberGroupMember
 import app.houselights.ui.design.rememberedInGroup
 import app.houselights.ui.design.scrollsAsBlock
 import app.houselights.ui.util.toPx
@@ -163,13 +164,10 @@ fun ArtworkSurface(
     )
     val c = Hl.colors
     // With focus, a card with its own picture ([light]) glows with that picture's colour; the others
-    // with the room's light.
-    val own by rememberGlowColor(light, focused)
-    val tone = when {
-        light != null -> own
-        focused -> LocalAmbient.current()
-        else -> Color.Transparent
-    }
+    // with the room's light. Both are read while drawing: the light comes and goes without
+    // recomposing the card.
+    val own = rememberGlowColor(light, focused)
+    val ambient = LocalAmbient.current
     // The card grows inside its own layer; the light around it grows with it.
     val grown by animateFloatAsState(
         if (focused) lift.scale else 1f,
@@ -177,6 +175,9 @@ fun ArtworkSurface(
         label = "grown",
     )
     val reach = with(LocalDensity.current) { HlFocus.glow.toPx() }
+    // Coming back into its row, focus returns to the card that had it last.
+    val group = LocalGroupFocus.current
+    val member = rememberGroupMember(group)
     // Outside the surface's own semantics: clearing them drops its click, keeping its focus said.
     val reading = if (readAs != null) {
         Modifier.clearAndSetSemantics {
@@ -189,10 +190,17 @@ fun ArtworkSurface(
     Surface(
         onClick = onClick,
         modifier = modifier
-            .rememberedInGroup()
+            .rememberedInGroup(group, member)
             .then(reading)
             .onFocusChanged { if (it.isFocused) onFocused() }
-            .drawBehind { drawGlow(tone, grown, reach, shape) },
+            .drawBehind {
+                val tone = when {
+                    light != null -> own.value
+                    focused -> ambient()
+                    else -> Color.Transparent
+                }
+                drawGlow(tone, grown, reach, shape)
+            },
         shape = ClickableSurfaceDefaults.shape(shape),
         scale = FocusStyle.scale(lift),
         border = FocusStyle.lift(shape),
@@ -226,6 +234,7 @@ private fun DrawScope.drawGlow(tone: Color, grown: Float, reach: Float, shape: S
     val corner = (shape as? RoundedCornerShape)?.topStart?.toPx(size, this) ?: 0f
     val steps = HlScrim.GLOW_STEPS
     val band = reach / steps
+    val ring = Stroke(width = band)
     // How much of what is under the light still shows through the rings, from the outermost in.
     var through = 1f
     for (k in steps downTo 1) {
@@ -237,7 +246,7 @@ private fun DrawScope.drawGlow(tone: Color, grown: Float, reach: Float, shape: S
             topLeft = Offset(-grow.x - middle, -grow.y - middle),
             size = Size(size.width + 2 * (grow.x + middle), size.height + 2 * (grow.y + middle)),
             cornerRadius = CornerRadius(corner + middle),
-            style = Stroke(width = band),
+            style = ring,
         )
     }
 }

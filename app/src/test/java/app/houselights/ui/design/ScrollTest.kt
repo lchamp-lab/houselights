@@ -1,7 +1,7 @@
 package app.houselights.ui.design
 
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -93,7 +93,7 @@ class ScrollTest {
     }
 
     private fun alpha(left: Float, top: Float, right: Float, bottom: Float) =
-        safeAreaAlpha(Rect(left, top, right, bottom), Size(960f, screen), HlSpace.safeH.value, HlSpace.safeV.value)
+        safeAreaAlpha(Offset(left, top), Size(right - left, bottom - top), Size(960f, screen), HlSpace.safeH.value, HlSpace.safeV.value)
 
     @Test
     fun textInsideTheSafeAreaIsWhole() {

@@ -38,6 +38,8 @@ import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import okhttp3.Dispatcher
+import okhttp3.OkHttpClient
 
 class HouselightsApp : Application(), ImageLoaderFactory {
     lateinit var container: AppContainer
@@ -49,7 +51,7 @@ class HouselightsApp : Application(), ImageLoaderFactory {
     }
 
     override fun newImageLoader(): ImageLoader = ImageLoader.Builder(this)
-        .okHttpClient { Http.client }
+        .okHttpClient { imageHttpClient(Http.client) }
         // A fixed budget: on a 2 GB player, a share of the large heap would hold 100 MB of pictures or more.
         .memoryCache { MemoryCache.Builder(this).maxSizeBytes(IMAGE_MEMORY_BYTES).build() }
         .diskCache {
@@ -184,3 +186,12 @@ class AppContainer(private val app: Application) : LibraryEvents {
 
 /** Decoded pictures kept in memory: a few backdrops and the posters of several rows. */
 private const val IMAGE_MEMORY_BYTES = 64 * 1024 * 1024
+
+/**
+ * The pictures' client: [api]'s connections and threads, with a queue of its own. OkHttp lets five
+ * requests at a time go to a host and queues the rest; a Jellyfin server sends its pictures and its
+ * answers from one host, so a screen of posters loading would hold a title's details, or what
+ * "Lire" asks, behind them.
+ */
+internal fun imageHttpClient(api: OkHttpClient): OkHttpClient =
+    api.newBuilder().dispatcher(Dispatcher(api.dispatcher.executorService)).build()
