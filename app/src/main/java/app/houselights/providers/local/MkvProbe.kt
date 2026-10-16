@@ -6,6 +6,8 @@ import app.houselights.core.HdrFormat
 import app.houselights.core.MediaInfo
 import app.houselights.core.SubtitleTrack
 import app.houselights.core.VideoInfo
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
 
 /**
  * Reads the track list of a Matroska (MKV, WebM) file from its first bytes: codecs, frame
@@ -358,7 +360,7 @@ object MkvProbe {
                 if (stream?.contains(HdrFormat.HDR10) == true && transfer != HLG_TRANSFER) add(HdrFormat.HDR10)
             }.distinct()
             return VideoInfo(
-                codec = videoCodec(codecId),
+                codec = videoCodec(codecId, codecPrivate),
                 width = width,
                 height = height,
                 bitDepth = bitsPerChannel?.takeIf { it > 0 } ?: bitDepthFromPrivate(),
@@ -439,7 +441,7 @@ object MkvProbe {
             codecId == DTS_ID && (n.contains("hd ma") || n.contains("hd-ma") || n.contains("dts-hd") || MA.containsMatchIn(n)) ->
                 Codecs.DTS_HD_MA
             codecId == DTS_ID && (n.contains("hra") || n.contains("hd hr")) -> Codecs.DTS_HD_HRA
-            else -> audioCodec(codecId)
+            else -> audioCodec(codecId, codecPrivate)
         }
 
         fun toSubtitle(): SubtitleTrack {
@@ -460,6 +462,24 @@ object MkvProbe {
     private const val EAC3_ID = "A_EAC3"
     private const val AC3_ID = "A_AC3"
     private const val DTS_ID = "A_DTS"
+    private const val VFW_ID = "V_MS/VFW/FOURCC"
+    private const val ACM_ID = "A_MS/ACM"
+    private const val FOURCC_AT = 16
+    private const val FOURCC_SIZE = 4
+    private const val WAVE_FORMAT_EXTENSIBLE = 0xFFFE
+    private const val SUBFORMAT_AT = 24
+
+    /** Audio formats by their wFormatTag, as AVI files and Windows name them. */
+    private val ACM_FORMATS = mapOf(
+        0x0001 to Codecs.PCM, // WAVE_FORMAT_PCM
+        0x0003 to Codecs.PCM, // WAVE_FORMAT_IEEE_FLOAT
+        0x0055 to Codecs.MP3,
+        0x00FF to Codecs.AAC,
+        0x1610 to Codecs.AAC, // HE-AAC
+        0x2000 to Codecs.AC3,
+        0x2001 to Codecs.DTS,
+        0xF1AC to Codecs.FLAC,
+    )
     private const val HLG_TRANSFER = 18
     private const val HVCC_LENGTH_SIZE_AT = 21
     private const val NAL_LENGTH_SIZE_BITS = 0x03
@@ -476,17 +496,21 @@ object MkvProbe {
         Bitstreams.Dts.CORE -> Codecs.DTS
     }
 
-    private fun videoCodec(id: String) = when {
+    /** [codecPrivate]: what a track remuxed from an AVI (V_MS/VFW/FOURCC) is named by, its FOURCC. */
+    private fun videoCodec(id: String, codecPrivate: ByteArray?) = when {
         id == "V_MPEGH/ISO/HEVC" -> Codecs.HEVC
         id == "V_MPEG4/ISO/AVC" -> Codecs.AVC
         id == "V_AV1" -> Codecs.AV1
         id == "V_VP9" -> Codecs.VP9
         id.startsWith("V_MPEG2") -> Codecs.MPEG2
-        id == "V_MS/VFW/FOURCC" -> Codecs.VC1
+        // MPEG-4 Part 2: its simple, advanced simple (XviD, DivX) and advanced profiles.
+        id.startsWith("V_MPEG4/ISO/") -> Codecs.MPEG4
+        id == VFW_ID -> fourcc(codecPrivate)?.let(Codecs::video) ?: Codecs.UNKNOWN
         else -> id.removePrefix("V_")
     }
 
-    private fun audioCodec(id: String) = when {
+    /** [codecPrivate]: what a track remuxed from an AVI (A_MS/ACM) is named by, its format tag. */
+    private fun audioCodec(id: String, codecPrivate: ByteArray?) = when {
         id == "A_TRUEHD" -> Codecs.TRUEHD
         id == "A_DTS" -> Codecs.DTS
         id == "A_EAC3" -> Codecs.EAC3
@@ -496,8 +520,27 @@ object MkvProbe {
         id == "A_OPUS" -> Codecs.OPUS
         id.startsWith("A_PCM") -> Codecs.PCM
         id == "A_MPEG/L3" -> Codecs.MP3
-        id == "A_VORBIS" -> "Vorbis"
+        id == "A_VORBIS" -> Codecs.VORBIS
+        id == ACM_ID -> formatTag(codecPrivate)?.let(ACM_FORMATS::get) ?: Codecs.UNKNOWN
         else -> id.removePrefix("A_")
+    }
+
+    /** The FOURCC of a BITMAPINFOHEADER (its biCompression, bytes 16 to 19): "XVID", "WVC1". */
+    private fun fourcc(header: ByteArray?): String? {
+        if (header == null || header.size < FOURCC_AT + FOURCC_SIZE) return null
+        val code = String(header, FOURCC_AT, FOURCC_SIZE, Charsets.US_ASCII).trimEnd(' ', '\u0000')
+        return code.takeIf { it.isNotEmpty() && it.all(Char::isLetterOrDigit) }
+    }
+
+    /**
+     * The wFormatTag of a WAVEFORMATEX (bytes 0 and 1, little-endian); for WAVE_FORMAT_EXTENSIBLE,
+     * the one its SubFormat starts with (bytes 24 and 25).
+     */
+    private fun formatTag(format: ByteArray?): Int? {
+        fun tagAt(at: Int) = format?.takeIf { it.size >= at + Short.SIZE_BYTES }
+            ?.let { java.lang.Short.toUnsignedInt(ByteBuffer.wrap(it).order(ByteOrder.LITTLE_ENDIAN).getShort(at)) }
+        val tag = tagAt(0)
+        return if (tag == WAVE_FORMAT_EXTENSIBLE) tagAt(SUBFORMAT_AT) else tag
     }
 
     private fun subtitleFormat(id: String) = when (id) {
