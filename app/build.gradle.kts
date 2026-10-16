@@ -59,6 +59,8 @@ android {
         versionName = "0.1.0"
         buildConfigField("String", "TMDB_API_KEY", "\"$tmdbApiKey\"")
         manifestPlaceholders["appLabel"] = "@string/app_name"
+        // The languages of the interface: the libraries' strings in 80 others would only be shipped.
+        resourceConfigurations += listOf("en", "fr")
     }
 
     signingConfigs {
@@ -81,6 +83,8 @@ android {
         }
         release {
             isMinifyEnabled = true
+            // Drawables and strings no code or resource names (nothing looks one up by its name).
+            isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             // Without a key, packageRelease refuses the debug key unless asked (below).
             signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
@@ -105,6 +109,14 @@ android {
     buildFeatures {
         compose = true
         buildConfig = true
+    }
+    packaging {
+        resources {
+            // Files of the libraries that nothing the app runs reads: BouncyCastle's post-quantum
+            // tables (Picnic, 1.2 MB) and the messages of its certificate path reviewer, the agent of
+            // the coroutines debugger (a JVM tool). META-INF/license/ stays: the licences shipped.
+            excludes += setOf("org/bouncycastle/pqc/**", "org/bouncycastle/x509/*.properties", "DebugProbesKt.bin")
+        }
     }
     testOptions {
         // Robolectric tests need the merged resources. Migration tests read app/schemas as files
