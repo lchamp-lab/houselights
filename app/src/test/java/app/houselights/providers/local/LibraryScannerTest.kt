@@ -7,6 +7,8 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
@@ -46,6 +48,10 @@ class LibraryScannerTest {
     /** Since the device started: a second in. */
     private var elapsed = 1_000L
 
+    /** A film playing, the app on screen. */
+    private val playing = MutableStateFlow(false)
+    private val started = MutableStateFlow(true)
+
     /** The most values one statement bound. */
     private val widest = AtomicInteger()
 
@@ -82,6 +88,8 @@ class LibraryScannerTest {
             },
             clock = { now },
             elapsed = { elapsed },
+            playing = playing,
+            started = started,
         )
         films = folder("Films", SourceKind.MOVIES)
     }
@@ -176,6 +184,37 @@ class LibraryScannerTest {
         elapsed += TEN_MINUTES + 60_000
         scanIfStale()
         assertEquals(listOf("Arrival (2016).mkv", "Dune (2021).mkv"), filePaths())
+    }
+
+    @Test
+    fun aScanWaitsWhileTheAppIsAway() = runTest {
+        nas.put("Dune (2021).mkv")
+        var listed = 0
+        nas.onList = { listed++ }
+        // Home pressed: a film may play from the NAS in another app.
+        started.value = false
+        scanner.scanAll()
+        started.subscriptionCount.first { it > 0 }
+        assertEquals("not even the folder is listed", 0, listed)
+
+        started.value = true
+        passes.children.toList().forEach { it.join() }
+        assertEquals(listOf("Dune (2021).mkv"), filePaths())
+    }
+
+    @Test
+    fun aScanWaitsForTheFilmPlayingBeforeListingAFolder() = runTest {
+        nas.put("Dune (2021).mkv")
+        var listed = 0
+        nas.onList = { listed++ }
+        playing.value = true
+        scanner.scanAll()
+        playing.subscriptionCount.first { it > 0 }
+        assertEquals(0, listed)
+
+        playing.value = false
+        passes.children.toList().forEach { it.join() }
+        assertEquals(listOf("Dune (2021).mkv"), filePaths())
     }
 
     @Test

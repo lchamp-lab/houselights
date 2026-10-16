@@ -6,12 +6,14 @@ import app.houselights.core.NoTmdbKeyException
 import app.houselights.core.suspendRunCatching
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -53,6 +55,11 @@ class LibraryScanner(
     private val interactiveTmdb: () -> TmdbClient? = tmdb,
     /** The clock that only moves forward, for how long ago the last scan ended ([scanIfStale]). */
     private val elapsed: () -> Long = SystemClock::elapsedRealtime,
+    /**
+     * True while the app is on screen. Away, the scan waits: a film may play from the NAS in another
+     * app, which the scan would compete with on the network and on the NAS's disks.
+     */
+    private val started: Flow<Boolean> = flowOf(true),
 ) {
     private val _state = MutableStateFlow(ScanState())
     val state: StateFlow<ScanState> = _state
@@ -227,6 +234,7 @@ class LibraryScanner(
 
     /** True when the library changed: files were added, updated or removed. */
     private suspend fun scan(source: SourceEntity, refreshMetadata: Boolean): Boolean {
+        waitForThePlayer()
         _state.update { it.copy(running = true, sourceId = source.id, processed = 0, total = 0, current = null) }
         val listing = browsers(source).list(source)
         val files = listing.videos
@@ -249,8 +257,7 @@ class LibraryScanner(
         val seasons = ShowIndexer.SeasonCache(tmdb)
         var unreachable = 0
         todo.forEachIndexed { index, file ->
-            // Bounded, should the player never report back.
-            withTimeoutOrNull(MAX_PAUSE_MS) { playing.first { !it } }
+            waitForThePlayer()
             _state.update { it.copy(processed = index, current = file.relativePath.substringAfterLast('/')) }
             suspendRunCatching {
                 // One item at a time, so a choice made by the user waits for one item, not
@@ -278,6 +285,15 @@ class LibraryScanner(
         val changed = missing.relinked.isNotEmpty() || missing.removed.isNotEmpty() || todo.isNotEmpty()
         if (changed) _changed.emit(Unit)
         return changed
+    }
+
+    /**
+     * Waits while a player may stream from the NAS: while a film plays (bounded, should the player
+     * never report back), then while the app is away. Before each folder and each file.
+     */
+    private suspend fun waitForThePlayer() {
+        withTimeoutOrNull(MAX_PAUSE_MS) { playing.first { !it } }
+        started.first { it }
     }
 
     /** Rows of files the folder no longer lists go, or wait a while (see [MissingFiles]). */
