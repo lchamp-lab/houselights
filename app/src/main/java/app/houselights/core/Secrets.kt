@@ -76,7 +76,10 @@ class Secrets(
         val next = inUse?.takeIf { it > failing } ?: (failing + 1)
         keystore { sealWith(next, plain) }
             .onSuccess { inUse = next }
-            .getOrElse { throw SecretsUnavailableException(it) }
+            .getOrElse {
+                keys.remove(next)
+                throw SecretsUnavailableException(it)
+            }
     }
 
     private fun sealWith(version: Int, plain: String): String {

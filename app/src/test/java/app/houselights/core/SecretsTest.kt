@@ -132,6 +132,24 @@ class SecretsTest {
         assertEquals(setOf(1, 2), keystore.keys.keys)
     }
 
+    /** The next key fails too at first: nothing is sealed, and the next seal asks the Keystore for it again. */
+    @Test
+    fun aNewKeyThatFailedIsFetchedAgainAtTheNextSeal() {
+        val keystore = FakeKeystore()
+        keystore.secrets().seal("password")
+        keystore.unusable += listOf(1, 2)
+        val secrets = keystore.secrets()
+        try {
+            secrets.seal("token")
+            fail("Sealed with keys that fail")
+        } catch (_: SecretsUnavailableException) {
+            // Said as such.
+        }
+        keystore.unusable -= 2
+        assertTrue(secrets.seal("token").startsWith("sealed2:"))
+        assertEquals(setOf(1, 2), keystore.keys.keys)
+    }
+
     /** A key the Keystore says is invalidated for good gives way to the next one: secrets can be written again. */
     @Test
     fun aKeyInvalidatedForGoodGivesWayToTheNextOne() {
