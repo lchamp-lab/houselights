@@ -62,7 +62,8 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
             thumb = local.thumb?.let { files.copyArtwork(source, it) },
             matchedAt = if (tmdb != null || nfo != null) now else base.matchedAt,
         )
-        val probed = (if (MediaProbe.isStale(episode.mediaInfo)) files.mediaFields(source, file, episode) else episode).withNfoStreams(nfo)
+        val stale = MediaProbe.isStale(episode.mediaInfo) || episode.sizeChanged(file)
+        val probed = (if (stale) files.mediaFields(source, file, episode) else episode).withNfoStreams(nfo)
         if (existing == null) {
             dao.insert(probed)
             // New episode: the show moves up in "recently added".

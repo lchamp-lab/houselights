@@ -222,7 +222,7 @@ class LibraryScanner(
         val known = (if (missing.relinked.isEmpty()) listed else dao.filesOf(source.id)).associateBy { it.filePath }
 
         val tmdb = client()
-        val todo = files.filter { f -> needsWork(known[f.relativePath], sidecars.forVideo(f), tmdb != null, refreshMetadata) }
+        val todo = files.filter { f -> needsWork(known[f.relativePath], f, sidecars.forVideo(f), tmdb != null, refreshMetadata) }
         _state.update { it.copy(total = todo.size) }
         Log.i(
             TAG,
@@ -281,11 +281,11 @@ class LibraryScanner(
     suspend fun showQuery(series: ItemEntity): ParsedMovie = shows.showQuery(series)
 
     /**
-     * A file is processed when new, not described yet or by an older probe, to refresh, or when its
-     * NFO or artwork changed.
+     * A file is processed when new, not described yet or by an older probe, replaced (its size
+     * changed), to refresh, or when its NFO or artwork changed.
      */
-    private fun needsWork(item: ItemEntity?, local: VideoSidecars, hasTmdb: Boolean, refreshMetadata: Boolean): Boolean =
-        item == null || MediaProbe.isStale(item.mediaInfo) || refreshMetadata ||
+    private fun needsWork(item: ItemEntity?, file: RemoteFile, local: VideoSidecars, hasTmdb: Boolean, refreshMetadata: Boolean): Boolean =
+        item == null || MediaProbe.isStale(item.mediaInfo) || item.sizeChanged(file) || refreshMetadata ||
             (hasTmdb && item.matchedAt == null) ||
             // An NFO or artwork placed next to the file, or removed, since the last scan.
             item.nfoPath != local.nfo?.relativePath ||

@@ -33,7 +33,8 @@ class MkvProbeTest {
     private fun str(idValue: Long, s: String): ByteArray = el(idValue, s.toByteArray())
     private fun raw(idValue: Long, b: ByteArray): ByteArray = el(idValue, b)
 
-    private fun sampleFile(): ByteArray {
+    /** A 4K Dolby Vision file with TrueHD Atmos; scanner tests put it on their NAS. */
+    internal fun sampleFile(): ByteArray {
         val video = el(
             0xAE,
             uint(0x83, 1), str(0x86, "V_MPEGH/ISO/HEVC"),

@@ -320,7 +320,51 @@ class LibraryScannerTest {
         assertEquals(2, dao.episodesOfSeries(checkNotNull(pilot.seriesId)).size)
     }
 
+    @Test
+    fun aFileReplacedUnderTheSameNameIsReadAgain() = runTest {
+        nas.put("Dune (2021).mkv", size = 30_000_000_000)
+        scan()
+        assertEquals(emptyList<String>(), dao.filesOf(films.id).single().badges)
+
+        // A remux in its place, under the same name; or the rest of a file read while it was copied.
+        nas.put("Dune (2021).mkv", size = 80_000_000_000, bytes = MkvProbeTest().sampleFile())
+        nas.reads.clear()
+        scan()
+
+        val dune = dao.filesOf(films.id).single()
+        assertEquals(listOf("Dune (2021).mkv"), nas.reads)
+        assertEquals(80_000_000_000L, dune.fileSize)
+        assertEquals(80_000_000_000L, MediaProbe.decode(dune.mediaInfo)?.sizeBytes)
+        assertEquals(REMUX_BADGES, dune.badges)
+
+        nas.reads.clear()
+        scan()
+        assertEquals("read once", emptyList<String>(), nas.reads)
+    }
+
+    @Test
+    fun anEpisodeReplacedUnderTheSameNameIsReadAgain() = runTest {
+        val shows = folder("Séries", SourceKind.SHOWS)
+        val pilot = "Severance/Season 1/Severance - S01E01.mkv"
+        showsNas.put(pilot, size = 2_000_000_000)
+        scan()
+
+        showsNas.put(pilot, size = 9_000_000_000, bytes = MkvProbeTest().sampleFile())
+        showsNas.reads.clear()
+        scan()
+
+        val episode = dao.filesOf(shows.id).single()
+        assertEquals(listOf(pilot), showsNas.reads)
+        assertEquals(9_000_000_000L, episode.fileSize)
+        assertEquals(REMUX_BADGES, episode.badges)
+
+        showsNas.reads.clear()
+        scan()
+        assertEquals("read once", emptyList<String>(), showsNas.reads)
+    }
+
     private companion object {
+        val REMUX_BADGES = listOf("4K", "Dolby Vision", "HDR10", "TrueHD Atmos", "7.1")
         const val ANDROID_9_LIMIT = 999
         const val START = 1_800_000_000_000L
         const val HOUR = 60 * 60_000L

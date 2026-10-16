@@ -15,9 +15,12 @@ internal class ScanFiles(
         String(browsers(source).readPrefix(source, file.relativePath, length), Charsets.UTF_8)
     }.getOrElse { e -> if (ScanErrors.isUnreachable(e)) throw e else null }
 
-    /** Reads the file once (again for an older probe) and stores what it contains, with format badges for filters. */
+    /**
+     * Reads the file once (again for an older probe, or when it changed) and stores what it contains,
+     * with format badges for filters.
+     */
     suspend fun withMediaInfo(source: SourceEntity, file: RemoteFile, item: ItemEntity): ItemEntity {
-        if (!MediaProbe.isStale(item.mediaInfo)) return item
+        if (!MediaProbe.isStale(item.mediaInfo) && !item.sizeChanged(file)) return item
         val updated = mediaFields(source, file, item)
         dao.saveScanned(updated)
         return updated
@@ -26,7 +29,7 @@ internal class ScanFiles(
     suspend fun mediaFields(source: SourceEntity, file: RemoteFile, item: ItemEntity): ItemEntity {
         val media = MediaProbe.probe(source, file, browsers(source))
         val badges = media.badges().ifEmpty { FilenameParser.badges(file.relativePath) }
-        return item.copy(mediaInfo = MediaProbe.encode(media), badges = badges)
+        return item.copy(mediaInfo = MediaProbe.encode(media), badges = badges, fileSize = file.size)
     }
 
     /** The cached copy of an image placed next to a video or a show (see [ArtworkCache.copy]). */
@@ -36,6 +39,12 @@ internal class ScanFiles(
         const val MAX_NFO_BYTES = 1 shl 20
     }
 }
+
+/**
+ * The file is not the one read last: replaced under the same name, or read while it was being
+ * copied. Rows that never knew their size are not read again for it.
+ */
+internal fun ItemEntity.sizeChanged(file: RemoteFile): Boolean = fileSize != null && fileSize != file.size
 
 /** NFO stream details stand in when the file itself could not be read. */
 internal fun ItemEntity.withNfoStreams(nfo: NfoInfo?): ItemEntity {
