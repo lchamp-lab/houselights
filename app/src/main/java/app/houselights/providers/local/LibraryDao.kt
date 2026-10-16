@@ -113,6 +113,10 @@ interface LibraryDao {
     @Query("SELECT $ITEM_ROW FROM items WHERE sourceId = :sourceId AND filePath IS NOT NULL")
     suspend fun filesOf(sourceId: Long): List<ItemEntity>
 
+    /** Whether the library holds a row for the file at [filePath] of a source. */
+    @Query("SELECT EXISTS(SELECT 1 FROM items WHERE sourceId = :sourceId AND filePath = :filePath)")
+    suspend fun hasFile(sourceId: Long, filePath: String): Boolean
+
     @Query("SELECT * FROM items WHERE kind = 'SERIES' AND matchKey = :key LIMIT 1")
     suspend fun seriesByKey(key: String): ItemEntity?
 

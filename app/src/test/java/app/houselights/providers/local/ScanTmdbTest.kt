@@ -47,12 +47,12 @@ class ScanTmdbTest {
         nas.put("$name-poster.jpg", size = 100, bytes = ByteArray(100))
     }
 
-    /** TMDB back, and the scans' pause over. */
+    /** TMDB back, and an hour gone: the scans' pause is over, and what TMDB left unmatched is asked for again. */
     private fun tmdbBack() {
         tmdb.failure = null
         tmdb.status = null
         tmdb.failingPath = null
-        ShadowSystemClock.advanceBy(Duration.ofMinutes(2))
+        ShadowSystemClock.advanceBy(Duration.ofHours(1))
     }
 
     private fun issue() = bench.scanner.state.value.tmdbIssue
@@ -91,6 +91,47 @@ class ScanTmdbTest {
         assertEquals(UiError.TMDB_KEY_REFUSED, issue())
         assertEquals(4, bench.dao.filesOf(films.id).size)
         assertTrue(bench.dao.filesOf(films.id).all { it.matchedAt == null })
+    }
+
+    @Test
+    fun titlesARefusedKeyLeftUnmatchedAreNotReadAgainAtTheNextPass() = runTest {
+        bench.folder("Films")
+        repeat(3) { described("Film $it (2020)", "Mon film $it") }
+        tmdb.status = 401
+        bench.scan()
+        assertEquals(UiError.TMDB_KEY_REFUSED, issue())
+
+        nas.reads.clear()
+        tmdb.requests.clear()
+        val changes = bench.changesDuring { bench.scan() }
+        assertEquals("no NFO read", emptyList<String>(), nas.reads)
+        assertEquals("TMDB not asked", emptyList<String>(), tmdb.requests)
+        assertEquals("screens left as they are", 0, changes)
+        assertEquals("still said", UiError.TMDB_KEY_REFUSED, issue())
+    }
+
+    @Test
+    fun titlesLeftUnmatchedAreAskedForAgainAnHourLater() = runTest {
+        val films = bench.folder("Films")
+        repeat(3) { described("Film $it (2020)", "Mon film $it") }
+        tmdb.movie(1, "Mon film 0", 2020)
+        tmdb.status = 401
+        bench.scan()
+        ShadowSystemClock.advanceBy(Duration.ofMinutes(59))
+        bench.scan()
+        assertEquals("asked at the first pass only", 1, tmdb.requests.size)
+
+        ShadowSystemClock.advanceBy(Duration.ofMinutes(1))
+        nas.reads.clear()
+        tmdb.requests.clear()
+        bench.scan()
+        assertEquals("asked again, and refused", 1, tmdb.requests.size)
+        assertEquals("the other titles are not read once TMDB refused", 1, nas.reads.count { it.endsWith(".nfo") })
+
+        tmdbBack()
+        bench.scan()
+        assertEquals(1, bench.item(films, "Film 0 (2020).mkv").tmdbId)
+        assertNull(issue())
     }
 
     @Test

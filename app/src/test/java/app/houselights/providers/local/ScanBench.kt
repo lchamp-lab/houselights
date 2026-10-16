@@ -4,8 +4,12 @@ import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import app.houselights.core.Secrets
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 import java.io.File
+import java.util.concurrent.atomic.AtomicInteger
 import javax.crypto.KeyGenerator
 
 /**
@@ -66,6 +70,15 @@ class ScanBench(artworkDir: File, tmdbKey: Boolean = true) {
     suspend fun scan(refreshMetadata: Boolean = false) {
         scanner.scanAll(refreshMetadata)
         passes.children.toList().forEach { it.join() }
+    }
+
+    /** How many times screens are told the library changed while [block] runs. */
+    suspend fun changesDuring(block: suspend () -> Unit): Int = coroutineScope {
+        val changes = AtomicInteger()
+        val watch = launch(Dispatchers.Unconfined) { scanner.changed.collect { changes.incrementAndGet() } }
+        block()
+        watch.cancel()
+        changes.get()
     }
 
     fun error(source: SourceEntity) = scanner.state.value.errors[source.id]?.kind

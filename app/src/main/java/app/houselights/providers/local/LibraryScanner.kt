@@ -50,7 +50,8 @@ class UnreadableFolderException(count: Int) : IllegalStateException("No video li
  * and identifies new ones on TMDB. Files already known are never looked up again,
  * unless they were never matched (no TMDB key at the time, TMDB out of reach) or a full refresh
  * is asked. TMDB is optional ([TmdbPass]): without it, files are indexed from their NFO and
- * local artwork, and wait for their details.
+ * local artwork, and wait for their details; while it refuses the key or is out of reach, they
+ * are asked for again once an hour, not at every pass.
  *
  * Choices made by the user (match, artwork) and their viewing state are never overwritten:
  * every write goes through [LibraryDao.saveScanned].
@@ -204,6 +205,13 @@ class LibraryScanner(
 
     private fun client(): TmdbClient? = tmdb()
 
+    /** Why TMDB was closed to a pass ([TmdbPass.issue]), with which client, and when, on [elapsed]. */
+    private class TmdbDown(val cause: Throwable, val client: TmdbClient?, val at: Long)
+
+    /** Why TMDB was closed to the last passes; null once it was asked again and did not refuse. */
+    @Volatile
+    private var tmdbDown: TmdbDown? = null
+
     private suspend fun cleanupLocked(): CleanupResult {
         val orphanCast = dao.deleteOrphanCast()
         // Based on what the library references, not on what the NAS shows: an unreachable
@@ -221,12 +229,19 @@ class LibraryScanner(
         val before = _state.value.errors
         val errors = mutableMapOf<Long, ScanError>()
         var changed = false
-        val tmdb = TmdbPass(client()) { e -> _state.update { it.copy(tmdbIssue = e.toUiError()) } }
+        val client = client()
+        val tmdb = TmdbPass(client) { e -> _state.update { it.copy(tmdbIssue = e.toUiError()) } }
         val seasons = ShowIndexer.SeasonCache(tmdb)
+        // TMDB closed to a recent pass, with this key: titles it left unmatched wait a while, rather
+        // than being read again at every pass for an answer that will not come.
+        val down = tmdbDown?.takeIf { it.client === client }
+        val askUnmatched = down == null || elapsed() - down.at >= UNMATCHED_RETRY_MS
         try {
             val sources = dao.sources()
             for ((index, source) in sources.withIndex()) {
-                val failure = suspendRunCatching { changed = scan(source, refreshMetadata, tmdb, seasons) || changed }.exceptionOrNull()
+                val failure = suspendRunCatching {
+                    changed = scan(source, refreshMetadata, tmdb, seasons, askUnmatched) || changed
+                }.exceptionOrNull()
                 val error = failure?.let { errorOf(source, it) }
                 error?.let { errors[source.id] = it }
                 // Out of space, every other folder would fail the same way, file after file. Those not
@@ -249,8 +264,10 @@ class LibraryScanner(
                 }.onFailure { Log.w(TAG, "Cleanup failed", it) }
             }
         } finally {
+            // What TMDB said holds until it is asked again, or the key changes.
+            tmdbDown = tmdb.issue?.let { TmdbDown(it, client, elapsed()) } ?: down.takeUnless { askUnmatched }
             // Whatever happened, the scan is over: the settings must not show it running forever.
-            _state.value = ScanState(errors = errors, tmdbIssue = tmdb.issue?.toUiError())
+            _state.value = ScanState(errors = errors, tmdbIssue = tmdbDown?.takeIf { it.client === client() }?.cause?.toUiError())
             lastScanEnd = elapsed()
             closeIdle()
         }
@@ -273,8 +290,17 @@ class LibraryScanner(
         _changed.emit(Unit)
     }
 
-    /** True when the library changed: files were added, updated or removed. */
-    private suspend fun scan(source: SourceEntity, refreshMetadata: Boolean, tmdb: TmdbPass, seasons: ShowIndexer.SeasonCache): Boolean {
+    /**
+     * True when the library changed: files were added, updated or removed. [askUnmatched]: titles
+     * waiting for TMDB alone are asked for (see [tmdbDown]).
+     */
+    private suspend fun scan(
+        source: SourceEntity,
+        refreshMetadata: Boolean,
+        tmdb: TmdbPass,
+        seasons: ShowIndexer.SeasonCache,
+        askUnmatched: Boolean,
+    ): Boolean {
         waitForThePlayer()
         _state.update { it.copy(running = true, sourceId = source.id, processed = 0, total = 0, current = null) }
         val listing = browsers(source).list(source)
@@ -288,7 +314,9 @@ class LibraryScanner(
         // Renamed files took their rows along.
         val known = (if (missing.relinked.isEmpty()) listed else dao.filesOf(source.id)).associateBy { it.filePath }
 
-        val todo = files.filter { f -> needsWork(known[f.relativePath], f, sidecars.forVideo(f), tmdb.client != null, refreshMetadata) }
+        // TMDB closed to the pass, now or since a recent one: a title only waiting for it is left as it is.
+        fun wanted(f: RemoteFile) = needsWork(known[f.relativePath], f, sidecars.forVideo(f), tmdb.open && askUnmatched, refreshMetadata)
+        val todo = files.filter(::wanted)
         _state.update { it.copy(total = todo.size) }
         Log.i(
             TAG,
@@ -296,27 +324,44 @@ class LibraryScanner(
                 "${missing.held.size} held, ${todo.size} to do",
         )
 
-        val folder = Folder(source, sidecars, known, refreshMetadata, tmdb, seasons)
+        val written = processAll(Folder(source, sidecars, known, refreshMetadata, tmdb, seasons), todo, ::wanted)
+        dao.markScanned(source.id, clock())
+        // A file renamed is not always read again, but screens show its name.
+        val changed = missing.relinked.isNotEmpty() || missing.removed.isNotEmpty() || written > 0
+        if (changed) _changed.emit(Unit)
+        return changed
+    }
+
+    /**
+     * Processes [todo], each file as long as it is still [wanted] (TMDB may close meanwhile, before its
+     * NFO is read), and returns how many changed the library. Screens learn of them a few at a time.
+     */
+    private suspend fun processAll(folder: Folder, todo: List<RemoteFile>, wanted: (RemoteFile) -> Boolean): Int {
         var unreachable = 0
+        var written = 0
+        var told = 0
         todo.forEachIndexed { index, file ->
+            if (!wanted(file)) return@forEachIndexed
             waitForThePlayer()
             _state.update { it.copy(processed = index, current = file.relativePath.substringAfterLast('/')) }
-            suspendRunCatching { process(folder, file) }.onSuccess {
+            suspendRunCatching { process(folder, file) }.onSuccess { wrote ->
                 unreachable = 0
+                if (wrote) written++
             }.onFailure { e ->
                 Log.w(TAG, "Failed on ${file.relativePath}", e)
+                // A new file may have got its row before it failed.
+                if (folder.known[file.relativePath] == null) written++
                 if (ScanErrors.isUnreachable(e)) unreachable++
                 // The device out of space, or a NAS that stopped answering: every remaining file would fail
                 // the same way, each after long timeouts.
                 if (outOfSpace(e) || unreachable >= MAX_UNREACHABLE) throw e
             }
-            if (index % 5 == 4) _changed.emit(Unit)
+            if (index % TELL_EVERY == TELL_EVERY - 1 && written > told) {
+                told = written
+                _changed.emit(Unit)
+            }
         }
-        dao.markScanned(source.id, clock())
-        // A file renamed is not always read again, but screens show its name.
-        val changed = missing.relinked.isNotEmpty() || missing.removed.isNotEmpty() || todo.isNotEmpty()
-        if (changed) _changed.emit(Unit)
-        return changed
+        return written
     }
 
     /** Why [source] could not be scanned, as the settings tell it; the failure itself goes to the log. */
@@ -338,18 +383,30 @@ class LibraryScanner(
 
     /**
      * One file, under the lock: a choice made by the user waits for one item, not for the whole scan.
-     * Its row is read again, as it may have been edited meanwhile.
+     * Its row is read again, as it may have been edited meanwhile. True when it changed the library:
+     * a row added, or rows written with other values than they held ([shown]). A file read again to no
+     * avail (a lock, a refusal, an image the device has no room for) changes nothing.
      */
-    private suspend fun process(folder: Folder, file: RemoteFile) = lock.withLock {
+    private suspend fun process(folder: Folder, file: RemoteFile): Boolean = lock.withLock {
         val source = folder.source
         // The folder was removed meanwhile: nothing more is added to it.
-        if (dao.source(source.id) == null) return@withLock
+        if (dao.source(source.id) == null) return@withLock false
         val existing = folder.known[file.relativePath]?.let { dao.item(it.id) }
+        val before = existing?.let { shown(it) }
         when (source.kind) {
             SourceKind.MOVIES -> movies.process(source, file, existing, folder.tmdb, folder.sidecars, folder.refreshMetadata)
             SourceKind.SHOWS -> shows.process(source, file, existing, folder.tmdb, folder.seasons, folder.sidecars, folder.refreshMetadata)
         }
+        if (existing == null) dao.hasFile(source.id, file.relativePath) else dao.item(existing.id)?.let { shown(it) } != before
     }
+
+    /**
+     * What screens show of a file's row, and of its season's and its show's: matched or not, whenever
+     * it was. A title TMDB answered again with the same details is the same title.
+     */
+    private suspend fun shown(item: ItemEntity): List<ItemEntity> =
+        (listOf(item) + dao.rows(listOfNotNull(item.parentId, item.seriesId)).sortedBy { it.id })
+            .map { row -> row.copy(matchedAt = row.matchedAt?.let { MATCHED }) }
 
     /**
      * The device ran out of space: said by [e], or by the space left. SQLite rolls a transaction back
@@ -384,11 +441,11 @@ class LibraryScanner(
 
     /**
      * A file is processed when new, not described yet or by an older probe, replaced (its size
-     * changed), to refresh, or when its NFO or artwork changed.
+     * changed), to refresh, when its NFO or artwork changed, or unmatched while TMDB is [askTmdb].
      */
-    private fun needsWork(item: ItemEntity?, file: RemoteFile, local: VideoSidecars, hasTmdb: Boolean, refreshMetadata: Boolean): Boolean =
+    private fun needsWork(item: ItemEntity?, file: RemoteFile, local: VideoSidecars, askTmdb: Boolean, refreshMetadata: Boolean): Boolean =
         item == null || MediaProbe.isStale(item.mediaInfo) || item.sizeChanged(file) || refreshMetadata ||
-            (hasTmdb && item.matchedAt == null) ||
+            (askTmdb && item.matchedAt == null) ||
             // An NFO or artwork placed next to the file, or removed, since the last scan.
             item.nfoPath != local.nfo?.relativePath ||
             (local.poster != null) != (item.posterPath.isCachedArtwork())
@@ -396,6 +453,15 @@ class LibraryScanner(
     companion object {
         private const val TAG = "LibraryScanner"
         private const val MAX_UNREACHABLE = 3
+
+        /** Files processed between two notices to screens, while some changed. */
+        private const val TELL_EVERY = 5
+
+        /** What [shown] keeps of when a title was matched: that it was. */
+        private const val MATCHED = 0L
+
+        /** How long titles TMDB left unmatched wait before it is asked for them again, while it refuses or is out of reach. */
+        private const val UNMATCHED_RETRY_MS = 60 * 60_000L
 
         /** Space left under which a failure is the device's: too little for the database to grow. */
         private const val NEARLY_FULL_BYTES = 50L shl 20

@@ -107,8 +107,10 @@ class ScanStorageTest {
         assertFalse(bench.item(films, "Dune (2021).mp4").posterPath.isCachedArtwork())
         assertNull(bench.error(films))
 
+        assertEquals("tried again, to no avail: screens left as they are", 0, bench.changesDuring { bench.scan() })
+
         bench.freeSpace = Long.MAX_VALUE
-        bench.scan()
+        assertTrue("the poster copied at last", bench.changesDuring { bench.scan() } > 0)
         assertTrue(bench.item(films, "Dune (2021).mp4").posterPath.isCachedArtwork())
     }
 }
