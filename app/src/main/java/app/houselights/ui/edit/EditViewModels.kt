@@ -2,7 +2,10 @@ package app.houselights.ui.edit
 
 import android.util.Log
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
 import app.houselights.AppContainer
 import app.houselights.core.ArtworkChoices
 import app.houselights.core.ArtworkKind
@@ -10,6 +13,7 @@ import app.houselights.core.ArtworkOption
 import app.houselights.core.Identity
 import app.houselights.core.MatchCandidate
 import app.houselights.core.MediaItem
+import app.houselights.core.MediaProvider
 import app.houselights.core.MetadataEditor
 import app.houselights.core.suspendRunCatching
 import app.houselights.ui.util.UiError
@@ -25,7 +29,7 @@ private fun Throwable.reported(): UiError {
     return toUiError()
 }
 
-private fun AppContainer.editor(): MetadataEditor = provider.editor ?: error("This source cannot be edited")
+private fun MediaProvider.editorOrFail(): MetadataEditor = editor ?: error("This source cannot be edited")
 
 data class ArtworkState(
     val item: MediaItem? = null,
@@ -33,7 +37,12 @@ data class ArtworkState(
     val error: UiError? = null,
 )
 
-class ArtworkViewModel(private val app: AppContainer, private val itemId: String, private val kind: ArtworkKind) : ViewModel() {
+/** The choices for one piece of a title's artwork, from the [provider] of the source in use. */
+class ArtworkViewModel(
+    private val itemId: String,
+    private val kind: ArtworkKind,
+    private val provider: () -> MediaProvider,
+) : ViewModel() {
     private val _state = MutableStateFlow(ArtworkState())
     val state: StateFlow<ArtworkState> = _state
 
@@ -45,8 +54,9 @@ class ArtworkViewModel(private val app: AppContainer, private val itemId: String
         _state.update { it.copy(error = null) }
         viewModelScope.launch {
             suspendRunCatching {
-                val item = app.provider.item(itemId)
-                ArtworkState(item, app.editor().artwork(item, kind))
+                val source = provider()
+                val item = source.item(itemId)
+                ArtworkState(item, source.editorOrFail().artwork(item, kind))
             }.onSuccess { _state.value = it }
                 .onFailure { e -> _state.update { it.copy(error = e.reported()) } }
         }
@@ -55,9 +65,15 @@ class ArtworkViewModel(private val app: AppContainer, private val itemId: String
     /** True once the choice is saved. */
     suspend fun choose(option: ArtworkOption): Boolean {
         val item = _state.value.item ?: return false
-        return suspendRunCatching { app.editor().setArtwork(item, kind, option) }
+        return suspendRunCatching { provider().editorOrFail().setArtwork(item, kind, option) }
             .onFailure { e -> _state.update { it.copy(error = e.reported()) } }
             .isSuccess
+    }
+
+    companion object {
+        fun factory(app: AppContainer, itemId: String, kind: ArtworkKind): ViewModelProvider.Factory = viewModelFactory {
+            initializer { ArtworkViewModel(itemId, kind, app::provider) }
+        }
     }
 }
 
@@ -75,7 +91,8 @@ data class IdentifyState(
     val error: UiError? = null,
 )
 
-class IdentifyViewModel(private val app: AppContainer, private val itemId: String) : ViewModel() {
+/** Matching a title by hand, from the [provider] of the source in use. */
+class IdentifyViewModel(private val itemId: String, private val provider: () -> MediaProvider) : ViewModel() {
     private val _state = MutableStateFlow(IdentifyState())
     val state: StateFlow<IdentifyState> = _state
     private var search: Job? = null
@@ -83,8 +100,9 @@ class IdentifyViewModel(private val app: AppContainer, private val itemId: Strin
     init {
         viewModelScope.launch {
             suspendRunCatching {
-                val item = app.provider.item(itemId)
-                item to app.editor().identity(item)
+                val source = provider()
+                val item = source.item(itemId)
+                item to source.editorOrFail().identity(item)
             }.onSuccess { (item, identity) ->
                 _state.update { it.copy(item = item, identity = identity, query = identity.query, year = identity.year?.toString() ?: "") }
                 // What automatic matching would search, so the right title is often one press away.
@@ -103,7 +121,7 @@ class IdentifyViewModel(private val app: AppContainer, private val itemId: Strin
         search?.cancel()
         _state.update { it.copy(searching = true, error = null) }
         search = viewModelScope.launch {
-            suspendRunCatching { app.editor().search(item, s.query, s.year.toIntOrNull()) }
+            suspendRunCatching { provider().editorOrFail().search(item, s.query, s.year.toIntOrNull()) }
                 .onSuccess { results -> _state.update { it.copy(searching = false, results = results) } }
                 .onFailure { e -> _state.update { it.copy(searching = false, error = e.reported()) } }
         }
@@ -118,8 +136,14 @@ class IdentifyViewModel(private val app: AppContainer, private val itemId: Strin
         val item = s.item ?: return false
         if (s.identifying) return false
         _state.update { it.copy(identifying = true, chosenId = candidate?.id, error = null) }
-        return suspendRunCatching { app.editor().identify(item, candidate) }
+        return suspendRunCatching { provider().editorOrFail().identify(item, candidate) }
             .onFailure { e -> _state.update { it.copy(identifying = false, chosenId = null, error = e.reported()) } }
             .isSuccess
+    }
+
+    companion object {
+        fun factory(app: AppContainer, itemId: String): ViewModelProvider.Factory = viewModelFactory {
+            initializer { IdentifyViewModel(itemId, app::provider) }
+        }
     }
 }

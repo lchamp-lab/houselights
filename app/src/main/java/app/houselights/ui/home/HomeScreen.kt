@@ -99,7 +99,7 @@ fun HomeScreen(
     onAddFolder: () -> Unit,
 ) {
     val app = appContainer()
-    val vm = viewModel { HomeViewModel(app) }
+    val vm: HomeViewModel = viewModel(factory = HomeViewModel.factory(app))
     ReloadOnLibraryChange { vm.load() }
     val state by vm.state.collectAsStateWithLifecycle()
     val scan by app.library.scan.collectAsStateWithLifecycle()

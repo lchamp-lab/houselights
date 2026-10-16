@@ -5,14 +5,19 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
 import app.houselights.AppContainer
 import app.houselights.core.SourceConfig
 import app.houselights.core.suspendRunCatching
 import app.houselights.providers.jellyfin.AuthRequest
 import app.houselights.providers.jellyfin.DiscoveredServer
 import app.houselights.providers.jellyfin.JellyfinClient
-import app.houselights.providers.jellyfin.ServerDiscovery
+import app.houselights.providers.jellyfin.JellyfinNetwork
+import app.houselights.settings.SettingsStore
+import app.houselights.settings.SourceSwitcher
 import kotlinx.coroutines.launch
 import kotlinx.serialization.SerializationException
 import retrofit2.HttpException
@@ -33,7 +38,12 @@ sealed interface LoginError {
     data object Failed : LoginError
 }
 
-class JellyfinLoginViewModel(private val app: AppContainer) : ViewModel() {
+/** Signing in to a Jellyfin server, which becomes the source once [sources] switched to it. */
+class JellyfinLoginViewModel(
+    private val settings: SettingsStore,
+    private val sources: SourceSwitcher,
+    private val network: JellyfinNetwork = JellyfinNetwork.Lan,
+) : ViewModel() {
     var server by mutableStateOf("")
     var user by mutableStateOf("")
     var password by mutableStateOf("")
@@ -50,13 +60,13 @@ class JellyfinLoginViewModel(private val app: AppContainer) : ViewModel() {
     val again: Boolean
 
     init {
-        val current = app.settings.state.value.source as? SourceConfig.Jellyfin
+        val current = settings.state.value.source as? SourceConfig.Jellyfin
         again = current != null
         if (current != null) {
             server = current.serverUrl
             user = current.userName.orEmpty()
         }
-        viewModelScope.launch { discovered = ServerDiscovery.discover() }
+        viewModelScope.launch { discovered = network.discover() }
     }
 
     fun login(onLoggedIn: () -> Unit) {
@@ -66,11 +76,11 @@ class JellyfinLoginViewModel(private val app: AppContainer) : ViewModel() {
         viewModelScope.launch {
             var address = JellyfinClient.normalizeUrl(server)
             suspendRunCatching {
-                val deviceId = app.settings.ensureDeviceId()
-                val (reached, info) = JellyfinClient.reach(server, deviceId)
+                val deviceId = settings.ensureDeviceId()
+                val (reached, info) = network.reach(server, deviceId)
                 address = reached
-                val auth = JellyfinClient(reached, deviceId, token = null).api.authenticate(AuthRequest(user.trim(), password))
-                app.sources.switchTo(SourceConfig.Jellyfin(reached, info.serverName, auth.user.id, auth.user.name, auth.accessToken))
+                val auth = network.authenticate(reached, deviceId, AuthRequest(user.trim(), password))
+                sources.switchTo(SourceConfig.Jellyfin(reached, info.serverName, auth.user.id, auth.user.name, auth.accessToken))
             }.onSuccess {
                 onLoggedIn()
             }.onFailure { e ->
@@ -86,7 +96,11 @@ class JellyfinLoginViewModel(private val app: AppContainer) : ViewModel() {
         }
     }
 
-    private companion object {
-        const val HTTP_UNAUTHORIZED = 401
+    companion object {
+        private const val HTTP_UNAUTHORIZED = 401
+
+        fun factory(app: AppContainer): ViewModelProvider.Factory = viewModelFactory {
+            initializer { JellyfinLoginViewModel(app.settings, app.sources) }
+        }
     }
 }

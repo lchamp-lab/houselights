@@ -44,7 +44,7 @@ import app.houselights.ui.util.formatDuration
 @Composable
 fun NfoScreen(itemId: String) {
     val app = appContainer()
-    val vm = viewModel(key = "nfo-$itemId") { NfoViewModel(app, itemId) }
+    val vm: NfoViewModel = viewModel(key = "nfo-$itemId", factory = NfoViewModel.factory(app, itemId))
     val state by vm.state.collectAsStateWithLifecycle()
     var tab by remember { mutableIntStateOf(0) }
     val tabsFocus = remember { FocusRequester() }

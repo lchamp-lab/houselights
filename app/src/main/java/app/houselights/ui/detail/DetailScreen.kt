@@ -113,7 +113,7 @@ fun DetailScreen(
     onIdentify: (String) -> Unit,
 ) {
     val app = appContainer()
-    val vm = viewModel(key = "detail-$itemId") { DetailViewModel(app, itemId) }
+    val vm: DetailViewModel = viewModel(key = "detail-$itemId", factory = DetailViewModel.factory(app, itemId))
     ReloadOnLibraryChange { vm.load() }
     val state by vm.state.collectAsStateWithLifecycle()
     val item = state.item

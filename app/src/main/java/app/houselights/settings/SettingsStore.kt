@@ -2,6 +2,7 @@ package app.houselights.settings
 
 import android.content.Context
 import androidx.datastore.core.DataMigration
+import androidx.datastore.core.DataStore
 import androidx.datastore.core.handlers.ReplaceFileCorruptionHandler
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
@@ -74,13 +75,16 @@ data class AppSettings(
 )
 
 class SettingsStore(
-    private val context: Context,
+    private val dataStore: DataStore<Preferences>,
     scope: CoroutineScope,
     private val secrets: Secrets = Secrets.device,
 ) {
+    /** The app's own settings file. */
+    constructor(context: Context, scope: CoroutineScope, secrets: Secrets = Secrets.device) : this(context.dataStore, scope, secrets)
+
     private val json = Json { ignoreUnknownKeys = true }
 
-    val state: StateFlow<AppSettings> = context.dataStore.data
+    val state: StateFlow<AppSettings> = dataStore.data
         // A file that can't be read gives the defaults: the app opens on its welcome screen, not on a blank one.
         .catch { e -> if (e is IOException) emit(emptyPreferences()) else throw e }
         .map { it.toSettings() }
@@ -102,36 +106,36 @@ class SettingsStore(
 
     suspend fun ensureDeviceId(): String {
         var id = ""
-        context.dataStore.edit { prefs ->
+        dataStore.edit { prefs ->
             id = prefs[Keys.deviceId] ?: UUID.randomUUID().toString().also { prefs[Keys.deviceId] = it }
         }
         return id
     }
 
     suspend fun setSource(source: SourceConfig?) {
-        context.dataStore.edit {
+        dataStore.edit {
             if (source == null) it.remove(Keys.source) else it[Keys.source] = secrets.seal(json.encodeToString(source))
         }
     }
 
     suspend fun setPathMappings(mappings: List<PathMapping>) {
-        context.dataStore.edit { it[Keys.mappings] = secrets.seal(json.encodeToString(mappings)) }
+        dataStore.edit { it[Keys.mappings] = secrets.seal(json.encodeToString(mappings)) }
     }
 
     suspend fun setForceHttp(value: Boolean) {
-        context.dataStore.edit { it[Keys.forceHttp] = value }
+        dataStore.edit { it[Keys.forceHttp] = value }
     }
 
     suspend fun setUi4k(value: Boolean) {
-        context.dataStore.edit { it[Keys.ui4k] = value }
+        dataStore.edit { it[Keys.ui4k] = value }
     }
 
     suspend fun setCollectionMinFilms(value: Int) {
-        context.dataStore.edit { it[Keys.collectionMin] = value }
+        dataStore.edit { it[Keys.collectionMin] = value }
     }
 
     suspend fun setTmdbApiKey(value: String?) {
-        context.dataStore.edit {
+        dataStore.edit {
             if (value.isNullOrBlank()) it.remove(Keys.tmdbKey) else it[Keys.tmdbKey] = secrets.seal(value.trim())
         }
     }

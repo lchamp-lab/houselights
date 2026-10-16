@@ -65,7 +65,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun IdentifyScreen(itemId: String, onDone: () -> Unit) {
     val app = appContainer()
-    val vm = viewModel(key = "identify-$itemId") { IdentifyViewModel(app, itemId) }
+    val vm: IdentifyViewModel = viewModel(key = "identify-$itemId", factory = IdentifyViewModel.factory(app, itemId))
     val state by vm.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val identity = state.identity

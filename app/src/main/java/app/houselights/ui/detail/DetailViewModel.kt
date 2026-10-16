@@ -2,10 +2,14 @@ package app.houselights.ui.detail
 
 import android.util.Log
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
 import app.houselights.AppContainer
 import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
+import app.houselights.core.MediaProvider
 import app.houselights.core.ProviderCapabilities
 import app.houselights.core.suspendRunCatching
 import app.houselights.ui.util.UiError
@@ -36,7 +40,8 @@ data class DetailState(
     val collectionFilms: List<MediaItem> = emptyList(),
 )
 
-class DetailViewModel(private val app: AppContainer, private val itemId: String) : ViewModel() {
+/** A title's page, from the [provider] of the source in use. */
+class DetailViewModel(private val itemId: String, private val provider: () -> MediaProvider) : ViewModel() {
     private val _state = MutableStateFlow(DetailState())
     val state: StateFlow<DetailState> = _state
 
@@ -52,30 +57,36 @@ class DetailViewModel(private val app: AppContainer, private val itemId: String)
         loadJob = viewModelScope.launch {
             // In a scope of its own, a failed parallel request ends up here instead of crashing the app.
             suspendRunCatching { coroutineScope {
-                val provider = app.provider
-                val item = provider.item(itemId)
-                val similar = async { if (provider.capabilities.similar) provider.similar(item) else emptyList() }
+                val source = provider()
+                val item = source.item(itemId)
+                val similar = async { if (source.capabilities.similar) source.similar(item) else emptyList() }
                 if (item.kind == MediaKind.SERIES) {
-                    val nextUp = async { provider.nextUp(item) }
-                    val seasons = provider.seasons(item)
+                    val nextUp = async { source.nextUp(item) }
+                    val seasons = source.seasons(item)
                     val next = nextUp.await()
                     val seasonId = _state.value.selectedSeasonId?.takeIf { id -> seasons.any { it.id == id } }
                         ?: next?.seasonId
                         ?: seasons.firstOrNull { (it.seasonNumber ?: 0) > 0 }?.id
                         ?: seasons.firstOrNull()?.id
-                    val episodes = seasons.firstOrNull { it.id == seasonId }?.let { provider.episodes(item, it) } ?: emptyList()
-                    DetailState(item, null, provider.capabilities, next, seasons, seasonId, episodes, similar.await())
+                    val episodes = seasons.firstOrNull { it.id == seasonId }?.let { source.episodes(item, it) } ?: emptyList()
+                    DetailState(item, null, source.capabilities, next, seasons, seasonId, episodes, similar.await())
                 } else if (item.kind == MediaKind.COLLECTION) {
-                    val films = provider.collectionItems(item)
-                    DetailState(item = item, capabilities = provider.capabilities, nextUp = provider.nextUp(item), collectionFilms = films)
+                    val films = source.collectionItems(item)
+                    DetailState(item = item, capabilities = source.capabilities, nextUp = source.nextUp(item), collectionFilms = films)
                 } else {
-                    val collection = provider.collectionOf(item)
-                    val saga = collection?.let { c -> provider.collectionItems(c).filter { it.id != item.id } }.orEmpty()
+                    val collection = source.collectionOf(item)
+                    val saga = collection?.let { c -> source.collectionItems(c).filter { it.id != item.id } }.orEmpty()
                     // Films of the same saga are shown as such, not again as "similar".
                     val similarFilms = similar.await().filter { s -> saga.none { it.id == s.id } }
-                    DetailState(item = item, capabilities = provider.capabilities, similar = similarFilms, collection = collection, collectionFilms = saga)
+                    DetailState(
+                        item = item,
+                        capabilities = source.capabilities,
+                        similar = similarFilms,
+                        collection = collection,
+                        collectionFilms = saga,
+                    )
                 }
-            } }.onSuccess { loaded -> _state.value = loaded.copy(canEdit = loaded.item?.let { app.provider.editor?.canEdit(it) } == true) }
+            } }.onSuccess { loaded -> _state.value = loaded.copy(canEdit = loaded.item?.let { provider().editor?.canEdit(it) } == true) }
                 .onFailure { e ->
                     Log.w(TAG, "Detail of $itemId failed", e)
                     _state.update { it.copy(error = e.toUiError()) }
@@ -90,7 +101,7 @@ class DetailViewModel(private val app: AppContainer, private val itemId: String)
         val season = s.seasons.firstOrNull { it.id == seasonId } ?: return
         _state.update { it.copy(selectedSeasonId = seasonId) }
         viewModelScope.launch {
-            suspendRunCatching { app.provider.episodes(series, season) }
+            suspendRunCatching { provider().episodes(series, season) }
                 .onSuccess { eps -> _state.update { it.copy(episodes = eps) } }
         }
     }
@@ -98,14 +109,20 @@ class DetailViewModel(private val app: AppContainer, private val itemId: String)
     fun togglePlayed() {
         val item = _state.value.item ?: return
         viewModelScope.launch {
-            suspendRunCatching { app.provider.setPlayed(item, !item.user.played) }.onSuccess { load() }
+            suspendRunCatching { provider().setPlayed(item, !item.user.played) }.onSuccess { load() }
         }
     }
 
     fun toggleFavorite() {
         val item = _state.value.item ?: return
         viewModelScope.launch {
-            suspendRunCatching { app.provider.setFavorite(item, !item.user.favorite) }.onSuccess { load() }
+            suspendRunCatching { provider().setFavorite(item, !item.user.favorite) }.onSuccess { load() }
+        }
+    }
+
+    companion object {
+        fun factory(app: AppContainer, itemId: String): ViewModelProvider.Factory = viewModelFactory {
+            initializer { DetailViewModel(itemId, app::provider) }
         }
     }
 }

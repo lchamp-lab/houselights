@@ -30,7 +30,7 @@ import app.houselights.ui.util.appContainer
 @Composable
 fun JellyfinLoginScreen(onLoggedIn: () -> Unit) {
     val app = appContainer()
-    val vm = viewModel { JellyfinLoginViewModel(app) }
+    val vm: JellyfinLoginViewModel = viewModel(factory = JellyfinLoginViewModel.factory(app))
     val firstField = remember { FocusRequester() }
     val passwordField = remember { FocusRequester() }
     LaunchedEffect(Unit) { runCatching { (if (vm.again) passwordField else firstField).requestFocus() } }

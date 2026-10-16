@@ -74,7 +74,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun ArtworkScreen(itemId: String, kind: ArtworkKind, onDone: () -> Unit) {
     val app = appContainer()
-    val vm = viewModel(key = "artwork-$itemId-$kind") { ArtworkViewModel(app, itemId, kind) }
+    val vm: ArtworkViewModel = viewModel(key = "artwork-$itemId-$kind", factory = ArtworkViewModel.factory(app, itemId, kind))
     val state by vm.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val item = state.item

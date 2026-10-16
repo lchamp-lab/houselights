@@ -2,12 +2,16 @@ package app.houselights.ui.library
 
 import android.util.Log
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
 import app.houselights.AppContainer
 import app.houselights.core.Library
 import app.houselights.core.LibraryFacets
 import app.houselights.core.LibraryFilter
 import app.houselights.core.MediaItem
+import app.houselights.core.MediaProvider
 import app.houselights.core.SortOption
 import app.houselights.core.suspendRunCatching
 import app.houselights.ui.util.UiError
@@ -28,7 +32,8 @@ data class LibraryState(
     val facets: LibraryFacets = LibraryFacets(),
 )
 
-class LibraryViewModel(private val app: AppContainer, private val library: Library) : ViewModel() {
+/** A library's wall, page by page, from the [provider] of the source in use. */
+class LibraryViewModel(private val provider: () -> MediaProvider, private val library: Library) : ViewModel() {
     private val _state = MutableStateFlow(LibraryState())
     val state: StateFlow<LibraryState> = _state
     private var job: Job? = null
@@ -61,7 +66,7 @@ class LibraryViewModel(private val app: AppContainer, private val library: Libra
 
     private fun loadFacets() {
         viewModelScope.launch {
-            suspendRunCatching { app.provider.libraryFacets(library) }.onSuccess { f -> _state.update { it.copy(facets = f) } }
+            suspendRunCatching { provider().libraryFacets(library) }.onSuccess { f -> _state.update { it.copy(facets = f) } }
         }
     }
 
@@ -81,7 +86,7 @@ class LibraryViewModel(private val app: AppContainer, private val library: Libra
         val s = _state.value
         job = viewModelScope.launch {
             suspendRunCatching {
-                app.provider.libraryPage(library, s.sort, s.filter, start = 0, limit = maxOf(s.items.size, PAGE))
+                provider().libraryPage(library, s.sort, s.filter, start = 0, limit = maxOf(s.items.size, PAGE))
             }.onSuccess { page ->
                 _state.update { it.copy(items = page.items.distinctBy(MediaItem::id), total = page.total, loading = false, error = null) }
             }.onFailure { e ->
@@ -97,7 +102,7 @@ class LibraryViewModel(private val app: AppContainer, private val library: Libra
         if (job?.isActive == true || (s.items.isNotEmpty() && s.items.size >= s.total)) return
         job = viewModelScope.launch {
             suspendRunCatching {
-                app.provider.libraryPage(library, s.sort, s.filter, start = s.items.size, limit = PAGE)
+                provider().libraryPage(library, s.sort, s.filter, start = s.items.size, limit = PAGE)
             }.onSuccess { page ->
                 // A title added meanwhile can shift pages: never show one twice (the grid is keyed by id).
                 _state.update { it.copy(items = (it.items + page.items).distinctBy(MediaItem::id), total = page.total, loading = false) }
@@ -111,5 +116,9 @@ class LibraryViewModel(private val app: AppContainer, private val library: Libra
     companion object {
         private const val TAG = "Library"
         private const val PAGE = 120
+
+        fun factory(app: AppContainer, library: Library): ViewModelProvider.Factory = viewModelFactory {
+            initializer { LibraryViewModel(app::provider, library) }
+        }
     }
 }

@@ -90,7 +90,7 @@ fun LibraryScreen(
     onOpenItem: (MediaItem) -> Unit,
 ) {
     val app = appContainer()
-    val vm = viewModel(key = "library-${library.id}") { LibraryViewModel(app, library) }
+    val vm: LibraryViewModel = viewModel(key = "library-${library.id}", factory = LibraryViewModel.factory(app, library))
     ReloadOnLibraryChange { vm.onLibraryChanged() }
     val state by vm.state.collectAsStateWithLifecycle()
 
