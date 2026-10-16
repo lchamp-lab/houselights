@@ -207,7 +207,7 @@ class TmdbClient(
      */
     suspend fun findMovie(title: String, year: Int?): TmdbMovie? {
         val hit = call { it.searchMovie(title, year, language) }.results.firstOrNull()
-            ?: year?.let { call { it.searchMovie(title, null, language) }.results.firstOrNull() }
+            ?: year?.let { call { api -> api.searchMovie(title, null, language) }.results.firstOrNull() }
             ?: return null
         return unlessMissing { call { it.movie(hit.id, language, imageLanguages) } }
     }
@@ -246,7 +246,7 @@ class TmdbClient(
     /** As [findMovie], for a show. */
     suspend fun findTv(title: String, year: Int?): TmdbTv? {
         val hit = call { it.searchTv(title, year, language) }.results.firstOrNull()
-            ?: year?.let { call { it.searchTv(title, null, language) }.results.firstOrNull() }
+            ?: year?.let { call { api -> api.searchTv(title, null, language) }.results.firstOrNull() }
             ?: return null
         return unlessMissing { call { it.tv(hit.id, language, imageLanguages) } }
     }

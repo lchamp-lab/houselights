@@ -26,10 +26,10 @@ import java.util.concurrent.CountDownLatch
  * is cancelled.
  */
 class FakeTmdb : Interceptor {
-    val movies = Collections.synchronizedMap(linkedMapOf<Int, TmdbMovie>())
-    val shows = Collections.synchronizedMap(linkedMapOf<Int, TmdbTv>())
-    val seasons = Collections.synchronizedMap(linkedMapOf<Pair<Int, Int>, TmdbSeason>())
-    val collections = Collections.synchronizedMap(linkedMapOf<Int, TmdbCollection>())
+    val movies: MutableMap<Int, TmdbMovie> = Collections.synchronizedMap(linkedMapOf())
+    val shows: MutableMap<Int, TmdbTv> = Collections.synchronizedMap(linkedMapOf())
+    val seasons: MutableMap<Pair<Int, Int>, TmdbSeason> = Collections.synchronizedMap(linkedMapOf())
+    val collections: MutableMap<Int, TmdbCollection> = Collections.synchronizedMap(linkedMapOf())
 
     /** Paths asked, in order ("movie/438631"), those that failed included. */
     val requests: MutableList<String> = Collections.synchronizedList(mutableListOf())

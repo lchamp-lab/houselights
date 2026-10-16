@@ -202,7 +202,7 @@ class SettingsStore(
             loaded = true,
             source = source,
             deviceId = this[Keys.deviceId] ?: "",
-            pathMappings = mappings ?: emptyList(),
+            pathMappings = mappings.orEmpty(),
             forceHttp = this[Keys.forceHttp] ?: false,
             ui4k = this[Keys.ui4k] ?: true,
             tmdbApiKey = this[Keys.tmdbKey]?.let { opened(Keys.tmdbKey, it, lost) }?.takeIf { it.isNotBlank() },

@@ -101,7 +101,7 @@ class DetailViewModel(
                         ?: next?.seasonId
                         ?: seasons.firstOrNull { (it.seasonNumber ?: 0) > 0 }?.id
                         ?: seasons.firstOrNull()?.id
-                    val episodes = seasons.firstOrNull { it.id == seasonId }?.let { source.episodes(item, it) } ?: emptyList()
+                    val episodes = seasons.firstOrNull { it.id == seasonId }?.let { source.episodes(item, it) }.orEmpty()
                     DetailState(
                         item = item,
                         capabilities = source.capabilities,

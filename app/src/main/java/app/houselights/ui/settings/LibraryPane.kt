@@ -568,7 +568,7 @@ private fun TmdbKeySheet(issue: UiError?, onDismiss: () -> Unit) {
     val attempt = vm.tmdbKey
     val outcome = attempt?.outcome
     // The key given last while it is checked or when it was not taken, else the one saved.
-    var key by remember { mutableStateOf(attempt?.takeIf { outcome != ACCEPTED }?.key ?: s.tmdbApiKey ?: "") }
+    var key by remember { mutableStateOf((attempt?.takeIf { outcome != ACCEPTED }?.key ?: s.tmdbApiKey).orEmpty()) }
     // The attempt this sheet waits on: its own, or the one under way as it opened. One that ended
     // before is no news: its key taken never closes this sheet.
     var waitingOn by remember { mutableStateOf(attempt?.takeIf { outcome == null }?.number) }

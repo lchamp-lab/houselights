@@ -50,6 +50,7 @@ class TmdbClientTest {
     }
 
     @Test
+    @Suppress("SleepInsteadOfDelay") // OkHttp's own threads end the call: virtual time cannot wait for them.
     fun aRequestGivenUpOnLeavesTmdbToTheNextOne() = runTest {
         val client = tmdb.client(pauseWhenUnreachable = true)
         tmdb.hold = true

@@ -31,7 +31,7 @@ class LibraryChanges(scope: CoroutineScope, sources: List<Flow<Unit>>, periodMs:
         scope.launch {
             merge(*sources.toTypedArray(), userChanges)
                 .throttleLatest(periodMs)
-                .collect { _version.update { it + 1 } }
+                .collect { _version.update { v -> v + 1 } }
         }
     }
 

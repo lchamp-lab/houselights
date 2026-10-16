@@ -82,7 +82,7 @@ class ArtworkViewModel(
         _state.update { it.copy(choosing = option) }
         work.launch {
             suspendRunCatching { provider().editorOrFail().setArtwork(item, kind, option) }
-                .onSuccess { _state.update { it.copy(done = true) } }
+                .onSuccess { _state.update { s -> s.copy(done = true) } }
                 .onFailure { e -> _state.update { it.copy(choosing = null, error = e.reported()) } }
         }
     }
@@ -189,7 +189,7 @@ class IdentifyViewModel(
         work.launch {
             suspendRunCatching { provider().editorOrFail().identify(item, candidate) }
                 // Still shown as matching while the screen closes.
-                .onSuccess { _state.update { it.copy(done = true) } }
+                .onSuccess { _state.update { s -> s.copy(done = true) } }
                 .onFailure { e -> _state.update { it.copy(identifying = false, chosenId = null, error = e.reported()) } }
         }
     }
