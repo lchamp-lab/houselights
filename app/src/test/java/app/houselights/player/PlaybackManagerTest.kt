@@ -210,7 +210,8 @@ class PlaybackManagerTest {
 
     /**
      * The player's API out of reach a while: the film still plays, the NAS is still its own. The API
-     * is asked less often, never given up: once it says nothing plays, nothing does.
+     * is asked less often, not given up while the film may still play: once it says nothing plays,
+     * nothing does.
      */
     @Test
     fun aPlayerOutOfReachIsStillPlaying() = runTest {
