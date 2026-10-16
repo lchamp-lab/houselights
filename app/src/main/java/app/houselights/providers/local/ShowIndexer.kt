@@ -42,9 +42,10 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
         )
         val kept = files.nfo(source, local.nfo, base)
         val nfo = kept.info
-        val seasonAnswer = series.tmdbId?.let { seasons.get(it, parsed.season) }
+        val seasonAnswer = series.tmdbId?.takeIf { seasonWanted(base, series, refreshMetadata) }?.let { seasons.get(it, parsed.season) }
         val meta = seasonAnswer?.value?.episodes?.firstOrNull { it.episodeNumber == parsed.episode }
         val answered = answered(tmdb, series, seasonAnswer)
+        val thumb = local.thumb?.let { files.copyArtwork(source, it) }
 
         val episode = base.copy(
             parentId = season.id,
@@ -55,10 +56,12 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
             sortTitle = "%03d-%04d".format(Locale.ROOT, parsed.season, parsed.episode),
             nfoPath = kept.path,
             nfo = kept.text,
+            // What was read beside it; an NFO or a thumb that failed is left out, to be read again.
+            sidecarKey = SidecarKey.of(VideoSidecars(local.nfo.takeUnless { kept.stale }, thumb = files.examined(local.thumb, thumb))),
         ).withEpisodeDetails(
             nfo = nfo,
             meta = meta,
-            thumb = local.thumb?.let { files.copyArtwork(source, it) },
+            thumb = thumb,
             // A refresh TMDB did not answer is asked again at a later pass, the show's lookup with it.
             matchedAt = if (answered) now else base.matchedAt.takeUnless { refreshMetadata },
         )
@@ -71,6 +74,15 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
         } else {
             dao.saveScanned(probed)
         }
+    }
+
+    /**
+     * TMDB's season is asked for a new episode, one unmatched, a refresh, or a show matched again since:
+     * an episode read again for its sidecars or its file alone keeps what TMDB said of it.
+     */
+    private fun seasonWanted(episode: ItemEntity, series: ItemEntity, refreshMetadata: Boolean): Boolean {
+        val matched = episode.matchedAt ?: return true
+        return refreshMetadata || (series.matchedAt ?: 0) > matched
     }
 
     /** An episode is matched once TMDB answered for it: its show looked up, and its season asked when TMDB knows the show. */
@@ -235,8 +247,9 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
             addedAt = now,
         ).let { it.copy(id = dao.insert(it)) }
 
-        val meta = series.tmdbId?.let { cache.get(it, number).value }
-        if (meta != null && season.matchedAt == null) {
+        // A season TMDB described is not asked again for each episode read again.
+        val meta = series.tmdbId?.takeIf { season.matchedAt == null }?.let { cache.get(it, number).value }
+        if (meta != null) {
             season = season.withSeasonDetails(meta, now)
             dao.saveScanned(season)
         }

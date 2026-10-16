@@ -34,7 +34,7 @@ class ArtworkCache(
     suspend fun copy(source: SourceEntity, file: RemoteFile, browser: RemoteBrowser): String? {
         val ext = file.relativePath.substringAfterLast('.', "jpg").lowercase().let { if (it == "tbn") "jpg" else it }
         // An image too large for the cache is left to TMDB rather than kept cut off.
-        if (file.size !in 1..MAX_BYTES.toLong()) return null
+        if (!holds(file)) return null
         val target = File(dir, "${source.id}/${hash("${file.relativePath}:${file.size}")}.$ext")
         val uri = "file://${target.absolutePath}"
         if (target.exists()) return uri
@@ -57,6 +57,9 @@ class ArtworkCache(
             null
         }
     }
+
+    /** Whether an image of [file]'s size is copied at all: an empty one, or one too large, is left to TMDB for good. */
+    fun holds(file: RemoteFile): Boolean = file.size in 1..MAX_BYTES.toLong()
 
     /** The bytes the device can still write, where the cache and the library live. */
     fun spaceLeft(): Long = freeSpace()

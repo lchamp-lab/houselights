@@ -7,6 +7,11 @@ data class RemoteFile(
     /** Path relative to the source folder, with "/" separators. */
     val relativePath: String,
     val size: Long,
+    /**
+     * When it was last written (ms since the epoch), as the listing gives it: SMB's last write time, NFS's
+     * mtime. A sidecar rewritten in place often keeps its size, not its date. Null when not known.
+     */
+    val lastModified: Long? = null,
 )
 
 /**
@@ -73,6 +78,9 @@ internal interface RemoteEntry {
     fun folder(): RemoteFolder?
 
     fun size(): Long
+
+    /** When it was last written, from what [size] asked: no request of its own. Null when not known. */
+    fun lastModified(): Long? = null
 }
 
 /**
@@ -117,8 +125,8 @@ private class Walk(private val isFatal: (Throwable) -> Boolean) {
     private fun take(entry: RemoteEntry, path: String): RemoteFolder? {
         entry.folder()?.let { return it }
         when {
-            RemoteBrowser.isWanted(entry.name) -> videos += RemoteFile(path, entry.size())
-            RemoteBrowser.isSidecar(entry.name) -> sidecars += RemoteFile(path, entry.size())
+            RemoteBrowser.isWanted(entry.name) -> videos += RemoteFile(path, entry.size(), entry.lastModified())
+            RemoteBrowser.isSidecar(entry.name) -> sidecars += RemoteFile(path, entry.size(), entry.lastModified())
         }
         return null
     }

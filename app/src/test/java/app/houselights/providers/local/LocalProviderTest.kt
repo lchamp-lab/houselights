@@ -14,6 +14,7 @@ import app.houselights.core.MediaItem
 import app.houselights.core.MetadataEditor
 import app.houselights.core.PlaybackOptions
 import app.houselights.core.PlaybackPlan
+import app.houselights.core.Quality
 import app.houselights.core.Secrets
 import app.houselights.core.SortOption
 import app.houselights.core.WatchStatus
@@ -170,6 +171,65 @@ class LocalProviderTest {
         provider.setPlayed(show, played = true)
         assertTrue(dao.episodesOfSeries(series).all { it.played })
         assertNull(provider.nextUp(show))
+    }
+
+    private suspend fun show(title: String) =
+        Show(dao.insert(ItemEntity(kind = ItemKind.SERIES, sourceId = source, title = title, sortTitle = title.lowercase(), addedAt = 0)))
+
+    /** A show of the library; [episode] adds an episode to it, and its season when new. */
+    private inner class Show(val id: Long) {
+        private val seasons = mutableMapOf<Int, Long>()
+
+        suspend fun episode(season: Int, n: Int, badges: List<String> = emptyList()): Long {
+            val parent = seasons.getOrPut(season) {
+                dao.insert(
+                    ItemEntity(
+                        kind = ItemKind.SEASON, sourceId = source, parentId = id, seriesId = id, title = "Season $season",
+                        sortTitle = "%03d".format(season), seasonNumber = season, addedAt = 0,
+                    )
+                )
+            }
+            return dao.insert(
+                ItemEntity(
+                    kind = ItemKind.EPISODE, sourceId = source, parentId = parent, seriesId = id, title = "S${season}E$n",
+                    sortTitle = "%03d-%04d".format(season, n), seasonNumber = season, episodeNumber = n,
+                    filePath = "$id/S${season}E$n.mkv", badges = badges, addedAt = 0,
+                )
+            )
+        }
+    }
+
+    /** Sonarr's "Specials" folder holds S00E01: "Play" starts S01E01 all the same, and the specials once the rest is watched. */
+    @Test
+    fun aShowStartsWithItsFirstSeasonNotItsSpecials() = runTest {
+        val show = show("MobLand")
+        show.episode(0, 1)
+        val pilot = show.episode(1, 1)
+        show.episode(1, 2)
+        val item = provider.item(show.id.toString())
+        assertEquals("S1E1", provider.nextUp(item)?.title)
+
+        dao.setSeasonPlayed(checkNotNull(dao.item(pilot)?.parentId), played = true, now = 1)
+        assertEquals("S0E1", provider.nextUp(item)?.title)
+    }
+
+    /** Shows carry no technical badges of their own: 4K, HDR and Dolby Vision are their episodes'. */
+    @Test
+    fun aShowIsFilteredByTheQualityOfItsEpisodes() = runTest {
+        show("MobLand").episode(1, 1, badges = listOf("1080p", "HEVC"))
+        show("Severance").run {
+            episode(1, 1, badges = listOf("1080p", "HEVC"))
+            episode(2, 1, badges = listOf("4K", "Dolby Vision", "HDR10", "Atmos"))
+        }
+        show("Dark").episode(1, 1, badges = listOf("4K", "HDR10"))
+        val shows = Library(LocalProvider.SHOWS, LibraryKind.SHOWS, null)
+        suspend fun titles(quality: Quality) =
+            provider.libraryPage(shows, SortOption.TITLE, LibraryFilter(quality = quality), 0, 50).items.map { it.title }
+
+        assertEquals(listOf("Dark", "Severance"), titles(Quality.UHD_4K))
+        assertEquals(listOf("Dark", "Severance"), titles(Quality.HDR))
+        assertEquals(listOf("Severance"), titles(Quality.DOLBY_VISION))
+        assertEquals(1, provider.libraryPage(shows, SortOption.TITLE, LibraryFilter(quality = Quality.DOLBY_VISION), 0, 50).total)
     }
 
     @Test

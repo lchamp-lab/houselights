@@ -345,7 +345,10 @@ class LibraryScanner(
         val known = (if (rewritten) dao.filesOf(source.id) else listed).associateBy { it.filePath }
 
         // TMDB closed to the pass, now or since a recent one: a title only waiting for it is left as it is.
-        fun wanted(f: RemoteFile) = needsWork(known[f.relativePath], f, sidecars.forVideo(f), tmdb.open && askUnmatched, refreshMetadata)
+        fun wanted(f: RemoteFile): Boolean {
+            val beside = SidecarKey.listed(source.kind, sidecars.forVideo(f))
+            return needsWork(known[f.relativePath], f, beside, tmdb.open && askUnmatched, refreshMetadata)
+        }
         val todo = files.filter(::wanted)
         _state.update { it.copy(total = todo.size) }
         Log.i(
@@ -448,11 +451,12 @@ class LibraryScanner(
 
     /**
      * What screens show of a file's row, and of its season's and its show's: matched or not, whenever
-     * it was. A title TMDB answered again with the same details is the same title.
+     * it was. A title TMDB answered again with the same details is the same title; sidecars read again
+     * to no change ([ItemEntity.sidecarKey]) change nothing shown.
      */
     private suspend fun shown(item: ItemEntity): List<ItemEntity> =
         (listOf(item) + dao.rows(listOfNotNull(item.parentId, item.seriesId)).sortedBy { it.id })
-            .map { row -> row.copy(matchedAt = row.matchedAt?.let { MATCHED }) }
+            .map { row -> row.copy(matchedAt = row.matchedAt?.let { MATCHED }, sidecarKey = null) }
 
     /**
      * The device ran out of space: said by [e], or by the space left. SQLite rolls a transaction back
@@ -487,14 +491,14 @@ class LibraryScanner(
 
     /**
      * A file is processed when new, not described yet or by an older probe, replaced (its size
-     * changed), to refresh, when its NFO or artwork changed, or unmatched while TMDB is [askTmdb].
+     * changed), to refresh, when its NFO or artwork changed ([sidecars], what the folder lists beside
+     * it: see [SidecarKey]), or unmatched while TMDB is [askTmdb].
      */
-    private fun needsWork(item: ItemEntity?, file: RemoteFile, local: VideoSidecars, askTmdb: Boolean, refreshMetadata: Boolean): Boolean =
+    private fun needsWork(item: ItemEntity?, file: RemoteFile, sidecars: String?, askTmdb: Boolean, refreshMetadata: Boolean): Boolean =
         item == null || MediaProbe.isStale(item.mediaInfo) || item.sizeChanged(file) || refreshMetadata ||
             (askTmdb && item.matchedAt == null) ||
-            // An NFO or artwork placed next to the file, or removed, since the last scan.
-            item.nfoPath != local.nfo?.relativePath ||
-            (local.poster != null) != (item.posterPath.isCachedArtwork())
+            // An NFO or artwork placed next to the file, rewritten in place or removed, since it was last read.
+            item.sidecarKey != sidecars
 
     companion object {
         private const val TAG = "LibraryScanner"
