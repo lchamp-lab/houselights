@@ -221,6 +221,18 @@ class LocalProviderTest {
         assertTrue("Not TMDB's logo: $logo", logo.startsWith("https://image.tmdb.org/") && logo.endsWith("/tmdbLogo.png"))
     }
 
+    /** A disc's image may open on a menu or an intro, a film's file never does: the player is followed accordingly. */
+    @Test
+    fun aDiscImageIsPlayedAsADisc() = runTest {
+        val options = PlaybackOptions(emptyList(), false)
+        val iso = dao.insert(
+            ItemEntity(kind = ItemKind.MOVIE, sourceId = source, title = "Heat", sortTitle = "heat", filePath = "Heat.ISO", addedAt = 0)
+        )
+        assertTrue((provider.playback(provider.item(iso.toString()), resume = false, options) as PlaybackPlan.Launch).disc)
+        val mkv = movie("Ronin")
+        assertFalse((provider.playback(provider.item(mkv.toString()), resume = false, options) as PlaybackPlan.Launch).disc)
+    }
+
     /** The user chose no logo (the title set in type): the player gets none either. */
     @Test
     fun noLogoChosenIsNoLogoForThePlayer() = runTest {

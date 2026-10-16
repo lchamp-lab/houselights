@@ -183,6 +183,7 @@ class JellyfinProvider(
             uri, container, startMs,
             reporter = Reporter(full.id, source?.id),
             resumeKey = listOfNotNull(full.id, source?.id).joinToString(RESUME_KEY_SEPARATOR),
+            disc = source?.videoType in DISC_VIDEO_TYPES || container.equals(DISC_IMAGE, ignoreCase = true),
         )
     }
 
@@ -255,6 +256,11 @@ class JellyfinProvider(
         /** Stopped is tried three times more, over some twenty seconds. */
         private val REPORT_RETRY_MS = listOf(2_000L, 5_000L, 15_000L)
         private const val RESUME_KEY_SEPARATOR = "|"
+
+        /** A media source's video types that are discs: an image, a Blu-ray's folder, a DVD's. */
+        private val DISC_VIDEO_TYPES = setOf("Iso", "BluRay", "Dvd")
+        private const val DISC_IMAGE = "iso"
+
         private const val COLLECTION_LIMIT = 200
         private val SUPPORTED_COLLECTIONS = setOf("movies", "tvshows", "boxsets", "homevideos", "musicvideos", null)
         private const val ROW_FIELDS = "Overview,Genres,ProductionYear,OfficialRating,CommunityRating,DateCreated"

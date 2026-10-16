@@ -2,11 +2,14 @@ package app.houselights.providers.jellyfin
 
 import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
+import app.houselights.core.PlaybackOptions
+import app.houselights.core.PlaybackPlan
 import app.houselights.core.SectionType
 import app.houselights.core.SourceConfig
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -136,6 +139,18 @@ class JellyfinProviderTest {
         val server = FakeServer { request -> if (request.url.encodedPath == "/UserViews") Answer(200, views) else Answer(500) }
         assertEquals(500, httpFailure { provider(server).home() }?.code())
         assertTrue(server.paths.containsAll(listOf("/UserItems/Resume", "/Shows/NextUp", "/Items/Latest")))
+    }
+
+    /** A Blu-ray's folder may open on a menu or an intro, a file never does: the player is followed accordingly. */
+    @Test
+    fun aDiscIsPlayedAsADisc() = runTest {
+        fun item(videoType: String, container: String) =
+            """{"Id":"f1","Name":"Heat","Type":"Movie","MediaSources":[{"Id":"s1","Container":"$container","VideoType":"$videoType"}]}"""
+        val options = PlaybackOptions(emptyList(), forceHttp = true)
+        val bluRay = FakeServer { Answer(200, item("BluRay", "ts")) }
+        assertTrue((provider(bluRay).playback(film, resume = false, options) as PlaybackPlan.Launch).disc)
+        val file = FakeServer { Answer(200, item("VideoFile", "mkv")) }
+        assertFalse((provider(file).playback(film, resume = false, options) as PlaybackPlan.Launch).disc)
     }
 
     @Test

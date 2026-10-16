@@ -272,11 +272,14 @@ class LocalProvider(
         val file = entity.filePath ?: error("${item.title} has no file")
         val source = dao.sources().firstOrNull { it.id == entity.sourceId } ?: error("Source of ${item.title} was removed")
         val mapper = LocalMapper(dao, context)
+        val container = FilenameParser.extension(file)
         return mapper.forPlayer(entity, mapper.map(entity)).launch(
-            fileUri(source, file), FilenameParser.extension(file),
+            fileUri(source, file), container,
             startMs = if (resume) entity.positionMs else 0L,
             reporter = LocalReporter(dao, entity.id),
             resumeKey = entity.id.toString(),
+            // Scans list files: of a disc, only its image is one. A Blu-ray's or DVD's folder is read as the files it holds.
+            disc = container == DISC_IMAGE,
         )
     }
 
@@ -300,6 +303,9 @@ class LocalProvider(
         const val COLLECTIONS = "collections"
 
         private const val NEXT_UP_SHOWS = 20
+
+        /** The extension of a disc's image, the one disc a folder of files holds. */
+        private const val DISC_IMAGE = "iso"
         private const val SIMILAR = 16
 
 

@@ -39,7 +39,12 @@ class PlaybackManager(
     /** The reporter of a playback the app started before it was stopped (see [PlaybackPlan.Launch.resumeKey]). */
     private val reporterFor: suspend (String) -> PlaybackReporter?,
 ) {
-    private class Session(val reporter: PlaybackReporter?, var positionMs: Long) {
+    private class Session(
+        val reporter: PlaybackReporter?,
+        var positionMs: Long,
+        /** A disc: it may open on a menu or an intro, whose length is not the title's (see [follow]). */
+        val disc: Boolean = false,
+    ) {
         /** The length of the title, from the player's first status (see [follow]). */
         var durationMs: Long? = null
         var paused = false
@@ -125,7 +130,7 @@ class PlaybackManager(
                 if (Redact.hasCredentials(plan.uri)) Intent.createChooser(any, context.getString(R.string.play_with)) else any
             }
         }
-        session = Session(plan.reporter, plan.startMs)
+        session = Session(plan.reporter, plan.startMs, plan.disc)
         // Written before the player takes over: the platform finishes pending apply() writes before our
         // activity stops, which launching the player does, so the resume point survives a killed process.
         saved.edit().putString(KEY_RESUME, plan.resumeKey).putLong(KEY_POSITION, plan.startMs).apply()
@@ -197,15 +202,17 @@ class PlaybackManager(
     }
 
     /**
-     * Takes what the player says for the session. A status of another length is another file only
-     * once the file launched, a title's length, had played to its end: the player went on to the next
-     * file of its folder. Otherwise the title comes after a disc's menu or intro: its length is the
-     * one to keep.
+     * Takes what the player says for the session. A status of another length is another file: the
+     * player went on to the next one of its folder, at the end of the file or as "next" was pressed.
+     * Only a disc plays several lengths as one title: its film comes after a menu or an intro, whose
+     * length gives way to the film's, unless what played was a title, played to its end (the disc's
+     * menu comes back after its film).
      */
     private fun follow(s: Session, state: ZidooPlayState) {
         val launched = s.durationMs
         if (launched != null && abs(state.durationMs - launched) > maxOf(SAME_FILE_MS, launched / SAME_FILE_SHARE)) {
-            if (launched >= TITLE_MIN_MS && s.positionMs >= launched - END_POLLS * POLL_MS) {
+            val titleEnded = launched >= TITLE_MIN_MS && s.positionMs >= launched - END_POLLS * POLL_MS
+            if (!s.disc || titleEnded) {
                 Log.i(TAG, "The player went on to another file ($launched -> ${state.durationMs} ms)")
                 s.switched = true
                 return
@@ -273,12 +280,12 @@ class PlaybackManager(
         private const val SLOW_POLL_MS = 10_000L
 
         /**
-         * How close to its end, in polls, the file launched was when the player shows another: it
-         * went on to the next file of its folder.
+         * How close to its end, in polls, a disc's title was when the player shows another length: it
+         * played to its end, and the disc's menu came back.
          */
         private const val END_POLLS = 3
 
-        /** Shorter than this, a first file is a disc's menu or intro, never the title (a film, an episode). */
+        /** Shorter than this, what a disc plays first is its menu or an intro, never its title. */
         private const val TITLE_MIN_MS = 5 * 60_000L
 
         /**

@@ -60,9 +60,9 @@ class PlaybackManagerTest {
         statuses.removeFirstOrNull() ?: PlayerAnswer.NoAnswer
     }) { null }
 
-    private fun plan(uri: String = "nfs://nas/films/Heat.mkv", backdrop: String? = null) = PlaybackPlan.Launch(
-        uri = uri, container = "mkv", title = "Heat", backdropUrl = backdrop, logoUrl = null, startMs = 0,
-        reporter = reporter, resumeKey = "m1",
+    private fun plan(uri: String = "nfs://nas/films/Heat.mkv", backdrop: String? = null, disc: Boolean = false) = PlaybackPlan.Launch(
+        uri = uri, container = uri.substringAfterLast('.'), title = "Heat", backdropUrl = backdrop, logoUrl = null, startMs = 0,
+        reporter = reporter, resumeKey = "m1", disc = disc,
     )
 
     private fun playing(positionMs: Long, durationMs: Long = HEAT) =
@@ -136,12 +136,12 @@ class PlaybackManagerTest {
         assertEquals("stopped 31000 / $HEAT", reports.last())
     }
 
-    /** The film played to its end, then the player went on to the next file of the folder: what it says is not this title's. */
+    /** "Next" pressed in the middle of the film: the player went on to the next file of the folder, what it says is not this title's. */
     @Test
     fun anotherFileIsNotTakenForTheTitleLaunched() = runTest {
         val manager = manager()
         manager.intentFor(plan())
-        statuses += listOf(playing(HEAT - 9_000), playing(HEAT - 5_000), playing(2_000, durationMs = 2_400_000))
+        statuses += listOf(playing(7_000_000), playing(7_150_000), playing(300_000, durationMs = 2_400_000))
         manager.onPlayerLaunched()
         advanceTimeBy(4_000 + 2_000 * 5L)
         val pollsThen = polls
@@ -151,7 +151,24 @@ class PlaybackManagerTest {
         // The position the player returns is the other file's.
         manager.onPlayerResult(result(300_000))
         advanceUntilIdle()
-        assertEquals("stopped ${HEAT - 5_000} / $HEAT", reports.last())
+        assertEquals("stopped 7150000 / $HEAT", reports.last())
+    }
+
+    /** An episode of 3 min 30 played to its end, then the player went on to the next one, about as long: it is another file. */
+    @Test
+    fun theNextShortEpisodeIsAnotherFile() = runTest {
+        val manager = manager()
+        manager.intentFor(plan("nfs://nas/series/Kaamelott/S01E01.mkv"))
+        val first = (4..208 step 2).map { playing(it * 1_000L, durationMs = EPISODE) }
+        val next = (1..30).map { playing(it * 2_000L, durationMs = EPISODE - 4_000) }
+        statuses += first + next
+        manager.onPlayerLaunched()
+        advanceTimeBy(4_000 + 2_000 * (first.size + 10L))
+        assertEquals("Tracking went on with the next episode", first.size + 1, polls)
+
+        manager.onPlayerResult(result(60_000))
+        advanceUntilIdle()
+        assertEquals("stopped 208000 / $EPISODE", reports.last())
     }
 
     /**
@@ -161,7 +178,7 @@ class PlaybackManagerTest {
     @Test
     fun aThirtySecondIntroThenATwoHourFilmIsTheSameTitle() = runTest {
         val manager = manager()
-        manager.intentFor(plan())
+        manager.intentFor(plan("nfs://nas/films/Heat.iso", disc = true))
         val intro = (4..28 step 2).map { playing(it * 1_000L, durationMs = 30_000) }
         val film = (1..30).map { playing(it * 2_000L, durationMs = FILM) }
         statuses += intro + film
@@ -173,6 +190,21 @@ class PlaybackManagerTest {
         manager.onPlayerResult(result(3_600_000))
         advanceUntilIdle()
         assertEquals("stopped 3600000 / $FILM", reports.last())
+    }
+
+    /** A disc's film played to its end, then its menu came back: the menu is not the film. */
+    @Test
+    fun aDiscsMenuAfterItsFilmIsNotTheFilm() = runTest {
+        val manager = manager()
+        manager.intentFor(plan("nfs://nas/films/Heat.iso", disc = true))
+        statuses += listOf(playing(FILM - 7_000, FILM), playing(FILM - 4_000, FILM), playing(2_000, durationMs = 30_000))
+        manager.onPlayerLaunched()
+        advanceTimeBy(4_000 + 2_000 * 10L)
+        assertEquals("Tracking went on with the menu", 3, polls)
+
+        manager.onPlayerResult(result(20_000))
+        advanceUntilIdle()
+        assertEquals("stopped ${FILM - 4_000} / $FILM", reports.last())
     }
 
     /**
@@ -255,5 +287,6 @@ class PlaybackManagerTest {
     private companion object {
         const val HEAT = 10_200_000L
         const val FILM = 7_200_000L
+        const val EPISODE = 210_000L
     }
 }
