@@ -31,9 +31,10 @@ fun keystoreProp(name: String): String =
     requireNotNull(keystoreProps.getProperty(name)?.takeIf { it.isNotBlank() }) { "keystore.properties: $name is missing" }
 val debugSignedRelease = providers.gradleProperty("houselights.debugSignedRelease").orNull.toBoolean()
 
-// versionCode grows with every commit, so Android refuses to install a build over a newer one, whose
-// database it could not open: -PversionCode when given, else the number of commits (CI checks out
-// the whole history), else 1. Read through providers.exec, which the configuration cache tracks.
+// The release's versionCode grows with every commit, so Android refuses to install a release over a
+// newer one, whose database it could not open: -PversionCode when given, else the number of commits
+// (CI checks out the whole history), else 1. Read through providers.exec, which the configuration
+// cache tracks. The other builds stay at 1 (androidComponents, below).
 val commitCount: Int? = runCatching {
     providers.exec {
         commandLine("git", "rev-list", "--count", "HEAD")
@@ -53,7 +54,8 @@ android {
         applicationId = "app.houselights"
         minSdk = 28 // Zidoo Z1000 Pro : Android 9
         targetSdk = 35
-        versionCode = appVersionCode
+        // The release's own is set with its variant (androidComponents, below).
+        versionCode = 1
         versionName = "0.1.0"
         buildConfigField("String", "TMDB_API_KEY", "\"$tmdbApiKey\"")
         manifestPlaceholders["appLabel"] = "@string/app_name"
@@ -125,6 +127,12 @@ androidComponents {
         listOf("nonMinifiedRelease", "benchmarkRelease").forEach { name ->
             android.buildTypes.findByName(name)?.signingConfig = android.signingConfigs.getByName("debug")
         }
+    }
+    // Only the release grows with each commit. Each change is tried on its own branch, and branches
+    // count different numbers of commits: debug and bench stay at 1, so that one installs over another
+    // (Android refuses a lower versionCode, and only uninstalling would get past it).
+    onVariants(selector().withBuildType("release")) { variant ->
+        variant.outputs.forEach { it.versionCode.set(appVersionCode) }
     }
 }
 

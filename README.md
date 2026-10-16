@@ -54,9 +54,14 @@ Before a change is pushed, the same checks as CI (`.gitea/workflows/ci.yml`) run
 without a signing key). Lint and detekt keep today's findings in `app/lint-baseline.xml` and
 `app/detekt-baseline.xml`: new code has to pass.
 
-Each build's `versionCode` is the number of commits (`git rev-list --count HEAD`), or `-PversionCode=…`
-when given: Android then refuses to install a build over a newer one, whose library database it could
-not open. CI checks out the whole history for it.
+The release's `versionCode` is the number of commits (`git rev-list --count HEAD`), or `-PversionCode=…`
+when given: Android then refuses to install a release over a newer one, whose library database it could
+not open. CI checks out the whole history for it. The debug and `bench` builds stay at 1, so that the
+build of a branch with fewer commits installs over another one; a database a newer branch changed may then
+not open, and clearing the app's data starts it afresh. A debug or `bench` build installed before this rule
+carries a higher `versionCode`, which Android will not go below: once, install the debug APK with
+`adb install -r -d app/build/outputs/apk/debug/app-debug.apk` (a debuggable app may go back, its data
+kept), and uninstall the bench build (`adb uninstall app.houselights.bench`).
 
 ### Signing
 
