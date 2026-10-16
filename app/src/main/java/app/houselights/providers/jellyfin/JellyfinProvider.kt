@@ -33,6 +33,7 @@ import retrofit2.HttpException
 import java.io.IOException
 import java.net.ConnectException
 import java.net.NoRouteToHostException
+import java.net.SocketTimeoutException
 import java.net.UnknownHostException
 import java.util.concurrent.atomic.AtomicLong
 
@@ -217,11 +218,11 @@ class JellyfinProvider(
 
     /**
      * [block], tried again after each of [retryDelaysMs] while it fails in a way that says the server
-     * did not take it: no connection (refused, no route, a name unknown) or the server failing (5xx,
-     * "database is locked" during a scan). Anything else is not tried again: an answer that timed out
-     * may come from a request the server did take, and a second Stopped would count the film twice. A
-     * new playback ([session] no longer the latest) ends the tries: a late Stopped would land after the
-     * next film's Playing, or mark again as watched what the user has just unmarked.
+     * did not take it: no connection (refused or timed out, no route, a name unknown) or the server
+     * failing (5xx, "database is locked" during a scan). Anything else is not tried again: an answer
+     * that timed out may come from a request the server did take, and a second Stopped would count the
+     * film twice. A new playback ([session] no longer the latest) ends the tries: a late Stopped would
+     * land after the next film's Playing, or mark again as watched what the user has just unmarked.
      */
     private suspend fun retried(session: Long, block: suspend () -> Unit) {
         for (wait in retryDelaysMs) {
@@ -245,7 +246,15 @@ class JellyfinProvider(
 
     /** The request never got to the server: it can be sent again without the server taking it twice. */
     private fun IOException.neverReachedTheServer() =
-        this is ConnectException || this is NoRouteToHostException || this is UnknownHostException
+        this is ConnectException || this is NoRouteToHostException || this is UnknownHostException || isConnectTimeout()
+
+    /**
+     * No connection within the timeout (a server or a NAS asleep, a Wi-Fi joining again): Android says
+     * "failed to connect to … after 10000ms", a JVM "Connect timed out". An answer that timed out says
+     * "timeout" or "Read timed out": the server may have taken the request.
+     */
+    private fun IOException.isConnectTimeout() = this is SocketTimeoutException &&
+        message.orEmpty().let { it.startsWith("failed to connect", ignoreCase = true) || it.equals("connect timed out", ignoreCase = true) }
 
     private fun toMedia(dto: BaseItem): MediaItem = mapper.toMedia(dto)
 

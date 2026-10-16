@@ -88,6 +88,21 @@ class JellyfinProviderTest {
         assertEquals(1, server.paths.size)
     }
 
+    /** No connection within the timeout (a server asleep, a Wi-Fi joining again): Stopped never reached it, and is sent again. */
+    @Test
+    fun aConnectionThatTimedOutIsTriedAgain() = runTest {
+        val tries = AtomicInteger()
+        val server = FakeServer {
+            if (tries.incrementAndGet() == 1) {
+                // As Android says it: OkHttp passes it on as it is.
+                throw SocketTimeoutException("failed to connect to /192.168.1.10 (port 8096) from /192.168.1.20 (port 41234) after 10000ms")
+            }
+            Answer(204)
+        }
+        provider(server).reporter("f1|s1")!!.stopped(7_000_000, null)
+        assertEquals(List(2) { "/Sessions/Playing/Stopped" }, server.paths)
+    }
+
     @Test
     fun anAnswerOtherThanTheNetworkFailingIsNotTriedAgain() = runTest {
         val server = FakeServer { throw IOException("Connection reset") }
