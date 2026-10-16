@@ -237,6 +237,17 @@ class KeptConnectionsTest {
         assertTrue(gaveUp)
     }
 
+    /** Leaving the screen while a new password is saved stops the wait: the session signed in with the old one is not kept for all that. */
+    @Test
+    fun aWaitToForgetCutShortKeepsNothing() {
+        val shows = use("nas/shows")
+        var gaveUp = false
+        assertTrue(whileInUse({ gaveUp = runBlocking { withTimeoutOrNull(100) { kept.forget { true } } } == null }, waitMs = 5_000))
+        assertTrue(gaveUp)
+        assertEquals(listOf(false), shows.closes)
+        assertEquals("closed as its operation ended, not kept", listOf(false), made[1].closes)
+    }
+
     /** The pass is over: what it kept closes now, and one in use as its operation ends, without waiting for it. */
     @Test
     fun closingWhatIsIdleWaitsForNoOperation() {

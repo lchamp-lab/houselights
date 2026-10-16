@@ -122,11 +122,11 @@ internal class KeptConnections<C>(
     /**
      * Closes the connections kept for the keys [which] accepts. One in use for such a key is closed
      * as its operation ends, rather than kept; when [closingWaits], this waits for that end, and for
-     * no other key's.
+     * no other key's. Dropped first: a wait cut short (its coroutine cancelled) leaves none kept.
      */
     suspend fun forget(which: (String) -> Boolean) {
-        if (!closingWaits) return drop(which)
-        for (key in operations.keys.filter(which)) operation(key).withLock { drop { it == key } }
+        drop(which)
+        if (closingWaits) for (key in operations.keys.filter(which)) operation(key).withLock { drop { it == key } }
     }
 
     /** Closes every connection kept now, and one in use as its operation ends: a pass is over, and this waits for none. */
