@@ -49,12 +49,15 @@ settings. **Never commit it**: `local.properties` is git-ignored.
 
 To try the app in an Android TV emulator: `scripts/preview.sh`.
 
-Before a change is pushed, the same checks as CI (`.gitea/workflows/ci.yml`) run with
-`./gradlew testDebugUnitTest lintDebug detekt detektDebug detektDebugUnitTest assembleRelease` (add
-`-Phouselights.debugSignedRelease=true` without a signing key). `detekt` reads the sources alone;
-`detektDebug` and `detektDebugUnitTest` add the rules that need the compiler's types (dispatchers, `!!`,
-unsafe casts). Lint and detekt keep today's findings in `app/lint-baseline.xml`, `app/detekt-baseline.xml`,
-`app/detekt-baseline-debug.xml` and `app/detekt-baseline-debugUnitTest.xml`: new code has to pass.
+Before a branch is merged, `scripts/check.sh` runs the checks of CI (`.gitea/workflows/ci.yml`) and builds
+the debug APK: branches are merged locally and only `main` is pushed, so CI sees a branch once it is on
+`main`. It runs `./gradlew testDebugUnitTest lintDebug detekt detektDebug detektDebugUnitTest
+assembleRelease assembleDebug`, the release signed with the debug key without a signing key; on a machine
+short of memory, `scripts/check.sh --heap 2g --workers 2 --in-process --no-daemon` takes CI's settings.
+`detekt` reads the sources alone; `detektDebug` and `detektDebugUnitTest` add the rules that need the
+compiler's types (dispatchers, `!!`, unsafe casts). Lint and detekt keep today's findings in
+`app/lint-baseline.xml`, `app/detekt-baseline.xml`, `app/detekt-baseline-debug.xml` and
+`app/detekt-baseline-debugUnitTest.xml`: new code has to pass.
 
 The release's `versionCode` is the number of commits (`git rev-list --count HEAD`), or `-PversionCode=…`
 when given: Android then refuses to install a release over a newer one, whose library database it could

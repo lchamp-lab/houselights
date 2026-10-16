@@ -30,6 +30,22 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4
 
+      # Robolectric fetches the Android its tests run on (android-all-instrumented, 100 MB) with a
+      # resolver of its own, into ~/.m2, which setup-gradle does not cache: without this, every run
+      # downloads it again, and a slow Maven Central fails the tests. Keyed by Robolectric's version
+      # and the Android version the tests ask for.
+      - name: Robolectric's key
+        id: robolectric
+        run: |
+          version="$(sed -n 's/^robolectric = "\(.*\)"$/\1/p' gradle/libs.versions.toml)"
+          sdk="$(sed -n 's/^sdk=//p' app/src/test/resources/robolectric.properties)"
+          echo "key=robolectric-$version-sdk$sdk" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: ~/.m2/repository/org/robolectric
+          key: ${{ steps.robolectric.outputs.key }}
+
       - name: Tests, lint, detekt, release build
         env:
           TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
