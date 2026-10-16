@@ -54,6 +54,12 @@ internal sealed interface TmdbKeySave {
     data class Failed(val error: UiError) : TmdbKeySave
 }
 
+/**
+ * A TMDB key given to save: the [number]th, as typed ([key]), and how saving it went ([outcome]),
+ * null while TMDB checks it.
+ */
+internal data class TmdbKeyAttempt(val number: Int, val key: String, val outcome: TmdbKeySave? = null)
+
 /** A change made from a row of the settings: its failure is said on that row, where focus is. */
 internal enum class SettingAction {
     FILE_ACCESS,
@@ -115,6 +121,21 @@ internal class SettingsViewModel(
     var savingTmdbKey by mutableStateOf(false)
         private set
 
+    /**
+     * The last TMDB key given to save, and how that went, until a key is typed again ([editTmdbKey]).
+     * The TMDB sheet reads it, never a callback of its own: a sheet opened again while TMDB checks the
+     * key hears how it went, and one closed meanwhile is told nothing.
+     */
+    var tmdbKey by mutableStateOf<TmdbKeyAttempt?>(null)
+        private set
+
+    private var tmdbKeyAttempts = 0
+
+    /** A key is being typed: how the last one went no longer applies. */
+    fun editTmdbKey() {
+        tmdbKey = null
+    }
+
     init {
         refreshStorage()
     }
@@ -166,26 +187,24 @@ internal class SettingsViewModel(
      * Saves a personal TMDB key once TMDB has taken it. A key TMDB refuses is not saved; one it could
      * not check (out of reach) is saved all the same. A blank key goes back to the built-in one. In
      * [work]: TMDB may take some seconds, the sheet may close meanwhile, the key is saved all the same;
-     * [done] hears how it went.
+     * [tmdbKey] says how it went. The attempt's number, or null while another one is under way.
      */
-    fun saveTmdbApiKey(key: String, done: (TmdbKeySave) -> Unit) {
-        if (savingTmdbKey) return
+    fun saveTmdbApiKey(key: String): Int? {
+        if (savingTmdbKey) return null
         savingTmdbKey = true
-        val typed = key.trim()
-        work.launchAction(
-            TAG,
-            "Saving the TMDB key",
-            onError = {
-                savingTmdbKey = false
-                done(TmdbKeySave.Failed(it))
-            },
-            errorOf = Throwable::toWriteError,
-        ) {
-            val check = if (typed.isEmpty()) TmdbKeyCheck.ACCEPTED else checkTmdbKey(typed)
-            if (check != TmdbKeyCheck.REFUSED) store.setTmdbApiKey(typed)
+        val attempt = TmdbKeyAttempt(++tmdbKeyAttempts, key.trim())
+        tmdbKey = attempt
+        fun went(outcome: TmdbKeySave) {
             savingTmdbKey = false
-            done(TmdbKeySave.Checked(check))
+            // A key typed meanwhile is another one: how this one went is not said over it.
+            if (tmdbKey?.number == attempt.number) tmdbKey = attempt.copy(outcome = outcome)
         }
+        work.launchAction(TAG, "Saving the TMDB key", onError = { went(TmdbKeySave.Failed(it)) }, errorOf = Throwable::toWriteError) {
+            val check = if (attempt.key.isEmpty()) TmdbKeyCheck.ACCEPTED else checkTmdbKey(attempt.key)
+            if (check != TmdbKeyCheck.REFUSED) store.setTmdbApiKey(attempt.key)
+            went(TmdbKeySave.Checked(check))
+        }
+        return attempt.number
     }
 
     /**

@@ -196,16 +196,59 @@ class SettingsViewModelTest {
         val store = testSettings(folder.root, backgroundScope)
         val tmdb = CompletableDeferred<TmdbKeyCheck>()
         val vm = settings(store, work = backgroundScope, checkKey = { tmdb.await() })
-        var heard: TmdbKeySave? = null
-        vm.saveTmdbApiKey(" k3y ") { heard = it }
+        vm.saveTmdbApiKey(" k3y ")
         advanceUntilIdle()
         assertTrue(vm.savingTmdbKey)
         screens.clear()
         tmdb.complete(TmdbKeyCheck.ACCEPTED)
         assertEquals("k3y", store.state.first { it.tmdbApiKey != null }.tmdbApiKey)
-        settle { heard != null }
-        assertEquals(TmdbKeySave.Checked(TmdbKeyCheck.ACCEPTED), heard)
+        settle { vm.tmdbKey?.outcome != null }
+        assertEquals(TmdbKeySave.Checked(TmdbKeyCheck.ACCEPTED), vm.tmdbKey?.outcome)
         assertFalse(vm.savingTmdbKey)
+    }
+
+    /**
+     * The sheet closed, then opened again while TMDB checks the key: how it went is the ViewModel's,
+     * which the sheet opened again reads, the key as typed with it, until a key is typed again.
+     */
+    @Test
+    fun howATmdbKeyWentOutlivesItsSheet() = runTest {
+        val store = testSettings(folder.root, backgroundScope)
+        val tmdb = CompletableDeferred<TmdbKeyCheck>()
+        val vm = settings(store, work = backgroundScope, checkKey = { tmdb.await() })
+        val number = vm.saveTmdbApiKey(" k3y ")
+        advanceUntilIdle()
+        assertEquals(TmdbKeyAttempt(number!!, "k3y"), vm.tmdbKey)
+        // A second Save meanwhile, from a sheet opened again, changes nothing.
+        assertNull(vm.saveTmdbApiKey("other"))
+
+        tmdb.complete(TmdbKeyCheck.REFUSED)
+        settle { !vm.savingTmdbKey }
+        assertEquals(TmdbKeyAttempt(number, "k3y", TmdbKeySave.Checked(TmdbKeyCheck.REFUSED)), vm.tmdbKey)
+        assertNull(store.state.value.tmdbApiKey)
+
+        vm.editTmdbKey()
+        assertNull(vm.tmdbKey)
+    }
+
+    /** A key typed while the last one is checked: how that one went is never said over the new one. */
+    @Test
+    fun aKeyTypedMeanwhileIsNotToldHowTheLastOneWent() = runTest {
+        val store = testSettings(folder.root, backgroundScope)
+        val tmdb = CompletableDeferred<TmdbKeyCheck>()
+        val vm = settings(store, work = backgroundScope, checkKey = { tmdb.await() })
+        val first = vm.saveTmdbApiKey("k3y")
+        advanceUntilIdle()
+        vm.editTmdbKey()
+        tmdb.complete(TmdbKeyCheck.REFUSED)
+        settle { !vm.savingTmdbKey }
+        assertNull(vm.tmdbKey)
+
+        // The next one has a number of its own: a sheet waiting on the first never takes it for its own.
+        val second = vm.saveTmdbApiKey("")
+        settle { vm.tmdbKey?.outcome != null }
+        assertTrue(second != first)
+        assertEquals(TmdbKeyAttempt(second!!, "", TmdbKeySave.Checked(TmdbKeyCheck.ACCEPTED)), vm.tmdbKey)
     }
 
     /** The Keystore refuses to seal the key: the sheet says nothing was saved, the app goes on. */
@@ -214,10 +257,9 @@ class SettingsViewModelTest {
         val broken = Secrets { throw ProviderException("Keystore operation failed") }
         val store = testSettings(folder.root, backgroundScope, broken)
         val vm = settings(store, work = backgroundScope)
-        var heard: TmdbKeySave? = null
-        vm.saveTmdbApiKey("k3y") { heard = it }
-        settle { heard != null }
-        assertEquals(TmdbKeySave.Failed(UiError.KEYSTORE), heard)
+        vm.saveTmdbApiKey("k3y")
+        settle { vm.tmdbKey?.outcome != null }
+        assertEquals(TmdbKeySave.Failed(UiError.KEYSTORE), vm.tmdbKey?.outcome)
         assertFalse(vm.savingTmdbKey)
     }
 
