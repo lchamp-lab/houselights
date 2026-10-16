@@ -74,7 +74,8 @@ internal class NfsBrowser(
 
                 override fun folder() = if (file.isDirectory) folder(file) else null
 
-                override fun size() = file.length()
+                // Not length(): it answers 0 for a GETATTR that failed, a file gone or a NAS silent.
+                override fun size() = file.lengthEx()
             }
         }
     }
