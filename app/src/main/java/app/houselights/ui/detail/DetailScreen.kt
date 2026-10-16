@@ -102,6 +102,7 @@ import app.houselights.ui.util.FACT_GAP
 import app.houselights.ui.util.formatDuration
 import app.houselights.ui.util.screenHeight
 import app.houselights.ui.util.skeletonDelayPassed
+import app.houselights.ui.util.UiError
 
 @Composable
 fun DetailScreen(
@@ -187,7 +188,10 @@ fun DetailScreen(
     CompositionLocalProvider(LocalAmbient provides { ambient.value }) {
         Box(
             Modifier.fillMaxSize().onPreviewKeyEvent {
-                if (it.type == KeyEventType.KeyDown && it.key in OK_KEYS) app.playback.clearProblem()
+                if (it.type == KeyEventType.KeyDown && it.key in OK_KEYS) {
+                    app.playback.clearProblem()
+                    vm.clearActionError()
+                }
                 false
             },
         ) {
@@ -212,6 +216,7 @@ fun DetailScreen(
                                 onPlay = onPlay,
                                 onTogglePlayed = vm::togglePlayed,
                                 onToggleFavorite = vm::toggleFavorite,
+                                actionError = state.actionError,
                                 onOpenSeries = { item.seriesId?.let(onOpenItem) },
                                 onOpenNfo = { onOpenNfo(item.id) },
                                 onShowTech = if (media != null) ({ showTech = true }) else null,
@@ -296,6 +301,7 @@ private fun Hero(
     onPlay: (MediaItem, Boolean) -> Unit,
     onTogglePlayed: () -> Unit,
     onToggleFavorite: () -> Unit,
+    actionError: UiError?,
     onOpenSeries: () -> Unit,
     onOpenNfo: () -> Unit,
     onShowTech: (() -> Unit)?,
@@ -351,8 +357,8 @@ private fun Hero(
         Spacer(Modifier.height(HlSpace.xl))
 
         Actions(
-            item, nextUp, capabilities, onPlay, onTogglePlayed, onToggleFavorite, onOpenSeries, onOpenNfo, onShowTech, onEdit,
-            memory, actions,
+            item, nextUp, capabilities, onPlay, onTogglePlayed, onToggleFavorite, actionError, onOpenSeries, onOpenNfo, onShowTech,
+            onEdit, memory, actions,
         )
     }
 }
@@ -369,6 +375,7 @@ private fun Actions(
     onPlay: (MediaItem, Boolean) -> Unit,
     onTogglePlayed: () -> Unit,
     onToggleFavorite: () -> Unit,
+    actionError: UiError?,
     onOpenSeries: () -> Unit,
     onOpenNfo: () -> Unit,
     onShowTech: (() -> Unit)?,
@@ -421,13 +428,15 @@ private fun Actions(
         if (onEdit != null) {
             HlIconButton(HlIcons.Edit, stringResource(R.string.edit), onClick = onEdit, modifier = Modifier.focusKey(EDIT, memory))
         }
-        // Why the last title asked for did not play, beside the actions that asked for it.
-        problem?.let {
+        // Why the last title asked for did not play, or a change did not take, beside the actions
+        // that asked for it.
+        val failure = problem?.let { R.string.play_failed to it } ?: actionError?.let { R.string.action_not_saved to it }
+        failure?.let { (title, error) ->
             HlStatus(
                 StatusState.Attention,
-                stringResource(R.string.play_failed),
+                stringResource(title),
                 Modifier.align(Alignment.CenterVertically).padding(start = HlSpace.m).weight(1f, fill = false),
-                detail = stringResource(it.message),
+                detail = stringResource(error.message),
             )
         }
     }

@@ -3,6 +3,7 @@ package app.houselights
 import android.app.Application
 import android.util.Log
 import app.houselights.core.Http
+import app.houselights.core.LibraryEvents
 import app.houselights.core.LibraryKind
 import app.houselights.core.MediaProvider
 import app.houselights.core.Secrets
@@ -28,6 +29,7 @@ import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
@@ -60,7 +62,7 @@ class HouselightsApp : Application(), ImageLoaderFactory {
 }
 
 /** Manual dependency container, created once per process. */
-class AppContainer(private val app: Application) {
+class AppContainer(private val app: Application) : LibraryEvents {
     /**
      * Work that outlives screens (scans, playback reports). A failure nothing else caught is logged:
      * a background task never takes the app down.
@@ -91,15 +93,18 @@ class AppContainer(private val app: Application) {
 
     private val _libraryVersion = MutableStateFlow(0L)
 
-    /**
-     * Moves on when library data may have changed (playback ended, scan progress), at most every few
-     * seconds. Screens on display reload when it moves; screens behind others when they come back.
-     */
-    val libraryVersion: StateFlow<Long> = _libraryVersion
+    override val libraryVersion: StateFlow<Long> = _libraryVersion
+
+    /** Changes the user made (watched, a favourite), which neither a scan nor playback reports. */
+    private val userChanges = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+
+    override fun libraryChanged() {
+        userChanges.tryEmit(Unit)
+    }
 
     init {
         scope.launch {
-            merge(playback.playbackEnded, scanner.changed)
+            merge(playback.playbackEnded, scanner.changed, userChanges)
                 .throttleLatest(LIBRARY_CHANGE_MS)
                 .collect { _libraryVersion.update { it + 1 } }
         }

@@ -66,7 +66,10 @@ class LibraryViewModel(private val provider: () -> MediaProvider, private val li
 
     private fun loadFacets() {
         viewModelScope.launch {
-            suspendRunCatching { provider().libraryFacets(library) }.onSuccess { f -> _state.update { it.copy(facets = f) } }
+            suspendRunCatching { provider().libraryFacets(library) }
+                .onSuccess { f -> _state.update { it.copy(facets = f) } }
+                // The filter menu keeps what it offered.
+                .onFailure { Log.w(TAG, "Library facets failed", it) }
         }
     }
 

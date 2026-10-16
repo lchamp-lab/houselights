@@ -7,10 +7,12 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import app.houselights.AppContainer
+import app.houselights.core.LibraryEvents
 import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
 import app.houselights.core.MediaProvider
 import app.houselights.core.ProviderCapabilities
+import app.houselights.core.UserState
 import app.houselights.core.suspendRunCatching
 import app.houselights.ui.util.UiError
 import app.houselights.ui.util.toUiError
@@ -38,10 +40,16 @@ data class DetailState(
     val collection: MediaItem? = null,
     /** For a collection: its films; for a film: the other films of its collection. */
     val collectionFilms: List<MediaItem> = emptyList(),
+    /** Why marking the title watched or a favourite did not take, shown beside the actions until the next one. */
+    val actionError: UiError? = null,
 )
 
-/** A title's page, from the [provider] of the source in use. */
-class DetailViewModel(private val itemId: String, private val provider: () -> MediaProvider) : ViewModel() {
+/** A title's page, from the [provider] of the source in use; what it changes, it tells [events]. */
+class DetailViewModel(
+    private val itemId: String,
+    private val provider: () -> MediaProvider,
+    private val events: LibraryEvents,
+) : ViewModel() {
     private val _state = MutableStateFlow(DetailState())
     val state: StateFlow<DetailState> = _state
 
@@ -86,7 +94,11 @@ class DetailViewModel(private val itemId: String, private val provider: () -> Me
                         collectionFilms = saga,
                     )
                 }
-            } }.onSuccess { loaded -> _state.value = loaded.copy(canEdit = loaded.item?.let { provider().editor?.canEdit(it) } == true) }
+            } }.onSuccess { loaded ->
+                val canEdit = loaded.item?.let { provider().editor?.canEdit(it) } == true
+                // A failure said beside the actions stays until the next action.
+                _state.update { loaded.copy(canEdit = canEdit, actionError = it.actionError) }
+            }
                 .onFailure { e ->
                     Log.w(TAG, "Detail of $itemId failed", e)
                     _state.update { it.copy(error = e.toUiError()) }
@@ -106,23 +118,50 @@ class DetailViewModel(private val itemId: String, private val provider: () -> Me
         }
     }
 
-    fun togglePlayed() {
-        val item = _state.value.item ?: return
-        viewModelScope.launch {
-            suspendRunCatching { provider().setPlayed(item, !item.user.played) }.onSuccess { load() }
-        }
+    private var toggleJob: Job? = null
+
+    fun togglePlayed() = toggle("Watched") { item ->
+        val played = !item.user.played
+        provider().setPlayed(item, played)
+        item.user.copy(played = played)
     }
 
-    fun toggleFavorite() {
+    fun toggleFavorite() = toggle("Favorite") { item ->
+        val favorite = !item.user.favorite
+        provider().setFavorite(item, favorite)
+        item.user.copy(favorite = favorite)
+    }
+
+    /** A failure beside the actions is read; the next action clears it. */
+    fun clearActionError() = _state.update { it.copy(actionError = null) }
+
+    /**
+     * Changes where the title stands for the user, one change at a time: a second press while one is
+     * saved does nothing. Once saved, the page shows it at once and loads again; the other screens
+     * reload when they come back. A failure is said beside the actions.
+     */
+    private fun toggle(what: String, change: suspend (MediaItem) -> UserState) {
         val item = _state.value.item ?: return
-        viewModelScope.launch {
-            suspendRunCatching { provider().setFavorite(item, !item.user.favorite) }.onSuccess { load() }
+        if (toggleJob?.isActive == true) return
+        _state.update { it.copy(actionError = null) }
+        toggleJob = viewModelScope.launch {
+            suspendRunCatching { change(item) }
+                .onSuccess { user ->
+                    _state.update { s -> s.copy(item = s.item?.takeIf { it.id == item.id }?.copy(user = user) ?: s.item) }
+                    events.libraryChanged()
+                    // At once: the library's signal may wait a few seconds behind a scan's.
+                    load()
+                }
+                .onFailure { e ->
+                    Log.w(TAG, "$what of $itemId failed", e)
+                    _state.update { it.copy(actionError = e.toUiError()) }
+                }
         }
     }
 
     companion object {
         fun factory(app: AppContainer, itemId: String): ViewModelProvider.Factory = viewModelFactory {
-            initializer { DetailViewModel(itemId, app::provider) }
+            initializer { DetailViewModel(itemId, app::provider, app) }
         }
     }
 }
