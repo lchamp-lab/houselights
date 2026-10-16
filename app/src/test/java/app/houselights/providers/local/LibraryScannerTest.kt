@@ -187,6 +187,25 @@ class LibraryScannerTest {
         assertEquals(listOf("Arrival (2016).mkv", "Dune (2021).mkv"), filePaths())
     }
 
+    /** The app looks again every ten minutes: a pass that lasts longer (a first scan) is not followed by another. */
+    @Test
+    fun aScanUnderWayIsNotFollowedByAnother() = runTest {
+        nas.put("Dune (2021).mkv")
+        var listed = 0
+        nas.onList = { listed++ }
+        // The pass is under way, waiting for the film that plays.
+        playing.value = true
+        scanner.scanAll()
+        playing.subscriptionCount.first { it > 0 }
+        elapsed += TEN_MINUTES
+        scanner.scanIfStale(TEN_MINUTES)
+
+        playing.value = false
+        passes.children.toList().forEach { it.join() }
+        assertEquals("one pass", 1, listed)
+        assertEquals(listOf("Dune (2021).mkv"), filePaths())
+    }
+
     @Test
     fun aScanWaitsWhileTheAppIsAway() = runTest {
         nas.put("Dune (2021).mkv")

@@ -152,11 +152,13 @@ class LibraryScanner(
     private val passes = Passes()
 
     /**
-     * Scans unless the last scan ended less than [maxAgeMs] ago. A NAS cannot tell the app that
-     * files were added, so the app looks again by itself; an incremental scan only lists the
-     * folders and processes what is new, which keeps it light.
+     * Scans unless the last scan ended less than [maxAgeMs] ago, or one is under way. A NAS cannot tell
+     * the app that files were added, so the app looks again by itself; an incremental scan only lists
+     * the folders and processes what is new, which keeps it light. A pass running (a first scan may last
+     * an hour) is not followed by another: the app looks again [maxAgeMs] after it ends.
      */
     fun scanIfStale(maxAgeMs: Long) {
+        if (synchronized(passes) { passes.running }) return
         val end = lastScanEnd
         if (end != null && elapsed() - end < maxAgeMs) return
         scanAll(asked = false)
