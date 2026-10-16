@@ -1,0 +1,112 @@
+package app.houselights.providers.jellyfin
+
+import app.houselights.core.MediaItem
+import app.houselights.core.MediaKind
+import app.houselights.core.SectionType
+import app.houselights.core.SourceConfig
+import kotlinx.coroutines.test.runTest
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
+import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import retrofit2.HttpException
+import java.io.IOException
+import java.util.concurrent.atomic.AtomicInteger
+
+/** The Jellyfin provider against a test server: what it writes, what it reports, how it fails. */
+@RunWith(RobolectricTestRunner::class)
+class JellyfinProviderTest {
+    private val config = SourceConfig.Jellyfin("http://nas:8096", "Maison", "u1", "lea", "token")
+    private val film = MediaItem("f1", MediaKind.MOVIE, "Heat")
+
+    private fun provider(server: FakeServer) = JellyfinProvider(config, "device", server.http, retryDelaysMs = listOf(0, 0, 0))
+
+    /** The HTTP failure [block] ends on; null when it succeeds. */
+    private suspend fun httpFailure(block: suspend () -> Unit): HttpException? = try {
+        block()
+        null
+    } catch (e: HttpException) {
+        e
+    }
+
+    private val views = """{"Items":[{"Id":"lib1","Name":"Films","CollectionType":"movies"}],"TotalRecordCount":1}"""
+    private val oneFilm = """{"Items":[{"Id":"f1","Name":"Heat","Type":"Movie"}],"TotalRecordCount":1}"""
+
+    @Test
+    fun aServerErrorOnWatchedIsAFailure() = runTest {
+        val server = FakeServer { Answer(500) }
+        assertEquals(500, httpFailure { provider(server).setPlayed(film, true) }?.code())
+        assertEquals(listOf("/UserPlayedItems/f1"), server.paths)
+    }
+
+    @Test
+    fun anEmptyAnswerIsASuccess() = runTest {
+        val server = FakeServer { Answer(204) }
+        provider(server).setFavorite(film, true)
+        provider(server).reporter("f1|s1")!!.started(0)
+        assertEquals(listOf("/UserFavoriteItems/f1", "/Sessions/Playing"), server.paths)
+    }
+
+    /** A 500 on Stopped, "database is locked" during a scan, would leave the film unwatched on the server. */
+    @Test
+    fun stoppedIsTriedAgainWhileTheServerFails() = runTest {
+        val tries = AtomicInteger()
+        val server = FakeServer {
+            when (tries.incrementAndGet()) {
+                1 -> Answer(500)
+                2 -> throw IOException("Connection reset")
+                else -> Answer(204)
+            }
+        }
+        provider(server).reporter("f1|s1")!!.stopped(7_000_000, null)
+        assertEquals(List(3) { "/Sessions/Playing/Stopped" }, server.paths)
+    }
+
+    @Test
+    fun stoppedIsTriedThreeTimesMoreThenFails() = runTest {
+        val server = FakeServer { Answer(503) }
+        assertEquals(503, httpFailure { provider(server).reporter("f1|s1")!!.stopped(7_000_000, null) }?.code())
+        assertEquals(4, server.paths.size)
+    }
+
+    @Test
+    fun aRefusedReportIsNotTriedAgain() = runTest {
+        val server = FakeServer { Answer(401) }
+        assertEquals(401, httpFailure { provider(server).reporter("f1|s1")!!.stopped(7_000_000, null) }?.code())
+        assertEquals(1, server.paths.size)
+    }
+
+    @Test
+    fun homeLeavesOutTheRowsThatFailed() = runTest {
+        val server = FakeServer { request ->
+            when (request.url.encodedPath) {
+                "/UserViews" -> Answer(200, views)
+                "/UserItems/Resume" -> Answer(200, oneFilm)
+                else -> Answer(500)
+            }
+        }
+        val home = provider(server).home()
+        assertEquals(listOf(SectionType.CONTINUE), home.map { it.type })
+    }
+
+    /** Every row failing is not a server with nothing on it: home fails, and says why. */
+    @Test
+    fun homeFailsWhenEveryRowFails() = runTest {
+        val server = FakeServer { request -> if (request.url.encodedPath == "/UserViews") Answer(200, views) else Answer(500) }
+        assertEquals(500, httpFailure { provider(server).home() }?.code())
+        assertTrue(server.paths.containsAll(listOf("/UserItems/Resume", "/Shows/NextUp", "/Items/Latest")))
+    }
+
+    @Test
+    fun anEmptyServerIsNotAFailure() = runTest {
+        val server = FakeServer { request ->
+            when (request.url.encodedPath) {
+                "/UserViews" -> Answer(200, views)
+                "/Items/Latest" -> Answer(200, "[]")
+                else -> Answer(200, "{}")
+            }
+        }
+        assertEquals(emptyList<Any>(), provider(server).home())
+    }
+}

@@ -14,8 +14,12 @@ import app.houselights.core.SourceConfig
 import app.houselights.core.suspendRunCatching
 import app.houselights.providers.jellyfin.AuthRequest
 import app.houselights.providers.jellyfin.DiscoveredServer
+import app.houselights.providers.jellyfin.InvalidServerAddress
 import app.houselights.providers.jellyfin.JellyfinClient
 import app.houselights.providers.jellyfin.JellyfinNetwork
+import app.houselights.providers.jellyfin.ReachFailure
+import app.houselights.providers.jellyfin.UnsupportedServer
+import app.houselights.providers.jellyfin.isCertificateFailure
 import app.houselights.settings.SettingsStore
 import app.houselights.settings.SourceSwitcher
 import kotlinx.coroutines.launch
@@ -28,14 +32,48 @@ sealed interface LoginError {
     /** Wrong user name or password. */
     data object Refused : LoginError
 
+    /** No server was given. */
+    data object NoAddress : LoginError
+
+    /** What was typed ([typed]) is not a server address: nothing was asked of the network. */
+    data class InvalidAddress(val typed: String) : LoginError
+
     /** Nothing answered at [address]. */
     data class Unreachable(val address: String) : LoginError
+
+    /** The server at [address] answers, but TLS refuses its certificate. */
+    data class Certificate(val address: String) : LoginError
 
     /** Something answered at [address], but not a Jellyfin server. */
     data class NotJellyfin(val address: String) : LoginError
 
+    /** The server at [address] is a Jellyfin before 10.9 ([version]), or another [product]. */
+    data class Unsupported(val address: String, val product: String?, val version: String?) : LoginError
+
     /** Anything else: the details are in the log. */
     data object Failed : LoginError
+}
+
+private const val HTTP_UNAUTHORIZED = 401
+
+/**
+ * What signing in at [address] (where the server was reached, else what was typed) failed on, in
+ * words the user can act on. A failure to reach the server names the address whose failure says
+ * the most ([ReachFailure]).
+ */
+internal fun loginError(e: Throwable, address: String): LoginError {
+    val reach = e as? ReachFailure
+    val at = reach?.url ?: address
+    val cause = reach?.cause ?: e
+    return when {
+        e is InvalidServerAddress -> if (e.input.isBlank()) LoginError.NoAddress else LoginError.InvalidAddress(e.input)
+        e is UnsupportedServer -> LoginError.Unsupported(e.url, e.product, e.version)
+        cause is HttpException && cause.code() == HTTP_UNAUTHORIZED -> LoginError.Refused
+        cause.isCertificateFailure() -> LoginError.Certificate(at)
+        cause is SerializationException || (reach != null && cause is HttpException) -> LoginError.NotJellyfin(at)
+        cause is IOException -> LoginError.Unreachable(at)
+        else -> LoginError.Failed
+    }
 }
 
 /** Signing in to a Jellyfin server, which becomes the source once [sources] switched to it. */
@@ -85,20 +123,13 @@ class JellyfinLoginViewModel(
                 onLoggedIn()
             }.onFailure { e ->
                 Log.w("Jellyfin", "Sign-in to $address failed", e)
-                error = when {
-                    e is HttpException && e.code() == HTTP_UNAUTHORIZED -> LoginError.Refused
-                    e is SerializationException -> LoginError.NotJellyfin(address)
-                    e is IOException -> LoginError.Unreachable(address)
-                    else -> LoginError.Failed
-                }
+                error = loginError(e, address)
             }
             busy = false
         }
     }
 
     companion object {
-        private const val HTTP_UNAUTHORIZED = 401
-
         fun factory(app: AppContainer): ViewModelProvider.Factory = viewModelFactory {
             initializer { JellyfinLoginViewModel(app.settings, app.sources) }
         }

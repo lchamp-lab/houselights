@@ -200,6 +200,11 @@
     <string name="error_server_unexpected">Le serveur a répondu de façon inattendue. Vérifiez l’adresse, puis réessayez.</string>
     <string name="error_server_unreachable">Rien ne répond à %s. Vérifiez l’adresse et que Jellyfin est démarré.</string>
     <string name="error_not_jellyfin">%s répond, mais ne semble pas être un serveur Jellyfin. Vérifiez l’adresse et le port.</string>
+    <string name="error_server_missing">Saisissez l’adresse du serveur, ou choisissez-en un trouvé sur le réseau.</string>
+    <string name="error_server_address">« %s » n’est pas une adresse de serveur. Saisissez son nom ou son adresse IP, avec son port s’il diffère de celui de Jellyfin.</string>
+    <string name="error_server_certificate">%s répond, mais son certificat est refusé : expiré, auto-signé ou établi pour un autre nom. Renouvelez-le sur le serveur, ou utilisez son adresse http://.</string>
+    <string name="error_server_old">%1$s fonctionne avec Jellyfin %2$s : Houselights demande la version 10.9 ou plus récente. Mettez le serveur à jour, puis réessayez.</string>
+    <string name="error_server_other">%1$s est un serveur %2$s : Houselights fonctionne avec Jellyfin 10.9 ou plus récent.</string>
 
     <string name="settings_title">Réglages</string>
     <string name="welcome_tagline">Vos films, sur grand écran.</string>

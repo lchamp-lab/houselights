@@ -1,6 +1,5 @@
 package app.houselights.providers.jellyfin
 
-import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.DELETE
 import retrofit2.http.GET
@@ -8,7 +7,10 @@ import retrofit2.http.POST
 import retrofit2.http.Path
 import retrofit2.http.Query
 
-/** Subset of the Jellyfin REST API (10.9+ routes). */
+/**
+ * Subset of the Jellyfin REST API (10.9+ routes). A route that writes returns Unit: Retrofit then
+ * throws an HttpException for any answer outside 2xx, which a Response would hide.
+ */
 interface JellyfinApi {
     @GET("System/Info/Public")
     suspend fun publicInfo(): PublicSystemInfo
@@ -18,7 +20,7 @@ interface JellyfinApi {
 
     /** Ends the session of the token in the request: the server forgets it. */
     @POST("Sessions/Logout")
-    suspend fun logout(): Response<Unit>
+    suspend fun logout()
 
     @GET("UserViews")
     suspend fun views(@Query("userId") userId: String): ItemsResult
@@ -98,23 +100,23 @@ interface JellyfinApi {
     ): ItemsResult
 
     @POST("UserPlayedItems/{id}")
-    suspend fun markPlayed(@Path("id") id: String, @Query("userId") userId: String): Response<Unit>
+    suspend fun markPlayed(@Path("id") id: String, @Query("userId") userId: String)
 
     @DELETE("UserPlayedItems/{id}")
-    suspend fun markUnplayed(@Path("id") id: String, @Query("userId") userId: String): Response<Unit>
+    suspend fun markUnplayed(@Path("id") id: String, @Query("userId") userId: String)
 
     @POST("UserFavoriteItems/{id}")
-    suspend fun addFavorite(@Path("id") id: String, @Query("userId") userId: String): Response<Unit>
+    suspend fun addFavorite(@Path("id") id: String, @Query("userId") userId: String)
 
     @DELETE("UserFavoriteItems/{id}")
-    suspend fun removeFavorite(@Path("id") id: String, @Query("userId") userId: String): Response<Unit>
+    suspend fun removeFavorite(@Path("id") id: String, @Query("userId") userId: String)
 
     @POST("Sessions/Playing")
-    suspend fun reportStart(@Body body: PlaybackReport): Response<Unit>
+    suspend fun reportStart(@Body body: PlaybackReport)
 
     @POST("Sessions/Playing/Progress")
-    suspend fun reportProgress(@Body body: PlaybackReport): Response<Unit>
+    suspend fun reportProgress(@Body body: PlaybackReport)
 
     @POST("Sessions/Playing/Stopped")
-    suspend fun reportStopped(@Body body: PlaybackReport): Response<Unit>
+    suspend fun reportStopped(@Body body: PlaybackReport)
 }

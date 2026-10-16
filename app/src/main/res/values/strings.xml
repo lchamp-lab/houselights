@@ -209,6 +209,11 @@
     <string name="error_server_unexpected">The server answered in an unexpected way. Check the address, then try again.</string>
     <string name="error_server_unreachable">Nothing answers at %s. Check the address and that Jellyfin is running.</string>
     <string name="error_not_jellyfin">%s answers, but it doesn’t look like a Jellyfin server. Check the address and port.</string>
+    <string name="error_server_missing">Enter the address of the server, or choose one found on the network.</string>
+    <string name="error_server_address">“%s” is not a server address. Enter its name or IP address, with its port if it isn’t Jellyfin’s.</string>
+    <string name="error_server_certificate">%s answers, but its certificate is refused: expired, self-signed or made out to another name. Renew it on the server, or use its http:// address.</string>
+    <string name="error_server_old">%1$s runs Jellyfin %2$s: Houselights needs version 10.9 or later. Update the server, then try again.</string>
+    <string name="error_server_other">%1$s is a %2$s server: Houselights works with Jellyfin 10.9 or later.</string>
 
     <!-- Settings -->
     <string name="settings_title">Settings</string>

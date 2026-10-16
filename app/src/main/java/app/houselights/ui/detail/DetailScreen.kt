@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -438,18 +439,23 @@ private fun Actions(
         if (onEdit != null) {
             HlIconButton(HlIcons.Edit, stringResource(R.string.edit), onClick = onEdit, modifier = Modifier.focusKey(EDIT, memory))
         }
-        // Why the last title asked for did not play, or a change did not take, beside the actions
-        // that asked for it.
-        val failure = problem?.let { R.string.play_failed to it } ?: actionError?.let { R.string.action_not_saved to it }
-        failure?.let { (title, error) ->
-            HlStatus(
-                StatusState.Attention,
-                stringResource(title),
-                Modifier.align(Alignment.CenterVertically).padding(start = HlSpace.m).weight(1f, fill = false),
-                detail = stringResource(error.message),
-            )
-        }
+        ActionFailure(problem, actionError)
     }
+}
+
+/**
+ * Why the last title asked for did not play ([problem]), or a change did not take ([actionError]),
+ * beside the actions that asked for it.
+ */
+@Composable
+private fun RowScope.ActionFailure(problem: UiError?, actionError: UiError?) {
+    val (title, error) = problem?.let { R.string.play_failed to it } ?: actionError?.let { R.string.action_not_saved to it } ?: return
+    HlStatus(
+        StatusState.Attention,
+        stringResource(title),
+        Modifier.align(Alignment.CenterVertically).padding(start = HlSpace.m).weight(1f, fill = false),
+        detail = stringResource(error.message),
+    )
 }
 
 /**
