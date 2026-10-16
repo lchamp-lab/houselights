@@ -105,6 +105,22 @@ object FilenameParser {
         }
     }
 
+    /** Kodi's stacking suffixes, after a space, a dot, an underscore or a dash: "CD1", "part 2", "pt.3", "disc-b". */
+    private val STACK_PART = Regex("""(?i)^(.+?)[ ._-]+(?:cd|dvd|part|pt|dis[ck])[ ._-]*([1-9]|[a-d])$""")
+
+    /**
+     * Where a file stands in a film split in several files, as Kodi stacks them: the suffix ends its name,
+     * just before the extension ("Film (2020) CD1.avi", "Film (2020) - Part 2.mkv", "film.disc.b.iso"),
+     * its number from 1 to 9 or its letter from a to d (b is the second). Null for any other name: "Dune
+     * Part Two (2024)", "Kill Bill Vol. 1", "Film CD1 [1080p]". A name alone says only that the file may be
+     * a part; [Stacks] makes a film of parts that sit side by side.
+     */
+    fun stackPart(fileName: String): StackPart? {
+        val match = STACK_PART.find(stripExtension(fileName)) ?: return null
+        val mark = match.groupValues[2].lowercase().single()
+        return StackPart(match.groupValues[1], if (mark.isDigit()) mark.digitToInt() else mark - 'a' + 1)
+    }
+
     /** Removes [tags] and {tags}, but keeps a bracketed year: "Title [2024]". */
     private fun dropBrackets(s: String): String =
         BRACKETS.replace(s) { m -> YEAR.matchEntire(m.value.trim('[', ']', '{', '}').trim())?.let { " ${it.value} " } ?: " " }

@@ -233,6 +233,17 @@ interface LibraryDao {
     )
     suspend fun relink(id: Long, filePath: String, fileSize: Long)
 
+    /**
+     * A film's parts after the first ([ItemEntity.parts], as [PipeList] writes them), as its folder lists
+     * them now. A film of one file that becomes one of several is asked for again: it was known by its
+     * first part's name ("Film CD1"), not the film's.
+     */
+    @Query(
+        "UPDATE items SET parts = :parts, " +
+            "matchedAt = CASE WHEN parts = '' AND :parts != '' THEN NULL ELSE matchedAt END WHERE id = :id"
+    )
+    suspend fun setParts(id: Long, parts: String)
+
     @Query("UPDATE items SET missingSince = :since WHERE id IN (:ids)")
     suspend fun setMissingSinceBatch(ids: List<Long>, since: Long?)
 
@@ -249,14 +260,17 @@ interface LibraryDao {
      * transaction: a rename of a whole library is a few thousand rows.
      */
     @Transaction
+    @Suppress("LongParameterList") // One per outcome of [MissingFiles.Outcome].
     suspend fun settleMissing(
         relinked: List<Pair<Long, RemoteFile>>,
         back: List<Long>,
         held: List<Long>,
         removed: List<Long>,
+        parts: List<Pair<Long, List<String>>>,
         now: Long,
     ) {
         relinked.forEach { (id, file) -> relink(id, file.relativePath, file.size) }
+        parts.forEach { (id, files) -> setParts(id, PipeList.toText(files)) }
         setMissingSince(back, null)
         setMissingSince(held, now)
         deleteItems(removed)

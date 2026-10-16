@@ -19,9 +19,11 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
         tmdb: TmdbPass,
         sidecars: Sidecars,
         refreshMetadata: Boolean,
+        /** The film [file] is the first part of, when it is in several files: named without the part, read through its first. */
+        stack: Stack? = null,
     ) {
         val now = System.currentTimeMillis()
-        val parsed = LibraryScanner.parseMovie(file.relativePath)
+        val parsed = LibraryScanner.parseMovie(stack?.namedPath ?: file.relativePath)
         val local = sidecars.forVideo(file)
 
         var item = existing ?: ItemEntity(
@@ -31,6 +33,8 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
             sortTitle = MetadataMerge.sortKey(parsed.title),
             year = parsed.year,
             filePath = file.relativePath,
+            // An existing row's parts follow its folder before it is processed (see MissingFiles).
+            parts = stack?.rest.orEmpty().map { it.relativePath },
             fileSize = file.size,
             badges = FilenameParser.badges(file.relativePath),
             addedAt = now,
@@ -74,7 +78,7 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
      * throws before anything is written.
      */
     suspend fun identify(item: ItemEntity, tmdbId: Int?, tmdb: TmdbClient): suspend () -> Unit {
-        val parsed = LibraryScanner.parseMovie(item.filePath ?: return {})
+        val parsed = item.filmName() ?: return {}
         val nfo = item.nfo?.let(NfoParser::parse)
         val fetched = fetch(TmdbPass(tmdb, strict = true), tmdbId, nfo, refresh = false) { client ->
             if (tmdbId != null) client.movie(tmdbId) else lookupMovie(client, null, nfo, parsed)
