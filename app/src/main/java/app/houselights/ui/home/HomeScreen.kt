@@ -18,7 +18,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -43,6 +42,7 @@ import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.components.HlIconButton
 import app.houselights.ui.design.components.HlSegmented
 import app.houselights.ui.design.components.HlEmptyState
+import app.houselights.ui.design.components.HlErrorState
 import app.houselights.ui.design.HlFocus
 import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.ListScroll
@@ -85,13 +85,14 @@ import app.houselights.ui.design.components.rememberAmbientColor
 import app.houselights.ui.util.ReloadOnLibraryChange
 import app.houselights.ui.util.appContainer
 import app.houselights.ui.util.libraryName
+import app.houselights.ui.util.rememberSettled
+import app.houselights.ui.util.skeletonDelayPassed
 import app.houselights.ui.util.timeLeft
 import app.houselights.ui.util.scanErrorText
 import app.houselights.ui.util.sectionTitle
 import app.houselights.ui.util.ErrorAction
 import app.houselights.ui.util.LocalErrorFix
 import app.houselights.ui.util.UiError
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.StateFlow
 
 @Composable
@@ -111,13 +112,9 @@ fun HomeScreen(
     // The title last selected stays on the screen while focus is on the tabs, and is found again
     // coming back; before any, the first title of the first row, where focus lands.
     var selectedId by rememberSaveable { mutableStateOf<String?>(null) }
-    val selected = remember(selectedId, sections) { selectedTitle(sections, selectedId) }
-    // The backdrop only changes once focus settles: no image load on every scroll step.
-    var shown by remember { mutableStateOf<MediaItem?>(null) }
-    LaunchedEffect(selected) {
-        if (shown != null) delay(HlMotion.SETTLE)
-        shown = selected
-    }
+    // The backdrop only changes once focus settles: no image load on every scroll step. The
+    // selection is read there alone: a step along a row recomposes nothing here.
+    val shown by rememberSettled { selectedTitle(sections, selectedId) }
     val ambient = rememberAmbientColor(shown?.backdrop)
 
     val memory = rememberFocusMemory()
@@ -321,9 +318,13 @@ private const val TRACK = "track"
 /** The key a library's tab is remembered by. */
 private fun trackTab(library: Library) = FocusKey.within(TRACK, FocusKey.tab(library.id))
 
-/** Same footprint as the real rows, so nothing jumps when data arrives. */
+/**
+ * Same footprint as the real rows, so nothing jumps when data arrives; once loading takes long enough
+ * to be seen. Nothing lies below them, so none of the room is kept meanwhile.
+ */
 @Composable
 private fun SkeletonRows() {
+    if (!skeletonDelayPassed()) return
     Column(Modifier.padding(start = HlSpace.safeH, top = HlSpace.xl), verticalArrangement = Arrangement.spacedBy(HlSpace.l)) {
         repeat(2) {
             Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m)) {
@@ -404,7 +405,7 @@ private fun NoRows(
 ) {
     when (content) {
         HomeContent.FirstScan -> FirstScan(progress, modifier)
-        is HomeContent.Failed -> ErrorIntertitle(content.error, onReload, modifier, content.retrying)
+        is HomeContent.Failed -> HlErrorState(content.error, onReload, modifier, content.retrying)
         HomeContent.ReadingFolders -> Unit
         is HomeContent.ScanFailed -> ScanFailed(content.folder, content.error, onRescan, onSettings, modifier)
         is HomeContent.NoFilms -> NoFilms(content.hasFolders, onAddFolder, onSettings, modifier)
@@ -444,35 +445,5 @@ private fun ScanFailed(folder: SourceEntity, error: ScanError, onRescan: () -> U
         onAction = onRescan,
         secondaryAction = stringResource(R.string.home_see_folders),
         onSecondaryAction = onSettings,
-    )
-}
-
-/** An [ErrorIntertitle] where a screen's content would start: on its margin, under its header. */
-@Composable
-fun ErrorMessage(error: UiError, onRetry: () -> Unit, retrying: Boolean = false) {
-    ErrorIntertitle(error, onRetry, Modifier.padding(start = HlSpace.safeH, top = HlSpace.l), retrying)
-}
-
-/**
- * Something could not load: what happened, what to check, and what fixes it, as an intertitle that
- * calls for attention, in place of what would have been shown. Trying again is the screen's own
- * [onRetry]; while it runs ([retrying]) the intertitle stays, its button at work and still focused.
- * The other actions lead where the problem is fixed ([LocalErrorFix]). An error no action fixes
- * leaves the way out to Back.
- */
-@Composable
-fun ErrorIntertitle(error: UiError, onRetry: () -> Unit, modifier: Modifier = Modifier, retrying: Boolean = false) {
-    val action = error.action
-    val fix = LocalErrorFix.current
-    HlEmptyState(
-        stringResource(error.title),
-        modifier,
-        message = stringResource(error.message),
-        attention = true,
-        action = action?.let { stringResource(it.label) },
-        actionIcon = HlIcons.Refresh.takeIf { action == ErrorAction.RETRY },
-        onAction = { if (action == ErrorAction.RETRY) onRetry() else action?.let(fix) },
-        backHint = action == null,
-        busy = stringResource(R.string.retrying).takeIf { retrying && action == ErrorAction.RETRY },
     )
 }

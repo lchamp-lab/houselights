@@ -60,7 +60,7 @@ import app.houselights.ui.util.appContainer
 import app.houselights.ui.util.retainedError
 import app.houselights.ui.util.toPx
 import coil.compose.AsyncImage
-import app.houselights.ui.home.ErrorIntertitle
+import app.houselights.ui.design.components.HlErrorState
 
 /** Matching a title with the right TMDB entry, when automatic matching got it wrong. */
 @Composable
@@ -151,7 +151,7 @@ fun IdentifyScreen(itemId: String, onDone: () -> Unit) {
         val retrying = state.searching || (state.item == null && error == null)
         val failure = retainedError(error?.takeIf { results.isNullOrEmpty() }, retrying)
         when {
-            failure != null -> ErrorIntertitle(failure, vm::retry, retrying = retrying)
+            failure != null -> HlErrorState(failure, vm::retry, retrying = retrying)
             state.identifying -> HlStatus(StatusState.Pending, stringResource(R.string.identifying))
             state.searching -> HlStatus(StatusState.Pending, stringResource(R.string.searching))
             error != null -> HlStatus(StatusState.Attention, stringResource(error.title), detail = stringResource(error.message))

@@ -18,10 +18,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.tv.material3.Text
+import app.houselights.R
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlInset
@@ -31,6 +33,7 @@ import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.components.ChoiceOption
 import app.houselights.ui.design.components.FactRow
 import app.houselights.ui.design.components.FieldLabel
+import app.houselights.ui.design.components.HlChoiceSetting
 import app.houselights.ui.design.components.HlChoiceSheet
 import app.houselights.ui.design.components.HlDivider
 import app.houselights.ui.design.components.HlMenuButton
@@ -46,7 +49,7 @@ import app.houselights.ui.design.components.StatusState
 
 /**
  * Forms and what surrounds them: fields, the status beside a form, panel buttons, menus, choice
- * sheets and long text. HlTwoPane and HlFormScaffold fill the screen: see them on the setup screens.
+ * sheets and the settings that open them, and long text. HlTwoPane and HlFormScaffold fill the screen: see them on the setup screens.
  */
 internal fun LazyListScope.catalogForms() {
     item { Group("Text fields") { FormTextFields() } }
@@ -55,6 +58,7 @@ internal fun LazyListScope.catalogForms() {
     item { Group("Divider", still = true) { FormDividers() } }
     item { Group("Menus") { FormMenus() } }
     item { Group("Choice sheet") { FormChoiceSheet() } }
+    item { Group("Choice setting: the row and its sheet in one") { FormChoiceSettings() } }
     item { Group("Scroll area") { FormScrollAreas() } }
 }
 
@@ -335,6 +339,26 @@ private fun FormChoiceSheet() {
             onDismiss = { choosing = false },
             description = FORM_COLLECTIONS_ABOUT,
         )
+    }
+}
+
+@Composable
+private fun FormChoiceSettings() {
+    var current by remember { mutableIntStateOf(0) }
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Top) {
+        FormCase("its value, the current choice; OK opens the sheet", Modifier.weight(1f)) {
+            HlChoiceSetting("Collections", FORM_COLLECTIONS, current, onSelect = { current = it }, description = FORM_COLLECTIONS_ABOUT)
+        }
+        FormCase("a change that did not take: said in its value", Modifier.weight(1f)) {
+            HlChoiceSetting(
+                "Collections",
+                FORM_COLLECTIONS,
+                current,
+                onSelect = { current = it },
+                description = FORM_COLLECTIONS_ABOUT,
+                attention = stringResource(R.string.action_not_saved),
+            )
+        }
     }
 }
 
