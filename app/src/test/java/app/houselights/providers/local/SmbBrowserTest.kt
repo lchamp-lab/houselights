@@ -177,6 +177,35 @@ class SmbBrowserTest {
         assertEquals(listOf(false), opened[1].closes)
     }
 
+    /** What closing a session asks the NAS, in order, as smbj is asked it: [SmbBrowser.signOff]'s steps, then hanging up. */
+    private fun signOff(broken: Boolean = false, shareFails: Throwable? = null, sessionFails: Throwable? = null): List<String> {
+        val asked = mutableListOf<String>()
+        fun step(what: String, failure: Throwable?): () -> Unit = {
+            asked += what
+            failure?.let { throw it }
+        }
+        SmbBrowser.signOff(broken, listOf("share" to step("share", shareFails), "session" to step("session", sessionFails))) { forced ->
+            asked += if (forced) "hang up, forced" else "hang up"
+        }
+        return asked
+    }
+
+    /** A NAS gone silent (powered off, its address changed by DHCP): each step would wait out the 15 s timeout. */
+    @Test
+    fun aSignOffTheNasDoesNotAnswerHangsUpAtOnce() {
+        val expired = SMBRuntimeException(TransportException(TimeoutException("Timeout expired")))
+        assertEquals(listOf("share", "hang up, forced"), signOff(shareFails = expired))
+        assertEquals(listOf("share", "session", "hang up, forced"), signOff(sessionFails = expired))
+    }
+
+    /** The NAS answered, if only to refuse: it is there, and frees the session when told. */
+    @Test
+    fun aSignOffTheNasRefusesGoesOn() {
+        assertEquals(listOf("share", "session", "hang up"), signOff(shareFails = smbStatus(NtStatus.STATUS_NETWORK_NAME_DELETED)))
+        assertEquals(listOf("share", "session", "hang up"), signOff())
+        assertEquals("nothing asked of a broken connection", listOf("hang up, forced"), signOff(broken = true))
+    }
+
     private companion object {
         const val PASSWORD = "secret"
 

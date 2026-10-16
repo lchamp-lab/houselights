@@ -11,7 +11,7 @@ data class RemoteFile(
 
 /**
  * Videos of a folder, and the files that describe them (NFO, artwork). [unreadable]: its subfolders
- * that could not be read, by path relative to it; what the library holds under them is not gone.
+ * and files that could not be read, by path relative to it; what the library holds there is not gone.
  */
 data class Listing(val videos: List<RemoteFile>, val sidecars: List<RemoteFile>, val unreadable: List<String> = emptyList())
 
@@ -67,36 +67,57 @@ internal interface RemoteEntry {
 
 /**
  * The videos and sidecars under [root], [RemoteBrowser.MAX_DEPTH] folders deep at most. A subfolder
- * that cannot be read (lost+found, a folder of another user) is passed over and named in
- * [Listing.unreadable]. [root] failing, or a failure [isFatal] tells (the NAS gone, the connection
- * broken), fails the listing: what follows could not be read either.
+ * that cannot be read (lost+found, a folder of another user), or an entry that cannot be asked what
+ * it is or its size (a file Radarr replaced between the listing and the question), is passed over and
+ * named in [Listing.unreadable]. [root] failing, or a failure [isFatal] tells (the NAS gone, the
+ * connection broken), fails the listing: what follows could not be read either.
  */
-internal fun walk(root: RemoteFolder, isFatal: (Throwable) -> Boolean): Listing {
+internal fun walk(root: RemoteFolder, isFatal: (Throwable) -> Boolean): Listing =
+    Walk(isFatal).run {
+        visit(root, "", 0)
+        Listing(videos, sidecars, unreadable)
+    }
+
+/** One [walk], and what it found so far. */
+private class Walk(private val isFatal: (Throwable) -> Boolean) {
     val videos = mutableListOf<RemoteFile>()
     val sidecars = mutableListOf<RemoteFile>()
     val unreadable = mutableListOf<String>()
+
     fun visit(folder: RemoteFolder, relative: String, depth: Int) {
         if (depth > RemoteBrowser.MAX_DEPTH) return
         val entries = suspendRunCatching { folder.entries() }.getOrElse { e ->
-            if (relative.isEmpty() || isFatal(e)) throw e
-            Log.w("RemoteBrowser", "Could not read $relative", e)
-            unreadable += relative
+            if (relative.isEmpty()) throw e
+            passOver(relative, e)
             return
         }
         for (entry in entries) {
-            val name = entry.name
-            if (RemoteBrowser.skip(name)) continue
-            val path = if (relative.isEmpty()) name else "$relative/$name"
-            val subfolder = entry.folder()
-            when {
-                subfolder != null -> visit(subfolder, path, depth + 1)
-                RemoteBrowser.isWanted(name) -> videos += RemoteFile(path, entry.size())
-                RemoteBrowser.isSidecar(name) -> sidecars += RemoteFile(path, entry.size())
+            if (RemoteBrowser.skip(entry.name)) continue
+            val path = if (relative.isEmpty()) entry.name else "$relative/${entry.name}"
+            // What an entry is, and its size, may each be a request of their own (an NFS GETATTR).
+            val subfolder = suspendRunCatching { take(entry, path) }.getOrElse { e ->
+                passOver(path, e)
+                null
             }
+            subfolder?.let { visit(it, path, depth + 1) }
         }
     }
-    visit(root, "", 0)
-    return Listing(videos, sidecars, unreadable)
+
+    /** The entry as a folder to walk into; a file is taken among the videos or the sidecars. */
+    private fun take(entry: RemoteEntry, path: String): RemoteFolder? {
+        entry.folder()?.let { return it }
+        when {
+            RemoteBrowser.isWanted(entry.name) -> videos += RemoteFile(path, entry.size())
+            RemoteBrowser.isSidecar(entry.name) -> sidecars += RemoteFile(path, entry.size())
+        }
+        return null
+    }
+
+    private fun passOver(path: String, e: Throwable) {
+        if (isFatal(e)) throw e
+        Log.w("RemoteBrowser", "Could not read $path", e)
+        unreadable += path
+    }
 }
 
 /** Reads until [length] bytes or the end of the stream, straight into the array it returns. */

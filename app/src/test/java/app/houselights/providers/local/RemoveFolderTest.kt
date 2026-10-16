@@ -56,6 +56,25 @@ class RemoveFolderTest {
     }
 
     @Test
+    fun aSeasonTwoFoldersShareMovesToTheOneLeft() = runTest {
+        val hd = bench.folder("Séries", SourceKind.SHOWS)
+        val uhd = bench.folder("Séries 4K", SourceKind.SHOWS, on = uhdNas)
+        bench.showsNas.put("Severance/Season 1/Severance - S01E01.mkv")
+        uhdNas.put("Severance/Season 1/Severance - S01E02 2160p.mkv")
+        bench.scan()
+        val series = checkNotNull(bench.dao.seriesByKey(FilenameParser.showKey("Severance")))
+        val season = checkNotNull(bench.dao.season(series.id, 1))
+        assertEquals("first found in the first folder", hd.id, season.sourceId)
+
+        bench.scanner.removeSource(hd)
+
+        val moved = checkNotNull(bench.dao.season(series.id, 1))
+        assertEquals(season.id, moved.id)
+        assertEquals(uhd.id, moved.sourceId)
+        assertEquals(listOf(2), bench.dao.children(moved.id).map { it.episodeNumber })
+    }
+
+    @Test
     fun aFolderRemovedTakesItsImagesAlong() = runTest {
         val films = bench.folder("Films")
         bench.nas.put("Dune (2021).mp4")

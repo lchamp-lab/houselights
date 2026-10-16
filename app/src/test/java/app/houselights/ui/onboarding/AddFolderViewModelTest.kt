@@ -90,7 +90,7 @@ class AddFolderViewModelTest {
         val artwork = ArtworkCache(context.cacheDir.resolve("artwork"))
         // The scan asked after a save never runs: it would go to the network.
         val idle = CoroutineScope(Job().apply { cancel() })
-        val scanner = LibraryScanner(dao, { null }, idle, artwork, browsers = { FakeRemoteBrowser() })
+        val scanner = LibraryScanner(dao, { null }, idle, artwork, browsers = { FakeRemoteBrowser() }, closeIdle = {})
         library = LocalLibrary(context, dao, scanner, artwork) { folder ->
             network.await()
             forgotten += folder

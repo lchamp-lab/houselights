@@ -9,6 +9,8 @@ import com.emc.ecs.nfsclient.nfs.NfsException
 import com.emc.ecs.nfsclient.nfs.NfsStatus
 import com.emc.ecs.nfsclient.rpc.RpcException
 import com.emc.ecs.nfsclient.rpc.RpcStatus
+import com.hierynomus.protocol.transport.TransportException
+import com.hierynomus.smbj.session.SMB2GuestSigningRequiredException
 import java.io.EOFException
 import java.io.FileNotFoundException
 import java.net.SocketException
@@ -51,9 +53,10 @@ object ScanErrors {
         val text = chain.joinToString(" ") { "${it.javaClass.simpleName} ${it.message}" }
         val kind = when {
             chain.any { it is EmptyFolderException } -> ScanErrorKind.EMPTY
+            chain.any { it is UnreadableFolderException } -> ScanErrorKind.ACCESS_DENIED
             storageFull(chain, text) -> ScanErrorKind.STORAGE_FULL
             noAnswer(chain, text) -> ScanErrorKind.UNREACHABLE
-            text.contains("LOGON_FAILURE") || text.contains("ACCOUNT_") || text.contains("WRONG_PASSWORD") -> ScanErrorKind.LOGIN_FAILED
+            signInRefused(chain, text) -> ScanErrorKind.LOGIN_FAILED
             refused(chain, text) -> ScanErrorKind.ACCESS_DENIED
             missing(chain, text) -> ScanErrorKind.NOT_FOUND
             else -> ScanErrorKind.OTHER
@@ -84,6 +87,16 @@ object ScanErrors {
         } || NO_ANSWER.any { text.contains(it, ignoreCase = true) }
 
     /**
+     * The NAS refused the account, or a guest: smbj 0.14 does not sign in as a guest to a NAS that
+     * requires signing (Windows 11 24H2, recent Synology), as a guest has no key to sign with, and says
+     * so with an exception of its own, or a TransportException once the session asks to sign. Either
+     * way an account is to be entered.
+     */
+    private fun signInRefused(chain: List<Throwable>, text: String): Boolean =
+        text.contains("LOGON_FAILURE") || text.contains("ACCOUNT_") || text.contains("WRONG_PASSWORD") ||
+            chain.any { it is SMB2GuestSigningRequiredException || it is TransportException && it.message == NO_SIGNING_KEY }
+
+    /**
      * The NAS refused the device or the account. nfs-client names a status by its number only: a mount
      * refused says "returned state: 13", a request refused "NfsStatus:13".
      */
@@ -97,6 +110,9 @@ object ScanErrors {
     private fun missing(chain: List<Throwable>, text: String): Boolean =
         chain.any { it is FileNotFoundException || it is MountException && it.status?.value == MountStatus.MNT3ERR_NOENT.value } ||
             MISSING.any { text.contains(it) }
+
+    /** What smbj's Session says when it is to sign a request without a key: signed in as a guest. */
+    private const val NO_SIGNING_KEY = "Message signing is required, but no signing key is negotiated"
 
     private val MOUNT_REFUSED = setOf(MountStatus.MNT3ERR_ACCES.value, MountStatus.MNT3ERR_PERM.value)
     private val NFS_REFUSED = setOf(NfsStatus.NFS3ERR_ACCES.value, NfsStatus.NFS3ERR_PERM.value)

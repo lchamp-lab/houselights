@@ -302,7 +302,7 @@
     <string name="tmdb_key_free">Get a free key at themoviedb.org.</string>
     <string name="tmdb_key_unchecked">Saved without checking: TMDB isn’t answering.</string>
     <string name="tmdb_scan_key_refused">TMDB refused this key during the last scan: titles wait for their details.</string>
-    <string name="tmdb_scan_offline">TMDB didn’t answer during the last scan: titles get their details at the next one.</string>
+    <string name="tmdb_scan_offline">TMDB didn’t answer during the last scan: titles get their details at a later scan.</string>
     <string name="tmdb_key_revert">Back to the built-in key</string>
     <string name="tmdb_key_revert_desc">Houselights forgets your key and uses its own</string>
     <string name="save">Save</string>

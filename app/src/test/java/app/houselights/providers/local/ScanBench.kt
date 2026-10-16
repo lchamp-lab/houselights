@@ -4,8 +4,13 @@ import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import app.houselights.core.Secrets
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.launch
 import java.io.File
+import java.util.concurrent.atomic.AtomicInteger
 import javax.crypto.KeyGenerator
 
 /**
@@ -35,14 +40,28 @@ class ScanBench(artworkDir: File, tmdbKey: Boolean = true) {
 
     val artwork = ArtworkCache(artworkDir) { freeSpace }
 
+    /** A film playing, the app on screen: what a scan waits for. */
+    val playing = MutableStateFlow(false)
+    val started = MutableStateFlow(true)
+
+    /** Times the scanner closed what it kept on the NAS, and what runs when it does. */
+    val closed = AtomicInteger()
+    var onClose: () -> Unit = {}
+
     val scanner = LibraryScanner(
         dao = dao,
         tmdb = { scanClient.takeIf { withTmdb } },
         scope = CoroutineScope(passes),
         artwork = artwork,
+        playing = playing,
         browsers = { own[it.id] ?: if (it.kind == SourceKind.SHOWS) showsNas else nas },
+        closeIdle = {
+            closed.incrementAndGet()
+            onClose()
+        },
         clock = { now },
         interactiveTmdb = { tmdb.client().takeIf { withTmdb } },
+        started = started,
     )
 
     fun close() = db.close()
@@ -64,7 +83,25 @@ class ScanBench(artworkDir: File, tmdbKey: Boolean = true) {
     /** One whole pass, as the app asks for it, waited for. */
     suspend fun scan(refreshMetadata: Boolean = false) {
         scanner.scanAll(refreshMetadata)
-        passes.children.toList().forEach { it.join() }
+        awaitScans()
+    }
+
+    /** A pass the app starts of itself, every few minutes ([LibraryScanner.scanIfStale]), waited for. */
+    suspend fun autoScan() {
+        scanner.scanIfStale(0)
+        awaitScans()
+    }
+
+    /** Waits for the scans under way, such as one the scanner started of itself. */
+    suspend fun awaitScans() = passes.children.toList().forEach { it.join() }
+
+    /** How many times screens are told the library changed while [block] runs. */
+    suspend fun changesDuring(block: suspend () -> Unit): Int = coroutineScope {
+        val changes = AtomicInteger()
+        val watch = launch(Dispatchers.Unconfined) { scanner.changed.collect { changes.incrementAndGet() } }
+        block()
+        watch.cancel()
+        changes.get()
     }
 
     fun error(source: SourceEntity) = scanner.state.value.errors[source.id]?.kind

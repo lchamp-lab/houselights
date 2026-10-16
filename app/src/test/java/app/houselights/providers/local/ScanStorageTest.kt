@@ -13,6 +13,7 @@ import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import java.io.IOException
+import java.net.ConnectException
 
 /** A device out of space stops the scan at once, and says so; nearly out of it, images are not copied. */
 @RunWith(RobolectricTestRunner::class)
@@ -78,6 +79,23 @@ class ScanStorageTest {
     }
 
     @Test
+    fun theFoldersAPassStopsBeforeKeepTheirLastError() = runTest {
+        val films = bench.folder("Films")
+        val shows = bench.folder("Séries", SourceKind.SHOWS)
+        bench.showsNas.listFailure = ConnectException("Connection refused")
+        bench.scan()
+        assertEquals(ScanErrorKind.UNREACHABLE, bench.error(shows))
+
+        nas.put("Dune (2021).mp4")
+        nas.put("Dune (2021)-poster.jpg", size = 100, bytes = ByteArray(100))
+        nas.onRead = { _, _, _ -> throw IOException("write failed: ENOSPC (No space left on device)") }
+        bench.scan()
+
+        assertEquals(ScanErrorKind.STORAGE_FULL, bench.error(films))
+        assertEquals("not read again: as far as the app knows, still off", ScanErrorKind.UNREACHABLE, bench.error(shows))
+    }
+
+    @Test
     fun aDeviceNearlyFullLeavesImagesToTmdb() = runTest {
         val films = bench.folder("Films")
         nas.put("Dune (2021).mp4")
@@ -89,8 +107,10 @@ class ScanStorageTest {
         assertFalse(bench.item(films, "Dune (2021).mp4").posterPath.isCachedArtwork())
         assertNull(bench.error(films))
 
+        assertEquals("tried again, to no avail: screens left as they are", 0, bench.changesDuring { bench.scan() })
+
         bench.freeSpace = Long.MAX_VALUE
-        bench.scan()
+        assertTrue("the poster copied at last", bench.changesDuring { bench.scan() } > 0)
         assertTrue(bench.item(films, "Dune (2021).mp4").posterPath.isCachedArtwork())
     }
 }

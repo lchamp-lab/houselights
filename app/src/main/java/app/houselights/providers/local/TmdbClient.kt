@@ -17,6 +17,9 @@ import okhttp3.ResponseBody.Companion.toResponseBody
 import retrofit2.Retrofit
 import retrofit2.converter.kotlinx.serialization.asConverterFactory
 import java.io.IOException
+import java.net.SocketException
+import java.net.SocketTimeoutException
+import java.net.UnknownHostException
 import java.util.Locale
 import java.util.concurrent.TimeUnit
 
@@ -35,6 +38,12 @@ class TmdbKeyRefusedException : IOException("TMDB refused the API key")
 /** TMDB is busy (429) or behind a failing gateway (502, 503, 504): asked again once, after [retryAfterMs]. */
 internal class TmdbBusyException(code: Int, val retryAfterMs: Long) : TmdbUnreachableException(null, "TMDB answered $code")
 
+/**
+ * Not asked: a scan's client pauses for a minute after the network failed ([TmdbClient]'s
+ * pauseWhenUnreachable). A failure of a moment ago, not a new one: a pass does not count it.
+ */
+internal class TmdbPausedException : TmdbUnreachableException(null, "TMDB is not asked for a minute after it could not be reached")
+
 /** TMDB has no such entry (404); [TmdbClient] says so with a [NotFoundException]. */
 internal class TmdbNotFoundException : IOException("TMDB has no such entry")
 
@@ -51,9 +60,9 @@ enum class TmdbKeyCheck {
 class TmdbClient(
     private val apiKey: String,
     /**
-     * Once TMDB could not be reached, calls fail at once for a while: for scans, whose next files would
-     * each wait for a timeout. Someone asking (a search, artwork, a key to check) is answered by TMDB
-     * itself every time.
+     * Once the network to TMDB failed, or TMDB stayed busy, calls fail at once for a minute
+     * ([TmdbPausedException]): for scans, whose next files would each wait for a timeout. Someone
+     * asking (a search, artwork, a key to check) is answered by TMDB itself every time.
      */
     private val pauseWhenUnreachable: Boolean = false,
     /** Answers in place of the network: TMDB as tests play it. */
@@ -93,8 +102,9 @@ class TmdbClient(
 
     /**
      * Adds the key, and turns what TMDB answers into what it means: a key refused, an entry it does
-     * not have, a moment to wait. A body is read here, within the timeouts that tell TMDB is out of
-     * reach: read later, a stalled answer would pass for a NAS that stopped answering.
+     * not have, a moment to wait. Every body is read here, a failure's too, within the timeouts that
+     * tell TMDB is out of reach: read later by Retrofit, a stalled or reset answer would reach the
+     * scan as is, and pass for a NAS that stopped answering.
      */
     private fun intercept(chain: Interceptor.Chain): Response {
         val response = answer(chain)
@@ -111,21 +121,37 @@ class TmdbClient(
         throw failure
     }
 
-    /** TMDB's answer, its body read; TMDB out of reach throws, and pauses a scan's client. */
+    /**
+     * TMDB's answer, its body read; TMDB out of reach throws. The network failing pauses a scan's
+     * client: the next files would each wait for the same timeout. Any other failure (a stream
+     * reset, an answer too large) tells nothing of the next request.
+     */
     private fun answer(chain: Interceptor.Chain): Response {
-        if (pauseWhenUnreachable && SystemClock.elapsedRealtime() < unreachableUntil) throw TmdbUnreachableException(null)
+        if (pauseWhenUnreachable && SystemClock.elapsedRealtime() < unreachableUntil) throw TmdbPausedException()
         val url = chain.request().url.newBuilder().addQueryParameter("api_key", apiKey).build()
         return try {
-            chain.proceed(chain.request().newBuilder().url(url).build()).let { if (it.isSuccessful) it.buffered() else it }
+            chain.proceed(chain.request().newBuilder().url(url).build()).buffered()
         } catch (e: IOException) {
             // A call given up on (a search replaced, a screen left) says nothing of TMDB.
-            throw if (chain.call().isCanceled()) e else TmdbUnreachableException(e).also { pause() }
+            val canceled = chain.call().isCanceled()
+            if (!canceled && isNetworkFailure(e)) pause()
+            throw if (canceled) e else TmdbUnreachableException(e)
         }
     }
 
+    /** No route, no name, no connection, or no answer in time: ConnectException and NoRouteToHostException are SocketExceptions. */
+    private fun isNetworkFailure(e: Throwable) = generateSequence(e) { it.cause }.any {
+        it is UnknownHostException || it is SocketException || it is SocketTimeoutException
+    }
+
+    /** The response with its body read, [MAX_BODY_BYTES] at most. */
     private fun Response.buffered(): Response {
         val body = body ?: return this
-        val bytes = body.bytes()
+        val bytes = body.use {
+            val source = it.source()
+            if (source.request(MAX_BODY_BYTES + 1)) throw IOException("TMDB answered more than $MAX_BODY_BYTES bytes")
+            source.buffer.readByteArray()
+        }
         return newBuilder().body(bytes.toResponseBody(body.contentType())).build()
     }
 
@@ -175,12 +201,15 @@ class TmdbClient(
         TmdbKeyCheck.UNCHECKED
     }
 
-    /** Best movie match; retries without the year, which is often off by one in file names. */
+    /**
+     * Best movie match; retries without the year, which is often off by one in file names. A hit
+     * TMDB no longer has (its search lags behind an entry removed) is no match.
+     */
     suspend fun findMovie(title: String, year: Int?): TmdbMovie? {
         val hit = call { it.searchMovie(title, year, language) }.results.firstOrNull()
             ?: year?.let { call { it.searchMovie(title, null, language) }.results.firstOrNull() }
             ?: return null
-        return call { it.movie(hit.id, language, imageLanguages) }
+        return unlessMissing { call { it.movie(hit.id, language, imageLanguages) } }
     }
 
     /** null when TMDB has no such film. A network failure throws: it must never read as "not found". */
@@ -214,11 +243,12 @@ class TmdbClient(
         r.movieResults.firstOrNull()?.id to r.tvResults.firstOrNull()?.id
     } ?: (null to null)
 
+    /** As [findMovie], for a show. */
     suspend fun findTv(title: String, year: Int?): TmdbTv? {
         val hit = call { it.searchTv(title, year, language) }.results.firstOrNull()
             ?: year?.let { call { it.searchTv(title, null, language) }.results.firstOrNull() }
             ?: return null
-        return call { it.tv(hit.id, language, imageLanguages) }
+        return unlessMissing { call { it.tv(hit.id, language, imageLanguages) } }
     }
 
     suspend fun season(tvId: Int, season: Int): TmdbSeason? = unlessMissing { call { it.season(tvId, season, language) } }
@@ -256,6 +286,9 @@ class TmdbClient(
         private const val HTTP_TOO_MANY_REQUESTS = 429
         private val GATEWAY_FAILURES = setOf(502, 503, 504)
         private const val UNREACHABLE_PAUSE_MS = 60_000L
+
+        /** The most of an answer held in memory: a film with its cast and images is well under 1 MB. */
+        private const val MAX_BODY_BYTES = 8L * 1024 * 1024
 
         /** The wait before asking again a gateway that failed, and the longest wait a 429 is granted. */
         private const val GATEWAY_RETRY_MS = 1_000L
