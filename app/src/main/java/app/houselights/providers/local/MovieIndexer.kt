@@ -42,10 +42,13 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
         val nfo = kept.info
         // An NFO read again (rewritten in place, the video replaced) asks TMDB only when it names another title or set.
         val newIds = nfo != null && !sameIds(existing?.nfo?.let(NfoParser::parse), nfo)
+        // A film the user matched, beside an NFO naming a title by its IMDb id alone: only TMDB's answer
+        // tells whether the NFO describes the user's choice (see MetadataMerge.describesOther).
+        val undecided = nfo != null && item.userTmdbId != null && nfo.tmdbId == null && nfo.imdbId != null
         // Sidecars that disappeared leave details to TMDB again.
         val sidecarsRemoved = (item.nfoPath != null && local.nfo == null) ||
             (local.poster == null && item.posterPath.isCachedArtwork())
-        val needsTmdb = tmdb.open && (item.matchedAt == null || refreshMetadata || newIds || sidecarsRemoved)
+        val needsTmdb = tmdb.open && (item.matchedAt == null || refreshMetadata || newIds || undecided || sidecarsRemoved)
         // A refresh TMDB cannot be asked for now is not lost: the film is left unmatched (see saveMovie).
         val refreshLeft = refreshMetadata && !tmdb.open && item.matchedAt != null
         val localArt = local.poster != null || local.fanart != null || local.logo != null

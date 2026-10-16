@@ -121,6 +121,31 @@ class ScanSidecarsTest {
         assertEquals(2, bench.item(films, "Disclosure Day.mkv").tmdbId)
     }
 
+    /**
+     * An NFO naming its film by IMDb id alone, beside a film the user matched with another title: only
+     * TMDB's answer tells it describes another film. Read again, it is asked, and its details stay off.
+     */
+    @Test
+    fun anNfoReadAgainStaysOffAFilmTheUserMatchedWithAnother() = runTest {
+        tmdb.movie(1, "Disclosure", 1994, imdbId = "tt0109635")
+        tmdb.movie(2, "Disclosure Day", 2026, imdbId = "tt31227572")
+        val nfo = "<movie><title>Disclosure</title><plot>Seattle, 1994.</plot><id>tt0109635</id></movie>"
+        nas.put("Disclosure Day.mkv")
+        nas.text("Disclosure Day.nfo", nfo, lastModified = T1)
+        bench.scan()
+        val film = bench.item(films, "Disclosure Day.mkv")
+        assertEquals(1, film.tmdbId)
+        bench.scanner.identify(film.id, 2)
+        assertEquals("Disclosure Day", bench.item(films, "Disclosure Day.mkv").title)
+
+        nas.text("Disclosure Day.nfo", nfo, lastModified = T2)
+        bench.scan()
+        val read = bench.item(films, "Disclosure Day.mkv")
+        assertEquals("Disclosure Day", read.title)
+        assertEquals("About Disclosure Day", read.overview)
+        assertEquals(2, read.tmdbId)
+    }
+
     /** Sonarr rewrites an episode's NFO in place: it is read again, not the video, and TMDB's season is not asked again. */
     @Test
     fun anEpisodeNfoRewrittenInPlaceIsReadAgainWithoutTmdb() = runTest {
