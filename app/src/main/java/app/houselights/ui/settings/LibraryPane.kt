@@ -30,6 +30,7 @@ import app.houselights.BuildConfig
 import app.houselights.R
 import app.houselights.core.SourceConfig
 import app.houselights.providers.jellyfin.JellyfinClient
+import app.houselights.providers.local.FolderCounts
 import app.houselights.providers.local.LocalProvider
 import app.houselights.providers.local.ScanError
 import app.houselights.providers.local.ScanErrorKind
@@ -135,6 +136,8 @@ private fun Sources(rows: PaneRows, onEdit: (folderId: Long, focus: FolderField)
     val vm = settingsViewModel()
     val sources by vm.library.folders.collectAsStateWithLifecycle(emptyList())
     val scan by vm.library.scan.collectAsStateWithLifecycle()
+    // Observed once for every card: each write of a scan runs it again.
+    val counts by vm.library.folderCounts.collectAsStateWithLifecycle(emptyMap())
     var actionsFor by remember { mutableStateOf<SourceEntity?>(null) }
     // The folder being removed, and where focus goes once its card has gone.
     var removing by remember { mutableStateOf<Pair<Long, FocusRequester>?>(null) }
@@ -155,6 +158,7 @@ private fun Sources(rows: PaneRows, onEdit: (folderId: Long, focus: FolderField)
             key(source.id) {
                 SourceCard(
                     source,
+                    counts = counts[source.id],
                     scan = scan.takeIf { it.running && it.sourceId == source.id },
                     error = scan.errors[source.id],
                     removeError = vm.errorOf(SettingAction.REMOVE_FOLDER, source.id),
@@ -287,13 +291,14 @@ private fun sourceName(source: SourceEntity) = source.name.replaceFirstChar { it
 
 /**
  * A watched folder, headed by its latest posters from edge to edge (its name, set like a one-sheet,
- * before it has any); then its name and kind, where it lives, and how its last scan went, or the
- * [scan] going on through it. Removing it failed ([removeError]): said there, where focus is back.
- * OK opens its actions.
+ * before it has any); then its name and kind, where it lives, what it holds ([counts], null until
+ * read) and how its last scan went, or the [scan] going on through it. Removing it failed
+ * ([removeError]): said there, where focus is back. OK opens its actions.
  */
 @Composable
 private fun SourceCard(
     source: SourceEntity,
+    counts: FolderCounts?,
     scan: ScanState?,
     error: ScanError?,
     removeError: UiError?,
@@ -302,8 +307,8 @@ private fun SourceCard(
 ) {
     val c = Hl.colors
     val library = settingsViewModel().library
-    val count by remember(source.id) { library.titleCount(source) }.collectAsStateWithLifecycle(0)
-    val ultraHd by remember(source.id) { library.ultraHdCount(source) }.collectAsStateWithLifecycle(0)
+    val count = counts?.titles ?: 0
+    val ultraHd = counts?.ultraHd ?: 0
     val posters by remember(source.id) { library.latestPosters(source, STRIP) }.collectAsStateWithLifecycle(emptyList())
     val kind = stringResource(if (source.kind == SourceKind.MOVIES) R.string.library_movies else R.string.library_shows)
 

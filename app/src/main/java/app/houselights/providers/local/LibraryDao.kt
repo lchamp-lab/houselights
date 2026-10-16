@@ -24,6 +24,9 @@ data class StoredPassword(val id: Long, val password: String) {
     override fun toString() = "StoredPassword($id, ***)"
 }
 
+/** What a folder holds, as its card in the settings says it: films and shows, and files in Ultra HD. */
+data class FolderCounts(val sourceId: Long, val titles: Int, val ultraHd: Int)
+
 @Dao
 interface LibraryDao {
     // Sources
@@ -203,6 +206,18 @@ interface LibraryDao {
     /** Files of a source in Ultra HD (their badges carry the definition token). */
     @Query("SELECT COUNT(*) FROM items WHERE sourceId = :sourceId AND filePath IS NOT NULL AND ('|' || badges || '|') LIKE '%|' || :token || '|%'")
     fun observeDefinitionCount(sourceId: Long, token: String): Flow<Int>
+
+    /**
+     * Per source, its films and shows and its files in Ultra HD (their badges carry [ultraHdToken]):
+     * what the two queries above count, for every source in one query, which each write to the items
+     * runs again.
+     */
+    @Query(
+        "SELECT sourceId, SUM(kind IN ('MOVIE','SERIES')) AS titles, " +
+            "SUM(filePath IS NOT NULL AND ('|' || badges || '|') LIKE '%|' || :ultraHdToken || '|%') AS ultraHd " +
+            "FROM items GROUP BY sourceId"
+    )
+    fun observeFolderCounts(ultraHdToken: String): Flow<List<FolderCounts>>
 
     @RawQuery
     suspend fun query(query: SupportSQLiteQuery): List<ItemEntity>
