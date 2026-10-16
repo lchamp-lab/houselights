@@ -24,6 +24,7 @@ import app.houselights.ui.util.errorOrNull
 import app.houselights.ui.util.loadState
 import app.houselights.ui.util.reloading
 import app.houselights.ui.util.reported
+import app.houselights.ui.util.toUiError
 import app.houselights.ui.util.valueOrNull
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -55,6 +56,9 @@ data class ArtworkState(
 
     /** What takes the place of the choices: why they could not load, or the one chosen be saved. */
     val error: UiError? get() = failure ?: page.errorOrNull
+
+    /** Why TMDB's images are not among the choices, when asking failed or could not be done. */
+    val onlineError: UiError? get() = choices?.onlineError?.toUiError()
 }
 
 /**
