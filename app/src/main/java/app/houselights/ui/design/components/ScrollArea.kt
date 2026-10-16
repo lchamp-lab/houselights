@@ -3,8 +3,6 @@ package app.houselights.ui.design.components
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.ScrollState
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -19,17 +17,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.compositeOver
-import androidx.compose.ui.graphics.drawOutline
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEvent
 import androidx.compose.ui.input.key.KeyEventType
@@ -37,78 +26,51 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.unit.Dp
 import app.houselights.ui.design.Hl
-import app.houselights.ui.design.HlAlpha
-import app.houselights.ui.design.HlFocus
 import app.houselights.ui.design.HlInset
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
-import app.houselights.ui.design.HlSpace
-import app.houselights.ui.design.groundColor
+import app.houselights.ui.design.edge
 import app.houselights.ui.design.groundFill
 import app.houselights.ui.design.groundStep
+import app.houselights.ui.design.groundStepFill
 import app.houselights.ui.design.scrollEdges
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 /**
- * Text or tables longer than the space they have, read with the remote: the area takes focus
- * (outlined in projector white) only when there is something to scroll, and up and down then
- * scroll it until an end, where focus moves on. [framed] sets it on a quiet panel; unframed (in a
- * sheet), its edges are square, so a hairline at its top stays whole, and its focus ring stands
- * outside the content, clear of its text and rules. Where there is more to read, the text fades
- * into [surface], what the area sits on: the quiet panel framed, a raised sheet unframed.
+ * Text or tables longer than the space they have, read with the remote, on a quiet panel: the area
+ * takes focus (outlined in projector white) only when there is something to scroll, and up and
+ * down then scroll it until an end, where focus moves on. Where there is more to read, the text
+ * fades into the panel's fill as it shows.
  */
 @Composable
-fun HlScrollArea(
-    modifier: Modifier = Modifier,
-    framed: Boolean = true,
-    padding: Dp = if (framed) HlInset.card else HlSpace.none,
-    surface: Color = if (framed) groundFill(groundStep()) else groundColor(),
-    content: @Composable BoxScope.() -> Unit,
-) {
+fun HlScrollArea(modifier: Modifier = Modifier, content: @Composable BoxScope.() -> Unit) {
     val scroll = rememberScrollState()
     val scope = rememberCoroutineScope()
     val step = with(LocalDensity.current) { HlSize.scrollStep.toPx() }
     val keys = remember(scroll, scope) { KeyScroll(scroll, scope) }
     var focused by remember { mutableStateOf(false) }
-    val c = Hl.colors
-    val edge = if (framed) {
-        Modifier
-            .clip(HlShapes.panel)
-            .background(c.content.copy(alpha = groundStep()))
-            .border(if (focused) FocusStyle.ring() else BorderStroke(HlSize.hairline, c.outline.copy(alpha = HlAlpha.EDGE)), HlShapes.panel)
-    } else {
-        Modifier.ringOutside(focused, FocusStyle.ringColor()).clipToBounds()
-    }
     Box(
         modifier
             .fillMaxWidth()
-            .then(edge)
+            .panel(HlShapes.panel, groundStepFill(), readingEdge(focused))
             .onFocusChanged { focused = it.isFocused }
             .onKeyEvent { keys.onKey(it, step) }
             .focusProperties { canFocus = scroll.maxValue > 0 }
             .focusable()
-            .scrollEdges(scroll, surface)
+            .scrollEdges(scroll, groundFill(groundStep()))
             .verticalScroll(scroll)
-            .padding(padding),
+            .padding(HlInset.card),
         content = content,
     )
 }
 
-/** The focus ring of an unframed area, drawn a gap outside its bounds, clear of the content. */
-private fun Modifier.ringOutside(shown: Boolean, color: Color): Modifier = drawBehind {
-    if (!shown) return@drawBehind
-    val width = HlSize.focusBorder.toPx()
-    // The middle of the stroke, the ring standing [HlFocus.ring] outside the bounds.
-    val reach = HlFocus.ring.toPx() - width / 2
-    val ring = Size(size.width + reach * 2, size.height + reach * 2)
-    translate(-reach, -reach) {
-        drawOutline(HlShapes.panel.createOutline(ring, layoutDirection, this), color, style = Stroke(width))
-    }
-}
+/** The edge of an area to read: the quiet panel's hairline, the ring of focus while it has it. */
+@Composable
+private fun readingEdge(focused: Boolean): BorderStroke =
+    if (focused) FocusStyle.ring() else BorderStroke(HlSize.hairline, Hl.colors.edge)
 
 /**
  * Up and down scroll one step per press. A key held down adds its steps to where the scroll is

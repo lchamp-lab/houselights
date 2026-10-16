@@ -113,8 +113,6 @@ object HlSize {
     /** An option inside a segmented track: with the track's padding, as tall as a control. */
     val segment = 40.dp
     val focusBorder = 2.dp
-    /** Space between a control and the focus ring drawn around it. */
-    val focusRingGap = 3.dp
     val hairline = 1.dp
 }
 
@@ -286,9 +284,6 @@ object HlFocus {
      * room the container around it keeps.
      */
     fun reach(size: Dp, scale: Float): Dp = size * (scale - 1f) / 2
-
-    /** How far a focus ring stands outside what it surrounds: its gap, then its width. */
-    val ring = HlSize.focusRingGap + HlSize.focusBorder
 
     /**
      * The other cards of a row step back while one of them has focus: darker by this much, and

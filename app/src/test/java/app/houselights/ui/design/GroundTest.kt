@@ -22,6 +22,24 @@ class GroundTest {
         assertEquals(sortedSetOf("Cards.kt", "Color.kt", "Panel.kt", "Sheet.kt"), providers)
     }
 
+    /**
+     * A thing one step up from its ground and the edge of a container are each written once, in
+     * Color.kt (`groundStepFill()`, `HlColors.edge`), so a panel, a field and an area to read
+     * cannot drift apart.
+     */
+    @Test
+    fun theStepAndTheEdgeAreWrittenOnce() {
+        val recipe = Regex("""\.copy\(alpha = (groundStep\(\)|HlAlpha\.EDGE)\)""")
+        val found = ui.walkTopDown().filter { it.isFile && it.extension == "kt" && it.name != "Color.kt" }
+            .flatMap { file ->
+                file.readLines().mapIndexedNotNull { i, line ->
+                    if (recipe.containsMatchIn(line)) "${file.name}:${i + 1}: ${line.trim()}" else null
+                }
+            }
+            .toList()
+        assertTrue("Use groundStepFill() and HlColors.edge:\n" + found.joinToString("\n"), found.isEmpty())
+    }
+
     @Test
     fun noComponentIsToldItIsOnArtwork() {
         val told = ui.walkTopDown().filter { it.isFile && it.extension == "kt" }

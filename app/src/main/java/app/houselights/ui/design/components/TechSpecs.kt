@@ -30,9 +30,7 @@ import androidx.compose.ui.semantics.focused
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.LocalContentColor
-import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
 import app.houselights.R
 import app.houselights.core.BaseRange
@@ -45,7 +43,6 @@ import app.houselights.core.TechTopic
 import app.houselights.core.TechValue
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlInset
-import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.TechSpecsDefaults
@@ -167,10 +164,11 @@ private fun SpecRow(
     stacked: Boolean = false,
 ) {
     val c = Hl.colors
+    // Its focus is read here, for what the row says it is to accessibility services.
     val interaction = remember { MutableInteractionSource() }
     val focused by interaction.collectIsFocusedAsState()
     val line = with(LocalDensity.current) { Hl.type.entry.lineHeight.toDp() }
-    Surface(
+    HlRowSurface(
         onClick = {},
         modifier = modifier
             .fillMaxWidth()
@@ -178,11 +176,8 @@ private fun SpecRow(
                 contentDescription = readAs
                 this.focused = focused
             },
-        shape = ClickableSurfaceDefaults.shape(HlShapes.row),
-        scale = FocusStyle.scale(FocusStyle.Fill.Row),
-        colors = FocusStyle.fill(rest = Color.Transparent, restContent = c.content),
         interactionSource = interaction,
-    ) {
+    ) { _ ->
         val ink = LocalContentColor.current
         val secondary = if (focused) ink else c.contentSecondary
         val quiet = if (focused) c.onFocusSecondary else c.contentTertiary

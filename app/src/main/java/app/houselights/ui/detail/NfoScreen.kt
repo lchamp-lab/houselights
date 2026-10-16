@@ -51,7 +51,7 @@ import app.houselights.R
 import app.houselights.core.NfoInfo
 import app.houselights.core.NfoKind
 import app.houselights.ui.design.Hl
-import app.houselights.ui.design.HlAlpha
+import app.houselights.ui.design.edge
 import app.houselights.ui.design.HlInset
 import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlShapes
@@ -59,6 +59,7 @@ import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.groundFill
 import app.houselights.ui.design.groundStep
+import app.houselights.ui.design.groundStepFill
 import app.houselights.ui.design.scrollEdges
 import app.houselights.ui.design.components.Badge
 import app.houselights.ui.design.components.DefinitionList
@@ -291,8 +292,8 @@ private fun LazyReadingPanel(lineHeight: TextUnit, content: LazyListScope.() -> 
             .height(HlLayout.textPanel)
             .fillMaxWidth()
             .clip(HlShapes.panel)
-            .background(c.content.copy(alpha = groundStep()))
-            .border(if (focused) FocusStyle.ring() else BorderStroke(HlSize.hairline, c.outline.copy(alpha = HlAlpha.EDGE)), HlShapes.panel)
+            .background(groundStepFill())
+            .border(if (focused) FocusStyle.ring() else BorderStroke(HlSize.hairline, c.edge), HlShapes.panel)
             .onFocusChanged { focused = it.isFocused }
             .onKeyEvent { keys.onKey(it, step, line) }
             .focusProperties { canFocus = list.canScrollForward || list.canScrollBackward }
