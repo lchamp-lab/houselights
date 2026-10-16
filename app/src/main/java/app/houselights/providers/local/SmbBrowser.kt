@@ -65,7 +65,7 @@ internal class SmbBrowser(
      * Closes the sessions kept open on [source]'s share, whoever signed in: the folder's address or
      * password changed, and a session opened before must not stand for the new one.
      */
-    fun forget(source: SourceEntity) {
+    suspend fun forget(source: SourceEntity) {
         val share = "/${source.host}/${source.share}"
         sessions.forget { it.endsWith(share) }
     }

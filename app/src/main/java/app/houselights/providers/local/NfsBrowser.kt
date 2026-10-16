@@ -57,7 +57,7 @@ internal class NfsBrowser(
     }
 
     /** Drops the mount of [source]'s export: the folder's address changed. */
-    fun forget(source: SourceEntity) {
+    suspend fun forget(source: SourceEntity) {
         val key = key(source)
         mounts.forget { it == key }
     }
