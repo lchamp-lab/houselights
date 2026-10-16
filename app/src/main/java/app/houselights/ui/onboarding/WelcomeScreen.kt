@@ -109,8 +109,8 @@ fun WelcomeScreen(onLocal: () -> Unit, onJellyfin: () -> Unit, problem: UiError?
 }
 
 /**
- * What the welcome screen says of [problem], the failure of the choice made last: never to look in
- * the settings, which it does not lead to.
+ * What the welcome screen says of [problem], the failure of the choice made last, and the form of the
+ * first folder it leads to: never to look in the settings, which neither leads to.
  */
 @StringRes
 internal fun welcomeProblem(problem: UiError): Int = when (problem) {

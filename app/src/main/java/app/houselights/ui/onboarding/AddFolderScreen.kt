@@ -224,7 +224,8 @@ private fun resultText(check: FolderCheck?, gone: Boolean): String? = if (gone) 
             if (check.same) R.string.folder_already_added else R.string.folder_overlaps,
             check.existing.name.replaceFirstChar { it.uppercase() },
         )
-        is FolderCheck.SaveFailed -> stringResource(check.error.message)
+        // The first folder is added from the welcome screen, before the settings can be reached: never sent there.
+        is FolderCheck.SaveFailed -> stringResource(welcomeProblem(check.error))
     }
 }
 
