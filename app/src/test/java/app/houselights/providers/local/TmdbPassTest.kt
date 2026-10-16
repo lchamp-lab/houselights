@@ -31,6 +31,20 @@ class TmdbPassTest {
     /** The time a film takes to scan, its files read on the NAS. */
     private fun scanned() = ShadowSystemClock.advanceBy(Duration.ofSeconds(5))
 
+    /** A season TMDB did not answer is asked again for the next episode; one it answered, never again in the pass. */
+    @Test
+    fun aSeasonIsKeptOnceAnswered() = runTest {
+        tmdb.show(95396, "Severance", 2022)
+        tmdb.season(95396, 1, episodes = 3)
+        tmdb.nextStatuses += 500
+        val seasons = ShowIndexer.SeasonCache(TmdbPass(client))
+
+        assertEquals(TmdbAnswer.Unanswered, seasons.get(95396, 1))
+        assertEquals(3, seasons.get(95396, 1).value?.episodes?.size)
+        assertEquals(3, seasons.get(95396, 1).value?.episodes?.size)
+        assertEquals("asked twice, then kept", 2, tmdb.requests.size)
+    }
+
     /** First scan of a large library: one timeout on the third film, and TMDB answers again. */
     @Test
     fun oneTimeoutEarlyInAPassLeavesTheLaterFilmsTheirDetails() = runTest {

@@ -264,11 +264,14 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
         }
     }
 
-    /** One TMDB season request per (show, season) during a scan: one TMDB did not answer is not asked again before the next. */
+    /**
+     * One TMDB season request per (show, season) during a scan, once answered. One left unanswered
+     * (TMDB paused, or failing) is asked again for the next episode: the pass's breaker keeps that cheap.
+     */
     class SeasonCache(private val tmdb: TmdbPass) {
-        private val cache = mutableMapOf<Pair<Int, Int>, TmdbAnswer<TmdbSeason>>()
+        private val cache = mutableMapOf<Pair<Int, Int>, TmdbAnswer.Given<TmdbSeason>>()
 
         suspend fun get(tvId: Int, season: Int): TmdbAnswer<TmdbSeason> =
-            cache.getOrPut(tvId to season) { tmdb.ask { it.season(tvId, season) } }
+            cache[tvId to season] ?: tmdb.ask { it.season(tvId, season) }.also { if (it is TmdbAnswer.Given) cache[tvId to season] = it }
     }
 }
