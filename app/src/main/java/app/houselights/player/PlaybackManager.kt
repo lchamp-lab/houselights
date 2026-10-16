@@ -220,10 +220,14 @@ class PlaybackManager(
     /**
      * How long the player may say nothing of the title (no answer, or nothing playing) before the title
      * can no longer be playing: what was left of it at the last status, and [SILENCE_MARGIN_MS] for a
-     * pause or a seek back. Before a first status its length is unknown: [UNHEARD_MAX_MS].
+     * pause or a seek back. Before a first status its length is unknown: [UNHEARD_MAX_MS]. So it is
+     * when a disc has only shown a menu or an intro so far: what was left of it says nothing of the
+     * film to come.
      */
-    private fun Session.silenceAllowedMs(): Long =
-        durationMs?.let { (it - positionMs).coerceAtLeast(0) + SILENCE_MARGIN_MS } ?: UNHEARD_MAX_MS
+    private fun Session.silenceAllowedMs(): Long {
+        val title = durationMs?.takeUnless { disc && it < TITLE_MIN_MS } ?: return UNHEARD_MAX_MS
+        return (title - positionMs).coerceAtLeast(0) + SILENCE_MARGIN_MS
+    }
 
     /**
      * Takes what the player says for the session. A status of another length is another file: the

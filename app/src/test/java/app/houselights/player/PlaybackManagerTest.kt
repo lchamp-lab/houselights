@@ -268,6 +268,22 @@ class PlaybackManagerTest {
         assertFalse(manager.playing.value)
     }
 
+    /**
+     * A disc's 30 s intro, then its menu, where the player's API says no more: what was left of the
+     * intro says nothing of the film to come, which may play for hours.
+     */
+    @Test
+    fun aDiscsIntroDoesNotBoundTheSilenceThatFollows() = runTest {
+        val manager = manager()
+        manager.intentFor(plan("nfs://nas/films/Heat.iso", disc = true))
+        statuses += (4..28 step 2).map { playing(it * 1_000L, durationMs = 30_000) }
+        manager.onPlayerLaunched()
+        advanceTimeBy(2 * 60 * 60_000L)
+        assertTrue(manager.playing.value)
+        advanceTimeBy(2 * 60 * 60_000L + 60_000L)
+        assertFalse(manager.playing.value)
+    }
+
     @Test
     fun aPlayerThatSaysNothingPlaysIsNoLongerFollowed() = runTest {
         val manager = manager()
