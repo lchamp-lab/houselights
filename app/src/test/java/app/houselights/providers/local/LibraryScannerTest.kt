@@ -86,6 +86,7 @@ class LibraryScannerTest {
                     else -> nas
                 }
             },
+            closeIdle = {},
             clock = { now },
             elapsed = { elapsed },
             playing = playing,

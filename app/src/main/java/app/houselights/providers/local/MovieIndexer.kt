@@ -44,7 +44,11 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
         val sidecarsRemoved = (item.nfoPath != null && local.nfo == null) ||
             (local.poster == null && item.posterPath.isCachedArtwork())
         val needsTmdb = tmdb.open && (item.matchedAt == null || refreshMetadata || nfo != null || sidecarsRemoved)
-        if (nfo == null && !needsTmdb && !sidecarsRemoved && local.poster == null && local.fanart == null && local.logo == null) return
+        // A refresh TMDB cannot be asked for now is not lost: the film is left unmatched (see saveMovie).
+        val refreshLeft = refreshMetadata && !tmdb.open && item.matchedAt != null
+        val localArt = local.poster != null || local.fanart != null || local.logo != null
+        val toWrite = nfo != null || needsTmdb || refreshLeft || sidecarsRemoved || localArt
+        if (!toWrite) return
 
         val known = item
         val lookup: (suspend (TmdbClient) -> TmdbMovie?)? =
@@ -105,6 +109,8 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
         val collectionDetails: TmdbAnswer<TmdbCollection>,
         /** What picks the film's certification and logo for the device's region and language. */
         val client: TmdbClient?,
+        /** Asked for a full refresh: unanswered, the film is asked again at a later pass. */
+        val refresh: Boolean,
     ) {
         val movie: TmdbMovie? get() = lookup.value
 
@@ -128,7 +134,7 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
         val nfo = nfoInfo?.takeUnless { MetadataMerge.describesOther(it, userTmdbId, answer.value?.imdbId) }
         val plan = collectionOf(nfo, answer.value, refresh)
         val details = plan?.fetch?.let { id -> tmdb.ask { it.collection(id) } } ?: TmdbAnswer.Unanswered
-        return Fetched(answer, nfo, plan, details, tmdb.client)
+        return Fetched(answer, nfo, plan, details, tmdb.client, refresh)
     }
 
     /** Saves a film's details (see [MetadataMerge]) and its cast. */
@@ -140,8 +146,12 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
         val collectionId = fetched.collection?.let { saveCollection(it, fetched.collectionDetails, now) }
             ?: base.collectionId.takeIf { movie == null }
         val details = movie?.details(tmdb?.movieCertification(movie), tmdb?.pickLogo(movie.images))
-        // Until TMDB answers, the next scans ask it again.
-        val matchedAt = if (fetched.answered) now else base.matchedAt
+        // Until TMDB answers, the next scans ask it again; a refresh it did not answer, too.
+        val matchedAt = when {
+            fetched.answered -> now
+            fetched.refresh -> null
+            else -> base.matchedAt
+        }
         val item = MetadataMerge.merge(base, nfo, details, art).copy(collectionId = collectionId, matchedAt = matchedAt)
             .withNfoStreams(nfoInfo) // What the file contains does not depend on the match.
         dao.saveScanned(item)

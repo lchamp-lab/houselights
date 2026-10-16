@@ -3,6 +3,7 @@ package app.houselights.providers.local
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -39,6 +40,9 @@ class ScanReadsTest {
     /** A lock: the file is being written, and is read again later. */
     private fun locked() = IOException("STATUS_SHARING_VIOLATION (0xc0000043)")
 
+    /** A refusal, as smbj words it: the NAS's last word on the file, until its rights change. */
+    private fun refused() = IOException("STATUS_ACCESS_DENIED (0xc0000022): Create failed")
+
     private fun nfo(title: String) = "<movie><title>$title</title><year>2021</year></movie>".toByteArray()
 
     private fun filmWithItsNfo() {
@@ -61,6 +65,51 @@ class ScanReadsTest {
         bench.scan()
         assertEquals(listOf("Dune (2021).mkv"), nas.reads)
         assertEquals(REMUX_BADGES, bench.item(films, "Dune (2021).mkv").badges)
+    }
+
+    @Test
+    fun aVideoTheNasRefusesIsNotReadAgain() = runTest {
+        // Written by a download client under its own account, with rights the device's has not.
+        nas.put("Dune (2021).mkv", size = 80_000_000_000, bytes = MkvProbeTest().sampleFile())
+        nas.onRead = { _, _, _ -> throw refused() }
+        bench.scan()
+        val dune = bench.item(films, "Dune (2021).mkv")
+        assertEquals("MKV", MediaProbe.decode(dune.mediaInfo)?.container)
+        assertFalse("the NAS's last word", MediaProbe.isStale(dune.mediaInfo))
+
+        nas.reads.clear()
+        assertEquals(0, bench.changesDuring { bench.scan() })
+        assertEquals(emptyList<String>(), nas.reads)
+    }
+
+    @Test
+    fun aVideoRenamedBeforeItIsReadIsReadUnderItsNewName() = runTest {
+        // Radarr renames the film between the listing and the read: the read finds it gone.
+        nas.put("Dune.2021.mkv", size = 80_000_000_000, bytes = MkvProbeTest().sampleFile())
+        nas.onRead = { path, _, _ -> if (path == "Dune.2021.mkv") nas.rename(path, "Dune (2021).mkv") }
+        bench.scan()
+        assertTrue("not the file's last word", MediaProbe.isStale(bench.item(films, "Dune.2021.mkv").mediaInfo))
+
+        // The row follows the file, of the same size, and the file is read there.
+        nas.onRead = null
+        bench.scan()
+        assertEquals(REMUX_BADGES, bench.item(films, "Dune (2021).mkv").badges)
+    }
+
+    @Test
+    fun anNfoTheNasRefusesIsTriedAgainWithoutTellingTheScreens() = runTest {
+        filmWithItsNfo()
+        nas.onRead = { path, _, _ -> if (path.endsWith(".nfo")) throw refused() }
+        bench.scan()
+
+        nas.reads.clear()
+        assertEquals("nothing written, nothing to reload", 0, bench.changesDuring { bench.scan() })
+        assertEquals("tried again", listOf("Dune (2021).nfo"), nas.reads)
+
+        // The right given back on the NAS.
+        nas.onRead = null
+        bench.scan()
+        assertEquals("Dune: Part One", bench.item(films, "Dune (2021).mkv").title)
     }
 
     @Test

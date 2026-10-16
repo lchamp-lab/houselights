@@ -9,7 +9,11 @@ import app.houselights.core.suspendRunCatching
 internal sealed interface TextRead {
     data class Text(val text: String) : TextRead
 
-    /** A lock, a refusal, a timeout: not the file's last word. */
+    /**
+     * A lock, a refusal, a timeout: not the file's last word. Even refused, it is read again at the next
+     * scan (a small read, and the right given back on the NAS is seen at once), but the item keeps what
+     * it had, so the screens are not told of a change.
+     */
     data class Failed(val cause: Throwable) : TextRead
 }
 
