@@ -27,6 +27,20 @@ class MatchRulesTest {
         assertFalse(MetadataMerge.describesOther(linked, userTmdbId = 278, imdbId = "TT0111161"))
         assertTrue(MetadataMerge.describesOther(linked, userTmdbId = 680, imdbId = "tt0110912"))
         assertFalse("unknown: the NFO is kept", MetadataMerge.describesOther(linked, userTmdbId = 680, imdbId = null))
+        assertFalse("TMDB knows of none", MetadataMerge.describesOther(linked, userTmdbId = 680, imdbId = ""))
+    }
+
+    /** A show's NFO by Sonarr: TVDB's id, and IMDb's when TVDB has one. */
+    @Test
+    fun tvdbIdsAreComparedWhenTheNfoHasNeitherTmdbNorImdbId() {
+        val sonarr = NfoInfo(kind = NfoKind.SHOW, title = "The Office (UK)", tvdbId = "78107")
+        assertTrue(MetadataMerge.describesOther(sonarr, userTmdbId = 2316, imdbId = "tt0386676", tvdbId = 73244))
+        assertFalse(MetadataMerge.describesOther(sonarr, userTmdbId = 2996, imdbId = "tt0290978", tvdbId = 78107))
+        assertFalse("unknown: the NFO is kept", MetadataMerge.describesOther(sonarr, userTmdbId = 2316, imdbId = null, tvdbId = null))
+        // The IMDb id tells first.
+        val both = sonarr.copy(imdbId = "tt0290978")
+        assertTrue(MetadataMerge.describesOther(both, userTmdbId = 2316, imdbId = "tt0386676", tvdbId = 78107))
+        assertTrue(MetadataMerge.describesOther(both, userTmdbId = 2316, imdbId = null, tvdbId = 73244))
     }
 
     @Test

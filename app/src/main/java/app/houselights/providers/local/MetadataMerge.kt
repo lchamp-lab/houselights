@@ -129,13 +129,19 @@ object MetadataMerge {
 
     /**
      * True when the NFO names another title than the one the user matched the file with:
-     * it then no longer describes this file.
+     * it then no longer describes this file. Its TMDB id tells; else its IMDb id, else its TVDB id
+     * (a show's NFO by Sonarr often has only those two), against the ones TMDB gives the match
+     * ([imdbId], [tvdbId]). An NFO no id tells of is kept.
      */
-    fun describesOther(nfo: NfoInfo, userTmdbId: Int?, imdbId: String?): Boolean = when {
-        userTmdbId == null -> false
-        nfo.tmdbId != null -> nfo.tmdbId != userTmdbId
-        nfo.imdbId != null && imdbId != null -> !nfo.imdbId.equals(imdbId, ignoreCase = true)
-        else -> false
+    fun describesOther(nfo: NfoInfo, userTmdbId: Int?, imdbId: String?, tvdbId: Int? = null): Boolean {
+        val nfoTvdbId = nfo.tvdbId?.trim()?.toIntOrNull()
+        return when {
+            userTmdbId == null -> false
+            nfo.tmdbId != null -> nfo.tmdbId != userTmdbId
+            nfo.imdbId != null && !imdbId.isNullOrBlank() -> !nfo.imdbId.equals(imdbId, ignoreCase = true)
+            nfoTvdbId != null && tvdbId != null && tvdbId > 0 -> nfoTvdbId != tvdbId
+            else -> false
+        }
     }
 
     /** Only what the file or folder name says: details of a previous match are dropped. */

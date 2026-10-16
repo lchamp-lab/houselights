@@ -203,7 +203,8 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
         refresh: Boolean = false,
     ): ItemEntity {
         val tv = lookup.value
-        val nfo = nfoInfo?.takeUnless { MetadataMerge.describesOther(it, base.userTmdbId, null) }
+        val ids = tv?.externalIds
+        val nfo = nfoInfo?.takeUnless { MetadataMerge.describesOther(it, base.userTmdbId, ids?.imdbId, ids?.tvdbId) }
         val details = tv?.details(tmdb?.tvCertification(tv), tmdb?.pickLogo(tv.images))
         val matchedAt = if (lookup is TmdbAnswer.Given) now else base.matchedAt.takeUnless { refresh }
         val series = MetadataMerge.merge(base, nfo, details, art).copy(matchedAt = matchedAt)
