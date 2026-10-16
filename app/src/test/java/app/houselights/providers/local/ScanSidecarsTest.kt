@@ -146,6 +146,28 @@ class ScanSidecarsTest {
         assertEquals(2, read.tmdbId)
     }
 
+    /**
+     * Version 10 takes the films of sagas whose names gave no key out of them, their sidecars to read again:
+     * their NFO's set gives each its own, even with TMDB not asked (no key, or the films matched already).
+     */
+    @Test
+    fun filmsOutOfAMergedSagaFindTheirOwnFromTheirNfo() = runTest {
+        val sets = mapOf("Ghost in the Shell (1995).mkv" to "攻殻機動隊", "Akira (1988).mkv" to "アキラ")
+        tmdb.movie(9323, "Ghost in the Shell", 1995)
+        tmdb.movie(149, "Akira", 1988)
+        for ((video, set) in sets) {
+            nas.put(video)
+            nas.text(video.replace(".mkv", ".nfo"), "<movie><set><name>$set</name></set></movie>", lastModified = T1)
+        }
+        bench.scan()
+        for (video in sets.keys) bench.item(films, video).let { bench.dao.saveScanned(it.copy(collectionId = null, sidecarKey = null)) }
+
+        val (_, requests, _) = pass()
+        assertEquals(emptyList<String>(), requests)
+        val keys = sets.keys.map { bench.dao.collection(checkNotNull(bench.item(films, it).collectionId))?.matchKey }
+        assertEquals(sets.values.map { "name:$it" }, keys)
+    }
+
     /** Sonarr rewrites an episode's NFO in place: it is read again, not the video, and TMDB's season is not asked again. */
     @Test
     fun anEpisodeNfoRewrittenInPlaceIsReadAgainWithoutTmdb() = runTest {

@@ -83,7 +83,7 @@ abstract class LibraryDatabase : RoomDatabase() {
 
         /**
          * Files holding several episodes, films in several parts, and what was read beside each file.
-         * Sort keys lose their accents and ligatures; films of a saga whose name gave no key are matched again.
+         * Sort keys lose their accents and ligatures; films of a saga whose name gave no key leave it, for their own.
          */
         private val MIGRATION_9_10 = object : Migration(9, 10) {
             override fun migrate(db: SupportSQLiteDatabase) {
@@ -93,11 +93,12 @@ abstract class LibraryDatabase : RoomDatabase() {
                 foldSortKeys(db, "items")
                 foldSortKeys(db, "collections")
                 // Sagas whose names left no word ("Collection", a name in Japanese) were all one: their films
-                // find their own at the next scan with TMDB (see CollectionRules.key), and the one left empty goes.
-                db.execSQL(
-                    "UPDATE items SET matchedAt = NULL WHERE kind = 'MOVIE' " +
-                        "AND collectionId IN (SELECT id FROM collections WHERE matchKey = 'name:')"
-                )
+                // leave it, and find their own at the next scan (see CollectionRules.key), from their NFO's set
+                // (their sidecars are read again, sidecarKey being new) or from TMDB, which is asked again.
+                val merged = "SELECT id FROM collections WHERE matchKey = 'name:'"
+                db.execSQL("UPDATE items SET matchedAt = NULL WHERE kind = 'MOVIE' AND collectionId IN ($merged)")
+                db.execSQL("UPDATE items SET collectionId = NULL WHERE collectionId IN ($merged)")
+                db.execSQL("DELETE FROM collections WHERE matchKey = 'name:'")
             }
         }
 

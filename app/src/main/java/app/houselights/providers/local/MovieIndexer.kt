@@ -64,8 +64,10 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
         val known = item
         val lookup: (suspend (TmdbClient) -> TmdbMovie?)? =
             if (needsTmdb) { client -> lookupMovie(client, known.userTmdbId, nfo, parsed, known = known.tmdbId) } else null
-        // TMDB not asked, and the NFO's set as it was: the film stays in its collection.
-        val fetched = fetch(tmdb, item.userTmdbId, nfo, refreshMetadata, keepCollection = lookup == null && !newIds, lookup = lookup)
+        // TMDB not asked, and the NFO's set as it was: the film stays in its collection. One out of any
+        // (version 10 took it out of a saga whose name gave no key) finds it again from its NFO, without TMDB.
+        val keepCollection = lookup == null && !newIds && item.collectionId != null
+        val fetched = fetch(tmdb, item.userTmdbId, nfo, refreshMetadata, keepCollection = keepCollection, lookup = lookup)
         // Details dropped and none from TMDB: the next scan asks it again.
         if (sidecarsRemoved) {
             item = MetadataMerge.withoutDetails(item, parsed.title, parsed.year)

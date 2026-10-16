@@ -6,6 +6,7 @@ import androidx.test.core.app.ApplicationProvider
 import app.houselights.core.Secrets
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -239,7 +240,10 @@ class MigrationTest {
         }
     }
 
-    /** Two sagas named in Japanese made one, keyed "name:": their films are matched again, to find their own. */
+    /**
+     * Two sagas named in Japanese made one, keyed "name:": their films leave it and are matched again, to
+     * find their own, from their NFO or TMDB. Other sagas stay as they were.
+     */
     @Test
     fun version10MatchesAgainTheFilmsOfSagasWhoseNamesLeftNoWord() = runTest {
         val name = "migration-10-sagas-test.db"
@@ -265,6 +269,9 @@ class MigrationTest {
             .build()
         try {
             assertEquals(listOf(null, null, 500L), (1L..3L).map { checkNotNull(db.dao().item(it)).matchedAt })
+            assertEquals(listOf(null, null, 2L), (1L..3L).map { checkNotNull(db.dao().item(it)).collectionId })
+            assertNull(db.dao().collection(1))
+            assertEquals("tmdb:531241", db.dao().collection(2)?.matchKey)
         } finally {
             db.close()
             context.deleteDatabase(name)
