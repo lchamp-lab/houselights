@@ -50,7 +50,7 @@ private val KINDS = listOf(SourceKind.MOVIES, SourceKind.SHOWS)
 @Composable
 fun AddFolderScreen(folderId: Long?, focusOn: FolderField = FolderField.FIRST, onDone: (switched: Boolean) -> Unit) {
     val app = appContainer()
-    val vm = viewModel { AddFolderViewModel(app, folderId) }
+    val vm: AddFolderViewModel = viewModel(factory = AddFolderViewModel.factory(app, folderId))
     val form = vm.form
     val focus = remember { FormFocus() }
     // Once a folder edited is read: its fields are then laid out (the password only for SMB).

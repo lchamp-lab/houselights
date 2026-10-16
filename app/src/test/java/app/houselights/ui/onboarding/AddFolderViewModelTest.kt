@@ -1,6 +1,7 @@
 package app.houselights.ui.onboarding
 
 import android.content.Context
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.ViewModelStore
 import androidx.lifecycle.viewmodel.initializer
@@ -128,6 +129,7 @@ class AddFolderViewModelTest {
             calls += "use folders"
             true
         },
+        saved: SavedStateHandle = SavedStateHandle(),
     ): AddFolderViewModel {
         val factory = viewModelFactory {
             initializer {
@@ -135,10 +137,56 @@ class AddFolderViewModelTest {
                     library, folderId, app,
                     useFolders = useFolders,
                     probe = probe,
+                    saved = saved,
                 )
             }
         }
         return ViewModelProvider(forms, factory)[AddFolderViewModel::class.java]
+    }
+
+    /** What the platform keeps of [saved] in a new process: plain values only. */
+    private fun afterAStoppedProcess(saved: SavedStateHandle): SavedStateHandle {
+        // The form's ViewModel goes with its process.
+        forms.clear()
+        return SavedStateHandle(saved.keys().associateWith { saved.get<Any?>(it) })
+    }
+
+    /**
+     * Android stopped the app while the NAS's share was looked up in another one: the form comes back
+     * as it was typed, over the last folder added, but for its password, which is never kept.
+     */
+    @Test
+    fun aFolderTypedOutlivesAStoppedProcess() = runTest {
+        smbFolder()
+        val saved = SavedStateHandle()
+        val before = form(null, saved = saved)
+        advanceUntilIdle()
+        before.edit {
+            copy(kind = SourceKind.SHOWS, protocol = Protocol.SMB, host = "192.168.1.30", share = "video", path = "series", user = "lea")
+        }
+        before.edit { copy(password = "secret") }
+        assertFalse("the password is never kept", saved.keys().any { saved.get<Any?>(it) == "secret" })
+
+        val after = form(null, saved = afterAStoppedProcess(saved))
+        advanceUntilIdle()
+        assertEquals(FolderForm(SourceKind.SHOWS, Protocol.SMB, "192.168.1.30", "video", "series", "lea"), after.form)
+    }
+
+    /** A folder edited comes back with the changes typed, not as stored; its password left empty still keeps the stored one. */
+    @Test
+    fun aFolderEditedOutlivesAStoppedProcess() = runTest {
+        val id = smbFolder()
+        val saved = SavedStateHandle()
+        val before = form(id, saved = saved)
+        advanceUntilIdle()
+        before.edit { copy(host = "192.168.1.20") }
+
+        val after = form(id, saved = afterAStoppedProcess(saved))
+        advanceUntilIdle()
+        assertTrue(after.ready)
+        assertEquals("192.168.1.20", after.form.host)
+        assertEquals("films", after.form.path)
+        assertTrue(after.keepsPassword)
     }
 
     @Test

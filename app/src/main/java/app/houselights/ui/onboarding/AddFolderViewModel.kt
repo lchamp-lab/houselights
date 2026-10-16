@@ -6,8 +6,13 @@ import androidx.annotation.StringRes
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
 import app.houselights.AppContainer
 import app.houselights.R
 import app.houselights.core.SourceConfig
@@ -125,7 +130,11 @@ enum class FolderField {
     }
 }
 
-/** Adds a folder, or edits the folder [folderId]: the same form, filled in with it. */
+/**
+ * Adds a folder, or edits the folder [folderId]: the same form, filled in with it. What was typed,
+ * but the password, is kept in [saved]: Android may stop the app while the NAS's address or share is
+ * looked up in another one, and the form comes back as it was left.
+ */
 class AddFolderViewModel(
     private val library: LocalLibrary,
     private val folderId: Long?,
@@ -138,8 +147,9 @@ class AddFolderViewModel(
     private val useFolders: suspend () -> Boolean,
     /** Reads the first level of a folder: how many entries it holds. Throws when it cannot. */
     private val probe: suspend (SourceEntity) -> Int,
+    private val saved: SavedStateHandle = SavedStateHandle(),
 ) : ViewModel() {
-    constructor(app: AppContainer, folderId: Long? = null) : this(
+    constructor(app: AppContainer, folderId: Long?, saved: SavedStateHandle) : this(
         library = app.library,
         folderId = folderId,
         background = app.scope,
@@ -149,9 +159,13 @@ class AddFolderViewModel(
             switched
         },
         probe = { app.remoteBrowsers.of(it).test(it) },
+        saved = saved,
     )
 
-    var form by mutableStateOf(FolderForm())
+    /** The form as typed before Android stopped the app, its password aside; null when there was none. */
+    private val kept: FolderForm? = saved.folderForm()
+
+    var form by mutableStateOf(kept ?: FolderForm())
         private set
     var check by mutableStateOf<FolderCheck?>(null)
         private set
@@ -194,13 +208,13 @@ class AddFolderViewModel(
                 val folder = library.folder(folderId)
                 if (folder != null) {
                     editing = folder
-                    form = FolderForm.of(folder)
+                    form = kept ?: FolderForm.of(folder)
                     keepsPassword = folder.password.value.isNotEmpty()
                 } else {
                     gone = true
                 }
                 ready = true
-            } else {
+            } else if (kept == null) {
                 // A second folder is most often on the same NAS: start from the last one added.
                 library.lastFolder()?.let { last ->
                     form = form.copy(
@@ -218,6 +232,7 @@ class AddFolderViewModel(
     fun edit(change: FolderForm.() -> FolderForm) {
         val before = form
         form = form.change()
+        saved.keep(form)
         check = if (form.protocol != before.protocol) null else check.takeUnless { it is FolderCheck.Reachable }
     }
 
@@ -337,6 +352,46 @@ class AddFolderViewModel(
         testing = false
         return answer.isSuccess
     }
+
+    companion object {
+        fun factory(app: AppContainer, folderId: Long?): ViewModelProvider.Factory = viewModelFactory {
+            initializer { AddFolderViewModel(app, folderId, createSavedStateHandle()) }
+        }
+    }
 }
 
 private const val TAG = "AddFolder"
+
+private const val KIND = "kind"
+private const val PROTOCOL = "protocol"
+private const val HOST = "host"
+private const val SHARE = "share"
+private const val PATH = "path"
+private const val USER = "user"
+
+/**
+ * Kept as plain values, which a saved state holds across a stopped process. Never the password: the
+ * saved state is written to the device in clear.
+ */
+private fun SavedStateHandle.keep(form: FolderForm) {
+    this[KIND] = form.kind.name
+    this[PROTOCOL] = form.protocol.name
+    this[HOST] = form.host
+    this[SHARE] = form.share
+    this[PATH] = form.path
+    this[USER] = form.user
+}
+
+/** The form kept, its password empty; null when none was, or one a newer version wrote no longer reads. */
+private fun SavedStateHandle.folderForm(): FolderForm? {
+    val kind = get<String>(KIND)?.let { name -> SourceKind.entries.find { it.name == name } } ?: return null
+    val protocol = get<String>(PROTOCOL)?.let { name -> Protocol.entries.find { it.name == name } } ?: return null
+    return FolderForm(
+        kind = kind,
+        protocol = protocol,
+        host = get<String>(HOST).orEmpty(),
+        share = get<String>(SHARE).orEmpty(),
+        path = get<String>(PATH).orEmpty(),
+        user = get<String>(USER).orEmpty(),
+    )
+}
