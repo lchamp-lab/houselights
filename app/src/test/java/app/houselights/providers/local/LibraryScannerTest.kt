@@ -363,6 +363,51 @@ class LibraryScannerTest {
         assertEquals("read once", emptyList<String>(), showsNas.reads)
     }
 
+    private suspend fun shareWithPassword(): SourceEntity = checkNotNull(
+        dao.source(
+            dao.insertSource(
+                SourceEntity(
+                    name = "Partage", kind = SourceKind.MOVIES, protocol = Protocol.SMB, host = "nas", share = "media",
+                    path = "films", username = "zidoo", password = Secret("s3cret"),
+                )
+            )
+        )
+    )
+
+    private fun sealedPassword(source: SourceEntity): String =
+        db.openHelper.readableDatabase.query("SELECT password FROM sources WHERE id = ${source.id}").use {
+            check(it.moveToFirst())
+            it.getString(0)
+        }
+
+    @Test
+    fun theEndOfAScanWritesItsTimesAlone() = runTest {
+        val share = shareWithPassword()
+        val sealed = sealedPassword(share)
+        nas.put("Dune (2021).mkv")
+        scan()
+        assertEquals(START to START, checkNotNull(dao.source(share.id)).let { it.lastScanAt to it.firstScanAt })
+
+        now += HOUR
+        scan()
+        val scanned = checkNotNull(dao.source(share.id))
+        assertEquals(START + HOUR to START, scanned.lastScanAt to scanned.firstScanAt)
+        assertEquals("the password is not sealed again", sealed, sealedPassword(share))
+        assertEquals("s3cret", scanned.password.value)
+    }
+
+    @Test
+    fun aFolderEditedDuringAScanKeepsTheEdit() = runTest {
+        val share = shareWithPassword()
+        nas.put("Dune (2021).mkv")
+        // The NAS moved to another address; the user says so while a scan lists the folder.
+        nas.onList = { dao.updateSource(checkNotNull(dao.source(share.id)).copy(host = "192.168.1.20")) }
+        scan()
+        val edited = checkNotNull(dao.source(share.id))
+        assertEquals("192.168.1.20", edited.host)
+        assertEquals(START, edited.lastScanAt)
+    }
+
     private companion object {
         val REMUX_BADGES = listOf("4K", "Dolby Vision", "HDR10", "TrueHD Atmos", "7.1")
         const val ANDROID_9_LIMIT = 999

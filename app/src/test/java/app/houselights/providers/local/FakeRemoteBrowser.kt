@@ -14,6 +14,9 @@ class FakeRemoteBrowser : RemoteBrowser {
     /** Thrown by listings instead of an answer, while set. */
     var listFailure: Throwable? = null
 
+    /** Runs while a listing is under way: what happens on the device during a scan. */
+    var onList: (suspend () -> Unit)? = null
+
     /** Thrown by reads instead of bytes, while set. */
     var readFailure: Throwable? = null
 
@@ -37,6 +40,7 @@ class FakeRemoteBrowser : RemoteBrowser {
 
     override suspend fun list(source: SourceEntity): Listing {
         listFailure?.let { throw it }
+        onList?.invoke()
         val all = files.map { (path, entry) -> RemoteFile(path, entry.size) }
         fun name(file: RemoteFile) = file.relativePath.substringAfterLast('/')
         return Listing(

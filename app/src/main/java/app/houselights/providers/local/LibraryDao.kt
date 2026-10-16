@@ -40,6 +40,13 @@ interface LibraryDao {
     @Query("SELECT * FROM sources WHERE id = :id")
     suspend fun source(id: Long): SourceEntity?
 
+    /**
+     * The end of a scan, written alone: the rest of the folder's row may have changed during the
+     * scan, and writing it again would seal its password again.
+     */
+    @Query("UPDATE sources SET lastScanAt = :at, firstScanAt = CASE WHEN firstScanAt = 0 THEN :at ELSE firstScanAt END WHERE id = :id")
+    suspend fun markScanned(id: Long, at: Long)
+
     // What the user changes is written column by column, so it never overwrites a scan's work.
     // Watched state goes by parent, never by a list of ids: a long show holds thousands of episodes.
 

@@ -257,8 +257,7 @@ class LibraryScanner(
             }
             if (index % 5 == 4) _changed.emit(Unit)
         }
-        val now = clock()
-        dao.updateSource(source.copy(lastScanAt = now, firstScanAt = source.firstScanAt.takeIf { it > 0 } ?: now))
+        dao.markScanned(source.id, clock())
         val changed = missing.removed.isNotEmpty() || todo.isNotEmpty()
         if (changed) _changed.emit(Unit)
         return changed
