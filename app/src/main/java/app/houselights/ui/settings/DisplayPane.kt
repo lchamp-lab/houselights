@@ -92,10 +92,11 @@ private fun InterfaceResolution(s: AppSettings) {
         HlSettingRow(
             stringResource(R.string.ui_resolution),
             value = failure?.value ?: stringResource(if (s.ui4k) R.string.ui_4k else R.string.ui_system),
-            description = failure?.description ?: stringResource(R.string.ui_resolution_desc),
+            description = stringResource(R.string.ui_resolution_desc),
             valueAttention = failure != null,
             onClick = { choose = true },
         )
+        RowFailureNote(failure)
     }
     if (choose) {
         HlChoiceSheet(

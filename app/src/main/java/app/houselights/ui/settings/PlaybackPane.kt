@@ -44,10 +44,11 @@ internal fun LazyListScope.playbackPane(s: AppSettings) {
                 HlSettingRow(
                     stringResource(R.string.file_access),
                     value = failure?.value ?: stringResource(if (s.forceHttp) R.string.http_stream else R.string.network_path),
-                    description = failure?.description ?: stringResource(R.string.playback_desc),
+                    description = stringResource(R.string.playback_desc),
                     valueAttention = failure != null,
                     onClick = { choose = true },
                 )
+                RowFailureNote(failure)
             }
         }
         if (choose) {

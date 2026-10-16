@@ -113,7 +113,7 @@ private fun StorageActions(storage: StorageStats?) {
     HlSettingGroup(null, Modifier.revealOnFocus()) {
         HlSettingRow(
             stringResource(R.string.cleanup_now),
-            description = cleanupFailure?.description ?: stringResource(R.string.cleanup_desc),
+            description = stringResource(R.string.cleanup_desc),
             value = cleanupFailure?.value ?: cleaned,
             valueAttention = cleanupFailure != null,
             onClick = {
@@ -129,9 +129,10 @@ private fun StorageActions(storage: StorageStats?) {
             },
             chevron = false,
         )
+        RowFailureNote(cleanupFailure)
         HlSettingRow(
             stringResource(R.string.clear_image_cache),
-            description = cacheFailure?.description ?: stringResource(R.string.clear_cache_desc),
+            description = stringResource(R.string.clear_cache_desc),
             value = cacheFailure?.value
                 ?: if (cleared) stringResource(R.string.image_cache_cleared) else storage?.let { formatBytes(it.imageCacheBytes) },
             valueAttention = cacheFailure != null,
@@ -140,5 +141,6 @@ private fun StorageActions(storage: StorageStats?) {
             },
             chevron = false,
         )
+        RowFailureNote(cacheFailure)
     }
 }

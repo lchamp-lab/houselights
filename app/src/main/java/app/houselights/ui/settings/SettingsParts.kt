@@ -1,10 +1,16 @@
 package app.houselights.ui.settings
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.res.stringResource
@@ -20,12 +26,14 @@ import android.icu.util.ULocale
 import android.text.format.DateUtils
 import app.houselights.R
 import app.houselights.ui.design.Hl
+import app.houselights.ui.design.HlInset
 import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.FocusKey
 import app.houselights.ui.design.FocusMemory
 import app.houselights.ui.design.focusKey
 import app.houselights.ui.design.revealOnFocus
+import app.houselights.ui.design.components.AttentionNote
 import app.houselights.ui.util.UiError
 
 /**
@@ -57,8 +65,11 @@ internal class PaneRows(private val memory: FocusMemory, private val pane: Strin
     fun requester(row: String): FocusRequester = memory.requester(key(row))
 }
 
-/** What a row says once the change made from it did not take: in its value, lit; why, in its description. */
-internal class RowFailure(val value: String, val description: String)
+/**
+ * What a row says once the change made from it did not take: in its value, lit; why ([reason]), in
+ * full under it ([RowFailureNote]), as a row's description holds two lines, too few for most reasons.
+ */
+internal class RowFailure(val value: String, val reason: String)
 
 /**
  * What a row says of [error], the failure of the change made from it, where focus is: not saved (or,
@@ -67,6 +78,16 @@ internal class RowFailure(val value: String, val description: String)
 @Composable
 internal fun rowFailure(error: UiError?, notDone: Boolean = false): RowFailure? = error?.let {
     RowFailure(stringResource(if (notDone) R.string.action_not_done else R.string.action_not_saved), stringResource(it.message))
+}
+
+/** Why the change made from the row above did not take ([failure]), brought into view as it appears: focus stays on the row. */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+internal fun RowFailureNote(failure: RowFailure?) {
+    if (failure == null) return
+    val reveal = remember { BringIntoViewRequester() }
+    LaunchedEffect(failure.reason) { reveal.bringIntoView() }
+    AttentionNote(failure.reason, Modifier.padding(horizontal = HlInset.card, vertical = HlSpace.xs).bringIntoViewRequester(reveal))
 }
 
 /** A line of explanation under a group, in the reading measure. */

@@ -423,10 +423,11 @@ private fun CollectionsRow() {
     HlSettingRow(
         stringResource(R.string.collections_setting),
         value = failure?.value ?: options[current].second.label,
-        description = failure?.description ?: stringResource(R.string.collections_setting_desc),
+        description = stringResource(R.string.collections_setting_desc),
         valueAttention = failure != null,
         onClick = { choose = true },
     )
+    RowFailureNote(failure)
     if (choose) {
         HlChoiceSheet(
             title = stringResource(R.string.collections_setting),
@@ -452,10 +453,11 @@ private fun SourceRow(onUseFolders: () -> Unit, onSignIn: () -> Unit, modifier: 
         stringResource(R.string.change_source_row),
         modifier,
         value = failure?.value ?: stringResource(if (server) R.string.source_jellyfin else R.string.source_local),
-        description = failure?.description ?: stringResource(sourceKeeps(s.source)),
+        description = stringResource(sourceKeeps(s.source)),
         valueAttention = failure != null,
         onClick = { choose = true },
     )
+    RowFailureNote(failure)
     if (choose) {
         // Both choices open another screen: the sheet closes at once.
         SourceSheet(
