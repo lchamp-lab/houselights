@@ -178,6 +178,9 @@
     <string name="connection_testing">Connexion en cours…</string>
     <string name="connection_ok">Connexion réussie</string>
     <string name="connection_failed">Connexion impossible</string>
+    <string name="folder_gone_state">Dossier introuvable</string>
+    <string name="folder_gone">Ce dossier ne fait plus partie de la bibliothèque : il a été retiré entre-temps. Revenez aux réglages pour l’ajouter à nouveau.</string>
+    <string name="saving">Enregistrement…</string>
     <plurals name="entries_found">
         <item quantity="one">%d élément trouvé</item>
         <item quantity="other">%d éléments trouvés</item>

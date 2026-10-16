@@ -54,20 +54,15 @@ fun AddFolderScreen(folderId: Long?, onDone: (switched: Boolean) -> Unit) {
     val focus = remember { FocusRequester() }
     LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
     val check = vm.check
-    val result = when (check) {
-        null -> null
-        is FolderCheck.Incomplete -> stringResource(check.message)
-        is FolderCheck.Reachable -> pluralStringResource(R.plurals.entries_found, check.entries, check.entries)
-        is FolderCheck.Failed -> scanErrorText(check.error, check.host)
-    }
-    val success = check is FolderCheck.Reachable
+    val result = resultText(check, gone = vm.gone)
+    val success = check is FolderCheck.Reachable && !vm.gone
     val kind = form.kind
     val protocol = form.protocol
 
     // Live preview of the address the player will open, without credentials: the host, then its path.
     val s = form.toSource()
     val folder = "/" + listOf(s.share, s.path).map { it.trim('/') }.filter { it.isNotEmpty() }.joinToString("/")
-    val (state, stateText) = connectionState(check, vm.busy)
+    val (state, stateText) = connectionState(check, testing = vm.testing, gone = vm.gone)
 
     HlFormScaffold(
         title = stringResource(if (vm.edits) R.string.edit_folder else R.string.add_folder),
@@ -79,10 +74,15 @@ fun AddFolderScreen(folderId: Long?, onDone: (switched: Boolean) -> Unit) {
                 label = stringResource(R.string.label_address),
                 value = s.host.ifBlank { stringResource(R.string.placeholder_pending) },
                 detail = folder.takeIf { it.length > 1 },
-                badges = listOf(
-                    protocol.name,
-                    stringResource(if (kind == SourceKind.MOVIES) R.string.library_movies else R.string.library_shows),
-                ),
+                // A folder gone was never read: the form's defaults would pass for its own.
+                badges = if (vm.gone) {
+                    emptyList()
+                } else {
+                    listOf(
+                        protocol.name,
+                        stringResource(if (kind == SourceKind.MOVIES) R.string.library_movies else R.string.library_shows),
+                    )
+                },
                 result = result,
                 resultIsError = !success,
             )
@@ -154,7 +154,8 @@ fun AddFolderScreen(folderId: Long?, onDone: (switched: Boolean) -> Unit) {
 
 /**
  * Add (or Save, for a folder edited), and Test. Both test the folder first: the one pressed says so
- * while the check runs, the other waits.
+ * while the check runs, and Add again while the folder is then written; the other waits. A folder
+ * edited can be saved once read, and never once gone.
  */
 @Composable
 private fun FolderActions(vm: AddFolderViewModel, onDone: (switched: Boolean) -> Unit) {
@@ -171,9 +172,9 @@ private fun FolderActions(vm: AddFolderViewModel, onDone: (switched: Boolean) ->
             },
             icon = if (vm.edits) HlIcons.Check else HlIcons.Add,
             emphasis = Emphasis.Primary,
-            enabled = adding || !busy,
+            enabled = vm.ready && !vm.gone && (adding || !busy),
             busy = busy && adding,
-            busyLabel = checking,
+            busyLabel = if (vm.saving) stringResource(R.string.saving) else checking,
         )
         HlButton(
             stringResource(R.string.test_connection),
@@ -182,10 +183,23 @@ private fun FolderActions(vm: AddFolderViewModel, onDone: (switched: Boolean) ->
                 vm.test()
             },
             icon = HlIcons.Test,
-            enabled = !adding || !busy,
+            enabled = !vm.gone && (!adding || !busy),
             busy = busy && !adding,
             busyLabel = checking,
         )
+    }
+}
+
+/** How the last test went, or why the folder edited cannot be saved: it is [gone]. */
+@Composable
+private fun resultText(check: FolderCheck?, gone: Boolean): String? = if (gone) {
+    stringResource(R.string.folder_gone)
+} else {
+    when (check) {
+        null -> null
+        is FolderCheck.Incomplete -> stringResource(check.message)
+        is FolderCheck.Reachable -> pluralStringResource(R.plurals.entries_found, check.entries, check.entries)
+        is FolderCheck.Failed -> scanErrorText(check.error, check.host)
     }
 }
 
@@ -197,9 +211,10 @@ private fun shareExample(protocol: Protocol): Int =
 private fun pathExample(kind: SourceKind): Int =
     if (kind == SourceKind.SHOWS) R.string.placeholder_path_shows else R.string.placeholder_path_movies
 
-/** Where the connection to the folder stands, and how to say it. */
-private fun connectionState(check: FolderCheck?, busy: Boolean): Pair<StatusState, Int> = when {
-    busy -> StatusState.Pending to R.string.connection_testing
+/** Where the connection to the folder stands, and how to say it; a folder edited may be [gone]. */
+private fun connectionState(check: FolderCheck?, testing: Boolean, gone: Boolean): Pair<StatusState, Int> = when {
+    gone -> StatusState.Attention to R.string.folder_gone_state
+    testing -> StatusState.Pending to R.string.connection_testing
     check is FolderCheck.Reachable -> StatusState.On to R.string.connection_ok
     check is FolderCheck.Failed -> StatusState.Attention to R.string.connection_failed
     else -> StatusState.Off to R.string.connection_untested

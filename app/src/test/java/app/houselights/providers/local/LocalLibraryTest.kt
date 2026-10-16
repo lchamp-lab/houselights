@@ -4,12 +4,18 @@ import android.content.Context
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import app.houselights.core.Secrets
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -23,17 +29,19 @@ class LocalLibraryTest {
     private lateinit var db: LibraryDatabase
     private lateinit var dao: LibraryDao
     private lateinit var library: LocalLibrary
+    private lateinit var context: Context
+    private lateinit var artwork: ArtworkCache
 
     @Before
     fun open() = runBlocking {
-        val context = ApplicationProvider.getApplicationContext<Context>()
+        context = ApplicationProvider.getApplicationContext()
         val key = KeyGenerator.getInstance("AES").apply { init(256) }.generateKey()
         db = Room.inMemoryDatabaseBuilder(context, LibraryDatabase::class.java)
             .addTypeConverter(SecretConverter(Secrets { key }))
             .allowMainThreadQueries()
             .build()
         dao = db.dao()
-        val artwork = ArtworkCache(context.cacheDir.resolve("artwork"))
+        artwork = ArtworkCache(context.cacheDir.resolve("artwork"))
         // The scan asked after an edit never runs: it would go to the network.
         val idle = CoroutineScope(Job().apply { cancel() })
         library = LocalLibrary(context, dao, LibraryScanner(dao, { null }, idle, artwork), artwork)
@@ -60,7 +68,7 @@ class LocalLibraryTest {
             )
         )
 
-        library.updateFolder(id, EDITED)
+        assertTrue(library.updateFolder(id, EDITED))
 
         val edited = dao.source(id)!!
         assertEquals(1, dao.sources().size)
@@ -89,8 +97,37 @@ class LocalLibraryTest {
     fun aFolderRemovedMeanwhileStaysRemoved() = runTest {
         val id = folder()
         dao.removeSource(id)
-        library.updateFolder(id, EDITED)
+        assertFalse("the form hears that nothing was saved", library.updateFolder(id, EDITED))
         assertTrue(dao.sources().isEmpty())
+    }
+
+    @Test
+    fun anEditCutShortStillAsksForAScan() = runTest {
+        val id = folder()
+        val nas = FakeRemoteBrowser()
+        var listings = 0
+        nas.onList = { listings++ }
+        val passes = SupervisorJob()
+        val forgetting = CompletableDeferred<Unit>()
+        val scanning = LocalLibrary(
+            context,
+            dao,
+            LibraryScanner(dao = dao, tmdb = { null }, scope = CoroutineScope(passes), artwork = artwork, browsers = { nas }),
+            artwork,
+            // The session kept on the old address is busy with a listing: closing it waits.
+            forget = {
+                forgetting.complete(Unit)
+                awaitCancellation()
+            },
+        )
+
+        val edit = launch { scanning.updateFolder(id, EDITED) }
+        forgetting.await()
+        edit.cancelAndJoin()
+        passes.children.toList().forEach { it.join() }
+
+        assertEquals("192.168.1.20", dao.source(id)!!.host)
+        assertEquals("the folder at its new address was scanned", 1, listings)
     }
 
     private companion object {
