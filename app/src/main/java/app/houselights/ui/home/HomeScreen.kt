@@ -69,6 +69,7 @@ import app.houselights.ui.design.houseLit
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.LocalAmbient
+import app.houselights.ui.design.components.AttentionNote
 import app.houselights.ui.design.components.Backdrop
 import app.houselights.ui.design.components.BackdropStyle
 import app.houselights.ui.design.components.CardSkeleton
@@ -336,20 +337,43 @@ private fun SkeletonRows() {
 }
 
 /** A folder read for the first time, or a scan going on while home has nothing to show. */
-private fun firstScan(scan: ScanState, empty: Boolean, folders: List<SourceEntity>?): Boolean =
-    scan.running && (empty || folders.orEmpty().any { it.name == scan.sourceName && it.lastScanAt <= 0 })
+internal fun firstScan(scan: ScanState, empty: Boolean, folders: List<SourceEntity>?): Boolean =
+    scan.running && (empty || folders.orEmpty().any { it.id == scan.sourceId && it.lastScanAt <= 0 })
 
-/** The first scan, counted: what is being read, how far it has gone, the file being read. */
+/** The first folder still there whose last scan failed, and why. */
+internal fun failedFolder(errors: Map<Long, ScanError>, folders: List<SourceEntity>): Pair<SourceEntity, ScanError>? =
+    folders.firstNotNullOfOrNull { folder -> errors[folder.id]?.let { folder to it } }
+
+/**
+ * The first scan, counted: what is being read, how far it has gone, the file being read. When TMDB
+ * stopped answering it, titles come from the files alone: said under the counter, with the key to
+ * change when TMDB refused it.
+ */
 @Composable
 private fun FirstScan(scan: ScanState, modifier: Modifier) {
-    ScanProgress(
-        scan.processed,
-        scan.total,
-        modifier,
-        label = stringResource(R.string.home_scanning),
-        current = scan.current,
-        lineWidth = HlLayout.readableNarrow,
+    Column(modifier) {
+        ScanProgress(
+            scan.processed,
+            scan.total,
+            label = stringResource(R.string.home_scanning),
+            current = scan.current,
+            lineWidth = HlLayout.readableNarrow,
+        )
+        scan.tmdbIssue?.let { TmdbIssue(it) }
+    }
+}
+
+@Composable
+private fun TmdbIssue(issue: UiError) {
+    val fix = LocalErrorFix.current
+    Spacer(Modifier.height(HlSpace.m))
+    AttentionNote(
+        stringResource(if (issue == UiError.TMDB_KEY_REFUSED) R.string.home_scan_tmdb_refused else R.string.home_scan_tmdb_offline),
+        Modifier.widthIn(max = HlLayout.readableNarrow),
     )
+    val action = issue.action?.takeIf { it == ErrorAction.EDIT_TMDB_KEY } ?: return
+    Spacer(Modifier.height(HlSpace.m))
+    HlButton(stringResource(action.label), onClick = { fix(action) })
 }
 
 /** No rows and nothing loading: a failure, a scan that failed, or a library still empty. */
@@ -364,12 +388,13 @@ private fun NoRows(
     onAddFolder: () -> Unit,
     modifier: Modifier,
 ) {
+    val failed = failedFolder(scan.errors, folders.orEmpty())
     when {
         state.error != null -> ErrorIntertitle(state.error, onReload, modifier)
         // Folders are still being read: nothing to say about them yet.
         local && folders == null -> Unit
         // Not "add a folder" when there is one: its scan failed, and it says why.
-        local && scan.errors.isNotEmpty() -> ScanFailed(scan.errors, folders.orEmpty(), onSettings, modifier)
+        local && failed != null -> ScanFailed(failed, onSettings, modifier)
         local -> NoFilms(folders.orEmpty(), onAddFolder, onSettings, modifier)
         else -> HlEmptyState(stringResource(R.string.empty_title), modifier, message = stringResource(R.string.empty_server))
     }
@@ -395,13 +420,13 @@ private fun NoFilms(folders: List<SourceEntity>, onAddFolder: () -> Unit, onSett
 
 /** Nothing to show because the folders could not be read: why, a way to scan again, and the folders. */
 @Composable
-private fun ScanFailed(errors: Map<String, ScanError>, folders: List<SourceEntity>, onSettings: () -> Unit, modifier: Modifier) {
+private fun ScanFailed(failed: Pair<SourceEntity, ScanError>, onSettings: () -> Unit, modifier: Modifier) {
     val library = appContainer().library
-    val (name, error) = errors.entries.first()
+    val (folder, error) = failed
     HlEmptyState(
         stringResource(R.string.home_scan_failed),
         modifier,
-        message = scanErrorText(error, folders.firstOrNull { it.name == name }?.host ?: name),
+        message = scanErrorText(error, folder.host),
         attention = true,
         action = stringResource(R.string.retry),
         actionIcon = HlIcons.Refresh,

@@ -26,7 +26,7 @@ enum class ScanErrorKind {
     /** Listed without a single video while the library holds some: nothing was removed. */
     EMPTY,
 
-    /** The player's own storage is full: the NAS is not to blame, and every file would fail the same way. */
+    /** The device has no space left: the database or the artwork could not be written. The pass stops. */
     STORAGE_FULL,
     OTHER,
 }

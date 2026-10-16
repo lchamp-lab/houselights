@@ -3,7 +3,12 @@ package app.houselights.providers.local
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import app.houselights.core.Secrets
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
@@ -34,8 +39,18 @@ class LibraryScannerTest {
     private lateinit var scanner: LibraryScanner
     private val nas = FakeRemoteBrowser()
     private val showsNas = FakeRemoteBrowser()
+
+    /** Another NAS, at another address ([OTHER_HOST]). */
+    private val otherNas = FakeRemoteBrowser()
     private val passes = SupervisorJob()
     private var now = START
+
+    /** Since the device started: a second in. */
+    private var elapsed = 1_000L
+
+    /** A film playing, the app on screen. */
+    private val playing = MutableStateFlow(false)
+    private val started = MutableStateFlow(true)
 
     /** The most values one statement bound. */
     private val widest = AtomicInteger()
@@ -64,8 +79,17 @@ class LibraryScannerTest {
             tmdb = { null },
             scope = CoroutineScope(passes),
             artwork = ArtworkCache(temp.newFolder("artwork")),
-            browsers = { if (it.kind == SourceKind.SHOWS) showsNas else nas },
+            browsers = {
+                when {
+                    it.host == OTHER_HOST -> otherNas
+                    it.kind == SourceKind.SHOWS -> showsNas
+                    else -> nas
+                }
+            },
             clock = { now },
+            elapsed = { elapsed },
+            playing = playing,
+            started = started,
         )
         films = folder("Films", SourceKind.MOVIES)
     }
@@ -73,10 +97,10 @@ class LibraryScannerTest {
     @After
     fun close() = db.close()
 
-    private suspend fun folder(name: String, kind: SourceKind): SourceEntity {
+    private suspend fun folder(name: String, kind: SourceKind, host: String = "nas"): SourceEntity {
         val id = dao.insertSource(
             SourceEntity(
-                name = name, kind = kind, protocol = Protocol.NFS, host = "nas", share = "media", path = name.lowercase(),
+                name = name, kind = kind, protocol = Protocol.NFS, host = host, share = "media", path = name.lowercase(),
                 username = "", password = Secret(""),
             )
         )
@@ -91,7 +115,7 @@ class LibraryScannerTest {
 
     private suspend fun filePaths(source: SourceEntity = films) = dao.filesOf(source.id).mapNotNull { it.filePath }.sorted()
 
-    private fun error(source: SourceEntity = films) = scanner.state.value.errors[source.name]?.kind
+    private fun error(source: SourceEntity = films) = scanner.state.value.errors[source.id]?.kind
 
     private fun film(n: Int) = "Film $n (2020).mkv"
 
@@ -121,6 +145,93 @@ class LibraryScannerTest {
         showsNas.reads.clear()
         scan()
         assertEquals("a pass with nothing new reads no file", 0, nas.reads.size + showsNas.reads.size)
+    }
+
+    /** A scan unless one ended less than ten minutes ago, as the app asks when it comes back, waited for. */
+    private suspend fun scanIfStale() {
+        scanner.scanIfStale(TEN_MINUTES)
+        passes.children.toList().forEach { it.join() }
+    }
+
+    @Test
+    fun theFirstScanAskedRunsEvenMomentsAfterTheDeviceStarted() = runTest {
+        nas.put("Dune (2021).mkv")
+        scanIfStale()
+        assertEquals(listOf("Dune (2021).mkv"), filePaths())
+    }
+
+    @Test
+    fun aScanEndedMomentsAgoIsNotRunAgain() = runTest {
+        nas.put("Dune (2021).mkv")
+        scan()
+        nas.put("Arrival (2016).mkv")
+        elapsed += TEN_MINUTES - 1
+        scanIfStale()
+        assertEquals(listOf("Dune (2021).mkv"), filePaths())
+
+        elapsed += 1
+        scanIfStale()
+        assertEquals(listOf("Arrival (2016).mkv", "Dune (2021).mkv"), filePaths())
+    }
+
+    @Test
+    fun theDateSetBackDoesNotHoldScans() = runTest {
+        nas.put("Dune (2021).mkv")
+        scan()
+        nas.put("Arrival (2016).mkv")
+        // The date goes back three hours; eleven minutes pass.
+        now -= 3 * HOUR
+        elapsed += TEN_MINUTES + 60_000
+        scanIfStale()
+        assertEquals(listOf("Arrival (2016).mkv", "Dune (2021).mkv"), filePaths())
+    }
+
+    @Test
+    fun aScanWaitsWhileTheAppIsAway() = runTest {
+        nas.put("Dune (2021).mkv")
+        var listed = 0
+        nas.onList = { listed++ }
+        // Home pressed: a film may play from the NAS in another app.
+        started.value = false
+        scanner.scanAll()
+        started.subscriptionCount.first { it > 0 }
+        assertEquals("not even the folder is listed", 0, listed)
+
+        started.value = true
+        passes.children.toList().forEach { it.join() }
+        assertEquals(listOf("Dune (2021).mkv"), filePaths())
+    }
+
+    @Test
+    fun aScanWaitsForTheFilmPlayingBeforeListingAFolder() = runTest {
+        nas.put("Dune (2021).mkv")
+        var listed = 0
+        nas.onList = { listed++ }
+        playing.value = true
+        scanner.scanAll()
+        playing.subscriptionCount.first { it > 0 }
+        assertEquals(0, listed)
+
+        playing.value = false
+        passes.children.toList().forEach { it.join() }
+        assertEquals(listOf("Dune (2021).mkv"), filePaths())
+    }
+
+    @Test
+    fun aPassCutShortLetsTheNextOneStart() = runTest {
+        nas.put("Dune (2021).mkv")
+        val listing = CompletableDeferred<Unit>()
+        nas.onList = {
+            listing.complete(Unit)
+            awaitCancellation()
+        }
+        scanner.scanAll()
+        listing.await()
+        passes.children.toList().forEach { it.cancelAndJoin() }
+
+        nas.onList = null
+        scan()
+        assertEquals(listOf("Dune (2021).mkv"), filePaths())
     }
 
     @Test
@@ -156,6 +267,21 @@ class LibraryScannerTest {
         scan()
         assertEquals(5, nas.reads.size)
         assertEquals(null, error())
+    }
+
+    @Test
+    fun twoFoldersOfOneNameKeepTheirOwnState() = runTest {
+        // "Films" on two NAS: the second one is off.
+        val other = folder("Films", SourceKind.MOVIES, host = OTHER_HOST)
+        nas.put("Dune (2021).mkv")
+        otherNas.listFailure = ConnectException("Connection refused")
+        val read = mutableListOf<Long?>()
+        nas.onList = { read += scanner.state.value.sourceId }
+        scan()
+
+        assertEquals(listOf<Long?>(films.id), read)
+        assertEquals(ScanErrorKind.UNREACHABLE, error(other))
+        assertEquals("the folder read is not said off", null, error(films))
     }
 
     @Test
@@ -593,5 +719,7 @@ class LibraryScannerTest {
         const val A_FEW_TRANSACTIONS = 20
         const val START = 1_800_000_000_000L
         const val HOUR = 60 * 60_000L
+        const val OTHER_HOST = "192.168.1.30"
+        const val TEN_MINUTES = 10 * 60_000L
     }
 }
