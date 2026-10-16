@@ -396,9 +396,7 @@ class LibraryScanner(
      * log does, once a pass, for whoever wonders where an episode went.
      */
     private fun tellNoEpisode(source: SourceEntity, files: List<RemoteFile>) {
-        val refused = files.count { f ->
-            FilenameParser.parseEpisode(f.relativePath.substringAfterLast('/'), f.relativePath.split('/').dropLast(1))?.showTitle == null
-        }
+        val refused = files.count { FilenameParser.parseShowPath(it.relativePath) == null }
         if (refused > 0) Log.i(TAG, "${source.name}: $refused of ${files.size} videos name no episode, and are left out")
     }
 

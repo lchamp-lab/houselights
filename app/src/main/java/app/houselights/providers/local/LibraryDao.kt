@@ -133,6 +133,10 @@ interface LibraryDao {
     @Query("SELECT * FROM items WHERE kind = 'SERIES' AND matchKey = :key LIMIT 1")
     suspend fun seriesByKey(key: String): ItemEntity?
 
+    /** Shows of that name keyed with a year ([FilenameParser.showKey]); [nameKey] holds no LIKE wildcard. */
+    @Query("SELECT * FROM items WHERE kind = 'SERIES' AND matchKey LIKE :nameKey || '${FilenameParser.YEAR_MARK}%'")
+    suspend fun seriesNamed(nameKey: String): List<ItemEntity>
+
     @Query("SELECT * FROM items WHERE kind = 'SEASON' AND parentId = :seriesId AND seasonNumber = :season LIMIT 1")
     suspend fun season(seriesId: Long, season: Int): ItemEntity?
 

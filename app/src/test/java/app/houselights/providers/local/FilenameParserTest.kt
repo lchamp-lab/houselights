@@ -142,5 +142,42 @@ class FilenameParserTest {
         assertEquals(1, FilenameParser.seasonFromFolder("Saison 01"))
         assertEquals(3, FilenameParser.seasonFromFolder("S03"))
         assertNull(FilenameParser.seasonFromFolder("Severance"))
+        assertEquals(0, FilenameParser.seasonFromFolder("Season 00"))
+        assertEquals(0, FilenameParser.seasonFromFolder("Specials"))
+        assertEquals(0, FilenameParser.seasonFromFolder("Spécial"))
+        assertEquals(0, FilenameParser.seasonFromFolder("SPÉCIAUX"))
+        assertNull("a show's name", FilenameParser.seasonFromFolder("Special"))
+    }
+
+    private fun show(path: String) = FilenameParser.parseShowPath(path)?.let { Triple(it.title, it.year, it.dir) }
+
+    /** The show's folder is the one named as the file names the show, else the first one. */
+    @Test
+    fun showFolders() {
+        assertEquals(Triple("Arcane", null, "Animation/Arcane"), show("Animation/Arcane/Saison 1/Arcane.S01E01.mkv"))
+        assertEquals(
+            Triple("Marvel's Agents of S.H.I.E.L.D", 2013, "Marvel/Marvel's Agents of S.H.I.E.L.D. (2013)"),
+            show("Marvel/Marvel's Agents of S.H.I.E.L.D. (2013)/Season 1/Marvels.Agents.of.S.H.I.E.L.D.S01E01.mkv"),
+        )
+        // A season's pack keeps its show's folder, though it names the show too.
+        assertEquals(
+            Triple("Mobland", null, "Mobland"),
+            show("Mobland/Mobland.MULTi.1080p.WEB.H265-GRP/Mobland.S01E01.MULTi.1080p.WEB.H265-GRP.mkv"),
+        )
+        assertEquals(Triple("Mobland", null, "Mobland"), show("Mobland/S01/Mobland.S01E01.MULTi.1080p.WEB.H265-GRP.mkv"))
+        assertEquals(Triple("Les Revenants", null, "Les Revenants"), show("Les Revenants/Saison 1/03 - Victor.mkv"))
+        assertEquals(Triple("Severance", null, ""), show("Saison 1/Severance.S01E01.mkv"))
+        assertNull("nothing names the show", show("Saison 1/03 - Victor.mkv"))
+    }
+
+    /** The year of a show is its folder's, else its name's at the source's root; specials are season 0. */
+    @Test
+    fun showYearsAndSpecials() {
+        assertEquals(Triple("Severance", 2022, "Severance (2022)"), show("Severance (2022)/Season 2/severance.s02e01.mkv"))
+        assertEquals(Triple("Doctor Who", 2005, ""), show("Doctor.Who.2005.S01E01.mkv"))
+        assertEquals(Triple("Doctor Who", 2005, "Doctor Who (2005)"), show("Doctor Who (2005)/Specials/Doctor.Who.2005.S00E01.mkv"))
+        assertEquals(ParsedEpisode("Doctor Who", 0, 1), FilenameParser.parseShowPath("Doctor Who (2005)/Specials/01 - Christmas.mkv")?.episode)
+        assertEquals("doctor who|2005", FilenameParser.showKey("Doctor Who", 2005))
+        assertEquals("doctor who", FilenameParser.showKey("Doctor Who", null))
     }
 }
