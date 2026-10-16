@@ -49,9 +49,12 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
         // A film the user matched, beside an NFO naming a title by its IMDb id alone: only TMDB's answer
         // tells whether the NFO describes the user's choice (see MetadataMerge.describesOther).
         val undecided = nfo != null && item.userTmdbId != null && nfo.tmdbId == null && nfo.imdbId != null
-        // Sidecars that disappeared leave details to TMDB again.
+        // Sidecars that disappeared leave details to TMDB again: an image among them, whose copy the film
+        // would show otherwise (nothing else copies one there).
         val sidecarsRemoved = (item.nfoPath != null && local.nfo == null) ||
-            (local.poster == null && item.posterPath.isCachedArtwork())
+            (local.poster == null && item.posterPath.isCachedArtwork()) ||
+            (local.fanart == null && item.backdropPath.isCachedArtwork()) ||
+            (local.logo == null && item.logoPath.isCachedArtwork())
         val needsTmdb = tmdb.open && (item.matchedAt == null || refreshMetadata || newIds || undecided || sidecarsRemoved)
         // A refresh TMDB cannot be asked for now is not lost: the film is left unmatched (see saveMovie).
         val refreshLeft = refreshMetadata && !tmdb.open && item.matchedAt != null
