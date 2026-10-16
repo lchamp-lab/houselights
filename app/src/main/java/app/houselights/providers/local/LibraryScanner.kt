@@ -218,17 +218,23 @@ class LibraryScanner(
     private suspend fun scanAllSources(refreshMetadata: Boolean) {
         movies.startPass()
         shows.startPass()
+        val before = _state.value.errors
         val errors = mutableMapOf<Long, ScanError>()
         var changed = false
         val tmdb = TmdbPass(client()) { e -> _state.update { it.copy(tmdbIssue = e.toUiError()) } }
         val seasons = ShowIndexer.SeasonCache(tmdb)
         try {
-            for (source in dao.sources()) {
+            val sources = dao.sources()
+            for ((index, source) in sources.withIndex()) {
                 val failure = suspendRunCatching { changed = scan(source, refreshMetadata, tmdb, seasons) || changed }.exceptionOrNull()
                 val error = failure?.let { errorOf(source, it) }
                 error?.let { errors[source.id] = it }
-                // Out of space, every other folder would fail the same way, file after file.
-                if (error?.kind == ScanErrorKind.STORAGE_FULL) break
+                // Out of space, every other folder would fail the same way, file after file. Those not
+                // reached keep what their last scan said: one off stays off.
+                if (error?.kind == ScanErrorKind.STORAGE_FULL) {
+                    sources.drop(index + 1).forEach { left -> before[left.id]?.let { errors[left.id] = it } }
+                    break
+                }
             }
             lock.withLock {
                 suspendRunCatching {
