@@ -146,6 +146,55 @@ class ScanSidecarsTest {
         assertEquals(2, read.tmdbId)
     }
 
+    /** Without TMDB's answer, nothing tells whose film the NFO's IMDb id names: the film the user matched keeps what it had meanwhile. */
+    @Test
+    fun aFilmTheUserMatchedWithAnotherKeepsItWhileTmdbDoesNotAnswer() = runTest {
+        tmdb.movie(1, "Disclosure", 1994, imdbId = "tt0109635")
+        tmdb.movie(2, "Disclosure Day", 2026, imdbId = "tt31227572")
+        nas.put("Disclosure Day.mkv")
+        nas.text(
+            "Disclosure Day.nfo",
+            "<movie><title>Disclosure</title><plot>Seattle, 1994.</plot><id>tt0109635</id><actor><name>Demi Moore</name></actor></movie>",
+            lastModified = T1,
+        )
+        bench.scan()
+        val film = bench.item(films, "Disclosure Day.mkv")
+        bench.scanner.identify(film.id, 2)
+
+        tmdb.failingPath = "movie/2"
+        bench.scan(refreshMetadata = true)
+        val waiting = bench.item(films, "Disclosure Day.mkv")
+        assertEquals("Disclosure Day", waiting.title)
+        assertEquals("About Disclosure Day", waiting.overview)
+        assertEquals(emptyList<String>(), bench.dao.cast(film.id).map { it.name })
+        assertEquals("asked again at a later pass", null, waiting.matchedAt)
+    }
+
+    /** A fanart or a logo removed from beside a film: its copy is no longer shown, TMDB's image takes its place. */
+    @Test
+    fun aFanartOrALogoRemovedIsNoLongerShown() = runTest {
+        tmdb.movies[438631] = tmdb.movie(438631, "Dune", 2021).copy(backdropPath = "/dune-backdrop.jpg")
+        nas.put("Dune (2021).mkv")
+        nas.put("Dune (2021)-fanart.jpg", size = 100, bytes = ByteArray(100), lastModified = T1)
+        nas.put("Dune (2021)-clearlogo.png", size = 100, bytes = ByteArray(100), lastModified = T1)
+        bench.scan()
+        val dune = bench.item(films, "Dune (2021).mkv")
+        assertTrue(dune.backdropPath.isCachedArtwork() && dune.logoPath.isCachedArtwork())
+
+        nas.remove("Dune (2021)-fanart.jpg")
+        bench.scan()
+        val withoutFanart = bench.item(films, "Dune (2021).mkv")
+        assertEquals("/dune-backdrop.jpg", withoutFanart.backdropPath)
+        assertTrue("its logo is still beside it", withoutFanart.logoPath.isCachedArtwork())
+        assertEquals("Dune", withoutFanart.title)
+
+        nas.remove("Dune (2021)-clearlogo.png")
+        bench.scan()
+        val withoutLogo = bench.item(films, "Dune (2021).mkv")
+        assertEquals("TMDB has none", null, withoutLogo.logoPath)
+        assertEquals("/dune-backdrop.jpg", withoutLogo.backdropPath)
+    }
+
     /**
      * Version 10 takes the films of sagas whose names gave no key out of them, their sidecars to read again:
      * their NFO's set gives each its own, even with TMDB not asked (no key, or the films matched already).

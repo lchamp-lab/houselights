@@ -49,9 +49,12 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
         // A film the user matched, beside an NFO naming a title by its IMDb id alone: only TMDB's answer
         // tells whether the NFO describes the user's choice (see MetadataMerge.describesOther).
         val undecided = nfo != null && item.userTmdbId != null && nfo.tmdbId == null && nfo.imdbId != null
-        // Sidecars that disappeared leave details to TMDB again.
+        // Sidecars that disappeared leave details to TMDB again: an image among them, whose copy the film
+        // would show otherwise (nothing else copies one there).
         val sidecarsRemoved = (item.nfoPath != null && local.nfo == null) ||
-            (local.poster == null && item.posterPath.isCachedArtwork())
+            (local.poster == null && item.posterPath.isCachedArtwork()) ||
+            (local.fanart == null && item.backdropPath.isCachedArtwork()) ||
+            (local.logo == null && item.logoPath.isCachedArtwork())
         val needsTmdb = tmdb.open && (item.matchedAt == null || refreshMetadata || newIds || undecided || sidecarsRemoved)
         // A refresh TMDB cannot be asked for now is not lost: the film is left unmatched (see saveMovie).
         val refreshLeft = refreshMetadata && !tmdb.open && item.matchedAt != null
@@ -77,6 +80,7 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
             item = MetadataMerge.withoutDetails(item, parsed.title, parsed.year)
                 .let { if (fetched.answered) it else it.copy(matchedAt = null) }
         }
+        item = namedAsAFilm(item, file, parsed, fetched)
         val art = LocalArt(
             poster = local.poster?.let { files.copyArtwork(source, it) },
             fanart = local.fanart?.let { files.copyArtwork(source, it) },
@@ -84,6 +88,18 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
             thumb = local.thumb?.let { files.copyArtwork(source, it) },
         )
         saveMovie(item.copy(nfoPath = kept.path, nfo = kept.text, sidecarKey = sidecarKey(local, kept, art)), nfo, fetched, art, now)
+    }
+
+    /**
+     * A row named by its first file alone ("Heat CD1", scanned before its other parts were there) that has
+     * become a film in parts takes the film's name ([film], "Heat"), when neither its NFO nor TMDB names it.
+     * A name the NFO or TMDB gave it before stays.
+     */
+    private fun namedAsAFilm(item: ItemEntity, file: RemoteFile, film: ParsedMovie, fetched: Fetched): ItemEntity {
+        val unnamed = fetched.nfo?.title == null && fetched.movie == null
+        val ownName = item.title == LibraryScanner.parseMovie(file.relativePath).title
+        if (item.parts.isEmpty() || !unnamed || !ownName) return item
+        return item.copy(title = film.title, sortTitle = MetadataMerge.sortKey(film.title))
     }
 
     /** [known] and [nfo] name the same title and the same set: TMDB has nothing new to say of the film. */
@@ -166,7 +182,13 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
         lookup: (suspend (TmdbClient) -> TmdbMovie?)?,
     ): Fetched {
         val answer = lookup?.let { tmdb.ask(it) } ?: TmdbAnswer.Unanswered
-        val nfo = nfoInfo?.takeUnless { MetadataMerge.describesOther(it, userTmdbId, answer.value?.imdbId) }
+        // Matched by hand, a film TMDB gives nothing for now keeps what it had: an NFO only TMDB's IMDb id
+        // can tell of waits for it, rather than its title, plot and cast win meanwhile.
+        val untold = userTmdbId != null && answer.value == null
+        val nfo = nfoInfo?.takeUnless {
+            untold && it.tmdbId == null && it.imdbId != null ||
+                MetadataMerge.describesOther(it, userTmdbId, answer.value?.imdbId)
+        }
         val plan = if (keepCollection) null else collectionOf(nfo, answer.value, refresh)
         val details = plan?.fetch?.let { id -> tmdb.ask { it.collection(id) } } ?: TmdbAnswer.Unanswered
         return Fetched(answer, nfo, plan, details, tmdb.client, refresh)

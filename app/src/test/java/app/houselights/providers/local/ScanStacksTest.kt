@@ -101,6 +101,25 @@ class ScanStacksTest {
         assertTrue(film.favorite)
     }
 
+    /** Two films whose names read as the parts of one, each matched with its own: each keeps its row and what the user did with it. */
+    @Test
+    fun filesMatchedWithTwoFilmsStayTwoFilms() = runTest {
+        nas.put("Kill Bill CD1.avi")
+        nas.put("Kill Bill CD2.avi")
+        val first = bench.dao.insert(row("Kill Bill CD1.avi", 1_000).copy(title = "Kill Bill: Vol. 1", tmdbId = 24))
+        val second = bench.dao.insert(row("Kill Bill CD2.avi", 1_000).copy(title = "Kill Bill: Vol. 2", userTmdbId = 393, tmdbId = 393))
+        bench.dao.setFavorite(second, true)
+        bench.dao.setPlayed(second, played = true, now = bench.now)
+        bench.scan()
+        bench.scan()
+        val (one, two) = rows()
+        assertEquals(listOf(first, second), listOf(one.id, two.id))
+        assertEquals(listOf("Kill Bill: Vol. 1", "Kill Bill: Vol. 2"), listOf(one.title, two.title))
+        assertTrue(one.parts.isEmpty() && two.parts.isEmpty())
+        assertTrue(two.favorite && two.played && two.userTmdbId == 393)
+        assertEquals(null, two.missingSince)
+    }
+
     private fun row(path: String, size: Long) = ItemEntity(
         kind = ItemKind.MOVIE, sourceId = films.id, title = "Le Parrain", sortTitle = "parrain", year = 1972, filePath = path,
         fileSize = size, addedAt = bench.now,
@@ -121,6 +140,27 @@ class ScanStacksTest {
         assertEquals(949, heat.tmdbId)
         assertEquals("Heat", heat.title)
         assertEquals(listOf("Heat CD2.avi"), heat.parts)
+    }
+
+    /** TMDB knows nothing of it, and no NFO names it: the film is named as its files are, not as its first part. */
+    @Test
+    fun aFilmInPartsTmdbDoesNotKnowIsNamedByItsFiles() = runTest {
+        bench.withTmdb = true
+        nas.put("Heat CD1.avi")
+        nas.put("Ronin CD1.avi")
+        bench.scan()
+        assertEquals(listOf("Heat CD1", "Ronin CD1"), rows().map { it.title })
+        // A name it was given otherwise stays.
+        rows().last().let { bench.dao.saveScanned(it.copy(title = "Ronin (Frankenheimer)")) }
+
+        nas.put("Heat CD2.avi")
+        nas.put("Ronin CD2.avi")
+        bench.scan()
+        val (heat, ronin) = rows()
+        assertEquals(listOf("Heat CD2.avi"), heat.parts)
+        assertEquals("Heat", heat.title)
+        assertEquals("heat", heat.sortTitle)
+        assertEquals("Ronin (Frankenheimer)", ronin.title)
     }
 
     @Test
