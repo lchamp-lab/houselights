@@ -35,7 +35,9 @@ internal class SmbBrowser(
         clock = clock,
     )
 
-    override suspend fun list(source: SourceEntity): Listing = withSession(source) { share -> walk(share, root(source)) }
+    override suspend fun list(source: SourceEntity): Listing = withSession(source) { share ->
+        walk(folder(share, root(source).replace('/', '\\'))) { ScanErrors.isUnreachable(it) || isBroken(it) }
+    }
 
     /** Signs in of its own, with what the form says: a session kept, signed in with the password stored, would let a wrong one through. */
     override suspend fun test(source: SourceEntity): Int = withContext(Dispatchers.IO) {
@@ -71,25 +73,17 @@ internal class SmbBrowser(
     /** Closes the sessions no operation uses; called when a scan ends. */
     fun closeIdle() = sessions.closeIdle()
 
-    private fun walk(share: SmbShare, root: String): Listing {
-        val videos = mutableListOf<RemoteFile>()
-        val sidecars = mutableListOf<RemoteFile>()
-        fun visit(relative: String, depth: Int) {
-            if (depth > RemoteBrowser.MAX_DEPTH) return
-            val dir = listOf(root, relative).filter { it.isNotEmpty() }.joinToString("/")
-            for (entry in share.list(dir.replace('/', '\\'))) {
-                val name = entry.name
-                if (RemoteBrowser.skip(name)) continue
-                val rel = if (relative.isEmpty()) name else "$relative/$name"
-                when {
-                    entry.isFolder -> visit(rel, depth + 1)
-                    RemoteBrowser.isWanted(name) -> videos += RemoteFile(rel, entry.size)
-                    RemoteBrowser.isSidecar(name) -> sidecars += RemoteFile(rel, entry.size)
-                }
+    /** The folder at [path] in the share, "\" separators; a listing gives each entry, nothing more to ask. */
+    private fun folder(share: SmbShare, path: String): RemoteFolder = RemoteFolder {
+        share.list(path).map { entry ->
+            object : RemoteEntry {
+                override val name = entry.name
+
+                override fun folder() = if (entry.isFolder) folder(share, if (path.isEmpty()) name else "$path\\$name") else null
+
+                override fun size() = entry.size
             }
         }
-        visit("", 0)
-        return Listing(videos, sidecars)
     }
 
     companion object {

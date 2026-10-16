@@ -32,10 +32,7 @@ internal class NfsBrowser(
     )
 
     override suspend fun list(source: SourceEntity): Listing = withMount(source) { nfs ->
-        val videos = mutableListOf<RemoteFile>()
-        val sidecars = mutableListOf<RemoteFile>()
-        walk(root(nfs, source), "", 0, videos, sidecars)
-        Listing(videos, sidecars)
+        walk(folder(root(nfs, source))) { ScanErrors.isUnreachable(it) || isBroken(it) }
     }
 
     /** On a mount of its own: the NAS says now whether it lets the device in. */
@@ -65,16 +62,15 @@ internal class NfsBrowser(
 
     private fun root(nfs: Nfs3, source: SourceEntity): Nfs3File = Nfs3File(nfs, "/" + source.path.trim('/'))
 
-    private fun walk(dir: Nfs3File, relative: String, depth: Int, out: MutableList<RemoteFile>, sidecars: MutableList<RemoteFile>) {
-        if (depth > RemoteBrowser.MAX_DEPTH) return
-        for (entry in dir.listFiles()) {
-            val name = entry.name
-            if (RemoteBrowser.skip(name)) continue
-            val rel = if (relative.isEmpty()) name else "$relative/$name"
-            when {
-                entry.isDirectory -> walk(entry, rel, depth + 1, out, sidecars)
-                RemoteBrowser.isWanted(name) -> out += RemoteFile(rel, entry.length())
-                RemoteBrowser.isSidecar(name) -> sidecars += RemoteFile(rel, entry.length())
+    /** A listing names the entries; what each is, and its size, are asked of the NAS when needed. */
+    private fun folder(dir: Nfs3File): RemoteFolder = RemoteFolder {
+        dir.listFiles().map { file ->
+            object : RemoteEntry {
+                override val name: String = file.name
+
+                override fun folder() = if (file.isDirectory) folder(file) else null
+
+                override fun size() = file.length()
             }
         }
     }

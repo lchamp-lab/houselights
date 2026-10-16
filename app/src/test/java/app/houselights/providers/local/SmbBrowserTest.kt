@@ -17,15 +17,18 @@ import java.util.concurrent.TimeoutException
 /** SMB sessions on a NAS held in memory: which are kept, closed and opened again. On Robolectric for SystemClock. */
 @RunWith(RobolectricTestRunner::class)
 class SmbBrowserTest {
-    /** A share signed in to, with one film; what closed it, broken or not, in order. */
-    private class Share : SmbShare {
+    /** Folders of the share by path, "\" separators; a folder not there is refused. */
+    private var tree = mapOf("" to listOf(SmbEntry("Dune (2021).mkv", isFolder = false, size = 4)))
+
+    /** A share signed in to, holding [tree]; what closed it, broken or not, in order. */
+    private inner class Share : SmbShare {
         var hungUp = false
         var failure: Throwable? = null
         val closes = mutableListOf<Boolean>()
 
         override fun list(path: String): List<SmbEntry> {
             failure?.let { throw it }
-            return listOf(SmbEntry("Dune (2021).mkv", isFolder = false, size = 4))
+            return tree[path] ?: throw smbStatus(NtStatus.STATUS_ACCESS_DENIED)
         }
 
         override fun read(path: String, offset: Long, length: Int): ByteArray {
@@ -138,6 +141,20 @@ class SmbBrowserTest {
         assertEquals("the scan's session stays", emptyList<Boolean>(), opened[0].closes)
         browser.list(films)
         assertEquals(2, opened.size)
+    }
+
+    /** A folder of another user, or lost+found, in the share: passed over, named, and the session kept. */
+    @Test
+    fun aSubfolderRefusedIsPassedOver() = runTest {
+        tree = mapOf(
+            "" to listOf(SmbEntry("Films", isFolder = true, size = 0), SmbEntry("Private", isFolder = true, size = 0)),
+            "Films" to listOf(SmbEntry("Dune (2021)", isFolder = true, size = 0)),
+            "Films\\Dune (2021)" to listOf(SmbEntry("Dune (2021).mkv", isFolder = false, size = 4)),
+        )
+        val listing = browser.list(folder())
+        assertEquals(listOf("Films/Dune (2021)/Dune (2021).mkv"), listing.videos.map { it.relativePath })
+        assertEquals(listOf("Private"), listing.unreadable)
+        assertEquals(emptyList<Boolean>(), opened.single().closes)
     }
 
     @Test

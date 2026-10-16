@@ -219,7 +219,7 @@ class LibraryScanner(
         val sidecars = Sidecars(listing.sidecars, files)
         val listed = dao.filesOf(source.id)
         if (files.isEmpty() && listed.isNotEmpty()) throw EmptyFolderException()
-        val missing = settleMissing(source.kind, listed, files)
+        val missing = settleMissing(source.kind, listed, listing)
         // Renamed files took their rows along.
         val known = (if (missing.relinked.isEmpty()) listed else dao.filesOf(source.id)).associateBy { it.filePath }
 
@@ -267,9 +267,9 @@ class LibraryScanner(
     }
 
     /** Rows of files the folder no longer lists go, or wait a while (see [MissingFiles]). */
-    private suspend fun settleMissing(kind: SourceKind, known: List<ItemEntity>, files: List<RemoteFile>): MissingFiles.Outcome {
+    private suspend fun settleMissing(kind: SourceKind, known: List<ItemEntity>, listing: Listing): MissingFiles.Outcome {
         val now = clock()
-        val missing = MissingFiles.settle(kind, known, files, now)
+        val missing = MissingFiles.settle(kind, known, listing, now)
         lock.withLock { dao.settleMissing(missing.relinked, missing.back, missing.held, missing.removed, now) }
         return missing
     }

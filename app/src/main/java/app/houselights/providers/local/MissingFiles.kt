@@ -34,6 +34,16 @@ internal object MissingFiles {
         val removed: List<Long>,
     )
 
+    /**
+     * As the other [settle], for a folder's [listing]: what the library holds under a subfolder it
+     * could not read (lost+found, a folder of another user) is out of sight, not missing.
+     */
+    fun settle(kind: SourceKind, known: Collection<ItemEntity>, listing: Listing, now: Long): Outcome {
+        val hidden = listing.unreadable.map { "$it/" }
+        val seen = if (hidden.isEmpty()) known else known.filterNot { item -> hidden.any { item.filePath?.startsWith(it) == true } }
+        return settle(kind, seen, listing.videos, now)
+    }
+
     fun settle(kind: SourceKind, known: Collection<ItemEntity>, files: List<RemoteFile>, now: Long): Outcome {
         val present = files.mapTo(HashSet()) { it.relativePath }
         val (listed, missing) = known.partition { it.filePath in present }

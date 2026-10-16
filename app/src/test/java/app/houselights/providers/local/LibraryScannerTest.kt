@@ -179,6 +179,31 @@ class LibraryScannerTest {
         assertEquals(null, kept.missingSince)
     }
 
+    /** lost+found, a folder of another user: what the library holds under it is out of sight, not gone. */
+    @Test
+    fun aFolderThatCannotBeReadRemovesNothingUnderIt() = runTest {
+        nas.put("Dune (2021)/Dune (2021).mkv")
+        nas.put("Private/Arrival (2016)/Arrival (2016).mkv")
+        scan()
+
+        nas.unreadable = listOf("Private")
+        nas.put("Blade Runner (1982)/Blade Runner (1982).mkv")
+        scan()
+        now += MissingFiles.HOLD_MS
+        scan()
+
+        assertEquals(null, error())
+        assertEquals(
+            listOf(
+                "Blade Runner (1982)/Blade Runner (1982).mkv",
+                "Dune (2021)/Dune (2021).mkv",
+                "Private/Arrival (2016)/Arrival (2016).mkv",
+            ),
+            filePaths(),
+        )
+        assertEquals("not even held", null, dao.filesOf(films.id).single { it.title == "Arrival" }.missingSince)
+    }
+
     @Test
     fun aFolderNeverFilledMayListEmpty() = runTest {
         scan()

@@ -14,6 +14,9 @@ class FakeRemoteBrowser : RemoteBrowser {
     /** Thrown by listings instead of an answer, while set. */
     var listFailure: Throwable? = null
 
+    /** Folders a listing cannot read, while set: their files are not listed, and the folders are named. */
+    var unreadable: List<String> = emptyList()
+
     /** Runs while a listing is under way: what happens on the device during a scan. */
     var onList: (suspend () -> Unit)? = null
 
@@ -41,11 +44,13 @@ class FakeRemoteBrowser : RemoteBrowser {
     override suspend fun list(source: SourceEntity): Listing {
         listFailure?.let { throw it }
         onList?.invoke()
-        val all = files.map { (path, entry) -> RemoteFile(path, entry.size) }
+        val all = files.filterKeys { path -> unreadable.none { path.startsWith("$it/") } }
+            .map { (path, entry) -> RemoteFile(path, entry.size) }
         fun name(file: RemoteFile) = file.relativePath.substringAfterLast('/')
         return Listing(
             videos = all.filter { RemoteBrowser.isWanted(name(it)) },
             sidecars = all.filter { RemoteBrowser.isSidecar(name(it)) },
+            unreadable = unreadable,
         )
     }
 
