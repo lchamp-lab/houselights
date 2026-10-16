@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -46,11 +45,10 @@ import app.houselights.core.ArtworkOrigin
 import app.houselights.core.MediaItem
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlSpace
-import app.houselights.ui.design.LocalAmbient
 import app.houselights.ui.design.components.ArtworkChoiceCard
 import app.houselights.ui.design.components.AttentionNote
-import app.houselights.ui.design.components.Backdrop
 import app.houselights.ui.design.components.BackdropStyle
+import app.houselights.ui.design.components.AmbientBackdrop
 import app.houselights.ui.design.components.CardSkeleton
 import app.houselights.ui.design.components.Emphasis
 import app.houselights.ui.design.components.HlButton
@@ -58,7 +56,6 @@ import app.houselights.ui.design.components.MediaRow
 import app.houselights.ui.design.components.MetaLine
 import app.houselights.ui.design.components.ScreenTitle
 import app.houselights.ui.design.components.TitleArt
-import app.houselights.ui.design.components.rememberAmbientColor
 import app.houselights.ui.design.tryRequestFocus
 import app.houselights.ui.design.components.HlErrorState
 import app.houselights.ui.util.appContainer
@@ -91,34 +88,30 @@ fun ArtworkScreen(itemId: String, kind: ArtworkKind, onDone: () -> Unit) {
     val preview = shown ?: choices?.selected
     val backdrop = if (kind == ArtworkKind.BACKDROP) preview?.image else item?.backdrop
 
-    val ambient = rememberAmbientColor(backdrop)
-    CompositionLocalProvider(LocalAmbient provides { ambient.value }) {
-        Box(Modifier.fillMaxSize()) {
-            Backdrop(backdrop, if (kind == ArtworkKind.POSTER) BackdropStyle.Quiet else BackdropStyle.Full)
-            Column(Modifier.fillMaxSize().padding(top = HlSpace.safeV, bottom = HlSpace.m)) {
-                Header(kind, item, choices)
-                if (kind == ArtworkKind.POSTER) {
-                    Spacer(Modifier.height(HlSpace.m))
-                } else {
-                    Box(
-                        Modifier.weight(1f).fillMaxWidth().padding(horizontal = HlSpace.safeH, vertical = HlSpace.m),
-                        contentAlignment = Alignment.BottomStart,
-                    ) {
-                        if (item != null) Preview(kind, item, preview)
-                    }
+    AmbientBackdrop(backdrop, if (kind == ArtworkKind.POSTER) BackdropStyle.Quiet else BackdropStyle.Full) {
+        Column(Modifier.fillMaxSize().padding(top = HlSpace.safeV, bottom = HlSpace.m)) {
+            Header(kind, item, choices)
+            if (kind == ArtworkKind.POSTER) {
+                Spacer(Modifier.height(HlSpace.m))
+            } else {
+                Box(
+                    Modifier.weight(1f).fillMaxWidth().padding(horizontal = HlSpace.safeH, vertical = HlSpace.m),
+                    contentAlignment = Alignment.BottomStart,
+                ) {
+                    if (item != null) Preview(kind, item, preview)
                 }
-                when {
-                    state.error != null -> HlErrorState(state.error!!, vm::load, ChoicesPadding)
-                    choices == null -> Skeletons(kind)
-                    choices.options.isEmpty() -> HlEmptyState(stringResource(R.string.artwork_empty), ChoicesPadding, backHint = true)
-                    else -> Choices(
-                        kind = kind,
-                        item = item!!,
-                        choices = choices,
-                        onFocus = { focused = it },
-                        onChoose = vm::choose,
-                    )
-                }
+            }
+            when {
+                state.error != null -> HlErrorState(state.error!!, vm::load, ChoicesPadding)
+                choices == null -> Skeletons(kind)
+                choices.options.isEmpty() -> HlEmptyState(stringResource(R.string.artwork_empty), ChoicesPadding, backHint = true)
+                else -> Choices(
+                    kind = kind,
+                    item = item!!,
+                    choices = choices,
+                    onFocus = { focused = it },
+                    onChoose = vm::choose,
+                )
             }
         }
     }

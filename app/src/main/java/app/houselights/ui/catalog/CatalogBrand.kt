@@ -83,24 +83,15 @@ private fun BrandSample(says: String, @DrawableRes icon: Int, @DrawableRes banne
     Column(verticalArrangement = Arrangement.spacedBy(HlSpace.m)) {
         Text(says, style = Hl.type.body, color = c.contentSecondary, modifier = Modifier.widthIn(max = HlLayout.readable))
         Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.l), verticalAlignment = Alignment.Bottom) {
-            BrandCase("launcher, on black") { OnGround(c.background) { DrawableBox(iconDrawable, iconSize) } }
-            BrandCase("on grey") { OnGround(c.contentTertiary) { DrawableBox(iconDrawable, iconSize) } }
-            BrandCase("on light") { OnGround(c.content) { DrawableBox(iconDrawable, iconSize) } }
-            BrandCase("closer") { OnGround(c.background) { DrawableBox(iconDrawable, iconSize * CLOSER) } }
+            Specimen("launcher, on black", gap = HlSpace.xs) { OnGround(c.background) { DrawableBox(iconDrawable, iconSize) } }
+            Specimen("on grey", gap = HlSpace.xs) { OnGround(c.contentTertiary) { DrawableBox(iconDrawable, iconSize) } }
+            Specimen("on light", gap = HlSpace.xs) { OnGround(c.content) { DrawableBox(iconDrawable, iconSize) } }
+            Specimen("closer", gap = HlSpace.xs) { OnGround(c.background) { DrawableBox(iconDrawable, iconSize * CLOSER) } }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.l), verticalAlignment = Alignment.Bottom) {
-            BrandCase("banner, at launcher size") { DrawableBox(bannerDrawable, bannerSize) }
-            BrandCase("closer") { DrawableBox(bannerDrawable, bannerSize * CLOSER) }
+            Specimen("banner, at launcher size", gap = HlSpace.xs) { DrawableBox(bannerDrawable, bannerSize) }
+            Specimen("closer", gap = HlSpace.xs) { DrawableBox(bannerDrawable, bannerSize * CLOSER) }
         }
-    }
-}
-
-/** One view, named underneath. */
-@Composable
-private fun BrandCase(name: String, content: @Composable () -> Unit) {
-    Column(verticalArrangement = Arrangement.spacedBy(HlSpace.xs)) {
-        content()
-        Text(name, style = Hl.type.caption, color = Hl.colors.contentTertiary)
     }
 }
 

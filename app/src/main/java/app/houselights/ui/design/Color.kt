@@ -171,8 +171,8 @@ object HlAlpha {
      */
     const val FILL = 0.09f
     /**
-     * A primary control at rest, a progress line's track off the artwork, a lit disc (in ember),
-     * the current option of a track.
+     * A primary control at rest, a progress line's track off the artwork, the current option of a
+     * track.
      */
     const val FILL_STRONG = 0.2f
 

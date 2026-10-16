@@ -175,27 +175,6 @@ internal fun HlRowSurface(
     }
 }
 
-/** An icon in a disc; [lit] in ember while what it stands for is on (in use, chosen), never for focus. */
-@Composable
-fun HlIconDisc(icon: ImageVector, modifier: Modifier = Modifier, lit: Boolean = false) {
-    val c = Hl.colors
-    Box(
-        modifier
-            .size(HlSize.disc)
-            .clip(HlShapes.avatar)
-            .then(
-                if (lit) {
-                    Modifier.background(c.emberLight(HlAlpha.FILL_STRONG))
-                } else {
-                    Modifier.background(c.content.copy(alpha = HlAlpha.FILL_FAINT))
-                },
-            ),
-        contentAlignment = Alignment.Center,
-    ) {
-        Icon(icon, contentDescription = null, tint = if (lit) c.ember else c.contentSecondary, modifier = Modifier.size(HlSize.discIcon))
-    }
-}
-
 /** A hairline that separates groups. */
 @Composable
 fun HlDivider(modifier: Modifier = Modifier, vertical: Boolean = false) {

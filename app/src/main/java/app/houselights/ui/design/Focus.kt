@@ -87,9 +87,9 @@ fun FocusRequester.tryRequestFocus(): Boolean = try {
 /**
  * Where focus was on a screen, so that coming back to it (from a detail page, a screen opened from
  * one of its rows, the player) puts focus on the element left, even after the list around it
- * reloaded. Elements that matter carry a [FocusKey] through [focusKey]; the memory keeps the last
- * one focused. A screen keeps its memory with [rememberFocusMemory] and brings focus back with
- * [RestoreFocus].
+ * reloaded. Elements that matter carry a [FocusKey] through [focusKey], the groups holding them
+ * (a row, a pane, the tabs) through [focusGroupKey]; the memory keeps the last element focused. A
+ * screen keeps its memory with [rememberFocusMemory] and brings focus back with [RestoreFocus].
  */
 @Stable
 class FocusMemory(initial: String? = null) {
@@ -103,6 +103,9 @@ class FocusMemory(initial: String? = null) {
      */
     private val requesters = HashMap<String, FocusRequester>()
 
+    /** The groups attached now ([focusGroupKey]): each says whether a request for focus took. */
+    private val groups = HashMap<String, FocusGroupNode>()
+
     /**
      * What focuses each keyed element composed now, and brings it into view: the same from one
      * composition to the next, so its modifier stays equal, and dropped when the element leaves,
@@ -114,9 +117,12 @@ class FocusMemory(initial: String? = null) {
     private val nodes = HashMap<String, FocusKeyNode>()
 
     /** The keys the memory holds something for (what a test checks it forgets). */
-    internal val held: Set<String> get() = requesters.keys + handles.keys + nodes.keys
+    internal val held: Set<String> get() = requesters.keys + handles.keys + nodes.keys + groups.keys
 
-    /** What focuses [key]: for a group holding keyed elements, or an element focused by the screen itself. */
+    /**
+     * What focuses [key], for the screen's own use: where it starts, what it redirects focus to
+     * (`focusProperties`). A group named with [focusGroupKey] carries this one.
+     */
     fun requester(key: String): FocusRequester = requesters.getOrPut(key) { handles[key]?.requester ?: FocusRequester() }
 
     /** Takes [key] as where focus is, without moving it (what a screen will want back from elsewhere). */
@@ -128,10 +134,12 @@ class FocusMemory(initial: String? = null) {
      * Focuses [key] now; false when nothing with that key is on screen, or when what is there took
      * no focus. A list composes the next items ahead without showing them; focus put there would be
      * invisible, so a keyed element is focused only once placed. A group (a row, a pane, the tabs)
-     * carries no key of its own and is focused whenever it is there.
+     * is focused whenever it is there, if something in it takes focus. A requester alone only says
+     * whether something carries it: what a screen focuses that way is taken at its word.
      */
     fun focus(key: String): Boolean {
         nodes[key]?.let { return it.placed && it.requestFocus() }
+        groups[key]?.let { return it.requestFocus() }
         return requesters[key]?.tryRequestFocus() == true
     }
 
@@ -147,6 +155,14 @@ class FocusMemory(initial: String? = null) {
         if (nodes[node.key] !== node) return
         nodes -= node.key
         if (handles[node.key] === node.handles) handles -= node.key
+    }
+
+    internal fun attach(group: FocusGroupNode) {
+        groups[group.key] = group
+    }
+
+    internal fun detach(group: FocusGroupNode) {
+        if (groups[group.key] === group) groups -= group.key
     }
 
     /**
@@ -227,6 +243,42 @@ fun Modifier.focusKey(key: String, memory: FocusMemory): Modifier {
     return bringIntoViewRequester(handles.bringer)
         .focusRequester(handles.requester)
         .then(FocusKeyElement(key, memory, handles))
+}
+
+/**
+ * Names this group of keyed elements [key] in [memory] (a row, a pane, the tabs): an element gone
+ * from it gives focus back to the group, and [FocusMemory.focus] says whether something in it
+ * took it, where a [FocusRequester] only tells whether the group is there. Its requester
+ * ([FocusMemory.requester]) still serves what the screen redirects to it (`focusProperties`). The
+ * group records nothing: what has focus inside it does.
+ */
+fun Modifier.focusGroupKey(key: String, memory: FocusMemory): Modifier =
+    focusRequester(memory.requester(key)).then(FocusGroupElement(key, memory))
+
+private data class FocusGroupElement(val key: String, val memory: FocusMemory) : ModifierNodeElement<FocusGroupNode>() {
+    override fun create() = FocusGroupNode(key, memory)
+    override fun update(node: FocusGroupNode) = node.update(key, memory)
+    override fun InspectorInfo.inspectableProperties() {
+        name = "focusGroupKey"
+        properties["key"] = key
+    }
+}
+
+/** A keyed group, in its [memory] while it is attached, which says whether a request for focus took. */
+internal class FocusGroupNode(key: String, private var memory: FocusMemory) : Modifier.Node(), FocusRequesterModifierNode {
+    var key = key
+        private set
+
+    fun update(key: String, memory: FocusMemory) {
+        if (isAttached) this.memory.detach(this)
+        this.key = key
+        this.memory = memory
+        if (isAttached) memory.attach(this)
+    }
+
+    override fun onAttach() = memory.attach(this)
+
+    override fun onDetach() = memory.detach(this)
 }
 
 /** How long an element brought back keeps being held in view while its screen fills in. */

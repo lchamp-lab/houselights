@@ -13,8 +13,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -111,6 +113,28 @@ fun Backdrop(image: ImageRef?, style: BackdropStyle, modifier: Modifier = Modifi
     }
     FadeBetween(shown, modifier.fillMaxSize().onSizeChanged { bounds = it.toSize() }) { prepared, alpha ->
         if (prepared != null) BackdropPicture(prepared, style, bounds, column, fade, alpha, recede)
+    }
+}
+
+/**
+ * A screen on its picture: the [Backdrop] of [image] under [content], which the picture lights
+ * ([rememberAmbientColor], provided as [LocalAmbient]): the card that has focus glows with it. The
+ * light changes over `SLOW` with the picture, read while drawing, so nothing recomposes for it.
+ */
+@Composable
+fun AmbientBackdrop(
+    image: ImageRef?,
+    style: BackdropStyle,
+    modifier: Modifier = Modifier,
+    recede: (() -> Float)? = null,
+    content: @Composable BoxScope.() -> Unit,
+) {
+    val ambient = rememberAmbientColor(image)
+    CompositionLocalProvider(LocalAmbient provides { ambient.value }) {
+        Box(modifier.fillMaxSize()) {
+            Backdrop(image, style, recede = recede)
+            content()
+        }
     }
 }
 

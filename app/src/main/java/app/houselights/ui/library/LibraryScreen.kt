@@ -60,10 +60,9 @@ import app.houselights.core.SortOption
 import app.houselights.core.WatchStatus
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlSpace
-import app.houselights.ui.design.LocalAmbient
-import app.houselights.ui.design.components.Backdrop
 import app.houselights.ui.design.components.TitleLine
 import app.houselights.ui.design.components.BackdropStyle
+import app.houselights.ui.design.components.AmbientBackdrop
 import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.components.HlMenuButton
 import app.houselights.ui.design.components.MenuOption
@@ -71,7 +70,6 @@ import app.houselights.ui.design.components.MenuSection
 import app.houselights.ui.design.components.LocalGroupFocused
 import app.houselights.ui.design.components.PosterCard
 import app.houselights.ui.design.components.ScreenTitle
-import app.houselights.ui.design.components.rememberAmbientColor
 import app.houselights.ui.design.components.CardSkeleton
 import app.houselights.ui.design.components.HlEmptyState
 import app.houselights.ui.design.components.HlErrorState
@@ -141,119 +139,115 @@ fun LibraryScreen(
         }
     }
 
-    val ambient = rememberAmbientColor(shown.value?.backdrop)
-    CompositionLocalProvider(LocalAmbient provides { ambient.value }) {
-        Box(Modifier.fillMaxSize()) {
-            Backdrop(shown.value?.backdrop, BackdropStyle.Quiet)
-            Column(Modifier.fillMaxSize()) {
-                Row(
-                    Modifier.fillMaxWidth().padding(start = HlSpace.safeH, end = HlSpace.safeH, top = HlSpace.safeV),
-                    verticalAlignment = Alignment.CenterVertically,
+    AmbientBackdrop(shown.value?.backdrop, BackdropStyle.Quiet) {
+        Column(Modifier.fillMaxSize()) {
+            Row(
+                Modifier.fillMaxWidth().padding(start = HlSpace.safeH, end = HlSpace.safeH, top = HlSpace.safeV),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                ScreenTitle(title)
+                Spacer(Modifier.width(HlSpace.m))
+                if (state.total > 0) {
+                    Text(
+                        pluralStringResource(
+                            if (library.kind == LibraryKind.COLLECTIONS) R.plurals.collection_count else R.plurals.title_count,
+                            state.total,
+                            state.total,
+                        ),
+                        style = Hl.type.meta,
+                        color = Hl.colors.contentSecondary,
+                    )
+                }
+                Spacer(Modifier.weight(1f))
+                // Collections are browsed by name or date; filters belong to films.
+                if (library.kind != LibraryKind.COLLECTIONS) FilterButton(state.filter, state.facets, vm::setFilter)
+                Spacer(Modifier.width(HlSpace.s))
+                // "Trier", and how it is sorted now: alone, "Titre" would read as a title.
+                HlMenuButton(
+                    text = stringResource(R.string.sort),
+                    icon = HlIcons.Sort,
+                    detail = sortLabel(state.sort),
+                    sections = listOf(
+                        MenuSection(null, SortOption.entries.map { MenuOption(sortOrder(it), state.sort == it) { vm.setSort(it) } }),
+                    ),
+                )
+            }
+            // The title selected, named without taking space from the wall: one line inside the
+            // safe area, a long name drops its facts first, then ends in an ellipsis.
+            Box(
+                Modifier
+                    .padding(start = HlSpace.safeH, end = HlSpace.safeH, top = HlSpace.xs)
+                    .height(HlLayout.infoLine),
+                contentAlignment = Alignment.CenterStart,
+            ) {
+                shown.value?.let { TitleLine(it) }
+            }
+            // Trying again keeps the error on screen, its button at work, until the answer.
+            val wallError = retainedError(state.error?.takeIf { state.items.isEmpty() }, retrying = state.loading)
+            when {
+                state.items.isEmpty() && wallError != null -> HlErrorState(
+                    wallError,
+                    vm::retry,
+                    Modifier.padding(start = HlSpace.safeH, top = HlSpace.l),
+                    retrying = state.loading,
+                )
+                state.loading && state.items.isEmpty() -> SkeletonWall()
+                state.items.isEmpty() && state.filter.activeCount > 0 -> HlEmptyState(
+                    stringResource(R.string.no_match),
+                    Modifier.padding(start = HlSpace.safeH, top = HlSpace.l),
+                    action = stringResource(R.string.reset_filters),
+                    actionIcon = HlIcons.Filter,
+                    onAction = { vm.setFilter(LibraryFilter()) },
+                )
+                state.items.isEmpty() -> HlEmptyState(
+                    stringResource(if (library.kind == LibraryKind.COLLECTIONS) R.string.empty_collections else R.string.empty_title),
+                    Modifier.padding(start = HlSpace.safeH, top = HlSpace.l),
+                    backHint = true,
+                )
+                // The wall starts under the header: a line of posters comes back to where the first rests.
+                else -> CompositionLocalProvider(LocalGroupFocused provides gridHasFocus) {
+                    ListScroll(top = HlSpace.m) { LazyVerticalGrid(
+                    columns = GridCells.Fixed(COLUMNS),
+                    state = gridState,
+                    contentPadding = PaddingValues(start = HlSpace.safeH, end = HlSpace.safeH, top = HlSpace.m, bottom = HlFocus.edge),
+                    horizontalArrangement = Arrangement.spacedBy(HlSpace.l),
+                    verticalArrangement = Arrangement.spacedBy(HlSpace.l),
+                    modifier = Modifier.fillMaxSize().onFocusChanged {
+                        gridHasFocus = it.hasFocus
+                        // Leaving the wall for the buttons above: the title selected stays.
+                        if (!it.hasFocus) focusedIndex.value = null
+                    },
                 ) {
-                    ScreenTitle(title)
-                    Spacer(Modifier.width(HlSpace.m))
-                    if (state.total > 0) {
-                        Text(
-                            pluralStringResource(
-                                if (library.kind == LibraryKind.COLLECTIONS) R.plurals.collection_count else R.plurals.title_count,
-                                state.total,
-                                state.total,
-                            ),
-                            style = Hl.type.meta,
-                            color = Hl.colors.contentSecondary,
+                    itemsIndexed(state.items, key = { _, it -> it.id }) { index, item ->
+                        PosterCard(
+                            item = item,
+                            onClick = { onOpenItem(item) },
+                            width = null,
+                            onFocused = {
+                                selectedId.value = item.id
+                                focusedIndex.value = index
+                                // The first line sits under the padding: show it all.
+                                if (index < COLUMNS) scope.launch { gridState.animateScrollToItem(0) }
+                                if (index > state.items.size - COLUMNS * 3) vm.loadMore()
+                            },
+                            modifier = Modifier
+                                .focusKey(FocusKey.item(item.id), memory)
+                                .then(if (index == 0) Modifier.focusRequester(gridFocus) else Modifier),
                         )
                     }
-                    Spacer(Modifier.weight(1f))
-                    // Collections are browsed by name or date; filters belong to films.
-                    if (library.kind != LibraryKind.COLLECTIONS) FilterButton(state.filter, state.facets, vm::setFilter)
-                    Spacer(Modifier.width(HlSpace.s))
-                    // "Trier", and how it is sorted now: alone, "Titre" would read as a title.
-                    HlMenuButton(
-                        text = stringResource(R.string.sort),
-                        icon = HlIcons.Sort,
-                        detail = sortLabel(state.sort),
-                        sections = listOf(
-                            MenuSection(null, SortOption.entries.map { MenuOption(sortOrder(it), state.sort == it) { vm.setSort(it) } }),
-                        ),
-                    )
-                }
-                // The title selected, named without taking space from the wall: one line inside the
-                // safe area, a long name drops its facts first, then ends in an ellipsis.
-                Box(
-                    Modifier
-                        .padding(start = HlSpace.safeH, end = HlSpace.safeH, top = HlSpace.xs)
-                        .height(HlLayout.infoLine),
-                    contentAlignment = Alignment.CenterStart,
-                ) {
-                    shown.value?.let { TitleLine(it) }
-                }
-                // Trying again keeps the error on screen, its button at work, until the answer.
-                val wallError = retainedError(state.error?.takeIf { state.items.isEmpty() }, retrying = state.loading)
-                when {
-                    state.items.isEmpty() && wallError != null -> HlErrorState(
-                        wallError,
-                        vm::retry,
-                        Modifier.padding(start = HlSpace.safeH, top = HlSpace.l),
-                        retrying = state.loading,
-                    )
-                    state.loading && state.items.isEmpty() -> SkeletonWall()
-                    state.items.isEmpty() && state.filter.activeCount > 0 -> HlEmptyState(
-                        stringResource(R.string.no_match),
-                        Modifier.padding(start = HlSpace.safeH, top = HlSpace.l),
-                        action = stringResource(R.string.reset_filters),
-                        actionIcon = HlIcons.Filter,
-                        onAction = { vm.setFilter(LibraryFilter()) },
-                    )
-                    state.items.isEmpty() -> HlEmptyState(
-                        stringResource(if (library.kind == LibraryKind.COLLECTIONS) R.string.empty_collections else R.string.empty_title),
-                        Modifier.padding(start = HlSpace.safeH, top = HlSpace.l),
-                        backHint = true,
-                    )
-                    // The wall starts under the header: a line of posters comes back to where the first rests.
-                    else -> CompositionLocalProvider(LocalGroupFocused provides gridHasFocus) {
-                        ListScroll(top = HlSpace.m) { LazyVerticalGrid(
-                        columns = GridCells.Fixed(COLUMNS),
-                        state = gridState,
-                        contentPadding = PaddingValues(start = HlSpace.safeH, end = HlSpace.safeH, top = HlSpace.m, bottom = HlFocus.edge),
-                        horizontalArrangement = Arrangement.spacedBy(HlSpace.l),
-                        verticalArrangement = Arrangement.spacedBy(HlSpace.l),
-                        modifier = Modifier.fillMaxSize().onFocusChanged {
-                            gridHasFocus = it.hasFocus
-                            // Leaving the wall for the buttons above: the title selected stays.
-                            if (!it.hasFocus) focusedIndex.value = null
-                        },
-                    ) {
-                        itemsIndexed(state.items, key = { _, it -> it.id }) { index, item ->
-                            PosterCard(
-                                item = item,
-                                onClick = { onOpenItem(item) },
-                                width = null,
-                                onFocused = {
-                                    selectedId.value = item.id
-                                    focusedIndex.value = index
-                                    // The first line sits under the padding: show it all.
-                                    if (index < COLUMNS) scope.launch { gridState.animateScrollToItem(0) }
-                                    if (index > state.items.size - COLUMNS * 3) vm.loadMore()
-                                },
-                                modifier = Modifier
-                                    .focusKey(FocusKey.item(item.id), memory)
-                                    .then(if (index == 0) Modifier.focusRequester(gridFocus) else Modifier),
+                    // The next page could not load: why, at the foot of the wall, and what fixes it.
+                    state.pageError?.let { error ->
+                        item(key = PAGE_FAILED, span = { GridItemSpan(maxLineSpan) }) {
+                            PartFailed(
+                                error,
+                                retrying = state.pageRetrying,
+                                onRetry = vm::retryPage,
+                                modifier = Modifier.padding(top = HlSpace.m),
+                                action = Modifier.focusKey(RETRY_PAGE, memory),
                             )
                         }
-                        // The next page could not load: why, at the foot of the wall, and what fixes it.
-                        state.pageError?.let { error ->
-                            item(key = PAGE_FAILED, span = { GridItemSpan(maxLineSpan) }) {
-                                PartFailed(
-                                    error,
-                                    retrying = state.pageRetrying,
-                                    onRetry = vm::retryPage,
-                                    modifier = Modifier.padding(top = HlSpace.m),
-                                    action = Modifier.focusKey(RETRY_PAGE, memory),
-                                )
-                            }
-                        }
-                    } } }
-                }
+                    }
+                } } }
             }
         }
     }

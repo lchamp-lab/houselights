@@ -68,10 +68,10 @@ internal fun LazyListScope.catalogReading() {
 private fun ReadingTitleArtSection() {
     Group("Title art", still = true) {
         ReadingRow {
-            ReadingCase("no logo: the title set in condensed type", Modifier.weight(1f)) {
+            Specimen("no logo: the title set in condensed type", Modifier.weight(1f), gap = HlSpace.xxs) {
                 TitleArt(title = "Le Samouraï", logo = null, maxWidth = HlLayout.titleArtWidth, maxHeight = HlLayout.titleArtHeight)
             }
-            ReadingCase("logo that fails to load", Modifier.weight(1f)) {
+            Specimen("logo that fails to load", Modifier.weight(1f), gap = HlSpace.xxs) {
                 TitleArt(
                     title = "Playtime", logo = READING_BROKEN_LOGO,
                     maxWidth = HlLayout.titleArtWidth, maxHeight = HlLayout.titleArtHeight,
@@ -79,7 +79,7 @@ private fun ReadingTitleArtSection() {
             }
         }
         ReadingRow {
-            ReadingCase("long title: two lines at most", Modifier.width(HlLayout.readableNarrow)) {
+            Specimen("long title: two lines at most", Modifier.width(HlLayout.readableNarrow), gap = HlSpace.xxs) {
                 TitleArt(
                     title = "Docteur Folamour ou${NBSP}: comment j’ai appris à ne plus m’en faire et à aimer la bombe",
                     logo = null,
@@ -87,7 +87,7 @@ private fun ReadingTitleArtSection() {
                     maxHeight = HlLayout.titleArtHeight,
                 )
             }
-            ReadingCase("browsing hero size", Modifier.weight(1f)) {
+            Specimen("browsing hero size", Modifier.weight(1f), gap = HlSpace.xxs) {
                 TitleArt(
                     title = "Twin Peaks",
                     logo = null,
@@ -104,18 +104,18 @@ private fun ReadingTitleArtSection() {
 private fun ReadingEpisodeHeadingSection() {
     Group("Episode heading", still = true) {
         ReadingRow {
-            ReadingCase("label and title", Modifier.width(HlLayout.readableNarrow)) {
+            Specimen("label and title", Modifier.width(HlLayout.readableNarrow), gap = HlSpace.xxs) {
                 EpisodeHeading("S1 E3", "Pile ou face")
             }
-            ReadingCase("no label", Modifier.weight(1f)) {
+            Specimen("no label", Modifier.weight(1f), gap = HlSpace.xxs) {
                 EpisodeHeading(null, "Pile ou face")
             }
         }
         ReadingRow {
-            ReadingCase("long title: one line", Modifier.width(HlLayout.readableNarrow)) {
+            Specimen("long title: one line", Modifier.width(HlLayout.readableNarrow), gap = HlSpace.xxs) {
                 EpisodeHeading("S2 E7", "Où l’on apprend enfin ce qui s’est vraiment passé la nuit de la fête au lac")
             }
-            ReadingCase("three-digit episode", Modifier.weight(1f)) {
+            Specimen("three-digit episode", Modifier.weight(1f), gap = HlSpace.xxs) {
                 EpisodeHeading("S12 E108", "Le Retour")
             }
         }
@@ -126,31 +126,41 @@ private fun ReadingEpisodeHeadingSection() {
 private fun ReadingMetaLineSection() {
     Group("Meta line", still = true) {
         ReadingRow {
-            ReadingCase("film, every fact", Modifier.width(HlLayout.readableNarrow)) { MetaLine(READING_FILM) }
-            ReadingCase("year only", Modifier.weight(1f)) { MetaLine(sample("Playtime", 1967).copy(runtimeMs = null)) }
+            Specimen("film, every fact", Modifier.width(HlLayout.readableNarrow), gap = HlSpace.xxs) { MetaLine(READING_FILM) }
+            Specimen("year only", Modifier.weight(1f), gap = HlSpace.xxs) { MetaLine(sample("Playtime", 1967).copy(runtimeMs = null)) }
         }
         ReadingRow {
-            ReadingCase("series, continuing", Modifier.width(HlLayout.readableNarrow)) { MetaLine(READING_SERIES_ON) }
-            ReadingCase("genres hidden, as in the library", Modifier.weight(1f)) { MetaLine(READING_FILM, showGenres = false) }
+            Specimen("series, continuing", Modifier.width(HlLayout.readableNarrow), gap = HlSpace.xxs) { MetaLine(READING_SERIES_ON) }
+            Specimen("genres hidden, as in the library", Modifier.weight(1f), gap = HlSpace.xxs) {
+                MetaLine(READING_FILM, showGenres = false)
+            }
         }
         ReadingRow {
-            ReadingCase("series, ended", Modifier.width(HlLayout.readableNarrow)) { MetaLine(READING_SERIES_ENDED) }
-            ReadingCase("series, ended, in a side column", Modifier.width(HlLayout.sideColumn)) { MetaLine(READING_SERIES_ENDED) }
+            Specimen("series, ended", Modifier.width(HlLayout.readableNarrow), gap = HlSpace.xxs) { MetaLine(READING_SERIES_ENDED) }
+            Specimen("series, ended, in a side column", Modifier.width(HlLayout.sideColumn), gap = HlSpace.xxs) {
+                MetaLine(READING_SERIES_ENDED)
+            }
         }
         ReadingRow {
-            ReadingCase("collection: films owned of all", Modifier.width(HlLayout.readableNarrow)) { MetaLine(READING_COLLECTION) }
-            ReadingCase("no facts: draws nothing", Modifier.weight(1f)) {
+            Specimen("collection: films owned of all", Modifier.width(HlLayout.readableNarrow), gap = HlSpace.xxs) {
+                MetaLine(READING_COLLECTION)
+            }
+            Specimen("no facts: draws nothing", Modifier.weight(1f), gap = HlSpace.xxs) {
                 MetaLine(MediaItem(id = "catalog-no-facts", kind = MediaKind.VIDEO, title = "Sans titre"))
             }
         }
         ReadingRow {
-            ReadingCase("long genres: the last goes whole", Modifier.width(HlLayout.readableNarrow)) { MetaLine(READING_LONG_GENRES) }
-            ReadingCase("in a side column: genres, then the score, go", Modifier.width(HlLayout.sideColumn)) {
+            Specimen("long genres: the last goes whole", Modifier.width(HlLayout.readableNarrow), gap = HlSpace.xxs) {
+                MetaLine(READING_LONG_GENRES)
+            }
+            Specimen("in a side column: genres, then the score, go", Modifier.width(HlLayout.sideColumn), gap = HlSpace.xxs) {
                 MetaLine(READING_LONG_GENRES)
             }
         }
         ReadingRow {
-            ReadingCase("narrower still: down to the year", Modifier.width(HlLayout.definitionLabelShort)) { MetaLine(READING_FILM) }
+            Specimen("narrower still: down to the year", Modifier.width(HlLayout.definitionLabelShort), gap = HlSpace.xxs) {
+                MetaLine(READING_FILM)
+            }
         }
     }
 }
@@ -159,16 +169,16 @@ private fun ReadingMetaLineSection() {
 private fun ReadingTitleLineSection() {
     // As wide as the library gives it: the screen inside the safe area.
     Group("Title line", still = true) {
-        ReadingCase("short name and its facts; formats are the page’s") {
+        Specimen("short name and its facts; formats are the page’s", gap = HlSpace.xxs) {
             TitleLine(READING_LINE_SHORT, Modifier.height(HlLayout.infoLine))
         }
-        ReadingCase("long name: it takes what the facts leave") {
+        Specimen("long name: it takes what the facts leave", gap = HlSpace.xxs) {
             TitleLine(READING_LINE_SHORT.copy(title = READING_LINE_LONG), Modifier.height(HlLayout.infoLine))
         }
-        ReadingCase("longer still: the name ends in an ellipsis, the facts stay") {
+        Specimen("longer still: the name ends in an ellipsis, the facts stay", gap = HlSpace.xxs) {
             TitleLine(READING_LINE_SHORT.copy(title = "$READING_LINE_LONG, $READING_LINE_LONG"), Modifier.height(HlLayout.infoLine))
         }
-        ReadingCase("no facts") { TitleLine(sample("Sans titre", 0).copy(year = null, runtimeMs = null)) }
+        Specimen("no facts", gap = HlSpace.xxs) { TitleLine(sample("Sans titre", 0).copy(year = null, runtimeMs = null)) }
     }
 }
 
@@ -176,22 +186,32 @@ private fun ReadingTitleLineSection() {
 private fun ReadingBadgeRowSection() {
     Group("Formats: words on a page, no frames; a mark keeps its frame", still = true) {
         ReadingRow {
-            ReadingCase("from the file: codec and rate, the sound by its full name", Modifier.width(HlLayout.readableNarrow)) {
+            Specimen(
+                "from the file: codec and rate, the sound by its full name",
+                Modifier.width(HlLayout.readableNarrow),
+                gap = HlSpace.xxs,
+            ) {
                 FormatLines(READING_TECH_FULL)
             }
-            ReadingCase("a lean file", Modifier.width(HlLayout.sideColumn)) { FormatLines(READING_TECH_LEAN) }
+            Specimen("a lean file", Modifier.width(HlLayout.sideColumn), gap = HlSpace.xxs) { FormatLines(READING_TECH_LEAN) }
         }
         ReadingRow {
-            ReadingCase("from badges: Dolby Vision says its HDR10; TrueHD, Atmos: one", Modifier.width(HlLayout.readableNarrow)) {
+            Specimen(
+                "from badges: Dolby Vision says its HDR10; TrueHD, Atmos: one",
+                Modifier.width(HlLayout.readableNarrow),
+                gap = HlSpace.xxs,
+            ) {
                 FormatLines(sample("Le Samouraï", 1967).copy(badges = listOf("4K", "Dolby Vision", "HDR10", "Atmos", "TrueHD", "7.1")))
             }
-            ReadingCase("Dolby Digital Plus for E-AC3; a remux is not a format", Modifier.width(HlLayout.sideColumn)) {
+            Specimen("Dolby Digital Plus for E-AC3; a remux is not a format", Modifier.width(HlLayout.sideColumn), gap = HlSpace.xxs) {
                 FormatLines(sample("Playtime", 1967).copy(badges = listOf("1080p", "E-AC3", "5.1", "Remux")))
             }
         }
         ReadingRow {
-            ReadingCase("no formats: draws nothing", Modifier.width(HlLayout.readableNarrow)) { FormatLines(sample("Sans titre", 0)) }
-            ReadingCase("marks keep a frame: a rating, a key, an id", Modifier.weight(1f)) {
+            Specimen("no formats: draws nothing", Modifier.width(HlLayout.readableNarrow), gap = HlSpace.xxs) {
+                FormatLines(sample("Sans titre", 0))
+            }
+            Specimen("marks keep a frame: a rating, a key, an id", Modifier.weight(1f), gap = HlSpace.xxs) {
                 Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.xs)) {
                     Badge("12")
                     Badge("OK")
@@ -206,26 +226,26 @@ private fun ReadingBadgeRowSection() {
 private fun ReadingBillingBlockSection() {
     Group("Billing block", still = true) {
         ReadingRow {
-            ReadingCase("a director and three leads", Modifier.width(HlLayout.readableNarrow)) {
+            Specimen("a director and three leads", Modifier.width(HlLayout.readableNarrow), gap = HlSpace.xxs) {
                 BillingBlock(listOf("Jean Vigo"), listOf("Dita Parlo", "Jean Dasté", "Michel Simon"))
             }
-            ReadingCase("no names: draws nothing", Modifier.weight(1f)) { BillingBlock(emptyList(), emptyList()) }
+            Specimen("no names: draws nothing", Modifier.weight(1f), gap = HlSpace.xxs) { BillingBlock(emptyList(), emptyList()) }
         }
         ReadingRow {
-            ReadingCase("long names: the last leads drop", Modifier.width(HlLayout.readableNarrow)) {
+            Specimen("long names: the last leads drop", Modifier.width(HlLayout.readableNarrow), gap = HlSpace.xxs) {
                 BillingBlock(READING_LONG_DIRECTOR, READING_LONG_CAST)
             }
-            ReadingCase("the same in a side column", Modifier.width(HlLayout.sideColumn)) {
+            Specimen("the same in a side column", Modifier.width(HlLayout.sideColumn), gap = HlSpace.xxs) {
                 BillingBlock(READING_LONG_DIRECTOR, READING_LONG_CAST)
             }
         }
         ReadingRow {
-            ReadingCase("cast only, as for a series", Modifier.width(HlLayout.readableNarrow)) {
+            Specimen("cast only, as for a series", Modifier.width(HlLayout.readableNarrow), gap = HlSpace.xxs) {
                 BillingBlock(emptyList(), listOf("Kyle MacLachlan", "Sheryl Lee", "Lara Flynn Boyle", "Michael Ontkean"))
             }
         }
         ReadingRow {
-            ReadingCase("two directors: the first only", Modifier.width(HlLayout.readableNarrow)) {
+            Specimen("two directors: the first only", Modifier.width(HlLayout.readableNarrow), gap = HlSpace.xxs) {
                 BillingBlock(listOf("Jean-Marie Straub", "Danièle Huillet"), listOf("Gilberto Adamo", "Angela Nugara"))
             }
         }
@@ -236,10 +256,10 @@ private fun ReadingBillingBlockSection() {
 private fun ReadingHeroInfoSection() {
     Group("Hero info", still = true) {
         ReadingRow {
-            ReadingCase("film, no artwork, in progress", Modifier.width(HlLayout.readableNarrow)) {
+            Specimen("film, no artwork, in progress", Modifier.width(HlLayout.readableNarrow), gap = HlSpace.xxs) {
                 HeroInfo(READING_HERO_FILM, Modifier.height(HlLayout.hero))
             }
-            ReadingCase("no rows yet: draws nothing", Modifier.weight(1f)) {
+            Specimen("no rows yet: draws nothing", Modifier.weight(1f), gap = HlSpace.xxs) {
                 HeroInfo(null, Modifier.height(HlLayout.hero))
             }
         }
@@ -249,7 +269,7 @@ private fun ReadingHeroInfoSection() {
 @Composable
 private fun ReadingHeroEpisodeSection() {
     Group("Hero info: episode", still = true) {
-        ReadingCase("episode of a series, no artwork", Modifier.width(HlLayout.readableNarrow)) {
+        Specimen("episode of a series, no artwork", Modifier.width(HlLayout.readableNarrow), gap = HlSpace.xxs) {
             HeroInfo(READING_HERO_EPISODE, Modifier.height(HlLayout.hero))
         }
     }
@@ -258,7 +278,7 @@ private fun ReadingHeroEpisodeSection() {
 @Composable
 private fun ReadingHeroLongTitleSection() {
     Group("Hero info: long title", still = true) {
-        ReadingCase("two-line title in the hero’s height", Modifier.width(HlLayout.readableNarrow)) {
+        Specimen("two-line title in the hero’s height", Modifier.width(HlLayout.readableNarrow), gap = HlSpace.xxs) {
             HeroInfo(READING_HERO_LONG, Modifier.height(HlLayout.hero))
         }
     }
@@ -268,7 +288,7 @@ private fun ReadingHeroLongTitleSection() {
 private fun ReadingInfoBlockSection() {
     Group("Info block", still = true) {
         ReadingRow {
-            ReadingCase("a paragraph", Modifier.weight(1f)) {
+            Specimen("a paragraph", Modifier.weight(1f), gap = HlSpace.xxs) {
                 InfoBlock("Résumé") {
                     Column(Modifier.widthIn(max = HlLayout.readable)) {
                         Text(
@@ -280,7 +300,7 @@ private fun ReadingInfoBlockSection() {
                     }
                 }
             }
-            ReadingCase("a definition list", Modifier.weight(1f)) {
+            Specimen("a definition list", Modifier.weight(1f), gap = HlSpace.xxs) {
                 InfoBlock("Détails") {
                     DefinitionList(
                         listOf(
@@ -294,7 +314,7 @@ private fun ReadingInfoBlockSection() {
             }
         }
         ReadingRow {
-            ReadingCase("badges", Modifier.weight(1f)) {
+            Specimen("badges", Modifier.weight(1f), gap = HlSpace.xxs) {
                 InfoBlock("Identifiants") {
                     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.xs)) {
                         Badge("TMDB 5511")
@@ -302,7 +322,7 @@ private fun ReadingInfoBlockSection() {
                     }
                 }
             }
-            ReadingCase("no content", Modifier.weight(1f)) { InfoBlock("Distribution") {} }
+            Specimen("no content", Modifier.weight(1f), gap = HlSpace.xxs) { InfoBlock("Distribution") {} }
         }
     }
 }
@@ -311,7 +331,7 @@ private fun ReadingInfoBlockSection() {
 private fun ReadingDefinitionListSection() {
     Group("Definition list", still = true) {
         ReadingRow {
-            ReadingCase("default label column", Modifier.weight(1f)) {
+            Specimen("default label column", Modifier.weight(1f), gap = HlSpace.xxs) {
                 DefinitionList(
                     listOf(
                         "Conteneur" to "Matroska",
@@ -321,7 +341,7 @@ private fun ReadingDefinitionListSection() {
                     ),
                 )
             }
-            ReadingCase("short label column, a value that wraps", Modifier.weight(1f)) {
+            Specimen("short label column, a value that wraps", Modifier.weight(1f), gap = HlSpace.xxs) {
                 DefinitionList(
                     listOf(
                         "Studios" to "Filmel, Compagnie industrielle et commerciale cinématographique, Fida Cinematografica",
@@ -332,7 +352,7 @@ private fun ReadingDefinitionListSection() {
             }
         }
         ReadingRow {
-            ReadingCase("labels longer than their column: the value on their first line", Modifier.weight(1f)) {
+            Specimen("labels longer than their column: the value on their first line", Modifier.weight(1f), gap = HlSpace.xxs) {
                 DefinitionList(
                     listOf(
                         "Fréquence d’images" to "23,976${NBSP}im/s",
@@ -342,7 +362,7 @@ private fun ReadingDefinitionListSection() {
                     labelWidth = HlLayout.definitionLabelShort,
                 )
             }
-            ReadingCase("no rows: draws nothing", Modifier.weight(1f)) { DefinitionList(emptyList()) }
+            Specimen("no rows: draws nothing", Modifier.weight(1f), gap = HlSpace.xxs) { DefinitionList(emptyList()) }
         }
     }
 }
@@ -353,25 +373,18 @@ private fun ReadingTechSheetSection() {
     Group("Technical sheet") {
         var open by remember { mutableStateOf<MediaItem?>(null) }
         ReadingRow {
-            ReadingCase("DV 8.1 and HDR10+, two French dubs, a note") { HlButton("Dolby", { open = READING_TECH_DOLBY }) }
-            ReadingCase("longer than the screen: its rows scroll") { HlButton("3 audio, 14 subtitles", { open = READING_TECH_FULL }) }
+            Specimen("DV 8.1 and HDR10+, two French dubs, a note", gap = HlSpace.xxs) { HlButton("Dolby", { open = READING_TECH_DOLBY }) }
+            Specimen("longer than the screen: its rows scroll", gap = HlSpace.xxs) {
+                HlButton("3 audio, 14 subtitles", { open = READING_TECH_FULL })
+            }
         }
         Spacer(Modifier.height(HlSpace.l))
         ReadingRow {
-            ReadingCase("a lean file") { HlButton("1 audio, no subtitles", { open = READING_TECH_LEAN }) }
-            ReadingCase("nothing named, as a server gives it") { HlButton("Sparse", { open = READING_TECH_SPARSE }) }
-            ReadingCase("the longest words, side by side") { HlButton("Stress", { open = READING_TECH_STRESS }) }
+            Specimen("a lean file", gap = HlSpace.xxs) { HlButton("1 audio, no subtitles", { open = READING_TECH_LEAN }) }
+            Specimen("nothing named, as a server gives it", gap = HlSpace.xxs) { HlButton("Sparse", { open = READING_TECH_SPARSE }) }
+            Specimen("the longest words, side by side", gap = HlSpace.xxs) { HlButton("Stress", { open = READING_TECH_STRESS }) }
         }
         open?.let { TechSpecs(it, onDismiss = { open = null }) }
-    }
-}
-
-/** One state of a component, captioned underneath. */
-@Composable
-private fun ReadingCase(caption: String, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
-    Column(modifier, verticalArrangement = Arrangement.spacedBy(HlSpace.xxs)) {
-        content()
-        Text(caption, style = Hl.type.caption, color = Hl.colors.contentTertiary)
     }
 }
 
