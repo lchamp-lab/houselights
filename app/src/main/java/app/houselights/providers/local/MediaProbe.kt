@@ -55,9 +55,10 @@ object MediaProbe {
      * The version of what a probe reads, kept with each reading: a file read by an older probe is
      * read again at the next scan, its headers only. 1: the frame rate. 2: formats read from the
      * tracks' first frames (Atmos, DTS layers, HDR10+), audio bitrates from the file's tags. 3: the
-     * video's bitrate, what a Dolby Vision base layer plays as.
+     * video's bitrate, what a Dolby Vision base layer plays as. 4: tracks muxed from AVI named by their
+     * FOURCC and format tag (XviD and DivX are MPEG-4, not VC-1).
      */
-    const val VERSION = 3
+    const val VERSION = 4
 
     /** A file not read yet, or read by an older probe. */
     fun isStale(mediaInfo: String?): Boolean = (decode(mediaInfo)?.probedWith ?: -1) < VERSION
