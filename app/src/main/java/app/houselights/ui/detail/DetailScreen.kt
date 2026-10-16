@@ -28,6 +28,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -99,6 +100,7 @@ import app.houselights.ui.design.components.TitleArt
 import app.houselights.ui.design.components.rememberAmbientColor
 import app.houselights.ui.edit.EditMenu
 import app.houselights.ui.home.ErrorMessage
+import app.houselights.ui.util.PartFailed
 import app.houselights.ui.util.ReloadOnLibraryChange
 import app.houselights.ui.util.retainedError
 import app.houselights.ui.util.appContainer
@@ -246,8 +248,21 @@ fun DetailScreen(
                         }
                         item(key = "episodes-${state.selectedSeasonId}") {
                             val failed = state.episodesError
+                            // Réessayer had focus: once the episodes are there, focus goes to them, not nowhere.
+                            LaunchedEffect(failed == null && state.episodes.isNotEmpty()) {
+                                if (failed == null && state.episodes.isNotEmpty() && memory.last == RETRY_EPISODES) {
+                                    withFrameNanos { }
+                                    memory.focus(FocusKey.row(EPISODES))
+                                }
+                            }
                             when {
-                                failed != null -> EpisodesFailed(single?.title, failed, vm::retrySeason)
+                                failed != null -> EpisodesFailed(
+                                    single?.title,
+                                    failed,
+                                    retrying = state.episodesLoading,
+                                    onRetry = vm::retrySeason,
+                                    action = Modifier.focusKey(RETRY_EPISODES, memory),
+                                )
                                 state.episodesLoading && state.episodes.isEmpty() -> EpisodesSkeleton(single?.title)
                                 else -> Episodes(
                                     header = single?.title,
@@ -566,14 +581,15 @@ private fun EpisodesSkeleton(header: String?) {
     }
 }
 
-/** A season's episodes could not load: why, where the row would be, and the way to try again. */
+/**
+ * A season's episodes could not load: why, where the row would be, and what fixes it; trying again
+ * ([retrying]), the row stays, its button at work and focused.
+ */
 @Composable
-private fun EpisodesFailed(header: String?, error: UiError, onRetry: () -> Unit) {
+private fun EpisodesFailed(header: String?, error: UiError, retrying: Boolean, onRetry: () -> Unit, action: Modifier) {
     Column(Modifier.scrollsAsBlock().padding(horizontal = HlSpace.safeH)) {
         header?.let { SectionHeader(it, Modifier.padding(bottom = HlSpace.xxs)) }
-        HlStatus(StatusState.Attention, stringResource(error.title), detail = stringResource(error.message))
-        Spacer(Modifier.height(HlSpace.s))
-        HlButton(stringResource(R.string.retry), onClick = onRetry, icon = HlIcons.Refresh)
+        PartFailed(error, retrying, onRetry, action = action)
     }
 }
 
@@ -596,6 +612,9 @@ private val NFO = FocusKey.action("nfo")
 private val FAVORITE = FocusKey.action("favorite")
 private val EDIT = FocusKey.action("edit")
 private const val EPISODES = "episodes"
+
+/** Réessayer of a season that failed, in its row: coming back, focus finds the row. */
+private val RETRY_EPISODES = FocusKey.within(FocusKey.row(EPISODES), FocusKey.action("retry"))
 private const val FILMS = "films"
 private const val SAGA = "collection"
 private const val SIMILAR = "similar"

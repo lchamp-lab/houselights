@@ -20,11 +20,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -70,13 +72,10 @@ import app.houselights.ui.design.components.PosterCard
 import app.houselights.ui.design.components.ScreenTitle
 import app.houselights.ui.design.components.rememberAmbientColor
 import app.houselights.ui.design.components.CardSkeleton
-import app.houselights.ui.design.components.HlButton
 import app.houselights.ui.design.components.HlEmptyState
-import app.houselights.ui.design.components.HlStatus
-import app.houselights.ui.design.components.StatusState
 import app.houselights.ui.home.ErrorMessage
+import app.houselights.ui.util.PartFailed
 import app.houselights.ui.util.ReloadOnLibraryChange
-import app.houselights.ui.util.UiError
 import app.houselights.ui.util.retainedError
 import app.houselights.ui.util.appContainer
 import app.houselights.ui.util.skeletonDelayPassed
@@ -126,6 +125,21 @@ fun LibraryScreen(
     BackToStart(away = backReturnsToFirst(focusedIndex)) {
         gridState.animateScrollToItem(0)
         runCatching { gridFocus.requestFocus() }
+    }
+    // Where the foot stood when the next page failed: once Réessayer brings the page, focus goes to
+    // its first poster, where the button was, not nowhere.
+    var footAt by remember { mutableIntStateOf(-1) }
+    LaunchedEffect(state.pageError, state.items.size) {
+        if (state.pageError != null) {
+            footAt = state.items.size
+        } else if (footAt >= 0 && memory.last == RETRY_PAGE) {
+            val first = state.items.getOrNull(footAt)
+            footAt = -1
+            if (first != null) {
+                withFrameNanos { }
+                memory.focus(FocusKey.item(first.id))
+            }
+        }
     }
 
     val ambient = rememberAmbientColor(shown?.backdrop)
@@ -222,10 +236,16 @@ fun LibraryScreen(
                                     .then(if (index == 0) Modifier.focusRequester(gridFocus) else Modifier),
                             )
                         }
-                        // The next page could not load: why, at the foot of the wall, and the way to try again.
+                        // The next page could not load: why, at the foot of the wall, and what fixes it.
                         state.pageError?.let { error ->
                             item(key = PAGE_FAILED, span = { GridItemSpan(maxLineSpan) }) {
-                                PageFailed(error, retrying = state.pageRetrying, onRetry = vm::retryPage)
+                                PartFailed(
+                                    error,
+                                    retrying = state.pageRetrying,
+                                    onRetry = vm::retryPage,
+                                    modifier = Modifier.padding(top = HlSpace.m),
+                                    action = Modifier.focusKey(RETRY_PAGE, memory),
+                                )
                             }
                         }
                     } } }
@@ -235,24 +255,11 @@ fun LibraryScreen(
     }
 }
 
-/** The next page of the wall could not load: what happened, and Réessayer, at work while it tries. */
-@Composable
-private fun PageFailed(error: UiError, retrying: Boolean, onRetry: () -> Unit) {
-    Column(Modifier.padding(top = HlSpace.m)) {
-        HlStatus(StatusState.Attention, stringResource(error.title), detail = stringResource(error.message))
-        Spacer(Modifier.height(HlSpace.s))
-        HlButton(
-            stringResource(R.string.retry),
-            onClick = onRetry,
-            icon = HlIcons.Refresh,
-            busy = retrying,
-            busyLabel = stringResource(R.string.retrying),
-        )
-    }
-}
-
 /** The key of the wall's foot when the next page failed: never a title's id. */
 private const val PAGE_FAILED = "page-failed"
+
+/** Réessayer, at the foot of the wall. */
+private val RETRY_PAGE = FocusKey.action("retry-page")
 
 /** Back returns to the first poster from past the first line of the wall; from the first line, it leaves. */
 internal fun backReturnsToFirst(focusedIndex: Int?): Boolean = focusedIndex != null && focusedIndex >= COLUMNS

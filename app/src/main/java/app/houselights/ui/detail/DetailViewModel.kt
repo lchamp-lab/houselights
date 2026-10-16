@@ -34,7 +34,10 @@ data class DetailState(
     val nextUp: MediaItem? = null,
     val seasons: List<MediaItem> = emptyList(),
     val selectedSeasonId: String? = null,
-    /** The episodes of [selectedSeasonId]; empty while they load ([episodesLoading]) or failed to ([episodesError]). */
+    /**
+     * The episodes of [selectedSeasonId]; empty while they load ([episodesLoading]) or failed to
+     * ([episodesError]). Tried again, the error stays while they load: its row stays, Réessayer at work.
+     */
     val episodes: List<MediaItem> = emptyList(),
     val episodesLoading: Boolean = false,
     val episodesError: UiError? = null,
@@ -153,12 +156,13 @@ class DetailViewModel(
         loadSeason(series, seasonId, settle = true)
     }
 
-    /** After the episodes of the season chosen failed to load: tries again. */
+    /** After the episodes of the season chosen failed to load: tries again, the row's error kept until the answer. */
     fun retrySeason() {
         val s = _state.value
         val series = s.item ?: return
         val seasonId = s.selectedSeasonId ?: return
-        _state.update { it.copy(episodesLoading = true, episodesError = null) }
+        if (s.episodesLoading) return
+        _state.update { it.copy(episodesLoading = true) }
         loadSeason(series, seasonId, settle = false)
     }
 

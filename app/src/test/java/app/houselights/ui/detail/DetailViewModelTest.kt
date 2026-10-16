@@ -203,25 +203,17 @@ class DetailViewModelTest {
         assertEquals(UiError.OFFLINE, vm.state.value.episodesError)
         assertEquals(emptyList<String>(), vm.shownEpisodes)
 
+        // Trying again keeps the row's error, its Réessayer at work and focused, until the answer.
         provider.fail = { null }
+        val answer = provider.gate("episodes s2")
         vm.retrySeason()
+        advanceUntilIdle()
+        assertEquals(UiError.OFFLINE, vm.state.value.episodesError)
+        assertTrue(vm.state.value.episodesLoading)
+        answer.complete(Unit)
+        advanceUntilIdle()
         assertNull(vm.state.value.episodesError)
-        advanceUntilIdle()
         assertEquals(listOf("s2e1", "s2e2"), vm.shownEpisodes)
-    }
-
-    @Test
-    fun tryingAgainWithNoTitleShownSaysSo() = runTest {
-        provider.fail = { IOException("Server away") }
-        val vm = detail()
-        advanceUntilIdle()
-        assertEquals(UiError.OFFLINE, vm.state.value.error)
-
-        provider.fail = { null }
-        vm.load()
-        assertNull(vm.state.value.error)
-        advanceUntilIdle()
-        assertEquals("Heat", vm.state.value.item?.title)
     }
 
     /** Watched, then the library's signal of that very change: the page loads once, not a second time over the first. */
@@ -240,6 +232,20 @@ class DetailViewModelTest {
         vm.onLibraryChanged()
         advanceUntilIdle()
         assertEquals(3, provider.calls.count { it == "item m1" })
+    }
+
+    @Test
+    fun tryingAgainWithNoTitleShownSaysSo() = runTest {
+        provider.fail = { IOException("Server away") }
+        val vm = detail()
+        advanceUntilIdle()
+        assertEquals(UiError.OFFLINE, vm.state.value.error)
+
+        provider.fail = { null }
+        vm.load()
+        assertNull(vm.state.value.error)
+        advanceUntilIdle()
+        assertEquals("Heat", vm.state.value.item?.title)
     }
 
     @Test
