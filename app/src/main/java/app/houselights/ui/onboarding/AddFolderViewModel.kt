@@ -243,9 +243,10 @@ class AddFolderViewModel(
     /**
      * Tests the folder, then adds it to the library and makes the local library the source, or saves
      * the folder edited under its id: its titles keep what was watched and chosen. A folder the library
-     * already holds, or one inside or around it, is refused first. [onDone] hears whether the source
-     * changed (it was a server, or nothing yet), unless the form was left meanwhile. A write that fails
-     * says why in [check].
+     * already holds, or one inside or around it, is refused first, unless it is this very folder, added
+     * before while making the folders the source failed: that is all there is left to do, without a
+     * test. [onDone] hears whether the source changed (it was a server, or nothing yet), unless the
+     * form was left meanwhile. A write that fails says why in [check].
      */
     fun submit(onDone: (switched: Boolean) -> Unit) {
         if (busy || !ready || gone) return
@@ -253,19 +254,27 @@ class AddFolderViewModel(
         submitting = true
         viewModelScope.launchAction(TAG, "Saving the folder at ${source.host}", ::saveFailed, Throwable::toWriteError) {
             try {
-                library.overlapping(source, except = folderId)?.let {
-                    check = FolderCheck.Overlaps(it, same = it.samePlace(source))
-                    return@launchAction
-                }
-                if (!reaches(source)) return@launchAction
-                when (val saved = saveInBackground(source)) {
-                    is Saved.Done -> onDone(saved.switched)
-                    Saved.Gone -> gone = true
-                    is Saved.Overlaps -> check = FolderCheck.Overlaps(saved.existing, same = saved.existing.samePlace(source))
+                val held = library.overlapping(source, except = folderId)
+                when {
+                    held == null -> if (reaches(source)) show(saveInBackground(source), source, onDone)
+                    addedBefore(held, source) -> show(saveInBackground(source), source, onDone)
+                    else -> check = FolderCheck.Overlaps(held, same = held.samePlace(source))
                 }
             } finally {
                 submitting = false
             }
+        }
+    }
+
+    /** [held], in the library, is the very folder added: the form adds it again, the source left unchanged. */
+    private fun addedBefore(held: SourceEntity, source: SourceEntity) = folderId == null && held.samePlace(source)
+
+    /** Says what saving [source] did ([outcome]), or leaves the form ([onDone]). */
+    private fun show(outcome: Saved, source: SourceEntity, onDone: (switched: Boolean) -> Unit) {
+        when (outcome) {
+            is Saved.Done -> onDone(outcome.switched)
+            Saved.Gone -> gone = true
+            is Saved.Overlaps -> check = FolderCheck.Overlaps(outcome.existing, same = outcome.existing.samePlace(source))
         }
     }
 
@@ -303,7 +312,13 @@ class AddFolderViewModel(
         return when (result) {
             FolderSave.Saved -> Saved.Done(switched = folderId == null && useFolders())
             FolderSave.Gone -> Saved.Gone
-            is FolderSave.Overlaps -> Saved.Overlaps(result.existing)
+            // Added before, when making the folders the source failed: the folder is there, its scan
+            // asked; the source changes now. Already the folders, it is the same folder twice.
+            is FolderSave.Overlaps -> if (addedBefore(result.existing, folder) && useFolders()) {
+                Saved.Done(switched = true)
+            } else {
+                Saved.Overlaps(result.existing)
+            }
         }
     }
 

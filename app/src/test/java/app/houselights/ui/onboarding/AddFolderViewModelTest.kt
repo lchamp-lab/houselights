@@ -285,6 +285,40 @@ class AddFolderViewModelTest {
         assertFalse(vm.busy)
     }
 
+    /**
+     * The folder was added, but making the folders the source failed (the storage full): Add again
+     * makes them the source, without a test, and is done. Once they are, it is the same folder twice.
+     */
+    @Test
+    fun aFolderAddedWhoseSourceDidNotChangeIsDoneOnTheNextAdd() = runTest {
+        var full = true
+        var local = false
+        val vm = form(null, useFolders = {
+            calls += "use folders"
+            if (full) throw IOException("No space left on device")
+            !local.also { local = true }
+        })
+        advanceUntilIdle()
+        vm.edit { copy(protocol = Protocol.NFS, host = "192.168.1.10", share = "/volume1/media", path = "films") }
+        vm.submit { fail("said done") }
+        advanceUntilIdle()
+        assertEquals(FolderCheck.SaveFailed(UiError.NOT_SAVED), vm.check)
+        assertEquals(1, dao.sources().size)
+
+        full = false
+        var switched: Boolean? = null
+        vm.submit { switched = it }
+        advanceUntilIdle()
+        assertEquals(true, switched)
+        assertEquals(listOf("test 192.168.1.10 with ", "use folders", "use folders"), calls)
+
+        vm.submit { fail("added twice") }
+        advanceUntilIdle()
+        assertEquals(true, (vm.check as FolderCheck.Overlaps).same)
+        assertEquals(1, dao.sources().size)
+        assertFalse(vm.busy)
+    }
+
     /** The Keystore refuses to seal the password: the folder is not added, and the form says why. */
     @Test
     fun aPasswordTheKeystoreCannotSealSaysWhy() = runTest {
