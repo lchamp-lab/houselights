@@ -51,8 +51,9 @@ import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.Ground
 import app.houselights.ui.design.LocalGround
+import app.houselights.ui.design.edge
 import app.houselights.ui.design.emberLight
-import app.houselights.ui.design.groundStep
+import app.houselights.ui.design.groundStepFill
 
 /** How far a panel stands out from the room. */
 enum class PanelLevel {
@@ -80,20 +81,23 @@ fun HlPanel(
     val raised = level == PanelLevel.Raised
     Column(
         modifier
-            .clip(shape)
-            .background(if (raised) c.surfaceRaised else c.content.copy(alpha = groundStep()))
-            .then(
-                if (lit) {
-                    Modifier.border(HlSize.hairline, c.emberLight(), shape)
-                } else {
-                    Modifier.border(HlSize.hairline, c.outline.copy(alpha = HlAlpha.EDGE), shape)
-                },
+            .panel(
+                shape,
+                fill = if (raised) c.surfaceRaised else groundStepFill(),
+                edge = if (lit) BorderStroke(HlSize.hairline, c.emberLight()) else BorderStroke(HlSize.hairline, c.edge),
             )
             .padding(padding),
     ) {
         if (raised) CompositionLocalProvider(LocalGround provides Ground.Glass) { content() } else content()
     }
 }
+
+/**
+ * A panel's surface: [fill] clipped to [shape], [edge] drawn around it. The one recipe, so an area
+ * to read on its quiet panel ([HlScrollArea]) is the panel itself.
+ */
+internal fun Modifier.panel(shape: Shape, fill: Color, edge: BorderStroke): Modifier =
+    clip(shape).background(fill).border(edge, shape)
 
 /**
  * A panel that can be chosen (list entries, results, source cards): quiet at rest, raised with a
@@ -113,8 +117,7 @@ fun HlPanelButton(
     val c = Hl.colors
     val interaction = remember { MutableInteractionSource() }
     val focused by interaction.collectIsFocusedAsState()
-    val step = groundStep()
-    val edge = Border(BorderStroke(HlSize.hairline, c.outline.copy(alpha = HlAlpha.EDGE)), shape = HlShapes.panel)
+    val edge = Border(BorderStroke(HlSize.hairline, c.edge), shape = HlShapes.panel)
     Surface(
         onClick = onClick,
         modifier = modifier.onFocusChanged { if (it.isFocused) onFocused() },
@@ -127,12 +130,45 @@ fun HlPanelButton(
             disabled = edge,
         ),
         colors = FocusStyle.still(
-            rest = c.content.copy(alpha = step),
+            rest = groundStepFill(),
             restContent = c.content,
             disabled = c.content.copy(alpha = HlAlpha.FILL_FAINT),
             disabledContent = c.contentTertiary,
         ),
         interactionSource = interaction,
+    ) {
+        content(focused)
+    }
+}
+
+/**
+ * A row that can be chosen, as wide as its column (a setting, a navigation entry, a menu option, a
+ * fact of the technical sheet): the row's shape, and with focus the white fill, without growing
+ * ([FocusStyle.Fill.Row]). [rest] and [restContent] at rest; not [enabled], it keeps focus,
+ * outlined, and its words go [disabledContent]. What sets one row apart (its height, what it says
+ * to accessibility services) goes in [modifier]. [content] receives the focus state.
+ */
+@Composable
+internal fun HlRowSurface(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    rest: Color = Color.Transparent,
+    restContent: Color = Hl.colors.content,
+    enabled: Boolean = true,
+    disabledContent: Color = restContent,
+    interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
+    content: @Composable (focused: Boolean) -> Unit,
+) {
+    val focused by interactionSource.collectIsFocusedAsState()
+    Surface(
+        onClick = onClick,
+        modifier = modifier,
+        enabled = enabled,
+        shape = ClickableSurfaceDefaults.shape(HlShapes.row),
+        scale = FocusStyle.scale(FocusStyle.Fill.Row),
+        border = FocusStyle.disabledRing(HlShapes.row),
+        colors = FocusStyle.fill(rest = rest, restContent = restContent, disabledContent = disabledContent),
+        interactionSource = interactionSource,
     ) {
         content(focused)
     }
@@ -162,7 +198,7 @@ fun HlIconDisc(icon: ImageVector, modifier: Modifier = Modifier, lit: Boolean = 
 /** A hairline that separates groups. */
 @Composable
 fun HlDivider(modifier: Modifier = Modifier, vertical: Boolean = false) {
-    val color = Hl.colors.outline.copy(alpha = HlAlpha.EDGE)
+    val color = Hl.colors.edge
     if (vertical) {
         Box(modifier.width(HlSize.hairline).fillMaxHeight().background(color))
     } else {

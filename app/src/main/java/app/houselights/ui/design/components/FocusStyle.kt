@@ -122,7 +122,19 @@ internal object FocusStyle {
     @Composable
     fun ring(): BorderStroke = BorderStroke(HlSize.focusBorder, Hl.colors.focus)
 
-    /** The colour of focus, for what draws its ring by hand. */
+    /**
+     * The ink of a filled element's quieter words (a button's detail, a row's description or value),
+     * by state: [onFocus] with focus, tertiary when it cannot act, ember when [lit], else secondary.
+     * Secondary at rest, never tertiary, which falls to 3.9:1 on a primary button.
+     */
     @Composable
-    fun ringColor(): Color = Hl.colors.focus
+    fun quietInk(focused: Boolean, enabled: Boolean, lit: Boolean, onFocus: Color = Hl.colors.onFocusSecondary): Color {
+        val c = Hl.colors
+        return when {
+            focused -> onFocus
+            !enabled -> c.contentTertiary
+            lit -> c.ember
+            else -> c.contentSecondary
+        }
+    }
 }

@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -344,9 +345,10 @@ private fun FormScrollAreas() {
         FormCase("framed, longer than its height: it fades where there is more", Modifier.weight(1f)) {
             HlScrollArea(Modifier.height(HlLayout.hero)) { FormReading(FORM_LONG_TEXT) }
         }
-        FormCase("unframed, longer than its height: its ring stands outside", Modifier.weight(1f)) {
-            // In a sheet it fades into the sheet; here, into the room.
-            HlScrollArea(Modifier.height(HlLayout.hero), framed = false, surface = Hl.colors.background) { FormReading(FORM_LONG_TEXT) }
+        FormCase("lazy, the lines of an NFO: laid out as they show, read the same", Modifier.weight(1f)) {
+            HlScrollArea(Hl.type.code.lineHeight, Modifier.height(HlLayout.hero)) {
+                items(FORM_NFO_LINES) { Text(it, style = Hl.type.code, color = Hl.colors.contentSecondary) }
+            }
         }
         FormCase("framed, fits: takes no focus", Modifier.weight(1f)) {
             HlScrollArea(Modifier.height(HlLayout.hero)) { FormReading(listOf(FORM_SHORT_TEXT)) }
@@ -402,3 +404,26 @@ private val FORM_LONG_TEXT = listOf(
 )
 
 private const val FORM_SHORT_TEXT = "Un tueur à gages, un alibi, une pianiste : Paris en 1967, presque sans un mot."
+
+/** An NFO as written, a line per item. */
+private val FORM_NFO_LINES = listOf(
+    """<?xml version="1.0" encoding="UTF-8"?>""",
+    "<movie>",
+    "  <title>Le Samouraï</title>",
+    "  <year>1967</year>",
+    "  <runtime>105</runtime>",
+    """  <uniqueid type="tmdb">5511</uniqueid>""",
+    """  <uniqueid type="imdb">tt0062229</uniqueid>""",
+    "  <genre>Crime</genre>",
+    "  <genre>Thriller</genre>",
+    "  <director>Jean-Pierre Melville</director>",
+    "  <actor>",
+    "    <name>Alain Delon</name>",
+    "    <role>Jef Costello</role>",
+    "  </actor>",
+    "  <actor>",
+    "    <name>François Périer</name>",
+    "    <role>Le commissaire</role>",
+    "  </actor>",
+    "</movie>",
+)

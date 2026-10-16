@@ -232,3 +232,8 @@ val LocalHlType = staticCompositionLocalOf { HouselightsType }
 @Composable
 @ReadOnlyComposable
 fun textRoom(height: Dp): Dp = with(LocalDensity.current) { height.value.sp.toDp() }
+
+/** Room kept for one line of [style], at the viewer's text size: its line height (`lead`: 26 at 1). */
+@Composable
+@ReadOnlyComposable
+fun textRoom(style: TextStyle): Dp = with(LocalDensity.current) { style.lineHeight.toDp() }

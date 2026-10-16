@@ -176,7 +176,7 @@ internal fun PillButton(
                 ButtonLabel(busyLabel)
             } else {
                 // A disabled button keeps its well under focus: white would offer an action.
-                ButtonContent(text, icon, detail, detailColor(focused && enabled, enabled, detailLit))
+                ButtonContent(text, icon, detail, FocusStyle.quietInk(focused && enabled, enabled, detailLit))
             }
         }
     }
@@ -193,18 +193,6 @@ private fun ButtonContent(text: String, icon: ImageVector?, detail: String?, det
     if (detail != null) {
         Spacer(Modifier.width(HlSpace.s))
         Text(detail, style = Hl.type.meta, color = detailColor, maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
-    }
-}
-
-/** The line under a button's name, by state. Secondary at rest: tertiary falls to 3.9:1 on a primary button. */
-@Composable
-private fun detailColor(onWhite: Boolean, enabled: Boolean, lit: Boolean): Color {
-    val c = Hl.colors
-    return when {
-        onWhite -> c.onFocusSecondary
-        !enabled -> c.contentTertiary
-        lit -> c.ember
-        else -> c.contentSecondary
     }
 }
 
