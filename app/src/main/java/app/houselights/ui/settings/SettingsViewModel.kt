@@ -95,6 +95,11 @@ internal class SettingsViewModel(
         refreshStorage()
     }
 
+    /** What [actionError] said is no longer where the user is (another pane). */
+    fun clearActionError() {
+        actionError = null
+    }
+
     /** Runs a change the user asked for in [scope]: a failure is logged and said in [actionError]. */
     private fun change(what: String, scope: CoroutineScope = viewModelScope, block: suspend CoroutineScope.() -> Unit) {
         actionError = null

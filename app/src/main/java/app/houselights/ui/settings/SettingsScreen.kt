@@ -11,6 +11,7 @@ import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -76,6 +77,8 @@ fun SettingsScreen(
     val s by vm.settings.collectAsStateWithLifecycle()
     val panes = if (s.source != null && vm.capabilities.pathMapping) Pane.entries else Pane.entries - Pane.Playback
     var pane by rememberSaveable { mutableStateOf(Pane.Library) }
+    // A change that failed is said in the pane it was made in, not in the next one.
+    LaunchedEffect(pane) { vm.clearActionError() }
     val memory = rememberFocusMemory()
     // Each pane keeps where it was scrolled, across the screens it opens.
     val list = rememberSaveable(pane, saver = LazyListState.Saver) { LazyListState() }
@@ -192,7 +195,9 @@ private fun PaneContent(
         // What the last change made here failed on, then a secret of this pane that could not be read
         // again: said at the head of the pane, where it is read first.
         vm.actionError?.let { error ->
-            item(key = ACTION_ERROR) { HlStatus(StatusState.Attention, stringResource(error.title), detail = stringResource(error.message)) }
+            item(key = ACTION_ERROR) {
+                HlStatus(StatusState.Attention, stringResource(error.title), detail = stringResource(error.message))
+            }
         }
         lostSecretNote(pane, s.lostSecrets)?.let { note -> item(key = LOST_SECRET) { AttentionNote(stringResource(note)) } }
         when (pane) {
