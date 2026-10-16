@@ -1,7 +1,9 @@
 package app.houselights.providers.local
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class FilenameParserTest {
@@ -179,5 +181,36 @@ class FilenameParserTest {
         assertEquals(ParsedEpisode("Doctor Who", 0, 1), FilenameParser.parseShowPath("Doctor Who (2005)/Specials/01 - Christmas.mkv")?.episode)
         assertEquals("doctor who|2005", FilenameParser.showKey("Doctor Who", 2005))
         assertEquals("doctor who", FilenameParser.showKey("Doctor Who", null))
+    }
+
+    /** Plex's, Jellyfin's and Kodi's names of extras; titles that end with one of their words stay titles. */
+    @Test
+    fun extras() {
+        val extras = listOf(
+            "Dune (2021)-trailer.mkv", "Dune (2021).trailer.mkv", "Dune (2021) trailer.mkv", "Dune (2021)_Sample.mkv",
+            "Arrival-featurette.mkv", "Making Of-behindthescenes.mkv", "The Bar Fight-deleted.mkv", "Villeneuve-interview.mkv",
+            "The Opening-scene.mkv", "Recap-short.mkv", "Storyboards-OTHER.mkv", "Severance - S01E01-deleted.mkv",
+        )
+        extras.forEach { assertTrue(it, FilenameParser.isExtraName(it)) }
+        val titles = listOf(
+            "The Big Short.mkv", "The.Big.Short.mkv", "The Interview.mkv", "The Other.mkv", "Significant Other (2022).mkv",
+            "Crime Scene.mkv", "Trailers.mkv", "Spider-Man.mkv", "Severance - S00E01 - Trailer.mkv", "Show.S00E02.Sample.Episode.mkv",
+        )
+        titles.forEach { assertFalse(it, FilenameParser.isExtraName(it)) }
+        listOf("Extras", "featurettes", "Behind The Scenes", "Deleted Scenes", "INTERVIEWS", "Scenes", "Shorts", "Trailers", "Samples", "Other")
+            .forEach { assertTrue(it, FilenameParser.isExtrasFolder(it)) }
+        assertFalse(FilenameParser.isExtrasFolder("Season 1"))
+    }
+
+    @Test
+    fun discs() {
+        assertEquals(DiscPath("Inception (2010)", "BDMV/index"), FilenameParser.discOf("Inception (2010)/BDMV/STREAM/00800.m2ts"))
+        assertEquals(DiscPath("Films/Heat (1995)", "VIDEO_TS/VIDEO_TS"), FilenameParser.discOf("Films/Heat (1995)/VIDEO_TS/VTS_01_1.VOB"))
+        assertEquals(DiscPath("", "BDMV/index"), FilenameParser.discOf("bdmv/stream/00001.M2TS"))
+        assertNull(FilenameParser.discOf("Inception (2010)/Inception (2010).m2ts"))
+        assertNull(FilenameParser.discOf("Inception (2010)/STREAM/00800.m2ts"))
+        // A show's disc is the episode its folder names.
+        val episode = FilenameParser.parseShowPath("Severance/Season 1/Severance - S01E01/BDMV/STREAM/00001.m2ts")
+        assertEquals(ShowPath("Severance", null, "Severance", ParsedEpisode("Severance", 1, 1)), episode)
     }
 }

@@ -1,6 +1,8 @@
 package app.houselights.providers.local
 
 import androidx.test.core.app.ApplicationProvider
+import app.houselights.core.PlaybackOptions
+import app.houselights.core.PlaybackPlan
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -13,19 +15,25 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.shadows.ShadowLog
 
-/** What a scan makes of the names a NAS holds: files holding several episodes, files naming none. */
+/**
+ * What a scan makes of the names and folders a NAS holds: discs, extras, files holding several
+ * episodes or naming none, shows under a folder of kinds or of two years.
+ */
 @RunWith(RobolectricTestRunner::class)
 class ScanNamesTest {
     @get:Rule
     val temp = TemporaryFolder()
 
     private lateinit var bench: ScanBench
+    private lateinit var films: SourceEntity
     private lateinit var shows: SourceEntity
+    private val nas get() = bench.nas
     private val showsNas get() = bench.showsNas
 
     @Before
     fun open() = runTest {
         bench = ScanBench(temp.newFolder("artwork"), tmdbKey = false)
+        films = bench.folder("Films")
         shows = bench.folder("Séries", SourceKind.SHOWS)
     }
 
@@ -33,6 +41,114 @@ class ScanNamesTest {
     fun close() = bench.close()
 
     private suspend fun episodes() = bench.dao.filesOf(shows.id).sortedBy { it.episodeNumber }
+
+    private suspend fun filmPaths() = bench.dao.filesOf(films.id).mapNotNull { it.filePath }.sorted()
+
+    private fun putFile(path: String, text: String) = text.toByteArray().let { nas.put(path, size = it.size.toLong(), bytes = it) }
+
+    private fun putImage(path: String) = nas.put(path, size = 100, bytes = ByteArray(100))
+
+    /** A Blu-ray's folder is one film, named by its folder, opened by its largest stream, described beside it. */
+    @Test
+    fun aBluRayIsOneTitle() = runTest {
+        nas.put("Inception (2010)/BDMV/STREAM/00000.m2ts", size = 300_000_000)
+        nas.put("Inception (2010)/BDMV/STREAM/00800.m2ts", size = 38_000_000_000)
+        nas.put("Inception (2010)/BDMV/STREAM/00801.m2ts", size = 2_000_000_000)
+        putFile("Inception (2010)/movie.nfo", "<movie><plot>A thief who steals secrets.</plot></movie>")
+        putImage("Inception (2010)/poster.jpg")
+        bench.scan()
+
+        val path = "Inception (2010)/BDMV/STREAM/00800.m2ts"
+        assertEquals(listOf(path), filmPaths())
+        val inception = bench.item(films, path)
+        assertEquals("Inception" to 2010, inception.title to inception.year)
+        assertEquals("Inception (2010)/movie.nfo", inception.nfoPath)
+        assertTrue(inception.posterPath.isCachedArtwork())
+    }
+
+    /** What plays of a disc's folder may open on a menu or an intro: the player is followed as for a disc. */
+    @Test
+    fun aBluRayIsPlayedAsADisc() = runTest {
+        nas.put("Inception (2010)/BDMV/STREAM/00800.m2ts", size = 38_000_000_000)
+        bench.scan()
+
+        val inception = bench.item(films, "Inception (2010)/BDMV/STREAM/00800.m2ts")
+        val provider = LocalProvider(ApplicationProvider.getApplicationContext(), bench.dao, LocalProviderTest.NoEditor)
+        val plan = provider.playback(provider.item(inception.id.toString()), resume = false, PlaybackOptions(emptyList(), false))
+        assertTrue((plan as PlaybackPlan.Launch).disc)
+    }
+
+    /** A DVD's folder is one film, opened by the first part of its largest title set; its NFO may lie in VIDEO_TS. */
+    @Test
+    fun aDvdIsOneTitle() = runTest {
+        nas.put("Films/Heat (1995)/VIDEO_TS/VIDEO_TS.VOB", size = 200_000)
+        nas.put("Films/Heat (1995)/VIDEO_TS/VTS_01_0.VOB", size = 100_000)
+        nas.put("Films/Heat (1995)/VIDEO_TS/VTS_01_1.VOB", size = 1_073_000_000)
+        nas.put("Films/Heat (1995)/VIDEO_TS/VTS_01_2.VOB", size = 1_073_000_000)
+        nas.put("Films/Heat (1995)/VIDEO_TS/VTS_01_3.VOB", size = 400_000_000)
+        nas.put("Films/Heat (1995)/VIDEO_TS/VTS_02_1.VOB", size = 1_073_000_000)
+        putFile("Films/Heat (1995)/VIDEO_TS/VIDEO_TS.nfo", "<movie><plot>Los Angeles.</plot></movie>")
+        bench.scan()
+
+        val path = "Films/Heat (1995)/VIDEO_TS/VTS_01_1.VOB"
+        assertEquals(listOf(path), filmPaths())
+        val heat = bench.item(films, path)
+        assertEquals("Heat" to 1995, heat.title to heat.year)
+        assertEquals("Films/Heat (1995)/VIDEO_TS/VIDEO_TS.nfo", heat.nfoPath)
+    }
+
+    /**
+     * Extras are no titles, and the film keeps the folder's NFO and artwork; a folder of the user's
+     * at the source's root, or under a folder of kinds, stays a folder of films, whatever its name.
+     */
+    @Test
+    fun extrasAreNoTitles() = runTest {
+        nas.put("Dune (2021)/Dune (2021).mkv")
+        nas.put("Dune (2021)/Dune (2021)-trailer.mkv")
+        nas.put("Dune (2021)/Featurettes/Making of.mkv")
+        nas.put("Dune (2021)/Behind The Scenes/Sandworms.mkv")
+        putFile("Dune (2021)/movie.nfo", "<movie><plot>Arrakis.</plot></movie>")
+        putImage("Dune (2021)/poster.jpg")
+        nas.put("Trailers/Trailers.mkv")
+        nas.put("Shorts/Night Shift.mkv")
+        nas.put("Animation/Shorts/Bao (2018).mkv")
+        nas.put("The Big Short.mkv")
+        nas.put("The Interview.mkv")
+        bench.scan()
+
+        val kept = listOf(
+            "Animation/Shorts/Bao (2018).mkv", "Dune (2021)/Dune (2021).mkv", "Shorts/Night Shift.mkv", "The Big Short.mkv",
+            "The Interview.mkv", "Trailers/Trailers.mkv",
+        )
+        assertEquals(kept, filmPaths())
+        val dune = bench.item(films, "Dune (2021)/Dune (2021).mkv")
+        assertEquals("Dune (2021)/movie.nfo", dune.nfoPath)
+        assertTrue(dune.posterPath.isCachedArtwork())
+    }
+
+    /** A Blu-ray's folder in a show's is the episode its folder names. */
+    @Test
+    fun aBluRayOfAnEpisodeIsThatEpisode() = runTest {
+        showsNas.put("Severance/Season 1/Severance - S01E01/BDMV/STREAM/00001.m2ts", size = 9_000_000_000)
+        showsNas.put("Severance/Season 1/Severance - S01E01/BDMV/STREAM/00002.m2ts", size = 90_000_000)
+        bench.scan()
+
+        val pilot = episodes().single()
+        assertEquals("Severance/Season 1/Severance - S01E01/BDMV/STREAM/00001.m2ts", pilot.filePath)
+        assertEquals(1 to 1, pilot.seasonNumber to pilot.episodeNumber)
+        assertEquals("Severance", bench.dao.item(checkNotNull(pilot.seriesId))?.title)
+    }
+
+    /** Extras of an episode, beside it or in its season's folder: no second episode of that number. */
+    @Test
+    fun extrasOfEpisodesAreNoEpisodes() = runTest {
+        showsNas.put("Severance/Season 1/Severance - S01E01.mkv")
+        showsNas.put("Severance/Season 1/Severance - S01E01-deleted.mkv")
+        showsNas.put("Severance/Season 1/Deleted Scenes/Severance - S01E01 - Lumon.mkv")
+        bench.scan()
+
+        assertEquals(listOf("Severance/Season 1/Severance - S01E01.mkv"), episodes().map { it.filePath })
+    }
 
     @Test
     fun aFileHoldingTwoEpisodesIsOneRowNamedForBoth() = runTest {

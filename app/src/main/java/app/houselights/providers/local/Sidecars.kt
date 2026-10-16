@@ -11,18 +11,25 @@ data class VideoSidecars(
     val thumb: RemoteFile? = null,
 )
 
-/** Finds sidecar files by Kodi naming conventions, case-insensitively. */
+/**
+ * Finds sidecar files by Kodi naming conventions, case-insensitively. [videos]: the titles of the
+ * folder ([ScanTitles]), its extras left out, as they decide which folders a title has to itself.
+ */
 class Sidecars(files: List<RemoteFile>, videos: List<RemoteFile>) {
     private val byPath = files.associateBy { it.relativePath.lowercase() }
-    private val videosPerFolder = videos.groupingBy { folderOf(it.relativePath) }.eachCount()
+    private val videosPerFolder = videos.groupingBy { titleFolder(it.relativePath) }.eachCount()
 
     private fun find(dir: String, names: List<String>): RemoteFile? =
         names.firstNotNullOfOrNull { byPath[(if (dir.isEmpty()) it else "$dir/$it").lowercase()] }
 
-    /** A film: "<name>.nfo", "<name>-poster.jpg"…; folder-wide names only when it has its own folder. */
+    /**
+     * A film: "<name>.nfo", "<name>-poster.jpg"…; folder-wide names only when it has its own folder.
+     * A disc's lie beside its BDMV or VIDEO_TS folder, and its NFO in it too ("BDMV/index.nfo").
+     */
     fun forVideo(video: RemoteFile): VideoSidecars {
-        val dir = folderOf(video.relativePath)
-        val base = video.relativePath.substringAfterLast('/').substringBeforeLast('.')
+        val disc = FilenameParser.discOf(video.relativePath)
+        val dir = titleFolder(video.relativePath)
+        val base = disc?.index ?: video.relativePath.substringAfterLast('/').substringBeforeLast('.')
         val ownFolder = dir.isNotEmpty() && videosPerFolder[dir] == 1
         fun pick(suffixes: List<String>, folderNames: List<String>) =
             find(dir, suffixes.map { base + it } + if (ownFolder) folderNames else emptyList())
@@ -53,5 +60,8 @@ class Sidecars(files: List<RemoteFile>, videos: List<RemoteFile>) {
     companion object {
         private val IMAGES = listOf("jpg", "jpeg", "png", "webp")
         fun folderOf(path: String) = path.substringBeforeLast('/', "")
+
+        /** The folder a title lies in: a file's own, a disc's the one holding it. */
+        private fun titleFolder(path: String) = FilenameParser.discOf(path)?.root ?: folderOf(path)
     }
 }

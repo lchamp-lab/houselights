@@ -16,6 +16,13 @@ data class ParsedEpisode(val showTitle: String?, val season: Int, val episode: I
  */
 data class ShowPath(val title: String, val year: Int?, val dir: String, val episode: ParsedEpisode)
 
+/**
+ * A Blu-ray's or a DVD's folder, as one of its streams' path gives it. [root]: the folder holding
+ * BDMV or VIDEO_TS ("" at the source's root), which names the title and holds its NFO and artwork;
+ * [index]: the disc's own name for its NFO, relative to [root], as Kodi reads it ("BDMV/index.nfo").
+ */
+data class DiscPath(val root: String, val index: String)
+
 /** Extracts titles, years and episode numbers from file and folder names. */
 object FilenameParser {
     val VIDEO_EXTENSIONS = setOf(
@@ -44,6 +51,23 @@ object FilenameParser {
 
     /** Folders of a show's specials, its season 0, lowercase. Not "Special": a show bears that name. */
     private val SPECIALS = setOf("specials", "spécial", "spéciaux", "speciaux", "spéciales", "speciales")
+
+    /**
+     * Extras beside a film or an episode, as Plex, Jellyfin and Kodi name them: "Dune (2021)-trailer.mkv".
+     * A trailer or a sample also after Jellyfin's other separators: "Dune (2021).trailer.mkv".
+     */
+    private val EXTRA_SUFFIX = Regex(
+        """(?i)(?:-(?:trailer|sample|featurette|behindthescenes|deleted|interview|scene|short|other)|[ ._](?:trailer|sample))$"""
+    )
+
+    /** Folders of a title's extras, lowercase, as Plex and Jellyfin name them. */
+    private val EXTRAS_FOLDERS = setOf(
+        "extras", "featurettes", "behind the scenes", "deleted scenes", "interviews", "scenes", "shorts", "trailers", "samples", "other",
+    )
+
+    /** A Blu-ray's streams ("BDMV/STREAM/00800.m2ts"), and a DVD's ("VIDEO_TS/VTS_01_1.VOB"). */
+    private val BLU_RAY_STREAM = Regex("""(?i)^(?:(.*)/)?BDMV/STREAM/[^/]+\.(?:m2ts|mts)$""")
+    private val DVD_STREAM = Regex("""(?i)^(?:(.*)/)?VIDEO_TS/[^/]+\.vob$""")
     // Android's ICU engine needs closing brackets and braces escaped, unlike the JVM.
     private val BRACKETS = Regex("""\[[^\]]*\]|\{[^\}]*\}""")
 
@@ -70,6 +94,27 @@ object FilenameParser {
 
     fun stripExtension(name: String): String =
         if (isVideo(name)) name.substringBeforeLast('.') else name
+
+    /**
+     * A video named as an extra of the title beside it ([EXTRA_SUFFIX]). "The Big Short" and "The
+     * Interview" are films: those words count after a dash only. Nor is an episode an extra for its
+     * title's last word: "Show - S00E01 - Trailer".
+     */
+    fun isExtraName(fileName: String): Boolean {
+        val base = stripExtension(fileName)
+        val suffix = EXTRA_SUFFIX.find(base) ?: return false
+        return base[suffix.range.first] == '-' || (SXXEYY.find(base) == null && NXNN.find(base) == null)
+    }
+
+    /** A folder of a title's extras: "Featurettes", "Behind The Scenes"… (see [EXTRAS_FOLDERS]). */
+    fun isExtrasFolder(name: String): Boolean = name.trim().lowercase() in EXTRAS_FOLDERS
+
+    /** The disc [relativePath] is a stream of, or null for a file of no disc. */
+    fun discOf(relativePath: String): DiscPath? {
+        BLU_RAY_STREAM.matchEntire(relativePath)?.let { return DiscPath(it.groupValues[1], "BDMV/index") }
+        DVD_STREAM.matchEntire(relativePath)?.let { return DiscPath(it.groupValues[1], "VIDEO_TS/VIDEO_TS") }
+        return null
+    }
 
     /** Folder names like "Season 2", "Saison 02", "S02"; "Specials", "Spéciaux" and "Season 00" are season 0. */
     fun seasonFromFolder(folder: String): Int? =
@@ -114,8 +159,10 @@ object FilenameParser {
      * reads. Null when the file's name gives no episode, or nothing names its show.
      */
     fun parseShowPath(relativePath: String): ShowPath? {
-        val folders = relativePath.split('/').dropLast(1)
-        val found = episodeIn(relativePath.substringAfterLast('/'), folders) ?: return null
+        // A disc is named by its folder, as a file by its name: "Show/Season 1/Show.S01E01/BDMV/STREAM/00001.m2ts".
+        val path = discOf(relativePath)?.root?.ifEmpty { null } ?: relativePath
+        val folders = path.split('/').dropLast(1)
+        val found = episodeIn(path.substringAfterLast('/'), folders) ?: return null
         val title = found.episode.showTitle ?: return null
         val dir = found.folder?.let { folders.take(it + 1).joinToString("/") }.orEmpty()
         return ShowPath(title, found.year, dir, found.episode)
