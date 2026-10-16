@@ -1,7 +1,10 @@
 package app.houselights.providers.local
 
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeoutOrNull
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
@@ -12,7 +15,7 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import kotlin.concurrent.thread
 
-/** How sessions and mounts are kept between files, closed, and made again. */
+/** How sessions and mounts are kept between files, closed, and made again, and what waits for what. */
 class KeptConnectionsTest {
     /** A connection: what closed it, broken or not, in order. */
     private class Connection(val n: Int) {
@@ -30,9 +33,10 @@ class KeptConnectionsTest {
         clock = { now },
     )
 
-    private fun connect() = Connection(made.size).also { made += it }
+    private fun connect() = synchronized(made) { Connection(made.size).also { made += it } }
 
-    private fun use(key: String = "nas/films", block: (Connection) -> Unit = {}) = kept.use(key, ::connect) { block(it); it }
+    private fun use(key: String = "nas/films", block: (Connection) -> Unit = {}) =
+        runBlocking { kept.use(key, ::connect) { block(it); it } }
 
     @Test
     fun aConnectionServesTheNextFile() {
@@ -73,9 +77,11 @@ class KeptConnectionsTest {
     fun aKeptConnectionThatBreaksIsMadeAgainOnce() {
         val first = use()
         var tries = 0
-        val second = kept.use("nas/films", ::connect) {
-            if (tries++ == 0) throw IOException("Connection reset")
-            it
+        val second = runBlocking {
+            kept.use("nas/films", ::connect) {
+                if (tries++ == 0) throw IOException("Connection reset")
+                it
+            }
         }
         assertEquals(listOf(true), first.closes)
         assertEquals(emptyList<Boolean>(), second.closes)
@@ -101,7 +107,7 @@ class KeptConnectionsTest {
     fun aConnectionThatCannotBeMadeIsNotTriedTwice() {
         var tries = 0
         assertThrows(IOException::class.java) {
-            kept.use("nas/films", { tries++; throw IOException("Connection refused") }) {}
+            runBlocking { kept.use("nas/films", { tries++; throw IOException("Connection refused") }) {} }
         }
         assertEquals(1, tries)
     }
@@ -129,7 +135,7 @@ class KeptConnectionsTest {
         val films = use("kodi@/nas/films")
         val guest = use("@/nas/films")
         val shows = use("kodi@/nas/shows")
-        kept.forget { it.endsWith("/nas/films") }
+        runBlocking { kept.forget { it.endsWith("/nas/films") } }
         assertEquals(listOf(false), films.closes)
         assertEquals(listOf(false), guest.closes)
         assertEquals(emptyList<Boolean>(), shows.closes)
@@ -137,16 +143,30 @@ class KeptConnectionsTest {
     }
 
     /**
-     * Runs an operation on [connections] on a thread of its own, and [meanwhile] while it runs, then
-     * lets it end. Whether [meanwhile] returned before the operation ended.
+     * Runs an operation for [key] on [connections] on a thread of its own, held in its block (or,
+     * [connecting], in making its connection: a NAS that does not answer), and [meanwhile] while it
+     * is held, then lets it end. Whether [meanwhile] returned before the operation ended.
      */
-    private fun whileInUse(connections: KeptConnections<Connection>, meanwhile: () -> Unit, waitMs: Long): Boolean {
+    private fun whileInUse(
+        meanwhile: () -> Unit,
+        waitMs: Long,
+        connections: KeptConnections<Connection> = kept,
+        key: String = "nas:/volume1/media",
+        connecting: Boolean = false,
+    ): Boolean {
         val inUse = CountDownLatch(1)
         val release = CountDownLatch(1)
+        fun hold() {
+            inUse.countDown()
+            release.await()
+        }
+        fun connectAfterHold(): Connection {
+            if (connecting) hold()
+            return connect()
+        }
         val operation = thread {
-            connections.use("nas:/volume1/media", ::connect) {
-                inUse.countDown()
-                release.await()
+            runCatching {
+                runBlocking { connections.use(key, ::connectAfterHold) { if (!connecting) hold() } }
             }
         }
         assertTrue(inUse.await(5, TimeUnit.SECONDS))
@@ -162,7 +182,7 @@ class KeptConnectionsTest {
     /** An SMB session signs off: not under a read. */
     @Test
     fun forgettingASessionWaitsForTheOperationUnderWay() {
-        assertFalse(whileInUse(kept, { kept.forget { true } }, waitMs = 200))
+        assertFalse(whileInUse({ runBlocking { kept.forget { true } } }, waitMs = 200))
         assertEquals("signed off once the operation ended", listOf(false), made.single().closes)
     }
 
@@ -176,10 +196,66 @@ class KeptConnectionsTest {
             clock = { now },
             closingWaits = false,
         )
-        assertTrue(whileInUse(mounts, { mounts.forget { it.endsWith("/volume1/media") } }, waitMs = 5_000))
-        assertEquals("closed as its operation ended, not kept", listOf(false), made.single().closes)
-        mounts.use("nas:/volume1/media", ::connect) {}
+        assertTrue(whileInUse({ runBlocking { mounts.forget { it.endsWith("/volume1/media") } } }, waitMs = 5_000, connections = mounts))
+        assertEquals("closed as its operation ends, not kept", listOf(false), made.single().closes)
+        runBlocking { mounts.use("nas:/volume1/media", ::connect) {} }
         assertEquals(2, made.size)
+    }
+
+    /** A scan listing one share, and a folder of another share saved meanwhile with a new password: nothing to wait for. */
+    @Test
+    fun forgettingWaitsForNoOtherKeysOperation() {
+        val shows = use("kodi@/nas/shows")
+        assertTrue(whileInUse({ runBlocking { kept.forget { it.endsWith("/nas/shows") } } }, waitMs = 5_000, key = "kodi@/nas/films"))
+        assertEquals(listOf(false), shows.closes)
+    }
+
+    /** Two shares, two NAS: what one reads, the other does not wait for. */
+    @Test
+    fun anOperationWaitsForNoOtherKeys() {
+        var other: Connection? = null
+        assertTrue(whileInUse({ other = use("kodi@/nas/shows") }, waitMs = 5_000, key = "kodi@/nas/films"))
+        assertEquals(emptyList<Boolean>(), other?.closes)
+    }
+
+    /** A NAS that does not answer (off, or its address changed) holds the connecting to it, not to another. */
+    @Test
+    fun connectingToANasHoldsNoOther() {
+        assertTrue(whileInUse({ use("kodi@/other-nas/films") }, waitMs = 5_000, key = "kodi@/nas/films", connecting = true))
+    }
+
+    /** Leaving the screen of a folder stops a wait for the operation under way on its share. */
+    @Test
+    fun waitingForAnOperationStopsWithTheCoroutineThatWaits() {
+        var gaveUp = false
+        assertTrue(
+            whileInUse(
+                { gaveUp = runBlocking { withTimeoutOrNull(100) { kept.use("nas:/volume1/media", ::connect) {} } } == null },
+                waitMs = 5_000,
+            ),
+        )
+        assertTrue(gaveUp)
+    }
+
+    /** Leaving the screen while a new password is saved stops the wait: the session signed in with the old one is not kept for all that. */
+    @Test
+    fun aWaitToForgetCutShortKeepsNothing() {
+        val shows = use("nas/shows")
+        var gaveUp = false
+        assertTrue(whileInUse({ gaveUp = runBlocking { withTimeoutOrNull(100) { kept.forget { true } } } == null }, waitMs = 5_000))
+        assertTrue(gaveUp)
+        assertEquals(listOf(false), shows.closes)
+        assertEquals("closed as its operation ended, not kept", listOf(false), made[1].closes)
+    }
+
+    /** The pass is over: what it kept closes now, and one in use as its operation ends, without waiting for it. */
+    @Test
+    fun closingWhatIsIdleWaitsForNoOperation() {
+        val films = use("nas/films")
+        assertTrue(whileInUse({ kept.closeIdle() }, waitMs = 5_000))
+        assertEquals(listOf(false), films.closes)
+        assertEquals("closed as its operation ended, not kept", listOf(false), made[1].closes)
+        assertNull(made.getOrNull(2))
     }
 
     @Test

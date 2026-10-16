@@ -72,6 +72,12 @@ object NfoParser {
     private val TMDB_URL = Regex("""themoviedb\.org/(?:movie|tv)/(\d+)""")
     private val IMDB_ID = Regex("""\btt\d{6,9}\b""")
 
+    /**
+     * Made once, at the first NFO: making one looks for the parser's classes. The parsers it makes
+     * share nothing, whichever thread asks for one.
+     */
+    private val XML_PARSERS: XmlPullParserFactory by lazy { XmlPullParserFactory.newInstance() }
+
     private val ENCODING = Regex("""^\s*<\?xml[^>]*?\bencoding\s*=\s*["']([A-Za-z][\w.:-]*)["']""")
     private val BOMS = listOf(
         byteArrayOf(0xEF.toByte(), 0xBB.toByte(), 0xBF.toByte()) to Charsets.UTF_8,
@@ -159,7 +165,7 @@ object NfoParser {
     private fun parseXml(xml: String): NfoInfo? {
         // Entities are never needed in an NFO, and could expand or reach outside the file.
         if (xml.isBlank() || xml.contains("<!ENTITY", ignoreCase = true)) return null
-        val p = XmlPullParserFactory.newInstance().newPullParser()
+        val p = XML_PARSERS.newPullParser()
         p.setInput(StringReader(xml))
         while (p.eventType != XmlPullParser.START_TAG) {
             if (p.next() == XmlPullParser.END_DOCUMENT) return null

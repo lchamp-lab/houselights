@@ -102,11 +102,11 @@ internal object Bitstreams {
                 sizes += size
             }
             LACING_EBML -> {
-                var (size, length) = vint(b, at)
+                var (size, length) = Ebml.vint(b, at, end)
                 at += length
                 sizes += size
                 repeat(count - 2) {
-                    val (raw, n) = vint(b, at)
+                    val (raw, n) = Ebml.vint(b, at, end)
                     at += n
                     size += raw - ((1L shl (7 * n - 1)) - 1)
                     sizes += size
@@ -122,16 +122,6 @@ internal object Bitstreams {
             if (size >= 0 && first >= start && next <= end) first.toInt() until next.toInt() else null
         }
     }.getOrDefault(emptyList())
-
-    /** An unsigned EBML variable-length integer at [at]: its value and its length in bytes. */
-    private fun vint(b: ByteArray, at: Int): Pair<Long, Int> {
-        val first = b[at].toInt() and 0xFF
-        val length = Integer.numberOfLeadingZeros(first) - 23
-        require(length in 1..8)
-        var value = (first and (0xFF shr length)).toLong()
-        for (i in 1 until length) value = (value shl 8) or (b[at + i].toLong() and 0xFF)
-        return value to length
-    }
 
     /** An AC-3 frame's size in bytes, from its sample rate and size codes. */
     private fun ac3FrameSize(b: ByteArray, at: Int): Int {

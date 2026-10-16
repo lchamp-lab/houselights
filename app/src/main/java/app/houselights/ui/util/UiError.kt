@@ -3,6 +3,7 @@ package app.houselights.ui.util
 import androidx.annotation.StringRes
 import androidx.compose.runtime.staticCompositionLocalOf
 import app.houselights.R
+import app.houselights.core.HttpStatus
 import app.houselights.core.NoTmdbKeyException
 import app.houselights.core.NotFoundException
 import app.houselights.core.SecretsUnavailableException
@@ -71,18 +72,14 @@ enum class UiError(@StringRes val title: Int, @StringRes val message: Int, val a
     FAILED(R.string.error_failed_title, R.string.error_failed, ErrorAction.RETRY),
 }
 
-private const val HTTP_UNAUTHORIZED = 401
-private const val HTTP_FORBIDDEN = 403
-private const val HTTP_NOT_FOUND = 404
-
 /** The [UiError] a failure shows as. Callers log the failure itself. */
 fun Throwable.toUiError(): UiError = when {
     this is NoTmdbKeyException -> UiError.NO_TMDB_KEY
     this is TmdbKeyRefusedException -> UiError.TMDB_KEY_REFUSED
     this is TmdbUnreachableException -> UiError.TMDB_OFFLINE
     this is NotFoundException -> UiError.GONE
-    this is HttpException && (code() == HTTP_UNAUTHORIZED || code() == HTTP_FORBIDDEN) -> UiError.DENIED
-    this is HttpException && code() == HTTP_NOT_FOUND -> UiError.GONE
+    this is HttpException && (code() == HttpStatus.UNAUTHORIZED || code() == HttpStatus.FORBIDDEN) -> UiError.DENIED
+    this is HttpException && code() == HttpStatus.NOT_FOUND -> UiError.GONE
     this is IOException -> UiError.OFFLINE
     this is SecretsUnavailableException -> UiError.KEYSTORE
     else -> UiError.FAILED

@@ -2,9 +2,9 @@ package app.houselights.providers.local
 
 import android.util.Log
 import app.houselights.core.MediaInfo
+import app.houselights.core.lenientJson
 import app.houselights.core.suspendRunCatching
 import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
 
 /** What a probe made of a file. */
 sealed interface ProbeResult {
@@ -46,10 +46,11 @@ object MediaProbe {
      */
     private val FINAL = setOf(ScanErrorKind.ACCESS_DENIED)
 
-    /** Reads of a file's start at most: the first, the tracks further in, the first frames further in. */
-    private const val MAX_ATTEMPTS = 3
-
-    val json = Json { ignoreUnknownKeys = true }
+    /**
+     * Reads of a file's start at most: the first, the tracks its SeekHead puts further in, the end of
+     * a track list longer than that read, the first frames further in.
+     */
+    private const val MAX_READS = 4
 
     /**
      * The version of what a probe reads, kept with each reading: a file read by an older probe is
@@ -63,9 +64,9 @@ object MediaProbe {
     /** A file not read yet, or read by an older probe. */
     fun isStale(mediaInfo: String?): Boolean = (decode(mediaInfo)?.probedWith ?: -1) < VERSION
 
-    fun encode(info: MediaInfo): String = json.encodeToString(info)
+    fun encode(info: MediaInfo): String = lenientJson.encodeToString(info)
 
-    fun decode(text: String?): MediaInfo? = text?.let { runCatching { json.decodeFromString<MediaInfo>(it) }.getOrNull() }
+    fun decode(text: String?): MediaInfo? = text?.let { runCatching { lenientJson.decodeFromString<MediaInfo>(it) }.getOrNull() }
 
     /**
      * A file whose inside cannot be read still gets its container and size, for good, and so does one
@@ -119,29 +120,33 @@ object MediaProbe {
     }
 
     /**
-     * A Matroska file's tracks, from its start: read further when its track list lies past the
-     * first read, then when its tracks' first frames do (as far as [FRAMES_READ]). Null when it is
-     * not Matroska, or its tracks lie too far in. A read that fails keeps the tracks found before it.
+     * A Matroska file's tracks, from its start: read further when its track list reaches past the
+     * first read, then when its tracks' first frames do (as far as [FRAMES_READ]). Each read goes on
+     * from where the bytes read so far end, none twice. Null when it is not Matroska, or its tracks
+     * lie too far in. A read that fails keeps the tracks found before it.
      */
     private suspend fun readTracks(reads: Reads): MkvProbe.Result.Found? {
+        var bytes = reads.at(0, FIRST_READ) ?: return null
+        var atEnd = bytes.size < FIRST_READ
         var found: MkvProbe.Result.Found? = null
-        var length: Int? = FIRST_READ
-        var attempts = 0
-        while (length != null && attempts < MAX_ATTEMPTS) {
-            val bytes = reads.at(0, length) ?: break
-            attempts++
-            val read = length
-            length = when (val result = MkvProbe.probe(bytes)) {
-                is MkvProbe.Result.Found -> {
-                    found = result
-                    // Some first frames lie past this read: read further, once.
-                    FRAMES_READ.takeIf { !result.framesRead && read < FRAMES_READ && bytes.size == read }
-                }
-                is MkvProbe.Result.NeedMore -> result.offset.takeIf { it in 0..(MAX_READ - FIRST_READ) }?.let { (it + FIRST_READ).toInt() }
-                MkvProbe.Result.NotMatroska -> null
-            }
+        var read = 1
+        while (true) {
+            val result = MkvProbe.probe(bytes)
+            if (result is MkvProbe.Result.Found) found = result
+            val wanted = further(result)?.takeIf { it > bytes.size && !atEnd && read < MAX_READS } ?: return found
+            val more = reads.at(bytes.size.toLong(), wanted - bytes.size) ?: return found
+            read++
+            atEnd = more.size < wanted - bytes.size
+            bytes += more
         }
-        return found
+    }
+
+    /** How far into a file to read after what [result] made of its start; null when no further. */
+    private fun further(result: MkvProbe.Result): Int? = when (result) {
+        // Some first frames lie past what was read: read further, once.
+        is MkvProbe.Result.Found -> FRAMES_READ.takeIf { !result.framesRead }
+        is MkvProbe.Result.NeedMore -> result.upTo.takeIf { it in 0..(MAX_READ - FIRST_READ) }?.let { (it + FIRST_READ).toInt() }
+        MkvProbe.Result.NotMatroska -> null
     }
 
     /** The bitrate of each track by UID, from the tags at [tagsAt]; tags that cannot be read leave none. */

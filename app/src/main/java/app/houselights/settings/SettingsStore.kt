@@ -17,6 +17,7 @@ import app.houselights.core.PathMapping
 import app.houselights.core.Secrets
 import app.houselights.core.SecretsUnavailableException
 import app.houselights.core.SourceConfig
+import app.houselights.core.lenientJson
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -30,7 +31,6 @@ import kotlinx.coroutines.flow.retryWhen
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
 import java.util.UUID
 import app.houselights.core.CollectionThreshold
 import kotlin.coroutines.CoroutineContext
@@ -75,11 +75,9 @@ private val Preferences.Key<String>.secret: SecretSetting
         else -> SecretSetting.PATH_MAPPINGS
     }
 
-private val sourceJson = Json { ignoreUnknownKeys = true }
-
 /** A source holds a secret, the server's token, unless it is the folders: those are never sealed. */
 private fun sourceHoldsSecret(plain: String): Boolean =
-    runCatching { sourceJson.decodeFromString<SourceConfig>(plain) }.getOrNull() != SourceConfig.Local
+    runCatching { lenientJson.decodeFromString<SourceConfig>(plain) }.getOrNull() != SourceConfig.Local
 
 /** [plain], kept under [key], is a secret to seal: anything there but a source that is the folders. */
 private fun needsSealing(key: Preferences.Key<String>, plain: String): Boolean = key != Keys.source || sourceHoldsSecret(plain)
@@ -152,8 +150,6 @@ class SettingsStore(
 ) {
     /** The app's own settings file. */
     constructor(context: Context, scope: CoroutineScope, secrets: Secrets = Secrets.device) : this(context.dataStore, scope, secrets)
-
-    private val json = Json { ignoreUnknownKeys = true }
 
     private val _state = MutableStateFlow(AppSettings())
 
@@ -238,7 +234,7 @@ class SettingsStore(
 
     /** What [text] holds; when it no longer reads (a version that renamed a field), null, written down in [lost]. */
     private inline fun <reified T> decoded(key: Preferences.Key<String>, text: String, lost: MutableSet<SecretSetting>): T? = try {
-        json.decodeFromString<T>(text)
+        lenientJson.decodeFromString<T>(text)
     } catch (e: IllegalArgumentException) {
         // A SerializationException among them: its message would quote the value.
         Log.w(TAG, "${key.name} no longer reads: ${e.javaClass.simpleName}")
@@ -270,14 +266,14 @@ class SettingsStore(
         write {
             when (source) {
                 null -> it.remove(Keys.source)
-                SourceConfig.Local -> it[Keys.source] = json.encodeToString<SourceConfig>(source)
-                is SourceConfig.Jellyfin -> it[Keys.source] = secrets.seal(json.encodeToString<SourceConfig>(source))
+                SourceConfig.Local -> it[Keys.source] = lenientJson.encodeToString<SourceConfig>(source)
+                is SourceConfig.Jellyfin -> it[Keys.source] = secrets.seal(lenientJson.encodeToString<SourceConfig>(source))
             }
         }
     }
 
     suspend fun setPathMappings(mappings: List<PathMapping>) {
-        write { it[Keys.mappings] = secrets.seal(json.encodeToString(mappings)) }
+        write { it[Keys.mappings] = secrets.seal(lenientJson.encodeToString(mappings)) }
     }
 
     suspend fun setForceHttp(value: Boolean) {

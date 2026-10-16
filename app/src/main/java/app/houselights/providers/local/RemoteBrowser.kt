@@ -138,14 +138,27 @@ private class Walk(private val isFatal: (Throwable) -> Boolean) {
     }
 }
 
-/** Reads until [length] bytes or the end of the stream, straight into the array it returns. */
-internal fun java.io.InputStream.readUpTo(length: Int): ByteArray {
+/**
+ * [relativePath] in [source]'s folder, as the share or export names it from its root: [separator]
+ * between names, none before the first; "" for the root itself.
+ */
+internal fun remotePath(source: SourceEntity, relativePath: String = "", separator: Char = '/'): String =
+    listOf(source.path.trim('/'), relativePath).filter { it.isNotEmpty() }.joinToString("/").replace('/', separator)
+
+/**
+ * Reads until [length] bytes or the end, straight into the array it returns: [read] puts at most
+ * count bytes into the array from an index, and says how many it put, none (0 or less) at the end.
+ */
+internal inline fun readFully(length: Int, read: (bytes: ByteArray, at: Int, count: Int) -> Int): ByteArray {
     val bytes = ByteArray(length)
     var total = 0
     while (total < length) {
         val n = read(bytes, total, length - total)
-        if (n < 0) break
+        if (n <= 0) break
         total += n
     }
     return if (total == length) bytes else bytes.copyOf(total)
 }
+
+/** Reads until [length] bytes or the end of the stream, straight into the array it returns. */
+internal fun java.io.InputStream.readUpTo(length: Int): ByteArray = readFully(length) { bytes, at, count -> read(bytes, at, count) }
