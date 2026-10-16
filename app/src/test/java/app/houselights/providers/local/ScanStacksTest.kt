@@ -142,6 +142,27 @@ class ScanStacksTest {
         assertEquals(listOf("Heat CD2.avi"), heat.parts)
     }
 
+    /** TMDB knows nothing of it, and no NFO names it: the film is named as its files are, not as its first part. */
+    @Test
+    fun aFilmInPartsTmdbDoesNotKnowIsNamedByItsFiles() = runTest {
+        bench.withTmdb = true
+        nas.put("Heat CD1.avi")
+        nas.put("Ronin CD1.avi")
+        bench.scan()
+        assertEquals(listOf("Heat CD1", "Ronin CD1"), rows().map { it.title })
+        // A name it was given otherwise stays.
+        rows().last().let { bench.dao.saveScanned(it.copy(title = "Ronin (Frankenheimer)")) }
+
+        nas.put("Heat CD2.avi")
+        nas.put("Ronin CD2.avi")
+        bench.scan()
+        val (heat, ronin) = rows()
+        assertEquals(listOf("Heat CD2.avi"), heat.parts)
+        assertEquals("Heat", heat.title)
+        assertEquals("heat", heat.sortTitle)
+        assertEquals("Ronin (Frankenheimer)", ronin.title)
+    }
+
     @Test
     fun namesThatOnlyLookLikePartsAreFilmsOfTheirOwn() = runTest {
         nas.put("Dune Part 2.mkv")

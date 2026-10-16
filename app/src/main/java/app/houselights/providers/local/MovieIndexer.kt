@@ -77,6 +77,7 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
             item = MetadataMerge.withoutDetails(item, parsed.title, parsed.year)
                 .let { if (fetched.answered) it else it.copy(matchedAt = null) }
         }
+        item = namedAsAFilm(item, file, parsed, fetched)
         val art = LocalArt(
             poster = local.poster?.let { files.copyArtwork(source, it) },
             fanart = local.fanart?.let { files.copyArtwork(source, it) },
@@ -84,6 +85,18 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
             thumb = local.thumb?.let { files.copyArtwork(source, it) },
         )
         saveMovie(item.copy(nfoPath = kept.path, nfo = kept.text, sidecarKey = sidecarKey(local, kept, art)), nfo, fetched, art, now)
+    }
+
+    /**
+     * A row named by its first file alone ("Heat CD1", scanned before its other parts were there) that has
+     * become a film in parts takes the film's name ([film], "Heat"), when neither its NFO nor TMDB names it.
+     * A name the NFO or TMDB gave it before stays.
+     */
+    private fun namedAsAFilm(item: ItemEntity, file: RemoteFile, film: ParsedMovie, fetched: Fetched): ItemEntity {
+        val unnamed = fetched.nfo?.title == null && fetched.movie == null
+        val ownName = item.title == LibraryScanner.parseMovie(file.relativePath).title
+        if (item.parts.isEmpty() || !unnamed || !ownName) return item
+        return item.copy(title = film.title, sortTitle = MetadataMerge.sortKey(film.title))
     }
 
     /** [known] and [nfo] name the same title and the same set: TMDB has nothing new to say of the film. */
