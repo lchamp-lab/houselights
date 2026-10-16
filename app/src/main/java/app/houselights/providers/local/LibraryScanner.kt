@@ -37,7 +37,7 @@ data class ScanState(
  */
 class LibraryScanner(
     private val dao: LibraryDao,
-    /** The TMDB client in use, or null without a key. */
+    /** The TMDB client of scans, or null without a key. */
     private val tmdb: () -> TmdbClient?,
     private val scope: CoroutineScope,
     private val artwork: ArtworkCache,
@@ -46,6 +46,8 @@ class LibraryScanner(
     /** How a folder is read; tests hand in a NAS of their own. */
     private val browsers: (SourceEntity) -> RemoteBrowser = RemoteBrowser::of,
     private val clock: () -> Long = System::currentTimeMillis,
+    /** The TMDB client of what people ask ([identify]): one that asks TMDB every time. */
+    private val interactiveTmdb: () -> TmdbClient? = tmdb,
 ) {
     private val _state = MutableStateFlow(ScanState())
     val state: StateFlow<ScanState> = _state
@@ -137,7 +139,7 @@ class LibraryScanner(
      */
     suspend fun identify(itemId: Long, tmdbId: Int?) {
         withContext(Dispatchers.IO) {
-            val tmdb = client() ?: throw NoTmdbKeyException()
+            val tmdb = interactiveTmdb() ?: throw NoTmdbKeyException()
             lock.withLock {
                 val item = dao.item(itemId) ?: return@withLock
                 when (item.kind) {
