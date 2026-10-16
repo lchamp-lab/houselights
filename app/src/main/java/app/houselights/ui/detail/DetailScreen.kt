@@ -26,6 +26,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.runtime.derivedStateOf
@@ -133,8 +134,8 @@ fun DetailScreen(
     // Each arrival puts focus back on what opened another screen (Modifier, the NFO, a film of a
     // row); a first visit starts on the first action, the play button.
     val memory = rememberFocusMemory()
-    val actions = remember { FocusRequester() }
-    RestoreFocus(memory, actions, ready = item != null)
+    val actionRow = remember { FocusRequester() }
+    RestoreFocus(memory, actionRow, ready = item != null)
     // A film started over is resumed next: back from the player, focus is on the play button.
     LaunchedEffect(Unit) {
         app.playback.playbackEnded.collect { if (memory.last == RESTART) memory.focus(PLAY) }
@@ -164,7 +165,7 @@ fun DetailScreen(
     }
     BackToStart(away = scrolled) {
         page.animateScrollToItem(0)
-        actions.tryRequestFocus()
+        actionRow.tryRequestFocus()
     }
 
     val screenHeight = screenHeight()
@@ -182,6 +183,15 @@ fun DetailScreen(
             onIdentify = { showEdit = false; onIdentify(item.id) },
         )
     }
+    val actions = DetailActions(
+        onPlay = onPlay,
+        onTogglePlayed = vm::togglePlayed,
+        onToggleFavorite = vm::toggleFavorite,
+        onOpenSeries = { item.seriesId?.let(onOpenItem) },
+        onOpenNfo = { onOpenNfo(item.id) },
+        onShowTech = if (media != null) ({ showTech = true }) else null,
+        onEdit = if (state.canEdit) ({ showEdit = true }) else null,
+    )
 
     // Down the page the film steps back: the rows read on the room, not on a face. A page that
     // comes back already scrolled is dark at once; then the veil follows the page over SLOW.
@@ -223,16 +233,10 @@ fun DetailScreen(
                             item = item,
                             nextUp = state.nextUp,
                             capabilities = state.capabilities,
-                            onPlay = onPlay,
-                            onTogglePlayed = vm::togglePlayed,
-                            onToggleFavorite = vm::toggleFavorite,
                             actionError = state.actionError,
-                            onOpenSeries = { item.seriesId?.let(onOpenItem) },
-                            onOpenNfo = { onOpenNfo(item.id) },
-                            onShowTech = if (media != null) ({ showTech = true }) else null,
-                            onEdit = if (state.canEdit) ({ showEdit = true }) else null,
-                            memory = memory,
                             actions = actions,
+                            memory = memory,
+                            actionRow = actionRow,
                             modifier = Modifier
                                 .padding(start = HlSpace.safeH, end = HlSpace.safeH, top = HlSpace.safeV)
                                 .align(Alignment.BottomStart),
@@ -320,21 +324,31 @@ fun DetailScreen(
     }
 }
 
+/**
+ * What the actions of a detail page do, built once by [DetailScreen] and handed down as it is: each
+ * by its name, so two of the same type cannot change places on the way. [onShowTech] and [onEdit]
+ * are null for a title with no technical sheet, or that cannot be edited: their buttons are left out.
+ */
+@Immutable
+private data class DetailActions(
+    val onPlay: (MediaItem, resume: Boolean) -> Unit,
+    val onTogglePlayed: () -> Unit,
+    val onToggleFavorite: () -> Unit,
+    val onOpenSeries: () -> Unit,
+    val onOpenNfo: () -> Unit,
+    val onShowTech: (() -> Unit)?,
+    val onEdit: (() -> Unit)?,
+)
+
 @Composable
 private fun Hero(
     item: MediaItem,
     nextUp: MediaItem?,
     capabilities: ProviderCapabilities?,
-    onPlay: (MediaItem, Boolean) -> Unit,
-    onTogglePlayed: () -> Unit,
-    onToggleFavorite: () -> Unit,
     actionError: UiError?,
-    onOpenSeries: () -> Unit,
-    onOpenNfo: () -> Unit,
-    onShowTech: (() -> Unit)?,
-    onEdit: (() -> Unit)?,
+    actions: DetailActions,
     memory: FocusMemory,
-    actions: FocusRequester,
+    actionRow: FocusRequester,
     modifier: Modifier,
 ) {
     val isEpisode = item.kind == MediaKind.EPISODE
@@ -383,39 +397,30 @@ private fun Hero(
         }
         Spacer(Modifier.height(HlSpace.xl))
 
-        Actions(
-            item, nextUp, capabilities, onPlay, onTogglePlayed, onToggleFavorite, actionError, onOpenSeries, onOpenNfo, onShowTech,
-            onEdit, memory, actions,
-        )
+        Actions(item, nextUp, capabilities, actionError, actions, memory, actionRow)
     }
 }
 
 /**
- * What can be done with the title, in one row. Room under it for the label of a round button:
- * nothing moves when it shows. [actions] focuses the first of them.
+ * What can be done with the title ([actions]), in one row. Room under it for the label of a round
+ * button: nothing moves when it shows. [actionRow] focuses the first of them.
  */
 @Composable
 private fun Actions(
     item: MediaItem,
     nextUp: MediaItem?,
     capabilities: ProviderCapabilities?,
-    onPlay: (MediaItem, Boolean) -> Unit,
-    onTogglePlayed: () -> Unit,
-    onToggleFavorite: () -> Unit,
     actionError: UiError?,
-    onOpenSeries: () -> Unit,
-    onOpenNfo: () -> Unit,
-    onShowTech: (() -> Unit)?,
-    onEdit: (() -> Unit)?,
+    actions: DetailActions,
     memory: FocusMemory,
-    actions: FocusRequester,
+    actionRow: FocusRequester,
 ) {
     val problem by appContainer().playback.playbackProblem.collectAsStateWithLifecycle()
-    HlActionRow(Modifier.focusRequester(actions).fadeOutsideSafeArea()) {
-        PlayButtons(item, nextUp, memory, onPlay)
-        Parts(item, memory, onPlay)
+    HlActionRow(Modifier.focusRequester(actionRow).fadeOutsideSafeArea()) {
+        PlayButtons(item, nextUp, memory, actions.onPlay)
+        Parts(item, memory, actions.onPlay)
         if (item.kind == MediaKind.EPISODE && item.seriesId != null) {
-            HlButton(stringResource(R.string.view_series), onClick = onOpenSeries, modifier = Modifier.focusKey(SERIES, memory))
+            HlButton(stringResource(R.string.view_series), onClick = actions.onOpenSeries, modifier = Modifier.focusKey(SERIES, memory))
         }
         // A toggle says what OK does; its icon says where the title stands. Watched is done, not a
         // choice: the check fills, in projector white.
@@ -423,16 +428,16 @@ private fun Actions(
             HlIconButton(
                 if (item.user.played) HlIcons.CheckFilled else HlIcons.Check,
                 stringResource(if (item.user.played) R.string.mark_unwatched else R.string.mark_watched),
-                onClick = onTogglePlayed,
+                onClick = actions.onTogglePlayed,
                 modifier = Modifier.focusKey(WATCHED, memory),
             )
         }
         // A button bears the name of what it opens.
-        if (onShowTech != null) {
+        if (actions.onShowTech != null) {
             HlIconButton(
                 HlIcons.Info,
                 stringResource(R.string.tech_details),
-                onClick = onShowTech,
+                onClick = actions.onShowTech,
                 modifier = Modifier.focusKey(TECH, memory),
             )
         }
@@ -440,7 +445,7 @@ private fun Actions(
             HlIconButton(
                 HlIcons.Document,
                 stringResource(R.string.nfo_title),
-                onClick = onOpenNfo,
+                onClick = actions.onOpenNfo,
                 modifier = Modifier.focusKey(NFO, memory),
             )
         }
@@ -448,13 +453,13 @@ private fun Actions(
             HlIconButton(
                 if (item.user.favorite) HlIcons.HeartFilled else HlIcons.Heart,
                 stringResource(if (item.user.favorite) R.string.remove_favorite else R.string.add_favorite),
-                onClick = onToggleFavorite,
+                onClick = actions.onToggleFavorite,
                 modifier = Modifier.focusKey(FAVORITE, memory),
                 lit = item.user.favorite,
             )
         }
-        if (onEdit != null) {
-            HlIconButton(HlIcons.Edit, stringResource(R.string.edit), onClick = onEdit, modifier = Modifier.focusKey(EDIT, memory))
+        if (actions.onEdit != null) {
+            HlIconButton(HlIcons.Edit, stringResource(R.string.edit), onClick = actions.onEdit, modifier = Modifier.focusKey(EDIT, memory))
         }
         ActionFailure(problem, actionError)
     }
