@@ -54,7 +54,11 @@ fun WelcomeScreen(onLocal: () -> Unit, onJellyfin: () -> Unit, problem: UiError?
     val focus = remember { FocusRequester() }
     val vm: WelcomeViewModel = viewModel(factory = WelcomeViewModel.factory(app, HlSize.posterWall.toPx()))
     val posters by vm.posters.collectAsStateWithLifecycle()
-    LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
+    LaunchedEffect(Unit) {
+        runCatching { focus.requestFocus() }
+        // Back from a choice: a wall TMDB left empty is asked for again.
+        vm.show()
+    }
     val black = Hl.colors.background
 
     Box(Modifier.fillMaxSize().background(black)) {

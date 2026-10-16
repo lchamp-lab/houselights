@@ -6,21 +6,29 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import app.houselights.AppContainer
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
 /**
- * The welcome wall's posters, asked of TMDB once ([trending]) and kept while the welcome screen is
- * in the back stack: back from a choice (the Jellyfin sign-in, the first folder), the wall is there.
- * None while TMDB answers, or when it cannot.
+ * The welcome wall's posters, asked of TMDB ([trending]) and kept while the welcome screen is in the
+ * back stack: back from a choice (the Jellyfin sign-in, the first folder), the wall is there. None
+ * while TMDB answers, or when it cannot: then the wall asks again each time it shows ([show]).
  */
 class WelcomeViewModel(private val trending: suspend () -> List<String>) : ViewModel() {
     private val _posters = MutableStateFlow<List<String>>(emptyList())
     val posters: StateFlow<List<String>> = _posters
+    private var asking: Job? = null
 
     init {
-        viewModelScope.launch { _posters.value = trending() }
+        show()
+    }
+
+    /** The wall shows: TMDB is asked for its posters, unless they are here or on their way. */
+    fun show() {
+        if (_posters.value.isNotEmpty() || asking?.isActive == true) return
+        asking = viewModelScope.launch { _posters.value = trending() }
     }
 
     companion object {
