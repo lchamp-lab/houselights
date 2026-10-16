@@ -1,5 +1,6 @@
 package app.houselights.providers.local
 
+import android.annotation.SuppressLint
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.util.Log
@@ -87,7 +88,9 @@ class ArtworkCache(
      * Writes [from] into [to] at the largest size the screen shows it, when it is larger: a 4K fanart,
      * a poster of 3000 px. A picture with transparency (a clear logo) stays a PNG, the others become
      * JPEGs; the name keeps the extension the NAS gave it, as decoders read what the bytes are. False
-     * when it fits as it is, or is no picture Android reads: it is kept byte for byte.
+     * when it fits as it is, is no picture Android reads, or is turned by its EXIF orientation (a
+     * phone's photo for a home video, which Coil shows upright and a new encoding would lose): it is
+     * kept byte for byte.
      */
     private fun shrink(from: File, to: File): Boolean {
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
@@ -96,6 +99,7 @@ class ArtworkCache(
         val height = bounds.outHeight
         val scale = minOf(MAX_WIDTH.toFloat() / width, MAX_HEIGHT.toFloat() / height)
         if (width <= 0 || height <= 0 || scale >= 1f) return false
+        if (turned(from)) return false
         val targetWidth = (width * scale).roundToInt().coerceAtLeast(1)
         val targetHeight = (height * scale).roundToInt().coerceAtLeast(1)
         // Decoded at the smallest power-of-two fraction still as large as the target, then scaled to it.
@@ -111,6 +115,19 @@ class ArtworkCache(
             scaled.recycle()
         }
         return true
+    }
+
+    /**
+     * True when [file]'s EXIF says it is shown turned or mirrored; a picture without EXIF, or none it
+     * reads, is not. Read by the platform's reader: the support library's is no dependency of the app.
+     */
+    @SuppressLint("ExifInterface")
+    private fun turned(file: File): Boolean {
+        val upright = android.media.ExifInterface.ORIENTATION_NORMAL
+        val orientation = runCatching {
+            android.media.ExifInterface(file.path).getAttributeInt(android.media.ExifInterface.TAG_ORIENTATION, upright)
+        }.getOrDefault(upright)
+        return orientation != upright && orientation != android.media.ExifInterface.ORIENTATION_UNDEFINED
     }
 
     /** Whether an image of [file]'s size is copied at all: an empty one, or one too large, is left to TMDB for good. */

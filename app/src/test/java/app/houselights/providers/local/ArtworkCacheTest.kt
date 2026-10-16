@@ -129,6 +129,21 @@ class ArtworkCacheTest {
         assertArrayEquals(logo, copied("Dune (2021)/clearlogo.png", logo)?.readBytes())
     }
 
+    /**
+     * A phone's photo, stored on its side with an EXIF orientation: Coil shows it upright, which a new
+     * encoding would lose, so it stays as the NAS has it.
+     */
+    @Test
+    fun aPhotoTurnedByItsExifIsCopiedAsItIs() {
+        val stored = File(temp.newFolder(), "photo.jpg").apply { writeBytes(picture(4032, 3024)) }
+        android.media.ExifInterface(stored.path).apply {
+            setAttribute(android.media.ExifInterface.TAG_ORIENTATION, android.media.ExifInterface.ORIENTATION_ROTATE_90.toString())
+            saveAttributes()
+        }
+        val photo = stored.readBytes()
+        assertArrayEquals(photo, copied("Holidays (2024)/poster.jpg", photo)?.readBytes())
+    }
+
     /** A NAS that stops in the middle of a copy leaves no picture, whole or not, in the cache. */
     @Test
     fun aCopyCutOffLeavesNothingBehind() = runBlocking {
