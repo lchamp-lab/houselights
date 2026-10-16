@@ -14,10 +14,16 @@ import app.houselights.ui.util.UiError
  * [HlEmptyState] that calls for attention, in place of what would have been shown. Trying again is
  * the screen's own [onRetry]; while it runs ([retrying]) the intertitle stays, its button at work and
  * still focused. The other actions lead where the problem is fixed ([LocalErrorFix]). An error no
- * action fixes leaves the way out to Back.
+ * action fixes leaves the way out to Back. [focusOnAppear] as in [HlEmptyState].
  */
 @Composable
-fun HlErrorState(error: UiError, onRetry: () -> Unit, modifier: Modifier = Modifier, retrying: Boolean = false) {
+fun HlErrorState(
+    error: UiError,
+    onRetry: () -> Unit,
+    modifier: Modifier = Modifier,
+    retrying: Boolean = false,
+    focusOnAppear: Boolean = true,
+) {
     val action = error.action
     val fix = LocalErrorFix.current
     HlEmptyState(
@@ -30,5 +36,6 @@ fun HlErrorState(error: UiError, onRetry: () -> Unit, modifier: Modifier = Modif
         onAction = { if (action == ErrorAction.RETRY) onRetry() else action?.let(fix) },
         backHint = action == null,
         busy = stringResource(R.string.retrying).takeIf { retrying && action == ErrorAction.RETRY },
+        focusOnAppear = focusOnAppear,
     )
 }

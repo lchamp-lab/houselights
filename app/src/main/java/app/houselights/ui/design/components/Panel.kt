@@ -233,7 +233,7 @@ fun FactRow(
  * A failure calls for [attention]: its rule is ember. With no action, [backHint] says that Back
  * is the way out. While the action is at work (trying again), [busy] says so in its place: the
  * intertitle stays, and focus with it. It takes the place of what the screen would show, from the
- * top of that place.
+ * top of that place. A specimen among others (the catalogue) leaves focus where it is ([focusOnAppear]).
  */
 @Composable
 fun HlEmptyState(
@@ -248,9 +248,10 @@ fun HlEmptyState(
     onSecondaryAction: () -> Unit = {},
     backHint: Boolean = false,
     busy: String? = null,
+    focusOnAppear: Boolean = true,
 ) {
     val focus = remember { FocusRequester() }
-    LaunchedEffect(action != null) { if (action != null) focus.tryRequestFocus() }
+    LaunchedEffect(action != null) { if (action != null && focusOnAppear) focus.tryRequestFocus() }
     Intertitle(
         title,
         modifier,

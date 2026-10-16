@@ -118,25 +118,30 @@ private fun Intertitles() {
 
 /**
  * HlErrorState, one for each action an error offers, and none: the words and the action come with
- * the error. Here the actions that lead elsewhere lead nowhere.
+ * the error. Here the actions that lead elsewhere lead nowhere, and none takes focus as it appears:
+ * scrolling down, focus would jump to the last of them.
  */
 @Composable
 private fun ErrorStates() {
     CompositionLocalProvider(LocalErrorFix provides {}) {
         Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.xl), verticalAlignment = Alignment.Top) {
-            Gesture("try again, on the spot", Modifier.weight(1f)) { HlErrorState(UiError.OFFLINE, onRetry = {}) }
+            Gesture("try again, on the spot", Modifier.weight(1f)) { ErrorSpecimen(UiError.OFFLINE) }
             Gesture("trying again: it stays, its button at work", Modifier.weight(1f)) {
-                HlErrorState(UiError.OFFLINE, onRetry = {}, retrying = true)
+                ErrorSpecimen(UiError.OFFLINE, retrying = true)
             }
-            Gesture("nothing fixes it: Back is the way out", Modifier.weight(1f)) { HlErrorState(UiError.GONE, onRetry = {}) }
+            Gesture("nothing fixes it: Back is the way out", Modifier.weight(1f)) { ErrorSpecimen(UiError.GONE) }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.xl), verticalAlignment = Alignment.Top) {
-            Gesture("sign in again", Modifier.weight(1f)) { HlErrorState(UiError.DENIED, onRetry = {}) }
-            Gesture("add a TMDB key, in the settings", Modifier.weight(1f)) { HlErrorState(UiError.NO_TMDB_KEY, onRetry = {}) }
-            Gesture("change the key TMDB refuses", Modifier.weight(1f)) { HlErrorState(UiError.TMDB_KEY_REFUSED, onRetry = {}) }
+            Gesture("sign in again", Modifier.weight(1f)) { ErrorSpecimen(UiError.DENIED) }
+            Gesture("add a TMDB key, in the settings", Modifier.weight(1f)) { ErrorSpecimen(UiError.NO_TMDB_KEY) }
+            Gesture("change the key TMDB refuses", Modifier.weight(1f)) { ErrorSpecimen(UiError.TMDB_KEY_REFUSED) }
         }
     }
 }
+
+@Composable
+private fun ErrorSpecimen(error: UiError, retrying: Boolean = false) =
+    HlErrorState(error, onRetry = {}, retrying = retrying, focusOnAppear = false)
 
 @Composable
 private fun Counters() {
