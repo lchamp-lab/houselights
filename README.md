@@ -33,17 +33,17 @@ player's own menus all keep working.
 
 ## Install
 
-Each release is on the [Releases page](https://github.com/lchamp-lab/Houselights/releases): one APK, its
+Each release is on the [Releases page](https://github.com/lchamp-lab/houselights/releases): one APK, its
 SHA-256, and what changed. A release installs over an earlier one and keeps its library, watch history and
 settings. Android may first ask you to allow installing apps from the file manager or downloader you use.
 
 - **On a Zidoo**: copy `Houselights-x.y.z.apk` to a USB stick, plug it in, and open it from the player's
   file manager.
 - **On any Android TV**, with the [Downloader](https://www.aftvnews.com/downloader/) app: enter
-  `https://github.com/lchamp-lab/Houselights/releases/latest/download/Houselights.apk`, always the latest
+  `https://github.com/lchamp-lab/houselights/releases/latest/download/Houselights.apk`, always the latest
   release.
 - **Kept up to date by itself**, with [Obtainium](https://github.com/ImranR98/Obtainium): add
-  `https://github.com/lchamp-lab/Houselights`; it installs each new release as it comes.
+  `https://github.com/lchamp-lab/houselights`; it installs each new release as it comes.
 - **From a computer**: `adb install -r Houselights-x.y.z.apk`.
 
 Every release is signed with the project's key. Android refuses to update the app from an APK signed with
