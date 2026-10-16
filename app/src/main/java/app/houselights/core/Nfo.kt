@@ -79,6 +79,14 @@ object NfoParser {
         byteArrayOf(0xFF.toByte(), 0xFE.toByte()) to Charsets.UTF_16LE,
     )
     private val WINDOWS_1252: Charset = runCatching { Charset.forName("windows-1252") }.getOrDefault(Charsets.ISO_8859_1)
+    private const val XML_START_TEXT = "<?xml"
+    private val XML_START = XML_START_TEXT.toByteArray(Charsets.US_ASCII)
+
+    /**
+     * Declared by bytes that are not UTF-8, what they are read as Windows-1252 for: a false "UTF-8",
+     * plain ASCII, and "ISO-8859-1", which Windows writes for its 1252, quotes and dashes included.
+     */
+    private val WINDOWS_1252_NAMES = setOf(Charsets.UTF_8, Charsets.US_ASCII, Charsets.ISO_8859_1)
     private const val LT: Byte = 0x3C // "<"
     private const val NUL: Byte = 0
 
@@ -103,22 +111,27 @@ object NfoParser {
     }
 
     /**
-     * An NFO's text, from its bytes in the encoding they say: their byte order mark, else their XML
-     * declaration, else UTF-8; or Windows-1252, the Latin-1 of older media managers, when they are
-     * not UTF-8. A character cut by the end of what was read is left out.
+     * An NFO's text, from its bytes in the encoding they say: their byte order mark; else UTF-8 when
+     * they read as UTF-8, whatever their XML declaration says (.NET writes "utf-16" in the XML it
+     * saves in UTF-8); else the 8-bit encoding their declaration names; else Windows-1252, the
+     * Latin-1 of older media managers. A character cut by the end of what was read is left out.
      */
     fun decode(bytes: ByteArray): String {
         bom(bytes)?.let { (charset, length) -> return String(bytes, length, bytes.size - length, charset) }
-        // UTF-16 without a mark, told by its first character, "<" (XML 1.0, appendix F).
-        if (bytes.size >= 2 && bytes[0] == LT && bytes[1] == NUL) return String(bytes, Charsets.UTF_16LE)
-        if (bytes.size >= 2 && bytes[0] == NUL && bytes[1] == LT) return String(bytes, Charsets.UTF_16BE)
-        return when (val declared = declaredCharset(bytes)) {
-            null, Charsets.UTF_8, Charsets.US_ASCII -> utf8(bytes) ?: String(bytes, WINDOWS_1252)
-            // What Windows writes as "ISO-8859-1" is Windows-1252, its quotes and dashes included.
-            Charsets.ISO_8859_1 -> String(bytes, WINDOWS_1252)
-            else -> String(bytes, declared)
-        }
+        utf16(bytes)?.let { return String(bytes, it) }
+        return utf8(bytes) ?: String(bytes, declaredCharset(bytes)?.takeIf { it.isEightBit() && it !in WINDOWS_1252_NAMES } ?: WINDOWS_1252)
     }
+
+    /** UTF-16 without a mark, told by its first character, "<" (XML 1.0, appendix F). */
+    private fun utf16(bytes: ByteArray): Charset? = when {
+        bytes.size < 2 -> null
+        bytes[0] == LT && bytes[1] == NUL -> Charsets.UTF_16LE
+        bytes[0] == NUL && bytes[1] == LT -> Charsets.UTF_16BE
+        else -> null
+    }
+
+    /** True when ASCII reads as itself: a declaration read in Latin-1 can only name such an encoding truly. */
+    private fun Charset.isEightBit() = String(XML_START, this) == XML_START_TEXT
 
     /** The charset a byte order mark says, and the mark's length. */
     private fun bom(bytes: ByteArray): Pair<Charset, Int>? = BOMS.firstOrNull { (mark, _) ->
