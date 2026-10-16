@@ -290,8 +290,17 @@ class LocalProvider(
         return dao.recentlyPlayedSeries(NEXT_UP_SHOWS).mapNotNull { nextEpisode(dao.episodesOfSeries(it)) }.filter { it.id !in exclude }
     }
 
-    /** First in-progress episode, else the one after the last watched, else the first unwatched. */
+    /**
+     * The next episode among the seasons, specials (season 0, first in [episodes]) once none is left
+     * there: as [MediaProvider.nextUp] does, a show starts with S01E01, not with a special.
+     */
     private fun nextEpisode(episodes: List<ItemEntity>): ItemEntity? {
+        val (specials, seasons) = episodes.partition { (it.seasonNumber ?: 0) == 0 }
+        return nextOf(seasons) ?: nextOf(specials)
+    }
+
+    /** First in-progress episode, else the one after the last watched, else the first unwatched. */
+    private fun nextOf(episodes: List<ItemEntity>): ItemEntity? {
         episodes.firstOrNull { it.positionMs > 0 && !it.played }?.let { return it }
         val lastWatched = episodes.indexOfLast { it.played }
         return episodes.drop(lastWatched + 1).firstOrNull { !it.played } ?: episodes.firstOrNull { !it.played }

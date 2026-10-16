@@ -172,6 +172,46 @@ class LocalProviderTest {
         assertNull(provider.nextUp(show))
     }
 
+    private suspend fun show(title: String) =
+        Show(dao.insert(ItemEntity(kind = ItemKind.SERIES, sourceId = source, title = title, sortTitle = title.lowercase(), addedAt = 0)))
+
+    /** A show of the library; [episode] adds an episode to it, and its season when new. */
+    private inner class Show(val id: Long) {
+        private val seasons = mutableMapOf<Int, Long>()
+
+        suspend fun episode(season: Int, n: Int): Long {
+            val parent = seasons.getOrPut(season) {
+                dao.insert(
+                    ItemEntity(
+                        kind = ItemKind.SEASON, sourceId = source, parentId = id, seriesId = id, title = "Season $season",
+                        sortTitle = "%03d".format(season), seasonNumber = season, addedAt = 0,
+                    )
+                )
+            }
+            return dao.insert(
+                ItemEntity(
+                    kind = ItemKind.EPISODE, sourceId = source, parentId = parent, seriesId = id, title = "S${season}E$n",
+                    sortTitle = "%03d-%04d".format(season, n), seasonNumber = season, episodeNumber = n,
+                    filePath = "$id/S${season}E$n.mkv", addedAt = 0,
+                )
+            )
+        }
+    }
+
+    /** Sonarr's "Specials" folder holds S00E01: "Play" starts S01E01 all the same, and the specials once the rest is watched. */
+    @Test
+    fun aShowStartsWithItsFirstSeasonNotItsSpecials() = runTest {
+        val show = show("MobLand")
+        show.episode(0, 1)
+        val pilot = show.episode(1, 1)
+        show.episode(1, 2)
+        val item = provider.item(show.id.toString())
+        assertEquals("S1E1", provider.nextUp(item)?.title)
+
+        dao.setSeasonPlayed(checkNotNull(dao.item(pilot)?.parentId), played = true, now = 1)
+        assertEquals("S0E1", provider.nextUp(item)?.title)
+    }
+
     @Test
     fun aFilmWatchedPastNinetyPercentIsPlayed() = runTest {
         val id = movie("Heat", runtimeMin = 100)
