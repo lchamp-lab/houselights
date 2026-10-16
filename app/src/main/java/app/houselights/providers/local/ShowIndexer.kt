@@ -47,8 +47,7 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
         val nfo = kept.info
         val seasonAnswer = series.tmdbId?.let { seasons.get(it, parsed.season) }
         val meta = seasonAnswer?.value?.episodes?.firstOrNull { it.episodeNumber == parsed.episode }
-        // Matched once TMDB answered for it: its show looked up, and its season asked when TMDB knows the show.
-        val answered = series.matchedAt != null && (series.tmdbId == null || seasonAnswer is TmdbAnswer.Given)
+        val answered = answered(tmdb, series, seasonAnswer)
 
         val episode = base.copy(
             parentId = season.id,
@@ -73,6 +72,12 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
         } else {
             dao.saveScanned(probed)
         }
+    }
+
+    /** An episode is matched once TMDB answered for it: its show looked up, and its season asked when TMDB knows the show. */
+    private fun answered(tmdb: TmdbPass, series: ItemEntity, season: TmdbAnswer<TmdbSeason>?): Boolean {
+        val showAnswered = tmdb.client != null && series.matchedAt != null
+        return showAnswered && (series.tmdbId == null || season is TmdbAnswer.Given)
     }
 
     /** Details: NFO, then TMDB, then what the episode had. */
