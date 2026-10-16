@@ -60,7 +60,7 @@ abstract class LibraryDatabase : RoomDatabase() {
             }
         }
 
-        /** Seals the passwords stored in plain text so far, and indexes what lists sort and filter on. */
+        /** When each folder's first scan ended: what libraries already hold is not new (see [SourceEntity.firstScanAt]). */
         private val MIGRATION_7_8 = object : Migration(7, 8) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE sources ADD COLUMN firstScanAt INTEGER NOT NULL DEFAULT 0")

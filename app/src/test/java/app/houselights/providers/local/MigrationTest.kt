@@ -18,6 +18,51 @@ class MigrationTest {
     private val key = KeyGenerator.getInstance("AES").apply { init(256) }.generateKey()
     private val secrets = Secrets { key }
 
+    /**
+     * Versions 1 to 5 lived a day (13 and 14 October 2026), before Room exported schemas: theirs
+     * were rebuilt from those commits (app/schemas). Room checks the tables the migrations make
+     * against the entities when it opens the database; what the rows held must come through.
+     */
+    @Test
+    fun everyVersionBeforeSchemasWereKeptReachesTheLatest() = runTest {
+        for (version in 1..5) {
+            val name = "migration-from-$version-test.db"
+            context.deleteDatabase(name)
+            SchemaHistory.create(context, name, version) {
+                val protocol = if (version >= 2) listOf("protocol" to "'NFS'") else emptyList()
+                val columns = listOf(
+                    "id" to "1", "name" to "'Films'", "kind" to "'MOVIES'", "host" to "'nas'", "share" to "'media'", "path" to "'films'",
+                    "username" to "'zidoo'", "password" to "'s3cret'", "domain" to "''", "lastScanAt" to "1000",
+                ) + protocol
+                execSQL("INSERT INTO sources (${columns.joinToString { it.first }}) VALUES (${columns.joinToString { it.second }})")
+                execSQL(
+                    "INSERT INTO items (id, kind, sourceId, title, sortTitle, continuing, genres, directors, filePath, fileSize, " +
+                        "badges, addedAt, matchedAt, positionMs, played, favorite) " +
+                        "VALUES (1, 'MOVIE', 1, 'Dune', 'dune', 0, 'Science-fiction', '', 'Dune.mkv', 42, '', 0, 500, 600000, 0, 1)"
+                )
+            }
+            val db = Room.databaseBuilder(context, LibraryDatabase::class.java, name)
+                .addTypeConverter(SecretConverter(secrets))
+                .addMigrations(*LibraryDatabase.migrations(secrets))
+                .build()
+            try {
+                val source = db.dao().sources().single()
+                assertEquals("from $version", if (version >= 2) Protocol.NFS else Protocol.SMB, source.protocol)
+                assertEquals("from $version", "s3cret", source.password.value)
+                assertEquals("from $version", 1000L, db.dao().firstScans().single().firstScanAt)
+                val dune = checkNotNull(db.dao().item(1))
+                assertEquals("from $version", listOf("Science-fiction"), dune.genres)
+                assertEquals("from $version", "Dune.mkv" to 42L, dune.filePath to dune.fileSize)
+                assertEquals("from $version", 600_000L to true, dune.positionMs to dune.favorite)
+                // Version 6 matches films again, for them to learn their collection.
+                assertEquals("from $version", null, dune.matchedAt)
+            } finally {
+                db.close()
+                context.deleteDatabase(name)
+            }
+        }
+    }
+
     @Test
     fun version7SealsPasswords() = runTest {
         val name = "migration-test.db"

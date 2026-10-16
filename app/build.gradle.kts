@@ -107,7 +107,8 @@ android {
         buildConfig = true
     }
     testOptions {
-        // Robolectric tests need the merged resources and assets (schemas for migration tests).
+        // Robolectric tests need the merged resources. Migration tests read app/schemas as files
+        // (SchemaHistory), every version since the first.
         unitTests.isIncludeAndroidResources = true
     }
     lint {
@@ -228,5 +229,4 @@ dependencies {
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.robolectric)
     testImplementation(libs.androidx.test.core)
-    testImplementation(libs.room.testing)
 }
