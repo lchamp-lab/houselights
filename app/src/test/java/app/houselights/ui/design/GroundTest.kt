@@ -29,7 +29,10 @@ class GroundTest {
      */
     @Test
     fun theStepAndTheEdgeAreWrittenOnce() {
-        val recipe = Regex("""\.copy\(alpha = (groundStep\(\)|HlAlpha\.EDGE)\)""")
+        // Outside Color.kt the step is only laid opaque (`groundFill(groundStep())`), and EDGE never
+        // read: a copy through a local (`val step = groundStep()`, then `copy(alpha = step)`) is
+        // still a copy, as two of the old ones were.
+        val recipe = Regex("""(?<!groundFill\()groundStep\(\)|HlAlpha\.EDGE\b""")
         val found = ui.walkTopDown().filter { it.isFile && it.extension == "kt" && it.name != "Color.kt" }
             .flatMap { file ->
                 file.readLines().mapIndexedNotNull { i, line ->
