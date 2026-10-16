@@ -113,4 +113,13 @@ class SettingsStoreTest {
         val settings = SettingsStore(FlakyStore(0, migrated), backgroundScope, broken)
         assertEquals(home, settings.state.first { it.loaded }.source)
     }
+
+    /** "My files" holds no secret: chosen while the Keystore fails, it is written all the same, never a crash. */
+    @Test
+    fun theFoldersAreChosenWithoutTheKeystore() = runTest {
+        val broken = Secrets { throw ProviderException("Failed to generate key") }
+        val settings = testSettings(folder.root, backgroundScope, broken)
+        settings.setSource(SourceConfig.Local)
+        assertEquals(SourceConfig.Local, settings.state.first { it.source != null }.source)
+    }
 }

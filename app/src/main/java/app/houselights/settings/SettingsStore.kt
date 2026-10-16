@@ -52,6 +52,15 @@ private object Keys {
  */
 private val SECRET_KEYS = listOf(Keys.source, Keys.tmdbKey, Keys.mappings)
 
+private val sourceJson = Json { ignoreUnknownKeys = true }
+
+/** A source holds a secret, the server's token, unless it is the folders: those are never sealed. */
+private fun sourceHoldsSecret(plain: String): Boolean =
+    runCatching { sourceJson.decodeFromString<SourceConfig>(plain) }.getOrNull() != SourceConfig.Local
+
+/** [plain], kept under [key], is a secret to seal: anything there but a source that is the folders. */
+private fun needsSealing(key: Preferences.Key<String>, plain: String): Boolean = key != Keys.source || sourceHoldsSecret(plain)
+
 /**
  * Seals secrets written in plain text before sealing existed. A Keystore that cannot seal leaves them
  * as they are: read as plain text, they are sealed at a later launch, never lost, and the settings
@@ -59,11 +68,11 @@ private val SECRET_KEYS = listOf(Keys.source, Keys.tmdbKey, Keys.mappings)
  */
 internal class SealSecrets(private val secrets: Secrets) : DataMigration<Preferences> {
     override suspend fun shouldMigrate(currentData: Preferences) =
-        SECRET_KEYS.any { key -> currentData[key]?.let { !secrets.isSealed(it) } == true }
+        SECRET_KEYS.any { key -> currentData[key]?.let { !secrets.isSealed(it) && needsSealing(key, it) } == true }
 
     override suspend fun migrate(currentData: Preferences): Preferences = currentData.toMutablePreferences().apply {
         for (key in SECRET_KEYS) {
-            val plain = this[key]?.takeUnless(secrets::isSealed) ?: continue
+            val plain = this[key]?.takeUnless(secrets::isSealed)?.takeIf { needsSealing(key, it) } ?: continue
             try {
                 this[key] = secrets.seal(plain)
             } catch (e: SecretsUnavailableException) {
@@ -180,9 +189,14 @@ class SettingsStore(
         return id
     }
 
+    /** Saves the source; the folders hold no secret and are never sealed, so choosing them never waits on the Keystore. */
     suspend fun setSource(source: SourceConfig?) {
         dataStore.edit {
-            if (source == null) it.remove(Keys.source) else it[Keys.source] = secrets.seal(json.encodeToString(source))
+            when (source) {
+                null -> it.remove(Keys.source)
+                SourceConfig.Local -> it[Keys.source] = json.encodeToString<SourceConfig>(source)
+                is SourceConfig.Jellyfin -> it[Keys.source] = secrets.seal(json.encodeToString<SourceConfig>(source))
+            }
         }
     }
 
