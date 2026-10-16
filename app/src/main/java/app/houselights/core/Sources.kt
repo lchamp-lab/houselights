@@ -21,6 +21,7 @@ sealed interface SourceConfig {
         val accessToken: String,
     ) : SourceConfig {
         /** Never the token: a log line or an error message may quote the source. */
-        override fun toString() = "Jellyfin(serverUrl=$serverUrl, serverName=$serverName, userId=$userId, userName=$userName, accessToken=***)"
+        override fun toString() =
+            "Jellyfin(serverUrl=$serverUrl, serverName=$serverName, userId=$userId, userName=$userName, accessToken=***)"
     }
 }

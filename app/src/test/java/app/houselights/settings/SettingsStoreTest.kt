@@ -109,7 +109,11 @@ class SettingsStoreTest {
     fun eachSecretLostIsSaidApartAndAGoodOneSavedPutsItBack() = runTest {
         val tmdbKey = stringPreferencesKey("tmdb_api_key")
         val secrets = testSecrets()
-        val prefs = mutablePreferencesOf(sourceKey to Json.encodeToString<SourceConfig>(SourceConfig.Local), tmdbKey to testSecrets().seal("k3y"))
+        val prefs = mutablePreferencesOf(
+            sourceKey to Json.encodeToString<SourceConfig>(SourceConfig.Local),
+            // Sealed with a key this device no longer has.
+            tmdbKey to testSecrets().seal("k3y"),
+        )
         val settings = SettingsStore(FlakyStore(0, prefs), backgroundScope, secrets)
         val read = settings.state.first { it.loaded }
         assertEquals(SourceConfig.Local, read.source)

@@ -116,28 +116,30 @@ internal class LocalMapper(private val dao: LibraryDao, private val context: Con
      */
     suspend fun forPlayer(e: ItemEntity, item: MediaItem): MediaItem {
         val show = e.seriesId?.let { dao.item(it) }
-        return item.copy(
-            backdrop = webArtwork(e, show, ItemEntity::userBackdropPath, ItemEntity::backdropPath, NfoInfo::fanartUrl, ImageType.BACKDROP),
-            logo = webArtwork(e, show, ItemEntity::userLogoPath, ItemEntity::logoPath, NfoInfo::logoUrl, ImageType.LOGO),
-        )
+        return item.copy(backdrop = webArtwork(e, show, PlayerArt.BACKDROP), logo = webArtwork(e, show, PlayerArt.LOGO))
     }
 
-    private fun webArtwork(
-        e: ItemEntity,
-        show: ItemEntity?,
-        user: (ItemEntity) -> String?,
-        automatic: (ItemEntity) -> String?,
-        nfo: (NfoInfo) -> String?,
-        type: ImageType,
-    ): ImageRef? {
+    /** What the player shows while it opens a file, and where an item keeps it. */
+    private enum class PlayerArt(
+        val user: (ItemEntity) -> String?,
+        val automatic: (ItemEntity) -> String?,
+        val nfo: (NfoInfo) -> String?,
+        val type: ImageType,
+    ) {
+        BACKDROP(ItemEntity::userBackdropPath, ItemEntity::backdropPath, NfoInfo::fanartUrl, ImageType.BACKDROP),
+        LOGO(ItemEntity::userLogoPath, ItemEntity::logoPath, NfoInfo::logoUrl, ImageType.LOGO),
+    }
+
+    private fun webArtwork(e: ItemEntity, show: ItemEntity?, art: PlayerArt): ImageRef? {
+        fun shown(x: ItemEntity) = LocalProvider.shown(art.user(x), art.automatic(x))
         // Whose artwork the screens show: the item's, else its show's.
-        val owner = listOfNotNull(e, show).firstOrNull { LocalProvider.shown(user(it), automatic(it)) != null } ?: return null
+        val owner = listOfNotNull(e, show).firstOrNull { shown(it) != null } ?: return null
         val inReach = listOf(
-            { LocalProvider.shown(user(owner), automatic(owner)) },
-            { automatic(owner) },
-            { owner.nfo?.let(NfoParser::parse)?.let(nfo) },
+            { shown(owner) },
+            { art.automatic(owner) },
+            { owner.nfo?.let(NfoParser::parse)?.let(art.nfo) },
         ).firstNotNullOfOrNull { candidate -> candidate()?.takeUnless { it.isEmpty() || it.isCachedArtwork() } }
-        return inReach?.let { LocalProvider.image(it, type) }
+        return inReach?.let { LocalProvider.image(it, art.type) }
     }
 
     /** The user's choice, else the automatic one; for the item, else its show. */

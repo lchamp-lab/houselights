@@ -217,7 +217,8 @@ class LocalProviderTest {
 
         val plan = provider.playback(item, resume = false, PlaybackOptions(emptyList(), false)) as PlaybackPlan.Launch
         assertEquals("https://assets.fanart.tv/heat.jpg", plan.backdropUrl)
-        assertTrue("Not TMDB's logo: ${plan.logoUrl}", plan.logoUrl!!.startsWith("https://image.tmdb.org/") && plan.logoUrl!!.endsWith("/tmdbLogo.png"))
+        val logo = plan.logoUrl.orEmpty()
+        assertTrue("Not TMDB's logo: $logo", logo.startsWith("https://image.tmdb.org/") && logo.endsWith("/tmdbLogo.png"))
     }
 
     /** The user chose no logo (the title set in type): the player gets none either. */
@@ -229,8 +230,8 @@ class LocalProviderTest {
                 logoPath = "/tmdbLogo.png", userLogoPath = "",
             )
         )
-        val plan = provider.playback(provider.item(id.toString()), resume = false, PlaybackOptions(emptyList(), false)) as PlaybackPlan.Launch
-        assertNull(plan.logoUrl)
+        val plan = provider.playback(provider.item(id.toString()), resume = false, PlaybackOptions(emptyList(), false))
+        assertNull((plan as PlaybackPlan.Launch).logoUrl)
     }
 
     @Test

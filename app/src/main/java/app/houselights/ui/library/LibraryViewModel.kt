@@ -186,7 +186,8 @@ private const val DECADE = "decade"
 private const val QUALITY = "quality"
 
 /** The sort kept, by name: a name no version knows any more is the default. */
-private fun SavedStateHandle.sort(): SortOption = get<String>(SORT)?.let { name -> SortOption.entries.find { it.name == name } } ?: SortOption.TITLE
+private fun SavedStateHandle.sort(): SortOption =
+    get<String>(SORT)?.let { name -> SortOption.entries.find { it.name == name } } ?: SortOption.TITLE
 
 private fun SavedStateHandle.filter() = LibraryFilter(
     status = get<String>(STATUS)?.let { name -> WatchStatus.entries.find { it.name == name } } ?: WatchStatus.ALL,

@@ -94,9 +94,11 @@ abstract class LibraryDatabase : RoomDatabase() {
                             secrets.seal(password)
                         } catch (e: SecretsUnavailableException) {
                             Log.w("Library", "The password of folder ${rows.getLong(0)} left unsealed", e)
-                            continue
+                            null
                         }
-                        db.execSQL("UPDATE sources SET password = ? WHERE id = ?", arrayOf<Any>(sealed, rows.getLong(0)))
+                        if (sealed != null) {
+                            db.execSQL("UPDATE sources SET password = ? WHERE id = ?", arrayOf<Any>(sealed, rows.getLong(0)))
+                        }
                     }
                 }
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_items_kind_sortTitle` ON `items` (`kind`, `sortTitle`)")

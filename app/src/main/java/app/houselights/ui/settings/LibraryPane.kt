@@ -569,18 +569,16 @@ private fun TmdbKeySheet(onDismiss: () -> Unit) {
             if (checking) return
             notSaved = null
             vm.saveTmdbApiKey(key) { result ->
-                when (result) {
-                    is TmdbKeySave.Checked -> when (result.check) {
-                        TmdbKeyCheck.ACCEPTED -> sheet.dismiss()
-                        TmdbKeyCheck.REFUSED -> {
-                            refused = true
-                            runCatching { field.requestFocus() }
-                        }
-                        // Saved all the same: the sheet stays to say it could not be checked.
-                        TmdbKeyCheck.UNCHECKED -> unchecked = true
-                    }
-                    is TmdbKeySave.Failed -> notSaved = result.error
-                }
+                result.answer(
+                    onAccepted = { sheet.dismiss() },
+                    onRefused = {
+                        refused = true
+                        runCatching { field.requestFocus() }
+                    },
+                    // Saved all the same: the sheet stays to say it could not be checked.
+                    onUnchecked = { unchecked = true },
+                    onFailed = { notSaved = it },
+                )
             }
         }
         // The sheet already names the key: the field's label is only read out.
@@ -595,11 +593,7 @@ private fun TmdbKeySheet(onDismiss: () -> Unit) {
             placeholder = stringResource(R.string.tmdb_key_personal),
             showLabel = false,
             supporting = stringResource(if (hasBuiltIn) R.string.tmdb_key_builtin else R.string.tmdb_key_free),
-            error = when {
-                refused -> stringResource(R.string.error_tmdb_key_refused_title)
-                notSaved != null -> stringResource(notSaved!!.message)
-                else -> null
-            },
+            error = keyError(refused, notSaved),
             password = true,
             imeAction = ImeAction.Done,
             onImeAction = ::save,
@@ -620,15 +614,38 @@ private fun TmdbKeySheet(onDismiss: () -> Unit) {
                 description = stringResource(R.string.tmdb_key_revert_desc),
                 onClick = {
                     vm.saveTmdbApiKey("") { result ->
-                        when (result) {
-                            is TmdbKeySave.Checked -> sheet.dismiss()
-                            is TmdbKeySave.Failed -> notSaved = result.error
-                        }
+                        result.answer(onAccepted = { sheet.dismiss() }, onFailed = { notSaved = it })
                     }
                 },
                 chevron = false,
             )
         }
+    }
+}
+
+/** What a key typed meets, under its field: TMDB refused it, or it could not be saved. */
+@Composable
+private fun keyError(refused: Boolean, notSaved: UiError?): String? = when {
+    refused -> stringResource(R.string.error_tmdb_key_refused_title)
+    notSaved != null -> stringResource(notSaved.message)
+    else -> null
+}
+
+/**
+ * Does what the sheet does once saving a key went [this] way. Going back to the built-in key is
+ * never refused nor left unchecked: it closes the sheet too.
+ */
+private fun TmdbKeySave.answer(
+    onAccepted: () -> Unit,
+    onRefused: () -> Unit = onAccepted,
+    onUnchecked: () -> Unit = onAccepted,
+    onFailed: (UiError) -> Unit,
+) = when (this) {
+    is TmdbKeySave.Failed -> onFailed(error)
+    is TmdbKeySave.Checked -> when (check) {
+        TmdbKeyCheck.ACCEPTED -> onAccepted()
+        TmdbKeyCheck.REFUSED -> onRefused()
+        TmdbKeyCheck.UNCHECKED -> onUnchecked()
     }
 }
 

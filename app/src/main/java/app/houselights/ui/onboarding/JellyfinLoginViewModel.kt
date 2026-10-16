@@ -65,14 +65,19 @@ private const val HTTP_UNAUTHORIZED = 401
  * words the user can act on. A failure to reach the server names the address whose failure says
  * the most ([ReachFailure]).
  */
-internal fun loginError(e: Throwable, address: String): LoginError {
+internal fun loginError(e: Throwable, address: String): LoginError = when (e) {
+    is SecretsUnavailableException -> LoginError.Keystore
+    is InvalidServerAddress -> if (e.input.isBlank()) LoginError.NoAddress else LoginError.InvalidAddress(e.input)
+    is UnsupportedServer -> LoginError.Unsupported(e.url, e.product, e.version)
+    else -> answerError(e, address)
+}
+
+/** What the network or the server answered at [address], or where the server was reached ([ReachFailure]). */
+private fun answerError(e: Throwable, address: String): LoginError {
     val reach = e as? ReachFailure
     val at = reach?.url ?: address
     val cause = reach?.cause ?: e
     return when {
-        e is SecretsUnavailableException -> LoginError.Keystore
-        e is InvalidServerAddress -> if (e.input.isBlank()) LoginError.NoAddress else LoginError.InvalidAddress(e.input)
-        e is UnsupportedServer -> LoginError.Unsupported(e.url, e.product, e.version)
         cause is HttpException && cause.code() == HTTP_UNAUTHORIZED -> LoginError.Refused
         cause.isCertificateFailure() -> LoginError.Certificate(at)
         cause is SerializationException || (reach != null && cause is HttpException) -> LoginError.NotJellyfin(at)
