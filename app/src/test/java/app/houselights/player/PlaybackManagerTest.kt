@@ -187,6 +187,26 @@ class PlaybackManagerTest {
         assertEquals(listOf("started 0", "stopped 0 / null"), reports)
     }
 
+    /** On a 2 GB player, Android may stop the app while the film plays: the result reaches a new process. */
+    @Test
+    fun aSessionOutlivesTheProcess() = runTest {
+        val first = manager()
+        first.intentFor(plan())
+        statuses += playing(600_000)
+        first.onPlayerLaunched()
+        advanceTimeBy(4_001)
+
+        val reportersAsked = mutableListOf<String>()
+        val second = PlaybackManager(context, this, status = { null }) { key ->
+            reportersAsked += key
+            reporter
+        }
+        second.onPlayerResult(null)
+        advanceUntilIdle()
+        assertEquals(listOf("m1"), reportersAsked)
+        assertEquals("stopped 600000 / null", reports.last())
+    }
+
     private companion object {
         const val HEAT = 10_200_000L
     }
