@@ -280,7 +280,9 @@ mark (Ổ, 1.05 em) right under a descender can still touch it; the catalogue's 
 A frame that holds text is never a fixed height in dp, which the viewer's text scale would
 overflow: it is a minimum (`heightIn(min = …)`), or, where it must not move with what it shows (the
 home hero, an episode's overview), `textRoom(height)`, a height given at the default text size
-that grows with the text.
+that grows with the text. A measure that makes room for a line of text takes that line from the
+type scale the same way (`textRoom(style)`): the info line over a wall, the room a row of round
+buttons keeps for a label, the first row's header a detail page keeps in its first view.
 
 ### Space and size (`Dimens.kt`)
 
@@ -291,7 +293,7 @@ that grows with the text.
 | `HlShapes` | radius follows hierarchy: `badge` 3, `artwork` 4, `field` 6, `row` 8 (rows that can be chosen), `panel` 12, `sheet` 16 (sheets and menus), `control` pill, `avatar` circle. A shape set close inside another keeps their corners parallel: **outer radius = inner radius + gap** (a menu: 8 + 8 = 16; a result: 4 + 8 = 12) |
 | `HlSize` | artwork (poster 112, landscape 220, episode 264, avatar 76 in a column of 120, thumbnails), `control` 48 for every button, icons 20, discs 52, marks 20, dots 8, setting rows 64, previews in a row (48 tall, a slot of 84), meter 10, the short rules of a loading title (48, 24), the short rule heading an intertitle (`intertitleRule`, 24 by 2) |
 | `HlLayout` | **the screens' grid**, every measure read by a screen (`LayoutTokensTest`): reading widths (640, 520; a caption 400, about 66 characters at 14 sp), side columns (280, 340), pane top 72, title art, the home hero's band (168), the detail page's gap and least hero (`detailGap`, `detailHeroMin`), the info line, track table columns |
-| `…Defaults` | **parts of components**, internal, which no screen needs to know: `HlSideSheetDefaults` (520), `HlSettingRowDefaults` (widest value, 360), `HlIconButtonDefaults` (the label: 200 wide at most, 36 of room under its row, 24 from the screen's side), `HlMenuDefaults` (320), `TechSpecsDefaults` (a row of the technical sheet: 40 high at least, its value 240 wide at most), `BackdropDefaults` (the left veil's fade past the column from full strength, 420; a lighter one fades sooner, at the same slow pace, so its end never reads as an edge) |
+| `…Defaults` | **parts of components**, internal, which no screen needs to know: `HlSideSheetDefaults` (520), `HlSettingRowDefaults` (widest value, 360), `HlIconButtonDefaults` (the label: 200 wide at most, 36 of room under its row at the default text size, 24 from the screen's side), `HlMenuDefaults` (320), `TechSpecsDefaults` (a row of the technical sheet: 40 high at least, its value 240 wide at most), `BackdropDefaults` (the left veil's fade past the column from full strength, 420; a lighter one fades sooner, at the same slow pace, so its end never reads as an edge) |
 | `HlControl` | inner padding of buttons and track options, badges; the gap between an icon and its text (8) |
 | `HlFocus` | focus scale by family (artwork 1.10, cards 1.06, pills and discs 1.04, panels 1.02, rows 1), `reach(size, scale)`: how far a focused element reaches past its ends, the room its container keeps; siblings stepping back (dim 0.3, colour kept 0.3, in `RECEDE_STEPS` 3), the glow of focused artwork, 20 dp, `edge` 28 (`safeV`): how far a list keeps focus from its ends |
 
