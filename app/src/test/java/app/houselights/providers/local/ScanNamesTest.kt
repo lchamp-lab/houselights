@@ -138,11 +138,15 @@ class ScanNamesTest {
         nas.put("Kids/Other/Film (2010).mkv")
         nas.put("Arrival/arrival.mkv")
         nas.put("Arrival/Extras/Interview.mkv")
+        // A film in parts, named in its own folder without them.
+        nas.put("Heat/Heat CD1.avi")
+        nas.put("Heat/Heat CD2.avi")
+        nas.put("Heat/Extras/Making of.avi")
         bench.scan()
 
         val kept = listOf(
-            "Animation/Coco (2017).mkv", "Animation/Shorts/Bao (2018).mkv", "Arrival/arrival.mkv", "Kids/Kid Film.mkv",
-            "Kids/Other/Film (2010).mkv",
+            "Animation/Coco (2017).mkv", "Animation/Shorts/Bao (2018).mkv", "Arrival/arrival.mkv", "Heat/Heat CD1.avi",
+            "Kids/Kid Film.mkv", "Kids/Other/Film (2010).mkv",
         )
         assertEquals(kept, filmPaths())
     }

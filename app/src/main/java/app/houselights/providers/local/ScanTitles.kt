@@ -70,7 +70,9 @@ internal object ScanTitles {
         val named = FilenameParser.parseMovie(folder)
         if (named.year != null || FilenameParser.seasonFromFolder(folder) != null) return true
         val name = file.relativePath.substringAfterLast('/')
-        val title = FilenameParser.parseEpisode(name, emptyList())?.showTitle ?: FilenameParser.parseMovie(name).title
+        // A film in several files is named without its part: "Heat/Heat CD1.avi".
+        val title = FilenameParser.parseEpisode(name, emptyList())?.showTitle
+            ?: FilenameParser.parseMovie(StackPart.of(name)?.name ?: name).title
         return letters(named.title).let { it.isNotEmpty() && it == letters(title) }
     }
 
