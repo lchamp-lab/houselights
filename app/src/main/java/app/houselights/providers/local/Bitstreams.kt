@@ -62,17 +62,18 @@ internal object Bitstreams {
     /**
      * The ranges an HEVC stream signals in the SEI messages of its first access units ([frames]:
      * NAL units each after its length in [lengthSize] bytes): HDR10+ by its dynamic metadata (SMPTE
-     * 2094-40), HDR10 by its mastering display. Empty for SDR.
+     * 2094-40), HDR10 by its mastering display. Empty for SDR. A length that runs past its frame
+     * ends the frame's reading: up to 2^32 - 1 in four bytes, it is read and compared as a Long.
      */
     fun hevcRanges(b: ByteArray, frames: List<IntRange>, lengthSize: Int): Set<HdrFormat> = buildSet {
         for (frame in frames) {
             var at = frame.first
             while (at + lengthSize <= frame.last + 1) {
-                var size = 0
-                repeat(lengthSize) { size = (size shl 8) or (b[at + it].toInt() and 0xFF) }
+                var size = 0L
+                repeat(lengthSize) { size = (size shl 8) or (b[at + it].toLong() and 0xFF) }
                 val nal = at + lengthSize
-                at = nal + size
-                if (size < 2 || at > frame.last + 1) break
+                if (size < 2 || size > frame.last + 1 - nal) break
+                at = nal + size.toInt()
                 val type = (b[nal].toInt() shr 1) and 0x3F
                 if (type == NAL_SEI_PREFIX || type == NAL_SEI_SUFFIX) {
                     addAll(runCatching { seiRanges(unescape(b, nal + 2, at)) }.getOrDefault(emptySet()))
@@ -83,16 +84,17 @@ internal object Bitstreams {
 
     /**
      * The frames of a Block's data ([start] to [end], after its header) as its lacing packs them:
-     * none, Xiph, fixed-size or EBML. Only those whole in what was read.
+     * none, Xiph, fixed-size or EBML. Only those whole in what was read. Sizes are added up as
+     * Longs: an EBML lace can say up to 2^56, which no frame of what was read can be.
      */
     fun laced(b: ByteArray, start: Int, end: Int, lacing: Int): List<IntRange> = runCatching {
         if (lacing == LACING_NONE) return@runCatching listOf(start until end)
         val count = (b[start].toInt() and 0xFF) + 1
         var at = start + 1
-        val sizes = mutableListOf<Int>()
+        val sizes = mutableListOf<Long>()
         when (lacing) {
             LACING_XIPH -> repeat(count - 1) {
-                var size = 0
+                var size = 0L
                 do {
                     val v = b[at++].toInt() and 0xFF
                     size += v
@@ -102,18 +104,23 @@ internal object Bitstreams {
             LACING_EBML -> {
                 var (size, length) = vint(b, at)
                 at += length
-                sizes += size.toInt()
+                sizes += size
                 repeat(count - 2) {
                     val (raw, n) = vint(b, at)
                     at += n
                     size += raw - ((1L shl (7 * n - 1)) - 1)
-                    sizes += size.toInt()
+                    sizes += size
                 }
             }
-            else -> repeat(count - 1) { sizes += (end - at) / count }
+            else -> repeat(count - 1) { sizes += ((end - at) / count).toLong() }
         }
         sizes += end - at - sizes.sum()
-        sizes.map { size -> (at until at + size).also { at += size } }.filter { it.first >= start && it.last < end }
+        var next = at.toLong()
+        sizes.mapNotNull { size ->
+            val first = next
+            next += size
+            if (size >= 0 && first >= start && next <= end) first.toInt() until next.toInt() else null
+        }
     }.getOrDefault(emptyList())
 
     /** An unsigned EBML variable-length integer at [at]: its value and its length in bytes. */
@@ -213,7 +220,7 @@ internal object Bitstreams {
             var size = 0
             while (p[at] == 0xFF.toByte()) { size += 0xFF; at++ }
             size += p[at++].toInt() and 0xFF
-            val whole = at + size <= p.size
+            val whole = size <= p.size - at
             when {
                 whole && type == SEI_T35 && size >= HDR10_PLUS_HEADER.size &&
                     HDR10_PLUS_HEADER.indices.all { p[at + it] == HDR10_PLUS_HEADER[it] } -> add(HdrFormat.HDR10_PLUS)

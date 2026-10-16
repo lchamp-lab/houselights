@@ -344,8 +344,13 @@ object MkvProbe {
         }
 
         fun toVideo(bytes: ByteArray, frames: List<IntRange>): VideoInfo {
-            // What the stream signals: HDR10+ dynamic metadata, an HDR10 mastering display.
-            val stream = if (codecId == HEVC_ID && frames.isNotEmpty()) Bitstreams.hevcRanges(bytes, frames, nalLengthSize()) else null
+            // What the stream signals: HDR10+ dynamic metadata, an HDR10 mastering display. Frames
+            // that cannot be read leave the track as its header says it (readFrames).
+            val stream = if (codecId == HEVC_ID && frames.isNotEmpty()) {
+                readFrames { Bitstreams.hevcRanges(bytes, frames, nalLengthSize()) }
+            } else {
+                null
+            }
             val hdr = buildList {
                 if (dolbyVision) add(HdrFormat.DOLBY_VISION)
                 if (stream?.contains(HdrFormat.HDR10_PLUS) ?: nameLower.contains("hdr10+")) add(HdrFormat.HDR10_PLUS)
@@ -397,7 +402,11 @@ object MkvProbe {
          */
         fun toAudio(bytes: ByteArray, frames: List<IntRange>): AudioTrack {
             val n = nameLower
-            val dts = if (codecId == DTS_ID) frames.firstNotNullOfOrNull { Bitstreams.dts(bytes, it.first, it.last + 1) } else null
+            val dts = if (codecId == DTS_ID) {
+                readFrames { frames.firstNotNullOfOrNull { Bitstreams.dts(bytes, it.first, it.last + 1) } }
+            } else {
+                null
+            }
             return AudioTrack(
                 codec = dts?.let(::dtsCodec) ?: codecByName(n),
                 channels = channels,
@@ -410,11 +419,20 @@ object MkvProbe {
         }
 
         /** Atmos as the frames say it, in TrueHD or Dolby Digital Plus; null when none was read. */
-        private fun streamAtmos(bytes: ByteArray, frames: List<IntRange>): Boolean? = when (codecId) {
-            TRUEHD_ID -> frames.mapNotNull { Bitstreams.trueHdAtmos(bytes, it.first, it.last + 1) }
-            EAC3_ID, AC3_ID -> frames.mapNotNull { Bitstreams.dolbyAtmos(bytes, it.first, it.last + 1) }
-            else -> emptyList()
-        }.takeIf { it.isNotEmpty() }?.any { it }
+        private fun streamAtmos(bytes: ByteArray, frames: List<IntRange>): Boolean? = readFrames {
+            when (codecId) {
+                TRUEHD_ID -> frames.mapNotNull { Bitstreams.trueHdAtmos(bytes, it.first, it.last + 1) }
+                EAC3_ID, AC3_ID -> frames.mapNotNull { Bitstreams.dolbyAtmos(bytes, it.first, it.last + 1) }
+                else -> emptyList()
+            }.takeIf { it.isNotEmpty() }?.any { it }
+        }
+
+        /**
+         * What [read] makes of a track's frames, or null, as if none had been read, when they hold
+         * what no reading expected: one bad frame costs what the frames add to the headers, never
+         * the whole file's tracks.
+         */
+        private inline fun <T> readFrames(read: () -> T?): T? = runCatching(read).getOrNull()
 
         /** The codec when no frame told it: the layers of DTS-HD, by the track's name. */
         private fun codecByName(n: String): String = when {

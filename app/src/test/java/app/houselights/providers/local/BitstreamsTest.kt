@@ -129,6 +129,18 @@ class BitstreamsTest {
         assertEquals(emptySet<HdrFormat>(), read(hevcSei()))
     }
 
+    @Test
+    fun aLengthPastItsFrameEndsItsReading() {
+        // After an HDR10 SEI, a NAL unit says 2^31 - 256 bytes: added to where it starts (past
+        // byte 255), an Int would wrap below zero and read before the array.
+        val frame = ByteArray(300) + hevcSei(masteringDisplay) +
+            byteArrayOf(0x7F, 0xFF.toByte(), 0xFF.toByte(), 0x00, 2, 1) + ByteArray(16)
+        assertEquals(setOf(HdrFormat.HDR10), Bitstreams.hevcRanges(frame, listOf(300 until frame.size), lengthSize = 4))
+        // Four bytes say up to 2^32 - 1, which an Int would read as negative.
+        val wide = hevcSei(masteringDisplay) + byteArrayOf(0xFF.toByte(), 0xFF.toByte(), 0xFF.toByte(), 0x00, 2, 1)
+        assertEquals(setOf(HdrFormat.HDR10), Bitstreams.hevcRanges(wide, listOf(wide.indices), lengthSize = 4))
+    }
+
     // --- Lacing ------------------------------------------------------------------------------
 
     @Test
@@ -144,5 +156,13 @@ class BitstreamsTest {
         val ebml = byteArrayOf(2, 0x8A.toByte(), (0xBF + 2).toByte()) + payload
         assertEquals(listOf(3..12, 13..24, 25..32), Bitstreams.laced(ebml, 0, ebml.size, 3))
         assertEquals(listOf(0..29), Bitstreams.laced(payload, 0, payload.size, Bitstreams.LACING_NONE))
+    }
+
+    @Test
+    fun aLaceLargerThanAnIntIsNoFrame() {
+        val payload = ByteArray(30)
+        // EBML: two frames, the first of 2^32 + 10 bytes (eight bytes), which an Int would read as 10.
+        val ebml = byteArrayOf(1, 0x01, 0, 0, 0x01, 0, 0, 0, 0x0A) + payload
+        assertEquals(emptyList<IntRange>(), Bitstreams.laced(ebml, 0, ebml.size, 3))
     }
 }

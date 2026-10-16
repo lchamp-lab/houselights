@@ -77,6 +77,31 @@ class MkvProbeTest {
     }
 
     @Test
+    fun aFrameNoReadingExpectedLeavesTheHeadersSaid() {
+        // An HEVC frame: a 300-byte NAL unit, then one whose length (2^31 - 256) passes the end
+        // of an Int once added to where it starts.
+        val frame = byteArrayOf(0, 0, 1, 0x2C) + ByteArray(300) { 2 } +
+            byteArrayOf(0x7F, 0xFF.toByte(), 0xFF.toByte(), 0x00, 2, 1) + ByteArray(8)
+        val video = el(
+            0xAE,
+            uint(0xD7, 1), uint(0x83, 1), str(0x86, "V_MPEGH/ISO/HEVC"), str(0x536E, "HDR10+"),
+            el(0xE0, raw(0xB0, byteArrayOf(0x0F, 0x00)), raw(0xBA, byteArrayOf(0x08, 0x70)), el(0x55B0, uint(0x55BA, 16), uint(0x55B2, 10))),
+        )
+        val audio = el(0xAE, uint(0xD7, 2), uint(0x83, 2), str(0x86, "A_AC3"), el(0xE1, uint(0x9F, 6)))
+        // Track 1, timestamp 0, a keyframe without lacing.
+        val block = raw(0xA3, byteArrayOf(0x81.toByte(), 0, 0, 0x80.toByte()) + frame)
+        val segment = el(0x18538067, el(0x1654AE6B, video, audio), el(0x1F43B675, uint(0xE7, 0), block))
+        val result = MkvProbe.probe(el(0x1A45DFA3, str(0x4282, "matroska")) + segment)
+        assertTrue(result is MkvProbe.Result.Found)
+        val info = (result as MkvProbe.Result.Found).info
+        // Its frames read, HDR10+ is only what they say, not its name.
+        assertEquals(listOf(HdrFormat.HDR10), info.video!!.hdr)
+        assertEquals(3840, info.video!!.width)
+        assertEquals(10, info.video!!.bitDepth)
+        assertEquals(6, info.audio.single().channels)
+    }
+
+    @Test
     fun rejectsOtherFormats() {
         assertEquals(MkvProbe.Result.NotMatroska, MkvProbe.probe("not a video".toByteArray()))
     }
