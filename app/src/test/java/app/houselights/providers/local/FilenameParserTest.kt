@@ -121,6 +121,17 @@ class FilenameParserTest {
         assertNull("a date", FilenameParser.parseEpisode("2019-05-12 - Live.mkv", listOf("Talk Show", "Season 1")))
     }
 
+    /** A year leading a name in a season's folder is no episode's number; four digits that are none still are. */
+    @Test
+    fun aLeadingYearIsNoEpisode() {
+        val season = listOf("Show", "Season 1")
+        assertNull(episode("2019 Christmas Special.mkv", season))
+        assertNull(episode("1917.mkv", season))
+        assertNull(episode("Episode 2005 - Rose.mkv", season))
+        assertEquals(ParsedEpisode("Show", 1, 1899), episode("1899 - Title.mkv", season))
+        assertEquals(ParsedEpisode("Show", 1, 201), episode("201 - Title.mkv", season))
+    }
+
     /** One file holding several episodes, named as Sonarr's multi-episode styles name it. */
     @Test
     fun filesHoldingSeveralEpisodes() {

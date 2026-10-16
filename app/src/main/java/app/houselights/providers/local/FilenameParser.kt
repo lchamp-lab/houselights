@@ -42,8 +42,12 @@ object FilenameParser {
     )
     private val NXNN = Regex("""(?i)(?<![a-z0-9])(\d{1,2})x(\d{2,3})(?![0-9])""")
 
-    /** "03 - Victor", "1071 - Title" in a season's folder; not a date ("2019-05-12 - Title"). */
-    private val LEADING_EPISODE = Regex("""(?i)^(?:e|ep|episode|épisode)?[ ._-]?(\d{1,4})(?![0-9]|[-.]\d{2}[-.]\d{2})""")
+    /**
+     * "03 - Victor", "1071 - Title" in a season's folder; not a year ("2019 Christmas Special", "1917"), nor a
+     * date ("2019-05-12 - Title"). A show numbered from its start names such episodes "S01E1917".
+     */
+    private val LEADING_EPISODE =
+        Regex("""(?i)^(?:e|ep|episode|épisode)?[ ._-]?(?!(?:19|20)\d{2}(?![0-9]))(\d{1,4})(?![0-9]|[-.]\d{2}[-.]\d{2})""")
 
     /** More episodes than this between the first and the last one a name gives is no range: "S01E05-2019". */
     private const val MAX_RANGE = 50
