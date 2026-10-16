@@ -33,6 +33,7 @@ import app.houselights.ui.design.tryRequestFocus
 import app.houselights.ui.design.components.Badge
 import app.houselights.ui.design.components.DefinitionList
 import app.houselights.ui.design.components.FactRow
+import app.houselights.ui.design.components.HlErrorState
 import app.houselights.ui.design.components.HlFormScaffold
 import app.houselights.ui.design.components.HlScrollArea
 import app.houselights.ui.design.components.HlSegmented
@@ -40,7 +41,6 @@ import app.houselights.ui.design.components.Score
 import app.houselights.ui.design.components.InfoBlock
 import app.houselights.ui.design.components.StatusPanel
 import app.houselights.ui.design.components.StatusState
-import app.houselights.ui.home.ErrorIntertitle
 import app.houselights.ui.util.LoadState
 import app.houselights.ui.util.retainedError
 import app.houselights.ui.util.appContainer
@@ -88,7 +88,7 @@ fun NfoScreen(itemId: String) {
         },
     ) {
         if (failure != null) {
-            ErrorIntertitle(failure, vm::load, retrying = loaded is LoadState.Loading)
+            HlErrorState(failure, vm::load, retrying = loaded is LoadState.Loading)
         } else {
             HlSegmented(
                 listOf(stringResource(R.string.nfo_tab_info), stringResource(R.string.nfo_tab_xml)),

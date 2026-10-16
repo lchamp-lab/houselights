@@ -87,6 +87,7 @@ import app.houselights.ui.design.components.EpisodeHeading
 import app.houselights.ui.design.components.Emphasis
 import app.houselights.ui.design.components.HlActionRow
 import app.houselights.ui.design.components.HlButton
+import app.houselights.ui.design.components.HlErrorState
 import app.houselights.ui.design.components.HlIconButton
 import app.houselights.ui.design.components.HlMenuButton
 import app.houselights.ui.design.components.MenuOption
@@ -104,7 +105,6 @@ import app.houselights.ui.design.components.TechSpecs
 import app.houselights.ui.design.components.TitleArt
 import app.houselights.ui.design.components.rememberAmbientColor
 import app.houselights.ui.edit.EditMenu
-import app.houselights.ui.home.ErrorMessage
 import app.houselights.ui.util.PartFailed
 import app.houselights.ui.util.ReloadOnLibraryChange
 import app.houselights.ui.util.retainedError
@@ -151,7 +151,7 @@ fun DetailScreen(
                 val loading = state.error == null
                 val error = retainedError(state.error, retrying = loading)
                 when {
-                    error != null -> ErrorMessage(error, vm::load, retrying = loading)
+                    error != null -> HlErrorState(error, vm::load, Modifier.padding(start = HlSpace.safeH, top = HlSpace.l), loading)
                     // Where the title and its facts will be, once loading takes long enough to be seen.
                     skeletonDelayPassed() -> HeroSkeleton(Modifier.padding(start = HlSpace.safeH, top = HlSpace.l))
                 }
