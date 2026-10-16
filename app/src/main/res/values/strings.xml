@@ -25,6 +25,7 @@
     <string name="section_favorites">Favorites</string>
     <string name="season_number">Season %d</string>
     <string name="episode_number">Episode %d</string>
+    <string name="episode_numbers">Episodes %1$d-%2$d</string>
     <plurals name="season_count">
         <item quantity="one">%d season</item>
         <item quantity="other">%d seasons</item>

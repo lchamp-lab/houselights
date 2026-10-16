@@ -349,6 +349,8 @@ class LibraryScanner(
                 "${missing.held.size} held, ${todo.size} to do",
         )
 
+        if (source.kind == SourceKind.SHOWS) tellNoEpisode(source, files)
+
         val written = processAll(Folder(source, sidecars, known, refreshMetadata, tmdb, seasons), todo, ::wanted)
         dao.markScanned(source.id, clock())
         // A file renamed is not always read again, but screens show its name.
@@ -387,6 +389,17 @@ class LibraryScanner(
             }
         }
         return written
+    }
+
+    /**
+     * Videos of a shows' folder that name no episode get no row, and nothing else tells of them: the
+     * log does, once a pass, for whoever wonders where an episode went.
+     */
+    private fun tellNoEpisode(source: SourceEntity, files: List<RemoteFile>) {
+        val refused = files.count { f ->
+            FilenameParser.parseEpisode(f.relativePath.substringAfterLast('/'), f.relativePath.split('/').dropLast(1))?.showTitle == null
+        }
+        if (refused > 0) Log.i(TAG, "${source.name}: $refused of ${files.size} videos name no episode, and are left out")
     }
 
     /** Why [source] could not be scanned, as the settings tell it; the failure itself goes to the log. */

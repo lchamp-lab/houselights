@@ -48,7 +48,11 @@ internal class LocalMapper(private val dao: LibraryDao, private val context: Con
     private fun titleOf(e: ItemEntity): String = e.title.ifBlank {
         when (e.kind) {
             ItemKind.SEASON -> context.getString(R.string.season_number, e.seasonNumber ?: 0)
-            ItemKind.EPISODE -> context.getString(R.string.episode_number, e.episodeNumber ?: 0)
+            ItemKind.EPISODE -> {
+                val first = e.episodeNumber ?: 0
+                e.lastEpisodeNumber?.takeIf { it > first }?.let { context.getString(R.string.episode_numbers, first, it) }
+                    ?: context.getString(R.string.episode_number, first)
+            }
             else -> e.title
         }
     }
@@ -104,6 +108,7 @@ internal class LocalMapper(private val dao: LibraryDao, private val context: Con
             seasonId = if (e.kind == ItemKind.EPISODE) e.parentId?.toString() else null,
             seasonNumber = e.seasonNumber,
             episodeNumber = e.episodeNumber,
+            lastEpisodeNumber = e.lastEpisodeNumber,
             childCount = seasonCount,
         )
     }

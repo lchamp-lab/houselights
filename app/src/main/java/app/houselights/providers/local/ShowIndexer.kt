@@ -54,6 +54,7 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
             seriesId = series.id,
             seasonNumber = parsed.season,
             episodeNumber = parsed.episode,
+            lastEpisodeNumber = parsed.lastEpisode,
             sortTitle = "%03d-%04d".format(Locale.ROOT, parsed.season, parsed.episode),
             nfoPath = kept.path,
             nfo = kept.text,

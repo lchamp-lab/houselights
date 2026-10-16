@@ -35,6 +35,39 @@ class FilenameParserTest {
     @Test
     fun junkWithoutYear() {
         assertEquals(ParsedMovie("Oppenheimer", null), movie("Oppenheimer.MULTi.2160p.WEB-DL.mkv"))
+        assertEquals(ParsedMovie("Oppenheimer", null), movie("Oppenheimer.FRENCH.1080p.WEB.H264-GROUP.mkv"))
+        assertEquals(ParsedMovie("Oppenheimer", null), movie("Oppenheimer (FRENCH) 1080p.mkv"))
+    }
+
+    /** Films named by their titles alone. */
+    @Test
+    fun theNasFilms() {
+        val titles = listOf(
+            "Bugonia", "Colony", "Disclosure Day", "I See You", "Spider-Man Brand New Day", "Spider-Man No Way Home",
+            "The Furious", "Top Gun Maverick", "evil dead burn",
+        )
+        titles.forEach { assertEquals(ParsedMovie(it, null), movie("$it.mkv")) }
+    }
+
+    /** Words that are release tags at times, in titles: a title is cut at a tag no title holds, and only there. */
+    @Test
+    fun titleWordsThatAreTagsAtTimes() {
+        assertEquals(ParsedMovie("The French Connection", 1971), movie("The French Connection (1971).mkv"))
+        assertEquals(ParsedMovie("The French Connection", null), movie("The French Connection.mkv"))
+        assertEquals(ParsedMovie("The French Dispatch", 2021), movie("The.French.Dispatch.2021.1080p.BluRay.x264-GROUP.mkv"))
+        assertEquals(ParsedMovie("The French Dispatch", null), movie("The.French.Dispatch.1080p.BluRay.x264-GROUP.mkv"))
+        assertEquals(ParsedMovie("Charlotte's Web", 2006), movie("Charlotte's Web (2006).mkv"))
+        assertEquals(ParsedMovie("A Complete Unknown", 2024), movie("A.Complete.Unknown.2024.MULTi.2160p.WEB-DL.mkv"))
+        assertEquals(ParsedMovie("The Proper Way", 2019), movie("The.Proper.Way.2019.PROPER.1080p.WEB.mkv"))
+        assertEquals(ParsedMovie("Hybrid", 2007), movie("Hybrid (2007).mkv"))
+        assertEquals(ParsedMovie("Dune Part Two", null), movie("Dune Part Two.mkv"))
+    }
+
+    /** A year to come is a title's number, not its year. */
+    @Test
+    fun aYearToComeIsPartOfTheTitle() {
+        assertEquals(ParsedMovie("Blade Runner 2049", null), movie("Blade Runner 2049.mkv"))
+        assertEquals(ParsedMovie("Blade Runner 2049", 2017), movie("Blade.Runner.2049.2017.2160p.UHD.BluRay.mkv"))
     }
 
     @Test
@@ -56,6 +89,42 @@ class FilenameParserTest {
             FilenameParser.parseEpisode("03 - Victor.mkv", listOf("Les Revenants", "Saison 1")),
         )
         assertNull(FilenameParser.parseEpisode("Making of.mkv", listOf("Dark", "Extras")))
+    }
+
+    /** Episodes named in a season's folder. */
+    @Test
+    fun theNasEpisodes() {
+        val season = listOf("Mobland", "S01")
+        (1..9).forEach { n ->
+            assertEquals(ParsedEpisode("Mobland", 1, n), FilenameParser.parseEpisode("Mobland.S01E0$n.MULTi.1080p.WEB.H265-GRP.mkv", season))
+        }
+        assertEquals(ParsedEpisode("Mobland", 1, 10), FilenameParser.parseEpisode("Mobland.S01E10.FiNAL.MULTi.1080p.WEB.H265-GRP.mkv", season))
+        assertEquals(ParsedEpisode("Mobland", 1, 1), FilenameParser.parseEpisode("Mobland.S01E01.MULTi.1080p.WEB.H265-GRP.mkv", emptyList()))
+    }
+
+    /** Shows numbered from their start (Plex's absolute order), and files with an episode number of four digits. */
+    @Test
+    fun episodesPast999() {
+        assertEquals(
+            ParsedEpisode("One Piece", 1, 1071),
+            FilenameParser.parseEpisode("One Piece - S01E1071 - The Peak.mkv", listOf("One Piece", "Season 1")),
+        )
+        assertEquals(ParsedEpisode("One Piece", 21, 1071), FilenameParser.parseEpisode("1071 - Le sommet.mkv", listOf("One Piece", "Saison 21")))
+        assertNull("a date", FilenameParser.parseEpisode("2019-05-12 - Live.mkv", listOf("Talk Show", "Season 1")))
+    }
+
+    /** One file holding several episodes, named as Sonarr's multi-episode styles name it. */
+    @Test
+    fun filesHoldingSeveralEpisodes() {
+        fun episode(name: String) = FilenameParser.parseEpisode(name, emptyList())
+        assertEquals(ParsedEpisode("The Office", 1, 1, 2), episode("The.Office.S01E01-E02.720p.mkv"))
+        assertEquals(ParsedEpisode("The Office", 1, 1, 2), episode("The.Office.S01E01E02.720p.mkv"))
+        assertEquals(ParsedEpisode("The Office", 1, 1, 2), episode("The Office - S01E01-02 - Pilot.mkv"))
+        assertEquals(ParsedEpisode("The Office", 1, 1, 3), episode("The Office - S01E01-E02-E03 - Pilot.mkv"))
+        assertEquals(ParsedEpisode("The Office", 1, 1, 2), episode("The.Office.S01E01.S01E02.720p.mkv"))
+        assertEquals(ParsedEpisode("The Office", 1, 5), episode("The.Office.S01E05-720p.mkv"))
+        assertEquals(ParsedEpisode("The Office", 1, 5), episode("The Office - S01E05 - Episode 6.mkv"))
+        assertEquals(ParsedEpisode("The Office", 1, 5), episode("The Office - S01E05-2019.mkv"))
     }
 
     @Test
