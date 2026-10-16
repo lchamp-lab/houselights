@@ -30,7 +30,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.compose.dropUnlessResumed
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.withResumed
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.tv.material3.Text
 import app.houselights.ui.design.HlLayout
@@ -69,9 +70,10 @@ fun IdentifyScreen(itemId: String, onDone: () -> Unit) {
     val state by vm.state.collectAsStateWithLifecycle()
     val identity = state.identity
     val isShow = state.item?.kind == MediaKind.SERIES
-    // Matched: back to the title, unless Back already left (the match itself goes on without the screen).
-    val leave = dropUnlessResumed(block = onDone)
-    LaunchedEffect(state.done) { if (state.done) leave() }
+    // Matched: back to the title, once the app is in front again (a screen saver, a system dialog);
+    // after Back, the effect has left with the screen (the match itself goes on without it).
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    LaunchedEffect(state.done) { if (state.done) lifecycle.withResumed { onDone() } }
 
     fun identify(candidate: MatchCandidate?) = vm.identify(candidate)
 

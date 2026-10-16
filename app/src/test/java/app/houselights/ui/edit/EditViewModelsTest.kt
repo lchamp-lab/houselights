@@ -107,12 +107,34 @@ class EditViewModelsTest {
 
     @Test
     fun aFailedChoiceOfArtworkSaysWhy() = runTest {
-        val vm = ArtworkViewModel("m1", ArtworkKind.POSTER) { provider }
+        val vm = ArtworkViewModel("m1", ArtworkKind.POSTER, { provider }, work = this)
         advanceUntilIdle()
         val option = vm.state.value.choices!!.options.first()
         provider.fail = { if (it.startsWith("setArtwork")) IOException("NAS away") else null }
-        assertFalse(vm.choose(option))
+        vm.choose(option)
+        advanceUntilIdle()
+        assertFalse(vm.state.value.done)
+        assertEquals(null, vm.state.value.choosing)
         assertEquals(UiError.OFFLINE, vm.state.value.error)
+    }
+
+    /** Back while the image chosen is fetched and kept: the screen goes, the choice is still saved. */
+    @Test
+    fun leavingWhileArtworkIsSavedNeverCutsItOff() = runTest {
+        val vm = ArtworkViewModel("m1", ArtworkKind.POSTER, { provider }, work = this)
+        advanceUntilIdle()
+        val option = vm.state.value.choices!!.options.first()
+        val gate = provider.gate("setArtwork m1 POSTER")
+        vm.choose(option)
+        advanceUntilIdle()
+        assertEquals(option, vm.state.value.choosing)
+        // A second OK while it is saved changes nothing.
+        vm.choose(option)
+        vm.viewModelScope.cancel()
+        gate.complete(Unit)
+        advanceUntilIdle()
+        assertTrue(vm.state.value.done)
+        assertEquals(1, provider.calls.count { it.startsWith("setArtwork") })
     }
 
     @Test

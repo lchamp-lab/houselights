@@ -36,13 +36,22 @@ data class ArtworkState(
     val item: MediaItem? = null,
     val choices: ArtworkChoices? = null,
     val error: UiError? = null,
+    /** The choice being saved (its image fetched, then kept); the others wait. */
+    val choosing: ArtworkOption? = null,
+    /** The choice is saved ([choosing] stays): the screen can close. */
+    val done: Boolean = false,
 )
 
-/** The choices for one piece of a title's artwork, from the [provider] of the source in use. */
+/**
+ * The choices for one piece of a title's artwork, from the [provider] of the source in use. The choice
+ * itself is saved in [work], which outlives the screen: Back while its image is fetched never leaves
+ * it half saved.
+ */
 class ArtworkViewModel(
     private val itemId: String,
     private val kind: ArtworkKind,
     private val provider: () -> MediaProvider,
+    private val work: CoroutineScope,
 ) : ViewModel() {
     private val _state = MutableStateFlow(ArtworkState())
     val state: StateFlow<ArtworkState> = _state
@@ -63,17 +72,22 @@ class ArtworkViewModel(
         }
     }
 
-    /** True once the choice is saved. */
-    suspend fun choose(option: ArtworkOption): Boolean {
-        val item = _state.value.item ?: return false
-        return suspendRunCatching { provider().editorOrFail().setArtwork(item, kind, option) }
-            .onFailure { e -> _state.update { it.copy(error = e.reported()) } }
-            .isSuccess
+    /** Saves [option]; [ArtworkState.done] once saved. One at a time: another OK meanwhile changes nothing. */
+    fun choose(option: ArtworkOption) {
+        val s = _state.value
+        val item = s.item ?: return
+        if (s.choosing != null || s.done) return
+        _state.update { it.copy(choosing = option) }
+        work.launch {
+            suspendRunCatching { provider().editorOrFail().setArtwork(item, kind, option) }
+                .onSuccess { _state.update { it.copy(done = true) } }
+                .onFailure { e -> _state.update { it.copy(choosing = null, error = e.reported()) } }
+        }
     }
 
     companion object {
         fun factory(app: AppContainer, itemId: String, kind: ArtworkKind): ViewModelProvider.Factory = viewModelFactory {
-            initializer { ArtworkViewModel(itemId, kind, app::provider) }
+            initializer { ArtworkViewModel(itemId, kind, app::provider, app.scope) }
         }
     }
 }

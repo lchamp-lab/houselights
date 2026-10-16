@@ -18,7 +18,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
@@ -29,7 +28,9 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.withResumed
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.tv.material3.Text
 import app.houselights.ui.design.HlIcons
@@ -64,7 +65,6 @@ import app.houselights.ui.util.FACT_GAP
 import app.houselights.ui.util.formatDimensions
 import app.houselights.ui.util.languageName
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 
 /**
  * Choosing one piece of artwork. The page behind previews the focused choice where it will
@@ -76,9 +76,11 @@ fun ArtworkScreen(itemId: String, kind: ArtworkKind, onDone: () -> Unit) {
     val app = appContainer()
     val vm: ArtworkViewModel = viewModel(key = "artwork-$itemId-$kind", factory = ArtworkViewModel.factory(app, itemId, kind))
     val state by vm.state.collectAsStateWithLifecycle()
-    val scope = rememberCoroutineScope()
     val item = state.item
     val choices = state.choices
+    // Saved: back to the title, once the app is in front (Back may already have left; the choice is saved all the same).
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    LaunchedEffect(state.done) { if (state.done) lifecycle.withResumed { onDone() } }
 
     var focused by remember { mutableStateOf<ArtworkOption?>(null) }
     // The preview follows focus once it settles: no image load on every step.
@@ -115,7 +117,7 @@ fun ArtworkScreen(itemId: String, kind: ArtworkKind, onDone: () -> Unit) {
                         item = item!!,
                         choices = choices,
                         onFocus = { focused = it },
-                        onChoose = { option -> scope.launch { if (vm.choose(option)) onDone() } },
+                        onChoose = vm::choose,
                     )
                 }
             }
