@@ -20,6 +20,9 @@ class FakeRemoteBrowser : RemoteBrowser {
     /** Thrown by reads instead of bytes, while set. */
     var readFailure: Throwable? = null
 
+    /** Runs at each read, before its bytes are given: it may throw, to fail that read alone. */
+    var onRead: ((path: String, offset: Long, length: Int) -> Unit)? = null
+
     /** Paths read, in order, failed reads included. */
     val reads = mutableListOf<String>()
 
@@ -54,6 +57,7 @@ class FakeRemoteBrowser : RemoteBrowser {
     override suspend fun readAt(source: SourceEntity, relativePath: String, offset: Long, length: Int): ByteArray {
         reads += relativePath
         readFailure?.let { throw it }
+        onRead?.invoke(relativePath, offset, length)
         val bytes = files[relativePath]?.bytes ?: throw FileNotFoundException(relativePath)
         val from = offset.coerceAtMost(bytes.size.toLong()).toInt()
         return bytes.copyOfRange(from, (from.toLong() + length).coerceAtMost(bytes.size.toLong()).toInt())

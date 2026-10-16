@@ -38,8 +38,8 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
         if (existing == null) item = item.copy(id = dao.insert(item))
         item = files.withMediaInfo(source, file, item)
 
-        val nfoText = local.nfo?.let { files.readText(source, it) }
-        val nfo = nfoText?.let(NfoParser::parse)
+        val kept = files.nfo(source, local.nfo, item)
+        val nfo = kept.info
         // Sidecars that disappeared leave details to TMDB again.
         val sidecarsRemoved = (item.nfoPath != null && local.nfo == null) ||
             (local.poster == null && item.posterPath.isCachedArtwork())
@@ -54,7 +54,7 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
             logo = local.logo?.let { files.copyArtwork(source, it) },
             thumb = local.thumb?.let { files.copyArtwork(source, it) },
         )
-        saveMovie(item.copy(nfoPath = local.nfo?.relativePath, nfo = nfoText), nfo, movie, art, tmdb, now, refreshMetadata)
+        saveMovie(item.copy(nfoPath = kept.path, nfo = kept.text), nfo, movie, art, tmdb, now, refreshMetadata)
     }
 
     suspend fun identify(item: ItemEntity, tmdbId: Int?, tmdb: TmdbClient) {

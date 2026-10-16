@@ -33,11 +33,6 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
         val series = series(source, showTitle, showYear, showDir, sidecars, tmdb, refreshMetadata, now)
         val season = season(source, series, parsed.season, seasons, now, sidecars.seasonPoster(showDir, parsed.season))
         val local = sidecars.forVideo(file)
-        val nfoText = local.nfo?.let { files.readText(source, it) }
-        val nfo = nfoText?.let(NfoParser::parse)
-        val meta = series.tmdbId?.let { seasons.get(it, parsed.season) }?.episodes
-            ?.firstOrNull { it.episodeNumber == parsed.episode }
-
         val base = existing ?: ItemEntity(
             kind = ItemKind.EPISODE,
             sourceId = source.id,
@@ -48,14 +43,19 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
             badges = FilenameParser.badges(file.relativePath),
             addedAt = now,
         )
+        val kept = files.nfo(source, local.nfo, base)
+        val nfo = kept.info
+        val meta = series.tmdbId?.let { seasons.get(it, parsed.season) }?.episodes
+            ?.firstOrNull { it.episodeNumber == parsed.episode }
+
         val episode = base.copy(
             parentId = season.id,
             seriesId = series.id,
             seasonNumber = parsed.season,
             episodeNumber = parsed.episode,
             sortTitle = "%03d-%04d".format(Locale.ROOT, parsed.season, parsed.episode),
-            nfoPath = local.nfo?.relativePath,
-            nfo = nfoText,
+            nfoPath = kept.path,
+            nfo = kept.text,
         ).withEpisodeDetails(
             nfo = nfo,
             meta = meta,
@@ -113,15 +113,15 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
         if (!needsLookup || (tmdb == null && local.nfo == null && local.poster == null)) return series
         refreshedSeries += series.id
 
-        val nfoText = local.nfo?.let { files.readText(source, it) }
-        val nfo = nfoText?.let(NfoParser::parse)
+        val kept = files.nfo(source, local.nfo, series)
+        val nfo = kept.info
         val tv = tmdb?.let { lookupShow(it, series.userTmdbId, nfo, title, year) }
         val art = LocalArt(
             poster = local.poster?.let { files.copyArtwork(source, it) },
             fanart = local.fanart?.let { files.copyArtwork(source, it) },
             logo = local.logo?.let { files.copyArtwork(source, it) },
         )
-        return saveShow(series.copy(nfoPath = local.nfo?.relativePath, nfo = nfoText), nfo, tv, art, tmdb, now)
+        return saveShow(series.copy(nfoPath = kept.path, nfo = kept.text), nfo, tv, art, tmdb, now)
     }
 
     suspend fun identify(series: ItemEntity, tmdbId: Int?, tmdb: TmdbClient) {
