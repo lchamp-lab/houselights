@@ -2,8 +2,11 @@ package app.houselights.providers.local
 
 import android.content.Context
 import app.houselights.R
+import app.houselights.core.ImageRef
 import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
+import app.houselights.core.NfoInfo
+import app.houselights.core.NfoParser
 import app.houselights.core.Typeset
 import app.houselights.core.UserState
 import app.houselights.providers.local.TmdbClient.Companion.ImageType
@@ -103,6 +106,38 @@ internal class LocalMapper(private val dao: LibraryDao, private val context: Con
             episodeNumber = e.episodeNumber,
             childCount = seasonCount,
         )
+    }
+
+    /**
+     * [item] (mapped from [e]) as the player shows it while it opens the file: its backdrop and logo
+     * where the player, another app, can fetch them, a web address. A file the app keeps itself (a
+     * sidecar fanart or clearlogo, an image downloaded) is out of its reach: the automatic choice
+     * stands in for it when that is on the web, else the address the NFO gives. None shown, none given.
+     */
+    suspend fun forPlayer(e: ItemEntity, item: MediaItem): MediaItem {
+        val show = e.seriesId?.let { dao.item(it) }
+        return item.copy(
+            backdrop = webArtwork(e, show, ItemEntity::userBackdropPath, ItemEntity::backdropPath, NfoInfo::fanartUrl, ImageType.BACKDROP),
+            logo = webArtwork(e, show, ItemEntity::userLogoPath, ItemEntity::logoPath, NfoInfo::logoUrl, ImageType.LOGO),
+        )
+    }
+
+    private fun webArtwork(
+        e: ItemEntity,
+        show: ItemEntity?,
+        user: (ItemEntity) -> String?,
+        automatic: (ItemEntity) -> String?,
+        nfo: (NfoInfo) -> String?,
+        type: ImageType,
+    ): ImageRef? {
+        // Whose artwork the screens show: the item's, else its show's.
+        val owner = listOfNotNull(e, show).firstOrNull { LocalProvider.shown(user(it), automatic(it)) != null } ?: return null
+        val inReach = listOf(
+            { LocalProvider.shown(user(owner), automatic(owner)) },
+            { automatic(owner) },
+            { owner.nfo?.let(NfoParser::parse)?.let(nfo) },
+        ).firstNotNullOfOrNull { candidate -> candidate()?.takeUnless { it.isEmpty() || it.isCachedArtwork() } }
+        return inReach?.let { LocalProvider.image(it, type) }
     }
 
     /** The user's choice, else the automatic one; for the item, else its show. */

@@ -270,7 +270,8 @@ class LocalProvider(
         val entity = entity(item) ?: throw NotFoundException("Item ${item.id}")
         val file = entity.filePath ?: error("${item.title} has no file")
         val source = dao.sources().firstOrNull { it.id == entity.sourceId } ?: error("Source of ${item.title} was removed")
-        return LocalMapper(dao, context).map(entity).launch(
+        val mapper = LocalMapper(dao, context)
+        return mapper.forPlayer(entity, mapper.map(entity)).launch(
             fileUri(source, file), FilenameParser.extension(file),
             startMs = if (resume) entity.positionMs else 0L,
             reporter = LocalReporter(dao, entity.id),
