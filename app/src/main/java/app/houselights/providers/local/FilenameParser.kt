@@ -113,19 +113,24 @@ object FilenameParser {
     /**
      * [s] up to its release tags: from the run of tags that leads to the first one no title holds as a
      * word ("MULTi.2160p", "FRENCH.1080p"). Without such a tag, words that are tags at times stay:
-     * "The French Connection", "Charlotte's Web", "A Proper Man".
+     * "The French Connection", "Charlotte's Web", "A Proper Man". In capitals, in a name that has small
+     * letters, they are a release's too: "Le.Film.FRENCH", "Inception.PROPER", "Movie.EXTENDED.CUT".
      */
     private fun beforeTags(s: String): String {
+        val cased = s.any(Char::isLowerCase)
         var runStart = 0
         var runEnd = -1
         for (tag in JUNK.findAll(s)) {
             val joined = runEnd >= 0 && s.substring(runEnd, tag.range.first).all { it in BETWEEN_TAGS }
             if (!joined) runStart = tag.range.first
             runEnd = tag.range.last + 1
-            if (TECHNICAL.matches(tag.value)) return s.substring(0, runStart)
+            if (TECHNICAL.matches(tag.value) || cased && inCapitals(tag.value)) return s.substring(0, runStart)
         }
         return s
     }
+
+    /** A tag written as scene groups write theirs: "FRENCH", "PROPER", "iNTERNAL", but not "4K", a letter alone. */
+    private fun inCapitals(tag: String) = tag.count(Char::isLetter) > 1 && tag.drop(1).none(Char::isLowerCase)
 
     /**
      * The episode a file's name gives, and its show's title (see [parseShowPath]).

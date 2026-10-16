@@ -71,6 +71,19 @@ class FilenameParserTest {
         assertEquals(ParsedMovie("Dune Part Two", null), movie("Dune Part Two.mkv"))
     }
 
+    /** Those words in capitals, in a name that has small letters, are a release's tags, with or without a technical one after. */
+    @Test
+    fun wordTagsInCapitalsAreTheRelease() {
+        assertEquals(ParsedMovie("Le Film", null), movie("Le.Film.FRENCH.mkv"))
+        assertEquals(ParsedMovie("Inception", null), movie("Inception.PROPER.mkv"))
+        assertEquals(ParsedMovie("Movie Title", null), movie("Movie.Title.EXTENDED.CUT.1080p.mkv"))
+        assertEquals(ParsedMovie("The Thing", null), movie("The.Thing.iNTERNAL.mkv"))
+        // In small letters, or in a name all in capitals, they are a title's words.
+        assertEquals(ParsedMovie("The French Connection", null), movie("The.French.Connection.mkv"))
+        assertEquals(ParsedMovie("A Complete Unknown", null), movie("A.Complete.Unknown.mkv"))
+        assertEquals(ParsedMovie("THE FRENCH CONNECTION", null), movie("THE.FRENCH.CONNECTION.mkv"))
+    }
+
     /** A year to come is a title's number, not its year. */
     @Test
     fun aYearToComeIsPartOfTheTitle() {
