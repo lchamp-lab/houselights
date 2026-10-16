@@ -21,7 +21,7 @@ class LocalLibrary(
     private val scanner: LibraryScanner,
     private val artwork: ArtworkCache,
     /** Closes the sessions and mounts kept open on a folder's address; tests hand in their own. */
-    private val forget: suspend (SourceEntity) -> Unit = ::forgetConnections,
+    private val forget: suspend (SourceEntity) -> Unit,
 ) {
     val folders: Flow<List<SourceEntity>> = dao.observeSources()
 
@@ -88,13 +88,5 @@ class LocalLibrary(
             // Room keeps recent writes in a write-ahead log next to the file.
             databaseBytes = listOf(db, File(db.path + "-wal")).sumOf { if (it.exists()) it.length() else 0L },
         )
-    }
-}
-
-/** Off the main thread: both wait for the network operation under way on the folder. */
-private suspend fun forgetConnections(folder: SourceEntity) = withContext(Dispatchers.IO) {
-    when (folder.protocol) {
-        Protocol.SMB -> SmbBrowser.forget(folder)
-        Protocol.NFS -> NfsBrowser.forget(folder)
     }
 }

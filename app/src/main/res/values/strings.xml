@@ -204,6 +204,7 @@
     <string name="error_share_missing">Enter the name of the shared folder, for example media.</string>
     <string name="error_scan_other">The folder could not be read. Try again, or check the share on the NAS.</string>
     <string name="error_folder_empty">The folder looks empty on the NAS: nothing was removed. Check that its disk is mounted; if it is empty for good, remove it.</string>
+    <string name="error_storage_full">The player’s storage is full: free some space, then scan again.</string>
     <string name="add">Add</string>
 
     <!-- Jellyfin -->

@@ -44,7 +44,9 @@ class LibraryScanner(
     /** True while a film plays: the scan waits, so as not to read the NAS while the player streams from it. */
     private val playing: StateFlow<Boolean> = MutableStateFlow(false),
     /** How a folder is read; tests hand in a NAS of their own. */
-    private val browsers: (SourceEntity) -> RemoteBrowser = RemoteBrowser::of,
+    private val browsers: (SourceEntity) -> RemoteBrowser,
+    /** Closes the sessions and mounts a pass kept open; called when it ends. */
+    private val closeIdle: () -> Unit = {},
     private val clock: () -> Long = System::currentTimeMillis,
 ) {
     private val _state = MutableStateFlow(ScanState())
@@ -192,7 +194,7 @@ class LibraryScanner(
             // Whatever happened, the scan is over: the settings must not show it running forever.
             _state.value = ScanState(errors = errors)
             lastScanEnd = clock()
-            SmbBrowser.closeAll()
+            closeIdle()
         }
         // A scan that found nothing new leaves screens as they are.
         if (changed) _changed.emit(Unit)
@@ -217,7 +219,7 @@ class LibraryScanner(
         val sidecars = Sidecars(listing.sidecars, files)
         val listed = dao.filesOf(source.id)
         if (files.isEmpty() && listed.isNotEmpty()) throw EmptyFolderException()
-        val missing = settleMissing(source.kind, listed, files)
+        val missing = settleMissing(source.kind, listed, listing)
         // Renamed files took their rows along.
         val known = (if (missing.relinked.isEmpty()) listed else dao.filesOf(source.id)).associateBy { it.filePath }
 
@@ -265,9 +267,9 @@ class LibraryScanner(
     }
 
     /** Rows of files the folder no longer lists go, or wait a while (see [MissingFiles]). */
-    private suspend fun settleMissing(kind: SourceKind, known: List<ItemEntity>, files: List<RemoteFile>): MissingFiles.Outcome {
+    private suspend fun settleMissing(kind: SourceKind, known: List<ItemEntity>, listing: Listing): MissingFiles.Outcome {
         val now = clock()
-        val missing = MissingFiles.settle(kind, known, files, now)
+        val missing = MissingFiles.settle(kind, known, listing, now)
         lock.withLock { dao.settleMissing(missing.relinked, missing.back, missing.held, missing.removed, now) }
         return missing
     }
