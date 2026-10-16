@@ -98,11 +98,12 @@ class LocalProvider(
             args += it
             args += it + 9
         }
-        when (filter.quality) {
-            null -> {}
-            Quality.UHD_4K -> where.append(" AND ('|' || badges || '|') LIKE '%|${Definition.ULTRA_HD.token}|%'")
-            Quality.HDR -> where.append(" AND (badges LIKE '%HDR%' OR badges LIKE '%Dolby Vision%')")
-            Quality.DOLBY_VISION -> where.append(" AND badges LIKE '%Dolby Vision%'")
+        filter.quality?.let { quality ->
+            // Shows carry no technical badges themselves: one of their episodes must, as for the menu (libraryFacets).
+            where.append(
+                if (kind == ItemKind.SERIES) " AND EXISTS ($episodes AND ${qualityCondition(quality, "e.badges")})"
+                else " AND ${qualityCondition(quality, "badges")}"
+            )
         }
         val order = when (sort) {
             // Sort keys are lower case already: a plain order can follow the (kind, sortTitle) index.
@@ -117,6 +118,13 @@ class LocalProvider(
         val total = dao.countQuery(SimpleSQLiteQuery("SELECT COUNT(*) FROM items WHERE $where", args.toTypedArray()))
         val mapper = LocalMapper(dao, context)
         return Page(mapper.mapAll(items), total)
+    }
+
+    /** [column], a row's badges ("badges" for a film, "e.badges" for an episode of a show), holds [quality]. */
+    private fun qualityCondition(quality: Quality, column: String): String = when (quality) {
+        Quality.UHD_4K -> "('|' || $column || '|') LIKE '%|${Definition.ULTRA_HD.token}|%'"
+        Quality.HDR -> "($column LIKE '%HDR%' OR $column LIKE '%Dolby Vision%')"
+        Quality.DOLBY_VISION -> "$column LIKE '%Dolby Vision%'"
     }
 
     /** Collections holding enough films, sorted like films: by name, latest addition, latest film, rating. */

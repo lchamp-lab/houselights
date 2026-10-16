@@ -14,6 +14,7 @@ import app.houselights.core.MediaItem
 import app.houselights.core.MetadataEditor
 import app.houselights.core.PlaybackOptions
 import app.houselights.core.PlaybackPlan
+import app.houselights.core.Quality
 import app.houselights.core.Secrets
 import app.houselights.core.SortOption
 import app.houselights.core.WatchStatus
@@ -179,7 +180,7 @@ class LocalProviderTest {
     private inner class Show(val id: Long) {
         private val seasons = mutableMapOf<Int, Long>()
 
-        suspend fun episode(season: Int, n: Int): Long {
+        suspend fun episode(season: Int, n: Int, badges: List<String> = emptyList()): Long {
             val parent = seasons.getOrPut(season) {
                 dao.insert(
                     ItemEntity(
@@ -192,7 +193,7 @@ class LocalProviderTest {
                 ItemEntity(
                     kind = ItemKind.EPISODE, sourceId = source, parentId = parent, seriesId = id, title = "S${season}E$n",
                     sortTitle = "%03d-%04d".format(season, n), seasonNumber = season, episodeNumber = n,
-                    filePath = "$id/S${season}E$n.mkv", addedAt = 0,
+                    filePath = "$id/S${season}E$n.mkv", badges = badges, addedAt = 0,
                 )
             )
         }
@@ -210,6 +211,25 @@ class LocalProviderTest {
 
         dao.setSeasonPlayed(checkNotNull(dao.item(pilot)?.parentId), played = true, now = 1)
         assertEquals("S0E1", provider.nextUp(item)?.title)
+    }
+
+    /** Shows carry no technical badges of their own: 4K, HDR and Dolby Vision are their episodes'. */
+    @Test
+    fun aShowIsFilteredByTheQualityOfItsEpisodes() = runTest {
+        show("MobLand").episode(1, 1, badges = listOf("1080p", "HEVC"))
+        show("Severance").run {
+            episode(1, 1, badges = listOf("1080p", "HEVC"))
+            episode(2, 1, badges = listOf("4K", "Dolby Vision", "HDR10", "Atmos"))
+        }
+        show("Dark").episode(1, 1, badges = listOf("4K", "HDR10"))
+        val shows = Library(LocalProvider.SHOWS, LibraryKind.SHOWS, null)
+        suspend fun titles(quality: Quality) =
+            provider.libraryPage(shows, SortOption.TITLE, LibraryFilter(quality = quality), 0, 50).items.map { it.title }
+
+        assertEquals(listOf("Dark", "Severance"), titles(Quality.UHD_4K))
+        assertEquals(listOf("Dark", "Severance"), titles(Quality.HDR))
+        assertEquals(listOf("Severance"), titles(Quality.DOLBY_VISION))
+        assertEquals(1, provider.libraryPage(shows, SortOption.TITLE, LibraryFilter(quality = Quality.DOLBY_VISION), 0, 50).total)
     }
 
     @Test
