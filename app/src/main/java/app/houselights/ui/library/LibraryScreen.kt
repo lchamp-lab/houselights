@@ -133,7 +133,8 @@ fun LibraryScreen(
         if (state.pageError != null) {
             footAt = state.items.size
         } else if (footAt >= 0 && memory.last == RETRY_PAGE) {
-            val first = state.items.getOrNull(footAt)
+            // A reload in place may have taken the foot away with no page added: the last poster then.
+            val first = state.items.getOrNull(footAt) ?: state.items.lastOrNull()
             footAt = -1
             if (first != null) {
                 withFrameNanos { }
