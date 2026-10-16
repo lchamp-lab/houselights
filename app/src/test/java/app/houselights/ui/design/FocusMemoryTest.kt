@@ -5,8 +5,10 @@ import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -17,6 +19,7 @@ import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performScrollToIndex
+import androidx.compose.ui.unit.dp
 import app.houselights.ui.design.components.HlButton
 import app.houselights.ui.design.components.HlSettingRow
 import app.houselights.ui.testing.TV
@@ -53,6 +56,30 @@ class FocusMemoryTest {
         }
         compose.onNodeWithTag("start").assertIsFocused()
         compose.runOnIdle { assertEquals(false, memory.focus(FocusKey.item("left"))) }
+    }
+
+    /** Nor is the element that refused focus held in view: the list stays where focus went. */
+    @Test
+    fun anElementThatRefusesFocusIsNotHeldInView() {
+        val memory = FocusMemory(initial = FocusKey.item("left"))
+        val start = FocusRequester()
+        val list = LazyListState()
+        compose.setTvContent {
+            LazyColumn(Modifier.height(300.dp), state = list) {
+                item { HlButton("Lire", onClick = {}, modifier = Modifier.focusRequester(start).testTag("start")) }
+                // The third box sits across the bottom edge: bringing it into view would scroll.
+                items(10) { i ->
+                    val left = Modifier.focusKey(FocusKey.item("left"), memory).focusProperties { canFocus = false }
+                    Box((if (i == 2) left else Modifier).focusable().size(100.dp))
+                }
+            }
+            RestoreFocus(memory, fallback = start)
+        }
+        compose.onNodeWithTag("start").assertIsFocused()
+        compose.runOnIdle {
+            assertEquals(0, list.firstVisibleItemIndex)
+            assertEquals(0, list.firstVisibleItemScrollOffset)
+        }
     }
 
     /** Down a long list, the memory keeps what is composed, not every element it ever saw. */

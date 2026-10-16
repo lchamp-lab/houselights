@@ -157,8 +157,12 @@ class FocusMemory(initial: String? = null) {
     suspend fun restore(fallback: FocusRequester?, reveal: suspend (key: String) -> Boolean = { false }): Boolean {
         withFrameNanos { }
         val revealed: suspend (String) -> Boolean = { key -> reveal(key).also { if (it) withFrameNanos { } } }
-        val restored = restoreFocus(last, ::focus, revealed) { fallback?.tryRequestFocus() == true }
-        last?.let { key -> keepInView(key) }
+        // Only the element left is held in view, once it took focus: one there that refused it must
+        // not pull the list away from where focus went instead.
+        var took: String? = null
+        val focusing: (String) -> Boolean = { key -> focus(key).also { if (it) took = key } }
+        val restored = restoreFocus(last, focusing, revealed) { fallback?.tryRequestFocus() == true }
+        took?.takeIf { it == last }?.let { key -> keepInView(key) }
         return restored
     }
 
