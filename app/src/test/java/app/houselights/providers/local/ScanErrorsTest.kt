@@ -93,6 +93,20 @@ class ScanErrorsTest {
         assertEquals(ScanErrorKind.ACCESS_DENIED, kind(RuntimeException("STATUS_ACCESS_DENIED (0xc0000022)")))
     }
 
+    /** Nfs3 refused its mount: the NAS does not export the folder to this device's address (seen on the emulator). */
+    @Test
+    fun anNfsMountRefusedIsAccessDenied() {
+        assertEquals(ScanErrorKind.ACCESS_DENIED, kind(mountFailure(MountStatus.MNT3ERR_ACCES)))
+        assertEquals(ScanErrorKind.ACCESS_DENIED, kind(mountFailure(MountStatus.MNT3ERR_PERM)))
+        assertEquals(ScanErrorKind.NOT_FOUND, kind(mountFailure(MountStatus.MNT3ERR_NOENT)))
+    }
+
+    /** NfsResponseHandler names the status by its number only. */
+    @Test
+    fun anNfsRequestRefusedIsAccessDenied() {
+        assertEquals(ScanErrorKind.ACCESS_DENIED, kind(NfsException(NfsStatus.NFS3ERR_ACCES, "readdir error code: NfsStatus:13")))
+    }
+
     @Test
     fun notFound() {
         assertEquals(ScanErrorKind.NOT_FOUND, kind(RuntimeException("STATUS_BAD_NETWORK_NAME (0xc00000cc)")))
@@ -103,6 +117,12 @@ class ScanErrorsTest {
     fun other() {
         assertEquals(ScanErrorKind.OTHER, kind(IllegalStateException("something else")))
     }
+
+    /** As Nfs3.lookupRootHandle throws it for a status that is not MNT3_OK. */
+    private fun mountFailure(status: MountStatus) = MountException(
+        status,
+        "mount failure, server: 192.168.1.20, export: /volume1/media, nfs version: 3, returned state: ${status.value}",
+    )
 
     /** As Share.receive throws it for a status that is not a success. */
     private fun smbStatus(status: NtStatus) =

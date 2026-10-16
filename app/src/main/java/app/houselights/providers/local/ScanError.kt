@@ -1,5 +1,7 @@
 package app.houselights.providers.local
 
+import com.emc.ecs.nfsclient.mount.MountException
+import com.emc.ecs.nfsclient.mount.MountStatus
 import com.emc.ecs.nfsclient.nfs.NfsException
 import com.emc.ecs.nfsclient.nfs.NfsStatus
 import com.emc.ecs.nfsclient.rpc.RpcException
@@ -37,7 +39,7 @@ object ScanErrors {
     fun isUnreachable(e: Throwable): Boolean =
         generateSequence(e) { it.cause }.none { it is TmdbUnreachableException } && classify(e).kind == ScanErrorKind.UNREACHABLE
 
-    /** Maps SMB, NFS and socket failures to a [ScanErrorKind]. */
+    /** Maps SMB, NFS and socket failures to a [ScanErrorKind]: the first that fits, in this order. */
     fun classify(e: Throwable): ScanError {
         val chain = generateSequence(e) { it.cause }.toList()
         val text = chain.joinToString(" ") { "${it.javaClass.simpleName} ${it.message}" }
@@ -45,11 +47,8 @@ object ScanErrors {
             chain.any { it is EmptyFolderException } -> ScanErrorKind.EMPTY
             noAnswer(chain, text) -> ScanErrorKind.UNREACHABLE
             text.contains("LOGON_FAILURE") || text.contains("ACCOUNT_") || text.contains("WRONG_PASSWORD") -> ScanErrorKind.LOGIN_FAILED
-            text.contains("ACCESS_DENIED") || text.contains("ERR_ACCES") || text.contains("ERR_PERM") ||
-                text.contains("AUTH_ERROR", ignoreCase = true) || text.contains("auth", ignoreCase = true) && text.contains("rpc", ignoreCase = true) ->
-                ScanErrorKind.ACCESS_DENIED
-            chain.any { it is FileNotFoundException } || text.contains("BAD_NETWORK_NAME") || text.contains("NOT_FOUND") ||
-                text.contains("ERR_NOENT") || text.contains("PATH_NOT_FOUND") -> ScanErrorKind.NOT_FOUND
+            refused(chain, text) -> ScanErrorKind.ACCESS_DENIED
+            missing(chain, text) -> ScanErrorKind.NOT_FOUND
             else -> ScanErrorKind.OTHER
         }
         return ScanError(kind)
@@ -71,6 +70,26 @@ object ScanErrors {
                 // The NAS asks to come back later (a disk waking, a file recalled from an archive).
                 it is NfsException && it.status?.value == NfsStatus.NFS3ERR_JUKEBOX.value
         } || NO_ANSWER.any { text.contains(it, ignoreCase = true) }
+
+    /**
+     * The NAS refused the device or the account. nfs-client names a status by its number only: a mount
+     * refused says "returned state: 13", a request refused "NfsStatus:13".
+     */
+    private fun refused(chain: List<Throwable>, text: String): Boolean =
+        chain.any {
+            it is MountException && it.status?.value in MOUNT_REFUSED || it is NfsException && it.status?.value in NFS_REFUSED
+        } || REFUSED.any { text.contains(it) } || text.contains("AUTH_ERROR", ignoreCase = true) ||
+            text.contains("auth", ignoreCase = true) && text.contains("rpc", ignoreCase = true)
+
+    /** The share, the export or the folder is not there; nfs-client throws FileNotFoundException for NFS3ERR_NOENT. */
+    private fun missing(chain: List<Throwable>, text: String): Boolean =
+        chain.any { it is FileNotFoundException || it is MountException && it.status?.value == MountStatus.MNT3ERR_NOENT.value } ||
+            MISSING.any { text.contains(it) }
+
+    private val MOUNT_REFUSED = setOf(MountStatus.MNT3ERR_ACCES.value, MountStatus.MNT3ERR_PERM.value)
+    private val NFS_REFUSED = setOf(NfsStatus.NFS3ERR_ACCES.value, NfsStatus.NFS3ERR_PERM.value)
+    private val REFUSED = listOf("ACCESS_DENIED", "ERR_ACCES", "ERR_PERM")
+    private val MISSING = listOf("BAD_NETWORK_NAME", "NOT_FOUND", "ERR_NOENT", "PATH_NOT_FOUND")
 
     private val NO_ANSWER = listOf(
         "waiting for connection", "timed out", "rpc request timeout", "connection is broken", "tcp IO error",
