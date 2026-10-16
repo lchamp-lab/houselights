@@ -64,6 +64,7 @@ import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.emberLight
 import app.houselights.ui.design.groundFill
 import app.houselights.ui.design.groundStep
+import app.houselights.ui.design.groundStepFill
 
 /**
  * A text field for the remote: a focusable box first, the keyboard on OK. Focused and waiting, it
@@ -163,7 +164,7 @@ private fun FieldBox(
             .openOnOk(waiting = !editing) { editing = true }
             .focusable()
             .clip(shape)
-            .background(c.content.copy(alpha = groundStep()))
+            .background(groundStepFill())
             .border(fieldEdge(editing, boxFocused), shape)
             .padding(horizontal = HlSpace.m, vertical = HlSpace.s),
     ) {
@@ -274,22 +275,17 @@ internal fun KeyHint(modifier: Modifier = Modifier) {
 }
 
 /**
- * The line under a field: what is wrong, in ember after the attention light; else what to type,
- * quiet. The field's edge does not change for an error: ember there means typing.
+ * The line under a field: what is wrong, an [AttentionNote] as beside anything else that needs
+ * attention; else what to type, quiet. The field's edge does not change for an error: ember there
+ * means typing.
  */
 @Composable
 private fun FieldMessage(error: String?, supporting: String?) {
-    val text = error ?: supporting ?: return
-    val c = Hl.colors
-    val style = Hl.type.caption
+    if (error == null && supporting == null) return
     Spacer(Modifier.height(HlSpace.xs))
-    Row {
-        if (error != null) {
-            // As tall as the first line, so the light sits beside it.
-            val line = with(LocalDensity.current) { style.lineHeight.toDp() }
-            Box(Modifier.height(line), contentAlignment = Alignment.Center) { StatusLight(StatusState.Attention) }
-            Spacer(Modifier.width(HlSpace.xs))
-        }
-        Text(text, style = style, color = if (error != null) c.ember else c.contentSecondary)
+    if (error != null) {
+        AttentionNote(error)
+    } else if (supporting != null) {
+        Text(supporting, style = Hl.type.caption, color = Hl.colors.contentSecondary)
     }
 }

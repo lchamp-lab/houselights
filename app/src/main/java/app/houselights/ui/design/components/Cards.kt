@@ -75,6 +75,7 @@ import app.houselights.core.MediaItem
 import app.houselights.core.Person
 import app.houselights.ui.design.GroupFocus
 import app.houselights.ui.design.Hl
+import app.houselights.ui.design.HlColors
 import app.houselights.ui.design.HlAlpha
 import app.houselights.ui.design.HlControl
 import app.houselights.ui.design.HlFocus
@@ -92,7 +93,7 @@ import app.houselights.ui.design.LocalAmbient
 import app.houselights.ui.design.LocalGroupFocus
 import app.houselights.ui.design.RowScroll
 import app.houselights.ui.design.emberLight
-import app.houselights.ui.design.groundStep
+import app.houselights.ui.design.groundStepFill
 import app.houselights.ui.design.keepChildFocus
 import app.houselights.ui.design.rememberGroupMember
 import app.houselights.ui.design.rememberedInGroup
@@ -210,7 +211,7 @@ fun ArtworkSurface(
         // Read while drawing, or by the image alone: stepping back never recomposes the row.
         // What a card holds lies on its picture: its marks and progress take their plate.
         CompositionLocalProvider(LocalArtworkRecede provides { recede.value }, LocalGround provides Ground.Artwork) { content() }
-        Box(Modifier.fillMaxSize().border(HlSize.hairline, c.content.copy(alpha = HlAlpha.EDGE_ARTWORK), shape))
+        Box(Modifier.fillMaxSize().artworkEdge(shape, c))
         Box(
             Modifier.fillMaxSize().drawBehind {
                 // Nothing drawn in front: a clear rectangle still costs the chip a pass over the card.
@@ -256,10 +257,11 @@ val LocalArtworkRecede = staticCompositionLocalOf<() -> Float> { { 0f } }
 
 /**
  * Artwork as a card shows it; [fallback] takes its place when there is none, or when it fails to
- * load (a NAS asleep, a file gone), so a card is never left blank. When its card steps back it
- * loses part of its colour ([HlFocus.SIBLING_SATURATION]) through the image's own colour filter:
- * no offscreen layer per card, and only this image recomposes, once per step
- * ([HlFocus.RECEDE_STEPS]).
+ * load (a NAS asleep, a file gone), so a card is never left blank. [picture] is the picture's alone,
+ * once there is one to show: the ground it loads on, its edge, its margin ([PosterThumb],
+ * [RowPreview]); [modifier] places either. When its card steps back it loses part of its colour
+ * ([HlFocus.SIBLING_SATURATION]) through the image's own colour filter: no offscreen layer per card,
+ * and only this image recomposes, once per step ([HlFocus.RECEDE_STEPS]).
  */
 @Composable
 fun ArtworkImage(
@@ -267,6 +269,7 @@ fun ArtworkImage(
     description: String?,
     modifier: Modifier = Modifier,
     contentScale: ContentScale = ContentScale.Crop,
+    picture: Modifier = Modifier,
     fallback: @Composable BoxScope.() -> Unit = {},
 ) {
     var failed by remember(url) { mutableStateOf(false) }
@@ -284,10 +287,14 @@ fun ArtworkImage(
             contentScale = contentScale,
             colorFilter = filter,
             onError = { failed = true },
-            modifier = modifier,
+            modifier = modifier.then(picture),
         )
     }
 }
+
+/** The faint edge of artwork at rest, so a dark picture keeps its outline on the black room. */
+internal fun Modifier.artworkEdge(shape: Shape, colors: HlColors): Modifier =
+    border(HlSize.hairline, colors.content.copy(alpha = HlAlpha.EDGE_ARTWORK), shape)
 
 /** Width a poster is asked for: its own, or a little more than a row's when it fills a grid cell. */
 @Composable
@@ -449,7 +456,7 @@ internal fun EmptyFrame(modifier: Modifier = Modifier, shape: Shape = HlShapes.a
     Box(
         modifier
             .clip(shape)
-            .background(c.content.copy(alpha = groundStep()))
+            .background(groundStepFill())
             .drawBehind {
                 val inset = HlSpace.s.toPx()
                 val length = HlSpace.l.toPx()
@@ -458,7 +465,7 @@ internal fun EmptyFrame(modifier: Modifier = Modifier, shape: Shape = HlShapes.a
                     drawRect(rule, Offset(inset, size.height - inset - weight), Size(length, weight))
                 }
             }
-            .border(HlSize.hairline, c.content.copy(alpha = HlAlpha.EDGE_ARTWORK), shape),
+            .artworkEdge(shape, c),
     )
 }
 

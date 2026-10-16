@@ -19,7 +19,6 @@ import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -48,6 +47,7 @@ import app.houselights.ui.design.FocusKey
 import app.houselights.ui.design.RestoreFocus
 import app.houselights.ui.design.focusKey
 import app.houselights.ui.design.rememberFocusMemory
+import app.houselights.ui.design.tryRequestFocus
 import app.houselights.R
 import app.houselights.core.Definition
 import app.houselights.core.Library
@@ -59,7 +59,6 @@ import app.houselights.core.Quality
 import app.houselights.core.SortOption
 import app.houselights.core.WatchStatus
 import app.houselights.ui.design.Hl
-import app.houselights.ui.design.HlMotion
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.LocalAmbient
 import app.houselights.ui.design.components.Backdrop
@@ -75,13 +74,13 @@ import app.houselights.ui.design.components.ScreenTitle
 import app.houselights.ui.design.components.rememberAmbientColor
 import app.houselights.ui.design.components.CardSkeleton
 import app.houselights.ui.design.components.HlEmptyState
-import app.houselights.ui.home.ErrorMessage
+import app.houselights.ui.design.components.HlErrorState
 import app.houselights.ui.util.PartFailed
 import app.houselights.ui.util.ReloadOnLibraryChange
 import app.houselights.ui.util.retainedError
 import app.houselights.ui.util.appContainer
+import app.houselights.ui.util.rememberSettled
 import app.houselights.ui.util.skeletonDelayPassed
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 private const val COLUMNS = 7
@@ -103,11 +102,10 @@ fun LibraryScreen(
 
     // The title last selected stays on the screen while focus is on the buttons, and is found again
     // coming back; before any, or once a filter takes it off the wall, the first title. Set at every
-    // step across the wall, it is only read in [ShowOnceSettled]: a step recomposes that alone, never
-    // the header.
+    // step across the wall, it is shown once focus settles, so the backdrop loads no image on every
+    // step; and it is read there alone, outside composition: a step recomposes nothing.
     val selectedId = rememberSaveable { mutableStateOf<String?>(null) }
-    val shown = remember { mutableStateOf<MediaItem?>(null) }
-    ShowOnceSettled(selectedId, state.items, shown)
+    val shown = rememberSettled { selectedIn(state.items, selectedId.value) }
     val gridFocus = remember { FocusRequester() }
     var gridHasFocus by remember { mutableStateOf(false) }
     val gridState = rememberLazyGridState()
@@ -124,7 +122,7 @@ fun LibraryScreen(
     val focusedIndex = remember { mutableStateOf<Int?>(null) }
     BackToFirstPoster(focusedIndex) {
         gridState.animateScrollToItem(0)
-        runCatching { gridFocus.requestFocus() }
+        gridFocus.tryRequestFocus()
     }
     // Where the foot stood when the next page failed: once Réessayer brings the page, focus goes to
     // its first poster, where the button was, not nowhere.
@@ -192,7 +190,12 @@ fun LibraryScreen(
                 // Trying again keeps the error on screen, its button at work, until the answer.
                 val wallError = retainedError(state.error?.takeIf { state.items.isEmpty() }, retrying = state.loading)
                 when {
-                    state.items.isEmpty() && wallError != null -> ErrorMessage(wallError, vm::retry, retrying = state.loading)
+                    state.items.isEmpty() && wallError != null -> HlErrorState(
+                        wallError,
+                        vm::retry,
+                        Modifier.padding(start = HlSpace.safeH, top = HlSpace.l),
+                        retrying = state.loading,
+                    )
                     state.loading && state.items.isEmpty() -> SkeletonWall()
                     state.items.isEmpty() && state.filter.activeCount > 0 -> HlEmptyState(
                         stringResource(R.string.no_match),
@@ -265,20 +268,8 @@ private val RETRY_PAGE = FocusKey.action("retry-page")
 /** Back returns to the first poster from past the first line of the wall; from the first line, it leaves. */
 internal fun backReturnsToFirst(focusedIndex: Int?): Boolean = focusedIndex != null && focusedIndex >= COLUMNS
 
-/**
- * Follows the title [selectedId] names among [items], and shows it ([shown]) once focus settles:
- * the backdrop loads no image on every step across the wall. The selection is read here, so a step
- * recomposes this alone.
- */
-@Composable
-private fun ShowOnceSettled(selectedId: State<String?>, items: List<MediaItem>, shown: MutableState<MediaItem?>) {
-    val id = selectedId.value
-    val selected = remember(id, items) { items.find { it.id == id } ?: items.firstOrNull() }
-    LaunchedEffect(selected) {
-        if (shown.value != null) delay(HlMotion.SETTLE)
-        shown.value = selected
-    }
-}
+/** The title of [items] named [id]; when there is none (or a filter took it off the wall), the first. */
+private fun selectedIn(items: List<MediaItem>, id: String?): MediaItem? = items.find { it.id == id } ?: items.firstOrNull()
 
 /** Back past the first line of the wall ([focusedIndex]) runs [toFirst]: read here, a step recomposes this alone. */
 @Composable

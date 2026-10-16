@@ -2,6 +2,8 @@ package app.houselights.ui.design
 
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlin.math.roundToInt
@@ -113,8 +115,6 @@ object HlSize {
     /** An option inside a segmented track: with the track's padding, as tall as a control. */
     val segment = 40.dp
     val focusBorder = 2.dp
-    /** Space between a control and the focus ring drawn around it. */
-    val focusRingGap = 3.dp
     val hairline = 1.dp
 }
 
@@ -153,8 +153,14 @@ object HlLayout {
      * (76 + 12 + 20 + 12 + 48). Under it, a focused poster's foot stays inside the safe area.
      */
     val hero = 168.dp
-    /** The line naming the focused title above a poster wall (library). */
-    val infoLine = 24.dp
+    /**
+     * The line naming the focused title above a poster wall (library): 24 at the default text size,
+     * growing with the viewer's, as its text does.
+     */
+    val infoLine: Dp
+        @Composable @ReadOnlyComposable
+        get() = textRoom(infoLineAtDefault)
+    private val infoLineAtDefault = 24.dp
     /** Overview of the focused episode under the episode row: three lines of caption (3 × 18), on the grid. */
     val episodeOverview = 56.dp
     /**
@@ -163,13 +169,21 @@ object HlLayout {
      */
     val detailGap = HlSpace.xl
     /**
-     * What shows of a detail page's first row under its hero: the gap, the row's header whole
-     * (`lead`, 26), its gap ([HlSpace.xxs]) and padding ([HlSpace.s]), then a strip of its images
-     * ([HlSpace.s]), which ends at the screen's edge. The header stays inside the safe area.
+     * What shows of a detail page's first row under its hero: the gap, the row's header whole (a
+     * line of `lead`, [header] tall), its gap ([HlSpace.xxs]) and padding ([HlSpace.s]), then a strip
+     * of its images ([HlSpace.s]), which ends at the screen's edge. The header stays inside the safe
+     * area, at any text size.
      */
-    private val detailPeek = detailGap + 26.dp + HlSpace.xxs + HlSpace.s + HlSpace.s
-    /** The least a detail page's hero takes of a [screen] that tall: all of it but [detailPeek]. */
-    fun detailHeroMin(screen: Dp): Dp = screen - detailPeek
+    private fun detailPeek(header: Dp) = detailGap + header + HlSpace.xxs + HlSpace.s + HlSpace.s
+    /**
+     * The least a detail page's hero takes of a [screen] that tall, under which its first row's
+     * header is [header] tall: all of it but [detailPeek].
+     */
+    internal fun detailHeroMin(screen: Dp, header: Dp): Dp = screen - detailPeek(header)
+    /** [detailHeroMin] with the header at the viewer's text size (26 at the default one). */
+    @Composable
+    @ReadOnlyComposable
+    fun detailHeroMin(screen: Dp): Dp = detailHeroMin(screen, textRoom(Hl.type.lead))
     /** Where an error sits on an otherwise empty detail page. */
     val errorTop = 96.dp
     /**
@@ -214,10 +228,16 @@ internal object HlIconButtonDefaults {
 
     /**
      * Room a row of round buttons keeps under itself for the label of the one with focus: the gap
-     * ([HlSpace.xs]) and the label on its plate (one caption line, 18, and its padding, 2 × 4), on
-     * the grid. The label takes none of its own; [HlActionRow] keeps it.
+     * ([HlSpace.xs]) and the label on its plate (one caption line, 18 at the default text size, and
+     * its padding, 2 × 4), on the grid: 36. The caption grows with the viewer's text size, and the
+     * room with it. The label takes none of its own; [HlActionRow] keeps it.
      */
-    val labelRoom = 36.dp
+    val labelRoom: Dp
+        @Composable @ReadOnlyComposable
+        get() = HlSpace.xs + HlControl.labelPaddingV * 2 + textRoom(Hl.type.caption) + toTheGrid
+
+    /** What brings the label's room at the default text size, 34, to the 4 dp grid. */
+    private val toTheGrid = 2.dp
 
     /**
      * How close to a side of the screen the label may come: brief and passing, it may go past the
@@ -286,9 +306,6 @@ object HlFocus {
      * room the container around it keeps.
      */
     fun reach(size: Dp, scale: Float): Dp = size * (scale - 1f) / 2
-
-    /** How far a focus ring stands outside what it surrounds: its gap, then its width. */
-    val ring = HlSize.focusRingGap + HlSize.focusBorder
 
     /**
      * The other cards of a row step back while one of them has focus: darker by this much, and

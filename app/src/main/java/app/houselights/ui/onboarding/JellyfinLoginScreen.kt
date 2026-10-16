@@ -25,6 +25,7 @@ import app.houselights.ui.design.components.HlListItem
 import app.houselights.ui.design.components.HlTextField
 import app.houselights.ui.design.components.StatusPanel
 import app.houselights.ui.design.components.StatusState
+import app.houselights.ui.design.tryRequestFocus
 import app.houselights.ui.util.appContainer
 
 @Composable
@@ -33,7 +34,7 @@ fun JellyfinLoginScreen(onLoggedIn: () -> Unit) {
     val vm: JellyfinLoginViewModel = viewModel(factory = JellyfinLoginViewModel.factory(app))
     val firstField = remember { FocusRequester() }
     val passwordField = remember { FocusRequester() }
-    LaunchedEffect(Unit) { runCatching { (if (vm.again) passwordField else firstField).requestFocus() } }
+    LaunchedEffect(Unit) { (if (vm.again) passwordField else firstField).tryRequestFocus() }
     val server = vm.server
     val discovered = vm.discovered
     val error = vm.error?.let { loginErrorText(it) }

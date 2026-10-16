@@ -2,8 +2,6 @@ package app.houselights.ui.design.components
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -14,10 +12,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -33,15 +27,13 @@ import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
 import app.houselights.core.ImageRef
 import app.houselights.ui.design.Hl
-import app.houselights.ui.design.HlAlpha
 import app.houselights.ui.design.HlFocus
 import app.houselights.ui.design.HlInset
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
-import app.houselights.ui.design.groundStep
+import app.houselights.ui.design.groundStepFill
 import app.houselights.ui.util.toPx
-import coil.compose.AsyncImage
 
 /**
  * One artwork to choose from, at the shape it is used in, with a caption saying what it is.
@@ -158,21 +150,11 @@ fun HlResultItem(
 /** A small poster in a list, at [width]; an empty frame when there is none, or it fails to load. */
 @Composable
 fun PosterThumb(poster: ImageRef?, modifier: Modifier = Modifier, width: Dp = HlSize.posterThumb) {
-    val url = poster?.url(width.toPx())
-    var failed by remember(url) { mutableStateOf(false) }
-    val frame = modifier.width(width).aspectRatio(2f / 3f)
-    if (url == null || failed) {
-        EmptyFrame(frame)
-    } else {
-        Box(frame.clip(HlShapes.artwork).background(Hl.colors.content.copy(alpha = groundStep()))) {
-            AsyncImage(
-                model = url,
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                onError = { failed = true },
-                modifier = Modifier.fillMaxSize(),
-            )
-            Box(Modifier.fillMaxSize().border(HlSize.hairline, Hl.colors.content.copy(alpha = HlAlpha.EDGE_ARTWORK), HlShapes.artwork))
-        }
-    }
+    ArtworkImage(
+        poster?.url(width.toPx()),
+        description = null,
+        modifier = modifier.width(width).aspectRatio(2f / 3f),
+        // Loading, the poster's place shows on its ground, edged as artwork at rest.
+        picture = Modifier.clip(HlShapes.artwork).background(groundStepFill()).artworkEdge(HlShapes.artwork, Hl.colors),
+    ) { EmptyFrame(Modifier.fillMaxSize()) }
 }
