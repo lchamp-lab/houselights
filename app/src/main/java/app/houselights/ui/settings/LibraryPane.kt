@@ -57,7 +57,7 @@ import app.houselights.ui.design.components.ChoiceOption
 import app.houselights.ui.design.components.Emphasis
 import app.houselights.ui.design.components.FactRow
 import app.houselights.ui.design.components.HlButton
-import app.houselights.ui.design.components.HlChoiceSheet
+import app.houselights.ui.design.components.HlChoiceSetting
 import app.houselights.ui.design.components.HlDivider
 import app.houselights.ui.design.components.HlSideSheet
 import app.houselights.ui.design.components.PosterStrip
@@ -416,7 +416,6 @@ private fun LibraryActions(
 private fun CollectionsRow() {
     val vm = settingsViewModel()
     val s by vm.settings.collectAsStateWithLifecycle()
-    var choose by remember { mutableStateOf(false) }
     @Composable
     fun option(label: Int, description: Int) = ChoiceOption(stringResource(label), stringResource(description))
     val options = listOf(
@@ -424,26 +423,16 @@ private fun CollectionsRow() {
         CollectionThreshold.ANY to option(R.string.collections_all, R.string.collections_all_desc),
         CollectionThreshold.HIDDEN to option(R.string.collections_off, R.string.collections_off_desc),
     )
-    val current = options.indexOfFirst { it.first == s.collectionMinFilms }.coerceAtLeast(0)
     val failure = rowFailure(vm.errorOf(SettingAction.COLLECTIONS))
-    HlSettingRow(
+    HlChoiceSetting(
         stringResource(R.string.collections_setting),
-        value = failure?.value ?: options[current].second.label,
+        options = options.map { it.second },
+        selected = options.indexOfFirst { it.first == s.collectionMinFilms }.coerceAtLeast(0),
+        onSelect = { i -> vm.setCollectionMinFilms(options[i].first) },
         description = stringResource(R.string.collections_setting_desc),
-        valueAttention = failure != null,
-        onClick = { choose = true },
+        attention = failure?.value,
     )
     RowFailureNote(failure)
-    if (choose) {
-        HlChoiceSheet(
-            title = stringResource(R.string.collections_setting),
-            options = options.map { it.second },
-            selected = current,
-            onSelect = { i -> vm.setCollectionMinFilms(options[i].first) },
-            onDismiss = { choose = false },
-            description = stringResource(R.string.collections_setting_desc),
-        )
-    }
 }
 
 /** The source in use, and what changing it keeps; OK opens [SourceSheet]. */

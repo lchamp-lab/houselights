@@ -22,6 +22,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.res.pluralStringResource
@@ -44,7 +45,6 @@ import app.houselights.core.ArtworkOption
 import app.houselights.core.ArtworkOrigin
 import app.houselights.core.MediaItem
 import app.houselights.ui.design.Hl
-import app.houselights.ui.design.HlMotion
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.LocalAmbient
 import app.houselights.ui.design.components.ArtworkChoiceCard
@@ -60,12 +60,13 @@ import app.houselights.ui.design.components.ScreenTitle
 import app.houselights.ui.design.components.TitleArt
 import app.houselights.ui.design.components.rememberAmbientColor
 import app.houselights.ui.design.tryRequestFocus
-import app.houselights.ui.home.ErrorIntertitle
+import app.houselights.ui.design.components.HlErrorState
 import app.houselights.ui.util.appContainer
 import app.houselights.ui.util.FACT_GAP
 import app.houselights.ui.util.formatDimensions
 import app.houselights.ui.util.languageName
-import kotlinx.coroutines.delay
+import app.houselights.ui.util.rememberSettled
+import app.houselights.ui.util.skeletonDelayPassed
 
 /**
  * Choosing one piece of artwork. The page behind previews the focused choice where it will
@@ -84,12 +85,9 @@ fun ArtworkScreen(itemId: String, kind: ArtworkKind, onDone: () -> Unit) {
     LaunchedEffect(state.done) { if (state.done) lifecycle.withResumed { onDone() } }
 
     var focused by remember { mutableStateOf<ArtworkOption?>(null) }
-    // The preview follows focus once it settles: no image load on every step.
-    var shown by remember { mutableStateOf<ArtworkOption?>(null) }
-    LaunchedEffect(focused) {
-        delay(HlMotion.SETTLE)
-        shown = focused
-    }
+    // The preview follows focus once it settles: no image load on every step. Until focus has come
+    // to a choice, the one in use.
+    val shown by rememberSettled { focused }
     val preview = shown ?: choices?.selected
     val backdrop = if (kind == ArtworkKind.BACKDROP) preview?.image else item?.backdrop
 
@@ -110,7 +108,7 @@ fun ArtworkScreen(itemId: String, kind: ArtworkKind, onDone: () -> Unit) {
                     }
                 }
                 when {
-                    state.error != null -> ErrorIntertitle(state.error!!, vm::load, ChoicesPadding)
+                    state.error != null -> HlErrorState(state.error!!, vm::load, ChoicesPadding)
                     choices == null -> Skeletons(kind)
                     choices.options.isEmpty() -> HlEmptyState(stringResource(R.string.artwork_empty), ChoicesPadding, backHint = true)
                     else -> Choices(
@@ -214,10 +212,15 @@ private fun size(option: ArtworkOption): String? =
 /** Where the choices go, and what takes their place while they load or when there are none. */
 private val ChoicesPadding = Modifier.padding(horizontal = HlSpace.safeH, vertical = HlSpace.m)
 
+/**
+ * Empty frames where the choices will be, once loading takes long enough to be seen. Laid out from
+ * the start all the same: the preview above rests on them, and stays where it is.
+ */
 @Composable
 private fun Skeletons(kind: ArtworkKind) {
+    val seen = skeletonDelayPassed()
     Row(
-        ChoicesPadding,
+        ChoicesPadding.alpha(if (seen) 1f else 0f),
         horizontalArrangement = Arrangement.spacedBy(HlSpace.m),
     ) {
         repeat(8) { CardSkeleton(kind.cardWidth, kind.aspectRatio) }

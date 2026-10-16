@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.tv.material3.Text
@@ -25,6 +26,7 @@ import app.houselights.ui.design.components.DefinitionList
 import app.houselights.ui.design.components.DefinitionRow
 import app.houselights.ui.design.components.Emphasis
 import app.houselights.ui.design.components.HlButton
+import app.houselights.ui.design.components.HlErrorState
 import app.houselights.ui.design.components.HlSettingRow
 import app.houselights.ui.design.components.HlStatus
 import app.houselights.ui.design.components.InfoBlock
@@ -35,7 +37,9 @@ import app.houselights.ui.design.components.SpecTable
 import app.houselights.ui.design.components.SpecTableRow
 import app.houselights.ui.design.components.StatusState
 import app.houselights.ui.util.FACT_GAP
+import app.houselights.ui.util.LocalErrorFix
 import app.houselights.ui.util.NBSP
+import app.houselights.ui.util.UiError
 import app.houselights.ui.util.formatDimensions
 
 /**
@@ -47,6 +51,7 @@ internal fun LazyListScope.catalogGestures() {
     item { Group("Gestures: the back of a case, the intertitle, the counter") { SideBySide() } }
     // On a screen, HlEmptyState: the same intertitle, its action focused as it appears.
     item { Group("Intertitle: neutral, attention, Back as the way out, no action") { Intertitles() } }
+    item { Group("Error state: what fixes each error, on the spot or where it is fixed") { ErrorStates() } }
     item { Group("Counter: home, a folder's card, counting, a row") { Counters() } }
     item { Group("Back of a case: Affichage, À propos") { Jackets() } }
     item { Group("Empty frames and poster strips", still = true) { Frames() } }
@@ -107,6 +112,28 @@ private fun Intertitles() {
         }
         Gesture("no action: the search field above is the way", Modifier.weight(1f)) {
             Intertitle("Aucun résultat", message = "Essayez un autre titre, sans l’année, ou un identifiant IMDb (tt…).")
+        }
+    }
+}
+
+/**
+ * HlErrorState, one for each action an error offers, and none: the words and the action come with
+ * the error. Here the actions that lead elsewhere lead nowhere.
+ */
+@Composable
+private fun ErrorStates() {
+    CompositionLocalProvider(LocalErrorFix provides {}) {
+        Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.xl), verticalAlignment = Alignment.Top) {
+            Gesture("try again, on the spot", Modifier.weight(1f)) { HlErrorState(UiError.OFFLINE, onRetry = {}) }
+            Gesture("trying again: it stays, its button at work", Modifier.weight(1f)) {
+                HlErrorState(UiError.OFFLINE, onRetry = {}, retrying = true)
+            }
+            Gesture("nothing fixes it: Back is the way out", Modifier.weight(1f)) { HlErrorState(UiError.GONE, onRetry = {}) }
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.xl), verticalAlignment = Alignment.Top) {
+            Gesture("sign in again", Modifier.weight(1f)) { HlErrorState(UiError.DENIED, onRetry = {}) }
+            Gesture("add a TMDB key, in the settings", Modifier.weight(1f)) { HlErrorState(UiError.NO_TMDB_KEY, onRetry = {}) }
+            Gesture("change the key TMDB refuses", Modifier.weight(1f)) { HlErrorState(UiError.TMDB_KEY_REFUSED, onRetry = {}) }
         }
     }
 }

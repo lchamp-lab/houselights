@@ -3,12 +3,16 @@ package app.houselights.ui.util
 import android.content.Context
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -20,6 +24,8 @@ import app.houselights.AppContainer
 import app.houselights.HouselightsApp
 import app.houselights.ui.design.HlMotion
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.collectLatest
 import kotlin.random.Random
 
 @Composable
@@ -76,6 +82,28 @@ fun skeletonDelayPassed(): Boolean {
         value = true
     }
     return passed
+}
+
+/**
+ * What [value] reads, once it has stayed for [HlMotion.SETTLE], after the focus motion: what follows
+ * the title under focus (a backdrop, a hero, a preview) loads no image at each step. Null at first;
+ * while nothing is shown, a value comes at once. [value] is read in an effect, never in composition:
+ * a step recomposes nothing, and the caller only when what is shown changes.
+ */
+@Composable
+fun <T : Any> rememberSettled(value: () -> T?): State<T?> {
+    val latest = rememberUpdatedState(value)
+    val settled = remember { mutableStateOf<T?>(null) }
+    LaunchedEffect(Unit) { snapshotFlow { latest.value() }.settleInto(settled) }
+    return settled
+}
+
+/** Follows [this] into [settled] (see [rememberSettled]): a value that changes before [settle] has passed waits again. */
+internal suspend fun <T : Any> Flow<T?>.settleInto(settled: MutableState<T?>, settle: Long = HlMotion.SETTLE) {
+    collectLatest { next ->
+        if (settled.value != null && next != settled.value) delay(settle)
+        settled.value = next
+    }
 }
 
 /** Size in physical pixels, to request images at the size they are displayed. */

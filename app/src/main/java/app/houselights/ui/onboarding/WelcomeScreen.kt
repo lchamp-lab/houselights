@@ -15,9 +15,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -36,6 +34,7 @@ import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.tryRequestFocus
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import app.houselights.ui.design.components.AttentionNote
 import app.houselights.ui.design.components.HlListItem
 import app.houselights.ui.design.components.PosterWall
@@ -54,11 +53,12 @@ fun WelcomeScreen(onLocal: () -> Unit, onJellyfin: () -> Unit, problem: UiError?
     val app = appContainer()
     val lostSource = app.settings.state.collectAsStateWithLifecycle().value.lostSource
     val focus = remember { FocusRequester() }
-    var posters by remember { mutableStateOf<List<String>>(emptyList()) }
-    val posterPx = HlSize.posterWall.toPx()
+    val vm: WelcomeViewModel = viewModel(factory = WelcomeViewModel.factory(app, HlSize.posterWall.toPx()))
+    val posters by vm.posters.collectAsStateWithLifecycle()
     LaunchedEffect(Unit) {
         focus.tryRequestFocus()
-        posters = app.trendingPosters(posterPx)
+        // Back from a choice: a wall TMDB left empty is asked for again.
+        vm.show()
     }
     val black = Hl.colors.background
 
