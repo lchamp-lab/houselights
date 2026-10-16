@@ -259,10 +259,13 @@ interface LibraryDao {
     /**
      * Moves a row to the file that replaced its own (see [MissingFiles]): what the user did with the
      * title stays. A file of another size is read again; one of the same size was only renamed.
+     * (SQLite reads the row as it was in every expression: fileSize is the old file's.)
      */
     @Query(
         "UPDATE items SET filePath = :filePath, fileSize = :fileSize, " +
-            "mediaInfo = CASE WHEN fileSize = :fileSize THEN mediaInfo ELSE NULL END, missingSince = NULL WHERE id = :id"
+            "mediaInfo = CASE WHEN fileSize = :fileSize THEN mediaInfo ELSE NULL END, " +
+            "probeVersion = CASE WHEN fileSize = :fileSize THEN probeVersion ELSE 0 END, " +
+            "fileDurationMs = CASE WHEN fileSize = :fileSize THEN fileDurationMs ELSE NULL END, missingSince = NULL WHERE id = :id"
     )
     suspend fun relink(id: Long, filePath: String, fileSize: Long)
 

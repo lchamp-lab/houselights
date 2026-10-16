@@ -4,6 +4,7 @@ import android.database.sqlite.SQLiteConstraintException
 import androidx.room.Room
 import androidx.room.withTransaction
 import androidx.test.core.app.ApplicationProvider
+import app.houselights.core.MediaInfo
 import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
 import app.houselights.core.Secrets
@@ -63,6 +64,22 @@ class LibraryDaoTest {
     }
 
     private fun assertFitsAndroid9() = assertTrue("${widest.get()} values in one statement", widest.get() <= ANDROID_9_LIMIT)
+
+    /** A file renamed keeps what was read of it; one of another size is read again, its probe and length with it. */
+    @Test
+    fun aFileReplacedByOneOfAnotherSizeIsReadAgain() = runTest {
+        val info = MediaInfo(container = "MKV", durationMs = 7_094_000, probedWith = MediaProbe.VERSION)
+        val read = row(ItemKind.MOVIE, "Dune").copy(fileSize = 42).withMedia(info)
+        val renamed = dao.insert(read)
+        val replaced = dao.insert(read.copy(filePath = "Arrival.mkv"))
+        dao.relink(renamed, "Dune (2021).mkv", 42)
+        dao.relink(replaced, "Arrival (2016).mkv", 43)
+
+        val kept = checkNotNull(dao.item(renamed))
+        assertEquals(Triple(read.mediaInfo, MediaProbe.VERSION, 7_094_000L), Triple(kept.mediaInfo, kept.probeVersion, kept.fileDurationMs))
+        val again = checkNotNull(dao.item(replaced))
+        assertEquals(Triple(null, 0, null), Triple(again.mediaInfo, again.probeVersion, again.fileDurationMs))
+    }
 
     @Test
     fun removesMoreItemsThanAStatementTakes() = runTest {

@@ -5,6 +5,7 @@ import androidx.room.Index
 import androidx.room.PrimaryKey
 import androidx.room.ProvidedTypeConverter
 import androidx.room.TypeConverter
+import app.houselights.core.MediaInfo
 import app.houselights.core.Secrets
 
 enum class SourceKind { MOVIES, SHOWS }
@@ -81,9 +82,14 @@ const val ITEM_ROW =
     "id, kind, sourceId, parentId, seriesId, matchKey, tmdbId, title, sortTitle, originalTitle, " +
     "overview, tagline, year, endYear, continuing, runtimeMin, certification, rating, genres, " +
     "directors, posterPath, backdropPath, logoPath, stillPath, seasonNumber, episodeNumber, lastEpisodeNumber, filePath, " +
-    "parts, fileSize, missingSince, badges, mediaInfo, nfoPath, NULL AS nfo, sidecarKey, userTmdbId, userPosterPath, " +
+    "parts, fileSize, missingSince, badges, mediaInfo, probeVersion, fileDurationMs, nfoPath, NULL AS nfo, sidecarKey, " +
+    "userTmdbId, userPosterPath, " +
     "userBackdropPath, userLogoPath, collectionId, addedAt, matchedAt, positionMs, durationMs, played, favorite, " +
     "lastPlayedAt"
+
+/** [info] as the row keeps it: its JSON, and the columns read without decoding it. */
+internal fun ItemEntity.withMedia(info: MediaInfo): ItemEntity =
+    copy(mediaInfo = MediaProbe.encode(info), probeVersion = info.probedWith, fileDurationMs = info.durationMs)
 
 /** What a show's card tells about its episodes (see [LibraryDao.seriesCounts]). */
 data class SeriesCounts(val seriesId: Long, val unplayed: Int, val seasons: Int)
@@ -137,8 +143,15 @@ data class ItemEntity(
     /** When a scan first missed the file: its row waits a while (see [MissingFiles]); null while the file is listed. */
     val missingSince: Long? = null,
     val badges: List<String> = emptyList(),
-    /** [app.houselights.core.MediaInfo] as JSON; null until the file has been read. */
+    /** [app.houselights.core.MediaInfo] as JSON; null until the file has been read. Written with [withMedia]. */
     val mediaInfo: String? = null,
+    /**
+     * The probe that read [mediaInfo] ([MediaInfo.probedWith]; 0 until read), in a column of its own: a scan
+     * tells the files to read again without decoding what each one holds.
+     */
+    val probeVersion: Int = 0,
+    /** The length [mediaInfo] gives, in a column of its own: cards show it without decoding what the file holds. */
+    val fileDurationMs: Long? = null,
     /** The NFO file next to the video (or the show), and its raw content. */
     val nfoPath: String? = null,
     val nfo: String? = null,

@@ -58,6 +58,7 @@ class MigrationTest {
                 assertEquals("from $version", 600_000L to true, dune.positionMs to dune.favorite)
                 // Version 6 matches films again, for them to learn their collection.
                 assertEquals("from $version", null, dune.matchedAt)
+                assertEquals("from $version: never read", 0 to null, dune.probeVersion to dune.fileDurationMs)
             } finally {
                 db.close()
                 context.deleteDatabase(name)
@@ -191,6 +192,53 @@ class MigrationTest {
             assertEquals(null, pilot.sidecarKey)
             assertEquals("Show/S01E01.nfo", pilot.nfoPath)
             assertTrue(pilot.played)
+        } finally {
+            db.close()
+            context.deleteDatabase(name)
+        }
+    }
+
+    /**
+     * Version 11 reads, once, what each file was read with and how long it lasts out of its JSON, into columns
+     * of their own; the JSON and what the user did with each title stay as they were. A JSON that cannot be read
+     * leaves the file to read again, as it did.
+     */
+    @Test
+    fun version11ReadsEachFilesProbeAndLengthIntoTheirColumns() = runTest {
+        val name = "migration-11-test.db"
+        context.deleteDatabase(name)
+        val read = """{"container":"MKV","durationMs":9300000,"video":{"codec":"HEVC","width":3840},"probedWith":3}"""
+        val fromNfo = """{"container":"AVI","video":{"codec":"MPEG-4"}}"""
+        SchemaHistory.create(context, name, version = 10) {
+            execSQL(
+                "INSERT INTO sources (id, name, kind, protocol, host, share, path, username, password, domain, lastScanAt, firstScanAt) " +
+                    "VALUES (1, 'Films', 'MOVIES', 'NFS', 'nas', 'media', 'films', '', '', '', 1000, 1000)"
+            )
+            for ((id, mediaInfo) in listOf(1 to read, 2 to fromNfo, 3 to "not json", 4 to null)) {
+                execSQL(
+                    "INSERT INTO items (id, kind, sourceId, title, sortTitle, continuing, genres, directors, filePath, parts, fileSize, " +
+                        "badges, mediaInfo, userTmdbId, userPosterPath, addedAt, positionMs, durationMs, played, favorite, lastPlayedAt) " +
+                        "VALUES (?, 'MOVIE', 1, 'Film', 'film', 0, '', '', ?, '', 42, '4K', ?, 438631, 'file:/poster.jpg', 0, 600000, " +
+                        "9000000, 0, 1, 5)",
+                    arrayOf<Any?>(id, "Film $id.mkv", mediaInfo),
+                )
+            }
+        }
+        val db = Room.databaseBuilder(context, LibraryDatabase::class.java, name)
+            .addTypeConverter(SecretConverter(secrets))
+            .addMigrations(*LibraryDatabase.migrations(secrets))
+            .build()
+        try {
+            val films = (1L..4L).map { checkNotNull(db.dao().item(it)) }
+            assertEquals(listOf(3, 0, 0, 0), films.map { it.probeVersion })
+            assertEquals(listOf(9_300_000L, null, null, null), films.map { it.fileDurationMs })
+            assertEquals(listOf(read, fromNfo, "not json", null), films.map { it.mediaInfo })
+            for (film in films) {
+                assertEquals(438631 to "file:/poster.jpg", film.userTmdbId to film.userPosterPath)
+                assertEquals(600_000L to 9_000_000L, film.positionMs to film.durationMs)
+                assertEquals(true to 5L, film.favorite to film.lastPlayedAt)
+                assertEquals(listOf("4K"), film.badges)
+            }
         } finally {
             db.close()
             context.deleteDatabase(name)
