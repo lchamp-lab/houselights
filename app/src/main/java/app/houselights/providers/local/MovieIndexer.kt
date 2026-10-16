@@ -62,18 +62,25 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
         saveMovie(item.copy(nfoPath = kept.path, nfo = kept.text), nfo, fetched, art, tmdb.client, now)
     }
 
-    suspend fun identify(item: ItemEntity, tmdbId: Int?, tmdb: TmdbClient) {
-        val parsed = LibraryScanner.parseMovie(item.filePath ?: return)
+    /**
+     * Asks TMDB all a new match needs (the film, its collection's details), then returns the writes
+     * that apply it, for the caller to run at once ([LibraryScanner.identify]): TMDB out of reach
+     * throws before anything is written.
+     */
+    suspend fun identify(item: ItemEntity, tmdbId: Int?, tmdb: TmdbClient): suspend () -> Unit {
+        val parsed = LibraryScanner.parseMovie(item.filePath ?: return {})
         val nfo = item.nfo?.let(NfoParser::parse)
-        // Fetched before anything changes: an unreachable TMDB throws here.
         val fetched = fetch(TmdbPass(tmdb, strict = true), tmdbId, nfo, refresh = false) { client ->
             if (tmdbId != null) client.movie(tmdbId) else lookupMovie(client, null, nfo, parsed)
         }
-        dao.setUserTmdbId(item.id, tmdbId)
-        if (fetched.movie?.id != item.tmdbId) dao.clearUserArtwork(item.id)
-        val fresh = dao.item(item.id) ?: return
-        val cleared = MetadataMerge.withoutDetails(fresh, parsed.title, parsed.year)
-        saveMovie(cleared, nfo, fetched, LocalArt.of(fresh), tmdb, System.currentTimeMillis())
+        return {
+            dao.setUserTmdbId(item.id, tmdbId)
+            if (fetched.movie?.id != item.tmdbId) dao.clearUserArtwork(item.id)
+            dao.item(item.id)?.let { fresh ->
+                val cleared = MetadataMerge.withoutDetails(fresh, parsed.title, parsed.year)
+                saveMovie(cleared, nfo, fetched, LocalArt.of(fresh), tmdb, System.currentTimeMillis())
+            }
+        }
     }
 
     /**

@@ -8,6 +8,7 @@ import app.houselights.ui.util.UiError
 import app.houselights.ui.util.toUiError
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -164,24 +165,30 @@ class LibraryScanner(
 
     /**
      * Matches a film or show with the TMDB title the user chose, or goes back to automatic
-     * matching when [tmdbId] is null. Seasons and episodes of a show follow. Throws when TMDB
-     * cannot be reached, leaving the item as it was.
+     * matching when [tmdbId] is null. Seasons and episodes of a show follow. Everything is asked to
+     * TMDB first: when it cannot answer, this throws and the item stays as it was. Then everything is
+     * written in one transaction, which leaving the screen does not cut short.
      */
     suspend fun identify(itemId: Long, tmdbId: Int?) {
         withContext(Dispatchers.IO) {
             val tmdb = interactiveTmdb() ?: throw NoTmdbKeyException()
             lock.withLock {
                 val item = dao.item(itemId) ?: return@withLock
-                when (item.kind) {
+                val writes = when (item.kind) {
                     ItemKind.MOVIE -> movies.identify(item, tmdbId, tmdb)
                     ItemKind.SERIES -> shows.identify(item, tmdbId, tmdb)
                     else -> error("Only films and shows can be identified")
                 }
-                // The film may have left its collection for another one.
-                dao.deleteEmptyCollections()
+                withContext(NonCancellable) {
+                    dao.inTransaction {
+                        writes()
+                        // The film may have left its collection for another one.
+                        dao.deleteEmptyCollections()
+                    }
+                    _changed.tryEmit(Unit)
+                }
             }
         }
-        _changed.emit(Unit)
     }
 
     private fun client(): TmdbClient? = tmdb()

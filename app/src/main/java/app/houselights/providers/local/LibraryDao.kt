@@ -269,6 +269,10 @@ interface LibraryDao {
         deleteEmptyCollections()
     }
 
+    /** [writes], all or none: an identification, which changes a title, its seasons and its episodes. */
+    @Transaction
+    suspend fun inTransaction(writes: suspend () -> Unit) = writes()
+
     /**
      * Saves what a scan found without touching what the user owns: artwork and match choices,
      * favourite, watched state and resume point may have changed while the scan was working.

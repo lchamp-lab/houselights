@@ -127,17 +127,31 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
         return saveShow(series.copy(nfoPath = kept.path, nfo = kept.text), nfo, tv, art, tmdb.client, now)
     }
 
-    suspend fun identify(series: ItemEntity, tmdbId: Int?, tmdb: TmdbClient) {
+    /**
+     * Asks TMDB all a new match needs (the show, then each of its seasons the library holds), then
+     * returns the writes that apply it to the show, its seasons and episodes, for the caller to run at
+     * once ([LibraryScanner.identify]): TMDB out of reach throws before anything is written.
+     */
+    suspend fun identify(series: ItemEntity, tmdbId: Int?, tmdb: TmdbClient): suspend () -> Unit {
         val (title, year) = showQuery(series)
         val nfo = series.nfo?.let(NfoParser::parse)
-        // Fetched before anything changes: an unreachable TMDB throws here.
         val tv = TmdbAnswer.Given(if (tmdbId != null) tmdb.tv(tmdbId) else lookupShow(tmdb, null, nfo, title, year))
-        dao.setUserTmdbId(series.id, tmdbId)
-        if (tv.value?.id != series.tmdbId) dao.clearUserArtwork(series.id)
-        val fresh = dao.item(series.id) ?: return
-        val now = System.currentTimeMillis()
-        val saved = saveShow(MetadataMerge.withoutDetails(fresh, title, year), nfo, tv, LocalArt.of(fresh), tmdb, now)
-        refreshSeasons(saved, tmdb, now)
+        // The show's id once saved (see saveShow): TMDB's, else that of an NFO describing it.
+        val showId = tv.value?.id ?: nfo?.takeUnless { MetadataMerge.describesOther(it, tmdbId, null) }?.tmdbId
+        val cache = SeasonCache(TmdbPass(tmdb, strict = true))
+        val seasons = showId?.let { id ->
+            dao.children(series.id).filter { it.kind == ItemKind.SEASON }.mapNotNull { it.seasonNumber }
+                .associateWith { cache.get(id, it).value }
+        }.orEmpty()
+        return {
+            dao.setUserTmdbId(series.id, tmdbId)
+            if (tv.value?.id != series.tmdbId) dao.clearUserArtwork(series.id)
+            dao.item(series.id)?.let { fresh ->
+                val now = System.currentTimeMillis()
+                val saved = saveShow(MetadataMerge.withoutDetails(fresh, title, year), nfo, tv, LocalArt.of(fresh), tmdb, now)
+                refreshSeasons(saved, seasons, now)
+            }
+        }
     }
 
     /** The show's name and year as its folder gives them, through one of its episodes. */
@@ -212,13 +226,12 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
     )
 
     /**
-     * After a new match, seasons and episodes take the new show's details at once, from
-     * what the library already knows of their files (NFO, local thumbs).
+     * After a new match, seasons and episodes take the new show's details at once ([details], by
+     * season number, asked before), and what the library already knows of their files (NFO, local thumbs).
      */
-    private suspend fun refreshSeasons(series: ItemEntity, tmdb: TmdbClient, now: Long) {
-        val cache = SeasonCache(TmdbPass(tmdb, strict = true))
+    private suspend fun refreshSeasons(series: ItemEntity, details: Map<Int, TmdbSeason?>, now: Long) {
         for (season in dao.children(series.id).filter { it.kind == ItemKind.SEASON }) {
-            val meta = series.tmdbId?.let { id -> season.seasonNumber?.let { cache.get(id, it).value } }
+            val meta = season.seasonNumber?.let { details[it] }
             dao.saveScanned(season.withSeasonDetails(meta, now))
             for (episode in dao.children(season.id)) {
                 val nfo = episode.nfo?.let(NfoParser::parse)
