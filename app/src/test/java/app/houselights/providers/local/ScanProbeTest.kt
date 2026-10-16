@@ -112,6 +112,31 @@ class ScanProbeTest {
         assertEquals("Bonne nouvelle" to MediaProbe.VERSION, episode.title to episode.probeVersion)
     }
 
+    /**
+     * A show's NFO rewritten while its episodes wait for a newer probe is read in the same pass: a probe's
+     * re-read reads no show, so it does not stand in for one, nor does it read the show twice.
+     */
+    @Test
+    fun aShowsNfoRewrittenIsReadThoughItsEpisodesWaitForANewerProbe() = runTest {
+        val shows = bench.folder("Séries", SourceKind.SHOWS)
+        val pilot = "Severance/Season 1/Severance - S01E01.mkv"
+        tmdb.show(95396, "Severance", 2022)
+        tmdb.season(95396, 1, episodes = 2)
+        bench.showsNas.put(pilot, size = 4_000_000_000, bytes = MkvProbeTest().sampleFile())
+        val nfo = { title: String -> "<tvshow><title>$title</title><uniqueid type=\"tmdb\">95396</uniqueid></tvshow>" }
+        put(bench.showsNas, "Severance/tvshow.nfo", nfo("Severance"))
+        bench.scan()
+        readByAnOlderProbe()
+        put(bench.showsNas, "Severance/tvshow.nfo", nfo("Severance : la série"))
+        bench.showsNas.reads.clear()
+
+        bench.scan()
+        assertEquals("each once", listOf(pilot, "Severance/tvshow.nfo"), bench.showsNas.reads.sorted())
+        val episode = bench.item(shows, pilot)
+        assertEquals(MediaProbe.VERSION, episode.probeVersion)
+        assertEquals("Severance : la série", checkNotNull(bench.dao.item(checkNotNull(episode.seriesId))).title)
+    }
+
     /** A file the probe does not open keeps what its NFO, as the row keeps it, says it holds. */
     @Test
     fun aFileTheProbeDoesNotOpenKeepsWhatItsNfoSays() = runTest {

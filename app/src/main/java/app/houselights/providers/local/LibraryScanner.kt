@@ -353,10 +353,10 @@ class LibraryScanner(
             val beside = SidecarKey.listed(source.kind, sidecars.forVideo(f))
             return workOn(known[f.relativePath], f, beside, tmdb.open && askUnmatched, refreshMetadata)
         }
-        val own = files.filterNot { it.relativePath in waiting }.filter { work(it) != null }
-        // A show's own sidecars changed, none of its episodes read for themselves: one of them reads them.
-        val forShows = showsToRead(source, files, own, known, sidecars)
-        val todo = own + forShows.keys
+        val own = files.filterNot { it.relativePath in waiting }.associateWith { work(it) }.filterValues { it != null }
+        // A show's own sidecars changed, none of its episodes read whole for themselves: one of them reads them.
+        val forShows = showsToRead(source, files, own.filterValues { it == Work.FULL }.keys, known, sidecars)
+        val todo = own.keys.toList() + forShows.keys.filterNot { it in own }
         _state.update { it.copy(total = todo.size) }
         Log.i(
             TAG,
@@ -421,20 +421,20 @@ class LibraryScanner(
 
     /**
      * In a shows' folder, one known episode for each show folder whose show's own sidecars (tvshow.nfo,
-     * its poster…) are due ([SidecarKey.showDue]), unless [todo] reads one of its episodes there: by show,
-     * as a folder without one ("Show.S01E01.mkv" at the root) holds several. Each with its show's row id.
+     * its poster…) are due ([SidecarKey.showDue]), unless one of its episodes there is read [whole] (one read
+     * again for a newer probe alone reads no show): by show, as a folder without one ("Show.S01E01.mkv" at
+     * the root) holds several. Each with its show's row id.
      * Not for episodes of a show their path no longer names (keyed by an earlier rule): one of them read may
      * move to another show their path names, one already keyed so ([ShowIndexer]), and the rest one a pass.
      */
     private suspend fun showsToRead(
         source: SourceEntity,
         files: List<RemoteFile>,
-        todo: List<RemoteFile>,
+        whole: Set<RemoteFile>,
         known: Map<String, KnownFile>,
         sidecars: Sidecars,
     ): Map<RemoteFile, Long> {
         if (source.kind != SourceKind.SHOWS) return emptyMap()
-        val reading = todo.toSet()
         // Known episodes by show folder and show; the show's folder parsed once for each folder they lie in.
         val byFolder = files.groupBy { f -> known[f.relativePath]?.seriesId?.let { Sidecars.folderOf(f.relativePath) to it } }
             .mapNotNull { (key, episodes) ->
@@ -447,17 +447,17 @@ class LibraryScanner(
         return byFolder.entries.mapNotNull { (key, episodes) ->
             val (dir, seriesId, name) = key
             val show = shows[seriesId]?.takeIf { it.matchKey?.substringBefore(FilenameParser.YEAR_MARK) == name } ?: return@mapNotNull null
-            val due = episodes.none { it in reading } && SidecarKey.showDue(show.sidecarKey, source.id, dir, sidecars)
+            val due = episodes.none { it in whole } && SidecarKey.showDue(show.sidecarKey, source.id, dir, sidecars)
             if (due) episodes.first() to seriesId else null
         }.toMap()
     }
 
     /**
-     * What a file still needs ([work]); one read for its show ([showsToRead]) is read whole, unless another
-     * episode read the show meanwhile.
+     * What a file still needs ([work]); one read for its show ([showsToRead]) is read whole, though its own
+     * file only waited for a newer probe, unless another episode read the show meanwhile.
      */
     private fun stillDue(work: (RemoteFile) -> Work?, forShows: Map<RemoteFile, Long>): (RemoteFile) -> Work? =
-        { file -> work(file) ?: Work.FULL.takeIf { forShows[file]?.let(shows::readThisPass) == false } }
+        { file -> Work.FULL.takeIf { forShows[file]?.let(shows::readThisPass) == false } ?: work(file) }
 
     /**
      * Videos of a shows' folder that name no episode get no row, and nothing else tells of them: the
