@@ -25,6 +25,7 @@ class NfsListingTest {
      */
     private inner class Export(private val perAnswer: Int = 100) : NfsExport {
         val asked = mutableListOf<String>()
+        val read = mutableListOf<String>()
 
         private fun handle(path: String) = path.toByteArray()
 
@@ -58,7 +59,7 @@ class NfsListingTest {
             return NfsEntry(name, handle(path), attributes(item))
         }
 
-        override fun read(path: String, offset: Long, length: Int) = ByteArray(0)
+        override fun read(path: String, offset: Long, length: Int) = ByteArray(0).also { read += path }
 
         private fun attributes(item: Item) = NfsAttributes(item.isFolder, item.size, item.date)
     }
@@ -178,6 +179,16 @@ class NfsListingTest {
     fun aTestCountsTheFolder() = runTest {
         library()
         assertEquals(3, browser(Export()).test(films))
+    }
+
+    /** A file of a folder deep in the export, by its path from the export's root. */
+    @Test
+    fun aFileIsReadByItsPathInTheExport() = runTest {
+        val export = Export()
+        val nas = browser(export)
+        nas.readPrefix(films.copy(path = "/films/4K/"), "Dune (2021)/movie.nfo", 16)
+        nas.readPrefix(films, "Sicario (2015).mp4", 16)
+        assertEquals(listOf("/films/4K/Dune (2021)/movie.nfo", "/Sicario (2015).mp4"), export.read)
     }
 
     @Test

@@ -395,8 +395,8 @@ object MkvProbe {
         private fun bitDepthFromPrivate(): Int? {
             val p = codecPrivate ?: return null
             return when {
-                codecId == "V_MPEGH/ISO/HEVC" && p.size > 17 -> (p[17].toInt() and 0x07) + 8
-                codecId == "V_MPEG4/ISO/AVC" && p.size > 1 -> if ((p[1].toInt() and 0xFF) == 110) 10 else 8
+                codecId == HEVC_ID && p.size > 17 -> (p[17].toInt() and 0x07) + 8
+                codecId == AVC_ID && p.size > 1 -> if ((p[1].toInt() and 0xFF) == 110) 10 else 8
                 else -> null
             }
         }
@@ -461,6 +461,7 @@ object MkvProbe {
     }
 
     private const val HEVC_ID = "V_MPEGH/ISO/HEVC"
+    private const val AVC_ID = "V_MPEG4/ISO/AVC"
     private const val TRUEHD_ID = "A_TRUEHD"
     private const val EAC3_ID = "A_EAC3"
     private const val AC3_ID = "A_AC3"
@@ -501,8 +502,8 @@ object MkvProbe {
 
     /** [codecPrivate]: what a track remuxed from an AVI (V_MS/VFW/FOURCC) is named by, its FOURCC. */
     private fun videoCodec(id: String, codecPrivate: ByteArray?) = when {
-        id == "V_MPEGH/ISO/HEVC" -> Codecs.HEVC
-        id == "V_MPEG4/ISO/AVC" -> Codecs.AVC
+        id == HEVC_ID -> Codecs.HEVC
+        id == AVC_ID -> Codecs.AVC
         id == "V_AV1" -> Codecs.AV1
         id == "V_VP9" -> Codecs.VP9
         id.startsWith("V_MPEG2") -> Codecs.MPEG2
@@ -514,10 +515,10 @@ object MkvProbe {
 
     /** [codecPrivate]: what a track remuxed from an AVI (A_MS/ACM) is named by, its format tag. */
     private fun audioCodec(id: String, codecPrivate: ByteArray?) = when {
-        id == "A_TRUEHD" -> Codecs.TRUEHD
-        id == "A_DTS" -> Codecs.DTS
-        id == "A_EAC3" -> Codecs.EAC3
-        id == "A_AC3" -> Codecs.AC3
+        id == TRUEHD_ID -> Codecs.TRUEHD
+        id == DTS_ID -> Codecs.DTS
+        id == EAC3_ID -> Codecs.EAC3
+        id == AC3_ID -> Codecs.AC3
         id.startsWith("A_AAC") -> Codecs.AAC
         id == "A_FLAC" -> Codecs.FLAC
         id == "A_OPUS" -> Codecs.OPUS
@@ -576,14 +577,9 @@ object MkvProbe {
 
         /** Element data size; null when the size is "unknown" (all value bits set). */
         fun readSize(): Long? {
-            val first = byte(pos)
-            val length = Integer.numberOfLeadingZeros(first) - 23
-            require(length in 1..8) { "Bad element size" }
-            var value = (first and (0xFF shr length)).toLong()
-            pos++
-            repeat(length - 1) { value = (value shl 8) or byte(pos++).toLong() }
-            val unknown = (1L shl (7 * length)) - 1
-            return if (value == unknown) null else value
+            val (value, length) = Ebml.vint(bytes, pos, end)
+            pos += length
+            return value.takeUnless { Ebml.isUnknown(it, length) }
         }
 
         fun skipElement() {

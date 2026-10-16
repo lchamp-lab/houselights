@@ -1,12 +1,12 @@
 package app.houselights.providers.jellyfin
 
+import app.houselights.core.lenientJson
 import app.houselights.core.suspendRunCatching
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
 import java.net.DatagramPacket
 import java.net.DatagramSocket
 import java.net.InetSocketAddress
@@ -22,7 +22,6 @@ data class DiscoveredServer(
 
 /** Finds Jellyfin servers on the local network (UDP broadcast on port 7359). */
 object ServerDiscovery {
-    private val json = Json { ignoreUnknownKeys = true }
     private val BROADCAST = InetSocketAddress("255.255.255.255", 7359)
 
     /** More answers than this are not servers to choose from. */
@@ -46,7 +45,7 @@ object ServerDiscovery {
                         val packet = DatagramPacket(buf, buf.size)
                         if (!socket.receiveBefore(deadline, packet)) break
                         val text = String(packet.data, 0, packet.length)
-                        suspendRunCatching { json.decodeFromString<DiscoveredServer>(text) }
+                        suspendRunCatching { lenientJson.decodeFromString<DiscoveredServer>(text) }
                             .getOrNull()
                             ?.let { found[it.id ?: it.address] = it }
                     }

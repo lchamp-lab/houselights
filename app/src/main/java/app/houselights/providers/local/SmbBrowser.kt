@@ -36,23 +36,18 @@ internal class SmbBrowser(
     )
 
     override suspend fun list(source: SourceEntity): Listing = withSession(source) { share ->
-        walk(folder(share, root(source).replace('/', '\\'))) { ScanErrors.isUnreachable(it) || isBroken(it) }
+        walk(folder(share, remotePath(source, separator = '\\'))) { ScanErrors.isUnreachable(it) || isBroken(it) }
     }
 
     /** Signs in of its own, with what the form says: a session kept, signed in with the password stored, would let a wrong one through. */
     override suspend fun test(source: SourceEntity): Int = withContext(Dispatchers.IO) {
         sessions.once({ connect(source) }) { share ->
-            share.list(root(source).replace('/', '\\')).count { !RemoteBrowser.skip(it.name) }
+            share.list(remotePath(source, separator = '\\')).count { !RemoteBrowser.skip(it.name) }
         }
     }
 
     override suspend fun readAt(source: SourceEntity, relativePath: String, offset: Long, length: Int): ByteArray =
-        withSession(source) { share ->
-            val path = listOf(root(source), relativePath).filter { it.isNotEmpty() }.joinToString("\\") { it.replace('/', '\\') }
-            share.read(path, offset, length)
-        }
-
-    private fun root(source: SourceEntity) = source.path.trim('/')
+        withSession(source) { share -> share.read(remotePath(source, relativePath, '\\'), offset, length) }
 
     /** Who signs in where: the folders of one share and account share a session. */
     private fun key(source: SourceEntity) = "${source.username}@${source.domain}/${source.host}/${source.share}"
@@ -175,16 +170,7 @@ private class SmbjShare(
         SMB2ShareAccess.ALL,
         SMB2CreateDisposition.FILE_OPEN,
         null,
-    ).use { file ->
-        val bytes = ByteArray(length)
-        var total = 0
-        while (total < length) {
-            val n = file.read(bytes, offset + total, total, length - total)
-            if (n <= 0) break
-            total += n
-        }
-        if (total == length) bytes else bytes.copyOf(total)
-    }
+    ).use { file -> readFully(length) { bytes, at, count -> file.read(bytes, offset + at, at, count) } }
 
     override val isOpen: Boolean get() = connection.isConnected && share.isConnected
 

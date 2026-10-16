@@ -1,10 +1,11 @@
 package app.houselights.player
 
 import app.houselights.core.Http
+import app.houselights.core.HttpStatus
+import app.houselights.core.lenientJson
 import app.houselights.core.suspendRunCatching
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.intOrNull
@@ -44,8 +45,6 @@ object ZidooStatus {
         .readTimeout(2, TimeUnit.SECONDS)
         .build()
 
-    private val json = Json { ignoreUnknownKeys = true }
-
     /** What the player plays now; [PlayerAnswer.NoAnswer] when its API is out of reach. */
     suspend fun playStatus(): PlayerAnswer = withContext(Dispatchers.IO) {
         suspendRunCatching {
@@ -56,10 +55,10 @@ object ZidooStatus {
 
     /** What an answer of getPlayStatus says: a file playing, nothing playing (status 804/806), or nothing that makes sense. */
     internal fun parse(body: String): PlayerAnswer = runCatching {
-        val root = json.parseToJsonElement(body).jsonObject
+        val root = lenientJson.parseToJsonElement(body).jsonObject
         val code = root["status"]?.jsonPrimitive?.intOrNull
         if (code in NOTHING_PLAYS) return@runCatching PlayerAnswer.NothingPlays
-        val video = root["video"]?.jsonObject?.takeIf { code == HTTP_OK }
+        val video = root["video"]?.jsonObject?.takeIf { code == HttpStatus.OK }
         val duration = video?.get("duration")?.jsonPrimitive?.longOrNull?.takeIf { it > 0 } ?: return@runCatching PlayerAnswer.NoAnswer
         // Not formally documented: 1 = playing, 0 = paused, -1 = error.
         val status = video["status"]?.jsonPrimitive?.intOrNull ?: -1
@@ -74,8 +73,6 @@ object ZidooStatus {
             )
         )
     }.getOrDefault(PlayerAnswer.NoAnswer)
-
-    private const val HTTP_OK = 200
 
     /** The answers that say nothing plays: no video open (804), the player not running (806). */
     private val NOTHING_PLAYS = setOf(804, 806)

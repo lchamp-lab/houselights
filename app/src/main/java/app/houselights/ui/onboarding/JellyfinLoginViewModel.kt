@@ -10,6 +10,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import app.houselights.AppContainer
+import app.houselights.core.HttpStatus
 import app.houselights.core.SecretsUnavailableException
 import app.houselights.core.SourceConfig
 import app.houselights.core.suspendRunCatching
@@ -63,8 +64,6 @@ sealed interface LoginError {
     data object Failed : LoginError
 }
 
-private const val HTTP_UNAUTHORIZED = 401
-
 /**
  * What signing in at [address] (where the server was reached, else what was typed) failed on, in
  * words the user can act on. A failure to reach the server names the address whose failure says
@@ -84,7 +83,7 @@ private fun answerError(e: Throwable, address: String): LoginError {
     val at = reach?.url ?: address
     val cause = reach?.cause ?: e
     return when {
-        cause is HttpException && cause.code() == HTTP_UNAUTHORIZED -> LoginError.Refused
+        cause is HttpException && cause.code() == HttpStatus.UNAUTHORIZED -> LoginError.Refused
         cause.isCertificateFailure() -> LoginError.Certificate(at)
         cause is SerializationException || (reach != null && cause is HttpException) -> LoginError.NotJellyfin(at)
         cause is IOException -> LoginError.Unreachable(at)

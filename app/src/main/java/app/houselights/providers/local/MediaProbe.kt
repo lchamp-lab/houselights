@@ -2,9 +2,9 @@ package app.houselights.providers.local
 
 import android.util.Log
 import app.houselights.core.MediaInfo
+import app.houselights.core.lenientJson
 import app.houselights.core.suspendRunCatching
 import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
 
 /** What a probe made of a file. */
 sealed interface ProbeResult {
@@ -52,8 +52,6 @@ object MediaProbe {
      */
     private const val MAX_READS = 4
 
-    val json = Json { ignoreUnknownKeys = true }
-
     /**
      * The version of what a probe reads, kept with each reading: a file read by an older probe is
      * read again at the next scan, its headers only. 1: the frame rate. 2: formats read from the
@@ -65,9 +63,9 @@ object MediaProbe {
     /** A file not read yet, or read by an older probe. */
     fun isStale(mediaInfo: String?): Boolean = (decode(mediaInfo)?.probedWith ?: -1) < VERSION
 
-    fun encode(info: MediaInfo): String = json.encodeToString(info)
+    fun encode(info: MediaInfo): String = lenientJson.encodeToString(info)
 
-    fun decode(text: String?): MediaInfo? = text?.let { runCatching { json.decodeFromString<MediaInfo>(it) }.getOrNull() }
+    fun decode(text: String?): MediaInfo? = text?.let { runCatching { lenientJson.decodeFromString<MediaInfo>(it) }.getOrNull() }
 
     /**
      * A file whose inside cannot be read still gets its container and size, for good, and so does one

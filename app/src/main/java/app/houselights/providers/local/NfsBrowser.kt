@@ -47,10 +47,8 @@ internal class NfsBrowser(
         mounts.once({ mount(source) }) { export -> entries(export, export.folder(root(source))).count { !RemoteBrowser.skip(it.name) } }
     }
 
-    override suspend fun readAt(source: SourceEntity, relativePath: String, offset: Long, length: Int): ByteArray {
-        val path = "/" + listOf(source.path.trim('/'), relativePath).filter { it.isNotEmpty() }.joinToString("/")
-        return withMount(source) { it.read(path, offset, length) }
-    }
+    override suspend fun readAt(source: SourceEntity, relativePath: String, offset: Long, length: Int): ByteArray =
+        withMount(source) { it.read("/" + remotePath(source, relativePath), offset, length) }
 
     private fun key(source: SourceEntity) = "${source.host}:${export(source)}"
 
@@ -67,7 +65,7 @@ internal class NfsBrowser(
     /** Drops the mounts no operation uses; called when a scan ends. */
     fun closeIdle() = mounts.closeIdle()
 
-    private fun root(source: SourceEntity) = "/" + source.path.trim('/')
+    private fun root(source: SourceEntity) = "/" + remotePath(source)
 
     /**
      * The folder whose handle is [dir]. READDIRPLUS tells of each entry what it is, its size, its date

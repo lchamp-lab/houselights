@@ -25,6 +25,7 @@ class SmbBrowserTest {
         var hungUp = false
         var failure: Throwable? = null
         val closes = mutableListOf<Boolean>()
+        val read = mutableListOf<String>()
 
         override fun list(path: String): List<SmbEntry> {
             failure?.let { throw it }
@@ -33,6 +34,7 @@ class SmbBrowserTest {
 
         override fun read(path: String, offset: Long, length: Int): ByteArray {
             failure?.let { throw it }
+            read += path
             return ByteArray(length)
         }
 
@@ -155,6 +157,15 @@ class SmbBrowserTest {
         assertEquals(listOf("Films/Dune (2021)/Dune (2021).mkv"), listing.videos.map { it.relativePath })
         assertEquals(listOf("Private"), listing.unreadable)
         assertEquals(emptyList<Boolean>(), opened.single().closes)
+    }
+
+    /** A file of a folder deep in the share, by its path from the share's root, "\" separators. */
+    @Test
+    fun aFileIsReadByItsPathInTheShare() = runTest {
+        val films = folder().copy(path = "/Films/4K/")
+        browser.readPrefix(films, "Dune (2021)/movie.nfo", 16)
+        browser.readPrefix(folder(), "Dune (2021).mkv", 16)
+        assertEquals(listOf("Films\\4K\\Dune (2021)\\movie.nfo", "Dune (2021).mkv"), opened.flatMap { it.read })
     }
 
     /** The listing tells when each file was last written: an NFO rewritten in place keeps its size, not its date. */
