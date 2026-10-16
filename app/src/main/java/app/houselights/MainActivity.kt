@@ -12,6 +12,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -47,6 +48,7 @@ import app.houselights.ui.util.UiError
 import app.houselights.ui.util.appContainer
 import app.houselights.ui.util.toUiError
 import coil.imageLoader
+import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlMotion
 import app.houselights.ui.design.LocalHouseLights
 import app.houselights.ui.design.components.HouseLights
@@ -58,6 +60,7 @@ import app.houselights.ui.detail.DetailScreen
 import app.houselights.ui.detail.NfoScreen
 import app.houselights.ui.edit.ArtworkScreen
 import app.houselights.ui.edit.IdentifyScreen
+import app.houselights.ui.home.ErrorMessage
 import app.houselights.ui.home.HomeScreen
 import app.houselights.ui.library.LibraryScreen
 import app.houselights.ui.onboarding.AddFolderScreen
@@ -72,6 +75,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import app.houselights.settings.DisplayModes
+import app.houselights.settings.SettingsStore
 import app.houselights.settings.outputModes
 
 class MainActivity : ComponentActivity() {
@@ -223,7 +227,11 @@ class MainActivity : ComponentActivity() {
 private fun AppNavigation(nav: NavHostController, onPlay: (MediaItem, Boolean) -> Unit) {
     val app = appContainer()
     val settings by app.settings.state.collectAsStateWithLifecycle()
-    if (!settings.loaded) return
+    if (!settings.loaded) {
+        // Never a black screen: settings that cannot be read say so, and can be read again.
+        if (settings.readFailed) SettingsUnread(app.settings)
+        return
+    }
 
     val scope = rememberCoroutineScope()
     val start: Any = remember { if (settings.source != null) Route.Home else Route.Welcome }
@@ -302,6 +310,15 @@ private fun AppNavigation(nav: NavHostController, onPlay: (MediaItem, Boolean) -
         }
         // Debug builds only: every component in its states, for design review.
         if (BuildConfig.DEBUG) composable<Route.Catalog> { CatalogScreen() }
+    }
+}
+
+/** The settings could not be read, again and again: said, with Réessayer, at work while they are read again. */
+@Composable
+private fun SettingsUnread(settings: SettingsStore) {
+    val reading by settings.reading.collectAsStateWithLifecycle()
+    Box(Modifier.fillMaxSize().padding(top = HlLayout.errorTop)) {
+        ErrorMessage(UiError.SETTINGS_UNREAD, settings::readAgain, retrying = reading)
     }
 }
 

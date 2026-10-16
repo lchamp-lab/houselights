@@ -122,6 +122,22 @@ class SettingsStoreTest {
         assertEquals(emptySet<SecretSetting>(), written.state.value.lostSecrets)
     }
 
+    /** Réessayer, on the screen that says the settings could not be read, reads them at once. */
+    @Test
+    fun readingAgainDoesNotWaitForTheNextTry() = runTest {
+        val secrets = testSecrets()
+        val store = FlakyStore(failures = 5, prefs = stored(secrets))
+        val settings = SettingsStore(store, backgroundScope, secrets)
+        advanceTimeBy(2_000)
+        assertTrue(settings.state.value.readFailed)
+        val readsThen = store.reads
+        // The next try would come two seconds after the last one.
+        settings.readAgain()
+        runCurrent()
+        assertEquals(readsThen + 1, store.reads)
+        assertFalse(settings.reading.value)
+    }
+
     /** Sealing in the migration fails: the plain value stays, and the settings still open with it. */
     @Test
     fun aKeystoreThatCannotSealLeavesThePlainValue() = runTest {

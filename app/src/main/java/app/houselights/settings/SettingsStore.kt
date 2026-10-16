@@ -18,12 +18,13 @@ import app.houselights.core.SecretsUnavailableException
 import app.houselights.core.SourceConfig
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.retryWhen
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.util.UUID
@@ -153,6 +154,14 @@ class SettingsStore(
      */
     val state: StateFlow<AppSettings> = _state
 
+    /** Asked to read again at once ([readAgain]); one ask stands for any number. */
+    private val readNow = Channel<Unit>(Channel.CONFLATED)
+
+    private val _reading = MutableStateFlow(false)
+
+    /** A read asked by [readAgain] is under way: the screen that asked says it is at work. */
+    val reading: StateFlow<Boolean> = _reading
+
     init {
         scope.launch {
             dataStore.data
@@ -160,12 +169,27 @@ class SettingsStore(
                 .retryWhen { e, attempt ->
                     if (e is CancellationException) return@retryWhen false
                     Log.w(TAG, "Settings could not be read (try ${attempt + 1})", e)
+                    _reading.value = false
                     if (attempt + 1 >= READ_TRIES && !_state.value.loaded) _state.value = AppSettings(readFailed = true)
-                    delay(minOf(MAX_READ_WAIT_MS, FIRST_READ_WAIT_MS shl attempt.toInt().coerceAtMost(MAX_SHIFT)))
+                    // An ask from before this failure is answered by it.
+                    readNow.tryReceive()
+                    withTimeoutOrNull(minOf(MAX_READ_WAIT_MS, FIRST_READ_WAIT_MS shl attempt.toInt().coerceAtMost(MAX_SHIFT))) {
+                        readNow.receive()
+                    }
                     true
                 }
-                .collect { _state.value = it }
+                .collect {
+                    _reading.value = false
+                    _state.value = it
+                }
         }
+    }
+
+    /** After the settings could not be read ([AppSettings.readFailed]): reads them again now, not at the next try. */
+    fun readAgain() {
+        if (_state.value.loaded) return
+        _reading.value = true
+        readNow.trySend(Unit)
     }
 
     private fun Preferences.toSettings(): AppSettings {
