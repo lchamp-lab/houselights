@@ -386,6 +386,7 @@
     <string name="error_settings">This player’s storage did not answer. Try again, and if it lasts, restart the player.</string>
     <string name="error_not_saved_title">Nothing was saved</string>
     <string name="error_not_saved">This player’s storage refused the write. Free some space in Settings, under Storage, then try again.</string>
+    <string name="error_not_saved_player">This player’s storage refused the write, so nothing was saved. Free some space on the player, then try again.</string>
     <string name="welcome_lost_secrets">The connection saved on this player could not be read again. Choose where your films are once more.</string>
     <string name="settings_lost_tmdb_key">Your personal TMDB key could not be read again on this player. Type it again under TMDB API key.</string>
     <string name="settings_lost_mappings">The path mappings saved on this player could not be read again. Type them again below.</string>

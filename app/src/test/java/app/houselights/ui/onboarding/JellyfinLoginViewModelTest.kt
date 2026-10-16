@@ -1,5 +1,8 @@
 package app.houselights.ui.onboarding
 
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.emptyPreferences
 import app.houselights.core.SecretsUnavailableException
 import app.houselights.core.SourceConfig
 import app.houselights.providers.jellyfin.AuthRequest
@@ -11,11 +14,13 @@ import app.houselights.providers.jellyfin.UserDto
 import app.houselights.settings.SettingsStore
 import app.houselights.settings.SourceSwitcher
 import app.houselights.ui.testing.MainDispatcherRule
+import app.houselights.ui.testing.testSecrets
 import app.houselights.ui.testing.testSettings
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
@@ -65,10 +70,21 @@ class JellyfinLoginViewModelTest {
 
     private val network = FakeNetwork()
 
-    private suspend fun TestScope.login(settings: SettingsStore? = null): JellyfinLoginViewModel {
+    private suspend fun TestScope.login(
+        settings: SettingsStore? = null,
+        save: suspend (SourceConfig) -> Unit = { saved += it },
+    ): JellyfinLoginViewModel {
         val store = settings ?: testSettings(folder.root, backgroundScope)
-        val sources = SourceSwitcher({ store.state.value }, { saved += it }, backgroundScope, signOut = { _, _ -> })
+        val sources = SourceSwitcher({ store.state.value }, save, backgroundScope, signOut = { _, _ -> })
         return JellyfinLoginViewModel(store, sources, network)
+    }
+
+    /** Settings that read, and refuse every write: the device's storage is full. */
+    private class FullStore : DataStore<Preferences> {
+        override val data = flowOf(emptyPreferences())
+
+        override suspend fun updateData(transform: suspend (t: Preferences) -> Preferences): Preferences =
+            throw IOException("No space left on device")
     }
 
     @Test
@@ -118,6 +134,22 @@ class JellyfinLoginViewModelTest {
         assertEquals(LoginError.Keystore, loginError(e, "https://nas:8920"))
     }
 
+    /** The server took the password; the device refused to save it: said as the device's fault, never as the server out of reach. */
+    @Test
+    fun aServerThatCannotBeSavedSaysSo() = runTest {
+        // One settings file: a second DataStore on it would never read.
+        val settings = testSettings(folder.root, backgroundScope)
+        assertEquals(LoginError.NotSaved, failure(settings) { throw IOException("No space left on device") })
+        val keystore = SecretsUnavailableException(ProviderException("Keystore operation failed"))
+        assertEquals(LoginError.Keystore, failure(settings) { throw keystore })
+    }
+
+    /** The device's id cannot be written before the server is asked: the device's fault too. */
+    @Test
+    fun aDeviceIdThatCannotBeSavedSaysSo() = runTest {
+        assertEquals(LoginError.NotSaved, failure(SettingsStore(FullStore(), backgroundScope, testSecrets())))
+    }
+
     /** Lets signing in finish: the device id is written on DataStore's own threads. */
     private suspend fun TestScope.settle(vm: JellyfinLoginViewModel) {
         advanceUntilIdle()
@@ -127,8 +159,11 @@ class JellyfinLoginViewModelTest {
         }
     }
 
-    private suspend fun TestScope.failure(): LoginError? {
-        val vm = login()
+    private suspend fun TestScope.failure(
+        settings: SettingsStore? = null,
+        save: suspend (SourceConfig) -> Unit = { saved += it },
+    ): LoginError? {
+        val vm = login(settings, save)
         vm.server = "nas"
         var done = false
         vm.login { done = true }

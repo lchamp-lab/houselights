@@ -380,6 +380,7 @@
     <string name="error_settings">Le stockage du lecteur n’a pas répondu. Réessayez, et si cela dure, redémarrez le lecteur.</string>
     <string name="error_not_saved_title">Rien n’a été enregistré</string>
     <string name="error_not_saved">Le stockage du lecteur a refusé l’écriture. Libérez de la place dans les réglages, rubrique Stockage, puis réessayez.</string>
+    <string name="error_not_saved_player">Le stockage du lecteur a refusé l’écriture, rien n’a été enregistré. Libérez de la place sur le lecteur, puis réessayez.</string>
     <string name="welcome_lost_secrets">La connexion enregistrée sur ce lecteur n’a pas pu être relue. Indiquez de nouveau où sont vos films.</string>
     <string name="settings_lost_tmdb_key">Votre clé TMDB personnelle n’a pas pu être relue sur ce lecteur. Saisissez-la à nouveau dans Clé API TMDB.</string>
     <string name="settings_lost_mappings">Les correspondances de chemins enregistrées sur ce lecteur n’ont pas pu être relues. Saisissez-les à nouveau ci-dessous.</string>

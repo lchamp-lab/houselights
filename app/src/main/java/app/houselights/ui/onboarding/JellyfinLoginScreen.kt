@@ -105,6 +105,7 @@ private fun loginErrorText(e: LoginError): String = when (e) {
         else -> stringResource(R.string.error_server_old, e.address, e.version.orEmpty())
     }
     LoginError.Keystore -> stringResource(R.string.error_keystore_sign_in)
+    LoginError.NotSaved -> stringResource(R.string.error_not_saved_player)
     LoginError.Failed -> stringResource(R.string.error_server_unexpected)
 }
 

@@ -1,5 +1,8 @@
 package app.houselights.ui.util
 
+import android.database.sqlite.SQLiteConstraintException
+import android.database.sqlite.SQLiteDatabaseLockedException
+import android.database.sqlite.SQLiteDiskIOException
 import android.database.sqlite.SQLiteFullException
 import app.houselights.core.SecretsUnavailableException
 import app.houselights.providers.local.TmdbUnreachableException
@@ -43,6 +46,10 @@ class ActionsTest {
     fun aWriteToTheDeviceSaysWhatFailed() {
         assertEquals(UiError.NOT_SAVED, IOException("ENOSPC").toWriteError())
         assertEquals(UiError.NOT_SAVED, SQLiteFullException("database or disk is full").toWriteError())
+        assertEquals(UiError.NOT_SAVED, SQLiteDiskIOException("disk I/O error").toWriteError())
+        // A constraint or a lock is the database's own failure: freeing space would not fix it.
+        assertEquals(UiError.FAILED, SQLiteConstraintException("UNIQUE constraint failed").toWriteError())
+        assertEquals(UiError.FAILED, SQLiteDatabaseLockedException("database is locked").toWriteError())
         assertEquals(UiError.KEYSTORE, SecretsUnavailableException(ProviderException()).toWriteError())
         // TMDB asked on the way is still TMDB.
         assertEquals(UiError.TMDB_OFFLINE, TmdbUnreachableException(IOException("timeout")).toWriteError())
