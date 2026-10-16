@@ -3,7 +3,7 @@ package app.houselights.providers.local
 /**
  * What a scan does with the rows of files a folder no longer lists. A row holds what the user did
  * with the title, so it goes only when nothing else fits:
- * - a file renamed (a Radarr or Sonarr upgrade) takes its row along;
+ * - a file renamed or moved (a Radarr or Sonarr upgrade, a folder renamed) takes its row along;
  * - a file missing waits an hour, and a pass at least: Radarr and Sonarr import in two steps, the old
  *   file gone before the new one is in place, and the new one may come under a name of its own;
  * - a NAS can list a folder short without failing (a disk of a pool offline, a share served before
@@ -53,8 +53,10 @@ internal object MissingFiles {
 
     /**
      * Missing rows paired with the new files that replace them, only where one row and one file
-     * share a key. Films: the one video of a folder named like a film, whatever its new name, else the
-     * same title and year in the same folder. Episodes: the same show, season and episode.
+     * share a key, tried in turn. Films: the one video of a folder named like a film, whatever its new
+     * name; the same title and year in the same folder; the same title and a year anywhere in the
+     * folder (a film's folder renamed, films sorted into folders). Episodes: the same show, season and
+     * episode.
      */
     private fun relinks(
         kind: SourceKind,
@@ -65,7 +67,7 @@ internal object MissingFiles {
         val keys: List<(String) -> Any?> = when (kind) {
             SourceKind.MOVIES -> {
                 val videos = files.groupingBy { Sidecars.folderOf(it.relativePath) }.eachCount()
-                listOf({ path -> filmFolder(path)?.takeIf { videos[it] == 1 } }, ::filmKey)
+                listOf({ path -> filmFolder(path)?.takeIf { videos[it] == 1 } }, ::filmKey, ::titleKey)
             }
             SourceKind.SHOWS -> listOf(::episodeKey)
         }
@@ -98,10 +100,14 @@ internal object MissingFiles {
         Sidecars.folderOf(path).takeIf { FilenameParser.parseMovie(it.substringAfterLast('/')).year != null }
 
     /** Folder, title and year. */
-    private fun filmKey(path: String): Pair<String, ParsedMovie> {
-        val film = LibraryScanner.parseMovie(path)
-        return Sidecars.folderOf(path) to film.copy(title = FilenameParser.showKey(film.title))
-    }
+    private fun filmKey(path: String): Pair<String, ParsedMovie> = Sidecars.folderOf(path) to film(path)
+
+    /** Title and year, wherever the file is; only with a year, as titles alone are often shared. */
+    private fun titleKey(path: String): ParsedMovie? = film(path).takeIf { it.year != null }
+
+    /** Title and year as the indexer reads them, the title without case or punctuation. */
+    private fun film(path: String): ParsedMovie =
+        LibraryScanner.parseMovie(path).let { it.copy(title = FilenameParser.showKey(it.title)) }
 
     /** Show, season and episode, as the indexer reads them: the show's folder names it when it has one. */
     private fun episodeKey(path: String): Triple<String, Int, Int>? {

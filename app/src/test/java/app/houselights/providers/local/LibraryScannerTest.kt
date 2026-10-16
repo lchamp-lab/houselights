@@ -259,19 +259,66 @@ class LibraryScannerTest {
 
     @Test
     fun moreFilesGoneThanAStatementTakes() = runTest {
-        filmFolder(1_200)
-        // Sorted into a folder per letter: every film leaves the path it had.
-        val moved = (0 until 1_200).map { "${film(it).first()}/${film(it)}" }
-        (0 until 1_200).forEach { nas.rename(film(it), moved[it]) }
+        filmFolder(1_201)
+        (0 until 1_200).map(::film).forEach(nas::remove)
         widest.set(0)
         scan()
         assertEquals(null, error())
-        assertEquals("held, beside the new paths", 2_400, filePaths().size)
+        assertEquals("held", 1_201, filePaths().size)
 
         now += 25 * HOUR
         scan()
-        assertEquals(moved.sorted(), filePaths())
+        assertEquals(listOf(film(1_200)), filePaths())
         assertTrue("${widest.get()} values in one statement", widest.get() <= ANDROID_9_LIMIT)
+    }
+
+    @Test
+    fun filmsSortedIntoFoldersKeepTheirRows() = runTest {
+        filmFolder(1_200)
+        val before = dao.filesOf(films.id).associate { it.filePath to it.id }
+        // Sorted into a folder per letter: every film leaves the path and the folder it had.
+        val moved = (0 until 1_200).associate { film(it) to "${film(it).first()}/${film(it)}" }
+        moved.forEach { (from, to) -> nas.rename(from, to) }
+        widest.set(0)
+        scan()
+
+        assertEquals(moved.values.sorted(), filePaths())
+        assertEquals(before.mapKeys { (path, _) -> moved[path] }, dao.filesOf(films.id).associate { it.filePath to it.id })
+        assertTrue("${widest.get()} values in one statement", widest.get() <= ANDROID_9_LIMIT)
+    }
+
+    @Test
+    fun aFilmFolderRenamedKeepsItsRow() = runTest {
+        nas.put("Dune 2021/Dune.mkv")
+        nas.put("Heat (1995)/Heat (1995).mkv")
+        scan()
+        val dune = dao.filesOf(films.id).single { it.title == "Dune" }
+        dao.setFavorite(dune.id, true)
+
+        // Radarr's "Rename Movie Folder", and its files.
+        nas.rename("Dune 2021/Dune.mkv", "Dune (2021)/Dune (2021) Bluray-1080p.mkv")
+        scan()
+
+        val renamed = dao.filesOf(films.id).single { it.title == "Dune" }
+        assertEquals(dune.id, renamed.id)
+        assertEquals("Dune (2021)/Dune (2021) Bluray-1080p.mkv", renamed.filePath)
+        assertTrue(renamed.favorite)
+    }
+
+    @Test
+    fun twoCopiesOfAFilmMovedAreNotTold() = runTest {
+        nas.put("Dune (2021) Bluray-1080p.mkv")
+        nas.put("Dune (2021) Remux-2160p.mkv")
+        scan()
+        val before = dao.filesOf(films.id).map { it.id }.toSet()
+
+        nas.rename("Dune (2021) Bluray-1080p.mkv", "Dune/Dune (2021) Bluray-1080p.mkv")
+        nas.rename("Dune (2021) Remux-2160p.mkv", "Dune/Dune (2021) Remux-2160p.mkv")
+        scan()
+
+        val moved = dao.filesOf(films.id).filter { it.missingSince == null }
+        assertEquals(2, moved.size)
+        assertTrue("which is which cannot be told", moved.none { it.id in before })
     }
 
     @Test
