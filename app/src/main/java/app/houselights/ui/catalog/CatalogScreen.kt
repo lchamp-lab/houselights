@@ -147,7 +147,7 @@ fun CatalogScreen() {
                         "caption" to t.caption, "group" to t.group, "code" to t.code,
                         "spec" to t.spec, "badge" to t.badge,
                         "billing" to t.billing, "wordmark" to t.wordmark,
-                    ).forEach { (name, style) -> Specimen(name, style) }
+                    ).forEach { (name, style) -> StyleSpecimen(name, style) }
                 }
             }
 
@@ -376,9 +376,11 @@ fun CatalogScreen() {
 @Composable
 private fun ControlStates() {
     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Top) {
-        ControlCase("detail lit: a state it names") { HlButton("Filtrer", {}, icon = HlIcons.Filter, detail = "Non vus", detailLit = true) }
-        ControlCase("disabled: focus outlines it") { HlButton("Ajouter", {}, icon = HlIcons.Folder, enabled = false) }
-        ControlCase("busy: the screen's words") {
+        Specimen("detail lit: a state it names", gap = HlSpace.xs) {
+            HlButton("Filtrer", {}, icon = HlIcons.Filter, detail = "Non vus", detailLit = true)
+        }
+        Specimen("disabled: focus outlines it", gap = HlSpace.xs) { HlButton("Ajouter", {}, icon = HlIcons.Folder, enabled = false) }
+        Specimen("busy: the screen's words", gap = HlSpace.xs) {
             HlButton("Tester", {}, icon = HlIcons.Test, busy = true, busyLabel = "Vérification…")
         }
     }
@@ -390,31 +392,21 @@ private fun ControlStates() {
                 busy = false
             }
         }
-        ControlCase("OK: busy for 3 s, its width kept") {
+        Specimen("OK: busy for 3 s, its width kept", gap = HlSpace.xs) {
             HlButton("Se connecter", { busy = true }, emphasis = Emphasis.Primary, busy = busy, busyLabel = "Connexion…")
         }
         // A round button's label takes no room of its own: the case keeps the room a row of them keeps.
-        ControlCase("round, disabled") {
+        Specimen("round, disabled", gap = HlSpace.xs) {
             HlActionRow { HlIconButton(HlIcons.Edit, "Modifier", {}, enabled = false) }
         }
     }
-    ControlCase("a label longer than a reading column stops with an ellipsis") {
+    Specimen("a label longer than a reading column stops with an ellipsis", gap = HlSpace.xs) {
         HlButton("Ajouter « Le Seigneur des anneaux : la Communauté de l’anneau, version longue » à vos favoris", {})
     }
     Column(Modifier.widthIn(max = HlLayout.readable)) {
-        ControlCase("setting row, disabled: tertiary words, focus outlines it; never in a raised sheet") {
+        Specimen("setting row, disabled: tertiary words, focus outlines it; never in a raised sheet", gap = HlSpace.xs) {
             HlSettingRow("Analyser maintenant", description = "Aucun dossier à analyser", onClick = {}, chevron = false, enabled = false)
         }
-    }
-}
-
-/** One state of a control, named underneath. */
-@Composable
-private fun ControlCase(caption: String, content: @Composable () -> Unit) {
-    Column {
-        content()
-        Spacer(Modifier.height(HlSpace.xs))
-        Text(caption, style = Hl.type.caption, color = Hl.colors.contentTertiary)
     }
 }
 
@@ -515,7 +507,7 @@ private fun Swatch(name: String, brush: Brush) {
 }
 
 @Composable
-private fun Specimen(name: String, style: TextStyle) {
+private fun StyleSpecimen(name: String, style: TextStyle) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.width(HlLayout.specLanguage)) {
             Text(name, style = Hl.type.caption, color = Hl.colors.contentSecondary)

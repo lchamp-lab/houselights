@@ -3,11 +3,15 @@ package app.houselights.ui.catalog
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.Dp
+import androidx.tv.material3.Text
 import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
 import app.houselights.core.UserState
+import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.revealOnFocus
 import app.houselights.ui.design.components.SectionHeader
@@ -26,6 +30,24 @@ internal fun Group(title: String, modifier: Modifier = Modifier, still: Boolean 
     ) {
         SectionHeader(title)
         content()
+    }
+}
+
+/**
+ * One state of a component, named underneath: [caption], [gap] under what it shows. With a [width],
+ * the specimen takes it, and its caption wraps to it.
+ */
+@Composable
+internal fun Specimen(
+    caption: String,
+    modifier: Modifier = Modifier,
+    width: Dp? = null,
+    gap: Dp = HlSpace.s,
+    content: @Composable () -> Unit,
+) {
+    Column(if (width == null) modifier else modifier.width(width), verticalArrangement = Arrangement.spacedBy(gap)) {
+        content()
+        Text(caption, style = Hl.type.caption, color = Hl.colors.contentTertiary)
     }
 }
 

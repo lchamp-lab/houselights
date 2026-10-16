@@ -63,16 +63,6 @@ internal fun LazyListScope.catalogForms() {
     item { Group("Scroll area") { FormScrollAreas() } }
 }
 
-/** One state of a component, captioned underneath. */
-@Composable
-private fun FormCase(caption: String, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
-    Column(modifier) {
-        content()
-        Spacer(Modifier.height(HlSpace.xs))
-        Text(caption, style = Hl.type.caption, color = Hl.colors.contentTertiary)
-    }
-}
-
 @Composable
 private fun FormTextFields() {
     Text(
@@ -84,21 +74,21 @@ private fun FormTextFields() {
     // Bottom-aligned, so a field without its label shows next to the others.
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Bottom) {
         var host by remember { mutableStateOf("") }
-        FormCase("empty, label and placeholder", Modifier.weight(1f)) {
+        Specimen("empty, label and placeholder", Modifier.weight(1f), gap = HlSpace.xs) {
             HlTextField("Adresse du NAS", host, { host = it }, placeholder = "Ex. : 192.168.1.10", keyboardType = KeyboardType.Uri)
         }
         var share by remember { mutableStateOf("media") }
-        FormCase("filled", Modifier.weight(1f)) {
+        Specimen("filled", Modifier.weight(1f), gap = HlSpace.xs) {
             HlTextField("Partage", share, { share = it }, placeholder = "Ex. : media")
         }
         var secret by remember { mutableStateOf("cinema1967") }
-        FormCase("password", Modifier.weight(1f)) {
+        Specimen("password", Modifier.weight(1f), gap = HlSpace.xs) {
             HlTextField("Mot de passe", secret, { secret = it }, password = true, imeAction = ImeAction.Done)
         }
     }
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Top) {
         var key by remember { mutableStateOf("") }
-        FormCase("label hidden, read out; placeholder, supporting line", Modifier.weight(1f)) {
+        Specimen("label hidden, read out; placeholder, supporting line", Modifier.weight(1f), gap = HlSpace.xs) {
             HlTextField(
                 "Clé personnelle", key, { key = it },
                 placeholder = "Clé personnelle",
@@ -109,7 +99,7 @@ private fun FormTextFields() {
             )
         }
         var refused by remember { mutableStateOf("0123456789abcdef0123456789abcdef") }
-        FormCase("error: in ember under the field, its edge unchanged", Modifier.weight(1f)) {
+        Specimen("error: in ember under the field, its edge unchanged", Modifier.weight(1f), gap = HlSpace.xs) {
             HlTextField(
                 "Clé personnelle", refused, { refused = it },
                 showLabel = false,
@@ -119,14 +109,16 @@ private fun FormTextFields() {
             )
         }
         var export by remember { mutableStateOf("/volume1/video/Films/Cinéma français/Nouvelle Vague/Restaurations 4K") }
-        FormCase("value longer than the field", Modifier.weight(1f)) {
+        Specimen("value longer than the field", Modifier.weight(1f), gap = HlSpace.xs) {
             HlTextField("Export NFS", export, { export = it }, placeholder = "Ex. : /volume1/media")
         }
     }
     var protocol by remember { mutableIntStateOf(0) }
-    FormCase("FieldLabel over a segmented track") {
-        FieldLabel("Protocole")
-        HlSegmented(listOf("NFS", "SMB"), selected = protocol, onSelect = { protocol = it })
+    Specimen("FieldLabel over a segmented track", gap = HlSpace.xs) {
+        Column {
+            FieldLabel("Protocole")
+            HlSegmented(listOf("NFS", "SMB"), selected = protocol, onSelect = { protocol = it })
+        }
     }
 }
 
@@ -134,10 +126,10 @@ private fun FormTextFields() {
 private fun FormStatusPanels() {
     val nfs = listOf("NFS", "Films")
     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Top) {
-        FormCase("off: untested, nothing typed yet", Modifier.width(HlLayout.sideColumnWide)) {
+        Specimen("off: untested, nothing typed yet", Modifier.width(HlLayout.sideColumnWide), gap = HlSpace.xs) {
             StatusPanel(StatusState.Off, "Connexion non testée", "Adresse", "…", badges = nfs)
         }
-        FormCase("pending: testing", Modifier.width(HlLayout.sideColumnWide)) {
+        Specimen("pending: testing", Modifier.width(HlLayout.sideColumnWide), gap = HlSpace.xs) {
             StatusPanel(
                 StatusState.Pending, "Connexion en cours…", "Adresse", "192.168.1.10",
                 detail = "/volume1/media/films", badges = nfs,
@@ -145,13 +137,17 @@ private fun FormStatusPanels() {
         }
     }
     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Top) {
-        FormCase("on: lit, with what was found", Modifier.width(HlLayout.sideColumnWide)) {
+        Specimen("on: lit, with what was found", Modifier.width(HlLayout.sideColumnWide), gap = HlSpace.xs) {
             StatusPanel(
                 StatusState.On, "Connexion réussie", "Adresse", "192.168.1.10",
                 detail = "/volume1/media/films", badges = nfs, result = "128 éléments trouvés",
             )
         }
-        FormCase("attention: failed, its mark and the result as an attention note", Modifier.width(HlLayout.sideColumnWide)) {
+        Specimen(
+            "attention: failed, its mark and the result as an attention note",
+            Modifier.width(HlLayout.sideColumnWide),
+            gap = HlSpace.xs,
+        ) {
             StatusPanel(
                 StatusState.Attention, "Connexion impossible", "Adresse", "nas-salon.local",
                 detail = "/films", badges = listOf("SMB", "Films"),
@@ -161,7 +157,7 @@ private fun FormStatusPanels() {
         }
     }
     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Top) {
-        FormCase("done: a fact, white; a long value stops at three lines", Modifier.width(HlLayout.sideColumnWide)) {
+        Specimen("done: a fact, white; a long value stops at three lines", Modifier.width(HlLayout.sideColumnWide), gap = HlSpace.xs) {
             StatusPanel(
                 StatusState.Done, "Identifié", "Fichier",
                 "Le.Samourai.1967.REMASTERED.2160p.UHD.BluRay.HDR10.DTS-HD.MA.5.1.x265-HOUSELIGHTS.mkv",
@@ -174,7 +170,7 @@ private fun FormStatusPanels() {
                 },
             )
         }
-        FormCase("pending: reading, no value yet", Modifier.width(HlLayout.sideColumnWide)) {
+        Specimen("pending: reading, no value yet", Modifier.width(HlLayout.sideColumnWide), gap = HlSpace.xs) {
             StatusPanel(StatusState.Pending, "Lecture…", "Fichier", "…", valueStyle = Hl.type.entry)
         }
     }
@@ -183,17 +179,17 @@ private fun FormStatusPanels() {
 @Composable
 private fun FormPanelButtons() {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Top) {
-        FormCase("rest; focus raises it in projector white", Modifier.weight(1f)) {
+        Specimen("rest; focus raises it in projector white", Modifier.weight(1f), gap = HlSpace.xs) {
             HlPanelButton({}, Modifier.fillMaxWidth()) {
                 FormFolder("Films", "192.168.1.10/volume1/media/films", listOf("1 284 titres", "312 en Ultra HD"))
             }
         }
-        FormCase("lit: the choice in use", Modifier.weight(1f)) {
+        Specimen("lit: the choice in use", Modifier.weight(1f), gap = HlSpace.xs) {
             HlPanelButton({}, Modifier.fillMaxWidth(), lit = true) {
                 FormFolder("Séries", "nas-salon.local/media/series", listOf("86 titres", "Analysé il y a 2 h"))
             }
         }
-        FormCase("disabled: a faint well, focus outlines it", Modifier.weight(1f)) {
+        Specimen("disabled: a faint well, focus outlines it", Modifier.weight(1f), gap = HlSpace.xs) {
             // Its words in LocalContentColor, which follows the state.
             HlPanelButton({}, Modifier.fillMaxWidth(), enabled = false) {
                 Column(Modifier.padding(HlInset.card)) {
@@ -221,14 +217,16 @@ private fun FormFolder(name: String, address: String, facts: List<String>) {
 @Composable
 private fun FormDividers() {
     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.xl), verticalAlignment = Alignment.Top) {
-        FormCase("horizontal", Modifier.width(HlLayout.sideColumnWide)) {
-            Text("Analyser maintenant", style = Hl.type.entry, color = Hl.colors.content)
-            Spacer(Modifier.height(HlSpace.s))
-            HlDivider()
-            Spacer(Modifier.height(HlSpace.s))
-            Text("Retirer ce dossier", style = Hl.type.entry, color = Hl.colors.content)
+        Specimen("horizontal", Modifier.width(HlLayout.sideColumnWide), gap = HlSpace.xs) {
+            Column {
+                Text("Analyser maintenant", style = Hl.type.entry, color = Hl.colors.content)
+                Spacer(Modifier.height(HlSpace.s))
+                HlDivider()
+                Spacer(Modifier.height(HlSpace.s))
+                Text("Retirer ce dossier", style = Hl.type.entry, color = Hl.colors.content)
+            }
         }
-        FormCase("vertical") {
+        Specimen("vertical", gap = HlSpace.xs) {
             Row(Modifier.height(HlSize.control), verticalAlignment = Alignment.CenterVertically) {
                 Text("Réglages", style = Hl.type.entry, color = Hl.colors.content)
                 Spacer(Modifier.width(HlSpace.xl))
@@ -253,9 +251,9 @@ private fun FormMenus() {
             color = Hl.colors.contentTertiary,
             modifier = Modifier.weight(1f),
         )
-        FormCase("filters, none active") { FormFilterMenu(FormFilters()) }
-        FormCase("filters, two active") { FormFilterMenu(FormFilters(status = 1, genre = "Drame")) }
-        FormCase("sort") { FormSortMenu() }
+        Specimen("filters, none active", gap = HlSpace.xs) { FormFilterMenu(FormFilters()) }
+        Specimen("filters, two active", gap = HlSpace.xs) { FormFilterMenu(FormFilters(status = 1, genre = "Drame")) }
+        Specimen("sort", gap = HlSpace.xs) { FormSortMenu() }
     }
 }
 
@@ -323,7 +321,11 @@ private fun FormFilterMenu(initial: FormFilters) {
 private fun FormChoiceSheet() {
     var current by remember { mutableIntStateOf(0) }
     var choosing by remember { mutableStateOf(false) }
-    FormCase("opens the sheet: focus starts on the current choice, choosing closes it", Modifier.widthIn(max = HlLayout.readable)) {
+    Specimen(
+        "opens the sheet: focus starts on the current choice, choosing closes it",
+        Modifier.widthIn(max = HlLayout.readable),
+        gap = HlSpace.xs,
+    ) {
         HlSettingRow(
             "Collections",
             value = FORM_COLLECTIONS[current].label,
@@ -347,10 +349,10 @@ private fun FormChoiceSheet() {
 private fun FormChoiceSettings() {
     var current by remember { mutableIntStateOf(0) }
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Top) {
-        FormCase("its value, the current choice; OK opens the sheet", Modifier.weight(1f)) {
+        Specimen("its value, the current choice; OK opens the sheet", Modifier.weight(1f), gap = HlSpace.xs) {
             HlChoiceSetting("Collections", FORM_COLLECTIONS, current, onSelect = { current = it }, description = FORM_COLLECTIONS_ABOUT)
         }
-        FormCase("a change that did not take: said in its value", Modifier.weight(1f)) {
+        Specimen("a change that did not take: said in its value", Modifier.weight(1f), gap = HlSpace.xs) {
             HlChoiceSetting(
                 "Collections",
                 FORM_COLLECTIONS,
@@ -366,15 +368,15 @@ private fun FormChoiceSettings() {
 @Composable
 private fun FormScrollAreas() {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Top) {
-        FormCase("framed, longer than its height: it fades where there is more", Modifier.weight(1f)) {
+        Specimen("framed, longer than its height: it fades where there is more", Modifier.weight(1f), gap = HlSpace.xs) {
             HlScrollArea(Modifier.height(HlLayout.hero)) { FormReading(FORM_LONG_TEXT) }
         }
-        FormCase("lazy, the lines of an NFO: laid out as they show, read the same", Modifier.weight(1f)) {
+        Specimen("lazy, the lines of an NFO: laid out as they show, read the same", Modifier.weight(1f), gap = HlSpace.xs) {
             HlScrollArea(Hl.type.code.lineHeight, Modifier.height(HlLayout.hero)) {
                 items(FORM_NFO_LINES) { Text(it, style = Hl.type.code, color = Hl.colors.contentSecondary) }
             }
         }
-        FormCase("framed, fits: takes no focus", Modifier.weight(1f)) {
+        Specimen("framed, fits: takes no focus", Modifier.weight(1f), gap = HlSpace.xs) {
             HlScrollArea(Modifier.height(HlLayout.hero)) { FormReading(listOf(FORM_SHORT_TEXT)) }
         }
     }
