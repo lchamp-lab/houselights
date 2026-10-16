@@ -356,6 +356,9 @@
     <string name="error_tmdb_key_refused">TMDB doesn’t accept the key saved in Settings. Check it, or replace it.</string>
     <string name="error_failed_title">This could not be done</string>
     <string name="error_failed">Try again in a moment.</string>
+    <string name="error_keystore_title">Can’t keep it safe</string>
+    <string name="error_keystore">This device’s keystore refused to seal the password, so nothing was saved. Restart the player, then try again.</string>
+    <string name="welcome_lost_secrets">The connection saved on this player could not be read again. Choose where your films are once more.</string>
     <string name="error_action_reconnect">Sign in again</string>
     <string name="error_action_add_tmdb_key">Add a key</string>
     <string name="error_action_edit_tmdb_key">Change the key</string>

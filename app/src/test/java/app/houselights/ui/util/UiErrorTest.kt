@@ -2,6 +2,7 @@ package app.houselights.ui.util
 
 import app.houselights.core.NoTmdbKeyException
 import app.houselights.core.NotFoundException
+import app.houselights.core.SecretsUnavailableException
 import app.houselights.providers.local.TmdbKeyRefusedException
 import app.houselights.providers.local.TmdbUnreachableException
 import okhttp3.ResponseBody.Companion.toResponseBody
@@ -29,6 +30,7 @@ class UiErrorTest {
             SocketTimeoutException() to UiError.OFFLINE,
             IOException("NAS away") to UiError.OFFLINE,
             IllegalStateException("This source cannot be edited") to UiError.FAILED,
+            SecretsUnavailableException(java.security.ProviderException("Failed to generate key")) to UiError.KEYSTORE,
         )
         expected.forEach { (failure, error) -> assertEquals(failure.toString(), error, failure.toUiError()) }
     }

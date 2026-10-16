@@ -11,18 +11,21 @@ import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import android.util.Log
 import app.houselights.core.PathMapping
 import app.houselights.core.Secrets
+import app.houselights.core.SecretsUnavailableException
 import app.houselights.core.SourceConfig
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.retryWhen
+import kotlinx.coroutines.launch
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import java.io.IOException
 import java.util.UUID
 import app.houselights.core.CollectionThreshold
 
@@ -49,13 +52,24 @@ private object Keys {
  */
 private val SECRET_KEYS = listOf(Keys.source, Keys.tmdbKey, Keys.mappings)
 
-/** Seals secrets written in plain text before sealing existed. */
-private class SealSecrets(private val secrets: Secrets) : DataMigration<Preferences> {
+/**
+ * Seals secrets written in plain text before sealing existed. A Keystore that cannot seal leaves them
+ * as they are: read as plain text, they are sealed at a later launch, never lost, and the settings
+ * still open.
+ */
+internal class SealSecrets(private val secrets: Secrets) : DataMigration<Preferences> {
     override suspend fun shouldMigrate(currentData: Preferences) =
         SECRET_KEYS.any { key -> currentData[key]?.let { !secrets.isSealed(it) } == true }
 
     override suspend fun migrate(currentData: Preferences): Preferences = currentData.toMutablePreferences().apply {
-        for (key in SECRET_KEYS) this[key]?.takeUnless(secrets::isSealed)?.let { this[key] = secrets.seal(it) }
+        for (key in SECRET_KEYS) {
+            val plain = this[key]?.takeUnless(secrets::isSealed) ?: continue
+            try {
+                this[key] = secrets.seal(plain)
+            } catch (e: SecretsUnavailableException) {
+                Log.w(TAG, "${key.name} left unsealed", e)
+            }
+        }
     }
 
     override suspend fun cleanUp() = Unit
@@ -72,6 +86,17 @@ data class AppSettings(
     val tmdbApiKey: String? = null,
     /** How many films of a collection the library needs to show it; 0 hides collections. */
     val collectionMinFilms: Int = CollectionThreshold.DEFAULT,
+    /**
+     * A secret kept here (the source's token, path mappings, the TMDB key) could not be read again (the
+     * Keystore's key is gone, or a value no longer makes sense): it reads as not set, and is to be
+     * given again.
+     */
+    val lostSecrets: Boolean = false,
+    /**
+     * The settings file could not be read, again and again: not [loaded], and still tried, less and
+     * less often. Never the defaults in its place, which would open on the welcome screen.
+     */
+    val readFailed: Boolean = false,
 )
 
 class SettingsStore(
@@ -84,25 +109,68 @@ class SettingsStore(
 
     private val json = Json { ignoreUnknownKeys = true }
 
-    val state: StateFlow<AppSettings> = dataStore.data
-        // A file that can't be read gives the defaults: the app opens on its welcome screen, not on a blank one.
-        .catch { e -> if (e is IOException) emit(emptyPreferences()) else throw e }
-        .map { it.toSettings() }
-        .stateIn(scope, SharingStarted.Eagerly, AppSettings())
+    private val _state = MutableStateFlow(AppSettings())
 
-    private fun Preferences.toSettings() = AppSettings(
-        loaded = true,
-        source = this[Keys.source]?.let(secrets::open)?.let { runCatching { json.decodeFromString<SourceConfig>(it) }.getOrNull() },
-        deviceId = this[Keys.deviceId] ?: "",
-        pathMappings = this[Keys.mappings]
-            ?.let(secrets::open)
-            ?.let { runCatching { json.decodeFromString<List<PathMapping>>(it) }.getOrNull() }
-            ?: emptyList(),
-        forceHttp = this[Keys.forceHttp] ?: false,
-        ui4k = this[Keys.ui4k] ?: true,
-        tmdbApiKey = this[Keys.tmdbKey]?.let(secrets::open)?.takeIf { it.isNotBlank() },
-        collectionMinFilms = this[Keys.collectionMin] ?: CollectionThreshold.DEFAULT,
-    )
+    /**
+     * The settings as last read. A read that fails is tried again, a little later each time: the
+     * settings stay unread meanwhile, rather than the defaults, and say [AppSettings.readFailed]
+     * after a few tries.
+     */
+    val state: StateFlow<AppSettings> = _state
+
+    init {
+        scope.launch {
+            dataStore.data
+                .map { it.toSettings() }
+                .retryWhen { e, attempt ->
+                    if (e is CancellationException) return@retryWhen false
+                    Log.w(TAG, "Settings could not be read (try ${attempt + 1})", e)
+                    if (attempt + 1 >= READ_TRIES && !_state.value.loaded) _state.value = AppSettings(readFailed = true)
+                    delay(minOf(MAX_READ_WAIT_MS, FIRST_READ_WAIT_MS shl attempt.toInt().coerceAtMost(MAX_SHIFT)))
+                    true
+                }
+                .collect { _state.value = it }
+        }
+    }
+
+    private fun Preferences.toSettings(): AppSettings {
+        val lost = mutableListOf<String>()
+        val source = this[Keys.source]?.let { opened(Keys.source, it, lost) }?.let { decoded<SourceConfig>(Keys.source, it, lost) }
+        val mappings = this[Keys.mappings]
+            ?.let { opened(Keys.mappings, it, lost) }
+            ?.let { decoded<List<PathMapping>>(Keys.mappings, it, lost) }
+        return AppSettings(
+            loaded = true,
+            source = source,
+            deviceId = this[Keys.deviceId] ?: "",
+            pathMappings = mappings ?: emptyList(),
+            forceHttp = this[Keys.forceHttp] ?: false,
+            ui4k = this[Keys.ui4k] ?: true,
+            tmdbApiKey = this[Keys.tmdbKey]?.let { opened(Keys.tmdbKey, it, lost) }?.takeIf { it.isNotBlank() },
+            collectionMinFilms = this[Keys.collectionMin] ?: CollectionThreshold.DEFAULT,
+            lostSecrets = lost.isNotEmpty(),
+        )
+    }
+
+    /** The plain text of a secret; when it can't be read, null, written down in [lost] and logged (never its value). */
+    private fun opened(key: Preferences.Key<String>, stored: String, lost: MutableList<String>): String? {
+        val plain = secrets.open(stored)
+        if (plain == null) {
+            Log.w(TAG, "${key.name} can no longer be decrypted")
+            lost += key.name
+        }
+        return plain
+    }
+
+    /** What [text] holds; when it no longer reads (a version that renamed a field), null, written down in [lost]. */
+    private inline fun <reified T> decoded(key: Preferences.Key<String>, text: String, lost: MutableList<String>): T? = try {
+        json.decodeFromString<T>(text)
+    } catch (e: IllegalArgumentException) {
+        // A SerializationException among them: its message would quote the value.
+        Log.w(TAG, "${key.name} no longer reads: ${e.javaClass.simpleName}")
+        lost += key.name
+        null
+    }
 
     suspend fun ensureDeviceId(): String {
         var id = ""
@@ -140,3 +208,13 @@ class SettingsStore(
         }
     }
 }
+
+private const val TAG = "Settings"
+
+/** Failed reads before the settings say [AppSettings.readFailed]. */
+private const val READ_TRIES = 3
+
+/** The wait after a first failed read, doubled after each one, up to [MAX_READ_WAIT_MS]. */
+private const val FIRST_READ_WAIT_MS = 500L
+private const val MAX_READ_WAIT_MS = 30_000L
+private const val MAX_SHIFT = 16
