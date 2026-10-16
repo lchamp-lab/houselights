@@ -336,8 +336,12 @@ private fun SkeletonRows() {
 }
 
 /** A folder read for the first time, or a scan going on while home has nothing to show. */
-private fun firstScan(scan: ScanState, empty: Boolean, folders: List<SourceEntity>?): Boolean =
-    scan.running && (empty || folders.orEmpty().any { it.name == scan.sourceName && it.lastScanAt <= 0 })
+internal fun firstScan(scan: ScanState, empty: Boolean, folders: List<SourceEntity>?): Boolean =
+    scan.running && (empty || folders.orEmpty().any { it.id == scan.sourceId && it.lastScanAt <= 0 })
+
+/** The first folder still there whose last scan failed, and why. */
+internal fun failedFolder(errors: Map<Long, ScanError>, folders: List<SourceEntity>): Pair<SourceEntity, ScanError>? =
+    folders.firstNotNullOfOrNull { folder -> errors[folder.id]?.let { folder to it } }
 
 /** The first scan, counted: what is being read, how far it has gone, the file being read. */
 @Composable
@@ -364,12 +368,13 @@ private fun NoRows(
     onAddFolder: () -> Unit,
     modifier: Modifier,
 ) {
+    val failed = failedFolder(scan.errors, folders.orEmpty())
     when {
         state.error != null -> ErrorIntertitle(state.error, onReload, modifier)
         // Folders are still being read: nothing to say about them yet.
         local && folders == null -> Unit
         // Not "add a folder" when there is one: its scan failed, and it says why.
-        local && scan.errors.isNotEmpty() -> ScanFailed(scan.errors, folders.orEmpty(), onSettings, modifier)
+        local && failed != null -> ScanFailed(failed, onSettings, modifier)
         local -> NoFilms(folders.orEmpty(), onAddFolder, onSettings, modifier)
         else -> HlEmptyState(stringResource(R.string.empty_title), modifier, message = stringResource(R.string.empty_server))
     }
@@ -395,13 +400,13 @@ private fun NoFilms(folders: List<SourceEntity>, onAddFolder: () -> Unit, onSett
 
 /** Nothing to show because the folders could not be read: why, a way to scan again, and the folders. */
 @Composable
-private fun ScanFailed(errors: Map<String, ScanError>, folders: List<SourceEntity>, onSettings: () -> Unit, modifier: Modifier) {
+private fun ScanFailed(failed: Pair<SourceEntity, ScanError>, onSettings: () -> Unit, modifier: Modifier) {
     val library = appContainer().library
-    val (name, error) = errors.entries.first()
+    val (folder, error) = failed
     HlEmptyState(
         stringResource(R.string.home_scan_failed),
         modifier,
-        message = scanErrorText(error, folders.firstOrNull { it.name == name }?.host ?: name),
+        message = scanErrorText(error, folder.host),
         attention = true,
         action = stringResource(R.string.retry),
         actionIcon = HlIcons.Refresh,

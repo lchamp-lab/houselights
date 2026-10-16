@@ -19,12 +19,13 @@ import kotlinx.coroutines.withTimeoutOrNull
 
 data class ScanState(
     val running: Boolean = false,
-    val sourceName: String? = null,
+    /** The folder being read ([SourceEntity.id]): two folders may bear the same name. */
+    val sourceId: Long? = null,
     val processed: Int = 0,
     val total: Int = 0,
     val current: String? = null,
-    /** Last error per source name, kept after the scan ends. */
-    val errors: Map<String, ScanError> = emptyMap(),
+    /** Last error per folder ([SourceEntity.id]), kept after the scan ends. */
+    val errors: Map<Long, ScanError> = emptyMap(),
 )
 
 /**
@@ -170,13 +171,13 @@ class LibraryScanner(
     private suspend fun scanAllSources(refreshMetadata: Boolean) {
         movies.startPass()
         shows.startPass()
-        val errors = mutableMapOf<String, ScanError>()
+        val errors = mutableMapOf<Long, ScanError>()
         var changed = false
         try {
             for (source in dao.sources()) {
                 suspendRunCatching { changed = scan(source, refreshMetadata) || changed }.onFailure { e ->
                     Log.w(TAG, "Scan of ${source.name} failed", e)
-                    errors[source.name] = ScanErrors.classify(e)
+                    errors[source.id] = ScanErrors.classify(e)
                 }
             }
             lock.withLock {
@@ -213,7 +214,7 @@ class LibraryScanner(
 
     /** True when the library changed: files were added, updated or removed. */
     private suspend fun scan(source: SourceEntity, refreshMetadata: Boolean): Boolean {
-        _state.update { it.copy(running = true, sourceName = source.name, processed = 0, total = 0, current = null) }
+        _state.update { it.copy(running = true, sourceId = source.id, processed = 0, total = 0, current = null) }
         val listing = browsers(source).list(source)
         val files = listing.videos
         val sidecars = Sidecars(listing.sidecars, files)

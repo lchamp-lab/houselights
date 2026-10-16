@@ -34,6 +34,9 @@ class LibraryScannerTest {
     private lateinit var scanner: LibraryScanner
     private val nas = FakeRemoteBrowser()
     private val showsNas = FakeRemoteBrowser()
+
+    /** Another NAS, at another address ([OTHER_HOST]). */
+    private val otherNas = FakeRemoteBrowser()
     private val passes = SupervisorJob()
     private var now = START
 
@@ -64,7 +67,13 @@ class LibraryScannerTest {
             tmdb = { null },
             scope = CoroutineScope(passes),
             artwork = ArtworkCache(temp.newFolder("artwork")),
-            browsers = { if (it.kind == SourceKind.SHOWS) showsNas else nas },
+            browsers = {
+                when {
+                    it.host == OTHER_HOST -> otherNas
+                    it.kind == SourceKind.SHOWS -> showsNas
+                    else -> nas
+                }
+            },
             clock = { now },
         )
         films = folder("Films", SourceKind.MOVIES)
@@ -73,10 +82,10 @@ class LibraryScannerTest {
     @After
     fun close() = db.close()
 
-    private suspend fun folder(name: String, kind: SourceKind): SourceEntity {
+    private suspend fun folder(name: String, kind: SourceKind, host: String = "nas"): SourceEntity {
         val id = dao.insertSource(
             SourceEntity(
-                name = name, kind = kind, protocol = Protocol.NFS, host = "nas", share = "media", path = name.lowercase(),
+                name = name, kind = kind, protocol = Protocol.NFS, host = host, share = "media", path = name.lowercase(),
                 username = "", password = Secret(""),
             )
         )
@@ -91,7 +100,7 @@ class LibraryScannerTest {
 
     private suspend fun filePaths(source: SourceEntity = films) = dao.filesOf(source.id).mapNotNull { it.filePath }.sorted()
 
-    private fun error(source: SourceEntity = films) = scanner.state.value.errors[source.name]?.kind
+    private fun error(source: SourceEntity = films) = scanner.state.value.errors[source.id]?.kind
 
     private fun film(n: Int) = "Film $n (2020).mkv"
 
@@ -156,6 +165,21 @@ class LibraryScannerTest {
         scan()
         assertEquals(5, nas.reads.size)
         assertEquals(null, error())
+    }
+
+    @Test
+    fun twoFoldersOfOneNameKeepTheirOwnState() = runTest {
+        // "Films" on two NAS: the second one is off.
+        val other = folder("Films", SourceKind.MOVIES, host = OTHER_HOST)
+        nas.put("Dune (2021).mkv")
+        otherNas.listFailure = ConnectException("Connection refused")
+        val read = mutableListOf<Long?>()
+        nas.onList = { read += scanner.state.value.sourceId }
+        scan()
+
+        assertEquals(listOf<Long?>(films.id), read)
+        assertEquals(ScanErrorKind.UNREACHABLE, error(other))
+        assertEquals("the folder read is not said off", null, error(films))
     }
 
     @Test
@@ -568,5 +592,6 @@ class LibraryScannerTest {
         const val A_FEW_TRANSACTIONS = 20
         const val START = 1_800_000_000_000L
         const val HOUR = 60 * 60_000L
+        const val OTHER_HOST = "192.168.1.30"
     }
 }

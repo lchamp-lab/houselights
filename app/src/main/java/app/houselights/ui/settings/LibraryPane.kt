@@ -152,8 +152,8 @@ private fun Sources(rows: PaneRows, onEdit: (folderId: Long, focus: FolderField)
             key(source.id) {
                 SourceCard(
                     source,
-                    scan = scan.takeIf { it.running && it.sourceName == source.name },
-                    error = scan.errors[source.name],
+                    scan = scan.takeIf { it.running && it.sourceId == source.id },
+                    error = scan.errors[source.id],
                     onClick = { actionsFor = source },
                     modifier = rows.focus(folderRow(source.id)),
                 )
@@ -163,7 +163,7 @@ private fun Sources(rows: PaneRows, onEdit: (folderId: Long, focus: FolderField)
     actionsFor?.let { source ->
         SourceActions(
             source,
-            error = scan.errors[source.name],
+            error = scan.errors[source.id],
             onDismiss = { actionsFor = null },
             onEdit = { focus -> onEdit(source.id, focus) },
             // Launched from here: the sheet has left the composition by the time it runs.
