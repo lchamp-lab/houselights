@@ -18,8 +18,10 @@ import app.houselights.core.SecretsUnavailableException
 import app.houselights.core.SourceConfig
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.retryWhen
@@ -29,6 +31,7 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.util.UUID
 import app.houselights.core.CollectionThreshold
+import kotlin.coroutines.CoroutineContext
 
 private val Context.dataStore by preferencesDataStore(
     name = "settings",
@@ -139,6 +142,11 @@ class SettingsStore(
     private val dataStore: DataStore<Preferences>,
     scope: CoroutineScope,
     private val secrets: Secrets = Secrets.device,
+    /**
+     * Where the settings are read and their secrets opened: never the main thread [scope] may run on,
+     * since the first opening loads the Keystore's key and each one asks the keystore daemon.
+     */
+    private val readOn: CoroutineContext = Dispatchers.Default,
 ) {
     /** The app's own settings file. */
     constructor(context: Context, scope: CoroutineScope, secrets: Secrets = Secrets.device) : this(context.dataStore, scope, secrets)
@@ -166,6 +174,7 @@ class SettingsStore(
         scope.launch {
             dataStore.data
                 .map { it.toSettings() }
+                .flowOn(readOn)
                 .retryWhen { e, attempt ->
                     if (e is CancellationException) return@retryWhen false
                     Log.w(TAG, "Settings could not be read (try ${attempt + 1})", e)

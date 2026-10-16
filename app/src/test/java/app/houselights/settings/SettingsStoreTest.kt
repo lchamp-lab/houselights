@@ -8,10 +8,16 @@ import app.houselights.core.Secrets
 import app.houselights.core.SourceConfig
 import app.houselights.ui.testing.testSecrets
 import app.houselights.ui.testing.testSettings
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.asCoroutineDispatcher
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -27,6 +33,9 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import java.io.IOException
 import java.security.ProviderException
+import java.util.Collections
+import java.util.concurrent.Executors
+import javax.crypto.KeyGenerator
 
 /** Reading the settings when the file or the Keystore fails. */
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -52,12 +61,42 @@ class SettingsStoreTest {
 
     private fun stored(secrets: Secrets) = mutablePreferencesOf(sourceKey to secrets.seal(Json.encodeToString<SourceConfig>(home)))
 
+    /** Settings read apart from where they are collected, as on the device, on the test's scheduler: virtual time runs both. */
+    private fun TestScope.settingsOf(store: DataStore<Preferences>, secrets: Secrets) =
+        SettingsStore(store, backgroundScope, secrets, readOn = StandardTestDispatcher(testScheduler))
+
+    /**
+     * The first secret opened loads the Keystore's key, and each one asks the keystore daemon: never
+     * on the thread the settings are collected on, the main thread on the device.
+     */
+    @Test
+    fun secretsAreOpenedAwayFromTheThreadThatCollects() = runTest {
+        val key = KeyGenerator.getInstance("AES").apply { init(256) }.generateKey()
+        val keyAskedOn = Collections.synchronizedList(mutableListOf<Thread>())
+        val reader = Secrets {
+            keyAskedOn += Thread.currentThread()
+            key
+        }
+        val collecting = Collections.synchronizedList(mutableListOf<Thread>())
+        val collector = Executors.newSingleThreadExecutor { Thread(it, "settings collector").also(collecting::add) }.asCoroutineDispatcher()
+        val scope = CoroutineScope(collector + SupervisorJob())
+        try {
+            val settings = SettingsStore(FlakyStore(0, stored(Secrets { key })), scope, reader)
+            assertEquals(home, settings.state.first { it.loaded }.source)
+            assertTrue("The key was never asked for", keyAskedOn.isNotEmpty())
+            assertTrue("Opened on the collector's thread", keyAskedOn.none { it in collecting })
+        } finally {
+            scope.cancel()
+            collector.close()
+        }
+    }
+
     /** A read that fails once at launch opened the welcome screen, and nothing saved after reached the app. */
     @Test
     fun aFailedReadIsTriedAgainWithoutTheDefaults() = runTest {
         val secrets = testSecrets()
         val store = FlakyStore(failures = 2, prefs = stored(secrets))
-        val settings = SettingsStore(store, backgroundScope, secrets)
+        val settings = settingsOf(store, secrets)
         runCurrent()
         assertFalse("The defaults stood in for the settings", settings.state.value.loaded)
         assertFalse(settings.state.value.readFailed)
@@ -71,7 +110,7 @@ class SettingsStoreTest {
     fun readsThatKeepFailingSaySo() = runTest {
         val secrets = testSecrets()
         val store = FlakyStore(failures = 6, prefs = stored(secrets))
-        val settings = SettingsStore(store, backgroundScope, secrets)
+        val settings = settingsOf(store, secrets)
         // Three tries: at once, half a second later, then a second after that.
         advanceTimeBy(1_000)
         assertFalse(settings.state.value.readFailed)
@@ -131,7 +170,7 @@ class SettingsStoreTest {
     fun readingAgainDoesNotWaitForTheNextTry() = runTest {
         val secrets = testSecrets()
         val store = FlakyStore(failures = 5, prefs = stored(secrets))
-        val settings = SettingsStore(store, backgroundScope, secrets)
+        val settings = settingsOf(store, secrets)
         advanceTimeBy(2_000)
         assertTrue(settings.state.value.readFailed)
         val readsThen = store.reads
