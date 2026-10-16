@@ -11,6 +11,5 @@
     <ID>MaxLineLength:NfoParserTest.kt$NfoParserTest$val nfo = NfoParser.parse("&lt;episodedetails&gt;&lt;title&gt;Pilot&lt;/title&gt;&lt;season&gt;1&lt;/season&gt;&lt;episode&gt;2&lt;/episode&gt;&lt;aired&gt;2022-02-18&lt;/aired&gt;&lt;/episodedetails&gt;")!!</ID>
     <ID>MaxLineLength:ScanErrorsTest.kt$ScanErrorsTest$assertEquals(ScanErrorKind.LOGIN_FAILED, kind(RuntimeException("STATUS_LOGON_FAILURE (0xc000006d): Authentication failed for 'zidoo'")))</ID>
     <ID>MaxLineLength:ScanErrorsTest.kt$ScanErrorsTest$assertEquals(ScanErrorKind.UNREACHABLE, kind(IOException("rpc error, server: 192.168.1.20, RPC error: waiting for connection to be established, but failed /192.168.1.20:111")))</ID>
-    <ID>UseOrEmpty:StringsTest.kt$StringsTest$expected[quantity] ?: expected["other"] ?: emptyMap()</ID>
   </CurrentIssues>
 </SmellBaseline>

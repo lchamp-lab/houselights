@@ -35,7 +35,7 @@ class StringsTest {
         val found = resources(french).flatMap { resource ->
             val expected = englishFormats[resource.key].orEmpty()
             formats(resource).mapNotNull { (quantity, specifiers) ->
-                val wanted = expected[quantity] ?: expected["other"] ?: emptyMap()
+                val wanted = expected[quantity] ?: expected["other"].orEmpty()
                 "${resource.key} ($quantity): ${specifiers.values} instead of ${wanted.values}".takeIf { specifiers != wanted }
             }
         }
