@@ -11,7 +11,8 @@ import app.houselights.ui.testing.MainDispatcherRule
 import app.houselights.ui.testing.film
 import app.houselights.ui.util.UiError
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.async
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -41,7 +42,7 @@ class EditViewModelsTest {
 
     @Test
     fun identifySearchesWhatAutomaticMatchingWould() = runTest {
-        val vm = IdentifyViewModel("m1") { provider }
+        val vm = IdentifyViewModel("m1", { provider }, work = this)
         advanceUntilIdle()
         assertEquals("Heat", vm.state.value.query)
         assertEquals("1995", vm.state.value.year)
@@ -51,7 +52,7 @@ class EditViewModelsTest {
     @Test
     fun withoutAKeyThereIsNothingToSearch() = runTest {
         provider.identity = provider.identity!!.copy(canSearch = false)
-        val vm = IdentifyViewModel("m1") { provider }
+        val vm = IdentifyViewModel("m1", { provider }, work = this)
         advanceUntilIdle()
         assertEquals(UiError.NO_TMDB_KEY, vm.state.value.error)
         assertFalse(provider.calls.any { it.startsWith("search") })
@@ -59,17 +60,49 @@ class EditViewModelsTest {
 
     @Test
     fun oneIdentificationAtATime() = runTest {
-        val vm = IdentifyViewModel("m1") { provider }
+        val vm = IdentifyViewModel("m1", { provider }, work = this)
         advanceUntilIdle()
         val gate = provider.gate("identify m1 949")
-        val first = async { vm.identify(heat) }
+        vm.identify(heat)
         advanceUntilIdle()
         assertTrue(vm.state.value.identifying)
         // A second OK while matching changes nothing.
-        assertFalse(vm.identify(heat))
+        vm.identify(heat)
         gate.complete(Unit)
-        assertTrue(first.await())
+        advanceUntilIdle()
+        assertTrue(vm.state.value.done)
         assertEquals(1, provider.calls.count { it.startsWith("identify") })
+    }
+
+    /** Back while a title is matched: the screen goes, the match is still written whole. */
+    @Test
+    fun leavingWhileMatchingNeverCutsTheMatchOff() = runTest {
+        val vm = IdentifyViewModel("m1", { provider }, work = this)
+        advanceUntilIdle()
+        val gate = provider.gate("identify m1 949")
+        vm.identify(heat)
+        advanceUntilIdle()
+        vm.viewModelScope.cancel()
+        gate.complete(Unit)
+        advanceUntilIdle()
+        assertEquals(heat, provider.identified)
+    }
+
+    @Test
+    fun aFailedMatchSaysWhyAndCanBeChosenAgain() = runTest {
+        val vm = IdentifyViewModel("m1", { provider }, work = this)
+        advanceUntilIdle()
+        provider.fail = { if (it.startsWith("identify")) IOException("TMDB away") else null }
+        vm.identify(heat)
+        advanceUntilIdle()
+        assertFalse(vm.state.value.identifying)
+        assertFalse(vm.state.value.done)
+        assertEquals(UiError.OFFLINE, vm.state.value.error)
+
+        provider.fail = { null }
+        vm.identify(heat)
+        advanceUntilIdle()
+        assertTrue(vm.state.value.done)
     }
 
     @Test

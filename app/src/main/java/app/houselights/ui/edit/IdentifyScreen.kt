@@ -15,7 +15,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
@@ -31,6 +30,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.compose.dropUnlessResumed
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.tv.material3.Text
 import app.houselights.ui.design.HlLayout
@@ -59,7 +59,6 @@ import app.houselights.ui.util.appContainer
 import app.houselights.ui.util.toPx
 import coil.compose.AsyncImage
 import app.houselights.ui.home.ErrorIntertitle
-import kotlinx.coroutines.launch
 
 /** Matching a title with the right TMDB entry, when automatic matching got it wrong. */
 @Composable
@@ -67,13 +66,13 @@ fun IdentifyScreen(itemId: String, onDone: () -> Unit) {
     val app = appContainer()
     val vm: IdentifyViewModel = viewModel(key = "identify-$itemId", factory = IdentifyViewModel.factory(app, itemId))
     val state by vm.state.collectAsStateWithLifecycle()
-    val scope = rememberCoroutineScope()
     val identity = state.identity
     val isShow = state.item?.kind == MediaKind.SERIES
+    // Matched: back to the title, unless Back already left (the match itself goes on without the screen).
+    val leave = dropUnlessResumed(block = onDone)
+    LaunchedEffect(state.done) { if (state.done) leave() }
 
-    fun identify(candidate: MatchCandidate?) {
-        scope.launch { if (vm.identify(candidate)) onDone() }
-    }
+    fun identify(candidate: MatchCandidate?) = vm.identify(candidate)
 
     // The first results of the automatic search take focus: the right title is often first.
     val firstResult = remember { FocusRequester() }

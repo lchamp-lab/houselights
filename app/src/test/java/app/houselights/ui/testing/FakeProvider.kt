@@ -47,6 +47,9 @@ class FakeProvider : MediaProvider {
     var results = listOf<MatchCandidate>()
     var choices: ArtworkChoices? = null
 
+    /** What the title was last matched with, once the match is written. */
+    var identified: MatchCandidate? = null
+
     val calls = mutableListOf<String>()
     val gates = mutableMapOf<String, CompletableDeferred<Unit>>()
     var fail: (call: String) -> Throwable? = { null }
@@ -144,6 +147,7 @@ class FakeProvider : MediaProvider {
 
         override suspend fun identify(item: MediaItem, candidate: MatchCandidate?) {
             call("identify ${item.id} ${candidate?.id}")
+            identified = candidate
         }
     }
 }

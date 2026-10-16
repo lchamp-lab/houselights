@@ -18,6 +18,7 @@ import app.houselights.core.MetadataEditor
 import app.houselights.core.suspendRunCatching
 import app.houselights.ui.util.UiError
 import app.houselights.ui.util.toUiError
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -88,11 +89,20 @@ data class IdentifyState(
     val identifying: Boolean = false,
     /** The result being matched while [identifying]; null when going back to automatic matching. */
     val chosenId: String? = null,
+    /** The title is matched as chosen ([identifying] stays on): the screen can close. */
+    val done: Boolean = false,
     val error: UiError? = null,
 )
 
-/** Matching a title by hand, from the [provider] of the source in use. */
-class IdentifyViewModel(private val itemId: String, private val provider: () -> MediaProvider) : ViewModel() {
+/**
+ * Matching a title by hand, from the [provider] of the source in use. The match itself runs in [work],
+ * which outlives the screen: leaving while a series is matched never leaves it half done.
+ */
+class IdentifyViewModel(
+    private val itemId: String,
+    private val provider: () -> MediaProvider,
+    private val work: CoroutineScope,
+) : ViewModel() {
     private val _state = MutableStateFlow(IdentifyState())
     val state: StateFlow<IdentifyState> = _state
     private var search: Job? = null
@@ -128,22 +138,25 @@ class IdentifyViewModel(private val itemId: String, private val provider: () -> 
     }
 
     /**
-     * Matches the title with [candidate], or goes back to automatic matching. True once done. One at
-     * a time: a second OK while matching changes nothing. The results stay as they are.
+     * Matches the title with [candidate], or goes back to automatic matching; [IdentifyState.done] once
+     * done. One at a time: a second OK while matching changes nothing. The results stay as they are.
      */
-    suspend fun identify(candidate: MatchCandidate?): Boolean {
+    fun identify(candidate: MatchCandidate?) {
         val s = _state.value
-        val item = s.item ?: return false
-        if (s.identifying) return false
+        val item = s.item ?: return
+        if (s.identifying || s.done) return
         _state.update { it.copy(identifying = true, chosenId = candidate?.id, error = null) }
-        return suspendRunCatching { provider().editorOrFail().identify(item, candidate) }
-            .onFailure { e -> _state.update { it.copy(identifying = false, chosenId = null, error = e.reported()) } }
-            .isSuccess
+        work.launch {
+            suspendRunCatching { provider().editorOrFail().identify(item, candidate) }
+                // Still shown as matching while the screen closes.
+                .onSuccess { _state.update { it.copy(done = true) } }
+                .onFailure { e -> _state.update { it.copy(identifying = false, chosenId = null, error = e.reported()) } }
+        }
     }
 
     companion object {
         fun factory(app: AppContainer, itemId: String): ViewModelProvider.Factory = viewModelFactory {
-            initializer { IdentifyViewModel(itemId, app::provider) }
+            initializer { IdentifyViewModel(itemId, app::provider, app.scope) }
         }
     }
 }
