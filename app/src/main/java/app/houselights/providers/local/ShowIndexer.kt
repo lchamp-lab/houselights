@@ -19,6 +19,9 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
         refreshedSeasons.clear()
     }
 
+    /** Whether the show [seriesId] was read during the current scan: its sidecars, and TMDB when it was due. */
+    fun readThisPass(seriesId: Long): Boolean = seriesId in refreshedSeries
+
     @Suppress("LongParameterList") // What a pass hands each file.
     suspend fun process(
         source: SourceEntity,
@@ -132,12 +135,12 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
 
         if (series.id in refreshedSeries) return series
         val local = sidecars.forShow(showDir)
-        val nfoChanged = local.nfo != null && series.nfoPath != local.nfo.relativePath
-        val needsLookup = series.matchedAt == null || refreshMetadata || nfoChanged ||
-            (local.poster != null && !series.posterPath.isCachedArtwork())
+        // Its tvshow.nfo or artwork placed, rewritten in place or removed since they were read.
+        val sidecarsChanged = SidecarKey.showDue(series.sidecarKey, source.id, showDir, sidecars)
+        val needsLookup = series.matchedAt == null || refreshMetadata || sidecarsChanged
         // A refresh TMDB cannot be asked for now is not lost: the show is left unmatched (see saveShow).
         val refreshLeft = refreshMetadata && series.matchedAt != null
-        val nothingToRead = !tmdb.open && local.nfo == null && local.poster == null && !refreshLeft
+        val nothingToRead = !tmdb.open && !sidecarsChanged && !refreshLeft
         if (!needsLookup || nothingToRead) return series
         // Once a pass, answered or not: a show TMDB did not answer stays unmatched, and so do its
         // episodes, until a later pass asks again.
@@ -145,14 +148,31 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
 
         val kept = files.nfo(source, local.nfo, series)
         val nfo = kept.info
-        val tv = tmdb.ask { lookupShow(it, series.userTmdbId, nfo, title, year) }
+        // Sidecars read again ask TMDB only when the NFO names another show; or, beside the user's match,
+        // one only TMDB's ids tell of (IMDb's, TVDB's), as for a film.
+        val newIds = nfo != null && !sameIds(series.nfo?.let(NfoParser::parse), nfo)
+        val undecided = nfo != null && series.userTmdbId != null && nfo.tmdbId == null && (nfo.imdbId != null || nfo.tvdbId != null)
+        val needsTmdb = series.matchedAt == null || refreshMetadata || newIds || undecided
+        val tv = if (needsTmdb) tmdb.ask { lookupShow(it, series.userTmdbId, nfo, title, year) } else TmdbAnswer.Unanswered
         val art = LocalArt(
             poster = local.poster?.let { files.copyArtwork(source, it) },
             fanart = local.fanart?.let { files.copyArtwork(source, it) },
             logo = local.logo?.let { files.copyArtwork(source, it) },
         )
-        return saveShow(series.copy(nfoPath = kept.path, nfo = kept.text), nfo, tv, art, tmdb.client, now, refreshMetadata)
+        // What was read in its folder; an NFO or an image that failed is left out, to be read again.
+        val read = VideoSidecars(
+            nfo = local.nfo.takeUnless { kept.stale },
+            poster = files.examined(local.poster, art.poster),
+            fanart = files.examined(local.fanart, art.fanart),
+            logo = files.examined(local.logo, art.logo),
+        )
+        val base = series.copy(nfoPath = kept.path, nfo = kept.text, sidecarKey = SidecarKey.ofShow(source.id, showDir, read))
+        return saveShow(base, nfo, tv, art, tmdb.client, now, refreshMetadata)
     }
+
+    /** [known] and [nfo] name the same show: TMDB has nothing new to say of it. */
+    private fun sameIds(known: NfoInfo?, nfo: NfoInfo): Boolean =
+        known != null && known.tmdbId == nfo.tmdbId && known.imdbId == nfo.imdbId && known.tvdbId == nfo.tvdbId
 
     /**
      * The show [key] names. A key with a year ("doctor who|2005") takes the show of its name alone
