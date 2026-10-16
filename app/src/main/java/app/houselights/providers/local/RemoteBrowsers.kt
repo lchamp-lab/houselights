@@ -62,13 +62,14 @@ internal class KeptConnections<C>(
      * the one kept was not used for [IDLE_MS] (the NAS may have dropped it) or hung up: that one is
      * closed, not dropped, or the NAS would hold its session. A kept connection that breaks is made
      * again, once. After a failure of the file (not found, refused), the connection stays kept.
+     * A connection the NAS hung up is closed as broken: nothing would answer its sign-off.
      */
     fun <T> use(key: String, connect: () -> C, block: (C) -> T): T = synchronized(kept) {
         val reused = kept.remove(key)?.let { entry ->
             if (clock() - entry.lastUse < IDLE_MS && isOpen(entry.connection)) {
                 entry.connection
             } else {
-                close(entry.connection, false)
+                close(entry.connection, !isOpen(entry.connection))
                 null
             }
         }
@@ -83,13 +84,13 @@ internal class KeptConnections<C>(
     fun <T> once(connect: () -> C, block: (C) -> T): T {
         val connection = connect()
         val result = suspendRunCatching { block(connection) }
-        close(connection, result.exceptionOrNull()?.let(isBroken) == true)
+        close(connection, result.exceptionOrNull()?.let(isBroken) == true || !isOpen(connection))
         return result.getOrThrow()
     }
 
     /** Closes the connections kept for the keys [which] accepts. */
     fun forget(which: (String) -> Boolean) = synchronized(kept) {
-        kept.keys.filter(which).forEach { key -> kept.remove(key)?.let { close(it.connection, false) } }
+        kept.keys.filter(which).forEach { key -> kept.remove(key)?.let { close(it.connection, !isOpen(it.connection)) } }
     }
 
     /** Closes every connection kept: between operations, none is in use. */

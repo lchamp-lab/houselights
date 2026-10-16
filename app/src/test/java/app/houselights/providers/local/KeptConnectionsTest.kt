@@ -49,9 +49,19 @@ class KeptConnectionsTest {
 
     @Test
     fun aConnectionTheNasHungUpIsMadeAgain() {
-        use().hungUp = true
+        val first = use()
+        first.hungUp = true
         use()
         assertEquals(2, made.size)
+        assertEquals("not asked to sign off: nothing would answer", listOf(true), first.closes)
+    }
+
+    @Test
+    fun aConnectionTheNasHungUpIsOnlyHungUpWhenThePassEnds() {
+        val first = use()
+        first.hungUp = true
+        kept.closeIdle()
+        assertEquals(listOf(true), first.closes)
     }
 
     @Test
@@ -105,6 +115,8 @@ class KeptConnectionsTest {
     fun aConnectionOnItsOwnThatBreaksIsOnlyHungUp() {
         assertThrows(IOException::class.java) { kept.once(::connect) { throw IOException("Connection reset") } }
         assertEquals(listOf(true), made.single().closes)
+        kept.once(::connect) { it.hungUp = true }
+        assertEquals(listOf(true), made[1].closes)
     }
 
     @Test
