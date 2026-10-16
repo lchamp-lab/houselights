@@ -36,7 +36,7 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
         val path = FilenameParser.parseShowPath(file.relativePath) ?: return
         val parsed = path.episode
 
-        val series = series(source, path.title, path.year, path.dir, sidecars, tmdb, refreshMetadata, now)
+        val series = series(source, path, existing, sidecars, tmdb, refreshMetadata, now)
         val season = season(source, series, parsed.season, seasons, now, sidecars.seasonPoster(path.dir, parsed.season), refreshMetadata)
         val local = sidecars.forVideo(file)
         val base = existing ?: ItemEntity(
@@ -111,27 +111,19 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
         matchedAt = matchedAt,
     )
 
-    @Suppress("LongParameterList", "CyclomaticComplexMethod") // The show an episode names, as the pass met it; one choice per sidecar.
+    /** The show [path] names, for the episode [existing] (null for a new one), as the pass met it. */
+    @Suppress("LongParameterList", "CyclomaticComplexMethod") // What a pass hands each episode's show; one choice per sidecar.
     private suspend fun series(
         source: SourceEntity,
-        title: String,
-        year: Int?,
-        showDir: String,
+        path: ShowPath,
+        existing: ItemEntity?,
         sidecars: Sidecars,
         tmdb: TmdbPass,
         refreshMetadata: Boolean,
         now: Long,
     ): ItemEntity {
-        val key = FilenameParser.showKey(title, year)
-        val series = seriesByKey(key, FilenameParser.showKey(title)) ?: ItemEntity(
-            kind = ItemKind.SERIES,
-            sourceId = source.id,
-            matchKey = key,
-            title = title,
-            sortTitle = MetadataMerge.sortKey(title),
-            year = year,
-            addedAt = now,
-        ).let { it.copy(id = dao.insert(it)) }
+        val (title, year, showDir) = path
+        val series = showOf(source, path, existing, now)
 
         if (series.id in refreshedSeries) return series
         val local = sidecars.forShow(showDir)
@@ -168,6 +160,75 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
         )
         val base = series.copy(nfoPath = kept.path, nfo = kept.text, sidecarKey = SidecarKey.ofShow(source.id, showDir, read))
         return saveShow(base, nfo, tv, art, tmdb.client, now, refreshMetadata)
+    }
+
+    /**
+     * The show's row: the one keyed as [path] names it ([seriesByKey]), else the one the episode lay in, keyed
+     * by an earlier rule ([formerShow]), else a new one. An episode that leaves its show for another, the last
+     * to, hands it what the user did with the show it leaves ([takenOver]).
+     */
+    private suspend fun showOf(source: SourceEntity, path: ShowPath, existing: ItemEntity?, now: Long): ItemEntity {
+        val key = FilenameParser.showKey(path.title, path.year)
+        val nameKey = FilenameParser.showKey(path.title)
+        val show = seriesByKey(key, nameKey) ?: formerShow(source, path, existing, key, nameKey) ?: ItemEntity(
+            kind = ItemKind.SERIES,
+            sourceId = source.id,
+            matchKey = key,
+            title = path.title,
+            sortTitle = MetadataMerge.sortKey(path.title),
+            year = path.year,
+            addedAt = now,
+        ).let { it.copy(id = dao.insert(it)) }
+        val left = existing?.seriesId?.takeIf { it != show.id } ?: return show
+        return takenOver(show, left, existing.id)
+    }
+
+    /**
+     * The show the episode [existing] lies in, or for a new one that of the episodes of its show's folder that
+     * name its show ([nameKey]), when keyed by an earlier rule than their paths' ("slow horses s01" for a pack of
+     * a season at the root; "animation" when a folder of kinds named the shows under it): keyed again in place
+     * ([key]), it keeps its rows and what was done with it, as [seriesByKey] keeps a show keyed before its year.
+     * It is looked up again under its new name, the user's match first; one its path alone named takes the
+     * path's name. A show whose key one of its episodes' paths still gives is another one, and keeps its key:
+     * "Animation/Blue Eye Samurai" once in the same show as "Animation/Arcane".
+     */
+    private suspend fun formerShow(source: SourceEntity, path: ShowPath, existing: ItemEntity?, key: String, nameKey: String): ItemEntity? {
+        val id = existing?.seriesId ?: showBeside(source, path.dir, nameKey) ?: return null
+        val show = dao.item(id)?.takeIf { it.kind == ItemKind.SERIES } ?: return null
+        val name = show.matchKey?.substringBefore(FilenameParser.YEAR_MARK)
+        if (dao.episodesOfSeries(id).any { nameKeyOf(it.filePath) == name }) return null
+        val named = if (show.tmdbId == null && show.nfo == null) {
+            show.copy(title = path.title, sortTitle = MetadataMerge.sortKey(path.title), year = path.year)
+        } else {
+            show
+        }
+        return named.copy(matchKey = key, matchedAt = null).also { dao.saveScanned(it) }
+    }
+
+    /** The show of the episodes the library knows under the show's folder [dir] that name it ([nameKey]); none at the source's root. */
+    private suspend fun showBeside(source: SourceEntity, dir: String, nameKey: String): Long? {
+        if (dir.isEmpty()) return null
+        return dao.episodesUnder(source.id, dir).filter { nameKeyOf(it.filePath) == nameKey }.mapNotNullTo(HashSet()) { it.seriesId }
+            .singleOrNull()
+    }
+
+    /** The show an episode's path names, by its name alone ([FilenameParser.showKey]). */
+    private fun nameKeyOf(filePath: String?): String? =
+        filePath?.let(FilenameParser::parseShowPath)?.let { FilenameParser.showKey(it.title) }
+
+    /**
+     * [show], once the episode [episodeId] left the show [formerId] for it: the last to leave, it takes along
+     * what the user did with that show, which then goes empty ([LibraryDao.deleteEmptySeries]), where [show]
+     * has none of it ([LibraryDao.handOver]): two packs of a season, once two shows, are one now. A match by
+     * the user so handed over is looked up at once, or at a later pass.
+     */
+    private suspend fun takenOver(show: ItemEntity, formerId: Long, episodeId: Long): ItemEntity {
+        if (dao.hasOtherEpisodes(formerId, episodeId)) return show
+        dao.handOver(formerId, show.id)
+        val taken = dao.item(show.id) ?: return show
+        if (taken.userTmdbId == show.userTmdbId || taken.userTmdbId == taken.tmdbId) return taken
+        refreshedSeries -= taken.id
+        return taken.copy(matchedAt = null).also { dao.saveScanned(it) }
     }
 
     /** [known] and [nfo] name the same show: TMDB has nothing new to say of it. */

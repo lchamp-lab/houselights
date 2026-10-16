@@ -419,8 +419,8 @@ class LibraryScanner(
      * In a shows' folder, one known episode for each show folder whose show's own sidecars (tvshow.nfo,
      * its poster…) are due ([SidecarKey.showDue]), unless [todo] reads one of its episodes there: by show,
      * as a folder without one ("Show.S01E01.mkv" at the root) holds several. Each with its show's row id.
-     * Not for episodes of a show their path no longer names (keyed by an earlier rule): one of them read
-     * would move to the show their path names, and the rest one a pass, the old show gone with the last.
+     * Not for episodes of a show their path no longer names (keyed by an earlier rule): one of them read may
+     * move to another show their path names, one already keyed so ([ShowIndexer]), and the rest one a pass.
      */
     private suspend fun showsToRead(
         source: SourceEntity,

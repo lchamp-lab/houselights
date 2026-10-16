@@ -140,6 +140,20 @@ interface LibraryDao {
     @Query("SELECT * FROM items WHERE kind = 'SERIES' AND matchKey LIKE :nameKey || '${FilenameParser.YEAR_MARK}%'")
     suspend fun seriesNamed(nameKey: String): List<ItemEntity>
 
+    /**
+     * Episodes of a source under the folder [dir], as long as it is not the root (""): paths from "dir/" up to
+     * "dir0", "0" coming right after "/", which the index on the source and path reads as a range.
+     */
+    @Query(
+        "SELECT $ITEM_ROW FROM items WHERE kind = 'EPISODE' AND sourceId = :sourceId " +
+            "AND filePath > :dir || '/' AND filePath < :dir || '0'"
+    )
+    suspend fun episodesUnder(sourceId: Long, dir: String): List<ItemEntity>
+
+    /** Whether the show [seriesId] holds an episode besides [episodeId]. */
+    @Query("SELECT EXISTS(SELECT 1 FROM items WHERE kind = 'EPISODE' AND seriesId = :seriesId AND id != :episodeId)")
+    suspend fun hasOtherEpisodes(seriesId: Long, episodeId: Long): Boolean
+
     @Query("SELECT * FROM items WHERE kind = 'SEASON' AND parentId = :seriesId AND seasonNumber = :season LIMIT 1")
     suspend fun season(seriesId: Long, season: Int): ItemEntity?
 
@@ -355,6 +369,25 @@ interface LibraryDao {
                 played = current.played,
                 favorite = current.favorite,
                 lastPlayedAt = current.lastPlayedAt,
+            )
+        )
+    }
+
+    /**
+     * What the user did with the title [fromId] goes to [toId] where it has none of it: its favourite, the user's
+     * match and artwork. For a show about to go, whose episodes another took over ([ShowIndexer]).
+     */
+    @Transaction
+    suspend fun handOver(fromId: Long, toId: Long) {
+        val from = item(fromId) ?: return
+        val to = item(toId) ?: return
+        update(
+            to.copy(
+                favorite = to.favorite || from.favorite,
+                userTmdbId = to.userTmdbId ?: from.userTmdbId,
+                userPosterPath = to.userPosterPath ?: from.userPosterPath,
+                userBackdropPath = to.userBackdropPath ?: from.userBackdropPath,
+                userLogoPath = to.userLogoPath ?: from.userLogoPath,
             )
         )
     }
