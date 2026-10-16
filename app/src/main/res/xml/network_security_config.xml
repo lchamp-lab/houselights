@@ -14,5 +14,10 @@
     <domain-config cleartextTrafficPermitted="false">
         <domain includeSubdomains="true">themoviedb.org</domain>
         <domain includeSubdomains="true">tmdb.org</domain>
+        <!-- The system's authorities only: a certificate installed for a home server, or by
+             anyone else, cannot stand in for TMDB and read the user's own key on its way. -->
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
     </domain-config>
 </network-security-config>
