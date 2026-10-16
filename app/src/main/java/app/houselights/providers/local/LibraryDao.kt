@@ -19,6 +19,11 @@ internal const val SQL_IN_LIMIT = 500
 private const val SET_PLAYED =
     "UPDATE items SET played = :played, positionMs = 0, lastPlayedAt = CASE WHEN :played THEN :now ELSE lastPlayedAt END"
 
+/** A folder's password as the database keeps it: sealed text, or plain text from before sealing. */
+data class StoredPassword(val id: Long, val password: String) {
+    override fun toString() = "StoredPassword($id, ***)"
+}
+
 @Dao
 interface LibraryDao {
     // Sources
@@ -59,6 +64,14 @@ interface LibraryDao {
 
     @Query("SELECT * FROM sources WHERE id = :id")
     suspend fun source(id: Long): SourceEntity?
+
+    /** Folders' passwords as stored, sealed or not: read as text, they are not opened ([LibraryDatabase.sealPlainPasswords]). */
+    @Query("SELECT id, password FROM sources WHERE password != ''")
+    suspend fun storedPasswords(): List<StoredPassword>
+
+    /** Writes [sealed] in place of the [plain] password read, unless the folder was saved meanwhile. */
+    @Query("UPDATE sources SET password = :sealed WHERE id = :id AND password = :plain")
+    suspend fun sealPassword(id: Long, plain: String, sealed: String)
 
     /**
      * The end of a scan, written alone: the rest of the folder's row may have changed during the

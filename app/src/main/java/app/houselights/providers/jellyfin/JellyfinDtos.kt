@@ -103,6 +103,8 @@ data class MediaSource(
     @SerialName("Size") val size: Long? = null,
     @SerialName("RunTimeTicks") val runTimeTicks: Long? = null,
     @SerialName("MediaStreams") val mediaStreams: List<MediaStream> = emptyList(),
+    /** "VideoFile", or a disc: "Iso", "BluRay" (a BDMV folder), "Dvd" (a VIDEO_TS folder). */
+    @SerialName("VideoType") val videoType: String? = null,
 )
 
 @Serializable

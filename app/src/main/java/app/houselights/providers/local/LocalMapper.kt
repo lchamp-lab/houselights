@@ -112,7 +112,8 @@ internal class LocalMapper(private val dao: LibraryDao, private val context: Con
      * [item] (mapped from [e]) as the player shows it while it opens the file: its backdrop and logo
      * where the player, another app, can fetch them, a web address. A file the app keeps itself (a
      * sidecar fanart or clearlogo, an image downloaded) is out of its reach: the automatic choice
-     * stands in for it when that is on the web, else the address the NFO gives. None shown, none given.
+     * stands in for it when that is on the web, else the address the NFO gives, else the same of its
+     * show's. None shown, none given; none chosen, none of that item's.
      */
     suspend fun forPlayer(e: ItemEntity, item: MediaItem): MediaItem {
         val show = e.seriesId?.let { dao.item(it) }
@@ -131,15 +132,24 @@ internal class LocalMapper(private val dao: LibraryDao, private val context: Con
     }
 
     private fun webArtwork(e: ItemEntity, show: ItemEntity?, art: PlayerArt): ImageRef? {
-        fun shown(x: ItemEntity) = LocalProvider.shown(art.user(x), art.automatic(x))
-        // Whose artwork the screens show: the item's, else its show's.
-        val owner = listOfNotNull(e, show).firstOrNull { shown(it) != null } ?: return null
-        val inReach = listOf(
-            { shown(owner) },
-            { art.automatic(owner) },
-            { owner.nfo?.let(NfoParser::parse)?.let(art.nfo) },
+        val owners = listOfNotNull(e, show)
+        // The screens show the item's artwork, else its show's: none there (none chosen, none found), none given.
+        if (owners.none { LocalProvider.shown(art.user(it), art.automatic(it)) != null }) return null
+        // An episode whose own image is a file of the app's still has its show's on the web.
+        return owners.firstNotNullOfOrNull { webCandidate(it, art) }?.let { LocalProvider.image(it, art.type) }
+    }
+
+    /**
+     * The first of [x]'s images the player can fetch, a web address: the one shown, the automatic
+     * one, the NFO's. None when the user chose none for [x].
+     */
+    private fun webCandidate(x: ItemEntity, art: PlayerArt): String? {
+        if (art.user(x)?.isEmpty() == true) return null
+        return listOf(
+            { LocalProvider.shown(art.user(x), art.automatic(x)) },
+            { art.automatic(x) },
+            { x.nfo?.let(NfoParser::parse)?.let(art.nfo) },
         ).firstNotNullOfOrNull { candidate -> candidate()?.takeUnless { it.isEmpty() || it.isCachedArtwork() } }
-        return inReach?.let { LocalProvider.image(it, art.type) }
     }
 
     /** The user's choice, else the automatic one; for the item, else its show. */
