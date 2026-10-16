@@ -31,6 +31,32 @@ player's own menus all keep working.
 - 4K60 interface output when the device allows it.
 - English and French UI.
 
+## Install
+
+Each release is on the [Releases page](https://github.com/lchamp-lab/Houselights/releases): one APK, its
+SHA-256, and what changed. A release installs over an earlier one and keeps its library, watch history and
+settings. Android may first ask you to allow installing apps from the file manager or downloader you use.
+
+- **On a Zidoo**: copy `Houselights-x.y.z.apk` to a USB stick, plug it in, and open it from the player's
+  file manager.
+- **On any Android TV**, with the [Downloader](https://www.aftvnews.com/downloader/) app: enter
+  `https://github.com/lchamp-lab/Houselights/releases/latest/download/Houselights.apk`, always the latest
+  release.
+- **Kept up to date by itself**, with [Obtainium](https://github.com/ImranR98/Obtainium): add
+  `https://github.com/lchamp-lab/Houselights`; it installs each new release as it comes.
+- **From a computer**: `adb install -r Houselights-x.y.z.apk`.
+
+Every release is signed with the project's key. Android refuses to update the app from an APK signed with
+another one, and you can check an APK yourself (`apksigner verify --print-certs`, or the AppVerifier app):
+its certificate's SHA-256 is
+
+```
+C4:2C:70:C6:C8:AE:CA:07:F8:38:E3:90:6E:8F:D1:0E:17:86:33:9A:30:D4:63:30:0E:51:C2:7E:6A:55:70:73
+```
+
+A release may come without a TMDB key: the app then asks for yours (free, from
+[themoviedb.org](https://www.themoviedb.org/settings/api)), in Settings > Library > TMDB API key.
+
 ## Building
 
 Requirements: JDK 17 and the Android SDK (platform 35).
@@ -49,7 +75,7 @@ settings. **Never commit it**: `local.properties` is git-ignored.
 
 To try the app in an Android TV emulator: `scripts/preview.sh`.
 
-Before a branch is merged, `scripts/check.sh` runs the checks of CI (`.gitea/workflows/ci.yml`) and builds
+Before a branch is merged, `scripts/check.sh` runs the checks of CI (`.github/workflows/ci.yml`) and builds
 the debug APK: branches are merged locally and only `main` is pushed, so CI sees a branch once it is on
 `main`. It runs `./gradlew testDebugUnitTest lintDebug detekt detektDebug detektDebugUnitTest
 assembleRelease assembleDebug`, the release signed with the debug key without a signing key; on a machine
@@ -74,11 +100,13 @@ A release is signed with your own key, which a `keystore.properties` file (git-i
 project names:
 
 ```sh
-keytool -genkeypair -keystore ~/houselights-release.jks -alias houselights -keyalg RSA -keysize 4096 -validity 10000
+mkdir -p ~/.config/houselights && chmod 700 ~/.config/houselights
+keytool -genkeypair -keystore ~/.config/houselights/houselights-release.jks -storetype PKCS12 \
+    -alias houselights -keyalg RSA -keysize 4096 -validity 36500 -dname "CN=Houselights, O=Houselights"
 ```
 
 ```properties
-storeFile=/home/you/houselights-release.jks
+storeFile=/home/you/.config/houselights/houselights-release.jks
 storePassword=…
 keyAlias=houselights
 keyPassword=…
@@ -94,6 +122,22 @@ even with the file: those bear the release's package name (Benchmarks, below).
 
 An APK given to other people should not carry your personal TMDB key: build it without one (users then enter
 their own), or with a key created for the project that you can revoke.
+
+### Releases
+
+A tag `vX.Y.Z` publishes a release (`.github/workflows/release.yml`); `vX.Y.Z-beta.N` publishes a
+pre-release. Set `versionName` in `app/build.gradle.kts` first: the workflow stops when the tag says
+otherwise. It runs the checks of CI, builds the release signed with the project's key, stops unless its
+certificate is the one above, and publishes the APK (also as `Houselights.apk`, the address that always
+gives the latest), its SHA-256, and notes made of the commits since the previous tag.
+
+```sh
+git tag -a v0.2.0 -m "Houselights 0.2.0" && git push origin v0.2.0
+```
+
+It needs three repository secrets: `HOUSELIGHTS_KEYSTORE` (the keystore in base64:
+`base64 -w0 houselights-release.jks`), `HOUSELIGHTS_KEYSTORE_PASSWORD`, and, optionally, `TMDB_API_KEY`, a
+key created for the project.
 
 ## Performance
 
@@ -219,7 +263,13 @@ Both sources show the same home, libraries, detail pages, technical sheets and p
 
 ## License
 
-[GPL-3.0](LICENSE). The Archivo typeface is licensed under the SIL Open Font License 1.1
-([third_party/archivo/OFL.txt](third_party/archivo/OFL.txt)).
+Houselights is free software: you can redistribute it and/or modify it under the terms of the GNU General
+Public License as published by the Free Software Foundation, either version 3 of the License, or (at your
+option) any later version ([LICENSE](LICENSE), `GPL-3.0-or-later`).
 
-This product uses the TMDB API but is not endorsed or certified by TMDB.
+The Archivo typeface is licensed under the SIL Open Font License 1.1
+([third_party/archivo/OFL.txt](third_party/archivo/OFL.txt)). The Play glyph comes from Material Icons
+(Apache License 2.0).
+
+This product uses the TMDB API but is not endorsed or certified by TMDB. The TMDB logo is a trademark of
+TMDB, shown under its attribution guidelines; it is not covered by the GPL.
