@@ -11,7 +11,7 @@ import org.junit.Test
  * once its parts are renamed, added or gone.
  */
 class StacksTest {
-    private fun part(name: String) = FilenameParser.stackPart(name)
+    private fun part(name: String) = StackPart.of(name)
 
     private fun stacks(vararg paths: String, kind: SourceKind = SourceKind.MOVIES) =
         Stacks.of(kind, paths.map { RemoteFile(it, 1_000) })

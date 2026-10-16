@@ -1,7 +1,25 @@
 package app.houselights.providers.local
 
 /** A file's place in a film split in several files: its name without the suffix, and the part's number (1 for "CD1" or "a"). */
-data class StackPart(val name: String, val part: Int)
+data class StackPart(val name: String, val part: Int) {
+    companion object {
+        /** Kodi's stacking suffixes, after a space, a dot, an underscore or a dash: "CD1", "part 2", "pt.3", "disc-b". */
+        private val SUFFIX = Regex("""(?i)^(.+?)[ ._-]+(?:cd|dvd|part|pt|dis[ck])[ ._-]*([1-9]|[a-d])$""")
+
+        /**
+         * Where a file stands in a film split in several files, as Kodi stacks them: the suffix ends its name,
+         * just before the extension ("Film (2020) CD1.avi", "Film (2020) - Part 2.mkv", "film.disc.b.iso"),
+         * its number from 1 to 9 or its letter from a to d (b is the second). Null for any other name: "Dune
+         * Part Two (2024)", "Kill Bill Vol. 1", "Film CD1 [1080p]". A name alone says only that the file may be
+         * a part; [Stacks] makes a film of parts that sit side by side.
+         */
+        fun of(fileName: String): StackPart? {
+            val match = SUFFIX.find(FilenameParser.stripExtension(fileName)) ?: return null
+            val mark = match.groupValues[2].lowercase().single()
+            return StackPart(match.groupValues[1], if (mark.isDigit()) mark.digitToInt() else mark - 'a' + 1)
+        }
+    }
+}
 
 /**
  * A film in several files, as Kodi stacks them. [first] stands for it in the library
@@ -51,7 +69,7 @@ class Stacks private constructor(videos: List<RemoteFile>, private val stacks: M
         fun of(kind: SourceKind, videos: List<RemoteFile>): Stacks {
             if (kind != SourceKind.MOVIES) return Stacks(videos, emptyMap())
             val candidates = videos.mapNotNull { v ->
-                FilenameParser.stackPart(v.relativePath.substringAfterLast('/'))?.let { Candidate(v, it) }
+                StackPart.of(v.relativePath.substringAfterLast('/'))?.let { Candidate(v, it) }
             }
             val stacks = candidates.groupBy { it.film }.values.mapNotNull { group ->
                 // 1, 2, 3… each once, from the first: a gap, or a part twice, ends the film there.
@@ -67,7 +85,7 @@ class Stacks private constructor(videos: List<RemoteFile>, private val stacks: M
          */
         fun filmPath(path: String, stacked: Boolean): String {
             if (!stacked) return path
-            val name = FilenameParser.stackPart(path.substringAfterLast('/'))?.name ?: return path
+            val name = StackPart.of(path.substringAfterLast('/'))?.name ?: return path
             return renamed(path, name)
         }
     }
