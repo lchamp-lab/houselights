@@ -10,10 +10,12 @@ import com.emc.ecs.nfsclient.nfs.NfsStatus
 import com.emc.ecs.nfsclient.rpc.RpcException
 import com.emc.ecs.nfsclient.rpc.RpcStatus
 import com.hierynomus.mserref.NtStatus
+import com.hierynomus.mssmb.SMB1NotSupportedException
 import com.hierynomus.mssmb2.SMB2MessageCommandCode
 import com.hierynomus.mssmb2.SMBApiException
 import com.hierynomus.protocol.transport.TransportException
 import com.hierynomus.smbj.common.SMBRuntimeException
+import com.hierynomus.smbj.session.SMB2GuestSigningRequiredException
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -55,7 +57,18 @@ class ScanErrorsTest {
     /** smbj raises a TransportException of its own for what the NAS asks and it cannot do: no network failure. */
     @Test
     fun anSmbProtocolFailureIsNotTheNetwork() {
-        assertEquals(ScanErrorKind.OTHER, kind(TransportException("Message signing is required, but no signing key is negotiated")))
+        assertEquals(ScanErrorKind.OTHER, kind(SMB1NotSupportedException()))
+    }
+
+    /**
+     * A NAS that requires signing refuses guests (Windows 11 24H2, recent Synology): an account is to
+     * be entered. As SMBSessionBuilder throws it, and as Session.send does for a guest it let through.
+     */
+    @Test
+    fun aGuestRefusedForSigningIsTheSignIn() {
+        assertEquals(ScanErrorKind.LOGIN_FAILED, kind(SMB2GuestSigningRequiredException()))
+        val unsigned = TransportException("Message signing is required, but no signing key is negotiated")
+        assertEquals(ScanErrorKind.LOGIN_FAILED, kind(SMBRuntimeException(unsigned)))
     }
 
     /** nfs-client 1.1: after its retries, RpcWrapper wraps its Connection's RpcException in an NfsException. */

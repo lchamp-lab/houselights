@@ -1,11 +1,16 @@
 package app.houselights.providers.local
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertThrows
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.FileNotFoundException
 import java.io.IOException
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import kotlin.concurrent.thread
 
 /** How sessions and mounts are kept between files, closed, and made again. */
 class KeptConnectionsTest {
@@ -129,6 +134,52 @@ class KeptConnectionsTest {
         assertEquals(listOf(false), guest.closes)
         assertEquals(emptyList<Boolean>(), shows.closes)
         assertSame(shows, use("kodi@/nas/shows"))
+    }
+
+    /**
+     * Runs an operation on [connections] on a thread of its own, and [meanwhile] while it runs, then
+     * lets it end. Whether [meanwhile] returned before the operation ended.
+     */
+    private fun whileInUse(connections: KeptConnections<Connection>, meanwhile: () -> Unit, waitMs: Long): Boolean {
+        val inUse = CountDownLatch(1)
+        val release = CountDownLatch(1)
+        val operation = thread {
+            connections.use("nas:/volume1/media", ::connect) {
+                inUse.countDown()
+                release.await()
+            }
+        }
+        assertTrue(inUse.await(5, TimeUnit.SECONDS))
+        val other = thread { meanwhile() }
+        other.join(waitMs)
+        val returned = !other.isAlive
+        release.countDown()
+        operation.join(5_000)
+        other.join(5_000)
+        return returned
+    }
+
+    /** An SMB session signs off: not under a read. */
+    @Test
+    fun forgettingASessionWaitsForTheOperationUnderWay() {
+        assertFalse(whileInUse(kept, { kept.forget { true } }, waitMs = 200))
+        assertEquals("signed off once the operation ended", listOf(false), made.single().closes)
+    }
+
+    /** An NFS mount closes by being dropped: a folder's new address is saved while the old one is listed. */
+    @Test
+    fun forgettingAMountWaitsForNoOperation() {
+        val mounts = KeptConnections<Connection>(
+            close = { connection, broken -> connection.closes += broken },
+            isOpen = { !it.hungUp && it.closes.isEmpty() },
+            isBroken = { it is IOException },
+            clock = { now },
+            closingWaits = false,
+        )
+        assertTrue(whileInUse(mounts, { mounts.forget { it.endsWith("/volume1/media") } }, waitMs = 5_000))
+        assertEquals("closed as its operation ended, not kept", listOf(false), made.single().closes)
+        mounts.use("nas:/volume1/media", ::connect) {}
+        assertEquals(2, made.size)
     }
 
     @Test
