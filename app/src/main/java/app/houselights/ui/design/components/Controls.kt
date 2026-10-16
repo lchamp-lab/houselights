@@ -52,6 +52,8 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.constrain
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.geometry.Offset
@@ -414,7 +416,6 @@ fun HlSegmented(
     scrollable: Boolean = false,
     enterAt: Int = selected,
 ) {
-    val density = LocalDensity.current
     val places = remember(options.size) { mutableStateMapOf<Int, Pair<Float, Float>>() }
     val requesters = remember(options.size) { List(options.size) { FocusRequester() } }
     // A long track (seasons) scrolls as one piece: the pill moves with the options. Its ends keep
@@ -437,7 +438,13 @@ fun HlSegmented(
                     Box(
                         Modifier
                             .offset { IntOffset(left.roundToInt(), 0) }
-                            .width(with(density) { width.toDp() })
+                            // Its width read while measuring, as its place is while placing: the pill
+                            // slides without recomposing the track. As `width()` measures it.
+                            .layout { measurable, constraints ->
+                                val px = width.toDp().roundToPx().coerceAtLeast(0)
+                                val placeable = measurable.measure(constraints.constrain(Constraints(minWidth = px, maxWidth = px)))
+                                layout(placeable.width, placeable.height) { placeable.placeRelative(0, 0) }
+                            }
                             .height(HlSize.segment)
                             .background(Hl.colors.content.copy(alpha = HlAlpha.FILL_STRONG), HlShapes.control),
                     )

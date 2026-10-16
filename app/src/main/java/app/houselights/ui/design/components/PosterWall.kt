@@ -5,6 +5,7 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -16,6 +17,8 @@ import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -24,6 +27,9 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlAlpha
@@ -33,7 +39,8 @@ import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.colorStops
-import coil.compose.AsyncImage
+import coil.compose.rememberAsyncImagePainter
+import coil.request.ImageRequest
 
 private val POSTER_W = HlSize.posterWall
 private val POSTER_H = POSTER_W * 1.5f
@@ -56,6 +63,16 @@ fun PosterWall(urls: List<String>, modifier: Modifier = Modifier, opacity: Float
         label = "drift",
     )
     val cycle = (POSTER_H + GAP) * ROWS
+    // The wall shows each poster on several tiles: one painter per poster, which every tile showing it
+    // draws, so each is fetched and decoded once, not once per tile (81 tiles for at most 20 posters).
+    val context = LocalContext.current
+    val tile = with(LocalDensity.current) { IntSize(POSTER_W.roundToPx(), POSTER_H.roundToPx()) }
+    val posters = urls.distinct().associateWith { url ->
+        key(url) {
+            val request = remember(url, tile) { ImageRequest.Builder(context).data(url).size(tile.width, tile.height).build() }
+            rememberAsyncImagePainter(request, contentScale = ContentScale.Crop)
+        }
+    }
     Box(modifier.fillMaxSize().clipToBounds()) {
         Row(
             horizontalArrangement = Arrangement.spacedBy(GAP),
@@ -77,8 +94,8 @@ fun PosterWall(urls: List<String>, modifier: Modifier = Modifier, opacity: Float
                 ) {
                     // Rows r and r + ROWS show the same poster, so the drift loops without a seam.
                     repeat(ROWS * 2 + 1) { row ->
-                        AsyncImage(
-                            model = urls[(col * 5 + (row % ROWS) * 11) % urls.size],
+                        Image(
+                            painter = posters.getValue(urls[(col * 5 + (row % ROWS) * 11) % urls.size]),
                             contentDescription = null,
                             contentScale = ContentScale.Crop,
                             modifier = Modifier

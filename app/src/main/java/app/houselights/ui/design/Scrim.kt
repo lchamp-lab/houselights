@@ -137,10 +137,13 @@ data class VeilStop(val at: Float, val alpha: Float)
  * and wherever the veil turns, so it never overshoots a stop and its slope never jumps.
  */
 fun List<VeilStop>.alphaAt(at: Float): Float {
-    val next = indexOfFirst { it.at >= at }
-    if (next == -1) return last().alpha
+    // By index, with no iterator: a veil is asked for thousands of points.
+    var next = 0
+    while (next < size && !(this[next].at >= at)) next++
+    if (next == size) return last().alpha
     if (next == 0) return first().alpha
-    val (from, to) = this[next - 1] to this[next]
+    val from = this[next - 1]
+    val to = this[next]
     val width = to.at - from.at
     if (width <= 0f) return to.alpha
     // Cubic Hermite: how much of each stop's value, and of each stop's slope, at s along the way.
@@ -220,21 +223,27 @@ class ArtworkSample(val width: Int, val height: Int, private val grey: FloatArra
         if (cols.isEmpty()) return veil
         val bands = veil.size - 1
         check(HlScrim.LEFT_CONTRAST.size == bands) { "a contrast for each of the $bands bands" }
-        val needs = Array(bands) { FloatArray(cols.count() * rows.count()) }
+        // How much of each row shows through the veils down the screen: the same all across it.
+        val through = throughRows(rows, scale, screen.height, imageAlpha, down)
+        val bandOf = IntArray(cols.length) {
+            val x = left + (cols.first + it + MIDDLE) * scale
+            (x / column * bands).toInt().coerceIn(0, bands - 1)
+        }
+        // Each band holds the points of its own columns, no more.
+        val needs = Array(bands) { band -> FloatArray(bandOf.count { it == band } * rows.length) }
         val counts = IntArray(bands)
         for (col in cols) {
             val x = left + (col + MIDDLE) * scale
-            val band = (x / column * bands).toInt().coerceIn(0, bands - 1)
+            val band = bandOf[col - cols.first]
             val held = veil.alphaAt(x / column)
+            val ceiling = HlScrim.leftCeiling(band)
             for (row in rows) {
-                val y = (row + MIDDLE) * scale
-                val through = imageAlpha * (1f - down.alphaAt(y / screen.height))
-                val need = HlScrim.need(grey[row * width + col] * through, HlScrim.leftCeiling(band))
+                val need = HlScrim.need(grey[row * width + col] * through[row], ceiling)
                 needs[band][counts[band]++] = if (need > held) need else 0f
             }
         }
         val floors = FloatArray(bands) { band ->
-            val points = needs[band].copyOf(counts[band]).apply { sort() }
+            val points = needs[band].apply { sort() }
             if (points.isEmpty()) 0f else points[(points.lastIndex * HlScrim.FLOOR_QUANTILE).roundToInt()]
         }
         // From the right: a band keeps what any band to its right needs.
@@ -255,14 +264,20 @@ class ArtworkSample(val width: Int, val height: Int, private val grey: FloatArra
         val left = screen.width - width * scale
         val cols = ceil(-left / scale - MIDDLE).toInt().coerceAtLeast(0)..(width - 1)
         val rows = 0..kotlin.math.floor(screen.height / scale - MIDDLE).toInt().coerceAtMost(height - 1)
-        val needs = FloatArray(cols.count() * rows.count())
+        val needs = FloatArray(cols.length * rows.length)
+        val through = throughRows(rows, scale, screen.height, imageAlpha, down)
         var count = 0
         for (row in rows) {
-            val y = (row + MIDDLE) * scale
-            val through = imageAlpha * (1f - down.alphaAt(y / screen.height))
-            for (col in cols) needs[count++] = HlScrim.need(grey[row * width + col] * through)
+            for (col in cols) needs[count++] = HlScrim.need(grey[row * width + col] * through[row])
         }
         needs.sort()
         return needs[(needs.lastIndex * HlScrim.FLOOR_QUANTILE).roundToInt()]
     }
+
+    /** How many points a range of them holds, without walking it. */
+    private val IntRange.length get() = if (isEmpty()) 0 else last - first + 1
+
+    /** For each of the [rows], how much of the picture at [imageAlpha] shows through the veils [down] it. */
+    private fun throughRows(rows: IntRange, scale: Float, screenHeight: Float, imageAlpha: Float, down: List<VeilStop>) =
+        FloatArray(rows.last + 1) { row -> imageAlpha * (1f - down.alphaAt((row + MIDDLE) * scale / screenHeight)) }
 }
