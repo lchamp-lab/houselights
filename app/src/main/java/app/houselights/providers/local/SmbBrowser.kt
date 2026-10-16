@@ -123,6 +123,17 @@ object SmbBrowser : RemoteBrowser {
         }
     }
 
+    /**
+     * Closes the sessions kept open on [source]'s share, whoever signed in: the folder's address or
+     * password changed, and a session opened before must not stand for the new one.
+     */
+    fun forget(source: SourceEntity) {
+        val share = "/${source.host}/${source.share}"
+        synchronized(open) {
+            open.keys.filter { it.endsWith(share) }.forEach { open.remove(it)?.close() }
+        }
+    }
+
     /** Closes the sessions kept open; called when a scan ends. */
     fun closeAll() {
         synchronized(open) {

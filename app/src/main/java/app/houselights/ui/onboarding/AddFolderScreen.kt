@@ -42,11 +42,14 @@ import app.houselights.ui.util.scanErrorText
 private val PROTOCOLS = listOf(Protocol.NFS, Protocol.SMB)
 private val KINDS = listOf(SourceKind.MOVIES, SourceKind.SHOWS)
 
-/** Adds a network folder to the local library, after an optional connection test. */
+/**
+ * Adds a network folder to the local library, after an optional connection test; with [folderId],
+ * edits that folder in place, its kind aside. [onDone] hears whether the source changed.
+ */
 @Composable
-fun AddFolderScreen(onAdded: (switched: Boolean) -> Unit) {
+fun AddFolderScreen(folderId: Long?, onDone: (switched: Boolean) -> Unit) {
     val app = appContainer()
-    val vm = viewModel { AddFolderViewModel(app) }
+    val vm = viewModel { AddFolderViewModel(app, folderId) }
     val form = vm.form
     val focus = remember { FocusRequester() }
     LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
@@ -67,8 +70,8 @@ fun AddFolderScreen(onAdded: (switched: Boolean) -> Unit) {
     val (state, stateText) = connectionState(check, vm.busy)
 
     HlFormScaffold(
-        title = stringResource(R.string.add_folder),
-        description = stringResource(R.string.add_folder_desc),
+        title = stringResource(if (vm.edits) R.string.edit_folder else R.string.add_folder),
+        description = stringResource(if (vm.edits) R.string.edit_folder_desc else R.string.add_folder_desc),
         aside = {
             StatusPanel(
                 state = state,
@@ -92,14 +95,17 @@ fun AddFolderScreen(onAdded: (switched: Boolean) -> Unit) {
         },
     ) {
         Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.xl)) {
-            Column {
-                FieldLabel(stringResource(R.string.folder_kind))
-                HlSegmented(
-                    listOf(stringResource(R.string.library_movies), stringResource(R.string.library_shows)),
-                    selected = KINDS.indexOf(kind),
-                    onSelect = { i -> vm.edit { copy(kind = KINDS[i]) } },
-                    modifier = Modifier.focusRequester(focus),
-                )
+            // A folder edited keeps what it holds (its titles stay): the panel beside says it.
+            if (!vm.edits) {
+                Column {
+                    FieldLabel(stringResource(R.string.folder_kind))
+                    HlSegmented(
+                        listOf(stringResource(R.string.library_movies), stringResource(R.string.library_shows)),
+                        selected = KINDS.indexOf(kind),
+                        onSelect = { i -> vm.edit { copy(kind = KINDS[i]) } },
+                        modifier = Modifier.focusRequester(focus),
+                    )
+                }
             }
             Column {
                 FieldLabel(stringResource(R.string.field_protocol))
@@ -107,6 +113,7 @@ fun AddFolderScreen(onAdded: (switched: Boolean) -> Unit) {
                     PROTOCOLS.map { it.name },
                     selected = PROTOCOLS.indexOf(protocol),
                     onSelect = { i -> vm.edit { copy(protocol = PROTOCOLS[i]) } },
+                    modifier = if (vm.edits) Modifier.focusRequester(focus) else Modifier,
                 )
             }
         }
@@ -135,32 +142,34 @@ fun AddFolderScreen(onAdded: (switched: Boolean) -> Unit) {
                 )
                 HlTextField(
                     stringResource(R.string.field_password), form.password, { v -> vm.edit { copy(password = v) } },
+                    // The password saved is never shown: left empty, it stays.
+                    placeholder = if (vm.keepsPassword) stringResource(R.string.password_kept) else "",
                     password = true, imeAction = ImeAction.Done, modifier = Modifier.weight(1f),
                 )
             }
         }
-        FolderActions(vm, onAdded)
+        FolderActions(vm, onDone)
     }
 }
 
 /**
- * Add, and Test. Both test the folder first: the one pressed says so while the check runs, the
- * other waits.
+ * Add (or Save, for a folder edited), and Test. Both test the folder first: the one pressed says so
+ * while the check runs, the other waits.
  */
 @Composable
-private fun FolderActions(vm: AddFolderViewModel, onAdded: (switched: Boolean) -> Unit) {
+private fun FolderActions(vm: AddFolderViewModel, onDone: (switched: Boolean) -> Unit) {
     // Which button started the check under way.
     var adding by remember { mutableStateOf(false) }
     val checking = stringResource(R.string.checking)
     val busy = vm.busy
     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.s)) {
         HlButton(
-            stringResource(R.string.add),
+            stringResource(if (vm.edits) R.string.save else R.string.add),
             {
                 adding = true
-                vm.add(onAdded)
+                vm.submit(onDone)
             },
-            icon = HlIcons.Add,
+            icon = if (vm.edits) HlIcons.Check else HlIcons.Add,
             emphasis = Emphasis.Primary,
             enabled = adding || !busy,
             busy = busy && adding,

@@ -33,6 +33,7 @@ import app.houselights.core.SourceConfig
 import app.houselights.providers.jellyfin.JellyfinClient
 import app.houselights.providers.local.LocalProvider
 import app.houselights.providers.local.ScanError
+import app.houselights.providers.local.ScanErrorKind
 import app.houselights.providers.local.ScanState
 import app.houselights.providers.local.SourceEntity
 import app.houselights.providers.local.SourceKind
@@ -73,22 +74,22 @@ import kotlinx.coroutines.launch
 import app.houselights.core.CollectionThreshold
 
 /**
- * The library: its folders or its server, then what can be done with it. [onUseFolders] makes the
- * folders the source (or adds the first one), [onSignIn] opens the Jellyfin sign-in. The rows that
- * open another screen are keyed in [rows]; "Add a folder" is also where focus goes when the last
- * folder is removed.
+ * The library: its folders or its server, then what can be done with it. [onFolderForm] opens the
+ * form of a folder (a new one for null), [onUseFolders] makes the folders the source (or adds the
+ * first one), [onSignIn] opens the Jellyfin sign-in. The rows and cards that open another screen are keyed in [rows];
+ * "Add a folder" is also where focus goes when the last folder is removed.
  */
 internal fun LazyListScope.libraryPane(
     s: AppSettings,
-    onAddFolder: () -> Unit,
+    onFolderForm: (folderId: Long?) -> Unit,
     onUseFolders: () -> Unit,
     onSignIn: () -> Unit,
     rows: PaneRows,
 ) {
     when (val source = s.source) {
         SourceConfig.Local -> {
-            item { Section(stringResource(R.string.section_source)) { Sources(rows.requester(ADD_FOLDER)) } }
-            item { LibraryActions(onAddFolder, onUseFolders, onSignIn, rows) }
+            item { Section(stringResource(R.string.section_source)) { Sources(rows, onEdit = onFolderForm) } }
+            item { LibraryActions({ onFolderForm(null) }, onUseFolders, onSignIn, rows) }
         }
         is SourceConfig.Jellyfin -> {
             item {
@@ -124,17 +125,16 @@ internal fun LazyListScope.libraryPane(
 }
 
 /**
- * One card per watched folder. The card of a folder removed takes focus with it: focus moves on to
- * the next card, else to [addFolder].
+ * One card per watched folder, keyed in [rows]: coming back from editing a folder finds its card. The
+ * card of a folder removed takes focus with it: focus moves on to the next card, else to "Add a folder".
  */
 @Composable
-private fun Sources(addFolder: FocusRequester) {
+private fun Sources(rows: PaneRows, onEdit: (folderId: Long) -> Unit) {
     val vm = settingsViewModel()
     val scope = rememberCoroutineScope()
     val sources by vm.library.folders.collectAsStateWithLifecycle(emptyList())
     val scan by vm.library.scan.collectAsStateWithLifecycle()
     var actionsFor by remember { mutableStateOf<SourceEntity?>(null) }
-    val cards = remember { mutableMapOf<Long, FocusRequester>() }
     // The folder being removed, and where focus goes once its card has gone.
     var removing by remember { mutableStateOf<Pair<Long, FocusRequester>?>(null) }
     LaunchedEffect(sources) {
@@ -153,7 +153,7 @@ private fun Sources(addFolder: FocusRequester) {
                     scan = scan.takeIf { it.running && it.sourceName == source.name },
                     error = scan.errors[source.name],
                     onClick = { actionsFor = source },
-                    modifier = Modifier.focusRequester(cards.getOrPut(source.id) { FocusRequester() }),
+                    modifier = rows.focus(folderRow(source.id)),
                 )
             }
         }
@@ -161,11 +161,13 @@ private fun Sources(addFolder: FocusRequester) {
     actionsFor?.let { source ->
         SourceActions(
             source,
+            error = scan.errors[source.name],
             onDismiss = { actionsFor = null },
+            onEdit = { onEdit(source.id) },
             // Launched from here: the sheet has left the composition by the time it runs.
             onRemove = {
                 val next = sources.getOrNull(sources.indexOfFirst { it.id == source.id } + 1)
-                removing = source.id to (next?.let { cards[it.id] } ?: addFolder)
+                removing = source.id to rows.requester(next?.let { folderRow(it.id) } ?: ADD_FOLDER)
                 scope.launch { vm.library.removeFolder(source) }
             },
         )
@@ -173,15 +175,26 @@ private fun Sources(addFolder: FocusRequester) {
 }
 
 /**
- * What can be done with a watched folder, beside the list: scan it now, or remove it, which asks
- * first, in the sheet itself ([SheetConfirm]).
+ * What can be done with a watched folder, beside the list: scan it now, edit its address or sign-in,
+ * or remove it, which asks first, in the sheet itself ([SheetConfirm]). When its last scan found the
+ * NAS silent or the sign-in refused ([error]), editing comes first, with focus: an address or a
+ * password has likely changed, and editing keeps what removing the folder would lose.
  */
 @Composable
-private fun SourceActions(source: SourceEntity, onDismiss: () -> Unit, onRemove: () -> Unit) {
+private fun SourceActions(
+    source: SourceEntity,
+    error: ScanError?,
+    onDismiss: () -> Unit,
+    onEdit: () -> Unit,
+    onRemove: () -> Unit,
+) {
     val vm = settingsViewModel()
     val posters by remember(source.id) { vm.library.latestPosters(source, HEADER_POSTERS) }.collectAsStateWithLifecycle(emptyList())
     val kind = stringResource(if (source.kind == SourceKind.MOVIES) R.string.library_movies else R.string.library_shows)
     val scan = remember { FocusRequester() }
+    val edit = remember { FocusRequester() }
+    // Read once: a scan ending while the sheet is open does not move its rows under focus.
+    val fix = remember { error?.kind?.takeIf { it == ScanErrorKind.UNREACHABLE || it == ScanErrorKind.LOGIN_FAILED } }
     HlSideSheet(
         title = sourceName(source),
         onDismiss = onDismiss,
@@ -200,7 +213,7 @@ private fun SourceActions(source: SourceEntity, onDismiss: () -> Unit, onRemove:
                 )
             }
         },
-        initialFocus = scan,
+        initialFocus = if (fix != null) edit else scan,
     ) { sheet ->
         SheetConfirm(
             question = stringResource(R.string.remove_folder_confirm, sourceName(source)),
@@ -209,13 +222,35 @@ private fun SourceActions(source: SourceEntity, onDismiss: () -> Unit, onRemove:
             onConfirm = { sheet.dismiss(onRemove) },
         ) { ask, origin ->
             // Every action says what it does, in one line: the rows keep one height.
-            HlSettingRow(
+            @Composable
+            fun ScanRow() = HlSettingRow(
                 stringResource(R.string.scan_now),
                 Modifier.focusRequester(scan),
                 description = stringResource(R.string.scan_now_desc),
                 onClick = { sheet.dismiss { vm.library.scan() } },
                 chevron = false,
             )
+
+            @Composable
+            fun EditRow() = HlSettingRow(
+                stringResource(R.string.edit_folder),
+                Modifier.focusRequester(edit),
+                description = stringResource(
+                    when (fix) {
+                        ScanErrorKind.LOGIN_FAILED -> R.string.edit_folder_login_desc
+                        ScanErrorKind.UNREACHABLE -> R.string.edit_folder_unreachable_desc
+                        else -> R.string.edit_folder_row_desc
+                    }
+                ),
+                onClick = { sheet.dismiss(onEdit) },
+            )
+            if (fix != null) {
+                EditRow()
+                ScanRow()
+            } else {
+                ScanRow()
+                EditRow()
+            }
             Spacer(Modifier.height(HlSpace.s))
             HlDivider()
             Spacer(Modifier.height(HlSpace.s))
@@ -595,3 +630,6 @@ private const val HEADER_POSTERS = 3
 
 private const val ADD_FOLDER = "add_folder"
 private const val SOURCE = "source"
+
+/** A folder's card, among the pane's rows. */
+private fun folderRow(id: Long) = "folder-$id"

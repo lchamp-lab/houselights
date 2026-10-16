@@ -41,8 +41,9 @@ object NfsBrowser : RemoteBrowser {
     private fun mount(source: SourceEntity): Nfs3 =
         mounts.getOrPut(key(source)) { Nfs3(source.host, "/" + source.share.trim('/'), CredentialUnix(), 3) }
 
+    /** Drops the mount of [source]'s export: the folder's address changed, or the mount went stale. */
     @Synchronized
-    private fun forget(source: SourceEntity) {
+    fun forget(source: SourceEntity) {
         mounts.remove(key(source))
     }
 

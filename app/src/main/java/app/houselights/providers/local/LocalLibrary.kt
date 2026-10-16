@@ -46,6 +46,27 @@ class LocalLibrary(
         scanner.scanAll()
     }
 
+    suspend fun folder(id: Long): SourceEntity? = dao.source(id)
+
+    /**
+     * Gives the folder [id] the address and sign-in of [folder] (an IP or a password changed, SMB
+     * became NFS), and looks again at what it holds. It stays the same folder: its titles keep what
+     * was watched and chosen, which removing and adding it again would lose. Its kind stays.
+     */
+    suspend fun updateFolder(id: Long, folder: SourceEntity) {
+        val before = dao.source(id) ?: return
+        with(folder) { dao.updateConnection(id, name, protocol, host, share, path, username, password) }
+        // A session or mount kept on the old address would still answer for the folder. Off the main
+        // thread: both wait for the network operation under way on it.
+        withContext(Dispatchers.IO) {
+            when (before.protocol) {
+                Protocol.SMB -> SmbBrowser.forget(before)
+                Protocol.NFS -> NfsBrowser.forget(before)
+            }
+        }
+        scanner.scanAll()
+    }
+
     suspend fun removeFolder(folder: SourceEntity) = scanner.removeSource(folder)
 
     fun scan(refreshMetadata: Boolean = false) = scanner.scanAll(refreshMetadata)

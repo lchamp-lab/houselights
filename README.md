@@ -39,6 +39,7 @@ Requirements: JDK 17 and the Android SDK (platform 35).
 # Optional but recommended: a TMDB API key (free, https://www.themoviedb.org/settings/api)
 echo "tmdb.apiKey=YOUR_KEY" >> local.properties
 
+# Once, before the first installation on a player: your signing key (Signing, below)
 ./gradlew assembleRelease
 scripts/install.sh release          # the APK with its baseline profile, compiled at install
 ```
@@ -49,23 +50,36 @@ settings. **Never commit it**: `local.properties` is git-ignored.
 To try the app in an Android TV emulator: `scripts/preview.sh`.
 
 Before a change is pushed, the same checks as CI (`.gitea/workflows/ci.yml`) run with
-`./gradlew testDebugUnitTest lintDebug detekt assembleRelease`. Lint and detekt keep today's findings in
-`app/lint-baseline.xml` and `app/detekt-baseline.xml`: new code has to pass.
+`./gradlew testDebugUnitTest lintDebug detekt assembleRelease` (add `-Phouselights.debugSignedRelease=true`
+without a signing key). Lint and detekt keep today's findings in `app/lint-baseline.xml` and
+`app/detekt-baseline.xml`: new code has to pass.
+
+Each build's `versionCode` is the number of commits (`git rev-list --count HEAD`), or `-PversionCode=…`
+when given: Android then refuses to install a build over a newer one, whose library database it could
+not open. CI checks out the whole history for it.
 
 ### Signing
 
-Release builds are signed with the debug key unless a `keystore.properties` file (git-ignored) sits at the
-root of the project:
+A release is signed with your own key, which a `keystore.properties` file (git-ignored) at the root of the
+project names:
+
+```sh
+keytool -genkeypair -keystore ~/houselights-release.jks -alias houselights -keyalg RSA -keysize 4096 -validity 10000
+```
 
 ```properties
-storeFile=/path/to/houselights-release.jks
+storeFile=/home/you/houselights-release.jks
 storePassword=…
 keyAlias=houselights
 keyPassword=…
 ```
 
-Choose before installing on a player: Android only updates an app signed with the same key, so changing keys
-later means uninstalling, and losing the library and watch history kept on the player.
+Choose it before installing on a player, and keep a copy of both files: Android only updates an app signed
+with the same key, so changing keys later means uninstalling, and losing the library and watch history kept
+on the player. Without the file, `assembleRelease` stops before writing the APK and says so, rather than
+sign it with the debug key of the machine that built it. A build that will not be installed (CI, a check)
+can ask for that key all the same with `-Phouselights.debugSignedRelease=true`. The `bench` build, which
+installs beside the release, and the builds `:baselineprofile` makes keep the debug key.
 
 An APK given to other people should not carry your personal TMDB key: build it without one (users then enter
 their own), or with a key created for the project that you can revoke.
