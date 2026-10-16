@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.datastore.core.DataMigration
 import androidx.datastore.core.DataStore
 import androidx.datastore.core.handlers.ReplaceFileCorruptionHandler
+import androidx.datastore.preferences.core.MutablePreferences
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
@@ -21,6 +22,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.channels.Channel
@@ -170,10 +172,13 @@ class SettingsStore(
     /** A read asked by [readAgain] is under way: the screen that asked says it is at work. */
     val reading: StateFlow<Boolean> = _reading
 
+    /** The file as [state] last read it: a write returns once it is read ([write]). */
+    private val readFrom = MutableStateFlow<Preferences?>(null)
+
     init {
         scope.launch {
             dataStore.data
-                .map { it.toSettings() }
+                .map { it to it.toSettings() }
                 .flowOn(readOn)
                 .retryWhen { e, attempt ->
                     if (e is CancellationException) return@retryWhen false
@@ -187,9 +192,10 @@ class SettingsStore(
                     }
                     true
                 }
-                .collect {
+                .collect { (file, settings) ->
                     _reading.value = false
-                    _state.value = it
+                    _state.value = settings
+                    readFrom.value = file
                 }
         }
     }
@@ -240,9 +246,20 @@ class SettingsStore(
         null
     }
 
+    /**
+     * Writes the file, and returns once [state] says what it holds: read away from the main thread,
+     * the settings reach [state] a moment after the file. Signing in saves the source, then goes home,
+     * whose rows ask [state] for it at once: the new one, not the one before. A read that fails
+     * meanwhile is waited for [WRITE_READ_MS] at most.
+     */
+    private suspend fun write(transform: suspend (MutablePreferences) -> Unit) {
+        val written = dataStore.edit(transform)
+        withTimeoutOrNull(WRITE_READ_MS) { readFrom.first { it == written } }
+    }
+
     suspend fun ensureDeviceId(): String {
         var id = ""
-        dataStore.edit { prefs ->
+        write { prefs ->
             id = prefs[Keys.deviceId] ?: UUID.randomUUID().toString().also { prefs[Keys.deviceId] = it }
         }
         return id
@@ -250,7 +267,7 @@ class SettingsStore(
 
     /** Saves the source; the folders hold no secret and are never sealed, so choosing them never waits on the Keystore. */
     suspend fun setSource(source: SourceConfig?) {
-        dataStore.edit {
+        write {
             when (source) {
                 null -> it.remove(Keys.source)
                 SourceConfig.Local -> it[Keys.source] = json.encodeToString<SourceConfig>(source)
@@ -260,23 +277,23 @@ class SettingsStore(
     }
 
     suspend fun setPathMappings(mappings: List<PathMapping>) {
-        dataStore.edit { it[Keys.mappings] = secrets.seal(json.encodeToString(mappings)) }
+        write { it[Keys.mappings] = secrets.seal(json.encodeToString(mappings)) }
     }
 
     suspend fun setForceHttp(value: Boolean) {
-        dataStore.edit { it[Keys.forceHttp] = value }
+        write { it[Keys.forceHttp] = value }
     }
 
     suspend fun setUi4k(value: Boolean) {
-        dataStore.edit { it[Keys.ui4k] = value }
+        write { it[Keys.ui4k] = value }
     }
 
     suspend fun setCollectionMinFilms(value: Int) {
-        dataStore.edit { it[Keys.collectionMin] = value }
+        write { it[Keys.collectionMin] = value }
     }
 
     suspend fun setTmdbApiKey(value: String?) {
-        dataStore.edit {
+        write {
             if (value.isNullOrBlank()) it.remove(Keys.tmdbKey) else it[Keys.tmdbKey] = secrets.seal(value.trim())
         }
     }
@@ -291,3 +308,6 @@ private const val READ_TRIES = 3
 private const val FIRST_READ_WAIT_MS = 500L
 private const val MAX_READ_WAIT_MS = 30_000L
 private const val MAX_SHIFT = 16
+
+/** How long a write waits for [SettingsStore.state] to read it: the Keystore's slowest opening, and a try again. */
+private const val WRITE_READ_MS = 2_000L

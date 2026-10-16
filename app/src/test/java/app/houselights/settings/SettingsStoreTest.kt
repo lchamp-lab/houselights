@@ -1,6 +1,7 @@
 package app.houselights.settings
 
 import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.mutablePreferencesOf
 import androidx.datastore.preferences.core.stringPreferencesKey
@@ -9,6 +10,7 @@ import app.houselights.core.SourceConfig
 import app.houselights.ui.testing.testSecrets
 import app.houselights.ui.testing.testSettings
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.asCoroutineDispatcher
@@ -21,6 +23,7 @@ import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
@@ -88,6 +91,38 @@ class SettingsStoreTest {
         } finally {
             scope.cancel()
             collector.close()
+        }
+    }
+
+    /**
+     * Read away from the main thread, the settings reach the app a moment after the file: signing in
+     * saves the source, then goes home, whose rows ask the settings for it at once. The source saved
+     * is there, not the one before (none, on a first sign-in).
+     */
+    @Test
+    fun aSourceSavedIsReadBeforeItsSaveReturns() = runTest {
+        val key = KeyGenerator.getInstance("AES").apply { init(256) }.generateKey()
+        // A Keystore as slow as a player's.
+        val slow = Secrets {
+            Thread.sleep(SLOW_KEYSTORE_MS)
+            key
+        }
+        val main = Executors.newSingleThreadExecutor().asCoroutineDispatcher()
+        val scope = CoroutineScope(main + SupervisorJob())
+        val io = CoroutineScope(Dispatchers.IO + SupervisorJob())
+        try {
+            val store = PreferenceDataStoreFactory.create(scope = io, produceFile = { folder.root.resolve("settings.preferences_pb") })
+            val settings = SettingsStore(store, scope, slow)
+            val read = withContext(main) {
+                settings.state.first { it.loaded }
+                settings.setSource(home)
+                settings.state.value.source
+            }
+            assertEquals(home, read)
+        } finally {
+            scope.cancel()
+            io.cancel()
+            main.close()
         }
     }
 
@@ -202,5 +237,10 @@ class SettingsStoreTest {
         val settings = testSettings(folder.root, backgroundScope, broken)
         settings.setSource(SourceConfig.Local)
         assertEquals(SourceConfig.Local, settings.state.first { it.source != null }.source)
+    }
+
+    private companion object {
+        /** Each opening of a secret, on a slow player: long enough to be seen after the file is written. */
+        const val SLOW_KEYSTORE_MS = 150L
     }
 }
