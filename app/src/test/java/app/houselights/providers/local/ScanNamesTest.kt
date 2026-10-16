@@ -200,7 +200,8 @@ class ScanNamesTest {
         showsNas.put("Severance/Specials/01 - Main Title Sequence.mkv")
         bench.scan()
 
-        assertEquals(listOf(1 to 1, 0 to 1), bench.dao.filesOf(shows.id).sortedBy { it.filePath }.map { it.seasonNumber to it.episodeNumber })
+        val numbers = bench.dao.filesOf(shows.id).sortedBy { it.filePath }.map { it.seasonNumber to it.episodeNumber }
+        assertEquals(listOf(1 to 1, 0 to 1), numbers)
         assertEquals(1, series().size)
     }
 
@@ -212,7 +213,8 @@ class ScanNamesTest {
     fun aShowKeyedWithoutItsYearKeepsItsRow() = runTest {
         val old = bench.dao.insert(
             ItemEntity(
-                kind = ItemKind.SERIES, sourceId = shows.id, matchKey = "severance", title = "Severance", sortTitle = "severance", addedAt = 0,
+                kind = ItemKind.SERIES, sourceId = shows.id, matchKey = "severance", title = "Severance", sortTitle = "severance",
+                addedAt = 0,
             )
         )
         bench.dao.setFavorite(old, true)

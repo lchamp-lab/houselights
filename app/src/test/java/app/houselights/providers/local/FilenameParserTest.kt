@@ -9,6 +9,8 @@ import org.junit.Test
 class FilenameParserTest {
     private fun movie(name: String) = FilenameParser.parseMovie(name)
 
+    private fun episode(name: String, folders: List<String> = emptyList()) = FilenameParser.parseEpisode(name, folders)
+
     @Test
     fun plainTitles() {
         assertEquals(ParsedMovie("Top Gun Maverick", null), movie("Top Gun Maverick.mkv"))
@@ -98,10 +100,10 @@ class FilenameParserTest {
     fun theNasEpisodes() {
         val season = listOf("Mobland", "S01")
         (1..9).forEach { n ->
-            assertEquals(ParsedEpisode("Mobland", 1, n), FilenameParser.parseEpisode("Mobland.S01E0$n.MULTi.1080p.WEB.H265-GRP.mkv", season))
+            assertEquals(ParsedEpisode("Mobland", 1, n), episode("Mobland.S01E0$n.MULTi.1080p.WEB.H265-GRP.mkv", season))
         }
-        assertEquals(ParsedEpisode("Mobland", 1, 10), FilenameParser.parseEpisode("Mobland.S01E10.FiNAL.MULTi.1080p.WEB.H265-GRP.mkv", season))
-        assertEquals(ParsedEpisode("Mobland", 1, 1), FilenameParser.parseEpisode("Mobland.S01E01.MULTi.1080p.WEB.H265-GRP.mkv", emptyList()))
+        assertEquals(ParsedEpisode("Mobland", 1, 10), episode("Mobland.S01E10.FiNAL.MULTi.1080p.WEB.H265-GRP.mkv", season))
+        assertEquals(ParsedEpisode("Mobland", 1, 1), episode("Mobland.S01E01.MULTi.1080p.WEB.H265-GRP.mkv"))
     }
 
     /** Shows numbered from their start (Plex's absolute order), and files with an episode number of four digits. */
@@ -111,14 +113,13 @@ class FilenameParserTest {
             ParsedEpisode("One Piece", 1, 1071),
             FilenameParser.parseEpisode("One Piece - S01E1071 - The Peak.mkv", listOf("One Piece", "Season 1")),
         )
-        assertEquals(ParsedEpisode("One Piece", 21, 1071), FilenameParser.parseEpisode("1071 - Le sommet.mkv", listOf("One Piece", "Saison 21")))
+        assertEquals(ParsedEpisode("One Piece", 21, 1071), episode("1071 - Le sommet.mkv", listOf("One Piece", "Saison 21")))
         assertNull("a date", FilenameParser.parseEpisode("2019-05-12 - Live.mkv", listOf("Talk Show", "Season 1")))
     }
 
     /** One file holding several episodes, named as Sonarr's multi-episode styles name it. */
     @Test
     fun filesHoldingSeveralEpisodes() {
-        fun episode(name: String) = FilenameParser.parseEpisode(name, emptyList())
         assertEquals(ParsedEpisode("The Office", 1, 1, 2), episode("The.Office.S01E01-E02.720p.mkv"))
         assertEquals(ParsedEpisode("The Office", 1, 1, 2), episode("The.Office.S01E01E02.720p.mkv"))
         assertEquals(ParsedEpisode("The Office", 1, 1, 2), episode("The Office - S01E01-02 - Pilot.mkv"))
@@ -178,7 +179,7 @@ class FilenameParserTest {
         assertEquals(Triple("Severance", 2022, "Severance (2022)"), show("Severance (2022)/Season 2/severance.s02e01.mkv"))
         assertEquals(Triple("Doctor Who", 2005, ""), show("Doctor.Who.2005.S01E01.mkv"))
         assertEquals(Triple("Doctor Who", 2005, "Doctor Who (2005)"), show("Doctor Who (2005)/Specials/Doctor.Who.2005.S00E01.mkv"))
-        assertEquals(ParsedEpisode("Doctor Who", 0, 1), FilenameParser.parseShowPath("Doctor Who (2005)/Specials/01 - Christmas.mkv")?.episode)
+        assertEquals(ParsedEpisode("Doctor Who", 0, 1), episode("01 - Christmas.mkv", listOf("Doctor Who (2005)", "Specials")))
         assertEquals("doctor who|2005", FilenameParser.showKey("Doctor Who", 2005))
         assertEquals("doctor who", FilenameParser.showKey("Doctor Who", null))
     }
@@ -191,15 +192,18 @@ class FilenameParserTest {
             "Arrival-featurette.mkv", "Making Of-behindthescenes.mkv", "The Bar Fight-deleted.mkv", "Villeneuve-interview.mkv",
             "The Opening-scene.mkv", "Recap-short.mkv", "Storyboards-OTHER.mkv", "Severance - S01E01-deleted.mkv",
         )
-        extras.forEach { assertTrue(it, FilenameParser.isExtraName(it)) }
+        extras.forEach { assertTrue(it, ScanTitles.isExtraName(it)) }
         val titles = listOf(
             "The Big Short.mkv", "The.Big.Short.mkv", "The Interview.mkv", "The Other.mkv", "Significant Other (2022).mkv",
             "Crime Scene.mkv", "Trailers.mkv", "Spider-Man.mkv", "Severance - S00E01 - Trailer.mkv", "Show.S00E02.Sample.Episode.mkv",
         )
-        titles.forEach { assertFalse(it, FilenameParser.isExtraName(it)) }
-        listOf("Extras", "featurettes", "Behind The Scenes", "Deleted Scenes", "INTERVIEWS", "Scenes", "Shorts", "Trailers", "Samples", "Other")
-            .forEach { assertTrue(it, FilenameParser.isExtrasFolder(it)) }
-        assertFalse(FilenameParser.isExtrasFolder("Season 1"))
+        titles.forEach { assertFalse(it, ScanTitles.isExtraName(it)) }
+        val folders = listOf(
+            "Extras", "featurettes", "Behind The Scenes", "Deleted Scenes", "INTERVIEWS", "Scenes", "Shorts", "Trailers",
+            "Samples", "Other",
+        )
+        folders.forEach { assertTrue(it, ScanTitles.isExtrasFolder(it)) }
+        assertFalse(ScanTitles.isExtrasFolder("Season 1"))
     }
 
     @Test

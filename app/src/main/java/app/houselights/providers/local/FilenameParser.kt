@@ -52,22 +52,10 @@ object FilenameParser {
     /** Folders of a show's specials, its season 0, lowercase. Not "Special": a show bears that name. */
     private val SPECIALS = setOf("specials", "spécial", "spéciaux", "speciaux", "spéciales", "speciales")
 
-    /**
-     * Extras beside a film or an episode, as Plex, Jellyfin and Kodi name them: "Dune (2021)-trailer.mkv".
-     * A trailer or a sample also after Jellyfin's other separators: "Dune (2021).trailer.mkv".
-     */
-    private val EXTRA_SUFFIX = Regex(
-        """(?i)(?:-(?:trailer|sample|featurette|behindthescenes|deleted|interview|scene|short|other)|[ ._](?:trailer|sample))$"""
-    )
-
-    /** Folders of a title's extras, lowercase, as Plex and Jellyfin name them. */
-    private val EXTRAS_FOLDERS = setOf(
-        "extras", "featurettes", "behind the scenes", "deleted scenes", "interviews", "scenes", "shorts", "trailers", "samples", "other",
-    )
-
     /** A Blu-ray's streams ("BDMV/STREAM/00800.m2ts"), and a DVD's ("VIDEO_TS/VTS_01_1.VOB"). */
     private val BLU_RAY_STREAM = Regex("""(?i)^(?:(.*)/)?BDMV/STREAM/[^/]+\.(?:m2ts|mts)$""")
     private val DVD_STREAM = Regex("""(?i)^(?:(.*)/)?VIDEO_TS/[^/]+\.vob$""")
+
     // Android's ICU engine needs closing brackets and braces escaped, unlike the JVM.
     private val BRACKETS = Regex("""\[[^\]]*\]|\{[^\}]*\}""")
 
@@ -94,20 +82,6 @@ object FilenameParser {
 
     fun stripExtension(name: String): String =
         if (isVideo(name)) name.substringBeforeLast('.') else name
-
-    /**
-     * A video named as an extra of the title beside it ([EXTRA_SUFFIX]). "The Big Short" and "The
-     * Interview" are films: those words count after a dash only. Nor is an episode an extra for its
-     * title's last word: "Show - S00E01 - Trailer".
-     */
-    fun isExtraName(fileName: String): Boolean {
-        val base = stripExtension(fileName)
-        val suffix = EXTRA_SUFFIX.find(base) ?: return false
-        return base[suffix.range.first] == '-' || (SXXEYY.find(base) == null && NXNN.find(base) == null)
-    }
-
-    /** A folder of a title's extras: "Featurettes", "Behind The Scenes"… (see [EXTRAS_FOLDERS]). */
-    fun isExtrasFolder(name: String): Boolean = name.trim().lowercase() in EXTRAS_FOLDERS
 
     /** The disc [relativePath] is a stream of, or null for a file of no disc. */
     fun discOf(relativePath: String): DiscPath? {
@@ -185,7 +159,7 @@ object FilenameParser {
         return Found(ParsedEpisode(show?.title, numbers.season, numbers.episode, numbers.last), folder, show?.year)
     }
 
-    /** Two names of one show, whatever their case, spaces and punctuation: "Marvel's Agents of S.H.I.E.L.D.", "Marvels.Agents.of.SHIELD". */
+    /** Two names of one show, whatever case, spaces and punctuation: "Marvel's Agents of S.H.I.E.L.D." and "Marvels.Agents.of.SHIELD". */
     private fun sameShow(a: String, b: String) = letters(a) == letters(b)
 
     private fun letters(s: String) = s.lowercase().filter(Char::isLetterOrDigit)
@@ -195,17 +169,16 @@ object FilenameParser {
 
     /** [base]'s numbers: "S01E02", "1x02", else "02 - Title" in a season's folder ([folderSeason]). */
     private fun numbers(base: String, folderSeason: Int?): Numbers? {
-        SXXEYY.find(base)?.let { m ->
-            val first = m.groupValues[2].toInt()
-            val last = m.groups[3]?.value?.toInt()?.takeIf { it > first && it - first <= MAX_RANGE }
-            return Numbers(m.groupValues[1].toInt(), first, last, base.substring(0, m.range.first))
+        val named = SXXEYY.find(base)?.let { m ->
+            val (season, first, last) = m.destructured
+            val range = last.toIntOrNull()?.takeIf { it > first.toInt() && it - first.toInt() <= MAX_RANGE }
+            Numbers(season.toInt(), first.toInt(), range, base.substring(0, m.range.first))
+        } ?: NXNN.find(base)?.let { m ->
+            val (season, episode) = m.destructured
+            Numbers(season.toInt(), episode.toInt(), null, base.substring(0, m.range.first))
         }
-        NXNN.find(base)?.let { m ->
-            return Numbers(m.groupValues[1].toInt(), m.groupValues[2].toInt(), null, base.substring(0, m.range.first))
-        }
-        val season = folderSeason ?: return null
-        val episode = LEADING_EPISODE.find(base.trim())?.groupValues?.get(1)?.toInt() ?: return null
-        return Numbers(season, episode, null, "")
+        if (named != null || folderSeason == null) return named
+        return LEADING_EPISODE.find(base.trim())?.groupValues?.get(1)?.toInt()?.let { Numbers(folderSeason, it, null, "") }
     }
 
     /** A release-name token as a whole word ("hdr" but not "hdrip"), compiled once per token. */
@@ -252,15 +225,12 @@ object FilenameParser {
             .trim('-', '–', '(', ')', ' ', '.')
             .trim()
 
-    /** Key used to group episodes of the same show. */
-    fun showKey(title: String): String =
-        title.lowercase().replace(Regex("""[^\p{L}\p{N}]+"""), " ").trim()
-
     /**
-     * [showKey] with the show's year, when its folder gives one ("doctor who|2005"): "Doctor Who (2005)"
-     * and "Doctor Who (1963)" are two shows.
+     * Key used to group episodes of the same show, with its year when its folder gives one
+     * ("doctor who|2005"): "Doctor Who (2005)" and "Doctor Who (1963)" are two shows.
      */
-    fun showKey(title: String, year: Int?): String = showKey(title).let { if (year == null) it else "$it$YEAR_MARK$year" }
+    fun showKey(title: String, year: Int? = null): String =
+        title.lowercase().replace(Regex("""[^\p{L}\p{N}]+"""), " ").trim().let { if (year == null) it else "$it$YEAR_MARK$year" }
 
     /** Between a show's name and its year, in its key. */
     const val YEAR_MARK = "|"

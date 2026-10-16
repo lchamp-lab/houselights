@@ -3,9 +3,9 @@ package app.houselights.providers.local
 /**
  * The titles a folder's listing holds, one file each, as the library keeps them: a Blu-ray's or a
  * DVD's streams make one title, the stream a player opens of it ([mainStream]); the extras of a film
- * or an episode make none, whether named so ([FilenameParser.isExtraName]) or in a folder of extras
- * under a title's folder ([FilenameParser.isExtrasFolder]). What is left decides which folders hold a
- * title alone, whose NFO and artwork are then its own ([Sidecars]).
+ * or an episode make none, whether named so ([isExtraName]) or in a folder of extras under a title's
+ * folder ([isExtrasFolder]). What is left decides which folders hold a title alone, whose NFO and
+ * artwork are then its own ([Sidecars]).
  */
 internal object ScanTitles {
     /** [listing], its videos reduced to the titles; in the order listed. */
@@ -14,7 +14,7 @@ internal object ScanTitles {
     fun titles(videos: List<RemoteFile>): List<RemoteFile> {
         val (streams, files) = videos.partition { FilenameParser.discOf(it.relativePath) != null }
         val discs = streams.groupBy { FilenameParser.discOf(it.relativePath)?.root }
-        val named = files.filterNot { FilenameParser.isExtraName(it.relativePath.substringAfterLast('/')) }
+        val named = files.filterNot { isExtraName(it.relativePath.substringAfterLast('/')) }
         // Folders holding a title: a folder of extras is one only under one of them, never at the source's root.
         val holders = named.mapTo(HashSet()) { Sidecars.folderOf(it.relativePath) } + discs.keys.filterNotNull()
         val kept = named.filterNot { inExtrasFolder(it.relativePath, holders) } + discs.values.map(::mainStream)
@@ -22,12 +22,37 @@ internal object ScanTitles {
         return videos.filter { it.relativePath in paths }
     }
 
+    /**
+     * Extras beside a film or an episode, as Plex, Jellyfin and Kodi name them: "Dune (2021)-trailer.mkv".
+     * A trailer or a sample also after Jellyfin's other separators: "Dune (2021).trailer.mkv".
+     */
+    private val EXTRA_SUFFIX = Regex(
+        """(?i)(?:-(?:trailer|sample|featurette|behindthescenes|deleted|interview|scene|short|other)|[ ._](?:trailer|sample))$"""
+    )
+
+    /** Folders of a title's extras, lowercase, as Plex and Jellyfin name them. */
+    private val EXTRAS_FOLDERS = setOf(
+        "extras", "featurettes", "behind the scenes", "deleted scenes", "interviews", "scenes", "shorts", "trailers", "samples", "other",
+    )
+
+    /**
+     * A video named as an extra of the title beside it ([EXTRA_SUFFIX]). "The Big Short" and "The
+     * Interview" are films: those words count after a dash only. Nor is an episode an extra for its
+     * title's last word: "Show - S00E01 - Trailer".
+     */
+    fun isExtraName(fileName: String): Boolean {
+        val base = FilenameParser.stripExtension(fileName)
+        val suffix = EXTRA_SUFFIX.find(base) ?: return false
+        return base[suffix.range.first] == '-' || FilenameParser.parseEpisode(fileName, emptyList()) == null
+    }
+
+    /** A folder of a title's extras: "Featurettes", "Behind The Scenes"… (see [EXTRAS_FOLDERS]). */
+    fun isExtrasFolder(name: String): Boolean = name.trim().lowercase() in EXTRAS_FOLDERS
+
     /** [path] lies in a folder of extras whose own folder holds a title: "Dune (2021)/Featurettes/Making of.mkv". */
     private fun inExtrasFolder(path: String, holders: Set<String>): Boolean {
         val folders = path.split('/').dropLast(1)
-        return (1 until folders.size).any { i ->
-            FilenameParser.isExtrasFolder(folders[i]) && folders.take(i).joinToString("/") in holders
-        }
+        return (1 until folders.size).any { i -> isExtrasFolder(folders[i]) && folders.take(i).joinToString("/") in holders }
     }
 
     /** A DVD's title sets: "VTS_01_1.VOB", the first part of set 01 ("VTS_01_0.VOB" is its menu). */
