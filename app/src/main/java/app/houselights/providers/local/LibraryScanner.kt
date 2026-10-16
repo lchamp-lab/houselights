@@ -40,6 +40,12 @@ data class ScanState(
 )
 
 /**
+ * A folder listed without a single video, as the NAS refused the device [count] of its subfolders: a
+ * matter of rights, told as such ([ScanErrorKind.ACCESS_DENIED]), not a folder emptied. Nothing is removed.
+ */
+class UnreadableFolderException(count: Int) : IllegalStateException("No video listed, and $count subfolders could not be read")
+
+/**
  * Incremental scanner: lists the files of each source, removes the missing ones (see [MissingFiles]),
  * and identifies new ones on TMDB. Files already known are never looked up again,
  * unless they were never matched (no TMDB key at the time, TMDB out of reach) or a full refresh
@@ -264,6 +270,8 @@ class LibraryScanner(
         _state.update { it.copy(running = true, sourceId = source.id, processed = 0, total = 0, current = null) }
         val listing = browsers(source).list(source)
         val files = listing.videos
+        // Not a video read, and subfolders the NAS refused: their rights are what to check, whatever the library holds.
+        if (files.isEmpty() && listing.unreadable.isNotEmpty()) throw UnreadableFolderException(listing.unreadable.size)
         val sidecars = Sidecars(listing.sidecars, files)
         val listed = dao.filesOf(source.id)
         if (files.isEmpty() && listed.isNotEmpty()) throw EmptyFolderException()

@@ -330,6 +330,32 @@ class LibraryScannerTest {
         assertEquals("not even held", null, dao.filesOf(films.id).single { it.title == "Arrival" }.missingSince)
     }
 
+    /** The rights of every subfolder changed on the NAS: said as such, never as a folder to remove. */
+    @Test
+    fun aFolderWhoseSubfoldersAllRefuseTheDeviceIsAccessDenied() = runTest {
+        nas.put("Dune (2021)/Dune (2021).mkv")
+        nas.put("Arrival (2016)/Arrival (2016).mkv")
+        scan()
+        dao.setFavorite(dao.filesOf(films.id).first { it.title == "Dune" }.id, true)
+
+        nas.unreadable = listOf("Dune (2021)", "Arrival (2016)")
+        scan()
+
+        assertEquals(ScanErrorKind.ACCESS_DENIED, error())
+        assertEquals(listOf("Arrival (2016)/Arrival (2016).mkv", "Dune (2021)/Dune (2021).mkv"), filePaths())
+        assertTrue(dao.filesOf(films.id).first { it.title == "Dune" }.favorite)
+    }
+
+    @Test
+    fun aFirstScanOfAFolderWhoseSubfoldersAllRefuseTheDeviceSaysSo() = runTest {
+        nas.put("Private/Dune (2021)/Dune (2021).mkv")
+        nas.unreadable = listOf("Private")
+        scan()
+
+        assertEquals("not a folder left at 0 titles, unexplained", ScanErrorKind.ACCESS_DENIED, error())
+        assertEquals(emptyList<String>(), filePaths())
+    }
+
     @Test
     fun aFolderNeverFilledMayListEmpty() = runTest {
         scan()

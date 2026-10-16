@@ -51,6 +51,7 @@ object ScanErrors {
         val text = chain.joinToString(" ") { "${it.javaClass.simpleName} ${it.message}" }
         val kind = when {
             chain.any { it is EmptyFolderException } -> ScanErrorKind.EMPTY
+            chain.any { it is UnreadableFolderException } -> ScanErrorKind.ACCESS_DENIED
             storageFull(chain, text) -> ScanErrorKind.STORAGE_FULL
             noAnswer(chain, text) -> ScanErrorKind.UNREACHABLE
             text.contains("LOGON_FAILURE") || text.contains("ACCOUNT_") || text.contains("WRONG_PASSWORD") -> ScanErrorKind.LOGIN_FAILED
