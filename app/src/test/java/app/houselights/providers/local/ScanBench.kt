@@ -40,20 +40,24 @@ class ScanBench(artworkDir: File, tmdbKey: Boolean = true) {
         tmdb = { scanClient.takeIf { withTmdb } },
         scope = CoroutineScope(passes),
         artwork = artwork,
-        browsers = { if (it.kind == SourceKind.SHOWS) showsNas else nas },
+        browsers = { own[it.id] ?: if (it.kind == SourceKind.SHOWS) showsNas else nas },
         clock = { now },
         interactiveTmdb = { tmdb.client().takeIf { withTmdb } },
     )
 
     fun close() = db.close()
 
-    suspend fun folder(name: String, kind: SourceKind = SourceKind.MOVIES): SourceEntity {
+    /** Folders on a NAS of their own; the others on [nas] or [showsNas], by kind. */
+    private val own = mutableMapOf<Long, FakeRemoteBrowser>()
+
+    suspend fun folder(name: String, kind: SourceKind = SourceKind.MOVIES, on: FakeRemoteBrowser? = null): SourceEntity {
         val id = dao.insertSource(
             SourceEntity(
                 name = name, kind = kind, protocol = Protocol.NFS, host = "nas", share = "media", path = name.lowercase(),
                 username = "", password = Secret(""),
             )
         )
+        on?.let { own[id] = it }
         return checkNotNull(dao.source(id))
     }
 

@@ -227,6 +227,7 @@ class LibraryScanner(
                     dao.deleteOrphanItems()
                     dao.deleteEmptySeasons()
                     dao.deleteEmptySeries()
+                    dao.moveOrphanShows()
                     dao.deleteEmptyCollections()
                     // Pictures only become unused when titles change or go.
                     if (changed) cleanupLocked()
@@ -243,12 +244,16 @@ class LibraryScanner(
     }
 
     /**
-     * Removes a folder and everything found in it. Waits for the item being processed; a scan of that
+     * Removes a folder and everything found in it, its copied artwork included (what a show it shares
+     * with another folder still shows stays). Waits for the item being processed; a scan of that
      * folder stops at its next file.
      */
     suspend fun removeSource(source: SourceEntity) {
         withContext(Dispatchers.IO) {
-            lock.withLock { dao.removeSource(source.id) }
+            lock.withLock {
+                dao.removeSource(source.id)
+                suspendRunCatching { cleanupLocked() }.onFailure { Log.w(TAG, "Cleanup after removing ${source.name} failed", it) }
+            }
         }
         _changed.emit(Unit)
     }
