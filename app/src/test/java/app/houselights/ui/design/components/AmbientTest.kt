@@ -61,6 +61,14 @@ class AmbientTest {
         assertEquals("the poster, then its light", 2, files.reads)
     }
 
+    /** Its tone is kept apart: the copy it was read from would only take a picture's room in memory. */
+    @Test
+    fun aCardsLightIsNotKeptInMemory() = runTest {
+        loader.execute(card(POSTER))
+        loader.execute(glowSampleRequest(context, POSTER))
+        assertEquals(setOf(MemoryCache.Key(POSTER)), loader.memoryCache?.keys)
+    }
+
     @Test
     fun aBackdropsVeilLeavesItsPictureInMemory() = runTest {
         // A local file: the same path whatever the width asked for.

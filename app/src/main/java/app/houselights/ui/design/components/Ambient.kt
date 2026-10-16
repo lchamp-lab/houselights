@@ -27,6 +27,7 @@ import app.houselights.ui.design.HlMotion
 import app.houselights.ui.design.HlScrim
 import app.houselights.ui.design.greyOf
 import coil.imageLoader
+import coil.request.CachePolicy
 import coil.request.ImageRequest
 import coil.request.SuccessResult
 import kotlinx.coroutines.Dispatchers
@@ -98,8 +99,12 @@ private suspend fun decodeUrl(context: Context, url: String): Bitmap? =
 internal fun backdropSampleRequest(context: Context, image: ImageRef): ImageRequest =
     sampleRequest(context, image.url(SAMPLE_PX), SAMPLE_PX, SAMPLE_PX * 9 / 16)
 
-/** The tiny copy of a card's picture at [url], which its glow is read from. */
-internal fun glowSampleRequest(context: Context, url: String): ImageRequest = sampleRequest(context, url, SAMPLE_PX, SAMPLE_PX)
+/**
+ * The tiny copy of a card's picture at [url], which its glow is read from. Read once, its tone is
+ * kept in [glowTones]: the copy is left out of memory, where it would only push pictures out.
+ */
+internal fun glowSampleRequest(context: Context, url: String): ImageRequest =
+    sampleRequest(context, url, SAMPLE_PX, SAMPLE_PX).newBuilder().memoryCachePolicy(CachePolicy.READ_ONLY).build()
 
 /**
  * A tiny copy of the picture at [url], kept in memory under a key of its own: under the URL alone,
