@@ -157,6 +157,21 @@ class SmbBrowserTest {
         assertEquals(emptyList<Boolean>(), opened.single().closes)
     }
 
+    /** The listing tells when each file was last written: an NFO rewritten in place keeps its size, not its date. */
+    @Test
+    fun aListingGivesWhenEachFileWasWritten() = runTest {
+        tree = mapOf(
+            "" to listOf(SmbEntry("Bugonia", isFolder = true, size = 0, lastModified = 1L)),
+            "Bugonia" to listOf(
+                SmbEntry("Bugonia.mkv", isFolder = false, size = 4, lastModified = 1_760_000_000_000L),
+                SmbEntry("movie.nfo", isFolder = false, size = 2, lastModified = 1_760_000_060_000L),
+            ),
+        )
+        val listing = browser.list(folder())
+        assertEquals(listOf(1_760_000_000_000L), listing.videos.map { it.lastModified })
+        assertEquals(listOf(1_760_000_060_000L), listing.sidecars.map { it.lastModified })
+    }
+
     @Test
     fun forgettingAShareClosesItsSessionsWhoeverSignedIn() = runTest {
         browser.list(folder("films", user = "kodi"))

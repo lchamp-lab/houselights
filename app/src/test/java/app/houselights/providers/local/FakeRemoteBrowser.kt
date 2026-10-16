@@ -3,11 +3,11 @@ package app.houselights.providers.local
 import java.io.FileNotFoundException
 
 /**
- * A NAS in memory, for scans: files with a size and, when given, their first bytes. Every read is
- * counted, and listings or reads can be made to fail.
+ * A NAS in memory, for scans: files with a size and, when given, their first bytes and the date they
+ * were last written. Every read is counted, and listings or reads can be made to fail.
  */
 class FakeRemoteBrowser : RemoteBrowser {
-    private class Entry(val size: Long, val bytes: ByteArray)
+    private class Entry(val size: Long, val bytes: ByteArray, val lastModified: Long?)
 
     private val files = linkedMapOf<String, Entry>()
 
@@ -29,9 +29,9 @@ class FakeRemoteBrowser : RemoteBrowser {
     /** Paths read, in order, failed reads included. */
     val reads = mutableListOf<String>()
 
-    /** [bytes] stand for the file's start; past them, the file reads as ending there. */
-    fun put(path: String, size: Long = DEFAULT_SIZE, bytes: ByteArray = ByteArray(0)) {
-        files[path] = Entry(size, bytes)
+    /** [bytes] stand for the file's start; past them, the file reads as ending there. [lastModified]: as SMB or NFS lists it. */
+    fun put(path: String, size: Long = DEFAULT_SIZE, bytes: ByteArray = ByteArray(0), lastModified: Long? = null) {
+        files[path] = Entry(size, bytes, lastModified)
     }
 
     fun remove(path: String) {
@@ -48,7 +48,7 @@ class FakeRemoteBrowser : RemoteBrowser {
         listFailure?.let { throw it }
         onList?.invoke()
         val all = files.filterKeys { path -> unreadable.none { path.startsWith("$it/") } }
-            .map { (path, entry) -> RemoteFile(path, entry.size) }
+            .map { (path, entry) -> RemoteFile(path, entry.size, entry.lastModified) }
         fun name(file: RemoteFile) = file.relativePath.substringAfterLast('/')
         return Listing(
             videos = all.filter { RemoteBrowser.isWanted(name(it)) },

@@ -3,6 +3,7 @@ package app.houselights.providers.local
 import android.os.SystemClock
 import com.emc.ecs.nfsclient.nfs.NfsException
 import com.emc.ecs.nfsclient.nfs.NfsStatus
+import com.emc.ecs.nfsclient.nfs.NfsType
 import com.emc.ecs.nfsclient.nfs.io.Nfs3File
 import com.emc.ecs.nfsclient.nfs.io.NfsFileInputStream
 import com.emc.ecs.nfsclient.nfs.nfs3.Nfs3
@@ -66,16 +67,24 @@ internal class NfsBrowser(
 
     private fun root(nfs: Nfs3, source: SourceEntity): Nfs3File = Nfs3File(nfs, "/" + source.path.trim('/'))
 
-    /** A listing names the entries; what each is, and its size, are asked of the NAS when needed. */
+    /**
+     * A listing names the entries; what each is, its size and its date are asked of the NAS when needed,
+     * in one GETATTR.
+     */
     private fun folder(dir: Nfs3File): RemoteFolder = RemoteFolder {
         dir.listFiles().map { file ->
             object : RemoteEntry {
                 override val name: String = file.name
 
-                override fun folder() = if (file.isDirectory) folder(file) else null
+                // One GETATTR. It throws when it fails (a file gone, a NAS silent), where length() would answer
+                // 0; a failed one is asked again by the next question.
+                private val attributes by lazy { file.attributes }
 
-                // Not length(): it answers 0 for a GETATTR that failed, a file gone or a NAS silent.
-                override fun size() = file.lengthEx()
+                override fun folder() = if (attributes.type == NfsType.NFS_DIR) folder(file) else null
+
+                override fun size() = attributes.size
+
+                override fun lastModified() = attributes.mtime?.timeInMillis
             }
         }
     }
