@@ -250,16 +250,15 @@ class LocalProvider(
     }
 
     override suspend fun setPlayed(item: MediaItem, played: Boolean) {
+        val now = System.currentTimeMillis()
         val local = LocalId.parse(item.id)
-        val targets = if (local is LocalId.Collection) dao.collectionFilms(local.key) else {
-            val entity = entity(item) ?: return
-            when (entity.kind) {
-                ItemKind.SERIES -> dao.episodesOfSeries(entity.id)
-                ItemKind.SEASON -> dao.childRows(entity.id)
-                else -> listOf(entity)
-            }
+        if (local is LocalId.Collection) return dao.setCollectionPlayed(local.key, played, now)
+        val entity = entity(item) ?: return
+        when (entity.kind) {
+            ItemKind.SERIES -> dao.setSeriesPlayed(entity.id, played, now)
+            ItemKind.SEASON -> dao.setSeasonPlayed(entity.id, played, now)
+            else -> dao.setPlayed(entity.id, played, now)
         }
-        dao.setPlayed(targets.map { it.id }, played, System.currentTimeMillis())
     }
 
     override suspend fun setFavorite(item: MediaItem, favorite: Boolean) {

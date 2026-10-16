@@ -116,8 +116,6 @@ internal class LocalMapper(private val dao: LibraryDao, private val context: Con
         ?.let { LocalProvider.image(it, type) }
 
     private companion object {
-        /** SQLite allows at most 999 values in a statement. */
-        const val SQL_IN_LIMIT = 500
         const val MS_PER_MINUTE = 60_000L
     }
 }

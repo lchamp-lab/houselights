@@ -18,6 +18,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import java.net.ConnectException
 import java.net.SocketTimeoutException
+import java.util.concurrent.atomic.AtomicInteger
 import javax.crypto.KeyGenerator
 
 /** Whole scans of a folder on a NAS held in memory, without TMDB, on an in-memory database. */
@@ -33,6 +34,9 @@ class LibraryScannerTest {
     private val showsNas = FakeRemoteBrowser()
     private val passes = SupervisorJob()
     private var now = START
+
+    /** The most values one statement bound. */
+    private val widest = AtomicInteger()
     private lateinit var films: SourceEntity
 
     @Before
@@ -40,6 +44,7 @@ class LibraryScannerTest {
         val key = KeyGenerator.getInstance("AES").apply { init(256) }.generateKey()
         db = Room.inMemoryDatabaseBuilder(ApplicationProvider.getApplicationContext(), LibraryDatabase::class.java)
             .addTypeConverter(SecretConverter(Secrets { key }))
+            .setQueryCallback({ _, args -> widest.accumulateAndGet(args.size, ::maxOf) }, Runnable::run)
             .build()
         dao = db.dao()
         scanner = LibraryScanner(
@@ -211,7 +216,25 @@ class LibraryScannerTest {
         assertEquals((20 until 40).map(::film).sorted(), filePaths())
     }
 
+    @Test
+    fun moreFilesGoneThanAStatementTakes() = runTest {
+        filmFolder(1_200)
+        // Sorted into a folder per letter: every film leaves the path it had.
+        val moved = (0 until 1_200).map { "${film(it).first()}/${film(it)}" }
+        (0 until 1_200).forEach { nas.rename(film(it), moved[it]) }
+        widest.set(0)
+        scan()
+        assertEquals(null, error())
+        assertEquals("held, beside the new paths", 2_400, filePaths().size)
+
+        now += 25 * HOUR
+        scan()
+        assertEquals(moved.sorted(), filePaths())
+        assertTrue("${widest.get()} values in one statement", widest.get() <= ANDROID_9_LIMIT)
+    }
+
     private companion object {
+        const val ANDROID_9_LIMIT = 999
         const val START = 1_800_000_000_000L
         const val HOUR = 60 * 60_000L
     }

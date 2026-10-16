@@ -263,9 +263,9 @@ class LibraryScanner(
         val now = clock()
         val missing = MissingFiles.settle(known, files.mapTo(HashSet()) { it.relativePath }, now)
         lock.withLock {
-            if (missing.back.isNotEmpty()) dao.setMissingSince(missing.back, null)
-            if (missing.held.isNotEmpty()) dao.setMissingSince(missing.held, now)
-            if (missing.removed.isNotEmpty()) dao.deleteItems(missing.removed)
+            dao.setMissingSince(missing.back, null)
+            dao.setMissingSince(missing.held, now)
+            dao.deleteItems(missing.removed)
         }
         return missing
     }

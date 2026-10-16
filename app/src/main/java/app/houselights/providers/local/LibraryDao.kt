@@ -10,6 +10,15 @@ import androidx.room.Update
 import androidx.sqlite.db.SupportSQLiteQuery
 import kotlinx.coroutines.flow.Flow
 
+/**
+ * Ids bound by one statement at most: Android 9's SQLite (3.22) takes at most 999 values in a
+ * statement, and lists of ids can be longer. Robolectric's SQLite takes more: tests count them.
+ */
+internal const val SQL_IN_LIMIT = 500
+
+private const val SET_PLAYED =
+    "UPDATE items SET played = :played, positionMs = 0, lastPlayedAt = CASE WHEN :played THEN :now ELSE lastPlayedAt END"
+
 @Dao
 interface LibraryDao {
     // Sources
@@ -32,12 +41,19 @@ interface LibraryDao {
     suspend fun source(id: Long): SourceEntity?
 
     // What the user changes is written column by column, so it never overwrites a scan's work.
+    // Watched state goes by parent, never by a list of ids: a long show holds thousands of episodes.
 
-    @Query(
-        "UPDATE items SET played = :played, positionMs = 0, " +
-            "lastPlayedAt = CASE WHEN :played THEN :now ELSE lastPlayedAt END WHERE id IN (:ids)"
-    )
-    suspend fun setPlayed(ids: List<Long>, played: Boolean, now: Long)
+    @Query("$SET_PLAYED WHERE id = :id")
+    suspend fun setPlayed(id: Long, played: Boolean, now: Long)
+
+    @Query("$SET_PLAYED WHERE kind = 'EPISODE' AND seriesId = :seriesId")
+    suspend fun setSeriesPlayed(seriesId: Long, played: Boolean, now: Long)
+
+    @Query("$SET_PLAYED WHERE kind = 'EPISODE' AND parentId = :seasonId")
+    suspend fun setSeasonPlayed(seasonId: Long, played: Boolean, now: Long)
+
+    @Query("$SET_PLAYED WHERE kind = 'MOVIE' AND collectionId = :collectionId")
+    suspend fun setCollectionPlayed(collectionId: Long, played: Boolean, now: Long)
 
     @Query("UPDATE items SET favorite = :favorite WHERE id = :id")
     suspend fun setFavorite(id: Long, favorite: Boolean)
@@ -151,11 +167,22 @@ interface LibraryDao {
     suspend fun byGenre(kind: ItemKind, genre: String, excludeId: Long, limit: Int): List<ItemEntity>
 
     @Query("DELETE FROM items WHERE id IN (:ids)")
-    suspend fun deleteItems(ids: List<Long>)
+    suspend fun deleteItemBatch(ids: List<Long>)
 
-    /** [since]: when a scan first missed their files (see [MissingFiles]); null once they are back. */
+    /** Any number of items, [SQL_IN_LIMIT] per statement, all or none. */
+    @Transaction
+    suspend fun deleteItems(ids: List<Long>) = ids.chunked(SQL_IN_LIMIT).forEach { deleteItemBatch(it) }
+
     @Query("UPDATE items SET missingSince = :since WHERE id IN (:ids)")
-    suspend fun setMissingSince(ids: List<Long>, since: Long?)
+    suspend fun setMissingSinceBatch(ids: List<Long>, since: Long?)
+
+    /**
+     * [since]: when a scan first missed their files (see [MissingFiles]); null once they are back.
+     * Any number of items, [SQL_IN_LIMIT] per statement, all or none.
+     */
+    @Transaction
+    suspend fun setMissingSince(ids: List<Long>, since: Long?) =
+        ids.chunked(SQL_IN_LIMIT).forEach { setMissingSinceBatch(it, since) }
 
     /** Seasons without episodes, then series without seasons. */
     @Query("DELETE FROM items WHERE kind = 'SEASON' AND id NOT IN (SELECT parentId FROM items WHERE kind = 'EPISODE' AND parentId IS NOT NULL)")
