@@ -34,7 +34,8 @@ data class ScanState(
     val errors: Map<Long, ScanError> = emptyMap(),
     /**
      * Why the last scan stopped asking TMDB (the key refused, TMDB out of reach): titles were indexed
-     * from their files, and wait for their details. Kept after the scan ends.
+     * from their files, and wait for their details. Kept after the scan ends, until TMDB is asked again
+     * for them (an hour on, or at once once the key changes).
      */
     val tmdbIssue: UiError? = null,
 )
