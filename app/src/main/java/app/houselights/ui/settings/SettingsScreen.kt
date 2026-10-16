@@ -42,10 +42,8 @@ import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.RestoreFocus
 import app.houselights.ui.design.components.AttentionNote
 import app.houselights.ui.design.components.HlNavItem
-import app.houselights.ui.design.components.HlStatus
 import app.houselights.ui.design.components.HlTwoPane
 import app.houselights.ui.design.components.ScreenTitle
-import app.houselights.ui.design.components.StatusState
 import app.houselights.ui.design.focusKey
 import app.houselights.ui.design.keepVerticalFocus
 import app.houselights.ui.design.rememberFocusMemory
@@ -144,7 +142,6 @@ internal fun lostSecretNote(pane: Pane, lost: Set<SecretSetting>): Int? = when {
     else -> null
 }
 
-private const val ACTION_ERROR = "action-error"
 private const val LOST_SECRET = "lost-secret"
 
 /** A pane's entry in the navigation; its rows are keyed within it. */
@@ -192,13 +189,8 @@ private fun PaneContent(
         contentPadding = PaddingValues(bottom = HlFocus.edge, end = HlSpace.m),
         verticalArrangement = Arrangement.spacedBy(HlSpace.l),
     ) {
-        // What the last change made here failed on, then a secret of this pane that could not be read
-        // again: said at the head of the pane, where it is read first.
-        vm.actionError?.let { error ->
-            item(key = ACTION_ERROR) {
-                HlStatus(StatusState.Attention, stringResource(error.title), detail = stringResource(error.message))
-            }
-        }
+        // A secret of this pane that could not be read again: said at its head, where it is read first.
+        // A change that failed is said on its own row, where focus is.
         lostSecretNote(pane, s.lostSecrets)?.let { note -> item(key = LOST_SECRET) { AttentionNote(stringResource(note)) } }
         when (pane) {
             Pane.Library -> libraryPane(s, onFolderForm, onUseFolders, onSignIn, rows)

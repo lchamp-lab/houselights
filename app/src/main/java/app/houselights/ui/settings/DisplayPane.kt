@@ -87,11 +87,13 @@ private fun outputControl(): OutputControl {
 private fun InterfaceResolution(s: AppSettings) {
     val vm = settingsViewModel()
     var choose by remember { mutableStateOf(false) }
+    val failure = rowFailure(vm.errorOf(SettingAction.UI_RESOLUTION))
     HlSettingGroup(null) {
         HlSettingRow(
             stringResource(R.string.ui_resolution),
-            value = stringResource(if (s.ui4k) R.string.ui_4k else R.string.ui_system),
-            description = stringResource(R.string.ui_resolution_desc),
+            value = failure?.value ?: stringResource(if (s.ui4k) R.string.ui_4k else R.string.ui_system),
+            description = failure?.description ?: stringResource(R.string.ui_resolution_desc),
+            valueAttention = failure != null,
             onClick = { choose = true },
         )
     }

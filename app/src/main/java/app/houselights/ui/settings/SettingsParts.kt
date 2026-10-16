@@ -26,6 +26,7 @@ import app.houselights.ui.design.FocusKey
 import app.houselights.ui.design.FocusMemory
 import app.houselights.ui.design.focusKey
 import app.houselights.ui.design.revealOnFocus
+import app.houselights.ui.util.UiError
 
 /**
  * First group of a pane: the space aligning it with the navigation, its title, in the voice of the
@@ -54,6 +55,18 @@ internal class PaneRows(private val memory: FocusMemory, private val pane: Strin
 
     /** Focuses that row from the pane itself (after a folder is removed). */
     fun requester(row: String): FocusRequester = memory.requester(key(row))
+}
+
+/** What a row says once the change made from it did not take: in its value, lit; why, in its description. */
+internal class RowFailure(val value: String, val description: String)
+
+/**
+ * What a row says of [error], the failure of the change made from it, where focus is: not saved (or,
+ * for an action, [notDone]), and why. Null when the change took.
+ */
+@Composable
+internal fun rowFailure(error: UiError?, notDone: Boolean = false): RowFailure? = error?.let {
+    RowFailure(stringResource(if (notDone) R.string.action_not_done else R.string.action_not_saved), stringResource(it.message))
 }
 
 /** A line of explanation under a group, in the reading measure. */

@@ -123,16 +123,42 @@ class SettingsViewModelTest {
         }
     }
 
+    /** Said on the row it was made from, where focus is: never on another one. */
     @Test
     fun aSettingThatCannotBeWrittenSaysSoAndNeverCrashes() = runTest {
         val store = SettingsStore(FullStore(), backgroundScope, testSecrets())
         val vm = settings(store, backgroundScope)
         vm.setUi4k(false)
         advanceUntilIdle()
-        assertEquals(UiError.NOT_SAVED, vm.actionError)
+        assertEquals(UiError.NOT_SAVED, vm.errorOf(SettingAction.UI_RESOLUTION))
+        assertNull(vm.errorOf(SettingAction.FILE_ACCESS))
         // The next change clears it.
         vm.setForceHttp(true)
         assertNull(vm.actionError)
+        advanceUntilIdle()
+        assertEquals(UiError.NOT_SAVED, vm.errorOf(SettingAction.FILE_ACCESS))
+        assertNull(vm.errorOf(SettingAction.UI_RESOLUTION))
+    }
+
+    /** A folder that could not be removed says so on its own card, not on the others. */
+    @Test
+    fun aFolderThatCannotBeRemovedSaysSoOnItsCard() = runTest {
+        val store = testSettings(folder.root, backgroundScope)
+        val id = dao.insertSource(
+            SourceEntity(
+                name = "films", kind = SourceKind.MOVIES, protocol = Protocol.NFS, host = "nas", share = "media",
+                path = "films", username = "", password = Secret(""),
+            )
+        )
+        val vm = settings(store, work = backgroundScope)
+        val folder = dao.source(id)!!
+        // The library's database refuses every write.
+        db.openHelper.writableDatabase.execSQL("PRAGMA query_only = ON")
+        vm.removeFolder(folder)
+        settle { id !in vm.removing }
+        assertEquals(UiError.FAILED, vm.errorOf(SettingAction.REMOVE_FOLDER, id))
+        assertNull(vm.errorOf(SettingAction.REMOVE_FOLDER, id + 1))
+        assertNull(vm.errorOf(SettingAction.CLEANUP))
     }
 
     /** A folder removed waits for the file a scan reads in it: leaving the settings meanwhile does not stop it. */

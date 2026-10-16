@@ -157,6 +157,7 @@ private fun Sources(rows: PaneRows, onEdit: (folderId: Long, focus: FolderField)
                     source,
                     scan = scan.takeIf { it.running && it.sourceId == source.id },
                     error = scan.errors[source.id],
+                    removeError = vm.errorOf(SettingAction.REMOVE_FOLDER, source.id),
                     onClick = { actionsFor = source },
                     modifier = rows.focus(folderRow(source.id)),
                 )
@@ -287,13 +288,15 @@ private fun sourceName(source: SourceEntity) = source.name.replaceFirstChar { it
 /**
  * A watched folder, headed by its latest posters from edge to edge (its name, set like a one-sheet,
  * before it has any); then its name and kind, where it lives, and how its last scan went, or the
- * [scan] going on through it. OK opens its actions.
+ * [scan] going on through it. Removing it failed ([removeError]): said there, where focus is back.
+ * OK opens its actions.
  */
 @Composable
 private fun SourceCard(
     source: SourceEntity,
     scan: ScanState?,
     error: ScanError?,
+    removeError: UiError?,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -324,6 +327,7 @@ private fun SourceCard(
                 Spacer(Modifier.height(HlSpace.m))
                 when {
                     scan != null -> ScanProgress(scan.processed, scan.total, current = scan.current)
+                    removeError != null -> AttentionNote(stringResource(R.string.folder_not_removed, stringResource(removeError.message)))
                     error != null -> AttentionNote(scanErrorText(error, source.host))
                     else -> FactRow(
                         listOf(
@@ -415,10 +419,12 @@ private fun CollectionsRow() {
         CollectionThreshold.HIDDEN to option(R.string.collections_off, R.string.collections_off_desc),
     )
     val current = options.indexOfFirst { it.first == s.collectionMinFilms }.coerceAtLeast(0)
+    val failure = rowFailure(vm.errorOf(SettingAction.COLLECTIONS))
     HlSettingRow(
         stringResource(R.string.collections_setting),
-        value = options[current].second.label,
-        description = stringResource(R.string.collections_setting_desc),
+        value = failure?.value ?: options[current].second.label,
+        description = failure?.description ?: stringResource(R.string.collections_setting_desc),
+        valueAttention = failure != null,
         onClick = { choose = true },
     )
     if (choose) {
@@ -440,11 +446,14 @@ private fun SourceRow(onUseFolders: () -> Unit, onSignIn: () -> Unit, modifier: 
     val s by vm.settings.collectAsStateWithLifecycle()
     var choose by remember { mutableStateOf(false) }
     val server = s.source is SourceConfig.Jellyfin
+    // Making the folders the source failed (the device's storage): said here, where focus comes back.
+    val failure = rowFailure(vm.errorOf(SettingAction.SOURCE))
     HlSettingRow(
         stringResource(R.string.change_source_row),
         modifier,
-        value = stringResource(if (server) R.string.source_jellyfin else R.string.source_local),
-        description = stringResource(sourceKeeps(s.source)),
+        value = failure?.value ?: stringResource(if (server) R.string.source_jellyfin else R.string.source_local),
+        description = failure?.description ?: stringResource(sourceKeeps(s.source)),
+        valueAttention = failure != null,
         onClick = { choose = true },
     )
     if (choose) {

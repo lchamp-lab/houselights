@@ -24,6 +24,7 @@ import app.houselights.settings.AppSettings
 import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.components.ChoiceOption
+import app.houselights.ui.design.components.AttentionNote
 import app.houselights.ui.design.components.HlButton
 import app.houselights.ui.design.components.HlChoiceSheet
 import app.houselights.ui.design.components.HlIconButton
@@ -37,12 +38,14 @@ internal fun LazyListScope.playbackPane(s: AppSettings) {
     item {
         val vm = settingsViewModel()
         var choose by remember { mutableStateOf(false) }
+        val failure = rowFailure(vm.errorOf(SettingAction.FILE_ACCESS))
         Section(stringResource(R.string.section_playback)) {
             HlSettingGroup(null) {
                 HlSettingRow(
                     stringResource(R.string.file_access),
-                    value = stringResource(if (s.forceHttp) R.string.http_stream else R.string.network_path),
-                    description = stringResource(R.string.playback_desc),
+                    value = failure?.value ?: stringResource(if (s.forceHttp) R.string.http_stream else R.string.network_path),
+                    description = failure?.description ?: stringResource(R.string.playback_desc),
+                    valueAttention = failure != null,
                     onClick = { choose = true },
                 )
             }
@@ -124,5 +127,9 @@ private fun PathMappings() {
         }
         val saved = if (vm.mappingsSaved) stringResource(R.string.saved) else null
         listOfNotNull(result, saved).takeIf { it.isNotEmpty() }?.let { Hint(it.joinToString(FACT_GAP)) }
+        // Saved as a field is left: said under the fields, where focus still is.
+        vm.errorOf(SettingAction.PATH_MAPPINGS)?.let { error ->
+            AttentionNote(stringResource(R.string.mappings_not_saved, stringResource(error.message)))
+        }
     }
 }

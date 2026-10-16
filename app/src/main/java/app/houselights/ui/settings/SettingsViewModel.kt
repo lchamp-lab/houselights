@@ -54,9 +54,24 @@ internal sealed interface TmdbKeySave {
     data class Failed(val error: UiError) : TmdbKeySave
 }
 
+/** A change made from a row of the settings: its failure is said on that row, where focus is. */
+internal enum class SettingAction {
+    FILE_ACCESS,
+    PATH_MAPPINGS,
+    UI_RESOLUTION,
+    COLLECTIONS,
+    REMOVE_FOLDER,
+    CLEANUP,
+    CLEAR_IMAGE_CACHE,
+    SOURCE,
+}
+
+/** Why the change made from [action] did not take; [folderId] names the folder a removal was of. */
+internal data class ActionError(val action: SettingAction, val error: UiError, val folderId: Long? = null)
+
 /**
  * What the settings show and change. A change never takes the app down: one that fails is said in
- * [actionError] until the next one. Removing a folder and saving a TMDB key run in [work], which
+ * [actionError], on the row it was made from, until the next one. Removing a folder and saving a TMDB key run in [work], which
  * outlives the screen: leaving the pane, or the settings, while one waits (for a scan's file, for
  * TMDB) never cuts it off. Holds the image loader rather than a context, so nothing of a screen
  * outlives it.
@@ -79,9 +94,18 @@ internal class SettingsViewModel(
     private val _storage = MutableStateFlow<StorageStats?>(null)
     val storage: StateFlow<StorageStats?> = _storage
 
-    /** Why the last change made here did not take, shown at the head of the pane until the next one. */
-    var actionError by mutableStateOf<UiError?>(null)
+    /** Why the last change made here did not take, shown on its row until the next one. */
+    var actionError by mutableStateOf<ActionError?>(null)
         private set
+
+    /** Why the last change made from [action]'s row (for the folder [folderId]) did not take; null when it did. */
+    fun errorOf(action: SettingAction, folderId: Long? = null): UiError? =
+        actionError?.takeIf { it.action == action && it.folderId == folderId }?.error
+
+    /** A change made from [action]'s row failed elsewhere (making the folders the source, on the app's own screen). */
+    fun actionFailed(action: SettingAction, error: UiError) {
+        actionError = ActionError(action, error)
+    }
 
     /** Folders being removed: each waits for the file a scan may be reading in it. */
     var removing by mutableStateOf(emptySet<Long>())
@@ -100,10 +124,17 @@ internal class SettingsViewModel(
         actionError = null
     }
 
-    /** Runs a change the user asked for in [scope]: a failure is logged and said in [actionError]. */
-    private fun change(what: String, scope: CoroutineScope = viewModelScope, block: suspend CoroutineScope.() -> Unit) {
+    /** Runs a change the user asked for from [action]'s row in [scope]: a failure is logged and said in [actionError]. */
+    private fun change(
+        what: String,
+        action: SettingAction,
+        scope: CoroutineScope = viewModelScope,
+        folderId: Long? = null,
+        block: suspend CoroutineScope.() -> Unit,
+    ) {
         actionError = null
-        scope.launchAction(TAG, what, onError = { actionError = it }, errorOf = Throwable::toWriteError, block = block)
+        val failed = { error: UiError -> actionError = ActionError(action, error, folderId) }
+        scope.launchAction(TAG, what, onError = failed, errorOf = Throwable::toWriteError, block = block)
     }
 
     @OptIn(ExperimentalCoilApi::class)
@@ -121,11 +152,11 @@ internal class SettingsViewModel(
         }
     }
 
-    fun setForceHttp(value: Boolean) = change("Saving the stream setting") { store.setForceHttp(value) }
+    fun setForceHttp(value: Boolean) = change("Saving the stream setting", SettingAction.FILE_ACCESS) { store.setForceHttp(value) }
 
-    fun setUi4k(value: Boolean) = change("Saving the 4K setting") { store.setUi4k(value) }
+    fun setUi4k(value: Boolean) = change("Saving the 4K setting", SettingAction.UI_RESOLUTION) { store.setUi4k(value) }
 
-    fun setCollectionMinFilms(value: Int) = change("Saving the collections setting") {
+    fun setCollectionMinFilms(value: Int) = change("Saving the collections setting", SettingAction.COLLECTIONS) {
         store.setCollectionMinFilms(value)
         // Libraries and detail pages read the setting: let them reload.
         library.settingsChanged()
@@ -164,7 +195,7 @@ internal class SettingsViewModel(
     fun removeFolder(folder: SourceEntity) {
         if (folder.id in removing) return
         removing += folder.id
-        change("Removing the folder ${folder.id}", work) {
+        change("Removing the folder ${folder.id}", SettingAction.REMOVE_FOLDER, work, folder.id) {
             try {
                 library.removeFolder(folder)
             } finally {
@@ -208,7 +239,7 @@ internal class SettingsViewModel(
         if (!mappingsEdited) return
         mappingsEdited = false
         val complete = completeMappings()
-        change("Saving the path mappings") {
+        change("Saving the path mappings", SettingAction.PATH_MAPPINGS) {
             store.setPathMappings(complete)
             mappingsSaved = true
         }
@@ -225,23 +256,24 @@ internal class SettingsViewModel(
     }
 
     /** Deletes the artwork no title uses; null when it could not ([actionError] says why). */
-    suspend fun cleanup(): CleanupResult? = action("Cleaning up the artwork") { library.cleanup() }?.also { refreshStorage() }
+    suspend fun cleanup(): CleanupResult? =
+        action("Cleaning up the artwork", SettingAction.CLEANUP) { library.cleanup() }?.also { refreshStorage() }
 
     /** Empties the image cache; false when it could not ([actionError] says why). */
     @OptIn(ExperimentalCoilApi::class)
-    suspend fun clearImageCache(): Boolean = action("Clearing the image cache") {
+    suspend fun clearImageCache(): Boolean = action("Clearing the image cache", SettingAction.CLEAR_IMAGE_CACHE) {
         images?.memoryCache?.clear()
         withContext(Dispatchers.IO) { images?.diskCache?.clear() }
         Unit
     }.also { refreshStorage() } != null
 
     /** [block], for a screen that waits for its answer; null when it failed, which [actionError] says. */
-    private suspend fun <T : Any> action(what: String, block: suspend () -> T): T? {
+    private suspend fun <T : Any> action(what: String, action: SettingAction, block: suspend () -> T): T? {
         actionError = null
         return suspendRunCatching { block() }
             .onFailure { e ->
                 Log.w(TAG, "$what failed", e)
-                actionError = e.toWriteError()
+                actionError = ActionError(action, e.toWriteError())
             }
             .getOrNull()
     }
