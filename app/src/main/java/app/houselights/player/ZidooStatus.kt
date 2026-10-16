@@ -1,6 +1,7 @@
 package app.houselights.player
 
 import app.houselights.core.Http
+import app.houselights.core.suspendRunCatching
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
@@ -47,7 +48,7 @@ object ZidooStatus {
 
     /** What the player plays now; [PlayerAnswer.NoAnswer] when its API is out of reach. */
     suspend fun playStatus(): PlayerAnswer = withContext(Dispatchers.IO) {
-        runCatching {
+        suspendRunCatching {
             http.newCall(Request.Builder().url("$BASE/ZidooVideoPlay/getPlayStatus").build())
                 .execute().use { it.body?.string() }?.let(::parse)
         }.getOrNull() ?: PlayerAnswer.NoAnswer
@@ -81,7 +82,7 @@ object ZidooStatus {
 
     /** True when the control API answers, i.e. we run on a Zidoo. */
     suspend fun isAvailable(): Boolean = withContext(Dispatchers.IO) {
-        runCatching {
+        suspendRunCatching {
             http.newCall(Request.Builder().url("$BASE/ZidooControlCenter/getModel").build())
                 .execute().use { it.isSuccessful }
         }.getOrDefault(false)

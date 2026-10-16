@@ -1,5 +1,6 @@
 package app.houselights.providers.jellyfin
 
+import app.houselights.core.suspendRunCatching
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
@@ -35,7 +36,7 @@ object ServerDiscovery {
         withContext(Dispatchers.IO) {
             val found = linkedMapOf<String, DiscoveredServer>()
             val deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(timeoutMs.toLong())
-            runCatching {
+            suspendRunCatching {
                 DatagramSocket().use { socket ->
                     socket.broadcast = true
                     val msg = "who is JellyfinServer?".toByteArray()
@@ -45,7 +46,7 @@ object ServerDiscovery {
                         val packet = DatagramPacket(buf, buf.size)
                         if (!socket.receiveBefore(deadline, packet)) break
                         val text = String(packet.data, 0, packet.length)
-                        runCatching { json.decodeFromString<DiscoveredServer>(text) }
+                        suspendRunCatching { json.decodeFromString<DiscoveredServer>(text) }
                             .getOrNull()
                             ?.let { found[it.id ?: it.address] = it }
                     }
