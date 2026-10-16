@@ -153,6 +153,10 @@ interface LibraryDao {
     @Query("DELETE FROM items WHERE id IN (:ids)")
     suspend fun deleteItems(ids: List<Long>)
 
+    /** [since]: when a scan first missed their files (see [MissingFiles]); null once they are back. */
+    @Query("UPDATE items SET missingSince = :since WHERE id IN (:ids)")
+    suspend fun setMissingSince(ids: List<Long>, since: Long?)
+
     /** Seasons without episodes, then series without seasons. */
     @Query("DELETE FROM items WHERE kind = 'SEASON' AND id NOT IN (SELECT parentId FROM items WHERE kind = 'EPISODE' AND parentId IS NOT NULL)")
     suspend fun deleteEmptySeasons()

@@ -185,6 +185,7 @@
     <string name="error_export_missing">Indiquez l’export NFS, par exemple /volume1/media.</string>
     <string name="error_share_missing">Indiquez le nom du dossier partagé, par exemple media.</string>
     <string name="error_scan_other">Le dossier n’a pas pu être lu. Réessayez, ou vérifiez le partage sur le NAS.</string>
+    <string name="error_folder_empty">Le dossier semble vide sur le NAS : rien n’a été retiré.</string>
     <string name="add">Ajouter</string>
 
     <string name="jellyfin_title">Connexion à Jellyfin</string>

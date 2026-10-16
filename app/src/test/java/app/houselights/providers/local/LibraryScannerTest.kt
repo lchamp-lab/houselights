@@ -32,6 +32,7 @@ class LibraryScannerTest {
     private val nas = FakeRemoteBrowser()
     private val showsNas = FakeRemoteBrowser()
     private val passes = SupervisorJob()
+    private var now = START
     private lateinit var films: SourceEntity
 
     @Before
@@ -47,6 +48,7 @@ class LibraryScannerTest {
             scope = CoroutineScope(passes),
             artwork = ArtworkCache(temp.newFolder("artwork")),
             browsers = { if (it.kind == SourceKind.SHOWS) showsNas else nas },
+            clock = { now },
         )
         films = folder("Films", SourceKind.MOVIES)
     }
@@ -73,6 +75,14 @@ class LibraryScannerTest {
     private suspend fun filePaths(source: SourceEntity = films) = dao.filesOf(source.id).mapNotNull { it.filePath }.sorted()
 
     private fun error(source: SourceEntity = films) = scanner.state.value.errors[source.name]?.kind
+
+    private fun film(n: Int) = "Film $n (2020).mkv"
+
+    /** A folder of [count] films, scanned. */
+    private suspend fun filmFolder(count: Int) {
+        repeat(count) { nas.put(film(it)) }
+        scan()
+    }
 
     @Test
     fun indexesFilmsAndShowsThenReadsNothingAgain() = runTest {
@@ -129,5 +139,80 @@ class LibraryScannerTest {
         scan()
         assertEquals(5, nas.reads.size)
         assertEquals(null, error())
+    }
+
+    @Test
+    fun anEmptyListingRemovesNothing() = runTest {
+        nas.put("Dune (2021).mkv")
+        nas.put("Arrival (2016).mkv")
+        scan()
+        val dune = dao.filesOf(films.id).first { it.title == "Dune" }
+        dao.savePlayback(dune.id, positionMs = 600_000, durationMs = 9_000_000, played = false, lastPlayedAt = now)
+        dao.setFavorite(dune.id, true)
+
+        // The share answers, but its disk is not mounted.
+        nas.clear()
+        scan()
+
+        assertEquals(ScanErrorKind.EMPTY, error())
+        assertEquals(listOf("Arrival (2016).mkv", "Dune (2021).mkv"), filePaths())
+        val kept = checkNotNull(dao.item(dune.id))
+        assertEquals(600_000L, kept.positionMs)
+        assertTrue(kept.favorite)
+        assertEquals(null, kept.missingSince)
+    }
+
+    @Test
+    fun aFolderNeverFilledMayListEmpty() = runTest {
+        scan()
+        assertEquals(null, error())
+    }
+
+    @Test
+    fun manyFilesGoneAtOnceStayADay() = runTest {
+        filmFolder(40)
+        // More than 20 and than a quarter of the folder: a disk of the pool is offline.
+        val offline = (0 until 21).map(::film)
+        offline.forEach(nas::remove)
+        scan()
+        assertEquals(40, filePaths().size)
+        assertEquals(setOf(START), dao.filesOf(films.id).filter { it.filePath in offline }.map { it.missingSince }.toSet())
+        assertEquals(null, error())
+
+        now += 23 * HOUR
+        scan()
+        assertEquals("held for a day", 40, filePaths().size)
+
+        now += 2 * HOUR
+        scan()
+        assertEquals("still missing a day later", (21 until 40).map(::film).sorted(), filePaths())
+    }
+
+    @Test
+    fun aFileBackIsNoLongerHeld() = runTest {
+        filmFolder(40)
+        (0 until 21).map(::film).forEach(nas::remove)
+        scan()
+
+        nas.put(film(0))
+        now += 25 * HOUR
+        scan()
+
+        val back = dao.filesOf(films.id).single { it.filePath == film(0) }
+        assertEquals(null, back.missingSince)
+        assertEquals(20, filePaths().size)
+    }
+
+    @Test
+    fun fewFilesGoneGoAtOnce() = runTest {
+        filmFolder(40)
+        (0 until 20).map(::film).forEach(nas::remove)
+        scan()
+        assertEquals((20 until 40).map(::film).sorted(), filePaths())
+    }
+
+    private companion object {
+        const val START = 1_800_000_000_000L
+        const val HOUR = 60 * 60_000L
     }
 }

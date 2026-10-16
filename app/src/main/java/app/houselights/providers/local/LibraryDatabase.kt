@@ -9,7 +9,7 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import app.houselights.core.Secrets
 
-@Database(entities = [SourceEntity::class, ItemEntity::class, CastEntity::class, CollectionEntity::class], version = 8)
+@Database(entities = [SourceEntity::class, ItemEntity::class, CastEntity::class, CollectionEntity::class], version = 9)
 @TypeConverters(SecretConverter::class, PipeList::class)
 abstract class LibraryDatabase : RoomDatabase() {
     abstract fun dao(): LibraryDao
@@ -69,6 +69,13 @@ abstract class LibraryDatabase : RoomDatabase() {
             }
         }
 
+        /** Rows of files missing among too many at once wait before they go (see [MissingFiles]). */
+        private val MIGRATION_8_9 = object : Migration(8, 9) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE items ADD COLUMN missingSince INTEGER")
+            }
+        }
+
         internal fun migration6To7(secrets: Secrets) = object : Migration(startVersion = 6, endVersion = 7) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.query("SELECT id, password FROM sources").use { rows ->
@@ -84,8 +91,10 @@ abstract class LibraryDatabase : RoomDatabase() {
             }
         }
 
-        internal fun migrations(secrets: Secrets) =
-            arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, migration6To7(secrets), MIGRATION_7_8)
+        internal fun migrations(secrets: Secrets) = arrayOf(
+            MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, migration6To7(secrets), MIGRATION_7_8,
+            MIGRATION_8_9,
+        )
 
         fun create(context: Context, secrets: Secrets): LibraryDatabase =
             Room.databaseBuilder(context, LibraryDatabase::class.java, NAME)

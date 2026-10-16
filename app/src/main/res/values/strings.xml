@@ -193,6 +193,7 @@
     <string name="error_export_missing" tools:ignore="Typos">Enter the NFS export, for example /volume1/media.</string>
     <string name="error_share_missing">Enter the name of the shared folder, for example media.</string>
     <string name="error_scan_other">The folder could not be read. Try again, or check the share on the NAS.</string>
+    <string name="error_folder_empty">The folder looks empty on the NAS: nothing was removed.</string>
     <string name="add">Add</string>
 
     <!-- Jellyfin -->

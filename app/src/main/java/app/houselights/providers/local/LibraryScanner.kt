@@ -28,7 +28,7 @@ data class ScanState(
 )
 
 /**
- * Incremental scanner: lists the files of each source, removes the missing ones,
+ * Incremental scanner: lists the files of each source, removes the missing ones (see [MissingFiles]),
  * and identifies new ones on TMDB. Files already known are never looked up again,
  * unless they were never matched (no TMDB key at the time) or a full refresh is asked.
  *
@@ -45,6 +45,7 @@ class LibraryScanner(
     private val playing: StateFlow<Boolean> = MutableStateFlow(false),
     /** How a folder is read; tests hand in a NAS of their own. */
     private val browsers: (SourceEntity) -> RemoteBrowser = RemoteBrowser::of,
+    private val clock: () -> Long = System::currentTimeMillis,
 ) {
     private val _state = MutableStateFlow(ScanState())
     val state: StateFlow<ScanState> = _state
@@ -109,7 +110,7 @@ class LibraryScanner(
      * folders and processes what is new, which keeps it light.
      */
     fun scanIfStale(maxAgeMs: Long) {
-        if (System.currentTimeMillis() - lastScanEnd < maxAgeMs) return
+        if (clock() - lastScanEnd < maxAgeMs) return
         scanAll()
     }
 
@@ -190,7 +191,7 @@ class LibraryScanner(
         } finally {
             // Whatever happened, the scan is over: the settings must not show it running forever.
             _state.value = ScanState(errors = errors)
-            lastScanEnd = System.currentTimeMillis()
+            lastScanEnd = clock()
             SmbBrowser.closeAll()
         }
         // A scan that found nothing new leaves screens as they are.
@@ -215,15 +216,13 @@ class LibraryScanner(
         val files = listing.videos
         val sidecars = Sidecars(listing.sidecars, files)
         val known = dao.filesOf(source.id).associateBy { it.filePath }
-
-        val present = files.map { it.relativePath }.toSet()
-        val missing = known.values.filter { it.filePath !in present }.map { it.id }
-        if (missing.isNotEmpty()) lock.withLock { dao.deleteItems(missing) }
+        if (files.isEmpty() && known.isNotEmpty()) throw EmptyFolderException()
+        val missing = settleMissing(known.values, files)
 
         val tmdb = client()
         val todo = files.filter { f -> needsWork(known[f.relativePath], sidecars.forVideo(f), tmdb != null, refreshMetadata) }
         _state.update { it.copy(total = todo.size) }
-        Log.i(TAG, "${source.name}: ${files.size} files, ${missing.size} removed, ${todo.size} to process")
+        Log.i(TAG, "${source.name}: ${files.size} files, ${missing.removed.size} removed, ${missing.held.size} held, ${todo.size} to do")
 
         val seasons = ShowIndexer.SeasonCache(tmdb)
         var unreachable = 0
@@ -252,11 +251,23 @@ class LibraryScanner(
             }
             if (index % 5 == 4) _changed.emit(Unit)
         }
-        val now = System.currentTimeMillis()
+        val now = clock()
         dao.updateSource(source.copy(lastScanAt = now, firstScanAt = source.firstScanAt.takeIf { it > 0 } ?: now))
-        val changed = missing.isNotEmpty() || todo.isNotEmpty()
+        val changed = missing.removed.isNotEmpty() || todo.isNotEmpty()
         if (changed) _changed.emit(Unit)
         return changed
+    }
+
+    /** Rows of files the folder no longer lists go, or wait a while (see [MissingFiles]). */
+    private suspend fun settleMissing(known: Collection<ItemEntity>, files: List<RemoteFile>): MissingFiles.Outcome {
+        val now = clock()
+        val missing = MissingFiles.settle(known, files.mapTo(HashSet()) { it.relativePath }, now)
+        lock.withLock {
+            if (missing.back.isNotEmpty()) dao.setMissingSince(missing.back, null)
+            if (missing.held.isNotEmpty()) dao.setMissingSince(missing.held, now)
+            if (missing.removed.isNotEmpty()) dao.deleteItems(missing.removed)
+        }
+        return missing
     }
 
     /** The show's name and year as its folder gives them, through one of its episodes. */
