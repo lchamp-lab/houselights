@@ -1,5 +1,8 @@
 package app.houselights.providers.local
 
+import android.database.sqlite.SQLiteFullException
+import android.system.ErrnoException
+import android.system.OsConstants
 import com.emc.ecs.nfsclient.mount.MountException
 import com.emc.ecs.nfsclient.mount.MountStatus
 import com.emc.ecs.nfsclient.nfs.NfsException
@@ -13,6 +16,8 @@ import com.hierynomus.protocol.transport.TransportException
 import com.hierynomus.smbj.common.SMBRuntimeException
 import org.junit.Assert.assertEquals
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 import java.io.EOFException
 import java.io.IOException
 import java.net.ConnectException
@@ -20,6 +25,8 @@ import java.net.SocketException
 import java.util.concurrent.ExecutionException
 import java.util.concurrent.TimeoutException
 
+/** On Robolectric: the storage errors are Android's. */
+@RunWith(RobolectricTestRunner::class)
 class ScanErrorsTest {
     private fun kind(e: Throwable) = ScanErrors.classify(e).kind
 
@@ -80,6 +87,16 @@ class ScanErrorsTest {
         val rpc = RpcException(RpcStatus.LOCAL_BINDING_ERROR, "Cannot bind a port < 1024: /192.168.1.20:635")
         val message = "rpc error, server: 192.168.1.20, export: /volume1/media, RPC error: ${rpc.message}"
         assertEquals(ScanErrorKind.OTHER, kind(MountException(MountStatus.MNT3ERR_IO, message, rpc)))
+    }
+
+    /** Room writing on a full disk; a picture copied with no space left, as IoBridge throws it. */
+    @Test
+    fun aFullPlayerIsNotTheNas() {
+        assertEquals(ScanErrorKind.STORAGE_FULL, kind(SQLiteFullException("database or disk is full (code 13 SQLITE_FULL)")))
+        val full = ErrnoException("write", OsConstants.ENOSPC)
+        assertEquals(ScanErrorKind.STORAGE_FULL, kind(IOException("write failed: ENOSPC (No space left on device)", full)))
+        assertEquals(ScanErrorKind.STORAGE_FULL, kind(IOException(full)))
+        assertEquals(ScanErrorKind.OTHER, kind(IOException(ErrnoException("write", OsConstants.EIO))))
     }
 
     @Test

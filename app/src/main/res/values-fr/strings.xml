@@ -196,6 +196,7 @@
     <string name="error_share_missing">Indiquez le nom du dossier partagé, par exemple media.</string>
     <string name="error_scan_other">Le dossier n’a pas pu être lu. Réessayez, ou vérifiez le partage sur le NAS.</string>
     <string name="error_folder_empty">Le dossier semble vide sur le NAS : rien n’a été retiré. Vérifiez que son disque est monté ; s’il est vide pour de bon, retirez-le.</string>
+    <string name="error_storage_full">Le stockage du lecteur est plein : libérez de la place, puis relancez l’analyse.</string>
     <string name="add">Ajouter</string>
 
     <string name="jellyfin_title">Connexion à Jellyfin</string>

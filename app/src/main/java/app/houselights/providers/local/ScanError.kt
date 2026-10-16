@@ -1,5 +1,8 @@
 package app.houselights.providers.local
 
+import android.database.sqlite.SQLiteFullException
+import android.system.ErrnoException
+import android.system.OsConstants
 import com.emc.ecs.nfsclient.mount.MountException
 import com.emc.ecs.nfsclient.mount.MountStatus
 import com.emc.ecs.nfsclient.nfs.NfsException
@@ -22,6 +25,9 @@ enum class ScanErrorKind {
 
     /** Listed without a single video while the library holds some: nothing was removed. */
     EMPTY,
+
+    /** The player's own storage is full: the NAS is not to blame, and every file would fail the same way. */
+    STORAGE_FULL,
     OTHER,
 }
 
@@ -39,12 +45,13 @@ object ScanErrors {
     fun isUnreachable(e: Throwable): Boolean =
         generateSequence(e) { it.cause }.none { it is TmdbUnreachableException } && classify(e).kind == ScanErrorKind.UNREACHABLE
 
-    /** Maps SMB, NFS and socket failures to a [ScanErrorKind]: the first that fits, in this order. */
+    /** Maps SMB, NFS, socket and storage failures to a [ScanErrorKind]: the first that fits, in this order. */
     fun classify(e: Throwable): ScanError {
         val chain = generateSequence(e) { it.cause }.toList()
         val text = chain.joinToString(" ") { "${it.javaClass.simpleName} ${it.message}" }
         val kind = when {
             chain.any { it is EmptyFolderException } -> ScanErrorKind.EMPTY
+            storageFull(chain, text) -> ScanErrorKind.STORAGE_FULL
             noAnswer(chain, text) -> ScanErrorKind.UNREACHABLE
             text.contains("LOGON_FAILURE") || text.contains("ACCOUNT_") || text.contains("WRONG_PASSWORD") -> ScanErrorKind.LOGIN_FAILED
             refused(chain, text) -> ScanErrorKind.ACCESS_DENIED
@@ -53,6 +60,11 @@ object ScanErrors {
         }
         return ScanError(kind)
     }
+
+    /** The player's storage is full: Room says so with SQLiteFullException, a file written with ENOSPC. */
+    private fun storageFull(chain: List<Throwable>, text: String): Boolean =
+        chain.any { it is SQLiteFullException || it is ErrnoException && it.errno == OsConstants.ENOSPC } ||
+            text.contains("No space left on device", ignoreCase = true)
 
     /**
      * The NAS does not answer, or stopped answering. smbj tells a request answered too late by a
