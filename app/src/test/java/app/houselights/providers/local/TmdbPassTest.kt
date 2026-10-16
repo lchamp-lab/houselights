@@ -1,5 +1,7 @@
 package app.houselights.providers.local
 
+import app.houselights.ui.util.UiError
+import app.houselights.ui.util.toUiError
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -87,6 +89,32 @@ class TmdbPassTest {
         pass.film(0)
         assertFalse(pass.open)
         assertSame("the first failure stays what is said", first, pass.issue)
+    }
+
+    /** TMDB failing on its side, or answering in another shape: every next question would meet it too. */
+    @Test
+    fun aServerFailureOrAnAnswerOfAnotherShapeCountsAndIsSaid() = runTest {
+        tmdb.movie(1, "Film 0", 2020)
+        listOf<FakeTmdb.() -> Unit>({ status = 500 }, { rawBody = "{\"results\":\"none\"}" }).forEach { failing ->
+            tmdb.failing()
+            val pass = TmdbPass(client)
+            pass.film(0)
+            assertEquals("said from the first", UiError.TMDB_OFFLINE, pass.issue?.toUiError())
+            repeat(2) { pass.film(0) }
+            assertFalse(pass.open)
+            tmdb.status = null
+            tmdb.rawBody = null
+        }
+    }
+
+    /** TMDB's search lags behind an entry it removed: no match, not a question left unanswered. */
+    @Test
+    fun aHitTmdbNoLongerHasIsNoMatch() = runTest {
+        tmdb.movie(1, "Film 0", 2020)
+        tmdb.gonePath = "movie/1"
+        val pass = TmdbPass(client)
+        assertEquals(TmdbAnswer.Given(null), pass.film(0))
+        assertNull(pass.issue)
     }
 
     private companion object {

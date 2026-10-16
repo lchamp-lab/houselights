@@ -201,12 +201,15 @@ class TmdbClient(
         TmdbKeyCheck.UNCHECKED
     }
 
-    /** Best movie match; retries without the year, which is often off by one in file names. */
+    /**
+     * Best movie match; retries without the year, which is often off by one in file names. A hit
+     * TMDB no longer has (its search lags behind an entry removed) is no match.
+     */
     suspend fun findMovie(title: String, year: Int?): TmdbMovie? {
         val hit = call { it.searchMovie(title, year, language) }.results.firstOrNull()
             ?: year?.let { call { it.searchMovie(title, null, language) }.results.firstOrNull() }
             ?: return null
-        return call { it.movie(hit.id, language, imageLanguages) }
+        return unlessMissing { call { it.movie(hit.id, language, imageLanguages) } }
     }
 
     /** null when TMDB has no such film. A network failure throws: it must never read as "not found". */
@@ -240,11 +243,12 @@ class TmdbClient(
         r.movieResults.firstOrNull()?.id to r.tvResults.firstOrNull()?.id
     } ?: (null to null)
 
+    /** As [findMovie], for a show. */
     suspend fun findTv(title: String, year: Int?): TmdbTv? {
         val hit = call { it.searchTv(title, year, language) }.results.firstOrNull()
             ?: year?.let { call { it.searchTv(title, null, language) }.results.firstOrNull() }
             ?: return null
-        return call { it.tv(hit.id, language, imageLanguages) }
+        return unlessMissing { call { it.tv(hit.id, language, imageLanguages) } }
     }
 
     suspend fun season(tvId: Int, season: Int): TmdbSeason? = unlessMissing { call { it.season(tvId, season, language) } }

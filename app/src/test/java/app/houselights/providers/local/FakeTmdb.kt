@@ -22,7 +22,8 @@ import java.util.concurrent.CountDownLatch
 /**
  * TMDB in memory, in place of the network of a [TmdbClient] ([client]): films, shows, seasons and
  * collections by id, found by title or IMDb id. Every request is counted, and TMDB can be made to
- * fail, to answer a status, to break off a body, or to hold a request until it is cancelled.
+ * fail, to answer a status or a body of its own, to break off a body, or to hold a request until it
+ * is cancelled.
  */
 class FakeTmdb : Interceptor {
     val movies = Collections.synchronizedMap(linkedMapOf<Int, TmdbMovie>())
@@ -57,6 +58,14 @@ class FakeTmdb : Interceptor {
     /** When set, answers start, then reading their body throws it: a body stalled past the read timeout, a connection reset. */
     @Volatile
     var bodyFailure: IOException? = null
+
+    /** When set, the body of every entry found, in its place: TMDB's answers changed shape. */
+    @Volatile
+    var rawBody: String? = null
+
+    /** When set, the path of an entry TMDB no longer has, though its search still finds it. */
+    @Volatile
+    var gonePath: String? = null
 
     /** When set, a request waits until its call is cancelled, after counting [held] down. */
     @Volatile
@@ -101,7 +110,8 @@ class FakeTmdb : Interceptor {
             respond(chain, code, "{}")
         } else {
             val body = answer(path, url.queryParameter("query"), url.queryParameter("year") ?: url.queryParameter("first_air_date_year"))
-            if (body == null) respond(chain, NOT_FOUND, "{}") else respond(chain, OK, body)
+                ?.takeIf { path != gonePath }
+            if (body == null) respond(chain, NOT_FOUND, "{}") else respond(chain, OK, rawBody ?: body)
         }
         return bodyFailure?.let { response.newBuilder().body(FailingBody(it)).build() } ?: response
     }

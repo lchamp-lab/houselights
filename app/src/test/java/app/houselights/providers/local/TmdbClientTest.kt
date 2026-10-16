@@ -169,6 +169,16 @@ class TmdbClientTest {
         failure<NotFoundException> { client.movie(1) }
     }
 
+    /** TMDB's search lags behind an entry it removed. */
+    @Test
+    fun aHitTmdbNoLongerHasIsNoMatch() = runTest {
+        tmdb.show(95396, "Severance", 2022)
+        tmdb.gonePath = "movie/438631"
+        assertNull(tmdb.client().findMovie("Dune", 2021))
+        tmdb.gonePath = "tv/95396"
+        assertNull(tmdb.client().findTv("Severance", 2022))
+    }
+
     @Test
     fun anAnswerThatStallsIsTmdbOutOfReachNotTheNas() = runTest {
         tmdb.bodyFailure = SocketTimeoutException("timeout")

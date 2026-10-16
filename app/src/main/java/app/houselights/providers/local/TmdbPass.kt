@@ -2,6 +2,14 @@ package app.houselights.providers.local
 
 import android.util.Log
 import app.houselights.core.suspendRunCatching
+import kotlinx.serialization.SerializationException
+import retrofit2.HttpException
+
+/**
+ * TMDB answered, with a failure of its own (a 500) or what could not be read (its answers changed
+ * shape): told as TMDB out of reach, the nearest the interface says.
+ */
+internal class TmdbFailedException(cause: Throwable) : TmdbUnreachableException(cause, "TMDB failed")
 
 /** What TMDB said to a question: its answer (null: it has no such entry), or nothing, as it could not be asked. */
 internal sealed interface TmdbAnswer<out T> {
@@ -16,7 +24,8 @@ internal val <T> TmdbAnswer<T>.value: T? get() = (this as? TmdbAnswer.Given)?.va
 /**
  * TMDB as one scan pass asks it: optional. A question it does not answer leaves the file to its NFO
  * and local artwork, unmatched, so that a later pass asks again. Once it refuses the key, or fails
- * [MAX_FAILURES] times in a row, the pass asks no more; [issue] says why from the first failure.
+ * [MAX_FAILURES] times in a row (out of reach, failing, its answer unreadable), the pass asks no
+ * more; [issue] says why from the first failure.
  * A question the scan's client did not even ask, paused a minute after the network failed, is no
  * failure of its own: TMDB is asked again once the pause is over.
  *
@@ -68,16 +77,23 @@ internal class TmdbPass(
         if (e is TmdbPausedException) return
         Log.w(TAG, "TMDB did not answer; asked again at the next scan", e)
         val refused = e is TmdbKeyRefusedException
-        if (!refused && e !is TmdbUnreachableException) return
+        val failure = when {
+            refused || e is TmdbUnreachableException -> e
+            // What every next question would meet as well: a whole library left unmatched, untold.
+            e is HttpException && e.code() in SERVER_ERRORS || e is SerializationException -> TmdbFailedException(e)
+            // An answer of TMDB's own (a question it refuses): this file's alone.
+            else -> return
+        }
         if (refused || ++failures >= MAX_FAILURES) stopped = true
         if (issue == null || refused) {
-            issue = e
-            onIssue(e)
+            issue = failure
+            onIssue(failure)
         }
     }
 
     private companion object {
         const val TAG = "TmdbPass"
         const val MAX_FAILURES = 3
+        val SERVER_ERRORS = 500..599
     }
 }
