@@ -22,10 +22,10 @@ class StacksTest {
     fun kodisSuffixesEndTheName() {
         assertEquals(StackPart("Le Parrain (1972)", 1), part("Le Parrain (1972) CD1.avi"))
         assertEquals(StackPart("Le Parrain (1972)", 2), part("Le Parrain (1972) cd2.avi"))
-        assertEquals(StackPart("Film (2020)", 1), part("Film (2020) - Part 1.mkv"))
-        assertEquals(StackPart("Film.2020", 2), part("Film.2020.part.2.mkv"))
+        assertEquals(StackPart("Film (2020)", 1, titleWord = true), part("Film (2020) - Part 1.mkv"))
+        assertEquals(StackPart("Film.2020", 2, titleWord = true), part("Film.2020.part.2.mkv"))
         assertEquals(StackPart("Film", 3), part("Film_dvd_3.iso"))
-        assertEquals(StackPart("film", 4), part("film-pt4.mkv"))
+        assertEquals(StackPart("film", 4, titleWord = true), part("film-pt4.mkv"))
         assertEquals(StackPart("Film", 2), part("Film disc b.mkv"))
         assertEquals(StackPart("Film", 4), part("Film DISK-d.mkv"))
         assertEquals(StackPart("Film", 1), part("Film CDa.avi"))
@@ -65,7 +65,25 @@ class StacksTest {
         assertEquals(listOf("Film (2020) - Part 1.mkv"), dashed.titlePaths())
         assertEquals(listOf("Film (2020) - Part 2.mkv", "Film (2020) - Part 3.mkv"), dashed.partsOf("Film (2020) - Part 1.mkv"))
         // Parts of one film may be written in two ways.
-        assertEquals(listOf("Heat CD1.avi"), stacks("Heat CD1.avi", "heat part 2.avi").titlePaths())
+        assertEquals(listOf("Heat/Heat CD1.avi"), stacks("Heat/Heat CD1.avi", "Heat/heat part 2.avi").titlePaths())
+    }
+
+    /**
+     * "Part 1" and "Part 2" end two films' names as well as one film's files': among other films and with no
+     * year, they are two films; with their year, or alone in a folder of their own, one. CDs and discs always are.
+     */
+    @Test
+    fun filesNamedPartAreOneFilmByTheirYearOrTheirOwnFolder() {
+        val hallows = "Harry Potter and the Deathly Hallows"
+        assertEquals(2, stacks("$hallows Part 1.mkv", "$hallows Part 2.mkv").titles.size)
+        assertEquals(3, stacks("Films/Dune Part 1.mkv", "Films/Dune Part 2.mkv", "Films/Top Gun Maverick.mkv").titles.size)
+        assertEquals(3, stacks("Mockingjay Pt1.mkv", "Mockingjay Pt2.mkv", "Colony.mkv").titles.size)
+
+        val dated = stacks("Film (2020) - Part 1.mkv", "Film (2020) - Part 2.mkv", "Colony.mkv")
+        assertEquals(listOf("Film (2020) - Part 1.mkv", "Colony.mkv"), dated.titlePaths())
+        assertEquals(listOf("Film/Film Part 1.mkv"), stacks("Film/Film Part 1.mkv", "Film/Film Part 2.mkv").titlePaths())
+        assertEquals(listOf("Heat CD1.avi", "Colony.mkv"), stacks("Heat CD1.avi", "Heat CD2.avi", "Colony.mkv").titlePaths())
+        assertEquals(listOf("Heat disc 1.avi"), stacks("Heat disc 1.avi", "Heat disc 2.avi").titlePaths())
     }
 
     @Test
@@ -122,8 +140,8 @@ class StacksTest {
     @Test
     fun aPartRenamedIsAChangeOfItsFilm() {
         val godfather = row(1, "Le Parrain CD1.avi", parts = listOf("Le Parrain CD2.avi"))
-        val renamed = settle(listOf(godfather), "Le Parrain CD1.avi", "Le Parrain - Part 2.avi")
-        assertEquals(listOf(1L to listOf("Le Parrain - Part 2.avi")), renamed.parts)
+        val renamed = settle(listOf(godfather), "Le Parrain CD1.avi", "Le Parrain - Disc 2.avi")
+        assertEquals(listOf(1L to listOf("Le Parrain - Disc 2.avi")), renamed.parts)
         assertTrue(renamed.held.isEmpty() && renamed.removed.isEmpty() && renamed.relinked.isEmpty())
 
         // A part gone: a film of one file, the same row.
@@ -135,8 +153,8 @@ class StacksTest {
     @Test
     fun aFirstPartRenamedTakesItsRowAlong() {
         val godfather = row(1, "Le Parrain CD1.avi", parts = listOf("Le Parrain CD2.avi"))
-        val outcome = settle(listOf(godfather), "Le Parrain part 1.avi", "Le Parrain CD2.avi")
-        assertEquals(listOf(1L to RemoteFile("Le Parrain part 1.avi", 1_000)), outcome.relinked)
+        val outcome = settle(listOf(godfather), "Le Parrain disc 1.avi", "Le Parrain CD2.avi")
+        assertEquals(listOf(1L to RemoteFile("Le Parrain disc 1.avi", 1_000)), outcome.relinked)
         assertTrue(outcome.parts.isEmpty())
         assertTrue(outcome.held.isEmpty())
     }
