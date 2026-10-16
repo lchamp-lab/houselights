@@ -103,6 +103,27 @@ internal class SmbBrowser(
             NtStatus.STATUS_USER_SESSION_DELETED,
             NtStatus.STATUS_NETWORK_NAME_DELETED,
         )
+
+        private const val TAG = "SmbBrowser"
+
+        /**
+         * Signs off, then hangs up, and never throws: [steps] in turn (the share, then the session), by
+         * name, unless [broken]. A step the NAS did not answer at all (a timeout, the connection lost:
+         * no status of its own in the failure) tells it is gone: each next step would wait out its
+         * timeout too, and hanging up would sign off the session again. The steps left are skipped,
+         * and [hangUp] is forced.
+         */
+        internal fun signOff(broken: Boolean, steps: List<Pair<String, () -> Unit>>, hangUp: (forced: Boolean) -> Unit) {
+            var forced = broken
+            for ((what, step) in steps) {
+                if (forced) break
+                suspendRunCatching(step).onFailure { e ->
+                    Log.d(TAG, "Could not close the $what", e)
+                    forced = generateSequence(e) { it.cause }.none { it is SMBApiException }
+                }
+            }
+            suspendRunCatching { hangUp(forced) }.onFailure { Log.d(TAG, "Could not close the connection", it) }
+        }
     }
 }
 
@@ -161,22 +182,14 @@ private class SmbjShare(
 
     /** Share, session, then connection: the NAS forgets each in turn, rather than holding a session for good. */
     override fun close(broken: Boolean) {
-        if (!broken) {
-            quietly("share") { share.close() }
-            quietly("session") { session.close() }
+        SmbBrowser.signOff(broken, listOf("share" to { share.close() }, "session" to { session.close() })) { forced ->
+            // Its only lease: this hangs up. Forced, it does not sign off sessions first.
+            connection.close(forced)
         }
-        // Its only lease: this hangs up. Forced, it does not sign off sessions first.
-        quietly("connection") { connection.close(broken) }
         client.close()
     }
 
-    private inline fun quietly(what: String, close: () -> Unit) {
-        suspendRunCatching(close).onFailure { Log.d(TAG, "Could not close the $what", it) }
-    }
-
     companion object {
-        private const val TAG = "SmbBrowser"
-
         /**
          * A request waits this long for its answer. Nothing more: smbj's socket timeout would also stop
          * reading a connection left idle that long, leaving it open, unread; idle sessions are closed
