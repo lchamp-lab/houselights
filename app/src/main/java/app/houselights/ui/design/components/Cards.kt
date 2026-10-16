@@ -164,13 +164,10 @@ fun ArtworkSurface(
     )
     val c = Hl.colors
     // With focus, a card with its own picture ([light]) glows with that picture's colour; the others
-    // with the room's light.
-    val own by rememberGlowColor(light, focused)
-    val tone = when {
-        light != null -> own
-        focused -> LocalAmbient.current()
-        else -> Color.Transparent
-    }
+    // with the room's light. Both are read while drawing: the light comes and goes without
+    // recomposing the card.
+    val own = rememberGlowColor(light, focused)
+    val ambient = LocalAmbient.current
     // The card grows inside its own layer; the light around it grows with it.
     val grown by animateFloatAsState(
         if (focused) lift.scale else 1f,
@@ -196,7 +193,14 @@ fun ArtworkSurface(
             .rememberedInGroup(group, member)
             .then(reading)
             .onFocusChanged { if (it.isFocused) onFocused() }
-            .drawBehind { drawGlow(tone, grown, reach, shape) },
+            .drawBehind {
+                val tone = when {
+                    light != null -> own.value
+                    focused -> ambient()
+                    else -> Color.Transparent
+                }
+                drawGlow(tone, grown, reach, shape)
+            },
         shape = ClickableSurfaceDefaults.shape(shape),
         scale = FocusStyle.scale(lift),
         border = FocusStyle.lift(shape),
@@ -230,6 +234,7 @@ private fun DrawScope.drawGlow(tone: Color, grown: Float, reach: Float, shape: S
     val corner = (shape as? RoundedCornerShape)?.topStart?.toPx(size, this) ?: 0f
     val steps = HlScrim.GLOW_STEPS
     val band = reach / steps
+    val ring = Stroke(width = band)
     // How much of what is under the light still shows through the rings, from the outermost in.
     var through = 1f
     for (k in steps downTo 1) {
@@ -241,7 +246,7 @@ private fun DrawScope.drawGlow(tone: Color, grown: Float, reach: Float, shape: S
             topLeft = Offset(-grow.x - middle, -grow.y - middle),
             size = Size(size.width + 2 * (grow.x + middle), size.height + 2 * (grow.y + middle)),
             cornerRadius = CornerRadius(corner + middle),
-            style = Stroke(width = band),
+            style = ring,
         )
     }
 }
