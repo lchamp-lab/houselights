@@ -69,7 +69,7 @@ abstract class LibraryDatabase : RoomDatabase() {
             }
         }
 
-        /** Rows of files missing among too many at once wait before they go (see [MissingFiles]). */
+        /** Rows of missing files wait before they go (see [MissingFiles]). */
         private val MIGRATION_8_9 = object : Migration(8, 9) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE items ADD COLUMN missingSince INTEGER")

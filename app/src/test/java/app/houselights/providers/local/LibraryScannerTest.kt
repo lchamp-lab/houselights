@@ -220,11 +220,41 @@ class LibraryScannerTest {
     }
 
     @Test
-    fun fewFilesGoneGoAtOnce() = runTest {
+    fun fewFilesGoneGoAnHourLater() = runTest {
         filmFolder(40)
         (0 until 20).map(::film).forEach(nas::remove)
         scan()
+        assertEquals("held until a later pass", 40, filePaths().size)
+
+        now += HOUR - 1
+        scan()
+        assertEquals("held for an hour", 40, filePaths().size)
+
+        now += 1
+        scan()
         assertEquals((20 until 40).map(::film).sorted(), filePaths())
+    }
+
+    @Test
+    fun aFilmImportedInTwoStepsKeepsItsRow() = runTest {
+        nas.put("Dune (2021) Bluray-1080p.mkv")
+        nas.put("Heat (1995).mkv")
+        scan()
+        val dune = dao.filesOf(films.id).single { it.title == "Dune" }
+        dao.setPlayed(dune.id, played = true, now = now)
+
+        // Radarr sends the old file to its recycle bin, then copies the new one from another volume.
+        nas.remove("Dune (2021) Bluray-1080p.mkv")
+        scan()
+        now += 2 * HOUR
+        nas.put("Dune (2021) Remux-2160p.mkv")
+        scan()
+
+        val upgraded = dao.filesOf(films.id).single { it.title == "Dune" }
+        assertEquals(dune.id, upgraded.id)
+        assertEquals("Dune (2021) Remux-2160p.mkv", upgraded.filePath)
+        assertEquals(null, upgraded.missingSince)
+        assertTrue(upgraded.played)
     }
 
     @Test
@@ -306,7 +336,7 @@ class LibraryScannerTest {
         val arrival = dao.filesOf(films.id).single { it.title == "Arrival" }
         assertTrue(arrival.id != dune.id)
         assertEquals(false, arrival.favorite)
-        assertEquals(null, dao.item(dune.id))
+        assertEquals("Dune waits on its own", START, dao.item(dune.id)?.missingSince)
     }
 
     @Test

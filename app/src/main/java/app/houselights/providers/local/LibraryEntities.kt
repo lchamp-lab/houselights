@@ -127,10 +127,7 @@ data class ItemEntity(
     /** Path relative to the source folder, for movies and episodes. */
     val filePath: String? = null,
     val fileSize: Long? = null,
-    /**
-     * When a scan first missed the file, among too many files missing at once to remove them at
-     * once (see [MissingFiles]); null while the file is listed.
-     */
+    /** When a scan first missed the file: its row waits a while (see [MissingFiles]); null while the file is listed. */
     val missingSince: Long? = null,
     val badges: List<String> = emptyList(),
     /** [app.houselights.core.MediaInfo] as JSON; null until the file has been read. */

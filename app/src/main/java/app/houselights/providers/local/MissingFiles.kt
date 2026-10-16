@@ -4,17 +4,22 @@ package app.houselights.providers.local
  * What a scan does with the rows of files a folder no longer lists. A row holds what the user did
  * with the title, so it goes only when nothing else fits:
  * - a file renamed (a Radarr or Sonarr upgrade) takes its row along;
+ * - a file missing waits an hour, and a pass at least: Radarr and Sonarr import in two steps, the old
+ *   file gone before the new one is in place, and the new one may come under a name of its own;
  * - a NAS can list a folder short without failing (a disk of a pool offline, a share served before
- *   its disk is mounted): when many files go at once, their rows wait a day, in case they come back.
+ *   its disk is mounted): while many files are missing, their rows wait a day, in case they come back.
  */
 internal object MissingFiles {
     /**
-     * Up to this many files gone at once are removed at once. More are held, however large the folder:
-     * a disk of a pool of many holds a small share of it.
+     * Up to this many files missing wait an hour. More wait a day, however large the folder: a disk
+     * of a pool of many holds a small share of it.
      */
     private const val FEW = 20
 
     /** How long rows of missing files are held before a scan removes them. */
+    const val BRIEF_HOLD_MS = 60 * 60_000L
+
+    /** How long they are held while more than [FEW] files are missing. */
     const val HOLD_MS = 24 * 60 * 60_000L
 
     /** What becomes of a folder's rows after its listing, by id. */
@@ -23,9 +28,9 @@ internal object MissingFiles {
         val relinked: List<Pair<Long, RemoteFile>>,
         /** Files listed again after they went missing: their rows are no longer held. */
         val back: List<Long>,
-        /** Files missed for the first time, among too many at once: their rows are held from now. */
+        /** Files missed for the first time: their rows are held from now. */
         val held: List<Long>,
-        /** Few files went missing, or they have been missing for [HOLD_MS]. */
+        /** Files missing for [BRIEF_HOLD_MS], or for [HOLD_MS] while many are. */
         val removed: List<Long>,
     )
 
@@ -37,13 +42,12 @@ internal object MissingFiles {
         val moved = relinked.mapTo(HashSet()) { it.first.id }
         val gone = missing.filter { it.id !in moved }
         val (waiting, fresh) = gone.partition { it.missingSince != null }
-        val hold = gone.size > FEW
-        val expired = waiting.filter { now - (it.missingSince ?: now) >= HOLD_MS }
+        val hold = if (gone.size > FEW) HOLD_MS else BRIEF_HOLD_MS
         return Outcome(
             relinked = relinked.map { (row, file) -> row.id to file },
             back = listed.filter { it.missingSince != null }.map { it.id },
-            held = if (hold) fresh.map { it.id } else emptyList(),
-            removed = (if (hold) expired else fresh + expired).map { it.id },
+            held = fresh.map { it.id },
+            removed = waiting.filter { now - (it.missingSince ?: now) >= hold }.map { it.id },
         )
     }
 
