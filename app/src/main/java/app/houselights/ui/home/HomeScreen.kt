@@ -57,7 +57,6 @@ import app.houselights.R
 import app.houselights.core.HomeSection
 import app.houselights.core.Library
 import app.houselights.core.MediaItem
-import app.houselights.core.SourceConfig
 import app.houselights.providers.local.ScanError
 import app.houselights.providers.local.ScanState
 import app.houselights.providers.local.SourceEntity
@@ -84,7 +83,6 @@ import app.houselights.ui.design.components.PosterCard
 import app.houselights.ui.design.components.ScanProgress
 import app.houselights.ui.design.components.rememberAmbientColor
 import app.houselights.ui.util.ReloadOnLibraryChange
-import app.houselights.ui.util.retainedError
 import app.houselights.ui.util.appContainer
 import app.houselights.ui.util.libraryName
 import app.houselights.ui.util.timeLeft
@@ -94,6 +92,7 @@ import app.houselights.ui.util.ErrorAction
 import app.houselights.ui.util.LocalErrorFix
 import app.houselights.ui.util.UiError
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.StateFlow
 
 @Composable
 fun HomeScreen(
@@ -106,14 +105,13 @@ fun HomeScreen(
     val vm: HomeViewModel = viewModel(factory = HomeViewModel.factory(app))
     ReloadOnLibraryChange { vm.load() }
     val state by vm.state.collectAsStateWithLifecycle()
-    val scan by app.library.scan.collectAsStateWithLifecycle()
-    val folders by app.library.folders.collectAsStateWithLifecycle(null)
-    val settings by app.settings.state.collectAsStateWithLifecycle()
+    val content = state.content
+    val sections = (content as? HomeContent.Rows)?.sections.orEmpty()
 
     // The title last selected stays on the screen while focus is on the tabs, and is found again
     // coming back; before any, the first title of the first row, where focus lands.
     var selectedId by rememberSaveable { mutableStateOf<String?>(null) }
-    val selected = remember(selectedId, state.sections) { selectedTitle(state.sections, selectedId) }
+    val selected = remember(selectedId, sections) { selectedTitle(sections, selectedId) }
     // The backdrop only changes once focus settles: no image load on every scroll step.
     var shown by remember { mutableStateOf<MediaItem?>(null) }
     LaunchedEffect(selected) {
@@ -126,13 +124,13 @@ fun HomeScreen(
     val rows = rememberLazyListState()
     // Each arrival puts focus back where it was: a card (by its row and its id), a tab, the
     // settings button; on a first visit, the first card.
-    val first = state.sections.firstOrNull()
+    val first = sections.firstOrNull()
     RestoreFocus(
         memory,
         fallback = first?.items?.firstOrNull()?.let { memory.requester(cardKey(first, it)) },
-        ready = state.sections.isNotEmpty(),
+        ready = sections.isNotEmpty(),
     ) { key ->
-        val index = sectionIndex(state.sections, key)
+        val index = sectionIndex(sections, key)
         if (index != null) rows.scrollToItem(index)
         index != null
     }
@@ -159,48 +157,41 @@ fun HomeScreen(
                     },
                     onSettings = onOpenSettings,
                 )
-                // A folder read for the first time: the counter stays above the rows, which fill in
-                // under it as titles are found.
-                val firstScan = firstScan(scan, state.sections.isEmpty(), folders)
-                // Trying again keeps the error on screen, its button at work, until the answer.
-                val error = retainedError(state.error, retrying = state.loading)
-                if (state.sections.isEmpty() && (!state.loading || error != null)) {
+                when (content) {
+                    is HomeContent.Browsing -> {
+                        // Its height holds the text at the viewer's size, and stays the same whatever has focus.
+                        HeroInfo(shown, Modifier.padding(start = HlSpace.safeH, top = HlSpace.l).height(textRoom(HlLayout.hero)))
+                        Spacer(Modifier.height(HlSpace.l))
+                        // A folder read for the first time: the counter stays above the rows, which fill in
+                        // under it as titles are found.
+                        if (content.firstScan) {
+                            FirstScan(vm.scan, Modifier.padding(start = HlSpace.safeH, bottom = HlSpace.m), aboveRows = true)
+                        }
+                        when (content) {
+                            is HomeContent.Loading -> SkeletonRows()
+                            is HomeContent.Rows -> Sections(
+                                sections = content.sections,
+                                memory = memory,
+                                rows = rows,
+                                onOpen = onOpenItem,
+                                onFocus = { section, item ->
+                                    focusedRow = section
+                                    selectedId = item.id
+                                },
+                                onLeave = { focusedRow = null },
+                            )
+                        }
+                    }
                     // Nothing to show yet: what the screen says starts where the title under focus would.
-                    val message = Modifier.padding(start = HlSpace.safeH, top = HlSpace.l)
-                    if (firstScan) {
-                        FirstScan(scan, message)
-                    } else {
-                        NoRows(
-                            error,
-                            retrying = state.loading,
-                            scan,
-                            folders,
-                            local = settings.source == SourceConfig.Local,
-                            onReload = vm::load,
-                            onSettings = onOpenSettings,
-                            onAddFolder = onAddFolder,
-                            modifier = message,
-                        )
-                    }
-                } else {
-                    // Its height holds the text at the viewer's size, and stays the same whatever has focus.
-                    HeroInfo(shown, Modifier.padding(start = HlSpace.safeH, top = HlSpace.l).height(textRoom(HlLayout.hero)))
-                    Spacer(Modifier.height(HlSpace.l))
-                    if (firstScan) FirstScan(scan, Modifier.padding(start = HlSpace.safeH, bottom = HlSpace.m), aboveRows = true)
-                    when {
-                        state.sections.isEmpty() -> SkeletonRows()
-                        else -> Sections(
-                            sections = state.sections,
-                            memory = memory,
-                            rows = rows,
-                            onOpen = onOpenItem,
-                            onFocus = { section, item ->
-                                focusedRow = section
-                                selectedId = item.id
-                            },
-                            onLeave = { focusedRow = null },
-                        )
-                    }
+                    is HomeContent.Message -> NoRows(
+                        content,
+                        vm.scan,
+                        onReload = vm::load,
+                        onRescan = vm::rescan,
+                        onSettings = onOpenSettings,
+                        onAddFolder = onAddFolder,
+                        modifier = Modifier.padding(start = HlSpace.safeH, top = HlSpace.l),
+                    )
                 }
             }
         }
@@ -342,22 +333,16 @@ private fun SkeletonRows() {
     }
 }
 
-/** A folder read for the first time, or a scan going on while home has nothing to show. */
-internal fun firstScan(scan: ScanState, empty: Boolean, folders: List<SourceEntity>?): Boolean =
-    scan.running && (empty || folders.orEmpty().any { it.id == scan.sourceId && it.lastScanAt <= 0 })
-
-/** The first folder still there whose last scan failed, and why. */
-internal fun failedFolder(errors: Map<Long, ScanError>, folders: List<SourceEntity>): Pair<SourceEntity, ScanError>? =
-    folders.firstNotNullOfOrNull { folder -> errors[folder.id]?.let { folder to it } }
-
 /**
  * The first scan, counted: what is being read, how far it has gone, the file being read. When TMDB
  * stopped answering it, titles come from the files alone: said under the counter, with the key to
  * change when TMDB refused it ([scanNoteAction]). [aboveRows]: nothing the scan comes to moves the
- * rows under it, as the file's line and the note keep their room from the start.
+ * rows under it, as the file's line and the note keep their room from the start. The [progress] is
+ * read here alone: a file read recomposes the counter, never home.
  */
 @Composable
-private fun FirstScan(scan: ScanState, modifier: Modifier, aboveRows: Boolean = false) {
+private fun FirstScan(progress: StateFlow<ScanState>, modifier: Modifier, aboveRows: Boolean = false) {
+    val scan by progress.collectAsStateWithLifecycle()
     Column(modifier) {
         ScanProgress(
             scan.processed,
@@ -406,37 +391,34 @@ private fun noteOf(issue: UiError): Int =
 internal fun scanNoteAction(issue: UiError?, aboveRows: Boolean): ErrorAction? =
     issue?.action?.takeIf { it == ErrorAction.EDIT_TMDB_KEY && !aboveRows }
 
-/** No rows and nothing loading: a failure, a scan that failed, or a library still empty. */
+/** No rows and nothing loading: the first scan, a failure, a scan that failed, or a library still empty. */
 @Composable
 private fun NoRows(
-    error: UiError?,
-    retrying: Boolean,
-    scan: ScanState,
-    folders: List<SourceEntity>?,
-    local: Boolean,
+    content: HomeContent.Message,
+    progress: StateFlow<ScanState>,
     onReload: () -> Unit,
+    onRescan: () -> Unit,
     onSettings: () -> Unit,
     onAddFolder: () -> Unit,
     modifier: Modifier,
 ) {
-    val failed = failedFolder(scan.errors, folders.orEmpty())
-    when {
-        error != null -> ErrorIntertitle(error, onReload, modifier, retrying)
-        // Folders are still being read: nothing to say about them yet.
-        local && folders == null -> Unit
-        // Not "add a folder" when there is one: its scan failed, and it says why.
-        local && failed != null -> ScanFailed(failed, onSettings, modifier)
-        local -> NoFilms(folders.orEmpty(), onAddFolder, onSettings, modifier)
-        else -> HlEmptyState(stringResource(R.string.empty_title), modifier, message = stringResource(R.string.empty_server))
+    when (content) {
+        HomeContent.FirstScan -> FirstScan(progress, modifier)
+        is HomeContent.Failed -> ErrorIntertitle(content.error, onReload, modifier, content.retrying)
+        HomeContent.ReadingFolders -> Unit
+        is HomeContent.ScanFailed -> ScanFailed(content.folder, content.error, onRescan, onSettings, modifier)
+        is HomeContent.NoFilms -> NoFilms(content.hasFolders, onAddFolder, onSettings, modifier)
+        HomeContent.ServerEmpty ->
+            HlEmptyState(stringResource(R.string.empty_title), modifier, message = stringResource(R.string.empty_server))
     }
 }
 
 /**
  * Folders without a film yet, or none at all: a verb, adding the folder that holds them, and
- * beside it the folders already there.
+ * beside it the folders already there ([hasFolders]).
  */
 @Composable
-private fun NoFilms(folders: List<SourceEntity>, onAddFolder: () -> Unit, onSettings: () -> Unit, modifier: Modifier) {
+private fun NoFilms(hasFolders: Boolean, onAddFolder: () -> Unit, onSettings: () -> Unit, modifier: Modifier) {
     HlEmptyState(
         stringResource(R.string.home_empty_title),
         modifier,
@@ -444,16 +426,14 @@ private fun NoFilms(folders: List<SourceEntity>, onAddFolder: () -> Unit, onSett
         action = stringResource(R.string.add_folder),
         actionIcon = HlIcons.Add,
         onAction = onAddFolder,
-        secondaryAction = stringResource(R.string.home_see_folders).takeIf { folders.isNotEmpty() },
+        secondaryAction = stringResource(R.string.home_see_folders).takeIf { hasFolders },
         onSecondaryAction = onSettings,
     )
 }
 
-/** Nothing to show because the folders could not be read: why, a way to scan again, and the folders. */
+/** Nothing to show because [folder] could not be read: why ([error]), a way to scan again ([onRescan]), and the folders. */
 @Composable
-private fun ScanFailed(failed: Pair<SourceEntity, ScanError>, onSettings: () -> Unit, modifier: Modifier) {
-    val library = appContainer().library
-    val (folder, error) = failed
+private fun ScanFailed(folder: SourceEntity, error: ScanError, onRescan: () -> Unit, onSettings: () -> Unit, modifier: Modifier) {
     HlEmptyState(
         stringResource(R.string.home_scan_failed),
         modifier,
@@ -461,7 +441,7 @@ private fun ScanFailed(failed: Pair<SourceEntity, ScanError>, onSettings: () -> 
         attention = true,
         action = stringResource(R.string.retry),
         actionIcon = HlIcons.Refresh,
-        onAction = { library.scan() },
+        onAction = onRescan,
         secondaryAction = stringResource(R.string.home_see_folders),
         onSecondaryAction = onSettings,
     )

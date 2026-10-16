@@ -8,15 +8,12 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.tv.material3.Text
 import app.houselights.BuildConfig
 import app.houselights.R
@@ -65,12 +62,20 @@ private fun AboutBrand() {
 /** What the app works with on this device, read like the back of a case: each with its light. */
 @Composable
 private fun AboutStatus() {
-    val context = LocalContext.current
-    var api by remember { mutableStateOf<Boolean?>(null) }
-    val player = remember {
-        runCatching { context.packageManager.getPackageInfo(PlaybackManager.ZIDOO_PACKAGE, 0) }.isSuccess
+    val packages = LocalContext.current.packageManager
+    val vm = viewModel {
+        AboutViewModel(
+            isPlayerInstalled = { runCatching { packages.getPackageInfo(PlaybackManager.ZIDOO_PACKAGE, 0) }.isSuccess },
+            apiAnswers = ZidooStatus::isAvailable,
+        )
     }
-    LaunchedEffect(Unit) { api = ZidooStatus.isAvailable() }
+    // Asked while the block shows, as it comes into view.
+    DisposableEffect(vm) {
+        vm.check()
+        onDispose { vm.forget() }
+    }
+    val player = vm.player
+    val api = vm.api
     InfoBlock(stringResource(R.string.about_status)) {
         Column(verticalArrangement = Arrangement.spacedBy(HlSpace.xs)) {
             DefinitionRow(stringResource(R.string.label_player)) {
