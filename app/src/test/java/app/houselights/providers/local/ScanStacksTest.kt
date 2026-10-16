@@ -133,6 +133,18 @@ class ScanStacksTest {
         assertTrue(rows().all { it.parts.isEmpty() })
     }
 
+    /** Two films named "… Part 1" and "… Part 2" without their year, among the others of a folder: two titles. */
+    @Test
+    fun twoFilmsNamedPartOneAndPartTwoAreTwoTitles() = runTest {
+        nas.put("Hunger Games Mockingjay Part 1.mkv")
+        nas.put("Hunger Games Mockingjay Part 2.mkv")
+        nas.put("Top Gun Maverick.mkv")
+        bench.scan()
+        val titles = listOf("Hunger Games Mockingjay Part 1", "Hunger Games Mockingjay Part 2", "Top Gun Maverick")
+        assertEquals(titles, rows().map { it.title })
+        assertTrue(rows().all { it.parts.isEmpty() })
+    }
+
     private companion object {
         const val DIR = "Le Parrain (1972)"
     }

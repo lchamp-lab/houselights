@@ -71,6 +71,19 @@ class FilenameParserTest {
         assertEquals(ParsedMovie("Dune Part Two", null), movie("Dune Part Two.mkv"))
     }
 
+    /** Those words in capitals, in a name that has small letters, are a release's tags, with or without a technical one after. */
+    @Test
+    fun wordTagsInCapitalsAreTheRelease() {
+        assertEquals(ParsedMovie("Le Film", null), movie("Le.Film.FRENCH.mkv"))
+        assertEquals(ParsedMovie("Inception", null), movie("Inception.PROPER.mkv"))
+        assertEquals(ParsedMovie("Movie Title", null), movie("Movie.Title.EXTENDED.CUT.1080p.mkv"))
+        assertEquals(ParsedMovie("The Thing", null), movie("The.Thing.iNTERNAL.mkv"))
+        // In small letters, or in a name all in capitals, they are a title's words.
+        assertEquals(ParsedMovie("The French Connection", null), movie("The.French.Connection.mkv"))
+        assertEquals(ParsedMovie("A Complete Unknown", null), movie("A.Complete.Unknown.mkv"))
+        assertEquals(ParsedMovie("THE FRENCH CONNECTION", null), movie("THE.FRENCH.CONNECTION.mkv"))
+    }
+
     /** A year to come is a title's number, not its year. */
     @Test
     fun aYearToComeIsPartOfTheTitle() {
@@ -119,6 +132,17 @@ class FilenameParserTest {
         )
         assertEquals(ParsedEpisode("One Piece", 21, 1071), episode("1071 - Le sommet.mkv", listOf("One Piece", "Saison 21")))
         assertNull("a date", FilenameParser.parseEpisode("2019-05-12 - Live.mkv", listOf("Talk Show", "Season 1")))
+    }
+
+    /** A year leading a name in a season's folder is no episode's number; four digits that are none still are. */
+    @Test
+    fun aLeadingYearIsNoEpisode() {
+        val season = listOf("Show", "Season 1")
+        assertNull(episode("2019 Christmas Special.mkv", season))
+        assertNull(episode("1917.mkv", season))
+        assertNull(episode("Episode 2005 - Rose.mkv", season))
+        assertEquals(ParsedEpisode("Show", 1, 1899), episode("1899 - Title.mkv", season))
+        assertEquals(ParsedEpisode("Show", 1, 201), episode("201 - Title.mkv", season))
     }
 
     /** One file holding several episodes, named as Sonarr's multi-episode styles name it. */
@@ -177,6 +201,45 @@ class FilenameParserTest {
         assertNull("nothing names the show", show("Saison 1/03 - Victor.mkv"))
     }
 
+    /** A season's pack at the source's root is its show's folder, named up to its season: its seasons are one show. */
+    @Test
+    fun aSeasonsPackAtTheRootIsItsShow() {
+        assertEquals(
+            Triple("Show Name", null, "Show.Name.S01.1080p.WEB-GRP"),
+            show("Show.Name.S01.1080p.WEB-GRP/Show.Name.S01E01.1080p.WEB-GRP.mkv"),
+        )
+        assertEquals(
+            Triple("Show Name", 2019, "Show.Name.2019.S02.1080p.WEB-GRP"),
+            show("Show.Name.2019.S02.1080p.WEB-GRP/Show.Name.2019.S02E01.1080p.WEB-GRP.mkv"),
+        )
+        assertEquals(
+            Triple("Show Name", null, "Show.Name.S01-S03.1080p.BluRay"),
+            show("Show.Name.S01-S03.1080p.BluRay/Season 2/Show.Name.S02E01.mkv"),
+        )
+        // An episode's own folder, as a release brings it.
+        assertEquals(
+            Triple("Show Name", null, "Show.Name.S01E01.1080p.WEB-GRP"),
+            show("Show.Name.S01E01.1080p.WEB-GRP/Show.Name.S01E01.1080p.WEB-GRP.mkv"),
+        )
+    }
+
+    /** A pack of a whole show names it before what it holds: the show is named as its files name it, its year the pack's. */
+    @Test
+    fun aPackOfAWholeShowIsNamedByItsFiles() {
+        assertEquals(
+            Triple("Friends", null, "Friends.Complete.Series.1080p.BluRay.x264"),
+            show("Friends.Complete.Series.1080p.BluRay.x264/Season 1/Friends.S01E01.1080p.BluRay.x264.mkv"),
+        )
+        assertEquals(
+            Triple("Friends", null, "Friends - The Complete Series"),
+            show("Friends - The Complete Series/Friends - S01E01 - The One Where Monica Gets a Roommate.mkv"),
+        )
+        assertEquals(
+            Triple("Friends", 1994, "Séries/Friends.Complete.Series.1994.1080p"),
+            show("Séries/Friends.Complete.Series.1994.1080p/Friends.S01E01.mkv"),
+        )
+    }
+
     /** The year of a show is its folder's, else its name's at the source's root; specials are season 0. */
     @Test
     fun showYearsAndSpecials() {
@@ -208,6 +271,18 @@ class FilenameParserTest {
         )
         folders.forEach { assertTrue(it, ScanTitles.isExtrasFolder(it)) }
         assertFalse(ScanTitles.isExtrasFolder("Season 1"))
+    }
+
+    /** An episode is an extra by a dash right after its numbers, or as its whole title; not by its title's last word. */
+    @Test
+    fun episodesTitledWithAWordOfExtras() {
+        val episodes = listOf(
+            "Show - S01E05 - Crime-Scene.mkv", "Show - S01E05 - Self-Deleted.mkv", "Show.S01E05.The.Big-Short.mkv",
+            "Show - 1x05 - The-Other.mkv", "Show - S01E05 - Exit-Interview.mkv",
+        )
+        episodes.forEach { assertFalse(it, ScanTitles.isExtraName(it)) }
+        val extras = listOf("Show - S01E05-deleted.mkv", "Show - S01E05 -scene.mkv", "Show.S01E05.-interview.mkv", "Show 1x05-other.mkv")
+        extras.forEach { assertTrue(it, ScanTitles.isExtraName(it)) }
     }
 
     @Test

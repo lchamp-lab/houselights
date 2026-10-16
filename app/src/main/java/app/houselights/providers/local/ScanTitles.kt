@@ -15,9 +15,12 @@ internal object ScanTitles {
         val (streams, files) = videos.partition { FilenameParser.discOf(it.relativePath) != null }
         val discs = streams.groupBy { FilenameParser.discOf(it.relativePath)?.root }
         val named = files.filterNot { isExtraName(it.relativePath.substringAfterLast('/')) }
-        // Folders holding a title: a folder of extras is one only under one of them, never at the source's root.
-        val holders = named.mapTo(HashSet()) { Sidecars.folderOf(it.relativePath) } + discs.keys.filterNotNull()
-        val kept = named.filterNot { inExtrasFolder(it.relativePath, holders) } + discs.values.map(::mainStream)
+        // Folders above a folder of extras that hold a title of their own, or a season's, and discs' folders: a
+        // folder of extras is one only in one of them, never at the source's root nor in a folder of kinds.
+        val above = named.flatMapTo(HashSet()) { extrasOwners(it.relativePath) }
+        val owners = named.filter { Sidecars.folderOf(it.relativePath) in above && inItsOwnFolder(it) }
+            .mapTo(HashSet()) { Sidecars.folderOf(it.relativePath) } + discs.keys.filterNotNull()
+        val kept = named.filterNot { f -> extrasOwners(f.relativePath).any { it in owners } } + discs.values.map(::mainStream)
         val paths = kept.mapTo(HashSet()) { it.relativePath }
         return videos.filter { it.relativePath in paths }
     }
@@ -37,23 +40,41 @@ internal object ScanTitles {
 
     /**
      * A video named as an extra of the title beside it ([EXTRA_SUFFIX]). "The Big Short" and "The
-     * Interview" are films: those words count after a dash only. Nor is an episode an extra for its
-     * title's last word: "Show - S00E01 - Trailer".
+     * Interview" are films: those words count after a dash only. A name that gives an episode is an
+     * extra by a dash right after its numbers only, as its whole title ("Show - S01E01-deleted"), not
+     * for its title's last word: "Show - S01E05 - Crime-Scene", "Show - S00E01 - Trailer".
      */
     fun isExtraName(fileName: String): Boolean {
         val base = FilenameParser.stripExtension(fileName)
         val suffix = EXTRA_SUFFIX.find(base) ?: return false
-        return base[suffix.range.first] == '-' || FilenameParser.parseEpisode(fileName, emptyList()) == null
+        val title = FilenameParser.afterEpisode(fileName) ?: return true
+        return base[suffix.range.first] == '-' && title.equals(suffix.value.drop(1), ignoreCase = true)
     }
 
     /** A folder of a title's extras: "Featurettes", "Behind The Scenes"… (see [EXTRAS_FOLDERS]). */
     fun isExtrasFolder(name: String): Boolean = name.trim().lowercase() in EXTRAS_FOLDERS
 
-    /** [path] lies in a folder of extras whose own folder holds a title: "Dune (2021)/Featurettes/Making of.mkv". */
-    private fun inExtrasFolder(path: String, holders: Set<String>): Boolean {
+    /** The folders [path]'s folders of extras lie in, never the source's root: "Dune (2021)" for "Dune (2021)/Featurettes/x.mkv". */
+    private fun extrasOwners(path: String): List<String> {
         val folders = path.split('/').dropLast(1)
-        return (1 until folders.size).any { i -> isExtrasFolder(folders[i]) && folders.take(i).joinToString("/") in holders }
+        return (1 until folders.size).filter { isExtrasFolder(folders[it]) }.map { folders.take(it).joinToString("/") }
     }
+
+    /**
+     * [file] lies in its title's own folder or in a season's: one named as its title is ("Arrival/arrival.mkv"),
+     * by a title and its year as Radarr and Kodi name a film's ("Dune (2021)"), or a season ("Show/Season 1").
+     * A folder of kinds holding a loose film is none ("Animation/Coco (2017).mkv"): its "Shorts" are films.
+     */
+    private fun inItsOwnFolder(file: RemoteFile): Boolean {
+        val folder = Sidecars.folderOf(file.relativePath).substringAfterLast('/')
+        val named = FilenameParser.parseMovie(folder)
+        if (named.year != null || FilenameParser.seasonFromFolder(folder) != null) return true
+        val name = file.relativePath.substringAfterLast('/')
+        val title = FilenameParser.parseEpisode(name, emptyList())?.showTitle ?: FilenameParser.parseMovie(name).title
+        return letters(named.title).let { it.isNotEmpty() && it == letters(title) }
+    }
+
+    private fun letters(s: String) = s.lowercase().filter(Char::isLetterOrDigit)
 
     /** A DVD's title sets: "VTS_01_1.VOB", the first part of set 01 ("VTS_01_0.VOB" is its menu). */
     private val TITLE_SET = Regex("""(?i)^VTS_(\d{2})_([1-9])\.VOB$""")

@@ -126,6 +126,27 @@ class ScanNamesTest {
         assertTrue(dune.posterPath.isCachedArtwork())
     }
 
+    /**
+     * A folder named like a folder of extras holds extras only in its title's own folder, named by it or by
+     * a year, or in a season's: under a folder of kinds that holds a loose film, its videos are films.
+     */
+    @Test
+    fun foldersNamedLikeExtrasUnderAFolderOfKindsHoldFilms() = runTest {
+        nas.put("Animation/Coco (2017).mkv")
+        nas.put("Animation/Shorts/Bao (2018).mkv")
+        nas.put("Kids/Kid Film.mkv")
+        nas.put("Kids/Other/Film (2010).mkv")
+        nas.put("Arrival/arrival.mkv")
+        nas.put("Arrival/Extras/Interview.mkv")
+        bench.scan()
+
+        val kept = listOf(
+            "Animation/Coco (2017).mkv", "Animation/Shorts/Bao (2018).mkv", "Arrival/arrival.mkv", "Kids/Kid Film.mkv",
+            "Kids/Other/Film (2010).mkv",
+        )
+        assertEquals(kept, filmPaths())
+    }
+
     /** A Blu-ray's folder in a show's is the episode its folder names. */
     @Test
     fun aBluRayOfAnEpisodeIsThatEpisode() = runTest {
