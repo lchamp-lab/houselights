@@ -26,10 +26,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusEventModifierNode
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.FocusRequesterModifierNode
 import androidx.compose.ui.focus.FocusState
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.focus.requestFocus
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.node.LayoutAwareModifierNode
 import androidx.compose.ui.node.ModifierNodeElement
@@ -81,20 +82,27 @@ class FocusMemory(initial: String? = null) {
     var last: String? by mutableStateOf(initial)
         private set
 
+    /**
+     * What the screen focuses itself ([requester]): a group holding keyed elements (a row, a pane,
+     * the tabs), or an element it starts on. The screen holds these, so they stay while it lives.
+     */
     private val requesters = HashMap<String, FocusRequester>()
 
     /**
-     * Keyed elements laid out on the screen. A list composes the next items ahead without showing
-     * them; focus put there would be invisible, so the memory only focuses what is placed.
+     * What focuses each keyed element composed now, and brings it into view: the same from one
+     * composition to the next, so its modifier stays equal, and dropped when the element leaves,
+     * so a long list browsed leaves nothing behind.
      */
-    private val placed = HashSet<String>()
+    private val handles = HashMap<String, KeyHandles>()
 
-    internal fun placed(key: String, isPlaced: Boolean) {
-        if (isPlaced) placed += key else placed -= key
-    }
+    /** The keyed elements attached now: each knows whether it is laid out, and whether it took focus. */
+    private val nodes = HashMap<String, FocusKeyNode>()
+
+    /** The keys the memory holds something for (what a test checks it forgets). */
+    internal val held: Set<String> get() = requesters.keys + handles.keys + nodes.keys
 
     /** What focuses [key]: for a group holding keyed elements, or an element focused by the screen itself. */
-    fun requester(key: String): FocusRequester = requesters.getOrPut(key) { FocusRequester() }
+    fun requester(key: String): FocusRequester = requesters.getOrPut(key) { handles[key]?.requester ?: FocusRequester() }
 
     /** Takes [key] as where focus is, without moving it (what a screen will want back from elsewhere). */
     fun record(key: String) {
@@ -102,25 +110,29 @@ class FocusMemory(initial: String? = null) {
     }
 
     /**
-     * Focuses [key] now; false when nothing with that key is on screen. A group (a row, a pane, the
-     * tabs) carries no key of its own and is focused whenever it is there.
+     * Focuses [key] now; false when nothing with that key is on screen, or when what is there took
+     * no focus. A list composes the next items ahead without showing them; focus put there would be
+     * invisible, so a keyed element is focused only once placed. A group (a row, a pane, the tabs)
+     * carries no key of its own and is focused whenever it is there.
      */
     fun focus(key: String): Boolean {
+        nodes[key]?.let { return it.placed && it.requestFocus() }
         val requester = requesters[key] ?: return false
-        if (key in keyed && key !in placed) return false
         return runCatching { requester.requestFocus() }.isSuccess
     }
 
-    /** Keys given to elements through [focusKey], as opposed to groups focused by the screen. */
-    private val keyed = HashSet<String>()
+    internal fun handles(key: String): KeyHandles = handles.getOrPut(key) { KeyHandles(requesters[key] ?: FocusRequester()) }
 
-    private val bringers = HashMap<String, BringIntoViewRequester>()
+    internal fun attach(node: FocusKeyNode) {
+        nodes[node.key] = node
+        // The ones it was composed with; back without being composed again, they are still those.
+        handles[node.key] = node.handles
+    }
 
-    internal fun bringer(key: String): BringIntoViewRequester = bringers.getOrPut(key) { BringIntoViewRequester() }
-
-    internal fun keyed(key: String): FocusRequester {
-        keyed += key
-        return requester(key)
+    internal fun detach(node: FocusKeyNode) {
+        if (nodes[node.key] !== node) return
+        nodes -= node.key
+        if (handles[node.key] === node.handles) handles -= node.key
     }
 
     /**
@@ -132,7 +144,7 @@ class FocusMemory(initial: String? = null) {
         withFrameNanos { }
         val revealed: suspend (String) -> Boolean = { key -> reveal(key).also { if (it) withFrameNanos { } } }
         val restored = restoreFocus(last, ::focus, revealed) { fallback != null && runCatching { fallback.requestFocus() }.isSuccess }
-        last?.let { key -> bringers[key]?.let { keepInView(key, it) } }
+        last?.let { key -> keepInView(key) }
         return restored
     }
 
@@ -141,10 +153,11 @@ class FocusMemory(initial: String? = null) {
      * row's titles) and push it out of view: for a moment, the element is brought back into view
      * after each frame, until the viewer moves on.
      */
-    private suspend fun keepInView(key: String, bringer: BringIntoViewRequester) {
+    private suspend fun keepInView(key: String) {
         withTimeoutOrNull(KEEP_IN_VIEW_MS) {
-            while (last == key && key in placed) {
-                runCatching { bringer.bringIntoView() }
+            while (last == key) {
+                val node = nodes[key]?.takeIf { it.placed } ?: break
+                runCatching { node.handles.bringer.bringIntoView() }
                 withFrameNanos { }
             }
         }
@@ -179,29 +192,81 @@ internal suspend fun restoreFocus(
 @Composable
 fun rememberFocusMemory(): FocusMemory = rememberSaveable(saver = FocusMemory.Saver) { FocusMemory() }
 
-/** Names this element [key] in [memory]: focus on it is remembered, and coming back finds it. */
-fun Modifier.focusKey(key: String, memory: FocusMemory): Modifier =
-    bringIntoViewRequester(memory.bringer(key))
-        .focusRequester(memory.keyed(key))
-        .onFocusChanged { if (it.hasFocus) memory.record(key) }
-        .then(PlacedElement(key, memory))
+/**
+ * Names this element [key] in [memory]: focus on it is remembered, and coming back finds it. Its
+ * requester serves the screen that focuses it by name ([FocusMemory.requester]); its bringer keeps
+ * it in view as the screen fills in. Foundation 1.7 has no public way to bring a node itself into
+ * view, hence the requester of its own.
+ */
+fun Modifier.focusKey(key: String, memory: FocusMemory): Modifier {
+    val handles = memory.handles(key)
+    return bringIntoViewRequester(handles.bringer)
+        .focusRequester(handles.requester)
+        .then(FocusKeyElement(key, memory, handles))
+}
 
 /** How long an element brought back keeps being held in view while its screen fills in. */
 private const val KEEP_IN_VIEW_MS = 1_200L
 
-/** Tells [memory] whether the element named [key] is laid out on the screen. */
-private data class PlacedElement(val key: String, val memory: FocusMemory) : ModifierNodeElement<PlacedNode>() {
-    override fun create() = PlacedNode(key, memory)
-    override fun update(node: PlacedNode) {
-        if (node.key != key) node.memory.placed(node.key, false)
-        node.key = key
-        node.memory = memory
+/** What focuses a keyed element for its screen, and brings it into view, while it is composed. */
+internal class KeyHandles(val requester: FocusRequester) {
+    val bringer = BringIntoViewRequester()
+}
+
+private data class FocusKeyElement(val key: String, val memory: FocusMemory, val handles: KeyHandles) :
+    ModifierNodeElement<FocusKeyNode>() {
+    override fun create() = FocusKeyNode(key, memory, handles)
+    override fun update(node: FocusKeyNode) = node.update(key, memory, handles)
+    override fun InspectorInfo.inspectableProperties() {
+        name = "focusKey"
+        properties["key"] = key
     }
 }
 
-private class PlacedNode(var key: String, var memory: FocusMemory) : Modifier.Node(), LayoutAwareModifierNode {
-    override fun onPlaced(coordinates: LayoutCoordinates) = memory.placed(key, coordinates.isAttached)
-    override fun onDetach() = memory.placed(key, false)
+/**
+ * A keyed element, in its [memory] while it is attached: it records focus on it, knows whether it
+ * is laid out, and says whether a request for focus took ([requestFocus]): a node can be there and
+ * still refuse it, where a [FocusRequester] only tells whether it is attached.
+ */
+internal class FocusKeyNode(key: String, private var memory: FocusMemory, handles: KeyHandles) :
+    Modifier.Node(), FocusRequesterModifierNode, FocusEventModifierNode, LayoutAwareModifierNode {
+    var key = key
+        private set
+
+    var handles = handles
+        private set
+
+    /** Laid out on the screen, not only composed ahead by a list. */
+    var placed = false
+        private set
+
+    private var focusState: FocusState? = null
+
+    fun update(key: String, memory: FocusMemory, handles: KeyHandles) {
+        if (isAttached) this.memory.detach(this)
+        this.key = key
+        this.memory = memory
+        this.handles = handles
+        if (isAttached) memory.attach(this)
+    }
+
+    override fun onAttach() = memory.attach(this)
+
+    override fun onDetach() {
+        placed = false
+        memory.detach(this)
+    }
+
+    override fun onPlaced(coordinates: LayoutCoordinates) {
+        placed = coordinates.isAttached
+    }
+
+    // As onFocusChanged: only a change of state is recorded.
+    override fun onFocusEvent(focusState: FocusState) {
+        if (this.focusState == focusState) return
+        this.focusState = focusState
+        if (focusState.hasFocus) memory.record(key)
+    }
 }
 
 /**
