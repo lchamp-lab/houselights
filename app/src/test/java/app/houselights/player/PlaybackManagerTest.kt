@@ -51,13 +51,13 @@ class PlaybackManagerTest {
         }
     }
 
-    /** What the fake player says at each poll, in turn; then nothing. */
-    private val statuses = ArrayDeque<ZidooPlayState?>()
+    /** What the fake player says at each poll, in turn (null: its API does not answer); then no answer. */
+    private val statuses = ArrayDeque<PlayerAnswer?>()
     private var polls = 0
 
     private fun TestScope.manager() = PlaybackManager(context, this, status = {
         polls++
-        statuses.removeFirstOrNull()
+        statuses.removeFirstOrNull() ?: PlayerAnswer.NoAnswer
     }) { null }
 
     private fun plan(uri: String = "nfs://nas/films/Heat.mkv", backdrop: String? = null) = PlaybackPlan.Launch(
@@ -65,7 +65,7 @@ class PlaybackManagerTest {
         reporter = reporter, resumeKey = "m1",
     )
 
-    private fun playing(positionMs: Long, durationMs: Long = HEAT) = ZidooPlayState(true, false, positionMs, durationMs)
+    private fun playing(positionMs: Long, durationMs: Long = HEAT) = PlayerAnswer.Playing(ZidooPlayState(true, false, positionMs, durationMs))
 
     private fun result(positionMs: Int) = Intent().putExtra("position", positionMs)
 
@@ -135,12 +135,12 @@ class PlaybackManagerTest {
         assertEquals("stopped 31000 / $HEAT", reports.last())
     }
 
-    /** The player went on to the next file of the folder: what it says is not this title's. */
+    /** The film played to its end, then the player went on to the next file of the folder: what it says is not this title's. */
     @Test
     fun anotherFileIsNotTakenForTheTitleLaunched() = runTest {
         val manager = manager()
         manager.intentFor(plan())
-        statuses += listOf(playing(7_000_000), playing(7_150_000), playing(300_000, durationMs = 2_400_000))
+        statuses += listOf(playing(HEAT - 9_000), playing(HEAT - 5_000), playing(2_000, durationMs = 2_400_000))
         manager.onPlayerLaunched()
         advanceTimeBy(4_000 + 2_000 * 5L)
         val pollsThen = polls
@@ -150,14 +150,54 @@ class PlaybackManagerTest {
         // The position the player returns is the other file's.
         manager.onPlayerResult(result(300_000))
         advanceUntilIdle()
-        assertEquals("stopped 7150000 / $HEAT", reports.last())
+        assertEquals("stopped ${HEAT - 5_000} / $HEAT", reports.last())
+    }
+
+    /**
+     * A disc image opens on a 30 s intro, then its film: the film is the title launched, not another
+     * file, and what the player says of it (then returns) is kept.
+     */
+    @Test
+    fun aThirtySecondIntroThenATwoHourFilmIsTheSameTitle() = runTest {
+        val manager = manager()
+        manager.intentFor(plan())
+        val intro = (4..28 step 2).map { playing(it * 1_000L, durationMs = 30_000) }
+        val film = (1..30).map { playing(it * 2_000L, durationMs = FILM) }
+        statuses += intro + film
+        manager.onPlayerLaunched()
+        advanceTimeBy(4_000 + 2_000 * 30L)
+        // Polls 0 to 12 are the intro's, the film follows: the fifteenth poll's report is the film's.
+        assertTrue("The film's progress was not reported: $reports", "progress 6000" in reports)
+
+        manager.onPlayerResult(result(3_600_000))
+        advanceUntilIdle()
+        assertEquals("stopped 3600000 / $FILM", reports.last())
+    }
+
+    /** The player's API out of reach a while (a network hiccup): the film still plays, the NAS is still its own. */
+    @Test
+    fun aPlayerOutOfReachIsStillPlaying() = runTest {
+        val manager = manager()
+        manager.intentFor(plan())
+        statuses += listOf(playing(10_000)) + List(40) { null }
+        manager.onPlayerLaunched()
+        advanceTimeBy(4_000 + 2_000 * 40L)
+        assertTrue(manager.playing.value)
+        // Tracking itself stops after some thirty seconds without an answer.
+        val pollsThen = polls
+        advanceTimeBy(60_000)
+        assertEquals(pollsThen, polls)
+
+        manager.onPlayerResult(result(20_000))
+        advanceUntilIdle()
+        assertFalse(manager.playing.value)
     }
 
     @Test
-    fun aPlayerThatSaysNothingMoreIsNoLongerFollowed() = runTest {
+    fun aPlayerThatSaysNothingPlaysIsNoLongerFollowed() = runTest {
         val manager = manager()
         manager.intentFor(plan())
-        statuses += playing(10_000)
+        statuses += listOf(playing(10_000)) + List(20) { PlayerAnswer.NothingPlays }
         manager.onPlayerLaunched()
         assertTrue(manager.playing.value)
         advanceTimeBy(4_000 + 2_000 * 17L)
@@ -197,7 +237,7 @@ class PlaybackManagerTest {
         advanceTimeBy(4_001)
 
         val reportersAsked = mutableListOf<String>()
-        val second = PlaybackManager(context, this, status = { null }) { key ->
+        val second = PlaybackManager(context, this, status = { PlayerAnswer.NoAnswer }) { key ->
             reportersAsked += key
             reporter
         }
@@ -209,5 +249,6 @@ class PlaybackManagerTest {
 
     private companion object {
         const val HEAT = 10_200_000L
+        const val FILM = 7_200_000L
     }
 }

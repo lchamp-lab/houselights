@@ -35,12 +35,12 @@ class PlaybackManager(
     private val context: Context,
     private val scope: CoroutineScope,
     /** What the player says it plays now: the Zidoo local API. */
-    private val status: suspend () -> ZidooPlayState? = ZidooStatus::playStatus,
+    private val status: suspend () -> PlayerAnswer = ZidooStatus::playStatus,
     /** The reporter of a playback the app started before it was stopped (see [PlaybackPlan.Launch.resumeKey]). */
     private val reporterFor: suspend (String) -> PlaybackReporter?,
 ) {
     private class Session(val reporter: PlaybackReporter?, var positionMs: Long) {
-        /** The length of the file launched, from the player's first status: a status of another length is another file. */
+        /** The length of the title, from the player's first status (see [follow]). */
         var durationMs: Long? = null
         var paused = false
 
@@ -158,40 +158,60 @@ class PlaybackManager(
     /**
      * Follows the player through its local API: every [POLL_MS] locally, every few polls to the
      * backend, and only what the player says now, never a position kept from before. It stops once
-     * the player has gone on to another file, or once it has said nothing for [SILENT_POLLS] polls
-     * after a first status (the player left in the background, an API gone): the session waits
-     * for the player's result all the same.
+     * the player has gone on to another file, or after [SILENT_POLLS] polls in a row past a first
+     * status that the player says nothing plays, or that its API does not answer: the session waits
+     * for the player's result all the same. Only the player saying nothing plays ends [playing]:
+     * an API out of reach a moment says nothing of the film, whose NAS stays its own.
      */
     private suspend fun track(s: Session) {
         delay(FIRST_POLL_MS)
         var tick = 0
-        var silent = 0
-        while (currentCoroutineContext().isActive && silent < SILENT_POLLS && !s.switched) {
-            val state = status()
-            if (state == null) {
+        var idle = 0
+        var unanswered = 0
+        while (currentCoroutineContext().isActive && idle < SILENT_POLLS && unanswered < SILENT_POLLS && !s.switched) {
+            when (val answer = status()) {
+                is PlayerAnswer.Playing -> {
+                    idle = 0
+                    unanswered = 0
+                    follow(s, answer.state)
+                    if (!s.switched && tick % REPORT_EVERY == 0) report { s.reporter?.progress(s.positionMs, s.durationMs, s.paused) }
+                }
                 // Before a first status, the player may still be opening the file.
-                if (s.durationMs != null) silent++
-            } else {
-                silent = 0
-                follow(s, state)
-                if (!s.switched && tick % REPORT_EVERY == 0) report { s.reporter?.progress(s.positionMs, s.durationMs, s.paused) }
+                PlayerAnswer.NothingPlays -> if (s.durationMs != null) {
+                    idle++
+                    unanswered = 0
+                }
+                PlayerAnswer.NoAnswer -> if (s.durationMs != null) {
+                    unanswered++
+                    idle = 0
+                }
             }
             tick++
             delay(POLL_MS)
         }
-        if (silent >= SILENT_POLLS) {
-            Log.i(TAG, "The player says nothing more: tracking stops")
+        if (idle >= SILENT_POLLS) {
+            Log.i(TAG, "The player says nothing plays: tracking stops")
             _playing.value = false
+        } else if (unanswered >= SILENT_POLLS) {
+            Log.i(TAG, "The player's API no longer answers: tracking stops, playback goes on until its result")
         }
     }
 
-    /** Takes what the player says for the session, unless it now plays a file of another length. */
+    /**
+     * Takes what the player says for the session. A status of another length is another file only
+     * once the file launched, a title's length, had played to its end: the player went on to the next
+     * file of its folder. Otherwise the title comes after a disc's menu or intro: its length is the
+     * one to keep.
+     */
     private fun follow(s: Session, state: ZidooPlayState) {
         val launched = s.durationMs
         if (launched != null && abs(state.durationMs - launched) > maxOf(SAME_FILE_MS, launched / SAME_FILE_SHARE)) {
-            Log.i(TAG, "The player went on to another file ($launched -> ${state.durationMs} ms)")
-            s.switched = true
-            return
+            if (launched >= TITLE_MIN_MS && s.positionMs >= launched - END_POLLS * POLL_MS) {
+                Log.i(TAG, "The player went on to another file ($launched -> ${state.durationMs} ms)")
+                s.switched = true
+                return
+            }
+            Log.i(TAG, "The title is ${state.durationMs} ms long, past a menu or an intro of $launched ms")
         }
         s.positionMs = state.positionMs
         s.durationMs = state.durationMs
@@ -244,8 +264,20 @@ class PlaybackManager(
         /** Progress goes to the backend every this many polls: some ten seconds. */
         private const val REPORT_EVERY = 5
 
-        /** Polls without a word, past a first status, before tracking stops: some thirty seconds. */
+        /**
+         * Polls in a row, past a first status, that the player says nothing plays or does not answer
+         * before tracking stops: some thirty seconds.
+         */
         private const val SILENT_POLLS = 15
+
+        /**
+         * How close to its end, in polls, the file launched was when the player shows another: it
+         * went on to the next file of its folder.
+         */
+        private const val END_POLLS = 3
+
+        /** Shorter than this, a first file is a disc's menu or intro, never the title (a film, an episode). */
+        private const val TITLE_MIN_MS = 5 * 60_000L
 
         /**
          * Two statuses of the same file agree on its length within this, or within a hundredth of it,
