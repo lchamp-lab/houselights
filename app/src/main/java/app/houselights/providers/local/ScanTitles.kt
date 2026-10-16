@@ -17,13 +17,25 @@ internal object ScanTitles {
         val named = files.filterNot { isExtraName(it.relativePath.substringAfterLast('/')) }
         // Folders above a folder of extras that hold a title of their own, or a season's, and discs' folders: a
         // folder of extras is one only in one of them, never at the source's root nor in a folder of kinds.
-        val above = named.flatMapTo(HashSet()) { extrasOwners(it.relativePath) }
+        val above = named.flatMapTo(HashSet()) { f -> extrasFolders(f.relativePath).map { it.owner } }
         val owners = named.filter { Sidecars.folderOf(it.relativePath) in above && inItsOwnFolder(it) }
             .mapTo(HashSet()) { Sidecars.folderOf(it.relativePath) } + discs.keys.filterNotNull()
-        val kept = named.filterNot { f -> extrasOwners(f.relativePath).any { it in owners } } + discs.values.map(::mainStream)
+        val alone = holdingOneTitle(named)
+        val kept = named.filterNot { f ->
+            extrasFolders(f.relativePath).any { it.owner in owners || it.owner in alone && it.name in FILM_EXTRAS_FOLDERS }
+        } + discs.values.map(::mainStream)
         val paths = kept.mapTo(HashSet()) { it.relativePath }
         return videos.filter { it.relativePath in paths }
     }
+
+    /**
+     * Folders holding one title alone, a film in parts being one ([Stacks]): whatever their name ("Amélie" for
+     * "Le Fabuleux Destin d'Amélie Poulain (2001).mkv"), they are its own for folders of extras that never
+     * hold films ([FILM_EXTRAS_FOLDERS]). "Shorts" and "Other" beside a loose film may: "Animation/Shorts".
+     */
+    private fun holdingOneTitle(named: List<RemoteFile>): Set<String> =
+        Stacks.of(SourceKind.MOVIES, named).titles.groupingBy { Sidecars.folderOf(it.relativePath) }.eachCount()
+            .filterValues { it == 1 }.keys
 
     /**
      * Extras beside a film or an episode, as Plex, Jellyfin and Kodi name them: "Dune (2021)-trailer.mkv".
@@ -33,10 +45,13 @@ internal object ScanTitles {
         """(?i)(?:-(?:trailer|sample|featurette|behindthescenes|deleted|interview|scene|short|other)|[ ._](?:trailer|sample))$"""
     )
 
-    /** Folders of a title's extras, lowercase, as Plex and Jellyfin name them. */
-    private val EXTRAS_FOLDERS = setOf(
-        "extras", "featurettes", "behind the scenes", "deleted scenes", "interviews", "scenes", "shorts", "trailers", "samples", "other",
+    /** Folders of a title's extras that never hold films, lowercase, as Plex and Jellyfin name them. */
+    private val FILM_EXTRAS_FOLDERS = setOf(
+        "extras", "featurettes", "behind the scenes", "deleted scenes", "interviews", "scenes", "trailers", "samples",
     )
+
+    /** Folders of a title's extras, lowercase, as Plex and Jellyfin name them; short films and others besides. */
+    private val EXTRAS_FOLDERS = FILM_EXTRAS_FOLDERS + setOf("shorts", "other")
 
     /**
      * A video named as an extra of the title beside it ([EXTRA_SUFFIX]). "The Big Short" and "The
@@ -54,10 +69,14 @@ internal object ScanTitles {
     /** A folder of a title's extras: "Featurettes", "Behind The Scenes"… (see [EXTRAS_FOLDERS]). */
     fun isExtrasFolder(name: String): Boolean = name.trim().lowercase() in EXTRAS_FOLDERS
 
-    /** The folders [path]'s folders of extras lie in, never the source's root: "Dune (2021)" for "Dune (2021)/Featurettes/x.mkv". */
-    private fun extrasOwners(path: String): List<String> {
+    /** A folder of extras by its [name], lowercase, and the folder it lies in, its title's when it holds one. */
+    private class ExtrasFolder(val owner: String, val name: String)
+
+    /** The folders of extras [path] lies in, never at the source's root: "Featurettes" in "Dune (2021)" for "Dune (2021)/Featurettes/x". */
+    private fun extrasFolders(path: String): List<ExtrasFolder> {
         val folders = path.split('/').dropLast(1)
-        return (1 until folders.size).filter { isExtrasFolder(folders[it]) }.map { folders.take(it).joinToString("/") }
+        return (1 until folders.size).filter { isExtrasFolder(folders[it]) }
+            .map { ExtrasFolder(folders.take(it).joinToString("/"), folders[it].trim().lowercase()) }
     }
 
     /**

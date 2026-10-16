@@ -151,6 +151,28 @@ class ScanNamesTest {
         assertEquals(kept, filmPaths())
     }
 
+    /**
+     * A folder holding one film alone, named otherwise than its file and without a year, is still its own: its
+     * featurettes, scenes and trailers, which never name films, are extras. A film in parts is one film there.
+     */
+    @Test
+    fun aFilmAloneInAFolderNamedOtherwiseKeepsItsExtrasOut() = runTest {
+        nas.put("Amélie/Le Fabuleux Destin d'Amélie Poulain (2001).mkv")
+        nas.put("Amélie/Featurettes/Making of.mkv")
+        nas.put("Le Seigneur des Anneaux/The.Lord.of.the.Rings.2001.mkv")
+        nas.put("Le Seigneur des Anneaux/Behind The Scenes/Weta.mkv")
+        nas.put("Le Parrain/The.Godfather.1972.CD1.avi")
+        nas.put("Le Parrain/The.Godfather.1972.CD2.avi")
+        nas.put("Le Parrain/Deleted Scenes/Horse.avi")
+        bench.scan()
+
+        val kept = listOf(
+            "Amélie/Le Fabuleux Destin d'Amélie Poulain (2001).mkv", "Le Parrain/The.Godfather.1972.CD1.avi",
+            "Le Seigneur des Anneaux/The.Lord.of.the.Rings.2001.mkv",
+        )
+        assertEquals(kept, filmPaths())
+    }
+
     /** A Blu-ray's folder in a show's is the episode its folder names. */
     @Test
     fun aBluRayOfAnEpisodeIsThatEpisode() = runTest {
