@@ -85,6 +85,10 @@ interface LibraryDao {
     @Query("UPDATE items SET favorite = :favorite WHERE id = :id")
     suspend fun setFavorite(id: Long, favorite: Boolean)
 
+    /** When it was played, alone: a report of the previous session may land meanwhile. */
+    @Query("UPDATE items SET lastPlayedAt = :now WHERE id = :id")
+    suspend fun setLastPlayedAt(id: Long, now: Long)
+
     @Query(
         "UPDATE items SET positionMs = :positionMs, durationMs = :durationMs, played = :played, " +
             "lastPlayedAt = :lastPlayedAt WHERE id = :id"

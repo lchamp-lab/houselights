@@ -102,6 +102,21 @@ class LocalReporterTest {
         }
     }
 
+    @Test
+    fun startingWritesWhenItWasPlayedAlone() = runTest {
+        val id = film(positionMs = 5_400_000, played = true)
+        // Reads come before the previous session's last report, still on its way.
+        val late = object : LibraryDao by dao {
+            override suspend fun item(id: Long): ItemEntity? = dao.item(id)?.copy(positionMs = 4_200_000, played = false)
+        }
+        LocalReporter(late, id).started(0)
+        dao.item(id)!!.let {
+            assertEquals(5_400_000L, it.positionMs)
+            assertTrue(it.played)
+            assertNotNull(it.lastPlayedAt)
+        }
+    }
+
     private companion object {
         const val DURATION = 6_000_000L
     }

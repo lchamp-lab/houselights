@@ -8,10 +8,7 @@ internal class LocalReporter(private val dao: LibraryDao, private val itemId: Lo
      * Only says when it was played: where the player starts is not progress, and starting over must
      * not lose the resume point before the viewer has watched anything.
      */
-    override suspend fun started(positionMs: Long) {
-        val entity = dao.item(itemId) ?: return
-        dao.savePlayback(entity.id, entity.positionMs, entity.durationMs, entity.played, System.currentTimeMillis())
-    }
+    override suspend fun started(positionMs: Long) = dao.setLastPlayedAt(itemId, System.currentTimeMillis())
 
     override suspend fun progress(positionMs: Long, durationMs: Long?, paused: Boolean) =
         save(positionMs, durationMs, finished = false)
