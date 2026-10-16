@@ -111,7 +111,7 @@ component; a colour changes in one place.
 | `contentTertiary` | `N57` | `#8C8C95` | what is guessed: joins, placeholders, key hints, the disabled; 5.56:1 on `surfaceRaised` |
 | `contentDecorative` | `N28` | `#45454C` | never text: the rule of an empty frame, a skeleton |
 | `ember` | `Ember` | `#FF7A4D` | states only, a closed list (below); the wordmark is the one exception. Solid, for what is too small for a gradient: a dot, a check, a word |
-| `emberFrom`, `emberTo` | `EmberStart`, `EmberEnd` | `#FF9F1C` → `#FF2E63` | the ember light (`emberLight()`): the same states where they have room, a gradient from start to end across what they fill. The wordmark, a progress line and the counter, the rule of an intertitle that calls for attention, the edge of a field being typed in, the edge and disc of what is lit |
+| `emberFrom`, `emberTo` | `EmberStart`, `EmberEnd` | `#FF9F1C` → `#FF2E63` | the ember light (`emberLight()`): the same states where they have room, a gradient from start to end across what they fill. The wordmark, a progress line and the counter, the rule of an intertitle that calls for attention, the edge of a field being typed in, the edge of what is lit |
 | `focus` | `N96` | `#F4F4F5` | projector white again: the fill and outline of focus |
 | `onFocus` | `N0` | `#000000` | a focused control's name and icon |
 | `onFocusSecondary` | `N36` | `#5D5D5D` | the line under that name (a summary, a runtime): black at 62 % on `focus`, 6.01:1 |
@@ -134,7 +134,7 @@ ground opaque (`groundColor`, `groundFill`). Then focus, in projector white.
 `HlAlpha` names every opacity, in three families. Fills, `content` over its ground: `FILL_FAINT`
 (6 %: wells, tracks, rows at rest, the disabled), `FILL` (9 %: secondary controls at rest, things on
 the room), `FILL_STRONG` (20 %: primary controls at rest, a progress line's track off the artwork,
-a lit disc in ember, the current option of a track). Veils,
+the current option of a track). Veils,
 `background` over a picture or the room: `VEIL_SIDE` (60 %: beside a side sheet), `VEIL` (80 %:
 behind a dialog, and the plate under whatever sits on artwork). Edges: `EDGE` (`outline` at 60 %,
 `HlColors.edge`: every container's edge and divider) and `EDGE_ARTWORK` (`content` at 12 %: around
