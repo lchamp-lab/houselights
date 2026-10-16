@@ -223,6 +223,10 @@ class LibraryScanner(
 
     private fun client(): TmdbClient? = tmdb()
 
+    /** What TMDB said holds until it is asked again, answers a new file, or the key changes ([tmdbKeyChanged]). */
+    private fun tmdbDownAfter(tmdb: TmdbPass, down: TmdbDown?, askedUnmatched: Boolean): TmdbDown? =
+        tmdb.issue?.let { TmdbDown(it, tmdb.client, elapsed()) } ?: down.takeUnless { askedUnmatched || tmdb.answered }
+
     /** Why TMDB was closed to a pass ([TmdbPass.issue]), with which client, and when, on [elapsed]. */
     private class TmdbDown(val cause: Throwable, val client: TmdbClient?, val at: Long)
 
@@ -286,8 +290,7 @@ class LibraryScanner(
                 }.onFailure { Log.w(TAG, "Cleanup failed", it) }
             }
         } finally {
-            // What TMDB said holds until it is asked again, answers a new file, or the key changes ([tmdbKeyChanged]).
-            tmdbDown = tmdb.issue?.let { TmdbDown(it, client, elapsed()) } ?: down.takeUnless { askUnmatched || tmdb.answered }
+            tmdbDown = tmdbDownAfter(tmdb, down, askUnmatched)
             // Whatever happened, the scan is over: the settings must not show it running forever.
             _state.value = ScanState(errors = errors, tmdbIssue = tmdbDown?.takeIf { it.client === client() }?.cause?.toUiError())
             lastScanEnd = elapsed()
