@@ -119,7 +119,7 @@ fun DetailScreen(
 ) {
     val app = appContainer()
     val vm: DetailViewModel = viewModel(key = "detail-$itemId", factory = DetailViewModel.factory(app, itemId))
-    ReloadOnLibraryChange { vm.load() }
+    ReloadOnLibraryChange { vm.onLibraryChanged() }
     val state by vm.state.collectAsStateWithLifecycle()
     val item = state.item
     // A failure to play stays until the next action (OK, wherever it is pressed) or the next screen.

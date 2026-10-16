@@ -132,6 +132,15 @@ class DetailViewModel(
         }
     }
 
+    /** The library changed: the page loads again, unless the change is its own and it already did. */
+    fun onLibraryChanged() {
+        if (ownChange) {
+            ownChange = false
+            return
+        }
+        load()
+    }
+
     /**
      * Shows the season's tab at once, its row emptied; its episodes load once focus has stopped on the
      * tab (tabs are chosen as focus crosses them), unless another season was chosen meanwhile.
@@ -173,6 +182,12 @@ class DetailViewModel(
 
     private var toggleJob: Job? = null
 
+    /**
+     * This page changed the library itself (watched, a favourite) and loaded again at once: the
+     * library's signal of that change, which follows, finds the page already showing it.
+     */
+    private var ownChange = false
+
     fun togglePlayed() = toggle("Watched") { item ->
         val played = !item.user.played
         provider().setPlayed(item, played)
@@ -201,8 +216,10 @@ class DetailViewModel(
             suspendRunCatching { change(item) }
                 .onSuccess { user ->
                     _state.update { s -> s.copy(item = s.item?.takeIf { it.id == item.id }?.copy(user = user) ?: s.item) }
+                    // At once: the library's signal may wait a few seconds behind a scan's. That
+                    // signal, once here, does not load the page a second time.
+                    ownChange = true
                     events.libraryChanged()
-                    // At once: the library's signal may wait a few seconds behind a scan's.
                     load()
                 }
                 .onFailure { e ->

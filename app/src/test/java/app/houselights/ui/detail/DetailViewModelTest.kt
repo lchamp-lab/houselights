@@ -224,6 +224,24 @@ class DetailViewModelTest {
         assertEquals("Heat", vm.state.value.item?.title)
     }
 
+    /** Watched, then the library's signal of that very change: the page loads once, not a second time over the first. */
+    @Test
+    fun aChangeOfItsOwnLoadsThePageOnce() = runTest {
+        val vm = detail()
+        advanceUntilIdle()
+        vm.togglePlayed()
+        advanceUntilIdle()
+        // The library's version moved on: the screen tells the page.
+        vm.onLibraryChanged()
+        advanceUntilIdle()
+        assertEquals(listOf("item m1", "played m1 true", "item m1"), provider.calls)
+
+        // A change from elsewhere (a scan) loads it again.
+        vm.onLibraryChanged()
+        advanceUntilIdle()
+        assertEquals(3, provider.calls.count { it == "item m1" })
+    }
+
     @Test
     fun aReloadThatFailsLeavesNoSeasonLoading() = runTest {
         val vm = detail("show")
