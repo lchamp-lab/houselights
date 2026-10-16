@@ -41,6 +41,7 @@ class ScanBench(artworkDir: File, tmdbKey: Boolean = true) {
         scope = CoroutineScope(passes),
         artwork = artwork,
         browsers = { own[it.id] ?: if (it.kind == SourceKind.SHOWS) showsNas else nas },
+        closeIdle = {},
         clock = { now },
         interactiveTmdb = { tmdb.client().takeIf { withTmdb } },
     )

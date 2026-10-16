@@ -65,8 +65,11 @@ class LibraryScanner(
     private val playing: StateFlow<Boolean> = MutableStateFlow(false),
     /** How a folder is read; tests hand in a NAS of their own. */
     private val browsers: (SourceEntity) -> RemoteBrowser,
-    /** Closes the sessions and mounts a pass kept open; called when it ends. */
-    private val closeIdle: () -> Unit = {},
+    /**
+     * Closes the sessions and mounts a pass kept open on the NAS: called when it ends, and before it
+     * waits for a film or for the app. No default: a scan that never calls it holds them for good.
+     */
+    private val closeIdle: () -> Unit,
     /** The date, for what the library keeps: when a folder was scanned, a file first missed. */
     private val clock: () -> Long = System::currentTimeMillis,
     /** The TMDB client of what people ask ([identify]): one that asks TMDB every time. */
@@ -352,9 +355,12 @@ class LibraryScanner(
 
     /**
      * Waits while a player may stream from the NAS: while a film plays (bounded, should the player
-     * never report back), then while the app is away. Before each folder and each file.
+     * never report back), then while the app is away. Before each folder and each file. A wait may
+     * last hours: the pass's sessions on the NAS are closed first, and opened again after.
      */
     private suspend fun waitForThePlayer() {
+        if (!playing.value && started.first()) return
+        closeIdle()
         withTimeoutOrNull(MAX_PAUSE_MS) { playing.first { !it } }
         started.first { it }
     }

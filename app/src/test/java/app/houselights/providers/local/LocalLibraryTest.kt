@@ -44,7 +44,7 @@ class LocalLibraryTest {
         artwork = ArtworkCache(context.cacheDir.resolve("artwork"))
         // The scan asked after an edit never runs: it would go to the network.
         val idle = CoroutineScope(Job().apply { cancel() })
-        library = LocalLibrary(context, dao, LibraryScanner(dao, { null }, idle, artwork, browsers = { FakeRemoteBrowser() }), artwork) {}
+        library = LocalLibrary(context, dao, LibraryScanner(dao, { null }, idle, artwork, browsers = { FakeRemoteBrowser() }, closeIdle = {}), artwork) {}
     }
 
     @After
@@ -112,7 +112,7 @@ class LocalLibraryTest {
         val scanning = LocalLibrary(
             context,
             dao,
-            LibraryScanner(dao = dao, tmdb = { null }, scope = CoroutineScope(passes), artwork = artwork, browsers = { nas }),
+            LibraryScanner(dao = dao, tmdb = { null }, scope = CoroutineScope(passes), artwork = artwork, browsers = { nas }, closeIdle = {}),
             artwork,
             // The session kept on the old address is busy with a listing: closing it waits.
             forget = {

@@ -52,6 +52,10 @@ class LibraryScannerTest {
     private val playing = MutableStateFlow(false)
     private val started = MutableStateFlow(true)
 
+    /** Times the scanner closed what it kept on the NAS, and what runs when it does. */
+    private val closed = AtomicInteger()
+    private var onClose: () -> Unit = {}
+
     /** The most values one statement bound. */
     private val widest = AtomicInteger()
 
@@ -85,6 +89,10 @@ class LibraryScannerTest {
                     it.kind == SourceKind.SHOWS -> showsNas
                     else -> nas
                 }
+            },
+            closeIdle = {
+                closed.incrementAndGet()
+                onClose()
             },
             clock = { now },
             elapsed = { elapsed },
@@ -215,6 +223,51 @@ class LibraryScannerTest {
         playing.value = false
         passes.children.toList().forEach { it.join() }
         assertEquals(listOf("Dune (2021).mkv"), filePaths())
+    }
+
+    @Test
+    fun eachPassClosesWhatItKeptOnTheNasOnce() = runTest {
+        nas.put("Dune (2021).mkv")
+        scan()
+        assertEquals(1, closed.get())
+
+        // A folder of the pass fails.
+        folder("Films", SourceKind.MOVIES, host = OTHER_HOST)
+        otherNas.listFailure = ConnectException("Connection refused")
+        scan()
+        assertEquals(2, closed.get())
+    }
+
+    @Test
+    fun aScanWaitingForTheFilmHoldsNoSessionOnTheNas() = runTest {
+        nas.put("Dune (2021).mkv")
+        // The film starts while the folder is listed: the pass waits before its first file.
+        nas.onList = { playing.value = true }
+        val closing = CompletableDeferred<Unit>().also { onClose = { it.complete(Unit) } }
+        scanner.scanAll()
+        closing.await()
+        assertEquals("closed before reading a file", emptyList<String>(), nas.reads)
+
+        playing.value = false
+        passes.children.toList().forEach { it.join() }
+        assertEquals(listOf("Dune (2021).mkv"), filePaths())
+        assertEquals("and once the pass is over", 2, closed.get())
+    }
+
+    @Test
+    fun aScanWaitingForTheAppHoldsNoSessionOnTheNas() = runTest {
+        nas.put("Dune (2021).mkv")
+        var listed = 0
+        nas.onList = { listed++ }
+        started.value = false
+        val closing = CompletableDeferred<Unit>().also { onClose = { it.complete(Unit) } }
+        scanner.scanAll()
+        closing.await()
+        assertEquals("closed before listing", 0, listed)
+
+        started.value = true
+        passes.children.toList().forEach { it.join() }
+        assertEquals(2, closed.get())
     }
 
     @Test
