@@ -14,11 +14,17 @@ class FakeRemoteBrowser : RemoteBrowser {
     /** Thrown by listings instead of an answer, while set. */
     var listFailure: Throwable? = null
 
+    /** Folders a listing cannot read, while set: their files are not listed, and the folders are named. */
+    var unreadable: List<String> = emptyList()
+
     /** Runs while a listing is under way: what happens on the device during a scan. */
     var onList: (suspend () -> Unit)? = null
 
     /** Thrown by reads instead of bytes, while set. */
     var readFailure: Throwable? = null
+
+    /** Runs at each read, before its bytes are given: it may throw, to fail that read alone. */
+    var onRead: ((path: String, offset: Long, length: Int) -> Unit)? = null
 
     /** Paths read, in order, failed reads included. */
     val reads = mutableListOf<String>()
@@ -41,11 +47,13 @@ class FakeRemoteBrowser : RemoteBrowser {
     override suspend fun list(source: SourceEntity): Listing {
         listFailure?.let { throw it }
         onList?.invoke()
-        val all = files.map { (path, entry) -> RemoteFile(path, entry.size) }
+        val all = files.filterKeys { path -> unreadable.none { path.startsWith("$it/") } }
+            .map { (path, entry) -> RemoteFile(path, entry.size) }
         fun name(file: RemoteFile) = file.relativePath.substringAfterLast('/')
         return Listing(
             videos = all.filter { RemoteBrowser.isWanted(name(it)) },
             sidecars = all.filter { RemoteBrowser.isSidecar(name(it)) },
+            unreadable = unreadable,
         )
     }
 
@@ -54,6 +62,7 @@ class FakeRemoteBrowser : RemoteBrowser {
     override suspend fun readAt(source: SourceEntity, relativePath: String, offset: Long, length: Int): ByteArray {
         reads += relativePath
         readFailure?.let { throw it }
+        onRead?.invoke(relativePath, offset, length)
         val bytes = files[relativePath]?.bytes ?: throw FileNotFoundException(relativePath)
         val from = offset.coerceAtMost(bytes.size.toLong()).toInt()
         return bytes.copyOfRange(from, (from.toLong() + length).coerceAtMost(bytes.size.toLong()).toInt())

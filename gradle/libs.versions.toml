@@ -19,7 +19,7 @@ serialization = "1.7.3"
 okhttp = "4.12.0"
 retrofit = "2.11.0"
 coil = "2.7.0"
-smbj = "0.13.0"
+smbj = "0.14.0"
 nfs-client = "1.1.0"
 # Transitive versions raised for known vulnerabilities (see the constraints in app/build.gradle.kts).
 bouncycastle = "1.81"
@@ -50,6 +50,7 @@ androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "core-ktx
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "activity-compose" }
 androidx-lifecycle-viewmodel-compose = { module = "androidx.lifecycle:lifecycle-viewmodel-compose", version.ref = "lifecycle" }
 androidx-lifecycle-runtime-compose = { module = "androidx.lifecycle:lifecycle-runtime-compose", version.ref = "lifecycle" }
+androidx-lifecycle-process = { module = "androidx.lifecycle:lifecycle-process", version.ref = "lifecycle" }
 androidx-navigation-compose = { module = "androidx.navigation:navigation-compose", version.ref = "navigation" }
 androidx-datastore-preferences = { module = "androidx.datastore:datastore-preferences", version.ref = "datastore" }
 androidx-palette = { module = "androidx.palette:palette-ktx", version.ref = "palette" }

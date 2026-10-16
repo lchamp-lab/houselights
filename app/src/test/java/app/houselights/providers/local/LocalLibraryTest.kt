@@ -43,7 +43,7 @@ class LocalLibraryTest {
         artwork = ArtworkCache(context.cacheDir.resolve("artwork"))
         // The scan asked after an edit never runs: it would go to the network.
         val idle = CoroutineScope(Job().apply { cancel() })
-        library = LocalLibrary(context, dao, LibraryScanner(dao, { null }, idle, artwork), artwork)
+        library = LocalLibrary(context, dao, LibraryScanner(dao, { null }, idle, artwork, browsers = { FakeRemoteBrowser() }), artwork) {}
     }
 
     @After

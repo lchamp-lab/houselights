@@ -35,7 +35,7 @@ class LocalLibrary(
     private val scanner: LibraryScanner,
     private val artwork: ArtworkCache,
     /** Closes the sessions and mounts kept open on a folder's address; tests hand in their own. */
-    private val forget: suspend (SourceEntity) -> Unit = ::forgetConnections,
+    private val forget: suspend (SourceEntity) -> Unit,
 ) {
     val folders: Flow<List<SourceEntity>> = dao.observeSources()
 
@@ -135,10 +135,3 @@ internal fun SourceEntity.samePlace(other: SourceEntity): Boolean =
 /** The folders of a path, without empty ones (a slash doubled, at either end). */
 private fun segments(path: String) = path.split('/').filter { it.isNotEmpty() }
 
-/** Off the main thread: both wait for the network operation under way on the folder. */
-private suspend fun forgetConnections(folder: SourceEntity) = withContext(Dispatchers.IO) {
-    when (folder.protocol) {
-        Protocol.SMB -> SmbBrowser.forget(folder)
-        Protocol.NFS -> NfsBrowser.forget(folder)
-    }
-}

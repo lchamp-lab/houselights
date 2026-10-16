@@ -9,6 +9,7 @@ import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import app.houselights.core.Secrets
 import app.houselights.providers.local.ArtworkCache
+import app.houselights.providers.local.FakeRemoteBrowser
 import app.houselights.providers.local.LibraryDao
 import app.houselights.providers.local.LibraryDatabase
 import app.houselights.providers.local.LibraryScanner
@@ -88,7 +89,8 @@ class AddFolderViewModelTest {
         val artwork = ArtworkCache(context.cacheDir.resolve("artwork"))
         // The scan asked after a save never runs: it would go to the network.
         val idle = CoroutineScope(Job().apply { cancel() })
-        library = LocalLibrary(context, dao, LibraryScanner(dao, { null }, idle, artwork), artwork) { folder ->
+        val scanner = LibraryScanner(dao, { null }, idle, artwork, browsers = { FakeRemoteBrowser() })
+        library = LocalLibrary(context, dao, scanner, artwork) { folder ->
             network.await()
             forgotten += folder
         }
@@ -133,7 +135,6 @@ class AddFolderViewModelTest {
                     library, folderId, app,
                     useFolders = useFolders,
                     probe = probe,
-                    forgetSessions = { calls += "forget ${it.host}/${it.share}" },
                 )
             }
         }
@@ -172,7 +173,7 @@ class AddFolderViewModelTest {
         advanceUntilIdle()
         assertFalse(vm.busy)
         assertEquals(false, done)
-        assertEquals(listOf("forget 192.168.1.10/media", "test 192.168.1.10 with stored"), calls)
+        assertEquals(listOf("test 192.168.1.10 with stored"), calls)
     }
 
     @Test
@@ -225,18 +226,6 @@ class AddFolderViewModelTest {
         assertFalse("the form stays, to say it", done)
         assertFalse(vm.busy)
         assertTrue(dao.sources().isEmpty())
-    }
-
-    @Test
-    fun anEditedSmbFolderSignsInAgainToBeTested() = runTest {
-        val id = smbFolder()
-        val vm = form(id)
-        advanceUntilIdle()
-        // Tested once with the password stored, the session it opened is kept; then a wrong one is typed.
-        vm.edit { copy(password = "wrong") }
-        vm.test()
-        advanceUntilIdle()
-        assertEquals(listOf("forget 192.168.1.10/media", "test 192.168.1.10 with wrong"), calls)
     }
 
     @Test
@@ -309,7 +298,7 @@ class AddFolderViewModelTest {
         try {
             val artwork = ArtworkCache(context.cacheDir.resolve("artwork"))
             val idle = CoroutineScope(Job().apply { cancel() })
-            val sealing = LocalLibrary(context, broken.dao(), LibraryScanner(broken.dao(), { null }, idle, artwork), artwork) {}
+            val sealing = LocalLibrary(context, broken.dao(), LibraryScanner(broken.dao(), { null }, idle, artwork, browsers = { FakeRemoteBrowser() }), artwork) {}
             val vm = form(null, library = sealing)
             advanceUntilIdle()
             vm.edit { copy(protocol = Protocol.SMB, host = "192.168.1.10", share = "media", user = "kodi", password = "secret") }

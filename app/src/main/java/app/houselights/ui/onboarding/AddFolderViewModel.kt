@@ -15,12 +15,10 @@ import app.houselights.core.suspendRunCatching
 import app.houselights.providers.local.FolderSave
 import app.houselights.providers.local.LocalLibrary
 import app.houselights.providers.local.Protocol
-import app.houselights.providers.local.RemoteBrowser
 import app.houselights.providers.local.ScanError
 import app.houselights.providers.local.ScanErrorKind
 import app.houselights.providers.local.ScanErrors
 import app.houselights.providers.local.Secret
-import app.houselights.providers.local.SmbBrowser
 import app.houselights.providers.local.SourceEntity
 import app.houselights.providers.local.SourceKind
 import app.houselights.providers.local.samePlace
@@ -28,10 +26,8 @@ import app.houselights.ui.util.UiError
 import app.houselights.ui.util.launchAction
 import app.houselights.ui.util.toWriteError
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 /** A network folder as the form describes it, as typed. */
 data class FolderForm(
@@ -141,9 +137,7 @@ class AddFolderViewModel(
     /** Makes the folders the source; true when it changed (it was a server, or nothing yet). */
     private val useFolders: suspend () -> Boolean,
     /** Reads the first level of a folder: how many entries it holds. Throws when it cannot. */
-    private val probe: suspend (SourceEntity) -> Int = { RemoteBrowser.of(it).test(it) },
-    /** Closes the SMB sessions kept open on a folder's share. */
-    private val forgetSessions: suspend (SourceEntity) -> Unit = { withContext(Dispatchers.IO) { SmbBrowser.forget(it) } },
+    private val probe: suspend (SourceEntity) -> Int,
 ) : ViewModel() {
     constructor(app: AppContainer, folderId: Long? = null) : this(
         library = app.library,
@@ -154,6 +148,7 @@ class AddFolderViewModel(
             if (switched) app.sources.switchTo(SourceConfig.Local)
             switched
         },
+        probe = { app.remoteBrowsers.of(it).test(it) },
     )
 
     var form by mutableStateOf(FolderForm())
@@ -316,12 +311,8 @@ class AddFolderViewModel(
     private suspend fun reaches(source: SourceEntity): Boolean {
         testing = true
         check = null
-        val answer = suspendRunCatching {
-            // An edited folder signs in with what the form says: a session kept from an earlier test,
-            // with the password stored, would let a wrong new one through.
-            if (edits && source.protocol == Protocol.SMB) forgetSessions(source)
-            probe(source)
-        }
+        // The browser signs in of its own for a test: what the form says is what answers.
+        val answer = suspendRunCatching { probe(source) }
         answer
             .onSuccess { count -> check = FolderCheck.Reachable(count) }
             .onFailure { e ->
