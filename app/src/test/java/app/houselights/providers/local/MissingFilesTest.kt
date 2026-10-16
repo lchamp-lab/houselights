@@ -5,9 +5,7 @@ import org.junit.Test
 
 /** What a listing that could not see everything does to the rows of the files it did not list. */
 class MissingFilesTest {
-    private fun film(id: Long, path: String) = ItemEntity(
-        id = id, kind = ItemKind.MOVIE, sourceId = 1, title = path, sortTitle = path, filePath = path, addedAt = 0,
-    )
+    private fun film(id: Long, path: String) = KnownFile(id = id, filePath = path)
 
     private val dune = film(1, "Dune (2021)/Dune (2021).mkv")
     private val arrival = film(2, "Private/Arrival (2016)/Arrival (2016).mkv")
@@ -27,7 +25,7 @@ class MissingFilesTest {
         assertEquals("a folder whose name only starts the same is not under it", listOf(dune.id, heat.id), settle("Private").held)
     }
 
-    private fun stacked(rows: List<ItemEntity>, vararg paths: String) =
+    private fun stacked(rows: List<KnownFile>, vararg paths: String) =
         MissingFiles.settle(SourceKind.MOVIES, rows, Stacks.of(SourceKind.MOVIES, paths.map { RemoteFile(it, 1_000) }), NOW)
 
     /**
@@ -38,7 +36,7 @@ class MissingFilesTest {
     fun filesMatchedWithTwoFilmsAreNotOne() {
         val files = arrayOf("Kill Bill CD1.avi", "Kill Bill CD2.avi")
         val first = film(1, "Kill Bill CD1.avi").copy(tmdbId = VOL_1)
-        val second = film(2, "Kill Bill CD2.avi").copy(tmdbId = VOL_2, favorite = true, played = true)
+        val second = film(2, "Kill Bill CD2.avi").copy(tmdbId = VOL_2)
         listOf(second, second.copy(tmdbId = VOL_1, userTmdbId = VOL_2)).forEach { other ->
             val outcome = stacked(listOf(first, other), *files)
             assertEquals("not given way", emptyList<Long>(), outcome.removed)

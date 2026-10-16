@@ -126,8 +126,16 @@ interface LibraryDao {
     @Query("SELECT * FROM items WHERE id = :id")
     suspend fun item(id: Long): ItemEntity?
 
+    /** The rows of a source's files, all but their NFO text: what the tests look at of a scan's work. */
     @Query("SELECT $ITEM_ROW FROM items WHERE sourceId = :sourceId AND filePath IS NOT NULL")
     suspend fun filesOf(sourceId: Long): List<ItemEntity>
+
+    /** A source's files, as a scan sorts what to do with them ([KnownFile]). */
+    @Query(
+        "SELECT id, filePath, parts, fileSize, missingSince, seriesId, tmdbId, userTmdbId, matchedAt, sidecarKey, probeVersion " +
+            "FROM items WHERE sourceId = :sourceId AND filePath IS NOT NULL"
+    )
+    suspend fun knownFiles(sourceId: Long): List<KnownFile>
 
     /** Whether the library holds a row for the file at [filePath] of a source. */
     @Query("SELECT EXISTS(SELECT 1 FROM items WHERE sourceId = :sourceId AND filePath = :filePath)")

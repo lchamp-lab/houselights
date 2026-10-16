@@ -46,13 +46,13 @@ internal object MissingFiles {
      */
     fun settle(
         kind: SourceKind,
-        known: Collection<ItemEntity>,
+        known: Collection<KnownFile>,
         listing: Listing,
         now: Long,
         stacks: Stacks = Stacks.of(kind, listing.videos),
     ): Outcome {
         val hidden = listing.unreadable
-        val seen = if (hidden.isEmpty()) known else known.filterNot { item -> hidden.any { item.filePath?.isIn(it) == true } }
+        val seen = if (hidden.isEmpty()) known else known.filterNot { item -> hidden.any { item.filePath.isIn(it) } }
         return settle(kind, seen, stacks, now)
     }
 
@@ -62,7 +62,7 @@ internal object MissingFiles {
      * those parts make no title meanwhile, which TMDB would be asked for ("Heat CD2") and might match with
      * another film, whose row would then be kept apart from the film's once its first part is back ([split]).
      */
-    fun waitingParts(known: Collection<ItemEntity>, titles: List<RemoteFile>, removed: List<Long>): Set<String> {
+    fun waitingParts(known: Collection<KnownFile>, titles: List<RemoteFile>, removed: List<Long>): Set<String> {
         val present = titles.mapTo(HashSet()) { it.relativePath }
         val gone = removed.toHashSet()
         return known.filter { it.parts.isNotEmpty() && it.filePath !in present && it.id !in gone }.flatMapTo(HashSet()) { it.parts }
@@ -77,7 +77,7 @@ internal object MissingFiles {
      * row stands for the film when the film has none, else gives way to the film's at once. Unless the
      * rows of the film's files were matched with two titles ([split]): each keeps its file, and its own.
      */
-    fun settle(kind: SourceKind, known: Collection<ItemEntity>, stacks: Stacks, now: Long): Outcome {
+    fun settle(kind: SourceKind, known: Collection<KnownFile>, stacks: Stacks, now: Long): Outcome {
         val files = stacks.titles
         val present = files.mapTo(HashSet()) { it.relativePath }
         val split = split(known, stacks)
@@ -114,8 +114,8 @@ internal object MissingFiles {
      * its sequel). None of their rows gives way to another, and none takes the others' files
      * as its parts; the scan reads each as a title of its own ([Stacks.of]).
      */
-    fun split(known: Collection<ItemEntity>, stacks: Stacks): Set<String> =
-        known.groupBy { row -> row.filePath?.let { path -> stacks.firstOf(path) ?: path.takeIf { stacks.stackAt(it) != null } } }
+    fun split(known: Collection<KnownFile>, stacks: Stacks): Set<String> =
+        known.groupBy { row -> stacks.firstOf(row.filePath) ?: row.filePath.takeIf { stacks.stackAt(it) != null } }
             .filter { (first, rows) -> first != null && rows.mapNotNullTo(HashSet()) { it.userTmdbId ?: it.tmdbId }.size > 1 }
             .keys.filterNotNullTo(HashSet())
 
@@ -123,7 +123,7 @@ internal object MissingFiles {
      * Rows of files that have become later parts of a film the library has no row for, each paired with
      * the film's first part: the earliest part's row stands for the film.
      */
-    private fun standIns(absorbed: List<ItemEntity>, knownPaths: Set<String?>, stacks: Stacks): List<Pair<ItemEntity, RemoteFile>> =
+    private fun standIns(absorbed: List<KnownFile>, knownPaths: Set<String>, stacks: Stacks): List<Pair<KnownFile, RemoteFile>> =
         absorbed.groupBy { stacks.firstOf(it.filePath) }.mapNotNull { (first, rows) ->
             val stack = stacks.stackAt(first)?.takeIf { first !in knownPaths } ?: return@mapNotNull null
             rows.minBy { row -> stack.rest.indexOfFirst { it.relativePath == row.filePath } } to stack.first
@@ -139,11 +139,11 @@ internal object MissingFiles {
      */
     private fun relinks(
         kind: SourceKind,
-        missing: List<ItemEntity>,
+        missing: List<KnownFile>,
         added: List<RemoteFile>,
         files: List<RemoteFile>,
         stacks: Stacks,
-    ): List<Pair<ItemEntity, RemoteFile>> {
+    ): List<Pair<KnownFile, RemoteFile>> {
         val keys: List<(String) -> Any?> = when (kind) {
             SourceKind.MOVIES -> {
                 val videos = files.groupingBy { Sidecars.folderOf(it.relativePath) }.eachCount()
@@ -175,9 +175,9 @@ internal object MissingFiles {
         }
     }
 
-    private fun pairs(rows: List<ItemEntity>, files: List<RemoteFile>, key: (String) -> Any?): List<Pair<ItemEntity, RemoteFile>> {
+    private fun pairs(rows: List<KnownFile>, files: List<RemoteFile>, key: (String) -> Any?): List<Pair<KnownFile, RemoteFile>> {
         val filesByKey = files.groupBy { key(it.relativePath) }
-        return rows.groupBy { it.filePath?.let(key) }.mapNotNull { (k, group) ->
+        return rows.groupBy { key(it.filePath) }.mapNotNull { (k, group) ->
             val row = group.singleOrNull()
             val file = filesByKey[k]?.singleOrNull()
             if (k == null || row == null || file == null) null else row to file

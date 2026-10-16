@@ -25,6 +25,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import java.net.ConnectException
 import java.net.SocketTimeoutException
+import java.util.Collections
 import java.util.concurrent.atomic.AtomicInteger
 import javax.crypto.KeyGenerator
 
@@ -58,6 +59,12 @@ class LibraryScannerTest {
     /** Transactions opened, those opened inside another not counted. */
     private val transactions = AtomicInteger()
     private val depth = AtomicInteger()
+
+    /** Statements run while [recording]. */
+    private val statements: MutableList<String> = Collections.synchronizedList(mutableListOf())
+
+    @Volatile
+    private var recording = false
     private lateinit var films: SourceEntity
 
     @Before
@@ -67,6 +74,7 @@ class LibraryScannerTest {
             .addTypeConverter(SecretConverter(Secrets { key }))
             .setQueryCallback({ sql, args ->
                 widest.accumulateAndGet(args.size, ::maxOf)
+                if (recording) statements += sql
                 when {
                     sql.startsWith("BEGIN") -> if (depth.getAndIncrement() == 0) transactions.incrementAndGet()
                     sql.startsWith("END") -> depth.decrementAndGet()
@@ -146,6 +154,24 @@ class LibraryScannerTest {
         showsNas.reads.clear()
         scan()
         assertEquals("a pass with nothing new reads no file", 0, nas.reads.size + showsNas.reads.size)
+    }
+
+    /**
+     * A pass that finds nothing new reads what tells files apart, never their details nor what each file
+     * holds: it runs every ten minutes, on thousands of files.
+     */
+    @Test
+    fun aPassFindingNothingNewReadsNeitherDetailsNorWhatFilesHold() = runTest {
+        nas.put("Dune (2021)/Dune (2021).mkv")
+        nas.put("Arrival (2016).mkv")
+        scan()
+        recording = true
+        scan()
+        recording = false
+        val items = Regex("""\bitems\b""")
+        val reads = statements.filter { it.trimStart().startsWith("SELECT", ignoreCase = true) && items.containsMatchIn(it) }
+        assertTrue("the files known are read", reads.isNotEmpty())
+        assertEquals(emptyList<String>(), reads.filter { "mediaInfo" in it || "overview" in it })
     }
 
     /** A scan unless one ended less than ten minutes ago, as the app asks when it comes back, waited for. */

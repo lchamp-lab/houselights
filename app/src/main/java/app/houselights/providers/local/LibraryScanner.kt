@@ -335,7 +335,7 @@ class LibraryScanner(
         if (found.videos.isEmpty() && found.unreadable.isNotEmpty()) throw UnreadableFolderException(found.unreadable.size)
         // A disc's streams make one title, extras none: rows of what is not one go as files gone do.
         val listing = ScanTitles.of(found)
-        val listed = dao.filesOf(source.id)
+        val listed = dao.knownFiles(source.id)
         val stacks = stacksOf(source.kind, listing.videos, listed)
         val files = stacks.titles
         val sidecars = Sidecars(listing.sidecars, files, stacks)
@@ -343,7 +343,7 @@ class LibraryScanner(
         val missing = settleMissing(source.kind, listed, listing, stacks)
         // Renamed files took their rows along, and films their parts (one of a file now of several is asked for again).
         val rewritten = missing.relinked.isNotEmpty() || missing.parts.isNotEmpty()
-        val known = (if (rewritten) dao.filesOf(source.id) else listed).associateBy { it.filePath }
+        val known = (if (rewritten) dao.knownFiles(source.id) else listed).associateBy { it.filePath }
         // A film's other parts wait with its row for its first part: no title of their own meanwhile.
         val waiting = MissingFiles.waitingParts(known.values, files, missing.removed)
 
@@ -379,7 +379,7 @@ class LibraryScanner(
      * rows of its files ([listed]) were matched with two films: each is read as a title of its own then, its
      * NFO and artwork its own ([MissingFiles.split]).
      */
-    private fun stacksOf(kind: SourceKind, videos: List<RemoteFile>, listed: List<ItemEntity>): Stacks {
+    private fun stacksOf(kind: SourceKind, videos: List<RemoteFile>, listed: List<KnownFile>): Stacks {
         val all = Stacks.of(kind, videos)
         val apart = MissingFiles.split(listed, all)
         return if (apart.isEmpty()) all else Stacks.of(kind, videos, apart)
@@ -428,7 +428,7 @@ class LibraryScanner(
         source: SourceEntity,
         files: List<RemoteFile>,
         todo: List<RemoteFile>,
-        known: Map<String?, ItemEntity>,
+        known: Map<String, KnownFile>,
         sidecars: Sidecars,
     ): Map<RemoteFile, Long> {
         if (source.kind != SourceKind.SHOWS) return emptyMap()
@@ -475,7 +475,7 @@ class LibraryScanner(
         val source: SourceEntity,
         val sidecars: Sidecars,
         /** Its files the library knows, by path. */
-        val known: Map<String?, ItemEntity>,
+        val known: Map<String, KnownFile>,
         val refreshMetadata: Boolean,
         val tmdb: TmdbPass,
         val seasons: ShowIndexer.SeasonCache,
@@ -534,7 +534,7 @@ class LibraryScanner(
     }
 
     /** Rows of files the folder no longer lists go, or wait a while (see [MissingFiles]). */
-    private suspend fun settleMissing(kind: SourceKind, known: List<ItemEntity>, listing: Listing, stacks: Stacks): MissingFiles.Outcome {
+    private suspend fun settleMissing(kind: SourceKind, known: List<KnownFile>, listing: Listing, stacks: Stacks): MissingFiles.Outcome {
         val now = clock()
         val missing = MissingFiles.settle(kind, known, listing, now, stacks)
         lock.withLock { dao.settleMissing(missing.relinked, missing.back, missing.held, missing.removed, missing.parts, now) }
@@ -549,8 +549,8 @@ class LibraryScanner(
      * changed), to refresh, when its NFO or artwork changed ([sidecars], what the folder lists beside
      * it: see [SidecarKey]), or unmatched while TMDB is [askTmdb].
      */
-    private fun needsWork(item: ItemEntity?, file: RemoteFile, sidecars: String?, askTmdb: Boolean, refreshMetadata: Boolean): Boolean =
-        item == null || MediaProbe.isStale(item.mediaInfo) || item.sizeChanged(file) || refreshMetadata ||
+    private fun needsWork(item: KnownFile?, file: RemoteFile, sidecars: String?, askTmdb: Boolean, refreshMetadata: Boolean): Boolean =
+        item == null || item.probeVersion < MediaProbe.VERSION || item.sizeChanged(file) || refreshMetadata ||
             (askTmdb && item.matchedAt == null) ||
             // An NFO or artwork placed next to the file, rewritten in place or removed, since it was last read.
             item.sidecarKey != sidecars

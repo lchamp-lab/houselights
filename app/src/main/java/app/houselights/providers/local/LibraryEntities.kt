@@ -87,6 +87,29 @@ const val ITEM_ROW =
     "userBackdropPath, userLogoPath, collectionId, addedAt, matchedAt, positionMs, durationMs, played, favorite, " +
     "lastPlayedAt"
 
+/**
+ * A file of a folder, as a scan sorts what to do with it ([LibraryDao.knownFiles]): what tells a file renamed,
+ * missing, replaced or due. Never its details, its NFO or what it holds, which a pass that finds nothing new
+ * would read and decode for each of thousands of files, every ten minutes.
+ */
+data class KnownFile(
+    val id: Long,
+    val filePath: String,
+    /** See [ItemEntity.parts]. */
+    val parts: List<String> = emptyList(),
+    val fileSize: Long? = null,
+    val missingSince: Long? = null,
+    val seriesId: Long? = null,
+    val tmdbId: Int? = null,
+    val userTmdbId: Int? = null,
+    val matchedAt: Long? = null,
+    val sidecarKey: String? = null,
+    val probeVersion: Int = 0,
+)
+
+/** As [ItemEntity.sizeChanged]: the file is not the one read last. */
+internal fun KnownFile.sizeChanged(file: RemoteFile): Boolean = fileSize != null && fileSize != file.size
+
 /** [info] as the row keeps it: its JSON, and the columns read without decoding it. */
 internal fun ItemEntity.withMedia(info: MediaInfo): ItemEntity =
     copy(mediaInfo = MediaProbe.encode(info), probeVersion = info.probedWith, fileDurationMs = info.durationMs)
