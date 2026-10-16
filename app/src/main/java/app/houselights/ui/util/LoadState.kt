@@ -1,5 +1,11 @@
 package app.houselights.ui.util
 
+import android.util.Log
+import app.houselights.core.suspendRunCatching
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
+
 /** Something a screen loads: still coming, there, or why it isn't. */
 sealed interface LoadState<out T> {
     data object Loading : LoadState<Nothing>
@@ -7,4 +13,53 @@ sealed interface LoadState<out T> {
     data class Ready<T>(val value: T) : LoadState<T>
 
     data class Failed(val error: UiError) : LoadState<Nothing>
+}
+
+/** The value loaded, or null while it loads or when it failed. */
+val <T> LoadState<T>.valueOrNull: T? get() = (this as? LoadState.Ready)?.value
+
+/** Why it failed, or null. */
+val LoadState<*>.errorOrNull: UiError? get() = (this as? LoadState.Failed)?.error
+
+/** Loading again: an error said gives way at once; a value shown stays until the new one comes. */
+fun <T> LoadState<T>.reloading(): LoadState<T> = if (this is LoadState.Ready) this else LoadState.Loading
+
+/** What [transform] makes of the value, once there. */
+inline fun <T, R> LoadState<T>.map(transform: (T) -> R): LoadState<R> = when (this) {
+    is LoadState.Ready -> LoadState.Ready(transform(value))
+    is LoadState.Failed -> this
+    LoadState.Loading -> LoadState.Loading
+}
+
+/**
+ * [load]'s value, or why it failed: the failure logged under [tag], as [what] failed. A cancellation
+ * is not a failure: it goes on up, as a newer load took over.
+ */
+inline fun <T> loadState(tag: String, what: String, load: () -> T): LoadState<T> =
+    suspendRunCatching { load() }.fold({ LoadState.Ready(it) }, { LoadState.Failed(it.reported(tag, what)) })
+
+/** Logs this failure under [tag], as [what] failed, and says it as a screen does ([toUiError]). */
+fun Throwable.reported(tag: String, what: String): UiError {
+    Log.w(tag, "$what failed", this)
+    return toUiError()
+}
+
+/**
+ * The latest of one kind of work a screen asks for, in [scope]: launching anew cancels the one before,
+ * so an older answer never replaces a newer one (a page loaded twice, two seasons, two searches).
+ */
+class LatestJob(private val scope: CoroutineScope) {
+    private var job: Job? = null
+
+    /** True while the latest one runs. */
+    val isActive: Boolean get() = job?.isActive == true
+
+    fun launch(block: suspend CoroutineScope.() -> Unit): Job {
+        job?.cancel()
+        return scope.launch(block = block).also { job = it }
+    }
+
+    fun cancel() {
+        job?.cancel()
+    }
 }

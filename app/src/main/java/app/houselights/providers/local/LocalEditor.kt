@@ -1,9 +1,11 @@
 package app.houselights.providers.local
 
+import android.util.Log
 import app.houselights.core.ArtworkChoices
 import app.houselights.core.ArtworkKind
 import app.houselights.core.ArtworkOption
 import app.houselights.core.ArtworkOrigin
+import app.houselights.core.FailureKind
 import app.houselights.core.Identity
 import app.houselights.core.MatchCandidate
 import app.houselights.core.MediaItem
@@ -13,13 +15,12 @@ import app.houselights.core.NoTmdbKeyException
 import app.houselights.core.NotFoundException
 import app.houselights.core.NfoParser
 import app.houselights.core.Typeset
+import app.houselights.core.failureKind
 import app.houselights.core.suspendRunCatching
 import app.houselights.core.yearOf
 import app.houselights.providers.local.TmdbClient.Companion.ImageType
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-
-/** TMDB is not configured: there is nothing to search or list online. */
 
 /**
  * The user's choices for the local library. They are stored apart from what scans find
@@ -38,7 +39,7 @@ class LocalEditor(
     override suspend fun artwork(item: MediaItem, kind: ArtworkKind): ArtworkChoices {
         val e = entity(item)
         val tmdb = client()
-        val online = e.tmdbId?.let { id -> tmdb?.let { suspendRunCatching { it.images(id, e.kind == ItemKind.SERIES) }.getOrNull() } }
+        val (online, onlineError) = onlineImages(e, tmdb)
         val images = when (kind) {
             ArtworkKind.POSTER -> online?.posters
             ArtworkKind.BACKDROP -> online?.backdrops
@@ -93,6 +94,23 @@ class LocalEditor(
             automatic = automatic?.let { a -> options.first { it.value == a } },
             selected = current?.let { c -> options.first { it.value == c } },
             onlineAvailable = online != null,
+            onlineError = onlineError,
+        )
+    }
+
+    /**
+     * TMDB's images of [e], or why they could not be listed: no key, or TMDB's failure, logged with the
+     * title. A title not identified has none to list, and nothing failed.
+     */
+    private suspend fun onlineImages(e: ItemEntity, tmdb: TmdbClient?): Pair<TmdbImageSet?, FailureKind?> {
+        val id = e.tmdbId ?: return null to null
+        if (tmdb == null) return null to FailureKind.NO_TMDB_KEY
+        return suspendRunCatching { tmdb.images(id, e.kind == ItemKind.SERIES) }.fold(
+            onSuccess = { it to null },
+            onFailure = { failure ->
+                Log.w(TAG, "Images of ${e.kind} ${e.id} (TMDB $id) could not be listed", failure)
+                null to failure.failureKind()
+            },
         )
     }
 
@@ -178,6 +196,8 @@ class LocalEditor(
     }
 
     private companion object {
+        const val TAG = "LocalEditor"
+
         /** A logo that is no image: the title is set in type. */
         const val NONE = ""
         const val MAX_OPTIONS = 80

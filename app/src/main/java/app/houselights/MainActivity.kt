@@ -87,7 +87,7 @@ class MainActivity : ComponentActivity() {
     private val container by lazy { appContainer() }
 
     private val playerLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
-        container.playback.onPlayerResult(it.data)
+        container.player.onPlayerResult(it.data)
     }
 
     /** House lights: down while the player starts, back up when the user returns. */
@@ -198,10 +198,10 @@ class MainActivity : ComponentActivity() {
                         is PlaybackPlan.Launch -> try {
                             // The player needs the memory more than pictures that load again from disk.
                             imageLoader.memoryCache?.clear()
-                            playerLauncher.launch(container.playback.intentFor(plan))
-                            container.playback.onPlayerLaunched()
+                            playerLauncher.launch(container.player.intentFor(plan))
+                            container.player.onPlayerLaunched()
                         } catch (_: ActivityNotFoundException) {
-                            container.playback.onLaunchFailed()
+                            container.player.onLaunchFailed()
                             failed(UiError.NO_PLAYER)
                         } catch (_: PlaybackManager.CredentialsNotShared) {
                             failed(UiError.CREDENTIALS)

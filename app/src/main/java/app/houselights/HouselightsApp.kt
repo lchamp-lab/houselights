@@ -1,6 +1,8 @@
 package app.houselights
 
 import android.app.Application
+import android.net.Uri
+import android.os.SystemClock
 import android.util.Log
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ProcessLifecycleOwner
@@ -12,6 +14,7 @@ import app.houselights.core.Secrets
 import app.houselights.core.SourceConfig
 import app.houselights.core.suspendRunCatching
 import app.houselights.player.PlaybackManager
+import app.houselights.player.Redact
 import app.houselights.providers.jellyfin.JellyfinProvider
 import app.houselights.providers.local.ArtworkCache
 import app.houselights.providers.local.LibraryDatabase
@@ -23,10 +26,15 @@ import app.houselights.providers.local.RemoteBrowsers
 import app.houselights.providers.local.TmdbClient
 import app.houselights.settings.SettingsStore
 import app.houselights.settings.SourceSwitcher
+import app.houselights.ui.util.PlaybackOutcome
+import coil.EventListener
 import coil.ImageLoader
 import coil.ImageLoaderFactory
 import coil.disk.DiskCache
 import coil.memory.MemoryCache
+import coil.request.ErrorResult
+import coil.request.ImageRequest
+import coil.request.NullRequestDataException
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -40,6 +48,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import okhttp3.Dispatcher
 import okhttp3.OkHttpClient
+import java.util.concurrent.ConcurrentHashMap
 
 class HouselightsApp : Application(), ImageLoaderFactory {
     lateinit var container: AppContainer
@@ -62,7 +71,39 @@ class HouselightsApp : Application(), ImageLoaderFactory {
         }
         .crossfade(300)
         .respectCacheHeaders(false)
+        .eventListener(ImageFailureLog())
         .build()
+}
+
+/**
+ * Says in the log why a picture did not load (a card left with its title, a black backdrop): once
+ * a minute for each place pictures come from (a server, TMDB, the copies on the device), as a NAS
+ * asleep or a server away fails a whole screen of pictures at once. Addresses lose their secrets
+ * ([Redact]); the screens have nothing to tell.
+ */
+internal class ImageFailureLog(private val clock: () -> Long = SystemClock::elapsedRealtime) : EventListener {
+    /** When each place was last told of. */
+    private val toldAt = ConcurrentHashMap<String, Long>()
+
+    override fun onError(request: ImageRequest, result: ErrorResult) {
+        // No picture asked for: nothing failed.
+        if (result.throwable is NullRequestDataException) return
+        val address = request.data.toString()
+        val uri = Uri.parse(address)
+        val now = clock()
+        var tell = false
+        toldAt.compute("${uri.scheme}://${uri.authority.orEmpty()}") { _, last ->
+            if (last == null || now - last >= QUIET_MS) now.also { tell = true } else last
+        }
+        if (tell) Log.w(TAG, "Image ${Redact.uri(address)} failed", result.throwable)
+    }
+
+    private companion object {
+        const val TAG = "Images"
+
+        /** How long the failures of one place say nothing more once one was told. */
+        const val QUIET_MS = 60_000L
+    }
 }
 
 /** Manual dependency container, created once per process. */
@@ -81,11 +122,15 @@ class AppContainer(private val app: Application) : LibraryEvents {
     val sources = SourceSwitcher({ settings.state.value }, { settings.setSource(it) }, scope)
     val database = LibraryDatabase.create(app, Secrets.device)
     val artwork = ArtworkCache(app.filesDir.resolve("artwork"))
-    val playback = PlaybackManager(app, scope) { resumeKey ->
+    /** The player: launched for a title, and followed while it plays. */
+    val player = PlaybackManager(app, scope) { resumeKey ->
         // After a restart, the source is known once the settings are read.
         settings.state.first { it.loaded }
         provider.reporter(resumeKey)
     }
+
+    /** What came of a title asked to play, as screens see it: ended, or why it did not play. */
+    val playback = PlaybackOutcome(player.playbackEnded)
 
     /** The NAS browsers, and the sessions and mounts they keep between files. */
     val remoteBrowsers = RemoteBrowsers()
@@ -95,14 +140,14 @@ class AppContainer(private val app: Application) : LibraryEvents {
         interactiveTmdb = ::tmdbInteractive,
         scope = scope,
         artwork = artwork,
-        playing = playback.playing,
+        playing = player.playing,
         browsers = remoteBrowsers::of,
         closeIdle = remoteBrowsers::closeIdle,
         started = ProcessLifecycleOwner.get().lifecycle.currentStateFlow.map { it.isAtLeast(Lifecycle.State.STARTED) },
     )
     val library = LocalLibrary(app, database.dao(), scanner, artwork, remoteBrowsers::forget)
 
-    private val changes = LibraryChanges(scope, listOf(playback.playbackEnded, scanner.changed))
+    private val changes = LibraryChanges(scope, listOf(player.playbackEnded, scanner.changed))
 
     override val libraryVersion: StateFlow<Long> = changes.version
 

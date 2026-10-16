@@ -6,10 +6,9 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import app.houselights.AppContainer
-import kotlinx.coroutines.Job
+import app.houselights.ui.util.LatestJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.launch
 
 /**
  * The welcome wall's posters, asked of TMDB ([trending]) and kept while the welcome screen is in the
@@ -19,7 +18,7 @@ import kotlinx.coroutines.launch
 class WelcomeViewModel(private val trending: suspend () -> List<String>) : ViewModel() {
     private val _posters = MutableStateFlow<List<String>>(emptyList())
     val posters: StateFlow<List<String>> = _posters
-    private var asking: Job? = null
+    private val asking = LatestJob(viewModelScope)
 
     init {
         show()
@@ -27,8 +26,8 @@ class WelcomeViewModel(private val trending: suspend () -> List<String>) : ViewM
 
     /** The wall shows: TMDB is asked for its posters, unless they are here or on their way. */
     fun show() {
-        if (_posters.value.isNotEmpty() || asking?.isActive == true) return
-        asking = viewModelScope.launch { _posters.value = trending() }
+        if (_posters.value.isNotEmpty() || asking.isActive) return
+        asking.launch { _posters.value = trending() }
     }
 
     companion object {

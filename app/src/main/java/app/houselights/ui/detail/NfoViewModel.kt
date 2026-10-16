@@ -1,6 +1,5 @@
 package app.houselights.ui.detail
 
-import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -10,13 +9,16 @@ import app.houselights.AppContainer
 import app.houselights.core.MediaProvider
 import app.houselights.core.NfoDocument
 import app.houselights.core.NfoInfo
-import app.houselights.core.suspendRunCatching
+import app.houselights.ui.util.LatestJob
 import app.houselights.ui.util.LoadState
-import app.houselights.ui.util.toUiError
+import app.houselights.ui.util.loadState
+import app.houselights.ui.util.map
+import app.houselights.ui.util.reloading
+import app.houselights.ui.util.valueOrNull
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.withContext
 import kotlin.coroutines.CoroutineContext
 
@@ -37,24 +39,22 @@ class NfoViewModel(
 ) : ViewModel() {
     private val _state = MutableStateFlow(NfoState())
     val state: StateFlow<NfoState> = _state
+    private val loads = LatestJob(viewModelScope)
 
     init {
         load()
     }
 
+    /** Loads the title and its NFO; tried again, the latest load is the one shown. */
     fun load() {
-        _state.value = _state.value.copy(document = LoadState.Loading)
-        viewModelScope.launch {
-            suspendRunCatching {
+        _state.update { it.copy(document = it.document.reloading()) }
+        loads.launch {
+            val loaded = loadState("Nfo", "NFO of $itemId") {
                 val provider = provider()
                 val item = provider.item(itemId)
-                val document = provider.nfo(item)
-                NfoState(item.title, LoadState.Ready(document?.let { nfo -> withContext(parsing) { nfo.content() } }))
-            }.onSuccess { _state.value = it }
-                .onFailure { e ->
-                    Log.w("Nfo", "NFO of $itemId failed", e)
-                    _state.value = _state.value.copy(document = LoadState.Failed(e.toUiError()))
-                }
+                item.title to provider.nfo(item)?.let { nfo -> withContext(parsing) { nfo.content() } }
+            }
+            _state.update { s -> NfoState(loaded.valueOrNull?.first ?: s.title, loaded.map { it.second }) }
         }
     }
 

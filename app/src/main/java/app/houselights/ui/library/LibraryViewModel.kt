@@ -18,13 +18,12 @@ import app.houselights.core.Quality
 import app.houselights.core.SortOption
 import app.houselights.core.WatchStatus
 import app.houselights.core.suspendRunCatching
+import app.houselights.ui.util.LatestJob
 import app.houselights.ui.util.UiError
-import app.houselights.ui.util.toUiError
-import kotlinx.coroutines.Job
+import app.houselights.ui.util.reported
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.launch
 
 data class LibraryState(
     val items: List<MediaItem> = emptyList(),
@@ -50,7 +49,12 @@ class LibraryViewModel(
 ) : ViewModel() {
     private val _state = MutableStateFlow(LibraryState(sort = saved.sort(), filter = saved.filter()))
     val state: StateFlow<LibraryState> = _state
-    private var job: Job? = null
+
+    /** The first page, a reload in place or the next page: one at a time, the latest asked for. */
+    private val pages = LatestJob(viewModelScope)
+
+    /** What the filter menu offers: the latest asked for, the library as it is now. */
+    private val facetLoads = LatestJob(viewModelScope)
 
     init {
         reset()
@@ -81,7 +85,7 @@ class LibraryViewModel(
     }
 
     private fun loadFacets() {
-        viewModelScope.launch {
+        facetLoads.launch {
             suspendRunCatching { provider().libraryFacets(library) }
                 .onSuccess { f -> _state.update { it.copy(facets = f) } }
                 // The filter menu keeps what it offered.
@@ -91,7 +95,7 @@ class LibraryViewModel(
 
     /** A new sort or filter: start again from the first page. */
     private fun reset() {
-        job?.cancel()
+        pages.cancel()
         _state.update { it.copy(items = emptyList(), total = 0, loading = true, error = null, pageError = null, pageRetrying = false) }
         loadMore()
     }
@@ -101,9 +105,8 @@ class LibraryViewModel(
      * so the grid keeps its position and the focused poster.
      */
     private fun refresh() {
-        job?.cancel()
         val s = _state.value
-        job = viewModelScope.launch {
+        pages.launch {
             suspendRunCatching {
                 provider().libraryPage(library, s.sort, s.filter, start = 0, limit = maxOf(s.items.size, PAGE))
             }.onSuccess { page ->
@@ -115,9 +118,9 @@ class LibraryViewModel(
                 // Keep what is shown; the next change or page load tries again. A first page or a
                 // retry this reload took over is not left at work: with nothing shown, the wall says
                 // why; past it, the foot can try again.
-                Log.w(TAG, "Library refresh failed", e)
+                val error = e.reported(TAG, "Library refresh")
                 _state.update {
-                    it.copy(loading = false, pageRetrying = false, error = if (it.items.isEmpty()) e.toUiError() else it.error)
+                    it.copy(loading = false, pageRetrying = false, error = if (it.items.isEmpty()) error else it.error)
                 }
             }
         }
@@ -133,15 +136,15 @@ class LibraryViewModel(
 
     /** After the next page failed: tries it again. */
     fun retryPage() {
-        if (_state.value.pageError == null || job?.isActive == true) return
+        if (_state.value.pageError == null || pages.isActive) return
         _state.update { it.copy(pageRetrying = true) }
         nextPage()
     }
 
     private fun nextPage() {
         val s = _state.value
-        if (job?.isActive == true || (s.items.isNotEmpty() && s.items.size >= s.total)) return
-        job = viewModelScope.launch {
+        if (pages.isActive || (s.items.isNotEmpty() && s.items.size >= s.total)) return
+        pages.launch {
             suspendRunCatching {
                 provider().libraryPage(library, s.sort, s.filter, start = s.items.size, limit = PAGE)
             }.onSuccess { page ->
@@ -156,13 +159,13 @@ class LibraryViewModel(
                     )
                 }
             }.onFailure { e ->
-                Log.w(TAG, "Library page failed", e)
+                val error = e.reported(TAG, "Library page")
                 // With nothing shown, the wall says why; past the first page, its foot does.
                 _state.update {
                     if (it.items.isEmpty()) {
-                        it.copy(loading = false, error = e.toUiError())
+                        it.copy(loading = false, error = error)
                     } else {
-                        it.copy(loading = false, pageError = e.toUiError(), pageRetrying = false)
+                        it.copy(loading = false, pageError = error, pageRetrying = false)
                     }
                 }
             }

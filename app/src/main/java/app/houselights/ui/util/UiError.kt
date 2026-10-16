@@ -3,14 +3,8 @@ package app.houselights.ui.util
 import androidx.annotation.StringRes
 import androidx.compose.runtime.staticCompositionLocalOf
 import app.houselights.R
-import app.houselights.core.HttpStatus
-import app.houselights.core.NoTmdbKeyException
-import app.houselights.core.NotFoundException
-import app.houselights.core.SecretsUnavailableException
-import app.houselights.providers.local.TmdbKeyRefusedException
-import app.houselights.providers.local.TmdbUnreachableException
-import retrofit2.HttpException
-import java.io.IOException
+import app.houselights.core.FailureKind
+import app.houselights.core.failureKind
 
 /** What fixes an error, named on its button. Screens try again themselves; the others lead elsewhere. */
 enum class ErrorAction(@StringRes val label: Int) {
@@ -72,15 +66,21 @@ enum class UiError(@StringRes val title: Int, @StringRes val message: Int, val a
     FAILED(R.string.error_failed_title, R.string.error_failed, ErrorAction.RETRY),
 }
 
-/** The [UiError] a failure shows as. Callers log the failure itself. */
-fun Throwable.toUiError(): UiError = when {
-    this is NoTmdbKeyException -> UiError.NO_TMDB_KEY
-    this is TmdbKeyRefusedException -> UiError.TMDB_KEY_REFUSED
-    this is TmdbUnreachableException -> UiError.TMDB_OFFLINE
-    this is NotFoundException -> UiError.GONE
-    this is HttpException && (code() == HttpStatus.UNAUTHORIZED || code() == HttpStatus.FORBIDDEN) -> UiError.DENIED
-    this is HttpException && code() == HttpStatus.NOT_FOUND -> UiError.GONE
-    this is IOException -> UiError.OFFLINE
-    this is SecretsUnavailableException -> UiError.KEYSTORE
-    else -> UiError.FAILED
+/** The [UiError] a failure shows as, from what it comes down to ([failureKind]). Callers log the failure itself. */
+fun Throwable.toUiError(): UiError = failureKind().toUiError()
+
+/** How a screen says a [FailureKind]. */
+fun FailureKind.toUiError(): UiError = when (this) {
+    FailureKind.UNREACHABLE, FailureKind.IO, FailureKind.CERTIFICATE -> UiError.OFFLINE
+    FailureKind.TMDB_UNREACHABLE -> UiError.TMDB_OFFLINE
+    FailureKind.NO_TMDB_KEY -> UiError.NO_TMDB_KEY
+    FailureKind.TMDB_KEY_REFUSED -> UiError.TMDB_KEY_REFUSED
+    FailureKind.REFUSED -> UiError.DENIED
+    FailureKind.GONE -> UiError.GONE
+    FailureKind.KEYSTORE -> UiError.KEYSTORE
+    // Only ever met writing: what was written is not saved.
+    FailureKind.STORAGE_FULL -> UiError.NOT_SAVED
+    // The NAS's refusals and absences are said in Settings, folder by folder; a disk failing may fail a read as well.
+    FailureKind.LOGIN_FAILED, FailureKind.ACCESS_DENIED, FailureKind.MISSING, FailureKind.STORAGE_FAILED,
+    FailureKind.SERVER_FAILED, FailureKind.UNEXPECTED_ANSWER, FailureKind.OTHER -> UiError.FAILED
 }

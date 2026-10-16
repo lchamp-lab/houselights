@@ -76,4 +76,23 @@ class NfoViewModelTest {
         advanceUntilIdle()
         assertEquals(LoadState.Ready(content), vm.state.value.document)
     }
+
+    /** Tried again twice: the latest load says what the title holds, never an older one finishing late. */
+    @Test
+    fun theLatestLoadWins() = runTest {
+        val vm = viewModel()
+        advanceUntilIdle()
+        val older = provider.gate("nfo m1")
+        vm.load()
+        advanceUntilIdle()
+        val newer = provider.gate("nfo m1")
+        vm.load()
+        advanceUntilIdle()
+        newer.complete(Unit)
+        advanceUntilIdle()
+        provider.nfo = null
+        older.complete(Unit)
+        advanceUntilIdle()
+        assertEquals(LoadState.Ready(content), vm.state.value.document)
+    }
 }

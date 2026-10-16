@@ -12,7 +12,6 @@ import app.houselights.core.PlaybackPlan
 import app.houselights.core.PlaybackReporter
 import app.houselights.core.isWebUrl
 import app.houselights.core.suspendRunCatching
-import app.houselights.ui.util.UiError
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancelAndJoin
@@ -48,6 +47,8 @@ class PlaybackManager(
         var positionMs: Long,
         /** A disc: it may open on a menu or an intro, whose length is not the title's (see [follow]). */
         val disc: Boolean = false,
+        /** What names the file playing, as [reporter]'s source knows it ([PlaybackPlan.Launch.resumeKey]): for the log. */
+        var key: String? = null,
     ) {
         /** The length of the title, from the player's first status (see [follow]). */
         var durationMs: Long? = null
@@ -78,22 +79,6 @@ class PlaybackManager(
 
     /** Emits when playback ends: screens reload resume points and watched state. */
     val playbackEnded: SharedFlow<Unit> = _playbackEnded
-
-    private val _playbackProblem = MutableStateFlow<UiError?>(null)
-
-    /**
-     * Why the last title asked for did not play, shown where it was asked for (the detail page) until
-     * the next action or the next screen clears it.
-     */
-    val playbackProblem: StateFlow<UiError?> = _playbackProblem
-
-    fun reportProblem(error: UiError) {
-        _playbackProblem.value = error
-    }
-
-    fun clearProblem() {
-        _playbackProblem.value = null
-    }
 
     /**
      * Builds the intent for the Zidoo player, or for any video player elsewhere.
@@ -134,7 +119,7 @@ class PlaybackManager(
                 if (Redact.hasCredentials(plan.uri)) Intent.createChooser(any, context.getString(R.string.play_with)) else any
             }
         }
-        session = Session(plan.reporter, plan.startMs, plan.disc)
+        session = Session(plan.reporter, plan.startMs, plan.disc, plan.resumeKey)
         // Written before the player takes over: the platform finishes pending apply() writes before our
         // activity stops, which launching the player does, so the resume point survives a killed process.
         saved.edit().putString(KEY_RESUME, plan.resumeKey).putLong(KEY_POSITION, plan.startMs).apply()
@@ -159,7 +144,7 @@ class PlaybackManager(
     fun onPlayerLaunched() {
         val s = session ?: return
         _playing.value = true
-        s.started = scope.launch { report { s.reporter?.started(s.positionMs) } }
+        s.started = scope.launch { report(s, "started") { s.reporter?.started(s.positionMs) } }
         pollJob?.cancel()
         pollJob = scope.launch { track(s) }
     }
@@ -202,7 +187,7 @@ class PlaybackManager(
                     follow(s, answer.state)
                     if (!s.switched && tick % REPORT_EVERY == 0) {
                         keep(s)
-                        report { s.reporter?.progress(s.positionMs, s.durationMs, s.paused) }
+                        report(s, "progress") { s.reporter?.progress(s.positionMs, s.durationMs, s.paused) }
                     }
                 }
                 // Before a first status, the player may still be opening the file.
@@ -266,6 +251,7 @@ class PlaybackManager(
                 }
                 Log.i(TAG, "The player went on to the title's next part ($launched -> ${state.durationMs} ms)")
                 s.reporter = next.reporter
+                s.key = next.resumeKey
                 // A new process that gets the player's result reports this part, not the one before; not
                 // once the result has ended the session and cleared what was written down.
                 if (session === s) saved.edit().putString(KEY_RESUME, next.resumeKey).apply()
@@ -319,17 +305,18 @@ class PlaybackManager(
             poll?.cancelAndJoin()
             live?.started?.join()
             // No live session: the app was stopped while the film played.
-            val s = live ?: Session(resumeKey?.let { reporterFor(it) }, savedPosition)
+            val s = live ?: Session(resumeKey?.let { reporterFor(it) }, savedPosition, key = resumeKey)
             // A position the player returns for another file is not this title's.
             if (returned > 0 && !s.switched) s.positionMs = returned.toLong()
             Log.i(TAG, "Playback ended at ${s.positionMs} / ${s.durationMs} ms")
-            report { s.reporter?.stopped(s.positionMs, s.durationMs) }
+            report(s, "stopped") { s.reporter?.stopped(s.positionMs, s.durationMs) }
             _playbackEnded.emit(Unit)
         }
     }
 
-    private suspend fun report(block: suspend () -> Unit) {
-        suspendRunCatching { block() }.onFailure { Log.w(TAG, "Progress report failed", it) }
+    /** Tells the backend where [s] stands ([step]: started, progress, stopped); a failure is logged, with the file and the step. */
+    private suspend fun report(s: Session, step: String, block: suspend () -> Unit) {
+        suspendRunCatching { block() }.onFailure { Log.w(TAG, "Report that ${s.key} $step at ${s.positionMs} ms failed", it) }
     }
 
     /** The file needs credentials and only the Zidoo player may receive them. */

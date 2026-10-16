@@ -1,6 +1,5 @@
 package app.houselights.ui.home
 
-import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -16,9 +15,9 @@ import app.houselights.providers.local.ScanError
 import app.houselights.providers.local.ScanState
 import app.houselights.providers.local.SourceEntity
 import app.houselights.settings.AppSettings
+import app.houselights.ui.util.LatestJob
 import app.houselights.ui.util.UiError
-import app.houselights.ui.util.toUiError
-import kotlinx.coroutines.Job
+import app.houselights.ui.util.reported
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -26,7 +25,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.launch
 
 /**
  * What home shows under its bar, decided here rather than in the screen, which only draws it. Two
@@ -97,7 +95,7 @@ class HomeViewModel(
     private val scanAll: () -> Unit,
 ) : ViewModel() {
     private val load = MutableStateFlow(HomeLoad())
-    private var job: Job? = null
+    private val loads = LatestJob(viewModelScope)
 
     /**
      * Null until the folders are first read. Back on home after a while away, the folders last read
@@ -118,19 +116,18 @@ class HomeViewModel(
     }
 
     fun load() {
-        job?.cancel()
         // Trying again with nothing shown shows: the error stays, at work, until the answer. Rows shown,
         // or the first scan's progress over none, stay as they are while they load again.
         if (load.value.sections.isEmpty() && load.value.error != null) load.update { it.copy(loading = true) }
-        job = viewModelScope.launch {
+        loads.launch {
             suspendRunCatching {
                 val source = provider()
                 source.libraries() to source.home()
             }.onSuccess { (libraries, sections) ->
                 load.value = HomeLoad(loading = false, libraries = libraries, sections = sections)
             }.onFailure { e ->
-                Log.w(TAG, "Home failed", e)
-                load.update { it.copy(loading = false, error = e.toUiError()) }
+                val error = e.reported(TAG, "Home")
+                load.update { it.copy(loading = false, error = error) }
             }
         }
     }
