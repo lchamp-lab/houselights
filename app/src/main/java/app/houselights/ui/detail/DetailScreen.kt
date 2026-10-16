@@ -75,6 +75,7 @@ import app.houselights.ui.design.FocusMemory
 import app.houselights.ui.design.RestoreFocus
 import app.houselights.ui.design.focusKey
 import app.houselights.ui.design.rememberFocusMemory
+import app.houselights.ui.design.tryRequestFocus
 import app.houselights.ui.design.components.Backdrop
 import app.houselights.ui.design.components.BackdropStyle
 import app.houselights.ui.design.components.FormatLines
@@ -164,7 +165,7 @@ fun DetailScreen(
     }
     BackToStart(away = scrolled) {
         page.animateScrollToItem(0)
-        runCatching { actions.requestFocus() }
+        actions.tryRequestFocus()
     }
 
     val screenHeight = screenHeight()
