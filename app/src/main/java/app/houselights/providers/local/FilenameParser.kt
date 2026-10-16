@@ -176,18 +176,29 @@ object FilenameParser {
      * folder of kinds ("Animation/Arcane/Saison 1/Arcane.S01E01"); else one that names it before a pack's tags
      * ("Friends.Complete.Series.1080p", "Friends - The Complete Series"), the show named as its files name it;
      * else the first one, above a season's pack ("Show/Show.S01.1080p.WEB/Show.S01E01"). Without one, the
-     * file's name names the show.
+     * file's name names the show. A folder's name is a show's up to a season ([showName]).
      */
     private fun showIn(folders: List<String>, named: ParsedMovie): Pair<Int?, ParsedMovie?> {
         val shows = folders.indices.filter { seasonFromFolder(folders[it]) == null }
         val known = named.title.isNotEmpty()
-        val same = shows.firstOrNull { known && sameShow(parseMovie(folders[it]).title, named.title) }
-        if (same != null) return same to parseMovie(folders[same])
+        val same = shows.firstOrNull { known && sameShow(showName(folders[it]).title, named.title) }
+        if (same != null) return same to showName(folders[same])
         val pack = shows.firstOrNull { known && namesThenTags(folders[it], named.title) }
-        if (pack != null) return pack to ParsedMovie(named.title, parseMovie(folders[pack]).year)
+        if (pack != null) return pack to ParsedMovie(named.title, showName(folders[pack]).year)
         val first = shows.firstOrNull()
-        return first to (first?.let { parseMovie(folders[it]) } ?: named.takeIf { known })
+        return first to (first?.let { showName(folders[it]) } ?: named.takeIf { known })
     }
+
+    /**
+     * A folder's name as a show's: up to its season's number, as a pack of a season names it, at the source's
+     * root too ("Show.Name.S01.1080p.WEB-GRP", "Show.Name.S01-S03.1080p"), or of an episode ("Show.Name.S01E01.1080p"),
+     * so that each season is not a show of its own.
+     */
+    private fun showName(folder: String): ParsedMovie =
+        parseMovie(SEASON_TOKEN.find(folder)?.let { folder.substring(0, it.range.first) }?.takeIf { it.isNotBlank() } ?: folder)
+
+    /** A pack's season or seasons, or an episode's numbers, in a folder's name: "S01", "S01-S03", "S01E01". */
+    private val SEASON_TOKEN = Regex("""(?i)(?<![a-z0-9])s\d{1,2}(?:e\d{1,4}|-s?\d{1,2})?(?![a-z0-9])""")
 
     /**
      * [folder] names the show [title], then from a release tag on what of it it holds: "Friends.Complete.Series.1080p",

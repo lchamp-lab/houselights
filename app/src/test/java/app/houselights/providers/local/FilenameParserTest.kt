@@ -201,6 +201,28 @@ class FilenameParserTest {
         assertNull("nothing names the show", show("Saison 1/03 - Victor.mkv"))
     }
 
+    /** A season's pack at the source's root is its show's folder, named up to its season: its seasons are one show. */
+    @Test
+    fun aSeasonsPackAtTheRootIsItsShow() {
+        assertEquals(
+            Triple("Show Name", null, "Show.Name.S01.1080p.WEB-GRP"),
+            show("Show.Name.S01.1080p.WEB-GRP/Show.Name.S01E01.1080p.WEB-GRP.mkv"),
+        )
+        assertEquals(
+            Triple("Show Name", 2019, "Show.Name.2019.S02.1080p.WEB-GRP"),
+            show("Show.Name.2019.S02.1080p.WEB-GRP/Show.Name.2019.S02E01.1080p.WEB-GRP.mkv"),
+        )
+        assertEquals(
+            Triple("Show Name", null, "Show.Name.S01-S03.1080p.BluRay"),
+            show("Show.Name.S01-S03.1080p.BluRay/Season 2/Show.Name.S02E01.mkv"),
+        )
+        // An episode's own folder, as a release brings it.
+        assertEquals(
+            Triple("Show Name", null, "Show.Name.S01E01.1080p.WEB-GRP"),
+            show("Show.Name.S01E01.1080p.WEB-GRP/Show.Name.S01E01.1080p.WEB-GRP.mkv"),
+        )
+    }
+
     /** A pack of a whole show names it before what it holds: the show is named as its files name it, its year the pack's. */
     @Test
     fun aPackOfAWholeShowIsNamedByItsFiles() {
