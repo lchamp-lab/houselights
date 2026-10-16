@@ -1,13 +1,17 @@
 package app.houselights.providers.local
 
 import android.os.SystemClock
+import com.emc.ecs.nfsclient.nfs.NfsException
+import com.emc.ecs.nfsclient.nfs.NfsStatus
 import com.emc.ecs.nfsclient.nfs.io.Nfs3File
 import com.emc.ecs.nfsclient.nfs.io.NfsFileInputStream
 import com.emc.ecs.nfsclient.nfs.nfs3.Nfs3
 import com.emc.ecs.nfsclient.rpc.CredentialUnix
+import com.emc.ecs.nfsclient.rpc.RpcException
+import com.emc.ecs.nfsclient.rpc.RpcStatus
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.io.IOException
+import java.net.SocketException
 
 /**
  * Lists video files of an NFSv3 export; made once, by [RemoteBrowsers]. No credentials: the NAS
@@ -23,8 +27,7 @@ internal class NfsBrowser(
     private val mounts = KeptConnections<Nfs3>(
         close = { _, _ -> },
         isOpen = { true },
-        // A mount can go stale (the NAS restarted, its address changed): it is made again.
-        isBroken = { it is IOException },
+        isBroken = ::isBroken,
         clock = clock,
     )
 
@@ -35,8 +38,10 @@ internal class NfsBrowser(
         Listing(videos, sidecars)
     }
 
-    override suspend fun test(source: SourceEntity): Int =
-        withMount(source) { nfs -> root(nfs, source).list().count { !RemoteBrowser.skip(it) } }
+    /** On a mount of its own: the NAS says now whether it lets the device in. */
+    override suspend fun test(source: SourceEntity): Int = withContext(Dispatchers.IO) {
+        mounts.once({ mount(source) }) { nfs -> root(nfs, source).list().count { !RemoteBrowser.skip(it) } }
+    }
 
     override suspend fun readAt(source: SourceEntity, relativePath: String, offset: Long, length: Int): ByteArray {
         val path = "/" + listOf(source.path.trim('/'), relativePath).filter { it.isNotEmpty() }.joinToString("/")
@@ -74,13 +79,25 @@ internal class NfsBrowser(
         }
     }
 
-    private companion object {
+    companion object {
         /** nfs-client tries a request this many times before it fails. */
-        const val RETRIES = 3
+        private const val RETRIES = 3
 
         /** Bytes a read asks the NAS for at once. */
-        const val BUFFER_BYTES = 256 * 1024
+        private const val BUFFER_BYTES = 256 * 1024
 
-        fun export(source: SourceEntity) = "/" + source.share.trim('/')
+        private fun export(source: SourceEntity) = "/" + source.share.trim('/')
+
+        /**
+         * A failure of the mount, after which it is made again: not one of the file. The network failed
+         * (an RpcException of status NETWORK_ERROR, inside the request's NfsException), or the NAS no
+         * longer knows the mount's handles: it restarted, or the export moved.
+         */
+        internal fun isBroken(e: Throwable): Boolean = generateSequence(e) { it.cause }.any {
+            it is SocketException || it is RpcException && it.status === RpcStatus.NETWORK_ERROR ||
+                it is NfsException && it.status?.value in STALE
+        }
+
+        private val STALE = setOf(NfsStatus.NFS3ERR_STALE.value, NfsStatus.NFS3ERR_BADHANDLE.value)
     }
 }

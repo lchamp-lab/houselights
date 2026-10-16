@@ -4,9 +4,11 @@ import android.os.SystemClock
 import android.util.Log
 import app.houselights.core.suspendRunCatching
 import com.hierynomus.msdtyp.AccessMask
+import com.hierynomus.mserref.NtStatus
 import com.hierynomus.msfscc.FileAttributes
 import com.hierynomus.mssmb2.SMB2CreateDisposition
 import com.hierynomus.mssmb2.SMB2ShareAccess
+import com.hierynomus.mssmb2.SMBApiException
 import com.hierynomus.smbj.SMBClient
 import com.hierynomus.smbj.SmbConfig
 import com.hierynomus.smbj.auth.AuthenticationContext
@@ -29,14 +31,17 @@ internal class SmbBrowser(
     private val sessions = KeptConnections<SmbShare>(
         close = { share, broken -> share.close(broken) },
         isOpen = { it.isOpen },
-        isBroken = { it is IOException || it is SMBRuntimeException },
+        isBroken = ::isBroken,
         clock = clock,
     )
 
     override suspend fun list(source: SourceEntity): Listing = withSession(source) { share -> walk(share, root(source)) }
 
-    override suspend fun test(source: SourceEntity): Int = withSession(source) { share ->
-        share.list(root(source).replace('/', '\\')).count { !RemoteBrowser.skip(it.name) }
+    /** Signs in of its own, with what the form says: a session kept, signed in with the password stored, would let a wrong one through. */
+    override suspend fun test(source: SourceEntity): Int = withContext(Dispatchers.IO) {
+        sessions.once({ connect(source) }) { share ->
+            share.list(root(source).replace('/', '\\')).count { !RemoteBrowser.skip(it.name) }
+        }
     }
 
     override suspend fun readAt(source: SourceEntity, relativePath: String, offset: Long, length: Int): ByteArray =
@@ -85,6 +90,25 @@ internal class SmbBrowser(
         }
         visit("", 0)
         return Listing(videos, sidecars)
+    }
+
+    companion object {
+        /**
+         * A failure of the session or its connection, after which it is made again: not one of the file.
+         * smbj gives what the NAS answered as SMBApiException, a file refused, gone or locked among them;
+         * it is also an SMBRuntimeException, as are the failures of the connection.
+         */
+        internal fun isBroken(e: Throwable): Boolean {
+            val answer = generateSequence(e) { it.cause }.filterIsInstance<SMBApiException>().firstOrNull()
+            return if (answer != null) answer.status in SESSION_GONE else e is SMBRuntimeException || e is IOException
+        }
+
+        /** Answers that end the session, not the request. */
+        private val SESSION_GONE = setOf(
+            NtStatus.STATUS_NETWORK_SESSION_EXPIRED,
+            NtStatus.STATUS_USER_SESSION_DELETED,
+            NtStatus.STATUS_NETWORK_NAME_DELETED,
+        )
     }
 }
 

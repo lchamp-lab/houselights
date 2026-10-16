@@ -124,8 +124,6 @@ class AddFolderViewModel(
     private val useFolders: suspend () -> Boolean,
     /** Reads the first level of a folder: how many entries it holds. Throws when it cannot. */
     private val probe: suspend (SourceEntity) -> Int,
-    /** Closes the SMB sessions kept open on a folder's share. */
-    private val forgetSessions: suspend (SourceEntity) -> Unit,
 ) : ViewModel() {
     constructor(app: AppContainer, folderId: Long? = null) : this(
         library = app.library,
@@ -137,7 +135,6 @@ class AddFolderViewModel(
             switched
         },
         probe = { app.remoteBrowsers.of(it).test(it) },
-        forgetSessions = app.remoteBrowsers::forget,
     )
 
     var form by mutableStateOf(FolderForm())
@@ -260,12 +257,8 @@ class AddFolderViewModel(
     private suspend fun reaches(source: SourceEntity): Boolean {
         testing = true
         check = null
-        val answer = suspendRunCatching {
-            // An edited folder signs in with what the form says: a session kept from an earlier test,
-            // with the password stored, would let a wrong new one through.
-            if (edits && source.protocol == Protocol.SMB) forgetSessions(source)
-            probe(source)
-        }
+        // The browser signs in of its own for a test: what the form says is what answers.
+        val answer = suspendRunCatching { probe(source) }
         answer
             .onSuccess { count -> check = FolderCheck.Reachable(count) }
             .onFailure { e ->

@@ -131,7 +131,6 @@ class AddFolderViewModelTest {
                         true
                     },
                     probe = probe,
-                    forgetSessions = { calls += "forget ${it.host}/${it.share}" },
                 )
             }
         }
@@ -170,7 +169,7 @@ class AddFolderViewModelTest {
         advanceUntilIdle()
         assertFalse(vm.busy)
         assertEquals(false, done)
-        assertEquals(listOf("forget 192.168.1.10/media", "test 192.168.1.10 with stored"), calls)
+        assertEquals(listOf("test 192.168.1.10 with stored"), calls)
     }
 
     @Test
@@ -223,18 +222,6 @@ class AddFolderViewModelTest {
         assertFalse("the form stays, to say it", done)
         assertFalse(vm.busy)
         assertTrue(dao.sources().isEmpty())
-    }
-
-    @Test
-    fun anEditedSmbFolderSignsInAgainToBeTested() = runTest {
-        val id = smbFolder()
-        val vm = form(id)
-        advanceUntilIdle()
-        // Tested once with the password stored, the session it opened is kept; then a wrong one is typed.
-        vm.edit { copy(password = "wrong") }
-        vm.test()
-        advanceUntilIdle()
-        assertEquals(listOf("forget 192.168.1.10/media", "test 192.168.1.10 with wrong"), calls)
     }
 
     @Test
