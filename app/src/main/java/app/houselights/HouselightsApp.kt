@@ -23,6 +23,7 @@ import app.houselights.providers.local.RemoteBrowsers
 import app.houselights.providers.local.TmdbClient
 import app.houselights.settings.SettingsStore
 import app.houselights.settings.SourceSwitcher
+import app.houselights.ui.util.PlaybackOutcome
 import coil.ImageLoader
 import coil.ImageLoaderFactory
 import coil.disk.DiskCache
@@ -81,11 +82,15 @@ class AppContainer(private val app: Application) : LibraryEvents {
     val sources = SourceSwitcher({ settings.state.value }, { settings.setSource(it) }, scope)
     val database = LibraryDatabase.create(app, Secrets.device)
     val artwork = ArtworkCache(app.filesDir.resolve("artwork"))
-    val playback = PlaybackManager(app, scope) { resumeKey ->
+    /** The player: launched for a title, and followed while it plays. */
+    val player = PlaybackManager(app, scope) { resumeKey ->
         // After a restart, the source is known once the settings are read.
         settings.state.first { it.loaded }
         provider.reporter(resumeKey)
     }
+
+    /** What came of a title asked to play, as screens see it: ended, or why it did not play. */
+    val playback = PlaybackOutcome(player.playbackEnded)
 
     /** The NAS browsers, and the sessions and mounts they keep between files. */
     val remoteBrowsers = RemoteBrowsers()
@@ -95,14 +100,14 @@ class AppContainer(private val app: Application) : LibraryEvents {
         interactiveTmdb = ::tmdbInteractive,
         scope = scope,
         artwork = artwork,
-        playing = playback.playing,
+        playing = player.playing,
         browsers = remoteBrowsers::of,
         closeIdle = remoteBrowsers::closeIdle,
         started = ProcessLifecycleOwner.get().lifecycle.currentStateFlow.map { it.isAtLeast(Lifecycle.State.STARTED) },
     )
     val library = LocalLibrary(app, database.dao(), scanner, artwork, remoteBrowsers::forget)
 
-    private val changes = LibraryChanges(scope, listOf(playback.playbackEnded, scanner.changed))
+    private val changes = LibraryChanges(scope, listOf(player.playbackEnded, scanner.changed))
 
     override val libraryVersion: StateFlow<Long> = changes.version
 

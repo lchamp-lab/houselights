@@ -12,7 +12,6 @@ import app.houselights.core.PlaybackPlan
 import app.houselights.core.PlaybackReporter
 import app.houselights.core.isWebUrl
 import app.houselights.core.suspendRunCatching
-import app.houselights.ui.util.UiError
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancelAndJoin
@@ -78,22 +77,6 @@ class PlaybackManager(
 
     /** Emits when playback ends: screens reload resume points and watched state. */
     val playbackEnded: SharedFlow<Unit> = _playbackEnded
-
-    private val _playbackProblem = MutableStateFlow<UiError?>(null)
-
-    /**
-     * Why the last title asked for did not play, shown where it was asked for (the detail page) until
-     * the next action or the next screen clears it.
-     */
-    val playbackProblem: StateFlow<UiError?> = _playbackProblem
-
-    fun reportProblem(error: UiError) {
-        _playbackProblem.value = error
-    }
-
-    fun clearProblem() {
-        _playbackProblem.value = null
-    }
 
     /**
      * Builds the intent for the Zidoo player, or for any video player elsewhere.
