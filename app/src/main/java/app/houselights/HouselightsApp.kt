@@ -33,6 +33,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
@@ -113,6 +116,13 @@ class AppContainer(private val app: Application) {
             merge(playback.playbackEnded, scanner.changed)
                 .throttleLatest(LIBRARY_CHANGE_MS)
                 .collect { _libraryVersion.update { it + 1 } }
+        }
+        // A TMDB key saved, or removed for the built-in one: what TMDB said of the old one is forgotten,
+        // and the titles it left unmatched are asked for at once.
+        scope.launch {
+            settings.state.filter { it.loaded }.map { it.tmdbApiKey }.distinctUntilChanged().drop(1).collect {
+                if (settings.state.value.source == SourceConfig.Local) scanner.tmdbKeyChanged()
+            }
         }
     }
 

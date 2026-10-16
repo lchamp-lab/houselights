@@ -135,6 +135,24 @@ class ScanTmdbTest {
     }
 
     @Test
+    fun aNewKeyIsAskedAtOnceAndWhatTmdbSaidOfTheOldOneIsForgotten() = runTest {
+        val films = bench.folder("Films")
+        tmdb.movie(438631, "Dune", 2021)
+        nas.put("Dune (2021).mkv")
+        tmdb.status = 401
+        bench.scan()
+        assertEquals(UiError.TMDB_KEY_REFUSED, issue())
+
+        // A key TMDB accepts, saved in the settings: no hour to wait.
+        tmdb.status = null
+        bench.scanner.tmdbKeyChanged()
+        assertNull("not said of the new key", issue())
+        bench.awaitScans()
+        assertEquals(438631, bench.item(films, "Dune (2021).mkv").tmdbId)
+        assertNull(issue())
+    }
+
+    @Test
     fun aNewEpisodeOfAShowKnownComesInWithoutTmdb() = runTest {
         val shows = bench.folder("Séries", SourceKind.SHOWS)
         tmdb.show(95396, "Severance", 2022)

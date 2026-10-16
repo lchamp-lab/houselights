@@ -170,6 +170,17 @@ class LibraryScanner(
         lock.withLock { cleanupLocked() }
     }
 
+    /**
+     * The TMDB key changed (saved, or removed for the one built in): what TMDB said of the old one no
+     * longer holds, so it is no longer shown, and the titles it left unmatched are asked for at once,
+     * not an hour on.
+     */
+    fun tmdbKeyChanged() {
+        tmdbDown = null
+        _state.update { it.copy(tmdbIssue = null) }
+        scanAll()
+    }
+
     /** Tells screens the library changed outside a scan (a choice made by the user). */
     fun notifyChanged() {
         _changed.tryEmit(Unit)
@@ -264,7 +275,7 @@ class LibraryScanner(
                 }.onFailure { Log.w(TAG, "Cleanup failed", it) }
             }
         } finally {
-            // What TMDB said holds until it is asked again, or the key changes.
+            // What TMDB said holds until it is asked again, or the key changes ([tmdbKeyChanged]).
             tmdbDown = tmdb.issue?.let { TmdbDown(it, client, elapsed()) } ?: down.takeUnless { askUnmatched }
             // Whatever happened, the scan is over: the settings must not show it running forever.
             _state.value = ScanState(errors = errors, tmdbIssue = tmdbDown?.takeIf { it.client === client() }?.cause?.toUiError())

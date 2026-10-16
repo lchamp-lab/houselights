@@ -69,8 +69,11 @@ class ScanBench(artworkDir: File, tmdbKey: Boolean = true) {
     /** One whole pass, as the app asks for it, waited for. */
     suspend fun scan(refreshMetadata: Boolean = false) {
         scanner.scanAll(refreshMetadata)
-        passes.children.toList().forEach { it.join() }
+        awaitScans()
     }
+
+    /** Waits for the scans under way, such as one the scanner started of itself. */
+    suspend fun awaitScans() = passes.children.toList().forEach { it.join() }
 
     /** How many times screens are told the library changed while [block] runs. */
     suspend fun changesDuring(block: suspend () -> Unit): Int = coroutineScope {
