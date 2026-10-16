@@ -53,7 +53,6 @@ import app.houselights.ui.design.components.HlButton
 import app.houselights.ui.design.components.HlDivider
 import app.houselights.ui.design.components.HlEmptyState
 import app.houselights.ui.design.components.HlIconButton
-import app.houselights.ui.design.components.HlIconDisc
 import app.houselights.ui.design.components.HlListItem
 import app.houselights.ui.design.components.HlMeter
 import app.houselights.ui.design.components.HlNavItem
@@ -183,8 +182,6 @@ fun CatalogScreen() {
                         HlPanel(Modifier.weight(1f), level = PanelLevel.Raised) { Text("Raised panel", style = t.lead, color = c.content) }
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.l), verticalAlignment = Alignment.CenterVertically) {
-                        HlIconDisc(HlIcons.Folder)
-                        HlIconDisc(HlIcons.Folder, lit = true)
                         HlStatus(StatusState.On, "Online")
                         HlStatus(StatusState.Done, "Found")
                         HlStatus(StatusState.Pending, "Testing")
