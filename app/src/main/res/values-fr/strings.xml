@@ -17,6 +17,7 @@
     <string name="section_favorites">Favoris</string>
     <string name="season_number">Saison %d</string>
     <string name="episode_number">Épisode %d</string>
+    <string name="episode_numbers">Épisodes %1$d-%2$d</string>
     <plurals name="season_count">
         <item quantity="one">%d saison</item>
         <item quantity="other">%d saisons</item>
@@ -79,6 +80,8 @@
     <string name="time_left">Il reste %s</string>
     <string name="nav_home">Accueil</string>
     <string name="from_start">Depuis le début</string>
+    <string name="part_of">Partie %1$d/%2$d</string>
+    <string name="parts">Parties</string>
     <string name="watched">Vu</string>
     <string name="mark_watched">Marquer comme vu</string>
     <string name="mark_unwatched">Marquer comme non vu</string>

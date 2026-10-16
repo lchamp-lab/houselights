@@ -21,6 +21,26 @@ class CollectionRulesTest {
         assertFalse(CollectionRules.sameName("Collection", "Saga"))
     }
 
+    /** An NFO's set named in Japanese or Russian takes TMDB's collection when TMDB gives it the same name, as the key does. */
+    @Test
+    fun namesThatLeaveNoWordMatchWhole() {
+        assertTrue(CollectionRules.sameName("攻殻機動隊", "攻殻機動隊"))
+        assertTrue(CollectionRules.sameName("Звёздные  войны ", "звёздные войны"))
+        assertFalse(CollectionRules.sameName("攻殻機動隊", "アキラ"))
+        assertFalse("one with words, one without", CollectionRules.sameName("Akira", "アキラ"))
+    }
+
+    /** Names that leave no word once split on Latin letters and stripped of generic ones: each saga keeps its own. */
+    @Test
+    fun sagasWhoseNamesLeaveNoWordStayApart() {
+        val names = listOf("攻殻機動隊", "新世紀エヴァンゲリオン", "Звёздные войны", "Брат", "Collection", "Les Films")
+        assertEquals(names.size, names.map { CollectionRules.key(null, it) }.toSet().size)
+        assertEquals("name:攻殻機動隊", CollectionRules.key(null, "攻殻機動隊"))
+        assertEquals(CollectionRules.key(null, "Звёздные  войны "), CollectionRules.key(null, "звёздные войны"))
+        // Names with words keep their key: sagas already in the library are found again.
+        assertEquals("name:evil dead", CollectionRules.key(null, "Evil Dead Collection"))
+    }
+
     @Test
     fun onlyReleasedFilmsCount() {
         val dates = listOf("1986-05-16", "2022-05-24", "", null, "2031-01-01")

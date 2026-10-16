@@ -317,6 +317,51 @@ class ScanTmdbTest {
         assertNotNull(bench.item(shows, pilot).matchedAt)
     }
 
+    private val moblandId = 247718
+
+    /** MobLand as the NAS holds it, scene names in a short season folder, matched with TMDB in English. */
+    private suspend fun mobland(): Long {
+        bench.folder("Séries", SourceKind.SHOWS)
+        tmdb.show(moblandId, "MobLand", 2025)
+        tmdb.season(moblandId, 1, episodes = 3)
+        (1..3).forEach { bench.showsNas.put("Mobland/S01/Mobland.S01E0$it.MULTi.1080p.WEB.H265-GRP.mkv") }
+        bench.scan()
+        val series = checkNotNull(bench.dao.seriesByKey(FilenameParser.showKey("Mobland")))
+        assertEquals("Season 1", bench.dao.season(series.id, 1)?.title)
+        // The device now speaks French: TMDB names the season otherwise.
+        tmdb.seasons[moblandId to 1] = tmdb.seasons.getValue(moblandId to 1).copy(name = "Saison 1", overview = "Deux familles de Londres")
+        return series.id
+    }
+
+    /** "Refresh all": seasons take TMDB's details again too, each asked once for all its episodes. */
+    @Test
+    fun aRefreshGivesSeasonsTmdbsDetailsAgainAskingOnceASeason() = runTest {
+        val seriesId = mobland()
+        tmdb.requests.clear()
+        bench.scan(refreshMetadata = true)
+
+        val season = checkNotNull(bench.dao.season(seriesId, 1))
+        assertEquals("Saison 1", season.title)
+        assertEquals("Deux familles de Londres", season.overview)
+        assertEquals("asked once for its three episodes", 1, tmdb.requests.count { it == "tv/$moblandId/season/1" })
+    }
+
+    @Test
+    fun aSeasonRefreshTmdbDidNotAnswerIsAskedAgainLater() = runTest {
+        val seriesId = mobland()
+        tmdb.failingPath = "tv/$moblandId/season/"
+        bench.scan(refreshMetadata = true)
+        val waiting = checkNotNull(bench.dao.season(seriesId, 1))
+        assertEquals("what it had stays meanwhile", "Season 1", waiting.title)
+        assertNull(waiting.matchedAt)
+
+        tmdbBack()
+        bench.scan()
+        val refreshed = checkNotNull(bench.dao.season(seriesId, 1))
+        assertEquals("Saison 1", refreshed.title)
+        assertNotNull(refreshed.matchedAt)
+    }
+
     @Test
     fun aCollectionTmdbDidNotAnswerIsAskedAgain() = runTest {
         val films = bench.folder("Films")

@@ -7,6 +7,11 @@ data class RemoteFile(
     /** Path relative to the source folder, with "/" separators. */
     val relativePath: String,
     val size: Long,
+    /**
+     * When it was last written (ms since the epoch), as the listing gives it: SMB's last write time, NFS's
+     * mtime. A sidecar rewritten in place often keeps its size, not its date. Null when not known.
+     */
+    val lastModified: Long? = null,
 )
 
 /**
@@ -31,11 +36,21 @@ interface RemoteBrowser {
     companion object {
         const val MAX_DEPTH = 6
 
-        /** Hidden files, Synology/QNAP system folders, recycle bins, and lost+found, root's alone at an ext4 volume's root. */
-        fun skip(name: String) =
-            name == "." || name == ".." || name.startsWith(".") || name.startsWith("@") || name.startsWith("#") ||
-                name.equals("\$RECYCLE.BIN", ignoreCase = true) || name.equals("System Volume Information", ignoreCase = true) ||
-                name == "lost+found"
+        /**
+         * Hidden files (".DS_Store", ".AppleDouble", ".Trash-1000", ".@__thumb", and the "._" twin macOS
+         * writes beside each video on a share), and the system folders [SYSTEM] names. Only those: "#Alive"
+         * and "@Zombie" are films.
+         */
+        fun skip(name: String) = name.startsWith(".") || SYSTEM.any { it.equals(name, ignoreCase = true) }
+
+        /**
+         * Synology's and QNAP's recycle bins (Synology Drive's too), snapshots and thumbnails, the copies
+         * QNAP transcodes beside each video, Windows' own folders, and lost+found, root's alone on ext4.
+         */
+        private val SYSTEM = listOf(
+            "#recycle", "#snapshot", "#SynoRecycle", "@eaDir", "@tmp", "@Recycle", "@Recently-Snapshot", "@__thumb", "@Transcode",
+            "\$RECYCLE.BIN", "System Volume Information", "lost+found",
+        )
 
         fun isWanted(name: String) = FilenameParser.isVideo(name) && !isSample(name)
 
@@ -63,6 +78,9 @@ internal interface RemoteEntry {
     fun folder(): RemoteFolder?
 
     fun size(): Long
+
+    /** When it was last written, from what [size] asked: no request of its own. Null when not known. */
+    fun lastModified(): Long? = null
 }
 
 /**
@@ -107,8 +125,8 @@ private class Walk(private val isFatal: (Throwable) -> Boolean) {
     private fun take(entry: RemoteEntry, path: String): RemoteFolder? {
         entry.folder()?.let { return it }
         when {
-            RemoteBrowser.isWanted(entry.name) -> videos += RemoteFile(path, entry.size())
-            RemoteBrowser.isSidecar(entry.name) -> sidecars += RemoteFile(path, entry.size())
+            RemoteBrowser.isWanted(entry.name) -> videos += RemoteFile(path, entry.size(), entry.lastModified())
+            RemoteBrowser.isSidecar(entry.name) -> sidecars += RemoteFile(path, entry.size(), entry.lastModified())
         }
         return null
     }

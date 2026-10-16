@@ -17,8 +17,11 @@ internal sealed interface TextRead {
     data class Failed(val cause: Throwable) : TextRead
 }
 
-/** The NFO an item keeps: where it lies and what it says, both or neither. */
-internal data class KeptNfo(val path: String?, val text: String?) {
+/**
+ * The NFO an item keeps: where it lies and what it says, both or neither. [stale]: the file beside it
+ * could not be read now, and what the item had stands in; the next scan reads it again.
+ */
+internal data class KeptNfo(val path: String?, val text: String?, val stale: Boolean = false) {
     val info: NfoInfo? by lazy { text?.let(NfoParser::parse) }
 }
 
@@ -28,10 +31,13 @@ internal class ScanFiles(
     private val artwork: ArtworkCache,
     private val browsers: (SourceEntity) -> RemoteBrowser,
 ) {
-    /** A NAS that stops answering throws, so the file is tried again later; any other failure is [TextRead.Failed]. */
+    /**
+     * An NFO's text, in the encoding its bytes say ([NfoParser.decode]). A NAS that stops answering
+     * throws, so the file is tried again later; any other failure is [TextRead.Failed].
+     */
     suspend fun readText(source: SourceEntity, file: RemoteFile): TextRead = suspendRunCatching<TextRead> {
         val length = file.size.coerceIn(0, MAX_NFO_BYTES.toLong()).toInt().takeIf { it > 0 } ?: MAX_NFO_BYTES
-        TextRead.Text(String(browsers(source).readPrefix(source, file.relativePath, length), Charsets.UTF_8))
+        TextRead.Text(NfoParser.decode(browsers(source).readPrefix(source, file.relativePath, length)))
     }.getOrElse { e ->
         if (ScanErrors.isUnreachable(e)) throw e
         Log.w(TAG, "Could not read ${file.relativePath}; it is read again at the next scan", e)
@@ -46,7 +52,7 @@ internal class ScanFiles(
         when (val read = file?.let { readText(source, it) }) {
             null -> KeptNfo(null, null)
             is TextRead.Text -> KeptNfo(file.relativePath, read.text)
-            is TextRead.Failed -> KeptNfo(item.nfoPath.takeIf { item.nfo != null }, item.nfo)
+            is TextRead.Failed -> KeptNfo(item.nfoPath.takeIf { item.nfo != null }, item.nfo, stale = true)
         }
 
     /**
@@ -73,6 +79,12 @@ internal class ScanFiles(
 
     /** The cached copy of an image placed next to a video or a show (see [ArtworkCache.copy]). */
     suspend fun copyArtwork(source: SourceEntity, file: RemoteFile): String? = artwork.copy(source, file, browsers(source))
+
+    /**
+     * [image] as read, for [SidecarKey]: [copy] made, or never to be (an image the cache does not hold);
+     * null when the copy failed (the device nearly full, a lock), so that the next scan tries it again.
+     */
+    fun examined(image: RemoteFile?, copy: String?): RemoteFile? = image?.takeIf { copy != null || !artwork.holds(it) }
 
     private companion object {
         const val TAG = "ScanFiles"

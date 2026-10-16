@@ -19,9 +19,11 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
         tmdb: TmdbPass,
         sidecars: Sidecars,
         refreshMetadata: Boolean,
+        /** The film [file] is the first part of, when it is in several files: named without the part, read through its first. */
+        stack: Stack? = null,
     ) {
         val now = System.currentTimeMillis()
-        val parsed = LibraryScanner.parseMovie(file.relativePath)
+        val parsed = LibraryScanner.parseMovie(stack?.namedPath ?: file.relativePath)
         val local = sidecars.forVideo(file)
 
         var item = existing ?: ItemEntity(
@@ -31,6 +33,8 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
             sortTitle = MetadataMerge.sortKey(parsed.title),
             year = parsed.year,
             filePath = file.relativePath,
+            // An existing row's parts follow its folder before it is processed (see MissingFiles).
+            parts = stack?.rest.orEmpty().map { it.relativePath },
             fileSize = file.size,
             badges = FilenameParser.badges(file.relativePath),
             addedAt = now,
@@ -40,33 +44,79 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
 
         val kept = files.nfo(source, local.nfo, item)
         val nfo = kept.info
-        // Sidecars that disappeared leave details to TMDB again.
+        // An NFO read again (rewritten in place, the video replaced) asks TMDB only when it names another title or set.
+        val newIds = nfo != null && !sameIds(existing?.nfo?.let(NfoParser::parse), nfo)
+        // A film the user matched, beside an NFO naming a title by its IMDb id alone: only TMDB's answer
+        // tells whether the NFO describes the user's choice (see MetadataMerge.describesOther).
+        val undecided = nfo != null && item.userTmdbId != null && nfo.tmdbId == null && nfo.imdbId != null
+        // Sidecars that disappeared leave details to TMDB again: an image among them, whose copy the film
+        // would show otherwise (nothing else copies one there).
         val sidecarsRemoved = (item.nfoPath != null && local.nfo == null) ||
-            (local.poster == null && item.posterPath.isCachedArtwork())
-        val needsTmdb = tmdb.open && (item.matchedAt == null || refreshMetadata || nfo != null || sidecarsRemoved)
+            (local.poster == null && item.posterPath.isCachedArtwork()) ||
+            (local.fanart == null && item.backdropPath.isCachedArtwork()) ||
+            (local.logo == null && item.logoPath.isCachedArtwork())
+        val needsTmdb = tmdb.open && (item.matchedAt == null || refreshMetadata || newIds || undecided || sidecarsRemoved)
         // A refresh TMDB cannot be asked for now is not lost: the film is left unmatched (see saveMovie).
         val refreshLeft = refreshMetadata && !tmdb.open && item.matchedAt != null
         val localArt = local.poster != null || local.fanart != null || local.logo != null
         val toWrite = nfo != null || needsTmdb || refreshLeft || sidecarsRemoved || localArt
-        if (!toWrite) return
+        if (!toWrite) {
+            // Nothing beside it to use (a release NFO no parser reads): what was read is noted all the same,
+            // so that the next scans read it no more.
+            val read = SidecarKey.of(local.copy(nfo = local.nfo.takeUnless { kept.stale }))
+            if (read != item.sidecarKey) dao.saveScanned(item.copy(sidecarKey = read))
+            return
+        }
 
         val known = item
         val lookup: (suspend (TmdbClient) -> TmdbMovie?)? =
             if (needsTmdb) { client -> lookupMovie(client, known.userTmdbId, nfo, parsed, known = known.tmdbId) } else null
-        val fetched = fetch(tmdb, item.userTmdbId, nfo, refreshMetadata, lookup)
+        // TMDB not asked, and the NFO's set as it was: the film stays in its collection. One out of any
+        // (version 10 took it out of a saga whose name gave no key) finds it again from its NFO, without TMDB.
+        val keepCollection = lookup == null && !newIds && item.collectionId != null
+        val fetched = fetch(tmdb, item.userTmdbId, nfo, refreshMetadata, keepCollection = keepCollection, lookup = lookup)
         // Details dropped and none from TMDB: the next scan asks it again.
         if (sidecarsRemoved) {
             item = MetadataMerge.withoutDetails(item, parsed.title, parsed.year)
                 .let { if (fetched.answered) it else it.copy(matchedAt = null) }
         }
+        item = namedAsAFilm(item, file, parsed, fetched)
         val art = LocalArt(
             poster = local.poster?.let { files.copyArtwork(source, it) },
             fanart = local.fanart?.let { files.copyArtwork(source, it) },
             logo = local.logo?.let { files.copyArtwork(source, it) },
             thumb = local.thumb?.let { files.copyArtwork(source, it) },
         )
-        saveMovie(item.copy(nfoPath = kept.path, nfo = kept.text), nfo, fetched, art, now)
+        saveMovie(item.copy(nfoPath = kept.path, nfo = kept.text, sidecarKey = sidecarKey(local, kept, art)), nfo, fetched, art, now)
     }
+
+    /**
+     * A row named by its first file alone ("Heat CD1", scanned before its other parts were there) that has
+     * become a film in parts takes the film's name ([film], "Heat"), when neither its NFO nor TMDB names it.
+     * A name the NFO or TMDB gave it before stays.
+     */
+    private fun namedAsAFilm(item: ItemEntity, file: RemoteFile, film: ParsedMovie, fetched: Fetched): ItemEntity {
+        val unnamed = fetched.nfo?.title == null && fetched.movie == null
+        val ownName = item.title == LibraryScanner.parseMovie(file.relativePath).title
+        if (item.parts.isEmpty() || !unnamed || !ownName) return item
+        return item.copy(title = film.title, sortTitle = MetadataMerge.sortKey(film.title))
+    }
+
+    /** [known] and [nfo] name the same title and the same set: TMDB has nothing new to say of the film. */
+    private fun sameIds(known: NfoInfo?, nfo: NfoInfo): Boolean =
+        known != null && known.tmdbId == nfo.tmdbId && known.imdbId == nfo.imdbId &&
+            known.collection == nfo.collection && known.collectionTmdbId == nfo.collectionTmdbId
+
+    /** What was read beside the film ([SidecarKey]); an NFO or an image that failed is left out, to be read again. */
+    private fun sidecarKey(local: VideoSidecars, kept: KeptNfo, art: LocalArt): String? = SidecarKey.of(
+        VideoSidecars(
+            nfo = local.nfo.takeUnless { kept.stale },
+            poster = files.examined(local.poster, art.poster),
+            fanart = files.examined(local.fanart, art.fanart),
+            logo = files.examined(local.logo, art.logo),
+            thumb = files.examined(local.thumb, art.thumb),
+        )
+    )
 
     /**
      * Asks TMDB all a new match needs (the film, its collection's details), then returns the writes
@@ -74,7 +124,7 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
      * throws before anything is written.
      */
     suspend fun identify(item: ItemEntity, tmdbId: Int?, tmdb: TmdbClient): suspend () -> Unit {
-        val parsed = LibraryScanner.parseMovie(item.filePath ?: return {})
+        val parsed = item.filmName() ?: return {}
         val nfo = item.nfo?.let(NfoParser::parse)
         val fetched = fetch(TmdbPass(tmdb, strict = true), tmdbId, nfo, refresh = false) { client ->
             if (tmdbId != null) client.movie(tmdbId) else lookupMovie(client, null, nfo, parsed)
@@ -121,18 +171,25 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
 
     /**
      * The film [lookup] finds (not asked when null), then its collection's details when they are
-     * wanted: from TMDB's film, or from the NFO's set.
+     * wanted: from TMDB's film, or from the NFO's set; none when [keepCollection].
      */
     private suspend fun fetch(
         tmdb: TmdbPass,
         userTmdbId: Int?,
         nfoInfo: NfoInfo?,
         refresh: Boolean,
+        keepCollection: Boolean = false,
         lookup: (suspend (TmdbClient) -> TmdbMovie?)?,
     ): Fetched {
         val answer = lookup?.let { tmdb.ask(it) } ?: TmdbAnswer.Unanswered
-        val nfo = nfoInfo?.takeUnless { MetadataMerge.describesOther(it, userTmdbId, answer.value?.imdbId) }
-        val plan = collectionOf(nfo, answer.value, refresh)
+        // Matched by hand, a film TMDB gives nothing for now keeps what it had: an NFO only TMDB's IMDb id
+        // can tell of waits for it, rather than its title, plot and cast win meanwhile.
+        val untold = userTmdbId != null && answer.value == null
+        val nfo = nfoInfo?.takeUnless {
+            untold && it.tmdbId == null && it.imdbId != null ||
+                MetadataMerge.describesOther(it, userTmdbId, answer.value?.imdbId)
+        }
+        val plan = if (keepCollection) null else collectionOf(nfo, answer.value, refresh)
         val details = plan?.fetch?.let { id -> tmdb.ask { it.collection(id) } } ?: TmdbAnswer.Unanswered
         return Fetched(answer, nfo, plan, details, tmdb.client, refresh)
     }

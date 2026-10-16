@@ -14,6 +14,7 @@ import app.houselights.core.MediaItem
 import app.houselights.core.MetadataEditor
 import app.houselights.core.PlaybackOptions
 import app.houselights.core.PlaybackPlan
+import app.houselights.core.Quality
 import app.houselights.core.Secrets
 import app.houselights.core.SortOption
 import app.houselights.core.WatchStatus
@@ -172,6 +173,65 @@ class LocalProviderTest {
         assertNull(provider.nextUp(show))
     }
 
+    private suspend fun show(title: String) =
+        Show(dao.insert(ItemEntity(kind = ItemKind.SERIES, sourceId = source, title = title, sortTitle = title.lowercase(), addedAt = 0)))
+
+    /** A show of the library; [episode] adds an episode to it, and its season when new. */
+    private inner class Show(val id: Long) {
+        private val seasons = mutableMapOf<Int, Long>()
+
+        suspend fun episode(season: Int, n: Int, badges: List<String> = emptyList()): Long {
+            val parent = seasons.getOrPut(season) {
+                dao.insert(
+                    ItemEntity(
+                        kind = ItemKind.SEASON, sourceId = source, parentId = id, seriesId = id, title = "Season $season",
+                        sortTitle = "%03d".format(season), seasonNumber = season, addedAt = 0,
+                    )
+                )
+            }
+            return dao.insert(
+                ItemEntity(
+                    kind = ItemKind.EPISODE, sourceId = source, parentId = parent, seriesId = id, title = "S${season}E$n",
+                    sortTitle = "%03d-%04d".format(season, n), seasonNumber = season, episodeNumber = n,
+                    filePath = "$id/S${season}E$n.mkv", badges = badges, addedAt = 0,
+                )
+            )
+        }
+    }
+
+    /** Sonarr's "Specials" folder holds S00E01: "Play" starts S01E01 all the same, and the specials once the rest is watched. */
+    @Test
+    fun aShowStartsWithItsFirstSeasonNotItsSpecials() = runTest {
+        val show = show("MobLand")
+        show.episode(0, 1)
+        val pilot = show.episode(1, 1)
+        show.episode(1, 2)
+        val item = provider.item(show.id.toString())
+        assertEquals("S1E1", provider.nextUp(item)?.title)
+
+        dao.setSeasonPlayed(checkNotNull(dao.item(pilot)?.parentId), played = true, now = 1)
+        assertEquals("S0E1", provider.nextUp(item)?.title)
+    }
+
+    /** Shows carry no technical badges of their own: 4K, HDR and Dolby Vision are their episodes'. */
+    @Test
+    fun aShowIsFilteredByTheQualityOfItsEpisodes() = runTest {
+        show("MobLand").episode(1, 1, badges = listOf("1080p", "HEVC"))
+        show("Severance").run {
+            episode(1, 1, badges = listOf("1080p", "HEVC"))
+            episode(2, 1, badges = listOf("4K", "Dolby Vision", "HDR10", "Atmos"))
+        }
+        show("Dark").episode(1, 1, badges = listOf("4K", "HDR10"))
+        val shows = Library(LocalProvider.SHOWS, LibraryKind.SHOWS, null)
+        suspend fun titles(quality: Quality) =
+            provider.libraryPage(shows, SortOption.TITLE, LibraryFilter(quality = quality), 0, 50).items.map { it.title }
+
+        assertEquals(listOf("Dark", "Severance"), titles(Quality.UHD_4K))
+        assertEquals(listOf("Dark", "Severance"), titles(Quality.HDR))
+        assertEquals(listOf("Severance"), titles(Quality.DOLBY_VISION))
+        assertEquals(1, provider.libraryPage(shows, SortOption.TITLE, LibraryFilter(quality = Quality.DOLBY_VISION), 0, 50).total)
+    }
+
     @Test
     fun aFilmWatchedPastNinetyPercentIsPlayed() = runTest {
         val id = movie("Heat", runtimeMin = 100)
@@ -191,6 +251,83 @@ class LocalProviderTest {
             assertTrue(it.played)
             assertEquals(0L, it.positionMs)
         }
+    }
+
+    private suspend fun godfather(positionMs: Long = 0): Long = dao.insert(
+        ItemEntity(
+            kind = ItemKind.MOVIE, sourceId = source, title = "Le Parrain", sortTitle = "parrain", year = 1972, runtimeMin = 175,
+            filePath = "Le Parrain/Le Parrain CD1.avi", parts = listOf("Le Parrain/Le Parrain CD2.avi"), addedAt = 0,
+            positionMs = positionMs, durationMs = 88 * 60_000L,
+        )
+    )
+
+    @Test
+    fun aFilmInPartsOffersEachPartToPlay() = runTest {
+        val id = godfather(positionMs = 40 * 60_000L)
+        val film = provider.item(id.toString())
+        assertEquals(listOf("${id}p1", "${id}p2"), film.parts.map { it.id })
+        assertEquals(listOf("Le Parrain CD1.avi", "Le Parrain CD2.avi"), film.parts.map { it.fileName })
+        // It lasts as long as TMDB says, not as its first file.
+        assertEquals(175 * 60_000L, film.runtimeMs)
+
+        val options = PlaybackOptions(emptyList(), false)
+        // Lire resumes the first part, where the resume point lies.
+        val resumed = provider.playback(film, resume = true, options) as PlaybackPlan.Launch
+        assertEquals("nfs://nas/media/films/Le Parrain/Le Parrain CD1.avi", resumed.uri)
+        assertEquals(40 * 60_000L, resumed.startMs)
+        assertEquals("Le Parrain · Part 1 of 2", resumed.title)
+
+        val second = provider.playback(film.parts[1], resume = true, options) as PlaybackPlan.Launch
+        assertEquals("nfs://nas/media/films/Le Parrain/Le Parrain CD2.avi", second.uri)
+        assertEquals("from its start", 0L, second.startMs)
+        assertEquals("Le Parrain · Part 2 of 2", second.title)
+        assertEquals(LocalId.Item(id, part = 2), LocalId.parse(second.resumeKey!!))
+    }
+
+    @Test
+    fun aFilmInPartsIsWatchedAtTheEndOfItsLastPart() = runTest {
+        val id = godfather()
+        val film = provider.item(id.toString())
+        val options = PlaybackOptions(emptyList(), false)
+        val first = provider.playback(film.parts[0], resume = false, options) as PlaybackPlan.Launch
+        first.reporter!!.stopped(positionMs = 87 * 60_000L, durationMs = 88 * 60_000L)
+        dao.item(id)!!.let {
+            assertFalse("the end of its first part is not its end", it.played)
+            assertEquals(87 * 60_000L, it.positionMs)
+        }
+
+        // A later part keeps the first's resume point; the app stopped meanwhile, its reporter comes back.
+        val second = provider.playback(film.parts[1], resume = false, options) as PlaybackPlan.Launch
+        second.reporter!!.progress(positionMs = 30 * 60_000L, durationMs = 87 * 60_000L, paused = false)
+        assertEquals(87 * 60_000L, dao.item(id)!!.positionMs)
+        provider.reporter(second.resumeKey!!)!!.stopped(positionMs = 86 * 60_000L, durationMs = 87 * 60_000L)
+        dao.item(id)!!.let {
+            assertTrue(it.played)
+            assertEquals(0L, it.positionMs)
+        }
+    }
+
+    /** Lire, then the player goes on by itself from the first file to the second: the film's next part, then its end. */
+    @Test
+    fun aFilmPlayedFromPartToPartIsWatchedAtTheEndOfTheLast() = runTest {
+        val id = godfather()
+        val film = provider.item(id.toString())
+        val first = (provider.playback(film, resume = true, PlaybackOptions(emptyList(), false)) as PlaybackPlan.Launch).reporter!!
+        first.progress(positionMs = 87 * 60_000L, durationMs = 88 * 60_000L, paused = false)
+
+        val next = checkNotNull(first.next())
+        assertEquals("Le Parrain/Le Parrain CD2.avi", next.path)
+        assertEquals(LocalId.Item(id, part = 2), LocalId.parse(next.resumeKey!!))
+        assertNull("the last part has none after it", next.reporter.next())
+        next.reporter.progress(positionMs = 40 * 60_000L, durationMs = 87 * 60_000L, paused = false)
+        assertFalse(dao.item(id)!!.played)
+        next.reporter.stopped(positionMs = 86 * 60_000L, durationMs = 87 * 60_000L)
+        dao.item(id)!!.let {
+            assertTrue(it.played)
+            assertEquals(0L, it.positionMs)
+        }
+        // A film of one file has no next part.
+        assertNull(LocalReporter(dao, movie("Heat")).next())
     }
 
     /**
@@ -281,7 +418,9 @@ class LocalProviderTest {
         assertTrue(dao.item(id)!!.favorite)
         assertEquals(LocalId.Collection(12), LocalId.parse("c12"))
         assertEquals(LocalId.Item(12), LocalId.parse("12"))
+        assertEquals(LocalId.Item(12, part = 2), LocalId.parse(LocalId.ofPart(12, 2)))
         assertNull(LocalId.parse("tt0113277"))
+        assertNull(LocalId.parse("12p0"))
     }
 
     internal object NoEditor : MetadataEditor {

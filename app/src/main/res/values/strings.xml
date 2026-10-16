@@ -25,6 +25,7 @@
     <string name="section_favorites">Favorites</string>
     <string name="season_number">Season %d</string>
     <string name="episode_number">Episode %d</string>
+    <string name="episode_numbers">Episodes %1$d-%2$d</string>
     <plurals name="season_count">
         <item quantity="one">%d season</item>
         <item quantity="other">%d seasons</item>
@@ -87,6 +88,10 @@
     <string name="time_left">%s left</string>
     <string name="nav_home">Home</string>
     <string name="from_start">From the beginning</string>
+    <!-- A film in several files: the part a button plays, then how many there are. -->
+    <string name="part_of">Part %1$d of %2$d</string>
+    <!-- A film in three files or more: the button that opens the menu of its parts. -->
+    <string name="parts">Parts</string>
     <string name="watched">Watched</string>
     <string name="mark_watched">Mark as watched</string>
     <string name="mark_unwatched">Mark as unwatched</string>

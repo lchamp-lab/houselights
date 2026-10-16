@@ -6,6 +6,7 @@ import androidx.test.core.app.ApplicationProvider
 import app.houselights.core.Secrets
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -158,6 +159,119 @@ class MigrationTest {
             assertEquals("Dune.mkv" to 42L, dune.filePath to dune.fileSize)
             assertEquals(600_000L, dune.positionMs)
             assertTrue(dune.favorite)
+        } finally {
+            db.close()
+            context.deleteDatabase(name)
+        }
+    }
+
+    @Test
+    fun version10KeepsEveryRowAsItWas() = runTest {
+        val name = "migration-10-test.db"
+        context.deleteDatabase(name)
+        SchemaHistory.create(context, name, version = 9) {
+            execSQL(
+                "INSERT INTO sources (id, name, kind, protocol, host, share, path, username, password, domain, lastScanAt, firstScanAt) " +
+                    "VALUES (1, 'Séries', 'SHOWS', 'NFS', 'nas', 'media', 'series', '', '', '', 1000, 1000)"
+            )
+            execSQL(
+                "INSERT INTO items (id, kind, sourceId, title, sortTitle, continuing, genres, directors, seasonNumber, episodeNumber, " +
+                    "filePath, fileSize, badges, nfoPath, addedAt, positionMs, played, favorite) " +
+                    "VALUES (1, 'EPISODE', 1, 'Pilot', 'pilot', 0, '', '', 1, 1, 'Show/S01E01.mkv', 42, '', 'Show/S01E01.nfo', 0, 0, 1, 0)"
+            )
+        }
+        val db = Room.databaseBuilder(context, LibraryDatabase::class.java, name)
+            .addTypeConverter(SecretConverter(secrets))
+            .addMigrations(*LibraryDatabase.migrations(secrets))
+            .build()
+        try {
+            val pilot = checkNotNull(db.dao().item(1))
+            assertEquals(null, pilot.lastEpisodeNumber)
+            assertEquals(emptyList<String>(), pilot.parts)
+            assertEquals(null, pilot.sidecarKey)
+            assertEquals("Show/S01E01.nfo", pilot.nfoPath)
+            assertTrue(pilot.played)
+        } finally {
+            db.close()
+            context.deleteDatabase(name)
+        }
+    }
+
+    /**
+     * Keys stored by version 9 kept their accents, and sorted after Z, and an l' glued to its word: they
+     * are folded, the l' taken off, and nothing more. "la land" (La La Land) keeps its "la".
+     */
+    @Test
+    fun version10FoldsSortKeysAndTakesOffAGluedLAndNothingMore() = runTest {
+        val name = "migration-10-sort-test.db"
+        context.deleteDatabase(name)
+        val keys = listOf("ça", "à couteaux tirés", "été 85", "œdipe roi", "la land", "l'arnaque", "l’exorciste", "zodiac")
+        SchemaHistory.create(context, name, version = 9) {
+            execSQL(
+                "INSERT INTO sources (id, name, kind, protocol, host, share, path, username, password, domain, lastScanAt, firstScanAt) " +
+                    "VALUES (1, 'Films', 'MOVIES', 'NFS', 'nas', 'media', 'films', '', '', '', 1000, 1000)"
+            )
+            keys.forEachIndexed { i, key ->
+                execSQL(
+                    "INSERT INTO items (id, kind, sourceId, title, sortTitle, continuing, genres, directors, filePath, fileSize, " +
+                        "badges, addedAt, positionMs, played, favorite) " +
+                        "VALUES (${i + 1}, 'MOVIE', 1, ?, ?, 0, '', '', ?, 42, '', 0, 0, 0, 0)",
+                    arrayOf<Any>(key, key, "$key.mkv"),
+                )
+            }
+            execSQL("INSERT INTO collections (id, matchKey, name, sortTitle) VALUES (1, 'name:etrange', 'Étrange saga', 'étrange saga')")
+            execSQL("INSERT INTO collections (id, matchKey, name, sortTitle) VALUES (2, 'tmdb:1', 'L''Âge de glace', 'l''âge de glace')")
+        }
+        val db = Room.databaseBuilder(context, LibraryDatabase::class.java, name)
+            .addTypeConverter(SecretConverter(secrets))
+            .addMigrations(*LibraryDatabase.migrations(secrets))
+            .build()
+        try {
+            assertEquals(
+                listOf("ca", "a couteaux tires", "ete 85", "oedipe roi", "la land", "arnaque", "exorciste", "zodiac"),
+                keys.indices.map { checkNotNull(db.dao().item(it + 1L)).sortTitle },
+            )
+            assertEquals("ça", db.dao().item(1)?.title)
+            assertEquals("etrange saga", db.dao().collection(1)?.sortTitle)
+            assertEquals("age de glace", db.dao().collection(2)?.sortTitle)
+        } finally {
+            db.close()
+            context.deleteDatabase(name)
+        }
+    }
+
+    /**
+     * Two sagas named in Japanese made one, keyed "name:": their films leave it and are matched again, to
+     * find their own, from their NFO or TMDB. Other sagas stay as they were.
+     */
+    @Test
+    fun version10MatchesAgainTheFilmsOfSagasWhoseNamesLeftNoWord() = runTest {
+        val name = "migration-10-sagas-test.db"
+        context.deleteDatabase(name)
+        SchemaHistory.create(context, name, version = 9) {
+            execSQL(
+                "INSERT INTO sources (id, name, kind, protocol, host, share, path, username, password, domain, lastScanAt, firstScanAt) " +
+                    "VALUES (1, 'Films', 'MOVIES', 'NFS', 'nas', 'media', 'films', '', '', '', 1000, 1000)"
+            )
+            execSQL("INSERT INTO collections (id, matchKey, name, sortTitle) VALUES (1, 'name:', '攻殻機動隊', '攻殻機動隊')")
+            execSQL("INSERT INTO collections (id, matchKey, name, sortTitle) VALUES (2, 'tmdb:531241', 'Top Gun', 'top gun')")
+            for ((id, collection) in listOf(1 to 1, 2 to 1, 3 to 2)) {
+                execSQL(
+                    "INSERT INTO items (id, kind, sourceId, title, sortTitle, continuing, genres, directors, filePath, fileSize, " +
+                        "badges, collectionId, addedAt, matchedAt, positionMs, played, favorite) " +
+                        "VALUES ($id, 'MOVIE', 1, 'Film $id', 'film $id', 0, '', '', 'Film $id.mkv', 42, '', $collection, 0, 500, 0, 0, 0)"
+                )
+            }
+        }
+        val db = Room.databaseBuilder(context, LibraryDatabase::class.java, name)
+            .addTypeConverter(SecretConverter(secrets))
+            .addMigrations(*LibraryDatabase.migrations(secrets))
+            .build()
+        try {
+            assertEquals(listOf(null, null, 500L), (1L..3L).map { checkNotNull(db.dao().item(it)).matchedAt })
+            assertEquals(listOf(null, null, 2L), (1L..3L).map { checkNotNull(db.dao().item(it)).collectionId })
+            assertNull(db.dao().collection(1))
+            assertEquals("tmdb:531241", db.dao().collection(2)?.matchKey)
         } finally {
             db.close()
             context.deleteDatabase(name)

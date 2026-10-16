@@ -14,7 +14,7 @@ import app.houselights.core.suspendRunCatching
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-@Database(entities = [SourceEntity::class, ItemEntity::class, CastEntity::class, CollectionEntity::class], version = 9)
+@Database(entities = [SourceEntity::class, ItemEntity::class, CastEntity::class, CollectionEntity::class], version = 10)
 @TypeConverters(SecretConverter::class, PipeList::class)
 abstract class LibraryDatabase : RoomDatabase() {
     abstract fun dao(): LibraryDao
@@ -82,6 +82,46 @@ abstract class LibraryDatabase : RoomDatabase() {
         }
 
         /**
+         * Files holding several episodes, films in several parts, and what was read beside each file.
+         * Sort keys lose their accents and ligatures; films of a saga whose name gave no key leave it, for their own.
+         */
+        private val MIGRATION_9_10 = object : Migration(9, 10) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE items ADD COLUMN lastEpisodeNumber INTEGER")
+                db.execSQL("ALTER TABLE items ADD COLUMN parts TEXT NOT NULL DEFAULT ''")
+                db.execSQL("ALTER TABLE items ADD COLUMN sidecarKey TEXT")
+                foldSortKeys(db, "items")
+                foldSortKeys(db, "collections")
+                // Sagas whose names left no word ("Collection", a name in Japanese) were all one: their films
+                // leave it, and find their own at the next scan (see CollectionRules.key), from their NFO's set
+                // (their sidecars are read again, sidecarKey being new) or from TMDB, which is asked again.
+                val merged = "SELECT id FROM collections WHERE matchKey = 'name:'"
+                db.execSQL("UPDATE items SET matchedAt = NULL WHERE kind = 'MOVIE' AND collectionId IN ($merged)")
+                db.execSQL("UPDATE items SET collectionId = NULL WHERE collectionId IN ($merged)")
+                db.execSQL("DELETE FROM collections WHERE matchKey = 'name:'")
+            }
+        }
+
+        /**
+         * Folds the accents and ligatures of the sort keys of [table] ([MetadataMerge.fold]), and takes off
+         * an l' glued to its word ("l'arnaque"), which version 9 left. Nothing more: taking the articles off
+         * again would not leave a key as it was ("la land", from "La La Land", would become "land"). A title
+         * with no file beside it is merged again only by a refresh: its key is made right here.
+         */
+        private fun foldSortKeys(db: SupportSQLiteDatabase, table: String) {
+            val folded = db.query("SELECT id, sortTitle FROM $table").use { rows ->
+                buildList {
+                    while (rows.moveToNext()) {
+                        val key = rows.getString(1)
+                        val fold = MetadataMerge.fold(key).replaceFirst(GLUED_L, "")
+                        if (fold != key) add(rows.getLong(0) to fold)
+                    }
+                }
+            }
+            for ((id, key) in folded) db.execSQL("UPDATE $table SET sortTitle = ? WHERE id = ?", arrayOf<Any>(key, id))
+        }
+
+        /**
          * Seals the passwords stored in plain text so far, and indexes what lists sort and filter on.
          * A Keystore that cannot seal leaves a password as it is: read as plain text, it still signs
          * in, and it is sealed at a later launch ([sealPlainPasswords]); the library still opens.
@@ -111,7 +151,7 @@ abstract class LibraryDatabase : RoomDatabase() {
 
         internal fun migrations(secrets: Secrets) = arrayOf(
             MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, migration6To7(secrets), MIGRATION_7_8,
-            MIGRATION_8_9,
+            MIGRATION_8_9, MIGRATION_9_10,
         )
 
         fun create(context: Context, secrets: Secrets): LibraryDatabase =
@@ -139,5 +179,8 @@ abstract class LibraryDatabase : RoomDatabase() {
         }
 
         private const val TAG = "Library"
+
+        /** l' or l’ glued to a word, at the start of a key: version 9 took it off only before a space. */
+        private val GLUED_L = Regex("""^l['’](?=\S)""")
     }
 }

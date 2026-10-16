@@ -136,6 +136,24 @@ interface LibraryDao {
     @Query("SELECT * FROM items WHERE kind = 'SERIES' AND matchKey = :key LIMIT 1")
     suspend fun seriesByKey(key: String): ItemEntity?
 
+    /** Shows of that name keyed with a year ([FilenameParser.showKey]); [nameKey] holds no LIKE wildcard. */
+    @Query("SELECT * FROM items WHERE kind = 'SERIES' AND matchKey LIKE :nameKey || '${FilenameParser.YEAR_MARK}%'")
+    suspend fun seriesNamed(nameKey: String): List<ItemEntity>
+
+    /**
+     * Episodes of a source under the folder [dir], as long as it is not the root (""): paths from "dir/" up to
+     * "dir0", "0" coming right after "/", which the index on the source and path reads as a range.
+     */
+    @Query(
+        "SELECT $ITEM_ROW FROM items WHERE kind = 'EPISODE' AND sourceId = :sourceId " +
+            "AND filePath > :dir || '/' AND filePath < :dir || '0'"
+    )
+    suspend fun episodesUnder(sourceId: Long, dir: String): List<ItemEntity>
+
+    /** Whether the show [seriesId] holds an episode besides [episodeId]. */
+    @Query("SELECT EXISTS(SELECT 1 FROM items WHERE kind = 'EPISODE' AND seriesId = :seriesId AND id != :episodeId)")
+    suspend fun hasOtherEpisodes(seriesId: Long, episodeId: Long): Boolean
+
     @Query("SELECT * FROM items WHERE kind = 'SEASON' AND parentId = :seriesId AND seasonNumber = :season LIMIT 1")
     suspend fun season(seriesId: Long, season: Int): ItemEntity?
 
@@ -248,6 +266,17 @@ interface LibraryDao {
     )
     suspend fun relink(id: Long, filePath: String, fileSize: Long)
 
+    /**
+     * A film's parts after the first ([ItemEntity.parts], as [PipeList] writes them), as its folder lists
+     * them now. A film of one file that becomes one of several is asked for again: it was known by its
+     * first part's name ("Film CD1"), not the film's.
+     */
+    @Query(
+        "UPDATE items SET parts = :parts, " +
+            "matchedAt = CASE WHEN parts = '' AND :parts != '' THEN NULL ELSE matchedAt END WHERE id = :id"
+    )
+    suspend fun setParts(id: Long, parts: String)
+
     @Query("UPDATE items SET missingSince = :since WHERE id IN (:ids)")
     suspend fun setMissingSinceBatch(ids: List<Long>, since: Long?)
 
@@ -264,14 +293,17 @@ interface LibraryDao {
      * transaction: a rename of a whole library is a few thousand rows.
      */
     @Transaction
+    @Suppress("LongParameterList") // One per outcome of [MissingFiles.Outcome].
     suspend fun settleMissing(
         relinked: List<Pair<Long, RemoteFile>>,
         back: List<Long>,
         held: List<Long>,
         removed: List<Long>,
+        parts: List<Pair<Long, List<String>>>,
         now: Long,
     ) {
         relinked.forEach { (id, file) -> relink(id, file.relativePath, file.size) }
+        parts.forEach { (id, files) -> setParts(id, PipeList.toText(files)) }
         setMissingSince(back, null)
         setMissingSince(held, now)
         deleteItems(removed)
@@ -337,6 +369,25 @@ interface LibraryDao {
                 played = current.played,
                 favorite = current.favorite,
                 lastPlayedAt = current.lastPlayedAt,
+            )
+        )
+    }
+
+    /**
+     * What the user did with the title [fromId] goes to [toId] where it has none of it: its favourite, the user's
+     * match and artwork. For a show about to go, whose episodes another took over ([ShowIndexer]).
+     */
+    @Transaction
+    suspend fun handOver(fromId: Long, toId: Long) {
+        val from = item(fromId) ?: return
+        val to = item(toId) ?: return
+        update(
+            to.copy(
+                favorite = to.favorite || from.favorite,
+                userTmdbId = to.userTmdbId ?: from.userTmdbId,
+                userPosterPath = to.userPosterPath ?: from.userPosterPath,
+                userBackdropPath = to.userBackdropPath ?: from.userBackdropPath,
+                userLogoPath = to.userLogoPath ?: from.userLogoPath,
             )
         )
     }

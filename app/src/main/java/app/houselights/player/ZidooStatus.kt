@@ -4,6 +4,8 @@ import app.houselights.core.Http
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -17,6 +19,8 @@ data class ZidooPlayState(
     val paused: Boolean,
     val positionMs: Long,
     val durationMs: Long,
+    /** The file it plays, as the player names it (a URI or a path of its own mounts); null when it says none. */
+    val path: String? = null,
 )
 
 /** What the player's local API answers to "what plays now?". */
@@ -64,6 +68,8 @@ object ZidooStatus {
                 paused = status == 0,
                 positionMs = video["currentPosition"]?.jsonPrimitive?.longOrNull ?: 0L,
                 durationMs = duration,
+                // Not formally documented either: a path of another shape is no path, and the status still stands.
+                path = (video["path"] as? JsonPrimitive)?.contentOrNull?.ifBlank { null },
             )
         )
     }.getOrDefault(PlayerAnswer.NoAnswer)

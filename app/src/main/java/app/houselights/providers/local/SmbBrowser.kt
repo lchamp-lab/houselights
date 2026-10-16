@@ -82,6 +82,8 @@ internal class SmbBrowser(
                 override fun folder() = if (entry.isFolder) folder(share, if (path.isEmpty()) name else "$path\\$name") else null
 
                 override fun size() = entry.size
+
+                override fun lastModified() = entry.lastModified
             }
         }
     }
@@ -127,8 +129,8 @@ internal class SmbBrowser(
     }
 }
 
-/** An entry of a share's folder. */
-internal class SmbEntry(val name: String, val isFolder: Boolean, val size: Long)
+/** An entry of a share's folder; [lastModified]: its last write time, in ms since the epoch. */
+internal class SmbEntry(val name: String, val isFolder: Boolean, val size: Long, val lastModified: Long? = null)
 
 /** A share signed in to, as [SmbBrowser] uses it: [SmbjShare] on a NAS, a fake in tests. */
 internal interface SmbShare {
@@ -156,8 +158,14 @@ private class SmbjShare(
     private val session: Session,
     private val share: DiskShare,
 ) : SmbShare {
+    /** What FileIdBothDirectoryInformation tells of each entry, its last write time included: nothing more to ask. */
     override fun list(path: String): List<SmbEntry> = share.list(path).map {
-        SmbEntry(it.fileName, it.fileAttributes and FileAttributes.FILE_ATTRIBUTE_DIRECTORY.value != 0L, it.endOfFile)
+        SmbEntry(
+            it.fileName,
+            it.fileAttributes and FileAttributes.FILE_ATTRIBUTE_DIRECTORY.value != 0L,
+            it.endOfFile,
+            it.lastWriteTime?.toEpochMillis(),
+        )
     }
 
     override fun read(path: String, offset: Long, length: Int): ByteArray = share.openFile(

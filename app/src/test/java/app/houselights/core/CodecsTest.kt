@@ -26,6 +26,25 @@ class CodecsTest {
         assertEquals("Opus", Codecs.audio("opus"))
     }
 
+    /** What Kodi writes in an NFO's <streamdetails>: ffmpeg's names, a video's FOURCC, the layers of DTS. */
+    @Test
+    fun kodiNames() {
+        val videos = mapOf(
+            "h264" to "AVC", "avc1" to "AVC", "hevc" to "HEVC", "hvc1" to "HEVC", "mpeg2video" to "MPEG-2",
+            "vc1" to "VC-1", "wvc1" to "VC-1", "wmv3" to "VC-1", "av1" to "AV1",
+            "xvid" to "MPEG-4", "divx" to "MPEG-4", "dx50" to "MPEG-4", "mpeg4" to "MPEG-4",
+        )
+        videos.forEach { (kodi, shown) -> assertEquals(kodi, shown, Codecs.video(kodi)) }
+        val sounds = mapOf(
+            "dca" to "DTS", "dtshd_ma" to "DTS-HD MA", "dtshd_hra" to "DTS-HD HRA", "truehd" to "TrueHD",
+            "eac3" to "E-AC3", "ac3" to "AC3", "aac" to "AAC", "flac" to "FLAC", "mp3" to "MP3", "vorbis" to "Vorbis",
+            "pcm_s16le" to "PCM",
+        )
+        sounds.forEach { (kodi, shown) -> assertEquals(kodi, shown, Codecs.audio(kodi)) }
+        // High Resolution says DTS-HD too: it is not Master Audio.
+        assertEquals("DTS-HD HRA", Codecs.audio("DTS-HD HRA"))
+    }
+
     @Test
     fun subtitles() {
         assertEquals("SRT", Codecs.subtitle("subrip"))

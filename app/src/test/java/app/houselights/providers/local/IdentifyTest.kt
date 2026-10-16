@@ -100,4 +100,77 @@ class IdentifyTest {
         assertEquals("Dune: Part Two", matched.title)
         assertNotNull(bench.dao.collection(checkNotNull(matched.collectionId))?.fetchedAt)
     }
+
+    /**
+     * The Office (UK) as Sonarr describes it beside the files: its TVDB and IMDb ids, no TMDB id;
+     * the American show TMDB has under the same name; the folder holding a show of that name.
+     */
+    private suspend fun theOffice(): ItemEntity {
+        bench.folder("Séries", SourceKind.SHOWS)
+        tmdb.shows[OFFICE_UK] = tmdb.show(OFFICE_UK, "The Office (UK)", 2001).copy(externalIds = TmdbExternalIds("tt0290978", 78107))
+        tmdb.shows[OFFICE_US] = tmdb.show(OFFICE_US, "The Office", 2005).copy(externalIds = TmdbExternalIds("tt0386676", 73244))
+        val nfo = """
+            <?xml version="1.0" encoding="utf-8" standalone="yes"?>
+            <tvshow>
+              <title>The Office (UK)</title>
+              <plot>Slough, a paper merchant's office and its manager.</plot>
+              <id>78107</id>
+              <uniqueid type="tvdb" default="true">78107</uniqueid>
+              <uniqueid type="imdb">tt0290978</uniqueid>
+              <genre>Comedy</genre>
+              <actor><name>Ricky Gervais</name><role>David Brent</role></actor>
+            </tvshow>
+        """.trimIndent().toByteArray()
+        bench.showsNas.put("The Office/tvshow.nfo", size = nfo.size.toLong(), bytes = nfo)
+        bench.showsNas.put("The Office/S01/The.Office.S01E01.MULTi.1080p.WEB.H264-GRP.mkv")
+        bench.scan()
+        return checkNotNull(bench.dao.seriesByKey(FilenameParser.showKey("The Office")))
+    }
+
+    /** Identified by hand as another show, a show leaves an NFO naming the first one aside, by its IMDb id. */
+    @Test
+    fun aShowIdentifiedAsAnotherLeavesItsNfoAside() = runTest {
+        val series = theOffice()
+        assertEquals("The Office (UK)", series.title)
+
+        bench.scanner.identify(series.id, OFFICE_US)
+        val matched = checkNotNull(bench.dao.item(series.id))
+        assertEquals("The Office", matched.title)
+        assertEquals("About The Office", matched.overview)
+        assertEquals("the NFO's cast goes too", emptyList<String>(), bench.dao.cast(series.id).map { it.name })
+
+        // And so at each refresh after.
+        bench.scan(refreshMetadata = true)
+        assertEquals("The Office", bench.dao.item(series.id)?.title)
+    }
+
+    @Test
+    fun aShowIdentifiedAsTheOneItsNfoNamesKeepsIt() = runTest {
+        val series = theOffice()
+        bench.scanner.identify(series.id, OFFICE_UK)
+        val matched = checkNotNull(bench.dao.item(series.id))
+        assertEquals(OFFICE_UK, matched.tmdbId)
+        assertEquals("Slough, a paper merchant's office and its manager.", matched.overview)
+        assertEquals(listOf("Ricky Gervais"), bench.dao.cast(series.id).map { it.name })
+    }
+
+    /** Without TMDB's answer, nothing tells whose show the NFO's ids name: the show keeps what it had meanwhile. */
+    @Test
+    fun aShowIdentifiedAsAnotherKeepsItWhileTmdbDoesNotAnswer() = runTest {
+        val series = theOffice()
+        bench.scanner.identify(series.id, OFFICE_US)
+
+        tmdb.failingPath = "tv/$OFFICE_US"
+        bench.scan(refreshMetadata = true)
+        val waiting = checkNotNull(bench.dao.item(series.id))
+        assertEquals("The Office", waiting.title)
+        assertEquals("About The Office", waiting.overview)
+        assertEquals(emptyList<String>(), bench.dao.cast(series.id).map { it.name })
+        assertNull("asked again at a later pass", waiting.matchedAt)
+    }
+
+    private companion object {
+        const val OFFICE_UK = 2996
+        const val OFFICE_US = 2316
+    }
 }

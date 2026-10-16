@@ -128,7 +128,12 @@ data class TmdbTv(
     val credits: TmdbCredits = TmdbCredits(),
     val images: TmdbImages = TmdbImages(),
     val contentRatings: TmdbContentRatings = TmdbContentRatings(),
+    val externalIds: TmdbExternalIds = TmdbExternalIds(),
 )
+
+/** A show's ids at IMDb and TheTVDB, which an NFO may name it by alone (Sonarr's often). */
+@Serializable
+data class TmdbExternalIds(val imdbId: String? = null, val tvdbId: Int? = null)
 
 @Serializable
 data class TmdbEpisode(

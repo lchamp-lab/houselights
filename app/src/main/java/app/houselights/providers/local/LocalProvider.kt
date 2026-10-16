@@ -3,6 +3,7 @@ package app.houselights.providers.local
 import android.content.Context
 import android.net.Uri
 import androidx.sqlite.db.SimpleSQLiteQuery
+import app.houselights.R
 import app.houselights.core.NfoParser
 import app.houselights.core.NotFoundException
 import app.houselights.core.Definition
@@ -98,11 +99,12 @@ class LocalProvider(
             args += it
             args += it + 9
         }
-        when (filter.quality) {
-            null -> {}
-            Quality.UHD_4K -> where.append(" AND ('|' || badges || '|') LIKE '%|${Definition.ULTRA_HD.token}|%'")
-            Quality.HDR -> where.append(" AND (badges LIKE '%HDR%' OR badges LIKE '%Dolby Vision%')")
-            Quality.DOLBY_VISION -> where.append(" AND badges LIKE '%Dolby Vision%'")
+        filter.quality?.let { quality ->
+            // Shows carry no technical badges themselves: one of their episodes must, as for the menu (libraryFacets).
+            where.append(
+                if (kind == ItemKind.SERIES) " AND EXISTS ($episodes AND ${qualityCondition(quality, "e.badges")})"
+                else " AND ${qualityCondition(quality, "badges")}"
+            )
         }
         val order = when (sort) {
             // Sort keys are lower case already: a plain order can follow the (kind, sortTitle) index.
@@ -117,6 +119,13 @@ class LocalProvider(
         val total = dao.countQuery(SimpleSQLiteQuery("SELECT COUNT(*) FROM items WHERE $where", args.toTypedArray()))
         val mapper = LocalMapper(dao, context)
         return Page(mapper.mapAll(items), total)
+    }
+
+    /** [column], a row's badges ("badges" for a film, "e.badges" for an episode of a show), holds [quality]. */
+    private fun qualityCondition(quality: Quality, column: String): String = when (quality) {
+        Quality.UHD_4K -> "('|' || $column || '|') LIKE '%|${Definition.ULTRA_HD.token}|%'"
+        Quality.HDR -> "($column LIKE '%HDR%' OR $column LIKE '%Dolby Vision%')"
+        Quality.DOLBY_VISION -> "$column LIKE '%Dolby Vision%'"
     }
 
     /** Collections holding enough films, sorted like films: by name, latest addition, latest film, rating. */
@@ -267,31 +276,53 @@ class LocalProvider(
         itemKey(item)?.let { dao.setFavorite(it, favorite) }
     }
 
+    /**
+     * A film in several files plays one part at a time: the part [item] names ([MediaItem.parts]), from
+     * its start; the film itself plays its first part, where its resume point lies.
+     */
     override suspend fun playback(item: MediaItem, resume: Boolean, options: PlaybackOptions): PlaybackPlan {
         val entity = entity(item) ?: throw NotFoundException("Item ${item.id}")
-        val file = entity.filePath ?: error("${item.title} has no file")
+        val part = (LocalId.parse(item.id) as? LocalId.Item)?.part
+        val files = listOfNotNull(entity.filePath) + entity.parts
+        // A part gone since the page was shown is a title gone.
+        val file = files.getOrNull((part ?: 1) - 1) ?: throw NotFoundException("No file for ${item.id}")
         val source = dao.sources().firstOrNull { it.id == entity.sourceId } ?: error("Source of ${item.title} was removed")
         val mapper = LocalMapper(dao, context)
         val container = FilenameParser.extension(file)
-        return mapper.forPlayer(entity, mapper.map(entity)).launch(
+        val mapped = mapper.map(entity)
+        // The player names the part it opens.
+        val shown = if (entity.parts.isEmpty()) mapped else mapped.copy(title = partTitle(mapped.title, part ?: 1, files.size))
+        return mapper.forPlayer(entity, shown).launch(
             fileUri(source, file), container,
-            startMs = if (resume) entity.positionMs else 0L,
-            reporter = LocalReporter(dao, entity.id),
-            resumeKey = entity.id.toString(),
-            // Scans list files: of a disc, only its image is one. A Blu-ray's or DVD's folder is read as the files it holds.
-            disc = container == DISC_IMAGE,
+            startMs = if (resume && part == null) entity.positionMs else 0L,
+            reporter = LocalReporter(dao, entity.id, part ?: 1),
+            resumeKey = if (part == null) entity.id.toString() else LocalId.ofPart(entity.id, part),
+            // A disc's image, or the stream a scan took for a Blu-ray's or a DVD's title (see ScanTitles).
+            disc = container == DISC_IMAGE || FilenameParser.discOf(file) != null,
         )
     }
 
-    override fun reporter(resumeKey: String): PlaybackReporter? = resumeKey.toLongOrNull()?.let { LocalReporter(dao, it) }
+    private fun partTitle(title: String, part: Int, parts: Int) = "$title · ${context.getString(R.string.part_of, part, parts)}"
+
+    override fun reporter(resumeKey: String): PlaybackReporter? =
+        (LocalId.parse(resumeKey) as? LocalId.Item)?.let { LocalReporter(dao, it.key, it.part ?: 1) }
 
     /** Next episode of each show recently watched, skipping ones already in progress. */
     private suspend fun nextUpAcrossShows(exclude: Set<Long>): List<ItemEntity> {
         return dao.recentlyPlayedSeries(NEXT_UP_SHOWS).mapNotNull { nextEpisode(dao.episodesOfSeries(it)) }.filter { it.id !in exclude }
     }
 
-    /** First in-progress episode, else the one after the last watched, else the first unwatched. */
+    /**
+     * The next episode among the seasons, specials (season 0, first in [episodes]) once none is left
+     * there: as [MediaProvider.nextUp] does, a show starts with S01E01, not with a special.
+     */
     private fun nextEpisode(episodes: List<ItemEntity>): ItemEntity? {
+        val (specials, seasons) = episodes.partition { (it.seasonNumber ?: 0) == 0 }
+        return nextOf(seasons) ?: nextOf(specials)
+    }
+
+    /** First in-progress episode, else the one after the last watched, else the first unwatched. */
+    private fun nextOf(episodes: List<ItemEntity>): ItemEntity? {
         episodes.firstOrNull { it.positionMs > 0 && !it.played }?.let { return it }
         val lastWatched = episodes.indexOfLast { it.played }
         return episodes.drop(lastWatched + 1).firstOrNull { !it.played } ?: episodes.firstOrNull { !it.played }
@@ -304,7 +335,7 @@ class LocalProvider(
 
         private const val NEXT_UP_SHOWS = 20
 
-        /** The extension of a disc's image, the one disc a folder of files holds. */
+        /** The extension of a disc's image. */
         private const val DISC_IMAGE = "iso"
         private const val SIMILAR = 16
 

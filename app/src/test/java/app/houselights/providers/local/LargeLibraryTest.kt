@@ -17,6 +17,8 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicInteger
 import javax.crypto.KeyGenerator
 
@@ -30,12 +32,20 @@ class LargeLibraryTest {
     private lateinit var provider: LocalProvider
     private val queries = AtomicInteger()
 
+    /**
+     * Room's query executor, one thread. After each write, Room's invalidation tracker checks there what
+     * it changed, a moment later (four statements): [measure] waits for it, so they are not the screen's.
+     */
+    private lateinit var roomWork: ExecutorService
+
     @Before
     fun fill() = runBlocking {
         val key = KeyGenerator.getInstance("AES").apply { init(256) }.generateKey()
+        roomWork = Executors.newSingleThreadExecutor()
         db = Room.inMemoryDatabaseBuilder(ApplicationProvider.getApplicationContext(), LibraryDatabase::class.java)
             .addTypeConverter(SecretConverter(Secrets { key }))
             .setQueryCallback({ _, _ -> queries.incrementAndGet() }, Runnable::run)
+            .setQueryExecutor(roomWork)
             .allowMainThreadQueries()
             .build()
         val dao = db.dao()
@@ -70,7 +80,10 @@ class LargeLibraryTest {
     }
 
     @After
-    fun close() = db.close()
+    fun close() {
+        db.close()
+        roomWork.shutdown()
+    }
 
     private fun source(name: String, kind: SourceKind) = SourceEntity(
         name = name, kind = kind, protocol = Protocol.NFS, host = "nas", share = "media", path = name, username = "",
@@ -89,6 +102,8 @@ class LargeLibraryTest {
     )
 
     private inline fun <T> measure(label: String, block: () -> T): Pair<T, Int> {
+        // Room's tracker, still checking the last write, would be counted as the screen's.
+        roomWork.submit {}.get()
         queries.set(0)
         val start = System.nanoTime()
         val result = block()

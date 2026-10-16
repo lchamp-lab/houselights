@@ -29,6 +29,18 @@ interface PlaybackReporter {
     /** [durationMs] is the real file duration reported by the player, when known. */
     suspend fun progress(positionMs: Long, durationMs: Long?, paused: Boolean)
     suspend fun stopped(positionMs: Long, durationMs: Long?)
+
+    /**
+     * The file that goes on with the same title, a film's next part: the player plays the next file of
+     * its folder by itself, and the session follows it there. Null when what follows is another title.
+     */
+    suspend fun next(): Next? = null
+
+    /**
+     * The next file of a title: its [path], whose name tells it among what the player says it plays; what
+     * reports it; the key that names that reporter again ([PlaybackPlan.Launch.resumeKey]).
+     */
+    class Next(val path: String, val reporter: PlaybackReporter, val resumeKey: String?)
 }
 
 sealed interface PlaybackPlan {
@@ -109,13 +121,10 @@ interface MediaProvider {
 
     /**
      * What "Play" starts: for a series, the first in-progress or unwatched episode; for a
-     * collection, the first film in progress, else the first unwatched one in release order.
+     * collection, the film [nextUpIn] picks among its films.
      */
     suspend fun nextUp(series: MediaItem): MediaItem? {
-        if (series.kind == MediaKind.COLLECTION) {
-            val films = collectionItems(series)
-            return films.firstOrNull { it.user.positionMs > 0 && !it.user.played } ?: films.firstOrNull { !it.user.played } ?: films.firstOrNull()
-        }
+        if (series.kind == MediaKind.COLLECTION) return nextUpIn(collectionItems(series))
         for (season in seasons(series).filter { (it.seasonNumber ?: 0) > 0 }) {
             episodes(series, season).firstOrNull { !it.user.played }?.let { return it }
         }
@@ -137,3 +146,11 @@ interface MediaProvider {
     /** Artwork and identification editing, when this backend supports it. */
     val editor: MetadataEditor? get() = null
 }
+
+/**
+ * The film "Play" starts among a collection's [films], in release order: the first in progress,
+ * else the first unwatched, else the first. Apart from the source, so a page that already has the
+ * films does not ask for them again.
+ */
+fun nextUpIn(films: List<MediaItem>): MediaItem? =
+    films.firstOrNull { it.user.positionMs > 0 && !it.user.played } ?: films.firstOrNull { !it.user.played } ?: films.firstOrNull()

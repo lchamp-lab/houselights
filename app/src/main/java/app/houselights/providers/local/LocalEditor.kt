@@ -113,12 +113,13 @@ class LocalEditor(
         val (query, year, fileName) = when (e.kind) {
             ItemKind.MOVIE -> {
                 val path = e.filePath.orEmpty()
-                val parsed = LibraryScanner.parseMovie(path)
+                // A film in several files is searched for by its name without the part.
+                val parsed = e.filmName() ?: LibraryScanner.parseMovie(path)
                 Triple(parsed.title, parsed.year, path)
             }
             else -> {
                 val parsed = scanner.showQuery(e)
-                val folder = dao.episodesOfSeries(e.id).firstNotNullOfOrNull { it.filePath }?.substringBefore('/', "")
+                val folder = dao.episodesOfSeries(e.id).firstNotNullOfOrNull { it.filePath }?.let(FilenameParser::parseShowPath)?.dir
                 Triple(parsed.title, parsed.year, folder?.ifEmpty { null })
             }
         }
