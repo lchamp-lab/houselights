@@ -156,6 +156,28 @@ class ScanTmdbTest {
         assertNull(issue())
     }
 
+    /** A new file TMDB answers, within the hour: TMDB is back, said so, and the others are asked at the next pass. */
+    @Test
+    fun tmdbAnsweringANewFileEndsTheWait() = runTest {
+        val films = bench.folder("Films")
+        repeat(2) { described("Film $it (2020)", "Mon film $it") }
+        tmdb.movie(1, "Mon film 0", 2020)
+        tmdb.movie(2, "Nouveau", 2021)
+        tmdb.failure = IOException("Network is unreachable")
+        bench.scan()
+        assertEquals(UiError.TMDB_OFFLINE, issue())
+
+        tmdb.failure = null
+        ShadowSystemClock.advanceBy(Duration.ofMinutes(2))
+        described("Nouveau (2021)", "Nouveau")
+        bench.autoScan()
+        assertEquals(2, bench.item(films, "Nouveau (2021).mkv").tmdbId)
+        assertNull("TMDB answered", issue())
+
+        bench.autoScan()
+        assertEquals("no longer waits the hour", 1, bench.item(films, "Film 0 (2020).mkv").tmdbId)
+    }
+
     @Test
     fun aNewKeyIsAskedAtOnceAndWhatTmdbSaidOfTheOldOneIsForgotten() = runTest {
         val films = bench.folder("Films")

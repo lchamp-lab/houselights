@@ -278,7 +278,7 @@
     <string name="tmdb_key_free">Une clé gratuite est disponible sur themoviedb.org.</string>
     <string name="tmdb_key_unchecked">Enregistrée sans vérification : TMDB ne répond pas.</string>
     <string name="tmdb_scan_key_refused">TMDB a refusé cette clé pendant la dernière analyse : les titres attendent leurs détails.</string>
-    <string name="tmdb_scan_offline">TMDB n’a pas répondu pendant la dernière analyse : les titres recevront leurs détails à la suivante.</string>
+    <string name="tmdb_scan_offline">TMDB n’a pas répondu pendant la dernière analyse : les titres recevront leurs détails lors d’une prochaine analyse.</string>
     <string name="tmdb_key_revert">Revenir à la clé intégrée</string>
     <string name="tmdb_key_revert_desc">Houselights oublie votre clé et reprend la sienne</string>
     <string name="save">Enregistrer</string>

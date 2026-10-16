@@ -47,6 +47,11 @@ internal class TmdbPass(
     var issue: Throwable? = null
         private set
 
+    /** True once TMDB answered a question of the pass: it is back, whatever an earlier pass met. */
+    @Volatile
+    var answered = false
+        private set
+
     /** Failures in a row. */
     private var failures = 0
 
@@ -59,10 +64,11 @@ internal class TmdbPass(
 
     suspend fun <T : Any> ask(question: suspend (TmdbClient) -> T?): TmdbAnswer<T> {
         val tmdb = client?.takeIf { !stopped } ?: return TmdbAnswer.Unanswered
-        if (strict) return TmdbAnswer.Given(question(tmdb))
+        if (strict) return TmdbAnswer.Given(question(tmdb)).also { answered = true }
         return suspendRunCatching { question(tmdb) }.fold(
             onSuccess = {
                 failures = 0
+                answered = true
                 TmdbAnswer.Given(it)
             },
             onFailure = { e ->
