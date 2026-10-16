@@ -17,6 +17,9 @@ import okhttp3.ResponseBody.Companion.toResponseBody
 import retrofit2.Retrofit
 import retrofit2.converter.kotlinx.serialization.asConverterFactory
 import java.io.IOException
+import java.net.SocketException
+import java.net.SocketTimeoutException
+import java.net.UnknownHostException
 import java.util.Locale
 import java.util.concurrent.TimeUnit
 
@@ -35,6 +38,12 @@ class TmdbKeyRefusedException : IOException("TMDB refused the API key")
 /** TMDB is busy (429) or behind a failing gateway (502, 503, 504): asked again once, after [retryAfterMs]. */
 internal class TmdbBusyException(code: Int, val retryAfterMs: Long) : TmdbUnreachableException(null, "TMDB answered $code")
 
+/**
+ * Not asked: a scan's client pauses for a minute after the network failed ([TmdbClient]'s
+ * pauseWhenUnreachable). A failure of a moment ago, not a new one: a pass does not count it.
+ */
+internal class TmdbPausedException : TmdbUnreachableException(null, "TMDB is not asked for a minute after it could not be reached")
+
 /** TMDB has no such entry (404); [TmdbClient] says so with a [NotFoundException]. */
 internal class TmdbNotFoundException : IOException("TMDB has no such entry")
 
@@ -51,9 +60,9 @@ enum class TmdbKeyCheck {
 class TmdbClient(
     private val apiKey: String,
     /**
-     * Once TMDB could not be reached, calls fail at once for a while: for scans, whose next files would
-     * each wait for a timeout. Someone asking (a search, artwork, a key to check) is answered by TMDB
-     * itself every time.
+     * Once the network to TMDB failed, or TMDB stayed busy, calls fail at once for a minute
+     * ([TmdbPausedException]): for scans, whose next files would each wait for a timeout. Someone
+     * asking (a search, artwork, a key to check) is answered by TMDB itself every time.
      */
     private val pauseWhenUnreachable: Boolean = false,
     /** Answers in place of the network: TMDB as tests play it. */
@@ -112,16 +121,27 @@ class TmdbClient(
         throw failure
     }
 
-    /** TMDB's answer, its body read; TMDB out of reach throws, and pauses a scan's client. */
+    /**
+     * TMDB's answer, its body read; TMDB out of reach throws. The network failing pauses a scan's
+     * client: the next files would each wait for the same timeout. Any other failure (a stream
+     * reset, an answer too large) tells nothing of the next request.
+     */
     private fun answer(chain: Interceptor.Chain): Response {
-        if (pauseWhenUnreachable && SystemClock.elapsedRealtime() < unreachableUntil) throw TmdbUnreachableException(null)
+        if (pauseWhenUnreachable && SystemClock.elapsedRealtime() < unreachableUntil) throw TmdbPausedException()
         val url = chain.request().url.newBuilder().addQueryParameter("api_key", apiKey).build()
         return try {
             chain.proceed(chain.request().newBuilder().url(url).build()).buffered()
         } catch (e: IOException) {
             // A call given up on (a search replaced, a screen left) says nothing of TMDB.
-            throw if (chain.call().isCanceled()) e else TmdbUnreachableException(e).also { pause() }
+            val canceled = chain.call().isCanceled()
+            if (!canceled && isNetworkFailure(e)) pause()
+            throw if (canceled) e else TmdbUnreachableException(e)
         }
+    }
+
+    /** No route, no name, no connection, or no answer in time: ConnectException and NoRouteToHostException are SocketExceptions. */
+    private fun isNetworkFailure(e: Throwable) = generateSequence(e) { it.cause }.any {
+        it is UnknownHostException || it is SocketException || it is SocketTimeoutException
     }
 
     /** The response with its body read, [MAX_BODY_BYTES] at most. */

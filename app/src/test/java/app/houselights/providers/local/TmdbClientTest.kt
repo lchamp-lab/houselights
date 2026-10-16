@@ -18,8 +18,11 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.shadows.ShadowSystemClock
 import java.io.IOException
+import java.net.ConnectException
+import java.net.NoRouteToHostException
 import java.net.SocketException
 import java.net.SocketTimeoutException
+import java.net.UnknownHostException
 import java.time.Duration
 import java.util.concurrent.TimeUnit
 
@@ -66,17 +69,39 @@ class TmdbClientTest {
     @Test
     fun aScanPausesTmdbOnceOutOfReachThenAsksAgainAMinuteLater() = runTest {
         val client = tmdb.client(pauseWhenUnreachable = true)
-        tmdb.failure = IOException("Network is unreachable")
+        tmdb.failure = ConnectException("Network is unreachable")
         failure<TmdbUnreachableException> { client.findMovie("Dune", 2021) }
 
         tmdb.failure = null
         tmdb.requests.clear()
-        failure<TmdbUnreachableException> { client.findMovie("Dune", 2021) }
+        failure<TmdbPausedException> { client.findMovie("Dune", 2021) }
         assertEquals("the next files don't each wait for a timeout", emptyList<String>(), tmdb.requests)
 
         // On the clock that only moves forward: the wall clock may have been set back meanwhile.
         ShadowSystemClock.advanceBy(Duration.ofSeconds(61))
         assertEquals(438631, client.findMovie("Dune", 2021)?.id)
+    }
+
+    /** No route, no name, no connection, no answer in time: the next request would wait as long. */
+    @Test
+    fun everyNetworkFailurePausesAScan() = runTest {
+        listOf(UnknownHostException("api.themoviedb.org"), NoRouteToHostException(), SocketTimeoutException("timeout")).forEach {
+            val client = tmdb.client(pauseWhenUnreachable = true)
+            tmdb.failure = it
+            failure<TmdbUnreachableException> { client.movieById(438631) }
+            tmdb.failure = null
+            failure<TmdbPausedException> { client.movieById(438631) }
+        }
+    }
+
+    /** A stream reset or an answer cut short: the network is there, and the next request may well be answered. */
+    @Test
+    fun aFailureOfOneAnswerDoesNotPauseAScan() = runTest {
+        val client = tmdb.client(pauseWhenUnreachable = true)
+        tmdb.failure = IOException("stream was reset: PROTOCOL_ERROR")
+        failure<TmdbUnreachableException> { client.movieById(438631) }
+        tmdb.failure = null
+        assertEquals(438631, client.movieById(438631)?.id)
     }
 
     @Test
@@ -121,7 +146,7 @@ class TmdbClientTest {
         assertEquals("asked twice", 2, tmdb.requests.size)
 
         tmdb.status = null
-        failure<TmdbUnreachableException> { client.movieById(438631) }
+        failure<TmdbPausedException> { client.movieById(438631) }
         assertEquals(2, tmdb.requests.size)
     }
 

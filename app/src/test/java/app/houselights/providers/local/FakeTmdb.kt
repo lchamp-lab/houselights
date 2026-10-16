@@ -15,6 +15,7 @@ import okio.Source
 import okio.Timeout
 import okio.buffer
 import java.io.IOException
+import java.net.SocketTimeoutException
 import java.util.Collections
 import java.util.concurrent.CountDownLatch
 
@@ -35,6 +36,9 @@ class FakeTmdb : Interceptor {
     /** Thrown instead of an answer, while set: TMDB out of reach. */
     @Volatile
     var failure: IOException? = null
+
+    /** Thrown first, one per request, before TMDB answers again: a moment out of reach. */
+    val nextFailures: MutableList<IOException> = Collections.synchronizedList(mutableListOf())
 
     /** Answered instead of the entry, while set (401, 503…), with its headers. */
     @Volatile
@@ -90,7 +94,8 @@ class FakeTmdb : Interceptor {
             throw IOException("Canceled")
         }
         failure?.let { throw it }
-        failingPath?.let { if (path.startsWith(it)) throw IOException("timeout") }
+        synchronized(nextFailures) { nextFailures.removeFirstOrNull() }?.let { throw it }
+        failingPath?.let { if (path.startsWith(it)) throw SocketTimeoutException("timeout") }
         val code = synchronized(nextStatuses) { nextStatuses.removeFirstOrNull() } ?: status
         val response = if (code != null) {
             respond(chain, code, "{}")
