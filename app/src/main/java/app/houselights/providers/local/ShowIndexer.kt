@@ -61,7 +61,8 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
             nfo = nfo,
             meta = meta,
             thumb = local.thumb?.let { files.copyArtwork(source, it) },
-            matchedAt = if (answered) now else base.matchedAt,
+            // A refresh TMDB did not answer is asked again at a later pass, the show's lookup with it.
+            matchedAt = if (answered) now else base.matchedAt.takeUnless { refreshMetadata },
         )
         val stale = MediaProbe.isStale(episode.mediaInfo) || episode.sizeChanged(file)
         val probed = (if (stale) files.mediaFields(source, file, episode) else episode).withNfoStreams(nfo)
@@ -118,7 +119,9 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
         val nfoChanged = local.nfo != null && series.nfoPath != local.nfo.relativePath
         val needsLookup = series.matchedAt == null || refreshMetadata || nfoChanged ||
             (local.poster != null && !series.posterPath.isCachedArtwork())
-        val nothingToRead = !tmdb.open && local.nfo == null && local.poster == null
+        // A refresh TMDB cannot be asked for now is not lost: the show is left unmatched (see saveShow).
+        val refreshLeft = refreshMetadata && series.matchedAt != null
+        val nothingToRead = !tmdb.open && local.nfo == null && local.poster == null && !refreshLeft
         if (!needsLookup || nothingToRead) return series
         // Once a pass, answered or not: a show TMDB did not answer stays unmatched, and so do its
         // episodes, until a later pass asks again.
@@ -132,7 +135,7 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
             fanart = local.fanart?.let { files.copyArtwork(source, it) },
             logo = local.logo?.let { files.copyArtwork(source, it) },
         )
-        return saveShow(series.copy(nfoPath = kept.path, nfo = kept.text), nfo, tv, art, tmdb.client, now)
+        return saveShow(series.copy(nfoPath = kept.path, nfo = kept.text), nfo, tv, art, tmdb.client, now, refreshMetadata)
     }
 
     /**
@@ -180,7 +183,8 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
 
     /**
      * Saves a show's details (see [MetadataMerge]) and its cast. Matched only when TMDB answered: a
-     * show saved from its NFO or its poster alone is looked up at a later scan.
+     * show saved from its NFO or its poster alone is looked up at a later scan, and so is one TMDB did
+     * not answer for a [refresh].
      */
     @Suppress("LongParameterList") // One per source of a show's details, as for a film.
     private suspend fun saveShow(
@@ -190,11 +194,12 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
         art: LocalArt,
         tmdb: TmdbClient?,
         now: Long,
+        refresh: Boolean = false,
     ): ItemEntity {
         val tv = lookup.value
         val nfo = nfoInfo?.takeUnless { MetadataMerge.describesOther(it, base.userTmdbId, null) }
         val details = tv?.details(tmdb?.tvCertification(tv), tmdb?.pickLogo(tv.images))
-        val matchedAt = if (lookup is TmdbAnswer.Given) now else base.matchedAt
+        val matchedAt = if (lookup is TmdbAnswer.Given) now else base.matchedAt.takeUnless { refresh }
         val series = MetadataMerge.merge(base, nfo, details, art).copy(matchedAt = matchedAt)
         dao.saveScanned(series)
         MetadataMerge.cast(series.id, nfo, tv?.credits)?.let { dao.replaceCast(series.id, it) }

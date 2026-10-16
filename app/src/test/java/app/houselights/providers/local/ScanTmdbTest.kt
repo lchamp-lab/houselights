@@ -150,6 +150,71 @@ class ScanTmdbTest {
     }
 
     @Test
+    fun aRefreshTmdbDidNotAnswerIsAskedAgainLater() = runTest {
+        val films = bench.folder("Films")
+        tmdb.movie(438631, "Dune", 2021)
+        nas.put("Dune (2021).mkv")
+        nas.put("Heat (1995).mkv")
+        bench.scan()
+        assertNotNull(bench.item(films, "Dune (2021).mkv").matchedAt)
+
+        // TMDB's details changed; the refresh asked for them finds TMDB out of reach.
+        tmdb.movies[438631] = checkNotNull(tmdb.movies[438631]).copy(overview = "Arrakis")
+        tmdb.failure = IOException("Network is unreachable")
+        bench.scan(refreshMetadata = true)
+        assertNull("asked again at the next scan", bench.item(films, "Dune (2021).mkv").matchedAt)
+        assertNull("one TMDB had nothing for, too", bench.item(films, "Heat (1995).mkv").matchedAt)
+        assertEquals("what it had stays meanwhile", 438631, bench.item(films, "Dune (2021).mkv").tmdbId)
+
+        tmdbBack()
+        bench.scan()
+        val refreshed = bench.item(films, "Dune (2021).mkv")
+        assertNotNull(refreshed.matchedAt)
+        assertEquals("Arrakis", refreshed.overview)
+    }
+
+    @Test
+    fun aRefreshWithoutAKeyIsAskedOnceThereIsOne() = runTest {
+        val films = bench.folder("Films")
+        tmdb.movie(438631, "Dune", 2021)
+        nas.put("Dune (2021).mkv")
+        bench.scan()
+
+        tmdb.movies[438631] = checkNotNull(tmdb.movies[438631]).copy(overview = "Arrakis")
+        bench.withTmdb = false
+        bench.scan(refreshMetadata = true)
+        assertNull(bench.item(films, "Dune (2021).mkv").matchedAt)
+
+        bench.withTmdb = true
+        bench.scan()
+        assertEquals("Arrakis", bench.item(films, "Dune (2021).mkv").overview)
+    }
+
+    @Test
+    fun aShowRefreshTmdbDidNotAnswerIsAskedAgainLater() = runTest {
+        val shows = bench.folder("Séries", SourceKind.SHOWS)
+        tmdb.show(95396, "Severance", 2022)
+        tmdb.season(95396, 1, episodes = 2)
+        val pilot = "Severance/Season 1/Severance - S01E01.mkv"
+        bench.showsNas.put(pilot)
+        bench.scan()
+
+        tmdb.shows[95396] = checkNotNull(tmdb.shows[95396]).copy(overview = "Lumon")
+        tmdb.failure = IOException("Network is unreachable")
+        bench.scan(refreshMetadata = true)
+        val series = checkNotNull(bench.dao.seriesByKey(FilenameParser.showKey("Severance")))
+        assertNull(series.matchedAt)
+        assertNull(bench.item(shows, pilot).matchedAt)
+
+        tmdbBack()
+        bench.scan()
+        val refreshed = checkNotNull(bench.dao.seriesByKey(FilenameParser.showKey("Severance")))
+        assertNotNull(refreshed.matchedAt)
+        assertEquals("Lumon", refreshed.overview)
+        assertNotNull(bench.item(shows, pilot).matchedAt)
+    }
+
+    @Test
     fun aCollectionTmdbDidNotAnswerIsAskedAgain() = runTest {
         val films = bench.folder("Films")
         tmdb.movie(438631, "Dune", 2021, collection = TmdbCollectionRef(726871, "Dune Collection"))
