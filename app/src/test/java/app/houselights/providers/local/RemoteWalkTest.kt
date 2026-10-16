@@ -132,9 +132,10 @@ class RemoteWalkTest {
         tree[""] = listOf(
             "#Alive (2020)/", "@Zombie (2018).mkv", "#recycle/", "#SNAPSHOT/", "@eaDir/", "@Recycle/", "@Recently-Snapshot/",
             ".@__thumb/", ".AppleDouble/", ".Trash-1000/", "\$RECYCLE.BIN/", "System Volume Information/", "lost+found/",
-            "._Heat (1995).mkv", ".DS_Store",
+            "._Heat (1995).mkv", ".DS_Store", "#SynoRecycle/",
         )
-        tree["#Alive (2020)"] = listOf("#Alive (2020).mkv", "@eaDir/")
+        tree["#Alive (2020)"] = listOf("#Alive (2020).mkv", "@eaDir/", "@Transcode/")
+        tree["#Alive (2020)/@Transcode"] = listOf("#Alive (2020).mkv.720.mp4")
 
         val listing = listing()
 

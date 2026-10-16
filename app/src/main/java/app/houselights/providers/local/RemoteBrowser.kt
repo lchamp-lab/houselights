@@ -38,9 +38,12 @@ interface RemoteBrowser {
          */
         fun skip(name: String) = name.startsWith(".") || SYSTEM.any { it.equals(name, ignoreCase = true) }
 
-        /** Synology's and QNAP's recycle bins, snapshots and thumbnails, Windows' own, and lost+found, root's alone on ext4. */
+        /**
+         * Synology's and QNAP's recycle bins (Synology Drive's too), snapshots and thumbnails, the copies
+         * QNAP transcodes beside each video, Windows' own folders, and lost+found, root's alone on ext4.
+         */
         private val SYSTEM = listOf(
-            "#recycle", "#snapshot", "@eaDir", "@tmp", "@Recycle", "@Recently-Snapshot", "@__thumb",
+            "#recycle", "#snapshot", "#SynoRecycle", "@eaDir", "@tmp", "@Recycle", "@Recently-Snapshot", "@__thumb", "@Transcode",
             "\$RECYCLE.BIN", "System Volume Information", "lost+found",
         )
 
