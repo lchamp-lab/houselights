@@ -30,8 +30,12 @@ object MkvProbe {
             val audioUids: List<Long?> = emptyList(),
             val framesRead: Boolean = true,
         ) : Result
-        /** Tracks start beyond the bytes read: read up to [offset] + some, and try again. */
-        data class NeedMore(val offset: Long) : Result
+        /**
+         * The tracks reach past the bytes read, as far as [upTo] at least: their end when the bytes
+         * cut them, their start when only the SeekHead tells where they lie. Read that far and some
+         * more, and try again.
+         */
+        data class NeedMore(val upTo: Long) : Result
         data object NotMatroska : Result
     }
 
@@ -100,7 +104,6 @@ object MkvProbe {
         val frames = mutableMapOf<Int, MutableList<IntRange>>()
 
         while (r.remaining > 0) {
-            val start = r.pos
             val id = runCatching { r.readId() }.getOrNull() ?: break
             val read = runCatching { r.readSize() }
             if (read.isFailure) break
@@ -116,8 +119,8 @@ object MkvProbe {
             }
             val end = r.pos + (size ?: break)
             if (end > bytes.size) {
-                // Element cut by the end of what was read: worth reading more only for Tracks.
-                if (id == TRACKS) return Result.NeedMore(start.toLong())
+                // Element cut by the end of what was read: worth reading more only for Tracks, to their end.
+                if (id == TRACKS) return Result.NeedMore(end)
                 break
             }
             when (id) {
