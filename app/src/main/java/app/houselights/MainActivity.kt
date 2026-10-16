@@ -236,7 +236,7 @@ private fun AppNavigation(nav: NavHostController, onPlay: (MediaItem, Boolean) -
     fun useFolders() {
         scope.launch {
             if (!app.library.hasFolders()) {
-                nav.navigate(Route.AddFolder)
+                nav.navigate(Route.AddFolder())
             } else {
                 app.sources.switchTo(SourceConfig.Local)
                 goHome()
@@ -249,9 +249,9 @@ private fun AppNavigation(nav: NavHostController, onPlay: (MediaItem, Boolean) -
             WelcomeScreen(onLocal = ::useFolders, onJellyfin = { nav.navigate(Route.JellyfinLogin) })
         }
         composable<Route.JellyfinLogin> { JellyfinLoginScreen(onLoggedIn = ::goHome) }
-        composable<Route.AddFolder> {
-            AddFolderScreen(onAdded = { switched ->
-                // A new source or a first folder: the home screen; another folder: back to settings.
+        composable<Route.AddFolder> { entry ->
+            AddFolderScreen(entry.toRoute<Route.AddFolder>().folderId, onDone = { switched ->
+                // A new source or a first folder: the home screen; another folder, or one edited: back to settings.
                 if (switched || !nav.popBackStack<Route.Settings>(inclusive = false)) goHome()
             })
         }
@@ -260,7 +260,7 @@ private fun AppNavigation(nav: NavHostController, onPlay: (MediaItem, Boolean) -
                 onOpenItem = { openItem(it.id) },
                 onOpenLibrary = ::openLibrary,
                 onOpenSettings = { nav.navigate(Route.Settings) },
-                onAddFolder = { nav.navigate(Route.AddFolder) },
+                onAddFolder = { nav.navigate(Route.AddFolder()) },
             )
         }
         composable<Route.Library> { entry ->
@@ -293,7 +293,7 @@ private fun AppNavigation(nav: NavHostController, onPlay: (MediaItem, Boolean) -
         composable<Route.Settings> {
             // Changing the source leaves the settings below: Back returns to them, the source intact.
             SettingsScreen(
-                onAddFolder = { nav.navigate(Route.AddFolder) },
+                onFolderForm = { nav.navigate(Route.AddFolder(it)) },
                 onUseFolders = ::useFolders,
                 onSignIn = { nav.navigate(Route.JellyfinLogin) },
                 onOpenCatalog = { nav.navigate(Route.Catalog) },

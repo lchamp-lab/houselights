@@ -28,6 +28,26 @@ interface LibraryDao {
     @Update
     suspend fun updateSource(source: SourceEntity)
 
+    /**
+     * A folder's new address or sign-in, column by column: it keeps its id, so its titles and what the
+     * user did with them stay, and its kind and scan dates. [name] follows from the path.
+     */
+    @Query(
+        "UPDATE sources SET name = :name, protocol = :protocol, host = :host, share = :share, path = :path, " +
+            "username = :username, password = :password WHERE id = :id"
+    )
+    @Suppress("LongParameterList") // One per column written.
+    suspend fun updateConnection(
+        id: Long,
+        name: String,
+        protocol: Protocol,
+        host: String,
+        share: String,
+        path: String,
+        username: String,
+        password: Secret,
+    )
+
     @Query("SELECT * FROM sources WHERE id = :id")
     suspend fun source(id: Long): SourceEntity?
 

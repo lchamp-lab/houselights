@@ -12,8 +12,9 @@ object Route {
     @Serializable
     data object JellyfinLogin
 
+    /** Adds a folder, or edits the folder [folderId] in place. */
     @Serializable
-    data object AddFolder
+    data class AddFolder(val folderId: Long? = null)
 
     @Serializable
     data object Home
