@@ -12,7 +12,6 @@ import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
-import java.io.FileNotFoundException
 import java.io.IOException
 import java.net.SocketTimeoutException
 
@@ -84,15 +83,17 @@ class ScanReadsTest {
     }
 
     @Test
-    fun aVideoGoneBeforeItIsReadIsNotReadAgain() = runTest {
-        nas.put("Dune (2021).mkv", size = 80_000_000_000, bytes = MkvProbeTest().sampleFile())
-        nas.onRead = { path, _, _ -> throw FileNotFoundException(path) }
+    fun aVideoRenamedBeforeItIsReadIsReadUnderItsNewName() = runTest {
+        // Radarr renames the film between the listing and the read: the read finds it gone.
+        nas.put("Dune.2021.mkv", size = 80_000_000_000, bytes = MkvProbeTest().sampleFile())
+        nas.onRead = { path, _, _ -> if (path == "Dune.2021.mkv") nas.rename(path, "Dune (2021).mkv") }
         bench.scan()
-        assertFalse(MediaProbe.isStale(bench.item(films, "Dune (2021).mkv").mediaInfo))
+        assertTrue("not the file's last word", MediaProbe.isStale(bench.item(films, "Dune.2021.mkv").mediaInfo))
 
-        nas.reads.clear()
+        // The row follows the file, of the same size, and the file is read there.
+        nas.onRead = null
         bench.scan()
-        assertEquals(emptyList<String>(), nas.reads)
+        assertEquals(REMUX_BADGES, bench.item(films, "Dune (2021).mkv").badges)
     }
 
     @Test

@@ -17,8 +17,9 @@ sealed interface ProbeResult {
     data class Read(override val info: MediaInfo) : ProbeResult
 
     /**
-     * A read failed on the way (a lock, a timeout): [info] holds what was read before it, and says no
-     * probe read it ([MediaInfo.probedWith] 0), so the next scan reads the file again.
+     * A read failed on the way (a lock, a timeout, the file renamed since it was listed): [info] holds
+     * what was read before it, and says no probe read it ([MediaInfo.probedWith] 0), so the next scan
+     * reads the file again.
      */
     data class Failed(override val info: MediaInfo, val cause: Throwable) : ProbeResult
 }
@@ -38,8 +39,12 @@ object MediaProbe {
     private const val BITS_PER_KILOBIT = 1000L
     private val MATROSKA = setOf("mkv", "mk3d", "webm")
 
-    /** Read failures a file says no better at the next scan: the NAS refuses it, or it is gone. */
-    private val FINAL = setOf(ScanErrorKind.ACCESS_DENIED, ScanErrorKind.NOT_FOUND)
+    /**
+     * Read failures a file says no better at the next scan: the NAS refuses it. Not a file gone since it
+     * was listed: a file gone for good is not listed again, and one renamed (Radarr, Sonarr) takes its
+     * row along, of the same size, so kept as read it would never be read under its new name.
+     */
+    private val FINAL = setOf(ScanErrorKind.ACCESS_DENIED)
 
     /** Reads of a file's start at most: the first, the tracks further in, the first frames further in. */
     private const val MAX_ATTEMPTS = 3
@@ -93,8 +98,8 @@ object MediaProbe {
     /**
      * The reads of one file. A NAS that stops answering throws; any other failure gives nothing, and
      * the probe goes on with what it has. A passing one (a lock, a timeout) is kept as the [failure], so
-     * the file is read again at the next scan; a refusal, or a file gone, is the NAS's last word until
-     * the file changes: read again, it would fail the same way at every pass.
+     * the file is read again at the next scan; a refusal is the NAS's last word until the file changes:
+     * read again, it would fail the same way at every pass.
      */
     private class Reads(private val browser: RemoteBrowser, private val source: SourceEntity, val file: RemoteFile) {
         var failure: Throwable? = null
