@@ -11,7 +11,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.tv.material3.Text
+import app.houselights.R
 import app.houselights.core.ImageRef
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlLayout
@@ -162,10 +164,12 @@ private fun Jackets() {
     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.xl), verticalAlignment = Alignment.Top) {
         Specimen("Affichage, on a TV that lists Ultra HD: the row that acts comes last", Modifier.width(HlLayout.readableNarrow)) {
             Column(verticalArrangement = Arrangement.spacedBy(HlSpace.l)) {
-                Text("Affichage", style = Hl.type.subject, color = Hl.colors.content)
-                InfoBlock("Sortie actuelle") { CurrentOutput() }
-                InfoBlock("Rendu de l’interface") { Text(formatDimensions(1920, 1080), style = Hl.type.meta, color = Hl.colors.content) }
-                InfoBlock("Modes disponibles") {
+                Text(stringResource(R.string.section_display), style = Hl.type.subject, color = Hl.colors.content)
+                InfoBlock(stringResource(R.string.current_output)) { CurrentOutput() }
+                InfoBlock(stringResource(R.string.label_render)) {
+                    Text(formatDimensions(1920, 1080), style = Hl.type.meta, color = Hl.colors.content)
+                }
+                InfoBlock(stringResource(R.string.label_modes)) {
                     SpecTable(
                         listOf(
                             SpecTableRow(
@@ -179,36 +183,38 @@ private fun Jackets() {
                         columns = listOf(HlLayout.specFormat),
                     )
                 }
-                HlSettingRow("Résolution de l’interface", value = "Ultra HD 60${NBSP}Hz", onClick = {})
+                HlSettingRow(stringResource(R.string.ui_resolution), value = stringResource(R.string.ui_4k), onClick = {})
             }
         }
         Specimen("Affichage on the Zidoo: the player sets its output") {
             Column(verticalArrangement = Arrangement.spacedBy(HlSpace.l)) {
-                InfoBlock("Sortie actuelle") {
+                InfoBlock(stringResource(R.string.current_output)) {
                     Column(verticalArrangement = Arrangement.spacedBy(HlSpace.xs)) {
-                        Text("Réglée par le lecteur", style = Hl.type.meta, color = Hl.colors.content)
-                        Text(
-                            "Le lecteur met l’interface à l’échelle de sa sortie. Résolution, fréquence d’images et HDR se " +
-                                "choisissent dans Réglages du lecteur > Affichage.",
-                            style = Hl.type.caption,
-                            color = Hl.colors.contentSecondary,
-                        )
+                        Text(stringResource(R.string.output_by_player), style = Hl.type.meta, color = Hl.colors.content)
+                        Text(stringResource(R.string.output_by_player_hint), style = Hl.type.caption, color = Hl.colors.contentSecondary)
                     }
                 }
-                InfoBlock("Rendu de l’interface") { Text(formatDimensions(1920, 1080), style = Hl.type.meta, color = Hl.colors.content) }
+                InfoBlock(stringResource(R.string.label_render)) {
+                    Text(formatDimensions(1920, 1080), style = Hl.type.meta, color = Hl.colors.content)
+                }
             }
         }
     }
     Specimen("À propos: states with their light, then the credits", Modifier.width(HlLayout.readableNarrow)) {
         Column(verticalArrangement = Arrangement.spacedBy(HlSpace.l)) {
-            InfoBlock("État") {
+            InfoBlock(stringResource(R.string.about_status)) {
                 Column(verticalArrangement = Arrangement.spacedBy(HlSpace.xs)) {
-                    DefinitionRow("Lecteur Zidoo") { HlStatus(StatusState.Done, "Détecté") }
-                    DefinitionRow("API de contrôle") { HlStatus(StatusState.Pending, "Vérification…") }
+                    DefinitionRow(stringResource(R.string.label_player)) { HlStatus(StatusState.Done, stringResource(R.string.detected)) }
+                    DefinitionRow(stringResource(R.string.label_api)) { HlStatus(StatusState.Pending, stringResource(R.string.checking)) }
                 }
             }
-            InfoBlock("Générique") {
-                DefinitionList(listOf("Données des films" to "TMDB", "Police" to "Archivo, SIL Open Font License"))
+            InfoBlock(stringResource(R.string.about_credits)) {
+                DefinitionList(
+                    listOf(
+                        stringResource(R.string.credit_data) to "TMDB",
+                        stringResource(R.string.credit_font) to stringResource(R.string.credit_font_value),
+                    ),
+                )
             }
         }
     }

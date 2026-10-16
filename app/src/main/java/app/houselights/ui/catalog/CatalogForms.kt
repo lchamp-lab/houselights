@@ -321,26 +321,27 @@ private fun FormFilterMenu(initial: FormFilters) {
 private fun FormChoiceSheet() {
     var current by remember { mutableIntStateOf(0) }
     var choosing by remember { mutableStateOf(false) }
+    val collections = formCollections()
     Specimen(
         "opens the sheet: focus starts on the current choice, choosing closes it",
         Modifier.widthIn(max = HlLayout.readable),
         gap = HlSpace.xs,
     ) {
         HlSettingRow(
-            "Collections",
-            value = FORM_COLLECTIONS[current].label,
-            description = FORM_COLLECTIONS_ABOUT,
+            stringResource(R.string.collections_setting),
+            value = collections[current].label,
+            description = stringResource(R.string.collections_setting_desc),
             onClick = { choosing = true },
         )
     }
     if (choosing) {
         HlChoiceSheet(
-            "Collections",
-            FORM_COLLECTIONS,
+            stringResource(R.string.collections_setting),
+            collections,
             current,
             onSelect = { current = it },
             onDismiss = { choosing = false },
-            description = FORM_COLLECTIONS_ABOUT,
+            description = stringResource(R.string.collections_setting_desc),
         )
     }
 }
@@ -348,17 +349,20 @@ private fun FormChoiceSheet() {
 @Composable
 private fun FormChoiceSettings() {
     var current by remember { mutableIntStateOf(0) }
+    val title = stringResource(R.string.collections_setting)
+    val collections = formCollections()
+    val about = stringResource(R.string.collections_setting_desc)
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Top) {
         Specimen("its value, the current choice; OK opens the sheet", Modifier.weight(1f), gap = HlSpace.xs) {
-            HlChoiceSetting("Collections", FORM_COLLECTIONS, current, onSelect = { current = it }, description = FORM_COLLECTIONS_ABOUT)
+            HlChoiceSetting(title, collections, current, onSelect = { current = it }, description = about)
         }
         Specimen("a change that did not take: said in its value", Modifier.weight(1f), gap = HlSpace.xs) {
             HlChoiceSetting(
-                "Collections",
-                FORM_COLLECTIONS,
+                title,
+                collections,
                 current,
                 onSelect = { current = it },
-                description = FORM_COLLECTIONS_ABOUT,
+                description = about,
                 attention = stringResource(R.string.action_not_saved),
             )
         }
@@ -407,12 +411,12 @@ private val FORM_DECADES = listOf(1950, 1960, 1970, 1980, 1990, 2000, 2010, 2020
 
 private val FORM_QUALITIES = listOf("Ultra HD", "HDR", "Dolby Vision")
 
-private const val FORM_COLLECTIONS_ABOUT = "Les films d’une même saga, réunis"
-
-private val FORM_COLLECTIONS = listOf(
-    ChoiceOption("À partir de 2 films", "Une saga apparaît dès que vous en avez au moins deux films"),
-    ChoiceOption("Toutes", "Même quand vous n’avez qu’un film de la saga"),
-    ChoiceOption("Masquées", "Ni bibliothèque Collections, ni rangée de saga"),
+/** The choices of the collections setting, in the words of the setting itself. */
+@Composable
+private fun formCollections() = listOf(
+    ChoiceOption(stringResource(R.string.collections_two), stringResource(R.string.collections_two_desc)),
+    ChoiceOption(stringResource(R.string.collections_all), stringResource(R.string.collections_all_desc)),
+    ChoiceOption(stringResource(R.string.collections_off), stringResource(R.string.collections_off_desc)),
 )
 
 private val FORM_LONG_TEXT = listOf(

@@ -25,6 +25,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -34,6 +35,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.text.TextStyle
 import androidx.tv.material3.Text
+import app.houselights.R
 import app.houselights.core.MediaKind
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlAlpha
@@ -317,24 +319,30 @@ fun CatalogScreen() {
                     HlActionRow {
                         // An episode in progress, with every capability: the fullest row of a detail page.
                         HlButton(
-                            "Reprendre",
+                            stringResource(R.string.resume),
                             {},
                             icon = Icons.Filled.PlayArrow,
-                            detail = "Il reste 1${NBSP}h${NBSP}26",
+                            detail = stringResource(R.string.time_left, "1${NBSP}h${NBSP}26"),
                             emphasis = Emphasis.Primary,
                         )
-                        HlIconButton(HlIcons.Restart, "Depuis le début", {})
-                        HlButton("Voir la série", {})
+                        HlIconButton(HlIcons.Restart, stringResource(R.string.from_start), {})
+                        HlButton(stringResource(R.string.view_series), {})
                         // Toggles name what OK does; lit, the icon says the episode is watched, a favourite.
-                        HlIconButton(HlIcons.Check, "Marquer comme non vu", {}, lit = true)
-                        HlIconButton(HlIcons.Info, "Fiche technique", {})
-                        HlIconButton(HlIcons.Document, "Fichier NFO", {})
-                        HlIconButton(HlIcons.HeartFilled, "Retirer des favoris", {}, lit = true)
-                        HlIconButton(HlIcons.Edit, "Modifier", {})
+                        HlIconButton(HlIcons.Check, stringResource(R.string.mark_unwatched), {}, lit = true)
+                        HlIconButton(HlIcons.Info, stringResource(R.string.tech_details), {})
+                        HlIconButton(HlIcons.Document, stringResource(R.string.nfo_title), {})
+                        HlIconButton(HlIcons.HeartFilled, stringResource(R.string.remove_favorite), {}, lit = true)
+                        HlIconButton(HlIcons.Edit, stringResource(R.string.edit), {})
                     }
                     var library by remember { mutableIntStateOf(0) }
                     HlSegmented(
-                        listOf("Accueil", "Films 4K HDR", "Séries d’animation", "Documentaires", "Concerts et spectacles"),
+                        listOf(
+                            stringResource(R.string.nav_home),
+                            "Films 4K HDR",
+                            "Séries d’animation",
+                            "Documentaires",
+                            "Concerts et spectacles",
+                        ),
                         selected = library,
                         onSelect = { library = it },
                     )
@@ -343,8 +351,8 @@ fun CatalogScreen() {
                     }
                     Column(Modifier.widthIn(max = HlLayout.readable)) {
                         HlSettingRow(
-                            "Actualiser toutes les informations",
-                            description = "Récupère à nouveau affiches et informations sur TMDB",
+                            stringResource(R.string.refresh_metadata),
+                            description = stringResource(R.string.refresh_metadata_desc),
                             onClick = {},
                             chevron = false,
                         )
