@@ -411,6 +411,8 @@ class LibraryScanner(
      * In a shows' folder, one known episode for each show folder whose show's own sidecars (tvshow.nfo,
      * its poster…) are due ([SidecarKey.showDue]), unless [todo] reads one of its episodes there: by show,
      * as a folder without one ("Show.S01E01.mkv" at the root) holds several. Each with its show's row id.
+     * Not for episodes of a show their path no longer names (keyed by an earlier rule): one of them read
+     * would move to the show their path names, and the rest one a pass, the old show gone with the last.
      */
     private suspend fun showsToRead(
         source: SourceEntity,
@@ -425,13 +427,14 @@ class LibraryScanner(
         val byFolder = files.groupBy { f -> known[f.relativePath]?.seriesId?.let { Sidecars.folderOf(f.relativePath) to it } }
             .mapNotNull { (key, episodes) ->
                 val seriesId = key?.second ?: return@mapNotNull null
-                FilenameParser.parseShowPath(episodes.first().relativePath)?.let { (it.dir to seriesId) to episodes }
+                val path = FilenameParser.parseShowPath(episodes.first().relativePath) ?: return@mapNotNull null
+                Triple(path.dir, seriesId, FilenameParser.showKey(path.title)) to episodes
             }
             .groupBy({ it.first }, { it.second }).mapValues { (_, lists) -> lists.flatten() }
         val shows = byFolder.keys.map { it.second }.distinct().chunked(SQL_IN_LIMIT).flatMap { dao.rows(it) }.associateBy { it.id }
         return byFolder.entries.mapNotNull { (key, episodes) ->
-            val (dir, seriesId) = key
-            val show = shows[seriesId] ?: return@mapNotNull null
+            val (dir, seriesId, name) = key
+            val show = shows[seriesId]?.takeIf { it.matchKey?.substringBefore(FilenameParser.YEAR_MARK) == name } ?: return@mapNotNull null
             val due = episodes.none { it in reading } && SidecarKey.showDue(show.sidecarKey, source.id, dir, sidecars)
             if (due) episodes.first() to seriesId else null
         }.toMap()

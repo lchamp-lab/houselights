@@ -157,6 +157,23 @@ class ScanShowSidecarsTest {
         assertEquals("MOBLAND", bench.dao.item(id)?.title)
     }
 
+    /**
+     * Episodes of a show keyed by an earlier rule than their path's ("mobland s01"): its sidecars are not
+     * read through one of them, which would move it to the show its path names, and the rest one a pass.
+     */
+    @Test
+    fun aShowKeyedByAnEarlierRuleIsNotReadForItsSidecars() = runTest {
+        val second = EPISODE.replace("S01E01", "S01E02")
+        nas.put(second)
+        nas.text("Mobland/tvshow.nfo", nfo("MobLand"), lastModified = T1)
+        bench.scan()
+        val old = show().copy(matchKey = "mobland s01", sidecarKey = null)
+        bench.dao.saveScanned(old)
+
+        assertQuiet()
+        assertEquals(listOf(old.id, old.id), listOf(EPISODE, second).map { bench.item(sourceOf(), it).seriesId })
+    }
+
     private companion object {
         const val MOBLAND = 247718
         const val EPISODE = "Mobland/S01/Mobland.S01E01.MULTi.1080p.WEB.H265-GRP.mkv"
