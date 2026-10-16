@@ -17,6 +17,7 @@ import app.houselights.core.MediaKind
 import app.houselights.core.MediaProvider
 import app.houselights.core.ProviderCapabilities
 import app.houselights.core.UserState
+import app.houselights.core.nextUpIn
 import app.houselights.core.suspendRunCatching
 import app.houselights.ui.design.HlMotion
 import app.houselights.ui.util.UiError
@@ -112,8 +113,9 @@ class DetailViewModel(
                         similar = similar.await(),
                     )
                 } else if (item.kind == MediaKind.COLLECTION) {
+                    // What Lire starts is picked from the films already here: the source is asked for them once.
                     val films = source.collectionItems(item)
-                    DetailState(item = item, capabilities = source.capabilities, nextUp = source.nextUp(item), collectionFilms = films)
+                    DetailState(item = item, capabilities = source.capabilities, nextUp = nextUpIn(films), collectionFilms = films)
                 } else {
                     val collection = source.collectionOf(item)
                     val saga = collection?.let { c -> source.collectionItems(c).filter { it.id != item.id } }.orEmpty()

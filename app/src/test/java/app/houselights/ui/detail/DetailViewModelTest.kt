@@ -1,6 +1,10 @@
 package app.houselights.ui.detail
 
 import androidx.lifecycle.SavedStateHandle
+import app.houselights.core.MediaItem
+import app.houselights.core.MediaKind
+import app.houselights.core.MediaProvider
+import app.houselights.core.UserState
 import app.houselights.ui.testing.FakeEvents
 import app.houselights.ui.testing.FakeProvider
 import app.houselights.ui.testing.MainDispatcherRule
@@ -300,4 +304,40 @@ class DetailViewModelTest {
         assertEquals("s3", after.state.value.selectedSeasonId)
         assertEquals(listOf("s3e1", "s3e2"), after.shownEpisodes)
     }
+
+    /**
+     * A saga's page asks for its films once: what Lire starts is picked among them, by the rule both
+     * sources keep for a collection (MediaProvider's nextUp, which would ask for them again).
+     */
+    @Test
+    fun aSagaAsksForItsFilmsOnce() = runTest {
+        provider.items["saga"] = MediaItem("saga", MediaKind.COLLECTION, "Alien")
+        val films = listOf(
+            film("alien").copy(user = UserState(played = true)),
+            film("aliens"),
+            film("alien3").copy(user = UserState(positionMs = 60_000)),
+        )
+        val source = Saga(provider, films)
+        val vm = DetailViewModel("saga", { source }, events, now = { testScheduler.currentTime })
+        advanceUntilIdle()
+        assertEquals(listOf("saga"), source.asked)
+        assertEquals(films, vm.state.value.collectionFilms)
+        // The film in progress comes before the first one not seen.
+        assertEquals("alien3", vm.state.value.nextUp?.id)
+    }
+}
+
+/**
+ * [source] with one collection, [films], counting each time they are asked for. What Lire starts in
+ * it is MediaProvider's own rule, as in both sources.
+ */
+private class Saga(source: FakeProvider, private val films: List<MediaItem>) : MediaProvider by source {
+    val asked = mutableListOf<String>()
+
+    override suspend fun collectionItems(collection: MediaItem): List<MediaItem> {
+        asked += collection.id
+        return films
+    }
+
+    override suspend fun nextUp(series: MediaItem): MediaItem? = super.nextUp(series)
 }

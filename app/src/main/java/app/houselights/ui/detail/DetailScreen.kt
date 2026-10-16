@@ -86,6 +86,9 @@ import app.houselights.ui.design.components.Emphasis
 import app.houselights.ui.design.components.HlActionRow
 import app.houselights.ui.design.components.HlButton
 import app.houselights.ui.design.components.HlIconButton
+import app.houselights.ui.design.components.HlMenuButton
+import app.houselights.ui.design.components.MenuOption
+import app.houselights.ui.design.components.MenuSection
 import app.houselights.ui.design.components.HlSegmented
 import app.houselights.ui.design.components.HeroSkeleton
 import app.houselights.ui.design.components.HlStatus
@@ -515,9 +518,23 @@ private fun PlayButtons(item: MediaItem, nextUp: MediaItem?, memory: FocusMemory
 /**
  * A film in several files, which the player plays one file at a time: beside Lire, which resumes its
  * first part, each part from its start, "Partie 1/2", "Partie 2/2". None for a film in one file.
+ * From three parts on, their buttons would push the last round buttons out of the row: one button,
+ * "Parties", opens them in a menu instead.
  */
 @Composable
 private fun Parts(item: MediaItem, memory: FocusMemory, onPlay: (MediaItem, Boolean) -> Unit) {
+    val count = item.parts.size
+    if (partsInMenu(count)) {
+        val labels = List(count) { stringResource(R.string.part_of, it + 1, count) }
+        HlMenuButton(
+            text = stringResource(R.string.parts),
+            icon = HlIcons.Playback,
+            sections = listOf(MenuSection(null, partOptions(item.parts, labels) { onPlay(it, false) })),
+            modifier = Modifier.focusKey(PARTS, memory),
+            detail = count.toString(),
+        )
+        return
+    }
     item.parts.forEachIndexed { i, part ->
         HlButton(
             stringResource(R.string.part_of, i + 1, item.parts.size),
@@ -610,6 +627,16 @@ private fun EpisodesFailed(header: String?, error: UiError, retrying: Boolean, o
     }
 }
 
+/** A film's parts go in a menu from three on: two buttons beside Lire still leave the row its round buttons. */
+internal fun partsInMenu(count: Int): Boolean = count > INLINE_PARTS
+
+/**
+ * A film's [parts] as the options of its menu, in order, each named by [labels]. None is chosen,
+ * so the menu opens on the first part; choosing one plays it from its start ([onPlay]).
+ */
+internal fun partOptions(parts: List<MediaItem>, labels: List<String>, onPlay: (MediaItem) -> Unit): List<MenuOption> =
+    parts.mapIndexed { i, part -> MenuOption(labels[i], selected = false) { onPlay(part) } }
+
 /** Back returns to the actions once the page has scrolled down; at its top, it leaves. */
 internal fun backReturnsToActions(firstVisibleItem: Int, offset: Int): Boolean = firstVisibleItem > 0 || offset > 0
 
@@ -628,6 +655,10 @@ private val TECH = FocusKey.action("tech")
 private val NFO = FocusKey.action("nfo")
 private val FAVORITE = FocusKey.action("favorite")
 private val EDIT = FocusKey.action("edit")
+private val PARTS = FocusKey.action("parts")
+
+/** The parts a film's actions row holds as buttons, beside Lire and the round buttons. */
+private const val INLINE_PARTS = 2
 private const val EPISODES = "episodes"
 
 /** Réessayer of a season that failed, in its row: coming back, focus finds the row. */
