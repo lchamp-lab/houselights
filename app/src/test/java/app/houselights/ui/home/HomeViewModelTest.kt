@@ -77,6 +77,16 @@ class HomeViewModelTest {
         assertEquals(UiError.OFFLINE, vm.state.value.error)
     }
 
+    /** During a first scan, home loads again every few seconds over no rows: what it shows stays still. */
+    @Test
+    fun anEmptyHomeLoadingAgainStaysStill() = runTest {
+        provider.home = emptyList()
+        val vm = HomeViewModel { provider }
+        advanceUntilIdle()
+        vm.load()
+        assertFalse(vm.state.value.loading)
+    }
+
     @Test
     fun rowsShownStayWhileTheyLoadAgain() = runTest {
         val vm = HomeViewModel { provider }

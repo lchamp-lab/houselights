@@ -188,7 +188,7 @@ class PlaybackManager(
     /** Takes what the player says for the session, unless it now plays a file of another length. */
     private fun follow(s: Session, state: ZidooPlayState) {
         val launched = s.durationMs
-        if (launched != null && abs(state.durationMs - launched) > SAME_FILE_MS) {
+        if (launched != null && abs(state.durationMs - launched) > maxOf(SAME_FILE_MS, launched / SAME_FILE_SHARE)) {
             Log.i(TAG, "The player went on to another file ($launched -> ${state.durationMs} ms)")
             s.switched = true
             return
@@ -247,8 +247,12 @@ class PlaybackManager(
         /** Polls without a word, past a first status, before tracking stops: some thirty seconds. */
         private const val SILENT_POLLS = 15
 
-        /** Two statuses of the same file agree on its length within this. */
+        /**
+         * Two statuses of the same file agree on its length within this, or within a hundredth of it,
+         * room for a length the player refines as it reads (a transport stream's).
+         */
         private const val SAME_FILE_MS = 2_000L
+        private const val SAME_FILE_SHARE = 100
         const val ZIDOO_PACKAGE = "com.android.gallery3d"
         const val ZIDOO_ACTIVITY = "com.android.gallery3d.app.MovieActivity"
     }

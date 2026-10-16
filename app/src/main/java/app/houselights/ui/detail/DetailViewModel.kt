@@ -122,7 +122,12 @@ class DetailViewModel(
             }
                 .onFailure { e ->
                     Log.w(TAG, "Detail of $itemId failed", e)
-                    _state.update { it.copy(error = e.toUiError()) }
+                    val error = e.toUiError()
+                    // A season this load took over is not left loading: its row says why, with Réessayer.
+                    _state.update { s ->
+                        val rowError = s.episodesError ?: error.takeIf { s.episodesLoading }
+                        s.copy(error = error, episodesLoading = false, episodesError = rowError)
+                    }
                 }
         }
     }

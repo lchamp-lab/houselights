@@ -14,6 +14,7 @@ import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -221,5 +222,21 @@ class DetailViewModelTest {
         assertNull(vm.state.value.error)
         advanceUntilIdle()
         assertEquals("Heat", vm.state.value.item?.title)
+    }
+
+    @Test
+    fun aReloadThatFailsLeavesNoSeasonLoading() = runTest {
+        val vm = detail("show")
+        advanceUntilIdle()
+        vm.selectSeason("s2")
+        provider.fail = { if (it == "item show") IOException("Server away") else null }
+        vm.load()
+        advanceUntilIdle()
+        assertFalse(vm.state.value.episodesLoading)
+        assertEquals(UiError.OFFLINE, vm.state.value.episodesError)
+        provider.fail = { null }
+        vm.retrySeason()
+        advanceUntilIdle()
+        assertEquals(listOf("s2e1", "s2e2"), vm.shownEpisodes)
     }
 }
