@@ -210,6 +210,18 @@ class FilenameParserTest {
         assertFalse(ScanTitles.isExtrasFolder("Season 1"))
     }
 
+    /** An episode is an extra by a dash right after its numbers, or as its whole title; not by its title's last word. */
+    @Test
+    fun episodesTitledWithAWordOfExtras() {
+        val episodes = listOf(
+            "Show - S01E05 - Crime-Scene.mkv", "Show - S01E05 - Self-Deleted.mkv", "Show.S01E05.The.Big-Short.mkv",
+            "Show - 1x05 - The-Other.mkv", "Show - S01E05 - Exit-Interview.mkv",
+        )
+        episodes.forEach { assertFalse(it, ScanTitles.isExtraName(it)) }
+        val extras = listOf("Show - S01E05-deleted.mkv", "Show - S01E05 -scene.mkv", "Show.S01E05.-interview.mkv", "Show 1x05-other.mkv")
+        extras.forEach { assertTrue(it, ScanTitles.isExtraName(it)) }
+    }
+
     @Test
     fun discs() {
         assertEquals(DiscPath("Inception (2010)", "BDMV/index"), FilenameParser.discOf("Inception (2010)/BDMV/STREAM/00800.m2ts"))

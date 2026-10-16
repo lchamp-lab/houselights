@@ -24,6 +24,7 @@ data class ShowPath(val title: String, val year: Int?, val dir: String, val epis
 data class DiscPath(val root: String, val index: String)
 
 /** Extracts titles, years and episode numbers from file and folder names. */
+@Suppress("TooManyFunctions") // One function per question a name answers, in the one place a reader looks for them.
 object FilenameParser {
     val VIDEO_EXTENSIONS = setOf(
         "mkv", "mp4", "m4v", "avi", "mov", "wmv", "ts", "m2ts", "mts", "iso",
@@ -129,6 +130,14 @@ object FilenameParser {
     fun parseEpisode(fileName: String, folders: List<String>): ParsedEpisode? = episodeIn(fileName, folders)?.episode
 
     /**
+     * What [fileName] names after its episode's numbers, without the separators around it: the episode's title
+     * as Sonarr names it ("Crime-Scene" for "Show - S01E05 - Crime-Scene.mkv"), or a release's tags; "" for
+     * "Show.S01E05.mkv". Null when it names no episode by "S01E05" or "1x05".
+     */
+    fun afterEpisode(fileName: String): String? =
+        numbers(normalizeSeparators(dropBrackets(stripExtension(fileName))), null)?.after?.trim(' ', '.', '_', '-')
+
+    /**
      * The episode at [relativePath] and its show: what every rule that names a show from its path
      * reads. Null when the file's name gives no episode, or nothing names its show.
      */
@@ -164,18 +173,18 @@ object FilenameParser {
 
     private fun letters(s: String) = s.lowercase().filter(Char::isLetterOrDigit)
 
-    /** Season and episodes a file's name gives, and the text before them. */
-    private class Numbers(val season: Int, val episode: Int, val last: Int?, val before: String)
+    /** Season and episodes a file's name gives, and the text before and after them. */
+    private class Numbers(val season: Int, val episode: Int, val last: Int?, val before: String, val after: String = "")
 
     /** [base]'s numbers: "S01E02", "1x02", else "02 - Title" in a season's folder ([folderSeason]). */
     private fun numbers(base: String, folderSeason: Int?): Numbers? {
         val named = SXXEYY.find(base)?.let { m ->
             val (season, first, last) = m.destructured
             val range = last.toIntOrNull()?.takeIf { it > first.toInt() && it - first.toInt() <= MAX_RANGE }
-            Numbers(season.toInt(), first.toInt(), range, base.substring(0, m.range.first))
+            Numbers(season.toInt(), first.toInt(), range, base.substring(0, m.range.first), base.substring(m.range.last + 1))
         } ?: NXNN.find(base)?.let { m ->
             val (season, episode) = m.destructured
-            Numbers(season.toInt(), episode.toInt(), null, base.substring(0, m.range.first))
+            Numbers(season.toInt(), episode.toInt(), null, base.substring(0, m.range.first), base.substring(m.range.last + 1))
         }
         if (named != null || folderSeason == null) return named
         return LEADING_EPISODE.find(base.trim())?.groupValues?.get(1)?.toInt()?.let { Numbers(folderSeason, it, null, "") }

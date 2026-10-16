@@ -40,13 +40,15 @@ internal object ScanTitles {
 
     /**
      * A video named as an extra of the title beside it ([EXTRA_SUFFIX]). "The Big Short" and "The
-     * Interview" are films: those words count after a dash only. Nor is an episode an extra for its
-     * title's last word: "Show - S00E01 - Trailer".
+     * Interview" are films: those words count after a dash only. A name that gives an episode is an
+     * extra by a dash right after its numbers only, as its whole title ("Show - S01E01-deleted"), not
+     * for its title's last word: "Show - S01E05 - Crime-Scene", "Show - S00E01 - Trailer".
      */
     fun isExtraName(fileName: String): Boolean {
         val base = FilenameParser.stripExtension(fileName)
         val suffix = EXTRA_SUFFIX.find(base) ?: return false
-        return base[suffix.range.first] == '-' || FilenameParser.parseEpisode(fileName, emptyList()) == null
+        val title = FilenameParser.afterEpisode(fileName) ?: return true
+        return base[suffix.range.first] == '-' && title.equals(suffix.value.drop(1), ignoreCase = true)
     }
 
     /** A folder of a title's extras: "Featurettes", "Behind The Scenes"… (see [EXTRAS_FOLDERS]). */
