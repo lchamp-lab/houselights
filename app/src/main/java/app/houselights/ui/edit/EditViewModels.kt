@@ -1,8 +1,10 @@
 package app.houselights.ui.edit
 
 import android.util.Log
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
@@ -110,12 +112,14 @@ data class IdentifyState(
 
 /**
  * Matching a title by hand, from the [provider] of the source in use. The match itself runs in [work],
- * which outlives the screen: leaving while a series is matched never leaves it half done.
+ * which outlives the screen: leaving while a series is matched never leaves it half done. What was
+ * typed is kept in [saved], for a process Android stopped meanwhile.
  */
 class IdentifyViewModel(
     private val itemId: String,
     private val provider: () -> MediaProvider,
     private val work: CoroutineScope,
+    private val saved: SavedStateHandle = SavedStateHandle(),
 ) : ViewModel() {
     private val _state = MutableStateFlow(IdentifyState())
     val state: StateFlow<IdentifyState> = _state
@@ -137,7 +141,10 @@ class IdentifyViewModel(
                 val item = source.item(itemId)
                 item to source.editorOrFail().identity(item)
             }.onSuccess { (item, identity) ->
-                _state.update { it.copy(item = item, identity = identity, query = identity.query, year = identity.year?.toString() ?: "") }
+                // What was typed before the process was stopped, else what automatic matching searched.
+                val query = saved[QUERY] ?: identity.query
+                val year = saved[YEAR] ?: identity.year?.toString().orEmpty()
+                _state.update { it.copy(item = item, identity = identity, query = query, year = year) }
                 // What automatic matching would search, so the right title is often one press away.
                 if (identity.canSearch) search() else _state.update { it.copy(error = UiError.NO_TMDB_KEY) }
             }.onFailure { e -> _state.update { it.copy(error = e.reported()) } }
@@ -147,9 +154,16 @@ class IdentifyViewModel(
     /** After a failure: loads the title again if it could not be, else searches again. */
     fun retry() = if (_state.value.item == null) load() else search()
 
-    fun setQuery(query: String) = _state.update { it.copy(query = query) }
+    fun setQuery(query: String) {
+        saved[QUERY] = query
+        _state.update { it.copy(query = query) }
+    }
 
-    fun setYear(year: String) = _state.update { it.copy(year = year.filter(Char::isDigit).take(4)) }
+    fun setYear(year: String) {
+        val digits = year.filter(Char::isDigit).take(YEAR_DIGITS)
+        saved[YEAR] = digits
+        _state.update { it.copy(year = digits) }
+    }
 
     fun search() {
         val s = _state.value
@@ -181,8 +195,12 @@ class IdentifyViewModel(
     }
 
     companion object {
+        private const val QUERY = "query"
+        private const val YEAR = "year"
+        private const val YEAR_DIGITS = 4
+
         fun factory(app: AppContainer, itemId: String): ViewModelProvider.Factory = viewModelFactory {
-            initializer { IdentifyViewModel(itemId, app::provider, app.scope) }
+            initializer { IdentifyViewModel(itemId, app::provider, app.scope, createSavedStateHandle()) }
         }
     }
 }

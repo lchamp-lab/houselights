@@ -1,8 +1,10 @@
 package app.houselights.ui.detail
 
 import android.util.Log
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
@@ -52,13 +54,17 @@ data class DetailState(
     val actionError: UiError? = null,
 )
 
-/** A title's page, from the [provider] of the source in use; what it changes, it tells [events]. */
+/**
+ * A title's page, from the [provider] of the source in use; what it changes, it tells [events]. The
+ * season chosen is kept in [saved]: Android may stop the app while an episode plays.
+ */
 class DetailViewModel(
     private val itemId: String,
     private val provider: () -> MediaProvider,
     private val events: LibraryEvents,
+    private val saved: SavedStateHandle = SavedStateHandle(),
 ) : ViewModel() {
-    private val _state = MutableStateFlow(DetailState())
+    private val _state = MutableStateFlow(DetailState(selectedSeasonId = saved[SEASON]))
     val state: StateFlow<DetailState> = _state
 
     init {
@@ -152,6 +158,7 @@ class DetailViewModel(
         val s = _state.value
         val series = s.item ?: return
         if (seasonId == s.selectedSeasonId || s.seasons.none { it.id == seasonId }) return
+        saved[SEASON] = seasonId
         _state.update { it.copy(selectedSeasonId = seasonId, episodes = emptyList(), episodesLoading = true, episodesError = null) }
         loadSeason(series, seasonId, settle = true)
     }
@@ -235,10 +242,13 @@ class DetailViewModel(
 
     companion object {
         fun factory(app: AppContainer, itemId: String): ViewModelProvider.Factory = viewModelFactory {
-            initializer { DetailViewModel(itemId, app::provider, app) }
+            initializer { DetailViewModel(itemId, app::provider, app, createSavedStateHandle()) }
         }
     }
 }
+
+/** The season chosen, in the saved state. */
+private const val SEASON = "season"
 
 /**
  * This page as loaded, with the season chosen in [current] when one was chosen while it loaded (and

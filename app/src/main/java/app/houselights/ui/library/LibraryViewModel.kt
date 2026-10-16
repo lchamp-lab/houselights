@@ -1,8 +1,10 @@
 package app.houselights.ui.library
 
 import android.util.Log
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
@@ -12,7 +14,9 @@ import app.houselights.core.LibraryFacets
 import app.houselights.core.LibraryFilter
 import app.houselights.core.MediaItem
 import app.houselights.core.MediaProvider
+import app.houselights.core.Quality
 import app.houselights.core.SortOption
+import app.houselights.core.WatchStatus
 import app.houselights.core.suspendRunCatching
 import app.houselights.ui.util.UiError
 import app.houselights.ui.util.toUiError
@@ -35,9 +39,16 @@ data class LibraryState(
     val pageRetrying: Boolean = false,
 )
 
-/** A library's wall, page by page, from the [provider] of the source in use. */
-class LibraryViewModel(private val provider: () -> MediaProvider, private val library: Library) : ViewModel() {
-    private val _state = MutableStateFlow(LibraryState())
+/**
+ * A library's wall, page by page, from the [provider] of the source in use. Its sort and filter are
+ * kept in [saved]: Android may stop the app while a film plays, and the wall comes back as it was left.
+ */
+class LibraryViewModel(
+    private val provider: () -> MediaProvider,
+    private val library: Library,
+    private val saved: SavedStateHandle = SavedStateHandle(),
+) : ViewModel() {
+    private val _state = MutableStateFlow(LibraryState(sort = saved.sort(), filter = saved.filter()))
     val state: StateFlow<LibraryState> = _state
     private var job: Job? = null
 
@@ -57,12 +68,14 @@ class LibraryViewModel(private val provider: () -> MediaProvider, private val li
 
     fun setSort(sort: SortOption) {
         if (sort == _state.value.sort) return
+        saved[SORT] = sort.name
         _state.update { it.copy(sort = sort) }
         reset()
     }
 
     fun setFilter(filter: LibraryFilter) {
         if (filter == _state.value.filter) return
+        saved.keep(filter)
         _state.update { it.copy(filter = filter) }
         reset()
     }
@@ -161,7 +174,31 @@ class LibraryViewModel(private val provider: () -> MediaProvider, private val li
         private const val PAGE = 120
 
         fun factory(app: AppContainer, library: Library): ViewModelProvider.Factory = viewModelFactory {
-            initializer { LibraryViewModel(app::provider, library) }
+            initializer { LibraryViewModel(app::provider, library, createSavedStateHandle()) }
         }
     }
+}
+
+private const val SORT = "sort"
+private const val STATUS = "status"
+private const val GENRE = "genre"
+private const val DECADE = "decade"
+private const val QUALITY = "quality"
+
+/** The sort kept, by name: a name no version knows any more is the default. */
+private fun SavedStateHandle.sort(): SortOption = get<String>(SORT)?.let { name -> SortOption.entries.find { it.name == name } } ?: SortOption.TITLE
+
+private fun SavedStateHandle.filter() = LibraryFilter(
+    status = get<String>(STATUS)?.let { name -> WatchStatus.entries.find { it.name == name } } ?: WatchStatus.ALL,
+    genre = get<String>(GENRE),
+    decade = get<Int>(DECADE),
+    quality = get<String>(QUALITY)?.let { name -> Quality.entries.find { it.name == name } },
+)
+
+/** Kept as plain values, which a saved state holds across a stopped process. */
+private fun SavedStateHandle.keep(filter: LibraryFilter) {
+    this[STATUS] = filter.status.name
+    this[GENRE] = filter.genre
+    this[DECADE] = filter.decade
+    this[QUALITY] = filter.quality?.name
 }

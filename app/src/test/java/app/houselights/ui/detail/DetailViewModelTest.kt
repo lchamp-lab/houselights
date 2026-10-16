@@ -1,5 +1,6 @@
 package app.houselights.ui.detail
 
+import androidx.lifecycle.SavedStateHandle
 import app.houselights.ui.testing.FakeEvents
 import app.houselights.ui.testing.FakeProvider
 import app.houselights.ui.testing.MainDispatcherRule
@@ -262,5 +263,20 @@ class DetailViewModelTest {
         vm.retrySeason()
         advanceUntilIdle()
         assertEquals(listOf("s2e1", "s2e2"), vm.shownEpisodes)
+    }
+
+    /** Android stopped the app while an episode played: the page comes back on the season chosen. */
+    @Test
+    fun theSeasonChosenOutlivesAStoppedProcess() = runTest {
+        val saved = SavedStateHandle()
+        val before = DetailViewModel("show", { provider }, events, saved)
+        advanceUntilIdle()
+        before.selectSeason("s3")
+        advanceUntilIdle()
+
+        val after = DetailViewModel("show", { provider }, events, SavedStateHandle(saved.keys().associateWith { saved.get<Any?>(it) }))
+        advanceUntilIdle()
+        assertEquals("s3", after.state.value.selectedSeasonId)
+        assertEquals(listOf("s3e1", "s3e2"), after.shownEpisodes)
     }
 }

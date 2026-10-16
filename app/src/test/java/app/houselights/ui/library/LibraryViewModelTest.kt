@@ -1,7 +1,12 @@
 package app.houselights.ui.library
 
+import androidx.lifecycle.SavedStateHandle
 import app.houselights.core.Library
+import app.houselights.core.LibraryFilter
 import app.houselights.core.LibraryKind
+import app.houselights.core.Quality
+import app.houselights.core.SortOption
+import app.houselights.core.WatchStatus
 import app.houselights.ui.testing.FakeProvider
 import app.houselights.ui.testing.MainDispatcherRule
 import app.houselights.ui.testing.film
@@ -155,5 +160,20 @@ class LibraryViewModelTest {
         advanceUntilIdle()
         assertFalse(vm.state.value.loading)
         assertEquals(UiError.OFFLINE, vm.state.value.error)
+    }
+
+    /** Android stopped the app while a film played: the wall comes back sorted and filtered as it was left. */
+    @Test
+    fun theSortAndFilterOutliveAStoppedProcess() = runTest {
+        val saved = SavedStateHandle()
+        val before = LibraryViewModel({ provider }, library, saved)
+        before.setSort(SortOption.ADDED)
+        before.setFilter(LibraryFilter(status = WatchStatus.UNWATCHED, genre = "Drame", decade = 1990, quality = Quality.UHD_4K))
+        advanceUntilIdle()
+
+        // What the platform keeps of the saved state, in a new process.
+        val after = LibraryViewModel({ provider }, library, SavedStateHandle(saved.keys().associateWith { saved.get<Any?>(it) }))
+        assertEquals(SortOption.ADDED, after.state.value.sort)
+        assertEquals(LibraryFilter(WatchStatus.UNWATCHED, "Drame", 1990, Quality.UHD_4K), after.state.value.filter)
     }
 }

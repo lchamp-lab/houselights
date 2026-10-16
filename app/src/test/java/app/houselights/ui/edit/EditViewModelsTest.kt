@@ -11,6 +11,7 @@ import app.houselights.ui.testing.MainDispatcherRule
 import app.houselights.ui.testing.film
 import app.houselights.ui.util.UiError
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -165,5 +166,22 @@ class EditViewModelsTest {
         assertEquals(2, provider.calls.count { it.startsWith("search") })
         assertEquals(1, provider.calls.count { it == "item m1" })
         assertEquals(listOf(heat), vm.state.value.results)
+    }
+
+    /** Android stopped the app meanwhile: what was typed comes back, and is what is searched. */
+    @Test
+    fun whatWasTypedOutlivesAStoppedProcess() = runTest {
+        val saved = SavedStateHandle()
+        val before = IdentifyViewModel("m1", { provider }, work = this, saved)
+        advanceUntilIdle()
+        before.setQuery("Heat McCann")
+        before.setYear("1995a")
+
+        provider.calls.clear()
+        val after = IdentifyViewModel("m1", { provider }, work = this, SavedStateHandle(saved.keys().associateWith { saved.get<Any?>(it) }))
+        advanceUntilIdle()
+        assertEquals("Heat McCann", after.state.value.query)
+        assertEquals("1995", after.state.value.year)
+        assertTrue("search Heat McCann" in provider.calls)
     }
 }
