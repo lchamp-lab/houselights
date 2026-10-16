@@ -70,6 +70,7 @@ import app.houselights.ui.design.components.SheetConfirm
 import app.houselights.ui.design.components.StatusState
 import app.houselights.ui.design.components.ScanProgress
 import app.houselights.ui.design.revealOnFocus
+import app.houselights.ui.design.tryRequestFocus
 import app.houselights.ui.onboarding.FolderField
 import app.houselights.ui.util.UiError
 import app.houselights.ui.util.scanErrorText
@@ -145,7 +146,7 @@ private fun Sources(rows: PaneRows, onEdit: (folderId: Long, focus: FolderField)
         val (id, next) = removing ?: return@LaunchedEffect
         if (sources.none { it.id == id }) {
             removing = null
-            runCatching { next.requestFocus() }
+            next.tryRequestFocus()
         }
     }
 
@@ -599,7 +600,7 @@ private fun TmdbKeySheet(issue: UiError?, onDismiss: () -> Unit) {
             if (attempt == null || attempt.number != waitingOn) return@LaunchedEffect
             when (attempt.outcome) {
                 ACCEPTED -> sheet.dismiss()
-                REFUSED -> runCatching { field.requestFocus() }
+                REFUSED -> field.tryRequestFocus()
                 else -> Unit
             }
         }

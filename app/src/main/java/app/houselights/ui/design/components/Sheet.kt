@@ -66,6 +66,7 @@ import app.houselights.ui.design.Ground
 import app.houselights.ui.design.LocalGround
 import app.houselights.ui.design.groundStep
 import app.houselights.ui.design.scrollEdges
+import app.houselights.ui.design.tryRequestFocus
 import app.houselights.ui.util.toPx
 import coil.compose.AsyncImage
 
@@ -143,7 +144,7 @@ internal fun SheetWindow(
             window?.setDimAmount(0f)
             window?.setWindowAnimations(0)
         }
-        LaunchedEffect(Unit) { initialFocus?.let { runCatching { it.requestFocus() } } }
+        LaunchedEffect(Unit) { initialFocus?.tryRequestFocus() }
         val room = Hl.colors.background
         Box(
             Modifier
@@ -285,7 +286,7 @@ fun SheetConfirm(
         if (answered) {
             LaunchedEffect(Unit) {
                 answered = false
-                runCatching { origin.requestFocus() }
+                origin.tryRequestFocus()
             }
         }
     }
@@ -295,7 +296,7 @@ fun SheetConfirm(
 @Composable
 private fun ConfirmCard(question: String, consequence: String, confirm: String, onConfirm: () -> Unit, onCancel: () -> Unit) {
     val cancel = remember { FocusRequester() }
-    LaunchedEffect(Unit) { runCatching { cancel.requestFocus() } }
+    LaunchedEffect(Unit) { cancel.tryRequestFocus() }
     Intertitle(question, message = consequence, attention = true) {
         Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.s)) {
             HlButton(stringResource(R.string.cancel), onClick = onCancel, modifier = Modifier.focusRequester(cancel))

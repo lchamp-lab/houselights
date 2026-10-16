@@ -59,6 +59,7 @@ import app.houselights.ui.design.components.MetaLine
 import app.houselights.ui.design.components.ScreenTitle
 import app.houselights.ui.design.components.TitleArt
 import app.houselights.ui.design.components.rememberAmbientColor
+import app.houselights.ui.design.tryRequestFocus
 import app.houselights.ui.home.ErrorIntertitle
 import app.houselights.ui.util.appContainer
 import app.houselights.ui.util.FACT_GAP
@@ -175,7 +176,7 @@ private fun Choices(
     LaunchedEffect(Unit) {
         // Start on the image in use, once the row has laid it out.
         withFrameNanos { }
-        runCatching { selectedFocus.requestFocus() }
+        selectedFocus.tryRequestFocus()
     }
     MediaRow(header = null, state = listState) {
         itemsIndexed(choices.options, key = { _, o -> o.value }) { i, option ->

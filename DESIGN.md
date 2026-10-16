@@ -606,6 +606,9 @@ show when it fails. `SpacingGridTest` keeps `HlSpace` and
 `StringsTest` the French typography of the resources, `CatalogCoverageTest` the catalogue complete,
 `FocusStyleGuardTest` focus in one place, `GroundTest` the grounds, `LayoutTokensTest` the grid,
 `DesignDocTest` this document: every name of the system it cites is still declared in the code.
+`RunCatchingGuardTest` keeps `runCatching` away from a request for focus, which fails one way only
+(`tryRequestFocus` catches a requester with nothing to focus, and lets a real error through), and
+out of suspending code, where it would swallow a cancellation (`suspendRunCatching` there).
 Deliberate exceptions go in the guard's `allowed` list, with the reason; a value needed twice belongs
 in the design system instead.
 

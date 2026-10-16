@@ -35,8 +35,11 @@ import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.node.LayoutAwareModifierNode
 import androidx.compose.ui.node.ModifierNodeElement
 import androidx.compose.ui.platform.InspectorInfo
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlin.coroutines.cancellation.CancellationException
 
 /**
  * Stable keys for what can hold focus. A key says what an element is, never where it is, so it
@@ -67,6 +70,18 @@ object FocusKey {
     private val boundary = Regex("/(?=(item|action|tab|pane|row|section):)")
 
     private fun boundaries(key: String) = boundary.findAll(key).map { it.range.first }.toList()
+}
+
+/**
+ * Asks for focus; false when nothing carries this requester (not composed yet, or gone), the one
+ * failure a screen expects: [FocusRequester] says it by throwing an [IllegalStateException]. Any
+ * other error is a mistake, and is not hidden.
+ */
+fun FocusRequester.tryRequestFocus(): Boolean = try {
+    requestFocus()
+    true
+} catch (_: IllegalStateException) {
+    false
 }
 
 /**
@@ -117,8 +132,7 @@ class FocusMemory(initial: String? = null) {
      */
     fun focus(key: String): Boolean {
         nodes[key]?.let { return it.placed && it.requestFocus() }
-        val requester = requesters[key] ?: return false
-        return runCatching { requester.requestFocus() }.isSuccess
+        return requesters[key]?.tryRequestFocus() == true
     }
 
     internal fun handles(key: String): KeyHandles = handles.getOrPut(key) { KeyHandles(requesters[key] ?: FocusRequester()) }
@@ -143,7 +157,7 @@ class FocusMemory(initial: String? = null) {
     suspend fun restore(fallback: FocusRequester?, reveal: suspend (key: String) -> Boolean = { false }): Boolean {
         withFrameNanos { }
         val revealed: suspend (String) -> Boolean = { key -> reveal(key).also { if (it) withFrameNanos { } } }
-        val restored = restoreFocus(last, ::focus, revealed) { fallback != null && runCatching { fallback.requestFocus() }.isSuccess }
+        val restored = restoreFocus(last, ::focus, revealed) { fallback?.tryRequestFocus() == true }
         last?.let { key -> keepInView(key) }
         return restored
     }
@@ -157,7 +171,13 @@ class FocusMemory(initial: String? = null) {
         withTimeoutOrNull(KEEP_IN_VIEW_MS) {
             while (last == key) {
                 val node = nodes[key]?.takeIf { it.placed } ?: break
-                runCatching { node.handles.bringer.bringIntoView() }
+                try {
+                    node.handles.bringer.bringIntoView()
+                } catch (_: CancellationException) {
+                    // A newer request to scroll took over from this one: try again next frame. A
+                    // cancellation of this loop itself (the time is up, the screen has gone) stops it.
+                    currentCoroutineContext().ensureActive()
+                }
                 withFrameNanos { }
             }
         }

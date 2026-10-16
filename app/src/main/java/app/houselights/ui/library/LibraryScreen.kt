@@ -48,6 +48,7 @@ import app.houselights.ui.design.FocusKey
 import app.houselights.ui.design.RestoreFocus
 import app.houselights.ui.design.focusKey
 import app.houselights.ui.design.rememberFocusMemory
+import app.houselights.ui.design.tryRequestFocus
 import app.houselights.R
 import app.houselights.core.Definition
 import app.houselights.core.Library
@@ -124,7 +125,7 @@ fun LibraryScreen(
     val focusedIndex = remember { mutableStateOf<Int?>(null) }
     BackToFirstPoster(focusedIndex) {
         gridState.animateScrollToItem(0)
-        runCatching { gridFocus.requestFocus() }
+        gridFocus.tryRequestFocus()
     }
     // Where the foot stood when the next page failed: once Réessayer brings the page, focus goes to
     // its first poster, where the button was, not nowhere.

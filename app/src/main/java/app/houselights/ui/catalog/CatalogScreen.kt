@@ -75,6 +75,7 @@ import app.houselights.ui.design.components.SheetConfirm
 import app.houselights.ui.design.components.StatusState
 import app.houselights.ui.design.components.Wordmark
 import app.houselights.ui.design.emberLight
+import app.houselights.ui.design.tryRequestFocus
 import app.houselights.ui.util.NBSP
 import java.util.Locale
 import kotlin.math.roundToInt
@@ -90,7 +91,7 @@ fun CatalogScreen() {
     val c = Hl.colors
     val t = Hl.type
     val first = remember { FocusRequester() }
-    LaunchedEffect(Unit) { runCatching { first.requestFocus() } }
+    LaunchedEffect(Unit) { first.tryRequestFocus() }
     Box(Modifier.fillMaxSize()) {
         Backdrop(null, BackdropStyle.Quiet)
         LazyColumn(
