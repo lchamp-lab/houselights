@@ -3,6 +3,7 @@ package app.houselights.providers.local
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Color
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
@@ -138,6 +139,20 @@ class ArtworkCacheTest {
             onRead = { _, offset, _ -> if (offset > 0) throw IOException("Connection reset by peer") }
         }
         assertNull(ArtworkCache(dir).copy(source, RemoteFile("Dune (2021)/fanart.jpg", bytes.size.toLong()), nas))
+        assertEquals(emptyList<File>(), dir.walkTopDown().filter { it.isFile }.toList())
+    }
+
+    /** A scan stopped between two blocks (the folder removed, the app closing) leaves no half copy either. */
+    @Test
+    fun aCopyCancelledLeavesNothingBehind() = runBlocking {
+        val dir = temp.newFolder("artwork")
+        val bytes = ByteArray(1_000_000)
+        val nas = FakeRemoteBrowser().apply {
+            put("Dune (2021)/fanart.jpg", size = bytes.size.toLong(), bytes = bytes)
+            onRead = { _, offset, _ -> if (offset > 0) throw CancellationException("The scan stopped") }
+        }
+        val cancelled = runCatching { ArtworkCache(dir).copy(source, RemoteFile("Dune (2021)/fanart.jpg", bytes.size.toLong()), nas) }
+        assertTrue(cancelled.toString(), cancelled.exceptionOrNull() is CancellationException)
         assertEquals(emptyList<File>(), dir.walkTopDown().filter { it.isFile }.toList())
     }
 }

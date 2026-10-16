@@ -50,19 +50,22 @@ class ArtworkCache(
         // Written aside then renamed: an interrupted copy never passes for a cached image.
         val partial = File(target.parentFile, "${target.name}.part")
         val smaller = File(target.parentFile, "${target.name}.small.part")
-        return suspendRunCatching {
-            target.parentFile?.mkdirs()
-            stream(source, file, browser, partial)
-            val kept = if (shrink(partial, smaller)) smaller else partial
-            check(kept.renameTo(target)) { "Could not store ${target.name}" }
-            partial.delete()
-            uri
-        }.getOrElse { e ->
+        return try {
+            suspendRunCatching {
+                target.parentFile?.mkdirs()
+                stream(source, file, browser, partial)
+                val kept = if (shrink(partial, smaller)) smaller else partial
+                check(kept.renameTo(target)) { "Could not store ${target.name}" }
+                uri
+            }.getOrElse { e ->
+                if (ScanErrors.isUnreachable(e) || ScanErrors.classify(e).kind == ScanErrorKind.STORAGE_FULL) throw e
+                Log.w(TAG, "Could not copy ${file.relativePath}", e)
+                null
+            }
+        } finally {
+            // Copied, failed, or cut short by the scan stopping between two blocks: nothing half written stays.
             partial.delete()
             smaller.delete()
-            if (ScanErrors.isUnreachable(e) || ScanErrors.classify(e).kind == ScanErrorKind.STORAGE_FULL) throw e
-            Log.w(TAG, "Could not copy ${file.relativePath}", e)
-            null
         }
     }
 
