@@ -15,6 +15,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -160,6 +161,20 @@ class LocalLibraryTest {
         assertEquals(FolderSave.Saved, library.addFolder(nfs("nas2", "volume1/media", "films")))
         assertEquals(FolderSave.Saved, library.addFolder(nfs("nas", "volume1/media", "films", Protocol.SMB)))
         assertEquals(5, dao.sources().size)
+
+        // An SMB share ignores case (Samba's default, Windows): the same folder, written another way.
+        val smb = dao.sources().single { it.protocol == Protocol.SMB }
+        assertEquals(FolderSave.Overlaps(smb), library.addFolder(nfs("nas", "Volume1/Media", "Films", Protocol.SMB)))
+        // An NFS path does not: another folder.
+        assertEquals(FolderSave.Saved, library.addFolder(nfs("nas", "volume1/media", "Films")))
+        assertEquals(6, dao.sources().size)
+
+        // An export "/" is the host's root: it holds every folder of the host, by the same protocol.
+        assertTrue(nfs("nas", "/", "").overlaps(films))
+        assertFalse(nfs("nas", "/", "").overlaps(smb))
+        assertTrue(library.addFolder(nfs("nas", "/", "")) is FolderSave.Overlaps)
+        assertEquals(FolderSave.Saved, library.addFolder(nfs("nas3", "/", "")))
+        assertEquals(FolderSave.Overlaps(dao.sources().single { it.host == "nas3" }), library.addFolder(nfs("nas3", "export", "films")))
     }
 
     @Test
