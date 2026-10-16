@@ -1,5 +1,6 @@
 package app.houselights.providers.local
 
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -39,5 +40,18 @@ class ArtworkCacheTest {
     @Test
     fun missingFolderIsFine() {
         assertEquals(CleanupResult(0, 0), ArtworkCache(File(temp.root, "none")).sweep(emptyList()))
+    }
+
+    @Test
+    fun theFirstImageIsCopiedThoughTheCacheFolderIsNotThereYet() = runBlocking {
+        // A folder that does not exist has no space at all, as far as File.usableSpace goes.
+        val cache = ArtworkCache(File(temp.root, "artwork"))
+        val nas = FakeRemoteBrowser().apply { put("Dune (2021)-poster.jpg", size = 100, bytes = ByteArray(100)) }
+        val source = SourceEntity(
+            id = 1, name = "Films", kind = SourceKind.MOVIES, protocol = Protocol.NFS, host = "nas", share = "media",
+            path = "films", username = "", password = Secret(""),
+        )
+        val copied = cache.copy(source, RemoteFile("Dune (2021)-poster.jpg", 100), nas)
+        assertTrue(copied.orEmpty(), copied?.let { File(it.removePrefix("file://")).isFile } == true)
     }
 }

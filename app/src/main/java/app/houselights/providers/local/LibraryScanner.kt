@@ -213,10 +213,13 @@ class LibraryScanner(
         val seasons = ShowIndexer.SeasonCache(tmdb)
         try {
             for (source in dao.sources()) {
-                suspendRunCatching { changed = scan(source, refreshMetadata, tmdb, seasons) || changed }.onFailure { e ->
-                    Log.w(TAG, "Scan of ${source.name} failed", e)
-                    errors[source.id] = ScanErrors.classify(e)
-                }
+                val failure = suspendRunCatching { changed = scan(source, refreshMetadata, tmdb, seasons) || changed }
+                    .exceptionOrNull() ?: continue
+                Log.w(TAG, "Scan of ${source.name} failed", failure)
+                val error = if (outOfSpace(failure)) ScanError(ScanErrorKind.STORAGE_FULL) else ScanErrors.classify(failure)
+                errors[source.id] = error
+                // Out of space, every other folder would fail the same way, file after file.
+                if (error.kind == ScanErrorKind.STORAGE_FULL) break
             }
             lock.withLock {
                 suspendRunCatching {
@@ -291,6 +294,8 @@ class LibraryScanner(
                 unreachable = 0
             }.onFailure { e ->
                 Log.w(TAG, "Failed on ${file.relativePath}", e)
+                // A device out of space would fail every remaining file the same way: the pass stops.
+                if (outOfSpace(e)) throw e
                 // A NAS that stops answering would fail every remaining file, each after long timeouts.
                 if (ScanErrors.isUnreachable(e) && ++unreachable >= MAX_UNREACHABLE) throw e
             }
@@ -302,6 +307,14 @@ class LibraryScanner(
         if (changed) _changed.emit(Unit)
         return changed
     }
+
+    /**
+     * The device ran out of space: said by [e], or by the space left. SQLite rolls a transaction back
+     * by itself when the disk is full, and the rollback Room then asks for fails in turn
+     * ("cannot rollback - no transaction is active"), so that [e] may no longer say it.
+     */
+    private fun outOfSpace(e: Throwable): Boolean =
+        ScanErrors.classify(e).kind == ScanErrorKind.STORAGE_FULL || artwork.spaceLeft() < NEARLY_FULL_BYTES
 
     /**
      * Waits while a player may stream from the NAS: while a film plays (bounded, should the player
@@ -337,6 +350,9 @@ class LibraryScanner(
     companion object {
         private const val TAG = "LibraryScanner"
         private const val MAX_UNREACHABLE = 3
+
+        /** Space left under which a failure is the device's: too little for the database to grow. */
+        private const val NEARLY_FULL_BYTES = 50L shl 20
         private const val MAX_PAUSE_MS = 4 * 60 * 60_000L
 
         /** Title and year of a film, from its file name or its folder ("Title (Year)/movie.mkv"). */

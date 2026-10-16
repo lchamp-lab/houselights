@@ -19,11 +19,17 @@ data class CacheUsage(val files: Int, val bytes: Long)
  * Local artwork copied once from the NAS into app storage, so Coil can load it like any image.
  * Copies no longer referenced by the library are removed by [sweep].
  */
-class ArtworkCache(private val dir: File) {
+class ArtworkCache(
+    private val dir: File,
+    /** The bytes the device can still write where the cache lives. */
+    private val freeSpace: () -> Long = { generateSequence(dir) { it.parentFile }.firstOrNull { it.exists() }?.usableSpace ?: 0 },
+) {
     /**
      * "file://…" path of the cached copy; read again only when the file changes size. Null when the
      * image cannot be copied: it is left to TMDB, and logged. A NAS that stops answering throws, as
-     * for every read of a scan, so the scan stops instead of waiting on each image.
+     * for every read of a scan, so the scan stops instead of waiting on each image; so does a device
+     * out of space. Nearly out of it ([MIN_FREE_BYTES]), the image is not copied: the space left is
+     * the library's, and the system's.
      */
     suspend fun copy(source: SourceEntity, file: RemoteFile, browser: RemoteBrowser): String? {
         val ext = file.relativePath.substringAfterLast('.', "jpg").lowercase().let { if (it == "tbn") "jpg" else it }
@@ -32,6 +38,10 @@ class ArtworkCache(private val dir: File) {
         val target = File(dir, "${source.id}/${hash("${file.relativePath}:${file.size}")}.$ext")
         val uri = "file://${target.absolutePath}"
         if (target.exists()) return uri
+        if (freeSpace() < file.size + MIN_FREE_BYTES) {
+            Log.w(TAG, "Not copying ${file.relativePath}: the device is nearly full")
+            return null
+        }
         // Written aside then renamed: an interrupted copy never passes for a cached image.
         val partial = File(target.parentFile, "${target.name}.part")
         return suspendRunCatching {
@@ -42,11 +52,14 @@ class ArtworkCache(private val dir: File) {
             uri
         }.getOrElse { e ->
             partial.delete()
-            if (ScanErrors.isUnreachable(e)) throw e
+            if (ScanErrors.isUnreachable(e) || ScanErrors.classify(e).kind == ScanErrorKind.STORAGE_FULL) throw e
             Log.w(TAG, "Could not copy ${file.relativePath}", e)
             null
         }
     }
+
+    /** The bytes the device can still write, where the cache and the library live. */
+    fun spaceLeft(): Long = freeSpace()
 
     fun usage(): CacheUsage {
         val files = dir.walkTopDown().filter { it.isFile }.toList()
@@ -86,6 +99,9 @@ class ArtworkCache(private val dir: File) {
     companion object {
         private const val TAG = "ArtworkCache"
         private const val MAX_BYTES = 30 shl 20
+
+        /** Left free when copying an image: room for the library's database to grow, and for the system. */
+        const val MIN_FREE_BYTES = 200L shl 20
 
         private fun hash(s: String): String =
             MessageDigest.getInstance("SHA-1").digest(s.toByteArray()).joinToString("") { "%02x".format(Locale.ROOT, it) }.take(24)

@@ -382,6 +382,7 @@
     <string name="output_by_player_hint">Le lecteur met l’interface à l’échelle de sa sortie. Résolution, fréquence d’images et HDR se choisissent dans Réglages du lecteur &gt; Affichage.</string>
     <string name="storage_used">utilisés sur cet appareil</string>
     <string name="storage_cache_limit">Les images en ligne sont conservées jusqu’à %s ; les plus anciennes partent d’abord.</string>
+    <string name="storage_full">La dernière analyse s’est arrêtée : l’appareil n’a plus d’espace libre. Nettoyer, ou vider le cache des images, en libère.</string>
     <string name="cleanup_desc">Supprime les copies d’images locales qui ne servent plus</string>
     <string name="clear_cache_desc">Les images sont téléchargées à nouveau au besoin</string>
     <string name="about_free_software">Logiciel libre, licence %s</string>

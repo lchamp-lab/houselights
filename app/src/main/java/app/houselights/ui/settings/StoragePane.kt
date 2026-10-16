@@ -20,11 +20,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.tv.material3.Text
 import app.houselights.R
+import app.houselights.providers.local.ScanErrorKind
+import app.houselights.providers.local.ScanState
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.components.AttentionNote
 import app.houselights.ui.design.components.HlMeter
 import app.houselights.ui.design.components.HlSettingGroup
 import app.houselights.ui.design.components.HlSettingRow
@@ -84,8 +88,17 @@ private fun StorageSummary(st: StorageStats?) {
             Spacer(Modifier.height(HlSpace.m))
             Hint(stringResource(R.string.storage_cache_limit, formatBytes(it.imageCacheMax)))
         }
+        // The last scan stopped for want of space: said here, above what frees some.
+        val scan by settingsViewModel().library.scan.collectAsStateWithLifecycle()
+        if (scan.storageFull) {
+            Spacer(Modifier.height(HlSpace.m))
+            AttentionNote(stringResource(R.string.storage_full))
+        }
     }
 }
+
+/** The last scan stopped because the device had no space left. */
+internal val ScanState.storageFull: Boolean get() = errors.values.any { it.kind == ScanErrorKind.STORAGE_FULL }
 
 @Composable
 private fun StorageActions(storage: StorageStats?) {

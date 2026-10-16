@@ -30,7 +30,10 @@ class ScanBench(artworkDir: File, tmdbKey: Boolean = true) {
     /** The scans' client, kept as the app keeps it: its pause lasts from one pass to the next. */
     val scanClient = tmdb.client(pauseWhenUnreachable = true)
 
-    val artwork = ArtworkCache(artworkDir)
+    /** The bytes the device can still write, where the artwork is copied. */
+    var freeSpace = Long.MAX_VALUE
+
+    val artwork = ArtworkCache(artworkDir) { freeSpace }
 
     val scanner = LibraryScanner(
         dao = dao,
