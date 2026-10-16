@@ -201,6 +201,23 @@ class FilenameParserTest {
         assertNull("nothing names the show", show("Saison 1/03 - Victor.mkv"))
     }
 
+    /** A pack of a whole show names it before what it holds: the show is named as its files name it, its year the pack's. */
+    @Test
+    fun aPackOfAWholeShowIsNamedByItsFiles() {
+        assertEquals(
+            Triple("Friends", null, "Friends.Complete.Series.1080p.BluRay.x264"),
+            show("Friends.Complete.Series.1080p.BluRay.x264/Season 1/Friends.S01E01.1080p.BluRay.x264.mkv"),
+        )
+        assertEquals(
+            Triple("Friends", null, "Friends - The Complete Series"),
+            show("Friends - The Complete Series/Friends - S01E01 - The One Where Monica Gets a Roommate.mkv"),
+        )
+        assertEquals(
+            Triple("Friends", 1994, "Séries/Friends.Complete.Series.1994.1080p"),
+            show("Séries/Friends.Complete.Series.1994.1080p/Friends.S01E01.mkv"),
+        )
+    }
+
     /** The year of a show is its folder's, else its name's at the source's root; specials are season 0. */
     @Test
     fun showYearsAndSpecials() {

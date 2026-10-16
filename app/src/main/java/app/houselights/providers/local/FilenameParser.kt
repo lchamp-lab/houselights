@@ -166,16 +166,41 @@ object FilenameParser {
     private fun episodeIn(fileName: String, folders: List<String>): Found? {
         val base = normalizeSeparators(dropBrackets(stripExtension(fileName)))
         val numbers = numbers(base, folders.lastOrNull()?.let(::seasonFromFolder)) ?: return null
-        // The show's folder is the one named as the file names the show, under a folder of kinds
-        // ("Animation/Arcane/Saison 1/Arcane.S01E01"); else the first one, above a season's pack
-        // ("Show/Show.S01.1080p.WEB/Show.S01E01"). Without one, the file's name names the show.
-        val named = parseMovie(numbers.before)
-        val shows = folders.indices.filter { seasonFromFolder(folders[it]) == null }
-        val folder = shows.firstOrNull { named.title.isNotEmpty() && sameShow(parseMovie(folders[it]).title, named.title) }
-            ?: shows.firstOrNull()
-        val show = folder?.let { parseMovie(folders[it]) } ?: named.takeIf { it.title.isNotEmpty() }
+        val (folder, show) = showIn(folders, parseMovie(numbers.before))
         return Found(ParsedEpisode(show?.title, numbers.season, numbers.episode, numbers.last), folder, show?.year)
     }
+
+    /**
+     * The show's folder among [folders], by its index (null for none), and the show's name and year, for a file
+     * whose name names the show [named]. The show's folder is the one named as the file names the show, under a
+     * folder of kinds ("Animation/Arcane/Saison 1/Arcane.S01E01"); else one that names it before a pack's tags
+     * ("Friends.Complete.Series.1080p", "Friends - The Complete Series"), the show named as its files name it;
+     * else the first one, above a season's pack ("Show/Show.S01.1080p.WEB/Show.S01E01"). Without one, the
+     * file's name names the show.
+     */
+    private fun showIn(folders: List<String>, named: ParsedMovie): Pair<Int?, ParsedMovie?> {
+        val shows = folders.indices.filter { seasonFromFolder(folders[it]) == null }
+        val known = named.title.isNotEmpty()
+        val same = shows.firstOrNull { known && sameShow(parseMovie(folders[it]).title, named.title) }
+        if (same != null) return same to parseMovie(folders[same])
+        val pack = shows.firstOrNull { known && namesThenTags(folders[it], named.title) }
+        if (pack != null) return pack to ParsedMovie(named.title, parseMovie(folders[pack]).year)
+        val first = shows.firstOrNull()
+        return first to (first?.let { parseMovie(folders[it]) } ?: named.takeIf { known })
+    }
+
+    /**
+     * [folder] names the show [title], then from a release tag on what of it it holds: "Friends.Complete.Series.1080p",
+     * "Friends - The Complete Series", whose own name, "Friends Complete Series", no show bears.
+     */
+    private fun namesThenTags(folder: String, title: String): Boolean {
+        val base = normalizeSeparators(dropBrackets(folder))
+        val tag = JUNK.find(base) ?: return false
+        return sameShow(base.substring(0, tag.range.first).replace(TRAILING_THE, ""), title)
+    }
+
+    /** "The" ending a name, before "The Complete Series". */
+    private val TRAILING_THE = Regex("""(?i)(?<![a-z0-9])the[ ._-]*$""")
 
     /** Two names of one show, whatever case, spaces and punctuation: "Marvel's Agents of S.H.I.E.L.D." and "Marvels.Agents.of.SHIELD". */
     private fun sameShow(a: String, b: String) = letters(a) == letters(b)
