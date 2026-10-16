@@ -33,6 +33,8 @@ import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import app.houselights.ui.design.components.AttentionNote
 import app.houselights.ui.design.components.HlListItem
 import app.houselights.ui.design.components.PosterWall
 import app.houselights.ui.design.components.PosterWallScrim
@@ -44,6 +46,7 @@ import app.houselights.ui.util.toPx
 @Composable
 fun WelcomeScreen(onLocal: () -> Unit, onJellyfin: () -> Unit) {
     val app = appContainer()
+    val lostSecrets = app.settings.state.collectAsStateWithLifecycle().value.lostSecrets
     val focus = remember { FocusRequester() }
     var posters by remember { mutableStateOf<List<String>>(emptyList()) }
     val posterPx = HlSize.posterWall.toPx()
@@ -73,6 +76,8 @@ fun WelcomeScreen(onLocal: () -> Unit, onJellyfin: () -> Unit) {
             Spacer(Modifier.width(HlSpace.xl))
             Column(Modifier.width(HlLayout.welcomeChoices), verticalArrangement = Arrangement.spacedBy(HlSpace.s)) {
                 Text(stringResource(R.string.welcome_title), style = Hl.type.lead, color = Hl.colors.content)
+                // Back here because the connection kept could not be read again: said, not left to guess.
+                if (lostSecrets) AttentionNote(stringResource(R.string.welcome_lost_secrets))
                 Spacer(Modifier.height(HlSpace.xxs))
                 // The same height side by side; under each, how it reaches your films.
                 HlListItem(

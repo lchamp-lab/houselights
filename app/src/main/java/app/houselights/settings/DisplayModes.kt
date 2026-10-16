@@ -27,10 +27,13 @@ enum class OutputControl {
 }
 
 object DisplayModes {
-    /** The mode "4K 60 Hz" asks for: at least 3840 × 2160, nearest to 60 Hz and within 1 Hz of it. */
+    /**
+     * The mode "4K 60 Hz" asks for: at least 3840 × 2160, nearest to 60 Hz and within 1 Hz of it; at
+     * the same rate, 3840 wide (a 16:9 TV's) before DCI 4K's 4096, whatever order the system lists them.
+     */
     fun ui4k(modes: List<OutputMode>): OutputMode? = modes
         .filter { it.isUltraHd }
-        .minByOrNull { abs(it.refreshRate - UI_RATE) }
+        .minWithOrNull(compareBy<OutputMode>({ abs(it.refreshRate - UI_RATE) }, { it.width != UHD_WIDTH }))
         ?.takeIf { abs(it.refreshRate - UI_RATE) < RATE_TOLERANCE }
 
     fun control(modes: List<OutputMode>): OutputControl = when {

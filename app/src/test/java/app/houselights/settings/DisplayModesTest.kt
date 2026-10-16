@@ -45,4 +45,13 @@ class DisplayModesTest {
     fun aWideButShortModeIsNotUltraHd() {
         assertEquals(OutputControl.Player, DisplayModes.control(listOf(OutputMode(3840, 1080, 60f))))
     }
+
+    /** A box that lists DCI 4K first: a 16:9 TV gets 3840 all the same. */
+    @Test
+    fun atTheSameRateUltraHdIs3840Wide() {
+        val dciFirst = listOf(OutputMode(4096, 2160, 60f, 1), OutputMode(3840, 2160, 60f, 2), OutputMode(3840, 2160, 50f, 3))
+        assertEquals(2, DisplayModes.ui4k(dciFirst)?.id)
+        // Nearer to 60 Hz comes first.
+        assertEquals(1, DisplayModes.ui4k(listOf(OutputMode(4096, 2160, 60f, 1), OutputMode(3840, 2160, 59.5f, 2)))?.id)
+    }
 }

@@ -10,6 +10,8 @@ data class PublicSystemInfo(
     @SerialName("ServerName") val serverName: String? = null,
     @SerialName("Version") val version: String? = null,
     @SerialName("Id") val id: String? = null,
+    /** "Jellyfin Server"; another product (Emby) answers the same route. */
+    @SerialName("ProductName") val productName: String? = null,
 )
 
 @Serializable

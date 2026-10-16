@@ -24,6 +24,7 @@
     </plurals>
 
     <string name="retry">Réessayer</string>
+    <string name="retrying">Nouvel essai…</string>
     <string name="empty_title">Aucun titre pour l’instant</string>
     <string name="empty_collections">Aucune collection pour l’instant</string>
     <string name="empty_server">Le serveur ne propose aucun film ni aucune série à ce compte.</string>
@@ -145,7 +146,9 @@
     <string name="gigabytes">%s Go</string>
     <string name="megabytes">%s Mo</string>
     <string name="similar">Dans la même veine</string>
+    <string name="action_not_saved">Non enregistré</string>
     <string name="play_failed">Lecture impossible</string>
+    <string name="play_with">Lire avec</string>
     <string name="no_player">Le lecteur Zidoo n’est pas installé.</string>
     <string name="player_credentials">Ce dossier est protégé par un mot de passe : seul le lecteur Zidoo peut le lire.</string>
 
@@ -209,6 +212,11 @@
     <string name="error_server_unexpected">Le serveur a répondu de façon inattendue. Vérifiez l’adresse, puis réessayez.</string>
     <string name="error_server_unreachable">Rien ne répond à %s. Vérifiez l’adresse et que Jellyfin est démarré.</string>
     <string name="error_not_jellyfin">%s répond, mais ne semble pas être un serveur Jellyfin. Vérifiez l’adresse et le port.</string>
+    <string name="error_server_missing">Saisissez l’adresse du serveur, ou choisissez-en un trouvé sur le réseau.</string>
+    <string name="error_server_address">« %s » n’est pas une adresse de serveur. Saisissez son nom ou son adresse IP, avec son port s’il diffère de celui de Jellyfin.</string>
+    <string name="error_server_certificate">%s répond, mais son certificat est refusé : expiré, auto-signé ou établi pour un autre nom. Renouvelez-le sur le serveur, ou utilisez son adresse http://.</string>
+    <string name="error_server_old">%1$s fonctionne avec Jellyfin %2$s : Houselights demande la version 10.9 ou plus récente. Mettez le serveur à jour, puis réessayez.</string>
+    <string name="error_server_other">%1$s est un serveur %2$s : Houselights fonctionne avec Jellyfin 10.9 ou plus récent.</string>
 
     <string name="settings_title">Réglages</string>
     <string name="welcome_tagline">Vos films, sur grand écran.</string>
@@ -353,6 +361,9 @@
     <string name="error_tmdb_key_refused">TMDB n’accepte pas la clé enregistrée dans les réglages. Vérifiez-la, ou remplacez-la.</string>
     <string name="error_failed_title">L’opération n’a pas abouti</string>
     <string name="error_failed">Réessayez dans un instant.</string>
+    <string name="error_keystore_title">Coffre de l’appareil indisponible</string>
+    <string name="error_keystore">Le coffre de clés de l’appareil a refusé de chiffrer le mot de passe, rien n’a été enregistré. Redémarrez le lecteur, puis réessayez.</string>
+    <string name="welcome_lost_secrets">La connexion enregistrée sur ce lecteur n’a pas pu être relue. Indiquez de nouveau où sont vos films.</string>
     <string name="error_action_reconnect">Se reconnecter</string>
     <string name="error_action_add_tmdb_key">Ajouter une clé</string>
     <string name="error_action_edit_tmdb_key">Modifier la clé</string>

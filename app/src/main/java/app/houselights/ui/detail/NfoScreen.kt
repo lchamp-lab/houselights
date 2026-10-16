@@ -36,7 +36,9 @@ import app.houselights.ui.design.components.Score
 import app.houselights.ui.design.components.InfoBlock
 import app.houselights.ui.design.components.StatusPanel
 import app.houselights.ui.design.components.StatusState
+import app.houselights.ui.home.ErrorIntertitle
 import app.houselights.ui.util.LoadState
+import app.houselights.ui.util.retainedError
 import app.houselights.ui.util.appContainer
 import app.houselights.ui.util.formatDuration
 
@@ -44,14 +46,16 @@ import app.houselights.ui.util.formatDuration
 @Composable
 fun NfoScreen(itemId: String) {
     val app = appContainer()
-    val vm = viewModel(key = "nfo-$itemId") { NfoViewModel(app, itemId) }
+    val vm: NfoViewModel = viewModel(key = "nfo-$itemId", factory = NfoViewModel.factory(app, itemId))
     val state by vm.state.collectAsStateWithLifecycle()
     var tab by remember { mutableIntStateOf(0) }
     val tabsFocus = remember { FocusRequester() }
-    LaunchedEffect(Unit) { runCatching { tabsFocus.requestFocus() } }
     val loaded = state.document
     val doc = (loaded as? LoadState.Ready)?.value
     val info = doc?.info
+    // A failure takes the place of the tabs, and stays while trying again, its button at work.
+    val failure = retainedError((loaded as? LoadState.Failed)?.error, retrying = loaded is LoadState.Loading)
+    LaunchedEffect(failure == null) { if (failure == null) runCatching { tabsFocus.requestFocus() } }
     HlFormScaffold(
         title = stringResource(R.string.nfo_title),
         description = stringResource(R.string.nfo_desc),
@@ -74,23 +78,26 @@ fun NfoScreen(itemId: String) {
                 label = stringResource(R.string.label_file),
                 value = doc?.path?.substringAfterLast('/') ?: stringResource(R.string.placeholder_pending),
                 valueStyle = Hl.type.entry,
+                // Why it failed is the intertitle's to say, beside it.
                 detail = state.title,
-                result = (loaded as? LoadState.Failed)?.let { stringResource(it.error.message) },
-                resultIsError = true,
             )
         },
     ) {
-        HlSegmented(
-            listOf(stringResource(R.string.nfo_tab_info), stringResource(R.string.nfo_tab_xml)),
-            selected = tab,
-            onSelect = { tab = it },
-            modifier = Modifier.focusRequester(tabsFocus),
-            selectOnFocus = true,
-        )
-        if (doc != null) {
-            when (tab) {
-                0 -> NfoDetails(info)
-                else -> XmlView(doc.text)
+        if (failure != null) {
+            ErrorIntertitle(failure, vm::load, retrying = loaded is LoadState.Loading)
+        } else {
+            HlSegmented(
+                listOf(stringResource(R.string.nfo_tab_info), stringResource(R.string.nfo_tab_xml)),
+                selected = tab,
+                onSelect = { tab = it },
+                modifier = Modifier.focusRequester(tabsFocus),
+                selectOnFocus = true,
+            )
+            if (doc != null) {
+                when (tab) {
+                    0 -> NfoDetails(info)
+                    else -> XmlView(doc.text)
+                }
             }
         }
     }

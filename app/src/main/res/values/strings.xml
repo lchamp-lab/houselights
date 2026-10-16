@@ -32,6 +32,7 @@
 
     <!-- States -->
     <string name="retry">Retry</string>
+    <string name="retrying">Trying again…</string>
     <string name="empty_title">No titles yet</string>
     <string name="empty_collections">No collections yet</string>
     <string name="empty_server">The server offers no film or show to this account.</string>
@@ -152,7 +153,9 @@
     <string name="gigabytes">%s GB</string>
     <string name="megabytes">%s MB</string>
     <string name="similar">More like this</string>
+    <string name="action_not_saved">Not saved</string>
     <string name="play_failed">Can’t play</string>
+    <string name="play_with">Play with</string>
     <string name="no_player">The Zidoo player isn’t installed.</string>
     <string name="player_credentials">This folder needs a password: only the Zidoo player can play it.</string>
 
@@ -218,6 +221,11 @@
     <string name="error_server_unexpected">The server answered in an unexpected way. Check the address, then try again.</string>
     <string name="error_server_unreachable">Nothing answers at %s. Check the address and that Jellyfin is running.</string>
     <string name="error_not_jellyfin">%s answers, but it doesn’t look like a Jellyfin server. Check the address and port.</string>
+    <string name="error_server_missing">Enter the address of the server, or choose one found on the network.</string>
+    <string name="error_server_address">“%s” is not a server address. Enter its name or IP address, with its port if it isn’t Jellyfin’s.</string>
+    <string name="error_server_certificate">%s answers, but its certificate is refused: expired, self-signed or made out to another name. Renew it on the server, or use its http:// address.</string>
+    <string name="error_server_old">%1$s runs Jellyfin %2$s: Houselights needs version 10.9 or later. Update the server, then try again.</string>
+    <string name="error_server_other">%1$s is a %2$s server: Houselights works with Jellyfin 10.9 or later.</string>
 
     <!-- Settings -->
     <string name="settings_title">Settings</string>
@@ -359,6 +367,9 @@
     <string name="error_tmdb_key_refused">TMDB doesn’t accept the key saved in Settings. Check it, or replace it.</string>
     <string name="error_failed_title">This could not be done</string>
     <string name="error_failed">Try again in a moment.</string>
+    <string name="error_keystore_title">Device keystore unavailable</string>
+    <string name="error_keystore">This device’s keystore refused to seal the password, so nothing was saved. Restart the player, then try again.</string>
+    <string name="welcome_lost_secrets">The connection saved on this player could not be read again. Choose where your films are once more.</string>
     <string name="error_action_reconnect">Sign in again</string>
     <string name="error_action_add_tmdb_key">Add a key</string>
     <string name="error_action_edit_tmdb_key">Change the key</string>

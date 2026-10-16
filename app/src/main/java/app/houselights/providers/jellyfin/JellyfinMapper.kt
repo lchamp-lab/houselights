@@ -83,25 +83,41 @@ internal class JellyfinMapper(private val client: JellyfinClient) {
     companion object {
         /** A server reports bitrates in bits a second. */
         private const val BPS_PER_KBPS = 1000
+        /**
+         * What Jellyfin's VideoRangeType says of the picture, value by value (10.9 to 10.11). Dolby Vision
+         * whose metadata cannot be used (DOVIInvalid) plays as its base layer, which it does not name.
+         */
+        private val VIDEO_RANGES = mapOf(
+            "SDR" to emptyList(),
+            "HDR10" to listOf(HdrFormat.HDR10),
+            "HDR10Plus" to listOf(HdrFormat.HDR10_PLUS),
+            "HLG" to listOf(HdrFormat.HLG),
+            "DOVI" to listOf(HdrFormat.DOLBY_VISION),
+            "DOVIWithHDR10" to listOf(HdrFormat.DOLBY_VISION, HdrFormat.HDR10),
+            "DOVIWithHDR10Plus" to listOf(HdrFormat.DOLBY_VISION, HdrFormat.HDR10_PLUS),
+            "DOVIWithHLG" to listOf(HdrFormat.DOLBY_VISION, HdrFormat.HLG),
+            "DOVIWithSDR" to listOf(HdrFormat.DOLBY_VISION),
+            "DOVIWithEL" to listOf(HdrFormat.DOLBY_VISION),
+            "DOVIWithELHDR10Plus" to listOf(HdrFormat.DOLBY_VISION, HdrFormat.HDR10_PLUS),
+            "DOVIInvalid" to emptyList(),
+        )
+
+        /** The HDR formats of a VideoRangeType; one a newer server adds is Dolby Vision when it says so first. */
+        internal fun hdrFormats(range: String?): List<HdrFormat> = range?.let { r ->
+            VIDEO_RANGES[r] ?: listOf(HdrFormat.DOLBY_VISION).takeIf { r.startsWith("DOVI") }
+        }.orEmpty()
+
         /** What the first media source contains, in the shared [MediaInfo] model. */
         fun mediaInfo(item: BaseItem): MediaInfo? {
             val source = item.mediaSources.firstOrNull() ?: return null
             val streams = source.mediaStreams
             val video = streams.firstOrNull { it.type == "Video" }?.let { v ->
-                val range = v.videoRangeType.orEmpty()
                 VideoInfo(
                     codec = Codecs.video(v.codec),
                     width = v.width,
                     height = v.height,
                     bitDepth = v.bitDepth,
-                    hdr = buildList {
-                        if (range.startsWith("DOVI")) add(HdrFormat.DOLBY_VISION)
-                        when {
-                            range == "HDR10Plus" -> add(HdrFormat.HDR10_PLUS)
-                            range == "HDR10" || range == "DOVIWithHDR10" -> add(HdrFormat.HDR10)
-                            range == "HLG" || range == "DOVIWithHLG" -> add(HdrFormat.HLG)
-                        }
-                    },
+                    hdr = hdrFormats(v.videoRangeType),
                     dolbyVisionProfile = v.dvProfile,
                     frameRate = v.realFrameRate ?: v.averageFrameRate,
                     dolbyVisionCompatibility = v.dvCompatibility.takeIf { v.dvProfile != null },

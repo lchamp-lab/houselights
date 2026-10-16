@@ -194,7 +194,9 @@ fun FactRow(
  * happened ([title], in the voice of the poster), what to check ([message]), and the action that
  * fixes it, focused; [secondaryAction] is a quieter way out beside it (where to look more closely).
  * A failure calls for [attention]: its rule is ember. With no action, [backHint] says that Back
- * is the way out. It takes the place of what the screen would show, from the top of that place.
+ * is the way out. While the action is at work (trying again), [busy] says so in its place: the
+ * intertitle stays, and focus with it. It takes the place of what the screen would show, from the
+ * top of that place.
  */
 @Composable
 fun HlEmptyState(
@@ -208,6 +210,7 @@ fun HlEmptyState(
     secondaryAction: String? = null,
     onSecondaryAction: () -> Unit = {},
     backHint: Boolean = false,
+    busy: String? = null,
 ) {
     val focus = remember { FocusRequester() }
     LaunchedEffect(action != null) { if (action != null) runCatching { focus.requestFocus() } }
@@ -219,7 +222,15 @@ fun HlEmptyState(
         actions = when {
             action != null -> ({
                 Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.s)) {
-                    HlButton(action, onAction, Modifier.focusRequester(focus), icon = actionIcon, emphasis = Emphasis.Primary)
+                    HlButton(
+                        action,
+                        onAction,
+                        Modifier.focusRequester(focus),
+                        icon = actionIcon,
+                        emphasis = Emphasis.Primary,
+                        busy = busy != null,
+                        busyLabel = busy ?: action,
+                    )
                     if (secondaryAction != null) HlButton(secondaryAction, onSecondaryAction)
                 }
             })

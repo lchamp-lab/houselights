@@ -32,4 +32,14 @@ class RedactTest {
         assertEquals(false, Redact.hasUserInfo("smb://nas/media/film@home.mkv"))
         assertEquals(false, Redact.hasUserInfo("nfs://nas/export/film.mkv"))
     }
+
+    /** Jellyfin's token is a credential too: its stream URL opens the whole account. */
+    @Test
+    fun aTokenInTheQueryIsACredential() {
+        assertEquals(true, Redact.hasCredentials("http://nas:8096/Videos/1/stream.mkv?static=true&api_key=abc123"))
+        assertEquals(true, Redact.hasCredentials("http://plex:32400/library/parts/1/file.mkv?X-Plex-Token=abc"))
+        assertEquals(true, Redact.hasCredentials("smb://zidoo:secret@nas/media/film.mkv"))
+        assertEquals(false, Redact.hasCredentials("http://nas:8096/Videos/1/stream.mkv?static=true"))
+        assertEquals(false, Redact.hasCredentials("nfs://nas/export/token=film.mkv"))
+    }
 }

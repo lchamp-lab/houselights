@@ -5,6 +5,7 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import app.houselights.R
 import app.houselights.core.NoTmdbKeyException
 import app.houselights.core.NotFoundException
+import app.houselights.core.SecretsUnavailableException
 import app.houselights.providers.local.TmdbKeyRefusedException
 import app.houselights.providers.local.TmdbUnreachableException
 import retrofit2.HttpException
@@ -57,6 +58,9 @@ enum class UiError(@StringRes val title: Int, @StringRes val message: Int, val a
     /** The file needs credentials, and only the Zidoo player may receive them. */
     CREDENTIALS(R.string.play_failed, R.string.player_credentials, null),
 
+    /** The device's Keystore refused to seal a password or a token: nothing was written. */
+    KEYSTORE(R.string.error_keystore_title, R.string.error_keystore, ErrorAction.RETRY),
+
     /** Anything else: the details are in the log. */
     FAILED(R.string.error_failed_title, R.string.error_failed, ErrorAction.RETRY),
 }
@@ -74,5 +78,6 @@ fun Throwable.toUiError(): UiError = when {
     this is HttpException && (code() == HTTP_UNAUTHORIZED || code() == HTTP_FORBIDDEN) -> UiError.DENIED
     this is HttpException && code() == HTTP_NOT_FOUND -> UiError.GONE
     this is IOException -> UiError.OFFLINE
+    this is SecretsUnavailableException -> UiError.KEYSTORE
     else -> UiError.FAILED
 }
