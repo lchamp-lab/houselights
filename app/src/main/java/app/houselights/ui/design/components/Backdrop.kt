@@ -21,7 +21,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
@@ -84,14 +84,16 @@ enum class BackdropStyle(
  * text column, the left veil takes, band by band, what the picture needs, so the quietest text reads
  * on the lightest image while a dark one keeps its veil. Nothing glows under it: the picture melts
  * into the room. When the house lights go down, the veils lift and the picture shows whole. Without
- * a picture ([image] null) it is the black room: nothing glows in its place.
+ * a picture ([image] null) it is the black room: nothing glows in its place. A page whose picture
+ * steps back as it scrolls (a detail page) says how far through [recede], 0 in front, 1 behind; only
+ * then is the veil the whole picture needs reckoned.
  *
  * A picture and its veils are drawn once, into a layer of their own, and each frame then
  * lays that one texture: on the player's small graphics chip, drawn layer by layer each frame, they
  * filled its whole budget. One picture gives way to the next by the alpha of those layers.
  */
 @Composable
-fun Backdrop(image: ImageRef?, style: BackdropStyle, modifier: Modifier = Modifier, recede: () -> Float = { 0f }) {
+fun Backdrop(image: ImageRef?, style: BackdropStyle, modifier: Modifier = Modifier, recede: (() -> Float)? = null) {
     val context = LocalContext.current
     val density = LocalDensity.current
     // The text column of heroes and detail pages; the veil follows it, whatever the screen's width.
@@ -128,7 +130,7 @@ private fun BackdropPicture(
     column: Float,
     fade: Float,
     alpha: () -> Float,
-    recede: () -> Float,
+    recede: (() -> Float)?,
 ) {
     val black = Hl.colors.background
     // The veils lift as the house lights go down: read while drawing, through the step alone, so
@@ -138,8 +140,8 @@ private fun BackdropPicture(
         prepared.sample.leftVeil(bounds, column, style.imageAlpha, style.leftScrim, style.down)
     }
     // Stepping back, the picture takes the veil text needs over all of it, never less than VEIL.
-    val receded = remember(prepared, bounds, style) {
-        max(HlAlpha.VEIL, prepared.sample.floorAcross(bounds, style.imageAlpha, style.down))
+    val receded = remember(prepared, bounds, style, recede != null) {
+        if (recede == null) 0f else max(HlAlpha.VEIL, prepared.sample.floorAcross(bounds, style.imageAlpha, style.down))
     }
     Box(
         Modifier
@@ -148,7 +150,7 @@ private fun BackdropPicture(
                 compositingStrategy = CompositingStrategy.Offscreen
                 // Stepping back is black laid over the picture; on the black room that is the
                 // layer's own alpha, which costs nothing, where a veil would draw the layer again.
-                this.alpha = alpha() * (1f - recede() * receded * scrims.value)
+                this.alpha = alpha() * (1f - (recede?.invoke() ?: 0f) * receded * scrims.value)
             }
             .background(black),
     ) {
@@ -161,10 +163,15 @@ private fun BackdropPicture(
             modifier = Modifier.fillMaxSize(),
         )
         Box(
-            Modifier.fillMaxSize().drawBehind {
-                val lift = scrims.value
-                drawRect(leftVeil(black, veil, column, fade), alpha = lift)
-                drawRect(Brush.verticalGradient(*style.down.colorStops(black)), alpha = lift)
+            Modifier.fillMaxSize().drawWithCache {
+                // Laid out once for the picture: the house lights only change how strongly they draw.
+                val across = leftVeil(black, veil, column, fade)
+                val down = Brush.verticalGradient(*style.down.colorStops(black))
+                onDrawBehind {
+                    val lift = scrims.value
+                    drawRect(across, alpha = lift)
+                    drawRect(down, alpha = lift)
+                }
             }
         )
     }

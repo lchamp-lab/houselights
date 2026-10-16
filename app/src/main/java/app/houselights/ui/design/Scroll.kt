@@ -38,6 +38,7 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.findRootCoordinates
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.layout.Measurable
 import androidx.compose.ui.layout.MeasureResult
 import androidx.compose.ui.layout.MeasureScope
@@ -184,6 +185,15 @@ private data object FadeOutsideSafeArea : ModifierNodeElement<SafeAreaFadeNode>(
 private class SafeAreaFadeNode : Modifier.Node(), LayoutModifierNode, GlobalPositionAwareModifierNode {
     private var shown by mutableFloatStateOf(1f)
 
+    /**
+     * Kept from one placing to the next, as rows scroll: the root of the window (its size is read
+     * each time), and the margins in px at the density they were worked out for.
+     */
+    private var root: LayoutCoordinates? = null
+    private var marginsAt = 0f
+    private var marginH = 0f
+    private var marginV = 0f
+
     override fun MeasureScope.measure(measurable: Measurable, constraints: Constraints): MeasureResult {
         val placeable = measurable.measure(constraints)
         return layout(placeable.width, placeable.height) {
@@ -195,29 +205,33 @@ private class SafeAreaFadeNode : Modifier.Node(), LayoutModifierNode, GlobalPosi
     }
 
     override fun onGloballyPositioned(coordinates: LayoutCoordinates) {
-        val root = coordinates.findRootCoordinates()
-        // Where the text really is, cut or not: bounds in the root unclipped by the lists it scrolls in.
-        val origin = root.localPositionOf(coordinates, Offset.Zero)
+        val root = root?.takeIf { it.isAttached } ?: coordinates.findRootCoordinates().also { root = it }
         val density = requireDensity()
-        shown = safeAreaAlpha(
-            Rect(origin, coordinates.size.toSize()),
-            root.size.toSize(),
-            marginH = with(density) { HlSpace.safeH.toPx() },
-            marginV = with(density) { HlSpace.safeV.toPx() },
-        )
+        if (density.density != marginsAt) {
+            marginsAt = density.density
+            marginH = with(density) { HlSpace.safeH.toPx() }
+            marginV = with(density) { HlSpace.safeV.toPx() }
+        }
+        // Where the text really is, cut or not: its place in the root, unclipped by the lists it
+        // scrolls in, found in one walk up the tree.
+        shown = safeAreaAlpha(coordinates.positionInRoot(), coordinates.size.toSize(), root.size.toSize(), marginH, marginV)
+    }
+
+    override fun onDetach() {
+        root = null
     }
 }
 
 /**
- * How much of a text at [bounds] on a [screen] shows: all of it inside the safe area ([marginH] at
- * the sides, [marginV] at the top and the bottom), none where it reaches the screen's edge, in
- * between across the margin, by the side that comes closest.
+ * How much of a text at [origin], [size] large, on a [screen] shows: all of it inside the safe area
+ * ([marginH] at the sides, [marginV] at the top and the bottom), none where it reaches the screen's
+ * edge, in between across the margin, by the side that comes closest.
  */
-internal fun safeAreaAlpha(bounds: Rect, screen: Size, marginH: Float, marginV: Float): Float = minOf(
-    marginShare(bounds.left, marginH),
-    marginShare(screen.width - bounds.right, marginH),
-    marginShare(bounds.top, marginV),
-    marginShare(screen.height - bounds.bottom, marginV),
+internal fun safeAreaAlpha(origin: Offset, size: Size, screen: Size, marginH: Float, marginV: Float): Float = minOf(
+    marginShare(origin.x, marginH),
+    marginShare(screen.width - (origin.x + size.width), marginH),
+    marginShare(origin.y, marginV),
+    marginShare(screen.height - (origin.y + size.height), marginV),
 )
 
 /** How far into its margin a side stands, from 0 at the screen's edge to 1 at the safe area. */

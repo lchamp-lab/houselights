@@ -7,6 +7,7 @@ import androidx.compose.ui.graphics.luminance
 import app.houselights.ui.design.components.BackdropStyle
 import kotlin.math.abs
 import kotlin.math.hypot
+import kotlin.math.roundToInt
 import kotlin.math.sin
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -196,6 +197,73 @@ class ScrimTest {
         val right = sample(32, 18) { x, _ -> if (x >= 24) 1f else 0.1f }
         assertEquals(base, right.leftVeil(screen, column, 1f, strength, detail))
         assertTrue(right.floorAcross(screen, 1f, detail) >= HlScrim.need(1f) - 0.0001f)
+    }
+
+    /**
+     * The veil is reckoned once per row and per band, not once per point: the stops are the very same,
+     * to the last bit, as those of the rule worked out point by point ([pointByPoint]).
+     */
+    @Test
+    fun theVeilIsTheSameReckonedRowByRow() {
+        val pictures = listOf<(Int, Int) -> Float>(
+            { _, _ -> 1f },
+            { x, _ -> x / 95f },
+            { _, y -> 1f - y / 53f },
+            { x, y -> (sin(x * 12.9898f + y * 78.233f) * 43758.547f).let { it - kotlin.math.floor(it) } },
+        )
+        val samples = pictures.flatMap { grey ->
+            listOf(96 to 54, 192 to 54, 96 to 40).map { (w, h) -> Triple(w, h, FloatArray(w * h) { grey(it % w, it / w) }) }
+        }
+        val screens = listOf(screen, Size(1280f, 720f), Size(1920f, 800f))
+        val cases = samples.flatMap { sample -> screens.flatMap { shown -> BackdropStyle.entries.map { Triple(sample, shown, it) } } }
+        cases.forEach { (sample, shown, style) ->
+            val (w, h, points) = sample
+            assertEquals(
+                "$w × $h on $shown, $style",
+                pointByPoint(w, h, points, shown, style.imageAlpha, style.leftScrim, style.down),
+                ArtworkSample(w, h, points).leftVeil(shown, column, style.imageAlpha, style.leftScrim, style.down),
+            )
+        }
+    }
+
+    /** [ArtworkSample.leftVeil] as it was first written: each point asks how much shows through the veils down. */
+    @Suppress("LongParameterList")
+    private fun pointByPoint(
+        width: Int,
+        height: Int,
+        grey: FloatArray,
+        screen: Size,
+        imageAlpha: Float,
+        strength: Float,
+        down: List<VeilStop>,
+    ): List<VeilStop> {
+        val veil = HlScrim.LEFT.map { VeilStop(it.at, it.alpha * strength) }
+        val scale = maxOf(screen.width / width, screen.height / height)
+        val left = screen.width - width * scale
+        val firstCol = kotlin.math.ceil(-left / scale - 0.5f).toInt().coerceAtLeast(0)
+        val cols = firstCol..kotlin.math.floor((column - left) / scale - 0.5f).toInt().coerceAtMost(width - 1)
+        val rows = 0..kotlin.math.floor(screen.height / scale - 0.5f).toInt().coerceAtMost(height - 1)
+        if (cols.isEmpty()) return veil
+        val bands = veil.size - 1
+        val needs = Array(bands) { FloatArray(cols.count() * rows.count()) }
+        val counts = IntArray(bands)
+        for (col in cols) {
+            val x = left + (col + 0.5f) * scale
+            val band = (x / column * bands).toInt().coerceIn(0, bands - 1)
+            val held = veil.alphaAt(x / column)
+            for (row in rows) {
+                val y = (row + 0.5f) * scale
+                val through = imageAlpha * (1f - down.alphaAt(y / screen.height))
+                val need = HlScrim.need(grey[row * width + col] * through, HlScrim.leftCeiling(band))
+                needs[band][counts[band]++] = if (need > held) need else 0f
+            }
+        }
+        val floors = FloatArray(bands) { band ->
+            val points = needs[band].copyOf(counts[band]).apply { sort() }
+            if (points.isEmpty()) 0f else points[(points.lastIndex * HlScrim.FLOOR_QUANTILE).roundToInt()]
+        }
+        for (band in bands - 2 downTo 0) floors[band] = maxOf(floors[band], floors[band + 1])
+        return veil.mapIndexed { i, stop -> VeilStop(stop.at, maxOf(stop.alpha, floors[(i - 1).coerceAtLeast(0)])) }
     }
 
     /** In each band of the column, the share of a 96 × 54 picture's points the drawn [veil] leaves under its contrast. */
