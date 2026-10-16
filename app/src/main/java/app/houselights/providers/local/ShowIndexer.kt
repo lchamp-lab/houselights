@@ -24,14 +24,11 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
         refreshMetadata: Boolean,
     ) {
         val now = System.currentTimeMillis()
-        val folders = file.relativePath.split('/').dropLast(1)
-        val parsed = FilenameParser.parseEpisode(file.relativePath.substringAfterLast('/'), folders) ?: return
-        val showTitle = parsed.showTitle ?: return
-        val showDir = folders.firstOrNull { FilenameParser.seasonFromFolder(it) == null } ?: ""
-        val showYear = folders.firstOrNull()?.let { FilenameParser.parseMovie(it).year }
+        val path = FilenameParser.parseShowPath(file.relativePath) ?: return
+        val parsed = path.episode
 
-        val series = series(source, showTitle, showYear, showDir, sidecars, tmdb, refreshMetadata, now)
-        val season = season(source, series, parsed.season, seasons, now, sidecars.seasonPoster(showDir, parsed.season))
+        val series = series(source, path.title, path.year, path.dir, sidecars, tmdb, refreshMetadata, now)
+        val season = season(source, series, parsed.season, seasons, now, sidecars.seasonPoster(path.dir, parsed.season))
         val local = sidecars.forVideo(file)
         val base = existing ?: ItemEntity(
             kind = ItemKind.EPISODE,
@@ -54,6 +51,7 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
             seriesId = series.id,
             seasonNumber = parsed.season,
             episodeNumber = parsed.episode,
+            lastEpisodeNumber = parsed.lastEpisode,
             sortTitle = "%03d-%04d".format(Locale.ROOT, parsed.season, parsed.episode),
             nfoPath = kept.path,
             nfo = kept.text,
@@ -103,8 +101,8 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
         refreshMetadata: Boolean,
         now: Long,
     ): ItemEntity {
-        val key = FilenameParser.showKey(title)
-        val series = dao.seriesByKey(key) ?: ItemEntity(
+        val key = FilenameParser.showKey(title, year)
+        val series = seriesByKey(key, FilenameParser.showKey(title)) ?: ItemEntity(
             kind = ItemKind.SERIES,
             sourceId = source.id,
             matchKey = key,
@@ -139,6 +137,19 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
     }
 
     /**
+     * The show [key] names. A key with a year ("doctor who|2005") takes the show of its name alone
+     * ([nameKey]), made before keys held the year, or from a folder that gives none: it keeps its rows
+     * and what was done with it, and a folder without the year finds it again below. A key without a
+     * year finds the one show of that name and some year: two folders of one show, one giving its
+     * year, stay one show; with two such shows ("Doctor Who" of 1963 and of 2005), it is a show of its own.
+     */
+    private suspend fun seriesByKey(key: String, nameKey: String): ItemEntity? {
+        dao.seriesByKey(key)?.let { return it }
+        if (key == nameKey) return dao.seriesNamed(nameKey).singleOrNull()
+        return dao.seriesByKey(nameKey)?.copy(matchKey = key)?.also { dao.saveScanned(it) }
+    }
+
+    /**
      * Asks TMDB all a new match needs (the show, then each of its seasons the library holds), then
      * returns the writes that apply it to the show, its seasons and episodes, for the caller to run at
      * once ([LibraryScanner.identify]): TMDB out of reach throws before anything is written.
@@ -167,11 +178,9 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
 
     /** The show's name and year as its folder gives them, through one of its episodes. */
     suspend fun showQuery(series: ItemEntity): ParsedMovie {
-        val path = dao.episodesOfSeries(series.id).firstNotNullOfOrNull { it.filePath }
+        val path = dao.episodesOfSeries(series.id).firstNotNullOfOrNull { it.filePath }?.let(FilenameParser::parseShowPath)
             ?: return ParsedMovie(series.title, series.year)
-        val folders = path.split('/').dropLast(1)
-        val title = FilenameParser.parseEpisode(path.substringAfterLast('/'), folders)?.showTitle ?: series.title
-        return ParsedMovie(title, folders.firstOrNull()?.let { FilenameParser.parseMovie(it).year })
+        return ParsedMovie(path.title, path.year)
     }
 
     /** The user's match first, then the NFO's ids, then a search by title. */

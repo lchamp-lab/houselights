@@ -68,6 +68,8 @@ data class MediaItem(
     val seasonId: String? = null,
     val seasonNumber: Int? = null,
     val episodeNumber: Int? = null,
+    /** The last episode a file holds when it holds several ("S01E01-E02"); null for one. */
+    val lastEpisodeNumber: Int? = null,
     val childCount: Int? = null,
     /** For a collection: its films released so far, owned or not, when known. */
     val totalCount: Int? = null,
@@ -88,9 +90,18 @@ data class MediaItem(
             return if (user.positionMs > 0 && total > 0) (user.positionMs.toFloat() / total).coerceIn(0f, 1f) else 0f
         }
 
-    /** "S1 E3" for an episode. */
+    /** "S1 E3" for an episode, "S1 E1-E2" for a file holding two. */
     val episodeLabel: String?
-        get() = if (kind == MediaKind.EPISODE && episodeNumber != null) "S${seasonNumber ?: 0} E$episodeNumber" else null
+        get() = episodeNumbers("E")?.let { "S${seasonNumber ?: 0} E$it" }
+
+    /** "3" for an episode, "1-2" for a file holding two, as its card numbers it. */
+    val episodeNumbers: String?
+        get() = episodeNumbers("")
+
+    private fun episodeNumbers(prefix: String): String? {
+        val first = episodeNumber?.takeIf { kind == MediaKind.EPISODE } ?: return null
+        return lastEpisodeNumber?.takeIf { it > first }?.let { "$first-$prefix$it" } ?: "$first"
+    }
 
     /** Best 16:9 artwork for landscape cards. */
     val landscape: ImageRef? get() = thumb ?: backdrop

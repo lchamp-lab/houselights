@@ -328,13 +328,15 @@ class LibraryScanner(
     ): Boolean {
         waitForThePlayer()
         _state.update { it.copy(running = true, sourceId = source.id, processed = 0, total = 0, current = null) }
-        val listing = browsers(source).list(source)
-        val files = listing.videos
+        val found = browsers(source).list(source)
         // Not a video read, and subfolders the NAS refused: their rights are what to check, whatever the library holds.
-        if (files.isEmpty() && listing.unreadable.isNotEmpty()) throw UnreadableFolderException(listing.unreadable.size)
+        if (found.videos.isEmpty() && found.unreadable.isNotEmpty()) throw UnreadableFolderException(found.unreadable.size)
+        // A disc's streams make one title, extras none: rows of what is not one go as files gone do.
+        val listing = ScanTitles.of(found)
+        val files = listing.videos
         val sidecars = Sidecars(listing.sidecars, files)
         val listed = dao.filesOf(source.id)
-        if (files.isEmpty() && listed.isNotEmpty()) throw EmptyFolderException()
+        if (found.videos.isEmpty() && listed.isNotEmpty()) throw EmptyFolderException()
         val missing = settleMissing(source.kind, listed, listing)
         // Renamed files took their rows along.
         val known = (if (missing.relinked.isEmpty()) listed else dao.filesOf(source.id)).associateBy { it.filePath }
@@ -348,6 +350,8 @@ class LibraryScanner(
             "${source.name}: ${files.size} files, ${missing.relinked.size} renamed, ${missing.removed.size} removed, " +
                 "${missing.held.size} held, ${todo.size} to do",
         )
+
+        if (source.kind == SourceKind.SHOWS) tellNoEpisode(source, files)
 
         val written = processAll(Folder(source, sidecars, known, refreshMetadata, tmdb, seasons), todo, ::wanted)
         dao.markScanned(source.id, clock())
@@ -387,6 +391,15 @@ class LibraryScanner(
             }
         }
         return written
+    }
+
+    /**
+     * Videos of a shows' folder that name no episode get no row, and nothing else tells of them: the
+     * log does, once a pass, for whoever wonders where an episode went.
+     */
+    private fun tellNoEpisode(source: SourceEntity, files: List<RemoteFile>) {
+        val refused = files.count { FilenameParser.parseShowPath(it.relativePath) == null }
+        if (refused > 0) Log.i(TAG, "${source.name}: $refused of ${files.size} videos name no episode, and are left out")
     }
 
     /** Why [source] could not be scanned, as the settings tell it; the failure itself goes to the log. */
@@ -492,11 +505,15 @@ class LibraryScanner(
         private const val NEARLY_FULL_BYTES = 50L shl 20
         private const val MAX_PAUSE_MS = 4 * 60 * 60_000L
 
-        /** Title and year of a film, from its file name or its folder ("Title (Year)/movie.mkv"). */
+        /**
+         * Title and year of a film, from its file name or its folder ("Title (Year)/movie.mkv"). A disc
+         * is named by its folder, as a file by its name: "Title (Year)/BDMV/STREAM/00800.m2ts".
+         */
         fun parseMovie(relativePath: String): ParsedMovie {
-            val fromFile = FilenameParser.parseMovie(relativePath.substringAfterLast('/'))
+            val path = FilenameParser.discOf(relativePath)?.root?.ifEmpty { null } ?: relativePath
+            val fromFile = FilenameParser.parseMovie(path.substringAfterLast('/'))
             // The folder name is often more reliable than the file name.
-            val fromFolder = relativePath.split('/').dropLast(1).lastOrNull()?.let(FilenameParser::parseMovie)
+            val fromFolder = path.split('/').dropLast(1).lastOrNull()?.let(FilenameParser::parseMovie)
             return if (fromFile.year == null && fromFolder?.year != null) fromFolder else fromFile
         }
     }

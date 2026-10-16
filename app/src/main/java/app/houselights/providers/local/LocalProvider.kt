@@ -278,8 +278,8 @@ class LocalProvider(
             startMs = if (resume) entity.positionMs else 0L,
             reporter = LocalReporter(dao, entity.id),
             resumeKey = entity.id.toString(),
-            // Scans list files: of a disc, only its image is one. A Blu-ray's or DVD's folder is read as the files it holds.
-            disc = container == DISC_IMAGE,
+            // A disc's image, or the stream a scan took for a Blu-ray's or a DVD's title (see ScanTitles).
+            disc = container == DISC_IMAGE || FilenameParser.discOf(file) != null,
         )
     }
 
@@ -304,7 +304,7 @@ class LocalProvider(
 
         private const val NEXT_UP_SHOWS = 20
 
-        /** The extension of a disc's image, the one disc a folder of files holds. */
+        /** The extension of a disc's image. */
         private const val DISC_IMAGE = "iso"
         private const val SIMILAR = 16
 

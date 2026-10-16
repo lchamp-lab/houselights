@@ -547,7 +547,7 @@ private fun Episodes(
                     onClick = { onPlay(ep) },
                     width = HlSize.episode,
                     title = ep.title,
-                    number = ep.episodeNumber?.toString(),
+                    number = ep.episodeNumbers,
                     facts = listOf(ep.runtimeMs?.let(::formatDuration), episodeState(ep)),
                     onFocused = { onFocus(ep) },
                 )
