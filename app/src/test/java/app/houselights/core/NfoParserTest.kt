@@ -142,4 +142,17 @@ class NfoParserTest {
         val critics = """<rating name="tomatometerallcritics" max="100" default="true"><value>89</value></rating>"""
         assertEquals(8.9, rating(imdb + critics)!!, 0.001)
     }
+
+    /** Without a default, a critics' score listed first gives way to IMDb's or TMDB's rating, as both sites show it. */
+    @Test
+    fun withoutADefaultImdbOrTmdbRatingIsTaken() {
+        fun rating(ratings: String) = NfoParser.parse("<movie><ratings>$ratings</ratings></movie>")?.rating
+        val metacritic = """<rating name="metacritic" max="100"><value>78</value></rating>"""
+        val tomatoes = """<rating name="tomatometerallcritics" max="100"><value>91</value></rating>"""
+        assertEquals(7.6, rating(metacritic + """<rating name="imdb" max="10"><value>7.6</value></rating>""")!!, 0.001)
+        assertEquals(7.3, rating(tomatoes + """<rating name="themoviedb" max="10"><value>7.3</value></rating>""")!!, 0.001)
+        val both = """<rating name="IMDb"><value>7.1</value></rating><rating name="themoviedb"><value>7.3</value></rating>"""
+        assertEquals("the first of them", 7.1, rating(both)!!, 0.001)
+        assertEquals("none of them: the first", 7.8, rating(metacritic + tomatoes)!!, 0.001)
+    }
 }

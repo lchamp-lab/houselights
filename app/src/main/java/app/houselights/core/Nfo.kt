@@ -96,6 +96,9 @@ object NfoParser {
     /** A rating's scale when it says none. */
     private const val RATING_SCALE = 10.0
 
+    /** Sites whose rating is the one TMDB and IMDb show, by Kodi's names: preferred when none is the default. */
+    private val AUDIENCE_RATINGS = setOf("imdb", "themoviedb")
+
     fun parse(text: String): NfoInfo? {
         val xmlStart = text.indexOf('<')
         val xml = if (xmlStart >= 0) text.substring(xmlStart) else ""
@@ -256,14 +259,20 @@ object NfoParser {
     private fun certification(raw: String?): String? =
         raw?.substringAfterLast(':')?.removePrefix("Rated ")?.trim()?.takeIf { it.isNotEmpty() }
 
-    /** The default rating and the first, both out of 10: a Metacritic 78 out of 100 is a 7.8. */
+    /**
+     * The default rating, and the one to take without it: IMDb's or TMDB's, else the first, as a
+     * critics' score (Metacritic, Rotten Tomatoes) is not what the title's rating says elsewhere. Both
+     * out of 10: a Metacritic 78 out of 100 is a 7.8.
+     */
     private fun ratings(p: XmlPullParser): Pair<Double?, Double?> {
         var default: Double? = null
         var first: Double? = null
+        var audience: Double? = null
         val depth = p.depth
         while (p.nextWithin(depth)) {
             if (p.eventType == XmlPullParser.START_TAG && p.name == "rating") {
                 val isDefault = p.getAttributeValue(null, "default") == "true"
+                val isAudience = p.getAttributeValue(null, "name")?.lowercase() in AUDIENCE_RATINGS
                 val max = p.getAttributeValue(null, "max")?.replace(',', '.')?.toDoubleOrNull()?.takeIf { it > 0 } ?: RATING_SCALE
                 val ratingDepth = p.depth
                 var value: Double? = null
@@ -274,9 +283,10 @@ object NfoParser {
                 }
                 if (isDefault) default = value
                 if (first == null) first = value
+                if (isAudience && audience == null) audience = value
             }
         }
-        return default to first
+        return default to (audience ?: first)
     }
 
     private fun actor(p: XmlPullParser): NfoActor? {
