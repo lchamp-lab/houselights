@@ -1,4 +1,5 @@
-# Checks every push and pull request: unit tests, Android Lint, detekt, and a minified release build.
+# Checks every push and pull request: unit tests, Android Lint, detekt (with and without the compiler's
+# types), and a minified release build.
 # Needs a Gitea Actions runner with the "ubuntu-latest" label and 4 GB for its job container. TMDB_API_KEY is optional (a repository
 # secret): without it the app builds and users enter their own key.
 name: CI
@@ -29,18 +30,39 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4
 
+      # Robolectric fetches the Android its tests run on (android-all-instrumented, 100 MB) with a
+      # resolver of its own, into ~/.m2, which setup-gradle does not cache: without this, every run
+      # downloads it again, and a slow Maven Central fails the tests. Keyed by Robolectric's version
+      # and the Android version the tests ask for.
+      - name: Robolectric's key
+        id: robolectric
+        run: |
+          version="$(sed -n 's/^robolectric = "\(.*\)"$/\1/p' gradle/libs.versions.toml)"
+          sdk="$(sed -n 's/^sdk=//p' app/src/test/resources/robolectric.properties)"
+          echo "key=robolectric-$version-sdk$sdk" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: ~/.m2/repository/org/robolectric
+          key: ${{ steps.robolectric.outputs.key }}
+
       - name: Tests, lint, detekt, release build
         env:
           TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
         # Needs a runner container of 4 GB: the whole check peaks at 3.5 GB with a 2 GB heap and the
         # Kotlin compiler inside Gradle (measured; at 1.4 GB the kernel kills it while compiling).
         # The release is only built, never published: the runner's debug key signs it.
+        # detektDebug and detektDebugUnitTest run the rules that need the compiler's types (coroutine
+        # dispatchers, !!, unsafe casts, ignored results) on the main and test sources, compiled for
+        # debug anyway. detektMain would compile and analyse the same sources once for each of seven
+        # variants (6.5 min on its own, measured). Each keeps its own baseline (app/detekt-baseline-*.xml).
+        # With them, the whole check from clean took 5.5 min and peaked at 2.9 GB with a 1.5 GB heap.
         run: >-
           ./gradlew --no-daemon --max-workers=2
-          -Dorg.gradle.jvmargs="-Xmx2g -XX:MaxMetaspaceSize=512m -Dfile.encoding=UTF-8"
+          -Dorg.gradle.jvmargs="-Xmx2g -XX:MaxMetaspaceSize=768m -Dfile.encoding=UTF-8"
           -Pkotlin.compiler.execution.strategy=in-process
           -Phouselights.debugSignedRelease=true
-          testDebugUnitTest lintDebug detekt assembleRelease
+          testDebugUnitTest lintDebug detekt detektDebug detektDebugUnitTest assembleRelease
 
       - name: Reports
         if: failure()

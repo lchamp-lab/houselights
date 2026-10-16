@@ -5,10 +5,8 @@
 # Usage: scripts/install.sh [release|bench] [device serial]   (default: bench, the only device)
 set -euo pipefail
 
-export JAVA_HOME="${JAVA_HOME:-$HOME/.local/share/jdk-17}"
-export ANDROID_HOME="${ANDROID_HOME:-$HOME/Android/Sdk}"
-ADB="$ANDROID_HOME/platform-tools/adb"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+source "$ROOT/scripts/env.sh"
 VARIANT="${1:-bench}"
 SERIAL="${2:-${ANDROID_SERIAL:-}}"
 adb() { if [[ -n "$SERIAL" ]]; then "$ADB" -s "$SERIAL" "$@"; else "$ADB" "$@"; fi; }

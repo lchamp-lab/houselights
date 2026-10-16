@@ -3,13 +3,11 @@
 # Usage: scripts/preview.sh
 set -euo pipefail
 
-export JAVA_HOME="${JAVA_HOME:-$HOME/.local/share/jdk-17}"
-export ANDROID_HOME="${ANDROID_HOME:-$HOME/Android/Sdk}"
-SDK="$ANDROID_HOME"
-ADB="$SDK/platform-tools/adb"
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+source "$ROOT/scripts/env.sh"
+SDK="${ANDROID_HOME:?No Android SDK found: set ANDROID_HOME, or sdk.dir in local.properties}"
 AVD=houselights-tv
 IMAGE="system-images;android-28;android-tv;x86"
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
 if [[ ! -e /dev/kvm ]]; then
     echo "KVM is not available: enable virtualization (SVM/VT-x) in the BIOS, then load the kvm module." >&2

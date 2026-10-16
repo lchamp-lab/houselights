@@ -26,6 +26,32 @@ class StringsTest {
     }
 
     @Test
+    fun frenchFormatsWhatEnglishDoes() {
+        // A string read with getString(id, args) or getQuantityString(id, n, args) gets the same
+        // arguments in both languages: one that French reads but English does not pass, or reads as
+        // another type, throws for French users only. Plurals by quantity: French "many" says what
+        // English "other" does.
+        val englishFormats = resources(english).associate { it.key to formats(it) }
+        val found = resources(french).flatMap { resource ->
+            val expected = englishFormats[resource.key].orEmpty()
+            formats(resource).mapNotNull { (quantity, specifiers) ->
+                val wanted = expected[quantity] ?: expected["other"].orEmpty()
+                "${resource.key} ($quantity): ${specifiers.values} instead of ${wanted.values}".takeIf { specifiers != wanted }
+            }
+        }
+        assertTrue("Format specifiers:\n" + found.joinToString("\n"), found.isEmpty())
+    }
+
+    @Test
+    fun formatSpecifiersAreReadAsFormatterReadsThem() {
+        assertEquals(mapOf(1 to "%s", 2 to "%d"), specifiers("%s, le %d"))
+        assertEquals(mapOf(1 to "%d", 2 to "%s"), specifiers("%2\$s : %1\$d"))
+        assertEquals(mapOf(1 to "%d"), specifiers("en cours, %d %%"))
+        assertEquals(mapOf(1 to "%f"), specifiers("%1\$.1f GB"))
+        assertEquals(emptyMap<Int, String>(), specifiers("100 %% sûr"))
+    }
+
+    @Test
     fun frenchIsTypeset() {
         val found = resources(french).flatMap { resource ->
             texts(resource).flatMap { text -> problems(text).map { "${resource.key}: $it\n    $text" } }
@@ -72,6 +98,26 @@ class StringsTest {
             .filter { it.tagName in setOf("string", "plurals", "string-array") }
     }
 
+    /** The format specifiers of each text of a string or plural (by quantity), by the argument they read. */
+    private fun formats(resource: Element): Map<String, Map<Int, String>> =
+        if (resource.tagName == "plurals") {
+            resource.getElementsByTagName("item").let { items ->
+                (0 until items.length).map { items.item(it) as Element }
+                    .associate { it.getAttribute("quantity") to specifiers(it.textContent) }
+            }
+        } else {
+            texts(resource).withIndex().associate { (i, text) -> "$i" to specifiers(text) }
+        }
+
+    /** What java.util.Formatter reads in [text]: each argument's number (from 1) and the conversion reading it. */
+    private fun specifiers(text: String): Map<Int, String> {
+        var next = 1
+        return SPECIFIER.findAll(text).filter { it.groupValues[2] !in setOf("%", "n") }.associate { match ->
+            val index = match.groupValues[1].toIntOrNull() ?: next++
+            index to "%" + match.groupValues[2]
+        }
+    }
+
     private fun texts(resource: Element): List<String> =
         if (resource.tagName == "string") {
             listOf(resource.textContent)
@@ -81,5 +127,8 @@ class StringsTest {
 
     private companion object {
         const val NB = Typography.nbsp
+
+        /** %[argument$][flags][width][.precision]conversion, as java.util.Formatter writes it. */
+        val SPECIFIER = Regex("""%(?:(\d+)\$)?[-#+ 0,(]*\d*(?:\.\d+)?([a-zA-Z%])""")
     }
 }

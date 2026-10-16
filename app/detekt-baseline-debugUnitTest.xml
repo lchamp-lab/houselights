@@ -1,0 +1,15 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues></ManuallySuppressedIssues>
+  <CurrentIssues>
+    <ID>ArrayPrimitive:AddFolderViewModelTest.kt$AddFolderViewModelTest$arrayOf(id)</ID>
+    <ID>InjectDispatcher:LibraryScannerTest.kt$LibraryScannerTest$Unconfined</ID>
+    <ID>MaxLineLength:DesignTokenGuardTest.kt$DesignTokenGuardTest$if (allowed.any { it.substringBefore(':') == path &amp;&amp; line.contains(it.substringAfter(':')) }) return@mapIndexedNotNull null</ID>
+    <ID>MaxLineLength:MkvProbeTest.kt$MkvProbeTest$el(0xE0, raw(0xB0, byteArrayOf(0x0F, 0x00)), raw(0xBA, byteArrayOf(0x08, 0x70)), el(0x55B0, uint(0x55BA, 16), uint(0x55B2, 10)))</ID>
+    <ID>MaxLineLength:MkvProbeTest.kt$MkvProbeTest$val atmos = el(0xAE, uint(0x83, 2), str(0x86, "A_TRUEHD"), str(0x22B59C, "eng"), str(0x536E, "Dolby Atmos 7.1 Mix"), el(0xE1, uint(0x9F, 8)))</ID>
+    <ID>MaxLineLength:MkvProbeTest.kt$MkvProbeTest$val info = el(0x1549A966, raw(0x2AD7B1, byteArrayOf(0x0F, 0x42, 0x40)), raw(0x4489, java.nio.ByteBuffer.allocate(8).putDouble(7_094_000.0).array()))</ID>
+    <ID>MaxLineLength:NfoParserTest.kt$NfoParserTest$val nfo = NfoParser.parse("&lt;episodedetails&gt;&lt;title&gt;Pilot&lt;/title&gt;&lt;season&gt;1&lt;/season&gt;&lt;episode&gt;2&lt;/episode&gt;&lt;aired&gt;2022-02-18&lt;/aired&gt;&lt;/episodedetails&gt;")!!</ID>
+    <ID>MaxLineLength:ScanErrorsTest.kt$ScanErrorsTest$assertEquals(ScanErrorKind.LOGIN_FAILED, kind(RuntimeException("STATUS_LOGON_FAILURE (0xc000006d): Authentication failed for 'zidoo'")))</ID>
+    <ID>MaxLineLength:ScanErrorsTest.kt$ScanErrorsTest$assertEquals(ScanErrorKind.UNREACHABLE, kind(IOException("rpc error, server: 192.168.1.20, RPC error: waiting for connection to be established, but failed /192.168.1.20:111")))</ID>
+  </CurrentIssues>
+</SmellBaseline>

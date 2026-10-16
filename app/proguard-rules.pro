@@ -1,7 +1,6 @@
 -keepattributes *Annotation*, InnerClasses, Signature, Exceptions
--keep,includedescriptorclasses class app.houselights.**$$serializer { *; }
--keepclassmembers class app.houselights.** { *** Companion; }
--keepclasseswithmembers class app.houselights.** { kotlinx.serialization.KSerializer serializer(...); }
+# kotlinx.serialization brings its own rules (META-INF/com.android.tools in its jar): they keep the
+# Companion and serializer() that its lookups by type find, of @Serializable classes only.
 -keep,allowobfuscation,allowshrinking interface retrofit2.Call
 -keep,allowobfuscation,allowshrinking class retrofit2.Response
 -keep,allowobfuscation,allowshrinking class kotlin.coroutines.Continuation
@@ -11,11 +10,13 @@
 # smbj: Kerberos (GSS) and EL are optional desktop features, absent on Android.
 -dontwarn javax.el.**
 -dontwarn org.ietf.jgss.**
-# smbj registers event handlers and security providers through reflection.
+# smbj registers event handlers through reflection (mbassador), and finds its Kerberos (SPNEGO)
+# authenticator by name off Android. On Android it signs in and signs with BouncyCastle's lightweight
+# classes (BCSecurityProvider: MD4, MD5, HMAC, AES-CMAC, AES-CCM and GCM, RC4, DES, KDF), which it
+# creates directly: R8 follows them. Nothing installs BouncyCastle's JCA provider, whose algorithms
+# are only found by their names, so none of it is kept.
 -keep class com.hierynomus.** { *; }
 -keep class net.engio.mbassy.** { *; }
--keep class org.bouncycastle.jcajce.provider.** { *; }
--keep class org.bouncycastle.jce.provider.** { *; }
 -dontwarn org.bouncycastle.**
 
 # nfs-client (NFSv3) runs on Netty 3, which references optional logging and codec libraries.
