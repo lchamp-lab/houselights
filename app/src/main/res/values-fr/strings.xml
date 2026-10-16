@@ -148,6 +148,7 @@
     <string name="similar">Dans la même veine</string>
     <string name="action_not_saved">Non enregistré</string>
     <string name="play_failed">Lecture impossible</string>
+    <string name="play_with">Lire avec</string>
     <string name="no_player">Le lecteur Zidoo n’est pas installé.</string>
     <string name="player_credentials">Ce dossier est protégé par un mot de passe : seul le lecteur Zidoo peut le lire.</string>
 

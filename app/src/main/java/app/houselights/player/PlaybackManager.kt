@@ -6,13 +6,16 @@ import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.net.Uri
 import android.util.Log
+import app.houselights.R
 import app.houselights.core.PlaybackPlan
 import app.houselights.core.PlaybackReporter
+import app.houselights.core.isWebUrl
 import app.houselights.core.suspendRunCatching
 import app.houselights.ui.util.UiError
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -20,6 +23,7 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlin.math.abs
 
 /**
  * Launches the native Zidoo player and feeds playback progress back to the backend.
@@ -30,12 +34,21 @@ import kotlinx.coroutines.launch
 class PlaybackManager(
     private val context: Context,
     private val scope: CoroutineScope,
+    /** What the player says it plays now: the Zidoo local API. */
+    private val status: suspend () -> ZidooPlayState? = ZidooStatus::playStatus,
     /** The reporter of a playback the app started before it was stopped (see [PlaybackPlan.Launch.resumeKey]). */
     private val reporterFor: suspend (String) -> PlaybackReporter?,
 ) {
     private class Session(val reporter: PlaybackReporter?, var positionMs: Long) {
+        /** The length of the file launched, from the player's first status: a status of another length is another file. */
         var durationMs: Long? = null
         var paused = false
+
+        /** The player went on to another file (the next one of its folder): what it says is no longer this title's. */
+        var switched = false
+
+        /** The report that playback started: the one that it stopped waits for it. */
+        var started: Job? = null
     }
 
     private var session: Session? = null
@@ -76,8 +89,10 @@ class PlaybackManager(
     /**
      * Builds the intent for the Zidoo player, or for any video player elsewhere.
      *
-     * Only the Zidoo player, installed as part of the system, receives a URI with credentials: another
-     * app answering a generic video intent never does. Throws [CredentialsNotShared] in that case.
+     * Only the Zidoo player, installed as part of the system, receives a URI with a password: another
+     * app answering a generic video intent never does ([CredentialsNotShared]). A URI with a token in
+     * its query (Jellyfin's stream) goes elsewhere only through a chooser: the user picks the app,
+     * none takes it without being asked.
      */
     fun intentFor(plan: PlaybackPlan.Launch): Intent {
         Log.i(TAG, "Launch ${plan.title} -> ${Redact.uri(plan.uri)}")
@@ -86,8 +101,9 @@ class PlaybackManager(
             component = ComponentName(ZIDOO_PACKAGE, ZIDOO_ACTIVITY)
             setDataAndType(Uri.parse(plan.uri), "video/${plan.container ?: "*"}")
             putExtra("title", plan.title)
-            plan.backdropUrl?.let { putExtra("loading_image", it) }
-            plan.logoUrl?.let { putExtra("clearlogo_image", it) }
+            // The player is another app: a file of ours is out of its reach, a web address is not.
+            plan.backdropUrl?.takeIf(::isWebUrl)?.let { putExtra("loading_image", it) }
+            plan.logoUrl?.takeIf(::isWebUrl)?.let { putExtra("clearlogo_image", it) }
             if (plan.startMs > 0) {
                 putExtra("from_start", false)
                 putExtra("position", plan.startMs.toInt())
@@ -96,15 +112,17 @@ class PlaybackManager(
             }
             putExtra("return_result", true)
         }
-        val intent = if (isSystemZidooPlayer() && zidoo.resolveActivity(context.packageManager) != null) {
-            zidoo
-        } else {
-            if (Redact.hasUserInfo(plan.uri)) throw CredentialsNotShared()
-            Intent(Intent.ACTION_VIEW).apply {
-                setDataAndType(Uri.parse(plan.uri), "video/*")
-                putExtra("title", plan.title)
-                putExtra("position", plan.startMs.toInt())
-                putExtra("return_result", true)
+        val intent = when {
+            isSystemZidooPlayer() && zidoo.resolveActivity(context.packageManager) != null -> zidoo
+            Redact.hasUserInfo(plan.uri) -> throw CredentialsNotShared()
+            else -> {
+                val any = Intent(Intent.ACTION_VIEW).apply {
+                    setDataAndType(Uri.parse(plan.uri), "video/*")
+                    putExtra("title", plan.title)
+                    putExtra("position", plan.startMs.toInt())
+                    putExtra("return_result", true)
+                }
+                if (Redact.hasCredentials(plan.uri)) Intent.createChooser(any, context.getString(R.string.play_with)) else any
             }
         }
         session = Session(plan.reporter, plan.startMs)
@@ -132,23 +150,53 @@ class PlaybackManager(
     fun onPlayerLaunched() {
         val s = session ?: return
         _playing.value = true
-        scope.launch { report { s.reporter?.started(s.positionMs) } }
+        s.started = scope.launch { report { s.reporter?.started(s.positionMs) } }
         pollJob?.cancel()
-        pollJob = scope.launch {
-            delay(4_000)
-            var ticks = 0
-            while (isActive) {
-                ZidooStatus.playStatus()?.let { state ->
-                    s.positionMs = state.positionMs
-                    s.durationMs = state.durationMs
-                    s.paused = state.paused
-                    saved.edit().putLong(KEY_POSITION, state.positionMs).apply()
-                }
-                // Poll locally every 2 s, report to the backend every ~10 s.
-                if (ticks++ % 5 == 0) report { s.reporter?.progress(s.positionMs, s.durationMs, s.paused) }
-                delay(2_000)
+        pollJob = scope.launch { track(s) }
+    }
+
+    /**
+     * Follows the player through its local API: every [POLL_MS] locally, every few polls to the
+     * backend, and only what the player says now, never a position kept from before. It stops once
+     * the player has gone on to another file, or once it has said nothing for [SILENT_POLLS] polls
+     * after a first status (the player left in the background, an API gone): the session waits
+     * for the player's result all the same.
+     */
+    private suspend fun track(s: Session) {
+        delay(FIRST_POLL_MS)
+        var tick = 0
+        var silent = 0
+        while (currentCoroutineContext().isActive && silent < SILENT_POLLS && !s.switched) {
+            val state = status()
+            if (state == null) {
+                // Before a first status, the player may still be opening the file.
+                if (s.durationMs != null) silent++
+            } else {
+                silent = 0
+                follow(s, state)
+                if (!s.switched && tick % REPORT_EVERY == 0) report { s.reporter?.progress(s.positionMs, s.durationMs, s.paused) }
             }
+            tick++
+            delay(POLL_MS)
         }
+        if (silent >= SILENT_POLLS) {
+            Log.i(TAG, "The player says nothing more: tracking stops")
+            _playing.value = false
+        }
+    }
+
+    /** Takes what the player says for the session, unless it now plays a file of another length. */
+    private fun follow(s: Session, state: ZidooPlayState) {
+        val launched = s.durationMs
+        if (launched != null && abs(state.durationMs - launched) > SAME_FILE_MS) {
+            Log.i(TAG, "The player went on to another file ($launched -> ${state.durationMs} ms)")
+            s.switched = true
+            return
+        }
+        s.positionMs = state.positionMs
+        s.durationMs = state.durationMs
+        s.paused = state.paused
+        saved.edit().putLong(KEY_POSITION, state.positionMs).apply()
     }
 
     /** Player result: final position in ms when the player returns it. */
@@ -164,11 +212,13 @@ class PlaybackManager(
         pollJob = null
         val returned = data?.getIntExtra("position", -1) ?: -1
         scope.launch {
-            // The last progress report is done before the final one is sent.
+            // The last progress report is done, and the one that playback started, before the final one is sent.
             poll?.cancelAndJoin()
+            live?.started?.join()
             // No live session: the app was stopped while the film played.
             val s = live ?: Session(resumeKey?.let { reporterFor(it) }, savedPosition)
-            if (returned > 0) s.positionMs = returned.toLong()
+            // A position the player returns for another file is not this title's.
+            if (returned > 0 && !s.switched) s.positionMs = returned.toLong()
             Log.i(TAG, "Playback ended at ${s.positionMs} / ${s.durationMs} ms")
             report { s.reporter?.stopped(s.positionMs, s.durationMs) }
             _playbackEnded.emit(Unit)
@@ -186,6 +236,19 @@ class PlaybackManager(
         private const val TAG = "Playback"
         private const val KEY_RESUME = "resume_key"
         private const val KEY_POSITION = "position_ms"
+
+        /** The player takes a few seconds to open the file. */
+        private const val FIRST_POLL_MS = 4_000L
+        private const val POLL_MS = 2_000L
+
+        /** Progress goes to the backend every this many polls: some ten seconds. */
+        private const val REPORT_EVERY = 5
+
+        /** Polls without a word, past a first status, before tracking stops: some thirty seconds. */
+        private const val SILENT_POLLS = 15
+
+        /** Two statuses of the same file agree on its length within this. */
+        private const val SAME_FILE_MS = 2_000L
         const val ZIDOO_PACKAGE = "com.android.gallery3d"
         const val ZIDOO_ACTIVITY = "com.android.gallery3d.app.MovieActivity"
     }

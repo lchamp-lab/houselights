@@ -155,6 +155,7 @@
     <string name="similar">More like this</string>
     <string name="action_not_saved">Not saved</string>
     <string name="play_failed">Can’t play</string>
+    <string name="play_with">Play with</string>
     <string name="no_player">The Zidoo player isn’t installed.</string>
     <string name="player_credentials">This folder needs a password: only the Zidoo player can play it.</string>
 
