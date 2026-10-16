@@ -3,7 +3,6 @@ package app.houselights.providers.local
 import android.content.Context
 import app.houselights.R
 import app.houselights.core.ImageRef
-import app.houselights.core.MediaInfo
 import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
 import app.houselights.core.NfoInfo
@@ -11,10 +10,14 @@ import app.houselights.core.NfoParser
 import app.houselights.core.Typeset
 import app.houselights.core.UserState
 import app.houselights.providers.local.TmdbClient.Companion.ImageType
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 /**
  * Maps entities. [mapAll] reads what cards need beyond their own row (the parent show, a show's
- * counts) in one query for the whole list, instead of one per title.
+ * counts) in one query for the whole list, instead of one per title, then maps the list off the main
+ * thread: what a file holds is decoded and every text set ([Typeset]) for each title, a whole wall
+ * of them while a scan refreshes it.
  */
 internal class LocalMapper(private val dao: LibraryDao, private val context: Context) {
     private val series = mutableMapOf<Long, ItemEntity?>()
@@ -33,12 +36,10 @@ internal class LocalMapper(private val dao: LibraryDao, private val context: Con
             chunk.forEach { series[it] = null }
             dao.rows(chunk).forEach { series[it.id] = it }
         }
-        return entities.map { map(it) }
+        return withContext(Dispatchers.Default) { entities.map(::mapPrepared) }
     }
 
-    /** True once what [e]'s card needs beyond its row is known (see [mapAll]). */
-    private fun prepared(e: ItemEntity): Boolean =
-        firstScans != null && (e.kind != ItemKind.SERIES || e.id in counts) && (e.seriesId == null || e.seriesId in series)
+    suspend fun map(e: ItemEntity): MediaItem = mapAll(listOf(e)).single()
 
     /** When [e] joined a library that was already there; null for what its first scan found. */
     private fun addedLater(e: ItemEntity): Long? {
@@ -58,8 +59,8 @@ internal class LocalMapper(private val dao: LibraryDao, private val context: Con
         }
     }
 
-    suspend fun map(e: ItemEntity): MediaItem {
-        if (!prepared(e)) return mapAll(listOf(e)).single()
+    /** [e] as a title, once [mapAll] read what its card needs beyond its row. */
+    private fun mapPrepared(e: ItemEntity): MediaItem {
         val show = e.seriesId?.let { series[it] }
         val kind = when (e.kind) {
             ItemKind.MOVIE -> MediaKind.MOVIE
@@ -69,6 +70,7 @@ internal class LocalMapper(private val dao: LibraryDao, private val context: Con
         }
         // Text is set for display; sorting reads the entity, as written.
         val title = Typeset.text(titleOf(e))
+        // Null in a list (CARD_ROW): only a title's page shows what its file holds.
         val media = MediaProbe.decode(e.mediaInfo)
         val showCounts = counts[e.id]?.takeIf { e.kind == ItemKind.SERIES }
         val unplayed = showCounts?.unplayed
@@ -83,7 +85,7 @@ internal class LocalMapper(private val dao: LibraryDao, private val context: Con
             year = e.year,
             endYear = e.endYear,
             continuing = e.continuing,
-            runtimeMs = runtimeOf(e, media),
+            runtimeMs = runtimeOf(e),
             officialRating = e.certification,
             communityRating = e.rating,
             genres = e.genres,
@@ -120,9 +122,9 @@ internal class LocalMapper(private val dao: LibraryDao, private val context: Con
      * the NFO's. A film in several files lasts its parts together: what TMDB or its NFO says, never its
      * first file's length, the only one the library knows.
      */
-    private fun runtimeOf(e: ItemEntity, media: MediaInfo?): Long? {
+    private fun runtimeOf(e: ItemEntity): Long? {
         val stated = e.runtimeMin?.let { it * MS_PER_MINUTE }
-        return if (e.parts.isNotEmpty()) stated else e.durationMs ?: media?.durationMs ?: stated
+        return if (e.parts.isNotEmpty()) stated else e.durationMs ?: e.fileDurationMs ?: stated
     }
 
     /** Each part of a film in several files, playable on its own; none for a film in one file. */
@@ -142,7 +144,10 @@ internal class LocalMapper(private val dao: LibraryDao, private val context: Con
      */
     suspend fun forPlayer(e: ItemEntity, item: MediaItem): MediaItem {
         val show = e.seriesId?.let { dao.item(it) }
-        return item.copy(backdrop = webArtwork(e, show, PlayerArt.BACKDROP), logo = webArtwork(e, show, PlayerArt.LOGO))
+        // An NFO may be read for it, off the main thread.
+        return withContext(Dispatchers.Default) {
+            item.copy(backdrop = webArtwork(e, show, PlayerArt.BACKDROP), logo = webArtwork(e, show, PlayerArt.LOGO))
+        }
     }
 
     /** What the player shows while it opens a file, and where an item keeps it. */

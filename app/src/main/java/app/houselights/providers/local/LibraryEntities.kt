@@ -5,6 +5,7 @@ import androidx.room.Index
 import androidx.room.PrimaryKey
 import androidx.room.ProvidedTypeConverter
 import androidx.room.TypeConverter
+import app.houselights.core.MediaInfo
 import app.houselights.core.Secrets
 
 enum class SourceKind { MOVIES, SHOWS }
@@ -73,20 +74,97 @@ fun SourceEntity.address(withScheme: Boolean = true): String {
 
 enum class ItemKind { MOVIE, SERIES, SEASON, EPISODE }
 
-/**
- * Every column of an item but the NFO text, which can weigh up to 1 MB: what lists and the scanner's
- * file index read. Rows read this way have a null [ItemEntity.nfo]: they are shown, never written back.
- */
-const val ITEM_ROW =
+/** The columns of an item before what its file holds ([ItemEntity.mediaInfo]); see [ITEM_ROW]. */
+private const val ROW_HEAD =
     "id, kind, sourceId, parentId, seriesId, matchKey, tmdbId, title, sortTitle, originalTitle, " +
-    "overview, tagline, year, endYear, continuing, runtimeMin, certification, rating, genres, " +
-    "directors, posterPath, backdropPath, logoPath, stillPath, seasonNumber, episodeNumber, lastEpisodeNumber, filePath, " +
-    "parts, fileSize, missingSince, badges, mediaInfo, nfoPath, NULL AS nfo, sidecarKey, userTmdbId, userPosterPath, " +
-    "userBackdropPath, userLogoPath, collectionId, addedAt, matchedAt, positionMs, durationMs, played, favorite, " +
-    "lastPlayedAt"
+        "overview, tagline, year, endYear, continuing, runtimeMin, certification, rating, genres, " +
+        "directors, posterPath, backdropPath, logoPath, stillPath, seasonNumber, episodeNumber, lastEpisodeNumber, filePath, " +
+        "parts, fileSize, missingSince, badges, "
+
+/** The columns of an item after what its file holds, the NFO text left out; see [ITEM_ROW]. */
+private const val ROW_TAIL =
+    ", probeVersion, fileDurationMs, nfoPath, NULL AS nfo, sidecarKey, userTmdbId, userPosterPath, " +
+        "userBackdropPath, userLogoPath, collectionId, addedAt, matchedAt, positionMs, durationMs, played, favorite, " +
+        "lastPlayedAt"
+
+/**
+ * Every column of an item but the NFO text, which can weigh up to 1 MB: what a title's page reads. Rows read
+ * this way have a null [ItemEntity.nfo]: they are shown, never written back.
+ */
+const val ITEM_ROW = ROW_HEAD + "mediaInfo" + ROW_TAIL
+
+/**
+ * [ITEM_ROW] without what the file holds either ([ItemEntity.mediaInfo], kilobytes of JSON to decode for
+ * each card), which only a title's page shows: what lists read. Their length is the file's own column
+ * ([ItemEntity.fileDurationMs]). Rows read this way are shown, never written back either.
+ */
+const val CARD_ROW = ROW_HEAD + "NULL AS mediaInfo" + ROW_TAIL
+
+/**
+ * A file of a folder, as a scan sorts what to do with it ([LibraryDao.knownFiles]): what tells a file renamed,
+ * missing, replaced or due. Never its details, its NFO or what it holds, which a pass that finds nothing new
+ * would read and decode for each of thousands of files, every ten minutes.
+ */
+data class KnownFile(
+    val id: Long,
+    val filePath: String,
+    /** See [ItemEntity.parts]. */
+    val parts: List<String> = emptyList(),
+    val fileSize: Long? = null,
+    val missingSince: Long? = null,
+    val seriesId: Long? = null,
+    val tmdbId: Int? = null,
+    val userTmdbId: Int? = null,
+    val matchedAt: Long? = null,
+    val sidecarKey: String? = null,
+    val probeVersion: Int = 0,
+)
+
+/** As [ItemEntity.sizeChanged]: the file is not the one read last. */
+internal fun KnownFile.sizeChanged(file: RemoteFile): Boolean = fileSize != null && fileSize != file.size
+
+/** [info] as the row keeps it: its JSON, and the columns read without decoding it. */
+internal fun ItemEntity.withMedia(info: MediaInfo): ItemEntity =
+    copy(mediaInfo = MediaProbe.encode(info), probeVersion = info.probedWith, fileDurationMs = info.durationMs)
 
 /** What a show's card tells about its episodes (see [LibraryDao.seriesCounts]). */
 data class SeriesCounts(val seriesId: Long, val unplayed: Int, val seasons: Int)
+
+/** A title's NFO, where it lies and what it says ([LibraryDao.nfoOf]): what only the screen of the NFO reads. */
+data class ItemNfo(val sourceId: Long, val nfoPath: String?, val nfo: String?)
+
+/** What the player's reports of a film or an episode weigh against ([LibraryDao.playState], [LocalReporter]). */
+data class PlayState(
+    /** See [ItemEntity.parts]. */
+    val parts: List<String>,
+    val positionMs: Long,
+    val durationMs: Long?,
+    val runtimeMin: Int?,
+    val played: Boolean,
+)
+
+/** Where an episode stands for the viewer ([LibraryDao.episodeStates]): what tells the next one to watch. */
+data class EpisodeState(
+    val id: Long,
+    val seriesId: Long,
+    val seasonNumber: Int?,
+    val episodeNumber: Int?,
+    val played: Boolean,
+    val positionMs: Long,
+)
+
+/** What a saga's card tells of one of its films ([LibraryDao.collectionMembers]). */
+data class CollectionMember(
+    val collectionId: Long,
+    val year: Int?,
+    val rating: Double?,
+    val genres: List<String>,
+    val played: Boolean,
+    val posterPath: String?,
+    val userPosterPath: String?,
+    val backdropPath: String?,
+    val userBackdropPath: String?,
+)
 
 @Entity(
     tableName = "items",
@@ -137,8 +215,15 @@ data class ItemEntity(
     /** When a scan first missed the file: its row waits a while (see [MissingFiles]); null while the file is listed. */
     val missingSince: Long? = null,
     val badges: List<String> = emptyList(),
-    /** [app.houselights.core.MediaInfo] as JSON; null until the file has been read. */
+    /** [app.houselights.core.MediaInfo] as JSON; null until the file has been read. Written with [withMedia]. */
     val mediaInfo: String? = null,
+    /**
+     * The probe that read [mediaInfo] ([MediaInfo.probedWith]; 0 until read), in a column of its own: a scan
+     * tells the files to read again without decoding what each one holds.
+     */
+    val probeVersion: Int = 0,
+    /** The length [mediaInfo] gives, in a column of its own: cards show it without decoding what the file holds. */
+    val fileDurationMs: Long? = null,
     /** The NFO file next to the video (or the show), and its raw content. */
     val nfoPath: String? = null,
     val nfo: String? = null,

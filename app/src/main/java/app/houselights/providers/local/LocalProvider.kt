@@ -34,6 +34,8 @@ import app.houselights.core.UserState
 import app.houselights.core.escapeUriPath
 import app.houselights.providers.local.TmdbClient.Companion.ImageType
 import app.houselights.core.CollectionThreshold
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 /** Library built by [LibraryScanner] from the user's network folders. */
 class LocalProvider(
@@ -114,7 +116,7 @@ class LocalProvider(
             SortOption.RATING -> "rating DESC, sortTitle ASC"
         }
         // The id settles ties, so that pages never overlap nor skip a title.
-        val page = "SELECT $ITEM_ROW FROM items WHERE $where ORDER BY $order, id LIMIT $limit OFFSET $start"
+        val page = "SELECT $CARD_ROW FROM items WHERE $where ORDER BY $order, id LIMIT $limit OFFSET $start"
         val items = dao.query(SimpleSQLiteQuery(page, args.toTypedArray()))
         val total = dao.countQuery(SimpleSQLiteQuery("SELECT COUNT(*) FROM items WHERE $where", args.toTypedArray()))
         val mapper = LocalMapper(dao, context)
@@ -145,40 +147,53 @@ class LocalProvider(
                 arrayOf<Any>(min),
             )
         )
-        return Page(collections.map { mapCollection(it) }, dao.collectionCount(min))
+        val members = membersOf(collections.map { it.id })
+        val items = withContext(Dispatchers.Default) { collections.map { collectionItem(it, members[it.id].orEmpty()) } }
+        return Page(items, dao.collectionCount(min))
     }
+
+    /** The films of each collection of [ids], by collection: a query a [SQL_IN_LIMIT] collections, rather than one each. */
+    private suspend fun membersOf(ids: List<Long>): Map<Long, List<CollectionMember>> =
+        ids.chunked(SQL_IN_LIMIT).flatMap { dao.collectionMembers(it) }.groupBy { it.collectionId }
 
     override suspend fun libraryFacets(library: Library): LibraryFacets {
         if (library.id == COLLECTIONS) return LibraryFacets()
         val kind = if (library.id == SHOWS) ItemKind.SERIES else ItemKind.MOVIE
         // Shows carry no technical badges themselves: look at their episodes.
-        val badgeKind = if (kind == ItemKind.SERIES) ItemKind.EPISODE else kind
-        val badges = dao.badgesOf(badgeKind).flatMap(PipeList::fromText).toSet()
-        return LibraryFacets(
-            genres = dao.genresOf(kind).flatMap(PipeList::fromText).distinct().sorted(),
-            decades = dao.yearsOf(kind).map { it / 10 * 10 }.distinct().sortedDescending(),
-            qualities = buildList {
-                if (Definition.ULTRA_HD.token in badges) add(Quality.UHD_4K)
-                if (badges.any { it.startsWith("HDR") } || "Dolby Vision" in badges) add(Quality.HDR)
-                if ("Dolby Vision" in badges) add(Quality.DOLBY_VISION)
-            },
-        )
+        val badgeLists = dao.badgesOf(if (kind == ItemKind.SERIES) ItemKind.EPISODE else kind)
+        val genreLists = dao.genresOf(kind)
+        val years = dao.yearsOf(kind)
+        // Every episode's badges, split off the main thread.
+        return withContext(Dispatchers.Default) {
+            val badges = badgeLists.flatMap(PipeList::fromText).toSet()
+            LibraryFacets(
+                genres = genreLists.flatMap(PipeList::fromText).distinct().sorted(),
+                decades = years.map { it / 10 * 10 }.distinct().sortedDescending(),
+                qualities = buildList {
+                    if (Definition.ULTRA_HD.token in badges) add(Quality.UHD_4K)
+                    if (badges.any { it.startsWith("HDR") } || "Dolby Vision" in badges) add(Quality.HDR)
+                    if ("Dolby Vision" in badges) add(Quality.DOLBY_VISION)
+                },
+            )
+        }
     }
 
     /** The library row of a film, show, season or episode; null for a collection. */
     private fun itemKey(item: MediaItem): Long? = (LocalId.parse(item.id) as? LocalId.Item)?.key
 
-    private suspend fun entity(item: MediaItem): ItemEntity? = itemKey(item)?.let { dao.item(it) }
+    /** [item]'s row, without its NFO text ([LibraryDao.itemRow]). */
+    private suspend fun entity(item: MediaItem): ItemEntity? = itemKey(item)?.let { dao.itemRow(it) }
 
     override suspend fun item(id: String): MediaItem {
         val entity = when (val local = LocalId.parse(id)) {
             is LocalId.Collection -> return mapCollection(dao.collection(local.key) ?: throw NotFoundException("Collection $id"))
-            is LocalId.Item -> dao.item(local.key)
+            is LocalId.Item -> dao.itemRow(local.key)
             null -> null
         } ?: throw NotFoundException("Item $id")
         val castSource = if (entity.kind == ItemKind.MOVIE || entity.kind == ItemKind.SERIES) entity.id else entity.seriesId
-        val cast = castSource?.let { dao.cast(it) }.orEmpty().map { c ->
-            Person(Typeset.text(c.name), Typeset.text(c.character), c.profilePath?.let { image(it, ImageType.PROFILE) })
+        val people = castSource?.let { dao.cast(it) }.orEmpty()
+        val cast = withContext(Dispatchers.Default) {
+            people.map { c -> Person(Typeset.text(c.name), Typeset.text(c.character), c.profilePath?.let { image(it, ImageType.PROFILE) }) }
         }
         return LocalMapper(dao, context).map(entity).copy(cast = cast)
     }
@@ -187,7 +202,7 @@ class LocalProvider(
         if (item.kind != MediaKind.MOVIE) return null
         val min = collectionMinFilms().takeIf { it > 0 } ?: return null
         val collection = entity(item)?.collectionId?.let { dao.collection(it) } ?: return null
-        val films = dao.collectionFilms(collection.id)
+        val films = dao.collectionMembers(listOf(collection.id))
         return if (films.size >= min) mapCollection(collection, films) else null
     }
 
@@ -201,8 +216,12 @@ class LocalProvider(
      * A collection as a title of the library: its name and story, the years its films span,
      * how many of them are here (and out of how many), its artwork or its first film's.
      */
-    private suspend fun mapCollection(c: CollectionEntity, films: List<ItemEntity>? = null): MediaItem {
-        val members = films ?: dao.collectionFilms(c.id)
+    private suspend fun mapCollection(c: CollectionEntity, films: List<CollectionMember>? = null): MediaItem {
+        val members = films ?: dao.collectionMembers(listOf(c.id))
+        return withContext(Dispatchers.Default) { collectionItem(c, members) }
+    }
+
+    private fun collectionItem(c: CollectionEntity, members: List<CollectionMember>): MediaItem {
         val years = members.mapNotNull { it.year }
         val first = members.firstOrNull()
         val unplayed = members.count { !it.played }
@@ -226,10 +245,9 @@ class LocalProvider(
 
     override suspend fun nfo(item: MediaItem): NfoDocument? {
         if (item.kind == MediaKind.COLLECTION) return null
-        val e = entity(item) ?: return null
+        val e = itemKey(item)?.let { dao.nfoOf(it) } ?: return null
         val text = e.nfo ?: return null
-        val source = dao.sources().firstOrNull { it.id == e.sourceId }
-        val path = listOfNotNull(source?.address(), e.nfoPath)
+        val path = listOfNotNull(dao.source(e.sourceId)?.address(), e.nfoPath)
             .joinToString("/")
         return NfoDocument(path, text)
     }
@@ -246,9 +264,11 @@ class LocalProvider(
         return mapper.mapAll(dao.childRows(key))
     }
 
-    override suspend fun nextUp(series: MediaItem): MediaItem? =
-        if (series.kind == MediaKind.COLLECTION) super.nextUp(series)
-        else itemKey(series)?.let { nextEpisode(dao.episodesOfSeries(it)) }?.let { LocalMapper(dao, context).map(it) }
+    override suspend fun nextUp(series: MediaItem): MediaItem? {
+        if (series.kind == MediaKind.COLLECTION) return super.nextUp(series)
+        val next = itemKey(series)?.let { nextEpisode(dao.episodeStates(listOf(it))) } ?: return null
+        return dao.rows(listOf(next.id)).singleOrNull()?.let { LocalMapper(dao, context).map(it) }
+    }
 
     override suspend fun similar(item: MediaItem): List<MediaItem> {
         if (item.kind == MediaKind.COLLECTION) return emptyList()
@@ -281,7 +301,8 @@ class LocalProvider(
      * its start; the film itself plays its first part, where its resume point lies.
      */
     override suspend fun playback(item: MediaItem, resume: Boolean, options: PlaybackOptions): PlaybackPlan {
-        val entity = entity(item) ?: throw NotFoundException("Item ${item.id}")
+        // With its NFO: the player is handed its artwork when that is all the web has (see LocalMapper.forPlayer).
+        val entity = itemKey(item)?.let { dao.item(it) } ?: throw NotFoundException("Item ${item.id}")
         val part = (LocalId.parse(item.id) as? LocalId.Item)?.part
         val files = listOfNotNull(entity.filePath) + entity.parts
         // A part gone since the page was shown is a title gone.
@@ -307,22 +328,29 @@ class LocalProvider(
     override fun reporter(resumeKey: String): PlaybackReporter? =
         (LocalId.parse(resumeKey) as? LocalId.Item)?.let { LocalReporter(dao, it.key, it.part ?: 1) }
 
-    /** Next episode of each show recently watched, skipping ones already in progress. */
+    /**
+     * Next episode of each show recently watched, skipping ones already in progress: where every episode of
+     * those shows stands in one light query, then the rows of the episodes next.
+     */
     private suspend fun nextUpAcrossShows(exclude: Set<Long>): List<ItemEntity> {
-        return dao.recentlyPlayedSeries(NEXT_UP_SHOWS).mapNotNull { nextEpisode(dao.episodesOfSeries(it)) }.filter { it.id !in exclude }
+        val shows = dao.recentlyPlayedSeries(NEXT_UP_SHOWS)
+        val episodes = shows.chunked(SQL_IN_LIMIT).flatMap { dao.episodeStates(it) }.groupBy { it.seriesId }
+        val next = shows.mapNotNull { show -> episodes[show]?.let(::nextEpisode)?.id }.filter { it !in exclude }
+        val rows = next.chunked(SQL_IN_LIMIT).flatMap { dao.rows(it) }.associateBy { it.id }
+        return next.mapNotNull { rows[it] }
     }
 
     /**
      * The next episode among the seasons, specials (season 0, first in [episodes]) once none is left
      * there: as [MediaProvider.nextUp] does, a show starts with S01E01, not with a special.
      */
-    private fun nextEpisode(episodes: List<ItemEntity>): ItemEntity? {
+    private fun nextEpisode(episodes: List<EpisodeState>): EpisodeState? {
         val (specials, seasons) = episodes.partition { (it.seasonNumber ?: 0) == 0 }
         return nextOf(seasons) ?: nextOf(specials)
     }
 
     /** First in-progress episode, else the one after the last watched, else the first unwatched. */
-    private fun nextOf(episodes: List<ItemEntity>): ItemEntity? {
+    private fun nextOf(episodes: List<EpisodeState>): EpisodeState? {
         episodes.firstOrNull { it.positionMs > 0 && !it.played }?.let { return it }
         val lastWatched = episodes.indexOfLast { it.played }
         return episodes.drop(lastWatched + 1).firstOrNull { !it.played } ?: episodes.firstOrNull { !it.played }
@@ -347,13 +375,21 @@ class LocalProvider(
             else -> user
         }
 
-        /** A cached local file, a full URL from an NFO, or a TMDB path. */
-        fun image(path: String, type: ImageType) = when {
-            path.isCachedArtwork() -> ImageRef(path) { path }
+        /**
+         * A cached local file, a full URL from an NFO, or a TMDB path. An NFO's address on TMDB is its
+         * path there: Kodi and Radarr write the original file (a 4K fanart, a portrait of a few
+         * megabytes), which is asked for at the size shown, as TMDB's own paths are.
+         */
+        fun image(path: String, type: ImageType): ImageRef {
+            if (path.isCachedArtwork()) return ImageRef(path) { path }
+            val tmdb = if (path.startsWith("http")) TMDB_IMAGE.matchEntire(path)?.groupValues?.get(1) else path
+            if (tmdb != null) return ImageRef("tmdb:$tmdb") { w -> TmdbClient.imageUrl(tmdb, type, w) }
             // Also upgrades addresses read from NFO files before they were fetched over HTTPS only.
-            path.startsWith("http") -> (NfoParser.imageUrl(path) ?: path).let { url -> ImageRef(url) { url } }
-            else -> ImageRef("tmdb:$path") { w -> TmdbClient.imageUrl(path, type, w) }
+            return (NfoParser.imageUrl(path) ?: path).let { url -> ImageRef(url) { url } }
         }
+
+        /** A file on TMDB's image server, at any size ("w500", "original"): its path there is the group. */
+        private val TMDB_IMAGE = Regex("""https?://image\.tmdb\.org/t/p/[^/]+(/[^/?#]+)""", RegexOption.IGNORE_CASE)
 
         /**
          * URI the Zidoo player opens directly:

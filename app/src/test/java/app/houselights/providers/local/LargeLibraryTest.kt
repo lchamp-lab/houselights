@@ -7,6 +7,7 @@ import app.houselights.core.Library
 import app.houselights.core.LibraryFilter
 import app.houselights.core.LibraryKind
 import app.houselights.core.Secrets
+import app.houselights.core.SectionType
 import app.houselights.core.SortOption
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
@@ -23,8 +24,8 @@ import java.util.concurrent.atomic.AtomicInteger
 import javax.crypto.KeyGenerator
 
 /**
- * A library the size of a real one (1,000 films, 100 shows of 30 episodes, with NFO text): how many
- * queries the home screen and a library page cost. The counts guard against a query per title.
+ * A library the size of a real one (1,000 films in 200 sagas, 100 shows of 30 episodes, with NFO text):
+ * how many queries the home screen and a library page cost. The counts guard against a query per title.
  */
 @RunWith(RobolectricTestRunner::class)
 class LargeLibraryTest {
@@ -55,9 +56,13 @@ class LargeLibraryTest {
         val nfo = "<movie><plot>${"x".repeat(NFO_BYTES)}</plot></movie>"
         db.withTransaction {
             run {
+                val sagas = (0 until SAGAS).map {
+                    dao.insertCollection(CollectionEntity(matchKey = "name:saga $it", name = "Saga $it", sortTitle = "saga $it"))
+                }
                 repeat(FILMS) { i ->
                     val playedAt = if (i % 50 == 0) i.toLong() else null
-                    dao.insert(item(ItemKind.MOVIE, films, "Film $i", addedAt = i.toLong(), nfo = nfo, lastPlayedAt = playedAt))
+                    val film = item(ItemKind.MOVIE, films, "Film $i", addedAt = i.toLong(), nfo = nfo, lastPlayedAt = playedAt)
+                    dao.insert(film.copy(collectionId = sagas[i % SAGAS], year = 1980 + i / SAGAS))
                 }
                 repeat(SHOWS) { s ->
                     val series = dao.insert(item(ItemKind.SERIES, shows, "Show $s", addedAt = s.toLong()))
@@ -138,14 +143,38 @@ class LargeLibraryTest {
         assertTrue("films page ran $count queries", count <= PAGE_QUERIES)
     }
 
+    @Test
+    fun aPageOfSagasCostsAFewQueries() = runTest {
+        val sagas = Library(LocalProvider.COLLECTIONS, LibraryKind.COLLECTIONS, null)
+        val (page, count) = measure("sagas page") { provider.libraryPage(sagas, SortOption.TITLE, LibraryFilter(), 0, PAGE) }
+        assertEquals(PAGE, page.items.size)
+        assertEquals(SAGAS, page.total)
+        val first = page.items.first { it.title == "Saga 0" }
+        assertEquals(FILMS / SAGAS to 1980, first.childCount to first.year)
+        assertTrue("sagas page ran $count queries", count <= PAGE_QUERIES)
+    }
+
+    /** "À suivre": where every episode of the shows watched last stands, then the next of each. */
+    @Test
+    fun nextUpCostsAFewQueries() = runTest {
+        val (sections, count) = measure("home") { provider.home() }
+        val next = sections.single { it.type == SectionType.NEXT_UP }.items
+        // Shows 0, 3, 6…: their first season watched, the next episode is the second season's first.
+        assertEquals(NEXT_UP_SHOWS, next.size)
+        assertTrue(next.all { it.seasonNumber == 2 && it.episodeNumber == 1 })
+        assertTrue("home ran $count queries", count <= HOME_QUERIES)
+    }
+
     private companion object {
         const val FILMS = 1_000
+        const val SAGAS = 200
+        const val NEXT_UP_SHOWS = 20
         const val SHOWS = 100
         const val SEASONS = 3
         const val EPISODES_PER_SEASON = 10
         const val NFO_BYTES = 20_000
         const val PAGE = 120
-        const val HOME_QUERIES = 30
+        const val HOME_QUERIES = 10
         const val PAGE_QUERIES = 5
     }
 }

@@ -68,6 +68,16 @@ class ScanReadsTest {
         assertEquals(REMUX_BADGES, bench.item(films, "Dune (2021).mkv").badges)
     }
 
+    /** What a video holds is kept with the probe that read it and its length, in columns the scan and the cards read. */
+    @Test
+    fun aVideoReadKeepsItsProbeAndItsLengthBesideWhatItHolds() = runTest {
+        nas.put("Dune (2021).mkv", size = 80_000_000_000, bytes = MkvProbeTest().sampleFile())
+        bench.scan()
+        val dune = bench.item(films, "Dune (2021).mkv")
+        assertEquals(MediaProbe.VERSION, MediaProbe.decode(dune.mediaInfo)?.probedWith)
+        assertEquals(MediaProbe.VERSION to 7_094_000L, dune.probeVersion to dune.fileDurationMs)
+    }
+
     /** An NFO an older media manager wrote in Latin-1 is read as it says, not as UTF-8. */
     @Test
     fun anNfoIsReadInTheEncodingItSays() = runTest {

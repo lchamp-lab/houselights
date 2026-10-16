@@ -14,7 +14,7 @@ import app.houselights.core.suspendRunCatching
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-@Database(entities = [SourceEntity::class, ItemEntity::class, CastEntity::class, CollectionEntity::class], version = 10)
+@Database(entities = [SourceEntity::class, ItemEntity::class, CastEntity::class, CollectionEntity::class], version = 11)
 @TypeConverters(SecretConverter::class, PipeList::class)
 abstract class LibraryDatabase : RoomDatabase() {
     abstract fun dao(): LibraryDao
@@ -103,6 +103,32 @@ abstract class LibraryDatabase : RoomDatabase() {
         }
 
         /**
+         * The probe each file was read with and the length it gives, in columns of their own (see
+         * [ItemEntity.probeVersion]), from what each row holds: its JSON, decoded here once, in Kotlin,
+         * as Android 9's SQLite may lack its JSON functions. A row whose JSON cannot be read keeps 0
+         * and no length: the next scan reads its file again, as it did.
+         */
+        private val MIGRATION_10_11 = object : Migration(10, 11) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE items ADD COLUMN probeVersion INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE items ADD COLUMN fileDurationMs INTEGER")
+                val read = db.query("SELECT id, mediaInfo FROM items WHERE mediaInfo IS NOT NULL").use { rows ->
+                    buildList {
+                        while (rows.moveToNext()) {
+                            val info = MediaProbe.decode(rows.getString(1)) ?: continue
+                            if (info.probedWith != 0 || info.durationMs != null) {
+                                add(Triple(rows.getLong(0), info.probedWith, info.durationMs))
+                            }
+                        }
+                    }
+                }
+                for ((id, version, length) in read) {
+                    db.execSQL("UPDATE items SET probeVersion = ?, fileDurationMs = ? WHERE id = ?", arrayOf<Any?>(version, length, id))
+                }
+            }
+        }
+
+        /**
          * Folds the accents and ligatures of the sort keys of [table] ([MetadataMerge.fold]), and takes off
          * an l' glued to its word ("l'arnaque"), which version 9 left. Nothing more: taking the articles off
          * again would not leave a key as it was ("la land", from "La La Land", would become "land"). A title
@@ -151,7 +177,7 @@ abstract class LibraryDatabase : RoomDatabase() {
 
         internal fun migrations(secrets: Secrets) = arrayOf(
             MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, migration6To7(secrets), MIGRATION_7_8,
-            MIGRATION_8_9, MIGRATION_9_10,
+            MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11,
         )
 
         fun create(context: Context, secrets: Secrets): LibraryDatabase =
