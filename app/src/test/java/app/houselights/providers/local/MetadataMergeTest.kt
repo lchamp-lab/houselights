@@ -84,5 +84,20 @@ class MetadataMergeTest {
         assertEquals("aliens", MetadataMerge.sortKey(" Aliens "))
     }
 
-    private val heatCredits = TmdbCredits(cast = listOf(TmdbCastMember("Al Pacino", "Vincent Hanna", order = 0)))
+    /** Sorted as bytes, "Ça", "À couteaux tirés", "Été 85" and "Œdipe" came after "Zodiac"; "L'Arnaque" sorted with L. */
+    @Test
+    fun accentsLigaturesAndAGluedArticleSortWithTheirLetter() {
+        val titles = listOf("Zodiac", "Œdipe", "L'Arnaque", "Été 85", "Ça", "À couteaux tirés")
+        assertEquals(
+            listOf("À couteaux tirés", "L'Arnaque", "Ça", "Été 85", "Œdipe", "Zodiac"),
+            titles.sortedBy(MetadataMerge::sortKey),
+        )
+        assertEquals("arnaque", MetadataMerge.sortKey("L’Arnaque"))
+        assertEquals("exorciste", MetadataMerge.sortKey("L' Exorciste"))
+        assertEquals("aeon flux", MetadataMerge.sortKey("Æon Flux"))
+        assertEquals("strasse", MetadataMerge.sortKey("Straße"))
+        assertEquals("la land", MetadataMerge.sortKey("La La Land"))
+    }
+
+    private val heatCredits =TmdbCredits(cast = listOf(TmdbCastMember("Al Pacino", "Vincent Hanna", order = 0)))
 }

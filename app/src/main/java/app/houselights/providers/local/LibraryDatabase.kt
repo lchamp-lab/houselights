@@ -81,13 +81,36 @@ abstract class LibraryDatabase : RoomDatabase() {
             }
         }
 
-        /** Files holding several episodes, films in several parts, and what was read beside each file. */
+        /**
+         * Files holding several episodes, films in several parts, and what was read beside each file.
+         * Sort keys lose their accents and ligatures.
+         */
         private val MIGRATION_9_10 = object : Migration(9, 10) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE items ADD COLUMN lastEpisodeNumber INTEGER")
                 db.execSQL("ALTER TABLE items ADD COLUMN parts TEXT NOT NULL DEFAULT ''")
                 db.execSQL("ALTER TABLE items ADD COLUMN sidecarKey TEXT")
+                foldSortKeys(db, "items")
+                foldSortKeys(db, "collections")
             }
+        }
+
+        /**
+         * Folds the accents and ligatures of the sort keys of [table] ([MetadataMerge.fold]), and nothing
+         * more: taking the article off again would not leave a key as it was ("la land", from "La La Land",
+         * would become "land"). An article glued to its word ("l'arnaque") goes at the title's next merge.
+         */
+        private fun foldSortKeys(db: SupportSQLiteDatabase, table: String) {
+            val folded = db.query("SELECT id, sortTitle FROM $table").use { rows ->
+                buildList {
+                    while (rows.moveToNext()) {
+                        val key = rows.getString(1)
+                        val fold = MetadataMerge.fold(key)
+                        if (fold != key) add(rows.getLong(0) to fold)
+                    }
+                }
+            }
+            for ((id, key) in folded) db.execSQL("UPDATE $table SET sortTitle = ? WHERE id = ?", arrayOf<Any>(key, id))
         }
 
         /**

@@ -3,6 +3,7 @@ package app.houselights.providers.local
 import app.houselights.core.NfoActor
 import app.houselights.core.NfoInfo
 import app.houselights.core.yearOf
+import java.text.Normalizer
 
 /** What TMDB says of a film or a show, in the terms both share. */
 data class TmdbDetails(
@@ -84,11 +85,28 @@ data class LocalArt(
  * Artwork: files next to the video, then the NFO's addresses, then TMDB.
  */
 object MetadataMerge {
-    private val ARTICLES = Regex("""(?i)^(the|a|an|le|la|les|l'|un|une|des)\s+""")
+    /** A leading article, l' and l’ glued to the word ("L'Arnaque") as well. */
+    private val ARTICLES = Regex("""(?i)^(?:(?:the|a|an|le|la|les|un|une|des)\s+|l['’]\s*)""")
+    private val MARKS = Regex("""\p{M}+""")
+
+    /** Letters that NFD does not take apart into a base letter and its accent. */
+    private val LIGATURES = mapOf('œ' to "oe", 'æ' to "ae", 'ß' to "ss", 'ø' to "o", 'ł' to "l", 'đ' to "d", 'ð' to "d", 'þ' to "th")
     private const val CAST_SIZE = 30
 
-    /** Lower case, without a leading article: "The Batman" sorts with B. */
-    fun sortKey(title: String): String = ARTICLES.replace(title.trim(), "").lowercase()
+    /**
+     * Lower case, without a leading article, accents and ligatures folded: "The Batman" sorts with B,
+     * "L'Arnaque" with A, "Ça" with C and "Œdipe" with O, not after Z as their UTF-8 bytes would.
+     */
+    fun sortKey(title: String): String = fold(ARTICLES.replace(title.trim(), ""))
+
+    /**
+     * [text] in lower case, accents dropped and ligatures spelled out: what [sortKey] does past the
+     * article, alone (see LibraryDatabase's migration 9 to 10, which folds the keys already stored).
+     */
+    internal fun fold(text: String): String {
+        val bare = MARKS.replace(Normalizer.normalize(text.lowercase(), Normalizer.Form.NFD), "")
+        return if (bare.none { it in LIGATURES }) bare else buildString { bare.forEach { append(LIGATURES[it] ?: it) } }
+    }
 
     /**
      * [base] with the details of [nfo] and [tmdb]. The NFO must already be one that describes this

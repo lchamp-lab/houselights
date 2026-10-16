@@ -195,4 +195,45 @@ class MigrationTest {
             context.deleteDatabase(name)
         }
     }
+
+    /**
+     * Keys stored by version 9 kept their accents, and sorted after Z: they are folded, and nothing more.
+     * "la land" (La La Land) keeps its "la"; "l'arnaque" loses its article at its next merge.
+     */
+    @Test
+    fun version10FoldsTheAccentsOfSortKeysAndNothingMore() = runTest {
+        val name = "migration-10-sort-test.db"
+        context.deleteDatabase(name)
+        val keys = listOf("ça", "à couteaux tirés", "été 85", "œdipe roi", "la land", "l'arnaque", "zodiac")
+        SchemaHistory.create(context, name, version = 9) {
+            execSQL(
+                "INSERT INTO sources (id, name, kind, protocol, host, share, path, username, password, domain, lastScanAt, firstScanAt) " +
+                    "VALUES (1, 'Films', 'MOVIES', 'NFS', 'nas', 'media', 'films', '', '', '', 1000, 1000)"
+            )
+            keys.forEachIndexed { i, key ->
+                execSQL(
+                    "INSERT INTO items (id, kind, sourceId, title, sortTitle, continuing, genres, directors, filePath, fileSize, " +
+                        "badges, addedAt, positionMs, played, favorite) " +
+                        "VALUES (${i + 1}, 'MOVIE', 1, ?, ?, 0, '', '', ?, 42, '', 0, 0, 0, 0)",
+                    arrayOf<Any>(key, key, "$key.mkv"),
+                )
+            }
+            execSQL("INSERT INTO collections (id, matchKey, name, sortTitle) VALUES (1, 'name:etrange', 'Étrange saga', 'étrange saga')")
+        }
+        val db = Room.databaseBuilder(context, LibraryDatabase::class.java, name)
+            .addTypeConverter(SecretConverter(secrets))
+            .addMigrations(*LibraryDatabase.migrations(secrets))
+            .build()
+        try {
+            assertEquals(
+                listOf("ca", "a couteaux tires", "ete 85", "oedipe roi", "la land", "l'arnaque", "zodiac"),
+                keys.indices.map { checkNotNull(db.dao().item(it + 1L)).sortTitle },
+            )
+            assertEquals("ça", db.dao().item(1)?.title)
+            assertEquals("etrange saga", db.dao().collection(1)?.sortTitle)
+        } finally {
+            db.close()
+            context.deleteDatabase(name)
+        }
+    }
 }
