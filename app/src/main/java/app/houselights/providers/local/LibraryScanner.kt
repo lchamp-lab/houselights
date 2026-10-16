@@ -333,13 +333,16 @@ class LibraryScanner(
         if (found.videos.isEmpty() && found.unreadable.isNotEmpty()) throw UnreadableFolderException(found.unreadable.size)
         // A disc's streams make one title, extras none: rows of what is not one go as files gone do.
         val listing = ScanTitles.of(found)
-        val files = listing.videos
-        val sidecars = Sidecars(listing.sidecars, files)
+        // A film in several files (CD1, CD2…) is one title, under its first part.
+        val stacks = Stacks.of(source.kind, listing.videos)
+        val files = stacks.titles
+        val sidecars = Sidecars(listing.sidecars, files, stacks)
         val listed = dao.filesOf(source.id)
         if (found.videos.isEmpty() && listed.isNotEmpty()) throw EmptyFolderException()
-        val missing = settleMissing(source.kind, listed, listing)
-        // Renamed files took their rows along.
-        val known = (if (missing.relinked.isEmpty()) listed else dao.filesOf(source.id)).associateBy { it.filePath }
+        val missing = settleMissing(source.kind, listed, listing, stacks)
+        // Renamed files took their rows along, and films their parts (one of a file now of several is asked for again).
+        val rewritten = missing.relinked.isNotEmpty() || missing.parts.isNotEmpty()
+        val known = (if (rewritten) dao.filesOf(source.id) else listed).associateBy { it.filePath }
 
         // TMDB closed to the pass, now or since a recent one: a title only waiting for it is left as it is.
         fun wanted(f: RemoteFile) = needsWork(known[f.relativePath], f, sidecars.forVideo(f), tmdb.open && askUnmatched, refreshMetadata)
@@ -353,10 +356,10 @@ class LibraryScanner(
 
         if (source.kind == SourceKind.SHOWS) tellNoEpisode(source, files)
 
-        val written = processAll(Folder(source, sidecars, known, refreshMetadata, tmdb, seasons), todo, ::wanted)
+        val written = processAll(Folder(source, sidecars, known, refreshMetadata, tmdb, seasons, stacks), todo, ::wanted)
         dao.markScanned(source.id, clock())
-        // A file renamed is not always read again, but screens show its name.
-        val changed = missing.relinked.isNotEmpty() || missing.removed.isNotEmpty() || written > 0
+        // A file renamed is not always read again, but screens show its name; and a film's parts.
+        val changed = missing.relinked.isNotEmpty() || missing.removed.isNotEmpty() || missing.parts.isNotEmpty() || written > 0
         if (changed) _changed.emit(Unit)
         return changed
     }
@@ -409,6 +412,7 @@ class LibraryScanner(
     }
 
     /** A folder as one pass reads it: what each of its files is processed with. */
+    @Suppress("LongParameterList") // What a pass hands each file.
     private class Folder(
         val source: SourceEntity,
         val sidecars: Sidecars,
@@ -417,6 +421,8 @@ class LibraryScanner(
         val refreshMetadata: Boolean,
         val tmdb: TmdbPass,
         val seasons: ShowIndexer.SeasonCache,
+        /** Its films in several files. */
+        val stacks: Stacks,
     )
 
     /**
@@ -432,7 +438,9 @@ class LibraryScanner(
         val existing = folder.known[file.relativePath]?.let { dao.item(it.id) }
         val before = existing?.let { shown(it) }
         when (source.kind) {
-            SourceKind.MOVIES -> movies.process(source, file, existing, folder.tmdb, folder.sidecars, folder.refreshMetadata)
+            SourceKind.MOVIES -> movies.process(
+                source, file, existing, folder.tmdb, folder.sidecars, folder.refreshMetadata, folder.stacks.stackAt(file.relativePath),
+            )
             SourceKind.SHOWS -> shows.process(source, file, existing, folder.tmdb, folder.seasons, folder.sidecars, folder.refreshMetadata)
         }
         if (existing == null) dao.hasFile(source.id, file.relativePath) else dao.item(existing.id)?.let { shown(it) } != before
@@ -467,10 +475,10 @@ class LibraryScanner(
     }
 
     /** Rows of files the folder no longer lists go, or wait a while (see [MissingFiles]). */
-    private suspend fun settleMissing(kind: SourceKind, known: List<ItemEntity>, listing: Listing): MissingFiles.Outcome {
+    private suspend fun settleMissing(kind: SourceKind, known: List<ItemEntity>, listing: Listing, stacks: Stacks): MissingFiles.Outcome {
         val now = clock()
-        val missing = MissingFiles.settle(kind, known, listing, now)
-        lock.withLock { dao.settleMissing(missing.relinked, missing.back, missing.held, missing.removed, now) }
+        val missing = MissingFiles.settle(kind, known, listing, now, stacks)
+        lock.withLock { dao.settleMissing(missing.relinked, missing.back, missing.held, missing.removed, missing.parts, now) }
         return missing
     }
 

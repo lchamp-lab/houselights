@@ -412,6 +412,7 @@ private fun Actions(
     val problem by appContainer().playback.playbackProblem.collectAsStateWithLifecycle()
     HlActionRow(Modifier.focusRequester(actions).fadeOutsideSafeArea()) {
         PlayButtons(item, nextUp, memory, onPlay)
+        Parts(item, memory, onPlay)
         if (item.kind == MediaKind.EPISODE && item.seriesId != null) {
             HlButton(stringResource(R.string.view_series), onClick = onOpenSeries, modifier = Modifier.focusKey(SERIES, memory))
         }
@@ -500,12 +501,28 @@ private fun PlayButtons(item: MediaItem, nextUp: MediaItem?, memory: FocusMemory
         },
         emphasis = Emphasis.Primary,
     )
-    if (resume) {
+    // A film in several files starts over with its first part, beside this button (see Parts).
+    if (resume && item.parts.isEmpty()) {
         HlIconButton(
             HlIcons.Restart,
             stringResource(R.string.from_start),
             onClick = { onPlay(target, false) },
             modifier = Modifier.focusKey(RESTART, memory),
+        )
+    }
+}
+
+/**
+ * A film in several files, which the player plays one file at a time: beside Lire, which resumes its
+ * first part, each part from its start, "Partie 1/2", "Partie 2/2". None for a film in one file.
+ */
+@Composable
+private fun Parts(item: MediaItem, memory: FocusMemory, onPlay: (MediaItem, Boolean) -> Unit) {
+    item.parts.forEachIndexed { i, part ->
+        HlButton(
+            stringResource(R.string.part_of, i + 1, item.parts.size),
+            onClick = { onPlay(part, false) },
+            modifier = Modifier.focusKey(FocusKey.action("part-${i + 1}"), memory),
         )
     }
 }

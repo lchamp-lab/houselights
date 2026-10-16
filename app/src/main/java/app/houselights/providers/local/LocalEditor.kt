@@ -113,7 +113,8 @@ class LocalEditor(
         val (query, year, fileName) = when (e.kind) {
             ItemKind.MOVIE -> {
                 val path = e.filePath.orEmpty()
-                val parsed = LibraryScanner.parseMovie(path)
+                // A film in several files is searched for by its name without the part.
+                val parsed = e.filmName() ?: LibraryScanner.parseMovie(path)
                 Triple(parsed.title, parsed.year, path)
             }
             else -> {
