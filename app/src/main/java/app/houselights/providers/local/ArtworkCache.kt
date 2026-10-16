@@ -1,10 +1,14 @@
 package app.houselights.providers.local
 
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.util.Log
 import app.houselights.core.suspendRunCatching
 import java.io.File
+import java.io.FileOutputStream
 import java.util.Locale
 import java.security.MessageDigest
+import kotlin.math.roundToInt
 
 /** True for artwork copied from the NAS into the cache ("file://..."), rather than a TMDB or NFO address. */
 internal fun String?.isCachedArtwork(): Boolean = this?.startsWith("file:") == true
@@ -16,8 +20,9 @@ data class CleanupResult(val deletedFiles: Int, val freedBytes: Long)
 data class CacheUsage(val files: Int, val bytes: Long)
 
 /**
- * Local artwork copied once from the NAS into app storage, so Coil can load it like any image.
- * Copies no longer referenced by the library are removed by [sweep].
+ * Local artwork copied once from the NAS into app storage, so Coil can load it like any image: a
+ * block at a time, and no larger than the screen shows it ([MAX_WIDTH] × [MAX_HEIGHT]). Copies no
+ * longer referenced by the library are removed by [sweep].
  */
 class ArtworkCache(
     private val dir: File,
@@ -44,18 +49,65 @@ class ArtworkCache(
         }
         // Written aside then renamed: an interrupted copy never passes for a cached image.
         val partial = File(target.parentFile, "${target.name}.part")
+        val smaller = File(target.parentFile, "${target.name}.small.part")
         return suspendRunCatching {
             target.parentFile?.mkdirs()
-            val bytes = browser.readPrefix(source, file.relativePath, file.size.toInt())
-            partial.writeBytes(bytes)
-            check(partial.renameTo(target)) { "Could not store ${target.name}" }
+            stream(source, file, browser, partial)
+            val kept = if (shrink(partial, smaller)) smaller else partial
+            check(kept.renameTo(target)) { "Could not store ${target.name}" }
+            partial.delete()
             uri
         }.getOrElse { e ->
             partial.delete()
+            smaller.delete()
             if (ScanErrors.isUnreachable(e) || ScanErrors.classify(e).kind == ScanErrorKind.STORAGE_FULL) throw e
             Log.w(TAG, "Could not copy ${file.relativePath}", e)
             null
         }
+    }
+
+    /** Copies [file] into [into] a block at a time ([BLOCK_BYTES]): never more of it in memory at once. */
+    private suspend fun stream(source: SourceEntity, file: RemoteFile, browser: RemoteBrowser, into: File) {
+        FileOutputStream(into).use { out ->
+            var offset = 0L
+            while (offset < file.size) {
+                val block = browser.readAt(source, file.relativePath, offset, minOf(BLOCK_BYTES.toLong(), file.size - offset).toInt())
+                // Shorter than listed: rewritten since, and copied as it is now.
+                if (block.isEmpty()) break
+                out.write(block)
+                offset += block.size
+            }
+        }
+    }
+
+    /**
+     * Writes [from] into [to] at the largest size the screen shows it, when it is larger: a 4K fanart,
+     * a poster of 3000 px. A picture with transparency (a clear logo) stays a PNG, the others become
+     * JPEGs; the name keeps the extension the NAS gave it, as decoders read what the bytes are. False
+     * when it fits as it is, or is no picture Android reads: it is kept byte for byte.
+     */
+    private fun shrink(from: File, to: File): Boolean {
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeFile(from.path, bounds)
+        val width = bounds.outWidth
+        val height = bounds.outHeight
+        val scale = minOf(MAX_WIDTH.toFloat() / width, MAX_HEIGHT.toFloat() / height)
+        if (width <= 0 || height <= 0 || scale >= 1f) return false
+        val targetWidth = (width * scale).roundToInt().coerceAtLeast(1)
+        val targetHeight = (height * scale).roundToInt().coerceAtLeast(1)
+        // Decoded at the smallest power-of-two fraction still as large as the target, then scaled to it.
+        var sample = 1
+        while (width / (sample * 2) >= targetWidth && height / (sample * 2) >= targetHeight) sample *= 2
+        val decoded = BitmapFactory.decodeFile(from.path, BitmapFactory.Options().apply { inSampleSize = sample }) ?: return false
+        val scaled = Bitmap.createScaledBitmap(decoded, targetWidth, targetHeight, true)
+        if (scaled !== decoded) decoded.recycle()
+        try {
+            val format = if (scaled.hasAlpha()) Bitmap.CompressFormat.PNG else Bitmap.CompressFormat.JPEG
+            FileOutputStream(to).use { check(scaled.compress(format, JPEG_QUALITY, it)) { "Could not encode ${to.name}" } }
+        } finally {
+            scaled.recycle()
+        }
+        return true
     }
 
     /** Whether an image of [file]'s size is copied at all: an empty one, or one too large, is left to TMDB for good. */
@@ -102,6 +154,16 @@ class ArtworkCache(
     companion object {
         private const val TAG = "ArtworkCache"
         private const val MAX_BYTES = 30 shl 20
+
+        /** How much of a picture is asked of the NAS, and held, at once. */
+        private const val BLOCK_BYTES = 256 shl 10
+
+        /** The largest a picture is shown: a backdrop over the whole of a 1080p screen, the Zidoo's interface. */
+        private const val MAX_WIDTH = 1920
+        private const val MAX_HEIGHT = 1080
+
+        /** A picture made smaller is encoded once: as close to the original as the eye can tell. */
+        private const val JPEG_QUALITY = 90
 
         /** Left free when copying an image: room for the library's database to grow, and for the system. */
         const val MIN_FREE_BYTES = 200L shl 20
