@@ -258,7 +258,8 @@ class LibraryScanner(
             if (index % 5 == 4) _changed.emit(Unit)
         }
         dao.markScanned(source.id, clock())
-        val changed = missing.removed.isNotEmpty() || todo.isNotEmpty()
+        // A file renamed is not always read again, but screens show its name.
+        val changed = missing.relinked.isNotEmpty() || missing.removed.isNotEmpty() || todo.isNotEmpty()
         if (changed) _changed.emit(Unit)
         return changed
     }
@@ -267,12 +268,7 @@ class LibraryScanner(
     private suspend fun settleMissing(kind: SourceKind, known: List<ItemEntity>, files: List<RemoteFile>): MissingFiles.Outcome {
         val now = clock()
         val missing = MissingFiles.settle(kind, known, files, now)
-        lock.withLock {
-            missing.relinked.forEach { (id, file) -> dao.relink(id, file.relativePath, file.size) }
-            dao.setMissingSince(missing.back, null)
-            dao.setMissingSince(missing.held, now)
-            dao.deleteItems(missing.removed)
-        }
+        lock.withLock { dao.settleMissing(missing.relinked, missing.back, missing.held, missing.removed, now) }
         return missing
     }
 

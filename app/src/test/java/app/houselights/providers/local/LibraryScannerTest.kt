@@ -4,7 +4,9 @@ import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import app.houselights.core.Secrets
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.junit.After
@@ -37,6 +39,10 @@ class LibraryScannerTest {
 
     /** The most values one statement bound. */
     private val widest = AtomicInteger()
+
+    /** Transactions opened, those opened inside another not counted. */
+    private val transactions = AtomicInteger()
+    private val depth = AtomicInteger()
     private lateinit var films: SourceEntity
 
     @Before
@@ -44,7 +50,13 @@ class LibraryScannerTest {
         val key = KeyGenerator.getInstance("AES").apply { init(256) }.generateKey()
         db = Room.inMemoryDatabaseBuilder(ApplicationProvider.getApplicationContext(), LibraryDatabase::class.java)
             .addTypeConverter(SecretConverter(Secrets { key }))
-            .setQueryCallback({ _, args -> widest.accumulateAndGet(args.size, ::maxOf) }, Runnable::run)
+            .setQueryCallback({ sql, args ->
+                widest.accumulateAndGet(args.size, ::maxOf)
+                when {
+                    sql.startsWith("BEGIN") -> if (depth.getAndIncrement() == 0) transactions.incrementAndGet()
+                    sql.startsWith("END") -> depth.decrementAndGet()
+                }
+            }, Runnable::run)
             .build()
         dao = db.dao()
         scanner = LibraryScanner(
@@ -429,6 +441,40 @@ class LibraryScannerTest {
     }
 
     @Test
+    fun aFileRenamedAloneIsNotReadAgain() = runTest {
+        nas.put("Dune (2021) Remux-2160p.mkv", size = 80_000_000_000, bytes = MkvProbeTest().sampleFile())
+        scan()
+        val dune = dao.filesOf(films.id).single()
+
+        nas.rename("Dune (2021) Remux-2160p.mkv", "Dune (2021) {imdb-tt1160419} Remux-2160p.mkv")
+        nas.reads.clear()
+        val changes = AtomicInteger()
+        val watch = launch(Dispatchers.Unconfined) { scanner.changed.collect { changes.incrementAndGet() } }
+        scan()
+        watch.cancel()
+
+        val renamed = dao.filesOf(films.id).single()
+        assertEquals(dune.id, renamed.id)
+        assertEquals("Dune (2021) {imdb-tt1160419} Remux-2160p.mkv", renamed.filePath)
+        assertEquals("the same size, the same file", emptyList<String>(), nas.reads)
+        assertEquals(dune.mediaInfo, renamed.mediaInfo)
+        assertEquals(REMUX_BADGES, renamed.badges)
+        assertTrue("screens learn the new name", changes.get() > 0)
+    }
+
+    @Test
+    fun filesRenamedByTheThousandAreWrittenAtOnce() = runTest {
+        filmFolder(1_200)
+        // Sonarr's or Radarr's "Rename files", the whole library at once.
+        (0 until 1_200).forEach { nas.rename(film(it), "Film $it (2020) Bluray-1080p.mkv") }
+        transactions.set(0)
+        scan()
+
+        assertEquals((0 until 1_200).map { "Film $it (2020) Bluray-1080p.mkv" }.sorted(), filePaths())
+        assertTrue("${transactions.get()} transactions", transactions.get() <= A_FEW_TRANSACTIONS)
+    }
+
+    @Test
     fun aFileReplacedUnderTheSameNameIsReadAgain() = runTest {
         nas.put("Dune (2021).mkv", size = 30_000_000_000)
         scan()
@@ -519,6 +565,7 @@ class LibraryScannerTest {
     private companion object {
         val REMUX_BADGES = listOf("4K", "Dolby Vision", "HDR10", "TrueHD Atmos", "7.1")
         const val ANDROID_9_LIMIT = 999
+        const val A_FEW_TRANSACTIONS = 20
         const val START = 1_800_000_000_000L
         const val HOUR = 60 * 60_000L
     }

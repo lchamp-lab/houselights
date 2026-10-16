@@ -204,9 +204,12 @@ interface LibraryDao {
 
     /**
      * Moves a row to the file that replaced its own (see [MissingFiles]): what the user did with the
-     * title stays, and the file is read again.
+     * title stays. A file of another size is read again; one of the same size was only renamed.
      */
-    @Query("UPDATE items SET filePath = :filePath, fileSize = :fileSize, mediaInfo = NULL, missingSince = NULL WHERE id = :id")
+    @Query(
+        "UPDATE items SET filePath = :filePath, fileSize = :fileSize, " +
+            "mediaInfo = CASE WHEN fileSize = :fileSize THEN mediaInfo ELSE NULL END, missingSince = NULL WHERE id = :id"
+    )
     suspend fun relink(id: Long, filePath: String, fileSize: Long)
 
     @Query("UPDATE items SET missingSince = :since WHERE id IN (:ids)")
@@ -219,6 +222,24 @@ interface LibraryDao {
     @Transaction
     suspend fun setMissingSince(ids: List<Long>, since: Long?) =
         ids.chunked(SQL_IN_LIMIT).forEach { setMissingSinceBatch(it, since) }
+
+    /**
+     * What a scan made of the rows of files its folder no longer lists (see [MissingFiles]), in one
+     * transaction: a rename of a whole library is a few thousand rows.
+     */
+    @Transaction
+    suspend fun settleMissing(
+        relinked: List<Pair<Long, RemoteFile>>,
+        back: List<Long>,
+        held: List<Long>,
+        removed: List<Long>,
+        now: Long,
+    ) {
+        relinked.forEach { (id, file) -> relink(id, file.relativePath, file.size) }
+        setMissingSince(back, null)
+        setMissingSince(held, now)
+        deleteItems(removed)
+    }
 
     /** Seasons without episodes, then series without seasons. */
     @Query("DELETE FROM items WHERE kind = 'SEASON' AND id NOT IN (SELECT parentId FROM items WHERE kind = 'EPISODE' AND parentId IS NOT NULL)")
