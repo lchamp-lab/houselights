@@ -176,7 +176,7 @@ class LibraryScannerTest {
     @Test
     fun manyFilesGoneAtOnceStayADay() = runTest {
         filmFolder(40)
-        // More than 20 and than a quarter of the folder: a disk of the pool is offline.
+        // More than 20: a disk of the pool is offline.
         val offline = (0 until 21).map(::film)
         offline.forEach(nas::remove)
         scan()
@@ -191,6 +191,17 @@ class LibraryScannerTest {
         now += 2 * HOUR
         scan()
         assertEquals("still missing a day later", (21 until 40).map(::film).sorted(), filePaths())
+    }
+
+    @Test
+    fun aDiskOfALargePoolOfflineIsHeldToo() = runTest {
+        filmFolder(1_000)
+        // One disk of seven: far less than a quarter of the folder.
+        val offline = (0 until 150).map(::film)
+        offline.forEach(nas::remove)
+        scan()
+        assertEquals(1_000, filePaths().size)
+        assertEquals(setOf(START), dao.filesOf(films.id).filter { it.filePath in offline }.map { it.missingSince }.toSet())
     }
 
     @Test
