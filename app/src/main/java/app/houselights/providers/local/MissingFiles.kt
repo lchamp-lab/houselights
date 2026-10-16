@@ -51,8 +51,8 @@ internal object MissingFiles {
 
     /**
      * Missing rows paired with the new files that replace them, only where one row and one file
-     * share a key. Films: the one video of a folder of its own, whatever its new name, else the same
-     * title and year in the same folder. Episodes: the same show, season and episode.
+     * share a key. Films: the one video of a folder named like a film, whatever its new name, else the
+     * same title and year in the same folder. Episodes: the same show, season and episode.
      */
     private fun relinks(
         kind: SourceKind,
@@ -63,7 +63,7 @@ internal object MissingFiles {
         val keys: List<(String) -> Any?> = when (kind) {
             SourceKind.MOVIES -> {
                 val videos = files.groupingBy { Sidecars.folderOf(it.relativePath) }.eachCount()
-                listOf({ path -> Sidecars.folderOf(path).takeIf { it.isNotEmpty() && videos[it] == 1 } }, ::filmKey)
+                listOf({ path -> filmFolder(path)?.takeIf { videos[it] == 1 } }, ::filmKey)
             }
             SourceKind.SHOWS -> listOf(::episodeKey)
         }
@@ -87,6 +87,13 @@ internal object MissingFiles {
             if (k == null || row == null || file == null) null else row to file
         }
     }
+
+    /**
+     * The folder of a film's file, when it is named like a film ("Dune (2021)"), as Radarr and Kodi
+     * name them: a folder like "To watch" may hold one film today and another tomorrow.
+     */
+    private fun filmFolder(path: String): String? =
+        Sidecars.folderOf(path).takeIf { FilenameParser.parseMovie(it.substringAfterLast('/')).year != null }
 
     /** Folder, title and year. */
     private fun filmKey(path: String): Pair<String, ParsedMovie> {

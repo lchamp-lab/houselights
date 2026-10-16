@@ -299,6 +299,26 @@ class LibraryScannerTest {
     }
 
     @Test
+    fun anotherFilmAloneInAFolderNotNamedLikeAFilmIsNotARename() = runTest {
+        nas.put("À voir/Dune (2021).mkv")
+        nas.put("Heat (1995).mkv")
+        scan()
+        val dune = dao.filesOf(films.id).single { it.title == "Dune" }
+        dao.setFavorite(dune.id, true)
+        dao.setPlayed(dune.id, played = true, now = now)
+
+        nas.remove("À voir/Dune (2021).mkv")
+        nas.put("À voir/Arrival (2016).mkv")
+        scan()
+
+        val arrival = dao.filesOf(films.id).single { it.filePath == "À voir/Arrival (2016).mkv" }
+        assertTrue(arrival.id != dune.id)
+        assertEquals("Arrival", arrival.title)
+        assertEquals(false, arrival.favorite)
+        assertEquals(false, arrival.played)
+    }
+
+    @Test
     fun anEpisodeUpgradedBySonarrStaysWatched() = runTest {
         val shows = folder("Séries", SourceKind.SHOWS)
         showsNas.put("Severance/Season 1/Severance - S01E01 - Good News About Hell WEBDL-1080p.mkv")
