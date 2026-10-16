@@ -30,6 +30,9 @@ import app.houselights.ui.testing.MainDispatcherRule
 import app.houselights.ui.testing.testSecrets
 import app.houselights.ui.testing.testSettings
 import app.houselights.ui.util.UiError
+import coil.ImageLoader
+import coil.annotation.ExperimentalCoilApi
+import coil.disk.DiskCache
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -56,6 +59,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import java.io.IOException
 import java.security.ProviderException
+import java.util.Collections
 import javax.crypto.KeyGenerator
 
 /** The settings' changes: never a crash, and what must not be cut off goes on once the settings are left. */
@@ -100,9 +104,10 @@ class SettingsViewModelTest {
         store: SettingsStore,
         work: CoroutineScope,
         checkKey: suspend (String) -> TmdbKeyCheck = { TmdbKeyCheck.ACCEPTED },
+        images: ImageLoader? = null,
     ): SettingsViewModel {
         val factory = viewModelFactory {
-            initializer { SettingsViewModel(store, library, { FakeProvider() }, work, images = null, checkTmdbKey = checkKey) }
+            initializer { SettingsViewModel(store, library, { FakeProvider() }, work, images = images, checkTmdbKey = checkKey) }
         }
         return ViewModelProvider(screens, factory)[SettingsViewModel::class.java]
     }
@@ -262,6 +267,27 @@ class SettingsViewModelTest {
         settle { vm.tmdbKey?.outcome != null }
         assertEquals(TmdbKeySave.Failed(UiError.KEYSTORE), vm.tmdbKey?.outcome)
         assertFalse(vm.savingTmdbKey)
+    }
+
+    /**
+     * Coil's cache reads its journal the first time its size is asked, and answers under the lock its
+     * cleanup holds while it deletes files: Settings > Storage never asks on the main thread.
+     */
+    @OptIn(ExperimentalCoilApi::class)
+    @Test
+    fun theImageCacheIsMeasuredAwayFromTheMainThread() = runTest {
+        val askedOn = Collections.synchronizedList(mutableListOf<Thread>())
+        val real = DiskCache.Builder().directory(folder.newFolder("images")).maxSizeBytes(1_000_000L).build()
+        val cache = object : DiskCache by real {
+            override val size: Long
+                get() = real.size.also { askedOn += Thread.currentThread() }
+        }
+        val images = ImageLoader.Builder(ApplicationProvider.getApplicationContext<Context>()).diskCache(cache).build()
+        val vm = settings(testSettings(folder.root, backgroundScope), work = backgroundScope, images = images)
+        settle { vm.storage.value != null }
+        assertEquals(1_000_000L, vm.storage.value?.imageCacheMax)
+        assertTrue("The size was never asked", askedOn.isNotEmpty())
+        assertFalse("Asked on the main thread", Thread.currentThread() in askedOn)
     }
 
     @Test

@@ -38,6 +38,7 @@ import java.net.NoRouteToHostException
 import java.net.SocketTimeoutException
 import java.net.UnknownHostException
 import java.util.concurrent.atomic.AtomicLong
+import java.util.concurrent.atomic.AtomicReference
 
 class JellyfinProvider(
     config: SourceConfig.Jellyfin,
@@ -53,19 +54,28 @@ class JellyfinProvider(
 
     override val capabilities = ProviderCapabilities(markPlayed = true, favorites = true, similar = true, pathMapping = true)
 
-    override suspend fun libraries(): List<Library> =
+    /**
+     * The libraries [libraries] read last, until [home] takes them: home loads the libraries, then
+     * its rows, which need them too. One request to the server serves both.
+     */
+    private val librariesRead = AtomicReference<List<Library>?>(null)
+
+    override suspend fun libraries(): List<Library> = askLibraries().also { librariesRead.set(it) }
+
+    private suspend fun askLibraries(): List<Library> =
         api.views(userId).items
             .filter { it.collectionType in SUPPORTED_COLLECTIONS }
             .map { Library(it.id, libraryKind(it.collectionType), Typeset.text(it.name)) }
 
     /**
      * Home's rows, each asked apart: one that fails is left out, and logged. When every one fails, home
-     * fails with the first failure, rather than showing a server with nothing on it.
+     * fails with the first failure, rather than showing a server with nothing on it. The libraries
+     * just read for home are not asked for again.
      */
     override suspend fun home(): List<HomeSection> = coroutineScope {
         val resume = async { row("Resume") { api.resume(userId, 20, ROW_FIELDS).items } }
         val nextUp = async { row("Next up") { api.nextUp(userId, 20, ROW_FIELDS).items } }
-        val libraries = libraries()
+        val libraries = librariesRead.getAndSet(null) ?: askLibraries()
         val latest = libraries.map { lib -> lib to async { row("Latest of ${lib.title}") { api.latest(userId, lib.id, 24, ROW_FIELDS) } } }
         val rows = listOf(resume.await(), nextUp.await()) + latest.map { it.second.await() }
         rows.firstNotNullOfOrNull { it.exceptionOrNull() }?.takeIf { rows.all(Result<*>::isFailure) }?.let { throw it }
@@ -107,7 +117,7 @@ class JellyfinProvider(
             sortOrder = order,
             startIndex = start,
             limit = limit,
-            fields = ROW_FIELDS,
+            fields = GRID_FIELDS,
             filters = when (filter.status) {
                 WatchStatus.ALL -> null
                 WatchStatus.UNWATCHED -> "IsUnplayed"
@@ -301,6 +311,9 @@ class JellyfinProvider(
         private const val COLLECTION_LIMIT = 200
         private val SUPPORTED_COLLECTIONS = setOf("movies", "tvshows", "boxsets", "homevideos", "musicvideos", null)
         private const val ROW_FIELDS = "Overview,Genres,ProductionYear,OfficialRating,CommunityRating,DateCreated"
+
+        /** What a wall shows of a title: its year and facts, never its overview nor its genres. */
+        private const val GRID_FIELDS = "ProductionYear,OfficialRating,CommunityRating,DateCreated"
         private const val EPISODE_FIELDS = "Overview"
 
         private fun libraryKind(collectionType: String?) = when (collectionType) {
