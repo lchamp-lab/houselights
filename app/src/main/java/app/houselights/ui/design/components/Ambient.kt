@@ -78,24 +78,35 @@ internal suspend fun prepareBackdrop(context: Context, image: ImageRef, url: Str
     }
 
 /** A tiny copy of [image], or null when it cannot be loaded. */
-private suspend fun decodeSample(context: Context, image: ImageRef): Bitmap? {
-    val request = ImageRequest.Builder(context)
-        .data(image.url(SAMPLE_PX))
-        .size(SAMPLE_PX, SAMPLE_PX * 9 / 16)
-        .allowHardware(false) // Palette and the veil need to read the pixels.
-        .build()
-    return (context.imageLoader.execute(request) as? SuccessResult)?.drawable?.toBitmap()
-}
+private suspend fun decodeSample(context: Context, image: ImageRef): Bitmap? =
+    (context.imageLoader.execute(backdropSampleRequest(context, image)) as? SuccessResult)?.drawable?.toBitmap()
 
 /** A tiny copy of the picture at [url], or null when it cannot be loaded. */
-private suspend fun decodeUrl(context: Context, url: String): Bitmap? {
-    val request = ImageRequest.Builder(context)
+private suspend fun decodeUrl(context: Context, url: String): Bitmap? =
+    (context.imageLoader.execute(glowSampleRequest(context, url)) as? SuccessResult)?.drawable?.toBitmap()
+
+/** The tiny copy of a backdrop, which its veil and the room's light are read from. */
+internal fun backdropSampleRequest(context: Context, image: ImageRef): ImageRequest =
+    sampleRequest(context, image.url(SAMPLE_PX), SAMPLE_PX, SAMPLE_PX * 9 / 16)
+
+/** The tiny copy of a card's picture at [url], which its glow is read from. */
+internal fun glowSampleRequest(context: Context, url: String): ImageRequest = sampleRequest(context, url, SAMPLE_PX, SAMPLE_PX)
+
+/**
+ * A tiny copy of the picture at [url], kept in memory under a key of its own: under the URL alone,
+ * it would take the place of the picture a card or the backdrop shows from the same file, which
+ * would then be decoded, and fade in, again the next time it shows. On disk it is the same file.
+ */
+private fun sampleRequest(context: Context, url: String, widthPx: Int, heightPx: Int): ImageRequest =
+    ImageRequest.Builder(context)
         .data(url)
-        .size(SAMPLE_PX, SAMPLE_PX)
-        .allowHardware(false) // Palette reads the pixels.
+        .size(widthPx, heightPx)
+        .allowHardware(false) // Palette and the veil read the pixels.
+        .setParameter(SAMPLE, "${widthPx}x$heightPx")
         .build()
-    return (context.imageLoader.execute(request) as? SuccessResult)?.drawable?.toBitmap()
-}
+
+/** Added to a sample's memory cache key; fetchers and decoders ignore it. */
+private const val SAMPLE = "houselights.sample"
 
 /** Tones already read from artwork: focus coming back to a card finds its light at once. */
 private val glowTones = object : LinkedHashMap<String, Color>(GLOW_TONES, 0.75f, true) {
@@ -107,7 +118,7 @@ private const val GLOW_TONES = 200
 /**
  * The light a card gives off while it has focus: the most vivid tone of its own artwork at [url],
  * the same each time. It comes in with focus and goes with it; no picture, no light. Read from the
- * picture the card already shows, so it is ready before the room's light has followed.
+ * file the card already shows, so it is ready before the room's light has followed.
  */
 @Composable
 fun rememberGlowColor(url: String?, active: Boolean): State<Color> {
