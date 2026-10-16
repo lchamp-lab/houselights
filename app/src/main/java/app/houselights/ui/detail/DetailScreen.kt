@@ -25,7 +25,6 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.withFrameNanos
@@ -63,7 +62,6 @@ import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.textRoom
-import app.houselights.ui.design.LocalAmbient
 import app.houselights.ui.design.LocalHouseLights
 import app.houselights.ui.design.houseLit
 import app.houselights.ui.design.RowScroll
@@ -78,6 +76,7 @@ import app.houselights.ui.design.focusKey
 import app.houselights.ui.design.rememberFocusMemory
 import app.houselights.ui.design.tryRequestFocus
 import app.houselights.ui.design.components.Backdrop
+import app.houselights.ui.design.components.AmbientBackdrop
 import app.houselights.ui.design.components.BackdropStyle
 import app.houselights.ui.design.components.FormatLines
 import app.houselights.ui.design.components.BillingBlock
@@ -103,7 +102,6 @@ import app.houselights.ui.design.components.PersonCard
 import app.houselights.ui.design.components.PosterCard
 import app.houselights.ui.design.components.TechSpecs
 import app.houselights.ui.design.components.TitleArt
-import app.houselights.ui.design.components.rememberAmbientColor
 import app.houselights.ui.edit.EditMenu
 import app.houselights.ui.util.PartFailed
 import app.houselights.ui.util.ReloadOnLibraryChange
@@ -197,130 +195,128 @@ fun DetailScreen(
         }
     }
 
-    val ambient = rememberAmbientColor(item.backdrop)
-    CompositionLocalProvider(LocalAmbient provides { ambient.value }) {
-        Box(
-            Modifier.fillMaxSize().onPreviewKeyEvent {
-                if (it.type == KeyEventType.KeyDown && it.key in OK_KEYS) {
-                    app.playback.clearProblem()
-                    vm.clearActionError()
+    AmbientBackdrop(
+        item.backdrop,
+        BackdropStyle.Full,
+        Modifier.onPreviewKeyEvent {
+            if (it.type == KeyEventType.KeyDown && it.key in OK_KEYS) {
+                app.playback.clearProblem()
+                vm.clearActionError()
+            }
+            false
+        },
+        recede = { recede.value },
+    ) {
+        // The page turns by whole blocks: a row coming into view rises to the safe area, and
+        // the gap between blocks, wider than that keyline, takes the one above off the screen.
+        ListScroll(top = HlFocus.edge, toTop = true) { LazyColumn(
+                Modifier.fillMaxSize().houseLit(LocalHouseLights.current),
+                state = page,
+                contentPadding = PaddingValues(bottom = HlFocus.edge),
+                verticalArrangement = Arrangement.spacedBy(HlLayout.detailGap),
+            ) {
+                item(key = "hero") {
+                    // The screen less the first row's header and a strip of its images; taller
+                    // rather than squeezed when the text is long.
+                    Box(Modifier.fillMaxWidth().heightIn(min = HlLayout.detailHeroMin(screenHeight)).scrollsAsBlock()) {
+                        Hero(
+                            item = item,
+                            nextUp = state.nextUp,
+                            capabilities = state.capabilities,
+                            onPlay = onPlay,
+                            onTogglePlayed = vm::togglePlayed,
+                            onToggleFavorite = vm::toggleFavorite,
+                            actionError = state.actionError,
+                            onOpenSeries = { item.seriesId?.let(onOpenItem) },
+                            onOpenNfo = { onOpenNfo(item.id) },
+                            onShowTech = if (media != null) ({ showTech = true }) else null,
+                            onEdit = if (state.canEdit) ({ showEdit = true }) else null,
+                            memory = memory,
+                            actions = actions,
+                            modifier = Modifier
+                                .padding(start = HlSpace.safeH, end = HlSpace.safeH, top = HlSpace.safeV)
+                                .align(Alignment.BottomStart),
+                        )
+                    }
                 }
-                false
-            },
-        ) {
-            Backdrop(item.backdrop, BackdropStyle.Full, recede = { recede.value })
 
-            // The page turns by whole blocks: a row coming into view rises to the safe area, and
-            // the gap between blocks, wider than that keyline, takes the one above off the screen.
-            ListScroll(top = HlFocus.edge, toTop = true) { LazyColumn(
-                    Modifier.fillMaxSize().houseLit(LocalHouseLights.current),
-                    state = page,
-                    contentPadding = PaddingValues(bottom = HlFocus.edge),
-                    verticalArrangement = Arrangement.spacedBy(HlLayout.detailGap),
-                ) {
-                    item(key = "hero") {
-                        // The screen less the first row's header and a strip of its images; taller
-                        // rather than squeezed when the text is long.
-                        Box(Modifier.fillMaxWidth().heightIn(min = HlLayout.detailHeroMin(screenHeight)).scrollsAsBlock()) {
-                            Hero(
-                                item = item,
-                                nextUp = state.nextUp,
-                                capabilities = state.capabilities,
-                                onPlay = onPlay,
-                                onTogglePlayed = vm::togglePlayed,
-                                onToggleFavorite = vm::toggleFavorite,
-                                actionError = state.actionError,
-                                onOpenSeries = { item.seriesId?.let(onOpenItem) },
-                                onOpenNfo = { onOpenNfo(item.id) },
-                                onShowTech = if (media != null) ({ showTech = true }) else null,
-                                onEdit = if (state.canEdit) ({ showEdit = true }) else null,
+                if (item.kind == MediaKind.SERIES && state.seasons.isNotEmpty()) {
+                    // A track with one option is no choice: a single season names the episode row instead.
+                    val single = state.seasons.singleOrNull()
+                    if (single == null) {
+                        item(key = "seasons") {
+                            Box(Modifier.scrollsAsBlock()) { Seasons(state.seasons, state.selectedSeasonId, vm::selectSeason) }
+                        }
+                    }
+                    item(key = "episodes-${state.selectedSeasonId}") {
+                        val failed = state.episodesError
+                        // Réessayer had focus: once the episodes are there, focus goes to them, not nowhere.
+                        LaunchedEffect(failed == null && state.episodes.isNotEmpty()) {
+                            if (failed == null && state.episodes.isNotEmpty() && memory.last == RETRY_EPISODES) {
+                                withFrameNanos { }
+                                memory.focus(FocusKey.row(EPISODES))
+                            }
+                        }
+                        when {
+                            failed != null -> EpisodesFailed(
+                                single?.title,
+                                failed,
+                                retrying = state.episodesLoading,
+                                onRetry = vm::retrySeason,
+                                action = Modifier.focusKey(RETRY_EPISODES, memory),
+                            )
+                            state.episodesLoading && state.episodes.isEmpty() -> EpisodesSkeleton(single?.title)
+                            else -> Episodes(
+                                header = single?.title,
+                                episodes = state.episodes,
                                 memory = memory,
-                                actions = actions,
-                                modifier = Modifier
-                                    .padding(start = HlSpace.safeH, end = HlSpace.safeH, top = HlSpace.safeV)
-                                    .align(Alignment.BottomStart),
+                                focused = focusedEpisode,
+                                onFocus = { focusedEpisode = it },
+                                onPlay = { ep -> onPlay(ep, ep.user.positionMs > 0) },
                             )
                         }
                     }
+                }
 
-                    if (item.kind == MediaKind.SERIES && state.seasons.isNotEmpty()) {
-                        // A track with one option is no choice: a single season names the episode row instead.
-                        val single = state.seasons.singleOrNull()
-                        if (single == null) {
-                            item(key = "seasons") {
-                                Box(Modifier.scrollsAsBlock()) { Seasons(state.seasons, state.selectedSeasonId, vm::selectSeason) }
-                            }
-                        }
-                        item(key = "episodes-${state.selectedSeasonId}") {
-                            val failed = state.episodesError
-                            // Réessayer had focus: once the episodes are there, focus goes to them, not nowhere.
-                            LaunchedEffect(failed == null && state.episodes.isNotEmpty()) {
-                                if (failed == null && state.episodes.isNotEmpty() && memory.last == RETRY_EPISODES) {
-                                    withFrameNanos { }
-                                    memory.focus(FocusKey.row(EPISODES))
-                                }
-                            }
-                            when {
-                                failed != null -> EpisodesFailed(
-                                    single?.title,
-                                    failed,
-                                    retrying = state.episodesLoading,
-                                    onRetry = vm::retrySeason,
-                                    action = Modifier.focusKey(RETRY_EPISODES, memory),
-                                )
-                                state.episodesLoading && state.episodes.isEmpty() -> EpisodesSkeleton(single?.title)
-                                else -> Episodes(
-                                    header = single?.title,
-                                    episodes = state.episodes,
-                                    memory = memory,
-                                    focused = focusedEpisode,
-                                    onFocus = { focusedEpisode = it },
-                                    onPlay = { ep -> onPlay(ep, ep.user.positionMs > 0) },
-                                )
+                if (item.kind == MediaKind.COLLECTION && state.collectionFilms.isNotEmpty()) {
+                    item(key = "films") {
+                        MediaRow(stringResource(R.string.library_movies), memory.rowGroup(FILMS)) {
+                            items(state.collectionFilms, key = { it.id }) { f ->
+                                PosterCard(f, onClick = { onOpenItem(f.id) }, modifier = memory.card(FILMS, f))
                             }
                         }
                     }
+                }
 
-                    if (item.kind == MediaKind.COLLECTION && state.collectionFilms.isNotEmpty()) {
-                        item(key = "films") {
-                            MediaRow(stringResource(R.string.library_movies), memory.rowGroup(FILMS)) {
-                                items(state.collectionFilms, key = { it.id }) { f ->
-                                    PosterCard(f, onClick = { onOpenItem(f.id) }, modifier = memory.card(FILMS, f))
-                                }
+                // A film's saga: its other films in order, under the saga's name; none, no row.
+                state.collection?.takeIf { state.collectionFilms.isNotEmpty() }?.let { collection ->
+                    item(key = "collection") {
+                        MediaRow(collection.title, memory.rowGroup(SAGA)) {
+                            items(state.collectionFilms, key = { it.id }) { f ->
+                                PosterCard(f, onClick = { onOpenItem(f.id) }, modifier = memory.card(SAGA, f))
                             }
                         }
                     }
+                }
 
-                    // A film's saga: its other films in order, under the saga's name; none, no row.
-                    state.collection?.takeIf { state.collectionFilms.isNotEmpty() }?.let { collection ->
-                        item(key = "collection") {
-                            MediaRow(collection.title, memory.rowGroup(SAGA)) {
-                                items(state.collectionFilms, key = { it.id }) { f ->
-                                    PosterCard(f, onClick = { onOpenItem(f.id) }, modifier = memory.card(SAGA, f))
-                                }
+                if (item.cast.isNotEmpty()) {
+                    item(key = "cast") {
+                        MediaRow(stringResource(R.string.cast), spacing = HlSpace.s) {
+                            items(item.cast) { PersonCard(it) }
+                        }
+                    }
+                }
+
+                if (state.similar.isNotEmpty()) {
+                    item(key = "similar") {
+                        MediaRow(stringResource(R.string.similar), memory.rowGroup(SIMILAR)) {
+                            items(state.similar, key = { it.id }) { s ->
+                                PosterCard(s, onClick = { onOpenItem(s.id) }, modifier = memory.card(SIMILAR, s))
                             }
                         }
                     }
-
-                    if (item.cast.isNotEmpty()) {
-                        item(key = "cast") {
-                            MediaRow(stringResource(R.string.cast), spacing = HlSpace.s) {
-                                items(item.cast) { PersonCard(it) }
-                            }
-                        }
-                    }
-
-                    if (state.similar.isNotEmpty()) {
-                        item(key = "similar") {
-                            MediaRow(stringResource(R.string.similar), memory.rowGroup(SIMILAR)) {
-                                items(state.similar, key = { it.id }) { s ->
-                                    PosterCard(s, onClick = { onOpenItem(s.id) }, modifier = memory.card(SIMILAR, s))
-                                }
-                            }
-                        }
-                    }
-                } }
-        }
+                }
+            } }
     }
 }
 

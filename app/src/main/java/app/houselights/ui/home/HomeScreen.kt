@@ -17,7 +17,6 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -69,9 +68,8 @@ import app.houselights.ui.design.LocalHouseLights
 import app.houselights.ui.design.houseLit
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
-import app.houselights.ui.design.LocalAmbient
 import app.houselights.ui.design.components.AttentionNote
-import app.houselights.ui.design.components.Backdrop
+import app.houselights.ui.design.components.AmbientBackdrop
 import app.houselights.ui.design.components.BackdropStyle
 import app.houselights.ui.design.components.CardSkeleton
 import app.houselights.ui.design.components.Emphasis
@@ -81,7 +79,6 @@ import app.houselights.ui.design.components.LandscapeCard
 import app.houselights.ui.design.components.MediaRow
 import app.houselights.ui.design.components.PosterCard
 import app.houselights.ui.design.components.ScanProgress
-import app.houselights.ui.design.components.rememberAmbientColor
 import app.houselights.ui.util.ReloadOnLibraryChange
 import app.houselights.ui.util.appContainer
 import app.houselights.ui.util.libraryName
@@ -115,7 +112,6 @@ fun HomeScreen(
     // The backdrop only changes once focus settles: no image load on every scroll step. The
     // selection is read there alone: a step along a row recomposes nothing here.
     val shown by rememberSettled { selectedTitle(sections, selectedId) }
-    val ambient = rememberAmbientColor(shown?.backdrop)
 
     val memory = rememberFocusMemory()
     val rows = rememberLazyListState()
@@ -138,58 +134,55 @@ fun HomeScreen(
         rows.animateScrollToItem(0)
     }
 
-    CompositionLocalProvider(LocalAmbient provides { ambient.value }) {
-        Box(Modifier.fillMaxSize()) {
-            Backdrop(shown?.backdrop, BackdropStyle.Hero)
-            Column(Modifier.fillMaxSize().houseLit(LocalHouseLights.current)) {
-                TopBar(
-                    libraries = state.libraries,
-                    memory = memory,
-                    // Back from a library, focus enters the track on that library's tab.
-                    returnTo = state.libraries.indexOfFirst { memory.last == trackTab(it) }.takeIf { it >= 0 }?.plus(1),
-                    onLibrary = { library ->
-                        // Coming back from the library finds focus on its tab.
-                        memory.record(trackTab(library))
-                        onOpenLibrary(library)
-                    },
-                    onSettings = onOpenSettings,
-                )
-                when (content) {
-                    is HomeContent.Browsing -> {
-                        // Its height holds the text at the viewer's size, and stays the same whatever has focus.
-                        HeroInfo(shown, Modifier.padding(start = HlSpace.safeH, top = HlSpace.l).height(textRoom(HlLayout.hero)))
-                        Spacer(Modifier.height(HlSpace.l))
-                        // A folder read for the first time: the counter stays above the rows, which fill in
-                        // under it as titles are found.
-                        if (content.firstScan) {
-                            FirstScan(vm.scan, Modifier.padding(start = HlSpace.safeH, bottom = HlSpace.m), aboveRows = true)
-                        }
-                        when (content) {
-                            is HomeContent.Loading -> SkeletonRows()
-                            is HomeContent.Rows -> Sections(
-                                sections = content.sections,
-                                memory = memory,
-                                rows = rows,
-                                onOpen = onOpenItem,
-                                onFocus = { section, item ->
-                                    focusedRow = section
-                                    selectedId = item.id
-                                },
-                                onLeave = { focusedRow = null },
-                            )
-                        }
+    AmbientBackdrop(shown?.backdrop, BackdropStyle.Hero) {
+        Column(Modifier.fillMaxSize().houseLit(LocalHouseLights.current)) {
+            TopBar(
+                libraries = state.libraries,
+                memory = memory,
+                // Back from a library, focus enters the track on that library's tab.
+                returnTo = state.libraries.indexOfFirst { memory.last == trackTab(it) }.takeIf { it >= 0 }?.plus(1),
+                onLibrary = { library ->
+                    // Coming back from the library finds focus on its tab.
+                    memory.record(trackTab(library))
+                    onOpenLibrary(library)
+                },
+                onSettings = onOpenSettings,
+            )
+            when (content) {
+                is HomeContent.Browsing -> {
+                    // Its height holds the text at the viewer's size, and stays the same whatever has focus.
+                    HeroInfo(shown, Modifier.padding(start = HlSpace.safeH, top = HlSpace.l).height(textRoom(HlLayout.hero)))
+                    Spacer(Modifier.height(HlSpace.l))
+                    // A folder read for the first time: the counter stays above the rows, which fill in
+                    // under it as titles are found.
+                    if (content.firstScan) {
+                        FirstScan(vm.scan, Modifier.padding(start = HlSpace.safeH, bottom = HlSpace.m), aboveRows = true)
                     }
-                    // Nothing to show yet: what the screen says starts where the title under focus would.
-                    is HomeContent.Message -> NoRows(
-                        content,
-                        vm.scan,
-                        onReload = vm::load,
-                        onRescan = vm::rescan,
-                        onSettings = onOpenSettings,
-                        onAddFolder = onAddFolder,
-                        modifier = Modifier.padding(start = HlSpace.safeH, top = HlSpace.l),
-                    )
+                    when (content) {
+                        is HomeContent.Loading -> SkeletonRows()
+                        is HomeContent.Rows -> Sections(
+                            sections = content.sections,
+                            memory = memory,
+                            rows = rows,
+                            onOpen = onOpenItem,
+                            onFocus = { section, item ->
+                                focusedRow = section
+                                selectedId = item.id
+                            },
+                            onLeave = { focusedRow = null },
+                        )
+                    }
                 }
+                // Nothing to show yet: what the screen says starts where the title under focus would.
+                is HomeContent.Message -> NoRows(
+                    content,
+                    vm.scan,
+                    onReload = vm::load,
+                    onRescan = vm::rescan,
+                    onSettings = onOpenSettings,
+                    onAddFolder = onAddFolder,
+                    modifier = Modifier.padding(start = HlSpace.safeH, top = HlSpace.l),
+                )
             }
         }
     }

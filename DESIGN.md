@@ -343,7 +343,7 @@ without the prefix (`MenuOption`, `MeterLegend`, `PosterCard`, `BillingBlock`, `
 | Component | Use |
 |---|---|
 | `Backdrop` (`Hero`, `Full`, `Quiet`) | full-screen artwork under the `HlScrim` veils, with a floor under each band of the text column on a light image; its veils lift when the lights go down. Nothing glows under it: a light spilled on the room under the text cost the veil darkness and drew an arc on the black. **Drawn once per picture**: the next picture is prepared off screen (decoded at the screen's size, its floor read from its tiny copy) while the last one stays, then the picture and its veils go into one cached layer, and the two layers cross-fade by their own alpha. **It steps back** (`recede`) while what is read is elsewhere on the page: a detail page scrolled down to its rows lays a veil over the whole picture, `VEIL` or more on a light one (`ArtworkSample.floorAcross`: what the quietest text needs anywhere on it), over `SLOW`, lifted when focus comes back to the actions. Each frame lays one texture: drawn layer by layer every frame, the veils took the player's whole graphics budget (see *Performance*) |
-| `rememberAmbientColor` | the light of a picture, which the focused card glows with. The light is a state, provided as a function (`LocalAmbient provides { ambient.value }`) and read while drawing, like the house lights: as it changes over `SLOW`, the focused card's glow follows it, nothing recomposes the screen |
+| `AmbientBackdrop`, `rememberAmbientColor` | a screen on its picture: its `Backdrop` under it, and the light of the picture, which the focused card glows with (home, a wall, a detail page, the artwork picker). The light is a state, provided as a function (`LocalAmbient provides { ambient.value }`) and read while drawing, like the house lights: as it changes over `SLOW`, the focused card's glow follows it, nothing recomposes the screen |
 | `PosterCard`, `LandscapeCard`, `PersonCard`, `ArtworkSurface`, `ArtworkImage` | artwork with the shared focus treatment and a faint edge at rest (see *Cards*) |
 | `MediaRow` | horizontal row with header; focus coming back into it lands on its last card; dims the other cards when one is focused |
 | `HeroInfo`, `TitleArt`, `EpisodeHeading`, `MetaLine`, `BillingBlock` | what a title is: clear logo or condensed title, facts, credits. The browsing hero names, the detail page tells: in its band (`HlLayout.hero`, 168) it has a logo at most 76 tall (or the name on one line), one line of facts (an episode's number and name instead), then where it stands (progress and time left) or two lines of overview. The detail page adds the formats, on their own two lines (only a page speaks of how a title is made; a wall and home's hero say what it is), the tagline, three lines of overview and the billing block. Focus on home's tabs, the hero keeps the title last selected, as a wall keeps it named under its buttons |
@@ -639,7 +639,7 @@ there with the reason. It fails too when a glyph of `HlIcons` is not on the icon
 
 ## Adding a screen
 
-Start from `Backdrop`, `HlTwoPane` or `HlFormScaffold`, compose existing components, and add a token
+Start from `AmbientBackdrop`, `HlTwoPane` or `HlFormScaffold`, compose existing components, and add a token
 or component here before using a new value twice. A vertical list ends with
 `contentPadding(bottom = HlFocus.edge)`; if it starts below the top of the screen, it sits in
 `ListScroll(top = its top padding)`. `HlTwoPane` does this for its content pane; give it the

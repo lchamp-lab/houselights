@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -34,9 +35,11 @@ import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.components.AmbientBackdrop
 import app.houselights.ui.design.components.ArtworkChoiceCard
 import app.houselights.ui.design.components.ArtworkImage
 import app.houselights.ui.design.components.ArtworkSurface
+import app.houselights.ui.design.components.BackdropStyle
 import app.houselights.ui.design.components.CardSkeleton
 import app.houselights.ui.design.components.HeroSkeleton
 import app.houselights.ui.design.components.HlResultItem
@@ -58,6 +61,7 @@ import app.houselights.ui.util.formatDimensions
 /** Cards, artwork and the parts of the pickers, each in the states it has today. */
 internal fun LazyListScope.catalogCards() {
     item { Group("Media row: poster cards, the others step back") { PosterRow() } }
+    item { Group("Ambient backdrop: a screen on its picture, whose light the focused card glows with") { AmbientBackdrops() } }
     item { Group("Artwork surface and image") { Surfaces() } }
     item { Group("Landscape card") { LandscapeRow() } }
     item { Group("Person card: one line, two lines, long role, no photo") { CastRow() } }
@@ -129,6 +133,26 @@ private fun PosterRow() {
     )
     MediaRow("Ajoutés récemment") {
         items(cards) { (state, media) -> StateCaption(state, width = HlSize.poster) { PosterCard(media, {}) } }
+    }
+}
+
+/**
+ * A screen on its picture, small: a card without artwork, focused, glows with the light of the
+ * picture behind it; with no picture the room stays black, and so does the glow.
+ */
+@Composable
+private fun AmbientBackdrops() {
+    val art = shippedImage(R.drawable.banner)
+    Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.l)) {
+        listOf("a picture: its light" to art, "no picture: the black room, no light" to null).forEach { (state, image) ->
+            StateCaption(state, width = HlLayout.sideColumnWide) {
+                Box(Modifier.fillMaxWidth().aspectRatio(16f / 9f)) {
+                    AmbientBackdrop(image, BackdropStyle.Hero) {
+                        PosterCard(sample("Le Samouraï", 1967), {}, Modifier.align(Alignment.CenterStart).padding(start = HlSpace.l))
+                    }
+                }
+            }
+        }
     }
 }
 
