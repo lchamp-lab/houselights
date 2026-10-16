@@ -129,7 +129,7 @@ data class ItemEntity(
     /** Path relative to the source folder, for movies and episodes. */
     val filePath: String? = null,
     /**
-     * A film split in several files (CD1, CD2, part1…): the parts after the first, in order, relative
+     * A film split in several files (CD1, CD2, disc 1…): the parts after the first, in order, relative
      * like [filePath], which is the first.
      */
     val parts: List<String> = emptyList(),
