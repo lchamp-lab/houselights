@@ -333,11 +333,15 @@ class LibraryScanner(
         if (found.videos.isEmpty() && found.unreadable.isNotEmpty()) throw UnreadableFolderException(found.unreadable.size)
         // A disc's streams make one title, extras none: rows of what is not one go as files gone do.
         val listing = ScanTitles.of(found)
-        // A film in several files (CD1, CD2…) is one title, under its first part.
-        val stacks = Stacks.of(source.kind, listing.videos)
+        val listed = dao.filesOf(source.id)
+        // A film in several files (CD1, CD2…) is one title, under its first part; unless its files' rows were
+        // matched with two films: each is read as a title of its own then, its NFO and artwork its own.
+        val stacks = Stacks.of(source.kind, listing.videos).let { all ->
+            val apart = MissingFiles.split(listed, all)
+            if (apart.isEmpty()) all else Stacks.of(source.kind, listing.videos, apart)
+        }
         val files = stacks.titles
         val sidecars = Sidecars(listing.sidecars, files, stacks)
-        val listed = dao.filesOf(source.id)
         if (found.videos.isEmpty() && listed.isNotEmpty()) throw EmptyFolderException()
         val missing = settleMissing(source.kind, listed, listing, stacks)
         // Renamed files took their rows along, and films their parts (one of a file now of several is asked for again).

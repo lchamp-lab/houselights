@@ -72,8 +72,11 @@ class Stacks private constructor(videos: List<RemoteFile>, private val stacks: M
     }
 
     companion object {
-        /** The films in several files among a folder's [videos]; a folder of shows has none. */
-        fun of(kind: SourceKind, videos: List<RemoteFile>): Stacks {
+        /**
+         * The films in several files among a folder's [videos]; a folder of shows has none. Those whose first
+         * part is in [apart] are not: their files' rows were matched with two films ([MissingFiles.split]).
+         */
+        fun of(kind: SourceKind, videos: List<RemoteFile>, apart: Set<String> = emptySet()): Stacks {
             if (kind != SourceKind.MOVIES) return Stacks(videos, emptyMap())
             val candidates = videos.mapNotNull { v ->
                 StackPart.of(v.relativePath.substringAfterLast('/'))?.let { Candidate(v, it) }
@@ -82,7 +85,7 @@ class Stacks private constructor(videos: List<RemoteFile>, private val stacks: M
             val stacks = candidates.groupBy { it.film }.values.mapNotNull { group ->
                 // 1, 2, 3… each once, from the first: a gap, or a part twice, ends the film there.
                 val run = group.sortedBy { it.part.part }.withIndex().takeWhile { (i, c) -> c.part.part == i + 1 }.map { it.value }
-                if (run.size < 2 || !isOneFilm(run, videosIn)) return@mapNotNull null
+                if (run.size < 2 || run.first().file.relativePath in apart || !isOneFilm(run, videosIn)) return@mapNotNull null
                 Stack(run.first().part.name, run.first().file, run.drop(1).map { it.file })
             }
             return Stacks(videos, stacks.associateBy { it.first.relativePath })

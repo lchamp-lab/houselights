@@ -118,6 +118,11 @@ class ScanStacksTest {
         assertTrue(one.parts.isEmpty() && two.parts.isEmpty())
         assertTrue(two.favorite && two.played && two.userTmdbId == 393)
         assertEquals(null, two.missingSince)
+
+        // Each is a title of its own: an NFO placed beside the second is read for it, not for the first.
+        nas.put("Kill Bill CD2.nfo", size = nfo("Kill Bill: Volume 2").size.toLong(), bytes = nfo("Kill Bill: Volume 2"))
+        bench.scan()
+        assertEquals(listOf("Kill Bill: Vol. 1", "Kill Bill: Volume 2"), rows().map { it.title })
     }
 
     private fun row(path: String, size: Long) = ItemEntity(
