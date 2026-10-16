@@ -282,8 +282,10 @@ object FilenameParser {
     private fun normalizeSeparators(s: String): String =
         if (s.contains(' ')) s.replace('_', ' ') else s.replace('.', ' ').replace('_', ' ')
 
+    private val SPACES = Regex("""\s+""")
+
     private fun clean(s: String): String =
-        s.replace(Regex("""[\s]+"""), " ")
+        s.replace(SPACES, " ")
             .trim()
             .trim('-', '–', '(', ')', ' ', '.')
             .trim()
@@ -293,7 +295,10 @@ object FilenameParser {
      * ("doctor who|2005"): "Doctor Who (2005)" and "Doctor Who (1963)" are two shows.
      */
     fun showKey(title: String, year: Int? = null): String =
-        title.lowercase().replace(Regex("""[^\p{L}\p{N}]+"""), " ").trim().let { if (year == null) it else "$it$YEAR_MARK$year" }
+        title.lowercase().replace(NOT_LETTERS, " ").trim().let { if (year == null) it else "$it$YEAR_MARK$year" }
+
+    /** What a show's key keeps of its name: letters and digits, whatever stands between them made one space. */
+    private val NOT_LETTERS = Regex("""[^\p{L}\p{N}]+""")
 
     /** Between a show's name and its year, in its key. */
     const val YEAR_MARK = "|"
