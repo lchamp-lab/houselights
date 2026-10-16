@@ -193,6 +193,16 @@ interface LibraryDao {
     @Query("SELECT $CARD_ROW FROM items WHERE seriesId = :seriesId AND kind = 'EPISODE' ORDER BY seasonNumber, episodeNumber")
     suspend fun episodesOfSeries(seriesId: Long): List<ItemEntity>
 
+    /**
+     * Where each episode of the shows [seriesIds] stands, show by show, in their order: one light query for
+     * the next episode of many shows, rather than every row of each.
+     */
+    @Query(
+        "SELECT id, seriesId, seasonNumber, episodeNumber, played, positionMs FROM items " +
+            "WHERE kind = 'EPISODE' AND seriesId IN (:seriesIds) ORDER BY seriesId, seasonNumber, episodeNumber, id"
+    )
+    suspend fun episodeStates(seriesIds: List<Long>): List<EpisodeState>
+
     @Query(
         "SELECT $CARD_ROW FROM items WHERE kind IN ('MOVIE','EPISODE') AND positionMs > 0 AND played = 0 " +
             "ORDER BY lastPlayedAt DESC LIMIT :limit"
@@ -452,6 +462,17 @@ interface LibraryDao {
     /** Films of a collection, in the order they came out. */
     @Query("SELECT $CARD_ROW FROM items WHERE collectionId = :collectionId AND kind = 'MOVIE' ORDER BY year IS NULL, year, sortTitle")
     suspend fun collectionFilms(collectionId: Long): List<ItemEntity>
+
+    /**
+     * The films of the collections [collectionIds], as their cards tell of them: collection by collection,
+     * each in the order they came out ([collectionFilms]). One query for a whole page of collections.
+     */
+    @Query(
+        "SELECT collectionId, year, rating, genres, played, posterPath, userPosterPath, backdropPath, userBackdropPath " +
+            "FROM items WHERE kind = 'MOVIE' AND collectionId IN (:collectionIds) " +
+            "ORDER BY collectionId, year IS NULL, year, sortTitle, id"
+    )
+    suspend fun collectionMembers(collectionIds: List<Long>): List<CollectionMember>
 
     /** Collections holding at least [minFilms] films of the library. */
     @Query(

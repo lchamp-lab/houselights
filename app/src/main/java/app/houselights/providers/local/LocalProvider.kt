@@ -147,8 +147,14 @@ class LocalProvider(
                 arrayOf<Any>(min),
             )
         )
-        return Page(collections.map { mapCollection(it) }, dao.collectionCount(min))
+        val members = membersOf(collections.map { it.id })
+        val items = withContext(Dispatchers.Default) { collections.map { collectionItem(it, members[it.id].orEmpty()) } }
+        return Page(items, dao.collectionCount(min))
     }
+
+    /** The films of each collection of [ids], by collection: a query a [SQL_IN_LIMIT] collections, rather than one each. */
+    private suspend fun membersOf(ids: List<Long>): Map<Long, List<CollectionMember>> =
+        ids.chunked(SQL_IN_LIMIT).flatMap { dao.collectionMembers(it) }.groupBy { it.collectionId }
 
     override suspend fun libraryFacets(library: Library): LibraryFacets {
         if (library.id == COLLECTIONS) return LibraryFacets()
@@ -195,7 +201,7 @@ class LocalProvider(
         if (item.kind != MediaKind.MOVIE) return null
         val min = collectionMinFilms().takeIf { it > 0 } ?: return null
         val collection = entity(item)?.collectionId?.let { dao.collection(it) } ?: return null
-        val films = dao.collectionFilms(collection.id)
+        val films = dao.collectionMembers(listOf(collection.id))
         return if (films.size >= min) mapCollection(collection, films) else null
     }
 
@@ -209,12 +215,12 @@ class LocalProvider(
      * A collection as a title of the library: its name and story, the years its films span,
      * how many of them are here (and out of how many), its artwork or its first film's.
      */
-    private suspend fun mapCollection(c: CollectionEntity, films: List<ItemEntity>? = null): MediaItem {
-        val members = films ?: dao.collectionFilms(c.id)
+    private suspend fun mapCollection(c: CollectionEntity, films: List<CollectionMember>? = null): MediaItem {
+        val members = films ?: dao.collectionMembers(listOf(c.id))
         return withContext(Dispatchers.Default) { collectionItem(c, members) }
     }
 
-    private fun collectionItem(c: CollectionEntity, members: List<ItemEntity>): MediaItem {
+    private fun collectionItem(c: CollectionEntity, members: List<CollectionMember>): MediaItem {
         val years = members.mapNotNull { it.year }
         val first = members.firstOrNull()
         val unplayed = members.count { !it.played }
@@ -258,9 +264,11 @@ class LocalProvider(
         return mapper.mapAll(dao.childRows(key))
     }
 
-    override suspend fun nextUp(series: MediaItem): MediaItem? =
-        if (series.kind == MediaKind.COLLECTION) super.nextUp(series)
-        else itemKey(series)?.let { nextEpisode(dao.episodesOfSeries(it)) }?.let { LocalMapper(dao, context).map(it) }
+    override suspend fun nextUp(series: MediaItem): MediaItem? {
+        if (series.kind == MediaKind.COLLECTION) return super.nextUp(series)
+        val next = itemKey(series)?.let { nextEpisode(dao.episodeStates(listOf(it))) } ?: return null
+        return dao.rows(listOf(next.id)).singleOrNull()?.let { LocalMapper(dao, context).map(it) }
+    }
 
     override suspend fun similar(item: MediaItem): List<MediaItem> {
         if (item.kind == MediaKind.COLLECTION) return emptyList()
@@ -319,22 +327,29 @@ class LocalProvider(
     override fun reporter(resumeKey: String): PlaybackReporter? =
         (LocalId.parse(resumeKey) as? LocalId.Item)?.let { LocalReporter(dao, it.key, it.part ?: 1) }
 
-    /** Next episode of each show recently watched, skipping ones already in progress. */
+    /**
+     * Next episode of each show recently watched, skipping ones already in progress: where every episode of
+     * those shows stands in one light query, then the rows of the episodes next.
+     */
     private suspend fun nextUpAcrossShows(exclude: Set<Long>): List<ItemEntity> {
-        return dao.recentlyPlayedSeries(NEXT_UP_SHOWS).mapNotNull { nextEpisode(dao.episodesOfSeries(it)) }.filter { it.id !in exclude }
+        val shows = dao.recentlyPlayedSeries(NEXT_UP_SHOWS)
+        val episodes = shows.chunked(SQL_IN_LIMIT).flatMap { dao.episodeStates(it) }.groupBy { it.seriesId }
+        val next = shows.mapNotNull { show -> episodes[show]?.let(::nextEpisode)?.id }.filter { it !in exclude }
+        val rows = next.chunked(SQL_IN_LIMIT).flatMap { dao.rows(it) }.associateBy { it.id }
+        return next.mapNotNull { rows[it] }
     }
 
     /**
      * The next episode among the seasons, specials (season 0, first in [episodes]) once none is left
      * there: as [MediaProvider.nextUp] does, a show starts with S01E01, not with a special.
      */
-    private fun nextEpisode(episodes: List<ItemEntity>): ItemEntity? {
+    private fun nextEpisode(episodes: List<EpisodeState>): EpisodeState? {
         val (specials, seasons) = episodes.partition { (it.seasonNumber ?: 0) == 0 }
         return nextOf(seasons) ?: nextOf(specials)
     }
 
     /** First in-progress episode, else the one after the last watched, else the first unwatched. */
-    private fun nextOf(episodes: List<ItemEntity>): ItemEntity? {
+    private fun nextOf(episodes: List<EpisodeState>): EpisodeState? {
         episodes.firstOrNull { it.positionMs > 0 && !it.played }?.let { return it }
         val lastWatched = episodes.indexOfLast { it.played }
         return episodes.drop(lastWatched + 1).firstOrNull { !it.played } ?: episodes.firstOrNull { !it.played }

@@ -130,6 +130,29 @@ internal fun ItemEntity.withMedia(info: MediaInfo): ItemEntity =
 /** What a show's card tells about its episodes (see [LibraryDao.seriesCounts]). */
 data class SeriesCounts(val seriesId: Long, val unplayed: Int, val seasons: Int)
 
+/** Where an episode stands for the viewer ([LibraryDao.episodeStates]): what tells the next one to watch. */
+data class EpisodeState(
+    val id: Long,
+    val seriesId: Long,
+    val seasonNumber: Int?,
+    val episodeNumber: Int?,
+    val played: Boolean,
+    val positionMs: Long,
+)
+
+/** What a saga's card tells of one of its films ([LibraryDao.collectionMembers]). */
+data class CollectionMember(
+    val collectionId: Long,
+    val year: Int?,
+    val rating: Double?,
+    val genres: List<String>,
+    val played: Boolean,
+    val posterPath: String?,
+    val userPosterPath: String?,
+    val backdropPath: String?,
+    val userBackdropPath: String?,
+)
+
 @Entity(
     tableName = "items",
     indices = [
