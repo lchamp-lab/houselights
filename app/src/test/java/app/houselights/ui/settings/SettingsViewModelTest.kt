@@ -85,7 +85,8 @@ class SettingsViewModelTest {
         val artwork = ArtworkCache(context.cacheDir.resolve("artwork"))
         // No scan runs: it would go to the network.
         val idle = CoroutineScope(Job().apply { cancel() })
-        library = LocalLibrary(context, dao, LibraryScanner(dao, { null }, idle, artwork, browsers = { FakeRemoteBrowser() }), artwork) {}
+        val scanner = LibraryScanner(dao, { null }, idle, artwork, browsers = { FakeRemoteBrowser() }, closeIdle = {})
+        library = LocalLibrary(context, dao, scanner, artwork) {}
     }
 
     @After
