@@ -19,6 +19,21 @@ case "$VARIANT" in
 esac
 
 cd "$ROOT"
+# The build refuses a release without your key; say here what to do about it.
+if [[ "$VARIANT" == release && ! -f keystore.properties ]]; then
+    cat >&2 <<'MSG'
+No keystore.properties: a release is signed with your own key, chosen once, before its first
+installation on the player. Android only updates an app signed with the same key: changing keys
+later means uninstalling, which loses the library and watch history kept on the player.
+
+  keytool -genkeypair -keystore ~/houselights-release.jks -alias houselights \
+      -keyalg RSA -keysize 4096 -validity 10000
+
+Then write keystore.properties as README.md shows (Signing), and keep a copy of both files.
+Meanwhile, `scripts/install.sh bench` installs an optimised build beside the release.
+MSG
+    exit 1
+fi
 ./gradlew -q "assemble${VARIANT^}"
 
 OUT="app/build/outputs/apk/$VARIANT"

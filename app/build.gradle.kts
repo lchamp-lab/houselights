@@ -19,10 +19,30 @@ val localProps = Properties().apply {
 val tmdbApiKey: String = localProps.getProperty("tmdb.apiKey") ?: System.getenv("TMDB_API_KEY") ?: ""
 
 // Release signing: keystore.properties (never committed) gives storeFile, storePassword, keyAlias and
-// keyPassword. Without it, release builds are signed with the debug key: fine to test, not to publish.
+// keyPassword. Android only updates an app signed with the same key, so a release signed with the debug
+// key of whatever machine built it could not be updated by one signed with yours: without the file,
+// packaging the release fails, unless -Phouselights.debugSignedRelease=true asks for the debug key (CI,
+// a build that will not be installed). bench and the benchmark builds are signed with the debug key.
 val keystoreProps = Properties().apply {
     rootProject.file("keystore.properties").takeIf { it.exists() }?.inputStream()?.use(::load)
 }
+fun keystoreProp(name: String): String =
+    requireNotNull(keystoreProps.getProperty(name)?.takeIf { it.isNotBlank() }) { "keystore.properties: $name is missing" }
+val debugSignedRelease = providers.gradleProperty("houselights.debugSignedRelease").orNull.toBoolean()
+
+// versionCode grows with every commit, so Android refuses to install a build over a newer one, whose
+// database it could not open: -PversionCode when given, else the number of commits (CI checks out
+// the whole history), else 1. Read through providers.exec, which the configuration cache tracks.
+val commitCount: Int? = runCatching {
+    providers.exec {
+        commandLine("git", "rev-list", "--count", "HEAD")
+        isIgnoreExitValue = true
+    }.standardOutput.asText.get().trim().toIntOrNull()
+}.getOrNull()
+val appVersionCode: Int = providers.gradleProperty("versionCode").orNull
+    ?.let { requireNotNull(it.toIntOrNull()) { "-PversionCode must be a whole number, not \"$it\"" } }
+    ?: commitCount
+    ?: 1
 
 android {
     namespace = "app.houselights"
@@ -32,7 +52,7 @@ android {
         applicationId = "app.houselights"
         minSdk = 28 // Zidoo Z1000 Pro : Android 9
         targetSdk = 35
-        versionCode = 1
+        versionCode = appVersionCode
         versionName = "0.1.0"
         buildConfigField("String", "TMDB_API_KEY", "\"$tmdbApiKey\"")
         manifestPlaceholders["appLabel"] = "@string/app_name"
@@ -41,10 +61,10 @@ android {
     signingConfigs {
         if (!keystoreProps.isEmpty) {
             create("release") {
-                storeFile = rootProject.file(keystoreProps.getProperty("storeFile"))
-                storePassword = keystoreProps.getProperty("storePassword")
-                keyAlias = keystoreProps.getProperty("keyAlias")
-                keyPassword = keystoreProps.getProperty("keyPassword")
+                storeFile = rootProject.file(keystoreProp("storeFile"))
+                storePassword = keystoreProp("storePassword")
+                keyAlias = keystoreProp("keyAlias")
+                keyPassword = keystoreProp("keyPassword")
             }
         }
     }
@@ -59,6 +79,8 @@ android {
         release {
             isMinifyEnabled = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            // The debug key stays for the builds made from this one (:baselineprofile's): packageRelease
+            // alone refuses it unless asked, below.
             signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
         }
         // Optimised like a release, beside it and signed with the debug key: what the player really
@@ -90,6 +112,21 @@ android {
         abortOnError = true
         checkReleaseBuilds = true
         baseline = file("lint-baseline.xml")
+    }
+}
+
+// Without a key, the release stops before its APK is written, and says why (see keystoreProps).
+if (keystoreProps.isEmpty && !debugSignedRelease) {
+    tasks.matching { it.name == "packageRelease" }.configureEach {
+        doFirst {
+            throw GradleException(
+                "No keystore.properties: this release would be signed with this machine's debug key, and a later " +
+                    "one signed with yours could only be installed after uninstalling it, which loses the library " +
+                    "and watch history kept on the player. Create your key first (README, Signing), or pass " +
+                    "-Phouselights.debugSignedRelease=true for a build that will not be installed; " +
+                    "scripts/install.sh bench installs an optimised build beside the release."
+            )
+        }
     }
 }
 
