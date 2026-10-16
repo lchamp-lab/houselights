@@ -24,6 +24,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -46,7 +47,9 @@ import app.houselights.ui.util.ErrorAction
 import app.houselights.ui.util.LocalErrorFix
 import app.houselights.ui.util.UiError
 import app.houselights.ui.util.appContainer
+import app.houselights.ui.util.launchAction
 import app.houselights.ui.util.toUiError
+import app.houselights.ui.util.toWriteError
 import coil.imageLoader
 import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlMotion
@@ -240,9 +243,13 @@ private fun AppNavigation(nav: NavHostController, onPlay: (MediaItem, Boolean) -
     fun openLibrary(library: Library) = nav.navigate(Route.Library(library.id, library.kind, library.title))
     fun goHome() = nav.navigate(Route.Home) { popUpTo(0) { inclusive = true } }
 
+    // Why choosing the folders failed (the device's storage refused it), said on the welcome screen.
+    var sourceProblem by remember { mutableStateOf<UiError?>(null) }
+
     /** "My files": the folders added before are kept across sources, else the first one is added. */
     fun useFolders() {
-        scope.launch {
+        sourceProblem = null
+        scope.launchAction("Sources", "Choosing the folders", onError = { sourceProblem = it }, errorOf = Throwable::toWriteError) {
             if (!app.library.hasFolders()) {
                 nav.navigate(Route.AddFolder())
             } else {
@@ -254,7 +261,7 @@ private fun AppNavigation(nav: NavHostController, onPlay: (MediaItem, Boolean) -
 
     NavHost(nav, startDestination = start) {
         composable<Route.Welcome> {
-            WelcomeScreen(onLocal = ::useFolders, onJellyfin = { nav.navigate(Route.JellyfinLogin) })
+            WelcomeScreen(onLocal = ::useFolders, onJellyfin = { nav.navigate(Route.JellyfinLogin) }, problem = sourceProblem)
         }
         composable<Route.JellyfinLogin> { JellyfinLoginScreen(onLoggedIn = ::goHome) }
         composable<Route.AddFolder> { entry ->

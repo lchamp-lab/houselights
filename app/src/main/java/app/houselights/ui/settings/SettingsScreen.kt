@@ -31,6 +31,7 @@ import app.houselights.BuildConfig
 import app.houselights.R
 import app.houselights.core.SourceConfig
 import app.houselights.settings.AppSettings
+import app.houselights.settings.SecretSetting
 import app.houselights.ui.design.BackToStart
 import app.houselights.ui.design.FocusKey
 import app.houselights.ui.design.FocusMemory
@@ -38,16 +39,19 @@ import app.houselights.ui.design.HlFocus
 import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.RestoreFocus
+import app.houselights.ui.design.components.AttentionNote
 import app.houselights.ui.design.components.HlNavItem
+import app.houselights.ui.design.components.HlStatus
 import app.houselights.ui.design.components.HlTwoPane
 import app.houselights.ui.design.components.ScreenTitle
+import app.houselights.ui.design.components.StatusState
 import app.houselights.ui.design.focusKey
 import app.houselights.ui.design.keepVerticalFocus
 import app.houselights.ui.design.rememberFocusMemory
 import app.houselights.ui.onboarding.FolderField
 import app.houselights.ui.util.formatBytes
 
-private enum class Pane(val label: Int, val icon: ImageVector) {
+internal enum class Pane(val label: Int, val icon: ImageVector) {
     Library(R.string.section_source, HlIcons.Folder),
     Playback(R.string.section_playback, HlIcons.Playback),
     Display(R.string.section_display, HlIcons.Display),
@@ -130,6 +134,16 @@ private suspend fun revealRow(list: LazyListState, key: String, memory: FocusMem
     return false
 }
 
+/** What [pane] says of a secret of its own that could not be read again, to be given again; null when none is lost. */
+internal fun lostSecretNote(pane: Pane, lost: Set<SecretSetting>): Int? = when {
+    pane == Pane.Library && SecretSetting.TMDB_KEY in lost -> R.string.settings_lost_tmdb_key
+    pane == Pane.Playback && SecretSetting.PATH_MAPPINGS in lost -> R.string.settings_lost_mappings
+    else -> null
+}
+
+private const val ACTION_ERROR = "action-error"
+private const val LOST_SECRET = "lost-secret"
+
 /** A pane's entry in the navigation; its rows are keyed within it. */
 private fun paneKey(pane: Pane) = FocusKey.pane(pane.name)
 
@@ -162,6 +176,7 @@ private fun PaneContent(
     entry: FocusRequester,
     onFocusIn: (Boolean) -> Unit,
 ) {
+    val vm = settingsViewModel()
     LazyColumn(
         state = list,
         modifier = Modifier
@@ -174,6 +189,12 @@ private fun PaneContent(
         contentPadding = PaddingValues(bottom = HlFocus.edge, end = HlSpace.m),
         verticalArrangement = Arrangement.spacedBy(HlSpace.l),
     ) {
+        // What the last change made here failed on, then a secret of this pane that could not be read
+        // again: said at the head of the pane, where it is read first.
+        vm.actionError?.let { error ->
+            item(key = ACTION_ERROR) { HlStatus(StatusState.Attention, stringResource(error.title), detail = stringResource(error.message)) }
+        }
+        lostSecretNote(pane, s.lostSecrets)?.let { note -> item(key = LOST_SECRET) { AttentionNote(stringResource(note)) } }
         when (pane) {
             Pane.Library -> libraryPane(s, onFolderForm, onUseFolders, onSignIn, rows)
             Pane.Playback -> playbackPane(s)

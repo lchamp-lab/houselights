@@ -288,6 +288,9 @@
     <string name="tmdb_key_personal">Personal key</string>
     <string name="tmdb_key_none">No key</string>
     <string name="tmdb_key_none_desc">Without one, no posters and no details.</string>
+    <string name="tmdb_key_lost">Your key could not be read again</string>
+    <string name="tmdb_key_lost_builtin">Type it again. Until then, the built-in key is used.</string>
+    <string name="tmdb_key_lost_none">Type it again. Until then, there are no posters and no details.</string>
     <string name="tmdb_key_free">Get a free key at themoviedb.org.</string>
     <string name="tmdb_key_unchecked">Saved without checking: TMDB isn’t answering.</string>
     <string name="tmdb_key_revert">Back to the built-in key</string>
@@ -372,7 +375,11 @@
     <string name="error_keystore_sign_in">Signed in, but this device’s keystore refused to seal the server’s token, so nothing was saved. Restart the player, then sign in again.</string>
     <string name="error_settings_title">Settings could not be read</string>
     <string name="error_settings">This player’s storage did not answer. Try again, and if it lasts, restart the player.</string>
+    <string name="error_not_saved_title">Nothing was saved</string>
+    <string name="error_not_saved">This player’s storage refused the write. Free some space in Settings, under Storage, then try again.</string>
     <string name="welcome_lost_secrets">The connection saved on this player could not be read again. Choose where your films are once more.</string>
+    <string name="settings_lost_tmdb_key">Your personal TMDB key could not be read again on this player. Type it again under TMDB API key.</string>
+    <string name="settings_lost_mappings">The path mappings saved on this player could not be read again. Type them again below.</string>
     <string name="error_action_reconnect">Sign in again</string>
     <string name="error_action_add_tmdb_key">Add a key</string>
     <string name="error_action_edit_tmdb_key">Change the key</string>
@@ -384,6 +391,7 @@
     <string name="remove_folder_desc">Its titles leave the library; nothing is deleted on the NAS.</string>
     <string name="remove_folder_row_desc">Its titles leave the library</string>
     <string name="remove_folder_confirm">Remove “%s”?</string>
+    <string name="folder_removing">Removing “%s”…</string>
     <string name="tmdb_builtin_short">Built in</string>
     <string name="tmdb_personal">Your key</string>
     <string name="tmdb_missing_short">Missing</string>

@@ -1,0 +1,194 @@
+package app.houselights.ui.settings
+
+import android.content.Context
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.emptyPreferences
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.ViewModelStore
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
+import androidx.room.Room
+import androidx.test.core.app.ApplicationProvider
+import app.houselights.core.Secrets
+import app.houselights.providers.local.ArtworkCache
+import app.houselights.providers.local.LibraryDao
+import app.houselights.providers.local.LibraryDatabase
+import app.houselights.providers.local.LibraryScanner
+import app.houselights.providers.local.LocalLibrary
+import app.houselights.providers.local.Protocol
+import app.houselights.providers.local.Secret
+import app.houselights.providers.local.SecretConverter
+import app.houselights.providers.local.SourceEntity
+import app.houselights.providers.local.SourceKind
+import app.houselights.providers.local.TmdbKeyCheck
+import app.houselights.settings.SecretSetting
+import app.houselights.settings.SettingsStore
+import app.houselights.ui.testing.FakeProvider
+import app.houselights.ui.testing.MainDispatcherRule
+import app.houselights.ui.testing.testSecrets
+import app.houselights.ui.testing.testSettings
+import app.houselights.ui.util.UiError
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withContext
+import org.junit.After
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
+import org.junit.Before
+import org.junit.Rule
+import org.junit.Test
+import org.junit.rules.TemporaryFolder
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import java.io.IOException
+import java.security.ProviderException
+import javax.crypto.KeyGenerator
+
+/** The settings' changes: never a crash, and what must not be cut off goes on once the settings are left. */
+@OptIn(ExperimentalCoroutinesApi::class)
+@RunWith(RobolectricTestRunner::class)
+class SettingsViewModelTest {
+    @get:Rule
+    val main = MainDispatcherRule()
+
+    @get:Rule
+    val folder = TemporaryFolder()
+
+    private val screens = ViewModelStore()
+    private lateinit var db: LibraryDatabase
+    private lateinit var dao: LibraryDao
+    private lateinit var library: LocalLibrary
+
+    @Before
+    fun open() = runBlocking {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val key = KeyGenerator.getInstance("AES").apply { init(256) }.generateKey()
+        db = Room.inMemoryDatabaseBuilder(context, LibraryDatabase::class.java)
+            .addTypeConverter(SecretConverter(Secrets { key }))
+            .allowMainThreadQueries()
+            .build()
+        dao = db.dao()
+        val artwork = ArtworkCache(context.cacheDir.resolve("artwork"))
+        // No scan runs: it would go to the network.
+        val idle = CoroutineScope(Job().apply { cancel() })
+        library = LocalLibrary(context, dao, LibraryScanner(dao, { null }, idle, artwork), artwork) {}
+    }
+
+    @After
+    fun close() {
+        screens.clear()
+        db.close()
+    }
+
+    /** The settings' ViewModel as the screen holds it: [screens] clears it when the settings are left. */
+    private fun settings(
+        store: SettingsStore,
+        work: CoroutineScope,
+        checkKey: suspend (String) -> TmdbKeyCheck = { TmdbKeyCheck.ACCEPTED },
+    ): SettingsViewModel {
+        val factory = viewModelFactory {
+            initializer { SettingsViewModel(store, library, { FakeProvider() }, work, images = null, checkTmdbKey = checkKey) }
+        }
+        return ViewModelProvider(screens, factory)[SettingsViewModel::class.java]
+    }
+
+    /** Settings that read, and refuse every write: the device's storage is full. */
+    private class FullStore : DataStore<Preferences> {
+        override val data = flowOf(emptyPreferences())
+
+        override suspend fun updateData(transform: suspend (t: Preferences) -> Preferences): Preferences =
+            throw IOException("No space left on device")
+    }
+
+    /** Lets work on Room's and the scanner's own threads finish. */
+    private suspend fun TestScope.settle(done: suspend () -> Boolean) {
+        repeat(200) {
+            advanceUntilIdle()
+            if (done()) return
+            withContext(Dispatchers.Default) { delay(10) }
+        }
+    }
+
+    @Test
+    fun aSettingThatCannotBeWrittenSaysSoAndNeverCrashes() = runTest {
+        val store = SettingsStore(FullStore(), backgroundScope, testSecrets())
+        val vm = settings(store, backgroundScope)
+        vm.setUi4k(false)
+        advanceUntilIdle()
+        assertEquals(UiError.NOT_SAVED, vm.actionError)
+        // The next change clears it.
+        vm.setForceHttp(true)
+        assertNull(vm.actionError)
+    }
+
+    /** A folder removed waits for the file a scan reads in it: leaving the settings meanwhile does not stop it. */
+    @Test
+    fun aFolderRemovedIsRemovedEvenWhenTheSettingsAreLeft() = runTest {
+        val store = testSettings(folder.root, backgroundScope)
+        val id = dao.insertSource(
+            SourceEntity(
+                name = "films", kind = SourceKind.MOVIES, protocol = Protocol.NFS, host = "nas", share = "media",
+                path = "films", username = "", password = Secret(""),
+            )
+        )
+        val vm = settings(store, work = backgroundScope)
+        vm.removeFolder(dao.source(id)!!)
+        assertTrue(id in vm.removing)
+        screens.clear()
+        settle { dao.sources().isEmpty() }
+        assertTrue(dao.sources().isEmpty())
+    }
+
+    /** TMDB takes a few seconds to check a key; the sheet and the settings are left meanwhile: the key is saved all the same. */
+    @Test
+    fun aTmdbKeyIsSavedEvenWhenTheSettingsAreLeft() = runTest {
+        val store = testSettings(folder.root, backgroundScope)
+        val tmdb = CompletableDeferred<TmdbKeyCheck>()
+        val vm = settings(store, work = backgroundScope, checkKey = { tmdb.await() })
+        var heard: TmdbKeySave? = null
+        vm.saveTmdbApiKey(" k3y ") { heard = it }
+        advanceUntilIdle()
+        assertTrue(vm.savingTmdbKey)
+        screens.clear()
+        tmdb.complete(TmdbKeyCheck.ACCEPTED)
+        assertEquals("k3y", store.state.first { it.tmdbApiKey != null }.tmdbApiKey)
+        settle { heard != null }
+        assertEquals(TmdbKeySave.Checked(TmdbKeyCheck.ACCEPTED), heard)
+        assertFalse(vm.savingTmdbKey)
+    }
+
+    /** The Keystore refuses to seal the key: the sheet says nothing was saved, the app goes on. */
+    @Test
+    fun aTmdbKeyTheKeystoreCannotSealSaysSo() = runTest {
+        val broken = Secrets { throw ProviderException("Keystore operation failed") }
+        val store = testSettings(folder.root, backgroundScope, broken)
+        val vm = settings(store, work = backgroundScope)
+        var heard: TmdbKeySave? = null
+        vm.saveTmdbApiKey("k3y") { heard = it }
+        settle { heard != null }
+        assertEquals(TmdbKeySave.Failed(UiError.KEYSTORE), heard)
+        assertFalse(vm.savingTmdbKey)
+    }
+
+    @Test
+    fun eachPaneSaysWhatOfItsOwnWasLost() {
+        val lost = setOf(SecretSetting.TMDB_KEY, SecretSetting.PATH_MAPPINGS)
+        assertEquals(app.houselights.R.string.settings_lost_tmdb_key, lostSecretNote(Pane.Library, lost))
+        assertEquals(app.houselights.R.string.settings_lost_mappings, lostSecretNote(Pane.Playback, lost))
+        assertNull(lostSecretNote(Pane.Display, lost))
+        assertNull(lostSecretNote(Pane.Library, setOf(SecretSetting.SOURCE)))
+    }
+}

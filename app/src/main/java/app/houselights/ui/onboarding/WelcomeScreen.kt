@@ -39,12 +39,16 @@ import app.houselights.ui.design.components.HlListItem
 import app.houselights.ui.design.components.PosterWall
 import app.houselights.ui.design.components.PosterWallScrim
 import app.houselights.ui.design.components.Wordmark
+import app.houselights.ui.util.UiError
 import app.houselights.ui.util.appContainer
 import app.houselights.ui.util.toPx
 
-/** First launch: a lobby of this week's films behind the wordmark, then where yours are. */
+/**
+ * First launch: a lobby of this week's films behind the wordmark, then where yours are. [problem]
+ * says why the choice made last could not be saved.
+ */
 @Composable
-fun WelcomeScreen(onLocal: () -> Unit, onJellyfin: () -> Unit) {
+fun WelcomeScreen(onLocal: () -> Unit, onJellyfin: () -> Unit, problem: UiError? = null) {
     val app = appContainer()
     val lostSource = app.settings.state.collectAsStateWithLifecycle().value.lostSource
     val focus = remember { FocusRequester() }
@@ -78,6 +82,7 @@ fun WelcomeScreen(onLocal: () -> Unit, onJellyfin: () -> Unit) {
                 Text(stringResource(R.string.welcome_title), style = Hl.type.lead, color = Hl.colors.content)
                 // Back here because the connection kept could not be read again: said, not left to guess.
                 if (lostSource) AttentionNote(stringResource(R.string.welcome_lost_secrets))
+                problem?.let { AttentionNote(stringResource(it.message)) }
                 Spacer(Modifier.height(HlSpace.xxs))
                 // The same height side by side; under each, how it reaches your films.
                 HlListItem(

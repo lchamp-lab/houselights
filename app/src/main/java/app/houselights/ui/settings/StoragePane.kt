@@ -101,7 +101,8 @@ private fun StorageActions(storage: StorageStats?) {
             value = cleaned,
             onClick = {
                 scope.launch {
-                    val result = vm.cleanup()
+                    // A cleanup that failed is said at the head of the pane.
+                    val result = vm.cleanup() ?: return@launch
                     cleaned = if (result.deletedFiles == 0) context.getString(R.string.cleanup_nothing)
                     else context.getString(
                         R.string.cleanup_done,
@@ -117,10 +118,7 @@ private fun StorageActions(storage: StorageStats?) {
             description = stringResource(R.string.clear_cache_desc),
             value = if (cleared) stringResource(R.string.image_cache_cleared) else storage?.let { formatBytes(it.imageCacheBytes) },
             onClick = {
-                scope.launch {
-                    vm.clearImageCache()
-                    cleared = true
-                }
+                scope.launch { cleared = vm.clearImageCache() }
             },
             chevron = false,
         )
