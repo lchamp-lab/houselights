@@ -126,6 +126,12 @@ data class AppSettings(
 ) {
     /** The connection kept (a server and its token) could not be read again: the welcome screen says so. */
     val lostSource: Boolean get() = SecretSetting.SOURCE in lostSecrets
+
+    /** Never the TMDB key nor the mappings' network paths, which may carry a password: a log line may quote the settings. */
+    override fun toString() =
+        "AppSettings(loaded=$loaded, source=$source, deviceId=$deviceId, pathMappings=${pathMappings.size}, " +
+            "forceHttp=$forceHttp, ui4k=$ui4k, tmdbApiKey=${tmdbApiKey?.let { "***" }}, " +
+            "collectionMinFilms=$collectionMinFilms, lostSecrets=$lostSecrets, readFailed=$readFailed)"
 }
 
 class SettingsStore(
