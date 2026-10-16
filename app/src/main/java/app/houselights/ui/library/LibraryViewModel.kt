@@ -95,10 +95,17 @@ class LibraryViewModel(private val provider: () -> MediaProvider, private val li
                 provider().libraryPage(library, s.sort, s.filter, start = 0, limit = maxOf(s.items.size, PAGE))
             }.onSuccess { page ->
                 val items = page.items.distinctBy(MediaItem::id)
-                _state.update { it.copy(items = items, total = page.total, loading = false, error = null, pageError = null) }
+                _state.update {
+                    it.copy(items = items, total = page.total, loading = false, error = null, pageError = null, pageRetrying = false)
+                }
             }.onFailure { e ->
-                // Keep what is shown; the next change or page load tries again.
+                // Keep what is shown; the next change or page load tries again. A first page or a
+                // retry this reload took over is not left at work: with nothing shown, the wall says
+                // why; past it, the foot can try again.
                 Log.w(TAG, "Library refresh failed", e)
+                _state.update {
+                    it.copy(loading = false, pageRetrying = false, error = if (it.items.isEmpty()) e.toUiError() else it.error)
+                }
             }
         }
     }

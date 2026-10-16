@@ -114,4 +114,46 @@ class LibraryViewModelTest {
         assertFalse(vm.state.value.pageRetrying)
         assertEquals(240, vm.state.value.items.size)
     }
+
+    /** Réessayer at the foot, then a change whose reload fails: the foot can be pressed again. */
+    @Test
+    fun aFailedReloadFreesTheRetryAtTheFoot() = runTest {
+        val vm = LibraryViewModel({ provider }, library)
+        advanceUntilIdle()
+        provider.fail = { if (it.startsWith("page 120")) IOException("Wi-Fi gone") else null }
+        vm.loadMore()
+        advanceUntilIdle()
+        provider.gate("page 120 120")
+        vm.retryPage()
+        advanceUntilIdle()
+        assertTrue(vm.state.value.pageRetrying)
+
+        provider.fail = { if (it.startsWith("page")) IOException("Wi-Fi gone") else null }
+        vm.onLibraryChanged()
+        advanceUntilIdle()
+        assertFalse("Réessayer stayed at work", vm.state.value.pageRetrying)
+        assertFalse(vm.state.value.loading)
+        assertEquals(UiError.OFFLINE, vm.state.value.pageError)
+
+        provider.gates.clear()
+        provider.fail = { null }
+        vm.retryPage()
+        advanceUntilIdle()
+        assertEquals(240, vm.state.value.items.size)
+    }
+
+    /** A change while the first page loads, whose reload fails: the wall says why instead of waiting for ever. */
+    @Test
+    fun aFailedReloadOfTheFirstPageSaysWhy() = runTest {
+        val first = provider.gate("page 0 120")
+        val vm = LibraryViewModel({ provider }, library)
+        advanceUntilIdle()
+        vm.onLibraryChanged()
+        advanceUntilIdle()
+        provider.fail = { if (it.startsWith("page")) IOException("NAS away") else null }
+        first.complete(Unit)
+        advanceUntilIdle()
+        assertFalse(vm.state.value.loading)
+        assertEquals(UiError.OFFLINE, vm.state.value.error)
+    }
 }
