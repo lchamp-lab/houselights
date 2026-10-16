@@ -1,6 +1,7 @@
 package app.houselights.ui.onboarding
 
 import androidx.compose.foundation.background
+import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -82,7 +83,7 @@ fun WelcomeScreen(onLocal: () -> Unit, onJellyfin: () -> Unit, problem: UiError?
                 Text(stringResource(R.string.welcome_title), style = Hl.type.lead, color = Hl.colors.content)
                 // Back here because the connection kept could not be read again: said, not left to guess.
                 if (lostSource) AttentionNote(stringResource(R.string.welcome_lost_secrets))
-                problem?.let { AttentionNote(stringResource(it.message)) }
+                problem?.let { AttentionNote(stringResource(welcomeProblem(it))) }
                 Spacer(Modifier.height(HlSpace.xxs))
                 // The same height side by side; under each, how it reaches your films.
                 HlListItem(
@@ -105,6 +106,16 @@ fun WelcomeScreen(onLocal: () -> Unit, onJellyfin: () -> Unit, problem: UiError?
             }
         }
     }
+}
+
+/**
+ * What the welcome screen says of [problem], the failure of the choice made last: never to look in
+ * the settings, which it does not lead to.
+ */
+@StringRes
+internal fun welcomeProblem(problem: UiError): Int = when (problem) {
+    UiError.NOT_SAVED -> R.string.error_not_saved_player
+    else -> problem.message
 }
 
 /** Lines of description each welcome choice keeps room for: the longest one's. */

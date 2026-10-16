@@ -48,6 +48,7 @@ import app.houselights.ui.design.focusKey
 import app.houselights.ui.design.keepVerticalFocus
 import app.houselights.ui.design.rememberFocusMemory
 import app.houselights.ui.onboarding.FolderField
+import app.houselights.ui.util.UiError
 import app.houselights.ui.util.formatBytes
 
 internal enum class Pane(val label: Int, val icon: ImageVector) {
@@ -62,16 +63,21 @@ internal enum class Pane(val label: Int, val icon: ImageVector) {
  * Settings in two panes: the categories on the left, each with what it is set to now; on the
  * right, the selected one as rows of settings with their value. Focus selects a category.
  * [onFolderForm] opens the form of a folder (a new one for null), focus on the field given;
- * [onUseFolders] makes the folders the source (or adds the first), [onSignIn] signs in to Jellyfin.
+ * [onUseFolders] makes the folders the source (or adds the first), and hands back why it could
+ * not, said on the source's row; [onSignIn] signs in to Jellyfin.
  */
 @Composable
 fun SettingsScreen(
     onFolderForm: (folderId: Long?, focus: FolderField) -> Unit,
-    onUseFolders: () -> Unit,
+    onUseFolders: (onError: (UiError) -> Unit) -> Unit,
     onSignIn: () -> Unit,
     onOpenCatalog: () -> Unit = {},
 ) {
     val vm = settingsViewModel()
+    val useFolders = {
+        vm.clearActionError()
+        onUseFolders { vm.actionFailed(SettingAction.SOURCE, it) }
+    }
     val s by vm.settings.collectAsStateWithLifecycle()
     val panes = if (s.source != null && vm.capabilities.pathMapping) Pane.entries else Pane.entries - Pane.Playback
     var pane by rememberSaveable { mutableStateOf(Pane.Library) }
@@ -115,7 +121,7 @@ fun SettingsScreen(
     ) {
         val rows = remember(pane) { PaneRows(memory, pane.name) }
         PaneContent(
-            pane, s, storage, onFolderForm, onUseFolders, onSignIn, onOpenCatalog, rows, list,
+            pane, s, storage, onFolderForm, useFolders, onSignIn, onOpenCatalog, rows, list,
             entry = memory.requester(paneKey(pane)),
             onFocusIn = { inPane = it },
         )

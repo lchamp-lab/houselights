@@ -140,6 +140,17 @@ class SettingsViewModelTest {
         assertNull(vm.errorOf(SettingAction.UI_RESOLUTION))
     }
 
+    /** "My files" chosen in the settings, refused by the device's storage: said on the source's row, until the next change. */
+    @Test
+    fun foldersThatCannotBecomeTheSourceSaySoOnTheSourceRow() = runTest {
+        val vm = settings(testSettings(folder.root, backgroundScope), backgroundScope)
+        vm.actionFailed(SettingAction.SOURCE, UiError.NOT_SAVED)
+        assertEquals(UiError.NOT_SAVED, vm.errorOf(SettingAction.SOURCE))
+        assertNull(vm.errorOf(SettingAction.COLLECTIONS))
+        vm.setCollectionMinFilms(0)
+        assertNull(vm.errorOf(SettingAction.SOURCE))
+    }
+
     /** A folder that could not be removed says so on its own card, not on the others. */
     @Test
     fun aFolderThatCannotBeRemovedSaysSoOnItsCard() = runTest {
