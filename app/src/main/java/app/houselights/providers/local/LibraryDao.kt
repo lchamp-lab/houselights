@@ -123,8 +123,20 @@ interface LibraryDao {
     @Update
     suspend fun update(item: ItemEntity)
 
+    /** The whole row, its NFO text included: what a scan writes back, and what the player is handed artwork from. */
     @Query("SELECT * FROM items WHERE id = :id")
     suspend fun item(id: Long): ItemEntity?
+
+    /** The row as a title's page shows it ([ITEM_ROW]): all of it but its NFO text, which can weigh up to 1 MB. */
+    @Query("SELECT $ITEM_ROW FROM items WHERE id = :id")
+    suspend fun itemRow(id: Long): ItemEntity?
+
+    @Query("SELECT sourceId, nfoPath, nfo FROM items WHERE id = :id")
+    suspend fun nfoOf(id: Long): ItemNfo?
+
+    /** What a report of the player's progress needs of a title: read every ten seconds while it plays. */
+    @Query("SELECT parts, positionMs, durationMs, runtimeMin, played FROM items WHERE id = :id")
+    suspend fun playState(id: Long): PlayState?
 
     /** The rows of a source's files, all but their NFO text: what the tests look at of a scan's work. */
     @Query("SELECT $ITEM_ROW FROM items WHERE sourceId = :sourceId AND filePath IS NOT NULL")

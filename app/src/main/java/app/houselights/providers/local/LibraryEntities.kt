@@ -130,6 +130,19 @@ internal fun ItemEntity.withMedia(info: MediaInfo): ItemEntity =
 /** What a show's card tells about its episodes (see [LibraryDao.seriesCounts]). */
 data class SeriesCounts(val seriesId: Long, val unplayed: Int, val seasons: Int)
 
+/** A title's NFO, where it lies and what it says ([LibraryDao.nfoOf]): what only the screen of the NFO reads. */
+data class ItemNfo(val sourceId: Long, val nfoPath: String?, val nfo: String?)
+
+/** What the player's reports of a film or an episode weigh against ([LibraryDao.playState], [LocalReporter]). */
+data class PlayState(
+    /** See [ItemEntity.parts]. */
+    val parts: List<String>,
+    val positionMs: Long,
+    val durationMs: Long?,
+    val runtimeMin: Int?,
+    val played: Boolean,
+)
+
 /** Where an episode stands for the viewer ([LibraryDao.episodeStates]): what tells the next one to watch. */
 data class EpisodeState(
     val id: Long,

@@ -111,6 +111,30 @@ class ItemRowTest {
         assertEquals("Lists reading what files hold", emptyList<String>(), read.filter { reads(it, "mediaInfo") }.distinct())
     }
 
+    /**
+     * A title's page and what it does, and the reports of its progress every ten seconds while it plays,
+     * read its NFO text only to show it, on the screen of the NFO.
+     */
+    @Test
+    fun aTitleReadsItsNfoTextOnlyToShowIt() = runTest {
+        val films = Library(LocalProvider.MOVIES, LibraryKind.MOVIES, null)
+        val aliens = provider.libraryPage(films, SortOption.TITLE, LibraryFilter(), 0, 50).items.single { it.title == "Aliens" }
+        queries.clear()
+        val page = provider.item(aliens.id)
+        provider.similar(page)
+        assertEquals("Alien", provider.collectionOf(page)?.title)
+        provider.setFavorite(page, true)
+        provider.setPlayed(page, false)
+        checkNotNull(provider.reporter(aliens.id)).progress(120_000, 7_000_000, paused = false)
+        // Room checks what each write changed on a thread of its own, meanwhile.
+        val read = synchronized(queries) { queries.toList() }
+        assertEquals("Read the NFO text", emptyList<String>(), read.filter(::readsNfo).distinct())
+        assertTrue(page.hasNfo)
+
+        val nfo = checkNotNull(provider.nfo(page))
+        assertEquals("nfs://nas/media/Aliens.nfo" to "<movie><plot>Aliens</plot></movie>", nfo.path to nfo.text)
+    }
+
     @Test
     fun theRuleCatchesWhatItShould() {
         listOf(

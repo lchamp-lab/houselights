@@ -181,12 +181,13 @@ class LocalProvider(
     /** The library row of a film, show, season or episode; null for a collection. */
     private fun itemKey(item: MediaItem): Long? = (LocalId.parse(item.id) as? LocalId.Item)?.key
 
-    private suspend fun entity(item: MediaItem): ItemEntity? = itemKey(item)?.let { dao.item(it) }
+    /** [item]'s row, without its NFO text ([LibraryDao.itemRow]). */
+    private suspend fun entity(item: MediaItem): ItemEntity? = itemKey(item)?.let { dao.itemRow(it) }
 
     override suspend fun item(id: String): MediaItem {
         val entity = when (val local = LocalId.parse(id)) {
             is LocalId.Collection -> return mapCollection(dao.collection(local.key) ?: throw NotFoundException("Collection $id"))
-            is LocalId.Item -> dao.item(local.key)
+            is LocalId.Item -> dao.itemRow(local.key)
             null -> null
         } ?: throw NotFoundException("Item $id")
         val castSource = if (entity.kind == ItemKind.MOVIE || entity.kind == ItemKind.SERIES) entity.id else entity.seriesId
@@ -244,10 +245,9 @@ class LocalProvider(
 
     override suspend fun nfo(item: MediaItem): NfoDocument? {
         if (item.kind == MediaKind.COLLECTION) return null
-        val e = entity(item) ?: return null
+        val e = itemKey(item)?.let { dao.nfoOf(it) } ?: return null
         val text = e.nfo ?: return null
-        val source = dao.sources().firstOrNull { it.id == e.sourceId }
-        val path = listOfNotNull(source?.address(), e.nfoPath)
+        val path = listOfNotNull(dao.source(e.sourceId)?.address(), e.nfoPath)
             .joinToString("/")
         return NfoDocument(path, text)
     }
@@ -301,7 +301,8 @@ class LocalProvider(
      * its start; the film itself plays its first part, where its resume point lies.
      */
     override suspend fun playback(item: MediaItem, resume: Boolean, options: PlaybackOptions): PlaybackPlan {
-        val entity = entity(item) ?: throw NotFoundException("Item ${item.id}")
+        // With its NFO: the player is handed its artwork when that is all the web has (see LocalMapper.forPlayer).
+        val entity = itemKey(item)?.let { dao.item(it) } ?: throw NotFoundException("Item ${item.id}")
         val part = (LocalId.parse(item.id) as? LocalId.Item)?.part
         val files = listOfNotNull(entity.filePath) + entity.parts
         // A part gone since the page was shown is a title gone.
