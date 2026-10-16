@@ -84,6 +84,19 @@ class FilenameParserTest {
         assertEquals(ParsedMovie("THE FRENCH CONNECTION", null), movie("THE.FRENCH.CONNECTION.mkv"))
     }
 
+    /** Those words in capitals after nothing but an article are the title's: an article alone is no title to search. */
+    @Test
+    fun wordTagsInCapitalsAfterAnArticleAreTheTitles() {
+        assertEquals(ParsedMovie("The IMAX Experience", null), movie("The IMAX Experience.mkv"))
+        assertEquals(ParsedMovie("The IMAX Experience", 2010), movie("The.IMAX.Experience.2010.1080p.BluRay.mkv"))
+        assertEquals(ParsedMovie("A COMPLETE Unknown", null), movie("A.COMPLETE.Unknown.mkv"))
+        assertEquals(ParsedMovie("L'IMAX du Futur", null), movie("L'IMAX du Futur.mkv"))
+        assertEquals(ParsedMovie("IMAX Hubble 3D", null), movie("IMAX Hubble 3D.mkv"))
+        // Tags after the title are still the release's.
+        assertEquals(ParsedMovie("The IMAX Experience", null), movie("The.IMAX.Experience.PROPER.mkv"))
+        assertEquals(ParsedMovie("The IMAX", null), movie("The.IMAX.1080p.mkv"))
+    }
+
     /** A year to come is a title's number, not its year. */
     @Test
     fun aYearToComeIsPartOfTheTitle() {

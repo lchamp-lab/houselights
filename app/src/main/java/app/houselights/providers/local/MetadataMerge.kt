@@ -85,8 +85,11 @@ data class LocalArt(
  * Artwork: files next to the video, then the NFO's addresses, then TMDB.
  */
 object MetadataMerge {
+    /** Articles titles start with, which sorting passes over; l' and l’ besides, glued to their word. */
+    internal const val ARTICLE_WORDS = "the|a|an|le|la|les|un|une|des"
+
     /** A leading article, l' and l’ glued to the word ("L'Arnaque") as well. */
-    private val ARTICLES = Regex("""(?i)^(?:(?:the|a|an|le|la|les|un|une|des)\s+|l['’]\s*)""")
+    private val ARTICLES = Regex("""(?i)^(?:(?:$ARTICLE_WORDS)\s+|l['’]\s*)""")
     private val MARKS = Regex("""\p{M}+""")
 
     /** Letters that NFD does not take apart into a base letter and its accent. */

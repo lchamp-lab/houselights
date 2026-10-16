@@ -114,7 +114,8 @@ object FilenameParser {
      * [s] up to its release tags: from the run of tags that leads to the first one no title holds as a
      * word ("MULTi.2160p", "FRENCH.1080p"). Without such a tag, words that are tags at times stay:
      * "The French Connection", "Charlotte's Web", "A Proper Man". In capitals, in a name that has small
-     * letters, they are a release's too: "Le.Film.FRENCH", "Inception.PROPER", "Movie.EXTENDED.CUT".
+     * letters, they are a release's too: "Le.Film.FRENCH", "Inception.PROPER", "Movie.EXTENDED.CUT"; unless
+     * nothing but an article comes before them, which no film is named: "The IMAX Experience".
      */
     private fun beforeTags(s: String): String {
         val cased = s.any(Char::isLowerCase)
@@ -124,13 +125,21 @@ object FilenameParser {
             val joined = runEnd >= 0 && s.substring(runEnd, tag.range.first).all { it in BETWEEN_TAGS }
             if (!joined) runStart = tag.range.first
             runEnd = tag.range.last + 1
-            if (TECHNICAL.matches(tag.value) || cased && inCapitals(tag.value)) return s.substring(0, runStart)
+            if (TECHNICAL.matches(tag.value)) return s.substring(0, runStart)
+            if (cased && inCapitals(tag.value)) {
+                if (!NO_TITLE.matches(s.substring(0, runStart))) return s.substring(0, runStart)
+                // The title's word, it starts no run of tags: "The.IMAX.1080p" is "The IMAX".
+                runEnd = -1
+            }
         }
         return s
     }
 
     /** A tag written as scene groups write theirs: "FRENCH", "PROPER", "iNTERNAL", but not "4K", a letter alone. */
     private fun inCapitals(tag: String) = tag.count(Char::isLetter) > 1 && tag.drop(1).none(Char::isLowerCase)
+
+    /** What is no title before a tag: nothing, or an article alone ("The ", "L'", "Die "). */
+    private val NO_TITLE = Regex("""(?i)^[ ._-]*(?:(?:${MetadataMerge.ARTICLE_WORDS}|der|die|das)[ ._-]*|l['’])?$""")
 
     /**
      * The episode a file's name gives, and its show's title (see [parseShowPath]).
