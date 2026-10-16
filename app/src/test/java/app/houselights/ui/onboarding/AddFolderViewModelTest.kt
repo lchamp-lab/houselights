@@ -42,7 +42,9 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import app.houselights.ui.util.UiError
 import java.io.IOException
+import java.security.ProviderException
 import javax.crypto.KeyGenerator
 
 /**
@@ -119,15 +121,17 @@ class AddFolderViewModelTest {
             calls += "test ${folder.host} with ${folder.password.value}"
             12
         },
+        library: LocalLibrary = this.library,
+        useFolders: suspend () -> Boolean = {
+            calls += "use folders"
+            true
+        },
     ): AddFolderViewModel {
         val factory = viewModelFactory {
             initializer {
                 AddFolderViewModel(
                     library, folderId, app,
-                    useFolders = {
-                        calls += "use folders"
-                        true
-                    },
+                    useFolders = useFolders,
                     probe = probe,
                     forgetSessions = { calls += "forget ${it.host}/${it.share}" },
                 )
@@ -260,5 +264,61 @@ class AddFolderViewModelTest {
         assertEquals(ScanErrorKind.LOGIN_FAILED, (vm.check as FolderCheck.Failed).error.kind)
         assertEquals("192.168.1.10", dao.source(id)!!.host)
         assertFalse(vm.busy)
+    }
+
+    /** The same folder again, or one inside it: refused before the network, with the folder it would double. */
+    @Test
+    fun aFolderTheLibraryHoldsIsRefusedBeforeItIsTested() = runTest {
+        network.complete(Unit)
+        smbFolder()
+        val vm = form(null)
+        advanceUntilIdle()
+        vm.edit { copy(protocol = Protocol.SMB, host = "192.168.1.10", share = "media", path = "films/4K", user = "kodi") }
+        vm.submit { fail("added a folder the library holds") }
+        advanceUntilIdle()
+        val check = vm.check as FolderCheck.Overlaps
+        assertEquals("films", check.existing.name)
+        assertFalse(check.same)
+        assertEquals(emptyList<String>(), calls)
+        assertEquals(1, dao.sources().size)
+        assertFalse(vm.busy)
+    }
+
+    /** The storage full when the source changes: said in the form, never a crash. */
+    @Test
+    fun aFolderThatCannotBeSavedSaysWhy() = runTest {
+        val vm = form(null, useFolders = { throw IOException("No space left on device") })
+        advanceUntilIdle()
+        vm.edit { copy(protocol = Protocol.NFS, host = "192.168.1.10", share = "/volume1/media") }
+        vm.submit { fail("said saved") }
+        advanceUntilIdle()
+        assertEquals(FolderCheck.SaveFailed(UiError.NOT_SAVED), vm.check)
+        assertFalse(vm.busy)
+    }
+
+    /** The Keystore refuses to seal the password: the folder is not added, and the form says why. */
+    @Test
+    fun aPasswordTheKeystoreCannotSealSaysWhy() = runTest {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val broken = Room.inMemoryDatabaseBuilder(context, LibraryDatabase::class.java)
+            .addTypeConverter(SecretConverter(Secrets { throw ProviderException("Keystore operation failed") }))
+            .allowMainThreadQueries()
+            .setQueryExecutor(Runnable::run)
+            .setTransactionExecutor(Runnable::run)
+            .build()
+        try {
+            val artwork = ArtworkCache(context.cacheDir.resolve("artwork"))
+            val idle = CoroutineScope(Job().apply { cancel() })
+            val sealing = LocalLibrary(context, broken.dao(), LibraryScanner(broken.dao(), { null }, idle, artwork), artwork) {}
+            val vm = form(null, library = sealing)
+            advanceUntilIdle()
+            vm.edit { copy(protocol = Protocol.SMB, host = "192.168.1.10", share = "media", user = "kodi", password = "secret") }
+            vm.submit { fail("said saved") }
+            advanceUntilIdle()
+            assertEquals(FolderCheck.SaveFailed(UiError.KEYSTORE), vm.check)
+            assertTrue(broken.dao().sources().isEmpty())
+        } finally {
+            broken.close()
+        }
     }
 }

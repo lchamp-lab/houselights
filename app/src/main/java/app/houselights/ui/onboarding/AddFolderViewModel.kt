@@ -12,6 +12,7 @@ import app.houselights.AppContainer
 import app.houselights.R
 import app.houselights.core.SourceConfig
 import app.houselights.core.suspendRunCatching
+import app.houselights.providers.local.FolderSave
 import app.houselights.providers.local.LocalLibrary
 import app.houselights.providers.local.Protocol
 import app.houselights.providers.local.RemoteBrowser
@@ -22,6 +23,10 @@ import app.houselights.providers.local.Secret
 import app.houselights.providers.local.SmbBrowser
 import app.houselights.providers.local.SourceEntity
 import app.houselights.providers.local.SourceKind
+import app.houselights.providers.local.samePlace
+import app.houselights.ui.util.UiError
+import app.houselights.ui.util.launchAction
+import app.houselights.ui.util.toWriteError
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -84,13 +89,22 @@ data class FolderForm(
     }
 }
 
-/** How the folder answered a test. */
+/** How the folder answered a test, or why it was not saved. */
 sealed interface FolderCheck {
     data class Incomplete(@StringRes val message: Int) : FolderCheck
 
     data class Reachable(val entries: Int) : FolderCheck
 
     data class Failed(val error: ScanError, val host: String) : FolderCheck
+
+    /**
+     * [existing], already in the library, is this folder ([same]) or one inside or around it: its
+     * titles would show twice. Nothing was asked of the network, nothing was saved.
+     */
+    data class Overlaps(val existing: SourceEntity, val same: Boolean) : FolderCheck
+
+    /** The folder answered, but writing it failed (the device's storage, its Keystore): nothing was saved. */
+    data class SaveFailed(val error: UiError) : FolderCheck
 }
 
 /**
@@ -155,8 +169,12 @@ class AddFolderViewModel(
     var saving by mutableStateOf(false)
         private set
 
+    /** Add (or Save) pressed, until it is done or said why not: a second OK meanwhile changes nothing. */
+    var submitting by mutableStateOf(false)
+        private set
+
     /** Testing or saving: the other action waits. */
-    val busy: Boolean get() = testing || saving
+    val busy: Boolean get() = testing || saving || submitting
 
     /** The folder edited, as stored; null while it is read, and when a folder is added. */
     private var editing: SourceEntity? = null
@@ -229,33 +247,69 @@ class AddFolderViewModel(
 
     /**
      * Tests the folder, then adds it to the library and makes the local library the source, or saves
-     * the folder edited under its id: its titles keep what was watched and chosen. [onDone] hears
-     * whether the source changed (it was a server, or nothing yet), unless the form was left meanwhile.
+     * the folder edited under its id: its titles keep what was watched and chosen. A folder the library
+     * already holds, or one inside or around it, is refused first. [onDone] hears whether the source
+     * changed (it was a server, or nothing yet), unless the form was left meanwhile. A write that fails
+     * says why in [check].
      */
     fun submit(onDone: (switched: Boolean) -> Unit) {
         if (busy || !ready || gone) return
         val source = toTest() ?: return
-        viewModelScope.launch {
-            if (!reaches(source)) return@launch
-            saving = true
-            val switched = try {
-                // In the app's scope: Back leaving the form does not stop a folder half saved, before its scan.
-                background.async { save(source) }.await()
+        submitting = true
+        viewModelScope.launchAction(TAG, "Saving the folder at ${source.host}", ::saveFailed, Throwable::toWriteError) {
+            try {
+                library.overlapping(source, except = folderId)?.let {
+                    check = FolderCheck.Overlaps(it, same = it.samePlace(source))
+                    return@launchAction
+                }
+                if (!reaches(source)) return@launchAction
+                when (val saved = saveInBackground(source)) {
+                    is Saved.Done -> onDone(saved.switched)
+                    Saved.Gone -> gone = true
+                    is Saved.Overlaps -> check = FolderCheck.Overlaps(saved.existing, same = saved.existing.samePlace(source))
+                }
             } finally {
-                saving = false
+                submitting = false
             }
-            if (switched == null) gone = true else onDone(switched)
         }
     }
 
-    /** Whether saving [folder] changed the source; null when the folder edited is gone, and nothing was saved. */
-    private suspend fun save(folder: SourceEntity): Boolean? = when {
-        folderId == null -> {
-            library.addFolder(folder)
-            useFolders()
+    private fun saveFailed(error: UiError) {
+        check = FolderCheck.SaveFailed(error)
+    }
+
+    /** What saving did. */
+    private sealed interface Saved {
+        /** Saved; [switched] when the source changed. */
+        data class Done(val switched: Boolean) : Saved
+
+        data object Gone : Saved
+
+        data class Overlaps(val existing: SourceEntity) : Saved
+    }
+
+    /**
+     * Saves [folder] in the app's scope: Back leaving the form does not stop a folder half saved,
+     * before its scan. A failure there is logged even when no form is left to say it.
+     */
+    private suspend fun saveInBackground(folder: SourceEntity): Saved {
+        saving = true
+        try {
+            return background.async {
+                suspendRunCatching { save(folder) }.onFailure { Log.w(TAG, "The folder at ${folder.host} was not saved", it) }
+            }.await().getOrThrow()
+        } finally {
+            saving = false
         }
-        library.updateFolder(folderId, folder) -> false
-        else -> null
+    }
+
+    private suspend fun save(folder: SourceEntity): Saved {
+        val result = if (folderId == null) library.addFolder(folder) else library.updateFolder(folderId, folder)
+        return when (result) {
+            FolderSave.Saved -> Saved.Done(switched = folderId == null && useFolders())
+            FolderSave.Gone -> Saved.Gone
+            is FolderSave.Overlaps -> Saved.Overlaps(result.existing)
+        }
     }
 
     /** Tests [source] and says how it answered: true when it did. */
@@ -271,10 +325,12 @@ class AddFolderViewModel(
         answer
             .onSuccess { count -> check = FolderCheck.Reachable(count) }
             .onFailure { e ->
-                Log.w("AddFolder", "Test of ${source.host} failed", e)
+                Log.w(TAG, "Test of ${source.host} failed", e)
                 check = FolderCheck.Failed(ScanErrors.classify(e), source.host)
             }
         testing = false
         return answer.isSuccess
     }
 }
+
+private const val TAG = "AddFolder"

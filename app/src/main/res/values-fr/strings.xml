@@ -184,6 +184,10 @@
     <string name="connection_failed">Connexion impossible</string>
     <string name="folder_gone_state">Dossier introuvable</string>
     <string name="folder_gone">Ce dossier ne fait plus partie de la bibliothèque : il a été retiré entre-temps. Revenez aux réglages pour l’ajouter à nouveau.</string>
+    <string name="folder_already_added">Ce dossier est déjà dans la bibliothèque, sous le nom « %s ».</string>
+    <string name="folder_overlaps">Ce dossier recoupe « %s », déjà dans la bibliothèque : ses titres apparaîtraient deux fois. Choisissez un autre dossier, ou modifiez celui-là dans les réglages.</string>
+    <string name="folder_overlaps_state">Déjà dans la bibliothèque</string>
+    <string name="folder_not_saved_state">Non enregistré</string>
     <string name="saving">Enregistrement…</string>
     <plurals name="entries_found">
         <item quantity="one">%d élément trouvé</item>

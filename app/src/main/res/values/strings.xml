@@ -192,6 +192,10 @@
     <string name="connection_failed">Cannot connect</string>
     <string name="folder_gone_state">Folder not found</string>
     <string name="folder_gone">This folder is no longer in the library: it was removed meanwhile. Go back to the settings to add it again.</string>
+    <string name="folder_already_added">This folder is already in the library, as “%s”.</string>
+    <string name="folder_overlaps">This folder overlaps “%s”, already in the library: its titles would show twice. Choose another folder, or edit that one in Settings.</string>
+    <string name="folder_overlaps_state">Already in the library</string>
+    <string name="folder_not_saved_state">Not saved</string>
     <string name="saving">Saving…</string>
     <plurals name="entries_found">
         <item quantity="one">%d item found</item>
