@@ -1,6 +1,7 @@
 package app.houselights.providers.local
 
 import android.content.Context
+import android.util.Log
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
@@ -8,6 +9,7 @@ import androidx.room.TypeConverters
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import app.houselights.core.Secrets
+import app.houselights.core.SecretsUnavailableException
 
 @Database(entities = [SourceEntity::class, ItemEntity::class, CastEntity::class, CollectionEntity::class], version = 9)
 @TypeConverters(SecretConverter::class, PipeList::class)
@@ -60,7 +62,7 @@ abstract class LibraryDatabase : RoomDatabase() {
             }
         }
 
-        /** Seals the passwords stored in plain text so far, and indexes what lists sort and filter on. */
+        /** What a library already holds was found by its first scans (see [SourceEntity.firstScanAt]). */
         private val MIGRATION_7_8 = object : Migration(7, 8) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE sources ADD COLUMN firstScanAt INTEGER NOT NULL DEFAULT 0")
@@ -76,13 +78,25 @@ abstract class LibraryDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * Seals the passwords stored in plain text so far, and indexes what lists sort and filter on.
+         * A Keystore that cannot seal leaves a password
+         * as it is: read as plain text, it still signs in, and it is sealed when the folder is next
+         * saved; the library still opens.
+         */
         internal fun migration6To7(secrets: Secrets) = object : Migration(startVersion = 6, endVersion = 7) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.query("SELECT id, password FROM sources").use { rows ->
                     while (rows.moveToNext()) {
                         val password = rows.getString(1)
                         if (password.isEmpty() || secrets.isSealed(password)) continue
-                        db.execSQL("UPDATE sources SET password = ? WHERE id = ?", arrayOf<Any>(secrets.seal(password), rows.getLong(0)))
+                        val sealed = try {
+                            secrets.seal(password)
+                        } catch (e: SecretsUnavailableException) {
+                            Log.w("Library", "The password of folder ${rows.getLong(0)} left unsealed", e)
+                            continue
+                        }
+                        db.execSQL("UPDATE sources SET password = ? WHERE id = ?", arrayOf<Any>(sealed, rows.getLong(0)))
                     }
                 }
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_items_kind_sortTitle` ON `items` (`kind`, `sortTitle`)")

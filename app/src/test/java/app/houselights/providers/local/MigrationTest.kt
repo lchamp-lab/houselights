@@ -10,6 +10,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import java.security.ProviderException
 import javax.crypto.KeyGenerator
 
 @RunWith(RobolectricTestRunner::class)
@@ -38,6 +39,28 @@ class MigrationTest {
             assertTrue(secrets.isSealed(raw[0]))
             assertEquals("", raw[1])
             assertEquals(listOf("s3cret", ""), db.dao().sources().sortedBy { it.id }.map { it.password.value })
+        } finally {
+            db.close()
+            context.deleteDatabase(name)
+        }
+    }
+
+    /** A Keystore that cannot seal leaves the password as it was: the library still opens, the folder still signs in. */
+    @Test
+    fun version7KeepsAPasswordTheKeystoreCannotSeal() = runTest {
+        val name = "migration-7-broken-test.db"
+        context.deleteDatabase(name)
+        SchemaHistory.create(context, name, version = 6) {
+            val columns = "(id, name, kind, protocol, host, share, path, username, password, domain, lastScanAt)"
+            execSQL("INSERT INTO sources $columns VALUES (1, 'Films', 'MOVIES', 'SMB', 'nas', 'media', 'films', 'zidoo', 's3cret', '', 0)")
+        }
+        val broken = Secrets { throw ProviderException("Keystore operation failed") }
+        val db = Room.databaseBuilder(context, LibraryDatabase::class.java, name)
+            .addTypeConverter(SecretConverter(broken))
+            .addMigrations(*LibraryDatabase.migrations(broken))
+            .build()
+        try {
+            assertEquals(listOf("s3cret"), db.dao().sources().map { it.password.value })
         } finally {
             db.close()
             context.deleteDatabase(name)
