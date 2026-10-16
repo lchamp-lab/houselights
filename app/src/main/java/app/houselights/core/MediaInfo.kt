@@ -271,9 +271,6 @@ data class MediaInfo(
             return size * 8 / ms
         }
 
-    /** The track the player starts with: the default one, else the first. */
-    val mainAudio: AudioTrack? get() = audio.firstOrNull { it.default } ?: audio.firstOrNull()
-
     /** Short format marks for badges and filters: 4K, Dolby Vision, HDR10, TrueHD Atmos, 7.1. */
     fun badges(): List<String> = buildList {
         video?.definition?.let { add(it.token) }
