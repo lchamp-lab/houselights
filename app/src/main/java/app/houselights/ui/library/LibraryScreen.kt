@@ -19,6 +19,8 @@ import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -100,15 +102,12 @@ fun LibraryScreen(
     val state by vm.state.collectAsStateWithLifecycle()
 
     // The title last selected stays on the screen while focus is on the buttons, and is found again
-    // coming back; before any, or once a filter takes it off the wall, the first title.
-    var selectedId by rememberSaveable { mutableStateOf<String?>(null) }
-    val selected = remember(selectedId, state.items) { state.items.find { it.id == selectedId } ?: state.items.firstOrNull() }
-    // The backdrop only changes once focus settles: no image load on every step across the wall.
-    var shown by remember { mutableStateOf<MediaItem?>(null) }
-    LaunchedEffect(selected) {
-        if (shown != null) delay(HlMotion.SETTLE)
-        shown = selected
-    }
+    // coming back; before any, or once a filter takes it off the wall, the first title. Set at every
+    // step across the wall, it is only read in [ShowOnceSettled]: a step recomposes that alone, never
+    // the header.
+    val selectedId = rememberSaveable { mutableStateOf<String?>(null) }
+    val shown = remember { mutableStateOf<MediaItem?>(null) }
+    ShowOnceSettled(selectedId, state.items, shown)
     val gridFocus = remember { FocusRequester() }
     var gridHasFocus by remember { mutableStateOf(false) }
     val gridState = rememberLazyGridState()
@@ -120,9 +119,10 @@ fun LibraryScreen(
         if (index >= 0) gridState.scrollToItem(index)
         index >= 0
     }
-    // Past the first line, Back returns to the first poster; from the first line, it goes home.
-    var focusedIndex by remember { mutableStateOf<Int?>(null) }
-    BackToStart(away = backReturnsToFirst(focusedIndex)) {
+    // Past the first line, Back returns to the first poster; from the first line, it goes home. Set
+    // at every step too, and read in [BackToFirstPoster] alone.
+    val focusedIndex = remember { mutableStateOf<Int?>(null) }
+    BackToFirstPoster(focusedIndex) {
         gridState.animateScrollToItem(0)
         runCatching { gridFocus.requestFocus() }
     }
@@ -143,10 +143,10 @@ fun LibraryScreen(
         }
     }
 
-    val ambient = rememberAmbientColor(shown?.backdrop)
+    val ambient = rememberAmbientColor(shown.value?.backdrop)
     CompositionLocalProvider(LocalAmbient provides { ambient.value }) {
         Box(Modifier.fillMaxSize()) {
-            Backdrop(shown?.backdrop, BackdropStyle.Quiet)
+            Backdrop(shown.value?.backdrop, BackdropStyle.Quiet)
             Column(Modifier.fillMaxSize()) {
                 Row(
                     Modifier.fillMaxWidth().padding(start = HlSpace.safeH, end = HlSpace.safeH, top = HlSpace.safeV),
@@ -187,7 +187,7 @@ fun LibraryScreen(
                         .height(HlLayout.infoLine),
                     contentAlignment = Alignment.CenterStart,
                 ) {
-                    shown?.let { TitleLine(it) }
+                    shown.value?.let { TitleLine(it) }
                 }
                 // Trying again keeps the error on screen, its button at work, until the answer.
                 val wallError = retainedError(state.error?.takeIf { state.items.isEmpty() }, retrying = state.loading)
@@ -217,7 +217,7 @@ fun LibraryScreen(
                         modifier = Modifier.fillMaxSize().onFocusChanged {
                             gridHasFocus = it.hasFocus
                             // Leaving the wall for the buttons above: the title selected stays.
-                            if (!it.hasFocus) focusedIndex = null
+                            if (!it.hasFocus) focusedIndex.value = null
                         },
                     ) {
                         itemsIndexed(state.items, key = { _, it -> it.id }) { index, item ->
@@ -226,8 +226,8 @@ fun LibraryScreen(
                                 onClick = { onOpenItem(item) },
                                 width = null,
                                 onFocused = {
-                                    selectedId = item.id
-                                    focusedIndex = index
+                                    selectedId.value = item.id
+                                    focusedIndex.value = index
                                     // The first line sits under the padding: show it all.
                                     if (index < COLUMNS) scope.launch { gridState.animateScrollToItem(0) }
                                     if (index > state.items.size - COLUMNS * 3) vm.loadMore()
@@ -264,6 +264,27 @@ private val RETRY_PAGE = FocusKey.action("retry-page")
 
 /** Back returns to the first poster from past the first line of the wall; from the first line, it leaves. */
 internal fun backReturnsToFirst(focusedIndex: Int?): Boolean = focusedIndex != null && focusedIndex >= COLUMNS
+
+/**
+ * Follows the title [selectedId] names among [items], and shows it ([shown]) once focus settles:
+ * the backdrop loads no image on every step across the wall. The selection is read here, so a step
+ * recomposes this alone.
+ */
+@Composable
+private fun ShowOnceSettled(selectedId: State<String?>, items: List<MediaItem>, shown: MutableState<MediaItem?>) {
+    val id = selectedId.value
+    val selected = remember(id, items) { items.find { it.id == id } ?: items.firstOrNull() }
+    LaunchedEffect(selected) {
+        if (shown.value != null) delay(HlMotion.SETTLE)
+        shown.value = selected
+    }
+}
+
+/** Back past the first line of the wall ([focusedIndex]) runs [toFirst]: read here, a step recomposes this alone. */
+@Composable
+private fun BackToFirstPoster(focusedIndex: State<Int?>, toFirst: suspend () -> Unit) {
+    BackToStart(away = backReturnsToFirst(focusedIndex.value), toStart = toFirst)
+}
 
 /** Empty frames where the wall will be, laid out like it, once loading takes long enough to be seen. */
 @Composable

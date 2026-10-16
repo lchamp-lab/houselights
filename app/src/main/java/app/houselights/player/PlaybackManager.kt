@@ -172,8 +172,20 @@ class PlaybackManager(
      * polls without an answer, it is asked every [SLOW_POLL_MS] only, so that what it says next still
      * counts, until the title can no longer be playing ([silenceAllowedMs]). That also ends [playing]:
      * an API gone with its player never holds the NAS for good.
+     *
+     * The position is written down ([keep]) at the backend's pace, and once more when tracking stops
+     * while the session goes on: each write rewrites the file and syncs it to the flash.
      */
     private suspend fun track(s: Session) {
+        try {
+            poll(s)
+        } finally {
+            // Not once the player's result has ended the session: it cleared what was written down.
+            if (currentCoroutineContext().isActive) keep(s)
+        }
+    }
+
+    private suspend fun poll(s: Session) {
         var heardAt = clock()
         delay(FIRST_POLL_MS)
         var tick = 0
@@ -187,7 +199,10 @@ class PlaybackManager(
                     idle = 0
                     unanswered = 0
                     follow(s, answer.state)
-                    if (!s.switched && tick % REPORT_EVERY == 0) report { s.reporter?.progress(s.positionMs, s.durationMs, s.paused) }
+                    if (!s.switched && tick % REPORT_EVERY == 0) {
+                        keep(s)
+                        report { s.reporter?.progress(s.positionMs, s.durationMs, s.paused) }
+                    }
                 }
                 // Before a first status, the player may still be opening the file.
                 PlayerAnswer.NothingPlays -> if (s.durationMs != null) {
@@ -250,7 +265,11 @@ class PlaybackManager(
         s.positionMs = state.positionMs
         s.durationMs = state.durationMs
         s.paused = state.paused
-        saved.edit().putLong(KEY_POSITION, state.positionMs).apply()
+    }
+
+    /** Writes down where the session is: a new process finds it there if Android stops this one (see [saved]). */
+    private fun keep(s: Session) {
+        saved.edit().putLong(KEY_POSITION, s.positionMs).apply()
     }
 
     /** Player result: final position in ms when the player returns it. */

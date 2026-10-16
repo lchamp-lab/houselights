@@ -1,9 +1,12 @@
 package app.houselights.ui.design
 
 import androidx.compose.runtime.saveable.SaverScope
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -78,6 +81,21 @@ class FocusTest {
         assertEquals("action:nfo", memory.last)
         val saved = with(FocusMemory.Saver) { SaverScope { true }.save(memory) }
         assertEquals("action:nfo", FocusMemory.Saver.restore(saved!!)?.last)
+    }
+
+    /**
+     * A card of a row says it had focus with the same modifier at each composition: a surface given
+     * an equal modifier, and equal arguments otherwise, skips when its row is entered.
+     */
+    @Test
+    fun aGroupMemberIsTheSameModifierFromOneCompositionToTheNext() {
+        val group = GroupFocus()
+        val self = FocusRequester()
+        assertEquals(Modifier.rememberedInGroup(group, self), Modifier.rememberedInGroup(group, self))
+        assertNotEquals(Modifier.rememberedInGroup(group, FocusRequester()), Modifier.rememberedInGroup(group, self))
+        assertNotEquals(Modifier.rememberedInGroup(GroupFocus(), self), Modifier.rememberedInGroup(group, self))
+        // Outside a group, nothing.
+        assertEquals(Modifier, Modifier.rememberedInGroup(null, self))
     }
 
     @Test

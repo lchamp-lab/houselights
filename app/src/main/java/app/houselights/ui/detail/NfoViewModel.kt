@@ -9,17 +9,32 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import app.houselights.AppContainer
 import app.houselights.core.MediaProvider
 import app.houselights.core.NfoDocument
+import app.houselights.core.NfoInfo
 import app.houselights.core.suspendRunCatching
 import app.houselights.ui.util.LoadState
 import app.houselights.ui.util.toUiError
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlin.coroutines.CoroutineContext
+
+/**
+ * An NFO as the screen shows it, ready: where it is, what it says (null when it does not read), and
+ * its XML as written, line by line.
+ */
+data class NfoContent(val path: String, val info: NfoInfo?, val lines: List<String>)
 
 /** A title and its NFO; a title without one is [LoadState.Ready] with null. */
-data class NfoState(val title: String = "", val document: LoadState<NfoDocument?> = LoadState.Loading)
+data class NfoState(val title: String = "", val document: LoadState<NfoContent?> = LoadState.Loading)
 
-class NfoViewModel(private val itemId: String, private val provider: () -> MediaProvider) : ViewModel() {
+class NfoViewModel(
+    private val itemId: String,
+    private val provider: () -> MediaProvider,
+    /** Where the NFO is parsed and split: up to 1 MB of XML, never on the main thread. */
+    private val parsing: CoroutineContext = Dispatchers.Default,
+) : ViewModel() {
     private val _state = MutableStateFlow(NfoState())
     val state: StateFlow<NfoState> = _state
 
@@ -33,7 +48,8 @@ class NfoViewModel(private val itemId: String, private val provider: () -> Media
             suspendRunCatching {
                 val provider = provider()
                 val item = provider.item(itemId)
-                NfoState(item.title, LoadState.Ready(provider.nfo(item)))
+                val document = provider.nfo(item)
+                NfoState(item.title, LoadState.Ready(document?.let { nfo -> withContext(parsing) { nfo.content() } }))
             }.onSuccess { _state.value = it }
                 .onFailure { e ->
                     Log.w("Nfo", "NFO of $itemId failed", e)
@@ -48,3 +64,6 @@ class NfoViewModel(private val itemId: String, private val provider: () -> Media
         }
     }
 }
+
+/** What the screen shows of the NFO: its details parsed and set for display, and its text in lines, as one text would break it. */
+private fun NfoDocument.content() = NfoContent(path, info, text.trim().split('\n'))

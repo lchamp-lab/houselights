@@ -1,0 +1,71 @@
+package app.houselights.ui.design.components
+
+import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.drawable.BitmapDrawable
+import android.net.Uri
+import androidx.test.core.app.ApplicationProvider
+import coil.ImageLoader
+import coil.decode.DataSource
+import coil.decode.ImageSource
+import coil.fetch.Fetcher
+import coil.fetch.SourceResult
+import coil.request.SuccessResult
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.test.runTest
+import okio.Buffer
+import org.junit.Assert.assertEquals
+import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.GraphicsMode
+import java.io.ByteArrayOutputStream
+
+/** A backdrop is decoded at most at the size of its file: the layer it is drawn into enlarges it. */
+@RunWith(RobolectricTestRunner::class)
+@GraphicsMode(GraphicsMode.Mode.NATIVE)
+class BackdropTest {
+    private val context: Context = ApplicationProvider.getApplicationContext()
+
+    /** Serves, for any test:// address, a PNG file of [width] by [height], as a disk would. */
+    private fun files(width: Int, height: Int) = Fetcher.Factory<Uri> { data, _, _ ->
+        if (data.scheme != "test") null else Fetcher {
+            val png = ByteArrayOutputStream().also {
+                Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888).compress(Bitmap.CompressFormat.PNG, 100, it)
+            }
+            SourceResult(ImageSource(Buffer().write(png.toByteArray()), context), mimeType = "image/png", dataSource = DataSource.DISK)
+        }
+    }
+
+    /** The backdrop of a screen of [SCREEN_W] by [SCREEN_H], as decoded from a file of [width] by [height]. */
+    private fun decoded(width: Int, height: Int): Bitmap {
+        val loader = ImageLoader.Builder(context)
+            .dispatcher(Dispatchers.Unconfined)
+            .allowHardware(false)
+            .components { add(files(width, height)) }
+            .build()
+        lateinit var bitmap: Bitmap
+        runTest {
+            val result = loader.execute(backdropRequest(context, "test://backdrop/42", SCREEN_W, SCREEN_H)) as SuccessResult
+            bitmap = (result.drawable as BitmapDrawable).bitmap
+        }
+        return bitmap
+    }
+
+    @Test
+    fun aSmallerFileIsNotEnlargedInMemory() {
+        val picture = decoded(1280, 720)
+        assertEquals(1280 to 720, picture.width to picture.height)
+    }
+
+    @Test
+    fun aLargerFileStillComesDownToTheScreen() {
+        val picture = decoded(3840, 2160)
+        assertEquals(SCREEN_W to SCREEN_H, picture.width to picture.height)
+    }
+
+    private companion object {
+        const val SCREEN_W = 1920
+        const val SCREEN_H = 1080
+    }
+}

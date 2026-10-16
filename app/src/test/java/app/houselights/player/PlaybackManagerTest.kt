@@ -2,6 +2,7 @@ package app.houselights.player
 
 import android.app.Application
 import android.content.ComponentName
+import android.content.Context
 import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageInfo
@@ -135,6 +136,34 @@ class PlaybackManagerTest {
         manager.onPlayerResult(result(31_000))
         advanceUntilIdle()
         assertEquals("stopped 31000 / $HEAT", reports.last())
+    }
+
+    /**
+     * Each write of the position rewrites its file and syncs it to the flash: it is written at the
+     * backend's pace, some ten seconds, not at every status, and once more as tracking stops.
+     */
+    @Test
+    fun thePositionIsWrittenDownAtTheReportsPace() = runTest {
+        val manager = manager()
+        val kept = context.getSharedPreferences("playback", Context.MODE_PRIVATE)
+        manager.intentFor(plan())
+        statuses += (1..8).map { playing(it * 2_000L) } + List(15) { PlayerAnswer.NothingPlays }
+        manager.onPlayerLaunched()
+        advanceTimeBy(4_000 + 1)
+        assertEquals("The first status is written down", 2_000L, kept.getLong(POSITION, -1))
+        advanceTimeBy(2_000 * 4L)
+        assertEquals("Written down at every status", 2_000L, kept.getLong(POSITION, -1))
+        advanceTimeBy(2_000)
+        assertEquals(12_000L, kept.getLong(POSITION, -1))
+        // Two more statuses, then the player says nothing plays until tracking stops.
+        advanceTimeBy(2_000 * 18L)
+        assertFalse(manager.playing.value)
+        assertEquals("The last status is written down as tracking stops", 16_000L, kept.getLong(POSITION, -1))
+
+        manager.onPlayerResult(result(20_000))
+        advanceUntilIdle()
+        assertEquals("stopped 20000 / $HEAT", reports.last())
+        assertFalse(kept.contains(POSITION))
     }
 
     /** "Next" pressed in the middle of the film: the player went on to the next file of the folder, what it says is not this title's. */
@@ -340,6 +369,8 @@ class PlaybackManagerTest {
     }
 
     private companion object {
+        /** Where the manager writes the position down. */
+        const val POSITION = "position_ms"
         const val HEAT = 10_200_000L
         const val FILM = 7_200_000L
         const val EPISODE = 210_000L

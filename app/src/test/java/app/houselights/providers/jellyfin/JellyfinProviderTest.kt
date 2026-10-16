@@ -1,12 +1,18 @@
 package app.houselights.providers.jellyfin
 
+import app.houselights.core.Library
+import app.houselights.core.LibraryFilter
+import app.houselights.core.LibraryKind
 import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
 import app.houselights.core.PlaybackOptions
 import app.houselights.core.PlaybackPlan
 import app.houselights.core.SectionType
+import app.houselights.core.SortOption
 import app.houselights.core.SourceConfig
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
@@ -23,6 +29,7 @@ import java.io.IOException
 import java.net.ConnectException
 import java.net.SocketTimeoutException
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.coroutines.CoroutineContext
 
 /** The Jellyfin provider against a test server: what it writes, what it reports, how it fails. */
 @RunWith(RobolectricTestRunner::class)
@@ -204,6 +211,66 @@ class JellyfinProviderTest {
         assertTrue((provider(bluRay).playback(film, resume = false, options) as PlaybackPlan.Launch).disc)
         val file = FakeServer { Answer(200, item("VideoFile", "mkv")) }
         assertFalse((provider(file).playback(film, resume = false, options) as PlaybackPlan.Launch).disc)
+    }
+
+    /** Home loads the libraries, then its rows, which need them too: the server is asked for them once. */
+    @Test
+    fun homeAsksForTheLibrariesOnce() = runTest {
+        val server = FakeServer { request ->
+            when (request.url.encodedPath) {
+                "/UserViews" -> Answer(200, views)
+                "/Items/Latest" -> Answer(200, "[]")
+                else -> Answer(200, oneFilm)
+            }
+        }
+        val provider = provider(server)
+        assertEquals(listOf("lib1"), provider.libraries().map { it.id })
+        provider.home()
+        assertEquals(1, server.paths.count { it == "/UserViews" })
+        assertTrue("The latest of the library were not asked for", "/Items/Latest" in server.paths)
+        // Home loaded again on its own asks for them anew.
+        provider.home()
+        assertEquals(2, server.paths.count { it == "/UserViews" })
+    }
+
+    /** A wall shows a title's year and facts: its overview and genres are not asked for. */
+    @Test
+    fun aWallAsksOnlyForWhatItShows() = runTest {
+        val server = FakeServer { Answer(200, oneFilm) }
+        val films = Library("lib1", LibraryKind.MOVIES, "Films")
+        val page = provider(server).libraryPage(films, SortOption.TITLE, LibraryFilter(), start = 0, limit = 120)
+        assertEquals(listOf("Heat"), page.items.map { it.title })
+        val fields = server.requests.last().url.queryParameter("fields").orEmpty().split(',')
+        assertFalse("Overview" in fields)
+        assertFalse("Genres" in fields)
+        assertTrue("ProductionYear" in fields)
+    }
+
+    /** A page of titles is typeset away from the screen that asked for it: the screen's thread only gets the titles. */
+    @Test
+    fun titlesAreMadeAwayFromTheCaller() = runTest {
+        val mapping = object : CoroutineDispatcher() {
+            val runs = AtomicInteger()
+
+            override fun dispatch(context: CoroutineContext, block: Runnable) {
+                runs.incrementAndGet()
+                Dispatchers.Default.dispatch(context, block)
+            }
+        }
+        val server = FakeServer { request ->
+            when (request.url.encodedPath) {
+                "/UserViews" -> Answer(200, views)
+                "/Items/Latest" -> Answer(200, "[]")
+                else -> Answer(200, oneFilm)
+            }
+        }
+        val provider = JellyfinProvider(config, "device", server.http, retryDelaysMs = listOf(0, 0, 0), mapping = mapping)
+        val films = Library("lib1", LibraryKind.MOVIES, "Films")
+        val page = provider.libraryPage(films, SortOption.TITLE, LibraryFilter(), start = 0, limit = 120)
+        assertEquals(listOf("Heat"), page.items.map { it.title })
+        assertEquals("the wall's page", 1, mapping.runs.get())
+        provider.home()
+        assertEquals("home's rows", 2, mapping.runs.get())
     }
 
     @Test

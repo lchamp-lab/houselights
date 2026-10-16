@@ -163,10 +163,13 @@ internal class SettingsViewModel(
         viewModelScope.launchAction(TAG, "Reading the storage used") {
             val local = library.storage()
             val disk = images?.diskCache
+            // Coil's cache reads its journal the first time it is asked, and answers under the lock its
+            // cleanup holds while it deletes files.
+            val imageCacheBytes = withContext(Dispatchers.IO) { disk?.size ?: 0L }
             _storage.value = StorageStats(
                 artworkFiles = local.artworkFiles,
                 artworkBytes = local.artworkBytes,
-                imageCacheBytes = disk?.size ?: 0L,
+                imageCacheBytes = imageCacheBytes,
                 imageCacheMax = disk?.maxSize ?: 0L,
                 databaseBytes = local.databaseBytes,
             )

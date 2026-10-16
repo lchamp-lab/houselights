@@ -25,11 +25,13 @@ import app.houselights.core.Typeset
 import app.houselights.core.suspendRunCatching
 import app.houselights.player.PathResolver
 import app.houselights.player.Redact
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import retrofit2.HttpException
 import java.io.IOException
@@ -38,6 +40,8 @@ import java.net.NoRouteToHostException
 import java.net.SocketTimeoutException
 import java.net.UnknownHostException
 import java.util.concurrent.atomic.AtomicLong
+import java.util.concurrent.atomic.AtomicReference
+import kotlin.coroutines.CoroutineContext
 
 class JellyfinProvider(
     config: SourceConfig.Jellyfin,
@@ -45,6 +49,8 @@ class JellyfinProvider(
     http: OkHttpClient = Http.client,
     /** The waits before each new try of a report that failed in passing (see [retried]). */
     private val retryDelaysMs: List<Long> = REPORT_RETRY_MS,
+    /** Where the server's answers are made into titles: typesetting their text takes regexes, off the main thread. */
+    private val mapping: CoroutineContext = Dispatchers.Default,
 ) : MediaProvider {
     private val client = JellyfinClient(config.serverUrl, deviceId, config.accessToken, http)
     private val api = client.api
@@ -53,30 +59,42 @@ class JellyfinProvider(
 
     override val capabilities = ProviderCapabilities(markPlayed = true, favorites = true, similar = true, pathMapping = true)
 
-    override suspend fun libraries(): List<Library> =
+    /**
+     * The libraries [libraries] read last, until [home] takes them: home loads the libraries, then
+     * its rows, which need them too. One request to the server serves both.
+     */
+    private val librariesRead = AtomicReference<List<Library>?>(null)
+
+    override suspend fun libraries(): List<Library> = askLibraries().also { librariesRead.set(it) }
+
+    private suspend fun askLibraries(): List<Library> =
         api.views(userId).items
             .filter { it.collectionType in SUPPORTED_COLLECTIONS }
             .map { Library(it.id, libraryKind(it.collectionType), Typeset.text(it.name)) }
 
     /**
      * Home's rows, each asked apart: one that fails is left out, and logged. When every one fails, home
-     * fails with the first failure, rather than showing a server with nothing on it.
+     * fails with the first failure, rather than showing a server with nothing on it. The libraries
+     * just read for home are not asked for again.
      */
     override suspend fun home(): List<HomeSection> = coroutineScope {
         val resume = async { row("Resume") { api.resume(userId, 20, ROW_FIELDS).items } }
         val nextUp = async { row("Next up") { api.nextUp(userId, 20, ROW_FIELDS).items } }
-        val libraries = libraries()
+        val libraries = librariesRead.getAndSet(null) ?: askLibraries()
         val latest = libraries.map { lib -> lib to async { row("Latest of ${lib.title}") { api.latest(userId, lib.id, 24, ROW_FIELDS) } } }
         val rows = listOf(resume.await(), nextUp.await()) + latest.map { it.second.await() }
         rows.firstNotNullOfOrNull { it.exceptionOrNull() }?.takeIf { rows.all(Result<*>::isFailure) }?.let { throw it }
-        buildList {
-            resume.await().getOrNull()?.takeIf { it.isNotEmpty() }
-                ?.let { add(HomeSection(SectionType.CONTINUE, it.map(::toMedia), landscape = true)) }
-            nextUp.await().getOrNull()?.takeIf { it.isNotEmpty() }
-                ?.let { add(HomeSection(SectionType.NEXT_UP, it.map(::toMedia), landscape = true)) }
-            for ((lib, items) in latest) {
-                val films = items.await().getOrNull()?.takeIf { it.isNotEmpty() } ?: continue
-                add(HomeSection(SectionType.LATEST, films.map(::toMedia), landscape = false, libraryName = lib.title, libraryId = lib.id))
+        withContext(mapping) {
+            buildList {
+                resume.await().getOrNull()?.takeIf { it.isNotEmpty() }
+                    ?.let { add(HomeSection(SectionType.CONTINUE, it.map(::toMedia), landscape = true)) }
+                nextUp.await().getOrNull()?.takeIf { it.isNotEmpty() }
+                    ?.let { add(HomeSection(SectionType.NEXT_UP, it.map(::toMedia), landscape = true)) }
+                for ((lib, items) in latest) {
+                    val films = items.await().getOrNull()?.takeIf { it.isNotEmpty() } ?: continue
+                    val shown = films.map(::toMedia)
+                    add(HomeSection(SectionType.LATEST, shown, landscape = false, libraryName = lib.title, libraryId = lib.id))
+                }
             }
         }
     }
@@ -107,7 +125,7 @@ class JellyfinProvider(
             sortOrder = order,
             startIndex = start,
             limit = limit,
-            fields = ROW_FIELDS,
+            fields = GRID_FIELDS,
             filters = when (filter.status) {
                 WatchStatus.ALL -> null
                 WatchStatus.UNWATCHED -> "IsUnplayed"
@@ -119,7 +137,7 @@ class JellyfinProvider(
             years = filter.decade?.let { d -> (d..d + 9).joinToString(",") },
             is4K = if (filter.quality == Quality.UHD_4K) true else null,
         )
-        return Page(result.items.map(::toMedia), result.totalRecordCount)
+        return Page(titles(result.items), result.totalRecordCount)
     }
 
     override suspend fun libraryFacets(library: Library): LibraryFacets = LibraryFacets(
@@ -131,10 +149,10 @@ class JellyfinProvider(
     override suspend fun item(id: String): MediaItem = toMedia(api.item(id, userId))
 
     override suspend fun seasons(series: MediaItem): List<MediaItem> =
-        api.seasons(series.id, userId, ROW_FIELDS).items.map(::toMedia)
+        titles(api.seasons(series.id, userId, ROW_FIELDS).items)
 
     override suspend fun episodes(series: MediaItem, season: MediaItem): List<MediaItem> =
-        api.episodes(series.id, userId, season.id, EPISODE_FIELDS).items.map(::toMedia)
+        titles(api.episodes(series.id, userId, season.id, EPISODE_FIELDS).items)
 
     override suspend fun nextUp(series: MediaItem): MediaItem? =
         if (series.kind == MediaKind.COLLECTION) super.nextUp(series)
@@ -142,7 +160,7 @@ class JellyfinProvider(
 
     /** A collection (box set) holds its films directly. */
     override suspend fun collectionItems(collection: MediaItem): List<MediaItem> = row("Films of ${collection.id}") {
-        api.items(
+        val films = api.items(
             userId = userId,
             parentId = collection.id,
             includeItemTypes = "Movie",
@@ -152,12 +170,13 @@ class JellyfinProvider(
             startIndex = 0,
             limit = COLLECTION_LIMIT,
             fields = ROW_FIELDS,
-        ).items.map(::toMedia)
+        ).items
+        titles(films)
     }.getOrDefault(emptyList())
 
     override suspend fun similar(item: MediaItem): List<MediaItem> =
         if (item.kind == MediaKind.EPISODE) emptyList()
-        else row("Similar to ${item.id}") { api.similar(item.id, userId, 16, ROW_FIELDS).items.map(::toMedia) }.getOrDefault(emptyList())
+        else row("Similar to ${item.id}") { titles(api.similar(item.id, userId, 16, ROW_FIELDS).items) }.getOrDefault(emptyList())
 
     override suspend fun setPlayed(item: MediaItem, played: Boolean) {
         if (played) api.markPlayed(item.id, userId) else api.markUnplayed(item.id, userId)
@@ -286,6 +305,9 @@ class JellyfinProvider(
 
     private fun toMedia(dto: BaseItem): MediaItem = mapper.toMedia(dto)
 
+    /** The titles of a list the server answered, made in [mapping]. */
+    private suspend fun titles(items: List<BaseItem>): List<MediaItem> = withContext(mapping) { items.map(::toMedia) }
+
     companion object {
         private const val TAG = "Jellyfin"
         private const val HTTP_SERVER_ERROR = 500
@@ -301,6 +323,9 @@ class JellyfinProvider(
         private const val COLLECTION_LIMIT = 200
         private val SUPPORTED_COLLECTIONS = setOf("movies", "tvshows", "boxsets", "homevideos", "musicvideos", null)
         private const val ROW_FIELDS = "Overview,Genres,ProductionYear,OfficialRating,CommunityRating,DateCreated"
+
+        /** What a wall shows of a title: its year and facts, never its overview nor its genres. */
+        private const val GRID_FIELDS = "ProductionYear,OfficialRating,CommunityRating,DateCreated"
         private const val EPISODE_FIELDS = "Overview"
 
         private fun libraryKind(collectionType: String?) = when (collectionType) {

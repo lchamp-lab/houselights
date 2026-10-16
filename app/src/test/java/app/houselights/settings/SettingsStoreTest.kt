@@ -1,6 +1,7 @@
 package app.houselights.settings
 
 import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.mutablePreferencesOf
 import androidx.datastore.preferences.core.stringPreferencesKey
@@ -8,13 +9,21 @@ import app.houselights.core.Secrets
 import app.houselights.core.SourceConfig
 import app.houselights.ui.testing.testSecrets
 import app.houselights.ui.testing.testSettings
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.asCoroutineDispatcher
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
@@ -27,6 +36,9 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import java.io.IOException
 import java.security.ProviderException
+import java.util.Collections
+import java.util.concurrent.Executors
+import javax.crypto.KeyGenerator
 
 /** Reading the settings when the file or the Keystore fails. */
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -52,12 +64,74 @@ class SettingsStoreTest {
 
     private fun stored(secrets: Secrets) = mutablePreferencesOf(sourceKey to secrets.seal(Json.encodeToString<SourceConfig>(home)))
 
+    /** Settings read apart from where they are collected, as on the device, on the test's scheduler: virtual time runs both. */
+    private fun TestScope.settingsOf(store: DataStore<Preferences>, secrets: Secrets) =
+        SettingsStore(store, backgroundScope, secrets, readOn = StandardTestDispatcher(testScheduler))
+
+    /**
+     * The first secret opened loads the Keystore's key, and each one asks the keystore daemon: never
+     * on the thread the settings are collected on, the main thread on the device.
+     */
+    @Test
+    fun secretsAreOpenedAwayFromTheThreadThatCollects() = runTest {
+        val key = KeyGenerator.getInstance("AES").apply { init(256) }.generateKey()
+        val keyAskedOn = Collections.synchronizedList(mutableListOf<Thread>())
+        val reader = Secrets {
+            keyAskedOn += Thread.currentThread()
+            key
+        }
+        val collecting = Collections.synchronizedList(mutableListOf<Thread>())
+        val collector = Executors.newSingleThreadExecutor { Thread(it, "settings collector").also(collecting::add) }.asCoroutineDispatcher()
+        val scope = CoroutineScope(collector + SupervisorJob())
+        try {
+            val settings = SettingsStore(FlakyStore(0, stored(Secrets { key })), scope, reader)
+            assertEquals(home, settings.state.first { it.loaded }.source)
+            assertTrue("The key was never asked for", keyAskedOn.isNotEmpty())
+            assertTrue("Opened on the collector's thread", keyAskedOn.none { it in collecting })
+        } finally {
+            scope.cancel()
+            collector.close()
+        }
+    }
+
+    /**
+     * Read away from the main thread, the settings reach the app a moment after the file: signing in
+     * saves the source, then goes home, whose rows ask the settings for it at once. The source saved
+     * is there, not the one before (none, on a first sign-in).
+     */
+    @Test
+    fun aSourceSavedIsReadBeforeItsSaveReturns() = runTest {
+        val key = KeyGenerator.getInstance("AES").apply { init(256) }.generateKey()
+        // A Keystore as slow as a player's.
+        val slow = Secrets {
+            Thread.sleep(SLOW_KEYSTORE_MS)
+            key
+        }
+        val main = Executors.newSingleThreadExecutor().asCoroutineDispatcher()
+        val scope = CoroutineScope(main + SupervisorJob())
+        val io = CoroutineScope(Dispatchers.IO + SupervisorJob())
+        try {
+            val store = PreferenceDataStoreFactory.create(scope = io, produceFile = { folder.root.resolve("settings.preferences_pb") })
+            val settings = SettingsStore(store, scope, slow)
+            val read = withContext(main) {
+                settings.state.first { it.loaded }
+                settings.setSource(home)
+                settings.state.value.source
+            }
+            assertEquals(home, read)
+        } finally {
+            scope.cancel()
+            io.cancel()
+            main.close()
+        }
+    }
+
     /** A read that fails once at launch opened the welcome screen, and nothing saved after reached the app. */
     @Test
     fun aFailedReadIsTriedAgainWithoutTheDefaults() = runTest {
         val secrets = testSecrets()
         val store = FlakyStore(failures = 2, prefs = stored(secrets))
-        val settings = SettingsStore(store, backgroundScope, secrets)
+        val settings = settingsOf(store, secrets)
         runCurrent()
         assertFalse("The defaults stood in for the settings", settings.state.value.loaded)
         assertFalse(settings.state.value.readFailed)
@@ -71,7 +145,7 @@ class SettingsStoreTest {
     fun readsThatKeepFailingSaySo() = runTest {
         val secrets = testSecrets()
         val store = FlakyStore(failures = 6, prefs = stored(secrets))
-        val settings = SettingsStore(store, backgroundScope, secrets)
+        val settings = settingsOf(store, secrets)
         // Three tries: at once, half a second later, then a second after that.
         advanceTimeBy(1_000)
         assertFalse(settings.state.value.readFailed)
@@ -131,7 +205,7 @@ class SettingsStoreTest {
     fun readingAgainDoesNotWaitForTheNextTry() = runTest {
         val secrets = testSecrets()
         val store = FlakyStore(failures = 5, prefs = stored(secrets))
-        val settings = SettingsStore(store, backgroundScope, secrets)
+        val settings = settingsOf(store, secrets)
         advanceTimeBy(2_000)
         assertTrue(settings.state.value.readFailed)
         val readsThen = store.reads
@@ -163,5 +237,10 @@ class SettingsStoreTest {
         val settings = testSettings(folder.root, backgroundScope, broken)
         settings.setSource(SourceConfig.Local)
         assertEquals(SourceConfig.Local, settings.state.first { it.source != null }.source)
+    }
+
+    private companion object {
+        /** Each opening of a secret, on a slow player: long enough to be seen after the file is written. */
+        const val SLOW_KEYSTORE_MS = 150L
     }
 }
