@@ -17,11 +17,14 @@ import app.houselights.providers.local.RemoteBrowser
 import app.houselights.providers.local.ScanError
 import app.houselights.providers.local.ScanErrors
 import app.houselights.providers.local.Secret
+import app.houselights.providers.local.SmbBrowser
 import app.houselights.providers.local.SourceEntity
 import app.houselights.providers.local.SourceKind
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /** A network folder as the form describes it, as typed. */
 data class FolderForm(
@@ -101,6 +104,8 @@ class AddFolderViewModel(
     private val useFolders: suspend () -> Boolean,
     /** Reads the first level of a folder: how many entries it holds. Throws when it cannot. */
     private val probe: suspend (SourceEntity) -> Int = { RemoteBrowser.of(it).test(it) },
+    /** Closes the SMB sessions kept open on a folder's share. */
+    private val forgetSessions: suspend (SourceEntity) -> Unit = { withContext(Dispatchers.IO) { SmbBrowser.forget(it) } },
 ) : ViewModel() {
     constructor(app: AppContainer, folderId: Long? = null) : this(
         library = app.library,
@@ -233,7 +238,12 @@ class AddFolderViewModel(
     private suspend fun reaches(source: SourceEntity): Boolean {
         testing = true
         check = null
-        val answer = suspendRunCatching { probe(source) }
+        val answer = suspendRunCatching {
+            // An edited folder signs in with what the form says: a session kept from an earlier test,
+            // with the password stored, would let a wrong new one through.
+            if (edits && source.protocol == Protocol.SMB) forgetSessions(source)
+            probe(source)
+        }
         answer
             .onSuccess { count -> check = FolderCheck.Reachable(count) }
             .onFailure { e ->

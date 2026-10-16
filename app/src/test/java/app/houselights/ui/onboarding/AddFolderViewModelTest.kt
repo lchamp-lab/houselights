@@ -47,7 +47,7 @@ import javax.crypto.KeyGenerator
 
 /**
  * The folder form, on a library in memory: a folder is tested, then saved whole, even when the form
- * is left meanwhile; a folder edited is saved once read, and never once gone.
+ * is left meanwhile; a folder edited is saved once read, never once gone, and signs in again to be tested.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
@@ -129,6 +129,7 @@ class AddFolderViewModelTest {
                         true
                     },
                     probe = probe,
+                    forgetSessions = { calls += "forget ${it.host}/${it.share}" },
                 )
             }
         }
@@ -167,7 +168,7 @@ class AddFolderViewModelTest {
         advanceUntilIdle()
         assertFalse(vm.busy)
         assertEquals(false, done)
-        assertEquals(listOf("test 192.168.1.10 with stored"), calls)
+        assertEquals(listOf("forget 192.168.1.10/media", "test 192.168.1.10 with stored"), calls)
     }
 
     @Test
@@ -223,7 +224,19 @@ class AddFolderViewModelTest {
     }
 
     @Test
-    fun aFolderAddedMakesTheFoldersTheSource() = runTest {
+    fun anEditedSmbFolderSignsInAgainToBeTested() = runTest {
+        val id = smbFolder()
+        val vm = form(id)
+        advanceUntilIdle()
+        // Tested once with the password stored, the session it opened is kept; then a wrong one is typed.
+        vm.edit { copy(password = "wrong") }
+        vm.test()
+        advanceUntilIdle()
+        assertEquals(listOf("forget 192.168.1.10/media", "test 192.168.1.10 with wrong"), calls)
+    }
+
+    @Test
+    fun aFolderAddedLeavesTheSessionsOfOthersOpen() = runTest {
         val vm = form(null)
         advanceUntilIdle()
         vm.edit { copy(protocol = Protocol.SMB, host = "192.168.1.10", share = "media", user = "kodi", password = "secret") }
