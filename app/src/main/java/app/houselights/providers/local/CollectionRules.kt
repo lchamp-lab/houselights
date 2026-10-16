@@ -16,8 +16,14 @@ object CollectionRules {
     fun key(tmdbId: Int?, name: String): String =
         if (tmdbId != null) "tmdb:$tmdbId" else "name:" + words(name).joinToString(" ").ifEmpty { whole(name) }
 
-    /** "Top Gun Collection" (a media manager) and "Top Gun - Saga" (TMDB in French) are one collection. */
-    fun sameName(a: String, b: String): Boolean = words(a).isNotEmpty() && words(a) == words(b)
+    /**
+     * "Top Gun Collection" (a media manager) and "Top Gun - Saga" (TMDB in French) are one collection.
+     * Names that leave no word ("攻殻機動隊", "Звёздные войны") are compared whole, as [key] keys them.
+     */
+    fun sameName(a: String, b: String): Boolean {
+        val words = words(a)
+        return if (words.isEmpty()) words(b).isEmpty() && whole(a) == whole(b) else words == words(b)
+    }
 
     /** Films of a collection released by [today]; announced ones do not count yet. */
     fun released(releaseDates: List<String?>, today: String): Int =

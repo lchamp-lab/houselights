@@ -21,6 +21,15 @@ class CollectionRulesTest {
         assertFalse(CollectionRules.sameName("Collection", "Saga"))
     }
 
+    /** An NFO's set named in Japanese or Russian takes TMDB's collection when TMDB gives it the same name, as the key does. */
+    @Test
+    fun namesThatLeaveNoWordMatchWhole() {
+        assertTrue(CollectionRules.sameName("攻殻機動隊", "攻殻機動隊"))
+        assertTrue(CollectionRules.sameName("Звёздные  войны ", "звёздные войны"))
+        assertFalse(CollectionRules.sameName("攻殻機動隊", "アキラ"))
+        assertFalse("one with words, one without", CollectionRules.sameName("Akira", "アキラ"))
+    }
+
     /** Names that leave no word once split on Latin letters and stripped of generic ones: each saga keeps its own. */
     @Test
     fun sagasWhoseNamesLeaveNoWordStayApart() {
