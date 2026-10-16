@@ -39,7 +39,7 @@ import app.houselights.ui.design.HlMotion
 import app.houselights.ui.design.HlScrim
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.HouseLightCue
-import app.houselights.ui.design.LocalHouseLights
+import app.houselights.ui.design.rememberCueStep
 import app.houselights.ui.design.LocalAmbient
 import app.houselights.ui.design.VeilStop
 import app.houselights.ui.design.colorStops
@@ -131,7 +131,9 @@ private fun BackdropPicture(
     recede: () -> Float,
 ) {
     val black = Hl.colors.background
-    val lights = LocalHouseLights.current
+    // The veils lift as the house lights go down: read while drawing, through the step alone, so
+    // the layer is drawn again only while they lift, not for the whole cue.
+    val scrims = rememberCueStep(HouseLightCue::scrims)
     val veil = remember(prepared, bounds, style) {
         prepared.sample.leftVeil(bounds, column, style.imageAlpha, style.leftScrim, style.down)
     }
@@ -146,7 +148,7 @@ private fun BackdropPicture(
                 compositingStrategy = CompositingStrategy.Offscreen
                 // Stepping back is black laid over the picture; on the black room that is the
                 // layer's own alpha, which costs nothing, where a veil would draw the layer again.
-                this.alpha = alpha() * (1f - recede() * receded * HouseLightCue.scrims(lights()))
+                this.alpha = alpha() * (1f - recede() * receded * scrims.value)
             }
             .background(black),
     ) {
@@ -160,10 +162,9 @@ private fun BackdropPicture(
         )
         Box(
             Modifier.fillMaxSize().drawBehind {
-                // The veils lift as the house lights go down.
-                val scrims = HouseLightCue.scrims(lights())
-                drawRect(leftVeil(black, veil, column, fade), alpha = scrims)
-                drawRect(Brush.verticalGradient(*style.down.colorStops(black)), alpha = scrims)
+                val lift = scrims.value
+                drawRect(leftVeil(black, veil, column, fade), alpha = lift)
+                drawRect(Brush.verticalGradient(*style.down.colorStops(black)), alpha = lift)
             }
         )
     }
