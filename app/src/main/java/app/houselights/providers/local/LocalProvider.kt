@@ -347,13 +347,21 @@ class LocalProvider(
             else -> user
         }
 
-        /** A cached local file, a full URL from an NFO, or a TMDB path. */
-        fun image(path: String, type: ImageType) = when {
-            path.isCachedArtwork() -> ImageRef(path) { path }
+        /**
+         * A cached local file, a full URL from an NFO, or a TMDB path. An NFO's address on TMDB is its
+         * path there: Kodi and Radarr write the original file (a 4K fanart, a portrait of a few
+         * megabytes), which is asked for at the size shown, as TMDB's own paths are.
+         */
+        fun image(path: String, type: ImageType): ImageRef {
+            if (path.isCachedArtwork()) return ImageRef(path) { path }
+            val tmdb = if (path.startsWith("http")) TMDB_IMAGE.matchEntire(path)?.groupValues?.get(1) else path
+            if (tmdb != null) return ImageRef("tmdb:$tmdb") { w -> TmdbClient.imageUrl(tmdb, type, w) }
             // Also upgrades addresses read from NFO files before they were fetched over HTTPS only.
-            path.startsWith("http") -> (NfoParser.imageUrl(path) ?: path).let { url -> ImageRef(url) { url } }
-            else -> ImageRef("tmdb:$path") { w -> TmdbClient.imageUrl(path, type, w) }
+            return (NfoParser.imageUrl(path) ?: path).let { url -> ImageRef(url) { url } }
         }
+
+        /** A file on TMDB's image server, at any size ("w500", "original"): its path there is the group. */
+        private val TMDB_IMAGE = Regex("""https?://image\.tmdb\.org/t/p/[^/]+(/[^/?#]+)""", RegexOption.IGNORE_CASE)
 
         /**
          * URI the Zidoo player opens directly:

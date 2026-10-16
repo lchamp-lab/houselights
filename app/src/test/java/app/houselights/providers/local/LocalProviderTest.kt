@@ -18,6 +18,7 @@ import app.houselights.core.Quality
 import app.houselights.core.Secrets
 import app.houselights.core.SortOption
 import app.houselights.core.WatchStatus
+import app.houselights.providers.local.TmdbClient.Companion.ImageType
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.junit.After
@@ -409,6 +410,26 @@ class LocalProviderTest {
         )
         val plan = provider.playback(provider.item(id.toString()), resume = false, PlaybackOptions(emptyList(), false))
         assertNull((plan as PlaybackPlan.Launch).logoUrl)
+    }
+
+    /** An NFO's address on TMDB, written at the original size by Kodi or Radarr, is asked for at the size shown. */
+    @Test
+    fun nfoImagesOnTmdbAreAskedForAtTheSizeShown() {
+        val original = "https://image.tmdb.org/t/p/original/poster.jpg"
+        assertEquals("https://image.tmdb.org/t/p/w342/poster.jpg", LocalProvider.image(original, ImageType.POSTER).url(300))
+        assertEquals(
+            "https://image.tmdb.org/t/p/w1280/fanart.jpg",
+            LocalProvider.image("http://image.tmdb.org/t/p/original/fanart.jpg", ImageType.BACKDROP).url(1280),
+        )
+        assertEquals(
+            "https://image.tmdb.org/t/p/w185/actor.jpg",
+            LocalProvider.image("https://image.tmdb.org/t/p/w500/actor.jpg", ImageType.PROFILE).url(120),
+        )
+        // The picture TMDB's own path names: one key, one copy in the image cache.
+        assertEquals(LocalProvider.image("/poster.jpg", ImageType.POSTER), LocalProvider.image(original, ImageType.POSTER))
+        // Another server's address stays as it is, over HTTPS.
+        val fanart = LocalProvider.image("http://assets.fanart.tv/heat.jpg", ImageType.BACKDROP)
+        assertEquals("https://assets.fanart.tv/heat.jpg", fanart.url(1920))
     }
 
     @Test
