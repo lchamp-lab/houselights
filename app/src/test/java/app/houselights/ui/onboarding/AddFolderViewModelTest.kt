@@ -298,7 +298,8 @@ class AddFolderViewModelTest {
         try {
             val artwork = ArtworkCache(context.cacheDir.resolve("artwork"))
             val idle = CoroutineScope(Job().apply { cancel() })
-            val sealing = LocalLibrary(context, broken.dao(), LibraryScanner(broken.dao(), { null }, idle, artwork, browsers = { FakeRemoteBrowser() }), artwork) {}
+            val scanner = LibraryScanner(broken.dao(), { null }, idle, artwork, browsers = { FakeRemoteBrowser() })
+            val sealing = LocalLibrary(context, broken.dao(), scanner, artwork) {}
             val vm = form(null, library = sealing)
             advanceUntilIdle()
             vm.edit { copy(protocol = Protocol.SMB, host = "192.168.1.10", share = "media", user = "kodi", password = "secret") }
