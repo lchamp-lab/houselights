@@ -125,4 +125,20 @@ class RemoteWalkTest {
         failures["Dune (2021)"] = IllegalStateException("session gone")
         assertThrows(IllegalStateException::class.java) { listing { it is IllegalStateException } }
     }
+
+    /** A NAS's own folders are passed over, whatever their case; a title that starts like one is not. */
+    @Test
+    fun systemFoldersArePassedOverButNotTitlesThatStartLikeThem() {
+        tree[""] = listOf(
+            "#Alive (2020)/", "@Zombie (2018).mkv", "#recycle/", "#SNAPSHOT/", "@eaDir/", "@Recycle/", "@Recently-Snapshot/",
+            ".@__thumb/", ".AppleDouble/", ".Trash-1000/", "\$RECYCLE.BIN/", "System Volume Information/", "lost+found/",
+            "._Heat (1995).mkv", ".DS_Store",
+        )
+        tree["#Alive (2020)"] = listOf("#Alive (2020).mkv", "@eaDir/")
+
+        val listing = listing()
+
+        assertEquals(listOf("#Alive (2020)/#Alive (2020).mkv", "@Zombie (2018).mkv"), listing.videos.map { it.relativePath })
+        assertEquals("no system folder is even asked for", listOf("", "#Alive (2020)"), listed)
+    }
 }
