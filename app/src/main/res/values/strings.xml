@@ -369,6 +369,7 @@
     <string name="error_failed">Try again in a moment.</string>
     <string name="error_keystore_title">Device keystore unavailable</string>
     <string name="error_keystore">This device’s keystore refused to seal the password, so nothing was saved. Restart the player, then try again.</string>
+    <string name="error_keystore_sign_in">Signed in, but this device’s keystore refused to seal the server’s token, so nothing was saved. Restart the player, then sign in again.</string>
     <string name="welcome_lost_secrets">The connection saved on this player could not be read again. Choose where your films are once more.</string>
     <string name="error_action_reconnect">Sign in again</string>
     <string name="error_action_add_tmdb_key">Add a key</string>

@@ -104,6 +104,7 @@ private fun loginErrorText(e: LoginError): String = when (e) {
         e.product != null && e.product != JELLYFIN -> stringResource(R.string.error_server_other, e.address, e.product)
         else -> stringResource(R.string.error_server_old, e.address, e.version.orEmpty())
     }
+    LoginError.Keystore -> stringResource(R.string.error_keystore_sign_in)
     LoginError.Failed -> stringResource(R.string.error_server_unexpected)
 }
 

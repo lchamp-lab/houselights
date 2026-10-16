@@ -10,6 +10,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import app.houselights.AppContainer
+import app.houselights.core.SecretsUnavailableException
 import app.houselights.core.SourceConfig
 import app.houselights.core.suspendRunCatching
 import app.houselights.providers.jellyfin.AuthRequest
@@ -50,6 +51,9 @@ sealed interface LoginError {
     /** The server at [address] is a Jellyfin before 10.9 ([version]), or another [product]. */
     data class Unsupported(val address: String, val product: String?, val version: String?) : LoginError
 
+    /** Signed in, but the device's Keystore refused to seal the server's token: nothing was saved. */
+    data object Keystore : LoginError
+
     /** Anything else: the details are in the log. */
     data object Failed : LoginError
 }
@@ -66,6 +70,7 @@ internal fun loginError(e: Throwable, address: String): LoginError {
     val at = reach?.url ?: address
     val cause = reach?.cause ?: e
     return when {
+        e is SecretsUnavailableException -> LoginError.Keystore
         e is InvalidServerAddress -> if (e.input.isBlank()) LoginError.NoAddress else LoginError.InvalidAddress(e.input)
         e is UnsupportedServer -> LoginError.Unsupported(e.url, e.product, e.version)
         cause is HttpException && cause.code() == HTTP_UNAUTHORIZED -> LoginError.Refused

@@ -363,6 +363,7 @@
     <string name="error_failed">Réessayez dans un instant.</string>
     <string name="error_keystore_title">Coffre de l’appareil indisponible</string>
     <string name="error_keystore">Le coffre de clés de l’appareil a refusé de chiffrer le mot de passe, rien n’a été enregistré. Redémarrez le lecteur, puis réessayez.</string>
+    <string name="error_keystore_sign_in">La connexion a réussi, mais le coffre de clés de l’appareil a refusé de chiffrer le jeton du serveur. Rien n’a été enregistré. Redémarrez le lecteur, puis reconnectez-vous.</string>
     <string name="welcome_lost_secrets">La connexion enregistrée sur ce lecteur n’a pas pu être relue. Indiquez de nouveau où sont vos films.</string>
     <string name="error_action_reconnect">Se reconnecter</string>
     <string name="error_action_add_tmdb_key">Ajouter une clé</string>

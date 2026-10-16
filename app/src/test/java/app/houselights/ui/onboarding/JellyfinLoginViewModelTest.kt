@@ -1,5 +1,6 @@
 package app.houselights.ui.onboarding
 
+import app.houselights.core.SecretsUnavailableException
 import app.houselights.core.SourceConfig
 import app.houselights.providers.jellyfin.AuthRequest
 import app.houselights.providers.jellyfin.AuthResult
@@ -31,6 +32,7 @@ import org.robolectric.RobolectricTestRunner
 import retrofit2.HttpException
 import retrofit2.Response
 import java.io.IOException
+import java.security.ProviderException
 
 /** Signing in to Jellyfin, with a fake network in place of the server. */
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -107,6 +109,13 @@ class JellyfinLoginViewModelTest {
     fun nothingAnsweringSaysWhere() = runTest {
         network.reachFailure = IOException("Connection refused")
         assertEquals(LoginError.Unreachable("http://nas:8096"), failure())
+    }
+
+    /** The server took the password; the Keystore refused to seal its token: said as the device's fault, not the server's. */
+    @Test
+    fun aKeystoreThatCannotSealTheTokenSaysSo() {
+        val e = SecretsUnavailableException(ProviderException("Keystore operation failed"))
+        assertEquals(LoginError.Keystore, loginError(e, "https://nas:8920"))
     }
 
     /** Lets signing in finish: the device id is written on DataStore's own threads. */
