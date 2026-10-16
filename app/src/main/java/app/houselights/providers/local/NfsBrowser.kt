@@ -23,12 +23,16 @@ internal class NfsBrowser(
     private val mount: (SourceEntity) -> Nfs3 = { Nfs3(it.host, export(it), CredentialUnix(), RETRIES) },
     clock: () -> Long = SystemClock::elapsedRealtime,
 ) : RemoteBrowser {
-    /** One mount per export, reused across files. nfs-client keeps its own connections: a mount closes by being dropped. */
+    /**
+     * One mount per export, reused across files. nfs-client keeps its own connections: a mount closes
+     * by being dropped, so dropping one waits for no operation.
+     */
     private val mounts = KeptConnections<Nfs3>(
         close = { _, _ -> },
         isOpen = { true },
         isBroken = ::isBroken,
         clock = clock,
+        closingWaits = false,
     )
 
     override suspend fun list(source: SourceEntity): Listing = withMount(source) { nfs ->
