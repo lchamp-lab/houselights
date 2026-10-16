@@ -79,6 +79,7 @@
     <string name="time_left">Il reste %s</string>
     <string name="nav_home">Accueil</string>
     <string name="from_start">Depuis le début</string>
+    <string name="part_of">Partie %1$d/%2$d</string>
     <string name="watched">Vu</string>
     <string name="mark_watched">Marquer comme vu</string>
     <string name="mark_unwatched">Marquer comme non vu</string>

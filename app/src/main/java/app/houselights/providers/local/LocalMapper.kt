@@ -3,6 +3,7 @@ package app.houselights.providers.local
 import android.content.Context
 import app.houselights.R
 import app.houselights.core.ImageRef
+import app.houselights.core.MediaInfo
 import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
 import app.houselights.core.NfoInfo
@@ -78,7 +79,7 @@ internal class LocalMapper(private val dao: LibraryDao, private val context: Con
             year = e.year,
             endYear = e.endYear,
             continuing = e.continuing,
-            runtimeMs = e.durationMs ?: media?.durationMs ?: e.runtimeMin?.let { it * MS_PER_MINUTE },
+            runtimeMs = runtimeOf(e, media),
             officialRating = e.certification,
             communityRating = e.rating,
             genres = e.genres,
@@ -87,6 +88,7 @@ internal class LocalMapper(private val dao: LibraryDao, private val context: Con
             media = media,
             hasNfo = e.nfoPath != null,
             fileName = e.filePath?.substringAfterLast('/'),
+            parts = partsOf(e, title),
             // Seasons and episodes show their series' artwork when they have none.
             poster = artwork(e, show, ItemEntity::userPosterPath, ItemEntity::posterPath, ImageType.POSTER),
             backdrop = artwork(e, show, ItemEntity::userBackdropPath, ItemEntity::backdropPath, ImageType.BACKDROP),
@@ -106,6 +108,24 @@ internal class LocalMapper(private val dao: LibraryDao, private val context: Con
             episodeNumber = e.episodeNumber,
             childCount = seasonCount,
         )
+    }
+
+    /**
+     * How long the title lasts: the file's length, as the player told it, else as read; else TMDB's or
+     * the NFO's. A film in several files lasts its parts together: what TMDB or its NFO says, never its
+     * first file's length, the only one the library knows.
+     */
+    private fun runtimeOf(e: ItemEntity, media: MediaInfo?): Long? {
+        val stated = e.runtimeMin?.let { it * MS_PER_MINUTE }
+        return if (e.parts.isNotEmpty()) stated else e.durationMs ?: media?.durationMs ?: stated
+    }
+
+    /** Each part of a film in several files, playable on its own; none for a film in one file. */
+    private fun partsOf(e: ItemEntity, title: String): List<MediaItem> {
+        if (e.parts.isEmpty()) return emptyList()
+        return (listOfNotNull(e.filePath) + e.parts).mapIndexed { i, path ->
+            MediaItem(id = LocalId.ofPart(e.id, i + 1), kind = MediaKind.MOVIE, title = title, fileName = path.substringAfterLast('/'))
+        }
     }
 
     /**

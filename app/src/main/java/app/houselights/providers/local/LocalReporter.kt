@@ -2,8 +2,12 @@ package app.houselights.providers.local
 
 import app.houselights.core.PlaybackReporter
 
-/** Saves a local film or episode's progress as the player reports it. */
-internal class LocalReporter(private val dao: LibraryDao, private val itemId: Long) : PlaybackReporter {
+/**
+ * Saves a local film or episode's progress as the player reports it. A film in several files keeps one
+ * resume point, its first part's ([part] 1), which the film's "Lire" resumes: a later part says only
+ * when it was played. The film is watched at the end of its last part; the end of another is not its end.
+ */
+internal class LocalReporter(private val dao: LibraryDao, private val itemId: Long, private val part: Int = 1) : PlaybackReporter {
     /**
      * Only says when it was played: where the player starts is not progress, and starting over must
      * not lose the resume point before the viewer has watched anything.
@@ -17,8 +21,11 @@ internal class LocalReporter(private val dao: LibraryDao, private val itemId: Lo
 
     private suspend fun save(positionMs: Long, durationMs: Long?, finished: Boolean) {
         val entity = dao.item(itemId) ?: return
-        val duration = durationMs ?: entity.durationMs ?: entity.runtimeMin?.let { it * MS_PER_MINUTE }
-        val watched = finished && duration != null && duration > 0 && positionMs >= duration * WATCHED_RATIO
+        val watched = finished && part > entity.parts.size && pastTheEnd(positionMs, durationMs ?: lengthOf(entity))
+        if (part > 1) {
+            if (watched) dao.savePlayback(entity.id, 0, entity.durationMs, played = true, lastPlayedAt = System.currentTimeMillis())
+            return
+        }
         // Only the playback columns: a scan may be writing the others at the same time.
         dao.savePlayback(
             id = entity.id,
@@ -33,6 +40,16 @@ internal class LocalReporter(private val dao: LibraryDao, private val itemId: Lo
             lastPlayedAt = System.currentTimeMillis(),
         )
     }
+
+    /**
+     * The length the library knows of what plays, when the player gives none. A part's is the player's
+     * alone: the library knows the film's, and its first file's.
+     */
+    private fun lengthOf(entity: ItemEntity): Long? =
+        if (entity.parts.isNotEmpty()) null else entity.durationMs ?: entity.runtimeMin?.let { it * MS_PER_MINUTE }
+
+    /** Watched past [WATCHED_RATIO] of its [duration], when it is known. */
+    private fun pastTheEnd(positionMs: Long, duration: Long?) = duration != null && duration > 0 && positionMs >= duration * WATCHED_RATIO
 
     private companion object {
         /** Watched past this share of its length. */

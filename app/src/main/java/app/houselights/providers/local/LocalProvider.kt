@@ -3,6 +3,7 @@ package app.houselights.providers.local
 import android.content.Context
 import android.net.Uri
 import androidx.sqlite.db.SimpleSQLiteQuery
+import app.houselights.R
 import app.houselights.core.NfoParser
 import app.houselights.core.NotFoundException
 import app.houselights.core.Definition
@@ -267,23 +268,36 @@ class LocalProvider(
         itemKey(item)?.let { dao.setFavorite(it, favorite) }
     }
 
+    /**
+     * A film in several files plays one part at a time: the part [item] names ([MediaItem.parts]), from
+     * its start; the film itself plays its first part, where its resume point lies.
+     */
     override suspend fun playback(item: MediaItem, resume: Boolean, options: PlaybackOptions): PlaybackPlan {
         val entity = entity(item) ?: throw NotFoundException("Item ${item.id}")
-        val file = entity.filePath ?: error("${item.title} has no file")
+        val part = (LocalId.parse(item.id) as? LocalId.Item)?.part
+        val files = listOfNotNull(entity.filePath) + entity.parts
+        // A part gone since the page was shown is a title gone.
+        val file = files.getOrNull((part ?: 1) - 1) ?: throw NotFoundException("No file for ${item.id}")
         val source = dao.sources().firstOrNull { it.id == entity.sourceId } ?: error("Source of ${item.title} was removed")
         val mapper = LocalMapper(dao, context)
         val container = FilenameParser.extension(file)
-        return mapper.forPlayer(entity, mapper.map(entity)).launch(
+        val mapped = mapper.map(entity)
+        // The player names the part it opens.
+        val shown = if (entity.parts.isEmpty()) mapped else mapped.copy(title = partTitle(mapped.title, part ?: 1, files.size))
+        return mapper.forPlayer(entity, shown).launch(
             fileUri(source, file), container,
-            startMs = if (resume) entity.positionMs else 0L,
-            reporter = LocalReporter(dao, entity.id),
-            resumeKey = entity.id.toString(),
+            startMs = if (resume && part == null) entity.positionMs else 0L,
+            reporter = LocalReporter(dao, entity.id, part ?: 1),
+            resumeKey = if (part == null) entity.id.toString() else LocalId.ofPart(entity.id, part),
             // Scans list files: of a disc, only its image is one. A Blu-ray's or DVD's folder is read as the files it holds.
             disc = container == DISC_IMAGE,
         )
     }
 
-    override fun reporter(resumeKey: String): PlaybackReporter? = resumeKey.toLongOrNull()?.let { LocalReporter(dao, it) }
+    private fun partTitle(title: String, part: Int, parts: Int) = "$title · ${context.getString(R.string.part_of, part, parts)}"
+
+    override fun reporter(resumeKey: String): PlaybackReporter? =
+        (LocalId.parse(resumeKey) as? LocalId.Item)?.let { LocalReporter(dao, it.key, it.part ?: 1) }
 
     /** Next episode of each show recently watched, skipping ones already in progress. */
     private suspend fun nextUpAcrossShows(exclude: Set<Long>): List<ItemEntity> {

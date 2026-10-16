@@ -57,6 +57,11 @@ data class MediaItem(
     val hasNfo: Boolean = false,
     /** Name of the video file, when the backend knows it. */
     val fileName: String? = null,
+    /**
+     * A film in several files (CD1, CD2…), which the player plays one at a time: each part in order, the
+     * first included, as an item [MediaProvider.playback] plays on its own. Empty for a film in one file.
+     */
+    val parts: List<MediaItem> = emptyList(),
     val poster: ImageRef? = null,
     val backdrop: ImageRef? = null,
     val logo: ImageRef? = null,
