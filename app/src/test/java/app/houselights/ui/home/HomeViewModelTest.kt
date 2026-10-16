@@ -16,11 +16,16 @@ import app.houselights.ui.testing.MainDispatcherRule
 import app.houselights.ui.testing.film
 import app.houselights.ui.util.UiError
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertSame
@@ -194,6 +199,31 @@ class HomeViewModelTest {
         folders.value = listOf(folder(1, lastScanAt = 1_800_000_000_000L))
         advanceUntilIdle()
         assertEquals(HomeContent.NoFilms(hasFolders = true), vm.content())
+    }
+
+    /** Back on home after a while away, its intertitle stays while the database reads the folders again. */
+    @Test
+    fun comingBackAfterAWhileShowsNoBlankBeforeTheFolders() = runTest {
+        provider.home = emptyList()
+        // The database answers a little after it is asked, as Room does.
+        val database = flow {
+            delay(10)
+            emitAll(folders.filterNotNull())
+        }
+        val vm = HomeViewModel({ provider }, scan, database, settings, scanAll = {})
+        val screen = backgroundScope.launch { vm.state.collect {} }
+        advanceUntilIdle()
+        assertEquals(HomeContent.NoFilms(hasFolders = false), vm.content())
+        screen.cancel()
+        advanceTimeBy(60_000)
+
+        val seen = mutableListOf<HomeContent>()
+        backgroundScope.launch { vm.state.collect { seen += it.content } }
+        // Only the screen listens now: time moves by hand, past the database's answer.
+        runCurrent()
+        advanceTimeBy(100)
+        runCurrent()
+        assertEquals(listOf<HomeContent>(HomeContent.NoFilms(hasFolders = false)), seen)
     }
 
     @Test

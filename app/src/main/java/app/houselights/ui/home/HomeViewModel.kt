@@ -24,7 +24,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -100,8 +99,11 @@ class HomeViewModel(
     private val load = MutableStateFlow(HomeLoad())
     private var job: Job? = null
 
-    /** Null until the folders are first read, and again each time the screen comes back to them. */
-    private val folderList: Flow<List<SourceEntity>?> = folders.onStart<List<SourceEntity>?> { emit(null) }
+    /**
+     * Null until the folders are first read. Back on home after a while away, the folders last read
+     * stand until the database reads them again: what home showed stays, with no blank in between.
+     */
+    private val folderList: StateFlow<List<SourceEntity>?> = folders.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), null)
 
     val state: StateFlow<HomeState> = combine(load, scan, folderList, settings) { loaded, progress, list, current ->
         HomeState(loaded.libraries, homeContent(loaded, progress, list, local = current.source == SourceConfig.Local))
