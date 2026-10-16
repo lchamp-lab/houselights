@@ -103,7 +103,7 @@ class ScanTmdbTest {
 
         nas.reads.clear()
         tmdb.requests.clear()
-        val changes = bench.changesDuring { bench.scan() }
+        val changes = bench.changesDuring { bench.autoScan() }
         assertEquals("no NFO read", emptyList<String>(), nas.reads)
         assertEquals("TMDB not asked", emptyList<String>(), tmdb.requests)
         assertEquals("screens left as they are", 0, changes)
@@ -118,17 +118,39 @@ class ScanTmdbTest {
         tmdb.status = 401
         bench.scan()
         ShadowSystemClock.advanceBy(Duration.ofMinutes(59))
-        bench.scan()
+        bench.autoScan()
         assertEquals("asked at the first pass only", 1, tmdb.requests.size)
 
         ShadowSystemClock.advanceBy(Duration.ofMinutes(1))
         nas.reads.clear()
         tmdb.requests.clear()
-        bench.scan()
+        bench.autoScan()
         assertEquals("asked again, and refused", 1, tmdb.requests.size)
         assertEquals("the other titles are not read once TMDB refused", 1, nas.reads.count { it.endsWith(".nfo") })
 
         tmdbBack()
+        bench.scan()
+        assertEquals(1, bench.item(films, "Film 0 (2020).mkv").tmdbId)
+        assertNull(issue())
+    }
+
+    /** "Scan now", once the network is back: what TMDB left unmatched does not wait the hour. */
+    @Test
+    fun aScanAskedForAsksAtOnceForWhatTmdbLeftUnmatched() = runTest {
+        val films = bench.folder("Films")
+        repeat(3) { described("Film $it (2020)", "Mon film $it") }
+        tmdb.movie(1, "Mon film 0", 2020)
+        tmdb.failure = IOException("Network is unreachable")
+        bench.scan()
+        assertEquals(UiError.TMDB_OFFLINE, issue())
+
+        // Past the client's own pause, within the hour.
+        tmdb.failure = null
+        ShadowSystemClock.advanceBy(Duration.ofMinutes(2))
+        tmdb.requests.clear()
+        bench.autoScan()
+        assertEquals("the app's own passes wait", emptyList<String>(), tmdb.requests)
+
         bench.scan()
         assertEquals(1, bench.item(films, "Film 0 (2020).mkv").tmdbId)
         assertNull(issue())

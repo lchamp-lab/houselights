@@ -86,6 +86,12 @@ class ScanBench(artworkDir: File, tmdbKey: Boolean = true) {
         awaitScans()
     }
 
+    /** A pass the app starts of itself, every few minutes ([LibraryScanner.scanIfStale]), waited for. */
+    suspend fun autoScan() {
+        scanner.scanIfStale(0)
+        awaitScans()
+    }
+
     /** Waits for the scans under way, such as one the scanner started of itself. */
     suspend fun awaitScans() = passes.children.toList().forEach { it.join() }
 

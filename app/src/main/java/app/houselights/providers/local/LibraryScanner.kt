@@ -22,6 +22,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
+import java.util.concurrent.atomic.AtomicBoolean
 
 data class ScanState(
     val running: Boolean = false,
@@ -35,7 +36,7 @@ data class ScanState(
     /**
      * Why the last scan stopped asking TMDB (the key refused, TMDB out of reach): titles were indexed
      * from their files, and wait for their details. Kept after the scan ends, until TMDB is asked again
-     * for them (an hour on, or at once once the key changes).
+     * for them (an hour on, or at once at a scan asked for or a key changed).
      */
     val tmdbIssue: UiError? = null,
 )
@@ -52,7 +53,7 @@ class UnreadableFolderException(count: Int) : IllegalStateException("No video li
  * unless they were never matched (no TMDB key at the time, TMDB out of reach) or a full refresh
  * is asked. TMDB is optional ([TmdbPass]): without it, files are indexed from their NFO and
  * local artwork, and wait for their details; while it refuses the key or is out of reach, they
- * are asked for again once an hour, not at every pass.
+ * are asked for again once an hour, not at every pass, or at once when a scan is asked for.
  *
  * Choices made by the user (match, artwork) and their viewing state are never overwritten:
  * every write goes through [LibraryDao.saveScanned].
@@ -98,7 +99,12 @@ class LibraryScanner(
     private val movies = MovieIndexer(dao, files)
     private val shows = ShowIndexer(dao, files)
 
-    fun scanAll(refreshMetadata: Boolean = false) {
+    /**
+     * Scans every folder. [asked]: by someone (Scan now, a folder added or changed, a key saved), not by
+     * the app of itself ([scanIfStale]): titles TMDB left unmatched are asked for at once, not an hour on.
+     */
+    fun scanAll(refreshMetadata: Boolean = false, asked: Boolean = true) {
+        if (asked) askTmdbAgain.set(true)
         synchronized(passes) {
             // A folder added or a refresh asked during a scan is not lost: one more pass follows.
             passes.ask(refreshMetadata)
@@ -153,7 +159,7 @@ class LibraryScanner(
     fun scanIfStale(maxAgeMs: Long) {
         val end = lastScanEnd
         if (end != null && elapsed() - end < maxAgeMs) return
-        scanAll()
+        scanAll(asked = false)
     }
 
     /**
@@ -224,6 +230,9 @@ class LibraryScanner(
     @Volatile
     private var tmdbDown: TmdbDown? = null
 
+    /** A scan was asked for ([scanAll]): the next pass asks TMDB for what it left unmatched, however recent. */
+    private val askTmdbAgain = AtomicBoolean(false)
+
     private suspend fun cleanupLocked(): CleanupResult {
         val orphanCast = dao.deleteOrphanCast()
         // Based on what the library references, not on what the NAS shows: an unreachable
@@ -245,9 +254,10 @@ class LibraryScanner(
         val tmdb = TmdbPass(client) { e -> _state.update { it.copy(tmdbIssue = e.toUiError()) } }
         val seasons = ShowIndexer.SeasonCache(tmdb)
         // TMDB closed to a recent pass, with this key: titles it left unmatched wait a while, rather
-        // than being read again at every pass for an answer that will not come.
+        // than being read again at every pass for an answer that will not come; unless one asked.
         val down = tmdbDown?.takeIf { it.client === client }
-        val askUnmatched = down == null || elapsed() - down.at >= UNMATCHED_RETRY_MS
+        val asked = askTmdbAgain.getAndSet(false)
+        val askUnmatched = asked || down == null || elapsed() - down.at >= UNMATCHED_RETRY_MS
         try {
             val sources = dao.sources()
             val reached = mutableSetOf<Long>()
