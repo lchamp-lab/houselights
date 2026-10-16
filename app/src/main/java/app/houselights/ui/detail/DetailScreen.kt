@@ -37,6 +37,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.input.key.Key
@@ -605,12 +606,19 @@ private fun Episodes(
     }
 }
 
-/** Empty frames where a season's episodes will be, while they load. */
+/**
+ * Empty frames where a season's episodes will be, once loading takes long enough to be seen. Laid
+ * out from the start all the same, unseen: the rows below stay where they are when they show.
+ */
 @Composable
 private fun EpisodesSkeleton(header: String?) {
+    val seen = skeletonDelayPassed()
     Column(Modifier.scrollsAsBlock()) {
         header?.let { SectionHeader(it, Modifier.padding(start = HlSpace.safeH, bottom = HlSpace.xxs)) }
-        Row(Modifier.padding(start = HlSpace.safeH), horizontalArrangement = Arrangement.spacedBy(HlSpace.l)) {
+        Row(
+            Modifier.padding(start = HlSpace.safeH).alpha(if (seen) 1f else 0f),
+            horizontalArrangement = Arrangement.spacedBy(HlSpace.l),
+        ) {
             repeat(EPISODE_SKELETONS) { CardSkeleton(HlSize.episode, 16f / 9f) }
         }
     }
