@@ -2,6 +2,8 @@ package app.houselights
 
 import android.app.Application
 import android.util.Log
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.ProcessLifecycleOwner
 import app.houselights.core.Http
 import app.houselights.core.LibraryKind
 import app.houselights.core.MediaProvider
@@ -17,6 +19,7 @@ import app.houselights.providers.local.LibraryScanner
 import app.houselights.providers.local.LocalEditor
 import app.houselights.providers.local.LocalLibrary
 import app.houselights.providers.local.LocalProvider
+import app.houselights.providers.local.RemoteBrowsers
 import app.houselights.providers.local.TmdbClient
 import app.houselights.settings.SettingsStore
 import app.houselights.settings.SourceSwitcher
@@ -30,7 +33,11 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -80,14 +87,21 @@ class AppContainer(private val app: Application) {
         settings.state.first { it.loaded }
         provider.reporter(resumeKey)
     }
+
+    /** The NAS browsers, and the sessions and mounts they keep between files. */
+    val remoteBrowsers = RemoteBrowsers()
     val scanner = LibraryScanner(
         dao = database.dao(),
         tmdb = ::tmdb,
+        interactiveTmdb = ::tmdbInteractive,
         scope = scope,
         artwork = artwork,
         playing = playback.playing,
+        browsers = remoteBrowsers::of,
+        closeIdle = remoteBrowsers::closeIdle,
+        started = ProcessLifecycleOwner.get().lifecycle.currentStateFlow.map { it.isAtLeast(Lifecycle.State.STARTED) },
     )
-    val library = LocalLibrary(app, database.dao(), scanner, artwork)
+    val library = LocalLibrary(app, database.dao(), scanner, artwork, remoteBrowsers::forget)
 
     private val _libraryVersion = MutableStateFlow(0L)
 
@@ -103,6 +117,13 @@ class AppContainer(private val app: Application) {
                 .throttleLatest(LIBRARY_CHANGE_MS)
                 .collect { _libraryVersion.update { it + 1 } }
         }
+        // A TMDB key saved, or removed for the built-in one: what TMDB said of the old one is forgotten,
+        // and the titles it left unmatched are asked for at once.
+        scope.launch {
+            settings.state.filter { it.loaded }.map { it.tmdbApiKey }.distinctUntilChanged().drop(1).collect {
+                if (settings.state.value.source == SourceConfig.Local) scanner.tmdbKeyChanged()
+            }
+        }
     }
 
     @Volatile
@@ -114,7 +135,7 @@ class AppContainer(private val app: Application) {
             val source = settings.state.value.source ?: error("No library source configured")
             cached?.takeIf { it.first == source }?.let { return it.second }
             val created = when (source) {
-                SourceConfig.Local -> LocalProvider(app, database.dao(), LocalEditor(database.dao(), scanner, ::tmdb)) {
+                SourceConfig.Local -> LocalProvider(app, database.dao(), LocalEditor(database.dao(), scanner, ::tmdbInteractive)) {
                     settings.state.value.collectionMinFilms
                 }
                 is SourceConfig.Jellyfin -> JellyfinProvider(source, settings.state.value.deviceId)
@@ -129,16 +150,29 @@ class AppContainer(private val app: Application) {
     @Volatile
     private var tmdbClient: TmdbClient? = null
 
-    /** The TMDB client for the key in use, made once and kept while the key and language stay. */
+    @Volatile
+    private var tmdbInteractiveClient: TmdbClient? = null
+
+    /**
+     * Scans' TMDB client for the key in use, made once and kept while the key and language stay. Once
+     * TMDB could not be reached, it fails at once for a while (see [TmdbClient]).
+     */
     fun tmdb(): TmdbClient? {
         val key = tmdbKey()?.takeIf { it.isNotBlank() } ?: return null
         tmdbClient?.takeIf { it.fits(key) }?.let { return it }
-        return TmdbClient(key).also { tmdbClient = it }
+        return TmdbClient(key, pauseWhenUnreachable = true).also { tmdbClient = it }
+    }
+
+    /** The TMDB client of what people ask (a search, an identification, artwork): TMDB is asked every time. */
+    fun tmdbInteractive(): TmdbClient? {
+        val key = tmdbKey()?.takeIf { it.isNotBlank() } ?: return null
+        tmdbInteractiveClient?.takeIf { it.fits(key) }?.let { return it }
+        return TmdbClient(key).also { tmdbInteractiveClient = it }
     }
 
     /** Poster URLs of trending films, or nothing when TMDB is unreachable. */
     suspend fun trendingPosters(widthPx: Int): List<String> = suspendRunCatching {
-        val tmdb = tmdb() ?: return emptyList()
+        val tmdb = tmdbInteractive() ?: return emptyList()
         tmdb.trendingPosterPaths().map { TmdbClient.imageUrl(it, TmdbClient.Companion.ImageType.POSTER, widthPx) }
     }.getOrDefault(emptyList())
 

@@ -1,15 +1,21 @@
 package app.houselights.providers.local
 
+import android.util.Log
+import app.houselights.core.suspendRunCatching
+
 data class RemoteFile(
     /** Path relative to the source folder, with "/" separators. */
     val relativePath: String,
     val size: Long,
 )
 
-/** Videos of a folder, and the files that describe them (NFO, artwork). */
-data class Listing(val videos: List<RemoteFile>, val sidecars: List<RemoteFile>)
+/**
+ * Videos of a folder, and the files that describe them (NFO, artwork). [unreadable]: its subfolders
+ * and files that could not be read, by path relative to it; what the library holds there is not gone.
+ */
+data class Listing(val videos: List<RemoteFile>, val sidecars: List<RemoteFile>, val unreadable: List<String> = emptyList())
 
-/** Lists the video files of a network folder, whatever the protocol. */
+/** Lists the video files of a network folder, whatever the protocol; [RemoteBrowsers] has the app's. */
 interface RemoteBrowser {
     suspend fun list(source: SourceEntity): Listing
 
@@ -25,15 +31,11 @@ interface RemoteBrowser {
     companion object {
         const val MAX_DEPTH = 6
 
-        fun of(source: SourceEntity): RemoteBrowser = when (source.protocol) {
-            Protocol.SMB -> SmbBrowser
-            Protocol.NFS -> NfsBrowser
-        }
-
-        /** Hidden files, Synology/QNAP system folders, recycle bins. */
+        /** Hidden files, Synology/QNAP system folders, recycle bins, and lost+found, root's alone at an ext4 volume's root. */
         fun skip(name: String) =
             name == "." || name == ".." || name.startsWith(".") || name.startsWith("@") || name.startsWith("#") ||
-                name.equals("\$RECYCLE.BIN", ignoreCase = true) || name.equals("System Volume Information", ignoreCase = true)
+                name.equals("\$RECYCLE.BIN", ignoreCase = true) || name.equals("System Volume Information", ignoreCase = true) ||
+                name == "lost+found"
 
         fun isWanted(name: String) = FilenameParser.isVideo(name) && !isSample(name)
 
@@ -44,6 +46,77 @@ interface RemoteBrowser {
         private val SAMPLE = Regex("""(?i)(^|[ ._-])sample([ ._-]|$)""")
 
         private fun isSample(name: String) = SAMPLE.containsMatchIn(name.substringBeforeLast('.'))
+    }
+}
+
+/** A folder as a protocol lists it. */
+internal fun interface RemoteFolder {
+    /** Its entries; throws when it cannot be read. */
+    fun entries(): List<RemoteEntry>
+}
+
+/** An entry of a [RemoteFolder]: what it is and its size may each cost a request, asked only when needed. */
+internal interface RemoteEntry {
+    val name: String
+
+    /** The entry as a folder to walk into, or null for a file. */
+    fun folder(): RemoteFolder?
+
+    fun size(): Long
+}
+
+/**
+ * The videos and sidecars under [root], [RemoteBrowser.MAX_DEPTH] folders deep at most. A subfolder
+ * that cannot be read (lost+found, a folder of another user), or an entry that cannot be asked what
+ * it is or its size (a file Radarr replaced between the listing and the question), is passed over and
+ * named in [Listing.unreadable]. [root] failing, or a failure [isFatal] tells (the NAS gone, the
+ * connection broken), fails the listing: what follows could not be read either.
+ */
+internal fun walk(root: RemoteFolder, isFatal: (Throwable) -> Boolean): Listing =
+    Walk(isFatal).run {
+        visit(root, "", 0)
+        Listing(videos, sidecars, unreadable)
+    }
+
+/** One [walk], and what it found so far. */
+private class Walk(private val isFatal: (Throwable) -> Boolean) {
+    val videos = mutableListOf<RemoteFile>()
+    val sidecars = mutableListOf<RemoteFile>()
+    val unreadable = mutableListOf<String>()
+
+    fun visit(folder: RemoteFolder, relative: String, depth: Int) {
+        if (depth > RemoteBrowser.MAX_DEPTH) return
+        val entries = suspendRunCatching { folder.entries() }.getOrElse { e ->
+            if (relative.isEmpty()) throw e
+            passOver(relative, e)
+            return
+        }
+        for (entry in entries) {
+            if (RemoteBrowser.skip(entry.name)) continue
+            val path = if (relative.isEmpty()) entry.name else "$relative/${entry.name}"
+            // What an entry is, and its size, may each be a request of their own (an NFS GETATTR).
+            val subfolder = suspendRunCatching { take(entry, path) }.getOrElse { e ->
+                passOver(path, e)
+                null
+            }
+            subfolder?.let { visit(it, path, depth + 1) }
+        }
+    }
+
+    /** The entry as a folder to walk into; a file is taken among the videos or the sidecars. */
+    private fun take(entry: RemoteEntry, path: String): RemoteFolder? {
+        entry.folder()?.let { return it }
+        when {
+            RemoteBrowser.isWanted(entry.name) -> videos += RemoteFile(path, entry.size())
+            RemoteBrowser.isSidecar(entry.name) -> sidecars += RemoteFile(path, entry.size())
+        }
+        return null
+    }
+
+    private fun passOver(path: String, e: Throwable) {
+        if (isFatal(e)) throw e
+        Log.w("RemoteBrowser", "Could not read $path", e)
+        unreadable += path
     }
 }
 

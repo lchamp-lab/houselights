@@ -70,6 +70,7 @@ import app.houselights.ui.design.components.StatusState
 import app.houselights.ui.design.components.ScanProgress
 import app.houselights.ui.design.revealOnFocus
 import app.houselights.ui.onboarding.FolderField
+import app.houselights.ui.util.UiError
 import app.houselights.ui.util.scanErrorText
 import kotlinx.coroutines.launch
 import app.houselights.core.CollectionThreshold
@@ -152,8 +153,8 @@ private fun Sources(rows: PaneRows, onEdit: (folderId: Long, focus: FolderField)
             key(source.id) {
                 SourceCard(
                     source,
-                    scan = scan.takeIf { it.running && it.sourceName == source.name },
-                    error = scan.errors[source.name],
+                    scan = scan.takeIf { it.running && it.sourceId == source.id },
+                    error = scan.errors[source.id],
                     onClick = { actionsFor = source },
                     modifier = rows.focus(folderRow(source.id)),
                 )
@@ -163,7 +164,7 @@ private fun Sources(rows: PaneRows, onEdit: (folderId: Long, focus: FolderField)
     actionsFor?.let { source ->
         SourceActions(
             source,
-            error = scan.errors[source.name],
+            error = scan.errors[source.id],
             onDismiss = { actionsFor = null },
             onEdit = { focus -> onEdit(source.id, focus) },
             // Launched from here: the sheet has left the composition by the time it runs.
@@ -375,6 +376,8 @@ private fun LibraryActions(
             onClick = { vm.library.scan(refreshMetadata = true) },
             chevron = false,
         )
+        // The last scan could not ask TMDB: said where the key is changed, which may fix it.
+        val issue = scan.tmdbIssue
         HlSettingRow(
             stringResource(R.string.tmdb_key),
             value = stringResource(
@@ -384,15 +387,16 @@ private fun LibraryActions(
                     else -> R.string.tmdb_missing_short
                 }
             ),
-            // Your own key is your choice; none at all needs attention.
-            valueLit = s.tmdbApiKey != null,
-            valueAttention = s.tmdbApiKey == null && !hasBuiltIn,
+            description = issue?.let { stringResource(it.title) },
+            // Your own key is your choice; none at all, or one TMDB did not take, needs attention.
+            valueLit = s.tmdbApiKey != null && issue == null,
+            valueAttention = (s.tmdbApiKey == null && !hasBuiltIn) || issue != null,
             onClick = { editKey = true },
         )
         CollectionsRow()
         SourceRow(onUseFolders, onSignIn, rows.focus(SOURCE))
     }
-    if (editKey) TmdbKeySheet(onDismiss = { editKey = false })
+    if (editKey) TmdbKeySheet(issue = scan.tmdbIssue, onDismiss = { editKey = false })
 }
 
 /** When a saga shows as a collection: from two films (default), always, or never. */
@@ -539,11 +543,12 @@ private fun PlusIcon() {
 }
 
 /**
- * The TMDB key: the one in use, at the head; a field for a personal key, checked with TMDB when
- * saved (a key TMDB refuses is not kept); once there is one, the way back to the built-in key.
+ * The TMDB key: the one in use, at the head, with what the last scan met ([issue]); a field for a
+ * personal key, checked with TMDB when saved (a key TMDB refuses is not kept); once there is one,
+ * the way back to the built-in key.
  */
 @Composable
-private fun TmdbKeySheet(onDismiss: () -> Unit) {
+private fun TmdbKeySheet(issue: UiError?, onDismiss: () -> Unit) {
     val vm = settingsViewModel()
     val s by vm.settings.collectAsStateWithLifecycle()
     var key by remember { mutableStateOf(s.tmdbApiKey ?: "") }
@@ -558,7 +563,7 @@ private fun TmdbKeySheet(onDismiss: () -> Unit) {
         onDismiss,
         description = stringResource(R.string.tmdb_desc),
         initialFocus = field,
-        status = { TmdbKeyStatus(personal, hasBuiltIn, unchecked) },
+        status = { TmdbKeyStatus(personal, hasBuiltIn, unchecked, issue.takeUnless { unchecked }) },
     ) { sheet ->
         fun save() {
             if (checking) return
@@ -616,11 +621,17 @@ private fun TmdbKeySheet(onDismiss: () -> Unit) {
 
 /**
  * The key in use, at the head of its sheet: the user's own (said unchecked when TMDB could not be
- * asked), the built-in one, or none, which calls for attention.
+ * asked), the built-in one, or none, which calls for attention; so does what the last scan met
+ * ([issue]: the key refused, TMDB out of reach).
  */
 @Composable
-private fun TmdbKeyStatus(personal: Boolean, hasBuiltIn: Boolean, unchecked: Boolean) {
+private fun TmdbKeyStatus(personal: Boolean, hasBuiltIn: Boolean, unchecked: Boolean, issue: UiError?) {
     when {
+        issue != null && (personal || hasBuiltIn) -> HlStatus(
+            StatusState.Attention,
+            stringResource(if (personal) R.string.tmdb_key_personal else R.string.tmdb_key_builtin_state),
+            detail = stringResource(if (issue == UiError.TMDB_KEY_REFUSED) R.string.tmdb_scan_key_refused else R.string.tmdb_scan_offline),
+        )
         personal -> HlStatus(
             StatusState.On,
             stringResource(R.string.tmdb_key_personal),

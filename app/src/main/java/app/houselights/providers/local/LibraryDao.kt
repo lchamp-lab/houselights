@@ -113,6 +113,10 @@ interface LibraryDao {
     @Query("SELECT $ITEM_ROW FROM items WHERE sourceId = :sourceId AND filePath IS NOT NULL")
     suspend fun filesOf(sourceId: Long): List<ItemEntity>
 
+    /** Whether the library holds a row for the file at [filePath] of a source. */
+    @Query("SELECT EXISTS(SELECT 1 FROM items WHERE sourceId = :sourceId AND filePath = :filePath)")
+    suspend fun hasFile(sourceId: Long, filePath: String): Boolean
+
     @Query("SELECT * FROM items WHERE kind = 'SERIES' AND matchKey = :key LIMIT 1")
     suspend fun seriesByKey(key: String): ItemEntity?
 
@@ -259,6 +263,19 @@ interface LibraryDao {
     @Query("DELETE FROM items WHERE kind IN ('MOVIE', 'EPISODE') AND sourceId NOT IN (SELECT id FROM sources)")
     suspend fun deleteOrphanItems()
 
+    /**
+     * Shows and seasons first found in a folder that is gone, which still hold episodes of another,
+     * move to that one: its card counts them, and they stay new as long as its titles do. Once
+     * [deleteEmptySeasons] and [deleteEmptySeries] ran, each still holds an episode.
+     */
+    @Query(
+        "UPDATE items SET sourceId = (SELECT e.sourceId FROM items e WHERE e.kind = 'EPISODE' " +
+            "AND (e.seriesId = items.id OR e.parentId = items.id) ORDER BY e.id LIMIT 1) " +
+            "WHERE kind IN ('SERIES', 'SEASON') AND sourceId NOT IN (SELECT id FROM sources) " +
+            "AND EXISTS (SELECT 1 FROM items e WHERE e.kind = 'EPISODE' AND (e.seriesId = items.id OR e.parentId = items.id))"
+    )
+    suspend fun moveOrphanShows()
+
     /** Removes a folder and what was found in it, at once. */
     @Transaction
     suspend fun removeSource(id: Long) {
@@ -266,8 +283,13 @@ interface LibraryDao {
         deleteOrphanItems()
         deleteEmptySeasons()
         deleteEmptySeries()
+        moveOrphanShows()
         deleteEmptyCollections()
     }
+
+    /** [writes], all or none: an identification, which changes a title, its seasons and its episodes. */
+    @Transaction
+    suspend fun inTransaction(writes: suspend () -> Unit) = writes()
 
     /**
      * Saves what a scan found without touching what the user owns: artwork and match choices,

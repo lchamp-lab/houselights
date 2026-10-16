@@ -6,6 +6,24 @@ import app.houselights.core.suspendRunCatching
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
+/** What a probe made of a file. */
+sealed interface ProbeResult {
+    val info: MediaInfo
+
+    /**
+     * The file read as far as the probe reads, or one it cannot read the inside of, or one the NAS
+     * refuses: kept until the probe or the file changes.
+     */
+    data class Read(override val info: MediaInfo) : ProbeResult
+
+    /**
+     * A read failed on the way (a lock, a timeout, the file renamed since it was listed): [info] holds
+     * what was read before it, and says no probe read it ([MediaInfo.probedWith] 0), so the next scan
+     * reads the file again.
+     */
+    data class Failed(override val info: MediaInfo, val cause: Throwable) : ProbeResult
+}
+
 /** Reads what is inside a video file from its first megabytes. */
 object MediaProbe {
     private const val TAG = "MediaProbe"
@@ -20,6 +38,13 @@ object MediaProbe {
     private const val TAGS_READ = 64 shl 10
     private const val BITS_PER_KILOBIT = 1000L
     private val MATROSKA = setOf("mkv", "mk3d", "webm")
+
+    /**
+     * Read failures a file says no better at the next scan: the NAS refuses it. Not a file gone since it
+     * was listed: a file gone for good is not listed again, and one renamed (Radarr, Sonarr) takes its
+     * row along, of the same size, so kept as read it would never be read under its new name.
+     */
+    private val FINAL = setOf(ScanErrorKind.ACCESS_DENIED)
 
     /** Reads of a file's start at most: the first, the tracks further in, the first frames further in. */
     private const val MAX_ATTEMPTS = 3
@@ -42,40 +67,68 @@ object MediaProbe {
     fun decode(text: String?): MediaInfo? = text?.let { runCatching { json.decodeFromString<MediaInfo>(it) }.getOrNull() }
 
     /**
-     * An unreadable file still gets its container and size. Throws only when the NAS can't be reached,
-     * so that a passing failure is not kept as the file's description.
+     * A file whose inside cannot be read still gets its container and size, for good, and so does one
+     * the NAS refuses. A read that fails for a while is not the file's fault: what was read before it
+     * is [ProbeResult.Failed], read again at the next scan. A NAS that stops answering throws.
      */
-    suspend fun probe(source: SourceEntity, file: RemoteFile, browser: RemoteBrowser): MediaInfo {
+    suspend fun probe(source: SourceEntity, file: RemoteFile, browser: RemoteBrowser): ProbeResult {
         val ext = FilenameParser.extension(file.relativePath)
         val basic = MediaInfo(container = ext.uppercase().ifBlank { null }, sizeBytes = file.size.takeIf { it > 0 }, probedWith = VERSION)
-        if (ext !in MATROSKA) return basic
-        return suspendRunCatching {
-            val result = readTracks(browser, source, file) ?: return basic
-            val bitrates = readBitrates(browser, source, file, result.tagsAt)
+        if (ext !in MATROSKA) return ProbeResult.Read(basic)
+        val reads = Reads(browser, source, file)
+        val info = suspendRunCatching {
+            val result = readTracks(reads) ?: return@suspendRunCatching basic
+            val bitrates = readBitrates(reads, result.tagsAt)
             fun kbps(uid: Long?) = uid?.let(bitrates::get)?.let { ((it + BITS_PER_KILOBIT / 2) / BITS_PER_KILOBIT).toInt() }
             val audio = result.info.audio.mapIndexed { i, track -> track.copy(bitrateKbps = kbps(result.audioUids.getOrNull(i))) }
             val video = result.info.video?.let { it.copy(bitrateKbps = kbps(result.videoUid)) }
             result.info.copy(video = video, audio = audio, sizeBytes = basic.sizeBytes, probedWith = VERSION)
         }.getOrElse { e ->
-            // A NAS that stops answering throws: the file is probed again at the next scan.
+            // Reads keep their own failures: what is left is the NAS out of reach, or bytes that
+            // cannot be made sense of, which the file says no better at the next scan.
             if (ScanErrors.isUnreachable(e)) throw e
-            Log.w(TAG, "Could not read ${file.relativePath}", e)
+            Log.w(TAG, "Could not read the inside of ${file.relativePath}", e)
             basic
         }
+        val failure = reads.failure ?: return ProbeResult.Read(info)
+        Log.w(TAG, "Could not read ${file.relativePath}; it is read again at the next scan", failure)
+        return ProbeResult.Failed(info.copy(probedWith = 0), failure)
+    }
+
+    /**
+     * The reads of one file. A NAS that stops answering throws; any other failure gives nothing, and
+     * the probe goes on with what it has. A passing one (a lock, a timeout) is kept as the [failure], so
+     * the file is read again at the next scan; a refusal is the NAS's last word until the file changes:
+     * read again, it would fail the same way at every pass.
+     */
+    private class Reads(private val browser: RemoteBrowser, private val source: SourceEntity, val file: RemoteFile) {
+        var failure: Throwable? = null
+            private set
+
+        suspend fun at(offset: Long, length: Int): ByteArray? =
+            suspendRunCatching { browser.readAt(source, file.relativePath, offset, length) }.getOrElse { e ->
+                if (ScanErrors.isUnreachable(e)) throw e
+                if (ScanErrors.classify(e).kind in FINAL) {
+                    Log.w(TAG, "${file.relativePath} cannot be read; kept as it is until it changes", e)
+                } else {
+                    failure = failure ?: e
+                }
+                null
+            }
     }
 
     /**
      * A Matroska file's tracks, from its start: read further when its track list lies past the
      * first read, then when its tracks' first frames do (as far as [FRAMES_READ]). Null when it is
-     * not Matroska, or its tracks lie too far in.
+     * not Matroska, or its tracks lie too far in. A read that fails keeps the tracks found before it.
      */
-    private suspend fun readTracks(browser: RemoteBrowser, source: SourceEntity, file: RemoteFile): MkvProbe.Result.Found? {
+    private suspend fun readTracks(reads: Reads): MkvProbe.Result.Found? {
         var found: MkvProbe.Result.Found? = null
         var length: Int? = FIRST_READ
-        var reads = 0
-        while (length != null && reads < MAX_ATTEMPTS) {
-            val bytes = browser.readPrefix(source, file.relativePath, length)
-            reads++
+        var attempts = 0
+        while (length != null && attempts < MAX_ATTEMPTS) {
+            val bytes = reads.at(0, length) ?: break
+            attempts++
             val read = length
             length = when (val result = MkvProbe.probe(bytes)) {
                 is MkvProbe.Result.Found -> {
@@ -91,9 +144,9 @@ object MediaProbe {
     }
 
     /** The bitrate of each track by UID, from the tags at [tagsAt]; tags that cannot be read leave none. */
-    private suspend fun readBitrates(browser: RemoteBrowser, source: SourceEntity, file: RemoteFile, tagsAt: Long?): Map<Long, Long> {
-        val at = tagsAt?.takeIf { it in 0 until file.size } ?: return emptyMap()
-        return suspendRunCatching { MkvProbe.bitrates(browser.readAt(source, file.relativePath, at, TAGS_READ)) }
-            .getOrElse { e -> if (ScanErrors.isUnreachable(e)) throw e else emptyMap() }
+    private suspend fun readBitrates(reads: Reads, tagsAt: Long?): Map<Long, Long> {
+        val at = tagsAt?.takeIf { it in 0 until reads.file.size } ?: return emptyMap()
+        val bytes = reads.at(at, TAGS_READ) ?: return emptyMap()
+        return runCatching { MkvProbe.bitrates(bytes) }.getOrElse { emptyMap() }
     }
 }

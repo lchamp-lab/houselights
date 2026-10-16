@@ -36,6 +36,8 @@
     <string name="home_empty_local">Ajoutez le dossier qui les contient.</string>
     <string name="home_scanning">Analyse de vos fichiers</string>
     <string name="home_scan_failed">L’analyse n’a pas abouti</string>
+    <string name="home_scan_tmdb_refused">TMDB refuse la clé : les titres sont ajoutés d’après vos fichiers, sans leurs détails.</string>
+    <string name="home_scan_tmdb_offline">TMDB ne répond pas : les titres sont ajoutés d’après vos fichiers, et recevront leurs détails lors d’une prochaine analyse.</string>
     <string name="home_see_folders">Voir les dossiers</string>
     <!-- Home, its tab focused: how many titles are started -->
 
@@ -196,6 +198,7 @@
     <string name="error_share_missing">Indiquez le nom du dossier partagé, par exemple media.</string>
     <string name="error_scan_other">Le dossier n’a pas pu être lu. Réessayez, ou vérifiez le partage sur le NAS.</string>
     <string name="error_folder_empty">Le dossier semble vide sur le NAS : rien n’a été retiré. Vérifiez que son disque est monté ; s’il est vide pour de bon, retirez-le.</string>
+    <string name="error_storage_full">L’appareil n’a plus d’espace libre : l’analyse s’est arrêtée. Libérez-en dans Réglages, Stockage.</string>
     <string name="add">Ajouter</string>
 
     <string name="jellyfin_title">Connexion à Jellyfin</string>
@@ -274,6 +277,8 @@
     <string name="tmdb_key_none_desc">Sans clé, ni affiches ni informations.</string>
     <string name="tmdb_key_free">Une clé gratuite est disponible sur themoviedb.org.</string>
     <string name="tmdb_key_unchecked">Enregistrée sans vérification : TMDB ne répond pas.</string>
+    <string name="tmdb_scan_key_refused">TMDB a refusé cette clé pendant la dernière analyse : les titres attendent leurs détails.</string>
+    <string name="tmdb_scan_offline">TMDB n’a pas répondu pendant la dernière analyse : les titres recevront leurs détails lors d’une prochaine analyse.</string>
     <string name="tmdb_key_revert">Revenir à la clé intégrée</string>
     <string name="tmdb_key_revert_desc">Houselights oublie votre clé et reprend la sienne</string>
     <string name="save">Enregistrer</string>
@@ -377,6 +382,7 @@
     <string name="output_by_player_hint">Le lecteur met l’interface à l’échelle de sa sortie. Résolution, fréquence d’images et HDR se choisissent dans Réglages du lecteur &gt; Affichage.</string>
     <string name="storage_used">utilisés sur cet appareil</string>
     <string name="storage_cache_limit">Les images en ligne sont conservées jusqu’à %s ; les plus anciennes partent d’abord.</string>
+    <string name="storage_full">La dernière analyse s’est arrêtée : l’appareil n’a plus d’espace libre. Nettoyer, ou vider le cache des images, en libère.</string>
     <string name="cleanup_desc">Supprime les copies d’images locales qui ne servent plus</string>
     <string name="clear_cache_desc">Les images sont téléchargées à nouveau au besoin</string>
     <string name="about_free_software">Logiciel libre, licence %s</string>
