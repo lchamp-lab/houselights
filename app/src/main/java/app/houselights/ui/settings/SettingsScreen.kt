@@ -44,6 +44,7 @@ import app.houselights.ui.design.components.ScreenTitle
 import app.houselights.ui.design.focusKey
 import app.houselights.ui.design.keepVerticalFocus
 import app.houselights.ui.design.rememberFocusMemory
+import app.houselights.ui.onboarding.FolderField
 import app.houselights.ui.util.formatBytes
 
 private enum class Pane(val label: Int, val icon: ImageVector) {
@@ -57,12 +58,12 @@ private enum class Pane(val label: Int, val icon: ImageVector) {
 /**
  * Settings in two panes: the categories on the left, each with what it is set to now; on the
  * right, the selected one as rows of settings with their value. Focus selects a category.
- * [onFolderForm] opens the form of a folder (a new one for null), [onUseFolders] makes the folders
- * the source (or adds the first), [onSignIn] signs in to Jellyfin.
+ * [onFolderForm] opens the form of a folder (a new one for null), focus on the field given;
+ * [onUseFolders] makes the folders the source (or adds the first), [onSignIn] signs in to Jellyfin.
  */
 @Composable
 fun SettingsScreen(
-    onFolderForm: (folderId: Long?) -> Unit,
+    onFolderForm: (folderId: Long?, focus: FolderField) -> Unit,
     onUseFolders: () -> Unit,
     onSignIn: () -> Unit,
     onOpenCatalog: () -> Unit = {},
@@ -152,7 +153,7 @@ private fun PaneContent(
     pane: Pane,
     s: AppSettings,
     storage: StorageStats?,
-    onFolderForm: (folderId: Long?) -> Unit,
+    onFolderForm: (folderId: Long?, focus: FolderField) -> Unit,
     onUseFolders: () -> Unit,
     onSignIn: () -> Unit,
     onOpenCatalog: () -> Unit,

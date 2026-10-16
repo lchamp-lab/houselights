@@ -69,19 +69,21 @@ import app.houselights.ui.design.components.SheetConfirm
 import app.houselights.ui.design.components.StatusState
 import app.houselights.ui.design.components.ScanProgress
 import app.houselights.ui.design.revealOnFocus
+import app.houselights.ui.onboarding.FolderField
 import app.houselights.ui.util.scanErrorText
 import kotlinx.coroutines.launch
 import app.houselights.core.CollectionThreshold
 
 /**
  * The library: its folders or its server, then what can be done with it. [onFolderForm] opens the
- * form of a folder (a new one for null), [onUseFolders] makes the folders the source (or adds the
- * first one), [onSignIn] opens the Jellyfin sign-in. The rows and cards that open another screen are keyed in [rows];
- * "Add a folder" is also where focus goes when the last folder is removed.
+ * form of a folder (a new one for null), focus on the field given; [onUseFolders] makes the folders
+ * the source (or adds the first one), [onSignIn] opens the Jellyfin sign-in. The rows and cards that
+ * open another screen are keyed in [rows]; "Add a folder" is also where focus goes when the last
+ * folder is removed.
  */
 internal fun LazyListScope.libraryPane(
     s: AppSettings,
-    onFolderForm: (folderId: Long?) -> Unit,
+    onFolderForm: (folderId: Long?, focus: FolderField) -> Unit,
     onUseFolders: () -> Unit,
     onSignIn: () -> Unit,
     rows: PaneRows,
@@ -89,7 +91,7 @@ internal fun LazyListScope.libraryPane(
     when (val source = s.source) {
         SourceConfig.Local -> {
             item { Section(stringResource(R.string.section_source)) { Sources(rows, onEdit = onFolderForm) } }
-            item { LibraryActions({ onFolderForm(null) }, onUseFolders, onSignIn, rows) }
+            item { LibraryActions({ onFolderForm(null, FolderField.FIRST) }, onUseFolders, onSignIn, rows) }
         }
         is SourceConfig.Jellyfin -> {
             item {
@@ -129,7 +131,7 @@ internal fun LazyListScope.libraryPane(
  * card of a folder removed takes focus with it: focus moves on to the next card, else to "Add a folder".
  */
 @Composable
-private fun Sources(rows: PaneRows, onEdit: (folderId: Long) -> Unit) {
+private fun Sources(rows: PaneRows, onEdit: (folderId: Long, focus: FolderField) -> Unit) {
     val vm = settingsViewModel()
     val scope = rememberCoroutineScope()
     val sources by vm.library.folders.collectAsStateWithLifecycle(emptyList())
@@ -163,7 +165,7 @@ private fun Sources(rows: PaneRows, onEdit: (folderId: Long) -> Unit) {
             source,
             error = scan.errors[source.name],
             onDismiss = { actionsFor = null },
-            onEdit = { onEdit(source.id) },
+            onEdit = { focus -> onEdit(source.id, focus) },
             // Launched from here: the sheet has left the composition by the time it runs.
             onRemove = {
                 val next = sources.getOrNull(sources.indexOfFirst { it.id == source.id } + 1)
@@ -177,15 +179,16 @@ private fun Sources(rows: PaneRows, onEdit: (folderId: Long) -> Unit) {
 /**
  * What can be done with a watched folder, beside the list: scan it now, edit its address or sign-in,
  * or remove it, which asks first, in the sheet itself ([SheetConfirm]). When its last scan found the
- * NAS silent or the sign-in refused ([error]), editing comes first, with focus: an address or a
- * password has likely changed, and editing keeps what removing the folder would lose.
+ * NAS silent, the share gone or the sign-in refused ([error]), editing comes first, with focus: an
+ * address, a share or a password has likely changed, and editing keeps what removing the folder
+ * would lose. [onEdit] then opens the form on the field to change.
  */
 @Composable
 private fun SourceActions(
     source: SourceEntity,
     error: ScanError?,
     onDismiss: () -> Unit,
-    onEdit: () -> Unit,
+    onEdit: (focus: FolderField) -> Unit,
     onRemove: () -> Unit,
 ) {
     val vm = settingsViewModel()
@@ -194,7 +197,7 @@ private fun SourceActions(
     val scan = remember { FocusRequester() }
     val edit = remember { FocusRequester() }
     // Read once: a scan ending while the sheet is open does not move its rows under focus.
-    val fix = remember { error?.kind?.takeIf { it == ScanErrorKind.UNREACHABLE || it == ScanErrorKind.LOGIN_FAILED } }
+    val fix = remember { editFixes(error) }
     HlSideSheet(
         title = sourceName(source),
         onDismiss = onDismiss,
@@ -239,10 +242,11 @@ private fun SourceActions(
                     when (fix) {
                         ScanErrorKind.LOGIN_FAILED -> R.string.edit_folder_login_desc
                         ScanErrorKind.UNREACHABLE -> R.string.edit_folder_unreachable_desc
+                        ScanErrorKind.NOT_FOUND -> R.string.edit_folder_not_found_desc
                         else -> R.string.edit_folder_row_desc
                     }
                 ),
-                onClick = { sheet.dismiss(onEdit) },
+                onClick = { sheet.dismiss { onEdit(FolderField.after(fix)) } },
             )
             if (fix != null) {
                 EditRow()
@@ -263,6 +267,15 @@ private fun SourceActions(
             )
         }
     }
+}
+
+/**
+ * What editing a folder likely fixes, after its last scan's [error]: a NAS silent (its address
+ * changed), a share or path gone (renamed), a sign-in refused (its password changed). Null for
+ * anything else, which editing would not mend.
+ */
+internal fun editFixes(error: ScanError?): ScanErrorKind? = error?.kind?.takeIf {
+    it == ScanErrorKind.UNREACHABLE || it == ScanErrorKind.NOT_FOUND || it == ScanErrorKind.LOGIN_FAILED
 }
 
 @Composable

@@ -44,15 +44,17 @@ private val KINDS = listOf(SourceKind.MOVIES, SourceKind.SHOWS)
 
 /**
  * Adds a network folder to the local library, after an optional connection test; with [folderId],
- * edits that folder in place, its kind aside. [onDone] hears whether the source changed.
+ * edits that folder in place, its kind aside, focus starting on [focusOn]. [onDone] hears whether
+ * the source changed.
  */
 @Composable
-fun AddFolderScreen(folderId: Long?, onDone: (switched: Boolean) -> Unit) {
+fun AddFolderScreen(folderId: Long?, focusOn: FolderField = FolderField.FIRST, onDone: (switched: Boolean) -> Unit) {
     val app = appContainer()
     val vm = viewModel { AddFolderViewModel(app, folderId) }
     val form = vm.form
-    val focus = remember { FocusRequester() }
-    LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
+    val focus = remember { FormFocus() }
+    // Once a folder edited is read: its fields are then laid out (the password only for SMB).
+    LaunchedEffect(vm.ready) { if (vm.ready) focus.request(focusOn) }
     val check = vm.check
     val result = resultText(check, gone = vm.gone)
     val success = check is FolderCheck.Reachable && !vm.gone
@@ -103,7 +105,7 @@ fun AddFolderScreen(folderId: Long?, onDone: (switched: Boolean) -> Unit) {
                         listOf(stringResource(R.string.library_movies), stringResource(R.string.library_shows)),
                         selected = KINDS.indexOf(kind),
                         onSelect = { i -> vm.edit { copy(kind = KINDS[i]) } },
-                        modifier = Modifier.focusRequester(focus),
+                        modifier = Modifier.focusRequester(focus.first),
                     )
                 }
             }
@@ -113,12 +115,13 @@ fun AddFolderScreen(folderId: Long?, onDone: (switched: Boolean) -> Unit) {
                     PROTOCOLS.map { it.name },
                     selected = PROTOCOLS.indexOf(protocol),
                     onSelect = { i -> vm.edit { copy(protocol = PROTOCOLS[i]) } },
-                    modifier = if (vm.edits) Modifier.focusRequester(focus) else Modifier,
+                    modifier = if (vm.edits) Modifier.focusRequester(focus.first) else Modifier,
                 )
             }
         }
         HlTextField(
             stringResource(R.string.field_host), form.host, { v -> vm.edit { copy(host = v) } },
+            Modifier.focusRequester(focus.host),
             placeholder = stringResource(R.string.placeholder_host), keyboardType = KeyboardType.Uri,
         )
         Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.s)) {
@@ -144,7 +147,7 @@ fun AddFolderScreen(folderId: Long?, onDone: (switched: Boolean) -> Unit) {
                     stringResource(R.string.field_password), form.password, { v -> vm.edit { copy(password = v) } },
                     // The password saved is never shown: left empty, it stays.
                     placeholder = if (vm.keepsPassword) stringResource(R.string.password_kept) else "",
-                    password = true, imeAction = ImeAction.Done, modifier = Modifier.weight(1f),
+                    password = true, imeAction = ImeAction.Done, modifier = Modifier.weight(1f).focusRequester(focus.password),
                 )
             }
         }
@@ -187,6 +190,23 @@ private fun FolderActions(vm: AddFolderViewModel, onDone: (switched: Boolean) ->
             busy = busy && !adding,
             busyLabel = checking,
         )
+    }
+}
+
+/** Where focus can start in the form: its first control, the NAS address, or the password. */
+private class FormFocus {
+    val first = FocusRequester()
+    val host = FocusRequester()
+    val password = FocusRequester()
+
+    /** Focuses [field], else the first control: a field not shown (no password for NFS) takes none. */
+    fun request(field: FolderField) {
+        val wanted = when (field) {
+            FolderField.FIRST -> first
+            FolderField.HOST -> host
+            FolderField.PASSWORD -> password
+        }
+        if (runCatching { wanted.requestFocus() }.isFailure) runCatching { first.requestFocus() }
     }
 }
 

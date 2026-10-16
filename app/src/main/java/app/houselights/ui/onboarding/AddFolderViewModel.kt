@@ -1,6 +1,7 @@
 package app.houselights.ui.onboarding
 
 import android.util.Log
+import androidx.annotation.Keep
 import androidx.annotation.StringRes
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -15,6 +16,7 @@ import app.houselights.providers.local.LocalLibrary
 import app.houselights.providers.local.Protocol
 import app.houselights.providers.local.RemoteBrowser
 import app.houselights.providers.local.ScanError
+import app.houselights.providers.local.ScanErrorKind
 import app.houselights.providers.local.ScanErrors
 import app.houselights.providers.local.Secret
 import app.houselights.providers.local.SmbBrowser
@@ -89,6 +91,28 @@ sealed interface FolderCheck {
     data class Reachable(val entries: Int) : FolderCheck
 
     data class Failed(val error: ScanError, val host: String) : FolderCheck
+}
+
+/**
+ * The field of the folder form that focus starts on: the one the error that led there likely asks
+ * to change. Kept: a navigation route carries it.
+ */
+@Keep
+enum class FolderField {
+    /** The first one, for a folder to add, or to edit at will. */
+    FIRST,
+    HOST,
+    PASSWORD,
+    ;
+
+    companion object {
+        /** After a scan that failed with [error]: a NAS silent or a share gone, its address; a sign-in refused, its password. */
+        fun after(error: ScanErrorKind?): FolderField = when (error) {
+            ScanErrorKind.LOGIN_FAILED -> PASSWORD
+            ScanErrorKind.UNREACHABLE, ScanErrorKind.NOT_FOUND -> HOST
+            else -> FIRST
+        }
+    }
 }
 
 /** Adds a folder, or edits the folder [folderId]: the same form, filled in with it. */
