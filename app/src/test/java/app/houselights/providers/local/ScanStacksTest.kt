@@ -87,6 +87,40 @@ class ScanStacksTest {
         assertEquals(emptyList<String>(), alone.parts)
     }
 
+    /**
+     * A film's first part out of sight a while (a disk of a pool offline, a file the NAS could not be asked
+     * about): its row waits for it, and its other parts make no title meanwhile, which TMDB would be asked for
+     * and might match with another film. Back, it is the film as it was.
+     */
+    @Test
+    fun theOtherPartsOfAFilmWaitingForItsFirstMakeNoTitle() = runTest {
+        godfather()
+        bench.scan()
+        val film = rows().single()
+        bench.dao.setFavorite(film.id, true)
+        bench.withTmdb = true
+        val first = "$DIR/Le Parrain (1972) CD1.mkv"
+
+        nas.remove(first)
+        bench.scan()
+        assertEquals(listOf(film.id), rows().map { it.id })
+        assertTrue("its row waits", rows().single().missingSince != null)
+        // Not asked about: out of sight, not missing.
+        nas.unreadable = listOf(first)
+        bench.scan()
+        assertEquals(listOf(film.id), rows().map { it.id })
+        assertEquals("TMDB not asked for its second part", emptyList<String>(), bench.tmdb.requests)
+
+        nas.unreadable = emptyList()
+        nas.put(first, size = 7_000_000_000)
+        bench.scan()
+        val back = rows().single()
+        assertEquals(film.id, back.id)
+        assertEquals(listOf("$DIR/Le Parrain (1972) CD2.mkv"), back.parts)
+        assertTrue(back.favorite)
+        assertEquals(null, back.missingSince)
+    }
+
     @Test
     fun aFilmScannedFileByFileBecomesOneTitleAtOnce() = runTest {
         // What a scan made of the parts before it told them apart: one title a file.

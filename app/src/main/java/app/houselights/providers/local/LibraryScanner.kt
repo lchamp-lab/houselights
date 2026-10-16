@@ -342,13 +342,15 @@ class LibraryScanner(
         // Renamed files took their rows along, and films their parts (one of a file now of several is asked for again).
         val rewritten = missing.relinked.isNotEmpty() || missing.parts.isNotEmpty()
         val known = (if (rewritten) dao.filesOf(source.id) else listed).associateBy { it.filePath }
+        // A film's other parts wait with its row for its first part: no title of their own meanwhile.
+        val waiting = MissingFiles.waitingParts(known.values, files, missing.removed)
 
         // TMDB closed to the pass, now or since a recent one: a title only waiting for it is left as it is.
         fun wanted(f: RemoteFile): Boolean {
             val beside = SidecarKey.listed(source.kind, sidecars.forVideo(f))
             return needsWork(known[f.relativePath], f, beside, tmdb.open && askUnmatched, refreshMetadata)
         }
-        val own = files.filter(::wanted)
+        val own = files.filterNot { it.relativePath in waiting }.filter(::wanted)
         // A show's own sidecars changed, none of its episodes read for themselves: one of them reads them.
         val forShows = showsToRead(source, files, own, known, sidecars)
         val todo = own + forShows.keys

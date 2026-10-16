@@ -56,6 +56,18 @@ internal object MissingFiles {
         return settle(kind, seen, stacks, now)
     }
 
+    /**
+     * The later parts of the films [known] holds whose first part is none of the folder's [titles] (missing a
+     * while, or out of sight) and whose rows stay ([removed] are gone): the rows wait for their first part, and
+     * those parts make no title meanwhile, which TMDB would be asked for ("Heat CD2") and might match with
+     * another film, whose row would then be kept apart from the film's once its first part is back ([split]).
+     */
+    fun waitingParts(known: Collection<ItemEntity>, titles: List<RemoteFile>, removed: List<Long>): Set<String> {
+        val present = titles.mapTo(HashSet()) { it.relativePath }
+        val gone = removed.toHashSet()
+        return known.filter { it.parts.isNotEmpty() && it.filePath !in present && it.id !in gone }.flatMapTo(HashSet()) { it.parts }
+    }
+
     /** This path is [path] itself, or lies under the folder it names. */
     private fun String.isIn(path: String) = this == path || startsWith("$path/")
 
