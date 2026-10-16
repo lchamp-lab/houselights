@@ -12,7 +12,7 @@ import javax.crypto.KeyGenerator
  * A library on an in-memory database, scanned from a NAS ([nas], [showsNas]) and a TMDB ([tmdb]) held
  * in memory: what scenario tests of scans stand on. Robolectric tests only.
  */
-class ScanBench(artworkDir: File, private val withTmdb: Boolean = true) {
+class ScanBench(artworkDir: File, tmdbKey: Boolean = true) {
     private val key = KeyGenerator.getInstance("AES").apply { init(256) }.generateKey()
     val db: LibraryDatabase = Room.inMemoryDatabaseBuilder(ApplicationProvider.getApplicationContext(), LibraryDatabase::class.java)
         .addTypeConverter(SecretConverter(Secrets { key }))
@@ -23,6 +23,9 @@ class ScanBench(artworkDir: File, private val withTmdb: Boolean = true) {
     val tmdb = FakeTmdb()
     private val passes = SupervisorJob()
     var now = START
+
+    /** Whether the app has a TMDB key. */
+    var withTmdb = tmdbKey
 
     /** The scans' client, kept as the app keeps it: its pause lasts from one pass to the next. */
     val scanClient = tmdb.client(pauseWhenUnreachable = true)

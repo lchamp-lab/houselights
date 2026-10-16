@@ -3,7 +3,6 @@ package app.houselights.providers.local
 import app.houselights.core.NfoInfo
 import app.houselights.core.NfoParser
 import app.houselights.core.yearOf
-import kotlinx.coroutines.flow.first
 import java.util.Locale
 
 /** Shows: each episode file, its season and its show, with their NFOs, artwork and TMDB match. */
@@ -18,7 +17,7 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
         source: SourceEntity,
         file: RemoteFile,
         existing: ItemEntity?,
-        tmdb: TmdbClient?,
+        tmdb: TmdbPass,
         seasons: SeasonCache,
         sidecars: Sidecars,
         refreshMetadata: Boolean,
@@ -45,8 +44,10 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
         )
         val kept = files.nfo(source, local.nfo, base)
         val nfo = kept.info
-        val meta = series.tmdbId?.let { seasons.get(it, parsed.season) }?.episodes
-            ?.firstOrNull { it.episodeNumber == parsed.episode }
+        val seasonAnswer = series.tmdbId?.let { seasons.get(it, parsed.season) }
+        val meta = seasonAnswer?.value?.episodes?.firstOrNull { it.episodeNumber == parsed.episode }
+        // Matched once TMDB answered for it: its show looked up, and its season asked when TMDB knows the show.
+        val answered = series.matchedAt != null && (series.tmdbId == null || seasonAnswer is TmdbAnswer.Given)
 
         val episode = base.copy(
             parentId = season.id,
@@ -60,7 +61,7 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
             nfo = nfo,
             meta = meta,
             thumb = local.thumb?.let { files.copyArtwork(source, it) },
-            matchedAt = if (tmdb != null || nfo != null) now else base.matchedAt,
+            matchedAt = if (answered) now else base.matchedAt,
         )
         val stale = MediaProbe.isStale(episode.mediaInfo) || episode.sizeChanged(file)
         val probed = (if (stale) files.mediaFields(source, file, episode) else episode).withNfoStreams(nfo)
@@ -90,7 +91,7 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
         year: Int?,
         showDir: String,
         sidecars: Sidecars,
-        tmdb: TmdbClient?,
+        tmdb: TmdbPass,
         refreshMetadata: Boolean,
         now: Long,
     ): ItemEntity {
@@ -110,27 +111,29 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
         val nfoChanged = local.nfo != null && series.nfoPath != local.nfo.relativePath
         val needsLookup = series.matchedAt == null || refreshMetadata || nfoChanged ||
             (local.poster != null && !series.posterPath.isCachedArtwork())
-        if (!needsLookup || (tmdb == null && local.nfo == null && local.poster == null)) return series
+        if (!needsLookup || (!tmdb.open && local.nfo == null && local.poster == null)) return series
+        // Once a pass, answered or not: a show TMDB did not answer stays unmatched, and so do its
+        // episodes, until a later pass asks again.
         refreshedSeries += series.id
 
         val kept = files.nfo(source, local.nfo, series)
         val nfo = kept.info
-        val tv = tmdb?.let { lookupShow(it, series.userTmdbId, nfo, title, year) }
+        val tv = tmdb.ask { lookupShow(it, series.userTmdbId, nfo, title, year) }
         val art = LocalArt(
             poster = local.poster?.let { files.copyArtwork(source, it) },
             fanart = local.fanart?.let { files.copyArtwork(source, it) },
             logo = local.logo?.let { files.copyArtwork(source, it) },
         )
-        return saveShow(series.copy(nfoPath = kept.path, nfo = kept.text), nfo, tv, art, tmdb, now)
+        return saveShow(series.copy(nfoPath = kept.path, nfo = kept.text), nfo, tv, art, tmdb.client, now)
     }
 
     suspend fun identify(series: ItemEntity, tmdbId: Int?, tmdb: TmdbClient) {
         val (title, year) = showQuery(series)
         val nfo = series.nfo?.let(NfoParser::parse)
         // Fetched before anything changes: an unreachable TMDB throws here.
-        val tv = if (tmdbId != null) tmdb.tv(tmdbId) else lookupShow(tmdb, null, nfo, title, year)
+        val tv = TmdbAnswer.Given(if (tmdbId != null) tmdb.tv(tmdbId) else lookupShow(tmdb, null, nfo, title, year))
         dao.setUserTmdbId(series.id, tmdbId)
-        if (tv?.id != series.tmdbId) dao.clearUserArtwork(series.id)
+        if (tv.value?.id != series.tmdbId) dao.clearUserArtwork(series.id)
         val fresh = dao.item(series.id) ?: return
         val now = System.currentTimeMillis()
         val saved = saveShow(MetadataMerge.withoutDetails(fresh, title, year), nfo, tv, LocalArt.of(fresh), tmdb, now)
@@ -153,11 +156,16 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
         return id?.let { tmdb.tvById(it) } ?: tmdb.findTv(nfo?.title ?: title, nfo?.year ?: year)
     }
 
-    /** Saves a show's details (see [MetadataMerge]) and its cast. */
-    private suspend fun saveShow(base: ItemEntity, nfoInfo: NfoInfo?, tv: TmdbTv?, art: LocalArt, tmdb: TmdbClient?, now: Long): ItemEntity {
+    /**
+     * Saves a show's details (see [MetadataMerge]) and its cast. Matched only when TMDB answered: a
+     * show saved from its NFO or its poster alone is looked up at a later scan.
+     */
+    private suspend fun saveShow(base: ItemEntity, nfoInfo: NfoInfo?, lookup: TmdbAnswer<TmdbTv>, art: LocalArt, tmdb: TmdbClient?, now: Long): ItemEntity {
+        val tv = lookup.value
         val nfo = nfoInfo?.takeUnless { MetadataMerge.describesOther(it, base.userTmdbId, null) }
         val details = tv?.details(tmdb?.tvCertification(tv), tmdb?.pickLogo(tv.images))
-        val series = MetadataMerge.merge(base, nfo, details, art).copy(matchedAt = now)
+        val matchedAt = if (lookup is TmdbAnswer.Given) now else base.matchedAt
+        val series = MetadataMerge.merge(base, nfo, details, art).copy(matchedAt = matchedAt)
         dao.saveScanned(series)
         MetadataMerge.cast(series.id, nfo, tv?.credits)?.let { dao.replaceCast(series.id, it) }
         return series
@@ -183,7 +191,7 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
             addedAt = now,
         ).let { it.copy(id = dao.insert(it)) }
 
-        val meta = series.tmdbId?.let { cache.get(it, number) }
+        val meta = series.tmdbId?.let { cache.get(it, number).value }
         if (meta != null && season.matchedAt == null) {
             season = season.withSeasonDetails(meta, now)
             dao.saveScanned(season)
@@ -208,9 +216,9 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
      * what the library already knows of their files (NFO, local thumbs).
      */
     private suspend fun refreshSeasons(series: ItemEntity, tmdb: TmdbClient, now: Long) {
-        val cache = SeasonCache(tmdb)
+        val cache = SeasonCache(TmdbPass(tmdb, strict = true))
         for (season in dao.children(series.id).filter { it.kind == ItemKind.SEASON }) {
-            val meta = series.tmdbId?.let { id -> season.seasonNumber?.let { cache.get(id, it) } }
+            val meta = series.tmdbId?.let { id -> season.seasonNumber?.let { cache.get(id, it).value } }
             dao.saveScanned(season.withSeasonDetails(meta, now))
             for (episode in dao.children(season.id)) {
                 val nfo = episode.nfo?.let(NfoParser::parse)
@@ -222,14 +230,11 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
         }
     }
 
-    /** One TMDB season request per (show, season) during a scan. */
-    class SeasonCache(private val tmdb: TmdbClient?) {
-        private val cache = mutableMapOf<Pair<Int, Int>, TmdbSeason?>()
-        suspend fun get(tvId: Int, season: Int): TmdbSeason? {
-            if (tmdb == null) return null
-            val key = tvId to season
-            if (key !in cache) cache[key] = tmdb.season(tvId, season)
-            return cache[key]
-        }
+    /** One TMDB season request per (show, season) during a scan: one TMDB did not answer is not asked again before the next. */
+    class SeasonCache(private val tmdb: TmdbPass) {
+        private val cache = mutableMapOf<Pair<Int, Int>, TmdbAnswer<TmdbSeason>>()
+
+        suspend fun get(tvId: Int, season: Int): TmdbAnswer<TmdbSeason> =
+            cache.getOrPut(tvId to season) { tmdb.ask { it.season(tvId, season) } }
     }
 }

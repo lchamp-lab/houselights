@@ -2,7 +2,6 @@ package app.houselights.providers.local
 
 import app.houselights.core.NfoInfo
 import app.houselights.core.NfoParser
-import kotlinx.coroutines.flow.first
 
 /** Films: a file, its NFO and artwork, its TMDB match and its collection. */
 internal class MovieIndexer(private val dao: LibraryDao, private val files: ScanFiles) {
@@ -16,7 +15,7 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
         source: SourceEntity,
         file: RemoteFile,
         existing: ItemEntity?,
-        tmdb: TmdbClient?,
+        tmdb: TmdbPass,
         sidecars: Sidecars,
         refreshMetadata: Boolean,
     ) {
@@ -43,30 +42,38 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
         // Sidecars that disappeared leave details to TMDB again.
         val sidecarsRemoved = (item.nfoPath != null && local.nfo == null) ||
             (local.poster == null && item.posterPath.isCachedArtwork())
-        val needsTmdb = tmdb != null && (item.matchedAt == null || refreshMetadata || nfo != null || sidecarsRemoved)
+        val needsTmdb = tmdb.open && (item.matchedAt == null || refreshMetadata || nfo != null || sidecarsRemoved)
         if (nfo == null && !needsTmdb && !sidecarsRemoved && local.poster == null && local.fanart == null && local.logo == null) return
 
-        val movie = if (needsTmdb) lookupMovie(tmdb!!, item.userTmdbId, nfo, parsed, known = item.tmdbId) else null
-        if (sidecarsRemoved) item = MetadataMerge.withoutDetails(item, parsed.title, parsed.year)
+        val known = item
+        val lookup: (suspend (TmdbClient) -> TmdbMovie?)? =
+            if (needsTmdb) { client -> lookupMovie(client, known.userTmdbId, nfo, parsed, known = known.tmdbId) } else null
+        val fetched = fetch(tmdb, item.userTmdbId, nfo, refreshMetadata, lookup)
+        // Details dropped and none from TMDB: the next scan asks it again.
+        if (sidecarsRemoved) {
+            item = MetadataMerge.withoutDetails(item, parsed.title, parsed.year).let { if (fetched.answered) it else it.copy(matchedAt = null) }
+        }
         val art = LocalArt(
             poster = local.poster?.let { files.copyArtwork(source, it) },
             fanart = local.fanart?.let { files.copyArtwork(source, it) },
             logo = local.logo?.let { files.copyArtwork(source, it) },
             thumb = local.thumb?.let { files.copyArtwork(source, it) },
         )
-        saveMovie(item.copy(nfoPath = kept.path, nfo = kept.text), nfo, movie, art, tmdb, now, refreshMetadata)
+        saveMovie(item.copy(nfoPath = kept.path, nfo = kept.text), nfo, fetched, art, tmdb.client, now)
     }
 
     suspend fun identify(item: ItemEntity, tmdbId: Int?, tmdb: TmdbClient) {
         val parsed = LibraryScanner.parseMovie(item.filePath ?: return)
         val nfo = item.nfo?.let(NfoParser::parse)
         // Fetched before anything changes: an unreachable TMDB throws here.
-        val movie = if (tmdbId != null) tmdb.movie(tmdbId) else lookupMovie(tmdb, null, nfo, parsed)
+        val fetched = fetch(TmdbPass(tmdb, strict = true), tmdbId, nfo, refresh = false) { client ->
+            if (tmdbId != null) client.movie(tmdbId) else lookupMovie(client, null, nfo, parsed)
+        }
         dao.setUserTmdbId(item.id, tmdbId)
-        if (movie?.id != item.tmdbId) dao.clearUserArtwork(item.id)
+        if (fetched.movie?.id != item.tmdbId) dao.clearUserArtwork(item.id)
         val fresh = dao.item(item.id) ?: return
         val cleared = MetadataMerge.withoutDetails(fresh, parsed.title, parsed.year)
-        saveMovie(cleared, nfo, movie, LocalArt.of(fresh), tmdb, System.currentTimeMillis())
+        saveMovie(cleared, nfo, fetched, LocalArt.of(fresh), tmdb, System.currentTimeMillis())
     }
 
     /**
@@ -79,61 +86,107 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
         return id?.let { tmdb.movieById(it) } ?: tmdb.findMovie(nfo?.title ?: parsed.title, nfo?.year ?: parsed.year)
     }
 
-    /** Saves a film's details (see [MetadataMerge]) and its cast. */
-    private suspend fun saveMovie(
-        base: ItemEntity,
-        nfoInfo: NfoInfo?,
-        movie: TmdbMovie?,
-        art: LocalArt,
-        tmdb: TmdbClient?,
-        now: Long,
-        refresh: Boolean = false,
+    /** What TMDB said of a film, all asked before anything is written. */
+    private class Fetched(
+        /** Unanswered as well when it was not asked. */
+        val lookup: TmdbAnswer<TmdbMovie>,
+        /** The NFO, unless it names another title than the one matched. */
+        val nfo: NfoInfo?,
+        val collection: CollectionPlan?,
+        val collectionDetails: TmdbAnswer<TmdbCollection>,
     ) {
-        val nfo = nfoInfo?.takeUnless { MetadataMerge.describesOther(it, base.userTmdbId, movie?.imdbId) }
+        val movie: TmdbMovie? get() = lookup.value
+
+        /** TMDB answered all it was asked: the film is matched, and not asked again before a refresh. */
+        val answered: Boolean
+            get() = lookup is TmdbAnswer.Given && (collection?.fetch == null || collectionDetails is TmdbAnswer.Given)
+    }
+
+    /**
+     * The film [lookup] finds (not asked when null), then its collection's details when they are
+     * wanted: from TMDB's film, or from the NFO's set.
+     */
+    private suspend fun fetch(
+        tmdb: TmdbPass,
+        userTmdbId: Int?,
+        nfoInfo: NfoInfo?,
+        refresh: Boolean,
+        lookup: (suspend (TmdbClient) -> TmdbMovie?)?,
+    ): Fetched {
+        val answer = lookup?.let { tmdb.ask(it) } ?: TmdbAnswer.Unanswered
+        val nfo = nfoInfo?.takeUnless { MetadataMerge.describesOther(it, userTmdbId, answer.value?.imdbId) }
+        val plan = collectionOf(nfo, answer.value, refresh)
+        val details = plan?.fetch?.let { id -> tmdb.ask { it.collection(id) } } ?: TmdbAnswer.Unanswered
+        return Fetched(answer, nfo, plan, details)
+    }
+
+    /** Saves a film's details (see [MetadataMerge]) and its cast. */
+    private suspend fun saveMovie(base: ItemEntity, nfoInfo: NfoInfo?, fetched: Fetched, art: LocalArt, tmdb: TmdbClient?, now: Long) {
+        val movie = fetched.movie
+        val nfo = fetched.nfo
         // Without a fresh TMDB answer, the collection already known stays.
-        val collectionId = collection(nfo, movie, tmdb, now, refresh) ?: base.collectionId.takeIf { movie == null }
+        val collectionId = fetched.collection?.let { saveCollection(it, fetched.collectionDetails, now) }
+            ?: base.collectionId.takeIf { movie == null }
         val details = movie?.details(tmdb?.movieCertification(movie), tmdb?.pickLogo(movie.images))
-        val matchedAt = if (tmdb != null || nfoInfo != null) now else base.matchedAt
+        // Until TMDB answers, the next scans ask it again.
+        val matchedAt = if (fetched.answered) now else base.matchedAt
         val item = MetadataMerge.merge(base, nfo, details, art).copy(collectionId = collectionId, matchedAt = matchedAt)
             .withNfoStreams(nfoInfo) // What the file contains does not depend on the match.
         dao.saveScanned(item)
         MetadataMerge.cast(item.id, nfo, movie?.credits)?.let { dao.replaceCast(item.id, it) }
     }
 
+    /** The collection a film belongs to, as known before anything is written. */
+    private class CollectionPlan(
+        /** The collection's row; one to insert (id 0) when first met. */
+        val row: CollectionEntity,
+        /** The name the NFO gives it, which stays over TMDB's. */
+        val nfoName: String?,
+        /** The TMDB id to ask its details of, when they are wanted. */
+        val fetch: Int?,
+    )
+
     /**
      * The collection a film belongs to: the NFO's set first (what the user's media manager
-     * decided), then TMDB's. Created when first met; its details are asked to TMDB once, or
-     * again on a full refresh. Returns null when the film is in no collection.
+     * decided), then TMDB's. Its details are asked to TMDB once, or again on a full refresh.
+     * Null when the film is in no collection.
      */
-    private suspend fun collection(nfo: NfoInfo?, movie: TmdbMovie?, tmdb: TmdbClient?, now: Long, refresh: Boolean): Long? {
+    private suspend fun collectionOf(nfo: NfoInfo?, movie: TmdbMovie?, refresh: Boolean): CollectionPlan? {
         val ref = movie?.belongsToCollection
         val name = nfo?.collection ?: ref?.name ?: return null
         // A set of the user's own ("Marvel") is not TMDB's collection, even if the film is in one.
         val tmdbId = nfo?.collectionTmdbId
             ?: ref?.id?.takeIf { nfo?.collection == null || CollectionRules.sameName(nfo.collection, ref.name) }
         val key = CollectionRules.key(tmdbId, name)
-        var c = dao.collectionByKey(key) ?: CollectionEntity(
+        val row = dao.collectionByKey(key) ?: CollectionEntity(
             matchKey = key,
             tmdbId = tmdbId,
             name = name,
             sortTitle = MetadataMerge.sortKey(name),
             posterPath = ref?.posterPath.takeIf { tmdbId == ref?.id },
             backdropPath = ref?.backdropPath.takeIf { tmdbId == ref?.id },
-        ).let { it.copy(id = dao.insertCollection(it)) }
-        if (tmdbId != null && tmdb != null && (c.fetchedAt == null || refresh) && refreshedCollections.add(c.id)) {
-            tmdb.collection(tmdbId)?.let { full ->
-                val shown = nfo?.collection ?: full.name
-                c = c.copy(
-                    name = shown,
-                    sortTitle = MetadataMerge.sortKey(shown),
-                    overview = full.overview?.ifBlank { null } ?: c.overview,
-                    posterPath = full.posterPath ?: c.posterPath,
-                    backdropPath = full.backdropPath ?: c.backdropPath,
-                    partCount = CollectionRules.released(full.parts.map { it.releaseDate }, CollectionRules.today()),
-                    fetchedAt = now,
-                )
-                dao.updateCollection(c)
-            }
+        )
+        val fetch = tmdbId?.takeIf { (row.fetchedAt == null || refresh) && row.id !in refreshedCollections }
+        return CollectionPlan(row, nfo?.collection, fetch)
+    }
+
+    /** Writes a collection: created when first met, given its details when TMDB gave them. Returns its id. */
+    private suspend fun saveCollection(plan: CollectionPlan, details: TmdbAnswer<TmdbCollection>, now: Long): Long {
+        var c = plan.row.takeIf { it.id != 0L } ?: plan.row.copy(id = dao.insertCollection(plan.row))
+        // Asked once a pass, answered or not.
+        if (plan.fetch != null) refreshedCollections += c.id
+        details.value?.let { full ->
+            val shown = plan.nfoName ?: full.name
+            c = c.copy(
+                name = shown,
+                sortTitle = MetadataMerge.sortKey(shown),
+                overview = full.overview?.ifBlank { null } ?: c.overview,
+                posterPath = full.posterPath ?: c.posterPath,
+                backdropPath = full.backdropPath ?: c.backdropPath,
+                partCount = CollectionRules.released(full.parts.map { it.releaseDate }, CollectionRules.today()),
+                fetchedAt = now,
+            )
+            dao.updateCollection(c)
         }
         return c.id
     }

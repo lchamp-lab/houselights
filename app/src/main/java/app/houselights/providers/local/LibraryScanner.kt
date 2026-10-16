@@ -4,6 +4,8 @@ import android.os.SystemClock
 import android.util.Log
 import app.houselights.core.NoTmdbKeyException
 import app.houselights.core.suspendRunCatching
+import app.houselights.ui.util.UiError
+import app.houselights.ui.util.toUiError
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -29,12 +31,19 @@ data class ScanState(
     val current: String? = null,
     /** Last error per folder ([SourceEntity.id]), kept after the scan ends. */
     val errors: Map<Long, ScanError> = emptyMap(),
+    /**
+     * Why the last scan stopped asking TMDB (the key refused, TMDB out of reach): titles were indexed
+     * from their files, and wait for their details. Kept after the scan ends.
+     */
+    val tmdbIssue: UiError? = null,
 )
 
 /**
  * Incremental scanner: lists the files of each source, removes the missing ones (see [MissingFiles]),
  * and identifies new ones on TMDB. Files already known are never looked up again,
- * unless they were never matched (no TMDB key at the time) or a full refresh is asked.
+ * unless they were never matched (no TMDB key at the time, TMDB out of reach) or a full refresh
+ * is asked. TMDB is optional ([TmdbPass]): without it, files are indexed from their NFO and
+ * local artwork, and wait for their details.
  *
  * Choices made by the user (match, artwork) and their viewing state are never overwritten:
  * every write goes through [LibraryDao.saveScanned].
@@ -193,9 +202,11 @@ class LibraryScanner(
         shows.startPass()
         val errors = mutableMapOf<Long, ScanError>()
         var changed = false
+        val tmdb = TmdbPass(client()) { e -> _state.update { it.copy(tmdbIssue = e.toUiError()) } }
+        val seasons = ShowIndexer.SeasonCache(tmdb)
         try {
             for (source in dao.sources()) {
-                suspendRunCatching { changed = scan(source, refreshMetadata) || changed }.onFailure { e ->
+                suspendRunCatching { changed = scan(source, refreshMetadata, tmdb, seasons) || changed }.onFailure { e ->
                     Log.w(TAG, "Scan of ${source.name} failed", e)
                     errors[source.id] = ScanErrors.classify(e)
                 }
@@ -213,7 +224,7 @@ class LibraryScanner(
             }
         } finally {
             // Whatever happened, the scan is over: the settings must not show it running forever.
-            _state.value = ScanState(errors = errors)
+            _state.value = ScanState(errors = errors, tmdbIssue = tmdb.issue?.toUiError())
             lastScanEnd = elapsed()
             SmbBrowser.closeAll()
         }
@@ -233,7 +244,7 @@ class LibraryScanner(
     }
 
     /** True when the library changed: files were added, updated or removed. */
-    private suspend fun scan(source: SourceEntity, refreshMetadata: Boolean): Boolean {
+    private suspend fun scan(source: SourceEntity, refreshMetadata: Boolean, tmdb: TmdbPass, seasons: ShowIndexer.SeasonCache): Boolean {
         waitForThePlayer()
         _state.update { it.copy(running = true, sourceId = source.id, processed = 0, total = 0, current = null) }
         val listing = browsers(source).list(source)
@@ -245,8 +256,7 @@ class LibraryScanner(
         // Renamed files took their rows along.
         val known = (if (missing.relinked.isEmpty()) listed else dao.filesOf(source.id)).associateBy { it.filePath }
 
-        val tmdb = client()
-        val todo = files.filter { f -> needsWork(known[f.relativePath], f, sidecars.forVideo(f), tmdb != null, refreshMetadata) }
+        val todo = files.filter { f -> needsWork(known[f.relativePath], f, sidecars.forVideo(f), tmdb.client != null, refreshMetadata) }
         _state.update { it.copy(total = todo.size) }
         Log.i(
             TAG,
@@ -254,7 +264,6 @@ class LibraryScanner(
                 "${missing.held.size} held, ${todo.size} to do",
         )
 
-        val seasons = ShowIndexer.SeasonCache(tmdb)
         var unreachable = 0
         todo.forEachIndexed { index, file ->
             waitForThePlayer()

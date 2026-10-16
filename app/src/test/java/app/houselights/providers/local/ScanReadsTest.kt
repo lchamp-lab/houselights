@@ -29,7 +29,7 @@ class ScanReadsTest {
 
     @Before
     fun open() = runTest {
-        bench = ScanBench(temp.newFolder("artwork"), withTmdb = false)
+        bench = ScanBench(temp.newFolder("artwork"), tmdbKey = false)
         films = bench.folder("Films")
     }
 

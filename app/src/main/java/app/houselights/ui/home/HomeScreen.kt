@@ -69,6 +69,7 @@ import app.houselights.ui.design.houseLit
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.LocalAmbient
+import app.houselights.ui.design.components.AttentionNote
 import app.houselights.ui.design.components.Backdrop
 import app.houselights.ui.design.components.BackdropStyle
 import app.houselights.ui.design.components.CardSkeleton
@@ -343,17 +344,36 @@ internal fun firstScan(scan: ScanState, empty: Boolean, folders: List<SourceEnti
 internal fun failedFolder(errors: Map<Long, ScanError>, folders: List<SourceEntity>): Pair<SourceEntity, ScanError>? =
     folders.firstNotNullOfOrNull { folder -> errors[folder.id]?.let { folder to it } }
 
-/** The first scan, counted: what is being read, how far it has gone, the file being read. */
+/**
+ * The first scan, counted: what is being read, how far it has gone, the file being read. When TMDB
+ * stopped answering it, titles come from the files alone: said under the counter, with the key to
+ * change when TMDB refused it.
+ */
 @Composable
 private fun FirstScan(scan: ScanState, modifier: Modifier) {
-    ScanProgress(
-        scan.processed,
-        scan.total,
-        modifier,
-        label = stringResource(R.string.home_scanning),
-        current = scan.current,
-        lineWidth = HlLayout.readableNarrow,
+    Column(modifier) {
+        ScanProgress(
+            scan.processed,
+            scan.total,
+            label = stringResource(R.string.home_scanning),
+            current = scan.current,
+            lineWidth = HlLayout.readableNarrow,
+        )
+        scan.tmdbIssue?.let { TmdbIssue(it) }
+    }
+}
+
+@Composable
+private fun TmdbIssue(issue: UiError) {
+    val fix = LocalErrorFix.current
+    Spacer(Modifier.height(HlSpace.m))
+    AttentionNote(
+        stringResource(if (issue == UiError.TMDB_KEY_REFUSED) R.string.home_scan_tmdb_refused else R.string.home_scan_tmdb_offline),
+        Modifier.widthIn(max = HlLayout.readableNarrow),
     )
+    val action = issue.action?.takeIf { it == ErrorAction.EDIT_TMDB_KEY } ?: return
+    Spacer(Modifier.height(HlSpace.m))
+    HlButton(stringResource(action.label), onClick = { fix(action) })
 }
 
 /** No rows and nothing loading: a failure, a scan that failed, or a library still empty. */
