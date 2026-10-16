@@ -10,8 +10,9 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import app.houselights.AppContainer
-import app.houselights.core.SecretsUnavailableException
+import app.houselights.core.FailureKind
 import app.houselights.core.SourceConfig
+import app.houselights.core.failureKind
 import app.houselights.core.suspendRunCatching
 import app.houselights.providers.jellyfin.AuthRequest
 import app.houselights.providers.jellyfin.DiscoveredServer
@@ -20,15 +21,11 @@ import app.houselights.providers.jellyfin.JellyfinClient
 import app.houselights.providers.jellyfin.JellyfinNetwork
 import app.houselights.providers.jellyfin.ReachFailure
 import app.houselights.providers.jellyfin.UnsupportedServer
-import app.houselights.providers.jellyfin.isCertificateFailure
 import app.houselights.settings.SettingsStore
 import app.houselights.settings.SourceSwitcher
 import app.houselights.ui.util.UiError
 import app.houselights.ui.util.toWriteError
 import kotlinx.coroutines.launch
-import kotlinx.serialization.SerializationException
-import retrofit2.HttpException
-import java.io.IOException
 
 /** Why signing in to Jellyfin failed. */
 sealed interface LoginError {
@@ -63,31 +60,35 @@ sealed interface LoginError {
     data object Failed : LoginError
 }
 
-private const val HTTP_UNAUTHORIZED = 401
-
 /**
  * What signing in at [address] (where the server was reached, else what was typed) failed on, in
  * words the user can act on. A failure to reach the server names the address whose failure says
  * the most ([ReachFailure]).
  */
 internal fun loginError(e: Throwable, address: String): LoginError = when (e) {
-    is SecretsUnavailableException -> LoginError.Keystore
     is SavingFailed -> e.loginError()
     is InvalidServerAddress -> if (e.input.isBlank()) LoginError.NoAddress else LoginError.InvalidAddress(e.input)
     is UnsupportedServer -> LoginError.Unsupported(e.url, e.product, e.version)
     else -> answerError(e, address)
 }
 
-/** What the network or the server answered at [address], or where the server was reached ([ReachFailure]). */
+/**
+ * What the network or the server answered at [address], or where the server was reached
+ * ([ReachFailure], read by its cause): what the failure comes down to, in sign-in's words.
+ */
 private fun answerError(e: Throwable, address: String): LoginError {
     val reach = e as? ReachFailure
     val at = reach?.url ?: address
-    val cause = reach?.cause ?: e
-    return when {
-        cause is HttpException && cause.code() == HTTP_UNAUTHORIZED -> LoginError.Refused
-        cause.isCertificateFailure() -> LoginError.Certificate(at)
-        cause is SerializationException || (reach != null && cause is HttpException) -> LoginError.NotJellyfin(at)
-        cause is IOException -> LoginError.Unreachable(at)
+    return when ((reach?.cause ?: e).failureKind()) {
+        // A password refused, or an account the server keeps out (disabled, or not allowed now).
+        FailureKind.REFUSED -> LoginError.Refused
+        FailureKind.CERTIFICATE -> LoginError.Certificate(at)
+        FailureKind.UNEXPECTED_ANSWER -> LoginError.NotJellyfin(at)
+        // Something answered where the server was looked for, but not as Jellyfin does.
+        FailureKind.GONE, FailureKind.SERVER_FAILED -> if (reach != null) LoginError.NotJellyfin(at) else LoginError.Failed
+        FailureKind.UNREACHABLE, FailureKind.IO -> LoginError.Unreachable(at)
+        FailureKind.KEYSTORE -> LoginError.Keystore
+        FailureKind.STORAGE_FULL, FailureKind.STORAGE_FAILED -> LoginError.NotSaved
         else -> LoginError.Failed
     }
 }
