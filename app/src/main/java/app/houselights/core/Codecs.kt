@@ -61,6 +61,8 @@ object Codecs {
             // "dca": DTS as Kodi writes it, after ffmpeg's decoder.
             c.startsWith("dts") || c == "dca" -> dts(c, profile)
             c.startsWith("aac") -> AAC
+            // "eac3_ddp_atmos": Kodi 21 names Atmos over Dolby Digital Plus in the codec.
+            c.startsWith("eac3_") -> EAC3
             c.startsWith("pcm") -> PCM
             else -> AUDIO_NAMES[c] ?: name.uppercase()
         }

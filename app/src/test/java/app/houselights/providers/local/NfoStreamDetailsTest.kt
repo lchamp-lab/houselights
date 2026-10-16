@@ -33,4 +33,13 @@ class NfoStreamDetailsTest {
         assertEquals("VC-1", remux.video?.codec)
         assertEquals(listOf("DTS-HD HRA", "DTS-HD MA"), remux.audio.map { it.codec })
     }
+
+    /** Kodi 21 names the object layer in the codec: Atmos over Dolby Digital Plus or TrueHD, DTS:X over DTS-HD MA. */
+    @Test
+    fun kodi21SaysAtmosAndDtsXInTheCodec() {
+        val web = media("hevc", "eac3_ddp_atmos", "truehd_atmos", "dtshd_ma_x", "dtshd_ma_x_imax")
+        assertEquals(listOf("E-AC3", "TrueHD", "DTS-HD MA", "DTS-HD MA"), web.audio.map { it.codec })
+        assertEquals(listOf(true, true, false, false), web.audio.map { it.atmos })
+        assertEquals(listOf(false, false, true, true), web.audio.map { it.dtsX })
+    }
 }
