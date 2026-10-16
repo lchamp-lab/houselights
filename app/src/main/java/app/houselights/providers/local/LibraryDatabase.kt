@@ -122,8 +122,15 @@ abstract class LibraryDatabase : RoomDatabase() {
                         }
                     }
                 }
-                for ((id, version, length) in read) {
-                    db.execSQL("UPDATE items SET probeVersion = ?, fileDurationMs = ? WHERE id = ?", arrayOf<Any?>(version, length, id))
+                // One statement for every row: a library of thousands of files opens once, without compiling each.
+                db.compileStatement("UPDATE items SET probeVersion = ?, fileDurationMs = ? WHERE id = ?").use { update ->
+                    for ((id, version, length) in read) {
+                        update.bindLong(1, version.toLong())
+                        if (length != null) update.bindLong(2, length) else update.bindNull(2)
+                        update.bindLong(3, id)
+                        update.executeUpdateDelete()
+                        update.clearBindings()
+                    }
                 }
             }
         }

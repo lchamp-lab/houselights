@@ -88,13 +88,14 @@ enum class FailureKind {
 /**
  * What this failure comes down to, from it and its causes, the first that fits: the app's own
  * exceptions, wherever they lie in the chain, and the device's storage; then what a server or TLS
- * answered; then the network and the NAS; an answer that does not read; an [IOException] that says
- * nothing more comes last.
+ * answered; then an answer that does not read; then the network and the NAS; an [IOException] that
+ * says nothing more comes last.
  */
 fun Throwable.failureKind(): FailureKind {
     val chain = causeChain()
-    return typed(chain) ?: answered(chain) ?: nas(chain) ?: when {
-        chain.any { it is SerializationException } -> FailureKind.UNEXPECTED_ANSWER
+    // An answer that does not read is told before the NAS's words: its excerpt of the body may hold them.
+    val unreadable = FailureKind.UNEXPECTED_ANSWER.takeIf { chain.any { it is SerializationException } }
+    return typed(chain) ?: answered(chain) ?: unreadable ?: nas(chain) ?: when {
         chain.any { it is IOException } -> FailureKind.IO
         else -> FailureKind.OTHER
     }
@@ -132,8 +133,8 @@ private fun storageFull(chain: List<Throwable>): Boolean =
 private fun answered(chain: List<Throwable>): FailureKind? {
     val status = chain.firstNotNullOfOrNull { (it as? HttpException)?.code() }
     return when {
-        status == HTTP_UNAUTHORIZED || status == HTTP_FORBIDDEN -> FailureKind.REFUSED
-        status == HTTP_NOT_FOUND -> FailureKind.GONE
+        status == HttpStatus.UNAUTHORIZED || status == HttpStatus.FORBIDDEN -> FailureKind.REFUSED
+        status == HttpStatus.NOT_FOUND -> FailureKind.GONE
         status != null -> FailureKind.SERVER_FAILED
         chain.any { it is CertificateException || it is CertPathValidatorException || it is SSLPeerUnverifiedException } ->
             FailureKind.CERTIFICATE
@@ -198,9 +199,6 @@ private fun missing(chain: List<Throwable>, text: String): Boolean =
     chain.any { it is FileNotFoundException || it is MountException && it.status?.value == MountStatus.MNT3ERR_NOENT.value } ||
         MISSING.any { text.contains(it) }
 
-private const val HTTP_UNAUTHORIZED = 401
-private const val HTTP_FORBIDDEN = 403
-private const val HTTP_NOT_FOUND = 404
 
 /** What smbj's Session says when it is to sign a request without a key: signed in as a guest. */
 private const val NO_SIGNING_KEY = "Message signing is required, but no signing key is negotiated"

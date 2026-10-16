@@ -148,6 +148,8 @@ class FailuresTest {
         assertEquals(LoginError.Failed, auth(http(404)))
         assertEquals(LoginError.Failed, auth(http(500)))
         assertEquals(LoginError.NotJellyfin(typed), auth(SerializationException("Unexpected JSON token")))
+        // An answer that does not read, whose excerpt of the body holds words the NAS's failures use.
+        assertEquals(LoginError.NotJellyfin(typed), auth(SerializationException("Unexpected JSON token at: <h1>Request timed out</h1>")))
         assertEquals(LoginError.Certificate(typed), auth(certificateRefused()))
         assertEquals(LoginError.Unreachable(typed), auth(IOException("Connection refused")))
         assertEquals(LoginError.Unreachable(typed), auth(SocketTimeoutException()))

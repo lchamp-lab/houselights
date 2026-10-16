@@ -22,8 +22,6 @@ class RunCatchingGuardTest {
     private val allowed = listOf(
         // A pure parse of bytes already read, in a suspend fun: nothing in it suspends.
         "app/houselights/providers/local/MediaProbe.kt:runCatching { MkvProbe.bitrates(bytes) }",
-        // Not yet changed with its screen: becomes actions.tryRequestFocus().
-        "app/houselights/ui/detail/DetailScreen.kt:runCatching { actions.requestFocus() }",
     )
 
     @Test
