@@ -31,6 +31,10 @@ import kotlinx.coroutines.delay
 import okhttp3.OkHttpClient
 import retrofit2.HttpException
 import java.io.IOException
+import java.net.ConnectException
+import java.net.NoRouteToHostException
+import java.net.UnknownHostException
+import java.util.concurrent.atomic.AtomicLong
 
 class JellyfinProvider(
     config: SourceConfig.Jellyfin,
@@ -185,7 +189,13 @@ class JellyfinProvider(
     override fun reporter(resumeKey: String): PlaybackReporter? =
         resumeKey.split(RESUME_KEY_SEPARATOR).let { parts -> Reporter(parts[0], parts.getOrNull(1)) }
 
+    /** Counts playbacks started through this server: a report of an earlier one stops trying once a new one started. */
+    private val sessions = AtomicLong()
+
     private inner class Reporter(private val itemId: String, private val mediaSourceId: String?) : PlaybackReporter {
+        /** The playback this reporter speaks for: the latest when it was made, or the one it started. */
+        private var session = sessions.get()
+
         private fun report(positionMs: Long, paused: Boolean = false) = PlaybackReport(
             itemId = itemId,
             mediaSourceId = mediaSourceId,
@@ -193,32 +203,48 @@ class JellyfinProvider(
             isPaused = paused,
         )
 
-        override suspend fun started(positionMs: Long) = api.reportStart(report(positionMs))
+        override suspend fun started(positionMs: Long) {
+            session = sessions.incrementAndGet()
+            api.reportStart(report(positionMs))
+        }
 
         override suspend fun progress(positionMs: Long, durationMs: Long?, paused: Boolean) = api.reportProgress(report(positionMs, paused))
 
         // The server marks the item as played past 90 %, from this report alone: it is tried again.
-        override suspend fun stopped(positionMs: Long, durationMs: Long?) = retried { api.reportStopped(report(positionMs)) }
+        override suspend fun stopped(positionMs: Long, durationMs: Long?) = retried(session) { api.reportStopped(report(positionMs)) }
     }
 
     /**
-     * [block], tried again after each of [retryDelaysMs] while it fails in passing: the network, or the
-     * server failing (5xx, "database is locked" during a scan). A refusal (4xx) is not tried again.
+     * [block], tried again after each of [retryDelaysMs] while it fails in a way that says the server
+     * did not take it: no connection (refused, no route, a name unknown) or the server failing (5xx,
+     * "database is locked" during a scan). Anything else is not tried again: an answer that timed out
+     * may come from a request the server did take, and a second Stopped would count the film twice. A
+     * new playback ([session] no longer the latest) ends the tries: a late Stopped would land after the
+     * next film's Playing, or mark again as watched what the user has just unmarked.
      */
-    private suspend fun retried(block: suspend () -> Unit) {
+    private suspend fun retried(session: Long, block: suspend () -> Unit) {
         for (wait in retryDelaysMs) {
             try {
                 return block()
             } catch (e: IOException) {
+                if (!e.neverReachedTheServer()) throw e
                 Log.w(TAG, "Report failed, trying again in $wait ms", e)
             } catch (e: HttpException) {
                 if (e.code() < HTTP_SERVER_ERROR) throw e
                 Log.w(TAG, "Report failed, trying again in $wait ms", e)
             }
             delay(wait)
+            if (sessions.get() != session) {
+                Log.i(TAG, "Another playback started: the report of the last one is not tried again")
+                return
+            }
         }
         block()
     }
+
+    /** The request never got to the server: it can be sent again without the server taking it twice. */
+    private fun IOException.neverReachedTheServer() =
+        this is ConnectException || this is NoRouteToHostException || this is UnknownHostException
 
     private fun toMedia(dto: BaseItem): MediaItem = mapper.toMedia(dto)
 

@@ -4,6 +4,7 @@ import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
 import app.houselights.core.SectionType
 import app.houselights.core.SourceConfig
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -12,6 +13,8 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import retrofit2.HttpException
 import java.io.IOException
+import java.net.ConnectException
+import java.net.SocketTimeoutException
 import java.util.concurrent.atomic.AtomicInteger
 
 /** The Jellyfin provider against a test server: what it writes, what it reports, how it fails. */
@@ -55,7 +58,7 @@ class JellyfinProviderTest {
         val server = FakeServer {
             when (tries.incrementAndGet()) {
                 1 -> Answer(500)
-                2 -> throw IOException("Connection reset")
+                2 -> throw ConnectException("Connection refused")
                 else -> Answer(204)
             }
         }
@@ -68,6 +71,43 @@ class JellyfinProviderTest {
         val server = FakeServer { Answer(503) }
         assertEquals(503, httpFailure { provider(server).reporter("f1|s1")!!.stopped(7_000_000, null) }?.code())
         assertEquals(4, server.paths.size)
+    }
+
+    /** The request may have reached the server before the answer timed out: a second Stopped would count the film twice. */
+    @Test
+    fun aReadTimeoutIsNotTriedAgain() = runTest {
+        val server = FakeServer { throw SocketTimeoutException("timeout") }
+        try {
+            provider(server).reporter("f1|s1")!!.stopped(7_000_000, null)
+        } catch (_: IOException) {
+            // Said as a failure.
+        }
+        assertEquals(1, server.paths.size)
+    }
+
+    @Test
+    fun anAnswerOtherThanTheNetworkFailingIsNotTriedAgain() = runTest {
+        val server = FakeServer { throw IOException("Connection reset") }
+        runCatching { provider(server).reporter("f1|s1")!!.stopped(7_000_000, null) }
+        assertEquals(1, server.paths.size)
+    }
+
+    /** A Stopped late by some seconds must not land after the next film's Playing, nor mark again what was just unmarked. */
+    @Test
+    fun aNewPlaybackEndsTheTriesOfTheLastOne() = runTest {
+        lateinit var jellyfin: JellyfinProvider
+        val stops = AtomicInteger()
+        val server = FakeServer { request ->
+            if (request.url.encodedPath.endsWith("/Stopped") && stops.incrementAndGet() == 1) {
+                // While the first Stopped fails, the next film starts.
+                runBlocking { jellyfin.reporter("f2|s2")!!.started(0) }
+                throw ConnectException("Connection refused")
+            }
+            Answer(204)
+        }
+        jellyfin = provider(server)
+        runCatching { jellyfin.reporter("f1|s1")!!.stopped(7_000_000, null) }
+        assertEquals(listOf("/Sessions/Playing", "/Sessions/Playing/Stopped"), server.paths.sorted())
     }
 
     @Test
