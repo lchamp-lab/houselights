@@ -56,6 +56,7 @@ import app.houselights.ui.design.components.SectionHeader
 import app.houselights.ui.design.components.StatusPanel
 import app.houselights.ui.design.components.StatusState
 import app.houselights.ui.util.appContainer
+import app.houselights.ui.util.retainedError
 import app.houselights.ui.util.toPx
 import coil.compose.AsyncImage
 import app.houselights.ui.home.ErrorIntertitle
@@ -144,10 +145,13 @@ fun IdentifyScreen(itemId: String, onDone: () -> Unit) {
         // result to keep, a failure takes their place, with what fixes it.
         val error = state.error
         val results = state.results
+        // Trying again (the title, or the search) keeps the failure in place, its button at work.
+        val retrying = state.searching || (state.item == null && error == null)
+        val failure = retainedError(error?.takeIf { results.isNullOrEmpty() }, retrying)
         when {
+            failure != null -> ErrorIntertitle(failure, vm::retry, retrying = retrying)
             state.identifying -> HlStatus(StatusState.Pending, stringResource(R.string.identifying))
             state.searching -> HlStatus(StatusState.Pending, stringResource(R.string.searching))
-            error != null && results.isNullOrEmpty() -> ErrorIntertitle(error, vm::search)
             error != null -> HlStatus(StatusState.Attention, stringResource(error.title), detail = stringResource(error.message))
         }
         when {

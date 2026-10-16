@@ -81,6 +81,7 @@ import app.houselights.ui.design.components.PosterCard
 import app.houselights.ui.design.components.ScanProgress
 import app.houselights.ui.design.components.rememberAmbientColor
 import app.houselights.ui.util.ReloadOnLibraryChange
+import app.houselights.ui.util.retainedError
 import app.houselights.ui.util.appContainer
 import app.houselights.ui.util.libraryName
 import app.houselights.ui.util.timeLeft
@@ -158,14 +159,17 @@ fun HomeScreen(
                 // A folder read for the first time: the counter stays above the rows, which fill in
                 // under it as titles are found.
                 val firstScan = firstScan(scan, state.sections.isEmpty(), folders)
-                if (state.sections.isEmpty() && !state.loading) {
+                // Trying again keeps the error on screen, its button at work, until the answer.
+                val error = retainedError(state.error, retrying = state.loading)
+                if (state.sections.isEmpty() && (!state.loading || error != null)) {
                     // Nothing to show yet: what the screen says starts where the title under focus would.
                     val message = Modifier.padding(start = HlSpace.safeH, top = HlSpace.l)
                     if (firstScan) {
                         FirstScan(scan, message)
                     } else {
                         NoRows(
-                            state,
+                            error,
+                            retrying = state.loading,
                             scan,
                             folders,
                             local = settings.source == SourceConfig.Local,
@@ -355,7 +359,8 @@ private fun FirstScan(scan: ScanState, modifier: Modifier) {
 /** No rows and nothing loading: a failure, a scan that failed, or a library still empty. */
 @Composable
 private fun NoRows(
-    state: HomeState,
+    error: UiError?,
+    retrying: Boolean,
     scan: ScanState,
     folders: List<SourceEntity>?,
     local: Boolean,
@@ -365,7 +370,7 @@ private fun NoRows(
     modifier: Modifier,
 ) {
     when {
-        state.error != null -> ErrorIntertitle(state.error, onReload, modifier)
+        error != null -> ErrorIntertitle(error, onReload, modifier, retrying)
         // Folders are still being read: nothing to say about them yet.
         local && folders == null -> Unit
         // Not "add a folder" when there is one: its scan failed, and it says why.
@@ -413,18 +418,19 @@ private fun ScanFailed(errors: Map<String, ScanError>, folders: List<SourceEntit
 
 /** An [ErrorIntertitle] where a screen's content would start: on its margin, under its header. */
 @Composable
-fun ErrorMessage(error: UiError, onRetry: () -> Unit) {
-    ErrorIntertitle(error, onRetry, Modifier.padding(start = HlSpace.safeH, top = HlSpace.l))
+fun ErrorMessage(error: UiError, onRetry: () -> Unit, retrying: Boolean = false) {
+    ErrorIntertitle(error, onRetry, Modifier.padding(start = HlSpace.safeH, top = HlSpace.l), retrying)
 }
 
 /**
  * Something could not load: what happened, what to check, and what fixes it, as an intertitle that
  * calls for attention, in place of what would have been shown. Trying again is the screen's own
- * [onRetry]; the other actions lead where the problem is fixed ([LocalErrorFix]). An error no
- * action fixes leaves the way out to Back.
+ * [onRetry]; while it runs ([retrying]) the intertitle stays, its button at work and still focused.
+ * The other actions lead where the problem is fixed ([LocalErrorFix]). An error no action fixes
+ * leaves the way out to Back.
  */
 @Composable
-fun ErrorIntertitle(error: UiError, onRetry: () -> Unit, modifier: Modifier = Modifier) {
+fun ErrorIntertitle(error: UiError, onRetry: () -> Unit, modifier: Modifier = Modifier, retrying: Boolean = false) {
     val action = error.action
     val fix = LocalErrorFix.current
     HlEmptyState(
@@ -436,5 +442,6 @@ fun ErrorIntertitle(error: UiError, onRetry: () -> Unit, modifier: Modifier = Mo
         actionIcon = HlIcons.Refresh.takeIf { action == ErrorAction.RETRY },
         onAction = { if (action == ErrorAction.RETRY) onRetry() else action?.let(fix) },
         backHint = action == null,
+        busy = stringResource(R.string.retrying).takeIf { retrying && action == ErrorAction.RETRY },
     )
 }

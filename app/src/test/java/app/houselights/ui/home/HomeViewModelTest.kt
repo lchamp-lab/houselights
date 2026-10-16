@@ -11,6 +11,8 @@ import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -57,5 +59,30 @@ class HomeViewModelTest {
         first.complete(Unit)
         advanceUntilIdle()
         assertEquals(listOf("libraries", "libraries", "home"), provider.calls)
+    }
+
+    @Test
+    fun tryingAgainWithNothingShownSaysSo() = runTest {
+        provider.fail = { IOException("Server away") }
+        val vm = HomeViewModel { provider }
+        advanceUntilIdle()
+        assertEquals(UiError.OFFLINE, vm.state.value.error)
+
+        vm.load()
+        // At once: the error gives way to the load, and the screen keeps it, its button at work.
+        assertTrue(vm.state.value.loading)
+        assertNull(vm.state.value.error)
+        advanceUntilIdle()
+        assertFalse(vm.state.value.loading)
+        assertEquals(UiError.OFFLINE, vm.state.value.error)
+    }
+
+    @Test
+    fun rowsShownStayWhileTheyLoadAgain() = runTest {
+        val vm = HomeViewModel { provider }
+        advanceUntilIdle()
+        vm.load()
+        assertFalse(vm.state.value.loading)
+        assertEquals(provider.home, vm.state.value.sections)
     }
 }

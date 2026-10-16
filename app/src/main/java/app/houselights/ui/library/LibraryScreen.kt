@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
@@ -69,9 +70,14 @@ import app.houselights.ui.design.components.PosterCard
 import app.houselights.ui.design.components.ScreenTitle
 import app.houselights.ui.design.components.rememberAmbientColor
 import app.houselights.ui.design.components.CardSkeleton
+import app.houselights.ui.design.components.HlButton
 import app.houselights.ui.design.components.HlEmptyState
+import app.houselights.ui.design.components.HlStatus
+import app.houselights.ui.design.components.StatusState
 import app.houselights.ui.home.ErrorMessage
 import app.houselights.ui.util.ReloadOnLibraryChange
+import app.houselights.ui.util.UiError
+import app.houselights.ui.util.retainedError
 import app.houselights.ui.util.appContainer
 import app.houselights.ui.util.skeletonDelayPassed
 import kotlinx.coroutines.delay
@@ -168,9 +174,11 @@ fun LibraryScreen(
                 ) {
                     shown?.let { TitleLine(it) }
                 }
+                // Trying again keeps the error on screen, its button at work, until the answer.
+                val wallError = retainedError(state.error?.takeIf { state.items.isEmpty() }, retrying = state.loading)
                 when {
+                    state.items.isEmpty() && wallError != null -> ErrorMessage(wallError, vm::retry, retrying = state.loading)
                     state.loading && state.items.isEmpty() -> SkeletonWall()
-                    state.items.isEmpty() && state.error != null -> ErrorMessage(state.error!!, vm::retry)
                     state.items.isEmpty() && state.filter.activeCount > 0 -> HlEmptyState(
                         stringResource(R.string.no_match),
                         Modifier.padding(start = HlSpace.safeH, top = HlSpace.l),
@@ -214,12 +222,37 @@ fun LibraryScreen(
                                     .then(if (index == 0) Modifier.focusRequester(gridFocus) else Modifier),
                             )
                         }
+                        // The next page could not load: why, at the foot of the wall, and the way to try again.
+                        state.pageError?.let { error ->
+                            item(key = PAGE_FAILED, span = { GridItemSpan(maxLineSpan) }) {
+                                PageFailed(error, retrying = state.pageRetrying, onRetry = vm::retryPage)
+                            }
+                        }
                     } } }
                 }
             }
         }
     }
 }
+
+/** The next page of the wall could not load: what happened, and Réessayer, at work while it tries. */
+@Composable
+private fun PageFailed(error: UiError, retrying: Boolean, onRetry: () -> Unit) {
+    Column(Modifier.padding(top = HlSpace.m)) {
+        HlStatus(StatusState.Attention, stringResource(error.title), detail = stringResource(error.message))
+        Spacer(Modifier.height(HlSpace.s))
+        HlButton(
+            stringResource(R.string.retry),
+            onClick = onRetry,
+            icon = HlIcons.Refresh,
+            busy = retrying,
+            busyLabel = stringResource(R.string.retrying),
+        )
+    }
+}
+
+/** The key of the wall's foot when the next page failed: never a title's id. */
+private const val PAGE_FAILED = "page-failed"
 
 /** Back returns to the first poster from past the first line of the wall; from the first line, it leaves. */
 internal fun backReturnsToFirst(focusedIndex: Int?): Boolean = focusedIndex != null && focusedIndex >= COLUMNS

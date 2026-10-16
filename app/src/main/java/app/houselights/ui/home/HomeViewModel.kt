@@ -38,10 +38,13 @@ class HomeViewModel(private val provider: () -> MediaProvider) : ViewModel() {
 
     fun load() {
         job?.cancel()
+        // With nothing shown yet, trying again shows: the error gives way to the load. Rows shown stay
+        // as they are while they load again.
+        if (_state.value.sections.isEmpty()) _state.update { it.copy(loading = true, error = null) }
         job = viewModelScope.launch {
             suspendRunCatching {
-                val provider = provider()
-                provider.libraries() to provider.home()
+                val source = provider()
+                source.libraries() to source.home()
             }.onSuccess { (libraries, sections) ->
                 _state.value = HomeState(loading = false, libraries = libraries, sections = sections)
             }.onFailure { e ->

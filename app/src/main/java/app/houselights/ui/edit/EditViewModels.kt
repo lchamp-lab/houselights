@@ -107,8 +107,17 @@ class IdentifyViewModel(
     val state: StateFlow<IdentifyState> = _state
     private var search: Job? = null
 
+    private var loading: Job? = null
+
     init {
-        viewModelScope.launch {
+        load()
+    }
+
+    /** The title and how it is matched now, then the search automatic matching would make. */
+    private fun load() {
+        loading?.cancel()
+        _state.update { it.copy(error = null) }
+        loading = viewModelScope.launch {
             suspendRunCatching {
                 val source = provider()
                 val item = source.item(itemId)
@@ -120,6 +129,9 @@ class IdentifyViewModel(
             }.onFailure { e -> _state.update { it.copy(error = e.reported()) } }
         }
     }
+
+    /** After a failure: loads the title again if it could not be, else searches again. */
+    fun retry() = if (_state.value.item == null) load() else search()
 
     fun setQuery(query: String) = _state.update { it.copy(query = query) }
 

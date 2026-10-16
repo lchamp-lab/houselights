@@ -6,6 +6,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.produceState
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalConfiguration
@@ -39,6 +40,19 @@ fun ReloadOnLibraryChange(reload: () -> Unit) {
             reload()
         }
     }
+}
+
+/**
+ * The error a screen shows: [error] when there is one, else the last one while the screen tries
+ * again ([retrying]), so its intertitle stays in place with focus on its button, at work; null once
+ * the screen has something else to show.
+ */
+@Composable
+fun retainedError(error: UiError?, retrying: Boolean): UiError? {
+    // Not state: what it returns follows its arguments, read again at each composition.
+    val last = remember { arrayOfNulls<UiError>(1) }
+    last[0] = error ?: last[0].takeIf { retrying }
+    return last[0]
 }
 
 /**

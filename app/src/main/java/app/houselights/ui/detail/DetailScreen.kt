@@ -99,6 +99,7 @@ import app.houselights.ui.design.components.rememberAmbientColor
 import app.houselights.ui.edit.EditMenu
 import app.houselights.ui.home.ErrorMessage
 import app.houselights.ui.util.ReloadOnLibraryChange
+import app.houselights.ui.util.retainedError
 import app.houselights.ui.util.appContainer
 import app.houselights.ui.util.FACT_GAP
 import app.houselights.ui.util.formatDuration
@@ -138,9 +139,11 @@ fun DetailScreen(
         Box(Modifier.fillMaxSize()) {
             Backdrop(null, BackdropStyle.Full)
             Box(Modifier.padding(top = HlLayout.errorTop)) {
-                val error = state.error
+                // Trying again keeps the error on screen, its button at work, until the answer.
+                val loading = state.error == null
+                val error = retainedError(state.error, retrying = loading)
                 when {
-                    error != null -> ErrorMessage(error, vm::load)
+                    error != null -> ErrorMessage(error, vm::load, retrying = loading)
                     // Where the title and its facts will be, once loading takes long enough to be seen.
                     skeletonDelayPassed() -> HeroSkeleton(Modifier.padding(start = HlSpace.safeH, top = HlSpace.l))
                 }

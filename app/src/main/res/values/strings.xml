@@ -32,6 +32,7 @@
 
     <!-- States -->
     <string name="retry">Retry</string>
+    <string name="retrying">Trying again…</string>
     <string name="empty_title">No titles yet</string>
     <string name="empty_collections">No collections yet</string>
     <string name="empty_server">The server offers no film or show to this account.</string>

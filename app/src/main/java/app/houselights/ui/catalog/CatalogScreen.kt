@@ -230,6 +230,13 @@ fun CatalogScreen() {
                             secondaryAction = "Look closer",
                         )
                         HlEmptyState(
+                            "Trying again",
+                            Modifier.weight(1f),
+                            message = "The intertitle stays while its action is at work.",
+                            action = "Try again",
+                            busy = "Trying again…",
+                        )
+                        HlEmptyState(
                             "No action",
                             Modifier.weight(1f),
                             message = "Nothing fixes it here: Back is the way out.",

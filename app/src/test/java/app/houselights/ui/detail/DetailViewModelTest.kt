@@ -208,4 +208,18 @@ class DetailViewModelTest {
         advanceUntilIdle()
         assertEquals(listOf("s2e1", "s2e2"), vm.shownEpisodes)
     }
+
+    @Test
+    fun tryingAgainWithNoTitleShownSaysSo() = runTest {
+        provider.fail = { IOException("Server away") }
+        val vm = detail()
+        advanceUntilIdle()
+        assertEquals(UiError.OFFLINE, vm.state.value.error)
+
+        provider.fail = { null }
+        vm.load()
+        assertNull(vm.state.value.error)
+        advanceUntilIdle()
+        assertEquals("Heat", vm.state.value.item?.title)
+    }
 }

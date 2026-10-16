@@ -114,4 +114,34 @@ class EditViewModelsTest {
         assertFalse(vm.choose(option))
         assertEquals(UiError.OFFLINE, vm.state.value.error)
     }
+
+    @Test
+    fun retryLoadsTheTitleAgainWhenItCouldNotBe() = runTest {
+        provider.fail = { if (it == "item m1") IOException("NAS away") else null }
+        val vm = IdentifyViewModel("m1", { provider }, work = this)
+        advanceUntilIdle()
+        assertEquals(UiError.OFFLINE, vm.state.value.error)
+
+        provider.fail = { null }
+        vm.retry()
+        assertEquals(null, vm.state.value.error)
+        advanceUntilIdle()
+        assertEquals("Heat", vm.state.value.item?.title)
+        assertEquals(listOf(heat), vm.state.value.results)
+    }
+
+    @Test
+    fun retrySearchesAgainOnceTheTitleIsThere() = runTest {
+        provider.fail = { if (it.startsWith("search")) IOException("TMDB away") else null }
+        val vm = IdentifyViewModel("m1", { provider }, work = this)
+        advanceUntilIdle()
+        assertEquals(UiError.OFFLINE, vm.state.value.error)
+
+        provider.fail = { null }
+        vm.retry()
+        advanceUntilIdle()
+        assertEquals(2, provider.calls.count { it.startsWith("search") })
+        assertEquals(1, provider.calls.count { it == "item m1" })
+        assertEquals(listOf(heat), vm.state.value.results)
+    }
 }

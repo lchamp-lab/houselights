@@ -72,6 +72,8 @@ class DetailViewModel(
         // episodes of the season chosen itself.
         loadJob?.cancel()
         seasonJob?.cancel()
+        // With no title shown yet, trying again shows: the error gives way to the load.
+        if (_state.value.item == null) _state.update { it.copy(error = null) }
         loadJob = viewModelScope.launch {
             // In a scope of its own, a failed parallel request ends up here instead of crashing the app.
             suspendRunCatching { coroutineScope {

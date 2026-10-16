@@ -24,6 +24,7 @@
     </plurals>
 
     <string name="retry">Réessayer</string>
+    <string name="retrying">Nouvel essai…</string>
     <string name="empty_title">Aucun titre pour l’instant</string>
     <string name="empty_collections">Aucune collection pour l’instant</string>
     <string name="empty_server">Le serveur ne propose aucun film ni aucune série à ce compte.</string>

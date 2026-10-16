@@ -10,7 +10,9 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -84,5 +86,32 @@ class LibraryViewModelTest {
         advanceUntilIdle()
         assertEquals("page 0 120", provider.calls.first())
         assertEquals(120, vm.state.value.items.size)
+    }
+
+    @Test
+    fun aFailedNextPageWaitsForRetryAtTheFootOfTheWall() = runTest {
+        val vm = LibraryViewModel({ provider }, library)
+        advanceUntilIdle()
+        provider.fail = { if (it.startsWith("page 120")) IOException("Wi-Fi gone") else null }
+        vm.loadMore()
+        advanceUntilIdle()
+        assertEquals(UiError.OFFLINE, vm.state.value.pageError)
+        // The wall stays, and says nothing of an error of its own.
+        assertEquals(120, vm.state.value.items.size)
+        assertNull(vm.state.value.error)
+
+        // Focus along the last lines does not try again by itself.
+        provider.calls.clear()
+        vm.loadMore()
+        advanceUntilIdle()
+        assertEquals(emptyList<String>(), provider.calls)
+
+        provider.fail = { null }
+        vm.retryPage()
+        assertTrue(vm.state.value.pageRetrying)
+        advanceUntilIdle()
+        assertNull(vm.state.value.pageError)
+        assertFalse(vm.state.value.pageRetrying)
+        assertEquals(240, vm.state.value.items.size)
     }
 }
