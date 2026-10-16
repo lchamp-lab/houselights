@@ -62,13 +62,18 @@ internal object MissingFiles {
     /**
      * A film in several files is one title, under its first part ([Stacks.titles]): a part gone or added
      * is a change of its parts. A file that has become a later part of a film is not missing either: its
-     * row stands for the film when the film has none, else gives way to the film's at once.
+     * row stands for the film when the film has none, else gives way to the film's at once. Unless the
+     * rows of the film's files were matched with two titles ([split]): each keeps its file, and its own.
      */
     fun settle(kind: SourceKind, known: Collection<ItemEntity>, stacks: Stacks, now: Long): Outcome {
         val files = stacks.titles
         val present = files.mapTo(HashSet()) { it.relativePath }
-        val (absorbed, rest) = known.partition { it.filePath !in present && stacks.firstOf(it.filePath) != null }
-        val (listed, missing) = rest.partition { it.filePath in present }
+        val split = split(known, stacks)
+        val (absorbed, rest) = known.partition { row ->
+            row.filePath !in present && stacks.firstOf(row.filePath).let { it != null && it !in split }
+        }
+        // A later part of a film that is two is a title still: its row is listed.
+        val (listed, missing) = rest.partition { it.filePath in present || stacks.firstOf(it.filePath) in split }
         val knownPaths = known.mapTo(HashSet()) { it.filePath }
         val standIns = standIns(absorbed, knownPaths, stacks)
         val taken = standIns.mapTo(HashSet()) { it.second.relativePath }
@@ -85,9 +90,22 @@ internal object MissingFiles {
             held = fresh.map { it.id },
             removed = waiting.filter { now - (it.missingSince ?: now) >= hold }.map { it.id } +
                 absorbed.filter { it.id !in moved }.map { it.id },
-            parts = titles.mapNotNull { (row, path) -> stacks.partsOf(path).takeIf { it != row.parts }?.let { row.id to it } },
+            parts = titles.mapNotNull { (row, path) ->
+                stacks.partsOf(path).takeIf { it != row.parts && path !in split }?.let { row.id to it }
+            },
         )
     }
+
+    /**
+     * The films in several files (by their first part) whose files' rows were matched with two titles, by
+     * TMDB or by the user: two films, not one, which Kodi's names may join ("X Part 1" and "X Part 2" side
+     * by side, without a year). None of their rows gives way to another, and none takes the others' files
+     * as its parts.
+     */
+    private fun split(known: Collection<ItemEntity>, stacks: Stacks): Set<String> =
+        known.groupBy { row -> row.filePath?.let { path -> stacks.firstOf(path) ?: path.takeIf { stacks.stackAt(it) != null } } }
+            .filter { (first, rows) -> first != null && rows.mapNotNullTo(HashSet()) { it.userTmdbId ?: it.tmdbId }.size > 1 }
+            .keys.filterNotNullTo(HashSet())
 
     /**
      * Rows of files that have become later parts of a film the library has no row for, each paired with
