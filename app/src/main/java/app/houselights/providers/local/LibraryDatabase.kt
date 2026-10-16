@@ -102,16 +102,17 @@ abstract class LibraryDatabase : RoomDatabase() {
         }
 
         /**
-         * Folds the accents and ligatures of the sort keys of [table] ([MetadataMerge.fold]), and nothing
-         * more: taking the article off again would not leave a key as it was ("la land", from "La La Land",
-         * would become "land"). An article glued to its word ("l'arnaque") goes at the title's next merge.
+         * Folds the accents and ligatures of the sort keys of [table] ([MetadataMerge.fold]), and takes off
+         * an l' glued to its word ("l'arnaque"), which version 9 left. Nothing more: taking the articles off
+         * again would not leave a key as it was ("la land", from "La La Land", would become "land"). A title
+         * with no file beside it is merged again only by a refresh: its key is made right here.
          */
         private fun foldSortKeys(db: SupportSQLiteDatabase, table: String) {
             val folded = db.query("SELECT id, sortTitle FROM $table").use { rows ->
                 buildList {
                     while (rows.moveToNext()) {
                         val key = rows.getString(1)
-                        val fold = MetadataMerge.fold(key)
+                        val fold = MetadataMerge.fold(key).replaceFirst(GLUED_L, "")
                         if (fold != key) add(rows.getLong(0) to fold)
                     }
                 }
@@ -177,5 +178,8 @@ abstract class LibraryDatabase : RoomDatabase() {
         }
 
         private const val TAG = "Library"
+
+        /** l' or l’ glued to a word, at the start of a key: version 9 took it off only before a space. */
+        private val GLUED_L = Regex("""^l['’](?=\S)""")
     }
 }

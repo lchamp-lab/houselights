@@ -197,14 +197,14 @@ class MigrationTest {
     }
 
     /**
-     * Keys stored by version 9 kept their accents, and sorted after Z: they are folded, and nothing more.
-     * "la land" (La La Land) keeps its "la"; "l'arnaque" loses its article at its next merge.
+     * Keys stored by version 9 kept their accents, and sorted after Z, and an l' glued to its word: they
+     * are folded, the l' taken off, and nothing more. "la land" (La La Land) keeps its "la".
      */
     @Test
-    fun version10FoldsTheAccentsOfSortKeysAndNothingMore() = runTest {
+    fun version10FoldsSortKeysAndTakesOffAGluedLAndNothingMore() = runTest {
         val name = "migration-10-sort-test.db"
         context.deleteDatabase(name)
-        val keys = listOf("ça", "à couteaux tirés", "été 85", "œdipe roi", "la land", "l'arnaque", "zodiac")
+        val keys = listOf("ça", "à couteaux tirés", "été 85", "œdipe roi", "la land", "l'arnaque", "l’exorciste", "zodiac")
         SchemaHistory.create(context, name, version = 9) {
             execSQL(
                 "INSERT INTO sources (id, name, kind, protocol, host, share, path, username, password, domain, lastScanAt, firstScanAt) " +
@@ -219,6 +219,7 @@ class MigrationTest {
                 )
             }
             execSQL("INSERT INTO collections (id, matchKey, name, sortTitle) VALUES (1, 'name:etrange', 'Étrange saga', 'étrange saga')")
+            execSQL("INSERT INTO collections (id, matchKey, name, sortTitle) VALUES (2, 'tmdb:1', 'L''Âge de glace', 'l''âge de glace')")
         }
         val db = Room.databaseBuilder(context, LibraryDatabase::class.java, name)
             .addTypeConverter(SecretConverter(secrets))
@@ -226,11 +227,12 @@ class MigrationTest {
             .build()
         try {
             assertEquals(
-                listOf("ca", "a couteaux tires", "ete 85", "oedipe roi", "la land", "l'arnaque", "zodiac"),
+                listOf("ca", "a couteaux tires", "ete 85", "oedipe roi", "la land", "arnaque", "exorciste", "zodiac"),
                 keys.indices.map { checkNotNull(db.dao().item(it + 1L)).sortTitle },
             )
             assertEquals("ça", db.dao().item(1)?.title)
             assertEquals("etrange saga", db.dao().collection(1)?.sortTitle)
+            assertEquals("age de glace", db.dao().collection(2)?.sortTitle)
         } finally {
             db.close()
             context.deleteDatabase(name)
