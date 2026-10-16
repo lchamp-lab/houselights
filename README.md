@@ -263,7 +263,13 @@ Both sources show the same home, libraries, detail pages, technical sheets and p
 
 ## License
 
-[GPL-3.0](LICENSE). The Archivo typeface is licensed under the SIL Open Font License 1.1
-([third_party/archivo/OFL.txt](third_party/archivo/OFL.txt)).
+Houselights is free software: you can redistribute it and/or modify it under the terms of the GNU General
+Public License as published by the Free Software Foundation, either version 3 of the License, or (at your
+option) any later version ([LICENSE](LICENSE), `GPL-3.0-or-later`).
 
-This product uses the TMDB API but is not endorsed or certified by TMDB.
+The Archivo typeface is licensed under the SIL Open Font License 1.1
+([third_party/archivo/OFL.txt](third_party/archivo/OFL.txt)). The Play glyph comes from Material Icons
+(Apache License 2.0).
+
+This product uses the TMDB API but is not endorsed or certified by TMDB. The TMDB logo is a trademark of
+TMDB, shown under its attribution guidelines; it is not covered by the GPL.

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# The checks a branch passes before it is merged: CI's (.gitea/workflows/ci.yml), then the debug build
+# The checks a branch passes before it is merged: CI's (.github/workflows/ci.yml), then the debug build
 # scripts/preview.sh installs. Branches are merged locally and only main is pushed, so CI sees a branch
 # once it is on main: run this on the branch first.
 # Usage: scripts/check.sh [--heap SIZE] [--workers N] [--in-process] [other Gradle arguments…]

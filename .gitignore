@@ -10,3 +10,5 @@ keystore.properties
 *.keystore
 *.apk
 *.aab
+# Claude Code: worktrees, plans and session files of the machine that ran it.
+.claude/
