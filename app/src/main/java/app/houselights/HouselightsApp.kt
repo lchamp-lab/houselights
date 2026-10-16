@@ -9,7 +9,6 @@ import app.houselights.core.MediaProvider
 import app.houselights.core.Secrets
 import app.houselights.core.SourceConfig
 import app.houselights.core.suspendRunCatching
-import app.houselights.core.throttleLatest
 import app.houselights.player.PlaybackManager
 import app.houselights.providers.jellyfin.JellyfinProvider
 import app.houselights.providers.local.ArtworkCache
@@ -29,12 +28,8 @@ import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.merge
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 class HouselightsApp : Application(), ImageLoaderFactory {
@@ -91,24 +86,11 @@ class AppContainer(private val app: Application) : LibraryEvents {
     )
     val library = LocalLibrary(app, database.dao(), scanner, artwork)
 
-    private val _libraryVersion = MutableStateFlow(0L)
+    private val changes = LibraryChanges(scope, listOf(playback.playbackEnded, scanner.changed))
 
-    override val libraryVersion: StateFlow<Long> = _libraryVersion
+    override val libraryVersion: StateFlow<Long> = changes.version
 
-    /** Changes the user made (watched, a favourite), which neither a scan nor playback reports. */
-    private val userChanges = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
-
-    override fun libraryChanged() {
-        userChanges.tryEmit(Unit)
-    }
-
-    init {
-        scope.launch {
-            merge(playback.playbackEnded, scanner.changed, userChanges)
-                .throttleLatest(LIBRARY_CHANGE_MS)
-                .collect { _libraryVersion.update { it + 1 } }
-        }
-    }
+    override fun libraryChanged() = changes.userChanged()
 
     @Volatile
     private var cached: Pair<SourceConfig, MediaProvider>? = null
@@ -160,9 +142,6 @@ class AppContainer(private val app: Application) : LibraryEvents {
         scope.launch { settings.ensureDeviceId() }
     }
 }
-
-/** Scan progress refreshes screens at most this often. */
-private const val LIBRARY_CHANGE_MS = 3_000L
 
 /** Decoded pictures kept in memory: a few backdrops and the posters of several rows. */
 private const val IMAGE_MEMORY_BYTES = 64 * 1024 * 1024
