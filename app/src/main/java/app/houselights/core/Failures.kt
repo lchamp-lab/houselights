@@ -94,7 +94,7 @@ enum class FailureKind {
 fun Throwable.failureKind(): FailureKind {
     val chain = causeChain()
     // An answer that does not read is told before the NAS's words: its excerpt of the body may hold them.
-    val unreadable = FailureKind.UNEXPECTED_ANSWER.takeIf { chain.any { it is SerializationException } }
+    val unreadable = FailureKind.UNEXPECTED_ANSWER.takeIf { chain.any { e -> e is SerializationException } }
     return typed(chain) ?: answered(chain) ?: unreadable ?: nas(chain) ?: when {
         chain.any { it is IOException } -> FailureKind.IO
         else -> FailureKind.OTHER
