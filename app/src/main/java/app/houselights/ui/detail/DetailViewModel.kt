@@ -1,5 +1,6 @@
 package app.houselights.ui.detail
 
+import android.os.SystemClock
 import android.util.Log
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
@@ -9,6 +10,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import app.houselights.AppContainer
+import app.houselights.LibraryChanges
 import app.houselights.core.LibraryEvents
 import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
@@ -56,13 +58,15 @@ data class DetailState(
 
 /**
  * A title's page, from the [provider] of the source in use; what it changes, it tells [events]. The
- * season chosen is kept in [saved]: Android may stop the app while an episode plays.
+ * season chosen is kept in [saved]: Android may stop the app while an episode plays. [now] is the
+ * time since boot, which a change of the clock never moves.
  */
 class DetailViewModel(
     private val itemId: String,
     private val provider: () -> MediaProvider,
     private val events: LibraryEvents,
     private val saved: SavedStateHandle = SavedStateHandle(),
+    private val now: () -> Long = SystemClock::elapsedRealtime,
 ) : ViewModel() {
     private val _state = MutableStateFlow(DetailState(selectedSeasonId = saved[SEASON]))
     val state: StateFlow<DetailState> = _state
@@ -141,12 +145,15 @@ class DetailViewModel(
         }
     }
 
-    /** The library changed: the page loads again, unless the change is its own and it already did. */
+    /**
+     * The library changed: the page loads again, unless the change is its own and it already did. Only
+     * a signal soon after that change can be its own: one later (the page left meanwhile for Identify,
+     * a change of artwork merged into it) is another change, and loads the page.
+     */
     fun onLibraryChanged() {
-        if (ownChange) {
-            ownChange = false
-            return
-        }
+        val own = ownChangeAt
+        ownChangeAt = null
+        if (own != null && now() - own <= OWN_CHANGE_MS) return
         load()
     }
 
@@ -194,10 +201,11 @@ class DetailViewModel(
     private var toggleJob: Job? = null
 
     /**
-     * This page changed the library itself (watched, a favourite) and loaded again at once: the
-     * library's signal of that change, which follows, finds the page already showing it.
+     * When this page changed the library itself (watched, a favourite) and loaded again at once: the
+     * library's signal of that change, which follows within [OWN_CHANGE_MS], finds the page already
+     * showing it. Null when there is none to wait for.
      */
-    private var ownChange = false
+    private var ownChangeAt: Long? = null
 
     fun togglePlayed() = toggle("Watched") { item ->
         val played = !item.user.played
@@ -229,7 +237,7 @@ class DetailViewModel(
                     _state.update { s -> s.copy(item = s.item?.takeIf { it.id == item.id }?.copy(user = user) ?: s.item) }
                     // At once: the library's signal may wait a few seconds behind a scan's. That
                     // signal, once here, does not load the page a second time.
-                    ownChange = true
+                    ownChangeAt = now()
                     events.libraryChanged()
                     load()
                 }
@@ -249,6 +257,13 @@ class DetailViewModel(
 
 /** The season chosen, in the saved state. */
 private const val SEASON = "season"
+
+/**
+ * How long after a change of its own the library's signal can still be that change's: the library
+ * moves its version at most once per [LibraryChanges.LIBRARY_CHANGE_MS], plus a margin for a busy
+ * main thread.
+ */
+internal const val OWN_CHANGE_MS = LibraryChanges.LIBRARY_CHANGE_MS + 1_000L
 
 /**
  * This page as loaded, with the season chosen in [current] when one was chosen while it loaded (and

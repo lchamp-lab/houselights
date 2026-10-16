@@ -7,6 +7,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.util.Locale
 
 /** Space the library takes on the device. */
 data class LibraryStorage(val artworkFiles: Int, val artworkBytes: Long, val databaseBytes: Long)
@@ -118,20 +119,28 @@ class LocalLibrary(
 
 /**
  * True when this folder and [other] would read the same files: the same protocol and host (whatever
- * its case), and the path of one, share included, is the other's or inside it.
+ * its case), and the path of one, share included, is the other's or inside it. A folder with no path
+ * at all (an NFS export "/") is the host's root: it holds every folder there.
  */
 internal fun SourceEntity.overlaps(other: SourceEntity): Boolean {
     if (protocol != other.protocol || !host.trim().equals(other.host.trim(), ignoreCase = true)) return false
-    val mine = segments(share) + segments(path)
-    val theirs = segments(other.share) + segments(other.path)
+    val mine = place()
+    val theirs = other.place()
     val (shorter, longer) = if (mine.size <= theirs.size) mine to theirs else theirs to mine
-    return shorter.isNotEmpty() && longer.take(shorter.size) == shorter
+    return longer.take(shorter.size) == shorter
 }
 
 /** True when this folder and [other] are the same one, perhaps written another way. */
-internal fun SourceEntity.samePlace(other: SourceEntity): Boolean =
-    overlaps(other) && segments(share) + segments(path) == segments(other.share) + segments(other.path)
+internal fun SourceEntity.samePlace(other: SourceEntity): Boolean = overlaps(other) && place() == other.place()
+
+/**
+ * The folders from the host's root to this one, share included, as the server tells them apart: an
+ * SMB server (Samba's default, Windows) ignores their case, so "Media/Films" is "media/films".
+ */
+private fun SourceEntity.place(): List<String> {
+    val segments = segments(share) + segments(path)
+    return if (protocol == Protocol.SMB) segments.map { it.lowercase(Locale.ROOT) } else segments
+}
 
 /** The folders of a path, without empty ones (a slash doubled, at either end). */
 private fun segments(path: String) = path.split('/').filter { it.isNotEmpty() }
-

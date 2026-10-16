@@ -50,7 +50,7 @@ private val KINDS = listOf(SourceKind.MOVIES, SourceKind.SHOWS)
 @Composable
 fun AddFolderScreen(folderId: Long?, focusOn: FolderField = FolderField.FIRST, onDone: (switched: Boolean) -> Unit) {
     val app = appContainer()
-    val vm = viewModel { AddFolderViewModel(app, folderId) }
+    val vm: AddFolderViewModel = viewModel(factory = AddFolderViewModel.factory(app, folderId))
     val form = vm.form
     val focus = remember { FormFocus() }
     // Once a folder edited is read: its fields are then laid out (the password only for SMB).
@@ -224,7 +224,8 @@ private fun resultText(check: FolderCheck?, gone: Boolean): String? = if (gone) 
             if (check.same) R.string.folder_already_added else R.string.folder_overlaps,
             check.existing.name.replaceFirstChar { it.uppercase() },
         )
-        is FolderCheck.SaveFailed -> stringResource(check.error.message)
+        // The first folder is added from the welcome screen, before the settings can be reached: never sent there.
+        is FolderCheck.SaveFailed -> stringResource(welcomeProblem(check.error))
     }
 }
 

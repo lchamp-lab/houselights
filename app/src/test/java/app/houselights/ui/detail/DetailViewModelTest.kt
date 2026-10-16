@@ -11,6 +11,7 @@ import app.houselights.ui.testing.series
 import app.houselights.ui.design.HlMotion
 import app.houselights.ui.util.UiError
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
@@ -39,7 +40,7 @@ class DetailViewModelTest {
     }
     private val events = FakeEvents()
 
-    private fun detail(id: String = "m1") = DetailViewModel(id, { provider }, events)
+    private fun TestScope.detail(id: String = "m1") = DetailViewModel(id, { provider }, events, now = { testScheduler.currentTime })
 
     @Test
     fun loadsTheTitle() = runTest {
@@ -233,6 +234,26 @@ class DetailViewModelTest {
         vm.onLibraryChanged()
         advanceUntilIdle()
         assertEquals(3, provider.calls.count { it == "item m1" })
+    }
+
+    /**
+     * Watched during a scan: the library's signal of it waits. Meanwhile the page is left for Identify,
+     * then Artwork; back on the page, the signal (of all three changes) loads it again.
+     */
+    @Test
+    fun aChangeOfItsOwnLongAgoLoadsThePageAgain() = runTest {
+        val vm = detail()
+        advanceUntilIdle()
+        vm.togglePlayed()
+        advanceUntilIdle()
+
+        // Identify, then Artwork: some seconds on other screens, which match the title anew and change its poster.
+        advanceTimeBy(OWN_CHANGE_MS + 20_000)
+        provider.items["m1"] = film("m1", "Heat (1995)")
+        vm.onLibraryChanged()
+        advanceUntilIdle()
+        assertEquals(3, provider.calls.count { it == "item m1" })
+        assertEquals("Heat (1995)", vm.state.value.item?.title)
     }
 
     @Test

@@ -55,8 +55,29 @@ internal sealed interface TmdbKeySave {
 }
 
 /**
+ * A TMDB key given to save: the [number]th, as typed ([key]), and how saving it went ([outcome]),
+ * null while TMDB checks it.
+ */
+internal data class TmdbKeyAttempt(val number: Int, val key: String, val outcome: TmdbKeySave? = null)
+
+/** A change made from a row of the settings: its failure is said on that row, where focus is. */
+internal enum class SettingAction {
+    FILE_ACCESS,
+    PATH_MAPPINGS,
+    UI_RESOLUTION,
+    COLLECTIONS,
+    REMOVE_FOLDER,
+    CLEANUP,
+    CLEAR_IMAGE_CACHE,
+    SOURCE,
+}
+
+/** Why the change made from [action] did not take; [folderId] names the folder a removal was of. */
+internal data class ActionError(val action: SettingAction, val error: UiError, val folderId: Long? = null)
+
+/**
  * What the settings show and change. A change never takes the app down: one that fails is said in
- * [actionError] until the next one. Removing a folder and saving a TMDB key run in [work], which
+ * [actionError], on the row it was made from, until the next one. Removing a folder and saving a TMDB key run in [work], which
  * outlives the screen: leaving the pane, or the settings, while one waits (for a scan's file, for
  * TMDB) never cuts it off. Holds the image loader rather than a context, so nothing of a screen
  * outlives it.
@@ -79,9 +100,18 @@ internal class SettingsViewModel(
     private val _storage = MutableStateFlow<StorageStats?>(null)
     val storage: StateFlow<StorageStats?> = _storage
 
-    /** Why the last change made here did not take, shown at the head of the pane until the next one. */
-    var actionError by mutableStateOf<UiError?>(null)
+    /** Why the last change made here did not take, shown on its row until the next one. */
+    var actionError by mutableStateOf<ActionError?>(null)
         private set
+
+    /** Why the last change made from [action]'s row (for the folder [folderId]) did not take; null when it did. */
+    fun errorOf(action: SettingAction, folderId: Long? = null): UiError? =
+        actionError?.takeIf { it.action == action && it.folderId == folderId }?.error
+
+    /** A change made from [action]'s row failed elsewhere (making the folders the source, on the app's own screen). */
+    fun actionFailed(action: SettingAction, error: UiError) {
+        actionError = ActionError(action, error)
+    }
 
     /** Folders being removed: each waits for the file a scan may be reading in it. */
     var removing by mutableStateOf(emptySet<Long>())
@@ -90,6 +120,21 @@ internal class SettingsViewModel(
     /** A personal TMDB key being checked with TMDB, then saved. */
     var savingTmdbKey by mutableStateOf(false)
         private set
+
+    /**
+     * The last TMDB key given to save, and how that went, until a key is typed again ([editTmdbKey]).
+     * The TMDB sheet reads it, never a callback of its own: a sheet opened again while TMDB checks the
+     * key hears how it went, and one closed meanwhile is told nothing.
+     */
+    var tmdbKey by mutableStateOf<TmdbKeyAttempt?>(null)
+        private set
+
+    private var tmdbKeyAttempts = 0
+
+    /** A key is being typed: how the last one went no longer applies. */
+    fun editTmdbKey() {
+        tmdbKey = null
+    }
 
     init {
         refreshStorage()
@@ -100,10 +145,17 @@ internal class SettingsViewModel(
         actionError = null
     }
 
-    /** Runs a change the user asked for in [scope]: a failure is logged and said in [actionError]. */
-    private fun change(what: String, scope: CoroutineScope = viewModelScope, block: suspend CoroutineScope.() -> Unit) {
+    /** Runs a change the user asked for from [action]'s row in [scope]: a failure is logged and said in [actionError]. */
+    private fun change(
+        what: String,
+        action: SettingAction,
+        scope: CoroutineScope = viewModelScope,
+        folderId: Long? = null,
+        block: suspend CoroutineScope.() -> Unit,
+    ) {
         actionError = null
-        scope.launchAction(TAG, what, onError = { actionError = it }, errorOf = Throwable::toWriteError, block = block)
+        val failed = { error: UiError -> actionError = ActionError(action, error, folderId) }
+        scope.launchAction(TAG, what, onError = failed, errorOf = Throwable::toWriteError, block = block)
     }
 
     @OptIn(ExperimentalCoilApi::class)
@@ -121,11 +173,11 @@ internal class SettingsViewModel(
         }
     }
 
-    fun setForceHttp(value: Boolean) = change("Saving the stream setting") { store.setForceHttp(value) }
+    fun setForceHttp(value: Boolean) = change("Saving the stream setting", SettingAction.FILE_ACCESS) { store.setForceHttp(value) }
 
-    fun setUi4k(value: Boolean) = change("Saving the 4K setting") { store.setUi4k(value) }
+    fun setUi4k(value: Boolean) = change("Saving the 4K setting", SettingAction.UI_RESOLUTION) { store.setUi4k(value) }
 
-    fun setCollectionMinFilms(value: Int) = change("Saving the collections setting") {
+    fun setCollectionMinFilms(value: Int) = change("Saving the collections setting", SettingAction.COLLECTIONS) {
         store.setCollectionMinFilms(value)
         // Libraries and detail pages read the setting: let them reload.
         library.settingsChanged()
@@ -135,26 +187,24 @@ internal class SettingsViewModel(
      * Saves a personal TMDB key once TMDB has taken it. A key TMDB refuses is not saved; one it could
      * not check (out of reach) is saved all the same. A blank key goes back to the built-in one. In
      * [work]: TMDB may take some seconds, the sheet may close meanwhile, the key is saved all the same;
-     * [done] hears how it went.
+     * [tmdbKey] says how it went. The attempt's number, or null while another one is under way.
      */
-    fun saveTmdbApiKey(key: String, done: (TmdbKeySave) -> Unit) {
-        if (savingTmdbKey) return
+    fun saveTmdbApiKey(key: String): Int? {
+        if (savingTmdbKey) return null
         savingTmdbKey = true
-        val typed = key.trim()
-        work.launchAction(
-            TAG,
-            "Saving the TMDB key",
-            onError = {
-                savingTmdbKey = false
-                done(TmdbKeySave.Failed(it))
-            },
-            errorOf = Throwable::toWriteError,
-        ) {
-            val check = if (typed.isEmpty()) TmdbKeyCheck.ACCEPTED else checkTmdbKey(typed)
-            if (check != TmdbKeyCheck.REFUSED) store.setTmdbApiKey(typed)
+        val attempt = TmdbKeyAttempt(++tmdbKeyAttempts, key.trim())
+        tmdbKey = attempt
+        fun went(outcome: TmdbKeySave) {
             savingTmdbKey = false
-            done(TmdbKeySave.Checked(check))
+            // A key typed meanwhile is another one: how this one went is not said over it.
+            if (tmdbKey?.number == attempt.number) tmdbKey = attempt.copy(outcome = outcome)
         }
+        work.launchAction(TAG, "Saving the TMDB key", onError = { went(TmdbKeySave.Failed(it)) }, errorOf = Throwable::toWriteError) {
+            val check = if (attempt.key.isEmpty()) TmdbKeyCheck.ACCEPTED else checkTmdbKey(attempt.key)
+            if (check != TmdbKeyCheck.REFUSED) store.setTmdbApiKey(attempt.key)
+            went(TmdbKeySave.Checked(check))
+        }
+        return attempt.number
     }
 
     /**
@@ -164,7 +214,7 @@ internal class SettingsViewModel(
     fun removeFolder(folder: SourceEntity) {
         if (folder.id in removing) return
         removing += folder.id
-        change("Removing the folder ${folder.id}", work) {
+        change("Removing the folder ${folder.id}", SettingAction.REMOVE_FOLDER, work, folder.id) {
             try {
                 library.removeFolder(folder)
             } finally {
@@ -208,7 +258,7 @@ internal class SettingsViewModel(
         if (!mappingsEdited) return
         mappingsEdited = false
         val complete = completeMappings()
-        change("Saving the path mappings") {
+        change("Saving the path mappings", SettingAction.PATH_MAPPINGS) {
             store.setPathMappings(complete)
             mappingsSaved = true
         }
@@ -225,23 +275,24 @@ internal class SettingsViewModel(
     }
 
     /** Deletes the artwork no title uses; null when it could not ([actionError] says why). */
-    suspend fun cleanup(): CleanupResult? = action("Cleaning up the artwork") { library.cleanup() }?.also { refreshStorage() }
+    suspend fun cleanup(): CleanupResult? =
+        action("Cleaning up the artwork", SettingAction.CLEANUP) { library.cleanup() }?.also { refreshStorage() }
 
     /** Empties the image cache; false when it could not ([actionError] says why). */
     @OptIn(ExperimentalCoilApi::class)
-    suspend fun clearImageCache(): Boolean = action("Clearing the image cache") {
+    suspend fun clearImageCache(): Boolean = action("Clearing the image cache", SettingAction.CLEAR_IMAGE_CACHE) {
         images?.memoryCache?.clear()
         withContext(Dispatchers.IO) { images?.diskCache?.clear() }
         Unit
     }.also { refreshStorage() } != null
 
     /** [block], for a screen that waits for its answer; null when it failed, which [actionError] says. */
-    private suspend fun <T : Any> action(what: String, block: suspend () -> T): T? {
+    private suspend fun <T : Any> action(what: String, action: SettingAction, block: suspend () -> T): T? {
         actionError = null
         return suspendRunCatching { block() }
             .onFailure { e ->
                 Log.w(TAG, "$what failed", e)
-                actionError = e.toWriteError()
+                actionError = ActionError(action, e.toWriteError())
             }
             .getOrNull()
     }

@@ -18,6 +18,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
@@ -243,13 +244,16 @@ private fun AppNavigation(nav: NavHostController, onPlay: (MediaItem, Boolean) -
     fun openLibrary(library: Library) = nav.navigate(Route.Library(library.id, library.kind, library.title))
     fun goHome() = nav.navigate(Route.Home) { popUpTo(0) { inclusive = true } }
 
-    // Why choosing the folders failed (the device's storage refused it), said on the welcome screen.
+    // Why choosing the folders on the welcome screen failed (the device's storage refused it): said
+    // there until it is left.
     var sourceProblem by remember { mutableStateOf<UiError?>(null) }
 
-    /** "My files": the folders added before are kept across sources, else the first one is added. */
-    fun useFolders() {
-        sourceProblem = null
-        scope.launchAction("Sources", "Choosing the folders", onError = { sourceProblem = it }, errorOf = Throwable::toWriteError) {
+    /**
+     * "My files": the folders added before are kept across sources, else the first one is added. A
+     * failure goes to [onError]: the screen that asked says it, where focus is.
+     */
+    fun useFolders(onError: (UiError) -> Unit) {
+        scope.launchAction("Sources", "Choosing the folders", onError = onError, errorOf = Throwable::toWriteError) {
             if (!app.library.hasFolders()) {
                 nav.navigate(Route.AddFolder())
             } else {
@@ -261,7 +265,16 @@ private fun AppNavigation(nav: NavHostController, onPlay: (MediaItem, Boolean) -
 
     NavHost(nav, startDestination = start) {
         composable<Route.Welcome> {
-            WelcomeScreen(onLocal = ::useFolders, onJellyfin = { nav.navigate(Route.JellyfinLogin) }, problem = sourceProblem)
+            // Never said again on a later visit (signed out, a connection lost).
+            DisposableEffect(Unit) { onDispose { sourceProblem = null } }
+            WelcomeScreen(
+                onLocal = {
+                    sourceProblem = null
+                    useFolders { sourceProblem = it }
+                },
+                onJellyfin = { nav.navigate(Route.JellyfinLogin) },
+                problem = sourceProblem,
+            )
         }
         composable<Route.JellyfinLogin> { JellyfinLoginScreen(onLoggedIn = ::goHome) }
         composable<Route.AddFolder> { entry ->

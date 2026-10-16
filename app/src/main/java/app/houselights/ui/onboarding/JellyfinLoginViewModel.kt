@@ -23,6 +23,8 @@ import app.houselights.providers.jellyfin.UnsupportedServer
 import app.houselights.providers.jellyfin.isCertificateFailure
 import app.houselights.settings.SettingsStore
 import app.houselights.settings.SourceSwitcher
+import app.houselights.ui.util.UiError
+import app.houselights.ui.util.toWriteError
 import kotlinx.coroutines.launch
 import kotlinx.serialization.SerializationException
 import retrofit2.HttpException
@@ -54,6 +56,9 @@ sealed interface LoginError {
     /** Signed in, but the device's Keystore refused to seal the server's token: nothing was saved. */
     data object Keystore : LoginError
 
+    /** The device's storage refused to write the device's id or the server chosen: nothing was saved. */
+    data object NotSaved : LoginError
+
     /** Anything else: the details are in the log. */
     data object Failed : LoginError
 }
@@ -67,6 +72,7 @@ private const val HTTP_UNAUTHORIZED = 401
  */
 internal fun loginError(e: Throwable, address: String): LoginError = when (e) {
     is SecretsUnavailableException -> LoginError.Keystore
+    is SavingFailed -> e.loginError()
     is InvalidServerAddress -> if (e.input.isBlank()) LoginError.NoAddress else LoginError.InvalidAddress(e.input)
     is UnsupportedServer -> LoginError.Unsupported(e.url, e.product, e.version)
     else -> answerError(e, address)
@@ -85,6 +91,22 @@ private fun answerError(e: Throwable, address: String): LoginError {
         else -> LoginError.Failed
     }
 }
+
+/**
+ * A write to the device itself failed while signing in ([cause]): its storage or its Keystore, never
+ * the server, whatever the exception (a full disk is an IOException too).
+ */
+internal class SavingFailed(override val cause: Throwable) : Exception(cause)
+
+/** What the device refused: its Keystore, its storage, or something else, which the log tells. */
+private fun SavingFailed.loginError(): LoginError = when (cause.toWriteError()) {
+    UiError.KEYSTORE -> LoginError.Keystore
+    UiError.NOT_SAVED -> LoginError.NotSaved
+    else -> LoginError.Failed
+}
+
+/** [block], a write to the device itself: its failure is a [SavingFailed]. */
+private suspend fun <T> saving(block: suspend () -> T): T = suspendRunCatching { block() }.getOrElse { throw SavingFailed(it) }
 
 /** Signing in to a Jellyfin server, which becomes the source once [sources] switched to it. */
 class JellyfinLoginViewModel(
@@ -124,11 +146,11 @@ class JellyfinLoginViewModel(
         viewModelScope.launch {
             var address = JellyfinClient.normalizeUrl(server)
             suspendRunCatching {
-                val deviceId = settings.ensureDeviceId()
+                val deviceId = saving { settings.ensureDeviceId() }
                 val (reached, info) = network.reach(server, deviceId)
                 address = reached
                 val auth = network.authenticate(reached, deviceId, AuthRequest(user.trim(), password))
-                sources.switchTo(SourceConfig.Jellyfin(reached, info.serverName, auth.user.id, auth.user.name, auth.accessToken))
+                saving { sources.switchTo(SourceConfig.Jellyfin(reached, info.serverName, auth.user.id, auth.user.name, auth.accessToken)) }
             }.onSuccess {
                 onLoggedIn()
             }.onFailure { e ->

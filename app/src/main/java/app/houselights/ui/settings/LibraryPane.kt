@@ -157,6 +157,7 @@ private fun Sources(rows: PaneRows, onEdit: (folderId: Long, focus: FolderField)
                     source,
                     scan = scan.takeIf { it.running && it.sourceId == source.id },
                     error = scan.errors[source.id],
+                    removeError = vm.errorOf(SettingAction.REMOVE_FOLDER, source.id),
                     onClick = { actionsFor = source },
                     modifier = rows.focus(folderRow(source.id)),
                 )
@@ -287,13 +288,15 @@ private fun sourceName(source: SourceEntity) = source.name.replaceFirstChar { it
 /**
  * A watched folder, headed by its latest posters from edge to edge (its name, set like a one-sheet,
  * before it has any); then its name and kind, where it lives, and how its last scan went, or the
- * [scan] going on through it. OK opens its actions.
+ * [scan] going on through it. Removing it failed ([removeError]): said there, where focus is back.
+ * OK opens its actions.
  */
 @Composable
 private fun SourceCard(
     source: SourceEntity,
     scan: ScanState?,
     error: ScanError?,
+    removeError: UiError?,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -324,6 +327,7 @@ private fun SourceCard(
                 Spacer(Modifier.height(HlSpace.m))
                 when {
                     scan != null -> ScanProgress(scan.processed, scan.total, current = scan.current)
+                    removeError != null -> AttentionNote(stringResource(R.string.folder_not_removed, stringResource(removeError.message)))
                     error != null -> AttentionNote(scanErrorText(error, source.host))
                     else -> FactRow(
                         listOf(
@@ -415,12 +419,15 @@ private fun CollectionsRow() {
         CollectionThreshold.HIDDEN to option(R.string.collections_off, R.string.collections_off_desc),
     )
     val current = options.indexOfFirst { it.first == s.collectionMinFilms }.coerceAtLeast(0)
+    val failure = rowFailure(vm.errorOf(SettingAction.COLLECTIONS))
     HlSettingRow(
         stringResource(R.string.collections_setting),
-        value = options[current].second.label,
+        value = failure?.value ?: options[current].second.label,
         description = stringResource(R.string.collections_setting_desc),
+        valueAttention = failure != null,
         onClick = { choose = true },
     )
+    RowFailureNote(failure)
     if (choose) {
         HlChoiceSheet(
             title = stringResource(R.string.collections_setting),
@@ -440,13 +447,17 @@ private fun SourceRow(onUseFolders: () -> Unit, onSignIn: () -> Unit, modifier: 
     val s by vm.settings.collectAsStateWithLifecycle()
     var choose by remember { mutableStateOf(false) }
     val server = s.source is SourceConfig.Jellyfin
+    // Making the folders the source failed (the device's storage): said here, where focus comes back.
+    val failure = rowFailure(vm.errorOf(SettingAction.SOURCE))
     HlSettingRow(
         stringResource(R.string.change_source_row),
         modifier,
-        value = stringResource(if (server) R.string.source_jellyfin else R.string.source_local),
+        value = failure?.value ?: stringResource(if (server) R.string.source_jellyfin else R.string.source_local),
         description = stringResource(sourceKeeps(s.source)),
+        valueAttention = failure != null,
         onClick = { choose = true },
     )
+    RowFailureNote(failure)
     if (choose) {
         // Both choices open another screen: the sheet closes at once.
         SourceSheet(
@@ -547,18 +558,24 @@ private fun PlusIcon() {
 /**
  * The TMDB key: the one in use, at the head, with what the last scan met ([issue]); a field for a
  * personal key, checked with TMDB when saved (a key TMDB refuses is not kept); once there is one,
- * the way back to the built-in key.
+ * the way back to the built-in key. How the last key given went is the ViewModel's: the sheet may
+ * close while TMDB checks it, and open again on the work under way, then on its outcome.
  */
 @Composable
 private fun TmdbKeySheet(issue: UiError?, onDismiss: () -> Unit) {
     val vm = settingsViewModel()
     val s by vm.settings.collectAsStateWithLifecycle()
-    var key by remember { mutableStateOf(s.tmdbApiKey ?: "") }
-    // Checked and saved in the app's scope: the sheet may close meanwhile, and open again on the work under way.
+    val attempt = vm.tmdbKey
+    val outcome = attempt?.outcome
+    // The key given last while it is checked or when it was not taken, else the one saved.
+    var key by remember { mutableStateOf(attempt?.takeIf { outcome != ACCEPTED }?.key ?: s.tmdbApiKey ?: "") }
+    // The attempt this sheet waits on: its own, or the one under way as it opened. One that ended
+    // before is no news: its key taken never closes this sheet.
+    var waitingOn by remember { mutableStateOf(attempt?.takeIf { outcome == null }?.number) }
     val checking = vm.savingTmdbKey
-    var refused by remember { mutableStateOf(false) }
-    var unchecked by remember { mutableStateOf(false) }
-    var notSaved by remember { mutableStateOf<UiError?>(null) }
+    val refused = outcome == REFUSED
+    val unchecked = outcome == UNCHECKED
+    val notSaved = (outcome as? TmdbKeySave.Failed)?.error
     val field = remember { FocusRequester() }
     val hasBuiltIn = BuildConfig.TMDB_API_KEY.isNotBlank()
     val personal = s.tmdbApiKey != null
@@ -571,21 +588,19 @@ private fun TmdbKeySheet(issue: UiError?, onDismiss: () -> Unit) {
             TmdbKeyStatus(personal, hasBuiltIn, unchecked, lost = SecretSetting.TMDB_KEY in s.lostSecrets, issue.takeUnless { unchecked })
         },
     ) { sheet ->
-        fun save() {
-            if (checking) return
-            notSaved = null
-            vm.saveTmdbApiKey(key) { result ->
-                result.answer(
-                    onAccepted = { sheet.dismiss() },
-                    onRefused = {
-                        refused = true
-                        runCatching { field.requestFocus() }
-                    },
-                    // Saved all the same: the sheet stays to say it could not be checked.
-                    onUnchecked = { unchecked = true },
-                    onFailed = { notSaved = it },
-                )
+        // Taken: the sheet closes. Refused: focus goes back to the key. Not checked, or not saved: the
+        // sheet stays to say so.
+        LaunchedEffect(attempt) {
+            if (attempt == null || attempt.number != waitingOn) return@LaunchedEffect
+            when (attempt.outcome) {
+                ACCEPTED -> sheet.dismiss()
+                REFUSED -> runCatching { field.requestFocus() }
+                else -> Unit
             }
+        }
+
+        fun save(typed: String) {
+            vm.saveTmdbApiKey(typed)?.let { waitingOn = it }
         }
         // The sheet already names the key: the field's label is only read out.
         HlTextField(
@@ -593,7 +608,7 @@ private fun TmdbKeySheet(issue: UiError?, onDismiss: () -> Unit) {
             key,
             {
                 key = it
-                refused = false
+                vm.editTmdbKey()
             },
             Modifier.fillMaxWidth().focusRequester(field),
             placeholder = stringResource(R.string.tmdb_key_personal),
@@ -602,12 +617,12 @@ private fun TmdbKeySheet(issue: UiError?, onDismiss: () -> Unit) {
             error = keyError(refused, notSaved),
             password = true,
             imeAction = ImeAction.Done,
-            onImeAction = ::save,
+            onImeAction = { save(key) },
         )
         Spacer(Modifier.height(HlSpace.l))
         HlButton(
             stringResource(R.string.save),
-            onClick = ::save,
+            onClick = { save(key) },
             icon = HlIcons.Check,
             emphasis = Emphasis.Primary,
             busy = checking,
@@ -618,11 +633,8 @@ private fun TmdbKeySheet(issue: UiError?, onDismiss: () -> Unit) {
             HlSettingRow(
                 stringResource(R.string.tmdb_key_revert),
                 description = stringResource(R.string.tmdb_key_revert_desc),
-                onClick = {
-                    vm.saveTmdbApiKey("") { result ->
-                        result.answer(onAccepted = { sheet.dismiss() }, onFailed = { notSaved = it })
-                    }
-                },
+                // Never refused nor left unchecked: taken, it closes the sheet too.
+                onClick = { save("") },
                 chevron = false,
             )
         }
@@ -637,23 +649,10 @@ private fun keyError(refused: Boolean, notSaved: UiError?): String? = when {
     else -> null
 }
 
-/**
- * Does what the sheet does once saving a key went [this] way. Going back to the built-in key is
- * never refused nor left unchecked: it closes the sheet too.
- */
-private fun TmdbKeySave.answer(
-    onAccepted: () -> Unit,
-    onRefused: () -> Unit = onAccepted,
-    onUnchecked: () -> Unit = onAccepted,
-    onFailed: (UiError) -> Unit,
-) = when (this) {
-    is TmdbKeySave.Failed -> onFailed(error)
-    is TmdbKeySave.Checked -> when (check) {
-        TmdbKeyCheck.ACCEPTED -> onAccepted()
-        TmdbKeyCheck.REFUSED -> onRefused()
-        TmdbKeyCheck.UNCHECKED -> onUnchecked()
-    }
-}
+/** How saving a key went, as the TMDB sheet answers it. */
+private val ACCEPTED = TmdbKeySave.Checked(TmdbKeyCheck.ACCEPTED)
+private val REFUSED = TmdbKeySave.Checked(TmdbKeyCheck.REFUSED)
+private val UNCHECKED = TmdbKeySave.Checked(TmdbKeyCheck.UNCHECKED)
 
 /**
  * The key in use, at the head of its sheet: the user's own (said unchecked when TMDB could not be

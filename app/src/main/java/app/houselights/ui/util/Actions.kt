@@ -1,6 +1,7 @@
 package app.houselights.ui.util
 
-import android.database.sqlite.SQLiteException
+import android.database.sqlite.SQLiteDiskIOException
+import android.database.sqlite.SQLiteFullException
 import android.util.Log
 import app.houselights.core.SecretsUnavailableException
 import app.houselights.core.suspendRunCatching
@@ -30,12 +31,12 @@ fun CoroutineScope.launchAction(
 
 /**
  * The [UiError] a write to the device itself shows as: an IOException there that names nothing else
- * (TMDB asked on the way) is its storage, not the network; the database full or failing is said the
- * same way.
+ * (TMDB asked on the way) is its storage, not the network; the database full or its disk failing is
+ * said the same way. Any other database failure (a constraint, a lock) is no reason to free space.
  */
 fun Throwable.toWriteError(): UiError = when {
     this is SecretsUnavailableException -> UiError.KEYSTORE
-    this is SQLiteException -> UiError.NOT_SAVED
+    this is SQLiteFullException || this is SQLiteDiskIOException -> UiError.NOT_SAVED
     this is IOException && toUiError() == UiError.OFFLINE -> UiError.NOT_SAVED
     else -> toUiError()
 }
