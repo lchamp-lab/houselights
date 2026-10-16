@@ -1,5 +1,6 @@
 package app.houselights.providers.local
 
+import android.database.sqlite.SQLiteFullException
 import java.io.FileNotFoundException
 import java.net.ConnectException
 import java.net.NoRouteToHostException
@@ -15,6 +16,9 @@ enum class ScanErrorKind {
 
     /** Listed without a single video while the library holds some: nothing was removed. */
     EMPTY,
+
+    /** The device has no space left: the database or the artwork could not be written. The pass stops. */
+    STORAGE_FULL,
     OTHER,
 }
 
@@ -38,6 +42,8 @@ object ScanErrors {
         val text = chain.joinToString(" ") { "${it.javaClass.simpleName} ${it.message}" }
         val kind = when {
             chain.any { it is EmptyFolderException } -> ScanErrorKind.EMPTY
+            chain.any { it is SQLiteFullException } || text.contains("ENOSPC") ||
+                text.contains("No space left on device", ignoreCase = true) -> ScanErrorKind.STORAGE_FULL
             chain.any { it is UnknownHostException || it is NoRouteToHostException || it is ConnectException || it is SocketTimeoutException } ||
                 text.contains("waiting for connection", ignoreCase = true) ||
                 text.contains("timed out", ignoreCase = true) -> ScanErrorKind.UNREACHABLE
