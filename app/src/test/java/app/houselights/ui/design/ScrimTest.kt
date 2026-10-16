@@ -223,7 +223,31 @@ class ScrimTest {
                 pointByPoint(w, h, points, shown, style.imageAlpha, style.leftScrim, style.down),
                 ArtworkSample(w, h, points).leftVeil(shown, column, style.imageAlpha, style.leftScrim, style.down),
             )
+            assertEquals(
+                "across, $w × $h on $shown, $style",
+                floorPointByPoint(w, h, points, shown, style.imageAlpha, style.down),
+                ArtworkSample(w, h, points).floorAcross(shown, style.imageAlpha, style.down),
+                0f,
+            )
         }
+    }
+
+    /** [ArtworkSample.floorAcross] as it was first written: each row asks again how much shows through the veils down. */
+    @Suppress("LongParameterList")
+    private fun floorPointByPoint(width: Int, height: Int, grey: FloatArray, screen: Size, imageAlpha: Float, down: List<VeilStop>): Float {
+        val scale = maxOf(screen.width / width, screen.height / height)
+        val left = screen.width - width * scale
+        val cols = kotlin.math.ceil(-left / scale - 0.5f).toInt().coerceAtLeast(0)..(width - 1)
+        val rows = 0..kotlin.math.floor(screen.height / scale - 0.5f).toInt().coerceAtMost(height - 1)
+        val needs = FloatArray(cols.count() * rows.count())
+        var count = 0
+        for (row in rows) {
+            val y = (row + 0.5f) * scale
+            val through = imageAlpha * (1f - down.alphaAt(y / screen.height))
+            for (col in cols) needs[count++] = HlScrim.need(grey[row * width + col] * through)
+        }
+        needs.sort()
+        return needs[(needs.lastIndex * HlScrim.FLOOR_QUANTILE).roundToInt()]
     }
 
     /** [ArtworkSample.leftVeil] as it was first written: each point asks how much shows through the veils down. */
