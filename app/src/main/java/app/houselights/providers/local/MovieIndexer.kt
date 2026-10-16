@@ -179,7 +179,13 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
         lookup: (suspend (TmdbClient) -> TmdbMovie?)?,
     ): Fetched {
         val answer = lookup?.let { tmdb.ask(it) } ?: TmdbAnswer.Unanswered
-        val nfo = nfoInfo?.takeUnless { MetadataMerge.describesOther(it, userTmdbId, answer.value?.imdbId) }
+        // Matched by hand, a film TMDB gives nothing for now keeps what it had: an NFO only TMDB's IMDb id
+        // can tell of waits for it, rather than its title, plot and cast win meanwhile.
+        val untold = userTmdbId != null && answer.value == null
+        val nfo = nfoInfo?.takeUnless {
+            untold && it.tmdbId == null && it.imdbId != null ||
+                MetadataMerge.describesOther(it, userTmdbId, answer.value?.imdbId)
+        }
         val plan = if (keepCollection) null else collectionOf(nfo, answer.value, refresh)
         val details = plan?.fetch?.let { id -> tmdb.ask { it.collection(id) } } ?: TmdbAnswer.Unanswered
         return Fetched(answer, nfo, plan, details, tmdb.client, refresh)

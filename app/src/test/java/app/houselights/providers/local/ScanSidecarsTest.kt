@@ -146,6 +146,30 @@ class ScanSidecarsTest {
         assertEquals(2, read.tmdbId)
     }
 
+    /** Without TMDB's answer, nothing tells whose film the NFO's IMDb id names: the film the user matched keeps what it had meanwhile. */
+    @Test
+    fun aFilmTheUserMatchedWithAnotherKeepsItWhileTmdbDoesNotAnswer() = runTest {
+        tmdb.movie(1, "Disclosure", 1994, imdbId = "tt0109635")
+        tmdb.movie(2, "Disclosure Day", 2026, imdbId = "tt31227572")
+        nas.put("Disclosure Day.mkv")
+        nas.text(
+            "Disclosure Day.nfo",
+            "<movie><title>Disclosure</title><plot>Seattle, 1994.</plot><id>tt0109635</id><actor><name>Demi Moore</name></actor></movie>",
+            lastModified = T1,
+        )
+        bench.scan()
+        val film = bench.item(films, "Disclosure Day.mkv")
+        bench.scanner.identify(film.id, 2)
+
+        tmdb.failingPath = "movie/2"
+        bench.scan(refreshMetadata = true)
+        val waiting = bench.item(films, "Disclosure Day.mkv")
+        assertEquals("Disclosure Day", waiting.title)
+        assertEquals("About Disclosure Day", waiting.overview)
+        assertEquals(emptyList<String>(), bench.dao.cast(film.id).map { it.name })
+        assertEquals("asked again at a later pass", null, waiting.matchedAt)
+    }
+
     /**
      * Version 10 takes the films of sagas whose names gave no key out of them, their sidecars to read again:
      * their NFO's set gives each its own, even with TMDB not asked (no key, or the films matched already).
