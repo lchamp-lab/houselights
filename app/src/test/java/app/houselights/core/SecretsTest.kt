@@ -6,12 +6,18 @@ import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
+import android.security.keystore.KeyPermanentlyInvalidatedException
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 import java.io.IOException
 import java.security.InvalidKeyException
 import java.security.ProviderException
+import java.security.UnrecoverableKeyException
 import javax.crypto.KeyGenerator
 
+/** On Robolectric: the Keystore's own exceptions are Android classes. */
+@RunWith(RobolectricTestRunner::class)
 class SecretsTest {
     private fun key() = KeyGenerator.getInstance("AES").apply { init(256) }.generateKey()
 
@@ -57,12 +63,14 @@ class SecretsTest {
         assertNull(Secrets { key() }.open("sealed1:not base64!"))
     }
 
-    /** A key a firmware update made unusable is made anew, once: secrets can be written again. */
+    /** A key the Keystore says is invalidated for good is made anew, once: secrets can be written again. */
     @Test
     fun aKeyThatCanNoLongerBeUsedIsMadeAnew() {
         var forgotten = 0
         val good = key()
-        var current: () -> javax.crypto.SecretKey = { throw InvalidKeyException("Key permanently invalidated") }
+        var current: () -> javax.crypto.SecretKey = {
+            throw InvalidKeyException("Keystore operation failed", KeyPermanentlyInvalidatedException())
+        }
         val secrets = Secrets(forgetKey = {
             forgotten++
             current = { good }
@@ -70,6 +78,34 @@ class SecretsTest {
         val sealed = secrets.seal("token")
         assertEquals(1, forgotten)
         assertEquals("token", Secrets { good }.open(sealed))
+    }
+
+    /**
+     * On Android 9, a keystore daemon that restarts throws UnrecoverableKeyException ("Failed to
+     * obtain information about key"): the key is fetched again, never deleted with all it sealed.
+     */
+    @Test
+    fun aTransientUnrecoverableKeyNeverForgetsTheKey() {
+        var tries = 0
+        val good = key()
+        var forgotten = false
+        val secrets = Secrets(forgetKey = { forgotten = true }) {
+            if (tries++ == 0) throw UnrecoverableKeyException("Failed to obtain information about key") else good
+        }
+        assertEquals("token", Secrets { good }.open(secrets.seal("token")))
+        assertFalse(forgotten)
+    }
+
+    @Test
+    fun aBareInvalidKeyNeverForgetsTheKey() {
+        var forgotten = false
+        val secrets = Secrets(forgetKey = { forgotten = true }) { throw InvalidKeyException("Keystore operation failed") }
+        try {
+            secrets.seal("token")
+            fail("Sealed without a key")
+        } catch (_: SecretsUnavailableException) {
+            assertFalse(forgotten)
+        }
     }
 
     @Test

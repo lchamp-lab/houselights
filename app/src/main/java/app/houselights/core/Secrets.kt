@@ -1,13 +1,12 @@
 package app.houselights.core
 
 import android.security.keystore.KeyGenParameterSpec
+import android.security.keystore.KeyPermanentlyInvalidatedException
 import android.security.keystore.KeyProperties
 import java.io.IOException
 import java.security.GeneralSecurityException
-import java.security.InvalidKeyException
 import java.security.KeyStore
 import java.security.ProviderException
-import java.security.UnrecoverableKeyException
 import java.util.Base64
 import java.util.concurrent.ConcurrentHashMap
 import javax.crypto.Cipher
@@ -28,8 +27,10 @@ class SecretsUnavailableException(cause: Throwable) : IllegalStateException("Sec
  *
  * A Keystore that fails (a keymaster at fault, a key a firmware update made unusable) never takes the
  * app down: [open] gives null, as for a key that is gone, and [seal] tries once more with the key
- * fetched again, made anew when the key itself is at fault ([forgetKey]), before it throws
- * [SecretsUnavailableException].
+ * fetched again before it throws [SecretsUnavailableException]. Only a key the Keystore says is
+ * invalidated for good is deleted and made anew ([forgetKey]): on Android 9, an
+ * UnrecoverableKeyException or a bare InvalidKeyException also comes from a keystore daemon that
+ * restarts, and deleting the key then would lose every secret it sealed.
  */
 class Secrets(private val forgetKey: () -> Unit = {}, private val keyProvider: () -> SecretKey) {
     /** Fetched on first use, and again after a failure: not a lazy that would keep a key that can't be used. */
@@ -44,9 +45,9 @@ class Secrets(private val forgetKey: () -> Unit = {}, private val keyProvider: (
     fun seal(plain: String): String {
         if (plain.isEmpty()) return ""
         val sealed = keystore { sealWith(plain) }.getOrElse { e ->
-            // Once more, with the key fetched again; made anew when the key itself is at fault.
+            // Once more, with the key fetched again; made anew only when the Keystore says it is gone for good.
             key = null
-            if (e is InvalidKeyException || e is UnrecoverableKeyException) forgetKey()
+            if (e.isKeyInvalidated()) forgetKey()
             keystore { sealWith(plain) }.getOrElse { throw SecretsUnavailableException(it) }
         }
         opened[sealed] = plain
@@ -98,6 +99,12 @@ class Secrets(private val forgetKey: () -> Unit = {}, private val keyProvider: (
         } catch (e: IOException) {
             Result.failure(e)
         }
+
+        /** The Keystore says the key can never be used again (somewhere in the cause chain), not that it failed this once. */
+        private fun Throwable.isKeyInvalidated(): Boolean =
+            generateSequence(this) { it.cause }.take(MAX_CAUSES).any { it is KeyPermanentlyInvalidatedException }
+
+        private const val MAX_CAUSES = 8
 
         /** Secrets sealed with this device's Keystore key, created on first use. */
         val device: Secrets by lazy { Secrets(forgetKey = ::forgetKeystoreKey, keyProvider = ::keystoreKey) }
