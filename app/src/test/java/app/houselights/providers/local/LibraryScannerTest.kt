@@ -233,6 +233,93 @@ class LibraryScannerTest {
         assertTrue("${widest.get()} values in one statement", widest.get() <= ANDROID_9_LIMIT)
     }
 
+    @Test
+    fun aFilmUpgradedByRadarrKeepsWhatTheUserDid() = runTest {
+        nas.put("Dune (2021)/Dune (2021) Bluray-1080p.mkv", size = 30_000_000_000)
+        nas.put("Arrival (2016)/Arrival (2016) Bluray-1080p.mkv")
+        scan()
+        val dune = dao.filesOf(films.id).single { it.title == "Dune" }
+        dao.savePlayback(dune.id, positionMs = 600_000, durationMs = 9_000_000, played = false, lastPlayedAt = now)
+        dao.setFavorite(dune.id, true)
+        dao.setUserTmdbId(dune.id, 438631)
+        dao.setUserPoster(dune.id, "/chosen.jpg")
+
+        nas.remove("Dune (2021)/Dune (2021) Bluray-1080p.mkv")
+        nas.put("Dune (2021)/Dune (2021) Remux-2160p.mkv", size = 80_000_000_000)
+        nas.reads.clear()
+        scan()
+
+        val upgraded = dao.filesOf(films.id).single { it.title == "Dune" }
+        assertEquals(dune.id, upgraded.id)
+        assertEquals("Dune (2021)/Dune (2021) Remux-2160p.mkv", upgraded.filePath)
+        assertEquals(80_000_000_000L, upgraded.fileSize)
+        assertEquals(dune.addedAt, upgraded.addedAt)
+        assertEquals(600_000L, upgraded.positionMs)
+        assertEquals(now, upgraded.lastPlayedAt)
+        assertTrue(upgraded.favorite)
+        assertEquals(438631, upgraded.userTmdbId)
+        assertEquals("/chosen.jpg", upgraded.userPosterPath)
+        assertEquals("the new file is read", listOf(upgraded.filePath), nas.reads)
+        assertEquals(80_000_000_000L, MediaProbe.decode(upgraded.mediaInfo)?.sizeBytes)
+    }
+
+    @Test
+    fun filmsUpgradedSideBySideKeepTheirRows() = runTest {
+        nas.put("Dune (2021) Bluray-1080p.mkv")
+        nas.put("Arrival (2016) WEBDL-1080p.mkv")
+        nas.put("Heat (1995).mkv")
+        scan()
+        val before = dao.filesOf(films.id).associate { it.title to it.id }
+
+        nas.rename("Dune (2021) Bluray-1080p.mkv", "Dune (2021) Remux-2160p.mkv")
+        nas.rename("Arrival (2016) WEBDL-1080p.mkv", "Arrival (2016) Bluray-2160p.mkv")
+        scan()
+
+        val after = dao.filesOf(films.id)
+        assertEquals(before, after.associate { it.title to it.id })
+        assertEquals(listOf("Arrival (2016) Bluray-2160p.mkv", "Dune (2021) Remux-2160p.mkv", "Heat (1995).mkv"), filePaths())
+    }
+
+    @Test
+    fun anotherFilmBesideIsNotARename() = runTest {
+        nas.put("Dune (2021).mkv")
+        nas.put("Heat (1995).mkv")
+        scan()
+        val dune = dao.filesOf(films.id).single { it.title == "Dune" }
+        dao.setFavorite(dune.id, true)
+
+        nas.remove("Dune (2021).mkv")
+        nas.put("Arrival (2016).mkv")
+        scan()
+
+        val arrival = dao.filesOf(films.id).single { it.title == "Arrival" }
+        assertTrue(arrival.id != dune.id)
+        assertEquals(false, arrival.favorite)
+        assertEquals(null, dao.item(dune.id))
+    }
+
+    @Test
+    fun anEpisodeUpgradedBySonarrStaysWatched() = runTest {
+        val shows = folder("Séries", SourceKind.SHOWS)
+        showsNas.put("Severance/Season 1/Severance - S01E01 - Good News About Hell WEBDL-1080p.mkv")
+        showsNas.put("Severance/Season 1/Severance - S01E02 - Half Loop WEBDL-1080p.mkv")
+        scan()
+        val pilot = dao.filesOf(shows.id).single { it.episodeNumber == 1 }
+        dao.setPlayed(pilot.id, played = true, now = now)
+
+        showsNas.rename(
+            "Severance/Season 1/Severance - S01E01 - Good News About Hell WEBDL-1080p.mkv",
+            "Severance/Season 1/Severance - S01E01 - Good News About Hell Bluray-2160p.mkv",
+        )
+        scan()
+
+        val upgraded = dao.filesOf(shows.id).single { it.episodeNumber == 1 }
+        assertEquals(pilot.id, upgraded.id)
+        assertTrue(upgraded.played)
+        assertEquals(pilot.addedAt, upgraded.addedAt)
+        assertEquals(2, dao.episodesOfSeries(checkNotNull(pilot.seriesId)).size)
+    }
+
     private companion object {
         const val ANDROID_9_LIMIT = 999
         const val START = 1_800_000_000_000L

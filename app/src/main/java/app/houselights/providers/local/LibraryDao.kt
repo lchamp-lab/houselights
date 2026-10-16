@@ -173,6 +173,13 @@ interface LibraryDao {
     @Transaction
     suspend fun deleteItems(ids: List<Long>) = ids.chunked(SQL_IN_LIMIT).forEach { deleteItemBatch(it) }
 
+    /**
+     * Moves a row to the file that replaced its own (see [MissingFiles]): what the user did with the
+     * title stays, and the file is read again.
+     */
+    @Query("UPDATE items SET filePath = :filePath, fileSize = :fileSize, mediaInfo = NULL, missingSince = NULL WHERE id = :id")
+    suspend fun relink(id: Long, filePath: String, fileSize: Long)
+
     @Query("UPDATE items SET missingSince = :since WHERE id IN (:ids)")
     suspend fun setMissingSinceBatch(ids: List<Long>, since: Long?)
 

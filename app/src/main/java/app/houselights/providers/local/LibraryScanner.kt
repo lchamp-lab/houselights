@@ -215,14 +215,20 @@ class LibraryScanner(
         val listing = browsers(source).list(source)
         val files = listing.videos
         val sidecars = Sidecars(listing.sidecars, files)
-        val known = dao.filesOf(source.id).associateBy { it.filePath }
-        if (files.isEmpty() && known.isNotEmpty()) throw EmptyFolderException()
-        val missing = settleMissing(known.values, files)
+        val listed = dao.filesOf(source.id)
+        if (files.isEmpty() && listed.isNotEmpty()) throw EmptyFolderException()
+        val missing = settleMissing(source.kind, listed, files)
+        // Renamed files took their rows along.
+        val known = (if (missing.relinked.isEmpty()) listed else dao.filesOf(source.id)).associateBy { it.filePath }
 
         val tmdb = client()
         val todo = files.filter { f -> needsWork(known[f.relativePath], sidecars.forVideo(f), tmdb != null, refreshMetadata) }
         _state.update { it.copy(total = todo.size) }
-        Log.i(TAG, "${source.name}: ${files.size} files, ${missing.removed.size} removed, ${missing.held.size} held, ${todo.size} to do")
+        Log.i(
+            TAG,
+            "${source.name}: ${files.size} files, ${missing.relinked.size} renamed, ${missing.removed.size} removed, " +
+                "${missing.held.size} held, ${todo.size} to do",
+        )
 
         val seasons = ShowIndexer.SeasonCache(tmdb)
         var unreachable = 0
@@ -259,10 +265,11 @@ class LibraryScanner(
     }
 
     /** Rows of files the folder no longer lists go, or wait a while (see [MissingFiles]). */
-    private suspend fun settleMissing(known: Collection<ItemEntity>, files: List<RemoteFile>): MissingFiles.Outcome {
+    private suspend fun settleMissing(kind: SourceKind, known: List<ItemEntity>, files: List<RemoteFile>): MissingFiles.Outcome {
         val now = clock()
-        val missing = MissingFiles.settle(known, files.mapTo(HashSet()) { it.relativePath }, now)
+        val missing = MissingFiles.settle(kind, known, files, now)
         lock.withLock {
+            missing.relinked.forEach { (id, file) -> dao.relink(id, file.relativePath, file.size) }
             dao.setMissingSince(missing.back, null)
             dao.setMissingSince(missing.held, now)
             dao.deleteItems(missing.removed)
