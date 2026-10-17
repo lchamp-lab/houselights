@@ -27,7 +27,8 @@ internal class FakeApps(private val context: Context) {
 
     /**
      * Installs [pkg], a [system] app or not, signed with [certificate], by [installer]; with [activity],
-     * which answers a video by its type ([byType]) and by the smb and nfs schemes ([bySchemes]).
+     * which answers a video by its type ([byType]) and by the smb and nfs schemes ([bySchemes]), and
+     * which other apps may start ([exported]) unless they lack [permission].
      */
     fun install(
         pkg: String,
@@ -37,6 +38,8 @@ internal class FakeApps(private val context: Context) {
         byType: Boolean = false,
         bySchemes: Boolean = true,
         installer: String? = null,
+        exported: Boolean = true,
+        permission: String? = null,
     ): ComponentName? {
         val signatures = certificate?.let { arrayOf(Signature(it.toByteArray())) }
         pm.installPackage(
@@ -55,7 +58,10 @@ internal class FakeApps(private val context: Context) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) pm.setInstallSourceInfo(pkg, installer, installer)
         }
         val component = activity?.let { ComponentName(pkg, it) } ?: return null
-        pm.addActivityIfNotPresent(component)
+        pm.addActivityIfNotPresent(component).also {
+            it.exported = exported
+            it.permission = permission
+        }
         installed += component
         if (byType) pm.addIntentFilterForActivity(component, video())
         if (bySchemes) pm.addIntentFilterForActivity(component, video("smb", "nfs"))

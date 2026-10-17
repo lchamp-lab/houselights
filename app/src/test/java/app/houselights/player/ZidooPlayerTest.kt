@@ -91,6 +91,18 @@ class ZidooPlayerTest {
         assertNull(choose(ZIDOO_BUILD).player)
     }
 
+    /** An activity other apps may not start, or only with a permission this one lacks, is no player: starting it would throw. */
+    @Test
+    fun aPlayerTheAppMayNotStartIsNone() {
+        apps.install(ZIDOO_PLAYER, ZIDOO_PLAYER_ACTIVITY, system = true, exported = false)
+        apps.install(GALLERY, MOVIE_ACTIVITY, system = true, bySchemes = false, exported = false)
+        assertNull(choose(ZIDOO_BUILD).player)
+        apps.install("com.zidoo.vplayer", "com.zidoo.vplayer.PlayActivity", system = true, permission = "com.zidoo.permission.PLAY")
+        assertNull(choose(ZIDOO_BUILD).player)
+        val startable = apps.install("com.rtk.media", "com.rtk.media.MoviePlayer", system = true)
+        assertEquals(startable, choose(ZIDOO_BUILD).player?.component)
+    }
+
     @Test
     fun ourOwnAppIsNeverThePlayer() {
         apps.install("app.houselights.bench", "app.houselights.MainActivity", system = true)

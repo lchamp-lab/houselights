@@ -257,13 +257,13 @@ class ZidooPlayer(
 
     private fun known(): Candidate? {
         val info = packages.resolveActivity(Intent().setComponent(ComponentName(KNOWN_PACKAGE, KNOWN_ACTIVITY)), 0)?.activityInfo
-        return info?.let(::candidate)
+        return info?.takeIf(::startable)?.let(::candidate)
     }
 
     /**
      * The firmware's activities that open a video, by type or by the schemes the app hands over
      * (an app whose filter names a scheme answers no intent without one): its system apps, or apps
-     * under a name of Zidoo's, never ours.
+     * under a name of Zidoo's, never ours, and only what this app may start ([startable]).
      */
     private fun discover(): List<Candidate> {
         val probes = probes()
@@ -272,6 +272,7 @@ class ZidooPlayer(
             .toSet()
         return probes.flatMap { probe -> QUERY_FLAGS.flatMap { packages.queryIntentActivities(probe, it) } }
             .mapNotNull { it.activityInfo }
+            .filter(::startable)
             .filter { !it.packageName.isOurs() && (it.applicationInfo.isSystem() || it.packageName.startsWith(ZIDOO_PREFIX)) }
             .distinctBy { it.component() }
             .map(::candidate)
@@ -290,6 +291,14 @@ class ZidooPlayer(
             .thenByDescending { FILM_WORDS.containsMatchIn(it.component.className.substringAfterLast('.')) }
             .thenBy { it.component.packageName }
             .thenBy { it.component.className }
+
+    /**
+     * Another app may start it: exported, and under no permission this one lacks. Android may list
+     * one that is not among those that answer an intent, and starting it throws (SecurityException):
+     * every film, a plain one too, would then find no player.
+     */
+    private fun startable(info: ActivityInfo) =
+        info.exported && info.permission.let { it == null || context.checkSelfPermission(it) == PackageManager.PERMISSION_GRANTED }
 
     private fun candidate(info: ActivityInfo) = Candidate(info.component(), info.applicationInfo.isSystem())
 

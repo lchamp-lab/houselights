@@ -79,6 +79,15 @@ class PlayerLaunchTest {
         assertRefused { manager.intentFor(plan(SMB)) }
     }
 
+    /** A player other apps may not start: a plain file goes to whatever the system finds, as before, not to it. */
+    @Test
+    fun aPlayerTheAppMayNotStartIsNotHandedTheFilm() = runTest {
+        apps.install(ZIDOO_PLAYER, ZIDOO_PLAYER_ACTIVITY, system = true, exported = false)
+        val manager = manager(ZIDOO_BUILD)
+        assertNull(manager.intentFor(plan(NFS)).component)
+        assertRefused { manager.intentFor(plan(SMB)) }
+    }
+
     @Test
     fun aPlainFileGoesToAnyPlayerWhereThereIsNoZidoo() = runTest {
         val intent = manager(OTHER_BUILD).intentFor(plan(NFS))
