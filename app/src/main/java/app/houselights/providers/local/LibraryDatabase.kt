@@ -8,13 +8,20 @@ import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
+import app.houselights.core.Job
 import app.houselights.core.Secrets
 import app.houselights.core.SecretsUnavailableException
 import app.houselights.core.suspendRunCatching
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-@Database(entities = [SourceEntity::class, ItemEntity::class, CastEntity::class, CollectionEntity::class], version = 11)
+@Database(
+    entities = [
+        SourceEntity::class, ItemEntity::class, CreditEntity::class, CollectionEntity::class, SagaPartEntity::class,
+        SearchWordEntity::class,
+    ],
+    version = 12,
+)
 @TypeConverters(SecretConverter::class, PipeList::class)
 abstract class LibraryDatabase : RoomDatabase() {
     abstract fun dao(): LibraryDao
@@ -136,6 +143,138 @@ abstract class LibraryDatabase : RoomDatabase() {
         }
 
         /**
+         * Credits by job and by person, in place of the cast alone; sagas whole; the copies of a film; words for
+         * searches. What a library holds comes along at once, folded here in Kotlin as Android 9's SQLite folds no
+         * accent: each title's cast and a film's directors, keyed by their names until TMDB gives their ids; each
+         * title's, person's and saga's words; a film's edition from its file's name; the copies of each film. The
+         * crew TMDB credits titles with, and the films of sagas TMDB knows (asked again: fetchedAt is cleared), come
+         * at later passes, a few a pass ([Backfill]). Nothing the user did is touched.
+         */
+        private val MIGRATION_11_12 = object : Migration(11, 12) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                createTables(db)
+                val credits = formerCredits(db)
+                db.compileStatement(
+                    "INSERT OR REPLACE INTO credits (itemId, job, ord, personKey, name, foldedName, character, profilePath) " +
+                        "VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+                ).use { insert ->
+                    for (c in credits) {
+                        insert.bindLong(1, c.itemId)
+                        insert.bindString(2, c.job.name)
+                        insert.bindLong(3, c.ord.toLong())
+                        insert.bindString(4, c.personKey)
+                        insert.bindString(5, c.name)
+                        insert.bindString(6, c.foldedName)
+                        c.character?.let { insert.bindString(7, it) } ?: insert.bindNull(7)
+                        c.profilePath?.let { insert.bindString(8, it) } ?: insert.bindNull(8)
+                        insert.executeInsert()
+                        insert.clearBindings()
+                    }
+                }
+                db.execSQL("DROP TABLE IF EXISTS `cast`")
+                writeEditions(db)
+                val words = titleWords(db) + credits.distinctBy { it.personKey }.flatMap {
+                    SearchWords.rows(SearchKind.PERSON, it.personKey, it.name)
+                } + sagaWords(db)
+                db.compileStatement("INSERT OR IGNORE INTO search_words (kind, word, ref) VALUES (?, ?, ?)").use { insert ->
+                    for (w in words) {
+                        insert.bindString(1, w.kind.name)
+                        insert.bindString(2, w.word)
+                        insert.bindString(3, w.ref)
+                        insert.executeInsert()
+                        insert.clearBindings()
+                    }
+                }
+                db.execSQL(GROUP_VERSIONS)
+                db.execSQL("UPDATE collections SET fetchedAt = NULL WHERE tmdbId IS NOT NULL")
+            }
+        }
+
+        /** The tables and columns of version 12, as Room exported them. */
+        private fun createTables(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                "CREATE TABLE IF NOT EXISTS `credits` (`itemId` INTEGER NOT NULL, `job` TEXT NOT NULL, `ord` INTEGER NOT NULL, " +
+                    "`personKey` TEXT NOT NULL, `name` TEXT NOT NULL, `foldedName` TEXT NOT NULL, `character` TEXT, " +
+                    "`profilePath` TEXT, PRIMARY KEY(`itemId`, `job`, `ord`))"
+            )
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_credits_personKey_itemId` ON `credits` (`personKey`, `itemId`)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_credits_job_personKey` ON `credits` (`job`, `personKey`)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_credits_foldedName` ON `credits` (`foldedName`)")
+            db.execSQL(
+                "CREATE TABLE IF NOT EXISTS `saga_parts` (`collectionId` INTEGER NOT NULL, `tmdbId` INTEGER NOT NULL, " +
+                    "`ord` INTEGER NOT NULL, `title` TEXT NOT NULL, `releaseDate` TEXT, `overview` TEXT, `posterPath` TEXT, " +
+                    "`backdropPath` TEXT, PRIMARY KEY(`collectionId`, `tmdbId`))"
+            )
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_saga_parts_tmdbId` ON `saga_parts` (`tmdbId`)")
+            db.execSQL(
+                "CREATE TABLE IF NOT EXISTS `search_words` (`kind` TEXT NOT NULL, `word` TEXT NOT NULL, `ref` TEXT NOT NULL, " +
+                    "PRIMARY KEY(`kind`, `word`, `ref`))"
+            )
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_search_words_kind_ref` ON `search_words` (`kind`, `ref`)")
+            for (column in listOf("edition TEXT", "versionOf INTEGER", "versionChoice INTEGER", "votes INTEGER", "creditsAt INTEGER")) {
+                db.execSQL("ALTER TABLE items ADD COLUMN $column")
+            }
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_items_kind_tmdbId` ON `items` (`kind`, `tmdbId`)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_items_versionOf` ON `items` (`versionOf`)")
+        }
+
+        /** The cast version 11 kept, and a film's directors, as credits keyed by name ([PersonKeys]). */
+        private fun formerCredits(db: SupportSQLiteDatabase): List<CreditEntity> {
+            fun credit(itemId: Long, job: Job, ord: Int, name: String, character: String?, profile: String?): CreditEntity {
+                val folded = PersonKeys.fold(name)
+                return CreditEntity(itemId, job, ord, PersonKeys.name(folded), name, folded, character, profile)
+            }
+            val cast = db.query("SELECT itemId, ord, name, character, profilePath FROM `cast`").use { rows ->
+                buildList {
+                    while (rows.moveToNext()) {
+                        val character = if (rows.isNull(3)) null else rows.getString(3)
+                        val profile = if (rows.isNull(4)) null else rows.getString(4)
+                        add(credit(rows.getLong(0), Job.CAST, rows.getInt(1), rows.getString(2), character, profile))
+                    }
+                }
+            }
+            val directors = db.query("SELECT id, directors FROM items WHERE kind = 'MOVIE' AND directors != ''").use { rows ->
+                buildList {
+                    while (rows.moveToNext()) {
+                        PipeList.fromText(rows.getString(1)).distinct().forEachIndexed { i, name ->
+                            add(credit(rows.getLong(0), Job.DIRECTOR, i, name, null, null))
+                        }
+                    }
+                }
+            }
+            return cast + directors
+        }
+
+        /** Each film's edition, as its file's name gives it ([FilenameParser.edition]); its NFO's comes with the backfill. */
+        private fun writeEditions(db: SupportSQLiteDatabase) {
+            val editions = db.query("SELECT id, filePath FROM items WHERE kind = 'MOVIE' AND filePath IS NOT NULL").use { rows ->
+                buildList {
+                    while (rows.moveToNext()) FilenameParser.edition(rows.getString(1))?.let { add(rows.getLong(0) to it) }
+                }
+            }
+            for ((id, edition) in editions) db.execSQL("UPDATE items SET edition = ? WHERE id = ?", arrayOf<Any>(edition, id))
+        }
+
+        /** The words of each film's and show's names. */
+        private fun titleWords(db: SupportSQLiteDatabase): List<SearchWordEntity> =
+            db.query("SELECT id, title, originalTitle FROM items WHERE kind IN ('MOVIE', 'SERIES')").use { rows ->
+                buildList {
+                    while (rows.moveToNext()) {
+                        val original = if (rows.isNull(2)) null else rows.getString(2)
+                        addAll(SearchWords.rows(SearchKind.TITLE, rows.getLong(0).toString(), rows.getString(1), original))
+                    }
+                }
+            }
+
+        /** The words of each saga's name. */
+        private fun sagaWords(db: SupportSQLiteDatabase): List<SearchWordEntity> =
+            db.query("SELECT id, name FROM collections").use { rows ->
+                buildList {
+                    while (rows.moveToNext()) addAll(SearchWords.rows(SearchKind.SAGA, rows.getLong(0).toString(), rows.getString(1)))
+                }
+            }
+
+        /**
          * Folds the accents and ligatures of the sort keys of [table] ([MetadataMerge.fold]), and takes off
          * an l' glued to its word ("l'arnaque"), which version 9 left. Nothing more: taking the articles off
          * again would not leave a key as it was ("la land", from "La La Land", would become "land"). A title
@@ -184,7 +323,7 @@ abstract class LibraryDatabase : RoomDatabase() {
 
         internal fun migrations(secrets: Secrets) = arrayOf(
             MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, migration6To7(secrets), MIGRATION_7_8,
-            MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11,
+            MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12,
         )
 
         fun create(context: Context, secrets: Secrets): LibraryDatabase =

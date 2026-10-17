@@ -64,6 +64,18 @@ interface JellyfinApi {
         @Query("genres") genres: String? = null,
         @Query("years") years: String? = null,
         @Query("is4K") is4K: Boolean? = null,
+        /** The titles of these people (ids, comma-separated), before or behind the camera. */
+        @Query("personIds") personIds: String? = null,
+        /** Titles whose names hold this, as the server searches them. */
+        @Query("searchTerm") searchTerm: String? = null,
+    ): ItemsResult
+
+    /** People whose names hold [searchTerm], as the server searches them. */
+    @GET("Persons")
+    suspend fun persons(
+        @Query("userId") userId: String,
+        @Query("searchTerm") searchTerm: String,
+        @Query("limit") limit: Int,
     ): ItemsResult
 
     @GET("Genres")

@@ -318,7 +318,7 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
     }
 
     /**
-     * Saves a show's details (see [MetadataMerge]) and its cast. Matched only when TMDB answered: a
+     * Saves a show's details (see [MetadataMerge]) and its credits ([CreditRules]). Matched only when TMDB answered: a
      * show saved from its NFO or its poster alone is looked up at a later scan, and so is one TMDB did
      * not answer for a [refresh], or for an NFO waiting for its word.
      */
@@ -343,7 +343,8 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
         val matchedAt = if (lookup is TmdbAnswer.Given) now else base.matchedAt.takeUnless { refresh || untold }
         val series = MetadataMerge.merge(base, nfo, details, art).copy(matchedAt = matchedAt)
         dao.saveScanned(series)
-        MetadataMerge.cast(series.id, nfo, tv?.credits)?.let { dao.replaceCast(series.id, it) }
+        CreditRules.credits(series.id, show = true, nfo, tv?.let { TmdbPeople(it.credits, it.createdBy) })
+            ?.let { dao.replaceCredits(series.id, it, now) }
         return series
     }
 

@@ -3,6 +3,7 @@ package app.houselights.providers.local
 import app.houselights.core.BadgeTokens
 import app.houselights.core.Codecs
 import app.houselights.core.Definition
+import app.houselights.core.Editions
 import app.houselights.core.HdrFormat
 import java.time.LocalDate
 import java.util.concurrent.ConcurrentHashMap
@@ -117,6 +118,27 @@ object FilenameParser {
         val title = beforeTags(if (year != null) base.substring(0, year.range.first) else base)
         return ParsedMovie(clean(title).ifBlank { clean(base) }, year?.value?.toInt())
     }
+
+    /**
+     * The edition a film's file names ([Editions]), a disc by its folder: Plex's "{edition-Final Cut}" anywhere,
+     * one in brackets ("[Extended]"), or words after the film's year, where no title holds them: "Aliens (1986)
+     * Special Edition", "Blade Runner (1982) - Director's Cut" as Jellyfin names a version. Null for none: a name
+     * without a year says nothing of one, "Director's Cut" and "The Final Cut" being films too.
+     */
+    fun edition(relativePath: String): String? {
+        val path = discOf(relativePath)?.root?.ifEmpty { null } ?: relativePath
+        val name = stripExtension(path.substringAfterLast('/'))
+        PLEX_EDITION.find(name)?.let { return Editions.of(it.groupValues[1]) }
+        BRACKETED.findAll(name).firstNotNullOfOrNull { Editions.find(it.groupValues[1]) }?.let { return it }
+        val base = normalizeSeparators(dropBrackets(name))
+        val latest = LocalDate.now().year + 1
+        val year = YEAR.findAll(base).lastOrNull { it.range.first > 0 && it.value.toInt() <= latest } ?: return null
+        return Editions.find(base.substring(year.range.last + 1))
+    }
+
+    /** Plex's edition: "{edition-Director's Cut}". */
+    private val PLEX_EDITION = Regex("""(?i)\{edition-([^\}]+)\}""")
+    private val BRACKETED = Regex("""\[([^\]]*)\]""")
 
     /**
      * [s] up to its release tags: from the run of tags that leads to the first one no title holds as a

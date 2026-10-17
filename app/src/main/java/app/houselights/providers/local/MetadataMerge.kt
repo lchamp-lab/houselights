@@ -1,6 +1,5 @@
 package app.houselights.providers.local
 
-import app.houselights.core.NfoActor
 import app.houselights.core.NfoInfo
 import app.houselights.core.yearOf
 import java.text.Normalizer
@@ -16,6 +15,8 @@ data class TmdbDetails(
     val runtimeMin: Int?,
     val certification: String?,
     val rating: Double?,
+    /** The votes [rating] stands on. */
+    val votes: Int? = null,
     val genres: List<String>,
     val posterPath: String?,
     val backdropPath: String?,
@@ -38,6 +39,7 @@ fun TmdbMovie.details(certification: String?, logo: String?) = TmdbDetails(
     runtimeMin = runtime?.takeIf { it > 0 },
     certification = certification,
     rating = voteAverage?.takeIf { it > 0 },
+    votes = voteCount?.takeIf { voteAverage != null && voteAverage > 0 },
     genres = genres.map { it.name },
     posterPath = posterPath,
     backdropPath = backdropPath,
@@ -55,6 +57,7 @@ fun TmdbTv.details(certification: String?, logo: String?) = TmdbDetails(
     runtimeMin = episodeRunTime.firstOrNull(),
     certification = certification,
     rating = voteAverage?.takeIf { it > 0 },
+    votes = voteCount?.takeIf { voteAverage != null && voteAverage > 0 },
     genres = genres.map { it.name },
     posterPath = posterPath,
     backdropPath = backdropPath,
@@ -94,7 +97,6 @@ object MetadataMerge {
 
     /** Letters that NFD does not take apart into a base letter and its accent. */
     private val LIGATURES = mapOf('œ' to "oe", 'æ' to "ae", 'ß' to "ss", 'ø' to "o", 'ł' to "l", 'đ' to "d", 'ð' to "d", 'þ' to "th")
-    private const val CAST_SIZE = 30
 
     /**
      * Lower case, without a leading article, accents and ligatures folded: "The Batman" sorts with B,
@@ -132,6 +134,8 @@ object MetadataMerge {
             runtimeMin = nfo?.runtimeMin ?: tmdb?.runtimeMin ?: base.runtimeMin,
             certification = nfo?.certification ?: tmdb?.certification ?: base.certification,
             rating = nfo?.rating ?: tmdb?.rating ?: base.rating,
+            // The votes of the rating kept: the NFO's when it gives the rating, as it may not say how many.
+            votes = if (nfo?.rating != null) nfo.votes else tmdb?.votes ?: base.votes,
             genres = nfo?.genres?.takeIf { it.isNotEmpty() } ?: tmdb?.genres ?: base.genres,
             directors = if (show) base.directors else directors(nfo, tmdb) ?: base.directors,
             posterPath = art.poster ?: nfo?.posterUrl ?: tmdb?.posterPath ?: base.posterPath,
@@ -178,6 +182,7 @@ object MetadataMerge {
         runtimeMin = null,
         certification = null,
         rating = null,
+        votes = null,
         genres = emptyList(),
         directors = emptyList(),
         posterPath = null,
@@ -185,21 +190,4 @@ object MetadataMerge {
         logoPath = null,
         stillPath = null,
     )
-
-    /** The NFO's actors when it lists any, else TMDB's: the first [CAST_SIZE] in billing order. */
-    fun cast(itemId: Long, nfo: NfoInfo?, credits: TmdbCredits?): List<CastEntity>? = when {
-        nfo != null && nfo.actors.isNotEmpty() -> castOf(itemId, nfo.actors)
-        credits != null -> castOf(itemId, credits)
-        else -> null
-    }
-
-    private fun castOf(itemId: Long, actors: List<NfoActor>) =
-        actors.sortedBy { it.order ?: Int.MAX_VALUE }.take(CAST_SIZE).mapIndexed { i, a ->
-            CastEntity(itemId, i, a.name, a.role?.ifBlank { null }, a.thumb)
-        }
-
-    private fun castOf(itemId: Long, credits: TmdbCredits) =
-        credits.cast.sortedBy { it.order }.take(CAST_SIZE).mapIndexed { i, c ->
-            CastEntity(itemId, i, c.name, c.character?.ifBlank { null }, c.profilePath)
-        }
 }

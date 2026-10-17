@@ -5,6 +5,7 @@ import androidx.room.Index
 import androidx.room.PrimaryKey
 import androidx.room.ProvidedTypeConverter
 import androidx.room.TypeConverter
+import app.houselights.core.Job
 import app.houselights.core.MediaInfo
 import app.houselights.core.Secrets
 
@@ -136,7 +137,7 @@ private const val ROW_HEAD =
 private const val ROW_TAIL =
     ", probeVersion, fileDurationMs, nfoPath, NULL AS nfo, sidecarKey, userTmdbId, userPosterPath, " +
         "userBackdropPath, userLogoPath, collectionId, addedAt, matchedAt, positionMs, durationMs, played, favorite, " +
-        "lastPlayedAt"
+        "lastPlayedAt, edition, versionOf, versionChoice, votes, creditsAt"
 
 /**
  * Every column of an item but the NFO text, which can weigh up to 1 MB: what a title's page reads. Rows read
@@ -206,7 +207,7 @@ internal fun ItemEntity.runtimeMs(): Long? = runtimeMs(parts, durationMs, fileDu
 /** As [ItemEntity.runtimeMs], from what a player's report reads of the row. */
 internal fun PlayState.runtimeMs(): Long? = runtimeMs(parts, durationMs, fileDurationMs, runtimeMin)
 
-private fun runtimeMs(parts: List<String>, playerMs: Long?, fileMs: Long?, runtimeMin: Int?): Long? {
+internal fun runtimeMs(parts: List<String>, playerMs: Long?, fileMs: Long?, runtimeMin: Int?): Long? {
     val stated = runtimeMin?.let { it * MS_PER_MINUTE }
     return if (parts.isNotEmpty()) stated else playerMs ?: fileMs ?: stated
 }
@@ -241,6 +242,7 @@ data class CollectionMember(
     indices = [
         Index("parentId"), Index("seriesId"), Index(value = ["sourceId", "filePath"]), Index("matchKey"), Index("collectionId"),
         Index(value = ["kind", "sortTitle"]), Index(value = ["kind", "addedAt"]), Index(value = ["kind", "lastPlayedAt"]),
+        Index(value = ["kind", "tmdbId"]), Index("versionOf"),
     ],
 )
 data class ItemEntity(
@@ -317,6 +319,22 @@ data class ItemEntity(
     val played: Boolean = false,
     val favorite: Boolean = false,
     val lastPlayedAt: Long? = null,
+    /** The edition of this copy of a film ([app.houselights.core.Editions]), as its NFO or its file's name gives it. */
+    val edition: String? = null,
+    /**
+     * Another copy of the same film (the same TMDB id) holds the title: this row's id, the first of them. Null for
+     * the title itself, and for a film of one copy. Walls show titles alone; set by [LibraryDao.groupVersions].
+     */
+    val versionOf: Long? = null,
+    /** The user's choice: the copy of the film "Lire" plays (a row id), on the title's row. Scans never override it. */
+    val versionChoice: Long? = null,
+    /** How many votes [rating] stands on, when TMDB or the NFO tells. */
+    val votes: Int? = null,
+    /**
+     * When the title's credits were last written ([CreditEntity]), from TMDB or its NFO; null until then: titles
+     * known before credits were kept get theirs at later passes ([LibraryScanner]'s backfill).
+     */
+    val creditsAt: Long? = null,
 )
 
 /**
@@ -340,11 +358,52 @@ data class CollectionEntity(
     val fetchedAt: Long? = null,
 )
 
-@Entity(tableName = "cast", primaryKeys = ["itemId", "ord"])
-data class CastEntity(
-    val itemId: Long,
-    val ord: Int,
-    val name: String,
-    val character: String?,
-    val profilePath: String?,
+/**
+ * One credit of a film or a show: a person, their [job], and as cast their [character], in the order the title
+ * bills them in that job ([ord]). A person is one [personKey] across the library: "tmdb:<id>" when TMDB names
+ * them, else "name:<folded name>" ([PersonKeys]).
+ */
+@Entity(
+    tableName = "credits",
+    primaryKeys = ["itemId", "job", "ord"],
+    indices = [Index(value = ["personKey", "itemId"]), Index(value = ["job", "personKey"]), Index("foldedName")],
 )
+data class CreditEntity(
+    /** The film or the show (never a season nor an episode). */
+    val itemId: Long,
+    val job: Job,
+    val ord: Int,
+    val personKey: String,
+    val name: String,
+    /** [name] folded ([PersonKeys.fold]): who a name alone names is found again under TMDB's key by it. */
+    val foldedName: String,
+    val character: String? = null,
+    val profilePath: String? = null,
+)
+
+/**
+ * A film of a saga as TMDB lists it, held by the library or not ([LibraryDao.sagaParts] tells): what the saga
+ * page shows of one it lacks, in the order they came out ([ord]).
+ */
+@Entity(tableName = "saga_parts", primaryKeys = ["collectionId", "tmdbId"], indices = [Index("tmdbId")])
+data class SagaPartEntity(
+    val collectionId: Long,
+    val tmdbId: Int,
+    val ord: Int,
+    val title: String,
+    /** "2021-10-22"; null when TMDB has none yet. */
+    val releaseDate: String? = null,
+    val overview: String? = null,
+    val posterPath: String? = null,
+    val backdropPath: String? = null,
+)
+
+/** What a search word finds. */
+enum class SearchKind { TITLE, PERSON, SAGA }
+
+/**
+ * One word of a title's names, a person's or a saga's, folded ([SearchWords]): a search reads the words that
+ * start with what is typed, by [kind], through the primary key. [ref]: the row's id, or the person's key.
+ */
+@Entity(tableName = "search_words", primaryKeys = ["kind", "word", "ref"], indices = [Index(value = ["kind", "ref"])])
+data class SearchWordEntity(val kind: SearchKind, val word: String, val ref: String)

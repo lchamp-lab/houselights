@@ -1,5 +1,6 @@
 package app.houselights.providers.local
 
+import app.houselights.core.Editions
 import app.houselights.core.NfoInfo
 
 /** Films: a file, its NFO and artwork, its TMDB match and its collection. */
@@ -62,6 +63,7 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
             parts = stack?.rest.orEmpty().map { it.relativePath },
             fileSize = file.size,
             badges = FilenameParser.badges(file.relativePath),
+            edition = FilenameParser.edition(file.relativePath),
             addedAt = now,
         )
         return item.copy(id = dao.insert(item))
@@ -205,7 +207,7 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
         return Fetched(answer, nfo, plan, details, tmdb.client, askAgain = refresh || (untold && answer !is TmdbAnswer.Given))
     }
 
-    /** Saves a film's details (see [MetadataMerge]) and its cast. */
+    /** Saves a film's details (see [MetadataMerge]), its edition and its credits ([CreditRules]). */
     private suspend fun saveMovie(base: ItemEntity, nfoInfo: NfoInfo?, fetched: Fetched, art: LocalArt, now: Long) {
         val movie = fetched.movie
         val tmdb = fetched.client
@@ -220,10 +222,11 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
             fetched.askAgain -> null
             else -> base.matchedAt
         }
-        val item = MetadataMerge.merge(base, nfo, details, art).copy(collectionId = collectionId, matchedAt = matchedAt)
+        val item = MetadataMerge.merge(base, nfo, details, art)
+            .copy(collectionId = collectionId, matchedAt = matchedAt, edition = editionOf(base, nfoInfo))
             .withNfoStreams(nfoInfo) // What the file contains does not depend on the match.
         dao.saveScanned(item)
-        MetadataMerge.cast(item.id, nfo, movie?.credits)?.let { dao.replaceCast(item.id, it) }
+        CreditRules.credits(item.id, show = false, nfo, movie?.let { TmdbPeople(it.credits) })?.let { dao.replaceCredits(item.id, it, now) }
     }
 
     /** The collection a film belongs to, as known before anything is written. */
@@ -277,7 +280,17 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
                 fetchedAt = now,
             )
             dao.updateCollection(c)
+            dao.replaceSagaParts(c.id, CollectionRules.parts(c.id, full))
         }
         return c.id
+    }
+
+    companion object {
+        /**
+         * The edition of the film [item]'s copy: its NFO's (the file's own, whatever title it describes), else its
+         * file's name's ([FilenameParser.edition]).
+         */
+        fun editionOf(item: ItemEntity, nfo: NfoInfo?): String? =
+            nfo?.edition?.let(Editions::of) ?: item.filePath?.let(FilenameParser::edition)
     }
 }

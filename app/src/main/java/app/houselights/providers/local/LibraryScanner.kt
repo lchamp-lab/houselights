@@ -99,6 +99,7 @@ class LibraryScanner(
     private val files = ScanFiles(dao, artwork, browsers)
     private val movies = MovieIndexer(dao, files)
     private val shows = ShowIndexer(dao, files)
+    private val backfill = Backfill(dao, lock, System::currentTimeMillis)
 
     /**
      * Scans every folder. [asked]: by someone (Scan now, a folder added or changed, a key saved), not by
@@ -215,8 +216,9 @@ class LibraryScanner(
                 withContext(NonCancellable) {
                     dao.inTransaction {
                         writes()
-                        // The film may have left its collection for another one.
+                        // The film may have left its collection for another one, and its copies for another film's.
                         dao.deleteEmptyCollections()
+                        dao.groupVersions()
                     }
                     _changed.tryEmit(Unit)
                 }
@@ -241,7 +243,8 @@ class LibraryScanner(
     private val askTmdbAgain = AtomicBoolean(false)
 
     private suspend fun cleanupLocked(): CleanupResult {
-        val orphanCast = dao.deleteOrphanCast()
+        val orphanCast = dao.deleteOrphanCredits()
+        dao.deleteOrphanSearchWords()
         // Based on what the library references, not on what the NAS shows: an unreachable
         // NAS never causes artwork to be deleted.
         val result = artwork.sweep(dao.cachedArtworkPaths())
@@ -291,10 +294,17 @@ class LibraryScanner(
                     dao.deleteEmptySeries()
                     dao.moveOrphanShows()
                     dao.deleteEmptyCollections()
+                    // Films matched anew, or whose copies came or went, are gathered again.
+                    if (dao.groupVersions() > 0) changed = true
                     // Pictures only become unused when titles change or go.
                     if (changed) cleanupLocked()
                 }.onFailure { Log.w(TAG, "Cleanup failed", it) }
             }
+            // Titles and sagas known before credits and sagas whole were kept, a few a pass, once the folders are read.
+            waitForThePlayer()
+            suspendRunCatching { backfill.run(tmdb, askTmdb = askUnmatched) }
+                .onSuccess { if (it > 0) Log.i(TAG, "Backfill: $it titles and sagas given their credits and films") }
+                .onFailure { Log.w(TAG, "Backfill failed; tried again at the next pass", it) }
         } finally {
             tmdbDown = tmdbDownAfter(tmdb, down, askUnmatched)
             // Whatever happened, the scan is over: the settings must not show it running forever.

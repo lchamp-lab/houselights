@@ -6,16 +6,16 @@ import androidx.sqlite.db.SimpleSQLiteQuery
 import app.houselights.R
 import app.houselights.core.NfoParser
 import app.houselights.core.NotFoundException
-import app.houselights.core.BadgeTokens
+import app.houselights.core.Catalog
 import app.houselights.core.Definition
 import app.houselights.core.HdrFormat
 import app.houselights.core.HomeSection
+import app.houselights.core.Job
 import app.houselights.core.ImageRef
 import app.houselights.core.Library
 import app.houselights.core.LibraryFacets
 import app.houselights.core.LibraryFilter
 import app.houselights.core.Quality
-import app.houselights.core.WatchStatus
 import app.houselights.core.LibraryKind
 import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
@@ -49,7 +49,12 @@ class LocalProvider(
     private val collectionMinFilms: () -> Int = { CollectionThreshold.DEFAULT },
 ) : MediaProvider {
 
-    override val capabilities = ProviderCapabilities(markPlayed = true, favorites = true, similar = true, pathMapping = false)
+    override val capabilities = ProviderCapabilities(
+        markPlayed = true, favorites = true, similar = true, pathMapping = false, people = true, crew = true, sagaParts = true,
+        versions = true, versionChoice = true, formatNumbers = true, formatFilters = true, personFilter = true, search = true,
+    )
+
+    override val catalog: Catalog by lazy { LocalCatalog(context, dao, this, collectionMinFilms) }
 
     override suspend fun libraries(): List<Library> = buildList {
         if (dao.count(ItemKind.MOVIE) > 0) add(Library(MOVIES, LibraryKind.MOVIES, null))
@@ -63,7 +68,7 @@ class LocalProvider(
         val inProgress = dao.inProgress(20)
         return buildList {
             if (inProgress.isNotEmpty()) add(HomeSection(SectionType.CONTINUE, mapper.mapAll(inProgress), landscape = true))
-            val next = nextUpAcrossShows(exclude = inProgress.map { it.id }.toSet())
+            val next = nextUp(exclude = inProgress.map { it.id }.toSet())
             if (next.isNotEmpty()) add(HomeSection(SectionType.NEXT_UP, mapper.mapAll(next), landscape = true))
             for ((kind, library) in listOf(LibraryKind.MOVIES to MOVIES, LibraryKind.SHOWS to SHOWS)) {
                 val items = dao.latest(if (kind == LibraryKind.MOVIES) ItemKind.MOVIE else ItemKind.SERIES, 24)
@@ -77,39 +82,10 @@ class LocalProvider(
     override suspend fun libraryPage(library: Library, sort: SortOption, filter: LibraryFilter, start: Int, limit: Int): Page {
         if (library.id == COLLECTIONS) return collectionsPage(sort, start, limit)
         val kind = if (library.id == SHOWS) ItemKind.SERIES else ItemKind.MOVIE
-        val args = mutableListOf<Any>()
-        val where = StringBuilder("kind = '${kind.name}'")
-        val episodes = "SELECT 1 FROM items e WHERE e.seriesId = items.id AND e.kind = 'EPISODE'"
-        when (filter.status) {
-            WatchStatus.ALL -> {}
-            WatchStatus.UNWATCHED -> where.append(
-                if (kind == ItemKind.SERIES) " AND EXISTS ($episodes AND e.played = 0)" else " AND played = 0 AND positionMs = 0"
-            )
-            WatchStatus.IN_PROGRESS -> where.append(
-                if (kind == ItemKind.SERIES) " AND EXISTS ($episodes AND (e.played = 1 OR e.positionMs > 0)) AND EXISTS ($episodes AND e.played = 0)"
-                else " AND played = 0 AND positionMs > 0"
-            )
-            WatchStatus.WATCHED -> where.append(
-                if (kind == ItemKind.SERIES) " AND NOT EXISTS ($episodes AND e.played = 0)" else " AND played = 1"
-            )
-            WatchStatus.FAVORITES -> where.append(" AND favorite = 1")
-        }
-        filter.genre?.let {
-            where.append(" AND ${PipeList.matchesAnyCase("genres")}")
-            args += it
-        }
-        filter.decade?.let {
-            where.append(" AND year BETWEEN ? AND ?")
-            args += it
-            args += it + 9
-        }
-        filter.quality?.let { quality ->
-            // Shows carry no technical badges themselves: one of their episodes must, as for the menu (libraryFacets).
-            where.append(
-                if (kind == ItemKind.SERIES) " AND EXISTS ($episodes AND ${qualityCondition(quality, "e.badges")})"
-                else " AND ${qualityCondition(quality, "badges")}"
-            )
-        }
+        // Shows carry no technical badges themselves: one of their episodes must, as for the menu (libraryFacets).
+        val filtered = LocalFilters.where(kind, filter)
+        val where = filtered.sql
+        val args = filtered.args
         val order = when (sort) {
             // Sort keys are lower case already: a plain order can follow the (kind, sortTitle) index.
             SortOption.TITLE -> "sortTitle ASC"
@@ -125,17 +101,6 @@ class LocalProvider(
         return Page(mapper.mapAll(items), total)
     }
 
-    /** [column], a row's badges ("badges" for a film, "e.badges" for an episode of a show), holds [quality]. */
-    private fun qualityCondition(quality: Quality, column: String): String {
-        // Badges are the app's own tokens, never a quote in them.
-        fun holds(token: String) = PipeList.matches(column, "'$token'")
-        return when (quality) {
-            Quality.UHD_4K -> holds(Definition.ULTRA_HD.token)
-            Quality.HDR -> HDR_BADGES.joinToString(" OR ", "(", ")") { holds(it) }
-            Quality.DOLBY_VISION -> holds(HdrFormat.DOLBY_VISION.token)
-        }
-    }
-
     /** Collections holding enough films, sorted like films: by name, latest addition, latest film, rating. */
     private suspend fun collectionsPage(sort: SortOption, start: Int, limit: Int): Page {
         val min = collectionMinFilms().coerceAtLeast(1)
@@ -149,26 +114,33 @@ class LocalProvider(
             SimpleSQLiteQuery(
                 "SELECT c.* FROM collections c JOIN (SELECT collectionId, COUNT(*) AS n, MAX(addedAt) AS added, " +
                     "MAX(year) AS lastYear, AVG(rating) AS rating FROM items WHERE kind = 'MOVIE' AND collectionId IS NOT NULL " +
+                    "AND versionOf IS NULL " +
                     "GROUP BY collectionId HAVING n >= ?) s ON s.collectionId = c.id ORDER BY $order, c.id LIMIT $limit OFFSET $start",
                 arrayOf<Any>(min),
             )
         )
+        return Page(collectionItems(collections), dao.collectionCount(min))
+    }
+
+    /** [collections] as titles of the library, their films read in a query a [SQL_IN_LIMIT] collections. */
+    internal suspend fun collectionItems(collections: List<CollectionEntity>): List<MediaItem> {
         val members = membersOf(collections.map { it.id })
-        val items = withContext(Dispatchers.Default) { collections.map { collectionItem(it, members[it.id].orEmpty()) } }
-        return Page(items, dao.collectionCount(min))
+        return withContext(Dispatchers.Default) { collections.map { collectionItem(it, members[it.id].orEmpty()) } }
     }
 
     /** The films of each collection of [ids], by collection: a query a [SQL_IN_LIMIT] collections, rather than one each. */
-    private suspend fun membersOf(ids: List<Long>): Map<Long, List<CollectionMember>> =
+    internal suspend fun membersOf(ids: List<Long>): Map<Long, List<CollectionMember>> =
         ids.chunked(SQL_IN_LIMIT).flatMap { dao.collectionMembers(it) }.groupBy { it.collectionId }
 
     override suspend fun libraryFacets(library: Library): LibraryFacets {
         if (library.id == COLLECTIONS) return LibraryFacets()
         val kind = if (library.id == SHOWS) ItemKind.SERIES else ItemKind.MOVIE
         // Shows carry no technical badges themselves: look at their episodes.
-        val badgeLists = dao.badgesOf(if (kind == ItemKind.SERIES) ItemKind.EPISODE else kind)
+        val files = if (kind == ItemKind.SERIES) ItemKind.EPISODE else kind
+        val badgeLists = dao.badgesOf(files)
         val genreLists = dao.genresOf(kind)
         val years = dao.yearsOf(kind)
+        val ends = dao.fileEnds(files)
         // Every episode's badges, split off the main thread.
         return withContext(Dispatchers.Default) {
             val badges = badgeLists.flatMap(PipeList::fromText).toSet()
@@ -177,9 +149,12 @@ class LocalProvider(
                 decades = years.map { it / 10 * 10 }.distinct().sortedDescending(),
                 qualities = buildList {
                     if (Definition.ULTRA_HD.token in badges) add(Quality.UHD_4K)
-                    if (badges.any { it in HDR_BADGES }) add(Quality.HDR)
+                    if (badges.any { it in LocalFilters.HDR_BADGES }) add(Quality.HDR)
                     if (HdrFormat.DOLBY_VISION.token in badges) add(Quality.DOLBY_VISION)
                 },
+                pictures = LocalFilters.PICTURE_TOKENS.filter { it in badges },
+                sounds = badges.filter(LocalFilters::isSound).sortedWith(compareBy(::soundRank).thenBy { it }),
+                fileTypes = ends.mapNotNull(LocalFilters::fileTypeOf).distinct().sorted(),
             )
         }
     }
@@ -197,10 +172,8 @@ class LocalProvider(
             null -> null
         } ?: throw NotFoundException("Item $id")
         val castSource = if (entity.kind == ItemKind.MOVIE || entity.kind == ItemKind.SERIES) entity.id else entity.seriesId
-        val people = castSource?.let { dao.cast(it) }.orEmpty()
-        val cast = withContext(Dispatchers.Default) {
-            people.map { c -> Person(Typeset.text(c.name), Typeset.text(c.character), c.profilePath?.let { image(it, ImageType.PROFILE) }) }
-        }
+        val people = castSource?.let { dao.creditsOf(it) }.orEmpty().filter { it.job == Job.CAST }
+        val cast = withContext(Dispatchers.Default) { people.map(::person) }
         return LocalMapper(dao, context).map(entity).copy(cast = cast)
     }
 
@@ -234,7 +207,7 @@ class LocalProvider(
         return MediaItem(
             id = LocalId.ofCollection(c.id),
             kind = MediaKind.COLLECTION,
-            title = Typeset.text(c.name),
+            title = Typeset.text(CollectionRules.shownName(c.name)),
             overview = Typeset.text(c.overview),
             year = years.minOrNull(),
             endYear = years.maxOrNull()?.takeIf { it != years.minOrNull() },
@@ -336,13 +309,17 @@ class LocalProvider(
         (LocalId.parse(resumeKey) as? LocalId.Item)?.let { LocalReporter(dao, it.key, it.part ?: 1) }
 
     /**
-     * Next episode of each show recently watched, skipping ones already in progress: where every episode of
-     * those shows stands in one light query, then the rows of the episodes next.
+     * "À suivre": the next episode of each show recently watched, and the next film of each saga one of whose films
+     * was ([nextInSagas]), the most recently watched first, skipping what is in progress already ([exclude]):
+     * where every episode of those shows and every film of those sagas stands in two light queries, then the rows
+     * of what comes next.
      */
-    private suspend fun nextUpAcrossShows(exclude: Set<Long>): List<ItemEntity> {
-        val shows = dao.recentlyPlayedSeries(NEXT_UP_SHOWS)
-        val episodes = shows.chunked(SQL_IN_LIMIT).flatMap { dao.episodeStates(it) }.groupBy { it.seriesId }
-        val next = shows.mapNotNull { show -> episodes[show]?.let(::nextEpisode)?.id }.filter { it !in exclude }
+    private suspend fun nextUp(exclude: Set<Long>): List<ItemEntity> {
+        val shows = dao.recentSeries(NEXT_UP_SHOWS)
+        val episodes = shows.map { it.id }.chunked(SQL_IN_LIMIT).flatMap { dao.episodeStates(it) }.groupBy { it.seriesId }
+        val nextEpisodes = shows.mapNotNull { show -> episodes[show.id]?.let(::nextEpisode)?.let { Recent(it.id, show.at) } }
+        val next = (nextEpisodes + nextInSagas(dao.startedSagas(NEXT_UP_SHOWS)))
+            .sortedByDescending { it.at }.map { it.id }.filter { it !in exclude }.distinct().take(NEXT_UP_SHOWS)
         val rows = next.chunked(SQL_IN_LIMIT).flatMap { dao.rows(it) }.associateBy { it.id }
         return next.mapNotNull { rows[it] }
     }
@@ -363,6 +340,10 @@ class LocalProvider(
         return episodes.drop(lastWatched + 1).firstOrNull { !it.played } ?: episodes.firstOrNull { !it.played }
     }
 
+    /** A person a title credits, as screens show them: their page opens by [Person.id]. */
+    private fun person(c: TitleCredit) =
+        Person(Typeset.text(c.name), Typeset.text(c.character), c.profilePath?.let { image(it, ImageType.PROFILE) }, c.personKey, c.titles)
+
     companion object {
         const val MOVIES = "movies"
         const val SHOWS = "shows"
@@ -375,11 +356,25 @@ class LocalProvider(
         private const val SIMILAR = 16
 
         /**
-         * The badges the HDR filter keeps, and its menu offers it for: Dolby Vision, HDR10+ and HDR10, and
-         * a name's plain HDR. HLG, a broadcast range, has never been among them.
+         * The next film of each saga of [films] (saga by saga, in the order they came out, [LibraryDao.startedSagas]):
+         * the first after the last one watched that is not watched, when there is one; dated by the saga's last
+         * viewing. A film in progress is "Continue"'s, and is left out by the caller.
          */
-        private val HDR_BADGES = listOf(HdrFormat.DOLBY_VISION, HdrFormat.HDR10_PLUS, HdrFormat.HDR10).map(HdrFormat::token) +
-            BadgeTokens.HDR
+        internal fun nextInSagas(films: List<SagaFilmState>): List<Recent> =
+            films.groupBy { it.collectionId }.values.mapNotNull { saga ->
+                val last = saga.indexOfLast { it.played }
+                val next = saga.drop(last + 1).firstOrNull { !it.played } ?: return@mapNotNull null
+                Recent(next.id, saga.mapNotNull { it.lastPlayedAt }.maxOrNull() ?: 0)
+            }
+
+        /** How a sound format ranks among a library's, best first: objects, lossless, DTS, then the rest. */
+        internal fun soundRank(token: String): Int = when {
+            "Atmos" in token || token == "DTS:X" -> 0
+            token.startsWith("TrueHD") || token == "DTS-HD MA" || token == "PCM" || token == "FLAC" -> 1
+            token.startsWith("DTS") -> 2
+            token == "E-AC3" -> 3
+            else -> 4
+        }
 
         /** The user's choice over the automatic value; an empty choice means none (a logo set in type). */
         internal fun shown(user: String?, automatic: String?): String? = when {

@@ -20,6 +20,7 @@ data class TmdbSearchResult(
     val originalTitle: String? = null,
     val originalName: String? = null,
     val overview: String? = null,
+    val backdropPath: String? = null,
 )
 
 @Serializable
@@ -31,11 +32,23 @@ data class TmdbFindResult(
     val tvResults: List<TmdbSearchResult> = emptyList(),
 )
 
+/** One of a title's cast; [id]: the person's on TMDB, which keys them in the library. */
 @Serializable
-data class TmdbCastMember(val name: String, val character: String? = null, val profilePath: String? = null, val order: Int = 0)
+data class TmdbCastMember(
+    val name: String,
+    val character: String? = null,
+    val profilePath: String? = null,
+    val order: Int = 0,
+    val id: Int? = null,
+)
 
+/** One of a title's crew, by [job] ("Director", "Screenplay", "Original Music Composer"…). */
 @Serializable
-data class TmdbCrewMember(val name: String, val job: String? = null)
+data class TmdbCrewMember(val name: String, val job: String? = null, val id: Int? = null, val profilePath: String? = null)
+
+/** One who created a show. */
+@Serializable
+data class TmdbCreator(val name: String, val id: Int? = null, val profilePath: String? = null)
 
 @Serializable
 data class TmdbCredits(val cast: List<TmdbCastMember> = emptyList(), val crew: List<TmdbCrewMember> = emptyList())
@@ -101,6 +114,7 @@ data class TmdbMovie(
     val releaseDate: String? = null,
     val runtime: Int? = null,
     val voteAverage: Double? = null,
+    val voteCount: Int? = null,
     val genres: List<TmdbGenre> = emptyList(),
     val posterPath: String? = null,
     val backdropPath: String? = null,
@@ -122,6 +136,8 @@ data class TmdbTv(
     val status: String? = null,
     val episodeRunTime: List<Int> = emptyList(),
     val voteAverage: Double? = null,
+    val voteCount: Int? = null,
+    val createdBy: List<TmdbCreator> = emptyList(),
     val genres: List<TmdbGenre> = emptyList(),
     val posterPath: String? = null,
     val backdropPath: String? = null,
