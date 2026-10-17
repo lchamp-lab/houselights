@@ -2,15 +2,18 @@ package app.houselights.ui.util
 
 import app.houselights.core.MediaItem
 import android.content.Context
+import androidx.annotation.StringRes
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import app.houselights.R
 import app.houselights.core.HomeSection
+import app.houselights.core.Languages
 import app.houselights.core.LibraryKind
 import app.houselights.core.SectionType
 import app.houselights.providers.local.ScanError
 import app.houselights.providers.local.ScanErrorKind
+import app.houselights.providers.local.SourceKind
 
 /** No-break space: keeps a number with its unit, and French punctuation with its word. */
 const val NBSP = Typography.nbsp
@@ -39,13 +42,24 @@ fun formatRatio(ratio: Float): String = String.format(java.util.Locale.getDefaul
 /** "3840 × 2160". */
 fun formatDimensions(width: Int, height: Int): String = "$width$NBSP×$NBSP$height"
 
+/** A library's name by its kind ("Films", "Séries"): its tab on Home, and its screen's title when it has none of its own. */
+@StringRes
+fun LibraryKind.titleRes(): Int = when (this) {
+    LibraryKind.MOVIES -> R.string.library_movies
+    LibraryKind.SHOWS -> R.string.library_shows
+    LibraryKind.COLLECTIONS -> R.string.library_collections
+    LibraryKind.MIXED -> R.string.library_mixed
+}
+
 @Composable
-fun libraryName(kind: LibraryKind): String = stringResource(
+fun libraryName(kind: LibraryKind): String = stringResource(kind.titleRes())
+
+/** What a network folder holds, by the name of the library it fills: "Films" or "Séries". */
+@Composable
+fun sourceKindName(kind: SourceKind): String = stringResource(
     when (kind) {
-        LibraryKind.MOVIES -> R.string.library_movies
-        LibraryKind.SHOWS -> R.string.library_shows
-        LibraryKind.COLLECTIONS -> R.string.library_collections
-        LibraryKind.MIXED -> R.string.library_mixed
+        SourceKind.MOVIES -> R.string.library_movies
+        SourceKind.SHOWS -> R.string.library_shows
     }
 )
 
@@ -74,17 +88,12 @@ fun scanErrorText(context: Context, error: ScanError, host: String): String = wh
 @Composable
 fun scanErrorText(error: ScanError, host: String): String = scanErrorText(LocalContext.current, error, host)
 
-/** ISO 639-2/B codes that Java does not resolve, mapped to their two-letter form. */
-private val BIBLIOGRAPHIC = mapOf(
-    "fre" to "fr", "ger" to "de", "dut" to "nl", "chi" to "zh", "cze" to "cs", "gre" to "el", "per" to "fa",
-    "rum" to "ro", "slo" to "sk", "alb" to "sq", "arm" to "hy", "baq" to "eu", "bur" to "my", "geo" to "ka",
-    "ice" to "is", "mac" to "mk", "mao" to "mi", "may" to "ms", "tib" to "bo", "wel" to "cy",
-)
-
-/** "eng", "en-US" or "fre" as a language name in the interface language ("Anglais", "Français"). */
+/**
+ * "eng", "en-US" or "fre" as a language name in the interface language ("Anglais", "Français"), by the
+ * code the sheet tells tracks apart by ([Languages.code]); a code no language answers to as it is.
+ */
 fun languageName(code: String?): String? {
-    if (code.isNullOrBlank()) return null
-    val tag = BIBLIOGRAPHIC[code.lowercase()] ?: code
+    val tag = Languages.code(code) ?: return null
     val name = java.util.Locale.forLanguageTag(tag).getDisplayLanguage(java.util.Locale.getDefault())
     return name.takeIf { it.isNotBlank() && !it.equals(tag, ignoreCase = true) }
         ?.replaceFirstChar { it.titlecase(java.util.Locale.getDefault()) }

@@ -138,6 +138,8 @@ class TechSheetTest {
         // A region beside a track that does not say its own still tells the one from the other.
         assertEquals(listOf("CA", null), regions("fr-CA" to null, "fre" to null))
         assertEquals(listOf(null, null), regions(null to null, null to null))
+        // Welsh by its bibliographic code is Welsh still: the screen names both "Gallois".
+        assertEquals(listOf("GB", null), regions("cy-GB" to null, "wel" to null))
     }
 
     @Test

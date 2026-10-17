@@ -38,6 +38,7 @@ import app.houselights.ui.design.components.StatusState
 import app.houselights.ui.design.tryRequestFocus
 import app.houselights.ui.util.appContainer
 import app.houselights.ui.util.scanErrorText
+import app.houselights.ui.util.sourceKindName
 
 /** Displayed order of the options: NFS first, since it needs no password. */
 private val PROTOCOLS = listOf(Protocol.NFS, Protocol.SMB)
@@ -83,7 +84,7 @@ fun AddFolderScreen(folderId: Long?, focusOn: FolderField = FolderField.FIRST, o
                 } else {
                     listOf(
                         protocol.name,
-                        stringResource(if (kind == SourceKind.MOVIES) R.string.library_movies else R.string.library_shows),
+                        sourceKindName(kind),
                     )
                 },
                 result = result,
@@ -103,7 +104,7 @@ fun AddFolderScreen(folderId: Long?, focusOn: FolderField = FolderField.FIRST, o
                 Column {
                     FieldLabel(stringResource(R.string.folder_kind))
                     HlSegmented(
-                        listOf(stringResource(R.string.library_movies), stringResource(R.string.library_shows)),
+                        KINDS.map { sourceKindName(it) },
                         selected = KINDS.indexOf(kind),
                         onSelect = { i -> vm.edit { copy(kind = KINDS[i]) } },
                         modifier = Modifier.focusRequester(focus.first),

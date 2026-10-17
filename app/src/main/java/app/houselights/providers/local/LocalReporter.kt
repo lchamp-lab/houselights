@@ -50,11 +50,10 @@ internal class LocalReporter(private val dao: LibraryDao, private val itemId: Lo
     }
 
     /**
-     * The length the library knows of what plays, when the player gives none. A part's is the player's
-     * alone: the library knows the film's, and its first file's.
+     * The length the library knows of what plays, when the player gives none: the one its card shows
+     * ([runtimeMs]). A part's is the player's alone: the library knows the film's, and its first file's.
      */
-    private fun lengthOf(state: PlayState): Long? =
-        if (state.parts.isNotEmpty()) null else state.durationMs ?: state.runtimeMin?.let { it * MS_PER_MINUTE }
+    private fun lengthOf(state: PlayState): Long? = if (state.parts.isNotEmpty()) null else state.runtimeMs()
 
     /** Watched past [WATCHED_RATIO] of its [duration], when it is known. */
     private fun pastTheEnd(positionMs: Long, duration: Long?) = duration != null && duration > 0 && positionMs >= duration * WATCHED_RATIO
@@ -65,7 +64,5 @@ internal class LocalReporter(private val dao: LibraryDao, private val itemId: Lo
 
         /** Before this, a film keeps its previous resume point (none once watched): started over, or by mistake. */
         const val MIN_RESUME_MS = 60_000L
-
-        const val MS_PER_MINUTE = 60_000L
     }
 }

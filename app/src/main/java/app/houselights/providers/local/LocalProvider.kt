@@ -6,7 +6,9 @@ import androidx.sqlite.db.SimpleSQLiteQuery
 import app.houselights.R
 import app.houselights.core.NfoParser
 import app.houselights.core.NotFoundException
+import app.houselights.core.BadgeTokens
 import app.houselights.core.Definition
+import app.houselights.core.HdrFormat
 import app.houselights.core.HomeSection
 import app.houselights.core.ImageRef
 import app.houselights.core.Library
@@ -92,9 +94,8 @@ class LocalProvider(
             WatchStatus.FAVORITES -> where.append(" AND favorite = 1")
         }
         filter.genre?.let {
-            // Genres are stored as "A|B|C": match a whole entry.
-            where.append(" AND ('|' || genres || '|') LIKE ?")
-            args += "%|$it|%"
+            where.append(" AND ${PipeList.matches("genres")}")
+            args += it
         }
         filter.decade?.let {
             where.append(" AND year BETWEEN ? AND ?")
@@ -124,10 +125,14 @@ class LocalProvider(
     }
 
     /** [column], a row's badges ("badges" for a film, "e.badges" for an episode of a show), holds [quality]. */
-    private fun qualityCondition(quality: Quality, column: String): String = when (quality) {
-        Quality.UHD_4K -> "('|' || $column || '|') LIKE '%|${Definition.ULTRA_HD.token}|%'"
-        Quality.HDR -> "($column LIKE '%HDR%' OR $column LIKE '%Dolby Vision%')"
-        Quality.DOLBY_VISION -> "$column LIKE '%Dolby Vision%'"
+    private fun qualityCondition(quality: Quality, column: String): String {
+        // Badges are the app's own tokens, never a quote in them.
+        fun holds(token: String) = PipeList.matches(column, "'$token'")
+        return when (quality) {
+            Quality.UHD_4K -> holds(Definition.ULTRA_HD.token)
+            Quality.HDR -> HDR_BADGES.joinToString(" OR ", "(", ")") { holds(it) }
+            Quality.DOLBY_VISION -> holds(HdrFormat.DOLBY_VISION.token)
+        }
     }
 
     /** Collections holding enough films, sorted like films: by name, latest addition, latest film, rating. */
@@ -171,8 +176,8 @@ class LocalProvider(
                 decades = years.map { it / 10 * 10 }.distinct().sortedDescending(),
                 qualities = buildList {
                     if (Definition.ULTRA_HD.token in badges) add(Quality.UHD_4K)
-                    if (badges.any { it.startsWith("HDR") } || "Dolby Vision" in badges) add(Quality.HDR)
-                    if ("Dolby Vision" in badges) add(Quality.DOLBY_VISION)
+                    if (badges.any { it in HDR_BADGES }) add(Quality.HDR)
+                    if (HdrFormat.DOLBY_VISION.token in badges) add(Quality.DOLBY_VISION)
                 },
             )
         }
@@ -367,6 +372,12 @@ class LocalProvider(
         private const val DISC_IMAGE = "iso"
         private const val SIMILAR = 16
 
+        /**
+         * The badges the HDR filter keeps, and its menu offers it for: Dolby Vision, HDR10+ and HDR10, and
+         * a name's plain HDR. HLG, a broadcast range, has never been among them.
+         */
+        private val HDR_BADGES = listOf(HdrFormat.DOLBY_VISION, HdrFormat.HDR10_PLUS, HdrFormat.HDR10).map(HdrFormat::token) +
+            BadgeTokens.HDR
 
         /** The user's choice over the automatic value; an empty choice means none (a logo set in type). */
         internal fun shown(user: String?, automatic: String?): String? = when {

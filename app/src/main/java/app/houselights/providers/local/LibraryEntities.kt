@@ -18,7 +18,8 @@ data class Secret(val value: String) {
 }
 
 /**
- * Lists stored as "A|B|C": SQL filters still match one entry with ('|' || genres || '|') LIKE '%|A|%'.
+ * Lists stored as "A|B|C": genres, badges, a film's parts. Queries match one of their entries by
+ * [matches] alone, so that a filter, a count and a page's similar titles agree on what a genre holds.
  */
 object PipeList {
     @TypeConverter
@@ -26,6 +27,19 @@ object PipeList {
 
     @TypeConverter
     fun fromText(text: String): List<String> = text.split('|').filter { it.isNotBlank() }
+
+    /**
+     * SQL that holds when [column]'s list has [value] for one of its entries, whole and exact: "Drame"
+     * is neither "Mélodrame" nor "drame", "4K" not "4Kx". [value] is SQL too: a parameter (`?`,
+     * `:genre`) or a quoted text.
+     */
+    fun matches(column: String, value: String = "?"): String = "instr('|' || $column || '|', '|' || $value || '|') > 0"
+
+    /** [matches] for Room's queries, which take constants only: the genres hold `:genre`. A test holds the two alike. */
+    const val GENRES_MATCH = "instr('|' || genres || '|', '|' || :genre || '|') > 0"
+
+    /** [matches] for Room's queries: the badges hold `:token`. */
+    const val BADGES_MATCH = "instr('|' || badges || '|', '|' || :token || '|') > 0"
 }
 
 /** Seals [Secret] columns on the way to the database, opens them on the way back. */
@@ -139,9 +153,28 @@ data class PlayState(
     val parts: List<String>,
     val positionMs: Long,
     val durationMs: Long?,
+    val fileDurationMs: Long?,
     val runtimeMin: Int?,
     val played: Boolean,
 )
+
+/**
+ * How long a film or an episode lasts, as the library knows it: its file's length as the player told it,
+ * else as the file was read, else as TMDB or its NFO states it. Its card and the player's "watched" weigh
+ * by this one rule. A film in several files lasts what TMDB or its NFO states, its parts together: the
+ * library knows its first file's length only.
+ */
+internal fun ItemEntity.runtimeMs(): Long? = runtimeMs(parts, durationMs, fileDurationMs, runtimeMin)
+
+/** As [ItemEntity.runtimeMs], from what a player's report reads of the row. */
+internal fun PlayState.runtimeMs(): Long? = runtimeMs(parts, durationMs, fileDurationMs, runtimeMin)
+
+private fun runtimeMs(parts: List<String>, playerMs: Long?, fileMs: Long?, runtimeMin: Int?): Long? {
+    val stated = runtimeMin?.let { it * MS_PER_MINUTE }
+    return if (parts.isNotEmpty()) stated else playerMs ?: fileMs ?: stated
+}
+
+private const val MS_PER_MINUTE = 60_000L
 
 /** Where an episode stands for the viewer ([LibraryDao.episodeStates]): what tells the next one to watch. */
 data class EpisodeState(

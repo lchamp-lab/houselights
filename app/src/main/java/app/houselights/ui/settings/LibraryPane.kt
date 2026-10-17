@@ -36,7 +36,6 @@ import app.houselights.providers.local.ScanError
 import app.houselights.providers.local.ScanErrorKind
 import app.houselights.providers.local.ScanState
 import app.houselights.providers.local.SourceEntity
-import app.houselights.providers.local.SourceKind
 import app.houselights.providers.local.TmdbClient.Companion.ImageType
 import app.houselights.providers.local.TmdbKeyCheck
 import app.houselights.providers.local.address
@@ -74,6 +73,7 @@ import app.houselights.ui.design.tryRequestFocus
 import app.houselights.ui.onboarding.FolderField
 import app.houselights.ui.util.UiError
 import app.houselights.ui.util.scanErrorText
+import app.houselights.ui.util.sourceKindName
 import app.houselights.core.CollectionThreshold
 
 /**
@@ -202,7 +202,7 @@ private fun SourceActions(
 ) {
     val vm = settingsViewModel()
     val posters by remember(source.id) { vm.library.latestPosters(source, HEADER_POSTERS) }.collectAsStateWithLifecycle(emptyList())
-    val kind = stringResource(if (source.kind == SourceKind.MOVIES) R.string.library_movies else R.string.library_shows)
+    val kind = sourceKindName(source.kind)
     val scan = remember { FocusRequester() }
     val edit = remember { FocusRequester() }
     // Read once: a scan ending while the sheet is open does not move its rows under focus.
@@ -311,7 +311,7 @@ private fun SourceCard(
     val count = counts?.titles ?: 0
     val ultraHd = counts?.ultraHd ?: 0
     val posters by remember(source.id) { library.latestPosters(source, STRIP) }.collectAsStateWithLifecycle(emptyList())
-    val kind = stringResource(if (source.kind == SourceKind.MOVIES) R.string.library_movies else R.string.library_shows)
+    val kind = sourceKindName(source.kind)
 
     HlPanelButton(onClick, modifier.fillMaxWidth()) {
         Column {
