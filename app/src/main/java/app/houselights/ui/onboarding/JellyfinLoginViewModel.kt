@@ -26,6 +26,8 @@ import app.houselights.settings.SourceSwitcher
 import app.houselights.ui.util.UiError
 import app.houselights.ui.util.toWriteError
 import kotlinx.coroutines.launch
+import kotlin.properties.ReadWriteProperty
+import kotlin.reflect.KProperty
 
 /** Why signing in to Jellyfin failed. */
 sealed interface LoginError {
@@ -115,9 +117,9 @@ class JellyfinLoginViewModel(
     private val sources: SourceSwitcher,
     private val network: JellyfinNetwork = JellyfinNetwork.Lan,
 ) : ViewModel() {
-    var server by mutableStateOf("")
-    var user by mutableStateOf("")
-    var password by mutableStateOf("")
+    var server by Field()
+    var user by Field()
+    var password by Field()
     var busy by mutableStateOf(false)
         private set
     var error by mutableStateOf<LoginError?>(null)
@@ -140,10 +142,23 @@ class JellyfinLoginViewModel(
         viewModelScope.launch { discovered = network.discover() }
     }
 
+    /** A field of the form: changed, it makes what signing in said of the last try stale, and no longer said. */
+    private inner class Field : ReadWriteProperty<Any?, String> {
+        private var typed by mutableStateOf("")
+
+        override fun getValue(thisRef: Any?, property: KProperty<*>): String = typed
+
+        override fun setValue(thisRef: Any?, property: KProperty<*>, value: String) {
+            if (value != typed) error = null
+            typed = value
+        }
+    }
+
     fun login(onLoggedIn: () -> Unit) {
         if (busy) return
         busy = true
         error = null
+        val asked = typed()
         viewModelScope.launch {
             var address = JellyfinClient.normalizeUrl(server)
             suspendRunCatching {
@@ -156,11 +171,15 @@ class JellyfinLoginViewModel(
                 onLoggedIn()
             }.onFailure { e ->
                 Log.w("Jellyfin", "Sign-in to $address failed", e)
-                error = loginError(e, address)
+                // Said of what was typed: a field changed meanwhile is a sign-in not tried yet.
+                if (typed() == asked) error = loginError(e, address)
             }
             busy = false
         }
     }
+
+    /** What the form holds, as signing in reads it. */
+    private fun typed() = listOf(server, user, password)
 
     companion object {
         fun factory(app: AppContainer): ViewModelProvider.Factory = viewModelFactory {

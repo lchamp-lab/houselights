@@ -383,6 +383,8 @@
     <string name="error_no_tmdb_key">Add a TMDB key in Settings to search and list images.</string>
     <string name="error_tmdb_key_refused_title">TMDB refuses this key</string>
     <string name="error_tmdb_key_refused">TMDB doesn’t accept the key saved in Settings. Check it, or replace it.</string>
+    <string name="error_tmdb_not_found_title">TMDB doesn’t know this title</string>
+    <string name="error_tmdb_not_found">TMDB no longer has an entry for this title: it may have been removed, or merged into another. Search again, or choose another result.</string>
     <string name="error_failed_title">This could not be done</string>
     <string name="error_failed">Try again in a moment.</string>
     <string name="error_keystore_title">Device keystore unavailable</string>

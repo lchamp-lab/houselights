@@ -39,6 +39,8 @@ class DesignTokenGuardTest {
     private val allowed = listOf(
         // The catalogue's swatch of the colour itself.
         "catalog/CatalogScreen.kt:\"ember\" to c.ember",
+        // The catalogue's own frames (swatches, a mark's white ground): a size no screen uses.
+        "catalog/CatalogParts.kt:val CatalogSwatch = 52.dp",
     )
 
     @Test

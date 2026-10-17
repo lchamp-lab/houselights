@@ -2,11 +2,11 @@ package app.houselights.providers.local
 
 import android.os.SystemClock
 import android.util.Log
+import app.houselights.core.FailureKind
 import app.houselights.core.NfoParser
 import app.houselights.core.NoTmdbKeyException
+import app.houselights.core.failureKind
 import app.houselights.core.suspendRunCatching
-import app.houselights.ui.util.UiError
-import app.houselights.ui.util.toUiError
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
@@ -37,9 +37,9 @@ data class ScanState(
     /**
      * Why the last scan stopped asking TMDB (the key refused, TMDB out of reach): titles were indexed
      * from their files, and wait for their details. Kept after the scan ends, until TMDB is asked again
-     * for them (an hour on, or at once at a scan asked for or a key changed).
+     * for them (an hour on, or at once at a scan asked for or a key changed). Screens say it in their words.
      */
-    val tmdbIssue: UiError? = null,
+    val tmdbIssue: FailureKind? = null,
 )
 
 /**
@@ -261,7 +261,7 @@ class LibraryScanner(
         val errors = mutableMapOf<Long, ScanError>()
         var changed = false
         val client = client()
-        val tmdb = TmdbPass(client) { e -> _state.update { it.copy(tmdbIssue = e.toUiError()) } }
+        val tmdb = TmdbPass(client) { e -> _state.update { it.copy(tmdbIssue = e.failureKind()) } }
         val seasons = ShowIndexer.SeasonCache(tmdb)
         // TMDB closed to a recent pass, with this key: titles it left unmatched wait a while, rather
         // than being read again at every pass for an answer that will not come; unless one asked.
@@ -298,7 +298,7 @@ class LibraryScanner(
         } finally {
             tmdbDown = tmdbDownAfter(tmdb, down, askUnmatched)
             // Whatever happened, the scan is over: the settings must not show it running forever.
-            _state.value = ScanState(errors = errors, tmdbIssue = tmdbDown?.takeIf { it.client === client() }?.cause?.toUiError())
+            _state.value = ScanState(errors = errors, tmdbIssue = tmdbDown?.takeIf { it.client === client() }?.cause?.failureKind())
             lastScanEnd = elapsed()
             closeIdle()
         }

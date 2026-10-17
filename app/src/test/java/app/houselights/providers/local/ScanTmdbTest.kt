@@ -1,6 +1,6 @@
 package app.houselights.providers.local
 
-import app.houselights.ui.util.UiError
+import app.houselights.core.FailureKind
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -70,7 +70,7 @@ class ScanTmdbTest {
         assertTrue(first.posterPath.isCachedArtwork())
         assertNull("asked again at the next scan", first.matchedAt)
         assertEquals(5, bench.dao.filesOf(films.id).size)
-        assertEquals(UiError.TMDB_OFFLINE, issue())
+        assertEquals(FailureKind.TMDB_UNREACHABLE, issue())
 
         tmdbBack()
         bench.scan()
@@ -88,7 +88,7 @@ class ScanTmdbTest {
         bench.scan()
 
         assertEquals("asked once", 1, tmdb.requests.size)
-        assertEquals(UiError.TMDB_KEY_REFUSED, issue())
+        assertEquals(FailureKind.TMDB_KEY_REFUSED, issue())
         assertEquals(4, bench.dao.filesOf(films.id).size)
         assertTrue(bench.dao.filesOf(films.id).all { it.matchedAt == null })
     }
@@ -99,7 +99,7 @@ class ScanTmdbTest {
         repeat(3) { described("Film $it (2020)", "Mon film $it") }
         tmdb.status = 401
         bench.scan()
-        assertEquals(UiError.TMDB_KEY_REFUSED, issue())
+        assertEquals(FailureKind.TMDB_KEY_REFUSED, issue())
 
         nas.reads.clear()
         tmdb.requests.clear()
@@ -107,7 +107,7 @@ class ScanTmdbTest {
         assertEquals("no NFO read", emptyList<String>(), nas.reads)
         assertEquals("TMDB not asked", emptyList<String>(), tmdb.requests)
         assertEquals("screens left as they are", 0, changes)
-        assertEquals("still said", UiError.TMDB_KEY_REFUSED, issue())
+        assertEquals("still said", FailureKind.TMDB_KEY_REFUSED, issue())
     }
 
     @Test
@@ -142,7 +142,7 @@ class ScanTmdbTest {
         tmdb.movie(1, "Mon film 0", 2020)
         tmdb.failure = IOException("Network is unreachable")
         bench.scan()
-        assertEquals(UiError.TMDB_OFFLINE, issue())
+        assertEquals(FailureKind.TMDB_UNREACHABLE, issue())
 
         // Past the client's own pause, within the hour.
         tmdb.failure = null
@@ -165,7 +165,7 @@ class ScanTmdbTest {
         tmdb.movie(2, "Nouveau", 2021)
         tmdb.failure = IOException("Network is unreachable")
         bench.scan()
-        assertEquals(UiError.TMDB_OFFLINE, issue())
+        assertEquals(FailureKind.TMDB_UNREACHABLE, issue())
 
         tmdb.failure = null
         ShadowSystemClock.advanceBy(Duration.ofMinutes(2))
@@ -185,7 +185,7 @@ class ScanTmdbTest {
         nas.put("Dune (2021).mkv")
         tmdb.status = 401
         bench.scan()
-        assertEquals(UiError.TMDB_KEY_REFUSED, issue())
+        assertEquals(FailureKind.TMDB_KEY_REFUSED, issue())
 
         // A key TMDB accepts, saved in the settings: no hour to wait.
         tmdb.status = null

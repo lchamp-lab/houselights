@@ -1,7 +1,9 @@
 package app.houselights.providers.local
 
 import app.houselights.core.Http
-import app.houselights.core.NotFoundException
+import app.houselights.core.TmdbKeyRefusedException
+import app.houselights.core.TmdbNotFoundException
+import app.houselights.core.TmdbUnreachableException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
@@ -169,7 +171,7 @@ class TmdbClientTest {
         val client = tmdb.client()
         assertNull(client.movieById(1))
         assertNull(client.collection(1))
-        failure<NotFoundException> { client.movie(1) }
+        failure<TmdbNotFoundException> { client.movie(1) }
     }
 
     /** TMDB's search lags behind an entry it removed. */

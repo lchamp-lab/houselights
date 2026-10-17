@@ -4,6 +4,7 @@ import app.houselights.core.ArtworkKind
 import app.houselights.core.FailureKind
 import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
+import app.houselights.core.TmdbKeyRefusedException
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals

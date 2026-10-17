@@ -5,7 +5,7 @@ import android.database.sqlite.SQLiteDatabaseLockedException
 import android.database.sqlite.SQLiteDiskIOException
 import android.database.sqlite.SQLiteFullException
 import app.houselights.core.SecretsUnavailableException
-import app.houselights.providers.local.TmdbUnreachableException
+import app.houselights.core.TmdbUnreachableException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.test.advanceUntilIdle

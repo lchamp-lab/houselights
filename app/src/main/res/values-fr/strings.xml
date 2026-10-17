@@ -375,6 +375,8 @@
     <string name="error_no_tmdb_key">Ajoutez une clé TMDB dans les réglages pour rechercher et lister les images.</string>
     <string name="error_tmdb_key_refused_title">TMDB refuse cette clé</string>
     <string name="error_tmdb_key_refused">TMDB n’accepte pas la clé enregistrée dans les réglages. Vérifiez-la, ou remplacez-la.</string>
+    <string name="error_tmdb_not_found_title">TMDB ne connaît pas ce titre</string>
+    <string name="error_tmdb_not_found">TMDB n’a plus de fiche pour ce titre : elle a pu être retirée, ou fusionnée avec une autre. Relancez la recherche, ou choisissez un autre résultat.</string>
     <string name="error_failed_title">L’opération n’a pas abouti</string>
     <string name="error_failed">Réessayez dans un instant.</string>
     <string name="error_keystore_title">Coffre de l’appareil indisponible</string>

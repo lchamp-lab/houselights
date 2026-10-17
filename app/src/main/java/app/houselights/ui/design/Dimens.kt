@@ -77,8 +77,7 @@ object HlSize {
     val control = 48.dp
     val iconButton = control
     val icon = 20.dp
-    /** Disc holding an icon in lists, status panels and settings. */
-    val disc = 52.dp
+    /** An icon drawn larger than a line's: a panel button's, an empty preview's. */
     val discIcon = 24.dp
     /** Round mark over artwork (watched, selected). */
     val mark = 20.dp

@@ -20,6 +20,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.tv.material3.Text
 import app.houselights.R
 import app.houselights.core.ArtworkKind
@@ -52,6 +53,7 @@ import app.houselights.ui.design.components.RowPreview
 import app.houselights.ui.design.components.SelectedMark
 import app.houselights.ui.util.FACT_GAP
 import app.houselights.ui.util.formatDimensions
+import app.houselights.ui.util.formatDuration
 
 // Artwork comes from the app's own resources, and a failed image from a file that cannot exist:
 // nothing here needs the network.
@@ -208,7 +210,7 @@ private fun LandscapeRow() {
                     width = HlSize.episode,
                     title = longName,
                     number = "12",
-                    facts = listOf("1 h", "Il reste 36 min"),
+                    facts = listOf("1 h", stringResource(R.string.time_left, formatDuration(2_160_000))),
                 )
             }
         }
@@ -294,26 +296,35 @@ private class ArtworkChoiceSample(
 @Composable
 private fun ChoiceRow(kind: ArtworkKind) {
     val picture = shippedImage(if (kind == ArtworkKind.LOGO) R.drawable.ic_launcher_foreground else R.drawable.banner)
+    val automatic = stringResource(R.string.artwork_automatic)
+    val localFile = stringResource(R.string.artwork_local_file)
+    val inType = stringResource(R.string.artwork_title_in_type)
     val options = when (kind) {
         ArtworkKind.POSTER -> listOf(
-            ArtworkChoiceSample("chosen", picture, true, "Automatique", "Français$FACT_GAP${formatDimensions(2000, 3000)}"),
+            ArtworkChoiceSample("chosen", picture, true, automatic, "Français$FACT_GAP${formatDimensions(2000, 3000)}"),
             ArtworkChoiceSample("rest", picture, false, "Anglais", formatDimensions(2000, 3000)),
-            ArtworkChoiceSample("image failed: set in type", brokenImage, false, "Fichier local", null),
+            ArtworkChoiceSample("image failed: set in type", brokenImage, false, localFile, null),
         )
         ArtworkKind.BACKDROP -> listOf(
-            ArtworkChoiceSample("chosen", picture, true, "Sans texte", formatDimensions(3840, 2160)),
-            ArtworkChoiceSample("rest", picture, false, "Lien du NFO", null),
-            ArtworkChoiceSample("image failed: set in type", brokenImage, false, "Fichier local", null),
+            ArtworkChoiceSample("chosen", picture, true, stringResource(R.string.artwork_no_text), formatDimensions(3840, 2160)),
+            ArtworkChoiceSample("rest", picture, false, stringResource(R.string.artwork_from_nfo), null),
+            ArtworkChoiceSample("image failed: set in type", brokenImage, false, localFile, null),
         )
         ArtworkKind.LOGO -> listOf(
-            ArtworkChoiceSample("chosen", picture, true, "Automatique", "Toutes langues$FACT_GAP${formatDimensions(800, 310)}"),
+            ArtworkChoiceSample(
+                "chosen",
+                picture,
+                true,
+                automatic,
+                stringResource(R.string.artwork_any_language) + FACT_GAP + formatDimensions(800, 310),
+            ),
             ArtworkChoiceSample("rest", picture, false, "Français", formatDimensions(800, 310)),
-            ArtworkChoiceSample("title in type", null, false, "Titre en texte", null, placeholder = "Le Samouraï"),
+            ArtworkChoiceSample("title in type", null, false, inType, null, placeholder = "Le Samouraï"),
             ArtworkChoiceSample(
                 "title in type, chosen, long",
                 null,
                 true,
-                "Titre en texte",
+                inType,
                 null,
                 placeholder = "Les Aventures extraordinaires d’Adèle Blanc-Sec",
             ),
@@ -348,7 +359,7 @@ private fun SelectedMarks() {
     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.l), verticalAlignment = Alignment.Top) {
         Specimen("selected mark") { SelectedMark() }
         Specimen("on a white image") {
-            Box(Modifier.size(HlSize.disc).background(Hl.colors.content), contentAlignment = Alignment.Center) { SelectedMark() }
+            Box(Modifier.size(CatalogSwatch).background(Hl.colors.content), contentAlignment = Alignment.Center) { SelectedMark() }
         }
     }
 }
@@ -367,9 +378,11 @@ private const val SEVEN_SAMURAI_OVERVIEW =
 @Composable
 private fun Results() {
     val poster = shippedImage(R.drawable.banner)
+    val current = stringResource(R.string.result_current)
+    val matching = stringResource(R.string.identifying)
     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Top) {
         Specimen("current, long overview", Modifier.weight(1f)) {
-            HlResultItem(poster, "Le Samouraï", listOf("1967", null), SAMURAI_OVERVIEW, {}, mark = "Actuel")
+            HlResultItem(poster, "Le Samouraï", listOf("1967", null), SAMURAI_OVERVIEW, {}, mark = current)
         }
         Specimen("rest, long overview", Modifier.weight(1f)) {
             HlResultItem(poster, "Les Sept Samouraïs", listOf("1954", "七人の侍"), SEVEN_SAMURAI_OVERVIEW, {})
@@ -377,10 +390,10 @@ private fun Results() {
     }
     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Top) {
         Specimen("being matched", Modifier.weight(1f)) {
-            HlResultItem(poster, "Le Samouraï", listOf("1967", null), SAMURAI_OVERVIEW, {}, busy = "Association…")
+            HlResultItem(poster, "Le Samouraï", listOf("1967", null), SAMURAI_OVERVIEW, {}, busy = matching)
         }
         Specimen("being matched, the current one", Modifier.weight(1f)) {
-            HlResultItem(poster, "Le Samouraï", listOf("1967", null), SAMURAI_OVERVIEW, {}, mark = "Actuel", busy = "Association…")
+            HlResultItem(poster, "Le Samouraï", listOf("1967", null), SAMURAI_OVERVIEW, {}, mark = current, busy = matching)
         }
     }
     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Top) {

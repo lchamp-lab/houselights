@@ -16,7 +16,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.tv.material3.Text
+import app.houselights.R
 import app.houselights.core.AudioTrack
 import app.houselights.core.Codecs
 import app.houselights.core.HdrFormat
@@ -289,7 +291,7 @@ private fun ReadingInfoBlockSection() {
     Group("Info block", still = true) {
         ReadingRow {
             Specimen("a paragraph", Modifier.weight(1f), gap = HlSpace.xxs) {
-                InfoBlock("Résumé") {
+                InfoBlock(stringResource(R.string.label_plot)) {
                     Column(Modifier.widthIn(max = HlLayout.readable)) {
                         Text(
                             "Il n’y a pas de plus profonde solitude que celle du samouraï.",
@@ -301,11 +303,11 @@ private fun ReadingInfoBlockSection() {
                 }
             }
             Specimen("a definition list", Modifier.weight(1f), gap = HlSpace.xxs) {
-                InfoBlock("Détails") {
+                InfoBlock(stringResource(R.string.nfo_block_details)) {
                     DefinitionList(
                         listOf(
-                            "Genres" to "Policier, Drame, Thriller",
-                            "Studios" to "Filmel, CICC, Fida Cinematografica",
+                            stringResource(R.string.label_genres) to "Policier, Drame, Thriller",
+                            stringResource(R.string.label_studios) to "Filmel, CICC, Fida Cinematografica",
                             "Pays" to "France, Italie",
                         ),
                         labelWidth = HlLayout.definitionLabelShort,
@@ -315,14 +317,14 @@ private fun ReadingInfoBlockSection() {
         }
         ReadingRow {
             Specimen("badges", Modifier.weight(1f), gap = HlSpace.xxs) {
-                InfoBlock("Identifiants") {
+                InfoBlock(stringResource(R.string.label_ids)) {
                     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.xs)) {
                         Badge("TMDB 5511")
                         Badge("IMDb tt0062229")
                     }
                 }
             }
-            Specimen("no content", Modifier.weight(1f), gap = HlSpace.xxs) { InfoBlock("Distribution") {} }
+            Specimen("no content", Modifier.weight(1f), gap = HlSpace.xxs) { InfoBlock(stringResource(R.string.label_cast)) {} }
         }
     }
 }
@@ -334,18 +336,19 @@ private fun ReadingDefinitionListSection() {
             Specimen("default label column", Modifier.weight(1f), gap = HlSpace.xxs) {
                 DefinitionList(
                     listOf(
-                        "Conteneur" to "Matroska",
-                        "Taille" to "61,8${NBSP}Go",
-                        "Débit moyen" to "78,5${NBSP}Mb/s",
-                        "Durée" to "1${NBSP}h${NBSP}45",
+                        stringResource(R.string.tech_container) to "Matroska",
+                        stringResource(R.string.tech_size) to "61,8${NBSP}Go",
+                        stringResource(R.string.tech_bitrate) to "78,5${NBSP}Mb/s",
+                        stringResource(R.string.tech_duration) to "1${NBSP}h${NBSP}45",
                     ),
                 )
             }
             Specimen("short label column, a value that wraps", Modifier.weight(1f), gap = HlSpace.xxs) {
                 DefinitionList(
                     listOf(
-                        "Studios" to "Filmel, Compagnie industrielle et commerciale cinématographique, Fida Cinematografica",
-                        "Genres" to "Policier, Drame, Thriller",
+                        stringResource(R.string.label_studios) to
+                            "Filmel, Compagnie industrielle et commerciale cinématographique, Fida Cinematografica",
+                        stringResource(R.string.label_genres) to "Policier, Drame, Thriller",
                     ),
                     labelWidth = HlLayout.definitionLabelShort,
                 )
@@ -357,7 +360,7 @@ private fun ReadingDefinitionListSection() {
                     listOf(
                         "Fréquence d’images" to "23,976${NBSP}im/s",
                         "Profondeur de couleur" to "10${NBSP}bits",
-                        "Format d’image" to "2,39:1",
+                        stringResource(R.string.tech_aspect_ratio) to "2,39:1",
                     ),
                     labelWidth = HlLayout.definitionLabelShort,
                 )
