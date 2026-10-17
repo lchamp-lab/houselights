@@ -135,7 +135,8 @@ fun DetailScreen(
     // row); a first visit starts on the first action, the play button.
     val memory = rememberFocusMemory()
     val actionRow = remember { FocusRequester() }
-    RestoreFocus(memory, actionRow, ready = item != null)
+    // Once its rows are in: coming back, focus may return to one of their cards.
+    RestoreFocus(memory, actionRow, ready = item != null && !state.partial)
     // A film started over is resumed next: back from the player, focus is on the play button.
     LaunchedEffect(Unit) {
         app.playback.playbackEnded.collect { if (memory.last == RESTART) memory.focus(PLAY) }
