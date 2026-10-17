@@ -1,11 +1,8 @@
 package app.houselights.player
 
 import android.app.Application
-import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
-import android.content.pm.ApplicationInfo
-import android.content.pm.PackageInfo
 import androidx.test.core.app.ApplicationProvider
 import app.houselights.core.PlaybackPlan
 import app.houselights.core.PlaybackReporter
@@ -18,16 +15,12 @@ import kotlinx.coroutines.test.currentTime
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
-import org.junit.Assert.fail
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
-import org.robolectric.Shadows.shadowOf
-import org.robolectric.shadows.ShadowBuild
 
-/** Launching the player, then following it through its local API, with a fake player in its place. */
+/** Following the player through its local API, with a fake player in its place (launching it: [PlayerLaunchTest]). */
 @OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
 class PlaybackManagerTest {
@@ -72,94 +65,6 @@ class PlaybackManagerTest {
         PlayerAnswer.Playing(ZidooPlayState(playing = true, paused = false, positionMs = positionMs, durationMs = durationMs))
 
     private fun result(positionMs: Int) = Intent().putExtra("position", positionMs)
-
-    @Test
-    fun aPlainFileGoesToAnyPlayerWhereThereIsNoZidoo() = runTest {
-        val intent = manager().intentFor(plan())
-        assertEquals(Intent.ACTION_VIEW, intent.action)
-        assertNull(intent.component)
-    }
-
-    /** Jellyfin's stream carries its token: another app gets it only when the user picks it. */
-    @Test
-    fun aTokenGoesElsewhereOnlyThroughAChooser() = runTest {
-        val intent = manager().intentFor(plan("http://nas:8096/Videos/1/stream.mkv?static=true&api_key=secret"))
-        assertEquals(Intent.ACTION_CHOOSER, intent.action)
-        @Suppress("DEPRECATION")
-        val inner = intent.getParcelableExtra<Intent>(Intent.EXTRA_INTENT)
-        assertEquals(Intent.ACTION_VIEW, inner?.action)
-    }
-
-    @Test
-    fun aPasswordNeverGoesToAnotherPlayer() = runTest {
-        try {
-            manager().intentFor(plan("smb://zidoo:secret@nas/films/Heat.mkv"))
-            fail("The password went to another app")
-        } catch (_: PlaybackManager.CredentialsNotShared) {
-            // As it should.
-        }
-    }
-
-    /** The Zidoo player installed as an ordinary app, as some Zidoo firmwares do: on a Zidoo, it gets the password. */
-    @Test
-    fun onAZidooItsPlayerGetsThePasswordEvenNotASystemApp() = runTest {
-        installZidooPlayer(flags = 0)
-        val manager = PlaybackManager(context, this, status = { PlayerAnswer.NoAnswer }, onZidoo = { true }) { null }
-        val intent = manager.intentFor(plan("smb://zidoo:secret@nas/films/Heat.mkv"))
-        assertEquals(PlaybackManager.ZIDOO_ACTIVITY, intent.component?.className)
-        assertEquals("smb://zidoo:secret@nas/films/Heat.mkv", intent.dataString)
-    }
-
-    /** Elsewhere, an app that took the Zidoo player's package name, not a system app, gets no password. */
-    @Test
-    fun elsewhereAnAppUnderThePlayersNameGetsNoPassword() = runTest {
-        installZidooPlayer(flags = 0)
-        val manager = PlaybackManager(context, this, status = { PlayerAnswer.NoAnswer }, onZidoo = { false }) { null }
-        try {
-            manager.intentFor(plan("smb://zidoo:secret@nas/films/Heat.mkv"))
-            fail("The password went to an app that only bears the player's name")
-        } catch (_: PlaybackManager.CredentialsNotShared) {
-            // As it should.
-        }
-    }
-
-    @Test
-    fun aZidooIsToldByItsMaker() {
-        ShadowBuild.setManufacturer("Realtek")
-        ShadowBuild.setBrand("Android")
-        assertFalse(isZidooDevice())
-        ShadowBuild.setBrand("ZIDOO")
-        assertTrue(isZidooDevice())
-    }
-
-    private fun installZidooPlayer(flags: Int) {
-        val pm = shadowOf(context.packageManager)
-        pm.installPackage(
-            PackageInfo().apply {
-                packageName = PlaybackManager.ZIDOO_PACKAGE
-                applicationInfo = ApplicationInfo().apply {
-                    packageName = PlaybackManager.ZIDOO_PACKAGE
-                    this.flags = flags
-                }
-            }
-        )
-        pm.addActivityIfNotPresent(ComponentName(PlaybackManager.ZIDOO_PACKAGE, PlaybackManager.ZIDOO_ACTIVITY))
-    }
-
-    /** The Zidoo player is another app: a file of ours is out of its reach, a web address is not. */
-    @Test
-    fun theZidooPlayerGetsTheCredentialsAndOnlyWebArtwork() = runTest {
-        installZidooPlayer(ApplicationInfo.FLAG_SYSTEM)
-        val manager = manager()
-
-        val ours = "file:///data/user/0/app.houselights/files/artwork/b.jpg"
-        val local = manager.intentFor(plan("smb://zidoo:secret@nas/films/Heat.mkv", backdrop = ours))
-        assertEquals(PlaybackManager.ZIDOO_ACTIVITY, local.component?.className)
-        assertFalse(local.hasExtra("loading_image"))
-
-        val remote = manager.intentFor(plan(backdrop = "https://image.tmdb.org/t/p/w1280/b.jpg"))
-        assertEquals("https://image.tmdb.org/t/p/w1280/b.jpg", remote.getStringExtra("loading_image"))
-    }
 
     @Test
     fun onlyWhatThePlayerSaysNowIsReported() = runTest {

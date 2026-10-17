@@ -17,7 +17,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.tv.material3.Text
 import app.houselights.BuildConfig
 import app.houselights.R
-import app.houselights.player.PlaybackManager
+import app.houselights.player.ZidooPlayer
 import app.houselights.player.ZidooStatus
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlLayout
@@ -62,10 +62,11 @@ private fun AboutBrand() {
 /** What the app works with on this device, read like the back of a case: each with its light. */
 @Composable
 private fun AboutStatus() {
-    val packages = LocalContext.current.packageManager
+    val context = LocalContext.current.applicationContext
     val vm = viewModel {
         AboutViewModel(
-            isPlayerInstalled = { runCatching { packages.getPackageInfo(PlaybackManager.ZIDOO_PACKAGE, 0) }.isSuccess },
+            // The player playback would hand a film to.
+            isPlayerInstalled = { ZidooPlayer(context).choose().player != null },
             apiAnswers = ZidooStatus::isAvailable,
         )
     }
