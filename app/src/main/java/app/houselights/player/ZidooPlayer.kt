@@ -320,8 +320,11 @@ class ZidooPlayer(
         /** This app's package, its debug and bench builds' too. */
         private const val OWN_PACKAGE = "app.houselights"
 
-        /** What a player is asked to open: a video by its type, and at the addresses the app hands over. */
-        private fun probes() = listOf(
+        /**
+         * What a player is asked to open: a video by its type, and at the addresses the app hands over.
+         * From Android 11, the manifest's <queries> must declare each, or no app answers it.
+         */
+        internal fun probes() = listOf(
             Intent(Intent.ACTION_VIEW).setType(VIDEO),
             Intent(Intent.ACTION_VIEW).setDataAndType(Uri.parse("nfs://nas/film.mkv"), VIDEO),
             Intent(Intent.ACTION_VIEW).setDataAndType(Uri.parse("smb://nas/film.mkv"), VIDEO),
