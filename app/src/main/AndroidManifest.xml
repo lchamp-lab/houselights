@@ -10,8 +10,9 @@
 
     <!-- From Android 11, the apps this one may see (ZidooPlayer): the Z1000 Pro's player; an app
          Zidoo's firmwares install, which tells a Zidoo whose build names only its chip; and the apps
-         that open a video, by its type or by each scheme the player is handed (an app whose filter
-         names a scheme stays unseen by a query without it). Never every app. -->
+         that open a video, by its type or at each scheme the player is handed or the Z1000 Pro's
+         answers (an app whose filter names a scheme stays unseen by a query without it). Never
+         every app. -->
     <queries>
         <package android:name="com.android.gallery3d" />
         <package android:name="com.zidoo.poster" />
@@ -34,6 +35,14 @@
         <intent>
             <action android:name="android.intent.action.VIEW" />
             <data android:scheme="https" android:mimeType="video/*" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="file" android:mimeType="video/*" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="content" android:mimeType="video/*" />
         </intent>
     </queries>
 

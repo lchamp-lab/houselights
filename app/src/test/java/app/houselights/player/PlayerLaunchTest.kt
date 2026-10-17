@@ -63,7 +63,7 @@ class PlayerLaunchTest {
     /** The Z1000 Pro's firmware: the old player, installed with the system, as before. */
     @Test
     fun theOldPlayerStillGetsTheFilm() = runTest {
-        apps.install(GALLERY, MOVIE_ACTIVITY, system = true, bySchemes = false)
+        apps.install(GALLERY, MOVIE_ACTIVITY, system = true, schemes = emptyList())
         val manager = manager(ZIDOO_BUILD)
         assertEquals(MOVIE_ACTIVITY, manager.intentFor(plan(NFS)).component?.className)
         assertEquals(SMB, manager.intentFor(plan(SMB)).dataString)
@@ -115,7 +115,7 @@ class PlayerLaunchTest {
     /** The Zidoo player installed as an ordinary app, as some Zidoo firmwares do: on a Zidoo, it gets the password. */
     @Test
     fun onAZidooItsPlayerGetsThePasswordEvenNotASystemApp() = runTest {
-        apps.install(GALLERY, MOVIE_ACTIVITY, certificate = OTHER_KEY, bySchemes = false)
+        apps.install(GALLERY, MOVIE_ACTIVITY, certificate = OTHER_KEY, schemes = emptyList())
         val intent = manager(ZIDOO_BUILD).intentFor(plan(SMB))
         assertEquals(MOVIE_ACTIVITY, intent.component?.className)
         assertEquals(SMB, intent.dataString)
@@ -124,7 +124,7 @@ class PlayerLaunchTest {
     /** Elsewhere, an app that took the Zidoo player's package name, not a system app, gets no password. */
     @Test
     fun elsewhereAnAppUnderThePlayersNameGetsNoPassword() = runTest {
-        apps.install(GALLERY, MOVIE_ACTIVITY, bySchemes = false)
+        apps.install(GALLERY, MOVIE_ACTIVITY, schemes = emptyList())
         assertRefused { manager(OTHER_BUILD).intentFor(plan(SMB)) }
     }
 
@@ -134,7 +134,7 @@ class PlayerLaunchTest {
      */
     @Test
     fun elsewhereNoPlayerGetsAPassword() = runTest {
-        apps.install(GALLERY, MOVIE_ACTIVITY, system = true, bySchemes = false)
+        apps.install(GALLERY, MOVIE_ACTIVITY, system = true, schemes = emptyList())
         val manager = manager(OTHER_BUILD)
         assertRefused { manager.intentFor(plan(SMB)) }
         val nfs = manager.intentFor(plan(NFS))
@@ -196,7 +196,7 @@ class PlayerLaunchTest {
     fun aLaunchWithASecretSaysWhyInTheLog() = runTest {
         apps.install("com.zidoo.poster", system = true, certificate = ZIDOO_KEY)
         apps.install(ZIDOO_PLAYER, ZIDOO_PLAYER_ACTIVITY, certificate = ZIDOO_KEY, installer = "com.zidoo.update")
-        apps.install(GALLERY, MOVIE_ACTIVITY, system = true, bySchemes = false)
+        apps.install(GALLERY, MOVIE_ACTIVITY, system = true, schemes = emptyList())
         val manager = manager(ZIDOO_BUILD)
         manager.intentFor(plan(NFS))
         assertTrue("a plain file says nothing", warnings().isEmpty())
@@ -222,7 +222,7 @@ class PlayerLaunchTest {
     /** The Zidoo player is another app: a file of ours is out of its reach, a web address is not. */
     @Test
     fun theZidooPlayerGetsTheCredentialsAndOnlyWebArtwork() = runTest {
-        apps.install(GALLERY, MOVIE_ACTIVITY, system = true, bySchemes = false)
+        apps.install(GALLERY, MOVIE_ACTIVITY, system = true, schemes = emptyList())
         val manager = manager(ZIDOO_BUILD)
 
         val ours = "file:///data/user/0/app.houselights/files/artwork/b.jpg"

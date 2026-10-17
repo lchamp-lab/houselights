@@ -22,18 +22,26 @@ class PlayerQueriesTest {
 
     @Test
     fun everyVideoThePlayerIsLookedForByIsDeclared() {
-        val declared = queries().children("intent").map { intent ->
-            val data = intent.children("data").singleOrNull()
-            Query(
-                intent.children("action").singleOrNull()?.getAttribute("android:name"),
-                data?.getAttribute("android:scheme")?.ifEmpty { null },
-                data?.getAttribute("android:mimeType")?.ifEmpty { null },
-            )
-        }
-        ZidooPlayer.probes().forEach { probe ->
-            val asked = Query(probe.action, probe.scheme, probe.type)
-            assertTrue("$asked is not in <queries>: $declared", asked in declared)
-        }
+        val declared = declared()
+        asked().forEach { assertTrue("$it is not in <queries>: $declared", it in declared) }
+    }
+
+    /** No more is declared than is asked: an intent declared and never asked would show this app others for nothing. */
+    @Test
+    fun everyVideoDeclaredIsOneThePlayerIsLookedForBy() {
+        val asked = asked()
+        declared().forEach { assertTrue("$it is declared, never asked: $asked", it in asked) }
+    }
+
+    private fun asked() = ZidooPlayer.probes().map { Query(it.action, it.scheme, it.type) }
+
+    private fun declared() = queries().children("intent").map { intent ->
+        val data = intent.children("data").singleOrNull()
+        Query(
+            intent.children("action").singleOrNull()?.getAttribute("android:name"),
+            data?.getAttribute("android:scheme")?.ifEmpty { null },
+            data?.getAttribute("android:mimeType")?.ifEmpty { null },
+        )
     }
 
     @Test

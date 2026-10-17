@@ -261,8 +261,8 @@ class ZidooPlayer(
     }
 
     /**
-     * The firmware's activities that open a video, by type or by the schemes the app hands over
-     * (an app whose filter names a scheme answers no intent without one): its system apps, or apps
+     * The firmware's activities that open a video, by type or at an address of each scheme [probes]
+     * asks (an app whose filter names a scheme answers no intent without one): its system apps, or apps
      * under a name of Zidoo's, never ours, and only what this app may start ([startable]).
      */
     private fun discover(): List<Candidate> {
@@ -321,14 +321,20 @@ class ZidooPlayer(
         private const val OWN_PACKAGE = "app.houselights"
 
         /**
-         * What a player is asked to open: a video by its type, and at the addresses the app hands over.
-         * From Android 11, the manifest's <queries> must declare each, or no app answers it.
+         * What a player is asked to open: a video by its type, at the addresses the app hands over, and
+         * at those the Z1000 Pro's player answers, read on the device: http, https, file and content
+         * only, never smb nor nfs, which it is handed by name. A firmware's player under another name
+         * answers as it does, if at all. From Android 11, the manifest's <queries> must declare each,
+         * or no app answers it.
          */
-        internal fun probes() = listOf(
-            Intent(Intent.ACTION_VIEW).setType(VIDEO),
-            Intent(Intent.ACTION_VIEW).setDataAndType(Uri.parse("nfs://nas/film.mkv"), VIDEO),
-            Intent(Intent.ACTION_VIEW).setDataAndType(Uri.parse("smb://nas/film.mkv"), VIDEO),
-        )
+        internal fun probes() = listOf(Intent(Intent.ACTION_VIEW).setType(VIDEO)) + listOf(
+            "nfs://nas/film.mkv",
+            "smb://nas/film.mkv",
+            "http://nas/film.mkv",
+            "https://nas/film.mkv",
+            "file:///storage/film.mkv",
+            "content://media/external/video/media/1",
+        ).map { Intent(Intent.ACTION_VIEW).setDataAndType(Uri.parse(it), VIDEO) }
 
         private const val VIDEO = "video/*"
 

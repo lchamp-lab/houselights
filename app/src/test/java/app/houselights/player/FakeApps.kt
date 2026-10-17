@@ -27,8 +27,8 @@ internal class FakeApps(private val context: Context) {
 
     /**
      * Installs [pkg], a [system] app or not, signed with [certificate], by [installer]; with [activity],
-     * which answers a video by its type ([byType]) and by the smb and nfs schemes ([bySchemes]), and
-     * which other apps may start ([exported]) unless they lack [permission].
+     * which answers a video by its type ([byType]) and at an address of each of [schemes], and which
+     * other apps may start ([exported]) unless they lack [permission].
      */
     fun install(
         pkg: String,
@@ -36,7 +36,7 @@ internal class FakeApps(private val context: Context) {
         system: Boolean = false,
         certificate: String? = null,
         byType: Boolean = false,
-        bySchemes: Boolean = true,
+        schemes: List<String> = SHARES,
         installer: String? = null,
         exported: Boolean = true,
         permission: String? = null,
@@ -64,7 +64,7 @@ internal class FakeApps(private val context: Context) {
         }
         installed += component
         if (byType) pm.addIntentFilterForActivity(component, video())
-        if (bySchemes) pm.addIntentFilterForActivity(component, video("smb", "nfs"))
+        if (schemes.isNotEmpty()) pm.addIntentFilterForActivity(component, video(*schemes.toTypedArray()))
         return component
     }
 
@@ -97,6 +97,15 @@ internal class FakeApps(private val context: Context) {
         /** A newer firmware's player, under a name of Zidoo's. */
         const val ZIDOO_PLAYER = "com.zidoo.player"
         const val ZIDOO_PLAYER_ACTIVITY = "com.zidoo.player.VideoPlayerActivity"
+
+        /** The shares the app hands a player a file on. */
+        val SHARES = listOf("smb", "nfs")
+
+        /**
+         * What the Z1000 Pro's player answers a video at, read on the device: neither smb nor nfs,
+         * which it is handed by name only, nor a type alone.
+         */
+        val FIRMWARE_SCHEMES = listOf("http", "https", "file", "content")
 
         /** Zidoo's own certificate, and another one. */
         const val ZIDOO_KEY = "zidoo-firmware-key"
