@@ -90,6 +90,7 @@ import kotlinx.coroutines.launch
 import app.houselights.settings.DisplayModes
 import app.houselights.settings.SettingsStore
 import app.houselights.settings.outputModes
+import app.houselights.ui.design.Scrub
 
 class MainActivity : ComponentActivity() {
     private val container by lazy { appContainer() }
@@ -223,14 +224,18 @@ class MainActivity : ComponentActivity() {
      */
     // This is Activity.dispatchKeyEvent; lint sees androidx.core's restricted overload of the same name.
     @SuppressLint("RestrictedApi")
-    override fun dispatchKeyEvent(event: KeyEvent): Boolean = when {
-        !lightsDown.value -> super.dispatchKeyEvent(event)
-        event.keyCode == KeyEvent.KEYCODE_BACK -> {
-            if (event.action == KeyEvent.ACTION_UP) cancelCue()
-            true
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        // Whether an arrow is held, running focus across the cards: told of every key, it takes none.
+        Scrub.onKey(event)
+        return when {
+            !lightsDown.value -> super.dispatchKeyEvent(event)
+            event.keyCode == KeyEvent.KEYCODE_BACK -> {
+                if (event.action == KeyEvent.ACTION_UP) cancelCue()
+                true
+            }
+            event.isSystem -> super.dispatchKeyEvent(event)
+            else -> true
         }
-        event.isSystem -> super.dispatchKeyEvent(event)
-        else -> true
     }
 
     private fun play(item: MediaItem, resume: Boolean) {

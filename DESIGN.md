@@ -474,7 +474,10 @@ clickable surface takes one of the gestures (`FocusStyleGuardTest`): a fourth ca
   cannot light the black room. The tone is read once per picture and kept, so focus coming back
   finds the same light at once. Artwork without its own picture glows with the room's light. Its
   neighbours in the same row or grid step back: darker and with less colour (`SIBLING_DIM`,
-  `SIBLING_SATURATION`, see *Cards*), never grey. A row without focus keeps its colours.
+  `SIBLING_SATURATION`, see *Cards*), never grey. A row without focus keeps its colours. While
+  an arrow is held, focus runs like film through the gate (`Scrub`): the outline moves from card
+  to card, which neither grow nor light, nor read their picture's tone; the card it stops on grows
+  and lights once the arrow is let go. Pressed with OK, artwork keeps its size inside its light.
 - **Controls, rows and navigation** turn projector white with black content. Pills and discs grow a
   little (`CONTROL_SCALE`, 1.04); rows as wide as their column (setting rows, navigation entries,
   menu options, the technical sheet's facts: `HlRowSurface`) do not grow at all (`ROW_SCALE`, 1):
