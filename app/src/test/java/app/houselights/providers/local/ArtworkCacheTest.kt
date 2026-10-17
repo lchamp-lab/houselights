@@ -8,6 +8,7 @@ import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -90,6 +91,37 @@ class ArtworkCacheTest {
         val nas = FakeRemoteBrowser().apply { put("Dune (2021)-poster.jpg", size = 100, bytes = ByteArray(100)) }
         val copied = cache.copy(source, RemoteFile("Dune (2021)-poster.jpg", 100), nas)
         assertTrue(copied.orEmpty(), copied?.let { File(it.removePrefix("file://")).isFile } == true)
+    }
+
+    /**
+     * A poster rewritten on the NAS with as many bytes as the one before: its date tells, and the new
+     * one is copied, under a new name the screens' image caches never saw.
+     */
+    @Test
+    fun aPictureRewrittenWithTheSameSizeIsCopiedAgain() = runBlocking {
+        val cache = ArtworkCache(temp.newFolder())
+        val nas = FakeRemoteBrowser()
+        val before = ByteArray(1_000) { 1 }
+        val after = ByteArray(1_000) { 2 }
+        nas.put("Dune (2021)/poster.jpg", size = 1_000, bytes = before, lastModified = 1_760_000_000_000)
+        val first = cache.copy(source, RemoteFile("Dune (2021)/poster.jpg", 1_000, lastModified = 1_760_000_000_000), nas)
+        nas.put("Dune (2021)/poster.jpg", size = 1_000, bytes = after, lastModified = 1_760_000_600_000)
+        val second = cache.copy(source, RemoteFile("Dune (2021)/poster.jpg", 1_000, lastModified = 1_760_000_600_000), nas)
+        assertNotEquals(first, second)
+        assertArrayEquals(after, second?.let { File(it.removePrefix("file://")).readBytes() })
+    }
+
+    /** A picture as it was is not read again, pass after pass. */
+    @Test
+    fun aPictureUnchangedIsNotCopiedAgain() = runBlocking {
+        val cache = ArtworkCache(temp.newFolder())
+        val poster = RemoteFile("Dune (2021)/poster.jpg", 1_000, lastModified = 1_760_000_000_000)
+        val nas = FakeRemoteBrowser()
+        nas.put(poster.relativePath, size = poster.size, bytes = ByteArray(1_000), lastModified = poster.lastModified)
+        val first = cache.copy(source, poster, nas)
+        val read = nas.reads.size
+        assertEquals(first, cache.copy(source, poster, nas))
+        assertEquals(read, nas.reads.size)
     }
 
     /** A fanart of several megabytes never sits whole in memory: it comes over a block at a time, straight to the file. */
