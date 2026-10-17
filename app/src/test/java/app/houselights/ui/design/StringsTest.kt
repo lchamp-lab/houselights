@@ -69,6 +69,18 @@ class StringsTest {
         }
     }
 
+    /** A player that changed gets no token either, Jellyfin's, which opens the account: what says so names both, in each language. */
+    @Test
+    fun aChangedPlayerIsToldItGetsNeitherPasswordsNorAccess() {
+        val french = string(french, "player_changed")
+        val english = string(english, "player_changed")
+        assertTrue(french, "vos mots de passe ni vos accès" in french)
+        assertTrue(english, "your passwords or your server access" in english)
+    }
+
+    private fun string(file: File, name: String) =
+        resources(file).single { it.tagName == "string" && it.getAttribute("name") == name }.textContent
+
     /** What breaks French typography in [text]. */
     private fun problems(text: String): List<String> = buildList {
         if ('\'' in text) add("a straight apostrophe: ’")
