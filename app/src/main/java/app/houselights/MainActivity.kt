@@ -49,6 +49,7 @@ import app.houselights.ui.util.LocalErrorFix
 import app.houselights.ui.util.UiError
 import app.houselights.ui.util.appContainer
 import app.houselights.ui.util.launchAction
+import app.houselights.ui.util.libraryName
 import app.houselights.ui.util.toUiError
 import app.houselights.ui.util.toWriteError
 import coil.imageLoader
@@ -298,7 +299,7 @@ private fun AppNavigation(nav: NavHostController, onPlay: (MediaItem, Boolean) -
             val library = Library(id = route.id, kind = route.kind, title = route.title?.ifBlank { null })
             LibraryScreen(
                 library = library,
-                title = library.title ?: app.libraryTitle(library.kind),
+                title = library.title ?: libraryName(library.kind),
                 onOpenItem = { openItem(it.id) },
             )
         }

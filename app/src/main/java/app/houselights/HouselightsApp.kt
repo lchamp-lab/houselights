@@ -8,7 +8,6 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ProcessLifecycleOwner
 import app.houselights.core.Http
 import app.houselights.core.LibraryEvents
-import app.houselights.core.LibraryKind
 import app.houselights.core.MediaProvider
 import app.houselights.core.Secrets
 import app.houselights.core.SourceConfig
@@ -212,15 +211,6 @@ class AppContainer(private val app: Application) : LibraryEvents {
         val tmdb = tmdbInteractive() ?: return emptyList()
         tmdb.trendingPosterPaths().map { TmdbClient.imageUrl(it, TmdbClient.Companion.ImageType.POSTER, widthPx) }
     }.getOrDefault(emptyList())
-
-    fun libraryTitle(kind: LibraryKind): String = app.getString(
-        when (kind) {
-            LibraryKind.MOVIES -> R.string.library_movies
-            LibraryKind.SHOWS -> R.string.library_shows
-            LibraryKind.COLLECTIONS -> R.string.library_collections
-            LibraryKind.MIXED -> R.string.library_mixed
-        }
-    )
 
     init {
         scope.launch { settings.ensureDeviceId() }

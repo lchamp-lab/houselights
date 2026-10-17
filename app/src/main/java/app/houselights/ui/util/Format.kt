@@ -2,6 +2,7 @@ package app.houselights.ui.util
 
 import app.houselights.core.MediaItem
 import android.content.Context
+import androidx.annotation.StringRes
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -12,6 +13,7 @@ import app.houselights.core.LibraryKind
 import app.houselights.core.SectionType
 import app.houselights.providers.local.ScanError
 import app.houselights.providers.local.ScanErrorKind
+import app.houselights.providers.local.SourceKind
 
 /** No-break space: keeps a number with its unit, and French punctuation with its word. */
 const val NBSP = Typography.nbsp
@@ -40,13 +42,24 @@ fun formatRatio(ratio: Float): String = String.format(java.util.Locale.getDefaul
 /** "3840 × 2160". */
 fun formatDimensions(width: Int, height: Int): String = "$width$NBSP×$NBSP$height"
 
+/** A library's name by its kind ("Films", "Séries"): its tab on Home, and its screen's title when it has none of its own. */
+@StringRes
+fun LibraryKind.titleRes(): Int = when (this) {
+    LibraryKind.MOVIES -> R.string.library_movies
+    LibraryKind.SHOWS -> R.string.library_shows
+    LibraryKind.COLLECTIONS -> R.string.library_collections
+    LibraryKind.MIXED -> R.string.library_mixed
+}
+
 @Composable
-fun libraryName(kind: LibraryKind): String = stringResource(
+fun libraryName(kind: LibraryKind): String = stringResource(kind.titleRes())
+
+/** What a network folder holds, by the name of the library it fills: "Films" or "Séries". */
+@Composable
+fun sourceKindName(kind: SourceKind): String = stringResource(
     when (kind) {
-        LibraryKind.MOVIES -> R.string.library_movies
-        LibraryKind.SHOWS -> R.string.library_shows
-        LibraryKind.COLLECTIONS -> R.string.library_collections
-        LibraryKind.MIXED -> R.string.library_mixed
+        SourceKind.MOVIES -> R.string.library_movies
+        SourceKind.SHOWS -> R.string.library_shows
     }
 )
 
