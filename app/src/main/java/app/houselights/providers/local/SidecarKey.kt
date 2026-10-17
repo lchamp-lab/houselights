@@ -28,11 +28,10 @@ internal object SidecarKey {
     ).takeIf { it.isNotEmpty() }?.joinToString("\n") { (role, f) -> "$role:${f.size}:${f.lastModified ?: ""}:${f.relativePath}" }
 
     /**
-     * The key of a show's own sidecars, [read] in its folder [dir] of source [sourceId] (a landscape left
-     * out: a show reads none). The folder heads it, as a show may lie in several ([showDue]).
+     * The key of a show's own sidecars, [read] in its folder [dir] of source [sourceId] ([Sidecars.forShow]).
+     * The folder heads it, as a show may lie in several ([showDue]).
      */
-    fun ofShow(sourceId: Long, dir: String, read: VideoSidecars): String? =
-        of(read.copy(thumb = null))?.let { "$SHOW$sourceId:$dir\n$it" }
+    fun ofShow(sourceId: Long, dir: String, read: VideoSidecars): String? = of(read)?.let { "$SHOW$sourceId:$dir\n$it" }
 
     /**
      * Whether a show's own sidecars are read when it is met in [dir] of source [sourceId], its row holding

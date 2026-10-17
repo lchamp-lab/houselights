@@ -45,13 +45,12 @@ class Sidecars(files: List<RemoteFile>, videos: List<RemoteFile>, private val st
         )
     }
 
-    /** A show folder: tvshow.nfo, poster.jpg, fanart.jpg, clearlogo.png. */
+    /** A show folder: tvshow.nfo, poster.jpg, fanart.jpg, clearlogo.png; no landscape, which a show does not show. */
     fun forShow(showDir: String): VideoSidecars = VideoSidecars(
         nfo = find(showDir, listOf("tvshow.nfo")),
         poster = find(showDir, IMAGES.flatMap { listOf("poster.$it", "folder.$it", "cover.$it") }),
         fanart = find(showDir, IMAGES.flatMap { listOf("fanart.$it", "backdrop.$it") }),
         logo = find(showDir, listOf("clearlogo.png", "logo.png")),
-        thumb = find(showDir, IMAGES.map { "landscape.$it" }),
     )
 
     fun seasonPoster(showDir: String, season: Int): RemoteFile? {

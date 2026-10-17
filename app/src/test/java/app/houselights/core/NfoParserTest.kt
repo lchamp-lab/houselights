@@ -56,7 +56,7 @@ class NfoParserTest {
         assertEquals("https://assets.fanart.tv/logo.png", nfo.logoUrl)
         assertEquals("https://image.tmdb.org/t/p/original/fanart.jpg", nfo.fanartUrl)
         assertEquals(3840, nfo.streams!!.width)
-        assertEquals(Triple("truehd", "eng", 8), nfo.streams!!.audio.single())
+        assertEquals(NfoAudio("truehd", "eng", 8), nfo.streams!!.audio.single())
     }
 
     @Test

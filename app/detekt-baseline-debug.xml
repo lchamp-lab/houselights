@@ -2,9 +2,6 @@
 <SmellBaseline>
   <ManuallySuppressedIssues></ManuallySuppressedIssues>
   <CurrentIssues>
-    <ID>ComplexCondition:MovieIndexer.kt$MovieIndexer$nfo == null &amp;&amp; !needsTmdb &amp;&amp; !sidecarsRemoved &amp;&amp; local.poster == null &amp;&amp; local.fanart == null &amp;&amp; local.logo == null</ID>
-    <ID>ComplexCondition:MovieIndexer.kt$MovieIndexer$tmdbId != null &amp;&amp; tmdb != null &amp;&amp; (c.fetchedAt == null || refresh) &amp;&amp; refreshedCollections.add(c.id)</ID>
-    <ID>ComplexCondition:ShowIndexer.kt$ShowIndexer$!needsLookup || (tmdb == null &amp;&amp; local.nfo == null &amp;&amp; local.poster == null)</ID>
     <ID>CyclomaticComplexMethod:DetailScreen.kt$@Composable fun DetailScreen( itemId: String, onPlay: (MediaItem, Boolean) -&gt; Unit, onOpenItem: (String) -&gt; Unit, onOpenNfo: (String) -&gt; Unit, onEditArtwork: (String, ArtworkKind) -&gt; Unit, onIdentify: (String) -&gt; Unit, )</ID>
     <ID>CyclomaticComplexMethod:IdentifyScreen.kt$@Composable fun IdentifyScreen(itemId: String, onDone: () -&gt; Unit)</ID>
     <ID>CyclomaticComplexMethod:JellyfinMapper.kt$JellyfinMapper$fun toMedia(dto: BaseItem): MediaItem</ID>
@@ -17,12 +14,9 @@
     <ID>CyclomaticComplexMethod:Meta.kt$@Composable fun MetaLine(item: MediaItem, modifier: Modifier = Modifier, showGenres: Boolean = true)</ID>
     <ID>CyclomaticComplexMethod:MkvProbe.kt$MkvProbe$fun probe(bytes: ByteArray): Result</ID>
     <ID>CyclomaticComplexMethod:MkvProbe.kt$MkvProbe$private fun parseTracks(r: Reader): List&lt;Entry&gt;</ID>
-    <ID>CyclomaticComplexMethod:MovieIndexer.kt$MovieIndexer$private suspend fun collection(nfo: NfoInfo?, movie: TmdbMovie?, tmdb: TmdbClient?, now: Long, refresh: Boolean): Long?</ID>
-    <ID>CyclomaticComplexMethod:MovieIndexer.kt$MovieIndexer$suspend fun process( source: SourceEntity, file: RemoteFile, existing: ItemEntity?, tmdb: TmdbClient?, sidecars: Sidecars, refreshMetadata: Boolean, )</ID>
     <ID>CyclomaticComplexMethod:Nfo.kt$NfoParser$private fun parseXml(xml: String): NfoInfo?</ID>
     <ID>CyclomaticComplexMethod:NfoScreen.kt$@Composable private fun NfoDetails(info: NfoInfo?)</ID>
     <ID>CyclomaticComplexMethod:ScanError.kt$ScanErrors$fun classify(e: Throwable): ScanError</ID>
-    <ID>CyclomaticComplexMethod:ShowIndexer.kt$ShowIndexer$private suspend fun series( source: SourceEntity, title: String, year: Int?, showDir: String, sidecars: Sidecars, tmdb: TmdbClient?, refreshMetadata: Boolean, now: Long, ): ItemEntity</ID>
     <ID>ExplicitItLambdaParameter:LibraryScreen.kt${ _, it -&gt; it.id }</ID>
     <ID>InjectDispatcher:Ambient.kt$Default</ID>
     <ID>InjectDispatcher:LibraryScanner.kt$LibraryScanner$IO</ID>
@@ -37,12 +31,6 @@
     <ID>InjectDispatcher:ZidooStatus.kt$ZidooStatus$IO</ID>
     <ID>LongMethod:Nfo.kt$NfoParser$private fun parseXml(xml: String): NfoInfo?</ID>
     <ID>LongParameterList:JellyfinApi.kt$JellyfinApi$( @Query("userId") userId: String, @Query("parentId") parentId: String?, @Query("includeItemTypes") includeItemTypes: String?, @Query("recursive") recursive: Boolean, @Query("sortBy") sortBy: String, @Query("sortOrder") sortOrder: String, @Query("startIndex") startIndex: Int, @Query("limit") limit: Int, @Query("fields") fields: String, @Query("filters") filters: String? = null, @Query("genres") genres: String? = null, @Query("years") years: String? = null, @Query("is4K") is4K: Boolean? = null, )</ID>
-    <ID>LongParameterList:MovieIndexer.kt$MovieIndexer$( base: ItemEntity, nfoInfo: NfoInfo?, movie: TmdbMovie?, art: LocalArt, tmdb: TmdbClient?, now: Long, refresh: Boolean = false, )</ID>
-    <ID>LongParameterList:MovieIndexer.kt$MovieIndexer$( source: SourceEntity, file: RemoteFile, existing: ItemEntity?, tmdb: TmdbClient?, sidecars: Sidecars, refreshMetadata: Boolean, )</ID>
-    <ID>LongParameterList:ShowIndexer.kt$ShowIndexer$( source: SourceEntity, file: RemoteFile, existing: ItemEntity?, tmdb: TmdbClient?, seasons: SeasonCache, sidecars: Sidecars, refreshMetadata: Boolean, )</ID>
-    <ID>LongParameterList:ShowIndexer.kt$ShowIndexer$( source: SourceEntity, series: ItemEntity, number: Int, cache: SeasonCache, now: Long, localPoster: RemoteFile?, )</ID>
-    <ID>LongParameterList:ShowIndexer.kt$ShowIndexer$( source: SourceEntity, title: String, year: Int?, showDir: String, sidecars: Sidecars, tmdb: TmdbClient?, refreshMetadata: Boolean, now: Long, )</ID>
-    <ID>LongParameterList:ShowIndexer.kt$ShowIndexer$(base: ItemEntity, nfoInfo: NfoInfo?, tv: TmdbTv?, art: LocalArt, tmdb: TmdbClient?, now: Long)</ID>
     <ID>LongParameterList:SmbBrowser.kt$SmbBrowser$( share: DiskShare, root: String, relative: String, depth: Int, out: MutableList&lt;RemoteFile&gt;, sidecars: MutableList&lt;RemoteFile&gt;, )</ID>
     <ID>LoopWithTooManyJumpStatements:MkvProbe.kt$MkvProbe$while</ID>
     <ID>LoopWithTooManyJumpStatements:Nfo.kt$NfoParser$while</ID>
@@ -141,7 +129,6 @@
     <ID>MaxLineLength:MovieIndexer.kt$MovieIndexer$private suspend</ID>
     <ID>MaxLineLength:ScanError.kt$ScanErrors$chain.any { it is UnknownHostException || it is NoRouteToHostException || it is ConnectException || it is SocketTimeoutException }</ID>
     <ID>MaxLineLength:ScanError.kt$ScanErrors$text.contains("AUTH_ERROR", ignoreCase = true)</ID>
-    <ID>MaxLineLength:ShowIndexer.kt$ShowIndexer$private suspend</ID>
     <ID>MaxLineLength:Sidecars.kt$Sidecars$fanart = pick(IMAGES.map { "-fanart.$it" } + IMAGES.map { "-backdrop.$it" }, IMAGES.flatMap { listOf("fanart.$it", "backdrop.$it") })</ID>
     <ID>MaxLineLength:Sidecars.kt$Sidecars$poster = pick(IMAGES.map { "-poster.$it" } + listOf(".tbn"), IMAGES.flatMap { listOf("poster.$it", "folder.$it", "cover.$it") })</ID>
     <ID>NestedBlockDepth:Nfo.kt$NfoParser$private fun parseXml(xml: String): NfoInfo?</ID>
@@ -159,7 +146,6 @@
     <ID>UnsafeCallOnNullableType:ArtworkScreen.kt$item!!</ID>
     <ID>UnsafeCallOnNullableType:ArtworkScreen.kt$state.error!!</ID>
     <ID>UnsafeCallOnNullableType:LibraryScreen.kt$state.error!!</ID>
-    <ID>UnsafeCallOnNullableType:MovieIndexer.kt$MovieIndexer$tmdb!!</ID>
     <ID>UseOrEmpty:DetailScreen.kt$shown?.overview ?: ""</ID>
     <ID>UseOrEmpty:DetailViewModel.kt$DetailViewModel$seasons.firstOrNull { it.id == seasonId }?.let { provider.episodes(item, it) } ?: emptyList()</ID>
     <ID>UseOrEmpty:EditViewModels.kt$IdentifyViewModel$identity.year?.toString() ?: ""</ID>
@@ -168,7 +154,6 @@
     <ID>UseOrEmpty:LocalEditor.kt$LocalEditor$title ?: name ?: ""</ID>
     <ID>UseOrEmpty:MkvProbe.kt$MkvProbe.Entry$name?.lowercase() ?: ""</ID>
     <ID>UseOrEmpty:SettingsStore.kt$SettingsStore$this[Keys.mappings] ?.let(secrets::open) ?.let { runCatching { json.decodeFromString&lt;List&lt;PathMapping&gt;&gt;(it) }.getOrNull() } ?: emptyList()</ID>
-    <ID>UseOrEmpty:ShowIndexer.kt$ShowIndexer$folders.firstOrNull { FilenameParser.seasonFromFolder(it) == null } ?: ""</ID>
     <ID>UseOrEmpty:ShowIndexer.kt$ShowIndexer$meta?.name ?: ""</ID>
   </CurrentIssues>
 </SmellBaseline>
