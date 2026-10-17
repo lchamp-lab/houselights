@@ -1,6 +1,7 @@
 package app.houselights.ui.settings
 
 import android.content.Context
+import android.os.Looper
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.emptyPreferences
@@ -56,6 +57,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
+import org.robolectric.Shadows.shadowOf
 import org.robolectric.RobolectricTestRunner
 import java.io.IOException
 import java.security.ProviderException
@@ -97,6 +99,10 @@ class SettingsViewModelTest {
     fun close() {
         screens.clear()
         db.close()
+        // The ViewModel's state is Compose state: once a Compose test has run in this sandbox, what it
+        // wrote is handed to Compose on the main looper. That task runs before Robolectric clears the
+        // looper, or Compose's dispatcher waits for it forever and no Compose test after this one settles.
+        shadowOf(Looper.getMainLooper()).idle()
     }
 
     /** The settings' ViewModel as the screen holds it: [screens] clears it when the settings are left. */
