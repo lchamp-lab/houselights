@@ -228,12 +228,15 @@ class AddFolderViewModel(
         }
     }
 
-    /** A change makes a successful test stale; a problem stays shown until the next test. */
+    /**
+     * What the last test said, success or failure, or why the folder was not added, speaks of the
+     * folder the form described then: a change to what a test reads (all but the kind) makes it stale.
+     */
     fun edit(change: FolderForm.() -> FolderForm) {
         val before = form
         form = form.change()
         saved.keep(form)
-        check = if (form.protocol != before.protocol) null else check.takeUnless { it is FolderCheck.Reachable }
+        if (form.copy(kind = before.kind) != before) check = null
     }
 
     /** The folder the form describes; an edited one keeps its id, its kind and, left empty, its password. */

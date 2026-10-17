@@ -244,6 +244,39 @@ class AddFolderViewModelTest {
         assertFalse("a screen left hears nothing", done)
     }
 
+    /**
+     * The status frame speaks of the folder the form describes: what a test said, failure or success,
+     * goes once a field it read changes; the kind, which no test reads, leaves it.
+     */
+    @Test
+    fun whatATestSaidGoesWithTheFieldsItRead() = runTest {
+        var answers = false
+        val vm = form(null, probe = { if (answers) 12 else throw IOException("Connection timed out") })
+        advanceUntilIdle()
+        vm.test()
+        assertTrue("nothing typed yet", vm.check is FolderCheck.Incomplete)
+        vm.edit { copy(host = "nas-salon.local") }
+        assertNull("the address asked for is typed", vm.check)
+
+        vm.edit { copy(share = "/volume1/media") }
+        vm.test()
+        advanceUntilIdle()
+        assertTrue(vm.check is FolderCheck.Failed)
+        vm.edit { copy(kind = SourceKind.SHOWS) }
+        assertTrue("the kind is not tested", vm.check is FolderCheck.Failed)
+        vm.edit { copy(host = "192.168.1.20") }
+        assertNull("another NAS, not tested yet", vm.check)
+
+        answers = true
+        vm.test()
+        advanceUntilIdle()
+        assertEquals(FolderCheck.Reachable(12), vm.check)
+        vm.edit { copy(kind = SourceKind.MOVIES) }
+        assertEquals("the same folder still answers", FolderCheck.Reachable(12), vm.check)
+        vm.edit { copy(path = "films") }
+        assertNull(vm.check)
+    }
+
     @Test
     fun aFolderRemovedBeforeTheFormOpensSaysSo() = runTest {
         val id = smbFolder()

@@ -28,6 +28,7 @@ import kotlinx.coroutines.withContext
 import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -125,6 +126,22 @@ class JellyfinLoginViewModelTest {
     fun nothingAnsweringSaysWhere() = runTest {
         network.reachFailure = IOException("Connection refused")
         assertEquals(LoginError.Unreachable("http://nas:8096"), failure())
+    }
+
+    /** What signing in said speaks of what was typed: the server, the user or the password changed, it is no longer said. */
+    @Test
+    fun whatSigningInSaidGoesWhenWhatItUsedChanges() = runTest {
+        network.reachFailure = IOException("Connection refused")
+        val vm = login()
+        vm.server = "nas"
+        val changes = listOf<JellyfinLoginViewModel.() -> Unit>({ server = "nas2" }, { user = "lea" }, { password = "other" })
+        changes.forEach { change ->
+            vm.login {}
+            settle(vm)
+            assertTrue(vm.error is LoginError.Unreachable)
+            vm.change()
+            assertNull(vm.error)
+        }
     }
 
     /** The server took the password; the Keystore refused to seal its token: said as the device's fault, not the server's. */

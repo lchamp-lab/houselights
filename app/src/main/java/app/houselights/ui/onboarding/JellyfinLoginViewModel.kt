@@ -26,6 +26,8 @@ import app.houselights.settings.SourceSwitcher
 import app.houselights.ui.util.UiError
 import app.houselights.ui.util.toWriteError
 import kotlinx.coroutines.launch
+import kotlin.properties.ReadWriteProperty
+import kotlin.reflect.KProperty
 
 /** Why signing in to Jellyfin failed. */
 sealed interface LoginError {
@@ -115,9 +117,9 @@ class JellyfinLoginViewModel(
     private val sources: SourceSwitcher,
     private val network: JellyfinNetwork = JellyfinNetwork.Lan,
 ) : ViewModel() {
-    var server by mutableStateOf("")
-    var user by mutableStateOf("")
-    var password by mutableStateOf("")
+    var server by Field()
+    var user by Field()
+    var password by Field()
     var busy by mutableStateOf(false)
         private set
     var error by mutableStateOf<LoginError?>(null)
@@ -138,6 +140,18 @@ class JellyfinLoginViewModel(
             user = current.userName.orEmpty()
         }
         viewModelScope.launch { discovered = network.discover() }
+    }
+
+    /** A field of the form: changed, it makes what signing in said of the last try stale, and no longer said. */
+    private inner class Field : ReadWriteProperty<Any?, String> {
+        private var typed by mutableStateOf("")
+
+        override fun getValue(thisRef: Any?, property: KProperty<*>): String = typed
+
+        override fun setValue(thisRef: Any?, property: KProperty<*>, value: String) {
+            if (value != typed) error = null
+            typed = value
+        }
     }
 
     fun login(onLoggedIn: () -> Unit) {
