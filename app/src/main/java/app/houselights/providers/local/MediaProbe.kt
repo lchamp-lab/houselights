@@ -31,8 +31,12 @@ object MediaProbe {
     private const val FIRST_READ = 256 shl 10
     private const val MAX_READ = 16 shl 20
 
-    /** As far as a file is read for the first frames of its tracks, when they are not in the first read. */
-    private const val FRAMES_READ = 4 shl 20
+    /**
+     * How far a file is read for the first frames of its tracks, when they are not in the first read: a
+     * 4K video's first frame alone may fill it (300 KB to 1 MB), the audio's following. The first
+     * megabyte, then further only when a track still has none.
+     */
+    private val FRAME_STEPS = listOf(1 shl 20, 4 shl 20)
 
     /** A file's tags (a few kilobytes with mkvmerge), read where its SeekHead says they lie. */
     private const val TAGS_READ = 64 shl 10
@@ -48,9 +52,9 @@ object MediaProbe {
 
     /**
      * Reads of a file's start at most: the first, the tracks its SeekHead puts further in, the end of
-     * a track list longer than that read, the first frames further in.
+     * a track list longer than that read, the first frames further in, at each of [FRAME_STEPS].
      */
-    private const val MAX_READS = 4
+    private const val MAX_READS = 5
 
     /**
      * The version of what a probe reads, kept with each reading: a file read by an older probe is
@@ -121,9 +125,10 @@ object MediaProbe {
 
     /**
      * A Matroska file's tracks, from its start: read further when its track list reaches past the
-     * first read, then when its tracks' first frames do (as far as [FRAMES_READ]). Each read goes on
-     * from where the bytes read so far end, none twice. Null when it is not Matroska, or its tracks
-     * lie too far in. A read that fails keeps the tracks found before it.
+     * first read, then when its tracks' first frames do (a step of [FRAME_STEPS] at a time, until
+     * every track has some). Each read goes on from where the bytes read so far end, none twice. Null
+     * when it is not Matroska, or its tracks lie too far in. A read that fails keeps the tracks found
+     * before it.
      */
     private suspend fun readTracks(reads: Reads): MkvProbe.Result.Found? {
         var bytes = reads.at(0, FIRST_READ) ?: return null
@@ -133,7 +138,7 @@ object MediaProbe {
         while (true) {
             val result = MkvProbe.probe(bytes)
             if (result is MkvProbe.Result.Found) found = result
-            val wanted = further(result)?.takeIf { it > bytes.size && !atEnd && read < MAX_READS } ?: return found
+            val wanted = further(result, bytes.size)?.takeIf { it > bytes.size && !atEnd && read < MAX_READS } ?: return found
             val more = reads.at(bytes.size.toLong(), wanted - bytes.size) ?: return found
             read++
             atEnd = more.size < wanted - bytes.size
@@ -141,10 +146,10 @@ object MediaProbe {
         }
     }
 
-    /** How far into a file to read after what [result] made of its start; null when no further. */
-    private fun further(result: MkvProbe.Result): Int? = when (result) {
-        // Some first frames lie past what was read: read further, once.
-        is MkvProbe.Result.Found -> FRAMES_READ.takeIf { !result.framesRead }
+    /** How far into a file to read after what [result] made of its first [read] bytes; null when no further. */
+    private fun further(result: MkvProbe.Result, read: Int): Int? = when (result) {
+        // Some first frames lie past what was read: on to the next step.
+        is MkvProbe.Result.Found -> FRAME_STEPS.firstOrNull { it > read }.takeIf { !result.framesRead }
         is MkvProbe.Result.NeedMore -> result.upTo.takeIf { it in 0..(MAX_READ - FIRST_READ) }?.let { (it + FIRST_READ).toInt() }
         MkvProbe.Result.NotMatroska -> null
     }
