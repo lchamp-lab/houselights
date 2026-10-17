@@ -128,6 +128,8 @@ class MainActivity : ComponentActivity() {
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 container.settings.state.first { it.loaded }
+                // Not while the launch screen holds: home's rows and pictures come first.
+                container.launch.awaitOpen()
                 while (true) {
                     if (container.settings.state.value.source == SourceConfig.Local) {
                         container.scanner.scanIfStale(RESCAN_AFTER_MS)
