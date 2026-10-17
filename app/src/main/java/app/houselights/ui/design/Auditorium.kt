@@ -9,6 +9,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.GraphicsLayerScope
 import androidx.compose.ui.layout.Measurable
 import androidx.compose.ui.layout.MeasureResult
@@ -80,6 +81,50 @@ object LaunchCue {
 
     /** How long after a bar the next one starts to go out: the last is out as the black starts to lift. */
     private val NEXT = (LIFT_FROM - BAR) / (bars - 1)
+}
+
+/**
+ * The launch screen as the screen under it sees it: at a cold start it covers the app, the mark alone
+ * on black, while home is composed, laid out and drawn under it, and it leaves once home has drawn a
+ * first frame whole ([drawn], `Modifier.drawnWhole`). Nothing covers a screen opened later.
+ */
+interface LaunchScreen {
+    /**
+     * True while the launch screen hides the app whole: what shows then shows whole when it leaves,
+     * without fading in (a backdrop's first picture, the first light of the room).
+     */
+    val covers: Boolean
+
+    /** The screen under it drew a frame whole: its content in, its picture prepared. */
+    fun drawn()
+}
+
+/** No launch screen: a warm start, a screen opened later, a test. */
+private object NoLaunchScreen : LaunchScreen {
+    override val covers = false
+
+    override fun drawn() = Unit
+}
+
+/** The launch screen over the app, provided by the activity. */
+val LocalLaunchScreen = staticCompositionLocalOf<LaunchScreen> { NoLaunchScreen }
+
+/**
+ * Tells the launch screen covering the app that this content was drawn [whole]: in the first frame
+ * drawn once it is, so the launch screen leaves on that frame's heels. Nothing while the content is
+ * still being prepared, nor once nothing covers it.
+ */
+@Composable
+fun Modifier.drawnWhole(whole: Boolean): Modifier {
+    val launch = LocalLaunchScreen.current
+    return if (!whole || !launch.covers) {
+        this
+    } else {
+        drawWithContent {
+            drawContent()
+            launch.drawn()
+        }
+    }
 }
 
 /**

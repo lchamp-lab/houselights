@@ -26,6 +26,7 @@ import app.houselights.providers.local.TmdbClient
 import app.houselights.settings.SettingsStore
 import app.houselights.settings.SourceSwitcher
 import app.houselights.ui.home.HomeLaunch
+import app.houselights.ui.design.components.AwaitAhead
 import app.houselights.ui.util.PlaybackOutcome
 import coil.EventListener
 import coil.ImageLoader
@@ -71,6 +72,8 @@ class HouselightsApp : Application(), ImageLoaderFactory {
         }
         .crossfade(300)
         .respectCacheHeaders(false)
+        // A picture the launch is loading ahead is waited for, never loaded twice.
+        .components { add(AwaitAhead) }
         .eventListener(ImageFailureLog())
         .build()
 }

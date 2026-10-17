@@ -6,7 +6,15 @@ import app.houselights.core.MediaItem
 import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.canvasDensityOf
+import coil.ImageLoader
+import coil.intercept.Interceptor
 import coil.request.ImageRequest
+import coil.request.ImageResult
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.joinAll
+import kotlinx.coroutines.launch
 
 /**
  * The pictures a screen shows first, asked ahead as its components will ask Coil for them once laid
@@ -38,3 +46,48 @@ class PicturesAhead(private val context: Context, private val screenWidthPx: Int
         }
     }
 }
+
+/**
+ * The pictures being loaded ahead, by address, while they load: a component that asks Coil for one
+ * of them meanwhile (home, composed under the launch screen while its pictures load) waits for it
+ * ([AwaitAhead]), then finds it in memory, instead of loading it a second time.
+ */
+object LoadingAhead {
+    private val loading = HashMap<Any, MutableList<Job>>()
+
+    /** Loads [requests] into memory with [loader], all at once, each known by its address while it loads. */
+    suspend fun load(loader: ImageLoader, requests: List<ImageRequest>) = coroutineScope {
+        requests.forEach { request ->
+            val ahead = request.newBuilder().setParameter(AHEAD, true, memoryCacheKey = null).build()
+            val job = launch(start = CoroutineStart.LAZY) { loader.execute(ahead) }
+            synchronized(loading) { loading.getOrPut(request.data) { mutableListOf() } += job }
+            job.invokeOnCompletion {
+                synchronized(loading) {
+                    val jobs = loading[request.data] ?: return@synchronized
+                    jobs -= job
+                    if (jobs.isEmpty()) loading.remove(request.data)
+                }
+            }
+            job.start()
+        }
+    }
+
+    /** Waits while the picture at [data] is being loaded ahead; at once when it is not. */
+    suspend fun await(data: Any) {
+        synchronized(loading) { loading[data]?.toList() }?.joinAll()
+    }
+}
+
+/**
+ * Coil's side of [LoadingAhead]: a request for a picture being loaded ahead waits for it, then goes
+ * on, and finds it in memory; one that is not, or that loads ahead itself, goes on at once.
+ */
+object AwaitAhead : Interceptor {
+    override suspend fun intercept(chain: Interceptor.Chain): ImageResult {
+        if (chain.request.parameters.value<Boolean>(AHEAD) != true) LoadingAhead.await(chain.request.data)
+        return chain.proceed(chain.request)
+    }
+}
+
+/** Marks a request that loads ahead; left out of the memory cache key, so it is the picture home asks for. */
+private const val AHEAD = "houselights.ahead"

@@ -13,6 +13,8 @@ import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
 import app.houselights.core.SectionType
 import app.houselights.providers.local.ScanState
+import app.houselights.ui.design.components.AwaitAhead
+import app.houselights.ui.design.components.LoadingAhead
 import app.houselights.ui.design.components.PicturesAhead
 import app.houselights.ui.testing.TV
 import app.houselights.ui.testing.setTvContent
@@ -27,7 +29,12 @@ import coil.request.ImageRequest
 import coil.request.SuccessResult
 import coil.size.Size
 import coil.size.pxOrElse
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.launch
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -143,6 +150,54 @@ class HomePicturesAheadTest {
         assertTheSame(loaded, shown)
         assertEquals(3 + 4, loaded.size)
         assertEquals("the first row's stills home asked for", firstRow(shown, "still/"), firstRow(loaded, "still/"))
+    }
+
+    /**
+     * Home composed under the launch screen while the launch still loads its pictures: each one home
+     * asks for waits for the one on its way ([AwaitAhead]), then comes from memory; none is fetched twice.
+     */
+    @Test
+    fun homeComposedWhileThePicturesLoadFetchesNoneTwice() {
+        val sent = CompletableDeferred<Unit>()
+        val fetched = mutableListOf<String>()
+        // What is fetched, by address and size: a card's glow reads its own small copy of the poster's file.
+        val slow = Fetcher.Factory<Uri> { data, options, _ ->
+            Fetcher {
+                synchronized(fetched) { fetched += "$data at ${options.size}" }
+                sent.await()
+                val (width, height) = options.size.let { it.width.pxOrElse { PICTURE_PX } to it.height.pxOrElse { PICTURE_PX } }
+                val picture = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+                DrawableResult(BitmapDrawable(options.context.resources, picture), isSampled = false, dataSource = DataSource.NETWORK)
+            }
+        }
+        val waiting = ImageLoader.Builder(context).components {
+            add(slow)
+            add(AwaitAhead)
+        }.eventListener(listener).build()
+        Coil.setImageLoader(waiting)
+        val sections = listOf(HomeSection(SectionType.LATEST, (1..12).map(::film), landscape = false, libraryId = "films"))
+        val ahead = firstPictures(PicturesAhead(context, context.resources.displayMetrics.widthPixels), sections)
+        val launch = CoroutineScope(Dispatchers.Default)
+        try {
+            launch.launch { LoadingAhead.load(waiting, ahead) }
+            waitFor { synchronized(fetched) { fetched.size } >= ahead.size }
+            val home = HomeState(content = HomeContent.Rows(sections, firstScan = false))
+            compose.setTvContent { HomeBands(home, MutableStateFlow(ScanState()), {}, {}, {}, {}, {}, {}) }
+            // Home laid out: its cards and its hero have asked for their pictures, which are on their way.
+            waitFor { sizes.size >= 2 * ahead.size }
+            assertEquals("home waits for what is on its way", fetched.distinct(), synchronized(fetched) { fetched.toList() })
+
+            sent.complete(Unit)
+            waitFor { asked.count { it.from == DataSource.MEMORY_CACHE } >= ahead.size }
+            compose.waitForIdle()
+            assertEquals("each fetched once", fetched.distinct(), synchronized(fetched) { fetched.toList() })
+            val fromMemory = synchronized(asked) { asked.filter { it.from == DataSource.MEMORY_CACHE }.map { it.key }.toSet() }
+            val fromServer = synchronized(asked) { asked.filter { it.from == DataSource.NETWORK }.map { it.key }.toSet() }
+            assertTrue("what was loaded ahead, home found in memory", fromMemory.size >= ahead.size)
+            assertTrue("home asked for each one loaded ahead", fromServer.containsAll(fromMemory))
+        } finally {
+            launch.cancel()
+        }
     }
 
     /** Each picture loaded ahead, home asked for under the same key at the same size, and found it in memory. */
