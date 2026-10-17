@@ -90,6 +90,7 @@ import app.houselights.ui.util.sectionTitle
 import app.houselights.ui.util.ErrorAction
 import app.houselights.ui.util.LocalErrorFix
 import app.houselights.ui.util.UiError
+import app.houselights.ui.util.toUiError
 import kotlinx.coroutines.flow.StateFlow
 
 @Composable
@@ -337,6 +338,7 @@ private fun SkeletonRows() {
 @Composable
 private fun FirstScan(progress: StateFlow<ScanState>, modifier: Modifier, aboveRows: Boolean = false) {
     val scan by progress.collectAsStateWithLifecycle()
+    val tmdbIssue = scan.tmdbIssue?.toUiError()
     Column(modifier) {
         ScanProgress(
             scan.processed,
@@ -345,8 +347,8 @@ private fun FirstScan(progress: StateFlow<ScanState>, modifier: Modifier, aboveR
             current = if (aboveRows) scan.current.orEmpty() else scan.current,
             lineWidth = HlLayout.readableNarrow,
         )
-        TmdbIssue(scan.tmdbIssue, keepRoom = aboveRows)
-        scanNoteAction(scan.tmdbIssue, aboveRows)?.let { action ->
+        TmdbIssue(tmdbIssue, keepRoom = aboveRows)
+        scanNoteAction(tmdbIssue, aboveRows)?.let { action ->
             val fix = LocalErrorFix.current
             Spacer(Modifier.height(HlSpace.m))
             HlButton(stringResource(action.label), onClick = { fix(action) })

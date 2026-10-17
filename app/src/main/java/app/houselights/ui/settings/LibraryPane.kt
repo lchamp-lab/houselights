@@ -74,6 +74,7 @@ import app.houselights.ui.design.tryRequestFocus
 import app.houselights.ui.onboarding.FolderField
 import app.houselights.ui.util.UiError
 import app.houselights.ui.util.scanErrorText
+import app.houselights.ui.util.toUiError
 import app.houselights.core.CollectionThreshold
 
 /**
@@ -389,7 +390,7 @@ private fun LibraryActions(
             chevron = false,
         )
         // The last scan could not ask TMDB: said where the key is changed, which may fix it.
-        val issue = scan.tmdbIssue
+        val issue = scan.tmdbIssue?.toUiError()
         HlSettingRow(
             stringResource(R.string.tmdb_key),
             value = stringResource(
@@ -408,7 +409,7 @@ private fun LibraryActions(
         CollectionsRow()
         SourceRow(onUseFolders, onSignIn, rows.focus(SOURCE))
     }
-    if (editKey) TmdbKeySheet(issue = scan.tmdbIssue, onDismiss = { editKey = false })
+    if (editKey) TmdbKeySheet(issue = scan.tmdbIssue?.toUiError(), onDismiss = { editKey = false })
 }
 
 /** When a saga shows as a collection: from two films (default), always, or never. */

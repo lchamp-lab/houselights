@@ -19,11 +19,7 @@ class LayersGuardTest {
      * Deliberate exceptions, as "path:import". Keep this list short and say why; a new one is usually
      * a fact of the domain ([app.houselights.core.FailureKind]) the interface translates.
      */
-    private val allowed = listOf(
-        // ScanState.tmdbIssue: becomes a FailureKind once home and the library settings translate it.
-        "providers/local/LibraryScanner.kt:import app.houselights.ui.util.UiError",
-        "providers/local/LibraryScanner.kt:import app.houselights.ui.util.toUiError",
-    )
+    private val allowed = emptyList<String>()
 
     @Test
     fun theLayersUnderTheScreensNeverLeanOnThem() {
