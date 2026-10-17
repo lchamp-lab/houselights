@@ -40,11 +40,15 @@ import retrofit2.HttpException
 import retrofit2.Response
 import java.io.IOException
 import java.security.ProviderException
+import app.houselights.ui.testing.SettleMainLooper
 
 /** Signing in to Jellyfin, with a fake network in place of the server. */
 @OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
 class JellyfinLoginViewModelTest {
+    @get:Rule
+    val settle = SettleMainLooper()
+
     @get:Rule
     val main = MainDispatcherRule()
 

@@ -28,11 +28,15 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import java.io.IOException
+import app.houselights.ui.testing.SettleMainLooper
 
 /** A title's page on a fake source: loading, replacing a load, failures, watched and favourites. */
 @OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
 class DetailViewModelTest {
+    @get:Rule
+    val settle = SettleMainLooper()
+
     @get:Rule
     val main = MainDispatcherRule()
 
