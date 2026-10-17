@@ -81,8 +81,11 @@ class ZidooPlayer(
     /** The player a secret last went to ([remember]): its package and its certificate. */
     private val trusted = context.getSharedPreferences("player", Context.MODE_PRIVATE)
 
-    /** An activity that opens a video, and whether the firmware installed its app. */
-    data class Candidate(val component: ComponentName, val system: Boolean)
+    /**
+     * An activity that opens a video; whether the firmware installed its app ([system]), or else it is
+     * signed like a system app of Zidoo's on a build of the firmware's own keys ([signedLikeFirmware]).
+     */
+    data class Candidate(val component: ComponentName, val system: Boolean, val signedLikeFirmware: Boolean = false)
 
     /** The device: its build, and the apps of Zidoo's its firmware installed. */
     data class Device(val identity: DeviceIdentity, val zidooApps: List<String>) {
@@ -137,7 +140,7 @@ class ZidooPlayer(
      */
     fun choose(): Choice {
         val device = device()
-        val found = listOfNotNull(known()) + if (device.zidoo) discover() else emptyList()
+        val found = listOfNotNull(known(device)) + if (device.zidoo) discover(device) else emptyList()
         val defaults = if (device.zidoo) defaults() else emptySet()
         val candidates = found.distinctBy { it.component }.sortedWith(preferred(defaults))
         val player = candidates.firstOrNull(::remembered) ?: candidates.firstOrNull()
@@ -181,7 +184,11 @@ class ZidooPlayer(
      */
     fun describe(choice: Choice): String {
         val candidates = choice.candidates.joinToString("; ") {
-            val kind = if (it.system) "system" else "ordinary"
+            val kind = when {
+                it.system -> "system"
+                it.signedLikeFirmware -> "ordinary, signed like the firmware"
+                else -> "ordinary"
+            }
             "${it.component.flattenToShortString()} $kind, installed by ${installer(it.component.packageName)}"
         }
         return "${choice.decision}: ${why(choice)}; player ${choice.player?.component?.flattenToShortString()}, " +
@@ -219,15 +226,14 @@ class ZidooPlayer(
 
     /**
      * Never off a Zidoo; on one, a system app, or one signed like an app of Zidoo's its firmware
-     * installed (not on a build signed with AOSP's test keys, whose certificate anyone can sign
-     * with), or else the player a password last went to, or the first one, as long as it does not
-     * change.
+     * installed ([signedLikeFirmware]), or else the player a password last went to, or the first one,
+     * as long as it does not change.
      */
     private fun decide(player: Candidate?, device: Device, certificate: String?): Decision = when {
         player == null -> Decision.NO_PLAYER
         !device.zidoo -> Decision.NOT_A_ZIDOO
         player.system -> Decision.FIRMWARE
-        !device.identity.testKeys && device.zidooApps.any { signedAlike(player, it) } -> Decision.SIGNED_LIKE_FIRMWARE
+        player.signedLikeFirmware -> Decision.SIGNED_LIKE_FIRMWARE
         certificate == null -> Decision.NO_CERTIFICATE
         else -> when (trusted.getString(KEY_PACKAGE, null)) {
             null -> Decision.FIRST_USE
@@ -237,8 +243,12 @@ class ZidooPlayer(
         }
     }
 
-    private fun signedAlike(player: Candidate, firmwareApp: String) =
-        packages.checkSignatures(player.component.packageName, firmwareApp) == PackageManager.SIGNATURE_MATCH
+    /**
+     * [pkg] is signed like an app of Zidoo's the firmware installed, which only Zidoo can sign: not on
+     * a build signed with AOSP's test keys, as the Z1000 Pro's is, whose certificate anyone can sign with.
+     */
+    private fun signedLikeFirmware(pkg: String, device: Device) =
+        !device.identity.testKeys && device.zidooApps.any { packages.checkSignatures(pkg, it) == PackageManager.SIGNATURE_MATCH }
 
     /** The SHA-256 of [pkg]'s signing certificates, in hex as apksigner prints it; null when none can be read. */
     private fun certificate(pkg: String): String? {
@@ -264,23 +274,24 @@ class ZidooPlayer(
         return Device(identity(), zidooApps)
     }
 
-    private fun known(): Candidate? {
+    private fun known(device: Device): Candidate? {
         val info = packages.resolveActivity(Intent().setComponent(ComponentName(KNOWN_PACKAGE, KNOWN_ACTIVITY)), 0)?.activityInfo
-        return info?.takeIf(::startable)?.let(::candidate)
+        return info?.takeIf(::startable)?.let { candidate(it, device) }
     }
 
     /**
      * The firmware's activities that open a video, by type or at an address of each scheme [probes]
-     * asks (an app whose filter names a scheme answers no intent without one): its system apps, or apps
-     * under a name of Zidoo's, never ours, and only what this app may start ([startable]).
+     * asks (an app whose filter names a scheme answers no intent without one): its system apps, apps
+     * signed like them ([Candidate.signedLikeFirmware]), or apps under a name of Zidoo's, never ours,
+     * and only what this app may start ([startable]).
      */
-    private fun discover(): List<Candidate> =
+    private fun discover(device: Device): List<Candidate> =
         probes().flatMap { probe -> QUERY_FLAGS.flatMap { packages.queryIntentActivities(probe, it) } }
             .mapNotNull { it.activityInfo }
-            .filter(::startable)
-            .filter { !it.packageName.isOurs() && (it.applicationInfo.isSystem() || it.packageName.startsWith(ZIDOO_PREFIX)) }
+            .filter { startable(it) && !it.packageName.isOurs() }
             .distinctBy { it.component() }
-            .map(::candidate)
+            .map { candidate(it, device) }
+            .filter { it.system || it.signedLikeFirmware || it.component.packageName.startsWith(ZIDOO_PREFIX) }
 
     /** What the system opens a video with unasked, at any address [probes] asks. */
     private fun defaults(): Set<ComponentName> =
@@ -290,10 +301,10 @@ class ZidooPlayer(
 
     /**
      * The order players are taken in, what no ordinary app can fake first: the system's apps, the old
-     * player, then an app of Zidoo's, then any other; then an ordinary app, under the old player's
-     * name or one of Zidoo's, which any app may take. Within each, the system's default, then an
-     * activity named for films ("MovieActivity", "VideoPlayer"); by name last, so the same apps
-     * always give the same player.
+     * player, then an app of Zidoo's, then any other; then an app signed like them; then an ordinary
+     * app, under the old player's name or one of Zidoo's, which any app may take. Within each, the
+     * system's default, then an activity named for films ("MovieActivity", "VideoPlayer"); by name
+     * last, so the same apps always give the same player.
      */
     private fun preferred(defaults: Set<ComponentName>) =
         compareBy<Candidate> { rank(it) }
@@ -302,13 +313,17 @@ class ZidooPlayer(
             .thenBy { it.component.packageName }
             .thenBy { it.component.className }
 
-    private fun rank(candidate: Candidate): Int {
+    /** The ranks of [preferred], first to last. */
+    private enum class Rank { OLD_PLAYER, ZIDOOS, SYSTEM, SIGNED_LIKE_FIRMWARE, ORDINARY }
+
+    private fun rank(candidate: Candidate): Rank {
         val pkg = candidate.component.packageName
         return when {
-            !candidate.system -> 3
-            pkg == KNOWN_PACKAGE -> 0
-            pkg.startsWith(ZIDOO_PREFIX) -> 1
-            else -> 2
+            candidate.signedLikeFirmware -> Rank.SIGNED_LIKE_FIRMWARE
+            !candidate.system -> Rank.ORDINARY
+            pkg == KNOWN_PACKAGE -> Rank.OLD_PLAYER
+            pkg.startsWith(ZIDOO_PREFIX) -> Rank.ZIDOOS
+            else -> Rank.SYSTEM
         }
     }
 
@@ -320,7 +335,10 @@ class ZidooPlayer(
     private fun startable(info: ActivityInfo) =
         info.exported && info.permission.let { it == null || context.checkSelfPermission(it) == PackageManager.PERMISSION_GRANTED }
 
-    private fun candidate(info: ActivityInfo) = Candidate(info.component(), info.applicationInfo.isSystem())
+    private fun candidate(info: ActivityInfo, device: Device): Candidate {
+        val system = info.applicationInfo.isSystem()
+        return Candidate(info.component(), system, signedLikeFirmware = !system && signedLikeFirmware(info.packageName, device))
+    }
 
     private fun ActivityInfo.component() = ComponentName(packageName, name)
 

@@ -220,6 +220,29 @@ class ZidooPlayerTest {
         assertEquals("the certificate is told, by its SHA-256", sha256(ZIDOO_KEY), choice.certificate)
     }
 
+    /**
+     * An ordinary app under any name, signed like a system app of Zidoo's, is the firmware's as well:
+     * on a build of its own keys, no one else signs with them. It comes before an ordinary app under
+     * the old player's name, which anyone may take.
+     */
+    @Test
+    fun aPlayerSignedLikeTheFirmwareIsFoundUnderAnyName() {
+        apps.install("com.zidoo.poster", system = true, certificate = ZIDOO_KEY)
+        apps.install(GALLERY, MOVIE_ACTIVITY, certificate = OTHER_KEY, schemes = emptyList())
+        val player = apps.install("com.rtk.player", "com.rtk.player.Play", certificate = ZIDOO_KEY)
+        val choice = choose(ZIDOO_BUILD)
+        assertEquals(player, choice.player?.component)
+        assertEquals(Decision.SIGNED_LIKE_FIRMWARE, choice.decision)
+    }
+
+    /** On a build of AOSP's test keys, as the Z1000 Pro's is, it proves nothing: an ordinary app under another name is no player. */
+    @Test
+    fun onTestKeysAPlayerSignedLikeTheFirmwareIsNotFound() {
+        apps.install("com.zidoo.poster", system = true, certificate = ZIDOO_KEY)
+        apps.install("com.rtk.player", "com.rtk.player.Play", certificate = ZIDOO_KEY)
+        assertNull(choose(ZIDOO_BUILD.copy(tags = "test-keys")).player)
+    }
+
     /** Built with AOSP's test keys, which anyone has: a certificate shared with the firmware proves nothing. */
     @Test
     fun onTestKeysASharedCertificateProvesNothing() {
