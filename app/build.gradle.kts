@@ -207,6 +207,8 @@ dependencies {
     implementation(libs.tv.material)
 
     implementation(libs.androidx.core.ktx)
+    // The launch screen (the mark alone on black while home gets ready), Android 9 included.
+    implementation(libs.androidx.core.splashscreen)
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.lifecycle.runtime.compose)

@@ -21,6 +21,35 @@ class ResourceTokensTest {
         assertEquals("@color/room", argb(HouselightsColors.background.toArgb()), resourceColor("room"))
     }
 
+    /**
+     * The launch screen is Android's to draw, before the app runs: the room, the mark alone in it (one
+     * file, `splash_mark`, which the new mark replaces), then the app's own theme, on the app's window.
+     */
+    @Test
+    fun theLaunchScreenIsTheRoom() {
+        val launch = style("Theme.Houselights.Launch")
+        assertEquals("Theme.SplashScreen", launch.getAttribute("parent"))
+        assertEquals("@color/room", item(launch, "windowSplashScreenBackground"))
+        assertEquals("@drawable/splash_mark", item(launch, "windowSplashScreenAnimatedIcon"))
+        assertEquals("@style/Theme.Houselights", item(launch, "postSplashScreenTheme"))
+        assertTrue(File("src/main/res/drawable/splash_mark.xml").isFile)
+        val activity = elements(File("src/main/AndroidManifest.xml"), "activity").single { it.getAttribute("android:name") == ".MainActivity" }
+        assertEquals("@style/Theme.Houselights.Launch", activity.getAttribute("android:theme"))
+    }
+
+    private fun style(name: String): Element =
+        elements(File("src/main/res/values/themes.xml"), "style").single { it.getAttribute("name") == name }
+
+    private fun item(style: Element, name: String): String {
+        val nodes = style.getElementsByTagName("item")
+        return (0 until nodes.length).map { nodes.item(it) as Element }.single { it.getAttribute("name") == name }.textContent.trim()
+    }
+
+    private fun elements(file: File, tag: String): List<Element> {
+        val nodes = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(file).getElementsByTagName(tag)
+        return (0 until nodes.length).map { nodes.item(it) as Element }
+    }
+
     /** A colour resource as #AARRGGBB, opaque when written #RRGGBB. */
     private fun resourceColor(name: String): String {
         val nodes = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(colors).getElementsByTagName("color")

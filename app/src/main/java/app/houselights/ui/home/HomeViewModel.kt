@@ -93,6 +93,8 @@ class HomeViewModel(
     folders: Flow<List<SourceEntity>>,
     settings: StateFlow<AppSettings>,
     private val scanAll: () -> Unit,
+    /** The rows the launch asked for home already ([HomeLaunch.take]), once; null: home asks the source. */
+    private val launched: suspend () -> HomeRows? = { null },
 ) : ViewModel() {
     private val load = MutableStateFlow(HomeLoad())
     private val loads = LatestJob(viewModelScope)
@@ -121,8 +123,7 @@ class HomeViewModel(
         if (load.value.sections.isEmpty() && load.value.error != null) load.update { it.copy(loading = true) }
         loads.launch {
             suspendRunCatching {
-                val source = provider()
-                source.libraries() to source.home()
+                launched()?.let { it.libraries to it.sections } ?: provider().let { source -> source.libraries() to source.home() }
             }.onSuccess { (libraries, sections) ->
                 load.value = HomeLoad(loading = false, libraries = libraries, sections = sections)
             }.onFailure { e ->
@@ -138,7 +139,14 @@ class HomeViewModel(
     companion object {
         fun factory(app: AppContainer): ViewModelProvider.Factory = viewModelFactory {
             initializer {
-                HomeViewModel(app::provider, app.library.scan, app.library.folders, app.settings.state, scanAll = { app.library.scan() })
+                HomeViewModel(
+                    app::provider,
+                    app.library.scan,
+                    app.library.folders,
+                    app.settings.state,
+                    scanAll = { app.library.scan() },
+                    launched = { app.homeLaunch.take(app.settings.state.value.source) },
+                )
             }
         }
     }

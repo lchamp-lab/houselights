@@ -6,6 +6,9 @@ import android.os.Bundle
 import android.util.Log
 import android.view.Display
 import android.view.KeyEvent
+import androidx.core.splashscreen.SplashScreen
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import app.houselights.ui.home.loadFirstPictures
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
@@ -101,7 +104,11 @@ class MainActivity : ComponentActivity() {
     private var cue: Job? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // The launch screen: Android shows the mark alone on black (Theme.Houselights.Launch) before
+        // the app runs; at a cold start it holds while home gets ready under it.
+        val splash = installSplashScreen()
         super.onCreate(savedInstanceState)
+        holdTheLaunchScreen(splash, restored = savedInstanceState != null)
 
         lifecycleScope.launch {
             container.settings.state
@@ -144,6 +151,16 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    /**
+     * At the process's first window, the launch screen holds until its gate opens ([LaunchGate]):
+     * home's rows and first pictures are asked meanwhile ([HomeLaunch]). A later window (a warm start)
+     * holds nothing.
+     */
+    private fun holdTheLaunchScreen(splash: SplashScreen, restored: Boolean) {
+        container.homeLaunch.begin(container.scope, restored, loadFirstPictures(applicationContext, resources.displayMetrics.widthPixels))
+        splash.setKeepOnScreenCondition(container.launch::keepOnScreen)
     }
 
     /**

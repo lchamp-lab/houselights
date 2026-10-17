@@ -62,6 +62,7 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
+            android:theme="@style/Theme.Houselights.Launch"
             android:screenOrientation="landscape"
             tools:ignore="DiscouragedApi"
             android:configChanges="keyboard|keyboardHidden|navigation|screenSize|smallestScreenSize|screenLayout|orientation|density|uiMode"
