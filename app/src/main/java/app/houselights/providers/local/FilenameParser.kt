@@ -71,8 +71,11 @@ object FilenameParser {
             """x264|x265|h[ ._]?264|h[ ._]?265|hevc|avc|av1|10bit|aac|ac3|eac3|dts|truehd|atmos|""" +
             """multi|truefrench|vff|vfq|vfi|vf2|vostfr|subfrench"""
 
-    /** Release tags that are words of titles too: "The French Connection", "Charlotte's Web", "A Complete Unknown". */
-    private const val WORD_TAGS = """4k|dv|web|french|vf|proper|repack|extended|unrated|imax|hybrid|complete|internal"""
+    /**
+     * Release tags that are words of titles too: "The French Connection", "Charlotte's Web", "A Complete Unknown";
+     * "Intégrale", a French pack's whole show ("Kaamelott.Integrale.1080p").
+     */
+    private const val WORD_TAGS = """4k|dv|web|french|vf|proper|repack|extended|unrated|imax|hybrid|complete|internal|int[eéÉ]grale"""
 
     /** Release tags, technical ones first, so that "WEB-DL" is read whole rather than as "WEB". */
     private val JUNK = Regex("""(?i)(?<![a-z0-9])($TECHNICAL_TAGS|$WORD_TAGS)(?![a-z0-9])""")
@@ -200,14 +203,14 @@ object FilenameParser {
 
     /**
      * A folder's name as a show's: up to its season's number, as a pack of a season names it, at the source's
-     * root too ("Show.Name.S01.1080p.WEB-GRP", "Show.Name.S01-S03.1080p"), or of an episode ("Show.Name.S01E01.1080p"),
-     * so that each season is not a show of its own.
+     * root too ("Show.Name.S01.1080p.WEB-GRP", "Show.Name.S01-S03.1080p", "Les.Revenants.Saison.1.FRENCH.720p"), or
+     * of an episode ("Show.Name.S01E01.1080p"), so that each season is not a show of its own.
      */
     private fun showName(folder: String): ParsedMovie =
         parseMovie(SEASON_TOKEN.find(folder)?.let { folder.substring(0, it.range.first) }?.takeIf { it.isNotBlank() } ?: folder)
 
-    /** A pack's season or seasons, or an episode's numbers, in a folder's name: "S01", "S01-S03", "S01E01". */
-    private val SEASON_TOKEN = Regex("""(?i)(?<![a-z0-9])s\d{1,2}(?:e\d{1,4}|-s?\d{1,2})?(?![a-z0-9])""")
+    /** A pack's season or seasons, or an episode's numbers, in a folder's name: "S01", "S01-S03", "S01E01", "Saison 1". */
+    private val SEASON_TOKEN = Regex("""(?i)(?<![a-z0-9])(?:s|(?:saison|season)[ ._-]?)\d{1,2}(?:e\d{1,4}|-s?\d{1,2})?(?![a-z0-9])""")
 
     /**
      * [folder] names the show [title], then from a release tag on what of it it holds: "Friends.Complete.Series.1080p",

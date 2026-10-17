@@ -253,6 +253,29 @@ class FilenameParserTest {
         )
     }
 
+    /**
+     * French packs: a season's named "Saison 1" (or "Season 1") at the source's root, and a whole show's named
+     * "Intégrale": the show is named up to them, so that its seasons are one show, not "Les Revenants Saison 1".
+     */
+    @Test
+    fun frenchPacksAreNamedUpToWhatTheyHold() {
+        assertEquals(
+            Triple("Les Revenants", null, "Les.Revenants.Saison.1.FRENCH.720p"),
+            show("Les.Revenants.Saison.1.FRENCH.720p/Les.Revenants.S01E01.FRENCH.720p.mkv"),
+        )
+        assertEquals(Triple("Les Revenants", null, "Les Revenants Saison 2"), show("Les Revenants Saison 2/Les Revenants - S02E01.mkv"))
+        assertEquals(Triple("Les Revenants", null, "Les Revenants - Season 02"), show("Les Revenants - Season 02/Les.Revenants.S02E01.mkv"))
+        assertEquals(Triple("Show", null, "Show.Integrale.1080p"), show("Show.Integrale.1080p/Saison 1/01 - Pilote.mkv"))
+        assertEquals(
+            Triple("Kaamelott", null, "Kaamelott.INTÉGRALE.MULTi.1080p"),
+            show("Kaamelott.INTÉGRALE.MULTi.1080p/Livre 1/Kaamelott.S01E01.mkv"),
+        )
+        assertEquals(ParsedMovie("Kaamelott", null), movie("Kaamelott Intégrale 1080p.mkv"))
+        // Words of titles still: "Season" before no number, "Intégrale" before no technical tag.
+        assertEquals(Triple("Season of the Witch", null, "Season of the Witch"), show("Season of the Witch/Season.of.the.Witch.S01E01.mkv"))
+        assertEquals(ParsedMovie("L'Intégrale", null), movie("L'Intégrale.mkv"))
+    }
+
     /** The year of a show is its folder's, else its name's at the source's root; specials are season 0. */
     @Test
     fun showYearsAndSpecials() {
