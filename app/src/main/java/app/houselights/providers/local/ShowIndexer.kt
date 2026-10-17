@@ -65,8 +65,9 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
             nfo = nfo,
             meta = meta,
             thumb = art.thumb,
-            // A refresh TMDB did not answer is asked again at a later pass, the show's lookup with it.
-            matchedAt = if (answered) now else base.matchedAt.takeUnless { refreshMetadata },
+            // A refresh TMDB did not answer is asked again at a later pass, the show's lookup with it; so is an
+            // episode of a show left unmatched (TMDB did not answer it): through it, a later pass looks the show up.
+            matchedAt = if (answered) now else base.matchedAt.takeUnless { refreshMetadata || series.matchedAt == null },
         )
         val stale = MediaProbe.isStale(episode.mediaInfo) || episode.sizeChanged(file)
         val probed = (if (stale) files.mediaFields(source, file, episode) else episode).withNfoStreams(nfo)
@@ -274,7 +275,7 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
     /**
      * Saves a show's details (see [MetadataMerge]) and its cast. Matched only when TMDB answered: a
      * show saved from its NFO or its poster alone is looked up at a later scan, and so is one TMDB did
-     * not answer for a [refresh].
+     * not answer for a [refresh], or for an NFO waiting for its word.
      */
     @Suppress("LongParameterList") // One per source of a show's details, as for a film.
     private suspend fun saveShow(
@@ -290,13 +291,11 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
         val ids = tv?.externalIds
         // Matched by hand, a show TMDB gives nothing for now keeps what it had: an NFO only TMDB's
         // ids can tell of (IMDb's, TVDB's) waits for them, rather than its title and cast win meanwhile.
-        val untold = base.userTmdbId != null && tv == null
-        val nfo = nfoInfo?.takeUnless {
-            untold && it.tmdbId == null && (it.imdbId != null || it.tvdbId != null) ||
-                MetadataMerge.describesOther(it, base.userTmdbId, ids?.imdbId, ids?.tvdbId)
-        }
+        val untold = base.userTmdbId != null && tv == null && nfoInfo?.tmdbId == null &&
+            (nfoInfo?.imdbId != null || nfoInfo?.tvdbId != null)
+        val nfo = nfoInfo?.takeUnless { untold || MetadataMerge.describesOther(it, base.userTmdbId, ids?.imdbId, ids?.tvdbId) }
         val details = tv?.details(tmdb?.tvCertification(tv), tmdb?.pickLogo(tv.images))
-        val matchedAt = if (lookup is TmdbAnswer.Given) now else base.matchedAt.takeUnless { refresh }
+        val matchedAt = if (lookup is TmdbAnswer.Given) now else base.matchedAt.takeUnless { refresh || untold }
         val series = MetadataMerge.merge(base, nfo, details, art).copy(matchedAt = matchedAt)
         dao.saveScanned(series)
         MetadataMerge.cast(series.id, nfo, tv?.credits)?.let { dao.replaceCast(series.id, it) }
