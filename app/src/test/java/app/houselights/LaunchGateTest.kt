@@ -14,9 +14,9 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * The launch screen holds while the gate is shut, as the splash screen asks it at each frame
- * ([LaunchGate.keepOnScreen]): until home has its rows and its first pictures, at once when the app
- * starts elsewhere, never past the cap; and it opens once, said once in the log.
+ * The launch screen covers the app while the gate is shut: until home has its rows and its first
+ * pictures in memory and has drawn its first frame whole under it, at once when the app starts
+ * elsewhere, never past the cap; and it opens once, said once in the log.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class LaunchGateTest {
@@ -26,21 +26,34 @@ class LaunchGateTest {
     private val gate = LaunchGate(sinceStart = { now }, capMs = 1_500, report = { said += it })
 
     @Test
-    fun itHoldsUntilHomeHasItsRowsAndItsPictures() {
-        assertTrue(gate.keepOnScreen())
-        now = 430
+    fun itHoldsUntilHomeHasDrawnItsFirstFrameWhole() {
+        assertFalse(gate.isOpen)
+        now = 215
         gate.homeLoaded()
-        assertTrue("rows alone: the pictures would fill in after", gate.keepOnScreen())
-        now = 790
+        assertFalse("rows alone: the pictures would fill in after", gate.isOpen)
+        now = 500
         gate.picturesLoaded()
-        assertFalse(gate.keepOnScreen())
+        assertFalse("rows and pictures in memory, but home has yet to draw them", gate.isOpen)
+        now = 560
+        gate.homeDrawn()
+        assertEquals(Reason.READY, gate.reason)
+    }
+
+    /** Home drew its rows and its backdrop while the cards' pictures were still on their way: they come first. */
+    @Test
+    fun aFrameDrawnBeforeThePicturesWaitsForThem() {
+        gate.homeLoaded()
+        gate.homeDrawn()
+        assertFalse(gate.isOpen)
+        gate.picturesLoaded()
         assertEquals(Reason.READY, gate.reason)
     }
 
     @Test
-    fun picturesBeforeRowsAreNotEnough() {
+    fun picturesAndAFrameBeforeRowsAreNotEnough() {
         gate.picturesLoaded()
-        assertTrue(gate.keepOnScreen())
+        gate.homeDrawn()
+        assertFalse(gate.isOpen)
         gate.homeLoaded()
         assertEquals(Reason.READY, gate.reason)
     }
@@ -49,24 +62,17 @@ class LaunchGateTest {
     fun itOpensAtOnceWhenTheAppStartsElsewhere() {
         now = 180
         gate.startsElsewhere()
-        assertFalse(gate.keepOnScreen())
+        assertTrue(gate.isOpen)
         assertEquals(Reason.START_SCREEN, gate.reason)
     }
 
+    /** A NAS slow to send the pictures, or a home slow to draw them, never holds the app. */
     @Test
-    fun aFrameAtTheCapOpensIt() {
-        gate.homeLoaded()
-        now = 1_499
-        assertTrue(gate.keepOnScreen())
-        now = 1_500
-        assertFalse("a NAS slow to send the pictures never holds the app", gate.keepOnScreen())
-        assertEquals(Reason.CAP, gate.reason)
-    }
-
-    @Test
-    fun theCapOpensItWithoutAFrame() = runTest {
+    fun theCapOpensIt() = runTest {
         val timed = LaunchGate(sinceStart = { testScheduler.currentTime + STARTED }, capMs = 1_500, report = { said += it })
         backgroundScope.launch { timed.openAtCap() }
+        timed.homeLoaded()
+        timed.homeDrawn()
         advanceTimeBy(1_500 - STARTED - 1)
         assertNull(timed.reason)
         advanceTimeBy(2)
@@ -75,12 +81,11 @@ class LaunchGateTest {
 
     @Test
     fun itOpensOnceForTheFirstReason() {
-        now = 1_600
-        gate.keepOnScreen()
+        gate.startsElsewhere()
         gate.homeLoaded()
         gate.picturesLoaded()
-        gate.startsElsewhere()
-        assertEquals(Reason.CAP, gate.reason)
+        gate.homeDrawn()
+        assertEquals(Reason.START_SCREEN, gate.reason)
         assertEquals("said once", 1, said.size)
     }
 
@@ -99,26 +104,35 @@ class LaunchGateTest {
     fun theLogSaysWhenAndWhy() {
         now = 120
         gate.settingsRead()
-        now = 430
+        now = 215
         gate.homeLoaded()
-        now = 790
+        now = 500
         gate.picturesLoaded()
+        now = 560
+        gate.homeDrawn()
         assertEquals(
-            listOf("Launch screen left 790 ms after the process started: ready (settings at 120 ms, rows at 430 ms, pictures at 790 ms)"),
+            listOf(
+                "Launch screen left 560 ms after the process started: ready " +
+                    "(settings at 120 ms, rows at 215 ms, pictures at 500 ms, home drawn at 560 ms)",
+            ),
             said,
         )
     }
 
     @Test
-    fun theLogSaysWhatTheCapCameBefore() {
+    fun theLogSaysWhatTheCapCameBefore() = runTest {
+        val timed = LaunchGate(sinceStart = { now }, capMs = 1_500, report = { said += it })
         now = 120
-        gate.settingsRead()
+        timed.settingsRead()
         now = 430
-        gate.homeLoaded()
+        timed.homeLoaded()
         now = 1_517
-        gate.keepOnScreen()
+        timed.openAtCap()
         assertEquals(
-            listOf("Launch screen left 1517 ms after the process started: cap (settings at 120 ms, rows at 430 ms, pictures not in)"),
+            listOf(
+                "Launch screen left 1517 ms after the process started: cap " +
+                    "(settings at 120 ms, rows at 430 ms, pictures not in, home not drawn)",
+            ),
             said,
         )
     }

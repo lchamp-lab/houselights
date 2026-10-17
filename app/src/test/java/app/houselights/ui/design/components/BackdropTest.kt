@@ -5,6 +5,8 @@ import android.graphics.Bitmap
 import android.graphics.drawable.BitmapDrawable
 import android.net.Uri
 import androidx.test.core.app.ApplicationProvider
+import app.houselights.core.ImageRef
+import coil.Coil
 import coil.ImageLoader
 import coil.decode.DataSource
 import coil.decode.ImageSource
@@ -62,6 +64,28 @@ class BackdropTest {
     fun aLargerFileStillComesDownToTheScreen() {
         val picture = decoded(3840, 2160)
         assertEquals(SCREEN_W to SCREEN_H, picture.width to picture.height)
+    }
+
+    /** A picture in memory when it is asked for (loaded ahead while the launch screen held) says so: it may show at once. */
+    @Test
+    fun aBackdropKnowsWhetherItCameFromMemory() {
+        val loader = ImageLoader.Builder(context)
+            .dispatcher(Dispatchers.Unconfined)
+            .allowHardware(false)
+            .components { add(files(1280, 720)) }
+            .build()
+        Coil.setImageLoader(loader)
+        val image = ImageRef("backdrop42") { "test://backdrop/42?w=$it" }
+        try {
+            runTest {
+                val first = prepareBackdrop(context, image, "test://backdrop/42", SCREEN_W, SCREEN_H)
+                val again = prepareBackdrop(context, image, "test://backdrop/42", SCREEN_W, SCREEN_H)
+                assertEquals("read from the file", false, first?.fromMemory)
+                assertEquals("found in memory", true, again?.fromMemory)
+            }
+        } finally {
+            Coil.reset()
+        }
     }
 
     private companion object {

@@ -2,6 +2,7 @@ package app.houselights.ui.design.components
 
 import android.content.Context
 import android.graphics.Bitmap
+import androidx.compose.animation.Animatable
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
@@ -25,7 +26,9 @@ import app.houselights.core.ImageRef
 import app.houselights.ui.design.ArtworkSample
 import app.houselights.ui.design.HlMotion
 import app.houselights.ui.design.HlScrim
+import app.houselights.ui.design.LocalLaunchScreen
 import app.houselights.ui.design.greyOf
+import coil.decode.DataSource
 import coil.imageLoader
 import coil.request.CachePolicy
 import coil.request.ImageRequest
@@ -41,27 +44,40 @@ private const val SAMPLE_PX = 96
  * The light of a picture, which lights the card that has focus: a calm, mid-bright tone picked from
  * a tiny copy of the artwork, animated when the artwork changes. A state, read while drawing: screens
  * provide it as `LocalAmbient provides { ambient.value }`. No picture, or one that fails to load,
- * gives no light: transparent, and the room stays black.
+ * gives no light: transparent, and the room stays black. The first light, read while the launch
+ * screen still hides the screen ([LocalLaunchScreen]), is there when it leaves, without coming up.
  */
 @Composable
 fun rememberAmbientColor(image: ImageRef?): State<Color> {
     val context = LocalContext.current
-    var target by remember { mutableStateOf(Color.Transparent) }
+    val launch = LocalLaunchScreen.current
+    val light = remember { Animatable(Color.Transparent) }
     LaunchedEffect(image) {
-        if (image == null) {
-            target = Color.Transparent
-            return@LaunchedEffect
+        val target = image?.let { backdropSample(context, it)?.let { sample -> toneOf(sample) } } ?: Color.Transparent
+        if (light.value == Color.Transparent && launch.covers) {
+            light.snapTo(target)
+        } else {
+            light.animateTo(target, tween(HlMotion.SLOW, easing = HlMotion.standard))
         }
-        target = backdropSample(context, image)?.let { toneOf(it) } ?: Color.Transparent
     }
-    return animateColorAsState(target, tween(HlMotion.SLOW, easing = HlMotion.standard), label = "ambient")
+    return light.asState()
 }
 
 /**
  * A backdrop ready to be shown: its [picture] decoded at the size of the screen and how bright each
- * part of it is ([sample], for the veil laid over it). A picture that cannot be loaded leaves nothing.
+ * part of it is ([sample], for the veil laid over it). [fromMemory]: the picture was in memory when it
+ * was asked for (loaded ahead, while the launch screen held). [atOnce]: it shows without fading in.
+ * A picture that cannot be loaded leaves nothing.
  */
-internal class PreparedBackdrop(val picture: ImageBitmap, val sample: ArtworkSample)
+internal class PreparedBackdrop(
+    val picture: ImageBitmap,
+    val sample: ArtworkSample,
+    val fromMemory: Boolean = false,
+    val atOnce: Boolean = false,
+) {
+    /** The same picture, to show without fading in. */
+    fun shownAtOnce() = PreparedBackdrop(picture, sample, fromMemory, atOnce = true)
+}
 
 /**
  * Prepares the backdrop [image] at [url], [widthPx] by [heightPx], before it shows: the picture and
@@ -69,14 +85,13 @@ internal class PreparedBackdrop(val picture: ImageBitmap, val sample: ArtworkSam
  */
 internal suspend fun prepareBackdrop(context: Context, image: ImageRef, url: String, widthPx: Int, heightPx: Int): PreparedBackdrop? =
     coroutineScope {
-        val picture = async {
-            (context.imageLoader.execute(backdropRequest(context, url, widthPx, heightPx)) as? SuccessResult)
-                ?.drawable?.toBitmap()?.asImageBitmap()
-        }
+        val picture = async { context.imageLoader.execute(backdropRequest(context, url, widthPx, heightPx)) as? SuccessResult }
         val small = backdropSample(context, image)
         val sample = small?.let { withContext(Dispatchers.Default) { sampleOf(it) } }
-        val decoded = picture.await()
-        if (decoded == null || sample == null) null else PreparedBackdrop(decoded, sample)
+        val loaded = picture.await()
+        val decoded = loaded?.drawable?.toBitmap()?.asImageBitmap()
+        val fromMemory = loaded?.dataSource == DataSource.MEMORY_CACHE
+        if (decoded == null || sample == null) null else PreparedBackdrop(decoded, sample, fromMemory)
     }
 
 /**

@@ -86,7 +86,7 @@ internal fun SupportRow(modifier: Modifier = Modifier) {
 private fun AboutBrand() {
     Column {
         Spacer(Modifier.height(HlLayout.paneTop))
-        Wordmark(style = Hl.type.wordmark)
+        Wordmark(HlSize.wordmark)
         Spacer(Modifier.height(HlSpace.xs))
         FactRow(
             listOf(

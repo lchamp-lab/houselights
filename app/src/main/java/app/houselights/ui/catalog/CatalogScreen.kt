@@ -75,7 +75,6 @@ import app.houselights.ui.design.components.QrCode
 import app.houselights.ui.design.components.ScreenTitle
 import app.houselights.ui.design.components.SheetConfirm
 import app.houselights.ui.design.components.StatusState
-import app.houselights.ui.design.components.Wordmark
 import app.houselights.ui.design.emberLight
 import app.houselights.ui.design.tryRequestFocus
 import app.houselights.ui.util.NBSP
@@ -145,13 +144,13 @@ fun CatalogScreen() {
             }
 
             item {
-                Group("Type: the voices of the poster, of reading, technical; then the signatures", still = true) {
+                Group("Type: the voices of the poster, of reading, technical; then the signature", still = true) {
                     listOf(
                         "display" to t.display, "headline" to t.headline, "subject" to t.subject, "cardTitle" to t.cardTitle,
                         "title" to t.title, "lead" to t.lead, "body" to t.body, "entry" to t.entry, "meta" to t.meta,
                         "caption" to t.caption, "group" to t.group, "code" to t.code,
                         "spec" to t.spec, "badge" to t.badge,
-                        "billing" to t.billing, "wordmark" to t.wordmark,
+                        "billing" to t.billing,
                     ).forEach { (name, style) -> StyleSpecimen(name, style) }
                 }
             }
@@ -401,14 +400,6 @@ fun CatalogScreen() {
 
             catalogStress()
             catalogBrand()
-
-            item {
-                // Type alone, flat: large over the welcome wall, the size of a subject in About.
-                Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.xl)) {
-                    Wordmark(Modifier.alignByBaseline(), style = t.wordmarkHero)
-                    Wordmark(Modifier.alignByBaseline())
-                }
-            }
         }
     }
 }

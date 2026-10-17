@@ -147,7 +147,10 @@ internal fun HomeBands(
         rows.animateScrollToItem(0)
     }
 
-    AmbientBackdrop(shown?.backdrop, BackdropStyle.Hero) {
+    // Under the launch screen, home is whole once its rows are in, its hero shows the first title (it
+    // settles a frame after the rows) and that title's picture is prepared.
+    val whole = content !is HomeContent.Loading && (shown != null || sections.isEmpty())
+    AmbientBackdrop(shown?.backdrop, BackdropStyle.Hero, ready = whole) {
         Column(Modifier.fillMaxSize().houseLit(LocalHouseLights.current)) {
             TopBar(
                 libraries = state.libraries,

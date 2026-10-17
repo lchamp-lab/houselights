@@ -115,6 +115,12 @@ object HlSize {
     val segment = 40.dp
     val focusBorder = 2.dp
     val hairline = 1.dp
+    /**
+     * How tall the wordmark's capitals stand: in About, where a pane has its title (144 wide), and
+     * over the welcome wall (359 wide); each about as wide as the name set in type it replaced.
+     */
+    val wordmark = 12.dp
+    val wordmarkHero = 30.dp
 }
 
 /** Widths and heights of layout parts. */

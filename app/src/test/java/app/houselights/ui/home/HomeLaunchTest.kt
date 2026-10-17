@@ -33,8 +33,9 @@ import java.io.IOException
 
 /**
  * A cold start: home's rows and the pictures of its first view are asked once, while the launch
- * screen holds; the gate opens on them (or at once on another start screen, or at the cap), and
- * home shows the same rows without asking the source again.
+ * screen holds. Home takes the rows as soon as they come, without asking the source again, and is
+ * composed under the launch screen while the pictures load; the gate opens once both are in and home
+ * has drawn them (or at once on another start screen, or at the cap).
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
@@ -79,19 +80,20 @@ class HomeLaunchTest {
     private fun HomeViewModel.content() = state.value.content
 
     @Test
-    fun theGateOpensOnHomesRowsAndItsPictures() = runTest {
+    fun homeTakesTheRowsUnderTheLaunchScreenWhileThePicturesLoad() = runTest {
         val loaded = CompletableDeferred<Unit>()
         pictures = { loaded.await() }
         val gate = gate()
         val launch = coldStart(gate)
         val vm = home(launch)
         advanceTimeBy(100)
-        assertTrue("the rows are in, the pictures not yet", gate.keepOnScreen())
-        assertEquals("home waits under the launch screen", HomeContent.Loading(firstScan = false), vm.content())
+        assertEquals("home is composed with its rows under the launch screen", HomeContent.Rows(rows, firstScan = false), vm.content())
+        assertNull("the pictures are not in yet", gate.reason)
         loaded.complete(Unit)
         runCurrent()
+        assertNull("home has yet to draw them", gate.reason)
+        gate.homeDrawn()
         assertEquals(Reason.READY, gate.reason)
-        assertEquals(HomeContent.Rows(rows, firstScan = false), vm.content())
         assertEquals(listOf(HomeRows(provider.libraries, rows)), picturesAsked)
     }
 
@@ -126,12 +128,14 @@ class HomeLaunchTest {
         }
         val gate = gate()
         val vm = home(coldStart(gate))
-        advanceTimeBy(CAP - 1)
+        advanceTimeBy(100)
+        assertEquals("the rows show at once", HomeContent.Rows(rows, firstScan = false), vm.content())
+        gate.homeDrawn()
+        advanceTimeBy(CAP - 100 - 1)
         assertNull(gate.reason)
         advanceTimeBy(2)
         assertEquals(Reason.CAP, gate.reason)
         runCurrent()
-        assertEquals("the rows show at once", HomeContent.Rows(rows, firstScan = false), vm.content())
         assertTrue("home asks for its pictures itself, not twice", cancelled)
     }
 
@@ -179,6 +183,7 @@ class HomeLaunchTest {
         assertNull(gate.reason)
         settings.value = AppSettings(loaded = true, source = SourceConfig.Local)
         runCurrent()
+        gate.homeDrawn()
         assertEquals(Reason.READY, gate.reason)
     }
 
@@ -196,9 +201,11 @@ class HomeLaunchTest {
         provider.fail = { IOException("NAS asleep") }
         val gate = gate()
         val vm = home(coldStart(gate))
-        advanceUntilIdle()
-        assertEquals(Reason.READY, gate.reason)
+        advanceTimeBy(100)
         assertEquals(HomeContent.Failed(UiError.OFFLINE, retrying = false), vm.content())
+        gate.homeDrawn()
+        assertEquals("home drew why: the launch screen leaves", Reason.READY, gate.reason)
+        advanceUntilIdle()
         assertTrue("nothing to show: no pictures", picturesAsked.isEmpty())
         assertEquals("no call twice", provider.calls.distinct(), provider.calls)
     }
@@ -245,6 +252,23 @@ class HomeLaunchTest {
         val unchanged = coldStart(gate())
         advanceUntilIdle()
         assertEquals(HomeRows(provider.libraries, rows), unchanged.take(SourceConfig.Local))
+    }
+
+    /**
+     * The first window closed under the launch screen (Back), the process kept: the rows the launch
+     * read go with it, so a later warm start never shows rows of that moment (a Jellyfin server's
+     * changes never move the library's version).
+     */
+    @Test
+    fun theRowsGoWhenTheFirstWindowFinishes() = runTest {
+        val launch = coldStart(gate())
+        advanceUntilIdle()
+        launch.drop()
+        assertNull(launch.take(SourceConfig.Local))
+        val vm = home(launch)
+        advanceUntilIdle()
+        assertEquals(HomeContent.Rows(rows, firstScan = false), vm.content())
+        assertEquals("home asked again", listOf("home", "home", "libraries", "libraries"), provider.calls.sorted())
     }
 
     private companion object {

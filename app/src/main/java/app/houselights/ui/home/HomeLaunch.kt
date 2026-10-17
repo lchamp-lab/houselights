@@ -8,9 +8,11 @@ import app.houselights.core.MediaProvider
 import app.houselights.core.SourceConfig
 import app.houselights.core.suspendRunCatching
 import app.houselights.settings.AppSettings
+import app.houselights.ui.design.components.LoadingAhead
 import app.houselights.ui.design.components.PicturesAhead
 import coil.imageLoader
 import coil.request.ImageRequest
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
@@ -26,10 +28,11 @@ data class HomeRows(val libraries: List<Library>, val sections: List<HomeSection
 
 /**
  * Home's first rows and the pictures of its first view, asked once at a cold start, while the launch
- * screen holds ([LaunchGate]): the gate opens on them, and home takes the same rows instead of asking
- * the source again ([take]), its pictures found in memory. The rows come from the [provider] of the
- * source in the [settings]; [version] is the library's ([app.houselights.core.LibraryEvents]), and
- * rows read before it moved on are never shown.
+ * screen holds ([LaunchGate]). Home takes the same rows as soon as they come instead of asking the
+ * source again ([take]), and is composed and drawn under the launch screen while the pictures load,
+ * finding them in memory; the gate opens once they are in and home drew them. The rows come from the
+ * [provider] of the source in the [settings]; [version] is the library's
+ * ([app.houselights.core.LibraryEvents]), and rows read before it moved on are never shown.
  */
 class HomeLaunch(
     private val gate: LaunchGate,
@@ -42,7 +45,11 @@ class HomeLaunch(
 
     private var begun = false
 
-    /** What the launch asked, until home takes it; its answer is null when nothing was asked (the app started elsewhere). */
+    /**
+     * What the launch asked, until home takes it or the first window finishes ([drop]): its answer
+     * comes with the rows, before the pictures, and is null when nothing was asked (the app started
+     * elsewhere).
+     */
     @Volatile
     private var asked: Deferred<Asked?>? = null
 
@@ -50,7 +57,7 @@ class HomeLaunch(
      * Begins the launch as the first window of the process opens, once: [restored], a window the
      * system brings back on the screen it showed, opens the gate at once. Else, once the settings are
      * read, home's libraries and rows are asked in parallel, then [pictures] loads the pictures of its
-     * first view into memory, all off the main thread ([work]).
+     * first view into memory while home takes the rows, all off the main thread ([work]).
      */
     fun begin(
         scope: CoroutineScope,
@@ -67,17 +74,26 @@ class HomeLaunch(
             gate.startsElsewhere()
             return
         }
-        asked = scope.async(work) { prepare(pictures) }
+        val answer = CompletableDeferred<Asked?>()
+        asked = answer
+        scope.launch(work) {
+            try {
+                prepare(pictures, answer)
+            } finally {
+                // Nothing asked, or the launch's work cut short: home asks itself.
+                answer.complete(null)
+            }
+        }
     }
 
-    private suspend fun prepare(pictures: suspend (HomeRows) -> Unit): Asked? {
+    private suspend fun prepare(pictures: suspend (HomeRows) -> Unit, answer: CompletableDeferred<Asked?>) {
         val read = settings.first { it.loaded || it.readFailed }
         gate.settingsRead()
         // Welcome, or the settings that could not be read: the app does not start on home.
         val source = read.source?.takeIf { read.loaded }
         if (source == null) {
             gate.startsElsewhere()
-            return null
+            return
         }
         val at = version()
         val rows = suspendRunCatching {
@@ -88,11 +104,12 @@ class HomeLaunch(
                 HomeRows(libraries.await(), sections.await())
             }
         }
-        // A failure is home's first content too: it says why.
+        // A failure is home's first content too: it says why. Home takes it at once, and is
+        // composed under the launch screen while the pictures load.
         gate.homeLoaded()
+        answer.complete(Asked(source, at, rows))
         rows.onSuccess { load(it, pictures) }
         gate.picturesLoaded()
-        return Asked(source, at, rows)
     }
 
     /**
@@ -111,29 +128,32 @@ class HomeLaunch(
     }
 
     /**
-     * Home's first load: the rows the launch asked of [source], once the launch screen leaves; null
-     * when none were asked, once taken, or when they were another source's or the library has moved
-     * on since (the first window closed before home showed, and the app opens again later). Their
-     * failure, if they failed, is home's to say.
+     * Home's first load: the rows the launch asked of [source], as soon as they come, under the launch
+     * screen; null when none were asked, once taken or dropped, or when they were another source's or
+     * the library has moved on since. Their failure, if they failed, is home's to say.
      */
     suspend fun take(source: SourceConfig?): HomeRows? {
         val launched = synchronized(this) { asked.also { asked = null } } ?: return null
-        gate.awaitOpen()
         val answer = launched.await() ?: return null
         if (answer.source != source || answer.version != version()) return null
         return answer.rows.getOrThrow()
     }
+
+    /**
+     * The first window finished before home took the rows (Back under the launch screen), the
+     * process kept: they go with it, and a later window's home asks the source, never showing rows
+     * of that moment (a Jellyfin server's changes never move the library's version).
+     */
+    fun drop() = synchronized(this) { asked = null }
 }
 
 /**
  * Loads into memory the pictures home's first view shows on a screen [screenWidthPx] wide
- * ([firstPictures]), all at once.
+ * ([firstPictures]), all at once: home, composed meanwhile, waits for each one it asks for
+ * ([LoadingAhead]), never loading it twice.
  */
 internal fun loadFirstPictures(context: Context, screenWidthPx: Int): suspend (HomeRows) -> Unit = { rows ->
-    val loader = context.imageLoader
-    coroutineScope {
-        firstPictures(PicturesAhead(context, screenWidthPx), rows.sections).forEach { launch { loader.execute(it) } }
-    }
+    LoadingAhead.load(context.imageLoader, firstPictures(PicturesAhead(context, screenWidthPx), rows.sections))
 }
 
 /**
