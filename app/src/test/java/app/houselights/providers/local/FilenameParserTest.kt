@@ -333,12 +333,13 @@ class FilenameParserTest {
 
     /**
      * A folder of a year of the show naming what of it it holds besides, a season or a release's tags, after its year
-     * in parentheses as media managers write it: a show of its own too. A scene pack's year stays its show folder's.
+     * in parentheses as media managers write it: a show of its own too; a season's pack gives the year, and the show
+     * stays in the folder of its name, which its tvshow.nfo describes. A scene pack's year stays its show folder's.
      */
     @Test
     fun aYearsFolderNamingASeasonOrTagsBesides() {
         assertEquals(
-            Triple("Doctor Who", 2005, "Doctor Who/Doctor Who (2005) - S01"),
+            Triple("Doctor Who", 2005, "Doctor Who"),
             show("Doctor Who/Doctor Who (2005) - S01/Doctor Who - S01E01 - Rose.mkv"),
         )
         assertEquals(
@@ -346,8 +347,16 @@ class FilenameParserTest {
             show("Doctor Who/Doctor Who (1963) 1080p/Season 01/Doctor.Who.S01E01.mkv"),
         )
         assertEquals(
-            Triple("Doctor Who", 2005, "Doctor Who/Doctor Who [2005] Saison 2 MULTi 1080p"),
+            Triple("Doctor Who", 2005, "Doctor Who"),
             show("Doctor Who/Doctor Who [2005] Saison 2 MULTi 1080p/Doctor.Who.S02E01.mkv"),
+        )
+        assertEquals(
+            Triple("Breaking Bad", 2008, "Breaking Bad"),
+            show("Breaking Bad/Breaking Bad (2008) Season 2 S02 (1080p BluRay x265 Silence)/Breaking Bad (2008) - S02E01 - 737.mkv"),
+        )
+        assertEquals(
+            Triple("Breaking Bad", 2008, "Breaking Bad (2008) Season 2 S02 (1080p BluRay x265 Silence)"),
+            show("Breaking Bad (2008) Season 2 S02 (1080p BluRay x265 Silence)/Breaking Bad (2008) - S02E01 - 737.mkv"),
         )
         assertEquals(Triple("Severance", null, "Severance"), show("Severance/Severance.2022.1080p.WEB/Season 1/Severance.S01E01.mkv"))
         assertEquals(Triple("Severance", null, "Severance"), show("Severance/Severance 2022 S01 1080p/Severance.S01E01.mkv"))

@@ -260,6 +260,24 @@ class ScanNamesTest {
         assertEquals(listOf("doctor who|1963" to 1963, "doctor who|2005" to 2005), series().map { it.matchKey to it.year })
     }
 
+    /**
+     * A show's folder holding a pack for each season, each naming the show's year in parentheses: one show of that
+     * year, still described by its own folder, its tvshow.nfo and its seasons' posters there, not by a season's pack.
+     */
+    @Test
+    fun aShowsSeasonPacksNamingItsYearStayInItsFolder() = runTest {
+        showsNas.put("Breaking Bad/tvshow.nfo", size = BREAKING_BAD.size.toLong(), bytes = BREAKING_BAD)
+        showsNas.put("Breaking Bad/season02-poster.jpg", size = 100, bytes = ByteArray(100))
+        showsNas.put("Breaking Bad/Breaking Bad (2008) Season 1 S01 (1080p BluRay x265 Silence)/Breaking Bad (2008) - S01E01 - Pilot.mkv")
+        showsNas.put("Breaking Bad/Breaking Bad (2008) Season 2 S02 (1080p BluRay x265 Silence)/Breaking Bad (2008) - S02E01 - 737.mkv")
+        bench.scan()
+
+        val show = series().single()
+        assertEquals("breaking bad|2008", show.matchKey)
+        assertEquals("Breaking Bad/tvshow.nfo", show.nfoPath)
+        assertTrue(bench.dao.season(show.id, 2)?.posterPath.isCachedArtwork())
+    }
+
     /** A folder of kinds above the shows: each show is its own, described by its own folder. */
     @Test
     fun showsUnderAFolderOfKindsAreTheirOwn() = runTest {
@@ -325,5 +343,6 @@ class ScanNamesTest {
 
     private companion object {
         val ARCANE = "<tvshow><title>Arcane</title><year>2021</year></tvshow>".toByteArray()
+        val BREAKING_BAD = "<tvshow><title>Breaking Bad</title><year>2008</year></tvshow>".toByteArray()
     }
 }
