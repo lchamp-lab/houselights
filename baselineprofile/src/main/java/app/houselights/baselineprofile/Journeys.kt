@@ -86,6 +86,29 @@ internal fun MacrobenchmarkScope.browseSettings() {
     back(2)
 }
 
+/**
+ * A search from home's bar: a few letters typed on its keys, what it finds read, then home. None for
+ * a source that cannot search.
+ */
+internal fun MacrobenchmarkScope.browseSearch() {
+    up(2)
+    right(4)
+    if (!focusSays(appString("search"))) focusOn(appString("search"), KeyEvent.KEYCODE_DPAD_LEFT, max = 3)
+    ok()
+    await(By.text(appString("search_hint")), "the search")
+    // A, M, E: down the keys, then up and along them.
+    ok()
+    down(2)
+    ok()
+    up(2)
+    right(4)
+    ok()
+    val found = listOf("search_titles", "search_people", "search_sagas").joinToString("|") { Pattern.quote(appString(it)) }
+    val none = Pattern.quote(appString("search_none").substringBefore("%"))
+    await(By.text(Pattern.compile("$found|$none.*")), "what the search found")
+    back()
+}
+
 /** Waits for a detail page: its play button, Lire or Reprendre. */
 private fun MacrobenchmarkScope.awaitDetail() {
     val play = Pattern.compile(Pattern.quote(appString("play")) + "|" + Pattern.quote(appString("resume")))
