@@ -27,7 +27,7 @@ import app.houselights.ui.design.QrCodeDefaults
 /**
  * An address to open on a phone: its QR code, then the [address] as written, for whoever types it.
  * [code] is a vector of the code's dark modules, one unit of its viewport each, as `qrencode` writes
- * them. They are drawn black on projector white, the one light ground of the app, since a reader
+ * them. They are drawn black on projector white, the one light ground at rest, since a reader
  * looks for dark modules on a light one, with the quiet zone readers need around them, at whole
  * pixels ([QrCodeDefaults]); the address under it in the technical voice. Read out as one element:
  * a QR code, and its address.
