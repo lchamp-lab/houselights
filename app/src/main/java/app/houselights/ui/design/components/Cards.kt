@@ -185,15 +185,7 @@ fun ArtworkSurface(
     // Coming back into its row, focus returns to the card that had it last.
     val group = LocalGroupFocus.current
     val member = rememberGroupMember(group)
-    // Outside the surface's own semantics: clearing them drops its click, keeping its focus said.
-    val reading = if (readAs != null) {
-        Modifier.clearAndSetSemantics {
-            contentDescription = readAs
-            this.focused = focusedNow
-        }
-    } else {
-        Modifier.semantics(mergeDescendants = true) { stateDescription?.let { this.stateDescription = it } }
-    }
+    val reading = cardReading(readAs, stateDescription, focusedNow)
     Surface(
         onClick = onClick,
         modifier = modifier
@@ -226,6 +218,19 @@ fun ArtworkSurface(
             }
         )
     }
+}
+
+/**
+ * How a card reads to accessibility services: what it holds and its [stateDescription], or [readAs]
+ * alone, outside the surface's own semantics (clearing them drops its click, keeping its focus said).
+ */
+private fun cardReading(readAs: String?, stateDescription: String?, focused: Boolean): Modifier = if (readAs != null) {
+    Modifier.clearAndSetSemantics {
+        contentDescription = readAs
+        this.focused = focused
+    }
+} else {
+    Modifier.semantics(mergeDescendants = true) { stateDescription?.let { this.stateDescription = it } }
 }
 
 /**

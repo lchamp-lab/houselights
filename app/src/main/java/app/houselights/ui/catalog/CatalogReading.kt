@@ -91,7 +91,13 @@ private fun ReadingTitleArtSection() {
                 )
             }
             Specimen("detail page, measured: short at its own size, long on even lines", Modifier.weight(1f), gap = HlSpace.xxs) {
-                TitleArt(title = "Ran", logo = null, maxWidth = HlLayout.titleArtWidth, maxHeight = HlLayout.titleArtHeight, measured = true)
+                TitleArt(
+                    title = "Ran",
+                    logo = null,
+                    maxWidth = HlLayout.titleArtWidth,
+                    maxHeight = HlLayout.titleArtHeight,
+                    measured = true,
+                )
                 TitleArt(
                     title = "Les Sept Samouraïs",
                     logo = null,
@@ -277,7 +283,11 @@ private fun ReadingHeroInfoSection() {
             }
         }
         ReadingRow {
-            Specimen("a wall's line, said with its picture: here at once, no backdrop under it", Modifier.width(HlLayout.readableNarrow), gap = HlSpace.xxs) {
+            Specimen(
+                "a wall's line, said with its picture: here at once, no backdrop under it",
+                Modifier.width(HlLayout.readableNarrow),
+                gap = HlSpace.xxs,
+            ) {
                 WithItsPicture(READING_HERO_FILM) { TitleLine(it) }
             }
         }

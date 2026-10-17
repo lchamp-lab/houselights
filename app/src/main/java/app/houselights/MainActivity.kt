@@ -98,7 +98,8 @@ import app.houselights.settings.SettingsStore
 import app.houselights.settings.outputModes
 import app.houselights.ui.design.Scrub
 import androidx.compose.animation.EnterTransition
-import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.core.snap
 import app.houselights.ui.design.components.BackdropRelay
 import app.houselights.ui.design.components.LeavingBackdrop
 import app.houselights.ui.design.components.LocalBackdropRelay
@@ -392,12 +393,13 @@ private fun AppNavigation(nav: NavHostController, onPlay: (MediaItem, Boolean) -
     }
 
     // Screens cut, as films do, never two faded together: the picture stays across the cut
-    // (BackdropRelay), the words change at once.
+    // (BackdropRelay), the words change at once. The screen left is gone from the first frame,
+    // though composed for that frame still: never seen under one without a backdrop.
     NavHost(
         nav,
         startDestination = start,
         enterTransition = { EnterTransition.None },
-        exitTransition = { ExitTransition.None },
+        exitTransition = { fadeOut(snap()) },
     ) {
         composable<Route.Welcome> {
             // Never said again on a later visit (signed out, a connection lost).

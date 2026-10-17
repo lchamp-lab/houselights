@@ -37,7 +37,10 @@ internal class EvenLogo(private val boxWidth: Int, private val boxHeight: Int) :
     }
 }
 
-/** How a logo is set: the part of it that holds ink, [left] to [right] and [top] to [bottom] (excluded), and the size it is drawn at, in px. */
+/**
+ * How a logo is set: the part of it that holds ink, [left] to [right] and [top] to [bottom]
+ * (excluded), and the size it is drawn at, in px.
+ */
 internal class LogoPlan(val left: Int, val top: Int, val right: Int, val bottom: Int, val width: Int, val height: Int)
 
 /**
@@ -49,38 +52,46 @@ internal class LogoPlan(val left: Int, val top: Int, val right: Int, val bottom:
  * Null for a logo without ink.
  */
 internal fun planLogo(pixels: IntArray, width: Int, height: Int, boxWidth: Int, boxHeight: Int): LogoPlan? {
-    var left = width
-    var top = height
-    var right = -1
-    var bottom = -1
-    var ink = 0L
-    for (y in 0 until height) {
-        val row = y * width
-        for (x in 0 until width) {
-            val alpha = pixels[row + x] ushr ALPHA_SHIFT
-            if (alpha > INK_FLOOR) {
-                if (x < left) left = x
-                if (x > right) right = x
-                if (y < top) top = y
-                bottom = y
-            }
-            ink += alpha
-        }
-    }
-    if (right < 0) return null
-    val inkWidth = right - left + 1
-    val inkHeight = bottom - top + 1
-    val coverage = max(MIN_COVERAGE, ink / (OPAQUE * inkWidth * inkHeight))
+    val found = inkOf(pixels, width, height) ?: return null
+    val left = found.left
+    val top = found.top
+    val inkWidth = found.right - left + 1
+    val inkHeight = found.bottom - top + 1
+    val coverage = max(MIN_COVERAGE, found.alpha / (OPAQUE * inkWidth * inkHeight))
     val area = SURFACE * boxWidth * boxHeight / coverage.pow(INK_WEIGHT)
     val ratio = inkWidth.toDouble() / inkHeight
     val h = sqrt(area / ratio)
     val w = h * ratio
     val fit = minOf(1.0, boxWidth / w, boxHeight / h, inkWidth / w)
     return LogoPlan(
-        left, top, right + 1, bottom + 1,
+        left, top, found.right + 1, found.bottom + 1,
         (w * fit).roundToInt().coerceAtLeast(1),
         (h * fit).roundToInt().coerceAtLeast(1),
     )
+}
+
+/** Where a logo's ink lies, its last column and row included, and the sum of its alpha. */
+private class Ink(val left: Int, val top: Int, val right: Int, val bottom: Int, val alpha: Long)
+
+/** The ink of a logo [width] by [height] px of ARGB [pixels]: null when there is none. */
+private fun inkOf(pixels: IntArray, width: Int, height: Int): Ink? {
+    var left = width
+    var top = height
+    var right = -1
+    var bottom = -1
+    var sum = 0L
+    for (i in pixels.indices) {
+        val alpha = pixels[i] ushr ALPHA_SHIFT
+        sum += alpha
+        if (alpha <= INK_FLOOR) continue
+        val x = i % width
+        val y = i / width
+        if (x < left) left = x
+        if (x > right) right = x
+        if (y < top) top = y
+        bottom = y
+    }
+    return if (right < 0) null else Ink(left, top, right, bottom, sum)
 }
 
 /** Alpha at or under which a pixel is the logo's margin, not its ink (anti-aliasing haze, a faint glow). */

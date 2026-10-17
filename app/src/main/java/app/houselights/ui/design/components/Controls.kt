@@ -498,11 +498,17 @@ private fun SegmentItem(
                 SegmentDetail.Done -> {
                     Spacer(Modifier.width(HlSpace.xs))
                     // Done, as the watched button says it: a white check, dark under focus.
-                    Icon(HlIcons.Check, contentDescription = null, tint = if (focused) c.onFocus else c.content, modifier = Modifier.size(HlSize.inlineIcon))
+                    Icon(
+                        HlIcons.Check,
+                        contentDescription = null,
+                        tint = if (focused) c.onFocus else c.content,
+                        modifier = Modifier.size(HlSize.inlineIcon),
+                    )
                 }
                 is SegmentDetail.Count -> {
                     Spacer(Modifier.width(HlSpace.xs))
-                    Text(detail.text, style = Hl.type.meta, color = FocusStyle.quietInk(focused, enabled = true, lit = false), maxLines = 1, softWrap = false)
+                    val ink = FocusStyle.quietInk(focused, enabled = true, lit = false)
+                    Text(detail.text, style = Hl.type.meta, color = ink, maxLines = 1, softWrap = false)
                 }
             }
         }
