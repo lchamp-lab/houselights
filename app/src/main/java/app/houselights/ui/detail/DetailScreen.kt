@@ -363,6 +363,8 @@ private fun Hero(
                 logo = item.logo,
                 maxWidth = HlLayout.titleArtWidth,
                 maxHeight = HlLayout.titleArtHeight,
+                // Without its logo, the title is set to its measure, as on a poster.
+                measured = true,
             )
             Spacer(Modifier.height(HlSpace.l))
             if (isEpisode) {

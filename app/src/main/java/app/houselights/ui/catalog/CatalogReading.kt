@@ -89,6 +89,16 @@ private fun ReadingTitleArtSection() {
                     maxHeight = HlLayout.titleArtHeight,
                 )
             }
+            Specimen("detail page, measured: short at its own size, long on even lines", Modifier.weight(1f), gap = HlSpace.xxs) {
+                TitleArt(title = "Ran", logo = null, maxWidth = HlLayout.titleArtWidth, maxHeight = HlLayout.titleArtHeight, measured = true)
+                TitleArt(
+                    title = "Les Sept Samouraïs",
+                    logo = null,
+                    maxWidth = HlLayout.titleArtWidth,
+                    maxHeight = HlLayout.titleArtHeight,
+                    measured = true,
+                )
+            }
             Specimen("browsing hero size", Modifier.weight(1f), gap = HlSpace.xxs) {
                 TitleArt(
                     title = "Twin Peaks",

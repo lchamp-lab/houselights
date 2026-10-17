@@ -36,7 +36,7 @@ with discipline everywhere: one family, **Archivo**, whose widths are the voices
 
 | Voice | Width | What it says | Styles |
 |---|---|---|---|
-| The poster | condensed (70) | titles, what a panel is about, large figures; the billing block | `display`, `headline`, `subject`, `cardTitle`; `billing` |
+| The poster | condensed (70) | titles, what a panel is about, large figures; the billing block | `display`, `headline`, `subject`, `cardTitle`; `titleSignature`, `billing` |
 | Reading | normal (100) | everything read or chosen: overviews, names in lists, the words of buttons, values | `title`, `lead`, `body`, `entry`, `meta`, `caption`, `group` |
 | Technical | expanded (125), tabular figures | formats and specifications: short, set apart | `spec`, `badge` |
 | The brand | expanded (125), weight 720 | the wordmark alone | `wordmark` |
@@ -278,6 +278,7 @@ family, weight or tracking (`DesignTokenGuardTest`): it picks another role, or t
 | `code` | 14 / 22 | monospace, Regular | raw text read as written (NFO XML), in the system's monospaced face |
 | `spec` | 20 / 26 | technical, SemiBold | a technical value stated large: the mode of the display ("Ultra HD 60 Hz"), a form's value |
 | `badge` | 12 / 16 | technical, SemiBold | format and rating badges |
+| `titleSignature` | 96 / 96 | signature | a detail page's title without its logo, short enough for one line, as a poster sets a short title large; else `display` on two lines of even length (`TitleArt(measured = true)`) |
 | `billing` / `billingJoin` | 18 and 14 / 24 | signature | the billing block: condensed capitals with case-sensitive forms, and its small words |
 | `wordmark` / `wordmarkHero` | 20 / 24 and 52 / 60 | signature | the Houselights wordmark: the size of a subject in About, large over the welcome wall |
 
