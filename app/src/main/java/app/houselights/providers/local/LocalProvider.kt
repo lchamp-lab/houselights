@@ -262,7 +262,15 @@ class LocalProvider(
     override suspend fun seasons(series: MediaItem): List<MediaItem> {
         val mapper = LocalMapper(dao, context)
         val key = itemKey(series) ?: return emptyList()
-        return mapper.mapAll(dao.childRows(key).filter { it.kind == ItemKind.SEASON })
+        val counts = dao.seasonCounts(key).associateBy { it.seasonId }
+        // Each season says how far it is watched: its episodes, and those not watched yet.
+        return mapper.mapAll(dao.childRows(key).filter { it.kind == ItemKind.SEASON }).map { season ->
+            val c = season.id.toLongOrNull()?.let(counts::get) ?: return@map season
+            season.copy(
+                childCount = c.episodes,
+                user = season.user.copy(played = season.user.played || c.played == c.episodes, unplayedCount = c.episodes - c.played),
+            )
+        }
     }
 
     override suspend fun episodes(series: MediaItem, season: MediaItem): List<MediaItem> {

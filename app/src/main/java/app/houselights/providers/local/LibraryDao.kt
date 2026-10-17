@@ -195,6 +195,13 @@ interface LibraryDao {
     )
     suspend fun seriesCounts(seriesIds: List<Long>): List<SeriesCounts>
 
+    /** Per season of a show: its episodes, and those watched. One query for the whole season track. */
+    @Query(
+        "SELECT parentId AS seasonId, COUNT(*) AS episodes, SUM(played) AS played FROM items " +
+            "WHERE kind = 'EPISODE' AND seriesId = :seriesId AND parentId IS NOT NULL GROUP BY parentId"
+    )
+    suspend fun seasonCounts(seriesId: Long): List<SeasonCounts>
+
     /** Shows whose episodes were played most recently. */
     @Query(
         "SELECT seriesId FROM items WHERE kind = 'EPISODE' AND seriesId IS NOT NULL AND lastPlayedAt IS NOT NULL " +
