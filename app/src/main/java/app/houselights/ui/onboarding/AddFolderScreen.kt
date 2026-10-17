@@ -23,7 +23,6 @@ import androidx.tv.material3.Text
 import app.houselights.R
 import app.houselights.providers.local.Protocol
 import app.houselights.providers.local.SourceKind
-import app.houselights.providers.local.address
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlSpace

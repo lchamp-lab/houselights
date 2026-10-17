@@ -1,6 +1,5 @@
 package app.houselights.ui.home
 
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -33,10 +32,8 @@ import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.tv.material3.Text
 import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.components.HlIconButton
 import app.houselights.ui.design.components.HlSegmented
@@ -60,7 +57,6 @@ import app.houselights.core.MediaItem
 import app.houselights.providers.local.ScanError
 import app.houselights.providers.local.ScanState
 import app.houselights.providers.local.SourceEntity
-import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlMotion
 import app.houselights.ui.design.OnArtwork
 import app.houselights.ui.design.awaitMotion
@@ -73,7 +69,6 @@ import app.houselights.ui.design.components.AttentionNote
 import app.houselights.ui.design.components.AmbientBackdrop
 import app.houselights.ui.design.components.BackdropStyle
 import app.houselights.ui.design.components.CardSkeleton
-import app.houselights.ui.design.components.Emphasis
 import app.houselights.ui.design.components.HeroInfo
 import app.houselights.ui.design.components.HlButton
 import app.houselights.ui.design.components.LandscapeCard

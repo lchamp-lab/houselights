@@ -28,13 +28,11 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.withResumed
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.tv.material3.Text
-import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.components.HlEmptyState
 import app.houselights.ui.design.components.FactRow
 import app.houselights.ui.design.HlLayout
@@ -51,8 +49,6 @@ import app.houselights.ui.design.components.AttentionNote
 import app.houselights.ui.design.components.BackdropStyle
 import app.houselights.ui.design.components.AmbientBackdrop
 import app.houselights.ui.design.components.CardSkeleton
-import app.houselights.ui.design.components.Emphasis
-import app.houselights.ui.design.components.HlButton
 import app.houselights.ui.design.components.MediaRow
 import app.houselights.ui.design.components.MetaLine
 import app.houselights.ui.design.components.ScreenTitle

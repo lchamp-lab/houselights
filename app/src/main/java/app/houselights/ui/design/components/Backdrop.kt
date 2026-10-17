@@ -1,7 +1,6 @@
 package app.houselights.ui.design.components
 
 import androidx.compose.animation.Crossfade
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.runtime.mutableStateListOf

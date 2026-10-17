@@ -48,7 +48,6 @@ import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.components.AttentionNote
-import app.houselights.ui.design.components.ArtworkImage
 import app.houselights.ui.design.components.DefinitionList
 import app.houselights.ui.design.components.Badge
 import app.houselights.ui.design.components.ChoiceCheck
