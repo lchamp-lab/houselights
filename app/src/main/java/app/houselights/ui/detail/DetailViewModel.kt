@@ -30,6 +30,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Deferred
 
 data class DetailState(
     val item: MediaItem? = null,
@@ -97,53 +98,17 @@ class DetailViewModel(
             suspendRunCatching { coroutineScope {
                 val source = provider()
                 val item = source.item(itemId)
-                // A first load says the title at once, on the picture the cut kept, once what Lire
-                // starts is known: its rows follow.
-                fun sayFirst(nextUp: MediaItem? = null) {
-                    if (_state.value.item != null) return
-                    val canEdit = source.editor?.canEdit(item) == true
-                    _state.update {
-                        it.copy(item = item, capabilities = source.capabilities, nextUp = nextUp, canEdit = canEdit, partial = true)
-                    }
-                }
-                if (item.kind != MediaKind.SERIES && item.kind != MediaKind.COLLECTION) sayFirst()
                 val similar = async { if (source.capabilities.similar) source.similar(item) else emptyList() }
-                if (item.kind == MediaKind.SERIES) {
-                    val nextUp = async { source.nextUp(item) }
-                    val seasonsLoad = async { source.seasons(item) }
-                    val next = nextUp.await()
-                    sayFirst(next)
-                    val seasons = seasonsLoad.await()
-                    val seasonId = _state.value.selectedSeasonId?.takeIf { id -> seasons.any { it.id == id } }
-                        ?: next?.seasonId
-                        ?: seasons.firstOrNull { (it.seasonNumber ?: 0) > 0 }?.id
-                        ?: seasons.firstOrNull()?.id
-                    val episodes = seasons.firstOrNull { it.id == seasonId }?.let { source.episodes(item, it) }.orEmpty()
-                    DetailState(
-                        item = item,
-                        capabilities = source.capabilities,
-                        nextUp = next,
-                        seasons = seasons,
-                        selectedSeasonId = seasonId,
-                        episodes = episodes,
-                        similar = similar.await(),
-                    )
-                } else if (item.kind == MediaKind.COLLECTION) {
+                when (item.kind) {
+                    MediaKind.SERIES -> seriesPage(source, item, similar)
                     // What Lire starts is picked from the films already here: the source is asked for them once.
-                    val films = source.collectionItems(item)
-                    DetailState(item = item, capabilities = source.capabilities, nextUp = nextUpIn(films), collectionFilms = films)
-                } else {
-                    val collection = source.collectionOf(item)
-                    val saga = collection?.let { c -> source.collectionItems(c).filter { it.id != item.id } }.orEmpty()
-                    // Films of the same saga are shown as such, not again as "similar".
-                    val similarFilms = similar.await().filter { s -> saga.none { it.id == s.id } }
-                    DetailState(
-                        item = item,
-                        capabilities = source.capabilities,
-                        similar = similarFilms,
-                        collection = collection,
-                        collectionFilms = saga,
-                    )
+                    MediaKind.COLLECTION -> source.collectionItems(item).let { films ->
+                        DetailState(item = item, capabilities = source.capabilities, nextUp = nextUpIn(films), collectionFilms = films)
+                    }
+                    else -> {
+                        sayFirst(source, item)
+                        filmPage(source, item, similar)
+                    }
                 }
             } }.onSuccess { loaded ->
                 val canEdit = loaded.item?.let { provider().editor?.canEdit(it) } == true
@@ -160,6 +125,55 @@ class DetailViewModel(
                     }
                 }
         }
+    }
+
+    /**
+     * A first load says the title at once, on the picture the cut kept, once what Lire starts is
+     * known ([nextUp] for a series): its rows follow ([DetailState.partial]).
+     */
+    private fun sayFirst(source: MediaProvider, item: MediaItem, nextUp: MediaItem? = null) {
+        if (_state.value.item != null) return
+        val canEdit = source.editor?.canEdit(item) == true
+        _state.update { it.copy(item = item, capabilities = source.capabilities, nextUp = nextUp, canEdit = canEdit, partial = true) }
+    }
+
+    /** A series' page: what Lire starts, its seasons, the episodes of the season chosen, then [similar] titles. */
+    private suspend fun seriesPage(source: MediaProvider, item: MediaItem, similar: Deferred<List<MediaItem>>): DetailState =
+        coroutineScope {
+            val nextUp = async { source.nextUp(item) }
+            val seasonsLoad = async { source.seasons(item) }
+            val next = nextUp.await()
+            sayFirst(source, item, next)
+            val seasons = seasonsLoad.await()
+            val seasonId = _state.value.selectedSeasonId?.takeIf { id -> seasons.any { it.id == id } }
+                ?: next?.seasonId
+                ?: seasons.firstOrNull { (it.seasonNumber ?: 0) > 0 }?.id
+                ?: seasons.firstOrNull()?.id
+            val episodes = seasons.firstOrNull { it.id == seasonId }?.let { source.episodes(item, it) }.orEmpty()
+            DetailState(
+                item = item,
+                capabilities = source.capabilities,
+                nextUp = next,
+                seasons = seasons,
+                selectedSeasonId = seasonId,
+                episodes = episodes,
+                similar = similar.await(),
+            )
+        }
+
+    /** A film's page: its saga, then [similar] titles that are not of it. */
+    private suspend fun filmPage(source: MediaProvider, item: MediaItem, similar: Deferred<List<MediaItem>>): DetailState {
+        val collection = source.collectionOf(item)
+        val saga = collection?.let { c -> source.collectionItems(c).filter { it.id != item.id } }.orEmpty()
+        // Films of the same saga are shown as such, not again as "similar".
+        val similarFilms = similar.await().filter { s -> saga.none { it.id == s.id } }
+        return DetailState(
+            item = item,
+            capabilities = source.capabilities,
+            similar = similarFilms,
+            collection = collection,
+            collectionFilms = saga,
+        )
     }
 
     /**
