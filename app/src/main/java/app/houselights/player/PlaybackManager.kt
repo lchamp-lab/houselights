@@ -50,6 +50,8 @@ class PlaybackManager(
         val disc: Boolean = false,
         /** What names the file playing, as [reporter]'s source knows it ([PlaybackPlan.Launch.resumeKey]): for the log. */
         var key: String? = null,
+        /** The player a secret goes to: remembered once it has started ([onPlayerLaunched]), not if it could not be. */
+        val trusting: ZidooPlayer.Choice? = null,
     ) {
         /** The length of the title, from the player's first status (see [follow]). */
         var durationMs: Long? = null
@@ -92,31 +94,35 @@ class PlaybackManager(
      * A password goes to no other app ([CredentialsNotShared]); a token goes elsewhere only through a
      * chooser, where the user picks the app, even the only one ([AUTO_LAUNCH_SINGLE_CHOICE]), and not
      * once the player trusted before has changed: the app put in its place would be in the chooser. A
-     * URI with no secret goes to the player found, trusted or not, with what it is told of the film.
+     * URI with no secret goes to the player found, trusted or not, with what it is told of the film. A
+     * player found under another name gets a stream only if it answers its address ([ZidooPlayer.opens]);
+     * else the stream goes as to any player.
      *
-     * Not guarded against: an app installed on the Zidoo, under a name of Zidoo's or the old player's,
-     * before a first password goes to the player (trusted on first use, it would be the one); an
-     * update of a system app signed with the AOSP test keys of the firmware's build; and whoever reads
-     * the device's log through adb, where Android writes the address it starts.
+     * Not guarded against: an app installed on a Zidoo whose player is no system app, under a name of
+     * Zidoo's or the old player's, before a first password goes to the player (trusted on first use,
+     * it would be the one; beside a system player, it comes after it); an update of a system app
+     * signed with the AOSP test keys of the firmware's build; and whoever reads the device's log
+     * through adb, where Android writes the address it starts.
      */
     fun intentFor(plan: PlaybackPlan.Launch): Intent {
         Log.i(TAG, "Launch ${plan.title} -> ${Redact.uri(plan.uri)}")
 
         val choice = players.choose()
-        val player = choice.player
+        val player = choice.player?.takeIf { players.opens(it, plan.uri) }
         val secret = Redact.hasCredentials(plan.uri)
         // A warning, kept in every build: where a secret goes, or why not, is what an evening on a new player needs.
-        if (secret) Log.w(TAG, "Launch ${Redact.uri(plan.uri)} -> ${players.describe(choice)}")
+        if (secret) {
+            val unanswered = if (player == null && choice.player != null) "; the player does not answer this stream's address: not handed it" else ""
+            Log.w(TAG, "Launch ${Redact.uri(plan.uri)} -> ${players.describe(choice)}$unanswered")
+        }
         val changed = choice.decision == ZidooPlayer.Decision.CHANGED
         val intent = when {
-            player != null && (!secret || choice.decision.trusted) -> {
-                if (secret) players.remember(choice)
-                playerIntent(player.component, plan)
-            }
+            player != null && (!secret || choice.decision.trusted) -> playerIntent(player.component, plan)
             Redact.hasUserInfo(plan.uri) || secret && changed -> throw CredentialsNotShared(playerChanged = changed)
             else -> anyPlayerIntent(plan, chooser = secret)
         }
-        session = Session(plan.reporter, plan.startMs, plan.disc, plan.resumeKey)
+        val trusting = choice.takeIf { secret && intent.component != null }
+        session = Session(plan.reporter, plan.startMs, plan.disc, plan.resumeKey, trusting)
         // Written before the player takes over: the platform finishes pending apply() writes before our
         // activity stops, which launching the player does, so the resume point survives a killed process.
         saved.edit().putString(KEY_RESUME, plan.resumeKey).putLong(KEY_POSITION, plan.startMs).apply()
@@ -152,16 +158,17 @@ class PlaybackManager(
         return Intent.createChooser(any, context.getString(R.string.play_with)).putExtra(AUTO_LAUNCH_SINGLE_CHOICE, false)
     }
 
-    /** The player could not be started after all. */
+    /** The player could not be started after all: no password went to it, and it is not remembered. */
     fun onLaunchFailed() {
         session = null
         _playing.value = false
         saved.edit().clear().apply()
     }
 
-    /** Call right after the player activity was started. */
+    /** Call right after the player activity was started: a player a secret went to is remembered ([ZidooPlayer.remember]). */
     fun onPlayerLaunched() {
         val s = session ?: return
+        s.trusting?.let(players::remember)
         _playing.value = true
         s.started = scope.launch { report(s, "started") { s.reporter?.started(s.positionMs) } }
         pollJob?.cancel()

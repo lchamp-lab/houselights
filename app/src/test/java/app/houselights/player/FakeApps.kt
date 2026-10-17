@@ -27,8 +27,8 @@ internal class FakeApps(private val context: Context) {
 
     /**
      * Installs [pkg], a [system] app or not, signed with [certificate], by [installer]; with [activity],
-     * which answers a video by its type ([byType]) and by the smb and nfs schemes ([bySchemes]), and
-     * which other apps may start ([exported]) unless they lack [permission].
+     * which answers a video by its type ([byType]) and at an address of each of [schemes], and which
+     * other apps may start ([exported]) unless they lack [permission].
      */
     fun install(
         pkg: String,
@@ -36,7 +36,7 @@ internal class FakeApps(private val context: Context) {
         system: Boolean = false,
         certificate: String? = null,
         byType: Boolean = false,
-        bySchemes: Boolean = true,
+        schemes: List<String> = SHARES,
         installer: String? = null,
         exported: Boolean = true,
         permission: String? = null,
@@ -64,7 +64,7 @@ internal class FakeApps(private val context: Context) {
         }
         installed += component
         if (byType) pm.addIntentFilterForActivity(component, video())
-        if (bySchemes) pm.addIntentFilterForActivity(component, video("smb", "nfs"))
+        if (schemes.isNotEmpty()) pm.addIntentFilterForActivity(component, video(*schemes.toTypedArray()))
         return component
     }
 
@@ -98,6 +98,16 @@ internal class FakeApps(private val context: Context) {
         const val ZIDOO_PLAYER = "com.zidoo.player"
         const val ZIDOO_PLAYER_ACTIVITY = "com.zidoo.player.VideoPlayerActivity"
 
+        /** The shares the app hands a player a file on. */
+        val SHARES = listOf("smb", "nfs")
+
+        /**
+         * What the Z1000 Pro's player answers a video at: http, file and content, read on the device,
+         * and https, not asked there, where a stream may be too; neither smb nor nfs, which it is
+         * handed by name only, nor a type alone.
+         */
+        val FIRMWARE_SCHEMES = listOf("http", "https", "file", "content")
+
         /** Zidoo's own certificate, and another one. */
         const val ZIDOO_KEY = "zidoo-firmware-key"
         const val OTHER_KEY = "someone-else-key"
@@ -105,6 +115,11 @@ internal class FakeApps(private val context: Context) {
         /** A Zidoo whose build says so. */
         val ZIDOO_BUILD = DeviceIdentity(
             "ZIDOO", "ZIDOO", "Z9X Pro", "Z9X_Pro", "rtd1619b", "ZIDOO/Z9X_Pro/rtd1619b:11/RP1A/1:user/release-keys", "release-keys",
+        )
+
+        /** The Z1000 Pro, as its build names it on the device: its chip's brand, and AOSP's test keys. */
+        val Z1000_PRO_BUILD = DeviceIdentity(
+            "ZIDOO", "rtk", "Z1000 Pro", "thor32", "thor32", "rtk/thor32/thor32:9/PPR1.180610.011/1:userdebug/test-keys", "test-keys",
         )
 
         /** A Realtek board whose build names only its chip: a Zidoo, or not. */

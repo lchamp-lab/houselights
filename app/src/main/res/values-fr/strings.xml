@@ -157,7 +157,7 @@
     <string name="play_with">Lire avec</string>
     <string name="no_player">Le lecteur Zidoo n’est pas installé.</string>
     <string name="player_credentials">Ce dossier est protégé par un mot de passe : seul le lecteur Zidoo peut le lire.</string>
-    <string name="player_changed">Le lecteur Zidoo a changé : Houselights ne lui confie plus vos mots de passe. Réinstallez le lecteur d’origine de la Zidoo, ou effacez les données de Houselights pour faire confiance au nouveau.</string>
+    <string name="player_changed">Le lecteur Zidoo a changé : Houselights ne lui confie plus vos mots de passe ni vos accès. Réinstallez le lecteur d’origine de la Zidoo, ou effacez les données de Houselights pour faire confiance au nouveau.</string>
 
     <string name="add_folder">Ajouter un dossier</string>
     <string name="add_folder_desc">Indiquez où se trouvent vos films ou vos séries sur le NAS. Houselights teste la connexion avant d’ajouter le dossier.</string>

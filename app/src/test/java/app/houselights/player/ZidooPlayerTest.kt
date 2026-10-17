@@ -1,7 +1,9 @@
 package app.houselights.player
 
 import android.app.Application
+import android.net.Uri
 import androidx.test.core.app.ApplicationProvider
+import app.houselights.player.FakeApps.Companion.FIRMWARE_SCHEMES
 import app.houselights.player.FakeApps.Companion.GALLERY
 import app.houselights.player.FakeApps.Companion.MOVIE_ACTIVITY
 import app.houselights.player.FakeApps.Companion.OTHER_BUILD
@@ -63,14 +65,39 @@ class ZidooPlayerTest {
     /** One that answers a video by its type only is found as well. */
     @Test
     fun aPlayerThatAnswersByTypeIsFound() {
-        apps.install(ZIDOO_PLAYER, ZIDOO_PLAYER_ACTIVITY, system = true, byType = true, bySchemes = false)
+        apps.install(ZIDOO_PLAYER, ZIDOO_PLAYER_ACTIVITY, system = true, byType = true, schemes = emptyList())
         assertEquals(ZIDOO_PLAYER_ACTIVITY, choose(ZIDOO_BUILD).playerClass())
+    }
+
+    /**
+     * A firmware's player under another name answers as the Z1000 Pro's does, read on the device: at
+     * an http, https, file or content address only. Each one finds it.
+     */
+    @Test
+    fun aPlayerThatAnswersAsTheZ1000ProsIsFound() {
+        FIRMWARE_SCHEMES.forEach { scheme ->
+            apps.install(ZIDOO_PLAYER, ZIDOO_PLAYER_ACTIVITY, system = true, schemes = listOf(scheme))
+            assertEquals(scheme, ZIDOO_PLAYER_ACTIVITY, choose(ZIDOO_BUILD).playerClass())
+            apps.uninstall(ZIDOO_PLAYER)
+        }
+    }
+
+    /**
+     * A firmware without the old player, whose player is a system app under a name of its own, beside
+     * Zidoo's poster wall, which opens files only (as on the Z1000 Pro): the player is the one that opens
+     * a share or a stream, not the poster wall, though its name is Zidoo's.
+     */
+    @Test
+    fun aPosterWallOfZidoosIsNoPlayerBesideOneThatStreams() {
+        apps.install("com.zidoo.poster", "com.zidoo.poster.main.PosterWallActivity", system = true, schemes = listOf("file"))
+        apps.install("com.rtk.video", "com.rtk.video.VideoPlayer", system = true, schemes = listOf("http", "file", "content"))
+        assertEquals("com.rtk.video.VideoPlayer", choose(ZIDOO_BUILD).playerClass())
     }
 
     @Test
     fun theOldPlayerComesFirst() {
         apps.install(ZIDOO_PLAYER, ZIDOO_PLAYER_ACTIVITY, system = true)
-        apps.install(GALLERY, MOVIE_ACTIVITY, system = true, bySchemes = false)
+        apps.install(GALLERY, MOVIE_ACTIVITY, system = true, schemes = emptyList())
         val choice = choose(ZIDOO_BUILD)
         assertEquals(MOVIE_ACTIVITY, choice.playerClass())
         val seen = choice.candidates.map { it.component.className }
@@ -95,7 +122,7 @@ class ZidooPlayerTest {
     @Test
     fun aPlayerTheAppMayNotStartIsNone() {
         apps.install(ZIDOO_PLAYER, ZIDOO_PLAYER_ACTIVITY, system = true, exported = false)
-        apps.install(GALLERY, MOVIE_ACTIVITY, system = true, bySchemes = false, exported = false)
+        apps.install(GALLERY, MOVIE_ACTIVITY, system = true, schemes = emptyList(), exported = false)
         assertNull(choose(ZIDOO_BUILD).player)
         apps.install("com.zidoo.vplayer", "com.zidoo.vplayer.PlayActivity", system = true, permission = "com.zidoo.permission.PLAY")
         assertNull(choose(ZIDOO_BUILD).player)
@@ -114,7 +141,7 @@ class ZidooPlayerTest {
     fun elsewhereOnlyTheOldPlayerIsFound() {
         apps.install("com.android.tv.player", "com.android.tv.player.VideoActivity", system = true)
         assertNull(choose(OTHER_BUILD).player)
-        apps.install(GALLERY, MOVIE_ACTIVITY, system = true, bySchemes = false)
+        apps.install(GALLERY, MOVIE_ACTIVITY, system = true, schemes = emptyList())
         assertEquals(MOVIE_ACTIVITY, choose(OTHER_BUILD).playerClass())
     }
 
@@ -126,7 +153,10 @@ class ZidooPlayerTest {
         assertTrue(choice.candidates.isEmpty())
     }
 
-    /** An app of Zidoo's comes first, then the system's default, then an activity named for films. */
+    /**
+     * The system's apps first: the old player, then an app of Zidoo's, then any other; within each, the
+     * system's default, then an activity named for films. An ordinary app of Zidoo's name comes after.
+     */
     @Test
     fun playersAreTakenInOrder() {
         val browser = apps.install("com.rtk.browser", "com.rtk.browser.Browse", system = true)!!
@@ -134,8 +164,48 @@ class ZidooPlayerTest {
         assertEquals("named for films", movies, choose(ZIDOO_BUILD).player?.component)
         apps.makeDefault(browser)
         assertEquals("the default", browser, choose(ZIDOO_BUILD).player?.component)
-        val zidoo = apps.install("com.zidoo.files", "com.zidoo.files.Open")!!
+        apps.install("com.zidoo.files", "com.zidoo.files.Open")
+        assertEquals("an ordinary app of Zidoo's name after", browser, choose(ZIDOO_BUILD).player?.component)
+        val zidoo = apps.install("com.zidoo.media", "com.zidoo.media.Open", system = true)!!
         assertEquals("Zidoo's", zidoo, choose(ZIDOO_BUILD).player?.component)
+        apps.install(GALLERY, MOVIE_ACTIVITY, system = true, schemes = emptyList())
+        assertEquals("the old player", MOVIE_ACTIVITY, choose(ZIDOO_BUILD).playerClass())
+    }
+
+    /** Before any password went to a player, a system player under another name beats an ordinary app under the old player's. */
+    @Test
+    fun aSystemPlayerComesBeforeAnOrdinaryOneUnderTheOldPlayersName() {
+        val system = apps.install("com.rtk.media", "com.rtk.media.MoviePlayer", system = true)
+        apps.install(GALLERY, MOVIE_ACTIVITY, certificate = OTHER_KEY, schemes = emptyList())
+        val choice = choose(ZIDOO_BUILD)
+        assertEquals(system, choice.player?.component)
+        assertEquals(Decision.FIRMWARE, choice.decision)
+    }
+
+    /** Nor an ordinary app under a name of Zidoo's: any app may take one. */
+    @Test
+    fun aSystemPlayerComesBeforeAnOrdinaryOneUnderAZidooName() {
+        val system = apps.install("com.rtk.media", "com.rtk.media.MoviePlayer", system = true)
+        apps.install("com.zidoo.x", "com.zidoo.x.VideoPlayer", certificate = OTHER_KEY)
+        val choice = choose(ZIDOO_BUILD)
+        assertEquals(system, choice.player?.component)
+        assertEquals(Decision.FIRMWARE, choice.decision)
+    }
+
+    /** The player a password went to comes first while it keeps its certificate; changed, a system player does. */
+    @Test
+    fun aRememberedPlayerComesFirstOnlyWithItsCertificate() {
+        apps.install(ZIDOO_PLAYER, ZIDOO_PLAYER_ACTIVITY, certificate = OTHER_KEY)
+        val players = ZidooPlayer(context) { ZIDOO_BUILD }
+        players.remember(players.choose())
+        val system = apps.install("com.rtk.media", "com.rtk.media.MoviePlayer", system = true)
+        assertEquals(ZIDOO_PLAYER_ACTIVITY, players.choose().playerClass())
+        assertEquals(Decision.REMEMBERED, players.choose().decision)
+
+        apps.install(ZIDOO_PLAYER, ZIDOO_PLAYER_ACTIVITY, certificate = "a-third-key")
+        val choice = players.choose()
+        assertEquals(system, choice.player?.component)
+        assertEquals(Decision.FIRMWARE, choice.decision)
     }
 
     @Test
@@ -147,7 +217,7 @@ class ZidooPlayerTest {
     /** Elsewhere, no app gets a password, the system's own com.android.gallery3d (AOSP's gallery) neither. */
     @Test
     fun elsewhereNoPlayerIsTrusted() {
-        apps.install(GALLERY, MOVIE_ACTIVITY, system = true, bySchemes = false)
+        apps.install(GALLERY, MOVIE_ACTIVITY, system = true, schemes = emptyList())
         val choice = choose(OTHER_BUILD)
         assertEquals(MOVIE_ACTIVITY, choice.playerClass())
         assertEquals(Decision.NOT_A_ZIDOO, choice.decision)
@@ -157,17 +227,40 @@ class ZidooPlayerTest {
     @Test
     fun aPlayerSignedLikeAFirmwareAppOfZidoosIsTrusted() {
         apps.install("com.zidoo.poster", system = true, certificate = ZIDOO_KEY)
-        apps.install(GALLERY, MOVIE_ACTIVITY, certificate = ZIDOO_KEY, bySchemes = false)
+        apps.install(GALLERY, MOVIE_ACTIVITY, certificate = ZIDOO_KEY, schemes = emptyList())
         val choice = choose(ZIDOO_BUILD)
         assertEquals(Decision.SIGNED_LIKE_FIRMWARE, choice.decision)
         assertEquals("the certificate is told, by its SHA-256", sha256(ZIDOO_KEY), choice.certificate)
+    }
+
+    /**
+     * An ordinary app under any name, signed like a system app of Zidoo's, is the firmware's as well:
+     * on a build of its own keys, no one else signs with them. It comes before an ordinary app under
+     * the old player's name, which anyone may take.
+     */
+    @Test
+    fun aPlayerSignedLikeTheFirmwareIsFoundUnderAnyName() {
+        apps.install("com.zidoo.poster", system = true, certificate = ZIDOO_KEY)
+        apps.install(GALLERY, MOVIE_ACTIVITY, certificate = OTHER_KEY, schemes = emptyList())
+        val player = apps.install("com.rtk.player", "com.rtk.player.Play", certificate = ZIDOO_KEY)
+        val choice = choose(ZIDOO_BUILD)
+        assertEquals(player, choice.player?.component)
+        assertEquals(Decision.SIGNED_LIKE_FIRMWARE, choice.decision)
+    }
+
+    /** On a build of AOSP's test keys, as the Z1000 Pro's is, it proves nothing: an ordinary app under another name is no player. */
+    @Test
+    fun onTestKeysAPlayerSignedLikeTheFirmwareIsNotFound() {
+        apps.install("com.zidoo.poster", system = true, certificate = ZIDOO_KEY)
+        apps.install("com.rtk.player", "com.rtk.player.Play", certificate = ZIDOO_KEY)
+        assertNull(choose(ZIDOO_BUILD.copy(tags = "test-keys")).player)
     }
 
     /** Built with AOSP's test keys, which anyone has: a certificate shared with the firmware proves nothing. */
     @Test
     fun onTestKeysASharedCertificateProvesNothing() {
         apps.install("com.zidoo.poster", system = true, certificate = ZIDOO_KEY)
-        apps.install(GALLERY, MOVIE_ACTIVITY, certificate = ZIDOO_KEY, bySchemes = false)
+        apps.install(GALLERY, MOVIE_ACTIVITY, certificate = ZIDOO_KEY, schemes = emptyList())
         assertEquals(Decision.FIRST_USE, choose(ZIDOO_BUILD.copy(tags = "test-keys")).decision)
     }
 
@@ -194,7 +287,7 @@ class ZidooPlayerTest {
         apps.install(ZIDOO_PLAYER, ZIDOO_PLAYER_ACTIVITY, certificate = OTHER_KEY)
         val players = ZidooPlayer(context) { ZIDOO_BUILD }
         players.remember(players.choose())
-        apps.install(GALLERY, MOVIE_ACTIVITY, certificate = OTHER_KEY, bySchemes = false)
+        apps.install(GALLERY, MOVIE_ACTIVITY, certificate = OTHER_KEY, schemes = emptyList())
         val choice = players.choose()
         assertEquals("the one trusted comes first", ZIDOO_PLAYER_ACTIVITY, choice.playerClass())
         assertEquals(Decision.REMEMBERED, choice.decision)
@@ -209,14 +302,14 @@ class ZidooPlayerTest {
         val players = ZidooPlayer(context) { ZIDOO_BUILD }
         players.remember(players.choose())
         apps.uninstall(ZIDOO_PLAYER)
-        apps.install(GALLERY, MOVIE_ACTIVITY, certificate = OTHER_KEY, bySchemes = false)
+        apps.install(GALLERY, MOVIE_ACTIVITY, certificate = OTHER_KEY, schemes = emptyList())
         assertEquals(Decision.CHANGED, players.choose().decision)
     }
 
     /** A player no password may go to is not remembered. */
     @Test
     fun anUntrustedPlayerIsNotRemembered() {
-        apps.install(GALLERY, MOVIE_ACTIVITY, certificate = OTHER_KEY, bySchemes = false)
+        apps.install(GALLERY, MOVIE_ACTIVITY, certificate = OTHER_KEY, schemes = emptyList())
         val elsewhere = ZidooPlayer(context) { OTHER_BUILD }
         elsewhere.remember(elsewhere.choose())
         assertEquals(Decision.FIRST_USE, choose(ZIDOO_BUILD).decision)
@@ -237,9 +330,17 @@ class ZidooPlayerTest {
     @Test
     fun aboutSaysWhatPlaybackDecides() {
         assertEquals(PlayerStatus.NotDetected, ZidooPlayer(context) { ZIDOO_BUILD }.status())
-        apps.install(GALLERY, MOVIE_ACTIVITY, system = true, bySchemes = false)
+        apps.install(GALLERY, MOVIE_ACTIVITY, system = true, schemes = emptyList())
         assertEquals(PlayerStatus.Detected(GALLERY), ZidooPlayer(context) { ZIDOO_BUILD }.status())
         assertEquals(PlayerStatus.Unrecognized(GALLERY, Decision.NOT_A_ZIDOO), ZidooPlayer(context) { OTHER_BUILD }.status())
+    }
+
+    /** Whether a player opens a stream is asked of its address alone: never its user's part, path or query, where a secret is. */
+    @Test
+    fun aPlayerIsAskedOfAStreamsAddressAlone() {
+        val asked = ZidooPlayer.probe(Uri.parse("https://zidoo:secret@nas:8920/Videos/1/stream.mkv?api_key=token"))
+        assertEquals("https://nas:8920", asked.dataString)
+        assertEquals("video/*", asked.type)
     }
 
     @Test

@@ -5,10 +5,13 @@ import android.content.Intent
 import android.util.Log
 import androidx.test.core.app.ApplicationProvider
 import app.houselights.core.PlaybackPlan
+import app.houselights.player.FakeApps.Companion.FIRMWARE_SCHEMES
 import app.houselights.player.FakeApps.Companion.GALLERY
 import app.houselights.player.FakeApps.Companion.MOVIE_ACTIVITY
 import app.houselights.player.FakeApps.Companion.OTHER_BUILD
 import app.houselights.player.FakeApps.Companion.OTHER_KEY
+import app.houselights.player.FakeApps.Companion.SHARES
+import app.houselights.player.FakeApps.Companion.Z1000_PRO_BUILD
 import app.houselights.player.FakeApps.Companion.ZIDOO_BUILD
 import app.houselights.player.FakeApps.Companion.ZIDOO_KEY
 import app.houselights.player.FakeApps.Companion.ZIDOO_PLAYER
@@ -35,8 +38,9 @@ class PlayerLaunchTest {
     private val context = ApplicationProvider.getApplicationContext<Application>()
     private val apps = FakeApps(context)
 
+    /** In the background: what follows a player once it has started ends with the test. */
     private fun TestScope.manager(device: DeviceIdentity) =
-        PlaybackManager(context, this, status = { PlayerAnswer.NoAnswer }, players = ZidooPlayer(context) { device }) { null }
+        PlaybackManager(context, backgroundScope, status = { PlayerAnswer.NoAnswer }, players = ZidooPlayer(context) { device }) { null }
 
     private fun plan(uri: String, backdrop: String? = null) = PlaybackPlan.Launch(
         uri = uri, container = "mkv", title = "Heat", backdropUrl = backdrop, logoUrl = null, startMs = 0,
@@ -63,10 +67,44 @@ class PlayerLaunchTest {
     /** The Z1000 Pro's firmware: the old player, installed with the system, as before. */
     @Test
     fun theOldPlayerStillGetsTheFilm() = runTest {
-        apps.install(GALLERY, MOVIE_ACTIVITY, system = true, bySchemes = false)
+        apps.install(GALLERY, MOVIE_ACTIVITY, system = true, schemes = emptyList())
         val manager = manager(ZIDOO_BUILD)
         assertEquals(MOVIE_ACTIVITY, manager.intentFor(plan(NFS)).component?.className)
         assertEquals(SMB, manager.intentFor(plan(SMB)).dataString)
+    }
+
+    /**
+     * The Z1000 Pro as read on the device: a test-keys build, whose player, a system app, answers a
+     * video at http, file and content addresses only, its poster wall at file ones, and Zidoo's other
+     * apps at none. Beside them, an app under a name of Zidoo's that answers every address, and one
+     * signed like Zidoo's apps: the old player still gets every film, with what it is told of it, and
+     * every secret.
+     */
+    @Test
+    fun theZ1000ProHandsEveryFilmToItsOldPlayer() = runTest {
+        apps.install(GALLERY, MOVIE_ACTIVITY, system = true, certificate = ZIDOO_KEY, schemes = listOf("http", "file", "content"))
+        val wall = "com.zidoo.poster.main.PosterWallActivity"
+        apps.install("com.zidoo.poster", wall, system = true, certificate = ZIDOO_KEY, schemes = listOf("file"))
+        listOf("com.zidoo.fileexplorer", "com.zidoo.control.center", "com.zidoo.audioplayer").forEach {
+            apps.install(it, system = true, certificate = ZIDOO_KEY)
+        }
+        apps.install(ZIDOO_PLAYER, ZIDOO_PLAYER_ACTIVITY, certificate = OTHER_KEY, byType = true, schemes = SHARES + FIRMWARE_SCHEMES)
+        apps.install("com.rtk.player", "com.rtk.player.Play", certificate = ZIDOO_KEY, byType = true, schemes = SHARES + FIRMWARE_SCHEMES)
+        val manager = manager(Z1000_PRO_BUILD)
+
+        val artwork = "https://image.tmdb.org/t/p/w1280/b.jpg"
+        val nfs = manager.intentFor(plan(NFS, backdrop = artwork))
+        assertEquals(MOVIE_ACTIVITY, nfs.component?.className)
+        assertEquals("Heat", nfs.getStringExtra("title"))
+        assertEquals(artwork, nfs.getStringExtra("loading_image"))
+        assertTrue(nfs.getBooleanExtra("from_start", false))
+        assertTrue(nfs.getBooleanExtra("return_result", false))
+        listOf(SMB, TOKEN, STREAM, HTTP_PASSWORD).forEach {
+            val intent = manager.intentFor(plan(it))
+            assertEquals(it, MOVIE_ACTIVITY, intent.component?.className)
+            assertEquals(it, intent.dataString)
+        }
+        assertEquals(PlayerStatus.Detected(GALLERY), ZidooPlayer(context) { Z1000_PRO_BUILD }.status())
     }
 
     /** Nothing answers a video: a plain file goes to whatever the system finds, a password nowhere. */
@@ -115,7 +153,7 @@ class PlayerLaunchTest {
     /** The Zidoo player installed as an ordinary app, as some Zidoo firmwares do: on a Zidoo, it gets the password. */
     @Test
     fun onAZidooItsPlayerGetsThePasswordEvenNotASystemApp() = runTest {
-        apps.install(GALLERY, MOVIE_ACTIVITY, certificate = OTHER_KEY, bySchemes = false)
+        apps.install(GALLERY, MOVIE_ACTIVITY, certificate = OTHER_KEY, schemes = emptyList())
         val intent = manager(ZIDOO_BUILD).intentFor(plan(SMB))
         assertEquals(MOVIE_ACTIVITY, intent.component?.className)
         assertEquals(SMB, intent.dataString)
@@ -124,7 +162,7 @@ class PlayerLaunchTest {
     /** Elsewhere, an app that took the Zidoo player's package name, not a system app, gets no password. */
     @Test
     fun elsewhereAnAppUnderThePlayersNameGetsNoPassword() = runTest {
-        apps.install(GALLERY, MOVIE_ACTIVITY, bySchemes = false)
+        apps.install(GALLERY, MOVIE_ACTIVITY, schemes = emptyList())
         assertRefused { manager(OTHER_BUILD).intentFor(plan(SMB)) }
     }
 
@@ -134,7 +172,7 @@ class PlayerLaunchTest {
      */
     @Test
     fun elsewhereNoPlayerGetsAPassword() = runTest {
-        apps.install(GALLERY, MOVIE_ACTIVITY, system = true, bySchemes = false)
+        apps.install(GALLERY, MOVIE_ACTIVITY, system = true, schemes = emptyList())
         val manager = manager(OTHER_BUILD)
         assertRefused { manager.intentFor(plan(SMB)) }
         val nfs = manager.intentFor(plan(NFS))
@@ -159,9 +197,20 @@ class PlayerLaunchTest {
         apps.install("com.zidoo.other", certificate = OTHER_KEY)
         val manager = manager(ZIDOO_BUILD)
         assertEquals(SMB, manager.intentFor(plan(SMB)).dataString)
+        manager.onPlayerLaunched()
         // Remembered: another certificate later is refused.
         apps.install(ZIDOO_PLAYER, ZIDOO_PLAYER_ACTIVITY, certificate = OTHER_KEY)
         assertRefused { manager.intentFor(plan(SMB)) }
+    }
+
+    /** Beside a system player under another name, an ordinary app under the old player's gets no first password. */
+    @Test
+    fun aFirstPasswordGoesToTheSystemsPlayer() = runTest {
+        val system = apps.install("com.rtk.media", "com.rtk.media.MoviePlayer", system = true)
+        apps.install(GALLERY, MOVIE_ACTIVITY, certificate = OTHER_KEY, schemes = emptyList())
+        val intent = manager(ZIDOO_BUILD).intentFor(plan(SMB))
+        assertEquals(system, intent.component)
+        assertEquals(SMB, intent.dataString)
     }
 
     /** An ordinary player of another key is trusted the first time, then refused once its certificate changes. */
@@ -170,6 +219,7 @@ class PlayerLaunchTest {
         apps.install(ZIDOO_PLAYER, ZIDOO_PLAYER_ACTIVITY, certificate = OTHER_KEY)
         val manager = manager(ZIDOO_BUILD)
         assertEquals(SMB, manager.intentFor(plan(SMB)).dataString)
+        manager.onPlayerLaunched()
         assertEquals("the same player, again", SMB, manager.intentFor(plan(SMB)).dataString)
 
         apps.install(ZIDOO_PLAYER, ZIDOO_PLAYER_ACTIVITY, certificate = "a-third-key")
@@ -178,6 +228,53 @@ class PlayerLaunchTest {
         assertEquals(ZIDOO_PLAYER_ACTIVITY, manager.intentFor(plan(NFS)).component?.className)
         // Nor does a token go through a chooser: the app put in the player's place would be in it, alone perhaps.
         assertTrue("said as such", assertRefused { manager.intentFor(plan(TOKEN)) }.playerChanged)
+    }
+
+    /**
+     * The player a password goes to is remembered once it has started, not when it could not be: an
+     * app that took its name and failed to start would otherwise be the one trusted.
+     */
+    @Test
+    fun aPlayerIsRememberedOnlyOnceItHasStarted() = runTest {
+        apps.install(ZIDOO_PLAYER, ZIDOO_PLAYER_ACTIVITY, certificate = OTHER_KEY)
+        val players = ZidooPlayer(context) { ZIDOO_BUILD }
+        val manager = manager(ZIDOO_BUILD)
+        manager.intentFor(plan(SMB))
+        assertEquals("not before it starts", ZidooPlayer.Decision.FIRST_USE, players.choose().decision)
+        manager.onLaunchFailed()
+        assertEquals("nor once it could not", ZidooPlayer.Decision.FIRST_USE, players.choose().decision)
+
+        manager.intentFor(plan(SMB))
+        manager.onPlayerLaunched()
+        assertEquals(ZidooPlayer.Decision.REMEMBERED, players.choose().decision)
+    }
+
+    /**
+     * A player found under another name may open shares alone: it gets a stream only if it answers
+     * its address. Else the stream goes as it would to any player: a token through the chooser, a
+     * password typed in an http path mapping nowhere.
+     */
+    @Test
+    fun aPlayerFoundGetsAStreamOnlyIfItAnswersItsAddress() = runTest {
+        apps.install(ZIDOO_PLAYER, ZIDOO_PLAYER_ACTIVITY, system = true)
+        val manager = manager(ZIDOO_BUILD)
+        assertNull(manager.intentFor(plan(STREAM)).component)
+        assertEquals(Intent.ACTION_CHOOSER, manager.intentFor(plan(TOKEN)).action)
+        assertRefused { manager.intentFor(plan(HTTP_PASSWORD)) }
+
+        apps.install(ZIDOO_PLAYER, ZIDOO_PLAYER_ACTIVITY, system = true, schemes = listOf("http"))
+        listOf(STREAM, TOKEN, HTTP_PASSWORD).forEach {
+            val intent = manager.intentFor(plan(it))
+            assertEquals(it, ZIDOO_PLAYER_ACTIVITY, intent.component?.className)
+            assertEquals(it, intent.dataString)
+        }
+    }
+
+    /** The Z1000 Pro's player gets a stream by its name, as before: it opens one, read on the device. */
+    @Test
+    fun theOldPlayerGetsAStreamAsBefore() = runTest {
+        apps.install(GALLERY, MOVIE_ACTIVITY, system = true, schemes = emptyList())
+        assertEquals(TOKEN, manager(ZIDOO_BUILD).intentFor(plan(TOKEN)).dataString)
     }
 
     /** On a Zidoo whose player can be trusted with nothing yet, a token still goes through the chooser. */
@@ -196,7 +293,7 @@ class PlayerLaunchTest {
     fun aLaunchWithASecretSaysWhyInTheLog() = runTest {
         apps.install("com.zidoo.poster", system = true, certificate = ZIDOO_KEY)
         apps.install(ZIDOO_PLAYER, ZIDOO_PLAYER_ACTIVITY, certificate = ZIDOO_KEY, installer = "com.zidoo.update")
-        apps.install(GALLERY, MOVIE_ACTIVITY, system = true, bySchemes = false)
+        apps.install(GALLERY, MOVIE_ACTIVITY, system = true, schemes = emptyList())
         val manager = manager(ZIDOO_BUILD)
         manager.intentFor(plan(NFS))
         assertTrue("a plain file says nothing", warnings().isEmpty())
@@ -222,7 +319,7 @@ class PlayerLaunchTest {
     /** The Zidoo player is another app: a file of ours is out of its reach, a web address is not. */
     @Test
     fun theZidooPlayerGetsTheCredentialsAndOnlyWebArtwork() = runTest {
-        apps.install(GALLERY, MOVIE_ACTIVITY, system = true, bySchemes = false)
+        apps.install(GALLERY, MOVIE_ACTIVITY, system = true, schemes = emptyList())
         val manager = manager(ZIDOO_BUILD)
 
         val ours = "file:///data/user/0/app.houselights/files/artwork/b.jpg"
@@ -248,5 +345,7 @@ class PlayerLaunchTest {
         const val NFS = "nfs://nas/films/Heat.mkv"
         const val SMB = "smb://zidoo:secret@nas/films/Heat.mkv"
         const val TOKEN = "http://nas:8096/Videos/1/stream.mkv?static=true&api_key=secret"
+        const val STREAM = "http://nas/films/Heat.mkv"
+        const val HTTP_PASSWORD = "http://zidoo:secret@nas/films/Heat.mkv"
     }
 }

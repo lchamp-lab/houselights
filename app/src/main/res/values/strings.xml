@@ -166,7 +166,7 @@
     <string name="play_with">Play with</string>
     <string name="no_player">The Zidoo player isn’t installed.</string>
     <string name="player_credentials">This folder needs a password: only the Zidoo player can play it.</string>
-    <string name="player_changed">The Zidoo player has changed, and Houselights no longer trusts it with your passwords. Reinstall the player that came with the Zidoo, or clear Houselights’ data to trust the new one.</string>
+    <string name="player_changed">The Zidoo player has changed, and Houselights no longer trusts it with your passwords or your server access. Reinstall the player that came with the Zidoo, or clear Houselights’ data to trust the new one.</string>
 
     <!-- Local folders -->
     <string name="add_folder">Add a folder</string>
