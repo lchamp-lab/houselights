@@ -147,7 +147,7 @@ private fun MeasuredTitle(title: String, style: TextStyle, maxWidth: Dp, maxLine
     val signature = Hl.type.titleSignature
     val density = LocalDensity.current
     val widthPx = with(density) { maxWidth.roundToPx() }
-    val plan = remember(title, style, signature, widthPx, maxLines) { titlePlan(measurer, title, style, signature, widthPx, maxLines) }
+    val plan = remember(title, style, signature, widthPx, maxLines) { measurer.titlePlan(title, style, signature, widthPx, maxLines) }
     Text(
         title,
         style = plan.style,
@@ -161,20 +161,20 @@ private fun MeasuredTitle(title: String, style: TextStyle, maxWidth: Dp, maxLine
 /** How a title is set: its style, and the width that evens its lines (null: the room it has). */
 private class TitlePlan(val style: TextStyle, val widthPx: Int?)
 
-private fun titlePlan(
-    measurer: TextMeasurer,
+private fun TextMeasurer.titlePlan(
     title: String,
     style: TextStyle,
     signature: TextStyle,
     widthPx: Int,
     maxLines: Int,
 ): TitlePlan {
-    if (measurer.measure(title, signature, maxLines = 1, softWrap = false).size.width <= widthPx) return TitlePlan(signature, null)
-    val oneLine = measurer.measure(title, style, maxLines = 1, softWrap = false).size.width
+    if (measure(title, signature, maxLines = 1, softWrap = false).size.width <= widthPx) return TitlePlan(signature, null)
+    val oneLine = measure(title, style, maxLines = 1, softWrap = false).size.width
     if (oneLine <= widthPx || maxLines < 2) return TitlePlan(style, null)
     // Two lines: the narrowest of a few widths past half the line that still holds it in two.
     val even = EVEN_SHARES.map { (oneLine * it).toInt() }.filter { it < widthPx }.firstOrNull { w ->
-        measurer.measure(title, style, constraints = Constraints(maxWidth = w), maxLines = maxLines).let { !it.hasVisualOverflow && it.lineCount == 2 }
+        val lines = measure(title, style, constraints = Constraints(maxWidth = w), maxLines = maxLines)
+        !lines.hasVisualOverflow && lines.lineCount == 2
     }
     return TitlePlan(style, even)
 }
