@@ -85,6 +85,7 @@ import app.houselights.ui.util.NBSP
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import app.houselights.ui.design.components.WithItsPicture
 
 private const val COLUMNS = 7
 
@@ -182,7 +183,8 @@ fun LibraryScreen(
                     .height(HlLayout.infoLine),
                 contentAlignment = Alignment.CenterStart,
             ) {
-                shown.value?.let { TitleLine(it) }
+                // Said once its picture comes up, as on home.
+                WithItsPicture(shown.value) { TitleLine(it) }
             }
             // Trying again keeps the error on screen, its button at work, until the answer.
             val wallError = retainedError(state.error?.takeIf { state.items.isEmpty() }, retrying = state.loading)

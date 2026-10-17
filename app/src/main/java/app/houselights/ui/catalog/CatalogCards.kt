@@ -56,6 +56,7 @@ import app.houselights.ui.util.formatDimensions
 import app.houselights.ui.util.formatDuration
 import androidx.compose.runtime.CompositionLocalProvider
 import app.houselights.ui.design.components.LocalBackdropRelay
+import app.houselights.ui.design.components.Backdrop
 
 // Artwork comes from the app's own resources, and a failed image from a file that cannot exist:
 // nothing here needs the network.
@@ -136,20 +137,21 @@ private fun PosterRow() {
 @Composable
 private fun AmbientBackdrops() {
     val art = shippedImage(R.drawable.banner)
-    Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.l)) {
+    // Backdrops on their own: nothing handed on to them, nor from them.
+    CompositionLocalProvider(LocalBackdropRelay provides null) { Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.l)) {
         listOf("a picture: its light" to art, "no picture: the black room, no light" to null).forEach { (state, image) ->
             Specimen(state, width = HlLayout.sideColumnWide) {
                 Box(Modifier.fillMaxWidth().aspectRatio(16f / 9f)) {
-                    // A backdrop on its own: nothing handed on to it, nor from it.
-                    CompositionLocalProvider(LocalBackdropRelay provides null) {
-                        AmbientBackdrop(image, BackdropStyle.Hero) {
-                            PosterCard(sample("Le Samouraï", 1967), {}, Modifier.align(Alignment.CenterStart).padding(start = HlSpace.l))
-                        }
+                    AmbientBackdrop(image, BackdropStyle.Hero) {
+                        PosterCard(sample("Le Samouraï", 1967), {}, Modifier.align(Alignment.CenterStart).padding(start = HlSpace.l))
                     }
                 }
             }
         }
-    }
+        Specimen("a wall's, quiet: its picture dimmed down to the foot", width = HlLayout.sideColumnWide) {
+            Box(Modifier.fillMaxWidth().aspectRatio(16f / 9f)) { Backdrop(art, BackdropStyle.Quiet) }
+        }
+    } }
 }
 
 /** The focus treatment alone, and the image inside it: loaded, or failed with its fallback in its place. */

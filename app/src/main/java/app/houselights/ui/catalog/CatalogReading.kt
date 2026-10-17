@@ -44,6 +44,7 @@ import app.houselights.ui.design.components.TechSpecs
 import app.houselights.ui.design.components.TitleArt
 import app.houselights.ui.design.components.TitleLine
 import app.houselights.ui.util.NBSP
+import app.houselights.ui.design.components.WithItsPicture
 
 /**
  * What a title says about itself, in its states: its name, its facts and formats, its credits, the
@@ -273,6 +274,11 @@ private fun ReadingHeroInfoSection() {
             }
             Specimen("no rows yet: draws nothing", Modifier.weight(1f), gap = HlSpace.xxs) {
                 HeroInfo(null, Modifier.height(HlLayout.hero))
+            }
+        }
+        ReadingRow {
+            Specimen("a wall's line, said with its picture: here at once, no backdrop under it", Modifier.width(HlLayout.readableNarrow), gap = HlSpace.xxs) {
+                WithItsPicture(READING_HERO_FILM) { TitleLine(it) }
             }
         }
     }

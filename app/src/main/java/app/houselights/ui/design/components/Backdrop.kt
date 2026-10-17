@@ -266,6 +266,13 @@ class BackdropRelay {
     }
 }
 
+/**
+ * Whether the backdrop of the screen has come to the picture of an image, or found it has none:
+ * read while it is waited for, what is said of a title waits for its picture ([WithItsPicture]).
+ * Without a backdrop, always.
+ */
+val LocalBackdropSettled = staticCompositionLocalOf<(ImageRef?) -> Boolean> { { true } }
+
 /** The app's [BackdropRelay]; none (a backdrop on its own, as in the catalogue) starts from nothing. */
 val LocalBackdropRelay = staticCompositionLocalOf<BackdropRelay?> { null }
 
@@ -311,7 +318,8 @@ fun AmbientBackdrop(
 ) {
     val ambient = rememberAmbientColor(image)
     val backdrop = rememberBackdropState()
-    CompositionLocalProvider(LocalAmbient provides { ambient.value }) {
+    val settled = remember(backdrop) { { shown: ImageRef? -> backdrop.settledOn(shown) } }
+    CompositionLocalProvider(LocalAmbient provides { ambient.value }, LocalBackdropSettled provides settled) {
         Box(modifier.fillMaxSize().drawnWhole(ready && backdrop.settledOn(image))) {
             BackdropOf(backdrop, image, style, Modifier, recede)
             content()
