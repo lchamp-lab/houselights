@@ -54,6 +54,8 @@ import app.houselights.ui.design.components.SelectedMark
 import app.houselights.ui.util.FACT_GAP
 import app.houselights.ui.util.formatDimensions
 import app.houselights.ui.util.formatDuration
+import androidx.compose.runtime.CompositionLocalProvider
+import app.houselights.ui.design.components.LocalBackdropRelay
 
 // Artwork comes from the app's own resources, and a failed image from a file that cannot exist:
 // nothing here needs the network.
@@ -138,8 +140,11 @@ private fun AmbientBackdrops() {
         listOf("a picture: its light" to art, "no picture: the black room, no light" to null).forEach { (state, image) ->
             Specimen(state, width = HlLayout.sideColumnWide) {
                 Box(Modifier.fillMaxWidth().aspectRatio(16f / 9f)) {
-                    AmbientBackdrop(image, BackdropStyle.Hero) {
-                        PosterCard(sample("Le Samouraï", 1967), {}, Modifier.align(Alignment.CenterStart).padding(start = HlSpace.l))
+                    // A backdrop on its own: nothing handed on to it, nor from it.
+                    CompositionLocalProvider(LocalBackdropRelay provides null) {
+                        AmbientBackdrop(image, BackdropStyle.Hero) {
+                            PosterCard(sample("Le Samouraï", 1967), {}, Modifier.align(Alignment.CenterStart).padding(start = HlSpace.l))
+                        }
                     }
                 }
             }

@@ -97,6 +97,11 @@ import app.houselights.settings.DisplayModes
 import app.houselights.settings.SettingsStore
 import app.houselights.settings.outputModes
 import app.houselights.ui.design.Scrub
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import app.houselights.ui.design.components.BackdropRelay
+import app.houselights.ui.design.components.LeavingBackdrop
+import app.houselights.ui.design.components.LocalBackdropRelay
 
 class MainActivity : ComponentActivity() {
     private val container by lazy { appContainer() }
@@ -166,6 +171,7 @@ class MainActivity : ComponentActivity() {
             HouselightsTheme {
                 val nav = rememberNavController()
                 val fixError = remember(nav) { nav::fixError }
+                val relay = remember { BackdropRelay() }
                 // One cue for the whole app; its steps (room, scrims, black) are in HouseLightCue.
                 val lights = animateFloatAsState(
                     if (lightsDown.value) 1f else 0f,
@@ -177,9 +183,11 @@ class MainActivity : ComponentActivity() {
                     LocalHouseLights provides { lights.value },
                     LocalErrorFix provides fixError,
                     LocalLaunchScreen provides launchScreen,
+                    LocalBackdropRelay provides relay,
                 ) {
                     // The window is the black room already (@color/room): no second black under every screen.
                     Box(Modifier.fillMaxSize()) {
+                        LeavingBackdrop(relay)
                         AppNavigation(nav, onPlay = ::play)
                         HouseLights()
                     }
@@ -383,7 +391,14 @@ private fun AppNavigation(nav: NavHostController, onPlay: (MediaItem, Boolean) -
         }
     }
 
-    NavHost(nav, startDestination = start) {
+    // Screens cut, as films do, never two faded together: the picture stays across the cut
+    // (BackdropRelay), the words change at once.
+    NavHost(
+        nav,
+        startDestination = start,
+        enterTransition = { EnterTransition.None },
+        exitTransition = { ExitTransition.None },
+    ) {
         composable<Route.Welcome> {
             // Never said again on a later visit (signed out, a connection lost).
             DisposableEffect(Unit) { onDispose { sourceProblem = null } }

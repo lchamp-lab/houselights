@@ -45,8 +45,6 @@ import app.houselights.ui.design.HlPalette
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
-import app.houselights.ui.design.components.Backdrop
-import app.houselights.ui.design.components.BackdropStyle
 import app.houselights.ui.design.components.Badge
 import app.houselights.ui.design.components.Emphasis
 import app.houselights.ui.design.components.FactRow
@@ -96,7 +94,6 @@ fun CatalogScreen() {
     val first = remember { FocusRequester() }
     LaunchedEffect(Unit) { first.tryRequestFocus() }
     Box(Modifier.fillMaxSize()) {
-        Backdrop(null, BackdropStyle.Quiet)
         LazyColumn(
             Modifier.fillMaxSize(),
             contentPadding = PaddingValues(horizontal = HlSpace.safeH, vertical = HlSpace.safeV),
