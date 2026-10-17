@@ -58,28 +58,41 @@ class AuditoriumTest {
     }
 
     /**
-     * The launch: the lights go down on the mark before home comes up, each step quick at first and
-     * settling (ease-out), over a few hundred milliseconds of the system's motion.
+     * The launch: the bars of the mark go out one after the other, the widest first, as the light
+     * the mark shows goes down one stop at a time; each quick at first and settling (ease-out). Once
+     * the last is out the black lifts off home. All in the cue the launch had, of the system's motion.
      */
     @Test
-    fun atTheLaunchTheMarkGoesOutBeforeHomeComesUp() {
+    fun atTheLaunchTheBarsGoOutOneAfterTheOtherBeforeHomeComesUp() {
         val t = (0..FRAMES).map { it / FRAMES.toFloat() }
-        assertEquals(1f, LaunchCue.mark(0f), EXACT)
+        val bars = 0 until LaunchCue.bars
+        assertEquals("the mark's bars", Gradation.widths.size, LaunchCue.bars)
+        bars.forEach { bar ->
+            assertEquals(1f, LaunchCue.bar(bar, 0f), EXACT)
+            assertEquals(0f, LaunchCue.bar(bar, 1f), EXACT)
+        }
         assertEquals(1f, LaunchCue.darkness(0f), EXACT)
-        assertEquals(0f, LaunchCue.mark(1f), EXACT)
         assertEquals(0f, LaunchCue.darkness(1f), EXACT)
-        // When the black starts to lift, the mark is all but out.
+        // One after the other, the widest first: each starts to go out after the one before, and is out after it.
+        val starts = bars.map { bar -> t.first { LaunchCue.bar(bar, it) < 1f } }
+        val outs = bars.map { bar -> t.first { LaunchCue.bar(bar, it) <= 0f } }
+        assertTrue("$starts", starts.zipWithNext().all { (a, b) -> a < b })
+        assertTrue("$outs", outs.zipWithNext().all { (a, b) -> a < b })
+        // When the black starts to lift, every bar is out; before, nothing of home shows.
         val lifts = t.first { LaunchCue.darkness(it) < 1f }
-        assertTrue("the mark at ${LaunchCue.mark(lifts)} when home comes up", LaunchCue.mark(lifts) < 0.1f)
+        bars.forEach { bar -> assertEquals("bar $bar when home comes up", 0f, LaunchCue.bar(bar, lifts), EXACT) }
+        assertTrue(lifts >= outs.last())
         // Ease-out: the first half of each step does more than half of it.
-        val marked = t.filter { LaunchCue.mark(it) in 0.0001f..0.9999f }
-        assertTrue(LaunchCue.mark(marked[marked.size / 2]) < 0.5f)
+        bars.forEach { bar ->
+            val going = t.filter { LaunchCue.bar(bar, it) in 0.0001f..0.9999f }
+            assertTrue("bar $bar", LaunchCue.bar(bar, going[going.size / 2]) < 0.5f)
+        }
         val lifting = t.filter { LaunchCue.darkness(it) in 0.0001f..0.9999f }
         assertTrue(LaunchCue.darkness(lifting[lifting.size / 2]) < 0.5f)
-        // Both only ever go down.
-        assertTrue(t.zipWithNext().all { (a, b) -> LaunchCue.mark(b) <= LaunchCue.mark(a) })
+        // They only ever go down.
+        bars.forEach { bar -> assertTrue(t.zipWithNext().all { (a, b) -> LaunchCue.bar(bar, b) <= LaunchCue.bar(bar, a) }) }
         assertTrue(t.zipWithNext().all { (a, b) -> LaunchCue.darkness(b) <= LaunchCue.darkness(a) })
-        assertTrue("a few hundred milliseconds", LaunchCue.DURATION in HlMotion.STANDARD..HlMotion.SLOW)
+        assertEquals("the length of the cue the launch had", HlMotion.SLOW, LaunchCue.DURATION)
     }
 
     private companion object {

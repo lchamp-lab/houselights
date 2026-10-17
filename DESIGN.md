@@ -57,9 +57,10 @@ The technical voice speaks the vocabulary of a Blu-ray case: formats by their na
   wide shows, 288 px on the Zidoo): no bar, no percentage, no word. It holds while home gets
   ready under it, its rows and the pictures of its first view loaded into memory as home will ask
   for them (`PicturesAhead`), never past 1.5 s after the process started, and not at all when the
-  app starts elsewhere (welcome, a screen brought back). Then the lights go down on the mark and home
-  comes up out of the dark, already whole (`LaunchCue`: `SLOW`, two steps that ease out, the mark
-  first). A warm start, or a return to the app, holds nothing and shows at once; on Android 9 the
+  app starts elsewhere (welcome, a screen brought back). Then the lights go down on the mark, bar by
+  bar, the widest first, in the order it reads: the light halves at each step, a large drop that
+  settles into the dark; the black, the fourth step, lifts off home, already whole (`LaunchCue`:
+  `SLOW` in all, each bar `FAST`, the black `STANDARD`, every step easing out). A warm start, or a return to the app, holds nothing and shows at once; on Android 9 the
   system still shows the mark while a new window opens, about a tenth of a second.
 - **House lights.** Playing a title runs one cue (`HouseLightCue`, `DIM`): the room fades first (text,
   buttons, rows: `Modifier.houseLit`), the scrims lift so the picture shows whole, then black and the
@@ -310,7 +311,7 @@ buttons keeps for a label, the first row's header a detail page keeps in its fir
 | Token | File | Content |
 |---|---|---|
 | `HlMotion`, `awaitMotion` | `Motion.kt` | `FAST` 150, `STANDARD` 250, `SLOW` 600, `DIM` 1000 ms; `lightsOut`, a light going out (ease-out), the launch's; `SETTLE` 300 ms before the title under focus changes the screen (after the focus motion, so the new title is laid out on a still frame; `rememberSettled`, the first at once); `SKELETON_DELAY` 400 ms before a placeholder shows; `WALL_DRIFT`; `ENTER_SCALE`, where a reading sheet and a menu grow from. What follows a motion waits for its end (`awaitMotion`, or the animated value itself), never a fixed `delay`: with animations off, everything settles without moving and nothing waits |
-| `LocalHouseLights`, `HouseLightCue`, `LaunchCue` | `Auditorium.kt` | how far the house lights are down (read while drawing), and the order of the cue; the launch's cue, the mark out before the black lifts off home |
+| `LocalHouseLights`, `HouseLightCue`, `LaunchCue` | `Auditorium.kt` | how far the house lights are down (read while drawing), and the order of the cue; the launch's cue, the mark's bars out one by one, the widest first, before the black lifts off home |
 | `HlIcons` | `Icons.kt` | every icon of the app, drawn on one line (24 dp grid, 1.75 stroke, round caps and joins): places (Folder, Server, Display, Storage), actions (Add, Edit, Refresh, Restart, Test, Close, Settings), marks (Check, Star, Attention), the remote's Back. Play is the one glyph taken from Material, filled, as on a remote; a state that must read as on is the same drawing filled (a favourite: `Heart`, `HeartFilled`). No other Material icon (a test forbids it); the catalogue shows every glyph at 24 and 20 dp, on the room and in a focused control |
 | `rememberListScroll`, `ListScroll`, `RowScroll` | `Scroll.kt` | lists scroll only as much as needed (`EdgeScroll`), never against the edge of the screen: a list keeps focus `HlFocus.edge` from its top and bottom, so the last row stops inside the safe area; a list that starts under a header or a hero (`ListScroll(top)`) brings its rows back to where its first one rests; rows keep focus 80 dp from the sides, so the first card always scrolls home |
 | `scrollEdges(state, color)` | `Scroll.kt` | what scrolls fades into its surface over `HlSpace.fadeEdge`, at the top and the bottom, on a side only while there is more that way: a line cut at the edge reads as more to come. A gradient of the surface's own colour over the content, no layer, so only on an opaque surface: the room in `HlTwoPane`, the raised sheet of `HlSideSheet` and of menus, the panel of `HlScrollArea`. Never on rows of posters, whose ends stay open |

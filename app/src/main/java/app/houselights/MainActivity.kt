@@ -3,7 +3,11 @@ package app.houselights
 import android.animation.ValueAnimator
 import android.annotation.SuppressLint
 import android.content.ActivityNotFoundException
+import android.os.Build
 import android.os.Bundle
+import android.widget.ImageView
+import androidx.compose.ui.graphics.toArgb
+import app.houselights.ui.design.HlPalette
 import android.util.Log
 import android.view.Display
 import android.view.KeyEvent
@@ -173,22 +177,28 @@ class MainActivity : ComponentActivity() {
     }
 
     /**
-     * The launch screen leaves on its cue ([LaunchCue]): the lights go down on the mark, then the black
-     * lifts off home, ready under it. The ground and the mark fade each on its own: no layer the size
-     * of the screen for the player's graphics chip to fill on every frame.
+     * The launch screen leaves on its cue ([LaunchCue]): the lights go down on the mark, bar by bar,
+     * the widest first, then the black lifts off home, whole under it. The ground and each bar fade
+     * on their own: no layer the size of the screen for the player's graphics chip to fill on every
+     * frame.
      */
     private fun lightsDown(splash: SplashScreenViewProvider) {
         // A colour of its own: the room's is shared with the window, which stays black.
         val ground = splash.view.background?.mutate()
-        val mark = splash.iconView
+        val icon = splash.iconView
+        // Android 9 draws the mark in an image view over its whole layer: its bars are drawn there, one by one.
+        val bars = (icon as? ImageView)?.takeIf { Build.VERSION.SDK_INT < Build.VERSION_CODES.S }?.let { view ->
+            LaunchMarkDrawable(HlPalette.Ember.toArgb()).also(view::setImageDrawable)
+        }
         ValueAnimator.ofFloat(0f, 1f).apply {
             duration = LaunchCue.DURATION.toLong()
             interpolator = LinearInterpolator()
             addUpdateListener {
                 val t = it.animatedFraction
-                mark.alpha = LaunchCue.mark(t)
+                // A system's own launch screen (Android 12 and up) draws its mark otherwise: it goes with the last bar.
+                if (bars != null) bars.at(t) else icon.alpha = LaunchCue.bar(LaunchCue.bars - 1, t)
                 val darkness = LaunchCue.darkness(t)
-                // A system's own launch screen (Android 12 and up) may draw its ground otherwise: then the whole of it fades.
+                // A system's own launch screen may draw its ground otherwise too: then the whole of it fades.
                 if (ground != null) ground.alpha = (darkness * OPAQUE).roundToInt() else splash.view.alpha = darkness
             }
             doOnEnd { splash.remove() }

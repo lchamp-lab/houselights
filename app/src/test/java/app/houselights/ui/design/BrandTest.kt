@@ -83,9 +83,9 @@ class BrandTest {
 
     /** A bar as its path draws it: `M x y h w v h h -w z`. */
     private fun rect(data: String): Rect {
-        val (x, y, w, h) = Regex("""^M([\d.]+) ([\d.]+)h([\d.]+)v([\d.]+)h-[\d.]+z$""").find(data)?.destructured
-            ?: error("Not a bar: $data")
-        return Rect(x.toFloat(), y.toFloat(), x.toFloat() + w.toFloat(), y.toFloat() + h.toFloat())
+        val found = Regex("""^M([\d.]+) ([\d.]+)h([\d.]+)v([\d.]+)h-[\d.]+z$""").find(data) ?: error("Not a bar: $data")
+        val (x, y) = found.groupValues[1].toFloat() to found.groupValues[2].toFloat()
+        return Rect(x, y, x + found.groupValues[3].toFloat(), y + found.groupValues[4].toFloat())
     }
 
     private fun assertBars(expected: List<Rect>, actual: List<Rect>) {

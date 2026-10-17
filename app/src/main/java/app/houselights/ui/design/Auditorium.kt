@@ -47,26 +47,39 @@ object HouseLightCue {
 
 /**
  * The launch, on a cold start: the mark alone in the room while home gets ready under it, then the
- * lights go down on the mark and home comes up out of the dark, already whole. One motion of
- * [DURATION], [t] from 0 to 1, in two steps that ease out ([HlMotion.lightsOut]): the mark goes
- * first, the black lifts once it is all but out.
+ * lights go down on the mark, bar by bar, and home comes up out of the dark, already whole. One
+ * motion of [DURATION], [t] from 0 to 1, every step easing out ([HlMotion.lightsOut]).
+ *
+ * The bars go out one after the other, the widest first, in the order the mark reads: the light it
+ * shows halves at each step, 7, then 3, then 1, then none, a large drop first that settles into
+ * the dark, as a light going out does; the thinnest glimmer goes last, and the black, the fourth
+ * step, lifts off home, where the screen takes over. Each bar goes out over `FAST`, the next one
+ * starting [NEXT] after it; the black lifts over `STANDARD` once the last is out.
  */
 object LaunchCue {
     const val DURATION = HlMotion.SLOW
 
-    /** Opacity of the mark. */
-    fun mark(t: Float) = 1f - step(0f, MARK_OUT, t)
+    /** How many bars go out: the mark's, widest first. */
+    val bars = Gradation.widths.size
+
+    /** Opacity of bar [bar], 0 the widest. */
+    fun bar(bar: Int, t: Float) = 1f - step(bar * NEXT, bar * NEXT + BAR, t)
 
     /** Opacity of the black over home. */
-    fun darkness(t: Float) = 1f - step(LIFT_FROM, 1f, t)
+    fun darkness(t: Float) = 1f - step(LIFT_FROM, DURATION, t)
 
-    private fun step(from: Float, to: Float, t: Float) = HlMotion.lightsOut.transform(((t - from) / (to - from)).coerceIn(0f, 1f))
+    /** A step of the cue, from [fromMs] to [toMs] into it, easing out. */
+    private fun step(fromMs: Int, toMs: Int, t: Float) =
+        HlMotion.lightsOut.transform(((t * DURATION - fromMs) / (toMs - fromMs)).coerceIn(0f, 1f))
 
-    /** Where in the cue the mark is out. */
-    private const val MARK_OUT = 0.6f
+    /** How long a bar takes to go out. */
+    private const val BAR = HlMotion.FAST
 
-    /** Where in the cue the black starts to lift off home. */
-    private const val LIFT_FROM = 0.4f
+    /** When the black starts to lift off home: what the cue leaves of itself for `STANDARD`. */
+    private const val LIFT_FROM = DURATION - HlMotion.STANDARD
+
+    /** How long after a bar the next one starts to go out: the last is out as the black starts to lift. */
+    private val NEXT = (LIFT_FROM - BAR) / (bars - 1)
 }
 
 /**
