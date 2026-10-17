@@ -19,7 +19,8 @@ data class Secret(val value: String) {
 
 /**
  * Lists stored as "A|B|C": genres, badges, a film's parts. Queries match one of their entries by
- * [matches] alone, so that a filter, a count and a page's similar titles agree on what a genre holds.
+ * [matches] alone (genres by [matchesAnyCase]), so that a filter, a count, the menu and a page's similar
+ * titles agree on what a genre holds.
  */
 object PipeList {
     @TypeConverter
@@ -35,12 +36,33 @@ object PipeList {
      */
     fun matches(column: String, value: String = "?"): String = "instr('|' || $column || '|', '|' || $value || '|') > 0"
 
-    /** [matches] for Room's queries, which take constants only: the genres hold `:genre`. A test holds the two alike. */
-    const val GENRES_MATCH = "instr('|' || genres || '|', '|' || :genre || '|') > 0"
+    /**
+     * [matches] whatever the case, as SQLite's lower() folds it: genres from NFO files and from TMDB,
+     * "drame" and "Drame", are one genre; "Mélodrame" is still another.
+     */
+    fun matchesAnyCase(column: String, value: String = "?"): String = matches("lower($column)", "lower($value)")
+
+    /** [matchesAnyCase] for Room's queries, which take constants only: the genres hold `:genre`. A test holds the two alike. */
+    const val GENRES_MATCH = "instr('|' || lower(genres) || '|', '|' || lower(:genre) || '|') > 0"
 
     /** [matches] for Room's queries: the badges hold `:token`. */
     const val BADGES_MATCH = "instr('|' || badges || '|', '|' || :token || '|') > 0"
+
+    /**
+     * One spelling of each genre of [lists] whatever its case, joined by the fold SQLite's lower() gives
+     * them ([GenreList.folded]): the menu joins the very spellings [matchesAnyCase] does, whatever lower()
+     * makes of an "É". The spelling most titles use wins; on a tie, the one that sorts first, a capital
+     * before a small letter.
+     */
+    fun distinctGenres(lists: List<GenreList>): List<String> =
+        lists.flatMap { it.genres.split('|').zip(it.folded.split('|')) }
+            .filter { (genre, _) -> genre.isNotBlank() }
+            .groupBy({ it.second }, { it.first })
+            .values.map { spellings -> spellings.groupingBy { it }.eachCount().entries.sortedBy { it.key }.maxBy { it.value }.key }
 }
+
+/** A title's genres as [PipeList] stores them, and as SQLite's lower() folds them for the genre filter. */
+data class GenreList(val genres: String, val folded: String)
 
 /** Seals [Secret] columns on the way to the database, opens them on the way back. */
 @ProvidedTypeConverter
