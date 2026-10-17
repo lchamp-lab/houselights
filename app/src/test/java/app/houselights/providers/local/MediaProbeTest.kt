@@ -41,14 +41,34 @@ class MediaProbeTest {
 
     private fun number(id: Int, v: Int) = el(id, byteArrayOf((v shr 8).toByte(), v.toByte()))
 
-    /** Where each read of [file] started, and what the probe made of it. */
-    private suspend fun probe(file: ByteArray): Pair<List<Long>, MediaInfo> {
+    /** Each read of [file], where it started and how many bytes it asked for, and what the probe made of it. */
+    private suspend fun probe(file: ByteArray): Pair<List<Pair<Long, Int>>, MediaInfo> {
         val nas = FakeRemoteBrowser().apply { put("Heat (1995).mkv", size = file.size.toLong(), bytes = file) }
-        val starts = mutableListOf<Long>()
-        nas.onRead = { _, offset, _ -> starts += offset }
+        val reads = mutableListOf<Pair<Long, Int>>()
+        nas.onRead = { _, offset, length -> reads += offset to length }
         val result = MediaProbe.probe(folder, RemoteFile("Heat (1995).mkv", file.size.toLong()), nas)
-        return starts to result.info
+        return reads to result.info
     }
+
+    /**
+     * A remux's start: an HEVC video and an AC3 audio track, the video's first frame of [videoFrame]
+     * bytes, the audio's after it, then the rest of the film.
+     */
+    private fun remux(videoFrame: Int): ByteArray {
+        val video = el(
+            0xAE,
+            number(0xD7, 1), number(0x83, 1), text(0x86, "V_MPEGH/ISO/HEVC"), el(0xE0, number(0xB0, 3840), number(0xBA, 2160)),
+        )
+        val audio = el(0xAE, number(0xD7, 2), number(0x83, 2), text(0x86, "A_AC3"), el(0xE1, number(0x9F, 6)))
+        // A SimpleBlock: its track's number, a timestamp, the flags of a keyframe without lacing, then the frame.
+        fun block(track: Int, frame: Int) = el(0xA3, byteArrayOf((0x80 or track).toByte(), 0, 0, 0x80.toByte()) + ByteArray(frame))
+        val cluster = el(0x1F43B675, number(0xE7, 0), block(1, videoFrame), block(2, 1_536))
+        val rest = el(0xEC, ByteArray(FRAMES_AT_MOST))
+        return el(0x1A45DFA3, text(0x4282, "matroska")) + el(0x18538067, el(0x1654AE6B, video, audio), cluster, rest)
+    }
+
+    /** What reading [file] whole makes of its tracks. */
+    private fun whole(file: ByteArray) = (MkvProbe.probe(file) as MkvProbe.Result.Found).info
 
     /** A track list that alone outgrows the first read, as a track's 300 KB CodecPrivate makes it: read on to its end. */
     @Test
@@ -60,21 +80,48 @@ class MediaProbeTest {
         )
         val file = el(0x1A45DFA3, text(0x4282, "matroska")) + el(0x18538067, el(0x1654AE6B, video))
         assertEquals("their end, not their start", MkvProbe.Result.NeedMore(file.size.toLong()), MkvProbe.probe(file.copyOf(FIRST_READ)))
-        val (starts, info) = probe(file)
+        val (reads, info) = probe(file)
         assertEquals("AVC", info.video?.codec)
         assertEquals(1920, info.video?.width)
-        assertEquals("each read goes on from the last", listOf(0L, FIRST_READ.toLong()), starts)
+        assertEquals("each read goes on from the last", listOf(0L, FIRST_READ.toLong()), reads.map { it.first })
     }
 
     /** Tracks in the first read, their first frames further in: the next read starts where the first stopped. */
     @Test
     fun framesFurtherInAreReadOnFromTheFirstRead() = runTest {
-        val (starts, info) = probe(MkvProbeTest().sampleFile() + ByteArray(FIRST_READ))
+        val (reads, info) = probe(MkvProbeTest().sampleFile() + ByteArray(FIRST_READ))
         assertEquals("HEVC", info.video?.codec)
-        assertEquals(listOf(0L, FIRST_READ.toLong()), starts)
+        assertEquals(listOf(0L, FIRST_READ.toLong()), reads.map { it.first })
+    }
+
+    /** A 4K remux's first video frame fills the first read; the audio's first frame follows within the megabyte: read no further. */
+    @Test
+    fun firstFramesWithinTheFirstMegabyteAreReadNoFurther() = runTest {
+        val file = remux(videoFrame = 500_000)
+        val (reads, info) = probe(file)
+        assertEquals(listOf(0L to FIRST_READ, FIRST_READ.toLong() to MEGABYTE - FIRST_READ), reads)
+        assertEquals(whole(file).video, info.video)
+        assertEquals(whole(file).audio, info.audio)
+    }
+
+    /** A first video frame larger than the megabyte: read on to the next step, for the audio's, as one read did. */
+    @Test
+    fun firstFramesPastTheFirstMegabyteAreReadOnToTheNextStep() = runTest {
+        val file = remux(videoFrame = 1_500_000)
+        val (reads, info) = probe(file)
+        assertEquals(
+            listOf(0L to FIRST_READ, FIRST_READ.toLong() to MEGABYTE - FIRST_READ, MEGABYTE.toLong() to FRAMES_AT_MOST - MEGABYTE),
+            reads,
+        )
+        assertEquals(whole(file).video, info.video)
+        assertEquals(whole(file).audio, info.audio)
     }
 
     private companion object {
         const val FIRST_READ = 256 shl 10
+        const val MEGABYTE = 1 shl 20
+
+        /** As far as a file is read for the first frames of its tracks. */
+        const val FRAMES_AT_MOST = 4 shl 20
     }
 }

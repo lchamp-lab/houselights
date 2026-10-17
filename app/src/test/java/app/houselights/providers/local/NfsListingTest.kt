@@ -11,7 +11,8 @@ import java.io.FileNotFoundException
 
 /**
  * Listing an NFS export with READDIRPLUS, on a NAS held in memory: what a listing gives, as READDIR
- * and a lookup of each entry gave it, and what it asks the NAS. On Robolectric for the log.
+ * and a lookup of each entry gave it, and what it asks the NAS; what reading a file asks it. On
+ * Robolectric for the log.
  */
 @RunWith(RobolectricTestRunner::class)
 class NfsListingTest {
@@ -21,11 +22,15 @@ class NfsListingTest {
     /**
      * An export holding [items] by path from its root ("/" separators), handles their paths. Each
      * READDIRPLUS answers [perAnswer] entries at most, "." and ".." first; the entries of [withheld]
-     * come without their attributes and handle, as a NAS may answer. What was asked, in order.
+     * come without their attributes and handle, as a NAS may answer. What was asked, in order, and the
+     * files read, by path.
      */
     private inner class Export(private val perAnswer: Int = 100) : NfsExport {
         val asked = mutableListOf<String>()
         val read = mutableListOf<String>()
+
+        /** Handles the NAS no longer knows, by path: each is refused once, as a file replaced since it was looked up. */
+        val stale = mutableSetOf<String>()
 
         private fun handle(path: String) = path.toByteArray()
 
@@ -55,11 +60,17 @@ class NfsListingTest {
         override fun lookup(dir: ByteArray, name: String): NfsEntry {
             val path = String(dir).let { if (it.isEmpty()) name else "$it/$name" }
             asked += "LOOKUP /$path"
+            if (stale.remove(String(dir))) throw NfsException(NfsStatus.NFS3ERR_STALE, "lookup error code: NfsStatus:70")
             val item = items[path]?.takeIf { path !in gone } ?: throw FileNotFoundException("lookup /volume1/media/$path")
             return NfsEntry(name, handle(path), attributes(item))
         }
 
-        override fun read(path: String, offset: Long, length: Int) = ByteArray(0).also { read += path }
+        override fun read(file: ByteArray, offset: Long, length: Int): ByteArray {
+            val path = String(file)
+            if (stale.remove(path)) throw NfsException(NfsStatus.NFS3ERR_STALE, "read error code: NfsStatus:70")
+            read += "/$path"
+            return ByteArray(0)
+        }
 
         private fun attributes(item: Item) = NfsAttributes(item.isFolder, item.size, item.date)
     }
@@ -79,7 +90,10 @@ class NfsListingTest {
         items[path] = Item(isFolder = false, size = size, date = date)
     }
 
-    private fun browser(export: Export) = NfsBrowser(mount = { export }, clock = { 0L })
+    /** Times the export was mounted. */
+    private var mounts = 0
+
+    private fun browser(export: Export) = NfsBrowser(mount = { export.also { mounts++ } }, clock = { 0L })
 
     private val films = SourceEntity(
         name = "Films", kind = SourceKind.MOVIES, protocol = Protocol.NFS, host = "192.168.1.20", share = "volume1/media",
@@ -181,14 +195,115 @@ class NfsListingTest {
         assertEquals(3, browser(Export()).test(films))
     }
 
-    /** A file of a folder deep in the export, by its path from the export's root. */
+    /** A file of a folder deep in the export, by its path from the export's root: each name looked up from the root. */
     @Test
     fun aFileIsReadByItsPathInTheExport() = runTest {
+        folder("films")
+        folder("films/4K")
+        folder("films/4K/Dune (2021)")
+        file("films/4K/Dune (2021)/movie.nfo", size = 4_096)
+        file("Sicario (2015).mp4", size = 9_000_000_000)
         val export = Export()
         val nas = browser(export)
         nas.readPrefix(films.copy(path = "/films/4K/"), "Dune (2021)/movie.nfo", 16)
         nas.readPrefix(films, "Sicario (2015).mp4", 16)
         assertEquals(listOf("/films/4K/Dune (2021)/movie.nfo", "/Sicario (2015).mp4"), export.read)
+        assertEquals(
+            listOf(
+                "LOOKUP /films", "LOOKUP /films/4K", "LOOKUP /films/4K/Dune (2021)", "LOOKUP /films/4K/Dune (2021)/movie.nfo",
+                "LOOKUP /Sicario (2015).mp4",
+            ),
+            export.asked,
+        )
+    }
+
+    /**
+     * A probe reads its file three or four times, then the title's NFO and artwork beside it are read:
+     * the file is looked up once, and its folder once for all of them.
+     */
+    @Test
+    fun aFolderAndItsFilesAreLookedUpOnceForAllTheirReads() = runTest {
+        library()
+        val export = Export()
+        val nas = browser(export)
+        repeat(3) { nas.readAt(films, "Dune (2021)/Dune (2021).mkv", offset = it * 1024L, length = 1024) }
+        nas.readPrefix(films, "Dune (2021)/movie.nfo", 4_096)
+        nas.readPrefix(films, "Dune (2021)/poster.jpg", 4_096)
+        assertEquals(
+            listOf(
+                "LOOKUP /Dune (2021)", "LOOKUP /Dune (2021)/Dune (2021).mkv", "LOOKUP /Dune (2021)/movie.nfo",
+                "LOOKUP /Dune (2021)/poster.jpg",
+            ),
+            export.asked,
+        )
+        assertEquals(5, export.read.size)
+    }
+
+    /** Radarr replaced the file since it was read: its handle refused, it is looked up once more and read, on the same mount. */
+    @Test
+    fun aFileReplacedSinceItWasReadIsLookedUpAgain() = runTest {
+        library()
+        val export = Export()
+        val nas = browser(export)
+        nas.readPrefix(films, "Dune (2021)/movie.nfo", 4_096)
+        export.stale += "Dune (2021)/movie.nfo"
+        nas.readPrefix(films, "Dune (2021)/movie.nfo", 4_096)
+        assertEquals(listOf("/Dune (2021)/movie.nfo", "/Dune (2021)/movie.nfo"), export.read)
+        assertEquals(2, export.asked.count { it == "LOOKUP /Dune (2021)/movie.nfo" })
+        assertEquals(1, mounts)
+    }
+
+    /** A folder whose handle the NAS no longer knows (moved, made again): its path is looked up again, on the same mount. */
+    @Test
+    fun aFolderForgottenSinceItWasReadIsLookedUpAgain() = runTest {
+        library()
+        val export = Export()
+        val nas = browser(export)
+        nas.readPrefix(films, "Dune (2021)/movie.nfo", 4_096)
+        export.stale += "Dune (2021)"
+        nas.readPrefix(films, "Dune (2021)/poster.jpg", 4_096)
+        assertEquals(listOf("/Dune (2021)/movie.nfo", "/Dune (2021)/poster.jpg"), export.read)
+        assertEquals(2, export.asked.count { it == "LOOKUP /Dune (2021)" })
+        assertEquals(1, mounts)
+    }
+
+    /** A mount dropped (a scan over, the folder's address changed) takes its handles along: the next read looks its file up. */
+    @Test
+    fun aMountDroppedTakesItsHandlesAlong() = runTest {
+        library()
+        val export = Export()
+        val nas = browser(export)
+        nas.readPrefix(films, "Sicario (2015).mp4", 16)
+        nas.closeIdle()
+        nas.readPrefix(films, "Sicario (2015).mp4", 16)
+        nas.forget(films)
+        nas.readPrefix(films, "Sicario (2015).mp4", 16)
+        assertEquals(3, export.asked.count { it == "LOOKUP /Sicario (2015).mp4" })
+    }
+
+    /** A few titles' handles are kept, not a whole library's: one read long ago is looked up again. */
+    @Test
+    fun aFileReadLongAgoIsLookedUpAgain() = runTest {
+        repeat(100) { file("Film $it (2000).mkv", size = 1) }
+        val export = Export()
+        val nas = browser(export)
+        repeat(100) { nas.readPrefix(films, "Film $it (2000).mkv", 16) }
+        nas.readPrefix(films, "Film 0 (2000).mkv", 16)
+        nas.readPrefix(films, "Film 99 (2000).mkv", 16)
+        assertEquals(2, export.asked.count { it == "LOOKUP /Film 0 (2000).mkv" })
+        assertEquals(1, export.asked.count { it == "LOOKUP /Film 99 (2000).mkv" })
+    }
+
+    /** A file gone since it was listed is not found, and the mount kept. */
+    @Test
+    fun aFileGoneIsNotFound() = runTest {
+        library()
+        gone += "Sicario (2015).mp4"
+        val nas = browser(Export())
+        val failure = runCatching { nas.readPrefix(films, "Sicario (2015).mp4", 16) }.exceptionOrNull()
+        assertEquals(ScanErrorKind.NOT_FOUND, failure?.let { ScanErrors.classify(it).kind })
+        nas.readPrefix(films, "Dune (2021)/movie.nfo", 16)
+        assertEquals(1, mounts)
     }
 
     @Test
