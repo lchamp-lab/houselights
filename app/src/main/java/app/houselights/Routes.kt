@@ -35,6 +35,10 @@ object Route {
     @Serializable
     data class Nfo(val id: String)
 
+    /** A person's page: their titles, before and behind the camera ([app.houselights.core.Catalog.person]). */
+    @Serializable
+    data class Person(val id: String)
+
     @Serializable
     data object Settings
 
