@@ -25,6 +25,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.Shadows.shadowOf
+import org.robolectric.shadows.ShadowBuild
 
 /** Launching the player, then following it through its local API, with a fake player in its place. */
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -99,20 +100,56 @@ class PlaybackManagerTest {
         }
     }
 
-    /** The Zidoo player is another app: a file of ours is out of its reach, a web address is not. */
+    /** The Zidoo player installed as an ordinary app, as some Zidoo firmwares do: on a Zidoo, it gets the password. */
     @Test
-    fun theZidooPlayerGetsTheCredentialsAndOnlyWebArtwork() = runTest {
+    fun onAZidooItsPlayerGetsThePasswordEvenNotASystemApp() = runTest {
+        installZidooPlayer(flags = 0)
+        val manager = PlaybackManager(context, this, status = { PlayerAnswer.NoAnswer }, onZidoo = { true }) { null }
+        val intent = manager.intentFor(plan("smb://zidoo:secret@nas/films/Heat.mkv"))
+        assertEquals(PlaybackManager.ZIDOO_ACTIVITY, intent.component?.className)
+        assertEquals("smb://zidoo:secret@nas/films/Heat.mkv", intent.dataString)
+    }
+
+    /** Elsewhere, an app that took the Zidoo player's package name, not a system app, gets no password. */
+    @Test
+    fun elsewhereAnAppUnderThePlayersNameGetsNoPassword() = runTest {
+        installZidooPlayer(flags = 0)
+        val manager = PlaybackManager(context, this, status = { PlayerAnswer.NoAnswer }, onZidoo = { false }) { null }
+        try {
+            manager.intentFor(plan("smb://zidoo:secret@nas/films/Heat.mkv"))
+            fail("The password went to an app that only bears the player's name")
+        } catch (_: PlaybackManager.CredentialsNotShared) {
+            // As it should.
+        }
+    }
+
+    @Test
+    fun aZidooIsToldByItsMaker() {
+        ShadowBuild.setManufacturer("Realtek")
+        ShadowBuild.setBrand("Android")
+        assertFalse(isZidooDevice())
+        ShadowBuild.setBrand("ZIDOO")
+        assertTrue(isZidooDevice())
+    }
+
+    private fun installZidooPlayer(flags: Int) {
         val pm = shadowOf(context.packageManager)
         pm.installPackage(
             PackageInfo().apply {
                 packageName = PlaybackManager.ZIDOO_PACKAGE
                 applicationInfo = ApplicationInfo().apply {
                     packageName = PlaybackManager.ZIDOO_PACKAGE
-                    flags = ApplicationInfo.FLAG_SYSTEM
+                    this.flags = flags
                 }
             }
         )
         pm.addActivityIfNotPresent(ComponentName(PlaybackManager.ZIDOO_PACKAGE, PlaybackManager.ZIDOO_ACTIVITY))
+    }
+
+    /** The Zidoo player is another app: a file of ours is out of its reach, a web address is not. */
+    @Test
+    fun theZidooPlayerGetsTheCredentialsAndOnlyWebArtwork() = runTest {
+        installZidooPlayer(ApplicationInfo.FLAG_SYSTEM)
         val manager = manager()
 
         val ours = "file:///data/user/0/app.houselights/files/artwork/b.jpg"

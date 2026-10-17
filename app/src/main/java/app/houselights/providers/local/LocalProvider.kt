@@ -393,7 +393,9 @@ class LocalProvider(
 
         /**
          * URI the Zidoo player opens directly:
-         * smb://user:password@host/share/folder/file or nfs://host/export/folder/file.
+         * smb://user:password@host/share/folder/file (smb://domain;user:password@… for an account of a
+         * domain, as SMB URLs write it) or nfs://host/export/folder/file. The name, domain and password
+         * are percent-encoded: a password holding @, : or / would otherwise end the user's part.
          */
         fun fileUri(source: SourceEntity, relativePath: String): String {
             val path = listOf(source.share.trim('/'), source.path.trim('/'), relativePath).filter { it.isNotEmpty() }
@@ -401,7 +403,8 @@ class LocalProvider(
             return when (source.protocol) {
                 Protocol.NFS -> "nfs://${source.host}/$path"
                 Protocol.SMB -> {
-                    val auth = if (source.username.isBlank()) "" else "${Uri.encode(source.username)}:${Uri.encode(source.password.value)}@"
+                    val user = listOf(source.domain, source.username).filter { it.isNotBlank() }.joinToString(";") { Uri.encode(it) }
+                    val auth = if (source.username.isBlank()) "" else "$user:${Uri.encode(source.password.value)}@"
                     "smb://$auth${source.host}/$path"
                 }
             }

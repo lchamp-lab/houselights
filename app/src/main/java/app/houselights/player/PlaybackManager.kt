@@ -4,7 +4,9 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ApplicationInfo
+import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import android.os.SystemClock
 import android.util.Log
 import app.houselights.R
@@ -38,6 +40,8 @@ class PlaybackManager(
     private val status: suspend () -> PlayerAnswer = ZidooStatus::playStatus,
     /** Milliseconds that only go forward: how long the player has said nothing of its title. */
     private val clock: () -> Long = SystemClock::elapsedRealtime,
+    /** Whether this device is a Zidoo: the one place its player's package name is the Zidoo player's own. */
+    private val onZidoo: () -> Boolean = ::isZidooDevice,
     /** The reporter of a playback the app started before it was stopped (see [PlaybackPlan.Launch.resumeKey]). */
     private val reporterFor: suspend (String) -> PlaybackReporter?,
 ) {
@@ -107,7 +111,7 @@ class PlaybackManager(
             putExtra("return_result", true)
         }
         val intent = when {
-            isSystemZidooPlayer() && zidoo.resolveActivity(context.packageManager) != null -> zidoo
+            isZidooPlayer() && zidoo.resolveActivity(context.packageManager) != null -> zidoo
             Redact.hasUserInfo(plan.uri) -> throw CredentialsNotShared()
             else -> {
                 val any = Intent(Intent.ACTION_VIEW).apply {
@@ -133,11 +137,27 @@ class PlaybackManager(
         saved.edit().clear().apply()
     }
 
-    /** The Zidoo player is a system app; an app installed under its package name elsewhere is not. */
-    private fun isSystemZidooPlayer(): Boolean = try {
-        context.packageManager.getApplicationInfo(ZIDOO_PACKAGE, 0).flags and ApplicationInfo.FLAG_SYSTEM != 0
-    } catch (_: Exception) {
-        false
+    /**
+     * Whether [ZIDOO_PACKAGE] is the Zidoo player, the one app a password is given to: the firmware's (a
+     * system app, or one signed with the firmware's key), or any on a Zidoo. Some Zidoo firmwares install
+     * their player as an ordinary app, which a password must still reach; on a Zidoo no other app can take
+     * its package name while it is installed. Elsewhere, an app under that name gets no password.
+     */
+    private fun isZidooPlayer(): Boolean {
+        val packages = context.packageManager
+        val info = try {
+            packages.getApplicationInfo(ZIDOO_PACKAGE, 0)
+        } catch (_: PackageManager.NameNotFoundException) {
+            return false
+        }
+        val firmware = info.flags and (ApplicationInfo.FLAG_SYSTEM or ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0
+        val platformSigned = packages.checkSignatures(PLATFORM_PACKAGE, ZIDOO_PACKAGE) == PackageManager.SIGNATURE_MATCH
+        val zidoo = onZidoo()
+        if (!firmware && !platformSigned && !zidoo) {
+            // What told the player apart, without a secret: the evening it is wrong, the log says why.
+            Log.w(TAG, "$ZIDOO_PACKAGE is not taken for the Zidoo player: flags ${info.flags}, ${Build.MANUFACTURER} ${Build.BRAND} ${Build.MODEL}")
+        }
+        return firmware || platformSigned || zidoo
     }
 
     /** Call right after the player activity was started. */
@@ -370,6 +390,12 @@ class PlaybackManager(
         private const val SAME_FILE_MS = 2_000L
         private const val SAME_FILE_SHARE = 100
         const val ZIDOO_PACKAGE = "com.android.gallery3d"
+        /** The system's own package, whose key signs the firmware's apps. */
+        private const val PLATFORM_PACKAGE = "android"
         const val ZIDOO_ACTIVITY = "com.android.gallery3d.app.MovieActivity"
     }
 }
+
+/** Whether this device is a Zidoo player, by what its build says of its maker. */
+internal fun isZidooDevice(): Boolean =
+    listOf(Build.MANUFACTURER, Build.BRAND, Build.PRODUCT).any { it.orEmpty().contains("zidoo", ignoreCase = true) }
