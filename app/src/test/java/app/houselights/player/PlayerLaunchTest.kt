@@ -165,8 +165,16 @@ class PlayerLaunchTest {
         assertTrue("said as such", assertRefused { manager.intentFor(plan(SMB)) }.playerChanged)
         // A plain file, which holds no secret, still plays there.
         assertEquals(ZIDOO_PLAYER_ACTIVITY, manager.intentFor(plan(NFS)).component?.className)
-        // A token is not a password: it goes through the chooser, as anywhere else.
-        assertEquals(Intent.ACTION_CHOOSER, manager.intentFor(plan(TOKEN)).action)
+        // Nor does a token go through a chooser: the app put in the player's place would be in it, alone perhaps.
+        assertTrue("said as such", assertRefused { manager.intentFor(plan(TOKEN)) }.playerChanged)
+    }
+
+    /** On a Zidoo whose player can be trusted with nothing yet, a token still goes through the chooser. */
+    @Test
+    fun aTokenGoesThroughAChooserWhenNoPlayerChanged() = runTest {
+        apps.install(ZIDOO_PLAYER, ZIDOO_PLAYER_ACTIVITY)
+        val intent = manager(ZIDOO_BUILD).intentFor(plan(TOKEN))
+        assertEquals("no certificate: nothing says it changed", Intent.ACTION_CHOOSER, intent.action)
     }
 
     /**

@@ -90,8 +90,10 @@ class PlaybackManager(
      * Zidoo's; else the player a secret last went to, or the first one, as long as neither its package
      * nor its certificate changes. Off a Zidoo, no app is trusted, whatever its name: any app may take one.
      * A password goes to no other app ([CredentialsNotShared]); a token goes elsewhere only through a
-     * chooser, where the user picks the app (Android opens the only one without asking). A URI with
-     * no secret goes to the player found, trusted or not, with what it is told of the film.
+     * chooser, where the user picks the app (Android opens the only one without asking), and not once
+     * the player trusted before has changed: the app put in its place would be in the chooser, alone
+     * perhaps. A URI with no secret goes to the player found, trusted or not, with what it is told of
+     * the film.
      *
      * Not guarded against: an app installed on the Zidoo, under a name of Zidoo's or the old player's,
      * before a first password goes to the player (trusted on first use, it would be the one); an
@@ -106,12 +108,13 @@ class PlaybackManager(
         val secret = Redact.hasCredentials(plan.uri)
         // A warning, kept in every build: where a secret goes, or why not, is what an evening on a new player needs.
         if (secret) Log.w(TAG, "Launch ${Redact.uri(plan.uri)} -> ${players.describe(choice)}")
+        val changed = choice.decision == ZidooPlayer.Decision.CHANGED
         val intent = when {
             player != null && (!secret || choice.decision.trusted) -> {
                 if (secret) players.remember(choice)
                 playerIntent(player.component, plan)
             }
-            Redact.hasUserInfo(plan.uri) -> throw CredentialsNotShared(playerChanged = choice.decision == ZidooPlayer.Decision.CHANGED)
+            Redact.hasUserInfo(plan.uri) || secret && changed -> throw CredentialsNotShared(playerChanged = changed)
             else -> anyPlayerIntent(plan, chooser = secret)
         }
         session = Session(plan.reporter, plan.startMs, plan.disc, plan.resumeKey)
