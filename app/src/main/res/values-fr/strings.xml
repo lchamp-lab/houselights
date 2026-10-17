@@ -497,4 +497,5 @@
     <string name="error_person_gone">Aucun titre de cette personne n’est plus dans la bibliothèque.</string>
     <string name="row_films_of">les films de</string>
     <string name="row_best_rated">Les mieux notés de votre bibliothèque</string>
+    <string name="saga_absent">Absent de votre bibliothèque</string>
 </resources>

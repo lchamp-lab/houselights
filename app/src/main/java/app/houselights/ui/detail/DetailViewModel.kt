@@ -33,6 +33,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.Deferred
 import android.util.Log
 import app.houselights.core.Credits
+import app.houselights.core.Saga
 
 data class DetailState(
     val item: MediaItem? = null,
@@ -65,6 +66,8 @@ data class DetailState(
     val partial: Boolean = false,
     /** Its people by job ([app.houselights.core.Catalog.credits]); null when the source tells only the cast. */
     val credits: Credits? = null,
+    /** For a collection: its saga whole, the films the library lacks in their place; null when the source cannot tell them. */
+    val saga: Saga? = null,
 )
 
 /**
@@ -109,10 +112,7 @@ class DetailViewModel(
                 }
                 when (item.kind) {
                     MediaKind.SERIES -> seriesPage(source, item, similar)
-                    // What Lire starts is picked from the films already here: the source is asked for them once.
-                    MediaKind.COLLECTION -> source.collectionItems(item).let { films ->
-                        DetailState(item = item, capabilities = source.capabilities, nextUp = nextUpIn(films), collectionFilms = films)
-                    }
+                    MediaKind.COLLECTION -> collectionPage(source, item)
                     else -> {
                         sayFirst(source, item)
                         filmPage(source, item, similar)
@@ -169,10 +169,21 @@ class DetailViewModel(
             )
         }
 
+    /**
+     * A collection's page: its films, from which Lire picks (the source is asked for them once), and
+     * its saga whole when the source knows it; without it, the films alone.
+     */
+    private suspend fun collectionPage(source: MediaProvider, item: MediaItem): DetailState {
+        val films = source.collectionItems(item)
+        val saga = suspendRunCatching { source.catalog?.saga(item) }.onFailure { Log.w(TAG, "Saga of $itemId", it) }.getOrNull()
+        return DetailState(item = item, capabilities = source.capabilities, nextUp = nextUpIn(films), collectionFilms = films, saga = saga)
+    }
+
     /** A film's page: its saga, then [similar] titles that are not of it. */
     private suspend fun filmPage(source: MediaProvider, item: MediaItem, similar: Deferred<List<MediaItem>>): DetailState {
         val collection = source.collectionOf(item)
-        val saga = collection?.let { c -> source.collectionItems(c).filter { it.id != item.id } }.orEmpty()
+        // The film itself in its place among them: where it stands in its saga.
+        val saga = collection?.let { c -> source.collectionItems(c) }.orEmpty()
         // Films of the same saga are shown as such, not again as "similar".
         val similarFilms = similar.await().filter { s -> saga.none { it.id == s.id } }
         return DetailState(

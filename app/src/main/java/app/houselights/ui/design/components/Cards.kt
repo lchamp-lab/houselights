@@ -481,6 +481,49 @@ fun PersonCard(person: Person, modifier: Modifier = Modifier, onOpen: (() -> Uni
 }
 
 /**
+ * A film of a saga the library lacks, in its place among those it holds: an empty frame of a
+ * poster's shape, [title] in grey and [year] in the technical voice, never its poster. It takes
+ * focus outlined, as what cannot act does, without rising, and says then that it is not in the
+ * library; OK does nothing. It is read "title, year, not in your library".
+ */
+@Composable
+fun AbsentCard(title: String, year: Int?, modifier: Modifier = Modifier, width: Dp = HlSize.poster) {
+    val c = Hl.colors
+    val interaction = remember { MutableInteractionSource() }
+    val focused by interaction.collectIsFocusedAsState()
+    val absent = stringResource(R.string.saga_absent)
+    Surface(
+        onClick = {},
+        enabled = false,
+        modifier = modifier.width(width).aspectRatio(POSTER_SHAPE).clearAndSetSemantics {
+            contentDescription = listOfNotNull(title, year?.toString(), absent).joinToString(", ")
+            this.focused = focused
+        },
+        shape = ClickableSurfaceDefaults.shape(HlShapes.artwork),
+        scale = FocusStyle.scale(FocusStyle.Fill.Row),
+        border = FocusStyle.disabledRing(HlShapes.artwork),
+        colors = FocusStyle.still(rest = Color.Transparent, restContent = c.contentTertiary),
+        interactionSource = interaction,
+    ) {
+        Box(Modifier.fillMaxSize().artworkEdge(HlShapes.artwork, c))
+        Column(Modifier.align(Alignment.BottomStart).padding(HlSpace.s)) {
+            Box(Modifier.width(HlSpace.l).height(HlSize.hairline).background(c.contentDecorative))
+            Spacer(Modifier.height(HlSpace.xs))
+            Text(title, style = Hl.type.cardTitle, color = c.contentTertiary, maxLines = 4, overflow = TextOverflow.Ellipsis)
+            if (year != null) {
+                Spacer(Modifier.height(HlSpace.xxs))
+                Text(year.toString(), style = Hl.type.badge, color = c.contentTertiary)
+            }
+            // Said with focus only: at rest, the grey says it.
+            if (focused) {
+                Spacer(Modifier.height(HlSpace.xs))
+                Text(absent, style = Hl.type.caption, color = c.contentSecondary, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            }
+        }
+    }
+}
+
+/**
  * No artwork, or none that loads: the title set like a one-sheet, in the voice of the poster, low
  * on the card under a short rule, with its year in the technical voice.
  */

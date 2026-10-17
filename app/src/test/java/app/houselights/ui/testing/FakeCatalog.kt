@@ -23,6 +23,9 @@ class FakeCatalog : Catalog {
     var pages = mapOf<String, PersonPage>()
     var directors = listOf<Person>()
     var best = listOf<MediaItem>()
+
+    /** Sagas whole, by collection id. */
+    var sagas = mapOf<String, Saga>()
     val calls = mutableListOf<String>()
 
     override suspend fun credits(item: MediaItem): Credits = credits[item.id] ?: Credits()
@@ -34,7 +37,7 @@ class FakeCatalog : Catalog {
 
     override suspend fun bestRated(kind: MediaKind, minVotes: Int, limit: Int): List<MediaItem> = best.take(limit).also { calls += "best" }
 
-    override suspend fun saga(collection: MediaItem): Saga? = null
+    override suspend fun saga(collection: MediaItem): Saga? = sagas[collection.id]
 
     override suspend fun versions(item: MediaItem): List<Version> = emptyList()
 

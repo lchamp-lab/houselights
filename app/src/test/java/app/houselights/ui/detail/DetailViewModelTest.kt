@@ -344,6 +344,24 @@ class DetailViewModelTest {
         // The film in progress comes before the first one not seen.
         assertEquals("alien3", vm.state.value.nextUp?.id)
     }
+
+    /** A saga's page has it whole when the source knows it: the films the library lacks in their place. */
+    @Test
+    fun aSagaIsWhole() = runTest {
+        val collection = MediaItem("saga", MediaKind.COLLECTION, "Alien")
+        provider.items["saga"] = collection
+        val whole = app.houselights.core.Saga(
+            collection,
+            listOf(
+                app.houselights.core.SagaPart(film("alien"), "Alien", 1979),
+                app.houselights.core.SagaPart(null, "Aliens", 1986),
+            ),
+        )
+        provider.catalog = app.houselights.ui.testing.FakeCatalog().apply { sagas = mapOf("saga" to whole) }
+        val vm = DetailViewModel("saga", { Saga(provider, listOf(film("alien"))) }, events, now = { testScheduler.currentTime })
+        advanceUntilIdle()
+        assertEquals(whole, vm.state.value.saga)
+    }
 }
 
 /**

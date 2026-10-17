@@ -124,6 +124,8 @@ import app.houselights.ui.design.components.Craft
 import app.houselights.ui.design.components.CRAFT_NAMES
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.runtime.MutableState
+import app.houselights.core.SagaPart
+import app.houselights.ui.design.components.AbsentCard
 
 @Composable
 fun DetailScreen(
@@ -294,6 +296,39 @@ private fun LazyListScope.seasonRows(
     }
 }
 
+/** A collection's films, its saga whole; a film's saga, the film in its place. */
+private fun LazyListScope.sagaRows(item: MediaItem, state: DetailState, memory: FocusMemory, onOpenItem: (String) -> Unit) {
+    // A collection's saga whole, in the order its films came out: those the library lacks keep their
+    // place, as empty frames. Without the saga, the films it holds.
+    val parts = state.saga?.parts ?: state.collectionFilms.map { SagaPart(it, it.title, it.year) }
+    if (item.kind == MediaKind.COLLECTION && parts.isNotEmpty()) {
+        item(key = "films") {
+            MediaRow(stringResource(R.string.library_movies), memory.rowGroup(FILMS)) {
+                itemsIndexed(parts, key = { i, part -> part.item?.id ?: "absent-$i" }) { _, part ->
+                    val film = part.item
+                    if (film != null) {
+                        PosterCard(film, onClick = { onOpenItem(film.id) }, modifier = memory.card(FILMS, film))
+                    } else {
+                        AbsentCard(part.title, part.year)
+                    }
+                }
+            }
+        }
+    }
+
+    // A film's saga: its films in order, the film itself in its place, under the saga's name; a saga
+    // of this film alone, no row.
+    state.collection?.takeIf { state.collectionFilms.any { it.id != item.id } }?.let { collection ->
+        item(key = "collection") {
+            MediaRow(collection.title, memory.rowGroup(SAGA)) {
+                items(state.collectionFilms, key = { it.id }) { f ->
+                    PosterCard(f, onClick = { if (f.id != item.id) onOpenItem(f.id) }, modifier = memory.card(SAGA, f))
+                }
+            }
+        }
+    }
+}
+
 /**
  * The rows under a title's head: a collection's films, a film's saga, its people ([people]), the
  * titles like it, then its end credits.
@@ -307,26 +342,7 @@ private fun LazyListScope.titleRows(
 ) {
     val onOpenItem = links.onOpenItem
     val onOpenPerson = links.onOpenPerson
-    if (item.kind == MediaKind.COLLECTION && state.collectionFilms.isNotEmpty()) {
-        item(key = "films") {
-            MediaRow(stringResource(R.string.library_movies), memory.rowGroup(FILMS)) {
-                items(state.collectionFilms, key = { it.id }) { f ->
-                    PosterCard(f, onClick = { onOpenItem(f.id) }, modifier = memory.card(FILMS, f))
-                }
-            }
-        }
-    }
-
-    // A film's saga: its other films in order, under the saga's name; none, no row.
-    state.collection?.takeIf { state.collectionFilms.isNotEmpty() }?.let { collection ->
-        item(key = "collection") {
-            MediaRow(collection.title, memory.rowGroup(SAGA)) {
-                items(state.collectionFilms, key = { it.id }) { f ->
-                    PosterCard(f, onClick = { onOpenItem(f.id) }, modifier = memory.card(SAGA, f))
-                }
-            }
-        }
-    }
+    sagaRows(item, state, memory, onOpenItem)
 
     if (people.isNotEmpty()) {
         item(key = "cast") {
