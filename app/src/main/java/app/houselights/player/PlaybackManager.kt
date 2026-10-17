@@ -94,10 +94,11 @@ class PlaybackManager(
      * once the player trusted before has changed: the app put in its place would be in the chooser. A
      * URI with no secret goes to the player found, trusted or not, with what it is told of the film.
      *
-     * Not guarded against: an app installed on the Zidoo, under a name of Zidoo's or the old player's,
-     * before a first password goes to the player (trusted on first use, it would be the one); an
-     * update of a system app signed with the AOSP test keys of the firmware's build; and whoever reads
-     * the device's log through adb, where Android writes the address it starts.
+     * Not guarded against: an app installed on a Zidoo whose player is no system app, under a name of
+     * Zidoo's or the old player's, before a first password goes to the player (trusted on first use,
+     * it would be the one; beside a system player, it comes after it); an update of a system app
+     * signed with the AOSP test keys of the firmware's build; and whoever reads the device's log
+     * through adb, where Android writes the address it starts.
      */
     fun intentFor(plan: PlaybackPlan.Launch): Intent {
         Log.i(TAG, "Launch ${plan.title} -> ${Redact.uri(plan.uri)}")

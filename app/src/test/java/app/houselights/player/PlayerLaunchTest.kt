@@ -164,6 +164,16 @@ class PlayerLaunchTest {
         assertRefused { manager.intentFor(plan(SMB)) }
     }
 
+    /** Beside a system player under another name, an ordinary app under the old player's gets no first password. */
+    @Test
+    fun aFirstPasswordGoesToTheSystemsPlayer() = runTest {
+        val system = apps.install("com.rtk.media", "com.rtk.media.MoviePlayer", system = true)
+        apps.install(GALLERY, MOVIE_ACTIVITY, certificate = OTHER_KEY, schemes = emptyList())
+        val intent = manager(ZIDOO_BUILD).intentFor(plan(SMB))
+        assertEquals(system, intent.component)
+        assertEquals(SMB, intent.dataString)
+    }
+
     /** An ordinary player of another key is trusted the first time, then refused once its certificate changes. */
     @Test
     fun aPlayerIsTrustedOnFirstUseUntilItChanges() = runTest {

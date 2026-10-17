@@ -140,7 +140,10 @@ class ZidooPlayerTest {
         assertTrue(choice.candidates.isEmpty())
     }
 
-    /** An app of Zidoo's comes first, then the system's default, then an activity named for films. */
+    /**
+     * The system's apps first: the old player, then an app of Zidoo's, then any other; within each, the
+     * system's default, then an activity named for films. An ordinary app of Zidoo's name comes after.
+     */
     @Test
     fun playersAreTakenInOrder() {
         val browser = apps.install("com.rtk.browser", "com.rtk.browser.Browse", system = true)!!
@@ -148,8 +151,48 @@ class ZidooPlayerTest {
         assertEquals("named for films", movies, choose(ZIDOO_BUILD).player?.component)
         apps.makeDefault(browser)
         assertEquals("the default", browser, choose(ZIDOO_BUILD).player?.component)
-        val zidoo = apps.install("com.zidoo.files", "com.zidoo.files.Open")!!
+        apps.install("com.zidoo.files", "com.zidoo.files.Open")
+        assertEquals("an ordinary app of Zidoo's name after", browser, choose(ZIDOO_BUILD).player?.component)
+        val zidoo = apps.install("com.zidoo.media", "com.zidoo.media.Open", system = true)!!
         assertEquals("Zidoo's", zidoo, choose(ZIDOO_BUILD).player?.component)
+        apps.install(GALLERY, MOVIE_ACTIVITY, system = true, schemes = emptyList())
+        assertEquals("the old player", MOVIE_ACTIVITY, choose(ZIDOO_BUILD).playerClass())
+    }
+
+    /** Before any password went to a player, a system player under another name beats an ordinary app under the old player's. */
+    @Test
+    fun aSystemPlayerComesBeforeAnOrdinaryOneUnderTheOldPlayersName() {
+        val system = apps.install("com.rtk.media", "com.rtk.media.MoviePlayer", system = true)
+        apps.install(GALLERY, MOVIE_ACTIVITY, certificate = OTHER_KEY, schemes = emptyList())
+        val choice = choose(ZIDOO_BUILD)
+        assertEquals(system, choice.player?.component)
+        assertEquals(Decision.FIRMWARE, choice.decision)
+    }
+
+    /** Nor an ordinary app under a name of Zidoo's: any app may take one. */
+    @Test
+    fun aSystemPlayerComesBeforeAnOrdinaryOneUnderAZidooName() {
+        val system = apps.install("com.rtk.media", "com.rtk.media.MoviePlayer", system = true)
+        apps.install("com.zidoo.x", "com.zidoo.x.VideoPlayer", certificate = OTHER_KEY)
+        val choice = choose(ZIDOO_BUILD)
+        assertEquals(system, choice.player?.component)
+        assertEquals(Decision.FIRMWARE, choice.decision)
+    }
+
+    /** The player a password went to comes first while it keeps its certificate; changed, a system player does. */
+    @Test
+    fun aRememberedPlayerComesFirstOnlyWithItsCertificate() {
+        apps.install(ZIDOO_PLAYER, ZIDOO_PLAYER_ACTIVITY, certificate = OTHER_KEY)
+        val players = ZidooPlayer(context) { ZIDOO_BUILD }
+        players.remember(players.choose())
+        val system = apps.install("com.rtk.media", "com.rtk.media.MoviePlayer", system = true)
+        assertEquals(ZIDOO_PLAYER_ACTIVITY, players.choose().playerClass())
+        assertEquals(Decision.REMEMBERED, players.choose().decision)
+
+        apps.install(ZIDOO_PLAYER, ZIDOO_PLAYER_ACTIVITY, certificate = "a-third-key")
+        val choice = players.choose()
+        assertEquals(system, choice.player?.component)
+        assertEquals(Decision.FIRMWARE, choice.decision)
     }
 
     @Test

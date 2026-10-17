@@ -130,19 +130,28 @@ class ZidooPlayer(
     }
 
     /**
-     * The player: the one a password last went to ([remember]) while it is there; [KNOWN_ACTIVITY]
-     * when the package manager really resolves it (an intent naming a component would return it
-     * unchecked); else, on a Zidoo, the firmware's app that opens a video, in the order of [preferred].
+     * The player: the one a password last went to ([remember]) while it is there with the same
+     * certificate; else the first of [preferred], among [KNOWN_ACTIVITY] when the package manager
+     * really resolves it (an intent naming a component would return it unchecked) and, on a Zidoo,
+     * the firmware's apps that open a video.
      */
     fun choose(): Choice {
         val device = device()
-        val known = known()
-        val found = if (device.zidoo) discover() else emptyList()
-        val candidates = (listOfNotNull(known) + found).distinctBy { it.component }
-        val remembered = trusted.getString(KEY_PACKAGE, null)
-        val player = candidates.firstOrNull { it.component.packageName == remembered } ?: known ?: found.firstOrNull()
+        val found = listOfNotNull(known()) + if (device.zidoo) discover() else emptyList()
+        val defaults = if (device.zidoo) defaults() else emptySet()
+        val candidates = found.distinctBy { it.component }.sortedWith(preferred(defaults))
+        val player = candidates.firstOrNull(::remembered) ?: candidates.firstOrNull()
         val certificate = player?.let { certificate(it.component.packageName) }
         return Choice(player, candidates, device, certificate, decide(player, device, certificate))
+    }
+
+    /**
+     * [candidate] is the player a password last went to ([remember]), with the same certificate: an
+     * app put in its place, under its name, does not come first for it.
+     */
+    private fun remembered(candidate: Candidate): Boolean {
+        val pkg = candidate.component.packageName
+        return pkg == trusted.getString(KEY_PACKAGE, null) && certificate(pkg) == trusted.getString(KEY_CERTIFICATE, null)
     }
 
     /** What About says of the player: what [choose] decides. */
@@ -265,32 +274,43 @@ class ZidooPlayer(
      * asks (an app whose filter names a scheme answers no intent without one): its system apps, or apps
      * under a name of Zidoo's, never ours, and only what this app may start ([startable]).
      */
-    private fun discover(): List<Candidate> {
-        val probes = probes()
-        val defaults = probes.mapNotNull { packages.resolveActivity(it, PackageManager.MATCH_DEFAULT_ONLY)?.activityInfo }
-            .map { it.component() }
-            .toSet()
-        return probes.flatMap { probe -> QUERY_FLAGS.flatMap { packages.queryIntentActivities(probe, it) } }
+    private fun discover(): List<Candidate> =
+        probes().flatMap { probe -> QUERY_FLAGS.flatMap { packages.queryIntentActivities(probe, it) } }
             .mapNotNull { it.activityInfo }
             .filter(::startable)
             .filter { !it.packageName.isOurs() && (it.applicationInfo.isSystem() || it.packageName.startsWith(ZIDOO_PREFIX)) }
             .distinctBy { it.component() }
             .map(::candidate)
-            .sortedWith(preferred(defaults))
-    }
+
+    /** What the system opens a video with unasked, at any address [probes] asks. */
+    private fun defaults(): Set<ComponentName> =
+        probes().mapNotNull { packages.resolveActivity(it, PackageManager.MATCH_DEFAULT_ONLY)?.activityInfo }
+            .map { it.component() }
+            .toSet()
 
     /**
-     * The order players are taken in: an app of Zidoo's first, then the system's default, then a
-     * system app, then an activity named for films ("MovieActivity", "VideoPlayer"); by name last,
-     * so the same apps always give the same player.
+     * The order players are taken in, what no ordinary app can fake first: the system's apps, the old
+     * player, then an app of Zidoo's, then any other; then an ordinary app, under the old player's
+     * name or one of Zidoo's, which any app may take. Within each, the system's default, then an
+     * activity named for films ("MovieActivity", "VideoPlayer"); by name last, so the same apps
+     * always give the same player.
      */
     private fun preferred(defaults: Set<ComponentName>) =
-        compareByDescending<Candidate> { it.component.packageName.startsWith(ZIDOO_PREFIX) }
+        compareBy<Candidate> { rank(it) }
             .thenByDescending { it.component in defaults }
-            .thenByDescending { it.system }
             .thenByDescending { FILM_WORDS.containsMatchIn(it.component.className.substringAfterLast('.')) }
             .thenBy { it.component.packageName }
             .thenBy { it.component.className }
+
+    private fun rank(candidate: Candidate): Int {
+        val pkg = candidate.component.packageName
+        return when {
+            !candidate.system -> 3
+            pkg == KNOWN_PACKAGE -> 0
+            pkg.startsWith(ZIDOO_PREFIX) -> 1
+            else -> 2
+        }
+    }
 
     /**
      * Another app may start it: exported, and under no permission this one lacks. Android may list
