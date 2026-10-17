@@ -53,6 +53,20 @@ class RedactTest {
         assertEquals(false, Redact.hasUserInfo("http://nas:8096/Videos/1/stream.mkv?static=true"))
     }
 
+    /** A password of digits, then more than one slash, or a slash and then a ? or a #: a date, say. */
+    @Test
+    fun findsAPasswordOfDigitsAndSlashes() {
+        listOf(
+            "smb://zidoo:2024/10/17@nas/media/film.mkv",
+            "smb://zidoo:12/3?4@nas/media/film.mkv",
+            "smb://zidoo:12/3#4@nas/media/film.mkv",
+        ).forEach {
+            assertEquals(it, true, Redact.hasUserInfo(it))
+            assertEquals("smb://***@nas/media/film.mkv", Redact.uri(it))
+        }
+        assertEquals(false, Redact.hasUserInfo("smb://nas/media/@eaDir/film.mkv"))
+    }
+
     /** All of a password typed raw is hidden: up to the last @, which no password reaches past. */
     @Test
     fun hidesAPasswordTypedRaw() {

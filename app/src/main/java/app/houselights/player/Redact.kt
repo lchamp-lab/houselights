@@ -26,12 +26,16 @@ object Redact {
         return if (typedRaw(masked, ours = MASK)) masked.replace(UP_TO_LAST_AT, "$1$MASK@") else masked
     }
 
+    /** An @ with a slash after it: "@nas/share", the host a password typed raw ends at. */
+    private val AT_THEN_PATH = Regex("""@[^/]*/""")
+
     /**
      * A user's part the pattern misses, typed raw in a path mapping: "user:p w@nas" holds a space,
      * which the player's [Uri] still reads as a user's part; "user:p/ss@nas" ends at its slash, as
-     * "user:p", a port that is no number, or as "user:12" before a first segment holding the @
-     * (a share named with an @ behind a port is taken for one too: a password is never missed).
-     * [ours] is the user's part [uri] already writes in its place.
+     * "user:p", a port that is no number, or as "user:12" before a first segment holding the @, or
+     * before an @ that a slash follows further on ("user:2024/10/17@nas/share", "user:12/3?4@nas/share").
+     * A share named with an @ behind a port, or a folder, is taken for one too: a password is never
+     * missed. [ours] is the user's part [uri] already writes in its place.
      */
     private fun typedRaw(uri: String, ours: String?): Boolean {
         val parsed = Uri.parse(uri)
@@ -41,6 +45,9 @@ object Redact {
         val hostAndPort = authority.substringAfterLast(']')
         if (':' !in hostAndPort) return false
         val port = hostAndPort.substringAfter(':')
-        return !port.all(Char::isDigit) || parsed.encodedPath.orEmpty().removePrefix("/").substringBefore('/').contains('@')
+        val rest = uri.substringAfter("://").removePrefix(authority)
+        return !port.all(Char::isDigit) ||
+            parsed.encodedPath.orEmpty().removePrefix("/").substringBefore('/').contains('@') ||
+            AT_THEN_PATH.containsMatchIn(rest)
     }
 }
