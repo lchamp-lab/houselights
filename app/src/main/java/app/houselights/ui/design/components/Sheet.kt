@@ -67,6 +67,7 @@ import app.houselights.ui.design.groundStepFill
 import app.houselights.ui.design.scrollEdges
 import app.houselights.ui.design.tryRequestFocus
 import app.houselights.ui.util.toPx
+import app.houselights.ui.design.capitalsAtTop
 
 /**
  * What the content of a sheet can do: close it, with its motion, then act once it has gone.
@@ -222,13 +223,22 @@ private fun SheetHeader(
     status: (@Composable () -> Unit)?,
 ) {
     val c = Hl.colors
-    Row(verticalAlignment = Alignment.CenterVertically) {
+    // The words start at the artwork's top, as a caption beside a picture does.
+    Row(verticalAlignment = Alignment.Top) {
         if (artwork != null) {
             artwork()
             Spacer(Modifier.width(HlSpace.m))
         }
         Column {
-            Text(title, style = Hl.type.subject, color = c.content, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Text(
+                title,
+                style = Hl.type.subject,
+                color = c.content,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                // Its capitals level with the artwork's top.
+                modifier = if (artwork != null) Modifier.capitalsAtTop(Hl.type.subject.fontSize) else Modifier,
+            )
             if (subject != null) {
                 Spacer(Modifier.height(HlSpace.xxs))
                 Text(subject, style = Hl.type.entry, color = c.content, maxLines = 2, overflow = TextOverflow.Ellipsis)

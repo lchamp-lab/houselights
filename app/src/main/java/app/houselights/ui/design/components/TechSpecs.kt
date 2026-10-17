@@ -55,11 +55,13 @@ import app.houselights.ui.util.formatDuration
 import app.houselights.ui.util.formatRatio
 import app.houselights.ui.util.languageName
 import java.util.Locale
+import kotlin.math.roundToInt
+import app.houselights.ui.design.CAP_HEIGHT
 
 /**
  * A title's technical sheet, beside its page ([HlSideSheet]): what its file holds ([TechSheet]),
- * read row by row with the remote. At its head, its poster, and beside it the title and its
- * formats in brief ([FormatLines]); then the picture, the sound, the subtitles and the file, one
+ * read row by row with the remote. At its head, its poster, and beside it the title and its year:
+ * its formats are its rows, never said twice; then the picture, the sound, the subtitles and the file, one
  * row per fact: its name on the left, what it says on the right, what qualifies it under. A track
  * goes by its language, its title under it when it says more; the one the player starts with has
  * its dot in the margin. Rows take focus to be read, white as every row; OK does nothing, Back
@@ -75,7 +77,6 @@ fun TechSpecs(item: MediaItem, onDismiss: () -> Unit) {
         onDismiss = onDismiss,
         facts = listOf(item.title, item.year?.toString()),
         artwork = item.poster?.let { poster -> { PosterThumb(poster, width = HlSize.posterThumbLarge) } },
-        status = { FormatLines(item) },
         initialFocus = first.takeIf { sheet.sections.isNotEmpty() },
     ) {
         sheet.sections.forEachIndexed { i, section ->
@@ -168,7 +169,8 @@ private fun SpecRow(
     // Its focus is read here, for what the row says it is to accessibility services.
     val interaction = remember { MutableInteractionSource() }
     val focused by interaction.collectIsFocusedAsState()
-    val line = with(LocalDensity.current) { Hl.type.entry.lineHeight.toDp() }
+    // Where the dot of the track in use sits: in the middle of the label's capitals.
+    val capitals = with(LocalDensity.current) { (Hl.type.entry.fontSize.toPx() * CAP_HEIGHT / 2).roundToInt() }
     HlRowSurface(
         onClick = {},
         modifier = modifier
@@ -182,13 +184,20 @@ private fun SpecRow(
         val ink = LocalContentColor.current
         val secondary = if (focused) ink else c.contentSecondary
         val quiet = if (focused) c.onFocusSecondary else c.contentTertiary
-        Row(
+        // The words in the middle of the row's height, however few lines they take; between them,
+        // the label and its value keep to one baseline.
+        Box(
             Modifier
                 .fillMaxWidth()
                 .heightIn(min = TechSpecsDefaults.rowHeight)
                 .padding(end = HlInset.card, top = HlSpace.xs, bottom = HlSpace.xs),
-        ) {
-            Box(Modifier.width(HlInset.card).height(line), contentAlignment = Alignment.Center) {
+            contentAlignment = Alignment.CenterStart,
+        ) { Row(Modifier.fillMaxWidth()) {
+            // As tall as its dot alone: a margin a line tall would leave room under the words.
+            Box(
+                Modifier.width(HlInset.card).alignBy { it.measuredHeight / 2 + capitals },
+                contentAlignment = Alignment.Center,
+            ) {
                 if (inUse) StatusLight(StatusState.On, ink = if (focused) ink else null)
             }
             if (stacked) {
@@ -212,7 +221,7 @@ private fun SpecRow(
                     detail?.let { Value(it, Hl.type.caption, quiet) }
                 }
             }
-        }
+        } }
     }
 }
 

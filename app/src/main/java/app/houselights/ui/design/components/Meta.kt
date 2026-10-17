@@ -127,7 +127,7 @@ private fun FormatWord(text: String, ink: Color?) {
 }
 
 /**
- * A title's formats, on its page and at the head of its technical sheet only (a wall, home's
+ * A title's formats, on its page and on each copy of a film ([VersionsSheet]) only (a wall, home's
  * hero say what a title is, not how it is made): words in the technical voice, a fact's space
  * apart, without frames, as the back of a case lists them. The picture on one line (definition,
  * range, codec, frame rate), the sound on the next (its best track by the name on the case, its

@@ -18,6 +18,11 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import app.houselights.R
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.layout.FirstBaseline
+import androidx.compose.ui.layout.AlignmentLine
+import kotlin.math.roundToInt
 
 /**
  * One family, Archivo, whose widths are the voices of the interface:
@@ -70,6 +75,20 @@ private val TRACKING_SMALLEST = 0.02.em
  * Compose's own default today, written down so that an update cannot move every text on screen.
  */
 private val TRIMMED = LineHeightStyle(LineHeightStyle.Alignment.Proportional, LineHeightStyle.Trim.Both)
+
+/** How tall Archivo's capitals stand, as a share of its size (`sCapHeight` 686 of 1000). */
+const val CAP_HEIGHT = 0.686f
+
+/**
+ * A line set beside a picture with its capitals flush with the picture's top: the room its font
+ * keeps above the capitals, for accents, taken away, read from where its first baseline falls.
+ */
+fun Modifier.capitalsAtTop(fontSize: TextUnit): Modifier = layout { measurable, constraints ->
+    val placeable = measurable.measure(constraints)
+    val baseline = placeable[FirstBaseline]
+    val above = if (baseline == AlignmentLine.Unspecified) 0 else (baseline - fontSize.toPx() * CAP_HEIGHT).roundToInt().coerceAtLeast(0)
+    layout(placeable.width, placeable.height - above) { placeable.place(0, -above) }
+}
 
 /** Titles break into balanced lines: two lines of a title are about as long, never one word left over. */
 private val TITLE = LineBreak.Heading
