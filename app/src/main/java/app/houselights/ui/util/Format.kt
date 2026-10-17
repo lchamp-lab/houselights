@@ -7,6 +7,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import app.houselights.R
 import app.houselights.core.HomeSection
+import app.houselights.core.Languages
 import app.houselights.core.LibraryKind
 import app.houselights.core.SectionType
 import app.houselights.providers.local.ScanError
@@ -74,17 +75,12 @@ fun scanErrorText(context: Context, error: ScanError, host: String): String = wh
 @Composable
 fun scanErrorText(error: ScanError, host: String): String = scanErrorText(LocalContext.current, error, host)
 
-/** ISO 639-2/B codes that Java does not resolve, mapped to their two-letter form. */
-private val BIBLIOGRAPHIC = mapOf(
-    "fre" to "fr", "ger" to "de", "dut" to "nl", "chi" to "zh", "cze" to "cs", "gre" to "el", "per" to "fa",
-    "rum" to "ro", "slo" to "sk", "alb" to "sq", "arm" to "hy", "baq" to "eu", "bur" to "my", "geo" to "ka",
-    "ice" to "is", "mac" to "mk", "mao" to "mi", "may" to "ms", "tib" to "bo", "wel" to "cy",
-)
-
-/** "eng", "en-US" or "fre" as a language name in the interface language ("Anglais", "Français"). */
+/**
+ * "eng", "en-US" or "fre" as a language name in the interface language ("Anglais", "Français"), by the
+ * code the sheet tells tracks apart by ([Languages.code]); a code no language answers to as it is.
+ */
 fun languageName(code: String?): String? {
-    if (code.isNullOrBlank()) return null
-    val tag = BIBLIOGRAPHIC[code.lowercase()] ?: code
+    val tag = Languages.code(code) ?: return null
     val name = java.util.Locale.forLanguageTag(tag).getDisplayLanguage(java.util.Locale.getDefault())
     return name.takeIf { it.isNotBlank() && !it.equals(tag, ignoreCase = true) }
         ?.replaceFirstChar { it.titlecase(java.util.Locale.getDefault()) }

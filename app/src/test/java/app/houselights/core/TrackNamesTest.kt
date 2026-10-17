@@ -40,12 +40,8 @@ class TrackNamesTest {
     }
 
     @Test
-    fun aLanguageGoesByOneCode() {
-        listOf("fr", "fre", "fra", "fr-CA", "FR_fr").forEach { assertEquals(it, "fr", TrackNames.language(it)) }
-        assertEquals("de", TrackNames.language("ger"))
-        assertEquals("de", TrackNames.language("deu"))
-        assertEquals("pt", TrackNames.language("pt-BR"))
-        assertNull(TrackNames.language(null))
-        assertNull(TrackNames.language(" "))
+    fun aLanguageIsKnownByItsBibliographicCodeToo() {
+        assertNull(TrackNames.note("Georgian", "geo"))
+        assertNull(TrackNames.note("Welsh 5.1", "wel"))
     }
 }

@@ -34,28 +34,13 @@ object TrackNames {
         return text.takeIf { rest.sumOf { word -> word.count(Char::isLetter) } >= MIN_LETTERS }
     }
 
-    /**
-     * A track's language as one code whatever the file wrote: "fre", "fra", "fr" and "fr-CA" are
-     * all "fr". Null when none is given.
-     */
-    fun language(code: String?): String? {
-        val primary = code?.substringBefore('-')?.substringBefore('_')?.lowercase()?.takeIf { it.isNotBlank() } ?: return null
-        // Locale names two-letter codes only: "ger" and "deu" both go by "de".
-        return BIBLIOGRAPHIC[primary] ?: TWO_LETTERS[primary] ?: primary
-    }
-
     private fun languageNames(language: String?): Set<String> {
-        val code = language(language) ?: return emptySet()
+        val code = Languages.code(language) ?: return emptySet()
         val locale = java.util.Locale.forLanguageTag(code)
         return listOf(java.util.Locale.ENGLISH, java.util.Locale.FRENCH, locale)
             .map { locale.getDisplayLanguage(it).lowercase() }
             .filter { it.isNotBlank() && it != code }
             .toSet()
-    }
-
-    /** Two-letter language codes by their three-letter terminology code ("deu": "de"). */
-    private val TWO_LETTERS: Map<String, String> by lazy {
-        java.util.Locale.getISOLanguages().associateBy { runCatching { java.util.Locale.forLanguageTag(it).isO3Language }.getOrDefault(it) }
     }
 
     private fun words(text: String) = text.lowercase().split(SEPARATORS).filter { it.isNotBlank() }
@@ -78,12 +63,6 @@ object TrackNames {
         Regex("""\d+\s*ch\b"""),
         Regex("""\b\d(?:\.\d){1,2}\b"""),
         Regex("""\b\d+\b"""),
-    )
-
-    /** ISO 639-2 bibliographic codes, which Locale does not know, as two-letter codes. */
-    private val BIBLIOGRAPHIC = mapOf(
-        "fre" to "fr", "ger" to "de", "dut" to "nl", "chi" to "zh", "cze" to "cs", "gre" to "el", "per" to "fa",
-        "rum" to "ro", "slo" to "sk", "alb" to "sq", "arm" to "hy", "baq" to "eu", "ice" to "is", "may" to "ms",
     )
 
     /** Languages and dubs, formats and their parts, as track titles spell them. */
