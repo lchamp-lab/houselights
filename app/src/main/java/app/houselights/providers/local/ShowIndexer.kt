@@ -107,7 +107,6 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
     )
 
     /** The show [path] names, for the episode [existing] (null for a new one), as the [pass] met it. */
-    @Suppress("CyclomaticComplexMethod") // One choice per sidecar.
     private suspend fun series(pass: ScanPass, path: ShowPath, existing: ItemEntity?, now: Long): ItemEntity {
         val (title, year, showDir) = path
         val source = pass.source
@@ -130,19 +129,34 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
 
         val kept = files.nfo(source, local.nfo, series)
         val nfo = kept.info
-        // Sidecars read again ask TMDB only when the NFO names another show; or, beside the user's match,
-        // one only TMDB's ids tell of (IMDb's, TVDB's), as for a film.
-        val newIds = nfo != null && !sameIds(series.nfoInfo(), nfo)
-        val undecided = nfo != null && series.userTmdbId != null && nfo.tmdbId == null && (nfo.imdbId != null || nfo.tvdbId != null)
-        val needsTmdb = series.matchedAt == null || refreshMetadata || newIds || undecided
-        val tv = if (needsTmdb) tmdb.ask { lookupShow(it, series.userTmdbId, nfo, title, year) } else TmdbAnswer.Unanswered
+        // Sidecars read in its folder that lie there no more leave details to what remains and to TMDB, as
+        // for a film: an image among them, whose copy the show would show otherwise.
+        val removed = SidecarKey.showRemoved(series.sidecarKey, source.id, showDir, local)
+        val tv = if (tmdbAsked(series, nfo, refreshMetadata, removed)) {
+            tmdb.ask { lookupShow(it, series.userTmdbId, nfo, title, year) }
+        } else {
+            TmdbAnswer.Unanswered
+        }
         val art = files.copyArt(source, local)
-        val base = series.copy(
+        val read = series.copy(
             nfoPath = kept.path,
             nfo = kept.text,
             sidecarKey = SidecarKey.ofShow(source.id, showDir, files.sidecarsRead(local, kept, art)),
         )
+        // Details dropped and none from TMDB: a later pass asks it again (see process).
+        val base = if (removed) MetadataMerge.withoutDetails(read, title, year).copy(matchedAt = null) else read
         return saveShow(base, nfo, tv, art, tmdb.client, now, refreshMetadata)
+    }
+
+    /**
+     * TMDB is asked of a show whose sidecars are read: unmatched, refreshed, or some removed ([removed]); its NFO
+     * read again only when it names another show, or beside the user's match one only TMDB's ids tell of (IMDb's,
+     * TVDB's), as for a film.
+     */
+    private fun tmdbAsked(series: ItemEntity, nfo: NfoInfo?, refresh: Boolean, removed: Boolean): Boolean {
+        val newIds = nfo != null && !sameIds(series.nfoInfo(), nfo)
+        val undecided = nfo != null && series.userTmdbId != null && nfo.tmdbId == null && (nfo.imdbId != null || nfo.tvdbId != null)
+        return series.matchedAt == null || refresh || newIds || undecided || removed
     }
 
     /**

@@ -54,5 +54,16 @@ internal object SidecarKey {
         }
     }
 
+    /**
+     * Whether a show's own sidecar read in its folder [dir] of source [sourceId], as [stored] keeps them, lies there
+     * no more: a role the key holds that [listed] (what the folder lists now) lacks. What was read in another of
+     * the show's folders tells nothing of this one: its poster is not missed where it never lay.
+     */
+    fun showRemoved(stored: String?, sourceId: Long, dir: String, listed: VideoSidecars): Boolean {
+        val read = stored?.takeIf { it.startsWith("$SHOW$sourceId:$dir\n") }?.lines()?.drop(1) ?: return false
+        val now = mapOf("nfo" to listed.nfo, "poster" to listed.poster, "fanart" to listed.fanart, "logo" to listed.logo)
+        return read.map { it.substringBefore(':') }.any { role -> role in now && now[role] == null }
+    }
+
     private const val SHOW = "show:"
 }
