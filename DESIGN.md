@@ -39,7 +39,6 @@ with discipline everywhere: one family, **Archivo**, whose widths are the voices
 | The poster | condensed (70) | titles, what a panel is about, large figures; the billing block | `display`, `headline`, `subject`, `cardTitle`; `billing` |
 | Reading | normal (100) | everything read or chosen: overviews, names in lists, the words of buttons, values | `title`, `lead`, `body`, `entry`, `meta`, `caption`, `group` |
 | Technical | expanded (125), tabular figures | formats and specifications: short, set apart | `spec`, `badge` |
-| The brand | expanded (125), weight 720 | the wordmark alone | `wordmark` |
 
 Three voices, no more: a width between two of them reads as a mistake, not as a voice (the
 buttons once spoke in a fourth, wide, width; they read now as what they are, names you choose).
@@ -71,13 +70,14 @@ The technical voice speaks the vocabulary of a Blu-ray case: formats by their na
   with NAME, NAME and NAME": names in condensed capitals, small words and commas receding. On one line:
   it keeps as many leading names as fit, and never breaks inside a name.
 
-**The wordmark** is type and nothing else: "houselights" in lowercase, Archivo expanded (width 125)
-at weight 720, its letters a little closer (`HlFonts.brand`), as the banner sets it on the screen of
-La Salle; in the ember light across its letters (`emberLight`), with no halo, glow or shadow; the
-light in the room comes from the films. It is the one use of ember that is not a state. It appears
-twice: large on the welcome screen (52 sp), where the drifting wall of posters is the bold element,
-and at the size of a subject in About (20 sp), each as wide as the condensed name it replaced. The settings do not sign
-their column with it.
+**The wordmark** is the name as the brand draws it (`Wordmark`, see *Brand*): HOUSELIGHTS in
+expanded capitals of Archivo whose weight goes down letter by letter, as the house lights go down.
+It is drawn, never set, so its letters, weights and spacing stay the brand's, and it is in none of
+the voices above. Projector white, flat: no gradient, halo, glow or shadow; the light in the room
+comes from the films. A screen gives it the height of its capitals. It appears twice: large on the
+welcome screen (`HlSize.wordmarkHero`, 30), where the drifting wall of posters is the bold element,
+and where a pane has its title in About (`HlSize.wordmark`, 12), each about as wide as the name set
+in type it replaced. The settings do not sign their column with it.
 
 ## Gestures: the small surfaces
 
@@ -120,8 +120,8 @@ component; a colour changes in one place.
 | `contentSecondary` | `N65` | `#A3A3AB` | what explains: summaries, descriptions, facts, hints; 5.21:1 at worst, in a primary button |
 | `contentTertiary` | `N57` | `#8C8C95` | what is guessed: joins, placeholders, key hints, the disabled; 5.56:1 on `surfaceRaised` |
 | `contentDecorative` | `N28` | `#45454C` | never text: the rule of an empty frame, a skeleton |
-| `ember` | `Ember` | `#FF7A4D` | states only, a closed list (below); the wordmark is the one exception. Solid, for what is too small for a gradient: a dot, a check, a word |
-| `emberFrom`, `emberTo` | `EmberStart`, `EmberEnd` | `#FF9F1C` → `#FF2E63` | the ember light (`emberLight()`): the same states where they have room, a gradient from start to end across what they fill. The wordmark, a progress line and the counter, the rule of an intertitle that calls for attention, the edge of a field being typed in, the edge of what is lit |
+| `ember` | `Ember` | `#FF7A4D` | states only, a closed list (below); the mark's bars are the one exception (*Brand*). Solid, for what is too small for a gradient: a dot, a check, a word |
+| `emberFrom`, `emberTo` | `EmberStart`, `EmberEnd` | `#FF9F1C` → `#FF2E63` | the ember light (`emberLight()`): the same states where they have room, a gradient from start to end across what they fill. A progress line and the counter, the rule of an intertitle that calls for attention, the edge of a field being typed in, the edge of what is lit |
 | `focus` | `N96` | `#F4F4F5` | projector white again: the fill and outline of focus |
 | `onFocus` | `N0` | `#000000` | a focused control's name and icon |
 | `onFocusSecondary` | `N36` | `#5D5D5D` | the line under that name (a summary, a runtime): black at 62 % on `focus`, 6.01:1 |
@@ -155,7 +155,7 @@ reads. The veils laid over artwork are recipes, in `HlScrim` (see *Veils*).
 a scan, the track playing, the setup in use, a field being typed in. *Your choice*: the check of the
 current choice, a value or a match you chose, an active filter, a favourite. *Needs attention*: an
 error with its mark, the action a question asks about. *New*: the dot of a title new to the library,
-the one invitation. The wordmark is the one exception. What is done or simply true is projector
+the one invitation. The mark is the one exception: its bars, on the launch screen. What is done or simply true is projector
 white: a title watched, a file read, a match the app found (`StatusState.Done`). Never colour alone:
 every ember state comes with a second sign, a shape, a mark or a word; attention has its own mark,
 the circled exclamation, never the dot of a state that is on. It never marks focus (projector
@@ -236,17 +236,16 @@ for it, and nothing lights it.
 ### Type (`Type.kt`)
 
 Eight sizes with clear steps: **12 · 14 · 16 · 20 · 24 · 32 · 44 · 64 sp**. Line heights sit on a
-2 sp grid. **Fourteen roles**, one job each, are all a screen chooses from; two signatures, the
-billing block and the wordmark, are set to their own measure (18 and 52 sp) and only their
-components use them. Numbers use tabular figures (`tnum`) in every technical style and wherever a
+2 sp grid. **Fourteen roles**, one job each, are all a screen chooses from; one signature, the
+billing block, is set to its own measure (18 sp) and only its component uses it. Numbers use tabular figures (`tnum`) in every technical style and wherever a
 figure changes under the eye (`subject`, `meta`, `caption`), so durations, sizes and counts line up
 and do not jitter.
 
 - **Tracking follows size** (`trackingFor`), so no style sets its own: −0.01 em from 44 sp, none
   from 16 to 32, +0.01 em at 14, +0.02 em at 12. Light text on a black room spreads on a
   television: a small letter needs the air to stay apart, a large one has more than it needs.
-  The signatures keep theirs: the billing block's capitals +0.04 em (capitals always need air), its
-  small condensed words +0.02 em, the wordmark −0.016 em, as the banner sets it.
+  The signature keeps its own: the billing block's capitals +0.04 em (capitals always need air), its
+  small condensed words +0.02 em.
 - **A text's box keeps to its letters** (`LineHeightStyle` with `Trim.Both`): the room a line
   height adds goes between lines only, never above the first or under the last. Spaces between
   texts are measured from the type, as the spacing tokens are, and a capital sits in the middle of
@@ -279,7 +278,6 @@ family, weight or tracking (`DesignTokenGuardTest`): it picks another role, or t
 | `spec` | 20 / 26 | technical, SemiBold | a technical value stated large: the mode of the display ("Ultra HD 60 Hz"), a form's value |
 | `badge` | 12 / 16 | technical, SemiBold | format and rating badges |
 | `billing` / `billingJoin` | 18 and 14 / 24 | signature | the billing block: condensed capitals with case-sensitive forms, and its small words |
-| `wordmark` / `wordmarkHero` | 20 / 24 and 52 / 60 | signature | the Houselights wordmark: the size of a subject in About, large over the welcome wall |
 
 Archivo covers Latin (with Vietnamese); Greek, Cyrillic, Thai or Korean names fall back to the system
 font. No other font is shipped; line heights leave room for the fallback, and for Vietnamese: in
@@ -301,7 +299,7 @@ buttons keeps for a label, the first row's header a detail page keeps in its fir
 | `HlSpace` | 4 dp grid: `xxs` 4, `xs` 8, `s` 12, `m` 16, `l` 24, `xl` 32, `xxl` 48; `xxs` between a name and the line under it; `fact` 20 between facts; `safeH` 48 / `safeV` 28; `fadeEdge` 24, how far what scrolls fades at an edge |
 | `HlInset` | inner padding of containers, by what they hold: `tight` 8 (menus, results with a thumbnail), `compact` 12 (dense rows), `card` 24 (panels, cards), `sheet` 32 (sheets) |
 | `HlShapes` | radius follows hierarchy: `badge` 3, `artwork` 4, `field` 6, `row` 8 (rows that can be chosen), `panel` 12, `sheet` 16 (sheets and menus), `control` pill, `avatar` circle. A shape set close inside another keeps their corners parallel: **outer radius = inner radius + gap** (a menu: 8 + 8 = 16; a result: 4 + 8 = 12) |
-| `HlSize` | artwork (poster 112, landscape 220, episode 264, avatar 76 in a column of 120, thumbnails), `control` 48 for every button, icons 20, marks 20, dots 8, setting rows 64, previews in a row (48 tall, a slot of 84), meter 10, the short rules of a loading title (48, 24), the short rule heading an intertitle (`intertitleRule`, 24 by 2) |
+| `HlSize` | artwork (poster 112, landscape 220, episode 264, avatar 76 in a column of 120, thumbnails), `control` 48 for every button, icons 20, marks 20, dots 8, setting rows 64, previews in a row (48 tall, a slot of 84), meter 10, the short rules of a loading title (48, 24), the short rule heading an intertitle (`intertitleRule`, 24 by 2), the wordmark's capitals (`wordmark` 12, `wordmarkHero` 30) |
 | `HlLayout` | **the screens' grid**, every measure read by a screen (`LayoutTokensTest`): reading widths (640, 520; a caption 400, about 66 characters at 14 sp), side columns (280, 340), pane top 72, title art, the home hero's band (168), the detail page's gap and least hero (`detailGap`, `detailHeroMin`), the info line, track table columns |
 | `…Defaults` | **parts of components**, internal, which no screen needs to know: `HlSideSheetDefaults` (520), `HlSettingRowDefaults` (widest value, 360), `HlIconButtonDefaults` (the label: 200 wide at most, 36 of room under its row at the default text size, 24 from the screen's side), `HlMenuDefaults` (320), `TechSpecsDefaults` (a row of the technical sheet: 40 high at least, its value 240 wide at most), `QrCodeDefaults` (a module of a code to scan, 6.5: whole pixels on a 1080p and a 4K interface; its quiet zone, 4 modules), `BackdropDefaults` (the left veil's fade past the column from full strength, 420; a lighter one fades sooner, at the same slow pace, so its end never reads as an edge) |
 | `HlControl` | inner padding of buttons and track options, badges; the gap between an icon and its text (8) |
@@ -581,26 +579,37 @@ no sheet that opens on its own.
   output and where ("Réglages du lecteur > Affichage"), shows no mode and no rate, and offers no
   choice that would do nothing; "4K 60 Hz" is offered only where the system lists it (`DisplayModes`).
 
-## Brand: La Salle
+## Brand: Gradation
 
-The launcher icon and the TV banner come before the app, and the launch mark (`splash_mark`, for
-now La Salle as the icon's foreground draws it) is its first frame, on the room. **La Salle**: an H
-made of the two walls of a room in perspective, their panels going down from bright orange to
-raspberry, the ember light, as they near the white screen between them. The banner opens the same
-room to the width of a screen and sets the name on it, in the wordmark's type, projector white.
+The launcher icon and the TV banner come before the app, and the launch mark (`splash_mark`) is its
+first frame, on the room. **Gradation** (`Gradation`): three bars of ember whose widths halve, 4:2:1,
+as the house lights go down one stop at a time, on one gap, together as wide as they are tall. The
+fourth step is the black, where the name appears in white, as a title comes up on the screen: the
+light of the room is warm, so the bars are ember; the name is white, because the screen takes over.
 
-- **The room.** The icon's ground is `@color/room`, pure black (the adaptive icon's background);
-  the banner's ceiling and floor are neutrals of the palette. No glow, no beam, no halo.
-- **Ember** in three flat steps, `EmberStart`, the middle of the light and `EmberEnd`: a gradient
-  drawn as panels, so it holds at 48 dp and in one colour.
-- **The type is the app's.** The name's outlines come from `archivo.ttf` at the wordmark's width
-  and weight, converted to paths once.
-- **Sizes.** The walls run to the edges of the icon's 108 dp layer, so every launcher's mask cuts
-  them the same way; the screen stays inside the 66 dp safe circle. The banner is drawn on a
-  320 × 180 grid, Android TV's banner, as a vector (`banner.xml`), sharp at any density.
+- **The room.** The icon's ground is `@color/room`, pure black (the adaptive icon's background), and
+  so is the banner's. No glow, no beam, no halo, no gradient.
+- **Ember, flat and once.** The bars are `Ember` and nothing else is: the accent has one colour and
+  shows in one place. The meaning is in the widths, so the mark holds in one colour, white on a dark
+  ground, black on a light one.
+- **The name.** HOUSELIGHTS in expanded capitals of Archivo (width 112), its weight going down letter
+  by letter from 900 at the H to 350 at the S: each letter keeps the same share of the ink of the one
+  before, so the word loses exactly one stop, with no step between HOUSE and LIGHTS. The spacing is
+  optical and closes as the strokes thin, so LIGHTS does not read looser than HOUSE. Its outlines
+  come from `archivo.ttf`, converted to paths once (`wordmark.xml`).
+- **Sizes.** The icon's mark is 46 of the 108 units of its layer, its corners inside the 66-unit
+  safe circle, so no launcher's mask cuts it; at 48 px its thinnest bar is still over 2 px. The
+  banner is a title card on Android TV's 320 × 180 grid: the mark above, the name under it, its
+  capitals 12 % of the banner's height, its last letter, at weight 350, still read at 160 × 90. The
+  launch mark is 36 units, half the circle Android 9 shows of its layer (see *Launch*). Each is
+  centred as the eye sees it: the wide bar pulls the eye left, so the mark sits a little right of the
+  middle (`Gradation.PULL`).
 
-Both are vectors: `ic_launcher_foreground` (also its `<monochrome>` layer) and `banner.xml`. The
-catalogue (**Brand**) shows them as a launcher draws them, on black, grey and light grounds.
+All three are vectors, sharp at any density: `ic_launcher_foreground` (also its `<monochrome>`
+layer), `banner.xml`, `splash_mark`. `BrandTest` holds them to the mark's geometry and to the
+palette. The catalogue (**Brand**) shows them as Android draws them: the icon on black, grey and
+light grounds, the banner, the launch mark in the circle Android 9 shows of it, and the name at the
+sizes screens give it.
 
 ## Performance
 
@@ -654,7 +663,8 @@ gestures, side by side then at the width screens give them; `CatalogIcons` for e
 the marks of done and your choice, and what ember never says; `CatalogForms`, `CatalogCards`,
 `CatalogReading`; `CatalogStress` for the longest French labels, the fullest rows, the home hero at
 the largest text size, the scripts Archivo lacks and a line on the device: size in dp, density, text
-scale; `CatalogBrand` for the launcher icon and the TV banner, drawn by Android at a launcher's size).
+scale; `CatalogBrand` for the launcher icon and the TV banner, drawn by Android at a launcher's size,
+the launch mark in the circle Android 9 shows of it, and the name).
 `CatalogCoverageTest` fails
 when a public component of `ui/design/components` is missing; the few that fill the screen are listed
 there with the reason. It fails too when a glyph of `HlIcons` is not on the icon sheet.

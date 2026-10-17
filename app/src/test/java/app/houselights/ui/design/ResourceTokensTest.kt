@@ -22,8 +22,8 @@ class ResourceTokensTest {
     }
 
     /**
-     * The launch screen is Android's to draw, before the app runs: the room, the mark alone in it (one
-     * file, `splash_mark`, which the new mark replaces), then the app's own theme, on the app's window.
+     * The launch screen is Android's to draw, before the app runs: the room, the mark alone in it
+     * (`splash_mark`, Gradation as `BrandTest` holds it), then the app's own theme, on the app's window.
      */
     @Test
     fun theLaunchScreenIsTheRoom() {

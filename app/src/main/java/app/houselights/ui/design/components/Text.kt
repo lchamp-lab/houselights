@@ -11,6 +11,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.height
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.foundation.layout.heightIn
@@ -18,7 +23,6 @@ import androidx.tv.material3.Text
 import app.houselights.R
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlSpace
-import app.houselights.ui.design.emberLight
 import app.houselights.ui.util.toPx
 import app.houselights.core.ImageRef
 import coil.compose.AsyncImage
@@ -40,22 +44,28 @@ fun ScreenTitle(text: String, modifier: Modifier = Modifier) {
 }
 
 /**
- * "houselights", set in type and nothing else: lowercase, Archivo expanded and heavy, as the banner
- * sets it on the screen of La Salle, in the ember light across its letters. No halo or shadow: the
- * light in the room comes from the films. [style] is its size: `wordmark` by default (About),
- * `wordmarkHero` over the welcome wall.
+ * The name, HOUSELIGHTS, as the brand draws it (`wordmark.xml`): expanded capitals of Archivo whose
+ * weight goes down letter by letter, from 900 to 350, as the house lights go down. Drawn, never set,
+ * so its letters, weights and spacing stay the brand's; in projector white, flat, with no halo or
+ * shadow: the light in the room comes from the films. [height] is how tall its capitals stand
+ * (`HlSize.wordmark` in About, `HlSize.wordmarkHero` over the welcome wall); its round letters pass
+ * them a little, as type does, inside its box.
  */
 @Composable
-fun Wordmark(modifier: Modifier = Modifier, style: TextStyle = Hl.type.wordmark) {
-    Text(
-        stringResource(R.string.wordmark),
-        // The brush in the style wins over any colour the text would take.
-        style = style.copy(brush = Hl.colors.emberLight()),
-        maxLines = 1,
-        softWrap = false,
-        modifier = modifier,
+fun Wordmark(height: Dp, modifier: Modifier = Modifier) {
+    Image(
+        painterResource(R.drawable.wordmark),
+        contentDescription = stringResource(R.string.wordmark),
+        colorFilter = ColorFilter.tint(Hl.colors.content),
+        contentScale = ContentScale.Fit,
+        modifier = modifier.height(height * WORDMARK_HEIGHT / WORDMARK_CAPITALS).aspectRatio(WORDMARK_WIDTH / WORDMARK_HEIGHT),
     )
 }
+
+/** The wordmark's drawing (`wordmark.xml`): its capitals 100 units tall, its round letters passing them above and below. */
+private const val WORDMARK_WIDTH = 1196.847f
+private const val WORDMARK_HEIGHT = 103.79f
+private const val WORDMARK_CAPITALS = 100f
 
 /**
  * What a [TitleArt] laid out [maxWidthPx] by [maxHeightPx] at most asks Coil for once laid out: its
