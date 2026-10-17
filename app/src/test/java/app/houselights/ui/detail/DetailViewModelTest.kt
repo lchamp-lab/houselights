@@ -59,6 +59,21 @@ class DetailViewModelTest {
         assertNull(vm.state.value.error)
     }
 
+    /** The title is said once what Lire starts is known, its rows after: focus waits for them. */
+    @Test
+    fun theTitleIsSaidBeforeItsRows() = runTest {
+        val seasons = provider.gate("seasons show")
+        val vm = detail("show")
+        advanceUntilIdle()
+        assertEquals("show", vm.state.value.item?.id)
+        assertTrue(vm.state.value.partial)
+        assertTrue(vm.state.value.seasons.isEmpty())
+        seasons.complete(Unit)
+        advanceUntilIdle()
+        assertFalse(vm.state.value.partial)
+        assertEquals(3, vm.state.value.seasons.size)
+    }
+
     @Test
     fun aTitleGoneSaysSo() = runTest {
         val vm = detail("gone")

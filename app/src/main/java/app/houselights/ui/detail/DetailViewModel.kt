@@ -55,6 +55,11 @@ data class DetailState(
     val collectionFilms: List<MediaItem> = emptyList(),
     /** Why marking the title watched or a favourite did not take, shown beside the actions until the next one. */
     val actionError: UiError? = null,
+    /**
+     * Only the title is in, its rows (seasons, saga, similar titles) still coming: the page shows
+     * what it says of the title at once, and focus waits for the rows it may come back to.
+     */
+    val partial: Boolean = false,
 )
 
 /**
@@ -92,11 +97,23 @@ class DetailViewModel(
             suspendRunCatching { coroutineScope {
                 val source = provider()
                 val item = source.item(itemId)
+                // A first load says the title at once, on the picture the cut kept, once what Lire
+                // starts is known: its rows follow.
+                fun sayFirst(nextUp: MediaItem? = null) {
+                    if (_state.value.item != null) return
+                    val canEdit = source.editor?.canEdit(item) == true
+                    _state.update {
+                        it.copy(item = item, capabilities = source.capabilities, nextUp = nextUp, canEdit = canEdit, partial = true)
+                    }
+                }
+                if (item.kind != MediaKind.SERIES && item.kind != MediaKind.COLLECTION) sayFirst()
                 val similar = async { if (source.capabilities.similar) source.similar(item) else emptyList() }
                 if (item.kind == MediaKind.SERIES) {
                     val nextUp = async { source.nextUp(item) }
-                    val seasons = source.seasons(item)
+                    val seasonsLoad = async { source.seasons(item) }
                     val next = nextUp.await()
+                    sayFirst(next)
+                    val seasons = seasonsLoad.await()
                     val seasonId = _state.value.selectedSeasonId?.takeIf { id -> seasons.any { it.id == id } }
                         ?: next?.seasonId
                         ?: seasons.firstOrNull { (it.seasonNumber ?: 0) > 0 }?.id
@@ -139,7 +156,7 @@ class DetailViewModel(
                     // A season this load took over is not left loading: its row says why, with Réessayer.
                     _state.update { s ->
                         val rowError = s.episodesError ?: error.takeIf { s.episodesLoading }
-                        s.copy(error = error, episodesLoading = false, episodesError = rowError)
+                        s.copy(error = error, episodesLoading = false, episodesError = rowError, partial = false)
                     }
                 }
         }
