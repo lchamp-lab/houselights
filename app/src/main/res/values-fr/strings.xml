@@ -74,6 +74,15 @@
     <string name="sort_year_order">Année, récents d’abord</string>
     <string name="sort_rating_order">Note, meilleures d’abord</string>
     <string name="filter_unwatched">Non vus</string>
+    <string name="filter_picture">Image</string>
+    <string name="all_pictures">Toutes les images</string>
+    <string name="filter_sound">Son</string>
+    <string name="all_sounds">Tous les sons</string>
+    <string name="filter_file">Fichier</string>
+    <string name="all_files">Tous les fichiers</string>
+    <string name="filter_person">Personne</string>
+    <string name="all_people">Toutes les personnes</string>
+    <string name="filter_person_unnamed">La personne choisie</string>
 
     <string name="play">Lire</string>
     <string name="resume">Reprendre</string>
@@ -281,6 +290,31 @@
     <string name="label_api">API de contrôle</string>
     <string name="tmdb_attribution">Ce produit utilise l’API TMDB mais n’est ni approuvé ni certifié par TMDB.</string>
     <string name="section_source">Bibliothèque</string>
+    <!-- The library in numbers: a pane of the settings -->
+    <string name="section_numbers">En chiffres</string>
+    <string name="numbers_title">La collection en chiffres</string>
+    <plurals name="numbers_films">
+        <item quantity="one">%s film</item>
+        <item quantity="other">%s films</item>
+        <item quantity="many">%s films</item>
+    </plurals>
+    <plurals name="numbers_shows">
+        <item quantity="one">%s série</item>
+        <item quantity="other">%s séries</item>
+        <item quantity="many">%s séries</item>
+    </plurals>
+    <plurals name="numbers_episodes">
+        <item quantity="one">%s épisode</item>
+        <item quantity="other">%s épisodes</item>
+        <item quantity="many">%s épisodes</item>
+    </plurals>
+    <string name="numbers_and">%1$s et %2$s</string>
+    <string name="numbers_in_library">dans votre bibliothèque</string>
+    <string name="numbers_room">de fichiers, toutes copies comprises</string>
+    <string name="numbers_hours">pour tout voir, bout à bout</string>
+    <string name="numbers_files">Fichiers</string>
+    <string name="hours">%s h</string>
+    <string name="terabytes">%s To</string>
     <string name="remove">Retirer</string>
     <string name="scan_now">Analyser maintenant</string>
     <string name="scan_now_desc">Cherche les nouveaux fichiers</string>

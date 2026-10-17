@@ -97,6 +97,9 @@ internal class SettingsViewModel(
     /** What the current source can do; the settings show what applies to it. */
     val capabilities get() = provider().capabilities
 
+    /** The current source counts its library ([MediaProvider.catalog]): the settings show it in numbers. */
+    val counts get() = provider().catalog != null
+
     private val _storage = MutableStateFlow<StorageStats?>(null)
     val storage: StateFlow<StorageStats?> = _storage
 

@@ -182,6 +182,51 @@ class LibraryViewModelTest {
         assertEquals(LibraryFilter(WatchStatus.UNWATCHED, "Drame", 1990, Quality.UHD_4K), after.state.value.filter)
     }
 
+    /** The files' picture, sound and kind, and a person, come back after a stopped process as the rest of the filter does. */
+    @Test
+    fun whatTheFilesHoldAndAPersonOutliveAStoppedProcess() = runTest {
+        val saved = SavedStateHandle()
+        val filter = LibraryFilter(picture = "Dolby Vision", sound = "TrueHD Atmos", fileType = "mkv", person = "p7")
+        LibraryViewModel({ provider }, library, saved).setFilter(filter)
+        advanceUntilIdle()
+
+        val after = LibraryViewModel({ provider }, library, SavedStateHandle(saved.keys().associateWith { saved.get<Any?>(it) }))
+        assertEquals(filter, after.state.value.filter)
+    }
+
+    /** Opened from the library in numbers on its Dolby Vision films: the wall starts filtered so, and its first page with it. */
+    @Test
+    fun aWallOpenedOnPartOfTheLibraryStartsFilteredByIt() = runTest {
+        provider.capabilities = provider.capabilities.copy(formatFilters = true, personFilter = true)
+        val vm = LibraryViewModel({ provider }, library, SavedStateHandle(), opensOn = LibraryFilter(picture = "Dolby Vision"))
+        assertEquals(LibraryFilter(picture = "Dolby Vision"), vm.state.value.filter)
+        advanceUntilIdle()
+        assertEquals(120, vm.state.value.items.size)
+    }
+
+    /** What the wall opened on is kept as any filter: changed, then the process stopped, it comes back as it was left. */
+    @Test
+    fun aWallBroughtBackIsAsItWasLeftNotAsItWasOpened() = runTest {
+        provider.capabilities = provider.capabilities.copy(formatFilters = true)
+        val saved = SavedStateHandle()
+        val opensOn = LibraryFilter(picture = "Dolby Vision")
+        val changed = LibraryFilter(picture = "Dolby Vision", sound = "E-AC3")
+        LibraryViewModel({ provider }, library, saved, opensOn = opensOn).setFilter(changed)
+        advanceUntilIdle()
+
+        val restored = SavedStateHandle(saved.keys().associateWith { saved.get<Any?>(it) })
+        val after = LibraryViewModel({ provider }, library, restored, opensOn = opensOn)
+        assertEquals(changed, after.state.value.filter)
+    }
+
+    /** A source that cannot filter by format or person (Jellyfin's formats) never opens a wall on them. */
+    @Test
+    fun aWallNeverStartsOnWhatItsSourceCannotFilterBy() = runTest {
+        provider.capabilities = provider.capabilities.copy(formatFilters = false, personFilter = true)
+        val vm = LibraryViewModel({ provider }, library, SavedStateHandle(), opensOn = LibraryFilter(sound = "E-AC3", person = "p7"))
+        assertEquals(LibraryFilter(person = "p7"), vm.state.value.filter)
+    }
+
     /** Two changes in a row: the filter menu offers what the library holds now, never an older answer coming late. */
     @Test
     fun theLatestFacetsWin() = runTest {

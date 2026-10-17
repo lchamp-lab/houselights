@@ -7,6 +7,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import app.houselights.R
+import app.houselights.core.Definition
 import app.houselights.core.HomeSection
 import app.houselights.core.Languages
 import app.houselights.core.LibraryKind
@@ -35,6 +36,32 @@ fun formatDuration(ms: Long): String {
  * gap is not possible: as wide as three spaces, breaking only after it.
  */
 const val FACT_GAP = "$NBSP$NBSP "
+
+/**
+ * "1 214": a count grouped by thousands as the language groups them, by a no-break space where it groups
+ * by a space (Archivo has no narrow one, which French takes).
+ */
+fun formatCount(count: Long): String =
+    java.text.NumberFormat.getIntegerInstance(java.util.Locale.getDefault()).format(count).replace(NARROW_NBSP, NBSP)
+
+private const val NARROW_NBSP = '\u202F'
+
+/** "1 214 h": hours set end to end, whole; under an hour, its minutes ([formatDuration]). */
+fun formatHours(context: Context, ms: Long): String {
+    val hours = ms / HOUR_MS
+    return if (hours == 0L) formatDuration(ms) else context.getString(R.string.hours, formatCount(hours))
+}
+
+@Composable
+fun formatHours(ms: Long): String = formatHours(LocalContext.current, ms)
+
+private const val HOUR_MS = 3_600_000L
+
+/**
+ * A picture format as badges keep it ("4K", "Dolby Vision") as a case names it: a definition by its name
+ * ("Ultra HD"), a range as it is.
+ */
+fun pictureName(token: String): String = Definition.entries.find { it.token == token }?.label ?: token
 
 /** "2,39:1", "1,85:1": the way aspect ratios are written, in the local decimal style. */
 fun formatRatio(ratio: Float): String = String.format(java.util.Locale.getDefault(), "%.2f", ratio) + ":1"
@@ -100,7 +127,7 @@ fun languageName(code: String?): String? {
         ?: code
 }
 
-/** Decimal units, as drives and NAS report them; "Go", "Mo", "Ko" in French. */
+/** Decimal units, as drives and NAS report them; "To", "Go", "Mo", "Ko" in French. */
 fun formatBytes(context: Context, bytes: Long): String {
     // Whole amounts lose their decimals: "1 Go", not "1,00 Go".
     fun amount(value: Double, decimals: Int): String {
@@ -109,11 +136,15 @@ fun formatBytes(context: Context, bytes: Long): String {
         return if (String.format(locale, "%.${decimals}f", Math.rint(value)) == rounded) String.format(locale, "%.0f", value) else rounded
     }
     return when {
+        // A library's room, to a tenth: "38,4 To".
+        bytes >= TERABYTE -> context.getString(R.string.terabytes, amount(bytes / TERABYTE.toDouble(), 1))
         bytes >= 1_000_000_000L -> context.getString(R.string.gigabytes, amount(bytes / 1e9, 2))
         bytes >= 1_000_000L -> context.getString(R.string.megabytes, amount(bytes / 1e6, 1))
         else -> context.getString(R.string.kilobytes, amount(bytes / 1e3, 0))
     }
 }
+
+private const val TERABYTE = 1_000_000_000_000L
 
 @Composable
 fun formatBytes(bytes: Long): String = formatBytes(LocalContext.current, bytes)

@@ -93,6 +93,14 @@ object HlIcons {
         moveTo(4.5f, 12f); quadTo(4.5f, 14.5f, 12f, 14.5f); quadTo(19.5f, 14.5f, 19.5f, 12f)
     }
 
+    /** The library in numbers: a number sign. */
+    val Numbers = icon("Numbers") {
+        moveTo(10.5f, 4f); lineTo(8.5f, 20f)
+        moveTo(15.5f, 4f); lineTo(13.5f, 20f)
+        moveTo(5f, 9f); lineTo(19.5f, 9f)
+        moveTo(4.5f, 15f); lineTo(19f, 15f)
+    }
+
     /** Edit: a pencil. */
     val Edit = icon("Edit") {
         moveTo(4.5f, 19.5f); lineTo(5.25f, 15.75f); lineTo(15.5f, 5.5f); quadTo(16.5f, 4.5f, 17.5f, 5.5f)
