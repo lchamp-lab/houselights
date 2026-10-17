@@ -2,7 +2,11 @@ package app.houselights.player
 
 import org.junit.Assert.assertEquals
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 
+/** Runs on Robolectric: a URI is read as the player's [android.net.Uri] reads it. */
+@RunWith(RobolectricTestRunner::class)
 class RedactTest {
     @Test
     fun hidesSmbCredentials() {
@@ -31,6 +35,33 @@ class RedactTest {
         assertEquals(true, Redact.hasUserInfo("smb://zidoo@nas/media/film.mkv"))
         assertEquals(false, Redact.hasUserInfo("smb://nas/media/film@home.mkv"))
         assertEquals(false, Redact.hasUserInfo("nfs://nas/export/film.mkv"))
+    }
+
+    /**
+     * A password typed raw in a path mapping may hold a space or a slash, which end the pattern: the
+     * player's Uri still reads a user's part, or a port that is no number.
+     */
+    @Test
+    fun findsAPasswordTypedRaw() {
+        assertEquals(true, Redact.hasUserInfo("smb://zidoo:p w@nas/media/film.mkv"))
+        assertEquals(true, Redact.hasUserInfo("smb://zidoo:p/ss@nas/media/film.mkv"))
+        assertEquals(true, Redact.hasUserInfo("smb://zidoo:12/34@nas/media/film.mkv"))
+        assertEquals(true, Redact.hasUserInfo("smb://zidoo:p#ss@nas/media/film.mkv"))
+        assertEquals(true, Redact.hasCredentials("smb://zidoo:p w@nas/media/film.mkv"))
+        assertEquals(false, Redact.hasUserInfo("smb://nas:445/media/film@home.mkv"))
+        assertEquals(false, Redact.hasUserInfo("smb://[fe80::1]/media/film.mkv"))
+        assertEquals(false, Redact.hasUserInfo("http://nas:8096/Videos/1/stream.mkv?static=true"))
+    }
+
+    /** All of a password typed raw is hidden: up to the last @, which no password reaches past. */
+    @Test
+    fun hidesAPasswordTypedRaw() {
+        assertEquals("smb://***@nas/media/film.mkv", Redact.uri("smb://zidoo:p w@nas/media/film.mkv"))
+        assertEquals("smb://***@nas/media/film.mkv", Redact.uri("smb://zidoo:p/ss@nas/media/film.mkv"))
+        assertEquals("smb://***@nas/media/film.mkv", Redact.uri("smb://zidoo:p@ss w@nas/media/film.mkv"))
+        assertEquals("smb://***@home.mkv", Redact.uri("smb://zidoo:p w@nas/media/film@home.mkv"))
+        // Hidden by the pattern, a name with an @ of its own keeps it.
+        assertEquals("smb://***@nas/media/film@home.mkv", Redact.uri("smb://zidoo:secret@nas/media/film@home.mkv"))
     }
 
     /** Jellyfin's token is a credential too: its stream URL opens the whole account. */
