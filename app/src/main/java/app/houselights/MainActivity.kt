@@ -437,6 +437,8 @@ private fun AppNavigation(nav: NavHostController, onPlay: (MediaItem, Boolean) -
                 library = library,
                 title = library.title ?: libraryName(library.kind),
                 onOpenItem = { openItem(it.id) },
+                opensOn = route.filter,
+                personName = route.personName,
             )
         }
         composable<Route.Item> { entry ->
@@ -466,6 +468,8 @@ private fun AppNavigation(nav: NavHostController, onPlay: (MediaItem, Boolean) -
                 onUseFolders = ::useFolders,
                 onSignIn = { nav.navigate(Route.JellyfinLogin) },
                 onOpenCatalog = { nav.navigate(Route.Catalog) },
+                onOpenWall = { library, filter -> nav.navigate(Route.Library.of(library, filter)) },
+                onOpenPerson = { id -> nav.navigate(Route.Person(id)) },
             )
         }
         // Debug builds only: every component in its states, for design review.

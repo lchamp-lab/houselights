@@ -99,6 +99,11 @@ materials, never two, and invent nothing. The catalogue shows the three side by 
   are a `DefinitionList` (a state with its light goes in a `DefinitionRow`); several of a kind are a
   `SpecTable`, the ember dot on the one in service. A block is flush with the title above it:
   only what acts is a row, in its well. Affichage, Stockage's legend, À propos, a Jellyfin server.
+  The library in numbers (En chiffres) is set so too: at its head, figures that state, in `subject`,
+  each over what it counts in `caption`; then what it counts, by group, each value a row since each
+  opens what it counts (a format its films on their wall, a director their page), its name to choose
+  and its count in `meta`. What its source does not tell is left out, never said as nothing. No
+  gauge, no chart.
 - **The intertitle (B): every message.** As in a silent film, and like the one-sheet of a title
   without artwork: a short rule, one line in the voice of the poster (`subject`), one line to read
   (`body`, secondary, `readableNarrow`), at most one action and a quieter one. A ember rule says
@@ -273,7 +278,7 @@ family, weight or tracking (`DesignTokenGuardTest`): it picks another role, or t
 |---|---|---|---|
 | `display` | 64 / 72 | poster, Bold | title of a detail page without logo |
 | `headline` | 44 / 48 | poster, Bold | screen titles, home hero title without logo |
-| `subject` | 32 / 36 | poster, SemiBold | what a panel, a sheet or a settings pane is about ("Modifier", "Fiche technique", "Affichage"); the line of an intertitle; a figure that states something (storage used) |
+| `subject` | 32 / 36 | poster, SemiBold | what a panel, a sheet or a settings pane is about ("Modifier", "Fiche technique", "Affichage"); the line of an intertitle; a figure that states something (storage used, the library in numbers) |
 | `cardTitle` | 20 / 24 | poster, Bold | a title set on a card without artwork, like a plain one-sheet |
 | `title` | 24 / 30 | reading, SemiBold | an episode's name in its heading |
 | `lead` | 20 / 26 | reading, SemiBold | row headers, names of cards and results, episode names; a detail page's tagline, in `contentSecondary`, which introduces the overview and never competes with the title |
@@ -320,7 +325,7 @@ buttons keeps for a label, the first row's header a detail page keeps in its fir
 |---|---|---|
 | `HlMotion`, `awaitMotion` | `Motion.kt` | `FAST` 150, `STANDARD` 250, `SLOW` 600, `DIM` 1000 ms; `lightsOut`, a light going out (ease-out), the launch's; `SETTLE` 300 ms before the title under focus changes the screen (after the focus motion, so the new title is laid out on a still frame; `rememberSettled`, the first at once); `SKELETON_DELAY` 400 ms before a placeholder shows; `HOLD` 400 ms, the most what follows waits for what leads it (across a cut, the picture of the screen left for the arriving screen's; a hero's name for its picture), a wait for a picture, never for a motion; `WALL_DRIFT`; `ENTER_SCALE`, where a reading sheet and a menu grow from. What follows a motion waits for its end (`awaitMotion`, or the animated value itself), never a fixed `delay`: with animations off, everything settles without moving and nothing waits |
 | `LocalHouseLights`, `HouseLightCue`, `LaunchCue`, `LocalLaunchScreen` | `Auditorium.kt` | how far the house lights are down (read while drawing), and the order of the cue; the launch's cue, the mark's bars out one by one, the widest first, before the black lifts off home; the launch screen as the first screen sees it, which it covers until that screen is drawn whole (`drawnWhole`) |
-| `HlIcons` | `Icons.kt` | every icon of the app, drawn on one line (24 dp grid, 1.75 stroke, round caps and joins): places (Folder, Server, Display, Storage), actions (Add, Edit, Refresh, Restart, Test, Close, Settings), marks (Check, Star, Attention), the remote's Back. Play is the one glyph taken from Material, filled, as on a remote; a state that must read as on is the same drawing filled (a favourite: `Heart`, `HeartFilled`). No other Material icon (a test forbids it); the catalogue shows every glyph at 24 and 20 dp, on the room and in a focused control |
+| `HlIcons` | `Icons.kt` | every icon of the app, drawn on one line (24 dp grid, 1.75 stroke, round caps and joins): places (Folder, Server, Display, Storage, Numbers), actions (Add, Edit, Refresh, Restart, Test, Close, Settings), marks (Check, Star, Attention), the remote's Back. Play is the one glyph taken from Material, filled, as on a remote; a state that must read as on is the same drawing filled (a favourite: `Heart`, `HeartFilled`). No other Material icon (a test forbids it); the catalogue shows every glyph at 24 and 20 dp, on the room and in a focused control |
 | `rememberListScroll`, `ListScroll`, `RowScroll` | `Scroll.kt` | lists scroll only as much as needed (`EdgeScroll`), never against the edge of the screen: a list keeps focus `HlFocus.edge` from its top and bottom, so the last row stops inside the safe area; a list that starts under a header or a hero (`ListScroll(top)`) brings its rows back to where its first one rests; rows keep focus 80 dp from the sides, so the first card always scrolls home |
 | `scrollEdges(state, color)` | `Scroll.kt` | what scrolls fades into its surface over `HlSpace.fadeEdge`, at the top and the bottom, on a side only while there is more that way: a line cut at the edge reads as more to come. A gradient of the surface's own colour over the content, no layer, so only on an opaque surface: the room in `HlTwoPane`, the raised sheet of `HlSideSheet` and of menus, the panel of `HlScrollArea`. Never on rows of posters, whose ends stay open |
 | `revealOnFocus()`, `keepVerticalFocus()` | `Scroll.kt` | a group comes fully into view when focus enters it; up and down never leave a column |

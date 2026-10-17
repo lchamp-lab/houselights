@@ -1,5 +1,6 @@
 package app.houselights.ui.library
 
+import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -53,6 +54,11 @@ import app.houselights.core.HdrFormat
 import app.houselights.core.Library
 import app.houselights.core.LibraryKind
 import app.houselights.core.MediaItem
+import app.houselights.core.BadgeTokens
+import app.houselights.core.FileTypes
+import app.houselights.core.Formats
+import app.houselights.core.Person
+import app.houselights.core.ProviderCapabilities
 import app.houselights.core.LibraryFacets
 import app.houselights.core.LibraryFilter
 import app.houselights.core.Quality
@@ -82,6 +88,7 @@ import app.houselights.ui.util.skeletonDelayPassed
 import kotlinx.coroutines.launch
 import app.houselights.core.SortKeys
 import app.houselights.ui.util.NBSP
+import app.houselights.ui.util.pictureName
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -93,15 +100,20 @@ internal const val COLUMNS = 7
 /** Rows of empty frames while the wall loads: more than the screen shows, like the wall itself. */
 private const val SKELETON_ROWS = 3
 
-/** A wall of posters, with the focused title named in the header. */
+/**
+ * A wall of posters, with the focused title named in the header. Opened on part of the library ([opensOn]: a
+ * format of the library in numbers, a person, by name [personName]), it starts filtered by it.
+ */
 @Composable
 fun LibraryScreen(
     library: Library,
     title: String,
     onOpenItem: (MediaItem) -> Unit,
+    opensOn: LibraryFilter? = null,
+    personName: String? = null,
 ) {
     val app = appContainer()
-    val vm: LibraryViewModel = viewModel(key = "library-${library.id}", factory = LibraryViewModel.factory(app, library))
+    val vm: LibraryViewModel = viewModel(key = "library-${library.id}", factory = LibraryViewModel.factory(app, library, opensOn))
     ReloadOnLibraryChange { vm.onLibraryChanged() }
     val state by vm.state.collectAsStateWithLifecycle()
 
@@ -165,18 +177,9 @@ fun LibraryScreen(
                     WallFolio(count, state.items, shown, state.total, state.sort)
                 }
                 Spacer(Modifier.weight(1f))
-                // Collections are browsed by name or date; filters belong to films.
-                if (library.kind != LibraryKind.COLLECTIONS) FilterButton(state.filter, state.facets, vm::setFilter)
-                Spacer(Modifier.width(HlSpace.s))
-                // "Trier", and how it is sorted now: alone, "Titre" would read as a title.
-                HlMenuButton(
-                    text = stringResource(R.string.sort),
-                    icon = HlIcons.Sort,
-                    detail = sortLabel(state.sort),
-                    sections = listOf(
-                        MenuSection(null, SortOption.entries.map { MenuOption(sortOrder(it), state.sort == it) { vm.setSort(it) } }),
-                    ),
-                )
+                // The person the wall was opened for: its filter menu offers them while it shows.
+                val person = opensOn?.person?.let { id -> personName?.let { Person(it, null, null, id) } }
+                WallMenus(library.kind, state, vm.capabilities, person, vm::setFilter, vm::setSort)
             }
             // The title selected, named without taking space from the wall: one line inside the
             // safe area, a long name drops its facts first, then ends in an ellipsis.
@@ -294,6 +297,32 @@ private fun SkeletonWall() {
     }
 }
 
+/**
+ * The wall's menus, at the end of its header: its filters (collections are browsed by name or date, filters
+ * belong to films and shows), then its sort.
+ */
+@Composable
+private fun WallMenus(
+    kind: LibraryKind,
+    state: LibraryState,
+    can: ProviderCapabilities,
+    person: Person?,
+    onFilter: (LibraryFilter) -> Unit,
+    onSort: (SortOption) -> Unit,
+) {
+    if (kind != LibraryKind.COLLECTIONS) FilterButton(state.filter, state.facets, can, person, onFilter)
+    Spacer(Modifier.width(HlSpace.s))
+    // "Trier", and how it is sorted now: alone, "Titre" would read as a title.
+    HlMenuButton(
+        text = stringResource(R.string.sort),
+        icon = HlIcons.Sort,
+        detail = sortLabel(state.sort),
+        sections = listOf(
+            MenuSection(null, SortOption.entries.map { MenuOption(sortOrder(it), state.sort == it) { onSort(it) } }),
+        ),
+    )
+}
+
 @Composable
 private fun sortLabel(sort: SortOption): String = stringResource(
     when (sort) {
@@ -315,9 +344,21 @@ private fun sortOrder(sort: SortOption): String = stringResource(
     }
 )
 
-/** Filter menu: status, genre, decade and quality, combined; stays open while choosing. */
+/**
+ * Filter menu: status, genre and decade, then what the files hold (their picture, their sound, their kind)
+ * and a person, combined; stays open while choosing. Each section offers what the library holds ([facets]),
+ * never an empty choice, and what the wall is filtered by besides, so a filter set elsewhere can always be
+ * taken off; what the source cannot filter by ([can]) is never offered. [person], the one the wall was opened
+ * for, is offered while it shows: taken off, and put back.
+ */
 @Composable
-private fun FilterButton(filter: LibraryFilter, facets: LibraryFacets, onChange: (LibraryFilter) -> Unit) {
+internal fun FilterButton(
+    filter: LibraryFilter,
+    facets: LibraryFacets,
+    can: ProviderCapabilities,
+    person: Person?,
+    onChange: (LibraryFilter) -> Unit,
+) {
     val statusLabels = mapOf(
         WatchStatus.ALL to stringResource(R.string.show_all),
         WatchStatus.UNWATCHED to stringResource(R.string.filter_unwatched),
@@ -330,50 +371,47 @@ private fun FilterButton(filter: LibraryFilter, facets: LibraryFacets, onChange:
         Quality.HDR to stringResource(R.string.quality_hdr),
         Quality.DOLBY_VISION to HdrFormat.DOLBY_VISION.token,
     )
-    val decadeLabel = @Composable { d: Int -> stringResource(R.string.decade, d) }
+    val decadeLabels = (facets.decades + listOfNotNull(filter.decade)).associateWith { stringResource(R.string.decade, it) }
+    val unnamed = stringResource(R.string.filter_person_unnamed)
+    val personName = { id: String -> person?.takeIf { it.id == id }?.name ?: unnamed }
+    // The files' picture, finer than their quality, where the source filters by it.
+    val pictures = can.formatFilters && (facets.pictures.isNotEmpty() || filter.picture != null)
 
-    val sections = buildList {
-        add(
-            MenuSection(
-                stringResource(R.string.filter_status),
-                WatchStatus.entries.map { st -> MenuOption(statusLabels.getValue(st), filter.status == st) { onChange(filter.copy(status = st)) } },
-            )
-        )
-        if (facets.genres.isNotEmpty()) add(
-            MenuSection(
-                stringResource(R.string.filter_genre),
-                listOf(MenuOption(stringResource(R.string.all_genres), filter.genre == null) { onChange(filter.copy(genre = null)) }) +
-                    facets.genres.map { g -> MenuOption(g, sameGenre(filter.genre, g)) { onChange(filter.copy(genre = g)) } },
-            )
-        )
-        if (facets.decades.isNotEmpty()) add(
-            MenuSection(
-                stringResource(R.string.filter_decade),
-                listOf(MenuOption(stringResource(R.string.all_decades), filter.decade == null) { onChange(filter.copy(decade = null)) }) +
-                    facets.decades.map { d -> MenuOption(decadeLabel(d), filter.decade == d) { onChange(filter.copy(decade = d)) } },
-            )
-        )
-        if (facets.qualities.isNotEmpty()) add(
-            MenuSection(
-                stringResource(R.string.filter_quality),
-                listOf(MenuOption(stringResource(R.string.all_qualities), filter.quality == null) { onChange(filter.copy(quality = null)) }) +
-                    facets.qualities.map { q -> MenuOption(qualityLabels.getValue(q), filter.quality == q) { onChange(filter.copy(quality = q)) } },
-            )
-        )
-        if (filter.activeCount > 0) add(
-            MenuSection(null, listOf(MenuOption(stringResource(R.string.reset_filters), false) { onChange(LibraryFilter()) }))
-        )
-    }
+    val sections = listOfNotNull(
+        MenuSection(
+            stringResource(R.string.filter_status),
+            WatchStatus.entries.map { st -> MenuOption(statusLabels.getValue(st), filter.status == st) { onChange(filter.copy(status = st)) } },
+        ),
+        choices(R.string.filter_genre, R.string.all_genres, facets.genres, filter.genre, { it }, { g, held -> sameGenre(held, g) }) {
+            onChange(filter.copy(genre = it))
+        },
+        choices(R.string.filter_decade, R.string.all_decades, facets.decades, filter.decade, decadeLabels::getValue) {
+            onChange(filter.copy(decade = it))
+        },
+        if (pictures) {
+            pictureChoices(filter, facets, onChange)
+        } else {
+            choices(R.string.filter_quality, R.string.all_qualities, facets.qualities, filter.quality, qualityLabels::getValue) {
+                onChange(filter.copy(quality = it))
+            }
+        },
+        choices(R.string.filter_sound, R.string.all_sounds, facets.sounds, filter.sound, Formats::soundName) {
+            onChange(filter.copy(sound = it))
+        }.takeIf { can.formatFilters },
+        choices(R.string.filter_file, R.string.all_files, facets.fileTypes, filter.fileType, FileTypes::label) {
+            onChange(filter.copy(fileType = it))
+        }.takeIf { can.formatFilters },
+        choices(R.string.filter_person, R.string.all_people, listOfNotNull(person?.id), filter.person, personName) {
+            onChange(filter.copy(person = it))
+        }.takeIf { can.personFilter },
+        MenuSection(null, listOf(MenuOption(stringResource(R.string.reset_filters), false) { onChange(LibraryFilter()) }))
+            .takeIf { filter.activeCount > 0 },
+    )
 
     // The button names the active filter, or how many are combined.
     val detail = when (filter.activeCount) {
         0 -> null
-        1 -> when {
-            filter.status != WatchStatus.ALL -> statusLabels.getValue(filter.status)
-            filter.genre != null -> filter.genre
-            filter.decade != null -> decadeLabel(filter.decade)
-            else -> filter.quality?.let { qualityLabels.getValue(it) }
-        }
+        1 -> activeName(filter, statusLabels, qualityLabels, personName)
         else -> pluralStringResource(R.plurals.filter_count, filter.activeCount, filter.activeCount)
     }
     HlMenuButton(
@@ -385,6 +423,78 @@ private fun FilterButton(filter: LibraryFilter, facets: LibraryFacets, onChange:
         detailLit = filter.activeCount > 0,
         closeOnSelect = false,
     )
+}
+
+/**
+ * A section of the filter menu: "all" first ([all]), then each of [values], and the value [held] when the
+ * library holds it no more or the wall was opened on it, checked as [same] tells; none with nothing to offer.
+ */
+@Composable
+private fun <T : Any> choices(
+    @StringRes title: Int,
+    @StringRes all: Int,
+    values: List<T>,
+    held: T?,
+    label: (T) -> String,
+    same: (shown: T, held: T?) -> Boolean = { shown, h -> shown == h },
+    choose: (T?) -> Unit,
+): MenuSection? {
+    val offered = if (held == null || values.any { same(it, held) }) values else values + held
+    if (offered.isEmpty()) return null
+    return MenuSection(
+        stringResource(title),
+        listOf(MenuOption(stringResource(all), held == null) { choose(null) }) +
+            offered.map { MenuOption(label(it), same(it, held)) { choose(it) } },
+    )
+}
+
+/**
+ * The picture of the files: "Toutes les images", then their definitions, their HDR whatever its kind, and its
+ * kinds, by the names of a case ("Ultra HD", "Dolby Vision"). A name's plain "HDR" ([BadgeTokens.HDR]) is one
+ * of their HDR, checked there; a quality chosen before (Ultra HD, Dolby Vision) is the picture it names.
+ */
+@Composable
+private fun pictureChoices(filter: LibraryFilter, facets: LibraryFacets, onChange: (LibraryFilter) -> Unit): MenuSection {
+    val held = filter.picture ?: filter.quality?.let(::pictureOf)
+    val (definitions, ranges) = (facets.pictures + listOfNotNull(held)).distinct().filter { it != BadgeTokens.HDR }
+        .partition { token -> Definition.entries.any { it.token == token } }
+    val anyHdr = filter.quality == Quality.HDR || filter.picture == BadgeTokens.HDR
+    val hdr = MenuOption(stringResource(R.string.quality_hdr), anyHdr) { onChange(filter.copy(quality = Quality.HDR, picture = null)) }
+
+    fun option(token: String) = MenuOption(pictureName(token), held == token) { onChange(filter.copy(quality = null, picture = token)) }
+    val all = MenuOption(stringResource(R.string.all_pictures), filter.quality == null && filter.picture == null) {
+        onChange(filter.copy(quality = null, picture = null))
+    }
+    return MenuSection(
+        stringResource(R.string.filter_picture),
+        listOf(all) + definitions.map(::option) + listOfNotNull(hdr.takeIf { anyHdr || Quality.HDR in facets.qualities }) +
+            ranges.map(::option),
+    )
+}
+
+/** The definition or range a quality names, as badges keep it; null for HDR, which names none of them alone. */
+private fun pictureOf(quality: Quality): String? = when (quality) {
+    Quality.UHD_4K -> Definition.ULTRA_HD.token
+    Quality.DOLBY_VISION -> HdrFormat.DOLBY_VISION.token
+    Quality.HDR -> null
+}
+
+/** The one filter active, by the name its menu gives it. */
+@Composable
+private fun activeName(
+    filter: LibraryFilter,
+    statusLabels: Map<WatchStatus, String>,
+    qualityLabels: Map<Quality, String>,
+    personName: (String) -> String,
+): String? = when {
+    filter.status != WatchStatus.ALL -> statusLabels.getValue(filter.status)
+    filter.genre != null -> filter.genre
+    filter.decade != null -> stringResource(R.string.decade, filter.decade)
+    filter.quality != null -> qualityLabels.getValue(filter.quality)
+    filter.picture != null -> pictureName(filter.picture)
+    filter.sound != null -> Formats.soundName(filter.sound)
+    filter.fileType != null -> FileTypes.label(filter.fileType)
+    else -> filter.person?.let(personName)
 }
 
 /**

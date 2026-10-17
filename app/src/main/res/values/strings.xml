@@ -81,6 +81,15 @@
     <string name="sort_year_order">Year, newest first</string>
     <string name="sort_rating_order">Rating, highest first</string>
     <string name="filter_unwatched">Unwatched</string>
+    <string name="filter_picture">Picture</string>
+    <string name="all_pictures">All pictures</string>
+    <string name="filter_sound">Sound</string>
+    <string name="all_sounds">All sounds</string>
+    <string name="filter_file">File</string>
+    <string name="all_files">All files</string>
+    <string name="filter_person">Person</string>
+    <string name="all_people">Everyone</string>
+    <string name="filter_person_unnamed">The person chosen</string>
 
     <!-- Details -->
     <string name="play">Play</string>
@@ -291,6 +300,28 @@
     <string name="label_api">Control API</string>
     <string name="tmdb_attribution">This product uses the TMDB API but is not endorsed or certified by TMDB.</string>
     <string name="section_source">Library</string>
+    <!-- The library in numbers: a pane of the settings -->
+    <string name="section_numbers">In numbers</string>
+    <string name="numbers_title">The collection in numbers</string>
+    <plurals name="numbers_films">
+        <item quantity="one">%s film</item>
+        <item quantity="other">%s films</item>
+    </plurals>
+    <plurals name="numbers_shows">
+        <item quantity="one">%s show</item>
+        <item quantity="other">%s shows</item>
+    </plurals>
+    <plurals name="numbers_episodes">
+        <item quantity="one">%s episode</item>
+        <item quantity="other">%s episodes</item>
+    </plurals>
+    <string name="numbers_and">%1$s and %2$s</string>
+    <string name="numbers_in_library">in your library</string>
+    <string name="numbers_room">of files, every copy counted</string>
+    <string name="numbers_hours">to watch it all, end to end</string>
+    <string name="numbers_files">Files</string>
+    <string name="hours">%s h</string>
+    <string name="terabytes">%s TB</string>
     <string name="remove">Remove</string>
     <string name="scan_now">Scan now</string>
     <string name="scan_now_desc">Looks for new files</string>

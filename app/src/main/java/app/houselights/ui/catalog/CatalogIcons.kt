@@ -50,7 +50,7 @@ internal fun LazyListScope.catalogIcons() {
 private fun IconSheet() {
     val glyphs = listOf(
         HlIcons.Folder, HlIcons.Server, HlIcons.Display, HlIcons.Playback, HlIcons.Versions, HlIcons.Sort, HlIcons.Filter,
-        HlIcons.Info, HlIcons.Document, HlIcons.Storage, HlIcons.Edit, HlIcons.Logo, HlIcons.Search,
+        HlIcons.Info, HlIcons.Document, HlIcons.Storage, HlIcons.Numbers, HlIcons.Edit, HlIcons.Logo, HlIcons.Search,
         HlIcons.Check, HlIcons.CheckFilled, HlIcons.Restart, HlIcons.Back, HlIcons.Chevron, HlIcons.Settings, HlIcons.Add,
         HlIcons.Refresh, HlIcons.Test, HlIcons.Close, HlIcons.Heart, HlIcons.HeartFilled, HlIcons.Star,
         HlIcons.Attention, Icons.Filled.PlayArrow,
