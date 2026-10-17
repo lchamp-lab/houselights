@@ -1,6 +1,9 @@
 package app.houselights.providers.local
 
+import app.houselights.core.BadgeTokens
+import app.houselights.core.Codecs
 import app.houselights.core.Definition
+import app.houselights.core.HdrFormat
 import java.time.LocalDate
 import java.util.concurrent.ConcurrentHashMap
 
@@ -188,7 +191,9 @@ object FilenameParser {
      * The show's folder among [folders], by its index (null for none), and the show's name and year, for a file
      * whose name names the show [named]. The show's folder is the one named as the file names the show, under a
      * folder of kinds ("Animation/Arcane/Saison 1/Arcane.S01E01"); the one naming it with a year alone first, in a
-     * folder of its name holding one for each of its years ("Doctor Who/Doctor Who (2005)/Season 1"); else one
+     * folder of its name holding one for each of its years ("Doctor Who/Doctor Who (2005)/Season 1"), or a season's
+     * pack naming the year, which gives the show its year and leaves it in the folder of its name above
+     * ("Doctor Who/Doctor Who (2005) - S01", "Breaking Bad/Breaking Bad (2008) Season 2 S02 (1080p)"); else one
      * that names it before a pack's tags ("Friends.Complete.Series.1080p", "Friends - The Complete Series"), the
      * show named as its files name it; else the first one, above a season's pack ("Show/Show.S01.1080p.WEB/Show.S01E01").
      * Without one, the file's name names the show. A folder's name is a show's up to a season ([showName]).
@@ -197,8 +202,9 @@ object FilenameParser {
         val shows = folders.indices.filter { seasonFromFolder(folders[it]) == null }
         val known = named.title.isNotEmpty()
         val sameName = shows.filter { known && sameShow(showName(folders[it]).title, named.title) }
-        val same = sameName.firstOrNull { titleAndYear(folders[it]) } ?: sameName.firstOrNull()
-        if (same != null) return same to showName(folders[same])
+        val ofYear = sameName.firstOrNull { titleAndYear(folders[it]) }
+        val same = ofYear?.takeUnless { namesSeason(folders[it]) && it != sameName.first() } ?: sameName.firstOrNull()
+        if (same != null) return same to showName(folders[ofYear ?: same])
         val pack = shows.firstOrNull { known && namesThenTags(folders[it], named.title) }
         if (pack != null) return pack to ParsedMovie(named.title, showName(folders[pack]).year)
         val first = shows.firstOrNull()
@@ -208,13 +214,25 @@ object FilenameParser {
     /**
      * A folder's name as a show's: up to its season's number, as a pack of a season names it, at the source's
      * root too ("Show.Name.S01.1080p.WEB-GRP", "Show.Name.S01-S03.1080p", "Les.Revenants.Saison.1.FRENCH.720p"), or
-     * of an episode ("Show.Name.S01E01.1080p"), so that each season is not a show of its own.
+     * of several ("Les Revenants Saisons 1-2", "Le Bureau des Légendes Saisons 1 à 5"), or of an episode
+     * ("Show.Name.S01E01.1080p"), so that each season is not a show of its own.
      */
-    private fun showName(folder: String): ParsedMovie =
-        parseMovie(SEASON_TOKEN.find(folder)?.let { folder.substring(0, it.range.first) }?.takeIf { it.isNotBlank() } ?: folder)
+    private fun showName(folder: String): ParsedMovie = parseMovie(beforeSeason(folder))
 
-    /** A pack's season or seasons, or an episode's numbers, in a folder's name: "S01", "S01-S03", "S01E01", "Saison 1". */
-    private val SEASON_TOKEN = Regex("""(?i)(?<![a-z0-9])(?:s|(?:saison|season)[ ._-]?)\d{1,2}(?:e\d{1,4}|-s?\d{1,2})?(?![a-z0-9])""")
+    /** [folder] up to its [SEASON_TOKEN], when something comes before it. */
+    private fun beforeSeason(folder: String): String =
+        SEASON_TOKEN.find(folder)?.let { folder.substring(0, it.range.first) }?.takeIf { it.isNotBlank() } ?: folder
+
+    /** [folder] names a season or several after a name: a season's pack ("Doctor Who (2005) - S01"), not a show's folder. */
+    private fun namesSeason(folder: String): Boolean = beforeSeason(folder) != folder
+
+    /**
+     * A pack's season or seasons, or an episode's numbers, in a folder's name: "S01", "S01-S03", "S01E01", "Saison 1",
+     * and the first of several, "Saisons 1-2", "Saisons 1 à 5", "Seasons 1-3". Never "Seasons" before no number:
+     * "The Four Seasons" is a title.
+     */
+    private val SEASON_TOKEN =
+        Regex("""(?i)(?<![a-z0-9])(?:s|(?:saisons?|seasons?)[ ._-]?)\d{1,2}(?:e\d{1,4}|-s?\d{1,2})?(?![a-z0-9])""")
 
     /**
      * [folder] names the show [title], then from a release tag on what of it it holds: "Friends.Complete.Series.1080p",
@@ -228,11 +246,17 @@ object FilenameParser {
 
     /**
      * [folder] names a title and its year, and nothing else but ids in brackets: "Doctor Who (2005)", "Doctor.Who.2005",
-     * "Doctor Who (2005) [tvdbid-78804]"; not a pack's "Severance.2022.S01.1080p.WEB".
+     * "Doctor Who (2005) [tvdbid-78804]"; or, its year in parentheses as media managers write a show's, then what of the
+     * show it holds, a season or a release's tags, which [showName] leaves out: "Doctor Who (2005) - S01", "Doctor Who
+     * (1963) 1080p". Not a pack's "Severance.2022.S01.1080p.WEB", a season of the show whose folder holds it.
      */
     private fun titleAndYear(folder: String): Boolean {
         val name = parseMovie(folder)
-        return name.year != null && letters(dropBrackets(folder)) == letters(name.title) + name.year
+        val year = name.year ?: return false
+        val named = letters(name.title) + year
+        if (letters(dropBrackets(folder)) == named) return true
+        val apart = folder.contains("($year)") || folder.contains("[$year]")
+        return apart && letters(beforeTags(normalizeSeparators(dropBrackets(beforeSeason(folder))))) == named
     }
 
     /** "The" ending a name, before "The Complete Series". */
@@ -276,17 +300,17 @@ object FilenameParser {
                 has("720p") -> add(Definition.HD.token)
             }
             when {
-                has("dv", "dovi", """dolby[ ._-]?vision""") -> add("Dolby Vision")
-                has("""hdr10\+""", "hdr10plus") -> add("HDR10+")
-                has("hdr10", "hdr") -> add("HDR")
+                has("dv", "dovi", """dolby[ ._-]?vision""") -> add(HdrFormat.DOLBY_VISION.token)
+                has("""hdr10\+""", "hdr10plus") -> add(HdrFormat.HDR10_PLUS.token)
+                has("hdr10", "hdr") -> add(BadgeTokens.HDR)
             }
-            if (has("atmos")) add("Atmos")
+            if (has("atmos")) add(BadgeTokens.ATMOS)
             when {
-                has("truehd") -> add("TrueHD")
-                has("""dts[ ._-]?hd([ ._-]?ma)?""") -> add("DTS-HD MA")
-                has("""dts[ ._-]?x""") -> add("DTS:X")
+                has("truehd") -> add(Codecs.TRUEHD)
+                has("""dts[ ._-]?hd([ ._-]?ma)?""") -> add(Codecs.DTS_HD_MA)
+                has("""dts[ ._-]?x""") -> add(BadgeTokens.DTS_X)
             }
-            if (has("remux")) add("Remux")
+            if (has("remux")) add(BadgeTokens.REMUX)
         }
     }
 

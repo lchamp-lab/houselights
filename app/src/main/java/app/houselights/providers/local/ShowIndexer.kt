@@ -133,7 +133,8 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
         // for a film: an image among them, whose copy the show would show otherwise.
         val removed = SidecarKey.showRemoved(series.sidecarKey, source.id, showDir, local)
         val tv = if (tmdbAsked(series, nfo, refreshMetadata, removed)) {
-            tmdb.ask { lookupShow(it, series.userTmdbId, nfo, title, year) }
+            // Its details go, not its match: an NFO removed may have been all that named it, and its folder's name another.
+            tmdb.ask { lookupShow(it, series.userTmdbId, nfo, title, year, known = series.tmdbId.takeIf { removed }) }
         } else {
             TmdbAnswer.Unanswered
         }
@@ -167,7 +168,7 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
     private suspend fun showOf(source: SourceEntity, path: ShowPath, existing: ItemEntity?, now: Long): ItemEntity {
         val key = FilenameParser.showKey(path.title, path.year)
         val nameKey = FilenameParser.showKey(path.title)
-        val show = seriesByKey(key, nameKey) ?: formerShow(source, path, existing, key, nameKey) ?: ItemEntity(
+        val show = seriesByKey(key, nameKey, path.year) ?: formerShow(source, path, existing, key, nameKey) ?: ItemEntity(
             kind = ItemKind.SERIES,
             sourceId = source.id,
             matchKey = key,
@@ -233,16 +234,33 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
         known != null && known.tmdbId == nfo.tmdbId && known.imdbId == nfo.imdbId && known.tvdbId == nfo.tvdbId
 
     /**
-     * The show [key] names. A key with a year ("doctor who|2005") takes the show of its name alone
-     * ([nameKey]), made before keys held the year, or from a folder that gives none: it keeps its rows
-     * and what was done with it, and a folder without the year finds it again below. A key without a
-     * year finds the one show of that name and some year: two folders of one show, one giving its
+     * The show [key] names, of the [year] its folder gives. A key with a year ("doctor who|2005") takes the
+     * show of its name alone ([nameKey]), made before keys held the year, or from a folder that gives none:
+     * it keeps its rows and what was done with it, and a folder without the year finds it again below;
+     * unless it is the show of another of the years its episodes' folders now give ([ofAnotherYear]), the one
+     * the user may have matched it with: that year's folder takes it, and this one is a show of its own. A key
+     * without a year finds the one show of that name and some year: two folders of one show, one giving its
      * year, stay one show; with two such shows ("Doctor Who" of 1963 and of 2005), it is a show of its own.
      */
-    private suspend fun seriesByKey(key: String, nameKey: String): ItemEntity? {
+    private suspend fun seriesByKey(key: String, nameKey: String, year: Int?): ItemEntity? {
         dao.seriesByKey(key)?.let { return it }
         if (key == nameKey) return dao.seriesNamed(nameKey).singleOrNull()
-        return dao.seriesByKey(nameKey)?.copy(matchKey = key)?.also { dao.saveScanned(it) }
+        val named = dao.seriesByKey(nameKey)?.takeUnless { ofAnotherYear(it, nameKey, year) } ?: return null
+        return named.copy(matchKey = key).also { dao.saveScanned(it) }
+    }
+
+    /**
+     * Whether [show], keyed by its name alone ([nameKey]), bears another year than [year] that one of its episodes'
+     * folders gives: its NFO's, else TMDB's first air year, that of the user's match when they chose one ("Doctor Who"
+     * matched with the series of 2005, its episodes in "Doctor Who (1963)" and "Doctor Who (2005)"). When none gives
+     * its year, the first year read takes the show, as before.
+     */
+    private suspend fun ofAnotherYear(show: ItemEntity, nameKey: String, year: Int?): Boolean {
+        val own = show.year?.takeIf { it != year } ?: return false
+        return dao.episodesOfSeries(show.id).any { episode ->
+            val path = episode.filePath?.let(FilenameParser::parseShowPath)
+            path != null && path.year == own && FilenameParser.showKey(path.title) == nameKey
+        }
     }
 
     /**
@@ -279,10 +297,20 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
         return ParsedMovie(path.title, path.year)
     }
 
-    /** The user's match first, then the NFO's ids, then a search by title. */
-    private suspend fun lookupShow(tmdb: TmdbClient, userTmdbId: Int?, nfo: NfoInfo?, title: String, year: Int?): TmdbTv? {
+    /**
+     * The user's match first, then the NFO's ids, then the show it was matched with ([known]: when sidecars that
+     * named it were removed, as for a film), then a search by title.
+     */
+    private suspend fun lookupShow(
+        tmdb: TmdbClient,
+        userTmdbId: Int?,
+        nfo: NfoInfo?,
+        title: String,
+        year: Int?,
+        known: Int? = null,
+    ): TmdbTv? {
         userTmdbId?.let { return tmdb.tvById(it) }
-        val id = nfo?.tmdbId ?: nfo?.imdbId?.let { tmdb.findByImdb(it).second }
+        val id = nfo?.tmdbId ?: nfo?.imdbId?.let { tmdb.findByImdb(it).second } ?: known
         return id?.let { tmdb.tvById(it) } ?: tmdb.findTv(nfo?.title ?: title, nfo?.year ?: year)
     }
 
@@ -350,8 +378,11 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
             season = season.copy(matchedAt = null)
             dao.saveScanned(season)
         }
-        if (localPoster != null && !season.posterPath.isCachedArtwork()) {
-            files.copyArtwork(source, localPoster)?.let { season = season.copy(posterPath = it); dao.saveScanned(season) }
+        // Through the cache each time: a poster rewritten since is copied again, an unchanged one is not read.
+        val copy = localPoster?.let { files.copyArtwork(source, it) }
+        if (copy != null && copy != season.posterPath) {
+            season = season.copy(posterPath = copy)
+            dao.saveScanned(season)
         }
         return season
     }

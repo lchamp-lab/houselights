@@ -4,6 +4,9 @@ import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
@@ -199,6 +202,54 @@ class ScanShowSidecarsTest {
         assertQuiet()
     }
 
+    /**
+     * A show TMDB knew through its tvshow.nfo's id alone, its folder naming it otherwise: the NFO removed, TMDB is
+     * asked for the show it was, rather than searched by the folder's name, which finds another of that name.
+     */
+    @Test
+    fun aShowNfoRemovedKeepsTheShowItsIdNamed() = runTest {
+        tmdb.show(LEGENDES, "Le Bureau des Légendes", 2015)
+        tmdb.show(HOMONYM, "Le Bureau", 2006)
+        tmdb.season(LEGENDES, 1, episodes = 10)
+        tmdb.season(HOMONYM, 1, episodes = 6)
+        nas.put(BUREAU)
+        nas.text("Le Bureau/tvshow.nfo", "<tvshow><uniqueid type=\"tmdb\">$LEGENDES</uniqueid></tvshow>", lastModified = T1)
+        bench.scan()
+        suspend fun bureau() = checkNotNull(bench.dao.item(checkNotNull(bench.item(sourceOf(), BUREAU).seriesId)))
+        assertEquals(LEGENDES to "Le Bureau des Légendes", bureau().let { it.tmdbId to it.title })
+
+        nas.remove("Le Bureau/tvshow.nfo")
+        bench.scan()
+        val read = bureau()
+        assertEquals(LEGENDES to "Le Bureau des Légendes", read.tmdbId to read.title)
+        assertNull(read.nfoPath)
+        assertNotNull(read.matchedAt)
+    }
+
+    /**
+     * A season's poster in its show's folder, rewritten: the next episode read copies it again, and its season
+     * shows the new copy. Unchanged, it is not read again.
+     */
+    @Test
+    fun aSeasonPosterRewrittenIsCopiedAgain() = runTest {
+        nas.image("Mobland/season01-poster.jpg")
+        bench.scan()
+        suspend fun poster() = checkNotNull(bench.dao.season(show().id, 1)).posterPath
+        val first = poster()
+        assertTrue(first.isCachedArtwork())
+        nas.reads.clear()
+        bench.scan(refreshMetadata = true)
+        assertFalse(nas.reads.contains("Mobland/season01-poster.jpg"))
+        assertEquals(first, poster())
+
+        nas.put("Mobland/season01-poster.jpg", size = 120, bytes = ByteArray(120), lastModified = T2)
+        nas.put(EPISODE.replace("S01E01", "S01E02"))
+        bench.scan()
+        val second = poster()
+        assertTrue(second.isCachedArtwork())
+        assertNotEquals(first, second)
+    }
+
     /** A poster removed from a show's folder: its copy is no longer shown, TMDB's poster takes its place. */
     @Test
     fun aShowPosterRemovedIsNoLongerShown() = runTest {
@@ -261,8 +312,11 @@ class ScanShowSidecarsTest {
 
     private companion object {
         const val MOBLAND = 247718
+        const val LEGENDES = 62215
+        const val HOMONYM = 3480
         const val POSTER = "https://image.tmdb.org/t/p/original/chosen.jpg"
         const val EPISODE = "Mobland/S01/Mobland.S01E01.MULTi.1080p.WEB.H265-GRP.mkv"
+        const val BUREAU = "Le Bureau/Saison 1/Le.Bureau.S01E01.FRENCH.1080p.mkv"
 
         /** Two dates a file was written, as SMB or NFS list them. */
         const val T1 = 1_760_000_000_000L
