@@ -165,9 +165,10 @@ class ZidooPlayer(
     }
 
     /**
-     * A password is going to [choice]'s player, which is trusted: from now on, no ordinary app but
-     * that one, with that certificate, gets one. Remembered whatever trusts it, the firmware's own
-     * player too: an app put in its place later is no first use.
+     * A password went to [choice]'s player, which is trusted and has started (not one that could not
+     * be, under a name it took): from now on, no ordinary app but that one, with that certificate, gets
+     * one. Remembered whatever trusts it, the firmware's own player too: an app put in its place later
+     * is no first use.
      */
     fun remember(choice: Choice) {
         val pkg = choice.player?.component?.packageName ?: return

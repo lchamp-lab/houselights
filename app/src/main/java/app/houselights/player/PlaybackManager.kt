@@ -50,6 +50,8 @@ class PlaybackManager(
         val disc: Boolean = false,
         /** What names the file playing, as [reporter]'s source knows it ([PlaybackPlan.Launch.resumeKey]): for the log. */
         var key: String? = null,
+        /** The player a secret goes to: remembered once it has started ([onPlayerLaunched]), not if it could not be. */
+        val trusting: ZidooPlayer.Choice? = null,
     ) {
         /** The length of the title, from the player's first status (see [follow]). */
         var durationMs: Long? = null
@@ -110,14 +112,12 @@ class PlaybackManager(
         if (secret) Log.w(TAG, "Launch ${Redact.uri(plan.uri)} -> ${players.describe(choice)}")
         val changed = choice.decision == ZidooPlayer.Decision.CHANGED
         val intent = when {
-            player != null && (!secret || choice.decision.trusted) -> {
-                if (secret) players.remember(choice)
-                playerIntent(player.component, plan)
-            }
+            player != null && (!secret || choice.decision.trusted) -> playerIntent(player.component, plan)
             Redact.hasUserInfo(plan.uri) || secret && changed -> throw CredentialsNotShared(playerChanged = changed)
             else -> anyPlayerIntent(plan, chooser = secret)
         }
-        session = Session(plan.reporter, plan.startMs, plan.disc, plan.resumeKey)
+        val trusting = choice.takeIf { secret && intent.component != null }
+        session = Session(plan.reporter, plan.startMs, plan.disc, plan.resumeKey, trusting)
         // Written before the player takes over: the platform finishes pending apply() writes before our
         // activity stops, which launching the player does, so the resume point survives a killed process.
         saved.edit().putString(KEY_RESUME, plan.resumeKey).putLong(KEY_POSITION, plan.startMs).apply()
@@ -153,16 +153,17 @@ class PlaybackManager(
         return Intent.createChooser(any, context.getString(R.string.play_with)).putExtra(AUTO_LAUNCH_SINGLE_CHOICE, false)
     }
 
-    /** The player could not be started after all. */
+    /** The player could not be started after all: no password went to it, and it is not remembered. */
     fun onLaunchFailed() {
         session = null
         _playing.value = false
         saved.edit().clear().apply()
     }
 
-    /** Call right after the player activity was started. */
+    /** Call right after the player activity was started: a player a secret went to is remembered ([ZidooPlayer.remember]). */
     fun onPlayerLaunched() {
         val s = session ?: return
+        s.trusting?.let(players::remember)
         _playing.value = true
         s.started = scope.launch { report(s, "started") { s.reporter?.started(s.positionMs) } }
         pollJob?.cancel()

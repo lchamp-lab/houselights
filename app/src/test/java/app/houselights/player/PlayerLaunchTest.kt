@@ -35,8 +35,9 @@ class PlayerLaunchTest {
     private val context = ApplicationProvider.getApplicationContext<Application>()
     private val apps = FakeApps(context)
 
+    /** In the background: what follows a player once it has started ends with the test. */
     private fun TestScope.manager(device: DeviceIdentity) =
-        PlaybackManager(context, this, status = { PlayerAnswer.NoAnswer }, players = ZidooPlayer(context) { device }) { null }
+        PlaybackManager(context, backgroundScope, status = { PlayerAnswer.NoAnswer }, players = ZidooPlayer(context) { device }) { null }
 
     private fun plan(uri: String, backdrop: String? = null) = PlaybackPlan.Launch(
         uri = uri, container = "mkv", title = "Heat", backdropUrl = backdrop, logoUrl = null, startMs = 0,
@@ -159,6 +160,7 @@ class PlayerLaunchTest {
         apps.install("com.zidoo.other", certificate = OTHER_KEY)
         val manager = manager(ZIDOO_BUILD)
         assertEquals(SMB, manager.intentFor(plan(SMB)).dataString)
+        manager.onPlayerLaunched()
         // Remembered: another certificate later is refused.
         apps.install(ZIDOO_PLAYER, ZIDOO_PLAYER_ACTIVITY, certificate = OTHER_KEY)
         assertRefused { manager.intentFor(plan(SMB)) }
@@ -180,6 +182,7 @@ class PlayerLaunchTest {
         apps.install(ZIDOO_PLAYER, ZIDOO_PLAYER_ACTIVITY, certificate = OTHER_KEY)
         val manager = manager(ZIDOO_BUILD)
         assertEquals(SMB, manager.intentFor(plan(SMB)).dataString)
+        manager.onPlayerLaunched()
         assertEquals("the same player, again", SMB, manager.intentFor(plan(SMB)).dataString)
 
         apps.install(ZIDOO_PLAYER, ZIDOO_PLAYER_ACTIVITY, certificate = "a-third-key")
@@ -188,6 +191,25 @@ class PlayerLaunchTest {
         assertEquals(ZIDOO_PLAYER_ACTIVITY, manager.intentFor(plan(NFS)).component?.className)
         // Nor does a token go through a chooser: the app put in the player's place would be in it, alone perhaps.
         assertTrue("said as such", assertRefused { manager.intentFor(plan(TOKEN)) }.playerChanged)
+    }
+
+    /**
+     * The player a password goes to is remembered once it has started, not when it could not be: an
+     * app that took its name and failed to start would otherwise be the one trusted.
+     */
+    @Test
+    fun aPlayerIsRememberedOnlyOnceItHasStarted() = runTest {
+        apps.install(ZIDOO_PLAYER, ZIDOO_PLAYER_ACTIVITY, certificate = OTHER_KEY)
+        val players = ZidooPlayer(context) { ZIDOO_BUILD }
+        val manager = manager(ZIDOO_BUILD)
+        manager.intentFor(plan(SMB))
+        assertEquals("not before it starts", ZidooPlayer.Decision.FIRST_USE, players.choose().decision)
+        manager.onLaunchFailed()
+        assertEquals("nor once it could not", ZidooPlayer.Decision.FIRST_USE, players.choose().decision)
+
+        manager.intentFor(plan(SMB))
+        manager.onPlayerLaunched()
+        assertEquals(ZidooPlayer.Decision.REMEMBERED, players.choose().decision)
     }
 
     /** On a Zidoo whose player can be trusted with nothing yet, a token still goes through the chooser. */
