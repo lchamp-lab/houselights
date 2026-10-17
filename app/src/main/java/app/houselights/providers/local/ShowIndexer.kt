@@ -346,7 +346,8 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
         val series = MetadataMerge.merge(base, nfo, details, art).copy(matchedAt = matchedAt)
         dao.saveScanned(series)
         val credits = CreditRules.credits(series.id, show = true, nfo, tv?.let { TmdbPeople(it.credits, it.createdBy) })
-        dao.saveCredits(series.id, credits, complete = lookup is TmdbAnswer.Given || series.tmdbId == null, at = now)
+        val answered = lookup is TmdbAnswer.Given
+        dao.saveCredits(series.id, credits, tmdbAnswered = answered, complete = answered || series.tmdbId == null, at = now)
         return series
     }
 

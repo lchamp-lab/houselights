@@ -116,6 +116,27 @@ class ScanCreditsTest {
         assertEquals(listOf("Hans Zimmer"), credits.filter { it.job == Job.COMPOSER }.map { it.name })
     }
 
+    /** An NFO read again while TMDB is not asked replaces what it lists, never what TMDB alone credits. */
+    @Test
+    fun anNfoReadAgainKeepsWhatTmdbAloneCredits() = runTest {
+        val films = bench.folder("Films")
+        dune()
+        nas.put("Dune (2021).mkv")
+        nas.text("Dune (2021).nfo", "<movie><title>Dune</title><uniqueid type=\"tmdb\">438631</uniqueid></movie>")
+        bench.scan()
+        // tinyMediaManager writes the NFO again, the same film, with its cast.
+        val withCast = "<movie><title>Dune</title><uniqueid type=\"tmdb\">438631</uniqueid><actor><name>Zendaya</name></actor></movie>"
+        nas.text("Dune (2021).nfo", withCast)
+        tmdb.requests.clear()
+        bench.scan()
+
+        assertEquals("TMDB not asked", emptyList<String>(), tmdb.requests.filter { it.startsWith("movie/") })
+        val credits = jobs(bench.item(films, "Dune (2021).mkv").id)
+        assertEquals(listOf("Zendaya"), credits[Job.CAST])
+        assertEquals(listOf("Hans Zimmer"), credits[Job.COMPOSER])
+        assertEquals(listOf("Joe Walker"), credits[Job.EDITING])
+    }
+
     /** A show's credits are its cast, its creators and its composers; its NFO, without TMDB, gives its cast. */
     @Test
     fun aShowsCreditsAreItsCastCreatorsAndComposers() = runTest {

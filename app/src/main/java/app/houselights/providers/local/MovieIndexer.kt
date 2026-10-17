@@ -230,7 +230,8 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
         dao.saveScanned(item)
         // Complete once TMDB answered for the film, or knows none of it: the backfill then leaves it alone.
         val credits = CreditRules.credits(item.id, show = false, nfo, movie?.let { TmdbPeople(it.credits) })
-        dao.saveCredits(item.id, credits, complete = fetched.lookup is TmdbAnswer.Given || item.tmdbId == null, at = now)
+        val answered = fetched.lookup is TmdbAnswer.Given
+        dao.saveCredits(item.id, credits, tmdbAnswered = answered, complete = answered || item.tmdbId == null, at = now)
     }
 
     /** The collection a film belongs to, as known before anything is written. */

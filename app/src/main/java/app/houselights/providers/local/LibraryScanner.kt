@@ -99,7 +99,7 @@ class LibraryScanner(
     private val files = ScanFiles(dao, artwork, browsers)
     private val movies = MovieIndexer(dao, files)
     private val shows = ShowIndexer(dao, files)
-    private val backfill = Backfill(dao, lock, System::currentTimeMillis)
+    private val backfill = Backfill(dao, lock, System::currentTimeMillis) { waitForThePlayer() }
 
     /**
      * Scans every folder. [asked]: by someone (Scan now, a folder added or changed, a key saved), not by
@@ -300,11 +300,7 @@ class LibraryScanner(
                     if (changed) cleanupLocked()
                 }.onFailure { Log.w(TAG, "Cleanup failed", it) }
             }
-            // Titles and sagas known before credits and sagas whole were kept, a few a pass, once the folders are read.
-            waitForThePlayer()
-            suspendRunCatching { backfill.run(tmdb, askTmdb = askUnmatched) }
-                .onSuccess { if (it > 0) Log.i(TAG, "Backfill: $it titles and sagas given their credits and films") }
-                .onFailure { Log.w(TAG, "Backfill failed; tried again at the next pass", it) }
+            backfill(tmdb, askTmdb = askUnmatched)
         } finally {
             tmdbDown = tmdbDownAfter(tmdb, down, askUnmatched)
             // Whatever happened, the scan is over: the settings must not show it running forever.
@@ -314,6 +310,21 @@ class LibraryScanner(
         }
         // A scan that found nothing new leaves screens as they are.
         if (changed) _changed.emit(Unit)
+    }
+
+    /**
+     * Titles and sagas known before credits and sagas whole were kept, a few a pass, once the folders are read
+     * ([Backfill]); [askTmdb] as for titles TMDB left unmatched. A failure waits for the next pass.
+     */
+    private suspend fun backfill(tmdb: TmdbPass, askTmdb: Boolean) {
+        suspendRunCatching {
+            backfill.run(tmdb, askTmdb).also { written ->
+                // People TMDB keyed anew leave the words of their former keys.
+                if (written > 0) lock.withLock { dao.deleteOrphanSearchWords() }
+            }
+        }
+            .onSuccess { if (it > 0) Log.i(TAG, "Backfill: $it titles and sagas given their credits and films") }
+            .onFailure { Log.w(TAG, "Backfill failed; tried again at the next pass", it) }
     }
 
     /**

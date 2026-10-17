@@ -12,7 +12,13 @@ import kotlinx.coroutines.sync.withLock
  * a title it does not answer waits for a later pass, as one the pass has no time for. Nothing the user did is
  * written: only the credits, and those columns ([LibraryDao.setBackfilled]).
  */
-internal class Backfill(private val dao: LibraryDao, private val lock: Mutex, private val clock: () -> Long) {
+internal class Backfill(
+    private val dao: LibraryDao,
+    private val lock: Mutex,
+    private val clock: () -> Long,
+    /** Waits while a film plays or the app is away, before each title and saga ([LibraryScanner]'s). */
+    private val waitForThePlayer: suspend () -> Unit,
+) {
     /** What TMDB says of a title that the backfill keeps. */
     private class Found(val people: TmdbPeople, val votes: Int?, val imdbId: String?, val tvdbId: Int? = null)
 
@@ -25,11 +31,13 @@ internal class Backfill(private val dao: LibraryDao, private val lock: Mutex, pr
         for (title in dao.creditsDue(withTmdb = askTmdb && tmdb.open, limit = TITLES_PER_PASS)) {
             // TMDB closed meanwhile: what it is to be asked for waits for a later pass.
             if (asksTmdb(title) && !tmdb.open) continue
+            waitForThePlayer()
             if (credits(title, tmdb)) written++
         }
         if (!askTmdb) return written
         for (saga in dao.sagasDue(SAGAS_PER_PASS)) {
             if (!tmdb.open) break
+            waitForThePlayer()
             if (parts(saga, tmdb)) written++
         }
         return written
@@ -53,15 +61,22 @@ internal class Backfill(private val dao: LibraryDao, private val lock: Mutex, pr
         val edition = if (show) null else raw?.edition?.let(Editions::of) ?: title.filePath?.let(FilenameParser::edition)
         val credits = CreditRules.credits(title.id, show, nfo, found?.people)
         lock.withLock {
-            // Removed meanwhile: nothing to give it.
-            if (dao.rows(listOf(title.id)).isEmpty()) return@withLock
+            // Removed meanwhile, or identified or read again by a scan: what was asked no longer holds.
+            if (!stillDue(title)) return@withLock
             val now = clock()
             dao.inTransaction {
-                credits?.let { dao.replaceCredits(title.id, it, now) }
+                // Without TMDB's word on the title, what it alone credited stays: only the NFO's jobs are replaced.
+                credits?.let { dao.replaceCredits(title.id, it, now, whole = found != null) }
                 dao.setBackfilled(title.id, votes, edition, now)
             }
         }
         return true
+    }
+
+    /** [title] is as it was asked for: not removed, identified nor read again by a scan meanwhile. */
+    private suspend fun stillDue(title: ItemEntity): Boolean {
+        val fresh = dao.rows(listOf(title.id)).singleOrNull() ?: return false
+        return fresh.tmdbId == title.tmdbId && fresh.userTmdbId == title.userTmdbId && fresh.creditsAt == null
     }
 
     private suspend fun lookUp(client: TmdbClient, id: Int, show: Boolean): Found? = if (show) {

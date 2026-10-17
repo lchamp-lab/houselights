@@ -65,6 +65,10 @@ internal object VersionRank {
     /** A copy as it ranks: its badges, what its file holds when read, its size. */
     class Copy(val badges: List<String>, val media: MediaInfo?, val sizeBytes: Long?)
 
+    /** The id of the best of [copies], rows read whole but for their NFO ([LibraryDao.copies]). */
+    fun best(copies: List<ItemEntity>): Long =
+        copies.maxWith(compareBy(comparator) { Copy(it.badges, MediaProbe.decode(it.mediaInfo), it.fileSize) }).id
+
     /** The better copy is the greater. */
     val comparator: Comparator<Copy> = Comparator { a, b ->
         of(a).zip(of(b)).map { (x, y) -> x.compareTo(y) }.firstOrNull { it != 0 } ?: 0

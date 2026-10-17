@@ -62,7 +62,8 @@ internal class JellyfinCatalog(
     )
 
     override suspend fun person(id: String): PersonPage? = coroutineScope {
-        val who = async { api.item(id, userId) }
+        // A person the server no longer has: their titles say who they were, or there is no page.
+        val who = async { suspendRunCatching { api.item(id, userId) }.getOrNull() }
         val titles = api.items(
             userId = userId, parentId = null, includeItemTypes = "Movie,Series", recursive = true,
             sortBy = "ProductionYear,PremiereDate,SortName", sortOrder = "Ascending", startIndex = 0, limit = PERSON_TITLES,
@@ -78,8 +79,9 @@ internal class JellyfinCatalog(
             }
             val jobs = shown.flatMap { it.jobs }.groupingBy { it }.eachCount().entries
                 .sortedWith(compareByDescending<Map.Entry<Job, Int>> { it.value }.thenBy { it.key }).associate { it.key to it.value }
-            val image = mapper.image(person.id, "Primary", person.imageTags["Primary"])
-            PersonPage(Person(Typeset.text(person.name.orEmpty()), null, image, id, shown.size), jobs, shown)
+            val image = person?.let { mapper.image(it.id, "Primary", it.imageTags["Primary"]) }
+            val name = person?.name ?: titles.firstNotNullOfOrNull { title -> title.people.firstOrNull { it.id == id }?.name }
+            PersonPage(Person(Typeset.text(name.orEmpty()), null, image, id, shown.size), jobs, shown)
         }
     }
 
@@ -111,9 +113,9 @@ internal class JellyfinCatalog(
         return withContext(mapping) {
             val title = mapper.toMedia(full)
             val copies = sources.map { source -> source to JellyfinMapper.mediaInfo(full, source) }
-            val best = copies.maxWith(compareBy(VersionRank.comparator) { (source, media) ->
-                VersionRank.Copy(media?.badges().orEmpty(), media, source.size)
-            }).first.id
+            val best = copies.indices.maxWith(compareBy(VersionRank.comparator) { i ->
+                copies[i].let { (source, media) -> VersionRank.Copy(media?.badges().orEmpty(), media, source.size) }
+            })
             copies.mapIndexed { i, (source, media) ->
                 Version(
                     item = title.copy(media = media, badges = media?.badges().orEmpty(), runtimeMs = media?.durationMs ?: title.runtimeMs),
@@ -124,7 +126,7 @@ internal class JellyfinCatalog(
                     runtimeMs = media?.durationMs,
                     // The server keeps no choice: the copy it plays first is the one "Lire" plays.
                     chosen = i == 0,
-                    best = source.id == best,
+                    best = i == best,
                     key = source.id.orEmpty(),
                 )
             }

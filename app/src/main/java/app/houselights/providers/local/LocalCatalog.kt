@@ -144,10 +144,8 @@ internal class LocalCatalog(
         val copies = dao.copies(titleId).takeIf { it.size > 1 } ?: return emptyList()
         val items = LocalMapper(dao, context).mapAll(copies)
         return withContext(Dispatchers.Default) {
-            val best = copies.zip(items).maxWith(compareBy(VersionRank.comparator) { (copy, mapped) ->
-                VersionRank.Copy(copy.badges, mapped.media, copy.fileSize)
-            }).first.id
-            val choice = copies.first { it.id == titleId }.versionChoice?.takeIf { id -> copies.any { it.id == id } } ?: best
+            val best = VersionRank.best(copies)
+            val choice = copies.firstOrNull { it.id == titleId }?.versionChoice?.takeIf { id -> copies.any { it.id == id } } ?: best
             copies.zip(items).map { (copy, mapped) ->
                 Version(
                     item = mapped,
@@ -169,8 +167,9 @@ internal class LocalCatalog(
         dao.setVersionChoice(row.versionOf ?: row.id, version?.key?.toLongOrNull())
     }
 
+    /** This copy itself, whichever the film's title would play. */
     override suspend fun playback(version: Version, resume: Boolean, options: PlaybackOptions): PlaybackPlan =
-        provider.playback(version.item, resume, options)
+        provider.play(version.key.toLong(), part = null, resume)
 
     override suspend fun numbers(): LibraryNumbers {
         val files = dao.fileFacts()
@@ -189,7 +188,10 @@ internal class LocalCatalog(
         val terms = SearchWords.query(query).take(MAX_TERMS).ifEmpty { return SearchResults() }
         val typed = terms.joinToString(" ")
         val titleIds = refs(SearchKind.TITLE, terms).mapNotNull { it.toLongOrNull() }
-        val titles = titleIds.chunked(SQL_IN_LIMIT).flatMap { dao.rows(it) }
+        // Those whose title starts with what is typed are found whatever the cap: a word as common as "le" fills it.
+        val prefix = MetadataMerge.sortKey(query)
+        val starting = if (prefix.isEmpty()) emptyList() else dao.titlesStarting(prefix, SearchWords.upperBound(prefix), limit)
+        val titles = (starting + titleIds.chunked(SQL_IN_LIMIT).flatMap { dao.rows(it) }).distinctBy { it.id }
             .filter { (it.kind == ItemKind.MOVIE || it.kind == ItemKind.SERIES) && it.versionOf == null }
             .sortedWith(compareBy({ rank(it, typed) }, { -(it.rating ?: 0.0) }, { it.sortTitle }))
             .take(limit)
@@ -202,7 +204,7 @@ internal class LocalCatalog(
 
     /** The refs of [kind] each of whose [terms] starts one of its words, [MAX_HITS] at most. */
     private suspend fun refs(kind: SearchKind, terms: List<String>): List<String> {
-        val one = "SELECT ref FROM search_words WHERE kind = ? AND word >= ? AND word < ?"
+        val one = "SELECT DISTINCT ref FROM search_words WHERE kind = ? AND word >= ? AND word < ?"
         val sql = terms.joinToString(" INTERSECT ") { one } + " LIMIT $MAX_HITS"
         val args = terms.flatMap { listOf(kind.name, it, SearchWords.upperBound(it)) }
         return dao.searchRefs(SimpleSQLiteQuery(sql, args.toTypedArray())).map { it.ref }

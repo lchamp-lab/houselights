@@ -10,6 +10,8 @@ import app.houselights.core.LibraryFilter
 import app.houselights.core.LibraryKind
 import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
+import app.houselights.core.PlaybackOptions
+import app.houselights.core.PlaybackPlan
 import app.houselights.core.Secrets
 import app.houselights.core.SectionType
 import app.houselights.core.SortOption
@@ -74,12 +76,13 @@ class LocalCatalogTest {
         fileSize: Long? = null,
         runtimeMin: Int? = null,
         originalTitle: String? = null,
+        genres: List<String> = emptyList(),
     ): Long = dao.insert(
         ItemEntity(
             kind = ItemKind.MOVIE, sourceId = source, title = title, sortTitle = MetadataMerge.sortKey(title), year = year,
             tmdbId = tmdbId, filePath = path, badges = badges, rating = rating, votes = votes, collectionId = collectionId,
             played = played, lastPlayedAt = lastPlayedAt, positionMs = positionMs, fileSize = fileSize, runtimeMin = runtimeMin,
-            originalTitle = originalTitle, addedAt = 0, matchedAt = 1,
+            originalTitle = originalTitle, addedAt = 0, matchedAt = 1, genres = genres,
         )
     )
 
@@ -259,6 +262,15 @@ class LocalCatalogTest {
 
         val next = provider.home().single { it.type == SectionType.NEXT_UP }.items
         assertEquals("the next of Dune plays in Continue", listOf("Aliens"), next.map { it.title })
+
+        // Watched on a copy of its title, a film counts as watched; a copy in progress plays in Continue.
+        val heat = dao.insertCollection(CollectionEntity(matchKey = "name:heat", name = "Heat", sortTitle = "heat"))
+        film("Heat", 1995, tmdbId = 949, collectionId = heat)
+        film("Heat", 1995, tmdbId = 949, path = "Heat 4K.mkv", collectionId = heat, played = true, lastPlayedAt = 400)
+        film("Heat 2", 2026, tmdbId = 1, collectionId = heat)
+        film("Heat 2", 2026, tmdbId = 1, path = "Heat 2 4K.mkv", collectionId = heat, positionMs = 60_000, lastPlayedAt = 400)
+        dao.groupVersions()
+        assertEquals(listOf("Aliens"), provider.home().single { it.type == SectionType.NEXT_UP }.items.map { it.title })
     }
 
     // --- Versions ---
@@ -288,6 +300,30 @@ class LocalCatalogTest {
         assertEquals(first, chosen.first { it.chosen }.key.toLong())
         assertEquals(final, chosen.first { it.best }.key.toLong())
         assertEquals(emptyList<Any>(), catalog.versions(item(dao.latest(ItemKind.MOVIE, 10).first { it.tmdbId == 335984 }.id)))
+    }
+
+    /** "Lire" on a film's title plays the copy chosen, else the best; a copy played as such is that copy, its title no film like it. */
+    @Test
+    fun aTitlePlaysItsChosenCopyElseItsBest() = runTest {
+        val first = film("Heat", 1995, tmdbId = 949, path = "Heat.1080p.mkv", badges = listOf("1080p"), genres = listOf("Policier"))
+        val uhd = film("Heat", 1995, tmdbId = 949, path = "Heat.2160p.mkv", badges = listOf("4K"), genres = listOf("Policier"))
+        film("Ronin", 1998, tmdbId = 8195, genres = listOf("Policier"))
+        dao.groupVersions()
+        val options = PlaybackOptions(emptyList(), forceHttp = false)
+        suspend fun played(item: MediaItem) = (provider.playback(item, resume = false, options) as PlaybackPlan.Launch).uri
+
+        assertTrue(played(provider.item(first.toString())).endsWith("Heat.2160p.mkv"))
+        val versions = catalog.versions(item(first))
+        catalog.chooseVersion(item(first), versions.single { it.key == first.toString() })
+        assertTrue(played(provider.item(first.toString())).endsWith("Heat.1080p.mkv"))
+        val plan = catalog.playback(versions.single { it.key == uhd.toString() }, resume = false, options) as PlaybackPlan.Launch
+        assertTrue(plan.uri.endsWith("Heat.2160p.mkv"))
+        assertEquals(listOf("Ronin"), provider.similar(provider.item(uhd.toString())).map { it.title })
+
+        // Its title gone, a copy is a title of its own at once.
+        dao.settleMissing(emptyList(), emptyList(), emptyList(), listOf(first), emptyList(), now = 1)
+        assertNull(dao.item(uhd)?.versionOf)
+        assertEquals(emptyList<Any>(), catalog.versions(item(uhd)))
     }
 
     /** Watched, a favourite: what is of a film is of all its copies, whichever is played or marked. */
@@ -383,6 +419,11 @@ class LocalCatalogTest {
         assertEquals(listOf("Mother"), titles("마더"))
         assertEquals("one title for a film's copies", listOf("Blade Runner"), titles("blade"))
         assertEquals(emptyList<String>(), titles("amelie zzz"))
+        // A word as common as an article fills no cap before the titles starting with it.
+        repeat(450) { film("Le Film $it") }
+        film("Léon", 1994)
+        assertEquals("Léon", catalog.search("léon").titles.first().title)
+        assertTrue(catalog.search("le", limit = 500).titles.any { it.title == "Léon" })
         assertTrue(catalog.search("  -  ").isEmpty())
 
         assertEquals(listOf("Jean-Pierre Jeunet"), catalog.search("jeun").people.map { it.name })
@@ -403,7 +444,7 @@ class LocalCatalogTest {
 
         // Renamed by a scan, a title is found by its new name only.
         val id = film("Old Name")
-        dao.saveScanned(checkNotNull(dao.item(id)).copy(title = "Nouveau Nom"))
+        dao.saveScanned(checkNotNull(dao.item(id)).copy(title = "Nouveau Nom", sortTitle = "nouveau nom"))
         assertEquals(listOf("Nouveau Nom"), catalog.search("nouv").titles.map { it.title })
         assertEquals(emptyList<String>(), catalog.search("old name").titles.map { it.title })
     }

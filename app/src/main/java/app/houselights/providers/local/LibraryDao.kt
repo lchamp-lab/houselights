@@ -301,10 +301,13 @@ interface LibraryDao {
 
     /**
      * The films of the [limit] sagas one of whose films was watched last, saga by saga, each in the order they
-     * came out, a film of several copies once: what tells the next film of each.
+     * came out, a film of several copies once, as its copies together stand: what tells the next film of each.
      */
     @Query(
-        "SELECT id, collectionId, played, positionMs, lastPlayedAt FROM items WHERE kind = 'MOVIE' AND versionOf IS NULL " +
+        "SELECT id, collectionId, (played = 1 OR EXISTS (SELECT 1 FROM items c WHERE c.versionOf = items.id AND c.played = 1)) " +
+            "AS played, (SELECT MAX(c.positionMs) FROM items c WHERE c.id = items.id OR c.versionOf = items.id) AS positionMs, " +
+            "(SELECT MAX(c.lastPlayedAt) FROM items c WHERE c.id = items.id OR c.versionOf = items.id) AS lastPlayedAt " +
+            "FROM items WHERE kind = 'MOVIE' AND versionOf IS NULL " +
             "AND collectionId IN (SELECT collectionId FROM items WHERE kind = 'MOVIE' AND collectionId IS NOT NULL AND played = 1 " +
             "AND lastPlayedAt IS NOT NULL GROUP BY collectionId ORDER BY MAX(lastPlayedAt) DESC LIMIT :limit) " +
             "ORDER BY collectionId, year IS NULL, year, sortTitle, id"
@@ -452,6 +455,8 @@ interface LibraryDao {
         setMissingSince(back, null)
         setMissingSince(held, now)
         deleteItems(removed)
+        // A film's title gone, its next copy holds it at once.
+        if (removed.isNotEmpty()) groupVersions()
     }
 
     /** Seasons without episodes, then series without seasons. */
@@ -596,6 +601,13 @@ interface LibraryDao {
     /** The copies of the film whose title is the row [titleId], it first: all of each row but its NFO text. */
     @Query("SELECT $ITEM_ROW FROM items WHERE kind = 'MOVIE' AND (id = :titleId OR versionOf = :titleId) ORDER BY id")
     suspend fun copies(titleId: Long): List<ItemEntity>
+
+    /** Films and shows whose sort key starts with [prefix] (up to [upper], [SearchWords.upperBound]), in its order. */
+    @Query(
+        "SELECT $CARD_ROW FROM items WHERE kind IN ('MOVIE', 'SERIES') AND versionOf IS NULL " +
+            "AND sortTitle >= :prefix AND sortTitle < :upper ORDER BY sortTitle, id LIMIT :limit"
+    )
+    suspend fun titlesStarting(prefix: String, upper: String, limit: Int): List<ItemEntity>
 
     /** The best rated titles of [kind], with [minVotes] votes at least where their number is known. */
     @Query(
@@ -754,6 +766,10 @@ interface LibraryDao {
     @Query("DELETE FROM credits WHERE itemId = :itemId")
     suspend fun deleteCredits(itemId: Long)
 
+    /** The credits of the title [itemId] in the [jobs] (their names). */
+    @Query("DELETE FROM credits WHERE itemId = :itemId AND job IN (:jobs)")
+    suspend fun deleteCreditsIn(itemId: Long, jobs: List<String>)
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertCredits(credits: List<CreditEntity>)
 
@@ -775,13 +791,14 @@ interface LibraryDao {
     suspend fun setCreditsAt(id: Long, at: Long)
 
     /**
-     * The credits of the title [itemId], in place of those it had, complete [at] ([ItemEntity.creditsAt]; null for
-     * credits an NFO gave while TMDB, which knows the title, was not asked): a person named by name alone takes
+     * The credits of the title [itemId], in place of those it had ([whole]) or of those of the jobs they hold (an NFO's,
+     * TMDB not asked: what TMDB alone credits stays), complete [at] ([ItemEntity.creditsAt]; null for credits an NFO
+     * gave while TMDB, which knows the title, was not asked): a person named by name alone takes
      * the TMDB key other titles know them by, and those other titles name by name alone a person TMDB keys here
      * take that key, so that one person is one across the library. Their words for searches with them.
      */
     @Transaction
-    suspend fun replaceCredits(itemId: Long, credits: List<CreditEntity>, at: Long?) {
+    suspend fun replaceCredits(itemId: Long, credits: List<CreditEntity>, at: Long?, whole: Boolean = true) {
         val named = credits.filter { it.personKey.startsWith(PersonKeys.NAME) }.map { it.foldedName }.distinct()
         val tmdbKeys = named.chunked(SQL_IN_LIMIT).flatMap { tmdbKeysOf(it) }.associate { it.foldedName to it.personKey }
         val keyed = credits.map { c ->
@@ -789,19 +806,24 @@ interface LibraryDao {
         }
         val byName = keyed.filter { it.personKey.startsWith(PersonKeys.TMDB) }.associate { PersonKeys.name(it.foldedName) to it.personKey }
         byName.keys.toList().chunked(SQL_IN_LIMIT).flatMap { heldKeys(it) }.forEach { rekeyPerson(it, byName.getValue(it)) }
-        deleteCredits(itemId)
+        if (whole) deleteCredits(itemId) else deleteCreditsIn(itemId, credits.map { it.job.name }.distinct())
         insertCredits(keyed)
         insertSearchWords(keyed.distinctBy { it.personKey }.flatMap { SearchWords.rows(SearchKind.PERSON, it.personKey, it.name) })
         at?.let { setCreditsAt(itemId, it) }
     }
 
     /**
-     * What a scan decided of a title's credits ([CreditRules]): written when it had any, and complete [at] when TMDB
-     * answered for the title or knows none of it ([complete]), so that the backfill leaves it alone.
+     * What a scan decided of a title's credits ([CreditRules]): written when it had any, all of them when TMDB answered
+     * for the title ([tmdbAnswered]), else job by job; complete [at] when TMDB answered or knows none of it
+     * ([complete]), so that the backfill leaves it alone.
      */
     @Transaction
-    suspend fun saveCredits(itemId: Long, credits: List<CreditEntity>?, complete: Boolean, at: Long) {
-        if (credits != null) replaceCredits(itemId, credits, at.takeIf { complete }) else if (complete) setCreditsAt(itemId, at)
+    suspend fun saveCredits(itemId: Long, credits: List<CreditEntity>?, tmdbAnswered: Boolean, complete: Boolean, at: Long) {
+        if (credits != null) {
+            replaceCredits(itemId, credits, at.takeIf { complete }, whole = tmdbAnswered)
+        } else if (complete) {
+            setCreditsAt(itemId, at)
+        }
     }
 
     /**

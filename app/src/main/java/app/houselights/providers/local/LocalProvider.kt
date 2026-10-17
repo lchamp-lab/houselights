@@ -258,7 +258,8 @@ class LocalProvider(
         if (entity.kind != ItemKind.MOVIE && entity.kind != ItemKind.SERIES) return emptyList()
         val genre = entity.genres.firstOrNull() ?: return emptyList()
         val mapper = LocalMapper(dao, context)
-        return mapper.mapAll(dao.byGenre(entity.kind, genre, entity.id, SIMILAR))
+        // From one of a film's copies, its title is no film like it.
+        return mapper.mapAll(dao.byGenre(entity.kind, genre, entity.versionOf ?: entity.id, SIMILAR))
     }
 
     override suspend fun setPlayed(item: MediaItem, played: Boolean) {
@@ -283,13 +284,31 @@ class LocalProvider(
      * its start; the film itself plays its first part, where its resume point lies.
      */
     override suspend fun playback(item: MediaItem, resume: Boolean, options: PlaybackOptions): PlaybackPlan {
-        // With its NFO: the player is handed its artwork when that is all the web has (see LocalMapper.forPlayer).
-        val entity = itemKey(item)?.let { dao.item(it) } ?: throw NotFoundException("Item ${item.id}")
+        val key = itemKey(item) ?: throw NotFoundException("Item ${item.id}")
         val part = (LocalId.parse(item.id) as? LocalId.Item)?.part
+        // A film of several copies plays, from its title, the copy chosen, else the best ([LocalCatalog.versions]).
+        val copy = if (part == null) chosenCopy(key) else null
+        return play(copy ?: key, part, resume)
+    }
+
+    /** The copy the film titled by the row [titleId] plays when it has several: the user's choice, else the best; null for one. */
+    private suspend fun chosenCopy(titleId: Long): Long? {
+        val copies = dao.copies(titleId).takeIf { it.size > 1 } ?: return null
+        val choice = copies.firstOrNull { it.id == titleId }?.versionChoice
+        return copies.firstOrNull { it.id == choice }?.id ?: VersionRank.best(copies)
+    }
+
+    /**
+     * Plays the row [rowId] itself, a film's copy or an episode: its [part] when it is a film in several files
+     * ([MediaItem.parts]), from its start; else its first part, where its resume point lies.
+     */
+    internal suspend fun play(rowId: Long, part: Int?, resume: Boolean): PlaybackPlan {
+        // With its NFO: the player is handed its artwork when that is all the web has (see LocalMapper.forPlayer).
+        val entity = dao.item(rowId) ?: throw NotFoundException("Item $rowId")
         val files = listOfNotNull(entity.filePath) + entity.parts
         // A part gone since the page was shown is a title gone.
-        val file = files.getOrNull((part ?: 1) - 1) ?: throw NotFoundException("No file for ${item.id}")
-        val source = dao.sources().firstOrNull { it.id == entity.sourceId } ?: error("Source of ${item.title} was removed")
+        val file = files.getOrNull((part ?: 1) - 1) ?: throw NotFoundException("No file for $rowId")
+        val source = dao.sources().firstOrNull { it.id == entity.sourceId } ?: error("Source of ${entity.title} was removed")
         val mapper = LocalMapper(dao, context)
         val container = FilenameParser.extension(file)
         val mapped = mapper.map(entity)
@@ -360,12 +379,12 @@ class LocalProvider(
         /**
          * The next film of each saga of [films] (saga by saga, in the order they came out, [LibraryDao.startedSagas]):
          * the first after the last one watched that is not watched, when there is one; dated by the saga's last
-         * viewing. A film in progress is "Continue"'s, and is left out by the caller.
+         * viewing. A film in progress, one of its copies too, is "Continue"'s: none then.
          */
         internal fun nextInSagas(films: List<SagaFilmState>): List<Recent> =
             films.groupBy { it.collectionId }.values.mapNotNull { saga ->
                 val last = saga.indexOfLast { it.played }
-                val next = saga.drop(last + 1).firstOrNull { !it.played } ?: return@mapNotNull null
+                val next = saga.drop(last + 1).firstOrNull { !it.played }?.takeIf { it.positionMs == 0L } ?: return@mapNotNull null
                 Recent(next.id, saga.mapNotNull { it.lastPlayedAt }.maxOrNull() ?: 0)
             }
 
