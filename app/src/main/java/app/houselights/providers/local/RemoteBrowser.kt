@@ -159,6 +159,3 @@ internal inline fun readFully(length: Int, read: (bytes: ByteArray, at: Int, cou
     }
     return if (total == length) bytes else bytes.copyOf(total)
 }
-
-/** Reads until [length] bytes or the end of the stream, straight into the array it returns. */
-internal fun java.io.InputStream.readUpTo(length: Int): ByteArray = readFully(length) { bytes, at, count -> read(bytes, at, count) }
