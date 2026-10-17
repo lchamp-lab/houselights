@@ -2,7 +2,6 @@ package app.houselights.player
 
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.SystemClock
 import android.util.Log
@@ -84,10 +83,18 @@ class PlaybackManager(
     /**
      * Builds the intent for the Zidoo player, or for any video player elsewhere.
      *
-     * Only the Zidoo player, installed as part of the system, receives a URI with a password: another
-     * app answering a generic video intent never does ([CredentialsNotShared]). A URI with a token in
-     * its query (Jellyfin's stream) goes elsewhere only through a chooser: the user picks the app,
-     * none takes it without being asked.
+     * What the app keeps from other apps is a URI's secret: an SMB folder's password, or Jellyfin's
+     * token, which opens the whole account. It goes only to the player [ZidooPlayer] trusts, and only
+     * on a Zidoo: a system app, which no ordinary app can replace; an app signed like a system app of
+     * Zidoo's; else the player a secret last went to, or the first one, as long as neither its package
+     * nor its certificate changes. Off a Zidoo, no app is trusted, whatever its name: any app may take one.
+     * A password goes to no other app ([CredentialsNotShared]); a token goes elsewhere only through a
+     * chooser, where the user picks the app (Android opens the only one without asking).
+     *
+     * Not guarded against: an app installed on the Zidoo, under a name of Zidoo's, before a first
+     * password goes to the player (trusted on first use, it would be the one); an update of a system
+     * app signed with the AOSP test keys of the firmware's build; and whoever reads the device's log
+     * through adb, where Android writes the address it starts.
      */
     fun intentFor(plan: PlaybackPlan.Launch): Intent {
         Log.i(TAG, "Launch ${plan.title} -> ${Redact.uri(plan.uri)}")
@@ -109,9 +116,13 @@ class PlaybackManager(
             }
             putExtra("return_result", true)
         }
+        val secret = Redact.hasCredentials(plan.uri)
         val intent = when {
-            player != null && isZidooPlayer(player, choice.device) -> zidoo
-            Redact.hasUserInfo(plan.uri) -> throw CredentialsNotShared()
+            player != null && choice.decision.trusted -> {
+                if (secret) players.remember(choice)
+                zidoo
+            }
+            Redact.hasUserInfo(plan.uri) -> throw CredentialsNotShared(playerChanged = choice.decision == ZidooPlayer.Decision.CHANGED)
             else -> {
                 val any = Intent(Intent.ACTION_VIEW).apply {
                     setDataAndType(Uri.parse(plan.uri), "video/*")
@@ -119,7 +130,7 @@ class PlaybackManager(
                     putExtra("position", plan.startMs.toInt())
                     putExtra("return_result", true)
                 }
-                if (Redact.hasCredentials(plan.uri)) Intent.createChooser(any, context.getString(R.string.play_with)) else any
+                if (secret) Intent.createChooser(any, context.getString(R.string.play_with)) else any
             }
         }
         session = Session(plan.reporter, plan.startMs, plan.disc, plan.resumeKey)
@@ -134,22 +145,6 @@ class PlaybackManager(
         session = null
         _playing.value = false
         saved.edit().clear().apply()
-    }
-
-    /**
-     * Whether [player] is the Zidoo player, the one app a password is given to: the firmware's (a
-     * system app, or one signed with the firmware's key), or any on a Zidoo. Some Zidoo firmwares install
-     * their player as an ordinary app, which a password must still reach. Elsewhere, an app under that
-     * name gets no password.
-     */
-    private fun isZidooPlayer(player: ZidooPlayer.Candidate, device: ZidooPlayer.Device): Boolean {
-        val name = player.component.packageName
-        val platformSigned = context.packageManager.checkSignatures(PLATFORM_PACKAGE, name) == PackageManager.SIGNATURE_MATCH
-        if (!player.system && !platformSigned && !device.zidoo) {
-            // What told the player apart, without a secret: the evening it is wrong, the log says why.
-            Log.w(TAG, "$name is not taken for the Zidoo player: ${device.identity}")
-        }
-        return player.system || platformSigned || device.zidoo
     }
 
     /** Call right after the player activity was started. */
@@ -331,8 +326,11 @@ class PlaybackManager(
         suspendRunCatching { block() }.onFailure { Log.w(TAG, "Report that ${s.key} $step at ${s.positionMs} ms failed", it) }
     }
 
-    /** The file needs credentials and only the Zidoo player may receive them. */
-    class CredentialsNotShared : Exception("Credentials are only given to the Zidoo player")
+    /**
+     * The file needs credentials and only the Zidoo player may receive them; [playerChanged]: the
+     * player is no longer the one trusted with them before.
+     */
+    class CredentialsNotShared(val playerChanged: Boolean = false) : Exception("Credentials are only given to the Zidoo player")
 
     companion object {
         private const val TAG = "Playback"
@@ -381,8 +379,5 @@ class PlaybackManager(
          */
         private const val SAME_FILE_MS = 2_000L
         private const val SAME_FILE_SHARE = 100
-
-        /** The system's own package, whose key signs the firmware's apps. */
-        private const val PLATFORM_PACKAGE = "android"
     }
 }

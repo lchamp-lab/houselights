@@ -7,7 +7,9 @@ import app.houselights.core.PlaybackPlan
 import app.houselights.player.FakeApps.Companion.GALLERY
 import app.houselights.player.FakeApps.Companion.MOVIE_ACTIVITY
 import app.houselights.player.FakeApps.Companion.OTHER_BUILD
+import app.houselights.player.FakeApps.Companion.OTHER_KEY
 import app.houselights.player.FakeApps.Companion.ZIDOO_BUILD
+import app.houselights.player.FakeApps.Companion.ZIDOO_KEY
 import app.houselights.player.FakeApps.Companion.ZIDOO_PLAYER
 import app.houselights.player.FakeApps.Companion.ZIDOO_PLAYER_ACTIVITY
 import kotlinx.coroutines.test.TestScope
@@ -100,7 +102,7 @@ class PlayerLaunchTest {
     /** The Zidoo player installed as an ordinary app, as some Zidoo firmwares do: on a Zidoo, it gets the password. */
     @Test
     fun onAZidooItsPlayerGetsThePasswordEvenNotASystemApp() = runTest {
-        apps.install(GALLERY, MOVIE_ACTIVITY, bySchemes = false)
+        apps.install(GALLERY, MOVIE_ACTIVITY, certificate = OTHER_KEY, bySchemes = false)
         val intent = manager(ZIDOO_BUILD).intentFor(plan(SMB))
         assertEquals(MOVIE_ACTIVITY, intent.component?.className)
         assertEquals(SMB, intent.dataString)
@@ -111,6 +113,40 @@ class PlayerLaunchTest {
     fun elsewhereAnAppUnderThePlayersNameGetsNoPassword() = runTest {
         apps.install(GALLERY, MOVIE_ACTIVITY, bySchemes = false)
         assertRefused { manager(OTHER_BUILD).intentFor(plan(SMB)) }
+    }
+
+    /** Elsewhere, even a system app under the Zidoo player's name gets no password: only a Zidoo's player does. */
+    @Test
+    fun elsewhereNoPlayerGetsAPassword() = runTest {
+        apps.install(GALLERY, MOVIE_ACTIVITY, system = true, bySchemes = false)
+        assertRefused { manager(OTHER_BUILD).intentFor(plan(SMB)) }
+    }
+
+    /** A player installed as an ordinary app, signed with the key of an app of Zidoo's the firmware installed. */
+    @Test
+    fun aPlayerSignedLikeTheFirmwareGetsThePassword() = runTest {
+        apps.install("com.zidoo.poster", system = true, certificate = ZIDOO_KEY)
+        apps.install(ZIDOO_PLAYER, ZIDOO_PLAYER_ACTIVITY, certificate = ZIDOO_KEY)
+        apps.install("com.zidoo.other", certificate = OTHER_KEY)
+        val manager = manager(ZIDOO_BUILD)
+        assertEquals(SMB, manager.intentFor(plan(SMB)).dataString)
+        // Remembered: another certificate later is refused.
+        apps.install(ZIDOO_PLAYER, ZIDOO_PLAYER_ACTIVITY, certificate = OTHER_KEY)
+        assertRefused { manager.intentFor(plan(SMB)) }
+    }
+
+    /** An ordinary player of another key is trusted the first time, then refused once its certificate changes. */
+    @Test
+    fun aPlayerIsTrustedOnFirstUseUntilItChanges() = runTest {
+        apps.install(ZIDOO_PLAYER, ZIDOO_PLAYER_ACTIVITY, certificate = OTHER_KEY)
+        val manager = manager(ZIDOO_BUILD)
+        assertEquals(SMB, manager.intentFor(plan(SMB)).dataString)
+        assertEquals("the same player, again", SMB, manager.intentFor(plan(SMB)).dataString)
+
+        apps.install(ZIDOO_PLAYER, ZIDOO_PLAYER_ACTIVITY, certificate = "a-third-key")
+        assertTrue("said as such", assertRefused { manager.intentFor(plan(SMB)) }.playerChanged)
+        // A token is not a password: it goes through the chooser, as anywhere else.
+        assertEquals(Intent.ACTION_CHOOSER, manager.intentFor(plan(TOKEN)).action)
     }
 
     /** The Zidoo player is another app: a file of ours is out of its reach, a web address is not. */
@@ -128,17 +164,19 @@ class PlayerLaunchTest {
         assertEquals("https://image.tmdb.org/t/p/w1280/b.jpg", remote.getStringExtra("loading_image"))
     }
 
-    private fun assertRefused(launch: () -> Unit) {
+    /** [launch] gives the password to no app: the refusal. */
+    private fun assertRefused(launch: () -> Unit): PlaybackManager.CredentialsNotShared {
         try {
             launch()
-            throw AssertionError("The password went to the player")
-        } catch (_: PlaybackManager.CredentialsNotShared) {
-            // As it should.
+        } catch (refused: PlaybackManager.CredentialsNotShared) {
+            return refused
         }
+        throw AssertionError("The password went to the player")
     }
 
     private companion object {
         const val NFS = "nfs://nas/films/Heat.mkv"
         const val SMB = "smb://zidoo:secret@nas/films/Heat.mkv"
+        const val TOKEN = "http://nas:8096/Videos/1/stream.mkv?static=true&api_key=secret"
     }
 }

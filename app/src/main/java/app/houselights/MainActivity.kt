@@ -203,8 +203,8 @@ class MainActivity : ComponentActivity() {
                         } catch (_: ActivityNotFoundException) {
                             container.player.onLaunchFailed()
                             failed(UiError.NO_PLAYER)
-                        } catch (_: PlaybackManager.CredentialsNotShared) {
-                            failed(UiError.CREDENTIALS)
+                        } catch (e: PlaybackManager.CredentialsNotShared) {
+                            failed(if (e.playerChanged) UiError.PLAYER_CHANGED else UiError.CREDENTIALS)
                         }
                     }
                 }

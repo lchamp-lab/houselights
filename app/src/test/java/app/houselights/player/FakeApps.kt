@@ -18,6 +18,7 @@ import org.robolectric.shadows.ShadowSigningInfo
  */
 internal class FakeApps(private val context: Context) {
     private val pm = shadowOf(context.packageManager)
+    private val installed = mutableSetOf<ComponentName>()
 
     init {
         pm.setShouldShowActivityChooser(true)
@@ -49,9 +50,16 @@ internal class FakeApps(private val context: Context) {
         )
         val component = activity?.let { ComponentName(pkg, it) } ?: return null
         pm.addActivityIfNotPresent(component)
+        installed += component
         if (byType) pm.addIntentFilterForActivity(component, video())
         if (bySchemes) pm.addIntentFilterForActivity(component, video("smb", "nfs"))
         return component
+    }
+
+    /** Uninstalls [pkg], with what its activities answered. */
+    fun uninstall(pkg: String) {
+        installed.filter { it.packageName == pkg }.forEach(pm::clearIntentFilterForActivity)
+        pm.removePackage(pkg)
     }
 
     /** Makes [component] what the system opens a video with, unasked. */
@@ -84,17 +92,17 @@ internal class FakeApps(private val context: Context) {
 
         /** A Zidoo whose build says so. */
         val ZIDOO_BUILD = DeviceIdentity(
-            "ZIDOO", "ZIDOO", "Z9X Pro", "Z9X_Pro", "rtd1619b", "ZIDOO/Z9X_Pro/rtd1619b:11/RP1A/1:user/release-keys",
+            "ZIDOO", "ZIDOO", "Z9X Pro", "Z9X_Pro", "rtd1619b", "ZIDOO/Z9X_Pro/rtd1619b:11/RP1A/1:user/release-keys", "release-keys",
         )
 
         /** A Realtek board whose build names only its chip: a Zidoo, or not. */
         val REALTEK_BUILD = DeviceIdentity(
-            "Realtek", "Realtek", "RTD1619", "rtd1619", "rtd1619", "Realtek/rtd1619/rtd1619:9/PPR1/1:user/release-keys",
+            "Realtek", "Realtek", "RTD1619", "rtd1619", "rtd1619", "Realtek/rtd1619/rtd1619:9/PPR1/1:user/release-keys", "release-keys",
         )
 
         /** Another Android TV box. */
         val OTHER_BUILD = DeviceIdentity(
-            "Google", "google", "Chromecast", "sabrina", "sabrina", "google/sabrina/sabrina:12/STTE/1:user/release-keys",
+            "Google", "google", "Chromecast", "sabrina", "sabrina", "google/sabrina/sabrina:12/STTE/1:user/release-keys", "release-keys",
         )
     }
 }

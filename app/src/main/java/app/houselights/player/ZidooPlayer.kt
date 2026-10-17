@@ -8,6 +8,8 @@ import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
+import java.security.MessageDigest
+import java.util.Locale
 
 /**
  * The device as its build names it ([Build]): what tells a Zidoo, and what About and the log say of
@@ -20,7 +22,12 @@ data class DeviceIdentity(
     val product: String,
     val device: String,
     val fingerprint: String,
+    /** "release-keys", or "test-keys" for a build signed with AOSP's keys, which anyone has. */
+    val tags: String,
 ) {
+    /** Signed with AOSP's test keys: a certificate the firmware's apps share proves nothing. */
+    val testKeys: Boolean get() = tags.contains("test-keys")
+
     /** Some field names Zidoo: a Realtek build may keep its chip maker's name in some of them, not in all. */
     val namesZidoo: Boolean
         get() = listOf(manufacturer, brand, model, product, device, fingerprint).any { it.contains(ZIDOO, ignoreCase = true) }
@@ -35,16 +42,18 @@ data class DeviceIdentity(
             product = Build.PRODUCT.orEmpty(),
             device = Build.DEVICE.orEmpty(),
             fingerprint = Build.FINGERPRINT.orEmpty(),
+            tags = Build.TAGS.orEmpty(),
         )
     }
 }
 
 /**
- * Finds the Zidoo player, the app a film is handed to ([choose]): playback and About ask it alike.
+ * Finds the Zidoo player, the app a film is handed to, and whether a password may go to it
+ * ([choose]): playback and About ask it alike.
  *
  * The Z1000 Pro's firmware plays with [KNOWN_ACTIVITY]; a newer one may play with another app of
  * its own, under a name nobody published. On a Zidoo, that app is looked for among the firmware's
- * apps that open a video; elsewhere, only the known one is taken.
+ * apps that open a video; elsewhere, only the known one is taken, and never trusted ([Decision]).
  */
 class ZidooPlayer(
     private val context: Context,
@@ -52,6 +61,9 @@ class ZidooPlayer(
     private val identity: () -> DeviceIdentity = DeviceIdentity::current,
 ) {
     private val packages: PackageManager get() = context.packageManager
+
+    /** The player a secret last went to ([remember]): its package and its certificate. */
+    private val trusted = context.getSharedPreferences("player", Context.MODE_PRIVATE)
 
     /** An activity that opens a video, and whether the firmware installed its app. */
     data class Candidate(val component: ComponentName, val system: Boolean)
@@ -62,21 +74,111 @@ class ZidooPlayer(
         val zidoo: Boolean get() = identity.namesZidoo || zidooApps.isNotEmpty()
     }
 
-    /** What [choose] found: the [player], or none, among every [candidates] seen, on [device]. */
-    data class Choice(val player: Candidate?, val candidates: List<Candidate>, val device: Device)
+    /**
+     * What [choose] found: the [player], or none, among every [candidates] seen, on [device]; the
+     * SHA-256 of its signing [certificate] (public), and whether a password may go to it ([decision]).
+     */
+    data class Choice(
+        val player: Candidate?,
+        val candidates: List<Candidate>,
+        val device: Device,
+        val certificate: String?,
+        val decision: Decision,
+    )
+
+    /** Whether a password may go to the player found, and why. */
+    enum class Decision(val trusted: Boolean) {
+        /** No app opens a video for the app to hand it to. */
+        NO_PLAYER(false),
+
+        /** This device is no Zidoo: no password ever leaves the app. */
+        NOT_A_ZIDOO(false),
+
+        /** Installed with the firmware: a system app, which no ordinary app can replace. */
+        FIRMWARE(true),
+
+        /** An ordinary app signed with the certificate of an app of Zidoo's the firmware installed. */
+        SIGNED_LIKE_FIRMWARE(true),
+
+        /** Neither, but the player a password last went to, unchanged since. */
+        REMEMBERED(true),
+
+        /** Neither, and no password went to any player yet: this one is trusted from the first ([remember]). */
+        FIRST_USE(true),
+
+        /** Neither, and not the player a password last went to: another app, or the same with another certificate. */
+        CHANGED(false),
+
+        /** Its certificate cannot be read: nothing would tell it changed. */
+        NO_CERTIFICATE(false),
+    }
 
     /**
-     * The player: [KNOWN_ACTIVITY] when the package manager really resolves it (an intent naming a
-     * component would return it unchecked); else, on a Zidoo, the firmware's app that opens a video,
-     * in the order of [preferred].
+     * The player: the one a password last went to ([remember]) while it is there; [KNOWN_ACTIVITY]
+     * when the package manager really resolves it (an intent naming a component would return it
+     * unchecked); else, on a Zidoo, the firmware's app that opens a video, in the order of [preferred].
      */
     fun choose(): Choice {
         val device = device()
         val known = known()
         val found = if (device.zidoo) discover() else emptyList()
         val candidates = (listOfNotNull(known) + found).distinctBy { it.component }
-        return Choice(known ?: found.firstOrNull(), candidates, device)
+        val remembered = trusted.getString(KEY_PACKAGE, null)
+        val player = candidates.firstOrNull { it.component.packageName == remembered } ?: known ?: found.firstOrNull()
+        val certificate = player?.let { certificate(it.component.packageName) }
+        return Choice(player, candidates, device, certificate, decide(player, device, certificate))
     }
+
+    /**
+     * A password is going to [choice]'s player, which is trusted: from now on, no ordinary app but
+     * that one, with that certificate, gets one. Remembered whatever trusts it, the firmware's own
+     * player too: an app put in its place later is no first use.
+     */
+    fun remember(choice: Choice) {
+        val pkg = choice.player?.component?.packageName ?: return
+        val certificate = choice.certificate ?: return
+        if (!choice.decision.trusted) return
+        if (trusted.getString(KEY_PACKAGE, null) == pkg && trusted.getString(KEY_CERTIFICATE, null) == certificate) return
+        trusted.edit().putString(KEY_PACKAGE, pkg).putString(KEY_CERTIFICATE, certificate).apply()
+    }
+
+    /**
+     * Never off a Zidoo; on one, a system app, or one signed like an app of Zidoo's its firmware
+     * installed (not on a build signed with AOSP's test keys, whose certificate anyone can sign
+     * with), or else the player a password last went to, or the first one, as long as it does not
+     * change.
+     */
+    private fun decide(player: Candidate?, device: Device, certificate: String?): Decision = when {
+        player == null -> Decision.NO_PLAYER
+        !device.zidoo -> Decision.NOT_A_ZIDOO
+        player.system -> Decision.FIRMWARE
+        !device.identity.testKeys && device.zidooApps.any { signedAlike(player, it) } -> Decision.SIGNED_LIKE_FIRMWARE
+        certificate == null -> Decision.NO_CERTIFICATE
+        else -> when (trusted.getString(KEY_PACKAGE, null)) {
+            null -> Decision.FIRST_USE
+            player.component.packageName ->
+                if (trusted.getString(KEY_CERTIFICATE, null) == certificate) Decision.REMEMBERED else Decision.CHANGED
+            else -> Decision.CHANGED
+        }
+    }
+
+    private fun signedAlike(player: Candidate, firmwareApp: String) =
+        packages.checkSignatures(player.component.packageName, firmwareApp) == PackageManager.SIGNATURE_MATCH
+
+    /** The SHA-256 of [pkg]'s signing certificates, in hex as apksigner prints it; null when none can be read. */
+    private fun certificate(pkg: String): String? {
+        val signing = try {
+            packages.getPackageInfo(pkg, PackageManager.GET_SIGNING_CERTIFICATES).signingInfo
+        } catch (_: PackageManager.NameNotFoundException) {
+            null
+        }
+        val signers = signing?.apkContentsSigners.orEmpty()
+        if (signers.isEmpty()) return null
+        val sha256 = MessageDigest.getInstance("SHA-256")
+        return signers.map { sha256.digest(it.toByteArray()).toHex() }.sorted().joinToString(",")
+    }
+
+    private fun ByteArray.toHex() = joinToString("") { "%02x".format(Locale.ROOT, it) }
 
     private fun device(): Device {
         // From Android 11, only the apps this one may see (see <queries> in the manifest).
@@ -136,6 +238,9 @@ class ZidooPlayer(
         const val KNOWN_PACKAGE = "com.android.gallery3d"
         const val KNOWN_ACTIVITY = "com.android.gallery3d.app.MovieActivity"
         private const val ZIDOO_PREFIX = "com.zidoo."
+
+        private const val KEY_PACKAGE = "trusted_package"
+        private const val KEY_CERTIFICATE = "trusted_certificate"
 
         /** This app's package, its debug and bench builds' too. */
         private const val OWN_PACKAGE = "app.houselights"
