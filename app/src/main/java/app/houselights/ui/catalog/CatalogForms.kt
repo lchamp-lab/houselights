@@ -19,6 +19,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -75,25 +76,33 @@ private fun FormTextFields() {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Bottom) {
         var host by remember { mutableStateOf("") }
         Specimen("empty, label and placeholder", Modifier.weight(1f), gap = HlSpace.xs) {
-            HlTextField("Adresse du NAS", host, { host = it }, placeholder = "Ex. : 192.168.1.10", keyboardType = KeyboardType.Uri)
+            HlTextField(
+                stringResource(R.string.field_host), host, { host = it },
+                placeholder = stringResource(R.string.placeholder_host),
+                keyboardType = KeyboardType.Uri,
+            )
         }
         var share by remember { mutableStateOf("media") }
         Specimen("filled", Modifier.weight(1f), gap = HlSpace.xs) {
-            HlTextField("Partage", share, { share = it }, placeholder = "Ex. : media")
+            HlTextField(
+                stringResource(R.string.field_share), share, { share = it },
+                placeholder = stringResource(R.string.placeholder_share),
+            )
         }
         var secret by remember { mutableStateOf("cinema1967") }
         Specimen("password", Modifier.weight(1f), gap = HlSpace.xs) {
-            HlTextField("Mot de passe", secret, { secret = it }, password = true, imeAction = ImeAction.Done)
+            HlTextField(stringResource(R.string.field_password), secret, { secret = it }, password = true, imeAction = ImeAction.Done)
         }
     }
+    val personal = stringResource(R.string.tmdb_key_personal)
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Top) {
         var key by remember { mutableStateOf("") }
         Specimen("label hidden, read out; placeholder, supporting line", Modifier.weight(1f), gap = HlSpace.xs) {
             HlTextField(
-                "Clé personnelle", key, { key = it },
-                placeholder = "Clé personnelle",
+                personal, key, { key = it },
+                placeholder = personal,
                 showLabel = false,
-                supporting = "Laissez vide pour utiliser la clé intégrée à l’application.",
+                supporting = stringResource(R.string.tmdb_key_builtin),
                 password = true,
                 imeAction = ImeAction.Done,
             )
@@ -101,22 +110,25 @@ private fun FormTextFields() {
         var refused by remember { mutableStateOf("0123456789abcdef0123456789abcdef") }
         Specimen("error: in ember under the field, its edge unchanged", Modifier.weight(1f), gap = HlSpace.xs) {
             HlTextField(
-                "Clé personnelle", refused, { refused = it },
+                personal, refused, { refused = it },
                 showLabel = false,
-                error = "TMDB refuse cette clé",
+                error = stringResource(R.string.error_tmdb_key_refused_title),
                 password = true,
                 imeAction = ImeAction.Done,
             )
         }
         var export by remember { mutableStateOf("/volume1/video/Films/Cinéma français/Nouvelle Vague/Restaurations 4K") }
         Specimen("value longer than the field", Modifier.weight(1f), gap = HlSpace.xs) {
-            HlTextField("Export NFS", export, { export = it }, placeholder = "Ex. : /volume1/media")
+            HlTextField(
+                stringResource(R.string.field_export), export, { export = it },
+                placeholder = stringResource(R.string.placeholder_export),
+            )
         }
     }
     var protocol by remember { mutableIntStateOf(0) }
     Specimen("FieldLabel over a segmented track", gap = HlSpace.xs) {
         Column {
-            FieldLabel("Protocole")
+            FieldLabel(stringResource(R.string.field_protocol))
             HlSegmented(listOf("NFS", "SMB"), selected = protocol, onSelect = { protocol = it })
         }
     }
@@ -124,14 +136,16 @@ private fun FormTextFields() {
 
 @Composable
 private fun FormStatusPanels() {
-    val nfs = listOf("NFS", "Films")
+    val films = stringResource(R.string.library_movies)
+    val nfs = listOf("NFS", films)
+    val address = stringResource(R.string.label_address)
     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Top) {
         Specimen("off: untested, nothing typed yet", Modifier.width(HlLayout.sideColumnWide), gap = HlSpace.xs) {
-            StatusPanel(StatusState.Off, "Connexion non testée", "Adresse", "…", badges = nfs)
+            StatusPanel(StatusState.Off, stringResource(R.string.connection_untested), address, "…", badges = nfs)
         }
         Specimen("pending: testing", Modifier.width(HlLayout.sideColumnWide), gap = HlSpace.xs) {
             StatusPanel(
-                StatusState.Pending, "Connexion en cours…", "Adresse", "192.168.1.10",
+                StatusState.Pending, stringResource(R.string.connection_testing), address, "192.168.1.10",
                 detail = "/volume1/media/films", badges = nfs,
             )
         }
@@ -139,8 +153,8 @@ private fun FormStatusPanels() {
     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Top) {
         Specimen("on: lit, with what was found", Modifier.width(HlLayout.sideColumnWide), gap = HlSpace.xs) {
             StatusPanel(
-                StatusState.On, "Connexion réussie", "Adresse", "192.168.1.10",
-                detail = "/volume1/media/films", badges = nfs, result = "128 éléments trouvés",
+                StatusState.On, stringResource(R.string.connection_ok), address, "192.168.1.10",
+                detail = "/volume1/media/films", badges = nfs, result = pluralStringResource(R.plurals.entries_found, 128, 128),
             )
         }
         Specimen(
@@ -149,9 +163,9 @@ private fun FormStatusPanels() {
             gap = HlSpace.xs,
         ) {
             StatusPanel(
-                StatusState.Attention, "Connexion impossible", "Adresse", "nas-salon.local",
-                detail = "/films", badges = listOf("SMB", "Films"),
-                result = "nas-salon.local ne répond pas. Vérifiez que le NAS est allumé et connecté au réseau.",
+                StatusState.Attention, stringResource(R.string.connection_failed), address, "nas-salon.local",
+                detail = "/films", badges = listOf("SMB", films),
+                result = stringResource(R.string.error_nas_unreachable, "nas-salon.local"),
                 resultIsError = true,
             )
         }
@@ -159,11 +173,11 @@ private fun FormStatusPanels() {
     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Top) {
         Specimen("done: a fact, white; a long value stops at three lines", Modifier.width(HlLayout.sideColumnWide), gap = HlSpace.xs) {
             StatusPanel(
-                StatusState.Done, "Identifié", "Fichier",
+                StatusState.Done, stringResource(R.string.identify_state_matched), stringResource(R.string.identify_file),
                 "Le.Samourai.1967.REMASTERED.2160p.UHD.BluRay.HDR10.DTS-HD.MA.5.1.x265-HOUSELIGHTS.mkv",
                 valueStyle = Hl.type.entry,
                 content = {
-                    Text("Associé à", style = Hl.type.caption, color = Hl.colors.contentSecondary)
+                    Text(stringResource(R.string.identify_current), style = Hl.type.caption, color = Hl.colors.contentSecondary)
                     Spacer(Modifier.height(HlSpace.s))
                     Text("Le Samouraï", style = Hl.type.entry, color = Hl.colors.content)
                     FactRow(listOf("1967", "Jean-Pierre Melville"))
@@ -171,7 +185,7 @@ private fun FormStatusPanels() {
             )
         }
         Specimen("pending: reading, no value yet", Modifier.width(HlLayout.sideColumnWide), gap = HlSpace.xs) {
-            StatusPanel(StatusState.Pending, "Lecture…", "Fichier", "…", valueStyle = Hl.type.entry)
+            StatusPanel(StatusState.Pending, "Lecture…", stringResource(R.string.identify_file), "…", valueStyle = Hl.type.entry)
         }
     }
 }
@@ -181,12 +195,20 @@ private fun FormPanelButtons() {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Top) {
         Specimen("rest; focus raises it in projector white", Modifier.weight(1f), gap = HlSpace.xs) {
             HlPanelButton({}, Modifier.fillMaxWidth()) {
-                FormFolder("Films", "192.168.1.10/volume1/media/films", listOf("1 284 titres", "312 en Ultra HD"))
+                FormFolder(
+                    "Films",
+                    "192.168.1.10/volume1/media/films",
+                    listOf("1 284 titres", pluralStringResource(R.plurals.uhd_count, 312, 312)),
+                )
             }
         }
         Specimen("lit: the choice in use", Modifier.weight(1f), gap = HlSpace.xs) {
             HlPanelButton({}, Modifier.fillMaxWidth(), lit = true) {
-                FormFolder("Séries", "nas-salon.local/media/series", listOf("86 titres", "Analysé il y a 2 h"))
+                FormFolder(
+                    "Séries",
+                    "nas-salon.local/media/series",
+                    listOf(pluralStringResource(R.plurals.title_count, 86, 86), "Analysé il y a 2 h"),
+                )
             }
         }
         Specimen("disabled: a faint well, focus outlines it", Modifier.weight(1f), gap = HlSpace.xs) {
@@ -219,20 +241,20 @@ private fun FormDividers() {
     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.xl), verticalAlignment = Alignment.Top) {
         Specimen("horizontal", Modifier.width(HlLayout.sideColumnWide), gap = HlSpace.xs) {
             Column {
-                Text("Analyser maintenant", style = Hl.type.entry, color = Hl.colors.content)
+                Text(stringResource(R.string.scan_now), style = Hl.type.entry, color = Hl.colors.content)
                 Spacer(Modifier.height(HlSpace.s))
                 HlDivider()
                 Spacer(Modifier.height(HlSpace.s))
-                Text("Retirer ce dossier", style = Hl.type.entry, color = Hl.colors.content)
+                Text(stringResource(R.string.remove_folder), style = Hl.type.entry, color = Hl.colors.content)
             }
         }
         Specimen("vertical", gap = HlSpace.xs) {
             Row(Modifier.height(HlSize.control), verticalAlignment = Alignment.CenterVertically) {
-                Text("Réglages", style = Hl.type.entry, color = Hl.colors.content)
+                Text(stringResource(R.string.nav_settings), style = Hl.type.entry, color = Hl.colors.content)
                 Spacer(Modifier.width(HlSpace.xl))
                 HlDivider(vertical = true)
                 Spacer(Modifier.width(HlSpace.xl))
-                Text("Bibliothèque", style = Hl.type.entry, color = Hl.colors.contentSecondary)
+                Text(stringResource(R.string.section_source), style = Hl.type.entry, color = Hl.colors.contentSecondary)
             }
         }
     }
@@ -261,10 +283,10 @@ private fun FormMenus() {
 private fun FormSortMenu() {
     var sort by remember { mutableIntStateOf(1) }
     HlMenuButton(
-        text = "Trier",
+        text = stringResource(R.string.sort),
         icon = HlIcons.Sort,
-        detail = FORM_SORTS[sort],
-        sections = listOf(MenuSection(null, FORM_SORT_ORDERS.mapIndexed { i, label -> MenuOption(label, sort == i) { sort = i } })),
+        detail = formSorts()[sort],
+        sections = listOf(MenuSection(null, formSortOrders().mapIndexed { i, label -> MenuOption(label, sort == i) { sort = i } })),
     )
 }
 
@@ -276,26 +298,33 @@ private data class FormFilters(val status: Int = 0, val genre: String? = null, v
 @Composable
 private fun FormFilterMenu(initial: FormFilters) {
     var f by remember { mutableStateOf(initial) }
+    val statuses = formStatuses()
+    val decades = FORM_DECADES.associateWith { stringResource(R.string.decade, it) }
     val sections = buildList {
-        add(MenuSection("Statut", FORM_STATUSES.mapIndexed { i, label -> MenuOption(label, f.status == i) { f = f.copy(status = i) } }))
         add(
             MenuSection(
-                "Genre",
-                listOf(MenuOption("Tous les genres", f.genre == null) { f = f.copy(genre = null) }) +
+                stringResource(R.string.filter_status),
+                statuses.mapIndexed { i, label -> MenuOption(label, f.status == i) { f = f.copy(status = i) } },
+            )
+        )
+        add(
+            MenuSection(
+                stringResource(R.string.filter_genre),
+                listOf(MenuOption(stringResource(R.string.all_genres), f.genre == null) { f = f.copy(genre = null) }) +
                     FORM_GENRES.map { g -> MenuOption(g, f.genre == g) { f = f.copy(genre = g) } },
             )
         )
         add(
             MenuSection(
-                "Décennie",
-                listOf(MenuOption("Toutes les décennies", f.decade == null) { f = f.copy(decade = null) }) +
-                    FORM_DECADES.map { d -> MenuOption("Années $d", f.decade == d) { f = f.copy(decade = d) } },
+                stringResource(R.string.filter_decade),
+                listOf(MenuOption(stringResource(R.string.all_decades), f.decade == null) { f = f.copy(decade = null) }) +
+                    decades.map { (d, label) -> MenuOption(label, f.decade == d) { f = f.copy(decade = d) } },
             )
         )
         add(
             MenuSection(
-                "Qualité",
-                listOf(MenuOption("Toutes les qualités", f.quality == null) { f = f.copy(quality = null) }) +
+                stringResource(R.string.filter_quality),
+                listOf(MenuOption(stringResource(R.string.all_qualities), f.quality == null) { f = f.copy(quality = null) }) +
                     FORM_QUALITIES.map { q -> MenuOption(q, f.quality == q) { f = f.copy(quality = q) } },
             )
         )
@@ -304,11 +333,11 @@ private fun FormFilterMenu(initial: FormFilters) {
     // The button names the active filter, or how many are combined.
     val detail = when (f.active) {
         0 -> null
-        1 -> FORM_STATUSES[f.status].takeIf { f.status != 0 } ?: f.genre ?: f.decade?.let { "Années $it" } ?: f.quality
-        else -> "${f.active} filtres"
+        1 -> statuses[f.status].takeIf { f.status != 0 } ?: f.genre ?: f.decade?.let(decades::getValue) ?: f.quality
+        else -> pluralStringResource(R.plurals.filter_count, f.active, f.active)
     }
     HlMenuButton(
-        text = "Filtrer",
+        text = stringResource(R.string.filter),
         icon = HlIcons.Filter,
         sections = sections,
         detail = detail,
@@ -393,12 +422,22 @@ private fun FormReading(paragraphs: List<String>) {
     }
 }
 
-private val FORM_SORTS = listOf("Titre", "Date d’ajout", "Année", "Note")
+/** The library's sorts, as its sort button names the one in use. */
+@Composable
+private fun formSorts() =
+    listOf(R.string.sort_title, R.string.sort_added, R.string.sort_year, R.string.sort_rating).map { stringResource(it) }
 
-private val FORM_SORT_ORDERS =
-    listOf("Titre, de A à Z", "Date d’ajout, récents d’abord", "Année, récents d’abord", "Note, meilleures d’abord")
+/** The library's sorts, as its sort menu offers them. */
+@Composable
+private fun formSortOrders() =
+    listOf(R.string.sort_title_order, R.string.sort_added_order, R.string.sort_year_order, R.string.sort_rating_order)
+        .map { stringResource(it) }
 
-private val FORM_STATUSES = listOf("Tous", "Non vus", "En cours", "Vus", "Favoris")
+/** The library's statuses, as its filter menu offers them. */
+@Composable
+private fun formStatuses() = listOf(
+    R.string.show_all, R.string.filter_unwatched, R.string.status_in_progress, R.string.status_watched, R.string.section_favorites,
+).map { stringResource(it) }
 
 /** TMDB's genres, and Jellyfin's longest ones. */
 private val FORM_GENRES = listOf(

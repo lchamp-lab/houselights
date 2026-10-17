@@ -62,8 +62,8 @@ private fun SideBySide() {
     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.xl), verticalAlignment = Alignment.Top) {
         Specimen("back of a case: blocks to read, the dot on what is in service", Modifier.weight(1f)) {
             Column(verticalArrangement = Arrangement.spacedBy(HlSpace.l)) {
-                InfoBlock("Sortie actuelle") { CurrentOutput() }
-                InfoBlock("Modes disponibles") {
+                InfoBlock(stringResource(R.string.current_output)) { CurrentOutput() }
+                InfoBlock(stringResource(R.string.label_modes)) {
                     SpecTable(
                         listOf(
                             SpecTableRow("Ultra HD", listOf(formatDimensions(3840, 2160)), inUse = true),
@@ -76,13 +76,13 @@ private fun SideBySide() {
         }
         Specimen("intertitle: a short rule, ember for attention, one action", Modifier.weight(1f)) {
             Intertitle(
-                "Bibliothèque injoignable",
+                stringResource(R.string.error_offline_title),
                 message = "192.168.1.20 ne répond pas. Vérifiez que le NAS est allumé.",
                 attention = true,
-            ) { HlButton("Réessayer", {}, emphasis = Emphasis.Primary) }
+            ) { HlButton(stringResource(R.string.retry), {}, emphasis = Emphasis.Primary) }
         }
         Specimen("counter: the ember line, the count, the file", Modifier.weight(1f)) {
-            ScanProgress(3, 9, label = "Analyse de vos fichiers", current = "Bugonia (2025).mkv")
+            ScanProgress(3, 9, label = stringResource(R.string.home_scanning), current = "Bugonia (2025).mkv")
         }
     }
 }
@@ -91,27 +91,29 @@ private fun SideBySide() {
 private fun Intertitles() {
     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.xl), verticalAlignment = Alignment.Top) {
         Specimen("neutral: what to do, and a quieter way", Modifier.weight(1f)) {
-            Intertitle("Aucun film pour l’instant", message = "Ajoutez le dossier qui les contient.") {
+            Intertitle(stringResource(R.string.home_empty_title), message = stringResource(R.string.home_empty_local)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.s)) {
-                    HlButton("Ajouter un dossier", {}, emphasis = Emphasis.Primary)
-                    HlButton("Voir les dossiers", {})
+                    HlButton(stringResource(R.string.add_folder), {}, emphasis = Emphasis.Primary)
+                    HlButton(stringResource(R.string.home_see_folders), {})
                 }
             }
         }
         Specimen("attention: the action that fixes it", Modifier.weight(1f)) {
             Intertitle(
-                "TMDB refuse cette clé",
-                message = "TMDB n’accepte pas la clé enregistrée dans les réglages. Vérifiez-la, ou remplacez-la.",
+                stringResource(R.string.error_tmdb_key_refused_title),
+                message = stringResource(R.string.error_tmdb_key_refused),
                 attention = true,
-            ) { HlButton("Modifier la clé", {}, emphasis = Emphasis.Primary) }
+            ) { HlButton(stringResource(R.string.error_action_edit_tmdb_key), {}, emphasis = Emphasis.Primary) }
         }
     }
     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.xl), verticalAlignment = Alignment.Top) {
         Specimen("nothing fixes it: Back is the way out", Modifier.weight(1f)) {
-            Intertitle("Ce titre n’est plus là", message = "Ce titre n’est plus dans la bibliothèque.", attention = true) { BackHint() }
+            Intertitle(stringResource(R.string.error_gone_title), message = stringResource(R.string.error_gone), attention = true) {
+                BackHint()
+            }
         }
         Specimen("no action: the search field above is the way", Modifier.weight(1f)) {
-            Intertitle("Aucun résultat", message = "Essayez un autre titre, sans l’année, ou un identifiant IMDb (tt…).")
+            Intertitle(stringResource(R.string.search_empty), message = stringResource(R.string.search_empty_hint))
         }
     }
 }
@@ -146,7 +148,13 @@ private fun ErrorSpecimen(error: UiError, retrying: Boolean = false) =
 @Composable
 private fun Counters() {
     Specimen("first scan, on home: what is read, a line a reading column long, the file") {
-        ScanProgress(41, 120, label = "Analyse de vos fichiers", current = "Mobland.S01E04.2160p.mkv", lineWidth = HlLayout.readableNarrow)
+        ScanProgress(
+            41,
+            120,
+            label = stringResource(R.string.home_scanning),
+            current = "Mobland.S01E04.2160p.mkv",
+            lineWidth = HlLayout.readableNarrow,
+        )
     }
     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.xl), verticalAlignment = Alignment.Top) {
         Specimen("a folder's card: one line, the file after the count", Modifier.width(HlLayout.readableNarrow)) {
@@ -155,7 +163,13 @@ private fun Counters() {
         Specimen("counting the files: a sliver, no count yet") { ScanProgress(0, 0) }
     }
     Specimen("the row that starts a scan: the same count", Modifier.width(HlLayout.readableNarrow)) {
-        HlSettingRow("Analyser maintenant", value = "3$NBSP/${NBSP}9", valueLit = true, onClick = {}, chevron = false)
+        HlSettingRow(
+            stringResource(R.string.scan_now),
+            value = stringResource(R.string.scan_progress, 3, 9),
+            valueLit = true,
+            onClick = {},
+            chevron = false,
+        )
     }
 }
 

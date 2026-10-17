@@ -69,7 +69,7 @@ private fun StressTopBarSection() {
             StressCaption("Nine libraries with long names")
         }
         Column {
-            StressTopBar(listOf("Films", "Séries", "Documentaires"))
+            StressTopBar(listOf(stringResource(R.string.library_movies), stringResource(R.string.library_shows), "Documentaires"))
             StressCaption("Three libraries, for comparison")
         }
     }
