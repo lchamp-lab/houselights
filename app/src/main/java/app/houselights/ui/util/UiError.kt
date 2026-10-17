@@ -41,6 +41,9 @@ enum class UiError(@StringRes val title: Int, @StringRes val message: Int, val a
     /** TMDB refuses the key in use (401). */
     TMDB_KEY_REFUSED(R.string.error_tmdb_key_refused_title, R.string.error_tmdb_key_refused, ErrorAction.EDIT_TMDB_KEY),
 
+    /** TMDB has no entry at the id chosen (removed since the search): another result, or a search again, fixes it. */
+    TMDB_NOT_FOUND(R.string.error_tmdb_not_found_title, R.string.error_tmdb_not_found, null),
+
     /** The server refused the app (signed out, token revoked). */
     DENIED(R.string.error_denied_title, R.string.error_denied, ErrorAction.RECONNECT),
 
@@ -75,6 +78,7 @@ fun FailureKind.toUiError(): UiError = when (this) {
     FailureKind.TMDB_UNREACHABLE -> UiError.TMDB_OFFLINE
     FailureKind.NO_TMDB_KEY -> UiError.NO_TMDB_KEY
     FailureKind.TMDB_KEY_REFUSED -> UiError.TMDB_KEY_REFUSED
+    FailureKind.TMDB_NOT_FOUND -> UiError.TMDB_NOT_FOUND
     FailureKind.REFUSED -> UiError.DENIED
     FailureKind.GONE -> UiError.GONE
     FailureKind.KEYSTORE -> UiError.KEYSTORE

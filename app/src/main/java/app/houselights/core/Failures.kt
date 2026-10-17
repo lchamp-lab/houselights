@@ -71,6 +71,9 @@ enum class FailureKind {
     /** TMDB does not answer, or failed. */
     TMDB_UNREACHABLE,
 
+    /** TMDB has no entry at the id asked ([TmdbNotFoundException]): TMDB's, not the library's ([GONE]). */
+    TMDB_NOT_FOUND,
+
     /** The device's Keystore could not seal a secret. */
     KEYSTORE,
 
@@ -116,6 +119,7 @@ private fun typed(chain: List<Throwable>): FailureKind? = when {
     chain.any { it is NoTmdbKeyException } -> FailureKind.NO_TMDB_KEY
     chain.any { it is TmdbKeyRefusedException } -> FailureKind.TMDB_KEY_REFUSED
     chain.any { it is TmdbUnreachableException } -> FailureKind.TMDB_UNREACHABLE
+    chain.any { it is TmdbNotFoundException } -> FailureKind.TMDB_NOT_FOUND
     chain.any { it is NotFoundException } -> FailureKind.GONE
     storageFull(chain) -> FailureKind.STORAGE_FULL
     chain.any { it is SQLiteDiskIOException } -> FailureKind.STORAGE_FAILED

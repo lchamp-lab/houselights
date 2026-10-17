@@ -1,6 +1,9 @@
 package app.houselights.providers.local
 
+import app.houselights.core.FailureKind
 import app.houselights.core.TmdbUnreachableException
+import app.houselights.core.failureKind
+import app.houselights.core.suspendRunCatching
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -100,6 +103,25 @@ class IdentifyTest {
         assertEquals(2, matched.userTmdbId)
         assertEquals("Dune: Part Two", matched.title)
         assertNotNull(bench.dao.collection(checkNotNull(matched.collectionId))?.fetchedAt)
+    }
+
+    /**
+     * A result TMDB no longer has (removed, or merged into another since the search): TMDB does not
+     * know it, which is not the title gone from the library, and the film stays as it was.
+     */
+    @Test
+    fun aResultTmdbNoLongerHasIsTmdbsNotTheLibrarys() = runTest {
+        val films = bench.folder("Films")
+        tmdb.movie(1, "Dune", 2021)
+        bench.nas.put("Dune (2021).mkv")
+        bench.scan()
+        val dune = bench.item(films, "Dune (2021).mkv")
+
+        val failure = suspendRunCatching { bench.scanner.identify(dune.id, 2) }.exceptionOrNull()
+        assertEquals(FailureKind.TMDB_NOT_FOUND, failure?.failureKind())
+        val kept = checkNotNull(bench.dao.item(dune.id))
+        assertNull(kept.userTmdbId)
+        assertEquals(1, kept.tmdbId)
     }
 
     /**

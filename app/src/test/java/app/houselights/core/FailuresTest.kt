@@ -62,6 +62,7 @@ class FailuresTest {
             NoTmdbKeyException() to Told(UiError.NO_TMDB_KEY, UiError.NO_TMDB_KEY, ScanErrorKind.OTHER),
             TmdbKeyRefusedException() to Told(UiError.TMDB_KEY_REFUSED, UiError.TMDB_KEY_REFUSED, ScanErrorKind.OTHER),
             NotFoundException("Heat") to Told(UiError.GONE, UiError.GONE, ScanErrorKind.OTHER),
+            TmdbNotFoundException() to Told(UiError.TMDB_NOT_FOUND, UiError.TMDB_NOT_FOUND, ScanErrorKind.OTHER),
             SecretsUnavailableException(ProviderException("Keystore")) to Told(UiError.KEYSTORE, UiError.KEYSTORE, ScanErrorKind.OTHER),
             EmptyFolderException() to Told(UiError.FAILED, UiError.FAILED, ScanErrorKind.EMPTY),
             UnreadableFolderException(3) to Told(UiError.FAILED, UiError.FAILED, ScanErrorKind.ACCESS_DENIED),

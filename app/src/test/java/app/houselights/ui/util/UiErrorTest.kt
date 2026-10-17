@@ -4,6 +4,7 @@ import app.houselights.core.NoTmdbKeyException
 import app.houselights.core.NotFoundException
 import app.houselights.core.SecretsUnavailableException
 import app.houselights.core.TmdbKeyRefusedException
+import app.houselights.core.TmdbNotFoundException
 import app.houselights.core.TmdbUnreachableException
 import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.Assert.assertEquals
@@ -23,6 +24,8 @@ class UiErrorTest {
         val expected = mapOf(
             NoTmdbKeyException() to UiError.NO_TMDB_KEY,
             NotFoundException("Heat") to UiError.GONE,
+            // TMDB has no entry at the id chosen: TMDB's to say, the title is still in the library.
+            TmdbNotFoundException() to UiError.TMDB_NOT_FOUND,
             http(401) to UiError.DENIED,
             http(403) to UiError.DENIED,
             http(404) to UiError.GONE,
@@ -55,6 +58,8 @@ class UiErrorTest {
         assertEquals(ErrorAction.EDIT_TMDB_KEY, UiError.TMDB_KEY_REFUSED.action)
         // Gone stays gone: Back is the way out.
         assertNull(UiError.GONE.action)
+        // TMDB will not know the id the next time either: another result, or another search.
+        assertNull(UiError.TMDB_NOT_FOUND.action)
     }
 
     @Test

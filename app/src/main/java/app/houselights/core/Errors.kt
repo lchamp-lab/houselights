@@ -19,3 +19,10 @@ open class TmdbUnreachableException(cause: Throwable?, message: String = "TMDB i
  * An [IOException], as anything an OkHttp interceptor throws must be.
  */
 class TmdbKeyRefusedException : IOException("TMDB refused the API key")
+
+/**
+ * TMDB has no entry at the id asked (404): removed, or merged into another, since a search found it.
+ * TMDB's to say, not a title gone from the library ([NotFoundException]). An [IOException], as
+ * TmdbClient's OkHttp interceptor throws it.
+ */
+class TmdbNotFoundException : IOException("TMDB has no such entry")

@@ -3,8 +3,8 @@ package app.houselights.providers.local
 import android.os.SystemClock
 import app.houselights.core.Http
 import app.houselights.core.HttpStatus
-import app.houselights.core.NotFoundException
 import app.houselights.core.TmdbKeyRefusedException
+import app.houselights.core.TmdbNotFoundException
 import app.houselights.core.TmdbUnreachableException
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.Json
@@ -34,9 +34,6 @@ internal class TmdbBusyException(code: Int, val retryAfterMs: Long) : TmdbUnreac
  * pauseWhenUnreachable). A failure of a moment ago, not a new one: a pass does not count it.
  */
 internal class TmdbPausedException : TmdbUnreachableException(null, "TMDB is not asked for a minute after it could not be reached")
-
-/** TMDB has no such entry (404); [TmdbClient] says so with a [NotFoundException]. */
-internal class TmdbNotFoundException : IOException("TMDB has no such entry")
 
 /** What TMDB says of a key. */
 enum class TmdbKeyCheck {
@@ -159,22 +156,18 @@ class TmdbClient(
 
     /**
      * One request: asked once more when TMDB is busy, after the wait it asks for. An entry TMDB does
-     * not have throws [NotFoundException].
+     * not have throws [TmdbNotFoundException].
      */
     private suspend fun <T> call(request: suspend (TmdbApi) -> T): T = try {
+        request(api)
+    } catch (busy: TmdbBusyException) {
+        delay(busy.retryAfterMs)
         try {
             request(api)
-        } catch (busy: TmdbBusyException) {
-            delay(busy.retryAfterMs)
-            try {
-                request(api)
-            } catch (again: TmdbBusyException) {
-                pause()
-                throw again
-            }
+        } catch (again: TmdbBusyException) {
+            pause()
+            throw again
         }
-    } catch (_: TmdbNotFoundException) {
-        throw NotFoundException("TMDB entry")
     }
 
     /**
@@ -208,7 +201,7 @@ class TmdbClient(
 
     suspend fun tvById(id: Int): TmdbTv? = unlessMissing { tv(id) }
 
-    /** Like [movieById], but an unknown id throws ([NotFoundException]) instead of returning null. */
+    /** Like [movieById], but an id TMDB does not know throws ([TmdbNotFoundException]) instead of returning null. */
     suspend fun movie(id: Int): TmdbMovie = call { it.movie(id, language, imageLanguages) }
 
     suspend fun tv(id: Int): TmdbTv = call { it.tv(id, language, imageLanguages) }
@@ -249,7 +242,7 @@ class TmdbClient(
     /** The answer, or null when TMDB says it has no such entry (404); any other failure throws. */
     private inline fun <T> unlessMissing(block: () -> T): T? = try {
         block()
-    } catch (_: NotFoundException) {
+    } catch (_: TmdbNotFoundException) {
         null
     }
 
