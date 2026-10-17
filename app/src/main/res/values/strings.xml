@@ -81,6 +81,15 @@
     <string name="sort_year_order">Year, newest first</string>
     <string name="sort_rating_order">Rating, highest first</string>
     <string name="filter_unwatched">Unwatched</string>
+    <string name="filter_picture">Picture</string>
+    <string name="all_pictures">All pictures</string>
+    <string name="filter_sound">Sound</string>
+    <string name="all_sounds">All sounds</string>
+    <string name="filter_file">File</string>
+    <string name="all_files">All files</string>
+    <string name="filter_person">Person</string>
+    <string name="all_people">Everyone</string>
+    <string name="filter_person_unnamed">The person chosen</string>
 
     <!-- Details -->
     <string name="play">Play</string>
@@ -101,6 +110,8 @@
     <string name="cast">Cast</string>
     <string name="tech_details">Technical sheet</string>
     <string name="sheet_back_hint">Back to close</string>
+    <!-- A code to scan, read out before the address under it -->
+    <string name="qr_code">QR code</string>
     <string name="cancel">Cancel</string>
     <string name="control_busy">In progress</string>
     <string name="key_ok">OK</string>
@@ -166,6 +177,7 @@
     <string name="play_with">Play with</string>
     <string name="no_player">The Zidoo player isn’t installed.</string>
     <string name="player_credentials">This folder needs a password: only the Zidoo player can play it.</string>
+    <string name="player_changed">The Zidoo player has changed, and Houselights no longer trusts it with your passwords or your server access. Reinstall the player that came with the Zidoo, or clear Houselights’ data to trust the new one.</string>
 
     <!-- Local folders -->
     <string name="add_folder">Add a folder</string>
@@ -283,10 +295,33 @@
     <string name="label_user">User</string>
     <string name="label_render">Interface rendering</string>
     <string name="label_modes">Available modes</string>
+    <string name="label_device">Device</string>
     <string name="label_player">Zidoo player</string>
     <string name="label_api">Control API</string>
     <string name="tmdb_attribution">This product uses the TMDB API but is not endorsed or certified by TMDB.</string>
     <string name="section_source">Library</string>
+    <!-- The library in numbers: a pane of the settings -->
+    <string name="section_numbers">In numbers</string>
+    <string name="numbers_title">The collection in numbers</string>
+    <plurals name="numbers_films">
+        <item quantity="one">%s film</item>
+        <item quantity="other">%s films</item>
+    </plurals>
+    <plurals name="numbers_shows">
+        <item quantity="one">%s show</item>
+        <item quantity="other">%s shows</item>
+    </plurals>
+    <plurals name="numbers_episodes">
+        <item quantity="one">%s episode</item>
+        <item quantity="other">%s episodes</item>
+    </plurals>
+    <string name="numbers_and">%1$s and %2$s</string>
+    <string name="numbers_in_library">in your library</string>
+    <string name="numbers_room">of files, every copy counted</string>
+    <string name="numbers_hours">to watch it all, end to end</string>
+    <string name="numbers_files">Files</string>
+    <string name="hours">%s h</string>
+    <string name="terabytes">%s TB</string>
     <string name="remove">Remove</string>
     <string name="scan_now">Scan now</string>
     <string name="scan_now_desc">Looks for new files</string>
@@ -383,6 +418,8 @@
     <string name="error_no_tmdb_key">Add a TMDB key in Settings to search and list images.</string>
     <string name="error_tmdb_key_refused_title">TMDB refuses this key</string>
     <string name="error_tmdb_key_refused">TMDB doesn’t accept the key saved in Settings. Check it, or replace it.</string>
+    <string name="error_tmdb_not_found_title">TMDB doesn’t know this title</string>
+    <string name="error_tmdb_not_found">TMDB no longer has an entry for this title: it may have been removed, or merged into another. Search again, or choose another result.</string>
     <string name="error_failed_title">This could not be done</string>
     <string name="error_failed">Try again in a moment.</string>
     <string name="error_keystore_title">Device keystore unavailable</string>
@@ -431,12 +468,20 @@
     <string name="about_status">Status</string>
     <string name="detected">Detected</string>
     <string name="not_detected">Not detected</string>
+    <string name="player_unrecognised">Detected, not recognized</string>
+    <string name="player_not_a_zidoo">This device isn’t a Zidoo</string>
+    <string name="player_changed_since">Changed since the last playback</string>
+    <string name="player_no_certificate">Its certificate can’t be read</string>
     <string name="online">Online</string>
     <string name="offline">Offline</string>
     <string name="about_credits">Credits</string>
     <string name="credit_data">Film data</string>
     <string name="credit_font">Typeface</string>
     <string name="credit_font_value">Archivo, SIL Open Font License</string>
+    <!-- Supporting the project: said once, in About, never elsewhere -->
+    <string name="support">Support Houselights</string>
+    <string name="support_desc">Buy the project a coffee, from your phone.</string>
+    <string name="support_scan">Scan this code with your phone to open the project’s Ko-fi page.</string>
     <string name="file_access">File access</string>
     <string name="network_path_desc">The player reads files straight from the NAS</string>
     <string name="http_stream_desc">The player reads the server’s stream</string>
@@ -474,4 +519,43 @@
         <item quantity="one">%d collection</item>
         <item quantity="other">%d collections</item>
     </plurals>
+    <!-- People: their jobs, as the credits name them, their page, and the rows the library writes. -->
+    <string name="job_cast">Cast</string>
+    <string name="job_direction">Direction</string>
+    <string name="job_creation">Creation</string>
+    <string name="job_writing">Screenplay</string>
+    <string name="job_music">Music</string>
+    <string name="job_cinematography">Cinematography</string>
+    <string name="job_editing">Editing</string>
+    <string name="end_credits">Credits</string>
+    <string name="error_person_gone_title">No titles left</string>
+    <string name="error_person_gone">None of this person’s titles is in the library any more.</string>
+    <string name="row_films_of">films by</string>
+    <string name="row_best_rated">Best rated in your library</string>
+    <string name="saga_absent">Not in your library</string>
+    <!-- A film's copies, and the editions their files and NFOs name. -->
+    <string name="versions">Versions</string>
+    <string name="version_chosen">Your choice</string>
+    <string name="version_copy">Copy %d</string>
+    <string name="edition_extended">Extended cut</string>
+    <string name="edition_directors_cut">Director’s cut</string>
+    <string name="edition_theatrical">Theatrical cut</string>
+    <string name="edition_unrated">Unrated</string>
+    <string name="edition_uncut">Uncut</string>
+    <string name="edition_remastered">Remastered</string>
+    <string name="edition_imax">IMAX</string>
+    <string name="edition_final_cut">Final cut</string>
+    <string name="edition_ultimate">Ultimate cut</string>
+    <string name="edition_special">Special edition</string>
+    <string name="edition_criterion">Criterion</string>
+    <string name="edition_anniversary">Anniversary edition</string>
+    <string name="edition_open_matte">Open matte</string>
+    <!-- Search: its keys, and what it found. -->
+    <string name="search_hint">The first letters of a title, a person or a saga</string>
+    <string name="search_space">Space</string>
+    <string name="search_delete">Delete</string>
+    <string name="search_titles">Titles</string>
+    <string name="search_people">People</string>
+    <string name="search_sagas">Sagas</string>
+    <string name="search_none">Nothing starts with “%s”</string>
 </resources>

@@ -1,5 +1,6 @@
 package app.houselights.providers.local
 
+import app.houselights.core.TmdbUnreachableException
 import app.houselights.ui.util.UiError
 import app.houselights.ui.util.toUiError
 import kotlinx.coroutines.test.runTest

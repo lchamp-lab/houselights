@@ -16,6 +16,7 @@ import app.houselights.settings.SourceSwitcher
 import app.houselights.ui.testing.MainDispatcherRule
 import app.houselights.ui.testing.testSecrets
 import app.houselights.ui.testing.testSettings
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
@@ -28,6 +29,7 @@ import kotlinx.coroutines.withContext
 import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -38,11 +40,15 @@ import retrofit2.HttpException
 import retrofit2.Response
 import java.io.IOException
 import java.security.ProviderException
+import app.houselights.ui.testing.SettleMainLooper
 
 /** Signing in to Jellyfin, with a fake network in place of the server. */
 @OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
 class JellyfinLoginViewModelTest {
+    @get:Rule
+    val settle = SettleMainLooper()
+
     @get:Rule
     val main = MainDispatcherRule()
 
@@ -55,9 +61,15 @@ class JellyfinLoginViewModelTest {
         var reachFailure: Exception? = null
         var authFailure: Exception? = null
 
+        /** The server is asked, and answers once this completes. */
+        var answer: CompletableDeferred<Unit>? = null
+        val asked = CompletableDeferred<Unit>()
+
         override suspend fun discover() = listOf(DiscoveredServer("http://192.168.1.5:8096", "Maison"))
 
         override suspend fun reach(input: String, deviceId: String): Pair<String, PublicSystemInfo> {
+            asked.complete(Unit)
+            answer?.await()
             reachFailure?.let { throw it }
             return "https://nas:8920" to PublicSystemInfo("Maison", "10.10.3")
         }
@@ -125,6 +137,40 @@ class JellyfinLoginViewModelTest {
     fun nothingAnsweringSaysWhere() = runTest {
         network.reachFailure = IOException("Connection refused")
         assertEquals(LoginError.Unreachable("http://nas:8096"), failure())
+    }
+
+    /** What signing in said speaks of what was typed: the server, the user or the password changed, it is no longer said. */
+    @Test
+    fun whatSigningInSaidGoesWhenWhatItUsedChanges() = runTest {
+        network.reachFailure = IOException("Connection refused")
+        val vm = login()
+        vm.server = "nas"
+        val changes = listOf<JellyfinLoginViewModel.() -> Unit>({ server = "nas2" }, { user = "lea" }, { password = "other" })
+        changes.forEach { change ->
+            vm.login {}
+            settle(vm)
+            assertTrue(vm.error is LoginError.Unreachable)
+            vm.change()
+            assertNull(vm.error)
+        }
+    }
+
+    /** A field changed while the server was asked: its answer speaks of what the form no longer holds. */
+    @Test
+    fun whatSigningInSaysOfFieldsChangedMeanwhileIsNotSaid() = runTest {
+        network.reachFailure = IOException("Connection refused")
+        network.answer = CompletableDeferred()
+        val vm = login()
+        vm.server = "nas"
+        vm.login {}
+        while (!network.asked.isCompleted) {
+            withContext(Dispatchers.Default) { delay(10) }
+            advanceUntilIdle()
+        }
+        vm.server = "nas2"
+        network.answer?.complete(Unit)
+        settle(vm)
+        assertNull(vm.error)
     }
 
     /** The server took the password; the Keystore refused to seal its token: said as the device's fault, not the server's. */

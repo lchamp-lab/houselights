@@ -117,7 +117,7 @@ data class TechSheet(val sections: List<TechSection>) {
          * (French from France and from Québec); else null, its language says enough.
          */
         private fun regions(tracks: List<Pair<String?, String?>>): List<String?> {
-            val languages = tracks.map { (code, _) -> TrackNames.language(code) }
+            val languages = tracks.map { (code, _) -> Languages.code(code) }
             val regions = tracks.map { (code, title) -> TrackNames.region(code, title) }
             return tracks.indices.map { i ->
                 val alike = tracks.indices.filter { languages[i] != null && languages[it] == languages[i] }

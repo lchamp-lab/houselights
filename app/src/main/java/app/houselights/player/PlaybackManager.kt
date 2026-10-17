@@ -3,7 +3,6 @@ package app.houselights.player
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
-import android.content.pm.ApplicationInfo
 import android.net.Uri
 import android.os.SystemClock
 import android.util.Log
@@ -38,6 +37,8 @@ class PlaybackManager(
     private val status: suspend () -> PlayerAnswer = ZidooStatus::playStatus,
     /** Milliseconds that only go forward: how long the player has said nothing of its title. */
     private val clock: () -> Long = SystemClock::elapsedRealtime,
+    /** Finds the player a film is handed to. */
+    private val players: ZidooPlayer = ZidooPlayer(context),
     /** The reporter of a playback the app started before it was stopped (see [PlaybackPlan.Launch.resumeKey]). */
     private val reporterFor: suspend (String) -> PlaybackReporter?,
 ) {
@@ -49,6 +50,8 @@ class PlaybackManager(
         val disc: Boolean = false,
         /** What names the file playing, as [reporter]'s source knows it ([PlaybackPlan.Launch.resumeKey]): for the log. */
         var key: String? = null,
+        /** The player a secret goes to: remembered once it has started ([onPlayerLaunched]), not if it could not be. */
+        val trusting: ZidooPlayer.Choice? = null,
     ) {
         /** The length of the title, from the player's first status (see [follow]). */
         var durationMs: Long? = null
@@ -83,66 +86,89 @@ class PlaybackManager(
     /**
      * Builds the intent for the Zidoo player, or for any video player elsewhere.
      *
-     * Only the Zidoo player, installed as part of the system, receives a URI with a password: another
-     * app answering a generic video intent never does ([CredentialsNotShared]). A URI with a token in
-     * its query (Jellyfin's stream) goes elsewhere only through a chooser: the user picks the app,
-     * none takes it without being asked.
+     * What the app keeps from other apps is a URI's secret: an SMB folder's password, or Jellyfin's
+     * token, which opens the whole account. It goes only to the player [ZidooPlayer] trusts, and only
+     * on a Zidoo: a system app, which no ordinary app can replace; an app signed like a system app of
+     * Zidoo's; else the player a secret last went to, or the first one, as long as neither its package
+     * nor its certificate changes. Off a Zidoo, no app is trusted, whatever its name: any app may take one.
+     * A password goes to no other app ([CredentialsNotShared]); a token goes elsewhere only through a
+     * chooser, where the user picks the app, even the only one ([AUTO_LAUNCH_SINGLE_CHOICE]), and not
+     * once the player trusted before has changed: the app put in its place would be in the chooser. A
+     * URI with no secret goes to the player found, trusted or not, with what it is told of the film. A
+     * player found under another name gets a stream only if it answers its address ([ZidooPlayer.opens]);
+     * else the stream goes as to any player.
+     *
+     * Not guarded against: an app installed on a Zidoo whose player is no system app, under a name of
+     * Zidoo's or the old player's, before a first password goes to the player (trusted on first use,
+     * it would be the one; beside a system player, it comes after it); an update of a system app
+     * signed with the AOSP test keys of the firmware's build; and whoever reads the device's log
+     * through adb, where Android writes the address it starts.
      */
     fun intentFor(plan: PlaybackPlan.Launch): Intent {
         Log.i(TAG, "Launch ${plan.title} -> ${Redact.uri(plan.uri)}")
 
-        val zidoo = Intent(Intent.ACTION_VIEW).apply {
-            component = ComponentName(ZIDOO_PACKAGE, ZIDOO_ACTIVITY)
-            setDataAndType(Uri.parse(plan.uri), "video/${plan.container ?: "*"}")
-            putExtra("title", plan.title)
-            // The player is another app: a file of ours is out of its reach, a web address is not.
-            plan.backdropUrl?.takeIf(::isWebUrl)?.let { putExtra("loading_image", it) }
-            plan.logoUrl?.takeIf(::isWebUrl)?.let { putExtra("clearlogo_image", it) }
-            if (plan.startMs > 0) {
-                putExtra("from_start", false)
-                putExtra("position", plan.startMs.toInt())
-            } else {
-                putExtra("from_start", true)
-            }
-            putExtra("return_result", true)
+        val choice = players.choose()
+        val player = choice.player?.takeIf { players.opens(it, plan.uri) }
+        val secret = Redact.hasCredentials(plan.uri)
+        // A warning, kept in every build: where a secret goes, or why not, is what an evening on a new player needs.
+        if (secret) {
+            val unanswered = if (player == null && choice.player != null) UNANSWERED_STREAM else ""
+            Log.w(TAG, "Launch ${Redact.uri(plan.uri)} -> ${players.describe(choice)}$unanswered")
         }
+        val changed = choice.decision == ZidooPlayer.Decision.CHANGED
         val intent = when {
-            isSystemZidooPlayer() && zidoo.resolveActivity(context.packageManager) != null -> zidoo
-            Redact.hasUserInfo(plan.uri) -> throw CredentialsNotShared()
-            else -> {
-                val any = Intent(Intent.ACTION_VIEW).apply {
-                    setDataAndType(Uri.parse(plan.uri), "video/*")
-                    putExtra("title", plan.title)
-                    putExtra("position", plan.startMs.toInt())
-                    putExtra("return_result", true)
-                }
-                if (Redact.hasCredentials(plan.uri)) Intent.createChooser(any, context.getString(R.string.play_with)) else any
-            }
+            player != null && (!secret || choice.decision.trusted) -> playerIntent(player.component, plan)
+            Redact.hasUserInfo(plan.uri) || secret && changed -> throw CredentialsNotShared(playerChanged = changed)
+            else -> anyPlayerIntent(plan, chooser = secret)
         }
-        session = Session(plan.reporter, plan.startMs, plan.disc, plan.resumeKey)
+        val trusting = choice.takeIf { secret && intent.component != null }
+        session = Session(plan.reporter, plan.startMs, plan.disc, plan.resumeKey, trusting)
         // Written before the player takes over: the platform finishes pending apply() writes before our
         // activity stops, which launching the player does, so the resume point survives a killed process.
         saved.edit().putString(KEY_RESUME, plan.resumeKey).putLong(KEY_POSITION, plan.startMs).apply()
         return intent
     }
 
-    /** The player could not be started after all. */
+    /** The player's intent: the file, and what the player shows while it opens it and where it starts. */
+    private fun playerIntent(player: ComponentName, plan: PlaybackPlan.Launch) = Intent(Intent.ACTION_VIEW).apply {
+        component = player
+        setDataAndType(Uri.parse(plan.uri), "video/${plan.container ?: "*"}")
+        putExtra("title", plan.title)
+        // The player is another app: a file of ours is out of its reach, a web address is not.
+        plan.backdropUrl?.takeIf(::isWebUrl)?.let { putExtra("loading_image", it) }
+        plan.logoUrl?.takeIf(::isWebUrl)?.let { putExtra("clearlogo_image", it) }
+        if (plan.startMs > 0) {
+            putExtra("from_start", false)
+            putExtra("position", plan.startMs.toInt())
+        } else {
+            putExtra("from_start", true)
+        }
+        putExtra("return_result", true)
+    }
+
+    /** Any video player's intent; through a [chooser] for a URI with a token, so that the user picks the app. */
+    private fun anyPlayerIntent(plan: PlaybackPlan.Launch, chooser: Boolean): Intent {
+        val any = Intent(Intent.ACTION_VIEW).apply {
+            setDataAndType(Uri.parse(plan.uri), "video/*")
+            putExtra("title", plan.title)
+            putExtra("position", plan.startMs.toInt())
+            putExtra("return_result", true)
+        }
+        if (!chooser) return any
+        return Intent.createChooser(any, context.getString(R.string.play_with)).putExtra(AUTO_LAUNCH_SINGLE_CHOICE, false)
+    }
+
+    /** The player could not be started after all: no password went to it, and it is not remembered. */
     fun onLaunchFailed() {
         session = null
         _playing.value = false
         saved.edit().clear().apply()
     }
 
-    /** The Zidoo player is a system app; an app installed under its package name elsewhere is not. */
-    private fun isSystemZidooPlayer(): Boolean = try {
-        context.packageManager.getApplicationInfo(ZIDOO_PACKAGE, 0).flags and ApplicationInfo.FLAG_SYSTEM != 0
-    } catch (_: Exception) {
-        false
-    }
-
-    /** Call right after the player activity was started. */
+    /** Call right after the player activity was started: a player a secret went to is remembered ([ZidooPlayer.remember]). */
     fun onPlayerLaunched() {
         val s = session ?: return
+        s.trusting?.let(players::remember)
         _playing.value = true
         s.started = scope.launch { report(s, "started") { s.reporter?.started(s.positionMs) } }
         pollJob?.cancel()
@@ -319,11 +345,23 @@ class PlaybackManager(
         suspendRunCatching { block() }.onFailure { Log.w(TAG, "Report that ${s.key} $step at ${s.positionMs} ms failed", it) }
     }
 
-    /** The file needs credentials and only the Zidoo player may receive them. */
-    class CredentialsNotShared : Exception("Credentials are only given to the Zidoo player")
+    /**
+     * The file needs credentials and only the Zidoo player may receive them; [playerChanged]: the
+     * player is no longer the one trusted with them before.
+     */
+    class CredentialsNotShared(val playerChanged: Boolean = false) : Exception("Credentials are only given to the Zidoo player")
 
     companion object {
         private const val TAG = "Playback"
+
+        /** What the launch warning adds when the player found does not answer a stream's address. */
+        private const val UNANSWERED_STREAM = "; the player does not answer this stream's address: not handed it"
+
+        /**
+         * Intent.EXTRA_AUTO_LAUNCH_SINGLE_CHOICE, which the SDK hides: false, the chooser lists even a
+         * single app instead of opening it unasked (its ChooserActivity reads it, on Android 9 and 11).
+         */
+        private const val AUTO_LAUNCH_SINGLE_CHOICE = "android.intent.extra.AUTO_LAUNCH_SINGLE_CHOICE"
         private const val KEY_RESUME = "resume_key"
         private const val KEY_POSITION = "position_ms"
 
@@ -369,7 +407,5 @@ class PlaybackManager(
          */
         private const val SAME_FILE_MS = 2_000L
         private const val SAME_FILE_SHARE = 100
-        const val ZIDOO_PACKAGE = "com.android.gallery3d"
-        const val ZIDOO_ACTIVITY = "com.android.gallery3d.app.MovieActivity"
     }
 }

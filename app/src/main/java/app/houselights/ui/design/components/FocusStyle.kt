@@ -98,10 +98,17 @@ internal object FocusStyle {
         disabledContentColor = disabledContent,
     )
 
-    /** How much a lifted element grows with focus, enabled or not. */
+    /**
+     * How much a lifted element grows with focus, enabled or not, and while OK presses it: a card
+     * pressed stays as large as its light, never back to its size at rest inside a light still grown.
+     */
     @Composable
     fun scale(lift: Lift): ClickableSurfaceScale =
-        ClickableSurfaceDefaults.scale(focusedScale = lift.scale, focusedDisabledScale = lift.scale)
+        ClickableSurfaceDefaults.scale(focusedScale = lift.scale, focusedDisabledScale = lift.scale, pressedScale = lift.scale)
+
+    /** A lifted element crossed by focus running ([app.houselights.ui.design.Scrub]): it does not grow. */
+    @Composable
+    fun crossed(): ClickableSurfaceScale = ClickableSurfaceDefaults.scale(focusedScale = 1f, focusedDisabledScale = 1f, pressedScale = 1f)
 
     /**
      * The edges of a lifted element: [rest] at rest and [disabled] when it cannot act; the white

@@ -3,7 +3,9 @@ package app.houselights.providers.local
 import android.os.SystemClock
 import app.houselights.core.Http
 import app.houselights.core.HttpStatus
-import app.houselights.core.NotFoundException
+import app.houselights.core.TmdbKeyRefusedException
+import app.houselights.core.TmdbNotFoundException
+import app.houselights.core.TmdbUnreachableException
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonNamingStrategy
@@ -24,18 +26,6 @@ import java.net.UnknownHostException
 import java.util.Locale
 import java.util.concurrent.TimeUnit
 
-/**
- * TMDB could not be reached (no network, DNS, timeout), now or a moment ago, or stayed busy when
- * asked again (429, a gateway failure).
- */
-open class TmdbUnreachableException(cause: Throwable?, message: String = "TMDB is unreachable") : IOException(message, cause)
-
-/**
- * TMDB refused the API key (401, 403): to be changed in the settings, not a server to sign in to again.
- * An [IOException], as anything an OkHttp interceptor throws must be.
- */
-class TmdbKeyRefusedException : IOException("TMDB refused the API key")
-
 /** TMDB is busy (429) or behind a failing gateway (502, 503, 504): asked again once, after [retryAfterMs]. */
 internal class TmdbBusyException(code: Int, val retryAfterMs: Long) : TmdbUnreachableException(null, "TMDB answered $code")
 
@@ -44,9 +34,6 @@ internal class TmdbBusyException(code: Int, val retryAfterMs: Long) : TmdbUnreac
  * pauseWhenUnreachable). A failure of a moment ago, not a new one: a pass does not count it.
  */
 internal class TmdbPausedException : TmdbUnreachableException(null, "TMDB is not asked for a minute after it could not be reached")
-
-/** TMDB has no such entry (404); [TmdbClient] says so with a [NotFoundException]. */
-internal class TmdbNotFoundException : IOException("TMDB has no such entry")
 
 /** What TMDB says of a key. */
 enum class TmdbKeyCheck {
@@ -169,22 +156,18 @@ class TmdbClient(
 
     /**
      * One request: asked once more when TMDB is busy, after the wait it asks for. An entry TMDB does
-     * not have throws [NotFoundException].
+     * not have throws [TmdbNotFoundException].
      */
     private suspend fun <T> call(request: suspend (TmdbApi) -> T): T = try {
+        request(api)
+    } catch (busy: TmdbBusyException) {
+        delay(busy.retryAfterMs)
         try {
             request(api)
-        } catch (busy: TmdbBusyException) {
-            delay(busy.retryAfterMs)
-            try {
-                request(api)
-            } catch (again: TmdbBusyException) {
-                pause()
-                throw again
-            }
+        } catch (again: TmdbBusyException) {
+            pause()
+            throw again
         }
-    } catch (_: TmdbNotFoundException) {
-        throw NotFoundException("TMDB entry")
     }
 
     /**
@@ -218,7 +201,7 @@ class TmdbClient(
 
     suspend fun tvById(id: Int): TmdbTv? = unlessMissing { tv(id) }
 
-    /** Like [movieById], but an unknown id throws ([NotFoundException]) instead of returning null. */
+    /** Like [movieById], but an id TMDB does not know throws ([TmdbNotFoundException]) instead of returning null. */
     suspend fun movie(id: Int): TmdbMovie = call { it.movie(id, language, imageLanguages) }
 
     suspend fun tv(id: Int): TmdbTv = call { it.tv(id, language, imageLanguages) }
@@ -259,7 +242,7 @@ class TmdbClient(
     /** The answer, or null when TMDB says it has no such entry (404); any other failure throws. */
     private inline fun <T> unlessMissing(block: () -> T): T? = try {
         block()
-    } catch (_: NotFoundException) {
+    } catch (_: TmdbNotFoundException) {
         null
     }
 

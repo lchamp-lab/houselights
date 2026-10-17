@@ -1,10 +1,8 @@
 package app.houselights.ui.design.components
 
-import androidx.compose.foundation.layout.heightIn
-import app.houselights.ui.design.textRoom
+import android.content.Context
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -64,7 +62,6 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
-import androidx.tv.material3.Border
 import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.Icon
 import androidx.tv.material3.Surface
@@ -99,25 +96,41 @@ import app.houselights.ui.design.rememberGroupMember
 import app.houselights.ui.design.rememberedInGroup
 import app.houselights.ui.design.scrollsAsBlock
 import app.houselights.ui.util.toPx
+import app.houselights.ui.design.HlLayout
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import coil.size.Precision
+import coil.size.Scale
+import kotlin.math.ceil
 import kotlin.math.roundToInt
+import app.houselights.ui.design.Scrub
+import androidx.compose.ui.semantics.onClick
 
 /** True while one card of the enclosing row or grid has focus: the others step back. */
 val LocalGroupFocused = compositionLocalOf { false }
 
-/** A horizontal row of cards with an optional header; focus comes back into it on the last card. */
+/**
+ * A horizontal row of cards with an optional header; focus comes back into it on the last card. A
+ * row that announces itself in the voice of what it gathers sets its own [heading] instead (the
+ * films of a director, as a poster bills them).
+ */
 @Composable
 fun MediaRow(
     header: String?,
     modifier: Modifier = Modifier,
     spacing: Dp = HlSpace.m,
     state: LazyListState = rememberLazyListState(),
+    heading: (@Composable () -> Unit)? = null,
     content: LazyListScope.() -> Unit,
 ) {
     var rowFocused by remember { mutableStateOf(false) }
     // One block for the list around it: whichever card asks to be seen, the row comes with its header.
     Column(modifier.scrollsAsBlock()) {
-        if (header != null) SectionHeader(header, Modifier.padding(start = HlSpace.safeH, bottom = HlSpace.xxs).fadeOutsideSafeArea())
+        val place = Modifier.padding(start = HlSpace.safeH, bottom = HlSpace.xxs).fadeOutsideSafeArea()
+        when {
+            heading != null -> Box(place) { heading() }
+            header != null -> SectionHeader(header, place)
+        }
         val group = remember { GroupFocus() }
         CompositionLocalProvider(LocalGroupFocused provides rowFocused, LocalGroupFocus provides group) {
             RowScroll {
@@ -142,7 +155,8 @@ fun MediaRow(
  * outline and glows with the ambient light, while its neighbours dim. At rest, a faint edge keeps
  * dark artwork from dissolving into the black room. To accessibility services it is one element:
  * what it holds, then [stateDescription] (watched, new, in progress). A card that does nothing
- * when chosen, focusable only so its row scrolls, says [readAs] alone and announces no action.
+ * when chosen, focusable only so its row scrolls, says [readAs] alone and announces no action;
+ * one read as [readAs] that [acts] (a person whose page opens) announces its click as well.
  */
 @Composable
 fun ArtworkSurface(
@@ -153,13 +167,17 @@ fun ArtworkSurface(
     onFocused: () -> Unit = {},
     stateDescription: String? = null,
     readAs: String? = null,
+    acts: Boolean = false,
     light: String? = null,
     content: @Composable BoxScope.() -> Unit,
 ) {
     val interaction = remember { MutableInteractionSource() }
-    val focused by interaction.collectIsFocusedAsState()
+    val focusedNow by interaction.collectIsFocusedAsState()
+    // Crossed while an arrow is held, a card neither grows nor lights: only the one focus stops on.
+    val crossed = focusedNow && Scrub.active
+    val focused = focusedNow && !crossed
     val recede = animateFloatAsState(
-        if (LocalGroupFocused.current && !focused) 1f else 0f,
+        if (LocalGroupFocused.current && !focusedNow) 1f else 0f,
         tween(HlMotion.STANDARD, easing = HlMotion.standard),
         label = "recede",
     )
@@ -179,15 +197,7 @@ fun ArtworkSurface(
     // Coming back into its row, focus returns to the card that had it last.
     val group = LocalGroupFocus.current
     val member = rememberGroupMember(group)
-    // Outside the surface's own semantics: clearing them drops its click, keeping its focus said.
-    val reading = if (readAs != null) {
-        Modifier.clearAndSetSemantics {
-            contentDescription = readAs
-            this.focused = focused
-        }
-    } else {
-        Modifier.semantics(mergeDescendants = true) { stateDescription?.let { this.stateDescription = it } }
-    }
+    val reading = cardReading(readAs, stateDescription, focusedNow, onClick.takeIf { acts })
     Surface(
         onClick = onClick,
         modifier = modifier
@@ -203,7 +213,7 @@ fun ArtworkSurface(
                 drawGlow(tone, grown, reach, shape)
             },
         shape = ClickableSurfaceDefaults.shape(shape),
-        scale = FocusStyle.scale(lift),
+        scale = if (crossed) FocusStyle.crossed() else FocusStyle.scale(lift),
         border = FocusStyle.lift(shape),
         colors = FocusStyle.still(rest = c.content.copy(alpha = HlAlpha.FILL), restContent = c.content),
         interactionSource = interaction,
@@ -221,6 +231,22 @@ fun ArtworkSurface(
         )
     }
 }
+
+/**
+ * How a card reads to accessibility services: what it holds and its [stateDescription], or [readAs]
+ * alone, outside the surface's own semantics (clearing them drops its click, keeping its focus said;
+ * a card that acts says its click again: [onClick]).
+ */
+private fun cardReading(readAs: String?, stateDescription: String?, focused: Boolean, onClick: (() -> Unit)?): Modifier =
+    if (readAs != null) {
+        Modifier.clearAndSetSemantics {
+            contentDescription = readAs
+            this.focused = focused
+            onClick?.let { act -> onClick { act(); true } }
+        }
+    } else {
+        Modifier.semantics(mergeDescendants = true) { stateDescription?.let { this.stateDescription = it } }
+    }
 
 /**
  * The light around a focused card: rings of [tone] out to [reach] past the card grown to [grown],
@@ -298,7 +324,35 @@ internal fun Modifier.artworkEdge(shape: Shape, colors: HlColors): Modifier =
 
 /** Width a poster is asked for: its own, or a little more than a row's when it fills a grid cell. */
 @Composable
-fun posterPx(width: Dp? = null): Int = (width ?: HlSize.poster * 1.3f).toPx()
+fun posterPx(width: Dp? = null): Int = (width ?: CELL_POSTER).toPx()
+
+/** A poster filling a grid cell (a wall's) is asked this wide: a little more than a row's, enough for any cell. */
+internal val CELL_POSTER = HlSize.poster * 1.3f
+
+/** A poster's shape, its width to its height. */
+private const val POSTER_SHAPE = 2f / 3f
+
+/** A still's shape ([LandscapeCard]). */
+private const val STILL_SHAPE = 16f / 9f
+
+/** What a [PosterCard] [widthPx] wide in a row asks Coil for once laid out: its poster at its size, cropped. */
+internal fun posterRequest(context: Context, item: MediaItem, widthPx: Int): ImageRequest? =
+    item.poster?.let { artworkRequest(context, it.url(widthPx), widthPx, (widthPx / POSTER_SHAPE).roundToInt()) }
+
+/** What a [LandscapeCard] [widthPx] wide asks Coil for once laid out: its still at its size, cropped. */
+internal fun stillRequest(context: Context, item: MediaItem, widthPx: Int): ImageRequest? =
+    item.landscape?.let { artworkRequest(context, it.url(widthPx), widthPx, (widthPx / STILL_SHAPE).roundToInt()) }
+
+/** What an [ArtworkImage] laid out [widthPx] by [heightPx] asks Coil for [url]: cropped to its shape. */
+private fun artworkRequest(context: Context, url: String, widthPx: Int, heightPx: Int): ImageRequest =
+    ImageRequest.Builder(context).data(url).size(widthPx, heightPx).scale(Scale.FILL).precision(Precision.INEXACT).build()
+
+/**
+ * How many cards [card] wide, [spacing] apart, a [MediaRow] shows before it scrolls: those that start
+ * on the screen, the last one cut by its edge.
+ */
+internal fun cardsInView(card: Dp, spacing: Dp): Int =
+    ceil((HlLayout.CANVAS_WIDTH - HlSpace.safeH.value) / (card + spacing).value).toInt()
 
 /** 2:3 poster. With [width] null it fills the grid cell. */
 @Composable
@@ -312,7 +366,7 @@ fun PosterCard(
     val sized = if (width != null) modifier.width(width) else modifier.fillMaxWidth()
     val px = posterPx(width)
     val poster = item.poster?.url(px)
-    ArtworkSurface(onClick, sized.aspectRatio(2f / 3f), onFocused = onFocused, stateDescription = cardState(item), light = poster) {
+    ArtworkSurface(onClick, sized.aspectRatio(POSTER_SHAPE), onFocused = onFocused, stateDescription = cardState(item), light = poster) {
         ArtworkImage(poster, item.title, Modifier.fillMaxSize()) { FallbackArtwork(item.title, item.year) }
         StatusMark(item, Modifier.align(Alignment.TopEnd).padding(HlSpace.xs))
         ProgressLine(item.progress, Modifier.align(Alignment.BottomCenter))
@@ -338,7 +392,7 @@ fun LandscapeCard(
     Column(modifier.width(width)) {
         ArtworkSurface(
             onClick,
-            Modifier.fillMaxWidth().aspectRatio(16f / 9f),
+            Modifier.fillMaxWidth().aspectRatio(STILL_SHAPE),
             lift = Lift.Card,
             onFocused = onFocused,
             stateDescription = cardState(item),
@@ -376,19 +430,21 @@ fun LandscapeCard(
 }
 
 /**
- * Cast member: round portrait, then under it the name (two lines at most) and the role, so every
- * name of a row starts at the same height. Focusable so the row can scroll, but it does nothing:
- * it is read "name, role", once, and not as a button.
+ * Someone of a title: round portrait, then under it the name (two lines at most) and the role, so
+ * every name of a row starts at the same height. It is read "name, role", once. Found in several
+ * titles of the library, it opens their page ([onOpen]); else it is focusable only so the row can
+ * scroll, and does nothing: a person of a single title leads nowhere.
  */
 @Composable
-fun PersonCard(person: Person, modifier: Modifier = Modifier) {
+fun PersonCard(person: Person, modifier: Modifier = Modifier, onOpen: (() -> Unit)? = null) {
     val px = HlSize.avatar.toPx()
     Column(modifier.width(HlSize.personColumn), horizontalAlignment = Alignment.CenterHorizontally) {
         ArtworkSurface(
-            onClick = {},
+            onClick = onOpen ?: {},
             modifier = Modifier.size(HlSize.avatar),
             shape = HlShapes.avatar,
             readAs = listOfNotNull(person.name, person.role).joinToString(", "),
+            acts = onOpen != null,
         ) {
             Text(
                 person.name.split(' ').mapNotNull { it.firstOrNull()?.uppercase() }.take(2).joinToString(""),
@@ -420,6 +476,49 @@ fun PersonCard(person: Person, modifier: Modifier = Modifier) {
                 textAlign = TextAlign.Center,
                 modifier = Modifier.clearAndSetSemantics {}.fadeOutsideSafeArea(),
             )
+        }
+    }
+}
+
+/**
+ * A film of a saga the library lacks, in its place among those it holds: an empty frame of a
+ * poster's shape, [title] in grey and [year] in the technical voice, never its poster. It takes
+ * focus outlined, as what cannot act does, without rising, and says then that it is not in the
+ * library; OK does nothing. It is read "title, year, not in your library".
+ */
+@Composable
+fun AbsentCard(title: String, year: Int?, modifier: Modifier = Modifier, width: Dp = HlSize.poster) {
+    val c = Hl.colors
+    val interaction = remember { MutableInteractionSource() }
+    val focused by interaction.collectIsFocusedAsState()
+    val absent = stringResource(R.string.saga_absent)
+    Surface(
+        onClick = {},
+        enabled = false,
+        modifier = modifier.width(width).aspectRatio(POSTER_SHAPE).clearAndSetSemantics {
+            contentDescription = listOfNotNull(title, year?.toString(), absent).joinToString(", ")
+            this.focused = focused
+        },
+        shape = ClickableSurfaceDefaults.shape(HlShapes.artwork),
+        scale = FocusStyle.scale(FocusStyle.Fill.Row),
+        border = FocusStyle.disabledRing(HlShapes.artwork),
+        colors = FocusStyle.still(rest = Color.Transparent, restContent = c.contentTertiary),
+        interactionSource = interaction,
+    ) {
+        Box(Modifier.fillMaxSize().artworkEdge(HlShapes.artwork, c))
+        Column(Modifier.align(Alignment.BottomStart).padding(HlSpace.s)) {
+            Box(Modifier.width(HlSpace.l).height(HlSize.hairline).background(c.contentDecorative))
+            Spacer(Modifier.height(HlSpace.xs))
+            Text(title, style = Hl.type.cardTitle, color = c.contentTertiary, maxLines = 4, overflow = TextOverflow.Ellipsis)
+            if (year != null) {
+                Spacer(Modifier.height(HlSpace.xxs))
+                Text(year.toString(), style = Hl.type.badge, color = c.contentTertiary)
+            }
+            // Said with focus only: at rest, the grey says it.
+            if (focused) {
+                Spacer(Modifier.height(HlSpace.xs))
+                Text(absent, style = Hl.type.caption, color = c.contentSecondary, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            }
         }
     }
 }

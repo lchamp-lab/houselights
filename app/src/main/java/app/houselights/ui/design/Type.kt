@@ -23,8 +23,8 @@ import app.houselights.R
  * One family, Archivo, whose widths are the voices of the interface:
  * - condensed, the voice of the poster: titles, what a panel is about, the billing block;
  * - normal, the voice of reading: everything read or chosen, from overviews to buttons;
- * - expanded, the technical voice: formats and specifications, short and set apart;
- * - the brand, expanded and heavy: the wordmark alone.
+ * - expanded, the technical voice: formats and specifications, short and set apart.
+ * The name, HOUSELIGHTS, is drawn, not set ([app.houselights.ui.design.components.Wordmark]).
  *
  * Three weights carry the scale, each with one meaning: Regular reads, SemiBold names, Bold
  * announces (the titles of the poster). Medium is the billing block's alone. Each width declares
@@ -46,11 +46,6 @@ object HlFonts {
     val condensed = archivo(70f, FontWeight.Normal, FontWeight.Medium, FontWeight.SemiBold, FontWeight.Bold)
     val text = archivo(100f, FontWeight.Normal, FontWeight.SemiBold)
     val expanded = archivo(125f, FontWeight.SemiBold)
-    /** The weight of the wordmark, between Bold and ExtraBold. */
-    val brandWeight = FontWeight(720)
-
-    /** The wordmark's: expanded, at [brandWeight], as the banner draws it. */
-    val brand = archivo(125f, brandWeight)
 
     /** Code read as written (NFO XML): one weight on Android 9, and every character already the same width. */
     val mono = FontFamily.Monospace
@@ -91,9 +86,6 @@ private const val FIGURES = "tnum"
  */
 private const val CAPITALS = "case"
 
-/** The wordmark's letters, drawn a little closer, as on the banner. */
-private val BRAND_TRACKING = (-0.016).em
-
 /** The capitals of the billing block need more air than words; its small words, condensed, a little. */
 private val CAPITALS_TRACKING = 0.04.em
 private val BILLING_JOIN_TRACKING = 0.02.em
@@ -117,7 +109,7 @@ private fun scale(
     lineHeightStyle = TRIMMED,
 )
 
-/** A signature set to its own measure: the billing block, the wordmark. */
+/** A signature set to its own measure: the billing block. */
 private fun signature(family: FontFamily, weight: FontWeight, size: Int, line: Int, tracking: TextUnit, features: String? = null) =
     TextStyle(
         fontFamily = family,
@@ -132,8 +124,8 @@ private fun signature(family: FontFamily, weight: FontWeight, size: Int, line: I
 /**
  * Type scale for a TV seen from the couch, eight sizes with clear steps:
  * 12 · 14 · 16 · 20 · 24 · 32 · 44 · 64 sp, line heights on a 2 sp grid. Nothing below 12 sp, and
- * no content below 14 sp. Fourteen roles, one each; then two signatures set to their own measure,
- * the billing block and the wordmark, which only their components use.
+ * no content below 14 sp. Fourteen roles, one each; then signatures set to their own measure, a short
+ * title's 96 sp and the billing block, which only their components use.
  *
  * Two lines of a title set in the voice of the poster ([display], [cardTitle]) leave room for
  * Vietnamese: in Archivo condensed bold, a stacked mark (ổ, ế) rises to 0.92 em and a descender
@@ -187,14 +179,15 @@ data class HlType(
     val badge: TextStyle,
 
     // Signatures, each set to its own measure.
+    /**
+     * A title without its clear logo, short enough for one line of a detail page: the one size kept
+     * for it, as a poster sets a short title large ([TitleArt]). Never a role a screen picks.
+     */
+    val titleSignature: TextStyle,
     /** Names in the billing block, set like the credits at the foot of a poster. */
     val billing: TextStyle,
     /** The small words between them: "a film by", "with", "and". */
     val billingJoin: TextStyle,
-    /** The Houselights wordmark, at the size of a subject: what About is about. */
-    val wordmark: TextStyle,
-    /** The wordmark over the welcome wall, the one place it is large. */
-    val wordmarkHero: TextStyle,
 )
 
 val HouselightsType = HlType(
@@ -215,11 +208,9 @@ val HouselightsType = HlType(
     spec = scale(HlFonts.expanded, FontWeight.SemiBold, 20, 26, FIGURES),
     badge = scale(HlFonts.expanded, FontWeight.SemiBold, 12, 16, FIGURES),
 
+    titleSignature = scale(HlFonts.condensed, FontWeight.Bold, 96, 96, lineBreak = TITLE),
     billing = signature(HlFonts.condensed, FontWeight.Medium, 18, 24, CAPITALS_TRACKING, CAPITALS),
     billingJoin = signature(HlFonts.condensed, FontWeight.Normal, 14, 24, BILLING_JOIN_TRACKING),
-    // As wide on screen as the condensed name it replaces: 136 dp in About, 352 over the welcome wall.
-    wordmark = signature(HlFonts.brand, HlFonts.brandWeight, 20, 24, BRAND_TRACKING),
-    wordmarkHero = signature(HlFonts.brand, HlFonts.brandWeight, 52, 60, BRAND_TRACKING),
 )
 
 val LocalHlType = staticCompositionLocalOf { HouselightsType }

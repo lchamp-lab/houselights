@@ -57,14 +57,14 @@ data class HlColors(
     /** Never for text: the rule of an empty frame, a skeleton. */
     val contentDecorative: Color,
     /**
-     * The house light. States only: in use, your choice, needs attention, new; the wordmark is the
-     * one exception. Never focus, a place, a fact or a series of data. Screens reach it through the
+     * The house light. States only: in use, your choice, needs attention, new; the bars of the mark
+     * ([Gradation]) are the one exception. Never focus, a place, a fact or a series of data. Screens reach it through the
      * components' states (`HlStatus`, `AttentionNote`, `lit`, `valueLit`, `detailLit`), never by name.
      */
     val ember: Color,
     /**
      * The house light where it has room to show as light, not ink: from [emberFrom] to
-     * [emberTo] along the wordmark, a progress line, a rule, a lit edge ([emberLight]). What
+     * [emberTo] along a progress line, a rule, a lit edge ([emberLight]). What
      * is too small for a gradient to read (a dot, a check, a word) takes [ember], drawn from it.
      */
     val emberFrom: Color,

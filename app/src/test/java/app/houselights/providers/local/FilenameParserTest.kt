@@ -253,6 +253,128 @@ class FilenameParserTest {
         )
     }
 
+    /**
+     * French packs: a season's named "Saison 1" (or "Season 1") at the source's root, and a whole show's named
+     * "Intégrale": the show is named up to them, so that its seasons are one show, not "Les Revenants Saison 1".
+     */
+    @Test
+    fun frenchPacksAreNamedUpToWhatTheyHold() {
+        assertEquals(
+            Triple("Les Revenants", null, "Les.Revenants.Saison.1.FRENCH.720p"),
+            show("Les.Revenants.Saison.1.FRENCH.720p/Les.Revenants.S01E01.FRENCH.720p.mkv"),
+        )
+        assertEquals(Triple("Les Revenants", null, "Les Revenants Saison 2"), show("Les Revenants Saison 2/Les Revenants - S02E01.mkv"))
+        assertEquals(Triple("Les Revenants", null, "Les Revenants - Season 02"), show("Les Revenants - Season 02/Les.Revenants.S02E01.mkv"))
+        assertEquals(Triple("Show", null, "Show.Integrale.1080p"), show("Show.Integrale.1080p/Saison 1/01 - Pilote.mkv"))
+        assertEquals(
+            Triple("Kaamelott", null, "Kaamelott.INTÉGRALE.MULTi.1080p"),
+            show("Kaamelott.INTÉGRALE.MULTi.1080p/Livre 1/Kaamelott.S01E01.mkv"),
+        )
+        assertEquals(ParsedMovie("Kaamelott", null), movie("Kaamelott Intégrale 1080p.mkv"))
+        // Words of titles still: "Season" before no number, "Intégrale" before no technical tag.
+        assertEquals(Triple("Season of the Witch", null, "Season of the Witch"), show("Season of the Witch/Season.of.the.Witch.S01E01.mkv"))
+        assertEquals(ParsedMovie("L'Intégrale", null), movie("L'Intégrale.mkv"))
+        // After its article, a title's word before tags too: a comedian's shows, a saga's box.
+        assertEquals(ParsedMovie("Florence Foresti - L'Intégrale", null), movie("Florence Foresti - L'Intégrale 1080p.mkv"))
+        assertEquals(ParsedMovie("Les Inconnus L Integrale", null), movie("Les.Inconnus.L.Integrale.DVDRip.avi"))
+        assertEquals(ParsedMovie("Astérix L’intégrale", null), movie("Astérix L’intégrale MULTi 1080p.mkv"))
+    }
+
+    /** Packs of several seasons, "Saisons 1-2", "Saisons 1 à 5", "Seasons 1-3": the show is named up to them too. */
+    @Test
+    fun packsOfSeveralSeasonsAreNamedUpToThem() {
+        assertEquals(
+            Triple("Les Revenants", null, "Les Revenants Saisons 1-2"),
+            show("Les Revenants Saisons 1-2/Saison 1/Les.Revenants.S01E01.mkv"),
+        )
+        assertEquals(
+            Triple("Le Bureau des Légendes", null, "Le Bureau des Légendes Saisons 1 à 5"),
+            show("Le Bureau des Légendes Saisons 1 à 5/Saison 3/Le.Bureau.des.Legendes.S03E01.mkv"),
+        )
+        assertEquals(
+            Triple("Le Bureau des Legendes", null, "Le.Bureau.des.Legendes.Saisons.1.a.5.FRENCH.1080p"),
+            show("Le.Bureau.des.Legendes.Saisons.1.a.5.FRENCH.1080p/Le.Bureau.des.Legendes.S01E01.mkv"),
+        )
+        assertEquals(
+            Triple("Show Name", null, "Show.Name.Seasons.1-3.1080p.BluRay"),
+            show("Show.Name.Seasons.1-3.1080p.BluRay/Season 2/Show.Name.S02E01.mkv"),
+        )
+        assertEquals(Triple("Les Revenants", null, "Les Revenants - Saison 2"), show("Les Revenants - Saison 2/Les Revenants - S02E01.mkv"))
+        // "Seasons" before no number is a title's word.
+        assertEquals(Triple("The Four Seasons", null, "The Four Seasons"), show("The Four Seasons/Season 1/The.Four.Seasons.S01E01.mkv"))
+        assertEquals(
+            Triple("The Four Seasons", 2025, "The Four Seasons (2025)"),
+            show("The Four Seasons (2025)/The.Four.Seasons.S01E01.mkv"),
+        )
+        assertEquals(Triple("Les Saisons", null, "Les Saisons"), show("Les Saisons/Les.Saisons.S01E01.mkv"))
+    }
+
+    /**
+     * A folder of a show's name holding one for each of its years ("Doctor Who/Doctor Who (2005)"): each is a show
+     * of its own, by its year. A season's pack giving the year stays in its show's folder.
+     */
+    @Test
+    fun aShowsFolderHoldingOneForEachOfItsYears() {
+        assertEquals(
+            Triple("Doctor Who", 2005, "Séries/Doctor Who/Doctor Who (2005)"),
+            show("Séries/Doctor Who/Doctor Who (2005)/Season 01/Doctor Who - S01E01 - Rose.mkv"),
+        )
+        assertEquals(
+            Triple("Doctor Who", 1963, "Séries/Doctor Who/Doctor Who 1963"),
+            show("Séries/Doctor Who/Doctor Who 1963/Season 01/Doctor.Who.S01E01.mkv"),
+        )
+        assertEquals(
+            Triple("Doctor Who", 2023, "Doctor Who/Doctor Who (2023) [tvdbid-436992]"),
+            show("Doctor Who/Doctor Who (2023) [tvdbid-436992]/Season 01/Doctor Who (2023) - S01E01 - Space Babies.mkv"),
+        )
+        assertEquals(Triple("Severance", null, "Severance"), show("Severance/Severance.2022.S01.1080p.WEB/Severance.S01E01.mkv"))
+        assertEquals(Triple("Severance", 2022, "Severance (2022)"), show("Severance (2022)/Severance (2022)/Season 1/Severance.S01E01.mkv"))
+    }
+
+    /**
+     * A folder of a year of the show naming what of it it holds besides, a season or a release's tags, after its year
+     * in parentheses as media managers write it: a show of its own too; a season's pack gives the year, and the show
+     * stays in the folder of its name, which its tvshow.nfo describes. A scene pack's year stays its show folder's.
+     */
+    @Test
+    fun aYearsFolderNamingASeasonOrTagsBesides() {
+        assertEquals(
+            Triple("Doctor Who", 2005, "Doctor Who"),
+            show("Doctor Who/Doctor Who (2005) - S01/Doctor Who - S01E01 - Rose.mkv"),
+        )
+        assertEquals(
+            Triple("Doctor Who", 1963, "Doctor Who/Doctor Who (1963) 1080p"),
+            show("Doctor Who/Doctor Who (1963) 1080p/Season 01/Doctor.Who.S01E01.mkv"),
+        )
+        assertEquals(
+            Triple("Doctor Who", 2005, "Doctor Who"),
+            show("Doctor Who/Doctor Who [2005] Saison 2 MULTi 1080p/Doctor.Who.S02E01.mkv"),
+        )
+        assertEquals(
+            Triple("Breaking Bad", 2008, "Breaking Bad"),
+            show("Breaking Bad/Breaking Bad (2008) Season 2 S02 (1080p BluRay x265 Silence)/Breaking Bad (2008) - S02E01 - 737.mkv"),
+        )
+        assertEquals(
+            Triple("Breaking Bad", 2008, "Breaking Bad (2008) Season 2 S02 (1080p BluRay x265 Silence)"),
+            show("Breaking Bad (2008) Season 2 S02 (1080p BluRay x265 Silence)/Breaking Bad (2008) - S02E01 - 737.mkv"),
+        )
+        assertEquals(Triple("Severance", null, "Severance"), show("Severance/Severance.2022.1080p.WEB/Season 1/Severance.S01E01.mkv"))
+        assertEquals(Triple("Severance", null, "Severance"), show("Severance/Severance 2022 S01 1080p/Severance.S01E01.mkv"))
+    }
+
+    /** Films whose titles hold a number like a year: the year in parentheses is theirs, the number stays in the title. */
+    @Test
+    fun titlesHoldingANumberLikeAYear() {
+        assertEquals(ParsedMovie("Wonder Woman 1984", 2020), movie("Wonder Woman 1984 (2020).mkv"))
+        assertEquals(ParsedMovie("Wonder Woman 1984", 2020), movie("Wonder.Woman.1984.2020.MULTi.2160p.WEB-DL.mkv"))
+        assertEquals(ParsedMovie("Blade Runner 2049", 2017), movie("Blade Runner 2049 (2017).mkv"))
+        assertEquals(ParsedMovie("1917", 2019), movie("1917 (2019).mkv"))
+        assertEquals(ParsedMovie("2001 A Space Odyssey", 1968), movie("2001 A Space Odyssey (1968).mkv"))
+        // Named by their folder, as Radarr names it, the file saying no more.
+        assertEquals(ParsedMovie("Wonder Woman 1984", 2020), LibraryScanner.parseMovie("Wonder Woman 1984 (2020)/movie.mkv"))
+        assertEquals(ParsedMovie("1917", 2019), LibraryScanner.parseMovie("1917 (2019)/1917 (2019) Remux-2160p.mkv"))
+    }
+
     /** The year of a show is its folder's, else its name's at the source's root; specials are season 0. */
     @Test
     fun showYearsAndSpecials() {

@@ -30,6 +30,11 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Deferred
+import android.util.Log
+import app.houselights.core.Credits
+import app.houselights.core.Saga
+import app.houselights.core.Version
 
 data class DetailState(
     val item: MediaItem? = null,
@@ -55,7 +60,24 @@ data class DetailState(
     val collectionFilms: List<MediaItem> = emptyList(),
     /** Why marking the title watched or a favourite did not take, shown beside the actions until the next one. */
     val actionError: UiError? = null,
-)
+    /**
+     * Only the title is in, its rows (seasons, saga, similar titles) still coming: the page shows
+     * what it says of the title at once, and focus waits for the rows it may come back to.
+     */
+    val partial: Boolean = false,
+    /** Its people by job ([app.houselights.core.Catalog.credits]); null when the source tells only the cast. */
+    val credits: Credits? = null,
+    /** For a collection: its saga whole, the films the library lacks in their place; null when the source cannot tell them. */
+    val saga: Saga? = null,
+    /** For a film in several copies: each, the one Lire plays first ([Version.chosen]); empty for one copy. */
+    val versions: List<Version> = emptyList(),
+) {
+    /** The copy Lire plays, for a film in several; null for one copy. */
+    val playedCopy: Version? get() = versions.takeIf { it.size > 1 }?.let { all -> all.firstOrNull { it.chosen } ?: all.first() }
+
+    /** Where [playedCopy] stands among the copies: it names one without an edition ("Copie 2"). */
+    val playedCopyIndex: Int get() = versions.indexOfFirst { it.chosen }.coerceAtLeast(0)
+}
 
 /**
  * A title's page, from the [provider] of the source in use; what it changes, it tells [events]. The
@@ -93,41 +115,18 @@ class DetailViewModel(
                 val source = provider()
                 val item = source.item(itemId)
                 val similar = async { if (source.capabilities.similar) source.similar(item) else emptyList() }
-                if (item.kind == MediaKind.SERIES) {
-                    val nextUp = async { source.nextUp(item) }
-                    val seasons = source.seasons(item)
-                    val next = nextUp.await()
-                    val seasonId = _state.value.selectedSeasonId?.takeIf { id -> seasons.any { it.id == id } }
-                        ?: next?.seasonId
-                        ?: seasons.firstOrNull { (it.seasonNumber ?: 0) > 0 }?.id
-                        ?: seasons.firstOrNull()?.id
-                    val episodes = seasons.firstOrNull { it.id == seasonId }?.let { source.episodes(item, it) }.orEmpty()
-                    DetailState(
-                        item = item,
-                        capabilities = source.capabilities,
-                        nextUp = next,
-                        seasons = seasons,
-                        selectedSeasonId = seasonId,
-                        episodes = episodes,
-                        similar = similar.await(),
-                    )
-                } else if (item.kind == MediaKind.COLLECTION) {
-                    // What Lire starts is picked from the films already here: the source is asked for them once.
-                    val films = source.collectionItems(item)
-                    DetailState(item = item, capabilities = source.capabilities, nextUp = nextUpIn(films), collectionFilms = films)
-                } else {
-                    val collection = source.collectionOf(item)
-                    val saga = collection?.let { c -> source.collectionItems(c).filter { it.id != item.id } }.orEmpty()
-                    // Films of the same saga are shown as such, not again as "similar".
-                    val similarFilms = similar.await().filter { s -> saga.none { it.id == s.id } }
-                    DetailState(
-                        item = item,
-                        capabilities = source.capabilities,
-                        similar = similarFilms,
-                        collection = collection,
-                        collectionFilms = saga,
-                    )
+                // Without them the page keeps its cast: a failure here never fails the page.
+                val credits = async {
+                    suspendRunCatching { source.catalog?.credits(item) }.onFailure { Log.w(TAG, "Credits of $itemId", it) }.getOrNull()
                 }
+                when (item.kind) {
+                    MediaKind.SERIES -> seriesPage(source, item, similar)
+                    MediaKind.COLLECTION -> collectionPage(source, item)
+                    else -> {
+                        sayFirst(source, item)
+                        filmPage(source, item, similar)
+                    }
+                }.copy(credits = credits.await())
             } }.onSuccess { loaded ->
                 val canEdit = loaded.item?.let { provider().editor?.canEdit(it) } == true
                 // A failure said beside the actions stays until the next action; a season chosen while
@@ -139,10 +138,71 @@ class DetailViewModel(
                     // A season this load took over is not left loading: its row says why, with Réessayer.
                     _state.update { s ->
                         val rowError = s.episodesError ?: error.takeIf { s.episodesLoading }
-                        s.copy(error = error, episodesLoading = false, episodesError = rowError)
+                        s.copy(error = error, episodesLoading = false, episodesError = rowError, partial = false)
                     }
                 }
         }
+    }
+
+    /**
+     * A first load says the title at once, on the picture the cut kept, once what Lire starts is
+     * known ([nextUp] for a series): its rows follow ([DetailState.partial]).
+     */
+    private fun sayFirst(source: MediaProvider, item: MediaItem, nextUp: MediaItem? = null) {
+        if (_state.value.item != null) return
+        val canEdit = source.editor?.canEdit(item) == true
+        _state.update { it.copy(item = item, capabilities = source.capabilities, nextUp = nextUp, canEdit = canEdit, partial = true) }
+    }
+
+    /** A series' page: what Lire starts, its seasons, the episodes of the season chosen, then [similar] titles. */
+    private suspend fun seriesPage(source: MediaProvider, item: MediaItem, similar: Deferred<List<MediaItem>>): DetailState =
+        coroutineScope {
+            val nextUp = async { source.nextUp(item) }
+            val seasonsLoad = async { source.seasons(item) }
+            val next = nextUp.await()
+            sayFirst(source, item, next)
+            val seasons = seasonsLoad.await()
+            val seasonId = _state.value.selectedSeasonId?.takeIf { id -> seasons.any { it.id == id } }
+                ?: next?.seasonId
+                ?: seasons.firstOrNull { (it.seasonNumber ?: 0) > 0 }?.id
+                ?: seasons.firstOrNull()?.id
+            val episodes = seasons.firstOrNull { it.id == seasonId }?.let { source.episodes(item, it) }.orEmpty()
+            DetailState(
+                item = item,
+                capabilities = source.capabilities,
+                nextUp = next,
+                seasons = seasons,
+                selectedSeasonId = seasonId,
+                episodes = episodes,
+                similar = similar.await(),
+            )
+        }
+
+    /**
+     * A collection's page: its films, from which Lire picks (the source is asked for them once), and
+     * its saga whole when the source knows it; without it, the films alone.
+     */
+    private suspend fun collectionPage(source: MediaProvider, item: MediaItem): DetailState {
+        val films = source.collectionItems(item)
+        val saga = suspendRunCatching { source.catalog?.saga(item) }.onFailure { Log.w(TAG, "Saga of $itemId", it) }.getOrNull()
+        return DetailState(item = item, capabilities = source.capabilities, nextUp = nextUpIn(films), collectionFilms = films, saga = saga)
+    }
+
+    /** A film's page: its saga, then [similar] titles that are not of it. */
+    private suspend fun filmPage(source: MediaProvider, item: MediaItem, similar: Deferred<List<MediaItem>>): DetailState {
+        val collection = source.collectionOf(item)
+        // The film itself in its place among them: where it stands in its saga.
+        val saga = collection?.let { c -> source.collectionItems(c) }.orEmpty()
+        // Films of the same saga are shown as such, not again as "similar".
+        val similarFilms = similar.await().filter { s -> saga.none { it.id == s.id } }
+        return DetailState(
+            item = item,
+            capabilities = source.capabilities,
+            similar = similarFilms,
+            collection = collection,
+            collectionFilms = saga,
+            versions = versionsOf(source, item),
+        )
     }
 
     /**
@@ -212,6 +272,32 @@ class DetailViewModel(
         val favorite = !item.user.favorite
         provider().setFavorite(item, favorite)
         item.user.copy(favorite = favorite)
+    }
+
+    /**
+     * Makes [version] the copy Lire plays (null: back to the best), then reads the copies again. A
+     * failure is said beside the actions.
+     */
+    fun chooseVersion(version: Version?) {
+        val item = _state.value.item ?: return
+        _state.update { it.copy(actionError = null) }
+        viewModelScope.launch {
+            suspendRunCatching {
+                val source = provider()
+                source.catalog?.chooseVersion(item, version)
+                versionsOf(source, item)
+            }.onSuccess { versions -> _state.update { it.copy(versions = versions) } }
+                .onFailure { e -> _state.update { it.copy(actionError = e.reported(TAG, "Version of $itemId")) } }
+        }
+    }
+
+    /** The copies of [item]'s film, when the source keeps them as one title; a failure leaves none. */
+    private suspend fun versionsOf(source: MediaProvider, item: MediaItem): List<Version> {
+        if (!source.capabilities.versions) return emptyList()
+        return suspendRunCatching { source.catalog?.versions(item) }
+            .onFailure { Log.w(TAG, "Versions of $itemId", it) }
+            .getOrNull()
+            .orEmpty()
     }
 
     /** A failure beside the actions is read; the next action clears it. */

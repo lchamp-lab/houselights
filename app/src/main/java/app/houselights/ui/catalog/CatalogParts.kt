@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import androidx.tv.material3.Text
 import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
@@ -50,6 +51,12 @@ internal fun Specimen(
         Text(caption, style = Hl.type.caption, color = Hl.colors.contentTertiary)
     }
 }
+
+/**
+ * The catalogue's own frames, a colour's swatch and the white ground a mark is tried on: no screen
+ * has their size, so the design system does not either.
+ */
+internal val CatalogSwatch = 52.dp
 
 /** A title with no artwork, in the state asked for. */
 internal fun sample(

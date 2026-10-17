@@ -5,4 +5,16 @@
         <item name="android:windowNoTitle">true</item>
         <item name="android:windowFullscreen">true</item>
     </style>
+
+    <!--
+        The launch screen, the activity's until it is created (MainActivity installs it): the room with
+        the mark alone in its middle, held while home gets ready, then Theme.Houselights. Android draws it
+        before the app runs. ResourceTokensTest keeps it the room.
+    -->
+    <style name="Theme.Houselights.Launch" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/room</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/splash_mark</item>
+        <item name="postSplashScreenTheme">@style/Theme.Houselights</item>
+        <item name="android:windowFullscreen">true</item>
+    </style>
 </resources>

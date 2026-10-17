@@ -20,6 +20,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.tv.material3.Text
 import app.houselights.R
 import app.houselights.core.ArtworkKind
@@ -52,6 +53,11 @@ import app.houselights.ui.design.components.RowPreview
 import app.houselights.ui.design.components.SelectedMark
 import app.houselights.ui.util.FACT_GAP
 import app.houselights.ui.util.formatDimensions
+import app.houselights.ui.util.formatDuration
+import androidx.compose.runtime.CompositionLocalProvider
+import app.houselights.ui.design.components.LocalBackdropRelay
+import app.houselights.ui.design.components.Backdrop
+import app.houselights.ui.design.components.AbsentCard
 
 // Artwork comes from the app's own resources, and a failed image from a file that cannot exist:
 // nothing here needs the network.
@@ -62,6 +68,7 @@ internal fun LazyListScope.catalogCards() {
     item { Group("Ambient backdrop: a screen on its picture, whose light the focused card glows with") { AmbientBackdrops() } }
     item { Group("Artwork surface and image") { Surfaces() } }
     item { Group("Landscape card") { LandscapeRow() } }
+    item { Group("A saga whole: the films the library lacks keep their place, as empty frames") { SagaRow() } }
     item { Group("Person card: one line, two lines, long role, no photo") { CastRow() } }
     item { Group("Progress line: on artwork, dark and white; beside text", still = true) { ProgressLines() } }
     item { Group("Card skeleton: the shapes screens ask for", still = true) { Skeletons() } }
@@ -132,7 +139,8 @@ private fun PosterRow() {
 @Composable
 private fun AmbientBackdrops() {
     val art = shippedImage(R.drawable.banner)
-    Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.l)) {
+    // Backdrops on their own: nothing handed on to them, nor from them.
+    CompositionLocalProvider(LocalBackdropRelay provides null) { Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.l)) {
         listOf("a picture: its light" to art, "no picture: the black room, no light" to null).forEach { (state, image) ->
             Specimen(state, width = HlLayout.sideColumnWide) {
                 Box(Modifier.fillMaxWidth().aspectRatio(16f / 9f)) {
@@ -142,7 +150,10 @@ private fun AmbientBackdrops() {
                 }
             }
         }
-    }
+        Specimen("a wall's, quiet: its picture dimmed down to the foot", width = HlLayout.sideColumnWide) {
+            Box(Modifier.fillMaxWidth().aspectRatio(16f / 9f)) { Backdrop(art, BackdropStyle.Quiet) }
+        }
+    } }
 }
 
 /** The focus treatment alone, and the image inside it: loaded, or failed with its fallback in its place. */
@@ -208,7 +219,7 @@ private fun LandscapeRow() {
                     width = HlSize.episode,
                     title = longName,
                     number = "12",
-                    facts = listOf("1 h", "Il reste 36 min"),
+                    facts = listOf("1 h", stringResource(R.string.time_left, formatDuration(2_160_000))),
                 )
             }
         }
@@ -229,6 +240,16 @@ private fun LandscapeRow() {
 
 /** The cast row of a detail page: names of one and two lines side by side, their roles in line. */
 @Composable
+private fun SagaRow() {
+    MediaRow(header = null) {
+        item { Specimen("held", width = HlSize.poster) { PosterCard(sample("Alien", 1979), {}) } }
+        item { Specimen("lacking: its title and year, focus outlined", width = HlSize.poster) { AbsentCard("Aliens", 1986) } }
+        item { Specimen("a long title", width = HlSize.poster) { AbsentCard("Alien, la résurrection", 1997) } }
+        item { Specimen("not out yet: no year", width = HlSize.poster) { AbsentCard("Alien: Romulus", null) } }
+    }
+}
+
+@Composable
 private fun CastRow() {
     val photo = shippedImage(R.drawable.banner)
     val cast = listOf(
@@ -239,9 +260,12 @@ private fun CastRow() {
         "photo failed: initials" to Person("Cathy Rosier", "La pianiste", brokenImage),
         "no role" to Person("Jacques Leroy", null, null),
         "name cut" to Person("Maria de Medeiros Esteves Vitorino de Almeida", "Elle-même", null),
+        "in two titles: opens their page" to Person("Jean-Pierre Melville", "Réalisation", null, id = "tmdb:1", titleCount = 7),
     )
     MediaRow(header = null, spacing = HlSpace.s) {
-        items(cast) { (state, person) -> Specimen(state, width = HlSize.personColumn) { PersonCard(person) } }
+        items(cast) { (state, person) ->
+            Specimen(state, width = HlSize.personColumn) { PersonCard(person, onOpen = if (person.id != null) ({}) else null) }
+        }
     }
 }
 
@@ -294,26 +318,35 @@ private class ArtworkChoiceSample(
 @Composable
 private fun ChoiceRow(kind: ArtworkKind) {
     val picture = shippedImage(if (kind == ArtworkKind.LOGO) R.drawable.ic_launcher_foreground else R.drawable.banner)
+    val automatic = stringResource(R.string.artwork_automatic)
+    val localFile = stringResource(R.string.artwork_local_file)
+    val inType = stringResource(R.string.artwork_title_in_type)
     val options = when (kind) {
         ArtworkKind.POSTER -> listOf(
-            ArtworkChoiceSample("chosen", picture, true, "Automatique", "Français$FACT_GAP${formatDimensions(2000, 3000)}"),
+            ArtworkChoiceSample("chosen", picture, true, automatic, "Français$FACT_GAP${formatDimensions(2000, 3000)}"),
             ArtworkChoiceSample("rest", picture, false, "Anglais", formatDimensions(2000, 3000)),
-            ArtworkChoiceSample("image failed: set in type", brokenImage, false, "Fichier local", null),
+            ArtworkChoiceSample("image failed: set in type", brokenImage, false, localFile, null),
         )
         ArtworkKind.BACKDROP -> listOf(
-            ArtworkChoiceSample("chosen", picture, true, "Sans texte", formatDimensions(3840, 2160)),
-            ArtworkChoiceSample("rest", picture, false, "Lien du NFO", null),
-            ArtworkChoiceSample("image failed: set in type", brokenImage, false, "Fichier local", null),
+            ArtworkChoiceSample("chosen", picture, true, stringResource(R.string.artwork_no_text), formatDimensions(3840, 2160)),
+            ArtworkChoiceSample("rest", picture, false, stringResource(R.string.artwork_from_nfo), null),
+            ArtworkChoiceSample("image failed: set in type", brokenImage, false, localFile, null),
         )
         ArtworkKind.LOGO -> listOf(
-            ArtworkChoiceSample("chosen", picture, true, "Automatique", "Toutes langues$FACT_GAP${formatDimensions(800, 310)}"),
+            ArtworkChoiceSample(
+                "chosen",
+                picture,
+                true,
+                automatic,
+                stringResource(R.string.artwork_any_language) + FACT_GAP + formatDimensions(800, 310),
+            ),
             ArtworkChoiceSample("rest", picture, false, "Français", formatDimensions(800, 310)),
-            ArtworkChoiceSample("title in type", null, false, "Titre en texte", null, placeholder = "Le Samouraï"),
+            ArtworkChoiceSample("title in type", null, false, inType, null, placeholder = "Le Samouraï"),
             ArtworkChoiceSample(
                 "title in type, chosen, long",
                 null,
                 true,
-                "Titre en texte",
+                inType,
                 null,
                 placeholder = "Les Aventures extraordinaires d’Adèle Blanc-Sec",
             ),
@@ -348,7 +381,7 @@ private fun SelectedMarks() {
     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.l), verticalAlignment = Alignment.Top) {
         Specimen("selected mark") { SelectedMark() }
         Specimen("on a white image") {
-            Box(Modifier.size(HlSize.disc).background(Hl.colors.content), contentAlignment = Alignment.Center) { SelectedMark() }
+            Box(Modifier.size(CatalogSwatch).background(Hl.colors.content), contentAlignment = Alignment.Center) { SelectedMark() }
         }
     }
 }
@@ -367,9 +400,11 @@ private const val SEVEN_SAMURAI_OVERVIEW =
 @Composable
 private fun Results() {
     val poster = shippedImage(R.drawable.banner)
+    val current = stringResource(R.string.result_current)
+    val matching = stringResource(R.string.identifying)
     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Top) {
         Specimen("current, long overview", Modifier.weight(1f)) {
-            HlResultItem(poster, "Le Samouraï", listOf("1967", null), SAMURAI_OVERVIEW, {}, mark = "Actuel")
+            HlResultItem(poster, "Le Samouraï", listOf("1967", null), SAMURAI_OVERVIEW, {}, mark = current)
         }
         Specimen("rest, long overview", Modifier.weight(1f)) {
             HlResultItem(poster, "Les Sept Samouraïs", listOf("1954", "七人の侍"), SEVEN_SAMURAI_OVERVIEW, {})
@@ -377,10 +412,10 @@ private fun Results() {
     }
     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Top) {
         Specimen("being matched", Modifier.weight(1f)) {
-            HlResultItem(poster, "Le Samouraï", listOf("1967", null), SAMURAI_OVERVIEW, {}, busy = "Association…")
+            HlResultItem(poster, "Le Samouraï", listOf("1967", null), SAMURAI_OVERVIEW, {}, busy = matching)
         }
         Specimen("being matched, the current one", Modifier.weight(1f)) {
-            HlResultItem(poster, "Le Samouraï", listOf("1967", null), SAMURAI_OVERVIEW, {}, mark = "Actuel", busy = "Association…")
+            HlResultItem(poster, "Le Samouraï", listOf("1967", null), SAMURAI_OVERVIEW, {}, mark = current, busy = matching)
         }
     }
     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Top) {

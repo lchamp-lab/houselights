@@ -57,8 +57,49 @@ class AuditoriumTest {
         assertEquals("the lights themselves", FRAMES, told.last())
     }
 
+    /**
+     * The launch: the bars of the mark go out one after the other, the widest first, as the light
+     * the mark shows goes down one stop at a time; each quick at first and settling (ease-out). Once
+     * the last is out the black lifts off home. All in the cue the launch had, of the system's motion.
+     */
+    @Test
+    fun atTheLaunchTheBarsGoOutOneAfterTheOtherBeforeHomeComesUp() {
+        val t = (0..FRAMES).map { it / FRAMES.toFloat() }
+        val bars = 0 until LaunchCue.bars
+        assertEquals("the mark's bars", Gradation.widths.size, LaunchCue.bars)
+        bars.forEach { bar ->
+            assertEquals(1f, LaunchCue.bar(bar, 0f), EXACT)
+            assertEquals(0f, LaunchCue.bar(bar, 1f), EXACT)
+        }
+        assertEquals(1f, LaunchCue.darkness(0f), EXACT)
+        assertEquals(0f, LaunchCue.darkness(1f), EXACT)
+        // One after the other, the widest first: each starts to go out after the one before, and is out after it.
+        val starts = bars.map { bar -> t.first { LaunchCue.bar(bar, it) < 1f } }
+        val outs = bars.map { bar -> t.first { LaunchCue.bar(bar, it) <= 0f } }
+        assertTrue("$starts", starts.zipWithNext().all { (a, b) -> a < b })
+        assertTrue("$outs", outs.zipWithNext().all { (a, b) -> a < b })
+        // When the black starts to lift, every bar is out; before, nothing of home shows.
+        val lifts = t.first { LaunchCue.darkness(it) < 1f }
+        bars.forEach { bar -> assertEquals("bar $bar when home comes up", 0f, LaunchCue.bar(bar, lifts), EXACT) }
+        assertTrue(lifts >= outs.last())
+        // Ease-out: the first half of each step does more than half of it.
+        bars.forEach { bar ->
+            val going = t.filter { LaunchCue.bar(bar, it) in 0.0001f..0.9999f }
+            assertTrue("bar $bar", LaunchCue.bar(bar, going[going.size / 2]) < 0.5f)
+        }
+        val lifting = t.filter { LaunchCue.darkness(it) in 0.0001f..0.9999f }
+        assertTrue(LaunchCue.darkness(lifting[lifting.size / 2]) < 0.5f)
+        // They only ever go down.
+        bars.forEach { bar -> assertTrue(t.zipWithNext().all { (a, b) -> LaunchCue.bar(bar, b) <= LaunchCue.bar(bar, a) }) }
+        assertTrue(t.zipWithNext().all { (a, b) -> LaunchCue.darkness(b) <= LaunchCue.darkness(a) })
+        assertEquals("the length of the cue the launch had", HlMotion.SLOW, LaunchCue.DURATION)
+    }
+
     private companion object {
         /** HlMotion.DIM at 60 frames a second. */
         const val FRAMES = 60
+
+        /** An easing's ends, within what a frame shows. */
+        const val EXACT = 0.001f
     }
 }

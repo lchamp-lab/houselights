@@ -2,11 +2,11 @@ package app.houselights.providers.local
 
 import android.os.SystemClock
 import android.util.Log
+import app.houselights.core.FailureKind
 import app.houselights.core.NfoParser
 import app.houselights.core.NoTmdbKeyException
+import app.houselights.core.failureKind
 import app.houselights.core.suspendRunCatching
-import app.houselights.ui.util.UiError
-import app.houselights.ui.util.toUiError
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
@@ -37,9 +37,9 @@ data class ScanState(
     /**
      * Why the last scan stopped asking TMDB (the key refused, TMDB out of reach): titles were indexed
      * from their files, and wait for their details. Kept after the scan ends, until TMDB is asked again
-     * for them (an hour on, or at once at a scan asked for or a key changed).
+     * for them (an hour on, or at once at a scan asked for or a key changed). Screens say it in their words.
      */
-    val tmdbIssue: UiError? = null,
+    val tmdbIssue: FailureKind? = null,
 )
 
 /**
@@ -99,6 +99,7 @@ class LibraryScanner(
     private val files = ScanFiles(dao, artwork, browsers)
     private val movies = MovieIndexer(dao, files)
     private val shows = ShowIndexer(dao, files)
+    private val backfill = Backfill(dao, lock, System::currentTimeMillis) { waitForThePlayer() }
 
     /**
      * Scans every folder. [asked]: by someone (Scan now, a folder added or changed, a key saved), not by
@@ -215,8 +216,9 @@ class LibraryScanner(
                 withContext(NonCancellable) {
                     dao.inTransaction {
                         writes()
-                        // The film may have left its collection for another one.
+                        // The film may have left its collection for another one, and its copies for another film's.
                         dao.deleteEmptyCollections()
+                        dao.groupVersions()
                     }
                     _changed.tryEmit(Unit)
                 }
@@ -241,7 +243,8 @@ class LibraryScanner(
     private val askTmdbAgain = AtomicBoolean(false)
 
     private suspend fun cleanupLocked(): CleanupResult {
-        val orphanCast = dao.deleteOrphanCast()
+        val orphanCast = dao.deleteOrphanCredits()
+        dao.deleteOrphanSearchWords()
         // Based on what the library references, not on what the NAS shows: an unreachable
         // NAS never causes artwork to be deleted.
         val result = artwork.sweep(dao.cachedArtworkPaths())
@@ -252,13 +255,16 @@ class LibraryScanner(
     }
 
     private suspend fun scanAllSources(refreshMetadata: Boolean) {
-        movies.startPass()
-        shows.startPass()
+        // Under the lock, as an identification reads and fills what the indexers keep of a pass.
+        lock.withLock {
+            movies.startPass()
+            shows.startPass()
+        }
         val before = _state.value.errors
         val errors = mutableMapOf<Long, ScanError>()
         var changed = false
         val client = client()
-        val tmdb = TmdbPass(client) { e -> _state.update { it.copy(tmdbIssue = e.toUiError()) } }
+        val tmdb = TmdbPass(client) { e -> _state.update { it.copy(tmdbIssue = e.failureKind()) } }
         val seasons = ShowIndexer.SeasonCache(tmdb)
         // TMDB closed to a recent pass, with this key: titles it left unmatched wait a while, rather
         // than being read again at every pass for an answer that will not come; unless one asked.
@@ -288,19 +294,37 @@ class LibraryScanner(
                     dao.deleteEmptySeries()
                     dao.moveOrphanShows()
                     dao.deleteEmptyCollections()
+                    // Films matched anew, or whose copies came or went, are gathered again.
+                    if (dao.groupVersions() > 0) changed = true
                     // Pictures only become unused when titles change or go.
                     if (changed) cleanupLocked()
                 }.onFailure { Log.w(TAG, "Cleanup failed", it) }
             }
+            backfill(tmdb, askTmdb = askUnmatched)
         } finally {
             tmdbDown = tmdbDownAfter(tmdb, down, askUnmatched)
             // Whatever happened, the scan is over: the settings must not show it running forever.
-            _state.value = ScanState(errors = errors, tmdbIssue = tmdbDown?.takeIf { it.client === client() }?.cause?.toUiError())
+            _state.value = ScanState(errors = errors, tmdbIssue = tmdbDown?.takeIf { it.client === client() }?.cause?.failureKind())
             lastScanEnd = elapsed()
             closeIdle()
         }
         // A scan that found nothing new leaves screens as they are.
         if (changed) _changed.emit(Unit)
+    }
+
+    /**
+     * Titles and sagas known before credits and sagas whole were kept, a few a pass, once the folders are read
+     * ([Backfill]); [askTmdb] as for titles TMDB left unmatched. A failure waits for the next pass.
+     */
+    private suspend fun backfill(tmdb: TmdbPass, askTmdb: Boolean) {
+        suspendRunCatching {
+            backfill.run(tmdb, askTmdb).also { written ->
+                // People TMDB keyed anew leave the words of their former keys.
+                if (written > 0) lock.withLock { dao.deleteOrphanSearchWords() }
+            }
+        }
+            .onSuccess { if (it > 0) Log.i(TAG, "Backfill: $it titles and sagas given their credits and films") }
+            .onFailure { Log.w(TAG, "Backfill failed; tried again at the next pass", it) }
     }
 
     /**
@@ -366,7 +390,7 @@ class LibraryScanner(
 
         if (source.kind == SourceKind.SHOWS) tellNoEpisode(source, files)
 
-        val folder = Folder(source, sidecars, known, refreshMetadata, tmdb, seasons, stacks)
+        val folder = Folder(ScanPass(source, sidecars, stacks, tmdb, seasons, refreshMetadata), known)
         val written = processAll(folder, todo, stillDue(::work, forShows))
         dao.markScanned(source.id, clock())
         // A file renamed is not always read again, but screens show its name; and a film's parts.
@@ -440,17 +464,20 @@ class LibraryScanner(
             .mapNotNull { (key, episodes) ->
                 val seriesId = key?.second ?: return@mapNotNull null
                 val path = FilenameParser.parseShowPath(episodes.first().relativePath) ?: return@mapNotNull null
-                Triple(path.dir, seriesId, FilenameParser.showKey(path.title)) to episodes
+                ShowFolder(path.dir, seriesId, FilenameParser.showKey(path.title)) to episodes
             }
             .groupBy({ it.first }, { it.second }).mapValues { (_, lists) -> lists.flatten() }
-        val shows = byFolder.keys.map { it.second }.distinct().chunked(SQL_IN_LIMIT).flatMap { dao.rows(it) }.associateBy { it.id }
-        return byFolder.entries.mapNotNull { (key, episodes) ->
-            val (dir, seriesId, name) = key
-            val show = shows[seriesId]?.takeIf { it.matchKey?.substringBefore(FilenameParser.YEAR_MARK) == name } ?: return@mapNotNull null
-            val due = episodes.none { it in whole } && SidecarKey.showDue(show.sidecarKey, source.id, dir, sidecars)
-            if (due) episodes.first() to seriesId else null
+        val shows = byFolder.keys.map { it.seriesId }.distinct().chunked(SQL_IN_LIMIT).flatMap { dao.rows(it) }.associateBy { it.id }
+        return byFolder.entries.mapNotNull { (folder, episodes) ->
+            val show = shows[folder.seriesId]?.takeIf { it.matchKey?.substringBefore(FilenameParser.YEAR_MARK) == folder.name }
+                ?: return@mapNotNull null
+            val due = episodes.none { it in whole } && SidecarKey.showDue(show.sidecarKey, source.id, folder.dir, sidecars)
+            if (due) episodes.first() to folder.seriesId else null
         }.toMap()
     }
+
+    /** A show's folder [dir], as its episodes there name it ([name], its key without a year), and the show they lie in. */
+    private data class ShowFolder(val dir: String, val seriesId: Long, val name: String)
 
     /**
      * What a file still needs ([work]); one read for its show ([showsToRead]) is read whole, though its own
@@ -474,19 +501,8 @@ class LibraryScanner(
         return if (outOfSpace(failure)) ScanError(ScanErrorKind.STORAGE_FULL) else ScanErrors.classify(failure)
     }
 
-    /** A folder as one pass reads it: what each of its files is processed with. */
-    @Suppress("LongParameterList") // What a pass hands each file.
-    private class Folder(
-        val source: SourceEntity,
-        val sidecars: Sidecars,
-        /** Its files the library knows, by path. */
-        val known: Map<String, KnownFile>,
-        val refreshMetadata: Boolean,
-        val tmdb: TmdbPass,
-        val seasons: ShowIndexer.SeasonCache,
-        /** Its films in several files. */
-        val stacks: Stacks,
-    )
+    /** A folder as one pass reads it: what each of its files is processed with ([pass]), and its files the library knows, by path. */
+    private class Folder(val pass: ScanPass, val known: Map<String, KnownFile>)
 
     /**
      * One file, under the lock: a choice made by the user waits for one item, not for the whole scan.
@@ -495,16 +511,14 @@ class LibraryScanner(
      * avail (a lock, a refusal, an image the device has no room for) changes nothing.
      */
     private suspend fun process(folder: Folder, file: RemoteFile, work: Work): Boolean = lock.withLock {
-        val source = folder.source
+        val source = folder.pass.source
         // The folder was removed meanwhile: nothing more is added to it.
         if (dao.source(source.id) == null) return@withLock false
         val existing = folder.known[file.relativePath]?.let { dao.item(it.id) }
         val before = existing?.let { shown(it) }
         if (work == Work.PROBE && existing != null) reprobe(source, file, existing) else when (source.kind) {
-            SourceKind.MOVIES -> movies.process(
-                source, file, existing, folder.tmdb, folder.sidecars, folder.refreshMetadata, folder.stacks.stackAt(file.relativePath),
-            )
-            SourceKind.SHOWS -> shows.process(source, file, existing, folder.tmdb, folder.seasons, folder.sidecars, folder.refreshMetadata)
+            SourceKind.MOVIES -> movies.process(folder.pass, file, existing)
+            SourceKind.SHOWS -> shows.process(folder.pass, file, existing)
         }
         if (existing == null) dao.hasFile(source.id, file.relativePath) else dao.item(existing.id)?.let { shown(it) } != before
     }
@@ -523,11 +537,14 @@ class LibraryScanner(
      * What screens show of a file's row, and of its season's and its show's: matched or not, whenever
      * it was. A title TMDB answered again with the same details is the same title; sidecars read again
      * to no change ([ItemEntity.sidecarKey]) change nothing shown, nor does a file read again by a newer
-     * probe to the same reading.
+     * probe to the same reading, nor when its credits were complete ([ItemEntity.creditsAt]).
      */
     private suspend fun shown(item: ItemEntity): List<ItemEntity> =
         (listOf(item) + dao.rows(listOfNotNull(item.parentId, item.seriesId)).sortedBy { it.id }).map { row ->
-            row.copy(matchedAt = row.matchedAt?.let { MATCHED }, sidecarKey = null, probeVersion = 0, mediaInfo = unstamped(row.mediaInfo))
+            row.copy(
+                matchedAt = row.matchedAt?.let { MATCHED }, sidecarKey = null, probeVersion = 0, mediaInfo = unstamped(row.mediaInfo),
+                creditsAt = null,
+            )
         }
 
     /** What a file holds ([ItemEntity.mediaInfo]), whichever probe read it. */

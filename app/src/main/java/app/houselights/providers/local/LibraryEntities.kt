@@ -5,6 +5,7 @@ import androidx.room.Index
 import androidx.room.PrimaryKey
 import androidx.room.ProvidedTypeConverter
 import androidx.room.TypeConverter
+import app.houselights.core.Job
 import app.houselights.core.MediaInfo
 import app.houselights.core.Secrets
 
@@ -18,7 +19,9 @@ data class Secret(val value: String) {
 }
 
 /**
- * Lists stored as "A|B|C": SQL filters still match one entry with ('|' || genres || '|') LIKE '%|A|%'.
+ * Lists stored as "A|B|C": genres, badges, a film's parts. Queries match one of their entries by
+ * [matches] alone (genres by [matchesAnyCase]), so that a filter, a count, the menu and a page's similar
+ * titles agree on what a genre holds.
  */
 object PipeList {
     @TypeConverter
@@ -26,7 +29,56 @@ object PipeList {
 
     @TypeConverter
     fun fromText(text: String): List<String> = text.split('|').filter { it.isNotBlank() }
+
+    /**
+     * SQL that holds when [column]'s list has [value] for one of its entries, whole and exact: "Drame"
+     * is neither "Mélodrame" nor "drame", "4K" not "4Kx". [value] is SQL too: a parameter (`?`,
+     * `:genre`) or a quoted text.
+     */
+    fun matches(column: String, value: String = "?"): String = "instr('|' || $column || '|', '|' || $value || '|') > 0"
+
+    /**
+     * [matches] whatever the case, as SQLite's lower() folds it: genres from NFO files and from TMDB,
+     * "drame" and "Drame", are one genre; "Mélodrame" is still another.
+     */
+    fun matchesAnyCase(column: String, value: String = "?"): String = matches("lower($column)", "lower($value)")
+
+    /** [matchesAnyCase] for Room's queries, which take constants only: the genres hold `:genre`. A test holds the two alike. */
+    const val GENRES_MATCH = "instr('|' || lower(genres) || '|', '|' || lower(:genre) || '|') > 0"
+
+    /** [matches] for Room's queries: the badges hold `:token`. */
+    const val BADGES_MATCH = "instr('|' || badges || '|', '|' || :token || '|') > 0"
+
+    /**
+     * One spelling of each genre of [lists] whatever its case, joined by the fold SQLite's lower() gives
+     * them ([GenreList.folded]): the menu joins the very spellings [matchesAnyCase] does, whatever lower()
+     * makes of an "É". In the order a reader looks for them, accents and case aside ([MetadataMerge.fold]).
+     */
+    fun distinctGenres(lists: List<GenreList>): List<String> =
+        lists.flatMap { it.genres.split('|').zip(it.folded.split('|')) }
+            .filter { (genre, _) -> genre.isNotBlank() }
+            .groupBy({ it.second }, { it.first })
+            .values.map(::spellingOf)
+            .sortedBy { MetadataMerge.fold(it) }
+
+    /**
+     * The spelling to show of a genre written [spellings] by the titles that hold it: the one most of them use;
+     * on a tie, a word's own ("Comédie") before capitals throughout ("COMÉDIE") and small letters ("comédie").
+     */
+    fun spellingOf(spellings: List<String>): String =
+        spellings.groupingBy { it }.eachCount().entries
+            .sortedWith(compareByDescending<Map.Entry<String, Int>> { it.value }.thenBy { caseRank(it.key) }.thenBy { it.key })
+            .first().key
+
+    private fun caseRank(spelling: String): Int = when {
+        spelling.first().isUpperCase() && spelling.any { it.isLowerCase() } -> 0
+        spelling.none { it.isLowerCase() } -> 1
+        else -> 2
+    }
 }
+
+/** A title's genres as [PipeList] stores them, and as SQLite's lower() folds them for the genre filter. */
+data class GenreList(val genres: String, val folded: String)
 
 /** Seals [Secret] columns on the way to the database, opens them on the way back. */
 @ProvidedTypeConverter
@@ -85,7 +137,7 @@ private const val ROW_HEAD =
 private const val ROW_TAIL =
     ", probeVersion, fileDurationMs, nfoPath, NULL AS nfo, sidecarKey, userTmdbId, userPosterPath, " +
         "userBackdropPath, userLogoPath, collectionId, addedAt, matchedAt, positionMs, durationMs, played, favorite, " +
-        "lastPlayedAt"
+        "lastPlayedAt, edition, versionOf, versionChoice, votes, creditsAt"
 
 /**
  * Every column of an item but the NFO text, which can weigh up to 1 MB: what a title's page reads. Rows read
@@ -130,6 +182,9 @@ internal fun ItemEntity.withMedia(info: MediaInfo): ItemEntity =
 /** What a show's card tells about its episodes (see [LibraryDao.seriesCounts]). */
 data class SeriesCounts(val seriesId: Long, val unplayed: Int, val seasons: Int)
 
+/** A season's episodes, and those watched ([LibraryDao.seasonCounts]). */
+data class SeasonCounts(val seasonId: Long, val episodes: Int, val played: Int)
+
 /** A title's NFO, where it lies and what it says ([LibraryDao.nfoOf]): what only the screen of the NFO reads. */
 data class ItemNfo(val sourceId: Long, val nfoPath: String?, val nfo: String?)
 
@@ -139,9 +194,28 @@ data class PlayState(
     val parts: List<String>,
     val positionMs: Long,
     val durationMs: Long?,
+    val fileDurationMs: Long?,
     val runtimeMin: Int?,
     val played: Boolean,
 )
+
+/**
+ * How long a film or an episode lasts, as the library knows it: its file's length as the player told it,
+ * else as the file was read, else as TMDB or its NFO states it. Its card and the player's "watched" weigh
+ * by this one rule. A film in several files lasts what TMDB or its NFO states, its parts together: the
+ * library knows its first file's length only.
+ */
+internal fun ItemEntity.runtimeMs(): Long? = runtimeMs(parts, durationMs, fileDurationMs, runtimeMin)
+
+/** As [ItemEntity.runtimeMs], from what a player's report reads of the row. */
+internal fun PlayState.runtimeMs(): Long? = runtimeMs(parts, durationMs, fileDurationMs, runtimeMin)
+
+internal fun runtimeMs(parts: List<String>, playerMs: Long?, fileMs: Long?, runtimeMin: Int?): Long? {
+    val stated = runtimeMin?.let { it * MS_PER_MINUTE }
+    return if (parts.isNotEmpty()) stated else playerMs ?: fileMs ?: stated
+}
+
+private const val MS_PER_MINUTE = 60_000L
 
 /** Where an episode stands for the viewer ([LibraryDao.episodeStates]): what tells the next one to watch. */
 data class EpisodeState(
@@ -171,6 +245,7 @@ data class CollectionMember(
     indices = [
         Index("parentId"), Index("seriesId"), Index(value = ["sourceId", "filePath"]), Index("matchKey"), Index("collectionId"),
         Index(value = ["kind", "sortTitle"]), Index(value = ["kind", "addedAt"]), Index(value = ["kind", "lastPlayedAt"]),
+        Index(value = ["kind", "tmdbId"]), Index("versionOf"),
     ],
 )
 data class ItemEntity(
@@ -247,6 +322,23 @@ data class ItemEntity(
     val played: Boolean = false,
     val favorite: Boolean = false,
     val lastPlayedAt: Long? = null,
+    /** The edition of this copy of a film ([app.houselights.core.Editions]), as its NFO or its file's name gives it. */
+    val edition: String? = null,
+    /**
+     * Another copy of the same film (the same TMDB id) holds the title: this row's id, the first of them. Null for
+     * the title itself, and for a film of one copy. Walls show titles alone; set by [LibraryDao.groupVersions].
+     */
+    val versionOf: Long? = null,
+    /** The user's choice: the copy of the film "Lire" plays (a row id), on the title's row. Scans never override it. */
+    val versionChoice: Long? = null,
+    /** How many votes [rating] stands on, when TMDB or the NFO tells. */
+    val votes: Int? = null,
+    /**
+     * When the title's credits were complete ([CreditEntity]): TMDB answered for it, or knows none of it; or when it
+     * joined the library, from version 12 on. Null for a title known before credits were kept, until a scan or the
+     * backfill ([Backfill]) completes them.
+     */
+    val creditsAt: Long? = null,
 )
 
 /**
@@ -270,11 +362,52 @@ data class CollectionEntity(
     val fetchedAt: Long? = null,
 )
 
-@Entity(tableName = "cast", primaryKeys = ["itemId", "ord"])
-data class CastEntity(
-    val itemId: Long,
-    val ord: Int,
-    val name: String,
-    val character: String?,
-    val profilePath: String?,
+/**
+ * One credit of a film or a show: a person, their [job], and as cast their [character], in the order the title
+ * bills them in that job ([ord]). A person is one [personKey] across the library: "tmdb:<id>" when TMDB names
+ * them, else "name:<folded name>" ([PersonKeys]).
+ */
+@Entity(
+    tableName = "credits",
+    primaryKeys = ["itemId", "job", "ord"],
+    indices = [Index(value = ["personKey", "itemId"]), Index(value = ["job", "personKey"]), Index("foldedName")],
 )
+data class CreditEntity(
+    /** The film or the show (never a season nor an episode). */
+    val itemId: Long,
+    val job: Job,
+    val ord: Int,
+    val personKey: String,
+    val name: String,
+    /** [name] folded ([PersonKeys.fold]): who a name alone names is found again under TMDB's key by it. */
+    val foldedName: String,
+    val character: String? = null,
+    val profilePath: String? = null,
+)
+
+/**
+ * A film of a saga as TMDB lists it, held by the library or not ([LibraryDao.sagaParts] tells): what the saga
+ * page shows of one it lacks, in the order they came out ([ord]).
+ */
+@Entity(tableName = "saga_parts", primaryKeys = ["collectionId", "tmdbId"], indices = [Index("tmdbId")])
+data class SagaPartEntity(
+    val collectionId: Long,
+    val tmdbId: Int,
+    val ord: Int,
+    val title: String,
+    /** "2021-10-22"; null when TMDB has none yet. */
+    val releaseDate: String? = null,
+    val overview: String? = null,
+    val posterPath: String? = null,
+    val backdropPath: String? = null,
+)
+
+/** What a search word finds. */
+enum class SearchKind { TITLE, PERSON, SAGA }
+
+/**
+ * One word of a title's names, a person's or a saga's, folded ([SearchWords]): a search reads the words that
+ * start with what is typed, by [kind], through the primary key. [ref]: the row's id, or the person's key.
+ */
+@Entity(tableName = "search_words", primaryKeys = ["kind", "word", "ref"], indices = [Index(value = ["kind", "ref"])])
+data class SearchWordEntity(val kind: SearchKind, val word: String, val ref: String)

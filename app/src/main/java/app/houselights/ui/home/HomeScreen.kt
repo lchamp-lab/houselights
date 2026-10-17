@@ -1,6 +1,5 @@
 package app.houselights.ui.home
 
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -28,14 +27,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.tv.material3.Text
 import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.components.HlIconButton
 import app.houselights.ui.design.components.HlSegmented
@@ -59,7 +58,6 @@ import app.houselights.core.MediaItem
 import app.houselights.providers.local.ScanError
 import app.houselights.providers.local.ScanState
 import app.houselights.providers.local.SourceEntity
-import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlMotion
 import app.houselights.ui.design.OnArtwork
 import app.houselights.ui.design.awaitMotion
@@ -72,7 +70,6 @@ import app.houselights.ui.design.components.AttentionNote
 import app.houselights.ui.design.components.AmbientBackdrop
 import app.houselights.ui.design.components.BackdropStyle
 import app.houselights.ui.design.components.CardSkeleton
-import app.houselights.ui.design.components.Emphasis
 import app.houselights.ui.design.components.HeroInfo
 import app.houselights.ui.design.components.HlButton
 import app.houselights.ui.design.components.LandscapeCard
@@ -90,7 +87,15 @@ import app.houselights.ui.util.sectionTitle
 import app.houselights.ui.util.ErrorAction
 import app.houselights.ui.util.LocalErrorFix
 import app.houselights.ui.util.UiError
+import app.houselights.ui.util.toUiError
 import kotlinx.coroutines.flow.StateFlow
+import androidx.compose.ui.platform.LocalContext
+import app.houselights.ui.design.components.DetailAhead
+import app.houselights.ui.design.components.PicturesAhead
+import app.houselights.ui.util.screenWidthPx
+import coil.imageLoader
+import app.houselights.core.SectionType
+import app.houselights.ui.design.components.FilmsOfHeading
 
 @Composable
 fun HomeScreen(
@@ -98,11 +103,44 @@ fun HomeScreen(
     onOpenLibrary: (Library) -> Unit,
     onOpenSettings: () -> Unit,
     onAddFolder: () -> Unit,
+    onOpenSearch: () -> Unit = {},
 ) {
     val app = appContainer()
     val vm: HomeViewModel = viewModel(factory = HomeViewModel.factory(app))
-    ReloadOnLibraryChange { vm.load() }
+    ReloadOnLibraryChange { vm.onLibraryChanged() }
     val state by vm.state.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    val screen = screenWidthPx()
+    HomeBands(
+        state,
+        vm.scan,
+        onOpenItem,
+        onOpenLibrary,
+        onOpenSettings,
+        onAddFolder,
+        onReload = vm::load,
+        onRescan = vm::rescan,
+        onLibraryAhead = { app.libraryAhead.ask(app.scope, it, PicturesAhead(context, screen), context.imageLoader) },
+        onOpenSearch = onOpenSearch.takeIf { app.provider.capabilities.search },
+    )
+}
+
+/** Home as [state] lays it out, its bar, its hero and its rows, and where focus goes among them. */
+@Composable
+internal fun HomeBands(
+    state: HomeState,
+    scan: StateFlow<ScanState>,
+    onOpenItem: (MediaItem) -> Unit,
+    onOpenLibrary: (Library) -> Unit,
+    onOpenSettings: () -> Unit,
+    onAddFolder: () -> Unit,
+    onReload: () -> Unit,
+    onRescan: () -> Unit,
+    /** The pill slides to a library: its wall is asked ahead, meanwhile. */
+    onLibraryAhead: (Library) -> Unit = {},
+    /** A search across the library; none when the source cannot search. */
+    onOpenSearch: (() -> Unit)? = null,
+) {
     val content = state.content
     val sections = (content as? HomeContent.Rows)?.sections.orEmpty()
 
@@ -134,7 +172,12 @@ fun HomeScreen(
         rows.animateScrollToItem(0)
     }
 
-    AmbientBackdrop(shown?.backdrop, BackdropStyle.Hero) {
+    // Under the launch screen, home is whole once its rows are in, its hero shows the first title (it
+    // settles a frame after the rows) and that title's picture is prepared.
+    val whole = content !is HomeContent.Loading && (shown != null || sections.isEmpty())
+    // Settled on a title, its detail page is made ready: OK opens it whole.
+    DetailAhead(shown)
+    AmbientBackdrop(shown?.backdrop, BackdropStyle.Hero, ready = whole) {
         Column(Modifier.fillMaxSize().houseLit(LocalHouseLights.current)) {
             TopBar(
                 libraries = state.libraries,
@@ -146,7 +189,11 @@ fun HomeScreen(
                     memory.record(trackTab(library))
                     onOpenLibrary(library)
                 },
+                onLibraryAhead = onLibraryAhead,
                 onSettings = onOpenSettings,
+                onSearch = onOpenSearch,
+                // Into the first row, once laid out: its group is then there to take focus.
+                intoRows = { first?.takeIf { rows.firstVisibleItemIndex == 0 }?.let { memory.requester(FocusKey.section(it.key)) } },
             )
             when (content) {
                 is HomeContent.Browsing -> {
@@ -156,7 +203,7 @@ fun HomeScreen(
                     // A folder read for the first time: the counter stays above the rows, which fill in
                     // under it as titles are found.
                     if (content.firstScan) {
-                        FirstScan(vm.scan, Modifier.padding(start = HlSpace.safeH, bottom = HlSpace.m), aboveRows = true)
+                        FirstScan(scan, Modifier.padding(start = HlSpace.safeH, bottom = HlSpace.m), aboveRows = true)
                     }
                     when (content) {
                         is HomeContent.Loading -> SkeletonRows()
@@ -176,9 +223,9 @@ fun HomeScreen(
                 // Nothing to show yet: what the screen says starts where the title under focus would.
                 is HomeContent.Message -> NoRows(
                     content,
-                    vm.scan,
-                    onReload = vm::load,
-                    onRescan = vm::rescan,
+                    scan,
+                    onReload = onReload,
+                    onRescan = onRescan,
                     onSettings = onOpenSettings,
                     onAddFolder = onAddFolder,
                     modifier = Modifier.padding(start = HlSpace.safeH, top = HlSpace.l),
@@ -194,7 +241,12 @@ private fun TopBar(
     memory: FocusMemory,
     returnTo: Int?,
     onLibrary: (Library) -> Unit,
+    onLibraryAhead: (Library) -> Unit,
     onSettings: () -> Unit,
+    /** The first row, when there is one to go down to. */
+    intoRows: () -> FocusRequester?,
+    /** A search across the library; none for a source that cannot search. */
+    onSearch: (() -> Unit)? = null,
 ) {
     // Where you are among the libraries, in one track; settings apart, as an action. Both sit on
     // the image, on their plates. A long track scrolls: the button always keeps its place.
@@ -213,6 +265,8 @@ private fun TopBar(
             onSelect = { i ->
                 if (i > 0 && current == 0) {
                     current = i
+                    // While the pill slides, the wall gets its first page and its first lines of posters.
+                    onLibraryAhead(libraries[i - 1])
                     scope.launch {
                         awaitMotion(HlMotion.STANDARD)
                         onLibrary(libraries[i - 1])
@@ -224,12 +278,26 @@ private fun TopBar(
             scrollable = true,
             enterAt = returnTo ?: current,
         )
-        HlIconButton(
-            HlIcons.Settings,
-            stringResource(R.string.nav_settings),
-            onClick = onSettings,
-            modifier = Modifier.focusKey(FocusKey.action("settings"), memory),
-        )
+        // The actions apart from the track: search, then the settings, Down from either into the
+        // first row as from the tabs, on the card it last had, else its first: not on the card that
+        // lies under the button, at the far end of the row.
+        val down = Modifier.focusProperties { down = intoRows() ?: FocusRequester.Default }
+        Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.s)) {
+            if (onSearch != null) {
+                HlIconButton(
+                    HlIcons.Search,
+                    stringResource(R.string.search),
+                    onClick = onSearch,
+                    modifier = Modifier.focusKey(FocusKey.action("search"), memory).then(down),
+                )
+            }
+            HlIconButton(
+                HlIcons.Settings,
+                stringResource(R.string.nav_settings),
+                onClick = onSettings,
+                modifier = Modifier.focusKey(FocusKey.action("settings"), memory).then(down),
+            )
+        }
     } }
 }
 
@@ -258,9 +326,11 @@ private fun Sections(
             item(key = section.key) {
                 MediaRow(
                     header = sectionTitle(section),
+                    // A director's films announce themselves as a poster bills them.
+                    heading = section.person?.takeIf { section.type == SectionType.DIRECTOR }?.let { p -> { FilmsOfHeading(p.name) } },
                     // A card gone since focus left it: focus comes back to its row.
                     modifier = Modifier.focusGroupKey(FocusKey.section(section.key), memory),
-                    spacing = if (section.landscape) HlSpace.l else HlSpace.m,
+                    spacing = section.spacing,
                     state = rememberRowState(section.items.map { it.id }),
                 ) {
                     items(section.items, key = { it.id }) { item ->
@@ -292,6 +362,9 @@ internal fun selectedTitle(sections: List<HomeSection>, id: String?): MediaItem?
 
 /** A row of home, whatever its position: its kind and its library. */
 internal val HomeSection.key: String get() = "$type-$libraryId"
+
+/** How far apart a row's cards are: stills, named under the picture, further than posters. */
+internal val HomeSection.spacing: Dp get() = if (landscape) HlSpace.l else HlSpace.m
 
 /** A card of home: the same title may be in two rows. */
 internal fun cardKey(section: HomeSection, item: MediaItem) = FocusKey.within(FocusKey.section(section.key), FocusKey.item(item.id))
@@ -337,6 +410,7 @@ private fun SkeletonRows() {
 @Composable
 private fun FirstScan(progress: StateFlow<ScanState>, modifier: Modifier, aboveRows: Boolean = false) {
     val scan by progress.collectAsStateWithLifecycle()
+    val tmdbIssue = scan.tmdbIssue?.toUiError()
     Column(modifier) {
         ScanProgress(
             scan.processed,
@@ -345,8 +419,8 @@ private fun FirstScan(progress: StateFlow<ScanState>, modifier: Modifier, aboveR
             current = if (aboveRows) scan.current.orEmpty() else scan.current,
             lineWidth = HlLayout.readableNarrow,
         )
-        TmdbIssue(scan.tmdbIssue, keepRoom = aboveRows)
-        scanNoteAction(scan.tmdbIssue, aboveRows)?.let { action ->
+        TmdbIssue(tmdbIssue, keepRoom = aboveRows)
+        scanNoteAction(tmdbIssue, aboveRows)?.let { action ->
             val fix = LocalErrorFix.current
             Spacer(Modifier.height(HlSpace.m))
             HlButton(stringResource(action.label), onClick = { fix(action) })

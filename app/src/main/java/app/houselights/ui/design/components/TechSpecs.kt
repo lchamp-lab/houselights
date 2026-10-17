@@ -34,6 +34,7 @@ import androidx.tv.material3.LocalContentColor
 import androidx.tv.material3.Text
 import app.houselights.R
 import app.houselights.core.BaseRange
+import app.houselights.core.HdrFormat
 import app.houselights.core.MediaItem
 import app.houselights.core.TechLabel
 import app.houselights.core.TechRow
@@ -283,8 +284,8 @@ private fun TechValue.text(): String = when (this) {
 
 @Composable
 private fun rangeName(range: BaseRange): String = when (range) {
-    BaseRange.HDR10 -> "HDR10"
-    BaseRange.HLG -> "HLG"
+    BaseRange.HDR10 -> HdrFormat.HDR10.token
+    BaseRange.HLG -> HdrFormat.HLG.token
     BaseRange.SDR -> stringResource(R.string.sdr)
 }
 

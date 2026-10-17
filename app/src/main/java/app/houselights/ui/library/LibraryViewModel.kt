@@ -14,6 +14,7 @@ import app.houselights.core.LibraryFacets
 import app.houselights.core.LibraryFilter
 import app.houselights.core.MediaItem
 import app.houselights.core.MediaProvider
+import app.houselights.core.ProviderCapabilities
 import app.houselights.core.Quality
 import app.houselights.core.SortOption
 import app.houselights.core.WatchStatus
@@ -41,14 +42,24 @@ data class LibraryState(
 /**
  * A library's wall, page by page, from the [provider] of the source in use. Its sort and filter are
  * kept in [saved]: Android may stop the app while a film plays, and the wall comes back as it was left.
+ * Opened on part of the library ([opensOn]: a format of the library in numbers, a person), it starts
+ * filtered by it, which it then keeps as any filter chosen.
  */
 class LibraryViewModel(
     private val provider: () -> MediaProvider,
     private val library: Library,
     private val saved: SavedStateHandle = SavedStateHandle(),
+    /** The first page, asked while home's pill slid here. */
+    private val ahead: LibraryAhead? = null,
+    opensOn: LibraryFilter? = null,
 ) : ViewModel() {
-    private val _state = MutableStateFlow(LibraryState(sort = saved.sort(), filter = saved.filter()))
+    private val _state = MutableStateFlow(
+        LibraryState(sort = saved.sort(), filter = saved.filter(opensOn?.within(provider().capabilities))),
+    )
     val state: StateFlow<LibraryState> = _state
+
+    /** What the source can filter by: the filter menu offers nothing else. */
+    val capabilities: ProviderCapabilities get() = provider().capabilities
 
     /** The first page, a reload in place or the next page: one at a time, the latest asked for. */
     private val pages = LatestJob(viewModelScope)
@@ -146,7 +157,8 @@ class LibraryViewModel(
         if (pages.isActive || (s.items.isNotEmpty() && s.items.size >= s.total)) return
         pages.launch {
             suspendRunCatching {
-                provider().libraryPage(library, s.sort, s.filter, start = s.items.size, limit = PAGE)
+                val first = if (s.items.isEmpty()) ahead?.take(library, s.sort, s.filter) else null
+                first ?: provider().libraryPage(library, s.sort, s.filter, start = s.items.size, limit = PAGE)
             }.onSuccess { page ->
                 // A title added meanwhile can shift pages: never show one twice (the grid is keyed by id).
                 _state.update {
@@ -174,30 +186,47 @@ class LibraryViewModel(
 
     companion object {
         private const val TAG = "Library"
-        private const val PAGE = 120
+        internal const val PAGE = 120
 
-        fun factory(app: AppContainer, library: Library): ViewModelProvider.Factory = viewModelFactory {
-            initializer { LibraryViewModel(app::provider, library, createSavedStateHandle()) }
+        fun factory(app: AppContainer, library: Library, opensOn: LibraryFilter? = null): ViewModelProvider.Factory = viewModelFactory {
+            initializer { LibraryViewModel(app::provider, library, createSavedStateHandle(), app.libraryAhead, opensOn) }
         }
     }
 }
 
+// A wall's route holds what it opens on under the names of the last five, as the same plain values: its saved
+// state starts with them, which [filter] reads only once [keep] has written them all.
 private const val SORT = "sort"
 private const val STATUS = "status"
 private const val GENRE = "genre"
 private const val DECADE = "decade"
 private const val QUALITY = "quality"
+private const val PICTURE = "picture"
+private const val SOUND = "sound"
+private const val FILE_TYPE = "fileType"
+private const val PERSON = "person"
 
 /** The sort kept, by name: a name no version knows any more is the default. */
 private fun SavedStateHandle.sort(): SortOption =
     get<String>(SORT)?.let { name -> SortOption.entries.find { it.name == name } } ?: SortOption.TITLE
 
-private fun SavedStateHandle.filter() = LibraryFilter(
-    status = get<String>(STATUS)?.let { name -> WatchStatus.entries.find { it.name == name } } ?: WatchStatus.ALL,
-    genre = get<String>(GENRE),
-    decade = get<Int>(DECADE),
-    quality = get<String>(QUALITY)?.let { name -> Quality.entries.find { it.name == name } },
-)
+/**
+ * The filter kept. A wall that has kept none yet starts from what it opens on ([opensOn]), kept from then on:
+ * a wall brought back after a stopped process is as it was left, not as it was opened.
+ */
+private fun SavedStateHandle.filter(opensOn: LibraryFilter?): LibraryFilter {
+    if (!contains(STATUS)) return (opensOn ?: LibraryFilter()).also { if (opensOn != null) keep(it) }
+    return LibraryFilter(
+        status = get<String>(STATUS)?.let { name -> WatchStatus.entries.find { it.name == name } } ?: WatchStatus.ALL,
+        genre = get<String>(GENRE),
+        decade = get<Int>(DECADE),
+        quality = get<String>(QUALITY)?.let { name -> Quality.entries.find { it.name == name } },
+        picture = get<String>(PICTURE),
+        sound = get<String>(SOUND),
+        fileType = get<String>(FILE_TYPE),
+        person = get<String>(PERSON),
+    )
+}
 
 /** Kept as plain values, which a saved state holds across a stopped process. */
 private fun SavedStateHandle.keep(filter: LibraryFilter) {
@@ -205,4 +234,16 @@ private fun SavedStateHandle.keep(filter: LibraryFilter) {
     this[GENRE] = filter.genre
     this[DECADE] = filter.decade
     this[QUALITY] = filter.quality?.name
+    this[PICTURE] = filter.picture
+    this[SOUND] = filter.sound
+    this[FILE_TYPE] = filter.fileType
+    this[PERSON] = filter.person
 }
+
+/** [this] without what the source cannot filter by ([can]): a wall never starts on a filter its menu could not take off. */
+private fun LibraryFilter.within(can: ProviderCapabilities) = copy(
+    picture = picture.takeIf { can.formatFilters },
+    sound = sound.takeIf { can.formatFilters },
+    fileType = fileType.takeIf { can.formatFilters },
+    person = person.takeIf { can.personFilter },
+)

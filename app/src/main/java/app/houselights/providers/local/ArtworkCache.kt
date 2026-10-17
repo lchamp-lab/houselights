@@ -31,7 +31,7 @@ class ArtworkCache(
     private val freeSpace: () -> Long = { generateSequence(dir) { it.parentFile }.firstOrNull { it.exists() }?.usableSpace ?: 0 },
 ) {
     /**
-     * "file://…" path of the cached copy; read again only when the file changes size. Null when the
+     * "file://…" path of the cached copy; read again only when the file changes ([version]). Null when the
      * image cannot be copied: it is left to TMDB, and logged. A NAS that stops answering throws, as
      * for every read of a scan, so the scan stops instead of waiting on each image; so does a device
      * out of space. Nearly out of it ([MIN_FREE_BYTES]), the image is not copied: the space left is
@@ -41,7 +41,7 @@ class ArtworkCache(
         val ext = file.relativePath.substringAfterLast('.', "jpg").lowercase().let { if (it == "tbn") "jpg" else it }
         // An image too large for the cache is left to TMDB rather than kept cut off.
         if (!holds(file)) return null
-        val target = File(dir, "${source.id}/${hash("${file.relativePath}:${file.size}")}.$ext")
+        val target = File(dir, "${source.id}/${hash(version(file))}.$ext")
         val uri = "file://${target.absolutePath}"
         if (target.exists()) return uri
         if (freeSpace() < file.size + MIN_FREE_BYTES) {
@@ -69,6 +69,13 @@ class ArtworkCache(
             smaller.delete()
         }
     }
+
+    /**
+     * What names [file]'s copy: its path, its size and, when the listing tells it, its date. A picture
+     * rewritten with as many bytes (a new poster.jpg of the same length) is copied again, under a name
+     * the screens' image caches never saw. Without a date, the name copies were given before.
+     */
+    private fun version(file: RemoteFile): String = listOfNotNull(file.relativePath, file.size, file.lastModified).joinToString(":")
 
     /** Copies [file] into [into] a block at a time ([BLOCK_BYTES]): never more of it in memory at once. */
     private suspend fun stream(source: SourceEntity, file: RemoteFile, browser: RemoteBrowser, into: File) {

@@ -85,7 +85,7 @@ internal class LocalMapper(private val dao: LibraryDao, private val context: Con
             year = e.year,
             endYear = e.endYear,
             continuing = e.continuing,
-            runtimeMs = runtimeOf(e),
+            runtimeMs = e.runtimeMs(),
             officialRating = e.certification,
             communityRating = e.rating,
             genres = e.genres,
@@ -114,17 +114,8 @@ internal class LocalMapper(private val dao: LibraryDao, private val context: Con
             episodeNumber = e.episodeNumber,
             lastEpisodeNumber = e.lastEpisodeNumber,
             childCount = seasonCount,
+            edition = e.edition,
         )
-    }
-
-    /**
-     * How long the title lasts: the file's length, as the player told it, else as read; else TMDB's or
-     * the NFO's. A film in several files lasts its parts together: what TMDB or its NFO says, never its
-     * first file's length, the only one the library knows.
-     */
-    private fun runtimeOf(e: ItemEntity): Long? {
-        val stated = e.runtimeMin?.let { it * MS_PER_MINUTE }
-        return if (e.parts.isNotEmpty()) stated else e.durationMs ?: e.fileDurationMs ?: stated
     }
 
     /** Each part of a film in several files, playable on its own; none for a film in one file. */
@@ -191,8 +182,4 @@ internal class LocalMapper(private val dao: LibraryDao, private val context: Con
         type: ImageType,
     ) = (LocalProvider.shown(user(e), automatic(e)) ?: show?.let { LocalProvider.shown(user(it), automatic(it)) })
         ?.let { LocalProvider.image(it, type) }
-
-    private companion object {
-        const val MS_PER_MINUTE = 60_000L
-    }
 }

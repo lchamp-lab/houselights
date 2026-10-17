@@ -8,7 +8,6 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ProcessLifecycleOwner
 import app.houselights.core.Http
 import app.houselights.core.LibraryEvents
-import app.houselights.core.LibraryKind
 import app.houselights.core.MediaProvider
 import app.houselights.core.Secrets
 import app.houselights.core.SourceConfig
@@ -26,6 +25,9 @@ import app.houselights.providers.local.RemoteBrowsers
 import app.houselights.providers.local.TmdbClient
 import app.houselights.settings.SettingsStore
 import app.houselights.settings.SourceSwitcher
+import app.houselights.ui.home.HomeLaunch
+import app.houselights.ui.library.LibraryAhead
+import app.houselights.ui.design.components.AwaitAhead
 import app.houselights.ui.util.PlaybackOutcome
 import coil.EventListener
 import coil.ImageLoader
@@ -49,6 +51,7 @@ import kotlinx.coroutines.launch
 import okhttp3.Dispatcher
 import okhttp3.OkHttpClient
 import java.util.concurrent.ConcurrentHashMap
+import app.houselights.ui.home.LibraryRows
 
 class HouselightsApp : Application(), ImageLoaderFactory {
     lateinit var container: AppContainer
@@ -71,6 +74,8 @@ class HouselightsApp : Application(), ImageLoaderFactory {
         }
         .crossfade(300)
         .respectCacheHeaders(false)
+        // A picture the launch is loading ahead is waited for, never loaded twice.
+        .components { add(AwaitAhead) }
         .eventListener(ImageFailureLog())
         .build()
 }
@@ -131,6 +136,18 @@ class AppContainer(private val app: Application) : LibraryEvents {
 
     /** What came of a title asked to play, as screens see it: ended, or why it did not play. */
     val playback = PlaybackOutcome(player.playbackEnded)
+
+    /** The launch screen, held at a cold start while home gets ready under it. */
+    val launch = LaunchGate()
+
+    /** Home's first rows and pictures, asked while the launch screen holds; home takes them. */
+    val homeLaunch = HomeLaunch(launch, settings.state, { provider }, { libraryVersion.value })
+
+    /** A wall's first page and posters, asked while home's pill slides to it; the wall takes them. */
+    val libraryAhead = LibraryAhead({ provider })
+
+    /** The rows the library writes under home's own, drawn once a day. */
+    val libraryRows = LibraryRows({ provider })
 
     /** The NAS browsers, and the sessions and mounts they keep between files. */
     val remoteBrowsers = RemoteBrowsers()
@@ -212,15 +229,6 @@ class AppContainer(private val app: Application) : LibraryEvents {
         val tmdb = tmdbInteractive() ?: return emptyList()
         tmdb.trendingPosterPaths().map { TmdbClient.imageUrl(it, TmdbClient.Companion.ImageType.POSTER, widthPx) }
     }.getOrDefault(emptyList())
-
-    fun libraryTitle(kind: LibraryKind): String = app.getString(
-        when (kind) {
-            LibraryKind.MOVIES -> R.string.library_movies
-            LibraryKind.SHOWS -> R.string.library_shows
-            LibraryKind.COLLECTIONS -> R.string.library_collections
-            LibraryKind.MIXED -> R.string.library_mixed
-        }
-    )
 
     init {
         scope.launch { settings.ensureDeviceId() }

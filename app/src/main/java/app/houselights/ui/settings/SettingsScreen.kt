@@ -1,6 +1,5 @@
 package app.houselights.ui.settings
 
-import android.view.Display
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -30,6 +29,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.houselights.BuildConfig
 import app.houselights.R
+import app.houselights.core.Library
+import app.houselights.core.LibraryFilter
 import app.houselights.core.SourceConfig
 import app.houselights.settings.AppSettings
 import app.houselights.settings.SecretSetting
@@ -53,6 +54,7 @@ import app.houselights.ui.util.formatBytes
 
 internal enum class Pane(val label: Int, val icon: ImageVector) {
     Library(R.string.section_source, HlIcons.Folder),
+    Numbers(R.string.section_numbers, HlIcons.Numbers),
     Playback(R.string.section_playback, HlIcons.Playback),
     Display(R.string.section_display, HlIcons.Display),
     Storage(R.string.section_storage, HlIcons.Storage),
@@ -64,7 +66,8 @@ internal enum class Pane(val label: Int, val icon: ImageVector) {
  * right, the selected one as rows of settings with their value. Focus selects a category.
  * [onFolderForm] opens the form of a folder (a new one for null), focus on the field given;
  * [onUseFolders] makes the folders the source (or adds the first), and hands back why it could
- * not, said on the source's row; [onSignIn] signs in to Jellyfin.
+ * not, said on the source's row; [onSignIn] signs in to Jellyfin. The library in numbers opens a
+ * wall filtered by a value it counts ([onOpenWall]), or a director's page ([onOpenPerson]).
  */
 @Composable
 fun SettingsScreen(
@@ -72,6 +75,8 @@ fun SettingsScreen(
     onUseFolders: (onError: (UiError) -> Unit) -> Unit,
     onSignIn: () -> Unit,
     onOpenCatalog: () -> Unit = {},
+    onOpenWall: (Library, LibraryFilter) -> Unit = { _, _ -> },
+    onOpenPerson: (personId: String) -> Unit = {},
 ) {
     val vm = settingsViewModel()
     val useFolders = {
@@ -79,7 +84,13 @@ fun SettingsScreen(
         onUseFolders { vm.actionFailed(SettingAction.SOURCE, it) }
     }
     val s by vm.settings.collectAsStateWithLifecycle()
-    val panes = if (s.source != null && vm.capabilities.pathMapping) Pane.entries else Pane.entries - Pane.Playback
+    val panes = Pane.entries.filter { p ->
+        when (p) {
+            Pane.Playback -> s.source != null && vm.capabilities.pathMapping
+            Pane.Numbers -> s.source != null && vm.counts
+            else -> true
+        }
+    }
     var pane by rememberSaveable { mutableStateOf(Pane.Library) }
     // A change that failed is said in the pane it was made in, not in the next one.
     LaunchedEffect(pane) { vm.clearActionError() }
@@ -124,6 +135,7 @@ fun SettingsScreen(
             pane, s, storage, onFolderForm, useFolders, onSignIn, onOpenCatalog, rows, list,
             entry = memory.requester(paneKey(pane)),
             onFocusIn = { inPane = it },
+            numbers = NumbersDoors(onOpenWall, onOpenPerson),
         )
     }
 }
@@ -140,6 +152,9 @@ private suspend fun revealRow(list: LazyListState, key: String, memory: FocusMem
     }
     return false
 }
+
+/** Where the library in numbers leads: a wall filtered by a value it counts, a director's page. */
+private class NumbersDoors(val onOpenWall: (Library, LibraryFilter) -> Unit, val onOpenPerson: (String) -> Unit)
 
 /** What [pane] says of a secret of its own that could not be read again, to be given again; null when none is lost. */
 internal fun lostSecretNote(pane: Pane, lost: Set<SecretSetting>): Int? = when {
@@ -162,6 +177,8 @@ private fun summary(pane: Pane, s: AppSettings, titles: Int, stats: StorageStats
     }
     Pane.Playback -> stringResource(if (s.forceHttp) R.string.http_stream else R.string.network_path)
     Pane.Display -> displaySummary(s)
+    // Counted when its pane shows, never ahead: its entry says nothing it would have to count first.
+    Pane.Numbers -> null
     Pane.Storage -> stats?.let { formatBytes(it.total) }
     Pane.About -> stringResource(R.string.nav_version, BuildConfig.VERSION_NAME)
 }
@@ -181,8 +198,10 @@ private fun PaneContent(
     list: LazyListState,
     entry: FocusRequester,
     onFocusIn: (Boolean) -> Unit,
+    numbers: NumbersDoors,
 ) {
     val vm = settingsViewModel()
+    val counted = if (pane == Pane.Numbers) numbersViewModel() else null
     LazyColumn(
         state = list,
         modifier = Modifier
@@ -200,6 +219,7 @@ private fun PaneContent(
         lostSecretNote(pane, s.lostSecrets)?.let { note -> item(key = LOST_SECRET) { AttentionNote(stringResource(note)) } }
         when (pane) {
             Pane.Library -> libraryPane(s, onFolderForm, onUseFolders, onSignIn, rows)
+            Pane.Numbers -> counted?.let { numbersPane(it.state, rows, numbers.onOpenWall, numbers.onOpenPerson, it::retry) }
             Pane.Playback -> playbackPane(s)
             Pane.Display -> displayPane(s)
             Pane.Storage -> storagePane(storage)

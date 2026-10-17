@@ -115,6 +115,39 @@ class LocalProviderTest {
     }
 
     @Test
+    fun similarTitlesShareAWholeGenreAsTheGridFilterMatchesIt() = runTest {
+        val heat = movie("Heat", genres = listOf("Drame", "Action"))
+        movie("Collateral", genres = listOf("Thriller", "Drame"))
+        movie("Les Parapluies de Cherbourg", genres = listOf("Mélodrame"))
+        movie("Ronin", genres = listOf("drame"))
+        val similar = provider.similar(provider.item(heat.toString())).map { it.title }
+        assertEquals(listOf("Collateral", "Ronin"), similar)
+        assertEquals(listOf("Collateral", "Heat", "Ronin"), page(LibraryFilter(genre = "Drame")).items.map { it.title })
+    }
+
+    /** NFO files and TMDB spell a genre each their way: the menu offers it once, and its filter keeps every spelling. */
+    @Test
+    fun aGenreIsOneWhateverItsCase() = runTest {
+        movie("Heat", genres = listOf("Drame", "Action"))
+        movie("Collateral", genres = listOf("Thriller", "Drame"))
+        movie("Ronin", genres = listOf("drame", "action", "thriller"))
+        movie("Le Samouraï", genres = listOf("thriller"))
+        movie("Les Parapluies de Cherbourg", genres = listOf("Mélodrame"))
+        movie("Alien", genres = listOf("Épouvante"))
+        movie("The Thing", genres = listOf("épouvante"))
+        val genres = provider.libraryFacets(films).genres
+        // The spelling most titles use; on a tie, the word's own; in the order a reader looks for them, case and accents aside.
+        assertEquals(listOf("Action", "Drame"), genres.take(2))
+        assertEquals(listOf("Mélodrame", "thriller"), genres.takeLast(2))
+        // Past ASCII, the menu joins spellings exactly as SQLite's lower() does for the filter, whichever way it reads "É".
+        val horror = genres.drop(2).dropLast(2).flatMap { genre -> page(LibraryFilter(genre = genre)).items.map { it.title } }
+        assertEquals(listOf("Alien", "The Thing"), horror)
+        assertEquals(listOf("Collateral", "Heat", "Ronin"), page(LibraryFilter(genre = "Drame")).items.map { it.title })
+        assertEquals(3, page(LibraryFilter(genre = "drame")).total)
+        assertEquals(listOf("Collateral", "Le Samouraï", "Ronin"), page(LibraryFilter(genre = "thriller")).items.map { it.title })
+    }
+
+    @Test
     fun decadeAndWatchStatus() = runTest {
         movie("Alien", year = 1979, played = true)
         movie("Aliens", year = 1986)
@@ -201,6 +234,21 @@ class LocalProviderTest {
         }
     }
 
+    /** Each season of a show says how far it is watched: its episodes and those not watched yet, in one query. */
+    @Test
+    fun seasonsSayHowFarTheyAreWatched() = runTest {
+        val show = show("MobLand")
+        val watched = (1..3).map { show.episode(1, it) } + show.episode(2, 1)
+        show.episode(2, 2)
+        show.episode(2, 3)
+        show.episode(3, 1)
+        watched.forEach { dao.savePlayback(it, positionMs = 0, durationMs = null, played = true, lastPlayedAt = 1) }
+        val seasons = provider.seasons(provider.item(show.id.toString()))
+        assertEquals(listOf(3, 3, 1), seasons.map { it.childCount })
+        assertEquals(listOf(0, 2, 1), seasons.map { it.user.unplayedCount })
+        assertEquals(listOf(true, false, false), seasons.map { it.user.played })
+    }
+
     /** Sonarr's "Specials" folder holds S00E01: "Play" starts S01E01 all the same, and the specials once the rest is watched. */
     @Test
     fun aShowStartsWithItsFirstSeasonNotItsSpecials() = runTest {
@@ -232,6 +280,30 @@ class LocalProviderTest {
         assertEquals(listOf("Dark", "Severance"), titles(Quality.HDR))
         assertEquals(listOf("Severance"), titles(Quality.DOLBY_VISION))
         assertEquals(1, provider.libraryPage(shows, SortOption.TITLE, LibraryFilter(quality = Quality.DOLBY_VISION), 0, 50).total)
+    }
+
+    /** The menu offers a quality for the titles its filter keeps, by the same badges, each whole. */
+    @Test
+    fun aQualityIsOfferedForTheFilmsItsFilterKeeps() = runTest {
+        suspend fun film(title: String, vararg badges: String) = dao.insert(
+            ItemEntity(
+                kind = ItemKind.MOVIE, sourceId = source, title = title, sortTitle = title.lowercase(), filePath = "$title.mkv",
+                badges = badges.toList(), addedAt = 0,
+            )
+        )
+        suspend fun titles(quality: Quality) = page(LibraryFilter(quality = quality)).items.map { it.title }
+
+        film("Broadcast", "1080p", "HLG")
+        assertEquals(emptyList<Quality>(), provider.libraryFacets(films).qualities)
+        assertEquals(emptyList<String>(), titles(Quality.HDR))
+
+        film("Heat", "4K", "HDR10+")
+        film("Ronin", "1080p", "HDR")
+        film("Dune", "4K", "Dolby Vision", "HDR10")
+        assertEquals(listOf(Quality.UHD_4K, Quality.HDR, Quality.DOLBY_VISION), provider.libraryFacets(films).qualities)
+        assertEquals(listOf("Dune", "Heat", "Ronin"), titles(Quality.HDR))
+        assertEquals(listOf("Dune"), titles(Quality.DOLBY_VISION))
+        assertEquals(listOf("Dune", "Heat"), titles(Quality.UHD_4K))
     }
 
     @Test

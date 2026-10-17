@@ -10,6 +10,9 @@ import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.shadows.ShadowSystemClock
+import java.io.IOException
+import java.time.Duration
 
 /**
  * The files beside a video (NFO, artwork), as a scan sees them from one pass to the next: by role, path,
@@ -168,6 +171,34 @@ class ScanSidecarsTest {
         assertEquals("About Disclosure Day", waiting.overview)
         assertEquals(emptyList<String>(), bench.dao.cast(film.id).map { it.name })
         assertEquals("asked again at a later pass", null, waiting.matchedAt)
+    }
+
+    /**
+     * An NFO naming its film by IMDb id alone, rewritten beside a film the user matched while TMDB is out of reach:
+     * it waits for TMDB's word, and has it once TMDB answers again, without a refresh.
+     */
+    @Test
+    fun anNfoRewrittenWhileTmdbIsOutOfReachIsDecidedOnceItAnswers() = runTest {
+        tmdb.movie(1, "Disclosure", 1994, imdbId = "tt0109635")
+        tmdb.movie(2, "Disclosure Day", 2026, imdbId = "tt31227572")
+        nas.put("Disclosure Day.mkv")
+        nas.text("Disclosure Day.nfo", "<movie><title>Disclosure</title><id>tt0109635</id></movie>", lastModified = T1)
+        bench.scan()
+        bench.scanner.identify(bench.item(films, "Disclosure Day.mkv").id, 2)
+
+        // Its media manager, matched as the user did, rewrites it: Disclosure Day's IMDb id now.
+        tmdb.failure = IOException("Network is unreachable")
+        nas.text("Disclosure Day.nfo", "<movie><title>Disclosure Day</title><plot>Director's cut.</plot><id>tt31227572</id></movie>", T2)
+        bench.scan()
+        assertEquals("waits for TMDB", "About Disclosure Day", bench.item(films, "Disclosure Day.mkv").overview)
+
+        tmdb.failure = null
+        ShadowSystemClock.advanceBy(Duration.ofHours(1))
+        bench.scan()
+        val read = bench.item(films, "Disclosure Day.mkv")
+        assertEquals("Director's cut.", read.overview)
+        assertEquals(2, read.tmdbId)
+        assertEquals("read once", emptyList<String>(), pass().first)
     }
 
     /** A fanart or a logo removed from beside a film: its copy is no longer shown, TMDB's image takes its place. */

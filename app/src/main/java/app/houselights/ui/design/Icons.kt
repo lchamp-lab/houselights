@@ -56,6 +56,12 @@ object HlIcons {
         moveTo(10.25f, 9f); lineTo(15f, 12f); lineTo(10.25f, 15f); close()
     }
 
+    /** A film's copies: one frame, another behind it. */
+    val Versions = icon("Versions") {
+        moveTo(3.5f, 8f); lineTo(16f, 8f); lineTo(16f, 20.5f); lineTo(3.5f, 20.5f); close()
+        moveTo(8f, 3.5f); lineTo(20.5f, 3.5f); lineTo(20.5f, 16f)
+    }
+
     /** Sorting: lines of decreasing length. */
     val Sort = icon("Sort") {
         moveTo(4f, 7f); lineTo(20f, 7f)
@@ -91,6 +97,14 @@ object HlIcons {
         moveTo(4.5f, 6.5f); quadTo(4.5f, 4f, 12f, 4f); quadTo(19.5f, 4f, 19.5f, 6.5f); quadTo(19.5f, 9f, 12f, 9f); quadTo(4.5f, 9f, 4.5f, 6.5f); close()
         moveTo(4.5f, 6.5f); lineTo(4.5f, 17.5f); quadTo(4.5f, 20f, 12f, 20f); quadTo(19.5f, 20f, 19.5f, 17.5f); lineTo(19.5f, 6.5f)
         moveTo(4.5f, 12f); quadTo(4.5f, 14.5f, 12f, 14.5f); quadTo(19.5f, 14.5f, 19.5f, 12f)
+    }
+
+    /** The library in numbers: a number sign. */
+    val Numbers = icon("Numbers") {
+        moveTo(10.5f, 4f); lineTo(8.5f, 20f)
+        moveTo(15.5f, 4f); lineTo(13.5f, 20f)
+        moveTo(5f, 9f); lineTo(19.5f, 9f)
+        moveTo(4.5f, 15f); lineTo(19f, 15f)
     }
 
     /** Edit: a pencil. */

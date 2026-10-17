@@ -39,11 +39,15 @@ import java.security.ProviderException
 import java.util.Collections
 import java.util.concurrent.Executors
 import javax.crypto.KeyGenerator
+import app.houselights.ui.testing.SettleMainLooper
 
 /** Reading the settings when the file or the Keystore fails. */
 @OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
 class SettingsStoreTest {
+    @get:Rule
+    val settle = SettleMainLooper()
+
     @get:Rule
     val folder = TemporaryFolder()
 

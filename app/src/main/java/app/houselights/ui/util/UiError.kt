@@ -41,17 +41,26 @@ enum class UiError(@StringRes val title: Int, @StringRes val message: Int, val a
     /** TMDB refuses the key in use (401). */
     TMDB_KEY_REFUSED(R.string.error_tmdb_key_refused_title, R.string.error_tmdb_key_refused, ErrorAction.EDIT_TMDB_KEY),
 
+    /** TMDB has no entry at the id chosen (removed since the search): another result, or a search again, fixes it. */
+    TMDB_NOT_FOUND(R.string.error_tmdb_not_found_title, R.string.error_tmdb_not_found, null),
+
     /** The server refused the app (signed out, token revoked). */
     DENIED(R.string.error_denied_title, R.string.error_denied, ErrorAction.RECONNECT),
 
     /** What was asked for is no longer in the library: Back is the way out. */
     GONE(R.string.error_gone_title, R.string.error_gone, null),
 
+    /** None of a person's titles is in the library any more: Back is the way out. */
+    PERSON_GONE(R.string.error_person_gone_title, R.string.error_person_gone, null),
+
     /** No video player on this device: the Zidoo player is missing. */
     NO_PLAYER(R.string.play_failed, R.string.no_player, null),
 
     /** The file needs credentials, and only the Zidoo player may receive them. */
     CREDENTIALS(R.string.play_failed, R.string.player_credentials, null),
+
+    /** The Zidoo player trusted with passwords before is not the one installed now. */
+    PLAYER_CHANGED(R.string.play_failed, R.string.player_changed, null),
 
     /** The device's Keystore refused to seal a password or a token: nothing was written. */
     KEYSTORE(R.string.error_keystore_title, R.string.error_keystore, ErrorAction.RETRY),
@@ -75,6 +84,7 @@ fun FailureKind.toUiError(): UiError = when (this) {
     FailureKind.TMDB_UNREACHABLE -> UiError.TMDB_OFFLINE
     FailureKind.NO_TMDB_KEY -> UiError.NO_TMDB_KEY
     FailureKind.TMDB_KEY_REFUSED -> UiError.TMDB_KEY_REFUSED
+    FailureKind.TMDB_NOT_FOUND -> UiError.TMDB_NOT_FOUND
     FailureKind.REFUSED -> UiError.DENIED
     FailureKind.GONE -> UiError.GONE
     FailureKind.KEYSTORE -> UiError.KEYSTORE

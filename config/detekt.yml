@@ -40,6 +40,9 @@ style:
     max: 4
   WildcardImport:
     active: true
+  UnusedImports:
+    # An import nothing uses misleads whoever reads the file about what it depends on.
+    active: true
 
 performance:
   SpreadOperator:

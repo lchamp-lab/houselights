@@ -23,7 +23,6 @@ import androidx.tv.material3.Text
 import app.houselights.R
 import app.houselights.providers.local.Protocol
 import app.houselights.providers.local.SourceKind
-import app.houselights.providers.local.address
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlSpace
@@ -38,6 +37,7 @@ import app.houselights.ui.design.components.StatusState
 import app.houselights.ui.design.tryRequestFocus
 import app.houselights.ui.util.appContainer
 import app.houselights.ui.util.scanErrorText
+import app.houselights.ui.util.sourceKindName
 
 /** Displayed order of the options: NFS first, since it needs no password. */
 private val PROTOCOLS = listOf(Protocol.NFS, Protocol.SMB)
@@ -52,10 +52,16 @@ private val KINDS = listOf(SourceKind.MOVIES, SourceKind.SHOWS)
 fun AddFolderScreen(folderId: Long?, focusOn: FolderField = FolderField.FIRST, onDone: (switched: Boolean) -> Unit) {
     val app = appContainer()
     val vm: AddFolderViewModel = viewModel(factory = AddFolderViewModel.factory(app, folderId))
+    AddFolderForm(vm, focusOn, onDone)
+}
+
+/** The form of [vm], focus starting on [focusOn], and beside it where the connection to the folder stands. */
+@Composable
+internal fun AddFolderForm(vm: AddFolderViewModel, focusOn: FolderField, onDone: (switched: Boolean) -> Unit) {
     val form = vm.form
     val focus = remember { FormFocus() }
     // Once a folder edited is read: its fields are then laid out (the password only for SMB).
-    LaunchedEffect(vm.ready) { if (vm.ready) focus.request(focusOn) }
+    LaunchedEffect(vm.ready) { if (vm.ready) focus.request(focusOn, vm.form.user) }
     val check = vm.check
     val result = resultText(check, gone = vm.gone)
     val success = check is FolderCheck.Reachable && !vm.gone
@@ -83,7 +89,7 @@ fun AddFolderScreen(folderId: Long?, focusOn: FolderField = FolderField.FIRST, o
                 } else {
                     listOf(
                         protocol.name,
-                        stringResource(if (kind == SourceKind.MOVIES) R.string.library_movies else R.string.library_shows),
+                        sourceKindName(kind),
                     )
                 },
                 result = result,
@@ -103,7 +109,7 @@ fun AddFolderScreen(folderId: Long?, focusOn: FolderField = FolderField.FIRST, o
                 Column {
                     FieldLabel(stringResource(R.string.folder_kind))
                     HlSegmented(
-                        listOf(stringResource(R.string.library_movies), stringResource(R.string.library_shows)),
+                        KINDS.map { sourceKindName(it) },
                         selected = KINDS.indexOf(kind),
                         onSelect = { i -> vm.edit { copy(kind = KINDS[i]) } },
                         modifier = Modifier.focusRequester(focus.first),
@@ -142,7 +148,7 @@ fun AddFolderScreen(folderId: Long?, focusOn: FolderField = FolderField.FIRST, o
             Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.s)) {
                 HlTextField(
                     stringResource(R.string.field_user), form.user, { v -> vm.edit { copy(user = v) } },
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.weight(1f).focusRequester(focus.user),
                 )
                 HlTextField(
                     stringResource(R.string.field_password), form.password, { v -> vm.edit { copy(password = v) } },
@@ -198,14 +204,18 @@ private fun FolderActions(vm: AddFolderViewModel, onDone: (switched: Boolean) ->
 private class FormFocus {
     val first = FocusRequester()
     val host = FocusRequester()
+    val user = FocusRequester()
     val password = FocusRequester()
 
-    /** Focuses [field], else the first control: a field not shown (no password for NFS) takes none. */
-    fun request(field: FolderField) {
+    /**
+     * Focuses [field], else the first control: a field not shown (no password for NFS) takes none.
+     * A password asked for with no [user] to sign in as (a guest refused) asks for the user first.
+     */
+    fun request(field: FolderField, user: String) {
         val wanted = when (field) {
             FolderField.FIRST -> first
             FolderField.HOST -> host
-            FolderField.PASSWORD -> password
+            FolderField.PASSWORD -> if (user.isBlank()) this.user else password
         }
         if (!wanted.tryRequestFocus()) first.tryRequestFocus()
     }

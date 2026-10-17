@@ -18,9 +18,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.tv.material3.Icon
 import androidx.tv.material3.Text
+import app.houselights.R
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlLayout
@@ -47,8 +49,8 @@ internal fun LazyListScope.catalogIcons() {
 @Composable
 private fun IconSheet() {
     val glyphs = listOf(
-        HlIcons.Folder, HlIcons.Server, HlIcons.Display, HlIcons.Playback, HlIcons.Sort, HlIcons.Filter,
-        HlIcons.Info, HlIcons.Document, HlIcons.Storage, HlIcons.Edit, HlIcons.Logo, HlIcons.Search,
+        HlIcons.Folder, HlIcons.Server, HlIcons.Display, HlIcons.Playback, HlIcons.Versions, HlIcons.Sort, HlIcons.Filter,
+        HlIcons.Info, HlIcons.Document, HlIcons.Storage, HlIcons.Numbers, HlIcons.Edit, HlIcons.Logo, HlIcons.Search,
         HlIcons.Check, HlIcons.CheckFilled, HlIcons.Restart, HlIcons.Back, HlIcons.Chevron, HlIcons.Settings, HlIcons.Add,
         HlIcons.Refresh, HlIcons.Test, HlIcons.Close, HlIcons.Heart, HlIcons.HeartFilled, HlIcons.Star,
         HlIcons.Attention, Icons.Filled.PlayArrow,
@@ -107,16 +109,22 @@ private fun Marks() {
         }
         Specimen("in words: its light") {
             Column(verticalArrangement = Arrangement.spacedBy(HlSpace.xs)) {
-                HlStatus(StatusState.On, "Votre choix")
-                HlStatus(StatusState.On, "Actuel")
+                HlStatus(StatusState.On, stringResource(R.string.identify_manual))
+                HlStatus(StatusState.On, stringResource(R.string.result_current))
             }
         }
         Specimen("how it was done: a plain word") {
-            Text("Automatique", style = Hl.type.meta, color = c.contentSecondary)
+            Text(stringResource(R.string.identify_automatic), style = Hl.type.meta, color = c.contentSecondary)
         }
     }
     Specimen("the current choice of a sheet: ember at rest", Modifier.width(HlLayout.sideColumnWide)) {
-        HlSettingRow("Mes fichiers", description = "3 dossiers", onClick = {}, chevron = false, trailing = { ChoiceCheck() })
+        HlSettingRow(
+            stringResource(R.string.source_local),
+            description = "3 dossiers",
+            onClick = {},
+            chevron = false,
+            trailing = { ChoiceCheck() },
+        )
     }
 }
 
@@ -126,7 +134,7 @@ private fun Facts() {
     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.xl), verticalAlignment = Alignment.Top) {
         Specimen("a score: the line star, quiet") { Score(8.2) }
         Specimen("attention, beside what it concerns", Modifier.widthIn(max = HlLayout.sideColumnWide)) {
-            AttentionNote("Le dossier n’a pas pu être lu. Réessayez, ou vérifiez le partage sur le NAS.")
+            AttentionNote(stringResource(R.string.error_scan_other))
         }
     }
 }

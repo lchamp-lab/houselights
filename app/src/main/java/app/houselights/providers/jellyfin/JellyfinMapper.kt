@@ -7,6 +7,7 @@ import app.houselights.core.HdrFormat
 import app.houselights.core.MediaInfo
 import app.houselights.core.SubtitleTrack
 import app.houselights.core.VideoInfo
+import app.houselights.core.bpsToKbps
 import app.houselights.core.ImageRef
 import app.houselights.core.MediaItem
 import app.houselights.core.epochMillisOf
@@ -81,8 +82,6 @@ internal class JellyfinMapper(private val client: JellyfinClient) {
     }
 
     companion object {
-        /** A server reports bitrates in bits a second. */
-        private const val BPS_PER_KBPS = 1000
         /**
          * What Jellyfin's VideoRangeType says of the picture, value by value (10.9 to 10.11). Dolby Vision
          * whose metadata cannot be used (DOVIInvalid) plays as its base layer, which it does not name.
@@ -107,9 +106,9 @@ internal class JellyfinMapper(private val client: JellyfinClient) {
             VIDEO_RANGES[r] ?: listOf(HdrFormat.DOLBY_VISION).takeIf { r.startsWith("DOVI") }
         }.orEmpty()
 
-        /** What the first media source contains, in the shared [MediaInfo] model. */
-        fun mediaInfo(item: BaseItem): MediaInfo? {
-            val source = item.mediaSources.firstOrNull() ?: return null
+        /** What a media source contains (the item's first by default), in the shared [MediaInfo] model. */
+        fun mediaInfo(item: BaseItem, source: MediaSource? = item.mediaSources.firstOrNull()): MediaInfo? {
+            if (source == null) return null
             val streams = source.mediaStreams
             val video = streams.firstOrNull { it.type == "Video" }?.let { v ->
                 VideoInfo(
@@ -121,7 +120,8 @@ internal class JellyfinMapper(private val client: JellyfinClient) {
                     dolbyVisionProfile = v.dvProfile,
                     frameRate = v.realFrameRate ?: v.averageFrameRate,
                     dolbyVisionCompatibility = v.dvCompatibility.takeIf { v.dvProfile != null },
-                    bitrateKbps = v.bitRate?.let { (it + BPS_PER_KBPS / 2) / BPS_PER_KBPS },
+                    // A server reports bitrates in bits a second.
+                    bitrateKbps = v.bitRate?.let { bpsToKbps(it.toLong()) },
                 )
             }
             val audio = streams.filter { it.type == "Audio" }.map { a ->
@@ -134,7 +134,7 @@ internal class JellyfinMapper(private val client: JellyfinClient) {
                     atmos = profile.contains("Atmos", ignoreCase = true),
                     dtsX = profile.contains("DTS:X", ignoreCase = true),
                     default = a.isDefault,
-                    bitrateKbps = a.bitRate?.let { (it + BPS_PER_KBPS / 2) / BPS_PER_KBPS },
+                    bitrateKbps = a.bitRate?.let { bpsToKbps(it.toLong()) },
                 )
             }
             val subtitles = streams.filter { it.type == "Subtitle" }.map { s ->

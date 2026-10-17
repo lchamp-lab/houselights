@@ -227,6 +227,57 @@ class ScanNamesTest {
         assertEquals(listOf("doctor who|1963" to 1963, "doctor who|2005" to 2005), series().map { it.matchKey to it.year })
     }
 
+    /** French packs at the source's root, one for each season ("Saison 1", "Saison 2") and one whole ("Intégrale"): one show each. */
+    @Test
+    fun frenchPacksOfAShowAreOneShow() = runTest {
+        showsNas.put("Les.Revenants.Saison.1.FRENCH.720p.HDTV/Les.Revenants.S01E01.FRENCH.720p.HDTV.mkv")
+        showsNas.put("Les.Revenants.Saison.2.FRENCH.720p.HDTV/Les.Revenants.S02E01.FRENCH.720p.HDTV.mkv")
+        showsNas.put("Kaamelott.Integrale.1080p/Saison 1/01 - Heat.mkv")
+        bench.scan()
+
+        assertEquals(listOf("kaamelott" to "Kaamelott", "les revenants" to "Les Revenants"), series().map { it.matchKey to it.title })
+    }
+
+    /** A folder of a show's name holding one for each of its years: each a show of its own, by its year. */
+    @Test
+    fun aShowsYearsInAFolderOfItsNameAreTwoShows() = runTest {
+        showsNas.put("Doctor Who/Doctor Who (1963)/Season 01/Doctor Who - S01E01 - An Unearthly Child.mkv")
+        showsNas.put("Doctor Who/Doctor Who (2005)/Season 01/Doctor Who - S01E01 - Rose.mkv")
+        showsNas.put("Doctor Who (2023)/Season 01/Doctor Who - S01E01 - Space Babies.mkv")
+        bench.scan()
+
+        val keys = listOf("doctor who|1963" to 1963, "doctor who|2005" to 2005, "doctor who|2023" to 2023)
+        assertEquals(keys, series().map { it.matchKey to it.year })
+    }
+
+    /** Folders of a show's years naming a season or a release's tags after the year: still a show for each year. */
+    @Test
+    fun aShowsYearsNamingMoreThanTheirYearAreTwoShows() = runTest {
+        showsNas.put("Doctor Who/Doctor Who (1963) 1080p/Season 01/Doctor Who - S01E01 - An Unearthly Child.mkv")
+        showsNas.put("Doctor Who/Doctor Who (2005) - S01/Doctor Who - S01E01 - Rose.mkv")
+        bench.scan()
+
+        assertEquals(listOf("doctor who|1963" to 1963, "doctor who|2005" to 2005), series().map { it.matchKey to it.year })
+    }
+
+    /**
+     * A show's folder holding a pack for each season, each naming the show's year in parentheses: one show of that
+     * year, still described by its own folder, its tvshow.nfo and its seasons' posters there, not by a season's pack.
+     */
+    @Test
+    fun aShowsSeasonPacksNamingItsYearStayInItsFolder() = runTest {
+        showsNas.put("Breaking Bad/tvshow.nfo", size = BREAKING_BAD.size.toLong(), bytes = BREAKING_BAD)
+        showsNas.put("Breaking Bad/season02-poster.jpg", size = 100, bytes = ByteArray(100))
+        showsNas.put("Breaking Bad/Breaking Bad (2008) Season 1 S01 (1080p BluRay x265 Silence)/Breaking Bad (2008) - S01E01 - Pilot.mkv")
+        showsNas.put("Breaking Bad/Breaking Bad (2008) Season 2 S02 (1080p BluRay x265 Silence)/Breaking Bad (2008) - S02E01 - 737.mkv")
+        bench.scan()
+
+        val show = series().single()
+        assertEquals("breaking bad|2008", show.matchKey)
+        assertEquals("Breaking Bad/tvshow.nfo", show.nfoPath)
+        assertTrue(bench.dao.season(show.id, 2)?.posterPath.isCachedArtwork())
+    }
+
     /** A folder of kinds above the shows: each show is its own, described by its own folder. */
     @Test
     fun showsUnderAFolderOfKindsAreTheirOwn() = runTest {
@@ -292,5 +343,6 @@ class ScanNamesTest {
 
     private companion object {
         val ARCANE = "<tvshow><title>Arcane</title><year>2021</year></tvshow>".toByteArray()
+        val BREAKING_BAD = "<tvshow><title>Breaking Bad</title><year>2008</year></tvshow>".toByteArray()
     }
 }

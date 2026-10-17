@@ -1,5 +1,6 @@
 package app.houselights.ui.settings
 
+import androidx.annotation.StringRes
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -9,6 +10,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -17,7 +22,10 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.tv.material3.Text
 import app.houselights.BuildConfig
 import app.houselights.R
-import app.houselights.player.PlaybackManager
+import app.houselights.player.DeviceIdentity
+import app.houselights.player.PlayerStatus
+import app.houselights.player.ZidooPlayer
+import app.houselights.player.ZidooPlayer.Decision
 import app.houselights.player.ZidooStatus
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlLayout
@@ -27,17 +35,47 @@ import app.houselights.ui.design.components.DefinitionRow
 import app.houselights.ui.design.components.FactRow
 import app.houselights.ui.design.components.HlSettingGroup
 import app.houselights.ui.design.components.HlSettingRow
+import app.houselights.ui.design.components.HlSideSheet
 import app.houselights.ui.design.components.HlStatus
 import app.houselights.ui.design.components.InfoBlock
+import app.houselights.ui.design.components.QrCode
 import app.houselights.ui.design.components.StatusState
 import app.houselights.ui.design.components.Wordmark
+import app.houselights.ui.util.FACT_GAP
 
 internal fun LazyListScope.aboutPane(onOpenCatalog: () -> Unit, rows: PaneRows) {
     item { AboutBrand() }
     item { AboutStatus() }
     item { AboutCredits() }
-    // For whoever works on the app: the design system on this screen.
-    if (BuildConfig.DEBUG) item { HlSettingGroup(null) { HlSettingRow(CATALOG, rows.focus("catalog"), onClick = onOpenCatalog) } }
+    item {
+        HlSettingGroup(null) {
+            SupportRow()
+            // For whoever works on the app: the design system on this screen, last.
+            if (BuildConfig.DEBUG) HlSettingRow(CATALOG, rows.focus("catalog"), onClick = onOpenCatalog)
+        }
+    }
+}
+
+/**
+ * A way to support the project, said here and nowhere else, never as a reminder: OK shows, in a
+ * side sheet, the code a phone opens the project's Ko-fi page with, and its address. Back closes
+ * it, focus back on the row.
+ */
+@Composable
+internal fun SupportRow(modifier: Modifier = Modifier) {
+    var open by remember { mutableStateOf(false) }
+    HlSettingRow(
+        stringResource(R.string.support),
+        modifier,
+        description = stringResource(R.string.support_desc),
+        onClick = { open = true },
+    )
+    if (open) {
+        // Nothing to choose in it, so nothing to focus: Back is the one key it answers.
+        HlSideSheet(stringResource(R.string.support), onDismiss = { open = false }, description = stringResource(R.string.support_scan)) {
+            QrCode(R.drawable.support_qr, SUPPORT_ADDRESS)
+        }
+    }
 }
 
 /**
@@ -48,7 +86,7 @@ internal fun LazyListScope.aboutPane(onOpenCatalog: () -> Unit, rows: PaneRows) 
 private fun AboutBrand() {
     Column {
         Spacer(Modifier.height(HlLayout.paneTop))
-        Wordmark(style = Hl.type.wordmark)
+        Wordmark(HlSize.wordmark)
         Spacer(Modifier.height(HlSpace.xs))
         FactRow(
             listOf(
@@ -62,28 +100,24 @@ private fun AboutBrand() {
 /** What the app works with on this device, read like the back of a case: each with its light. */
 @Composable
 private fun AboutStatus() {
-    val packages = LocalContext.current.packageManager
+    val context = LocalContext.current.applicationContext
     val vm = viewModel {
         AboutViewModel(
-            isPlayerInstalled = { runCatching { packages.getPackageInfo(PlaybackManager.ZIDOO_PACKAGE, 0) }.isSuccess },
+            // What playback decides, from the same code: what an evening on a new player starts from.
+            playerStatus = { ZidooPlayer(context).status() },
             apiAnswers = ZidooStatus::isAvailable,
         )
     }
+    val device = remember { DeviceIdentity.current().name }
     // Asked while the block shows, as it comes into view.
     DisposableEffect(vm) {
         vm.check()
         onDispose { vm.forget() }
     }
-    val player = vm.player
     val api = vm.api
     InfoBlock(stringResource(R.string.about_status)) {
         Column(verticalArrangement = Arrangement.spacedBy(HlSpace.xs)) {
-            DefinitionRow(stringResource(R.string.label_player)) {
-                HlStatus(
-                    if (player) StatusState.Done else StatusState.Off,
-                    stringResource(if (player) R.string.detected else R.string.not_detected),
-                )
-            }
+            DeviceRows(device, vm.player)
             DefinitionRow(stringResource(R.string.label_api)) {
                 HlStatus(
                     when (api) {
@@ -102,6 +136,38 @@ private fun AboutStatus() {
             }
         }
     }
+}
+
+/**
+ * The device, by its maker and model, and its player as playback decides ([PlayerStatus]): the app it
+ * hands films to, and whether a password may go to it, or why not.
+ */
+@Composable
+internal fun DeviceRows(device: String, player: PlayerStatus) {
+    DefinitionRow(stringResource(R.string.label_device)) {
+        Text(device, style = Hl.type.meta, color = Hl.colors.content)
+    }
+    DefinitionRow(stringResource(R.string.label_player)) {
+        when (player) {
+            is PlayerStatus.Detected -> HlStatus(StatusState.Done, stringResource(R.string.detected), detail = player.packageName)
+            is PlayerStatus.Unrecognized -> HlStatus(
+                // Off a Zidoo, nothing is wrong: no player there gets a password.
+                if (player.reason == Decision.NOT_A_ZIDOO) StatusState.Off else StatusState.Attention,
+                stringResource(R.string.player_unrecognised),
+                detail = stringResource(player.reason.words()) + FACT_GAP + player.packageName,
+            )
+            PlayerStatus.NotDetected -> HlStatus(StatusState.Off, stringResource(R.string.not_detected))
+        }
+    }
+}
+
+/** Why a player found gets no password, in a few words. */
+@StringRes
+private fun Decision.words(): Int = when (this) {
+    Decision.NOT_A_ZIDOO -> R.string.player_not_a_zidoo
+    Decision.NO_CERTIFICATE -> R.string.player_no_certificate
+    // The one refusal left: a player trusted, or none, is said otherwise.
+    else -> R.string.player_changed_since
 }
 
 /** Whose work the app stands on, as the credits at the foot of a poster read: who did what. */
@@ -126,5 +192,7 @@ private fun AboutCredits() {
     }
 }
 private const val LICENSE = "GPL-3.0"
+/** What `support_qr` says, without its scheme, as a phone shows it and a person types it. */
+private const val SUPPORT_ADDRESS = "ko-fi.com/lchamp_lab"
 /** Debug builds only, not translated. */
 private const val CATALOG = "Design system"

@@ -32,9 +32,24 @@ import app.houselights.ui.util.appContainer
 fun JellyfinLoginScreen(onLoggedIn: () -> Unit) {
     val app = appContainer()
     val vm: JellyfinLoginViewModel = viewModel(factory = JellyfinLoginViewModel.factory(app))
+    JellyfinLoginForm(vm, onLoggedIn)
+}
+
+/** The form of [vm]: the server, the user and the password, and what signing in said. */
+@Composable
+internal fun JellyfinLoginForm(vm: JellyfinLoginViewModel, onLoggedIn: () -> Unit) {
     val firstField = remember { FocusRequester() }
+    val userField = remember { FocusRequester() }
     val passwordField = remember { FocusRequester() }
-    LaunchedEffect(Unit) { (if (vm.again) passwordField else firstField).tryRequestFocus() }
+    // Signing in again, the server and the user are filled in: focus starts on the password, or on
+    // the user when there is none to sign in with.
+    LaunchedEffect(Unit) {
+        when {
+            !vm.again -> firstField
+            vm.user.isBlank() -> userField
+            else -> passwordField
+        }.tryRequestFocus()
+    }
     val server = vm.server
     val discovered = vm.discovered
     val error = vm.error?.let { loginErrorText(it) }
@@ -75,7 +90,7 @@ fun JellyfinLoginScreen(onLoggedIn: () -> Unit) {
             keyboardType = KeyboardType.Uri,
             modifier = Modifier.focusRequester(firstField),
         )
-        HlTextField(stringResource(R.string.field_user), vm.user, { vm.user = it })
+        HlTextField(stringResource(R.string.field_user), vm.user, { vm.user = it }, Modifier.focusRequester(userField))
         HlTextField(
             stringResource(R.string.field_password), vm.password, { vm.password = it },
             password = true, imeAction = ImeAction.Done, onImeAction = ::login,

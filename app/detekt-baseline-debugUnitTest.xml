@@ -3,7 +3,6 @@
   <ManuallySuppressedIssues></ManuallySuppressedIssues>
   <CurrentIssues>
     <ID>ArrayPrimitive:AddFolderViewModelTest.kt$AddFolderViewModelTest$arrayOf(id)</ID>
-    <ID>InjectDispatcher:LibraryScannerTest.kt$LibraryScannerTest$Unconfined</ID>
     <ID>MaxLineLength:DesignTokenGuardTest.kt$DesignTokenGuardTest$if (allowed.any { it.substringBefore(':') == path &amp;&amp; line.contains(it.substringAfter(':')) }) return@mapIndexedNotNull null</ID>
     <ID>MaxLineLength:MkvProbeTest.kt$MkvProbeTest$el(0xE0, raw(0xB0, byteArrayOf(0x0F, 0x00)), raw(0xBA, byteArrayOf(0x08, 0x70)), el(0x55B0, uint(0x55BA, 16), uint(0x55B2, 10)))</ID>
     <ID>MaxLineLength:MkvProbeTest.kt$MkvProbeTest$val atmos = el(0xAE, uint(0x83, 2), str(0x86, "A_TRUEHD"), str(0x22B59C, "eng"), str(0x536E, "Dolby Atmos 7.1 Mix"), el(0xE1, uint(0x9F, 8)))</ID>

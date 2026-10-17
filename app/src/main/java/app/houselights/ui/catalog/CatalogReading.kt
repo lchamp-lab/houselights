@@ -16,7 +16,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.tv.material3.Text
+import app.houselights.R
 import app.houselights.core.AudioTrack
 import app.houselights.core.Codecs
 import app.houselights.core.HdrFormat
@@ -42,6 +44,18 @@ import app.houselights.ui.design.components.TechSpecs
 import app.houselights.ui.design.components.TitleArt
 import app.houselights.ui.design.components.TitleLine
 import app.houselights.ui.util.NBSP
+import app.houselights.ui.design.components.WithItsPicture
+import app.houselights.ui.design.components.EndCredits
+import app.houselights.ui.design.components.Craft
+import app.houselights.ui.design.components.FilmsOfHeading
+import app.houselights.core.Version
+import app.houselights.core.Editions
+import app.houselights.ui.design.components.VersionRow
+import app.houselights.ui.design.components.VersionsSheet
+import app.houselights.ui.util.versionName
+import app.houselights.ui.design.components.SearchQuery
+import app.houselights.ui.design.components.LetterGrid
+import androidx.compose.foundation.layout.fillMaxWidth
 
 /**
  * What a title says about itself, in its states: its name, its facts and formats, its credits, the
@@ -55,6 +69,7 @@ internal fun LazyListScope.catalogReading() {
     item { ReadingBadgeRowSection() }
     item { ReadingTitleLineSection() }
     item { ReadingBillingBlockSection() }
+    item { ReadingEndCreditsSection() }
     // A hero is as tall as on the home screen; each takes the reading measure it has there.
     item { ReadingHeroInfoSection() }
     item { ReadingHeroEpisodeSection() }
@@ -62,6 +77,8 @@ internal fun LazyListScope.catalogReading() {
     item { ReadingInfoBlockSection() }
     item { ReadingDefinitionListSection() }
     item { ReadingTechSheetSection() }
+    item { ReadingVersionsSection() }
+    item { ReadingSearchSection() }
 }
 
 @Composable
@@ -85,6 +102,22 @@ private fun ReadingTitleArtSection() {
                     logo = null,
                     maxWidth = HlLayout.titleArtWidth,
                     maxHeight = HlLayout.titleArtHeight,
+                )
+            }
+            Specimen("detail page, measured: short at its own size, long on even lines", Modifier.weight(1f), gap = HlSpace.xxs) {
+                TitleArt(
+                    title = "Ran",
+                    logo = null,
+                    maxWidth = HlLayout.titleArtWidth,
+                    maxHeight = HlLayout.titleArtHeight,
+                    measured = true,
+                )
+                TitleArt(
+                    title = "Les Sept Samouraïs",
+                    logo = null,
+                    maxWidth = HlLayout.titleArtWidth,
+                    maxHeight = HlLayout.titleArtHeight,
+                    measured = true,
                 )
             }
             Specimen("browsing hero size", Modifier.weight(1f), gap = HlSpace.xxs) {
@@ -223,6 +256,36 @@ private fun ReadingBadgeRowSection() {
 }
 
 @Composable
+private fun ReadingEndCreditsSection() {
+    Group("End credits, and the billing of a row", still = true) {
+        ReadingRow {
+            Specimen(
+                "a film: its overview whole, then its crafts, three names at most",
+                Modifier.width(HlLayout.readable),
+                gap = HlSpace.xxs,
+            ) {
+                EndCredits(
+                    "Un instituteur part en vacances avec ses élèves. Sur la plage, une barque les attend, et la mer.",
+                    listOf(
+                        Craft("Réalisation", listOf("Jean Vigo")),
+                        Craft("Scénario", listOf("Jean Vigo", "Jean Guinée")),
+                        Craft("Musique", listOf("Maurice Jaubert")),
+                        Craft("Image", listOf("Boris Kaufman", "Louis Berger", "Jean-Paul Alphen", "Albert Viguier")),
+                        Craft("Montage", listOf("Louis Chavance")),
+                    ),
+                )
+            }
+            Specimen("nothing to say: draws nothing", Modifier.weight(1f), gap = HlSpace.xxs) { EndCredits(null, emptyList()) }
+        }
+        ReadingRow {
+            Specimen("a row the library writes: a director's films", Modifier.width(HlLayout.readable), gap = HlSpace.xxs) {
+                FilmsOfHeading("Denis Villeneuve")
+            }
+        }
+    }
+}
+
+@Composable
 private fun ReadingBillingBlockSection() {
     Group("Billing block", still = true) {
         ReadingRow {
@@ -263,6 +326,15 @@ private fun ReadingHeroInfoSection() {
                 HeroInfo(null, Modifier.height(HlLayout.hero))
             }
         }
+        ReadingRow {
+            Specimen(
+                "a wall's line, said with its picture: here at once, no backdrop under it",
+                Modifier.width(HlLayout.readableNarrow),
+                gap = HlSpace.xxs,
+            ) {
+                WithItsPicture(READING_HERO_FILM) { TitleLine(it) }
+            }
+        }
     }
 }
 
@@ -289,7 +361,7 @@ private fun ReadingInfoBlockSection() {
     Group("Info block", still = true) {
         ReadingRow {
             Specimen("a paragraph", Modifier.weight(1f), gap = HlSpace.xxs) {
-                InfoBlock("Résumé") {
+                InfoBlock(stringResource(R.string.label_plot)) {
                     Column(Modifier.widthIn(max = HlLayout.readable)) {
                         Text(
                             "Il n’y a pas de plus profonde solitude que celle du samouraï.",
@@ -301,11 +373,11 @@ private fun ReadingInfoBlockSection() {
                 }
             }
             Specimen("a definition list", Modifier.weight(1f), gap = HlSpace.xxs) {
-                InfoBlock("Détails") {
+                InfoBlock(stringResource(R.string.nfo_block_details)) {
                     DefinitionList(
                         listOf(
-                            "Genres" to "Policier, Drame, Thriller",
-                            "Studios" to "Filmel, CICC, Fida Cinematografica",
+                            stringResource(R.string.label_genres) to "Policier, Drame, Thriller",
+                            stringResource(R.string.label_studios) to "Filmel, CICC, Fida Cinematografica",
                             "Pays" to "France, Italie",
                         ),
                         labelWidth = HlLayout.definitionLabelShort,
@@ -315,14 +387,14 @@ private fun ReadingInfoBlockSection() {
         }
         ReadingRow {
             Specimen("badges", Modifier.weight(1f), gap = HlSpace.xxs) {
-                InfoBlock("Identifiants") {
+                InfoBlock(stringResource(R.string.label_ids)) {
                     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.xs)) {
                         Badge("TMDB 5511")
                         Badge("IMDb tt0062229")
                     }
                 }
             }
-            Specimen("no content", Modifier.weight(1f), gap = HlSpace.xxs) { InfoBlock("Distribution") {} }
+            Specimen("no content", Modifier.weight(1f), gap = HlSpace.xxs) { InfoBlock(stringResource(R.string.label_cast)) {} }
         }
     }
 }
@@ -334,18 +406,19 @@ private fun ReadingDefinitionListSection() {
             Specimen("default label column", Modifier.weight(1f), gap = HlSpace.xxs) {
                 DefinitionList(
                     listOf(
-                        "Conteneur" to "Matroska",
-                        "Taille" to "61,8${NBSP}Go",
-                        "Débit moyen" to "78,5${NBSP}Mb/s",
-                        "Durée" to "1${NBSP}h${NBSP}45",
+                        stringResource(R.string.tech_container) to "Matroska",
+                        stringResource(R.string.tech_size) to "61,8${NBSP}Go",
+                        stringResource(R.string.tech_bitrate) to "78,5${NBSP}Mb/s",
+                        stringResource(R.string.tech_duration) to "1${NBSP}h${NBSP}45",
                     ),
                 )
             }
             Specimen("short label column, a value that wraps", Modifier.weight(1f), gap = HlSpace.xxs) {
                 DefinitionList(
                     listOf(
-                        "Studios" to "Filmel, Compagnie industrielle et commerciale cinématographique, Fida Cinematografica",
-                        "Genres" to "Policier, Drame, Thriller",
+                        stringResource(R.string.label_studios) to
+                            "Filmel, Compagnie industrielle et commerciale cinématographique, Fida Cinematografica",
+                        stringResource(R.string.label_genres) to "Policier, Drame, Thriller",
                     ),
                     labelWidth = HlLayout.definitionLabelShort,
                 )
@@ -357,7 +430,7 @@ private fun ReadingDefinitionListSection() {
                     listOf(
                         "Fréquence d’images" to "23,976${NBSP}im/s",
                         "Profondeur de couleur" to "10${NBSP}bits",
-                        "Format d’image" to "2,39:1",
+                        stringResource(R.string.tech_aspect_ratio) to "2,39:1",
                     ),
                     labelWidth = HlLayout.definitionLabelShort,
                 )
@@ -385,6 +458,46 @@ private fun ReadingTechSheetSection() {
             Specimen("the longest words, side by side", gap = HlSpace.xxs) { HlButton("Stress", { open = READING_TECH_STRESS }) }
         }
         open?.let { TechSpecs(it, onDismiss = { open = null }) }
+    }
+}
+
+@Composable
+private fun ReadingSearchSection() {
+    Group("Search: its words on the ember rule, its keys") {
+        ReadingRow {
+            Specimen("nothing typed: the screen's name in its place", Modifier.width(HlLayout.readableNarrow), gap = HlSpace.xxs) {
+                SearchQuery("", "Rechercher", "Les premières lettres d’un titre, d’une personne ou d’une saga", Modifier.fillMaxWidth())
+            }
+            Specimen("typed", Modifier.width(HlLayout.readableNarrow), gap = HlSpace.xxs) {
+                SearchQuery("AMEL", "Rechercher", "Les premières lettres d’un titre, d’une personne ou d’une saga", Modifier.fillMaxWidth())
+            }
+        }
+        Spacer(Modifier.height(HlSpace.l))
+        Specimen("the keys, without the system's keyboard", gap = HlSpace.xxs) { LetterGrid(onKey = {}, onSpace = {}, onDelete = {}) }
+    }
+}
+
+@Composable
+private fun ReadingVersionsSection() {
+    // Opened as a detail page opens it: the copy Lire plays focused.
+    Group("Versions: a film in several copies") {
+        var open by remember { mutableStateOf(false) }
+        val film = READING_TECH_DOLBY
+        val versions = listOf(
+            Version(film, Editions.EXTENDED, null, film.media, 78_400_000_000, 8_880_000, chosen = true, best = true, key = "1"),
+            Version(
+                film, Editions.THEATRICAL, null, READING_TECH_LEAN.media, 21_300_000_000, 7_920_000,
+                chosen = false, best = false, key = "2",
+            ),
+            Version(film, null, null, READING_TECH_SPARSE.media, null, null, chosen = false, best = false, key = "3"),
+        )
+        ReadingRow {
+            Specimen("a copy, chosen", Modifier.width(HlLayout.readableNarrow), gap = HlSpace.xxs) {
+                VersionRow(versionName(versions[0].edition, null, 0), versions[0], onChoose = {})
+            }
+            Specimen("the panel", gap = HlSpace.xxs) { HlButton("Versions", { open = true }) }
+        }
+        if (open) VersionsSheet(film, versions, onChoose = {}, onDismiss = { open = false })
     }
 }
 

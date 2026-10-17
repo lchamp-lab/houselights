@@ -48,6 +48,8 @@ import app.houselights.ui.util.UiError
 import java.io.IOException
 import java.security.ProviderException
 import javax.crypto.KeyGenerator
+import app.houselights.ui.testing.SettleMainLooper
+import org.junit.Rule
 
 /**
  * The folder form, on a library in memory: a folder is tested, then saved whole, even when the form
@@ -56,6 +58,9 @@ import javax.crypto.KeyGenerator
 @OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
 class AddFolderViewModelTest {
+    @get:Rule
+    val settle = SettleMainLooper()
+
     private val main = StandardTestDispatcher()
 
     /** The app's scope, for work that outlives the form: its steps run with the test's. */
@@ -242,6 +247,99 @@ class AddFolderViewModelTest {
         assertEquals("192.168.1.20", dao.source(id)!!.host)
         assertEquals("the old session was closed, and a scan asked after it", listOf("192.168.1.10"), forgotten.map { it.host })
         assertFalse("a screen left hears nothing", done)
+    }
+
+    /**
+     * The status frame speaks of the folder the form describes: what a test said, failure or success,
+     * goes once a field it read changes; the kind, which no test reads, leaves it.
+     */
+    @Test
+    fun whatATestSaidGoesWithTheFieldsItRead() = runTest {
+        var answers = false
+        val vm = form(null, probe = { if (answers) 12 else throw IOException("Connection timed out") })
+        advanceUntilIdle()
+        vm.test()
+        assertTrue("nothing typed yet", vm.check is FolderCheck.Incomplete)
+        vm.edit { copy(host = "nas-salon.local") }
+        assertNull("the address asked for is typed", vm.check)
+
+        vm.edit { copy(share = "/volume1/media") }
+        vm.test()
+        advanceUntilIdle()
+        assertTrue(vm.check is FolderCheck.Failed)
+        vm.edit { copy(kind = SourceKind.SHOWS) }
+        assertTrue("the kind is not tested", vm.check is FolderCheck.Failed)
+        vm.edit { copy(host = "192.168.1.20") }
+        assertNull("another NAS, not tested yet", vm.check)
+
+        answers = true
+        vm.test()
+        advanceUntilIdle()
+        assertEquals(FolderCheck.Reachable(12), vm.check)
+        vm.edit { copy(kind = SourceKind.MOVIES) }
+        assertEquals("the same folder still answers", FolderCheck.Reachable(12), vm.check)
+        vm.edit { copy(path = "films") }
+        assertNull(vm.check)
+    }
+
+    /** A field changed while the NAS was asked: its answer speaks of the folder the form no longer describes. */
+    @Test
+    fun anAnswerToFieldsChangedMeanwhileIsNotSaid() = runTest {
+        var answer = CompletableDeferred<Int>()
+        val vm = form(null, probe = { answer.await() })
+        advanceUntilIdle()
+        vm.edit { copy(host = "nas-salon.local", share = "/volume1/media") }
+        vm.test()
+        advanceUntilIdle()
+        assertTrue(vm.testing)
+        vm.edit { copy(host = "192.168.1.20") }
+        answer.complete(12)
+        advanceUntilIdle()
+        assertFalse(vm.testing)
+        assertNull("another NAS, not tested yet", vm.check)
+
+        answer = CompletableDeferred()
+        vm.test()
+        advanceUntilIdle()
+        vm.edit { copy(kind = SourceKind.SHOWS) }
+        answer.complete(12)
+        advanceUntilIdle()
+        assertEquals("the kind is not tested", FolderCheck.Reachable(12), vm.check)
+    }
+
+    /**
+     * A field changed while Add tested the folder: what answered is no longer what the form says, so
+     * nothing is added and the form stays, untested, for Add again. The kind, which no test reads, is
+     * added as the form says it once the folder answers.
+     */
+    @Test
+    fun aFolderChangedWhileAddTestsItIsNotAddedAsItWas() = runTest {
+        var answer = CompletableDeferred<Int>()
+        val vm = form(null, probe = { answer.await() })
+        advanceUntilIdle()
+        vm.edit { copy(protocol = Protocol.NFS, host = "nas-salon.local", share = "/volume1/media") }
+        var done = false
+        vm.submit { done = true }
+        advanceUntilIdle()
+        assertTrue(vm.testing)
+        vm.edit { copy(host = "192.168.1.20") }
+        answer.complete(12)
+        advanceUntilIdle()
+        assertTrue("nothing added", dao.sources().isEmpty())
+        assertFalse("the form stays", done)
+        assertNull("another NAS, not tested yet", vm.check)
+        assertFalse(vm.busy)
+
+        answer = CompletableDeferred()
+        vm.submit { done = true }
+        advanceUntilIdle()
+        vm.edit { copy(kind = SourceKind.SHOWS) }
+        answer.complete(12)
+        advanceUntilIdle()
+        assertTrue(done)
+        val added = dao.sources().single()
+        assertEquals("192.168.1.20", added.host)
+        assertEquals(SourceKind.SHOWS, added.kind)
     }
 
     @Test

@@ -20,7 +20,11 @@ class ImageRef(private val key: String, private val build: (widthPx: Int) -> Str
     override fun toString() = "ImageRef($key)"
 }
 
-data class Person(val name: String, val role: String?, val image: ImageRef?)
+/**
+ * Someone a title credits: as cast, with their [role]. [id] opens their page ([Catalog.person]) and
+ * [titleCount] says how many titles of the library hold them, when the source tells them.
+ */
+data class Person(val name: String, val role: String?, val image: ImageRef?, val id: String? = null, val titleCount: Int? = null)
 
 data class UserState(
     val played: Boolean = false,
@@ -83,6 +87,8 @@ data class MediaItem(
      * its first scan found, which was there already.
      */
     val addedAt: Long? = null,
+    /** The edition of this copy of a film ([Editions]: "Extended", "Director's Cut"…), when its file or NFO names one. */
+    val edition: String? = null,
 ) {
     val isPlayable get() = kind == MediaKind.MOVIE || kind == MediaKind.EPISODE || kind == MediaKind.VIDEO
 
@@ -114,7 +120,11 @@ data class MediaItem(
 
 data class Library(val id: String, val kind: LibraryKind, val title: String?)
 
-enum class SectionType { CONTINUE, NEXT_UP, LATEST }
+/**
+ * Home's rows: those every home has ([CONTINUE], [NEXT_UP], [LATEST]), then those the library writes
+ * under them: the films of one of its directors ([DIRECTOR]), its best rated films ([BEST_RATED]).
+ */
+enum class SectionType { CONTINUE, NEXT_UP, LATEST, DIRECTOR, BEST_RATED }
 
 data class HomeSection(
     val type: SectionType,
@@ -125,6 +135,8 @@ data class HomeSection(
     val libraryKind: LibraryKind? = null,
     /** Library of a [SectionType.LATEST] section; with [type], identifies the row. */
     val libraryId: String? = null,
+    /** Whose films a [SectionType.DIRECTOR] row holds. */
+    val person: Person? = null,
 )
 
 enum class SortOption { TITLE, ADDED, YEAR, RATING }
@@ -133,16 +145,30 @@ enum class WatchStatus { ALL, UNWATCHED, IN_PROGRESS, WATCHED, FAVORITES }
 
 enum class Quality { UHD_4K, HDR, DOLBY_VISION }
 
-/** What a library grid shows; every field is optional and they combine. */
+/**
+ * What a library grid shows; every field is optional and they combine. A film of several copies has what
+ * one of them has; a show, what one of its episodes has.
+ */
 data class LibraryFilter(
     val status: WatchStatus = WatchStatus.ALL,
     val genre: String? = null,
     /** First year of the decade, e.g. 2010. */
     val decade: Int? = null,
     val quality: Quality? = null,
+    /** A picture format as badges keep it ("1080p", "HDR10+", see [Definition] and [HdrFormat]): finer than [quality]. */
+    val picture: String? = null,
+    /** A sound format as badges keep it: the best track of a file ("TrueHD Atmos", "DTS-HD MA", "E-AC3"). */
+    val sound: String? = null,
+    /** A kind of file ([FileTypes]): "mkv", "iso", a Blu-ray's folder. */
+    val fileType: String? = null,
+    /** A person ([Person.id]): the titles they are in, before or behind the camera. */
+    val person: String? = null,
 ) {
     val activeCount: Int
-        get() = listOf(status != WatchStatus.ALL, genre != null, decade != null, quality != null).count { it }
+        get() = listOf(
+            status != WatchStatus.ALL, genre != null, decade != null, quality != null, picture != null, sound != null,
+            fileType != null, person != null,
+        ).count { it }
 }
 
 /** Values actually present in a library, so filters never offer an empty choice. */
@@ -150,6 +176,12 @@ data class LibraryFacets(
     val genres: List<String> = emptyList(),
     val decades: List<Int> = emptyList(),
     val qualities: List<Quality> = emptyList(),
+    /** Picture formats of its files ([LibraryFilter.picture]), best first. */
+    val pictures: List<String> = emptyList(),
+    /** Sound formats of its files ([LibraryFilter.sound]), most held first. */
+    val sounds: List<String> = emptyList(),
+    /** Kinds of file ([LibraryFilter.fileType]), most held first. */
+    val fileTypes: List<String> = emptyList(),
 )
 
 data class Page(val items: List<MediaItem>, val total: Int)

@@ -2,7 +2,6 @@ package app.houselights.ui.design.components
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.horizontalScroll
@@ -54,25 +53,15 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.constrain
 import androidx.compose.ui.layout.layout
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.unit.dp
-import androidx.tv.material3.Border
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.stateDescription
-import androidx.tv.material3.ClickableSurfaceBorder
-import androidx.tv.material3.ClickableSurfaceScale
 import app.houselights.R
 import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.Icon
@@ -82,7 +71,6 @@ import app.houselights.ui.design.HlIconButtonDefaults
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlAlpha
 import app.houselights.ui.design.HlControl
-import app.houselights.ui.design.HlFocus
 import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlInset
 import app.houselights.ui.design.HlLayout
@@ -392,7 +380,8 @@ fun HlListItem(
  * [selectOnFocus], moving onto an option selects it, as tabs over content do on TV. [scrollable]
  * lets a long track (seasons) scroll within the screen. On a picture ([OnArtwork]) the track is
  * a dark plate, so it reads over any image. [enterAt] is where focus enters when it is not the current
- * option: the option a screen sends you back to (the library just left).
+ * option: the option a screen sends you back to (the library just left). [details] add after an
+ * option's name how far it is done ([SegmentDetail]): a season's check, or "6 / 10".
  */
 @Composable
 fun HlSegmented(
@@ -403,6 +392,7 @@ fun HlSegmented(
     selectOnFocus: Boolean = false,
     scrollable: Boolean = false,
     enterAt: Int = selected,
+    details: List<SegmentDetail?> = emptyList(),
 ) {
     val places = remember(options.size) { mutableStateMapOf<Int, Pair<Float, Float>>() }
     val requesters = remember(options.size) { List(options.size) { FocusRequester() } }
@@ -441,6 +431,7 @@ fun HlSegmented(
                     options.forEachIndexed { i, label ->
                         SegmentItem(
                             label,
+                            detail = details.getOrNull(i),
                             selected = i == selected,
                             onClick = { onSelect(i) },
                             onFocused = { if (selectOnFocus) onSelect(i) },
@@ -472,12 +463,15 @@ private fun Modifier.enterOn(requesters: List<FocusRequester>, current: Int): Mo
 @Composable
 private fun SegmentItem(
     text: String,
+    detail: SegmentDetail?,
     selected: Boolean,
     onClick: () -> Unit,
     onFocused: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val c = Hl.colors
+    val interaction = remember { MutableInteractionSource() }
+    val focused by interaction.collectIsFocusedAsState()
     val fade = tween<Color>(HlMotion.STANDARD, easing = HlMotion.emphasized)
     val rest by animateColorAsState(if (selected) c.content else c.contentSecondary, fade, label = "segmentText")
     Surface(
@@ -492,13 +486,40 @@ private fun SegmentItem(
         shape = ClickableSurfaceDefaults.shape(HlShapes.control),
         scale = FocusStyle.scale(FocusStyle.Fill.Pill),
         colors = FocusStyle.fill(rest = Color.Transparent, restContent = rest),
+        interactionSource = interaction,
     ) {
-        Text(
-            text,
-            style = Hl.type.entry,
-            maxLines = 1,
-            softWrap = false,
-            modifier = Modifier.align(Alignment.Center).padding(horizontal = HlControl.tabPaddingH),
-        )
+        Row(
+            Modifier.align(Alignment.Center).padding(horizontal = HlControl.tabPaddingH),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(text, style = Hl.type.entry, maxLines = 1, softWrap = false)
+            when (detail) {
+                null -> Unit
+                SegmentDetail.Done -> {
+                    Spacer(Modifier.width(HlSpace.xs))
+                    // Done, as the watched button says it: a white check, dark under focus.
+                    Icon(
+                        HlIcons.Check,
+                        contentDescription = null,
+                        tint = if (focused) c.onFocus else c.content,
+                        modifier = Modifier.size(HlSize.inlineIcon),
+                    )
+                }
+                is SegmentDetail.Count -> {
+                    Spacer(Modifier.width(HlSpace.xs))
+                    val ink = FocusStyle.quietInk(focused, enabled = true, lit = false)
+                    Text(detail.text, style = Hl.type.meta, color = ink, maxLines = 1, softWrap = false)
+                }
+            }
+        }
     }
+}
+
+/** How far an option of a [HlSegmented] track is done, said after its name. */
+sealed interface SegmentDetail {
+    /** All of it: a check. */
+    data object Done : SegmentDetail
+
+    /** Part of it, in figures ("6 / 10"). */
+    data class Count(val text: String) : SegmentDetail
 }

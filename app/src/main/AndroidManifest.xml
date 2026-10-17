@@ -8,11 +8,41 @@
     <uses-feature android:name="android.software.leanback" android:required="false" />
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
 
+    <!-- From Android 11, the apps this one may see (ZidooPlayer): the Z1000 Pro's player; an app
+         Zidoo's firmwares install, which tells a Zidoo whose build names only its chip; and the apps
+         that open a video, by its type or at each scheme the player is handed or the Z1000 Pro's
+         answers (an app whose filter names a scheme stays unseen by a query without it). Never
+         every app. -->
     <queries>
         <package android:name="com.android.gallery3d" />
+        <package android:name="com.zidoo.poster" />
         <intent>
             <action android:name="android.intent.action.VIEW" />
             <data android:mimeType="video/*" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="nfs" android:mimeType="video/*" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="smb" android:mimeType="video/*" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="http" android:mimeType="video/*" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" android:mimeType="video/*" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="file" android:mimeType="video/*" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="content" android:mimeType="video/*" />
         </intent>
     </queries>
 
@@ -32,6 +62,7 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
+            android:theme="@style/Theme.Houselights.Launch"
             android:screenOrientation="landscape"
             tools:ignore="DiscouragedApi"
             android:configChanges="keyboard|keyboardHidden|navigation|screenSize|smallestScreenSize|screenLayout|orientation|density|uiMode"

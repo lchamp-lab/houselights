@@ -34,11 +34,15 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import java.io.IOException
+import app.houselights.ui.testing.SettleMainLooper
 
 /** What home shows, decided by its ViewModel from the rows, the scan, the folders and the source. */
 @OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
 class HomeViewModelTest {
+    @get:Rule
+    val settle = SettleMainLooper()
+
     @get:Rule
     val main = MainDispatcherRule()
 
@@ -63,6 +67,24 @@ class HomeViewModelTest {
         }
 
     private fun HomeViewModel.content() = state.value.content
+
+    /** The library's rows come under home's own, once the launch screen has left. */
+    @Test
+    fun theLibrarysRowsComeAfterTheLaunch() = runTest {
+        provider.catalog = app.houselights.ui.testing.FakeCatalog().apply { best = (1..6).map { film("best$it") } }
+        val launchLeft = kotlinx.coroutines.CompletableDeferred<Unit>()
+        val vm = HomeViewModel(
+            { provider }, scan, folders.filterNotNull(), settings, scanAll = {},
+            libraryRows = LibraryRows({ provider }),
+            afterLaunch = { launchLeft.await() },
+        )
+        backgroundScope.launch { vm.state.collect {} }
+        advanceUntilIdle()
+        assertEquals("home's own rows first", rows, (vm.content() as HomeContent.Rows).sections)
+        launchLeft.complete(Unit)
+        advanceUntilIdle()
+        assertEquals(listOf(SectionType.CONTINUE, SectionType.BEST_RATED), (vm.content() as HomeContent.Rows).sections.map { it.type })
+    }
 
     @Test
     fun theFirstLoadShowsTheHerosRoomAndEmptyFrames() = runTest {

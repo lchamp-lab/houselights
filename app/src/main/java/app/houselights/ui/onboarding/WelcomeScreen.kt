@@ -20,11 +20,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.tv.material3.Text
 import app.houselights.R
 import app.houselights.ui.design.Hl
@@ -70,7 +66,7 @@ fun WelcomeScreen(onLocal: () -> Unit, onJellyfin: () -> Unit, problem: UiError?
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(Modifier.weight(1f)) {
-                Wordmark(style = Hl.type.wordmarkHero)
+                Wordmark(HlSize.wordmarkHero)
                 Spacer(Modifier.height(HlSpace.m))
                 Text(
                     stringResource(R.string.welcome_tagline),

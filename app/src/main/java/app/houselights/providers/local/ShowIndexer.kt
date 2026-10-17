@@ -1,7 +1,6 @@
 package app.houselights.providers.local
 
 import app.houselights.core.NfoInfo
-import app.houselights.core.NfoParser
 import app.houselights.core.yearOf
 import java.util.Locale
 
@@ -22,23 +21,18 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
     /** Whether the show [seriesId] was read during the current scan: its sidecars, and TMDB when it was due. */
     fun readThisPass(seriesId: Long): Boolean = seriesId in refreshedSeries
 
-    @Suppress("LongParameterList") // What a pass hands each file.
-    suspend fun process(
-        source: SourceEntity,
-        file: RemoteFile,
-        existing: ItemEntity?,
-        tmdb: TmdbPass,
-        seasons: SeasonCache,
-        sidecars: Sidecars,
-        refreshMetadata: Boolean,
-    ) {
+    /** The episode at [file] in the [pass]'s folder, [existing] its row when the library knows it; its season and show. */
+    suspend fun process(pass: ScanPass, file: RemoteFile, existing: ItemEntity?) {
+        val source = pass.source
+        val refreshMetadata = pass.refreshMetadata
         val now = System.currentTimeMillis()
         val path = FilenameParser.parseShowPath(file.relativePath) ?: return
         val parsed = path.episode
 
-        val series = series(source, path, existing, sidecars, tmdb, refreshMetadata, now)
-        val season = season(source, series, parsed.season, seasons, now, sidecars.seasonPoster(path.dir, parsed.season), refreshMetadata)
-        val local = sidecars.forVideo(file)
+        val series = series(pass, path, existing, now)
+        val season = season(pass, series, path, now)
+        // An episode has its NFO and its thumb, no poster, fanart or logo of its own (see SidecarKey.listed).
+        val local = pass.sidecars.forVideo(file).let { VideoSidecars(nfo = it.nfo, thumb = it.thumb) }
         val base = existing ?: ItemEntity(
             kind = ItemKind.EPISODE,
             sourceId = source.id,
@@ -51,10 +45,11 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
         )
         val kept = files.nfo(source, local.nfo, base)
         val nfo = kept.info
-        val seasonAnswer = series.tmdbId?.takeIf { seasonWanted(base, series, refreshMetadata) }?.let { seasons.get(it, parsed.season) }
+        val seasonAnswer = series.tmdbId?.takeIf { seasonWanted(base, series, refreshMetadata) }
+            ?.let { pass.seasons.get(it, parsed.season) }
         val meta = seasonAnswer?.value?.episodes?.firstOrNull { it.episodeNumber == parsed.episode }
-        val answered = answered(tmdb, series, seasonAnswer)
-        val thumb = local.thumb?.let { files.copyArtwork(source, it) }
+        val answered = answered(pass.tmdb, series, seasonAnswer)
+        val art = files.copyArt(source, local)
 
         val episode = base.copy(
             parentId = season.id,
@@ -65,14 +60,14 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
             sortTitle = "%03d-%04d".format(Locale.ROOT, parsed.season, parsed.episode),
             nfoPath = kept.path,
             nfo = kept.text,
-            // What was read beside it; an NFO or a thumb that failed is left out, to be read again.
-            sidecarKey = SidecarKey.of(VideoSidecars(local.nfo.takeUnless { kept.stale }, thumb = files.examined(local.thumb, thumb))),
+            sidecarKey = SidecarKey.of(files.sidecarsRead(local, kept, art)),
         ).withEpisodeDetails(
             nfo = nfo,
             meta = meta,
-            thumb = thumb,
-            // A refresh TMDB did not answer is asked again at a later pass, the show's lookup with it.
-            matchedAt = if (answered) now else base.matchedAt.takeUnless { refreshMetadata },
+            thumb = art.thumb,
+            // A refresh TMDB did not answer is asked again at a later pass, the show's lookup with it; so is an
+            // episode of a show left unmatched (TMDB did not answer it): through it, a later pass looks the show up.
+            matchedAt = if (answered) now else base.matchedAt.takeUnless { refreshMetadata || series.matchedAt == null },
         )
         val stale = MediaProbe.isStale(episode.mediaInfo) || episode.sizeChanged(file)
         val probed = (if (stale) files.mediaFields(source, file, episode) else episode).withNfoStreams(nfo)
@@ -111,24 +106,18 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
         matchedAt = matchedAt,
     )
 
-    /** The show [path] names, for the episode [existing] (null for a new one), as the pass met it. */
-    @Suppress("LongParameterList", "CyclomaticComplexMethod") // What a pass hands each episode's show; one choice per sidecar.
-    private suspend fun series(
-        source: SourceEntity,
-        path: ShowPath,
-        existing: ItemEntity?,
-        sidecars: Sidecars,
-        tmdb: TmdbPass,
-        refreshMetadata: Boolean,
-        now: Long,
-    ): ItemEntity {
+    /** The show [path] names, for the episode [existing] (null for a new one), as the [pass] met it. */
+    private suspend fun series(pass: ScanPass, path: ShowPath, existing: ItemEntity?, now: Long): ItemEntity {
         val (title, year, showDir) = path
+        val source = pass.source
+        val tmdb = pass.tmdb
+        val refreshMetadata = pass.refreshMetadata
         val series = showOf(source, path, existing, now)
 
         if (series.id in refreshedSeries) return series
-        val local = sidecars.forShow(showDir)
+        val local = pass.sidecars.forShow(showDir)
         // Its tvshow.nfo or artwork placed, rewritten in place or removed since they were read.
-        val sidecarsChanged = SidecarKey.showDue(series.sidecarKey, source.id, showDir, sidecars)
+        val sidecarsChanged = SidecarKey.showDue(series.sidecarKey, source.id, showDir, pass.sidecars)
         val needsLookup = series.matchedAt == null || refreshMetadata || sidecarsChanged
         // A refresh TMDB cannot be asked for now is not lost: the show is left unmatched (see saveShow).
         val refreshLeft = refreshMetadata && series.matchedAt != null
@@ -140,26 +129,38 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
 
         val kept = files.nfo(source, local.nfo, series)
         val nfo = kept.info
-        // Sidecars read again ask TMDB only when the NFO names another show; or, beside the user's match,
-        // one only TMDB's ids tell of (IMDb's, TVDB's), as for a film.
-        val newIds = nfo != null && !sameIds(series.nfo?.let(NfoParser::parse), nfo)
-        val undecided = nfo != null && series.userTmdbId != null && nfo.tmdbId == null && (nfo.imdbId != null || nfo.tvdbId != null)
-        val needsTmdb = series.matchedAt == null || refreshMetadata || newIds || undecided
-        val tv = if (needsTmdb) tmdb.ask { lookupShow(it, series.userTmdbId, nfo, title, year) } else TmdbAnswer.Unanswered
-        val art = LocalArt(
-            poster = local.poster?.let { files.copyArtwork(source, it) },
-            fanart = local.fanart?.let { files.copyArtwork(source, it) },
-            logo = local.logo?.let { files.copyArtwork(source, it) },
+        // Sidecars read in its folder that lie there no more leave details to what remains and to TMDB, as
+        // for a film: an image among them, whose copy the show would show otherwise.
+        val removed = SidecarKey.showRemoved(series.sidecarKey, source.id, showDir, local)
+        val tv = if (tmdbAsked(series, nfo, refreshMetadata, removed)) {
+            // Its details go, not its match: an NFO removed may have been all that named it, and its folder's name
+            // another. A matched show keeps its match at a refresh, as a film does; one keyed again since, under a
+            // name its path gives now, is unmatched and looked up by that name.
+            val known = series.tmdbId.takeIf { removed || series.matchedAt != null }
+            tmdb.ask { lookupShow(it, series.userTmdbId, nfo, title, year, known = known) }
+        } else {
+            TmdbAnswer.Unanswered
+        }
+        val art = files.copyArt(source, local)
+        val read = series.copy(
+            nfoPath = kept.path,
+            nfo = kept.text,
+            sidecarKey = SidecarKey.ofShow(source.id, showDir, files.sidecarsRead(local, kept, art)),
         )
-        // What was read in its folder; an NFO or an image that failed is left out, to be read again.
-        val read = VideoSidecars(
-            nfo = local.nfo.takeUnless { kept.stale },
-            poster = files.examined(local.poster, art.poster),
-            fanart = files.examined(local.fanart, art.fanart),
-            logo = files.examined(local.logo, art.logo),
-        )
-        val base = series.copy(nfoPath = kept.path, nfo = kept.text, sidecarKey = SidecarKey.ofShow(source.id, showDir, read))
+        // Details dropped and none from TMDB: a later pass asks it again (see process).
+        val base = if (removed) MetadataMerge.withoutDetails(read, title, year).copy(matchedAt = null) else read
         return saveShow(base, nfo, tv, art, tmdb.client, now, refreshMetadata)
+    }
+
+    /**
+     * TMDB is asked of a show whose sidecars are read: unmatched, refreshed, or some removed ([removed]); its NFO
+     * read again only when it names another show, or beside the user's match one only TMDB's ids tell of (IMDb's,
+     * TVDB's), as for a film.
+     */
+    private fun tmdbAsked(series: ItemEntity, nfo: NfoInfo?, refresh: Boolean, removed: Boolean): Boolean {
+        val newIds = nfo != null && !sameIds(series.nfoInfo(), nfo)
+        val undecided = nfo != null && series.userTmdbId != null && nfo.tmdbId == null && (nfo.imdbId != null || nfo.tvdbId != null)
+        return series.matchedAt == null || refresh || newIds || undecided || removed
     }
 
     /**
@@ -170,7 +171,7 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
     private suspend fun showOf(source: SourceEntity, path: ShowPath, existing: ItemEntity?, now: Long): ItemEntity {
         val key = FilenameParser.showKey(path.title, path.year)
         val nameKey = FilenameParser.showKey(path.title)
-        val show = seriesByKey(key, nameKey) ?: formerShow(source, path, existing, key, nameKey) ?: ItemEntity(
+        val show = seriesByKey(key, nameKey, path.year) ?: formerShow(source, path, existing, key, nameKey) ?: ItemEntity(
             kind = ItemKind.SERIES,
             sourceId = source.id,
             matchKey = key,
@@ -178,6 +179,8 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
             sortTitle = MetadataMerge.sortKey(path.title),
             year = path.year,
             addedAt = now,
+            // A show new to the library is no show of before credits were kept: no backfill for it.
+            creditsAt = now,
         ).let { it.copy(id = dao.insert(it)) }
         val left = existing?.seriesId?.takeIf { it != show.id } ?: return show
         return takenOver(show, left, existing.id)
@@ -236,16 +239,33 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
         known != null && known.tmdbId == nfo.tmdbId && known.imdbId == nfo.imdbId && known.tvdbId == nfo.tvdbId
 
     /**
-     * The show [key] names. A key with a year ("doctor who|2005") takes the show of its name alone
-     * ([nameKey]), made before keys held the year, or from a folder that gives none: it keeps its rows
-     * and what was done with it, and a folder without the year finds it again below. A key without a
-     * year finds the one show of that name and some year: two folders of one show, one giving its
+     * The show [key] names, of the [year] its folder gives. A key with a year ("doctor who|2005") takes the
+     * show of its name alone ([nameKey]), made before keys held the year, or from a folder that gives none:
+     * it keeps its rows and what was done with it, and a folder without the year finds it again below;
+     * unless it is the show of another of the years its episodes' folders now give ([ofAnotherYear]), the one
+     * the user may have matched it with: that year's folder takes it, and this one is a show of its own. A key
+     * without a year finds the one show of that name and some year: two folders of one show, one giving its
      * year, stay one show; with two such shows ("Doctor Who" of 1963 and of 2005), it is a show of its own.
      */
-    private suspend fun seriesByKey(key: String, nameKey: String): ItemEntity? {
+    private suspend fun seriesByKey(key: String, nameKey: String, year: Int?): ItemEntity? {
         dao.seriesByKey(key)?.let { return it }
         if (key == nameKey) return dao.seriesNamed(nameKey).singleOrNull()
-        return dao.seriesByKey(nameKey)?.copy(matchKey = key)?.also { dao.saveScanned(it) }
+        val named = dao.seriesByKey(nameKey)?.takeUnless { ofAnotherYear(it, nameKey, year) } ?: return null
+        return named.copy(matchKey = key).also { dao.saveScanned(it) }
+    }
+
+    /**
+     * Whether [show], keyed by its name alone ([nameKey]), bears another year than [year] that one of its episodes'
+     * folders gives: its NFO's, else TMDB's first air year, that of the user's match when they chose one ("Doctor Who"
+     * matched with the series of 2005, its episodes in "Doctor Who (1963)" and "Doctor Who (2005)"). When none gives
+     * its year, the first year read takes the show, as before.
+     */
+    private suspend fun ofAnotherYear(show: ItemEntity, nameKey: String, year: Int?): Boolean {
+        val own = show.year?.takeIf { it != year } ?: return false
+        return dao.episodesOfSeries(show.id).any { episode ->
+            val path = episode.filePath?.let(FilenameParser::parseShowPath)
+            path != null && path.year == own && FilenameParser.showKey(path.title) == nameKey
+        }
     }
 
     /**
@@ -255,7 +275,7 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
      */
     suspend fun identify(series: ItemEntity, tmdbId: Int?, tmdb: TmdbClient): suspend () -> Unit {
         val (title, year) = showQuery(series)
-        val nfo = series.nfo?.let(NfoParser::parse)
+        val nfo = series.nfoInfo()
         val tv = TmdbAnswer.Given(if (tmdbId != null) tmdb.tv(tmdbId) else lookupShow(tmdb, null, nfo, title, year))
         // The show's id once saved (see saveShow): TMDB's, else that of an NFO describing it.
         val showId = tv.value?.id ?: nfo?.takeUnless { MetadataMerge.describesOther(it, tmdbId, null) }?.tmdbId
@@ -282,17 +302,27 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
         return ParsedMovie(path.title, path.year)
     }
 
-    /** The user's match first, then the NFO's ids, then a search by title. */
-    private suspend fun lookupShow(tmdb: TmdbClient, userTmdbId: Int?, nfo: NfoInfo?, title: String, year: Int?): TmdbTv? {
+    /**
+     * The user's match first, then the NFO's ids, then the show it was matched with ([known]: as for a film, the
+     * one it is matched with, or was when sidecars that named it were removed), then a search by title.
+     */
+    private suspend fun lookupShow(
+        tmdb: TmdbClient,
+        userTmdbId: Int?,
+        nfo: NfoInfo?,
+        title: String,
+        year: Int?,
+        known: Int? = null,
+    ): TmdbTv? {
         userTmdbId?.let { return tmdb.tvById(it) }
-        val id = nfo?.tmdbId ?: nfo?.imdbId?.let { tmdb.findByImdb(it).second }
+        val id = nfo?.tmdbId ?: nfo?.imdbId?.let { tmdb.findByImdb(it).second } ?: known
         return id?.let { tmdb.tvById(it) } ?: tmdb.findTv(nfo?.title ?: title, nfo?.year ?: year)
     }
 
     /**
-     * Saves a show's details (see [MetadataMerge]) and its cast. Matched only when TMDB answered: a
+     * Saves a show's details (see [MetadataMerge]) and its credits ([CreditRules]). Matched only when TMDB answered: a
      * show saved from its NFO or its poster alone is looked up at a later scan, and so is one TMDB did
-     * not answer for a [refresh].
+     * not answer for a [refresh], or for an NFO waiting for its word.
      */
     @Suppress("LongParameterList") // One per source of a show's details, as for a film.
     private suspend fun saveShow(
@@ -308,34 +338,29 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
         val ids = tv?.externalIds
         // Matched by hand, a show TMDB gives nothing for now keeps what it had: an NFO only TMDB's
         // ids can tell of (IMDb's, TVDB's) waits for them, rather than its title and cast win meanwhile.
-        val untold = base.userTmdbId != null && tv == null
-        val nfo = nfoInfo?.takeUnless {
-            untold && it.tmdbId == null && (it.imdbId != null || it.tvdbId != null) ||
-                MetadataMerge.describesOther(it, base.userTmdbId, ids?.imdbId, ids?.tvdbId)
-        }
+        val untold = base.userTmdbId != null && tv == null && nfoInfo?.tmdbId == null &&
+            (nfoInfo?.imdbId != null || nfoInfo?.tvdbId != null)
+        val nfo = nfoInfo?.takeUnless { untold || MetadataMerge.describesOther(it, base.userTmdbId, ids?.imdbId, ids?.tvdbId) }
         val details = tv?.details(tmdb?.tvCertification(tv), tmdb?.pickLogo(tv.images))
-        val matchedAt = if (lookup is TmdbAnswer.Given) now else base.matchedAt.takeUnless { refresh }
+        val matchedAt = if (lookup is TmdbAnswer.Given) now else base.matchedAt.takeUnless { refresh || untold }
         val series = MetadataMerge.merge(base, nfo, details, art).copy(matchedAt = matchedAt)
         dao.saveScanned(series)
-        MetadataMerge.cast(series.id, nfo, tv?.credits)?.let { dao.replaceCast(series.id, it) }
+        val credits = CreditRules.credits(series.id, show = true, nfo, tv?.let { TmdbPeople(it.credits, it.createdBy) })
+        val answered = lookup is TmdbAnswer.Given
+        dao.saveCredits(series.id, credits, tmdbAnswered = answered, complete = answered || series.tmdbId == null, at = now)
         return series
     }
 
     /**
-     * The season of an episode, with TMDB's details once, and again at a [refresh], once a pass (the
-     * [cache] asks TMDB once a pass too). A refresh TMDB does not answer leaves the season unmatched,
-     * as it does its show and episodes: a later pass asks again.
+     * The season of the episode at [path], with TMDB's details once, and again at a refresh, once a pass
+     * (the [pass]'s seasons are asked of TMDB once a pass too), and its poster in its show's folder. A
+     * refresh TMDB does not answer leaves the season unmatched, as it does its show and episodes: a later
+     * pass asks again.
      */
-    @Suppress("LongParameterList") // What a pass hands each episode's season.
-    private suspend fun season(
-        source: SourceEntity,
-        series: ItemEntity,
-        number: Int,
-        cache: SeasonCache,
-        now: Long,
-        localPoster: RemoteFile?,
-        refresh: Boolean,
-    ): ItemEntity {
+    private suspend fun season(pass: ScanPass, series: ItemEntity, path: ShowPath, now: Long): ItemEntity {
+        val source = pass.source
+        val number = path.episode.season
+        val localPoster = pass.sidecars.seasonPoster(path.dir, number)
         var season = dao.season(series.id, number) ?: ItemEntity(
             kind = ItemKind.SEASON,
             sourceId = source.id,
@@ -349,8 +374,8 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
         ).let { it.copy(id = dao.insert(it)) }
 
         // A season TMDB described is not asked again for each episode read again; a refresh asks once a pass.
-        val refreshDue = refresh && season.matchedAt != null && season.id !in refreshedSeasons
-        val answer = series.tmdbId?.takeIf { season.matchedAt == null || refreshDue }?.let { cache.get(it, number) }
+        val refreshDue = pass.refreshMetadata && season.matchedAt != null && season.id !in refreshedSeasons
+        val answer = series.tmdbId?.takeIf { season.matchedAt == null || refreshDue }?.let { pass.seasons.get(it, number) }
         val meta = answer?.value
         if (meta != null) {
             refreshedSeasons += season.id
@@ -360,8 +385,11 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
             season = season.copy(matchedAt = null)
             dao.saveScanned(season)
         }
-        if (localPoster != null && !season.posterPath.isCachedArtwork()) {
-            files.copyArtwork(source, localPoster)?.let { season = season.copy(posterPath = it); dao.saveScanned(season) }
+        // Through the cache each time: a poster rewritten since is copied again, an unchanged one is not read.
+        val copy = localPoster?.let { files.copyArtwork(source, it) }
+        if (copy != null && copy != season.posterPath) {
+            season = season.copy(posterPath = copy)
+            dao.saveScanned(season)
         }
         return season
     }
@@ -384,7 +412,7 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
             val meta = season.seasonNumber?.let { details[it] }
             dao.saveScanned(season.withSeasonDetails(meta, now))
             for (episode in dao.children(season.id)) {
-                val nfo = episode.nfo?.let(NfoParser::parse)
+                val nfo = episode.nfoInfo()
                 val episodeMeta = meta?.episodes?.firstOrNull { it.episodeNumber == episode.episodeNumber }
                 val cleared = episode.copy(title = "", overview = null, stillPath = null, runtimeMin = null, rating = null, year = null)
                 val thumb = episode.stillPath?.takeIf { it.isCachedArtwork() }

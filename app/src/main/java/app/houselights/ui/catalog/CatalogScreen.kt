@@ -45,8 +45,6 @@ import app.houselights.ui.design.HlPalette
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
-import app.houselights.ui.design.components.Backdrop
-import app.houselights.ui.design.components.BackdropStyle
 import app.houselights.ui.design.components.Badge
 import app.houselights.ui.design.components.Emphasis
 import app.houselights.ui.design.components.FactRow
@@ -71,16 +69,18 @@ import app.houselights.ui.design.components.MeterLegend
 import app.houselights.ui.design.components.MeterSegment
 import app.houselights.ui.design.components.PanelLevel
 import app.houselights.ui.design.components.PosterCard
+import app.houselights.ui.design.components.QrCode
 import app.houselights.ui.design.components.ScreenTitle
 import app.houselights.ui.design.components.SheetConfirm
 import app.houselights.ui.design.components.StatusState
-import app.houselights.ui.design.components.Wordmark
 import app.houselights.ui.design.emberLight
 import app.houselights.ui.design.tryRequestFocus
 import app.houselights.ui.util.NBSP
+import app.houselights.ui.util.formatDuration
 import java.util.Locale
 import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
+import app.houselights.ui.design.components.SegmentDetail
 
 /**
  * Every token and component of the design system in its states, for review on a real screen.
@@ -94,7 +94,6 @@ fun CatalogScreen() {
     val first = remember { FocusRequester() }
     LaunchedEffect(Unit) { first.tryRequestFocus() }
     Box(Modifier.fillMaxSize()) {
-        Backdrop(null, BackdropStyle.Quiet)
         LazyColumn(
             Modifier.fillMaxSize(),
             contentPadding = PaddingValues(horizontal = HlSpace.safeH, vertical = HlSpace.safeV),
@@ -142,13 +141,13 @@ fun CatalogScreen() {
             }
 
             item {
-                Group("Type: the voices of the poster, of reading, technical; then the signatures", still = true) {
+                Group("Type: the voices of the poster, of reading, technical; then the signature", still = true) {
                     listOf(
                         "display" to t.display, "headline" to t.headline, "subject" to t.subject, "cardTitle" to t.cardTitle,
                         "title" to t.title, "lead" to t.lead, "body" to t.body, "entry" to t.entry, "meta" to t.meta,
                         "caption" to t.caption, "group" to t.group, "code" to t.code,
                         "spec" to t.spec, "badge" to t.badge,
-                        "billing" to t.billing, "wordmark" to t.wordmark,
+                        "billing" to t.billing,
                     ).forEach { (name, style) -> StyleSpecimen(name, style) }
                 }
             }
@@ -160,15 +159,33 @@ fun CatalogScreen() {
             item {
                 Group("Controls") {
                     HlActionRow {
-                        HlButton("Lire", {}, icon = Icons.Filled.PlayArrow, detail = "1 h 53", emphasis = Emphasis.Primary)
+                        HlButton(
+                            stringResource(R.string.play),
+                            {},
+                            icon = Icons.Filled.PlayArrow,
+                            detail = "1 h 53",
+                            emphasis = Emphasis.Primary,
+                        )
                         HlButton("Secondary", {})
                         HlIconButton(HlIcons.Info, "Icon button", {})
                     }
                     ControlStates()
                     var place by remember { mutableIntStateOf(0) }
                     var season by remember { mutableIntStateOf(2) }
-                    HlSegmented(listOf("Accueil", "Films", "Séries"), selected = place, onSelect = { place = it })
-                    HlSegmented((1..12).map { "Saison $it" }, selected = season, onSelect = { season = it }, selectOnFocus = true, scrollable = true)
+                    HlSegmented(
+                        listOf(R.string.nav_home, R.string.library_movies, R.string.library_shows).map { stringResource(it) },
+                        selected = place,
+                        onSelect = { place = it },
+                    )
+                    HlSegmented(
+                        (1..12).map { stringResource(R.string.season_number, it) },
+                        selected = season,
+                        onSelect = { season = it },
+                        selectOnFocus = true,
+                        scrollable = true,
+                        // How far each season is watched: two done, the third begun.
+                        details = listOf(SegmentDetail.Done, SegmentDetail.Done, SegmentDetail.Count("6$NBSP/${NBSP}10")),
+                    )
                     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.xs)) {
                         listOf("Ultra HD", "Dolby Vision", "HDR10", "TrueHD Atmos", "7.1", "12").forEach { Badge(it) }
                     }
@@ -252,25 +269,37 @@ fun CatalogScreen() {
                     var asking by remember { mutableStateOf(false) }
                     var keyed by remember { mutableStateOf(false) }
                     var long by remember { mutableStateOf(false) }
+                    var code by remember { mutableStateOf(false) }
                     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.s)) {
                         HlButton("Side sheet", { side = true })
                         HlButton("An action that asks first", { asking = true })
                         HlButton("A status, a field", { keyed = true })
                         HlButton("More rows than it holds", { long = true })
                     }
+                    // A sheet with nothing to focus, on a line of its own: five buttons pass the safe area.
+                    HlButton("A code to scan", { code = true })
                     if (asking) SheetQuestion(onDismiss = { asking = false })
                     if (keyed) SheetStatusField(onDismiss = { keyed = false })
                     if (long) SheetLong(onDismiss = { long = false })
+                    if (code) SheetCode(onDismiss = { code = false })
                     if (side) {
                         HlSideSheet(
-                            "Modifier",
+                            stringResource(R.string.edit),
                             onDismiss = { side = false },
                             subject = "Le Samouraï",
                             facts = listOf("1967"),
                             description = "A panel to act on what the screen shows, which stays in view.",
                         ) { sheet ->
-                            HlSettingRow("Affiche", description = "Dans les rangées et la bibliothèque", onClick = sheet::dismiss)
-                            HlSettingRow("Fond d’écran", description = "Derrière cette fiche et sur l’accueil", onClick = sheet::dismiss)
+                            HlSettingRow(
+                                stringResource(R.string.artwork_poster),
+                                description = stringResource(R.string.artwork_poster_desc),
+                                onClick = sheet::dismiss,
+                            )
+                            HlSettingRow(
+                                stringResource(R.string.artwork_backdrop),
+                                description = stringResource(R.string.artwork_backdrop_desc),
+                                onClick = sheet::dismiss,
+                            )
                         }
                     }
                 }
@@ -291,16 +320,16 @@ fun CatalogScreen() {
                             width = HlSize.episode,
                             title = "Pile ou face",
                             number = "1",
-                            facts = listOf("1 h", "Il reste 20 min"),
+                            facts = listOf("1 h", stringResource(R.string.time_left, formatDuration(1_200_000))),
                         )
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m)) {
                         HlListItem(
-                            "Mes fichiers", "Vos vidéos sur un NAS ou un partage réseau (NFS ou SMB).", {},
+                            stringResource(R.string.source_local), "Vos vidéos sur un NAS ou un partage réseau (NFS ou SMB).", {},
                             Modifier.weight(1f), icon = HlIcons.Folder, badges = listOf("NFS", "SMB", "TMDB"), descriptionLines = 2,
                         )
                         HlListItem(
-                            "Serveur Jellyfin", "Votre serveur Jellyfin.", {},
+                            stringResource(R.string.source_jellyfin), "Votre serveur Jellyfin.", {},
                             Modifier.weight(1f), icon = HlIcons.Server, badges = listOf("HTTPS", "HTTP"), descriptionLines = 2,
                         )
                     }
@@ -368,14 +397,6 @@ fun CatalogScreen() {
 
             catalogStress()
             catalogBrand()
-
-            item {
-                // Type alone, flat: large over the welcome wall, the size of a subject in About.
-                Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.xl)) {
-                    Wordmark(Modifier.alignByBaseline(), style = t.wordmarkHero)
-                    Wordmark(Modifier.alignByBaseline())
-                }
-            }
         }
     }
 }
@@ -385,11 +406,25 @@ fun CatalogScreen() {
 private fun ControlStates() {
     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Top) {
         Specimen("detail lit: a state it names", gap = HlSpace.xs) {
-            HlButton("Filtrer", {}, icon = HlIcons.Filter, detail = "Non vus", detailLit = true)
+            HlButton(
+                stringResource(R.string.filter),
+                {},
+                icon = HlIcons.Filter,
+                detail = stringResource(R.string.filter_unwatched),
+                detailLit = true,
+            )
         }
-        Specimen("disabled: focus outlines it", gap = HlSpace.xs) { HlButton("Ajouter", {}, icon = HlIcons.Folder, enabled = false) }
+        Specimen("disabled: focus outlines it", gap = HlSpace.xs) {
+            HlButton(stringResource(R.string.add), {}, icon = HlIcons.Folder, enabled = false)
+        }
         Specimen("busy: the screen's words", gap = HlSpace.xs) {
-            HlButton("Tester", {}, icon = HlIcons.Test, busy = true, busyLabel = "Vérification…")
+            HlButton(
+                stringResource(R.string.test_connection),
+                {},
+                icon = HlIcons.Test,
+                busy = true,
+                busyLabel = stringResource(R.string.checking),
+            )
         }
     }
     HlActionRow(horizontalArrangement = Arrangement.spacedBy(HlSpace.m)) {
@@ -401,11 +436,17 @@ private fun ControlStates() {
             }
         }
         Specimen("OK: busy for 3 s, its width kept", gap = HlSpace.xs) {
-            HlButton("Se connecter", { busy = true }, emphasis = Emphasis.Primary, busy = busy, busyLabel = "Connexion…")
+            HlButton(
+                stringResource(R.string.sign_in),
+                { busy = true },
+                emphasis = Emphasis.Primary,
+                busy = busy,
+                busyLabel = stringResource(R.string.signing_in),
+            )
         }
         // A round button's label takes no room of its own: the case keeps the room a row of them keeps.
         Specimen("round, disabled", gap = HlSpace.xs) {
-            HlActionRow { HlIconButton(HlIcons.Edit, "Modifier", {}, enabled = false) }
+            HlActionRow { HlIconButton(HlIcons.Edit, stringResource(R.string.edit), {}, enabled = false) }
         }
     }
     Specimen("a label longer than a reading column stops with an ellipsis", gap = HlSpace.xs) {
@@ -413,7 +454,13 @@ private fun ControlStates() {
     }
     Column(Modifier.widthIn(max = HlLayout.readable)) {
         Specimen("setting row, disabled: tertiary words, focus outlines it; never in a raised sheet", gap = HlSpace.xs) {
-            HlSettingRow("Analyser maintenant", description = "Aucun dossier à analyser", onClick = {}, chevron = false, enabled = false)
+            HlSettingRow(
+                stringResource(R.string.scan_now),
+                description = "Aucun dossier à analyser",
+                onClick = {},
+                chevron = false,
+                enabled = false,
+            )
         }
     }
 }
@@ -428,21 +475,27 @@ private fun SheetQuestion(onDismiss: () -> Unit) {
         description = "192.168.1.10/volume1/media/films",
     ) { sheet ->
         SheetConfirm(
-            question = "Retirer « Films » ?",
-            consequence = "Ses titres quittent la bibliothèque ; rien n’est supprimé sur le NAS.",
-            confirm = "Retirer",
+            question = stringResource(R.string.remove_folder_confirm, "Films"),
+            consequence = stringResource(R.string.remove_folder_desc),
+            confirm = stringResource(R.string.remove),
             onConfirm = { sheet.dismiss() },
         ) { ask, origin ->
             HlSettingRow(
-                "Analyser maintenant",
-                description = "Cherche les nouveaux fichiers",
+                stringResource(R.string.scan_now),
+                description = stringResource(R.string.scan_now_desc),
                 onClick = { sheet.dismiss() },
                 chevron = false,
             )
             Spacer(Modifier.height(HlSpace.s))
             HlDivider()
             Spacer(Modifier.height(HlSpace.s))
-            HlSettingRow("Retirer ce dossier", origin, description = "Ses titres quittent la bibliothèque", onClick = ask, chevron = false)
+            HlSettingRow(
+                stringResource(R.string.remove_folder),
+                origin,
+                description = stringResource(R.string.remove_folder_row_desc),
+                onClick = ask,
+                chevron = false,
+            )
         }
     }
 }
@@ -474,25 +527,43 @@ private fun SheetStatusField(onDismiss: () -> Unit) {
             refused = true
         }
     }
+    val personal = stringResource(R.string.tmdb_key_personal)
     HlSideSheet(
-        "Clé API TMDB",
+        stringResource(R.string.tmdb_key),
         onDismiss = onDismiss,
-        description = "Les affiches et les informations proviennent de TMDB.",
-        status = { HlStatus(StatusState.On, "Clé intégrée") },
+        description = stringResource(R.string.tmdb_desc),
+        status = { HlStatus(StatusState.On, stringResource(R.string.tmdb_key_builtin_state)) },
     ) {
         HlTextField(
-            "Clé personnelle", key, {
+            personal, key, {
                 key = it
                 refused = false
             },
-            placeholder = "Clé personnelle",
+            placeholder = personal,
             showLabel = false,
-            supporting = "Laissez vide pour utiliser la clé intégrée à l’application.",
-            error = if (refused) "TMDB refuse cette clé" else null,
+            supporting = stringResource(R.string.tmdb_key_builtin),
+            error = if (refused) stringResource(R.string.error_tmdb_key_refused_title) else null,
             password = true,
         )
         Spacer(Modifier.height(HlSpace.l))
-        HlButton("Enregistrer", { checking = true }, emphasis = Emphasis.Primary, busy = checking, busyLabel = "Vérification…")
+        HlButton(
+            stringResource(R.string.save),
+            { checking = true },
+            emphasis = Emphasis.Primary,
+            busy = checking,
+            busyLabel = stringResource(R.string.checking),
+        )
+    }
+}
+
+/**
+ * A sheet that hands an address to a phone (About, Soutenir Houselights): the code where its rows
+ * go, the address under it; nothing to focus, Back closes it. Scan it from the sofa.
+ */
+@Composable
+private fun SheetCode(onDismiss: () -> Unit) {
+    HlSideSheet(stringResource(R.string.support), onDismiss = onDismiss, description = stringResource(R.string.support_scan)) {
+        QrCode(R.drawable.support_qr, "ko-fi.com/lchamp_lab")
     }
 }
 
@@ -508,7 +579,7 @@ private fun Swatch(name: String, color: Color) = Swatch(name, SolidColor(color))
 @Composable
 private fun Swatch(name: String, brush: Brush) {
     Column {
-        Box(Modifier.size(HlSize.disc).clip(HlShapes.panel).background(brush))
+        Box(Modifier.size(CatalogSwatch).clip(HlShapes.panel).background(brush))
         Spacer(Modifier.height(HlSpace.xxs))
         Text(name, style = Hl.type.caption, color = Hl.colors.contentSecondary)
     }

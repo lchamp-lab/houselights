@@ -7,6 +7,7 @@ detekt = "1.23.7"
 compose-bom = "2024.12.01"
 tv-material = "1.0.0"
 core-ktx = "1.15.0"
+core-splashscreen = "1.2.0"
 activity-compose = "1.9.3"
 lifecycle = "2.8.7"
 navigation = "2.8.5"
@@ -49,6 +50,7 @@ compose-ui-test-manifest = { module = "androidx.compose.ui:ui-test-manifest" }
 tv-material = { module = "androidx.tv:tv-material", version.ref = "tv-material" }
 
 androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "core-ktx" }
+androidx-core-splashscreen = { module = "androidx.core:core-splashscreen", version.ref = "core-splashscreen" }
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "activity-compose" }
 androidx-lifecycle-viewmodel-compose = { module = "androidx.lifecycle:lifecycle-viewmodel-compose", version.ref = "lifecycle" }
 androidx-lifecycle-runtime-compose = { module = "androidx.lifecycle:lifecycle-runtime-compose", version.ref = "lifecycle" }

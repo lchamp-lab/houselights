@@ -20,6 +20,7 @@ class CatalogCoverageTest {
         "PosterWall" to "the welcome screen's moving wall, full screen",
         "PosterWallScrim" to "the welcome screen's veil, full screen",
         "HouseLights" to "the playback cue, over the whole app",
+        "LeavingBackdrop" to "the picture of a screen left going out, under the whole app",
     )
 
     @Test

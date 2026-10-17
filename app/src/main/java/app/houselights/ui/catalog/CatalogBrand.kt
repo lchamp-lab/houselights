@@ -20,6 +20,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.platform.LocalContext
@@ -27,26 +28,44 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.DpSize
 import androidx.tv.material3.Text
 import app.houselights.R
+import app.houselights.ui.design.Gradation
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlLayout
+import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.components.Wordmark
 import kotlin.math.roundToInt
 
 /**
- * The launcher icon and the TV banner, La Salle: drawn by Android as a launcher draws them (the
- * icon cut by this device's mask), at the size a launcher shows them on this screen, then twice
- * as close.
+ * Gradation, the brand, as Android draws it before the app runs: the launcher icon (cut by this
+ * device's mask), the TV banner, each at the size a launcher shows it on this screen, then twice as
+ * close; the launch mark, at the size Android 9 draws it, in the circle it shows of it. Then the
+ * name, drawn white and flat, at the sizes the screens give it. Three groups, each on the screen
+ * whole when focus steps to it.
  */
 internal fun LazyListScope.catalogBrand() {
     item {
-        Group("Brand: La Salle, the icon and the banner", still = true) {
+        Group("Brand: Gradation, the icon and the banner", still = true) {
             BrandSample(
-                "An H made of the two walls of a room in perspective, their panels going down from bright orange " +
-                    "to raspberry as they near the white screen. On the banner the name is set on the screen, " +
-                    "in lowercase, Archivo expanded: the wordmark.",
+                "Three bars of ember whose widths halve, 4:2:1, as the house lights go down one stop at a time; " +
+                    "the fourth step is the black, where the name appears, in white. On the banner, a title card: " +
+                    "the mark above the name.",
                 icon = R.mipmap.ic_launcher,
                 banner = R.drawable.banner,
             )
+        }
+    }
+    item {
+        Group("Brand: the launch mark, as Android 9 draws it, in the circle it shows", still = true) {
+            LaunchMark(R.drawable.splash_mark)
+        }
+    }
+    item {
+        Group("Brand: the name, white and flat", still = true) {
+            Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.xl), verticalAlignment = Alignment.Bottom) {
+                Specimen("over the welcome wall", gap = HlSpace.xs) { Wordmark(HlSize.wordmarkHero) }
+                Specimen("in About", gap = HlSpace.xs) { Wordmark(HlSize.wordmark) }
+            }
         }
     }
 }
@@ -63,6 +82,9 @@ private const val CLOSER = 2
 /** Android TV lays a banner out at 320 × 180 px at xhdpi: 160 × 90 dp of the device. */
 private const val TV_BANNER_WIDTH = 160f
 private const val TV_BANNER_HEIGHT = 90f
+
+/** Android 9's launch screen lays the mark's layer out 288 dp of the device wide. */
+private const val LAUNCH_ICON = 288f
 
 /**
  * The icon on three launcher grounds, and the banner; each at launcher size, then closer. [icon]
@@ -91,6 +113,25 @@ private fun BrandSample(says: String, @DrawableRes icon: Int, @DrawableRes banne
         Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.l), verticalAlignment = Alignment.Bottom) {
             Specimen("banner, at launcher size", gap = HlSpace.xs) { DrawableBox(bannerDrawable, bannerSize) }
             Specimen("closer", gap = HlSpace.xs) { DrawableBox(bannerDrawable, bannerSize * CLOSER) }
+        }
+    }
+}
+
+/**
+ * The [launch] mark on the room, its layer as wide as Android 9 lays it out on this device, and the
+ * circle Android 9 shows of it, a hairline: the mark stays well inside it.
+ */
+@Composable
+private fun LaunchMark(@DrawableRes launch: Int) {
+    val context = LocalContext.current
+    val drawable = remember(launch) { context.getDrawable(launch) } ?: return
+    val size = with(LocalDensity.current) { (LAUNCH_ICON * context.resources.displayMetrics.density).toDp() }
+    val ring = Hl.colors.contentDecorative
+    Box(Modifier.background(Hl.colors.background)) {
+        DrawableBox(drawable, DpSize(size, size))
+        Canvas(Modifier.size(size)) {
+            val radius = this.size.width / 2 * Gradation.LAUNCH_CIRCLE / Gradation.LAYER
+            drawCircle(ring, radius, style = Stroke(HlSize.hairline.toPx()))
         }
     }
 }

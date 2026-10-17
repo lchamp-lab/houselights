@@ -1,6 +1,8 @@
 package app.houselights.providers.local
 
 import android.util.Log
+import app.houselights.core.TmdbKeyRefusedException
+import app.houselights.core.TmdbUnreachableException
 import app.houselights.core.suspendRunCatching
 import kotlinx.serialization.SerializationException
 import retrofit2.HttpException

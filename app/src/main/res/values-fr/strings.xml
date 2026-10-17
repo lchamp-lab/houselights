@@ -74,6 +74,15 @@
     <string name="sort_year_order">Année, récents d’abord</string>
     <string name="sort_rating_order">Note, meilleures d’abord</string>
     <string name="filter_unwatched">Non vus</string>
+    <string name="filter_picture">Image</string>
+    <string name="all_pictures">Toutes les images</string>
+    <string name="filter_sound">Son</string>
+    <string name="all_sounds">Tous les sons</string>
+    <string name="filter_file">Fichier</string>
+    <string name="all_files">Tous les fichiers</string>
+    <string name="filter_person">Personne</string>
+    <string name="all_people">Toutes les personnes</string>
+    <string name="filter_person_unnamed">La personne choisie</string>
 
     <string name="play">Lire</string>
     <string name="resume">Reprendre</string>
@@ -91,6 +100,8 @@
     <string name="cast">Distribution</string>
     <string name="tech_details">Fiche technique</string>
     <string name="sheet_back_hint">Retour pour fermer</string>
+    <!-- A code to scan, read out before the address under it -->
+    <string name="qr_code">Code QR</string>
     <string name="cancel">Annuler</string>
     <string name="control_busy">En cours</string>
     <string name="key_ok">OK</string>
@@ -157,6 +168,7 @@
     <string name="play_with">Lire avec</string>
     <string name="no_player">Le lecteur Zidoo n’est pas installé.</string>
     <string name="player_credentials">Ce dossier est protégé par un mot de passe : seul le lecteur Zidoo peut le lire.</string>
+    <string name="player_changed">Le lecteur Zidoo a changé : Houselights ne lui confie plus vos mots de passe ni vos accès. Réinstallez le lecteur d’origine de la Zidoo, ou effacez les données de Houselights pour faire confiance au nouveau.</string>
 
     <string name="add_folder">Ajouter un dossier</string>
     <string name="add_folder_desc">Indiquez où se trouvent vos films ou vos séries sur le NAS. Houselights teste la connexion avant d’ajouter le dossier.</string>
@@ -273,10 +285,36 @@
     <string name="label_user">Utilisateur</string>
     <string name="label_render">Rendu de l’interface</string>
     <string name="label_modes">Modes disponibles</string>
+    <string name="label_device">Appareil</string>
     <string name="label_player">Lecteur Zidoo</string>
     <string name="label_api">API de contrôle</string>
     <string name="tmdb_attribution">Ce produit utilise l’API TMDB mais n’est ni approuvé ni certifié par TMDB.</string>
     <string name="section_source">Bibliothèque</string>
+    <!-- The library in numbers: a pane of the settings -->
+    <string name="section_numbers">En chiffres</string>
+    <string name="numbers_title">La collection en chiffres</string>
+    <plurals name="numbers_films">
+        <item quantity="one">%s film</item>
+        <item quantity="other">%s films</item>
+        <item quantity="many">%s films</item>
+    </plurals>
+    <plurals name="numbers_shows">
+        <item quantity="one">%s série</item>
+        <item quantity="other">%s séries</item>
+        <item quantity="many">%s séries</item>
+    </plurals>
+    <plurals name="numbers_episodes">
+        <item quantity="one">%s épisode</item>
+        <item quantity="other">%s épisodes</item>
+        <item quantity="many">%s épisodes</item>
+    </plurals>
+    <string name="numbers_and">%1$s et %2$s</string>
+    <string name="numbers_in_library">dans votre bibliothèque</string>
+    <string name="numbers_room">de fichiers, toutes copies comprises</string>
+    <string name="numbers_hours">pour tout voir, bout à bout</string>
+    <string name="numbers_files">Fichiers</string>
+    <string name="hours">%s h</string>
+    <string name="terabytes">%s To</string>
     <string name="remove">Retirer</string>
     <string name="scan_now">Analyser maintenant</string>
     <string name="scan_now_desc">Cherche les nouveaux fichiers</string>
@@ -375,6 +413,8 @@
     <string name="error_no_tmdb_key">Ajoutez une clé TMDB dans les réglages pour rechercher et lister les images.</string>
     <string name="error_tmdb_key_refused_title">TMDB refuse cette clé</string>
     <string name="error_tmdb_key_refused">TMDB n’accepte pas la clé enregistrée dans les réglages. Vérifiez-la, ou remplacez-la.</string>
+    <string name="error_tmdb_not_found_title">TMDB ne connaît pas ce titre</string>
+    <string name="error_tmdb_not_found">TMDB n’a plus de fiche pour ce titre : elle a pu être retirée, ou fusionnée avec une autre. Relancez la recherche, ou choisissez un autre résultat.</string>
     <string name="error_failed_title">L’opération n’a pas abouti</string>
     <string name="error_failed">Réessayez dans un instant.</string>
     <string name="error_keystore_title">Coffre de l’appareil indisponible</string>
@@ -422,12 +462,20 @@
     <string name="about_status">État</string>
     <string name="detected">Détecté</string>
     <string name="not_detected">Non détecté</string>
+    <string name="player_unrecognised">Détecté, non reconnu</string>
+    <string name="player_not_a_zidoo">Cet appareil n’est pas une Zidoo</string>
+    <string name="player_changed_since">A changé depuis la dernière lecture</string>
+    <string name="player_no_certificate">Son certificat est illisible</string>
     <string name="online">En ligne</string>
     <string name="offline">Hors ligne</string>
     <string name="about_credits">Générique</string>
     <string name="credit_data">Données des films</string>
     <string name="credit_font">Police</string>
     <string name="credit_font_value">Archivo, SIL Open Font License</string>
+    <!-- Supporting the project: said once, in About, never elsewhere -->
+    <string name="support">Soutenir Houselights</string>
+    <string name="support_desc">Offrez un café au projet, depuis votre téléphone.</string>
+    <string name="support_scan">Scannez ce code avec votre téléphone pour ouvrir la page Ko-fi du projet.</string>
     <string name="file_access">Accès aux fichiers</string>
     <string name="network_path_desc">Le lecteur lit les fichiers directement sur le NAS</string>
     <string name="http_stream_desc">Le lecteur lit le flux du serveur</string>
@@ -470,4 +518,43 @@
         <item quantity="other">%d collections</item>
         <item quantity="many">%d collections</item>
     </plurals>
+    <!-- Les personnes : leurs métiers, comme le générique les nomme, leur page, et les rangées que la bibliothèque écrit. -->
+    <string name="job_cast">Interprétation</string>
+    <string name="job_direction">Réalisation</string>
+    <string name="job_creation">Création</string>
+    <string name="job_writing">Scénario</string>
+    <string name="job_music">Musique</string>
+    <string name="job_cinematography">Image</string>
+    <string name="job_editing">Montage</string>
+    <string name="end_credits">Générique</string>
+    <string name="error_person_gone_title">Plus aucun titre</string>
+    <string name="error_person_gone">Aucun titre de cette personne n’est plus dans la bibliothèque.</string>
+    <string name="row_films_of">les films de</string>
+    <string name="row_best_rated">Les mieux notés de votre bibliothèque</string>
+    <string name="saga_absent">Absent de votre bibliothèque</string>
+    <!-- Les copies d'un film, et les éditions que leurs fichiers et leurs NFO nomment. -->
+    <string name="versions">Versions</string>
+    <string name="version_chosen">Votre choix</string>
+    <string name="version_copy">Copie %d</string>
+    <string name="edition_extended">Version longue</string>
+    <string name="edition_directors_cut">Version du réalisateur</string>
+    <string name="edition_theatrical">Version cinéma</string>
+    <string name="edition_unrated">Version non censurée</string>
+    <string name="edition_uncut">Version intégrale</string>
+    <string name="edition_remastered">Version restaurée</string>
+    <string name="edition_imax">IMAX</string>
+    <string name="edition_final_cut">Final Cut</string>
+    <string name="edition_ultimate">Version ultime</string>
+    <string name="edition_special">Édition spéciale</string>
+    <string name="edition_criterion">Criterion</string>
+    <string name="edition_anniversary">Édition anniversaire</string>
+    <string name="edition_open_matte">Open Matte</string>
+    <!-- La recherche : ses touches, et ce qu'elle a trouvé. -->
+    <string name="search_hint">Les premières lettres d’un titre, d’une personne ou d’une saga</string>
+    <string name="search_space">Espace</string>
+    <string name="search_delete">Effacer</string>
+    <string name="search_titles">Titres</string>
+    <string name="search_people">Personnes</string>
+    <string name="search_sagas">Sagas</string>
+    <string name="search_none">Rien ne commence par « %s »</string>
 </resources>
