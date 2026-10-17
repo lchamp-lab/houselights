@@ -1,6 +1,9 @@
 package app.houselights.providers.local
 
+import app.houselights.core.BadgeTokens
+import app.houselights.core.Codecs
 import app.houselights.core.Definition
+import app.houselights.core.HdrFormat
 import java.time.LocalDate
 import java.util.concurrent.ConcurrentHashMap
 
@@ -291,17 +294,17 @@ object FilenameParser {
                 has("720p") -> add(Definition.HD.token)
             }
             when {
-                has("dv", "dovi", """dolby[ ._-]?vision""") -> add("Dolby Vision")
-                has("""hdr10\+""", "hdr10plus") -> add("HDR10+")
-                has("hdr10", "hdr") -> add("HDR")
+                has("dv", "dovi", """dolby[ ._-]?vision""") -> add(HdrFormat.DOLBY_VISION.token)
+                has("""hdr10\+""", "hdr10plus") -> add(HdrFormat.HDR10_PLUS.token)
+                has("hdr10", "hdr") -> add(BadgeTokens.HDR)
             }
-            if (has("atmos")) add("Atmos")
+            if (has("atmos")) add(BadgeTokens.ATMOS)
             when {
-                has("truehd") -> add("TrueHD")
-                has("""dts[ ._-]?hd([ ._-]?ma)?""") -> add("DTS-HD MA")
-                has("""dts[ ._-]?x""") -> add("DTS:X")
+                has("truehd") -> add(Codecs.TRUEHD)
+                has("""dts[ ._-]?hd([ ._-]?ma)?""") -> add(Codecs.DTS_HD_MA)
+                has("""dts[ ._-]?x""") -> add(BadgeTokens.DTS_X)
             }
-            if (has("remux")) add("Remux")
+            if (has("remux")) add(BadgeTokens.REMUX)
         }
     }
 
