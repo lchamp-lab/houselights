@@ -274,6 +274,10 @@ class FilenameParserTest {
         // Words of titles still: "Season" before no number, "Intégrale" before no technical tag.
         assertEquals(Triple("Season of the Witch", null, "Season of the Witch"), show("Season of the Witch/Season.of.the.Witch.S01E01.mkv"))
         assertEquals(ParsedMovie("L'Intégrale", null), movie("L'Intégrale.mkv"))
+        // After its article, a title's word before tags too: a comedian's shows, a saga's box.
+        assertEquals(ParsedMovie("Florence Foresti - L'Intégrale", null), movie("Florence Foresti - L'Intégrale 1080p.mkv"))
+        assertEquals(ParsedMovie("Les Inconnus L Integrale", null), movie("Les.Inconnus.L.Integrale.DVDRip.avi"))
+        assertEquals(ParsedMovie("Astérix L’intégrale", null), movie("Astérix L’intégrale MULTi 1080p.mkv"))
     }
 
     /**

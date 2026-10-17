@@ -73,9 +73,11 @@ object FilenameParser {
 
     /**
      * Release tags that are words of titles too: "The French Connection", "Charlotte's Web", "A Complete Unknown";
-     * "Intégrale", a French pack's whole show ("Kaamelott.Integrale.1080p").
+     * "Intégrale", a French pack's whole show ("Kaamelott.Integrale.1080p"), but not after its article, a title's
+     * word then: "Florence Foresti - L'Intégrale 1080p", "Les.Inconnus.L.Integrale.DVDRip".
      */
-    private const val WORD_TAGS = """4k|dv|web|french|vf|proper|repack|extended|unrated|imax|hybrid|complete|internal|int[eéÉ]grale"""
+    private const val WORD_TAGS = "4k|dv|web|french|vf|proper|repack|extended|unrated|imax|hybrid|complete|internal|" +
+        """(?<!^l['’ ._])(?<![^a-zA-Z0-9]l['’ ._])int[eéÉ]grale"""
 
     /** Release tags, technical ones first, so that "WEB-DL" is read whole rather than as "WEB". */
     private val JUNK = Regex("""(?i)(?<![a-z0-9])($TECHNICAL_TAGS|$WORD_TAGS)(?![a-z0-9])""")
