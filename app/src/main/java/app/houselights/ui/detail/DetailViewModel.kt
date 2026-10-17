@@ -34,6 +34,7 @@ import kotlinx.coroutines.Deferred
 import android.util.Log
 import app.houselights.core.Credits
 import app.houselights.core.Saga
+import app.houselights.core.Version
 
 data class DetailState(
     val item: MediaItem? = null,
@@ -68,7 +69,15 @@ data class DetailState(
     val credits: Credits? = null,
     /** For a collection: its saga whole, the films the library lacks in their place; null when the source cannot tell them. */
     val saga: Saga? = null,
-)
+    /** For a film in several copies: each, the one Lire plays first ([Version.chosen]); empty for one copy. */
+    val versions: List<Version> = emptyList(),
+) {
+    /** The copy Lire plays, for a film in several; null for one copy. */
+    val playedCopy: Version? get() = versions.takeIf { it.size > 1 }?.let { all -> all.firstOrNull { it.chosen } ?: all.first() }
+
+    /** Where [playedCopy] stands among the copies: it names one without an edition ("Copie 2"). */
+    val playedCopyIndex: Int get() = versions.indexOfFirst { it.chosen }.coerceAtLeast(0)
+}
 
 /**
  * A title's page, from the [provider] of the source in use; what it changes, it tells [events]. The
@@ -192,6 +201,7 @@ class DetailViewModel(
             similar = similarFilms,
             collection = collection,
             collectionFilms = saga,
+            versions = versionsOf(source, item),
         )
     }
 
@@ -262,6 +272,32 @@ class DetailViewModel(
         val favorite = !item.user.favorite
         provider().setFavorite(item, favorite)
         item.user.copy(favorite = favorite)
+    }
+
+    /**
+     * Makes [version] the copy Lire plays (null: back to the best), then reads the copies again. A
+     * failure is said beside the actions.
+     */
+    fun chooseVersion(version: Version?) {
+        val item = _state.value.item ?: return
+        _state.update { it.copy(actionError = null) }
+        viewModelScope.launch {
+            suspendRunCatching {
+                val source = provider()
+                source.catalog?.chooseVersion(item, version)
+                versionsOf(source, item)
+            }.onSuccess { versions -> _state.update { it.copy(versions = versions) } }
+                .onFailure { e -> _state.update { it.copy(actionError = e.reported(TAG, "Version of $itemId")) } }
+        }
+    }
+
+    /** The copies of [item]'s film, when the source keeps them as one title; a failure leaves none. */
+    private suspend fun versionsOf(source: MediaProvider, item: MediaItem): List<Version> {
+        if (!source.capabilities.versions) return emptyList()
+        return suspendRunCatching { source.catalog?.versions(item) }
+            .onFailure { Log.w(TAG, "Versions of $itemId", it) }
+            .getOrNull()
+            .orEmpty()
     }
 
     /** A failure beside the actions is read; the next action clears it. */

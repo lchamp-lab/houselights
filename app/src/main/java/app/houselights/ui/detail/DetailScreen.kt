@@ -126,6 +126,9 @@ import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.runtime.MutableState
 import app.houselights.core.SagaPart
 import app.houselights.ui.design.components.AbsentCard
+import app.houselights.core.Version
+import app.houselights.ui.design.components.VersionsSheet
+import app.houselights.ui.util.versionName
 
 @Composable
 fun DetailScreen(
@@ -181,6 +184,9 @@ fun DetailScreen(
     val media = item.media?.takeIf { it.video != null || it.audio.isNotEmpty() }
     // Beside the page: what the file holds, read row by row.
     if (showTech && media != null) TechSpecs(item, onDismiss = { showTech = false })
+    // Beside the page: the film's copies, the one Lire plays chosen there.
+    var showVersions by remember { mutableStateOf(false) }
+    if (showVersions) VersionsSheet(item, state.versions, onChoose = vm::chooseVersion, onDismiss = { showVersions = false })
     var showEdit by remember { mutableStateOf(false) }
     if (showEdit) {
         EditMenu(
@@ -196,8 +202,12 @@ fun DetailScreen(
         onToggleFavorite = vm::toggleFavorite,
         onOpenSeries = { item.seriesId?.let(onOpenItem) },
         onOpenNfo = { onOpenNfo(item.id) },
-        onShowTech = if (media != null) ({ showTech = true }) else null,
-        onEdit = if (state.canEdit) ({ showEdit = true }) else null,
+        // Left out where there is nothing to open: no technical sheet, a film of one copy.
+        onShowTech = { showTech = true }.takeIf { media != null },
+        onShowVersions = { showVersions = true }.takeIf { state.versions.size > 1 },
+        copy = state.playedCopy,
+        copyIndex = state.playedCopyIndex,
+        onEdit = { showEdit = true }.takeIf { state.canEdit },
     )
 
     val recede = rememberRecede { scrolled }
@@ -439,6 +449,11 @@ private data class DetailActions(
     val onOpenSeries: () -> Unit,
     val onOpenNfo: () -> Unit,
     val onShowTech: (() -> Unit)?,
+    /** The film's copies, null for a film of one copy. */
+    val onShowVersions: (() -> Unit)?,
+    /** The copy Lire plays, among several, and its place among them (it names it); null for one copy. */
+    val copy: Version? = null,
+    val copyIndex: Int = 0,
     val onEdit: (() -> Unit)?,
 )
 
@@ -521,8 +536,17 @@ private fun Actions(
 ) {
     val problem by appContainer().playback.playbackProblem.collectAsStateWithLifecycle()
     HlActionRow(Modifier.focusRequester(actionRow).fadeOutsideSafeArea()) {
-        PlayButtons(item, nextUp, memory, actions.onPlay)
+        PlayButtons(item, nextUp, memory, actions)
         Parts(item, memory, actions.onPlay)
+        // A film in several copies: which one Lire plays is chosen beside the page.
+        if (actions.onShowVersions != null) {
+            HlIconButton(
+                HlIcons.Versions,
+                stringResource(R.string.versions),
+                onClick = actions.onShowVersions,
+                modifier = Modifier.focusKey(VERSIONS, memory),
+            )
+        }
         if (item.kind == MediaKind.EPISODE && item.seriesId != null) {
             HlButton(stringResource(R.string.view_series), onClick = actions.onOpenSeries, modifier = Modifier.focusKey(SERIES, memory))
         }
@@ -590,25 +614,20 @@ private fun RowScope.ActionFailure(problem: UiError?, actionError: UiError?) {
  * collection through its next film.
  */
 @Composable
-private fun PlayButtons(item: MediaItem, nextUp: MediaItem?, memory: FocusMemory, onPlay: (MediaItem, Boolean) -> Unit) {
+private fun PlayButtons(item: MediaItem, nextUp: MediaItem?, memory: FocusMemory, actions: DetailActions) {
+    val onPlay = actions.onPlay
     val series = item.kind == MediaKind.SERIES || item.kind == MediaKind.COLLECTION
-    val target = (if (series) nextUp else item.takeIf { it.isPlayable }) ?: return
+    // A film in several copies plays the one chosen, from where that copy was left.
+    val copy = actions.copy
+    val target = (if (series) nextUp else copy?.item ?: item.takeIf { it.isPlayable }) ?: return
     val resume = target.user.positionMs > 0
-    val episode = when (item.kind) {
-        MediaKind.SERIES -> target.episodeLabel
-        MediaKind.COLLECTION -> target.title
-        else -> null
-    }
+    val episode = whatLirePlays(item, target, copy, actions.copyIndex)
     HlButton(
         stringResource(if (resume) R.string.resume else R.string.play),
         onClick = { onPlay(target, resume) },
         modifier = Modifier.focusKey(PLAY, memory),
         icon = Icons.Filled.PlayArrow,
-        detail = if (resume) {
-            listOfNotNull(episode, timeLeft(target)).joinToString(FACT_GAP)
-        } else {
-            episode ?: target.runtimeMs?.let(::formatDuration)
-        },
+        detail = playDetail(episode, target, resume, copy != null),
         emphasis = Emphasis.Primary,
     )
     // A film in several files starts over with its first part, beside this button (see Parts).
@@ -620,6 +639,26 @@ private fun PlayButtons(item: MediaItem, nextUp: MediaItem?, memory: FocusMemory
             modifier = Modifier.focusKey(RESTART, memory),
         )
     }
+}
+
+/** What Lire names of what it starts: the episode, the film of a saga, the edition of a film in copies. */
+@Composable
+private fun whatLirePlays(item: MediaItem, target: MediaItem, copy: Version?, copyIndex: Int): String? = when {
+    item.kind == MediaKind.SERIES -> target.episodeLabel
+    item.kind == MediaKind.COLLECTION -> target.title
+    copy != null -> versionName(copy.edition, copy.label, copyIndex)
+    else -> null
+}
+
+/**
+ * What Lire says beside its name: what it starts ([what]) and the time left when it [resume]s; the
+ * length of a copy ("Lire  Version longue  2 h 28"), of a film; else what it starts alone.
+ */
+@Composable
+private fun playDetail(what: String?, target: MediaItem, resume: Boolean, copy: Boolean): String? = when {
+    resume -> listOfNotNull(what, timeLeft(target)).joinToString(FACT_GAP)
+    copy -> listOfNotNull(what, target.runtimeMs?.let(::formatDuration)).joinToString(FACT_GAP)
+    else -> what ?: target.runtimeMs?.let(::formatDuration)
 }
 
 /**
@@ -774,6 +813,7 @@ private fun FocusMemory.card(row: String, item: MediaItem) =
     Modifier.focusKey(FocusKey.within(FocusKey.row(row), FocusKey.item(item.id)), this)
 
 private val PLAY = FocusKey.action("play")
+private val VERSIONS = FocusKey.action("versions")
 private val RESTART = FocusKey.action("restart")
 private val SERIES = FocusKey.action("series")
 private val WATCHED = FocusKey.action("watched")

@@ -330,7 +330,8 @@ class MigrationTest {
     /**
      * Version 12 keeps the cast as credits and a film's directors with it, keyed by name; gives each title, person
      * and saga their words for searches, each film the edition its file names and its copies their title; asks TMDB
-     * again for the films of the sagas it knows. What the user did with each title stays as it was.
+     * again for the films of the sagas it knows. What the user did with each title stays as it was, and a film's
+     * title takes what was done with its copies.
      */
     @Test
     fun version12KeepsTheCastAsCreditsAndWhatTheUserDidAsItWas() = runTest {
@@ -358,7 +359,7 @@ class MigrationTest {
                     arrayOf<Any?>(
                         id, if (id < 3) 78 else 194, if (id < 3) "Blade Runner" else "Le Fabuleux Destin d'Amélie Poulain",
                         if (id < 3) "blade runner" else "fabuleux destin d'amelie poulain", director, path, if (id == 2) 78 else null,
-                        if (id < 3) 1 else null, if (id == 1) 1 else 0,
+                        if (id < 3) 1 else null, if (id == 2) 1 else 0,
                     ),
                 )
             }
@@ -389,7 +390,8 @@ class MigrationTest {
                 assertEquals("file:/p.jpg", film.userPosterPath)
                 assertEquals("their crew comes at later passes", null, film.creditsAt)
             }
-            assertEquals(listOf(true, false, false), films.map { it.played })
+            // Watched in its copy: watched as a title. The copy keeps its own.
+            assertEquals(listOf(true, true, false), films.map { it.played })
             assertEquals(listOf(null, 78, null), films.map { it.userTmdbId })
             assertEquals(listOf(null, "Final Cut", "Extended"), films.map { it.edition })
             assertEquals(listOf(null, 1L, null), films.map { it.versionOf })

@@ -26,6 +26,9 @@ class FakeCatalog : Catalog {
 
     /** Sagas whole, by collection id. */
     var sagas = mapOf<String, Saga>()
+
+    /** The copies of each film, by its id; the one [chooseVersion] is told is chosen after. */
+    var copies = mapOf<String, List<Version>>()
     val calls = mutableListOf<String>()
 
     override suspend fun credits(item: MediaItem): Credits = credits[item.id] ?: Credits()
@@ -39,9 +42,13 @@ class FakeCatalog : Catalog {
 
     override suspend fun saga(collection: MediaItem): Saga? = sagas[collection.id]
 
-    override suspend fun versions(item: MediaItem): List<Version> = emptyList()
+    override suspend fun versions(item: MediaItem): List<Version> = copies[item.id].orEmpty()
 
-    override suspend fun chooseVersion(item: MediaItem, version: Version?) = Unit
+    override suspend fun chooseVersion(item: MediaItem, version: Version?) {
+        calls += "choose ${version?.key}"
+        val chosen = version?.key
+        copies = copies + (item.id to copies[item.id].orEmpty().map { it.copy(chosen = if (chosen == null) it.best else it.key == chosen) })
+    }
 
     override suspend fun playback(version: Version, resume: Boolean, options: PlaybackOptions): PlaybackPlan = error("no playback")
 

@@ -15,6 +15,7 @@ import app.houselights.providers.local.ScanError
 import app.houselights.providers.local.ScanErrorKind
 import app.houselights.providers.local.SourceKind
 import app.houselights.core.Job
+import app.houselights.core.Editions
 
 /** No-break space: keeps a number with its unit, and French punctuation with its word. */
 const val NBSP = Typography.nbsp
@@ -54,6 +55,32 @@ fun LibraryKind.titleRes(): Int = when (this) {
 
 @Composable
 fun libraryName(kind: LibraryKind): String = stringResource(kind.titleRes())
+
+/**
+ * A copy of a film by its name: its edition as the screen's language says it ("Version longue"), one
+ * no token knows as written, else the name its source gives it, else its place among the copies
+ * ([index], from 0: "Copie 2").
+ */
+@Composable
+fun versionName(edition: String?, label: String?, index: Int): String =
+    EDITION_NAMES[edition]?.let { stringResource(it) } ?: edition ?: label ?: stringResource(R.string.version_copy, index + 1)
+
+/** The editions the library knows ([Editions]), by the names the screen gives them. */
+private val EDITION_NAMES = mapOf(
+    Editions.EXTENDED to R.string.edition_extended,
+    Editions.DIRECTORS_CUT to R.string.edition_directors_cut,
+    Editions.THEATRICAL to R.string.edition_theatrical,
+    Editions.UNRATED to R.string.edition_unrated,
+    Editions.UNCUT to R.string.edition_uncut,
+    Editions.REMASTERED to R.string.edition_remastered,
+    Editions.IMAX to R.string.edition_imax,
+    Editions.FINAL_CUT to R.string.edition_final_cut,
+    Editions.ULTIMATE to R.string.edition_ultimate,
+    Editions.SPECIAL to R.string.edition_special,
+    Editions.CRITERION to R.string.edition_criterion,
+    Editions.ANNIVERSARY to R.string.edition_anniversary,
+    Editions.OPEN_MATTE to R.string.edition_open_matte,
+)
 
 /** A job as the credits name it: "Réalisation", "Musique"; a show's creators, "Création". */
 @Composable

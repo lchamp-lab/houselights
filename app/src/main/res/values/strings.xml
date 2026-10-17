@@ -502,4 +502,21 @@
     <string name="row_films_of">films by</string>
     <string name="row_best_rated">Best rated in your library</string>
     <string name="saga_absent">Not in your library</string>
+    <!-- A film's copies, and the editions their files and NFOs name. -->
+    <string name="versions">Versions</string>
+    <string name="version_chosen">Your choice</string>
+    <string name="version_copy">Copy %d</string>
+    <string name="edition_extended">Extended cut</string>
+    <string name="edition_directors_cut">Director’s cut</string>
+    <string name="edition_theatrical">Theatrical cut</string>
+    <string name="edition_unrated">Unrated</string>
+    <string name="edition_uncut">Uncut</string>
+    <string name="edition_remastered">Remastered</string>
+    <string name="edition_imax">IMAX</string>
+    <string name="edition_final_cut">Final cut</string>
+    <string name="edition_ultimate">Ultimate cut</string>
+    <string name="edition_special">Special edition</string>
+    <string name="edition_criterion">Criterion</string>
+    <string name="edition_anniversary">Anniversary edition</string>
+    <string name="edition_open_matte">Open matte</string>
 </resources>
