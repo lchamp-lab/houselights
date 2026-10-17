@@ -4,6 +4,7 @@ import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -223,6 +224,30 @@ class ScanShowSidecarsTest {
         assertEquals(LEGENDES to "Le Bureau des Légendes", read.tmdbId to read.title)
         assertNull(read.nfoPath)
         assertNotNull(read.matchedAt)
+    }
+
+    /**
+     * A season's poster in its show's folder, rewritten: the next episode read copies it again, and its season
+     * shows the new copy. Unchanged, it is not read again.
+     */
+    @Test
+    fun aSeasonPosterRewrittenIsCopiedAgain() = runTest {
+        nas.image("Mobland/season01-poster.jpg")
+        bench.scan()
+        suspend fun poster() = checkNotNull(bench.dao.season(show().id, 1)).posterPath
+        val first = poster()
+        assertTrue(first.isCachedArtwork())
+        nas.reads.clear()
+        bench.scan(refreshMetadata = true)
+        assertFalse(nas.reads.contains("Mobland/season01-poster.jpg"))
+        assertEquals(first, poster())
+
+        nas.put("Mobland/season01-poster.jpg", size = 120, bytes = ByteArray(120), lastModified = T2)
+        nas.put(EPISODE.replace("S01E01", "S01E02"))
+        bench.scan()
+        val second = poster()
+        assertTrue(second.isCachedArtwork())
+        assertNotEquals(first, second)
     }
 
     /** A poster removed from a show's folder: its copy is no longer shown, TMDB's poster takes its place. */

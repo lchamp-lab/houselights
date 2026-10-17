@@ -378,8 +378,11 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
             season = season.copy(matchedAt = null)
             dao.saveScanned(season)
         }
-        if (localPoster != null && !season.posterPath.isCachedArtwork()) {
-            files.copyArtwork(source, localPoster)?.let { season = season.copy(posterPath = it); dao.saveScanned(season) }
+        // Through the cache each time: a poster rewritten since is copied again, an unchanged one is not read.
+        val copy = localPoster?.let { files.copyArtwork(source, it) }
+        if (copy != null && copy != season.posterPath) {
+            season = season.copy(posterPath = copy)
+            dao.saveScanned(season)
         }
         return season
     }
