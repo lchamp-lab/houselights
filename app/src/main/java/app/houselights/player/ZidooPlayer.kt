@@ -8,6 +8,7 @@ import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
+import app.houselights.core.isWebUrl
 import java.security.MessageDigest
 import java.util.Locale
 
@@ -155,6 +156,17 @@ class ZidooPlayer(
     private fun remembered(candidate: Candidate): Boolean {
         val pkg = candidate.component.packageName
         return pkg == trusted.getString(KEY_PACKAGE, null) && certificate(pkg) == trusted.getString(KEY_CERTIFICATE, null)
+    }
+
+    /**
+     * [player] opens a video at [uri]: the old player any address it is handed, a stream too, read on
+     * the device; a player found under another name, a stream only if it answers its address
+     * ([probe]), since one that opens shares alone would fail on it. A share's address is not asked
+     * of: the old player opens one it does not answer.
+     */
+    fun opens(player: Candidate, uri: String): Boolean {
+        if (player.component.packageName == KNOWN_PACKAGE || !isWebUrl(uri)) return true
+        return packages.queryIntentActivities(probe(Uri.parse(uri)), 0).any { it.activityInfo?.component() == player.component }
     }
 
     /** What About says of the player: what [choose] decides. */
@@ -374,6 +386,15 @@ class ZidooPlayer(
             "file:///storage/film.mkv",
             "content://media/external/video/media/1",
         ).map { Intent(Intent.ACTION_VIEW).setDataAndType(Uri.parse(it), VIDEO) }
+
+        /**
+         * What a player is asked to know whether it opens a video at [uri] ([opens]): its scheme, host
+         * and port, never its user's part, path or query, where a password or a token is.
+         */
+        internal fun probe(uri: Uri): Intent {
+            val authority = uri.host.orEmpty() + if (uri.port >= 0) ":${uri.port}" else ""
+            return Intent(Intent.ACTION_VIEW).setDataAndType(Uri.Builder().scheme(uri.scheme).encodedAuthority(authority).build(), VIDEO)
+        }
 
         private const val VIDEO = "video/*"
 

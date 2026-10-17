@@ -1,6 +1,7 @@
 package app.houselights.player
 
 import android.app.Application
+import android.net.Uri
 import androidx.test.core.app.ApplicationProvider
 import app.houselights.player.FakeApps.Companion.FIRMWARE_SCHEMES
 import app.houselights.player.FakeApps.Companion.GALLERY
@@ -320,6 +321,14 @@ class ZidooPlayerTest {
         apps.install(GALLERY, MOVIE_ACTIVITY, system = true, schemes = emptyList())
         assertEquals(PlayerStatus.Detected(GALLERY), ZidooPlayer(context) { ZIDOO_BUILD }.status())
         assertEquals(PlayerStatus.Unrecognized(GALLERY, Decision.NOT_A_ZIDOO), ZidooPlayer(context) { OTHER_BUILD }.status())
+    }
+
+    /** Whether a player opens a stream is asked of its address alone: never its user's part, path or query, where a secret is. */
+    @Test
+    fun aPlayerIsAskedOfAStreamsAddressAlone() {
+        val asked = ZidooPlayer.probe(Uri.parse("https://zidoo:secret@nas:8920/Videos/1/stream.mkv?api_key=token"))
+        assertEquals("https://nas:8920", asked.dataString)
+        assertEquals("video/*", asked.type)
     }
 
     @Test

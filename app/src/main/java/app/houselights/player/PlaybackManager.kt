@@ -94,7 +94,9 @@ class PlaybackManager(
      * A password goes to no other app ([CredentialsNotShared]); a token goes elsewhere only through a
      * chooser, where the user picks the app, even the only one ([AUTO_LAUNCH_SINGLE_CHOICE]), and not
      * once the player trusted before has changed: the app put in its place would be in the chooser. A
-     * URI with no secret goes to the player found, trusted or not, with what it is told of the film.
+     * URI with no secret goes to the player found, trusted or not, with what it is told of the film. A
+     * player found under another name gets a stream only if it answers its address ([ZidooPlayer.opens]);
+     * else the stream goes as to any player.
      *
      * Not guarded against: an app installed on a Zidoo whose player is no system app, under a name of
      * Zidoo's or the old player's, before a first password goes to the player (trusted on first use,
@@ -106,10 +108,13 @@ class PlaybackManager(
         Log.i(TAG, "Launch ${plan.title} -> ${Redact.uri(plan.uri)}")
 
         val choice = players.choose()
-        val player = choice.player
+        val player = choice.player?.takeIf { players.opens(it, plan.uri) }
         val secret = Redact.hasCredentials(plan.uri)
         // A warning, kept in every build: where a secret goes, or why not, is what an evening on a new player needs.
-        if (secret) Log.w(TAG, "Launch ${Redact.uri(plan.uri)} -> ${players.describe(choice)}")
+        if (secret) {
+            val unanswered = if (player == null && choice.player != null) "; the player does not answer this stream's address: not handed it" else ""
+            Log.w(TAG, "Launch ${Redact.uri(plan.uri)} -> ${players.describe(choice)}$unanswered")
+        }
         val changed = choice.decision == ZidooPlayer.Decision.CHANGED
         val intent = when {
             player != null && (!secret || choice.decision.trusted) -> playerIntent(player.component, plan)

@@ -212,6 +212,34 @@ class PlayerLaunchTest {
         assertEquals(ZidooPlayer.Decision.REMEMBERED, players.choose().decision)
     }
 
+    /**
+     * A player found under another name may open shares alone: it gets a stream only if it answers
+     * its address. Else the stream goes as it would to any player: a token through the chooser, a
+     * password typed in an http path mapping nowhere.
+     */
+    @Test
+    fun aPlayerFoundGetsAStreamOnlyIfItAnswersItsAddress() = runTest {
+        apps.install(ZIDOO_PLAYER, ZIDOO_PLAYER_ACTIVITY, system = true)
+        val manager = manager(ZIDOO_BUILD)
+        assertNull(manager.intentFor(plan(STREAM)).component)
+        assertEquals(Intent.ACTION_CHOOSER, manager.intentFor(plan(TOKEN)).action)
+        assertRefused { manager.intentFor(plan(HTTP_PASSWORD)) }
+
+        apps.install(ZIDOO_PLAYER, ZIDOO_PLAYER_ACTIVITY, system = true, schemes = listOf("http"))
+        listOf(STREAM, TOKEN, HTTP_PASSWORD).forEach {
+            val intent = manager.intentFor(plan(it))
+            assertEquals(it, ZIDOO_PLAYER_ACTIVITY, intent.component?.className)
+            assertEquals(it, intent.dataString)
+        }
+    }
+
+    /** The Z1000 Pro's player gets a stream by its name, as before: it opens one, read on the device. */
+    @Test
+    fun theOldPlayerGetsAStreamAsBefore() = runTest {
+        apps.install(GALLERY, MOVIE_ACTIVITY, system = true, schemes = emptyList())
+        assertEquals(TOKEN, manager(ZIDOO_BUILD).intentFor(plan(TOKEN)).dataString)
+    }
+
     /** On a Zidoo whose player can be trusted with nothing yet, a token still goes through the chooser. */
     @Test
     fun aTokenGoesThroughAChooserWhenNoPlayerChanged() = runTest {
@@ -280,5 +308,7 @@ class PlayerLaunchTest {
         const val NFS = "nfs://nas/films/Heat.mkv"
         const val SMB = "smb://zidoo:secret@nas/films/Heat.mkv"
         const val TOKEN = "http://nas:8096/Videos/1/stream.mkv?static=true&api_key=secret"
+        const val STREAM = "http://nas/films/Heat.mkv"
+        const val HTTP_PASSWORD = "http://zidoo:secret@nas/films/Heat.mkv"
     }
 }
