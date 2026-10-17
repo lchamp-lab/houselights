@@ -15,6 +15,7 @@ private fun NfoInfo.typeset() = copy(
     plot = Typeset.text(plot),
     tagline = Typeset.text(tagline),
     directors = directors.map { Typeset.text(it) },
+    writers = writers.map { Typeset.text(it) },
     studios = studios.map { Typeset.text(it) },
     actors = actors.map { it.copy(name = Typeset.text(it.name), role = Typeset.text(it.role)) },
     collection = Typeset.text(collection),

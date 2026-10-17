@@ -30,8 +30,7 @@ internal class LocalReporter(private val dao: LibraryDao, private val itemId: Lo
         // Every ten seconds while it plays: a few columns, never the NFO text the whole row holds.
         val state = dao.playState(itemId) ?: return
         val watched = finished && part > state.parts.size && pastTheEnd(positionMs, durationMs ?: lengthOf(state))
-        // A film's other copies are watched with the one watched to its end.
-        if (watched && !state.played) dao.setCopiesPlayed(itemId)
+        if (watched) copiesWatched(state)
         if (part > 1) {
             if (watched) dao.savePlayback(itemId, 0, state.durationMs, played = true, lastPlayedAt = System.currentTimeMillis())
             return
@@ -49,6 +48,11 @@ internal class LocalReporter(private val dao: LibraryDao, private val itemId: Lo
             played = state.played || watched,
             lastPlayedAt = System.currentTimeMillis(),
         )
+    }
+
+    /** A film's other copies are watched with the one watched to its end. */
+    private suspend fun copiesWatched(state: PlayState) {
+        if (!state.played) dao.setCopiesPlayed(itemId)
     }
 
     /**

@@ -48,7 +48,8 @@ internal class LocalCatalog(
         val credits = dao.creditsOf(owner)
         return withContext(Dispatchers.Default) {
             val byJob = credits.groupBy { it.job }.mapValues { (_, people) -> people.sortedBy { it.ord }.map(::person) }
-            Credits(cast = byJob[Job.CAST].orEmpty(), crew = Job.entries.filter { it != Job.CAST }.mapNotNull { job -> byJob[job]?.let { job to it } }.toMap())
+            val crew = Job.entries.filter { it != Job.CAST }.mapNotNull { job -> byJob[job]?.let { job to it } }.toMap()
+            Credits(cast = byJob[Job.CAST].orEmpty(), crew = crew)
         }
     }
 
@@ -190,7 +191,7 @@ internal class LocalCatalog(
         val titleIds = refs(SearchKind.TITLE, terms).mapNotNull { it.toLongOrNull() }
         val titles = titleIds.chunked(SQL_IN_LIMIT).flatMap { dao.rows(it) }
             .filter { (it.kind == ItemKind.MOVIE || it.kind == ItemKind.SERIES) && it.versionOf == null }
-            .sortedWith(compareBy<ItemEntity>({ minOf(rank(it.title, typed), rank(it.originalTitle, typed)) }, { -(it.rating ?: 0.0) }, { it.sortTitle }))
+            .sortedWith(compareBy({ rank(it, typed) }, { -(it.rating ?: 0.0) }, { it.sortTitle }))
             .take(limit)
         val people = refs(SearchKind.PERSON, terms).chunked(SQL_IN_LIMIT).flatMap { dao.people(it) }
             .sortedWith(compareBy<PersonSummary>({ rank(it.name, typed) }, { -it.titles }, { it.name })).take(limit)
@@ -218,6 +219,9 @@ internal class LocalCatalog(
         return provider.collectionItems(shown)
     }
 
+    /** How a title ranks for what was [typed]: by the better of its names. */
+    private fun rank(title: ItemEntity, typed: String): Int = minOf(rank(title.title, typed), rank(title.originalTitle, typed))
+
     /** How a name ranks for what was [typed]: the same words first, then those starting so, then any. */
     private fun rank(name: String?, typed: String): Int {
         val words = SearchWords.query(name ?: return NO_MATCH).joinToString(" ")
@@ -229,10 +233,11 @@ internal class LocalCatalog(
     }
 
     private fun person(c: TitleCredit) =
-        Person(Typeset.text(c.name), Typeset.text(c.character), c.profilePath?.let { LocalProvider.image(it, ImageType.PROFILE) }, c.personKey, c.titles)
+        Person(Typeset.text(c.name), Typeset.text(c.character), portrait(c.profilePath), c.personKey, c.titles)
 
-    private fun person(p: PersonSummary) =
-        Person(Typeset.text(p.name), null, p.profilePath?.let { LocalProvider.image(it, ImageType.PROFILE) }, p.personKey, p.titles)
+    private fun person(p: PersonSummary) = Person(Typeset.text(p.name), null, portrait(p.profilePath), p.personKey, p.titles)
+
+    private fun portrait(path: String?) = path?.let { LocalProvider.image(it, ImageType.PROFILE) }
 
     private companion object {
         /** Words of a search read at most: more narrow nothing a title holds. */

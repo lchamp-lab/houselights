@@ -50,6 +50,7 @@ interface JellyfinApi {
     ): List<BaseItem>
 
     @GET("Items")
+    @Suppress("LongParameterList") // One per query parameter of the route.
     suspend fun items(
         @Query("userId") userId: String,
         @Query("parentId") parentId: String?,

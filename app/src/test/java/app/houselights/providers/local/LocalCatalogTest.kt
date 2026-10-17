@@ -104,7 +104,10 @@ class LocalCatalogTest {
     fun aTitlesCreditsGoByJobEachWithItsTitles() = runTest {
         val arrival = film("Arrival", 2016)
         val dune = film("Dune", 2021)
-        credits(arrival, credit(arrival, Job.DIRECTOR, 0, "Denis Villeneuve", 137427), credit(arrival, Job.CAST, 0, "Amy Adams", 9273, "Louise Banks"))
+        credits(
+            arrival, credit(arrival, Job.DIRECTOR, 0, "Denis Villeneuve", 137427),
+            credit(arrival, Job.CAST, 0, "Amy Adams", 9273, "Louise Banks"),
+        )
         credits(
             dune, credit(dune, Job.DIRECTOR, 0, "Denis Villeneuve", 137427), credit(dune, Job.CINEMATOGRAPHY, 0, "Greig Fraser", 1000),
             credit(dune, Job.COMPOSER, 0, "Hans Zimmer", 947), credit(dune, Job.CAST, 0, "Timothée Chalamet", 1190668, "Paul Atreides"),
@@ -127,9 +130,15 @@ class LocalCatalogTest {
         val mystic = film("Mystic River", 2003)
         val gran = film("Gran Torino", 2008)
         val eastwood = 190
-        credits(unforgiven, credit(unforgiven, Job.DIRECTOR, 0, "Clint Eastwood", eastwood), credit(unforgiven, Job.CAST, 0, "Clint Eastwood", eastwood, "Will Munny"))
+        credits(
+            unforgiven, credit(unforgiven, Job.DIRECTOR, 0, "Clint Eastwood", eastwood),
+            credit(unforgiven, Job.CAST, 0, "Clint Eastwood", eastwood, "Will Munny"),
+        )
         credits(mystic, credit(mystic, Job.DIRECTOR, 0, "Clint Eastwood", eastwood))
-        credits(gran, credit(gran, Job.CAST, 0, "Clint Eastwood", eastwood, "Walt Kowalski"), credit(gran, Job.DIRECTOR, 0, "Clint Eastwood", eastwood))
+        credits(
+            gran, credit(gran, Job.CAST, 0, "Clint Eastwood", eastwood, "Walt Kowalski"),
+            credit(gran, Job.DIRECTOR, 0, "Clint Eastwood", eastwood),
+        )
 
         val page = checkNotNull(catalog.person(PersonKeys.tmdb(eastwood)))
         assertEquals("Clint Eastwood", page.person.name)
@@ -331,7 +340,8 @@ class LocalCatalogTest {
     @Test
     fun theLibraryInNumbersCountsEachFilmOnceAndEveryCopysRoom() = runTest {
         val dune = film("Dune", tmdbId = 1, badges = listOf("1080p", "DTS-HD MA"), fileSize = 20, runtimeMin = 155)
-        film("Dune", tmdbId = 1, path = "Dune 2160p.mkv", badges = listOf("4K", "Dolby Vision", "TrueHD Atmos"), fileSize = 60, runtimeMin = 155)
+        val uhd = listOf("4K", "Dolby Vision", "TrueHD Atmos")
+        film("Dune", tmdbId = 1, path = "Dune 2160p.mkv", badges = uhd, fileSize = 60, runtimeMin = 155)
         val heat = film("Heat", badges = listOf("1080p", "DTS-HD MA"), fileSize = 30, runtimeMin = 170)
         repeat(2) { i -> film("Nolan $i", fileSize = 1).let { credits(it, credit(it, Job.DIRECTOR, 0, "Christopher Nolan", 525)) } }
         credits(dune, credit(dune, Job.DIRECTOR, 0, "Denis Villeneuve", 137427))
@@ -382,7 +392,9 @@ class LocalCatalogTest {
 
     @Test
     fun aSearchFindsSagasTheLibraryShowsAndTitlesRenamed() = runTest {
-        val saga = dao.insertCollection(CollectionEntity(matchKey = "name:seigneur", name = "Le Seigneur des Anneaux", sortTitle = "seigneur"))
+        val saga = dao.insertCollection(
+            CollectionEntity(matchKey = "name:seigneur", name = "Le Seigneur des Anneaux", sortTitle = "seigneur"),
+        )
         film("La Communauté de l'anneau", 2001, collectionId = saga)
         film("Les Deux Tours", 2002, collectionId = saga)
         val alone = dao.insertCollection(CollectionEntity(matchKey = "name:anneaux", name = "Anneaux seuls", sortTitle = "anneaux seuls"))

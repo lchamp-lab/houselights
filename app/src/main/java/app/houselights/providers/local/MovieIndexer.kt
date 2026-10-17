@@ -65,6 +65,8 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
             badges = FilenameParser.badges(file.relativePath),
             edition = FilenameParser.edition(file.relativePath),
             addedAt = now,
+            // A title new to the library is no title of before credits were kept: no backfill for it.
+            creditsAt = now,
         )
         return item.copy(id = dao.insert(item))
     }
@@ -226,7 +228,9 @@ internal class MovieIndexer(private val dao: LibraryDao, private val files: Scan
             .copy(collectionId = collectionId, matchedAt = matchedAt, edition = editionOf(base, nfoInfo))
             .withNfoStreams(nfoInfo) // What the file contains does not depend on the match.
         dao.saveScanned(item)
-        CreditRules.credits(item.id, show = false, nfo, movie?.let { TmdbPeople(it.credits) })?.let { dao.replaceCredits(item.id, it, now) }
+        // Complete once TMDB answered for the film, or knows none of it: the backfill then leaves it alone.
+        val credits = CreditRules.credits(item.id, show = false, nfo, movie?.let { TmdbPeople(it.credits) })
+        dao.saveCredits(item.id, credits, complete = fetched.lookup is TmdbAnswer.Given || item.tmdbId == null, at = now)
     }
 
     /** The collection a film belongs to, as known before anything is written. */

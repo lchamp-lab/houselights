@@ -84,7 +84,8 @@ internal object CreditRules {
 
     private fun tmdbPeople(tmdb: TmdbPeople, show: Boolean): Map<Job, List<Credited>> {
         val jobs = if (show) SHOW_JOBS else FILM_JOBS
-        val crew = tmdb.credits.crew.mapNotNull { member -> jobs[member.job]?.let { it to Credited(member.name, null, member.profilePath, member.id) } }
+        val crew = tmdb.credits.crew
+            .mapNotNull { member -> jobs[member.job]?.let { it to Credited(member.name, null, member.profilePath, member.id) } }
             .groupBy({ it.first }, { it.second })
         val cast = tmdb.credits.cast.sortedBy { it.order }.map { Credited(it.name, it.character, it.profilePath, it.id) }
         val creators = tmdb.creators.map { Credited(it.name, null, it.profilePath, it.id) }

@@ -23,7 +23,8 @@ internal class Backfill(private val dao: LibraryDao, private val lock: Mutex, pr
     suspend fun run(tmdb: TmdbPass, askTmdb: Boolean): Int {
         var written = 0
         for (title in dao.creditsDue(withTmdb = askTmdb && tmdb.open, limit = TITLES_PER_PASS)) {
-            if (title.tmdbId != null && !tmdb.open) continue
+            // TMDB closed meanwhile: what it is to be asked for waits for a later pass.
+            if (asksTmdb(title) && !tmdb.open) continue
             if (credits(title, tmdb)) written++
         }
         if (!askTmdb) return written
@@ -34,11 +35,15 @@ internal class Backfill(private val dao: LibraryDao, private val lock: Mutex, pr
         return written
     }
 
+    /** TMDB is asked for [title]'s credits when it has a TMDB id ([LibraryDao.creditsDue] gives those matched). Else its NFO's. */
+    private fun asksTmdb(title: ItemEntity) = title.tmdbId != null
+
     /** The credits of [title]: false when TMDB did not answer for it, which a later pass asks again. */
     private suspend fun credits(title: ItemEntity, tmdb: TmdbPass): Boolean {
         val show = title.kind == ItemKind.SERIES
         val id = title.tmdbId
-        val answer: TmdbAnswer<Found> = if (id == null) TmdbAnswer.Given(null) else tmdb.ask { client -> lookUp(client, id, show) }
+        val answer: TmdbAnswer<Found> =
+            if (id == null || !asksTmdb(title)) TmdbAnswer.Given(null) else tmdb.ask { client -> lookUp(client, id, show) }
         if (answer !is TmdbAnswer.Given) return false
         val found = answer.value
         val raw = title.nfoInfo()

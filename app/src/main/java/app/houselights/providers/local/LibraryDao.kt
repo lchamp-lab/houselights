@@ -775,12 +775,13 @@ interface LibraryDao {
     suspend fun setCreditsAt(id: Long, at: Long)
 
     /**
-     * The credits of the title [itemId], in place of those it had, written [at]: a person named by name alone takes
+     * The credits of the title [itemId], in place of those it had, complete [at] ([ItemEntity.creditsAt]; null for
+     * credits an NFO gave while TMDB, which knows the title, was not asked): a person named by name alone takes
      * the TMDB key other titles know them by, and those other titles name by name alone a person TMDB keys here
      * take that key, so that one person is one across the library. Their words for searches with them.
      */
     @Transaction
-    suspend fun replaceCredits(itemId: Long, credits: List<CreditEntity>, at: Long) {
+    suspend fun replaceCredits(itemId: Long, credits: List<CreditEntity>, at: Long?) {
         val named = credits.filter { it.personKey.startsWith(PersonKeys.NAME) }.map { it.foldedName }.distinct()
         val tmdbKeys = named.chunked(SQL_IN_LIMIT).flatMap { tmdbKeysOf(it) }.associate { it.foldedName to it.personKey }
         val keyed = credits.map { c ->
@@ -791,16 +792,27 @@ interface LibraryDao {
         deleteCredits(itemId)
         insertCredits(keyed)
         insertSearchWords(keyed.distinctBy { it.personKey }.flatMap { SearchWords.rows(SearchKind.PERSON, it.personKey, it.name) })
-        setCreditsAt(itemId, at)
+        at?.let { setCreditsAt(itemId, it) }
     }
 
     /**
-     * Films and shows whose credits were never written ([ItemEntity.creditsAt]) though they were looked up, [limit]
-     * at most, whole: titles known before credits were kept. Those TMDB knows only [withTmdb].
+     * What a scan decided of a title's credits ([CreditRules]): written when it had any, and complete [at] when TMDB
+     * answered for the title or knows none of it ([complete]), so that the backfill leaves it alone.
+     */
+    @Transaction
+    suspend fun saveCredits(itemId: Long, credits: List<CreditEntity>?, complete: Boolean, at: Long) {
+        if (credits != null) replaceCredits(itemId, credits, at.takeIf { complete }) else if (complete) setCreditsAt(itemId, at)
+    }
+
+    /**
+     * Films and shows whose credits were never complete ([ItemEntity.creditsAt]), [limit] at most, whole: titles known
+     * before credits were kept, which scans do not read again. Those matched with a title TMDB knows, which TMDB is to
+     * be asked for, only [withTmdb]; those of no TMDB id, by their NFO. One left unmatched with a TMDB id waits for a
+     * scan to match it, which writes its credits.
      */
     @Query(
-        "SELECT * FROM items WHERE kind IN ('MOVIE', 'SERIES') AND creditsAt IS NULL AND matchedAt IS NOT NULL " +
-            "AND (:withTmdb OR tmdbId IS NULL) ORDER BY id LIMIT :limit"
+        "SELECT * FROM items WHERE kind IN ('MOVIE', 'SERIES') AND creditsAt IS NULL " +
+            "AND (tmdbId IS NULL OR (:withTmdb AND matchedAt IS NOT NULL)) ORDER BY id LIMIT :limit"
     )
     suspend fun creditsDue(withTmdb: Boolean, limit: Int): List<ItemEntity>
 

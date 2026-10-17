@@ -73,7 +73,8 @@ internal class JellyfinCatalog(
         withContext(mapping) {
             val shown = titles.map { title ->
                 val mine = title.people.filter { it.id == id }
-                PersonTitle(mapper.toMedia(title), mine.mapNotNull { jobOf(it.type) }.distinct().sorted(), Typeset.text(mine.firstNotNullOfOrNull { it.role }))
+                val jobs = mine.mapNotNull { jobOf(it.type) }.distinct().sorted()
+                PersonTitle(mapper.toMedia(title), jobs, Typeset.text(mine.firstNotNullOfOrNull { it.role }))
             }
             val jobs = shown.flatMap { it.jobs }.groupingBy { it }.eachCount().entries
                 .sortedWith(compareByDescending<Map.Entry<Job, Int>> { it.value }.thenBy { it.key }).associate { it.key to it.value }
@@ -147,20 +148,26 @@ internal class JellyfinCatalog(
         val uhdFilms = uhd.await()
         LibraryNumbers(
             films = films.await(), shows = shows.await(), episodes = episodes.await(), sizeBytes = null, runtimeMs = null,
-            picture = listOfNotNull(uhdFilms?.takeIf { it > 0 }?.let { Tally(Definition.ULTRA_HD.token, it, 0, LibraryFilter(quality = Quality.UHD_4K)) }),
+            picture = listOfNotNull(
+                uhdFilms?.takeIf { it > 0 }?.let { Tally(Definition.ULTRA_HD.token, it, 0, LibraryFilter(quality = Quality.UHD_4K)) },
+            ),
         )
     }
 
     /** The server's search, of titles, people and box sets, each asked apart, at once. */
     override suspend fun search(query: String, limit: Int): SearchResults = coroutineScope {
         val term = query.trim().ifEmpty { return@coroutineScope SearchResults() }
-        val titles = async { api.items(userId, null, "Movie,Series", true, "SortName", "Ascending", 0, limit, ROW_FIELDS, searchTerm = term).items }
-        val sagas = async { api.items(userId, null, "BoxSet", true, "SortName", "Ascending", 0, limit, ROW_FIELDS, searchTerm = term).items }
+        suspend fun found(types: String) =
+            api.items(userId, null, types, true, "SortName", "Ascending", 0, limit, ROW_FIELDS, searchTerm = term).items
+        val titles = async { found("Movie,Series") }
+        val sagas = async { found("BoxSet") }
         val people = api.persons(userId, term, limit).items
         withContext(mapping) {
             SearchResults(
                 titles = titles.await().map(mapper::toMedia),
-                people = people.map { Person(Typeset.text(it.name.orEmpty()), null, mapper.image(it.id, "Primary", it.imageTags["Primary"]), it.id) },
+                people = people.map {
+                    Person(Typeset.text(it.name.orEmpty()), null, mapper.image(it.id, "Primary", it.imageTags["Primary"]), it.id)
+                },
                 sagas = sagas.await().map(mapper::toMedia),
             )
         }

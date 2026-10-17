@@ -6,7 +6,9 @@ import androidx.sqlite.db.SimpleSQLiteQuery
 import app.houselights.R
 import app.houselights.core.NfoParser
 import app.houselights.core.NotFoundException
+import app.houselights.core.BadgeTokens
 import app.houselights.core.Catalog
+import app.houselights.core.Codecs
 import app.houselights.core.Definition
 import app.houselights.core.HdrFormat
 import app.houselights.core.HomeSection
@@ -367,14 +369,15 @@ class LocalProvider(
                 Recent(next.id, saga.mapNotNull { it.lastPlayedAt }.maxOrNull() ?: 0)
             }
 
-        /** How a sound format ranks among a library's, best first: objects, lossless, DTS, then the rest. */
-        internal fun soundRank(token: String): Int = when {
-            "Atmos" in token || token == "DTS:X" -> 0
-            token.startsWith("TrueHD") || token == "DTS-HD MA" || token == "PCM" || token == "FLAC" -> 1
-            token.startsWith("DTS") -> 2
-            token == "E-AC3" -> 3
-            else -> 4
-        }
+        /** How a sound format ranks among a library's, best first: objects, lossless, DTS, Dolby Digital Plus, then the rest. */
+        internal fun soundRank(token: String): Int = SOUND_ORDER.indexOfFirst { it(token) }.let { if (it < 0) SOUND_ORDER.size else it }
+
+        private val SOUND_ORDER: List<(String) -> Boolean> = listOf(
+            { it.endsWith(BadgeTokens.ATMOS) || it == BadgeTokens.DTS_X },
+            { it.startsWith(Codecs.TRUEHD) || it == Codecs.DTS_HD_MA || it == Codecs.PCM || it == Codecs.FLAC },
+            { it.startsWith(Codecs.DTS) },
+            { it == Codecs.EAC3 },
+        )
 
         /** The user's choice over the automatic value; an empty choice means none (a logo set in type). */
         internal fun shown(user: String?, automatic: String?): String? = when {

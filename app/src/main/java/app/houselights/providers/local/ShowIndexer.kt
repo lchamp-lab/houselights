@@ -179,6 +179,8 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
             sortTitle = MetadataMerge.sortKey(path.title),
             year = path.year,
             addedAt = now,
+            // A show new to the library is no show of before credits were kept: no backfill for it.
+            creditsAt = now,
         ).let { it.copy(id = dao.insert(it)) }
         val left = existing?.seriesId?.takeIf { it != show.id } ?: return show
         return takenOver(show, left, existing.id)
@@ -343,8 +345,8 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
         val matchedAt = if (lookup is TmdbAnswer.Given) now else base.matchedAt.takeUnless { refresh || untold }
         val series = MetadataMerge.merge(base, nfo, details, art).copy(matchedAt = matchedAt)
         dao.saveScanned(series)
-        CreditRules.credits(series.id, show = true, nfo, tv?.let { TmdbPeople(it.credits, it.createdBy) })
-            ?.let { dao.replaceCredits(series.id, it, now) }
+        val credits = CreditRules.credits(series.id, show = true, nfo, tv?.let { TmdbPeople(it.credits, it.createdBy) })
+        dao.saveCredits(series.id, credits, complete = lookup is TmdbAnswer.Given || series.tmdbId == null, at = now)
         return series
     }
 

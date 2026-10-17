@@ -303,24 +303,29 @@ object NfoParser {
             if (p.eventType == XmlPullParser.START_TAG && p.name == "rating") {
                 val isDefault = p.getAttributeValue(null, "default") == "true"
                 val isAudience = p.getAttributeValue(null, "name")?.lowercase() in AUDIENCE_RATINGS
-                val max = p.getAttributeValue(null, "max")?.replace(',', '.')?.toDoubleOrNull()?.takeIf { it > 0 } ?: RATING_SCALE
-                val ratingDepth = p.depth
-                var value: Double? = null
-                var votes: Int? = null
-                while (p.nextWithin(ratingDepth)) {
-                    if (p.eventType != XmlPullParser.START_TAG) continue
-                    when (p.name) {
-                        "value" -> value = p.text()?.replace(',', '.')?.toDoubleOrNull()?.let { it * RATING_SCALE / max }
-                        "votes" -> votes = votesOf(p.text())
-                    }
-                }
-                val read = value?.let { RatingRead(it, votes) }
+                val read = rating(p)
                 if (isDefault) default = read
                 if (first == null) first = read
                 if (isAudience && audience == null) audience = read
             }
         }
         return default to (audience ?: first)
+    }
+
+    /** One <rating> of <ratings>, out of 10, with its votes. */
+    private fun rating(p: XmlPullParser): RatingRead? {
+        val max = p.getAttributeValue(null, "max")?.replace(',', '.')?.toDoubleOrNull()?.takeIf { it > 0 } ?: RATING_SCALE
+        val depth = p.depth
+        var value: Double? = null
+        var votes: Int? = null
+        while (p.nextWithin(depth)) {
+            if (p.eventType != XmlPullParser.START_TAG) continue
+            when (p.name) {
+                "value" -> value = p.text()?.replace(',', '.')?.toDoubleOrNull()?.let { it * RATING_SCALE / max }
+                "votes" -> votes = votesOf(p.text())
+            }
+        }
+        return value?.let { RatingRead(it, votes) }
     }
 
     private fun actor(p: XmlPullParser): NfoActor? {

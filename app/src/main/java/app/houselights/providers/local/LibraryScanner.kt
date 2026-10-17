@@ -526,11 +526,14 @@ class LibraryScanner(
      * What screens show of a file's row, and of its season's and its show's: matched or not, whenever
      * it was. A title TMDB answered again with the same details is the same title; sidecars read again
      * to no change ([ItemEntity.sidecarKey]) change nothing shown, nor does a file read again by a newer
-     * probe to the same reading.
+     * probe to the same reading, nor when its credits were complete ([ItemEntity.creditsAt]).
      */
     private suspend fun shown(item: ItemEntity): List<ItemEntity> =
         (listOf(item) + dao.rows(listOfNotNull(item.parentId, item.seriesId)).sortedBy { it.id }).map { row ->
-            row.copy(matchedAt = row.matchedAt?.let { MATCHED }, sidecarKey = null, probeVersion = 0, mediaInfo = unstamped(row.mediaInfo))
+            row.copy(
+                matchedAt = row.matchedAt?.let { MATCHED }, sidecarKey = null, probeVersion = 0, mediaInfo = unstamped(row.mediaInfo),
+                creditsAt = null,
+            )
         }
 
     /** What a file holds ([ItemEntity.mediaInfo]), whichever probe read it. */

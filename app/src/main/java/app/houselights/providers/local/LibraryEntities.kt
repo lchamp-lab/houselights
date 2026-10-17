@@ -331,8 +331,9 @@ data class ItemEntity(
     /** How many votes [rating] stands on, when TMDB or the NFO tells. */
     val votes: Int? = null,
     /**
-     * When the title's credits were last written ([CreditEntity]), from TMDB or its NFO; null until then: titles
-     * known before credits were kept get theirs at later passes ([LibraryScanner]'s backfill).
+     * When the title's credits were complete ([CreditEntity]): TMDB answered for it, or knows none of it; or when it
+     * joined the library, from version 12 on. Null for a title known before credits were kept, until a scan or the
+     * backfill ([Backfill]) completes them.
      */
     val creditsAt: Long? = null,
 )

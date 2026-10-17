@@ -159,14 +159,15 @@ abstract class LibraryDatabase : RoomDatabase() {
                         "VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
                 ).use { insert ->
                     for (c in credits) {
-                        insert.bindLong(1, c.itemId)
-                        insert.bindString(2, c.job.name)
-                        insert.bindLong(3, c.ord.toLong())
-                        insert.bindString(4, c.personKey)
-                        insert.bindString(5, c.name)
-                        insert.bindString(6, c.foldedName)
-                        c.character?.let { insert.bindString(7, it) } ?: insert.bindNull(7)
-                        c.profilePath?.let { insert.bindString(8, it) } ?: insert.bindNull(8)
+                        val values =
+                            listOf(c.itemId, c.job.name, c.ord.toLong(), c.personKey, c.name, c.foldedName, c.character, c.profilePath)
+                        values.forEachIndexed { i, value ->
+                            when (value) {
+                                null -> insert.bindNull(i + 1)
+                                is Long -> insert.bindLong(i + 1, value)
+                                else -> insert.bindString(i + 1, value.toString())
+                            }
+                        }
                         insert.executeInsert()
                         insert.clearBindings()
                     }
@@ -178,9 +179,7 @@ abstract class LibraryDatabase : RoomDatabase() {
                 } + sagaWords(db)
                 db.compileStatement("INSERT OR IGNORE INTO search_words (kind, word, ref) VALUES (?, ?, ?)").use { insert ->
                     for (w in words) {
-                        insert.bindString(1, w.kind.name)
-                        insert.bindString(2, w.word)
-                        insert.bindString(3, w.ref)
+                        listOf(w.kind.name, w.word, w.ref).forEachIndexed { i, value -> insert.bindString(i + 1, value) }
                         insert.executeInsert()
                         insert.clearBindings()
                     }
@@ -225,11 +224,10 @@ abstract class LibraryDatabase : RoomDatabase() {
                 return CreditEntity(itemId, job, ord, PersonKeys.name(folded), name, folded, character, profile)
             }
             val cast = db.query("SELECT itemId, ord, name, character, profilePath FROM `cast`").use { rows ->
+                fun text(column: String) = rows.getColumnIndexOrThrow(column).let { if (rows.isNull(it)) null else rows.getString(it) }
                 buildList {
                     while (rows.moveToNext()) {
-                        val character = if (rows.isNull(3)) null else rows.getString(3)
-                        val profile = if (rows.isNull(4)) null else rows.getString(4)
-                        add(credit(rows.getLong(0), Job.CAST, rows.getInt(1), rows.getString(2), character, profile))
+                        add(credit(rows.getLong(0), Job.CAST, rows.getInt(1), rows.getString(2), text("character"), text("profilePath")))
                     }
                 }
             }

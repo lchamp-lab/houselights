@@ -1,8 +1,10 @@
 package app.houselights.providers.local
 
+import app.houselights.core.AudioTrack
 import app.houselights.core.BadgeTokens
 import app.houselights.core.Codecs
 import app.houselights.core.Definition
+import app.houselights.core.Formats
 import app.houselights.core.HdrFormat
 import app.houselights.core.LibraryFilter
 import app.houselights.core.LibraryNumbers
@@ -19,7 +21,7 @@ internal object LibraryCount {
         val (films, episodes) = files.partition { it.kind == ItemKind.MOVIE }
         // Each title's files: a film's copies under its title's row, a show's episodes under the show.
         val filmFiles = films.groupBy { it.versionOf ?: it.id }
-        val showFiles = episodes.filter { it.seriesId != null }.groupBy { it.seriesId!! }
+        val showFiles = episodes.mapNotNull { e -> e.seriesId?.let { it to e } }.groupBy({ it.first }, { it.second })
         val titleRuntime = films.filter { it.versionOf == null } + episodes
         return LibraryNumbers(
             films = filmFiles.size,
@@ -27,12 +29,14 @@ internal object LibraryCount {
             episodes = episodes.size,
             sizeBytes = files.sumOf { it.fileSize ?: 0L },
             runtimeMs = titleRuntime.sumOf { runtimeMs(it.parts, it.durationMs, it.fileDurationMs, it.runtimeMin) ?: 0L },
-            picture = tallies(filmFiles, showFiles, { f -> f.badges.filter { it in LocalFilters.PICTURE_TOKENS } }) { LibraryFilter(picture = it) }
-                .sortedBy { LocalFilters.PICTURE_TOKENS.indexOf(it.label) },
+            picture = tallies(filmFiles, showFiles, { f -> f.badges.filter { it in LocalFilters.PICTURE_TOKENS } }) {
+                LibraryFilter(picture = it)
+            }.sortedBy { LocalFilters.PICTURE_TOKENS.indexOf(it.label) },
             sound = tallies(filmFiles, showFiles, { f -> f.badges.filter(LocalFilters::isSound) }) { LibraryFilter(sound = it) }
                 .sortedWith(compareByDescending<Tally> { it.films + it.shows }.thenBy { it.label }),
-            files = tallies(filmFiles, showFiles, { f -> listOfNotNull(f.filePath?.let(LocalFilters::fileTypeOf)) }) { LibraryFilter(fileType = it) }
-                .sortedWith(compareByDescending<Tally> { it.films + it.shows }.thenBy { it.label }),
+            files = tallies(filmFiles, showFiles, { f -> listOfNotNull(f.filePath?.let(LocalFilters::fileTypeOf)) }) {
+                LibraryFilter(fileType = it)
+            }.sortedWith(compareByDescending<Tally> { it.films + it.shows }.thenBy { it.label }),
             directors = directors.map { Tally(it.name, it.titles, 0, LibraryFilter(person = it.personKey), it.personKey) },
         )
     }
@@ -67,25 +71,27 @@ internal object VersionRank {
     }
 
     private fun of(copy: Copy): List<Long> {
-        val badges = copy.badges
-        val media = copy.media
-        val definition = media?.video?.definition ?: Definition.entries.firstOrNull { it.token in badges }
-        val ranges = media?.video?.hdr ?: HdrFormat.entries.filter { it.token in badges }
-        val range = ranges.minOfOrNull { it.ordinal }?.let { HdrFormat.entries.size - it } ?: if (BadgeTokens.HDR in badges) 1 else 0
-        val track = media?.audio?.let(app.houselights.core.Formats::bestTrack)
-        val sound = when {
-            track == null -> if (BadgeTokens.ATMOS in badges || BadgeTokens.DTS_X in badges) OBJECTS else 0
-            track.atmos || track.dtsX -> OBJECTS
-            Codecs.isLossless(track.codec) -> LOSSLESS
-            track.codec.startsWith(Codecs.DTS) -> DTS
-            else -> OTHER
-        }
-        return listOf(
-            definition?.let { Definition.entries.size - it.ordinal } ?: 0,
-            range,
-            sound,
-            track?.channels ?: 0,
-        ).map { it.toLong() } + (media?.sizeBytes ?: copy.sizeBytes ?: 0L)
+        val track = copy.media?.audio?.let(Formats::bestTrack)
+        return listOf(definition(copy), range(copy), sound(copy, track), track?.channels ?: 0).map { it.toLong() } +
+            (copy.media?.sizeBytes ?: copy.sizeBytes ?: 0L)
+    }
+
+    private fun definition(copy: Copy): Int {
+        val definition = copy.media?.video?.definition ?: Definition.entries.firstOrNull { it.token in copy.badges }
+        return definition?.let { Definition.entries.size - it.ordinal } ?: 0
+    }
+
+    private fun range(copy: Copy): Int {
+        val ranges = copy.media?.video?.hdr ?: HdrFormat.entries.filter { it.token in copy.badges }
+        return ranges.minOfOrNull { it.ordinal }?.let { HdrFormat.entries.size - it } ?: if (BadgeTokens.HDR in copy.badges) 1 else 0
+    }
+
+    private fun sound(copy: Copy, track: AudioTrack?): Int = when {
+        track == null -> if (BadgeTokens.ATMOS in copy.badges || BadgeTokens.DTS_X in copy.badges) OBJECTS else 0
+        track.atmos || track.dtsX -> OBJECTS
+        Codecs.isLossless(track.codec) -> LOSSLESS
+        track.codec.startsWith(Codecs.DTS) -> DTS
+        else -> OTHER
     }
 
     private const val OBJECTS = 4
