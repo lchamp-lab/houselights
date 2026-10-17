@@ -304,3 +304,11 @@ data class MediaInfo(
         best?.layout?.let(::add)
     }.distinct()
 }
+
+/**
+ * Bits a second, as a file's tags and a media server give a track's bitrate, in the kilobits a second
+ * [VideoInfo.bitrateKbps] and [AudioTrack.bitrateKbps] keep: the nearest, half up, wherever it was read.
+ */
+fun bpsToKbps(bps: Long): Int = ((bps + BITS_PER_KILOBIT / 2) / BITS_PER_KILOBIT).toInt()
+
+private const val BITS_PER_KILOBIT = 1000L

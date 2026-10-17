@@ -50,6 +50,7 @@ import app.houselights.ui.design.rememberFocusMemory
 import app.houselights.ui.design.tryRequestFocus
 import app.houselights.R
 import app.houselights.core.Definition
+import app.houselights.core.HdrFormat
 import app.houselights.core.Library
 import app.houselights.core.LibraryKind
 import app.houselights.core.MediaItem
@@ -321,7 +322,7 @@ private fun FilterButton(filter: LibraryFilter, facets: LibraryFacets, onChange:
     val qualityLabels = mapOf(
         Quality.UHD_4K to Definition.ULTRA_HD.label,
         Quality.HDR to stringResource(R.string.quality_hdr),
-        Quality.DOLBY_VISION to "Dolby Vision",
+        Quality.DOLBY_VISION to HdrFormat.DOLBY_VISION.token,
     )
     val decadeLabel = @Composable { d: Int -> stringResource(R.string.decade, d) }
 
