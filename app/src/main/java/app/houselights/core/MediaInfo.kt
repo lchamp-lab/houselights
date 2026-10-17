@@ -29,6 +29,25 @@ enum class Definition(val token: String, val label: String) {
     }
 }
 
+/**
+ * What badges store besides a [Definition], an [HdrFormat] and a codec ([Codecs]): words a file's
+ * name or its sound gives. Like theirs, these tokens are kept with each title and matched as they are
+ * by filters and searches, and never change.
+ */
+object BadgeTokens {
+    /** High dynamic range, of a kind a name does not say. */
+    const val HDR = "HDR"
+
+    /** Dolby's object sound, over the codec a track names before it ("TrueHD Atmos"), or alone in a name. */
+    const val ATMOS = "Atmos"
+
+    /** DTS's object sound. */
+    const val DTS_X = "DTS:X"
+
+    /** A disc's streams copied as they are: how the file was made, not a format. */
+    const val REMUX = "Remux"
+}
+
 /** What a format speaks of. */
 enum class FormatFamily { PICTURE, SOUND }
 
@@ -76,7 +95,7 @@ object Formats {
      */
     fun ranges(video: VideoInfo): List<String> {
         val dolbyVision = HdrFormat.DOLBY_VISION in video.hdr
-        return video.hdr.map(MediaInfo::hdrLabel).filterNot { dolbyVision && (it == HDR10 || it == HLG) }
+        return video.hdr.filterNot { dolbyVision && (it == HdrFormat.HDR10 || it == HdrFormat.HLG) }.map(HdrFormat::token)
     }
 
     /** What a page says of a file's sound: its best track by its full name, then its channels. */
@@ -113,11 +132,11 @@ object Formats {
      * Atmos, the track it rides on: "Dolby TrueHD Atmos" (lossless), "Dolby Digital Plus Atmos".
      */
     fun soundName(format: String): String {
-        val atmos = format == ATMOS || format.endsWith(" $ATMOS")
-        val codec = format.removeSuffix(ATMOS).trim()
+        val atmos = format == BadgeTokens.ATMOS || format.endsWith(" ${BadgeTokens.ATMOS}")
+        val codec = format.removeSuffix(BadgeTokens.ATMOS).trim()
         return when {
             atmos && codec.isEmpty() -> DOLBY_ATMOS
-            atmos -> "${codecName(codec)} $ATMOS"
+            atmos -> "${codecName(codec)} ${BadgeTokens.ATMOS}"
             else -> codecName(codec)
         }
     }
@@ -134,7 +153,7 @@ object Formats {
 
     /** The sound among stored badges: a name's "TrueHD" and "Atmos" read as one format. */
     private fun soundToken(tokens: List<String>): String? = when {
-        Codecs.TRUEHD in tokens && ATMOS in tokens -> "${Codecs.TRUEHD} $ATMOS"
+        Codecs.TRUEHD in tokens && BadgeTokens.ATMOS in tokens -> "${Codecs.TRUEHD} ${BadgeTokens.ATMOS}"
         else -> tokens.firstOrNull()
     }
 
@@ -148,26 +167,30 @@ object Formats {
         else kotlin.math.round(fps * THOUSANDTHS) / THOUSANDTHS
     }
 
-    private const val DOLBY_VISION = "Dolby Vision"
-    private const val HDR10 = "HDR10"
-    private const val HLG = "HLG"
-    private const val ATMOS = "Atmos"
     private const val DOLBY_ATMOS = "Dolby Atmos"
     private const val FRAME_RATE_TOLERANCE = 0.001
     private const val THOUSANDTHS = 1000.0
 
-    /** Ranges, best first: the one a line keeps. */
-    private val RANGES = listOf(DOLBY_VISION, "HDR10+", HDR10, HLG, "HDR")
+    /** Ranges, best first: the one a line keeps. A name's plain HDR, of no known kind, comes last. */
+    private val RANGES = HdrFormat.entries.map(HdrFormat::token) + BadgeTokens.HDR
 
     /** What badges hold that is not a format: how a file was made. */
-    private val NOT_FORMATS = setOf("Remux")
+    private val NOT_FORMATS = setOf(BadgeTokens.REMUX)
     private val CHANNELS = Regex("""\d\.\d|\d+ ch""")
     private val FRAME_RATES = listOf(23.976, 24.0, 25.0, 29.97, 30.0, 47.952, 48.0, 50.0, 59.94, 60.0, 100.0, 119.88, 120.0)
 }
 
-/** High dynamic range formats, best first. */
+/**
+ * High dynamic range formats, best first. [token] is the name a case prints, and what badges store
+ * and filters match: it never changes.
+ */
 @Serializable
-enum class HdrFormat { DOLBY_VISION, HDR10_PLUS, HDR10, HLG }
+enum class HdrFormat(val token: String) {
+    DOLBY_VISION("Dolby Vision"),
+    HDR10_PLUS("HDR10+"),
+    HDR10("HDR10"),
+    HLG("HLG"),
+}
 
 @Serializable
 data class VideoInfo(
@@ -234,8 +257,8 @@ data class AudioTrack(
     /** "TrueHD Atmos", "DTS:X", "DTS-HD MA"… */
     val format: String
         get() = when {
-            atmos -> "$codec Atmos"
-            dtsX -> "DTS:X"
+            atmos -> "$codec ${BadgeTokens.ATMOS}"
+            dtsX -> BadgeTokens.DTS_X
             else -> codec
         }
 }
@@ -274,19 +297,10 @@ data class MediaInfo(
     /** Short format marks for badges and filters: 4K, Dolby Vision, HDR10, TrueHD Atmos, 7.1. */
     fun badges(): List<String> = buildList {
         video?.definition?.let { add(it.token) }
-        video?.hdr?.forEach { add(hdrLabel(it)) }
+        video?.hdr?.forEach { add(it.token) }
         // Show the best audio of the file, which is what a home cinema will pick.
         val best = Formats.bestTrack(audio)
         best?.let { add(it.format) }
         best?.layout?.let(::add)
     }.distinct()
-
-    companion object {
-        fun hdrLabel(format: HdrFormat) = when (format) {
-            HdrFormat.DOLBY_VISION -> "Dolby Vision"
-            HdrFormat.HDR10_PLUS -> "HDR10+"
-            HdrFormat.HDR10 -> "HDR10"
-            HdrFormat.HLG -> "HLG"
-        }
-    }
 }

@@ -6,7 +6,9 @@ import androidx.sqlite.db.SimpleSQLiteQuery
 import app.houselights.R
 import app.houselights.core.NfoParser
 import app.houselights.core.NotFoundException
+import app.houselights.core.BadgeTokens
 import app.houselights.core.Definition
+import app.houselights.core.HdrFormat
 import app.houselights.core.HomeSection
 import app.houselights.core.ImageRef
 import app.houselights.core.Library
@@ -128,8 +130,8 @@ class LocalProvider(
         fun holds(token: String) = PipeList.matches(column, "'$token'")
         return when (quality) {
             Quality.UHD_4K -> holds(Definition.ULTRA_HD.token)
-            Quality.HDR -> "($column LIKE '%HDR%' OR ${holds("Dolby Vision")})"
-            Quality.DOLBY_VISION -> holds("Dolby Vision")
+            Quality.HDR -> HDR_BADGES.joinToString(" OR ", "(", ")") { holds(it) }
+            Quality.DOLBY_VISION -> holds(HdrFormat.DOLBY_VISION.token)
         }
     }
 
@@ -174,8 +176,8 @@ class LocalProvider(
                 decades = years.map { it / 10 * 10 }.distinct().sortedDescending(),
                 qualities = buildList {
                     if (Definition.ULTRA_HD.token in badges) add(Quality.UHD_4K)
-                    if (badges.any { it.startsWith("HDR") } || "Dolby Vision" in badges) add(Quality.HDR)
-                    if ("Dolby Vision" in badges) add(Quality.DOLBY_VISION)
+                    if (badges.any { it in HDR_BADGES }) add(Quality.HDR)
+                    if (HdrFormat.DOLBY_VISION.token in badges) add(Quality.DOLBY_VISION)
                 },
             )
         }
@@ -370,6 +372,12 @@ class LocalProvider(
         private const val DISC_IMAGE = "iso"
         private const val SIMILAR = 16
 
+        /**
+         * The badges the HDR filter keeps, and its menu offers it for: Dolby Vision, HDR10+ and HDR10, and
+         * a name's plain HDR. HLG, a broadcast range, has never been among them.
+         */
+        private val HDR_BADGES = listOf(HdrFormat.DOLBY_VISION, HdrFormat.HDR10_PLUS, HdrFormat.HDR10).map(HdrFormat::token) +
+            BadgeTokens.HDR
 
         /** The user's choice over the automatic value; an empty choice means none (a logo set in type). */
         internal fun shown(user: String?, automatic: String?): String? = when {

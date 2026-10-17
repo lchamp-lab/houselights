@@ -245,6 +245,30 @@ class LocalProviderTest {
         assertEquals(1, provider.libraryPage(shows, SortOption.TITLE, LibraryFilter(quality = Quality.DOLBY_VISION), 0, 50).total)
     }
 
+    /** The menu offers a quality for the titles its filter keeps, by the same badges, each whole. */
+    @Test
+    fun aQualityIsOfferedForTheFilmsItsFilterKeeps() = runTest {
+        suspend fun film(title: String, vararg badges: String) = dao.insert(
+            ItemEntity(
+                kind = ItemKind.MOVIE, sourceId = source, title = title, sortTitle = title.lowercase(), filePath = "$title.mkv",
+                badges = badges.toList(), addedAt = 0,
+            )
+        )
+        suspend fun titles(quality: Quality) = page(LibraryFilter(quality = quality)).items.map { it.title }
+
+        film("Broadcast", "1080p", "HLG")
+        assertEquals(emptyList<Quality>(), provider.libraryFacets(films).qualities)
+        assertEquals(emptyList<String>(), titles(Quality.HDR))
+
+        film("Heat", "4K", "HDR10+")
+        film("Ronin", "1080p", "HDR")
+        film("Dune", "4K", "Dolby Vision", "HDR10")
+        assertEquals(listOf(Quality.UHD_4K, Quality.HDR, Quality.DOLBY_VISION), provider.libraryFacets(films).qualities)
+        assertEquals(listOf("Dune", "Heat", "Ronin"), titles(Quality.HDR))
+        assertEquals(listOf("Dune"), titles(Quality.DOLBY_VISION))
+        assertEquals(listOf("Dune", "Heat"), titles(Quality.UHD_4K))
+    }
+
     @Test
     fun aFilmWatchedPastNinetyPercentIsPlayed() = runTest {
         val id = movie("Heat", runtimeMin = 100)
