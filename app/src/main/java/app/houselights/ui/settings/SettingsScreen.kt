@@ -1,6 +1,5 @@
 package app.houselights.ui.settings
 
-import android.view.Display
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
