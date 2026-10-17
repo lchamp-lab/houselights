@@ -238,6 +238,18 @@ class ScanNamesTest {
         assertEquals(listOf("kaamelott" to "Kaamelott", "les revenants" to "Les Revenants"), series().map { it.matchKey to it.title })
     }
 
+    /** A folder of a show's name holding one for each of its years: each a show of its own, by its year. */
+    @Test
+    fun aShowsYearsInAFolderOfItsNameAreTwoShows() = runTest {
+        showsNas.put("Doctor Who/Doctor Who (1963)/Season 01/Doctor Who - S01E01 - An Unearthly Child.mkv")
+        showsNas.put("Doctor Who/Doctor Who (2005)/Season 01/Doctor Who - S01E01 - Rose.mkv")
+        showsNas.put("Doctor Who (2023)/Season 01/Doctor Who - S01E01 - Space Babies.mkv")
+        bench.scan()
+
+        val keys = listOf("doctor who|1963" to 1963, "doctor who|2005" to 2005, "doctor who|2023" to 2023)
+        assertEquals(keys, series().map { it.matchKey to it.year })
+    }
+
     /** A folder of kinds above the shows: each show is its own, described by its own folder. */
     @Test
     fun showsUnderAFolderOfKindsAreTheirOwn() = runTest {

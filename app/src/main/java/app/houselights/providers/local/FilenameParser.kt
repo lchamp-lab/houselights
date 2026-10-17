@@ -185,15 +185,17 @@ object FilenameParser {
     /**
      * The show's folder among [folders], by its index (null for none), and the show's name and year, for a file
      * whose name names the show [named]. The show's folder is the one named as the file names the show, under a
-     * folder of kinds ("Animation/Arcane/Saison 1/Arcane.S01E01"); else one that names it before a pack's tags
-     * ("Friends.Complete.Series.1080p", "Friends - The Complete Series"), the show named as its files name it;
-     * else the first one, above a season's pack ("Show/Show.S01.1080p.WEB/Show.S01E01"). Without one, the
-     * file's name names the show. A folder's name is a show's up to a season ([showName]).
+     * folder of kinds ("Animation/Arcane/Saison 1/Arcane.S01E01"); the one naming it with a year alone first, in a
+     * folder of its name holding one for each of its years ("Doctor Who/Doctor Who (2005)/Season 1"); else one
+     * that names it before a pack's tags ("Friends.Complete.Series.1080p", "Friends - The Complete Series"), the
+     * show named as its files name it; else the first one, above a season's pack ("Show/Show.S01.1080p.WEB/Show.S01E01").
+     * Without one, the file's name names the show. A folder's name is a show's up to a season ([showName]).
      */
     private fun showIn(folders: List<String>, named: ParsedMovie): Pair<Int?, ParsedMovie?> {
         val shows = folders.indices.filter { seasonFromFolder(folders[it]) == null }
         val known = named.title.isNotEmpty()
-        val same = shows.firstOrNull { known && sameShow(showName(folders[it]).title, named.title) }
+        val sameName = shows.filter { known && sameShow(showName(folders[it]).title, named.title) }
+        val same = sameName.firstOrNull { titleAndYear(folders[it]) } ?: sameName.firstOrNull()
         if (same != null) return same to showName(folders[same])
         val pack = shows.firstOrNull { known && namesThenTags(folders[it], named.title) }
         if (pack != null) return pack to ParsedMovie(named.title, showName(folders[pack]).year)
@@ -220,6 +222,15 @@ object FilenameParser {
         val base = normalizeSeparators(dropBrackets(folder))
         val tag = JUNK.find(base) ?: return false
         return sameShow(base.substring(0, tag.range.first).replace(TRAILING_THE, ""), title)
+    }
+
+    /**
+     * [folder] names a title and its year, and nothing else but ids in brackets: "Doctor Who (2005)", "Doctor.Who.2005",
+     * "Doctor Who (2005) [tvdbid-78804]"; not a pack's "Severance.2022.S01.1080p.WEB".
+     */
+    private fun titleAndYear(folder: String): Boolean {
+        val name = parseMovie(folder)
+        return name.year != null && letters(dropBrackets(folder)) == letters(name.title) + name.year
     }
 
     /** "The" ending a name, before "The Complete Series". */

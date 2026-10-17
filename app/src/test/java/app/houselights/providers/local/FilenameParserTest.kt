@@ -276,6 +276,41 @@ class FilenameParserTest {
         assertEquals(ParsedMovie("L'Intégrale", null), movie("L'Intégrale.mkv"))
     }
 
+    /**
+     * A folder of a show's name holding one for each of its years ("Doctor Who/Doctor Who (2005)"): each is a show
+     * of its own, by its year. A season's pack giving the year stays in its show's folder.
+     */
+    @Test
+    fun aShowsFolderHoldingOneForEachOfItsYears() {
+        assertEquals(
+            Triple("Doctor Who", 2005, "Séries/Doctor Who/Doctor Who (2005)"),
+            show("Séries/Doctor Who/Doctor Who (2005)/Season 01/Doctor Who - S01E01 - Rose.mkv"),
+        )
+        assertEquals(
+            Triple("Doctor Who", 1963, "Séries/Doctor Who/Doctor Who 1963"),
+            show("Séries/Doctor Who/Doctor Who 1963/Season 01/Doctor.Who.S01E01.mkv"),
+        )
+        assertEquals(
+            Triple("Doctor Who", 2023, "Doctor Who/Doctor Who (2023) [tvdbid-436992]"),
+            show("Doctor Who/Doctor Who (2023) [tvdbid-436992]/Season 01/Doctor Who (2023) - S01E01 - Space Babies.mkv"),
+        )
+        assertEquals(Triple("Severance", null, "Severance"), show("Severance/Severance.2022.S01.1080p.WEB/Severance.S01E01.mkv"))
+        assertEquals(Triple("Severance", 2022, "Severance (2022)"), show("Severance (2022)/Severance (2022)/Season 1/Severance.S01E01.mkv"))
+    }
+
+    /** Films whose titles hold a number like a year: the year in parentheses is theirs, the number stays in the title. */
+    @Test
+    fun titlesHoldingANumberLikeAYear() {
+        assertEquals(ParsedMovie("Wonder Woman 1984", 2020), movie("Wonder Woman 1984 (2020).mkv"))
+        assertEquals(ParsedMovie("Wonder Woman 1984", 2020), movie("Wonder.Woman.1984.2020.MULTi.2160p.WEB-DL.mkv"))
+        assertEquals(ParsedMovie("Blade Runner 2049", 2017), movie("Blade Runner 2049 (2017).mkv"))
+        assertEquals(ParsedMovie("1917", 2019), movie("1917 (2019).mkv"))
+        assertEquals(ParsedMovie("2001 A Space Odyssey", 1968), movie("2001 A Space Odyssey (1968).mkv"))
+        // Named by their folder, as Radarr names it, the file saying no more.
+        assertEquals(ParsedMovie("Wonder Woman 1984", 2020), LibraryScanner.parseMovie("Wonder Woman 1984 (2020)/movie.mkv"))
+        assertEquals(ParsedMovie("1917", 2019), LibraryScanner.parseMovie("1917 (2019)/1917 (2019) Remux-2160p.mkv"))
+    }
+
     /** The year of a show is its folder's, else its name's at the source's root; specials are season 0. */
     @Test
     fun showYearsAndSpecials() {
