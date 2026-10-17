@@ -250,6 +250,16 @@ class ScanNamesTest {
         assertEquals(keys, series().map { it.matchKey to it.year })
     }
 
+    /** Folders of a show's years naming a season or a release's tags after the year: still a show for each year. */
+    @Test
+    fun aShowsYearsNamingMoreThanTheirYearAreTwoShows() = runTest {
+        showsNas.put("Doctor Who/Doctor Who (1963) 1080p/Season 01/Doctor Who - S01E01 - An Unearthly Child.mkv")
+        showsNas.put("Doctor Who/Doctor Who (2005) - S01/Doctor Who - S01E01 - Rose.mkv")
+        bench.scan()
+
+        assertEquals(listOf("doctor who|1963" to 1963, "doctor who|2005" to 2005), series().map { it.matchKey to it.year })
+    }
+
     /** A folder of kinds above the shows: each show is its own, described by its own folder. */
     @Test
     fun showsUnderAFolderOfKindsAreTheirOwn() = runTest {

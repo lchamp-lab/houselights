@@ -331,6 +331,28 @@ class FilenameParserTest {
         assertEquals(Triple("Severance", 2022, "Severance (2022)"), show("Severance (2022)/Severance (2022)/Season 1/Severance.S01E01.mkv"))
     }
 
+    /**
+     * A folder of a year of the show naming what of it it holds besides, a season or a release's tags, after its year
+     * in parentheses as media managers write it: a show of its own too. A scene pack's year stays its show folder's.
+     */
+    @Test
+    fun aYearsFolderNamingASeasonOrTagsBesides() {
+        assertEquals(
+            Triple("Doctor Who", 2005, "Doctor Who/Doctor Who (2005) - S01"),
+            show("Doctor Who/Doctor Who (2005) - S01/Doctor Who - S01E01 - Rose.mkv"),
+        )
+        assertEquals(
+            Triple("Doctor Who", 1963, "Doctor Who/Doctor Who (1963) 1080p"),
+            show("Doctor Who/Doctor Who (1963) 1080p/Season 01/Doctor.Who.S01E01.mkv"),
+        )
+        assertEquals(
+            Triple("Doctor Who", 2005, "Doctor Who/Doctor Who [2005] Saison 2 MULTi 1080p"),
+            show("Doctor Who/Doctor Who [2005] Saison 2 MULTi 1080p/Doctor.Who.S02E01.mkv"),
+        )
+        assertEquals(Triple("Severance", null, "Severance"), show("Severance/Severance.2022.1080p.WEB/Season 1/Severance.S01E01.mkv"))
+        assertEquals(Triple("Severance", null, "Severance"), show("Severance/Severance 2022 S01 1080p/Severance.S01E01.mkv"))
+    }
+
     /** Films whose titles hold a number like a year: the year in parentheses is theirs, the number stays in the title. */
     @Test
     fun titlesHoldingANumberLikeAYear() {

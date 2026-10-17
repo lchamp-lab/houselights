@@ -211,8 +211,11 @@ object FilenameParser {
      * of several ("Les Revenants Saisons 1-2", "Le Bureau des Légendes Saisons 1 à 5"), or of an episode
      * ("Show.Name.S01E01.1080p"), so that each season is not a show of its own.
      */
-    private fun showName(folder: String): ParsedMovie =
-        parseMovie(SEASON_TOKEN.find(folder)?.let { folder.substring(0, it.range.first) }?.takeIf { it.isNotBlank() } ?: folder)
+    private fun showName(folder: String): ParsedMovie = parseMovie(beforeSeason(folder))
+
+    /** [folder] up to its [SEASON_TOKEN], when something comes before it. */
+    private fun beforeSeason(folder: String): String =
+        SEASON_TOKEN.find(folder)?.let { folder.substring(0, it.range.first) }?.takeIf { it.isNotBlank() } ?: folder
 
     /**
      * A pack's season or seasons, or an episode's numbers, in a folder's name: "S01", "S01-S03", "S01E01", "Saison 1",
@@ -234,11 +237,17 @@ object FilenameParser {
 
     /**
      * [folder] names a title and its year, and nothing else but ids in brackets: "Doctor Who (2005)", "Doctor.Who.2005",
-     * "Doctor Who (2005) [tvdbid-78804]"; not a pack's "Severance.2022.S01.1080p.WEB".
+     * "Doctor Who (2005) [tvdbid-78804]"; or, its year in parentheses as media managers write a show's, then what of the
+     * show it holds, a season or a release's tags, which [showName] leaves out: "Doctor Who (2005) - S01", "Doctor Who
+     * (1963) 1080p". Not a pack's "Severance.2022.S01.1080p.WEB", a season of the show whose folder holds it.
      */
     private fun titleAndYear(folder: String): Boolean {
         val name = parseMovie(folder)
-        return name.year != null && letters(dropBrackets(folder)) == letters(name.title) + name.year
+        val year = name.year ?: return false
+        val named = letters(name.title) + year
+        if (letters(dropBrackets(folder)) == named) return true
+        val apart = folder.contains("($year)") || folder.contains("[$year]")
+        return apart && letters(beforeTags(normalizeSeparators(dropBrackets(beforeSeason(folder))))) == named
     }
 
     /** "The" ending a name, before "The Complete Series". */
