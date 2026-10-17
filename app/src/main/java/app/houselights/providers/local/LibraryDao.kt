@@ -227,8 +227,9 @@ interface LibraryDao {
     @Query("SELECT COUNT(*) FROM items WHERE kind = :kind")
     suspend fun count(kind: ItemKind): Int
 
-    @Query("SELECT genres FROM items WHERE kind = :kind AND genres != ''")
-    suspend fun genresOf(kind: ItemKind): List<String>
+    /** Each title's genres, folded beside them by the lower() the genre filter compares ([PipeList.distinctGenres]). */
+    @Query("SELECT genres, lower(genres) AS folded FROM items WHERE kind = :kind AND genres != ''")
+    suspend fun genresOf(kind: ItemKind): List<GenreList>
 
     @Query("SELECT DISTINCT year FROM items WHERE kind = :kind AND year IS NOT NULL")
     suspend fun yearsOf(kind: ItemKind): List<Int>

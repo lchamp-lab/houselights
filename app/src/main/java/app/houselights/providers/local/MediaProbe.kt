@@ -2,6 +2,7 @@ package app.houselights.providers.local
 
 import android.util.Log
 import app.houselights.core.MediaInfo
+import app.houselights.core.bpsToKbps
 import app.houselights.core.lenientJson
 import app.houselights.core.suspendRunCatching
 import kotlinx.serialization.encodeToString
@@ -40,7 +41,6 @@ object MediaProbe {
 
     /** A file's tags (a few kilobytes with mkvmerge), read where its SeekHead says they lie. */
     private const val TAGS_READ = 64 shl 10
-    private const val BITS_PER_KILOBIT = 1000L
     private val MATROSKA = setOf("mkv", "mk3d", "webm")
 
     /**
@@ -85,7 +85,7 @@ object MediaProbe {
         val info = suspendRunCatching {
             val result = readTracks(reads) ?: return@suspendRunCatching basic
             val bitrates = readBitrates(reads, result.tagsAt)
-            fun kbps(uid: Long?) = uid?.let(bitrates::get)?.let { ((it + BITS_PER_KILOBIT / 2) / BITS_PER_KILOBIT).toInt() }
+            fun kbps(uid: Long?) = uid?.let(bitrates::get)?.let(::bpsToKbps)
             val audio = result.info.audio.mapIndexed { i, track -> track.copy(bitrateKbps = kbps(result.audioUids.getOrNull(i))) }
             val video = result.info.video?.let { it.copy(bitrateKbps = kbps(result.videoUid)) }
             result.info.copy(video = video, audio = audio, sizeBytes = basic.sizeBytes, probedWith = VERSION)

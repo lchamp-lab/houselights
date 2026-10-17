@@ -96,4 +96,15 @@ class FormatsTest {
         assertEquals(listOf("HLG"), ranges(HdrFormat.HLG))
         assertEquals(emptyList<String>(), ranges())
     }
+
+    /** A file's tags and a server give bits a second; a track keeps the nearest kilobit, half up. */
+    @Test
+    fun aBitrateKeepsTheNearestKilobit() {
+        assertEquals(0, bpsToKbps(0))
+        assertEquals(0, bpsToKbps(499))
+        assertEquals(1, bpsToKbps(500))
+        assertEquals(640, bpsToKbps(640_499))
+        assertEquals(641, bpsToKbps(640_500))
+        assertEquals(48_000, bpsToKbps(47_999_600))
+    }
 }

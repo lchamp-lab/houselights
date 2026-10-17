@@ -302,6 +302,41 @@ class AddFolderViewModelTest {
         assertEquals("the kind is not tested", FolderCheck.Reachable(12), vm.check)
     }
 
+    /**
+     * A field changed while Add tested the folder: what answered is no longer what the form says, so
+     * nothing is added and the form stays, untested, for Add again. The kind, which no test reads, is
+     * added as the form says it once the folder answers.
+     */
+    @Test
+    fun aFolderChangedWhileAddTestsItIsNotAddedAsItWas() = runTest {
+        var answer = CompletableDeferred<Int>()
+        val vm = form(null, probe = { answer.await() })
+        advanceUntilIdle()
+        vm.edit { copy(protocol = Protocol.NFS, host = "nas-salon.local", share = "/volume1/media") }
+        var done = false
+        vm.submit { done = true }
+        advanceUntilIdle()
+        assertTrue(vm.testing)
+        vm.edit { copy(host = "192.168.1.20") }
+        answer.complete(12)
+        advanceUntilIdle()
+        assertTrue("nothing added", dao.sources().isEmpty())
+        assertFalse("the form stays", done)
+        assertNull("another NAS, not tested yet", vm.check)
+        assertFalse(vm.busy)
+
+        answer = CompletableDeferred()
+        vm.submit { done = true }
+        advanceUntilIdle()
+        vm.edit { copy(kind = SourceKind.SHOWS) }
+        answer.complete(12)
+        advanceUntilIdle()
+        assertTrue(done)
+        val added = dao.sources().single()
+        assertEquals("192.168.1.20", added.host)
+        assertEquals(SourceKind.SHOWS, added.kind)
+    }
+
     @Test
     fun aFolderRemovedBeforeTheFormOpensSaysSo() = runTest {
         val id = smbFolder()

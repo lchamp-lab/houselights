@@ -94,7 +94,7 @@ class LocalProvider(
             WatchStatus.FAVORITES -> where.append(" AND favorite = 1")
         }
         filter.genre?.let {
-            where.append(" AND ${PipeList.matches("genres")}")
+            where.append(" AND ${PipeList.matchesAnyCase("genres")}")
             args += it
         }
         filter.decade?.let {
@@ -172,7 +172,7 @@ class LocalProvider(
         return withContext(Dispatchers.Default) {
             val badges = badgeLists.flatMap(PipeList::fromText).toSet()
             LibraryFacets(
-                genres = genreLists.flatMap(PipeList::fromText).distinct().sorted(),
+                genres = PipeList.distinctGenres(genreLists).sorted(),
                 decades = years.map { it / 10 * 10 }.distinct().sortedDescending(),
                 qualities = buildList {
                     if (Definition.ULTRA_HD.token in badges) add(Quality.UHD_4K)

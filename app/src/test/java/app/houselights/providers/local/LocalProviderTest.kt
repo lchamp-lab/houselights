@@ -121,8 +121,29 @@ class LocalProviderTest {
         movie("Les Parapluies de Cherbourg", genres = listOf("Mélodrame"))
         movie("Ronin", genres = listOf("drame"))
         val similar = provider.similar(provider.item(heat.toString())).map { it.title }
-        assertEquals(listOf("Collateral"), similar)
-        assertEquals(listOf("Collateral", "Heat"), page(LibraryFilter(genre = "Drame")).items.map { it.title })
+        assertEquals(listOf("Collateral", "Ronin"), similar)
+        assertEquals(listOf("Collateral", "Heat", "Ronin"), page(LibraryFilter(genre = "Drame")).items.map { it.title })
+    }
+
+    /** NFO files and TMDB spell a genre each their way: the menu offers it once, and its filter keeps every spelling. */
+    @Test
+    fun aGenreIsOneWhateverItsCase() = runTest {
+        movie("Heat", genres = listOf("Drame", "Action"))
+        movie("Collateral", genres = listOf("Thriller", "Drame"))
+        movie("Ronin", genres = listOf("drame", "action", "thriller"))
+        movie("Le Samouraï", genres = listOf("thriller"))
+        movie("Les Parapluies de Cherbourg", genres = listOf("Mélodrame"))
+        movie("Alien", genres = listOf("Épouvante"))
+        movie("The Thing", genres = listOf("épouvante"))
+        val genres = provider.libraryFacets(films).genres
+        // The spelling most titles use; on a tie, the capital.
+        assertEquals(listOf("Action", "Drame", "Mélodrame", "thriller"), genres.take(4))
+        // Past ASCII, the menu joins spellings exactly as SQLite's lower() does for the filter, whichever way it reads "É".
+        val horror = genres.drop(4).flatMap { genre -> page(LibraryFilter(genre = genre)).items.map { it.title } }
+        assertEquals(listOf("Alien", "The Thing"), horror)
+        assertEquals(listOf("Collateral", "Heat", "Ronin"), page(LibraryFilter(genre = "Drame")).items.map { it.title })
+        assertEquals(3, page(LibraryFilter(genre = "drame")).total)
+        assertEquals(listOf("Collateral", "Le Samouraï", "Ronin"), page(LibraryFilter(genre = "thriller")).items.map { it.title })
     }
 
     @Test
