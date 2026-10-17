@@ -1,5 +1,6 @@
 package app.houselights.ui.design.components
 
+import android.content.Context
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -95,7 +96,12 @@ import app.houselights.ui.design.rememberGroupMember
 import app.houselights.ui.design.rememberedInGroup
 import app.houselights.ui.design.scrollsAsBlock
 import app.houselights.ui.util.toPx
+import app.houselights.ui.design.HlLayout
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import coil.size.Precision
+import coil.size.Scale
+import kotlin.math.ceil
 import kotlin.math.roundToInt
 
 /** True while one card of the enclosing row or grid has focus: the others step back. */
@@ -296,6 +302,31 @@ internal fun Modifier.artworkEdge(shape: Shape, colors: HlColors): Modifier =
 @Composable
 fun posterPx(width: Dp? = null): Int = (width ?: HlSize.poster * 1.3f).toPx()
 
+/** A poster's shape, its width to its height. */
+private const val POSTER_SHAPE = 2f / 3f
+
+/** A still's shape ([LandscapeCard]). */
+private const val STILL_SHAPE = 16f / 9f
+
+/** What a [PosterCard] [widthPx] wide in a row asks Coil for once laid out: its poster at its size, cropped. */
+internal fun posterRequest(context: Context, item: MediaItem, widthPx: Int): ImageRequest? =
+    item.poster?.let { artworkRequest(context, it.url(widthPx), widthPx, (widthPx / POSTER_SHAPE).roundToInt()) }
+
+/** What a [LandscapeCard] [widthPx] wide asks Coil for once laid out: its still at its size, cropped. */
+internal fun stillRequest(context: Context, item: MediaItem, widthPx: Int): ImageRequest? =
+    item.landscape?.let { artworkRequest(context, it.url(widthPx), widthPx, (widthPx / STILL_SHAPE).roundToInt()) }
+
+/** What an [ArtworkImage] laid out [widthPx] by [heightPx] asks Coil for [url]: cropped to its shape. */
+private fun artworkRequest(context: Context, url: String, widthPx: Int, heightPx: Int): ImageRequest =
+    ImageRequest.Builder(context).data(url).size(widthPx, heightPx).scale(Scale.FILL).precision(Precision.INEXACT).build()
+
+/**
+ * How many cards [card] wide, [spacing] apart, a [MediaRow] shows before it scrolls: those that start
+ * on the screen, the last one cut by its edge.
+ */
+internal fun cardsInView(card: Dp, spacing: Dp): Int =
+    ceil((HlLayout.CANVAS_WIDTH - HlSpace.safeH.value) / (card + spacing).value).toInt()
+
 /** 2:3 poster. With [width] null it fills the grid cell. */
 @Composable
 fun PosterCard(
@@ -308,7 +339,7 @@ fun PosterCard(
     val sized = if (width != null) modifier.width(width) else modifier.fillMaxWidth()
     val px = posterPx(width)
     val poster = item.poster?.url(px)
-    ArtworkSurface(onClick, sized.aspectRatio(2f / 3f), onFocused = onFocused, stateDescription = cardState(item), light = poster) {
+    ArtworkSurface(onClick, sized.aspectRatio(POSTER_SHAPE), onFocused = onFocused, stateDescription = cardState(item), light = poster) {
         ArtworkImage(poster, item.title, Modifier.fillMaxSize()) { FallbackArtwork(item.title, item.year) }
         StatusMark(item, Modifier.align(Alignment.TopEnd).padding(HlSpace.xs))
         ProgressLine(item.progress, Modifier.align(Alignment.BottomCenter))
@@ -334,7 +365,7 @@ fun LandscapeCard(
     Column(modifier.width(width)) {
         ArtworkSurface(
             onClick,
-            Modifier.fillMaxWidth().aspectRatio(16f / 9f),
+            Modifier.fillMaxWidth().aspectRatio(STILL_SHAPE),
             lift = Lift.Card,
             onFocused = onFocused,
             stateDescription = cardState(item),

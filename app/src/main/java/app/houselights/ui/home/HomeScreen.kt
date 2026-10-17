@@ -32,6 +32,7 @@ import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.unit.Dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import app.houselights.ui.design.HlIcons
@@ -280,7 +281,7 @@ private fun Sections(
                     header = sectionTitle(section),
                     // A card gone since focus left it: focus comes back to its row.
                     modifier = Modifier.focusGroupKey(FocusKey.section(section.key), memory),
-                    spacing = if (section.landscape) HlSpace.l else HlSpace.m,
+                    spacing = section.spacing,
                     state = rememberRowState(section.items.map { it.id }),
                 ) {
                     items(section.items, key = { it.id }) { item ->
@@ -312,6 +313,9 @@ internal fun selectedTitle(sections: List<HomeSection>, id: String?): MediaItem?
 
 /** A row of home, whatever its position: its kind and its library. */
 internal val HomeSection.key: String get() = "$type-$libraryId"
+
+/** How far apart a row's cards are: stills, named under the picture, further than posters. */
+internal val HomeSection.spacing: Dp get() = if (landscape) HlSpace.l else HlSpace.m
 
 /** A card of home: the same title may be in two rows. */
 internal fun cardKey(section: HomeSection, item: MediaItem) = FocusKey.within(FocusKey.section(section.key), FocusKey.item(item.id))

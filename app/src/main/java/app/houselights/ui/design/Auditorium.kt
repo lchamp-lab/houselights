@@ -46,6 +46,30 @@ object HouseLightCue {
 }
 
 /**
+ * The launch, on a cold start: the mark alone in the room while home gets ready under it, then the
+ * lights go down on the mark and home comes up out of the dark, already whole. One motion of
+ * [DURATION], [t] from 0 to 1, in two steps that ease out ([HlMotion.lightsOut]): the mark goes
+ * first, the black lifts once it is all but out.
+ */
+object LaunchCue {
+    const val DURATION = HlMotion.SLOW
+
+    /** Opacity of the mark. */
+    fun mark(t: Float) = 1f - step(0f, MARK_OUT, t)
+
+    /** Opacity of the black over home. */
+    fun darkness(t: Float) = 1f - step(LIFT_FROM, 1f, t)
+
+    private fun step(from: Float, to: Float, t: Float) = HlMotion.lightsOut.transform(((t - from) / (to - from)).coerceIn(0f, 1f))
+
+    /** Where in the cue the mark is out. */
+    private const val MARK_OUT = 0.6f
+
+    /** Where in the cue the black starts to lift off home. */
+    private const val LIFT_FROM = 0.4f
+}
+
+/**
  * One [step] of the cue ([HouseLightCue.room], [HouseLightCue.scrims], [HouseLightCue.darkness])
  * as the [lights] go: a derived state, which tells its readers only when its value changes. The
  * lights move on every frame of [HlMotion.DIM], each step over part of it only: a layer or a

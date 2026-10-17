@@ -77,5 +77,8 @@ private val materialTypography = with(HouselightsType) {
 private fun canvasDensity(): Density {
     val width = screenWidthPx()
     val fontScale = LocalDensity.current.fontScale
-    return remember(width, fontScale) { Density(width / HlLayout.CANVAS_WIDTH, fontScale) }
+    return remember(width, fontScale) { canvasDensityOf(width, fontScale) }
 }
+
+/** The density that lays the canvas across a screen [widthPx] wide, outside a composition too. */
+fun canvasDensityOf(widthPx: Int, fontScale: Float = 1f): Density = Density(widthPx / HlLayout.CANVAS_WIDTH, fontScale)

@@ -25,6 +25,7 @@ import app.houselights.providers.local.RemoteBrowsers
 import app.houselights.providers.local.TmdbClient
 import app.houselights.settings.SettingsStore
 import app.houselights.settings.SourceSwitcher
+import app.houselights.ui.home.HomeLaunch
 import app.houselights.ui.util.PlaybackOutcome
 import coil.EventListener
 import coil.ImageLoader
@@ -130,6 +131,12 @@ class AppContainer(private val app: Application) : LibraryEvents {
 
     /** What came of a title asked to play, as screens see it: ended, or why it did not play. */
     val playback = PlaybackOutcome(player.playbackEnded)
+
+    /** The launch screen, held at a cold start while home gets ready under it. */
+    val launch = LaunchGate()
+
+    /** Home's first rows and pictures, asked while the launch screen holds; home takes them. */
+    val homeLaunch = HomeLaunch(launch, settings.state, { provider }, { libraryVersion.value })
 
     /** The NAS browsers, and the sessions and mounts they keep between files. */
     val remoteBrowsers = RemoteBrowsers()

@@ -2,12 +2,13 @@ package app.houselights.ui.design
 
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.tween
 
 /**
- * Motion answers the user: focus, opening, playing. The only orchestrated moment is
- * the house lights going down before playback ([DIM]).
+ * Motion answers the user: focus, opening, playing. The only orchestrated moment is the house
+ * lights going down: on the mark at the launch ([LaunchCue]), on the room before playback ([DIM]).
  */
 object HlMotion {
     const val FAST = 150
@@ -31,6 +32,9 @@ object HlMotion {
 
     val standard = FastOutSlowInEasing
     val emphasized = CubicBezierEasing(0.2f, 0f, 0f, 1f)
+
+    /** A light going out (ease-out): at once, then settling into the dark. The steps of [LaunchCue]. */
+    val lightsOut = LinearOutSlowInEasing
 }
 
 /**
