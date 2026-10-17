@@ -104,6 +104,7 @@ import app.houselights.ui.design.components.BackdropRelay
 import app.houselights.ui.design.components.LeavingBackdrop
 import app.houselights.ui.design.components.LocalBackdropRelay
 import app.houselights.ui.person.PersonScreen
+import app.houselights.ui.search.SearchScreen
 
 class MainActivity : ComponentActivity() {
     private val container by lazy { appContainer() }
@@ -428,7 +429,11 @@ private fun AppNavigation(nav: NavHostController, onPlay: (MediaItem, Boolean) -
                 onOpenLibrary = ::openLibrary,
                 onOpenSettings = { nav.navigate(Route.Settings) },
                 onAddFolder = { nav.navigate(Route.AddFolder()) },
+                onOpenSearch = { nav.navigate(Route.Search) },
             )
+        }
+        composable<Route.Search> {
+            SearchScreen(onOpenItem = { found -> openItem(found.id) }, onOpenPerson = { id -> nav.navigate(Route.Person(id)) })
         }
         composable<Route.Library> { entry ->
             val route = entry.toRoute<Route.Library>()

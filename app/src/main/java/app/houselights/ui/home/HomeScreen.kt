@@ -103,6 +103,7 @@ fun HomeScreen(
     onOpenLibrary: (Library) -> Unit,
     onOpenSettings: () -> Unit,
     onAddFolder: () -> Unit,
+    onOpenSearch: () -> Unit = {},
 ) {
     val app = appContainer()
     val vm: HomeViewModel = viewModel(factory = HomeViewModel.factory(app))
@@ -120,6 +121,7 @@ fun HomeScreen(
         onReload = vm::load,
         onRescan = vm::rescan,
         onLibraryAhead = { app.libraryAhead.ask(app.scope, it, PicturesAhead(context, screen), context.imageLoader) },
+        onOpenSearch = onOpenSearch.takeIf { app.provider.capabilities.search },
     )
 }
 
@@ -136,6 +138,8 @@ internal fun HomeBands(
     onRescan: () -> Unit,
     /** The pill slides to a library: its wall is asked ahead, meanwhile. */
     onLibraryAhead: (Library) -> Unit = {},
+    /** A search across the library; none when the source cannot search. */
+    onOpenSearch: (() -> Unit)? = null,
 ) {
     val content = state.content
     val sections = (content as? HomeContent.Rows)?.sections.orEmpty()
@@ -187,6 +191,7 @@ internal fun HomeBands(
                 },
                 onLibraryAhead = onLibraryAhead,
                 onSettings = onOpenSettings,
+                onSearch = onOpenSearch,
                 // Into the first row, once laid out: its group is then there to take focus.
                 intoRows = { first?.takeIf { rows.firstVisibleItemIndex == 0 }?.let { memory.requester(FocusKey.section(it.key)) } },
             )
@@ -240,6 +245,8 @@ private fun TopBar(
     onSettings: () -> Unit,
     /** The first row, when there is one to go down to. */
     intoRows: () -> FocusRequester?,
+    /** A search across the library; none for a source that cannot search. */
+    onSearch: (() -> Unit)? = null,
 ) {
     // Where you are among the libraries, in one track; settings apart, as an action. Both sit on
     // the image, on their plates. A long track scrolls: the button always keeps its place.
@@ -271,16 +278,26 @@ private fun TopBar(
             scrollable = true,
             enterAt = returnTo ?: current,
         )
-        HlIconButton(
-            HlIcons.Settings,
-            stringResource(R.string.nav_settings),
-            onClick = onSettings,
-            // Down goes into the first row as from the tabs, on the card it last had, else its first:
-            // not on the card that lies under the button, at the far end of the row.
-            modifier = Modifier
-                .focusKey(FocusKey.action("settings"), memory)
-                .focusProperties { down = intoRows() ?: FocusRequester.Default },
-        )
+        // The actions apart from the track: search, then the settings, Down from either into the
+        // first row as from the tabs, on the card it last had, else its first: not on the card that
+        // lies under the button, at the far end of the row.
+        val down = Modifier.focusProperties { down = intoRows() ?: FocusRequester.Default }
+        Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.s)) {
+            if (onSearch != null) {
+                HlIconButton(
+                    HlIcons.Search,
+                    stringResource(R.string.search),
+                    onClick = onSearch,
+                    modifier = Modifier.focusKey(FocusKey.action("search"), memory).then(down),
+                )
+            }
+            HlIconButton(
+                HlIcons.Settings,
+                stringResource(R.string.nav_settings),
+                onClick = onSettings,
+                modifier = Modifier.focusKey(FocusKey.action("settings"), memory).then(down),
+            )
+        }
     } }
 }
 

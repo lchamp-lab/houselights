@@ -19,6 +19,9 @@ enum class Job {
 /** A person opens a page once found in this many titles of the library: one of a single title leads nowhere. */
 const val PERSON_MIN_TITLES = 2
 
+/** This person's page opens: they have an id, and are found in [PERSON_MIN_TITLES] titles of the library or more. */
+val Person.hasPage: Boolean get() = id != null && (titleCount ?: 0) >= PERSON_MIN_TITLES
+
 /**
  * A title's credits: its cast in billing order, and its crew by job, each in the order the title bills
  * them. Each [Person] has its id and how many titles of the library hold it ([Person.titleCount]), when
