@@ -1,5 +1,6 @@
 package app.houselights.ui.design.components
 
+import android.content.Context
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -46,6 +47,7 @@ import app.houselights.ui.design.LocalAmbient
 import app.houselights.ui.design.VeilStop
 import app.houselights.ui.design.colorStops
 import app.houselights.ui.util.screenWidthPx
+import coil.request.ImageRequest
 import kotlin.math.max
 
 enum class BackdropStyle(
@@ -102,14 +104,12 @@ fun Backdrop(image: ImageRef?, style: BackdropStyle, modifier: Modifier = Modifi
     val column = with(density) { (HlSpace.safeH + HlLayout.readableNarrow).toPx() }
     val fade = with(density) { BackdropDefaults.veilFade.toPx() }
     val screen = screenWidthPx()
-    val url = image?.url(style.maxWidthPx?.coerceAtMost(screen) ?: screen)
+    val url = image?.let { style.urlOf(it, screen) }
     var bounds by remember { mutableStateOf(Size.Zero) }
     // The next picture is prepared before it shows; until then the last one stays.
     var shown by remember { mutableStateOf<PreparedBackdrop?>(null) }
     LaunchedEffect(url) {
-        shown = if (image == null || url == null) null else {
-            prepareBackdrop(context, image, url, screen, screen * BACKDROP_HEIGHT / BACKDROP_WIDTH)
-        }
+        shown = if (image == null || url == null) null else prepareBackdrop(context, image, url, screen, backdropHeight(screen))
     }
     FadeBetween(shown, modifier.fillMaxSize().onSizeChanged { bounds = it.toSize() }) { prepared, alpha ->
         if (prepared != null) BackdropPicture(prepared, style, bounds, column, fade, alpha, recede)
@@ -141,6 +141,21 @@ fun AmbientBackdrop(
 /** The shape a backdrop is asked for: the screen's. */
 private const val BACKDROP_WIDTH = 16
 private const val BACKDROP_HEIGHT = 9
+
+/** The address of [image] as a backdrop in this style, on a screen [screenPx] wide. */
+private fun BackdropStyle.urlOf(image: ImageRef, screenPx: Int): String = image.url(maxWidthPx?.coerceAtMost(screenPx) ?: screenPx)
+
+/** The height a backdrop is asked for on a screen [screenPx] wide. */
+private fun backdropHeight(screenPx: Int) = screenPx * BACKDROP_HEIGHT / BACKDROP_WIDTH
+
+/**
+ * What a [Backdrop] of [image] in [style] asks Coil for on a screen [screenPx] wide, as it prepares
+ * the picture: the picture itself, then the tiny copy its veil and the room's light are read from.
+ */
+internal fun backdropRequests(context: Context, image: ImageRef, style: BackdropStyle, screenPx: Int): List<ImageRequest> = listOf(
+    backdropRequest(context, style.urlOf(image, screenPx), screenPx, backdropHeight(screenPx)),
+    backdropSampleRequest(context, image),
+)
 
 /**
  * One picture of a [Backdrop], with its veils, as one cached layer at [alpha]. All of

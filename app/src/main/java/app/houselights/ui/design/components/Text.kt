@@ -1,5 +1,6 @@
 package app.houselights.ui.design.components
 
+import android.content.Context
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -22,6 +23,9 @@ import app.houselights.ui.design.emberLight
 import app.houselights.ui.util.toPx
 import app.houselights.core.ImageRef
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import coil.size.Precision
+import coil.size.Scale
 import androidx.compose.ui.res.stringResource
 
 /** Row and section header, sentence case. */
@@ -53,6 +57,13 @@ fun Wordmark(modifier: Modifier = Modifier, style: TextStyle = Hl.type.wordmark)
         modifier = modifier,
     )
 }
+
+/**
+ * What a [TitleArt] laid out [maxWidthPx] by [maxHeightPx] at most asks Coil for once laid out: its
+ * [logo], fitted in that room.
+ */
+internal fun titleArtRequest(context: Context, logo: ImageRef, maxWidthPx: Int, maxHeightPx: Int): ImageRequest =
+    ImageRequest.Builder(context).data(logo.url(maxWidthPx)).size(maxWidthPx, maxHeightPx).scale(Scale.FIT).precision(Precision.INEXACT).build()
 
 /** The title's clear logo, or the title set in condensed type when there is none. */
 @Composable
