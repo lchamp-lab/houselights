@@ -82,6 +82,18 @@ class ZidooPlayerTest {
         }
     }
 
+    /**
+     * A firmware without the old player, whose player is a system app under a name of its own, beside
+     * Zidoo's poster wall, which opens files only (as on the Z1000 Pro): the player is the one that opens
+     * a share or a stream, not the poster wall, though its name is Zidoo's.
+     */
+    @Test
+    fun aPosterWallOfZidoosIsNoPlayerBesideOneThatStreams() {
+        apps.install("com.zidoo.poster", "com.zidoo.poster.main.PosterWallActivity", system = true, schemes = listOf("file"))
+        apps.install("com.rtk.video", "com.rtk.video.VideoPlayer", system = true, schemes = listOf("http", "file", "content"))
+        assertEquals("com.rtk.video.VideoPlayer", choose(ZIDOO_BUILD).playerClass())
+    }
+
     @Test
     fun theOldPlayerComesFirst() {
         apps.install(ZIDOO_PLAYER, ZIDOO_PLAYER_ACTIVITY, system = true)

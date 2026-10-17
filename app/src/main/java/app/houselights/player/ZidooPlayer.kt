@@ -86,7 +86,17 @@ class ZidooPlayer(
      * An activity that opens a video; whether the firmware installed its app ([system]), or else it is
      * signed like a system app of Zidoo's on a build of the firmware's own keys ([signedLikeFirmware]).
      */
-    data class Candidate(val component: ComponentName, val system: Boolean, val signedLikeFirmware: Boolean = false)
+    /**
+     * An app that opens a video: [system], [signedLikeFirmware], and whether it [streams], opening a
+     * video by its type or at a share's or a stream's address, not only a file's or a content's (as a
+     * firmware's poster wall does, which no film is for).
+     */
+    data class Candidate(
+        val component: ComponentName,
+        val system: Boolean,
+        val signedLikeFirmware: Boolean = false,
+        val streams: Boolean = true,
+    )
 
     /** The device: its build, and the apps of Zidoo's its firmware installed. */
     data class Device(val identity: DeviceIdentity, val zidooApps: List<String>) {
@@ -298,13 +308,16 @@ class ZidooPlayer(
      * signed like them ([Candidate.signedLikeFirmware]), or apps under a name of Zidoo's, never ours,
      * and only what this app may start ([startable]).
      */
-    private fun discover(device: Device): List<Candidate> =
-        probes().flatMap { probe -> QUERY_FLAGS.flatMap { packages.queryIntentActivities(probe, it) } }
-            .mapNotNull { it.activityInfo }
-            .filter { startable(it) && !it.packageName.isOurs() }
+    private fun discover(device: Device): List<Candidate> {
+        val answered = probes().flatMapIndexed { index, probe ->
+            QUERY_FLAGS.flatMap { packages.queryIntentActivities(probe, it) }.mapNotNull { it.activityInfo }.map { it to index }
+        }.filter { (info, _) -> startable(info) && !info.packageName.isOurs() }
+        val streaming = answered.filter { (_, probe) -> probe < FIRST_FILE_PROBE }.mapTo(HashSet()) { (info, _) -> info.component() }
+        return answered.map { it.first }
             .distinctBy { it.component() }
-            .map { candidate(it, device) }
+            .map { candidate(it, device).copy(streams = it.component() in streaming) }
             .filter { it.system || it.signedLikeFirmware || it.component.packageName.startsWith(ZIDOO_PREFIX) }
+    }
 
     /** What the system opens a video with unasked, at any address [probes] asks. */
     private fun defaults(): Set<ComponentName> =
@@ -313,14 +326,17 @@ class ZidooPlayer(
             .toSet()
 
     /**
-     * The order players are taken in, what no ordinary app can fake first: the system's apps, the old
-     * player, then an app of Zidoo's, then any other; then an app signed like them; then an ordinary
-     * app, under the old player's name or one of Zidoo's, which any app may take. Within each, the
-     * system's default, then an activity named for films ("MovieActivity", "VideoPlayer"); by name
-     * last, so the same apps always give the same player.
+     * The order players are taken in, what no ordinary app can fake first: the system's apps, then an
+     * app signed like them, then an ordinary app, under the old player's name or one of Zidoo's, which
+     * any app may take. Among the system's apps, and among the others, one that [Candidate.streams]
+     * first: an app of Zidoo's that opens only files (its poster wall) is no player for a share. Then
+     * the old player, an app of Zidoo's, any other; the system's default, then an activity named for
+     * films ("MovieActivity", "VideoPlayer"); by name last, so the same apps always give the same player.
      */
     private fun preferred(defaults: Set<ComponentName>) =
-        compareBy<Candidate> { rank(it) }
+        compareBy<Candidate> { rank(it) >= Rank.SIGNED_LIKE_FIRMWARE }
+            .thenByDescending { it.streams }
+            .thenBy { rank(it) }
             .thenByDescending { it.component in defaults }
             .thenByDescending { FILM_WORDS.containsMatchIn(it.component.className.substringAfterLast('.')) }
             .thenBy { it.component.packageName }
@@ -386,6 +402,9 @@ class ZidooPlayer(
             "file:///storage/film.mkv",
             "content://media/external/video/media/1",
         ).map { Intent(Intent.ACTION_VIEW).setDataAndType(Uri.parse(it), VIDEO) }
+
+        /** The first of [probes] at a file's or a content's address: those before it are a share's or a stream's. */
+        private const val FIRST_FILE_PROBE = 5
 
         /**
          * What a player is asked to know whether it opens a video at [uri] ([opens]): its scheme, host
