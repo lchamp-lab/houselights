@@ -22,8 +22,9 @@ every build (see *Guard*).
    the screen's real width, not from what the device declares (the Zidoo declares 240 dpi, which
    would draw everything a quarter smaller); the system's text scale stays the viewer's.
 3. **Calm motion.** Motion answers the user (focus, opening, playing, choosing: the pill of a track
-   slides to the option chosen). Two orchestrated moments only:
-   the *house lights* going down before playback, and the *poster wall* drifting on the welcome screen.
+   slides to the option chosen). Two orchestrated moments only: the *house lights* going down (on
+   the mark at the launch, on the room before playback), and the *poster wall* drifting on the
+   welcome screen.
 4. **Words do one job.** Sentence case, no all-caps labels, no punctuation between facts (layout space
    separates them). In French, the interface uses *vous*. The one exception to capitals is the billing
    block, set like the credits at the foot of a poster.
@@ -50,8 +51,15 @@ monospaced face (`code`, the NFO). Scripts Archivo does not cover fall back to t
 
 The technical voice speaks the vocabulary of a Blu-ray case: formats by their names (`Ultra HD`,
 `Full HD`, `Dolby Vision`, `HDR10`, `TrueHD Atmos`), aspect ratios written `2,39:1`, the frame size as
-`3840 × 1608`. Two moments carry the identity further:
+`3840 × 1608`. Three moments carry the identity further:
 
+- **Launch.** A cold start opens on the room, the mark alone in its middle (`splash_mark`, which
+  Android draws before the app runs): no bar, no percentage, no word. It holds while home gets
+  ready under it, its rows and the pictures of its first view loaded into memory as home will ask
+  for them (`PicturesAhead`), never past 1.5 s after the process started, and not at all when the
+  app starts elsewhere (welcome, a screen brought back). Then the lights go down on the mark and home
+  comes up out of the dark, already whole (`LaunchCue`: `SLOW`, two steps that ease out, the mark
+  first). A warm start, or a return to the app, holds nothing and shows at once.
 - **House lights.** Playing a title runs one cue (`HouseLightCue`, `DIM`): the room fades first (text,
   buttons, rows: `Modifier.houseLit`), the scrims lift so the picture shows whole, then black and the
   player. The player starts when the room is dark, not after a fixed time: the cue runs while the
@@ -301,8 +309,8 @@ buttons keeps for a label, the first row's header a detail page keeps in its fir
 
 | Token | File | Content |
 |---|---|---|
-| `HlMotion`, `awaitMotion` | `Motion.kt` | `FAST` 150, `STANDARD` 250, `SLOW` 600, `DIM` 1000 ms; `SETTLE` 300 ms before the title under focus changes the screen (after the focus motion, so the new title is laid out on a still frame; `rememberSettled`, the first at once); `SKELETON_DELAY` 400 ms before a placeholder shows; `WALL_DRIFT`; `ENTER_SCALE`, where a reading sheet and a menu grow from. What follows a motion waits for its end (`awaitMotion`, or the animated value itself), never a fixed `delay`: with animations off, everything settles without moving and nothing waits |
-| `LocalHouseLights`, `HouseLightCue` | `Auditorium.kt` | how far the house lights are down (read while drawing), and the order of the cue |
+| `HlMotion`, `awaitMotion` | `Motion.kt` | `FAST` 150, `STANDARD` 250, `SLOW` 600, `DIM` 1000 ms; `lightsOut`, a light going out (ease-out), the launch's; `SETTLE` 300 ms before the title under focus changes the screen (after the focus motion, so the new title is laid out on a still frame; `rememberSettled`, the first at once); `SKELETON_DELAY` 400 ms before a placeholder shows; `WALL_DRIFT`; `ENTER_SCALE`, where a reading sheet and a menu grow from. What follows a motion waits for its end (`awaitMotion`, or the animated value itself), never a fixed `delay`: with animations off, everything settles without moving and nothing waits |
+| `LocalHouseLights`, `HouseLightCue`, `LaunchCue` | `Auditorium.kt` | how far the house lights are down (read while drawing), and the order of the cue; the launch's cue, the mark out before the black lifts off home |
 | `HlIcons` | `Icons.kt` | every icon of the app, drawn on one line (24 dp grid, 1.75 stroke, round caps and joins): places (Folder, Server, Display, Storage), actions (Add, Edit, Refresh, Restart, Test, Close, Settings), marks (Check, Star, Attention), the remote's Back. Play is the one glyph taken from Material, filled, as on a remote; a state that must read as on is the same drawing filled (a favourite: `Heart`, `HeartFilled`). No other Material icon (a test forbids it); the catalogue shows every glyph at 24 and 20 dp, on the room and in a focused control |
 | `rememberListScroll`, `ListScroll`, `RowScroll` | `Scroll.kt` | lists scroll only as much as needed (`EdgeScroll`), never against the edge of the screen: a list keeps focus `HlFocus.edge` from its top and bottom, so the last row stops inside the safe area; a list that starts under a header or a hero (`ListScroll(top)`) brings its rows back to where its first one rests; rows keep focus 80 dp from the sides, so the first card always scrolls home |
 | `scrollEdges(state, color)` | `Scroll.kt` | what scrolls fades into its surface over `HlSpace.fadeEdge`, at the top and the bottom, on a side only while there is more that way: a line cut at the edge reads as more to come. A gradient of the surface's own colour over the content, no layer, so only on an opaque surface: the room in `HlTwoPane`, the raised sheet of `HlSideSheet` and of menus, the panel of `HlScrollArea`. Never on rows of posters, whose ends stay open |
@@ -564,7 +572,8 @@ reaches the screen: it goes to the log.
 
 ## Brand: La Salle
 
-The launcher icon and the TV banner are the app's first frame, before the room. **La Salle**: an H
+The launcher icon and the TV banner come before the app, and the launch mark (`splash_mark`, for
+now La Salle as the icon's foreground draws it) is its first frame, on the room. **La Salle**: an H
 made of the two walls of a room in perspective, their panels going down from bright orange to
 raspberry, the ember light, as they near the white screen between them. The banner opens the same
 room to the width of a screen and sets the name on it, in the wordmark's type, projector white.

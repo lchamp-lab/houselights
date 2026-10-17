@@ -1,14 +1,20 @@
 package app.houselights
 
+import android.animation.ValueAnimator
 import android.annotation.SuppressLint
 import android.content.ActivityNotFoundException
 import android.os.Bundle
 import android.util.Log
 import android.view.Display
 import android.view.KeyEvent
+import android.view.animation.LinearInterpolator
+import androidx.core.animation.doOnEnd
 import androidx.core.splashscreen.SplashScreen
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.core.splashscreen.SplashScreenViewProvider
+import app.houselights.ui.design.LaunchCue
 import app.houselights.ui.home.loadFirstPictures
+import kotlin.math.roundToInt
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
@@ -155,12 +161,39 @@ class MainActivity : ComponentActivity() {
 
     /**
      * At the process's first window, the launch screen holds until its gate opens ([LaunchGate]):
-     * home's rows and first pictures are asked meanwhile ([HomeLaunch]). A later window (a warm start)
-     * holds nothing.
+     * home's rows and first pictures are asked meanwhile ([HomeLaunch]), and it leaves on its cue,
+     * [lightsDown]. A later window (a warm start) holds nothing and shows at once.
      */
     private fun holdTheLaunchScreen(splash: SplashScreen, restored: Boolean) {
+        val launch = container.launch
+        val held = !launch.isOpen
         container.homeLaunch.begin(container.scope, restored, loadFirstPictures(applicationContext, resources.displayMetrics.widthPixels))
-        splash.setKeepOnScreenCondition(container.launch::keepOnScreen)
+        splash.setKeepOnScreenCondition(launch::keepOnScreen)
+        splash.setOnExitAnimationListener { if (held) lightsDown(it) else it.remove() }
+    }
+
+    /**
+     * The launch screen leaves on its cue ([LaunchCue]): the lights go down on the mark, then the black
+     * lifts off home, ready under it. The ground and the mark fade each on its own: no layer the size
+     * of the screen for the player's graphics chip to fill on every frame.
+     */
+    private fun lightsDown(splash: SplashScreenViewProvider) {
+        // A colour of its own: the room's is shared with the window, which stays black.
+        val ground = splash.view.background?.mutate()
+        val mark = splash.iconView
+        ValueAnimator.ofFloat(0f, 1f).apply {
+            duration = LaunchCue.DURATION.toLong()
+            interpolator = LinearInterpolator()
+            addUpdateListener {
+                val t = it.animatedFraction
+                mark.alpha = LaunchCue.mark(t)
+                val darkness = LaunchCue.darkness(t)
+                // A system's own launch screen (Android 12 and up) may draw its ground otherwise: then the whole of it fades.
+                if (ground != null) ground.alpha = (darkness * OPAQUE).roundToInt() else splash.view.alpha = darkness
+            }
+            doOnEnd { splash.remove() }
+            start()
+        }
     }
 
     /**
@@ -377,3 +410,6 @@ private const val RESCAN_AFTER_MS = 2 * 60_000L
 
 /** While the app is on screen, it looks for new files this often. */
 private const val RESCAN_EVERY_MS = 10 * 60_000L
+
+/** A drawable's alpha, opaque. */
+private const val OPAQUE = 255

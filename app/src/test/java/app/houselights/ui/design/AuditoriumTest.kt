@@ -57,8 +57,35 @@ class AuditoriumTest {
         assertEquals("the lights themselves", FRAMES, told.last())
     }
 
+    /**
+     * The launch: the lights go down on the mark before home comes up, each step quick at first and
+     * settling (ease-out), over a few hundred milliseconds of the system's motion.
+     */
+    @Test
+    fun atTheLaunchTheMarkGoesOutBeforeHomeComesUp() {
+        val t = (0..FRAMES).map { it / FRAMES.toFloat() }
+        assertEquals(1f, LaunchCue.mark(0f), EXACT)
+        assertEquals(1f, LaunchCue.darkness(0f), EXACT)
+        assertEquals(0f, LaunchCue.mark(1f), EXACT)
+        assertEquals(0f, LaunchCue.darkness(1f), EXACT)
+        // When the black starts to lift, the mark is all but out.
+        val lifts = t.first { LaunchCue.darkness(it) < 1f }
+        assertTrue("the mark at ${LaunchCue.mark(lifts)} when home comes up", LaunchCue.mark(lifts) < 0.1f)
+        // Ease-out: the first half of each step does more than half of it.
+        val marked = t.filter { LaunchCue.mark(it) in 0.0001f..0.9999f }
+        assertTrue(LaunchCue.mark(marked[marked.size / 2]) < 0.5f)
+        val lifting = t.filter { LaunchCue.darkness(it) in 0.0001f..0.9999f }
+        assertTrue(LaunchCue.darkness(lifting[lifting.size / 2]) < 0.5f)
+        // Both only ever go down.
+        assertTrue(t.zipWithNext().all { (a, b) -> LaunchCue.mark(b) <= LaunchCue.mark(a) && LaunchCue.darkness(b) <= LaunchCue.darkness(a) })
+        assertTrue("a few hundred milliseconds", LaunchCue.DURATION in HlMotion.STANDARD..HlMotion.SLOW)
+    }
+
     private companion object {
         /** HlMotion.DIM at 60 frames a second. */
         const val FRAMES = 60
+
+        /** An easing's ends, within what a frame shows. */
+        const val EXACT = 0.001f
     }
 }
