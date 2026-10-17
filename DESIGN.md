@@ -629,7 +629,12 @@ Every full-screen layer drawn each frame costs a share of that budget, and what 
 must be drawn once and kept: a backdrop is one cached layer (`Backdrop`), the window is the only
 black under the screens (no second background at the root), a clear rectangle is not drawn (a card
 stepping back draws its dimming only when it is dimmed), and a glow is drawn as rings that do not
-overlap (`drawGlow`), never as stacked rectangles. Measure on the player, with the app compiled as
+overlap (`drawGlow`), never as stacked rectangles. A screen cut to is made ready during the gesture
+before it, so OK never waits: settled on a title, home and the walls ask its detail page's logo
+ahead (`DetailAhead`; its picture is the one shown already); while home's pill slides to a
+library, the wall's first page and the posters of its first two lines load (`LibraryAhead`), and
+the wall opens on them. Focus running along a row, an arrow held, lights no card it only crosses
+(`Scrub`): no picture's tone is read, no light drawn for them. Measure on the player, with the app compiled as
 the device compiles it (`cmd package compile -m speed-profile`, or `speed` for the state after a
 few days of use): a debug build or a freshly installed one runs its code interpreted, and shows
 jank the user never sees. `dumpsys gfxinfo <package> framestats` separates the main thread

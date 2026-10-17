@@ -89,6 +89,11 @@ import app.houselights.ui.util.LocalErrorFix
 import app.houselights.ui.util.UiError
 import app.houselights.ui.util.toUiError
 import kotlinx.coroutines.flow.StateFlow
+import androidx.compose.ui.platform.LocalContext
+import app.houselights.ui.design.components.DetailAhead
+import app.houselights.ui.design.components.PicturesAhead
+import app.houselights.ui.util.screenWidthPx
+import coil.imageLoader
 
 @Composable
 fun HomeScreen(
@@ -101,7 +106,19 @@ fun HomeScreen(
     val vm: HomeViewModel = viewModel(factory = HomeViewModel.factory(app))
     ReloadOnLibraryChange { vm.load() }
     val state by vm.state.collectAsStateWithLifecycle()
-    HomeBands(state, vm.scan, onOpenItem, onOpenLibrary, onOpenSettings, onAddFolder, onReload = vm::load, onRescan = vm::rescan)
+    val context = LocalContext.current
+    val screen = screenWidthPx()
+    HomeBands(
+        state,
+        vm.scan,
+        onOpenItem,
+        onOpenLibrary,
+        onOpenSettings,
+        onAddFolder,
+        onReload = vm::load,
+        onRescan = vm::rescan,
+        onLibraryAhead = { app.libraryAhead.ask(app.scope, it, PicturesAhead(context, screen), context.imageLoader) },
+    )
 }
 
 /** Home as [state] lays it out, its bar, its hero and its rows, and where focus goes among them. */
@@ -115,6 +132,8 @@ internal fun HomeBands(
     onAddFolder: () -> Unit,
     onReload: () -> Unit,
     onRescan: () -> Unit,
+    /** The pill slides to a library: its wall is asked ahead, meanwhile. */
+    onLibraryAhead: (Library) -> Unit = {},
 ) {
     val content = state.content
     val sections = (content as? HomeContent.Rows)?.sections.orEmpty()
@@ -150,6 +169,8 @@ internal fun HomeBands(
     // Under the launch screen, home is whole once its rows are in, its hero shows the first title (it
     // settles a frame after the rows) and that title's picture is prepared.
     val whole = content !is HomeContent.Loading && (shown != null || sections.isEmpty())
+    // Settled on a title, its detail page is made ready: OK opens it whole.
+    DetailAhead(shown)
     AmbientBackdrop(shown?.backdrop, BackdropStyle.Hero, ready = whole) {
         Column(Modifier.fillMaxSize().houseLit(LocalHouseLights.current)) {
             TopBar(
@@ -162,6 +183,7 @@ internal fun HomeBands(
                     memory.record(trackTab(library))
                     onOpenLibrary(library)
                 },
+                onLibraryAhead = onLibraryAhead,
                 onSettings = onOpenSettings,
                 // Into the first row, once laid out: its group is then there to take focus.
                 intoRows = { first?.takeIf { rows.firstVisibleItemIndex == 0 }?.let { memory.requester(FocusKey.section(it.key)) } },
@@ -212,6 +234,7 @@ private fun TopBar(
     memory: FocusMemory,
     returnTo: Int?,
     onLibrary: (Library) -> Unit,
+    onLibraryAhead: (Library) -> Unit,
     onSettings: () -> Unit,
     /** The first row, when there is one to go down to. */
     intoRows: () -> FocusRequester?,
@@ -233,6 +256,8 @@ private fun TopBar(
             onSelect = { i ->
                 if (i > 0 && current == 0) {
                     current = i
+                    // While the pill slides, the wall gets its first page and its first lines of posters.
+                    onLibraryAhead(libraries[i - 1])
                     scope.launch {
                         awaitMotion(HlMotion.STANDARD)
                         onLibrary(libraries[i - 1])

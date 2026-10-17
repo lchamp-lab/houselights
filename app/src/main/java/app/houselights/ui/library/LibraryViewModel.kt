@@ -46,6 +46,8 @@ class LibraryViewModel(
     private val provider: () -> MediaProvider,
     private val library: Library,
     private val saved: SavedStateHandle = SavedStateHandle(),
+    /** The first page, asked while home's pill slid here. */
+    private val ahead: LibraryAhead? = null,
 ) : ViewModel() {
     private val _state = MutableStateFlow(LibraryState(sort = saved.sort(), filter = saved.filter()))
     val state: StateFlow<LibraryState> = _state
@@ -146,7 +148,8 @@ class LibraryViewModel(
         if (pages.isActive || (s.items.isNotEmpty() && s.items.size >= s.total)) return
         pages.launch {
             suspendRunCatching {
-                provider().libraryPage(library, s.sort, s.filter, start = s.items.size, limit = PAGE)
+                val first = if (s.items.isEmpty()) ahead?.take(library, s.sort, s.filter) else null
+                first ?: provider().libraryPage(library, s.sort, s.filter, start = s.items.size, limit = PAGE)
             }.onSuccess { page ->
                 // A title added meanwhile can shift pages: never show one twice (the grid is keyed by id).
                 _state.update {
@@ -174,10 +177,10 @@ class LibraryViewModel(
 
     companion object {
         private const val TAG = "Library"
-        private const val PAGE = 120
+        internal const val PAGE = 120
 
         fun factory(app: AppContainer, library: Library): ViewModelProvider.Factory = viewModelFactory {
-            initializer { LibraryViewModel(app::provider, library, createSavedStateHandle()) }
+            initializer { LibraryViewModel(app::provider, library, createSavedStateHandle(), app.libraryAhead) }
         }
     }
 }

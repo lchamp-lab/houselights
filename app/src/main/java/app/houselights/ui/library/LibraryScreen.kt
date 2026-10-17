@@ -86,8 +86,9 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import app.houselights.ui.design.components.WithItsPicture
+import app.houselights.ui.design.components.DetailAhead
 
-private const val COLUMNS = 7
+internal const val COLUMNS = 7
 
 /** Rows of empty frames while the wall loads: more than the screen shows, like the wall itself. */
 private const val SKELETON_ROWS = 3
@@ -145,6 +146,8 @@ fun LibraryScreen(
         }
     }
 
+    // Settled on a title, its detail page is made ready: OK opens it whole.
+    DetailAhead(shown.value)
     AmbientBackdrop(shown.value?.backdrop, BackdropStyle.Quiet) {
         Column(Modifier.fillMaxSize()) {
             Row(

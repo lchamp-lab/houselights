@@ -304,7 +304,10 @@ internal fun Modifier.artworkEdge(shape: Shape, colors: HlColors): Modifier =
 
 /** Width a poster is asked for: its own, or a little more than a row's when it fills a grid cell. */
 @Composable
-fun posterPx(width: Dp? = null): Int = (width ?: HlSize.poster * 1.3f).toPx()
+fun posterPx(width: Dp? = null): Int = (width ?: CELL_POSTER).toPx()
+
+/** A poster filling a grid cell (a wall's) is asked this wide: a little more than a row's, enough for any cell. */
+internal val CELL_POSTER = HlSize.poster * 1.3f
 
 /** A poster's shape, its width to its height. */
 private const val POSTER_SHAPE = 2f / 3f

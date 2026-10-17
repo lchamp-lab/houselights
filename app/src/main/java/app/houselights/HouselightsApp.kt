@@ -26,6 +26,7 @@ import app.houselights.providers.local.TmdbClient
 import app.houselights.settings.SettingsStore
 import app.houselights.settings.SourceSwitcher
 import app.houselights.ui.home.HomeLaunch
+import app.houselights.ui.library.LibraryAhead
 import app.houselights.ui.design.components.AwaitAhead
 import app.houselights.ui.util.PlaybackOutcome
 import coil.EventListener
@@ -140,6 +141,9 @@ class AppContainer(private val app: Application) : LibraryEvents {
 
     /** Home's first rows and pictures, asked while the launch screen holds; home takes them. */
     val homeLaunch = HomeLaunch(launch, settings.state, { provider }, { libraryVersion.value })
+
+    /** A wall's first page and posters, asked while home's pill slides to it; the wall takes them. */
+    val libraryAhead = LibraryAhead({ provider })
 
     /** The NAS browsers, and the sessions and mounts they keep between files. */
     val remoteBrowsers = RemoteBrowsers()
