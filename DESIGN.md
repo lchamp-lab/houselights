@@ -103,10 +103,10 @@ component; a colour changes in one place.
 
 | Role | Palette | Value | Role |
 |---|---|---|---|
-| `background` | `N0` | `#000000` | the room; masks over artwork; before Compose draws, the window and the launcher icon's ground (`@color/room`) |
+| `background` | `N0` | `#000000` | the room; masks over artwork; before Compose draws, the window and the launcher icon's ground (`@color/room`); the modules of a code to scan |
 | `surfaceRaised` | `N8` | `#131316` | glass: side sheets, menus, dialogs, opaque over the dimmed room |
 | `outline` | `N21` | `#33333A` | badge borders, and every edge at `EDGE` |
-| `content` | `N96` | `#F4F4F5` | projector white: what is read first (titles, values, the year and the runtime of a hero) |
+| `content` | `N96` | `#F4F4F5` | projector white: what is read first (titles, values, the year and the runtime of a hero); the one light ground of the app, under a code to scan (`QrCode`) |
 | `contentSecondary` | `N65` | `#A3A3AB` | what explains: summaries, descriptions, facts, hints; 5.21:1 at worst, in a primary button |
 | `contentTertiary` | `N57` | `#8C8C95` | what is guessed: joins, placeholders, key hints, the disabled; 5.56:1 on `surfaceRaised` |
 | `contentDecorative` | `N28` | `#45454C` | never text: the rule of an empty frame, a skeleton |
@@ -293,7 +293,7 @@ buttons keeps for a label, the first row's header a detail page keeps in its fir
 | `HlShapes` | radius follows hierarchy: `badge` 3, `artwork` 4, `field` 6, `row` 8 (rows that can be chosen), `panel` 12, `sheet` 16 (sheets and menus), `control` pill, `avatar` circle. A shape set close inside another keeps their corners parallel: **outer radius = inner radius + gap** (a menu: 8 + 8 = 16; a result: 4 + 8 = 12) |
 | `HlSize` | artwork (poster 112, landscape 220, episode 264, avatar 76 in a column of 120, thumbnails), `control` 48 for every button, icons 20, marks 20, dots 8, setting rows 64, previews in a row (48 tall, a slot of 84), meter 10, the short rules of a loading title (48, 24), the short rule heading an intertitle (`intertitleRule`, 24 by 2) |
 | `HlLayout` | **the screens' grid**, every measure read by a screen (`LayoutTokensTest`): reading widths (640, 520; a caption 400, about 66 characters at 14 sp), side columns (280, 340), pane top 72, title art, the home hero's band (168), the detail page's gap and least hero (`detailGap`, `detailHeroMin`), the info line, track table columns |
-| `…Defaults` | **parts of components**, internal, which no screen needs to know: `HlSideSheetDefaults` (520), `HlSettingRowDefaults` (widest value, 360), `HlIconButtonDefaults` (the label: 200 wide at most, 36 of room under its row at the default text size, 24 from the screen's side), `HlMenuDefaults` (320), `TechSpecsDefaults` (a row of the technical sheet: 40 high at least, its value 240 wide at most), `BackdropDefaults` (the left veil's fade past the column from full strength, 420; a lighter one fades sooner, at the same slow pace, so its end never reads as an edge) |
+| `…Defaults` | **parts of components**, internal, which no screen needs to know: `HlSideSheetDefaults` (520), `HlSettingRowDefaults` (widest value, 360), `HlIconButtonDefaults` (the label: 200 wide at most, 36 of room under its row at the default text size, 24 from the screen's side), `HlMenuDefaults` (320), `TechSpecsDefaults` (a row of the technical sheet: 40 high at least, its value 240 wide at most), `QrCodeDefaults` (a module of a code to scan, 6.5: whole pixels on a 1080p and a 4K interface; its quiet zone, 4 modules), `BackdropDefaults` (the left veil's fade past the column from full strength, 420; a lighter one fades sooner, at the same slow pace, so its end never reads as an edge) |
 | `HlControl` | inner padding of buttons and track options, badges; the gap between an icon and its text (8) |
 | `HlFocus` | focus scale by family (artwork 1.10, cards 1.06, pills and discs 1.04, panels 1.02, rows 1), `reach(size, scale)`: how far a focused element reaches past its ends, the room its container keeps; siblings stepping back (dim 0.3, colour kept 0.3, in `RECEDE_STEPS` 3), the glow of focused artwork, 20 dp, `edge` 28 (`safeV`): how far a list keeps focus from its ends |
 
@@ -363,6 +363,7 @@ without the prefix (`MenuOption`, `MeterLegend`, `PosterCard`, `BillingBlock`, `
 | `HlScrollArea` | long content read with the remote, on a quiet panel; focusable only when it has something to scroll; a key held down scrolls in one motion. Where there is more, the text fades into the panel's fill as it shows. What is too long to lay out whole (the XML of an NFO, up to a megabyte) is a lazy list in the same area (`HlScrollArea(lineHeight)`), read at the same step and with the same carry: only the lines on screen are laid out |
 | `TechSpecs`, `TechSheet` | the technical sheet, beside the title's page in an `HlSideSheet`, read row by row with the remote as a list of settings is: at its head the poster, and beside it the title and its formats in brief (`FormatLines`); then four sections, Image, Son, Sous-titres, Fichier, each opened by its name in `group`, the tracks counted beside it ("Son   3 pistes"), no hairlines. One row per fact: its name on the left, what it says on the right, a fact's space apart, and what qualifies it in `caption` under it (the Dolby Vision profile and the base it plays as elsewhere, "profil 8.1   base HDR10"; a track's bitrate). A track goes by its language, by its region too when another track speaks it from elsewhere ("Français (Canada)"), its format by the name on the case and its channels, its title under the language only when it says more than the row ("Compatibility Track", never "VFF DD 5.1 384 kbps": `TrackNames`); the default comes first, the one the player starts with has the ember dot in the margin. The file's name comes last, under its label, the width of the row. Rows take focus to be read, white as every row, and OK does nothing; a section's title comes into view with its first row. What the sheet says is decided in `TechSheet`, pure and tested; the screen only writes it in its language |
 | `InfoBlock`, `DefinitionList`, `DefinitionRow`, `SpecTable` | what a settings pane or the NFO states, set like the back of a Blu-ray case (see *Gestures*): pairs on one baseline, a value that is not text (a state and its light, a logo) in a `DefinitionRow`, rows of a kind in a `SpecTable` with aligned columns and the dot on the one in service |
+| `QrCode` | an address to open on a phone, in a side sheet where its rows would go (About, Soutenir Houselights): the code's dark modules (a vector, one unit of its viewport each, as `qrencode` writes them) black on projector white, the one light ground of the app, since a reader looks for dark modules on a light one; the quiet zone readers need around them; modules at whole pixels (`QrCodeDefaults`), so a code of 29 modules is about 240 dp, read from the sofa. Under it, the address as a phone shows it, in the technical voice (`spec`), for whoever types it. Read out as one element: "Code QR", then the address. Never on artwork, never lit |
 | `ArtworkChoiceCard`, `SelectedMark` | one artwork to choose from, at the shape it is used in; the one in use carries the check of your choice, the watched mark in ember. A backdrop or a logo is previewed on the page behind; a poster is its own preview, so its picker keeps no room for one and its choices come larger (`posterChoice`, 180 dp), right under the header |
 | `HlEmptyState`, `HlErrorState` | the intertitle of a screen with nothing to show or that could not load: a short rule (ember for `attention`), what happened in the voice of the poster, what to check, the action focused and a quieter way out beside it; with no action, the Back hint. An error (`UiError`) is an `HlErrorState`: it brings its own title, message and action (`ErrorAction`), always with attention: try again on the spot, sign in again, add or change the TMDB key; a title that has gone has none, Back is the way out. While it tries again (`busy`), the intertitle stays, its button at work and still focused |
 | `ScanProgress` | a scan going on: what is read (`subject`, the first scan on home), the ember line and its count "3 / 9", the file being read; without a name, one line, the file after the count (a folder's card). Until the files are counted, a sliver and no count |
@@ -430,6 +431,10 @@ inside; when a sheet has gone, focus is back where it was.
   without a well at rest: focus goes down them one by one, white, so a long sheet scrolls under
   the remote as a list of settings does, and OK does nothing. Its height is the layout's, never a
   constant worked out for one screen.
+- **To hand to a phone: a code.** A sheet that gives an address to open elsewhere (Soutenir
+  Houselights) says what to do in its description ("Scannez ce code avec votre téléphone…") and
+  shows the `QrCode` where the rows go. Nothing in it takes focus: Back, the one key it answers,
+  closes it, and focus is back on the row that opened it.
 
 Content closes a sheet through `SheetScope.dismiss(then)`: the sheet leaves, then its owner hears
 of it and `then` runs; keys are ignored while it leaves, so a second OK cannot choose twice. An
@@ -529,6 +534,10 @@ of what it would show, as an intertitle (`HlEmptyState`, see *Gestures*), with w
 does a screen with nothing to show yet, with the verb that fills it. Raw exception text never
 reaches the screen: it goes to the log.
 
+The app asks nothing for itself. Supporting the project is one row of About ("Soutenir
+Houselights"), found by whoever looks for it: no reminder, no count of days or of films, no badge,
+no sheet that opens on its own.
+
 ## Writing
 
 - French uses *vous*, typographic apostrophes (’), and a no-break space before `: ; ! ?` and inside
@@ -618,7 +627,7 @@ in the design system instead.
 
 What the remote does is tested as the remote does it, keys and Back, on Robolectric with the app's
 theme on the TV canvas (`ui/testing/Remote.kt`): a row's memory (`MediaRowFocusTest`), a sheet's
-Back (`SheetFocusTest`), a scroll area's steps and ends (`ScrollAreaTest`), a field's line
+Back (`SheetFocusTest`), and a sheet's with nothing to focus (`SupportRowTest`), a scroll area's steps and ends (`ScrollAreaTest`), a field's line
 (`TextFieldMessageTest`), focus brought back (`RestoreFocusTest`), a track's entry
 (`SegmentedFocusTest`). A focus rule that changes comes with its test.
 

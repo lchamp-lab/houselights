@@ -26,6 +26,7 @@ class ContrastTest {
         "onFocus" to c.onFocus,
         "onFocusSecondary" to c.onFocusSecondary,
         "focus" to c.focus,
+        "background" to c.background,
     )
 
     /** The surfaces the components compose, each over what it sits on. */
@@ -46,6 +47,8 @@ class ContrastTest {
         "FILL_STRONG on FILL_FAINT" to c.content.over(HlAlpha.FILL_STRONG, c.content.over(HlAlpha.FILL_FAINT, c.background)),
         "FILL_STRONG on VEIL on a white image" to c.content.over(HlAlpha.FILL_STRONG, c.background.over(HlAlpha.VEIL, Color.White)),
         "focus" to c.focus,
+        // The one light ground: a code to scan.
+        "content" to c.content,
         // Whatever sits on artwork, on its plate over the worst image: a white one.
         "VEIL on a white image" to c.background.over(HlAlpha.VEIL, Color.White),
         // A text column over a backdrop: the left veil at the floor a white image gets.
@@ -86,6 +89,8 @@ class ContrastTest {
         ("focus" on "VEIL on a white image").mark(), ("focus" on "background").mark(),
         // A row read in a sheet: no well at rest, white on the sheet itself.
         ("focus" on "surfaceRaised").mark(),
+        // A code to scan: its black modules on projector white, and that ground against the sheet.
+        ("background" on "content").mark(), ("content" on "surfaceRaised").mark(),
         // Marks: a lit round button's icon (a favourite), the check of your choice and the
         // new dot on their plate, a card's progress on its plate. The watched check is white (above).
         ("ember" on "FILL").mark(),
