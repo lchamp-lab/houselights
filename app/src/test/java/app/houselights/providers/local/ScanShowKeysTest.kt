@@ -3,6 +3,8 @@ package app.houselights.providers.local
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
@@ -149,9 +151,52 @@ class ScanShowKeysTest {
         assertEquals(2, dao.count(ItemKind.SERIES))
     }
 
+    /**
+     * A show of one name and two years in a folder of its name, one show by an earlier rule, which the user matched
+     * with the later series: that row is the later series' as its years part, though the earlier one's folder is read
+     * first; the earlier series is a show of its own.
+     */
+    @Test
+    fun aShowOfTwoYearsOnceOneKeepsItsRowForTheYearItIs() = runTest {
+        tmdb.show(CLASSIC_WHO, "Doctor Who", 1963)
+        tmdb.show(MODERN_WHO, "Doctor Who", 2005)
+        for (id in listOf(CLASSIC_WHO, MODERN_WHO)) tmdb.season(id, 1, episodes = 6)
+        nas.put(WHO_1963)
+        nas.put(WHO_2005)
+        bench.scan()
+        val classic = showOf(WHO_1963)
+        val modern = showOf(WHO_2005)
+        val season = checkNotNull(dao.season(classic.id, 1))
+        dao.saveScanned(bench.item(shows, WHO_2005).copy(seriesId = classic.id, parentId = season.id))
+        dao.deleteItems(listOf(checkNotNull(dao.season(modern.id, 1)).id, modern.id))
+        // One show by name alone, as the user matched it: the series of 2005.
+        dao.saveScanned(classic.copy(tmdbId = MODERN_WHO, year = 2005))
+        val show = keyedBefore(checkNotNull(dao.item(classic.id)), "doctor who", "Doctor Who")
+        dao.setUserTmdbId(show.id, MODERN_WHO)
+
+        bench.scan(refreshMetadata = true)
+        val kept = showOf(WHO_2005)
+        assertEquals(show.id, kept.id)
+        assertEquals("doctor who|2005", kept.matchKey)
+        assertEquals(MODERN_WHO, kept.userTmdbId)
+        assertEquals(MODERN_WHO, kept.tmdbId)
+        assertTrue(kept.favorite)
+        assertEquals(POSTER, kept.userPosterPath)
+        val earlier = showOf(WHO_1963)
+        assertEquals("doctor who|1963", earlier.matchKey)
+        assertEquals(CLASSIC_WHO, earlier.tmdbId)
+        assertNull(earlier.userTmdbId)
+        assertFalse(earlier.favorite)
+        assertEquals(2, dao.count(ItemKind.SERIES))
+    }
+
     private companion object {
         const val SLOW_HORSES = 95480
         const val REMASTERED = 95481
+        const val CLASSIC_WHO = 121
+        const val MODERN_WHO = 57243
+        const val WHO_1963 = "Doctor Who/Doctor Who (1963)/Season 01/Doctor Who - S01E01 - An Unearthly Child.mkv"
+        const val WHO_2005 = "Doctor Who/Doctor Who (2005)/Season 01/Doctor Who - S01E01 - Rose.mkv"
         const val POSTER = "https://image.tmdb.org/t/p/original/chosen.jpg"
         const val S01 = "Slow.Horses.S01.1080p.ATVP.WEB-DL"
         const val S02 = "Slow.Horses.S02.1080p.ATVP.WEB-DL"
