@@ -28,6 +28,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.res.stringResource
@@ -104,6 +105,21 @@ fun HomeScreen(
     val vm: HomeViewModel = viewModel(factory = HomeViewModel.factory(app))
     ReloadOnLibraryChange { vm.load() }
     val state by vm.state.collectAsStateWithLifecycle()
+    HomeBands(state, vm.scan, onOpenItem, onOpenLibrary, onOpenSettings, onAddFolder, onReload = vm::load, onRescan = vm::rescan)
+}
+
+/** Home as [state] lays it out, its bar, its hero and its rows, and where focus goes among them. */
+@Composable
+internal fun HomeBands(
+    state: HomeState,
+    scan: StateFlow<ScanState>,
+    onOpenItem: (MediaItem) -> Unit,
+    onOpenLibrary: (Library) -> Unit,
+    onOpenSettings: () -> Unit,
+    onAddFolder: () -> Unit,
+    onReload: () -> Unit,
+    onRescan: () -> Unit,
+) {
     val content = state.content
     val sections = (content as? HomeContent.Rows)?.sections.orEmpty()
 
@@ -148,6 +164,8 @@ fun HomeScreen(
                     onOpenLibrary(library)
                 },
                 onSettings = onOpenSettings,
+                // Into the first row, once laid out: its group is then there to take focus.
+                intoRows = { first?.takeIf { rows.firstVisibleItemIndex == 0 }?.let { memory.requester(FocusKey.section(it.key)) } },
             )
             when (content) {
                 is HomeContent.Browsing -> {
@@ -157,7 +175,7 @@ fun HomeScreen(
                     // A folder read for the first time: the counter stays above the rows, which fill in
                     // under it as titles are found.
                     if (content.firstScan) {
-                        FirstScan(vm.scan, Modifier.padding(start = HlSpace.safeH, bottom = HlSpace.m), aboveRows = true)
+                        FirstScan(scan, Modifier.padding(start = HlSpace.safeH, bottom = HlSpace.m), aboveRows = true)
                     }
                     when (content) {
                         is HomeContent.Loading -> SkeletonRows()
@@ -177,9 +195,9 @@ fun HomeScreen(
                 // Nothing to show yet: what the screen says starts where the title under focus would.
                 is HomeContent.Message -> NoRows(
                     content,
-                    vm.scan,
-                    onReload = vm::load,
-                    onRescan = vm::rescan,
+                    scan,
+                    onReload = onReload,
+                    onRescan = onRescan,
                     onSettings = onOpenSettings,
                     onAddFolder = onAddFolder,
                     modifier = Modifier.padding(start = HlSpace.safeH, top = HlSpace.l),
@@ -196,6 +214,8 @@ private fun TopBar(
     returnTo: Int?,
     onLibrary: (Library) -> Unit,
     onSettings: () -> Unit,
+    /** The first row, when there is one to go down to. */
+    intoRows: () -> FocusRequester?,
 ) {
     // Where you are among the libraries, in one track; settings apart, as an action. Both sit on
     // the image, on their plates. A long track scrolls: the button always keeps its place.
@@ -229,7 +249,11 @@ private fun TopBar(
             HlIcons.Settings,
             stringResource(R.string.nav_settings),
             onClick = onSettings,
-            modifier = Modifier.focusKey(FocusKey.action("settings"), memory),
+            // Down goes into the first row as from the tabs, on the card it last had, else its first:
+            // not on the card that lies under the button, at the far end of the row.
+            modifier = Modifier
+                .focusKey(FocusKey.action("settings"), memory)
+                .focusProperties { down = intoRows() ?: FocusRequester.Default },
         )
     } }
 }
