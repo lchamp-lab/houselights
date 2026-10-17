@@ -18,7 +18,8 @@ data class Secret(val value: String) {
 }
 
 /**
- * Lists stored as "A|B|C": SQL filters still match one entry with ('|' || genres || '|') LIKE '%|A|%'.
+ * Lists stored as "A|B|C": genres, badges, a film's parts. Queries match one of their entries by
+ * [matches] alone, so that a filter, a count and a page's similar titles agree on what a genre holds.
  */
 object PipeList {
     @TypeConverter
@@ -26,6 +27,19 @@ object PipeList {
 
     @TypeConverter
     fun fromText(text: String): List<String> = text.split('|').filter { it.isNotBlank() }
+
+    /**
+     * SQL that holds when [column]'s list has [value] for one of its entries, whole and exact: "Drame"
+     * is neither "Mélodrame" nor "drame", "4K" not "4Kx". [value] is SQL too: a parameter (`?`,
+     * `:genre`) or a quoted text.
+     */
+    fun matches(column: String, value: String = "?"): String = "instr('|' || $column || '|', '|' || $value || '|') > 0"
+
+    /** [matches] for Room's queries, which take constants only: the genres hold `:genre`. A test holds the two alike. */
+    const val GENRES_MATCH = "instr('|' || genres || '|', '|' || :genre || '|') > 0"
+
+    /** [matches] for Room's queries: the badges hold `:token`. */
+    const val BADGES_MATCH = "instr('|' || badges || '|', '|' || :token || '|') > 0"
 }
 
 /** Seals [Secret] columns on the way to the database, opens them on the way back. */

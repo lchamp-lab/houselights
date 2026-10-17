@@ -115,6 +115,17 @@ class LocalProviderTest {
     }
 
     @Test
+    fun similarTitlesShareAWholeGenreAsTheGridFilterMatchesIt() = runTest {
+        val heat = movie("Heat", genres = listOf("Drame", "Action"))
+        movie("Collateral", genres = listOf("Thriller", "Drame"))
+        movie("Les Parapluies de Cherbourg", genres = listOf("Mélodrame"))
+        movie("Ronin", genres = listOf("drame"))
+        val similar = provider.similar(provider.item(heat.toString())).map { it.title }
+        assertEquals(listOf("Collateral"), similar)
+        assertEquals(listOf("Collateral", "Heat"), page(LibraryFilter(genre = "Drame")).items.map { it.title })
+    }
+
+    @Test
     fun decadeAndWatchStatus() = runTest {
         movie("Alien", year = 1979, played = true)
         movie("Aliens", year = 1986)

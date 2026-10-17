@@ -92,9 +92,8 @@ class LocalProvider(
             WatchStatus.FAVORITES -> where.append(" AND favorite = 1")
         }
         filter.genre?.let {
-            // Genres are stored as "A|B|C": match a whole entry.
-            where.append(" AND ('|' || genres || '|') LIKE ?")
-            args += "%|$it|%"
+            where.append(" AND ${PipeList.matches("genres")}")
+            args += it
         }
         filter.decade?.let {
             where.append(" AND year BETWEEN ? AND ?")
@@ -124,10 +123,14 @@ class LocalProvider(
     }
 
     /** [column], a row's badges ("badges" for a film, "e.badges" for an episode of a show), holds [quality]. */
-    private fun qualityCondition(quality: Quality, column: String): String = when (quality) {
-        Quality.UHD_4K -> "('|' || $column || '|') LIKE '%|${Definition.ULTRA_HD.token}|%'"
-        Quality.HDR -> "($column LIKE '%HDR%' OR $column LIKE '%Dolby Vision%')"
-        Quality.DOLBY_VISION -> "$column LIKE '%Dolby Vision%'"
+    private fun qualityCondition(quality: Quality, column: String): String {
+        // Badges are the app's own tokens, never a quote in them.
+        fun holds(token: String) = PipeList.matches(column, "'$token'")
+        return when (quality) {
+            Quality.UHD_4K -> holds(Definition.ULTRA_HD.token)
+            Quality.HDR -> "($column LIKE '%HDR%' OR ${holds("Dolby Vision")})"
+            Quality.DOLBY_VISION -> holds("Dolby Vision")
+        }
     }
 
     /** Collections holding enough films, sorted like films: by name, latest addition, latest film, rating. */

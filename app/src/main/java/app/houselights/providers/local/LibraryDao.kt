@@ -252,20 +252,20 @@ interface LibraryDao {
     fun observePosters(sourceId: Long, limit: Int): Flow<List<String>>
 
     /** Files of a source in Ultra HD (their badges carry the definition token). */
-    @Query("SELECT COUNT(*) FROM items WHERE sourceId = :sourceId AND filePath IS NOT NULL AND ('|' || badges || '|') LIKE '%|' || :token || '|%'")
+    @Query("SELECT COUNT(*) FROM items WHERE sourceId = :sourceId AND filePath IS NOT NULL AND ${PipeList.BADGES_MATCH}")
     fun observeDefinitionCount(sourceId: Long, token: String): Flow<Int>
 
     /**
-     * Per source, its films and shows and its files in Ultra HD (their badges carry [ultraHdToken]):
-     * what the two queries above count, for every source in one query, which each write to the items
-     * runs again.
+     * Per source, its films and shows and its files in Ultra HD (their badges carry [token], the
+     * definition's): what the two queries above count, for every source in one query, which each
+     * write to the items runs again.
      */
     @Query(
         "SELECT sourceId, SUM(kind IN ('MOVIE','SERIES')) AS titles, " +
-            "SUM(filePath IS NOT NULL AND ('|' || badges || '|') LIKE '%|' || :ultraHdToken || '|%') AS ultraHd " +
+            "SUM(filePath IS NOT NULL AND ${PipeList.BADGES_MATCH}) AS ultraHd " +
             "FROM items GROUP BY sourceId"
     )
-    fun observeFolderCounts(ultraHdToken: String): Flow<List<FolderCounts>>
+    fun observeFolderCounts(token: String): Flow<List<FolderCounts>>
 
     @RawQuery
     suspend fun query(query: SupportSQLiteQuery): List<ItemEntity>
@@ -273,9 +273,10 @@ interface LibraryDao {
     @RawQuery
     suspend fun countQuery(query: SupportSQLiteQuery): Int
 
+    /** Titles of [kind] that have [genre], the best rated first; the id settles ties, so the row stays put. */
     @Query(
-        "SELECT $CARD_ROW FROM items WHERE kind = :kind AND id != :excludeId AND genres LIKE '%' || :genre || '%' " +
-            "ORDER BY rating DESC LIMIT :limit"
+        "SELECT $CARD_ROW FROM items WHERE kind = :kind AND id != :excludeId AND ${PipeList.GENRES_MATCH} " +
+            "ORDER BY rating DESC, id LIMIT :limit"
     )
     suspend fun byGenre(kind: ItemKind, genre: String, excludeId: Long, limit: Int): List<ItemEntity>
 
