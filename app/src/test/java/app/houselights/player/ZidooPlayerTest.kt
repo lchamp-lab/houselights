@@ -221,6 +221,21 @@ class ZidooPlayerTest {
         assertEquals(Decision.NO_PLAYER, choose(ZIDOO_BUILD).decision)
     }
 
+    /** About says what playback decides, from the same code: found and trusted, found and not, or none. */
+    @Test
+    fun aboutSaysWhatPlaybackDecides() {
+        assertEquals(PlayerStatus.NotDetected, ZidooPlayer(context) { ZIDOO_BUILD }.status())
+        apps.install(GALLERY, MOVIE_ACTIVITY, system = true, bySchemes = false)
+        assertEquals(PlayerStatus.Detected(GALLERY), ZidooPlayer(context) { ZIDOO_BUILD }.status())
+        assertEquals(PlayerStatus.Unrecognized(GALLERY, Decision.NOT_A_ZIDOO), ZidooPlayer(context) { OTHER_BUILD }.status())
+    }
+
+    @Test
+    fun aDeviceIsNamedByItsMakerAndModel() {
+        assertEquals("ZIDOO Z9X Pro", ZIDOO_BUILD.name)
+        assertEquals("the maker said once", "Zidoo Z1000 Pro", ZIDOO_BUILD.copy(model = "Zidoo Z1000 Pro").name)
+    }
+
     private fun sha256(certificate: String) =
         MessageDigest.getInstance("SHA-256").digest(certificate.toByteArray()).joinToString("") { "%02x".format(it) }
 }

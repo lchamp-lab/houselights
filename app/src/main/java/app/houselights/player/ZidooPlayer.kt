@@ -28,6 +28,10 @@ data class DeviceIdentity(
     /** Signed with AOSP's test keys: a certificate the firmware's apps share proves nothing. */
     val testKeys: Boolean get() = tags.contains("test-keys")
 
+    /** "ZIDOO Z9X Pro": its maker and its model, the maker said once when the model already names it. */
+    val name: String
+        get() = if (model.startsWith(manufacturer, ignoreCase = true)) model else "$manufacturer $model".trim()
+
     /** Some field names Zidoo: a Realtek build may keep its chip maker's name in some of them, not in all. */
     val namesZidoo: Boolean
         get() = listOf(manufacturer, brand, model, product, device, fingerprint).any { it.contains(ZIDOO, ignoreCase = true) }
@@ -45,6 +49,18 @@ data class DeviceIdentity(
             tags = Build.TAGS.orEmpty(),
         )
     }
+}
+
+/** What About says of the player: the decision playback takes ([ZidooPlayer.choose]), in brief. */
+sealed interface PlayerStatus {
+    /** Found, and a password may go to it. */
+    data class Detected(val packageName: String) : PlayerStatus
+
+    /** Found, but no password goes to it, for [reason]. */
+    data class Unrecognized(val packageName: String, val reason: ZidooPlayer.Decision) : PlayerStatus
+
+    /** No app to hand a film to. */
+    data object NotDetected : PlayerStatus
 }
 
 /**
@@ -127,6 +143,13 @@ class ZidooPlayer(
         val player = candidates.firstOrNull { it.component.packageName == remembered } ?: known ?: found.firstOrNull()
         val certificate = player?.let { certificate(it.component.packageName) }
         return Choice(player, candidates, device, certificate, decide(player, device, certificate))
+    }
+
+    /** What About says of the player: what [choose] decides. */
+    fun status(): PlayerStatus {
+        val choice = choose()
+        val pkg = choice.player?.component?.packageName ?: return PlayerStatus.NotDetected
+        return if (choice.decision.trusted) PlayerStatus.Detected(pkg) else PlayerStatus.Unrecognized(pkg, choice.decision)
     }
 
     /**

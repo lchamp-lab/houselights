@@ -274,6 +274,7 @@
     <string name="label_user">Utilisateur</string>
     <string name="label_render">Rendu de l’interface</string>
     <string name="label_modes">Modes disponibles</string>
+    <string name="label_device">Appareil</string>
     <string name="label_player">Lecteur Zidoo</string>
     <string name="label_api">API de contrôle</string>
     <string name="tmdb_attribution">Ce produit utilise l’API TMDB mais n’est ni approuvé ni certifié par TMDB.</string>
@@ -423,6 +424,10 @@
     <string name="about_status">État</string>
     <string name="detected">Détecté</string>
     <string name="not_detected">Non détecté</string>
+    <string name="player_unrecognised">Détecté, non reconnu</string>
+    <string name="player_not_a_zidoo">Cet appareil n’est pas une Zidoo</string>
+    <string name="player_changed_since">A changé depuis la dernière lecture</string>
+    <string name="player_no_certificate">Son certificat est illisible</string>
     <string name="online">En ligne</string>
     <string name="offline">Hors ligne</string>
     <string name="about_credits">Générique</string>
