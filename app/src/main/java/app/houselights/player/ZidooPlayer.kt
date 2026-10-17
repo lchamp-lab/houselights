@@ -373,10 +373,10 @@ class ZidooPlayer(
 
         /**
          * What a player is asked to open: a video by its type, at the addresses the app hands over, and
-         * at those the Z1000 Pro's player answers, read on the device: http, https, file and content
-         * only, never smb nor nfs, which it is handed by name. A firmware's player under another name
-         * answers as it does, if at all. From Android 11, the manifest's <queries> must declare each,
-         * or no app answers it.
+         * at those the Z1000 Pro's player answers, read on the device: http, file and content (https
+         * was not asked there; a stream may be at one), never smb nor nfs, which it is handed by name.
+         * A firmware's player under another name answers as it does, if at all. From Android 11, the
+         * manifest's <queries> must declare each, or no app answers it.
          */
         internal fun probes() = listOf(Intent(Intent.ACTION_VIEW).setType(VIDEO)) + listOf(
             "nfs://nas/film.mkv",

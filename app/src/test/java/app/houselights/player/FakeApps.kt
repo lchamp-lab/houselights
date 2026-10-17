@@ -102,8 +102,9 @@ internal class FakeApps(private val context: Context) {
         val SHARES = listOf("smb", "nfs")
 
         /**
-         * What the Z1000 Pro's player answers a video at, read on the device: neither smb nor nfs,
-         * which it is handed by name only, nor a type alone.
+         * What the Z1000 Pro's player answers a video at: http, file and content, read on the device,
+         * and https, not asked there, where a stream may be too; neither smb nor nfs, which it is
+         * handed by name only, nor a type alone.
          */
         val FIRMWARE_SCHEMES = listOf("http", "https", "file", "content")
 
