@@ -133,8 +133,11 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
         // for a film: an image among them, whose copy the show would show otherwise.
         val removed = SidecarKey.showRemoved(series.sidecarKey, source.id, showDir, local)
         val tv = if (tmdbAsked(series, nfo, refreshMetadata, removed)) {
-            // Its details go, not its match: an NFO removed may have been all that named it, and its folder's name another.
-            tmdb.ask { lookupShow(it, series.userTmdbId, nfo, title, year, known = series.tmdbId.takeIf { removed }) }
+            // Its details go, not its match: an NFO removed may have been all that named it, and its folder's name
+            // another. A matched show keeps its match at a refresh, as a film does; one keyed again since, under a
+            // name its path gives now, is unmatched and looked up by that name.
+            val known = series.tmdbId.takeIf { removed || series.matchedAt != null }
+            tmdb.ask { lookupShow(it, series.userTmdbId, nfo, title, year, known = known) }
         } else {
             TmdbAnswer.Unanswered
         }
@@ -298,8 +301,8 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
     }
 
     /**
-     * The user's match first, then the NFO's ids, then the show it was matched with ([known]: when sidecars that
-     * named it were removed, as for a film), then a search by title.
+     * The user's match first, then the NFO's ids, then the show it was matched with ([known]: as for a film, the
+     * one it is matched with, or was when sidecars that named it were removed), then a search by title.
      */
     private suspend fun lookupShow(
         tmdb: TmdbClient,

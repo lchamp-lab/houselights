@@ -224,6 +224,10 @@ class ScanShowSidecarsTest {
         assertEquals(LEGENDES to "Le Bureau des Légendes", read.tmdbId to read.title)
         assertNull(read.nfoPath)
         assertNotNull(read.matchedAt)
+
+        // And at a full refresh, as a film keeps the match it has: not its folder's homonym.
+        bench.scan(refreshMetadata = true)
+        assertEquals(LEGENDES to "Le Bureau des Légendes", bureau().let { it.tmdbId to it.title })
     }
 
     /**
