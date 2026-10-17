@@ -115,11 +115,27 @@ class PlayerLaunchTest {
         assertRefused { manager(OTHER_BUILD).intentFor(plan(SMB)) }
     }
 
-    /** Elsewhere, even a system app under the Zidoo player's name gets no password: only a Zidoo's player does. */
+    /**
+     * Elsewhere, even a system app under the Zidoo player's name gets no password: only a Zidoo's
+     * player does. A plain file still goes to it, with what it is told of the film.
+     */
     @Test
     fun elsewhereNoPlayerGetsAPassword() = runTest {
         apps.install(GALLERY, MOVIE_ACTIVITY, system = true, bySchemes = false)
-        assertRefused { manager(OTHER_BUILD).intentFor(plan(SMB)) }
+        val manager = manager(OTHER_BUILD)
+        assertRefused { manager.intentFor(plan(SMB)) }
+        val nfs = manager.intentFor(plan(NFS))
+        assertEquals(MOVIE_ACTIVITY, nfs.component?.className)
+        assertTrue(nfs.getBooleanExtra("return_result", false))
+    }
+
+    /** Elsewhere, the system's video apps are not looked for: a plain file goes to whatever the system finds. */
+    @Test
+    fun elsewhereAPlainFileGoesToTheSystemsChoice() = runTest {
+        apps.install("com.android.tv.player", "com.android.tv.player.VideoActivity", system = true)
+        val manager = manager(OTHER_BUILD)
+        assertRefused { manager.intentFor(plan(SMB)) }
+        assertNull(manager.intentFor(plan(NFS)).component)
     }
 
     /** A player installed as an ordinary app, signed with the key of an app of Zidoo's the firmware installed. */
@@ -145,6 +161,8 @@ class PlayerLaunchTest {
 
         apps.install(ZIDOO_PLAYER, ZIDOO_PLAYER_ACTIVITY, certificate = "a-third-key")
         assertTrue("said as such", assertRefused { manager.intentFor(plan(SMB)) }.playerChanged)
+        // A plain file, which holds no secret, still plays there.
+        assertEquals(ZIDOO_PLAYER_ACTIVITY, manager.intentFor(plan(NFS)).component?.className)
         // A token is not a password: it goes through the chooser, as anywhere else.
         assertEquals(Intent.ACTION_CHOOSER, manager.intentFor(plan(TOKEN)).action)
     }

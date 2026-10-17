@@ -1,5 +1,6 @@
 package app.houselights.player
 
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -89,55 +90,61 @@ class PlaybackManager(
      * Zidoo's; else the player a secret last went to, or the first one, as long as neither its package
      * nor its certificate changes. Off a Zidoo, no app is trusted, whatever its name: any app may take one.
      * A password goes to no other app ([CredentialsNotShared]); a token goes elsewhere only through a
-     * chooser, where the user picks the app (Android opens the only one without asking).
+     * chooser, where the user picks the app (Android opens the only one without asking). A URI with
+     * no secret goes to the player found, trusted or not, with what it is told of the film.
      *
-     * Not guarded against: an app installed on the Zidoo, under a name of Zidoo's, before a first
-     * password goes to the player (trusted on first use, it would be the one); an update of a system
-     * app signed with the AOSP test keys of the firmware's build; and whoever reads the device's log
-     * through adb, where Android writes the address it starts.
+     * Not guarded against: an app installed on the Zidoo, under a name of Zidoo's or the old player's,
+     * before a first password goes to the player (trusted on first use, it would be the one); an
+     * update of a system app signed with the AOSP test keys of the firmware's build; and whoever reads
+     * the device's log through adb, where Android writes the address it starts.
      */
     fun intentFor(plan: PlaybackPlan.Launch): Intent {
         Log.i(TAG, "Launch ${plan.title} -> ${Redact.uri(plan.uri)}")
 
         val choice = players.choose()
         val player = choice.player
-        val zidoo = Intent(Intent.ACTION_VIEW).apply {
-            component = player?.component
-            setDataAndType(Uri.parse(plan.uri), "video/${plan.container ?: "*"}")
-            putExtra("title", plan.title)
-            // The player is another app: a file of ours is out of its reach, a web address is not.
-            plan.backdropUrl?.takeIf(::isWebUrl)?.let { putExtra("loading_image", it) }
-            plan.logoUrl?.takeIf(::isWebUrl)?.let { putExtra("clearlogo_image", it) }
-            if (plan.startMs > 0) {
-                putExtra("from_start", false)
-                putExtra("position", plan.startMs.toInt())
-            } else {
-                putExtra("from_start", true)
-            }
-            putExtra("return_result", true)
-        }
         val secret = Redact.hasCredentials(plan.uri)
         val intent = when {
-            player != null && choice.decision.trusted -> {
+            player != null && (!secret || choice.decision.trusted) -> {
                 if (secret) players.remember(choice)
-                zidoo
+                playerIntent(player.component, plan)
             }
             Redact.hasUserInfo(plan.uri) -> throw CredentialsNotShared(playerChanged = choice.decision == ZidooPlayer.Decision.CHANGED)
-            else -> {
-                val any = Intent(Intent.ACTION_VIEW).apply {
-                    setDataAndType(Uri.parse(plan.uri), "video/*")
-                    putExtra("title", plan.title)
-                    putExtra("position", plan.startMs.toInt())
-                    putExtra("return_result", true)
-                }
-                if (secret) Intent.createChooser(any, context.getString(R.string.play_with)) else any
-            }
+            else -> anyPlayerIntent(plan, chooser = secret)
         }
         session = Session(plan.reporter, plan.startMs, plan.disc, plan.resumeKey)
         // Written before the player takes over: the platform finishes pending apply() writes before our
         // activity stops, which launching the player does, so the resume point survives a killed process.
         saved.edit().putString(KEY_RESUME, plan.resumeKey).putLong(KEY_POSITION, plan.startMs).apply()
         return intent
+    }
+
+    /** The player's intent: the file, and what the player shows while it opens it and where it starts. */
+    private fun playerIntent(player: ComponentName, plan: PlaybackPlan.Launch) = Intent(Intent.ACTION_VIEW).apply {
+        component = player
+        setDataAndType(Uri.parse(plan.uri), "video/${plan.container ?: "*"}")
+        putExtra("title", plan.title)
+        // The player is another app: a file of ours is out of its reach, a web address is not.
+        plan.backdropUrl?.takeIf(::isWebUrl)?.let { putExtra("loading_image", it) }
+        plan.logoUrl?.takeIf(::isWebUrl)?.let { putExtra("clearlogo_image", it) }
+        if (plan.startMs > 0) {
+            putExtra("from_start", false)
+            putExtra("position", plan.startMs.toInt())
+        } else {
+            putExtra("from_start", true)
+        }
+        putExtra("return_result", true)
+    }
+
+    /** Any video player's intent; through a [chooser] for a URI with a token, so that the user picks the app. */
+    private fun anyPlayerIntent(plan: PlaybackPlan.Launch, chooser: Boolean): Intent {
+        val any = Intent(Intent.ACTION_VIEW).apply {
+            setDataAndType(Uri.parse(plan.uri), "video/*")
+            putExtra("title", plan.title)
+            putExtra("position", plan.startMs.toInt())
+            putExtra("return_result", true)
+        }
+        return if (chooser) Intent.createChooser(any, context.getString(R.string.play_with)) else any
     }
 
     /** The player could not be started after all. */
