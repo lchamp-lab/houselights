@@ -5,10 +5,13 @@ import android.content.Intent
 import android.util.Log
 import androidx.test.core.app.ApplicationProvider
 import app.houselights.core.PlaybackPlan
+import app.houselights.player.FakeApps.Companion.FIRMWARE_SCHEMES
 import app.houselights.player.FakeApps.Companion.GALLERY
 import app.houselights.player.FakeApps.Companion.MOVIE_ACTIVITY
 import app.houselights.player.FakeApps.Companion.OTHER_BUILD
 import app.houselights.player.FakeApps.Companion.OTHER_KEY
+import app.houselights.player.FakeApps.Companion.SHARES
+import app.houselights.player.FakeApps.Companion.Z1000_PRO_BUILD
 import app.houselights.player.FakeApps.Companion.ZIDOO_BUILD
 import app.houselights.player.FakeApps.Companion.ZIDOO_KEY
 import app.houselights.player.FakeApps.Companion.ZIDOO_PLAYER
@@ -68,6 +71,40 @@ class PlayerLaunchTest {
         val manager = manager(ZIDOO_BUILD)
         assertEquals(MOVIE_ACTIVITY, manager.intentFor(plan(NFS)).component?.className)
         assertEquals(SMB, manager.intentFor(plan(SMB)).dataString)
+    }
+
+    /**
+     * The Z1000 Pro as read on the device: a test-keys build, whose player, a system app, answers a
+     * video at http, file and content addresses only, its poster wall at file ones, and Zidoo's other
+     * apps at none. Beside them, an app under a name of Zidoo's that answers every address, and one
+     * signed like Zidoo's apps: the old player still gets every film, with what it is told of it, and
+     * every secret.
+     */
+    @Test
+    fun theZ1000ProHandsEveryFilmToItsOldPlayer() = runTest {
+        apps.install(GALLERY, MOVIE_ACTIVITY, system = true, certificate = ZIDOO_KEY, schemes = listOf("http", "file", "content"))
+        val wall = "com.zidoo.poster.main.PosterWallActivity"
+        apps.install("com.zidoo.poster", wall, system = true, certificate = ZIDOO_KEY, schemes = listOf("file"))
+        listOf("com.zidoo.fileexplorer", "com.zidoo.control.center", "com.zidoo.audioplayer").forEach {
+            apps.install(it, system = true, certificate = ZIDOO_KEY)
+        }
+        apps.install(ZIDOO_PLAYER, ZIDOO_PLAYER_ACTIVITY, certificate = OTHER_KEY, byType = true, schemes = SHARES + FIRMWARE_SCHEMES)
+        apps.install("com.rtk.player", "com.rtk.player.Play", certificate = ZIDOO_KEY, byType = true, schemes = SHARES + FIRMWARE_SCHEMES)
+        val manager = manager(Z1000_PRO_BUILD)
+
+        val artwork = "https://image.tmdb.org/t/p/w1280/b.jpg"
+        val nfs = manager.intentFor(plan(NFS, backdrop = artwork))
+        assertEquals(MOVIE_ACTIVITY, nfs.component?.className)
+        assertEquals("Heat", nfs.getStringExtra("title"))
+        assertEquals(artwork, nfs.getStringExtra("loading_image"))
+        assertTrue(nfs.getBooleanExtra("from_start", false))
+        assertTrue(nfs.getBooleanExtra("return_result", false))
+        listOf(SMB, TOKEN, STREAM, HTTP_PASSWORD).forEach {
+            val intent = manager.intentFor(plan(it))
+            assertEquals(it, MOVIE_ACTIVITY, intent.component?.className)
+            assertEquals(it, intent.dataString)
+        }
+        assertEquals(PlayerStatus.Detected(GALLERY), ZidooPlayer(context) { Z1000_PRO_BUILD }.status())
     }
 
     /** Nothing answers a video: a plain file goes to whatever the system finds, a password nowhere. */
