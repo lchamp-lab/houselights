@@ -38,6 +38,7 @@ import app.houselights.providers.local.TmdbClient.Companion.ImageType
 import app.houselights.core.CollectionThreshold
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.util.Locale
 
 /** Library built by [LibraryScanner] from the user's network folders. */
 class LocalProvider(
@@ -172,7 +173,7 @@ class LocalProvider(
         return withContext(Dispatchers.Default) {
             val badges = badgeLists.flatMap(PipeList::fromText).toSet()
             LibraryFacets(
-                genres = PipeList.distinctGenres(genreLists).sorted(),
+                genres = PipeList.distinctGenres(genreLists),
                 decades = years.map { it / 10 * 10 }.distinct().sortedDescending(),
                 qualities = buildList {
                     if (Definition.ULTRA_HD.token in badges) add(Quality.UHD_4K)
@@ -238,8 +239,9 @@ class LocalProvider(
             year = years.minOrNull(),
             endYear = years.maxOrNull()?.takeIf { it != years.minOrNull() },
             communityRating = members.mapNotNull { it.rating }.takeIf { it.isNotEmpty() }?.average(),
-            genres = members.flatMap { it.genres }
-                .groupingBy { it }.eachCount().entries.sortedByDescending { it.value }.take(3).map { it.key },
+            // One genre whatever its case: an NFO's "drame" and TMDB's "Drame" are one, as for the genre filter.
+            genres = members.flatMap { it.genres }.groupBy { it.lowercase(Locale.ROOT) }.values
+                .sortedByDescending { it.size }.take(3).map(PipeList::spellingOf),
             poster = (c.posterPath ?: first?.let { shown(it.userPosterPath, it.posterPath) })?.let { image(it, ImageType.POSTER) },
             backdrop = (c.backdropPath ?: first?.let { shown(it.userBackdropPath, it.backdropPath) })?.let { image(it, ImageType.BACKDROP) },
             user = UserState(played = members.isNotEmpty() && unplayed == 0, unplayedCount = unplayed),

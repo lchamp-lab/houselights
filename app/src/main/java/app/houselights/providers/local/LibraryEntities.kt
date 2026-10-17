@@ -51,14 +51,29 @@ object PipeList {
     /**
      * One spelling of each genre of [lists] whatever its case, joined by the fold SQLite's lower() gives
      * them ([GenreList.folded]): the menu joins the very spellings [matchesAnyCase] does, whatever lower()
-     * makes of an "É". The spelling most titles use wins; on a tie, the one that sorts first, a capital
-     * before a small letter.
+     * makes of an "É". In the order a reader looks for them, accents and case aside ([MetadataMerge.fold]).
      */
     fun distinctGenres(lists: List<GenreList>): List<String> =
         lists.flatMap { it.genres.split('|').zip(it.folded.split('|')) }
             .filter { (genre, _) -> genre.isNotBlank() }
             .groupBy({ it.second }, { it.first })
-            .values.map { spellings -> spellings.groupingBy { it }.eachCount().entries.sortedBy { it.key }.maxBy { it.value }.key }
+            .values.map(::spellingOf)
+            .sortedBy { MetadataMerge.fold(it) }
+
+    /**
+     * The spelling to show of a genre written [spellings] by the titles that hold it: the one most of them use;
+     * on a tie, a word's own ("Comédie") before capitals throughout ("COMÉDIE") and small letters ("comédie").
+     */
+    fun spellingOf(spellings: List<String>): String =
+        spellings.groupingBy { it }.eachCount().entries
+            .sortedWith(compareByDescending<Map.Entry<String, Int>> { it.value }.thenBy { caseRank(it.key) }.thenBy { it.key })
+            .first().key
+
+    private fun caseRank(spelling: String): Int = when {
+        spelling.first().isUpperCase() && spelling.any { it.isLowerCase() } -> 0
+        spelling.none { it.isLowerCase() } -> 1
+        else -> 2
+    }
 }
 
 /** A title's genres as [PipeList] stores them, and as SQLite's lower() folds them for the genre filter. */

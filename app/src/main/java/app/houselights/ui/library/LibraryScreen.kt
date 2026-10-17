@@ -337,7 +337,7 @@ private fun FilterButton(filter: LibraryFilter, facets: LibraryFacets, onChange:
             MenuSection(
                 stringResource(R.string.filter_genre),
                 listOf(MenuOption(stringResource(R.string.all_genres), filter.genre == null) { onChange(filter.copy(genre = null)) }) +
-                    facets.genres.map { g -> MenuOption(g, filter.genre == g) { onChange(filter.copy(genre = g)) } },
+                    facets.genres.map { g -> MenuOption(g, sameGenre(filter.genre, g)) { onChange(filter.copy(genre = g)) } },
             )
         )
         if (facets.decades.isNotEmpty()) add(
@@ -380,3 +380,10 @@ private fun FilterButton(filter: LibraryFilter, facets: LibraryFacets, onChange:
         closeOnSelect = false,
     )
 }
+
+/**
+ * Whether the genre a filter holds is [shown], whatever its case, as the filter matches it: SQLite's lower()
+ * folds A to Z only, so "Épouvante" and "épouvante" stay two genres there and here.
+ */
+private fun sameGenre(held: String?, shown: String): Boolean =
+    held != null && held.length == shown.length && held.zip(shown).all { (a, b) -> a == b || a.isLetter() && a < '\u0080' && a.equals(b, ignoreCase = true) }

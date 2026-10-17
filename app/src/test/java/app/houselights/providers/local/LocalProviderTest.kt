@@ -136,10 +136,11 @@ class LocalProviderTest {
         movie("Alien", genres = listOf("Épouvante"))
         movie("The Thing", genres = listOf("épouvante"))
         val genres = provider.libraryFacets(films).genres
-        // The spelling most titles use; on a tie, the capital.
-        assertEquals(listOf("Action", "Drame", "Mélodrame", "thriller"), genres.take(4))
+        // The spelling most titles use; on a tie, the word's own; in the order a reader looks for them, case and accents aside.
+        assertEquals(listOf("Action", "Drame"), genres.take(2))
+        assertEquals(listOf("Mélodrame", "thriller"), genres.takeLast(2))
         // Past ASCII, the menu joins spellings exactly as SQLite's lower() does for the filter, whichever way it reads "É".
-        val horror = genres.drop(4).flatMap { genre -> page(LibraryFilter(genre = genre)).items.map { it.title } }
+        val horror = genres.drop(2).dropLast(2).flatMap { genre -> page(LibraryFilter(genre = genre)).items.map { it.title } }
         assertEquals(listOf("Alien", "The Thing"), horror)
         assertEquals(listOf("Collateral", "Heat", "Ronin"), page(LibraryFilter(genre = "Drame")).items.map { it.title })
         assertEquals(3, page(LibraryFilter(genre = "drame")).total)

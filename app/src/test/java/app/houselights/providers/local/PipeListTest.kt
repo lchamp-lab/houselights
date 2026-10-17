@@ -20,7 +20,22 @@ class PipeListTest {
             GenreList("Drame||Action", "drame||action"),
             GenreList("action", "action"),
         )
-        assertEquals(listOf("Drame", "Épouvante", "épouvante", "Action"), PipeList.distinctGenres(lists))
+        assertEquals(listOf("Action", "Drame", "Épouvante", "épouvante"), PipeList.distinctGenres(lists))
+    }
+
+    /** A genre most titles write in small letters still sorts in its place, not after "Western". */
+    @Test
+    fun genresSortAsAReaderLooksForThem() {
+        val lists = listOf(GenreList("Western|drame", "western|drame"), GenreList("drame|Action", "drame|action"))
+        assertEquals(listOf("Action", "drame", "Western"), PipeList.distinctGenres(lists))
+    }
+
+    /** On a tie, a word's own spelling before capitals throughout and small letters. */
+    @Test
+    fun aTieGoesToTheWordsOwnSpelling() {
+        assertEquals("Drame", PipeList.spellingOf(listOf("DRAME", "drame", "Drame")))
+        assertEquals("Drame", PipeList.spellingOf(listOf("drame", "Drame", "drame", "Drame", "DRAME")))
+        assertEquals("drame", PipeList.spellingOf(listOf("drame", "drame", "Drame")))
     }
 
     @Test
