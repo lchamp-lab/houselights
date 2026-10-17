@@ -1,5 +1,6 @@
 package app.houselights.providers.local
 
+import app.houselights.core.Job
 import app.houselights.core.NfoActor
 import app.houselights.core.NfoInfo
 import app.houselights.core.NfoKind
@@ -72,9 +73,11 @@ class MetadataMergeTest {
     @Test
     fun theNfosActorsWinWhenItListsAny() {
         val nfo = NfoInfo(kind = NfoKind.MOVIE, actors = listOf(NfoActor("Robert De Niro", "Neil McCauley", thumb = null, order = 0)))
-        assertEquals(listOf("Robert De Niro"), MetadataMerge.cast(7, nfo, TmdbCredits())?.map { it.name })
-        assertEquals(listOf("Al Pacino"), MetadataMerge.cast(7, NfoInfo(kind = NfoKind.MOVIE), heatCredits)?.map { it.name })
-        assertNull(MetadataMerge.cast(7, nfo = null, credits = null))
+        fun cast(nfo: NfoInfo?, credits: TmdbCredits?) =
+            CreditRules.credits(7, show = false, nfo, credits?.let(::TmdbPeople))?.filter { it.job == Job.CAST }?.map { it.name }
+        assertEquals(listOf("Robert De Niro"), cast(nfo, TmdbCredits()))
+        assertEquals(listOf("Al Pacino"), cast(NfoInfo(kind = NfoKind.MOVIE), heatCredits))
+        assertNull(cast(nfo = null, credits = null))
     }
 
     @Test

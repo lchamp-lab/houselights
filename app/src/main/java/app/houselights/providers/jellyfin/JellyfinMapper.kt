@@ -106,9 +106,9 @@ internal class JellyfinMapper(private val client: JellyfinClient) {
             VIDEO_RANGES[r] ?: listOf(HdrFormat.DOLBY_VISION).takeIf { r.startsWith("DOVI") }
         }.orEmpty()
 
-        /** What the first media source contains, in the shared [MediaInfo] model. */
-        fun mediaInfo(item: BaseItem): MediaInfo? {
-            val source = item.mediaSources.firstOrNull() ?: return null
+        /** What a media source contains (the item's first by default), in the shared [MediaInfo] model. */
+        fun mediaInfo(item: BaseItem, source: MediaSource? = item.mediaSources.firstOrNull()): MediaInfo? {
+            if (source == null) return null
             val streams = source.mediaStreams
             val video = streams.firstOrNull { it.type == "Video" }?.let { v ->
                 VideoInfo(

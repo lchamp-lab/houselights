@@ -3,6 +3,7 @@ package app.houselights.providers.local
 import android.content.Context
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
+import app.houselights.core.Job
 import app.houselights.core.Secrets
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -323,6 +324,92 @@ class MigrationTest {
         } finally {
             db.close()
             context.deleteDatabase(name)
+        }
+    }
+
+    /**
+     * Version 12 keeps the cast as credits and a film's directors with it, keyed by name; gives each title, person
+     * and saga their words for searches, each film the edition its file names and its copies their title; asks TMDB
+     * again for the films of the sagas it knows. What the user did with each title stays as it was.
+     */
+    @Test
+    fun version12KeepsTheCastAsCreditsAndWhatTheUserDidAsItWas() = runTest {
+        val name = "migration-12-test.db"
+        context.deleteDatabase(name)
+        SchemaHistory.create(context, name, version = 11) {
+            execSQL(
+                "INSERT INTO sources (id, name, kind, protocol, host, share, path, username, password, domain, lastScanAt, firstScanAt) " +
+                    "VALUES (1, 'Films', 'MOVIES', 'NFS', 'nas', 'media', 'films', '', '', '', 1000, 1000)"
+            )
+            val collections = "INSERT INTO collections (id, matchKey, tmdbId, name, sortTitle, partCount, fetchedAt)"
+            execSQL("$collections VALUES (1, 'tmdb:10', 10, 'Blade Runner - Saga', 'blade runner', 2, 99)")
+            execSQL("$collections VALUES (2, 'name:mes films', NULL, 'Mes films', 'mes films', NULL, 99)")
+            val films = listOf(
+                Triple(1, "Blade Runner (1982).mkv", "Ridley Scott"),
+                Triple(2, "Blade Runner (1982) {edition-Final Cut}.mkv", "Ridley Scott"),
+                Triple(3, "Amélie (2001) Version Longue.mkv", "Jean-Pierre Jeunet"),
+            )
+            for ((id, path, director) in films) {
+                execSQL(
+                    "INSERT INTO items (id, kind, sourceId, tmdbId, title, sortTitle, continuing, genres, directors, filePath, " +
+                        "parts, fileSize, badges, probeVersion, userTmdbId, userPosterPath, collectionId, addedAt, matchedAt, " +
+                        "positionMs, durationMs, played, favorite, lastPlayedAt) VALUES (?, 'MOVIE', 1, ?, ?, ?, 0, '', ?, ?, " +
+                        "'', 42, '', 3, ?, 'file:/p.jpg', ?, 0, 500, 600000, 9000000, ?, 1, 5)",
+                    arrayOf<Any?>(
+                        id, if (id < 3) 78 else 194, if (id < 3) "Blade Runner" else "Le Fabuleux Destin d'Amélie Poulain",
+                        if (id < 3) "blade runner" else "fabuleux destin d'amelie poulain", director, path, if (id == 2) 78 else null,
+                        if (id < 3) 1 else null, if (id == 1) 1 else 0,
+                    ),
+                )
+            }
+            val cast = "INSERT INTO `cast` (itemId, ord, name, character, profilePath)"
+            execSQL("$cast VALUES (1, 0, 'Harrison Ford', 'Rick Deckard', '/ford.jpg')")
+            execSQL("$cast VALUES (3, 0, 'Audrey Tautou', 'Amélie Poulain', NULL)")
+        }
+        val db = Room.databaseBuilder(context, LibraryDatabase::class.java, name)
+            .addTypeConverter(SecretConverter(secrets))
+            .addMigrations(*LibraryDatabase.migrations(secrets))
+            .build()
+        try {
+            checkVersion12(db)
+        } finally {
+            db.close()
+            context.deleteDatabase(name)
+        }
+    }
+
+    /** What [version12KeepsTheCastAsCreditsAndWhatTheUserDidAsItWas] finds once migrated. */
+    private suspend fun checkVersion12(db: LibraryDatabase) {
+        run {
+            val dao = db.dao()
+            val films = (1L..3L).map { checkNotNull(dao.item(it)) }
+            for (film in films) {
+                assertEquals(600_000L to 9_000_000L, film.positionMs to film.durationMs)
+                assertEquals(true to 5L, film.favorite to film.lastPlayedAt)
+                assertEquals("file:/p.jpg", film.userPosterPath)
+                assertEquals("their crew comes at later passes", null, film.creditsAt)
+            }
+            assertEquals(listOf(true, false, false), films.map { it.played })
+            assertEquals(listOf(null, 78, null), films.map { it.userTmdbId })
+            assertEquals(listOf(null, "Final Cut", "Extended"), films.map { it.edition })
+            assertEquals(listOf(null, 1L, null), films.map { it.versionOf })
+
+            val ford = dao.creditsOf(1).single { it.job == Job.CAST }
+            assertEquals("name:harrison ford", ford.personKey)
+            assertEquals("Rick Deckard" to "/ford.jpg", ford.character to ford.profilePath)
+            assertEquals("name:ridley scott", dao.creditsOf(1).single { it.job == Job.DIRECTOR }.personKey)
+            assertEquals("a copy counts once", 1, dao.creditsOf(2).single { it.job == Job.DIRECTOR }.titles)
+            assertEquals(listOf("Audrey Tautou", "Jean-Pierre Jeunet"), dao.creditsOf(3).map { it.name }.sorted())
+
+            val hasCast = db.openHelper.readableDatabase.query("SELECT name FROM sqlite_master WHERE name = 'cast'").use { it.count }
+            assertEquals(0, hasCast)
+            assertEquals(listOf(null, 99L), listOf(1L, 2L).map { dao.collection(it)?.fetchedAt })
+            assertEquals(listOf(dao.collection(1)), dao.sagasDue(10))
+
+            val catalog = LocalProvider(context, dao, LocalProviderTest.NoEditor).catalog
+            assertEquals(listOf("Le Fabuleux Destin d’Amélie Poulain"), catalog.search("amel").titles.map { it.title })
+            assertEquals(listOf("Jean-Pierre Jeunet"), catalog.search("jeunet").people.map { it.name })
+            assertEquals(listOf("name:ridley scott"), catalog.search("ridley").people.map { it.id })
         }
     }
 }

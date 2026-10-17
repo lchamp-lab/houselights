@@ -7,7 +7,8 @@ import java.nio.ByteBuffer
 import java.nio.CharBuffer
 import java.nio.charset.Charset
 
-data class NfoActor(val name: String, val role: String?, val thumb: String?, val order: Int?)
+/** An actor an NFO lists; [tmdbId] when it gives theirs (tinyMediaManager's <tmdbid>). */
+data class NfoActor(val name: String, val role: String?, val thumb: String?, val order: Int?, val tmdbId: Int? = null)
 
 /** An audio stream as an NFO's stream details list it, its codec as the tool that wrote it names it ("truehd", "dtshd_ma"). */
 data class NfoAudio(val codec: String?, val language: String?, val channels: Int?)
@@ -48,8 +49,12 @@ data class NfoInfo(
     val runtimeMin: Int? = null,
     val certification: String? = null,
     val rating: Double? = null,
+    /** The votes [rating] stands on, when the NFO gives them. */
+    val votes: Int? = null,
     val genres: List<String> = emptyList(),
     val directors: List<String> = emptyList(),
+    /** Its writers, as Kodi's <credits> name them. */
+    val writers: List<String> = emptyList(),
     val studios: List<String> = emptyList(),
     val actors: List<NfoActor> = emptyList(),
     val tmdbId: Int? = null,
@@ -65,6 +70,8 @@ data class NfoInfo(
     val fanartUrl: String? = null,
     val logoUrl: String? = null,
     val streams: NfoStreams? = null,
+    /** The edition of the film, as tinyMediaManager and Emby write it ("Director's Cut"), as written. */
+    val edition: String? = null,
 )
 
 /**
@@ -178,10 +185,12 @@ object NfoParser {
         var info = NfoInfo(kind = kind)
         val genres = mutableListOf<String>()
         val directors = mutableListOf<String>()
+        val writers = mutableListOf<String>()
         val studios = mutableListOf<String>()
         val actors = mutableListOf<NfoActor>()
-        var defaultRating: Double? = null
-        var firstRating: Double? = null
+        var defaultRating: RatingRead? = null
+        var firstRating: RatingRead? = null
+        var votes: Int? = null
 
         while (true) {
             val event = p.next()
@@ -199,10 +208,13 @@ object NfoParser {
                 "tagline" -> info = info.copy(tagline = p.text())
                 "runtime" -> info = info.copy(runtimeMin = p.text()?.filter(Char::isDigit)?.toIntOrNull())
                 "mpaa", "certification" -> info = info.copy(certification = certification(p.text()))
-                "rating" -> p.text()?.replace(',', '.')?.toDoubleOrNull()?.let { firstRating = firstRating ?: it }
+                "rating" -> p.text()?.replace(',', '.')?.toDoubleOrNull()?.let { firstRating = firstRating ?: RatingRead(it, null) }
+                "votes" -> votes = votesOf(p.text())
                 "ratings" -> ratings(p).let { (default, first) -> defaultRating = default; firstRating = firstRating ?: first }
                 "genre" -> p.text()?.split('/')?.map { it.trim() }?.filter { it.isNotEmpty() }?.let(genres::addAll)
                 "director" -> p.text()?.let(directors::add)
+                "credits" -> p.text()?.let(writers::add)
+                "edition" -> info = info.copy(edition = p.text())
                 "studio" -> p.text()?.let(studios::add)
                 "actor" -> actor(p)?.let(actors::add)
                 "uniqueid" -> {
@@ -239,10 +251,13 @@ object NfoParser {
                 else -> skip(p)
             }
         }
+        val rating = defaultRating ?: firstRating
         return info.copy(
-            rating = defaultRating ?: firstRating,
+            rating = rating?.value,
+            votes = rating?.votes ?: votes.takeIf { rating != null && rating === firstRating },
             genres = genres.distinct(),
             directors = directors.distinct(),
+            writers = writers.distinct(),
             studios = studios.distinct(),
             actors = actors,
         )
@@ -268,34 +283,49 @@ object NfoParser {
     private fun certification(raw: String?): String? =
         raw?.substringAfterLast(':')?.removePrefix("Rated ")?.trim()?.takeIf { it.isNotEmpty() }
 
+    /** A rating out of 10, and the votes it stands on when given. */
+    private data class RatingRead(val value: Double, val votes: Int?)
+
+    /** "12,345", "12 345" or "12345" votes. */
+    private fun votesOf(text: String?): Int? = text?.filter(Char::isDigit)?.toIntOrNull()
+
     /**
      * The default rating, and the one to take without it: IMDb's or TMDB's, else the first, as a
      * critics' score (Metacritic, Rotten Tomatoes) is not what the title's rating says elsewhere. Both
-     * out of 10: a Metacritic 78 out of 100 is a 7.8.
+     * out of 10: a Metacritic 78 out of 100 is a 7.8. Each with its votes.
      */
-    private fun ratings(p: XmlPullParser): Pair<Double?, Double?> {
-        var default: Double? = null
-        var first: Double? = null
-        var audience: Double? = null
+    private fun ratings(p: XmlPullParser): Pair<RatingRead?, RatingRead?> {
+        var default: RatingRead? = null
+        var first: RatingRead? = null
+        var audience: RatingRead? = null
         val depth = p.depth
         while (p.nextWithin(depth)) {
             if (p.eventType == XmlPullParser.START_TAG && p.name == "rating") {
                 val isDefault = p.getAttributeValue(null, "default") == "true"
                 val isAudience = p.getAttributeValue(null, "name")?.lowercase() in AUDIENCE_RATINGS
-                val max = p.getAttributeValue(null, "max")?.replace(',', '.')?.toDoubleOrNull()?.takeIf { it > 0 } ?: RATING_SCALE
-                val ratingDepth = p.depth
-                var value: Double? = null
-                while (p.nextWithin(ratingDepth)) {
-                    if (p.eventType == XmlPullParser.START_TAG && p.name == "value") {
-                        value = p.text()?.replace(',', '.')?.toDoubleOrNull()?.let { it * RATING_SCALE / max }
-                    }
-                }
-                if (isDefault) default = value
-                if (first == null) first = value
-                if (isAudience && audience == null) audience = value
+                val read = rating(p)
+                if (isDefault) default = read
+                if (first == null) first = read
+                if (isAudience && audience == null) audience = read
             }
         }
         return default to (audience ?: first)
+    }
+
+    /** One <rating> of <ratings>, out of 10, with its votes. */
+    private fun rating(p: XmlPullParser): RatingRead? {
+        val max = p.getAttributeValue(null, "max")?.replace(',', '.')?.toDoubleOrNull()?.takeIf { it > 0 } ?: RATING_SCALE
+        val depth = p.depth
+        var value: Double? = null
+        var votes: Int? = null
+        while (p.nextWithin(depth)) {
+            if (p.eventType != XmlPullParser.START_TAG) continue
+            when (p.name) {
+                "value" -> value = p.text()?.replace(',', '.')?.toDoubleOrNull()?.let { it * RATING_SCALE / max }
+                "votes" -> votes = votesOf(p.text())
+            }
+        }
+        return value?.let { RatingRead(it, votes) }
     }
 
     private fun actor(p: XmlPullParser): NfoActor? {
@@ -303,6 +333,7 @@ object NfoParser {
         var role: String? = null
         var thumb: String? = null
         var order: Int? = null
+        var tmdbId: Int? = null
         val depth = p.depth
         while (p.nextWithin(depth)) {
             if (p.eventType != XmlPullParser.START_TAG) continue
@@ -311,10 +342,11 @@ object NfoParser {
                 "role" -> role = p.text()
                 "thumb" -> thumb = p.text()?.let(::imageUrl)
                 "order" -> order = p.text()?.toIntOrNull()
+                "tmdbid" -> tmdbId = p.text()?.toIntOrNull()
                 else -> skip(p)
             }
         }
-        return name?.let { NfoActor(it, role, thumb, order) }
+        return name?.let { NfoActor(it, role, thumb, order, tmdbId) }
     }
 
     private fun setName(p: XmlPullParser): String? {

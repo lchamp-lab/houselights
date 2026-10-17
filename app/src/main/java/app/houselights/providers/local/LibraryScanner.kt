@@ -99,6 +99,7 @@ class LibraryScanner(
     private val files = ScanFiles(dao, artwork, browsers)
     private val movies = MovieIndexer(dao, files)
     private val shows = ShowIndexer(dao, files)
+    private val backfill = Backfill(dao, lock, System::currentTimeMillis) { waitForThePlayer() }
 
     /**
      * Scans every folder. [asked]: by someone (Scan now, a folder added or changed, a key saved), not by
@@ -215,8 +216,9 @@ class LibraryScanner(
                 withContext(NonCancellable) {
                     dao.inTransaction {
                         writes()
-                        // The film may have left its collection for another one.
+                        // The film may have left its collection for another one, and its copies for another film's.
                         dao.deleteEmptyCollections()
+                        dao.groupVersions()
                     }
                     _changed.tryEmit(Unit)
                 }
@@ -241,7 +243,8 @@ class LibraryScanner(
     private val askTmdbAgain = AtomicBoolean(false)
 
     private suspend fun cleanupLocked(): CleanupResult {
-        val orphanCast = dao.deleteOrphanCast()
+        val orphanCast = dao.deleteOrphanCredits()
+        dao.deleteOrphanSearchWords()
         // Based on what the library references, not on what the NAS shows: an unreachable
         // NAS never causes artwork to be deleted.
         val result = artwork.sweep(dao.cachedArtworkPaths())
@@ -291,10 +294,13 @@ class LibraryScanner(
                     dao.deleteEmptySeries()
                     dao.moveOrphanShows()
                     dao.deleteEmptyCollections()
+                    // Films matched anew, or whose copies came or went, are gathered again.
+                    if (dao.groupVersions() > 0) changed = true
                     // Pictures only become unused when titles change or go.
                     if (changed) cleanupLocked()
                 }.onFailure { Log.w(TAG, "Cleanup failed", it) }
             }
+            backfill(tmdb, askTmdb = askUnmatched)
         } finally {
             tmdbDown = tmdbDownAfter(tmdb, down, askUnmatched)
             // Whatever happened, the scan is over: the settings must not show it running forever.
@@ -304,6 +310,21 @@ class LibraryScanner(
         }
         // A scan that found nothing new leaves screens as they are.
         if (changed) _changed.emit(Unit)
+    }
+
+    /**
+     * Titles and sagas known before credits and sagas whole were kept, a few a pass, once the folders are read
+     * ([Backfill]); [askTmdb] as for titles TMDB left unmatched. A failure waits for the next pass.
+     */
+    private suspend fun backfill(tmdb: TmdbPass, askTmdb: Boolean) {
+        suspendRunCatching {
+            backfill.run(tmdb, askTmdb).also { written ->
+                // People TMDB keyed anew leave the words of their former keys.
+                if (written > 0) lock.withLock { dao.deleteOrphanSearchWords() }
+            }
+        }
+            .onSuccess { if (it > 0) Log.i(TAG, "Backfill: $it titles and sagas given their credits and films") }
+            .onFailure { Log.w(TAG, "Backfill failed; tried again at the next pass", it) }
     }
 
     /**
@@ -516,11 +537,14 @@ class LibraryScanner(
      * What screens show of a file's row, and of its season's and its show's: matched or not, whenever
      * it was. A title TMDB answered again with the same details is the same title; sidecars read again
      * to no change ([ItemEntity.sidecarKey]) change nothing shown, nor does a file read again by a newer
-     * probe to the same reading.
+     * probe to the same reading, nor when its credits were complete ([ItemEntity.creditsAt]).
      */
     private suspend fun shown(item: ItemEntity): List<ItemEntity> =
         (listOf(item) + dao.rows(listOfNotNull(item.parentId, item.seriesId)).sortedBy { it.id }).map { row ->
-            row.copy(matchedAt = row.matchedAt?.let { MATCHED }, sidecarKey = null, probeVersion = 0, mediaInfo = unstamped(row.mediaInfo))
+            row.copy(
+                matchedAt = row.matchedAt?.let { MATCHED }, sidecarKey = null, probeVersion = 0, mediaInfo = unstamped(row.mediaInfo),
+                creditsAt = null,
+            )
         }
 
     /** What a file holds ([ItemEntity.mediaInfo]), whichever probe read it. */

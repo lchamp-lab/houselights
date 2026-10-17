@@ -114,6 +114,7 @@ internal class LocalMapper(private val dao: LibraryDao, private val context: Con
             episodeNumber = e.episodeNumber,
             lastEpisodeNumber = e.lastEpisodeNumber,
             childCount = seasonCount,
+            edition = e.edition,
         )
     }
 

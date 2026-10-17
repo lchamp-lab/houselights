@@ -15,6 +15,7 @@ private fun NfoInfo.typeset() = copy(
     plot = Typeset.text(plot),
     tagline = Typeset.text(tagline),
     directors = directors.map { Typeset.text(it) },
+    writers = writers.map { Typeset.text(it) },
     studios = studios.map { Typeset.text(it) },
     actors = actors.map { it.copy(name = Typeset.text(it.name), role = Typeset.text(it.role)) },
     collection = Typeset.text(collection),
@@ -95,6 +96,24 @@ data class ProviderCapabilities(
     val similar: Boolean,
     /** Its file paths can be mapped to network paths the player opens itself (settings, Playback). */
     val pathMapping: Boolean,
+    /** People have an id and a page ([Catalog.person], [Catalog.people]), and credits count their titles. */
+    val people: Boolean = false,
+    /** Credits name the crew ([Credits.crew]), at least some of its jobs, beyond the cast. */
+    val crew: Boolean = false,
+    /** A saga lists the films the library lacks ([Catalog.saga]); else only those it holds. */
+    val sagaParts: Boolean = false,
+    /** The copies of a film are one title ([Catalog.versions]). */
+    val versions: Boolean = false,
+    /** The copy chosen for a film is kept ([Catalog.chooseVersion]); else the best plays. */
+    val versionChoice: Boolean = false,
+    /** The library in numbers tells its room, hours and formats ([LibraryNumbers]); else its titles alone. */
+    val formatNumbers: Boolean = false,
+    /** Grids filter by picture, sound and kind of file ([LibraryFilter.picture], [LibraryFilter.sound], [LibraryFilter.fileType]). */
+    val formatFilters: Boolean = false,
+    /** Grids filter by person ([LibraryFilter.person]). */
+    val personFilter: Boolean = false,
+    /** Titles, people and sagas can be searched ([Catalog.search]). */
+    val search: Boolean = false,
 )
 
 /** A media library backend: Home Theater, Jellyfin, Emby, Plex... */
@@ -145,6 +164,9 @@ interface MediaProvider {
 
     /** Artwork and identification editing, when this backend supports it. */
     val editor: MetadataEditor? get() = null
+
+    /** People, sagas whole, versions, numbers and search, when this backend tells them ([capabilities] says how much). */
+    val catalog: Catalog? get() = null
 }
 
 /**

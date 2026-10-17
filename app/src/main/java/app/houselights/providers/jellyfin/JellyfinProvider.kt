@@ -1,6 +1,7 @@
 package app.houselights.providers.jellyfin
 
 import android.util.Log
+import app.houselights.core.Catalog
 import app.houselights.core.HomeSection
 import app.houselights.core.Http
 import app.houselights.core.Library
@@ -57,7 +58,12 @@ class JellyfinProvider(
     private val mapper = JellyfinMapper(client)
     private val userId = config.userId
 
-    override val capabilities = ProviderCapabilities(markPlayed = true, favorites = true, similar = true, pathMapping = true)
+    override val capabilities = ProviderCapabilities(
+        markPlayed = true, favorites = true, similar = true, pathMapping = true, people = true, crew = true, versions = true,
+        personFilter = true, search = true,
+    )
+
+    override val catalog: Catalog by lazy { JellyfinCatalog(api, mapper, userId, this, mapping) }
 
     /**
      * The libraries [libraries] read last, until [home] takes them: home loads the libraries, then
@@ -136,6 +142,7 @@ class JellyfinProvider(
             genres = filter.genre,
             years = filter.decade?.let { d -> (d..d + 9).joinToString(",") },
             is4K = if (filter.quality == Quality.UHD_4K) true else null,
+            personIds = filter.person,
         )
         return Page(titles(result.items), result.totalRecordCount)
     }
@@ -190,10 +197,14 @@ class JellyfinProvider(
         api.items(userId, null, "Movie,Episode", true, "Random", "Ascending", 0, 1, "Path").items.firstOrNull()?.path
     }.getOrNull()
 
-    override suspend fun playback(item: MediaItem, resume: Boolean, options: PlaybackOptions): PlaybackPlan {
+    override suspend fun playback(item: MediaItem, resume: Boolean, options: PlaybackOptions): PlaybackPlan =
+        play(item.id, sourceId = null, resume, options)
+
+    /** Plays the media source [sourceId] of the item [itemId], one of its versions; its first when null or gone. */
+    internal suspend fun play(itemId: String, sourceId: String?, resume: Boolean, options: PlaybackOptions): PlaybackPlan {
         // List entries lack MediaSources: reload the full item.
-        val full = api.item(item.id, userId)
-        val source = full.mediaSources.firstOrNull()
+        val full = api.item(itemId, userId)
+        val source = full.mediaSources.firstOrNull { it.id == sourceId } ?: full.mediaSources.firstOrNull()
         val container = (source?.container ?: full.container)?.substringBefore(',')
         val networkUri = if (options.forceHttp) null else PathResolver.resolve(source?.path ?: full.path, options.pathMappings)
         val uri = networkUri ?: client.streamUrl(full.id, source?.id, container)
