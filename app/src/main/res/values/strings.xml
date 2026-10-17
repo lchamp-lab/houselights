@@ -101,6 +101,8 @@
     <string name="cast">Cast</string>
     <string name="tech_details">Technical sheet</string>
     <string name="sheet_back_hint">Back to close</string>
+    <!-- A code to scan, read out before the address under it -->
+    <string name="qr_code">QR code</string>
     <string name="cancel">Cancel</string>
     <string name="control_busy">In progress</string>
     <string name="key_ok">OK</string>
@@ -445,6 +447,10 @@
     <string name="credit_data">Film data</string>
     <string name="credit_font">Typeface</string>
     <string name="credit_font_value">Archivo, SIL Open Font License</string>
+    <!-- Supporting the project: said once, in About, never elsewhere -->
+    <string name="support">Support Houselights</string>
+    <string name="support_desc">Buy the project a coffee, from your phone.</string>
+    <string name="support_scan">Scan this code with your phone to open the project’s Ko-fi page.</string>
     <string name="file_access">File access</string>
     <string name="network_path_desc">The player reads files straight from the NAS</string>
     <string name="http_stream_desc">The player reads the server’s stream</string>

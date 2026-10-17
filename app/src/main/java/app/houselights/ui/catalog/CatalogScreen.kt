@@ -71,6 +71,7 @@ import app.houselights.ui.design.components.MeterLegend
 import app.houselights.ui.design.components.MeterSegment
 import app.houselights.ui.design.components.PanelLevel
 import app.houselights.ui.design.components.PosterCard
+import app.houselights.ui.design.components.QrCode
 import app.houselights.ui.design.components.ScreenTitle
 import app.houselights.ui.design.components.SheetConfirm
 import app.houselights.ui.design.components.StatusState
@@ -269,15 +270,19 @@ fun CatalogScreen() {
                     var asking by remember { mutableStateOf(false) }
                     var keyed by remember { mutableStateOf(false) }
                     var long by remember { mutableStateOf(false) }
+                    var code by remember { mutableStateOf(false) }
                     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.s)) {
                         HlButton("Side sheet", { side = true })
                         HlButton("An action that asks first", { asking = true })
                         HlButton("A status, a field", { keyed = true })
                         HlButton("More rows than it holds", { long = true })
                     }
+                    // A sheet with nothing to focus, on a line of its own: five buttons pass the safe area.
+                    HlButton("A code to scan", { code = true })
                     if (asking) SheetQuestion(onDismiss = { asking = false })
                     if (keyed) SheetStatusField(onDismiss = { keyed = false })
                     if (long) SheetLong(onDismiss = { long = false })
+                    if (code) SheetCode(onDismiss = { code = false })
                     if (side) {
                         HlSideSheet(
                             stringResource(R.string.edit),
@@ -557,6 +562,17 @@ private fun SheetStatusField(onDismiss: () -> Unit) {
             busy = checking,
             busyLabel = stringResource(R.string.checking),
         )
+    }
+}
+
+/**
+ * A sheet that hands an address to a phone (About, Soutenir Houselights): the code where its rows
+ * go, the address under it; nothing to focus, Back closes it. Scan it from the sofa.
+ */
+@Composable
+private fun SheetCode(onDismiss: () -> Unit) {
+    HlSideSheet(stringResource(R.string.support), onDismiss = onDismiss, description = stringResource(R.string.support_scan)) {
+        QrCode(R.drawable.support_qr, "ko-fi.com/lchamp_lab")
     }
 }
 

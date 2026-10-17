@@ -260,6 +260,16 @@ internal object TechSpecsDefaults {
 }
 
 /**
+ * A code to scan: a module 6.5 wide, whole pixels on a 1080p interface (13) and a 4K one (26), so
+ * no edge between two modules is blurred; a 29-module code and its quiet zone come to 240.5, which
+ * a phone reads from the sofa. The quiet zone, 4 modules, is what readers need around a code.
+ */
+internal object QrCodeDefaults {
+    val module = 6.5.dp
+    const val QUIET_ZONE = 4
+}
+
+/**
  * How far a backdrop's left veil takes to fade out past the text column, from full strength: one
  * that ends the column lighter fades out sooner, at the same pace. A slow pace: over a light
  * picture, a quicker fade reads as the edge of a dark panel rather than as light falling off.

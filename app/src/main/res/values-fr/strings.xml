@@ -91,6 +91,8 @@
     <string name="cast">Distribution</string>
     <string name="tech_details">Fiche technique</string>
     <string name="sheet_back_hint">Retour pour fermer</string>
+    <!-- A code to scan, read out before the address under it -->
+    <string name="qr_code">Code QR</string>
     <string name="cancel">Annuler</string>
     <string name="control_busy">En cours</string>
     <string name="key_ok">OK</string>
@@ -436,6 +438,10 @@
     <string name="credit_data">Données des films</string>
     <string name="credit_font">Police</string>
     <string name="credit_font_value">Archivo, SIL Open Font License</string>
+    <!-- Supporting the project: said once, in About, never elsewhere -->
+    <string name="support">Soutenir Houselights</string>
+    <string name="support_desc">Offrez un café au projet, depuis votre téléphone.</string>
+    <string name="support_scan">Scannez ce code avec votre téléphone pour ouvrir la page Ko-fi du projet.</string>
     <string name="file_access">Accès aux fichiers</string>
     <string name="network_path_desc">Le lecteur lit les fichiers directement sur le NAS</string>
     <string name="http_stream_desc">Le lecteur lit le flux du serveur</string>

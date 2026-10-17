@@ -10,7 +10,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -32,8 +35,10 @@ import app.houselights.ui.design.components.DefinitionRow
 import app.houselights.ui.design.components.FactRow
 import app.houselights.ui.design.components.HlSettingGroup
 import app.houselights.ui.design.components.HlSettingRow
+import app.houselights.ui.design.components.HlSideSheet
 import app.houselights.ui.design.components.HlStatus
 import app.houselights.ui.design.components.InfoBlock
+import app.houselights.ui.design.components.QrCode
 import app.houselights.ui.design.components.StatusState
 import app.houselights.ui.design.components.Wordmark
 import app.houselights.ui.util.FACT_GAP
@@ -42,8 +47,35 @@ internal fun LazyListScope.aboutPane(onOpenCatalog: () -> Unit, rows: PaneRows) 
     item { AboutBrand() }
     item { AboutStatus() }
     item { AboutCredits() }
-    // For whoever works on the app: the design system on this screen.
-    if (BuildConfig.DEBUG) item { HlSettingGroup(null) { HlSettingRow(CATALOG, rows.focus("catalog"), onClick = onOpenCatalog) } }
+    item {
+        HlSettingGroup(null) {
+            SupportRow()
+            // For whoever works on the app: the design system on this screen, last.
+            if (BuildConfig.DEBUG) HlSettingRow(CATALOG, rows.focus("catalog"), onClick = onOpenCatalog)
+        }
+    }
+}
+
+/**
+ * A way to support the project, said here and nowhere else, never as a reminder: OK shows, in a
+ * side sheet, the code a phone opens the project's Ko-fi page with, and its address. Back closes
+ * it, focus back on the row.
+ */
+@Composable
+internal fun SupportRow(modifier: Modifier = Modifier) {
+    var open by remember { mutableStateOf(false) }
+    HlSettingRow(
+        stringResource(R.string.support),
+        modifier,
+        description = stringResource(R.string.support_desc),
+        onClick = { open = true },
+    )
+    if (open) {
+        // Nothing to choose in it, so nothing to focus: Back is the one key it answers.
+        HlSideSheet(stringResource(R.string.support), onDismiss = { open = false }, description = stringResource(R.string.support_scan)) {
+            QrCode(R.drawable.support_qr, SUPPORT_ADDRESS)
+        }
+    }
 }
 
 /**
@@ -160,5 +192,7 @@ private fun AboutCredits() {
     }
 }
 private const val LICENSE = "GPL-3.0"
+/** What `support_qr` says, without its scheme, as a phone shows it and a person types it. */
+private const val SUPPORT_ADDRESS = "ko-fi.com/lchamp_lab"
 /** Debug builds only, not translated. */
 private const val CATALOG = "Design system"
