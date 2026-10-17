@@ -94,6 +94,8 @@ class PlayerLaunchTest {
         @Suppress("DEPRECATION")
         val inner = intent.getParcelableExtra<Intent>(Intent.EXTRA_INTENT)
         assertEquals(Intent.ACTION_VIEW, inner?.action)
+        // Android opens the only app a chooser lists without asking, unless told not to.
+        assertFalse(intent.getBooleanExtra("android.intent.extra.AUTO_LAUNCH_SINGLE_CHOICE", true))
     }
 
     @Test

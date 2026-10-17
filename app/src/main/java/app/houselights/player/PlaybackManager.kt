@@ -90,10 +90,9 @@ class PlaybackManager(
      * Zidoo's; else the player a secret last went to, or the first one, as long as neither its package
      * nor its certificate changes. Off a Zidoo, no app is trusted, whatever its name: any app may take one.
      * A password goes to no other app ([CredentialsNotShared]); a token goes elsewhere only through a
-     * chooser, where the user picks the app (Android opens the only one without asking), and not once
-     * the player trusted before has changed: the app put in its place would be in the chooser, alone
-     * perhaps. A URI with no secret goes to the player found, trusted or not, with what it is told of
-     * the film.
+     * chooser, where the user picks the app, even the only one ([AUTO_LAUNCH_SINGLE_CHOICE]), and not
+     * once the player trusted before has changed: the app put in its place would be in the chooser. A
+     * URI with no secret goes to the player found, trusted or not, with what it is told of the film.
      *
      * Not guarded against: an app installed on the Zidoo, under a name of Zidoo's or the old player's,
      * before a first password goes to the player (trusted on first use, it would be the one); an
@@ -149,7 +148,8 @@ class PlaybackManager(
             putExtra("position", plan.startMs.toInt())
             putExtra("return_result", true)
         }
-        return if (chooser) Intent.createChooser(any, context.getString(R.string.play_with)) else any
+        if (!chooser) return any
+        return Intent.createChooser(any, context.getString(R.string.play_with)).putExtra(AUTO_LAUNCH_SINGLE_CHOICE, false)
     }
 
     /** The player could not be started after all. */
@@ -346,6 +346,12 @@ class PlaybackManager(
 
     companion object {
         private const val TAG = "Playback"
+
+        /**
+         * Intent.EXTRA_AUTO_LAUNCH_SINGLE_CHOICE, which the SDK hides: false, the chooser lists even a
+         * single app instead of opening it unasked (its ChooserActivity reads it, on Android 9 and 11).
+         */
+        private const val AUTO_LAUNCH_SINGLE_CHOICE = "android.intent.extra.AUTO_LAUNCH_SINGLE_CHOICE"
         private const val KEY_RESUME = "resume_key"
         private const val KEY_POSITION = "position_ms"
 
