@@ -280,6 +280,35 @@ class FilenameParserTest {
         assertEquals(ParsedMovie("Astérix L’intégrale", null), movie("Astérix L’intégrale MULTi 1080p.mkv"))
     }
 
+    /** Packs of several seasons, "Saisons 1-2", "Saisons 1 à 5", "Seasons 1-3": the show is named up to them too. */
+    @Test
+    fun packsOfSeveralSeasonsAreNamedUpToThem() {
+        assertEquals(
+            Triple("Les Revenants", null, "Les Revenants Saisons 1-2"),
+            show("Les Revenants Saisons 1-2/Saison 1/Les.Revenants.S01E01.mkv"),
+        )
+        assertEquals(
+            Triple("Le Bureau des Légendes", null, "Le Bureau des Légendes Saisons 1 à 5"),
+            show("Le Bureau des Légendes Saisons 1 à 5/Saison 3/Le.Bureau.des.Legendes.S03E01.mkv"),
+        )
+        assertEquals(
+            Triple("Le Bureau des Legendes", null, "Le.Bureau.des.Legendes.Saisons.1.a.5.FRENCH.1080p"),
+            show("Le.Bureau.des.Legendes.Saisons.1.a.5.FRENCH.1080p/Le.Bureau.des.Legendes.S01E01.mkv"),
+        )
+        assertEquals(
+            Triple("Show Name", null, "Show.Name.Seasons.1-3.1080p.BluRay"),
+            show("Show.Name.Seasons.1-3.1080p.BluRay/Season 2/Show.Name.S02E01.mkv"),
+        )
+        assertEquals(Triple("Les Revenants", null, "Les Revenants - Saison 2"), show("Les Revenants - Saison 2/Les Revenants - S02E01.mkv"))
+        // "Seasons" before no number is a title's word.
+        assertEquals(Triple("The Four Seasons", null, "The Four Seasons"), show("The Four Seasons/Season 1/The.Four.Seasons.S01E01.mkv"))
+        assertEquals(
+            Triple("The Four Seasons", 2025, "The Four Seasons (2025)"),
+            show("The Four Seasons (2025)/The.Four.Seasons.S01E01.mkv"),
+        )
+        assertEquals(Triple("Les Saisons", null, "Les Saisons"), show("Les Saisons/Les.Saisons.S01E01.mkv"))
+    }
+
     /**
      * A folder of a show's name holding one for each of its years ("Doctor Who/Doctor Who (2005)"): each is a show
      * of its own, by its year. A season's pack giving the year stays in its show's folder.

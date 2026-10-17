@@ -208,13 +208,19 @@ object FilenameParser {
     /**
      * A folder's name as a show's: up to its season's number, as a pack of a season names it, at the source's
      * root too ("Show.Name.S01.1080p.WEB-GRP", "Show.Name.S01-S03.1080p", "Les.Revenants.Saison.1.FRENCH.720p"), or
-     * of an episode ("Show.Name.S01E01.1080p"), so that each season is not a show of its own.
+     * of several ("Les Revenants Saisons 1-2", "Le Bureau des Légendes Saisons 1 à 5"), or of an episode
+     * ("Show.Name.S01E01.1080p"), so that each season is not a show of its own.
      */
     private fun showName(folder: String): ParsedMovie =
         parseMovie(SEASON_TOKEN.find(folder)?.let { folder.substring(0, it.range.first) }?.takeIf { it.isNotBlank() } ?: folder)
 
-    /** A pack's season or seasons, or an episode's numbers, in a folder's name: "S01", "S01-S03", "S01E01", "Saison 1". */
-    private val SEASON_TOKEN = Regex("""(?i)(?<![a-z0-9])(?:s|(?:saison|season)[ ._-]?)\d{1,2}(?:e\d{1,4}|-s?\d{1,2})?(?![a-z0-9])""")
+    /**
+     * A pack's season or seasons, or an episode's numbers, in a folder's name: "S01", "S01-S03", "S01E01", "Saison 1",
+     * and the first of several, "Saisons 1-2", "Saisons 1 à 5", "Seasons 1-3". Never "Seasons" before no number:
+     * "The Four Seasons" is a title.
+     */
+    private val SEASON_TOKEN =
+        Regex("""(?i)(?<![a-z0-9])(?:s|(?:saisons?|seasons?)[ ._-]?)\d{1,2}(?:e\d{1,4}|-s?\d{1,2})?(?![a-z0-9])""")
 
     /**
      * [folder] names the show [title], then from a release tag on what of it it holds: "Friends.Complete.Series.1080p",
