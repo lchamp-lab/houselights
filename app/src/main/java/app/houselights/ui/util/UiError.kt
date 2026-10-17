@@ -56,6 +56,9 @@ enum class UiError(@StringRes val title: Int, @StringRes val message: Int, val a
     /** The file needs credentials, and only the Zidoo player may receive them. */
     CREDENTIALS(R.string.play_failed, R.string.player_credentials, null),
 
+    /** The Zidoo player trusted with passwords before is not the one installed now. */
+    PLAYER_CHANGED(R.string.play_failed, R.string.player_changed, null),
+
     /** The device's Keystore refused to seal a password or a token: nothing was written. */
     KEYSTORE(R.string.error_keystore_title, R.string.error_keystore, ErrorAction.RETRY),
 

@@ -166,6 +166,7 @@
     <string name="play_with">Play with</string>
     <string name="no_player">The Zidoo player isn’t installed.</string>
     <string name="player_credentials">This folder needs a password: only the Zidoo player can play it.</string>
+    <string name="player_changed">The Zidoo player has changed, and Houselights no longer trusts it with your passwords. Reinstall the player that came with the Zidoo, or clear Houselights’ data to trust the new one.</string>
 
     <!-- Local folders -->
     <string name="add_folder">Add a folder</string>
@@ -283,6 +284,7 @@
     <string name="label_user">User</string>
     <string name="label_render">Interface rendering</string>
     <string name="label_modes">Available modes</string>
+    <string name="label_device">Device</string>
     <string name="label_player">Zidoo player</string>
     <string name="label_api">Control API</string>
     <string name="tmdb_attribution">This product uses the TMDB API but is not endorsed or certified by TMDB.</string>
@@ -433,6 +435,10 @@
     <string name="about_status">Status</string>
     <string name="detected">Detected</string>
     <string name="not_detected">Not detected</string>
+    <string name="player_unrecognised">Detected, not recognized</string>
+    <string name="player_not_a_zidoo">This device isn’t a Zidoo</string>
+    <string name="player_changed_since">Changed since the last playback</string>
+    <string name="player_no_certificate">Its certificate can’t be read</string>
     <string name="online">Online</string>
     <string name="offline">Offline</string>
     <string name="about_credits">Credits</string>

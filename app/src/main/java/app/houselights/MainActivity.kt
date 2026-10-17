@@ -204,8 +204,12 @@ class MainActivity : ComponentActivity() {
                         } catch (_: ActivityNotFoundException) {
                             container.player.onLaunchFailed()
                             failed(UiError.NO_PLAYER)
-                        } catch (_: PlaybackManager.CredentialsNotShared) {
-                            failed(UiError.CREDENTIALS)
+                        } catch (_: SecurityException) {
+                            // A player that lets no other app start it is no player for the app.
+                            container.player.onLaunchFailed()
+                            failed(UiError.NO_PLAYER)
+                        } catch (e: PlaybackManager.CredentialsNotShared) {
+                            failed(if (e.playerChanged) UiError.PLAYER_CHANGED else UiError.CREDENTIALS)
                         }
                     }
                 }

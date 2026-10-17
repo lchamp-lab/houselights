@@ -5,14 +5,15 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import app.houselights.player.PlayerStatus
 import app.houselights.ui.util.LatestJob
 
 /**
- * What About says of the device: whether the Zidoo player is installed ([player], asked once), and
+ * What About says of the device: its player, as playback decides ([player], asked once), and
  * whether its control API answers ([api]), asked each time About shows: null while it is asked.
  */
-internal class AboutViewModel(isPlayerInstalled: () -> Boolean, private val apiAnswers: suspend () -> Boolean) : ViewModel() {
-    val player: Boolean = isPlayerInstalled()
+internal class AboutViewModel(playerStatus: () -> PlayerStatus, private val apiAnswers: suspend () -> Boolean) : ViewModel() {
+    val player: PlayerStatus = playerStatus()
 
     var api by mutableStateOf<Boolean?>(null)
         private set

@@ -1,18 +1,17 @@
 package app.houselights.ui.settings
 
+import app.houselights.player.PlayerStatus
 import app.houselights.ui.testing.MainDispatcherRule
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
-import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 
-/** About asks the device once whether the Zidoo player is there, and its control API each time it shows. */
+/** About asks once what playback decides of the Zidoo player, and its control API each time it shows. */
 @OptIn(ExperimentalCoroutinesApi::class)
 class AboutViewModelTest {
     @get:Rule
@@ -20,11 +19,12 @@ class AboutViewModelTest {
 
     @Test
     fun theApiIsAskedEachTimeAboutShows() = runTest {
-        var installedAsked = 0
+        var playerAsked = 0
         val answers = ArrayDeque(listOf(true, false))
         val gate = CompletableDeferred<Unit>()
-        val vm = AboutViewModel({ installedAsked++ == 0 }, { gate.await(); answers.removeFirst() })
-        assertTrue(vm.player)
+        val player = PlayerStatus.Detected("com.zidoo.player")
+        val vm = AboutViewModel({ player.also { playerAsked++ } }, { gate.await(); answers.removeFirst() })
+        assertEquals(player, vm.player)
 
         vm.check()
         advanceUntilIdle()
@@ -38,14 +38,14 @@ class AboutViewModelTest {
         vm.check()
         advanceUntilIdle()
         assertEquals(false, vm.api)
-        assertEquals("the player is asked for once", 1, installedAsked)
+        assertEquals("the player is asked for once", 1, playerAsked)
     }
 
     @Test
     fun anAnswerAfterAboutHasGoneIsNotKept() = runTest {
         val gate = CompletableDeferred<Unit>()
-        val vm = AboutViewModel({ false }, { gate.await(); true })
-        assertFalse(vm.player)
+        val vm = AboutViewModel({ PlayerStatus.NotDetected }, { gate.await(); true })
+        assertEquals(PlayerStatus.NotDetected, vm.player)
         vm.check()
         vm.forget()
         gate.complete(Unit)
