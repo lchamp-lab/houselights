@@ -57,6 +57,12 @@ C4:2C:70:C6:C8:AE:CA:07:F8:38:E3:90:6E:8F:D1:0E:17:86:33:9A:30:D4:63:30:0E:51:C2
 A release may come without a TMDB key: the app then asks for yours (free, from
 [themoviedb.org](https://www.themoviedb.org/settings/api)), in Settings > Library > TMDB API key.
 
+## Support
+
+If Houselights earns its place under your TV, you can buy the project a coffee on
+[Ko-fi](https://ko-fi.com/lchamp_lab); the app shows the same page as a QR code, for your phone, in
+Settings > About > Support Houselights.
+
 ## Building
 
 Requirements: JDK 17 and the Android SDK (platform 35).
