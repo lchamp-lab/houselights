@@ -111,6 +111,8 @@ import app.houselights.ui.util.formatDuration
 import app.houselights.ui.util.screenHeight
 import app.houselights.ui.util.skeletonDelayPassed
 import app.houselights.ui.util.UiError
+import app.houselights.ui.design.components.SegmentDetail
+import app.houselights.ui.util.NBSP
 
 @Composable
 fun DetailScreen(
@@ -361,6 +363,8 @@ private fun Hero(
                 logo = item.logo,
                 maxWidth = HlLayout.titleArtWidth,
                 maxHeight = HlLayout.titleArtHeight,
+                // Without its logo, the title is set to its measure, as on a poster.
+                measured = true,
             )
             Spacer(Modifier.height(HlSpace.l))
             if (isEpisode) {
@@ -555,7 +559,19 @@ private fun Seasons(seasons: List<MediaItem>, selectedId: String?, onSelect: (St
         modifier = Modifier.padding(horizontal = HlSpace.safeH),
         selectOnFocus = true,
         scrollable = true,
+        details = seasons.map(::seasonDetail),
     )
+}
+
+/** How far a season is watched, after its name: a check when all of it is, "6 / 10" when part is, nothing before. */
+internal fun seasonDetail(season: MediaItem): SegmentDetail? {
+    val episodes = season.childCount?.takeIf { it > 0 } ?: return SegmentDetail.Done.takeIf { season.user.played }
+    val watched = episodes - (season.user.unplayedCount ?: if (season.user.played) 0 else episodes)
+    return when {
+        season.user.played || watched >= episodes -> SegmentDetail.Done
+        watched > 0 -> SegmentDetail.Count("$watched$NBSP/$NBSP$episodes")
+        else -> null
+    }
 }
 
 /** Where an episode stands, in words: watched, or the time left; nothing when not started. */

@@ -44,6 +44,7 @@ import app.houselights.ui.design.components.TechSpecs
 import app.houselights.ui.design.components.TitleArt
 import app.houselights.ui.design.components.TitleLine
 import app.houselights.ui.util.NBSP
+import app.houselights.ui.design.components.WithItsPicture
 
 /**
  * What a title says about itself, in its states: its name, its facts and formats, its credits, the
@@ -87,6 +88,16 @@ private fun ReadingTitleArtSection() {
                     logo = null,
                     maxWidth = HlLayout.titleArtWidth,
                     maxHeight = HlLayout.titleArtHeight,
+                )
+            }
+            Specimen("detail page, measured: short at its own size, long on even lines", Modifier.weight(1f), gap = HlSpace.xxs) {
+                TitleArt(title = "Ran", logo = null, maxWidth = HlLayout.titleArtWidth, maxHeight = HlLayout.titleArtHeight, measured = true)
+                TitleArt(
+                    title = "Les Sept Samouraïs",
+                    logo = null,
+                    maxWidth = HlLayout.titleArtWidth,
+                    maxHeight = HlLayout.titleArtHeight,
+                    measured = true,
                 )
             }
             Specimen("browsing hero size", Modifier.weight(1f), gap = HlSpace.xxs) {
@@ -263,6 +274,11 @@ private fun ReadingHeroInfoSection() {
             }
             Specimen("no rows yet: draws nothing", Modifier.weight(1f), gap = HlSpace.xxs) {
                 HeroInfo(null, Modifier.height(HlLayout.hero))
+            }
+        }
+        ReadingRow {
+            Specimen("a wall's line, said with its picture: here at once, no backdrop under it", Modifier.width(HlLayout.readableNarrow), gap = HlSpace.xxs) {
+                WithItsPicture(READING_HERO_FILM) { TitleLine(it) }
             }
         }
     }

@@ -1,9 +1,9 @@
 package app.houselights.providers.local
 
+import app.houselights.core.SortKeys
 import app.houselights.core.NfoActor
 import app.houselights.core.NfoInfo
 import app.houselights.core.yearOf
-import java.text.Normalizer
 
 /** What TMDB says of a film or a show, in the terms both share. */
 data class TmdbDetails(
@@ -85,31 +85,16 @@ data class LocalArt(
  * Artwork: files next to the video, then the NFO's addresses, then TMDB.
  */
 object MetadataMerge {
-    /** Articles titles start with, which sorting passes over; l' and l’ besides, glued to their word. */
-    internal const val ARTICLE_WORDS = "the|a|an|le|la|les|un|une|des"
+    /** Articles titles start with, which sorting passes over (see [SortKeys]). */
+    internal const val ARTICLE_WORDS = SortKeys.ARTICLE_WORDS
 
-    /** A leading article, l' and l’ glued to the word ("L'Arnaque") as well. */
-    private val ARTICLES = Regex("""(?i)^(?:(?:$ARTICLE_WORDS)\s+|l['’]\s*)""")
-    private val MARKS = Regex("""\p{M}+""")
-
-    /** Letters that NFD does not take apart into a base letter and its accent. */
-    private val LIGATURES = mapOf('œ' to "oe", 'æ' to "ae", 'ß' to "ss", 'ø' to "o", 'ł' to "l", 'đ' to "d", 'ð' to "d", 'þ' to "th")
     private const val CAST_SIZE = 30
 
-    /**
-     * Lower case, without a leading article, accents and ligatures folded: "The Batman" sorts with B,
-     * "L'Arnaque" with A, "Ça" with C and "Œdipe" with O, not after Z as their UTF-8 bytes would.
-     */
-    fun sortKey(title: String): String = fold(ARTICLES.replace(title.trim(), ""))
+    /** A title's sort key ([SortKeys.sortKey]). */
+    fun sortKey(title: String): String = SortKeys.sortKey(title)
 
-    /**
-     * [text] in lower case, accents dropped and ligatures spelled out: what [sortKey] does past the
-     * article, alone (see LibraryDatabase's migration 9 to 10, which folds the keys already stored).
-     */
-    internal fun fold(text: String): String {
-        val bare = MARKS.replace(Normalizer.normalize(text.lowercase(), Normalizer.Form.NFD), "")
-        return if (bare.none { it in LIGATURES }) bare else buildString { bare.forEach { append(LIGATURES[it] ?: it) } }
-    }
+    /** [text] folded as [sortKey] folds it past the article ([SortKeys.fold]). */
+    internal fun fold(text: String): String = SortKeys.fold(text)
 
     /**
      * [base] with the details of [nfo] and [tmdb]. The NFO must already be one that describes this

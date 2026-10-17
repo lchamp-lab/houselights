@@ -24,11 +24,15 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import java.io.IOException
+import app.houselights.ui.testing.SettleMainLooper
 
 /** The wall: pages, reloads in place and failures, on a fake source. */
 @OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
 class LibraryViewModelTest {
+    @get:Rule
+    val settle = SettleMainLooper()
+
     @get:Rule
     val main = MainDispatcherRule()
 

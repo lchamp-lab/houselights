@@ -30,6 +30,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import java.io.IOException
+import app.houselights.ui.testing.SettleMainLooper
 
 /**
  * A cold start: home's rows and the pictures of its first view are asked once, while the launch
@@ -40,6 +41,9 @@ import java.io.IOException
 @OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
 class HomeLaunchTest {
+    @get:Rule
+    val settle = SettleMainLooper()
+
     @get:Rule
     val main = MainDispatcherRule()
 

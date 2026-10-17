@@ -25,6 +25,11 @@ object HlMotion {
     const val SETTLE = 300L
     /** Placeholders wait this long: a slow load shows them, a quick one never flashes. */
     const val SKELETON_DELAY = 400L
+    /**
+     * What follows waits this long at most for what leads it: across a cut, the picture of the
+     * screen left for the arriving screen's own; a hero's name for its picture.
+     */
+    const val HOLD = 400L
     /** One loop of the welcome poster wall: slow enough to be felt more than seen. */
     const val WALL_DRIFT = 140_000
     /** Dialogs grow from this scale as they appear. */

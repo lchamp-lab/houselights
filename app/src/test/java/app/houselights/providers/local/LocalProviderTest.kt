@@ -234,6 +234,21 @@ class LocalProviderTest {
         }
     }
 
+    /** Each season of a show says how far it is watched: its episodes and those not watched yet, in one query. */
+    @Test
+    fun seasonsSayHowFarTheyAreWatched() = runTest {
+        val show = show("MobLand")
+        val watched = (1..3).map { show.episode(1, it) } + show.episode(2, 1)
+        show.episode(2, 2)
+        show.episode(2, 3)
+        show.episode(3, 1)
+        watched.forEach { dao.savePlayback(it, positionMs = 0, durationMs = null, played = true, lastPlayedAt = 1) }
+        val seasons = provider.seasons(provider.item(show.id.toString()))
+        assertEquals(listOf(3, 3, 1), seasons.map { it.childCount })
+        assertEquals(listOf(0, 2, 1), seasons.map { it.user.unplayedCount })
+        assertEquals(listOf(true, false, false), seasons.map { it.user.played })
+    }
+
     /** Sonarr's "Specials" folder holds S00E01: "Play" starts S01E01 all the same, and the specials once the rest is watched. */
     @Test
     fun aShowStartsWithItsFirstSeasonNotItsSpecials() = runTest {

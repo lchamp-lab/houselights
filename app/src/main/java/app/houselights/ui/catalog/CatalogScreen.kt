@@ -45,8 +45,6 @@ import app.houselights.ui.design.HlPalette
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
-import app.houselights.ui.design.components.Backdrop
-import app.houselights.ui.design.components.BackdropStyle
 import app.houselights.ui.design.components.Badge
 import app.houselights.ui.design.components.Emphasis
 import app.houselights.ui.design.components.FactRow
@@ -82,6 +80,7 @@ import app.houselights.ui.util.formatDuration
 import java.util.Locale
 import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
+import app.houselights.ui.design.components.SegmentDetail
 
 /**
  * Every token and component of the design system in its states, for review on a real screen.
@@ -95,7 +94,6 @@ fun CatalogScreen() {
     val first = remember { FocusRequester() }
     LaunchedEffect(Unit) { first.tryRequestFocus() }
     Box(Modifier.fillMaxSize()) {
-        Backdrop(null, BackdropStyle.Quiet)
         LazyColumn(
             Modifier.fillMaxSize(),
             contentPadding = PaddingValues(horizontal = HlSpace.safeH, vertical = HlSpace.safeV),
@@ -185,6 +183,8 @@ fun CatalogScreen() {
                         onSelect = { season = it },
                         selectOnFocus = true,
                         scrollable = true,
+                        // How far each season is watched: two done, the third begun.
+                        details = listOf(SegmentDetail.Done, SegmentDetail.Done, SegmentDetail.Count("6$NBSP/${NBSP}10")),
                     )
                     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.xs)) {
                         listOf("Ultra HD", "Dolby Vision", "HDR10", "TrueHD Atmos", "7.1", "12").forEach { Badge(it) }

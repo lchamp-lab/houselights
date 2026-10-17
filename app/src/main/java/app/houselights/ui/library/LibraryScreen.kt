@@ -80,8 +80,15 @@ import app.houselights.ui.util.appContainer
 import app.houselights.ui.util.rememberSettled
 import app.houselights.ui.util.skeletonDelayPassed
 import kotlinx.coroutines.launch
+import app.houselights.core.SortKeys
+import app.houselights.ui.util.NBSP
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import app.houselights.ui.design.components.WithItsPicture
+import app.houselights.ui.design.components.DetailAhead
 
-private const val COLUMNS = 7
+internal const val COLUMNS = 7
 
 /** Rows of empty frames while the wall loads: more than the screen shows, like the wall itself. */
 private const val SKELETON_ROWS = 3
@@ -139,6 +146,8 @@ fun LibraryScreen(
         }
     }
 
+    // Settled on a title, its detail page is made ready: OK opens it whole.
+    DetailAhead(shown.value)
     AmbientBackdrop(shown.value?.backdrop, BackdropStyle.Quiet) {
         Column(Modifier.fillMaxSize()) {
             Row(
@@ -148,15 +157,12 @@ fun LibraryScreen(
                 ScreenTitle(title)
                 Spacer(Modifier.width(HlSpace.m))
                 if (state.total > 0) {
-                    Text(
-                        pluralStringResource(
-                            if (library.kind == LibraryKind.COLLECTIONS) R.plurals.collection_count else R.plurals.title_count,
-                            state.total,
-                            state.total,
-                        ),
-                        style = Hl.type.meta,
-                        color = Hl.colors.contentSecondary,
+                    val count = pluralStringResource(
+                        if (library.kind == LibraryKind.COLLECTIONS) R.plurals.collection_count else R.plurals.title_count,
+                        state.total,
+                        state.total,
                     )
+                    WallFolio(count, state.items, shown, state.total, state.sort)
                 }
                 Spacer(Modifier.weight(1f))
                 // Collections are browsed by name or date; filters belong to films.
@@ -180,7 +186,8 @@ fun LibraryScreen(
                     .height(HlLayout.infoLine),
                 contentAlignment = Alignment.CenterStart,
             ) {
-                shown.value?.let { TitleLine(it) }
+                // Said once its picture comes up, as on home.
+                WithItsPicture(shown.value) { TitleLine(it) }
             }
             // Trying again keeps the error on screen, its button at work, until the answer.
             val wallError = retainedError(state.error?.takeIf { state.items.isEmpty() }, retrying = state.loading)
@@ -388,3 +395,40 @@ private fun sameGenre(held: String?, shown: String): Boolean =
     held != null && held.length == shown.length && held.zip(shown).all { (a, b) -> a == b || sameAsciiLetter(a, b) }
 
 private fun sameAsciiLetter(a: Char, b: Char): Boolean = a.isLetter() && a < '\u0080' && a.equals(b, ignoreCase = true)
+
+/**
+ * The wall's folio: its count of titles, and past its third line, where the title selected stands
+ * as the sort files it (its initial, year, month added or score) and its place ("34 / 612"), in the
+ * poster's voice, as a book's running head says where one is. Read here alone: a step across the
+ * wall recomposes this and nothing else.
+ */
+@Composable
+private fun WallFolio(count: String, items: List<MediaItem>, shown: State<MediaItem?>, total: Int, sort: SortOption) {
+    val item = shown.value
+    val index = item?.let { selected -> items.indexOfFirst { it.id == selected.id } } ?: -1
+    val folio = item?.takeIf { index >= COLUMNS * FOLIO_FROM_LINE }?.let { folioOf(it, sort) }
+    if (folio == null) {
+        Text(count, style = Hl.type.meta, color = Hl.colors.contentSecondary)
+        return
+    }
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(folio, style = Hl.type.subject, color = Hl.colors.contentSecondary)
+        Spacer(Modifier.width(HlSpace.s))
+        Text("${index + 1}$NBSP/$NBSP$total", style = Hl.type.meta, color = Hl.colors.contentSecondary)
+    }
+}
+
+/** The line of the wall past which its header says where the title selected stands. */
+private const val FOLIO_FROM_LINE = 3
+
+/** Where [item] stands in a wall sorted by [sort]: its initial, year, month added or score; null when it has none. */
+internal fun folioOf(item: MediaItem, sort: SortOption, locale: Locale = Locale.getDefault()): String? = when (sort) {
+    SortOption.TITLE -> SortKeys.initial(item.title)
+    SortOption.YEAR -> item.year?.toString()
+    SortOption.ADDED -> item.addedAt?.let { monthOf(it, locale) }
+    SortOption.RATING -> item.communityRating?.let { String.format(locale, "%.1f", it) }
+}
+
+/** The month and year of [epochMs], as a heading writes them: "Octobre 2026". */
+private fun monthOf(epochMs: Long, locale: Locale): String =
+    SimpleDateFormat("LLLL yyyy", locale).format(Date(epochMs)).replaceFirstChar { it.titlecase(locale) }

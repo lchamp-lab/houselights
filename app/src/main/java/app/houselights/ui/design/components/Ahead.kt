@@ -15,6 +15,13 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalContext
+import app.houselights.ui.design.LocalLaunchScreen
+import app.houselights.ui.util.screenWidthPx
+import coil.imageLoader
 
 /**
  * The pictures a screen shows first, asked ahead as its components will ask Coil for them once laid
@@ -35,6 +42,19 @@ class PicturesAhead(private val context: Context, private val screenWidthPx: Int
             listOfNotNull(item.logo?.let { titleArtRequest(context, it, HlLayout.heroTitleWidth.px(), HlLayout.heroTitleHeight.px()) })
 
     /**
+     * A wall's [items] as its [PosterCard]s fill their cells: their posters, asked as a cell asks
+     * them ([CELL_POSTER]).
+     */
+    fun wall(items: List<MediaItem>): List<ImageRequest> = items.mapNotNull { posterRequest(context, it, CELL_POSTER.px()) }
+
+    /**
+     * The first picture a detail page of [item] shows that the screen opening it does not: its logo,
+     * as the page sets it ([TitleArt] in [HlLayout.titleArtWidth]). Its backdrop is the one already shown.
+     */
+    fun detail(item: MediaItem): List<ImageRequest> =
+        listOfNotNull(item.logo?.let { titleArtRequest(context, it, HlLayout.titleArtWidth.px(), HlLayout.titleArtHeight.px()) })
+
+    /**
      * The cards of a [MediaRow] of [items], [spacing] apart, that show before it scrolls: posters
      * ([PosterCard]), or stills when [landscape] ([LandscapeCard]), each at its own width.
      */
@@ -44,6 +64,22 @@ class PicturesAhead(private val context: Context, private val screenWidthPx: Int
         return items.take(cardsInView(card, spacing)).mapNotNull {
             if (landscape) stillRequest(context, it, width) else posterRequest(context, it, width)
         }
+    }
+}
+
+/**
+ * Once focus settles on [item] (a hero, a wall), what its detail page shows first and the screen
+ * does not is asked ahead ([PicturesAhead.detail]): OK never waits for it. Not under the launch
+ * screen, whose pictures come first.
+ */
+@Composable
+internal fun DetailAhead(item: MediaItem?) {
+    val context = LocalContext.current
+    val screen = screenWidthPx()
+    val covered = LocalLaunchScreen.current.covers
+    val ahead = remember(context, screen) { PicturesAhead(context, screen) }
+    LaunchedEffect(item?.id, item?.logo, covered) {
+        if (item != null && !covered) LoadingAhead.load(context.imageLoader, ahead.detail(item))
     }
 }
 

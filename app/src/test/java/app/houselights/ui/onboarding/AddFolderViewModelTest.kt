@@ -48,6 +48,8 @@ import app.houselights.ui.util.UiError
 import java.io.IOException
 import java.security.ProviderException
 import javax.crypto.KeyGenerator
+import app.houselights.ui.testing.SettleMainLooper
+import org.junit.Rule
 
 /**
  * The folder form, on a library in memory: a folder is tested, then saved whole, even when the form
@@ -56,6 +58,9 @@ import javax.crypto.KeyGenerator
 @OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
 class AddFolderViewModelTest {
+    @get:Rule
+    val settle = SettleMainLooper()
+
     private val main = StandardTestDispatcher()
 
     /** The app's scope, for work that outlives the form: its steps run with the test's. */

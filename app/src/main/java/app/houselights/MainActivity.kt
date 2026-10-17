@@ -96,6 +96,12 @@ import kotlinx.coroutines.launch
 import app.houselights.settings.DisplayModes
 import app.houselights.settings.SettingsStore
 import app.houselights.settings.outputModes
+import app.houselights.ui.design.Scrub
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import app.houselights.ui.design.components.BackdropRelay
+import app.houselights.ui.design.components.LeavingBackdrop
+import app.houselights.ui.design.components.LocalBackdropRelay
 
 class MainActivity : ComponentActivity() {
     private val container by lazy { appContainer() }
@@ -165,6 +171,7 @@ class MainActivity : ComponentActivity() {
             HouselightsTheme {
                 val nav = rememberNavController()
                 val fixError = remember(nav) { nav::fixError }
+                val relay = remember { BackdropRelay() }
                 // One cue for the whole app; its steps (room, scrims, black) are in HouseLightCue.
                 val lights = animateFloatAsState(
                     if (lightsDown.value) 1f else 0f,
@@ -176,9 +183,11 @@ class MainActivity : ComponentActivity() {
                     LocalHouseLights provides { lights.value },
                     LocalErrorFix provides fixError,
                     LocalLaunchScreen provides launchScreen,
+                    LocalBackdropRelay provides relay,
                 ) {
                     // The window is the black room already (@color/room): no second black under every screen.
                     Box(Modifier.fillMaxSize()) {
+                        LeavingBackdrop(relay)
                         AppNavigation(nav, onPlay = ::play)
                         HouseLights()
                     }
@@ -280,16 +289,20 @@ class MainActivity : ComponentActivity() {
      */
     // This is Activity.dispatchKeyEvent; lint sees androidx.core's restricted overload of the same name.
     @SuppressLint("RestrictedApi")
-    override fun dispatchKeyEvent(event: KeyEvent): Boolean = when {
-        // Under the launch screen nothing is chosen unseen: only the system's own keys, Back among them.
-        covered && !event.isSystem -> true
-        !lightsDown.value -> super.dispatchKeyEvent(event)
-        event.keyCode == KeyEvent.KEYCODE_BACK -> {
-            if (event.action == KeyEvent.ACTION_UP) cancelCue()
-            true
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        // Whether an arrow is held, running focus across the cards: told of every key, it takes none.
+        Scrub.onKey(event)
+        return when {
+            // Under the launch screen nothing is chosen unseen: only the system's own keys, Back among them.
+            covered && !event.isSystem -> true
+            !lightsDown.value -> super.dispatchKeyEvent(event)
+            event.keyCode == KeyEvent.KEYCODE_BACK -> {
+                if (event.action == KeyEvent.ACTION_UP) cancelCue()
+                true
+            }
+            event.isSystem -> super.dispatchKeyEvent(event)
+            else -> true
         }
-        event.isSystem -> super.dispatchKeyEvent(event)
-        else -> true
     }
 
     private fun play(item: MediaItem, resume: Boolean) {
@@ -378,7 +391,14 @@ private fun AppNavigation(nav: NavHostController, onPlay: (MediaItem, Boolean) -
         }
     }
 
-    NavHost(nav, startDestination = start) {
+    // Screens cut, as films do, never two faded together: the picture stays across the cut
+    // (BackdropRelay), the words change at once.
+    NavHost(
+        nav,
+        startDestination = start,
+        enterTransition = { EnterTransition.None },
+        exitTransition = { ExitTransition.None },
+    ) {
         composable<Route.Welcome> {
             // Never said again on a later visit (signed out, a connection lost).
             DisposableEffect(Unit) { onDispose { sourceProblem = null } }

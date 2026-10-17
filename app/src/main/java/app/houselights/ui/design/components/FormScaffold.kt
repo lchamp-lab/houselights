@@ -47,7 +47,6 @@ fun HlTwoPane(
 ) {
     val room = Hl.colors.background
     Box(Modifier.fillMaxSize()) {
-        Backdrop(null, BackdropStyle.Quiet)
         Row(Modifier.fillMaxSize().padding(start = HlSpace.safeH, end = HlSpace.safeH, top = HlSpace.safeV)) {
             Column(Modifier.width(sideWidth).fillMaxHeight().padding(bottom = HlSpace.safeV), content = side)
             Spacer(Modifier.width(HlSpace.xl))

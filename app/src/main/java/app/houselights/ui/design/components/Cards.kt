@@ -103,6 +103,7 @@ import coil.size.Precision
 import coil.size.Scale
 import kotlin.math.ceil
 import kotlin.math.roundToInt
+import app.houselights.ui.design.Scrub
 
 /** True while one card of the enclosing row or grid has focus: the others step back. */
 val LocalGroupFocused = compositionLocalOf { false }
@@ -159,9 +160,12 @@ fun ArtworkSurface(
     content: @Composable BoxScope.() -> Unit,
 ) {
     val interaction = remember { MutableInteractionSource() }
-    val focused by interaction.collectIsFocusedAsState()
+    val focusedNow by interaction.collectIsFocusedAsState()
+    // Crossed while an arrow is held, a card neither grows nor lights: only the one focus stops on.
+    val crossed = focusedNow && Scrub.active
+    val focused = focusedNow && !crossed
     val recede = animateFloatAsState(
-        if (LocalGroupFocused.current && !focused) 1f else 0f,
+        if (LocalGroupFocused.current && !focusedNow) 1f else 0f,
         tween(HlMotion.STANDARD, easing = HlMotion.standard),
         label = "recede",
     )
@@ -185,7 +189,7 @@ fun ArtworkSurface(
     val reading = if (readAs != null) {
         Modifier.clearAndSetSemantics {
             contentDescription = readAs
-            this.focused = focused
+            this.focused = focusedNow
         }
     } else {
         Modifier.semantics(mergeDescendants = true) { stateDescription?.let { this.stateDescription = it } }
@@ -205,7 +209,7 @@ fun ArtworkSurface(
                 drawGlow(tone, grown, reach, shape)
             },
         shape = ClickableSurfaceDefaults.shape(shape),
-        scale = FocusStyle.scale(lift),
+        scale = if (crossed) FocusStyle.crossed() else FocusStyle.scale(lift),
         border = FocusStyle.lift(shape),
         colors = FocusStyle.still(rest = c.content.copy(alpha = HlAlpha.FILL), restContent = c.content),
         interactionSource = interaction,
@@ -300,7 +304,10 @@ internal fun Modifier.artworkEdge(shape: Shape, colors: HlColors): Modifier =
 
 /** Width a poster is asked for: its own, or a little more than a row's when it fills a grid cell. */
 @Composable
-fun posterPx(width: Dp? = null): Int = (width ?: HlSize.poster * 1.3f).toPx()
+fun posterPx(width: Dp? = null): Int = (width ?: CELL_POSTER).toPx()
+
+/** A poster filling a grid cell (a wall's) is asked this wide: a little more than a row's, enough for any cell. */
+internal val CELL_POSTER = HlSize.poster * 1.3f
 
 /** A poster's shape, its width to its height. */
 private const val POSTER_SHAPE = 2f / 3f

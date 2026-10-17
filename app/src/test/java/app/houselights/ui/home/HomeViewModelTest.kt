@@ -34,11 +34,15 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import java.io.IOException
+import app.houselights.ui.testing.SettleMainLooper
 
 /** What home shows, decided by its ViewModel from the rows, the scan, the folders and the source. */
 @OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
 class HomeViewModelTest {
+    @get:Rule
+    val settle = SettleMainLooper()
+
     @get:Rule
     val main = MainDispatcherRule()
 

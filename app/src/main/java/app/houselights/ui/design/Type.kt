@@ -124,8 +124,8 @@ private fun signature(family: FontFamily, weight: FontWeight, size: Int, line: I
 /**
  * Type scale for a TV seen from the couch, eight sizes with clear steps:
  * 12 · 14 · 16 · 20 · 24 · 32 · 44 · 64 sp, line heights on a 2 sp grid. Nothing below 12 sp, and
- * no content below 14 sp. Fourteen roles, one each; then a signature set to its own measure, the
- * billing block, which only its component uses.
+ * no content below 14 sp. Fourteen roles, one each; then signatures set to their own measure, a short
+ * title's 96 sp and the billing block, which only their components use.
  *
  * Two lines of a title set in the voice of the poster ([display], [cardTitle]) leave room for
  * Vietnamese: in Archivo condensed bold, a stacked mark (ổ, ế) rises to 0.92 em and a descender
@@ -178,7 +178,12 @@ data class HlType(
     /** Format and rating badges: Ultra HD, Dolby Vision, 12. */
     val badge: TextStyle,
 
-    // The signature, set to its own measure.
+    // Signatures, each set to its own measure.
+    /**
+     * A title without its clear logo, short enough for one line of a detail page: the one size kept
+     * for it, as a poster sets a short title large ([TitleArt]). Never a role a screen picks.
+     */
+    val titleSignature: TextStyle,
     /** Names in the billing block, set like the credits at the foot of a poster. */
     val billing: TextStyle,
     /** The small words between them: "a film by", "with", "and". */
@@ -203,6 +208,7 @@ val HouselightsType = HlType(
     spec = scale(HlFonts.expanded, FontWeight.SemiBold, 20, 26, FIGURES),
     badge = scale(HlFonts.expanded, FontWeight.SemiBold, 12, 16, FIGURES),
 
+    titleSignature = scale(HlFonts.condensed, FontWeight.Bold, 96, 96, lineBreak = TITLE),
     billing = signature(HlFonts.condensed, FontWeight.Medium, 18, 24, CAPITALS_TRACKING, CAPITALS),
     billingJoin = signature(HlFonts.condensed, FontWeight.Normal, 14, 24, BILLING_JOIN_TRACKING),
 )
