@@ -268,7 +268,8 @@ class AddFolderViewModel(
      * already holds, or one inside or around it, is refused first, unless it is this very folder, added
      * before while making the folders the source failed: that is all there is left to do, without a
      * test. [onDone] hears whether the source changed (it was a server, or nothing yet), unless the
-     * form was left meanwhile. A write that fails says why in [check].
+     * form was left meanwhile. A write that fails says why in [check]. A field a test reads, changed
+     * while it ran, saves nothing: the form stays, untested, for Add again; the kind is saved as it is.
      */
     fun submit(onDone: (switched: Boolean) -> Unit) {
         if (busy || !ready || gone) return
@@ -279,7 +280,8 @@ class AddFolderViewModel(
             try {
                 val held = library.overlapping(source, except = folderId)
                 when {
-                    held == null -> if (reaches(source, typed)) show(saveInBackground(source), source, onDone)
+                    // [reaches] holds for the form as it still is: saved as it is now, a kind changed meanwhile too.
+                    held == null -> if (reaches(source, typed)) show(saveInBackground(source()), source, onDone)
                     addedBefore(held, source) -> show(saveInBackground(source), source, onDone)
                     else -> check = FolderCheck.Overlaps(held, same = held.samePlace(source))
                 }
@@ -346,8 +348,9 @@ class AddFolderViewModel(
     }
 
     /**
-     * Tests [source], the form as [typed], and says how it answered: true when it did. A field a test
-     * reads, changed while it ran, leaves the folder untested: the answer was not the form's.
+     * Tests [source], the form as [typed], and says how it answered: true when it did, for the form as
+     * it still is. A field a test reads, changed while it ran, leaves the folder untested: the answer
+     * was not the form's, and nothing may be saved on it.
      */
     private suspend fun reaches(source: SourceEntity, typed: FolderForm): Boolean {
         testing = true
@@ -355,11 +358,12 @@ class AddFolderViewModel(
         // The browser signs in of its own for a test: what the form says is what answers.
         val answer = suspendRunCatching { probe(source) }
         answer.onFailure { e -> Log.w(TAG, "Test of ${source.host} failed", e) }
-        if (form.testsAs(typed)) {
+        val current = form.testsAs(typed)
+        if (current) {
             check = answer.fold({ FolderCheck.Reachable(it) }, { FolderCheck.Failed(ScanErrors.classify(it), source.host) })
         }
         testing = false
-        return answer.isSuccess
+        return current && answer.isSuccess
     }
 
     companion object {
