@@ -101,7 +101,8 @@ class HomePicturesAheadTest {
         val loaded = synchronized(asked) { asked.toList().also { asked.clear() } }
         assertEquals("loaded ahead", ahead.size, loaded.size)
 
-        compose.setTvContent { HomeBands(HomeState(content = HomeContent.Rows(sections, firstScan = false)), MutableStateFlow(ScanState()), {}, {}, {}, {}, {}, {}) }
+        val home = HomeState(content = HomeContent.Rows(sections, firstScan = false))
+        compose.setTvContent { HomeBands(home, MutableStateFlow(ScanState()), {}, {}, {}, {}, {}, {}) }
         waitFor { asked.map { it.key }.containsAll(loaded.map { it.key }) }
         compose.waitForIdle()
         return loaded to synchronized(asked) { asked.toList() }

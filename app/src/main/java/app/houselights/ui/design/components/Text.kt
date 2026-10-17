@@ -63,7 +63,12 @@ fun Wordmark(modifier: Modifier = Modifier, style: TextStyle = Hl.type.wordmark)
  * [logo], fitted in that room.
  */
 internal fun titleArtRequest(context: Context, logo: ImageRef, maxWidthPx: Int, maxHeightPx: Int): ImageRequest =
-    ImageRequest.Builder(context).data(logo.url(maxWidthPx)).size(maxWidthPx, maxHeightPx).scale(Scale.FIT).precision(Precision.INEXACT).build()
+    ImageRequest.Builder(context)
+        .data(logo.url(maxWidthPx))
+        .size(maxWidthPx, maxHeightPx)
+        .scale(Scale.FIT)
+        .precision(Precision.INEXACT)
+        .build()
 
 /** The title's clear logo, or the title set in condensed type when there is none. */
 @Composable

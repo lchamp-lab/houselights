@@ -33,7 +33,8 @@ class ResourceTokensTest {
         assertEquals("@drawable/splash_mark", item(launch, "windowSplashScreenAnimatedIcon"))
         assertEquals("@style/Theme.Houselights", item(launch, "postSplashScreenTheme"))
         assertTrue(File("src/main/res/drawable/splash_mark.xml").isFile)
-        val activity = elements(File("src/main/AndroidManifest.xml"), "activity").single { it.getAttribute("android:name") == ".MainActivity" }
+        val activity = elements(File("src/main/AndroidManifest.xml"), "activity")
+            .single { it.getAttribute("android:name") == ".MainActivity" }
         assertEquals("@style/Theme.Houselights.Launch", activity.getAttribute("android:theme"))
     }
 

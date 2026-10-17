@@ -52,7 +52,12 @@ class HomeLaunch(
      * read, home's libraries and rows are asked in parallel, then [pictures] loads the pictures of its
      * first view into memory, all off the main thread ([work]).
      */
-    fun begin(scope: CoroutineScope, restored: Boolean, pictures: suspend (HomeRows) -> Unit, work: CoroutineContext = Dispatchers.Default) {
+    fun begin(
+        scope: CoroutineScope,
+        restored: Boolean,
+        pictures: suspend (HomeRows) -> Unit,
+        work: CoroutineContext = Dispatchers.Default,
+    ) {
         synchronized(this) {
             if (begun) return
             begun = true

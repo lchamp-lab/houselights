@@ -77,7 +77,8 @@ class AuditoriumTest {
         val lifting = t.filter { LaunchCue.darkness(it) in 0.0001f..0.9999f }
         assertTrue(LaunchCue.darkness(lifting[lifting.size / 2]) < 0.5f)
         // Both only ever go down.
-        assertTrue(t.zipWithNext().all { (a, b) -> LaunchCue.mark(b) <= LaunchCue.mark(a) && LaunchCue.darkness(b) <= LaunchCue.darkness(a) })
+        assertTrue(t.zipWithNext().all { (a, b) -> LaunchCue.mark(b) <= LaunchCue.mark(a) })
+        assertTrue(t.zipWithNext().all { (a, b) -> LaunchCue.darkness(b) <= LaunchCue.darkness(a) })
         assertTrue("a few hundred milliseconds", LaunchCue.DURATION in HlMotion.STANDARD..HlMotion.SLOW)
     }
 
