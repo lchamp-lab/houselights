@@ -433,7 +433,7 @@
     <string name="about_status">Status</string>
     <string name="detected">Detected</string>
     <string name="not_detected">Not detected</string>
-    <string name="player_unrecognised">Detected, not recognised</string>
+    <string name="player_unrecognised">Detected, not recognized</string>
     <string name="player_not_a_zidoo">This device isn’t a Zidoo</string>
     <string name="player_changed_since">Changed since the last playback</string>
     <string name="player_no_certificate">Its certificate can’t be read</string>
