@@ -60,6 +60,7 @@ class NfsListingTest {
         override fun lookup(dir: ByteArray, name: String): NfsEntry {
             val path = String(dir).let { if (it.isEmpty()) name else "$it/$name" }
             asked += "LOOKUP /$path"
+            if (stale.remove(String(dir))) throw NfsException(NfsStatus.NFS3ERR_STALE, "lookup error code: NfsStatus:70")
             val item = items[path]?.takeIf { path !in gone } ?: throw FileNotFoundException("lookup /volume1/media/$path")
             return NfsEntry(name, handle(path), attributes(item))
         }
@@ -249,6 +250,20 @@ class NfsListingTest {
         nas.readPrefix(films, "Dune (2021)/movie.nfo", 4_096)
         assertEquals(listOf("/Dune (2021)/movie.nfo", "/Dune (2021)/movie.nfo"), export.read)
         assertEquals(2, export.asked.count { it == "LOOKUP /Dune (2021)/movie.nfo" })
+        assertEquals(1, mounts)
+    }
+
+    /** A folder whose handle the NAS no longer knows (moved, made again): its path is looked up again, on the same mount. */
+    @Test
+    fun aFolderForgottenSinceItWasReadIsLookedUpAgain() = runTest {
+        library()
+        val export = Export()
+        val nas = browser(export)
+        nas.readPrefix(films, "Dune (2021)/movie.nfo", 4_096)
+        export.stale += "Dune (2021)"
+        nas.readPrefix(films, "Dune (2021)/poster.jpg", 4_096)
+        assertEquals(listOf("/Dune (2021)/movie.nfo", "/Dune (2021)/poster.jpg"), export.read)
+        assertEquals(2, export.asked.count { it == "LOOKUP /Dune (2021)" })
         assertEquals(1, mounts)
     }
 
