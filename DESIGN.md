@@ -54,12 +54,14 @@ The technical voice speaks the vocabulary of a Blu-ray case: formats by their na
 `3840 × 1608`. Three moments carry the identity further:
 
 - **Launch.** A cold start opens on the room, the mark alone in its middle (`splash_mark`, which
-  Android draws before the app runs): no bar, no percentage, no word. It holds while home gets
+  Android draws before the app runs, at the device's density and not on the canvas: a circle 192 dp
+  wide shows, 288 px on the Zidoo): no bar, no percentage, no word. It holds while home gets
   ready under it, its rows and the pictures of its first view loaded into memory as home will ask
   for them (`PicturesAhead`), never past 1.5 s after the process started, and not at all when the
   app starts elsewhere (welcome, a screen brought back). Then the lights go down on the mark and home
   comes up out of the dark, already whole (`LaunchCue`: `SLOW`, two steps that ease out, the mark
-  first). A warm start, or a return to the app, holds nothing and shows at once.
+  first). A warm start, or a return to the app, holds nothing and shows at once; on Android 9 the
+  system still shows the mark while a new window opens, about a tenth of a second.
 - **House lights.** Playing a title runs one cue (`HouseLightCue`, `DIM`): the room fades first (text,
   buttons, rows: `Modifier.houseLit`), the scrims lift so the picture shows whole, then black and the
   player. The player starts when the room is dark, not after a fixed time: the cue runs while the
