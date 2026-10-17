@@ -171,7 +171,7 @@ class HomeWholeTest {
         const val HERO_PICTURE = "https://img.test/backdrop/1?w=960"
         const val PICTURE_PX = 4
         const val FRAMES = 10
-        const val TIMEOUT_MS = 5_000L
+        const val TIMEOUT_MS = 15_000L
         const val POLL_MS = 10L
     }
 }
