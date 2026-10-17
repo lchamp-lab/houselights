@@ -50,6 +50,9 @@ enum class UiError(@StringRes val title: Int, @StringRes val message: Int, val a
     /** What was asked for is no longer in the library: Back is the way out. */
     GONE(R.string.error_gone_title, R.string.error_gone, null),
 
+    /** None of a person's titles is in the library any more: Back is the way out. */
+    PERSON_GONE(R.string.error_person_gone_title, R.string.error_person_gone, null),
+
     /** No video player on this device: the Zidoo player is missing. */
     NO_PLAYER(R.string.play_failed, R.string.no_player, null),
 

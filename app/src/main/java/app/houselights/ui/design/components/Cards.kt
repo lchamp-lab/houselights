@@ -104,23 +104,33 @@ import coil.size.Scale
 import kotlin.math.ceil
 import kotlin.math.roundToInt
 import app.houselights.ui.design.Scrub
+import androidx.compose.ui.semantics.onClick
 
 /** True while one card of the enclosing row or grid has focus: the others step back. */
 val LocalGroupFocused = compositionLocalOf { false }
 
-/** A horizontal row of cards with an optional header; focus comes back into it on the last card. */
+/**
+ * A horizontal row of cards with an optional header; focus comes back into it on the last card. A
+ * row that announces itself in the voice of what it gathers sets its own [heading] instead (the
+ * films of a director, as a poster bills them).
+ */
 @Composable
 fun MediaRow(
     header: String?,
     modifier: Modifier = Modifier,
     spacing: Dp = HlSpace.m,
     state: LazyListState = rememberLazyListState(),
+    heading: (@Composable () -> Unit)? = null,
     content: LazyListScope.() -> Unit,
 ) {
     var rowFocused by remember { mutableStateOf(false) }
     // One block for the list around it: whichever card asks to be seen, the row comes with its header.
     Column(modifier.scrollsAsBlock()) {
-        if (header != null) SectionHeader(header, Modifier.padding(start = HlSpace.safeH, bottom = HlSpace.xxs).fadeOutsideSafeArea())
+        val place = Modifier.padding(start = HlSpace.safeH, bottom = HlSpace.xxs).fadeOutsideSafeArea()
+        when {
+            heading != null -> Box(place) { heading() }
+            header != null -> SectionHeader(header, place)
+        }
         val group = remember { GroupFocus() }
         CompositionLocalProvider(LocalGroupFocused provides rowFocused, LocalGroupFocus provides group) {
             RowScroll {
@@ -145,7 +155,8 @@ fun MediaRow(
  * outline and glows with the ambient light, while its neighbours dim. At rest, a faint edge keeps
  * dark artwork from dissolving into the black room. To accessibility services it is one element:
  * what it holds, then [stateDescription] (watched, new, in progress). A card that does nothing
- * when chosen, focusable only so its row scrolls, says [readAs] alone and announces no action.
+ * when chosen, focusable only so its row scrolls, says [readAs] alone and announces no action;
+ * one read as [readAs] that [acts] (a person whose page opens) announces its click as well.
  */
 @Composable
 fun ArtworkSurface(
@@ -156,6 +167,7 @@ fun ArtworkSurface(
     onFocused: () -> Unit = {},
     stateDescription: String? = null,
     readAs: String? = null,
+    acts: Boolean = false,
     light: String? = null,
     content: @Composable BoxScope.() -> Unit,
 ) {
@@ -185,7 +197,7 @@ fun ArtworkSurface(
     // Coming back into its row, focus returns to the card that had it last.
     val group = LocalGroupFocus.current
     val member = rememberGroupMember(group)
-    val reading = cardReading(readAs, stateDescription, focusedNow)
+    val reading = cardReading(readAs, stateDescription, focusedNow, onClick.takeIf { acts })
     Surface(
         onClick = onClick,
         modifier = modifier
@@ -222,16 +234,19 @@ fun ArtworkSurface(
 
 /**
  * How a card reads to accessibility services: what it holds and its [stateDescription], or [readAs]
- * alone, outside the surface's own semantics (clearing them drops its click, keeping its focus said).
+ * alone, outside the surface's own semantics (clearing them drops its click, keeping its focus said;
+ * a card that acts says its click again: [onClick]).
  */
-private fun cardReading(readAs: String?, stateDescription: String?, focused: Boolean): Modifier = if (readAs != null) {
-    Modifier.clearAndSetSemantics {
-        contentDescription = readAs
-        this.focused = focused
+private fun cardReading(readAs: String?, stateDescription: String?, focused: Boolean, onClick: (() -> Unit)?): Modifier =
+    if (readAs != null) {
+        Modifier.clearAndSetSemantics {
+            contentDescription = readAs
+            this.focused = focused
+            onClick?.let { act -> onClick { act(); true } }
+        }
+    } else {
+        Modifier.semantics(mergeDescendants = true) { stateDescription?.let { this.stateDescription = it } }
     }
-} else {
-    Modifier.semantics(mergeDescendants = true) { stateDescription?.let { this.stateDescription = it } }
-}
 
 /**
  * The light around a focused card: rings of [tone] out to [reach] past the card grown to [grown],
@@ -415,19 +430,21 @@ fun LandscapeCard(
 }
 
 /**
- * Cast member: round portrait, then under it the name (two lines at most) and the role, so every
- * name of a row starts at the same height. Focusable so the row can scroll, but it does nothing:
- * it is read "name, role", once, and not as a button.
+ * Someone of a title: round portrait, then under it the name (two lines at most) and the role, so
+ * every name of a row starts at the same height. It is read "name, role", once. Found in several
+ * titles of the library, it opens their page ([onOpen]); else it is focusable only so the row can
+ * scroll, and does nothing: a person of a single title leads nowhere.
  */
 @Composable
-fun PersonCard(person: Person, modifier: Modifier = Modifier) {
+fun PersonCard(person: Person, modifier: Modifier = Modifier, onOpen: (() -> Unit)? = null) {
     val px = HlSize.avatar.toPx()
     Column(modifier.width(HlSize.personColumn), horizontalAlignment = Alignment.CenterHorizontally) {
         ArtworkSurface(
-            onClick = {},
+            onClick = onOpen ?: {},
             modifier = Modifier.size(HlSize.avatar),
             shape = HlShapes.avatar,
             readAs = listOfNotNull(person.name, person.role).joinToString(", "),
+            acts = onOpen != null,
         ) {
             Text(
                 person.name.split(' ').mapNotNull { it.firstOrNull()?.uppercase() }.take(2).joinToString(""),
@@ -459,6 +476,49 @@ fun PersonCard(person: Person, modifier: Modifier = Modifier) {
                 textAlign = TextAlign.Center,
                 modifier = Modifier.clearAndSetSemantics {}.fadeOutsideSafeArea(),
             )
+        }
+    }
+}
+
+/**
+ * A film of a saga the library lacks, in its place among those it holds: an empty frame of a
+ * poster's shape, [title] in grey and [year] in the technical voice, never its poster. It takes
+ * focus outlined, as what cannot act does, without rising, and says then that it is not in the
+ * library; OK does nothing. It is read "title, year, not in your library".
+ */
+@Composable
+fun AbsentCard(title: String, year: Int?, modifier: Modifier = Modifier, width: Dp = HlSize.poster) {
+    val c = Hl.colors
+    val interaction = remember { MutableInteractionSource() }
+    val focused by interaction.collectIsFocusedAsState()
+    val absent = stringResource(R.string.saga_absent)
+    Surface(
+        onClick = {},
+        enabled = false,
+        modifier = modifier.width(width).aspectRatio(POSTER_SHAPE).clearAndSetSemantics {
+            contentDescription = listOfNotNull(title, year?.toString(), absent).joinToString(", ")
+            this.focused = focused
+        },
+        shape = ClickableSurfaceDefaults.shape(HlShapes.artwork),
+        scale = FocusStyle.scale(FocusStyle.Fill.Row),
+        border = FocusStyle.disabledRing(HlShapes.artwork),
+        colors = FocusStyle.still(rest = Color.Transparent, restContent = c.contentTertiary),
+        interactionSource = interaction,
+    ) {
+        Box(Modifier.fillMaxSize().artworkEdge(HlShapes.artwork, c))
+        Column(Modifier.align(Alignment.BottomStart).padding(HlSpace.s)) {
+            Box(Modifier.width(HlSpace.l).height(HlSize.hairline).background(c.contentDecorative))
+            Spacer(Modifier.height(HlSpace.xs))
+            Text(title, style = Hl.type.cardTitle, color = c.contentTertiary, maxLines = 4, overflow = TextOverflow.Ellipsis)
+            if (year != null) {
+                Spacer(Modifier.height(HlSpace.xxs))
+                Text(year.toString(), style = Hl.type.badge, color = c.contentTertiary)
+            }
+            // Said with focus only: at rest, the grey says it.
+            if (focused) {
+                Spacer(Modifier.height(HlSpace.xs))
+                Text(absent, style = Hl.type.caption, color = c.contentSecondary, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            }
         }
     }
 }

@@ -47,6 +47,9 @@ class FakeProvider : MediaProvider {
     var results = listOf<MatchCandidate>()
     var choices: ArtworkChoices? = null
 
+    /** What the source tells beyond its titles ([FakeCatalog]); none by default, as a source that tells only its cast. */
+    override var catalog: app.houselights.core.Catalog? = null
+
     /** What the title was last matched with, once the match is written. */
     var identified: MatchCandidate? = null
 

@@ -120,7 +120,11 @@ data class MediaItem(
 
 data class Library(val id: String, val kind: LibraryKind, val title: String?)
 
-enum class SectionType { CONTINUE, NEXT_UP, LATEST }
+/**
+ * Home's rows: those every home has ([CONTINUE], [NEXT_UP], [LATEST]), then those the library writes
+ * under them: the films of one of its directors ([DIRECTOR]), its best rated films ([BEST_RATED]).
+ */
+enum class SectionType { CONTINUE, NEXT_UP, LATEST, DIRECTOR, BEST_RATED }
 
 data class HomeSection(
     val type: SectionType,
@@ -131,6 +135,8 @@ data class HomeSection(
     val libraryKind: LibraryKind? = null,
     /** Library of a [SectionType.LATEST] section; with [type], identifies the row. */
     val libraryId: String? = null,
+    /** Whose films a [SectionType.DIRECTOR] row holds. */
+    val person: Person? = null,
 )
 
 enum class SortOption { TITLE, ADDED, YEAR, RATING }

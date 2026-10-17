@@ -57,6 +57,7 @@ import app.houselights.ui.util.formatDuration
 import androidx.compose.runtime.CompositionLocalProvider
 import app.houselights.ui.design.components.LocalBackdropRelay
 import app.houselights.ui.design.components.Backdrop
+import app.houselights.ui.design.components.AbsentCard
 
 // Artwork comes from the app's own resources, and a failed image from a file that cannot exist:
 // nothing here needs the network.
@@ -67,6 +68,7 @@ internal fun LazyListScope.catalogCards() {
     item { Group("Ambient backdrop: a screen on its picture, whose light the focused card glows with") { AmbientBackdrops() } }
     item { Group("Artwork surface and image") { Surfaces() } }
     item { Group("Landscape card") { LandscapeRow() } }
+    item { Group("A saga whole: the films the library lacks keep their place, as empty frames") { SagaRow() } }
     item { Group("Person card: one line, two lines, long role, no photo") { CastRow() } }
     item { Group("Progress line: on artwork, dark and white; beside text", still = true) { ProgressLines() } }
     item { Group("Card skeleton: the shapes screens ask for", still = true) { Skeletons() } }
@@ -238,6 +240,16 @@ private fun LandscapeRow() {
 
 /** The cast row of a detail page: names of one and two lines side by side, their roles in line. */
 @Composable
+private fun SagaRow() {
+    MediaRow(header = null) {
+        item { Specimen("held", width = HlSize.poster) { PosterCard(sample("Alien", 1979), {}) } }
+        item { Specimen("lacking: its title and year, focus outlined", width = HlSize.poster) { AbsentCard("Aliens", 1986) } }
+        item { Specimen("a long title", width = HlSize.poster) { AbsentCard("Alien, la résurrection", 1997) } }
+        item { Specimen("not out yet: no year", width = HlSize.poster) { AbsentCard("Alien: Romulus", null) } }
+    }
+}
+
+@Composable
 private fun CastRow() {
     val photo = shippedImage(R.drawable.banner)
     val cast = listOf(
@@ -248,9 +260,12 @@ private fun CastRow() {
         "photo failed: initials" to Person("Cathy Rosier", "La pianiste", brokenImage),
         "no role" to Person("Jacques Leroy", null, null),
         "name cut" to Person("Maria de Medeiros Esteves Vitorino de Almeida", "Elle-même", null),
+        "in two titles: opens their page" to Person("Jean-Pierre Melville", "Réalisation", null, id = "tmdb:1", titleCount = 7),
     )
     MediaRow(header = null, spacing = HlSpace.s) {
-        items(cast) { (state, person) -> Specimen(state, width = HlSize.personColumn) { PersonCard(person) } }
+        items(cast) { (state, person) ->
+            Specimen(state, width = HlSize.personColumn) { PersonCard(person, onOpen = if (person.id != null) ({}) else null) }
+        }
     }
 }
 

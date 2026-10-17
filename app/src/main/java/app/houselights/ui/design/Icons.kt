@@ -56,6 +56,12 @@ object HlIcons {
         moveTo(10.25f, 9f); lineTo(15f, 12f); lineTo(10.25f, 15f); close()
     }
 
+    /** A film's copies: one frame, another behind it. */
+    val Versions = icon("Versions") {
+        moveTo(3.5f, 8f); lineTo(16f, 8f); lineTo(16f, 20.5f); lineTo(3.5f, 20.5f); close()
+        moveTo(8f, 3.5f); lineTo(20.5f, 3.5f); lineTo(20.5f, 16f)
+    }
+
     /** Sorting: lines of decreasing length. */
     val Sort = icon("Sort") {
         moveTo(4f, 7f); lineTo(20f, 7f)

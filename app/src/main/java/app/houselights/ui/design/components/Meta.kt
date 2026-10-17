@@ -39,6 +39,7 @@ import app.houselights.ui.util.formatDuration
 import java.text.NumberFormat
 import java.util.Locale
 import app.houselights.ui.util.NBSP
+import androidx.compose.ui.graphics.Color
 
 /**
  * Facts about a title, separated by space rather than punctuation: year, length,
@@ -121,8 +122,8 @@ fun Badge(text: String, modifier: Modifier = Modifier) {
 
 /** One format, as a word in the technical voice, quiet: no frame. */
 @Composable
-private fun FormatWord(text: String) {
-    Text(text, style = Hl.type.badge, color = Hl.colors.contentSecondary, maxLines = 1, softWrap = false)
+private fun FormatWord(text: String, ink: Color?) {
+    Text(text, style = Hl.type.badge, color = ink ?: Hl.colors.contentSecondary, maxLines = 1, softWrap = false)
 }
 
 /**
@@ -131,10 +132,10 @@ private fun FormatWord(text: String) {
  * apart, without frames, as the back of a case lists them. The picture on one line (definition,
  * range, codec, frame rate), the sound on the next (its best track by the name on the case, its
  * channels, its bitrate), nothing said twice ([Formats]). From what the file holds; from the badges
- * stored for the title when it was not read.
+ * stored for the title when it was not read. On a row with focus, in its [ink].
  */
 @Composable
-fun FormatLines(item: MediaItem, modifier: Modifier = Modifier) {
+fun FormatLines(item: MediaItem, modifier: Modifier = Modifier, ink: Color? = null) {
     val video = item.media?.video
     val audio = item.media?.audio.orEmpty()
     val marks = remember(item.badges) { Formats.fromBadges(item.badges) }
@@ -149,7 +150,7 @@ fun FormatLines(item: MediaItem, modifier: Modifier = Modifier) {
     if (picture.isEmpty() && sound.isEmpty()) return
     Column(modifier, verticalArrangement = Arrangement.spacedBy(HlSpace.xxs)) {
         listOf(picture, sound).filter { it.isNotEmpty() }.forEach { words ->
-            OneLine(spacing = HlSpace.fact, squeezeFirst = false) { words.forEach { FormatWord(it) } }
+            OneLine(spacing = HlSpace.fact, squeezeFirst = false) { words.forEach { FormatWord(it, ink) } }
         }
     }
 }
@@ -248,6 +249,22 @@ internal fun fitCount(widths: List<Int>, gaps: List<Int>, room: Int): Int {
         if (used > room) return i
     }
     return widths.size
+}
+
+/**
+ * A row's heading set as a poster bills a name: "les films de" in its small receding words, then
+ * [name] in tall condensed capitals ("les films de DENIS VILLENEUVE"). Read as one line.
+ */
+@Composable
+fun FilmsOfHeading(name: String, modifier: Modifier = Modifier) {
+    val c = Hl.colors
+    val t = Hl.type
+    val of = stringResource(R.string.row_films_of)
+    val text = buildAnnotatedString {
+        withStyle(t.billingJoin.toSpanStyle().copy(color = c.contentTertiary)) { append(of + NBSP) }
+        withStyle(t.billing.toSpanStyle().copy(color = c.content)) { append(name.uppercase(Locale.getDefault())) }
+    }
+    Text(text, style = t.billing, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = modifier)
 }
 
 /**

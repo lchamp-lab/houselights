@@ -344,6 +344,43 @@ class DetailViewModelTest {
         // The film in progress comes before the first one not seen.
         assertEquals("alien3", vm.state.value.nextUp?.id)
     }
+
+    /** A film in several copies: each is on its page, and the one chosen becomes the one Lire plays. */
+    @Test
+    fun aFilmsCopiesAndTheOneChosen() = runTest {
+        fun copy(key: String, edition: String?, best: Boolean) =
+            app.houselights.core.Version(film(key), edition, null, null, null, null, chosen = best, best = best, key = key)
+        val catalog = app.houselights.ui.testing.FakeCatalog().apply {
+            copies = mapOf("m1" to listOf(copy("long", "Extended", best = true), copy("short", "Theatrical", best = false)))
+        }
+        provider.catalog = catalog
+        provider.capabilities = provider.capabilities.copy(versions = true)
+        val vm = detail()
+        advanceUntilIdle()
+        assertEquals(listOf("long", "short"), vm.state.value.versions.map { it.key })
+        vm.chooseVersion(vm.state.value.versions[1])
+        advanceUntilIdle()
+        assertEquals(listOf("choose short"), catalog.calls)
+        assertEquals("short", vm.state.value.versions.single { it.chosen }.key)
+    }
+
+    /** A saga's page has it whole when the source knows it: the films the library lacks in their place. */
+    @Test
+    fun aSagaIsWhole() = runTest {
+        val collection = MediaItem("saga", MediaKind.COLLECTION, "Alien")
+        provider.items["saga"] = collection
+        val whole = app.houselights.core.Saga(
+            collection,
+            listOf(
+                app.houselights.core.SagaPart(film("alien"), "Alien", 1979),
+                app.houselights.core.SagaPart(null, "Aliens", 1986),
+            ),
+        )
+        provider.catalog = app.houselights.ui.testing.FakeCatalog().apply { sagas = mapOf("saga" to whole) }
+        val vm = DetailViewModel("saga", { Saga(provider, listOf(film("alien"))) }, events, now = { testScheduler.currentTime })
+        advanceUntilIdle()
+        assertEquals(whole, vm.state.value.saga)
+    }
 }
 
 /**

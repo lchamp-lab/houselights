@@ -94,6 +94,8 @@ import app.houselights.ui.design.components.DetailAhead
 import app.houselights.ui.design.components.PicturesAhead
 import app.houselights.ui.util.screenWidthPx
 import coil.imageLoader
+import app.houselights.core.SectionType
+import app.houselights.ui.design.components.FilmsOfHeading
 
 @Composable
 fun HomeScreen(
@@ -104,7 +106,7 @@ fun HomeScreen(
 ) {
     val app = appContainer()
     val vm: HomeViewModel = viewModel(factory = HomeViewModel.factory(app))
-    ReloadOnLibraryChange { vm.load() }
+    ReloadOnLibraryChange { vm.onLibraryChanged() }
     val state by vm.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val screen = screenWidthPx()
@@ -307,6 +309,8 @@ private fun Sections(
             item(key = section.key) {
                 MediaRow(
                     header = sectionTitle(section),
+                    // A director's films announce themselves as a poster bills them.
+                    heading = section.person?.takeIf { section.type == SectionType.DIRECTOR }?.let { p -> { FilmsOfHeading(p.name) } },
                     // A card gone since focus left it: focus comes back to its row.
                     modifier = Modifier.focusGroupKey(FocusKey.section(section.key), memory),
                     spacing = section.spacing,

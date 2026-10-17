@@ -71,6 +71,8 @@ object HlSize {
     val landscape = 220.dp
     val episode = 264.dp
     val avatar = 76.dp
+    /** A person's portrait at the head of their page: the row's, grown to lead the page. */
+    val portrait = 128.dp
     /** Column of a cast member: the portrait, then a name over two lines at most. */
     val personColumn = 120.dp
     /** Height of every control: pill buttons and round icon buttons line up. */
@@ -147,6 +149,11 @@ object HlLayout {
     /** Where the content of a two-pane screen starts, level with its first navigation entry. */
     val paneTop = 72.dp
     val fieldShort = 120.dp
+    /**
+     * Where rows that carry their own inset ([HlInset.card]) start on a page, so that their words
+     * line up with the safe area's: the end credits of a detail page.
+     */
+    val insetRows = HlSpace.safeH - HlInset.card
     /** Clear logo or title of a detail page, and of a browsing hero. */
     val titleArtWidth = 440.dp
     val titleArtHeight = 112.dp

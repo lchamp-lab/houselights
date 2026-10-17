@@ -148,7 +148,8 @@ abstract class LibraryDatabase : RoomDatabase() {
          * accent: each title's cast and a film's directors, keyed by their names until TMDB gives their ids; each
          * title's, person's and saga's words; a film's edition from its file's name; the copies of each film. The
          * crew TMDB credits titles with, and the films of sagas TMDB knows (asked again: fetchedAt is cleared), come
-         * at later passes, a few a pass ([Backfill]). Nothing the user did is touched.
+         * at later passes, a few a pass ([Backfill]). Nothing the user did is lost: a film's title takes what was done
+         * with any of its copies, watched or a favourite.
          */
         private val MIGRATION_11_12 = object : Migration(11, 12) {
             override fun migrate(db: SupportSQLiteDatabase) {
@@ -185,6 +186,14 @@ abstract class LibraryDatabase : RoomDatabase() {
                     }
                 }
                 db.execSQL(GROUP_VERSIONS)
+                // A film watched or chosen as a favourite in one of its copies is so as one title: its card shows the
+                // title row's state, and from now on what is done with it is done with every copy.
+                for (state in listOf("played", "favorite")) {
+                    db.execSQL(
+                        "UPDATE items SET $state = 1 WHERE kind = 'MOVIE' AND versionOf IS NULL AND $state = 0 " +
+                            "AND id IN (SELECT versionOf FROM items WHERE versionOf IS NOT NULL AND $state = 1)"
+                    )
+                }
                 db.execSQL("UPDATE collections SET fetchedAt = NULL WHERE tmdbId IS NOT NULL")
             }
         }

@@ -45,6 +45,14 @@ import app.houselights.ui.design.components.TitleArt
 import app.houselights.ui.design.components.TitleLine
 import app.houselights.ui.util.NBSP
 import app.houselights.ui.design.components.WithItsPicture
+import app.houselights.ui.design.components.EndCredits
+import app.houselights.ui.design.components.Craft
+import app.houselights.ui.design.components.FilmsOfHeading
+import app.houselights.core.Version
+import app.houselights.core.Editions
+import app.houselights.ui.design.components.VersionRow
+import app.houselights.ui.design.components.VersionsSheet
+import app.houselights.ui.util.versionName
 
 /**
  * What a title says about itself, in its states: its name, its facts and formats, its credits, the
@@ -58,6 +66,7 @@ internal fun LazyListScope.catalogReading() {
     item { ReadingBadgeRowSection() }
     item { ReadingTitleLineSection() }
     item { ReadingBillingBlockSection() }
+    item { ReadingEndCreditsSection() }
     // A hero is as tall as on the home screen; each takes the reading measure it has there.
     item { ReadingHeroInfoSection() }
     item { ReadingHeroEpisodeSection() }
@@ -65,6 +74,7 @@ internal fun LazyListScope.catalogReading() {
     item { ReadingInfoBlockSection() }
     item { ReadingDefinitionListSection() }
     item { ReadingTechSheetSection() }
+    item { ReadingVersionsSection() }
 }
 
 @Composable
@@ -236,6 +246,36 @@ private fun ReadingBadgeRowSection() {
                     Badge("OK")
                     Badge("TMDB 5511")
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ReadingEndCreditsSection() {
+    Group("End credits, and the billing of a row", still = true) {
+        ReadingRow {
+            Specimen(
+                "a film: its overview whole, then its crafts, three names at most",
+                Modifier.width(HlLayout.readable),
+                gap = HlSpace.xxs,
+            ) {
+                EndCredits(
+                    "Un instituteur part en vacances avec ses élèves. Sur la plage, une barque les attend, et la mer.",
+                    listOf(
+                        Craft("Réalisation", listOf("Jean Vigo")),
+                        Craft("Scénario", listOf("Jean Vigo", "Jean Guinée")),
+                        Craft("Musique", listOf("Maurice Jaubert")),
+                        Craft("Image", listOf("Boris Kaufman", "Louis Berger", "Jean-Paul Alphen", "Albert Viguier")),
+                        Craft("Montage", listOf("Louis Chavance")),
+                    ),
+                )
+            }
+            Specimen("nothing to say: draws nothing", Modifier.weight(1f), gap = HlSpace.xxs) { EndCredits(null, emptyList()) }
+        }
+        ReadingRow {
+            Specimen("a row the library writes: a director's films", Modifier.width(HlLayout.readable), gap = HlSpace.xxs) {
+                FilmsOfHeading("Denis Villeneuve")
             }
         }
     }
@@ -414,6 +454,30 @@ private fun ReadingTechSheetSection() {
             Specimen("the longest words, side by side", gap = HlSpace.xxs) { HlButton("Stress", { open = READING_TECH_STRESS }) }
         }
         open?.let { TechSpecs(it, onDismiss = { open = null }) }
+    }
+}
+
+@Composable
+private fun ReadingVersionsSection() {
+    // Opened as a detail page opens it: the copy Lire plays focused.
+    Group("Versions: a film in several copies") {
+        var open by remember { mutableStateOf(false) }
+        val film = READING_TECH_DOLBY
+        val versions = listOf(
+            Version(film, Editions.EXTENDED, null, film.media, 78_400_000_000, 8_880_000, chosen = true, best = true, key = "1"),
+            Version(
+                film, Editions.THEATRICAL, null, READING_TECH_LEAN.media, 21_300_000_000, 7_920_000,
+                chosen = false, best = false, key = "2",
+            ),
+            Version(film, null, null, READING_TECH_SPARSE.media, null, null, chosen = false, best = false, key = "3"),
+        )
+        ReadingRow {
+            Specimen("a copy, chosen", Modifier.width(HlLayout.readableNarrow), gap = HlSpace.xxs) {
+                VersionRow(versionName(versions[0].edition, null, 0), versions[0], onChoose = {})
+            }
+            Specimen("the panel", gap = HlSpace.xxs) { HlButton("Versions", { open = true }) }
+        }
+        if (open) VersionsSheet(film, versions, onChoose = {}, onDismiss = { open = false })
     }
 }
 

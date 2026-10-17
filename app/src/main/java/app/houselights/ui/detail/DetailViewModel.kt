@@ -31,6 +31,10 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Deferred
+import android.util.Log
+import app.houselights.core.Credits
+import app.houselights.core.Saga
+import app.houselights.core.Version
 
 data class DetailState(
     val item: MediaItem? = null,
@@ -61,7 +65,19 @@ data class DetailState(
      * what it says of the title at once, and focus waits for the rows it may come back to.
      */
     val partial: Boolean = false,
-)
+    /** Its people by job ([app.houselights.core.Catalog.credits]); null when the source tells only the cast. */
+    val credits: Credits? = null,
+    /** For a collection: its saga whole, the films the library lacks in their place; null when the source cannot tell them. */
+    val saga: Saga? = null,
+    /** For a film in several copies: each, the one Lire plays first ([Version.chosen]); empty for one copy. */
+    val versions: List<Version> = emptyList(),
+) {
+    /** The copy Lire plays, for a film in several; null for one copy. */
+    val playedCopy: Version? get() = versions.takeIf { it.size > 1 }?.let { all -> all.firstOrNull { it.chosen } ?: all.first() }
+
+    /** Where [playedCopy] stands among the copies: it names one without an edition ("Copie 2"). */
+    val playedCopyIndex: Int get() = versions.indexOfFirst { it.chosen }.coerceAtLeast(0)
+}
 
 /**
  * A title's page, from the [provider] of the source in use; what it changes, it tells [events]. The
@@ -99,17 +115,18 @@ class DetailViewModel(
                 val source = provider()
                 val item = source.item(itemId)
                 val similar = async { if (source.capabilities.similar) source.similar(item) else emptyList() }
+                // Without them the page keeps its cast: a failure here never fails the page.
+                val credits = async {
+                    suspendRunCatching { source.catalog?.credits(item) }.onFailure { Log.w(TAG, "Credits of $itemId", it) }.getOrNull()
+                }
                 when (item.kind) {
                     MediaKind.SERIES -> seriesPage(source, item, similar)
-                    // What Lire starts is picked from the films already here: the source is asked for them once.
-                    MediaKind.COLLECTION -> source.collectionItems(item).let { films ->
-                        DetailState(item = item, capabilities = source.capabilities, nextUp = nextUpIn(films), collectionFilms = films)
-                    }
+                    MediaKind.COLLECTION -> collectionPage(source, item)
                     else -> {
                         sayFirst(source, item)
                         filmPage(source, item, similar)
                     }
-                }
+                }.copy(credits = credits.await())
             } }.onSuccess { loaded ->
                 val canEdit = loaded.item?.let { provider().editor?.canEdit(it) } == true
                 // A failure said beside the actions stays until the next action; a season chosen while
@@ -161,10 +178,21 @@ class DetailViewModel(
             )
         }
 
+    /**
+     * A collection's page: its films, from which Lire picks (the source is asked for them once), and
+     * its saga whole when the source knows it; without it, the films alone.
+     */
+    private suspend fun collectionPage(source: MediaProvider, item: MediaItem): DetailState {
+        val films = source.collectionItems(item)
+        val saga = suspendRunCatching { source.catalog?.saga(item) }.onFailure { Log.w(TAG, "Saga of $itemId", it) }.getOrNull()
+        return DetailState(item = item, capabilities = source.capabilities, nextUp = nextUpIn(films), collectionFilms = films, saga = saga)
+    }
+
     /** A film's page: its saga, then [similar] titles that are not of it. */
     private suspend fun filmPage(source: MediaProvider, item: MediaItem, similar: Deferred<List<MediaItem>>): DetailState {
         val collection = source.collectionOf(item)
-        val saga = collection?.let { c -> source.collectionItems(c).filter { it.id != item.id } }.orEmpty()
+        // The film itself in its place among them: where it stands in its saga.
+        val saga = collection?.let { c -> source.collectionItems(c) }.orEmpty()
         // Films of the same saga are shown as such, not again as "similar".
         val similarFilms = similar.await().filter { s -> saga.none { it.id == s.id } }
         return DetailState(
@@ -173,6 +201,7 @@ class DetailViewModel(
             similar = similarFilms,
             collection = collection,
             collectionFilms = saga,
+            versions = versionsOf(source, item),
         )
     }
 
@@ -243,6 +272,32 @@ class DetailViewModel(
         val favorite = !item.user.favorite
         provider().setFavorite(item, favorite)
         item.user.copy(favorite = favorite)
+    }
+
+    /**
+     * Makes [version] the copy Lire plays (null: back to the best), then reads the copies again. A
+     * failure is said beside the actions.
+     */
+    fun chooseVersion(version: Version?) {
+        val item = _state.value.item ?: return
+        _state.update { it.copy(actionError = null) }
+        viewModelScope.launch {
+            suspendRunCatching {
+                val source = provider()
+                source.catalog?.chooseVersion(item, version)
+                versionsOf(source, item)
+            }.onSuccess { versions -> _state.update { it.copy(versions = versions) } }
+                .onFailure { e -> _state.update { it.copy(actionError = e.reported(TAG, "Version of $itemId")) } }
+        }
+    }
+
+    /** The copies of [item]'s film, when the source keeps them as one title; a failure leaves none. */
+    private suspend fun versionsOf(source: MediaProvider, item: MediaItem): List<Version> {
+        if (!source.capabilities.versions) return emptyList()
+        return suspendRunCatching { source.catalog?.versions(item) }
+            .onFailure { Log.w(TAG, "Versions of $itemId", it) }
+            .getOrNull()
+            .orEmpty()
     }
 
     /** A failure beside the actions is read; the next action clears it. */
