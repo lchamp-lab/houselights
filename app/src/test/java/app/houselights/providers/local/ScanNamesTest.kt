@@ -227,6 +227,29 @@ class ScanNamesTest {
         assertEquals(listOf("doctor who|1963" to 1963, "doctor who|2005" to 2005), series().map { it.matchKey to it.year })
     }
 
+    /** French packs at the source's root, one for each season ("Saison 1", "Saison 2") and one whole ("Intégrale"): one show each. */
+    @Test
+    fun frenchPacksOfAShowAreOneShow() = runTest {
+        showsNas.put("Les.Revenants.Saison.1.FRENCH.720p.HDTV/Les.Revenants.S01E01.FRENCH.720p.HDTV.mkv")
+        showsNas.put("Les.Revenants.Saison.2.FRENCH.720p.HDTV/Les.Revenants.S02E01.FRENCH.720p.HDTV.mkv")
+        showsNas.put("Kaamelott.Integrale.1080p/Saison 1/01 - Heat.mkv")
+        bench.scan()
+
+        assertEquals(listOf("kaamelott" to "Kaamelott", "les revenants" to "Les Revenants"), series().map { it.matchKey to it.title })
+    }
+
+    /** A folder of a show's name holding one for each of its years: each a show of its own, by its year. */
+    @Test
+    fun aShowsYearsInAFolderOfItsNameAreTwoShows() = runTest {
+        showsNas.put("Doctor Who/Doctor Who (1963)/Season 01/Doctor Who - S01E01 - An Unearthly Child.mkv")
+        showsNas.put("Doctor Who/Doctor Who (2005)/Season 01/Doctor Who - S01E01 - Rose.mkv")
+        showsNas.put("Doctor Who (2023)/Season 01/Doctor Who - S01E01 - Space Babies.mkv")
+        bench.scan()
+
+        val keys = listOf("doctor who|1963" to 1963, "doctor who|2005" to 2005, "doctor who|2023" to 2023)
+        assertEquals(keys, series().map { it.matchKey to it.year })
+    }
+
     /** A folder of kinds above the shows: each show is its own, described by its own folder. */
     @Test
     fun showsUnderAFolderOfKindsAreTheirOwn() = runTest {

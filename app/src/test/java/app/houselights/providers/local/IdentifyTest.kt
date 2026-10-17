@@ -12,6 +12,9 @@ import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.shadows.ShadowSystemClock
+import java.io.IOException
+import java.time.Duration
 
 /** An identification asks TMDB everything first, then writes everything: never half a new match. */
 @RunWith(RobolectricTestRunner::class)
@@ -167,6 +170,36 @@ class IdentifyTest {
         assertEquals("About The Office", waiting.overview)
         assertEquals(emptyList<String>(), bench.dao.cast(series.id).map { it.name })
         assertNull("asked again at a later pass", waiting.matchedAt)
+    }
+
+    /**
+     * The NFO rewritten while TMDB is out of reach, by Sonarr matched as the user did: it waits for TMDB's word,
+     * and has it once TMDB answers again, without a refresh.
+     */
+    @Test
+    fun aShowNfoRewrittenWhileTmdbIsOutOfReachIsDecidedOnceItAnswers() = runTest {
+        val series = theOffice()
+        bench.scanner.identify(series.id, OFFICE_US)
+
+        tmdb.failure = IOException("Network is unreachable")
+        val nfo = """
+            <tvshow>
+              <title>The Office (US)</title>
+              <plot>Scranton, a paper company's branch and its manager.</plot>
+              <uniqueid type="tvdb" default="true">73244</uniqueid>
+              <uniqueid type="imdb">tt0386676</uniqueid>
+            </tvshow>
+        """.trimIndent().toByteArray()
+        bench.showsNas.put("The Office/tvshow.nfo", size = nfo.size.toLong(), bytes = nfo, lastModified = 1_760_000_060_000L)
+        bench.scan()
+        assertEquals("waits for TMDB", "About The Office", bench.dao.item(series.id)?.overview)
+
+        tmdb.failure = null
+        ShadowSystemClock.advanceBy(Duration.ofHours(1))
+        bench.scan()
+        val read = checkNotNull(bench.dao.item(series.id))
+        assertEquals("Scranton, a paper company's branch and its manager.", read.overview)
+        assertEquals(OFFICE_US, read.tmdbId)
     }
 
     private companion object {

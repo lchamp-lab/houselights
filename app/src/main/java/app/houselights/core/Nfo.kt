@@ -9,12 +9,15 @@ import java.nio.charset.Charset
 
 data class NfoActor(val name: String, val role: String?, val thumb: String?, val order: Int?)
 
+/** An audio stream as an NFO's stream details list it, its codec as the tool that wrote it names it ("truehd", "dtshd_ma"). */
+data class NfoAudio(val codec: String?, val language: String?, val channels: Int?)
+
 data class NfoStreams(
     val videoCodec: String? = null,
     val width: Int? = null,
     val height: Int? = null,
     val hdrType: String? = null,
-    val audio: List<Triple<String?, String?, Int?>> = emptyList(), // codec, language, channels
+    val audio: List<NfoAudio> = emptyList(),
     val subtitleLanguages: List<String> = emptyList(),
 )
 
@@ -339,7 +342,7 @@ object NfoParser {
 
     private fun streams(p: XmlPullParser): NfoStreams {
         var s = NfoStreams()
-        val audio = mutableListOf<Triple<String?, String?, Int?>>()
+        val audio = mutableListOf<NfoAudio>()
         val subs = mutableListOf<String>()
         val depth = p.depth
         while (p.nextWithin(depth)) {
@@ -353,7 +356,7 @@ object NfoParser {
                         hdrType = f["hdrtype"],
                     )
                 }
-                "audio" -> fields(p).let { f -> audio += Triple(f["codec"], f["language"], f["channels"]?.toIntOrNull()) }
+                "audio" -> fields(p).let { f -> audio += NfoAudio(f["codec"], f["language"], f["channels"]?.toIntOrNull()) }
                 "subtitle" -> fields(p)["language"]?.let(subs::add)
             }
         }

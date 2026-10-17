@@ -252,8 +252,11 @@ class LibraryScanner(
     }
 
     private suspend fun scanAllSources(refreshMetadata: Boolean) {
-        movies.startPass()
-        shows.startPass()
+        // Under the lock, as an identification reads and fills what the indexers keep of a pass.
+        lock.withLock {
+            movies.startPass()
+            shows.startPass()
+        }
         val before = _state.value.errors
         val errors = mutableMapOf<Long, ScanError>()
         var changed = false
@@ -366,7 +369,7 @@ class LibraryScanner(
 
         if (source.kind == SourceKind.SHOWS) tellNoEpisode(source, files)
 
-        val folder = Folder(source, sidecars, known, refreshMetadata, tmdb, seasons, stacks)
+        val folder = Folder(ScanPass(source, sidecars, stacks, tmdb, seasons, refreshMetadata), known)
         val written = processAll(folder, todo, stillDue(::work, forShows))
         dao.markScanned(source.id, clock())
         // A file renamed is not always read again, but screens show its name; and a film's parts.
@@ -440,17 +443,20 @@ class LibraryScanner(
             .mapNotNull { (key, episodes) ->
                 val seriesId = key?.second ?: return@mapNotNull null
                 val path = FilenameParser.parseShowPath(episodes.first().relativePath) ?: return@mapNotNull null
-                Triple(path.dir, seriesId, FilenameParser.showKey(path.title)) to episodes
+                ShowFolder(path.dir, seriesId, FilenameParser.showKey(path.title)) to episodes
             }
             .groupBy({ it.first }, { it.second }).mapValues { (_, lists) -> lists.flatten() }
-        val shows = byFolder.keys.map { it.second }.distinct().chunked(SQL_IN_LIMIT).flatMap { dao.rows(it) }.associateBy { it.id }
-        return byFolder.entries.mapNotNull { (key, episodes) ->
-            val (dir, seriesId, name) = key
-            val show = shows[seriesId]?.takeIf { it.matchKey?.substringBefore(FilenameParser.YEAR_MARK) == name } ?: return@mapNotNull null
-            val due = episodes.none { it in whole } && SidecarKey.showDue(show.sidecarKey, source.id, dir, sidecars)
-            if (due) episodes.first() to seriesId else null
+        val shows = byFolder.keys.map { it.seriesId }.distinct().chunked(SQL_IN_LIMIT).flatMap { dao.rows(it) }.associateBy { it.id }
+        return byFolder.entries.mapNotNull { (folder, episodes) ->
+            val show = shows[folder.seriesId]?.takeIf { it.matchKey?.substringBefore(FilenameParser.YEAR_MARK) == folder.name }
+                ?: return@mapNotNull null
+            val due = episodes.none { it in whole } && SidecarKey.showDue(show.sidecarKey, source.id, folder.dir, sidecars)
+            if (due) episodes.first() to folder.seriesId else null
         }.toMap()
     }
+
+    /** A show's folder [dir], as its episodes there name it ([name], its key without a year), and the show they lie in. */
+    private data class ShowFolder(val dir: String, val seriesId: Long, val name: String)
 
     /**
      * What a file still needs ([work]); one read for its show ([showsToRead]) is read whole, though its own
@@ -474,19 +480,8 @@ class LibraryScanner(
         return if (outOfSpace(failure)) ScanError(ScanErrorKind.STORAGE_FULL) else ScanErrors.classify(failure)
     }
 
-    /** A folder as one pass reads it: what each of its files is processed with. */
-    @Suppress("LongParameterList") // What a pass hands each file.
-    private class Folder(
-        val source: SourceEntity,
-        val sidecars: Sidecars,
-        /** Its files the library knows, by path. */
-        val known: Map<String, KnownFile>,
-        val refreshMetadata: Boolean,
-        val tmdb: TmdbPass,
-        val seasons: ShowIndexer.SeasonCache,
-        /** Its films in several files. */
-        val stacks: Stacks,
-    )
+    /** A folder as one pass reads it: what each of its files is processed with ([pass]), and its files the library knows, by path. */
+    private class Folder(val pass: ScanPass, val known: Map<String, KnownFile>)
 
     /**
      * One file, under the lock: a choice made by the user waits for one item, not for the whole scan.
@@ -495,16 +490,14 @@ class LibraryScanner(
      * avail (a lock, a refusal, an image the device has no room for) changes nothing.
      */
     private suspend fun process(folder: Folder, file: RemoteFile, work: Work): Boolean = lock.withLock {
-        val source = folder.source
+        val source = folder.pass.source
         // The folder was removed meanwhile: nothing more is added to it.
         if (dao.source(source.id) == null) return@withLock false
         val existing = folder.known[file.relativePath]?.let { dao.item(it.id) }
         val before = existing?.let { shown(it) }
         if (work == Work.PROBE && existing != null) reprobe(source, file, existing) else when (source.kind) {
-            SourceKind.MOVIES -> movies.process(
-                source, file, existing, folder.tmdb, folder.sidecars, folder.refreshMetadata, folder.stacks.stackAt(file.relativePath),
-            )
-            SourceKind.SHOWS -> shows.process(source, file, existing, folder.tmdb, folder.seasons, folder.sidecars, folder.refreshMetadata)
+            SourceKind.MOVIES -> movies.process(folder.pass, file, existing)
+            SourceKind.SHOWS -> shows.process(folder.pass, file, existing)
         }
         if (existing == null) dao.hasFile(source.id, file.relativePath) else dao.item(existing.id)?.let { shown(it) } != before
     }

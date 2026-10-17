@@ -28,11 +28,10 @@ internal object SidecarKey {
     ).takeIf { it.isNotEmpty() }?.joinToString("\n") { (role, f) -> "$role:${f.size}:${f.lastModified ?: ""}:${f.relativePath}" }
 
     /**
-     * The key of a show's own sidecars, [read] in its folder [dir] of source [sourceId] (a landscape left
-     * out: a show reads none). The folder heads it, as a show may lie in several ([showDue]).
+     * The key of a show's own sidecars, [read] in its folder [dir] of source [sourceId] ([Sidecars.forShow]).
+     * The folder heads it, as a show may lie in several ([showDue]).
      */
-    fun ofShow(sourceId: Long, dir: String, read: VideoSidecars): String? =
-        of(read.copy(thumb = null))?.let { "$SHOW$sourceId:$dir\n$it" }
+    fun ofShow(sourceId: Long, dir: String, read: VideoSidecars): String? = of(read)?.let { "$SHOW$sourceId:$dir\n$it" }
 
     /**
      * Whether a show's own sidecars are read when it is met in [dir] of source [sourceId], its row holding
@@ -53,6 +52,17 @@ internal object SidecarKey {
             fromSource == null || fromDir == null -> true
             else -> fromSource == sourceId && ofShow(sourceId, fromDir, sidecars.forShow(fromDir)) == null
         }
+    }
+
+    /**
+     * Whether a show's own sidecar read in its folder [dir] of source [sourceId], as [stored] keeps them, lies there
+     * no more: a role the key holds that [listed] (what the folder lists now) lacks. What was read in another of
+     * the show's folders tells nothing of this one: its poster is not missed where it never lay.
+     */
+    fun showRemoved(stored: String?, sourceId: Long, dir: String, listed: VideoSidecars): Boolean {
+        val read = stored?.takeIf { it.startsWith("$SHOW$sourceId:$dir\n") }?.lines()?.drop(1) ?: return false
+        val now = mapOf("nfo" to listed.nfo, "poster" to listed.poster, "fanart" to listed.fanart, "logo" to listed.logo)
+        return read.map { it.substringBefore(':') }.any { role -> role in now && now[role] == null }
     }
 
     private const val SHOW = "show:"

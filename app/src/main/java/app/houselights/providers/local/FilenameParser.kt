@@ -71,8 +71,13 @@ object FilenameParser {
             """x264|x265|h[ ._]?264|h[ ._]?265|hevc|avc|av1|10bit|aac|ac3|eac3|dts|truehd|atmos|""" +
             """multi|truefrench|vff|vfq|vfi|vf2|vostfr|subfrench"""
 
-    /** Release tags that are words of titles too: "The French Connection", "Charlotte's Web", "A Complete Unknown". */
-    private const val WORD_TAGS = """4k|dv|web|french|vf|proper|repack|extended|unrated|imax|hybrid|complete|internal"""
+    /**
+     * Release tags that are words of titles too: "The French Connection", "Charlotte's Web", "A Complete Unknown";
+     * "Intégrale", a French pack's whole show ("Kaamelott.Integrale.1080p"), but not after its article, a title's
+     * word then: "Florence Foresti - L'Intégrale 1080p", "Les.Inconnus.L.Integrale.DVDRip".
+     */
+    private const val WORD_TAGS = "4k|dv|web|french|vf|proper|repack|extended|unrated|imax|hybrid|complete|internal|" +
+        """(?<!^l['’ ._])(?<![^a-zA-Z0-9]l['’ ._])int[eéÉ]grale"""
 
     /** Release tags, technical ones first, so that "WEB-DL" is read whole rather than as "WEB". */
     private val JUNK = Regex("""(?i)(?<![a-z0-9])($TECHNICAL_TAGS|$WORD_TAGS)(?![a-z0-9])""")
@@ -182,15 +187,17 @@ object FilenameParser {
     /**
      * The show's folder among [folders], by its index (null for none), and the show's name and year, for a file
      * whose name names the show [named]. The show's folder is the one named as the file names the show, under a
-     * folder of kinds ("Animation/Arcane/Saison 1/Arcane.S01E01"); else one that names it before a pack's tags
-     * ("Friends.Complete.Series.1080p", "Friends - The Complete Series"), the show named as its files name it;
-     * else the first one, above a season's pack ("Show/Show.S01.1080p.WEB/Show.S01E01"). Without one, the
-     * file's name names the show. A folder's name is a show's up to a season ([showName]).
+     * folder of kinds ("Animation/Arcane/Saison 1/Arcane.S01E01"); the one naming it with a year alone first, in a
+     * folder of its name holding one for each of its years ("Doctor Who/Doctor Who (2005)/Season 1"); else one
+     * that names it before a pack's tags ("Friends.Complete.Series.1080p", "Friends - The Complete Series"), the
+     * show named as its files name it; else the first one, above a season's pack ("Show/Show.S01.1080p.WEB/Show.S01E01").
+     * Without one, the file's name names the show. A folder's name is a show's up to a season ([showName]).
      */
     private fun showIn(folders: List<String>, named: ParsedMovie): Pair<Int?, ParsedMovie?> {
         val shows = folders.indices.filter { seasonFromFolder(folders[it]) == null }
         val known = named.title.isNotEmpty()
-        val same = shows.firstOrNull { known && sameShow(showName(folders[it]).title, named.title) }
+        val sameName = shows.filter { known && sameShow(showName(folders[it]).title, named.title) }
+        val same = sameName.firstOrNull { titleAndYear(folders[it]) } ?: sameName.firstOrNull()
         if (same != null) return same to showName(folders[same])
         val pack = shows.firstOrNull { known && namesThenTags(folders[it], named.title) }
         if (pack != null) return pack to ParsedMovie(named.title, showName(folders[pack]).year)
@@ -200,14 +207,14 @@ object FilenameParser {
 
     /**
      * A folder's name as a show's: up to its season's number, as a pack of a season names it, at the source's
-     * root too ("Show.Name.S01.1080p.WEB-GRP", "Show.Name.S01-S03.1080p"), or of an episode ("Show.Name.S01E01.1080p"),
-     * so that each season is not a show of its own.
+     * root too ("Show.Name.S01.1080p.WEB-GRP", "Show.Name.S01-S03.1080p", "Les.Revenants.Saison.1.FRENCH.720p"), or
+     * of an episode ("Show.Name.S01E01.1080p"), so that each season is not a show of its own.
      */
     private fun showName(folder: String): ParsedMovie =
         parseMovie(SEASON_TOKEN.find(folder)?.let { folder.substring(0, it.range.first) }?.takeIf { it.isNotBlank() } ?: folder)
 
-    /** A pack's season or seasons, or an episode's numbers, in a folder's name: "S01", "S01-S03", "S01E01". */
-    private val SEASON_TOKEN = Regex("""(?i)(?<![a-z0-9])s\d{1,2}(?:e\d{1,4}|-s?\d{1,2})?(?![a-z0-9])""")
+    /** A pack's season or seasons, or an episode's numbers, in a folder's name: "S01", "S01-S03", "S01E01", "Saison 1". */
+    private val SEASON_TOKEN = Regex("""(?i)(?<![a-z0-9])(?:s|(?:saison|season)[ ._-]?)\d{1,2}(?:e\d{1,4}|-s?\d{1,2})?(?![a-z0-9])""")
 
     /**
      * [folder] names the show [title], then from a release tag on what of it it holds: "Friends.Complete.Series.1080p",
@@ -217,6 +224,15 @@ object FilenameParser {
         val base = normalizeSeparators(dropBrackets(folder))
         val tag = JUNK.find(base) ?: return false
         return sameShow(base.substring(0, tag.range.first).replace(TRAILING_THE, ""), title)
+    }
+
+    /**
+     * [folder] names a title and its year, and nothing else but ids in brackets: "Doctor Who (2005)", "Doctor.Who.2005",
+     * "Doctor Who (2005) [tvdbid-78804]"; not a pack's "Severance.2022.S01.1080p.WEB".
+     */
+    private fun titleAndYear(folder: String): Boolean {
+        val name = parseMovie(folder)
+        return name.year != null && letters(dropBrackets(folder)) == letters(name.title) + name.year
     }
 
     /** "The" ending a name, before "The Complete Series". */
