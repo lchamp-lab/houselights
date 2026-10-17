@@ -133,7 +133,8 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
         // for a film: an image among them, whose copy the show would show otherwise.
         val removed = SidecarKey.showRemoved(series.sidecarKey, source.id, showDir, local)
         val tv = if (tmdbAsked(series, nfo, refreshMetadata, removed)) {
-            tmdb.ask { lookupShow(it, series.userTmdbId, nfo, title, year) }
+            // Its details go, not its match: an NFO removed may have been all that named it, and its folder's name another.
+            tmdb.ask { lookupShow(it, series.userTmdbId, nfo, title, year, known = series.tmdbId.takeIf { removed }) }
         } else {
             TmdbAnswer.Unanswered
         }
@@ -296,10 +297,20 @@ internal class ShowIndexer(private val dao: LibraryDao, private val files: ScanF
         return ParsedMovie(path.title, path.year)
     }
 
-    /** The user's match first, then the NFO's ids, then a search by title. */
-    private suspend fun lookupShow(tmdb: TmdbClient, userTmdbId: Int?, nfo: NfoInfo?, title: String, year: Int?): TmdbTv? {
+    /**
+     * The user's match first, then the NFO's ids, then the show it was matched with ([known]: when sidecars that
+     * named it were removed, as for a film), then a search by title.
+     */
+    private suspend fun lookupShow(
+        tmdb: TmdbClient,
+        userTmdbId: Int?,
+        nfo: NfoInfo?,
+        title: String,
+        year: Int?,
+        known: Int? = null,
+    ): TmdbTv? {
         userTmdbId?.let { return tmdb.tvById(it) }
-        val id = nfo?.tmdbId ?: nfo?.imdbId?.let { tmdb.findByImdb(it).second }
+        val id = nfo?.tmdbId ?: nfo?.imdbId?.let { tmdb.findByImdb(it).second } ?: known
         return id?.let { tmdb.tvById(it) } ?: tmdb.findTv(nfo?.title ?: title, nfo?.year ?: year)
     }
 
