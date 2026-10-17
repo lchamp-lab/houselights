@@ -2,7 +2,11 @@ package app.houselights.ui.design.components
 
 import android.content.Context
 import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
+import androidx.compose.runtime.Stable
+import app.houselights.ui.design.LocalLaunchScreen
+import app.houselights.ui.design.drawnWhole
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.key
@@ -93,32 +97,80 @@ enum class BackdropStyle(
  *
  * A picture and its veils are drawn once, into a layer of their own, and each frame then
  * lays that one texture: on the player's small graphics chip, drawn layer by layer each frame, they
- * filled its whole budget. One picture gives way to the next by the alpha of those layers.
+ * filled its whole budget. One picture gives way to the next by the alpha of those layers; the
+ * first one fades in too, unless the launch screen still hides it and it was in memory
+ * ([showsAtOnce]).
  */
 @Composable
-fun Backdrop(image: ImageRef?, style: BackdropStyle, modifier: Modifier = Modifier, recede: (() -> Float)? = null) {
+fun Backdrop(image: ImageRef?, style: BackdropStyle, modifier: Modifier = Modifier, recede: (() -> Float)? = null) =
+    BackdropOf(remember { BackdropState() }, image, style, modifier, recede)
+
+/** A [Backdrop] showing what [state] holds, which says when it has prepared the picture of [image]. */
+@Composable
+private fun BackdropOf(state: BackdropState, image: ImageRef?, style: BackdropStyle, modifier: Modifier, recede: (() -> Float)?) {
     val context = LocalContext.current
     val density = LocalDensity.current
+    val launch = LocalLaunchScreen.current
     // The text column of heroes and detail pages; the veil follows it, whatever the screen's width.
     val column = with(density) { (HlSpace.safeH + HlLayout.readableNarrow).toPx() }
     val fade = with(density) { BackdropDefaults.veilFade.toPx() }
     val screen = screenWidthPx()
     val url = image?.let { style.urlOf(it, screen) }
     var bounds by remember { mutableStateOf(Size.Zero) }
-    // The next picture is prepared before it shows; until then the last one stays.
-    var shown by remember { mutableStateOf<PreparedBackdrop?>(null) }
     LaunchedEffect(url) {
-        shown = if (image == null || url == null) null else prepareBackdrop(context, image, url, screen, backdropHeight(screen))
+        val prepared = if (image == null || url == null) null else prepareBackdrop(context, image, url, screen, backdropHeight(screen))
+        state.show(image, prepared, covered = launch.covers)
     }
-    FadeBetween(shown, modifier.fillMaxSize().onSizeChanged { bounds = it.toSize() }) { prepared, alpha ->
+    val sized = modifier.fillMaxSize().onSizeChanged { bounds = it.toSize() }
+    FadeBetween(state.shown, sized, atOnce = { it?.atOnce == true }) { prepared, alpha ->
         if (prepared != null) BackdropPicture(prepared, style, bounds, column, fade, alpha, recede)
     }
 }
 
 /**
+ * What a [Backdrop] shows, and the picture it has settled on: the next picture is prepared before it
+ * shows, and until then the last one stays.
+ */
+@Stable
+internal class BackdropState {
+    var shown by mutableStateOf<PreparedBackdrop?>(null)
+        private set
+
+    /** The image it last finished preparing (null: none to show), or [NOTHING_YET]. */
+    private var preparedFor by mutableStateOf<Any?>(NOTHING_YET)
+
+    private var shownOnce = false
+
+    /** It has prepared the picture of [image], or found it has none to show: what shows is what was asked for. */
+    fun settledOn(image: ImageRef?): Boolean = preparedFor == image
+
+    /** Shows [prepared], the picture of [image] (null: none, or it could not be loaded), at once when [showsAtOnce] says so. */
+    fun show(image: ImageRef?, prepared: PreparedBackdrop?, covered: Boolean) {
+        val atOnce = prepared != null && showsAtOnce(first = !shownOnce, inMemory = prepared.fromMemory, covered = covered)
+        shown = if (atOnce) prepared?.shownAtOnce() else prepared
+        if (prepared != null) shownOnce = true
+        preparedFor = image
+    }
+
+    private companion object {
+        val NOTHING_YET = Any()
+    }
+}
+
+/**
+ * Whether a picture about to show in a backdrop shows at once, without fading in: the [first] it
+ * shows, [inMemory] when it was asked for (loaded ahead, while the launch screen held), while the
+ * launch screen still hides the screen ([covered]), whose cue then reveals it whole. Every other
+ * picture fades in, the first ones included.
+ */
+internal fun showsAtOnce(first: Boolean, inMemory: Boolean, covered: Boolean): Boolean = first && inMemory && covered
+
+/**
  * A screen on its picture: the [Backdrop] of [image] under [content], which the picture lights
  * ([rememberAmbientColor], provided as [LocalAmbient]): the card that has focus glows with it. The
  * light changes over `SLOW` with the picture, read while drawing, so nothing recomposes for it.
+ * [ready]: the content is in (home's rows); a launch screen covering the screen leaves once a frame
+ * is drawn with it and the picture prepared ([drawnWhole]).
  */
 @Composable
 fun AmbientBackdrop(
@@ -126,12 +178,14 @@ fun AmbientBackdrop(
     style: BackdropStyle,
     modifier: Modifier = Modifier,
     recede: (() -> Float)? = null,
+    ready: Boolean = true,
     content: @Composable BoxScope.() -> Unit,
 ) {
     val ambient = rememberAmbientColor(image)
+    val backdrop = remember { BackdropState() }
     CompositionLocalProvider(LocalAmbient provides { ambient.value }) {
-        Box(modifier.fillMaxSize()) {
-            Backdrop(image, style, recede = recede)
+        Box(modifier.fillMaxSize().drawnWhole(ready && backdrop.settledOn(image))) {
+            BackdropOf(backdrop, image, style, Modifier, recede)
             content()
         }
     }
@@ -218,10 +272,16 @@ private fun BackdropPicture(
 /**
  * [Crossfade], with the alpha handed to the content instead of laid on a layer of its own: a
  * content that is a cached layer takes it as that layer's alpha, and fades for the cost of one
- * texture rather than two.
+ * texture rather than two. A target that shows [atOnce] is whole from its first frame, and what it
+ * replaces goes at once.
  */
 @Composable
-private fun <T> FadeBetween(target: T, modifier: Modifier, content: @Composable (T, alpha: () -> Float) -> Unit) {
+internal fun <T> FadeBetween(
+    target: T,
+    modifier: Modifier,
+    atOnce: (T) -> Boolean = { false },
+    content: @Composable (T, alpha: () -> Float) -> Unit,
+) {
     val transition = updateTransition(target, label = "backdrop")
     val shown = remember { mutableStateListOf(transition.currentState) }
     if (transition.currentState == transition.targetState && (shown.size != 1 || shown[0] != transition.targetState)) {
@@ -232,10 +292,11 @@ private fun <T> FadeBetween(target: T, modifier: Modifier, content: @Composable 
         shown.forEach { state ->
             key(state) {
                 val alpha = transition.animateFloat(
-                    transitionSpec = { tween(HlMotion.SLOW, easing = HlMotion.standard) },
+                    transitionSpec = { if (atOnce(targetState)) snap() else tween(HlMotion.SLOW, easing = HlMotion.standard) },
                     label = "backdropAlpha",
                 ) { if (it == state) 1f else 0f }
-                content(state) { alpha.value }
+                // Whole from the first frame that draws it, before the transition takes its first step.
+                content(state) { if (state == transition.targetState && atOnce(state)) 1f else alpha.value }
             }
         }
     }

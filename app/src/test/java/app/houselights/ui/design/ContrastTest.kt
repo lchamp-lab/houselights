@@ -76,7 +76,7 @@ class ContrastTest {
         // Hints, placeholders, an entry's summary at rest; never on a strong fill.
         "contentTertiary" on "background", "contentTertiary" on "FILL", "contentTertiary" on "surfaceRaised",
         "contentTertiary" on "FILL", "contentTertiary" on "FILL_FAINT",
-        // A value the user chose, the check of the current choice, a failed result, the wordmark.
+        // A value the user chose, the check of the current choice, a failed result, the mark at the launch.
         "ember" on "background", "ember" on "surfaceRaised", "ember" on "FILL",
         "ember" on "FILL_FAINT", "ember" on "FILL_FAINT on surfaceRaised",
         // What needs attention beside what it concerns, over a backdrop (images that cannot be fetched).
@@ -105,7 +105,7 @@ class ContrastTest {
         // its plate over an image, a round button's icon stays secondary.
         ("contentTertiary" on "FILL_FAINT").mark(),
         ("contentSecondary" on "VEIL on a white image").mark(),
-        // The ember light where it is drawn: the wordmark, a progress line on its track or plate,
+        // The ember light where it is drawn: a progress line on its track or plate,
         // a lit edge, the counter of a scan. Both ends, since a gradient shows all of it.
         ("emberFrom" on "background").mark(), ("emberTo" on "background").mark(),
         ("emberFrom" on "surfaceRaised").mark(), ("emberTo" on "surfaceRaised").mark(),

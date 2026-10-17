@@ -3,7 +3,13 @@ package app.houselights
 import android.animation.ValueAnimator
 import android.annotation.SuppressLint
 import android.content.ActivityNotFoundException
+import android.os.Build
 import android.os.Bundle
+import android.widget.ImageView
+import androidx.compose.ui.graphics.toArgb
+import app.houselights.ui.design.HlPalette
+import app.houselights.ui.design.LaunchScreen
+import app.houselights.ui.design.LocalLaunchScreen
 import android.util.Log
 import android.view.Display
 import android.view.KeyEvent
@@ -107,9 +113,27 @@ class MainActivity : ComponentActivity() {
     /** The cue under way, until the player takes over: Back stops it. */
     private var cue: Job? = null
 
+    /** The launch screen hides the app (the first window of a cold start), until its black starts to lift. */
+    private var covered = false
+
+    /** Home said it drew its first frame whole under the launch screen. */
+    private var drawnWhole = false
+
+    /** The launch screen as the screens under it see it ([LocalLaunchScreen]). */
+    private val launchScreen = object : LaunchScreen {
+        override val covers: Boolean get() = covered
+
+        override fun drawn() {
+            if (!covered || drawnWhole) return
+            drawnWhole = true
+            // Once the frame is drawn, not from inside its drawing: the cue starts on the next one.
+            window.decorView.post(container.launch::homeDrawn)
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         // The launch screen: Android shows the mark alone on black (Theme.Houselights.Launch) before
-        // the app runs; at a cold start it holds while home gets ready under it.
+        // the app runs; at a cold start it covers the app while home gets ready under it.
         val splash = installSplashScreen()
         super.onCreate(savedInstanceState)
         holdTheLaunchScreen(splash, restored = savedInstanceState != null)
@@ -148,7 +172,11 @@ class MainActivity : ComponentActivity() {
                     label = "houselights",
                 )
                 SideEffect { lightsLevel = lights }
-                CompositionLocalProvider(LocalHouseLights provides { lights.value }, LocalErrorFix provides fixError) {
+                CompositionLocalProvider(
+                    LocalHouseLights provides { lights.value },
+                    LocalErrorFix provides fixError,
+                    LocalLaunchScreen provides launchScreen,
+                ) {
                     // The window is the black room already (@color/room): no second black under every screen.
                     Box(Modifier.fillMaxSize()) {
                         AppNavigation(nav, onPlay = ::play)
@@ -160,40 +188,69 @@ class MainActivity : ComponentActivity() {
     }
 
     /**
-     * At the process's first window, the launch screen holds until its gate opens ([LaunchGate]):
-     * home's rows and first pictures are asked meanwhile ([HomeLaunch]), and it leaves on its cue,
-     * [lightsDown]. A later window (a warm start) holds nothing and shows at once.
+     * At the process's first window, the launch screen covers the app until its gate opens
+     * ([LaunchGate]): home's rows and first pictures are asked meanwhile ([HomeLaunch]), home is
+     * composed, laid out and drawn under it, and it leaves on its cue, [lightsDown], once home drew
+     * its first frame whole, or at the cap. Nothing holds the window's drawing: the launch screen's
+     * own view lies over home, as Android drew it. A later window (a warm start) holds nothing and
+     * shows at once.
      */
     private fun holdTheLaunchScreen(splash: SplashScreen, restored: Boolean) {
         val launch = container.launch
         val held = !launch.isOpen
+        covered = held
         container.homeLaunch.begin(container.scope, restored, loadFirstPictures(applicationContext, resources.displayMetrics.widthPixels))
-        splash.setKeepOnScreenCondition(launch::keepOnScreen)
-        splash.setOnExitAnimationListener { if (held) lightsDown(it) else it.remove() }
+        splash.setOnExitAnimationListener { view ->
+            if (!held) {
+                view.remove()
+            } else {
+                lifecycleScope.launch {
+                    launch.awaitOpen()
+                    lightsDown(view)
+                }
+            }
+        }
     }
 
     /**
-     * The launch screen leaves on its cue ([LaunchCue]): the lights go down on the mark, then the black
-     * lifts off home, ready under it. The ground and the mark fade each on its own: no layer the size
-     * of the screen for the player's graphics chip to fill on every frame.
+     * The launch screen leaves on its cue ([LaunchCue]): the lights go down on the mark, bar by bar,
+     * the widest first, then the black lifts off home, whole under it. The ground and each bar fade
+     * on their own: no layer the size of the screen for the player's graphics chip to fill on every
+     * frame.
      */
     private fun lightsDown(splash: SplashScreenViewProvider) {
         // A colour of its own: the room's is shared with the window, which stays black.
         val ground = splash.view.background?.mutate()
-        val mark = splash.iconView
+        val icon = splash.iconView
+        // Android 9 draws the mark in an image view over its whole layer: its bars are drawn there, one by one.
+        val bars = (icon as? ImageView)?.takeIf { Build.VERSION.SDK_INT < Build.VERSION_CODES.S }?.let { view ->
+            LaunchMarkDrawable(HlPalette.Ember.toArgb()).also(view::setImageDrawable)
+        }
         ValueAnimator.ofFloat(0f, 1f).apply {
             duration = LaunchCue.DURATION.toLong()
             interpolator = LinearInterpolator()
             addUpdateListener {
                 val t = it.animatedFraction
-                mark.alpha = LaunchCue.mark(t)
+                // A system's own launch screen (Android 12 and up) draws its mark otherwise: it goes with the last bar.
+                if (bars != null) bars.at(t) else icon.alpha = LaunchCue.bar(LaunchCue.bars - 1, t)
                 val darkness = LaunchCue.darkness(t)
-                // A system's own launch screen (Android 12 and up) may draw its ground otherwise: then the whole of it fades.
+                if (darkness < 1f) covered = false
+                // A system's own launch screen may draw its ground otherwise too: then the whole of it fades.
                 if (ground != null) ground.alpha = (darkness * OPAQUE).roundToInt() else splash.view.alpha = darkness
             }
-            doOnEnd { splash.remove() }
+            doOnEnd {
+                covered = false
+                splash.remove()
+            }
             start()
         }
+    }
+
+    override fun onDestroy() {
+        // The first window gone before home took the launch's rows (Back under the launch screen): they
+        // go with it, so a later window never shows rows of that moment.
+        if (isFinishing) container.homeLaunch.drop()
+        super.onDestroy()
     }
 
     /**
@@ -224,6 +281,8 @@ class MainActivity : ComponentActivity() {
     // This is Activity.dispatchKeyEvent; lint sees androidx.core's restricted overload of the same name.
     @SuppressLint("RestrictedApi")
     override fun dispatchKeyEvent(event: KeyEvent): Boolean = when {
+        // Under the launch screen nothing is chosen unseen: only the system's own keys, Back among them.
+        covered && !event.isSystem -> true
         !lightsDown.value -> super.dispatchKeyEvent(event)
         event.keyCode == KeyEvent.KEYCODE_BACK -> {
             if (event.action == KeyEvent.ACTION_UP) cancelCue()

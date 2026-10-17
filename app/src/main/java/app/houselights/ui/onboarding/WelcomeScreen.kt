@@ -66,7 +66,7 @@ fun WelcomeScreen(onLocal: () -> Unit, onJellyfin: () -> Unit, problem: UiError?
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(Modifier.weight(1f)) {
-                Wordmark(style = Hl.type.wordmarkHero)
+                Wordmark(HlSize.wordmarkHero)
                 Spacer(Modifier.height(HlSpace.m))
                 Text(
                     stringResource(R.string.welcome_tagline),
