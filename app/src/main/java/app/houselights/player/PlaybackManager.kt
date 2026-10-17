@@ -104,6 +104,8 @@ class PlaybackManager(
         val choice = players.choose()
         val player = choice.player
         val secret = Redact.hasCredentials(plan.uri)
+        // A warning, kept in every build: where a secret goes, or why not, is what an evening on a new player needs.
+        if (secret) Log.w(TAG, "Launch ${Redact.uri(plan.uri)} -> ${players.describe(choice)}")
         val intent = when {
             player != null && (!secret || choice.decision.trusted) -> {
                 if (secret) players.remember(choice)

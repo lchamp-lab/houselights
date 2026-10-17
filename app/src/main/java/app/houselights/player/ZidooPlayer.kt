@@ -143,6 +143,49 @@ class ZidooPlayer(
     }
 
     /**
+     * [choice] in one line for the log, without a secret: the decision and why, the player and the
+     * SHA-256 of its certificate, every candidate seen (system app or not, and who installed it), the
+     * device's build and the system apps of Zidoo's seen. The evening it goes wrong, it says why.
+     */
+    fun describe(choice: Choice): String {
+        val candidates = choice.candidates.joinToString("; ") {
+            val kind = if (it.system) "system" else "ordinary"
+            "${it.component.flattenToShortString()} $kind, installed by ${installer(it.component.packageName)}"
+        }
+        return "${choice.decision}: ${why(choice)}; player ${choice.player?.component?.flattenToShortString()}, " +
+            "certificate SHA-256 ${choice.certificate}; candidates [$candidates]; ${choice.device.identity}; " +
+            "system apps of Zidoo's ${choice.device.zidooApps}"
+    }
+
+    private fun why(choice: Choice): String = when (choice.decision) {
+        Decision.NO_PLAYER -> if (choice.device.zidoo) "no app of the firmware's opens a video" else "not a Zidoo, nor $KNOWN_PACKAGE"
+        Decision.NOT_A_ZIDOO -> "no field of the build names Zidoo, and no system app of Zidoo's is seen"
+        Decision.FIRMWARE -> "a system app"
+        Decision.SIGNED_LIKE_FIRMWARE -> "signed like a system app of Zidoo's"
+        Decision.REMEMBERED -> "the player a secret last went to, with the same certificate"
+        Decision.FIRST_USE -> "no secret went to a player yet" +
+            if (choice.device.identity.testKeys) "; test-keys: a certificate shared with the firmware proves nothing" else ""
+        Decision.CHANGED -> "a secret last went to ${trusted.getString(KEY_PACKAGE, null)}, " +
+            "certificate SHA-256 ${trusted.getString(KEY_CERTIFICATE, null)}"
+        Decision.NO_CERTIFICATE -> "its certificate cannot be read"
+    }
+
+    /** Who installed [pkg]: the firmware's own updater, a store, or nobody said (null). */
+    private fun installer(pkg: String): String? = try {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            packages.getInstallSourceInfo(pkg).installingPackageName
+        } else {
+            @Suppress("DEPRECATION")
+            packages.getInstallerPackageName(pkg)
+        }
+    } catch (_: PackageManager.NameNotFoundException) {
+        null
+    } catch (_: IllegalArgumentException) {
+        // Android 9 says so of a package that is not installed.
+        null
+    }
+
+    /**
      * Never off a Zidoo; on one, a system app, or one signed like an app of Zidoo's its firmware
      * installed (not on a build signed with AOSP's test keys, whose certificate anyone can sign
      * with), or else the player a password last went to, or the first one, as long as it does not

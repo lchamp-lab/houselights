@@ -8,6 +8,7 @@ import android.content.pm.ApplicationInfo
 import android.content.pm.PackageInfo
 import android.content.pm.Signature
 import android.content.pm.SigningInfo
+import android.os.Build
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.shadow.api.Shadow
 import org.robolectric.shadows.ShadowSigningInfo
@@ -25,8 +26,8 @@ internal class FakeApps(private val context: Context) {
     }
 
     /**
-     * Installs [pkg], a [system] app or not, signed with [certificate]; with [activity], which answers
-     * a video by its type ([byType]) and by the smb and nfs schemes ([bySchemes]).
+     * Installs [pkg], a [system] app or not, signed with [certificate], by [installer]; with [activity],
+     * which answers a video by its type ([byType]) and by the smb and nfs schemes ([bySchemes]).
      */
     fun install(
         pkg: String,
@@ -35,6 +36,7 @@ internal class FakeApps(private val context: Context) {
         certificate: String? = null,
         byType: Boolean = false,
         bySchemes: Boolean = true,
+        installer: String? = null,
     ): ComponentName? {
         val signatures = certificate?.let { arrayOf(Signature(it.toByteArray())) }
         pm.installPackage(
@@ -48,6 +50,10 @@ internal class FakeApps(private val context: Context) {
                 signingInfo = signatures?.let(::signingInfo)
             }
         )
+        if (installer != null) {
+            context.packageManager.setInstallerPackageName(pkg, installer)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) pm.setInstallSourceInfo(pkg, installer, installer)
+        }
         val component = activity?.let { ComponentName(pkg, it) } ?: return null
         pm.addActivityIfNotPresent(component)
         installed += component

@@ -2,6 +2,7 @@ package app.houselights.player
 
 import android.app.Application
 import android.content.Intent
+import android.util.Log
 import androidx.test.core.app.ApplicationProvider
 import app.houselights.core.PlaybackPlan
 import app.houselights.player.FakeApps.Companion.GALLERY
@@ -22,6 +23,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import org.robolectric.shadows.ShadowLog
 
 /**
  * Which app a film goes to, and what it gets: the extras, and a password only where it belongs. On
@@ -166,6 +168,37 @@ class PlayerLaunchTest {
         // A token is not a password: it goes through the chooser, as anywhere else.
         assertEquals(Intent.ACTION_CHOOSER, manager.intentFor(plan(TOKEN)).action)
     }
+
+    /**
+     * Each launch of a URI with a secret says in one warning, kept in every build, which player was
+     * chosen among which, on what device, and why the secret went or not; never the secret.
+     */
+    @Test
+    fun aLaunchWithASecretSaysWhyInTheLog() = runTest {
+        apps.install("com.zidoo.poster", system = true, certificate = ZIDOO_KEY)
+        apps.install(ZIDOO_PLAYER, ZIDOO_PLAYER_ACTIVITY, certificate = ZIDOO_KEY, installer = "com.zidoo.update")
+        apps.install(GALLERY, MOVIE_ACTIVITY, system = true, bySchemes = false)
+        val manager = manager(ZIDOO_BUILD)
+        manager.intentFor(plan(NFS))
+        assertTrue("a plain file says nothing", warnings().isEmpty())
+
+        manager.intentFor(plan(SMB))
+        val line = warnings().single()
+        listOf(
+            "FIRMWARE", "com.android.gallery3d/.app.MovieActivity system", "com.zidoo.player/.VideoPlayerActivity ordinary",
+            "com.zidoo.update", "Z9X Pro", "rtd1619b", "release-keys", "[com.zidoo.poster]", "smb://***@nas/films/Heat.mkv",
+        ).forEach { assertTrue("$it in: $line", it in line) }
+        assertFalse(line, "secret" in line)
+
+        // Without an app of Zidoo's, the other box is no Zidoo.
+        apps.uninstall("com.zidoo.poster")
+        assertRefused { manager(OTHER_BUILD).intentFor(plan(SMB)) }
+        val refused = warnings().last()
+        assertTrue(refused, "NOT_A_ZIDOO" in refused && "Chromecast" in refused)
+        assertFalse(refused, "secret" in refused)
+    }
+
+    private fun warnings() = ShadowLog.getLogsForTag("Playback").filter { it.type == Log.WARN }.map { it.msg }
 
     /** The Zidoo player is another app: a file of ours is out of its reach, a web address is not. */
     @Test
