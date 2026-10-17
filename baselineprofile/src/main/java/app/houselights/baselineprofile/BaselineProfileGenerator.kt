@@ -35,6 +35,8 @@ class BaselineProfileGenerator {
         startHome()
         browseShow()
         startHome()
+        browseSearch()
+        startHome()
         browseSettings()
     }
 
