@@ -549,4 +549,12 @@
     <string name="edition_criterion">Criterion</string>
     <string name="edition_anniversary">Édition anniversaire</string>
     <string name="edition_open_matte">Open Matte</string>
+    <!-- La recherche : ses touches, et ce qu'elle a trouvé. -->
+    <string name="search_hint">Les premières lettres d’un titre, d’une personne ou d’une saga</string>
+    <string name="search_space">Espace</string>
+    <string name="search_delete">Effacer</string>
+    <string name="search_titles">Titres</string>
+    <string name="search_people">Personnes</string>
+    <string name="search_sagas">Sagas</string>
+    <string name="search_none">Rien ne commence par « %s »</string>
 </resources>

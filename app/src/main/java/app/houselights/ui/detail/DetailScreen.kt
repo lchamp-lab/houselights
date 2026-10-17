@@ -116,7 +116,6 @@ import app.houselights.ui.util.NBSP
 import app.houselights.core.Credits
 import app.houselights.core.Job
 import app.houselights.core.Person
-import app.houselights.core.PERSON_MIN_TITLES
 import androidx.compose.foundation.lazy.itemsIndexed
 import app.houselights.ui.util.jobName
 import app.houselights.ui.design.components.EndCredits
@@ -129,6 +128,7 @@ import app.houselights.ui.design.components.AbsentCard
 import app.houselights.core.Version
 import app.houselights.ui.design.components.VersionsSheet
 import app.houselights.ui.util.versionName
+import app.houselights.core.hasPage
 
 @Composable
 fun DetailScreen(
@@ -363,7 +363,7 @@ private fun LazyListScope.titleRows(
                     PersonCard(
                         person,
                         Modifier.focusKey(key, memory),
-                        onOpen = person.id?.takeIf { opensPage(person) }?.let { id -> { onOpenPerson(id) } },
+                        onOpen = person.id?.takeIf { person.hasPage }?.let { id -> { onOpenPerson(id) } },
                     )
                 }
             }
@@ -864,8 +864,6 @@ internal fun endCrafts(item: MediaItem, credits: Credits?): List<Pair<Job, List<
 private val FILM_CRAFTS = listOf(Job.DIRECTOR, Job.WRITER, Job.COMPOSER, Job.CINEMATOGRAPHY, Job.EDITING)
 private val SHOW_CRAFTS = listOf(Job.CREATOR, Job.COMPOSER)
 
-/** Whether [person] opens a page: found in several titles of the library. */
-internal fun opensPage(person: Person): Boolean = person.id != null && (person.titleCount ?: 0) >= PERSON_MIN_TITLES
 
 /** Frames shown while a season loads: as many episodes as the screen shows whole. */
 private const val EPISODE_SKELETONS = 3

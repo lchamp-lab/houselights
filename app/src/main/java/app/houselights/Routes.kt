@@ -74,6 +74,10 @@ object Route {
     @Serializable
     data class Person(val id: String)
 
+    /** A search across the library: titles, people, sagas ([app.houselights.core.Catalog.search]). */
+    @Serializable
+    data object Search
+
     @Serializable
     data object Settings
 

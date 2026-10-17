@@ -550,4 +550,12 @@
     <string name="edition_criterion">Criterion</string>
     <string name="edition_anniversary">Anniversary edition</string>
     <string name="edition_open_matte">Open matte</string>
+    <!-- Search: its keys, and what it found. -->
+    <string name="search_hint">The first letters of a title, a person or a saga</string>
+    <string name="search_space">Space</string>
+    <string name="search_delete">Delete</string>
+    <string name="search_titles">Titles</string>
+    <string name="search_people">People</string>
+    <string name="search_sagas">Sagas</string>
+    <string name="search_none">Nothing starts with “%s”</string>
 </resources>

@@ -9,6 +9,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import app.houselights.core.hasPage
 
 /** A title's people on its page: direction first in the cast row, the crafts of its end credits, who opens a page. */
 class DetailPeopleTest {
@@ -50,9 +51,9 @@ class DetailPeopleTest {
 
     @Test
     fun onlySomeoneOfSeveralTitlesOpensAPage() {
-        assertTrue(opensPage(person("Denis Villeneuve", titles = 4)))
-        assertFalse("one title leads nowhere", opensPage(person("Benicio del Toro", titles = 1)))
-        assertFalse("no id to open", opensPage(person("Emily Blunt", titles = 3, id = null)))
+        assertTrue(person("Denis Villeneuve", titles = 4).hasPage)
+        assertFalse("one title leads nowhere", person("Benicio del Toro", titles = 1).hasPage)
+        assertFalse("no id to open", person("Emily Blunt", titles = 3, id = null).hasPage)
     }
 
     @Test

@@ -53,6 +53,9 @@ import app.houselights.core.Editions
 import app.houselights.ui.design.components.VersionRow
 import app.houselights.ui.design.components.VersionsSheet
 import app.houselights.ui.util.versionName
+import app.houselights.ui.design.components.SearchQuery
+import app.houselights.ui.design.components.LetterGrid
+import androidx.compose.foundation.layout.fillMaxWidth
 
 /**
  * What a title says about itself, in its states: its name, its facts and formats, its credits, the
@@ -75,6 +78,7 @@ internal fun LazyListScope.catalogReading() {
     item { ReadingDefinitionListSection() }
     item { ReadingTechSheetSection() }
     item { ReadingVersionsSection() }
+    item { ReadingSearchSection() }
 }
 
 @Composable
@@ -454,6 +458,22 @@ private fun ReadingTechSheetSection() {
             Specimen("the longest words, side by side", gap = HlSpace.xxs) { HlButton("Stress", { open = READING_TECH_STRESS }) }
         }
         open?.let { TechSpecs(it, onDismiss = { open = null }) }
+    }
+}
+
+@Composable
+private fun ReadingSearchSection() {
+    Group("Search: its words on the ember rule, its keys") {
+        ReadingRow {
+            Specimen("nothing typed: the screen's name in its place", Modifier.width(HlLayout.readableNarrow), gap = HlSpace.xxs) {
+                SearchQuery("", "Rechercher", "Les premières lettres d’un titre, d’une personne ou d’une saga", Modifier.fillMaxWidth())
+            }
+            Specimen("typed", Modifier.width(HlLayout.readableNarrow), gap = HlSpace.xxs) {
+                SearchQuery("AMEL", "Rechercher", "Les premières lettres d’un titre, d’une personne ou d’une saga", Modifier.fillMaxWidth())
+            }
+        }
+        Spacer(Modifier.height(HlSpace.l))
+        Specimen("the keys, without the system's keyboard", gap = HlSpace.xxs) { LetterGrid(onKey = {}, onSpace = {}, onDelete = {}) }
     }
 }
 
