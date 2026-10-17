@@ -2,6 +2,8 @@ package app.houselights.providers.local
 
 import app.houselights.core.Http
 import app.houselights.core.NotFoundException
+import app.houselights.core.TmdbKeyRefusedException
+import app.houselights.core.TmdbUnreachableException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch

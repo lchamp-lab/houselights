@@ -3,8 +3,8 @@ package app.houselights.ui.util
 import app.houselights.core.NoTmdbKeyException
 import app.houselights.core.NotFoundException
 import app.houselights.core.SecretsUnavailableException
-import app.houselights.providers.local.TmdbKeyRefusedException
-import app.houselights.providers.local.TmdbUnreachableException
+import app.houselights.core.TmdbKeyRefusedException
+import app.houselights.core.TmdbUnreachableException
 import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull

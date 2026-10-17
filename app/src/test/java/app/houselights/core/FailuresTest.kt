@@ -8,8 +8,6 @@ import app.houselights.providers.jellyfin.ReachFailure
 import app.houselights.providers.local.EmptyFolderException
 import app.houselights.providers.local.ScanErrorKind
 import app.houselights.providers.local.ScanErrors
-import app.houselights.providers.local.TmdbKeyRefusedException
-import app.houselights.providers.local.TmdbUnreachableException
 import app.houselights.providers.local.UnreadableFolderException
 import app.houselights.ui.onboarding.LoginError
 import app.houselights.ui.onboarding.loginError

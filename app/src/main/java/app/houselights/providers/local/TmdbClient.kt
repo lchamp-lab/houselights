@@ -4,6 +4,8 @@ import android.os.SystemClock
 import app.houselights.core.Http
 import app.houselights.core.HttpStatus
 import app.houselights.core.NotFoundException
+import app.houselights.core.TmdbKeyRefusedException
+import app.houselights.core.TmdbUnreachableException
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonNamingStrategy
@@ -23,18 +25,6 @@ import java.net.SocketTimeoutException
 import java.net.UnknownHostException
 import java.util.Locale
 import java.util.concurrent.TimeUnit
-
-/**
- * TMDB could not be reached (no network, DNS, timeout), now or a moment ago, or stayed busy when
- * asked again (429, a gateway failure).
- */
-open class TmdbUnreachableException(cause: Throwable?, message: String = "TMDB is unreachable") : IOException(message, cause)
-
-/**
- * TMDB refused the API key (401, 403): to be changed in the settings, not a server to sign in to again.
- * An [IOException], as anything an OkHttp interceptor throws must be.
- */
-class TmdbKeyRefusedException : IOException("TMDB refused the API key")
 
 /** TMDB is busy (429) or behind a failing gateway (502, 503, 504): asked again once, after [retryAfterMs]. */
 internal class TmdbBusyException(code: Int, val retryAfterMs: Long) : TmdbUnreachableException(null, "TMDB answered $code")

@@ -1,5 +1,6 @@
 package app.houselights.providers.local
 
+import app.houselights.core.TmdbUnreachableException
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals

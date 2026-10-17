@@ -4,8 +4,6 @@ import android.database.sqlite.SQLiteDiskIOException
 import android.database.sqlite.SQLiteFullException
 import android.system.ErrnoException
 import android.system.OsConstants
-import app.houselights.providers.local.TmdbKeyRefusedException
-import app.houselights.providers.local.TmdbUnreachableException
 import com.emc.ecs.nfsclient.mount.MountException
 import com.emc.ecs.nfsclient.mount.MountStatus
 import com.emc.ecs.nfsclient.nfs.NfsException

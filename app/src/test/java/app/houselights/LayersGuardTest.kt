@@ -38,4 +38,18 @@ class LayersGuardTest {
         }
         assertTrue("A layer under the screens imports the interface:\n" + found.joinToString("\n"), found.isEmpty())
     }
+
+    /**
+     * The domain lies under every other layer: the exceptions it classifies ([app.houselights.core.FailureKind])
+     * are its own, never a provider's or the player's.
+     */
+    @Test
+    fun theDomainLeansOnNoOtherLayer() {
+        assertTrue("Sources not found from ${File(".").absolutePath}", sources.isDirectory)
+        val above = layers.filter { it != "core" }.map { "import app.houselights.$it." }
+        val found = File(sources, "core").walkTopDown().filter { it.isFile && it.extension == "kt" }.flatMap { file ->
+            file.readLines().filter { line -> above.any { line.startsWith(it) } }.map { "${file.relativeTo(sources).path}: $it" }
+        }.toList()
+        assertTrue("The domain imports another layer:\n" + found.joinToString("\n"), found.isEmpty())
+    }
 }
