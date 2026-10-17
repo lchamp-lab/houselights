@@ -117,7 +117,32 @@ class LocalReporterTest {
         }
     }
 
+    /**
+     * The player that never said a length: a long version is watched by its file's length, as its card
+     * measures it, not by the cinema cut's that TMDB states.
+     */
+    @Test
+    fun withoutThePlayersLengthAFilmIsWatchedByItsFilesAsItsCardSaysIt() = runTest {
+        val id = dao.insert(
+            ItemEntity(
+                kind = ItemKind.MOVIE, sourceId = source, title = "Heat", sortTitle = "heat", runtimeMin = 160,
+                filePath = "Heat.mkv", fileDurationMs = THREE_HOURS, addedAt = 0,
+            )
+        )
+        val card = LocalMapper(dao, ApplicationProvider.getApplicationContext()).map(checkNotNull(dao.item(id)))
+        assertEquals(THREE_HOURS, card.runtimeMs)
+
+        LocalReporter(dao, id).stopped(positionMs = 150 * 60_000L, durationMs = null)
+        dao.item(id)!!.let {
+            assertFalse(it.played)
+            assertEquals(150 * 60_000L, it.positionMs)
+        }
+        LocalReporter(dao, id).stopped(positionMs = 165 * 60_000L, durationMs = null)
+        assertTrue(dao.item(id)!!.played)
+    }
+
     private companion object {
         const val DURATION = 6_000_000L
+        const val THREE_HOURS = 3 * 3_600_000L
     }
 }

@@ -135,7 +135,7 @@ interface LibraryDao {
     suspend fun nfoOf(id: Long): ItemNfo?
 
     /** What a report of the player's progress needs of a title: read every ten seconds while it plays. */
-    @Query("SELECT parts, positionMs, durationMs, runtimeMin, played FROM items WHERE id = :id")
+    @Query("SELECT parts, positionMs, durationMs, fileDurationMs, runtimeMin, played FROM items WHERE id = :id")
     suspend fun playState(id: Long): PlayState?
 
     /** The rows of a source's files, all but their NFO text: what the tests look at of a scan's work. */

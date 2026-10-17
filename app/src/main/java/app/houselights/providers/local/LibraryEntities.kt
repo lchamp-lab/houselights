@@ -153,9 +153,28 @@ data class PlayState(
     val parts: List<String>,
     val positionMs: Long,
     val durationMs: Long?,
+    val fileDurationMs: Long?,
     val runtimeMin: Int?,
     val played: Boolean,
 )
+
+/**
+ * How long a film or an episode lasts, as the library knows it: its file's length as the player told it,
+ * else as the file was read, else as TMDB or its NFO states it. Its card and the player's "watched" weigh
+ * by this one rule. A film in several files lasts what TMDB or its NFO states, its parts together: the
+ * library knows its first file's length only.
+ */
+internal fun ItemEntity.runtimeMs(): Long? = runtimeMs(parts, durationMs, fileDurationMs, runtimeMin)
+
+/** As [ItemEntity.runtimeMs], from what a player's report reads of the row. */
+internal fun PlayState.runtimeMs(): Long? = runtimeMs(parts, durationMs, fileDurationMs, runtimeMin)
+
+private fun runtimeMs(parts: List<String>, playerMs: Long?, fileMs: Long?, runtimeMin: Int?): Long? {
+    val stated = runtimeMin?.let { it * MS_PER_MINUTE }
+    return if (parts.isNotEmpty()) stated else playerMs ?: fileMs ?: stated
+}
+
+private const val MS_PER_MINUTE = 60_000L
 
 /** Where an episode stands for the viewer ([LibraryDao.episodeStates]): what tells the next one to watch. */
 data class EpisodeState(
