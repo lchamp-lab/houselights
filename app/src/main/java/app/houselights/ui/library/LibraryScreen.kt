@@ -386,4 +386,6 @@ private fun FilterButton(filter: LibraryFilter, facets: LibraryFacets, onChange:
  * folds A to Z only, so "Épouvante" and "épouvante" stay two genres there and here.
  */
 private fun sameGenre(held: String?, shown: String): Boolean =
-    held != null && held.length == shown.length && held.zip(shown).all { (a, b) -> a == b || a.isLetter() && a < '\u0080' && a.equals(b, ignoreCase = true) }
+    held != null && held.length == shown.length && held.zip(shown).all { (a, b) -> a == b || sameAsciiLetter(a, b) }
+
+private fun sameAsciiLetter(a: Char, b: Char): Boolean = a.isLetter() && a < '\u0080' && a.equals(b, ignoreCase = true)

@@ -112,7 +112,7 @@ class PlaybackManager(
         val secret = Redact.hasCredentials(plan.uri)
         // A warning, kept in every build: where a secret goes, or why not, is what an evening on a new player needs.
         if (secret) {
-            val unanswered = if (player == null && choice.player != null) "; the player does not answer this stream's address: not handed it" else ""
+            val unanswered = if (player == null && choice.player != null) UNANSWERED_STREAM else ""
             Log.w(TAG, "Launch ${Redact.uri(plan.uri)} -> ${players.describe(choice)}$unanswered")
         }
         val changed = choice.decision == ZidooPlayer.Decision.CHANGED
@@ -353,6 +353,9 @@ class PlaybackManager(
 
     companion object {
         private const val TAG = "Playback"
+
+        /** What the launch warning adds when the player found does not answer a stream's address. */
+        private const val UNANSWERED_STREAM = "; the player does not answer this stream's address: not handed it"
 
         /**
          * Intent.EXTRA_AUTO_LAUNCH_SINGLE_CHOICE, which the SDK hides: false, the chooser lists even a
