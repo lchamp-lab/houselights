@@ -52,9 +52,9 @@ class SupportCodeTest {
         RUN.findAll(pathData).forEach { run ->
             assertEquals("a path of runs only, at ${run.range.first}", end, run.range.first)
             end = run.range.last + 1
-            val (x, y, length, back) = run.destructured
-            assertEquals(length, back)
-            repeat(length.toInt()) { code[y.toInt()][x.toInt() + it] = true }
+            val (x, y, length) = run.groupValues.drop(1).take(RUN_FIGURES).map(String::toInt)
+            assertEquals("a run goes back by its length", run.groupValues[RUN_FIGURES + 1].toInt(), length)
+            repeat(length) { code[y][x + it] = true }
         }
         assertEquals("a path of runs only", pathData.length, end)
         return code
@@ -88,23 +88,17 @@ class SupportCodeTest {
      * down, past the timing column, skipping what is not data, each module unmasked.
      */
     private fun codewords(code: Array<BooleanArray>, mask: Int): List<Int> {
-        val bits = mutableListOf<Int>()
-        var up = true
-        var col = SIZE - 1
-        while (col > 0) {
-            if (col == TIMING) col--
-            for (step in 0 until SIZE) {
-                val row = if (up) SIZE - 1 - step else step
-                for (c in listOf(col, col - 1)) {
-                    if (!function(row, c)) bits += (if (code[row][c]) 1 else 0) xor (if (masked(mask, row, c)) 1 else 0)
-                }
-            }
-            up = !up
-            col -= 2
-        }
+        val bits = readingOrder().map { (row, col) -> (if (code[row][col]) 1 else 0) xor (if (masked(mask, row, col)) 1 else 0) }
         assertEquals(TOTAL_CODEWORDS * BYTE + REMAINDER_BITS, bits.size)
         return bits.chunked(BYTE).take(TOTAL_CODEWORDS).map { byte -> byte.fold(0) { b, bit -> b shl 1 or bit } }
     }
+
+    /** The data modules, by row and column, in a reader's order: pairs of columns from the right, past the timing column. */
+    private fun readingOrder(): List<Pair<Int, Int>> =
+        ((SIZE - 1 downTo TIMING + 2 step 2) + (TIMING - 1 downTo 1 step 2)).flatMapIndexed { pair, col ->
+            val rows = if (pair % 2 == 0) SIZE - 1 downTo 0 else 0 until SIZE
+            rows.flatMap { row -> listOf(row to col, row to col - 1) }
+        }.filterNot { (row, col) -> function(row, col) }
 
     /** What is not data in a version 3 symbol: finders, separators and format, timing, the one alignment pattern. */
     private fun function(row: Int, col: Int): Boolean {
@@ -168,6 +162,8 @@ class SupportCodeTest {
     private companion object {
         const val URL = "https://ko-fi.com/lchamp_lab"
         val RUN = Regex("""M(\d+),(\d+)h(\d+)v1h-(\d+)z""")
+        /** Where a run starts and how long it is: the figures before the one it goes back by. */
+        const val RUN_FIGURES = 3
 
         // Version 3: 29 modules, 70 codewords and 7 remainder bits; level M: one block, 44 of data.
         const val SIZE = 29
