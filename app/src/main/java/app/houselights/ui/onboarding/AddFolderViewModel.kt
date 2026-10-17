@@ -236,8 +236,11 @@ class AddFolderViewModel(
         val before = form
         form = form.change()
         saved.keep(form)
-        if (form.copy(kind = before.kind) != before) check = null
+        if (!form.testsAs(before)) check = null
     }
+
+    /** A test of this form says what one of [other] said: they differ in nothing a test reads, the kind at most. */
+    private fun FolderForm.testsAs(other: FolderForm) = copy(kind = other.kind) == other
 
     /** The folder the form describes; an edited one keeps its id, its kind and, left empty, its password. */
     private fun source(): SourceEntity = editing?.let(form::toSource) ?: form.toSource()
@@ -254,8 +257,9 @@ class AddFolderViewModel(
     /** Tests the folder, and says how it answered. */
     fun test() {
         if (busy || gone) return
+        val typed = form
         val source = toTest() ?: return
-        viewModelScope.launch { reaches(source) }
+        viewModelScope.launch { reaches(source, typed) }
     }
 
     /**
@@ -268,13 +272,14 @@ class AddFolderViewModel(
      */
     fun submit(onDone: (switched: Boolean) -> Unit) {
         if (busy || !ready || gone) return
+        val typed = form
         val source = toTest() ?: return
         submitting = true
         viewModelScope.launchAction(TAG, "Saving the folder at ${source.host}", ::saveFailed, Throwable::toWriteError) {
             try {
                 val held = library.overlapping(source, except = folderId)
                 when {
-                    held == null -> if (reaches(source)) show(saveInBackground(source), source, onDone)
+                    held == null -> if (reaches(source, typed)) show(saveInBackground(source), source, onDone)
                     addedBefore(held, source) -> show(saveInBackground(source), source, onDone)
                     else -> check = FolderCheck.Overlaps(held, same = held.samePlace(source))
                 }
@@ -340,18 +345,19 @@ class AddFolderViewModel(
         }
     }
 
-    /** Tests [source] and says how it answered: true when it did. */
-    private suspend fun reaches(source: SourceEntity): Boolean {
+    /**
+     * Tests [source], the form as [typed], and says how it answered: true when it did. A field a test
+     * reads, changed while it ran, leaves the folder untested: the answer was not the form's.
+     */
+    private suspend fun reaches(source: SourceEntity, typed: FolderForm): Boolean {
         testing = true
         check = null
         // The browser signs in of its own for a test: what the form says is what answers.
         val answer = suspendRunCatching { probe(source) }
-        answer
-            .onSuccess { count -> check = FolderCheck.Reachable(count) }
-            .onFailure { e ->
-                Log.w(TAG, "Test of ${source.host} failed", e)
-                check = FolderCheck.Failed(ScanErrors.classify(e), source.host)
-            }
+        answer.onFailure { e -> Log.w(TAG, "Test of ${source.host} failed", e) }
+        if (form.testsAs(typed)) {
+            check = answer.fold({ FolderCheck.Reachable(it) }, { FolderCheck.Failed(ScanErrors.classify(it), source.host) })
+        }
         testing = false
         return answer.isSuccess
     }

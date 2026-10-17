@@ -16,6 +16,7 @@ import app.houselights.settings.SourceSwitcher
 import app.houselights.ui.testing.MainDispatcherRule
 import app.houselights.ui.testing.testSecrets
 import app.houselights.ui.testing.testSettings
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
@@ -56,9 +57,15 @@ class JellyfinLoginViewModelTest {
         var reachFailure: Exception? = null
         var authFailure: Exception? = null
 
+        /** The server is asked, and answers once this completes. */
+        var answer: CompletableDeferred<Unit>? = null
+        val asked = CompletableDeferred<Unit>()
+
         override suspend fun discover() = listOf(DiscoveredServer("http://192.168.1.5:8096", "Maison"))
 
         override suspend fun reach(input: String, deviceId: String): Pair<String, PublicSystemInfo> {
+            asked.complete(Unit)
+            answer?.await()
             reachFailure?.let { throw it }
             return "https://nas:8920" to PublicSystemInfo("Maison", "10.10.3")
         }
@@ -142,6 +149,24 @@ class JellyfinLoginViewModelTest {
             vm.change()
             assertNull(vm.error)
         }
+    }
+
+    /** A field changed while the server was asked: its answer speaks of what the form no longer holds. */
+    @Test
+    fun whatSigningInSaysOfFieldsChangedMeanwhileIsNotSaid() = runTest {
+        network.reachFailure = IOException("Connection refused")
+        network.answer = CompletableDeferred()
+        val vm = login()
+        vm.server = "nas"
+        vm.login {}
+        while (!network.asked.isCompleted) {
+            withContext(Dispatchers.Default) { delay(10) }
+            advanceUntilIdle()
+        }
+        vm.server = "nas2"
+        network.answer?.complete(Unit)
+        settle(vm)
+        assertNull(vm.error)
     }
 
     /** The server took the password; the Keystore refused to seal its token: said as the device's fault, not the server's. */

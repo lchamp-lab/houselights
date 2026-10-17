@@ -277,6 +277,31 @@ class AddFolderViewModelTest {
         assertNull(vm.check)
     }
 
+    /** A field changed while the NAS was asked: its answer speaks of the folder the form no longer describes. */
+    @Test
+    fun anAnswerToFieldsChangedMeanwhileIsNotSaid() = runTest {
+        var answer = CompletableDeferred<Int>()
+        val vm = form(null, probe = { answer.await() })
+        advanceUntilIdle()
+        vm.edit { copy(host = "nas-salon.local", share = "/volume1/media") }
+        vm.test()
+        advanceUntilIdle()
+        assertTrue(vm.testing)
+        vm.edit { copy(host = "192.168.1.20") }
+        answer.complete(12)
+        advanceUntilIdle()
+        assertFalse(vm.testing)
+        assertNull("another NAS, not tested yet", vm.check)
+
+        answer = CompletableDeferred()
+        vm.test()
+        advanceUntilIdle()
+        vm.edit { copy(kind = SourceKind.SHOWS) }
+        answer.complete(12)
+        advanceUntilIdle()
+        assertEquals("the kind is not tested", FolderCheck.Reachable(12), vm.check)
+    }
+
     @Test
     fun aFolderRemovedBeforeTheFormOpensSaysSo() = runTest {
         val id = smbFolder()

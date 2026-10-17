@@ -158,6 +158,7 @@ class JellyfinLoginViewModel(
         if (busy) return
         busy = true
         error = null
+        val asked = typed()
         viewModelScope.launch {
             var address = JellyfinClient.normalizeUrl(server)
             suspendRunCatching {
@@ -170,11 +171,15 @@ class JellyfinLoginViewModel(
                 onLoggedIn()
             }.onFailure { e ->
                 Log.w("Jellyfin", "Sign-in to $address failed", e)
-                error = loginError(e, address)
+                // Said of what was typed: a field changed meanwhile is a sign-in not tried yet.
+                if (typed() == asked) error = loginError(e, address)
             }
             busy = false
         }
     }
+
+    /** What the form holds, as signing in reads it. */
+    private fun typed() = listOf(server, user, password)
 
     companion object {
         fun factory(app: AppContainer): ViewModelProvider.Factory = viewModelFactory {
