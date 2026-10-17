@@ -2,7 +2,6 @@
 <SmellBaseline>
   <ManuallySuppressedIssues></ManuallySuppressedIssues>
   <CurrentIssues>
-    <ID>CyclomaticComplexMethod:DetailScreen.kt$@Composable fun DetailScreen( itemId: String, onPlay: (MediaItem, Boolean) -&gt; Unit, onOpenItem: (String) -&gt; Unit, onOpenNfo: (String) -&gt; Unit, onEditArtwork: (String, ArtworkKind) -&gt; Unit, onIdentify: (String) -&gt; Unit, )</ID>
     <ID>CyclomaticComplexMethod:IdentifyScreen.kt$@Composable fun IdentifyScreen(itemId: String, onDone: () -&gt; Unit)</ID>
     <ID>CyclomaticComplexMethod:JellyfinMapper.kt$JellyfinMapper$fun toMedia(dto: BaseItem): MediaItem</ID>
     <ID>CyclomaticComplexMethod:JellyfinProvider.kt$JellyfinProvider$override suspend fun libraryPage(library: Library, sort: SortOption, filter: LibraryFilter, start: Int, limit: Int): Page</ID>

@@ -68,6 +68,24 @@ class HomeViewModelTest {
 
     private fun HomeViewModel.content() = state.value.content
 
+    /** The library's rows come under home's own, once the launch screen has left. */
+    @Test
+    fun theLibrarysRowsComeAfterTheLaunch() = runTest {
+        provider.catalog = app.houselights.ui.testing.FakeCatalog().apply { best = (1..6).map { film("best$it") } }
+        val launchLeft = kotlinx.coroutines.CompletableDeferred<Unit>()
+        val vm = HomeViewModel(
+            { provider }, scan, folders.filterNotNull(), settings, scanAll = {},
+            libraryRows = LibraryRows({ provider }),
+            afterLaunch = { launchLeft.await() },
+        )
+        backgroundScope.launch { vm.state.collect {} }
+        advanceUntilIdle()
+        assertEquals("home's own rows first", rows, (vm.content() as HomeContent.Rows).sections)
+        launchLeft.complete(Unit)
+        advanceUntilIdle()
+        assertEquals(listOf(SectionType.CONTINUE, SectionType.BEST_RATED), (vm.content() as HomeContent.Rows).sections.map { it.type })
+    }
+
     @Test
     fun theFirstLoadShowsTheHerosRoomAndEmptyFrames() = runTest {
         provider.gate("libraries")

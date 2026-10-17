@@ -484,4 +484,17 @@
         <item quantity="other">%d collections</item>
         <item quantity="many">%d collections</item>
     </plurals>
+    <!-- Les personnes : leurs métiers, comme le générique les nomme, leur page, et les rangées que la bibliothèque écrit. -->
+    <string name="job_cast">Interprétation</string>
+    <string name="job_direction">Réalisation</string>
+    <string name="job_creation">Création</string>
+    <string name="job_writing">Scénario</string>
+    <string name="job_music">Musique</string>
+    <string name="job_cinematography">Image</string>
+    <string name="job_editing">Montage</string>
+    <string name="end_credits">Générique</string>
+    <string name="error_person_gone_title">Plus aucun titre</string>
+    <string name="error_person_gone">Aucun titre de cette personne n’est plus dans la bibliothèque.</string>
+    <string name="row_films_of">les films de</string>
+    <string name="row_best_rated">Les mieux notés de votre bibliothèque</string>
 </resources>

@@ -31,6 +31,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Deferred
+import android.util.Log
+import app.houselights.core.Credits
 
 data class DetailState(
     val item: MediaItem? = null,
@@ -61,6 +63,8 @@ data class DetailState(
      * what it says of the title at once, and focus waits for the rows it may come back to.
      */
     val partial: Boolean = false,
+    /** Its people by job ([app.houselights.core.Catalog.credits]); null when the source tells only the cast. */
+    val credits: Credits? = null,
 )
 
 /**
@@ -99,6 +103,10 @@ class DetailViewModel(
                 val source = provider()
                 val item = source.item(itemId)
                 val similar = async { if (source.capabilities.similar) source.similar(item) else emptyList() }
+                // Without them the page keeps its cast: a failure here never fails the page.
+                val credits = async {
+                    suspendRunCatching { source.catalog?.credits(item) }.onFailure { Log.w(TAG, "Credits of $itemId", it) }.getOrNull()
+                }
                 when (item.kind) {
                     MediaKind.SERIES -> seriesPage(source, item, similar)
                     // What Lire starts is picked from the films already here: the source is asked for them once.
@@ -109,7 +117,7 @@ class DetailViewModel(
                         sayFirst(source, item)
                         filmPage(source, item, similar)
                     }
-                }
+                }.copy(credits = credits.await())
             } }.onSuccess { loaded ->
                 val canEdit = loaded.item?.let { provider().editor?.canEdit(it) } == true
                 // A failure said beside the actions stays until the next action; a season chosen while

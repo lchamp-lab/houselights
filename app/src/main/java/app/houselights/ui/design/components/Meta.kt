@@ -251,6 +251,22 @@ internal fun fitCount(widths: List<Int>, gaps: List<Int>, room: Int): Int {
 }
 
 /**
+ * A row's heading set as a poster bills a name: "les films de" in its small receding words, then
+ * [name] in tall condensed capitals ("les films de DENIS VILLENEUVE"). Read as one line.
+ */
+@Composable
+fun FilmsOfHeading(name: String, modifier: Modifier = Modifier) {
+    val c = Hl.colors
+    val t = Hl.type
+    val of = stringResource(R.string.row_films_of)
+    val text = buildAnnotatedString {
+        withStyle(t.billingJoin.toSpanStyle().copy(color = c.contentTertiary)) { append(of + NBSP) }
+        withStyle(t.billing.toSpanStyle().copy(color = c.content)) { append(name.uppercase(Locale.getDefault())) }
+    }
+    Text(text, style = t.billing, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = modifier)
+}
+
+/**
  * The credits at the foot of a poster, read as a sentence: "a film by NAME with NAME, NAME and
  * NAME". Names in tall condensed capitals; the small words and commas recede. Always one line:
  * it keeps as many leading names as fit. The one place where Houselights sets words in capitals.

@@ -113,6 +113,17 @@ import app.houselights.ui.util.skeletonDelayPassed
 import app.houselights.ui.util.UiError
 import app.houselights.ui.design.components.SegmentDetail
 import app.houselights.ui.util.NBSP
+import app.houselights.core.Credits
+import app.houselights.core.Job
+import app.houselights.core.Person
+import app.houselights.core.PERSON_MIN_TITLES
+import androidx.compose.foundation.lazy.itemsIndexed
+import app.houselights.ui.util.jobName
+import app.houselights.ui.design.components.EndCredits
+import app.houselights.ui.design.components.Craft
+import app.houselights.ui.design.components.CRAFT_NAMES
+import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.runtime.MutableState
 
 @Composable
 fun DetailScreen(
@@ -122,6 +133,7 @@ fun DetailScreen(
     onOpenNfo: (String) -> Unit,
     onEditArtwork: (String, ArtworkKind) -> Unit,
     onIdentify: (String) -> Unit,
+    onOpenPerson: (String) -> Unit = {},
 ) {
     val app = appContainer()
     val vm: DetailViewModel = viewModel(key = "detail-$itemId", factory = DetailViewModel.factory(app, itemId))
@@ -142,21 +154,13 @@ fun DetailScreen(
         app.playback.playbackEnded.collect { if (memory.last == RESTART) memory.focus(PLAY) }
     }
     val page = rememberLazyListState()
+    // Directors and a show's creators, named in the cast row by their job.
+    val directing = jobName(Job.DIRECTOR)
+    val creating = jobName(Job.CREATOR)
+    val people = state.item?.let { peopleOf(it, state.credits, directing, creating) }.orEmpty()
 
     if (item == null) {
-        Box(Modifier.fillMaxSize()) {
-            Backdrop(null, BackdropStyle.Full)
-            Box(Modifier.padding(top = HlLayout.errorTop)) {
-                // Trying again keeps the error on screen, its button at work, until the answer.
-                val loading = state.error == null
-                val error = retainedError(state.error, retrying = loading)
-                when {
-                    error != null -> HlErrorState(error, vm::load, Modifier.padding(start = HlSpace.safeH, top = HlSpace.l), loading)
-                    // Where the title and its facts will be, once loading takes long enough to be seen.
-                    skeletonDelayPassed() -> HeroSkeleton(Modifier.padding(start = HlSpace.safeH, top = HlSpace.l))
-                }
-            }
-        }
+        NoTitleYet(state.error, onRetry = vm::load)
         return
     }
 
@@ -170,7 +174,7 @@ fun DetailScreen(
     }
 
     val screenHeight = screenHeight()
-    var focusedEpisode by remember { mutableStateOf<MediaItem?>(null) }
+    val focusedEpisode = remember { mutableStateOf<MediaItem?>(null) }
     var showTech by remember { mutableStateOf(false) }
     val media = item.media?.takeIf { it.video != null || it.audio.isNotEmpty() }
     // Beside the page: what the file holds, read row by row.
@@ -194,17 +198,7 @@ fun DetailScreen(
         onEdit = if (state.canEdit) ({ showEdit = true }) else null,
     )
 
-    // Down the page the film steps back: the rows read on the room, not on a face. A page that
-    // comes back already scrolled is dark at once; then the veil follows the page over SLOW.
-    val recede = remember { Animatable(0f) }
-    LaunchedEffect(page) {
-        var first = true
-        snapshotFlow { scrolled }.collect { away ->
-            val target = if (away) 1f else 0f
-            if (first) recede.snapTo(target) else recede.animateTo(target, tween(HlMotion.SLOW, easing = HlMotion.standard))
-            first = false
-        }
-    }
+    val recede = rememberRecede { scrolled }
 
     AmbientBackdrop(
         item.backdrop,
@@ -245,85 +239,176 @@ fun DetailScreen(
                     }
                 }
 
-                if (item.kind == MediaKind.SERIES && state.seasons.isNotEmpty()) {
-                    // A track with one option is no choice: a single season names the episode row instead.
-                    val single = state.seasons.singleOrNull()
-                    if (single == null) {
-                        item(key = "seasons") {
-                            Box(Modifier.scrollsAsBlock()) { Seasons(state.seasons, state.selectedSeasonId, vm::selectSeason) }
-                        }
-                    }
-                    item(key = "episodes-${state.selectedSeasonId}") {
-                        val failed = state.episodesError
-                        // Réessayer had focus: once the episodes are there, focus goes to them, not nowhere.
-                        LaunchedEffect(failed == null && state.episodes.isNotEmpty()) {
-                            if (failed == null && state.episodes.isNotEmpty() && memory.last == RETRY_EPISODES) {
-                                withFrameNanos { }
-                                memory.focus(FocusKey.row(EPISODES))
-                            }
-                        }
-                        when {
-                            failed != null -> EpisodesFailed(
-                                single?.title,
-                                failed,
-                                retrying = state.episodesLoading,
-                                onRetry = vm::retrySeason,
-                                action = Modifier.focusKey(RETRY_EPISODES, memory),
-                            )
-                            state.episodesLoading && state.episodes.isEmpty() -> EpisodesSkeleton(single?.title)
-                            else -> Episodes(
-                                header = single?.title,
-                                episodes = state.episodes,
-                                memory = memory,
-                                focused = focusedEpisode,
-                                onFocus = { focusedEpisode = it },
-                                onPlay = { ep -> onPlay(ep, ep.user.positionMs > 0) },
-                            )
-                        }
-                    }
-                }
-
-                if (item.kind == MediaKind.COLLECTION && state.collectionFilms.isNotEmpty()) {
-                    item(key = "films") {
-                        MediaRow(stringResource(R.string.library_movies), memory.rowGroup(FILMS)) {
-                            items(state.collectionFilms, key = { it.id }) { f ->
-                                PosterCard(f, onClick = { onOpenItem(f.id) }, modifier = memory.card(FILMS, f))
-                            }
-                        }
-                    }
-                }
-
-                // A film's saga: its other films in order, under the saga's name; none, no row.
-                state.collection?.takeIf { state.collectionFilms.isNotEmpty() }?.let { collection ->
-                    item(key = "collection") {
-                        MediaRow(collection.title, memory.rowGroup(SAGA)) {
-                            items(state.collectionFilms, key = { it.id }) { f ->
-                                PosterCard(f, onClick = { onOpenItem(f.id) }, modifier = memory.card(SAGA, f))
-                            }
-                        }
-                    }
-                }
-
-                if (item.cast.isNotEmpty()) {
-                    item(key = "cast") {
-                        MediaRow(stringResource(R.string.cast), spacing = HlSpace.s) {
-                            items(item.cast) { PersonCard(it) }
-                        }
-                    }
-                }
-
-                if (state.similar.isNotEmpty()) {
-                    item(key = "similar") {
-                        MediaRow(stringResource(R.string.similar), memory.rowGroup(SIMILAR)) {
-                            items(state.similar, key = { it.id }) { s ->
-                                PosterCard(s, onClick = { onOpenItem(s.id) }, modifier = memory.card(SIMILAR, s))
-                            }
-                        }
-                    }
-                }
+                seasonRows(state, memory, focusedEpisode, vm, onPlay)
+                titleRows(item, state, memory, people, RowLinks(onOpenItem, onOpenPerson))
             } }
     }
 }
+
+/** A show's seasons and the episodes of the one chosen, under the hero; a single season names its episodes' row. */
+private fun LazyListScope.seasonRows(
+    state: DetailState,
+    memory: FocusMemory,
+    /** The episode with focus, read where it is shown. */
+    focusedEpisode: MutableState<MediaItem?>,
+    vm: DetailViewModel,
+    onPlay: (MediaItem, Boolean) -> Unit,
+) {
+    val item = state.item ?: return
+    if (item.kind == MediaKind.SERIES && state.seasons.isNotEmpty()) {
+        // A track with one option is no choice: a single season names the episode row instead.
+        val single = state.seasons.singleOrNull()
+        if (single == null) {
+            item(key = "seasons") {
+                Box(Modifier.scrollsAsBlock()) { Seasons(state.seasons, state.selectedSeasonId, vm::selectSeason) }
+            }
+        }
+        item(key = "episodes-${state.selectedSeasonId}") {
+            val failed = state.episodesError
+            // Réessayer had focus: once the episodes are there, focus goes to them, not nowhere.
+            LaunchedEffect(failed == null && state.episodes.isNotEmpty()) {
+                if (failed == null && state.episodes.isNotEmpty() && memory.last == RETRY_EPISODES) {
+                    withFrameNanos { }
+                    memory.focus(FocusKey.row(EPISODES))
+                }
+            }
+            when {
+                failed != null -> EpisodesFailed(
+                    single?.title,
+                    failed,
+                    retrying = state.episodesLoading,
+                    onRetry = vm::retrySeason,
+                    action = Modifier.focusKey(RETRY_EPISODES, memory),
+                )
+                state.episodesLoading && state.episodes.isEmpty() -> EpisodesSkeleton(single?.title)
+                else -> Episodes(
+                    header = single?.title,
+                    episodes = state.episodes,
+                    memory = memory,
+                    focused = focusedEpisode.value,
+                    onFocus = { focusedEpisode.value = it },
+                    onPlay = { ep -> onPlay(ep, ep.user.positionMs > 0) },
+                )
+            }
+        }
+    }
+}
+
+/**
+ * The rows under a title's head: a collection's films, a film's saga, its people ([people]), the
+ * titles like it, then its end credits.
+ */
+private fun LazyListScope.titleRows(
+    item: MediaItem,
+    state: DetailState,
+    memory: FocusMemory,
+    people: List<Person>,
+    links: RowLinks,
+) {
+    val onOpenItem = links.onOpenItem
+    val onOpenPerson = links.onOpenPerson
+    if (item.kind == MediaKind.COLLECTION && state.collectionFilms.isNotEmpty()) {
+        item(key = "films") {
+            MediaRow(stringResource(R.string.library_movies), memory.rowGroup(FILMS)) {
+                items(state.collectionFilms, key = { it.id }) { f ->
+                    PosterCard(f, onClick = { onOpenItem(f.id) }, modifier = memory.card(FILMS, f))
+                }
+            }
+        }
+    }
+
+    // A film's saga: its other films in order, under the saga's name; none, no row.
+    state.collection?.takeIf { state.collectionFilms.isNotEmpty() }?.let { collection ->
+        item(key = "collection") {
+            MediaRow(collection.title, memory.rowGroup(SAGA)) {
+                items(state.collectionFilms, key = { it.id }) { f ->
+                    PosterCard(f, onClick = { onOpenItem(f.id) }, modifier = memory.card(SAGA, f))
+                }
+            }
+        }
+    }
+
+    if (people.isNotEmpty()) {
+        item(key = "cast") {
+            MediaRow(stringResource(R.string.cast), memory.rowGroup(CAST), spacing = HlSpace.s) {
+                itemsIndexed(people) { i, person ->
+                    // Back from a person's page, focus returns to them.
+                    val key = FocusKey.within(FocusKey.row(CAST), FocusKey.item("$i:${person.id ?: person.name}"))
+                    PersonCard(
+                        person,
+                        Modifier.focusKey(key, memory),
+                        onOpen = person.id?.takeIf { opensPage(person) }?.let { id -> { onOpenPerson(id) } },
+                    )
+                }
+            }
+        }
+    }
+
+    if (state.similar.isNotEmpty()) {
+        item(key = "similar") {
+            MediaRow(stringResource(R.string.similar), memory.rowGroup(SIMILAR)) {
+                items(state.similar, key = { it.id }) { s ->
+                    PosterCard(s, onClick = { onOpenItem(s.id) }, modifier = memory.card(SIMILAR, s))
+                }
+            }
+        }
+    }
+
+    // The page ends as a film does: its overview whole, then its crafts.
+    val crafts = endCrafts(item, state.credits)
+    if (!item.overview.isNullOrBlank() || crafts.isNotEmpty()) {
+        item(key = "credits") {
+            EndCredits(
+                item.overview,
+                crafts.map { (job, names) -> Craft(jobName(job), names) },
+                Modifier.padding(start = HlLayout.insetRows, end = HlSpace.safeH),
+            )
+        }
+    }
+}
+
+/**
+ * A page whose title is not read yet: the picture handed on, then where its title and facts will
+ * be once loading takes long enough to be seen, or why it could not be read ([error]).
+ */
+@Composable
+private fun NoTitleYet(error: UiError?, onRetry: () -> Unit) {
+    Box(Modifier.fillMaxSize()) {
+        Backdrop(null, BackdropStyle.Full)
+        Box(Modifier.padding(top = HlLayout.errorTop)) {
+            // Trying again keeps the error on screen, its button at work, until the answer.
+            val loading = error == null
+            val shown = retainedError(error, retrying = loading)
+            when {
+                shown != null -> HlErrorState(shown, onRetry, Modifier.padding(start = HlSpace.safeH, top = HlSpace.l), loading)
+                skeletonDelayPassed() -> HeroSkeleton(Modifier.padding(start = HlSpace.safeH, top = HlSpace.l))
+            }
+        }
+    }
+}
+
+/**
+ * How far the film steps back as the page goes down ([away]): the rows read on the room, not on a
+ * face. A page that comes back already scrolled is dark at once; then the veil follows the page
+ * over SLOW.
+ */
+@Composable
+private fun rememberRecede(away: () -> Boolean): Animatable<Float, *> {
+    val recede = remember { Animatable(0f) }
+    LaunchedEffect(Unit) {
+        var first = true
+        snapshotFlow(away).collect { down ->
+            val target = if (down) 1f else 0f
+            if (first) recede.snapTo(target) else recede.animateTo(target, tween(HlMotion.SLOW, easing = HlMotion.standard))
+            first = false
+        }
+    }
+    return recede
+}
+
+/** Where a page's rows lead: another title, a person's page. */
+@Immutable
+private class RowLinks(val onOpenItem: (String) -> Unit, val onOpenPerson: (String) -> Unit)
 
 /**
  * What the actions of a detail page do, built once by [DetailScreen] and handed down as it is: each
@@ -691,6 +776,40 @@ private val RETRY_EPISODES = FocusKey.within(FocusKey.row(EPISODES), FocusKey.ac
 private const val FILMS = "films"
 private const val SAGA = "collection"
 private const val SIMILAR = "similar"
+private const val CAST = "cast"
+
+/**
+ * The people of [item]'s row, direction first: its directors ([directing]), a show's creators
+ * ([creating]), named by their job, then its cast in billing order. Without credits from the
+ * source, its cast alone.
+ */
+internal fun peopleOf(item: MediaItem, credits: Credits?, directing: String, creating: String): List<Person> {
+    if (credits == null) return item.cast
+    val show = item.kind == MediaKind.SERIES
+    val role = if (show) creating else directing
+    val direction = credits.crew[if (show) Job.CREATOR else Job.DIRECTOR].orEmpty().map { it.copy(role = role) }
+    return (direction + credits.cast).ifEmpty { item.cast }
+}
+
+/**
+ * The crafts of [item]'s end credits, as a film's end names them: direction (a show's creators),
+ * screenplay, music, cinematography, editing; up to [CRAFT_NAMES] names each. A show's crafts
+ * change from one episode to the next: its creators and its music alone. Without credits from the
+ * source, a film's directors.
+ */
+internal fun endCrafts(item: MediaItem, credits: Credits?): List<Pair<Job, List<String>>> {
+    val jobs = if (item.kind == MediaKind.SERIES) SHOW_CRAFTS else FILM_CRAFTS
+    val crew = credits?.crew ?: mapOf(Job.DIRECTOR to item.directors.map { Person(it, null, null) })
+    return jobs.mapNotNull { job ->
+        crew[job].orEmpty().map { it.name }.distinct().take(CRAFT_NAMES).takeIf { it.isNotEmpty() }?.let { job to it }
+    }
+}
+
+private val FILM_CRAFTS = listOf(Job.DIRECTOR, Job.WRITER, Job.COMPOSER, Job.CINEMATOGRAPHY, Job.EDITING)
+private val SHOW_CRAFTS = listOf(Job.CREATOR, Job.COMPOSER)
+
+/** Whether [person] opens a page: found in several titles of the library. */
+internal fun opensPage(person: Person): Boolean = person.id != null && (person.titleCount ?: 0) >= PERSON_MIN_TITLES
 
 /** Frames shown while a season loads: as many episodes as the screen shows whole. */
 private const val EPISODE_SKELETONS = 3

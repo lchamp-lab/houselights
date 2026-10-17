@@ -248,9 +248,12 @@ private fun CastRow() {
         "photo failed: initials" to Person("Cathy Rosier", "La pianiste", brokenImage),
         "no role" to Person("Jacques Leroy", null, null),
         "name cut" to Person("Maria de Medeiros Esteves Vitorino de Almeida", "Elle-même", null),
+        "in two titles: opens their page" to Person("Jean-Pierre Melville", "Réalisation", null, id = "tmdb:1", titleCount = 7),
     )
     MediaRow(header = null, spacing = HlSpace.s) {
-        items(cast) { (state, person) -> Specimen(state, width = HlSize.personColumn) { PersonCard(person) } }
+        items(cast) { (state, person) ->
+            Specimen(state, width = HlSize.personColumn) { PersonCard(person, onOpen = if (person.id != null) ({}) else null) }
+        }
     }
 }
 

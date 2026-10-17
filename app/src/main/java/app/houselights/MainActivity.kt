@@ -103,6 +103,7 @@ import androidx.compose.animation.core.snap
 import app.houselights.ui.design.components.BackdropRelay
 import app.houselights.ui.design.components.LeavingBackdrop
 import app.houselights.ui.design.components.LocalBackdropRelay
+import app.houselights.ui.person.PersonScreen
 
 class MainActivity : ComponentActivity() {
     private val container by lazy { appContainer() }
@@ -446,6 +447,7 @@ private fun AppNavigation(nav: NavHostController, onPlay: (MediaItem, Boolean) -
                 onOpenNfo = { nav.navigate(Route.Nfo(it)) },
                 onEditArtwork = { id, kind -> nav.navigate(Route.Artwork(id, kind)) },
                 onIdentify = { nav.navigate(Route.Identify(it)) },
+                onOpenPerson = { nav.navigate(Route.Person(it)) },
             )
         }
         composable<Route.Artwork> { entry ->
@@ -456,6 +458,7 @@ private fun AppNavigation(nav: NavHostController, onPlay: (MediaItem, Boolean) -
             IdentifyScreen(entry.toRoute<Route.Identify>().id, onDone = { nav.popBackStack() })
         }
         composable<Route.Nfo> { entry -> NfoScreen(entry.toRoute<Route.Nfo>().id) }
+        composable<Route.Person> { entry -> PersonScreen(entry.toRoute<Route.Person>().id, onOpenItem = { openItem(it.id) }) }
         composable<Route.Settings> {
             // Changing the source leaves the settings below: Back returns to them, the source intact.
             SettingsScreen(

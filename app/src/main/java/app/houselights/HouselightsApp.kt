@@ -51,6 +51,7 @@ import kotlinx.coroutines.launch
 import okhttp3.Dispatcher
 import okhttp3.OkHttpClient
 import java.util.concurrent.ConcurrentHashMap
+import app.houselights.ui.home.LibraryRows
 
 class HouselightsApp : Application(), ImageLoaderFactory {
     lateinit var container: AppContainer
@@ -144,6 +145,9 @@ class AppContainer(private val app: Application) : LibraryEvents {
 
     /** A wall's first page and posters, asked while home's pill slides to it; the wall takes them. */
     val libraryAhead = LibraryAhead({ provider })
+
+    /** The rows the library writes under home's own, drawn once a day. */
+    val libraryRows = LibraryRows({ provider })
 
     /** The NAS browsers, and the sessions and mounts they keep between files. */
     val remoteBrowsers = RemoteBrowsers()

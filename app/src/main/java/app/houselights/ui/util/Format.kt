@@ -14,6 +14,7 @@ import app.houselights.core.SectionType
 import app.houselights.providers.local.ScanError
 import app.houselights.providers.local.ScanErrorKind
 import app.houselights.providers.local.SourceKind
+import app.houselights.core.Job
 
 /** No-break space: keeps a number with its unit, and French punctuation with its word. */
 const val NBSP = Typography.nbsp
@@ -54,6 +55,20 @@ fun LibraryKind.titleRes(): Int = when (this) {
 @Composable
 fun libraryName(kind: LibraryKind): String = stringResource(kind.titleRes())
 
+/** A job as the credits name it: "Réalisation", "Musique"; a show's creators, "Création". */
+@Composable
+fun jobName(job: Job): String = stringResource(
+    when (job) {
+        Job.CAST -> R.string.job_cast
+        Job.DIRECTOR -> R.string.job_direction
+        Job.CREATOR -> R.string.job_creation
+        Job.WRITER -> R.string.job_writing
+        Job.COMPOSER -> R.string.job_music
+        Job.CINEMATOGRAPHY -> R.string.job_cinematography
+        Job.EDITING -> R.string.job_editing
+    }
+)
+
 /** What a network folder holds, by the name of the library it fills: "Films" or "Séries". */
 @Composable
 fun sourceKindName(kind: SourceKind): String = stringResource(
@@ -72,6 +87,8 @@ fun sectionTitle(section: HomeSection): String = when (section.type) {
         section.libraryKind == LibraryKind.SHOWS -> stringResource(R.string.section_latest_shows)
         else -> stringResource(R.string.section_latest_movies)
     }
+    SectionType.DIRECTOR -> listOfNotNull(stringResource(R.string.row_films_of), section.person?.name).joinToString(" ")
+    SectionType.BEST_RATED -> stringResource(R.string.row_best_rated)
 }
 
 /** A scan or connection failure, explained with what to check. */

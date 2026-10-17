@@ -25,6 +25,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
+import android.util.Log
 
 /**
  * What home shows under its bar, decided here rather than in the screen, which only draws it. Two
@@ -80,6 +81,8 @@ internal data class HomeLoad(
     val error: UiError? = null,
     val libraries: List<Library> = emptyList(),
     val sections: List<HomeSection> = emptyList(),
+    /** The rows the library writes under them ([LibraryRows]), once drawn. */
+    val drawn: List<HomeSection> = emptyList(),
 )
 
 /**
@@ -95,9 +98,14 @@ class HomeViewModel(
     private val scanAll: () -> Unit,
     /** The rows the launch asked for home already ([HomeLaunch.take]), once; null: home asks the source. */
     private val launched: suspend () -> HomeRows? = { null },
+    /** The rows the library writes under home's own ([LibraryRows]); none, when null. */
+    private val libraryRows: LibraryRows? = null,
+    /** Waits for the launch screen to leave: the library's rows are read after it, outside home's first view. */
+    private val afterLaunch: suspend () -> Unit = {},
 ) : ViewModel() {
     private val load = MutableStateFlow(HomeLoad())
     private val loads = LatestJob(viewModelScope)
+    private val draws = LatestJob(viewModelScope)
 
     /**
      * Null until the folders are first read. Back on home after a while away, the folders last read
@@ -125,11 +133,29 @@ class HomeViewModel(
             suspendRunCatching {
                 launched()?.let { it.libraries to it.sections } ?: provider().let { source -> source.libraries() to source.home() }
             }.onSuccess { (libraries, sections) ->
-                load.value = HomeLoad(loading = false, libraries = libraries, sections = sections)
+                load.update { HomeLoad(loading = false, libraries = libraries, sections = sections, drawn = it.drawn) }
+                drawLibraryRows()
             }.onFailure { e ->
                 val error = e.reported(TAG, "Home")
                 load.update { it.copy(loading = false, error = error) }
             }
+        }
+    }
+
+    /** The library changed: its rows are drawn again from what it holds now, with home's own. */
+    fun onLibraryChanged() {
+        libraryRows?.forget()
+        load()
+    }
+
+    /** The library's rows, under home's own, once the launch screen has left; a failure leaves them out. */
+    private fun drawLibraryRows() {
+        val rows = libraryRows ?: return
+        draws.launch {
+            afterLaunch()
+            suspendRunCatching { rows.today() }
+                .onSuccess { drawn -> load.update { it.copy(drawn = drawn) } }
+                .onFailure { Log.w(TAG, "Library rows", it) }
         }
     }
 
@@ -146,6 +172,8 @@ class HomeViewModel(
                     app.settings.state,
                     scanAll = { app.library.scan() },
                     launched = { app.homeLaunch.take(app.settings.state.value.source) },
+                    libraryRows = app.libraryRows,
+                    afterLaunch = { app.launch.awaitOpen() },
                 )
             }
         }
@@ -163,7 +191,7 @@ internal fun homeContent(load: HomeLoad, scan: ScanState, folders: List<SourceEn
     val firstScan = firstScan(scan, empty, folders)
     val failed = failedFolder(scan.errors, folders.orEmpty())
     return when {
-        !empty -> HomeContent.Rows(load.sections, firstScan)
+        !empty -> HomeContent.Rows(load.sections + load.drawn, firstScan)
         load.loading && load.error == null -> HomeContent.Loading(firstScan)
         firstScan -> HomeContent.FirstScan
         load.error != null -> HomeContent.Failed(load.error, retrying = load.loading)

@@ -488,4 +488,17 @@
         <item quantity="one">%d collection</item>
         <item quantity="other">%d collections</item>
     </plurals>
+    <!-- People: their jobs, as the credits name them, their page, and the rows the library writes. -->
+    <string name="job_cast">Cast</string>
+    <string name="job_direction">Direction</string>
+    <string name="job_creation">Creation</string>
+    <string name="job_writing">Screenplay</string>
+    <string name="job_music">Music</string>
+    <string name="job_cinematography">Cinematography</string>
+    <string name="job_editing">Editing</string>
+    <string name="end_credits">Credits</string>
+    <string name="error_person_gone_title">No titles left</string>
+    <string name="error_person_gone">None of this person’s titles is in the library any more.</string>
+    <string name="row_films_of">films by</string>
+    <string name="row_best_rated">Best rated in your library</string>
 </resources>
