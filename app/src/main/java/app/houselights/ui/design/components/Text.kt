@@ -35,6 +35,8 @@ import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.Constraints
 import app.houselights.ui.design.HlType
+import androidx.compose.ui.platform.LocalContext
+import kotlin.math.roundToInt
 
 /** Row and section header, sentence case. */
 @Composable
@@ -73,16 +75,21 @@ private const val WORDMARK_HEIGHT = 103.79f
 private const val WORDMARK_CAPITALS = 100f
 
 /**
- * What a [TitleArt] laid out [maxWidthPx] by [maxHeightPx] at most asks Coil for once laid out: its
- * [logo], fitted in that room.
+ * What a [TitleArt] [maxWidthPx] by [maxHeightPx] at most asks Coil for: its [logo] at a constant
+ * weight in that room ([EvenLogo]), decoded with room to spare so that a logo grown to its weight
+ * is never enlarged. Anything asking for it ahead asks this, or it is not found in memory.
  */
 internal fun titleArtRequest(context: Context, logo: ImageRef, maxWidthPx: Int, maxHeightPx: Int): ImageRequest =
     ImageRequest.Builder(context)
         .data(logo.url(maxWidthPx))
-        .size(maxWidthPx, maxHeightPx)
+        .size((maxWidthPx * LOGO_DECODE).roundToInt(), (maxHeightPx * LOGO_DECODE).roundToInt())
         .scale(Scale.FIT)
         .precision(Precision.INEXACT)
+        .transformations(EvenLogo(maxWidthPx, maxHeightPx))
         .build()
+
+/** How much larger than its room a logo is decoded, to be set at its weight from its own pixels. */
+private const val LOGO_DECODE = 1.5f
 
 /**
  * The title's clear logo, or the title set in condensed type when there is none; [measured], set to
@@ -99,11 +106,15 @@ fun TitleArt(
     maxLines: Int = 2,
     measured: Boolean = false,
 ) {
-    val url = logo?.url(maxWidth.toPx())
-    var failed by remember(url) { mutableStateOf(false) }
-    if (url != null && !failed) {
+    val context = LocalContext.current
+    val widthPx = maxWidth.toPx()
+    val heightPx = maxHeight.toPx()
+    // Set at its weight: drawn at its own size, which never leaves the room.
+    val request = remember(logo, widthPx, heightPx) { logo?.let { titleArtRequest(context, it, widthPx, heightPx) } }
+    var failed by remember(request) { mutableStateOf(false) }
+    if (request != null && !failed) {
         AsyncImage(
-            model = url,
+            model = request,
             contentDescription = title,
             contentScale = ContentScale.Fit,
             alignment = Alignment.BottomStart,
