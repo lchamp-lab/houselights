@@ -328,7 +328,7 @@ private fun LazyListScope.sagaRows(item: MediaItem, state: DetailState, memory: 
 
     // A film's saga: its films in order, the film itself in its place, under the saga's name; a saga
     // of this film alone, no row.
-    state.collection?.takeIf { state.collectionFilms.any { it.id != item.id } }?.let { collection ->
+    state.collection?.takeIf { state.collectionFilms.any { film -> film.id != item.id } }?.let { collection ->
         item(key = "collection") {
             MediaRow(collection.title, memory.rowGroup(SAGA)) {
                 items(state.collectionFilms, key = { it.id }) { f ->
