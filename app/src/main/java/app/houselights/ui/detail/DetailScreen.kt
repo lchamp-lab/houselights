@@ -38,6 +38,7 @@ import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
@@ -119,7 +120,8 @@ import app.houselights.core.Person
 import androidx.compose.foundation.lazy.itemsIndexed
 import app.houselights.ui.util.jobName
 import app.houselights.ui.design.components.EndCredits
-import app.houselights.ui.design.components.Synopsis
+import app.houselights.ui.design.components.HeadOverview
+import app.houselights.ui.design.components.SynopsisSheet
 import app.houselights.ui.design.components.Craft
 import app.houselights.ui.design.components.CRAFT_NAMES
 import androidx.compose.foundation.lazy.LazyListScope
@@ -169,8 +171,6 @@ fun DetailScreen(
         NoTitleYet(state.error, onRetry = vm::load)
         return
     }
-    // Whether the hero cut the overview, which the page then gives whole at its end.
-    var overviewCut by remember(item.id) { mutableStateOf(false) }
 
     // Down the page, Back returns to the actions; from the top, it leaves.
     val scrolled by remember {
@@ -190,6 +190,9 @@ fun DetailScreen(
     // Beside the page: the film's copies, the one Lire plays chosen there.
     var showVersions by remember { mutableStateOf(false) }
     if (showVersions) VersionsSheet(item, state.versions, onChoose = vm::chooseVersion, onDismiss = { showVersions = false })
+    // Beside the page: the overview the hero cuts, whole.
+    var showSynopsis by remember { mutableStateOf(false) }
+    if (showSynopsis) SynopsisSheet(item, onDismiss = { showSynopsis = false })
     var showEdit by remember { mutableStateOf(false) }
     if (showEdit) {
         EditMenu(
@@ -208,6 +211,7 @@ fun DetailScreen(
         // Left out where there is nothing to open: no technical sheet, a film of one copy.
         onShowTech = { showTech = true }.takeIf { media != null },
         onShowVersions = { showVersions = true }.takeIf { state.versions.size > 1 },
+        onShowSynopsis = { showSynopsis = true },
         copy = state.playedCopy,
         copyIndex = state.playedCopyIndex,
         onEdit = { showEdit = true }.takeIf { state.canEdit },
@@ -247,7 +251,6 @@ fun DetailScreen(
                             actions = actions,
                             memory = memory,
                             actionRow = actionRow,
-                            onOverviewCut = { overviewCut = it },
                             modifier = Modifier
                                 .padding(start = HlSpace.safeH, end = HlSpace.safeH, top = HlSpace.safeV)
                                 .align(Alignment.BottomStart),
@@ -257,7 +260,7 @@ fun DetailScreen(
 
                 seasonRows(state, memory, focusedEpisode, vm, onPlay)
                 titleRows(item, state, memory, people, RowLinks(onOpenItem, onOpenPerson))
-                endRows(item, state.credits, overviewCut)
+                endRows(item, state.credits)
             } }
     }
 }
@@ -386,16 +389,8 @@ private fun LazyListScope.titleRows(
     }
 }
 
-/**
- * Where a title's page ends, as a film does: its overview whole, when the hero cut it
- * ([overviewCut]), then the crafts its head does not name.
- */
-private fun LazyListScope.endRows(item: MediaItem, credits: Credits?, overviewCut: Boolean) {
-    if (overviewCut && !item.overview.isNullOrBlank()) {
-        item(key = "synopsis") {
-            Synopsis(item.overview, Modifier.padding(start = HlLayout.insetRows, end = HlSpace.safeH))
-        }
-    }
+/** Where a title's page ends, as a film does: the crafts its head does not name. */
+private fun LazyListScope.endRows(item: MediaItem, credits: Credits?) {
     val crafts = endCrafts(item, credits)
     if (crafts.isNotEmpty()) {
         item(key = "credits") {
@@ -465,6 +460,8 @@ private data class DetailActions(
     val onShowTech: (() -> Unit)?,
     /** The film's copies, null for a film of one copy. */
     val onShowVersions: (() -> Unit)?,
+    /** The overview whole, when the hero cuts it. */
+    val onShowSynopsis: () -> Unit,
     /** The copy Lire plays, among several, and its place among them (it names it); null for one copy. */
     val copy: Version? = null,
     val copyIndex: Int = 0,
@@ -480,7 +477,6 @@ private fun Hero(
     actions: DetailActions,
     memory: FocusMemory,
     actionRow: FocusRequester,
-    onOverviewCut: (Boolean) -> Unit,
     modifier: Modifier,
 ) {
     val isEpisode = item.kind == MediaKind.EPISODE
@@ -516,15 +512,8 @@ private fun Hero(
             }
             if (!item.overview.isNullOrBlank()) {
                 Spacer(Modifier.height(if (item.tagline != null) HlSpace.xs else HlSpace.l))
-                Text(
-                    item.overview,
-                    style = Hl.type.body,
-                    color = Hl.colors.contentSecondary,
-                    maxLines = 3,
-                    overflow = TextOverflow.Ellipsis,
-                    // Cut, it is given whole at the end of the page.
-                    onTextLayout = { onOverviewCut(it.hasVisualOverflow) },
-                )
+                // Cut, it opens whole beside the page; down from it is the first action, as up from that is it.
+                HeadOverview(item.overview, onOpen = actions.onShowSynopsis, Modifier.focusProperties { down = actionRow })
             }
             if (item.directors.isNotEmpty() || item.cast.isNotEmpty()) {
                 Spacer(Modifier.height(HlSpace.m))

@@ -35,20 +35,6 @@ import java.util.Locale
 data class Craft(val job: String, val names: List<String>)
 
 /**
- * The overview whole, near the end of a title's page, under its own heading: the page shows it
- * only when the hero has cut it at three lines. Read by giving it focus, white as every row; OK
- * does nothing. Nothing to say, it draws nothing.
- */
-@Composable
-fun Synopsis(overview: String?, modifier: Modifier = Modifier) {
-    val story = overview?.takeIf { it.isNotBlank() } ?: return
-    Column(modifier.widthIn(max = HlLayout.readable).revealOnFocus()) {
-        CreditsHeading(stringResource(R.string.synopsis))
-        StoryRow(story)
-    }
-}
-
-/**
  * The end credits of a title's page, as a film ends: its [crafts] on two columns that meet on a
  * gutter at the middle of the reading column: each job in small condensed words set against the
  * gutter, then up to [CRAFT_NAMES] names in condensed capitals, one a line. The billing block at
@@ -62,29 +48,15 @@ fun EndCredits(crafts: List<Craft>, modifier: Modifier = Modifier) {
     Column(modifier.widthIn(max = HlLayout.readable)) {
         // The heading comes into view with the first row.
         Column(Modifier.revealOnFocus()) {
-            CreditsHeading(stringResource(R.string.end_credits))
+            SectionHeader(stringResource(R.string.end_credits), Modifier.padding(start = HlInset.card, bottom = HlSpace.xs))
             CraftRow(shown.first())
         }
         shown.drop(1).forEach { CraftRow(it) }
     }
 }
 
-/** The heading of the synopsis or of the end credits, its words over those of the rows. */
-@Composable
-private fun CreditsHeading(text: String) {
-    SectionHeader(text, Modifier.padding(start = HlInset.card, bottom = HlSpace.xs))
-}
-
 /** Names a craft shows at most, as a poster's credits keep the first. */
 const val CRAFT_NAMES = 3
-
-/** The overview, whole, in the voice of reading. */
-@Composable
-private fun StoryRow(story: String) {
-    CreditsRow(readAs = story) { focused ->
-        Text(story, style = Hl.type.body, color = if (focused) LocalContentColor.current else Hl.colors.contentSecondary)
-    }
-}
 
 /** A craft: its job against the gutter, its names after it. */
 @Composable

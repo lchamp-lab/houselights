@@ -47,7 +47,8 @@ import app.houselights.ui.util.NBSP
 import app.houselights.ui.design.components.WithItsPicture
 import app.houselights.ui.design.components.EndCredits
 import app.houselights.ui.design.components.Craft
-import app.houselights.ui.design.components.Synopsis
+import app.houselights.ui.design.components.HeadOverview
+import app.houselights.ui.design.components.SynopsisSheet
 import app.houselights.ui.design.components.FilmsOfHeading
 import app.houselights.core.Version
 import app.houselights.core.Editions
@@ -78,6 +79,7 @@ internal fun LazyListScope.catalogReading() {
     item { ReadingInfoBlockSection() }
     item { ReadingDefinitionListSection() }
     item { ReadingTechSheetSection() }
+    item { ReadingSynopsisSection() }
     item { ReadingVersionsSection() }
     item { ReadingSearchSection() }
 }
@@ -261,26 +263,20 @@ private fun ReadingEndCreditsSection() {
     Group("End credits, and the billing of a row", still = true) {
         ReadingRow {
             Specimen(
-                "a film: its overview whole, cut by the hero, then the crafts its head does not name, three names at most",
+                "a film: the crafts its head does not name, three names at most",
                 Modifier.width(HlLayout.readable),
                 gap = HlSpace.xxs,
             ) {
-                Column(verticalArrangement = Arrangement.spacedBy(HlSpace.l)) {
-                    Synopsis("Un instituteur part en vacances avec ses élèves. Sur la plage, une barque les attend, et la mer.")
-                    EndCredits(
-                        listOf(
-                            Craft("Scénario", listOf("Jean Vigo", "Jean Guinée")),
-                            Craft("Musique", listOf("Maurice Jaubert")),
-                            Craft("Image", listOf("Boris Kaufman", "Louis Berger", "Jean-Paul Alphen", "Albert Viguier")),
-                            Craft("Montage", listOf("Louis Chavance")),
-                        ),
-                    )
-                }
+                EndCredits(
+                    listOf(
+                        Craft("Scénario", listOf("Jean Vigo", "Jean Guinée")),
+                        Craft("Musique", listOf("Maurice Jaubert")),
+                        Craft("Image", listOf("Boris Kaufman", "Louis Berger", "Jean-Paul Alphen", "Albert Viguier")),
+                        Craft("Montage", listOf("Louis Chavance")),
+                    ),
+                )
             }
-            Specimen("nothing to say: draws nothing", Modifier.weight(1f), gap = HlSpace.xxs) {
-                Synopsis(null)
-                EndCredits(emptyList())
-            }
+            Specimen("nothing to say: draws nothing", Modifier.weight(1f), gap = HlSpace.xxs) { EndCredits(emptyList()) }
         }
         ReadingRow {
             Specimen("a row the library writes: a director's films", Modifier.width(HlLayout.readable), gap = HlSpace.xxs) {
@@ -481,6 +477,30 @@ private fun ReadingSearchSection() {
         Specimen("the keys, without the system's keyboard", gap = HlSpace.xxs) { LetterGrid(onKey = {}, onSpace = {}, onDelete = {}) }
     }
 }
+
+@Composable
+private fun ReadingSynopsisSection() {
+    // Opened as a detail page opens it: from the overview its head cuts.
+    Group("Synopsis: the overview a head cuts, whole beside the page") {
+        var open by remember { mutableStateOf(false) }
+        val film = READING_TECH_DOLBY.copy(overview = READING_LONG_OVERVIEW)
+        ReadingRow {
+            Specimen("cut: focus, OK opens it whole", Modifier.width(HlLayout.readable), gap = HlSpace.xxs) {
+                HeadOverview(READING_LONG_OVERVIEW, onOpen = { open = true })
+            }
+            Specimen("whole: words alone", Modifier.width(HlLayout.readableNarrow), gap = HlSpace.xxs) {
+                HeadOverview("Un instituteur part en vacances avec ses élèves.", onOpen = {})
+            }
+        }
+        if (open) SynopsisSheet(film, onDismiss = { open = false })
+    }
+}
+
+private const val READING_LONG_OVERVIEW =
+    "Un instituteur part en vacances avec ses élèves. Sur la plage, une barque les attend, et la mer. " +
+        "Les jours passent, les enfants apprennent à nager, à pêcher, à se taire quand l'orage vient. " +
+        "Un soir, la barque ne revient pas : l'instituteur part la chercher, seul, et ne trouve que la nuit. " +
+        "Au matin, tout le village est sur la plage, et chacun raconte ce qu'il a vu, qui n'est jamais la même chose."
 
 @Composable
 private fun ReadingVersionsSection() {

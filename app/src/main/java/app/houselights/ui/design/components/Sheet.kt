@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
@@ -163,7 +164,8 @@ internal fun SheetWindow(
  * panel does ([title], in the voice of the poster), what it is about ([artwork], and beside it
  * [subject], [facts], where it stands as an [HlStatus] or its essentials in brief in [status];
  * then [description]), a hairline, the rows, and the Back hint. There is no Close button: Back
- * closes, as choosing does through [SheetScope.dismiss].
+ * closes, as choosing does through [SheetScope.dismiss]. The rows scroll with focus; [scroll] lets
+ * a panel of words alone move them itself.
  */
 @Composable
 fun HlSideSheet(
@@ -176,10 +178,10 @@ fun HlSideSheet(
     artwork: (@Composable () -> Unit)? = null,
     initialFocus: FocusRequester? = null,
     status: (@Composable () -> Unit)? = null,
+    scroll: ScrollState = rememberScrollState(),
     content: @Composable ColumnScope.(sheet: SheetScope) -> Unit,
 ) {
     SheetWindow(onDismiss, HlAlpha.VEIL_SIDE, initialFocus) { progress, sheet ->
-        val body = rememberScrollState()
         // Glass: the ground of the rows and fields it holds.
         CompositionLocalProvider(LocalGround provides Ground.Glass) {
         Row(
@@ -202,7 +204,7 @@ fun HlSideSheet(
                 Spacer(Modifier.height(HlSpace.m))
                 // Its rows fade into the sheet where there are more.
                 Column(
-                    Modifier.weight(1f).scrollEdges(body, Hl.colors.surfaceRaised).verticalScroll(body),
+                    Modifier.weight(1f).scrollEdges(scroll, Hl.colors.surfaceRaised).verticalScroll(scroll),
                     verticalArrangement = Arrangement.spacedBy(HlSpace.xxs),
                 ) { content(sheet) }
                 Spacer(Modifier.height(HlSpace.m))
