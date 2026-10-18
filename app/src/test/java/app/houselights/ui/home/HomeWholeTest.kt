@@ -107,7 +107,7 @@ class HomeWholeTest {
         val home = HomeState(content = HomeContent.Rows(sections, firstScan = false))
         compose.setContent {
             CompositionLocalProvider(LocalLaunchScreen provides cover) {
-                HouselightsTheme { HomeBands(home, MutableStateFlow(ScanState()), {}, {}, {}, {}, {}, {}) }
+                HouselightsTheme { HomeBands(home, MutableStateFlow(ScanState()), {}, { _, _ -> }, {}, {}, {}, {}) }
             }
         }
         repeat(FRAMES) { drawAFrame() }
@@ -133,7 +133,7 @@ class HomeWholeTest {
         var home by mutableStateOf(HomeState(content = HomeContent.Loading(firstScan = false)))
         compose.setContent {
             CompositionLocalProvider(LocalLaunchScreen provides cover) {
-                HouselightsTheme { HomeBands(home, MutableStateFlow(ScanState()), {}, {}, {}, {}, {}, {}) }
+                HouselightsTheme { HomeBands(home, MutableStateFlow(ScanState()), {}, { _, _ -> }, {}, {}, {}, {}) }
             }
         }
         repeat(FRAMES) { drawAFrame() }

@@ -8,6 +8,7 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import app.houselights.AppContainer
 import app.houselights.core.HomeSection
 import app.houselights.core.Library
+import app.houselights.core.LibraryKind
 import app.houselights.core.MediaProvider
 import app.houselights.core.SourceConfig
 import app.houselights.core.suspendRunCatching
@@ -70,7 +71,13 @@ sealed interface HomeContent {
 data class HomeState(
     val libraries: List<Library> = emptyList(),
     val content: HomeContent = HomeContent.Loading(firstScan = false),
-)
+) {
+    /** The tabs: every library but the sagas, which a films' wall shows in their place ([sagas]). */
+    val tabs: List<Library> get() = libraries.filter { it.kind != LibraryKind.COLLECTIONS }
+
+    /** The sagas of the source, if it has any to show: a films' wall shows them on demand. */
+    val sagas: Library? get() = libraries.firstOrNull { it.kind == LibraryKind.COLLECTIONS }
+}
 
 /**
  * What the source last gave home, or why it could not: kept while it loads again with nothing shown

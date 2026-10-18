@@ -1,5 +1,7 @@
 package app.houselights.ui.library
 
+import app.houselights.ui.design.components.HlSegmented
+import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -16,7 +18,6 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
-import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -102,7 +103,8 @@ private const val SKELETON_ROWS = 3
 
 /**
  * A wall of posters, with the focused title named in the header. Opened on part of the library ([opensOn]: a
- * format of the library in numbers, a person, by name [personName]), it starts filtered by it.
+ * format of the library in numbers, a person, by name [personName]), it starts filtered by it. A films' wall
+ * shows the source's [sagas] in their place on demand, the sagas having no tab of their own.
  */
 @Composable
 fun LibraryScreen(
@@ -111,9 +113,15 @@ fun LibraryScreen(
     onOpenItem: (MediaItem) -> Unit,
     opensOn: LibraryFilter? = null,
     personName: String? = null,
+    sagas: Library? = null,
 ) {
     val app = appContainer()
-    val vm: LibraryViewModel = viewModel(key = "library-${library.id}", factory = LibraryViewModel.factory(app, library, opensOn))
+    var showSagas by rememberSaveable { mutableStateOf(false) }
+    val wall = sagas?.takeIf { showSagas } ?: library
+    val vm: LibraryViewModel = viewModel(
+        key = "library-${wall.id}",
+        factory = LibraryViewModel.factory(app, wall, opensOn.takeIf { wall == library }),
+    )
     ReloadOnLibraryChange { vm.onLibraryChanged() }
     val state by vm.state.collectAsStateWithLifecycle()
 
@@ -125,7 +133,8 @@ fun LibraryScreen(
     val shown = rememberSettled { selectedIn(state.items, selectedId.value) }
     val gridFocus = remember { FocusRequester() }
     var gridHasFocus by remember { mutableStateOf(false) }
-    val gridState = rememberLazyGridState()
+    // Films and sagas each start at their top.
+    val gridState = rememberSaveable(wall.id, saver = LazyGridState.Saver) { LazyGridState() }
     val scope = rememberCoroutineScope()
     // Each arrival puts focus back on the poster left, else on the first one.
     val memory = rememberFocusMemory()
@@ -170,7 +179,7 @@ fun LibraryScreen(
                 Spacer(Modifier.width(HlSpace.m))
                 if (state.total > 0) {
                     val count = pluralStringResource(
-                        if (library.kind == LibraryKind.COLLECTIONS) R.plurals.collection_count else R.plurals.title_count,
+                        if (wall.kind == LibraryKind.COLLECTIONS) R.plurals.collection_count else R.plurals.title_count,
                         state.total,
                         state.total,
                     )
@@ -179,7 +188,11 @@ fun LibraryScreen(
                 Spacer(Modifier.weight(1f))
                 // The person the wall was opened for: its filter menu offers them while it shows.
                 val person = opensOn?.person?.let { id -> personName?.let { Person(it, null, null, id) } }
-                WallMenus(library.kind, state, vm.capabilities, person, vm::setFilter, vm::setSort)
+                WallMenus(
+                    wall.kind, state, vm.capabilities, person, vm::setFilter, vm::setSort,
+                    showSagas = showSagas.takeIf { sagas != null },
+                    onShowSagas = { showSagas = it },
+                )
             }
             // The title selected, named without taking space from the wall: one line inside the
             // safe area, a long name drops its facts first, then ends in an ellipsis.
@@ -210,7 +223,7 @@ fun LibraryScreen(
                     onAction = { vm.setFilter(LibraryFilter()) },
                 )
                 state.items.isEmpty() -> HlEmptyState(
-                    stringResource(if (library.kind == LibraryKind.COLLECTIONS) R.string.empty_collections else R.string.empty_title),
+                    stringResource(if (wall.kind == LibraryKind.COLLECTIONS) R.string.empty_collections else R.string.empty_title),
                     Modifier.padding(start = HlSpace.safeH, top = HlSpace.l),
                     backHint = true,
                 )
@@ -298,8 +311,9 @@ private fun SkeletonWall() {
 }
 
 /**
- * The wall's menus, at the end of its header: its filters (collections are browsed by name or date, filters
- * belong to films and shows), then its sort.
+ * The wall's menus, at the end of its header: on a films' wall with sagas, films or sagas ([showSagas], null
+ * without sagas); its filters (sagas are browsed by name or date, filters belong to films and shows), then
+ * its sort.
  */
 @Composable
 private fun WallMenus(
@@ -309,7 +323,17 @@ private fun WallMenus(
     person: Person?,
     onFilter: (LibraryFilter) -> Unit,
     onSort: (SortOption) -> Unit,
+    showSagas: Boolean? = null,
+    onShowSagas: (Boolean) -> Unit = {},
 ) {
+    if (showSagas != null) {
+        HlSegmented(
+            listOf(stringResource(R.string.wall_films), stringResource(R.string.wall_sagas)),
+            selected = if (showSagas) 1 else 0,
+            onSelect = { onShowSagas(it == 1) },
+        )
+        Spacer(Modifier.width(HlSpace.s))
+    }
     if (kind != LibraryKind.COLLECTIONS) FilterButton(state.filter, state.facets, can, person, onFilter)
     Spacer(Modifier.width(HlSpace.s))
     // "Trier", and how it is sorted now: alone, "Titre" would read as a title.

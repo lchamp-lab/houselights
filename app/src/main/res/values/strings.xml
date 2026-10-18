@@ -35,7 +35,7 @@
     <string name="retry">Retry</string>
     <string name="retrying">Trying again…</string>
     <string name="empty_title">No titles yet</string>
-    <string name="empty_collections">No collections yet</string>
+    <string name="empty_collections">No sagas yet</string>
     <string name="empty_server">The server offers no film or show to this account.</string>
     <plurals name="title_count">
         <item quantity="one">%d title</item>
@@ -514,10 +514,10 @@
     <string name="collections_all">All</string>
     <string name="collections_all_desc">Even when you have a single film of the saga</string>
     <string name="collections_off">Hidden</string>
-    <string name="collections_off_desc">No Collections library and no saga row</string>
+    <string name="collections_off_desc">No sagas in Movies and no saga row</string>
     <plurals name="collection_count">
-        <item quantity="one">%d collection</item>
-        <item quantity="other">%d collections</item>
+        <item quantity="one">%d saga</item>
+        <item quantity="other">%d sagas</item>
     </plurals>
     <!-- People: their jobs, as the credits name them, their page, and the rows the library writes. -->
     <string name="job_cast">Cast</string>
@@ -557,6 +557,8 @@
     <string name="search_delete">Delete</string>
     <string name="search_titles">Titles</string>
     <string name="search_people">People</string>
+    <string name="wall_films">Movies</string>
+    <string name="wall_sagas">Sagas</string>
     <string name="search_sagas">Sagas</string>
     <string name="search_none">Nothing starts with “%s”</string>
 </resources>

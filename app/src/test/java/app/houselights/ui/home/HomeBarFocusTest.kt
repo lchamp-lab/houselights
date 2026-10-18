@@ -52,7 +52,7 @@ class HomeBarFocusTest {
     private val restoration = StateRestorationTester(compose)
 
     private fun open() = restoration.setContent {
-        HouselightsTheme { HomeBands(home, MutableStateFlow(ScanState()), {}, {}, {}, {}, {}, {}) }
+        HouselightsTheme { HomeBands(home, MutableStateFlow(ScanState()), {}, { _, _ -> }, {}, {}, {}, {}) }
     }
 
     private fun focusIsOn(title: String) = compose.onNode(isFocused()).assert(hasText(title))

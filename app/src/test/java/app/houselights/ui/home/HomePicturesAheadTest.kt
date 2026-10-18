@@ -109,7 +109,7 @@ class HomePicturesAheadTest {
         assertEquals("loaded ahead", ahead.size, loaded.size)
 
         val home = HomeState(content = HomeContent.Rows(sections, firstScan = false))
-        compose.setTvContent { HomeBands(home, MutableStateFlow(ScanState()), {}, {}, {}, {}, {}, {}) }
+        compose.setTvContent { HomeBands(home, MutableStateFlow(ScanState()), {}, { _, _ -> }, {}, {}, {}, {}) }
         waitFor { asked.map { it.key }.containsAll(loaded.map { it.key }) }
         compose.waitForIdle()
         return loaded to synchronized(asked) { asked.toList() }
@@ -182,7 +182,7 @@ class HomePicturesAheadTest {
             launch.launch { LoadingAhead.load(waiting, ahead) }
             waitFor { synchronized(fetched) { fetched.size } >= ahead.size }
             val home = HomeState(content = HomeContent.Rows(sections, firstScan = false))
-            compose.setTvContent { HomeBands(home, MutableStateFlow(ScanState()), {}, {}, {}, {}, {}, {}) }
+            compose.setTvContent { HomeBands(home, MutableStateFlow(ScanState()), {}, { _, _ -> }, {}, {}, {}, {}) }
             // Home laid out: its cards and its hero have asked for their pictures, which are on their way.
             waitFor { sizes.size >= 2 * ahead.size }
             assertEquals("home waits for what is on its way", fetched.distinct(), synchronized(fetched) { fetched.toList() })

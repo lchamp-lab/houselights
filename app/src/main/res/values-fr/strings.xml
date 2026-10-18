@@ -27,7 +27,7 @@
     <string name="retry">Réessayer</string>
     <string name="retrying">Nouvel essai…</string>
     <string name="empty_title">Aucun titre pour l’instant</string>
-    <string name="empty_collections">Aucune collection pour l’instant</string>
+    <string name="empty_collections">Aucune saga pour l’instant</string>
     <string name="empty_server">Le serveur ne propose aucun film ni aucune série à ce compte.</string>
     <plurals name="title_count">
         <item quantity="one">%d titre</item>
@@ -512,11 +512,11 @@
     <string name="collections_all">Toutes</string>
     <string name="collections_all_desc">Même quand vous n’avez qu’un film de la saga</string>
     <string name="collections_off">Masquées</string>
-    <string name="collections_off_desc">Ni bibliothèque Collections, ni rangée de saga</string>
+    <string name="collections_off_desc">Ni sagas dans Films, ni rangée de saga</string>
     <plurals name="collection_count">
-        <item quantity="one">%d collection</item>
-        <item quantity="other">%d collections</item>
-        <item quantity="many">%d collections</item>
+        <item quantity="one">%d saga</item>
+        <item quantity="other">%d sagas</item>
+        <item quantity="many">%d sagas</item>
     </plurals>
     <!-- Les personnes : leurs métiers, comme le générique les nomme, leur page, et les rangées que la bibliothèque écrit. -->
     <string name="job_cast">Interprétation</string>
@@ -556,6 +556,8 @@
     <string name="search_delete">Effacer</string>
     <string name="search_titles">Titres</string>
     <string name="search_people">Personnes</string>
+    <string name="wall_films">Films</string>
+    <string name="wall_sagas">Sagas</string>
     <string name="search_sagas">Sagas</string>
     <string name="search_none">Rien ne commence par « %s »</string>
 </resources>

@@ -54,6 +54,7 @@ import app.houselights.ui.design.rememberRowState
 import app.houselights.R
 import app.houselights.core.HomeSection
 import app.houselights.core.Library
+import app.houselights.core.LibraryKind
 import app.houselights.core.MediaItem
 import app.houselights.providers.local.ScanError
 import app.houselights.providers.local.ScanState
@@ -100,7 +101,8 @@ import app.houselights.ui.design.components.FilmsOfHeading
 @Composable
 fun HomeScreen(
     onOpenItem: (MediaItem) -> Unit,
-    onOpenLibrary: (Library) -> Unit,
+    /** A library's wall, and for films the sagas it can show in their place. */
+    onOpenLibrary: (Library, sagas: Library?) -> Unit,
     onOpenSettings: () -> Unit,
     onAddFolder: () -> Unit,
     onOpenSearch: () -> Unit = {},
@@ -131,7 +133,7 @@ internal fun HomeBands(
     state: HomeState,
     scan: StateFlow<ScanState>,
     onOpenItem: (MediaItem) -> Unit,
-    onOpenLibrary: (Library) -> Unit,
+    onOpenLibrary: (Library, sagas: Library?) -> Unit,
     onOpenSettings: () -> Unit,
     onAddFolder: () -> Unit,
     onReload: () -> Unit,
@@ -180,14 +182,15 @@ internal fun HomeBands(
     AmbientBackdrop(shown?.backdrop, BackdropStyle.Hero, ready = whole) {
         Column(Modifier.fillMaxSize().houseLit(LocalHouseLights.current)) {
             TopBar(
-                libraries = state.libraries,
+                libraries = state.tabs,
                 memory = memory,
                 // Back from a library, focus enters the track on that library's tab.
-                returnTo = state.libraries.indexOfFirst { memory.last == trackTab(it) }.takeIf { it >= 0 }?.plus(1),
+                returnTo = state.tabs.indexOfFirst { memory.last == trackTab(it) }.takeIf { it >= 0 }?.plus(1),
                 onLibrary = { library ->
                     // Coming back from the library finds focus on its tab.
                     memory.record(trackTab(library))
-                    onOpenLibrary(library)
+                    // The sagas have no tab: the films' wall shows them in their place.
+                    onOpenLibrary(library, state.sagas.takeIf { library.kind == LibraryKind.MOVIES })
                 },
                 onLibraryAhead = onLibraryAhead,
                 onSettings = onOpenSettings,

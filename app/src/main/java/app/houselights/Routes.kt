@@ -25,7 +25,8 @@ object Route {
     /**
      * A library's wall. Opened on part of it (a format of the library in numbers, a person), it starts filtered
      * by what that part names, a field of [LibraryFilter] each: a [quality] (by name), a [picture], a [sound], a
-     * kind of file ([fileType]), a [person], whom its filter menu names [personName].
+     * kind of file ([fileType]), a [person], whom its filter menu names [personName]. A films' wall may show
+     * the source's [sagas] (a library's id) in their place.
      */
     @Serializable
     data class Library(
@@ -38,6 +39,7 @@ object Route {
         val fileType: String? = null,
         val person: String? = null,
         val personName: String? = null,
+        val sagas: String? = null,
     ) {
         /** What the wall starts filtered by; null for the whole library. */
         val filter: LibraryFilter?

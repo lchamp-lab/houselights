@@ -52,6 +52,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import app.houselights.core.Library
+import app.houselights.core.LibraryKind
 import app.houselights.core.MediaItem
 import app.houselights.core.PlaybackOptions
 import app.houselights.core.PlaybackPlan
@@ -372,7 +373,8 @@ private fun AppNavigation(nav: NavHostController, onPlay: (MediaItem, Boolean) -
     val start: Any = remember { if (settings.source != null) Route.Home else Route.Welcome }
 
     fun openItem(id: String) = nav.navigate(Route.Item(id))
-    fun openLibrary(library: Library) = nav.navigate(Route.Library(library.id, library.kind, library.title))
+    fun openLibrary(library: Library, sagas: Library? = null) =
+        nav.navigate(Route.Library(library.id, library.kind, library.title, sagas = sagas?.id))
     fun goHome() = nav.navigate(Route.Home) { popUpTo(0) { inclusive = true } }
 
     // Why choosing the folders on the welcome screen failed (the device's storage refused it): said
@@ -444,6 +446,7 @@ private fun AppNavigation(nav: NavHostController, onPlay: (MediaItem, Boolean) -
                 onOpenItem = { openItem(it.id) },
                 opensOn = route.filter,
                 personName = route.personName,
+                sagas = route.sagas?.let { Library(id = it, kind = LibraryKind.COLLECTIONS, title = null) },
             )
         }
         composable<Route.Item> { entry ->
