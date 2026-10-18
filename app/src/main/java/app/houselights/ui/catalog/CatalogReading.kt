@@ -47,6 +47,7 @@ import app.houselights.ui.util.NBSP
 import app.houselights.ui.design.components.WithItsPicture
 import app.houselights.ui.design.components.EndCredits
 import app.houselights.ui.design.components.Craft
+import app.houselights.ui.design.components.Synopsis
 import app.houselights.ui.design.components.FilmsOfHeading
 import app.houselights.core.Version
 import app.houselights.core.Editions
@@ -260,22 +261,26 @@ private fun ReadingEndCreditsSection() {
     Group("End credits, and the billing of a row", still = true) {
         ReadingRow {
             Specimen(
-                "a film: its overview whole, then its crafts, three names at most",
+                "a film: its overview whole, cut by the hero, then the crafts its head does not name, three names at most",
                 Modifier.width(HlLayout.readable),
                 gap = HlSpace.xxs,
             ) {
-                EndCredits(
-                    "Un instituteur part en vacances avec ses élèves. Sur la plage, une barque les attend, et la mer.",
-                    listOf(
-                        Craft("Réalisation", listOf("Jean Vigo")),
-                        Craft("Scénario", listOf("Jean Vigo", "Jean Guinée")),
-                        Craft("Musique", listOf("Maurice Jaubert")),
-                        Craft("Image", listOf("Boris Kaufman", "Louis Berger", "Jean-Paul Alphen", "Albert Viguier")),
-                        Craft("Montage", listOf("Louis Chavance")),
-                    ),
-                )
+                Column(verticalArrangement = Arrangement.spacedBy(HlSpace.l)) {
+                    Synopsis("Un instituteur part en vacances avec ses élèves. Sur la plage, une barque les attend, et la mer.")
+                    EndCredits(
+                        listOf(
+                            Craft("Scénario", listOf("Jean Vigo", "Jean Guinée")),
+                            Craft("Musique", listOf("Maurice Jaubert")),
+                            Craft("Image", listOf("Boris Kaufman", "Louis Berger", "Jean-Paul Alphen", "Albert Viguier")),
+                            Craft("Montage", listOf("Louis Chavance")),
+                        ),
+                    )
+                }
             }
-            Specimen("nothing to say: draws nothing", Modifier.weight(1f), gap = HlSpace.xxs) { EndCredits(null, emptyList()) }
+            Specimen("nothing to say: draws nothing", Modifier.weight(1f), gap = HlSpace.xxs) {
+                Synopsis(null)
+                EndCredits(emptyList())
+            }
         }
         ReadingRow {
             Specimen("a row the library writes: a director's films", Modifier.width(HlLayout.readable), gap = HlSpace.xxs) {

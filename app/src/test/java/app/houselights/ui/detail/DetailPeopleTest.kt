@@ -57,9 +57,9 @@ class DetailPeopleTest {
     }
 
     @Test
-    fun theEndCreditsNameTheCraftsInTheirOrder() {
+    fun theEndCreditsNameTheCraftsTheHeadDoesNotInTheirOrder() {
         val crafts = endCrafts(film, credits)
-        assertEquals(listOf(Job.DIRECTOR, Job.WRITER, Job.COMPOSER, Job.CINEMATOGRAPHY, Job.EDITING), crafts.map { it.first })
+        assertEquals(listOf(Job.WRITER, Job.COMPOSER, Job.CINEMATOGRAPHY, Job.EDITING), crafts.map { it.first })
     }
 
     @Test
@@ -69,18 +69,18 @@ class DetailPeopleTest {
     }
 
     @Test
-    fun aShowsEndCreditsAreItsCreatorsAndMusic() {
+    fun aShowsEndCreditsAreItsMusic() {
         val show = MediaItem("s1", MediaKind.SERIES, "Twin Peaks")
         val crew = mapOf(
             Job.CREATOR to listOf(person("David Lynch")),
             Job.COMPOSER to listOf(person("Angelo Badalamenti")),
             Job.WRITER to listOf(person("Mark Frost")),
         )
-        assertEquals(listOf(Job.CREATOR, Job.COMPOSER), endCrafts(show, Credits(crew = crew)).map { it.first })
+        assertEquals(listOf(Job.COMPOSER), endCrafts(show, Credits(crew = crew)).map { it.first })
     }
 
     @Test
-    fun withoutCreditsAFilmsDirectors() {
-        assertEquals(listOf(Job.DIRECTOR to listOf("Denis Villeneuve")), endCrafts(film, null))
+    fun withoutCreditsNoCrafts() {
+        assertEquals(emptyList<Pair<Job, List<String>>>(), endCrafts(film, null))
     }
 }

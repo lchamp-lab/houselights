@@ -119,6 +119,7 @@ import app.houselights.core.Person
 import androidx.compose.foundation.lazy.itemsIndexed
 import app.houselights.ui.util.jobName
 import app.houselights.ui.design.components.EndCredits
+import app.houselights.ui.design.components.Synopsis
 import app.houselights.ui.design.components.Craft
 import app.houselights.ui.design.components.CRAFT_NAMES
 import androidx.compose.foundation.lazy.LazyListScope
@@ -168,6 +169,8 @@ fun DetailScreen(
         NoTitleYet(state.error, onRetry = vm::load)
         return
     }
+    // Whether the hero cut the overview, which the page then gives whole at its end.
+    var overviewCut by remember(item.id) { mutableStateOf(false) }
 
     // Down the page, Back returns to the actions; from the top, it leaves.
     val scrolled by remember {
@@ -244,6 +247,7 @@ fun DetailScreen(
                             actions = actions,
                             memory = memory,
                             actionRow = actionRow,
+                            onOverviewCut = { overviewCut = it },
                             modifier = Modifier
                                 .padding(start = HlSpace.safeH, end = HlSpace.safeH, top = HlSpace.safeV)
                                 .align(Alignment.BottomStart),
@@ -253,6 +257,7 @@ fun DetailScreen(
 
                 seasonRows(state, memory, focusedEpisode, vm, onPlay)
                 titleRows(item, state, memory, people, RowLinks(onOpenItem, onOpenPerson))
+                endRows(item, state.credits, overviewCut)
             } }
     }
 }
@@ -341,7 +346,7 @@ private fun LazyListScope.sagaRows(item: MediaItem, state: DetailState, memory: 
 
 /**
  * The rows under a title's head: a collection's films, a film's saga, its people ([people]), the
- * titles like it, then its end credits.
+ * titles like it.
  */
 private fun LazyListScope.titleRows(
     item: MediaItem,
@@ -379,13 +384,22 @@ private fun LazyListScope.titleRows(
             }
         }
     }
+}
 
-    // The page ends as a film does: its overview whole, then its crafts.
-    val crafts = endCrafts(item, state.credits)
-    if (!item.overview.isNullOrBlank() || crafts.isNotEmpty()) {
+/**
+ * Where a title's page ends, as a film does: its overview whole, when the hero cut it
+ * ([overviewCut]), then the crafts its head does not name.
+ */
+private fun LazyListScope.endRows(item: MediaItem, credits: Credits?, overviewCut: Boolean) {
+    if (overviewCut && !item.overview.isNullOrBlank()) {
+        item(key = "synopsis") {
+            Synopsis(item.overview, Modifier.padding(start = HlLayout.insetRows, end = HlSpace.safeH))
+        }
+    }
+    val crafts = endCrafts(item, credits)
+    if (crafts.isNotEmpty()) {
         item(key = "credits") {
             EndCredits(
-                item.overview,
                 crafts.map { (job, names) -> Craft(jobName(job), names) },
                 Modifier.padding(start = HlLayout.insetRows, end = HlSpace.safeH),
             )
@@ -466,6 +480,7 @@ private fun Hero(
     actions: DetailActions,
     memory: FocusMemory,
     actionRow: FocusRequester,
+    onOverviewCut: (Boolean) -> Unit,
     modifier: Modifier,
 ) {
     val isEpisode = item.kind == MediaKind.EPISODE
@@ -507,6 +522,8 @@ private fun Hero(
                     color = Hl.colors.contentSecondary,
                     maxLines = 3,
                     overflow = TextOverflow.Ellipsis,
+                    // Cut, it is given whole at the end of the page.
+                    onTextLayout = { onOverviewCut(it.hasVisualOverflow) },
                 )
             }
             if (item.directors.isNotEmpty() || item.cast.isNotEmpty()) {
@@ -848,21 +865,21 @@ internal fun peopleOf(item: MediaItem, credits: Credits?, directing: String, cre
 }
 
 /**
- * The crafts of [item]'s end credits, as a film's end names them: direction (a show's creators),
- * screenplay, music, cinematography, editing; up to [CRAFT_NAMES] names each. A show's crafts
- * change from one episode to the next: its creators and its music alone. Without credits from the
- * source, a film's directors.
+ * The crafts of [item]'s end credits, those its head does not name (its direction, a show's
+ * creators, are in its billing block and its people): screenplay, music, cinematography, editing;
+ * up to [CRAFT_NAMES] names each. A show's crafts change from one episode to the next: its music
+ * alone. Without credits from the source, none.
  */
 internal fun endCrafts(item: MediaItem, credits: Credits?): List<Pair<Job, List<String>>> {
+    val crew = credits?.crew ?: return emptyList()
     val jobs = if (item.kind == MediaKind.SERIES) SHOW_CRAFTS else FILM_CRAFTS
-    val crew = credits?.crew ?: mapOf(Job.DIRECTOR to item.directors.map { Person(it, null, null) })
     return jobs.mapNotNull { job ->
         crew[job].orEmpty().map { it.name }.distinct().take(CRAFT_NAMES).takeIf { it.isNotEmpty() }?.let { job to it }
     }
 }
 
-private val FILM_CRAFTS = listOf(Job.DIRECTOR, Job.WRITER, Job.COMPOSER, Job.CINEMATOGRAPHY, Job.EDITING)
-private val SHOW_CRAFTS = listOf(Job.CREATOR, Job.COMPOSER)
+private val FILM_CRAFTS = listOf(Job.WRITER, Job.COMPOSER, Job.CINEMATOGRAPHY, Job.EDITING)
+private val SHOW_CRAFTS = listOf(Job.COMPOSER)
 
 
 /** Frames shown while a season loads: as many episodes as the screen shows whole. */

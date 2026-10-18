@@ -35,30 +35,44 @@ import java.util.Locale
 data class Craft(val job: String, val names: List<String>)
 
 /**
- * The end credits of a title's page, as a film ends: its overview whole (the hero cuts it at
- * three lines), then its [crafts] on two columns that meet on a gutter at the middle of the reading
- * column: each job in small condensed words set against the gutter, then up to [CRAFT_NAMES] names
- * in condensed capitals, one a line. The billing block at length, the other place capitals are
- * set. Each row takes focus to be read, white as every row; OK does nothing. Nothing to say, it
- * draws nothing.
+ * The overview whole, near the end of a title's page, under its own heading: the page shows it
+ * only when the hero has cut it at three lines. Read by giving it focus, white as every row; OK
+ * does nothing. Nothing to say, it draws nothing.
  */
 @Composable
-fun EndCredits(overview: String?, crafts: List<Craft>, modifier: Modifier = Modifier) {
-    val story = overview?.takeIf { it.isNotBlank() }
+fun Synopsis(overview: String?, modifier: Modifier = Modifier) {
+    val story = overview?.takeIf { it.isNotBlank() } ?: return
+    Column(modifier.widthIn(max = HlLayout.readable).revealOnFocus()) {
+        CreditsHeading(stringResource(R.string.synopsis))
+        StoryRow(story)
+    }
+}
+
+/**
+ * The end credits of a title's page, as a film ends: its [crafts] on two columns that meet on a
+ * gutter at the middle of the reading column: each job in small condensed words set against the
+ * gutter, then up to [CRAFT_NAMES] names in condensed capitals, one a line. The billing block at
+ * length, the other place capitals are set. Each row takes focus to be read, white as every row;
+ * OK does nothing. Nothing to say, it draws nothing.
+ */
+@Composable
+fun EndCredits(crafts: List<Craft>, modifier: Modifier = Modifier) {
     val shown = crafts.filter { it.names.isNotEmpty() }
-    if (story == null && shown.isEmpty()) return
-    // The overview first, when there is one, then each craft.
-    val count = shown.size + if (story != null) 1 else 0
-    @Composable
-    fun line(i: Int) = if (story != null && i == 0) StoryRow(story) else CraftRow(shown[i - if (story != null) 1 else 0])
+    if (shown.isEmpty()) return
     Column(modifier.widthIn(max = HlLayout.readable)) {
         // The heading comes into view with the first row.
         Column(Modifier.revealOnFocus()) {
-            SectionHeader(stringResource(R.string.end_credits), Modifier.padding(start = HlInset.card, bottom = HlSpace.xs))
-            line(0)
+            CreditsHeading(stringResource(R.string.end_credits))
+            CraftRow(shown.first())
         }
-        for (i in 1 until count) line(i)
+        shown.drop(1).forEach { CraftRow(it) }
     }
+}
+
+/** The heading of the synopsis or of the end credits, its words over those of the rows. */
+@Composable
+private fun CreditsHeading(text: String) {
+    SectionHeader(text, Modifier.padding(start = HlInset.card, bottom = HlSpace.xs))
 }
 
 /** Names a craft shows at most, as a poster's credits keep the first. */
