@@ -20,10 +20,10 @@ player's own menus all keep working.
     Each film or show can be corrected from its page: pick its poster, backdrop or logo among every image TMDB
     has (with a live preview), or identify it manually by title, year or IMDb id. These choices are kept by
     later scans and full refreshes, and "Automatic" hands the decision back to Houselights.
-    Films of a saga are gathered into collections, from the NFO's set or TMDB: the Films wall shows
-    them in place of its films (⇄ after its title turns it to Sagas), a page per collection (its films in release order, how many you own out of those released, Play
-    starting the next film to watch), and the saga on each film's page. By default a collection shows
-    once you own two of its films; Settings can show every one, or none.
+    Films of a saga are gathered, from the NFO's set or TMDB: ⇄ after the Films wall's title turns it to
+    its sagas, a page per saga (its films in release order, how many you own out of those released, Play
+    starting the next film to watch), and the saga on each film's page. By default a saga shows once you
+    own two of its films; Settings can show every one, or none.
   - **Jellyfin**: browses your server and reports playback progress back to it.
   - Emby and Plex: planned.
 - **Native playback**: files are opened directly by the Zidoo player (`smb://`, `nfs://` or HTTP). Progress

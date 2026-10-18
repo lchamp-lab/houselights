@@ -15,7 +15,7 @@
     <!-- Libraries and sections -->
     <string name="library_movies">Movies</string>
     <string name="library_shows">TV shows</string>
-    <string name="library_collections">Collections</string>
+    <string name="library_collections">Sagas</string>
     <string name="library_mixed">Library</string>
     <string name="section_continue">Continue watching</string>
     <string name="section_next_up">Next up</string>
@@ -134,7 +134,7 @@
     <string name="label_genres">Genres</string>
     <string name="label_directors">Directors</string>
     <string name="label_studios">Studios</string>
-    <string name="label_collection">Collection</string>
+    <string name="label_collection">Saga</string>
     <string name="label_ids">Identifiers</string>
     <string name="label_plot">Plot</string>
     <string name="label_cast">Cast</string>
@@ -498,7 +498,7 @@
         <item quantity="one">%d unwatched episode</item>
         <item quantity="other">%d unwatched episodes</item>
     </plurals>
-    <!-- Collections -->
+    <!-- Sagas -->
     <plurals name="film_count">
         <item quantity="one">%d film</item>
         <item quantity="other">%d films</item>
@@ -507,7 +507,7 @@
         <item quantity="one">%1$d film of %2$d</item>
         <item quantity="other">%1$d films of %2$d</item>
     </plurals>
-    <string name="collections_setting">Collections</string>
+    <string name="collections_setting">Sagas</string>
     <string name="collections_setting_desc">Films of the same saga, gathered</string>
     <string name="collections_two">From 2 films</string>
     <string name="collections_two_desc">A saga appears once you have at least two of its films</string>
@@ -557,7 +557,6 @@
     <string name="search_delete">Delete</string>
     <string name="search_titles">Titles</string>
     <string name="search_people">People</string>
-    <string name="wall_sagas">Sagas</string>
     <string name="search_sagas">Sagas</string>
     <string name="search_none">Nothing starts with “%s”</string>
 </resources>

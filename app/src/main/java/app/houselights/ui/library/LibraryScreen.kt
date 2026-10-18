@@ -89,6 +89,7 @@ import app.houselights.ui.util.skeletonDelayPassed
 import kotlinx.coroutines.launch
 import app.houselights.core.SortKeys
 import app.houselights.ui.util.NBSP
+import app.houselights.ui.util.libraryName
 import app.houselights.ui.util.pictureName
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -180,7 +181,7 @@ fun LibraryScreen(
                     ScreenTitle(title)
                 } else {
                     val films = title
-                    val other = stringResource(R.string.wall_sagas)
+                    val other = libraryName(LibraryKind.COLLECTIONS)
                     HlTitleSwitch(
                         if (showSagas) other else films,
                         label = if (showSagas) films else other,

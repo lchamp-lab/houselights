@@ -7,7 +7,7 @@
 
     <string name="library_movies">Films</string>
     <string name="library_shows">Séries</string>
-    <string name="library_collections">Collections</string>
+    <string name="library_collections">Sagas</string>
     <string name="library_mixed">Bibliothèque</string>
     <string name="section_continue">Reprendre</string>
     <string name="section_next_up">À suivre</string>
@@ -124,7 +124,7 @@
     <string name="label_genres">Genres</string>
     <string name="label_directors">Réalisation</string>
     <string name="label_studios">Studios</string>
-    <string name="label_collection">Collection</string>
+    <string name="label_collection">Saga</string>
     <string name="label_ids">Identifiants</string>
     <string name="label_plot">Résumé</string>
     <string name="label_cast">Distribution</string>
@@ -494,7 +494,7 @@
         <item quantity="other">%d épisodes non vus</item>
         <item quantity="many">%d épisodes non vus</item>
     </plurals>
-    <!-- Collections -->
+    <!-- Sagas -->
     <plurals name="film_count">
         <item quantity="one">%d film</item>
         <item quantity="other">%d films</item>
@@ -505,7 +505,7 @@
         <item quantity="other">%1$d films sur %2$d</item>
         <item quantity="many">%1$d films sur %2$d</item>
     </plurals>
-    <string name="collections_setting">Collections</string>
+    <string name="collections_setting">Sagas</string>
     <string name="collections_setting_desc">Les films d’une même saga, réunis</string>
     <string name="collections_two">À partir de 2 films</string>
     <string name="collections_two_desc">Une saga apparaît dès que vous en avez au moins deux films</string>
@@ -556,7 +556,6 @@
     <string name="search_delete">Effacer</string>
     <string name="search_titles">Titres</string>
     <string name="search_people">Personnes</string>
-    <string name="wall_sagas">Sagas</string>
     <string name="search_sagas">Sagas</string>
     <string name="search_none">Rien ne commence par « %s »</string>
 </resources>

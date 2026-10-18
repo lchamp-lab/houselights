@@ -78,6 +78,8 @@ import app.houselights.ui.design.emberLight
 import app.houselights.ui.design.tryRequestFocus
 import app.houselights.ui.util.NBSP
 import app.houselights.ui.util.formatDuration
+import app.houselights.ui.util.libraryName
+import app.houselights.core.LibraryKind
 import java.util.Locale
 import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
@@ -180,7 +182,7 @@ fun CatalogScreen() {
                     )
                     // A films' wall's title: ⇄ turns it to its sagas, and back.
                     var sagas by remember { mutableStateOf(false) }
-                    val views = listOf(R.string.library_movies, R.string.wall_sagas).map { stringResource(it) }
+                    val views = listOf(LibraryKind.MOVIES, LibraryKind.COLLECTIONS).map { libraryName(it) }
                     HlTitleSwitch(views[if (sagas) 1 else 0], label = views[if (sagas) 0 else 1], onSwitch = { sagas = !sagas })
                     HlSegmented(
                         (1..12).map { stringResource(R.string.season_number, it) },
@@ -509,7 +511,7 @@ private fun SheetQuestion(onDismiss: () -> Unit) {
 @Composable
 private fun SheetLong(onDismiss: () -> Unit) {
     HlSideSheet(
-        "Collections",
+        "Sagas",
         onDismiss = onDismiss,
         description = "Rows past the sheet fade at its edge; focus stays clear of it.",
     ) { sheet ->
