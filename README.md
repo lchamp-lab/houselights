@@ -21,7 +21,7 @@ player's own menus all keep working.
     has (with a live preview), or identify it manually by title, year or IMDb id. These choices are kept by
     later scans and full refreshes, and "Automatic" hands the decision back to Houselights.
     Films of a saga are gathered into collections, from the NFO's set or TMDB: the Films wall shows
-    them in place of its films (Films | Sagas, in its header), a page per collection (its films in release order, how many you own out of those released, Play
+    them in place of its films (⇄ after its title turns it to Sagas), a page per collection (its films in release order, how many you own out of those released, Play
     starting the next film to watch), and the saga on each film's page. By default a collection shows
     once you own two of its films; Settings can show every one, or none.
   - **Jellyfin**: browses your server and reports playback progress back to it.

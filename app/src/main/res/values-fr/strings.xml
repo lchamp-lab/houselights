@@ -556,7 +556,6 @@
     <string name="search_delete">Effacer</string>
     <string name="search_titles">Titres</string>
     <string name="search_people">Personnes</string>
-    <string name="wall_films">Films</string>
     <string name="wall_sagas">Sagas</string>
     <string name="search_sagas">Sagas</string>
     <string name="search_none">Rien ne commence par « %s »</string>

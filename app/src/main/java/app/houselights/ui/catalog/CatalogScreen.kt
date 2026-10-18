@@ -58,6 +58,7 @@ import app.houselights.ui.design.components.HlMeter
 import app.houselights.ui.design.components.HlNavItem
 import app.houselights.ui.design.components.HlPanel
 import app.houselights.ui.design.components.HlSegmented
+import app.houselights.ui.design.components.HlTitleSwitch
 import app.houselights.ui.design.components.HlSettingGroup
 import app.houselights.ui.design.components.HlSettingRow
 import app.houselights.ui.design.components.HlSideSheet
@@ -177,6 +178,10 @@ fun CatalogScreen() {
                         selected = place,
                         onSelect = { place = it },
                     )
+                    // A films' wall's title: ⇄ turns it to its sagas, and back.
+                    var sagas by remember { mutableStateOf(false) }
+                    val views = listOf(R.string.library_movies, R.string.wall_sagas).map { stringResource(it) }
+                    HlTitleSwitch(views[if (sagas) 1 else 0], label = views[if (sagas) 0 else 1], onSwitch = { sagas = !sagas })
                     HlSegmented(
                         (1..12).map { stringResource(R.string.season_number, it) },
                         selected = season,

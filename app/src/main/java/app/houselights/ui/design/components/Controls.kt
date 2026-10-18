@@ -205,6 +205,29 @@ private fun ButtonLabel(text: String) {
 }
 
 /**
+ * A screen's title that is one of its two views, and the disc after it that turns it to the other
+ * ([onSwitch]): a films' wall and its sagas. The title is a [ScreenTitle]; the disc, ⇄ in grey at
+ * rest, as tall as a control, fills white under focus as every disc. [label] names what OK shows
+ * ("Sagas"), for accessibility.
+ */
+@Composable
+fun HlTitleSwitch(title: String, label: String, onSwitch: () -> Unit, modifier: Modifier = Modifier) {
+    Row(modifier, verticalAlignment = Alignment.CenterVertically) {
+        ScreenTitle(title)
+        Spacer(Modifier.width(HlSpace.xs))
+        Surface(
+            onClick = onSwitch,
+            modifier = Modifier.size(HlSize.control),
+            shape = ClickableSurfaceDefaults.shape(HlShapes.avatar),
+            colors = FocusStyle.fill(rest = Color.Transparent, restContent = Hl.colors.contentSecondary),
+            scale = FocusStyle.scale(FocusStyle.Fill.Pill),
+        ) {
+            Icon(HlIcons.Swap, contentDescription = label, modifier = Modifier.size(HlSize.icon).align(Alignment.Center))
+        }
+    }
+}
+
+/**
  * A row of actions (a pill, then round buttons) that keeps room under itself for the label a round
  * button shows with focus, so nothing moves when it shows and what follows never lies under it.
  * The screen does not need to know the label is there.

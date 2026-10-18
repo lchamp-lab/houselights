@@ -173,6 +173,14 @@ object HlIcons {
         moveTo(9.5f, 6f); lineTo(15.5f, 12f); lineTo(9.5f, 18f)
     }
 
+    /** Turns a screen to its other view: two arrows, one each way. */
+    val Swap = icon("Swap") {
+        moveTo(4.5f, 8f); lineTo(19.5f, 8f)
+        moveTo(15.5f, 4f); lineTo(19.5f, 8f); lineTo(15.5f, 12f)
+        moveTo(19.5f, 16f); lineTo(4.5f, 16f)
+        moveTo(8.5f, 12f); lineTo(4.5f, 16f); lineTo(8.5f, 20f)
+    }
+
     /** Settings: a gear of six teeth, round the hole of its axle. */
     val Settings = icon("Settings") {
         moveTo(10.28f, 5.99f); lineTo(10.59f, 3.11f); lineTo(13.41f, 3.11f); lineTo(13.72f, 5.99f)

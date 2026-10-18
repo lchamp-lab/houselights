@@ -1,6 +1,6 @@
 package app.houselights.ui.library
 
-import app.houselights.ui.design.components.HlSegmented
+import app.houselights.ui.design.components.HlTitleSwitch
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
@@ -104,7 +104,7 @@ private const val SKELETON_ROWS = 3
 /**
  * A wall of posters, with the focused title named in the header. Opened on part of the library ([opensOn]: a
  * format of the library in numbers, a person, by name [personName]), it starts filtered by it. A films' wall
- * shows the source's [sagas] in their place on demand, the sagas having no tab of their own.
+ * shows the source's [sagas] in their place on demand, the sagas having no tab of their own: its title turns.
  */
 @Composable
 fun LibraryScreen(
@@ -175,7 +175,18 @@ fun LibraryScreen(
                 Modifier.fillMaxWidth().padding(start = HlSpace.safeH, end = HlSpace.safeH, top = HlSpace.safeV),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                ScreenTitle(title)
+                // With sagas, ⇄ after the title turns the wall from the films to their sagas, and back.
+                if (sagas == null) {
+                    ScreenTitle(title)
+                } else {
+                    val films = title
+                    val other = stringResource(R.string.wall_sagas)
+                    HlTitleSwitch(
+                        if (showSagas) other else films,
+                        label = if (showSagas) films else other,
+                        onSwitch = { showSagas = !showSagas },
+                    )
+                }
                 Spacer(Modifier.width(HlSpace.m))
                 if (state.total > 0) {
                     val count = pluralStringResource(
@@ -188,11 +199,7 @@ fun LibraryScreen(
                 Spacer(Modifier.weight(1f))
                 // The person the wall was opened for: its filter menu offers them while it shows.
                 val person = opensOn?.person?.let { id -> personName?.let { Person(it, null, null, id) } }
-                WallMenus(
-                    wall.kind, state, vm.capabilities, person, vm::setFilter, vm::setSort,
-                    showSagas = showSagas.takeIf { sagas != null },
-                    onShowSagas = { showSagas = it },
-                )
+                WallMenus(wall.kind, state, vm.capabilities, person, vm::setFilter, vm::setSort)
             }
             // The title selected, named without taking space from the wall: one line inside the
             // safe area, a long name drops its facts first, then ends in an ellipsis.
@@ -311,9 +318,8 @@ private fun SkeletonWall() {
 }
 
 /**
- * The wall's menus, at the end of its header: on a films' wall with sagas, films or sagas ([showSagas], null
- * without sagas); its filters (sagas are browsed by name or date, filters belong to films and shows), then
- * its sort.
+ * The wall's menus, at the end of its header: its filters (sagas are browsed by name or date, filters belong
+ * to films and shows), then its sort.
  */
 @Composable
 private fun WallMenus(
@@ -323,17 +329,7 @@ private fun WallMenus(
     person: Person?,
     onFilter: (LibraryFilter) -> Unit,
     onSort: (SortOption) -> Unit,
-    showSagas: Boolean? = null,
-    onShowSagas: (Boolean) -> Unit = {},
 ) {
-    if (showSagas != null) {
-        HlSegmented(
-            listOf(stringResource(R.string.wall_films), stringResource(R.string.wall_sagas)),
-            selected = if (showSagas) 1 else 0,
-            onSelect = { onShowSagas(it == 1) },
-        )
-        Spacer(Modifier.width(HlSpace.s))
-    }
     if (kind != LibraryKind.COLLECTIONS) FilterButton(state.filter, state.facets, can, person, onFilter)
     Spacer(Modifier.width(HlSpace.s))
     // "Trier", and how it is sorted now: alone, "Titre" would read as a title.
