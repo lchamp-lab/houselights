@@ -22,15 +22,12 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 
-/**
- * The tiny copies the light and the veil are read from stay apart from the pictures shown, in
- * Coil's memory: a card coming back finds its poster there, without decoding or fading it in again.
- */
+/** The tiny copies the light and veil are read from stay out of Coil's memory cache, which keeps the posters. */
 @RunWith(RobolectricTestRunner::class)
 class AmbientTest {
     private val context: Context = ApplicationProvider.getApplicationContext()
 
-    /** Hands out a picture of the size asked for, as a decoder would, and counts the files read. */
+    /** Serves a picture of the requested size, as a decoder would, and counts the files read. */
     private val files = object : Fetcher.Factory<Uri> {
         var reads = 0
 
@@ -61,7 +58,7 @@ class AmbientTest {
         assertEquals("the poster, then its light", 2, files.reads)
     }
 
-    /** Its tone is kept apart: the copy it was read from would only take a picture's room in memory. */
+    /** Its tone is cached on its own: the copy it was read from would only take a picture's room in memory. */
     @Test
     fun aCardsLightIsNotKeptInMemory() = runTest {
         loader.execute(card(POSTER))

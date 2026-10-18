@@ -1,16 +1,12 @@
 package app.houselights.providers.local
 
 /**
- * What the files beside a video, or in a show's folder ([ofShow]), were when it was last read
- * ([ItemEntity.sidecarKey]): the role, size, date and path of each. A scan compares it with what the
- * folder lists: a sidecar placed, removed or rewritten in place (an NFO keeps its size, not its date)
- * has them read again, not the video.
+ * Fingerprint of a video's sidecars, or a show folder's ([ofShow]), at the last read ([ItemEntity.sidecarKey]): role,
+ * size, date and path of each. A sidecar added, removed or rewritten in place (same size, new date) triggers a
+ * re-read of the sidecars, not the video.
  */
 internal object SidecarKey {
-    /**
-     * What the listing shows beside a file of [kind], as its indexer reads it: an episode has its NFO and
-     * its thumb, no poster, fanart or logo of its own.
-     */
+    /** Key of the listed sidecars the indexer of [kind] uses; episodes only use their NFO and thumb. */
     fun listed(kind: SourceKind, local: VideoSidecars): String? = of(
         when (kind) {
             SourceKind.MOVIES -> local
@@ -18,7 +14,7 @@ internal object SidecarKey {
         }
     )
 
-    /** The key of [read], the sidecars read of a file; null when there were none. */
+    /** Null when there are no sidecars. */
     fun of(read: VideoSidecars): String? = listOfNotNull(
         read.nfo?.let { "nfo" to it },
         read.poster?.let { "poster" to it },
@@ -27,18 +23,13 @@ internal object SidecarKey {
         read.thumb?.let { "thumb" to it },
     ).takeIf { it.isNotEmpty() }?.joinToString("\n") { (role, f) -> "$role:${f.size}:${f.lastModified ?: ""}:${f.relativePath}" }
 
-    /**
-     * The key of a show's own sidecars, [read] in its folder [dir] of source [sourceId] ([Sidecars.forShow]).
-     * The folder heads it, as a show may lie in several ([showDue]).
-     */
+    /** Key of a show's sidecars in [dir] ([Sidecars.forShow]), prefixed by it, as a show may span folders. */
     fun ofShow(sourceId: Long, dir: String, read: VideoSidecars): String? = of(read)?.let { "$SHOW$sourceId:$dir\n$it" }
 
     /**
-     * Whether a show's own sidecars are read when it is met in [dir] of source [sourceId], its row holding
-     * [stored]: placed, rewritten in place or removed since that folder was read; or placed in a show that
-     * has none read, or whose folder they were read in lists none now (renamed, emptied). Those of another
-     * of its folders (one giving its year, or on another source) stay: two folders of one show do not take
-     * turns at every pass. [sidecars]: what the source lists.
+     * Whether to read a show's sidecars in [dir]: they changed since that folder was read, or they appear while the
+     * show has none, or the folder they came from now lists none. Sidecars from another folder of the show (with a
+     * year, or on another source) are kept, so two folders do not alternate every pass.
      */
     fun showDue(stored: String?, sourceId: Long, dir: String, sidecars: Sidecars): Boolean {
         val listed = ofShow(sourceId, dir, sidecars.forShow(dir))
@@ -54,11 +45,7 @@ internal object SidecarKey {
         }
     }
 
-    /**
-     * Whether a show's own sidecar read in its folder [dir] of source [sourceId], as [stored] keeps them, lies there
-     * no more: a role the key holds that [listed] (what the folder lists now) lacks. What was read in another of
-     * the show's folders tells nothing of this one: its poster is not missed where it never lay.
-     */
+    /** True when a role in [stored] for this same [dir] is missing from [listed]; other folders never count. */
     fun showRemoved(stored: String?, sourceId: Long, dir: String, listed: VideoSidecars): Boolean {
         val read = stored?.takeIf { it.startsWith("$SHOW$sourceId:$dir\n") }?.lines()?.drop(1) ?: return false
         val now = mapOf("nfo" to listed.nfo, "poster" to listed.poster, "fanart" to listed.fanart, "logo" to listed.logo)

@@ -33,22 +33,16 @@ fun formatDuration(ms: Long): String {
     }
 }
 
-/**
- * Between facts inside one piece of text (a button's detail, a card's caption), where a layout
- * gap is not possible: as wide as three spaces, breaking only after it.
- */
+/** Gap between facts inside one text, where a layout gap is impossible: three spaces wide, breaking after. */
 const val FACT_GAP = "$NBSP$NBSP "
 
-/**
- * "1 214": a count grouped by thousands as the language groups them, by a no-break space where it groups
- * by a space (Archivo has no narrow one, which French takes).
- */
+/** "1 214": thousands grouped as the locale does, with a no-break space for the narrow one Archivo lacks. */
 fun formatCount(count: Long): String =
     java.text.NumberFormat.getIntegerInstance(java.util.Locale.getDefault()).format(count).replace(NARROW_NBSP, NBSP)
 
 private const val NARROW_NBSP = '\u202F'
 
-/** "1 214 h": hours set end to end, whole; under an hour, its minutes ([formatDuration]). */
+/** "1 214 h": total whole hours; under an hour, its minutes ([formatDuration]). */
 fun formatHours(context: Context, ms: Long): String {
     val hours = ms / HOUR_MS
     return if (hours == 0L) formatDuration(ms) else context.getString(R.string.hours, formatCount(hours))
@@ -59,10 +53,7 @@ fun formatHours(ms: Long): String = formatHours(LocalContext.current, ms)
 
 private const val HOUR_MS = 3_600_000L
 
-/**
- * A picture format as badges keep it ("4K", "Dolby Vision") as a case names it: a definition by its name
- * ("Ultra HD"), a range as it is.
- */
+/** A picture format token as a disc case names it: a definition by name ("Ultra HD"), a range as is. */
 fun pictureName(token: String): String = Definition.entries.find { it.token == token }?.label ?: token
 
 /** "2,39:1", "1,85:1": the way aspect ratios are written, in the local decimal style. */
@@ -71,7 +62,7 @@ fun formatRatio(ratio: Float): String = String.format(java.util.Locale.getDefaul
 /** "3840 × 2160". */
 fun formatDimensions(width: Int, height: Int): String = "$width$NBSP×$NBSP$height"
 
-/** A library's name by its kind ("Films", "Séries"): its tab on Home, and its screen's title when it has none of its own. */
+/** A library's name by kind ("Films", "Séries"): its Home tab, and its title when it has none of its own. */
 @StringRes
 fun LibraryKind.titleRes(): Int = when (this) {
     LibraryKind.MOVIES -> R.string.library_movies
@@ -83,16 +74,11 @@ fun LibraryKind.titleRes(): Int = when (this) {
 @Composable
 fun libraryName(kind: LibraryKind): String = stringResource(kind.titleRes())
 
-/**
- * A copy of a film by its name: its edition as the screen's language says it ("Version longue"), one
- * no token knows as written, else the name its source gives it, else its place among the copies
- * ([index], from 0: "Copie 2").
- */
+/** A copy's name: its edition (translated if known), else its source's label, else [index] from 0 ("Copie 2"). */
 @Composable
 fun versionName(edition: String?, label: String?, index: Int): String =
     EDITION_NAMES[edition]?.let { stringResource(it) } ?: edition ?: label ?: stringResource(R.string.version_copy, index + 1)
 
-/** The editions the library knows ([Editions]), by the names the screen gives them. */
 private val EDITION_NAMES = mapOf(
     Editions.EXTENDED to R.string.edition_extended,
     Editions.DIRECTORS_CUT to R.string.edition_directors_cut,
@@ -159,10 +145,7 @@ fun scanErrorText(context: Context, error: ScanError, host: String): String = wh
 @Composable
 fun scanErrorText(error: ScanError, host: String): String = scanErrorText(LocalContext.current, error, host)
 
-/**
- * "eng", "en-US" or "fre" as a language name in the interface language ("Anglais", "Français"), by the
- * code the sheet tells tracks apart by ([Languages.code]); a code no language answers to as it is.
- */
+/** "eng", "en-US" or "fre" as a name in the interface language ("Anglais"); an unknown code as is. */
 fun languageName(code: String?): String? {
     val tag = Languages.code(code) ?: return null
     val name = java.util.Locale.forLanguageTag(tag).getDisplayLanguage(java.util.Locale.getDefault())
@@ -193,10 +176,7 @@ private const val TERABYTE = 1_000_000_000_000L
 @Composable
 fun formatBytes(bytes: Long): String = formatBytes(LocalContext.current, bytes)
 
-/**
- * "Il reste 1 h 26" for a title started: a duration, never a timecode, never "0 min" (a minute at
- * least); nothing when it is not started or its length is unknown.
- */
+/** "Il reste 1 h 26" for a started title, at least a minute; null when unstarted or of unknown length. */
 @Composable
 fun timeLeft(item: MediaItem): String? {
     val left = (item.runtimeMs ?: 0L) - item.user.positionMs

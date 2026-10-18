@@ -12,10 +12,7 @@ import app.houselights.core.isWebUrl
 import java.security.MessageDigest
 import java.util.Locale
 
-/**
- * The device as its build names it ([Build]): what tells a Zidoo, and what About and the log say of
- * it. These are read-only properties of the firmware: no app can change them.
- */
+/** The device as its build names it ([Build]), read-only firmware properties no app can change. */
 data class DeviceIdentity(
     val manufacturer: String,
     val brand: String,
@@ -23,17 +20,17 @@ data class DeviceIdentity(
     val product: String,
     val device: String,
     val fingerprint: String,
-    /** "release-keys", or "test-keys" for a build signed with AOSP's keys, which anyone has. */
+    /** "release-keys", or "test-keys" for a build signed with AOSP's public keys. */
     val tags: String,
 ) {
-    /** Signed with AOSP's test keys: a certificate the firmware's apps share proves nothing. */
+    /** A test-keys build: a certificate shared with the firmware's apps proves nothing. */
     val testKeys: Boolean get() = tags.contains("test-keys")
 
-    /** "ZIDOO Z9X Pro": its maker and its model, the maker said once when the model already names it. */
+    /** "ZIDOO Z9X Pro": the maker is not repeated when the model already names it. */
     val name: String
         get() = if (model.startsWith(manufacturer, ignoreCase = true)) model else "$manufacturer $model".trim()
 
-    /** Some field names Zidoo: a Realtek build may keep its chip maker's name in some of them, not in all. */
+    /** Any field names Zidoo: a Realtek build may keep the chip maker's name in some of them. */
     val namesZidoo: Boolean
         get() = listOf(manufacturer, brand, model, product, device, fingerprint).any { it.contains(ZIDOO, ignoreCase = true) }
 
@@ -52,45 +49,31 @@ data class DeviceIdentity(
     }
 }
 
-/** What About says of the player: the decision playback takes ([ZidooPlayer.choose]), in brief. */
+/** What About shows of the player, from the decision playback takes ([ZidooPlayer.choose]). */
 sealed interface PlayerStatus {
-    /** Found, and a password may go to it. */
     data class Detected(val packageName: String) : PlayerStatus
 
     /** Found, but no password goes to it, for [reason]. */
     data class Unrecognized(val packageName: String, val reason: ZidooPlayer.Decision) : PlayerStatus
 
-    /** No app to hand a film to. */
     data object NotDetected : PlayerStatus
 }
 
 /**
- * Finds the Zidoo player, the app a film is handed to, and whether a password may go to it
- * ([choose]): playback and About ask it alike.
- *
- * The Z1000 Pro's firmware plays with [KNOWN_ACTIVITY]; a newer one may play with another app of
- * its own, under a name nobody published. On a Zidoo, that app is looked for among the firmware's
- * apps that open a video; elsewhere, only the known one is taken, and never trusted ([Decision]).
+ * Finds the player a film is handed to, and whether a password may go to it ([choose]). The Z1000 Pro
+ * plays with [KNOWN_ACTIVITY]; newer firmware may use another, unpublished app, looked for among the
+ * firmware's video apps on a Zidoo only. Elsewhere only the known one is taken, never trusted ([Decision]).
  */
 class ZidooPlayer(
     private val context: Context,
-    /** The device as its build names it. */
     private val identity: () -> DeviceIdentity = DeviceIdentity::current,
 ) {
     private val packages: PackageManager get() = context.packageManager
 
-    /** The player a secret last went to ([remember]): its package and its certificate. */
+    /** The player a secret last went to ([remember]): its package and certificate. */
     private val trusted = context.getSharedPreferences("player", Context.MODE_PRIVATE)
 
-    /**
-     * An activity that opens a video; whether the firmware installed its app ([system]), or else it is
-     * signed like a system app of Zidoo's on a build of the firmware's own keys ([signedLikeFirmware]).
-     */
-    /**
-     * An app that opens a video: [system], [signedLikeFirmware], and whether it [streams], opening a
-     * video by its type or at a share's or a stream's address, not only a file's or a content's (as a
-     * firmware's poster wall does, which no film is for).
-     */
+    /** An app that opens a video; [streams] when it opens shares or streams, not only files (a poster wall). */
     data class Candidate(
         val component: ComponentName,
         val system: Boolean,
@@ -98,16 +81,12 @@ class ZidooPlayer(
         val streams: Boolean = true,
     )
 
-    /** The device: its build, and the apps of Zidoo's its firmware installed. */
     data class Device(val identity: DeviceIdentity, val zidooApps: List<String>) {
-        /** A Zidoo: its build says so, or its firmware installed an app of Zidoo's, which no ordinary app can fake. */
+        /** A Zidoo: its build says so, or it has a Zidoo system app, which no ordinary app can fake. */
         val zidoo: Boolean get() = identity.namesZidoo || zidooApps.isNotEmpty()
     }
 
-    /**
-     * What [choose] found: the [player], or none, among every [candidates] seen, on [device]; the
-     * SHA-256 of its signing [certificate] (public), and whether a password may go to it ([decision]).
-     */
+    /** What [choose] found: the [player] among [candidates], its [certificate]'s SHA-256, and the [decision]. */
     data class Choice(
         val player: Candidate?,
         val candidates: List<Candidate>,
@@ -118,36 +97,33 @@ class ZidooPlayer(
 
     /** Whether a password may go to the player found, and why. */
     enum class Decision(val trusted: Boolean) {
-        /** No app opens a video for the app to hand it to. */
         NO_PLAYER(false),
 
-        /** This device is no Zidoo: no password ever leaves the app. */
+        /** Not a Zidoo: no password ever leaves the app. */
         NOT_A_ZIDOO(false),
 
-        /** Installed with the firmware: a system app, which no ordinary app can replace. */
+        /** A system app installed with the firmware, which no ordinary app can replace. */
         FIRMWARE(true),
 
-        /** An ordinary app signed with the certificate of an app of Zidoo's the firmware installed. */
+        /** An ordinary app signed with a Zidoo system app's certificate. */
         SIGNED_LIKE_FIRMWARE(true),
 
         /** Neither, but the player a password last went to, unchanged since. */
         REMEMBERED(true),
 
-        /** Neither, and no password went to any player yet: this one is trusted from the first ([remember]). */
+        /** Neither, and no password has gone to any player yet: trusted on first use ([remember]). */
         FIRST_USE(true),
 
-        /** Neither, and not the player a password last went to: another app, or the same with another certificate. */
+        /** Neither, and not the remembered player: another app, or the same with another certificate. */
         CHANGED(false),
 
-        /** Its certificate cannot be read: nothing would tell it changed. */
+        /** Its certificate cannot be read, so a change would go unnoticed. */
         NO_CERTIFICATE(false),
     }
 
     /**
-     * The player: the one a password last went to ([remember]) while it is there with the same
-     * certificate; else the first of [preferred], among [KNOWN_ACTIVITY] when the package manager
-     * really resolves it (an intent naming a component would return it unchecked) and, on a Zidoo,
-     * the firmware's apps that open a video.
+     * The remembered player while it keeps its certificate; else the first of [preferred] among [KNOWN_ACTIVITY]
+     * (if really resolved: a component intent returns it unchecked) and, on a Zidoo, the firmware's video apps.
      */
     fun choose(): Choice {
         val device = device()
@@ -159,27 +135,21 @@ class ZidooPlayer(
         return Choice(player, candidates, device, certificate, decide(player, device, certificate))
     }
 
-    /**
-     * [candidate] is the player a password last went to ([remember]), with the same certificate: an
-     * app put in its place, under its name, does not come first for it.
-     */
+    /** [candidate] is the remembered player, same certificate: an impostor under its name does not come first. */
     private fun remembered(candidate: Candidate): Boolean {
         val pkg = candidate.component.packageName
         return pkg == trusted.getString(KEY_PACKAGE, null) && certificate(pkg) == trusted.getString(KEY_CERTIFICATE, null)
     }
 
     /**
-     * [player] opens a video at [uri]: the old player any address it is handed, a stream too, read on
-     * the device; a player found under another name, a stream only if it answers its address
-     * ([probe]), since one that opens shares alone would fail on it. A share's address is not asked
-     * of: the old player opens one it does not answer.
+     * Whether [player] opens a video at [uri]: the old player opens any address; another gets a stream only
+     * if it answers its address ([probe]). Shares are not probed: the old player opens them without answering.
      */
     fun opens(player: Candidate, uri: String): Boolean {
         if (player.component.packageName == KNOWN_PACKAGE || !isWebUrl(uri)) return true
         return packages.queryIntentActivities(probe(Uri.parse(uri)), 0).any { it.activityInfo?.component() == player.component }
     }
 
-    /** What About says of the player: what [choose] decides. */
     fun status(): PlayerStatus {
         val choice = choose()
         val pkg = choice.player?.component?.packageName ?: return PlayerStatus.NotDetected
@@ -187,10 +157,8 @@ class ZidooPlayer(
     }
 
     /**
-     * A password went to [choice]'s player, which is trusted and has started (not one that could not
-     * be, under a name it took): from now on, no ordinary app but that one, with that certificate, gets
-     * one. Remembered whatever trusts it, the firmware's own player too: an app put in its place later
-     * is no first use.
+     * Remembers [choice]'s player once it started with a password, so no other app or certificate gets one
+     * after it; the firmware player too, so a later replacement is not a first use.
      */
     fun remember(choice: Choice) {
         val pkg = choice.player?.component?.packageName ?: return
@@ -200,11 +168,7 @@ class ZidooPlayer(
         trusted.edit().putString(KEY_PACKAGE, pkg).putString(KEY_CERTIFICATE, certificate).apply()
     }
 
-    /**
-     * [choice] in one line for the log, without a secret: the decision and why, the player and the
-     * SHA-256 of its certificate, every candidate seen (system app or not, and who installed it), the
-     * device's build and the system apps of Zidoo's seen. The evening it goes wrong, it says why.
-     */
+    /** [choice] in one log line, without secrets: decision and why, player, certificate, candidates, build. */
     fun describe(choice: Choice): String {
         val candidates = choice.candidates.joinToString("; ") {
             val kind = when {
@@ -232,7 +196,7 @@ class ZidooPlayer(
         Decision.NO_CERTIFICATE -> "its certificate cannot be read"
     }
 
-    /** Who installed [pkg]: the firmware's own updater, a store, or nobody said (null). */
+    /** Who installed [pkg]: the firmware's updater, a store, or null. */
     private fun installer(pkg: String): String? = try {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             packages.getInstallSourceInfo(pkg).installingPackageName
@@ -243,15 +207,10 @@ class ZidooPlayer(
     } catch (_: PackageManager.NameNotFoundException) {
         null
     } catch (_: IllegalArgumentException) {
-        // Android 9 says so of a package that is not installed.
+        // Android 9 throws this for a package that is not installed.
         null
     }
 
-    /**
-     * Never off a Zidoo; on one, a system app, or one signed like an app of Zidoo's its firmware
-     * installed ([signedLikeFirmware]), or else the player a password last went to, or the first one,
-     * as long as it does not change.
-     */
     private fun decide(player: Candidate?, device: Device, certificate: String?): Decision = when {
         player == null -> Decision.NO_PLAYER
         !device.zidoo -> Decision.NOT_A_ZIDOO
@@ -266,14 +225,11 @@ class ZidooPlayer(
         }
     }
 
-    /**
-     * [pkg] is signed like an app of Zidoo's the firmware installed, which only Zidoo can sign: not on
-     * a build signed with AOSP's test keys, as the Z1000 Pro's is, whose certificate anyone can sign with.
-     */
+    /** [pkg] shares a Zidoo system app's certificate; never on a test-keys build (Z1000 Pro): its keys are public. */
     private fun signedLikeFirmware(pkg: String, device: Device) =
         !device.identity.testKeys && device.zidooApps.any { packages.checkSignatures(pkg, it) == PackageManager.SIGNATURE_MATCH }
 
-    /** The SHA-256 of [pkg]'s signing certificates, in hex as apksigner prints it; null when none can be read. */
+    /** SHA-256 of [pkg]'s signing certificates in hex, as apksigner prints it; null when unreadable. */
     private fun certificate(pkg: String): String? {
         val signing = try {
             packages.getPackageInfo(pkg, PackageManager.GET_SIGNING_CERTIFICATES).signingInfo
@@ -289,7 +245,7 @@ class ZidooPlayer(
     private fun ByteArray.toHex() = joinToString("") { "%02x".format(Locale.ROOT, it) }
 
     private fun device(): Device {
-        // From Android 11, only the apps this one may see (see <queries> in the manifest).
+        // From Android 11, only the apps visible to this one (see <queries> in the manifest).
         val zidooApps = packages.getInstalledApplications(0)
             .filter { it.isSystem() && it.packageName.startsWith(ZIDOO_PREFIX) }
             .map { it.packageName }
@@ -303,10 +259,8 @@ class ZidooPlayer(
     }
 
     /**
-     * The firmware's activities that open a video, by type or at an address of each scheme [probes]
-     * asks (an app whose filter names a scheme answers no intent without one): its system apps, apps
-     * signed like them ([Candidate.signedLikeFirmware]), or apps under a name of Zidoo's, never ours,
-     * and only what this app may start ([startable]).
+     * The firmware's activities that open a video by type or at any [probes] scheme (a filter naming a scheme
+     * matches no intent without one): system apps, apps signed like them or under a Zidoo name; never ours.
      */
     private fun discover(device: Device): List<Candidate> {
         val answered = probes().flatMapIndexed { index, probe ->
@@ -319,19 +273,16 @@ class ZidooPlayer(
             .filter { it.system || it.signedLikeFirmware || it.component.packageName.startsWith(ZIDOO_PREFIX) }
     }
 
-    /** What the system opens a video with unasked, at any address [probes] asks. */
+    /** What the system opens a video with unasked, for any of [probes]. */
     private fun defaults(): Set<ComponentName> =
         probes().mapNotNull { packages.resolveActivity(it, PackageManager.MATCH_DEFAULT_ONLY)?.activityInfo }
             .map { it.component() }
             .toSet()
 
     /**
-     * The order players are taken in, what no ordinary app can fake first: the system's apps, then an
-     * app signed like them, then an ordinary app, under the old player's name or one of Zidoo's, which
-     * any app may take. Among the system's apps, and among the others, one that [Candidate.streams]
-     * first: an app of Zidoo's that opens only files (its poster wall) is no player for a share. Then
-     * the old player, an app of Zidoo's, any other; the system's default, then an activity named for
-     * films ("MovieActivity", "VideoPlayer"); by name last, so the same apps always give the same player.
+     * Player order, unfakeable first: system apps and apps signed like them, then ordinary apps. Within
+     * each, streaming players first (a Zidoo app that opens only files cannot play a share), then by rank,
+     * the system default, an activity named for films; by name last, so the same apps give the same player.
      */
     private fun preferred(defaults: Set<ComponentName>) =
         compareBy<Candidate> { rank(it) >= Rank.SIGNED_LIKE_FIRMWARE }
@@ -342,7 +293,6 @@ class ZidooPlayer(
             .thenBy { it.component.packageName }
             .thenBy { it.component.className }
 
-    /** The ranks of [preferred], first to last. */
     private enum class Rank { OLD_PLAYER, ZIDOOS, SYSTEM, SIGNED_LIKE_FIRMWARE, ORDINARY }
 
     private fun rank(candidate: Candidate): Rank {
@@ -356,11 +306,7 @@ class ZidooPlayer(
         }
     }
 
-    /**
-     * Another app may start it: exported, and under no permission this one lacks. Android may list
-     * one that is not among those that answer an intent, and starting it throws (SecurityException):
-     * every film, a plain one too, would then find no player.
-     */
+    /** Exported, needing no permission we lack: Android may list an activity that throws SecurityException on start. */
     private fun startable(info: ActivityInfo) =
         info.exported && info.permission.let { it == null || context.checkSelfPermission(it) == PackageManager.PERMISSION_GRANTED }
 
@@ -384,15 +330,13 @@ class ZidooPlayer(
         private const val KEY_PACKAGE = "trusted_package"
         private const val KEY_CERTIFICATE = "trusted_certificate"
 
-        /** This app's package, its debug and bench builds' too. */
+        /** This app's package, also the prefix of its debug and bench builds'. */
         private const val OWN_PACKAGE = "app.houselights"
 
         /**
-         * What a player is asked to open: a video by its type, at the addresses the app hands over, and
-         * at those the Z1000 Pro's player answers, read on the device: http, file and content (https
-         * was not asked there; a stream may be at one), never smb nor nfs, which it is handed by name.
-         * A firmware's player under another name answers as it does, if at all. From Android 11, the
-         * manifest's <queries> must declare each, or no app answers it.
+         * Probe intents: a video by type and at each scheme the app hands over. The Z1000 Pro's player
+         * answers http, file and content, never smb or nfs, which it gets by component name. From
+         * Android 11 the manifest's <queries> must declare each, or no app answers it.
          */
         internal fun probes() = listOf(Intent(Intent.ACTION_VIEW).setType(VIDEO)) + listOf(
             "nfs://nas/film.mkv",
@@ -403,13 +347,10 @@ class ZidooPlayer(
             "content://media/external/video/media/1",
         ).map { Intent(Intent.ACTION_VIEW).setDataAndType(Uri.parse(it), VIDEO) }
 
-        /** The first of [probes] at a file's or a content's address: those before it are a share's or a stream's. */
+        /** Index of the first file or content probe in [probes]; earlier ones are share or stream addresses. */
         private const val FIRST_FILE_PROBE = 5
 
-        /**
-         * What a player is asked to know whether it opens a video at [uri] ([opens]): its scheme, host
-         * and port, never its user's part, path or query, where a password or a token is.
-         */
+        /** Probe for [opens]: [uri]'s scheme, host and port only; user info, path and query may hold secrets. */
         internal fun probe(uri: Uri): Intent {
             val authority = uri.host.orEmpty() + if (uri.port >= 0) ":${uri.port}" else ""
             return Intent(Intent.ACTION_VIEW).setDataAndType(Uri.Builder().scheme(uri.scheme).encodedAuthority(authority).build(), VIDEO)
@@ -417,7 +358,7 @@ class ZidooPlayer(
 
         private const val VIDEO = "video/*"
 
-        /** Filters that say they are a default, and the others. */
+        /** Default filters first, then the others. */
         private val QUERY_FLAGS = listOf(PackageManager.MATCH_DEFAULT_ONLY, 0)
         private val FILM_WORDS = Regex("(?i)movie|video|player")
     }

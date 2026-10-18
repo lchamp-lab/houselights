@@ -28,10 +28,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 
-/**
- * A wall's first page asked while home's pill slides to it: the wall of that library opens on it,
- * once, without asking again; any other wall, or one sorted or filtered otherwise, asks for its own.
- */
+/** A wall's first page, asked while home's pill slides to it, opens that wall without asking again. */
 @OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
 class LibraryAheadTest {

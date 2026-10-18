@@ -7,12 +7,12 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** A file read by an older probe is read again; one read by this probe is not. How far a file is read, and from where. */
+/** Which files are probed again (those of an older probe version), and how far a file is read, from where. */
 class MediaProbeTest {
     @Test
     fun anOlderReadingIsReadAgain() {
         assertTrue(MediaProbe.isStale(null))
-        // Read before the probe kept its version: no frame rate in it.
+        // Probed before the probe recorded its version: no frame rate.
         assertTrue(MediaProbe.isStale("""{"container":"MKV","video":{"codec":"HEVC","width":3840}}"""))
         assertTrue(MediaProbe.isStale("not json"))
     }
@@ -20,7 +20,7 @@ class MediaProbeTest {
     @Test
     fun aCurrentReadingStays() {
         assertFalse(MediaProbe.isStale(MediaProbe.encode(MediaInfo(container = "MKV", probedWith = MediaProbe.VERSION))))
-        // An MP4 the probe could not open is not tried again at every scan.
+        // An MP4 the probe could not open is not retried at every scan.
         assertFalse(MediaProbe.isStale(MediaProbe.encode(MediaInfo(container = "MP4", probedWith = MediaProbe.VERSION))))
     }
 
@@ -41,7 +41,7 @@ class MediaProbeTest {
 
     private fun number(id: Int, v: Int) = el(id, byteArrayOf((v shr 8).toByte(), v.toByte()))
 
-    /** Each read of [file], where it started and how many bytes it asked for, and what the probe made of it. */
+    /** Each read of [file] (its offset and length), and what the probe made of it. */
     private suspend fun probe(file: ByteArray): Pair<List<Pair<Long, Int>>, MediaInfo> {
         val nas = FakeRemoteBrowser().apply { put("Heat (1995).mkv", size = file.size.toLong(), bytes = file) }
         val reads = mutableListOf<Pair<Long, Int>>()
@@ -50,10 +50,7 @@ class MediaProbeTest {
         return reads to result.info
     }
 
-    /**
-     * A remux's start: an HEVC video and an AC3 audio track, the video's first frame of [videoFrame]
-     * bytes, the audio's after it, then the rest of the film.
-     */
+    /** A remux's start: HEVC and AC3 tracks, a first video frame of [videoFrame] bytes, then the audio's. */
     private fun remux(videoFrame: Int): ByteArray {
         val video = el(
             0xAE,
@@ -70,7 +67,7 @@ class MediaProbeTest {
     /** What reading [file] whole makes of its tracks. */
     private fun whole(file: ByteArray) = (MkvProbe.probe(file) as MkvProbe.Result.Found).info
 
-    /** A track list that alone outgrows the first read, as a track's 300 KB CodecPrivate makes it: read on to its end. */
+    /** A track list larger than the first read, as with a 300 KB CodecPrivate: it is read to its end. */
     @Test
     fun aTrackListLongerThanTheFirstReadIsReadToItsEnd() = runTest {
         val video = el(
@@ -94,7 +91,7 @@ class MediaProbeTest {
         assertEquals(listOf(0L, FIRST_READ.toLong()), reads.map { it.first })
     }
 
-    /** A 4K remux's first video frame fills the first read; the audio's first frame follows within the megabyte: read no further. */
+    /** A 4K remux's first video frame fills the first read, the audio's comes within the megabyte: no further. */
     @Test
     fun firstFramesWithinTheFirstMegabyteAreReadNoFurther() = runTest {
         val file = remux(videoFrame = 500_000)
@@ -104,7 +101,7 @@ class MediaProbeTest {
         assertEquals(whole(file).audio, info.audio)
     }
 
-    /** A first video frame larger than the megabyte: read on to the next step, for the audio's, as one read did. */
+    /** A first video frame larger than the megabyte: reading goes on to the next step, for the audio's. */
     @Test
     fun firstFramesPastTheFirstMegabyteAreReadOnToTheNextStep() = runTest {
         val file = remux(videoFrame = 1_500_000)
@@ -121,7 +118,7 @@ class MediaProbeTest {
         const val FIRST_READ = 256 shl 10
         const val MEGABYTE = 1 shl 20
 
-        /** As far as a file is read for the first frames of its tracks. */
+        /** How far a file is read for its tracks' first frames. */
         const val FRAMES_AT_MOST = 4 shl 20
     }
 }

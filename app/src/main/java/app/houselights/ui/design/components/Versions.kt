@@ -40,9 +40,8 @@ import app.houselights.ui.util.formatDuration
 import app.houselights.ui.util.versionName
 
 /**
- * The copies of a film, beside its page ([HlSideSheet]): each by its edition ("Version longue"),
- * what its file holds in the technical voice, its size and length; the one Lire plays, your choice,
- * with its ember check. OK on a copy makes it your choice ([onChoose]); Back closes.
+ * A film's versions in a side sheet: edition ("Version longue"), formats, size and runtime; the one Lire
+ * plays has the ember check. OK chooses a version ([onChoose]); Back closes.
  */
 @Composable
 fun VersionsSheet(item: MediaItem, versions: List<Version>, onChoose: (Version) -> Unit, onDismiss: () -> Unit) {
@@ -69,11 +68,7 @@ fun VersionsSheet(item: MediaItem, versions: List<Version>, onChoose: (Version) 
     }
 }
 
-/**
- * One copy of a film: its [name] in `entry`, its picture and its sound in the technical voice
- * ([FormatLines]), its size and its length; the one chosen says it, the ember check and "Votre
- * choix". White with focus, as every row; read as one line.
- */
+/** One film version: [name], formats ([FormatLines]), size and runtime; the chosen one adds "Votre choix". */
 @Composable
 fun VersionRow(name: String, version: Version, onChoose: () -> Unit, modifier: Modifier = Modifier) {
     val c = Hl.colors
@@ -104,7 +99,6 @@ fun VersionRow(name: String, version: Version, onChoose: () -> Unit, modifier: M
                 )
                 if (version.chosen) {
                     Spacer(Modifier.width(HlSpace.s))
-                    // Your choice, written one way: the check in ember, and its word.
                     Icon(
                         HlIcons.Check,
                         contentDescription = null,

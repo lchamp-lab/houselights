@@ -5,14 +5,11 @@ import androidx.annotation.Keep
 /** Kind of a library entry, independent of the backend it comes from. */
 enum class MediaKind { MOVIE, SERIES, SEASON, EPISODE, COLLECTION, FOLDER, VIDEO }
 
-/** Kept: a navigation route carries it. */
+/** Kept from R8 because a navigation route carries it. */
 @Keep
 enum class LibraryKind { MOVIES, SHOWS, COLLECTIONS, MIXED }
 
-/**
- * Lazily sized image: backends know how to request an image at a given pixel width
- * (server-side resize, CDN size buckets...). Equality is based on [key] only.
- */
+/** An image backends can request at any pixel width (server resize, CDN buckets); equality uses [key] only. */
 class ImageRef(private val key: String, private val build: (widthPx: Int) -> String) {
     fun url(widthPx: Int): String = build(widthPx)
     override fun equals(other: Any?) = other is ImageRef && other.key == key
@@ -20,10 +17,7 @@ class ImageRef(private val key: String, private val build: (widthPx: Int) -> Str
     override fun toString() = "ImageRef($key)"
 }
 
-/**
- * Someone a title credits: as cast, with their [role]. [id] opens their page ([Catalog.person]) and
- * [titleCount] says how many titles of the library hold them, when the source tells them.
- */
+/** Someone credited, with their [role] if cast; [id] opens their page, [titleCount] counts their library titles. */
 data class Person(val name: String, val role: String?, val image: ImageRef?, val id: String? = null, val titleCount: Int? = null)
 
 data class UserState(
@@ -61,10 +55,7 @@ data class MediaItem(
     val hasNfo: Boolean = false,
     /** Name of the video file, when the backend knows it. */
     val fileName: String? = null,
-    /**
-     * A film in several files (CD1, CD2…), which the player plays one at a time: each part in order, the
-     * first included, as an item [MediaProvider.playback] plays on its own. Empty for a film in one file.
-     */
+    /** A multi-part film's files (CD1, CD2…) in order, the first included, each played on its own; else empty. */
     val parts: List<MediaItem> = emptyList(),
     val poster: ImageRef? = null,
     val backdrop: ImageRef? = null,
@@ -82,12 +73,9 @@ data class MediaItem(
     val childCount: Int? = null,
     /** For a collection: its films released so far, owned or not, when known. */
     val totalCount: Int? = null,
-    /**
-     * When it joined its library (epoch ms), when that says something: a local folder leaves out what
-     * its first scan found, which was there already.
-     */
+    /** When it joined its library (epoch ms); unset for what a local folder's first scan found. */
     val addedAt: Long? = null,
-    /** The edition of this copy of a film ([Editions]: "Extended", "Director's Cut"…), when its file or NFO names one. */
+    /** This copy's edition ([Editions]: "Extended"…), when its file or NFO names one. */
     val edition: String? = null,
 ) {
     val isPlayable get() = kind == MediaKind.MOVIE || kind == MediaKind.EPISODE || kind == MediaKind.VIDEO
@@ -120,10 +108,7 @@ data class MediaItem(
 
 data class Library(val id: String, val kind: LibraryKind, val title: String?)
 
-/**
- * Home's rows: those every home has ([CONTINUE], [NEXT_UP], [LATEST]), then those the library writes
- * under them: the films of one of its directors ([DIRECTOR]), its best rated films ([BEST_RATED]).
- */
+/** Home's rows: the standard ones, then the library's own below them ([DIRECTOR], [BEST_RATED]). */
 enum class SectionType { CONTINUE, NEXT_UP, LATEST, DIRECTOR, BEST_RATED }
 
 data class HomeSection(
@@ -145,10 +130,7 @@ enum class WatchStatus { ALL, UNWATCHED, IN_PROGRESS, WATCHED, FAVORITES }
 
 enum class Quality { UHD_4K, HDR, DOLBY_VISION }
 
-/**
- * What a library grid shows; every field is optional and they combine. A film of several copies has what
- * one of them has; a show, what one of its episodes has.
- */
+/** A grid's filters, all optional and combined; a film matches what any copy has, a show what any episode has. */
 data class LibraryFilter(
     val status: WatchStatus = WatchStatus.ALL,
     val genre: String? = null,
@@ -159,9 +141,9 @@ data class LibraryFilter(
     val picture: String? = null,
     /** A sound format as badges keep it: the best track of a file ("TrueHD Atmos", "DTS-HD MA", "E-AC3"). */
     val sound: String? = null,
-    /** A kind of file ([FileTypes]): "mkv", "iso", a Blu-ray's folder. */
+    /** A file type ([FileTypes]): "mkv", "iso", a Blu-ray folder. */
     val fileType: String? = null,
-    /** A person ([Person.id]): the titles they are in, before or behind the camera. */
+    /** A person ([Person.id]): the titles they are in, in front of or behind the camera. */
     val person: String? = null,
 ) {
     val activeCount: Int
@@ -178,9 +160,9 @@ data class LibraryFacets(
     val qualities: List<Quality> = emptyList(),
     /** Picture formats of its files ([LibraryFilter.picture]), best first. */
     val pictures: List<String> = emptyList(),
-    /** Sound formats of its files ([LibraryFilter.sound]), most held first. */
+    /** Sound formats of its files ([LibraryFilter.sound]), most common first. */
     val sounds: List<String> = emptyList(),
-    /** Kinds of file ([LibraryFilter.fileType]), most held first. */
+    /** File types ([LibraryFilter.fileType]), most common first. */
     val fileTypes: List<String> = emptyList(),
 )
 

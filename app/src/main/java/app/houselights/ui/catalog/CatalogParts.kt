@@ -19,10 +19,7 @@ import app.houselights.ui.design.components.SectionHeader
 
 // Parts shared by the sections of the catalogue, each in its own file.
 
-/**
- * A section of the catalogue. Sections with nothing to focus ([still]) take focus themselves, so
- * the remote can step through every one.
- */
+/** A catalogue section; one with nothing to focus ([still]) takes focus itself, so the remote reaches it. */
 @Composable
 internal fun Group(title: String, modifier: Modifier = Modifier, still: Boolean = false, content: @Composable () -> Unit) {
     Column(
@@ -34,10 +31,7 @@ internal fun Group(title: String, modifier: Modifier = Modifier, still: Boolean 
     }
 }
 
-/**
- * One state of a component, named underneath: [caption], [gap] under what it shows. With a [width],
- * the specimen takes it, and its caption wraps to it.
- */
+/** One state of a component, captioned [gap] below; with a [width], specimen and caption take it. */
 @Composable
 internal fun Specimen(
     caption: String,
@@ -52,10 +46,7 @@ internal fun Specimen(
     }
 }
 
-/**
- * The catalogue's own frames, a colour's swatch and the white ground a mark is tried on: no screen
- * has their size, so the design system does not either.
- */
+/** The catalogue's own frame size (swatches, a mark's white ground): no screen uses it, so it is no token. */
 internal val CatalogSwatch = 52.dp
 
 /** A title with no artwork, in the state asked for. */

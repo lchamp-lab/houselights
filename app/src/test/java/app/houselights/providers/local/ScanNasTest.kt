@@ -13,10 +13,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import java.net.ConnectException
 
-/**
- * The NAS as a scan meets it: what a pass keeps open there is closed when it ends and before it
- * waits, and a folder whose subfolders all refuse the device is said refused, never empty.
- */
+/** A pass closes its NAS connections when it ends or waits, and reports a fully refused folder as refused. */
 @RunWith(RobolectricTestRunner::class)
 class ScanNasTest {
     @get:Rule
@@ -43,7 +40,7 @@ class ScanNasTest {
         bench.scan()
         assertEquals(1, bench.closed.get())
 
-        // A folder of the pass fails.
+        // One folder of the pass fails.
         bench.folder("Films 4K", on = FakeRemoteBrowser().apply { listFailure = ConnectException("Connection refused") })
         bench.scan()
         assertEquals(2, bench.closed.get())
@@ -81,7 +78,7 @@ class ScanNasTest {
         assertEquals(2, bench.closed.get())
     }
 
-    /** The rights of every subfolder changed on the NAS: said as such, never as a folder to remove. */
+    /** The permissions of every subfolder changed on the NAS: reported as such, never as a folder to remove. */
     @Test
     fun aFolderWhoseSubfoldersAllRefuseTheDeviceIsAccessDenied() = runTest {
         nas.put("Dune (2021)/Dune (2021).mkv")

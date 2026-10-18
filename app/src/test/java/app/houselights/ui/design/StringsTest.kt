@@ -7,11 +7,7 @@ import org.w3c.dom.Element
 import java.io.File
 import javax.xml.parsers.DocumentBuilderFactory
 
-/**
- * DESIGN.md › Writing, checked on the resources: the French interface uses typographic apostrophes,
- * one-character ellipses, words instead of arrows and no-break spaces where French puts them; and
- * it says everything the English one does.
- */
+/** DESIGN.md, Writing, checked on the resources: French typography, and the same strings as English. */
 class StringsTest {
     private val english = File("src/main/res/values/strings.xml")
     private val french = File("src/main/res/values-fr/strings.xml")
@@ -27,10 +23,7 @@ class StringsTest {
 
     @Test
     fun frenchFormatsWhatEnglishDoes() {
-        // A string read with getString(id, args) or getQuantityString(id, n, args) gets the same
-        // arguments in both languages: one that French reads but English does not pass, or reads as
-        // another type, throws for French users only. Plurals by quantity: French "many" says what
-        // English "other" does.
+        // Format arguments must match in both languages, or only French users crash; French "many" is "other".
         val englishFormats = resources(english).associate { it.key to formats(it) }
         val found = resources(french).flatMap { resource ->
             val expected = englishFormats[resource.key].orEmpty()
@@ -69,7 +62,7 @@ class StringsTest {
         }
     }
 
-    /** A player that changed gets no token either, Jellyfin's, which opens the account: what says so names both, in each language. */
+    /** A changed player gets no token either: the message names both, in each language. */
     @Test
     fun aChangedPlayerIsToldItGetsNeitherPasswordsNorAccess() {
         val french = string(french, "player_changed")
@@ -110,7 +103,7 @@ class StringsTest {
             .filter { it.tagName in setOf("string", "plurals", "string-array") }
     }
 
-    /** The format specifiers of each text of a string or plural (by quantity), by the argument they read. */
+    /** The format specifiers of each text of a string or plural (by quantity), by argument. */
     private fun formats(resource: Element): Map<String, Map<Int, String>> =
         if (resource.tagName == "plurals") {
             resource.getElementsByTagName("item").let { items ->

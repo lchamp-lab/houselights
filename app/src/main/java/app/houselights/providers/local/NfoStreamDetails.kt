@@ -32,7 +32,7 @@ object NfoStreamDetails {
                 channels = channels,
                 language = language,
                 atmos = c.contains("atmos"),
-                // "dtshd_ma_x", "dtshd_ma_x_imax": DTS:X as Kodi 21 writes it.
+                // "dtshd_ma_x", "dtshd_ma_x_imax": Kodi 21's spelling of DTS:X.
                 dtsX = c.contains("dtsx") || c.contains("dts:x") || c.startsWith("dtshd_ma_x"),
             )
         }

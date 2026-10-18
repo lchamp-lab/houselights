@@ -10,10 +10,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
-/**
- * Frames while browsing (home's rows, a film's page), without any compilation and with the
- * baseline profile: how smooth the player is the first evening after an install or an update.
- */
+/** Frame timing on home and a film's page, uncompiled and with the baseline profile, as right after an install. */
 @RunWith(Parameterized::class)
 class BrowseBenchmark(private val compilation: CompilationMode) {
     @get:Rule

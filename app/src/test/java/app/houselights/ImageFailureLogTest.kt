@@ -12,7 +12,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.shadows.ShadowLog
 import java.io.IOException
 
-/** A picture that does not load says why in the log: once a while for each place pictures come from, not once per card. */
+/** A failed image load is logged with its reason, once per host and period rather than once per card. */
 @RunWith(RobolectricTestRunner::class)
 class ImageFailureLogTest {
     private var now = 0L
@@ -28,7 +28,6 @@ class ImageFailureLogTest {
 
     private fun told() = ShadowLog.getLogsForTag("Images").map { it.msg }
 
-    /** A server away fails a whole screen of posters at once: one line says it, with the first address. */
     @Test
     fun aScreenOfFailuresFromOneHostIsToldOnce() {
         repeat(40) { fail("http://192.168.1.5:8096/Items/$it/Images/Primary?api_key=secret") }
@@ -40,7 +39,6 @@ class ImageFailureLogTest {
         assertTrue(ShadowLog.getLogsForTag("Images").all { it.throwable is IOException })
     }
 
-    /** Still failing a while later: said again. */
     @Test
     fun aHostStillFailingIsToldAgainLater() {
         fail("file:///data/user/0/app.houselights/files/artwork/1/a.jpg")

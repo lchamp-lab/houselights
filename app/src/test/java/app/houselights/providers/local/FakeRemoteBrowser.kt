@@ -2,10 +2,7 @@ package app.houselights.providers.local
 
 import java.io.FileNotFoundException
 
-/**
- * A NAS in memory, for scans: files with a size and, when given, their first bytes and the date they
- * were last written. Every read is counted, and listings or reads can be made to fail.
- */
+/** An in-memory NAS for scans: files with a size, first bytes and date; it counts reads and can fail on demand. */
 class FakeRemoteBrowser : RemoteBrowser {
     private class Entry(val size: Long, val bytes: ByteArray, val lastModified: Long?)
 
@@ -17,7 +14,7 @@ class FakeRemoteBrowser : RemoteBrowser {
     /** Folders a listing cannot read, while set: their files are not listed, and the folders are named. */
     var unreadable: List<String> = emptyList()
 
-    /** Runs while a listing is under way: what happens on the device during a scan. */
+    /** Runs during a listing, to simulate what happens on the device mid-scan. */
     var onList: (suspend () -> Unit)? = null
 
     /** Thrown by reads instead of bytes, while set. */

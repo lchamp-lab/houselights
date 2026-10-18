@@ -7,10 +7,7 @@ import androidx.test.uiautomator.By
 import androidx.test.uiautomator.Until
 import java.util.regex.Pattern
 
-/**
- * The NAS folders the journeys browse, from the instrumentation arguments the build reads in
- * local.properties (baselineprofile.host, .export, .movies, .shows): never in the sources.
- */
+/** The NAS folders the journeys browse, read from local.properties (baselineprofile.*), never in the sources. */
 internal data class LibrarySetup(val host: String, val export: String, val movies: String, val shows: String?) {
     companion object {
         fun fromArguments(): LibrarySetup {
@@ -31,11 +28,7 @@ internal data class LibrarySetup(val host: String, val export: String, val movie
 /** How long a first scan of the folders may take: files listed, then matched on TMDB. */
 private const val SCAN_MS = 300_000L
 
-/**
- * Starts from a library: a fresh install shows Welcome, so the folders are added the way a viewer
- * adds them (Mes fichiers, then each folder), and the scans awaited. An app that has its library
- * already is left as it is.
- */
+/** On a fresh install, adds the folders as a viewer would (Mes fichiers, then each) and awaits the scans. */
 internal fun MacrobenchmarkScope.ensureLibrary() {
     val welcome = appString("source_local")
     val home = appString("nav_home")
@@ -58,15 +51,15 @@ internal fun MacrobenchmarkScope.ensureLibrary() {
     }
 }
 
-/** Fills the form of a folder and adds it: what it holds, the NFS address, the folder. */
+/** Fills in and submits the folder form: content type, NFS address, folder. */
 private fun MacrobenchmarkScope.addFolder(setup: LibrarySetup, folder: String, shows: Boolean) {
     await(By.text(appString("add_folder_desc")), "the add-folder form")
     if (shows) {
-        // Focus starts on what the folder holds, films; one to the right, then chosen.
+        // Focus starts on the content type, films: one to the right selects series.
         right()
         ok()
     }
-    // The fields read top to bottom, then left to right: the address, the export, the folder.
+    // Fields in reading order: address, export, folder.
     val fields = device.wait(Until.findObjects(By.clazz("android.widget.EditText")), SCREEN_MS)
         .sortedWith(compareBy({ it.visibleBounds.top }, { it.visibleBounds.left }))
     check(fields.size >= 3) { "The form has ${fields.size} fields, not the address, export and folder" }
@@ -75,7 +68,7 @@ private fun MacrobenchmarkScope.addFolder(setup: LibrarySetup, folder: String, s
     fields[2].text = folder
     focusOn(appString("add"), KeyEvent.KEYCODE_DPAD_DOWN)
     ok()
-    // The folder is tested, then added: the form goes.
+    // The folder is tested, then added, and the form closes.
     check(device.wait(Until.gone(By.text(appString("add_folder_desc"))), SCAN_MS)) { "The folder $folder was not added" }
 }
 
@@ -85,7 +78,7 @@ private fun MacrobenchmarkScope.awaitScan(row: String) {
     device.wait(Until.gone(By.text(appString("home_scanning"))), SCAN_MS)
 }
 
-/** Back until home shows its rows: Back goes in two steps, to where a screen starts, then out. */
+/** Presses Back until home shows its rows: Back first returns to where a screen starts, then leaves it. */
 internal fun MacrobenchmarkScope.backHome() {
     val rows = appString("section_latest_movies")
     repeat(BACK_STEPS) {
@@ -98,7 +91,7 @@ internal fun MacrobenchmarkScope.backHome() {
 /** The most presses of Back from a screen to home: a pane, its entry, the settings. */
 private const val BACK_STEPS = 3
 
-/** From home, the settings: up to the bar, along it to the settings button, then OK. */
+/** From home: up to the bar, along it to the settings button, then OK. */
 internal fun MacrobenchmarkScope.openSettings() {
     up(2)
     focusOn(appString("nav_settings"), KeyEvent.KEYCODE_DPAD_RIGHT)

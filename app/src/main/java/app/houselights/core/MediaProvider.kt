@@ -4,7 +4,7 @@ package app.houselights.core
 @kotlinx.serialization.Serializable
 data class PathMapping(val from: String, val to: String)
 
-/** An NFO file: where it is and what it says, its words set for display ([text] stays as written). */
+/** An NFO file's path and text; [info] is parsed and typeset for display, [text] stays as written. */
 data class NfoDocument(val path: String, val text: String) {
     val info: NfoInfo? by lazy { NfoParser.parse(text)?.typeset() }
 }
@@ -31,21 +31,15 @@ interface PlaybackReporter {
     suspend fun progress(positionMs: Long, durationMs: Long?, paused: Boolean)
     suspend fun stopped(positionMs: Long, durationMs: Long?)
 
-    /**
-     * The file that goes on with the same title, a film's next part: the player plays the next file of
-     * its folder by itself, and the session follows it there. Null when what follows is another title.
-     */
+    /** The title's next file (a film's next part), which the player moves on to by itself; null for another title. */
     suspend fun next(): Next? = null
 
-    /**
-     * The next file of a title: its [path], whose name tells it among what the player says it plays; what
-     * reports it; the key that names that reporter again ([PlaybackPlan.Launch.resumeKey]).
-     */
+    /** A title's next file: its [path], matched by name against the player's, its [reporter] and [resumeKey]. */
     class Next(val path: String, val reporter: PlaybackReporter, val resumeKey: String?)
 }
 
 sealed interface PlaybackPlan {
-    /** Launch the native Zidoo player ourselves on [uri]. */
+    /** Launch the native Zidoo player on [uri]. */
     data class Launch(
         val uri: String,
         val container: String?,
@@ -54,7 +48,7 @@ sealed interface PlaybackPlan {
         val logoUrl: String?,
         val startMs: Long,
         val reporter: PlaybackReporter?,
-        /** Names the reporter again ([MediaProvider.reporter]) if the app is stopped while the film plays. */
+        /** Recovers the reporter ([MediaProvider.reporter]) if the app is stopped while the film plays. */
         val resumeKey: String? = null,
         /** A disc (an ISO, a Blu-ray or DVD folder): the player may open it on a menu or an intro before its title. */
         val disc: Boolean = false,
@@ -86,9 +80,8 @@ fun MediaItem.launch(
 )
 
 /**
- * What a source can do, read by screens instead of asking which source it is. Editing artwork and
- * matches is [MediaProvider.editor]; an NFO belongs to an item ([MediaItem.hasNfo]); a function a
- * source does not offer returns nothing ([MediaProvider.collectionOf], [MediaProvider.similar]).
+ * What a source can do, so screens never check which source it is. Editing is [MediaProvider.editor], NFOs
+ * are per item ([MediaItem.hasNfo]), and functions a source does not offer return nothing.
  */
 data class ProviderCapabilities(
     val markPlayed: Boolean,
@@ -98,25 +91,23 @@ data class ProviderCapabilities(
     val pathMapping: Boolean,
     /** People have an id and a page ([Catalog.person], [Catalog.people]), and credits count their titles. */
     val people: Boolean = false,
-    /** Credits name the crew ([Credits.crew]), at least some of its jobs, beyond the cast. */
+    /** Credits include the crew ([Credits.crew]) for at least some jobs, besides the cast. */
     val crew: Boolean = false,
     /** A saga lists the films the library lacks ([Catalog.saga]); else only those it holds. */
     val sagaParts: Boolean = false,
-    /** The copies of a film are one title ([Catalog.versions]). */
+    /** A film's copies are grouped into one title ([Catalog.versions]). */
     val versions: Boolean = false,
-    /** The copy chosen for a film is kept ([Catalog.chooseVersion]); else the best plays. */
+    /** The copy chosen for a film is remembered ([Catalog.chooseVersion]); else the best plays. */
     val versionChoice: Boolean = false,
-    /** The library in numbers tells its room, hours and formats ([LibraryNumbers]); else its titles alone. */
+    /** The library numbers include disk space, runtime and formats ([LibraryNumbers]); else title counts only. */
     val formatNumbers: Boolean = false,
-    /** Grids filter by picture, sound and kind of file ([LibraryFilter.picture], [LibraryFilter.sound], [LibraryFilter.fileType]). */
+    /** Grids filter by [LibraryFilter.picture], [LibraryFilter.sound] and [LibraryFilter.fileType]. */
     val formatFilters: Boolean = false,
-    /** Grids filter by person ([LibraryFilter.person]). */
     val personFilter: Boolean = false,
-    /** Titles, people and sagas can be searched ([Catalog.search]). */
     val search: Boolean = false,
 )
 
-/** A media library backend: Home Theater, Jellyfin, Emby, Plex... */
+/** A media library backend: local folders on the NAS, or a Jellyfin server. */
 interface MediaProvider {
     val capabilities: ProviderCapabilities
 
@@ -124,7 +115,7 @@ interface MediaProvider {
     suspend fun home(): List<HomeSection>
     suspend fun libraryPage(library: Library, sort: SortOption, filter: LibraryFilter, start: Int, limit: Int): Page
 
-    /** Genres, decades and qualities present in [library], to build the filter menu. */
+    /** Values present in [library] (genres, decades, formats…) for the filter menu. */
     suspend fun libraryFacets(library: Library): LibraryFacets = LibraryFacets()
 
     suspend fun item(id: String): MediaItem
@@ -138,10 +129,7 @@ interface MediaProvider {
     /** The reporter of a playback started earlier, from its [PlaybackPlan.Launch.resumeKey]. */
     fun reporter(resumeKey: String): PlaybackReporter? = null
 
-    /**
-     * What "Play" starts: for a series, the first in-progress or unwatched episode; for a
-     * collection, the film [nextUpIn] picks among its films.
-     */
+    /** What "Play" starts: a series' first unwatched or in-progress episode, or a collection's film per [nextUpIn]. */
     suspend fun nextUp(series: MediaItem): MediaItem? {
         if (series.kind == MediaKind.COLLECTION) return nextUpIn(collectionItems(series))
         for (season in seasons(series).filter { (it.seasonNumber ?: 0) > 0 }) {
@@ -153,7 +141,7 @@ interface MediaProvider {
     /** The collection (saga) a film belongs to, when the library shows it. */
     suspend fun collectionOf(item: MediaItem): MediaItem? = null
 
-    /** The films of a collection, in the order they came out. */
+    /** The films of a collection, in release order. */
     suspend fun collectionItems(collection: MediaItem): List<MediaItem> = emptyList()
 
     /** The NFO file describing [item], when there is one. */
@@ -165,14 +153,13 @@ interface MediaProvider {
     /** Artwork and identification editing, when this backend supports it. */
     val editor: MetadataEditor? get() = null
 
-    /** People, sagas whole, versions, numbers and search, when this backend tells them ([capabilities] says how much). */
+    /** People, whole sagas, versions, numbers and search, as far as [capabilities] says. */
     val catalog: Catalog? get() = null
 }
 
 /**
- * The film "Play" starts among a collection's [films], in release order: the first in progress,
- * else the first unwatched, else the first. Apart from the source, so a page that already has the
- * films does not ask for them again.
+ * The film "Play" starts in a collection's [films] (release order): the first in progress, else unwatched,
+ * else the first. Outside the provider so a page holding the films need not fetch them again.
  */
 fun nextUpIn(films: List<MediaItem>): MediaItem? =
     films.firstOrNull { it.user.positionMs > 0 && !it.user.played } ?: films.firstOrNull { !it.user.played } ?: films.firstOrNull()

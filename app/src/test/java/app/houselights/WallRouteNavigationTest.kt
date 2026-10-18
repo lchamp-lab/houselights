@@ -21,10 +21,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
-/**
- * A wall opened on part of the library, through navigation itself: its screen reads the filter back, and its
- * entry's saved state starts with it as the plain values its ViewModel keeps there under the same names.
- */
+/** A wall opened through navigation reads its filter back from its saved state, under its ViewModel's keys. */
 @RunWith(RobolectricTestRunner::class)
 @Config(application = Application::class)
 class WallRouteNavigationTest {

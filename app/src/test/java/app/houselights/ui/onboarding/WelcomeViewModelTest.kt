@@ -9,10 +9,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 
-/**
- * The welcome wall's posters are asked of TMDB once, and stay while the welcome screen is in the
- * back stack; none came, they are asked for again.
- */
+/** The welcome posters are fetched from TMDB once while the screen is in the back stack; again if none came. */
 @OptIn(ExperimentalCoroutinesApi::class)
 class WelcomeViewModelTest {
     @get:Rule

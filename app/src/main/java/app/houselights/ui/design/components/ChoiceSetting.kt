@@ -8,10 +8,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 
 /**
- * A setting chosen among a few [options]: its row says the [selected] one, and OK opens them in an
- * [HlChoiceSheet] headed by the row's [title] and [description]; choosing applies it and closes the
- * sheet, Back changes nothing. A change that did not take says so in place of the choice
- * ([attention]: "Non enregistré"), in ember after its mark.
+ * A setting with a few [options]: OK opens an [HlChoiceSheet]; choosing applies and closes it, Back changes
+ * nothing. A failed save shows [attention] ("Non enregistré") in ember in place of the value.
  */
 @Composable
 fun HlChoiceSetting(

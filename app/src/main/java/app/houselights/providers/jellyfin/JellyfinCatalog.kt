@@ -30,18 +30,17 @@ import kotlinx.coroutines.withContext
 import kotlin.coroutines.CoroutineContext
 
 /**
- * What a Jellyfin server tells beyond its titles ([Catalog]), as its API gives it: a title's People (cast and
- * crew, no cinematographer among Jellyfin's kinds), a person's titles (the server filters by person), the copies
- * of a film (its media sources), a box set's films (the server knows no film a set lacks), titles counted and
- * searched by the server. It counts no person's titles from a title's page (one request each): their counts are
- * unknown ([Person.titleCount] null), nor the room or formats of the library ([ProviderCapabilities.formatNumbers]).
+ * [Catalog] backed by the Jellyfin API: credits from a title's People (Jellyfin has no cinematographer kind),
+ * filmographies filtered by the server, versions from media sources, box sets, server-side counts and search.
+ * Per-person title counts would cost one request each, so [Person.titleCount] stays null; library size and
+ * formats are not reported ([ProviderCapabilities.formatNumbers]).
  */
 internal class JellyfinCatalog(
     private val api: JellyfinApi,
     private val mapper: JellyfinMapper,
     private val userId: String,
     private val provider: JellyfinProvider,
-    /** Where answers are made into titles, off the main thread. */
+    /** Context for mapping responses to titles, off the main thread. */
     private val mapping: CoroutineContext,
 ) : Catalog {
     override suspend fun credits(item: MediaItem): Credits {
@@ -62,7 +61,7 @@ internal class JellyfinCatalog(
     )
 
     override suspend fun person(id: String): PersonPage? = coroutineScope {
-        // A person the server no longer has: their titles say who they were, or there is no page.
+        // The person item may be gone: the name then comes from their titles, and no titles means no page.
         val who = async { suspendRunCatching { api.item(id, userId) }.getOrNull() }
         val titles = api.items(
             userId = userId, parentId = null, includeItemTypes = "Movie,Series", recursive = true,
@@ -85,10 +84,10 @@ internal class JellyfinCatalog(
         }
     }
 
-    /** Jellyfin does not rank people by their titles: none. */
+    /** Jellyfin cannot rank people by title count, so this is always empty. */
     override suspend fun people(job: Job, kind: MediaKind?, minTitles: Int, limit: Int): List<Person> = emptyList()
 
-    /** The best rated by the server's community rating; it does not say on how many votes. */
+    /** Sorted by the server's community rating; Jellyfin gives no vote count, so [minVotes] is ignored. */
     override suspend fun bestRated(kind: MediaKind, minVotes: Int, limit: Int): List<MediaItem> {
         val type = when (kind) {
             MediaKind.MOVIE -> "Movie"
@@ -99,13 +98,13 @@ internal class JellyfinCatalog(
         return withContext(mapping) { items.filter { it.communityRating != null }.map(mapper::toMedia) }
     }
 
-    /** A box set holds the films the server has, and only them. */
+    /** A box set lists only the films on the server; missing parts are unknown. */
     override suspend fun saga(collection: MediaItem): Saga {
         val films = provider.collectionItems(collection)
         return Saga(collection, films.map { SagaPart(it, it.title, it.year, overview = it.overview, backdrop = it.backdrop) })
     }
 
-    /** The media sources of the film: each a copy, the first the one the server plays, the best ranked as for a local film. */
+    /** One version per media source; the first is what the server plays, the best is ranked as for local films. */
     override suspend fun versions(item: MediaItem): List<Version> {
         if (item.kind != MediaKind.MOVIE) return emptyList()
         val full = api.item(item.id, userId)
@@ -124,7 +123,7 @@ internal class JellyfinCatalog(
                     media = media,
                     sizeBytes = source.size,
                     runtimeMs = media?.durationMs,
-                    // The server keeps no choice: the copy it plays first is the one "Lire" plays.
+                    // The server stores no choice: playback uses the first source.
                     chosen = i == 0,
                     best = i == best,
                     key = source.id.orEmpty(),
@@ -133,13 +132,13 @@ internal class JellyfinCatalog(
         }
     }
 
-    /** The server keeps no choice of a copy ([ProviderCapabilities.versionChoice]). */
+    /** No-op: the server cannot store a version choice ([ProviderCapabilities.versionChoice]). */
     override suspend fun chooseVersion(item: MediaItem, version: Version?) = Unit
 
     override suspend fun playback(version: Version, resume: Boolean, options: PlaybackOptions): PlaybackPlan =
         provider.play(version.item.id, version.key.ifEmpty { null }, resume, options)
 
-    /** Titles as the server counts them, and its 4K films and shows: nothing of their room nor their hours. */
+    /** Server-side counts plus 4K films; size and runtime are unknown. */
     override suspend fun numbers(): LibraryNumbers = coroutineScope {
         suspend fun count(type: String, is4K: Boolean? = null) =
             api.items(userId, null, type, true, "SortName", "Ascending", 0, 0, "", is4K = is4K).totalRecordCount
@@ -156,7 +155,7 @@ internal class JellyfinCatalog(
         )
     }
 
-    /** The server's search, of titles, people and box sets, each asked apart, at once. */
+    /** Server-side search of titles, people and box sets, as three parallel requests. */
     override suspend fun search(query: String, limit: Int): SearchResults = coroutineScope {
         val term = query.trim().ifEmpty { return@coroutineScope SearchResults() }
         suspend fun found(types: String) =
@@ -180,7 +179,7 @@ internal class JellyfinCatalog(
         const val PERSON_TITLES = 200
         const val ROW_FIELDS = "Overview,Genres,ProductionYear,OfficialRating,CommunityRating,DateCreated"
 
-        /** Jellyfin's kinds of person, as the jobs of the end credits. */
+        /** Maps a Jellyfin person type to a credits [Job]; null for types the app does not show. */
         fun jobOf(type: String?): Job? = when (type) {
             "Actor", "GuestStar" -> Job.CAST
             "Director" -> Job.DIRECTOR

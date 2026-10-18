@@ -18,10 +18,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
-/**
- * The heights that hold a line of text grow with the viewer's text size, by what the line itself
- * grows (from Android 14, large text grows less than small: the scale is not linear).
- */
+/** Heights holding a line of text grow with the text size as much as the line (non-linearly from Android 14). */
 @RunWith(RobolectricTestRunner::class)
 @Config(application = Application::class, qualifiers = TV)
 class TextRoomTest {

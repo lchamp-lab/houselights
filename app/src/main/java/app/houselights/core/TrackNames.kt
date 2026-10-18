@@ -1,16 +1,11 @@
 package app.houselights.core
 
 /**
- * How a technical sheet names a track beyond its language and format: the region of its language
- * (a French dub from France or from Québec), and its title when it adds to what the sheet already
- * says ("Commentaire audio…", "Version restaurée"), never when it only repeats it ("VFF DD 5.1
- * 384 kbps", "ENG : Dolby TrueHD Atmos 7.1").
+ * What the tech sheet adds to a track's language and format: its region (French from France or Québec), and its
+ * title when it says more ("Commentaire audio…") than the columns ("VFF DD 5.1 384 kbps").
  */
 object TrackNames {
-    /**
-     * The region of a track's language, as a region code: its tag's ("fr-CA", "es-419"), else the
-     * dub its title names (VFQ: Québec, VFF: France). Null when nothing says it.
-     */
+    /** Region code from the tag ("fr-CA", "es-419"), else the title's dub (VFQ: CA, VFF: FR); null if unknown. */
     fun region(language: String?, title: String?): String? {
         REGION.find(language.orEmpty())?.let { return it.groupValues[1].uppercase() }
         val words = words(title.orEmpty())
@@ -21,10 +16,7 @@ object TrackNames {
         }
     }
 
-    /**
-     * A track's title when it says more than its [language], format, channels and bitrate; else
-     * null. The language goes by its English, French and own names ("German", "allemand", "Deutsch").
-     */
+    /** A track's title when it says more than its [language] (in English, French or itself), format and numbers. */
     fun note(title: String?, language: String? = null): String? {
         val text = title?.trim()?.takeIf { it.isNotEmpty() } ?: return null
         val names = languageNames(language)
@@ -48,15 +40,15 @@ object TrackNames {
     /** A language tag's region: two letters ("fr-CA") or three figures ("es-419"). */
     private val REGION = Regex("""^[a-zA-Z]{2,3}[-_]([a-zA-Z]{2}|\d{3})\b""")
 
-    /** At least this many letters left once the redundant words are gone: "GOLD", not "VO". */
+    /** Letters that must remain once redundant words are removed: "GOLD" counts, "VO" does not. */
     private const val MIN_LETTERS = 3
 
     private val SEPARATORS = Regex("""[\s:|\[\](){}/,;@–—_]+""")
 
-    /** Formats said in several words. */
+    /** Multi-word format names. */
     private val PHRASES = listOf(Regex("""master\s+audio"""), Regex("""high[\s-]+res(?:olution)?(?:\s+audio)?"""))
 
-    /** Channels, bitrates and sample rates, and figures alone: what the sheet's columns say. */
+    /** Channels, bitrates, sample rates and bare numbers: what the sheet's columns already show. */
     private val NUMBERS = listOf(
         Regex("""\d+(?:[.,]\d+)?\s*(?:k|m)?(?:bits?|b)(?:ps|/s)"""),
         Regex("""\d+(?:[.,]\d+)?\s*k?hz"""),

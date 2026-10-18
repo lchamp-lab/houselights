@@ -32,7 +32,7 @@ data class TmdbFindResult(
     val tvResults: List<TmdbSearchResult> = emptyList(),
 )
 
-/** One of a title's cast; [id]: the person's on TMDB, which keys them in the library. */
+/** A cast member; [id] is the TMDB person id, used as the library's person key. */
 @Serializable
 data class TmdbCastMember(
     val name: String,
@@ -42,11 +42,10 @@ data class TmdbCastMember(
     val id: Int? = null,
 )
 
-/** One of a title's crew, by [job] ("Director", "Screenplay", "Original Music Composer"…). */
+/** A crew member; [job] is e.g. "Director", "Screenplay", "Original Music Composer". */
 @Serializable
 data class TmdbCrewMember(val name: String, val job: String? = null, val id: Int? = null, val profilePath: String? = null)
 
-/** One who created a show. */
 @Serializable
 data class TmdbCreator(val name: String, val id: Int? = null, val profilePath: String? = null)
 
@@ -62,7 +61,7 @@ data class TmdbImage(
     val height: Int = 0,
 )
 
-/** Every image of a title, for the artwork pickers. */
+/** All images of a title, for the artwork pickers. */
 @Serializable
 data class TmdbImageSet(
     val posters: List<TmdbImage> = emptyList(),
@@ -88,11 +87,11 @@ data class TmdbContentRating(@SerialName("iso_3166_1") val iso31661: String, val
 @Serializable
 data class TmdbContentRatings(val results: List<TmdbContentRating> = emptyList())
 
-/** The collection a film belongs to, as its details name it. */
+/** The collection reference in a film's details. */
 @Serializable
 data class TmdbCollectionRef(val id: Int, val name: String, val posterPath: String? = null, val backdropPath: String? = null)
 
-/** A collection: its films ("parts"), released or announced. */
+/** A collection with its films ("parts"), released or announced. */
 @Serializable
 data class TmdbCollection(
     val id: Int,
@@ -147,7 +146,7 @@ data class TmdbTv(
     val externalIds: TmdbExternalIds = TmdbExternalIds(),
 )
 
-/** A show's ids at IMDb and TheTVDB, which an NFO may name it by alone (Sonarr's often). */
+/** A show's IMDb and TheTVDB ids, which may be all a (Sonarr) NFO has. */
 @Serializable
 data class TmdbExternalIds(val imdbId: String? = null, val tvdbId: Int? = null)
 

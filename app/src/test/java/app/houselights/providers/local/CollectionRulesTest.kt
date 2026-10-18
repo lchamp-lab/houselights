@@ -21,7 +21,7 @@ class CollectionRulesTest {
         assertFalse(CollectionRules.sameName("Collection", "Saga"))
     }
 
-    /** An NFO's set named in Japanese or Russian takes TMDB's collection when TMDB gives it the same name, as the key does. */
+    /** A Japanese or Russian NFO set takes TMDB's collection when TMDB gives it the same name, as the key does. */
     @Test
     fun namesThatLeaveNoWordMatchWhole() {
         assertTrue(CollectionRules.sameName("攻殻機動隊", "攻殻機動隊"))

@@ -4,11 +4,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
 
-/**
- * DESIGN.md says the catalogue shows every component in its states. This test lists the public
- * components of `ui/design/components` and fails on any the catalogue never calls, so a new
- * component cannot skip review on a real screen.
- */
+/** Fails on a public component of `ui/design/components` that the catalogue never shows (DESIGN.md, Catalogue). */
 class CatalogCoverageTest {
     private val components = File("src/main/java/app/houselights/ui/design/components")
     private val catalog = File("src/main/java/app/houselights/ui/catalog")

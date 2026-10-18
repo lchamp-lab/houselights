@@ -4,11 +4,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
 
-/**
- * DESIGN.md says screens never hard-code a colour, a size or a font: they use the tokens and
- * components of `ui/design`. This test reads every screen and fails on the first value that
- * goes around them, so the rule holds on every build.
- */
+/** Fails on a screen that hard-codes a colour, size or font instead of `ui/design`'s tokens and components. */
 class DesignTokenGuardTest {
     private val ui = File("src/main/java/app/houselights/ui")
 
@@ -32,10 +28,7 @@ class DesignTokenGuardTest {
         Regex("""\.ember\b""") to "ember: say the state (HlStatus, AttentionNote, lit, valueLit, detailLit)",
     )
 
-    /**
-     * Deliberate exceptions, as "path:fragment of the line". Keep this list short and say why;
-     * a value needed twice belongs in the design system instead.
-     */
+    /** Deliberate exceptions, as "path:fragment of the line"; a value used twice belongs in the design system. */
     private val allowed = listOf(
         // The catalogue's swatch of the colour itself.
         "catalog/CatalogScreen.kt:\"ember\" to c.ember",
@@ -76,10 +69,7 @@ class DesignTokenGuardTest {
         assertTrue("Toast in: ${found.joinToString()}", found.isEmpty())
     }
 
-    /**
-     * One family of icons, drawn for the app (`HlIcons`), everywhere, the design system included.
-     * Play is the one glyph taken from Material, filled, as on a remote.
-     */
+    /** One icon family (`HlIcons`) everywhere; Play alone comes from Material, filled, as on a remote. */
     @Test
     fun oneFamilyOfIcons() {
         val sources = File("src/main/java")

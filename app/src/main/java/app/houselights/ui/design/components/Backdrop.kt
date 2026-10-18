@@ -62,63 +62,46 @@ import kotlinx.coroutines.delay
 enum class BackdropStyle(
     /** Opacity of the picture itself. */
     val imageAlpha: Float,
-    /** Where the bottom fade starts, and where it is done (shares of the height). */
+    /** Where the bottom fade starts and ends, as fractions of the height. */
     val fadeFrom: Float,
     val fadeTo: Float,
-    /** Strength of the left veil behind text, at the screen's edge, before the picture asks for more. */
+    /** Base left-veil strength at the screen edge, raised where the picture needs more. */
     val leftScrim: Float,
-    /** Widest file worth asking for; null: as wide as the screen. */
+    /** Widest image to request; null requests the screen width. */
     val maxWidthPx: Int? = null,
 ) {
-    /** Home: the picture owns the top of the screen, rows sit on black below. */
+    /** Home: the picture fills the top of the screen; rows sit on black below. */
     Hero(1f, 0.22f, 0.68f, 0.85f),
-    /** Detail: the picture fills the screen behind the text, and melts into the black of its rows. */
+    /** Detail: the picture fills the screen behind the text and fades to black under its rows. */
     Full(1f, 0.45f, 1f, 0.85f),
-    /**
-     * Library (the wall of posters), settings: a quiet reminder of the picture behind content, down
-     * to the foot of the screen; dimmed this much, a lighter file does.
-     */
+    /** Library wall and settings: a dimmed picture down to the bottom; a smaller file suffices. */
     Quiet(0.28f, 0.2f, 0.75f, 0.6f, maxWidthPx = 1280),
     ;
 
-    /**
-     * How dark the bottom fade ends. A picture shown whole melts into black. A dimmed one is already
-     * quiet: it only takes what the quietest text needs over the lightest picture at its dimness, so
-     * it stays in the room down to the foot of the screen instead of leaving it black.
-     */
+    /** End opacity of the bottom fade: full under an opaque picture, only what text needs under a dimmed one. */
     val foot: Float = if (imageAlpha < 1f) HlScrim.need(imageAlpha) else 1f
 
-    /** Its veils down the screen: the top veil, then its bottom fade. */
+    /** The vertical veil stops: the top veil, then the bottom fade. */
     val down: List<VeilStop> = HlScrim.down(fadeFrom, fadeTo, foot)
 }
 
 /**
- * Full-screen picture on pure black, veiled where text sits. The veils are [HlScrim]'s; under the
- * text column, the left veil takes, band by band, what the picture needs, so the quietest text reads
- * on the lightest image while a dark one keeps its veil. Nothing glows under it: the picture melts
- * into the room. When the house lights go down, the veils lift and the picture shows whole. Without
- * a picture ([image] null) it is the black room: nothing glows in its place. A page whose picture
- * steps back as it scrolls (a detail page) says how far through [recede], 0 in front, 1 behind; only
- * then is the veil the whole picture needs reckoned.
- *
- * A picture and its veils are drawn once, into a layer of their own, and each frame then
- * lays that one texture: on the player's small graphics chip, drawn layer by layer each frame, they
- * filled its whole budget. One picture gives way to the next by the alpha of those layers; the
- * first one fades in too, unless the launch screen still hides it and it was in memory
- * ([showsAtOnce]), or a screen left hands its picture on ([BackdropRelay]).
+ * A full-screen picture on black, veiled where text sits (DESIGN.md, Veils); [recede] (0 to 1) dims it as
+ * a detail page scrolls. Each picture and its veils render once into a cached layer, since redrawing them
+ * every frame exceeds the player's GPU budget; pictures crossfade unless [showsAtOnce].
  */
 @Composable
 fun Backdrop(image: ImageRef?, style: BackdropStyle, modifier: Modifier = Modifier, recede: (() -> Float)? = null) =
     BackdropOf(rememberBackdropState(), image, style, modifier, recede)
 
-/** A backdrop's state, starting from the picture of the screen left when there is a [BackdropRelay]. */
+/** A backdrop's state, starting from the previous screen's picture when a [BackdropRelay] hands one on. */
 @Composable
 private fun rememberBackdropState(): BackdropState {
     val relay = LocalBackdropRelay.current
     return remember { BackdropState().also { it.startFrom(relay?.claim(it)) } }
 }
 
-/** A [Backdrop] showing what [state] holds, which says when it has prepared the picture of [image]. */
+/** A [Backdrop] showing [state], which reports when the picture of [image] is prepared. */
 @Composable
 private fun BackdropOf(state: BackdropState, image: ImageRef?, style: BackdropStyle, modifier: Modifier, recede: (() -> Float)?) {
     val context = LocalContext.current
@@ -126,13 +109,12 @@ private fun BackdropOf(state: BackdropState, image: ImageRef?, style: BackdropSt
     val screen = screenWidthPx()
     val url = image?.let { style.urlOf(it, screen) }
     LaunchedEffect(url) {
-        // A screen arriving may say its picture a moment later (its title is read): the picture
-        // handed on waits for it, rather than going out and coming back.
+        // An arriving screen may set its picture a moment later: a handed-on picture waits for it.
         if (url == null && state.shown?.handedOn == true) delay(HlMotion.HOLD)
         val prepared = if (image == null || url == null) null else prepareBackdrop(context, image, url, screen, backdropHeight(screen))
         state.show(image, prepared?.let { Shot(it, style, url) }, covered = launch.covers)
     }
-    // What shows is handed on to the next screen's backdrop, taken back if this one leaves last.
+    // Offer the shown picture to the next screen's backdrop; if none claims it, it fades out on release.
     val relay = LocalBackdropRelay.current
     val shown = state.shown
     SideEffect { relay?.shows(state, shown) }
@@ -140,11 +122,7 @@ private fun BackdropOf(state: BackdropState, image: ImageRef?, style: BackdropSt
     BackdropShots(shown, modifier, recede, holds = { leaving, coming -> leaving?.handedOn == true && coming != null })
 }
 
-/**
- * The pictures of a backdrop, fading one into the next ([FadeBetween]); a shot that [holds] stays
- * whole under the next until it is in, so a picture handed on never dims on its way. [level]: how
- * far the whole backdrop is lit.
- */
+/** A backdrop's pictures, crossfading ([FadeBetween]); [level] scales the whole backdrop's opacity. */
 @Composable
 private fun BackdropShots(
     shown: Shot?,
@@ -154,7 +132,7 @@ private fun BackdropShots(
     level: () -> Float = { 1f },
 ) {
     val density = LocalDensity.current
-    // The text column of heroes and detail pages; the veil follows it, whatever the screen's width.
+    // The text column of heroes and detail pages, which the veil follows at any screen width.
     val column = with(density) { (HlSpace.safeH + HlLayout.readableNarrow).toPx() }
     val fade = with(density) { BackdropDefaults.veilFade.toPx() }
     var bounds by remember { mutableStateOf(Size.Zero) }
@@ -164,10 +142,7 @@ private fun BackdropShots(
     }
 }
 
-/**
- * A picture as a backdrop shows it: [prepared] from [url], in [style]. [atOnce]: whole from its
- * first frame. [handedOn]: the picture of the screen left, the one an arriving backdrop starts from.
- */
+/** One backdrop picture: [prepared] from [url] in [style]; [handedOn] marks the previous screen's. */
 @Immutable
 internal class Shot(
     val prepared: PreparedBackdrop,
@@ -176,19 +151,16 @@ internal class Shot(
     val atOnce: Boolean = false,
     val handedOn: Boolean = false,
 ) {
-    /** It continues [shot]: the same picture in the same style, which a change would only redraw. */
+    /** Same picture and style as [shot], so it needs no fade. */
     fun continues(shot: Shot?) = shot != null && url == shot.url && style == shot.style
 
     fun shownAtOnce() = Shot(prepared, style, url, atOnce = true, handedOn = handedOn)
 
-    /** This picture as the next screen's backdrop starts from it: whole, then giving way. */
+    /** This picture as the next screen's backdrop starts from it. */
     fun handedOn() = Shot(prepared, style, url, atOnce = true, handedOn = true)
 }
 
-/**
- * What a [Backdrop] shows, and the picture it has settled on: the next picture is prepared before it
- * shows, and until then the last one stays.
- */
+/** What a [Backdrop] shows; the current picture stays until the next one is prepared. */
 @Stable
 internal class BackdropState {
     var shown by mutableStateOf<Shot?>(null)
@@ -199,20 +171,17 @@ internal class BackdropState {
 
     private var shownOnce = false
 
-    /** Shows first [shot], the picture of the screen left, handed on. */
+    /** Starts from [shot], the previous screen's handed-on picture. */
     fun startFrom(shot: Shot?) {
         if (shot == null) return
         shown = shot
         shownOnce = true
     }
 
-    /** It has prepared the picture of [image], or found it has none to show: what shows is what was asked for. */
+    /** Whether the picture of [image] is prepared, or known to be missing. */
     fun settledOn(image: ImageRef?): Boolean = preparedFor == image
 
-    /**
-     * Shows [shot], the picture of [image] (null: none, or it could not be loaded), at once when
-     * [showsAtOnce] says so, or when it continues the picture handed on.
-     */
+    /** Shows [shot] for [image] (null: none or failed), without a fade per [showsAtOnce] or [Shot.continues]. */
     fun show(image: ImageRef?, shot: Shot?, covered: Boolean) {
         val first = !shownOnce
         val atOnce = shot != null &&
@@ -228,22 +197,19 @@ internal class BackdropState {
 }
 
 /**
- * The picture a screen's backdrop shows, handed on to the next screen's across a cut (screens never
- * fade into one another): the arriving backdrop starts from it, whole, and only its veils or its
- * picture change, home's band opening onto a detail page, a wall's dimmed picture coming up to full
- * light. A screen without a backdrop lets it go out on the black room ([LeavingBackdrop]). Two
- * layers at most, as for any change of picture.
+ * Hands a screen's backdrop picture to the next screen's across the cut, so only the veils or the picture
+ * change; a screen without a backdrop lets it fade out ([LeavingBackdrop]).
  */
 @Stable
 class BackdropRelay {
     private var holder: Any? = null
     private var last: Shot? = null
 
-    /** The picture of the screen left, going out on the black room until [gone]. */
+    /** The previous screen's picture, fading out on black until [gone]. */
     internal var leaving by mutableStateOf<Shot?>(null)
         private set
 
-    /** A backdrop arriving: it holds the relay, and starts from the picture of the screen left. */
+    /** An arriving backdrop takes the relay and gets the previous picture. */
     internal fun claim(owner: Any): Shot? {
         holder = owner
         return last?.handedOn()
@@ -253,7 +219,7 @@ class BackdropRelay {
         if (holder === owner) last = shot
     }
 
-    /** A backdrop leaving: when no other took the relay, its picture goes out. */
+    /** A leaving backdrop's picture fades out unless another has taken the relay. */
     internal fun release(owner: Any) {
         if (holder !== owner) return
         holder = null
@@ -266,20 +232,13 @@ class BackdropRelay {
     }
 }
 
-/**
- * Whether the backdrop of the screen has come to the picture of an image, or found it has none:
- * read while it is waited for, what is said of a title waits for its picture ([WithItsPicture]).
- * Without a backdrop, always.
- */
+/** Whether the screen's backdrop has settled on an image's picture ([WithItsPicture]); true without one. */
 val LocalBackdropSettled = staticCompositionLocalOf<(ImageRef?) -> Boolean> { { true } }
 
-/** The app's [BackdropRelay]; none (a backdrop on its own, as in the catalogue) starts from nothing. */
+/** The app's [BackdropRelay]; null (a standalone backdrop, as in the catalogue) starts empty. */
 val LocalBackdropRelay = staticCompositionLocalOf<BackdropRelay?> { null }
 
-/**
- * Under every screen: the picture of a screen left for one without a backdrop, going out on the
- * black room over `SLOW`, as the lights go out.
- */
+/** Under every screen: the previous picture fading out on black when the new screen has no backdrop. */
 @Composable
 fun LeavingBackdrop(relay: BackdropRelay) {
     val leaving = relay.leaving ?: return
@@ -288,24 +247,16 @@ fun LeavingBackdrop(relay: BackdropRelay) {
         out.animateTo(0f, tween(HlMotion.SLOW, easing = HlMotion.lightsOut))
         relay.gone(leaving)
     }
-    // The fade is the layer's own alpha: the picture is not drawn again for it.
+    // Fades through the layer's alpha, without redrawing the picture.
     BackdropShots(leaving, Modifier, recede = null, level = { out.value })
 }
 
-/**
- * Whether a picture about to show in a backdrop shows at once, without fading in: the [first] it
- * shows, [inMemory] when it was asked for (loaded ahead, while the launch screen held), while the
- * launch screen still hides the screen ([covered]), whose cue then reveals it whole. Every other
- * picture fades in, the first ones included.
- */
+/** Only the first picture, preloaded ([inMemory]) while the launch screen [covered] it, shows without a fade. */
 internal fun showsAtOnce(first: Boolean, inMemory: Boolean, covered: Boolean): Boolean = first && inMemory && covered
 
 /**
- * A screen on its picture: the [Backdrop] of [image] under [content], which the picture lights
- * ([rememberAmbientColor], provided as [LocalAmbient]): the card that has focus glows with it. The
- * light changes over `SLOW` with the picture, read while drawing, so nothing recomposes for it.
- * [ready]: the content is in (home's rows); a launch screen covering the screen leaves once a frame
- * is drawn with it and the picture prepared ([drawnWhole]).
+ * The [Backdrop] of [image] under [content], providing its ambient light as [LocalAmbient]. [ready]: the
+ * content is loaded; a covering launch screen leaves once it and the picture are drawn ([drawnWhole]).
  */
 @Composable
 fun AmbientBackdrop(
@@ -327,29 +278,23 @@ fun AmbientBackdrop(
     }
 }
 
-/** The shape a backdrop is asked for: the screen's. */
+/** Aspect ratio of a requested backdrop: the screen's. */
 private const val BACKDROP_WIDTH = 16
 private const val BACKDROP_HEIGHT = 9
 
-/** The address of [image] as a backdrop in this style, on a screen [screenPx] wide. */
+/** The URL of [image] as a backdrop in this style, on a screen [screenPx] wide. */
 private fun BackdropStyle.urlOf(image: ImageRef, screenPx: Int): String = image.url(maxWidthPx?.coerceAtMost(screenPx) ?: screenPx)
 
 /** The height a backdrop is asked for on a screen [screenPx] wide. */
 private fun backdropHeight(screenPx: Int) = screenPx * BACKDROP_HEIGHT / BACKDROP_WIDTH
 
-/**
- * What a [Backdrop] of [image] in [style] asks Coil for on a screen [screenPx] wide, as it prepares
- * the picture: the picture itself, then the tiny copy its veil and the room's light are read from.
- */
+/** The requests a [Backdrop] makes on a screen [screenPx] wide: the picture, then its sample. */
 internal fun backdropRequests(context: Context, image: ImageRef, style: BackdropStyle, screenPx: Int): List<ImageRequest> = listOf(
     backdropRequest(context, style.urlOf(image, screenPx), screenPx, backdropHeight(screenPx)),
     backdropSampleRequest(context, image),
 )
 
-/**
- * One picture of a [Backdrop], with its veils, as one cached layer at [alpha]. All of
- * it is ready before it shows, so the layer is drawn once; only the house lights draw it again.
- */
+/** One picture and its veils as a single cached layer at [alpha], redrawn only while the house lights move. */
 @Composable
 private fun BackdropPicture(
     prepared: PreparedBackdrop,
@@ -361,13 +306,12 @@ private fun BackdropPicture(
     recede: (() -> Float)?,
 ) {
     val black = Hl.colors.background
-    // The veils lift as the house lights go down: read while drawing, through the step alone, so
-    // the layer is drawn again only while they lift, not for the whole cue.
+    // Read only this cue step, so the layer redraws while the veils lift, not for the whole cue.
     val scrims = rememberCueStep(HouseLightCue::scrims)
     val veil = remember(prepared, bounds, style) {
         prepared.sample.leftVeil(bounds, column, style.imageAlpha, style.leftScrim, style.down)
     }
-    // Stepping back, the picture takes the veil text needs over all of it, never less than VEIL.
+    // When receding, the picture takes the veil text needs over its whole area, at least VEIL.
     val receded = remember(prepared, bounds, style, recede != null) {
         if (recede == null) 0f else max(HlAlpha.VEIL, prepared.sample.floorAcross(bounds, style.imageAlpha, style.down))
     }
@@ -376,8 +320,7 @@ private fun BackdropPicture(
             .fillMaxSize()
             .graphicsLayer {
                 compositingStrategy = CompositingStrategy.Offscreen
-                // Stepping back is black laid over the picture; on the black room that is the
-                // layer's own alpha, which costs nothing, where a veil would draw the layer again.
+                // On black, receding is just the layer's alpha: free, where a veil would redraw the layer.
                 this.alpha = alpha() * (1f - (recede?.invoke() ?: 0f) * receded * scrims.value)
             }
             .background(black),
@@ -392,7 +335,7 @@ private fun BackdropPicture(
         )
         Box(
             Modifier.fillMaxSize().drawWithCache {
-                // Laid out once for the picture: the house lights only change how strongly they draw.
+                // Brushes built once per picture; the house lights only change their alpha.
                 val across = leftVeil(black, veil, column, fade)
                 val down = Brush.verticalGradient(*style.down.colorStops(black))
                 onDrawBehind {
@@ -406,11 +349,8 @@ private fun BackdropPicture(
 }
 
 /**
- * [Crossfade], with the alpha handed to the content instead of laid on a layer of its own: a
- * content that is a cached layer takes it as that layer's alpha, and fades for the cost of one
- * texture rather than two. A target that shows [atOnce] is whole from its first frame, and what it
- * replaces goes at once. One that [holds] given what comes stays whole under it until it is in: the
- * two then mix as one, never darker between.
+ * A [Crossfade] that hands the alpha to [content], so a cached layer fades as one texture, not two;
+ * [atOnce] targets appear opaque, and [holds] keeps the leaving one opaque until the next is in.
  */
 @Composable
 internal fun <T> FadeBetween(
@@ -433,7 +373,7 @@ internal fun <T> FadeBetween(
                     transitionSpec = { if (atOnce(targetState)) snap() else tween(HlMotion.SLOW, easing = HlMotion.standard) },
                     label = "backdropAlpha",
                 ) { if (it == state) 1f else 0f }
-                // Whole from the first frame that draws it, before the transition takes its first step.
+                // Opaque from the first frame it is drawn, before the transition's first step.
                 content(state) {
                     when {
                         state == transition.targetState && atOnce(state) -> 1f
@@ -446,11 +386,7 @@ internal fun <T> FadeBetween(
     }
 }
 
-/**
- * The left veil: [veil] along the [column] (px), its stops as shares of it, then fading out at one
- * pace whatever its strength, over [fade] px for a full one: a light veil is gone sooner, a dark one
- * takes the room it needs to fade without an edge.
- */
+/** The left veil across [column] px, then faded out over up to [fade] px in proportion to its strength. */
 private fun leftVeil(black: Color, veil: List<VeilStop>, column: Float, fade: Float): Brush {
     val end = column + fade * veil.last().alpha
     val stops = veil.map { VeilStop(it.at * column / end, it.alpha) } + VeilStop(1f, 0f)

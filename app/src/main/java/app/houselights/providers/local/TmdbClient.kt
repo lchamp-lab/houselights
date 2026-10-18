@@ -26,21 +26,17 @@ import java.net.UnknownHostException
 import java.util.Locale
 import java.util.concurrent.TimeUnit
 
-/** TMDB is busy (429) or behind a failing gateway (502, 503, 504): asked again once, after [retryAfterMs]. */
+/** TMDB rate-limited (429) or gateway failure (502, 503, 504); retried once after [retryAfterMs]. */
 internal class TmdbBusyException(code: Int, val retryAfterMs: Long) : TmdbUnreachableException(null, "TMDB answered $code")
 
-/**
- * Not asked: a scan's client pauses for a minute after the network failed ([TmdbClient]'s
- * pauseWhenUnreachable). A failure of a moment ago, not a new one: a pass does not count it.
- */
+/** Thrown without a request while a scan client pauses after a network failure; a pass does not count it as new. */
 internal class TmdbPausedException : TmdbUnreachableException(null, "TMDB is not asked for a minute after it could not be reached")
 
-/** What TMDB says of a key. */
 enum class TmdbKeyCheck {
     ACCEPTED,
     REFUSED,
 
-    /** TMDB could not say: out of reach, or failing. */
+    /** TMDB unreachable or failing. */
     UNCHECKED,
 }
 
@@ -48,17 +44,16 @@ enum class TmdbKeyCheck {
 class TmdbClient(
     private val apiKey: String,
     /**
-     * Once the network to TMDB failed, or TMDB stayed busy, calls fail at once for a minute
-     * ([TmdbPausedException]): for scans, whose next files would each wait for a timeout. Someone
-     * asking (a search, artwork, a key to check) is answered by TMDB itself every time.
+     * For scans: after a network failure or repeated 429, calls fail at once for a minute ([TmdbPausedException])
+     * instead of each file waiting for a timeout. Interactive clients always query TMDB.
      */
     private val pauseWhenUnreachable: Boolean = false,
-    /** Answers in place of the network: TMDB as tests play it. */
+    /** Fake TMDB for tests. */
     transport: Interceptor? = null,
 ) {
     private val locale: Locale = Locale.getDefault()
 
-    /** Still right for [key] and the device language: a client lives as long as both stay the same. */
+    /** Whether this client still matches [key] and the device locale; otherwise a new one is needed. */
     fun fits(key: String): Boolean = key == apiKey && locale == Locale.getDefault()
 
     val language: String = locale.toLanguageTag().ifBlank { "en-US" }
@@ -74,10 +69,7 @@ class TmdbClient(
         namingStrategy = JsonNamingStrategy.SnakeCase
     }
 
-    /**
-     * Until when calls fail at once, after TMDB could not be reached ([pauseWhenUnreachable]); on the
-     * clock that only moves forward, as a clock set back would hold the pause for as long.
-     */
+    /** End of the pause ([pauseWhenUnreachable]) on the monotonic clock, so a clock set back cannot extend it. */
     @Volatile
     private var unreachableUntil = 0L
 
@@ -89,10 +81,9 @@ class TmdbClient(
         .build()
 
     /**
-     * Adds the key, and turns what TMDB answers into what it means: a key refused, an entry it does
-     * not have, a moment to wait. Every body is read here, a failure's too, within the timeouts that
-     * tell TMDB is out of reach: read later by Retrofit, a stalled or reset answer would reach the
-     * scan as is, and pass for a NAS that stopped answering.
+     * Adds the key and maps statuses to typed failures (key refused, not found, busy). Bodies are read here, within
+     * the timeouts, because a stalled body read later by Retrofit would surface as a generic IO error and look like
+     * an unreachable NAS.
      */
     private fun intercept(chain: Interceptor.Chain): Response {
         val response = answer(chain)
@@ -102,7 +93,7 @@ class TmdbClient(
             HttpStatus.NOT_FOUND -> TmdbNotFoundException()
             HttpStatus.TOO_MANY_REQUESTS -> TmdbBusyException(code, retryAfterMs(response.header("Retry-After")))
             in GATEWAY_FAILURES -> TmdbBusyException(code, GATEWAY_RETRY_MS)
-            // Anything else reaches the caller as an HTTP failure (Retrofit's HttpException).
+            // Other statuses surface as Retrofit's HttpException.
             else -> return response
         }
         response.close()
@@ -110,9 +101,8 @@ class TmdbClient(
     }
 
     /**
-     * TMDB's answer, its body read; TMDB out of reach throws. The network failing pauses a scan's
-     * client: the next files would each wait for the same timeout. Any other failure (a stream
-     * reset, an answer too large) tells nothing of the next request.
+     * Proceeds with the body buffered; throws [TmdbUnreachableException] on IO failure. Only network failures pause a
+     * scan client; others (stream reset, oversized answer) say nothing about the next request.
      */
     private fun answer(chain: Interceptor.Chain): Response {
         if (pauseWhenUnreachable && SystemClock.elapsedRealtime() < unreachableUntil) throw TmdbPausedException()
@@ -120,19 +110,19 @@ class TmdbClient(
         return try {
             chain.proceed(chain.request().newBuilder().url(url).build()).buffered()
         } catch (e: IOException) {
-            // A call given up on (a search replaced, a screen left) says nothing of TMDB.
+            // A cancelled call (search replaced, screen left) says nothing about TMDB.
             val canceled = chain.call().isCanceled()
             if (!canceled && isNetworkFailure(e)) pause()
             throw if (canceled) e else TmdbUnreachableException(e)
         }
     }
 
-    /** No route, no name, no connection, or no answer in time: ConnectException and NoRouteToHostException are SocketExceptions. */
+    /** No route, DNS, refused or timeout; ConnectException and NoRouteToHostException are SocketExceptions. */
     private fun isNetworkFailure(e: Throwable) = generateSequence(e) { it.cause }.any {
         it is UnknownHostException || it is SocketException || it is SocketTimeoutException
     }
 
-    /** The response with its body read, [MAX_BODY_BYTES] at most. */
+    /** The response with its body read into memory, at most [MAX_BODY_BYTES]. */
     private fun Response.buffered(): Response {
         val body = body ?: return this
         val bytes = body.use {
@@ -154,10 +144,7 @@ class TmdbClient(
         .build()
         .create(TmdbApi::class.java)
 
-    /**
-     * One request: asked once more when TMDB is busy, after the wait it asks for. An entry TMDB does
-     * not have throws [TmdbNotFoundException].
-     */
+    /** Runs [request], retrying once after the requested wait when TMDB is busy; 404 throws [TmdbNotFoundException]. */
     private suspend fun <T> call(request: suspend (TmdbApi) -> T): T = try {
         request(api)
     } catch (busy: TmdbBusyException) {
@@ -170,10 +157,7 @@ class TmdbClient(
         }
     }
 
-    /**
-     * Whether TMDB takes this client's key, asked by its lightest call: `authentication` answers 200
-     * for a key it takes, 401 for one it refuses.
-     */
+    /** Checks the key with TMDB's lightest call: `authentication` answers 200 for a valid key, 401 otherwise. */
     suspend fun checkKey(): TmdbKeyCheck = try {
         val request = Request.Builder().url(BASE_URL + "authentication").build()
         withContext(Dispatchers.IO) {
@@ -185,10 +169,7 @@ class TmdbClient(
         TmdbKeyCheck.UNCHECKED
     }
 
-    /**
-     * Best movie match; retries without the year, which is often off by one in file names. A hit
-     * TMDB no longer has (its search lags behind an entry removed) is no match.
-     */
+    /** Best match, retrying without the year (often off by one in file names); a hit removed from TMDB gives null. */
     suspend fun findMovie(title: String, year: Int?): TmdbMovie? {
         val hit = call { it.searchMovie(title, year, language) }.results.firstOrNull()
             ?: year?.let { call { api -> api.searchMovie(title, null, language) }.results.firstOrNull() }
@@ -196,28 +177,27 @@ class TmdbClient(
         return unlessMissing { call { it.movie(hit.id, language, imageLanguages) } }
     }
 
-    /** null when TMDB has no such film. A network failure throws: it must never read as "not found". */
+    /** Null when TMDB has no such film; a network failure throws and must never read as "not found". */
     suspend fun movieById(id: Int): TmdbMovie? = unlessMissing { movie(id) }
 
     suspend fun tvById(id: Int): TmdbTv? = unlessMissing { tv(id) }
 
-    /** Like [movieById], but an id TMDB does not know throws ([TmdbNotFoundException]) instead of returning null. */
+    /** Like [movieById], but an unknown id throws [TmdbNotFoundException]. */
     suspend fun movie(id: Int): TmdbMovie = call { it.movie(id, language, imageLanguages) }
 
     suspend fun tv(id: Int): TmdbTv = call { it.tv(id, language, imageLanguages) }
 
-    /** Search results, for manual identification. */
     suspend fun searchMovies(query: String, year: Int?): List<TmdbSearchResult> = call { it.searchMovie(query, year, language) }.results
 
     suspend fun searchShows(query: String, year: Int?): List<TmdbSearchResult> = call { it.searchTv(query, year, language) }.results
 
-    /** The film or show an IMDb id points to, as a search result. */
+    /** The film or show for an IMDb id, as a search result. */
     suspend fun findImdb(imdbId: String, show: Boolean): TmdbSearchResult? {
         val r = call { it.find(imdbId) }
         return if (show) r.tvResults.firstOrNull() else r.movieResults.firstOrNull()
     }
 
-    /** Every poster, backdrop and logo of a title: in the device language, in English and without text. */
+    /** All posters, backdrops and logos in the device language, English, or without text. */
     suspend fun images(tmdbId: Int, show: Boolean): TmdbImageSet =
         call { if (show) it.tvImages(tmdbId, imageLanguages) else it.movieImages(tmdbId, imageLanguages) }
 
@@ -227,7 +207,6 @@ class TmdbClient(
         r.movieResults.firstOrNull()?.id to r.tvResults.firstOrNull()?.id
     } ?: (null to null)
 
-    /** As [findMovie], for a show. */
     suspend fun findTv(title: String, year: Int?): TmdbTv? {
         val hit = call { it.searchTv(title, year, language) }.results.firstOrNull()
             ?: year?.let { call { api -> api.searchTv(title, null, language) }.results.firstOrNull() }
@@ -239,14 +218,14 @@ class TmdbClient(
 
     suspend fun collection(id: Int): TmdbCollection? = unlessMissing { call { it.collection(id, language) } }
 
-    /** The answer, or null when TMDB says it has no such entry (404); any other failure throws. */
+    /** Null on 404; any other failure throws. */
     private inline fun <T> unlessMissing(block: () -> T): T? = try {
         block()
     } catch (_: TmdbNotFoundException) {
         null
     }
 
-    /** Posters of this week's trending films, for the welcome screen's wall. */
+    /** This week's trending film posters, for the welcome screen. */
     suspend fun trendingPosterPaths(): List<String> = call { it.trendingMovies(language) }.results.mapNotNull { it.posterPath }
 
     /** Logo in the device language, else English, else language-neutral. */
@@ -267,10 +246,10 @@ class TmdbClient(
         private val GATEWAY_FAILURES = setOf(502, 503, 504)
         private const val UNREACHABLE_PAUSE_MS = 60_000L
 
-        /** The most of an answer held in memory: a film with its cast and images is well under 1 MB. */
+        /** Cap on a buffered body; a film with cast and images is well under 1 MB. */
         private const val MAX_BODY_BYTES = 8L * 1024 * 1024
 
-        /** The wait before asking again a gateway that failed, and the longest wait a 429 is granted. */
+        /** Retry delay after a gateway failure, and the cap on a 429's Retry-After. */
         private const val GATEWAY_RETRY_MS = 1_000L
         private const val MAX_RETRY_AFTER_MS = 5_000L
         private const val MS_PER_SECOND = 1_000L
@@ -281,7 +260,7 @@ class TmdbClient(
         private val PROFILE_SIZES = listOf(45, 185)
         private val STILL_SIZES = listOf(92, 185, 300)
 
-        /** A 429's `Retry-After`, in seconds (TMDB does not send a date): a second without one, five at most. */
+        /** A 429's `Retry-After` in seconds (TMDB never sends a date); one second if absent, five at most. */
         internal fun retryAfterMs(header: String?): Long =
             (header?.trim()?.toLongOrNull()?.times(MS_PER_SECOND) ?: GATEWAY_RETRY_MS).coerceIn(0, MAX_RETRY_AFTER_MS)
 

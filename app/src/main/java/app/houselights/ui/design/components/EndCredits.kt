@@ -31,15 +31,12 @@ import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.revealOnFocus
 import java.util.Locale
 
-/** One craft of the end credits: its job as the credits name it ("Musique"), and who did it, billing order. */
+/** One craft of the end credits: its [job] as credited ("Musique") and its [names] in billing order. */
 data class Craft(val job: String, val names: List<String>)
 
 /**
- * The end credits of a title's page, as a film ends: its [crafts] on two columns that meet on a
- * gutter at the middle of the reading column: each job in small condensed words set against the
- * gutter, then up to [CRAFT_NAMES] names in condensed capitals, one a line. The billing block at
- * length, the other place capitals are set. Each row takes focus to be read, white as every row;
- * OK does nothing. Nothing to say, it draws nothing.
+ * A title's end credits: each job in small condensed type against a central gutter, then up to
+ * [CRAFT_NAMES] names in condensed capitals; rows are focusable to be read. Draws nothing without names.
  */
 @Composable
 fun EndCredits(crafts: List<Craft>, modifier: Modifier = Modifier) {
@@ -55,10 +52,9 @@ fun EndCredits(crafts: List<Craft>, modifier: Modifier = Modifier) {
     }
 }
 
-/** Names a craft shows at most, as a poster's credits keep the first. */
+/** At most this many names per craft, the first in billing order, as on a poster. */
 const val CRAFT_NAMES = 3
 
-/** A craft: its job against the gutter, its names after it. */
 @Composable
 private fun CraftRow(craft: Craft) {
     val c = Hl.colors
@@ -93,7 +89,7 @@ private fun CraftRow(craft: Craft) {
     }
 }
 
-/** A row of the end credits: focusable to be read, as [readAs]; white with focus, as every row. */
+/** An end credits row, focusable so it is read as [readAs]; white on focus. */
 @Composable
 private fun CreditsRow(readAs: String, content: @Composable (focused: Boolean) -> Unit) {
     val interaction = remember { MutableInteractionSource() }

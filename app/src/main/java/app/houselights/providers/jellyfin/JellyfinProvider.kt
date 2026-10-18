@@ -48,9 +48,9 @@ class JellyfinProvider(
     config: SourceConfig.Jellyfin,
     deviceId: String,
     http: OkHttpClient = Http.client,
-    /** The waits before each new try of a report that failed in passing (see [retried]). */
+    /** Delays before each retry of a report that failed transiently (see [retried]). */
     private val retryDelaysMs: List<Long> = REPORT_RETRY_MS,
-    /** Where the server's answers are made into titles: typesetting their text takes regexes, off the main thread. */
+    /** Context for mapping responses to titles; typesetting runs regexes, so keep it off the main thread. */
     private val mapping: CoroutineContext = Dispatchers.Default,
 ) : MediaProvider {
     private val client = JellyfinClient(config.serverUrl, deviceId, config.accessToken, http)
@@ -65,10 +65,7 @@ class JellyfinProvider(
 
     override val catalog: Catalog by lazy { JellyfinCatalog(api, mapper, userId, this, mapping) }
 
-    /**
-     * The libraries [libraries] read last, until [home] takes them: home loads the libraries, then
-     * its rows, which need them too. One request to the server serves both.
-     */
+    /** Libraries from the last [libraries] call, reused once by [home], which needs them right after. */
     private val librariesRead = AtomicReference<List<Library>?>(null)
 
     override suspend fun libraries(): List<Library> = askLibraries().also { librariesRead.set(it) }
@@ -78,11 +75,7 @@ class JellyfinProvider(
             .filter { it.collectionType in SUPPORTED_COLLECTIONS }
             .map { Library(it.id, libraryKind(it.collectionType), Typeset.text(it.name)) }
 
-    /**
-     * Home's rows, each asked apart: one that fails is left out, and logged. When every one fails, home
-     * fails with the first failure, rather than showing a server with nothing on it. The libraries
-     * just read for home are not asked for again.
-     */
+    /** Rows fetched in parallel; failed rows are left out, but if all fail the first failure is thrown. */
     override suspend fun home(): List<HomeSection> = coroutineScope {
         val resume = async { row("Resume") { api.resume(userId, 20, ROW_FIELDS).items } }
         val nextUp = async { row("Next up") { api.nextUp(userId, 20, ROW_FIELDS).items } }
@@ -105,7 +98,6 @@ class JellyfinProvider(
         }
     }
 
-    /** What a row of a screen asks for, its failure logged: the screen goes on without it. */
     private suspend fun <T> row(what: String, block: suspend () -> T): Result<T> =
         suspendRunCatching { block() }.onFailure { Log.w(TAG, "$what failed", it) }
 
@@ -165,7 +157,6 @@ class JellyfinProvider(
         if (series.kind == MediaKind.COLLECTION) super.nextUp(series)
         else row("Next up of ${series.id}") { api.nextUp(userId, 1, ROW_FIELDS, series.id).items.firstOrNull()?.let(::toMedia) }.getOrNull()
 
-    /** A collection (box set) holds its films directly. */
     override suspend fun collectionItems(collection: MediaItem): List<MediaItem> = row("Films of ${collection.id}") {
         val films = api.items(
             userId = userId,
@@ -200,7 +191,7 @@ class JellyfinProvider(
     override suspend fun playback(item: MediaItem, resume: Boolean, options: PlaybackOptions): PlaybackPlan =
         play(item.id, sourceId = null, resume, options)
 
-    /** Plays the media source [sourceId] of the item [itemId], one of its versions; its first when null or gone. */
+    /** Plays media source [sourceId] of item [itemId]; falls back to the first source when null or missing. */
     internal suspend fun play(itemId: String, sourceId: String?, resume: Boolean, options: PlaybackOptions): PlaybackPlan {
         // List entries lack MediaSources: reload the full item.
         val full = api.item(itemId, userId)
@@ -223,17 +214,17 @@ class JellyfinProvider(
     override fun reporter(resumeKey: String): PlaybackReporter? =
         resumeKey.split(RESUME_KEY_SEPARATOR).let { parts -> Reporter(parts[0], parts.getOrNull(1)) }
 
-    /** Counts playbacks started through this server: a report of an earlier one stops trying once a new one started. */
+    /** Playback session counter: retries of an older session's report stop once a new session starts. */
     private val sessions = AtomicLong()
 
-    /** Keeps reports in order across playbacks: a Playing never goes before the last playback's Stopped, nor a Stopped twice. */
+    /** Orders reports across playbacks: no Playing before the previous Stopped, and no Stopped sent twice. */
     private val reports = Mutex()
 
-    /** The last playback's Stopped while it waits to be tried again (see [retried]): the next Playing sends it first. Under [reports]. */
+    /** Previous Stopped awaiting retry ([retried]), sent before the next Playing. Guarded by [reports]. */
     private var pendingStop: (suspend () -> Unit)? = null
 
     private inner class Reporter(private val itemId: String, private val mediaSourceId: String?) : PlaybackReporter {
-        /** The playback this reporter speaks for: the latest when it was made, or the one it started. */
+        /** Session this reporter belongs to: the latest at creation, or the one it started. */
         private var session = sessions.get()
 
         private fun report(positionMs: Long, paused: Boolean = false) = PlaybackReport(
@@ -246,7 +237,7 @@ class JellyfinProvider(
         override suspend fun started(positionMs: Long) {
             reports.withLock {
                 session = sessions.incrementAndGet()
-                // The last playback's Stopped, still to be tried again: once more now, before this Playing, then given up.
+                // A pending Stopped from the previous playback gets one last try before this Playing.
                 pendingStop?.let { stop ->
                     pendingStop = null
                     suspendRunCatching { stop() }.onFailure { Log.w(TAG, "The last playback's Stopped failed again: given up", it) }
@@ -257,24 +248,20 @@ class JellyfinProvider(
 
         override suspend fun progress(positionMs: Long, durationMs: Long?, paused: Boolean) = api.reportProgress(report(positionMs, paused))
 
-        // The server marks the item as played past 90 %, from this report alone: it is tried again.
+        // The server marks the item played past 90 % from this report alone, so it is retried.
         override suspend fun stopped(positionMs: Long, durationMs: Long?) = retried(session) { api.reportStopped(report(positionMs)) }
     }
 
     /**
-     * [block], tried again after each of [retryDelaysMs] while it fails in a way that says the server
-     * did not take it: no connection (refused or timed out, no route, a name unknown) or the server
-     * failing (5xx, "database is locked" during a scan). Anything else is not tried again: an answer
-     * that timed out may come from a request the server did take, and a second Stopped would count the
-     * film twice. While it waits, it is [pendingStop]: a new playback sends it once more before its own
-     * Playing, and the tries end there. A late Stopped would land after the next episode's Playing,
-     * and a dropped one would leave the episode unwatched. Each try holds [reports].
+     * Retries [block] after each of [retryDelaysMs] only when the server cannot have processed it (no connection,
+     * or 5xx such as "database is locked" during a scan): a second Stopped would count the play twice. While
+     * waiting it is [pendingStop], so a new playback sends it before its own Playing and retries stop there.
      */
     private suspend fun retried(session: Long, block: suspend () -> Unit) {
         var tries = 0
         while (true) {
             val failure = reports.withLock {
-                // A new playback took it over, and sent it before its Playing.
+                // A new playback already sent it before its Playing.
                 if (tries > 0 && pendingStop !== block) return
                 pendingStop = null
                 val failure = failureToRetry(block) ?: return
@@ -292,7 +279,7 @@ class JellyfinProvider(
         }
     }
 
-    /** Null when [block] succeeds; its failure when it is one to try again (see [retried]). Any other is thrown. */
+    /** Null on success; the failure when it is retryable (see [retried]); any other failure is thrown. */
     private suspend fun failureToRetry(block: suspend () -> Unit): Exception? = try {
         block()
         null
@@ -302,32 +289,30 @@ class JellyfinProvider(
         if (e.code() >= HTTP_SERVER_ERROR) e else throw e
     }
 
-    /** The request never got to the server: it can be sent again without the server taking it twice. */
+    /** The request never reached the server, so resending it cannot apply it twice. */
     private fun IOException.neverReachedTheServer() =
         this is ConnectException || this is NoRouteToHostException || this is UnknownHostException || isConnectTimeout()
 
     /**
-     * No connection within the timeout (a server or a NAS asleep, a Wi-Fi joining again): Android says
-     * "failed to connect to … after 10000ms", a JVM "Connect timed out". An answer that timed out says
-     * "timeout" or "Read timed out": the server may have taken the request.
+     * Connect timeouts only: Android says "failed to connect to … after 10000ms", a JVM "Connect timed out". Read
+     * timeouts are excluded, as the server may have processed the request.
      */
     private fun IOException.isConnectTimeout() = this is SocketTimeoutException &&
         message.orEmpty().let { it.startsWith("failed to connect", ignoreCase = true) || it.equals("connect timed out", ignoreCase = true) }
 
     private fun toMedia(dto: BaseItem): MediaItem = mapper.toMedia(dto)
 
-    /** The titles of a list the server answered, made in [mapping]. */
     private suspend fun titles(items: List<BaseItem>): List<MediaItem> = withContext(mapping) { items.map(::toMedia) }
 
     companion object {
         private const val TAG = "Jellyfin"
         private const val HTTP_SERVER_ERROR = 500
 
-        /** Stopped is tried three times more, over some twenty seconds. */
+        /** Three retries of Stopped, over about twenty seconds. */
         private val REPORT_RETRY_MS = listOf(2_000L, 5_000L, 15_000L)
         private const val RESUME_KEY_SEPARATOR = "|"
 
-        /** A media source's video types that are discs: an image, a Blu-ray's folder, a DVD's. */
+        /** Media source video types that are discs: ISO image, Blu-ray folder, DVD folder. */
         private val DISC_VIDEO_TYPES = setOf("Iso", "BluRay", "Dvd")
         private const val DISC_IMAGE = "iso"
 
@@ -335,7 +320,7 @@ class JellyfinProvider(
         private val SUPPORTED_COLLECTIONS = setOf("movies", "tvshows", "boxsets", "homevideos", "musicvideos", null)
         private const val ROW_FIELDS = "Overview,Genres,ProductionYear,OfficialRating,CommunityRating,DateCreated"
 
-        /** What a wall shows of a title: its year and facts, never its overview nor its genres. */
+        /** Fields a wall needs: year and ratings, without overview or genres. */
         private const val GRID_FIELDS = "ProductionYear,OfficialRating,CommunityRating,DateCreated"
         private const val EPISODE_FIELDS = "Overview"
 

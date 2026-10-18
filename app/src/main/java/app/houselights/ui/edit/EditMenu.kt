@@ -20,8 +20,8 @@ import app.houselights.ui.design.components.PreviewShape
 import app.houselights.ui.design.components.RowPreview
 
 /**
- * What can be changed on a title, beside its page: its three pieces of artwork, each shown as it
- * is now, then what it is matched with. Choosing one opens its screen at once.
+ * A title's edit side sheet: its poster, backdrop and logo, each with a preview of the current one,
+ * then its match. Choosing a row opens its screen directly.
  */
 @Composable
 fun EditMenu(
@@ -57,7 +57,7 @@ fun EditMenu(
             onClick = { onArtwork(ArtworkKind.LOGO) },
             leading = { RowPreview(item.logo, PreviewShape.Logo, icon = HlIcons.Logo) },
         )
-        // Not an image: what the title is matched with.
+        // Set apart from the artwork: the title's match.
         Spacer(Modifier.height(HlSpace.s))
         HlDivider()
         Spacer(Modifier.height(HlSpace.s))

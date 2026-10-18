@@ -4,17 +4,13 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
 
-/**
- * `HlLayout` is the screens' grid: every measure in it is read by a screen. A measure only a
- * component reads belongs with that component, in its `…Defaults` (Dimens.kt), and a measure no
- * one reads goes.
- */
+/** Every `HlLayout` measure is read by a screen; one only a component reads belongs in its `…Defaults`. */
 class LayoutTokensTest {
     private val sources = File("src/main/java/app/houselights")
     private val design = File(sources, "ui/design")
     private val dimens = File(design, "Dimens.kt")
 
-    /** Read by the theme alone, by nature: the canvas every screen is laid out on. */
+    /** Read only by the theme, by nature: the canvas every screen is laid out on. */
     private val grid = setOf("CANVAS_WIDTH")
 
     @Test

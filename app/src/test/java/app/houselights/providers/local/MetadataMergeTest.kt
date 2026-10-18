@@ -30,7 +30,7 @@ class MetadataMergeTest {
         val merged = MetadataMerge.merge(film, nfo, tmdb, LocalArt())
         assertEquals("Heat (version longue)", merged.title)
         assertEquals(listOf("Policier"), merged.genres)
-        // TMDB's overview is empty: what was known stays.
+        // TMDB's overview is empty: the known one stays.
         assertEquals("Known before", merged.overview)
         assertEquals("A Los Angeles crime saga", merged.tagline)
         assertEquals(170, merged.runtimeMin)
@@ -87,7 +87,7 @@ class MetadataMergeTest {
         assertEquals("aliens", MetadataMerge.sortKey(" Aliens "))
     }
 
-    /** Sorted as bytes, "Ça", "À couteaux tirés", "Été 85" and "Œdipe" came after "Zodiac"; "L'Arnaque" sorted with L. */
+    /** Byte order puts "Ça", "À couteaux tirés", "Été 85" and "Œdipe" after "Zodiac", and "L'Arnaque" under L. */
     @Test
     fun accentsLigaturesAndAGluedArticleSortWithTheirLetter() {
         val titles = listOf("Zodiac", "Œdipe", "L'Arnaque", "Été 85", "Ça", "À couteaux tirés")

@@ -18,9 +18,8 @@ import java.io.IOException
 import java.time.Duration
 
 /**
- * What scans write for the people, sagas, copies and editions screens read: credits from TMDB or the NFO, a
- * saga's films from the details TMDB is asked for once, a film's copies as one title; and what titles known
- * before get at later passes, a few a pass, without touching what the user did.
+ * What scans write for the people, saga, copy and edition screens, and the backfill of known titles, a few
+ * per pass, that leaves the user's changes alone.
  */
 @RunWith(RobolectricTestRunner::class)
 class ScanCreditsTest {
@@ -93,7 +92,7 @@ class ScanCreditsTest {
         assertEquals("Paul Atreides" to "/tc.jpg", chalamet.character to chalamet.profilePath)
     }
 
-    /** The NFO's cast and direction are the user's media manager's: they stay, with TMDB's ids for the people TMDB names. */
+    /** The NFO's cast and direction come from the user's media manager: they stay, and take TMDB's ids. */
     @Test
     fun theNfosPeopleStayAndTakeTmdbsIds() = runTest {
         val films = bench.folder("Films")
@@ -116,7 +115,7 @@ class ScanCreditsTest {
         assertEquals(listOf("Hans Zimmer"), credits.filter { it.job == Job.COMPOSER }.map { it.name })
     }
 
-    /** An NFO read again while TMDB is not asked replaces what it lists, never what TMDB alone credits. */
+    /** An NFO read again without asking TMDB replaces what it lists, never what TMDB alone credits. */
     @Test
     fun anNfoReadAgainKeepsWhatTmdbAloneCredits() = runTest {
         val films = bench.folder("Films")
@@ -124,7 +123,7 @@ class ScanCreditsTest {
         nas.put("Dune (2021).mkv")
         nas.text("Dune (2021).nfo", "<movie><title>Dune</title><uniqueid type=\"tmdb\">438631</uniqueid></movie>")
         bench.scan()
-        // tinyMediaManager writes the NFO again, the same film, with its cast.
+        // tinyMediaManager rewrites the NFO, for the same film, with its cast.
         val withCast = "<movie><title>Dune</title><uniqueid type=\"tmdb\">438631</uniqueid><actor><name>Zendaya</name></actor></movie>"
         nas.text("Dune (2021).nfo", withCast)
         tmdb.requests.clear()
@@ -137,7 +136,7 @@ class ScanCreditsTest {
         assertEquals(listOf("Joe Walker"), credits[Job.EDITING])
     }
 
-    /** A show's credits are its cast, its creators and its composers; its NFO, without TMDB, gives its cast. */
+    /** A show's credits are its cast, creators and composers; without TMDB, its NFO gives its cast. */
     @Test
     fun aShowsCreditsAreItsCastCreatorsAndComposers() = runTest {
         bench.folder("Séries", SourceKind.SHOWS)
@@ -162,7 +161,6 @@ class ScanCreditsTest {
         )
     }
 
-    /** A saga's films come with the details TMDB is asked for once a saga, never once a film. */
     @Test
     fun aSagasFilmsComeWithItsDetailsAskedOnce() = runTest {
         val films = bench.folder("Films")
@@ -205,7 +203,6 @@ class ScanCreditsTest {
         assertNull("a film's own title", bench.item(films, "Director's Cut (2016).mkv").edition)
     }
 
-    /** Two files of one film, in two folders, are one title after the scan: the first found holds it. */
     @Test
     fun twoFilesOfOneFilmAreOneTitle() = runTest {
         val films = bench.folder("Films")
@@ -213,7 +210,7 @@ class ScanCreditsTest {
         val films4k = bench.folder("Films 4K", on = uhd)
         dune()
         nas.put("Dune (2021).mkv")
-        // A folder found empty keeps its titles, as a NAS's that stopped answering would: it holds another.
+        // A second film: a folder listed empty keeps its titles, as when its NAS stops answering.
         nas.put("Heat (1995).mkv")
         uhd.put("Dune (2021) 2160p.mkv")
         bench.scan()
@@ -224,7 +221,7 @@ class ScanCreditsTest {
         assertEquals(first.id, copy.versionOf)
         assertEquals(listOf(first.id), dao.latest(ItemKind.MOVIE, 10).filter { it.tmdbId == 438631 }.map { it.id })
 
-        // The first goes: the copy is a title of its own again.
+        // The first file goes: the copy is a title of its own again.
         nas.remove("Dune (2021).mkv")
         bench.scan()
         bench.now += MissingFiles.BRIEF_HOLD_MS
@@ -232,7 +229,7 @@ class ScanCreditsTest {
         assertNull(bench.item(films4k, "Dune (2021) 2160p.mkv").versionOf)
     }
 
-    /** Titles as version 11 left them: matched, their credits never written, nor their sagas' films. */
+    /** Titles as version 11 left them: matched, without credits or their sagas' films. */
     private fun asBeforeVersion12() {
         bench.db.openHelper.writableDatabase.execSQL("UPDATE items SET creditsAt = NULL, votes = NULL")
         bench.db.openHelper.writableDatabase.execSQL("DELETE FROM credits")
@@ -297,7 +294,7 @@ class ScanCreditsTest {
         assertEquals(1, tmdb.requests.count { it.startsWith("collection/") })
     }
 
-    /** TMDB out of reach: the backfill asks three times, then waits for a later pass; the NFO's titles get theirs all the same. */
+    /** TMDB unreachable: the backfill tries three times, then waits a pass; NFO titles still get theirs. */
     @Test
     fun tmdbOutOfReachLeavesTheBackfillToALaterPass() = runTest {
         val films = bench.folder("Films")

@@ -21,11 +21,8 @@ import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
 
 /**
- * A scan going on, read like the counter of a projection booth: the ember line, the count at
- * its end ("3 / 9", in tabular figures, so it does not jitter as it climbs), then the file being
- * read, quiet. [label] says what is counted, in the voice of the poster, above the line (the first
- * scan, on home); without one, the counter keeps to a single line and the file follows the count
- * (a folder's card). Until the files are counted ([total] 0), the line shows a sliver and no count.
+ * A running scan: the ember line, the count in tabular figures ("3 / 9"), then the file being read; [label]
+ * goes above the line. Before files are counted ([total] 0) the line shows a sliver and no count.
  */
 @Composable
 fun ScanProgress(
@@ -49,7 +46,6 @@ fun ScanProgress(
             Spacer(Modifier.height(HlSpace.s))
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
-            // A scan that has just started still shows a sliver of progress.
             ProgressLine(fraction.coerceAtLeast(SLIVER), Modifier.width(lineWidth))
             if (total > 0) {
                 Spacer(Modifier.width(HlSpace.s))

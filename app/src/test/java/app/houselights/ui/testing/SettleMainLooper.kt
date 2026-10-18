@@ -6,10 +6,8 @@ import org.junit.runner.Description
 import org.robolectric.Shadows.shadowOf
 
 /**
- * Runs what a test left on the main looper before Robolectric clears it. Compose state written
- * outside a composition (a ViewModel's) is handed to Compose there once a Compose test has run in
- * the same sandbox: cleared unrun, Compose's dispatcher waits for it forever, and no Compose test
- * after it settles. Every Robolectric test that writes Compose state takes this rule.
+ * Runs what a test left on the main looper before Robolectric clears it, or Compose's dispatcher waits forever
+ * and later Compose tests in the sandbox never settle; for every test that writes Compose state.
  */
 class SettleMainLooper : TestWatcher() {
     override fun finished(description: Description) {

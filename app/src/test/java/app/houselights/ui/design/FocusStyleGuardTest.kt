@@ -4,11 +4,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
 
-/**
- * Focus is said in one place, `FocusStyle`: projector white in three gestures (fill, lift, ring).
- * No component builds its own (a white of its own, a scale of its own, an outline of its own), so a
- * new component cannot invent a fourth gesture, and every focusable surface takes one of the three.
- */
+/** Focus is drawn only by `FocusStyle`, in three gestures (fill, lift, ring); no component builds its own. */
 class FocusStyleGuardTest {
     private val components = File("src/main/java/app/houselights/ui/design/components")
     private val home = "FocusStyle.kt"
@@ -34,10 +30,7 @@ class FocusStyleGuardTest {
         assertTrue("Focus belongs to FocusStyle:\n" + found.joinToString("\n"), found.isEmpty())
     }
 
-    /**
-     * A screen draws no focus at all: it composes the components that take theirs from FocusStyle.
-     * One that reached for it would be a component copied into a screen, out of this guard's sight.
-     */
+    /** A screen drawing focus would be a component copied out of this guard's sight. */
     @Test
     fun noScreenDrawsFocus() {
         val ui = File("src/main/java/app/houselights/ui")

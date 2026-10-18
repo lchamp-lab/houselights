@@ -71,7 +71,6 @@ class TechSheetTest {
         assertEquals(listOf(TechValue.Word("HEVC"), TechValue.BitDepth(10)), rows[3].value)
         assertEquals(listOf(TechValue.Megabits(6_500)), rows[5].value)
 
-        // A codec alone: no definition, no ratio, no rate, no bitrate.
         val lean = facts(TechSheet.of(MediaInfo(video = VideoInfo(Codecs.AVC))), TechTopic.PICTURE)
         assertEquals(listOf(TechLabel.DYNAMIC_RANGE, TechLabel.CODEC), lean.map { it.label })
         assertEquals(listOf(TechValue.Word("AVC")), lean[1].value)
@@ -131,11 +130,11 @@ class TechSheetTest {
         ).map { it.region }
         assertEquals(listOf("FR", "CA"), regions("fr-FR" to null, "fr-CA" to null))
         assertEquals(listOf("FR", "CA"), regions("fr-FR" to null, "fre" to "VFQ"))
-        // One French dub by its region is no ambiguity: its language says enough.
+        // One French track with a region is unambiguous: its language is enough.
         assertEquals(listOf(null, null), regions("fr-FR" to null, "en-US" to null))
-        // Two French dubs, neither by its region: nothing to tell them apart by.
+        // Two French tracks, neither with a region: nothing tells them apart.
         assertEquals(listOf(null, null), regions("fre" to null, "fra" to null))
-        // A region beside a track that does not say its own still tells the one from the other.
+        // A region on one track still tells it from a track without one.
         assertEquals(listOf("CA", null), regions("fr-CA" to null, "fre" to null))
         assertEquals(listOf(null, null), regions(null to null, null to null))
         // Welsh by its bibliographic code is Welsh still: the screen names both "Gallois".

@@ -47,12 +47,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
-/**
- * Text or tables longer than the space they have, read with the remote, on a quiet panel: the area
- * takes focus (outlined in projector white) only when there is something to scroll, and up and
- * down then scroll it until an end, where focus moves on. Where there is more to read, the text
- * fades into the panel's fill as it shows.
- */
+/** A quiet panel scrolled with the remote; focusable only when there is something to scroll. */
 @Composable
 fun HlScrollArea(modifier: Modifier = Modifier, content: @Composable BoxScope.() -> Unit) {
     val scroll = rememberScrollState()
@@ -76,10 +71,8 @@ fun HlScrollArea(modifier: Modifier = Modifier, content: @Composable BoxScope.()
 }
 
 /**
- * An [HlScrollArea] for what is too long to lay out whole (the XML of an NFO, up to a megabyte): a
- * lazy list, which lays out only the lines on screen, read with the remote as the text is, at the
- * same step and with the same carry, on the same panel. Its lines are [lineHeight] apart, which is
- * how far it counts each one it has not laid out yet.
+ * A lazy [HlScrollArea] for content too long to lay out whole (an NFO's XML, up to a megabyte); lines not
+ * laid out yet count [lineHeight] each.
  */
 @Composable
 fun HlScrollArea(lineHeight: TextUnit, modifier: Modifier = Modifier, content: LazyListScope.() -> Unit) {
@@ -105,29 +98,27 @@ fun HlScrollArea(lineHeight: TextUnit, modifier: Modifier = Modifier, content: L
     )
 }
 
-/** The edge of an area to read: the quiet panel's hairline, the ring of focus while it has it. */
+/** The border of a reading area: the panel's hairline, or the focus ring while focused. */
 @Composable
 private fun readingEdge(focused: Boolean): BorderStroke =
     if (focused) FocusStyle.ring() else BorderStroke(HlSize.hairline, Hl.colors.edge)
 
 /**
- * Up and down scroll one step per press. A key held down adds its steps to where the scroll is
- * heading and the motion carries on, keeping its speed, instead of starting over from rest at
- * each repeat. Each step stops at an end, so the motion slows into it rather than against it.
- * What scrolls says where it stands ([at]), how far the motion may go ([range]), and moves.
+ * Up and down scroll one step per press; a held key adds steps to the target and keeps the velocity
+ * instead of restarting from rest, and targets are clamped so the motion eases into the ends.
  */
 private abstract class KeyScroll(private val state: ScrollableState, private val scope: CoroutineScope) {
     private val position = Animatable(0f)
     private var target = 0f
     private var motion: Job? = null
 
-    /** Where the content stands, as the motion counts it. */
+    /** The current scroll position, in the motion's coordinates. */
     protected abstract val at: Float
 
-    /** Where the motion may go, from the top end to the bottom one, as it counts them. */
+    /** The reachable positions, top end to bottom end, in the motion's coordinates. */
     protected abstract fun range(): ClosedFloatingPointRange<Float>
 
-    /** Moves the content to [to], as the motion counts it. */
+    /** Scrolls the content to [to], in the motion's coordinates. */
     protected abstract fun moveTo(to: Float)
 
     fun onKey(event: KeyEvent, step: Float): Boolean {
@@ -137,12 +128,12 @@ private abstract class KeyScroll(private val state: ScrollableState, private val
             event.key == Key.DirectionUp && state.canScrollBackward -> -1
             else -> 0
         }
-        // At an end, the key moves focus on.
+        // At an end, let the key move focus.
         if (direction == 0) return false
         val moving = motion?.isActive == true
         target = ((if (moving) target else at) + direction * step).coerceIn(range())
         val to = target
-        // Read now: by the time this motion takes over, the one it replaces has stopped.
+        // Read before launching: once this motion takes over, the one it replaces has stopped.
         val velocity = position.velocity
         motion = scope.launch {
             if (!moving) position.snapTo(at)
@@ -152,7 +143,7 @@ private abstract class KeyScroll(private val state: ScrollableState, private val
     }
 }
 
-/** A text's scroll, counted from its top. */
+/** Scroll of a [ScrollState], measured from the top. */
 private class TextKeyScroll(private val scroll: ScrollState, scope: CoroutineScope) : KeyScroll(scroll, scope) {
     override val at: Float get() = scroll.value.toFloat()
 
@@ -164,9 +155,8 @@ private class TextKeyScroll(private val scroll: ScrollState, scope: CoroutineSco
 }
 
 /**
- * A lazy list's scroll, counted from where it stood when the remote first moved it. A lazy list
- * knows its length only as far as it has laid it out, and counts what lies beyond as one [line]
- * each, so an end is exact once its last line is laid out.
+ * Lazy list scroll, measured from where the remote first moved it; items not laid out count one [line]
+ * each, so an end is exact once its line is laid out.
  */
 private class LazyKeyScroll(
     private val list: LazyListState,
@@ -183,7 +173,7 @@ private class LazyKeyScroll(
         scrolled += list.dispatchRawDelta(to - scrolled)
     }
 
-    /** How far the list can still go down: exactly once its last line is laid out. */
+    /** Remaining distance down; exact once the last line is laid out. */
     private fun toEnd(): Float {
         val info = list.layoutInfo
         val last = info.visibleItemsInfo.lastOrNull() ?: return 0f
@@ -191,7 +181,7 @@ private class LazyKeyScroll(
         return (last.offset + last.size + below + info.afterContentPadding - info.viewportEndOffset).coerceAtLeast(0f)
     }
 
-    /** How far it can still go up: exactly once its first line is laid out. */
+    /** Remaining distance up; exact once the first line is laid out. */
     private fun toStart(): Float {
         val first = list.layoutInfo.visibleItemsInfo.firstOrNull() ?: return 0f
         return (first.index * line() - first.offset).coerceAtLeast(0f)

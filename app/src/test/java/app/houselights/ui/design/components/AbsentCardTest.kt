@@ -20,7 +20,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
-/** A film of a saga the library lacks: focus reaches it, outlined, it says it is absent, and OK does nothing. */
+/** A saga film missing from the library: focus reaches it, outlined, it says it is absent, and OK does nothing. */
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = TV)
 class AbsentCardTest {

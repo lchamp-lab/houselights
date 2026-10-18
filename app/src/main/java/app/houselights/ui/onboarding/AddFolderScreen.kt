@@ -39,15 +39,11 @@ import app.houselights.ui.util.appContainer
 import app.houselights.ui.util.scanErrorText
 import app.houselights.ui.util.sourceKindName
 
-/** Displayed order of the options: NFS first, since it needs no password. */
+/** Display order of the options: NFS first, since it needs no password. */
 private val PROTOCOLS = listOf(Protocol.NFS, Protocol.SMB)
 private val KINDS = listOf(SourceKind.MOVIES, SourceKind.SHOWS)
 
-/**
- * Adds a network folder to the local library, after an optional connection test; with [folderId],
- * edits that folder in place, its kind aside, focus starting on [focusOn]. [onDone] hears whether
- * the source changed.
- */
+/** Adds a network folder, or edits folder [folderId] except its kind; [onDone] gets whether the source changed. */
 @Composable
 fun AddFolderScreen(folderId: Long?, focusOn: FolderField = FolderField.FIRST, onDone: (switched: Boolean) -> Unit) {
     val app = appContainer()
@@ -55,12 +51,12 @@ fun AddFolderScreen(folderId: Long?, focusOn: FolderField = FolderField.FIRST, o
     AddFolderForm(vm, focusOn, onDone)
 }
 
-/** The form of [vm], focus starting on [focusOn], and beside it where the connection to the folder stands. */
+/** The form of [vm], focus starting on [focusOn], with the folder's connection status beside it. */
 @Composable
 internal fun AddFolderForm(vm: AddFolderViewModel, focusOn: FolderField, onDone: (switched: Boolean) -> Unit) {
     val form = vm.form
     val focus = remember { FormFocus() }
-    // Once a folder edited is read: its fields are then laid out (the password only for SMB).
+    // Wait until an edited folder is read, so its fields are laid out (the password only for SMB).
     LaunchedEffect(vm.ready) { if (vm.ready) focus.request(focusOn, vm.form.user) }
     val check = vm.check
     val result = resultText(check, gone = vm.gone)
@@ -83,7 +79,7 @@ internal fun AddFolderForm(vm: AddFolderViewModel, focusOn: FolderField, onDone:
                 label = stringResource(R.string.label_address),
                 value = s.host.ifBlank { stringResource(R.string.placeholder_pending) },
                 detail = folder.takeIf { it.length > 1 },
-                // A folder gone was never read: the form's defaults would pass for its own.
+                // A deleted folder was never read: badges would show the form's defaults as its own.
                 badges = if (vm.gone) {
                     emptyList()
                 } else {
@@ -104,7 +100,7 @@ internal fun AddFolderForm(vm: AddFolderViewModel, focusOn: FolderField, onDone:
         },
     ) {
         Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.xl)) {
-            // A folder edited keeps what it holds (its titles stay): the panel beside says it.
+            // An edited folder keeps its kind (its titles stay): the panel beside shows it.
             if (!vm.edits) {
                 Column {
                     FieldLabel(stringResource(R.string.folder_kind))
@@ -162,14 +158,10 @@ internal fun AddFolderForm(vm: AddFolderViewModel, focusOn: FolderField, onDone:
     }
 }
 
-/**
- * Add (or Save, for a folder edited), and Test. Both test the folder first: the one pressed says so
- * while the check runs, and Add again while the folder is then written; the other waits. A folder
- * edited can be saved once read, and never once gone.
- */
+/** Add (or Save) and Test, both testing first: the pressed one shows progress, the other is disabled meanwhile. */
 @Composable
 private fun FolderActions(vm: AddFolderViewModel, onDone: (switched: Boolean) -> Unit) {
-    // Which button started the check under way.
+    // Which button started the running check.
     var adding by remember { mutableStateOf(false) }
     val checking = stringResource(R.string.checking)
     val busy = vm.busy
@@ -207,10 +199,7 @@ private class FormFocus {
     val user = FocusRequester()
     val password = FocusRequester()
 
-    /**
-     * Focuses [field], else the first control: a field not shown (no password for NFS) takes none.
-     * A password asked for with no [user] to sign in as (a guest refused) asks for the user first.
-     */
+    /** Focuses [field], else the first control; a password with no [user] yet (a refused guest) focuses the user. */
     fun request(field: FolderField, user: String) {
         val wanted = when (field) {
             FolderField.FIRST -> first
@@ -221,7 +210,7 @@ private class FormFocus {
     }
 }
 
-/** How the last test went, or why the folder edited cannot be saved: it is [gone]. */
+/** The last test's result, or why the edited folder cannot be saved: it is [gone]. */
 @Composable
 private fun resultText(check: FolderCheck?, gone: Boolean): String? = if (gone) {
     stringResource(R.string.folder_gone)
@@ -235,20 +224,18 @@ private fun resultText(check: FolderCheck?, gone: Boolean): String? = if (gone) 
             if (check.same) R.string.folder_already_added else R.string.folder_overlaps,
             check.existing.name.replaceFirstChar { it.uppercase() },
         )
-        // The first folder is added from the welcome screen, before the settings can be reached: never sent there.
+        // The first folder is added from Welcome, before Settings is reachable: the message never points there.
         is FolderCheck.SaveFailed -> stringResource(welcomeProblem(check.error))
     }
 }
 
-/** An example of the share, by protocol. */
 private fun shareExample(protocol: Protocol): Int =
     if (protocol == Protocol.NFS) R.string.placeholder_export else R.string.placeholder_share
 
-/** An example of the folder inside the share, by what it holds. */
 private fun pathExample(kind: SourceKind): Int =
     if (kind == SourceKind.SHOWS) R.string.placeholder_path_shows else R.string.placeholder_path_movies
 
-/** Where the connection to the folder stands, and how to say it; a folder edited may be [gone]. */
+/** The folder's connection status and its text; an edited folder may be [gone]. */
 private fun connectionState(check: FolderCheck?, testing: Boolean, gone: Boolean): Pair<StatusState, Int> = when {
     gone -> StatusState.Attention to R.string.folder_gone_state
     testing -> StatusState.Pending to R.string.connection_testing

@@ -3,27 +3,22 @@ package app.houselights.providers.local
 import app.houselights.core.NfoInfo
 import app.houselights.core.NfoParser
 
-/**
- * What a pass hands each indexer for the files of one folder: the folder, what it lists beside its videos
- * and which of them are films in parts, TMDB as the pass asks it, and whether titles are described anew.
- */
+/** Per-source context a pass hands to the indexers. */
 internal class ScanPass(
     val source: SourceEntity,
-    /** What the folder lists beside its videos. */
     val sidecars: Sidecars,
-    /** Its films in several files. */
     val stacks: Stacks,
     val tmdb: TmdbPass,
-    /** TMDB's seasons, each asked once for the whole pass. */
+    /** TMDB seasons, each fetched once per pass. */
     val seasons: ShowIndexer.SeasonCache,
-    /** "Refresh all information": TMDB is asked again for every title read. */
+    /** "Refresh all information": every title read is looked up on TMDB again. */
     val refreshMetadata: Boolean,
 )
 
-/** What the NFO a row keeps says; null without one. */
+/** The row's stored NFO, parsed; null without one. */
 internal fun ItemEntity.nfoInfo(): NfoInfo? = nfo?.let(NfoParser::parse)
 
-/** The images of [local] in [source], copied into the app ([ScanFiles.copyArtwork]); null where none lies, or the copy failed. */
+/** Caches [local]'s images ([ScanFiles.copyArtwork]); null where missing or the copy failed. */
 internal suspend fun ScanFiles.copyArt(source: SourceEntity, local: VideoSidecars): LocalArt = LocalArt(
     poster = local.poster?.let { copyArtwork(source, it) },
     fanart = local.fanart?.let { copyArtwork(source, it) },
@@ -31,10 +26,7 @@ internal suspend fun ScanFiles.copyArt(source: SourceEntity, local: VideoSidecar
     thumb = local.thumb?.let { copyArtwork(source, it) },
 )
 
-/**
- * What was read of [local] ([SidecarKey]), its NFO kept as [nfo] and its images copied as [art]: an NFO or an
- * image that failed is left out, to be read again at the next pass.
- */
+/** The sidecars actually read, for [SidecarKey]; a failed NFO or image is left out so the next pass retries it. */
 internal fun ScanFiles.sidecarsRead(local: VideoSidecars, nfo: KeptNfo, art: LocalArt): VideoSidecars = VideoSidecars(
     nfo = local.nfo.takeUnless { nfo.stale },
     poster = examined(local.poster, art.poster),

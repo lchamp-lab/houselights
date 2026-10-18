@@ -14,12 +14,9 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import kotlin.concurrent.thread
 
-/** Which NFS failures make the mount again, as nfs-client 1.1 raises them, and what waits for a mount. */
+/** Which NFS failures, as nfs-client 1.1 raises them, remount the export, and what waits for a mount. */
 class NfsBrowserTest {
-    /**
-     * A folder saved with a new address while a scan lists the old one: nothing to sign off on NFS,
-     * so saving it does not wait for a NAS that may take its retries to answer.
-     */
+    /** NFS has no session to log off: saving a folder never waits for a listing on a NAS that may be retrying. */
     @Test
     fun forgettingAFolderWaitsForNoNfsListing() {
         val mounting = CountDownLatch(1)
@@ -56,14 +53,14 @@ class NfsBrowserTest {
         assertTrue(NfsBrowser.isBroken(NfsException(NfsStatus.NFS3ERR_IO, message, rpc)))
     }
 
-    /** The NAS restarted, or the export moved: the handles of the mount mean nothing to it. */
+    /** The NAS restarted, or the export moved: the mount's handles mean nothing to it. */
     @Test
     fun aHandleTheNasForgotMountsAgain() {
         assertTrue(NfsBrowser.isBroken(NfsException(NfsStatus.NFS3ERR_STALE, "readdir error code: NfsStatus:70")))
         assertTrue(NfsBrowser.isBroken(NfsException(NfsStatus.NFS3ERR_BADHANDLE, "readdir error code: NfsStatus:10001")))
     }
 
-    /** lost+found refused, a file gone since the listing, a disk error of the NAS: the mount is sound. */
+    /** lost+found refused, a file gone since the listing, a NAS disk error: the mount is still sound. */
     @Test
     fun aFileRefusedOrGoneKeepsTheMount() {
         assertFalse(NfsBrowser.isBroken(NfsException(NfsStatus.NFS3ERR_ACCES, "readdir error code: NfsStatus:13")))

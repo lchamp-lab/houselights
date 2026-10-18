@@ -13,10 +13,7 @@ class ComposeTest {
         assertTrue(isBehind(shown, current = 6, process = 1))
     }
 
-    /**
-     * Android stopped the app while a film played: versions start again from 0, and the screen
-     * restored loads anew from its ViewModel. Its saved version says nothing: no second load.
-     */
+    /** After process death, versions restart at 0 and the restored screen loads anew: no second load. */
     @Test
     fun aVersionShownInAnotherProcessNeverReloads() {
         val shown = shownAt(version = 7, process = 1)

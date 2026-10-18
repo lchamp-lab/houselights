@@ -48,11 +48,7 @@ private val GAP = HlSpace.fact
 private const val COLUMNS = 9
 private const val ROWS = 4
 
-/**
- * A tilted wall of posters drifting upwards in the dark, like a cinema lobby seen from the
- * back of the room. The only ambient motion in the app; it loops seamlessly every
- * [ROWS] posters.
- */
+/** The welcome screen's tilted wall of drifting posters, the app's only ambient motion; loops every [ROWS]. */
 @Composable
 fun PosterWall(urls: List<String>, modifier: Modifier = Modifier, opacity: Float = HlScrim.WALL) {
     if (urls.isEmpty()) return
@@ -63,8 +59,7 @@ fun PosterWall(urls: List<String>, modifier: Modifier = Modifier, opacity: Float
         label = "drift",
     )
     val cycle = (POSTER_H + GAP) * ROWS
-    // The wall shows each poster on several tiles: one painter per poster, which every tile showing it
-    // draws, so each is fetched and decoded once, not once per tile (81 tiles for at most 20 posters).
+    // One painter per poster, shared by its tiles, so each is decoded once, not per tile (81 tiles).
     val context = LocalContext.current
     val tile = with(LocalDensity.current) { IntSize(POSTER_W.roundToPx(), POSTER_H.roundToPx()) }
     val posters = urls.distinct().associateWith { url ->
@@ -83,7 +78,7 @@ fun PosterWall(urls: List<String>, modifier: Modifier = Modifier, opacity: Float
                     rotationZ = -9f
                     translationY = -drift * cycle.toPx()
                     alpha = opacity
-                    // Posters never overlap: fading each one is the same picture, without an offscreen layer.
+                    // Posters never overlap, so per-draw alpha equals layer alpha without an offscreen buffer.
                     compositingStrategy = CompositingStrategy.ModulateAlpha
                 },
         ) {
@@ -110,10 +105,7 @@ fun PosterWall(urls: List<String>, modifier: Modifier = Modifier, opacity: Float
     }
 }
 
-/**
- * The veil over the welcome wall: darker where text sits, the wall visible in the middle. Nothing
- * lights the wordmark: the wall is the light of this screen.
- */
+/** The welcome wall's veil, darker where text sits; nothing glows behind the wordmark. */
 @Composable
 fun PosterWallScrim() {
     val black = Hl.colors.background

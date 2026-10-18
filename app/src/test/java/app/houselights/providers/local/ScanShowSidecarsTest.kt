@@ -18,11 +18,7 @@ import org.robolectric.shadows.ShadowSystemClock
 import java.io.IOException
 import java.time.Duration
 
-/**
- * A show's own sidecars (tvshow.nfo, its poster, fanart and logo), as a scan sees them from one pass to
- * the next ([SidecarKey.ofShow]): read again when placed or rewritten in place, though none of its
- * episodes changed; not read again otherwise, nor TMDB asked.
- */
+/** A show's sidecars ([SidecarKey.ofShow]) are read again when added or rewritten, and otherwise never again. */
 @RunWith(RobolectricTestRunner::class)
 class ScanShowSidecarsTest {
     @get:Rule
@@ -72,7 +68,7 @@ class ScanShowSidecarsTest {
         assertEquals("screens left as they are", 0, changes)
     }
 
-    /** Sonarr or tinyMediaManager rewrites tvshow.nfo under its name, often to the same size: its date tells. */
+    /** Sonarr or tinyMediaManager rewrites tvshow.nfo in place, often at the same size: its date shows it. */
     @Test
     fun aShowNfoRewrittenInPlaceIsReadAgainWithoutTmdb() = runTest {
         nas.text("Mobland/tvshow.nfo", nfo("MobLand"), lastModified = T1)
@@ -101,10 +97,7 @@ class ScanShowSidecarsTest {
         assertQuiet()
     }
 
-    /**
-     * What a show's folder holds, read once: its NFO, a poster, an empty fanart the cache does not hold,
-     * and a landscape image no show reads.
-     */
+    /** A show folder's NFO, poster, empty fanart and an unused landscape image are each read once. */
     @Test
     fun showSidecarsReadOnceAreNotReadAgain() = runTest {
         nas.text("Mobland/tvshow.nfo", nfo("MobLand"), lastModified = T1)
@@ -116,7 +109,7 @@ class ScanShowSidecarsTest {
         assertQuiet()
     }
 
-    /** A library from before shows kept what was read of their folder: each is read once, without TMDB, then no more. */
+    /** Shows from before their folder's reads were recorded: each is read once, without TMDB, then no more. */
     @Test
     fun aShowReadBeforeItsKeyIsReadOnceMore() = runTest {
         nas.text("Mobland/tvshow.nfo", nfo("MobLand"), lastModified = T1)
@@ -131,7 +124,7 @@ class ScanShowSidecarsTest {
         assertQuiet()
     }
 
-    /** A show in two folders, one giving its year, each with its NFO: they do not take turns at every pass. */
+    /** A show in two folders, one giving its year, each with its NFO: they do not alternate at every pass. */
     @Test
     fun aShowInTwoFoldersIsNotReadAgainAtEveryPass() = runTest {
         val second = "MobLand (2025)/S02/MobLand.S02E01.MULTi.1080p.WEB.H265-GRP.mkv"
@@ -163,10 +156,7 @@ class ScanShowSidecarsTest {
         assertEquals("MOBLAND", bench.dao.item(id)?.title)
     }
 
-    /**
-     * Episodes of a show keyed by an earlier rule than their path's ("mobland s01"): its sidecars are not
-     * read through one of them, which would move it to the show its path names, and the rest one a pass.
-     */
+    /** Reading them through one episode would move the show to the one its path names, the rest one per pass. */
     @Test
     fun aShowKeyedByAnEarlierRuleIsNotReadForItsSidecars() = runTest {
         val second = EPISODE.replace("S01E01", "S01E02")
@@ -180,10 +170,7 @@ class ScanShowSidecarsTest {
         assertEquals(listOf(old.id, old.id), listOf(EPISODE, second).map { bench.item(sourceOf(), it).seriesId })
     }
 
-    /**
-     * A tvshow.nfo removed from a show's folder: what it said goes, TMDB's details take its place. The user's
-     * match and artwork stay.
-     */
+    /** Without its tvshow.nfo, TMDB's details replace the NFO's; the user's match and artwork stay. */
     @Test
     fun aShowNfoRemovedLeavesItsDetailsToTmdb() = runTest {
         nas.text("Mobland/tvshow.nfo", "<tvshow><title>MobLand (VF)</title><plot>Londres.</plot></tvshow>", lastModified = T1)
@@ -202,10 +189,7 @@ class ScanShowSidecarsTest {
         assertQuiet()
     }
 
-    /**
-     * A show TMDB knew through its tvshow.nfo's id alone, its folder naming it otherwise: the NFO removed, TMDB is
-     * asked for the show it was, rather than searched by the folder's name, which finds another of that name.
-     */
+    /** Known only by the NFO's TMDB id: once the NFO is removed, that id is asked for, not the folder's name. */
     @Test
     fun aShowNfoRemovedKeepsTheShowItsIdNamed() = runTest {
         tmdb.show(LEGENDES, "Le Bureau des Légendes", 2015)
@@ -225,15 +209,12 @@ class ScanShowSidecarsTest {
         assertNull(read.nfoPath)
         assertNotNull(read.matchedAt)
 
-        // And at a full refresh, as a film keeps the match it has: not its folder's homonym.
+        // Likewise at a full refresh, as a film keeps its match: not its folder's namesake.
         bench.scan(refreshMetadata = true)
         assertEquals(LEGENDES to "Le Bureau des Légendes", bureau().let { it.tmdbId to it.title })
     }
 
-    /**
-     * A season's poster in its show's folder, rewritten: the next episode read copies it again, and its season
-     * shows the new copy. Unchanged, it is not read again.
-     */
+    /** Rewritten, a season poster is copied again by the next episode read; unchanged, it is not read again. */
     @Test
     fun aSeasonPosterRewrittenIsCopiedAgain() = runTest {
         nas.image("Mobland/season01-poster.jpg")
@@ -254,7 +235,6 @@ class ScanShowSidecarsTest {
         assertNotEquals(first, second)
     }
 
-    /** A poster removed from a show's folder: its copy is no longer shown, TMDB's poster takes its place. */
     @Test
     fun aShowPosterRemovedIsNoLongerShown() = runTest {
         nas.image("Mobland/poster.jpg")
@@ -270,7 +250,6 @@ class ScanShowSidecarsTest {
         assertQuiet()
     }
 
-    /** Removed while TMDB is out of reach: the show keeps nothing of them, and TMDB fills it in once it answers. */
     @Test
     fun showSidecarsRemovedWhileTmdbIsOutOfReachAreFilledInOnceItAnswers() = runTest {
         nas.text("Mobland/tvshow.nfo", "<tvshow><title>MobLand (VF)</title><plot>Londres.</plot></tvshow>", lastModified = T1)
@@ -293,10 +272,7 @@ class ScanShowSidecarsTest {
         assertEquals("/show-$MOBLAND.jpg", read.posterPath)
     }
 
-    /**
-     * A show in two folders, its poster in one: read through the other one, at a refresh TMDB does not answer, it
-     * keeps that poster. Only what was read in a folder is missed there.
-     */
+    /** Read through its other folder at a refresh TMDB does not answer, a show keeps the poster from the first. */
     @Test
     fun aShowsPosterInOneOfItsFoldersStaysWhenTheOtherIsRead() = runTest {
         val second = "MobLand (2025)/S02/MobLand.S02E01.MULTi.1080p.WEB.H265-GRP.mkv"
@@ -305,7 +281,7 @@ class ScanShowSidecarsTest {
         nas.put(EPISODE)
         nas.image("Mobland/poster.jpg")
         bench.scan()
-        // The show was read through the first folder met: its poster's is read at the next pass.
+        // The show was read through the first folder met: the poster's folder is read at the next pass.
         bench.scan()
         assertTrue(show().posterPath.isCachedArtwork())
 
@@ -322,7 +298,7 @@ class ScanShowSidecarsTest {
         const val EPISODE = "Mobland/S01/Mobland.S01E01.MULTi.1080p.WEB.H265-GRP.mkv"
         const val BUREAU = "Le Bureau/Saison 1/Le.Bureau.S01E01.FRENCH.1080p.mkv"
 
-        /** Two dates a file was written, as SMB or NFS list them. */
+        /** Two modification dates, as SMB or NFS list them. */
         const val T1 = 1_760_000_000_000L
         const val T2 = T1 + 60_000L
     }

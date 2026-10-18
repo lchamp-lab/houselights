@@ -10,18 +10,14 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
 /**
- * Reads the track list of a Matroska (MKV, WebM) file from its first bytes: codecs, frame
- * size and rate, HDR and Dolby Vision signalling, audio channels, languages and subtitles. Then
- * what the headers do not say, from the first frames of each track ([Bitstreams]): Atmos, the
- * layers of DTS, HDR10+; a track's name stands in only when none of its frames was read. Nothing
- * is decoded.
+ * Parses Matroska (MKV, WebM) track headers from a file's first bytes, then the first frames of each track for
+ * what headers omit ([Bitstreams]: Atmos, DTS layers, HDR10+); track names are a fallback when no frame was read.
  */
 object MkvProbe {
     sealed interface Result {
         /**
-         * The file's tracks. [tagsAt]: where its tags lie (with mkvmerge, at its end), for
-         * [bitrates]; [videoUid], [audioUids]: the tracks' UIDs, which the tags name them by;
-         * [framesRead]: whether every track whose frames tell more had some in the bytes read.
+         * [tagsAt] locates the Tags element for [bitrates] (at the end with mkvmerge), which refer to tracks by
+         * [videoUid] and [audioUids]; [framesRead] is false while a track that needs frames has none.
          */
         data class Found(
             val info: MediaInfo,
@@ -30,16 +26,12 @@ object MkvProbe {
             val audioUids: List<Long?> = emptyList(),
             val framesRead: Boolean = true,
         ) : Result
-        /**
-         * The tracks reach past the bytes read, as far as [upTo] at least: their end when the bytes
-         * cut them, their start when only the SeekHead tells where they lie. Read that far and some
-         * more, and try again.
-         */
+        /** Tracks extend to at least [upTo] (cut off, or located by the SeekHead): read further and retry. */
         data class NeedMore(val upTo: Long) : Result
         data object NotMatroska : Result
     }
 
-    // Element IDs (with their length marker bits, as written in the file).
+    // Element IDs, with their length marker bits as written in the file.
     private const val EBML = 0x1A45DFA3L
     private const val SEGMENT = 0x18538067L
     private const val SEEK_HEAD = 0x114D9B74L
@@ -109,7 +101,6 @@ object MkvProbe {
             if (read.isFailure) break
             val size = read.getOrNull()
             if (id == CLUSTER) {
-                // The first frames of each track, as far as what was read goes.
                 val tracks = entries ?: break
                 val end = size?.let { (r.pos + it).coerceAtMost(bytes.size.toLong()).toInt() } ?: bytes.size
                 collectFrames(Reader(bytes, r.pos, end), tracks, frames)
@@ -119,7 +110,7 @@ object MkvProbe {
             }
             val end = r.pos + (size ?: break)
             if (end > bytes.size) {
-                // Element cut by the end of what was read: worth reading more only for Tracks, to their end.
+                // Element cut off by the buffer end: reading more only helps for Tracks.
                 if (id == TRACKS) return Result.NeedMore(end)
                 break
             }
@@ -140,7 +131,6 @@ object MkvProbe {
         return found(bytes, tracks, frames, seek[TAGS], durationTicks?.let { (it * timestampScale / 1_000_000).toLong() })
     }
 
-    /** The file's tracks, each as its frames say it when some were read. */
     private fun found(
         bytes: ByteArray,
         tracks: List<Entry>,
@@ -165,10 +155,7 @@ object MkvProbe {
         )
     }
 
-    /**
-     * The bitrate mkvmerge measured for each track (its statistics tags: BPS, in bits a second),
-     * by track UID, from a Tags element at the start of [bytes]. Empty when there is none.
-     */
+    /** Bitrates by track UID (mkvmerge's BPS tag, bits per second) from a Tags element at the start of [bytes]. */
     fun bitrates(bytes: ByteArray): Map<Long, Long> {
         val r = Reader(bytes)
         if (r.remaining < 4 || runCatching { r.readId() }.getOrNull() != TAGS) return emptyMap()
@@ -202,7 +189,7 @@ object MkvProbe {
         return found
     }
 
-    /** Positions relative to the segment data, by element ID, from the SeekHead. */
+    /** SeekHead positions by element ID, relative to the segment data. */
     private fun seekPositions(r: Reader): Map<Long, Long> {
         val found = mutableMapOf<Long, Long>()
         r.children { id, seek ->
@@ -220,7 +207,6 @@ object MkvProbe {
         return found
     }
 
-    /** The first frames of the tracks that tell more by them, from a cluster's blocks. */
     private fun collectFrames(cluster: Reader, tracks: List<Entry>, frames: MutableMap<Int, MutableList<IntRange>>) {
         val wanted = tracks.filter { it.framesWanted > 0 }.associateBy { it.number }
         fun block(b: Reader) {
@@ -299,11 +285,11 @@ object MkvProbe {
     private const val TYPE_AUDIO = 2
     private const val TYPE_SUBTITLE = 17
 
-    /** A Block's track number is followed by its timestamp (2 bytes) and its flags (1). */
+    /** Bytes after a Block's track number: timestamp (2) and flags (1). */
     private const val BLOCK_HEADER = 3
     private const val LACING_BITS = 3
 
-    /** How many frames a track's format is read from: TrueHD's major sync may come a few frames in. */
+    /** Frames collected per track; TrueHD's major sync may come a few frames in. */
     private const val FRAMES_TRUEHD = 16
     private const val FRAMES_OTHER = 4
 
@@ -326,12 +312,12 @@ object MkvProbe {
         var dolbyVision = false
         var dvProfile: Int? = null
         var dvCompatibility: Int? = null
-        /** How long one frame lasts, in nanoseconds: 41708333 for 23.976 frames a second. */
+        /** Frame duration in nanoseconds: 41708333 at 23.976 fps. */
         var frameNanos: Long? = null
 
         private val nameLower get() = name?.lowercase() ?: ""
 
-        /** How many of its first frames tell this track's format; none for a format its header says whole. */
+        /** First frames needed to detect this track's format; 0 when the header suffices. */
         val framesWanted: Int
             get() = when {
                 type == TYPE_VIDEO && codecId == HEVC_ID -> FRAMES_OTHER
@@ -341,7 +327,7 @@ object MkvProbe {
                 else -> 0
             }
 
-        /** Whether this track has frames to be read from: any ([enough] false), or all it wants. */
+        /** True when the track has any frame ([enough] false) or all it wants; always true when it needs none. */
         fun hasFrames(frames: Map<Int, List<IntRange>>, enough: Boolean): Boolean {
             if (framesWanted == 0) return true
             val count = frames[number]?.size ?: 0
@@ -349,8 +335,7 @@ object MkvProbe {
         }
 
         fun toVideo(bytes: ByteArray, frames: List<IntRange>): VideoInfo {
-            // What the stream signals: HDR10+ dynamic metadata, an HDR10 mastering display. Frames
-            // that cannot be read leave the track as its header says it (readFrames).
+            // HDR10+ dynamic metadata and HDR10 mastering display from SEI; unreadable frames fall back to headers.
             val stream = if (codecId == HEVC_ID && frames.isNotEmpty()) {
                 readFrames { Bitstreams.hevcRanges(bytes, frames, nalLengthSize()) }
             } else {
@@ -374,7 +359,7 @@ object MkvProbe {
             )
         }
 
-        /** The range the headers say: the transfer of the colour, or the base layer under Dolby Vision. */
+        /** HDR formats from headers: colour transfer, or the base layer under Dolby Vision. */
         private fun baseRanges(): List<HdrFormat> = buildList {
             when (transfer) {
                 16 -> add(HdrFormat.HDR10) // SMPTE ST 2084 (PQ)
@@ -401,10 +386,7 @@ object MkvProbe {
             }
         }
 
-        /**
-         * The track as its frames say it: Atmos in TrueHD or Dolby Digital Plus, the layers of DTS.
-         * Its name stands in only when none of its frames was read.
-         */
+        /** Atmos and DTS layers come from frames; the track name is used only when no frame was read. */
         fun toAudio(bytes: ByteArray, frames: List<IntRange>): AudioTrack {
             val n = nameLower
             val dts = if (codecId == DTS_ID) {
@@ -423,7 +405,6 @@ object MkvProbe {
             )
         }
 
-        /** Atmos as the frames say it, in TrueHD or Dolby Digital Plus; null when none was read. */
         private fun streamAtmos(bytes: ByteArray, frames: List<IntRange>): Boolean? = readFrames {
             when (codecId) {
                 TRUEHD_ID -> frames.mapNotNull { Bitstreams.trueHdAtmos(bytes, it.first, it.last + 1) }
@@ -432,14 +413,10 @@ object MkvProbe {
             }.takeIf { it.isNotEmpty() }?.any { it }
         }
 
-        /**
-         * What [read] makes of a track's frames, or null, as if none had been read, when they hold
-         * what no reading expected: one bad frame costs what the frames add to the headers, never
-         * the whole file's tracks.
-         */
+        /** Runs [read], returning null on malformed frames so one bad frame never fails the whole file. */
         private inline fun <T> readFrames(read: () -> T?): T? = runCatching(read).getOrNull()
 
-        /** The codec when no frame told it: the layers of DTS-HD, by the track's name. */
+        /** Codec from the codec ID, with DTS-HD layers guessed from the track name. */
         private fun codecByName(n: String): String = when {
             codecId == DTS_ID && (n.contains("hd ma") || n.contains("hd-ma") || n.contains("dts-hd") || MA.containsMatchIn(n)) ->
                 Codecs.DTS_HD_MA
@@ -473,7 +450,7 @@ object MkvProbe {
     private const val WAVE_FORMAT_EXTENSIBLE = 0xFFFE
     private const val SUBFORMAT_AT = 24
 
-    /** Audio formats by their wFormatTag, as AVI files and Windows name them. */
+    /** Audio codecs by WAVEFORMATEX wFormatTag. */
     private val ACM_FORMATS = mapOf(
         0x0001 to Codecs.PCM, // WAVE_FORMAT_PCM
         0x0003 to Codecs.PCM, // WAVE_FORMAT_IEEE_FLOAT
@@ -500,20 +477,20 @@ object MkvProbe {
         Bitstreams.Dts.CORE -> Codecs.DTS
     }
 
-    /** [codecPrivate]: what a track remuxed from an AVI (V_MS/VFW/FOURCC) is named by, its FOURCC. */
+    /** [codecPrivate] gives the FOURCC of tracks remuxed from AVI (V_MS/VFW/FOURCC). */
     private fun videoCodec(id: String, codecPrivate: ByteArray?) = when {
         id == HEVC_ID -> Codecs.HEVC
         id == AVC_ID -> Codecs.AVC
         id == "V_AV1" -> Codecs.AV1
         id == "V_VP9" -> Codecs.VP9
         id.startsWith("V_MPEG2") -> Codecs.MPEG2
-        // MPEG-4 Part 2: its simple, advanced simple (XviD, DivX) and advanced profiles.
+        // MPEG-4 Part 2: simple, advanced simple (XviD, DivX) and advanced profiles.
         id.startsWith("V_MPEG4/ISO/") -> Codecs.MPEG4
         id == VFW_ID -> fourcc(codecPrivate)?.let(Codecs::video) ?: Codecs.UNKNOWN
         else -> id.removePrefix("V_")
     }
 
-    /** [codecPrivate]: what a track remuxed from an AVI (A_MS/ACM) is named by, its format tag. */
+    /** [codecPrivate] gives the format tag of tracks remuxed from AVI (A_MS/ACM). */
     private fun audioCodec(id: String, codecPrivate: ByteArray?) = when {
         id == TRUEHD_ID -> Codecs.TRUEHD
         id == DTS_ID -> Codecs.DTS
@@ -529,17 +506,14 @@ object MkvProbe {
         else -> id.removePrefix("A_")
     }
 
-    /** The FOURCC of a BITMAPINFOHEADER (its biCompression, bytes 16 to 19): "XVID", "WVC1". */
+    /** BITMAPINFOHEADER biCompression (bytes 16 to 19), e.g. "XVID", "WVC1". */
     private fun fourcc(header: ByteArray?): String? {
         if (header == null || header.size < FOURCC_AT + FOURCC_SIZE) return null
         val code = String(header, FOURCC_AT, FOURCC_SIZE, Charsets.US_ASCII).trimEnd(' ', '\u0000')
         return code.takeIf { it.isNotEmpty() && it.all(Char::isLetterOrDigit) }
     }
 
-    /**
-     * The wFormatTag of a WAVEFORMATEX (bytes 0 and 1, little-endian); for WAVE_FORMAT_EXTENSIBLE,
-     * the one its SubFormat starts with (bytes 24 and 25).
-     */
+    /** WAVEFORMATEX wFormatTag (bytes 0-1, LE), or its SubFormat's (bytes 24-25) for WAVE_FORMAT_EXTENSIBLE. */
     private fun formatTag(format: ByteArray?): Int? {
         fun tagAt(at: Int) = format?.takeIf { it.size >= at + Short.SIZE_BYTES }
             ?.let { java.lang.Short.toUnsignedInt(ByteBuffer.wrap(it).order(ByteOrder.LITTLE_ENDIAN).getShort(at)) }

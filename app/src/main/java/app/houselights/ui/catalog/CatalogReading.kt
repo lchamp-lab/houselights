@@ -59,11 +59,7 @@ import app.houselights.ui.design.components.SearchQuery
 import app.houselights.ui.design.components.LetterGrid
 import androidx.compose.foundation.layout.fillMaxWidth
 
-/**
- * What a title says about itself, in its states: its name, its facts and formats, its credits, the
- * blocks of a sheet, and the technical sheet as a detail page opens it. Nothing here has artwork.
- * Wide parts are shown at the width a screen gives them (readableNarrow), not squeezed.
- */
+/** What a title says about itself (name, facts, credits, sheets), without artwork, at the widths screens give. */
 internal fun LazyListScope.catalogReading() {
     item { ReadingTitleArtSection() }
     item { ReadingEpisodeHeadingSection() }
@@ -725,7 +721,7 @@ private val READING_TECH_LEAN = sample("Playtime", 1967).copy(
     ),
 )
 
-/** A container, one track of each and nothing named: no picture section, no size, no file name (as a server gives it). */
+/** One track of each, nothing named: no picture section, size or file name, as a server gives it. */
 private val READING_TECH_SPARSE = sample("Pierrot le fou", 1965).copy(
     media = MediaInfo(
         container = "ISO",

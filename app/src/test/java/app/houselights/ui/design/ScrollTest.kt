@@ -21,7 +21,7 @@ class ScrollTest {
     fun anElementBelowStopsAnEdgeFromTheBottom() {
         val size = 168f
         assertEquals(screen - edge, landing(offset = 480f, size = size) + size)
-        // Partly hidden at the foot of the screen, against its edge: it moves up too.
+        // Partly hidden at the bottom of the screen, against its edge: it moves up too.
         assertEquals(screen - edge, landing(offset = screen - size, size = size) + size)
     }
 
@@ -58,13 +58,13 @@ class ScrollTest {
         // A detail page: a row below the hero comes up to the keyline, not just above the bottom.
         val page = EdgeScroll(edge, edge, toTop = true)
         assertEquals(edge, 480f - page.calculateScrollDistance(480f, 222f, screen))
-        // Partly hidden at the foot: it comes to the top too.
+        // Partly hidden at the bottom: it comes to the top too.
         assertEquals(edge, 400f - page.calculateScrollDistance(400f, 222f, screen))
     }
 
     @Test
     fun aBlockOnItsWayUpKeepsMovingOnceInside() {
-        // Asked again on every frame: half way up, the block goes on to the keyline.
+        // Asked again on every frame: half way up, the block keeps going to the keyline.
         val page = EdgeScroll(edge, edge, toTop = true)
         assertEquals(edge, 200f - page.calculateScrollDistance(200f, 222f, screen))
     }
@@ -113,7 +113,7 @@ class ScrollTest {
     fun textInTheMarginFadesByTheSideThatComesClosest() {
         // Half way into the bottom margin.
         assertEquals(0.5f, alpha(100f, 500f, 300f, 526f), 0.001f)
-        // Nearer the bottom edge than the left one: the bottom says.
+        // Nearer the bottom edge than the left one: the bottom decides.
         assertEquals(0.5f, alpha(36f, 500f, 300f, 526f), 0.001f)
         assertEquals(0.25f, alpha(12f, 300f, 300f, 320f), 0.001f)
     }

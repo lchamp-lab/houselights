@@ -46,17 +46,17 @@ class LibraryScannerTest {
     private val passes = SupervisorJob()
     private var now = START
 
-    /** Since the device started: a second in. */
+    /** Elapsed time since boot, starting one second in. */
     private var elapsed = 1_000L
 
-    /** A film playing, the app on screen. */
+    /** Whether a film is playing, and whether the app is on screen. */
     private val playing = MutableStateFlow(false)
     private val started = MutableStateFlow(true)
 
     /** The most values one statement bound. */
     private val widest = AtomicInteger()
 
-    /** Transactions opened, those opened inside another not counted. */
+    /** Transactions opened, not counting nested ones. */
     private val transactions = AtomicInteger()
     private val depth = AtomicInteger()
 
@@ -116,7 +116,7 @@ class LibraryScannerTest {
         return checkNotNull(dao.source(id))
     }
 
-    /** One whole pass, as the app asks for it, waited for. */
+    /** One whole pass, as the app requests it, awaited. */
     private suspend fun scan(refreshMetadata: Boolean = false) {
         scanner.scanAll(refreshMetadata)
         passes.children.toList().forEach { it.join() }
@@ -128,7 +128,6 @@ class LibraryScannerTest {
 
     private fun film(n: Int) = "Film $n (2020).mkv"
 
-    /** A folder of [count] films, scanned. */
     private suspend fun filmFolder(count: Int) {
         repeat(count) { nas.put(film(it)) }
         scan()
@@ -156,10 +155,7 @@ class LibraryScannerTest {
         assertEquals("a pass with nothing new reads no file", 0, nas.reads.size + showsNas.reads.size)
     }
 
-    /**
-     * A pass that finds nothing new reads what tells files apart, never their details nor what each file
-     * holds: it runs every ten minutes, on thousands of files.
-     */
+    /** Every ten minutes, on thousands of files, a pass finding nothing new reads only what tells them apart. */
     @Test
     fun aPassFindingNothingNewReadsNeitherDetailsNorWhatFilesHold() = runTest {
         nas.put("Dune (2021)/Dune (2021).mkv")
@@ -174,7 +170,7 @@ class LibraryScannerTest {
         assertEquals(emptyList<String>(), reads.filter { "mediaInfo" in it || "overview" in it })
     }
 
-    /** A scan unless one ended less than ten minutes ago, as the app asks when it comes back, waited for. */
+    /** Scans unless one ended less than ten minutes ago, as the app does when it returns, and awaits it. */
     private suspend fun scanIfStale() {
         scanner.scanIfStale(TEN_MINUTES)
         passes.children.toList().forEach { it.join() }
@@ -213,7 +209,7 @@ class LibraryScannerTest {
         assertEquals(listOf("Arrival (2016).mkv", "Dune (2021).mkv"), filePaths())
     }
 
-    /** The app looks again every ten minutes: a pass that lasts longer (a first scan) is not followed by another. */
+    /** The app checks every ten minutes: a pass that lasts longer (a first scan) is not followed by another. */
     @Test
     fun aScanUnderWayIsNotFollowedByAnother() = runTest {
         nas.put("Dune (2021).mkv")
@@ -351,7 +347,7 @@ class LibraryScannerTest {
         assertEquals(null, kept.missingSince)
     }
 
-    /** lost+found, a folder of another user: what the library holds under it is out of sight, not gone. */
+    /** lost+found, another user's folder: what the library holds under it is out of sight, not gone. */
     @Test
     fun aFolderThatCannotBeReadRemovesNothingUnderIt() = runTest {
         nas.put("Dune (2021)/Dune (2021).mkv")
@@ -751,7 +747,7 @@ class LibraryScannerTest {
     fun aFolderEditedDuringAScanKeepsTheEdit() = runTest {
         val share = shareWithPassword()
         nas.put("Dune (2021).mkv")
-        // The NAS moved to another address; the user says so while a scan lists the folder.
+        // The NAS moves to another address, and the user enters it while a scan lists the folder.
         nas.onList = { dao.updateSource(checkNotNull(dao.source(share.id)).copy(host = "192.168.1.20")) }
         scan()
         val edited = checkNotNull(dao.source(share.id))

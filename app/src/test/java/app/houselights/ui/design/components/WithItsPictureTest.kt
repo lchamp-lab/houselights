@@ -20,10 +20,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
-/**
- * On home and the walls, a title's words wait for its picture: said once the backdrop brings it up,
- * after `HOLD` at most, at once without a picture; until then, the last title's words stay.
- */
+/** A title's words show once the backdrop brings its picture up (at most `HOLD`); until then the last stay. */
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = TV)
 class WithItsPictureTest {
@@ -50,10 +47,9 @@ class WithItsPictureTest {
         compose.mainClock.advanceTimeByFrame()
     }
 
-    /** The one title read out: the one said. Those on their way are laid out, unread. */
+    /** Asserts [title] is displayed; titles on their way are laid out but not displayed. */
     private fun said(title: String) = compose.onNodeWithText(title).assertIsDisplayed()
 
-    /** Focus moves to [next]; or the backdrop brings up [picture]. */
     private fun select(next: MediaItem) {
         item = next
         Snapshot.sendApplyNotifications()

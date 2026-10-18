@@ -14,10 +14,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 /**
- * Maps entities. [mapAll] reads what cards need beyond their own row (the parent show, a show's
- * counts) in one query for the whole list, instead of one per title, then maps the list off the main
- * thread: what a file holds is decoded and every text set ([Typeset]) for each title, a whole wall
- * of them while a scan refreshes it.
+ * Maps rows to [MediaItem]s; [mapAll] loads related rows with one query per list, then maps off the main thread, as
+ * decoding and typesetting a whole wall is costly.
  */
 internal class LocalMapper(private val dao: LibraryDao, private val context: Context) {
     private val series = mutableMapOf<Long, ItemEntity?>()
@@ -41,7 +39,7 @@ internal class LocalMapper(private val dao: LibraryDao, private val context: Con
 
     suspend fun map(e: ItemEntity): MediaItem = mapAll(listOf(e)).single()
 
-    /** When [e] joined a library that was already there; null for what its first scan found. */
+    /** When [e] was added after its source's first scan; null for titles that scan found. */
     private fun addedLater(e: ItemEntity): Long? {
         val first = firstScans?.get(e.sourceId) ?: 0L
         return e.addedAt.takeIf { first > 0 && it > first }
@@ -59,7 +57,6 @@ internal class LocalMapper(private val dao: LibraryDao, private val context: Con
         }
     }
 
-    /** [e] as a title, once [mapAll] read what its card needs beyond its row. */
     private fun mapPrepared(e: ItemEntity): MediaItem {
         val show = e.seriesId?.let { series[it] }
         val kind = when (e.kind) {
@@ -68,9 +65,9 @@ internal class LocalMapper(private val dao: LibraryDao, private val context: Con
             ItemKind.SEASON -> MediaKind.SEASON
             ItemKind.EPISODE -> MediaKind.EPISODE
         }
-        // Text is set for display; sorting reads the entity, as written.
+        // Typeset for display only; sorting uses the raw entity text.
         val title = Typeset.text(titleOf(e))
-        // Null in a list (CARD_ROW): only a title's page shows what its file holds.
+        // Null for list rows (CARD_ROW): only the title page shows media info.
         val media = MediaProbe.decode(e.mediaInfo)
         val showCounts = counts[e.id]?.takeIf { e.kind == ItemKind.SERIES }
         val unplayed = showCounts?.unplayed
@@ -95,7 +92,7 @@ internal class LocalMapper(private val dao: LibraryDao, private val context: Con
             hasNfo = e.nfoPath != null,
             fileName = e.filePath?.substringAfterLast('/'),
             parts = partsOf(e, title),
-            // Seasons and episodes show their series' artwork when they have none.
+            // Seasons and episodes fall back to their series' artwork.
             poster = artwork(e, show, ItemEntity::userPosterPath, ItemEntity::posterPath, ImageType.POSTER),
             backdrop = artwork(e, show, ItemEntity::userBackdropPath, ItemEntity::backdropPath, ImageType.BACKDROP),
             logo = artwork(e, show, ItemEntity::userLogoPath, ItemEntity::logoPath, ImageType.LOGO),
@@ -118,7 +115,6 @@ internal class LocalMapper(private val dao: LibraryDao, private val context: Con
         )
     }
 
-    /** Each part of a film in several files, playable on its own; none for a film in one file. */
     private fun partsOf(e: ItemEntity, title: String): List<MediaItem> {
         if (e.parts.isEmpty()) return emptyList()
         return (listOfNotNull(e.filePath) + e.parts).mapIndexed { i, path ->
@@ -127,21 +123,17 @@ internal class LocalMapper(private val dao: LibraryDao, private val context: Con
     }
 
     /**
-     * [item] (mapped from [e]) as the player shows it while it opens the file: its backdrop and logo
-     * where the player, another app, can fetch them, a web address. A file the app keeps itself (a
-     * sidecar fanart or clearlogo, an image downloaded) is out of its reach: the automatic choice
-     * stands in for it when that is on the web, else the address the NFO gives, else the same of its
-     * show's. None shown, none given; none chosen, none of that item's.
+     * [item] with backdrop and logo as web URLs, as the external player cannot read the app's cached files: the
+     * automatic image, else the NFO's URL, else the show's; nothing when screens show nothing.
      */
     suspend fun forPlayer(e: ItemEntity, item: MediaItem): MediaItem {
         val show = e.seriesId?.let { dao.item(it) }
-        // An NFO may be read for it, off the main thread.
+        // May parse an NFO, so run off the main thread.
         return withContext(Dispatchers.Default) {
             item.copy(backdrop = webArtwork(e, show, PlayerArt.BACKDROP), logo = webArtwork(e, show, PlayerArt.LOGO))
         }
     }
 
-    /** What the player shows while it opens a file, and where an item keeps it. */
     private enum class PlayerArt(
         val user: (ItemEntity) -> String?,
         val automatic: (ItemEntity) -> String?,
@@ -154,16 +146,13 @@ internal class LocalMapper(private val dao: LibraryDao, private val context: Con
 
     private fun webArtwork(e: ItemEntity, show: ItemEntity?, art: PlayerArt): ImageRef? {
         val owners = listOfNotNull(e, show)
-        // The screens show the item's artwork, else its show's: none there (none chosen, none found), none given.
+        // Give the player nothing when the screens show no artwork for the item or its show.
         if (owners.none { LocalProvider.shown(art.user(it), art.automatic(it)) != null }) return null
-        // An episode whose own image is a file of the app's still has its show's on the web.
+        // An episode whose own image is a cached file can still use its show's web image.
         return owners.firstNotNullOfOrNull { webCandidate(it, art) }?.let { LocalProvider.image(it, art.type) }
     }
 
-    /**
-     * The first of [x]'s images the player can fetch, a web address: the one shown, the automatic
-     * one, the NFO's. None when the user chose none for [x].
-     */
+    /** The first web URL among [x]'s displayed, automatic and NFO images; null when the user chose none. */
     private fun webCandidate(x: ItemEntity, art: PlayerArt): String? {
         if (art.user(x)?.isEmpty() == true) return null
         return listOf(
@@ -173,7 +162,6 @@ internal class LocalMapper(private val dao: LibraryDao, private val context: Con
         ).firstNotNullOfOrNull { candidate -> candidate()?.takeUnless { it.isEmpty() || it.isCachedArtwork() } }
     }
 
-    /** The user's choice, else the automatic one; for the item, else its show. */
     private fun artwork(
         e: ItemEntity,
         show: ItemEntity?,

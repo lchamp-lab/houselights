@@ -76,13 +76,7 @@ import app.houselights.ui.util.sourceKindName
 import app.houselights.ui.util.toUiError
 import app.houselights.core.CollectionThreshold
 
-/**
- * The library: its folders or its server, then what can be done with it. [onFolderForm] opens the
- * form of a folder (a new one for null), focus on the field given; [onUseFolders] makes the folders
- * the source (or adds the first one), [onSignIn] opens the Jellyfin sign-in. The rows and cards that
- * open another screen are keyed in [rows]; "Add a folder" is also where focus goes when the last
- * folder is removed.
- */
+/** The library pane: folders or server, then actions; rows that open a screen are keyed in [rows]. */
 internal fun LazyListScope.libraryPane(
     s: AppSettings,
     onFolderForm: (folderId: Long?, focus: FolderField) -> Unit,
@@ -98,7 +92,7 @@ internal fun LazyListScope.libraryPane(
         is SourceConfig.Jellyfin -> {
             item {
                 Section(stringResource(R.string.source_jellyfin)) {
-                    // States, not settings: read as the back of a case, flush with the title.
+                    // States, not settings: a definition list flush with the title.
                     val encrypted = JellyfinClient.isEncrypted(source.serverUrl)
                     DefinitionList(
                         listOfNotNull(
@@ -128,16 +122,13 @@ internal fun LazyListScope.libraryPane(
     }
 }
 
-/**
- * One card per watched folder, keyed in [rows]: coming back from editing a folder finds its card. The
- * card of a folder removed takes focus with it: focus moves on to the next card, else to "Add a folder".
- */
+/** One card per folder, keyed in [rows]; when a folder is removed, focus moves to the next card, else to Add. */
 @Composable
 private fun Sources(rows: PaneRows, onEdit: (folderId: Long, focus: FolderField) -> Unit) {
     val vm = settingsViewModel()
     val sources by vm.library.folders.collectAsStateWithLifecycle(emptyList())
     val scan by vm.library.scan.collectAsStateWithLifecycle()
-    // Observed once for every card: each write of a scan runs it again.
+    // Collected once for all cards: each scan write re-runs it.
     val counts by vm.library.folderCounts.collectAsStateWithLifecycle(emptyMap())
     var actionsFor by remember { mutableStateOf<SourceEntity?>(null) }
     // The folder being removed, and where focus goes once its card has gone.
@@ -151,7 +142,7 @@ private fun Sources(rows: PaneRows, onEdit: (folderId: Long, focus: FolderField)
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(HlSpace.s)) {
-        // A folder being removed waits for the file a scan may be reading in it: said, not left to look kept.
+        // Removal waits for any file a scan is reading in the folder: say so rather than look stuck.
         sources.filter { it.id in vm.removing }.forEach { source ->
             HlStatus(StatusState.Pending, stringResource(R.string.folder_removing, sourceName(source)))
         }
@@ -175,7 +166,7 @@ private fun Sources(rows: PaneRows, onEdit: (folderId: Long, focus: FolderField)
             error = scan.errors[source.id],
             onDismiss = { actionsFor = null },
             onEdit = { focus -> onEdit(source.id, focus) },
-            // In the app's scope: leaving the pane while it waits for a scan's file never cuts it off.
+            // Runs in the app's scope, so leaving the pane never cancels it.
             onRemove = {
                 val next = sources.getOrNull(sources.indexOfFirst { it.id == source.id } + 1)
                 removing = source.id to rows.requester(next?.let { folderRow(it.id) } ?: ADD_FOLDER)
@@ -185,13 +176,7 @@ private fun Sources(rows: PaneRows, onEdit: (folderId: Long, focus: FolderField)
     }
 }
 
-/**
- * What can be done with a watched folder, beside the list: scan it now, edit its address or sign-in,
- * or remove it, which asks first, in the sheet itself ([SheetConfirm]). When its last scan found the
- * NAS silent, the share gone or the sign-in refused ([error]), editing comes first, with focus: an
- * address, a share or a password has likely changed, and editing keeps what removing the folder
- * would lose. [onEdit] then opens the form on the field to change.
- */
+/** A folder's sheet: scan, edit or remove (confirmed in place); Edit comes first after a failure it can fix. */
 @Composable
 private fun SourceActions(
     source: SourceEntity,
@@ -278,11 +263,7 @@ private fun SourceActions(
     }
 }
 
-/**
- * What editing a folder likely fixes, after its last scan's [error]: a NAS silent (its address
- * changed), a share or path gone (renamed), a sign-in refused (its password changed). Null for
- * anything else, which editing would not mend.
- */
+/** The scan error editing likely fixes (silent NAS, missing share or path, refused sign-in); null otherwise. */
 internal fun editFixes(error: ScanError?): ScanErrorKind? = error?.kind?.takeIf {
     it == ScanErrorKind.UNREACHABLE || it == ScanErrorKind.NOT_FOUND || it == ScanErrorKind.LOGIN_FAILED
 }
@@ -290,12 +271,7 @@ internal fun editFixes(error: ScanError?): ScanErrorKind? = error?.kind?.takeIf 
 @Composable
 private fun sourceName(source: SourceEntity) = source.name.replaceFirstChar { it.uppercase() }
 
-/**
- * A watched folder, headed by its latest posters from edge to edge (its name, set like a one-sheet,
- * before it has any); then its name and kind, where it lives, what it holds ([counts], null until
- * read) and how its last scan went, or the [scan] going on through it. Removing it failed
- * ([removeError]): said there, where focus is back. OK opens its actions.
- */
+/** A folder card: latest posters, name, kind, address, [counts] (null until read), and last scan or running [scan]. */
 @Composable
 private fun SourceCard(
     source: SourceEntity,
@@ -373,7 +349,7 @@ private fun LibraryActions(
         )
         HlSettingRow(
             stringResource(R.string.scan_now),
-            // The counter's notation, as on the card of the folder being read.
+            // The counter's notation, as on the scanning folder's card.
             value = if (scan.running) {
                 stringResource(R.string.scan_progress, scan.processed, scan.total)
             } else {
@@ -388,7 +364,7 @@ private fun LibraryActions(
             onClick = { vm.library.scan(refreshMetadata = true) },
             chevron = false,
         )
-        // The last scan could not ask TMDB: said where the key is changed, which may fix it.
+        // TMDB failed during the last scan: report it on the key row, where it may be fixed.
         val issue = scan.tmdbIssue?.toUiError()
         HlSettingRow(
             stringResource(R.string.tmdb_key),
@@ -400,7 +376,7 @@ private fun LibraryActions(
                 }
             ),
             description = issue?.let { stringResource(it.title) },
-            // Your own key is your choice; none at all, or one TMDB did not take, needs attention.
+            // A personal key is lit; no key, or one TMDB refused, needs attention.
             valueLit = s.tmdbApiKey != null && issue == null,
             valueAttention = (s.tmdbApiKey == null && !hasBuiltIn) || issue != null,
             onClick = { editKey = true },
@@ -435,14 +411,14 @@ private fun CollectionsRow() {
     RowFailureNote(failure)
 }
 
-/** The source in use, and what changing it keeps; OK opens [SourceSheet]. */
+/** The current source and what changing it keeps; OK opens [SourceSheet]. */
 @Composable
 private fun SourceRow(onUseFolders: () -> Unit, onSignIn: () -> Unit, modifier: Modifier = Modifier) {
     val vm = settingsViewModel()
     val s by vm.settings.collectAsStateWithLifecycle()
     var choose by remember { mutableStateOf(false) }
     val server = s.source is SourceConfig.Jellyfin
-    // Making the folders the source failed (the device's storage): said here, where focus comes back.
+    // Switching to the folders failed (storage): shown here, where focus returns.
     val failure = rowFailure(vm.errorOf(SettingAction.SOURCE))
     HlSettingRow(
         stringResource(R.string.change_source_row),
@@ -470,15 +446,11 @@ private fun SourceRow(onUseFolders: () -> Unit, onSignIn: () -> Unit, modifier: 
     }
 }
 
-/** What changing from [source] keeps, said under the row and at the head of its sheet. */
+/** What changing from [source] keeps, under the row and atop its sheet. */
 private fun sourceKeeps(source: SourceConfig?): Int =
     if (source is SourceConfig.Jellyfin) R.string.change_source_jellyfin_desc else R.string.change_source_local_desc
 
-/**
- * Where the library comes from: your folders or a Jellyfin server, the current one checked. A
- * choice leads to what the new source needs (the folders kept, a first folder, signing in); the
- * current source stays until the new one is saved. Leaving a server for the folders asks first.
- */
+/** Folders or a Jellyfin server, the current one checked; leaving a server for the folders asks first. */
 @Composable
 private fun SourceSheet(source: SourceConfig?, onDismiss: () -> Unit, onUseFolders: () -> Unit, onSignIn: () -> Unit) {
     val vm = settingsViewModel()
@@ -529,7 +501,7 @@ private fun SourceSheet(source: SourceConfig?, onDismiss: () -> Unit, onUseFolde
     }
 }
 
-/** What the current source is, under its name: the server's kind and user, or the titles of the folders. */
+/** Facts under the current source's name: the server's kind and user, or the folders' title count. */
 @Composable
 private fun sourceFacts(server: SourceConfig.Jellyfin?): List<String?> {
     val titles by settingsViewModel().library.titleCount.collectAsStateWithLifecycle(0)
@@ -540,7 +512,7 @@ private fun sourceFacts(server: SourceConfig.Jellyfin?): List<String?> {
     }
 }
 
-/** What choosing the folders brings: those already added, or the first one to add. */
+/** The folders option's line: the folders added, or the first one to add. */
 @Composable
 private fun foldersLine(count: Int): String =
     if (count == 0) stringResource(R.string.source_local_first) else pluralStringResource(R.plurals.source_local_folders, count, count)
@@ -550,22 +522,16 @@ private fun PlusIcon() {
     androidx.tv.material3.Icon(HlIcons.Add, contentDescription = null, modifier = Modifier.width(HlSize.icon))
 }
 
-/**
- * The TMDB key: the one in use, at the head, with what the last scan met ([issue]); a field for a
- * personal key, checked with TMDB when saved (a key TMDB refuses is not kept); once there is one,
- * the way back to the built-in key. How the last key given went is the ViewModel's: the sheet may
- * close while TMDB checks it, and open again on the work under way, then on its outcome.
- */
+/** The TMDB key sheet; the outcome lives in the ViewModel, as the sheet may close during the check. */
 @Composable
 private fun TmdbKeySheet(issue: UiError?, onDismiss: () -> Unit) {
     val vm = settingsViewModel()
     val s by vm.settings.collectAsStateWithLifecycle()
     val attempt = vm.tmdbKey
     val outcome = attempt?.outcome
-    // The key given last while it is checked or when it was not taken, else the one saved.
+    // The last submitted key while checking or if not accepted, else the saved one.
     var key by remember { mutableStateOf((attempt?.takeIf { outcome != ACCEPTED }?.key ?: s.tmdbApiKey).orEmpty()) }
-    // The attempt this sheet waits on: its own, or the one under way as it opened. One that ended
-    // before is no news: its key taken never closes this sheet.
+    // The attempt this sheet awaits: its own, or one running when it opened; an earlier result never closes it.
     var waitingOn by remember { mutableStateOf(attempt?.takeIf { outcome == null }?.number) }
     val checking = vm.savingTmdbKey
     val refused = outcome == REFUSED
@@ -583,8 +549,7 @@ private fun TmdbKeySheet(issue: UiError?, onDismiss: () -> Unit) {
             TmdbKeyStatus(personal, hasBuiltIn, unchecked, lost = SecretSetting.TMDB_KEY in s.lostSecrets, issue.takeUnless { unchecked })
         },
     ) { sheet ->
-        // Taken: the sheet closes. Refused: focus goes back to the key. Not checked, or not saved: the
-        // sheet stays to say so.
+        // Accepted closes the sheet; refused refocuses the key; unchecked or unsaved stays to say so.
         LaunchedEffect(attempt) {
             if (attempt == null || attempt.number != waitingOn) return@LaunchedEffect
             when (attempt.outcome) {
@@ -597,7 +562,7 @@ private fun TmdbKeySheet(issue: UiError?, onDismiss: () -> Unit) {
         fun save(typed: String) {
             vm.saveTmdbApiKey(typed)?.let { waitingOn = it }
         }
-        // The sheet already names the key: the field's label is only read out.
+        // The sheet already names the key: the field's label is for accessibility only.
         HlTextField(
             stringResource(R.string.tmdb_key_personal),
             key,
@@ -628,7 +593,7 @@ private fun TmdbKeySheet(issue: UiError?, onDismiss: () -> Unit) {
             HlSettingRow(
                 stringResource(R.string.tmdb_key_revert),
                 description = stringResource(R.string.tmdb_key_revert_desc),
-                // Never refused nor left unchecked: taken, it closes the sheet too.
+                // Reverting is never refused or unchecked, so it also closes the sheet.
                 onClick = { save("") },
                 chevron = false,
             )
@@ -636,7 +601,7 @@ private fun TmdbKeySheet(issue: UiError?, onDismiss: () -> Unit) {
     }
 }
 
-/** What a key typed meets, under its field: TMDB refused it, or it could not be saved. */
+/** The error under the key field: TMDB refused it, or it could not be saved. */
 @Composable
 private fun keyError(refused: Boolean, notSaved: UiError?): String? = when {
     refused -> stringResource(R.string.error_tmdb_key_refused_title)
@@ -644,17 +609,12 @@ private fun keyError(refused: Boolean, notSaved: UiError?): String? = when {
     else -> null
 }
 
-/** How saving a key went, as the TMDB sheet answers it. */
+/** Outcomes the TMDB sheet reacts to. */
 private val ACCEPTED = TmdbKeySave.Checked(TmdbKeyCheck.ACCEPTED)
 private val REFUSED = TmdbKeySave.Checked(TmdbKeyCheck.REFUSED)
 private val UNCHECKED = TmdbKeySave.Checked(TmdbKeyCheck.UNCHECKED)
 
-/**
- * The key in use, at the head of its sheet: the user's own (said unchecked when TMDB could not be
- * asked), the built-in one, or none, which calls for attention. A key saved that could not be read
- * again ([lost]) is said first: it is to be typed again. Then what the last scan met ([issue]: the
- * key refused, TMDB out of reach).
- */
+/** The key in use: a lost saved key ([lost]) first, then personal, built-in or none, with the scan's [issue]. */
 @Composable
 private fun TmdbKeyStatus(personal: Boolean, hasBuiltIn: Boolean, unchecked: Boolean, lost: Boolean, issue: UiError?) {
     when {
@@ -691,5 +651,5 @@ private const val HEADER_POSTERS = 3
 private const val ADD_FOLDER = "add_folder"
 private const val SOURCE = "source"
 
-/** A folder's card, among the pane's rows. */
+/** A folder card's row key. */
 private fun folderRow(id: Long) = "folder-$id"

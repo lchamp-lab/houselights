@@ -87,11 +87,7 @@ private fun Sizes(icon: ImageVector, ink: Color, modifier: Modifier) {
     }
 }
 
-/**
- * Done and your choice are one check: white for done, ember for your choice, on the same plate
- * over artwork and bare in a list. A choice in words takes the light of a state; how a thing was
- * done is a plain word.
- */
+/** One check for done (white) and your choice (ember), plated on artwork and bare in a list. */
 @Composable
 private fun Marks() {
     val c = Hl.colors

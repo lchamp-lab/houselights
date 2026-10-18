@@ -11,10 +11,8 @@ import app.houselights.ui.design.LaunchCue
 import kotlin.math.roundToInt
 
 /**
- * The launch mark as the launch screen's cue puts it out ([LaunchCue]): the bars of `splash_mark`,
- * [Gradation] [Gradation.LAUNCH] units tall in its 108-unit layer, each at its own opacity, so they go
- * out one by one. It takes the place of the drawable Android drew in the launch screen's icon view,
- * which lays the layer out over the whole view: the bars stay where they were, in [color].
+ * The bars of `splash_mark` in its 108-unit layer, each with its own opacity so [LaunchCue] puts them out one
+ * by one. It replaces the splash icon view's drawable, which spans the whole view, so the bars keep their place.
  */
 internal class LaunchMarkDrawable(color: Int) : Drawable() {
     private val bars = Gradation.bars(Gradation.LAYER / 2, Gradation.LAYER / 2, Gradation.LAUNCH)
@@ -22,7 +20,7 @@ internal class LaunchMarkDrawable(color: Int) : Drawable() {
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = color }
     private val rect = RectF()
 
-    /** The bars as the cue has them [t] into it. */
+    /** Sets each bar's opacity to the cue's at [t], from 0 to 1. */
     fun at(t: Float) {
         bars.indices.forEach { levels[it] = LaunchCue.bar(it, t) }
         invalidateSelf()

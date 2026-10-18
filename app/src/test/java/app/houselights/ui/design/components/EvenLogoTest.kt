@@ -6,10 +6,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import kotlin.math.pow
 
-/**
- * Logos are set at a constant weight: their transparent margin trimmed, then sized so that each
- * carries the same optical surface in its room, never past the room, never enlarged.
- */
+/** Logos are trimmed and sized to the same optical area in their room, never past it, never enlarged. */
 class EvenLogoTest {
     private val room = 600 to 120
 
@@ -44,7 +41,7 @@ class EvenLogoTest {
 
     @Test
     fun aHeavyLogoAndAThinOneWeighTheSame() {
-        // Both well inside the room: neither is held by its edges.
+        // Both well inside the room: neither is limited by its edges.
         val heavy = plan(logo(1000, 300, Block(0, 0, 900, 150)), 1000, 300)!!
         val thin = plan(logo(1000, 300, Block(0, 0, 900, 150), coverage = 0.25), 1000, 300)!!
         assertTrue("the thin one is drawn larger", thin.width > heavy.width)
@@ -54,12 +51,12 @@ class EvenLogoTest {
         assertEquals("the same shape", heavy.width.toDouble() / heavy.height, thin.width.toDouble() / thin.height, 0.05)
     }
 
-    /** The share of ink of a striped logo laid at a quarter, as [planLogo] reads it. */
+    /** The ink coverage of a striped logo laid at a quarter, as [planLogo] reads it. */
     private fun thinCoverage(plan: LogoPlan) = 0.25 + 2.0 / (plan.right - plan.left)
 
     @Test
     fun itNeverLeavesTheRoom() {
-        // Nearly all air: it would grow past the room.
+        // Nearly all transparent: it would grow past the room.
         val plan = plan(logo(1800, 300, Block(0, 0, 1800, 120), coverage = 0.05), 1800, 300)!!
         assertTrue(plan.width <= room.first && plan.height <= room.second)
     }

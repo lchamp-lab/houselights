@@ -24,12 +24,12 @@ data class DiscoveredServer(
 object ServerDiscovery {
     private val BROADCAST = InetSocketAddress("255.255.255.255", 7359)
 
-    /** More answers than this are not servers to choose from. */
+    /** Cap on collected answers; more than this is not a useful choice list. */
     private const val MAX_SERVERS = 16
 
     /**
-     * The servers that answered within [timeoutMs], all answers together: devices answering again
-     * and again never hold it longer, and leaving the screen stops it.
+     * Servers that answered within [timeoutMs], deduplicated by id. The deadline is overall, so
+     * repeated answers cannot extend it; cancellation stops the receive loop.
      */
     suspend fun discover(timeoutMs: Int = 2500, target: InetSocketAddress = BROADCAST): List<DiscoveredServer> =
         withContext(Dispatchers.IO) {
@@ -54,7 +54,7 @@ object ServerDiscovery {
             found.values.toList()
         }
 
-    /** Receives one packet into [packet]; false once [deadline] (System.nanoTime) has passed without one. */
+    /** Receives one packet into [packet]; false if [deadline] (System.nanoTime) passes first. */
     private fun DatagramSocket.receiveBefore(deadline: Long, packet: DatagramPacket): Boolean {
         val left = TimeUnit.NANOSECONDS.toMillis(deadline - System.nanoTime())
         if (left <= 0) return false

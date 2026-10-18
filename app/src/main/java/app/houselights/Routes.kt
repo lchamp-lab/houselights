@@ -7,7 +7,7 @@ import app.houselights.core.Quality
 import app.houselights.ui.onboarding.FolderField
 import kotlinx.serialization.Serializable
 
-/** The app's screens and what each one needs, checked when the app is built rather than when it runs. */
+/** Type-safe navigation routes: each screen and its arguments, checked at compile time. */
 object Route {
     @Serializable
     data object Welcome
@@ -23,10 +23,8 @@ object Route {
     data object Home
 
     /**
-     * A library's wall. Opened on part of it (a format of the library in numbers, a person), it starts filtered
-     * by what that part names, a field of [LibraryFilter] each: a [quality] (by name), a [picture], a [sound], a
-     * kind of file ([fileType]), a [person], whom its filter menu names [personName]. A films' wall may show
-     * the source's [sagas] (a library's id) in their place.
+     * A library's wall, opened pre-filtered from a facet ([filter]; [quality] by enum name, [person] labelled
+     * [personName]). A films wall may show the source's [sagas] (a library id) instead.
      */
     @Serializable
     data class Library(
@@ -52,7 +50,7 @@ object Route {
             ).takeIf { it.activeCount > 0 }
 
         companion object {
-            /** [library]'s wall, filtered by what [filter] names of a door (its status, genre and decade are a wall's own). */
+            /** [library]'s wall filtered by [filter]'s facets; status, genre and decade stay the wall's own. */
             fun of(library: app.houselights.core.Library, filter: LibraryFilter, personName: String? = null) = Library(
                 library.id, library.kind, library.title, filter.quality?.name, filter.picture, filter.sound, filter.fileType,
                 filter.person, personName.takeIf { filter.person != null },

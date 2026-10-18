@@ -40,7 +40,7 @@ class MkvProbeTest {
         val video = el(
             0xAE,
             uint(0x83, 1), str(0x86, "V_MPEGH/ISO/HEVC"),
-            // DefaultDuration: 41 708 333 ns a frame, 24000/1001 frames a second.
+            // DefaultDuration: 41,708,333 ns per frame, 24000/1001 frames per second.
             raw(0x23E383, byteArrayOf(0x02, 0x7C, 0x6B, 0x2D)),
             el(0xE0, raw(0xB0, byteArrayOf(0x0F, 0x00)), raw(0xBA, byteArrayOf(0x08, 0x70)), el(0x55B0, uint(0x55BA, 16), uint(0x55B2, 10))),
             el(0x41E4, raw(0x41E7, byteArrayOf(0x64, 0x76, 0x63, 0x43)), raw(0x41ED, byteArrayOf(1, 0, (8 shl 1).toByte(), 0x35))),
@@ -80,8 +80,7 @@ class MkvProbeTest {
 
     @Test
     fun aFrameNoReadingExpectedLeavesTheHeadersSaid() {
-        // An HEVC frame: a 300-byte NAL unit, then one whose length (2^31 - 256) passes the end
-        // of an Int once added to where it starts.
+        // A 300-byte NAL unit, then one whose length (2^31 - 256) overflows an Int once added to its offset.
         val frame = byteArrayOf(0, 0, 1, 0x2C) + ByteArray(300) { 2 } +
             byteArrayOf(0x7F, 0xFF.toByte(), 0xFF.toByte(), 0x00, 2, 1) + ByteArray(8)
         val video = el(
@@ -96,14 +95,14 @@ class MkvProbeTest {
         val result = MkvProbe.probe(el(0x1A45DFA3, str(0x4282, "matroska")) + segment)
         assertTrue(result is MkvProbe.Result.Found)
         val info = (result as MkvProbe.Result.Found).info
-        // Its frames read, HDR10+ is only what they say, not its name.
+        // With its frames read, HDR10+ comes only from their metadata, not from the track's name.
         assertEquals(listOf(HdrFormat.HDR10), info.video!!.hdr)
         assertEquals(3840, info.video!!.width)
         assertEquals(10, info.video!!.bitDepth)
         assertEquals(6, info.audio.single().channels)
     }
 
-    /** A file of [tracks] alone: its video track's codec and its audio track's. */
+    /** A file holding only [tracks]: its video track's codec and its audio track's. */
     private fun codecs(vararg tracks: ByteArray): Pair<String?, String?> {
         val segment = el(0x18538067, el(0x1654AE6B, *tracks))
         val info = (MkvProbe.probe(el(0x1A45DFA3, str(0x4282, "matroska")) + segment) as MkvProbe.Result.Found).info
@@ -123,7 +122,7 @@ class MkvProbeTest {
     private fun acm(tag: Int) =
         el(0xAE, uint(0xD7, 2), uint(0x83, 2), str(0x86, "A_MS/ACM"), raw(0x63A2, waveFormat(tag)), el(0xE1, uint(0x9F, 6)))
 
-    /** An AVI remuxed as it was by mkvmerge: its tracks are named by their FOURCC and format tag, not by their codec ids. */
+    /** An AVI remuxed as is by mkvmerge: tracks are named by their FOURCC and format tag, not codec ids. */
     @Test
     fun tracksFromAnAviAreNamedByTheirFourccAndFormatTag() {
         assertEquals("MPEG-4" to "MP3", codecs(vfw("XVID"), acm(0x0055)))
@@ -132,7 +131,6 @@ class MkvProbeTest {
         assertEquals("VC-1" to "PCM", codecs(vfw("WVC1"), acm(0x0001)))
         assertEquals("VC-1" to "AAC", codecs(vfw("WMV3"), acm(0x00FF)))
         assertEquals("AVC" to "?", codecs(vfw("H264"), acm(0x0161)))
-        // A FOURCC the app has no name for is shown as it is.
         assertEquals("DIV3", codecs(vfw("DIV3")).first)
         // WAVE_FORMAT_EXTENSIBLE: 24 bits, 5.1, then the format its SubFormat starts with.
         val extensible = waveFormat(0xFFFE) + byteArrayOf(24, 0, 0x3F, 0, 0, 0, 0x01, 0x00)
@@ -145,7 +143,7 @@ class MkvProbeTest {
         assertEquals("MPEG-4", codecs(asp).first)
         val avc = el(0xAE, uint(0xD7, 1), uint(0x83, 1), str(0x86, "V_MPEG4/ISO/AVC"))
         assertEquals("AVC", codecs(avc).first)
-        // No header to tell: no name, rather than a wrong one.
+        // No header to read: no name, rather than a wrong one.
         assertEquals("?", codecs(el(0xAE, uint(0xD7, 1), uint(0x83, 1), str(0x86, "V_MS/VFW/FOURCC"))).first)
     }
 
@@ -166,10 +164,7 @@ class MkvProbeTest {
         assertEquals(emptyMap<Long, Long>(), MkvProbe.bitrates("not tags".toByteArray()))
     }
 
-    /**
-     * The first megabyte of real files, kept out of the repository (build/probe/frames-*.mkv) and
-     * checked when present: what their frames say, whatever their tracks are named.
-     */
+    /** The first megabyte of real files kept out of the repository (build/probe/frames-*.mkv), when present. */
     @Test
     fun realFramesSayTheirFormats() {
         val dir = File("../build/probe").takeIf { it.isDirectory } ?: File("build/probe")

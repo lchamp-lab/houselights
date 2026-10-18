@@ -10,7 +10,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 
-/** A wall's route carries what it opens on: a format or a person, the filter its screen starts from. */
+/** A wall's route carries its starting filter: a format or a person. */
 class RoutesTest {
     private val films = Library("movies", LibraryKind.MOVIES, null)
 
@@ -26,13 +26,13 @@ class RoutesTest {
         val route = Route.Library.of(films, filter, personName = "Denis Villeneuve")
         assertEquals(filter, route.filter)
         assertEquals("Denis Villeneuve", route.personName)
-        // As navigation keeps it, across a stopped process.
+        // Serialized as navigation saves it across process death.
         val kept = Json.decodeFromString(Route.Library.serializer(), Json.encodeToString(Route.Library.serializer(), route))
         assertEquals(route, kept)
         assertEquals(filter, kept.filter)
     }
 
-    /** A wall's status, genre and decade are its own, chosen there: a door opens on what it names alone. */
+    /** Status, genre and decade are chosen on the wall itself: a door's route sets only the filter it names. */
     @Test
     fun aDoorOpensOnWhatItNamesAlone() {
         val route = Route.Library.of(films, LibraryFilter(status = WatchStatus.UNWATCHED, genre = "Drame", decade = 1990, picture = "4K"))

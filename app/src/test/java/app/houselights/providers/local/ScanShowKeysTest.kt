@@ -13,11 +13,7 @@ import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 
-/**
- * Shows a library keyed by an earlier rule than their paths' (a season's pack at the root was a show of its
- * own, "slow horses s01"; a folder of kinds named the shows under it, "animation"): as their episodes are
- * read again, or new ones come, they are keyed again in place, and keep what the user did with them.
- */
+/** Shows keyed by an earlier rule than their paths give are rekeyed in place, keeping the user's changes. */
 @RunWith(RobolectricTestRunner::class)
 class ScanShowKeysTest {
     @get:Rule
@@ -43,7 +39,7 @@ class ScanShowKeysTest {
 
     private suspend fun showOf(path: String): ItemEntity = checkNotNull(dao.item(checkNotNull(bench.item(shows, path).seriesId)))
 
-    /** As an earlier rule keyed [show], with what the user did with it. */
+    /** Keys [show] as an earlier rule did, with what the user did with it. */
     private suspend fun keyedBefore(show: ItemEntity, key: String, title: String): ItemEntity {
         dao.saveScanned(show.copy(matchKey = key, title = title, sortTitle = MetadataMerge.sortKey(title)))
         dao.setFavorite(show.id, true)
@@ -51,14 +47,14 @@ class ScanShowKeysTest {
         return checkNotNull(dao.item(show.id))
     }
 
-    /** [episodes] and their season moved to the show [to], as an earlier rule had them. */
+    /** Moves [episodes] and their season to the show [to], as an earlier rule had them. */
     private suspend fun moveSeason(from: ItemEntity, number: Int, to: Long, episodes: List<String>) {
         val season = checkNotNull(dao.season(from.id, number))
         dao.saveScanned(season.copy(parentId = to, seriesId = to, matchKey = "$to:$number"))
         episodes.forEach { dao.saveScanned(bench.item(shows, it).copy(seriesId = to)) }
     }
 
-    /** A pack of a season at the root, refreshed: its show keeps its row, its key and name its path's now. */
+    /** A season pack at the root, refreshed: its show keeps its row and takes its path's key and name. */
     @Test
     fun aShowKeyedByAnEarlierRuleIsKeyedAgainInPlace() = runTest {
         nas.put(S01E01)
@@ -79,7 +75,6 @@ class ScanShowKeysTest {
         assertEquals(SLOW_HORSES, kept.userTmdbId)
     }
 
-    /** A new episode beside those of a show keyed by an earlier rule joins it, keyed again and named by its path. */
     @Test
     fun aNewEpisodeJoinsItsShowKeyedByAnEarlierRule() = runTest {
         bench.withTmdb = false
@@ -99,10 +94,7 @@ class ScanShowKeysTest {
         assertEquals(POSTER, kept.userPosterPath)
     }
 
-    /**
-     * Two packs of one show's seasons, two shows by an earlier rule, are one now: the second, left without an
-     * episode, hands what the user did with it to the first before it goes, the user's match looked up at once.
-     */
+    /** Two season packs, two shows under the earlier rule, merge: the emptied one hands its user data over. */
     @Test
     fun twoShowsOfAnEarlierRuleAreOneWithWhatTheUserDidWithEither() = runTest {
         listOf(S01E01, S01E02, S02E01, S02E02).forEach { nas.put(it) }
@@ -125,10 +117,7 @@ class ScanShowKeysTest {
         assertEquals(listOf(1, 2), dao.children(kept.id).map { it.seasonNumber })
     }
 
-    /**
-     * A show of an earlier rule whose episodes now name two shows keeps its row for the first read; the other
-     * is a show of its own, and stays one: the row is not keyed again for it at the next pass.
-     */
+    /** Episodes naming two shows: the row stays the first one's, and is not rekeyed for the other later. */
     @Test
     fun aShowOfAnEarlierRuleNowTwoKeepsItsRowForOne() = runTest {
         bench.withTmdb = false
@@ -151,11 +140,7 @@ class ScanShowKeysTest {
         assertEquals(2, dao.count(ItemKind.SERIES))
     }
 
-    /**
-     * A show of one name and two years in a folder of its name, one show by an earlier rule, which the user matched
-     * with the later series: that row is the later series' as its years part, though the earlier one's folder is read
-     * first; the earlier series is a show of its own.
-     */
+    /** One show under the earlier rule, matched with the 2005 series: split by year, the row stays with it. */
     @Test
     fun aShowOfTwoYearsOnceOneKeepsItsRowForTheYearItIs() = runTest {
         tmdb.show(CLASSIC_WHO, "Doctor Who", 1963)
@@ -169,7 +154,7 @@ class ScanShowKeysTest {
         val season = checkNotNull(dao.season(classic.id, 1))
         dao.saveScanned(bench.item(shows, WHO_2005).copy(seriesId = classic.id, parentId = season.id))
         dao.deleteItems(listOf(checkNotNull(dao.season(modern.id, 1)).id, modern.id))
-        // One show by name alone, as the user matched it: the series of 2005.
+        // One show by name alone, as the user matched it: the 2005 series.
         dao.saveScanned(classic.copy(tmdbId = MODERN_WHO, year = 2005))
         val show = keyedBefore(checkNotNull(dao.item(classic.id)), "doctor who", "Doctor Who")
         dao.setUserTmdbId(show.id, MODERN_WHO)

@@ -7,10 +7,10 @@ import java.nio.ByteBuffer
 import java.nio.CharBuffer
 import java.nio.charset.Charset
 
-/** An actor an NFO lists; [tmdbId] when it gives theirs (tinyMediaManager's <tmdbid>). */
+/** An actor listed in an NFO; [tmdbId] when given (tinyMediaManager's <tmdbid>). */
 data class NfoActor(val name: String, val role: String?, val thumb: String?, val order: Int?, val tmdbId: Int? = null)
 
-/** An audio stream as an NFO's stream details list it, its codec as the tool that wrote it names it ("truehd", "dtshd_ma"). */
+/** An audio stream from an NFO's stream details; [codec] as the writing tool names it ("truehd", "dtshd_ma"). */
 data class NfoAudio(val codec: String?, val language: String?, val channels: Int?)
 
 data class NfoStreams(
@@ -22,7 +22,7 @@ data class NfoStreams(
     val subtitleLanguages: List<String> = emptyList(),
 )
 
-/** What an NFO describes: its root element, or only links to a title (a TMDB or IMDb address). */
+/** What an NFO describes, by its root element; [LINK] for an NFO holding only a TMDB or IMDb address. */
 enum class NfoKind(val root: String?) {
     MOVIE("movie"),
     SHOW("tvshow"),
@@ -49,11 +49,11 @@ data class NfoInfo(
     val runtimeMin: Int? = null,
     val certification: String? = null,
     val rating: Double? = null,
-    /** The votes [rating] stands on, when the NFO gives them. */
+    /** Votes behind [rating], when the NFO gives them. */
     val votes: Int? = null,
     val genres: List<String> = emptyList(),
     val directors: List<String> = emptyList(),
-    /** Its writers, as Kodi's <credits> name them. */
+    /** Writers, from Kodi's <credits>. */
     val writers: List<String> = emptyList(),
     val studios: List<String> = emptyList(),
     val actors: List<NfoActor> = emptyList(),
@@ -70,22 +70,16 @@ data class NfoInfo(
     val fanartUrl: String? = null,
     val logoUrl: String? = null,
     val streams: NfoStreams? = null,
-    /** The edition of the film, as tinyMediaManager and Emby write it ("Director's Cut"), as written. */
+    /** The film's edition as tinyMediaManager or Emby write it ("Director's Cut"), kept as written. */
     val edition: String? = null,
 )
 
-/**
- * Parses Kodi NFO files (as written by Kodi, tinyMediaManager, Jellyfin, Emby, Radarr…).
- * An NFO may also hold only a TMDB or IMDb link, which is enough to identify the title.
- */
+/** Parses Kodi-style NFOs (Kodi, tinyMediaManager, Jellyfin, Emby, Radarr…), or a bare TMDB or IMDb link. */
 object NfoParser {
     private val TMDB_URL = Regex("""themoviedb\.org/(?:movie|tv)/(\d+)""")
     private val IMDB_ID = Regex("""\btt\d{6,9}\b""")
 
-    /**
-     * Made once, at the first NFO: making one looks for the parser's classes. The parsers it makes
-     * share nothing, whichever thread asks for one.
-     */
+    /** Created lazily, as creation looks up the parser classes; the parsers it creates share no state. */
     private val XML_PARSERS: XmlPullParserFactory by lazy { XmlPullParserFactory.newInstance() }
 
     private val ENCODING = Regex("""^\s*<\?xml[^>]*?\bencoding\s*=\s*["']([A-Za-z][\w.:-]*)["']""")
@@ -98,21 +92,18 @@ object NfoParser {
     private const val XML_START_TEXT = "<?xml"
     private val XML_START = XML_START_TEXT.toByteArray(Charsets.US_ASCII)
 
-    /**
-     * Declared by bytes that are not UTF-8, what they are read as Windows-1252 for: a false "UTF-8",
-     * plain ASCII, and "ISO-8859-1", which Windows writes for its 1252, quotes and dashes included.
-     */
+    /** Declarations decoded as Windows-1252 when not UTF-8: a false "UTF-8", ASCII, Windows' "ISO-8859-1". */
     private val WINDOWS_1252_NAMES = setOf(Charsets.UTF_8, Charsets.US_ASCII, Charsets.ISO_8859_1)
     private const val LT: Byte = 0x3C // "<"
     private const val NUL: Byte = 0
 
-    /** How far into a file its XML declaration is looked for. */
+    /** Bytes searched for the XML declaration. */
     private const val DECLARATION_BYTES = 256
 
-    /** A rating's scale when it says none. */
+    /** Rating scale when none is given. */
     private const val RATING_SCALE = 10.0
 
-    /** Sites whose rating is the one TMDB and IMDb show, by Kodi's names: preferred when none is the default. */
+    /** Kodi's names for the IMDb and TMDB ratings, preferred when no rating is marked default. */
     private val AUDIENCE_RATINGS = setOf("imdb", "themoviedb")
 
     fun parse(text: String): NfoInfo? {
@@ -130,10 +121,9 @@ object NfoParser {
     }
 
     /**
-     * An NFO's text, from its bytes in the encoding they say: their byte order mark; else UTF-8 when
-     * they read as UTF-8, whatever their XML declaration says (.NET writes "utf-16" in the XML it
-     * saves in UTF-8); else the 8-bit encoding their declaration names; else Windows-1252, the
-     * Latin-1 of older media managers. A character cut by the end of what was read is left out.
+     * Decodes an NFO: by its byte order mark; else as UTF-8 when valid, whatever the declaration says (.NET
+     * writes "utf-16" in UTF-8 files); else the declared 8-bit encoding; else Windows-1252. A cut-off last
+     * character is dropped.
      */
     fun decode(bytes: ByteArray): String {
         bom(bytes)?.let { (charset, length) -> return String(bytes, length, bytes.size - length, charset) }
@@ -141,7 +131,7 @@ object NfoParser {
         return utf8(bytes) ?: String(bytes, declaredCharset(bytes)?.takeIf { it.isEightBit() && it !in WINDOWS_1252_NAMES } ?: WINDOWS_1252)
     }
 
-    /** UTF-16 without a mark, told by its first character, "<" (XML 1.0, appendix F). */
+    /** UTF-16 without a mark, detected from its first character "<" (XML 1.0, appendix F). */
     private fun utf16(bytes: ByteArray): Charset? = when {
         bytes.size < 2 -> null
         bytes[0] == LT && bytes[1] == NUL -> Charsets.UTF_16LE
@@ -149,7 +139,7 @@ object NfoParser {
         else -> null
     }
 
-    /** True when ASCII reads as itself: a declaration read in Latin-1 can only name such an encoding truly. */
+    /** True when ASCII decodes as itself: the only encodings a declaration read as Latin-1 can truly name. */
     private fun Charset.isEightBit() = String(XML_START, this) == XML_START_TEXT
 
     /** The charset a byte order mark says, and the mark's length. */
@@ -167,7 +157,7 @@ object NfoParser {
     /** The bytes as UTF-8; null when they are not. */
     private fun utf8(bytes: ByteArray): String? {
         val out = CharBuffer.allocate(bytes.size)
-        // Not the end of the input: a character cut by the end of what was read is left out, not malformed.
+        // Not end of input: a character truncated at the end of the bytes read is dropped, not malformed.
         val result = Charsets.UTF_8.newDecoder().decode(ByteBuffer.wrap(bytes), out, false)
         return if (result.isError) null else String(out.array(), 0, out.position())
     }
@@ -263,10 +253,7 @@ object NfoParser {
         )
     }
 
-    /**
-     * An artwork address from an NFO, fetched over HTTPS only: "http://" is upgraded, so an NFO can't
-     * make the app call plain-HTTP servers on the home network. Anything else is ignored.
-     */
+    /** NFO artwork over HTTPS only (http is upgraded), so an NFO cannot make the app call LAN servers in plain HTTP. */
     fun imageUrl(raw: String): String? = when {
         raw.startsWith("https://") -> raw
         raw.startsWith("http://") -> "https://" + raw.removePrefix("http://")
@@ -283,16 +270,15 @@ object NfoParser {
     private fun certification(raw: String?): String? =
         raw?.substringAfterLast(':')?.removePrefix("Rated ")?.trim()?.takeIf { it.isNotEmpty() }
 
-    /** A rating out of 10, and the votes it stands on when given. */
+    /** A rating out of 10, with its votes when given. */
     private data class RatingRead(val value: Double, val votes: Int?)
 
     /** "12,345", "12 345" or "12345" votes. */
     private fun votesOf(text: String?): Int? = text?.filter(Char::isDigit)?.toIntOrNull()
 
     /**
-     * The default rating, and the one to take without it: IMDb's or TMDB's, else the first, as a
-     * critics' score (Metacritic, Rotten Tomatoes) is not what the title's rating says elsewhere. Both
-     * out of 10: a Metacritic 78 out of 100 is a 7.8. Each with its votes.
+     * The default rating, and the fallback: IMDb's or TMDB's, else the first, as critics' scores (Metacritic,
+     * Rotten Tomatoes) differ from the rating shown elsewhere. Both out of 10, each with its votes.
      */
     private fun ratings(p: XmlPullParser): Pair<RatingRead?, RatingRead?> {
         var default: RatingRead? = null

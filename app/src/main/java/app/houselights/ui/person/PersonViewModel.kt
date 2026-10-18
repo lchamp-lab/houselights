@@ -16,33 +16,33 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 
-/** A person's page as it loads: their [page] once read, else why not ([error]). */
+/** A person's page as it loads: [page] once read, otherwise [error] says why. */
 data class PersonState(val page: PersonPage? = null, val loading: Boolean = true, val error: UiError? = null)
 
-/** The page of the person [personId], from the [provider] of the source in use. */
+/** Loads the page of person [personId] from the current source's [provider]. */
 class PersonViewModel(private val personId: String, private val provider: () -> MediaProvider) : ViewModel() {
     private val _state = MutableStateFlow(PersonState())
     val state: StateFlow<PersonState> = _state
 
-    /** One load at a time, the latest asked for. */
+    /** One load at a time: a new one cancels the previous. */
     private val loads = LatestJob(viewModelScope)
 
     init {
         load()
     }
 
-    /** Reads the page again: at first, after a failure, or once the library changed. */
+    /** Loads the page: at start, after a failure, or after the library changes. */
     fun load() {
         _state.update { it.copy(loading = true) }
         loads.launch {
             suspendRunCatching { provider().catalog?.person(personId) }
                 .onSuccess { page ->
-                    // None of their titles left: Back is the way out.
+                    // Null when none of their titles remain in the library.
                     _state.update { PersonState(page = page, loading = false, error = if (page == null) UiError.PERSON_GONE else null) }
                 }
                 .onFailure { e ->
                     val error = e.reported(TAG, "Person $personId")
-                    // A page shown stays shown: only one with nothing to show says why.
+                    // A page already shown stays; the error shows only when there is nothing else.
                     _state.update { it.copy(loading = false, error = if (it.page == null) error else it.error) }
                 }
         }

@@ -6,11 +6,7 @@ import androidx.compose.ui.graphics.luminance
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/**
- * DESIGN.md promises 4.5:1 for text and 3:1 for icons and marks. Translucent layers are composed
- * over what they really sit on, so each ratio is the one on screen. A pair missing from [permitted]
- * is not allowed: add it here, with its ratio passing, before a component uses it.
- */
+/** DESIGN.md's 4.5:1 for text and 3:1 for marks, over what each layer sits on; unlisted pairs are refused. */
 class ContrastTest {
     private enum class Use(val minimum: Float) { Text(4.5f), Mark(3f) }
 
@@ -65,8 +61,7 @@ class ContrastTest {
         "content" on "VEIL on a white image", "content" on "FILL_STRONG on VEIL on a white image",
         // The other options of a track at rest, in its well or on its plate over an image.
         "contentSecondary" on "VEIL on a white image",
-        // A title's name, facts (the score and its star), overview and quietest words (genres, the
-        // billing block's joins).
+        // A title's name, facts, overview and quietest words.
         "content" on "the veil's floor on a white image", "contentSecondary" on "the veil's floor on a white image",
         "contentTertiary" on "the veil's floor on a white image",
         // Descriptions, labels, a selected entry's summary, a button's detail at rest.
@@ -83,16 +78,14 @@ class ContrastTest {
         "ember" on "the veil's floor on a white image",
         // A focused control: its name, and the line under it.
         "onFocus" on "focus", "onFocusSecondary" on "focus",
-        // Focus itself, a white fill or outline, against what is around it: a track's well and its
-        // current pill, a plate over an image, the room (WCAG 2.4.13 asks 3:1 of a focus indicator).
+        // Focus, a white fill or outline, against its surroundings (WCAG 2.4.13 asks 3:1).
         ("focus" on "FILL_FAINT").mark(), ("focus" on "FILL_STRONG on FILL_FAINT").mark(),
         ("focus" on "VEIL on a white image").mark(), ("focus" on "background").mark(),
         // A row read in a sheet: no well at rest, white on the sheet itself.
         ("focus" on "surfaceRaised").mark(),
         // A code to scan: its black modules on projector white, and that ground against the sheet.
         ("background" on "content").mark(), ("content" on "surfaceRaised").mark(),
-        // Marks: a lit round button's icon (a favourite), the check of your choice and the
-        // new dot on their plate, a card's progress on its plate. The watched check is white (above).
+        // Marks on their plate: a lit favourite icon, the chosen check, the new dot, a card's progress.
         ("ember" on "FILL").mark(),
         ("ember" on "VEIL on a white image").mark(),
         // A meter's inks on its track, a gap apart: projector white, secondary, and tertiary (below).
@@ -101,12 +94,10 @@ class ContrastTest {
         "ember" on "FILL", "ember" on "FILL_STRONG",
         // A question asked in a sheet: Cancel, and the action asked about, its label ember at rest.
         "content" on "FILL on surfaceRaised", "ember" on "FILL on surfaceRaised",
-        // A disabled control on the room: its words (above) and its icon, tertiary in its well; on
-        // its plate over an image, a round button's icon stays secondary.
+        // A disabled control's icon, tertiary in its well.
         ("contentTertiary" on "FILL_FAINT").mark(),
         ("contentSecondary" on "VEIL on a white image").mark(),
-        // The ember light where it is drawn: a progress line on its track or plate,
-        // a lit edge, the counter of a scan. Both ends, since a gradient shows all of it.
+        // The ember light (progress line, lit edge, scan counter): both ends of its gradient.
         ("emberFrom" on "background").mark(), ("emberTo" on "background").mark(),
         ("emberFrom" on "surfaceRaised").mark(), ("emberTo" on "surfaceRaised").mark(),
         ("emberFrom" on "FILL_STRONG").mark(), ("emberTo" on "FILL_STRONG").mark(),

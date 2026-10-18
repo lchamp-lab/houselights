@@ -11,35 +11,26 @@ import java.util.Locale
 import java.security.MessageDigest
 import kotlin.math.roundToInt
 
-/** True for artwork copied from the NAS into the cache ("file://..."), rather than a TMDB or NFO address. */
+/** True for artwork cached from the NAS ("file://..."), as opposed to a TMDB or NFO URL. */
 internal fun String?.isCachedArtwork(): Boolean = this?.startsWith("file:") == true
 
-/** What a cleanup removed. */
 data class CleanupResult(val deletedFiles: Int, val freedBytes: Long)
 
-/** Files and bytes held by the cache. */
 data class CacheUsage(val files: Int, val bytes: Long)
 
-/**
- * Local artwork copied once from the NAS into app storage, so Coil can load it like any image: a
- * block at a time, and no larger than the screen shows it ([MAX_WIDTH] × [MAX_HEIGHT]). Copies no
- * longer referenced by the library are removed by [sweep].
- */
+/** Caches NAS artwork in app storage for Coil, read in blocks and downscaled to [MAX_WIDTH] × [MAX_HEIGHT]. */
 class ArtworkCache(
     private val dir: File,
-    /** The bytes the device can still write where the cache lives. */
+    /** Usable bytes on the volume that holds the cache. */
     private val freeSpace: () -> Long = { generateSequence(dir) { it.parentFile }.firstOrNull { it.exists() }?.usableSpace ?: 0 },
 ) {
     /**
-     * "file://…" path of the cached copy; read again only when the file changes ([version]). Null when the
-     * image cannot be copied: it is left to TMDB, and logged. A NAS that stops answering throws, as
-     * for every read of a scan, so the scan stops instead of waiting on each image; so does a device
-     * out of space. Nearly out of it ([MIN_FREE_BYTES]), the image is not copied: the space left is
-     * the library's, and the system's.
+     * "file://…" path of the cached copy ([version]); null when it cannot be copied, so TMDB is used. An unreachable
+     * NAS or full device throws, stopping the scan; below [MIN_FREE_BYTES] free, nothing is copied.
      */
     suspend fun copy(source: SourceEntity, file: RemoteFile, browser: RemoteBrowser): String? {
         val ext = file.relativePath.substringAfterLast('.', "jpg").lowercase().let { if (it == "tbn") "jpg" else it }
-        // An image too large for the cache is left to TMDB rather than kept cut off.
+        // Images over the size limit fall back to TMDB rather than being truncated.
         if (!holds(file)) return null
         val target = File(dir, "${source.id}/${hash(version(file))}.$ext")
         val uri = "file://${target.absolutePath}"
@@ -48,7 +39,7 @@ class ArtworkCache(
             Log.w(TAG, "Not copying ${file.relativePath}: the device is nearly full")
             return null
         }
-        // Written aside then renamed: an interrupted copy never passes for a cached image.
+        // Written to a temporary file then renamed, so an interrupted copy never looks cached.
         val partial = File(target.parentFile, "${target.name}.part")
         val smaller = File(target.parentFile, "${target.name}.small.part")
         return try {
@@ -64,26 +55,24 @@ class ArtworkCache(
                 null
             }
         } finally {
-            // Copied, failed, or cut short by the scan stopping between two blocks: nothing half written stays.
+            // Success, failure or cancellation between blocks: no partial file is left behind.
             partial.delete()
             smaller.delete()
         }
     }
 
     /**
-     * What names [file]'s copy: its path, its size and, when the listing tells it, its date. A picture
-     * rewritten with as many bytes (a new poster.jpg of the same length) is copied again, under a name
-     * the screens' image caches never saw. Without a date, the name copies were given before.
+     * Cache key: path, size and, when listed, date, which catches same-size rewrites and bypasses image caches. Without
+     * a date, existing copies keep their names.
      */
     private fun version(file: RemoteFile): String = listOfNotNull(file.relativePath, file.size, file.lastModified).joinToString(":")
 
-    /** Copies [file] into [into] a block at a time ([BLOCK_BYTES]): never more of it in memory at once. */
     private suspend fun stream(source: SourceEntity, file: RemoteFile, browser: RemoteBrowser, into: File) {
         FileOutputStream(into).use { out ->
             var offset = 0L
             while (offset < file.size) {
                 val block = browser.readAt(source, file.relativePath, offset, minOf(BLOCK_BYTES.toLong(), file.size - offset).toInt())
-                // Shorter than listed: rewritten since, and copied as it is now.
+                // Shorter than listed: the file was rewritten; keep what it holds now.
                 if (block.isEmpty()) break
                 out.write(block)
                 offset += block.size
@@ -92,12 +81,8 @@ class ArtworkCache(
     }
 
     /**
-     * Writes [from] into [to] at the largest size the screen shows it, when it is larger: a 4K fanart,
-     * a poster of 3000 px. A picture with transparency (a clear logo) stays a PNG, the others become
-     * JPEGs; the name keeps the extension the NAS gave it, as decoders read what the bytes are. False
-     * when it fits as it is, is no picture Android reads, or is turned by its EXIF orientation (a
-     * phone's photo for a home video, which Coil shows upright and a new encoding would lose): it is
-     * kept byte for byte.
+     * Downscales [from] into [to] (PNG with alpha, else JPEG; decoders sniff, so the extension stays). False keeps the
+     * original: it fits, cannot be decoded, or has an EXIF rotation, which Coil applies and re-encoding would lose.
      */
     private fun shrink(from: File, to: File): Boolean {
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
@@ -109,7 +94,7 @@ class ArtworkCache(
         if (turned(from)) return false
         val targetWidth = (width * scale).roundToInt().coerceAtLeast(1)
         val targetHeight = (height * scale).roundToInt().coerceAtLeast(1)
-        // Decoded at the smallest power-of-two fraction still as large as the target, then scaled to it.
+        // Decode at the largest power-of-two subsample still at least the target size, then scale.
         var sample = 1
         while (width / (sample * 2) >= targetWidth && height / (sample * 2) >= targetHeight) sample *= 2
         val decoded = BitmapFactory.decodeFile(from.path, BitmapFactory.Options().apply { inSampleSize = sample }) ?: return false
@@ -124,10 +109,7 @@ class ArtworkCache(
         return true
     }
 
-    /**
-     * True when [file]'s EXIF says it is shown turned or mirrored; a picture without EXIF, or none it
-     * reads, is not. Read by the platform's reader: the support library's is no dependency of the app.
-     */
+    /** EXIF rotation or mirroring, via the platform reader, as AndroidX ExifInterface is not a dependency. */
     @SuppressLint("ExifInterface")
     private fun turned(file: File): Boolean {
         val upright = android.media.ExifInterface.ORIENTATION_NORMAL
@@ -137,10 +119,9 @@ class ArtworkCache(
         return orientation != upright && orientation != android.media.ExifInterface.ORIENTATION_UNDEFINED
     }
 
-    /** Whether an image of [file]'s size is copied at all: an empty one, or one too large, is left to TMDB for good. */
+    /** Whether [file]'s size can be cached at all; empty or oversized images are left to TMDB. */
     fun holds(file: RemoteFile): Boolean = file.size in 1..MAX_BYTES.toLong()
 
-    /** The bytes the device can still write, where the cache and the library live. */
     fun spaceLeft(): Long = freeSpace()
 
     fun usage(): CacheUsage {
@@ -148,11 +129,7 @@ class ArtworkCache(
         return CacheUsage(files.size, files.sumOf { it.length() })
     }
 
-    /**
-     * Deletes every cached file that [referenced] ("file://…" paths, as stored in the
-     * library) does not mention, then the folders left empty. Never touches anything
-     * outside the cache folder.
-     */
+    /** Deletes cached files not in [referenced], then empty folders; never touches anything outside the cache. */
     fun sweep(referenced: Collection<String>): CleanupResult {
         if (!dir.isDirectory) return CleanupResult(0, 0)
         val root = dir.canonicalFile
@@ -182,17 +159,16 @@ class ArtworkCache(
         private const val TAG = "ArtworkCache"
         private const val MAX_BYTES = 30 shl 20
 
-        /** How much of a picture is asked of the NAS, and held, at once. */
+        /** Bytes read from the NAS, and held in memory, per request. */
         private const val BLOCK_BYTES = 256 shl 10
 
-        /** The largest a picture is shown: a backdrop over the whole of a 1080p screen, the Zidoo's interface. */
+        /** Largest displayed size: a full-screen backdrop at 1080p, the Zidoo's UI resolution. */
         private const val MAX_WIDTH = 1920
         private const val MAX_HEIGHT = 1080
 
-        /** A picture made smaller is encoded once: as close to the original as the eye can tell. */
         private const val JPEG_QUALITY = 90
 
-        /** Left free when copying an image: room for the library's database to grow, and for the system. */
+        /** Free space kept when caching, for the database to grow and for the system. */
         const val MIN_FREE_BYTES = 200L shl 20
 
         private fun hash(s: String): String =

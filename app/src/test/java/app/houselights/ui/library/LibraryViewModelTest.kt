@@ -152,7 +152,7 @@ class LibraryViewModelTest {
         assertEquals(240, vm.state.value.items.size)
     }
 
-    /** A change while the first page loads, whose reload fails: the wall says why instead of waiting for ever. */
+    /** A change while the first page loads, whose reload fails: the wall says why instead of waiting forever. */
     @Test
     fun aFailedReloadOfTheFirstPageSaysWhy() = runTest {
         val first = provider.gate("page 0 120")
@@ -167,7 +167,7 @@ class LibraryViewModelTest {
         assertEquals(UiError.OFFLINE, vm.state.value.error)
     }
 
-    /** Android stopped the app while a film played: the wall comes back sorted and filtered as it was left. */
+    /** Android killed the app while a film played: the wall comes back sorted and filtered as it was left. */
     @Test
     fun theSortAndFilterOutliveAStoppedProcess() = runTest {
         val saved = SavedStateHandle()
@@ -182,7 +182,7 @@ class LibraryViewModelTest {
         assertEquals(LibraryFilter(WatchStatus.UNWATCHED, "Drame", 1990, Quality.UHD_4K), after.state.value.filter)
     }
 
-    /** The files' picture, sound and kind, and a person, come back after a stopped process as the rest of the filter does. */
+    /** The files' picture, sound and kind, and a person, survive process death like the rest of the filter. */
     @Test
     fun whatTheFilesHoldAndAPersonOutliveAStoppedProcess() = runTest {
         val saved = SavedStateHandle()
@@ -194,7 +194,7 @@ class LibraryViewModelTest {
         assertEquals(filter, after.state.value.filter)
     }
 
-    /** Opened from the library in numbers on its Dolby Vision films: the wall starts filtered so, and its first page with it. */
+    /** Opened from the library in numbers on Dolby Vision films: the wall and its first page start filtered. */
     @Test
     fun aWallOpenedOnPartOfTheLibraryStartsFilteredByIt() = runTest {
         provider.capabilities = provider.capabilities.copy(formatFilters = true, personFilter = true)
@@ -204,7 +204,6 @@ class LibraryViewModelTest {
         assertEquals(120, vm.state.value.items.size)
     }
 
-    /** What the wall opened on is kept as any filter: changed, then the process stopped, it comes back as it was left. */
     @Test
     fun aWallBroughtBackIsAsItWasLeftNotAsItWasOpened() = runTest {
         provider.capabilities = provider.capabilities.copy(formatFilters = true)
@@ -227,7 +226,6 @@ class LibraryViewModelTest {
         assertEquals(LibraryFilter(person = "p7"), vm.state.value.filter)
     }
 
-    /** Two changes in a row: the filter menu offers what the library holds now, never an older answer coming late. */
     @Test
     fun theLatestFacetsWin() = runTest {
         val vm = LibraryViewModel({ provider }, library)

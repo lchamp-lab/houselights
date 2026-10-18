@@ -37,10 +37,7 @@ class RedactTest {
         assertEquals(false, Redact.hasUserInfo("nfs://nas/export/film.mkv"))
     }
 
-    /**
-     * A password typed raw in a path mapping may hold a space or a slash, which end the pattern: the
-     * player's Uri still reads a user's part, or a port that is no number.
-     */
+    /** A raw password may contain a space or a slash, which end the pattern; the player's Uri still parses it. */
     @Test
     fun findsAPasswordTypedRaw() {
         assertEquals(true, Redact.hasUserInfo("smb://zidoo:p w@nas/media/film.mkv"))
@@ -53,7 +50,7 @@ class RedactTest {
         assertEquals(false, Redact.hasUserInfo("http://nas:8096/Videos/1/stream.mkv?static=true"))
     }
 
-    /** A password of digits, then more than one slash, or a slash and then a ? or a #: a date, say. */
+    /** A password of digits with several slashes, or a slash then a ? or a #, such as a date. */
     @Test
     fun findsAPasswordOfDigitsAndSlashes() {
         listOf(
@@ -67,14 +64,14 @@ class RedactTest {
         assertEquals(false, Redact.hasUserInfo("smb://nas/media/@eaDir/film.mkv"))
     }
 
-    /** All of a password typed raw is hidden: up to the last @, which no password reaches past. */
+    /** A raw password is hidden whole, up to the last @, which no password goes past. */
     @Test
     fun hidesAPasswordTypedRaw() {
         assertEquals("smb://***@nas/media/film.mkv", Redact.uri("smb://zidoo:p w@nas/media/film.mkv"))
         assertEquals("smb://***@nas/media/film.mkv", Redact.uri("smb://zidoo:p/ss@nas/media/film.mkv"))
         assertEquals("smb://***@nas/media/film.mkv", Redact.uri("smb://zidoo:p@ss w@nas/media/film.mkv"))
         assertEquals("smb://***@home.mkv", Redact.uri("smb://zidoo:p w@nas/media/film@home.mkv"))
-        // Hidden by the pattern, a name with an @ of its own keeps it.
+        // When the pattern hides the password, an @ in the file name is kept.
         assertEquals("smb://***@nas/media/film@home.mkv", Redact.uri("smb://zidoo:secret@nas/media/film@home.mkv"))
     }
 

@@ -18,10 +18,7 @@ import java.net.ConnectException
 import java.net.SocketTimeoutException
 import java.time.Duration
 
-/**
- * When a scan pass stops asking TMDB, and when it asks again, on the scans' client (paused a minute
- * after the network failed) and [FakeTmdb]. On Robolectric for SystemClock, which the pause runs on.
- */
+/** When a pass stops and resumes asking TMDB, on the scans' client (paused a minute after a network failure). */
 @RunWith(RobolectricTestRunner::class)
 class TmdbPassTest {
     private val tmdb = FakeTmdb()
@@ -32,7 +29,7 @@ class TmdbPassTest {
     /** The time a film takes to scan, its files read on the NAS. */
     private fun scanned() = ShadowSystemClock.advanceBy(Duration.ofSeconds(5))
 
-    /** A season TMDB did not answer is asked again for the next episode; one it answered, never again in the pass. */
+    /** A season TMDB did not answer is asked again for the next episode; once answered, never again that pass. */
     @Test
     fun aSeasonIsKeptOnceAnswered() = runTest {
         tmdb.show(95396, "Severance", 2022)
@@ -64,14 +61,14 @@ class TmdbPassTest {
         assertEquals(listOf(pass.issue), told)
     }
 
-    /** Scanned again at once, after a pass that found TMDB out of reach: the pause is a failure already counted. */
+    /** Scanned again at once after a pass that found TMDB unreachable: the pause counts as a failure already. */
     @Test
     fun aPassStartedDuringThePauseAsksAgainOnceItIsOver() = runTest {
         tmdb.movie(1, "Film 0", 2020)
         tmdb.failure = ConnectException("Network is unreachable")
         val failed = TmdbPass(client)
         repeat(3) {
-            // Each a request of its own, once the pause the last one began is over.
+            // Each a separate request, once the pause the previous one started is over.
             ShadowSystemClock.advanceBy(Duration.ofSeconds(61))
             failed.film(0)
         }
@@ -106,7 +103,7 @@ class TmdbPassTest {
         assertSame("the first failure stays what is said", first, pass.issue)
     }
 
-    /** TMDB failing on its side, or answering in another shape: every next question would meet it too. */
+    /** TMDB failing on its side, or answering in another shape: every next request would meet it too. */
     @Test
     fun aServerFailureOrAnAnswerOfAnotherShapeCountsAndIsSaid() = runTest {
         tmdb.movie(1, "Film 0", 2020)
@@ -122,7 +119,7 @@ class TmdbPassTest {
         }
     }
 
-    /** TMDB's search lags behind an entry it removed: no match, not a question left unanswered. */
+    /** TMDB's search still returns an entry it removed: no match, not a request left unanswered. */
     @Test
     fun aHitTmdbNoLongerHasIsNoMatch() = runTest {
         tmdb.movie(1, "Film 0", 2020)

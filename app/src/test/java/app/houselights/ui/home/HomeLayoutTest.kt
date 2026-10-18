@@ -10,10 +10,7 @@ import app.houselights.ui.design.HouselightsType
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/**
- * Home's bands on the TV canvas (540 dp, text at its default size): the bar, the hero, the rows.
- * What the first row shows stays inside the safe area, a focused poster grown included.
- */
+/** Home's bands on the TV canvas: the first row, a grown poster included, stays inside the safe area. */
 class HomeLayoutTest {
     private val screen = 540.dp
     private val safeBottom = screen - HlSpace.safeV

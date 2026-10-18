@@ -9,16 +9,11 @@ import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 
 /**
- * The launch screen's gate, one per process: the splash screen (the mark alone on black,
- * `Theme.Houselights.Launch`) covers the app while it is shut, and home is composed, laid out and
- * drawn under it. It opens once, for the first of three reasons: home is whole under it, its first
- * content in, the pictures it shows first in memory and a first frame of all of it drawn
- * ([Reason.READY]); the app starts on another screen ([Reason.START_SCREEN]); or [capMs] after the
- * process started ([Reason.CAP]), so that a NAS or TMDB slow to answer never holds the app. It says
- * in the log, at the warning level release builds keep, when and why it opened.
+ * The launch screen's gate, one per process: the splash (`Theme.Houselights.Launch`) covers the app while home
+ * is drawn under it. It opens once: home is complete ([Reason.READY]), the app starts elsewhere
+ * ([Reason.START_SCREEN]), or at [capMs] ([Reason.CAP]) so a slow NAS never holds the app; why is logged.
  */
 class LaunchGate(
-    /** Milliseconds since the process started. */
     private val sinceStart: () -> Long = ::sinceProcessStart,
     private val capMs: Long = CAP_MS,
     private val report: (String) -> Unit = { Log.w(TAG, it) },
@@ -31,10 +26,7 @@ class LaunchGate(
 
     private val opened = MutableStateFlow<Reason?>(null)
 
-    /**
-     * When the settings were read, home's first content came, its first pictures, and when home drew
-     * its first frame whole (ms since the process started).
-     */
+    /** Milestones in ms since process start: settings read, first rows, first pictures, first full frame. */
     private var settingsAt: Long? = null
     private var rowsAt: Long? = null
     private var picturesAt: Long? = null
@@ -45,39 +37,39 @@ class LaunchGate(
 
     val isOpen: Boolean get() = opened.value != null
 
-    /** The settings are read: what the app starts on is known. Said in the log, as what comes before it. */
+    /** Records that the settings are read, so the start screen is known; logged only, it never opens the gate. */
     fun settingsRead() = synchronized(this) {
         settingsAt = settingsAt ?: sinceStart()
     }
 
-    /** Home's first content is in: its rows, or why it has none. */
+    /** Records home's first content: its rows, or why it has none. */
     fun homeLoaded() = synchronized(this) {
         rowsAt = rowsAt ?: sinceStart()
         openIfReady()
     }
 
-    /** The pictures home shows first are in memory, or there are none to wait for. */
+    /** Records that home's first pictures are in memory, or that there are none to wait for. */
     fun picturesLoaded() = synchronized(this) {
         picturesAt = picturesAt ?: sinceStart()
         openIfReady()
     }
 
-    /** Home drew its first frame whole under the launch screen: its content, and its backdrop's picture. */
+    /** Records home's first full frame under the launch screen, backdrop picture included. */
     fun homeDrawn() = synchronized(this) {
         drawnAt = drawnAt ?: sinceStart()
         openIfReady()
     }
 
-    /** The app starts on another screen than home (welcome, settings unread, a screen brought back): nothing to wait for. */
+    /** Opens at once: the app starts on a screen other than home (welcome, unread settings, a restored screen). */
     fun startsElsewhere() = open(Reason.START_SCREEN)
 
-    /** Opens it at the cap if nothing did before. */
+    /** Opens the gate at the cap unless it is already open. */
     suspend fun openAtCap() {
         delay((capMs - sinceStart()).coerceAtLeast(0))
         open(Reason.CAP)
     }
 
-    /** Waits until it opens, and says why. */
+    /** Suspends until the gate opens and returns why. */
     suspend fun awaitOpen(): Reason = opened.filterNotNull().first()
 
     private fun openIfReady() {
@@ -96,13 +88,12 @@ class LaunchGate(
         report("Launch screen left ${sinceStart()} ms after the process started: ${reason.said} ($parts)")
     }
 
-    /** When a part came, or [missing]. */
     private fun at(ms: Long?, missing: String) = ms?.let { "at $it ms" } ?: missing
 
     private companion object {
         const val TAG = "Launch"
 
-        /** The longest the launch screen holds, from the process's start: a slow source never holds the app. */
+        /** Longest the launch screen holds, counted from process start. */
         const val CAP_MS = 1_500L
     }
 }

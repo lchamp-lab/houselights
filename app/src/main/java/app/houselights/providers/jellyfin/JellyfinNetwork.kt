@@ -1,8 +1,8 @@
 package app.houselights.providers.jellyfin
 
 /**
- * What signing in to Jellyfin asks of the network: finding servers, reaching the one typed, then
- * signing in on it. Apart from the screen, so a test answers in place of a server.
+ * Network calls used by Jellyfin sign-in: discovery, reaching a typed address, authentication.
+ * An interface so tests can stand in for a server.
  */
 interface JellyfinNetwork {
     /** Servers that answered a discovery on the local network. */
@@ -13,7 +13,7 @@ interface JellyfinNetwork {
 
     suspend fun authenticate(url: String, deviceId: String, request: AuthRequest): AuthResult
 
-    /** The real network. */
+    /** Production implementation. */
     companion object Lan : JellyfinNetwork {
         override suspend fun discover() = ServerDiscovery.discover()
 

@@ -16,10 +16,7 @@ import org.robolectric.RobolectricTestRunner
 import java.io.IOException
 import java.net.SocketTimeoutException
 
-/**
- * A read that fails is not the file's last word: what it would have said is read again at the next
- * scan, and what was read before stays. A NAS that stops answering ends the pass, whatever is read.
- */
+/** A failed read is retried at the next scan, keeping what was read before; a silent NAS ends the pass. */
 @RunWith(RobolectricTestRunner::class)
 class ScanReadsTest {
     @get:Rule
@@ -41,7 +38,7 @@ class ScanReadsTest {
     /** A lock: the file is being written, and is read again later. */
     private fun locked() = IOException("STATUS_SHARING_VIOLATION (0xc0000043)")
 
-    /** A refusal, as smbj words it: the NAS's last word on the file, until its rights change. */
+    /** A refusal, as smbj words it: final for the file until its permissions change. */
     private fun refused() = IOException("STATUS_ACCESS_DENIED (0xc0000022): Create failed")
 
     private fun nfo(title: String) = "<movie><title>$title</title><year>2021</year></movie>".toByteArray()
@@ -68,7 +65,6 @@ class ScanReadsTest {
         assertEquals(REMUX_BADGES, bench.item(films, "Dune (2021).mkv").badges)
     }
 
-    /** What a video holds is kept with the probe that read it and its length, in columns the scan and the cards read. */
     @Test
     fun aVideoReadKeepsItsProbeAndItsLengthBesideWhatItHolds() = runTest {
         nas.put("Dune (2021).mkv", size = 80_000_000_000, bytes = MkvProbeTest().sampleFile())
@@ -78,7 +74,6 @@ class ScanReadsTest {
         assertEquals(MediaProbe.VERSION to 7_094_000L, dune.probeVersion to dune.fileDurationMs)
     }
 
-    /** An NFO an older media manager wrote in Latin-1 is read as it says, not as UTF-8. */
     @Test
     fun anNfoIsReadInTheEncodingItSays() = runTest {
         val declaration = """<?xml version="1.0" encoding="ISO-8859-1"?>"""
@@ -94,7 +89,7 @@ class ScanReadsTest {
 
     @Test
     fun aVideoTheNasRefusesIsNotReadAgain() = runTest {
-        // Written by a download client under its own account, with rights the device's has not.
+        // Written by a download client under its own account, with permissions the device's account lacks.
         nas.put("Dune (2021).mkv", size = 80_000_000_000, bytes = MkvProbeTest().sampleFile())
         nas.onRead = { _, _, _ -> throw refused() }
         bench.scan()
@@ -115,7 +110,7 @@ class ScanReadsTest {
         bench.scan()
         assertTrue("not the file's last word", MediaProbe.isStale(bench.item(films, "Dune.2021.mkv").mediaInfo))
 
-        // The row follows the file, of the same size, and the file is read there.
+        // The row follows the file, of the same size, and the file is read at its new path.
         nas.onRead = null
         bench.scan()
         assertEquals(REMUX_BADGES, bench.item(films, "Dune (2021).mkv").badges)
@@ -131,7 +126,7 @@ class ScanReadsTest {
         assertEquals("nothing written, nothing to reload", 0, bench.changesDuring { bench.scan() })
         assertEquals("tried again", listOf("Dune (2021).nfo"), nas.reads)
 
-        // The right given back on the NAS.
+        // The permission is restored on the NAS.
         nas.onRead = null
         bench.scan()
         assertEquals("Dune: Part One", bench.item(films, "Dune (2021).mkv").title)

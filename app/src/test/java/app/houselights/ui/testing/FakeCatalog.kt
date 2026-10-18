@@ -14,10 +14,7 @@ import app.houselights.core.Saga
 import app.houselights.core.SearchResults
 import app.houselights.core.Version
 
-/**
- * A source's catalog for tests: the [credits] of each title by id, the [pages] of people by id, the
- * [directors] home draws from and the [best] rated films; what it is asked is written to [calls].
- */
+/** A catalog for tests: [credits], person [pages], home's [directors] and [best] films; requests go to [calls]. */
 class FakeCatalog : Catalog {
     var credits = mapOf<String, Credits>()
     var pages = mapOf<String, PersonPage>()

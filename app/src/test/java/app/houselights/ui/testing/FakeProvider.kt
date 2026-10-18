@@ -22,11 +22,7 @@ import app.houselights.core.ProviderCapabilities
 import app.houselights.core.SortOption
 import kotlinx.coroutines.CompletableDeferred
 
-/**
- * A source whose answers each test sets. Every call is written down in [calls] ("item m1",
- * "episodes s2"...); a call named in [gates] waits until the test completes its gate, so answers can
- * come back in any order; [fail] makes the calls it names throw.
- */
+/** A source whose answers each test sets: calls go to [calls], those in [gates] wait, those in [fail] throw. */
 class FakeProvider : MediaProvider {
     override var capabilities = ProviderCapabilities(markPlayed = true, favorites = true, similar = false, pathMapping = false)
 
@@ -39,7 +35,6 @@ class FakeProvider : MediaProvider {
     var facets = LibraryFacets()
     var seasons = mapOf<String, List<MediaItem>>()
 
-    /** Episodes by season id. */
     var episodes = mapOf<String, List<MediaItem>>()
     var nfo: NfoDocument? = null
     var editable = true
@@ -47,7 +42,7 @@ class FakeProvider : MediaProvider {
     var results = listOf<MatchCandidate>()
     var choices: ArtworkChoices? = null
 
-    /** What the source tells beyond its titles ([FakeCatalog]); none by default, as a source that tells only its cast. */
+    /** The source's catalog ([FakeCatalog]); none by default, like a source that only provides the cast. */
     override var catalog: app.houselights.core.Catalog? = null
 
     /** What the title was last matched with, once the match is written. */

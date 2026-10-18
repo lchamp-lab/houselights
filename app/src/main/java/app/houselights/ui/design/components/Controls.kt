@@ -84,13 +84,9 @@ import app.houselights.ui.design.RowScroll
 enum class Emphasis { Primary, Secondary }
 
 /**
- * Pill button. Every button turns projector white when focused; the primary one is brighter at
- * rest so the main action reads first. The label stops at [HlLayout.readableNarrow] and the
- * [detail] at one line, both with an ellipsis; [detailLit] sets the detail in ember at rest,
- * for a state it names (an active filter). Not [enabled], the button sits in a faint well with
- * tertiary words and ignores OK; it keeps focus, outlined, so the remote still reaches it.
- * [busy], it is at work: the quiet dot of a pending state in place of its icon, [busyLabel] in
- * place of its label ("Connexion…"), its width kept, OK ignored. No spinner: nothing turns.
+ * Pill button, projector white on focus; the primary one is brighter at rest. Disabled, it keeps focus,
+ * outlined, and ignores OK; [busy] shows the pending dot and [busyLabel] at the same width and ignores OK.
+ * [detailLit] sets the detail in ember for a state it names (an active filter).
  */
 @Composable
 fun HlButton(
@@ -107,10 +103,7 @@ fun HlButton(
     busyLabel: String = text,
 ) = PillButton(text, onClick, modifier, icon, detail, emphasis, detailLit, enabled, busy, busyLabel)
 
-/**
- * The pill of [HlButton]. [caution] sets the label in ember at rest: the action a question
- * asks about, which cannot be undone ([SheetConfirm]). Attention, never red.
- */
+/** The pill of [HlButton]; [caution] sets the label in ember for an irreversible action ([SheetConfirm]). */
 @Composable
 internal fun PillButton(
     text: String,
@@ -130,8 +123,7 @@ internal fun PillButton(
     val focused by interaction.collectIsFocusedAsState()
     val busyState = stringResource(R.string.control_busy)
     val fill = if (emphasis == Emphasis.Primary) HlAlpha.FILL_STRONG else HlAlpha.FILL
-    // A Surface rather than tv-material's Button, whose content keeps a minimum height of its own
-    // at the top of the control: here the content is centred in exactly the control height.
+    // A Surface: tv-material's Button forces a minimum content height and would not centre the content.
     Surface(
         onClick = { if (!busy) onClick() },
         modifier = modifier.height(HlSize.control).semantics { if (busy) stateDescription = busyState },
@@ -170,7 +162,6 @@ internal fun PillButton(
     }
 }
 
-/** What a button says at rest: its icon, its label, its detail. */
 @Composable
 private fun ButtonContent(text: String, icon: ImageVector?, detail: String?, detailColor: Color) {
     if (icon != null) {
@@ -184,14 +175,13 @@ private fun ButtonContent(text: String, icon: ImageVector?, detail: String?, det
     }
 }
 
-/** Measures the content at rest, and keeps at least that width while [busy]: the row around it does not move. */
+/** Records the content width at rest and keeps at least that width while [busy], so the row does not shift. */
 private fun Modifier.keepWidthWhile(busy: Boolean): Modifier = composed {
     var rest by remember { mutableIntStateOf(0) }
     val density = LocalDensity.current
     if (busy) widthIn(min = with(density) { rest.toDp() }) else onSizeChanged { rest = it.width }
 }
 
-/** The words of a button, on one line, no wider than a reading column. */
 @Composable
 private fun ButtonLabel(text: String) {
     Text(
@@ -204,12 +194,7 @@ private fun ButtonLabel(text: String) {
     )
 }
 
-/**
- * A screen's title that is one of its two views, and the disc after it that turns it to the other
- * ([onSwitch]): a films' wall and its sagas. The title is a [ScreenTitle]; the disc, ⇄ in grey at
- * rest, as tall as a control, fills white under focus as every disc. [label] names what OK shows
- * ("Sagas"), for accessibility.
- */
+/** A screen title naming one of two views, then a ⇄ disc switching to the other; [label] names that one. */
 @Composable
 fun HlTitleSwitch(title: String, label: String, onSwitch: () -> Unit, modifier: Modifier = Modifier) {
     Row(modifier, verticalAlignment = Alignment.CenterVertically) {
@@ -227,11 +212,7 @@ fun HlTitleSwitch(title: String, label: String, onSwitch: () -> Unit, modifier: 
     }
 }
 
-/**
- * A row of actions (a pill, then round buttons) that keeps room under itself for the label a round
- * button shows with focus, so nothing moves when it shows and what follows never lies under it.
- * The screen does not need to know the label is there.
- */
+/** A row of actions that reserves room below for a round button's focus label, so nothing moves. */
 @Composable
 fun HlActionRow(
     modifier: Modifier = Modifier,
@@ -247,16 +228,9 @@ fun HlActionRow(
 }
 
 /**
- * Round icon button; its label appears under it while focused, keeping the row quiet. The label
- * takes no room: it overflows under the button, so a row that has nothing below it (the home bar)
- * stays as tall as its controls, and a row that has something below is an [HlActionRow]. The label
- * is centred under the button, even at the edge of the safe area; only where it would come closer
- * than [HlIconButtonDefaults.labelEdge] to the side of the screen does it align with the button's edge.
- * Under a sheet, which has the window, it hides. The icon carries the name for accessibility. The
- * label always sits on a dark plate; on a picture ([OnArtwork]) the button sits on one too, so it
- * reads over any image. Not [enabled], its icon goes quiet and OK does nothing; focus still
- * reaches it, outlined, and still shows its label. A toggle names what OK does ("Marquer comme
- * vu") and shows where things stand with its icon: [lit], ember at rest.
+ * Round icon button whose focus label overflows below it without taking layout space (an [HlActionRow]
+ * reserves it), centred unless near the screen side ([HlIconButtonDefaults.labelEdge]), hidden under a
+ * sheet. A toggle names its action ("Marquer comme vu") and shows its state by [lit].
  */
 @Composable
 fun HlIconButton(
@@ -269,7 +243,7 @@ fun HlIconButton(
 ) {
     val interaction = remember { MutableInteractionSource() }
     val focused by interaction.collectIsFocusedAsState()
-    // A sheet opens a window of its own: the button keeps its focus under it, not its label.
+    // A sheet is a separate window: the button keeps focus under it but hides its label.
     val shown = focused && LocalWindowInfo.current.isWindowFocused
     val labelAlpha by animateFloatAsState(if (shown) 1f else 0f, tween(HlMotion.FAST), label = "label")
     val c = Hl.colors
@@ -288,7 +262,7 @@ fun HlIconButton(
                 colors = FocusStyle.fill(
                     rest = restFill,
                     restContent = if (lit) c.ember else c.content,
-                    // On its plate over an image, the quiet icon is secondary, as all quiet things on artwork.
+                    // Over artwork, a disabled icon is secondary like all quiet content there.
                     disabled = plate ?: c.content.copy(alpha = HlAlpha.FILL_FAINT),
                     disabledContent = if (plate != null) c.contentSecondary else c.contentTertiary,
                 ),
@@ -302,7 +276,7 @@ fun HlIconButton(
                 color = c.content,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                // Always on its plate: the label may fall on any picture, on home as on a detail page.
+                // Always on a plate: the label may fall over any picture.
                 modifier = Modifier
                     .clearAndSetSemantics {}
                     .graphicsLayer { alpha = labelAlpha }
@@ -327,11 +301,7 @@ fun HlIconButton(
     }
 }
 
-/**
- * Where a round button's label starts, from the button's left: centred under it; when that would
- * come closer than [edge] to a side of the screen, aligned with the button's edge on that side;
- * past that, held at [edge].
- */
+/** The label's x offset from the button: centred, else aligned to the side nearing [edge], never past it. */
 internal fun labelX(button: Int, label: Int, left: Int, screen: Int, edge: Int): Int {
     val centred = (button - label) / 2
     val x = when {
@@ -342,12 +312,7 @@ internal fun labelX(button: Int, label: Int, left: Int, screen: Int, edge: Int):
     return x.coerceAtMost(screen - edge - left - label).coerceAtLeast(edge - left)
 }
 
-/**
- * A choice in a vertical list (sources, servers): a quiet panel, lifted with a projector-white
- * outline when focused. Its icon stands in line with the name, turning white with focus; [badges]
- * say what the choice brings, in the technical voice, under a hairline; a chevron shows on focus
- * that it leads on. [descriptionLines] keeps choices shown side by side the same height.
- */
+/** A choice in a vertical list (sources, servers): a quiet panel with icon, [badges] and a focus chevron. */
 @Composable
 fun HlListItem(
     title: String,
@@ -394,17 +359,9 @@ fun HlListItem(
 }
 
 /**
- * Exclusive options in one pill track: where you are (home navigation, seasons, NFO views) or
- * what is chosen (protocol, content type). Focus is projector white, as everywhere: the option
- * under focus is the white pill. The current option sits on the track's quiet pill, one fill step
- * up, its words in projector white while the others read in grey; that pill slides to the option
- * chosen. Focus entering the track, from any side, lands on the current option, never on the
- * nearest one; to accessibility services the options are tabs, the current one selected. With
- * [selectOnFocus], moving onto an option selects it, as tabs over content do on TV. [scrollable]
- * lets a long track (seasons) scroll within the screen. On a picture ([OnArtwork]) the track is
- * a dark plate, so it reads over any image. [enterAt] is where focus enters when it is not the current
- * option: the option a screen sends you back to (the library just left). [details] add after an
- * option's name how far it is done ([SegmentDetail]): a season's check, or "6 / 10".
+ * Exclusive options in one pill track: the current one on a quiet sliding pill, the focused one white.
+ * Focus enters on [enterAt] (the current option by default), never the nearest; options read as tabs.
+ * [selectOnFocus] selects on move, as TV tabs do; [details] add a check or "6 / 10".
  */
 @Composable
 fun HlSegmented(
@@ -419,8 +376,7 @@ fun HlSegmented(
 ) {
     val places = remember(options.size) { mutableStateMapOf<Int, Pair<Float, Float>>() }
     val requesters = remember(options.size) { List(options.size) { FocusRequester() } }
-    // A long track (seasons) scrolls as one piece: the pill moves with the options. Its ends keep
-    // room for an option growing under focus.
+    // A long track scrolls with its pill; end padding leaves room for a focused option to grow.
     val scroll = rememberScrollState()
     val content = if (scrollable) Modifier.horizontalScroll(scroll).padding(horizontal = HlSpace.xxs) else Modifier
 
@@ -431,7 +387,7 @@ fun HlSegmented(
     RowScroll {
         Box(track) {
             Box(content) {
-                // One quiet pill, under the options, that slides to the option chosen: where you are.
+                // The quiet pill under the options, sliding to the selected one.
                 places[selected]?.let { (x, w) ->
                     val slide = tween<Float>(HlMotion.STANDARD, easing = HlMotion.emphasized)
                     val left by animateFloatAsState(x, slide, label = "pillX")
@@ -439,8 +395,7 @@ fun HlSegmented(
                     Box(
                         Modifier
                             .offset { IntOffset(left.roundToInt(), 0) }
-                            // Its width read while measuring, as its place is while placing: the pill
-                            // slides without recomposing the track. As `width()` measures it.
+                            // Width read at measure, offset at placement: the pill slides without recomposing.
                             .layout { measurable, constraints ->
                                 val px = width.toDp().roundToPx().coerceAtLeast(0)
                                 val placeable = measurable.measure(constraints.constrain(Constraints(minWidth = px, maxWidth = px)))
@@ -469,20 +424,12 @@ fun HlSegmented(
     }
 }
 
-/**
- * A group that focus enters on the option at [current], from any side: where you are, not the
- * nearest option. With no current option, the nearest one.
- */
+/** A focus group entered on [current] from any side; on the nearest option when it is out of range. */
 @OptIn(ExperimentalComposeUiApi::class)
 private fun Modifier.enterOn(requesters: List<FocusRequester>, current: Int): Modifier = this
     .focusProperties { enter = { requesters.getOrNull(current) ?: FocusRequester.Default } }
     .focusGroup()
 
-/**
- * One option of a [HlSegmented] track; never used alone. Focus is the white pill, as on every
- * control. At rest the current option's words are projector white, on the track's quiet pill
- * drawn under the options; the others are grey, on the room or on the track's plate over an image.
- */
 @Composable
 private fun SegmentItem(
     text: String,
@@ -520,7 +467,7 @@ private fun SegmentItem(
                 null -> Unit
                 SegmentDetail.Done -> {
                     Spacer(Modifier.width(HlSpace.xs))
-                    // Done, as the watched button says it: a white check, dark under focus.
+                    // A white check, dark under focus, as on the watched button.
                     Icon(
                         HlIcons.Check,
                         contentDescription = null,
@@ -538,11 +485,9 @@ private fun SegmentItem(
     }
 }
 
-/** How far an option of a [HlSegmented] track is done, said after its name. */
+/** Progress shown after an [HlSegmented] option's name: a check when [Done], else figures ("6 / 10"). */
 sealed interface SegmentDetail {
-    /** All of it: a check. */
     data object Done : SegmentDetail
 
-    /** Part of it, in figures ("6 / 10"). */
     data class Count(val text: String) : SegmentDetail
 }

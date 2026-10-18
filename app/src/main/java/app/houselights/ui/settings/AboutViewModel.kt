@@ -8,10 +8,7 @@ import androidx.lifecycle.viewModelScope
 import app.houselights.player.PlayerStatus
 import app.houselights.ui.util.LatestJob
 
-/**
- * What About says of the device: its player, as playback decides ([player], asked once), and
- * whether its control API answers ([api]), asked each time About shows: null while it is asked.
- */
+/** Device status for About: the [player] playback uses, and whether the control API answers ([api], null meanwhile). */
 internal class AboutViewModel(playerStatus: () -> PlayerStatus, private val apiAnswers: suspend () -> Boolean) : ViewModel() {
     val player: PlayerStatus = playerStatus()
 
@@ -20,13 +17,13 @@ internal class AboutViewModel(playerStatus: () -> PlayerStatus, private val apiA
 
     private val asking = LatestJob(viewModelScope)
 
-    /** About shows: the control API is asked whether it answers. */
+    /** Checks whether the control API answers; [api] is null until it does. */
     fun check() {
         api = null
         asking.launch { api = apiAnswers() }
     }
 
-    /** About has gone: the answer is not waited for, and the next time it shows it asks again. */
+    /** Cancels a pending check and clears [api], so the next [check] starts over. */
     fun forget() {
         asking.cancel()
         api = null

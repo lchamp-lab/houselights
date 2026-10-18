@@ -47,10 +47,7 @@ import java.text.DecimalFormatSymbols
 import java.util.Locale
 import kotlin.math.roundToInt
 
-/**
- * The fullest content the screens can meet, rebuilt from the components they use, and the device
- * they are measured on. Shown as it is today: what overflows or vanishes here does so on screen.
- */
+/** The fullest content the screens can meet, unadjusted: what overflows here overflows on screen. */
 internal fun LazyListScope.catalogStress() {
     item { StressTopBarSection() }
     item { StressInfoLineSection() }
@@ -97,8 +94,7 @@ private fun StressInfoLineSection() {
 
 @Composable
 private fun StressHeroSection() {
-    // The home hero's frame keeps one height whatever has focus, so the rows stay put; it grows with
-    // the text scale, as the text does (textRoom).
+    // The home hero keeps one height whatever has focus, growing with the text scale (textRoom).
     Group("Home hero", still = true) {
         Column(verticalArrangement = Arrangement.spacedBy(HlSpace.xl)) {
             Column {
@@ -121,8 +117,7 @@ private fun StressHero() {
 
 @Composable
 private fun StressScriptsSection() {
-    // Widths that break every title over two lines: sideColumn for display, definitionLabel
-    // (a few dp under the Vietnamese line) for headline.
+    // Widths that break every title in two: sideColumn for display, definitionLabel for headline.
     Group("Scripts Archivo lacks", still = true) {
         StressScriptRow { script ->
             Text(script.title, style = Hl.type.display, color = Hl.colors.content)
@@ -183,11 +178,7 @@ private fun StressDeviceSection() {
     }
 }
 
-/**
- * The home screen's top bar, composed as HomeScreen does, on projector white: the lightest
- * backdrop a film can bring behind it. The catalogue already sits inside the side margins, so the
- * bar keeps the width it has on screen; choosing a library only moves the pill.
- */
+/** The home top bar as HomeScreen composes it, on projector white, the lightest backdrop a film can bring. */
 @Composable
 private fun StressTopBar(libraries: List<String>) = OnArtwork {
     Row(

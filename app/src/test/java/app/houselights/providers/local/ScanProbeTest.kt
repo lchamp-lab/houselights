@@ -12,11 +12,7 @@ import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 
-/**
- * A newer probe ([MediaProbe.VERSION]) reads the files' headers again, and nothing else: neither the NFO
- * beside them nor TMDB, and what they gave and what the user did with each title stay. Screens are told only
- * when a file reads otherwise.
- */
+/** A newer probe ([MediaProbe.VERSION]) rereads file headers only, not NFOs or TMDB, keeping the user's data. */
 @RunWith(RobolectricTestRunner::class)
 class ScanProbeTest {
     @get:Rule
@@ -39,7 +35,7 @@ class ScanProbeTest {
         on.put(path, size = bytes.size.toLong(), bytes = bytes)
     }
 
-    /** The library as the probe before this one left it; [read]: what it made of each file. */
+    /** The library as the previous probe version left it; [read] is what it made of each file. */
     private suspend fun readByAnOlderProbe(read: (MediaInfo) -> MediaInfo = { it }) {
         for (source in bench.dao.sources()) {
             for (file in bench.dao.knownFiles(source.id)) {
@@ -50,10 +46,7 @@ class ScanProbeTest {
         }
     }
 
-    /**
-     * Dune, matched by the user, beside an NFO naming a film by its IMDb id alone: read whole, it would ask
-     * TMDB whether the NFO describes the user's choice, every time.
-     */
+    /** Dune, matched by the user, beside an NFO naming a film by IMDb id: a full read would ask TMDB each time. */
     private suspend fun duneMatchedByTheUser(): SourceEntity {
         val films = bench.folder("Films")
         nas.put("Dune (2021).mkv", size = 80_000_000_000, bytes = MkvProbeTest().sampleFile())
@@ -64,7 +57,7 @@ class ScanProbeTest {
         bench.scanner.identify(dune.id, 438631)
         bench.dao.setFavorite(dune.id, true)
         bench.dao.savePlayback(dune.id, positionMs = 600_000, durationMs = 7_094_000, played = false, lastPlayedAt = 5)
-        // What the match wrote settles.
+        // Let the match's writes settle.
         bench.scan()
         return films
     }
@@ -112,10 +105,7 @@ class ScanProbeTest {
         assertEquals("Bonne nouvelle" to MediaProbe.VERSION, episode.title to episode.probeVersion)
     }
 
-    /**
-     * A show's NFO rewritten while its episodes wait for a newer probe is read in the same pass: a probe's
-     * re-read reads no show, so it does not stand in for one, nor does it read the show twice.
-     */
+    /** A probe re-read reads no show, so a show NFO rewritten meanwhile is read in the same pass, once. */
     @Test
     fun aShowsNfoRewrittenIsReadThoughItsEpisodesWaitForANewerProbe() = runTest {
         val shows = bench.folder("Séries", SourceKind.SHOWS)
@@ -137,7 +127,7 @@ class ScanProbeTest {
         assertEquals("Severance : la série", checkNotNull(bench.dao.item(checkNotNull(episode.seriesId))).title)
     }
 
-    /** A file the probe does not open keeps what its NFO, as the row keeps it, says it holds. */
+    /** A file the probe cannot open keeps the stream details its NFO gives, as stored in its row. */
     @Test
     fun aFileTheProbeDoesNotOpenKeepsWhatItsNfoSays() = runTest {
         val films = bench.folder("Films")
@@ -158,7 +148,7 @@ class ScanProbeTest {
         assertEquals(before.badges, heat.badges)
     }
 
-    /** A file the newer probe reads otherwise (an XviD once taken for VC-1) is shown anew. */
+    /** A file the newer probe reads differently (say, VC-1 that is really XviD) is shown anew. */
     @Test
     fun aFileReadOtherwiseIsShownAnew() = runTest {
         val films = bench.folder("Films")

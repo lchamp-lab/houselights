@@ -8,10 +8,7 @@ import org.w3c.dom.Element
 import java.io.File
 import javax.xml.parsers.DocumentBuilderFactory
 
-/**
- * Android draws the window, and the launcher its icon, before Compose does: in the colours of the
- * resources. They must be the design system's, or the room shows another black at launch.
- */
+/** Android draws the window and icon before Compose: resource colours must match the design system's. */
 class ResourceTokensTest {
     private val colors = File("src/main/res/values/colors.xml")
 
@@ -21,10 +18,7 @@ class ResourceTokensTest {
         assertEquals("@color/room", argb(HouselightsColors.background.toArgb()), resourceColor("room"))
     }
 
-    /**
-     * The launch screen is Android's to draw, before the app runs: the room, the mark alone in it
-     * (`splash_mark`, Gradation as `BrandTest` holds it), then the app's own theme, on the app's window.
-     */
+    /** Before the app runs, the launch screen is the room with the mark alone in it (`splash_mark`). */
     @Test
     fun theLaunchScreenIsTheRoom() {
         val launch = style("Theme.Houselights.Launch")

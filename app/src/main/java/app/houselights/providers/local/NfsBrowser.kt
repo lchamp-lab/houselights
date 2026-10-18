@@ -16,19 +16,15 @@ import java.io.FileNotFoundException
 import java.net.SocketException
 
 /**
- * Lists video files of an NFSv3 export; made once, by [RemoteBrowsers]. No credentials: the NAS
- * trusts the client IP. The export must allow non-privileged ports, as a regular app cannot bind
- * ports below 1024.
+ * Lists and reads an NFSv3 export; a single instance lives in [RemoteBrowsers]. The NAS trusts the client IP (no
+ * credentials), and the export must allow non-privileged ports, as an app cannot bind ports below 1024.
  */
 internal class NfsBrowser(
-    /** Mounts a folder's export; mounting asks the NAS for it. Tests hand in a NAS of their own. */
+    /** Mounts a source's export (a request to the NAS); replaceable in tests. */
     private val mount: (SourceEntity) -> NfsExport = { Nfs3Export(Nfs3(it.host, export(it), CredentialUnix(), RETRIES)) },
     clock: () -> Long = SystemClock::elapsedRealtime,
 ) : RemoteBrowser {
-    /**
-     * One mount per export, reused across files. nfs-client keeps its own connections: a mount closes
-     * by being dropped, so dropping one waits for no operation.
-     */
+    /** One mount per export; nfs-client owns its sockets, so closing a mount is just dropping it. */
     private val mounts = KeptConnections<NfsMount>(
         close = { _, _ -> },
         isOpen = { true },
@@ -42,7 +38,7 @@ internal class NfsBrowser(
         walk(folder(export, export.folder(root(source)))) { ScanErrors.isUnreachable(it) || isBroken(it) }
     }
 
-    /** On a mount of its own: the NAS says now whether it lets the device in. */
+    /** Uses a fresh mount so the NAS checks access now. */
     override suspend fun test(source: SourceEntity): Int = withContext(Dispatchers.IO) {
         mounts.once({ NfsMount(mount(source)) }) { mounted ->
             entries(mounted.export, mounted.export.folder(root(source))).count { !RemoteBrowser.skip(it.name) }
@@ -58,28 +54,27 @@ internal class NfsBrowser(
         mounts.use(key(source), { NfsMount(mount(source)) }, block)
     }
 
-    /** Drops the mount of [source]'s export: the folder's address changed. */
+    /** Drops the mount of [source]'s export, after its address changed. */
     suspend fun forget(source: SourceEntity) {
         val key = key(source)
         mounts.forget { it == key }
     }
 
-    /** Drops the mounts no operation uses; called when a scan ends. */
+    /** Drops unused mounts; called when a scan ends. */
     fun closeIdle() = mounts.closeIdle()
 
     private fun root(source: SourceEntity) = "/" + remotePath(source)
 
     /**
-     * The folder whose handle is [dir]. READDIRPLUS tells of each entry what it is, its size, its date
-     * and its handle, a request or so for the whole folder. An entry told without them (a NAS may
-     * leave them out) is looked up when first asked about, as every entry of a READDIR listing was.
+     * The folder with handle [dir]. READDIRPLUS returns each entry's type, size, date and handle in about one
+     * request per folder; entries without them (a NAS may omit them, READDIR never has them) are looked up lazily.
      */
     private fun folder(export: NfsExport, dir: ByteArray): RemoteFolder = RemoteFolder {
         entries(export, dir).map { listed ->
             object : RemoteEntry {
                 override val name: String = listed.name
 
-                // A lookup that fails throws (a file gone, a NAS silent), and is asked again by the next question.
+                // A failed lookup throws (file gone, NAS silent) and is retried on the next access.
                 private val entry by lazy { if (listed.isWhole) listed else export.lookup(dir, listed.name) }
 
                 override fun folder() = entry.handle?.takeIf { entry.attributes?.isFolder == true }?.let { folder(export, it) }
@@ -92,37 +87,33 @@ internal class NfsBrowser(
     }
 
     companion object {
-        /** nfs-client tries a request this many times before it fails. */
+        /** Attempts per request in nfs-client. */
         private const val RETRIES = 3
 
         private fun export(source: SourceEntity) = "/" + source.share.trim('/')
 
-        /**
-         * Every entry of the folder [dir] but "." and "..", over as many READDIRPLUS answers as it takes:
-         * each goes on from the cookie of the one before.
-         */
+        /** All entries of [dir] except "." and "..", paging READDIRPLUS by cookie. */
         private fun entries(export: NfsExport, dir: ByteArray): List<NfsEntry> {
             val entries = mutableListOf<NfsEntry>()
             var page = export.readdirplus(dir, cookie = 0, verifier = 0)
             while (true) {
                 page.entries.filterTo(entries) { it.name != "." && it.name != ".." }
                 if (page.isLast) return entries
-                // Asked again from the same cookie, it would answer the same, for ever.
+                // Repeating the same cookie would loop forever.
                 check(page.entries.isNotEmpty()) { "READDIRPLUS answered no entry before the end of the folder" }
                 page = export.readdirplus(dir, page.cookie, page.verifier)
             }
         }
 
         /**
-         * A failure of the mount, after which it is made again: not one of the file. The network failed
-         * (an RpcException of status NETWORK_ERROR, inside the request's NfsException), or the NAS no
-         * longer knows the mount's handles: it restarted, or the export moved.
+         * A failure of the mount rather than the file, so the mount is recreated: a network error (an RpcException
+         * NETWORK_ERROR wrapped in NfsException) or stale handles (NAS restarted, export moved).
          */
         internal fun isBroken(e: Throwable): Boolean = generateSequence(e) { it.cause }.any {
             it is SocketException || it is RpcException && it.status === RpcStatus.NETWORK_ERROR || isStale(it)
         }
 
-        /** A handle the NAS no longer knows: what it named was removed, or the NAS forgot the mount's handles. */
+        /** A handle the NAS no longer knows: its target was removed, or the NAS forgot the mount's handles. */
         internal fun isStale(e: Throwable): Boolean = e is NfsException && e.status?.value in STALE
 
         private val STALE = setOf(NfsStatus.NFS3ERR_STALE.value, NfsStatus.NFS3ERR_BADHANDLE.value)
@@ -130,21 +121,19 @@ internal class NfsBrowser(
 }
 
 /**
- * An export mounted, and the handles of the files read on it lately and of their folders, by path: a
- * probe reads a file several times, and a title's NFO and artwork lie beside its video, where each
- * read looked every name of its path up again. Dropped with the mount, so kept no longer than a scan
- * keeps it. One operation at a time, as [KeptConnections] runs them.
+ * A mounted export with a cache of recent file and folder handles by path, since a probe reads a file several
+ * times and sidecars sit next to the video; without it every read would LOOKUP each path segment. Lives as long
+ * as the mount; [KeptConnections] runs one operation at a time.
  */
 private class NfsMount(val export: NfsExport) {
-    /** By path from the export's root, "" for the root; past [MAX_HANDLES], the one least lately used goes. */
+    /** LRU of handles by path from the export root ("" for the root), capped at [MAX_HANDLES]. */
     private val handles = object : LinkedHashMap<String, ByteArray>(MAX_HANDLES, LOAD_FACTOR, true) {
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, ByteArray>) = size > MAX_HANDLES
     }
 
     /**
-     * [length] bytes of the file at [path] from [offset], fewer past its end. A handle kept from before
-     * that the NAS no longer knows (the file replaced, as Radarr upgrades it; a folder moved) is looked up
-     * once more: still unknown, the mount is at fault ([NfsBrowser.isBroken]), and made again.
+     * Reads up to [length] bytes at [offset]. A stale cached handle (file replaced by a Radarr upgrade, folder
+     * moved) is looked up once more; if still stale, the mount is at fault ([NfsBrowser.isBroken]) and recreated.
      */
     fun read(path: String, offset: Long, length: Int): ByteArray =
         try {
@@ -155,10 +144,9 @@ private class NfsMount(val export: NfsExport) {
             export.read(handle(path), offset, length)
         }
 
-    /** The handle of the file at [path]: a LOOKUP for each name below the deepest of its folders known. */
+    /** Handle of [path], with a LOOKUP per segment below the deepest cached folder. */
     private fun handle(path: String): ByteArray {
         val names = path.split('/').filter { it.isNotEmpty() }
-        // "", "films", "films/Dune (2021)", "films/Dune (2021)/movie.nfo": the root, each folder, the file.
         val paths = names.runningFold("") { folder, name -> if (folder.isEmpty()) name else "$folder/$name" }
         val known = paths.indexOfLast { it in handles }
         var handle = if (known < 0) export.folder("/").also { handles[""] = it } else handles.getValue(paths[known])
@@ -169,52 +157,51 @@ private class NfsMount(val export: NfsExport) {
         return handle
     }
 
-    /** Drops the handles of [path], of its folders and of the root: what its read went through. */
+    /** Drops the cached handles of [path], its folders and the root. */
     private fun forget(path: String) {
         handles.keys.removeAll { it.isEmpty() || it == path || path.startsWith("$it/") }
     }
 
     private companion object {
-        /** Handles kept: a title's folders and files, and those of the few titles read before it. */
+        /** Enough for a title's folders and files, plus those of a few previous titles. */
         const val MAX_HANDLES = 64
         const val LOAD_FACTOR = 0.75f
     }
 }
 
-/** What a folder's entry is, as a READDIRPLUS answer, a LOOKUP or a GETATTR tells it. */
+/** Entry attributes from READDIRPLUS, LOOKUP or GETATTR. */
 internal class NfsAttributes(val isFolder: Boolean, val size: Long, val lastModified: Long?)
 
-/** An entry of a folder; [handle] and [attributes]: null when the NAS left them out of its answer. */
+/** A folder entry; [handle] and [attributes] are null when the NAS omitted them. */
 internal class NfsEntry(val name: String, val handle: ByteArray?, val attributes: NfsAttributes?) {
-    /** Whether it tells all that is asked of it: what it is, its size, and a folder's handle, to list it. */
+    /** True when no LOOKUP is needed: attributes are present, and a folder has its handle. */
     val isWhole: Boolean get() = attributes != null && (!attributes.isFolder || handle != null)
 }
 
-/** One answer of READDIRPLUS: its [entries], and the [cookie] and [verifier] the next one starts from, unless [isLast]. */
+/** One READDIRPLUS page; the next starts from [cookie] and [verifier] unless [isLast]. */
 internal class NfsPage(val entries: List<NfsEntry>, val cookie: Long, val verifier: Long, val isLast: Boolean)
 
-/** An export mounted, as [NfsBrowser] lists and reads it: [Nfs3Export] on a NAS, a fake in tests. */
+/** A mounted export as [NfsBrowser] uses it: [Nfs3Export] on a NAS, a fake in tests. */
 internal interface NfsExport {
-    /** The handle of the folder at [path], from the export's root, "/" separators; throws when it is not there. */
+    /** Handle of the folder at [path] from the export root; throws when missing. */
     fun folder(path: String): ByteArray
 
-    /** One READDIRPLUS: the entries of the folder [dir] from [cookie] on (0: from the start), "." and ".." among them. */
+    /** One READDIRPLUS call from [cookie] (0 for the start); includes "." and "..". */
     fun readdirplus(dir: ByteArray, cookie: Long, verifier: Long): NfsPage
 
-    /** [name] in the folder [dir], whole: a LOOKUP, then a GETATTR if the LOOKUP told no attributes. */
+    /** LOOKUP of [name] in [dir], plus GETATTR when the LOOKUP returned no attributes. */
     fun lookup(dir: ByteArray, name: String): NfsEntry
 
-    /** [length] bytes of the file whose handle is [file] from [offset], fewer past its end. */
     fun read(file: ByteArray, offset: Long, length: Int): ByteArray
 }
 
-/** An export mounted with nfs-client. A NAS that knows no READDIRPLUS is listed by READDIR, each entry looked up. */
+/** nfs-client export; falls back to READDIR with per-entry lookups when READDIRPLUS is unsupported. */
 private class Nfs3Export(private val nfs: Nfs3) : NfsExport {
-    /** False once the NAS answered NFS3ERR_NOTSUPP to a READDIRPLUS. */
+    /** Cleared once the NAS answers NFS3ERR_NOTSUPP to READDIRPLUS. */
     @Volatile
     private var plus = true
 
-    /** As Nfs3File lists a folder: its path's symbolic links followed, a folder that is not there a FileNotFoundException. */
+    /** Resolves like Nfs3File: symbolic links followed, FileNotFoundException when missing. */
     override fun folder(path: String): ByteArray = Nfs3File(nfs, path).followLinks().fileHandle ?: throw FileNotFoundException(path)
 
     override fun readdirplus(dir: ByteArray, cookie: Long, verifier: Long): NfsPage {
@@ -242,9 +229,8 @@ private class Nfs3Export(private val nfs: Nfs3) : NfsExport {
     }
 
     /**
-     * READs straight from the handle, [READ_BYTES] at most each; a NAS answers less past its own most,
-     * and is asked on from there. Not through Nfs3File: it asks the NAS for access, its maximums and the
-     * file's size before reading, and the size again at each block.
+     * READs from the handle in chunks of at most [READ_BYTES], continuing after short answers. Bypasses Nfs3File,
+     * which queries access, server limits and file size before reading, and the size again per block.
      */
     override fun read(file: ByteArray, offset: Long, length: Int): ByteArray {
         var atEnd = false
@@ -259,11 +245,10 @@ private class Nfs3Export(private val nfs: Nfs3) : NfsExport {
     private fun attributes(told: NfsGetAttributes) = NfsAttributes(told.type == NfsType.NFS_DIR, told.size, told.mtime?.timeInMillis)
 
     companion object {
-        /** Bytes of names and cookies a READDIRPLUS answer holds at most, then of the whole answer: about 150 entries. */
+        /** READDIRPLUS dircount and maxcount limits: about 150 entries per answer. */
         private const val DIR_BYTES = 8 * 1024
         private const val ANSWER_BYTES = 32 * 1024
 
-        /** Bytes a read asks the NAS for at once. */
         private const val READ_BYTES = 256 * 1024
     }
 }

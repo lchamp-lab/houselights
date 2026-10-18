@@ -13,10 +13,7 @@ import org.robolectric.Shadows.shadowOf
 import org.robolectric.shadow.api.Shadow
 import org.robolectric.shadows.ShadowSigningInfo
 
-/**
- * Apps on Robolectric's package manager, as a player's firmware or its owner installs them. Two
- * apps answering the same video have no default between them, as on a device where none was chosen.
- */
+/** Apps on Robolectric's package manager; two apps handling the same video have no default between them. */
 internal class FakeApps(private val context: Context) {
     private val pm = shadowOf(context.packageManager)
     private val installed = mutableSetOf<ComponentName>()
@@ -68,13 +65,12 @@ internal class FakeApps(private val context: Context) {
         return component
     }
 
-    /** Uninstalls [pkg], with what its activities answered. */
     fun uninstall(pkg: String) {
         installed.filter { it.packageName == pkg }.forEach(pm::clearIntentFilterForActivity)
         pm.removePackage(pkg)
     }
 
-    /** Makes [component] what the system opens a video with, unasked. */
+    /** Makes [component] the default app for videos. */
     @Suppress("DEPRECATION")
     fun makeDefault(component: ComponentName) {
         context.packageManager.addPreferredActivity(video("smb", "nfs"), IntentFilter.MATCH_CATEGORY_SCHEME, arrayOf(component), component)
@@ -94,18 +90,14 @@ internal class FakeApps(private val context: Context) {
         const val GALLERY = "com.android.gallery3d"
         const val MOVIE_ACTIVITY = "com.android.gallery3d.app.MovieActivity"
 
-        /** A newer firmware's player, under a name of Zidoo's. */
+        /** The player of newer firmwares, under a Zidoo package name. */
         const val ZIDOO_PLAYER = "com.zidoo.player"
         const val ZIDOO_PLAYER_ACTIVITY = "com.zidoo.player.VideoPlayerActivity"
 
         /** The shares the app hands a player a file on. */
         val SHARES = listOf("smb", "nfs")
 
-        /**
-         * What the Z1000 Pro's player answers a video at: http, file and content, read on the device,
-         * and https, not asked there, where a stream may be too; neither smb nor nfs, which it is
-         * handed by name only, nor a type alone.
-         */
+        /** What the Z1000 Pro's player accepts (read on the device), plus https; smb and nfs go by name only. */
         val FIRMWARE_SCHEMES = listOf("http", "https", "file", "content")
 
         /** Zidoo's own certificate, and another one. */
@@ -127,7 +119,6 @@ internal class FakeApps(private val context: Context) {
             "Realtek", "Realtek", "RTD1619", "rtd1619", "rtd1619", "Realtek/rtd1619/rtd1619:9/PPR1/1:user/release-keys", "release-keys",
         )
 
-        /** Another Android TV box. */
         val OTHER_BUILD = DeviceIdentity(
             "Google", "google", "Chromecast", "sabrina", "sabrina", "google/sabrina/sabrina:12/STTE/1:user/release-keys", "release-keys",
         )

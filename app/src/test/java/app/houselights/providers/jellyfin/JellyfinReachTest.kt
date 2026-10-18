@@ -107,7 +107,7 @@ class JellyfinReachTest {
         assertTrue(!supported("10.8.13"))
         assertTrue(!supported("9.11.0"))
         assertTrue(!supported("10.11.0", product = "Emby Server"))
-        // Saying nothing clear is no reason to refuse.
+        // An unclear answer is no reason to refuse.
         assertTrue(supported(null, product = null))
         assertTrue(supported("unstable"))
     }

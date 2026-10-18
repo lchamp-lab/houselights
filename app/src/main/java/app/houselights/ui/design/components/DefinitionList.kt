@@ -25,10 +25,7 @@ import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
 
-/**
- * Label and value pairs in two aligned columns, each pair on its first baseline. Set inside a
- * panel or a block already, so it adds no box of its own.
- */
+/** Label and value pairs in two aligned columns, on their first baselines; no container of its own. */
 @Composable
 fun DefinitionList(rows: List<Pair<String, String>>, modifier: Modifier = Modifier, labelWidth: Dp = HlLayout.definitionLabel) {
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(HlSpace.xs)) {
@@ -40,10 +37,7 @@ fun DefinitionList(rows: List<Pair<String, String>>, modifier: Modifier = Modifi
     }
 }
 
-/**
- * One pair of a [DefinitionList] whose value is not plain text: a state with its light, a logo, a
- * value with a note under it. The label sits on the value's first baseline, as on the back of a case.
- */
+/** A [DefinitionList] pair whose value is not plain text (a state with its light, a logo). */
 @Composable
 fun DefinitionRow(label: String, modifier: Modifier = Modifier, labelWidth: Dp = HlLayout.definitionLabel, value: @Composable () -> Unit) {
     Row(modifier.fillMaxWidth()) {
@@ -57,10 +51,7 @@ fun DefinitionRow(label: String, modifier: Modifier = Modifier, labelWidth: Dp =
     }
 }
 
-/**
- * One subject of a sheet or a settings pane (the technical sheet, an NFO, what a display receives),
- * set like the back of a Blu-ray case: a hairline, its name, then what it says.
- */
+/** A sheet or settings section (the technical sheet, an NFO): a hairline, its title, its content. */
 @Composable
 fun InfoBlock(title: String, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
     Column(modifier) {
@@ -72,15 +63,13 @@ fun InfoBlock(title: String, modifier: Modifier = Modifier, content: @Composable
     }
 }
 
-/** One row of a [SpecTable]: what it is, then its values in column order; [inUse] marks the one in service. */
+/** One row of a [SpecTable]: its [name], then [values] in column order; [inUse] marks the active row. */
 @Immutable
 data class SpecTableRow(val name: String, val values: List<String>, val inUse: Boolean = false)
 
 /**
- * Rows read as a table, like the tracks of the technical sheet: the ember dot on the row in
- * service, its name, then each value in its column, all in `meta` with tabular figures so the
- * figures line up down the table. [columns] gives the width of each value column but the last,
- * which takes what is left and wraps. Set in an [InfoBlock]; it adds no box of its own.
+ * Rows set as a table in `meta` with tabular figures, the ember dot on the active row; [columns] sets
+ * every value column's width but the last, which takes the rest and wraps.
  */
 @Composable
 fun SpecTable(rows: List<SpecTableRow>, columns: List<Dp>, modifier: Modifier = Modifier, nameWidth: Dp = HlLayout.specLanguage) {

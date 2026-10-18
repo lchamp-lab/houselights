@@ -44,10 +44,9 @@ import app.houselights.ui.util.appContainer
 import kotlinx.coroutines.flow.StateFlow
 
 /**
- * A search across the library, on the black room: on the left, what is typed and the keys that type
- * it, without the system's keyboard; on the right, what it finds, in rows: titles, people, then
- * sagas when there are. It looks for words that start with each word typed, whatever their accents
- * ("amel" finds Amélie). Coming back from a title or a person, focus is on what opened it.
+ * Library search over the black room: the query and an on-screen keyboard (not the system's) on the
+ * left, results in rows on the right: titles, people, then sagas if any. Each typed word matches the
+ * start of a word, ignoring accents ("amel" finds Amélie). Returning from a result refocuses it.
  */
 @Composable
 fun SearchScreen(onOpenItem: (MediaItem) -> Unit, onOpenPerson: (String) -> Unit) {
@@ -58,18 +57,18 @@ fun SearchScreen(onOpenItem: (MediaItem) -> Unit, onOpenPerson: (String) -> Unit
     val memory = rememberFocusMemory()
     RestoreFocus(memory, firstKey)
     Row(Modifier.fillMaxSize().padding(top = HlSpace.safeV)) {
-        // The words as wide as the keys under them.
+        // The query is as wide as the keyboard below it.
         Column(Modifier.padding(start = HlSpace.safeH).width(IntrinsicSize.Max)) {
             SearchQuery(query, stringResource(R.string.search), stringResource(R.string.search_hint), Modifier.fillMaxWidth())
             Spacer(Modifier.height(HlSpace.m))
             LetterGrid(vm::type, vm::space, vm::delete, first = firstKey)
         }
-        // What is found is read here alone: a result coming in draws this column again, never the keys.
+        // Only Results reads the found state, so new results recompose this column, never the keyboard.
         Results(vm.found, memory, onOpenItem, onOpenPerson, Modifier.weight(1f))
     }
 }
 
-/** What a search found, in rows, or that nothing starts with what was typed. */
+/** The results in rows, or a message that nothing matches the query. */
 @Composable
 private fun Results(
     found: StateFlow<Found?>,
@@ -130,7 +129,7 @@ private fun Results(
     } }
 }
 
-/** A result in its row: the same title may be found as a title and, as a saga, in another. */
+/** Focus key of a result within its row: the same title can appear as a title and, as a saga, in another row. */
 private fun FocusMemory.result(row: String, id: String) =
     Modifier.focusKey(FocusKey.within(FocusKey.row(row), FocusKey.item(id)), this)
 

@@ -24,7 +24,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 
-/** The overview a title's head cuts opens whole beside the page; one it shows whole is words alone. */
+/** An overview cut in a title's head opens whole beside the page; one shown whole is plain text, not a button. */
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = TV)
 // Text measured as drawn: only then are lines cut.

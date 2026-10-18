@@ -7,14 +7,8 @@ import android.view.KeyEvent
 import androidx.compose.runtime.mutableStateOf
 
 /**
- * Whether the remote is running focus across a row or a wall, an arrow held: film running through
- * the gate. Cards it crosses then neither grow nor light; the one it stops on does, once the arrow
- * is let go ([ArtworkSurface][app.houselights.ui.design.components.ArtworkSurface]). Fewer pictures
- * read and no light computed for cards only crossed.
- *
- * An arrow repeated by the remote ([KeyEvent.getRepeatCount]) runs; so do arrows pressed again
- * within [AGAIN_MS], as infrared remotes repeat by pressing again. It stops [SETTLE_MS] after the
- * last arrow is let go, so such a remote does not light a card between two of its presses.
+ * Whether an arrow held (or re-pressed within [AGAIN_MS], as infrared remotes repeat) runs focus across a
+ * row: crossed cards neither grow nor light, sparing work. A run ends [SETTLE_MS] after the last arrow.
  */
 class ScrubTracker(
     private val now: () -> Long = SystemClock::uptimeMillis,
@@ -24,10 +18,10 @@ class ScrubTracker(
     private var lastArrow = Long.MIN_VALUE / 2
     private var stop: (() -> Unit)? = null
 
-    /** Focus is running: read while composing or drawing, it changes when a run starts and ends. */
+    /** True while focus is running; it changes only when a run starts or ends. */
     val active: Boolean get() = running.value
 
-    /** Takes a key the activity is given; never consumes it. */
+    /** Takes a key the activity receives; never consumes it. */
     fun onKey(event: KeyEvent) = onKey(event.action, event.keyCode, event.repeatCount)
 
     fun onKey(action: Int, keyCode: Int, repeatCount: Int) {
@@ -54,7 +48,7 @@ class ScrubTracker(
         /** Arrows pressed again within this time run focus as a held arrow does (an infrared remote's repeat). */
         const val AGAIN_MS = 140L
 
-        /** How long after the last arrow is let go a run ends. */
+        /** How long after the last arrow is released a run ends. */
         const val SETTLE_MS = 120L
 
         private val ARROWS = setOf(
@@ -66,7 +60,7 @@ class ScrubTracker(
     }
 }
 
-/** The app's [ScrubTracker], told every key by the activity. */
+/** The app's [ScrubTracker], fed every key by the activity. */
 val Scrub = ScrubTracker { delay, block ->
     val handler = Handler(Looper.getMainLooper())
     val run = Runnable(block)

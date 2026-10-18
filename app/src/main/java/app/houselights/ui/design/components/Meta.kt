@@ -41,11 +41,7 @@ import java.util.Locale
 import app.houselights.ui.util.NBSP
 import androidx.compose.ui.graphics.Color
 
-/**
- * Facts about a title, separated by space rather than punctuation: year, length,
- * age rating (as the badge it really is), score, then genres in a quieter tone. On one line:
- * what does not fit is left out whole, from the end.
- */
+/** A title's facts on one line, space-separated: year, length, rating badge, score, then genres. */
 @Composable
 fun MetaLine(item: MediaItem, modifier: Modifier = Modifier, showGenres: Boolean = true) {
     val c = Hl.colors
@@ -68,13 +64,13 @@ fun MetaLine(item: MediaItem, modifier: Modifier = Modifier, showGenres: Boolean
         else -> item.runtimeMs?.let(::formatDuration)
     }
 
-    // In order of what matters: when the line runs out of room, genres go first, then the score.
+    // In order of importance: when space runs out, genres go first, then the score.
     OneLine(modifier) {
         years?.let { Text(it, style = Hl.type.meta, color = c.content, maxLines = 1, overflow = TextOverflow.Ellipsis) }
         length?.let { Text(it, style = Hl.type.meta, color = c.contentSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis) }
         item.officialRating?.let { Badge(it) }
         item.communityRating?.let { Score(it) }
-        // Genres go one by one, from the last, as the names of the billing block do.
+        // Genres drop one by one from the last, as billing block names do.
         if (showGenres) item.genres.take(3).forEachIndexed { i, genre ->
             Text(
                 if (i == 0) genre else ", $genre",
@@ -88,10 +84,7 @@ fun MetaLine(item: MediaItem, modifier: Modifier = Modifier, showGenres: Boolean
     }
 }
 
-/**
- * A score out of ten, as a fact among the others: the line star, then the figure, both quiet. A
- * score is not a state: it never lights.
- */
+/** A score out of ten, star then figure, quiet: a score is not a state, so it never lights. */
 @Composable
 fun Score(score: Double, modifier: Modifier = Modifier) {
     val c = Hl.colors
@@ -102,11 +95,7 @@ fun Score(score: Double, modifier: Modifier = Modifier) {
     }
 }
 
-/**
- * A mark set in a hairline frame, as a case prints a certificate: an age rating, a key of the
- * remote ("OK"), an identifier, a protocol. Never a state (a choice says so with its light,
- * [HlStatus], or its check), and never a format: formats are words ([FormatLines]).
- */
+/** Text in a hairline frame (age rating, remote key, protocol); never a state or a format. */
 @Composable
 fun Badge(text: String, modifier: Modifier = Modifier) {
     val c = Hl.colors
@@ -120,19 +109,14 @@ fun Badge(text: String, modifier: Modifier = Modifier) {
     )
 }
 
-/** One format, as a word in the technical voice, quiet: no frame. */
 @Composable
 private fun FormatWord(text: String, ink: Color?) {
     Text(text, style = Hl.type.badge, color = ink ?: Hl.colors.contentSecondary, maxLines = 1, softWrap = false)
 }
 
 /**
- * A title's formats, on its page and on each copy of a film ([VersionsSheet]) only (a wall, home's
- * hero say what a title is, not how it is made): words in the technical voice, a fact's space
- * apart, without frames, as the back of a case lists them. The picture on one line (definition,
- * range, codec, frame rate), the sound on the next (its best track by the name on the case, its
- * channels, its bitrate), nothing said twice ([Formats]). From what the file holds; from the badges
- * stored for the title when it was not read. On a row with focus, in its [ink].
+ * A title's formats as unframed words ([Formats]): picture on one line, sound on the next; from the file's
+ * media info, else the stored badges. Only on its page and in [VersionsSheet]; [ink] on a focused row.
  */
 @Composable
 fun FormatLines(item: MediaItem, modifier: Modifier = Modifier, ink: Color? = null) {
@@ -155,7 +139,7 @@ fun FormatLines(item: MediaItem, modifier: Modifier = Modifier, ink: Color? = nu
     }
 }
 
-/** A frame rate as the screen reads it: "23,976 i/s", "25 i/s". */
+/** A frame rate as displayed: "23,976 i/s", "25 i/s". */
 @Composable
 fun frameRateLabel(fps: Float): String {
     val number = NumberFormat.getNumberInstance(Locale.getDefault()).apply { maximumFractionDigits = FRAME_RATE_DIGITS }
@@ -164,16 +148,12 @@ fun frameRateLabel(fps: Float): String {
 
 private const val FRAME_RATE_DIGITS = 3
 
-/** An audio track's bitrate as the screen reads it: "768 kb/s", "4 054 kb/s". */
+/** An audio track's bitrate as displayed: "768 kb/s", "4 054 kb/s". */
 @Composable
 fun audioBitrateLabel(kbps: Int): String =
     stringResource(R.string.audio_bitrate, NumberFormat.getIntegerInstance(Locale.getDefault()).format(kbps))
 
-/**
- * The line naming a title over a wall: its name and its facts, on one line of fixed height; its
- * formats are its page's. When room runs short, the name gives way, with an ellipsis. The facts
- * stay, dropping their own from the end only past that.
- */
+/** A title's name and facts over a wall, on one line; the name is ellipsised before facts drop. */
 @Composable
 fun TitleLine(item: MediaItem, modifier: Modifier = Modifier) {
     Layout(
@@ -199,10 +179,8 @@ fun TitleLine(item: MediaItem, modifier: Modifier = Modifier) {
 }
 
 /**
- * Children on one line, [spacing] apart, kept from the first for as long as they fit whole: those
- * past the room are left out, never cut mid-word. A child with the layout id [Continued] carries on
- * the one before it (", Drame"), with no space between. When not even the first fits, it takes
- * the line and ends in an ellipsis ([squeezeFirst]), else the line stays empty.
+ * Children on one line, [spacing] apart, kept while they fit whole; a [Continued] child follows the previous
+ * with no gap. If even the first does not fit, it is ellipsised when [squeezeFirst], else nothing shows.
  */
 @Composable
 internal fun OneLine(
@@ -214,7 +192,7 @@ internal fun OneLine(
     Layout(content, modifier) { measurables, constraints ->
         val space = spacing.roundToPx()
         val loose = constraints.copy(minWidth = 0, minHeight = 0)
-        // The space before each child: none before the first, nor before one that carries on.
+        // The gap before each child: none before the first or a continuation.
         val gaps = measurables.mapIndexed { i, child -> if (i == 0 || child.layoutId == Continued) 0 else space }
         val count = fitCount(measurables.map { it.maxIntrinsicWidth(loose.maxHeight) }, gaps, loose.maxWidth)
         var used = 0
@@ -238,7 +216,7 @@ internal fun OneLine(
     }
 }
 
-/** The layout id of a child of a [OneLine] that carries on the one before it. */
+/** Layout id of a [OneLine] child that continues the previous one. */
 internal object Continued
 
 /** How many of [widths], from the first, fit whole in [room], each after its gap in [gaps]. */
@@ -251,10 +229,7 @@ internal fun fitCount(widths: List<Int>, gaps: List<Int>, room: Int): Int {
     return widths.size
 }
 
-/**
- * A row's heading set as a poster bills a name: "les films de" in its small receding words, then
- * [name] in tall condensed capitals ("les films de DENIS VILLENEUVE"). Read as one line.
- */
+/** A row heading billed as on a poster ("les films de DENIS VILLENEUVE"), read as one line. */
 @Composable
 fun FilmsOfHeading(name: String, modifier: Modifier = Modifier) {
     val c = Hl.colors
@@ -267,11 +242,7 @@ fun FilmsOfHeading(name: String, modifier: Modifier = Modifier) {
     Text(text, style = t.billing, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = modifier)
 }
 
-/**
- * The credits at the foot of a poster, read as a sentence: "a film by NAME with NAME, NAME and
- * NAME". Names in tall condensed capitals; the small words and commas recede. Always one line:
- * it keeps as many leading names as fit. The one place where Houselights sets words in capitals.
- */
+/** The billing block ("a film by NAME with NAME and NAME") on one line, keeping as many names as fit. */
 @Composable
 fun BillingBlock(directors: List<String>, cast: List<String>, modifier: Modifier = Modifier) {
     if (directors.isEmpty() && cast.isEmpty()) return

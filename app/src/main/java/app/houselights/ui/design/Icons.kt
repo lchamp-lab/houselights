@@ -10,11 +10,7 @@ import androidx.compose.ui.graphics.vector.PathBuilder
 import androidx.compose.ui.graphics.vector.path
 import androidx.compose.ui.unit.dp
 
-/**
- * The icons of Houselights, all drawn for the app on one line: a 24 dp grid, a 1.75 stroke, round
- * caps and joins. Tinted by the caller like any icon. Play is the one glyph taken from Material,
- * filled, as on a remote; a state that must read as on ([HeartFilled]) is the same drawing filled.
- */
+/** App icons on a 24 dp grid, 1.75 stroke, round caps and joins, tinted by the caller; only Play is Material's. */
 object HlIcons {
     private fun icon(name: String, filled: Boolean = false, block: PathBuilder.() -> Unit): ImageVector =
         ImageVector.Builder(name, 24.dp, 24.dp, 24f, 24f).apply {
@@ -62,19 +58,17 @@ object HlIcons {
         moveTo(8f, 3.5f); lineTo(20.5f, 3.5f); lineTo(20.5f, 16f)
     }
 
-    /** Sorting: lines of decreasing length. */
     val Sort = icon("Sort") {
         moveTo(4f, 7f); lineTo(20f, 7f)
         moveTo(4f, 12f); lineTo(15f, 12f)
         moveTo(4f, 17f); lineTo(10f, 17f)
     }
 
-    /** Filtering: a funnel. */
     val Filter = icon("Filter") {
         moveTo(4f, 5f); lineTo(20f, 5f); lineTo(14f, 12.5f); lineTo(14f, 18.5f); lineTo(10f, 20f); lineTo(10f, 12.5f); close()
     }
 
-    /** Information, and About: a circled i. */
+    /** Information, and About. */
     val Info = icon("Info") {
         moveTo(20.5f, 12f)
         arcTo(8.5f, 8.5f, 0f, true, true, 3.5f, 12f)
@@ -92,7 +86,6 @@ object HlIcons {
         moveTo(9f, 16f); lineTo(15.5f, 16f)
     }
 
-    /** Storage: a stack of disks. */
     val Storage = icon("Storage") {
         moveTo(4.5f, 6.5f); quadTo(4.5f, 4f, 12f, 4f); quadTo(19.5f, 4f, 19.5f, 6.5f); quadTo(19.5f, 9f, 12f, 9f); quadTo(4.5f, 9f, 4.5f, 6.5f); close()
         moveTo(4.5f, 6.5f); lineTo(4.5f, 17.5f); quadTo(4.5f, 20f, 12f, 20f); quadTo(19.5f, 20f, 19.5f, 17.5f); lineTo(19.5f, 6.5f)
@@ -107,7 +100,6 @@ object HlIcons {
         moveTo(4.5f, 15f); lineTo(19f, 15f)
     }
 
-    /** Edit: a pencil. */
     val Edit = icon("Edit") {
         moveTo(4.5f, 19.5f); lineTo(5.25f, 15.75f); lineTo(15.5f, 5.5f); quadTo(16.5f, 4.5f, 17.5f, 5.5f)
         lineTo(18.5f, 6.5f); quadTo(19.5f, 7.5f, 18.5f, 8.5f); lineTo(8.25f, 18.75f); close()
@@ -121,7 +113,6 @@ object HlIcons {
         moveTo(9f, 19f); lineTo(15f, 19f)
     }
 
-    /** Search: a magnifying glass. */
     val Search = icon("Search") {
         moveTo(17f, 10.5f)
         arcTo(6.5f, 6.5f, 0f, true, true, 4f, 10.5f)
@@ -135,10 +126,7 @@ object HlIcons {
         moveTo(5f, 12.5f); lineTo(9.75f, 17f); lineTo(19f, 7.5f)
     }
 
-    /**
-     * Done, as a toggle shows it: [Check] cut out of a filled disc, so it reads as on by its
-     * shape, whatever its ink.
-     */
+    /** Done in a toggle: [Check] cut out of a filled disc, so it reads as on whatever the tint. */
     val CheckFilled = ImageVector.Builder("CheckFilled", 24.dp, 24.dp, 24f, 24f).apply {
         path(fill = SolidColor(Color.Black), pathFillType = PathFillType.EvenOdd) {
             moveTo(21.5f, 12f)
@@ -181,7 +169,6 @@ object HlIcons {
         moveTo(8.5f, 12f); lineTo(4.5f, 16f); lineTo(8.5f, 20f)
     }
 
-    /** Settings: a gear of six teeth, round the hole of its axle. */
     val Settings = icon("Settings") {
         moveTo(10.28f, 5.99f); lineTo(10.59f, 3.11f); lineTo(13.41f, 3.11f); lineTo(13.72f, 5.99f)
         arcTo(6.25f, 6.25f, 0f, false, true, 16.34f, 7.5f)
@@ -202,7 +189,6 @@ object HlIcons {
         close()
     }
 
-    /** Add: a plus. */
     val Add = icon("Add") {
         moveTo(12f, 5f); lineTo(12f, 19f)
         moveTo(5f, 12f); lineTo(19f, 12f)
@@ -226,7 +212,6 @@ object HlIcons {
         moveTo(17.5f, 6.5f); lineTo(6.5f, 17.5f)
     }
 
-    /** The outline of a heart, filled or not. */
     private val heart: PathBuilder.() -> Unit = {
         moveTo(12f, 19.75f)
         curveTo(7.5f, 16.5f, 3.5f, 13.25f, 3.5f, 9f)
@@ -238,7 +223,7 @@ object HlIcons {
         close()
     }
 
-    /** Not a favourite (yet): a heart. */
+    /** Not a favourite: an outlined heart. */
     val Heart = icon("Heart", block = heart)
 
     /** A favourite: the same heart, filled. */

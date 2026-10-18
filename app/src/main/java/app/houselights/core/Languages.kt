@@ -2,19 +2,12 @@ package app.houselights.core
 
 import java.util.Locale
 
-/**
- * Language codes as files, NFO files and servers write them: two letters ("fr"), three by the
- * terminology ("fra") or by the bibliographic form ("fre"), with a region or not ("fr-CA"). One table
- * and one rule, for the sheet that tells tracks apart and the screen that names them.
- */
+/** Language codes as files, NFOs and servers write them (ISO 639-1, 639-2/T or /B, with a region or not). */
 object Languages {
-    /**
-     * A language as one code whatever wrote it: "fre", "fra", "fr" and "fr-CA" are all "fr"; a code
-     * with no two-letter form stays as it is, in lower case ("und"). Null when none is given.
-     */
+    /** "fre", "fra", "fr" and "fr-CA" all become "fr"; a code with no two-letter form stays, in lower case ("und"). */
     fun code(code: String?): String? {
         val primary = code?.substringBefore('-')?.substringBefore('_')?.lowercase()?.takeIf { it.isNotBlank() } ?: return null
-        // Locale names two-letter codes only: "ger" and "deu" both go by "de".
+        // Locale knows two-letter and terminology codes only: "ger" and "deu" both map to "de".
         return BIBLIOGRAPHIC[primary] ?: TWO_LETTERS[primary] ?: primary
     }
 

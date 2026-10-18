@@ -11,11 +11,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/**
- * The type scale keeps its promises: three voices, three weights, real weights only, one scale,
- * tracking that follows size, boxes kept to their letters, titles and paragraphs broken for reading, monospace
- * only for code.
- */
+/** The type scale: three voices and weights, one scale, tracking by size, trimmed boxes, monospace for code. */
 class TypeScaleTest {
     private val roles: Map<String, TextStyle> = with(HouselightsType) {
         mapOf(
@@ -26,7 +22,7 @@ class TypeScaleTest {
         )
     }
 
-    /** Set to their own measure: their size, weight and tracking are theirs. */
+    /** Signatures set to their own measure: their size, weight and tracking are their own. */
     private val signatures: Map<String, TextStyle> = with(HouselightsType) {
         mapOf("titleSignature" to titleSignature, "billing" to billing, "billingJoin" to billingJoin)
     }
@@ -106,7 +102,7 @@ class TypeScaleTest {
 
     @Test
     fun capitalsKeepNoTabularFigures() {
-        // Archivo's `case` runs after `tnum` and sets proportional figures again: asking for both lies.
+        // Archivo's `case` runs after `tnum` and sets proportional figures again: asking for both fails.
         styles.forEach { (name, style) ->
             val features = style.fontFeatureSettings.orEmpty()
             assertFalse(name, "case" in features && "tnum" in features)

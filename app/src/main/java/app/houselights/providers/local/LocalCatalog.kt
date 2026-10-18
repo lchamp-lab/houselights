@@ -24,22 +24,16 @@ import app.houselights.providers.local.TmdbClient.Companion.ImageType
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-/**
- * What the local library tells beyond its titles ([Catalog]): its credits, people, sagas whole, copies of a
- * film, numbers and search, read from what scans wrote ([CreditEntity], [SagaPartEntity], [SearchWordEntity],
- * [ItemEntity.versionOf]). Each read is a few queries whatever the library's size, and its rows are made into
- * titles off the main thread.
- */
+/** [Catalog] read from scan output: a few queries per call whatever the library size, mapped off the main thread. */
 internal class LocalCatalog(
     private val context: Context,
     private val dao: LibraryDao,
     private val provider: LocalProvider,
-    /** Films of a collection the library needs to show it; 0 hides collections. */
+    /** Minimum owned films for a collection to be shown; 0 hides collections. */
     private val collectionMinFilms: () -> Int,
 ) : Catalog {
     private fun itemKey(item: MediaItem): Long? = (LocalId.parse(item.id) as? LocalId.Item)?.key
 
-    /** [item]'s row as cards read it ([CARD_ROW]). */
     private suspend fun row(item: MediaItem): ItemEntity? = itemKey(item)?.let { dao.rows(listOf(it)).singleOrNull() }
 
     override suspend fun credits(item: MediaItem): Credits {
@@ -92,11 +86,7 @@ internal class LocalCatalog(
         return LocalMapper(dao, context).mapAll(dao.bestRated(rows, minVotes, limit))
     }
 
-    /**
-     * The saga whole: the films TMDB lists of it, held or not, in the order they came out, and those the library
-     * holds in it that TMDB does not list (an NFO's set), at their year. A saga TMDB was not asked for (an NFO's
-     * own, or not yet) is the films the library holds.
-     */
+    /** TMDB's parts in release order, plus owned films TMDB does not list (an NFO set), inserted by year. */
     override suspend fun saga(collection: MediaItem): Saga? {
         val key = (LocalId.parse(collection.id) as? LocalId.Collection)?.key ?: return null
         val entity = dao.collection(key) ?: return null
@@ -127,7 +117,6 @@ internal class LocalCatalog(
         }
     }
 
-    /** [unlisted] films among [listed] ones, each after the last whose year is not later than its own. */
     private fun merged(listed: List<SagaPart>, unlisted: List<SagaPart>): List<SagaPart> {
         val all = listed.toMutableList()
         for (film in unlisted) {
@@ -167,7 +156,7 @@ internal class LocalCatalog(
         dao.setVersionChoice(row.versionOf ?: row.id, version?.key?.toLongOrNull())
     }
 
-    /** This copy itself, whichever the film's title would play. */
+    /** Plays this exact copy, regardless of the film's chosen version. */
     override suspend fun playback(version: Version, resume: Boolean, options: PlaybackOptions): PlaybackPlan =
         provider.play(version.key.toLong(), part = null, resume)
 
@@ -179,16 +168,14 @@ internal class LocalCatalog(
     }
 
     /**
-     * Each word typed starts a word of a title's names (its title, its original title), a person's or a saga's:
-     * one query a kind, each word's range read through the words' primary key, the kinds' words intersected. Then
-     * the best first: what starts with all that was typed, the best rated titles, the people in the most titles,
-     * the sagas of the most films.
+     * Prefix search where every typed word must start a name word; one query per kind, intersecting primary-key
+     * ranges. Names starting with the query rank first, then rating, title count or film count.
      */
     override suspend fun search(query: String, limit: Int): SearchResults {
         val terms = SearchWords.query(query).take(MAX_TERMS).ifEmpty { return SearchResults() }
         val typed = terms.joinToString(" ")
         val titleIds = refs(SearchKind.TITLE, terms).mapNotNull { it.toLongOrNull() }
-        // Those whose title starts with what is typed are found whatever the cap: a word as common as "le" fills it.
+        // Titles starting with the query are fetched separately, as a common word like "le" fills the cap.
         val prefix = MetadataMerge.sortKey(query)
         val starting = if (prefix.isEmpty()) emptyList() else dao.titlesStarting(prefix, SearchWords.upperBound(prefix), limit)
         val titles = (starting + titleIds.chunked(SQL_IN_LIMIT).flatMap { dao.rows(it) }).distinctBy { it.id }
@@ -202,7 +189,6 @@ internal class LocalCatalog(
         return withContext(Dispatchers.Default) { SearchResults(mapped, people.map(::person), sagas) }
     }
 
-    /** The refs of [kind] each of whose [terms] starts one of its words, [MAX_HITS] at most. */
     private suspend fun refs(kind: SearchKind, terms: List<String>): List<String> {
         val one = "SELECT DISTINCT ref FROM search_words WHERE kind = ? AND word >= ? AND word < ?"
         val sql = terms.joinToString(" INTERSECT ") { one } + " LIMIT $MAX_HITS"
@@ -210,7 +196,6 @@ internal class LocalCatalog(
         return dao.searchRefs(SimpleSQLiteQuery(sql, args.toTypedArray())).map { it.ref }
     }
 
-    /** The sagas [ids] the library shows (enough of their films held), best first. */
     private suspend fun sagas(ids: List<Long>, typed: String, limit: Int): List<MediaItem> {
         val min = collectionMinFilms().takeIf { it > 0 } ?: return emptyList()
         val collections = ids.chunked(SQL_IN_LIMIT).flatMap { dao.collections(it) }
@@ -221,10 +206,8 @@ internal class LocalCatalog(
         return provider.collectionItems(shown)
     }
 
-    /** How a title ranks for what was [typed]: by the better of its names. */
     private fun rank(title: ItemEntity, typed: String): Int = minOf(rank(title.title, typed), rank(title.originalTitle, typed))
 
-    /** How a name ranks for what was [typed]: the same words first, then those starting so, then any. */
     private fun rank(name: String?, typed: String): Int {
         val words = SearchWords.query(name ?: return NO_MATCH).joinToString(" ")
         return when {
@@ -242,16 +225,14 @@ internal class LocalCatalog(
     private fun portrait(path: String?) = path?.let { LocalProvider.image(it, ImageType.PROFILE) }
 
     private companion object {
-        /** Words of a search read at most: more narrow nothing a title holds. */
+        /** Maximum query words used; more would not narrow results further. */
         const val MAX_TERMS = 6
 
-        /** Refs a kind's words give at most, ranked after: a letter alone finds most of a library. */
+        /** Cap on refs per kind before ranking, as a single letter matches most of a library. */
         const val MAX_HITS = 400
 
-        /** The rank of a name that does not start with what was typed. */
         const val NO_MATCH = 2
 
-        /** Directors the library in numbers names at most. */
         const val NUMBERS_DIRECTORS = 12
     }
 }

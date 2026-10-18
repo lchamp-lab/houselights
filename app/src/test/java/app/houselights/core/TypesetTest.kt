@@ -28,7 +28,7 @@ class TypesetTest {
 
     @Test
     fun singleQuotesAreNeverPaired() {
-        // They elide as often as they quote: none of these is a quotation.
+        // Apostrophes of elision, not quotation marks.
         listOf("Rock 'n' Roll", "'til Death", "The Smiths' Last Song", "Isabella 'Bella' Hawthorne", "'90s", "5'10\"").forEach {
             assertEquals(it, Typeset.text(it, french = true))
         }

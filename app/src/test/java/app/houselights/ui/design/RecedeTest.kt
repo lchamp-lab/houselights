@@ -3,10 +3,7 @@ package app.houselights.ui.design
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
-/**
- * A card stepping back loses its colour in a few steps, so its image recomposes a few times over
- * the animation instead of once per frame, from all its colour to [HlFocus.SIBLING_SATURATION].
- */
+/** A receding card desaturates in a few steps, so its image recomposes a few times, not once per frame. */
 class RecedeTest {
 
     @Test

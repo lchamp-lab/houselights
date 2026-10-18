@@ -1,49 +1,32 @@
 package app.houselights.providers.local
 
 /**
- * What a scan does with the rows of files a folder no longer lists. A row holds what the user did
- * with the title, so it goes only when nothing else fits:
- * - a file renamed or moved (a Radarr or Sonarr upgrade, a folder renamed) takes its row along;
- * - a file missing waits an hour, and a pass at least: Radarr and Sonarr import in two steps, the old
- *   file gone before the new one is in place, and the new one may come under a name of its own;
- * - a NAS can list a folder short without failing (a disk of a pool offline, a share served before
- *   its disk is mounted): while many files are missing, their rows wait a day, in case they come back.
+ * Rows of files no longer listed hold user state, so they are deleted only as a last resort:
+ * - a renamed or moved file (Radarr or Sonarr upgrade, renamed folder) keeps its row;
+ * - a missing file waits an hour and a pass, as Radarr and Sonarr remove the old file before importing the new one;
+ * - a NAS can list short without failing (pool disk offline, disk not mounted yet): many missing wait a day.
  */
 internal object MissingFiles {
-    /**
-     * Up to this many files missing wait an hour. More wait a day, however large the folder: a disk
-     * of a pool of many holds a small share of it.
-     */
+    /** More missing files than this wait a day, whatever the source size, as one pool disk holds a small share. */
     private const val FEW = 20
 
-    /** How long rows of missing files are held before a scan removes them. */
     const val BRIEF_HOLD_MS = 60 * 60_000L
 
-    /** How long they are held while more than [FEW] files are missing. */
     const val HOLD_MS = 24 * 60 * 60_000L
 
-    /** What becomes of a folder's rows after its listing, by id. */
+    /** Decisions by row id. */
     data class Outcome(
-        /** Rows of renamed files, with the file each now stands for. */
+        /** Rows of renamed files, with their new file. */
         val relinked: List<Pair<Long, RemoteFile>>,
-        /** Files listed again after they went missing: their rows are no longer held. */
         val back: List<Long>,
-        /** Files missed for the first time: their rows are held from now. */
         val held: List<Long>,
-        /** Files missing for [BRIEF_HOLD_MS], or for [HOLD_MS] while many are; files now a later part of a film. */
+        /** Rows missing for [BRIEF_HOLD_MS] (or [HOLD_MS] while many are), and files now a later part of a film. */
         val removed: List<Long>,
-        /**
-         * Films in several files whose parts changed (one renamed, added or gone), with their parts now:
-         * the same title, its row kept with what the user did with it.
-         */
+        /** Multi-file films whose parts changed, with their current parts. */
         val parts: List<Pair<Long, List<String>>> = emptyList(),
     )
 
-    /**
-     * As the other [settle], for a folder's [listing], its films in several files found in [stacks]:
-     * what the library holds under a subfolder it could not read (lost+found, a folder of another user),
-     * or a file it could not ask about, is out of sight, not missing.
-     */
+    /** Rows under unreadable subfolders (lost+found, another user's) are out of sight, not missing. */
     fun settle(
         kind: SourceKind,
         known: Collection<KnownFile>,
@@ -57,10 +40,8 @@ internal object MissingFiles {
     }
 
     /**
-     * The later parts of the films [known] holds whose first part is none of the folder's [titles] (missing a
-     * while, or out of sight) and whose rows stay ([removed] are gone): the rows wait for their first part, and
-     * those parts make no title meanwhile, which TMDB would be asked for ("Heat CD2") and might match with
-     * another film, whose row would then be kept apart from the film's once its first part is back ([split]).
+     * Later parts of kept films whose first part is missing: they must not become titles meanwhile, as "Heat CD2"
+     * might match another film on TMDB and stay separate once the first part is back ([split]).
      */
     fun waitingParts(known: Collection<KnownFile>, titles: List<RemoteFile>, removed: List<Long>): Set<String> {
         val present = titles.mapTo(HashSet()) { it.relativePath }
@@ -68,14 +49,11 @@ internal object MissingFiles {
         return known.filter { it.parts.isNotEmpty() && it.filePath !in present && it.id !in gone }.flatMapTo(HashSet()) { it.parts }
     }
 
-    /** This path is [path] itself, or lies under the folder it names. */
     private fun String.isIn(path: String) = this == path || startsWith("$path/")
 
     /**
-     * A film in several files is one title, under its first part ([Stacks.titles]): a part gone or added
-     * is a change of its parts. A file that has become a later part of a film is not missing either: its
-     * row stands for the film when the film has none, else gives way to the film's at once. Unless the
-     * rows of the film's files were matched with two titles ([split]): each keeps its file, and its own.
+     * A file that became a later part ([Stacks.titles]) is not missing: its row stands in for the film when the film
+     * has none, else is deleted at once, unless the stack is [split].
      */
     fun settle(kind: SourceKind, known: Collection<KnownFile>, stacks: Stacks, now: Long): Outcome {
         val files = stacks.titles
@@ -84,7 +62,7 @@ internal object MissingFiles {
         val (absorbed, rest) = known.partition { row ->
             row.filePath !in present && stacks.firstOf(row.filePath).let { it != null && it !in split }
         }
-        // A later part of a film that is two is a title still: its row is listed.
+        // A later part of a split stack is still a title, so its row counts as listed.
         val (listed, missing) = rest.partition { it.filePath in present || stacks.firstOf(it.filePath) in split }
         val knownPaths = known.mapTo(HashSet()) { it.filePath }
         val standIns = standIns(absorbed, knownPaths, stacks)
@@ -108,21 +86,13 @@ internal object MissingFiles {
         )
     }
 
-    /**
-     * The films in several files (by their first part) whose files' rows were matched with two titles, by
-     * TMDB or by the user: two films, not one, which Kodi's names may join ("X CD1" and "X CD2" for a film and
-     * its sequel). None of their rows gives way to another, and none takes the others' files
-     * as its parts; the scan reads each as a title of its own ([Stacks.of]).
-     */
+    /** First parts of stacks whose rows match different titles ("X CD1" and "X CD2" as a film and its sequel). */
     fun split(known: Collection<KnownFile>, stacks: Stacks): Set<String> =
         known.groupBy { row -> stacks.firstOf(row.filePath) ?: row.filePath.takeIf { stacks.stackAt(it) != null } }
             .filter { (first, rows) -> first != null && rows.mapNotNullTo(HashSet()) { it.userTmdbId ?: it.tmdbId }.size > 1 }
             .keys.filterNotNullTo(HashSet())
 
-    /**
-     * Rows of files that have become later parts of a film the library has no row for, each paired with
-     * the film's first part: the earliest part's row stands for the film.
-     */
+    /** For films without a row, pairs their earliest part's row with the first part, to stand in for the film. */
     private fun standIns(absorbed: List<KnownFile>, knownPaths: Set<String>, stacks: Stacks): List<Pair<KnownFile, RemoteFile>> =
         absorbed.groupBy { stacks.firstOf(it.filePath) }.mapNotNull { (first, rows) ->
             val stack = stacks.stackAt(first)?.takeIf { first !in knownPaths } ?: return@mapNotNull null
@@ -130,12 +100,9 @@ internal object MissingFiles {
         }
 
     /**
-     * Missing rows paired with the new files that replace them, only where one row and one file
-     * share a key, tried in turn. Films: the one video of a folder named like a film, whatever its new
-     * name; the same title and year in the same folder; the same title and a year anywhere in the
-     * folder (a film's folder renamed, films sorted into folders). Episodes: the same show, season and
-     * episode. A film in several files goes first by the part after its first (its first renamed alone),
-     * and by its name without the part.
+     * Pairs missing rows with replacement files where exactly one of each shares a key, trying keys in turn. Films:
+     * second part, sole video of a film-named folder, title and year in the folder, then anywhere. Episodes: show,
+     * season and episode.
      */
     private fun relinks(
         kind: SourceKind,
@@ -147,7 +114,7 @@ internal object MissingFiles {
         val keys: List<(String) -> Any?> = when (kind) {
             SourceKind.MOVIES -> {
                 val videos = files.groupingBy { Sidecars.folderOf(it.relativePath) }.eachCount()
-                // A missing row's path is no title's: one lookup serves rows and files alike.
+                // Missing paths are not titles, so one lookup serves rows and files alike.
                 val stacked = missing.filter { it.parts.isNotEmpty() }.associate { it.filePath to it.parts }
                 fun parts(path: String) = stacked[path] ?: stacks.partsOf(path)
                 fun named(path: String) = Stacks.filmPath(path, parts(path).isNotEmpty())
@@ -161,8 +128,7 @@ internal object MissingFiles {
             SourceKind.SHOWS -> listOf(::episodeKey)
         }
         var rows = missing
-        // A missing film's own part, its first gone a while (a disk of a pool offline), is not the film
-        // renamed: the row waits for its first part, as any missing film for its file.
+        // A missing film's own later part is not a rename: the row waits for its first part.
         val ownParts = missing.flatMapTo(HashSet()) { it.parts }
         var candidates = added.filter { it.relativePath !in ownParts }
         return keys.flatMap { key ->
@@ -184,24 +150,18 @@ internal object MissingFiles {
         }
     }
 
-    /**
-     * The folder of a film's file, when it is named like a film ("Dune (2021)"), as Radarr and Kodi
-     * name them: a folder like "To watch" may hold one film today and another tomorrow.
-     */
+    /** The file's folder only when named like a film ("Dune (2021)"); "To watch" may hold another film tomorrow. */
     private fun filmFolder(path: String): String? =
         Sidecars.folderOf(path).takeIf { FilenameParser.parseMovie(it.substringAfterLast('/')).year != null }
 
-    /** Folder, title and year. */
     private fun filmKey(path: String): Pair<String, ParsedMovie> = Sidecars.folderOf(path) to film(path)
 
-    /** Title and year, wherever the file is; only with a year, as titles alone are often shared. */
+    /** Key: title and year in any folder; requires a year, as titles alone are often shared. */
     private fun titleKey(path: String): ParsedMovie? = film(path).takeIf { it.year != null }
 
-    /** Title and year as the indexer reads them, the title without case or punctuation. */
     private fun film(path: String): ParsedMovie =
         LibraryScanner.parseMovie(path).let { it.copy(title = FilenameParser.showKey(it.title)) }
 
-    /** Show, season and episode, as the indexer reads them: the show's folder names it when it has one. */
     private fun episodeKey(path: String): Triple<String, Int, Int>? {
         val episode = FilenameParser.parseEpisode(path.substringAfterLast('/'), path.split('/').dropLast(1)) ?: return null
         val show = episode.showTitle ?: return null

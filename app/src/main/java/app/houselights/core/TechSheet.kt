@@ -1,22 +1,17 @@
 package app.houselights.core
 
 /**
- * A file's technical sheet, as a screen sets it: sections of rows, in order, and nothing it does not
- * know. Words a case prints come as they are ([TechValue.Word]); measures keep their kind, for the
- * screen to write them in its language (sizes, rates, durations, ratios).
+ * A file's technical sheet: ordered sections, unknown facts left out. Case words come verbatim ([TechValue.Word]);
+ * measures keep their type so the screen formats them in its language.
  */
 data class TechSheet(val sections: List<TechSection>) {
     companion object {
-        /** The sheet of [media]: its picture, its sound, its subtitles, its file ([fileName] when known). */
+        /** The sheet of [media]: picture, sound, subtitles and file ([fileName] when known). */
         fun of(media: MediaInfo, fileName: String? = null): TechSheet = TechSheet(
             listOfNotNull(picture(media.video), sound(media.audio), subtitles(media.subtitles), file(media, fileName)),
         )
 
-        /**
-         * The picture, when something is known of it: its definition and frame size, ratio, ranges
-         * (a Dolby Vision profile and the base it plays as elsewhere under them), codec and bit
-         * depth, frame rate, bitrate. A row whose fact is unknown is left out.
-         */
+        /** The picture rows that are known; the Dolby Vision profile and base layer go under the ranges. */
         private fun picture(video: VideoInfo?): TechSection? {
             val v = video?.takeIf { it.codec != Codecs.UNKNOWN || it.width != null } ?: return null
             val size = if (v.width != null && v.height != null) TechValue.Dimensions(v.width, v.height) else null
@@ -36,12 +31,12 @@ data class TechSheet(val sections: List<TechSection>) {
             return TechSection(TechTopic.PICTURE, rows)
         }
 
-        /** Under Dolby Vision: its profile ("8.1"), and what its base layer plays as elsewhere. */
+        /** Detail under Dolby Vision: its profile ("8.1") and its base layer's range. */
         private fun dolbyVision(v: VideoInfo): List<TechValue> {
             if (HdrFormat.DOLBY_VISION !in v.hdr) return emptyList()
             val compatibility = v.dolbyVisionCompatibility
             val profile = v.dolbyVisionProfile?.let { p ->
-                // Profile 8 says its base by its compatibility: 8.1, 8.2, 8.4.
+                // Profile 8 is qualified by its compatibility id: 8.1, 8.2, 8.4.
                 if (p == DV_PROFILE_8 && compatibility in DV_SUBPROFILES) "$p.$compatibility" else "$p"
             }
             val base = when (compatibility) {
@@ -58,11 +53,7 @@ data class TechSheet(val sections: List<TechSection>) {
             return listOfNotNull(profile?.let(TechValue::DolbyVisionProfile), base?.let(TechValue::BaseLayer))
         }
 
-        /**
-         * The audio tracks, the one the player starts with first and in use (the default, else the
-         * first): their format by its name on the case and channels, their bitrate under them, and
-         * their title when it says more than the row.
-         */
+        /** Audio tracks, the one the player starts with (default, else first) first and in use. */
         private fun sound(audio: List<AudioTrack>): TechSection? {
             if (audio.isEmpty()) return null
             val ordered = audio.sortedByDescending { it.default }
@@ -80,7 +71,7 @@ data class TechSheet(val sections: List<TechSection>) {
             return TechSection(TechTopic.SOUND, rows, tracks = audio.size)
         }
 
-        /** The subtitles, the default first and in use (none when there is no default): format, forced, SDH. */
+        /** The subtitles, the default first and marked in use (none when there is no default): format, forced, SDH. */
         private fun subtitles(subtitles: List<SubtitleTrack>): TechSection? {
             if (subtitles.isEmpty()) return null
             val ordered = subtitles.sortedByDescending { it.default }
@@ -112,10 +103,7 @@ data class TechSheet(val sections: List<TechSection>) {
             return rows.takeIf { it.isNotEmpty() }?.let { TechSection(TechTopic.FILE, it) }
         }
 
-        /**
-         * Each track's region, only where another track speaks the same language from elsewhere
-         * (French from France and from Québec); else null, its language says enough.
-         */
+        /** Each track's region, only where one language comes from several regions (France and Québec French). */
         private fun regions(tracks: List<Pair<String?, String?>>): List<String?> {
             val languages = tracks.map { (code, _) -> Languages.code(code) }
             val regions = tracks.map { (code, title) -> TrackNames.region(code, title) }
@@ -131,7 +119,7 @@ data class TechSheet(val sections: List<TechSection>) {
         private const val DV_PROFILE_7 = 7
         private const val DV_PROFILE_8 = 8
 
-        /** What a Dolby Vision base layer plays as (its compatibility id): none, HDR10, SDR, HLG, PQ. */
+        /** Dolby Vision compatibility ids, the base layer's range: none, HDR10, SDR, HLG, PQ. */
         private const val DV_BASE_NONE = 0
         private const val DV_BASE_HDR10 = 1
         private const val DV_BASE_SDR = 2
@@ -141,28 +129,21 @@ data class TechSheet(val sections: List<TechSection>) {
     }
 }
 
-/** What a section of the sheet speaks of. */
 enum class TechTopic { PICTURE, SOUND, SUBTITLES, FILE }
 
-/** A section of the sheet: its [topic], its [rows], and how many tracks it lists ([tracks], for sound and subtitles). */
+/** A sheet section: its [topic], its [rows], and for sound and subtitles the number of [tracks]. */
 data class TechSection(val topic: TechTopic, val rows: List<TechRow>, val tracks: Int? = null)
 
-/** What a fact of the sheet is. */
 enum class TechLabel {
     DEFINITION, ASPECT_RATIO, DYNAMIC_RANGE, CODEC, FRAME_RATE, BITRATE,
     CONTAINER, SIZE, AVERAGE_BITRATE, DURATION, NAME,
 }
 
-/** A row of the sheet. */
 sealed interface TechRow {
     /** A fact: its [label], its [value], and what qualifies it ([detail]). */
     data class Fact(val label: TechLabel, val value: List<TechValue>, val detail: List<TechValue> = emptyList()) : TechRow
 
-    /**
-     * A track: its [language] (as the file writes it) and its [region] when another track speaks it
-     * from elsewhere; [inUse], the one the player starts with; its [value], what qualifies it
-     * ([detail]), and its title when it says more ([note]).
-     */
+    /** A track: [language] as written, [region] when ambiguous, [inUse] for the one the player starts with. */
     data class Track(
         val language: String?,
         val region: String?,
@@ -173,10 +154,10 @@ sealed interface TechRow {
     ) : TechRow
 }
 
-/** What a Dolby Vision base layer plays as on a screen that does not do Dolby Vision. */
+/** The range a Dolby Vision base layer shows on a display without Dolby Vision. */
 enum class BaseRange { HDR10, HLG, SDR }
 
-/** A value of the sheet, for the screen to write. */
+/** A sheet value, formatted by the screen. */
 sealed interface TechValue {
     /** A word a case prints as it is: Ultra HD, HEVC, Dolby Vision, 7.1, PGS, MKV, a file name. */
     data class Word(val text: String) : TechValue

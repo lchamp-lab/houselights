@@ -30,7 +30,7 @@ import java.net.UnknownHostException
 import java.time.Duration
 import java.util.concurrent.TimeUnit
 
-/** What TMDB answers, as the client tells it: on TMDB played by [FakeTmdb], on the clock of the device. */
+/** TMDB's answers as the client reports them, against [FakeTmdb], on the device's clock. */
 @OptIn(ExperimentalCoroutinesApi::class) // currentTime: the waits are counted on the test's clock.
 @RunWith(RobolectricTestRunner::class)
 class TmdbClientTest {
@@ -58,7 +58,7 @@ class TmdbClientTest {
     fun aRequestGivenUpOnLeavesTmdbToTheNextOne() = runTest {
         val client = tmdb.client(pauseWhenUnreachable = true)
         tmdb.hold = true
-        // A search replaced by a newer one, or a screen left, while TMDB answers.
+        // A search superseded by a newer one, or a screen left, while TMDB answers.
         val search = launch(Dispatchers.IO) { client.findMovie("Dune", 2021) }
         assertTrue(tmdb.held.await(5, TimeUnit.SECONDS))
         search.cancel()
@@ -82,7 +82,7 @@ class TmdbClientTest {
         failure<TmdbPausedException> { client.findMovie("Dune", 2021) }
         assertEquals("the next files don't each wait for a timeout", emptyList<String>(), tmdb.requests)
 
-        // On the clock that only moves forward: the wall clock may have been set back meanwhile.
+        // On the monotonic clock: the wall clock may have been set back meanwhile.
         ShadowSystemClock.advanceBy(Duration.ofSeconds(61))
         assertEquals(438631, client.findMovie("Dune", 2021)?.id)
     }
@@ -99,7 +99,7 @@ class TmdbClientTest {
         }
     }
 
-    /** A stream reset or an answer cut short: the network is there, and the next request may well be answered. */
+    /** A stream reset or a truncated answer: the network is there, and the next request may well succeed. */
     @Test
     fun aFailureOfOneAnswerDoesNotPauseAScan() = runTest {
         val client = tmdb.client(pauseWhenUnreachable = true)
@@ -174,7 +174,7 @@ class TmdbClientTest {
         failure<TmdbNotFoundException> { client.movie(1) }
     }
 
-    /** TMDB's search lags behind an entry it removed. */
+    /** TMDB's search still returns an entry it removed. */
     @Test
     fun aHitTmdbNoLongerHasIsNoMatch() = runTest {
         tmdb.show(95396, "Severance", 2022)
@@ -191,7 +191,7 @@ class TmdbClientTest {
         assertFalse(ScanErrors.isUnreachable(e))
     }
 
-    /** Retrofit reads a failure's body after the interceptors: read there, a reset would reach the scan as the NAS's. */
+    /** Retrofit reads a failure's body after the interceptors: a reset there would reach the scan as the NAS's. */
     @Test
     fun aFailureWhoseBodyBreaksOffIsTmdbOutOfReachNotTheNas() = runTest {
         tmdb.status = 500

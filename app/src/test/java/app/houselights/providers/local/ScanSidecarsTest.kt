@@ -14,10 +14,7 @@ import org.robolectric.shadows.ShadowSystemClock
 import java.io.IOException
 import java.time.Duration
 
-/**
- * The files beside a video (NFO, artwork), as a scan sees them from one pass to the next: by role, path,
- * size and date ([SidecarKey]). What was read is not read again; what changed, even in place, is.
- */
+/** Sidecars, keyed by role, path, size and date ([SidecarKey]), are read once and again only when changed. */
 @RunWith(RobolectricTestRunner::class)
 class ScanSidecarsTest {
     @get:Rule
@@ -51,12 +48,7 @@ class ScanSidecarsTest {
         return Triple(nas.reads + bench.showsNas.reads, tmdb.requests.toList(), changes)
     }
 
-    /**
-     * Each of these was read again at every pass, ten minutes apart: an NFO no parser reads (a scene
-     * release's) beside a film already identified, an empty poster the cache does not hold (beside an NFO,
-     * with a TMDB request each time), and an episode alone in its season's folder beside a folder.jpg
-     * (Jellyfin), taken for its poster.
-     */
+    /** Neither an unparsable NFO, an empty poster, nor a Jellyfin folder.jpg is read again at each pass. */
     @Test
     fun sidecarsReadOnceAreNotReadAgain() = runTest {
         nas.put("Bugonia.mkv")
@@ -81,10 +73,7 @@ class ScanSidecarsTest {
         assertEquals("screens left as they are", 0, changes)
     }
 
-    /**
-     * tinyMediaManager rewrites movie.nfo under its name, often to the same size: its date tells. The NFO
-     * is read again, not the video; TMDB is not asked, as the NFO names the same film and the same set.
-     */
+    /** tinyMediaManager rewrites movie.nfo in place, same size, new date: only the NFO is read again, no TMDB. */
     @Test
     fun anNfoRewrittenInPlaceIsReadAgainWithoutTheVideoNorTmdb() = runTest {
         tmdb.movie(361743, "Top Gun: Maverick", 2022, collection = TmdbCollectionRef(531241, "Top Gun - Saga"))
@@ -124,10 +113,7 @@ class ScanSidecarsTest {
         assertEquals(2, bench.item(films, "Disclosure Day.mkv").tmdbId)
     }
 
-    /**
-     * An NFO naming its film by IMDb id alone, beside a film the user matched with another title: only
-     * TMDB's answer tells it describes another film. Read again, it is asked, and its details stay off.
-     */
+    /** An NFO naming a film by IMDb id, beside a film the user matched otherwise: only TMDB tells them apart. */
     @Test
     fun anNfoReadAgainStaysOffAFilmTheUserMatchedWithAnother() = runTest {
         tmdb.movie(1, "Disclosure", 1994, imdbId = "tt0109635")
@@ -149,7 +135,6 @@ class ScanSidecarsTest {
         assertEquals(2, read.tmdbId)
     }
 
-    /** Without TMDB's answer, nothing tells whose film the NFO's IMDb id names: the film the user matched keeps what it had meanwhile. */
     @Test
     fun aFilmTheUserMatchedWithAnotherKeepsItWhileTmdbDoesNotAnswer() = runTest {
         tmdb.movie(1, "Disclosure", 1994, imdbId = "tt0109635")
@@ -173,10 +158,6 @@ class ScanSidecarsTest {
         assertEquals("asked again at a later pass", null, waiting.matchedAt)
     }
 
-    /**
-     * An NFO naming its film by IMDb id alone, rewritten beside a film the user matched while TMDB is out of reach:
-     * it waits for TMDB's word, and has it once TMDB answers again, without a refresh.
-     */
     @Test
     fun anNfoRewrittenWhileTmdbIsOutOfReachIsDecidedOnceItAnswers() = runTest {
         tmdb.movie(1, "Disclosure", 1994, imdbId = "tt0109635")
@@ -186,7 +167,7 @@ class ScanSidecarsTest {
         bench.scan()
         bench.scanner.identify(bench.item(films, "Disclosure Day.mkv").id, 2)
 
-        // Its media manager, matched as the user did, rewrites it: Disclosure Day's IMDb id now.
+        // Its media manager, now matching the user's choice, rewrites it with Disclosure Day's IMDb id.
         tmdb.failure = IOException("Network is unreachable")
         nas.text("Disclosure Day.nfo", "<movie><title>Disclosure Day</title><plot>Director's cut.</plot><id>tt31227572</id></movie>", T2)
         bench.scan()
@@ -201,7 +182,6 @@ class ScanSidecarsTest {
         assertEquals("read once", emptyList<String>(), pass().first)
     }
 
-    /** A fanart or a logo removed from beside a film: its copy is no longer shown, TMDB's image takes its place. */
     @Test
     fun aFanartOrALogoRemovedIsNoLongerShown() = runTest {
         tmdb.movies[438631] = tmdb.movie(438631, "Dune", 2021).copy(backdropPath = "/dune-backdrop.jpg")
@@ -226,10 +206,7 @@ class ScanSidecarsTest {
         assertEquals("/dune-backdrop.jpg", withoutLogo.backdropPath)
     }
 
-    /**
-     * Version 10 takes the films of sagas whose names gave no key out of them, their sidecars to read again:
-     * their NFO's set gives each its own, even with TMDB not asked (no key, or the films matched already).
-     */
+    /** Films detached by version 10 from keyless sagas find theirs through the NFO's set, even without TMDB. */
     @Test
     fun filmsOutOfAMergedSagaFindTheirOwnFromTheirNfo() = runTest {
         val sets = mapOf("Ghost in the Shell (1995).mkv" to "攻殻機動隊", "Akira (1988).mkv" to "アキラ")
@@ -248,7 +225,6 @@ class ScanSidecarsTest {
         assertEquals(sets.values.map { "name:$it" }, keys)
     }
 
-    /** Sonarr rewrites an episode's NFO in place: it is read again, not the video, and TMDB's season is not asked again. */
     @Test
     fun anEpisodeNfoRewrittenInPlaceIsReadAgainWithoutTmdb() = runTest {
         tmdb.show(247718, "MobLand", 2025)
@@ -268,7 +244,7 @@ class ScanSidecarsTest {
     }
 
     private companion object {
-        /** Two dates a file was written, as SMB or NFS list them. */
+        /** Two modification dates, as SMB or NFS list them. */
         const val T1 = 1_760_000_000_000L
         const val T2 = T1 + 60_000L
     }

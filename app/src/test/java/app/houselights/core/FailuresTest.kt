@@ -39,11 +39,7 @@ import java.util.concurrent.ExecutionException
 import java.util.concurrent.TimeoutException
 import javax.net.ssl.SSLHandshakeException
 
-/**
- * One failure, the same words wherever it is told: a screen ([toUiError]), a write to the device
- * ([toWriteError]), a folder's scan ([ScanErrors.classify]) and signing in ([loginError]) all read
- * it once ([failureKind]). On Robolectric: the storage errors are Android's.
- */
+/** A failure reads the same on a screen, after a write, in a scan and at sign-in: all go through [failureKind]. */
 @RunWith(RobolectricTestRunner::class)
 class FailuresTest {
     private fun http(code: Int) = HttpException(Response.error<Unit>(code, "".toResponseBody()))
@@ -70,7 +66,6 @@ class FailuresTest {
         )
     )
 
-    /** A TMDB failure is TMDB's, wherever it is met: never a NAS that does not answer. */
     @Test
     fun tmdbOutOfReachIsNeverTheNas() {
         val e = TmdbUnreachableException(SocketTimeoutException())
@@ -89,7 +84,7 @@ class FailuresTest {
         )
     )
 
-    /** Silence is the network on a screen, the storage in a write to the device, the NAS in a scan. */
+    /** No answer reads as the network on a screen, the storage after a write, and the NAS in a scan. */
     @Test
     fun noAnswer() = check(
         mapOf(
@@ -101,7 +96,7 @@ class FailuresTest {
         )
     )
 
-    /** smbj's failures are RuntimeExceptions: read through their causes, a NAS gone is still a NAS gone. */
+    /** smbj wraps failures in RuntimeExceptions: read through the causes, a NAS timeout stays a NAS timeout. */
     @Test
     fun anSmbTimeoutIsTheNasOnEveryScreen() = check(
         mapOf(
@@ -111,7 +106,7 @@ class FailuresTest {
         )
     )
 
-    /** The NAS's own refusals and absences: Settings says them for each folder; a screen has no words of its own for them. */
+    /** NAS refusals and missing paths: Settings reports them per folder; a screen shows a generic failure. */
     @Test
     fun theNasRefusals() = check(
         mapOf(
@@ -119,12 +114,11 @@ class FailuresTest {
                 Told(UiError.FAILED, UiError.FAILED, ScanErrorKind.LOGIN_FAILED),
             smbStatus(NtStatus.STATUS_ACCESS_DENIED) to Told(UiError.FAILED, UiError.FAILED, ScanErrorKind.ACCESS_DENIED),
             mountFailure(MountStatus.MNT3ERR_ACCES) to Told(UiError.FAILED, UiError.FAILED, ScanErrorKind.ACCESS_DENIED),
-            // On the device, a file that cannot be opened to write is its storage at fault.
+            // On the device, a file that cannot be opened for writing is a storage fault.
             FileNotFoundException("/volume1/media/Heat.nfo") to Told(UiError.FAILED, UiError.NOT_SAVED, ScanErrorKind.NOT_FOUND),
         )
     )
 
-    /** The device out of space reads as such everywhere: never as the library out of reach. */
     @Test
     fun aFullDeviceIsNeverTheNetwork() = check(
         mapOf(
@@ -147,7 +141,7 @@ class FailuresTest {
         assertEquals(LoginError.Failed, auth(http(404)))
         assertEquals(LoginError.Failed, auth(http(500)))
         assertEquals(LoginError.NotJellyfin(typed), auth(SerializationException("Unexpected JSON token")))
-        // An answer that does not read, whose excerpt of the body holds words the NAS's failures use.
+        // An unparsable answer whose body excerpt contains words that NAS failures also use.
         assertEquals(LoginError.NotJellyfin(typed), auth(SerializationException("Unexpected JSON token at: <h1>Request timed out</h1>")))
         assertEquals(LoginError.Certificate(typed), auth(certificateRefused()))
         assertEquals(LoginError.Unreachable(typed), auth(IOException("Connection refused")))
@@ -163,14 +157,13 @@ class FailuresTest {
         assertEquals(LoginError.Unreachable(reached), reach(SocketTimeoutException()))
     }
 
-    /** A 403 at sign-in is the server refusing this account (disabled, or not allowed now): not an answer of another kind. */
+    /** A 403 at sign-in means the server refuses this account (disabled, or not allowed at the moment). */
     @Test
     fun aServerRefusingTheAccountSaysSo() {
         assertEquals(LoginError.Refused, loginError(http(403), "http://nas:8096"))
         assertEquals(LoginError.Refused, loginError(ReachFailure("https://nas:8920", http(403)), "http://nas:8096"))
     }
 
-    /** Causes that point back at each other end where they loop: the failure is still read. */
     @Test
     fun aChainOfCausesThatLoopsIsReadOnce() {
         val outer = IOException("outer")
@@ -179,7 +172,7 @@ class FailuresTest {
         assertEquals(FailureKind.IO, outer.failureKind())
     }
 
-    /** As OkHttp fails on a certificate it cannot trust. */
+    /** The exception OkHttp throws for a certificate it cannot trust. */
     private fun certificateRefused() = SSLHandshakeException("Chain validation failed").apply { initCause(CertificateException("expired")) }
 
     private fun mountFailure(status: MountStatus) = MountException(

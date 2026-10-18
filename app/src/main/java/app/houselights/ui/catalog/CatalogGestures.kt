@@ -42,11 +42,7 @@ import app.houselights.ui.util.NBSP
 import app.houselights.ui.util.UiError
 import app.houselights.ui.util.formatDimensions
 
-/**
- * The three gestures the small surfaces borrow from film materials, first side by side, then each
- * at the width the screens give it: the back of a case for what reads (a state, a measure, a
- * format), the intertitle for every message, the counter for what moves on.
- */
+/** The three small-surface gestures (case back, intertitle, counter), side by side, then at screen widths. */
 internal fun LazyListScope.catalogGestures() {
     item { Group("Gestures: the back of a case, the intertitle, the counter") { SideBySide() } }
     // On a screen, HlEmptyState: the same intertitle, its action focused as it appears.
@@ -118,11 +114,7 @@ private fun Intertitles() {
     }
 }
 
-/**
- * HlErrorState, one for each action an error offers, and none: the words and the action come with
- * the error. Here the actions that lead elsewhere lead nowhere, and none takes focus as it appears:
- * scrolling down, focus would jump to the last of them.
- */
+/** HlErrorState per error action, and with none; here actions do nothing and take no focus as they appear. */
 @Composable
 private fun ErrorStates() {
     CompositionLocalProvider(LocalErrorFix provides {}) {

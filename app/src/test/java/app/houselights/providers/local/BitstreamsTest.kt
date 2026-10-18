@@ -45,7 +45,6 @@ class BitstreamsTest {
     fun trueHdCarriesAtmosInAFourthSubstream() {
         assertEquals(true, trueHd(4).let { Bitstreams.trueHdAtmos(it, 0, it.size) })
         assertEquals(false, trueHd(3).let { Bitstreams.trueHdAtmos(it, 0, it.size) })
-        // A unit without a major sync says nothing.
         assertNull(ByteArray(32).let { Bitstreams.trueHdAtmos(it, 0, it.size) })
     }
 
@@ -82,7 +81,6 @@ class BitstreamsTest {
         // Dolby Digital 5.1, then the Dolby Digital Plus frame that makes it 7.1.
         val frame = ac3() + eac3(64, joc = true, streamType = 1)
         assertEquals(true, Bitstreams.dolbyAtmos(frame, 0, frame.size))
-        // Dolby Digital alone says nothing of Atmos.
         assertNull(ac3().let { Bitstreams.dolbyAtmos(it, 0, it.size) })
     }
 
@@ -131,8 +129,7 @@ class BitstreamsTest {
 
     @Test
     fun aLengthPastItsFrameEndsItsReading() {
-        // After an HDR10 SEI, a NAL unit says 2^31 - 256 bytes: added to where it starts (past
-        // byte 255), an Int would wrap below zero and read before the array.
+        // A NAL length of 2^31 - 256 past byte 255 would wrap an Int below zero and read before the array.
         val frame = ByteArray(300) + hevcSei(masteringDisplay) +
             byteArrayOf(0x7F, 0xFF.toByte(), 0xFF.toByte(), 0x00, 2, 1) + ByteArray(16)
         assertEquals(setOf(HdrFormat.HDR10), Bitstreams.hevcRanges(frame, listOf(300 until frame.size), lengthSize = 4))

@@ -36,36 +36,29 @@ private const val TAG = "Edit"
 
 private fun MediaProvider.editorOrFail(): MetadataEditor = editor ?: error("This source cannot be edited")
 
-/** A title, and the choices for one piece of its artwork: loaded together. */
+/** A title and the choices for one piece of its artwork, loaded together. */
 data class ArtworkPage(val item: MediaItem, val choices: ArtworkChoices)
 
 data class ArtworkState(
     val page: LoadState<ArtworkPage> = LoadState.Loading,
-    /**
-     * Why the choices shown could not be saved, or loaded again: said in place of them, the title
-     * kept, until they load again.
-     */
+    /** Why the shown choices could not be saved or reloaded; shown in their place until they load again. */
     val failure: UiError? = null,
-    /** The choice being saved (its image fetched, then kept); the others wait. */
+    /** The choice being saved (its image fetched, then stored); the others wait. */
     val choosing: ArtworkOption? = null,
-    /** The choice is saved ([choosing] stays): the screen can close. */
+    /** The choice is saved ([choosing] stays set): the screen can close. */
     val done: Boolean = false,
 ) {
     val item: MediaItem? get() = page.valueOrNull?.item
     val choices: ArtworkChoices? get() = page.valueOrNull?.choices
 
-    /** What takes the place of the choices: why they could not load, or the one chosen be saved. */
+    /** What replaces the choices: why they could not load, or why the chosen one could not be saved. */
     val error: UiError? get() = failure ?: page.errorOrNull
 
-    /** Why TMDB's images are not among the choices, when asking failed or could not be done. */
+    /** Why TMDB's images are missing from the choices, when the request failed or could not be made. */
     val onlineError: UiError? get() = choices?.onlineError?.toUiError()
 }
 
-/**
- * The choices for one piece of a title's artwork, from the [provider] of the source in use. The choice
- * itself is saved in [work], which outlives the screen: Back while its image is fetched never leaves
- * it half saved.
- */
+/** One artwork kind's choices; saving runs in [work], which outlives the screen, so Back never half-saves. */
 class ArtworkViewModel(
     private val itemId: String,
     private val kind: ArtworkKind,
@@ -80,7 +73,7 @@ class ArtworkViewModel(
         load()
     }
 
-    /** Loads the title and its choices; tried again, the latest load is the one shown. */
+    /** Loads the title and its choices; on retry, only the latest load is shown. */
     fun load() {
         _state.update { it.copy(page = it.page.reloading(), failure = null) }
         loads.launch {
@@ -90,13 +83,13 @@ class ArtworkViewModel(
                 ArtworkPage(item, source.editorOrFail().artwork(item, kind))
             }
             _state.update { s ->
-                // A page shown stays when it could not load again: why is said in place of its choices.
+                // A page already shown stays if reloading fails; the reason replaces its choices.
                 if (loaded is LoadState.Failed && s.page is LoadState.Ready) s.copy(failure = loaded.error) else s.copy(page = loaded)
             }
         }
     }
 
-    /** Saves [option]; [ArtworkState.done] once saved. One at a time: another OK meanwhile changes nothing. */
+    /** Saves [option]; [ArtworkState.done] once saved. One at a time: another OK meanwhile does nothing. */
     fun choose(option: ArtworkOption) {
         val s = _state.value
         val item = s.item ?: return
@@ -130,15 +123,14 @@ data class IdentifyState(
     val identifying: Boolean = false,
     /** The result being matched while [identifying]; null when going back to automatic matching. */
     val chosenId: String? = null,
-    /** The title is matched as chosen ([identifying] stays on): the screen can close. */
+    /** The title is matched as chosen ([identifying] stays set): the screen can close. */
     val done: Boolean = false,
     val error: UiError? = null,
 )
 
 /**
- * Matching a title by hand, from the [provider] of the source in use. The match itself runs in [work],
- * which outlives the screen: leaving while a series is matched never leaves it half done. What was
- * typed is kept in [saved], for a process Android stopped meanwhile.
+ * Matches a title by hand. The match runs in [work], which outlives the screen, so a series is never left half
+ * matched; what was typed is kept in [saved] in case Android kills the process.
  */
 class IdentifyViewModel(
     private val itemId: String,
@@ -155,7 +147,7 @@ class IdentifyViewModel(
         load()
     }
 
-    /** The title and how it is matched now, then the search automatic matching would make. */
+    /** Loads the title and its current match, then runs the search automatic matching would make. */
     private fun load() {
         _state.update { it.copy(error = null) }
         loads.launch {
@@ -164,17 +156,17 @@ class IdentifyViewModel(
                 val item = source.item(itemId)
                 item to source.editorOrFail().identity(item)
             }.onSuccess { (item, identity) ->
-                // What was typed before the process was stopped, else what automatic matching searched.
+                // Text typed before the process was killed, else automatic matching's query.
                 val query = saved[QUERY] ?: identity.query
                 val year = saved[YEAR] ?: identity.year?.toString().orEmpty()
                 _state.update { it.copy(item = item, identity = identity, query = query, year = year) }
-                // What automatic matching would search, so the right title is often one press away.
+                // Run automatic matching's search, so the right title is often one press away.
                 if (identity.canSearch) search() else _state.update { it.copy(error = UiError.NO_TMDB_KEY) }
             }.onFailure { e -> _state.update { it.copy(error = e.reported(TAG, "Identity of $itemId")) } }
         }
     }
 
-    /** After a failure: loads the title again if it could not be, else searches again. */
+    /** After a failure, reloads the title if it did not load, else searches again. */
     fun retry() = if (_state.value.item == null) load() else search()
 
     fun setQuery(query: String) {
@@ -202,10 +194,7 @@ class IdentifyViewModel(
         }
     }
 
-    /**
-     * Matches the title with [candidate], or goes back to automatic matching; [IdentifyState.done] once
-     * done. One at a time: a second OK while matching changes nothing. The results stay as they are.
-     */
+    /** Matches the title with [candidate] (automatic for null), one at a time; [IdentifyState.done] once done. */
     fun identify(candidate: MatchCandidate?) {
         val s = _state.value
         val item = s.item ?: return

@@ -64,9 +64,8 @@ import app.houselights.ui.util.rememberSettled
 import app.houselights.ui.util.skeletonDelayPassed
 
 /**
- * Choosing one piece of artwork. The page behind previews the focused choice where it will
- * be used: the backdrop behind the title, the logo above it. A poster is its own preview: no room
- * is kept for one, and the choices come larger, right under the header.
+ * Choosing one piece of artwork, the page behind previewing the focused choice in place. A poster is its own
+ * preview, so its choices are larger, right under the header.
  */
 @Composable
 fun ArtworkScreen(itemId: String, kind: ArtworkKind, onDone: () -> Unit) {
@@ -75,13 +74,12 @@ fun ArtworkScreen(itemId: String, kind: ArtworkKind, onDone: () -> Unit) {
     val state by vm.state.collectAsStateWithLifecycle()
     val item = state.item
     val choices = state.choices
-    // Saved: back to the title, once the app is in front (Back may already have left; the choice is saved all the same).
+    // Once saved, return to the title when the app is resumed; the choice is saved even after Back.
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     LaunchedEffect(state.done) { if (state.done) lifecycle.withResumed { onDone() } }
 
     var focused by remember { mutableStateOf<ArtworkOption?>(null) }
-    // The preview follows focus once it settles: no image load on every step. Until focus has come
-    // to a choice, the one in use.
+    // Follows focus once it settles, so no image loads per step; the one in use until a choice is focused.
     val shown by rememberSettled { focused }
     val preview = shown ?: choices?.selected
     val backdrop = if (kind == ArtworkKind.BACKDROP) preview?.image else item?.backdrop
@@ -131,17 +129,14 @@ private fun Header(kind: ArtworkKind, item: MediaItem?, choices: ArtworkChoices?
     }
 }
 
-/**
- * Why TMDB's images are not offered: a key to add or change, said as such, as Settings fix it;
- * otherwise the title to identify first, or the connection to check.
- */
+/** Why TMDB's images are missing: a key problem (fixed in Settings), else identify the title or check the network. */
 @StringRes
 private fun onlineNote(error: UiError?): Int = when (error) {
     UiError.NO_TMDB_KEY, UiError.TMDB_KEY_REFUSED -> error.message
     else -> R.string.artwork_offline
 }
 
-/** The title as the detail page will show it with the focused choice; a poster shows in its row. */
+/** The title as the detail page will show it with the focused choice; a poster previews in its own row. */
 @Composable
 private fun Preview(kind: ArtworkKind, item: MediaItem, preview: ArtworkOption?) {
     when (kind) {
@@ -197,7 +192,7 @@ private fun Choices(
     }
 }
 
-/** What an option is: its language, or where it comes from. */
+/** What an option is: its language, or its origin. */
 @Composable
 private fun describe(kind: ArtworkKind, option: ArtworkOption): String = when (option.origin) {
     ArtworkOrigin.NONE -> stringResource(R.string.artwork_title_in_type)
@@ -210,13 +205,10 @@ private fun describe(kind: ArtworkKind, option: ArtworkOption): String = when (o
 private fun size(option: ArtworkOption): String? =
     if (option.width > 0 && option.height > 0) formatDimensions(option.width, option.height) else null
 
-/** Where the choices go, and what takes their place while they load or when there are none. */
+/** Padding of the choices, and of what replaces them while they load or when there are none. */
 private val ChoicesPadding = Modifier.padding(horizontal = HlSpace.safeH, vertical = HlSpace.m)
 
-/**
- * Empty frames where the choices will be, once loading takes long enough to be seen. Laid out from
- * the start all the same: the preview above rests on them, and stays where it is.
- */
+/** Choice placeholders, shown once loading is slow but laid out from the start so the preview above stays put. */
 @Composable
 private fun Skeletons(kind: ArtworkKind) {
     val seen = skeletonDelayPassed()
@@ -235,7 +227,7 @@ private val ArtworkKind.title
         ArtworkKind.LOGO -> R.string.artwork_logo
     }
 
-/** Choices are shown at the shape they are used in. */
+/** Choices show in the shape they are used in. */
 private val ArtworkKind.cardWidth: Dp
     get() = when (this) {
         ArtworkKind.POSTER -> HlLayout.posterChoice

@@ -11,7 +11,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import app.houselights.core.hasPage
 
-/** A title's people on its page: direction first in the cast row, the crafts of its end credits, who opens a page. */
+/** A title's people: direction first in the cast row, the end-credit crafts, and who opens a page. */
 class DetailPeopleTest {
     private fun person(name: String, role: String? = null, titles: Int? = null, id: String? = "tmdb:$name") =
         Person(name, role, null, id = id, titleCount = titles)

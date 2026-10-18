@@ -1,15 +1,9 @@
 package app.houselights.core
 
-/**
- * Escapes the characters that would end or alter a URI path ("%", "#", "?"). Spaces and accents stay
- * as they are, as the Zidoo player has always received them.
- */
+/** Escapes what would end or alter a URI path ("%", "#", "?"); spaces and accents stay, as the Zidoo player expects. */
 fun escapeUriPath(path: String): String = path.replace("%", "%25").replace("#", "%23").replace("?", "%3F")
 
-/**
- * Escapes what would end the path of [uri] ("#", "?") after its authority, but not "%": a network path
- * written by a server's administrator may already be escaped.
- */
+/** Escapes "#" and "?" in [uri]'s path, but not "%": a server administrator's network path may be escaped already. */
 fun escapeUriPathEnds(uri: String): String {
     val authorityStart = uri.indexOf("://").takeIf { it >= 0 }?.plus("://".length) ?: return uri
     val pathStart = uri.indexOf('/', authorityStart).takeIf { it >= 0 } ?: return uri

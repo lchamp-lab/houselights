@@ -14,7 +14,7 @@ class SecretsInTextTest {
     fun theServerTokenIsNeverWritten() {
         val text = server.toString()
         assertFalse(text, text.contains("j3llyf1n-t0ken"))
-        // What says which server it is stays readable.
+        // The server's address stays readable.
         assertTrue(text, text.contains("https://nas:8920"))
     }
 

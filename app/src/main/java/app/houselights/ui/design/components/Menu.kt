@@ -62,14 +62,8 @@ data class MenuOption(val label: String, val selected: Boolean, val onSelect: ()
 data class MenuSection(val title: String?, val options: List<MenuOption>)
 
 /**
- * A button that opens a small menu of exclusive options, grouped in sections, against its end
- * edge: below the button when the room down to the safe area holds it, else above. It never
- * leaves the safe area; a longer menu scrolls inside. It grows from the button's corner and
- * leaves the same way, with the motion of a sheet.
- * With [closeOnSelect] (sorting) a choice closes the menu and applies once it has gone, so the
- * change is seen on its own; without it (filters) the menu stays open so choices can be combined.
- * Back always closes it. [detailLit] lights the button's detail at rest: it names a state (an
- * active filter).
+ * A button opening a small menu of exclusive options, below it or above when space is short. With
+ * [closeOnSelect] (sorting) a choice applies once the menu has gone; without it (filters) it stays open.
  */
 @Composable
 fun HlMenuButton(
@@ -83,7 +77,7 @@ fun HlMenuButton(
     closeOnSelect: Boolean = true,
 ) {
     var open by remember { mutableStateOf(false) }
-    // The most room the screen leaves a menu, above or below the button.
+    // The larger space available to the menu, above or below the button.
     var room by remember { mutableIntStateOf(0) }
     val density = LocalDensity.current
     val position = remember(density) { MenuPosition(density) }
@@ -102,21 +96,17 @@ fun HlMenuButton(
     }
 }
 
-/**
- * Where a menu opens: against the end edge of its button, below it when the room down to the
- * safe area holds the menu, else above. The menu is no taller than the larger of the two rooms,
- * so it fits on one side.
- */
+/** Places a menu at its button's end edge, below if it fits, else above; capped at the larger space. */
 private class MenuPosition(density: Density) : PopupPositionProvider {
     private val gap = with(density) { HlSpace.xs.roundToPx() }
     private val safeH = with(density) { HlSpace.safeH.roundToPx() }
     private val safeV = with(density) { HlSpace.safeV.roundToPx() }
 
-    /** The corner of the button the menu grows from: the end one, below or above it. */
+    /** The button corner the menu grows from: the end corner, at the bottom or the top. */
     var origin by mutableStateOf(TransformOrigin(1f, 0f))
         private set
 
-    /** The larger of the rooms above and below the button, inside the safe area. */
+    /** The larger of the spaces above and below the button within the safe area, in px. */
     fun room(button: LayoutCoordinates): Int {
         val bounds = button.boundsInRoot()
         val above = bounds.top.roundToInt() - gap - safeV
@@ -186,7 +176,7 @@ private fun MenuPanel(sections: List<MenuSection>, maxHeight: Dp, motion: SheetM
             section.options.forEachIndexed { i, option ->
                 // Focus starts on the current choice of the first section.
                 val mod = if (s == 0 && i == initial) Modifier.focusRequester(first) else Modifier
-                // A choice that closes the menu applies once it has gone: the change is seen on its own.
+                // A closing choice applies after the menu has gone, so the change is seen on its own.
                 val choose = if (closeOnSelect) ({ motion.sheet.dismiss(option.onSelect) }) else option.onSelect
                 MenuItem(option.label, option.selected, onClick = choose, modifier = mod)
             }

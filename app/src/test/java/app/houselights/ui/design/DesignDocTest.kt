@@ -4,10 +4,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
 
-/**
- * DESIGN.md names the design system as the code has it: every token, component, test or catalogue
- * section it cites is still declared somewhere, so a renamed or removed piece cannot linger there.
- */
+/** Every token, component, test or catalogue section DESIGN.md cites is still declared in the code. */
 class DesignDocTest {
     private val doc = File("../DESIGN.md")
     private val sources = listOf(File("src/main/java"), File("src/test/java"))

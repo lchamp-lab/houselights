@@ -36,11 +36,8 @@ import kotlin.math.abs
 import kotlin.math.roundToInt
 
 /**
- * What the screen receives, as far as the app can know it, set like the back of a case: the output
- * in service, the size the interface is drawn at, the modes the display lists with the dot on the
- * one in service; then, where the interface can ask for Ultra HD, the row that does. Where the
- * player sets its own output (the Zidoo), the pane says so and where to change it, and shows no
- * mode the system makes up.
+ * What the screen receives: current output, render size, the display's modes, and the Ultra HD row where it
+ * applies. Where the player sets its own output (Zidoo), the pane says so and hides the system's stand-in modes.
  */
 internal fun LazyListScope.displayPane(s: AppSettings) {
     item {
@@ -59,7 +56,7 @@ internal fun LazyListScope.displayPane(s: AppSettings) {
     }
 }
 
-/** What Affichage is set to, under its name: never a mode the app cannot ask for. */
+/** The Affichage value shown under its name: never a mode the app cannot request. */
 @Composable
 internal fun displaySummary(s: AppSettings): String = stringResource(
     when (outputControl()) {
@@ -69,7 +66,7 @@ internal fun displaySummary(s: AppSettings): String = stringResource(
     },
 )
 
-/** Who sets the output on this device, from the modes its display lists. */
+/** Who sets the output on this device, judged from the modes its display lists. */
 @Composable
 private fun outputControl(): OutputControl {
     val display = LocalView.current.display
@@ -97,10 +94,7 @@ private fun InterfaceResolution(s: AppSettings) {
     }
 }
 
-/**
- * The player sets its output in its own settings and scales the interface to it: who sets it, and
- * where. No mode and no rate: those listed are stand-ins.
- */
+/** Says the player sets its output in its own settings, and where; no mode is shown, as the system's are stand-ins. */
 @Composable
 private fun PlayerOutput() {
     InfoBlock(stringResource(R.string.current_output)) {
@@ -112,13 +106,13 @@ private fun PlayerOutput() {
     }
 }
 
-/** The mode in service: its definition and rate in the technical voice, its frame size beside them. */
+/** The current mode: its definition and rate in the spec style, its frame size beside them. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun SystemOutput() {
     val mode = LocalView.current.display?.mode ?: return
     InfoBlock(stringResource(R.string.current_output)) {
-        // Short of room, the frame size goes under, whole: a number never breaks.
+        // Short of room, the frame size wraps below as a whole, so a number never breaks.
         FlowRow(horizontalArrangement = Arrangement.spacedBy(HlSpace.fact)) {
             Text(
                 "${definition(mode.physicalWidth, mode.physicalHeight)} ${hz(mode.refreshRate)}${NBSP}Hz",
@@ -138,10 +132,7 @@ private fun SystemOutput() {
     }
 }
 
-/**
- * The size the interface is drawn at, in pixels. Not the density the device declares: every
- * screen is laid out on the same canvas, whatever it says.
- */
+/** The render size in pixels, not the declared density: every screen is laid out on the same canvas. */
 @Composable
 private fun RenderBlock() {
     val view = LocalView.current
@@ -150,10 +141,7 @@ private fun RenderBlock() {
     }
 }
 
-/**
- * The modes the display lists, one row per frame size with the rates it comes in, largest first;
- * the dot on the size in service. One row per size keeps a long list of rates to a few lines.
- */
+/** The display's modes, one row per frame size with its rates (largest first, current one dotted), to stay short. */
 @Composable
 private fun ModesBlock() {
     val display: Display = LocalView.current.display ?: return
@@ -180,9 +168,9 @@ private fun ModesBlock() {
 /** A frame size by the name on a Blu-ray case ("Ultra HD", "Full HD"), else by its lines ("576p"). */
 private fun definition(width: Int, height: Int): String = Definition.of(width)?.label ?: "${height}p"
 
-/** "60", or "59,94" for a fractional rate (written in the device's language). */
+/** "60", or "59,94" for a fractional rate (in the device's locale). */
 private fun hz(hz: Float): String =
     if (abs(hz - hz.roundToInt()) < WHOLE_HZ) "${hz.roundToInt()}" else "%.2f".format(hz)
 
-/** Displays report 60 Hz as 59.99999 or 60.00001. */
+/** Tolerance for a whole rate: displays report 60 Hz as 59.99999 or 60.00001. */
 private const val WHOLE_HZ = 0.005f

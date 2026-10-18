@@ -14,11 +14,8 @@ import app.houselights.ui.design.components.HlStatus
 import app.houselights.ui.design.components.StatusState
 
 /**
- * A part of a screen could not load (a season's episodes, the next page of a wall): why, in its
- * place, and the action that fixes it, as an intertitle says it for a whole screen. Trying again is
- * [onRetry]: while it runs ([retrying]) the part stays, its button at work and still focused. The
- * other actions lead where the problem is fixed ([LocalErrorFix]); an error no action fixes has no
- * button. [action] names the button, for the screen to find it again.
+ * A part that could not load (episodes, a wall's next page): why, and the fixing action, none when nothing
+ * fixes it. While [retrying], its button stays busy and focused; [action] is that button's modifier.
  */
 @Composable
 fun PartFailed(error: UiError, retrying: Boolean, onRetry: () -> Unit, modifier: Modifier = Modifier, action: Modifier = Modifier) {
@@ -38,5 +35,5 @@ fun PartFailed(error: UiError, retrying: Boolean, onRetry: () -> Unit, modifier:
     }
 }
 
-/** Does what this action names: the screen tries again itself ([onRetry]); the others lead where it is fixed ([fix]). */
+/** Runs this action: the screen retries itself ([onRetry]); the others lead where it is fixed ([fix]). */
 internal fun ErrorAction.run(onRetry: () -> Unit, fix: (ErrorAction) -> Unit) = if (this == ErrorAction.RETRY) onRetry() else fix(this)

@@ -22,10 +22,8 @@ import java.util.Collections
 import javax.crypto.KeyGenerator
 
 /**
- * [ITEM_ROW] and [CARD_ROW], written by hand, against the table Room makes of [ItemEntity]: a column
- * they forget reads null in every list and on every page, without a word from Room (a library page is
- * a raw query). And the lists themselves: none reads the NFO text, which can weigh up to 1 MB a title,
- * nor what each file holds, kilobytes of JSON to decode for each card.
+ * The hand-written [ITEM_ROW] and [CARD_ROW] match Room's [ItemEntity] table (a missing column reads null
+ * silently), and no list reads the NFO text or the media JSON, too heavy per card.
  */
 @RunWith(RobolectricTestRunner::class)
 class ItemRowTest {
@@ -111,10 +109,6 @@ class ItemRowTest {
         assertEquals("Lists reading what files hold", emptyList<String>(), read.filter { reads(it, "mediaInfo") }.distinct())
     }
 
-    /**
-     * A title's page and what it does, and the reports of its progress every ten seconds while it plays,
-     * read its NFO text only to show it, on the screen of the NFO.
-     */
     @Test
     fun aTitleReadsItsNfoTextOnlyToShowIt() = runTest {
         val films = Library(LocalProvider.MOVIES, LibraryKind.MOVIES, null)
@@ -126,7 +120,7 @@ class ItemRowTest {
         provider.setFavorite(page, true)
         provider.setPlayed(page, false)
         checkNotNull(provider.reporter(aliens.id)).progress(120_000, 7_000_000, paused = false)
-        // Room checks what each write changed on a thread of its own, meanwhile.
+        // Meanwhile, Room's invalidation tracker checks each write on its own thread.
         val read = synchronized(queries) { queries.toList() }
         assertEquals("Read the NFO text", emptyList<String>(), read.filter(::readsNfo).distinct())
         assertTrue(page.hasNfo)
@@ -151,7 +145,6 @@ class ItemRowTest {
         ).forEach { assertFalse(it, readsNfo(it)) }
     }
 
-    /** Whether [sql] reads the NFO text of items. */
     private fun readsNfo(sql: String): Boolean = reads(sql, "nfo")
 
     /** Whether [sql] reads [column] of items: all their columns (`*`, `items.*`, an alias's), or that one by its name. */

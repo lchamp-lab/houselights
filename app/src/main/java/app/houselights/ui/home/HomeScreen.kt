@@ -101,7 +101,7 @@ import app.houselights.ui.design.components.FilmsOfHeading
 @Composable
 fun HomeScreen(
     onOpenItem: (MediaItem) -> Unit,
-    /** A library's wall, and for films the sagas it can show in their place. */
+    /** Opens a library's wall; for films, also the sagas it can switch to. */
     onOpenLibrary: (Library, sagas: Library?) -> Unit,
     onOpenSettings: () -> Unit,
     onAddFolder: () -> Unit,
@@ -127,7 +127,7 @@ fun HomeScreen(
     )
 }
 
-/** Home as [state] lays it out, its bar, its hero and its rows, and where focus goes among them. */
+/** Home for [state]: its bar, hero and rows, and focus among them. */
 @Composable
 internal fun HomeBands(
     state: HomeState,
@@ -138,25 +138,22 @@ internal fun HomeBands(
     onAddFolder: () -> Unit,
     onReload: () -> Unit,
     onRescan: () -> Unit,
-    /** The pill slides to a library: its wall is asked ahead, meanwhile. */
+    /** Prefetches a library's wall while the track moves to its tab. */
     onLibraryAhead: (Library) -> Unit = {},
-    /** A search across the library; none when the source cannot search. */
+    /** Null when the source cannot search. */
     onOpenSearch: (() -> Unit)? = null,
 ) {
     val content = state.content
     val sections = (content as? HomeContent.Rows)?.sections.orEmpty()
 
-    // The title last selected stays on the screen while focus is on the tabs, and is found again
-    // coming back; before any, the first title of the first row, where focus lands.
+    // The last selected title stays shown while focus is on the tabs and survives navigation; default: the first.
     var selectedId by rememberSaveable { mutableStateOf<String?>(null) }
-    // The backdrop only changes once focus settles: no image load on every scroll step. The
-    // selection is read there alone: a step along a row recomposes nothing here.
+    // Changes once focus settles, so no image loads per step; read only there, so a step recomposes nothing here.
     val shown by rememberSettled { selectedTitle(sections, selectedId) }
 
     val memory = rememberFocusMemory()
     val rows = rememberLazyListState()
-    // Each arrival puts focus back where it was: a card (by its row and its id), a tab, the
-    // settings button; on a first visit, the first card.
+    // Focus returns where it was (a card by row and id, a tab, a button); a first visit starts on the first card.
     val first = sections.firstOrNull()
     RestoreFocus(
         memory,
@@ -167,17 +164,15 @@ internal fun HomeBands(
         if (index != null) rows.scrollToItem(index)
         index != null
     }
-    // Below the first row, Back goes up to the tabs; from the first row or the tabs, it leaves.
     var focusedRow by remember { mutableStateOf<Int?>(null) }
     BackToStart(away = backGoesUp(focusedRow)) {
         memory.focus(TRACK)
         rows.animateScrollToItem(0)
     }
 
-    // Under the launch screen, home is whole once its rows are in, its hero shows the first title (it
-    // settles a frame after the rows) and that title's picture is prepared.
+    // Complete for the launch screen once rows are in and the hero shows a title (a frame after the rows).
     val whole = content !is HomeContent.Loading && (shown != null || sections.isEmpty())
-    // Settled on a title, its detail page is made ready: OK opens it whole.
+    // Prepares the settled title's detail page, so OK opens it complete.
     DetailAhead(shown)
     AmbientBackdrop(shown?.backdrop, BackdropStyle.Hero, ready = whole) {
         Column(Modifier.fillMaxSize().houseLit(LocalHouseLights.current)) {
@@ -187,7 +182,6 @@ internal fun HomeBands(
                 // Back from a library, focus enters the track on that library's tab.
                 returnTo = state.tabs.indexOfFirst { memory.last == trackTab(it) }.takeIf { it >= 0 }?.plus(1),
                 onLibrary = { library ->
-                    // Coming back from the library finds focus on its tab.
                     memory.record(trackTab(library))
                     // The sagas have no tab: the films' wall shows them in their place.
                     onOpenLibrary(library, state.sagas.takeIf { library.kind == LibraryKind.MOVIES })
@@ -195,16 +189,15 @@ internal fun HomeBands(
                 onLibraryAhead = onLibraryAhead,
                 onSettings = onOpenSettings,
                 onSearch = onOpenSearch,
-                // Into the first row, once laid out: its group is then there to take focus.
+                // The first row's group, once laid out, so it can take focus.
                 intoRows = { first?.takeIf { rows.firstVisibleItemIndex == 0 }?.let { memory.requester(FocusKey.section(it.key)) } },
             )
             when (content) {
                 is HomeContent.Browsing -> {
-                    // Its height holds the text at the viewer's size, and stays the same whatever has focus.
+                    // A fixed height fitting the text at the viewer's text size, whatever has focus.
                     HeroInfo(shown, Modifier.padding(start = HlSpace.safeH, top = HlSpace.l).height(textRoom(HlLayout.hero)))
                     Spacer(Modifier.height(HlSpace.l))
-                    // A folder read for the first time: the counter stays above the rows, which fill in
-                    // under it as titles are found.
+                    // A folder's first scan: the counter stays above the rows as they fill in.
                     if (content.firstScan) {
                         FirstScan(scan, Modifier.padding(start = HlSpace.safeH, bottom = HlSpace.m), aboveRows = true)
                     }
@@ -223,7 +216,7 @@ internal fun HomeBands(
                         )
                     }
                 }
-                // Nothing to show yet: what the screen says starts where the title under focus would.
+                // The message starts where the focused title would.
                 is HomeContent.Message -> NoRows(
                     content,
                     scan,
@@ -246,20 +239,18 @@ private fun TopBar(
     onLibrary: (Library) -> Unit,
     onLibraryAhead: (Library) -> Unit,
     onSettings: () -> Unit,
-    /** The first row, when there is one to go down to. */
+    /** The first row's focus target, if any. */
     intoRows: () -> FocusRequester?,
-    /** A search across the library; none for a source that cannot search. */
+    /** Null when the source cannot search. */
     onSearch: (() -> Unit)? = null,
 ) {
-    // Where you are among the libraries, in one track; settings apart, as an action. Both sit on
-    // the image, on their plates. A long track scrolls: the button always keeps its place.
+    // The library track and the actions apart, on plates over the image; a long track scrolls, the buttons stay.
     OnArtwork { Row(
         Modifier.fillMaxWidth().padding(start = HlSpace.safeH, end = HlSpace.safeH, top = HlSpace.safeV),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.Top,
     ) {
-        // The white slides to the library chosen, then it opens (at once when animations are off);
-        // back home, "Accueil" is lit again.
+        // The pill slides to the chosen library before it opens; returning home selects Accueil again.
         var current by remember { mutableIntStateOf(0) }
         val scope = rememberCoroutineScope()
         HlSegmented(
@@ -268,7 +259,7 @@ private fun TopBar(
             onSelect = { i ->
                 if (i > 0 && current == 0) {
                     current = i
-                    // While the pill slides, the wall gets its first page and its first lines of posters.
+                    // Prefetch the wall while the pill slides.
                     onLibraryAhead(libraries[i - 1])
                     scope.launch {
                         awaitMotion(HlMotion.STANDARD)
@@ -281,9 +272,7 @@ private fun TopBar(
             scrollable = true,
             enterAt = returnTo ?: current,
         )
-        // The actions apart from the track: search, then the settings, Down from either into the
-        // first row as from the tabs, on the card it last had, else its first: not on the card that
-        // lies under the button, at the far end of the row.
+        // Down from the buttons enters the first row as from the tabs, not on the card beneath the button.
         val down = Modifier.focusProperties { down = intoRows() ?: FocusRequester.Default }
         Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.s)) {
             if (onSearch != null) {
@@ -311,14 +300,12 @@ private fun Sections(
     rows: LazyListState,
     onOpen: (MediaItem) -> Unit,
     onFocus: (section: Int, item: MediaItem) -> Unit,
-    /** Focus left the rows, for the tabs above: the title selected stays. */
+    /** Focus left the rows for the tabs; the selected title stays. */
     onLeave: () -> Unit,
 ) {
-    // Up from the first row goes to the tabs, whichever card it starts from: the track is one
-    // group, and the settings button, nearer some cards, is not where Up means to go.
+    // Up from any first-row card goes to the tabs, not to the nearer action buttons.
     val toTabs = Modifier.focusProperties { up = memory.requester(TRACK) }
-    // The rows start under the hero: a row that has to move comes to the top of the list, where
-    // the first rests, and the one above leaves whole.
+    // A row that must scroll comes to the list's top, where the first rests; the one above leaves whole.
     ListScroll(top = HlSpace.none, toTop = true) { LazyColumn(
         state = rows,
         modifier = Modifier.fillMaxSize().onFocusChanged { if (!it.hasFocus) onLeave() },
@@ -329,9 +316,9 @@ private fun Sections(
             item(key = section.key) {
                 MediaRow(
                     header = sectionTitle(section),
-                    // A director's films announce themselves as a poster bills them.
+                    // A director's row is headed as a poster bills it.
                     heading = section.person?.takeIf { section.type == SectionType.DIRECTOR }?.let { p -> { FilmsOfHeading(p.name) } },
-                    // A card gone since focus left it: focus comes back to its row.
+                    // If the focused card is gone, focus returns to its row.
                     modifier = Modifier.focusGroupKey(FocusKey.section(section.key), memory),
                     spacing = section.spacing,
                     state = rememberRowState(section.items.map { it.id }),
@@ -359,20 +346,20 @@ private fun Sections(
     } }
 }
 
-/** The title of [sections] named [id]; when there is none (or it has left them), the first title. */
+/** The title [id] in [sections], or the first title when it is absent. */
 internal fun selectedTitle(sections: List<HomeSection>, id: String?): MediaItem? =
     sections.firstNotNullOfOrNull { section -> section.items.find { it.id == id } } ?: sections.firstOrNull()?.items?.firstOrNull()
 
-/** A row of home, whatever its position: its kind and its library. */
+/** A Home row's stable key: its type and library. */
 internal val HomeSection.key: String get() = "$type-$libraryId"
 
-/** How far apart a row's cards are: stills, named under the picture, further than posters. */
+/** Card spacing: stills, titled below the picture, sit further apart than posters. */
 internal val HomeSection.spacing: Dp get() = if (landscape) HlSpace.l else HlSpace.m
 
-/** A card of home: the same title may be in two rows. */
+/** A Home card's key: the same title may sit in two rows. */
 internal fun cardKey(section: HomeSection, item: MediaItem) = FocusKey.within(FocusKey.section(section.key), FocusKey.item(item.id))
 
-/** The row of [sections] holding what [key] names; null for the tabs, the settings button, a row gone. */
+/** The row holding what [key] names; null for the tabs, the action buttons, or a row gone. */
 internal fun sectionIndex(sections: List<HomeSection>, key: String): Int? {
     val row = FocusKey.groups(key).lastOrNull() ?: return null
     return sections.indexOfFirst { FocusKey.section(it.key) == row }.takeIf { it >= 0 }
@@ -381,16 +368,12 @@ internal fun sectionIndex(sections: List<HomeSection>, key: String): Int? {
 /** Back goes up to the tabs from below the first row; from the first row or the tabs, it leaves. */
 internal fun backGoesUp(focusedRow: Int?): Boolean = focusedRow != null && focusedRow > 0
 
-/** The library tabs, as one group: what they hold is the track's to focus. */
+/** The library tabs as one focus group, which picks the tab to focus. */
 private const val TRACK = "track"
 
-/** The key a library's tab is remembered by. */
 private fun trackTab(library: Library) = FocusKey.within(TRACK, FocusKey.tab(library.id))
 
-/**
- * Same footprint as the real rows, so nothing jumps when data arrives; once loading takes long enough
- * to be seen. Nothing lies below them, so none of the room is kept meanwhile.
- */
+/** Placeholder rows in the real rows' footprint, shown once loading is slow (nothing below needs their room). */
 @Composable
 private fun SkeletonRows() {
     if (!skeletonDelayPassed()) return
@@ -403,13 +386,7 @@ private fun SkeletonRows() {
     }
 }
 
-/**
- * The first scan, counted: what is being read, how far it has gone, the file being read. When TMDB
- * stopped answering it, titles come from the files alone: said under the counter, with the key to
- * change when TMDB refused it ([scanNoteAction]). [aboveRows]: nothing the scan comes to moves the
- * rows under it, as the file's line and the note keep their room from the start. The [progress] is
- * read here alone: a file read recomposes the counter, never home.
- */
+/** The first scan's counter; [aboveRows] keeps its lines' room so rows stay put. Only it reads [progress]. */
 @Composable
 private fun FirstScan(progress: StateFlow<ScanState>, modifier: Modifier, aboveRows: Boolean = false) {
     val scan by progress.collectAsStateWithLifecycle()
@@ -431,10 +408,7 @@ private fun FirstScan(progress: StateFlow<ScanState>, modifier: Modifier, aboveR
     }
 }
 
-/**
- * Why TMDB stopped answering the scan, if it did. [keepRoom]: laid out before it says anything, both
- * notes unseen, so that one coming halfway through the scan takes the room kept for it.
- */
+/** Why TMDB stopped answering, if it did; [keepRoom] lays out both notes unseen so one arriving later fits. */
 @Composable
 private fun TmdbIssue(issue: UiError?, keepRoom: Boolean) {
     if (issue == null && !keepRoom) return
@@ -450,15 +424,10 @@ private fun TmdbIssue(issue: UiError?, keepRoom: Boolean) {
     }
 }
 
-/** What home says under the counter when TMDB stopped answering for [issue]. */
 private fun noteOf(issue: UiError): Int =
     if (issue == UiError.TMDB_KEY_REFUSED) R.string.home_scan_tmdb_refused else R.string.home_scan_tmdb_offline
 
-/**
- * What the scan's counter offers to do of [issue]: change the key TMDB refused, only on a home with
- * no rows. Between the tabs and the rows, a button would take Down from the tabs, and its coming
- * would push the rows down while the scan runs; the key row in Settings says it there.
- */
+/** The counter's fix for [issue] (edit a refused TMDB key), only without rows: above rows it would steal Down. */
 internal fun scanNoteAction(issue: UiError?, aboveRows: Boolean): ErrorAction? =
     issue?.action?.takeIf { it == ErrorAction.EDIT_TMDB_KEY && !aboveRows }
 
@@ -484,10 +453,7 @@ private fun NoRows(
     }
 }
 
-/**
- * Folders without a film yet, or none at all: a verb, adding the folder that holds them, and
- * beside it the folders already there ([hasFolders]).
- */
+/** No films yet: an action to add the folder holding them and, with [hasFolders], a link to the folders. */
 @Composable
 private fun NoFilms(hasFolders: Boolean, onAddFolder: () -> Unit, onSettings: () -> Unit, modifier: Modifier) {
     HlEmptyState(
@@ -502,7 +468,7 @@ private fun NoFilms(hasFolders: Boolean, onAddFolder: () -> Unit, onSettings: ()
     )
 }
 
-/** Nothing to show because [folder] could not be read: why ([error]), a way to scan again ([onRescan]), and the folders. */
+/** [folder] could not be read: the [error], a rescan ([onRescan]) and the folders. */
 @Composable
 private fun ScanFailed(folder: SourceEntity, error: ScanError, onRescan: () -> Unit, onSettings: () -> Unit, modifier: Modifier) {
     HlEmptyState(

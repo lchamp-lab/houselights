@@ -41,11 +41,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.coroutines.cancellation.CancellationException
 
-/**
- * Stable keys for what can hold focus. A key says what an element is, never where it is, so it
- * still finds its element after a list reloaded or moved. A key inside a group is `group/key`
- * ([within]): `pane:Library/row:source`, `section:LATEST-movies/item:42`.
- */
+/** Focus keys naming what an element is, not where, so they survive reloads; nested as `group/key` ([within]). */
 object FocusKey {
     fun item(id: String) = "item:$id"
     fun action(name: String) = "action:$name"
@@ -66,17 +62,13 @@ object FocusKey {
 
     private const val ITEM = "item:"
 
-    /** Where a group ends: a slash before a kind of key. An id may hold slashes of its own. */
+    /** A slash before a kind of key ends a group; an id may contain slashes of its own. */
     private val boundary = Regex("/(?=(item|action|tab|pane|row|section):)")
 
     private fun boundaries(key: String) = boundary.findAll(key).map { it.range.first }.toList()
 }
 
-/**
- * Asks for focus; false when nothing carries this requester (not composed yet, or gone), the one
- * failure a screen expects: [FocusRequester] says it by throwing an [IllegalStateException]. Any
- * other error is a mistake, and is not hidden.
- */
+/** Requests focus; false when no node carries this requester (the [IllegalStateException] case). */
 fun FocusRequester.tryRequestFocus(): Boolean = try {
     requestFocus()
     true
@@ -85,11 +77,9 @@ fun FocusRequester.tryRequestFocus(): Boolean = try {
 }
 
 /**
- * Where focus was on a screen, so that coming back to it (from a detail page, a screen opened from
- * one of its rows, the player) puts focus on the element left, even after the list around it
- * reloaded. Elements that matter carry a [FocusKey] through [focusKey], the groups holding them
- * (a row, a pane, the tabs) through [focusGroupKey]; the memory keeps the last element focused. A
- * screen keeps its memory with [rememberFocusMemory] and brings focus back with [RestoreFocus].
+ * Where focus was on a screen, so returning to it refocuses the element left, even after a reload.
+ * Elements carry [focusKey], their groups [focusGroupKey]; a screen keeps the memory with
+ * [rememberFocusMemory] and restores focus with [RestoreFocus].
  */
 @Stable
 class FocusMemory(initial: String? = null) {
@@ -97,45 +87,32 @@ class FocusMemory(initial: String? = null) {
     var last: String? by mutableStateOf(initial)
         private set
 
-    /**
-     * What the screen focuses itself ([requester]): a group holding keyed elements (a row, a pane,
-     * the tabs), or an element it starts on. The screen holds these, so they stay while it lives.
-     */
+    /** Requesters the screen focuses itself ([requester]), kept for the screen's lifetime. */
     private val requesters = HashMap<String, FocusRequester>()
 
-    /** The groups attached now ([focusGroupKey]): each says whether a request for focus took. */
+    /** Attached groups ([focusGroupKey]), which can tell whether a focus request took. */
     private val groups = HashMap<String, FocusGroupNode>()
 
-    /**
-     * What focuses each keyed element composed now, and brings it into view: the same from one
-     * composition to the next, so its modifier stays equal, and dropped when the element leaves,
-     * so a long list browsed leaves nothing behind.
-     */
+    /** Handles of composed keyed elements: stable so modifiers stay equal, dropped when the element leaves. */
     private val handles = HashMap<String, KeyHandles>()
 
-    /** The keyed elements attached now: each knows whether it is laid out, and whether it took focus. */
+    /** Attached keyed elements, which know whether they are placed and whether they took focus. */
     private val nodes = HashMap<String, FocusKeyNode>()
 
-    /** The keys the memory holds something for (what a test checks it forgets). */
+    /** Every key the memory holds something for, so tests can check it forgets them. */
     internal val held: Set<String> get() = requesters.keys + handles.keys + nodes.keys + groups.keys
 
-    /**
-     * What focuses [key], for the screen's own use: where it starts, what it redirects focus to
-     * (`focusProperties`). A group named with [focusGroupKey] carries this one.
-     */
+    /** The requester for [key], for the screen's own use (start, redirects); [focusGroupKey] carries it. */
     fun requester(key: String): FocusRequester = requesters.getOrPut(key) { handles[key]?.requester ?: FocusRequester() }
 
-    /** Takes [key] as where focus is, without moving it (what a screen will want back from elsewhere). */
+    /** Records [key] as where focus is, without moving it. */
     fun record(key: String) {
         last = key
     }
 
     /**
-     * Focuses [key] now; false when nothing with that key is on screen, or when what is there took
-     * no focus. A list composes the next items ahead without showing them; focus put there would be
-     * invisible, so a keyed element is focused only once placed. A group (a row, a pane, the tabs)
-     * is focused whenever it is there, if something in it takes focus. A requester alone only says
-     * whether something carries it: what a screen focuses that way is taken at its word.
+     * Focuses [key]; false when it is absent or took no focus. A keyed element must be placed (lists
+     * compose unseen items ahead); for a bare requester, true only means something carries it.
      */
     fun focus(key: String): Boolean {
         nodes[key]?.let { return it.placed && it.requestFocus() }
@@ -147,7 +124,7 @@ class FocusMemory(initial: String? = null) {
 
     internal fun attach(node: FocusKeyNode) {
         nodes[node.key] = node
-        // The ones it was composed with; back without being composed again, they are still those.
+        // A node reattached without recomposing keeps its handles: register them again.
         handles[node.key] = node.handles
     }
 
@@ -165,16 +142,11 @@ class FocusMemory(initial: String? = null) {
         if (groups[group.key] === group) groups -= group.key
     }
 
-    /**
-     * Brings focus back once the screen is laid out: on what had it last; else on it once [reveal]
-     * has scrolled a list to it (a list only composes what it shows); else on the nearest group
-     * holding it (a row, a pane); else on [fallback]. True when something took focus.
-     */
+    /** Restores focus once the screen is laid out, in [restoreFocus]'s order; true when something took it. */
     suspend fun restore(fallback: FocusRequester?, reveal: suspend (key: String) -> Boolean = { false }): Boolean {
         withFrameNanos { }
         val revealed: suspend (String) -> Boolean = { key -> reveal(key).also { if (it) withFrameNanos { } } }
-        // Only the element left is held in view, once it took focus: one there that refused it must
-        // not pull the list away from where focus went instead.
+        // Keep only the element left in view: one that refused focus must not pull the list away.
         var took: String? = null
         val focusing: (String) -> Boolean = { key -> focus(key).also { if (it) took = key } }
         val restored = restoreFocus(last, focusing, revealed) { fallback?.tryRequestFocus() == true }
@@ -182,11 +154,7 @@ class FocusMemory(initial: String? = null) {
         return restored
     }
 
-    /**
-     * What a screen shows may still arrive above the element just focused (a pane's folders, a
-     * row's titles) and push it out of view: for a moment, the element is brought back into view
-     * after each frame, until the viewer moves on.
-     */
+    /** Brings the element back into view each frame for a while, as content above may still arrive. */
     private suspend fun keepInView(key: String) {
         withTimeoutOrNull(KEEP_IN_VIEW_MS) {
             while (last == key) {
@@ -194,8 +162,7 @@ class FocusMemory(initial: String? = null) {
                 try {
                     node.handles.bringer.bringIntoView()
                 } catch (_: CancellationException) {
-                    // A newer request to scroll took over from this one: try again next frame. A
-                    // cancellation of this loop itself (the time is up, the screen has gone) stops it.
+                    // A newer scroll superseded this one: retry next frame; cancelling this loop stops it.
                     currentCoroutineContext().ensureActive()
                 }
                 withFrameNanos { }
@@ -204,16 +171,12 @@ class FocusMemory(initial: String? = null) {
     }
 
     companion object {
-        /** The key of what had focus is all a memory keeps across navigation. */
+        /** Only the key of what had focus survives navigation. */
         val Saver: Saver<FocusMemory, String> = Saver(save = { it.last }, restore = { FocusMemory(it) })
     }
 }
 
-/**
- * The order [FocusMemory.restore] tries, stopping at the first that takes focus: the element [key]
- * names, the same once [reveal] brought it into its list, each group holding it from the nearest,
- * then [fallback].
- */
+/** Focus order: [key]'s element, again after [reveal], its groups nearest first, then [fallback]. */
 internal suspend fun restoreFocus(
     key: String?,
     focus: (String) -> Boolean,
@@ -228,15 +191,13 @@ internal suspend fun restoreFocus(
     return fallback()
 }
 
-/** The focus memory of a screen: it stays with the screen while the screen is in the back stack. */
+/** A screen's focus memory, kept while the screen is in the back stack. */
 @Composable
 fun rememberFocusMemory(): FocusMemory = rememberSaveable(saver = FocusMemory.Saver) { FocusMemory() }
 
 /**
- * Names this element [key] in [memory]: focus on it is remembered, and coming back finds it. Its
- * requester serves the screen that focuses it by name ([FocusMemory.requester]); its bringer keeps
- * it in view as the screen fills in. Foundation 1.7 has no public way to bring a node itself into
- * view, hence the requester of its own.
+ * Names this element [key] in [memory], so focus on it is remembered and restored. It carries its own
+ * bring-into-view requester: Foundation 1.7 has no public way to bring a node itself into view.
  */
 fun Modifier.focusKey(key: String, memory: FocusMemory): Modifier {
     val handles = memory.handles(key)
@@ -246,11 +207,8 @@ fun Modifier.focusKey(key: String, memory: FocusMemory): Modifier {
 }
 
 /**
- * Names this group of keyed elements [key] in [memory] (a row, a pane, the tabs): an element gone
- * from it gives focus back to the group, and [FocusMemory.focus] says whether something in it
- * took it, where a [FocusRequester] only tells whether the group is there. Its requester
- * ([FocusMemory.requester]) still serves what the screen redirects to it (`focusProperties`). The
- * group records nothing: what has focus inside it does.
+ * Names this group [key] in [memory] (a row, a pane, the tabs): focus falls back to it when a remembered
+ * element is gone, and [FocusMemory.focus] can tell whether something in it took focus. It records nothing.
  */
 fun Modifier.focusGroupKey(key: String, memory: FocusMemory): Modifier =
     focusRequester(memory.requester(key)).then(FocusGroupElement(key, memory))
@@ -264,7 +222,6 @@ private data class FocusGroupElement(val key: String, val memory: FocusMemory) :
     }
 }
 
-/** A keyed group, in its [memory] while it is attached, which says whether a request for focus took. */
 internal class FocusGroupNode(key: String, private var memory: FocusMemory) : Modifier.Node(), FocusRequesterModifierNode {
     var key = key
         private set
@@ -281,10 +238,9 @@ internal class FocusGroupNode(key: String, private var memory: FocusMemory) : Mo
     override fun onDetach() = memory.detach(this)
 }
 
-/** How long an element brought back keeps being held in view while its screen fills in. */
+/** How long a restored element is held in view while its screen fills in. */
 private const val KEEP_IN_VIEW_MS = 1_200L
 
-/** What focuses a keyed element for its screen, and brings it into view, while it is composed. */
 internal class KeyHandles(val requester: FocusRequester) {
     val bringer = BringIntoViewRequester()
 }
@@ -299,11 +255,7 @@ private data class FocusKeyElement(val key: String, val memory: FocusMemory, val
     }
 }
 
-/**
- * A keyed element, in its [memory] while it is attached: it records focus on it, knows whether it
- * is laid out, and says whether a request for focus took ([requestFocus]): a node can be there and
- * still refuse it, where a [FocusRequester] only tells whether it is attached.
- */
+/** Records focus on its element, knows whether it is placed, and reports whether a focus request took. */
 internal class FocusKeyNode(key: String, private var memory: FocusMemory, handles: KeyHandles) :
     Modifier.Node(), FocusRequesterModifierNode, FocusEventModifierNode, LayoutAwareModifierNode {
     var key = key
@@ -312,7 +264,7 @@ internal class FocusKeyNode(key: String, private var memory: FocusMemory, handle
     var handles = handles
         private set
 
-    /** Laid out on the screen, not only composed ahead by a list. */
+    /** Laid out on screen, not just composed ahead by a list. */
     var placed = false
         private set
 
@@ -337,7 +289,7 @@ internal class FocusKeyNode(key: String, private var memory: FocusMemory, handle
         placed = coordinates.isAttached
     }
 
-    // As onFocusChanged: only a change of state is recorded.
+    // Like onFocusChanged: only a change of state is recorded.
     override fun onFocusEvent(focusState: FocusState) {
         if (this.focusState == focusState) return
         this.focusState = focusState
@@ -346,10 +298,8 @@ internal class FocusKeyNode(key: String, private var memory: FocusMemory, handle
 }
 
 /**
- * Brings focus back each time the screen arrives, on a first visit or coming back, as soon as it
- * is [ready] (its content is there): where [memory] says, else on [fallback], where a first visit
- * starts. [reveal] scrolls a list to an element it does not show, and says whether it could.
- * Later changes (a list that reloads) never move focus away from the viewer.
+ * Restores focus once per arrival, as soon as [ready]: where [memory] says, else on [fallback]. [reveal]
+ * scrolls a list to an unshown element and says whether it could. Later reloads never move focus.
  */
 @Composable
 fun RestoreFocus(
@@ -369,24 +319,20 @@ fun RestoreFocus(
     }
 }
 
-/**
- * The child of a group that last had focus, which comes back when the remote returns to the group
- * (a row of cards, the rows of a pane). Children say they had it through [rememberedInGroup].
- */
+/** The group child that last had focus, restored when the remote re-enters the group ([rememberedInGroup]). */
 @Stable
 class GroupFocus {
     internal var last: FocusRequester? = null
 }
 
-/** The [GroupFocus] of the group around, if any: its children report to it. */
+/** The surrounding [GroupFocus], if any. */
 val LocalGroupFocus = staticCompositionLocalOf<GroupFocus?> { null }
 
 /**
- * A group that gives focus back to the child it last had when the remote brings focus back into
- * it. Focus is redirected to that child's requester: restoring it by hand and cancelling the move,
- * as `focusRestorer` does in Compose 1.7, cancels the restored focus with the move, and
- * `focusRestorer` itself releases a pinned item twice when the list changes under it (a crash). A
- * request by name (Enter) goes where it asks; with no child remembered, focus enters as it would.
+ * Re-enters the group on the child that last had focus, by redirecting to its requester. Compose 1.7's
+ * focus restorer is avoided: it cancels the restored focus with the move, and releases a pinned item
+ * twice when the list changes (a crash). Enter goes where it asks; with no child remembered, focus
+ * enters as usual.
  */
 @OptIn(ExperimentalComposeUiApi::class)
 fun Modifier.keepChildFocus(group: GroupFocus): Modifier = this
@@ -395,11 +341,7 @@ fun Modifier.keepChildFocus(group: GroupFocus): Modifier = this
     }
     .focusGroup()
 
-/**
- * What focuses an element for [group], the [GroupFocus] around it if any ([LocalGroupFocus]): kept
- * while the element is composed, and forgotten by the group when the element leaves. The element
- * reports with it through [rememberedInGroup].
- */
+/** The requester an element reports with ([rememberedInGroup]); [group] forgets it when the element leaves. */
 @Composable
 fun rememberGroupMember(group: GroupFocus?): FocusRequester {
     val self = remember { FocusRequester() }
@@ -408,10 +350,8 @@ fun rememberGroupMember(group: GroupFocus?): FocusRequester {
 }
 
 /**
- * Reports to [group], the [GroupFocus] around if any, that this element, focused by [self]
- * ([rememberGroupMember]), had focus, while it is there. Plain elements, not a `composed` modifier:
- * equal from one composition to the next, so the surface they are set on still skips when its row
- * is entered and every card of it recomposes.
+ * Reports to [group] when this element, focused by [self], takes focus. Plain node elements rather than
+ * `composed`, so the surface still skips recomposition when its row is entered.
  */
 fun Modifier.rememberedInGroup(group: GroupFocus?, self: FocusRequester): Modifier =
     if (group == null) this else focusRequester(self).then(GroupMemberElement(group, self))
@@ -434,10 +374,8 @@ private class GroupMemberNode(var group: GroupFocus, var self: FocusRequester) :
 }
 
 /**
- * Back in two steps. While [away] (focus deep in the screen: a lower row, past the first line of a
- * wall, in the right pane), Back runs [toStart], which brings focus back to where the screen
- * starts; from there, Back leaves the screen. Sheets and menus are windows of their own and keep
- * their own Back.
+ * Back in two steps: while [away] (focus deep in the screen), Back runs [toStart]; from the start, Back
+ * leaves the screen. Sheets and menus are separate windows with their own Back.
  */
 @Composable
 fun BackToStart(away: Boolean, toStart: suspend () -> Unit) {

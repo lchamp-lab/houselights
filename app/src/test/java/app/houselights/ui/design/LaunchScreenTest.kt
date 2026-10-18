@@ -21,11 +21,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 
-/**
- * The launch screen leaves on the heels of the first frame the screen under it draws whole: told
- * from the drawing of that frame, never while what it shows is still being prepared, and never once
- * nothing covers it.
- */
+/** The launch screen lifts on the first full frame drawn under it, never earlier, nor when it covers nothing. */
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = TV)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
@@ -48,7 +44,7 @@ class LaunchScreenTest {
         }
     }
 
-    /** A frame, drawn as the window draws it: Robolectric lays the window out, but draws it only when asked. */
+    /** Draws a frame as the window does: Robolectric lays the window out, but draws it only when asked. */
     private fun drawAFrame() {
         compose.waitForIdle()
         compose.runOnUiThread {

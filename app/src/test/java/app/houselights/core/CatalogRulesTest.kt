@@ -4,7 +4,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 
-/** The rules of what the catalog reads: editions as named, an NFO's people, votes and edition. */
+/** Catalog reading rules: edition names, and an NFO's people, votes and edition. */
 class CatalogRulesTest {
     @Test
     fun editionsAreKnownWhateverTheirSpelling() {

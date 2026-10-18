@@ -15,10 +15,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.shadows.ShadowLog
 
-/**
- * What a scan makes of the names and folders a NAS holds: discs, extras, files holding several
- * episodes or naming none, shows under a folder of kinds or of two years.
- */
+/** What a scan makes of a NAS's names and folders: discs, extras, multi-episode files, shows in shared folders. */
 @RunWith(RobolectricTestRunner::class)
 class ScanNamesTest {
     @get:Rule
@@ -48,7 +45,7 @@ class ScanNamesTest {
 
     private fun putImage(path: String) = nas.put(path, size = 100, bytes = ByteArray(100))
 
-    /** A Blu-ray's folder is one film, named by its folder, opened by its largest stream, described beside it. */
+    /** A Blu-ray folder is one film, named by its folder, played from its largest stream, described beside it. */
     @Test
     fun aBluRayIsOneTitle() = runTest {
         nas.put("Inception (2010)/BDMV/STREAM/00000.m2ts", size = 300_000_000)
@@ -66,7 +63,7 @@ class ScanNamesTest {
         assertTrue(inception.posterPath.isCachedArtwork())
     }
 
-    /** What plays of a disc's folder may open on a menu or an intro: the player is followed as for a disc. */
+    /** A disc folder may open on a menu or an intro: the player is followed as for a disc. */
     @Test
     fun aBluRayIsPlayedAsADisc() = runTest {
         nas.put("Inception (2010)/BDMV/STREAM/00800.m2ts", size = 38_000_000_000)
@@ -78,7 +75,7 @@ class ScanNamesTest {
         assertTrue((plan as PlaybackPlan.Launch).disc)
     }
 
-    /** A DVD's folder is one film, opened by the first part of its largest title set; its NFO may lie in VIDEO_TS. */
+    /** A DVD folder is one film, played from its largest title set's first part; its NFO may be in VIDEO_TS. */
     @Test
     fun aDvdIsOneTitle() = runTest {
         nas.put("Films/Heat (1995)/VIDEO_TS/VIDEO_TS.VOB", size = 200_000)
@@ -97,10 +94,7 @@ class ScanNamesTest {
         assertEquals("Films/Heat (1995)/VIDEO_TS/VIDEO_TS.nfo", heat.nfoPath)
     }
 
-    /**
-     * Extras are no titles, and the film keeps the folder's NFO and artwork; a folder of the user's
-     * at the source's root, or under a folder of kinds, stays a folder of films, whatever its name.
-     */
+    /** The film keeps its folder's NFO and artwork; a user folder at the root or in a kinds folder holds films. */
     @Test
     fun extrasAreNoTitles() = runTest {
         nas.put("Dune (2021)/Dune (2021).mkv")
@@ -126,10 +120,7 @@ class ScanNamesTest {
         assertTrue(dune.posterPath.isCachedArtwork())
     }
 
-    /**
-     * A folder named like a folder of extras holds extras only in its title's own folder, named by it or by
-     * a year, or in a season's: under a folder of kinds that holds a loose film, its videos are films.
-     */
+    /** An extras-named folder holds extras only in a title's or season's folder; in a folder of kinds, films. */
     @Test
     fun foldersNamedLikeExtrasUnderAFolderOfKindsHoldFilms() = runTest {
         nas.put("Animation/Coco (2017).mkv")
@@ -151,10 +142,7 @@ class ScanNamesTest {
         assertEquals(kept, filmPaths())
     }
 
-    /**
-     * A folder holding one film alone, named otherwise than its file and without a year, is still its own: its
-     * featurettes, scenes and trailers, which never name films, are extras. A film in parts is one film there.
-     */
+    /** A lone film in a folder named differently and without a year still owns it: its featurettes are extras. */
     @Test
     fun aFilmAloneInAFolderNamedOtherwiseKeepsItsExtrasOut() = runTest {
         nas.put("Amélie/Le Fabuleux Destin d'Amélie Poulain (2001).mkv")
@@ -173,7 +161,7 @@ class ScanNamesTest {
         assertEquals(kept, filmPaths())
     }
 
-    /** A Blu-ray's folder in a show's is the episode its folder names. */
+    /** A Blu-ray folder inside a show's is the episode its folder names. */
     @Test
     fun aBluRayOfAnEpisodeIsThatEpisode() = runTest {
         showsNas.put("Severance/Season 1/Severance - S01E01/BDMV/STREAM/00001.m2ts", size = 9_000_000_000)
@@ -186,7 +174,7 @@ class ScanNamesTest {
         assertEquals("Severance", bench.dao.item(checkNotNull(pilot.seriesId))?.title)
     }
 
-    /** Extras of an episode, beside it or in its season's folder: no second episode of that number. */
+    /** Extras of an episode, beside it or in its season's folder, are not a second episode of that number. */
     @Test
     fun extrasOfEpisodesAreNoEpisodes() = runTest {
         showsNas.put("Severance/Season 1/Severance - S01E01.mkv")
@@ -210,7 +198,7 @@ class ScanNamesTest {
         assertEquals("1-2", double.episodeNumbers)
         assertEquals("Episodes 1-2", double.title)
 
-        // Watched, it is watched whole: one row, and no other made for its second episode.
+        // Marked watched, it is watched whole: one row, none created for its second episode.
         bench.dao.setPlayed(rows.first().id, true, bench.now)
         assertEquals(listOf(true, false), episodes().map { it.played })
     }
@@ -227,7 +215,7 @@ class ScanNamesTest {
         assertEquals(listOf("doctor who|1963" to 1963, "doctor who|2005" to 2005), series().map { it.matchKey to it.year })
     }
 
-    /** French packs at the source's root, one for each season ("Saison 1", "Saison 2") and one whole ("Intégrale"): one show each. */
+    /** French packs at the root, per season ("Saison 1") and whole ("Intégrale"), make one show. */
     @Test
     fun frenchPacksOfAShowAreOneShow() = runTest {
         showsNas.put("Les.Revenants.Saison.1.FRENCH.720p.HDTV/Les.Revenants.S01E01.FRENCH.720p.HDTV.mkv")
@@ -238,7 +226,6 @@ class ScanNamesTest {
         assertEquals(listOf("kaamelott" to "Kaamelott", "les revenants" to "Les Revenants"), series().map { it.matchKey to it.title })
     }
 
-    /** A folder of a show's name holding one for each of its years: each a show of its own, by its year. */
     @Test
     fun aShowsYearsInAFolderOfItsNameAreTwoShows() = runTest {
         showsNas.put("Doctor Who/Doctor Who (1963)/Season 01/Doctor Who - S01E01 - An Unearthly Child.mkv")
@@ -250,7 +237,6 @@ class ScanNamesTest {
         assertEquals(keys, series().map { it.matchKey to it.year })
     }
 
-    /** Folders of a show's years naming a season or a release's tags after the year: still a show for each year. */
     @Test
     fun aShowsYearsNamingMoreThanTheirYearAreTwoShows() = runTest {
         showsNas.put("Doctor Who/Doctor Who (1963) 1080p/Season 01/Doctor Who - S01E01 - An Unearthly Child.mkv")
@@ -260,10 +246,7 @@ class ScanNamesTest {
         assertEquals(listOf("doctor who|1963" to 1963, "doctor who|2005" to 2005), series().map { it.matchKey to it.year })
     }
 
-    /**
-     * A show's folder holding a pack for each season, each naming the show's year in parentheses: one show of that
-     * year, still described by its own folder, its tvshow.nfo and its seasons' posters there, not by a season's pack.
-     */
+    /** Season packs naming the show's year: one show, described by its folder, tvshow.nfo and season posters. */
     @Test
     fun aShowsSeasonPacksNamingItsYearStayInItsFolder() = runTest {
         showsNas.put("Breaking Bad/tvshow.nfo", size = BREAKING_BAD.size.toLong(), bytes = BREAKING_BAD)
@@ -278,7 +261,6 @@ class ScanNamesTest {
         assertTrue(bench.dao.season(show.id, 2)?.posterPath.isCachedArtwork())
     }
 
-    /** A folder of kinds above the shows: each show is its own, described by its own folder. */
     @Test
     fun showsUnderAFolderOfKindsAreTheirOwn() = runTest {
         showsNas.put("Animation/Arcane/tvshow.nfo", size = ARCANE.size.toLong(), bytes = ARCANE)
@@ -303,10 +285,7 @@ class ScanNamesTest {
         assertEquals(1, series().size)
     }
 
-    /**
-     * A show a library holds from before its key held the year keeps its row, and what the user did
-     * with it, as new episodes come; a folder of the show that gives no year joins it.
-     */
+    /** A show keyed before keys included the year keeps its row as episodes arrive; a yearless folder joins it. */
     @Test
     fun aShowKeyedWithoutItsYearKeepsItsRow() = runTest {
         val old = bench.dao.insert(

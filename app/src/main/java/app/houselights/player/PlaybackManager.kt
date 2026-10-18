@@ -25,57 +25,50 @@ import kotlinx.coroutines.launch
 import kotlin.math.abs
 
 /**
- * Launches the native Zidoo player and feeds playback progress back to the backend.
- *
- * Position is tracked twice: by polling the Zidoo local API while playing, then from the
- * "position" extra the player returns when it closes.
+ * Launches the native Zidoo player and reports progress to the backend: polled from its local API while
+ * it plays, then from the "position" extra it returns on close.
  */
 class PlaybackManager(
     private val context: Context,
     private val scope: CoroutineScope,
-    /** What the player says it plays now: the Zidoo local API. */
     private val status: suspend () -> PlayerAnswer = ZidooStatus::playStatus,
-    /** Milliseconds that only go forward: how long the player has said nothing of its title. */
+    /** Monotonic clock (ms) that times the player's silence. */
     private val clock: () -> Long = SystemClock::elapsedRealtime,
-    /** Finds the player a film is handed to. */
     private val players: ZidooPlayer = ZidooPlayer(context),
-    /** The reporter of a playback the app started before it was stopped (see [PlaybackPlan.Launch.resumeKey]). */
+    /** Recovers the reporter of a playback started before the app was stopped (see [PlaybackPlan.Launch.resumeKey]). */
     private val reporterFor: suspend (String) -> PlaybackReporter?,
 ) {
     private class Session(
-        /** What reports the file playing: a film's next part's, once the player went on to it (see [follow]). */
+        /** Reports the file playing; becomes the next part's reporter once the player moves on to it (see [follow]). */
         var reporter: PlaybackReporter?,
         var positionMs: Long,
         /** A disc: it may open on a menu or an intro, whose length is not the title's (see [follow]). */
         val disc: Boolean = false,
-        /** What names the file playing, as [reporter]'s source knows it ([PlaybackPlan.Launch.resumeKey]): for the log. */
+        /** Key of the playing file ([PlaybackPlan.Launch.resumeKey]), for the log. */
         var key: String? = null,
-        /** The player a secret goes to: remembered once it has started ([onPlayerLaunched]), not if it could not be. */
+        /** The player a secret goes to, remembered only once it has started ([onPlayerLaunched]). */
         val trusting: ZidooPlayer.Choice? = null,
     ) {
         /** The length of the title, from the player's first status (see [follow]). */
         var durationMs: Long? = null
         var paused = false
 
-        /** The player went on to another file (the next one of its folder): what it says is no longer this title's. */
+        /** The player moved on to another file: its statuses no longer concern this title. */
         var switched = false
 
-        /** The report that playback started: the one that it stopped waits for it. */
+        /** The "started" report, which the "stopped" report waits for. */
         var started: Job? = null
     }
 
     private var session: Session? = null
     private var pollJob: Job? = null
 
-    /**
-     * The session, written down before the player starts: on a 2 GB player, Android may stop the app
-     * while the film plays. The result then reaches a new process, which finds what was playing here.
-     */
+    /** The session, persisted before launch: on a 2 GB player, Android may kill the app during the film. */
     private val saved = context.getSharedPreferences("playback", Context.MODE_PRIVATE)
 
     private val _playing = MutableStateFlow(false)
 
-    /** True while the player shows a film: the NAS and the network are its own. */
+    /** True while the player shows a film, which then has the NAS and the network to itself. */
     val playing: StateFlow<Boolean> = _playing
 
     private val _playbackEnded = MutableSharedFlow<Unit>(extraBufferCapacity = 4)
@@ -84,25 +77,16 @@ class PlaybackManager(
     val playbackEnded: SharedFlow<Unit> = _playbackEnded
 
     /**
-     * Builds the intent for the Zidoo player, or for any video player elsewhere.
+     * Builds the intent for the Zidoo player, or any video player elsewhere. A URI's secret (an SMB
+     * password, or Jellyfin's token, which opens the whole account) goes only to the player [ZidooPlayer]
+     * trusts, and only on a Zidoo: a password goes to no other app ([CredentialsNotShared]); a token goes
+     * elsewhere only through a chooser, even for a single app ([AUTO_LAUNCH_SINGLE_CHOICE]), and never once
+     * the trusted player has changed. A player found under another name gets a stream only if it handles
+     * its address ([ZidooPlayer.opens]).
      *
-     * What the app keeps from other apps is a URI's secret: an SMB folder's password, or Jellyfin's
-     * token, which opens the whole account. It goes only to the player [ZidooPlayer] trusts, and only
-     * on a Zidoo: a system app, which no ordinary app can replace; an app signed like a system app of
-     * Zidoo's; else the player a secret last went to, or the first one, as long as neither its package
-     * nor its certificate changes. Off a Zidoo, no app is trusted, whatever its name: any app may take one.
-     * A password goes to no other app ([CredentialsNotShared]); a token goes elsewhere only through a
-     * chooser, where the user picks the app, even the only one ([AUTO_LAUNCH_SINGLE_CHOICE]), and not
-     * once the player trusted before has changed: the app put in its place would be in the chooser. A
-     * URI with no secret goes to the player found, trusted or not, with what it is told of the film. A
-     * player found under another name gets a stream only if it answers its address ([ZidooPlayer.opens]);
-     * else the stream goes as to any player.
-     *
-     * Not guarded against: an app installed on a Zidoo whose player is no system app, under a name of
-     * Zidoo's or the old player's, before a first password goes to the player (trusted on first use,
-     * it would be the one; beside a system player, it comes after it); an update of a system app
-     * signed with the AOSP test keys of the firmware's build; and whoever reads the device's log
-     * through adb, where Android writes the address it starts.
+     * Not guarded against: a non-system player installed under a Zidoo package name before the first
+     * password (trusted on first use), a system app update signed with the firmware's AOSP test keys, and
+     * anyone reading the device log over adb, where Android logs the URI it starts.
      */
     fun intentFor(plan: PlaybackPlan.Launch): Intent {
         Log.i(TAG, "Launch ${plan.title} -> ${Redact.uri(plan.uri)}")
@@ -110,7 +94,7 @@ class PlaybackManager(
         val choice = players.choose()
         val player = choice.player?.takeIf { players.opens(it, plan.uri) }
         val secret = Redact.hasCredentials(plan.uri)
-        // A warning, kept in every build: where a secret goes, or why not, is what an evening on a new player needs.
+        // A warning, so release builds keep where a secret went, or why not.
         if (secret) {
             val unanswered = if (player == null && choice.player != null) UNANSWERED_STREAM else ""
             Log.w(TAG, "Launch ${Redact.uri(plan.uri)} -> ${players.describe(choice)}$unanswered")
@@ -123,18 +107,16 @@ class PlaybackManager(
         }
         val trusting = choice.takeIf { secret && intent.component != null }
         session = Session(plan.reporter, plan.startMs, plan.disc, plan.resumeKey, trusting)
-        // Written before the player takes over: the platform finishes pending apply() writes before our
-        // activity stops, which launching the player does, so the resume point survives a killed process.
+        // Pending apply() writes complete before our activity stops, so the resume point survives a killed process.
         saved.edit().putString(KEY_RESUME, plan.resumeKey).putLong(KEY_POSITION, plan.startMs).apply()
         return intent
     }
 
-    /** The player's intent: the file, and what the player shows while it opens it and where it starts. */
     private fun playerIntent(player: ComponentName, plan: PlaybackPlan.Launch) = Intent(Intent.ACTION_VIEW).apply {
         component = player
         setDataAndType(Uri.parse(plan.uri), "video/${plan.container ?: "*"}")
         putExtra("title", plan.title)
-        // The player is another app: a file of ours is out of its reach, a web address is not.
+        // The player is another app: it can fetch a web address but not one of our files.
         plan.backdropUrl?.takeIf(::isWebUrl)?.let { putExtra("loading_image", it) }
         plan.logoUrl?.takeIf(::isWebUrl)?.let { putExtra("clearlogo_image", it) }
         if (plan.startMs > 0) {
@@ -146,7 +128,7 @@ class PlaybackManager(
         putExtra("return_result", true)
     }
 
-    /** Any video player's intent; through a [chooser] for a URI with a token, so that the user picks the app. */
+    /** Any video player's intent, through a [chooser] for a URI with a token so that the user picks the app. */
     private fun anyPlayerIntent(plan: PlaybackPlan.Launch, chooser: Boolean): Intent {
         val any = Intent(Intent.ACTION_VIEW).apply {
             setDataAndType(Uri.parse(plan.uri), "video/*")
@@ -158,14 +140,14 @@ class PlaybackManager(
         return Intent.createChooser(any, context.getString(R.string.play_with)).putExtra(AUTO_LAUNCH_SINGLE_CHOICE, false)
     }
 
-    /** The player could not be started after all: no password went to it, and it is not remembered. */
+    /** The player could not be started: no password reached it, and it is not remembered. */
     fun onLaunchFailed() {
         session = null
         _playing.value = false
         saved.edit().clear().apply()
     }
 
-    /** Call right after the player activity was started: a player a secret went to is remembered ([ZidooPlayer.remember]). */
+    /** Call once the player activity has started; remembers a player given a secret ([ZidooPlayer.remember]). */
     fun onPlayerLaunched() {
         val s = session ?: return
         s.trusting?.let(players::remember)
@@ -176,23 +158,17 @@ class PlaybackManager(
     }
 
     /**
-     * Follows the player through its local API: every [POLL_MS] locally, every few polls to the
-     * backend, and only what the player says now, never a position kept from before. It stops once
-     * the player has gone on to another file, or after [SILENT_POLLS] polls in a row past a first
-     * status that the player says nothing plays: the session waits for the player's result all the
-     * same. An API out of reach says nothing of the film, whose NAS stays its own: past [SILENT_POLLS]
-     * polls without an answer, it is asked every [SLOW_POLL_MS] only, so that what it says next still
-     * counts, until the title can no longer be playing ([silenceAllowedMs]). That also ends [playing]:
-     * an API gone with its player never holds the NAS for good.
-     *
-     * The position is written down ([keep]) at the backend's pace, and once more when tracking stops
-     * while the session goes on: each write rewrites the file and syncs it to the flash.
+     * Polls the player's local API every [POLL_MS] and reports its current position, never a stale one, every
+     * few polls. Stops when the player moves to another file or says nothing plays [SILENT_POLLS]
+     * times in a row; an unreachable API is then polled every [SLOW_POLL_MS] until the title can no longer
+     * be playing ([silenceAllowedMs]), which also ends [playing] so a vanished player never holds the NAS.
+     * The position is persisted ([keep]) only at the backend's pace: each write syncs the file to flash.
      */
     private suspend fun track(s: Session) {
         try {
             poll(s)
         } finally {
-            // Not once the player's result has ended the session: it cleared what was written down.
+            // Skipped once the player's result has ended the session and cleared the saved state.
             if (currentCoroutineContext().isActive) keep(s)
         }
     }
@@ -240,16 +216,13 @@ class PlaybackManager(
         }
     }
 
-    /** [answer] says nothing of the title again, and the player last spoke of it ([heardAt]) longer ago than it could still play. */
+    /** No status again, and the last one ([heardAt]) is older than the title could still play. */
     private fun Session.silentTooLong(answer: PlayerAnswer, heardAt: Long) =
         answer !is PlayerAnswer.Playing && clock() - heardAt > silenceAllowedMs()
 
     /**
-     * How long the player may say nothing of the title (no answer, or nothing playing) before the title
-     * can no longer be playing: what was left of it at the last status, and [SILENCE_MARGIN_MS] for a
-     * pause or a seek back. Before a first status its length is unknown: [UNHEARD_MAX_MS]. So it is
-     * when a disc has only shown a menu or an intro so far: what was left of it says nothing of the
-     * film to come.
+     * Silence allowed before the title can no longer be playing: the time left at the last status plus
+     * [SILENCE_MARGIN_MS]; [UNHEARD_MAX_MS] before a first status or while a disc shows only a menu or intro.
      */
     private fun Session.silenceAllowedMs(): Long {
         val title = durationMs?.takeUnless { disc && it < TITLE_MIN_MS } ?: return UNHEARD_MAX_MS
@@ -257,12 +230,9 @@ class PlaybackManager(
     }
 
     /**
-     * Takes what the player says for the session. A status of another length is another file: the
-     * player went on to the next one of its folder, at the end of the file or as "next" was pressed.
-     * When that file is the title's next part ([nextPart]), the session follows it as it did the first,
-     * reported by its own reporter. Only a disc plays several lengths as one title: its film comes after
-     * a menu or an intro, whose length gives way to the film's, unless what played was a title, played to
-     * its end (the disc's menu comes back after its film).
+     * Applies a player status. Another length means another file (the next in its folder, at the end or on
+     * "next"), followed if it is the title's next part ([nextPart]). Only a disc changes length within a
+     * title, its film following a menu or intro, unless a title had played to its end and the menu returned.
      */
     private suspend fun follow(s: Session, state: ZidooPlayState) {
         val launched = s.durationMs
@@ -278,8 +248,7 @@ class PlaybackManager(
                 Log.i(TAG, "The player went on to the title's next part ($launched -> ${state.durationMs} ms)")
                 s.reporter = next.reporter
                 s.key = next.resumeKey
-                // A new process that gets the player's result reports this part, not the one before; not
-                // once the result has ended the session and cleared what was written down.
+                // So a new process receiving the result reports this part; skipped once the result ended the session.
                 if (session === s) saved.edit().putString(KEY_RESUME, next.resumeKey).apply()
             } else {
                 Log.i(TAG, "The title is ${state.durationMs} ms long, past a menu or an intro of $launched ms")
@@ -291,10 +260,8 @@ class PlaybackManager(
     }
 
     /**
-     * The title's next part ([PlaybackReporter.next]), when it is what the player went on to: its file's
-     * name, when the player says what it plays; else the end of the file before ([ended]), where the
-     * player goes on by itself to the next file of its folder, which a film's next part is. Only a path
-     * tells a disc's next part from its menu.
+     * The title's next part ([PlaybackReporter.next]) if the player moved on to it: matched by file name when
+     * the player reports its path, else inferred from the previous file having [ended] (never for a disc).
      */
     private suspend fun Session.nextPart(state: ZidooPlayState, ended: Boolean): PlaybackReporter.Next? {
         val next = suspendRunCatching { reporter?.next() }.getOrNull() ?: return null
@@ -302,14 +269,14 @@ class PlaybackManager(
         return next.takeIf { if (played != null) names(played, next.path) else ended && !disc }
     }
 
-    /** The player's [path] names the file at [relativePath]: by its name, escaped or not, whatever its folder or mount. */
+    /** Whether the player's [path] names the file at [relativePath], escaped or not, whatever its mount. */
     private fun names(path: String, relativePath: String): Boolean {
         val name = relativePath.substringAfterLast('/')
         val played = path.substringAfterLast('/')
         return played.equals(name, ignoreCase = true) || Uri.decode(played).equals(name, ignoreCase = true)
     }
 
-    /** Writes down where the session is: a new process finds it there if Android stops this one (see [saved]). */
+    /** Persists the session's position for a new process if Android kills this one (see [saved]). */
     private fun keep(s: Session) {
         saved.edit().putLong(KEY_POSITION, s.positionMs).apply()
     }
@@ -327,7 +294,7 @@ class PlaybackManager(
         pollJob = null
         val returned = data?.getIntExtra("position", -1) ?: -1
         scope.launch {
-            // The last progress report is done, and the one that playback started, before the final one is sent.
+            // The last progress report and the "started" report finish before the final one is sent.
             poll?.cancelAndJoin()
             live?.started?.join()
             // No live session: the app was stopped while the film played.
@@ -340,27 +307,21 @@ class PlaybackManager(
         }
     }
 
-    /** Tells the backend where [s] stands ([step]: started, progress, stopped); a failure is logged, with the file and the step. */
+    /** Reports [s] at [step] (started, progress, stopped); a failure is only logged. */
     private suspend fun report(s: Session, step: String, block: suspend () -> Unit) {
         suspendRunCatching { block() }.onFailure { Log.w(TAG, "Report that ${s.key} $step at ${s.positionMs} ms failed", it) }
     }
 
-    /**
-     * The file needs credentials and only the Zidoo player may receive them; [playerChanged]: the
-     * player is no longer the one trusted with them before.
-     */
+    /** The file needs credentials only the trusted Zidoo player may receive; [playerChanged] if it changed. */
     class CredentialsNotShared(val playerChanged: Boolean = false) : Exception("Credentials are only given to the Zidoo player")
 
     companion object {
         private const val TAG = "Playback"
 
-        /** What the launch warning adds when the player found does not answer a stream's address. */
+        /** Appended to the launch warning when the player found does not handle a stream's address. */
         private const val UNANSWERED_STREAM = "; the player does not answer this stream's address: not handed it"
 
-        /**
-         * Intent.EXTRA_AUTO_LAUNCH_SINGLE_CHOICE, which the SDK hides: false, the chooser lists even a
-         * single app instead of opening it unasked (its ChooserActivity reads it, on Android 9 and 11).
-         */
+        /** Hidden EXTRA_AUTO_LAUNCH_SINGLE_CHOICE: false makes the chooser list even a single app (Android 9, 11). */
         private const val AUTO_LAUNCH_SINGLE_CHOICE = "android.intent.extra.AUTO_LAUNCH_SINGLE_CHOICE"
         private const val KEY_RESUME = "resume_key"
         private const val KEY_POSITION = "position_ms"
@@ -369,42 +330,31 @@ class PlaybackManager(
         private const val FIRST_POLL_MS = 4_000L
         private const val POLL_MS = 2_000L
 
-        /** Progress goes to the backend every this many polls: some ten seconds. */
+        /** Progress is reported every this many polls, about ten seconds. */
         private const val REPORT_EVERY = 5
 
-        /**
-         * Polls in a row, past a first status, that the player says nothing plays before tracking
-         * stops, or does not answer before it is asked less often: some thirty seconds.
-         */
+        /** Polls saying nothing plays before tracking stops, or unanswered before polling slows: about 30 s. */
         private const val SILENT_POLLS = 15
 
-        /** How often an API that has not answered a while is asked. */
+        /** Poll interval for an API that has not answered for a while. */
         private const val SLOW_POLL_MS = 10_000L
 
-        /** Past what was left of the title, how long the player may still say nothing of it (see [silenceAllowedMs]). */
+        /** Silence allowed beyond the title's remaining time (see [silenceAllowedMs]). */
         private const val SILENCE_MARGIN_MS = 5 * 60_000L
 
         /**
-         * How long a player that never gave the title's length may say nothing before it is taken to
-         * play no more: the longest cuts people watch run near four hours (and the scan waits for a
-         * player as long). Shorter, a long film whose player's API never answers would share its NAS
-         * with a scan; longer, a player that is gone would hold the scan for nothing.
+         * Silence allowed when the length was never reported: the longest cuts run near four hours, as long
+         * as a scan waits for the player. Shorter would share the NAS with a scan; longer would stall it.
          */
         private const val UNHEARD_MAX_MS = 4 * 60 * 60_000L
 
-        /**
-         * How close to its end, in polls, a disc's title was when the player shows another length: it
-         * played to its end, and the disc's menu came back.
-         */
+        /** Within this many polls of its end, a disc title that changes length has played out to its menu. */
         private const val END_POLLS = 3
 
         /** Shorter than this, what a disc plays first is its menu or an intro, never its title. */
         private const val TITLE_MIN_MS = 5 * 60_000L
 
-        /**
-         * Two statuses of the same file agree on its length within this, or within a hundredth of it,
-         * room for a length the player refines as it reads (a transport stream's).
-         */
+        /** Same-file length tolerance, or 1 % of the length: a transport stream's length is refined while reading. */
         private const val SAME_FILE_MS = 2_000L
         private const val SAME_FILE_SHARE = 100
     }

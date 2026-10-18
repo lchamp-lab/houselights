@@ -9,27 +9,21 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import java.io.FileNotFoundException
 
-/**
- * Listing an NFS export with READDIRPLUS, on a NAS held in memory: what a listing gives, as READDIR
- * and a lookup of each entry gave it, and what it asks the NAS; what reading a file asks it. On
- * Robolectric for the log.
- */
+/** Listing an NFS export with READDIRPLUS on an in-memory NAS, and what each listing or read asks of it. */
 @RunWith(RobolectricTestRunner::class)
 class NfsListingTest {
-    /** A file or folder of the export; [size] and [date]: as a GETATTR tells them. */
+    /** A file or folder of the export; [size] and [date] as a GETATTR returns them. */
     private class Item(val isFolder: Boolean, val size: Long = 0, val date: Long? = null)
 
     /**
-     * An export holding [items] by path from its root ("/" separators), handles their paths. Each
-     * READDIRPLUS answers [perAnswer] entries at most, "." and ".." first; the entries of [withheld]
-     * come without their attributes and handle, as a NAS may answer. What was asked, in order, and the
-     * files read, by path.
+     * An export of [items] by path, paths as handles: each READDIRPLUS answers at most [perAnswer] entries,
+     * those in [withheld] without attributes or handle; it records requests and reads.
      */
     private inner class Export(private val perAnswer: Int = 100) : NfsExport {
         val asked = mutableListOf<String>()
         val read = mutableListOf<String>()
 
-        /** Handles the NAS no longer knows, by path: each is refused once, as a file replaced since it was looked up. */
+        /** Handles the NAS no longer knows, by path: each refused once, like a file replaced since its lookup. */
         val stale = mutableSetOf<String>()
 
         private fun handle(path: String) = path.toByteArray()
@@ -90,7 +84,6 @@ class NfsListingTest {
         items[path] = Item(isFolder = false, size = size, date = date)
     }
 
-    /** Times the export was mounted. */
     private var mounts = 0
 
     private fun browser(export: Export) = NfsBrowser(mount = { export.also { mounts++ } }, clock = { 0L })
@@ -100,7 +93,7 @@ class NfsListingTest {
         path = "", username = "", password = Secret(""),
     )
 
-    /** A library as Radarr and Kodi leave it: a folder per film, its NFO and artwork beside the video. */
+    /** A library as Radarr and Kodi leave it: a folder per film, with its NFO and artwork beside the video. */
     private fun library() {
         folder("Dune (2021)")
         file("Dune (2021)/Dune (2021).mkv", size = 80_000_000_000, date = 1_760_000_000_000)
@@ -135,7 +128,7 @@ class NfsListingTest {
         assertEquals(emptyList<String>(), listing.unreadable)
     }
 
-    /** One request per folder (the system's left unread), where READDIR then a LOOKUP and a GETATTR per entry took about three per file. */
+    /** One request per folder, where READDIR then LOOKUP and GETATTR per entry would take about three per file. */
     @Test
     fun aFolderIsListedInOneRequest() = runTest {
         library()
@@ -144,7 +137,7 @@ class NfsListingTest {
         assertEquals(listOf("READDIRPLUS / from 0", "READDIRPLUS /Arrival (2016) from 0", "READDIRPLUS /Dune (2021) from 0"), export.asked)
     }
 
-    /** A folder longer than an answer: each next one goes on from the last entry's cookie, none listed twice. */
+    /** A folder longer than one answer: each answer resumes from the last entry's cookie, none listed twice. */
     @Test
     fun aLongFolderTakesSeveralAnswers() = runTest {
         repeat(7) { file("Film $it (2000).mkv", size = 1L + it) }
@@ -154,7 +147,7 @@ class NfsListingTest {
         assertEquals(listOf("READDIRPLUS / from 0", "READDIRPLUS / from 3", "READDIRPLUS / from 6"), export.asked)
     }
 
-    /** A NAS may leave out an entry's attributes or handle: that entry alone is looked up, as every entry was before. */
+    /** A NAS may leave out an entry's attributes or handle: only that entry is looked up. */
     @Test
     fun anEntryAnsweredWithoutItsAttributesIsLookedUp() = runTest {
         library()
@@ -166,7 +159,7 @@ class NfsListingTest {
         assertEquals(listOf("LOOKUP /Dune (2021)", "LOOKUP /Sicario (2015).mp4"), export.asked.filter { it.startsWith("LOOKUP") })
     }
 
-    /** Radarr replaced a file between the answer and the lookup: it is passed over, and named. */
+    /** Radarr replaced a file between the answer and the lookup: it is skipped, and named. */
     @Test
     fun anEntryGoneBeforeItsLookupIsPassedOver() = runTest {
         library()
@@ -178,7 +171,7 @@ class NfsListingTest {
         assertEquals(3, listing.videos.size)
     }
 
-    /** lost+found, or a folder of another user: passed over, named, the rest listed. */
+    /** lost+found, or another user's folder: skipped and named, the rest listed. */
     @Test
     fun aSubfolderTheNasRefusesIsPassedOver() = runTest {
         library()
@@ -188,14 +181,14 @@ class NfsListingTest {
         assertEquals(listOf("Arrival (2016)/Arrival (2016).mkv", "Sicario (2015).mp4"), listing.videos.map { it.relativePath })
     }
 
-    /** The form's test counts what the folder holds, hidden and system entries aside, "." and ".." too. */
+    /** The form's test counts what the folder holds, leaving out hidden and system entries, "." and "..". */
     @Test
     fun aTestCountsTheFolder() = runTest {
         library()
         assertEquals(3, browser(Export()).test(films))
     }
 
-    /** A file of a folder deep in the export, by its path from the export's root: each name looked up from the root. */
+    /** A file deep in the export, by its path from the export's root: each name is looked up from the root. */
     @Test
     fun aFileIsReadByItsPathInTheExport() = runTest {
         folder("films")
@@ -217,10 +210,7 @@ class NfsListingTest {
         )
     }
 
-    /**
-     * A probe reads its file three or four times, then the title's NFO and artwork beside it are read:
-     * the file is looked up once, and its folder once for all of them.
-     */
+    /** A probe's three or four reads, then the NFO and artwork: one lookup for the file, one for its folder. */
     @Test
     fun aFolderAndItsFilesAreLookedUpOnceForAllTheirReads() = runTest {
         library()
@@ -239,7 +229,7 @@ class NfsListingTest {
         assertEquals(5, export.read.size)
     }
 
-    /** Radarr replaced the file since it was read: its handle refused, it is looked up once more and read, on the same mount. */
+    /** Radarr replaced the file since it was read: its handle refused, it is looked up again on the same mount. */
     @Test
     fun aFileReplacedSinceItWasReadIsLookedUpAgain() = runTest {
         library()
@@ -253,7 +243,7 @@ class NfsListingTest {
         assertEquals(1, mounts)
     }
 
-    /** A folder whose handle the NAS no longer knows (moved, made again): its path is looked up again, on the same mount. */
+    /** A folder handle the NAS no longer knows (moved, recreated): its path is looked up again, same mount. */
     @Test
     fun aFolderForgottenSinceItWasReadIsLookedUpAgain() = runTest {
         library()
@@ -267,7 +257,7 @@ class NfsListingTest {
         assertEquals(1, mounts)
     }
 
-    /** A mount dropped (a scan over, the folder's address changed) takes its handles along: the next read looks its file up. */
+    /** A dropped mount (scan over, folder address changed) drops its handles: the next read looks the file up. */
     @Test
     fun aMountDroppedTakesItsHandlesAlong() = runTest {
         library()
@@ -281,7 +271,7 @@ class NfsListingTest {
         assertEquals(3, export.asked.count { it == "LOOKUP /Sicario (2015).mp4" })
     }
 
-    /** A few titles' handles are kept, not a whole library's: one read long ago is looked up again. */
+    /** Handles are kept for a few titles, not a whole library: a file read long ago is looked up again. */
     @Test
     fun aFileReadLongAgoIsLookedUpAgain() = runTest {
         repeat(100) { file("Film $it (2000).mkv", size = 1) }
@@ -294,7 +284,6 @@ class NfsListingTest {
         assertEquals(1, export.asked.count { it == "LOOKUP /Film 99 (2000).mkv" })
     }
 
-    /** A file gone since it was listed is not found, and the mount kept. */
     @Test
     fun aFileGoneIsNotFound() = runTest {
         library()

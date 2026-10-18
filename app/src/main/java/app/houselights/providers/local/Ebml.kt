@@ -1,18 +1,17 @@
 package app.houselights.providers.local
 
-/** EBML's variable-length integers, as Matroska writes the sizes of its elements and of laced frames. */
+/** EBML variable-length integers, which Matroska uses for element sizes and laced frame sizes. */
 internal object Ebml {
     private const val MAX_LENGTH = 8
 
-    /** Bits each byte of an integer gives its value: the rest of the first byte marks its length. */
+    /** Value bits per byte; the remaining bits of the first byte encode the length. */
     private const val VALUE_BITS = 7
 
     private const val BYTE_MASK = 0xFF
 
     /**
-     * The unsigned variable-length integer at [at], which must end before [end]: its value bits, and
-     * its length in bytes, 1 to 8 as its first byte's leading zeros tell. Throws when the first byte
-     * tells no such length, or the integer runs past [end].
+     * The unsigned variable-length integer at [at]: its value (length marker removed) and its length in
+     * bytes, 1 to 8 from the first byte's leading zeros. Throws on an invalid length or if it runs past [end].
      */
     fun vint(b: ByteArray, at: Int, end: Int = b.size): Pair<Long, Int> {
         val first = byteAt(b, at, end)
@@ -23,7 +22,7 @@ internal object Ebml {
         return value to length
     }
 
-    /** Whether a [length]-byte integer's [value] has all its bits set: an element's size the file leaves "unknown". */
+    /** True when all value bits are set, which marks an element size as "unknown". */
     fun isUnknown(value: Long, length: Int): Boolean = value == (1L shl (VALUE_BITS * length)) - 1
 
     private fun byteAt(b: ByteArray, i: Int, end: Int): Int {

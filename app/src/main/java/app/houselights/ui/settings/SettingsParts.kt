@@ -36,11 +36,7 @@ import app.houselights.ui.design.revealOnFocus
 import app.houselights.ui.design.components.AttentionNote
 import app.houselights.ui.util.UiError
 
-/**
- * First group of a pane: the space aligning it with the navigation, its title, in the voice of the
- * poster like the subject of a sheet, and its first settings, revealed together so going back up
- * always shows the title.
- */
+/** A pane's first group: aligned with the navigation, title and first settings revealed together so the title shows. */
 @Composable
 internal fun Section(title: String, content: @Composable () -> Unit) {
     Column(Modifier.revealOnFocus()) {
@@ -51,36 +47,27 @@ internal fun Section(title: String, content: @Composable () -> Unit) {
     }
 }
 
-/**
- * The rows of a pane that focus comes back to, keyed in the screen's memory under the pane's entry:
- * coming back from the screen a row opened finds that row, else the entry.
- */
+/** A pane's rows keyed under its entry, so returning from a screen a row opened refocuses that row. */
 internal class PaneRows(private val memory: FocusMemory, private val pane: String) {
     private fun key(row: String) = FocusKey.within(FocusKey.pane(pane), FocusKey.row(row))
 
-    /** Names a row that opens another screen. */
+    /** Keys a row that opens another screen. */
     fun focus(row: String): Modifier = Modifier.focusKey(key(row), memory)
 
-    /** Focuses that row from the pane itself (after a folder is removed). */
+    /** Focuses that row from within the pane (after a folder is removed). */
     fun requester(row: String): FocusRequester = memory.requester(key(row))
 }
 
-/**
- * What a row says once the change made from it did not take: in its value, lit; why ([reason]), in
- * full under it ([RowFailureNote]), as a row's description holds two lines, too few for most reasons.
- */
+/** A row's failed change: [value] highlighted, [reason] in full below ([RowFailureNote]), as descriptions are short. */
 internal class RowFailure(val value: String, val reason: String)
 
-/**
- * What a row says of [error], the failure of the change made from it, where focus is: not saved (or,
- * for an action, [notDone]), and why. Null when the change took.
- */
+/** The [RowFailure] for [error]: not saved (or [notDone] for an action) and why; null without error. */
 @Composable
 internal fun rowFailure(error: UiError?, notDone: Boolean = false): RowFailure? = error?.let {
     RowFailure(stringResource(if (notDone) R.string.action_not_done else R.string.action_not_saved), stringResource(it.message))
 }
 
-/** Why the change made from the row above did not take ([failure]), brought into view as it appears: focus stays on the row. */
+/** [failure]'s reason under the row above, brought into view while focus stays on the row. */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 internal fun RowFailureNote(failure: RowFailure?) {
@@ -96,12 +83,12 @@ internal fun Hint(text: String, modifier: Modifier = Modifier) {
     Text(text, style = Hl.type.caption, color = Hl.colors.contentSecondary, modifier = modifier.widthIn(max = HlLayout.captionMeasure))
 }
 
-/** When something happened, in words: see the other [relativeTime]. */
+/** How long ago [at] was, relative to now: see the other [relativeTime]. */
 @Composable
 internal fun relativeTime(at: Long, alone: Boolean = false): String =
     relativeTime(LocalContext.current, at, System.currentTimeMillis(), alone)
 
-/** "Analysé il y a 3 minutes", "Jamais analysé": when a folder was last read. */
+/** When a folder was last scanned: "Analysé il y a 3 minutes", "Jamais analysé". */
 @Composable
 internal fun lastScanned(at: Long): String = lastScanned(LocalContext.current, at, System.currentTimeMillis())
 
@@ -109,9 +96,8 @@ internal fun lastScanned(context: Context, at: Long, now: Long): String =
     if (at <= 0) context.getString(R.string.never_scanned) else context.getString(R.string.last_scan, relativeTime(context, at, now))
 
 /**
- * When something happened, in words, as it reads inside a sentence: "il y a 3 minutes", "hier",
- * "à l’instant", "jamais". Set [alone], as a value by itself, it takes a capital: "Il y a 3 minutes".
- * Never the system's casing, which capitalises wherever the words fall ("Analyse : Il y a…").
+ * How long ago [at] was, for mid-sentence ("il y a 3 minutes", "hier"), capitalised with [alone]. The system's
+ * casing is not used: it capitalises wherever the words fall ("Analyse : Il y a…").
  */
 internal fun relativeTime(context: Context, at: Long, now: Long, alone: Boolean = false): String {
     val locale = context.resources.configuration.locales[0]

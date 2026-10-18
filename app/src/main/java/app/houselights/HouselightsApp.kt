@@ -64,7 +64,7 @@ class HouselightsApp : Application(), ImageLoaderFactory {
 
     override fun newImageLoader(): ImageLoader = ImageLoader.Builder(this)
         .okHttpClient { imageHttpClient(Http.client) }
-        // A fixed budget: on a 2 GB player, a share of the large heap would hold 100 MB of pictures or more.
+        // A fixed budget: on a 2 GB player, a share of the large heap would hold 100 MB or more of pictures.
         .memoryCache { MemoryCache.Builder(this).maxSizeBytes(IMAGE_MEMORY_BYTES).build() }
         .diskCache {
             DiskCache.Builder()
@@ -74,24 +74,18 @@ class HouselightsApp : Application(), ImageLoaderFactory {
         }
         .crossfade(300)
         .respectCacheHeaders(false)
-        // A picture the launch is loading ahead is waited for, never loaded twice.
+        // Waits for a picture the launch is already prefetching rather than loading it twice.
         .components { add(AwaitAhead) }
         .eventListener(ImageFailureLog())
         .build()
 }
 
-/**
- * Says in the log why a picture did not load (a card left with its title, a black backdrop): once
- * a minute for each place pictures come from (a server, TMDB, the copies on the device), as a NAS
- * asleep or a server away fails a whole screen of pictures at once. Addresses lose their secrets
- * ([Redact]); the screens have nothing to tell.
- */
+/** Logs failed pictures once a minute per origin, redacted ([Redact]): a sleeping NAS fails a whole screen. */
 internal class ImageFailureLog(private val clock: () -> Long = SystemClock::elapsedRealtime) : EventListener {
-    /** When each place was last told of. */
     private val toldAt = ConcurrentHashMap<String, Long>()
 
     override fun onError(request: ImageRequest, result: ErrorResult) {
-        // No picture asked for: nothing failed.
+        // A request without data is not a failure.
         if (result.throwable is NullRequestDataException) return
         val address = request.data.toString()
         val uri = Uri.parse(address)
@@ -106,50 +100,47 @@ internal class ImageFailureLog(private val clock: () -> Long = SystemClock::elap
     private companion object {
         const val TAG = "Images"
 
-        /** How long the failures of one place say nothing more once one was told. */
+        /** How long an origin stays silent after a logged failure. */
         const val QUIET_MS = 60_000L
     }
 }
 
 /** Manual dependency container, created once per process. */
 class AppContainer(private val app: Application) : LibraryEvents {
-    /**
-     * Work that outlives screens (scans, playback reports). A failure nothing else caught is logged:
-     * a background task never takes the app down.
-     */
+    /** Work that outlives screens (scans, playback reports); uncaught failures are logged, never fatal. */
     val scope = CoroutineScope(
         SupervisorJob() + Dispatchers.Main.immediate +
             CoroutineExceptionHandler { _, e -> Log.e("Houselights", "Background task failed", e) }
     )
     val settings = SettingsStore(app, scope, Secrets.device)
 
-    /** The one way to change the source: the current one stays until the new one is saved. */
+    /** The only way to change the source: the current one stays active until the new one is saved. */
     val sources = SourceSwitcher({ settings.state.value }, { settings.setSource(it) }, scope)
     val database = LibraryDatabase.create(app, Secrets.device)
     val artwork = ArtworkCache(app.filesDir.resolve("artwork"))
-    /** The player: launched for a title, and followed while it plays. */
+    /** Launches the external player for a title and follows it while it plays. */
     val player = PlaybackManager(app, scope) { resumeKey ->
-        // After a restart, the source is known once the settings are read.
+        // After a process restart, the source is known only once the settings are loaded.
         settings.state.first { it.loaded }
         provider.reporter(resumeKey)
     }
 
-    /** What came of a title asked to play, as screens see it: ended, or why it did not play. */
+    /** Playback outcomes as screens see them: ended, or why the title did not play. */
     val playback = PlaybackOutcome(player.playbackEnded)
 
-    /** The launch screen, held at a cold start while home gets ready under it. */
+    /** Holds the launch screen on a cold start while home loads underneath. */
     val launch = LaunchGate()
 
-    /** Home's first rows and pictures, asked while the launch screen holds; home takes them. */
+    /** Prefetches home's first rows and pictures while the launch screen holds. */
     val homeLaunch = HomeLaunch(launch, settings.state, { provider }, { libraryVersion.value })
 
-    /** A wall's first page and posters, asked while home's pill slides to it; the wall takes them. */
+    /** Prefetches a wall's first page and posters while home's pill moves to it. */
     val libraryAhead = LibraryAhead({ provider })
 
-    /** The rows the library writes under home's own, drawn once a day. */
+    /** Library-generated rows shown below home's own, chosen once a day. */
     val libraryRows = LibraryRows({ provider })
 
-    /** The NAS browsers, and the sessions and mounts they keep between files. */
+    /** NAS browsers, with the sessions and mounts they keep open between files. */
     val remoteBrowsers = RemoteBrowsers()
     val scanner = LibraryScanner(
         dao = database.dao(),
@@ -171,8 +162,7 @@ class AppContainer(private val app: Application) : LibraryEvents {
     override fun libraryChanged() = changes.userChanged()
 
     init {
-        // A TMDB key saved, or removed for the built-in one: what TMDB said of the old one is forgotten,
-        // and the titles it left unmatched are asked for at once.
+        // A new TMDB key (or back to the built-in one) forgets the old key's results and retries unmatched titles.
         scope.launch {
             settings.state.filter { it.loaded }.map { it.tmdbApiKey }.distinctUntilChanged().drop(1).collect {
                 if (settings.state.value.source == SourceConfig.Local) scanner.tmdbKeyChanged()
@@ -198,7 +188,7 @@ class AppContainer(private val app: Application) : LibraryEvents {
             return created
         }
 
-    /** TMDB key in use: the user's own, else the one built into the APK. */
+    /** TMDB key in use: the one saved in Settings, else the one built into the APK. */
     fun tmdbKey(): String? = settings.state.value.tmdbApiKey ?: BuildConfig.TMDB_API_KEY.ifBlank { null }
 
     @Volatile
@@ -207,17 +197,14 @@ class AppContainer(private val app: Application) : LibraryEvents {
     @Volatile
     private var tmdbInteractiveClient: TmdbClient? = null
 
-    /**
-     * Scans' TMDB client for the key in use, made once and kept while the key and language stay. Once
-     * TMDB could not be reached, it fails at once for a while (see [TmdbClient]).
-     */
+    /** TMDB client for scans, kept while key and language hold; fails fast for a while when TMDB is unreachable. */
     fun tmdb(): TmdbClient? {
         val key = tmdbKey()?.takeIf { it.isNotBlank() } ?: return null
         tmdbClient?.takeIf { it.fits(key) }?.let { return it }
         return TmdbClient(key, pauseWhenUnreachable = true).also { tmdbClient = it }
     }
 
-    /** The TMDB client of what people ask (a search, an identification, artwork): TMDB is asked every time. */
+    /** TMDB client for interactive requests (search, identification, artwork): it never pauses. */
     fun tmdbInteractive(): TmdbClient? {
         val key = tmdbKey()?.takeIf { it.isNotBlank() } ?: return null
         tmdbInteractiveClient?.takeIf { it.fits(key) }?.let { return it }
@@ -232,7 +219,7 @@ class AppContainer(private val app: Application) : LibraryEvents {
 
     init {
         scope.launch { settings.ensureDeviceId() }
-        // Passwords a Keystore at fault left in plain text (migration 6 to 7): sealed once it seals again.
+        // Seals passwords left in plain text by a failing Keystore (migration 6 to 7) once it works again.
         scope.launch { LibraryDatabase.sealPlainPasswords(database.dao(), Secrets.device) }
     }
 }
@@ -241,10 +228,8 @@ class AppContainer(private val app: Application) : LibraryEvents {
 private const val IMAGE_MEMORY_BYTES = 64 * 1024 * 1024
 
 /**
- * The pictures' client: [api]'s connections and threads, with a queue of its own. OkHttp lets five
- * requests at a time go to a host and queues the rest; a Jellyfin server sends its pictures and its
- * answers from one host, so a screen of posters loading would hold a title's details, or what
- * "Lire" asks, behind them.
+ * Image client sharing [api]'s pool with its own queue: OkHttp runs five requests per host, and Jellyfin serves
+ * images and API from one host, so posters would otherwise delay a title's details or playback.
  */
 internal fun imageHttpClient(api: OkHttpClient): OkHttpClient =
     api.newBuilder().dispatcher(Dispatcher(api.dispatcher.executorService)).build()

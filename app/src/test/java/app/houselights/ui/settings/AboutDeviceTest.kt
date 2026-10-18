@@ -14,10 +14,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
-/**
- * About says the device, and its player as playback decides: detected, detected but not recognised
- * and why, or not detected. One state per test: each shows as it first composes.
- */
+/** About shows the device and its player as playback decides; one state per test, as first composed. */
 @RunWith(RobolectricTestRunner::class)
 @Config(application = Application::class, qualifiers = "fr-$TV")
 class AboutDeviceTest {

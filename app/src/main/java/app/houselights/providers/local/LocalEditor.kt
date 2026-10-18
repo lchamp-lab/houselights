@@ -23,14 +23,13 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 /**
- * The user's choices for the local library. They are stored apart from what scans find
- * (`user*` columns), so scans keep refreshing automatic values without overriding them, and
- * choosing the automatic option again simply clears the choice.
+ * User edits for the local library. They live in separate `user*` columns, so scans keep refreshing automatic
+ * values without overriding them, and picking the automatic option again clears the choice.
  */
 class LocalEditor(
     private val dao: LibraryDao,
     private val scanner: LibraryScanner,
-    /** The TMDB client in use, or null without a key. */
+    /** Current TMDB client; null without a key. */
     private val tmdb: () -> TmdbClient?,
 ) : MetadataEditor {
 
@@ -47,13 +46,13 @@ class LocalEditor(
         }.orEmpty()
         val known = images.associateBy { it.filePath }
         val language = tmdb?.languageCode ?: java.util.Locale.getDefault().language
-        // Backgrounds read best without text; posters and logos in the viewer's language.
+        // Backdrops work best without text; posters and logos prefer the viewer's language.
         val preference = if (kind == ArtworkKind.BACKDROP) listOf(null, language, "en") else listOf(language, "en", null)
         val ranked = images.sortedWith(
             compareBy<TmdbImage> { preference.indexOf(it.iso6391).let { i -> if (i < 0) preference.size else i } }
                 .thenByDescending { it.voteAverage }
         )
-        // Up to 1 MB of XML: parsed away from the main thread.
+        // Up to 1 MB of XML, so parse off the main thread.
         val nfo = e.nfo?.let { text -> withContext(Dispatchers.Default) { NfoParser.parse(text) } }
         val nfoUrl = when (kind) {
             ArtworkKind.POSTER -> nfo?.posterUrl
@@ -69,7 +68,7 @@ class LocalEditor(
             nfoUrl?.let(::add)
             ranked.forEach { add(it.filePath) }
         }.distinct().take(MAX_OPTIONS).toMutableList()
-        // A choice made from images TMDB no longer lists stays visible next to the automatic one.
+        // A chosen image missing from TMDB's list stays visible next to the automatic one.
         if (current != null && current !in values) values.add(if (automatic != null) 1 else 0, current)
 
         fun option(value: String): ArtworkOption {
@@ -99,8 +98,8 @@ class LocalEditor(
     }
 
     /**
-     * TMDB's images of [e], or why they could not be listed: no key, or TMDB's failure, logged with the
-     * title. A title not identified has none to list, and nothing failed.
+     * TMDB images of [e], or why they are unavailable: no key, or a TMDB failure (logged). An unidentified title
+     * gives no images and no failure.
      */
     private suspend fun onlineImages(e: ItemEntity, tmdb: TmdbClient?): Pair<TmdbImageSet?, FailureKind?> {
         val id = e.tmdbId ?: return null to null
@@ -116,7 +115,7 @@ class LocalEditor(
 
     override suspend fun setArtwork(item: MediaItem, kind: ArtworkKind, option: ArtworkOption) {
         val e = entity(item)
-        // Choosing what automatic matching would use is going back to automatic.
+        // Choosing the automatic value clears the user choice.
         val value = option.value.takeIf { it != e.automaticValue(kind) }
         when (kind) {
             ArtworkKind.POSTER -> dao.setUserPoster(e.id, value)
@@ -131,7 +130,7 @@ class LocalEditor(
         val (query, year, fileName) = when (e.kind) {
             ItemKind.MOVIE -> {
                 val path = e.filePath.orEmpty()
-                // A film in several files is searched for by its name without the part.
+                // A multi-file film is searched by its name without the part suffix.
                 val parsed = e.filmName() ?: LibraryScanner.parseMovie(path)
                 Triple(parsed.title, parsed.year, path)
             }
@@ -167,7 +166,7 @@ class LocalEditor(
         if (IMDB_ID.matches(q)) return listOfNotNull(tmdb.findImdb(q.lowercase(), show)?.toCandidate())
         if (q.isEmpty()) return emptyList()
         suspend fun find(y: Int?) = if (show) tmdb.searchShows(q, y) else tmdb.searchMovies(q, y)
-        // The year narrows results, but is often off by one in file names: complete without it.
+        // File-name years are often off by one, so few results are completed by a search without the year.
         val withYear = find(year)
         val results = if (year != null && withYear.size < 5) withYear + find(null) else withYear
         return results.distinctBy { it.id }.take(MAX_RESULTS).map { it.toCandidate() }
@@ -198,7 +197,7 @@ class LocalEditor(
     private companion object {
         const val TAG = "LocalEditor"
 
-        /** A logo that is no image: the title is set in type. */
+        /** The "no logo" option: the title is typeset instead. */
         const val NONE = ""
         const val MAX_OPTIONS = 80
         const val MAX_RESULTS = 20
@@ -211,7 +210,7 @@ class LocalEditor(
                 ArtworkKind.LOGO -> ImageType.LOGO
             }
 
-        /** What scans found; a title without a logo is shown in type, which is an option too. */
+        /** The scanned value; a missing logo means [NONE], itself a selectable option. */
         fun ItemEntity.automaticValue(kind: ArtworkKind): String? = when (kind) {
             ArtworkKind.POSTER -> posterPath
             ArtworkKind.BACKDROP -> backdropPath

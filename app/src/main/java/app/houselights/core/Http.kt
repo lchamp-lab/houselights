@@ -2,15 +2,12 @@ package app.houselights.core
 
 import okhttp3.OkHttpClient
 
-/**
- * The app's one HTTP client: a single pool of connections and threads. Each service derives its own
- * timeouts and headers from it with [OkHttpClient.newBuilder], which shares both.
- */
+/** The app's single connection and thread pool; services derive their own client with [OkHttpClient.newBuilder]. */
 object Http {
     val client: OkHttpClient by lazy { OkHttpClient() }
 }
 
-/** The HTTP statuses the app tells apart, by name, whichever server answers them. */
+/** HTTP statuses the app distinguishes, whichever server sends them. */
 object HttpStatus {
     const val OK = 200
     const val UNAUTHORIZED = 401

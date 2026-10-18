@@ -11,11 +11,7 @@ import java.io.File
 import javax.xml.parsers.DocumentBuilderFactory
 import kotlin.math.hypot
 
-/**
- * Gradation as Android draws it before the app runs: the launcher icon, the TV banner and the launch
- * mark are vector resources, and they keep to the mark's geometry ([Gradation]), in the colours of the
- * palette, each inside the circle its launcher or Android 9's launch screen shows.
- */
+/** The icon, banner and launch mark are vectors in Gradation's geometry and palette, inside their circle. */
 class BrandTest {
     private val drawables = File("src/main/res/drawable")
 
@@ -32,7 +28,7 @@ class BrandTest {
         )
     }
 
-    /** Half the circle Android 9 shows tall, so its corners stay well inside it, and centred as the icon is. */
+    /** Half as tall as the circle Android 9 shows, so its corners stay well inside, and centred like the icon. */
     @Test
     fun theLaunchMarkSitsWellInsideTheCircleAndroidShows() {
         val bars = bars("splash_mark")
@@ -59,7 +55,6 @@ class BrandTest {
         assertEquals(bars.first().height, bars.last().right - bars.first().left, EXACT)
     }
 
-    /** Ember for the mark, projector white for the name, the room for the banner's ground: the palette's. */
     @Test
     fun theBrandIsDrawnInThePalette() {
         val palette = listOf(HlPalette.Ember, HlPalette.N96, HlPalette.N0).map { argb(it.toArgb()) }.toSet()
@@ -122,7 +117,7 @@ class BrandTest {
         /** Well inside a circle: within three quarters of its radius. */
         const val WELL_INSIDE = 0.75f
 
-        /** What the resources keep of a coordinate: three decimals. */
+        /** The precision the resources keep for a coordinate: three decimals. */
         const val EXACT = 0.001f
 
         const val ARGB_DIGITS = 8

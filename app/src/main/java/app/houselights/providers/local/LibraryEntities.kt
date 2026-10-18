@@ -13,16 +13,12 @@ enum class SourceKind { MOVIES, SHOWS }
 
 enum class Protocol { SMB, NFS }
 
-/** A password as the app uses it. The database keeps it sealed (see [SecretConverter]); it never prints. */
+/** A plain-text password in memory; stored sealed (see [SecretConverter]) and redacted from toString. */
 data class Secret(val value: String) {
     override fun toString() = "Secret(***)"
 }
 
-/**
- * Lists stored as "A|B|C": genres, badges, a film's parts. Queries match one of their entries by
- * [matches] alone (genres by [matchesAnyCase]), so that a filter, a count, the menu and a page's similar
- * titles agree on what a genre holds.
- */
+/** Lists stored as "A|B|C"; queries match entries only via [matches], so filters, counts and menus always agree. */
 object PipeList {
     @TypeConverter
     fun toText(list: List<String>): String = list.joinToString("|")
@@ -31,28 +27,23 @@ object PipeList {
     fun fromText(text: String): List<String> = text.split('|').filter { it.isNotBlank() }
 
     /**
-     * SQL that holds when [column]'s list has [value] for one of its entries, whole and exact: "Drame"
-     * is neither "Mélodrame" nor "drame", "4K" not "4Kx". [value] is SQL too: a parameter (`?`,
-     * `:genre`) or a quoted text.
+     * SQL: [column]'s list has an entry exactly [value] ("Drame" matches neither "Mélodrame" nor "drame"). [value]
+     * is SQL: a parameter (`?`, `:genre`) or a quoted literal.
      */
     fun matches(column: String, value: String = "?"): String = "instr('|' || $column || '|', '|' || $value || '|') > 0"
 
-    /**
-     * [matches] whatever the case, as SQLite's lower() folds it: genres from NFO files and from TMDB,
-     * "drame" and "Drame", are one genre; "Mélodrame" is still another.
-     */
+    /** [matches] under SQLite's lower(), so an NFO's "drame" equals TMDB's "Drame". */
     fun matchesAnyCase(column: String, value: String = "?"): String = matches("lower($column)", "lower($value)")
 
-    /** [matchesAnyCase] for Room's queries, which take constants only: the genres hold `:genre`. A test holds the two alike. */
+    /** [matchesAnyCase] on genres and `:genre`, as a constant for Room queries; a test keeps the two identical. */
     const val GENRES_MATCH = "instr('|' || lower(genres) || '|', '|' || lower(:genre) || '|') > 0"
 
-    /** [matches] for Room's queries: the badges hold `:token`. */
+    /** [matches] on badges and `:token`, as a constant for Room queries. */
     const val BADGES_MATCH = "instr('|' || badges || '|', '|' || :token || '|') > 0"
 
     /**
-     * One spelling of each genre of [lists] whatever its case, joined by the fold SQLite's lower() gives
-     * them ([GenreList.folded]): the menu joins the very spellings [matchesAnyCase] does, whatever lower()
-     * makes of an "É". In the order a reader looks for them, accents and case aside ([MetadataMerge.fold]).
+     * One spelling per genre, grouped by SQLite's lower() form ([GenreList.folded]) exactly as [matchesAnyCase]
+     * groups, whatever lower() does with "É"; sorted ignoring accents and case.
      */
     fun distinctGenres(lists: List<GenreList>): List<String> =
         lists.flatMap { it.genres.split('|').zip(it.folded.split('|')) }
@@ -61,10 +52,7 @@ object PipeList {
             .values.map(::spellingOf)
             .sortedBy { MetadataMerge.fold(it) }
 
-    /**
-     * The spelling to show of a genre written [spellings] by the titles that hold it: the one most of them use;
-     * on a tie, a word's own ("Comédie") before capitals throughout ("COMÉDIE") and small letters ("comédie").
-     */
+    /** The most common spelling; on a tie "Comédie", then "COMÉDIE", then "comédie". */
     fun spellingOf(spellings: List<String>): String =
         spellings.groupingBy { it }.eachCount().entries
             .sortedWith(compareByDescending<Map.Entry<String, Int>> { it.value }.thenBy { caseRank(it.key) }.thenBy { it.key })
@@ -77,21 +65,20 @@ object PipeList {
     }
 }
 
-/** A title's genres as [PipeList] stores them, and as SQLite's lower() folds them for the genre filter. */
+/** A title's genres as stored by [PipeList], with their SQLite lower() form used by the genre filter. */
 data class GenreList(val genres: String, val folded: String)
 
-/** Seals [Secret] columns on the way to the database, opens them on the way back. */
 @ProvidedTypeConverter
 class SecretConverter(private val secrets: Secrets) {
     @TypeConverter
     fun seal(secret: Secret): String = secrets.seal(secret.value)
 
-    /** A secret that can no longer be opened reads as empty: the folder then asks for its password. */
+    /** A secret that can no longer be unsealed reads as empty, so the source asks for its password again. */
     @TypeConverter
     fun open(stored: String): Secret = Secret(secrets.open(stored) ?: "")
 }
 
-/** A network folder the user added, holding either movies or TV shows. */
+/** A network folder holding either movies or TV shows. */
 @Entity(tableName = "sources")
 data class SourceEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
@@ -107,17 +94,13 @@ data class SourceEntity(
     val password: Secret,
     val domain: String = "",
     val lastScanAt: Long = 0,
-    /**
-     * When its first complete scan ended: what that scan found was already there; titles added
-     * after it are new for a while. 0 until then.
-     */
+    /** End of the first complete scan (0 until then); only titles added later count as new. */
     val firstScanAt: Long = 0,
 )
 
-/** When a folder's first complete scan ended (see [SourceEntity.firstScanAt]). */
 data class SourceFirstScan(val id: Long, val firstScanAt: Long)
 
-/** The folder's address as people read it, never with credentials: "nfs://nas/volume1/media/films". */
+/** Human-readable address without credentials: "nfs://nas/volume1/media/films". */
 fun SourceEntity.address(withScheme: Boolean = true): String {
     val folder = listOf(share, path).map { it.trim('/') }.filter { it.isNotEmpty() }.joinToString("/")
     val address = listOf(host, folder).filter { it.isNotEmpty() }.joinToString("/")
@@ -126,37 +109,26 @@ fun SourceEntity.address(withScheme: Boolean = true): String {
 
 enum class ItemKind { MOVIE, SERIES, SEASON, EPISODE }
 
-/** The columns of an item before what its file holds ([ItemEntity.mediaInfo]); see [ITEM_ROW]. */
+/** Item columns before [ItemEntity.mediaInfo]; see [ITEM_ROW]. */
 private const val ROW_HEAD =
     "id, kind, sourceId, parentId, seriesId, matchKey, tmdbId, title, sortTitle, originalTitle, " +
         "overview, tagline, year, endYear, continuing, runtimeMin, certification, rating, genres, " +
         "directors, posterPath, backdropPath, logoPath, stillPath, seasonNumber, episodeNumber, lastEpisodeNumber, filePath, " +
         "parts, fileSize, missingSince, badges, "
 
-/** The columns of an item after what its file holds, the NFO text left out; see [ITEM_ROW]. */
+/** Item columns after [ItemEntity.mediaInfo], with the NFO text left out; see [ITEM_ROW]. */
 private const val ROW_TAIL =
     ", probeVersion, fileDurationMs, nfoPath, NULL AS nfo, sidecarKey, userTmdbId, userPosterPath, " +
         "userBackdropPath, userLogoPath, collectionId, addedAt, matchedAt, positionMs, durationMs, played, favorite, " +
         "lastPlayedAt, edition, versionOf, versionChoice, votes, creditsAt"
 
-/**
- * Every column of an item but the NFO text, which can weigh up to 1 MB: what a title's page reads. Rows read
- * this way have a null [ItemEntity.nfo]: they are shown, never written back.
- */
+/** Every item column except the NFO text, which can reach 1 MB; such rows must never be written back. */
 const val ITEM_ROW = ROW_HEAD + "mediaInfo" + ROW_TAIL
 
-/**
- * [ITEM_ROW] without what the file holds either ([ItemEntity.mediaInfo], kilobytes of JSON to decode for
- * each card), which only a title's page shows: what lists read. Their length is the file's own column
- * ([ItemEntity.fileDurationMs]). Rows read this way are shown, never written back either.
- */
+/** [ITEM_ROW] without [ItemEntity.mediaInfo] (kilobytes of JSON per card), for lists; never written back either. */
 const val CARD_ROW = ROW_HEAD + "NULL AS mediaInfo" + ROW_TAIL
 
-/**
- * A file of a folder, as a scan sorts what to do with it ([LibraryDao.knownFiles]): what tells a file renamed,
- * missing, replaced or due. Never its details, its NFO or what it holds, which a pass that finds nothing new
- * would read and decode for each of thousands of files, every ten minutes.
- */
+/** The columns a scan needs per known file, so an idle pass does not load thousands of full rows. */
 data class KnownFile(
     val id: Long,
     val filePath: String,
@@ -172,23 +144,18 @@ data class KnownFile(
     val probeVersion: Int = 0,
 )
 
-/** As [ItemEntity.sizeChanged]: the file is not the one read last. */
 internal fun KnownFile.sizeChanged(file: RemoteFile): Boolean = fileSize != null && fileSize != file.size
 
-/** [info] as the row keeps it: its JSON, and the columns read without decoding it. */
+/** Stores [info] as JSON, plus the columns read without decoding it. */
 internal fun ItemEntity.withMedia(info: MediaInfo): ItemEntity =
     copy(mediaInfo = MediaProbe.encode(info), probeVersion = info.probedWith, fileDurationMs = info.durationMs)
 
-/** What a show's card tells about its episodes (see [LibraryDao.seriesCounts]). */
 data class SeriesCounts(val seriesId: Long, val unplayed: Int, val seasons: Int)
 
-/** A season's episodes, and those watched ([LibraryDao.seasonCounts]). */
 data class SeasonCounts(val seasonId: Long, val episodes: Int, val played: Int)
 
-/** A title's NFO, where it lies and what it says ([LibraryDao.nfoOf]): what only the screen of the NFO reads. */
 data class ItemNfo(val sourceId: Long, val nfoPath: String?, val nfo: String?)
 
-/** What the player's reports of a film or an episode weigh against ([LibraryDao.playState], [LocalReporter]). */
 data class PlayState(
     /** See [ItemEntity.parts]. */
     val parts: List<String>,
@@ -200,14 +167,11 @@ data class PlayState(
 )
 
 /**
- * How long a film or an episode lasts, as the library knows it: its file's length as the player told it,
- * else as the file was read, else as TMDB or its NFO states it. Its card and the player's "watched" weigh
- * by this one rule. A film in several files lasts what TMDB or its NFO states, its parts together: the
- * library knows its first file's length only.
+ * Duration from the player, else the probe, else TMDB or the NFO; shared by cards and the watched threshold. A
+ * multi-part film uses the stated runtime, as only the first file's duration is known.
  */
 internal fun ItemEntity.runtimeMs(): Long? = runtimeMs(parts, durationMs, fileDurationMs, runtimeMin)
 
-/** As [ItemEntity.runtimeMs], from what a player's report reads of the row. */
 internal fun PlayState.runtimeMs(): Long? = runtimeMs(parts, durationMs, fileDurationMs, runtimeMin)
 
 internal fun runtimeMs(parts: List<String>, playerMs: Long?, fileMs: Long?, runtimeMin: Int?): Long? {
@@ -217,7 +181,6 @@ internal fun runtimeMs(parts: List<String>, playerMs: Long?, fileMs: Long?, runt
 
 private const val MS_PER_MINUTE = 60_000L
 
-/** Where an episode stands for the viewer ([LibraryDao.episodeStates]): what tells the next one to watch. */
 data class EpisodeState(
     val id: Long,
     val seriesId: Long,
@@ -227,7 +190,6 @@ data class EpisodeState(
     val positionMs: Long,
 )
 
-/** What a saga's card tells of one of its films ([LibraryDao.collectionMembers]). */
 data class CollectionMember(
     val collectionId: Long,
     val year: Int?,
@@ -277,42 +239,32 @@ data class ItemEntity(
     val stillPath: String? = null,
     val seasonNumber: Int? = null,
     val episodeNumber: Int? = null,
-    /** The last episode a file holds when it holds several (S01E01-E02); null for one. */
+    /** Last episode of a multi-episode file (S01E01-E02); null for a single episode. */
     val lastEpisodeNumber: Int? = null,
     /** Path relative to the source folder, for movies and episodes. */
     val filePath: String? = null,
-    /**
-     * A film split in several files (CD1, CD2, disc 1…): the parts after the first, in order, relative
-     * like [filePath], which is the first.
-     */
+    /** Later parts of a multi-file film (CD2, disc 2…), in order; [filePath] is the first. */
     val parts: List<String> = emptyList(),
     val fileSize: Long? = null,
-    /** When a scan first missed the file: its row waits a while (see [MissingFiles]); null while the file is listed. */
+    /** When a scan first missed the file; the row is kept for a while (see [MissingFiles]). Null while listed. */
     val missingSince: Long? = null,
     val badges: List<String> = emptyList(),
-    /** [app.houselights.core.MediaInfo] as JSON; null until the file has been read. Written with [withMedia]. */
+    /** [app.houselights.core.MediaInfo] as JSON; null until probed. Written with [withMedia]. */
     val mediaInfo: String? = null,
-    /**
-     * The probe that read [mediaInfo] ([MediaInfo.probedWith]; 0 until read), in a column of its own: a scan
-     * tells the files to read again without decoding what each one holds.
-     */
+    /** [MediaInfo.probedWith] (0 until probed), in its own column so scans need not decode the JSON. */
     val probeVersion: Int = 0,
-    /** The length [mediaInfo] gives, in a column of its own: cards show it without decoding what the file holds. */
+    /** Duration from [mediaInfo], in its own column so cards show it without decoding the JSON. */
     val fileDurationMs: Long? = null,
-    /** The NFO file next to the video (or the show), and its raw content. */
+    /** The NFO next to the video (or the show's), and its raw content. */
     val nfoPath: String? = null,
     val nfo: String? = null,
-    /**
-     * What the files beside it (NFO, artwork) were when last read: role, path, size and date of each.
-     * One changed in place is read again; null until read.
-     */
+    /** Sidecar fingerprint at the last read ([SidecarKey]); null until read. */
     val sidecarKey: String? = null,
     /** Choices made by the user; scans never override them. */
     val userTmdbId: Int? = null,
     val userPosterPath: String? = null,
     val userBackdropPath: String? = null,
     val userLogoPath: String? = null,
-    /** The collection a film belongs to ([CollectionEntity]). */
     val collectionId: Long? = null,
     val addedAt: Long,
     /** Last TMDB lookup (successful or not); null = never tried. */
@@ -322,29 +274,19 @@ data class ItemEntity(
     val played: Boolean = false,
     val favorite: Boolean = false,
     val lastPlayedAt: Long? = null,
-    /** The edition of this copy of a film ([app.houselights.core.Editions]), as its NFO or its file's name gives it. */
+    /** Edition of this copy of a film ([app.houselights.core.Editions]), from its NFO or file name. */
     val edition: String? = null,
-    /**
-     * Another copy of the same film (the same TMDB id) holds the title: this row's id, the first of them. Null for
-     * the title itself, and for a film of one copy. Walls show titles alone; set by [LibraryDao.groupVersions].
-     */
+    /** Main row (the oldest) of this film's copies; null for main rows. Set by [LibraryDao.groupVersions]. */
     val versionOf: Long? = null,
-    /** The user's choice: the copy of the film "Lire" plays (a row id), on the title's row. Scans never override it. */
+    /** User's choice of the copy to play (a row id), stored on the main row. Scans never override it. */
     val versionChoice: Long? = null,
-    /** How many votes [rating] stands on, when TMDB or the NFO tells. */
+    /** Number of votes behind [rating], when TMDB or the NFO gives it. */
     val votes: Int? = null,
-    /**
-     * When the title's credits were complete ([CreditEntity]): TMDB answered for it, or knows none of it; or when it
-     * joined the library, from version 12 on. Null for a title known before credits were kept, until a scan or the
-     * backfill ([Backfill]) completes them.
-     */
+    /** When credits became complete (TMDB answered or knows no such title); null for pre-v12 rows until [Backfill]. */
     val creditsAt: Long? = null,
 )
 
-/**
- * A collection of films (a saga): from the NFO's set or TMDB's "belongs to collection". Its films
- * point to it ([ItemEntity.collectionId]); it is removed once none is left.
- */
+/** A saga, from the NFO's set or TMDB's "belongs to collection"; deleted once no film is left. */
 @Entity(tableName = "collections", indices = [Index(value = ["matchKey"], unique = true)])
 data class CollectionEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
@@ -356,39 +298,32 @@ data class CollectionEntity(
     val overview: String? = null,
     val posterPath: String? = null,
     val backdropPath: String? = null,
-    /** Films of the collection released so far, owned or not; null until TMDB was asked. */
+    /** Number of the collection's films released so far, owned or not; null until fetched from TMDB. */
     val partCount: Int? = null,
-    /** Last time TMDB was asked for the collection; null = never. */
+    /** Last TMDB fetch of the collection; null if never. */
     val fetchedAt: Long? = null,
 )
 
-/**
- * One credit of a film or a show: a person, their [job], and as cast their [character], in the order the title
- * bills them in that job ([ord]). A person is one [personKey] across the library: "tmdb:<id>" when TMDB names
- * them, else "name:<folded name>" ([PersonKeys]).
- */
+/** One credit of a film or show, [ord] being the billing order within [job]; [personKey] is a [PersonKeys] key. */
 @Entity(
     tableName = "credits",
     primaryKeys = ["itemId", "job", "ord"],
     indices = [Index(value = ["personKey", "itemId"]), Index(value = ["job", "personKey"]), Index("foldedName")],
 )
 data class CreditEntity(
-    /** The film or the show (never a season nor an episode). */
+    /** The film or show (never a season or episode). */
     val itemId: Long,
     val job: Job,
     val ord: Int,
     val personKey: String,
     val name: String,
-    /** [name] folded ([PersonKeys.fold]): who a name alone names is found again under TMDB's key by it. */
+    /** [name] folded ([PersonKeys.fold]), used to move name-keyed people to their TMDB key. */
     val foldedName: String,
     val character: String? = null,
     val profilePath: String? = null,
 )
 
-/**
- * A film of a saga as TMDB lists it, held by the library or not ([LibraryDao.sagaParts] tells): what the saga
- * page shows of one it lacks, in the order they came out ([ord]).
- */
+/** A saga film as TMDB lists it, owned or not, so the saga page can show missing ones; [ord] is release order. */
 @Entity(tableName = "saga_parts", primaryKeys = ["collectionId", "tmdbId"], indices = [Index("tmdbId")])
 data class SagaPartEntity(
     val collectionId: Long,
@@ -402,12 +337,8 @@ data class SagaPartEntity(
     val backdropPath: String? = null,
 )
 
-/** What a search word finds. */
 enum class SearchKind { TITLE, PERSON, SAGA }
 
-/**
- * One word of a title's names, a person's or a saga's, folded ([SearchWords]): a search reads the words that
- * start with what is typed, by [kind], through the primary key. [ref]: the row's id, or the person's key.
- */
+/** A folded name word ([SearchWords]), prefix-searched by [kind]; [ref] is a row id or person key. */
 @Entity(tableName = "search_words", primaryKeys = ["kind", "word", "ref"], indices = [Index(value = ["kind", "ref"])])
 data class SearchWordEntity(val kind: SearchKind, val word: String, val ref: String)

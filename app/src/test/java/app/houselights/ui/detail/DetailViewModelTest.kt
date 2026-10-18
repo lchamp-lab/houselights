@@ -59,7 +59,7 @@ class DetailViewModelTest {
         assertNull(vm.state.value.error)
     }
 
-    /** The title is said once what Lire starts is known, its rows after: focus waits for them. */
+    /** The title shows once Lire's target is known, its rows after; focus waits for them. */
     @Test
     fun theTitleIsSaidBeforeItsRows() = runTest {
         val seasons = provider.gate("seasons show")
@@ -91,7 +91,7 @@ class DetailViewModelTest {
         provider.items["m1"] = film("m1", "Heat (1995)")
         vm.load()
         advanceUntilIdle()
-        // The older load, let go after the newer one, changes nothing.
+        // The older load, completed after the newer one, changes nothing.
         first.complete(Unit)
         advanceUntilIdle()
         assertEquals("Heat (1995)", vm.state.value.item?.title)
@@ -165,7 +165,7 @@ class DetailViewModelTest {
         advanceTimeBy(HlMotion.SETTLE + 1)
         assertTrue("episodes s2" in provider.calls)
         vm.selectSeason("s3")
-        // The tab changes at once and its row empties: the season before never shows under it.
+        // The tab changes at once and its row empties: the previous season never shows under it.
         assertEquals("s3", vm.state.value.selectedSeasonId)
         assertEquals(emptyList<String>(), vm.shownEpisodes)
         assertTrue(vm.state.value.episodesLoading)
@@ -241,7 +241,7 @@ class DetailViewModelTest {
         assertEquals(listOf("s2e1", "s2e2"), vm.shownEpisodes)
     }
 
-    /** Watched, then the library's signal of that very change: the page loads once, not a second time over the first. */
+    /** Marked watched, then the library's signal of that change: the page loads once, not twice. */
     @Test
     fun aChangeOfItsOwnLoadsThePageOnce() = runTest {
         val vm = detail()
@@ -259,10 +259,7 @@ class DetailViewModelTest {
         assertEquals(3, provider.calls.count { it == "item m1" })
     }
 
-    /**
-     * Watched during a scan: the library's signal of it waits. Meanwhile the page is left for Identify,
-     * then Artwork; back on the page, the signal (of all three changes) loads it again.
-     */
+    /** Marked watched during a scan, then Identify and Artwork: back on the page, the late signal reloads it. */
     @Test
     fun aChangeOfItsOwnLongAgoLoadsThePageAgain() = runTest {
         val vm = detail()
@@ -270,7 +267,7 @@ class DetailViewModelTest {
         vm.togglePlayed()
         advanceUntilIdle()
 
-        // Identify, then Artwork: some seconds on other screens, which match the title anew and change its poster.
+        // Identify, then Artwork: some seconds away, rematching the title and changing its poster.
         advanceTimeBy(OWN_CHANGE_MS + 20_000)
         provider.items["m1"] = film("m1", "Heat (1995)")
         vm.onLibraryChanged()
@@ -309,7 +306,7 @@ class DetailViewModelTest {
         assertEquals(listOf("s2e1", "s2e2"), vm.shownEpisodes)
     }
 
-    /** Android stopped the app while an episode played: the page comes back on the season chosen. */
+    /** Android killed the app while an episode played: the page comes back on the chosen season. */
     @Test
     fun theSeasonChosenOutlivesAStoppedProcess() = runTest {
         val saved = SavedStateHandle()
@@ -324,10 +321,7 @@ class DetailViewModelTest {
         assertEquals(listOf("s3e1", "s3e2"), after.shownEpisodes)
     }
 
-    /**
-     * A saga's page asks for its films once: what Lire starts is picked among them, by the rule both
-     * sources keep for a collection (MediaProvider's nextUp, which would ask for them again).
-     */
+    /** A saga's page asks for its films once and picks Lire's film among them by the shared rule. */
     @Test
     fun aSagaAsksForItsFilmsOnce() = runTest {
         provider.items["saga"] = MediaItem("saga", MediaKind.COLLECTION, "Alien")
@@ -383,10 +377,7 @@ class DetailViewModelTest {
     }
 }
 
-/**
- * [source] with one collection, [films], counting each time they are asked for. What Lire starts in
- * it is MediaProvider's own rule, as in both sources.
- */
+/** [source] with one collection of [films], counting requests; Lire's film follows MediaProvider's own rule. */
 private class Saga(source: FakeProvider, private val films: List<MediaItem>) : MediaProvider by source {
     val asked = mutableListOf<String>()
 

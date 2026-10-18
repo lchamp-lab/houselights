@@ -10,10 +10,7 @@ import app.houselights.core.HdrFormat
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
-/**
- * The badges a file's name gives are the tokens stored for files that were read, which the formats on
- * a page, the filters and their menu know: one spelling each, or a filter misses the titles of one side.
- */
+/** File-name badges use the same tokens as probed files: one spelling each, or a filter misses some titles. */
 class BadgeTokensTest {
     private val names = listOf(
         "Dune.Part.Two.2024.2160p.UHD.BluRay.REMUX.DV.HDR10.TrueHD.Atmos.7.1-GRP.mkv",

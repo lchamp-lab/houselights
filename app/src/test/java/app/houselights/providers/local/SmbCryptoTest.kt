@@ -4,7 +4,7 @@ import com.hierynomus.security.bc.BCSecurityProvider
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
-/** smbj signs in with BouncyCastle primitives: they must still work with the BouncyCastle version we force. */
+/** smbj signs in with BouncyCastle primitives: they must work with the BouncyCastle version the build forces. */
 class SmbCryptoTest {
     private val provider = BCSecurityProvider()
 

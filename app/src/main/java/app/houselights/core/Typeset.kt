@@ -3,14 +3,8 @@ package app.houselights.core
 import java.util.Locale
 
 /**
- * Sets text written elsewhere (TMDB, NFO, servers) the way the interface writes its own, for
- * display only: what is sorted or searched stays as written.
- * - An apostrophe between two letters is a typographic one: l'homme, O'Toole, don't.
- * - Three dots are an ellipsis.
- * - In French, a balanced pair of straight double quotes becomes « … », a no-break space inside.
- * - A plain space before » : ; ! ? or after « becomes a no-break space, so a line never starts
- *   with "»" or ":".
- *
+ * Typesets external text (TMDB, NFO, servers) for display only, as the interface writes its own: typographic
+ * apostrophes, ellipses, French « … » for balanced double quotes, no-break spaces before » : ; ! ? and after «.
  * Single quotes are never paired: they elide as often as they quote (Rock 'n' Roll, 'til).
  */
 object Typeset {
@@ -32,6 +26,6 @@ object Typeset {
     @JvmName("textOrNull")
     fun text(value: String?, french: Boolean = isFrench()): String? = value?.let { text(it, french) }
 
-    /** Text from the services is in the device language: they are asked for it. */
+    /** Services return text in the device language, as requested. */
     private fun isFrench() = Locale.getDefault().language == Locale.FRENCH.language
 }

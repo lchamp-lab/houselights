@@ -49,10 +49,7 @@ import app.houselights.ui.design.components.MenuSection
 import app.houselights.ui.design.components.StatusPanel
 import app.houselights.ui.design.components.StatusState
 
-/**
- * Forms and what surrounds them: fields, the status beside a form, panel buttons, menus, choice
- * sheets and the settings that open them, and long text. HlTwoPane and HlFormScaffold fill the screen: see them on the setup screens.
- */
+/** Forms, menus, choice sheets and long text; HlTwoPane and HlFormScaffold fill the screen (see setup). */
 internal fun LazyListScope.catalogForms() {
     item { Group("Text fields") { FormTextFields() } }
     item { Group("Status panel", still = true) { FormStatusPanels() } }

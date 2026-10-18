@@ -16,7 +16,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import javax.crypto.KeyGenerator
 
-/** What the player's reports leave of a film's resume point, as the Zidoo player sends them. */
+/** What the player's reports, as the Zidoo player sends them, leave of a film's resume point. */
 @RunWith(RobolectricTestRunner::class)
 class LocalReporterTest {
     private lateinit var db: LibraryDatabase
@@ -105,7 +105,7 @@ class LocalReporterTest {
     @Test
     fun startingWritesWhenItWasPlayedAlone() = runTest {
         val id = film(positionMs = 5_400_000, played = true)
-        // Reads come before the previous session's last report, still on its way.
+        // Reads come before the previous session's last report has landed.
         val late = object : LibraryDao by dao {
             override suspend fun item(id: Long): ItemEntity? = dao.item(id)?.copy(positionMs = 4_200_000, played = false)
         }
@@ -117,10 +117,7 @@ class LocalReporterTest {
         }
     }
 
-    /**
-     * The player that never said a length: a long version is watched by its file's length, as its card
-     * measures it, not by the cinema cut's that TMDB states.
-     */
+    /** Without the player's length, a long version is watched by its file's length, not TMDB's theatrical one. */
     @Test
     fun withoutThePlayersLengthAFilmIsWatchedByItsFilesAsItsCardSaysIt() = runTest {
         val id = dao.insert(

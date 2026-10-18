@@ -25,7 +25,7 @@ class DefinitionTest {
 
     @Test
     fun storedTokensNeverChange() {
-        // Libraries already scanned store these in their badges, and filters match them.
+        // Stored in scanned libraries' badges and matched by filters: these tokens must not change.
         assertEquals(listOf("4K", "1080p", "720p", "SD"), Definition.entries.map { it.token })
     }
 }

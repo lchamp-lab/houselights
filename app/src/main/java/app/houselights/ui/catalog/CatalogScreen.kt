@@ -85,11 +85,7 @@ import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
 import app.houselights.ui.design.components.SegmentDetail
 
-/**
- * Every token and component of the design system in its states, for review on a real screen.
- * Debug builds only (Settings, About); not translated, as it is a tool for whoever works on the
- * app.
- */
+/** Every token and component in its states, for review on a real screen; debug builds only, untranslated. */
 @Composable
 fun CatalogScreen() {
     val c = Hl.colors
@@ -180,7 +176,7 @@ fun CatalogScreen() {
                         selected = place,
                         onSelect = { place = it },
                     )
-                    // A films' wall's title: ⇄ turns it to its sagas, and back.
+                    // The Films wall's title: ⇄ turns it to its sagas and back.
                     var sagas by remember { mutableStateOf(false) }
                     val views = listOf(LibraryKind.MOVIES, LibraryKind.COLLECTIONS).map { libraryName(it) }
                     HlTitleSwitch(views[if (sagas) 1 else 0], label = views[if (sagas) 0 else 1], onSwitch = { sagas = !sagas })
@@ -348,8 +344,7 @@ fun CatalogScreen() {
             catalogReading()
 
             item {
-                // The longest French labels and the fullest rows the screens can meet: nothing here
-                // may be cut or pushed out.
+                // The longest French labels and fullest rows the screens can meet: nothing may be cut.
                 Group("Stress") {
                     // Room for the labels, as the detail page keeps it.
                     HlActionRow {
@@ -451,7 +446,7 @@ private fun ControlStates() {
                 busyLabel = stringResource(R.string.signing_in),
             )
         }
-        // A round button's label takes no room of its own: the case keeps the room a row of them keeps.
+        // A round button's label takes no room of its own: this specimen keeps what a row of them keeps.
         Specimen("round, disabled", gap = HlSpace.xs) {
             HlActionRow { HlIconButton(HlIcons.Edit, stringResource(R.string.edit), {}, enabled = false) }
         }
@@ -563,10 +558,7 @@ private fun SheetStatusField(onDismiss: () -> Unit) {
     }
 }
 
-/**
- * A sheet that hands an address to a phone (About, Soutenir Houselights): the code where its rows
- * go, the address under it; nothing to focus, Back closes it. Scan it from the sofa.
- */
+/** A sheet handing an address to a phone (About, Soutenir Houselights): code, address, Back closes it. */
 @Composable
 private fun SheetCode(onDismiss: () -> Unit) {
     HlSideSheet(stringResource(R.string.support), onDismiss = onDismiss, description = stringResource(R.string.support_scan)) {

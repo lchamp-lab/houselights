@@ -3,7 +3,7 @@ package app.houselights.core
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
-/** What a title's formats say on screen: the picture, then the sound, by the names a case prints. */
+/** How a title's formats read on screen: picture, then sound, under the names printed on a disc case. */
 class FormatsTest {
     private fun labels(badges: List<String>) = Formats.fromBadges(badges).map { it.label }
 
@@ -46,7 +46,7 @@ class FormatsTest {
         assertEquals("DTS-HD Master Audio", Formats.soundName(Codecs.DTS_HD_MA))
         assertEquals("DTS-HD High Resolution", Formats.soundName(Codecs.DTS_HD_HRA))
         assertEquals("DTS:X", Formats.soundName("DTS:X"))
-        // A name read "Atmos" alone, its track unsaid.
+        // "Atmos" alone, without its track's codec.
         assertEquals("Dolby Atmos", Formats.soundName("Atmos"))
         assertEquals("LPCM", Formats.soundName(Codecs.PCM))
         assertEquals("AAC", Formats.soundName(Codecs.AAC))
@@ -82,7 +82,7 @@ class FormatsTest {
         assertEquals(25.0, Formats.frameRate(25.0001f), 0.0)
         assertEquals(29.97, Formats.frameRate(30000f / 1001f), 0.0)
         assertEquals(59.94, Formats.frameRate(60000f / 1001f), 0.0)
-        // A rate no standard is near is said to the thousandth.
+        // A rate far from every standard rate is shown to the thousandth.
         assertEquals(12.5, Formats.frameRate(12.5f), 0.0)
     }
 
@@ -97,7 +97,7 @@ class FormatsTest {
         assertEquals(emptyList<String>(), ranges())
     }
 
-    /** A file's tags and a server give bits a second; a track keeps the nearest kilobit, half up. */
+    /** Files and servers give bits per second; a track keeps the nearest kilobit, rounding half up. */
     @Test
     fun aBitrateKeepsTheNearestKilobit() {
         assertEquals(0, bpsToKbps(0))

@@ -15,7 +15,7 @@ import org.junit.Test
 import java.time.LocalDateTime
 import java.time.ZoneId
 
-/** The rows the library writes under home's: a director's films and the best rated, drawn once a day, turning at 6. */
+/** The library's rows under home's: a director's films and the best rated, picked daily, changing at 6. */
 class LibraryRowsTest {
     private val zone = ZoneId.of("Europe/Paris")
     private fun at(day: Int, hour: Int) = LocalDateTime.of(2026, 10, day, hour, 0).atZone(zone).toInstant().toEpochMilli()

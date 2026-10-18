@@ -31,12 +31,8 @@ import app.houselights.ui.design.keepVerticalFocus
 import app.houselights.ui.design.scrollEdges
 
 /**
- * The two-pane layout of setup and settings screens: what this is (and its navigation) in a
- * side column on the left, the content on the right, separated by a hairline. The side column
- * stops at the safe area; the content runs to the foot of the screen and scrolls what has focus
- * up to [HlFocus.edge], and back down to its own top, which is already inside the safe area.
- * Given the content's scroll [state], its edges fade into the room where there is more
- * (`scrollEdges`), and focus comes back down to [HlSpace.fadeEdge] from the top, clear of the fade.
+ * The two-pane layout of setup and settings screens: a side column, a hairline, then scrolling content;
+ * given its scroll [state], edges fade where more lies and focus stays [HlSpace.fadeEdge] clear of them.
  */
 @Composable
 fun HlTwoPane(
@@ -60,7 +56,7 @@ fun HlTwoPane(
     }
 }
 
-/** Setup screens: what this is and what is happening on the left, the form on the right. */
+/** Setup screen layout: title, description and status on the left, the form on the right. */
 @Composable
 fun HlFormScaffold(
     title: String,
@@ -90,11 +86,8 @@ fun HlFormScaffold(
 }
 
 /**
- * Where a setup stands, beside its form: the state with its light first ("Connexion réussie"),
- * then what is being set up, [label] and [value] large in [valueStyle] (the technical voice by
- * default: an address), [detail] quieter (its path), [badges] for its kind; under a hairline,
- * [content] for what was found and the [result] of the last attempt (an [AttentionNote] when it
- * failed). Lit in ember while the state is on.
+ * A setup's status beside its form: the state with its light, [label] and [value] (an address), [detail]
+ * and [badges]; under a hairline, [content] and the last [result], an [AttentionNote] if [resultIsError].
  */
 @Composable
 fun StatusPanel(

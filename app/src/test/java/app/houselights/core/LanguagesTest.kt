@@ -4,7 +4,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 
-/** A language goes by one code, whatever wrote it: a file, an NFO, a server. */
+/** A language has one code whatever its source: a file, an NFO or a server. */
 class LanguagesTest {
     @Test
     fun aLanguageGoesByOneCode() {
@@ -18,7 +18,7 @@ class LanguagesTest {
 
     @Test
     fun aBibliographicCodeIsItsLanguageToo() {
-        // Burmese, Georgian, Macedonian, Maori, Tibetan and Welsh: what the sheet's own table had left out.
+        // Burmese, Georgian, Macedonian, Maori, Tibetan and Welsh: their B codes differ from their T codes.
         mapOf("bur" to "my", "geo" to "ka", "mac" to "mk", "mao" to "mi", "tib" to "bo", "wel" to "cy")
             .forEach { (bibliographic, code) -> assertEquals(bibliographic, code, Languages.code(bibliographic)) }
     }

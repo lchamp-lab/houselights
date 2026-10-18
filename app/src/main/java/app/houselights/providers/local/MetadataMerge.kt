@@ -4,7 +4,7 @@ import app.houselights.core.SortKeys
 import app.houselights.core.NfoInfo
 import app.houselights.core.yearOf
 
-/** What TMDB says of a film or a show, in the terms both share. */
+/** TMDB details of a film or show, in a shape common to both. */
 data class TmdbDetails(
     val id: Int,
     val title: String,
@@ -15,20 +15,19 @@ data class TmdbDetails(
     val runtimeMin: Int?,
     val certification: String?,
     val rating: Double?,
-    /** The votes [rating] stands on. */
+    /** Number of votes behind [rating]. */
     val votes: Int? = null,
     val genres: List<String>,
     val posterPath: String?,
     val backdropPath: String?,
     val logoPath: String?,
-    /** Films only. */
     val directors: List<String> = emptyList(),
-    /** Shows only: the year of the last episode aired, and whether more are coming. */
+    /** Shows only: year of the last aired episode, and whether more are coming. */
     val endYear: Int? = null,
     val continuing: Boolean? = null,
 )
 
-/** [certification] and [logo] depend on the device's region and language: the client picks them. */
+/** [certification] and [logo] depend on the device's region and language, so the client picks them. */
 fun TmdbMovie.details(certification: String?, logo: String?) = TmdbDetails(
     id = id,
     title = title,
@@ -66,7 +65,7 @@ fun TmdbTv.details(certification: String?, logo: String?) = TmdbDetails(
     continuing = status == "Returning Series" || status == "In Production",
 )
 
-/** Artwork found next to the video or the show, already copied into the app. */
+/** Sidecar artwork of the video or show, already cached by the app. */
 data class LocalArt(
     val poster: String? = null,
     val fanart: String? = null,
@@ -74,7 +73,6 @@ data class LocalArt(
     val thumb: String? = null,
 ) {
     companion object {
-        /** What [item] already uses from local files. */
         fun of(item: ItemEntity) =
             LocalArt(item.posterPath.local(), item.backdropPath.local(), item.logoPath.local(), item.stillPath.local())
 
@@ -82,27 +80,19 @@ data class LocalArt(
     }
 }
 
-/**
- * How a film's or a show's details are chosen, without touching the network or the database:
- * what the NFO says (what the user's media manager decided), then TMDB, then what was known.
- * Artwork: files next to the video, then the NFO's addresses, then TMDB.
- */
+/** Pure detail rules: NFO (the media manager's choice), then TMDB, then stored values; artwork: sidecars, NFO, TMDB. */
 object MetadataMerge {
-    /** Articles titles start with, which sorting passes over (see [SortKeys]). */
+    /** Leading articles ignored when sorting (see [SortKeys]). */
     internal const val ARTICLE_WORDS = SortKeys.ARTICLE_WORDS
 
 
-    /** A title's sort key ([SortKeys.sortKey]). */
     fun sortKey(title: String): String = SortKeys.sortKey(title)
 
-    /** [text] folded as [sortKey] folds it past the article ([SortKeys.fold]). */
+    /** [text] folded as [sortKey] folds it after the article ([SortKeys.fold]). */
     internal fun fold(text: String): String = SortKeys.fold(text)
 
-    /**
-     * [base] with the details of [nfo] and [tmdb]. The NFO must already be one that describes this
-     * title ([describesOther]).
-     */
-    @Suppress("CyclomaticComplexMethod") // One chain per field, NFO then TMDB then what was known: read across.
+    /** The caller must have checked that [nfo] describes this title ([describesOther]). */
+    @Suppress("CyclomaticComplexMethod") // One fallback chain per field: NFO, TMDB, stored value.
     fun merge(base: ItemEntity, nfo: NfoInfo?, tmdb: TmdbDetails?, art: LocalArt): ItemEntity {
         val title = nfo?.title ?: tmdb?.title ?: base.title
         val show = base.kind == ItemKind.SERIES
@@ -119,7 +109,7 @@ object MetadataMerge {
             runtimeMin = nfo?.runtimeMin ?: tmdb?.runtimeMin ?: base.runtimeMin,
             certification = nfo?.certification ?: tmdb?.certification ?: base.certification,
             rating = nfo?.rating ?: tmdb?.rating ?: base.rating,
-            // The votes of the rating kept: the NFO's when it gives the rating, as it may not say how many.
+            // Votes follow the chosen rating: the NFO's when it gives the rating, even if it has no vote count.
             votes = if (nfo?.rating != null) nfo.votes else tmdb?.votes ?: base.votes,
             genres = nfo?.genres?.takeIf { it.isNotEmpty() } ?: tmdb?.genres ?: base.genres,
             directors = if (show) base.directors else directors(nfo, tmdb) ?: base.directors,
@@ -138,10 +128,8 @@ object MetadataMerge {
         nfo?.directors?.takeIf { it.isNotEmpty() } ?: tmdb?.directors
 
     /**
-     * True when the NFO names another title than the one the user matched the file with:
-     * it then no longer describes this file. Its TMDB id tells; else its IMDb id, else its TVDB id
-     * (a show's NFO by Sonarr often has only those two), against the ones TMDB gives the match
-     * ([imdbId], [tvdbId]). An NFO no id tells of is kept.
+     * True when the NFO describes another title than the user's match, by TMDB id, else IMDb, else TVDB id (often all
+     * a Sonarr NFO has). Without a comparable id, the NFO is kept.
      */
     fun describesOther(nfo: NfoInfo, userTmdbId: Int?, imdbId: String?, tvdbId: Int? = null): Boolean {
         val nfoTvdbId = nfo.tvdbId?.trim()?.toIntOrNull()
@@ -154,7 +142,7 @@ object MetadataMerge {
         }
     }
 
-    /** Only what the file or folder name says: details of a previous match are dropped. */
+    /** Keeps only what the file or folder name gives, dropping details of a previous match. */
     fun withoutDetails(item: ItemEntity, title: String, year: Int?) = item.copy(
         tmdbId = null,
         title = title,

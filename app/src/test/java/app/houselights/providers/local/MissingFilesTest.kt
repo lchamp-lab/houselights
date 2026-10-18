@@ -3,7 +3,7 @@ package app.houselights.providers.local
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
-/** What a listing that could not see everything does to the rows of the files it did not list. */
+/** What a listing that could not see everything does to the rows of the files it missed. */
 class MissingFilesTest {
     private fun film(id: Long, path: String) = KnownFile(id = id, filePath = path)
 
@@ -14,7 +14,7 @@ class MissingFilesTest {
     private fun settle(vararg unreadable: String) =
         MissingFiles.settle(SourceKind.MOVIES, listOf(dune, arrival, heat), Listing(emptyList(), emptyList(), unreadable.toList()), NOW)
 
-    /** A file the NAS could not be asked about (gone between the listing and the question) is out of sight, not missing. */
+    /** A file the NAS could not be asked about (gone between listing and query) is out of sight, not missing. */
     @Test
     fun aFileThatCouldNotBeAskedAboutKeepsItsRow() {
         assertEquals(listOf(arrival.id, heat.id), settle("Dune (2021)/Dune (2021).mkv").held)
@@ -28,10 +28,7 @@ class MissingFilesTest {
     private fun stacked(rows: List<KnownFile>, vararg paths: String) =
         MissingFiles.settle(SourceKind.MOVIES, rows, Stacks.of(SourceKind.MOVIES, paths.map { RemoteFile(it, 1_000) }), NOW)
 
-    /**
-     * "Kill Bill CD1" and "CD2" side by side read as the parts of one film, but TMDB or the user matched
-     * each with a film of its own: two films, each row keeping its file and what the user did with it.
-     */
+    /** "Kill Bill CD1" and "CD2" read as one film, but each matched its own: two films, each keeping its row. */
     @Test
     fun filesMatchedWithTwoFilmsAreNotOne() {
         val files = arrayOf("Kill Bill CD1.avi", "Kill Bill CD2.avi")
@@ -58,11 +55,7 @@ class MissingFilesTest {
         }
     }
 
-    /**
-     * A film's first part out of sight a while (a disk of a pool offline), its second still there, alone
-     * in the film's folder: that part is not the film renamed. The film waits for its first part, its parts
-     * as they were.
-     */
+    /** First part out of sight (a pool disk offline), second alone in the folder: not a rename; the film waits. */
     @Test
     fun aFilmWhoseFirstPartIsGoneWaitsForIt() {
         val dir = "Heat (1995)"
@@ -72,7 +65,7 @@ class MissingFilesTest {
         assertEquals(listOf(1L), outcome.held)
         assertEquals(emptyList<Pair<Long, List<String>>>(), outcome.parts)
 
-        // Its first part renamed is the film still.
+        // Its first part renamed is still the film.
         val renamed = stacked(listOf(heat), "$dir/Heat (1995).avi")
         assertEquals(listOf(1L to RemoteFile("$dir/Heat (1995).avi", 1_000)), renamed.relinked)
     }

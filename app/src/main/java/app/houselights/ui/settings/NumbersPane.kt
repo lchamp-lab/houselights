@@ -34,14 +34,12 @@ import app.houselights.ui.util.pictureName
 
 /** Where a row of the library in numbers leads. */
 internal sealed interface NumbersDoor {
-    /** The wall of [library], filtered by [filter]. */
     data class Wall(val library: Library, val filter: LibraryFilter) : NumbersDoor
 
-    /** The page of the person [id]. */
     data class Person(val id: String) : NumbersDoor
 }
 
-/** A group of rows of the library in numbers, by what they count. */
+/** A group of rows in the library in numbers, by what they count. */
 internal enum class TallyKind(@StringRes val title: Int) {
     PICTURE(R.string.filter_picture),
     SOUND(R.string.filter_sound),
@@ -49,19 +47,14 @@ internal enum class TallyKind(@StringRes val title: Int) {
     DIRECTORS(R.string.label_directors),
 }
 
-/**
- * One row: a value the library holds, by the name a case gives it ([label]), how many films hold it, or
- * shows when no film does ([shows]), and where OK takes it ([door]); null when it leads nowhere.
- */
+/** A row: a value by its case name ([label]), its film count (or shows, [shows]), and where OK leads ([door]). */
 internal data class TallyRow(val key: String, val label: String, val count: Int, val shows: Boolean, val door: NumbersDoor?)
 
 internal data class TallyGroup(val kind: TallyKind, val rows: List<TallyRow>)
 
 /**
- * What the pane says of the library counted: its titles, the room its files take and the hours they last,
- * then its rows by group. What its source does not tell is left out, never said as nothing: without
- * [app.houselights.core.ProviderCapabilities.formatNumbers] (a Jellyfin server), neither room, nor hours,
- * nor formats.
+ * The counted library: titles, file size, total hours, then rows by group. What the source does not report is
+ * left out, never shown as zero (no [app.houselights.core.ProviderCapabilities.formatNumbers]: no size or formats).
  */
 internal data class NumbersPage(
     val films: Int,
@@ -72,10 +65,7 @@ internal data class NumbersPage(
     val groups: List<TallyGroup>,
 )
 
-/**
- * The pane's page of [counted]. A format leads to the wall of the films that have it, or of the shows when no
- * film does, filtered by it; a director to their page, where the source has one.
- */
+/** Builds the page from [counted]: a format opens its filtered films (else shows), a director their page. */
 internal fun numbersPage(counted: NumbersState.Counted): NumbersPage {
     val n = counted.numbers
     val can = counted.capabilities
@@ -112,10 +102,8 @@ internal fun numbersPage(counted: NumbersState.Counted): NumbersPage {
 }
 
 /**
- * The library in numbers, on the room: at its head, three figures that state (its titles, the room its files
- * take, the hours they last), each over a line saying what it counts; then rows to read, by group (Image, Son,
- * Fichiers, Réalisation), each a door: "Dolby Vision  131 films" opens those films, a director their page. No
- * gauge, no chart: figures and names. Rows are keyed in [rows]: coming back from a wall finds the row left.
+ * The library in numbers: three head figures, then rows by group (Image, Son, Fichiers, Réalisation), each
+ * opening its films or a director's page. Rows are keyed in [rows], so returning refocuses the row left.
  */
 internal fun LazyListScope.numbersPane(
     state: NumbersState,
@@ -131,7 +119,7 @@ internal fun LazyListScope.numbersPane(
         }
     }
     when (state) {
-        // Counted in a moment: the title waits alone, not over figures to come.
+        // Counting is quick: the title shows alone rather than over placeholder figures.
         NumbersState.Counting -> item { Section(stringResource(R.string.numbers_title)) {} }
         is NumbersState.Failed -> item {
             Section(stringResource(R.string.numbers_title)) {
@@ -140,7 +128,7 @@ internal fun LazyListScope.numbersPane(
         }
         is NumbersState.Counted -> {
             val page = numbersPage(state)
-            // The first group comes with the head: going back up to its first row shows the figures and the title.
+            // The first group shares the head's item, so scrolling back up shows the figures and title.
             item {
                 Section(stringResource(R.string.numbers_title)) {
                     NumbersHead(page)
@@ -155,10 +143,7 @@ internal fun LazyListScope.numbersPane(
     }
 }
 
-/**
- * Three figures side by side, in the voice of the poster, each over what it counts: the films (else the
- * shows), the room, the hours; those the source does not tell are left out, and the others keep their place.
- */
+/** Films (else shows), size and hours, each over what it counts; unreported ones leave their place empty. */
 @Composable
 private fun NumbersHead(page: NumbersPage) {
     if (page.films == 0 && page.shows == 0) {
@@ -173,7 +158,7 @@ private fun NumbersHead(page: NumbersPage) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(HlSpace.l)) {
         figures.forEach { (figure, counts) ->
             Column(Modifier.weight(1f)) {
-                // A figure never leaves its noun: short of room (a large text size), it ends in an ellipsis.
+                // Never wraps away from its noun: short of room (large text), it ends in an ellipsis.
                 Text(figure, style = Hl.type.subject, color = Hl.colors.content, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Spacer(Modifier.height(HlSpace.xxs))
                 Text(counts, style = Hl.type.caption, color = Hl.colors.contentSecondary)
@@ -183,7 +168,7 @@ private fun NumbersHead(page: NumbersPage) {
     }
 }
 
-/** "412 films" over its shows and episodes, or where they are; a library of shows alone, its shows over their episodes. */
+/** "412 films" over its shows and episodes (or "in your library"); with shows only, shows over episodes. */
 @Composable
 private fun titlesFigure(page: NumbersPage): Pair<String, String> {
     val films = pluralStringResource(R.plurals.numbers_films, page.films, formatCount(page.films.toLong()))
@@ -196,7 +181,7 @@ private fun titlesFigure(page: NumbersPage): Pair<String, String> {
     }
 }
 
-/** A group's rows: each value by its name, how many films (or shows) hold it, and its door when it has one. */
+/** A group's rows: each value by name, how many films (or shows) have it, and where it leads, if anywhere. */
 @Composable
 private fun Tallies(group: TallyGroup, rows: PaneRows, open: (NumbersDoor) -> Unit, modifier: Modifier = Modifier) {
     HlSettingGroup(stringResource(group.kind.title), modifier) {
@@ -220,5 +205,5 @@ private fun Tallies(group: TallyGroup, rows: PaneRows, open: (NumbersDoor) -> Un
 /** The figures a head has room for. */
 private const val HEAD_FIGURES = 3
 
-/** Réessayer, after the library could not be counted. */
+/** Focus key of Réessayer, shown when the library could not be counted. */
 private const val RETRY = "numbers-retry"

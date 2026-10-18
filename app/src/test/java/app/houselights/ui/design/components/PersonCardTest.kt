@@ -16,7 +16,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
-/** Someone of several titles opens their page, read as a button; someone of a single title does nothing. */
+/** A person credited on several titles opens their page, read as a button; one on a single title does nothing. */
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = TV)
 class PersonCardTest {

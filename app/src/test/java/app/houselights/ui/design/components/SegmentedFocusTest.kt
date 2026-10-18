@@ -21,10 +21,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
-/**
- * DESIGN.md, Focus: focus coming into a track ([HlSegmented]) lands on the current option, from
- * any side, never on the nearest one, so the focus and where you are meet.
- */
+/** DESIGN.md, Focus: focus entering an [HlSegmented] track lands on the current option, from any side. */
 @RunWith(RobolectricTestRunner::class)
 @Config(application = Application::class, qualifiers = TV)
 class SegmentedFocusTest {

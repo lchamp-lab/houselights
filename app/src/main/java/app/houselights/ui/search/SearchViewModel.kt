@@ -19,13 +19,12 @@ import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.stateIn
 
-/** What a search found for [query]: null while nothing is typed. */
+/** The results of a search for [query]. */
 data class Found(val query: String, val results: SearchResults)
 
 /**
- * A search across the library, from the [provider] of the source in use: what is typed shows at
- * once ([query]); what it finds ([found]) comes [WAIT_MS] after the last key, a search still at work
- * given up when a key follows.
+ * Library search: [query] updates on each key; [found] follows [WAIT_MS] after the last key, null while the query
+ * is empty, a running search being cancelled by the next key.
  */
 @OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
 class SearchViewModel(private val provider: () -> MediaProvider) : ViewModel() {
@@ -49,7 +48,7 @@ class SearchViewModel(private val provider: () -> MediaProvider) : ViewModel() {
 
     fun type(key: Char) = _query.update { it + key }
 
-    /** A space between words: never two, nor one to start with. */
+    /** Adds a space, unless the query is empty or already ends with one. */
     fun space() = _query.update { if (it.isEmpty() || it.endsWith(' ')) it else "$it " }
 
     fun delete() = _query.update { it.dropLast(1) }

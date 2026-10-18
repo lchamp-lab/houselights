@@ -21,19 +21,19 @@ data class ZidooPlayState(
     val paused: Boolean,
     val positionMs: Long,
     val durationMs: Long,
-    /** The file it plays, as the player names it (a URI or a path of its own mounts); null when it says none. */
+    /** The file playing, as the player names it (a URI or a path on its own mounts); null when not reported. */
     val path: String? = null,
 )
 
-/** What the player's local API answers to "what plays now?". */
+/** The local API's answer to "what is playing?". */
 sealed interface PlayerAnswer {
     /** A file plays, or is paused. */
     data class Playing(val state: ZidooPlayState) : PlayerAnswer
 
-    /** The player says, in so many words, that nothing plays (status 804 or 806). */
+    /** The player explicitly reports that nothing plays (status 804 or 806). */
     data object NothingPlays : PlayerAnswer
 
-    /** No answer, or one that makes no sense: the API out of reach a moment says nothing of the film. */
+    /** No answer, or a nonsensical one: a briefly unreachable API says nothing about the film. */
     data object NoAnswer : PlayerAnswer
 }
 
@@ -53,7 +53,7 @@ object ZidooStatus {
         }.getOrNull() ?: PlayerAnswer.NoAnswer
     }
 
-    /** What an answer of getPlayStatus says: a file playing, nothing playing (status 804/806), or nothing that makes sense. */
+    /** Parses a getPlayStatus answer: a file playing, nothing playing (status 804/806), or no usable answer. */
     internal fun parse(body: String): PlayerAnswer = runCatching {
         val root = lenientJson.parseToJsonElement(body).jsonObject
         val code = root["status"]?.jsonPrimitive?.intOrNull
@@ -68,16 +68,16 @@ object ZidooStatus {
                 paused = status == 0,
                 positionMs = video["currentPosition"]?.jsonPrimitive?.longOrNull ?: 0L,
                 durationMs = duration,
-                // Not formally documented either: a path of another shape is no path, and the status still stands.
+                // Also undocumented: a path that is not a string is ignored, and the status still stands.
                 path = (video["path"] as? JsonPrimitive)?.contentOrNull?.ifBlank { null },
             )
         )
     }.getOrDefault(PlayerAnswer.NoAnswer)
 
-    /** The answers that say nothing plays: no video open (804), the player not running (806). */
+    /** Statuses meaning nothing plays: no video open (804), the player not running (806). */
     private val NOTHING_PLAYS = setOf(804, 806)
 
-    /** True when the control API answers, i.e. we run on a Zidoo. */
+    /** True when the control API answers, i.e. the app runs on a Zidoo. */
     suspend fun isAvailable(): Boolean = withContext(Dispatchers.IO) {
         suspendRunCatching {
             http.newCall(Request.Builder().url("$BASE/ZidooControlCenter/getModel").build())

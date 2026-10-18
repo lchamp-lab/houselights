@@ -6,19 +6,13 @@ import org.junit.Test
 import java.io.File
 
 /**
- * `runCatching` catches everything, a coroutine's cancellation included: around a suspending call
- * it turns "stop" into a failure, and the work goes on. Suspending code uses [suspendRunCatching],
- * which rethrows the cancellation. A request for focus fails one way only, a requester with nothing
- * to focus: `tryRequestFocus` catches that, and lets a real error through. This test reads every
- * source and fails on a `runCatching` where those belong, so both rules hold on every build.
+ * Fails on the standard library's catch-all wrapper in suspending code, where it swallows cancellation
+ * ([suspendRunCatching] rethrows it), or around a focus request, where `tryRequestFocus` belongs.
  */
 class RunCatchingGuardTest {
     private val sources = File("src/main/java")
 
-    /**
-     * Deliberate exceptions, as "path:fragment of the line". Keep this list short and say why; a new
-     * one is usually a [suspendRunCatching] or a `tryRequestFocus` instead.
-     */
+    /** Deliberate exceptions, as "path:fragment of the line": keep it short and justify each. */
     private val allowed = listOf(
         // A pure parse of bytes already read, in a suspend fun: nothing in it suspends.
         "app/houselights/providers/local/MediaProbe.kt:runCatching { MkvProbe.bitrates(bytes) }",
@@ -134,11 +128,7 @@ class RunCatchingGuardTest {
         }.map { it to lines[it] }
     }
 
-    /**
-     * The lines of a suspending body: what follows `suspend fun` or `withContext(` on its line, then
-     * every line indented under it (the closing parenthesis of a long signature too), up to the
-     * line that closes it.
-     */
+    /** Lines of a suspending body: from `suspend fun` or `withContext(` to its closing line, by indentation. */
     private fun suspendingLines(lines: List<String>, code: List<String>): Set<Int> {
         val inside = HashSet<Int>()
         code.forEachIndexed { i, line ->

@@ -7,46 +7,36 @@ data class RemoteFile(
     /** Path relative to the source folder, with "/" separators. */
     val relativePath: String,
     val size: Long,
-    /**
-     * When it was last written (ms since the epoch), as the listing gives it: SMB's last write time, NFS's
-     * mtime. A sidecar rewritten in place often keeps its size, not its date. Null when not known.
-     */
+    /** Last write time in epoch ms (SMB last write time, NFS mtime), null if unknown; catches same-size rewrites. */
     val lastModified: Long? = null,
 )
 
-/**
- * Videos of a folder, and the files that describe them (NFO, artwork). [unreadable]: its subfolders
- * and files that could not be read, by path relative to it; what the library holds there is not gone.
- */
+/** Videos and sidecars of a source; [unreadable] lists paths that failed, which are not missing. */
 data class Listing(val videos: List<RemoteFile>, val sidecars: List<RemoteFile>, val unreadable: List<String> = emptyList())
 
-/** Lists the video files of a network folder, whatever the protocol; [RemoteBrowsers] has the app's. */
+/** Lists and reads a network source, whatever the protocol; [RemoteBrowsers] holds the app's instances. */
 interface RemoteBrowser {
     suspend fun list(source: SourceEntity): Listing
 
     /** Number of entries at the source root; throws with a readable message on failure. */
     suspend fun test(source: SourceEntity): Int
 
-    /** The first [length] bytes of a file, or all of it when shorter: pass a length close to what is needed. */
+    /** The first [length] bytes of a file, or the whole file when shorter. */
     suspend fun readPrefix(source: SourceEntity, relativePath: String, length: Int): ByteArray = readAt(source, relativePath, 0, length)
 
-    /** [length] bytes of a file from [offset], fewer past its end: what a file keeps at its end (its tags). */
+    /** Up to [length] bytes from [offset], fewer past the end of the file. */
     suspend fun readAt(source: SourceEntity, relativePath: String, offset: Long, length: Int): ByteArray
 
     companion object {
         const val MAX_DEPTH = 6
 
         /**
-         * Hidden files (".DS_Store", ".AppleDouble", ".Trash-1000", ".@__thumb", and the "._" twin macOS
-         * writes beside each video on a share), and the system folders [SYSTEM] names. Only those: "#Alive"
-         * and "@Zombie" are films.
+         * Skips dot files (".DS_Store", ".AppleDouble", ".Trash-1000", ".@__thumb", macOS "._" twins) and [SYSTEM]
+         * folders only, as "#Alive" and "@Zombie" are films.
          */
         fun skip(name: String) = name.startsWith(".") || SYSTEM.any { it.equals(name, ignoreCase = true) }
 
-        /**
-         * Synology's and QNAP's recycle bins (Synology Drive's too), snapshots and thumbnails, the copies
-         * QNAP transcodes beside each video, Windows' own folders, and lost+found, root's alone on ext4.
-         */
+        /** Synology and QNAP recycle bins, snapshots, thumbnails, transcodes; Windows folders; lost+found. */
         private val SYSTEM = listOf(
             "#recycle", "#snapshot", "#SynoRecycle", "@eaDir", "@tmp", "@Recycle", "@Recently-Snapshot", "@__thumb", "@Transcode",
             "\$RECYCLE.BIN", "System Volume Information", "lost+found",
@@ -64,31 +54,29 @@ interface RemoteBrowser {
     }
 }
 
-/** A folder as a protocol lists it. */
+/** A remote folder, protocol-independent. */
 internal fun interface RemoteFolder {
-    /** Its entries; throws when it cannot be read. */
+    /** Throws when the folder cannot be read. */
     fun entries(): List<RemoteEntry>
 }
 
-/** An entry of a [RemoteFolder]: what it is and its size may each cost a request, asked only when needed. */
+/** An entry of a [RemoteFolder]; its type and size may each cost a request, so they are queried lazily. */
 internal interface RemoteEntry {
     val name: String
 
-    /** The entry as a folder to walk into, or null for a file. */
+    /** Null for a file. */
     fun folder(): RemoteFolder?
 
     fun size(): Long
 
-    /** When it was last written, from what [size] asked: no request of its own. Null when not known. */
+    /** Last write time from the same request as [size]; null if unknown. */
     fun lastModified(): Long? = null
 }
 
 /**
- * The videos and sidecars under [root], [RemoteBrowser.MAX_DEPTH] folders deep at most. A subfolder
- * that cannot be read (lost+found, a folder of another user), or an entry that cannot be asked what
- * it is or its size (a file Radarr replaced between the listing and the question), is passed over and
- * named in [Listing.unreadable]. [root] failing, or a failure [isFatal] tells (the NAS gone, the
- * connection broken), fails the listing: what follows could not be read either.
+ * Videos and sidecars under [root], at most [RemoteBrowser.MAX_DEPTH] levels deep. Unreadable subfolders
+ * (lost+found, another user's) and entries that fail (a file Radarr replaced mid-listing) are skipped and recorded
+ * in [Listing.unreadable]. A failure on [root], or one [isFatal] accepts (NAS gone, connection broken), throws.
  */
 internal fun walk(root: RemoteFolder, isFatal: (Throwable) -> Boolean): Listing =
     Walk(isFatal).run {
@@ -96,7 +84,6 @@ internal fun walk(root: RemoteFolder, isFatal: (Throwable) -> Boolean): Listing 
         Listing(videos, sidecars, unreadable)
     }
 
-/** One [walk], and what it found so far. */
 private class Walk(private val isFatal: (Throwable) -> Boolean) {
     val videos = mutableListOf<RemoteFile>()
     val sidecars = mutableListOf<RemoteFile>()
@@ -112,7 +99,7 @@ private class Walk(private val isFatal: (Throwable) -> Boolean) {
         for (entry in entries) {
             if (RemoteBrowser.skip(entry.name)) continue
             val path = if (relative.isEmpty()) entry.name else "$relative/${entry.name}"
-            // What an entry is, and its size, may each be a request of their own (an NFS GETATTR).
+            // Type and size may each cost a request (an NFS GETATTR), so failures are per entry.
             val subfolder = suspendRunCatching { take(entry, path) }.getOrElse { e ->
                 passOver(path, e)
                 null
@@ -121,7 +108,7 @@ private class Walk(private val isFatal: (Throwable) -> Boolean) {
         }
     }
 
-    /** The entry as a folder to walk into; a file is taken among the videos or the sidecars. */
+    /** Returns a subfolder to walk, or records a file as a video or sidecar. */
     private fun take(entry: RemoteEntry, path: String): RemoteFolder? {
         entry.folder()?.let { return it }
         when {
@@ -138,17 +125,11 @@ private class Walk(private val isFatal: (Throwable) -> Boolean) {
     }
 }
 
-/**
- * [relativePath] in [source]'s folder, as the share or export names it from its root: [separator]
- * between names, none before the first; "" for the root itself.
- */
+/** [relativePath] under [source]'s folder, from the share or export root, joined by [separator]; "" for the root. */
 internal fun remotePath(source: SourceEntity, relativePath: String = "", separator: Char = '/'): String =
     listOf(source.path.trim('/'), relativePath).filter { it.isNotEmpty() }.joinToString("/").replace('/', separator)
 
-/**
- * Reads until [length] bytes or the end, straight into the array it returns: [read] puts at most
- * count bytes into the array from an index, and says how many it put, none (0 or less) at the end.
- */
+/** Reads up to [length] bytes via [read], which fills from `at` and returns the byte count, or 0 or less at the end. */
 internal inline fun readFully(length: Int, read: (bytes: ByteArray, at: Int, count: Int) -> Int): ByteArray {
     val bytes = ByteArray(length)
     var total = 0

@@ -1,8 +1,8 @@
 package app.houselights.providers.local
 
 /**
- * Who a credit names, across the library: "tmdb:525" when TMDB names the person, else "name:christopher nolan",
- * their name folded ([fold]). The key is the person's id on screens ([app.houselights.core.Person.id]).
+ * Library-wide person keys: "tmdb:525" when TMDB knows the person, else "name:christopher nolan" (folded, [fold]).
+ * Screens use the key as [app.houselights.core.Person.id].
  */
 object PersonKeys {
     const val TMDB = "tmdb:"
@@ -12,19 +12,17 @@ object PersonKeys {
 
     fun name(folded: String): String = "$NAME$folded"
 
-    /** A name as keys and searches compare it: folded ([MetadataMerge.fold]), its spaces made one. */
+    /** [MetadataMerge.fold] with whitespace collapsed, as keys and searches compare names. */
     fun fold(name: String): String = MetadataMerge.fold(name).trim().replace(SPACES, " ")
 
     private val SPACES = Regex("""\s+""")
 }
 
 /**
- * The words a search finds titles, people and sagas by ([SearchWordEntity]): their names folded as sort keys are
- * ([MetadataMerge.fold]), cut at whatever is no letter nor digit. A word written with marks inside counts joined
- * too: "Spider-Man" is "spider", "man" and "spiderman"; "S.H.I.E.L.D." is "shield".
+ * Search words of titles, people and sagas ([SearchWordEntity]): names folded ([MetadataMerge.fold]) and split on
+ * non-alphanumerics, plus the joined form: "Spider-Man" gives "spider", "man", "spiderman"; "S.H.I.E.L.D." "shield".
  */
 object SearchWords {
-    /** The words of [names], each once. */
     fun of(vararg names: String?): Set<String> = buildSet {
         for (name in names) {
             if (name.isNullOrBlank()) continue
@@ -36,18 +34,14 @@ object SearchWords {
         }
     }
 
-    /** What is typed, as words a search reads the start of: folded, each once, in order. */
+    /** Query words to prefix-match: folded, deduplicated, in order. */
     fun query(text: String): List<String> =
         MetadataMerge.fold(text).split(NOT_WORDS).filter { it.isNotEmpty() }.distinct()
 
-    /** The rows of [kind] for [ref], one per word of [names]. */
     fun rows(kind: SearchKind, ref: String, vararg names: String?): List<SearchWordEntity> =
         of(*names).map { SearchWordEntity(kind, it, ref) }
 
-    /**
-     * The first text after every word [prefix] starts: "amem" for "amel". Words compare as SQLite compares
-     * text, by their UTF-8 bytes, whose order is that of their characters.
-     */
+    /** Exclusive upper bound for [prefix] ("amem" for "amel"); SQLite's UTF-8 order matches char order. */
     fun upperBound(prefix: String): String = prefix.dropLast(1) + (prefix.last() + 1)
 
     private val SPACES = Regex("""\s+""")

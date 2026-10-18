@@ -27,18 +27,14 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
-/**
- * DESIGN.md, Focus: coming back to a screen finds focus on what was left, by what it is, not where
- * it sat, even after the list around it changed; a list that changes under the viewer never moves
- * focus away.
- */
+/** DESIGN.md, Focus: focus returns to what was left, by identity, and a list changing under it never moves it. */
 @RunWith(RobolectricTestRunner::class)
 @Config(application = Application::class, qualifiers = TV)
 class RestoreFocusTest {
     @get:Rule
     val compose = createComposeRule()
 
-    /** A screen of titles in a list, its memory kept while another screen shows (as the back stack keeps it). */
+    /** A screen of titles in a list, its memory kept while another screen shows, as the back stack keeps it. */
     @Composable
     private fun Titles(titles: List<String>) {
         val memory = rememberFocusMemory()
@@ -64,12 +60,11 @@ class RestoreFocusTest {
             if (away) HlButton("Lire", onClick = {}, modifier = Modifier.testTag("player"))
             else screens.SaveableStateProvider("titles") { Titles(titles) }
         }
-        // A first visit starts on the first title.
         compose.onNodeWithTag("t1").assertIsFocused()
         compose.press(Key.DirectionDown, times = 4)
         compose.onNodeWithTag("t5").assertIsFocused()
 
-        // Away, the library changes: twelve titles arrive ahead, so the one left is out of sight.
+        // While away, the library changes: twelve titles arrive ahead, so the one left is out of sight.
         away = true
         compose.waitForIdle()
         titles = (1..12).map { "new$it" } + titles

@@ -5,11 +5,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/**
- * Films in several files, as Kodi stacks them: the suffixes a file's name ends with, the films made of
- * parts side by side, the NFO and artwork found under the film's name, and what a folder's rows become
- * once its parts are renamed, added or gone.
- */
+/** Films in several files, as Kodi stacks them: part suffixes, stacks, sidecars, and rows as parts change. */
 class StacksTest {
     private fun part(name: String) = StackPart.of(name)
 
@@ -32,11 +28,11 @@ class StacksTest {
 
     @Test
     fun namesThatOnlyLookLikePartsAreNot() {
-        // The suffix ends the name: a tag, a year or a word after it is a title's.
+        // The suffix ends the name: a tag, a year or a word after it belongs to a title.
         assertNull(part("Film (2020) CD1 [1080p].mkv"))
         assertNull(part("Harry Potter and the Deathly Hallows Part 1 (2010).mkv"))
         assertNull(part("Dune Part Two (2024).mkv"))
-        // "Part" and "pt" end films' names: the user's choice is that they make no part.
+        // "Part" and "pt" end film names, so they never mark a part.
         assertNull(part("Film (2020) - Part 1.mkv"))
         assertNull(part("Film.2020.part.2.mkv"))
         assertNull(part("film-pt4.mkv"))
@@ -44,7 +40,7 @@ class StacksTest {
         assertNull(part("Film CD10.avi"))
         assertNull(part("Film part e.mkv"))
         assertNull(part("Kill Bill Vol. 1 (2003).mkv"))
-        // The suffix starts a word of its own, after a name.
+        // The suffix must be a word of its own, after a name.
         assertNull(part("Counterpart 2.mkv"))
         assertNull(part("CD1.avi"))
         // Titles alone.
@@ -71,7 +67,7 @@ class StacksTest {
         assertEquals(listOf("Heat/Heat CD1.avi"), stacks("Heat/Heat CD1.avi", "Heat/heat disc 2.avi").titlePaths())
     }
 
-    /** "Part 1" and "Part 2" end two films' names as well as one film's files': whatever the folder and the year, films of their own. */
+    /** "Part 1" and "Part 2" end film names as well as file names: whatever the folder and year, two films. */
     @Test
     fun filesNamedPartAreFilmsOfTheirOwn() {
         val hallows = "Harry Potter and the Deathly Hallows"
@@ -80,7 +76,7 @@ class StacksTest {
         assertEquals(3, stacks("Mockingjay Pt1.mkv", "Mockingjay Pt2.mkv", "Colony.mkv").titles.size)
         assertEquals(2, stacks("Film (2020) - Part 1.mkv", "Film (2020) - Part 2.mkv").titles.size)
         assertEquals(2, stacks("Film/Film Part 1.mkv", "Film/Film Part 2.mkv").titles.size)
-        // CDs and discs always are one film.
+        // CDs and discs always make one film.
         assertEquals(listOf("Heat CD1.avi", "Colony.mkv"), stacks("Heat CD1.avi", "Heat CD2.avi", "Colony.mkv").titlePaths())
         assertEquals(listOf("Heat disc 1.avi"), stacks("Heat disc 1.avi", "Heat disc 2.avi").titlePaths())
     }
@@ -93,7 +89,7 @@ class StacksTest {
         assertEquals(listOf("Film CD2.avi", "Film CD3.avi"), stacks("Film CD2.avi", "Film CD3.avi").titlePaths())
         // A gap ends the film: the fourth part is a title of its own.
         assertEquals(listOf("Film CD1.avi", "Film CD4.avi"), stacks("Film CD1.avi", "Film CD2.avi", "Film CD4.avi").titlePaths())
-        // The first part twice: which is the film's cannot be told.
+        // The first part twice: which one is the film's cannot be told.
         assertEquals(3, stacks("Film CD1.avi", "Film disc 1.avi", "Film CD2.avi").titles.size)
     }
 
@@ -141,7 +137,7 @@ class StacksTest {
         assertEquals(listOf(1L to listOf("Le Parrain - Disc 2.avi")), renamed.parts)
         assertTrue(renamed.held.isEmpty() && renamed.removed.isEmpty() && renamed.relinked.isEmpty())
 
-        // A part gone: a film of one file, the same row.
+        // A part removed: a film of one file, the same row.
         val gone = settle(listOf(godfather), "Le Parrain CD1.avi")
         assertEquals(listOf(1L to emptyList<String>()), gone.parts)
         assertTrue(gone.held.isEmpty() && gone.removed.isEmpty())
@@ -158,7 +154,7 @@ class StacksTest {
 
     @Test
     fun aFileThatBecameAPartGivesWayToItsFilm() {
-        // Scanned before parts were told apart: one row a file.
+        // Legacy rows: one row per file.
         val first = row(1, "Heat CD1.avi")
         val second = row(2, "Heat CD2.avi")
         val outcome = settle(listOf(first, second), "Heat CD1.avi", "Heat CD2.avi")

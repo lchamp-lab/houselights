@@ -9,10 +9,9 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 /**
- * Runs a write the user asked for from a screen (a setting, a folder, the storage's upkeep) in this
- * scope. A failure (a full disk, the Keystore at fault, the database) is logged under [tag], as
- * [what] failed, and handed to [onError] as [errorOf] says it: never left to take the app down, as a
- * screen's scope or a ViewModel's has no handler. A cancellation is not a failure.
+ * Runs a write the viewer asked for in this scope; a failure is logged under [tag] and passed to [onError]
+ * through [errorOf] instead of crashing, as screen and ViewModel scopes have no handler. Cancellation is not
+ * a failure.
  */
 fun CoroutineScope.launchAction(
     tag: String,
@@ -28,10 +27,8 @@ fun CoroutineScope.launchAction(
 }
 
 /**
- * The [UiError] a write to the device itself shows as: a read or a write that failed there, and
- * names nothing else (TMDB asked on the way), is its storage, not the network, whatever the network
- * would make of it; the database full or its disk failing is said the same way. Any other database
- * failure (a constraint, a lock) is no reason to free space.
+ * The [UiError] for a failed local write: storage, I/O, network and missing-file failures are all
+ * [UiError.NOT_SAVED]; other database failures (a constraint, a lock) map as usual.
  */
 fun Throwable.toWriteError(): UiError = when (val kind = failureKind()) {
     FailureKind.STORAGE_FULL, FailureKind.STORAGE_FAILED -> UiError.NOT_SAVED

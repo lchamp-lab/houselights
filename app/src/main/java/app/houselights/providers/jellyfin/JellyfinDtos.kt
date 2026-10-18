@@ -3,14 +3,14 @@ package app.houselights.providers.jellyfin
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
-// Jellyfin's REST types, named as its API names them (BaseItemDto is BaseItem here).
+// Jellyfin REST types, named after the API's own (BaseItemDto is BaseItem here).
 
 @Serializable
 data class PublicSystemInfo(
     @SerialName("ServerName") val serverName: String? = null,
     @SerialName("Version") val version: String? = null,
     @SerialName("Id") val id: String? = null,
-    /** "Jellyfin Server"; another product (Emby) answers the same route. */
+    /** "Jellyfin Server"; Emby answers the same route with another name. */
     @SerialName("ProductName") val productName: String? = null,
 )
 
@@ -103,7 +103,7 @@ data class MediaSource(
     @SerialName("Size") val size: Long? = null,
     @SerialName("RunTimeTicks") val runTimeTicks: Long? = null,
     @SerialName("MediaStreams") val mediaStreams: List<MediaStream> = emptyList(),
-    /** "VideoFile", or a disc: "Iso", "BluRay" (a BDMV folder), "Dvd" (a VIDEO_TS folder). */
+    /** "VideoFile", or a disc: "Iso", "BluRay" (BDMV folder), "Dvd" (VIDEO_TS folder). */
     @SerialName("VideoType") val videoType: String? = null,
 )
 

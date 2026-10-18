@@ -59,13 +59,8 @@ import kotlin.math.roundToInt
 import app.houselights.ui.design.CAP_HEIGHT
 
 /**
- * A title's technical sheet, beside its page ([HlSideSheet]): what its file holds ([TechSheet]),
- * read row by row with the remote. At its head, its poster, and beside it the title and its year:
- * its formats are its rows, never said twice; then the picture, the sound, the subtitles and the file, one
- * row per fact: its name on the left, what it says on the right, what qualifies it under. A track
- * goes by its language, its title under it when it says more; the one the player starts with has
- * its dot in the margin. Rows take focus to be read, white as every row; OK does nothing, Back
- * closes.
+ * A title's technical sheet ([TechSheet]) in a side sheet: picture, sound, subtitles and file, one
+ * focusable row per fact or track, the default track dotted; OK does nothing, Back closes.
  */
 @Composable
 fun TechSpecs(item: MediaItem, onDismiss: () -> Unit) {
@@ -86,10 +81,7 @@ fun TechSpecs(item: MediaItem, onDismiss: () -> Unit) {
     }
 }
 
-/**
- * A section: its title and count, then its rows. The title comes into view with its first row;
- * the rows after scroll on their own (a long list of subtitles is taller than the sheet).
- */
+/** A section, its title revealed with its first row; later rows scroll on their own (long subtitle lists). */
 @Composable
 private fun ColumnScope.Section(section: TechSection, first: FocusRequester?) {
     Column(Modifier.revealOnFocus()) {
@@ -99,7 +91,7 @@ private fun ColumnScope.Section(section: TechSection, first: FocusRequester?) {
     section.rows.drop(1).forEach { SheetRow(it) }
 }
 
-/** A section's name, quiet, and how many tracks it lists, quieter: "Son   3 pistes". */
+/** A section's name and track count: "Son   3 pistes". */
 @Composable
 private fun SectionTitle(section: TechSection) {
     val c = Hl.colors
@@ -147,12 +139,8 @@ private fun SheetRow(row: TechRow, modifier: Modifier = Modifier) {
 }
 
 /**
- * One row of the sheet, as a settings row looks but stating only: [label] on the left ([note]
- * under it), [value] on the right, measured first, at most `TechSpecsDefaults.valueWidth`, and
- * what qualifies it ([detail]) under it; [stacked], the value under the label, the width of the
- * row (a file's name). The margin holds the dot of the track in use, so labels line up with the
- * section titles. It takes focus to be read, white as every row; OK does nothing, and it is read
- * out as [readAs], not as a button.
+ * A read-only row: [label] and [note] left, [value] and [detail] right, capped at the value width;
+ * [stacked] puts the value under the label (a file name). The margin holds the in-use dot; read as [readAs].
  */
 @Composable
 private fun SpecRow(
@@ -166,10 +154,10 @@ private fun SpecRow(
     stacked: Boolean = false,
 ) {
     val c = Hl.colors
-    // Its focus is read here, for what the row says it is to accessibility services.
+    // Focus feeds the semantics below.
     val interaction = remember { MutableInteractionSource() }
     val focused by interaction.collectIsFocusedAsState()
-    // Where the dot of the track in use sits: in the middle of the label's capitals.
+    // The in-use dot centres on the label's cap height.
     val capitals = with(LocalDensity.current) { (Hl.type.entry.fontSize.toPx() * CAP_HEIGHT / 2).roundToInt() }
     HlRowSurface(
         onClick = {},
@@ -184,8 +172,7 @@ private fun SpecRow(
         val ink = LocalContentColor.current
         val secondary = if (focused) ink else c.contentSecondary
         val quiet = if (focused) c.onFocusSecondary else c.contentTertiary
-        // The words in the middle of the row's height, however few lines they take; between them,
-        // the label and its value keep to one baseline.
+        // Text centred vertically; label and value share a baseline.
         Box(
             Modifier
                 .fillMaxWidth()
@@ -193,7 +180,7 @@ private fun SpecRow(
                 .padding(end = HlInset.card, top = HlSpace.xs, bottom = HlSpace.xs),
             contentAlignment = Alignment.CenterStart,
         ) { Row(Modifier.fillMaxWidth()) {
-            // As tall as its dot alone: a margin a line tall would leave room under the words.
+            // Only as tall as the dot: a line-tall margin would add space under the text.
             Box(
                 Modifier.width(HlInset.card).alignBy { it.measuredHeight / 2 + capitals },
                 contentAlignment = Alignment.Center,
@@ -225,12 +212,11 @@ private fun SpecRow(
     }
 }
 
-/** A value, or what qualifies it, against the end of its row. */
 @Composable
 private fun Value(text: String, style: TextStyle, color: Color) =
     Text(text, style = style, color = color, textAlign = TextAlign.End, maxLines = LINES, overflow = TextOverflow.Ellipsis)
 
-/** Lines a label, a value, a note or a detail takes at most; a file's name, stacked, a little more. */
+/** Maximum lines of a label, value, note or detail; a stacked file name gets [STACKED_LINES]. */
 private const val LINES = 2
 private const val STACKED_LINES = 3
 
@@ -261,14 +247,14 @@ private fun labelName(label: TechLabel): String = stringResource(
     },
 )
 
-/** A track's language, by its region too when the sheet gives one: "Français (Canada)". */
+/** A track's language, with its region when known: "Français (Canada)". */
 @Composable
 private fun trackLanguage(code: String?, region: String?): String {
     val name = languageName(code) ?: stringResource(R.string.unknown_language)
     return region?.let { "$name (${Locale("", it).getDisplayCountry(Locale.getDefault())})" } ?: name
 }
 
-/** Values as the screen writes them, a fact's space apart; null when there are none. */
+/** Values joined a fact's space apart; null when empty. */
 @Composable
 private fun List<TechValue>.text(): String? = map { it.text() }.takeIf { it.isNotEmpty() }?.joinToString(FACT_GAP)
 

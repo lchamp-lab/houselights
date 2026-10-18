@@ -8,11 +8,7 @@ import org.w3c.dom.Element
 import java.io.File
 import javax.xml.parsers.DocumentBuilderFactory
 
-/**
- * From Android 11, an app sees only the apps its manifest's <queries> declares: an intent [ZidooPlayer]
- * asks that is not declared there finds no app on the device, whatever Robolectric, which shows every
- * app, says. Read from the manifest as written.
- */
+/** On Android 11+, an intent [ZidooPlayer] sends finds no app unless the manifest's <queries> declares it. */
 @RunWith(RobolectricTestRunner::class)
 class PlayerQueriesTest {
     private val file = File("src/main/AndroidManifest.xml")
@@ -26,7 +22,7 @@ class PlayerQueriesTest {
         asked().forEach { assertTrue("$it is not in <queries>: $declared", it in declared) }
     }
 
-    /** No more is declared than is asked: an intent declared and never asked would show this app others for nothing. */
+    /** Nothing is declared beyond what is queried: an unused declaration would expose other apps for nothing. */
     @Test
     fun everyVideoDeclaredIsOneThePlayerIsLookedForBy() {
         val asked = asked()

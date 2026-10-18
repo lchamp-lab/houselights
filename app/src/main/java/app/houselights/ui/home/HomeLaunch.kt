@@ -23,16 +23,13 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlin.coroutines.CoroutineContext
 
-/** What home shows first: the tabs' libraries and the rows. */
+/** Home's first content: the tabs' libraries and the rows. */
 data class HomeRows(val libraries: List<Library>, val sections: List<HomeSection>)
 
 /**
- * Home's first rows and the pictures of its first view, asked once at a cold start, while the launch
- * screen holds ([LaunchGate]). Home takes the same rows as soon as they come instead of asking the
- * source again ([take]), and is composed and drawn under the launch screen while the pictures load,
- * finding them in memory; the gate opens once they are in and home drew them. The rows come from the
- * [provider] of the source in the [settings]; [version] is the library's
- * ([app.houselights.core.LibraryEvents]), and rows read before it moved on are never shown.
+ * Loads Home's first rows and first-view pictures once at a cold start, while the launch screen holds
+ * ([LaunchGate]); Home takes the rows ([take]) and is composed underneath, so the gate opens on a drawn Home.
+ * Rows read before the library [version] ([app.houselights.core.LibraryEvents]) changed are never shown.
  */
 class HomeLaunch(
     private val gate: LaunchGate,
@@ -40,24 +37,18 @@ class HomeLaunch(
     private val provider: () -> MediaProvider,
     private val version: () -> Long,
 ) {
-    /** What the launch asked: of which source, at which version of the library, and the answer (the rows, or why not). */
+    /** The launch's request: its source, the library version at the time, and the rows or the failure. */
     private class Asked(val source: SourceConfig, val version: Long, val rows: Result<HomeRows>)
 
     private var begun = false
 
-    /**
-     * What the launch asked, until home takes it or the first window finishes ([drop]): its answer
-     * comes with the rows, before the pictures, and is null when nothing was asked (the app started
-     * elsewhere).
-     */
+    /** The request until Home takes it or [drop]; completes with the rows, before the pictures, or null if none. */
     @Volatile
     private var asked: Deferred<Asked?>? = null
 
     /**
-     * Begins the launch as the first window of the process opens, once: [restored], a window the
-     * system brings back on the screen it showed, opens the gate at once. Else, once the settings are
-     * read, home's libraries and rows are asked in parallel, then [pictures] loads the pictures of its
-     * first view into memory while home takes the rows, all off the main thread ([work]).
+     * Starts the launch once, as the process's first window opens; a [restored] window opens the gate at once.
+     * Otherwise loads Home's libraries and rows in parallel, then [pictures], all on [work], off the main thread.
      */
     fun begin(
         scope: CoroutineScope,
@@ -80,7 +71,7 @@ class HomeLaunch(
             try {
                 prepare(pictures, answer)
             } finally {
-                // Nothing asked, or the launch's work cut short: home asks itself.
+                // Nothing requested, or the work was cancelled: Home loads by itself.
                 answer.complete(null)
             }
         }
@@ -89,7 +80,7 @@ class HomeLaunch(
     private suspend fun prepare(pictures: suspend (HomeRows) -> Unit, answer: CompletableDeferred<Asked?>) {
         val read = settings.first { it.loaded || it.readFailed }
         gate.settingsRead()
-        // Welcome, or the settings that could not be read: the app does not start on home.
+        // No source yet (Welcome) or unreadable settings: the app does not start on Home.
         val source = read.source?.takeIf { read.loaded }
         if (source == null) {
             gate.startsElsewhere()
@@ -104,18 +95,14 @@ class HomeLaunch(
                 HomeRows(libraries.await(), sections.await())
             }
         }
-        // A failure is home's first content too: it says why. Home takes it at once, and is
-        // composed under the launch screen while the pictures load.
+        // A failure is first content too: Home takes it at once, composed under the launch screen.
         gate.homeLoaded()
         answer.complete(Asked(source, at, rows))
         rows.onSuccess { load(it, pictures) }
         gate.picturesLoaded()
     }
 
-    /**
-     * The pictures, until they are in memory or the gate opens without them (the cap): home shows
-     * then, and asks for the ones left itself, never twice.
-     */
+    /** Preloads the pictures until done or the gate opens at its time cap; Home then loads the rest, never twice. */
     private suspend fun load(rows: HomeRows, pictures: suspend (HomeRows) -> Unit) = coroutineScope {
         if (gate.isOpen) return@coroutineScope
         val loading = launch { suspendRunCatching { pictures(rows) } }
@@ -128,9 +115,8 @@ class HomeLaunch(
     }
 
     /**
-     * Home's first load: the rows the launch asked of [source], as soon as they come, under the launch
-     * screen; null when none were asked, once taken or dropped, or when they were another source's or
-     * the library has moved on since. Their failure, if they failed, is home's to say.
+     * The launch's rows for [source], as soon as they arrive. Null when none were requested, already taken or
+     * dropped, from another source, or stale by library version; a failed request rethrows for Home to report.
      */
     suspend fun take(source: SourceConfig?): HomeRows? {
         val launched = synchronized(this) { asked.also { asked = null } } ?: return null
@@ -140,26 +126,18 @@ class HomeLaunch(
     }
 
     /**
-     * The first window finished before home took the rows (Back under the launch screen), the
-     * process kept: they go with it, and a later window's home asks the source, never showing rows
-     * of that moment (a Jellyfin server's changes never move the library's version).
+     * Discards the rows when the first window finishes before Home takes them, so a later window asks the source
+     * rather than show stale rows (a Jellyfin server's changes do not move the library version).
      */
     fun drop() = synchronized(this) { asked = null }
 }
 
-/**
- * Loads into memory the pictures home's first view shows on a screen [screenWidthPx] wide
- * ([firstPictures]), all at once: home, composed meanwhile, waits for each one it asks for
- * ([LoadingAhead]), never loading it twice.
- */
+/** Preloads Home's first-view pictures for a [screenWidthPx] screen; Home awaits each one ([LoadingAhead]). */
 internal fun loadFirstPictures(context: Context, screenWidthPx: Int): suspend (HomeRows) -> Unit = { rows ->
     LoadingAhead.load(context.imageLoader, firstPictures(PicturesAhead(context, screenWidthPx), rows.sections))
 }
 
-/**
- * What home's first view shows, as it asks Coil for it: the hero's pictures (the first title of the
- * first row, where focus lands), then the cards of the first row on the screen.
- */
+/** Home's first-view image requests, built as Home builds them: the hero's pictures, then the first row's cards. */
 internal fun firstPictures(ahead: PicturesAhead, sections: List<HomeSection>): List<ImageRequest> {
     val first = sections.firstOrNull() ?: return emptyList()
     val hero = selectedTitle(sections, null)?.let(ahead::hero).orEmpty()

@@ -27,7 +27,7 @@ import java.net.SocketException
 import java.util.concurrent.ExecutionException
 import java.util.concurrent.TimeoutException
 
-/** On Robolectric: the storage errors are Android's. */
+/** Runs on Robolectric for Android's storage exceptions. */
 @RunWith(RobolectricTestRunner::class)
 class ScanErrorsTest {
     private fun kind(e: Throwable) = ScanErrors.classify(e).kind
@@ -38,14 +38,14 @@ class ScanErrorsTest {
         assertEquals(ScanErrorKind.UNREACHABLE, kind(IOException("wrapped", ConnectException("Connection refused"))))
     }
 
-    /** As smbj 0.14 throws it when the NAS answers a request later than its timeout: Promise, Futures.get, Share.receive. */
+    /** As smbj 0.14 throws a NAS answer past the request timeout: Promise, Futures.get, Share.receive. */
     @Test
     fun anSmbRequestThatTimesOutIsUnreachable() {
         val expired = SMBRuntimeException(TimeoutException("Timeout expired"))
         assertEquals(ScanErrorKind.UNREACHABLE, kind(SMBRuntimeException(TransportException(ExecutionException(expired)))))
     }
 
-    /** The packet reader fails the requests under way with what stopped it. */
+    /** The packet reader fails the pending requests with what stopped it. */
     @Test
     fun anSmbConnectionDroppedIsUnreachable() {
         assertEquals(ScanErrorKind.UNREACHABLE, kind(SMBRuntimeException(TransportException(SocketException("Connection reset")))))
@@ -54,16 +54,13 @@ class ScanErrorsTest {
         assertEquals(ScanErrorKind.UNREACHABLE, kind(smbStatus(NtStatus.STATUS_CONNECTION_DISCONNECTED)))
     }
 
-    /** smbj raises a TransportException of its own for what the NAS asks and it cannot do: no network failure. */
+    /** smbj throws its own TransportException for a NAS request it cannot fulfil: not a network failure. */
     @Test
     fun anSmbProtocolFailureIsNotTheNetwork() {
         assertEquals(ScanErrorKind.OTHER, kind(SMB1NotSupportedException()))
     }
 
-    /**
-     * A NAS that requires signing refuses guests (Windows 11 24H2, recent Synology): an account is to
-     * be entered. As SMBSessionBuilder throws it, and as Session.send does for a guest it let through.
-     */
+    /** A NAS requiring signing (Windows 11 24H2, recent Synology) refuses guests, at setup or first send. */
     @Test
     fun aGuestRefusedForSigningIsTheSignIn() {
         assertEquals(ScanErrorKind.LOGIN_FAILED, kind(SMB2GuestSigningRequiredException()))
@@ -86,7 +83,7 @@ class ScanErrorsTest {
         assertEquals(ScanErrorKind.UNREACHABLE, kind(NfsException(NfsStatus.NFS3ERR_JUKEBOX, "read error code: NfsStatus:10008")))
     }
 
-    /** Nfs3 mounts the export when it is made: the RpcException comes inside a MountException. */
+    /** Nfs3 mounts the export when it is created: the RpcException comes inside a MountException. */
     @Test
     fun anNfsMountWithoutAnswerIsUnreachable() {
         val rpc = RpcException(RpcStatus.NETWORK_ERROR, "rpc request timeout on the connection: /192.168.1.20:635")
@@ -94,7 +91,7 @@ class ScanErrorsTest {
         assertEquals(ScanErrorKind.UNREACHABLE, kind(MountException(MountStatus.MNT3ERR_IO, message, rpc)))
     }
 
-    /** A status of the same value as NETWORK_ERROR: the device, not the NAS. */
+    /** A status with the same value as NETWORK_ERROR: the device's fault, not the NAS's silence. */
     @Test
     fun aPortTheDeviceCannotTakeIsNotTheNasSilence() {
         val rpc = RpcException(RpcStatus.LOCAL_BINDING_ERROR, "Cannot bind a port < 1024: /192.168.1.20:635")
@@ -102,7 +99,7 @@ class ScanErrorsTest {
         assertEquals(ScanErrorKind.OTHER, kind(MountException(MountStatus.MNT3ERR_IO, message, rpc)))
     }
 
-    /** Room writing on a full disk; a picture copied with no space left, as IoBridge throws it. */
+    /** Room writing to a full disk, and an image copied with no space left, as IoBridge throws it. */
     @Test
     fun aFullPlayerIsNotTheNas() {
         assertEquals(ScanErrorKind.STORAGE_FULL, kind(SQLiteFullException("database or disk is full (code 13 SQLITE_FULL)")))
@@ -123,7 +120,7 @@ class ScanErrorsTest {
         assertEquals(ScanErrorKind.ACCESS_DENIED, kind(RuntimeException("STATUS_ACCESS_DENIED (0xc0000022)")))
     }
 
-    /** Nfs3 refused its mount: the NAS does not export the folder to this device's address (seen on the emulator). */
+    /** Nfs3's mount refused: the NAS does not export the folder to this device (seen on the emulator). */
     @Test
     fun anNfsMountRefusedIsAccessDenied() {
         assertEquals(ScanErrorKind.ACCESS_DENIED, kind(mountFailure(MountStatus.MNT3ERR_ACCES)))
@@ -148,13 +145,13 @@ class ScanErrorsTest {
         assertEquals(ScanErrorKind.OTHER, kind(IllegalStateException("something else")))
     }
 
-    /** As Nfs3.lookupRootHandle throws it for a status that is not MNT3_OK. */
+    /** As Nfs3.lookupRootHandle throws it for a status other than MNT3_OK. */
     private fun mountFailure(status: MountStatus) = MountException(
         status,
         "mount failure, server: 192.168.1.20, export: /volume1/media, nfs version: 3, returned state: ${status.value}",
     )
 
-    /** As Share.receive throws it for a status that is not a success. */
+    /** As Share.receive throws it for a status other than success. */
     private fun smbStatus(status: NtStatus) =
         SMBApiException(status.value, SMB2MessageCommandCode.SMB2_READ, "Read failed for \\\\nas\\media\\film.mkv", null)
 }

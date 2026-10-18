@@ -68,14 +68,11 @@ class SettingsStoreTest {
 
     private fun stored(secrets: Secrets) = mutablePreferencesOf(sourceKey to secrets.seal(Json.encodeToString<SourceConfig>(home)))
 
-    /** Settings read apart from where they are collected, as on the device, on the test's scheduler: virtual time runs both. */
+    /** Settings read apart from where they are collected, as on the device, on the test's scheduler for both. */
     private fun TestScope.settingsOf(store: DataStore<Preferences>, secrets: Secrets) =
         SettingsStore(store, backgroundScope, secrets, readOn = StandardTestDispatcher(testScheduler))
 
-    /**
-     * The first secret opened loads the Keystore's key, and each one asks the keystore daemon: never
-     * on the thread the settings are collected on, the main thread on the device.
-     */
+    /** Opening secrets loads the Keystore key and calls its daemon: never on the collecting (main) thread. */
     @Test
     fun secretsAreOpenedAwayFromTheThreadThatCollects() = runTest {
         val key = KeyGenerator.getInstance("AES").apply { init(256) }.generateKey()
@@ -98,11 +95,7 @@ class SettingsStoreTest {
         }
     }
 
-    /**
-     * Read away from the main thread, the settings reach the app a moment after the file: signing in
-     * saves the source, then goes home, whose rows ask the settings for it at once. The source saved
-     * is there, not the one before (none, on a first sign-in).
-     */
+    /** Settings are read off the main thread, yet home, right after sign-in, gets the source just saved. */
     @Test
     fun aSourceSavedIsReadBeforeItsSaveReturns() = runTest {
         val key = KeyGenerator.getInstance("AES").apply { init(256) }.generateKey()
@@ -130,7 +123,7 @@ class SettingsStoreTest {
         }
     }
 
-    /** A read that fails once at launch opened the welcome screen, and nothing saved after reached the app. */
+    /** A read failing at launch is retried, never replaced by the defaults that open the welcome screen. */
     @Test
     fun aFailedReadIsTriedAgainWithoutTheDefaults() = runTest {
         val secrets = testSecrets()
@@ -156,14 +149,14 @@ class SettingsStoreTest {
         advanceTimeBy(1_000)
         assertTrue(settings.state.value.readFailed)
         assertFalse(settings.state.value.loaded)
-        // Still tried, less and less often, until it reads.
+        // Still retried, less and less often, until it reads.
         advanceTimeBy(60_000)
         assertTrue(settings.state.value.loaded)
         assertFalse(settings.state.value.readFailed)
         assertEquals(home, settings.state.value.source)
     }
 
-    /** The Keystore's key is gone: the source reads as not set, and the settings say it was lost. */
+    /** The Keystore's key is gone: the source reads as not set, and the settings report it lost. */
     @Test
     fun aSecretThatCanNoLongerBeReadIsSaidLost() = runTest {
         val written = testSettings(folder.root, backgroundScope)
@@ -179,10 +172,7 @@ class SettingsStoreTest {
         assertTrue(read.lostSource)
     }
 
-    /**
-     * Only the TMDB key is lost: the welcome screen says nothing of a connection, and the key saved
-     * again is no longer said lost.
-     */
+    /** Only the TMDB key lost: no connection message on the welcome screen; saving it again clears the loss. */
     @Test
     fun eachSecretLostIsSaidApartAndAGoodOneSavedPutsItBack() = runTest {
         val tmdbKey = stringPreferencesKey("tmdb_api_key")
@@ -204,7 +194,7 @@ class SettingsStoreTest {
         assertEquals(emptySet<SecretSetting>(), written.state.value.lostSecrets)
     }
 
-    /** Réessayer, on the screen that says the settings could not be read, reads them at once. */
+    /** Réessayer, on the screen saying the settings could not be read, reads them at once. */
     @Test
     fun readingAgainDoesNotWaitForTheNextTry() = runTest {
         val secrets = testSecrets()
@@ -213,14 +203,13 @@ class SettingsStoreTest {
         advanceTimeBy(2_000)
         assertTrue(settings.state.value.readFailed)
         val readsThen = store.reads
-        // The next try would come two seconds after the last one.
+        // The next retry would come two seconds after the last one.
         settings.readAgain()
         runCurrent()
         assertEquals(readsThen + 1, store.reads)
         assertFalse(settings.reading.value)
     }
 
-    /** Sealing in the migration fails: the plain value stays, and the settings still open with it. */
     @Test
     fun aKeystoreThatCannotSealLeavesThePlainValue() = runTest {
         val broken = Secrets { throw ProviderException("Failed to generate key") }
@@ -234,7 +223,7 @@ class SettingsStoreTest {
         assertEquals(home, settings.state.first { it.loaded }.source)
     }
 
-    /** "My files" holds no secret: chosen while the Keystore fails, it is written all the same, never a crash. */
+    /** "My files" holds no secret: chosen while the Keystore fails, it is still written, never a crash. */
     @Test
     fun theFoldersAreChosenWithoutTheKeystore() = runTest {
         val broken = Secrets { throw ProviderException("Failed to generate key") }
@@ -244,7 +233,7 @@ class SettingsStoreTest {
     }
 
     private companion object {
-        /** Each opening of a secret, on a slow player: long enough to be seen after the file is written. */
+        /** Each opening of a secret on a slow player: long enough to be seen after the file is written. */
         const val SLOW_KEYSTORE_MS = 150L
     }
 }

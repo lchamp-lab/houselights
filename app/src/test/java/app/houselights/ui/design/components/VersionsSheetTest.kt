@@ -28,7 +28,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.shadows.ShadowDialog
 
-/** A film's copies beside its page: focus starts on your choice, said as such; OK on another chooses it. */
+/** A film's copies: focus starts on the current choice, announced as such; OK on another chooses it. */
 @RunWith(RobolectricTestRunner::class)
 @Config(application = Application::class, qualifiers = TV)
 class VersionsSheetTest {

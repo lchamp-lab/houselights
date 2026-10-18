@@ -41,11 +41,8 @@ import kotlinx.coroutines.withContext
 private const val SAMPLE_PX = 96
 
 /**
- * The light of a picture, which lights the card that has focus: a calm, mid-bright tone picked from
- * a tiny copy of the artwork, animated when the artwork changes. A state, read while drawing: screens
- * provide it as `LocalAmbient provides { ambient.value }`. No picture, or one that fails to load,
- * gives no light: transparent, and the room stays black. The first light, read while the launch
- * screen still hides the screen ([LocalLaunchScreen]), is there when it leaves, without coming up.
+ * The ambient light of [image]: a calm tone from its sample, animated on change and read while drawing;
+ * transparent without a picture. The first tone, under the launch screen, snaps in.
  */
 @Composable
 fun rememberAmbientColor(image: ImageRef?): State<Color> {
@@ -64,10 +61,8 @@ fun rememberAmbientColor(image: ImageRef?): State<Color> {
 }
 
 /**
- * A backdrop ready to be shown: its [picture] decoded at the size of the screen and how bright each
- * part of it is ([sample], for the veil laid over it). [fromMemory]: the picture was in memory when it
- * was asked for (loaded ahead, while the launch screen held). [atOnce]: it shows without fading in.
- * A picture that cannot be loaded leaves nothing.
+ * A backdrop ready to show: [picture] at screen size and the [sample] its veil is computed from;
+ * [fromMemory] when it was a memory-cache hit, [atOnce] to skip the fade.
  */
 internal class PreparedBackdrop(
     val picture: ImageBitmap,
@@ -75,14 +70,10 @@ internal class PreparedBackdrop(
     val fromMemory: Boolean = false,
     val atOnce: Boolean = false,
 ) {
-    /** The same picture, to show without fading in. */
     fun shownAtOnce() = PreparedBackdrop(picture, sample, fromMemory, atOnce = true)
 }
 
-/**
- * Prepares the backdrop [image] at [url], [widthPx] by [heightPx], before it shows: the picture and
- * its tiny copy are read in parallel, off the main thread. Null when the picture cannot be loaded.
- */
+/** Loads a backdrop picture and its sample in parallel, off the main thread; null if either fails. */
 internal suspend fun prepareBackdrop(context: Context, image: ImageRef, url: String, widthPx: Int, heightPx: Int): PreparedBackdrop? =
     coroutineScope {
         val picture = async { context.imageLoader.execute(backdropRequest(context, url, widthPx, heightPx)) as? SuccessResult }
@@ -95,37 +86,27 @@ internal suspend fun prepareBackdrop(context: Context, image: ImageRef, url: Str
     }
 
 /**
- * The picture of a backdrop at [url], to fill [widthPx] by [heightPx], never decoded larger than its
- * file: a smaller one (1280 px on a 1920 px screen) is enlarged where it is drawn, once, into the
- * backdrop's cached layer, instead of in memory, where it would take more than twice the room.
+ * A backdrop request, never decoded larger than its file: a smaller one (1280 px on a 1920 px screen) is
+ * upscaled once into the cached layer instead of taking twice the memory.
  */
 internal fun backdropRequest(context: Context, url: String, widthPx: Int, heightPx: Int): ImageRequest =
     ImageRequest.Builder(context).data(url).size(widthPx, heightPx).scale(Scale.FILL).precision(Precision.INEXACT).build()
 
-/** A tiny copy of [image], or null when it cannot be loaded. */
 private suspend fun decodeSample(context: Context, image: ImageRef): Bitmap? =
     (context.imageLoader.execute(backdropSampleRequest(context, image)) as? SuccessResult)?.drawable?.toBitmap()
 
-/** A tiny copy of the picture at [url], or null when it cannot be loaded. */
 private suspend fun decodeUrl(context: Context, url: String): Bitmap? =
     (context.imageLoader.execute(glowSampleRequest(context, url)) as? SuccessResult)?.drawable?.toBitmap()
 
-/** The tiny copy of a backdrop, which its veil and the room's light are read from. */
+/** Request for the small sample of a backdrop that its veil and the ambient light are read from. */
 internal fun backdropSampleRequest(context: Context, image: ImageRef): ImageRequest =
     sampleRequest(context, image.url(SAMPLE_PX), SAMPLE_PX, SAMPLE_PX * 9 / 16)
 
-/**
- * The tiny copy of a card's picture at [url], which its glow is read from. Read once, its tone is
- * kept in [glowTones]: the copy is left out of memory, where it would only push pictures out.
- */
+/** Request for a card's glow sample; kept out of the memory cache, since [glowTones] caches the tone. */
 internal fun glowSampleRequest(context: Context, url: String): ImageRequest =
     sampleRequest(context, url, SAMPLE_PX, SAMPLE_PX).newBuilder().memoryCachePolicy(CachePolicy.READ_ONLY).build()
 
-/**
- * A tiny copy of the picture at [url], kept in memory under a key of its own: under the URL alone,
- * it would take the place of the picture a card or the backdrop shows from the same file, which
- * would then be decoded, and fade in, again the next time it shows. On disk it is the same file.
- */
+/** A sample memory-cached under its own key: under the URL alone it would evict the full-size picture. */
 private fun sampleRequest(context: Context, url: String, widthPx: Int, heightPx: Int): ImageRequest =
     ImageRequest.Builder(context)
         .data(url)
@@ -137,18 +118,14 @@ private fun sampleRequest(context: Context, url: String, widthPx: Int, heightPx:
 /** Added to a sample's memory cache key; fetchers and decoders ignore it. */
 private const val SAMPLE = "houselights.sample"
 
-/** Tones already read from artwork: focus coming back to a card finds its light at once. */
+/** Glow tones by URL (LRU), so focus returning to a card lights it at once. */
 private val glowTones = object : LinkedHashMap<String, Color>(GLOW_TONES, 0.75f, true) {
     override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Color>) = size > GLOW_TONES
 }
 
 private const val GLOW_TONES = 200
 
-/**
- * The light a card gives off while it has focus: the most vivid tone of its own artwork at [url],
- * the same each time. It comes in with focus and goes with it; no picture, no light. Read from the
- * file the card already shows, so it is ready before the room's light has followed.
- */
+/** A focused card's glow: the main tone of its artwork at [url] ([glowOf]), animated with [active]. */
 @Composable
 fun rememberGlowColor(url: String?, active: Boolean): State<Color> {
     val context = LocalContext.current
@@ -166,11 +143,7 @@ fun rememberGlowColor(url: String?, active: Boolean): State<Color> {
     return animateColorAsState(target, tween(HlMotion.STANDARD, easing = HlMotion.standard), label = "glow")
 }
 
-/**
- * The colour a picture is mostly made of, not its most vivid detail: a red title on a teal poster
- * glows teal. Each tone counts by the area it covers, a little more when it is saturated, so a
- * large grey sky does not always win; near-black and near-white do not count.
- */
+/** The tone covering most of the picture, weighted by area and saturation: a red title on teal glows teal. */
 private fun glowOf(palette: Palette): Color? {
     val swatch = palette.swatches
         .filter { it.hsl[2] in HlScrim.GLOW_LIGHTNESS_MIN..HlScrim.GLOW_LIGHTNESS_MAX }
@@ -178,13 +151,13 @@ private fun glowOf(palette: Palette): Color? {
         ?: palette.dominantSwatch ?: return null
     val hsv = FloatArray(3)
     android.graphics.Color.colorToHSV(swatch.rgb, hsv)
-    // A colour glows vivid; a grey picture glows white rather than in a hue it does not have.
+    // Clamp the saturation of a coloured swatch; a grey one keeps its own and glows white.
     if (hsv[1] >= HlScrim.GLOW_GREY) hsv[1] = hsv[1].coerceIn(HlScrim.GLOW_SATURATION_MIN, HlScrim.GLOW_SATURATION_MAX)
     hsv[2] = HlScrim.GLOW_VALUE
     return Color(android.graphics.Color.HSVToColor(hsv))
 }
 
-/** The light and the veil of a backdrop take turns: the second finds the copy decoded, in memory. */
+/** Serialises the sample decodes of the ambient light and the veil, so the second hits the memory cache. */
 private val backdropSampling = Mutex()
 
 private suspend fun backdropSample(context: Context, image: ImageRef): Bitmap? =
@@ -203,7 +176,7 @@ private fun ambientOf(palette: Palette): Color? {
     val swatch = palette.vibrantSwatch ?: palette.darkVibrantSwatch ?: palette.mutedSwatch ?: palette.dominantSwatch ?: return null
     val hsv = FloatArray(3)
     android.graphics.Color.colorToHSV(swatch.rgb, hsv)
-    // Never garish: tame saturation, fixed brightness so every film glows the same amount.
+    // Clamped saturation and a fixed value, so every film lights the room equally.
     hsv[1] = hsv[1].coerceIn(HlScrim.AMBIENT_SATURATION_MIN, HlScrim.AMBIENT_SATURATION_MAX)
     hsv[2] = HlScrim.AMBIENT_VALUE
     return Color(android.graphics.Color.HSVToColor(hsv))

@@ -6,7 +6,7 @@ import kotlinx.serialization.Serializable
 /** Persisted connection settings of the active library source. */
 @Serializable
 sealed interface SourceConfig {
-    /** Library built by the app itself from SMB shares (see providers.local). */
+    /** Library the app builds itself from NAS folders, over SMB or NFS (see providers.local). */
     @Serializable
     @SerialName("local")
     data object Local : SourceConfig

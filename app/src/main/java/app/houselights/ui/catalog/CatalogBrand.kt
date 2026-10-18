@@ -36,13 +36,7 @@ import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.components.Wordmark
 import kotlin.math.roundToInt
 
-/**
- * Gradation, the brand, as Android draws it before the app runs: the launcher icon (cut by this
- * device's mask), the TV banner, each at the size a launcher shows it on this screen, then twice as
- * close; the launch mark, at the size Android 9 draws it, in the circle it shows of it. Then the
- * name, drawn white and flat, at the sizes the screens give it. Three groups, each on the screen
- * whole when focus steps to it.
- */
+/** Gradation as Android draws it before the app runs (icon, banner, splash), then the wordmark at screen sizes. */
 internal fun LazyListScope.catalogBrand() {
     item {
         Group("Brand: Gradation, the icon and the banner", still = true) {
@@ -86,10 +80,7 @@ private const val TV_BANNER_HEIGHT = 90f
 /** Android 9's launch screen lays the mark's layer out 288 dp of the device wide. */
 private const val LAUNCH_ICON = 288f
 
-/**
- * The icon on three launcher grounds, and the banner; each at launcher size, then closer. [icon]
- * is an adaptive icon, or its [foreground] alone, set here on the room as the icon's ground.
- */
+/** The icon on three launcher backgrounds and the banner, each at launcher size, then closer. */
 @Composable
 private fun BrandSample(says: String, @DrawableRes icon: Int, @DrawableRes banner: Int, foreground: Boolean = false) {
     val context = LocalContext.current
@@ -117,10 +108,7 @@ private fun BrandSample(says: String, @DrawableRes icon: Int, @DrawableRes banne
     }
 }
 
-/**
- * The [launch] mark on the room, its layer as wide as Android 9 lays it out on this device, and the
- * circle Android 9 shows of it, a hairline: the mark stays well inside it.
- */
+/** The [launch] mark at Android 9's layer width on this device, with the circle it shows as a hairline. */
 @Composable
 private fun LaunchMark(@DrawableRes launch: Int) {
     val context = LocalContext.current

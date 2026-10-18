@@ -10,13 +10,10 @@ import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HouseLightCue
 import app.houselights.ui.design.rememberCueStep
 
-/**
- * The last step of the house lights going down: black over everything, once the room has
- * faded and the screen has shown its picture whole ([HouseLightCue]).
- */
+/** The last house lights step: black over everything once the room has faded ([HouseLightCue]). */
 @Composable
 fun HouseLights() {
-    // Through its step alone: the layer is updated while black comes, not from the start of the cue.
+    // Reads only its own step, so the layer updates while the black comes in, not for the whole cue.
     val darkness = rememberCueStep(HouseLightCue::darkness)
     Box(Modifier.fillMaxSize().graphicsLayer { alpha = darkness.value }.background(Hl.colors.background))
 }

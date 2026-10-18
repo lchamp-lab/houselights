@@ -99,14 +99,10 @@ import app.houselights.ui.design.components.DetailAhead
 
 internal const val COLUMNS = 7
 
-/** Rows of empty frames while the wall loads: more than the screen shows, like the wall itself. */
+/** Placeholder rows while the wall loads: more than the screen shows, like the wall. */
 private const val SKELETON_ROWS = 3
 
-/**
- * A wall of posters, with the focused title named in the header. Opened on part of the library ([opensOn]: a
- * format of the library in numbers, a person, by name [personName]), it starts filtered by it. A films' wall
- * shows the source's [sagas] in their place on demand, the sagas having no tab of their own: its title turns.
- */
+/** A poster wall, filtered by [opensOn] if given (a format, or person [personName]); films can switch to [sagas]. */
 @Composable
 fun LibraryScreen(
     library: Library,
@@ -126,10 +122,7 @@ fun LibraryScreen(
     ReloadOnLibraryChange { vm.onLibraryChanged() }
     val state by vm.state.collectAsStateWithLifecycle()
 
-    // The title last selected stays on the screen while focus is on the buttons, and is found again
-    // coming back; before any, or once a filter takes it off the wall, the first title. Set at every
-    // step across the wall, it is shown once focus settles, so the backdrop loads no image on every
-    // step; and it is read there alone, outside composition: a step recomposes nothing.
+    // Shown once focus settles, read outside composition: a step loads no image and recomposes nothing.
     val selectedId = rememberSaveable { mutableStateOf<String?>(null) }
     val shown = rememberSettled { selectedIn(state.items, selectedId.value) }
     val gridFocus = remember { FocusRequester() }
@@ -137,28 +130,26 @@ fun LibraryScreen(
     // Films and sagas each start at their top.
     val gridState = rememberSaveable(wall.id, saver = LazyGridState.Saver) { LazyGridState() }
     val scope = rememberCoroutineScope()
-    // Each arrival puts focus back on the poster left, else on the first one.
+    // Focus returns to the last poster, else the first.
     val memory = rememberFocusMemory()
     RestoreFocus(memory, gridFocus, ready = state.items.isNotEmpty()) { key ->
         val index = FocusKey.itemId(key)?.let { id -> state.items.indexOfFirst { it.id == id } } ?: -1
         if (index >= 0) gridState.scrollToItem(index)
         index >= 0
     }
-    // Past the first line, Back returns to the first poster; from the first line, it goes home. Set
-    // at every step too, and read in [BackToFirstPoster] alone.
+    // Set at every step and read only in BackToFirstPoster.
     val focusedIndex = remember { mutableStateOf<Int?>(null) }
     BackToFirstPoster(focusedIndex) {
         gridState.animateScrollToItem(0)
         gridFocus.tryRequestFocus()
     }
-    // Where the foot stood when the next page failed: once Réessayer brings the page, focus goes to
-    // its first poster, where the button was, not nowhere.
+    // Where the failed page's foot was, so focus moves to its first poster once Réessayer loads it.
     var footAt by remember { mutableIntStateOf(-1) }
     LaunchedEffect(state.pageError, state.items.size) {
         if (state.pageError != null) {
             footAt = state.items.size
         } else if (footAt >= 0 && memory.last == RETRY_PAGE) {
-            // A reload in place may have taken the foot away with no page added: the last poster then.
+            // An in-place reload may remove the foot without adding a page: then the last poster.
             val first = state.items.getOrNull(footAt) ?: state.items.lastOrNull()
             footAt = -1
             if (first != null) {
@@ -168,7 +159,7 @@ fun LibraryScreen(
         }
     }
 
-    // Settled on a title, its detail page is made ready: OK opens it whole.
+    // Prepares the settled title's detail page, so OK opens it complete.
     DetailAhead(shown.value)
     AmbientBackdrop(shown.value?.backdrop, BackdropStyle.Quiet) {
         Column(Modifier.fillMaxSize()) {
@@ -198,22 +189,21 @@ fun LibraryScreen(
                     WallFolio(count, state.items, shown, state.total, state.sort)
                 }
                 Spacer(Modifier.weight(1f))
-                // The person the wall was opened for: its filter menu offers them while it shows.
+                // The person the wall was opened for, offered by the filter menu.
                 val person = opensOn?.person?.let { id -> personName?.let { Person(it, null, null, id) } }
                 WallMenus(wall.kind, state, vm.capabilities, person, vm::setFilter, vm::setSort)
             }
-            // The title selected, named without taking space from the wall: one line inside the
-            // safe area, a long name drops its facts first, then ends in an ellipsis.
+            // The selected title on one line; a long name drops its facts first, then ends in an ellipsis.
             Box(
                 Modifier
                     .padding(start = HlSpace.safeH, end = HlSpace.safeH, top = HlSpace.xs)
                     .height(HlLayout.infoLine),
                 contentAlignment = Alignment.CenterStart,
             ) {
-                // Said once its picture comes up, as on home.
+                // Shown with its backdrop, as on Home.
                 WithItsPicture(shown.value) { TitleLine(it) }
             }
-            // Trying again keeps the error on screen, its button at work, until the answer.
+            // While retrying, the error stays with its button busy.
             val wallError = retainedError(state.error?.takeIf { state.items.isEmpty() }, retrying = state.loading)
             when {
                 state.items.isEmpty() && wallError != null -> HlErrorState(
@@ -235,7 +225,7 @@ fun LibraryScreen(
                     Modifier.padding(start = HlSpace.safeH, top = HlSpace.l),
                     backHint = true,
                 )
-                // The wall starts under the header: a line of posters comes back to where the first rests.
+                // A scrolled line of posters comes to where the first line rests.
                 else -> CompositionLocalProvider(LocalGroupFocused provides gridHasFocus) {
                     ListScroll(top = HlSpace.m) { LazyVerticalGrid(
                     columns = GridCells.Fixed(COLUMNS),
@@ -245,7 +235,7 @@ fun LibraryScreen(
                     verticalArrangement = Arrangement.spacedBy(HlSpace.l),
                     modifier = Modifier.fillMaxSize().onFocusChanged {
                         gridHasFocus = it.hasFocus
-                        // Leaving the wall for the buttons above: the title selected stays.
+                        // Leaving for the buttons above keeps the selected title.
                         if (!it.hasFocus) focusedIndex.value = null
                     },
                 ) {
@@ -266,7 +256,7 @@ fun LibraryScreen(
                                 .then(if (index == 0) Modifier.focusRequester(gridFocus) else Modifier),
                         )
                     }
-                    // The next page could not load: why, at the foot of the wall, and what fixes it.
+                    // The next page's error and its fix, at the wall's foot.
                     state.pageError?.let { error ->
                         item(key = PAGE_FAILED, span = { GridItemSpan(maxLineSpan) }) {
                             PartFailed(
@@ -284,25 +274,25 @@ fun LibraryScreen(
     }
 }
 
-/** The key of the wall's foot when the next page failed: never a title's id. */
+/** Item key of the failed-page foot; never a title id. */
 private const val PAGE_FAILED = "page-failed"
 
 /** Réessayer, at the foot of the wall. */
 private val RETRY_PAGE = FocusKey.action("retry-page")
 
-/** Back returns to the first poster from past the first line of the wall; from the first line, it leaves. */
+/** Back returns to the first poster from past the first line; from the first line, it leaves. */
 internal fun backReturnsToFirst(focusedIndex: Int?): Boolean = focusedIndex != null && focusedIndex >= COLUMNS
 
-/** The title of [items] named [id]; when there is none (or a filter took it off the wall), the first. */
+/** The title [id] in [items], or the first when absent (a filter may remove it). */
 private fun selectedIn(items: List<MediaItem>, id: String?): MediaItem? = items.find { it.id == id } ?: items.firstOrNull()
 
-/** Back past the first line of the wall ([focusedIndex]) runs [toFirst]: read here, a step recomposes this alone. */
+/** Back past the first line ([focusedIndex]) runs [toFirst]; reading it here keeps recomposition local. */
 @Composable
 private fun BackToFirstPoster(focusedIndex: State<Int?>, toFirst: suspend () -> Unit) {
     BackToStart(away = backReturnsToFirst(focusedIndex.value), toStart = toFirst)
 }
 
-/** Empty frames where the wall will be, laid out like it, once loading takes long enough to be seen. */
+/** Placeholder posters laid out like the wall, shown once loading is slow. */
 @Composable
 private fun SkeletonWall() {
     if (!skeletonDelayPassed()) return
@@ -318,10 +308,7 @@ private fun SkeletonWall() {
     }
 }
 
-/**
- * The wall's menus, at the end of its header: its filters (sagas are browsed by name or date, filters belong
- * to films and shows), then its sort.
- */
+/** The header's menus: filters (not for sagas, which are browsed by name or date), then sort. */
 @Composable
 private fun WallMenus(
     kind: LibraryKind,
@@ -333,7 +320,7 @@ private fun WallMenus(
 ) {
     if (kind != LibraryKind.COLLECTIONS) FilterButton(state.filter, state.facets, can, person, onFilter)
     Spacer(Modifier.width(HlSpace.s))
-    // "Trier", and how it is sorted now: alone, "Titre" would read as a title.
+    // "Trier" plus the current sort: "Titre" alone would read as a title.
     HlMenuButton(
         text = stringResource(R.string.sort),
         icon = HlIcons.Sort,
@@ -354,7 +341,7 @@ private fun sortLabel(sort: SortOption): String = stringResource(
     }
 )
 
-/** A sort as the menu offers it: what it sorts on, and in which order. */
+/** A sort as the menu offers it: its key and direction. */
 @Composable
 private fun sortOrder(sort: SortOption): String = stringResource(
     when (sort) {
@@ -366,11 +353,8 @@ private fun sortOrder(sort: SortOption): String = stringResource(
 )
 
 /**
- * Filter menu: status, genre and decade, then what the files hold (their picture, their sound, their kind)
- * and a person, combined; stays open while choosing. Each section offers what the library holds ([facets]),
- * never an empty choice, and what the wall is filtered by besides, so a filter set elsewhere can always be
- * taken off; what the source cannot filter by ([can]) is never offered. [person], the one the wall was opened
- * for, is offered while it shows: taken off, and put back.
+ * Filter menu, combined filters, open while choosing. Sections offer the library's [facets] plus any active value,
+ * so a filter set elsewhere can be cleared, and nothing the source cannot filter by ([can]).
  */
 @Composable
 internal fun FilterButton(
@@ -446,10 +430,7 @@ internal fun FilterButton(
     )
 }
 
-/**
- * A section of the filter menu: "all" first ([all]), then each of [values], and the value [held] when the
- * library holds it no more or the wall was opened on it, checked as [same] tells; none with nothing to offer.
- */
+/** A menu section: [all], then [values] plus [held] if absent from them (matched with [same]); null if empty. */
 @Composable
 private fun <T : Any> choices(
     @StringRes title: Int,
@@ -469,11 +450,7 @@ private fun <T : Any> choices(
     )
 }
 
-/**
- * The picture of the files: "Toutes les images", then their definitions, their HDR whatever its kind, and its
- * kinds, by the names of a case ("Ultra HD", "Dolby Vision"). A name's plain "HDR" ([BadgeTokens.HDR]) is one
- * of their HDR, checked there; a quality chosen before (Ultra HD, Dolby Vision) is the picture it names.
- */
+/** The picture section by case names ("Ultra HD"); a plain "HDR" token ([BadgeTokens.HDR]) checks any HDR. */
 @Composable
 private fun pictureChoices(filter: LibraryFilter, facets: LibraryFacets, onChange: (LibraryFilter) -> Unit): MenuSection {
     val held = filter.picture ?: filter.quality?.let(::pictureOf)
@@ -493,14 +470,14 @@ private fun pictureChoices(filter: LibraryFilter, facets: LibraryFacets, onChang
     )
 }
 
-/** The definition or range a quality names, as badges keep it; null for HDR, which names none of them alone. */
+/** The badge token a quality names; null for HDR, which names no single one. */
 private fun pictureOf(quality: Quality): String? = when (quality) {
     Quality.UHD_4K -> Definition.ULTRA_HD.token
     Quality.DOLBY_VISION -> HdrFormat.DOLBY_VISION.token
     Quality.HDR -> null
 }
 
-/** The one filter active, by the name its menu gives it. */
+/** The single active filter, by its menu name. */
 @Composable
 private fun activeName(
     filter: LibraryFilter,
@@ -518,21 +495,13 @@ private fun activeName(
     else -> filter.person?.let(personName)
 }
 
-/**
- * Whether the genre a filter holds is [shown], whatever its case, as the filter matches it: SQLite's lower()
- * folds A to Z only, so "Épouvante" and "épouvante" stay two genres there and here.
- */
+/** [held] equals [shown] ignoring ASCII case only, as SQLite's lower() does ("Épouvante" and "épouvante" differ). */
 private fun sameGenre(held: String?, shown: String): Boolean =
     held != null && held.length == shown.length && held.zip(shown).all { (a, b) -> a == b || sameAsciiLetter(a, b) }
 
 private fun sameAsciiLetter(a: Char, b: Char): Boolean = a.isLetter() && a < '\u0080' && a.equals(b, ignoreCase = true)
 
-/**
- * The wall's folio: its count of titles, and past its third line, where the title selected stands
- * as the sort files it (its initial, year, month added or score) and its place ("34 / 612"), in the
- * poster's voice, as a book's running head says where one is. Read here alone: a step across the
- * wall recomposes this and nothing else.
- */
+/** The folio: the count, and past the third line the selected title's sort key and position; read only here. */
 @Composable
 private fun WallFolio(count: String, items: List<MediaItem>, shown: State<MediaItem?>, total: Int, sort: SortOption) {
     val item = shown.value
@@ -549,10 +518,10 @@ private fun WallFolio(count: String, items: List<MediaItem>, shown: State<MediaI
     }
 }
 
-/** The line of the wall past which its header says where the title selected stands. */
+/** The wall line past which the folio shows the selected title's position. */
 private const val FOLIO_FROM_LINE = 3
 
-/** Where [item] stands in a wall sorted by [sort]: its initial, year, month added or score; null when it has none. */
+/** [item]'s key in a wall sorted by [sort]: initial, year, month added or score; null when it has none. */
 internal fun folioOf(item: MediaItem, sort: SortOption, locale: Locale = Locale.getDefault()): String? = when (sort) {
     SortOption.TITLE -> SortKeys.initial(item.title)
     SortOption.YEAR -> item.year?.toString()

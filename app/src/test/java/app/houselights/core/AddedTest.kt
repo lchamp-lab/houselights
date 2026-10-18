@@ -6,7 +6,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** What is new: added in the last week, to a library that was already there, and not seen. */
+/** A title is new when added in the last week to an existing library and not yet watched. */
 class AddedTest {
     private val now = 10 * NEW_FOR_MS
     private fun item(addedAt: Long?, played: Boolean = false) =

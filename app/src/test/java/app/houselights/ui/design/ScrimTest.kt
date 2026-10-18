@@ -13,10 +13,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * The left veil: the quietest text of a column reads at its band's contrast over the lightest image
- * (4.5:1 over the left half, never under 3:1, the overview never under 4:1), while a dark image keeps
- * its veil; only what shows under the column counts, the picture laid
- * as `Backdrop` lays it; and no veil draws a line across the picture.
+ * The left veil keeps a column's quietest text at its band's contrast over the lightest image, counting only
+ * what shows under the column, and never draws a line across the picture.
  */
 class ScrimTest {
     private val c = HouselightsColors
@@ -56,7 +54,7 @@ class ScrimTest {
             val need = HlScrim.need(1f, ceiling = HlScrim.leftCeiling(band(it / 100f)))
             assertTrue("at $it %", veil.alphaAt(it / 100f) >= need - 0.0001f)
         }
-        // Over the left half, the rule itself: the floor DESIGN.md gives.
+        // Over the left half, the floor DESIGN.md gives.
         (0..50).forEach { assertTrue("at $it %", veil.alphaAt(it / 100f) >= HlScrim.need(1f) - 0.0001f) }
     }
 
@@ -69,7 +67,6 @@ class ScrimTest {
             assertTrue("band $band: the quietest text", contrast(c.contentTertiary, ground) >= 3f - 0.01f)
             assertTrue("band $band: the overview", contrast(c.contentSecondary, ground) >= 4f - 0.01f)
         }
-        // It only ever eases towards the picture.
         HlScrim.LEFT_CONTRAST.zipWithNext().forEach { (a, b) -> assertTrue(a >= b) }
     }
 
@@ -91,8 +88,7 @@ class ScrimTest {
 
     @Test
     fun aLightLeftEndDarkensItsBandsOnly() {
-        // White under the first quarter of the column: the veil there takes the floor, the rest
-        // eases as it would towards the picture.
+        // White under the column's first quarter: the floor there, the usual easing after.
         val veil = sample(96, 54) { x, _ -> if (x < 12) 1f else 0f }.leftVeil(screen, column, 1f, strength, detail)
         assertTrue(veil[1].alpha >= HlScrim.need(1f, ceiling = HlScrim.leftCeiling(0)))
         assertEquals(base.drop(2), veil.drop(2))
@@ -100,8 +96,7 @@ class ScrimTest {
 
     @Test
     fun aLightRightEndDarkensAllTheColumnBeforeIt() {
-        // The veil never darkens towards the picture: light at the end of the column holds all of it,
-        // at what the last band needs.
+        // Light at the column's end holds the whole veil at what the last band needs.
         val veil = sample(96, 54) { x, _ -> if (x in 48..56) 1f else 0f }.leftVeil(screen, column, 1f, strength, detail)
         val need = HlScrim.need(1f, ceiling = HlScrim.leftCeiling(HlScrim.LEFT_CONTRAST.lastIndex))
         veil.forEach { assertTrue("${it.at}: ${it.alpha}", it.alpha >= need - 0.0001f) }
@@ -140,7 +135,7 @@ class ScrimTest {
             "library" to BackdropStyle.Quiet.down,
         ).forEach { (name, veil) ->
             veil.forEach { stop ->
-                // The slope just before a stop and just after it: the same, where straight lines met at an angle.
+                // The slope just before and just after a stop is the same: no angle where curves meet.
                 val before = (veil.alphaAt(stop.at) - veil.alphaAt(stop.at - STEP)) / STEP
                 val after = (veil.alphaAt(stop.at + STEP) - veil.alphaAt(stop.at)) / STEP
                 if (stop.at - STEP >= veil.first().at && stop.at + STEP <= veil.last().at) {
@@ -164,7 +159,7 @@ class ScrimTest {
         val quiet = BackdropStyle.Quiet
         assertTrue(quiet.foot < 0.5f)
         assertEquals(0f, HlScrim.need(quiet.imageAlpha * (1f - quiet.foot)), 0f)
-        // A picture shown whole still melts into black.
+        // A picture shown whole still fades into black.
         assertEquals(1f, BackdropStyle.Full.foot, 0f)
         assertEquals(1f, BackdropStyle.Hero.foot, 0f)
     }
@@ -185,7 +180,7 @@ class ScrimTest {
 
     @Test
     fun aDarkPictureStepsBackByItsVeilAlone() {
-        // `Backdrop` steps back by VEIL at least: a dark picture asks no more.
+        // `Backdrop` dims by VEIL at least: a dark picture needs no more.
         val dark = sample(32, 18) { _, _ -> 0.1f }
         assertTrue(dark.floorAcross(screen, 1f, detail) <= HlAlpha.VEIL)
     }
@@ -198,10 +193,7 @@ class ScrimTest {
         assertTrue(right.floorAcross(screen, 1f, detail) >= HlScrim.need(1f) - 0.0001f)
     }
 
-    /**
-     * The veil is reckoned once per row and per band, not once per point: the stops are the very same,
-     * to the last bit, as those of the rule worked out point by point ([pointByPoint]).
-     */
+    /** Computed per row and band, the stops match the point-by-point rule ([pointByPoint]) to the last bit. */
     @Test
     fun theVeilIsTheSameReckonedRowByRow() {
         val pictures = listOf<(Int, Int) -> Float>(
@@ -231,7 +223,7 @@ class ScrimTest {
         }
     }
 
-    /** [ArtworkSample.floorAcross] as it was first written: each row asks again how much shows through the veils down. */
+    /** Point-by-point reference for [ArtworkSample.floorAcross], through the veils down. */
     @Suppress("LongParameterList")
     private fun floorPointByPoint(width: Int, height: Int, grey: FloatArray, screen: Size, imageAlpha: Float, down: List<VeilStop>): Float {
         val scale = maxOf(screen.width / width, screen.height / height)
@@ -249,7 +241,7 @@ class ScrimTest {
         return needs[(needs.lastIndex * HlScrim.FLOOR_QUANTILE).roundToInt()]
     }
 
-    /** [ArtworkSample.leftVeil] as it was first written: each point asks how much shows through the veils down. */
+    /** Point-by-point reference for [ArtworkSample.leftVeil], through the veils down. */
     @Suppress("LongParameterList")
     private fun pointByPoint(
         width: Int,
@@ -289,7 +281,7 @@ class ScrimTest {
         return veil.mapIndexed { i, stop -> VeilStop(stop.at, maxOf(stop.alpha, floors[(i - 1).coerceAtLeast(0)])) }
     }
 
-    /** In each band of the column, the share of a 96 × 54 picture's points the drawn [veil] leaves under its contrast. */
+    /** Per band of the column, the share of a 96 × 54 picture's points left under contrast by [veil]. */
     private fun shortByBand(grey: (x: Int, y: Int) -> Float, veil: List<VeilStop>): List<Float> {
         val scale = screen.width / 96
         val bands = veil.size - 1
@@ -310,7 +302,7 @@ class ScrimTest {
         return List(bands) { short[it].toFloat() / all[it] }
     }
 
-    /** The band of the column at [at], a share of it. */
+    /** The band of the column at [at], a fraction of its width. */
     private fun band(at: Float): Int {
         val bands = HlScrim.LEFT.size - 1
         return (at * bands).toInt().coerceIn(0, bands - 1)
@@ -325,7 +317,7 @@ class ScrimTest {
     }
 
     private companion object {
-        /** Small enough that a curve's slope barely turns over it; an angle turns it at once. */
+        /** Small enough that a curve's slope barely changes over it, while an angle changes it at once. */
         const val STEP = 0.0002f
     }
 }

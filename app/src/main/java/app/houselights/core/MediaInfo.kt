@@ -3,9 +3,8 @@ package app.houselights.core
 import kotlinx.serialization.Serializable
 
 /**
- * Picture definition. [token] is what badges store and filters match, and never changes;
- * [label] is the name shown, from the same family as the other formats (Ultra HD Blu-ray,
- * Dolby Vision, HDR10).
+ * Picture definition. [token] is stored in badges and matched by filters, so it never changes; [label] is
+ * the display name, in the style of the other formats (Ultra HD Blu-ray, Dolby Vision, HDR10).
  */
 enum class Definition(val token: String, val label: String) {
     ULTRA_HD("4K", "Ultra HD"),
@@ -24,48 +23,36 @@ enum class Definition(val token: String, val label: String) {
             else -> SD
         }
 
-        /** How a badge is shown: definitions by name, any other format as it is. */
+        /** Display text of a badge: definitions by label, other formats as stored. */
         fun label(badge: String): String = entries.firstOrNull { it.token == badge }?.label ?: badge
     }
 }
 
-/**
- * What badges store besides a [Definition], an [HdrFormat] and a codec ([Codecs]): words a file's
- * name or its sound gives. Like theirs, these tokens are kept with each title and matched as they are
- * by filters and searches, and never change.
- */
+/** Badge tokens from a file's name or sound, besides definitions, HDR formats and codecs; they never change. */
 object BadgeTokens {
-    /** High dynamic range, of a kind a name does not say. */
+    /** High dynamic range of a kind the file name does not specify. */
     const val HDR = "HDR"
 
-    /** Dolby's object sound, over the codec a track names before it ("TrueHD Atmos"), or alone in a name. */
+    /** Dolby's object-based sound, after the track's codec ("TrueHD Atmos") or alone in a file name. */
     const val ATMOS = "Atmos"
 
-    /** DTS's object sound. */
+    /** DTS's object-based sound. */
     const val DTS_X = "DTS:X"
 
-    /** A disc's streams copied as they are: how the file was made, not a format. */
+    /** A disc's streams copied unchanged: how the file was made, not a format. */
     const val REMUX = "Remux"
 }
 
-/** What a format speaks of. */
 enum class FormatFamily { PICTURE, SOUND }
 
-/** A format as a page shows it: its [label], and what it speaks of. */
 data class FormatMark(val label: String, val family: FormatFamily)
 
 /**
- * The formats a title's page shows, as a Blu-ray case prints them: the picture (its definition, its
- * range, its codec, its frame rate), then the sound (its best track by the name on the case, Dolby
- * Digital Plus rather than E-AC3, then its channels). Nothing is said twice: a Dolby Vision file
- * carries its HDR10 base, a name's "TrueHD" and "Atmos" are one format.
+ * The formats a title's page shows, named as a Blu-ray case prints them (Dolby Digital Plus, not E-AC3).
+ * Nothing is listed twice: a Dolby Vision file's HDR10 base is implied, and "TrueHD" plus "Atmos" is one format.
  */
 object Formats {
-    /**
-     * A title's formats from the badges stored for it (which filters and searches read as they
-     * are), for a page whose file was not read: its definition and best range, its sound and its
-     * channels.
-     */
+    /** A title's formats from its stored badges, for a page whose file was not probed. */
     fun fromBadges(badges: List<String>): List<FormatMark> {
         val tokens = badges.distinct()
         val definition = tokens.firstNotNullOfOrNull { t -> Definition.entries.firstOrNull { it.token == t } }
@@ -82,29 +69,23 @@ object Formats {
         )
     }
 
-    /**
-     * What a page says of a file's picture: its definition, its range (Dolby Vision with HDR10+ when
-     * it has both, its HDR10 or HLG base unsaid), its codec. The frame rate is the screen's to write.
-     */
+    /** A file's picture formats: definition, [ranges] and codec; the screen formats the frame rate itself. */
     fun picture(video: VideoInfo): List<String> =
         listOfNotNull(video.definition?.label) + ranges(video) + listOfNotNull(video.codec.takeIf { it != Codecs.UNKNOWN })
 
-    /**
-     * A picture's ranges as a case names them: Dolby Vision, with HDR10+ when it has both, its
-     * HDR10 or HLG base unsaid. Empty for SDR.
-     */
+    /** Ranges as a case names them: Dolby Vision (plus HDR10+) without its HDR10 or HLG base; empty for SDR. */
     fun ranges(video: VideoInfo): List<String> {
         val dolbyVision = HdrFormat.DOLBY_VISION in video.hdr
         return video.hdr.filterNot { dolbyVision && (it == HdrFormat.HDR10 || it == HdrFormat.HLG) }.map(HdrFormat::token)
     }
 
-    /** What a page says of a file's sound: its best track by its full name, then its channels. */
+    /** A file's sound: the best track's full name, then its channels. */
     fun sound(audio: List<AudioTrack>): List<String> {
         val best = bestTrack(audio) ?: return emptyList()
         return listOfNotNull(soundName(best), best.layout)
     }
 
-    /** The track a home cinema plays best: object-based, then lossless, DTS, Dolby Digital Plus; more channels first. */
+    /** The best track for a home cinema: object-based, then lossless, DTS, Dolby Digital Plus; more channels first. */
     fun bestTrack(audio: List<AudioTrack>): AudioTrack? = audio.maxByOrNull { track ->
         val codec = when {
             track.atmos || track.dtsX -> RANK_OBJECTS
@@ -116,21 +97,16 @@ object Formats {
         codec + (track.channels ?: 0)
     }
 
-    /** How a track ranks by its kind, before its channels count: far apart, so a kind always wins. */
+    /** Rank of a track's kind, added to its channel count; spaced so the kind always wins. */
     private const val RANK_OBJECTS = 100
     private const val RANK_LOSSLESS = 80
     private const val RANK_DTS = 60
     private const val RANK_DOLBY_DIGITAL_PLUS = 50
     private const val RANK_OTHER = 30
 
-    /** A track's format as a case names it. */
     fun soundName(track: AudioTrack): String = soundName(track.format)
 
-    /**
-     * A sound format ("TrueHD Atmos", "E-AC3", "DTS-HD MA", as tracks and badges store them) as a
-     * case names it: Dolby Digital, Dolby Digital Plus, Dolby TrueHD, DTS-HD Master Audio, LPCM. With
-     * Atmos, the track it rides on: "Dolby TrueHD Atmos" (lossless), "Dolby Digital Plus Atmos".
-     */
+    /** A stored sound format ("TrueHD Atmos") as a case names it ("Dolby TrueHD Atmos", "Dolby Digital Plus"). */
     fun soundName(format: String): String {
         val atmos = format == BadgeTokens.ATMOS || format.endsWith(" ${BadgeTokens.ATMOS}")
         val codec = format.removeSuffix(BadgeTokens.ATMOS).trim()
@@ -157,10 +133,7 @@ object Formats {
         else -> tokens.firstOrNull()
     }
 
-    /**
-     * A frame rate as the ones films and broadcasts are made at, when within 0.1 % of one (a file
-     * says 23.976023976 for 24000/1001): 23.976, 24, 25, 29.97… Else to the thousandth.
-     */
+    /** Snaps a frame rate to a film or broadcast standard within 0.1 % (23.976023976 → 23.976), else to 0.001. */
     fun frameRate(fps: Float): Double {
         val standard = FRAME_RATES.minBy { kotlin.math.abs(it - fps) }
         return if (kotlin.math.abs(standard - fps) / standard < FRAME_RATE_TOLERANCE) standard
@@ -171,19 +144,16 @@ object Formats {
     private const val FRAME_RATE_TOLERANCE = 0.001
     private const val THOUSANDTHS = 1000.0
 
-    /** Ranges, best first: the one a line keeps. A name's plain HDR, of no known kind, comes last. */
+    /** Ranges, best first, so the first match is the one kept. A file name's unspecified HDR comes last. */
     private val RANGES = HdrFormat.entries.map(HdrFormat::token) + BadgeTokens.HDR
 
-    /** What badges hold that is not a format: how a file was made. */
+    /** Badge tokens that say how a file was made rather than a format. */
     private val NOT_FORMATS = setOf(BadgeTokens.REMUX)
     private val CHANNELS = Regex("""\d\.\d|\d+ ch""")
     private val FRAME_RATES = listOf(23.976, 24.0, 25.0, 29.97, 30.0, 47.952, 48.0, 50.0, 59.94, 60.0, 100.0, 119.88, 120.0)
 }
 
-/**
- * High dynamic range formats, best first. [token] is the name a case prints, and what badges store
- * and filters match: it never changes.
- */
+/** HDR formats, best first; [token] is the name a case prints, stored in badges, so it never changes. */
 @Serializable
 enum class HdrFormat(val token: String) {
     DOLBY_VISION("Dolby Vision"),
@@ -201,19 +171,16 @@ data class VideoInfo(
     val bitDepth: Int? = null,
     val hdr: List<HdrFormat> = emptyList(),
     val dolbyVisionProfile: Int? = null,
-    /** Frames per second, as the file says it: 23.976023976 for a film ([Formats.frameRate] names it). */
+    /** Frames per second as the file states it: 23.976023976 for a film ([Formats.frameRate] snaps it). */
     val frameRate: Float? = null,
-    /** What a Dolby Vision file's base layer plays as elsewhere: 1 HDR10, 2 SDR, 4 HLG ("8.1"). */
+    /** Dolby Vision base-layer compatibility: 1 HDR10, 2 SDR, 4 HLG (the 1 of "8.1"). */
     val dolbyVisionCompatibility: Int? = null,
-    /** Its bitrate in kb/s, as measured when the file was made (its tags) or as a server reports it. */
+    /** Bitrate in kb/s, from the file's tags or as a server reports it. */
     val bitrateKbps: Int? = null,
 ) {
     val definition: Definition? get() = Definition.of(width)
 
-    /**
-     * Width over height, snapped to the ratio films are made in when it is within 1 %: 2.39 for a
-     * 3832 × 1600 scope film, 1.78 for 16:9.
-     */
+    /** Width over height, snapped to a standard ratio within 1 %: 2.39 for a 3832 × 1600 scope film. */
     val aspectRatio: Float?
         get() {
             val w = width ?: return null
@@ -238,7 +205,7 @@ data class AudioTrack(
     val atmos: Boolean = false,
     val dtsX: Boolean = false,
     val default: Boolean = false,
-    /** Its bitrate in kb/s, as measured when the file was made (its tags) or as a server reports it. */
+    /** Bitrate in kb/s, from the file's tags or as a server reports it. */
     val bitrateKbps: Int? = null,
 ) {
     /** 7.1, 5.1, 2.0… */
@@ -284,7 +251,7 @@ data class MediaInfo(
     val video: VideoInfo? = null,
     val audio: List<AudioTrack> = emptyList(),
     val subtitles: List<SubtitleTrack> = emptyList(),
-    /** Which version of the file probe read this: 0 for older readings, and for what servers report. */
+    /** Version of the file probe that read this; 0 for unversioned readings and server reports. */
     val probedWith: Int = 0,
 ) {
     val bitrateKbps: Long?
@@ -298,17 +265,14 @@ data class MediaInfo(
     fun badges(): List<String> = buildList {
         video?.definition?.let { add(it.token) }
         video?.hdr?.forEach { add(it.token) }
-        // Show the best audio of the file, which is what a home cinema will pick.
+        // Only the best audio track: the one a home cinema picks.
         val best = Formats.bestTrack(audio)
         best?.let { add(it.format) }
         best?.layout?.let(::add)
     }.distinct()
 }
 
-/**
- * Bits a second, as a file's tags and a media server give a track's bitrate, in the kilobits a second
- * [VideoInfo.bitrateKbps] and [AudioTrack.bitrateKbps] keep: the nearest, half up, wherever it was read.
- */
+/** Converts bit/s (file tags, servers) to the stored kb/s ([VideoInfo.bitrateKbps]), rounding half up. */
 fun bpsToKbps(bps: Long): Int = ((bps + BITS_PER_KILOBIT / 2) / BITS_PER_KILOBIT).toInt()
 
 private const val BITS_PER_KILOBIT = 1000L

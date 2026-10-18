@@ -26,16 +26,14 @@ import java.util.concurrent.TimeoutException
 import javax.net.ssl.SSLPeerUnverifiedException
 
 /**
- * What a failure comes down to, whoever met it: read once from the exception and its causes
- * ([failureKind]), then told in each place's own words (a screen's UiError, a folder's
- * ScanErrorKind, signing in to Jellyfin). The one place that reads every layer's exceptions: the
- * app's, the NAS's (smbj, nfs-client), HTTP's, TLS's and the device's storage.
+ * The root cause of a failure, classified once from its cause chain ([failureKind]) and worded by each caller
+ * (UiError, ScanErrorKind, Jellyfin sign-in): the only place that inspects every layer's exceptions.
  */
 enum class FailureKind {
     /** The NAS or the server does not answer, or stopped answering. */
     UNREACHABLE,
 
-    /** A read or a write failed ([IOException]), and nothing says more: the network on a screen, the storage in a write to the device. */
+    /** A bare [IOException]: the network on a screen, the device's storage on a local write. */
     IO,
 
     /** TLS refused the server's certificate: expired, self-signed, or made out to another name. */
@@ -44,57 +42,51 @@ enum class FailureKind {
     /** The server refused the account or its token (HTTP 401 or 403): signed out, or never signed in. */
     REFUSED,
 
-    /** What was asked for is not in the library ([NotFoundException]), or the server has no such thing (HTTP 404). */
+    /** Not in the library ([NotFoundException]), or no such resource on the server (HTTP 404). */
     GONE,
 
-    /** The server answered with a failure of its own: another HTTP status. */
+    /** The server answered with another HTTP error status. */
     SERVER_FAILED,
 
-    /** An answer that could not be read: not the shape asked for. */
+    /** An answer that could not be parsed into the expected shape. */
     UNEXPECTED_ANSWER,
 
-    /** The NAS refused the account, or a guest. */
+    /** The NAS refused the account, or guest access. */
     LOGIN_FAILED,
 
-    /** The NAS refused the device or the account what was asked. */
+    /** The NAS denied the device or the account the requested access. */
     ACCESS_DENIED,
 
     /** The share, the export or the file is not on the NAS. */
     MISSING,
 
-    /** Searching TMDB or listing its images needs a key, and there is none. */
     NO_TMDB_KEY,
 
-    /** TMDB refuses the key in use. */
     TMDB_KEY_REFUSED,
 
-    /** TMDB does not answer, or failed. */
     TMDB_UNREACHABLE,
 
-    /** TMDB has no entry at the id asked ([TmdbNotFoundException]): TMDB's, not the library's ([GONE]). */
+    /** TMDB has no entry for the requested id ([TmdbNotFoundException]); distinct from a library miss ([GONE]). */
     TMDB_NOT_FOUND,
 
     /** The device's Keystore could not seal a secret. */
     KEYSTORE,
 
-    /** The device has no space left. */
     STORAGE_FULL,
 
-    /** The device's storage failed (its disk): on a write, nothing was saved. */
+    /** The device's storage (its disk) failed; on a write, nothing was saved. */
     STORAGE_FAILED,
 
     OTHER,
 }
 
 /**
- * What this failure comes down to, from it and its causes, the first that fits: the app's own
- * exceptions, wherever they lie in the chain, and the device's storage; then what a server or TLS
- * answered; then an answer that does not read; then the network and the NAS; an [IOException] that
- * says nothing more comes last.
+ * Classifies this failure from its cause chain, first match wins: the app's own exceptions and storage, then
+ * an HTTP status or TLS, then an unparseable answer, then network and NAS; a bare [IOException] comes last.
  */
 fun Throwable.failureKind(): FailureKind {
     val chain = causeChain()
-    // An answer that does not read is told before the NAS's words: its excerpt of the body may hold them.
+    // An unparseable answer is checked before the NAS's message words: its body excerpt may contain them.
     val unreadable = FailureKind.UNEXPECTED_ANSWER.takeIf { chain.any { e -> e is SerializationException } }
     return typed(chain) ?: answered(chain) ?: unreadable ?: nas(chain) ?: when {
         chain.any { it is IOException } -> FailureKind.IO
@@ -102,7 +94,7 @@ fun Throwable.failureKind(): FailureKind {
     }
 }
 
-/** This failure and its causes, outermost first; a chain that loops ends where it does. */
+/** This failure and its causes, outermost first; a cyclic chain stops at the first repeat. */
 internal fun Throwable.causeChain(): List<Throwable> {
     val chain = mutableListOf<Throwable>()
     var next: Throwable? = this
@@ -113,7 +105,7 @@ internal fun Throwable.causeChain(): List<Throwable> {
     return chain
 }
 
-/** What the app's exceptions and the device's storage say, by their type. */
+/** Classifies the app's own exceptions and storage errors by type. */
 private fun typed(chain: List<Throwable>): FailureKind? = when {
     chain.any { it is SecretsUnavailableException } -> FailureKind.KEYSTORE
     chain.any { it is NoTmdbKeyException } -> FailureKind.NO_TMDB_KEY
@@ -126,12 +118,12 @@ private fun typed(chain: List<Throwable>): FailureKind? = when {
     else -> null
 }
 
-/** The device is out of space: Room says so with SQLiteFullException, a file written with ENOSPC. */
+/** The device is out of space: Room reports SQLiteFullException, a file write ENOSPC. */
 private fun storageFull(chain: List<Throwable>): Boolean =
     chain.any { it is SQLiteFullException || it is ErrnoException && it.errno == OsConstants.ENOSPC } ||
         chain.any { it.message?.contains("No space left on device", ignoreCase = true) == true }
 
-/** What a server answered (its HTTP status), or TLS refusing its certificate. */
+/** Classifies a server's HTTP status, or TLS refusing its certificate. */
 private fun answered(chain: List<Throwable>): FailureKind? {
     val status = chain.firstNotNullOfOrNull { (it as? HttpException)?.code() }
     return when {
@@ -144,10 +136,7 @@ private fun answered(chain: List<Throwable>): FailureKind? {
     }
 }
 
-/**
- * What the network or the NAS said, by the types of SMB, NFS and sockets, else by their words:
- * nfs-client names a status by its number only, smbj by its name in a message.
- */
+/** Network and NAS failures by exception type, else by message: nfs-client gives statuses by number, smbj by name. */
 private fun nas(chain: List<Throwable>): FailureKind? {
     val text = chain.joinToString(" ") { "${it.javaClass.simpleName} ${it.message}" }
     return when {
@@ -160,49 +149,42 @@ private fun nas(chain: List<Throwable>): FailureKind? {
 }
 
 /**
- * The NAS does not answer, or stopped answering. smbj tells a request answered too late by a
- * TimeoutException ("Timeout expired") inside its TransportException, a connection dropped by the
- * socket's own error; nfs-client by an RpcException of status NETWORK_ERROR ("rpc request timeout",
- * "the connection is broken", "tcp IO error") inside the NfsException or MountException of the
- * request. A TransportException of its own (signing required, SMBv1) is not the network.
+ * The NAS does not answer. smbj wraps a late answer as a TimeoutException in its TransportException;
+ * nfs-client reports an RpcException with status NETWORK_ERROR inside the request's NfsException or
+ * MountException. A TransportException alone (signing required, SMBv1) is not a network failure.
  */
 private fun noAnswer(chain: List<Throwable>, text: String): Boolean =
     chain.any {
         it is UnknownHostException || it is SocketException || it is SocketTimeoutException || it is EOFException ||
             it is TimeoutException ||
-            // By identity: LOCAL_BINDING_ERROR, a port the device cannot take, has the same value.
+            // Compared by identity: LOCAL_BINDING_ERROR (a port the device cannot bind) has the same value.
             it is RpcException && it.status === RpcStatus.NETWORK_ERROR ||
-            // The NAS asks to come back later (a disk waking, a file recalled from an archive).
+            // The NAS asks to retry later (a disk spinning up, a file recalled from an archive).
             it is NfsException && it.status?.value == NfsStatus.NFS3ERR_JUKEBOX.value
     } || NO_ANSWER.any { text.contains(it, ignoreCase = true) }
 
 /**
- * The NAS refused the account, or a guest: smbj 0.14 does not sign in as a guest to a NAS that
- * requires signing (Windows 11 24H2, recent Synology), as a guest has no key to sign with, and says
- * so with an exception of its own, or a TransportException once the session asks to sign. Either
- * way an account is to be entered.
+ * The NAS refused the account, or a guest: smbj 0.14 cannot sign as a guest (no key) where signing is required
+ * (Windows 11 24H2, recent Synology), and throws its own exception or a TransportException at the first signing.
  */
 private fun signInRefused(chain: List<Throwable>, text: String): Boolean =
     text.contains("LOGON_FAILURE") || text.contains("ACCOUNT_") || text.contains("WRONG_PASSWORD") ||
         chain.any { it is SMB2GuestSigningRequiredException || it is TransportException && it.message == NO_SIGNING_KEY }
 
-/**
- * The NAS refused the device or the account. nfs-client names a status by its number only: a mount
- * refused says "returned state: 13", a request refused "NfsStatus:13".
- */
+/** The NAS refused the device or account; nfs-client says "returned state: 13" for a mount, else "NfsStatus:13". */
 private fun refused(chain: List<Throwable>, text: String): Boolean =
     chain.any {
         it is MountException && it.status?.value in MOUNT_REFUSED || it is NfsException && it.status?.value in NFS_REFUSED
     } || REFUSED.any { text.contains(it) } || text.contains("AUTH_ERROR", ignoreCase = true) ||
         text.contains("auth", ignoreCase = true) && text.contains("rpc", ignoreCase = true)
 
-/** The share, the export or the folder is not there; nfs-client throws FileNotFoundException for NFS3ERR_NOENT. */
+/** The share, export or folder does not exist; nfs-client throws FileNotFoundException for NFS3ERR_NOENT. */
 private fun missing(chain: List<Throwable>, text: String): Boolean =
     chain.any { it is FileNotFoundException || it is MountException && it.status?.value == MountStatus.MNT3ERR_NOENT.value } ||
         MISSING.any { text.contains(it) }
 
 
-/** What smbj's Session says when it is to sign a request without a key: signed in as a guest. */
+/** smbj Session's message when it must sign a request without a key, as in a guest session. */
 private const val NO_SIGNING_KEY = "Message signing is required, but no signing key is negotiated"
 
 private val MOUNT_REFUSED = setOf(MountStatus.MNT3ERR_ACCES.value, MountStatus.MNT3ERR_PERM.value)

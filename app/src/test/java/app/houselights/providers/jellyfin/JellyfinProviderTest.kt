@@ -94,7 +94,7 @@ class JellyfinProviderTest {
         try {
             provider(server).reporter("f1|s1")!!.stopped(7_000_000, null)
         } catch (_: IOException) {
-            // Said as a failure.
+            // Expected: reported as a failure.
         }
         assertEquals(1, server.paths.size)
     }
@@ -105,7 +105,7 @@ class JellyfinProviderTest {
         val tries = AtomicInteger()
         val server = FakeServer {
             if (tries.incrementAndGet() == 1) {
-                // As Android says it: OkHttp passes it on as it is.
+                // Android's message; OkHttp passes it through unchanged.
                 throw SocketTimeoutException("failed to connect to /192.168.1.10 (port 8096) from /192.168.1.20 (port 41234) after 10000ms")
             }
             Answer(204)
@@ -121,10 +121,7 @@ class JellyfinProviderTest {
         assertEquals(1, server.paths.size)
     }
 
-    /**
-     * Episode 1 ends while the server fails ("database is locked" during its scan), episode 2 starts
-     * within seconds: Stopped(1) goes once more before Playing(2), never after it, and is not lost.
-     */
+    /** Stopped(1) failing as episode 2 starts within seconds is sent once more before Playing(2), never after. */
     @Test
     fun aNewPlaybackSendsTheLastStoppedBeforeItsPlaying() = runTest {
         val firstStopFailed = CompletableDeferred<Unit>()
@@ -146,7 +143,6 @@ class JellyfinProviderTest {
         assertEquals(listOf("e1", "e1", "e2"), server.requests.map { it.itemId() })
     }
 
-    /** The last Stopped fails again when the next episode starts: it is given up, the next Playing still goes. */
     @Test
     fun aLastStoppedThatFailsAgainIsGivenUp() = runTest {
         val firstStopFailed = CompletableDeferred<Unit>()
@@ -193,7 +189,7 @@ class JellyfinProviderTest {
         assertEquals(listOf(SectionType.CONTINUE), home.map { it.type })
     }
 
-    /** Every row failing is not a server with nothing on it: home fails, and says why. */
+    /** Every row failing does not mean an empty server: home fails, with the reason. */
     @Test
     fun homeFailsWhenEveryRowFails() = runTest {
         val server = FakeServer { request -> if (request.url.encodedPath == "/UserViews") Answer(200, views) else Answer(500) }
@@ -228,7 +224,7 @@ class JellyfinProviderTest {
         provider.home()
         assertEquals(1, server.paths.count { it == "/UserViews" })
         assertTrue("The latest of the library were not asked for", "/Items/Latest" in server.paths)
-        // Home loaded again on its own asks for them anew.
+        // A separate home load asks for them again.
         provider.home()
         assertEquals(2, server.paths.count { it == "/UserViews" })
     }
@@ -246,7 +242,6 @@ class JellyfinProviderTest {
         assertTrue("ProductionYear" in fields)
     }
 
-    /** A page of titles is typeset away from the screen that asked for it: the screen's thread only gets the titles. */
     @Test
     fun titlesAreMadeAwayFromTheCaller() = runTest {
         val mapping = object : CoroutineDispatcher() {

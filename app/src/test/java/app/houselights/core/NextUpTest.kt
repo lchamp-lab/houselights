@@ -4,7 +4,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 
-/** The film Lire starts in a collection, among its films in release order. */
+/** Which film Lire starts in a collection, its films taken in release order. */
 class NextUpTest {
     private fun film(id: String, user: UserState = UserState()) = MediaItem(id, MediaKind.MOVIE, id, user = user)
 

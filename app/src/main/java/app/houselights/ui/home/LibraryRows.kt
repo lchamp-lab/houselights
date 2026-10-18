@@ -10,10 +10,8 @@ import java.time.Instant
 import java.time.ZoneId
 
 /**
- * The rows the library writes under home's own: the films of one of its directors, its best rated
- * films. Drawn once a day, the day turning at [DAY_STARTS] in the morning: home stays the same all
- * evening, and Back finds its card where it was. The director changes from one day to the next,
- * among those of the most films; a row too short to be one is left out.
+ * The library's rows below Home's own: one director's films (rotating daily) and the best rated films. Computed
+ * once a day from [DAY_STARTS], so Home stays the same all evening and Back returns to the same card.
  */
 class LibraryRows(
     private val provider: () -> MediaProvider,
@@ -22,7 +20,7 @@ class LibraryRows(
 ) {
     private var drawn: Pair<Long, List<HomeSection>>? = null
 
-    /** Today's rows: drawn at the first call of the day, the same after, until [forget]. */
+    /** Today's rows, computed on the day's first call and reused until [forget]. */
     suspend fun today(): List<HomeSection> {
         val day = dayOf(now(), zone())
         drawn?.takeIf { it.first == day }?.let { return it.second }
@@ -31,7 +29,7 @@ class LibraryRows(
         return rows
     }
 
-    /** The library changed: the next call draws again, from what it holds now (the same day, the same director's place). */
+    /** Drops the cached rows after a library change; the next call recomputes them for the same day. */
     fun forget() {
         drawn = null
     }
@@ -53,17 +51,17 @@ class LibraryRows(
     }
 
     companion object {
-        /** The hour the day of home's rows turns: past midnight, an evening's film goes on with the same rows. */
+        /** Hour at which Home's day changes, so a film watched past midnight keeps the same rows. */
         const val DAY_STARTS = 6
 
-        /** Directors drawn from, those of the most films first. */
+        /** Directors the row rotates through, those with the most films first. */
         private const val DIRECTORS = 20
 
-        /** Best rated films a row holds, and the fewest it needs to be one. */
+        /** Size of the best rated row, and the minimum it needs to show. */
         private const val BEST = 24
         private const val MIN_BEST = 4
 
-        /** The day of [millis] for home's rows, in [zone]: it turns at [DAY_STARTS]. */
+        /** The day of [millis] in [zone] for Home's rows, starting at [DAY_STARTS]. */
         fun dayOf(millis: Long, zone: ZoneId): Long =
             Instant.ofEpochMilli(millis).atZone(zone).minusHours(DAY_STARTS.toLong()).toLocalDate().toEpochDay()
     }

@@ -5,11 +5,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
 
-/**
- * A component reads what it lies on rather than being told: the grounds are provided in a few
- * places only (glass by sheets and raised panels, a picture by artwork surfaces and `OnArtwork`),
- * and no component takes a flag for it.
- */
+/** Components read their ground; only sheets, raised panels and artwork surfaces provide one, never a flag. */
 class GroundTest {
     private val ui = File("src/main/java/app/houselights/ui")
 
@@ -22,16 +18,10 @@ class GroundTest {
         assertEquals(sortedSetOf("Cards.kt", "Color.kt", "Panel.kt", "Sheet.kt"), providers)
     }
 
-    /**
-     * A thing one step up from its ground and the edge of a container are each written once, in
-     * Color.kt (`groundStepFill()`, `HlColors.edge`), so a panel, a field and an area to read
-     * cannot drift apart.
-     */
+    /** The step fill and the container edge are written once, in Color.kt, so panels and fields stay alike. */
     @Test
     fun theStepAndTheEdgeAreWrittenOnce() {
-        // Outside Color.kt the step is only laid opaque (`groundFill(groundStep())`), and EDGE never
-        // read: a copy through a local (`val step = groundStep()`, then `copy(alpha = step)`) is
-        // still a copy, as two of the old ones were.
+        // Elsewhere the step is only laid opaque and EDGE never read; a copy through a local is still a copy.
         val recipe = Regex("""(?<!groundFill\()groundStep\(\)|HlAlpha\.EDGE\b""")
         val found = ui.walkTopDown().filter { it.isFile && it.extension == "kt" && it.name != "Color.kt" }
             .flatMap { file ->

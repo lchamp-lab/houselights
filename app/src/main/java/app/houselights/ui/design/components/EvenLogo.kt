@@ -12,11 +12,8 @@ import kotlin.math.roundToInt
 import kotlin.math.sqrt
 
 /**
- * A clear logo set to a constant weight in a room [boxWidth] by [boxHeight] px: its transparent
- * margin trimmed, so that its ink sits on the screen's margin, then sized so that every logo carries
- * the same optical surface instead of filling the room ([planLogo]): a heavy, wide logo no longer
- * shouts, a thin one stacked over a ribbon no longer whispers, and a hero no longer jumps from one
- * film to the next. One pass over the logo as it is decoded; the result is what stays in memory.
+ * Sets a clear logo to a constant visual weight in a [boxWidth] by [boxHeight] px box ([planLogo]): its
+ * transparent margin trimmed, sized to the same optical surface, so heavy and thin logos read alike.
  */
 internal class EvenLogo(private val boxWidth: Int, private val boxHeight: Int) : Transformation {
     override val cacheKey = "evenLogo$VERSION-${boxWidth}x$boxHeight"
@@ -32,24 +29,17 @@ internal class EvenLogo(private val boxWidth: Int, private val boxHeight: Int) :
     }
 
     private companion object {
-        /** Bumped when the plan changes: logos kept on disk are set again, not found under an old key. */
+        /** Bump when [planLogo] changes, so cached logos are transformed again, not found under the old key. */
         const val VERSION = 1
     }
 }
 
-/**
- * How a logo is set: the part of it that holds ink, [left] to [right] and [top] to [bottom]
- * (excluded), and the size it is drawn at, in px.
- */
+/** A logo's ink box ([left] to [right], [top] to [bottom], exclusive) and its drawn size, in px. */
 internal class LogoPlan(val left: Int, val top: Int, val right: Int, val bottom: Int, val width: Int, val height: Int)
 
 /**
- * The plan of a logo of [width] by [height] px whose ARGB [pixels] are given, in a room [boxWidth]
- * by [boxHeight]: its ink box, where alpha passes [INK_FLOOR], then the size whose area, weighed by
- * how much of it is ink to the power [INK_WEIGHT], is [SURFACE] of the room's. Between the area of a
- * box (a solid plate weighs as much as thin strokes) and the area of ink (thin strokes grown huge),
- * the eye reads a logo by both. It never leaves the room, and is never enlarged past its own pixels.
- * Null for a logo without ink.
+ * The ink box (alpha above [INK_FLOOR]) of a logo and the size whose area, weighted by ink coverage to the
+ * power [INK_WEIGHT], is [SURFACE] of the box, fitted and never upscaled; null without ink.
  */
 internal fun planLogo(pixels: IntArray, width: Int, height: Int, boxWidth: Int, boxHeight: Int): LogoPlan? {
     val found = inkOf(pixels, width, height) ?: return null
@@ -70,7 +60,7 @@ internal fun planLogo(pixels: IntArray, width: Int, height: Int, boxWidth: Int, 
     )
 }
 
-/** Where a logo's ink lies, its last column and row included, and the sum of its alpha. */
+/** The bounds of a logo's ink (inclusive) and the alpha summed over all its pixels. */
 private class Ink(val left: Int, val top: Int, val right: Int, val bottom: Int, val alpha: Long)
 
 /** The ink of a logo [width] by [height] px of ARGB [pixels]: null when there is none. */
@@ -94,16 +84,16 @@ private fun inkOf(pixels: IntArray, width: Int, height: Int): Ink? {
     return if (right < 0) null else Ink(left, top, right, bottom, sum)
 }
 
-/** Alpha at or under which a pixel is the logo's margin, not its ink (anti-aliasing haze, a faint glow). */
+/** Alpha at or below which a pixel counts as margin, not ink (anti-aliasing haze, a faint glow). */
 internal const val INK_FLOOR = 16
 
-/** The share of its room a logo's weighed surface takes: a wide logo of solid letters comes to about two thirds of the room's width. */
+/** Fraction of the box a logo's weighted surface takes: a wide solid logo spans about two thirds of its width. */
 internal const val SURFACE = 0.35
 
-/** How much the share of ink weighs against the box's area: 0, the box alone; 1, the ink alone. */
+/** Weight of ink coverage against box area: 0 uses the box alone, 1 the ink alone. */
 internal const val INK_WEIGHT = 0.5
 
-/** A logo nearly all air still counts this much ink: it never grows past the room for it. */
+/** Minimum ink coverage counted, so a mostly transparent logo is not sized past the box. */
 private const val MIN_COVERAGE = 0.05
 
 private const val OPAQUE = 255.0

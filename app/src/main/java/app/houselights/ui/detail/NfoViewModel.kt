@@ -22,10 +22,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.withContext
 import kotlin.coroutines.CoroutineContext
 
-/**
- * An NFO as the screen shows it, ready: where it is, what it says (null when it does not read), and
- * its XML as written, line by line.
- */
+/** An NFO ready to display: [path], parsed [info] (null when it does not parse), and its XML as [lines]. */
 data class NfoContent(val path: String, val info: NfoInfo?, val lines: List<String>)
 
 /** A title and its NFO; a title without one is [LoadState.Ready] with null. */
@@ -34,7 +31,7 @@ data class NfoState(val title: String = "", val document: LoadState<NfoContent?>
 class NfoViewModel(
     private val itemId: String,
     private val provider: () -> MediaProvider,
-    /** Where the NFO is parsed and split: up to 1 MB of XML, never on the main thread. */
+    /** Where the NFO (up to 1 MB of XML) is parsed and split, off the main thread. */
     private val parsing: CoroutineContext = Dispatchers.Default,
 ) : ViewModel() {
     private val _state = MutableStateFlow(NfoState())
@@ -45,7 +42,7 @@ class NfoViewModel(
         load()
     }
 
-    /** Loads the title and its NFO; tried again, the latest load is the one shown. */
+    /** Loads the title and its NFO; on retry, only the latest load is shown. */
     fun load() {
         _state.update { it.copy(document = it.document.reloading()) }
         loads.launch {
@@ -65,5 +62,5 @@ class NfoViewModel(
     }
 }
 
-/** What the screen shows of the NFO: its details parsed and set for display, and its text in lines, as one text would break it. */
+/** The NFO's parsed details and its trimmed text split into lines. */
 private fun NfoDocument.content() = NfoContent(path, info, text.trim().split('\n'))

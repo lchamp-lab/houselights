@@ -83,10 +83,7 @@ class FocusTest {
         assertEquals("action:nfo", FocusMemory.Saver.restore(saved!!)?.last)
     }
 
-    /**
-     * A card of a row says it had focus with the same modifier at each composition: a surface given
-     * an equal modifier, and equal arguments otherwise, skips when its row is entered.
-     */
+    /** An equal modifier at each composition lets a row's cards skip recomposition when the row is entered. */
     @Test
     fun aGroupMemberIsTheSameModifierFromOneCompositionToTheNext() {
         val group = GroupFocus()
@@ -94,7 +91,6 @@ class FocusTest {
         assertEquals(Modifier.rememberedInGroup(group, self), Modifier.rememberedInGroup(group, self))
         assertNotEquals(Modifier.rememberedInGroup(group, FocusRequester()), Modifier.rememberedInGroup(group, self))
         assertNotEquals(Modifier.rememberedInGroup(GroupFocus(), self), Modifier.rememberedInGroup(group, self))
-        // Outside a group, nothing.
         assertEquals(Modifier, Modifier.rememberedInGroup(null, self))
     }
 

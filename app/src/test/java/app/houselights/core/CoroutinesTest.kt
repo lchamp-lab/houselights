@@ -21,14 +21,13 @@ class CoroutinesTest {
         assertEquals(2, suspendRunCatching { 1 + 1 }.getOrNull())
     }
 
-    /** A load replaced by a newer one stops quietly: its cancellation is not reported as a failure. */
     @Test
     fun aCancellationIsNotAFailure() {
         try {
             suspendRunCatching { throw CancellationException("Replaced") }
             fail("The cancellation was caught")
         } catch (_: CancellationException) {
-            // Rethrown, as it should be.
+            // Expected: the cancellation is rethrown.
         }
     }
 

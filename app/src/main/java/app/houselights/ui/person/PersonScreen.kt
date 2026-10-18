@@ -71,10 +71,8 @@ import app.houselights.ui.util.retainedError
 import app.houselights.ui.util.toPx
 
 /**
- * A person's page: their portrait in a large disc, their name, what they did and in how many titles
- * ("Réalisation  Interprétation  7 titres"); under it, their titles before and behind the camera in
- * the order of their years, as posters without words. Under two lines of posters, it takes the
- * composition of a small library: home's, a hero and one row.
+ * A person's page: portrait, name, jobs and title count ("Réalisation  Interprétation  7 titres"), then their
+ * titles by year as posters; with at most two lines of them, a hero and one row as on Home.
  */
 @Composable
 fun PersonScreen(personId: String, onOpenItem: (MediaItem) -> Unit) {
@@ -84,7 +82,7 @@ fun PersonScreen(personId: String, onOpenItem: (MediaItem) -> Unit) {
     val state by vm.state.collectAsStateWithLifecycle()
     val page = state.page
     if (page == null) {
-        // Trying again keeps the error on screen, its button at work, until the answer.
+        // While retrying, the error stays on screen with its button busy.
         val error = retainedError(state.error, retrying = state.loading)
         Box(Modifier.fillMaxSize().padding(top = HlLayout.errorTop)) {
             if (error != null) HlErrorState(error, vm::load, Modifier.padding(start = HlSpace.safeH, top = HlSpace.l), state.loading)
@@ -94,17 +92,17 @@ fun PersonScreen(personId: String, onOpenItem: (MediaItem) -> Unit) {
     PersonBands(page, onOpenItem)
 }
 
-/** [page] laid out: its head, then its titles as a wall, or as one row when they are few ([smallPage]). */
+/** Lays out [page]: its head, then its titles as a wall, or as one row when they are few ([smallPage]). */
 @Composable
 internal fun PersonBands(page: PersonPage, onOpenItem: (MediaItem) -> Unit) {
     val titles = remember(page) { page.titles.map { it.item } }
     val small = smallPage(titles.size)
-    // The title selected stays found coming back; before any, the first. Shown once focus settles.
+    // The selected title survives navigation, defaulting to the first; it shows once focus settles.
     val selectedId = rememberSaveable { mutableStateOf<String?>(null) }
     val shown by rememberSettled { titles.find { it.id == selectedId.value } ?: titles.firstOrNull() }
     val first = remember { FocusRequester() }
     val grid = rememberLazyGridState()
-    // Each arrival puts focus back on the title left, else on the first one.
+    // On each arrival, focus returns to the last title focused, else the first.
     val memory = rememberFocusMemory()
     RestoreFocus(memory, first, ready = titles.isNotEmpty()) { key ->
         val index = FocusKey.itemId(key)?.let { id -> titles.indexOfFirst { it.id == id } } ?: -1
@@ -120,7 +118,7 @@ internal fun PersonBands(page: PersonPage, onOpenItem: (MediaItem) -> Unit) {
                 .then(if (index == 0) Modifier.focusRequester(first) else Modifier)
             if (small) {
                 Spacer(Modifier.height(HlSpace.l))
-                // Its height holds the text at the viewer's size, whatever has focus.
+                // A fixed height that fits the text at the viewer's text size, whatever has focus.
                 HeroInfo(shown, Modifier.padding(start = HlSpace.safeH).height(textRoom(HlLayout.hero)))
                 Spacer(Modifier.height(HlSpace.l))
                 MediaRow(header = null) {
@@ -135,7 +133,7 @@ internal fun PersonBands(page: PersonPage, onOpenItem: (MediaItem) -> Unit) {
                     }
                 }
             } else {
-                // The title selected, named as a wall names it: one line, said with its picture.
+                // The selected title on one line, as on a wall, shown together with its backdrop.
                 Box(
                     Modifier.padding(start = HlSpace.safeH, end = HlSpace.safeH, top = HlSpace.m).height(HlLayout.infoLine),
                     contentAlignment = Alignment.CenterStart,
@@ -165,13 +163,12 @@ internal fun PersonBands(page: PersonPage, onOpenItem: (MediaItem) -> Unit) {
     }
 }
 
-/** A person's page of [titles] titles takes a small library's composition: under two lines of posters. */
+/** Whether a page of [titles] titles uses a small library's layout: at most two lines of posters. */
 internal fun smallPage(titles: Int): Boolean = titles <= COLUMNS * SMALL_LINES
 
-/** Lines of posters under which a page is a small library's. */
+/** Poster lines up to which a page uses the small library layout. */
 private const val SMALL_LINES = 2
 
-/** The head of a person's page: their portrait, their name, then their jobs and titles as facts. */
 @Composable
 private fun PersonHead(page: PersonPage, modifier: Modifier = Modifier) {
     val person = page.person
@@ -191,20 +188,17 @@ private fun PersonHead(page: PersonPage, modifier: Modifier = Modifier) {
     }
 }
 
-/**
- * What a person did across the library, as their page says it: behind the camera before in front
- * of it, each job once, in the order of the credits ([Job]).
- */
+/** A person's jobs, each once, in credits order ([Job]) with the cast last. */
 internal fun personJobs(page: PersonPage): List<Job> = page.jobs.filterValues { it > 0 }.keys.sortedBy { job ->
     if (job == Job.CAST) Job.entries.size else job.ordinal
 }
 
-/** A person's portrait, large: their initials until it loads, or for one without a picture. Said by the name beside it. */
+/** A large portrait, with initials until it loads or when there is none; the name beside it announces it. */
 @Composable
 private fun Portrait(person: Person) {
     val px = HlSize.portrait.toPx()
     val c = Hl.colors
-    // The well and edge of artwork at rest, as a portrait in a row has them.
+    // The artwork well and edge at rest, as for a portrait in a row.
     Box(
         Modifier
             .size(HlSize.portrait)

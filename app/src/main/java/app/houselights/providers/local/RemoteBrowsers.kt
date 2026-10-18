@@ -8,9 +8,8 @@ import kotlinx.coroutines.withContext
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * The app's NAS browsers, and the sessions and mounts they keep from one file to the next. Made once,
- * by the app's container: scans read folders through [of]; a folder's address changed or a scan over
- * closes what they keep.
+ * The app's NAS browsers and the sessions and mounts they keep between files; a single instance lives in the app
+ * container. Kept connections close when a source's address changes or a scan ends.
  */
 class RemoteBrowsers internal constructor(private val smb: SmbBrowser, private val nfs: NfsBrowser) {
     constructor() : this(SmbBrowser(), NfsBrowser())
@@ -21,9 +20,8 @@ class RemoteBrowsers internal constructor(private val smb: SmbBrowser, private v
     }
 
     /**
-     * Closes the sessions or mounts kept on [source]'s address, whoever signed in: its address or
-     * password changed, and one opened before must not stand for the new one. An SMB session waits
-     * for the operation under way on it, to sign off after it; an NFS mount waits for nothing.
+     * Closes sessions or mounts kept on [source]'s address, for any account, after its address or password changed.
+     * An SMB session signs off after its current operation; an NFS mount is dropped at once.
      */
     suspend fun forget(source: SourceEntity) = withContext(Dispatchers.IO) {
         when (source.protocol) {
@@ -32,10 +30,7 @@ class RemoteBrowsers internal constructor(private val smb: SmbBrowser, private v
         }
     }
 
-    /**
-     * Closes the sessions and mounts no operation uses: a scan is over, and the NAS need not hold them.
-     * One in use is closed as its operation ends; this waits for none.
-     */
+    /** Closes idle sessions and mounts after a scan; ones in use close when their operation ends, without waiting. */
     fun closeIdle() {
         smb.closeIdle()
         nfs.closeIdle()
@@ -43,49 +38,42 @@ class RemoteBrowsers internal constructor(private val smb: SmbBrowser, private v
 }
 
 /**
- * Connections kept from one operation to the next, one per key (an address and who signs in): a scan
- * reads several files per title, and signing in or mounting for each would cost more than the reads.
- * One operation at a time per key, as a scan reads one file at a time; those of other keys (another
- * share, another NAS) wait neither for it nor for its connecting.
+ * Connections reused across operations, one per key (address and account), since a scan reads several files per
+ * title and connecting for each would cost more than the reads. One operation at a time per key; other keys
+ * never wait on it, even while it connects.
  */
 internal class KeptConnections<C>(
-    /** Closes a connection, and never throws; broken: it failed, and is not asked to sign off first. */
+    /** Closes without throwing; when broken, skips the sign-off. */
     private val close: (connection: C, broken: Boolean) -> Unit,
-    /** False once the connection is known to be closed: the NAS hung up. */
+    /** False once the NAS has hung up. */
     private val isOpen: (C) -> Boolean,
-    /** A failure of the connection itself, after which it is made again: not one of the file. */
+    /** True for a connection failure (not a file failure), after which the connection is recreated. */
     private val isBroken: (Throwable) -> Boolean,
-    /** Milliseconds that only go forward (elapsedRealtime): a clock set back keeps no session for good. */
+    /** Monotonic milliseconds (elapsedRealtime), so a clock set back cannot keep a session forever. */
     private val clock: () -> Long,
     /**
-     * Whether forgetting a key waits for its operation under way: an SMB session signs off, which
-     * must not cut a read short. An NFS mount closes by being dropped: a folder's new address is saved
-     * without waiting for a listing of the old one, whose mount is then closed rather than kept.
+     * Whether [forget] waits for the key's running operation: an SMB sign-off must not cut a read short, while an
+     * NFS mount is just dropped, so a new address is saved without waiting for a listing of the old one.
      */
     private val closingWaits: Boolean = true,
 ) {
     private class Kept<C>(val connection: C, val lastUse: Long)
 
-    /**
-     * One per key, held for each operation's length, connecting included. A Mutex: a coroutine that
-     * waits for it stops waiting when it is cancelled. Never removed: one per address and account used.
-     */
+    /** Per-key lock held for a whole operation, connecting included; a Mutex, so waits are cancellable. */
     private val operations = ConcurrentHashMap<String, Mutex>()
 
-    /** Guarded by itself, held only to read or change the map and [using]. */
+    /** Guarded by itself, which also guards [using]. */
     private val kept = mutableMapOf<String, Kept<C>>()
 
-    /** The keys of the operations under way; a key forgotten meanwhile leaves it, and its connection is closed after, not kept. */
+    /** Keys with a running operation; a key forgotten meanwhile is removed, so its connection closes afterwards. */
     private val using = mutableSetOf<String>()
 
     private fun operation(key: String) = operations.getOrPut(key) { Mutex() }
 
     /**
-     * Runs [block] on the connection kept for [key], or on one [connect] makes when none is kept, or
-     * the one kept was not used for [IDLE_MS] (the NAS may have dropped it) or hung up: that one is
-     * closed, not dropped, or the NAS would hold its session. A kept connection that breaks is made
-     * again, once. After a failure of the file (not found, refused), the connection stays kept.
-     * A connection the NAS hung up is closed as broken: nothing would answer its sign-off.
+     * Runs [block] on [key]'s kept connection, or a new one from [connect] when none is kept, or it idled [IDLE_MS]
+     * or hung up; a stale one is closed rather than abandoned, so the NAS frees its session. A broken reused
+     * connection is replaced once; after a file failure (not found, denied) the connection stays kept.
      */
     suspend fun <T> use(key: String, connect: () -> C, block: (C) -> T): T = operation(key).withLock {
         val entry = synchronized(kept) {
@@ -111,7 +99,7 @@ internal class KeptConnections<C>(
         }
     }
 
-    /** Runs [block] on a connection of its own, closed after: what it answers owes nothing to one kept. */
+    /** Runs [block] on a fresh connection, closed afterwards, so the result does not depend on a kept one. */
     fun <T> once(connect: () -> C, block: (C) -> T): T {
         val connection = connect()
         val result = suspendRunCatching { block(connection) }
@@ -120,16 +108,15 @@ internal class KeptConnections<C>(
     }
 
     /**
-     * Closes the connections kept for the keys [which] accepts. One in use for such a key is closed
-     * as its operation ends, rather than kept; when [closingWaits], this waits for that end, and for
-     * no other key's. Dropped first: a wait cut short (its coroutine cancelled) leaves none kept.
+     * Closes connections of the keys [which] accepts; one in use closes when its operation ends, which this awaits
+     * if [closingWaits]. Drops first, so a cancelled wait leaves nothing kept.
      */
     suspend fun forget(which: (String) -> Boolean) {
         drop(which)
         if (closingWaits) for (key in operations.keys.filter(which)) operation(key).withLock { drop { it == key } }
     }
 
-    /** Closes every connection kept now, and one in use as its operation ends: a pass is over, and this waits for none. */
+    /** Closes every kept connection now, and those in use when their operation ends, without waiting. */
     fun closeIdle() = drop { true }
 
     private fun drop(which: (String) -> Boolean) {
@@ -140,7 +127,7 @@ internal class KeptConnections<C>(
         dropped.forEach { close(it.connection, !isOpen(it.connection)) }
     }
 
-    /** Runs [block] on [connection], kept after it unless it broke or [key] was forgotten meanwhile: then it is closed. */
+    /** Runs [block], then keeps [connection] unless it broke or [key] was forgotten meanwhile. */
     private fun <T> attempt(key: String, connection: C, block: (C) -> T): Result<T> =
         suspendRunCatching { block(connection) }.also { result ->
             val broken = result.exceptionOrNull()?.let(isBroken) == true
@@ -149,7 +136,7 @@ internal class KeptConnections<C>(
         }
 
     companion object {
-        /** A connection unused this long is closed rather than reused: the NAS may have dropped it. */
+        /** Idle time after which a connection is replaced, as the NAS may have dropped it. */
         const val IDLE_MS = 60_000L
     }
 }

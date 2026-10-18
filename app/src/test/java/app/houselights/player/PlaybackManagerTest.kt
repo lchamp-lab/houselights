@@ -73,17 +73,14 @@ class PlaybackManagerTest {
         statuses += listOf(playing(10_000)) + List(10) { null } + listOf(playing(30_000))
         manager.onPlayerLaunched()
         advanceTimeBy(4_000 + 2_000 * 11L + 1)
-        // A report at the first status; at the fifth and tenth polls, nothing was said: nothing was reported.
+        // A report at the first status; the fifth and tenth polls had no answer, so nothing was reported.
         assertEquals(listOf("started 0", "progress 10000"), reports)
         manager.onPlayerResult(result(31_000))
         advanceUntilIdle()
         assertEquals("stopped 31000 / $HEAT", reports.last())
     }
 
-    /**
-     * Each write of the position rewrites its file and syncs it to the flash: it is written at the
-     * backend's pace, some ten seconds, not at every status, and once more as tracking stops.
-     */
+    /** Each write syncs a file to flash: done at the report pace, not every status, and once more at the end. */
     @Test
     fun thePositionIsWrittenDownAtTheReportsPace() = runTest {
         val manager = manager()
@@ -108,7 +105,7 @@ class PlaybackManagerTest {
         assertFalse(kept.contains(POSITION))
     }
 
-    /** "Next" pressed in the middle of the film: the player went on to the next file of the folder, what it says is not this title's. */
+    /** "Next" pressed mid-film: the player moved to the folder's next file, whose status is not this title's. */
     @Test
     fun anotherFileIsNotTakenForTheTitleLaunched() = runTest {
         val manager = manager()
@@ -149,10 +146,7 @@ class PlaybackManagerTest {
     private fun playingFile(positionMs: Long, durationMs: Long, path: String?) =
         PlayerAnswer.Playing(ZidooPlayState(playing = true, paused = false, positionMs = positionMs, durationMs = durationMs, path = path))
 
-    /**
-     * Lire on a film in two files: the player plays the first, then goes on by itself to the second, the
-     * next file of its folder. That is the film still: its last part is reported, the end of the film.
-     */
+    /** The player moves on by itself to the film's second file: still the film, whose end is the last part's. */
     @Test
     fun aFilmsNextPartIsFollowedToItsEnd() = runTest {
         val manager = manager()
@@ -173,7 +167,6 @@ class PlaybackManagerTest {
         assertFalse("The first part is not told it stopped elsewhere", reports.any { it.startsWith("part 1 stopped") })
     }
 
-    /** A player that does not say what it plays: at the end of a part, it goes on to the next file of its folder, the next part. */
     @Test
     fun theNextPartIsTheFileAfterTheEndOfAPartWhenThePlayerNamesNone() = runTest {
         val manager = manager()
@@ -189,7 +182,6 @@ class PlaybackManagerTest {
         assertEquals("part 2 stopped 30000 / $CD2", reports.last())
     }
 
-    /** A film in parts, then another file than its next part: that file is not the film's, tracking stops as for any other. */
     @Test
     fun anotherFileAfterAPartIsNotItsNextPart() = runTest {
         // The player names another file at the end of the first part.
@@ -219,7 +211,7 @@ class PlaybackManagerTest {
         assertEquals("part 1 stopped 600000 / $CD1", reports.last())
     }
 
-    /** An episode of 3 min 30 played to its end, then the player went on to the next one, about as long: it is another file. */
+    /** A 3 min 30 episode played to its end, then the next one, about as long: that is another file. */
     @Test
     fun theNextShortEpisodeIsAnotherFile() = runTest {
         val manager = manager()
@@ -236,10 +228,6 @@ class PlaybackManagerTest {
         assertEquals("stopped 208000 / $EPISODE", reports.last())
     }
 
-    /**
-     * A disc image opens on a 30 s intro, then its film: the film is the title launched, not another
-     * file, and what the player says of it (then returns) is kept.
-     */
     @Test
     fun aThirtySecondIntroThenATwoHourFilmIsTheSameTitle() = runTest {
         val manager = manager()
@@ -257,7 +245,6 @@ class PlaybackManagerTest {
         assertEquals("stopped 3600000 / $FILM", reports.last())
     }
 
-    /** A disc's film played to its end, then its menu came back: the menu is not the film. */
     @Test
     fun aDiscsMenuAfterItsFilmIsNotTheFilm() = runTest {
         val manager = manager()
@@ -272,11 +259,7 @@ class PlaybackManagerTest {
         assertEquals("stopped ${FILM - 4_000} / $FILM", reports.last())
     }
 
-    /**
-     * The player's API out of reach a while: the film still plays, the NAS is still its own. The API
-     * is asked less often, not given up while the film may still play: once it says nothing plays,
-     * nothing does.
-     */
+    /** While the API is unreachable, the film keeps the NAS; polling slows, and stops only once nothing plays. */
     @Test
     fun aPlayerOutOfReachIsStillPlaying() = runTest {
         val manager = manager()
@@ -295,10 +278,6 @@ class PlaybackManagerTest {
         assertFalse(manager.playing.value)
     }
 
-    /**
-     * The API gone with its player, or answering without a video for ever: once more time went by than
-     * the film had left, and a margin, it can no longer be playing. The scan gets its NAS back.
-     */
     @Test
     fun aPlayerSilentLongerThanItsFilmHadLeftIsNoLongerPlaying() = runTest {
         val manager = manager()
@@ -320,7 +299,7 @@ class PlaybackManagerTest {
         assertEquals("stopped 7100000 / $FILM", reports.last())
     }
 
-    /** A player that never said what it plays is not playing for ever: past some four hours, the scan goes on. */
+    /** Past about four hours without an answer, the scan resumes. */
     @Test
     fun aPlayerThatNeverAnsweredIsNotPlayingForEver() = runTest {
         val manager = manager()
@@ -332,10 +311,7 @@ class PlaybackManagerTest {
         assertFalse(manager.playing.value)
     }
 
-    /**
-     * A disc's 30 s intro, then its menu, where the player's API says no more: what was left of the
-     * intro says nothing of the film to come, which may play for hours.
-     */
+    /** A disc's 30 s intro, then a menu where the API stops answering: the film to come may play for hours. */
     @Test
     fun aDiscsIntroDoesNotBoundTheSilenceThatFollows() = runTest {
         val manager = manager()
@@ -385,7 +361,7 @@ class PlaybackManagerTest {
     /** On a 2 GB player, Android may stop the app while the film plays: the result reaches a new process. */
     @Test
     fun aSessionOutlivesTheProcess() = runTest {
-        // The process stopped: what it was doing goes with it, never to an end of its own.
+        // The first process dies: its tracking, in the background scope, never completes.
         val first = PlaybackManager(context, backgroundScope, status = { statuses.removeFirstOrNull() ?: PlayerAnswer.NoAnswer }) { null }
         first.intentFor(plan())
         statuses += playing(600_000)
@@ -410,7 +386,7 @@ class PlaybackManagerTest {
         const val FILM = 7_200_000L
         const val EPISODE = 210_000L
 
-        /** A film's two files. */
+        /** Durations of a film's two files. */
         const val CD1 = 5_400_000L
         const val CD2 = 4_800_000L
     }

@@ -13,11 +13,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
-/**
- * Cold start-up to home's rows, without any compilation (a fresh install, before the player has
- * compiled anything) and with the baseline profile, on a rooted device:
- * `./gradlew :baselineprofile:connectedBenchmarkReleaseAndroidTest` (README, Performance).
- */
+/** Cold start-up to home's rows, uncompiled and with the baseline profile, on a rooted device (CONTRIBUTING.md). */
 @RunWith(Parameterized::class)
 class StartupBenchmark(private val compilation: CompilationMode) {
     @get:Rule
@@ -25,8 +21,7 @@ class StartupBenchmark(private val compilation: CompilationMode) {
 
     @Test
     fun coldStart() {
-        // A cold start empties the page cache first, which needs root: a player's user build has
-        // none, so there the measure is skipped, not failed (an emulator with `adb root` has it).
+        // A cold start drops the page cache, which needs root: skipped, not failed, on a player's user build.
         assumeTrue("Cold start-up needs a rooted device (adb root)", rooted())
         measureColdStart()
     }
@@ -58,5 +53,5 @@ class StartupBenchmark(private val compilation: CompilationMode) {
     }
 }
 
-/** Repeats of each measure: enough for a median the player's noise does not move. */
+/** Repetitions per measure: enough for a median the player's noise does not move. */
 internal const val ITERATIONS = 5

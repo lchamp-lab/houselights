@@ -50,17 +50,13 @@ internal fun LazyListScope.aboutPane(onOpenCatalog: () -> Unit, rows: PaneRows) 
     item {
         HlSettingGroup(null) {
             SupportRow()
-            // For whoever works on the app: the design system on this screen, last.
+            // Debug builds only: the design system catalogue, last.
             if (BuildConfig.DEBUG) HlSettingRow(CATALOG, rows.focus("catalog"), onClick = onOpenCatalog)
         }
     }
 }
 
-/**
- * A way to support the project, said here and nowhere else, never as a reminder: OK shows, in a
- * side sheet, the code a phone opens the project's Ko-fi page with, and its address. Back closes
- * it, focus back on the row.
- */
+/** Support for the project, offered here only, never as a reminder: OK opens a sheet with the Ko-fi QR code. */
 @Composable
 internal fun SupportRow(modifier: Modifier = Modifier) {
     var open by remember { mutableStateOf(false) }
@@ -71,17 +67,14 @@ internal fun SupportRow(modifier: Modifier = Modifier) {
         onClick = { open = true },
     )
     if (open) {
-        // Nothing to choose in it, so nothing to focus: Back is the one key it answers.
+        // Nothing in it is focusable: Back is the only key it handles.
         HlSideSheet(stringResource(R.string.support), onDismiss = { open = false }, description = stringResource(R.string.support_scan)) {
             QrCode(R.drawable.support_qr, SUPPORT_ADDRESS)
         }
     }
 }
 
-/**
- * The house light and its name, with what this copy is. The wordmark stands where every pane has its
- * title, level with the first navigation entry: moving between panes, the title does not jump.
- */
+/** The wordmark, version and licence, placed where every pane has its title so nothing jumps between panes. */
 @Composable
 private fun AboutBrand() {
     Column {
@@ -97,19 +90,19 @@ private fun AboutBrand() {
     }
 }
 
-/** What the app works with on this device, read like the back of a case: each with its light. */
+/** What the app relies on on this device, each with its status light. */
 @Composable
 private fun AboutStatus() {
     val context = LocalContext.current.applicationContext
     val vm = viewModel {
         AboutViewModel(
-            // What playback decides, from the same code: what an evening on a new player starts from.
+            // The same decision playback makes, so About shows what playback will do on this player.
             playerStatus = { ZidooPlayer(context).status() },
             apiAnswers = ZidooStatus::isAvailable,
         )
     }
     val device = remember { DeviceIdentity.current().name }
-    // Asked while the block shows, as it comes into view.
+    // Checked each time the block comes into view.
     DisposableEffect(vm) {
         vm.check()
         onDispose { vm.forget() }
@@ -138,10 +131,7 @@ private fun AboutStatus() {
     }
 }
 
-/**
- * The device, by its maker and model, and its player as playback decides ([PlayerStatus]): the app it
- * hands films to, and whether a password may go to it, or why not.
- */
+/** The device's model, and its player as playback decides ([PlayerStatus]): may it get a password, or why not. */
 @Composable
 internal fun DeviceRows(device: String, player: PlayerStatus) {
     DefinitionRow(stringResource(R.string.label_device)) {
@@ -151,7 +141,7 @@ internal fun DeviceRows(device: String, player: PlayerStatus) {
         when (player) {
             is PlayerStatus.Detected -> HlStatus(StatusState.Done, stringResource(R.string.detected), detail = player.packageName)
             is PlayerStatus.Unrecognized -> HlStatus(
-                // Off a Zidoo, nothing is wrong: no player there gets a password.
+                // Not a fault on other devices: no player there gets a password.
                 if (player.reason == Decision.NOT_A_ZIDOO) StatusState.Off else StatusState.Attention,
                 stringResource(R.string.player_unrecognised),
                 detail = stringResource(player.reason.words()) + FACT_GAP + player.packageName,
@@ -161,16 +151,16 @@ internal fun DeviceRows(device: String, player: PlayerStatus) {
     }
 }
 
-/** Why a player found gets no password, in a few words. */
+/** Why a detected player gets no password, in a few words. */
 @StringRes
 private fun Decision.words(): Int = when (this) {
     Decision.NOT_A_ZIDOO -> R.string.player_not_a_zidoo
     Decision.NO_CERTIFICATE -> R.string.player_no_certificate
-    // The one refusal left: a player trusted, or none, is said otherwise.
+    // The remaining refusal: a trusted or missing player is reported elsewhere.
     else -> R.string.player_changed_since
 }
 
-/** Whose work the app stands on, as the credits at the foot of a poster read: who did what. */
+/** Credits for the work the app builds on: who did what. */
 @Composable
 private fun AboutCredits() {
     InfoBlock(stringResource(R.string.about_credits)) {
@@ -183,7 +173,7 @@ private fun AboutCredits() {
                     modifier = Modifier.height(HlSize.inlineIcon),
                 )
             }
-            // What TMDB asks to be said, under its logo, in the column of values.
+            // TMDB's required attribution, under its logo, in the values column.
             Hint(stringResource(R.string.tmdb_attribution), Modifier.padding(start = HlLayout.definitionLabel))
             DefinitionRow(stringResource(R.string.credit_font)) {
                 Text(stringResource(R.string.credit_font_value), style = Hl.type.meta, color = Hl.colors.content)
@@ -192,7 +182,7 @@ private fun AboutCredits() {
     }
 }
 private const val LICENSE = "GPL-3.0"
-/** What `support_qr` says, without its scheme, as a phone shows it and a person types it. */
+/** The address `support_qr` encodes, without its scheme, as a phone shows it and a person types it. */
 private const val SUPPORT_ADDRESS = "ko-fi.com/lchamp_lab"
 /** Debug builds only, not translated. */
 private const val CATALOG = "Design system"

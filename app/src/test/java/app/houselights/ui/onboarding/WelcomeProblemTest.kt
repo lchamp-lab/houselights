@@ -14,7 +14,7 @@ import java.io.IOException
 import java.security.ProviderException
 import java.util.Locale
 
-/** Choosing the folders failed on the welcome screen: what it says never sends to the settings, which it does not lead to. */
+/** A folder-choice failure on the welcome screen never points to the settings, which it does not lead to. */
 @RunWith(RobolectricTestRunner::class)
 class WelcomeProblemTest {
     private val context = ApplicationProvider.getApplicationContext<Context>()

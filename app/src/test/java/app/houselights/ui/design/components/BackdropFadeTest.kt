@@ -17,11 +17,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
-/**
- * A backdrop's pictures fade in over `SLOW`, its first one included, but one: the first it shows,
- * in memory when it was asked for (loaded ahead), while the launch screen still hides the screen. That
- * one is whole from its first frame: the launch's cue reveals it.
- */
+/** Backdrop pictures fade in over `SLOW`, except one already in memory under the launch screen: opaque at once. */
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = TV)
 class BackdropFadeTest {

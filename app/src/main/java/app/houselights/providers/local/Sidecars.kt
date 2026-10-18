@@ -2,7 +2,7 @@ package app.houselights.providers.local
 
 import java.util.Locale
 
-/** Files that tools like Kodi, tinyMediaManager or Jellyfin place next to a video or a show. */
+/** Files that Kodi, tinyMediaManager or Jellyfin place next to a video or a show. */
 data class VideoSidecars(
     val nfo: RemoteFile? = null,
     val poster: RemoteFile? = null,
@@ -12,9 +12,8 @@ data class VideoSidecars(
 )
 
 /**
- * Finds sidecar files by Kodi naming conventions, case-insensitively. [videos]: the titles of the
- * folder ([ScanTitles]), its extras left out, as they decide which folders a title has to itself; a
- * film in several files counts once, and is found in [stacks].
+ * Finds sidecars by Kodi naming conventions, case-insensitively. [videos] are the titles ([ScanTitles], no extras),
+ * which decide which folders a title owns; multi-file films come from [stacks].
  */
 class Sidecars(files: List<RemoteFile>, videos: List<RemoteFile>, private val stacks: Stacks? = null) {
     private val byPath = files.associateBy { it.relativePath.lowercase() }
@@ -24,9 +23,8 @@ class Sidecars(files: List<RemoteFile>, videos: List<RemoteFile>, private val st
         names.firstNotNullOfOrNull { byPath[(if (dir.isEmpty()) it else "$dir/$it").lowercase()] }
 
     /**
-     * A film: "<name>.nfo", "<name>-poster.jpg"…; folder-wide names only when it has its own folder. A
-     * film in several files goes by its name without the part ("Film (2020).nfo"), then by each part's.
-     * A disc's lie beside its BDMV or VIDEO_TS folder, and its NFO in it too ("BDMV/index.nfo").
+     * "<name>.nfo", "<name>-poster.jpg"…, plus folder-wide names when the title owns its folder. Multi-file films try
+     * the name without the part ("Film (2020).nfo"), then each part's; a disc's NFO may also be "BDMV/index.nfo".
      */
     fun forVideo(video: RemoteFile): VideoSidecars {
         val dir = titleFolder(video.relativePath)
@@ -45,7 +43,7 @@ class Sidecars(files: List<RemoteFile>, videos: List<RemoteFile>, private val st
         )
     }
 
-    /** A show folder: tvshow.nfo, poster.jpg, fanart.jpg, clearlogo.png; no landscape, which a show does not show. */
+    /** A show folder's tvshow.nfo, poster, fanart and clearlogo; shows display no landscape image. */
     fun forShow(showDir: String): VideoSidecars = VideoSidecars(
         nfo = find(showDir, listOf("tvshow.nfo")),
         poster = find(showDir, IMAGES.flatMap { listOf("poster.$it", "folder.$it", "cover.$it") }),
@@ -63,7 +61,7 @@ class Sidecars(files: List<RemoteFile>, videos: List<RemoteFile>, private val st
         private val IMAGES = listOf("jpg", "jpeg", "png", "webp")
         fun folderOf(path: String) = path.substringBeforeLast('/', "")
 
-        /** The folder a title lies in: a file's own, a disc's the one holding it. */
+        /** A file's folder, or for a disc stream the folder holding the disc. */
         private fun titleFolder(path: String) = FilenameParser.discOf(path)?.root ?: folderOf(path)
     }
 }

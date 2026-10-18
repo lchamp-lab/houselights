@@ -41,7 +41,7 @@ class FilenameParserTest {
         assertEquals(ParsedMovie("Oppenheimer", null), movie("Oppenheimer.MULTi.2160p.WEB-DL.mkv"))
         assertEquals(ParsedMovie("Oppenheimer", null), movie("Oppenheimer.FRENCH.1080p.WEB.H264-GROUP.mkv"))
         assertEquals(ParsedMovie("Oppenheimer", null), movie("Oppenheimer (FRENCH) 1080p.mkv"))
-        // French encodes' own tags lead the run too, word tags before them included.
+        // French release tags also start the tag run, including word tags before them.
         assertEquals(ParsedMovie("Oppenheimer", null), movie("Oppenheimer.FRENCH.HDLight.1080p.x264-GROUP.mkv"))
         assertEquals(ParsedMovie("Oppenheimer", null), movie("Oppenheimer.FRENCH.4KLight.mkv"))
         assertEquals(ParsedMovie("Le Film", null), movie("Le.Film.FRENCH.XViD-GROUP.avi"))
@@ -57,7 +57,7 @@ class FilenameParserTest {
         titles.forEach { assertEquals(ParsedMovie(it, null), movie("$it.mkv")) }
     }
 
-    /** Words that are release tags at times, in titles: a title is cut at a tag no title holds, and only there. */
+    /** Words that are sometimes release tags, in titles: a title is cut only at a tag no title contains. */
     @Test
     fun titleWordsThatAreTagsAtTimes() {
         assertEquals(ParsedMovie("The French Connection", 1971), movie("The French Connection (1971).mkv"))
@@ -71,7 +71,7 @@ class FilenameParserTest {
         assertEquals(ParsedMovie("Dune Part Two", null), movie("Dune Part Two.mkv"))
     }
 
-    /** Those words in capitals, in a name that has small letters, are a release's tags, with or without a technical one after. */
+    /** Those words in capitals, in a name with lowercase letters, are release tags. */
     @Test
     fun wordTagsInCapitalsAreTheRelease() {
         assertEquals(ParsedMovie("Le Film", null), movie("Le.Film.FRENCH.mkv"))
@@ -84,7 +84,7 @@ class FilenameParserTest {
         assertEquals(ParsedMovie("THE FRENCH CONNECTION", null), movie("THE.FRENCH.CONNECTION.mkv"))
     }
 
-    /** Those words in capitals after nothing but an article are the title's: an article alone is no title to search. */
+    /** An article alone is no title to search. */
     @Test
     fun wordTagsInCapitalsAfterAnArticleAreTheTitles() {
         assertEquals(ParsedMovie("The IMAX Experience", null), movie("The IMAX Experience.mkv"))
@@ -97,7 +97,6 @@ class FilenameParserTest {
         assertEquals(ParsedMovie("The IMAX", null), movie("The.IMAX.1080p.mkv"))
     }
 
-    /** A year to come is a title's number, not its year. */
     @Test
     fun aYearToComeIsPartOfTheTitle() {
         assertEquals(ParsedMovie("Blade Runner 2049", null), movie("Blade Runner 2049.mkv"))
@@ -253,10 +252,7 @@ class FilenameParserTest {
         )
     }
 
-    /**
-     * French packs: a season's named "Saison 1" (or "Season 1") at the source's root, and a whole show's named
-     * "Intégrale": the show is named up to them, so that its seasons are one show, not "Les Revenants Saison 1".
-     */
+    /** French packs ("Saison 1", "Intégrale") at the root: the show is named up to them, its seasons one show. */
     @Test
     fun frenchPacksAreNamedUpToWhatTheyHold() {
         assertEquals(
@@ -280,7 +276,6 @@ class FilenameParserTest {
         assertEquals(ParsedMovie("Astérix L’intégrale", null), movie("Astérix L’intégrale MULTi 1080p.mkv"))
     }
 
-    /** Packs of several seasons, "Saisons 1-2", "Saisons 1 à 5", "Seasons 1-3": the show is named up to them too. */
     @Test
     fun packsOfSeveralSeasonsAreNamedUpToThem() {
         assertEquals(
@@ -309,10 +304,7 @@ class FilenameParserTest {
         assertEquals(Triple("Les Saisons", null, "Les Saisons"), show("Les Saisons/Les.Saisons.S01E01.mkv"))
     }
 
-    /**
-     * A folder of a show's name holding one for each of its years ("Doctor Who/Doctor Who (2005)"): each is a show
-     * of its own, by its year. A season's pack giving the year stays in its show's folder.
-     */
+    /** "Doctor Who/Doctor Who (2005)": one show per year; a season pack with a year stays in its show folder. */
     @Test
     fun aShowsFolderHoldingOneForEachOfItsYears() {
         assertEquals(
@@ -331,11 +323,7 @@ class FilenameParserTest {
         assertEquals(Triple("Severance", 2022, "Severance (2022)"), show("Severance (2022)/Severance (2022)/Season 1/Severance.S01E01.mkv"))
     }
 
-    /**
-     * A folder of a year of the show naming what of it it holds besides, a season or a release's tags, after its year
-     * in parentheses as media managers write it: a show of its own too; a season's pack gives the year, and the show
-     * stays in the folder of its name, which its tvshow.nfo describes. A scene pack's year stays its show folder's.
-     */
+    /** A year folder also naming a season or tags is a show of its own; a season pack keeps its show's folder. */
     @Test
     fun aYearsFolderNamingASeasonOrTagsBesides() {
         assertEquals(

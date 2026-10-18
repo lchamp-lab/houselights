@@ -8,10 +8,8 @@ import java.io.File
 import javax.xml.parsers.DocumentBuilderFactory
 
 /**
- * The code About shows to support the project (`support_qr.xml`, a vector of its dark modules, one
- * unit each) still opens the project's Ko-fi page: read as a phone reads it, by a reader small
- * enough for the one symbol it holds (version 3, 29 × 29 modules, level M, one block), its format
- * checked, its error correction recomputed and its data decoded.
+ * The About support code (`support_qr.xml`) still opens the project's Ko-fi page, decoded as a phone would:
+ * version 3, level M, its format checked and its error correction recomputed.
  */
 class SupportCodeTest {
     private val drawable = File("src/main/res/drawable/support_qr.xml")
@@ -60,10 +58,7 @@ class SupportCodeTest {
         return code
     }
 
-    /**
-     * Its level and mask, from the format information: both copies, each one of the 32 codes the
-     * format can take (5 bits, their BCH bits, masked), and the same.
-     */
+    /** Its level and mask, from both copies of the format information, each one of the 32 valid codes. */
     private fun format(code: Array<BooleanArray>): Pair<Int, Int> {
         fun bits(cells: List<Pair<Int, Int>>) = cells.fold(0) { bits, (row, col) -> bits shl 1 or (if (code[row][col]) 1 else 0) }
         val nearTopLeft = bits(
@@ -83,17 +78,14 @@ class SupportCodeTest {
         return (format shl BCH_BITS or rest) xor FORMAT_MASK
     }
 
-    /**
-     * The codewords, read as a reader does: two columns at a time from the bottom right, up then
-     * down, past the timing column, skipping what is not data, each module unmasked.
-     */
+    /** The codewords in reading order, each module unmasked. */
     private fun codewords(code: Array<BooleanArray>, mask: Int): List<Int> {
         val bits = readingOrder().map { (row, col) -> (if (code[row][col]) 1 else 0) xor (if (masked(mask, row, col)) 1 else 0) }
         assertEquals(TOTAL_CODEWORDS * BYTE + REMAINDER_BITS, bits.size)
         return bits.chunked(BYTE).take(TOTAL_CODEWORDS).map { byte -> byte.fold(0) { b, bit -> b shl 1 or bit } }
     }
 
-    /** The data modules, by row and column, in a reader's order: pairs of columns from the right, past the timing column. */
+    /** The data modules in a reader's order: pairs of columns from the right, past the timing column. */
     private fun readingOrder(): List<Pair<Int, Int>> =
         ((SIZE - 1 downTo TIMING + 2 step 2) + (TIMING - 1 downTo 1 step 2)).flatMapIndexed { pair, col ->
             val rows = if (pair % 2 == 0) SIZE - 1 downTo 0 else 0 until SIZE

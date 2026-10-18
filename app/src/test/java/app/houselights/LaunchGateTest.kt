@@ -13,11 +13,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/**
- * The launch screen covers the app while the gate is shut: until home has its rows and its first
- * pictures in memory and has drawn its first frame whole under it, at once when the app starts
- * elsewhere, never past the cap; and it opens once, said once in the log.
- */
+/** The launch screen lifts once home has its rows, first images and a full frame drawn, never past the cap. */
 @OptIn(ExperimentalCoroutinesApi::class)
 class LaunchGateTest {
     /** Milliseconds since the process started, as the test sets them. */
@@ -39,7 +35,6 @@ class LaunchGateTest {
         assertEquals(Reason.READY, gate.reason)
     }
 
-    /** Home drew its rows and its backdrop while the cards' pictures were still on their way: they come first. */
     @Test
     fun aFrameDrawnBeforeThePicturesWaitsForThem() {
         gate.homeLoaded()
@@ -66,7 +61,7 @@ class LaunchGateTest {
         assertEquals(Reason.START_SCREEN, gate.reason)
     }
 
-    /** A NAS slow to send the pictures, or a home slow to draw them, never holds the app. */
+    /** A slow NAS or a slow first draw never keeps the launch screen up past the cap. */
     @Test
     fun theCapOpensIt() = runTest {
         val timed = LaunchGate(sinceStart = { testScheduler.currentTime + STARTED }, capMs = 1_500, report = { said += it })
@@ -99,7 +94,6 @@ class LaunchGateTest {
         assertEquals("open already: at once", Reason.START_SCREEN, gate.awaitOpen())
     }
 
-    /** One line for the evening on the player: how long after the process started, why, and when each part came. */
     @Test
     fun theLogSaysWhenAndWhy() {
         now = 120
@@ -147,7 +141,7 @@ class LaunchGateTest {
     }
 
     private companion object {
-        /** The process started this long before the test's clock, as the activity comes after it. */
+        /** Milliseconds from process start to the test clock's zero, since the activity starts later. */
         const val STARTED = 300L
     }
 }

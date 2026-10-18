@@ -8,8 +8,8 @@ import retrofit2.http.Path
 import retrofit2.http.Query
 
 /**
- * Subset of the Jellyfin REST API (10.9+ routes). A route that writes returns Unit: Retrofit then
- * throws an HttpException for any answer outside 2xx, which a Response would hide.
+ * Subset of the Jellyfin REST API (10.9+ routes). Write routes return Unit so that Retrofit throws an
+ * HttpException on any non-2xx answer, which a Response return type would hide.
  */
 interface JellyfinApi {
     @GET("System/Info/Public")
@@ -18,7 +18,7 @@ interface JellyfinApi {
     @POST("Users/AuthenticateByName")
     suspend fun authenticate(@Body body: AuthRequest): AuthResult
 
-    /** Ends the session of the token in the request: the server forgets it. */
+    /** Invalidates the access token sent with the request. */
     @POST("Sessions/Logout")
     suspend fun logout()
 
@@ -65,13 +65,13 @@ interface JellyfinApi {
         @Query("genres") genres: String? = null,
         @Query("years") years: String? = null,
         @Query("is4K") is4K: Boolean? = null,
-        /** The titles of these people (ids, comma-separated), before or behind the camera. */
+        /** Comma-separated person ids; matches both cast and crew. */
         @Query("personIds") personIds: String? = null,
-        /** Titles whose names hold this, as the server searches them. */
+        /** Server-side search on item names. */
         @Query("searchTerm") searchTerm: String? = null,
     ): ItemsResult
 
-    /** People whose names hold [searchTerm], as the server searches them. */
+    /** People whose names match [searchTerm], using the server's search. */
     @GET("Persons")
     suspend fun persons(
         @Query("userId") userId: String,

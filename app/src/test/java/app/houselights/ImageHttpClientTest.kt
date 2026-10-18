@@ -15,9 +15,9 @@ import java.io.IOException
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
-/** Pictures and a server's answers come from one host: neither waits in the other's queue. */
+/** Images and API calls to the same host have separate queues: neither waits behind the other. */
 class ImageHttpClientTest {
-    /** Answers every request at once, but holds pictures until [pictures] is let go. */
+    /** Holds the fake server's image requests until counted down; other requests answer at once. */
     private val pictures = CountDownLatch(1)
 
     private val api = OkHttpClient.Builder()
@@ -56,7 +56,6 @@ class ImageHttpClientTest {
         }
     }
 
-    /** One pool of connections and threads still: only the queue is the pictures' own. */
     @Test
     fun picturesShareTheConnectionsAndThreads() {
         val images = imageHttpClient(api)
@@ -65,10 +64,10 @@ class ImageHttpClientTest {
     }
 
     private companion object {
-        /** More than OkHttp lets go to a host at a time. */
+        /** More than OkHttp's per-host request limit. */
         const val POSTERS = 8
 
-        /** How long the title may take; the posters are held longer, until the test ends. */
+        /** Timeout for the title request; the posters stay held until the test ends. */
         const val WAIT_S = 5L
         const val HOLD_S = 60L
     }

@@ -68,7 +68,6 @@ class HomeViewModelTest {
 
     private fun HomeViewModel.content() = state.value.content
 
-    /** The library's rows come under home's own, once the launch screen has left. */
     @Test
     fun theLibrarysRowsComeAfterTheLaunch() = runTest {
         provider.catalog = app.houselights.ui.testing.FakeCatalog().apply { best = (1..6).map { film("best$it") } }

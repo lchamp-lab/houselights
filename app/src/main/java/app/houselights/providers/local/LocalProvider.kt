@@ -42,12 +42,12 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.util.Locale
 
-/** Library built by [LibraryScanner] from the user's network folders. */
+/** Provider for the library [LibraryScanner] builds from network sources. */
 class LocalProvider(
     private val context: Context,
     private val dao: LibraryDao,
     override val editor: MetadataEditor,
-    /** Films of a collection the library needs to show it; 0 hides collections. */
+    /** Minimum owned films for a collection to be shown; 0 hides collections. */
     private val collectionMinFilms: () -> Int = { CollectionThreshold.DEFAULT },
 ) : MediaProvider {
 
@@ -84,18 +84,18 @@ class LocalProvider(
     override suspend fun libraryPage(library: Library, sort: SortOption, filter: LibraryFilter, start: Int, limit: Int): Page {
         if (library.id == COLLECTIONS) return collectionsPage(sort, start, limit)
         val kind = if (library.id == SHOWS) ItemKind.SERIES else ItemKind.MOVIE
-        // Shows carry no technical badges themselves: one of their episodes must, as for the menu (libraryFacets).
+        // Shows have no technical badges of their own: file filters match their episodes, as in libraryFacets.
         val filtered = LocalFilters.where(kind, filter)
         val where = filtered.sql
         val args = filtered.args
         val order = when (sort) {
-            // Sort keys are lower case already: a plain order can follow the (kind, sortTitle) index.
+            // Sort keys are already lowercase, so a plain ORDER BY can use the (kind, sortTitle) index.
             SortOption.TITLE -> "sortTitle ASC"
             SortOption.ADDED -> "addedAt DESC"
             SortOption.YEAR -> "year DESC, sortTitle ASC"
             SortOption.RATING -> "rating DESC, sortTitle ASC"
         }
-        // The id settles ties, so that pages never overlap nor skip a title.
+        // Ties sort by id so pages never overlap or skip a title.
         val page = "SELECT $CARD_ROW FROM items WHERE $where ORDER BY $order, id LIMIT $limit OFFSET $start"
         val items = dao.query(SimpleSQLiteQuery(page, args.toTypedArray()))
         val total = dao.countQuery(SimpleSQLiteQuery("SELECT COUNT(*) FROM items WHERE $where", args.toTypedArray()))
@@ -103,7 +103,6 @@ class LocalProvider(
         return Page(mapper.mapAll(items), total)
     }
 
-    /** Collections holding enough films, sorted like films: by name, latest addition, latest film, rating. */
     private suspend fun collectionsPage(sort: SortOption, start: Int, limit: Int): Page {
         val min = collectionMinFilms().coerceAtLeast(1)
         val order = when (sort) {
@@ -124,26 +123,25 @@ class LocalProvider(
         return Page(collectionItems(collections), dao.collectionCount(min))
     }
 
-    /** [collections] as titles of the library, their films read in a query a [SQL_IN_LIMIT] collections. */
     internal suspend fun collectionItems(collections: List<CollectionEntity>): List<MediaItem> {
         val members = membersOf(collections.map { it.id })
         return withContext(Dispatchers.Default) { collections.map { collectionItem(it, members[it.id].orEmpty()) } }
     }
 
-    /** The films of each collection of [ids], by collection: a query a [SQL_IN_LIMIT] collections, rather than one each. */
+    /** One query per [SQL_IN_LIMIT] collections rather than one each. */
     internal suspend fun membersOf(ids: List<Long>): Map<Long, List<CollectionMember>> =
         ids.chunked(SQL_IN_LIMIT).flatMap { dao.collectionMembers(it) }.groupBy { it.collectionId }
 
     override suspend fun libraryFacets(library: Library): LibraryFacets {
         if (library.id == COLLECTIONS) return LibraryFacets()
         val kind = if (library.id == SHOWS) ItemKind.SERIES else ItemKind.MOVIE
-        // Shows carry no technical badges themselves: look at their episodes.
+        // Shows have no technical badges of their own: read their episodes'.
         val files = if (kind == ItemKind.SERIES) ItemKind.EPISODE else kind
         val badgeLists = dao.badgesOf(files)
         val genreLists = dao.genresOf(kind)
         val years = dao.yearsOf(kind)
         val ends = dao.fileEnds(files)
-        // Every episode's badges, split off the main thread.
+        // Splitting every episode's badges is costly: off the main thread.
         return withContext(Dispatchers.Default) {
             val badges = badgeLists.flatMap(PipeList::fromText).toSet()
             LibraryFacets(
@@ -161,10 +159,8 @@ class LocalProvider(
         }
     }
 
-    /** The library row of a film, show, season or episode; null for a collection. */
     private fun itemKey(item: MediaItem): Long? = (LocalId.parse(item.id) as? LocalId.Item)?.key
 
-    /** [item]'s row, without its NFO text ([LibraryDao.itemRow]). */
     private suspend fun entity(item: MediaItem): ItemEntity? = itemKey(item)?.let { dao.itemRow(it) }
 
     override suspend fun item(id: String): MediaItem {
@@ -193,10 +189,6 @@ class LocalProvider(
         return mapper.mapAll(dao.collectionFilms(key))
     }
 
-    /**
-     * A collection as a title of the library: its name and story, the years its films span,
-     * how many of them are here (and out of how many), its artwork or its first film's.
-     */
     private suspend fun mapCollection(c: CollectionEntity, films: List<CollectionMember>? = null): MediaItem {
         val members = films ?: dao.collectionMembers(listOf(c.id))
         return withContext(Dispatchers.Default) { collectionItem(c, members) }
@@ -214,7 +206,7 @@ class LocalProvider(
             year = years.minOrNull(),
             endYear = years.maxOrNull()?.takeIf { it != years.minOrNull() },
             communityRating = members.mapNotNull { it.rating }.takeIf { it.isNotEmpty() }?.average(),
-            // One genre whatever its case: an NFO's "drame" and TMDB's "Drame" are one, as for the genre filter.
+            // Genres grouped case-insensitively, as in the genre filter: an NFO's "drame" is TMDB's "Drame".
             genres = members.flatMap { it.genres }.groupBy { it.lowercase(Locale.ROOT) }.values
                 .sortedByDescending { it.size }.take(3).map(PipeList::spellingOf),
             poster = (c.posterPath ?: first?.let { shown(it.userPosterPath, it.posterPath) })?.let { image(it, ImageType.POSTER) },
@@ -238,7 +230,6 @@ class LocalProvider(
         val mapper = LocalMapper(dao, context)
         val key = itemKey(series) ?: return emptyList()
         val counts = dao.seasonCounts(key).associateBy { it.seasonId }
-        // Each season says how far it is watched: its episodes, and those not watched yet.
         return mapper.mapAll(dao.childRows(key).filter { it.kind == ItemKind.SEASON }).map { season ->
             val c = season.id.toLongOrNull()?.let(counts::get) ?: return@map season
             season.copy(
@@ -266,7 +257,7 @@ class LocalProvider(
         if (entity.kind != ItemKind.MOVIE && entity.kind != ItemKind.SERIES) return emptyList()
         val genre = entity.genres.firstOrNull() ?: return emptyList()
         val mapper = LocalMapper(dao, context)
-        // From one of a film's copies, its title is no film like it.
+        // Exclude the film's main row, so a copy does not list its own film as similar.
         return mapper.mapAll(dao.byGenre(entity.kind, genre, entity.versionOf ?: entity.id, SIMILAR))
     }
 
@@ -287,47 +278,39 @@ class LocalProvider(
         itemKey(item)?.let { dao.setFavorite(it, favorite) }
     }
 
-    /**
-     * A film in several files plays one part at a time: the part [item] names ([MediaItem.parts]), from
-     * its start; the film itself plays its first part, where its resume point lies.
-     */
+    /** A part ([MediaItem.parts]) plays from its start; the film plays its first part, which holds the resume point. */
     override suspend fun playback(item: MediaItem, resume: Boolean, options: PlaybackOptions): PlaybackPlan {
         val key = itemKey(item) ?: throw NotFoundException("Item ${item.id}")
         val part = (LocalId.parse(item.id) as? LocalId.Item)?.part
-        // A film of several copies plays, from its title, the copy chosen, else the best ([LocalCatalog.versions]).
+        // A multi-copy film plays the chosen copy, else the best ([LocalCatalog.versions]).
         val copy = if (part == null) chosenCopy(key) else null
         return play(copy ?: key, part, resume)
     }
 
-    /** The copy the film titled by the row [titleId] plays when it has several: the user's choice, else the best; null for one. */
     private suspend fun chosenCopy(titleId: Long): Long? {
         val copies = dao.copies(titleId).takeIf { it.size > 1 } ?: return null
         val choice = copies.firstOrNull { it.id == titleId }?.versionChoice
         return copies.firstOrNull { it.id == choice }?.id ?: VersionRank.best(copies)
     }
 
-    /**
-     * Plays the row [rowId] itself, a film's copy or an episode: its [part] when it is a film in several files
-     * ([MediaItem.parts]), from its start; else its first part, where its resume point lies.
-     */
+    /** Plays row [rowId] itself: [part] from its start, else the first part from the resume point. */
     internal suspend fun play(rowId: Long, part: Int?, resume: Boolean): PlaybackPlan {
-        // With its NFO: the player is handed its artwork when that is all the web has (see LocalMapper.forPlayer).
+        // Full row with NFO, whose artwork URLs may be the only web ones (see LocalMapper.forPlayer).
         val entity = dao.item(rowId) ?: throw NotFoundException("Item $rowId")
         val files = listOfNotNull(entity.filePath) + entity.parts
-        // A part gone since the page was shown is a title gone.
+        // A part removed since the page was shown is reported as not found.
         val file = files.getOrNull((part ?: 1) - 1) ?: throw NotFoundException("No file for $rowId")
         val source = dao.sources().firstOrNull { it.id == entity.sourceId } ?: error("Source of ${entity.title} was removed")
         val mapper = LocalMapper(dao, context)
         val container = FilenameParser.extension(file)
         val mapped = mapper.map(entity)
-        // The player names the part it opens.
         val shown = if (entity.parts.isEmpty()) mapped else mapped.copy(title = partTitle(mapped.title, part ?: 1, files.size))
         return mapper.forPlayer(entity, shown).launch(
             fileUri(source, file), container,
             startMs = if (resume && part == null) entity.positionMs else 0L,
             reporter = LocalReporter(dao, entity.id, part ?: 1),
             resumeKey = if (part == null) entity.id.toString() else LocalId.ofPart(entity.id, part),
-            // A disc's image, or the stream a scan took for a Blu-ray's or a DVD's title (see ScanTitles).
+            // A disc image, or the stream a scan chose for a Blu-ray or DVD title (see ScanTitles).
             disc = container == DISC_IMAGE || FilenameParser.discOf(file) != null,
         )
     }
@@ -338,10 +321,8 @@ class LocalProvider(
         (LocalId.parse(resumeKey) as? LocalId.Item)?.let { LocalReporter(dao, it.key, it.part ?: 1) }
 
     /**
-     * "À suivre": the next episode of each show recently watched, and the next film of each saga one of whose films
-     * was ([nextInSagas]), the most recently watched first, skipping what is in progress already ([exclude]):
-     * where every episode of those shows and every film of those sagas stands in two light queries, then the rows
-     * of what comes next.
+     * Next episode of each recent show and next film of each recent saga ([nextInSagas]), most recent first, without
+     * [exclude]; two light state queries, then only the rows shown.
      */
     private suspend fun nextUp(exclude: Set<Long>): List<ItemEntity> {
         val shows = dao.recentSeries(NEXT_UP_SHOWS)
@@ -353,10 +334,7 @@ class LocalProvider(
         return next.mapNotNull { rows[it] }
     }
 
-    /**
-     * The next episode among the seasons, specials (season 0, first in [episodes]) once none is left
-     * there: as [MediaProvider.nextUp] does, a show starts with S01E01, not with a special.
-     */
+    /** Regular seasons before specials, so a show starts with S01E01, as in [MediaProvider.nextUp]. */
     private fun nextEpisode(episodes: List<EpisodeState>): EpisodeState? {
         val (specials, seasons) = episodes.partition { (it.seasonNumber ?: 0) == 0 }
         return nextOf(seasons) ?: nextOf(specials)
@@ -369,7 +347,6 @@ class LocalProvider(
         return episodes.drop(lastWatched + 1).firstOrNull { !it.played } ?: episodes.firstOrNull { !it.played }
     }
 
-    /** A person a title credits, as screens show them: their page opens by [Person.id]. */
     private fun person(c: TitleCredit) =
         Person(Typeset.text(c.name), Typeset.text(c.character), c.profilePath?.let { image(it, ImageType.PROFILE) }, c.personKey, c.titles)
 
@@ -380,14 +357,12 @@ class LocalProvider(
 
         private const val NEXT_UP_SHOWS = 20
 
-        /** The extension of a disc's image. */
         private const val DISC_IMAGE = "iso"
         private const val SIMILAR = 16
 
         /**
-         * The next film of each saga of [films] (saga by saga, in the order they came out, [LibraryDao.startedSagas]):
-         * the first after the last one watched that is not watched, when there is one; dated by the saga's last
-         * viewing. A film in progress, one of its copies too, is "Continue"'s: none then.
+         * Per saga ([LibraryDao.startedSagas]), the first unwatched film after the last watched one, dated by the
+         * saga's last viewing; none when it is in progress, as Continue already shows it.
          */
         internal fun nextInSagas(films: List<SagaFilmState>): List<Recent> =
             films.groupBy { it.collectionId }.values.mapNotNull { saga ->
@@ -396,7 +371,7 @@ class LocalProvider(
                 Recent(next.id, saga.mapNotNull { it.lastPlayedAt }.maxOrNull() ?: 0)
             }
 
-        /** How a sound format ranks among a library's, best first: objects, lossless, DTS, Dolby Digital Plus, then the rest. */
+        /** Rank of a sound format, best first: object-based, lossless, DTS, Dolby Digital Plus, then the rest. */
         internal fun soundRank(token: String): Int = SOUND_ORDER.indexOfFirst { it(token) }.let { if (it < 0) SOUND_ORDER.size else it }
 
         private val SOUND_ORDER: List<(String) -> Boolean> = listOf(
@@ -406,7 +381,7 @@ class LocalProvider(
             { it == Codecs.EAC3 },
         )
 
-        /** The user's choice over the automatic value; an empty choice means none (a logo set in type). */
+        /** The user's choice over the automatic value; an empty choice means none (e.g. no logo). */
         internal fun shown(user: String?, automatic: String?): String? = when {
             user == null -> automatic
             user.isEmpty() -> null
@@ -414,26 +389,23 @@ class LocalProvider(
         }
 
         /**
-         * A cached local file, a full URL from an NFO, or a TMDB path. An NFO's address on TMDB is its
-         * path there: Kodi and Radarr write the original file (a 4K fanart, a portrait of a few
-         * megabytes), which is asked for at the size shown, as TMDB's own paths are.
+         * Image for a cached file, an NFO URL or a TMDB path. NFO URLs on TMDB, which Kodi and Radarr write at original
+         * size, are reduced to their path and requested at display size.
          */
         fun image(path: String, type: ImageType): ImageRef {
             if (path.isCachedArtwork()) return ImageRef(path) { path }
             val tmdb = if (path.startsWith("http")) TMDB_IMAGE.matchEntire(path)?.groupValues?.get(1) else path
             if (tmdb != null) return ImageRef("tmdb:$tmdb") { w -> TmdbClient.imageUrl(tmdb, type, w) }
-            // Also upgrades addresses read from NFO files before they were fetched over HTTPS only.
+            // NfoParser.imageUrl also upgrades stored http URLs to HTTPS.
             return (NfoParser.imageUrl(path) ?: path).let { url -> ImageRef(url) { url } }
         }
 
-        /** A file on TMDB's image server, at any size ("w500", "original"): its path there is the group. */
+        /** A TMDB image URL at any size ("w500", "original"); the group is the file path. */
         private val TMDB_IMAGE = Regex("""https?://image\.tmdb\.org/t/p/[^/]+(/[^/?#]+)""", RegexOption.IGNORE_CASE)
 
         /**
-         * URI the Zidoo player opens directly:
-         * smb://user:password@host/share/folder/file (smb://domain;user:password@… for an account of a
-         * domain, as SMB URLs write it) or nfs://host/export/folder/file. The name, domain and password
-         * are percent-encoded: a password holding @, : or / would otherwise end the user's part.
+         * URI the Zidoo player opens: smb://user:password@host/share/path (domain;user for a domain account) or
+         * nfs://host/export/path. Credentials are percent-encoded, as an @, : or / would end the user info.
          */
         fun fileUri(source: SourceEntity, relativePath: String): String {
             val path = listOf(source.share.trim('/'), source.path.trim('/'), relativePath).filter { it.isNotEmpty() }

@@ -2,7 +2,7 @@ package app.houselights.core
 
 import androidx.annotation.Keep
 
-/** The pieces of artwork a user can choose for a title. Kept: a navigation route carries it. */
+/** The artwork kinds that can be chosen for a title. Kept from R8 because a navigation route carries it. */
 @Keep
 enum class ArtworkKind { POSTER, BACKDROP, LOGO }
 
@@ -35,20 +35,17 @@ data class ArtworkOption(
 data class ArtworkChoices(
     /** The automatic option first, then the others by relevance. */
     val options: List<ArtworkOption>,
-    /** What automatic matching uses when the user has not chosen. */
+    /** The option used when none was chosen. */
     val automatic: ArtworkOption?,
-    /** What is shown now: the user's choice, else [automatic]. */
+    /** The option shown: the chosen one, else [automatic]. */
     val selected: ArtworkOption?,
     /** False when online images could not be listed (title not identified, no key, offline). */
     val onlineAvailable: Boolean,
-    /**
-     * Why they could not be listed, when asking failed or could not be done (no key, the key refused,
-     * TMDB away): the screen says what fixes it. Null when they were, or the title is not identified.
-     */
+    /** Why online images could not be listed, so the screen can say what fixes it; null if listed or unidentified. */
     val onlineError: FailureKind? = null,
 )
 
-/** A title of the image database the user can match a file with. */
+/** An image database title that a file can be matched with. */
 data class MatchCandidate(
     val id: String,
     val title: String,
@@ -58,30 +55,27 @@ data class MatchCandidate(
     val poster: ImageRef?,
 )
 
-/** How a title is identified now, and what to search for by default. */
+/** A title's current identification and its default search. */
 data class Identity(
     /** The video file, or the show's folder. */
     val fileName: String?,
     val query: String,
     val year: Int?,
     val current: MatchCandidate?,
-    /** True when the user chose the match; false when automatic matching did. */
+    /** True when the match was chosen by hand; false when automatic matching made it. */
     val manual: Boolean,
     /** False when no image database is configured to search in. */
     val canSearch: Boolean,
 )
 
-/**
- * Lets the user correct what automatic matching chose: artwork and identification.
- * Optional: a provider that cannot store such choices returns no editor.
- */
+/** Corrects automatic matching (artwork, identification); absent from a provider that cannot store choices. */
 interface MetadataEditor {
-    /** Kinds of items this editor can change. */
+    /** Whether this editor can change [item]. */
     fun canEdit(item: MediaItem): Boolean
 
     suspend fun artwork(item: MediaItem, kind: ArtworkKind): ArtworkChoices
 
-    /** Shows [option] for [item]; choosing the automatic option goes back to automatic. */
+    /** Shows [option] for [item]; choosing the automatic option reverts to automatic. */
     suspend fun setArtwork(item: MediaItem, kind: ArtworkKind, option: ArtworkOption)
 
     suspend fun identity(item: MediaItem): Identity
@@ -89,6 +83,6 @@ interface MetadataEditor {
     /** Titles matching [query]; an IMDb id ("tt0111161") finds that exact title. */
     suspend fun search(item: MediaItem, query: String, year: Int?): List<MatchCandidate>
 
-    /** Matches [item] with [candidate], or goes back to automatic matching when null. */
+    /** Matches [item] with [candidate], or reverts to automatic matching when null. */
     suspend fun identify(item: MediaItem, candidate: MatchCandidate?)
 }

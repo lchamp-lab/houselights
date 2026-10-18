@@ -26,10 +26,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
-/**
- * DESIGN.md, Components: an [HlScrollArea] takes focus only when it has something to scroll; up
- * and down then scroll it a step at a time until an end, where focus moves on.
- */
+/** DESIGN.md, Components: an [HlScrollArea] takes focus only when it can scroll, then scrolls a step per press. */
 @RunWith(RobolectricTestRunner::class)
 @Config(application = Application::class, qualifiers = TV)
 class ScrollAreaTest {
@@ -75,7 +72,6 @@ class ScrollAreaTest {
         compose.press(Key.DirectionDown)
         compose.onNodeWithTag("after").assertIsFocused()
 
-        // And back up the other way, from its end.
         compose.press(Key.DirectionUp)
         compose.onNodeWithTag("area").assertIsFocused()
         compose.press(Key.DirectionUp)

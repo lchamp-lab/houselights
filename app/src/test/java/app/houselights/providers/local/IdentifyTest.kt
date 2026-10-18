@@ -20,7 +20,7 @@ import org.robolectric.shadows.ShadowSystemClock
 import java.io.IOException
 import java.time.Duration
 
-/** An identification asks TMDB everything first, then writes everything: never half a new match. */
+/** An identification fetches everything from TMDB first, then writes everything: never half a new match. */
 @RunWith(RobolectricTestRunner::class)
 class IdentifyTest {
     @get:Rule
@@ -108,10 +108,6 @@ class IdentifyTest {
         assertNotNull(bench.dao.collection(checkNotNull(matched.collectionId))?.fetchedAt)
     }
 
-    /**
-     * A result TMDB no longer has (removed, or merged into another since the search): TMDB does not
-     * know it, which is not the title gone from the library, and the film stays as it was.
-     */
     @Test
     fun aResultTmdbNoLongerHasIsTmdbsNotTheLibrarys() = runTest {
         val films = bench.folder("Films")
@@ -127,10 +123,7 @@ class IdentifyTest {
         assertEquals(1, kept.tmdbId)
     }
 
-    /**
-     * The Office (UK) as Sonarr describes it beside the files: its TVDB and IMDb ids, no TMDB id;
-     * the American show TMDB has under the same name; the folder holding a show of that name.
-     */
+    /** The Office (UK) as Sonarr describes it (TVDB and IMDb ids, no TMDB id), beside TMDB's American namesake. */
     private suspend fun theOffice(): ItemEntity {
         bench.folder("Séries", SourceKind.SHOWS)
         tmdb.shows[OFFICE_UK] = tmdb.show(OFFICE_UK, "The Office (UK)", 2001).copy(externalIds = TmdbExternalIds("tt0290978", 78107))
@@ -153,7 +146,6 @@ class IdentifyTest {
         return checkNotNull(bench.dao.seriesByKey(FilenameParser.showKey("The Office")))
     }
 
-    /** Identified by hand as another show, a show leaves an NFO naming the first one aside, by its IMDb id. */
     @Test
     fun aShowIdentifiedAsAnotherLeavesItsNfoAside() = runTest {
         val series = theOffice()
@@ -165,7 +157,7 @@ class IdentifyTest {
         assertEquals("About The Office", matched.overview)
         assertEquals("the NFO's cast goes too", emptyList<String>(), bench.dao.cast(series.id).map { it.name })
 
-        // And so at each refresh after.
+        // Likewise at every later refresh.
         bench.scan(refreshMetadata = true)
         assertEquals("The Office", bench.dao.item(series.id)?.title)
     }
@@ -180,7 +172,6 @@ class IdentifyTest {
         assertEquals(listOf("Ricky Gervais"), bench.dao.cast(series.id).map { it.name })
     }
 
-    /** Without TMDB's answer, nothing tells whose show the NFO's ids name: the show keeps what it had meanwhile. */
     @Test
     fun aShowIdentifiedAsAnotherKeepsItWhileTmdbDoesNotAnswer() = runTest {
         val series = theOffice()
@@ -195,10 +186,6 @@ class IdentifyTest {
         assertNull("asked again at a later pass", waiting.matchedAt)
     }
 
-    /**
-     * The NFO rewritten while TMDB is out of reach, by Sonarr matched as the user did: it waits for TMDB's word,
-     * and has it once TMDB answers again, without a refresh.
-     */
     @Test
     fun aShowNfoRewrittenWhileTmdbIsOutOfReachIsDecidedOnceItAnswers() = runTest {
         val series = theOffice()

@@ -47,7 +47,7 @@ class NfoViewModelTest {
         assertEquals("Heat", content.info?.title)
     }
 
-    /** Up to 1 MB of XML: the screen gets it parsed and in lines, done where the ViewModel was told, not on the main thread. */
+    /** Up to 1 MB of XML, parsed into lines off the main thread, on the dispatcher the ViewModel was given. */
     @Test
     fun theNfoIsParsedAwayFromTheMainThread() = runTest {
         val parsing = TestCoroutineScheduler()
@@ -81,7 +81,6 @@ class NfoViewModelTest {
         assertEquals(LoadState.Ready(content), vm.state.value.document)
     }
 
-    /** Tried again twice: the latest load says what the title holds, never an older one finishing late. */
     @Test
     fun theLatestLoadWins() = runTest {
         val vm = viewModel()

@@ -139,7 +139,6 @@ class JellyfinLoginViewModelTest {
         assertEquals(LoginError.Unreachable("http://nas:8096"), failure())
     }
 
-    /** What signing in said speaks of what was typed: the server, the user or the password changed, it is no longer said. */
     @Test
     fun whatSigningInSaidGoesWhenWhatItUsedChanges() = runTest {
         network.reachFailure = IOException("Connection refused")
@@ -155,7 +154,6 @@ class JellyfinLoginViewModelTest {
         }
     }
 
-    /** A field changed while the server was asked: its answer speaks of what the form no longer holds. */
     @Test
     fun whatSigningInSaysOfFieldsChangedMeanwhileIsNotSaid() = runTest {
         network.reachFailure = IOException("Connection refused")
@@ -173,14 +171,14 @@ class JellyfinLoginViewModelTest {
         assertNull(vm.error)
     }
 
-    /** The server took the password; the Keystore refused to seal its token: said as the device's fault, not the server's. */
+    /** The server took the password, but the Keystore cannot seal the token: the device's fault. */
     @Test
     fun aKeystoreThatCannotSealTheTokenSaysSo() {
         val e = SecretsUnavailableException(ProviderException("Keystore operation failed"))
         assertEquals(LoginError.Keystore, loginError(e, "https://nas:8920"))
     }
 
-    /** The server took the password; the device refused to save it: said as the device's fault, never as the server out of reach. */
+    /** The server took the password, but the device cannot save it: the device's fault, not the server's. */
     @Test
     fun aServerThatCannotBeSavedSaysSo() = runTest {
         // One settings file: a second DataStore on it would never read.

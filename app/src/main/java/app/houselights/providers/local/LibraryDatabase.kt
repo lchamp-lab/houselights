@@ -67,21 +67,21 @@ abstract class LibraryDatabase : RoomDatabase() {
                 db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_collections_matchKey` ON `collections` (`matchKey`)")
                 db.execSQL("ALTER TABLE items ADD COLUMN collectionId INTEGER")
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_items_collectionId` ON `items` (`collectionId`)")
-                // Films already in the library learn their collection at the next scan.
+                // Existing films are matched again at the next scan to get their collection.
                 db.execSQL("UPDATE items SET matchedAt = NULL WHERE kind = 'MOVIE'")
             }
         }
 
-        /** What a library already holds was found by its first scans (see [SourceEntity.firstScanAt]). */
+        /** v7 → v8: adds sources.firstScanAt (see [SourceEntity.firstScanAt]). */
         private val MIGRATION_7_8 = object : Migration(7, 8) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE sources ADD COLUMN firstScanAt INTEGER NOT NULL DEFAULT 0")
-                // What a library already holds was found by its first scans: none of it is new.
+                // Everything already in the library counts as found by the first scan, so none of it is new.
                 db.execSQL("UPDATE sources SET firstScanAt = lastScanAt")
             }
         }
 
-        /** Rows of missing files wait before they go (see [MissingFiles]). */
+        /** v8 → v9: adds items.missingSince (see [MissingFiles]). */
         private val MIGRATION_8_9 = object : Migration(8, 9) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE items ADD COLUMN missingSince INTEGER")
@@ -89,8 +89,8 @@ abstract class LibraryDatabase : RoomDatabase() {
         }
 
         /**
-         * Files holding several episodes, films in several parts, and what was read beside each file.
-         * Sort keys lose their accents and ligatures; films of a saga whose name gave no key leave it, for their own.
+         * v9 → v10: adds multi-episode files, multi-part films and sidecar keys; folds accents and ligatures out of
+         * sort keys; splits the collection that merged all sagas whose names had no significant word.
          */
         private val MIGRATION_9_10 = object : Migration(9, 10) {
             override fun migrate(db: SupportSQLiteDatabase) {
@@ -99,9 +99,8 @@ abstract class LibraryDatabase : RoomDatabase() {
                 db.execSQL("ALTER TABLE items ADD COLUMN sidecarKey TEXT")
                 foldSortKeys(db, "items")
                 foldSortKeys(db, "collections")
-                // Sagas whose names left no word ("Collection", a name in Japanese) were all one: their films
-                // leave it, and find their own at the next scan (see CollectionRules.key), from their NFO's set
-                // (their sidecars are read again, sidecarKey being new) or from TMDB, which is asked again.
+                // Sagas with no significant word ("Collection", Japanese script) shared the key "name:": their
+                // films are rematched at the next scan (see CollectionRules.key).
                 val merged = "SELECT id FROM collections WHERE matchKey = 'name:'"
                 db.execSQL("UPDATE items SET matchedAt = NULL WHERE kind = 'MOVIE' AND collectionId IN ($merged)")
                 db.execSQL("UPDATE items SET collectionId = NULL WHERE collectionId IN ($merged)")
@@ -110,10 +109,8 @@ abstract class LibraryDatabase : RoomDatabase() {
         }
 
         /**
-         * The probe each file was read with and the length it gives, in columns of their own (see
-         * [ItemEntity.probeVersion]), from what each row holds: its JSON, decoded here once, in Kotlin,
-         * as Android 9's SQLite may lack its JSON functions. A row whose JSON cannot be read keeps 0
-         * and no length: the next scan reads its file again, as it did.
+         * v10 → v11: copies probe version and duration out of the mediaInfo JSON into columns, decoding in Kotlin as
+         * Android 9's SQLite may lack JSON functions; undecodable rows keep version 0 and are probed again.
          */
         private val MIGRATION_10_11 = object : Migration(10, 11) {
             override fun migrate(db: SupportSQLiteDatabase) {
@@ -129,7 +126,6 @@ abstract class LibraryDatabase : RoomDatabase() {
                         }
                     }
                 }
-                // One statement for every row: a library of thousands of files opens once, without compiling each.
                 db.compileStatement("UPDATE items SET probeVersion = ?, fileDurationMs = ? WHERE id = ?").use { update ->
                     for ((id, version, length) in read) {
                         update.bindLong(1, version.toLong())
@@ -143,13 +139,8 @@ abstract class LibraryDatabase : RoomDatabase() {
         }
 
         /**
-         * Credits by job and by person, in place of the cast alone; sagas whole; the copies of a film; words for
-         * searches. What a library holds comes along at once, folded here in Kotlin as Android 9's SQLite folds no
-         * accent: each title's cast and a film's directors, keyed by their names until TMDB gives their ids; each
-         * title's, person's and saga's words; a film's edition from its file's name; the copies of each film. The
-         * crew TMDB credits titles with, and the films of sagas TMDB knows (asked again: fetchedAt is cleared), come
-         * at later passes, a few a pass ([Backfill]). Nothing the user did is lost: a film's title takes what was done
-         * with any of its copies, watched or a favourite.
+         * v11 → v12: replaces the cast table with credits, adds saga parts, film copies and search words (computed in
+         * Kotlin, as Android 9's SQLite cannot fold accents). TMDB crew and saga parts follow via [Backfill].
          */
         private val MIGRATION_11_12 = object : Migration(11, 12) {
             override fun migrate(db: SupportSQLiteDatabase) {
@@ -186,8 +177,7 @@ abstract class LibraryDatabase : RoomDatabase() {
                     }
                 }
                 db.execSQL(GROUP_VERSIONS)
-                // A film watched or chosen as a favourite in one of its copies is so as one title: its card shows the
-                // title row's state, and from now on what is done with it is done with every copy.
+                // The main row, which cards show, takes the watched and favourite state of any copy.
                 for (state in listOf("played", "favorite")) {
                     db.execSQL(
                         "UPDATE items SET $state = 1 WHERE kind = 'MOVIE' AND versionOf IS NULL AND $state = 0 " +
@@ -198,7 +188,7 @@ abstract class LibraryDatabase : RoomDatabase() {
             }
         }
 
-        /** The tables and columns of version 12, as Room exported them. */
+        /** Tables, columns and indexes added in v12, as in Room's exported schema. */
         private fun createTables(db: SupportSQLiteDatabase) {
             db.execSQL(
                 "CREATE TABLE IF NOT EXISTS `credits` (`itemId` INTEGER NOT NULL, `job` TEXT NOT NULL, `ord` INTEGER NOT NULL, " +
@@ -226,7 +216,7 @@ abstract class LibraryDatabase : RoomDatabase() {
             db.execSQL("CREATE INDEX IF NOT EXISTS `index_items_versionOf` ON `items` (`versionOf`)")
         }
 
-        /** The cast version 11 kept, and a film's directors, as credits keyed by name ([PersonKeys]). */
+        /** The v11 cast table and film directors as name-keyed credits ([PersonKeys]). */
         private fun formerCredits(db: SupportSQLiteDatabase): List<CreditEntity> {
             fun credit(itemId: Long, job: Job, ord: Int, name: String, character: String?, profile: String?): CreditEntity {
                 val folded = PersonKeys.fold(name)
@@ -252,7 +242,7 @@ abstract class LibraryDatabase : RoomDatabase() {
             return cast + directors
         }
 
-        /** Each film's edition, as its file's name gives it ([FilenameParser.edition]); its NFO's comes with the backfill. */
+        /** Editions from file names ([FilenameParser.edition]); the NFO's come with the backfill. */
         private fun writeEditions(db: SupportSQLiteDatabase) {
             val editions = db.query("SELECT id, filePath FROM items WHERE kind = 'MOVIE' AND filePath IS NOT NULL").use { rows ->
                 buildList {
@@ -262,7 +252,6 @@ abstract class LibraryDatabase : RoomDatabase() {
             for ((id, edition) in editions) db.execSQL("UPDATE items SET edition = ? WHERE id = ?", arrayOf<Any>(edition, id))
         }
 
-        /** The words of each film's and show's names. */
         private fun titleWords(db: SupportSQLiteDatabase): List<SearchWordEntity> =
             db.query("SELECT id, title, originalTitle FROM items WHERE kind IN ('MOVIE', 'SERIES')").use { rows ->
                 buildList {
@@ -273,7 +262,6 @@ abstract class LibraryDatabase : RoomDatabase() {
                 }
             }
 
-        /** The words of each saga's name. */
         private fun sagaWords(db: SupportSQLiteDatabase): List<SearchWordEntity> =
             db.query("SELECT id, name FROM collections").use { rows ->
                 buildList {
@@ -282,10 +270,8 @@ abstract class LibraryDatabase : RoomDatabase() {
             }
 
         /**
-         * Folds the accents and ligatures of the sort keys of [table] ([MetadataMerge.fold]), and takes off
-         * an l' glued to its word ("l'arnaque"), which version 9 left. Nothing more: taking the articles off
-         * again would not leave a key as it was ("la land", from "La La Land", would become "land"). A title
-         * with no file beside it is merged again only by a refresh: its key is made right here.
+         * Folds sort keys of [table] ([MetadataMerge.fold]) and strips a glued l' ("l'arnaque"). Articles are not
+         * stripped again, as "la land" (from "La La Land") would become "land".
          */
         private fun foldSortKeys(db: SupportSQLiteDatabase, table: String) {
             val folded = db.query("SELECT id, sortTitle FROM $table").use { rows ->
@@ -301,9 +287,8 @@ abstract class LibraryDatabase : RoomDatabase() {
         }
 
         /**
-         * Seals the passwords stored in plain text so far, and indexes what lists sort and filter on.
-         * A Keystore that cannot seal leaves a password as it is: read as plain text, it still signs
-         * in, and it is sealed at a later launch ([sealPlainPasswords]); the library still opens.
+         * v6 → v7: seals plain-text passwords and adds the indexes lists sort and filter on. If the Keystore cannot
+         * seal, the password stays plain (it still works) and is sealed at a later launch ([sealPlainPasswords]).
          */
         internal fun migration6To7(secrets: Secrets) = object : Migration(startVersion = 6, endVersion = 7) {
             override fun migrate(db: SupportSQLiteDatabase) {
@@ -340,10 +325,8 @@ abstract class LibraryDatabase : RoomDatabase() {
                 .build()
 
         /**
-         * Seals the passwords still in plain text, which migration 6 to 7 left when the Keystore could
-         * not seal: a scan never writes a folder's password, so without this they would stay so until
-         * the folder is saved again. Run at each launch, off the main thread; a Keystore that still
-         * cannot seal, or a write that fails, leaves them for the next launch, logged.
+         * Seals passwords left plain by v6 → v7 when the Keystore failed, as scans never rewrite them. Runs at each
+         * launch; failures are logged and retried at the next one.
          */
         suspend fun sealPlainPasswords(dao: LibraryDao, secrets: Secrets) {
             suspendRunCatching {
@@ -359,7 +342,7 @@ abstract class LibraryDatabase : RoomDatabase() {
 
         private const val TAG = "Library"
 
-        /** l' or l’ glued to a word, at the start of a key: version 9 took it off only before a space. */
+        /** l' or l’ glued to the first word of a key; v9 stripped it only before a space. */
         private val GLUED_L = Regex("""^l['’](?=\S)""")
     }
 }

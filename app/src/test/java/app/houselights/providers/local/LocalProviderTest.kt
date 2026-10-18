@@ -96,7 +96,7 @@ class LocalProviderTest {
     @Test
     fun onlyWhatCameAfterTheFirstScanIsAddedLater() = runTest {
         movie("Alien", addedAt = 1_000)
-        // Before the first scan has ended, nothing is told apart.
+        // Until the first scan has ended, nothing counts as added.
         assertEquals(listOf(null), page().items.map { it.addedAt })
 
         dao.updateSource(dao.sources().single().copy(lastScanAt = 2_000, firstScanAt = 2_000))
@@ -125,7 +125,7 @@ class LocalProviderTest {
         assertEquals(listOf("Collateral", "Heat", "Ronin"), page(LibraryFilter(genre = "Drame")).items.map { it.title })
     }
 
-    /** NFO files and TMDB spell a genre each their way: the menu offers it once, and its filter keeps every spelling. */
+    /** NFOs and TMDB spell a genre differently: the menu offers it once, and its filter keeps every spelling. */
     @Test
     fun aGenreIsOneWhateverItsCase() = runTest {
         movie("Heat", genres = listOf("Drame", "Action"))
@@ -211,7 +211,7 @@ class LocalProviderTest {
     private suspend fun show(title: String) =
         Show(dao.insert(ItemEntity(kind = ItemKind.SERIES, sourceId = source, title = title, sortTitle = title.lowercase(), addedAt = 0)))
 
-    /** A show of the library; [episode] adds an episode to it, and its season when new. */
+    /** A show in the library; [episode] adds an episode to it, and its season if new. */
     private inner class Show(val id: Long) {
         private val seasons = mutableMapOf<Int, Long>()
 
@@ -234,7 +234,7 @@ class LocalProviderTest {
         }
     }
 
-    /** Each season of a show says how far it is watched: its episodes and those not watched yet, in one query. */
+    /** Each season of a show reports its episodes and those not yet watched, in one query. */
     @Test
     fun seasonsSayHowFarTheyAreWatched() = runTest {
         val show = show("MobLand")
@@ -249,7 +249,7 @@ class LocalProviderTest {
         assertEquals(listOf(true, false, false), seasons.map { it.user.played })
     }
 
-    /** Sonarr's "Specials" folder holds S00E01: "Play" starts S01E01 all the same, and the specials once the rest is watched. */
+    /** Sonarr's "Specials" holds S00E01: "Play" still starts S01E01, and the specials once the rest is watched. */
     @Test
     fun aShowStartsWithItsFirstSeasonNotItsSpecials() = runTest {
         val show = show("MobLand")
@@ -282,7 +282,7 @@ class LocalProviderTest {
         assertEquals(1, provider.libraryPage(shows, SortOption.TITLE, LibraryFilter(quality = Quality.DOLBY_VISION), 0, 50).total)
     }
 
-    /** The menu offers a quality for the titles its filter keeps, by the same badges, each whole. */
+    /** The menu offers a quality for the titles its filter keeps, matching the same whole badges. */
     @Test
     fun aQualityIsOfferedForTheFilmsItsFilterKeeps() = runTest {
         suspend fun film(title: String, vararg badges: String) = dao.insert(
@@ -319,7 +319,7 @@ class LocalProviderTest {
             assertEquals(30 * 60_000L, it.positionMs)
         }
 
-        // The app may have been stopped meanwhile: the reporter comes back from the resume key.
+        // The app may have been killed meanwhile: the reporter is recreated from the resume key.
         provider.reporter(plan.resumeKey!!)!!.stopped(positionMs = 95 * 60_000L, durationMs = 100 * 60_000L)
         dao.item(id)!!.let {
             assertTrue(it.played)
@@ -341,7 +341,7 @@ class LocalProviderTest {
         val film = provider.item(id.toString())
         assertEquals(listOf("${id}p1", "${id}p2"), film.parts.map { it.id })
         assertEquals(listOf("Le Parrain CD1.avi", "Le Parrain CD2.avi"), film.parts.map { it.fileName })
-        // It lasts as long as TMDB says, not as its first file.
+        // Its duration is TMDB's, not its first file's.
         assertEquals(175 * 60_000L, film.runtimeMs)
 
         val options = PlaybackOptions(emptyList(), false)
@@ -370,7 +370,7 @@ class LocalProviderTest {
             assertEquals(87 * 60_000L, it.positionMs)
         }
 
-        // A later part keeps the first's resume point; the app stopped meanwhile, its reporter comes back.
+        // A later part keeps the first part's resume point; the app was killed meanwhile, its reporter recreated.
         val second = provider.playback(film.parts[1], resume = false, options) as PlaybackPlan.Launch
         second.reporter!!.progress(positionMs = 30 * 60_000L, durationMs = 87 * 60_000L, paused = false)
         assertEquals(87 * 60_000L, dao.item(id)!!.positionMs)
@@ -381,7 +381,6 @@ class LocalProviderTest {
         }
     }
 
-    /** Lire, then the player goes on by itself from the first file to the second: the film's next part, then its end. */
     @Test
     fun aFilmPlayedFromPartToPartIsWatchedAtTheEndOfTheLast() = runTest {
         val id = godfather()
@@ -400,14 +399,10 @@ class LocalProviderTest {
             assertTrue(it.played)
             assertEquals(0L, it.positionMs)
         }
-        // A film of one file has no next part.
         assertNull(LocalReporter(dao, movie("Heat")).next())
     }
 
-    /**
-     * The player is another app: a fanart or a clearlogo kept by the app is out of its reach. It gets
-     * the web address that stands for it (the automatic choice, else the NFO's), never nothing.
-     */
+    /** The player cannot read this app's files: it gets the web address (automatic choice, else the NFO's). */
     @Test
     fun thePlayerGetsWebArtworkForWhatTheAppKeepsItself() = runTest {
         val nfo = """<movie><title>Heat</title><fanart><thumb>http://assets.fanart.tv/heat.jpg</thumb></fanart></movie>"""
@@ -432,10 +427,7 @@ class LocalProviderTest {
         assertTrue("Not TMDB's logo: $logo", logo.startsWith("https://image.tmdb.org/") && logo.endsWith("/tmdbLogo.png"))
     }
 
-    /**
-     * An episode whose backdrop is a file the app keeps, with no web address of its own: the player
-     * gets its show's from TMDB, never nothing. A logo the show chose none of stays none.
-     */
+    /** An episode whose backdrop is a local file gets its show's from TMDB; a logo the show lacks stays absent. */
     @Test
     fun anEpisodeGetsItsShowsWebArtworkWhenItsOwnIsOutOfReach() = runTest {
         val series = dao.insert(
@@ -472,7 +464,7 @@ class LocalProviderTest {
         assertFalse((provider.playback(provider.item(mkv.toString()), resume = false, options) as PlaybackPlan.Launch).disc)
     }
 
-    /** The user chose no logo (the title set in type): the player gets none either. */
+    /** No logo chosen (the title set in type): the player gets none either. */
     @Test
     fun noLogoChosenIsNoLogoForThePlayer() = runTest {
         val id = dao.insert(
@@ -485,7 +477,7 @@ class LocalProviderTest {
         assertNull((plan as PlaybackPlan.Launch).logoUrl)
     }
 
-    /** A card lasts as long as its file, read from its column: only a title's page decodes what its file holds. */
+    /** A card's duration is read from its column: only a title's page decodes the file's media info. */
     @Test
     fun aCardLastsAsLongAsItsFile() = runTest {
         val read = MediaInfo(container = "MKV", durationMs = 9_300_000, probedWith = MediaProbe.VERSION)
@@ -501,7 +493,7 @@ class LocalProviderTest {
         assertEquals(read, provider.item(card.id).media)
     }
 
-    /** An NFO's address on TMDB, written at the original size by Kodi or Radarr, is asked for at the size shown. */
+    /** An NFO's TMDB image address, written at original size by Kodi or Radarr, is requested at the size shown. */
     @Test
     fun nfoImagesOnTmdbAreAskedForAtTheSizeShown() {
         val original = "https://image.tmdb.org/t/p/original/poster.jpg"
@@ -514,7 +506,7 @@ class LocalProviderTest {
             "https://image.tmdb.org/t/p/w185/actor.jpg",
             LocalProvider.image("https://image.tmdb.org/t/p/w500/actor.jpg", ImageType.PROFILE).url(120),
         )
-        // The picture TMDB's own path names: one key, one copy in the image cache.
+        // The image TMDB's own path names: one key, one copy in the image cache.
         assertEquals(LocalProvider.image("/poster.jpg", ImageType.POSTER), LocalProvider.image(original, ImageType.POSTER))
         // Another server's address stays as it is, over HTTPS.
         val fanart = LocalProvider.image("http://assets.fanart.tv/heat.jpg", ImageType.BACKDROP)

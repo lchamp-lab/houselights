@@ -11,10 +11,7 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import java.io.File
 
-/**
- * Creates a database exactly as an older version of the app did, from the schema Room exported for
- * that version (app/schemas), so migrations can be run on it.
- */
+/** Creates a database as an older app version did, from Room's exported schema (app/schemas), for migrations. */
 object SchemaHistory {
     private val dir = File("schemas/${LibraryDatabase::class.java.name}")
 

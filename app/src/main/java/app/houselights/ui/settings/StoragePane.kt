@@ -45,13 +45,13 @@ internal fun LazyListScope.storagePane(storage: StorageStats?) {
     item { StorageActions(storage) }
 }
 
-/** "12 fichiers · 3,4 Mo", or that there are none. */
+/** Artwork files and size ("12 fichiers · 3,4 Mo"), or that there are none. */
 @Composable
 private fun artworkUse(st: StorageStats): String =
     if (st.artworkFiles == 0) stringResource(R.string.storage_none)
     else pluralStringResource(R.plurals.file_count, st.artworkFiles, st.artworkFiles) + FACT_GAP + formatBytes(st.artworkBytes)
 
-/** How much is used, and by what: a figure, a gauge against the image cache, a legend. */
+/** Space used: the total, a meter scaled to the image cache limit, and a legend. */
 @Composable
 private fun StorageSummary(st: StorageStats?) {
     val c = Hl.colors
@@ -88,7 +88,7 @@ private fun StorageSummary(st: StorageStats?) {
             Spacer(Modifier.height(HlSpace.m))
             Hint(stringResource(R.string.storage_cache_limit, formatBytes(it.imageCacheMax)))
         }
-        // The last scan stopped for want of space: said here, above what frees some.
+        // The last scan stopped for lack of space: say so here, above the actions that free some.
         val scan by settingsViewModel().library.scan.collectAsStateWithLifecycle()
         if (scan.storageFull) {
             Spacer(Modifier.height(HlSpace.m))
@@ -107,7 +107,7 @@ private fun StorageActions(storage: StorageStats?) {
     val scope = rememberCoroutineScope()
     var cleaned by remember { mutableStateOf<String?>(null) }
     var cleared by remember { mutableStateOf(false) }
-    // A cleanup that failed is said on its row, where focus is.
+    // A failed action is reported on its row, where focus is.
     val cleanupFailure = rowFailure(vm.errorOf(SettingAction.CLEANUP), notDone = true)
     val cacheFailure = rowFailure(vm.errorOf(SettingAction.CLEAR_IMAGE_CACHE), notDone = true)
     HlSettingGroup(null, Modifier.revealOnFocus()) {

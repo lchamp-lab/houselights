@@ -34,22 +34,20 @@ data class LibraryState(
     val sort: SortOption = SortOption.TITLE,
     val filter: LibraryFilter = LibraryFilter(),
     val facets: LibraryFacets = LibraryFacets(),
-    /** Why the next page could not load, shown at the foot of the wall; none loads by itself until [pageRetrying]. */
+    /** Why the next page could not load, shown at the wall's foot; no page loads by itself until [pageRetrying]. */
     val pageError: UiError? = null,
     val pageRetrying: Boolean = false,
 )
 
 /**
- * A library's wall, page by page, from the [provider] of the source in use. Its sort and filter are
- * kept in [saved]: Android may stop the app while a film plays, and the wall comes back as it was left.
- * Opened on part of the library ([opensOn]: a format of the library in numbers, a person), it starts
- * filtered by it, which it then keeps as any filter chosen.
+ * A library's wall, page by page. Sort and filter are kept in [saved], as Android may kill the app during
+ * playback. Opened on part of the library ([opensOn]: a format, a person), it starts filtered by it.
  */
 class LibraryViewModel(
     private val provider: () -> MediaProvider,
     private val library: Library,
     private val saved: SavedStateHandle = SavedStateHandle(),
-    /** The first page, asked while home's pill slid here. */
+    /** The first page, prefetched while Home's track moved to this library. */
     private val ahead: LibraryAhead? = null,
     opensOn: LibraryFilter? = null,
 ) : ViewModel() {
@@ -61,10 +59,10 @@ class LibraryViewModel(
     /** What the source can filter by: the filter menu offers nothing else. */
     val capabilities: ProviderCapabilities get() = provider().capabilities
 
-    /** The first page, a reload in place or the next page: one at a time, the latest asked for. */
+    /** The first page, an in-place reload or the next page: one at a time, a new one cancelling the previous. */
     private val pages = LatestJob(viewModelScope)
 
-    /** What the filter menu offers: the latest asked for, the library as it is now. */
+    /** Loads what the filter menu offers, from the library as it is now; a new load cancels the previous. */
     private val facetLoads = LatestJob(viewModelScope)
 
     init {
@@ -72,13 +70,13 @@ class LibraryViewModel(
         loadFacets()
     }
 
-    /** The library changed (a scan, a film watched): show what it holds now, without losing the place. */
+    /** Shows what the library holds after a change (a scan, a film watched), without losing the place. */
     fun onLibraryChanged() {
         refresh()
         loadFacets()
     }
 
-    /** After a failure: load again from the first page. */
+    /** After a failure, loads again from the first page. */
     fun retry() = reset()
 
     fun setSort(sort: SortOption) {
@@ -99,22 +97,18 @@ class LibraryViewModel(
         facetLoads.launch {
             suspendRunCatching { provider().libraryFacets(library) }
                 .onSuccess { f -> _state.update { it.copy(facets = f) } }
-                // The filter menu keeps what it offered.
+                // On failure, the filter menu keeps what it offered.
                 .onFailure { Log.w(TAG, "Library facets failed", it) }
         }
     }
 
-    /** A new sort or filter: start again from the first page. */
     private fun reset() {
         pages.cancel()
         _state.update { it.copy(items = emptyList(), total = 0, loading = true, error = null, pageError = null, pageRetrying = false) }
         loadMore()
     }
 
-    /**
-     * The library changed (a scan, a film watched): reload what is already shown, in one go and in place,
-     * so the grid keeps its position and the focused poster.
-     */
+    /** Reloads what is shown in one request, in place, so the grid keeps its position and focused poster. */
     private fun refresh() {
         val s = _state.value
         pages.launch {
@@ -126,9 +120,7 @@ class LibraryViewModel(
                     it.copy(items = items, total = page.total, loading = false, error = null, pageError = null, pageRetrying = false)
                 }
             }.onFailure { e ->
-                // Keep what is shown; the next change or page load tries again. A first page or a
-                // retry this reload took over is not left at work: with nothing shown, the wall says
-                // why; past it, the foot can try again.
+                // Keep what is shown; clear any busy state this reload superseded; report only if nothing shows.
                 val error = e.reported(TAG, "Library refresh")
                 _state.update {
                     it.copy(loading = false, pageRetrying = false, error = if (it.items.isEmpty()) error else it.error)
@@ -137,15 +129,12 @@ class LibraryViewModel(
         }
     }
 
-    /**
-     * Loads the next page; called when focus gets close to the end of the grid. After a page failed, the
-     * next one waits for [retryPage]: focus moving along the last lines does not try again and again.
-     */
+    /** Loads the next page as focus nears the grid's end; after a failure, only [retryPage] tries again. */
     fun loadMore() {
         if (_state.value.pageError == null) nextPage()
     }
 
-    /** After the next page failed: tries it again. */
+    /** Retries the next page after it failed. */
     fun retryPage() {
         if (_state.value.pageError == null || pages.isActive) return
         _state.update { it.copy(pageRetrying = true) }
@@ -172,7 +161,7 @@ class LibraryViewModel(
                 }
             }.onFailure { e ->
                 val error = e.reported(TAG, "Library page")
-                // With nothing shown, the wall says why; past the first page, its foot does.
+                // With nothing shown, the wall explains the failure; past the first page, its foot does.
                 _state.update {
                     if (it.items.isEmpty()) {
                         it.copy(loading = false, error = error)
@@ -194,8 +183,8 @@ class LibraryViewModel(
     }
 }
 
-// A wall's route holds what it opens on under the names of the last five, as the same plain values: its saved
-// state starts with them, which [filter] reads only once [keep] has written them all.
+// A wall's route passes what it opens on under the last five keys, as the same plain values, so its saved
+// state starts with them; [filter] reads the saved state only once [keep] has written every key.
 private const val SORT = "sort"
 private const val STATUS = "status"
 private const val GENRE = "genre"
@@ -206,14 +195,11 @@ private const val SOUND = "sound"
 private const val FILE_TYPE = "fileType"
 private const val PERSON = "person"
 
-/** The sort kept, by name: a name no version knows any more is the default. */
+/** The kept sort, by name; an unknown name falls back to the default. */
 private fun SavedStateHandle.sort(): SortOption =
     get<String>(SORT)?.let { name -> SortOption.entries.find { it.name == name } } ?: SortOption.TITLE
 
-/**
- * The filter kept. A wall that has kept none yet starts from what it opens on ([opensOn]), kept from then on:
- * a wall brought back after a stopped process is as it was left, not as it was opened.
- */
+/** The kept filter, else [opensOn], kept at once so a restored wall is as it was left, not as it was opened. */
 private fun SavedStateHandle.filter(opensOn: LibraryFilter?): LibraryFilter {
     if (!contains(STATUS)) return (opensOn ?: LibraryFilter()).also { if (opensOn != null) keep(it) }
     return LibraryFilter(
@@ -228,7 +214,7 @@ private fun SavedStateHandle.filter(opensOn: LibraryFilter?): LibraryFilter {
     )
 }
 
-/** Kept as plain values, which a saved state holds across a stopped process. */
+/** Keeps [filter] as plain values, which saved state holds across a killed process. */
 private fun SavedStateHandle.keep(filter: LibraryFilter) {
     this[STATUS] = filter.status.name
     this[GENRE] = filter.genre
@@ -240,7 +226,7 @@ private fun SavedStateHandle.keep(filter: LibraryFilter) {
     this[PERSON] = filter.person
 }
 
-/** [this] without what the source cannot filter by ([can]): a wall never starts on a filter its menu could not take off. */
+/** [this] without what the source cannot filter by ([can]), so the menu can always clear the opening filter. */
 private fun LibraryFilter.within(can: ProviderCapabilities) = copy(
     picture = picture.takeIf { can.formatFilters },
     sound = sound.takeIf { can.formatFilters },

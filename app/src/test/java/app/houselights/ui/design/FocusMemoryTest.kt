@@ -42,10 +42,6 @@ class FocusMemoryTest {
     @get:Rule
     val compose = createComposeRule()
 
-    /**
-     * The element left is still there but takes no focus (nothing in it can have it): the memory
-     * says so, and the restore goes on to where the screen starts instead of leaving focus nowhere.
-     */
     @Test
     fun anElementThatRefusesFocusLeavesItToTheFallback() {
         val memory = FocusMemory(initial = FocusKey.item("left"))
@@ -85,11 +81,7 @@ class FocusMemoryTest {
         }
     }
 
-    /**
-     * The card left has gone and its row is there, but nothing in it takes focus: the row says so,
-     * and the restore goes on to where the screen starts. A requester on the row would only have
-     * said the row was there, and left focus nowhere.
-     */
+    /** A requester on the row would only report that the row exists, and leave focus nowhere. */
     @Test
     fun aGroupThatRefusesFocusLeavesItToTheFallback() {
         val row = FocusKey.row("similar")
@@ -108,7 +100,6 @@ class FocusMemoryTest {
         compose.runOnIdle { assertEquals(false, memory.focus(row)) }
     }
 
-    /** The card left has gone from a row that has others: focus comes back to the row, and goes on from there. */
     @Test
     fun aGroupTakesFocusForTheCardGoneFromIt() {
         val row = FocusKey.row("similar")
@@ -153,7 +144,7 @@ class FocusMemoryTest {
             assertTrue(FocusKey.item("t300") in memory.held)
             assertTrue(FocusKey.item("t1") !in memory.held)
         }
-        // What is back on screen is known again.
+        // What is back on screen is remembered again.
         compose.onNodeWithTag("list").performScrollToIndex(0)
         compose.runOnIdle { assertTrue(memory.focus(FocusKey.item("t1"))) }
     }

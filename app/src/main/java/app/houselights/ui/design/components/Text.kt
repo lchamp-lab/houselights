@@ -51,12 +51,8 @@ fun ScreenTitle(text: String, modifier: Modifier = Modifier) {
 }
 
 /**
- * The name, HOUSELIGHTS, as the brand draws it (`wordmark.xml`): expanded capitals of Archivo whose
- * weight goes down letter by letter, from 900 to 350, as the house lights go down. Drawn, never set,
- * so its letters, weights and spacing stay the brand's; in projector white, flat, with no halo or
- * shadow: the light in the room comes from the films. [height] is how tall its capitals stand
- * (`HlSize.wordmark` in About, `HlSize.wordmarkHero` over the welcome wall); its round letters pass
- * them a little, as type does, inside its box.
+ * The HOUSELIGHTS wordmark, drawn from `wordmark.xml` rather than typeset (DESIGN.md, Brand), in flat
+ * projector white. [height] is its cap height; round letters overshoot it slightly inside the box.
  */
 @Composable
 fun Wordmark(height: Dp, modifier: Modifier = Modifier) {
@@ -69,15 +65,14 @@ fun Wordmark(height: Dp, modifier: Modifier = Modifier) {
     )
 }
 
-/** The wordmark's drawing (`wordmark.xml`): its capitals 100 units tall, its round letters passing them above and below. */
+/** Viewport of `wordmark.xml`: capitals are 100 units tall; round letters overshoot them. */
 private const val WORDMARK_WIDTH = 1196.847f
 private const val WORDMARK_HEIGHT = 103.79f
 private const val WORDMARK_CAPITALS = 100f
 
 /**
- * What a [TitleArt] [maxWidthPx] by [maxHeightPx] at most asks Coil for: its [logo] at a constant
- * weight in that room ([EvenLogo]), decoded with room to spare so that a logo grown to its weight
- * is never enlarged. Anything asking for it ahead asks this, or it is not found in memory.
+ * The request of a [TitleArt] up to [maxWidthPx] by [maxHeightPx]: [logo] at constant weight ([EvenLogo]),
+ * decoded larger so it is never upscaled. Preloads must use it to hit the memory cache.
  */
 internal fun titleArtRequest(context: Context, logo: ImageRef, maxWidthPx: Int, maxHeightPx: Int): ImageRequest =
     ImageRequest.Builder(context)
@@ -88,13 +83,10 @@ internal fun titleArtRequest(context: Context, logo: ImageRef, maxWidthPx: Int, 
         .transformations(EvenLogo(maxWidthPx, maxHeightPx))
         .build()
 
-/** How much larger than its room a logo is decoded, to be set at its weight from its own pixels. */
+/** Decode size relative to the logo box, so [EvenLogo] sizes it from real pixels. */
 private const val LOGO_DECODE = 1.5f
 
-/**
- * The title's clear logo, or the title set in condensed type when there is none; [measured], set to
- * its measure as a poster sets it (a detail page: [MeasuredTitle]).
- */
+/** The title's clear logo, or its name in condensed type; [measured] balances its lines ([MeasuredTitle]). */
 @Composable
 fun TitleArt(
     title: String,
@@ -109,7 +101,7 @@ fun TitleArt(
     val context = LocalContext.current
     val widthPx = maxWidth.toPx()
     val heightPx = maxHeight.toPx()
-    // Set at its weight: drawn at its own size, which never leaves the room.
+    // Drawn at the size EvenLogo gave it, which fits the box.
     val request = remember(logo, widthPx, heightPx) { logo?.let { titleArtRequest(context, it, widthPx, heightPx) } }
     var failed by remember(request) { mutableStateOf(false) }
     if (request != null && !failed) {
@@ -136,10 +128,8 @@ fun TitleArt(
 }
 
 /**
- * A title set to its measure, as a poster sets it: on one line at the title's own size
- * ([HlType.titleSignature]) when it fits ("Ran", "Heat"), else in [style] on lines of even length
- * ("Les Sept / Samouraïs", not "Les Sept Samouraïs / x"), which Android 9 does not balance itself.
- * At most four measures of the text, once per title and width.
+ * A title set to its measure: on one line at [HlType.titleSignature] when it fits ("Ran"), else in [style]
+ * on balanced lines ("Les Sept / Samouraïs"), which Android 9 does not do itself. At most four measures.
  */
 @Composable
 private fun MeasuredTitle(title: String, style: TextStyle, maxWidth: Dp, maxLines: Int, modifier: Modifier) {
@@ -158,7 +148,7 @@ private fun MeasuredTitle(title: String, style: TextStyle, maxWidth: Dp, maxLine
     )
 }
 
-/** How a title is set: its style, and the width that evens its lines (null: the room it has). */
+/** A title's style and the width that balances its lines (null: the full width). */
 private class TitlePlan(val style: TextStyle, val widthPx: Int?)
 
 private fun TextMeasurer.titlePlan(
@@ -171,7 +161,7 @@ private fun TextMeasurer.titlePlan(
     if (measure(title, signature, maxLines = 1, softWrap = false).size.width <= widthPx) return TitlePlan(signature, null)
     val oneLine = measure(title, style, maxLines = 1, softWrap = false).size.width
     if (oneLine <= widthPx || maxLines < 2) return TitlePlan(style, null)
-    // Two lines: the narrowest of a few widths past half the line that still holds it in two.
+    // Two lines: the narrowest candidate width that still fits the title on two.
     val even = EVEN_SHARES.map { (oneLine * it).toInt() }.filter { it < widthPx }.firstOrNull { w ->
         val lines = measure(title, style, constraints = Constraints(maxWidth = w), maxLines = maxLines)
         !lines.hasVisualOverflow && lines.lineCount == 2
@@ -179,8 +169,8 @@ private fun TextMeasurer.titlePlan(
     return TitlePlan(style, even)
 }
 
-/** Shares of a title's one-line width tried to even its two lines, narrowest first. */
+/** Fractions of the one-line width tried for two balanced lines, narrowest first. */
 private val EVEN_SHARES = listOf(0.55f, 0.65f)
 
-/** Measures a title keeps: its signature size, its line, two widths. */
+/** Cached measures per title: signature size, one line, two widths. */
 private const val TITLE_MEASURES = 4

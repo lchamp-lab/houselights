@@ -12,10 +12,9 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** The library's version as the app wires it: a scan, playback and the user's changes, throttled, in virtual time. */
+/** The library version as the app wires it (scan, playback and user edits, throttled), in virtual time. */
 @OptIn(ExperimentalCoroutinesApi::class)
 class LibraryChangesTest {
-    /** Watched on a detail page, nothing else going on: home and the walls hear of it at once. */
     @Test
     fun aChangeAloneShowsAtOnce() = runTest {
         val changes = LibraryChanges(backgroundScope, listOf(emptyFlow()))
@@ -25,7 +24,6 @@ class LibraryChangesTest {
         assertEquals(1L, changes.version.value)
     }
 
-    /** During a scan, a change of the user's moves the version at most once a period, and within one. */
     @Test
     fun aChangeDuringAScanWaitsAPeriodAtMost() = runTest {
         val scan = MutableSharedFlow<Unit>(extraBufferCapacity = 64)

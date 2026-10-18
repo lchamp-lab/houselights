@@ -1,9 +1,8 @@
 package app.houselights.core
 
 /**
- * The names formats are shown under, whatever told them: the MKV probe, an NFO, a Jellyfin server.
- * [video], [audio] and [subtitle] read the names ffmpeg gives (what servers and NFO files use), and
- * Kodi's own: the FOURCC of a video that has one ("xvid", "hvc1"), the layers of DTS ("dtshd_hra").
+ * Display names of formats from any source (MKV probe, NFO, Jellyfin). Accepts ffmpeg's names and Kodi's own:
+ * FOURCCs ("xvid", "hvc1") and DTS layers ("dtshd_hra").
  */
 object Codecs {
     const val HEVC = "HEVC"
@@ -39,7 +38,7 @@ object Codecs {
     /** Shown when a source names no format at all. */
     const val UNKNOWN = "?"
 
-    /** A FOURCC no name is known for ("DIV3") is shown as it is. */
+    /** An unknown FOURCC ("DIV3") is shown in upper case. */
     fun video(name: String?): String = when (name?.lowercase()) {
         null -> UNKNOWN
         "hevc", "h265", "x265", "hvc1", "hev1" -> HEVC
@@ -53,7 +52,7 @@ object Codecs {
         else -> name.uppercase()
     }
 
-    /** [profile]: what else the source says of the track ("DTS-HD MA", "Dolby TrueHD + Atmos"…). */
+    /** [profile] is the source's further description of the track ("DTS-HD MA", "Dolby TrueHD + Atmos"…). */
     fun audio(name: String?, profile: String = ""): String {
         val c = name?.lowercase() ?: return UNKNOWN
         return when {
@@ -74,7 +73,7 @@ object Codecs {
         "flac" to FLAC, "opus" to OPUS, "mp3" to MP3, "lpcm" to PCM, "vorbis" to VORBIS,
     )
 
-    /** High Resolution before Master Audio: "DTS-HD HRA" names DTS-HD too. */
+    /** Checks High Resolution before Master Audio, since "DTS-HD HRA" also contains "DTS-HD". */
     private fun dts(c: String, profile: String) = when {
         c.contains("hra") || profile.contains("HRA") -> DTS_HD_HRA
         c.contains("dtshd_ma") || c.contains("dts-hd") || profile.contains("MA") -> DTS_HD_MA
@@ -91,6 +90,6 @@ object Codecs {
         else -> name.uppercase()
     }
 
-    /** Lossless tracks, which a home cinema plays best. */
+    /** Whether [codec], a display name, is lossless. */
     fun isLossless(codec: String): Boolean = codec == TRUEHD || codec == DTS_HD_MA || codec == PCM || codec == FLAC
 }

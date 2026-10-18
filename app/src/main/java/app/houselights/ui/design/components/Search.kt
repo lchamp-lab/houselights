@@ -30,17 +30,13 @@ import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.emberLight
 
-/** The keys of a [LetterGrid], line by line: the alphabet, then the figures. */
+/** The keys of a [LetterGrid], row by row: the alphabet, then the digits. */
 val LETTER_KEYS: List<List<Char>> = ("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789").chunked(LETTER_COLUMNS).map { it.toList() }
 
-/** Keys a line of a [LetterGrid] holds. */
+/** Keys per row of a [LetterGrid]. */
 const val LETTER_COLUMNS = 6
 
-/**
- * What a search looks for, as it is typed: [query] in `headline`, on the ember rule of typing, which
- * says the keys write here; before anything is typed, the screen's name in its place ([placeholder]),
- * quiet. Under the rule, what a search reads ([hint]). The screen's head: no title above it.
- */
+/** The typed [query] above the ember typing rule, or the quiet [placeholder], then [hint]; heads the screen. */
 @Composable
 fun SearchQuery(query: String, placeholder: String, hint: String, modifier: Modifier = Modifier) {
     val c = Hl.colors
@@ -53,19 +49,14 @@ fun SearchQuery(query: String, placeholder: String, hint: String, modifier: Modi
             overflow = TextOverflow.Ellipsis,
         )
         Spacer(Modifier.height(HlSpace.xs))
-        // Ember while typing, and only then: here, the keys always write.
+        // Ember marks typing only; here the keys always type.
         Box(Modifier.fillMaxWidth().height(HlSize.focusBorder).background(c.emberLight()))
         Spacer(Modifier.height(HlSpace.xs))
         Text(hint, style = Hl.type.caption, color = c.contentTertiary, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 
-/**
- * The keys of a search, without the system's keyboard: the alphabet and the figures, six a line, each
- * a pill white with focus; beside their first lines, the key that takes the last letter back, nearest
- * the words, then a space. Letters are typed as they are read, in capitals; a search ignores case and
- * accents. [first]: the key focus starts on, the first letter.
- */
+/** Search keys (letters, digits, delete, space) without the system keyboard; focus starts on [first]. */
 @Composable
 fun LetterGrid(
     onKey: (Char) -> Unit,
@@ -92,7 +83,7 @@ fun LetterGrid(
     }
 }
 
-/** One key: a pill of [label], white with focus, as every control. */
+/** One key: a pill showing [label], white on focus. */
 @Composable
 private fun KeyPill(label: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val c = Hl.colors

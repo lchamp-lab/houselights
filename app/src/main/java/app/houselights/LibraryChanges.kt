@@ -11,16 +11,14 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 /**
- * The library's version, as screens read it ([app.houselights.core.LibraryEvents.libraryVersion]):
- * moved on by what [sources] say (playback ended, scan progress) and by the user's own changes
- * ([userChanged]), at most once every [periodMs]. A change alone shows at once; during a scan, the
- * user's change waits for the end of the period at most, merged with the scan's.
+ * The library version screens observe ([app.houselights.core.LibraryEvents.libraryVersion]), moved on by
+ * [sources] and in-app edits ([userChanged]) at most once every [periodMs]; an isolated change shows at once.
  */
 class LibraryChanges(scope: CoroutineScope, sources: List<Flow<Unit>>, periodMs: Long = LIBRARY_CHANGE_MS) {
     private val _version = MutableStateFlow(0L)
     val version: StateFlow<Long> = _version
 
-    /** Changes the user made (watched, a favourite), which neither a scan nor playback reports. */
+    /** Edits made in the app (watched, favourite), which neither scans nor playback report. */
     private val userChanges = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
 
     fun userChanged() {

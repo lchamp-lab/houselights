@@ -18,16 +18,12 @@ import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 import javax.crypto.spec.SecretKeySpec
 
-/** On Robolectric: the Keystore's own exceptions are Android classes. */
+/** Runs on Robolectric because the Keystore's exceptions are Android classes. */
 @RunWith(RobolectricTestRunner::class)
 class SecretsTest {
     private fun key() = KeyGenerator.getInstance("AES").apply { init(256) }.generateKey()
 
-    /**
-     * A Keystore of numbered keys, each made when first asked for, as the device's. A version in
-     * [unusable] hands out a key the cipher refuses with a bare InvalidKeyException, as a keymaster
-     * at fault does; a key is never deleted.
-     */
+    /** Numbered keys created on first request; a version in [unusable] fails with a bare InvalidKeyException. */
     private inner class FakeKeystore {
         val keys = mutableMapOf<Int, SecretKey>()
         val unusable = mutableSetOf<Int>()
@@ -39,7 +35,7 @@ class SecretsTest {
             return if (version in unusable) SecretKeySpec(ByteArray(7), "AES") else key
         }
 
-        /** Secrets as a new process of the app finds them. */
+        /** [Secrets] as a fresh app process sees them, with nothing cached. */
         fun secrets() = Secrets(::newest, ::keyOf)
     }
 
@@ -76,7 +72,7 @@ class SecretsTest {
         assertEquals("", secrets.seal(""))
     }
 
-    /** Any version of the key seals: what it wrote is never taken for plain text, nor plain text for it. */
+    /** Every key version seals; sealed text is never taken for plain text, nor plain text for sealed. */
     @Test
     fun sealedTextNamesTheVersionOfItsKey() {
         val secrets = Secrets { key() }
@@ -99,7 +95,7 @@ class SecretsTest {
         }
     }
 
-    /** A keymaster at fault throws beyond its contract: reading a secret says it is gone, the app goes on. */
+    /** A faulty keymaster throws outside its contract: the secret reads as missing and the app carries on. */
     @Test
     fun aKeystoreThatFailsOpensNothing() {
         val sealed = Secrets { key() }.seal("secret")
@@ -108,10 +104,7 @@ class SecretsTest {
         assertNull(Secrets { key() }.open("sealed1:not base64!"))
     }
 
-    /**
-     * The first key fails for good with a bare InvalidKeyException: the second one seals, from then on.
-     * The first is never deleted, and what it sealed opens again once it works again.
-     */
+    /** The first key fails for good: the second seals from then on, and the first is kept for what it sealed. */
     @Test
     fun aKeyThatKeepsFailingGivesWayToTheNextOne() {
         val keystore = FakeKeystore()
@@ -132,7 +125,6 @@ class SecretsTest {
         assertEquals(setOf(1, 2), keystore.keys.keys)
     }
 
-    /** The next key fails too at first: nothing is sealed, and the next seal asks the Keystore for it again. */
     @Test
     fun aNewKeyThatFailedIsFetchedAgainAtTheNextSeal() {
         val keystore = FakeKeystore()
@@ -143,14 +135,13 @@ class SecretsTest {
             secrets.seal("token")
             fail("Sealed with keys that fail")
         } catch (_: SecretsUnavailableException) {
-            // Said as such.
+            // Expected: reported as unavailable.
         }
         keystore.unusable -= 2
         assertTrue(secrets.seal("token").startsWith("sealed2:"))
         assertEquals(setOf(1, 2), keystore.keys.keys)
     }
 
-    /** A key the Keystore says is invalidated for good gives way to the next one: secrets can be written again. */
     @Test
     fun aKeyInvalidatedForGoodGivesWayToTheNextOne() {
         val good = key()
@@ -162,10 +153,7 @@ class SecretsTest {
         assertEquals("token", Secrets { good }.open(sealed))
     }
 
-    /**
-     * On Android 9, a keystore daemon that restarts throws UnrecoverableKeyException ("Failed to
-     * obtain information about key"): the key is fetched again, and seals.
-     */
+    /** On Android 9, a restarting keystore daemon throws UnrecoverableKeyException: the key is fetched again. */
     @Test
     fun aTransientUnrecoverableKeyIsFetchedAgain() {
         var tries = 0

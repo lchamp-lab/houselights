@@ -79,7 +79,6 @@ class EditViewModelsTest {
         assertEquals(1, provider.calls.count { it.startsWith("identify") })
     }
 
-    /** Back while a title is matched: the screen goes, the match is still written whole. */
     @Test
     fun leavingWhileMatchingNeverCutsTheMatchOff() = runTest {
         val vm = IdentifyViewModel("m1", { provider }, work = this)
@@ -123,7 +122,6 @@ class EditViewModelsTest {
         assertEquals(UiError.OFFLINE, vm.state.value.error)
     }
 
-    /** Back while the image chosen is fetched and kept: the screen goes, the choice is still saved. */
     @Test
     fun leavingWhileArtworkIsSavedNeverCutsItOff() = runTest {
         val vm = ArtworkViewModel("m1", ArtworkKind.POSTER, { provider }, work = this)
@@ -172,7 +170,7 @@ class EditViewModelsTest {
         assertEquals(listOf(heat), vm.state.value.results)
     }
 
-    /** Android stopped the app meanwhile: what was typed comes back, and is what is searched. */
+    /** Android killed the app meanwhile: what was typed comes back, and is what is searched. */
     @Test
     fun whatWasTypedOutlivesAStoppedProcess() = runTest {
         val saved = SavedStateHandle()
@@ -189,7 +187,6 @@ class EditViewModelsTest {
         assertTrue("search Heat McCann" in provider.calls)
     }
 
-    /** Tried again twice: the latest choices show, never older ones finishing late. */
     @Test
     fun theLatestChoicesWin() = runTest {
         val vm = ArtworkViewModel("m1", ArtworkKind.POSTER, { provider }, work = this)
@@ -212,7 +209,7 @@ class EditViewModelsTest {
         assertEquals(latest, vm.state.value.choices)
     }
 
-    /** A choice not saved is said in place of the choices; trying again shows them at once, the title kept. */
+    /** A failed save shows in place of the choices; retrying shows them at once, keeping the title. */
     @Test
     fun aFailedChoiceIsTriedAgainOverTheChoicesShown() = runTest {
         val vm = ArtworkViewModel("m1", ArtworkKind.POSTER, { provider }, work = this)

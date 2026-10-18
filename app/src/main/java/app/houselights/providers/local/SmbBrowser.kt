@@ -22,9 +22,9 @@ import java.io.IOException
 import java.util.EnumSet
 import java.util.concurrent.TimeUnit
 
-/** Lists video files of an SMB folder; made once, by [RemoteBrowsers]. */
+/** Lists and reads SMB shares; a single instance lives in [RemoteBrowsers]. */
 internal class SmbBrowser(
-    /** Signs in to a folder's share; tests hand in a NAS of their own. */
+    /** Signs in to a source's share; replaceable in tests. */
     private val connect: (SourceEntity) -> SmbShare = { SmbjShare.open(it) },
     clock: () -> Long = SystemClock::elapsedRealtime,
 ) : RemoteBrowser {
@@ -39,7 +39,7 @@ internal class SmbBrowser(
         walk(folder(share, remotePath(source, separator = '\\'))) { ScanErrors.isUnreachable(it) || isBroken(it) }
     }
 
-    /** Signs in of its own, with what the form says: a session kept, signed in with the password stored, would let a wrong one through. */
+    /** Uses a fresh session with the form's credentials, as a kept session would accept a wrong password. */
     override suspend fun test(source: SourceEntity): Int = withContext(Dispatchers.IO) {
         sessions.once({ connect(source) }) { share ->
             share.list(remotePath(source, separator = '\\')).count { !RemoteBrowser.skip(it.name) }
@@ -49,26 +49,23 @@ internal class SmbBrowser(
     override suspend fun readAt(source: SourceEntity, relativePath: String, offset: Long, length: Int): ByteArray =
         withSession(source) { share -> share.read(remotePath(source, relativePath, '\\'), offset, length) }
 
-    /** Who signs in where: the folders of one share and account share a session. */
+    /** Sources on the same share and account share a session. */
     private fun key(source: SourceEntity) = "${source.username}@${source.domain}/${source.host}/${source.share}"
 
     private suspend fun <T> withSession(source: SourceEntity, block: (SmbShare) -> T): T = withContext(Dispatchers.IO) {
         sessions.use(key(source), { connect(source) }, block)
     }
 
-    /**
-     * Closes the sessions kept open on [source]'s share, whoever signed in: the folder's address or
-     * password changed, and a session opened before must not stand for the new one.
-     */
+    /** Closes sessions kept on [source]'s share, for any account, after its address or password changed. */
     suspend fun forget(source: SourceEntity) {
         val share = "/${source.host}/${source.share}"
         sessions.forget { it.endsWith(share) }
     }
 
-    /** Closes the sessions no operation uses; called when a scan ends. */
+    /** Closes unused sessions; called when a scan ends. */
     fun closeIdle() = sessions.closeIdle()
 
-    /** The folder at [path] in the share, "\" separators; a listing gives each entry, nothing more to ask. */
+    /** The folder at [path] ("\" separators); the listing has all entry details, so no extra requests. */
     private fun folder(share: SmbShare, path: String): RemoteFolder = RemoteFolder {
         share.list(path).map { entry ->
             object : RemoteEntry {
@@ -85,16 +82,15 @@ internal class SmbBrowser(
 
     companion object {
         /**
-         * A failure of the session or its connection, after which it is made again: not one of the file.
-         * smbj gives what the NAS answered as SMBApiException, a file refused, gone or locked among them;
-         * it is also an SMBRuntimeException, as are the failures of the connection.
+         * A session or connection failure (not a file failure), after which the session is recreated. NAS answers
+         * arrive as SMBApiException, itself an SMBRuntimeException like connection failures, so it is checked first.
          */
         internal fun isBroken(e: Throwable): Boolean {
             val answer = generateSequence(e) { it.cause }.filterIsInstance<SMBApiException>().firstOrNull()
             return if (answer != null) answer.status in SESSION_GONE else e is SMBRuntimeException || e is IOException
         }
 
-        /** Answers that end the session, not the request. */
+        /** Statuses that end the session, not just the request. */
         private val SESSION_GONE = setOf(
             NtStatus.STATUS_NETWORK_SESSION_EXPIRED,
             NtStatus.STATUS_USER_SESSION_DELETED,
@@ -104,11 +100,9 @@ internal class SmbBrowser(
         private const val TAG = "SmbBrowser"
 
         /**
-         * Signs off, then hangs up, and never throws: [steps] in turn (the share, then the session), by
-         * name, unless [broken]. A step the NAS did not answer at all (a timeout, the connection lost:
-         * no status of its own in the failure) tells it is gone: each next step would wait out its
-         * timeout too, and hanging up would sign off the session again. The steps left are skipped,
-         * and [hangUp] is forced.
+         * Runs the named sign-off [steps] (share, then session) unless [broken], then [hangUp]; never throws. A step
+         * failing without an NT status (timeout, lost connection) means the NAS is gone: the remaining steps would
+         * each time out too, so they are skipped and [hangUp] is forced.
          */
         internal fun signOff(broken: Boolean, steps: List<Pair<String, () -> Unit>>, hangUp: (forced: Boolean) -> Unit) {
             var forced = broken
@@ -124,28 +118,26 @@ internal class SmbBrowser(
     }
 }
 
-/** An entry of a share's folder; [lastModified]: its last write time, in ms since the epoch. */
+/** A share folder entry; [lastModified] is the last write time in epoch ms. */
 internal class SmbEntry(val name: String, val isFolder: Boolean, val size: Long, val lastModified: Long? = null)
 
-/** A share signed in to, as [SmbBrowser] uses it: [SmbjShare] on a NAS, a fake in tests. */
+/** A connected share as [SmbBrowser] uses it: [SmbjShare] on a NAS, a fake in tests. */
 internal interface SmbShare {
-    /** The entries of a folder, by its path in the share with "\" separators, "" for the share itself. */
+    /** Entries of the folder at [path] ("\" separators, "" for the share root). */
     fun list(path: String): List<SmbEntry>
 
-    /** [length] bytes of a file from [offset], fewer past its end. */
     fun read(path: String, offset: Long, length: Int): ByteArray
 
     /** False once the NAS hung up. */
     val isOpen: Boolean
 
-    /** Signs off, then hangs up; [broken]: only hangs up, as the NAS would not answer. Never throws. */
+    /** Signs off and hangs up, or only hangs up when [broken]; never throws. */
     fun close(broken: Boolean)
 }
 
 /**
- * A share signed in to with smbj, on a client of its own. smbj hands out the connection open to a
- * host to whoever connects to it again, one lease each, and only hangs up on the last lease: two
- * shares of one NAS on one client would share a connection that neither could close.
+ * An smbj share on its own SMBClient: smbj reuses one leased connection per host within a client and hangs up only
+ * on the last lease, so two shares of one NAS on one client would share a connection neither could close.
  */
 private class SmbjShare(
     private val client: SMBClient,
@@ -153,7 +145,7 @@ private class SmbjShare(
     private val session: Session,
     private val share: DiskShare,
 ) : SmbShare {
-    /** What FileIdBothDirectoryInformation tells of each entry, its last write time included: nothing more to ask. */
+    /** FileIdBothDirectoryInformation already includes size and last write time. */
     override fun list(path: String): List<SmbEntry> = share.list(path).map {
         SmbEntry(
             it.fileName,
@@ -174,10 +166,10 @@ private class SmbjShare(
 
     override val isOpen: Boolean get() = connection.isConnected && share.isConnected
 
-    /** Share, session, then connection: the NAS forgets each in turn, rather than holding a session for good. */
+    /** Closes share, session, then connection, so the NAS does not keep the session. */
     override fun close(broken: Boolean) {
         SmbBrowser.signOff(broken, listOf("share" to { share.close() }, "session" to { session.close() })) { forced ->
-            // Its only lease: this hangs up. Forced, it does not sign off sessions first.
+            // The only lease, so this hangs up; forced, it skips signing off sessions.
             connection.close(forced)
         }
         client.close()
@@ -185,9 +177,8 @@ private class SmbjShare(
 
     companion object {
         /**
-         * A request waits this long for its answer. Nothing more: smbj's socket timeout would also stop
-         * reading a connection left idle that long, leaving it open, unread; idle sessions are closed
-         * by [KeptConnections] instead.
+         * Request timeout only: smbj's socket timeout would also stop reading an idle connection while leaving it
+         * open; [KeptConnections] closes idle sessions instead.
          */
         private val CONFIG = SmbConfig.builder().withTimeout(15, TimeUnit.SECONDS).build()
 
@@ -205,7 +196,7 @@ private class SmbjShare(
                 val share = session.connectShare(source.share) as DiskShare
                 return SmbjShare(client, connection, session, share).also { opened = it }
             } finally {
-                // Refused or unreachable: nothing stays open.
+                // On failure, close the client so nothing stays open.
                 if (opened == null) client.close()
             }
         }

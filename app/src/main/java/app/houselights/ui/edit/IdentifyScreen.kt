@@ -60,8 +60,7 @@ fun IdentifyScreen(itemId: String, onDone: () -> Unit) {
     val state by vm.state.collectAsStateWithLifecycle()
     val identity = state.identity
     val isShow = state.item?.kind == MediaKind.SERIES
-    // Matched: back to the title, once the app is in front again (a screen saver, a system dialog);
-    // after Back, the effect has left with the screen (the match itself goes on without it).
+    // Once matched, return to the title when resumed (after a screen saver or dialog); the match outlives Back.
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     LaunchedEffect(state.done) { if (state.done) lifecycle.withResumed { onDone() } }
 
@@ -82,9 +81,9 @@ fun IdentifyScreen(itemId: String, onDone: () -> Unit) {
         title = stringResource(R.string.identify),
         description = stringResource(R.string.identify_desc),
         aside = {
-            // The file or folder, then what it is matched with now, on one sheet.
+            // The file or folder, then its current match, in one panel.
             StatusPanel(
-                // A match you chose is lit; one the app found is a fact.
+                // A match chosen by hand is lit; one the app found is shown as a plain fact.
                 state = when {
                     identity?.current == null -> StatusState.Off
                     identity.manual -> StatusState.On
@@ -133,11 +132,10 @@ fun IdentifyScreen(itemId: String, onDone: () -> Unit) {
         }
         HlButton(stringResource(R.string.search), onClick = vm::search, icon = HlIcons.Search, emphasis = Emphasis.Primary)
 
-        // What is going on shows above the results, which stay in place, and so does focus. With no
-        // result to keep, a failure takes their place, with what fixes it.
+        // Status shows above the results, which keep their place and focus; with none, a failure replaces them.
         val error = state.error
         val results = state.results
-        // Trying again (the title, or the search) keeps the failure in place, its button at work.
+        // While retrying (the title or the search), the failure stays in place with its button busy.
         val retrying = state.searching || (state.item == null && error == null)
         val failure = retainedError(error?.takeIf { results.isNullOrEmpty() }, retrying)
         when {
@@ -170,7 +168,7 @@ fun IdentifyScreen(itemId: String, onDone: () -> Unit) {
     }
 }
 
-/** The title this one is matched with now, and who chose it. */
+/** The current match, and whether it was chosen by hand. */
 @Composable
 private fun CurrentMatch(current: MatchCandidate, manual: Boolean) {
     val c = Hl.colors
@@ -182,7 +180,7 @@ private fun CurrentMatch(current: MatchCandidate, manual: Boolean) {
             Spacer(Modifier.height(HlSpace.xxs))
             FactRow(listOf(current.year?.toString(), current.originalTitle))
             Spacer(Modifier.height(HlSpace.s))
-            // Your choice is a state, with its light; automatic is how it was done, a plain word.
+            // A manual match is a state, with its status light; automatic is plain text.
             if (manual) {
                 HlStatus(StatusState.On, stringResource(R.string.identify_manual))
             } else {

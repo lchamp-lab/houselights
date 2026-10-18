@@ -28,7 +28,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import javax.crypto.KeyGenerator
 
-/** What the local library tells beyond its titles ([LocalCatalog]): people, sagas whole, copies, numbers, search. */
+/** What the local library offers beyond titles ([LocalCatalog]): people, whole sagas, copies, numbers, search. */
 @RunWith(RobolectricTestRunner::class)
 class LocalCatalogTest {
     private lateinit var db: LibraryDatabase
@@ -102,7 +102,7 @@ class LocalCatalogTest {
 
     // --- People ---
 
-    /** Villeneuve directs two films of the library and Deakins shoots one: Villeneuve's page opens, Deakins's does not. */
+    /** Villeneuve directs two films and Deakins shoots one: Villeneuve's page opens, Deakins's does not. */
     @Test
     fun aTitlesCreditsGoByJobEachWithItsTitles() = runTest {
         val arrival = film("Arrival", 2016)
@@ -154,7 +154,7 @@ class LocalCatalogTest {
         assertNull(catalog.person(PersonKeys.tmdb(1)))
     }
 
-    /** One met by name alone on an NFO's title, then by TMDB on another, is one person: the first takes TMDB's key. */
+    /** Met by name alone on one NFO, then through TMDB on another title: one person, who takes TMDB's key. */
     @Test
     fun aPersonNamedByNameAloneTakesTheKeyTmdbGivesThem() = runTest {
         val heat = film("Heat", 1995)
@@ -163,7 +163,7 @@ class LocalCatalogTest {
         credits(collateral, credit(collateral, Job.DIRECTOR, 0, "Michael Mann", 638))
         assertEquals(PersonKeys.tmdb(638), dao.creditsOf(heat).single().personKey)
 
-        // And one named by name alone after takes it at once.
+        // A person later met by name alone takes the key at once.
         val thief = film("Thief", 1981)
         credits(thief, credit(thief, Job.DIRECTOR, 0, "Michael MANN"))
         assertEquals(PersonKeys.tmdb(638), dao.creditsOf(thief).single().personKey)
@@ -203,7 +203,7 @@ class LocalCatalogTest {
         val saga = dao.insertCollection(CollectionEntity(matchKey = "tmdb:10", tmdbId = 10, name = "Mad Max - Saga", sortTitle = "mad max"))
         film("Mad Max", 1979, tmdbId = 9659, collectionId = saga)
         film("Fury Road", 2015, tmdbId = 76341, collectionId = saga)
-        // Held, in another set of the user's own.
+        // In the library, but in another set of the user's own.
         film("Mad Max 2", 1981, tmdbId = 8810)
         // In the saga by its NFO's set alone.
         film("Mad Max: The Making Of", 1985, collectionId = saga)
@@ -236,7 +236,7 @@ class LocalCatalogTest {
         assertNull(whole.parts[2].item)
     }
 
-    /** A saga TMDB was not asked for is the films the library holds of it. */
+    /** A saga not fetched from TMDB holds only the library's films of it. */
     @Test
     fun aSagaTmdbDoesNotKnowIsItsFilms() = runTest {
         val saga = dao.insertCollection(CollectionEntity(matchKey = "name:marvel", name = "Marvel", sortTitle = "marvel"))
@@ -302,7 +302,7 @@ class LocalCatalogTest {
         assertEquals(emptyList<Any>(), catalog.versions(item(dao.latest(ItemKind.MOVIE, 10).first { it.tmdbId == 335984 }.id)))
     }
 
-    /** "Lire" on a film's title plays the copy chosen, else the best; a copy played as such is that copy, its title no film like it. */
+    /** Lire plays the chosen copy, else the best; a copy played directly is that copy. */
     @Test
     fun aTitlePlaysItsChosenCopyElseItsBest() = runTest {
         val first = film("Heat", 1995, tmdbId = 949, path = "Heat.1080p.mkv", badges = listOf("1080p"), genres = listOf("Policier"))
@@ -320,13 +320,13 @@ class LocalCatalogTest {
         assertTrue(plan.uri.endsWith("Heat.2160p.mkv"))
         assertEquals(listOf("Ronin"), provider.similar(provider.item(uhd.toString())).map { it.title })
 
-        // Its title gone, a copy is a title of its own at once.
+        // Once its title is gone, a copy becomes a title of its own at once.
         dao.settleMissing(emptyList(), emptyList(), emptyList(), listOf(first), emptyList(), now = 1)
         assertNull(dao.item(uhd)?.versionOf)
         assertEquals(emptyList<Any>(), catalog.versions(item(uhd)))
     }
 
-    /** Watched, a favourite: what is of a film is of all its copies, whichever is played or marked. */
+    /** Watched and favourite apply to a film, so to all its copies, whichever is played or marked. */
     @Test
     fun aFilmsCopiesAreWatchedAndFavouredTogether() = runTest {
         val first = film("Heat", 1995, tmdbId = 949)
@@ -419,7 +419,7 @@ class LocalCatalogTest {
         assertEquals(listOf("Mother"), titles("마더"))
         assertEquals("one title for a film's copies", listOf("Blade Runner"), titles("blade"))
         assertEquals(emptyList<String>(), titles("amelie zzz"))
-        // A word as common as an article fills no cap before the titles starting with it.
+        // A word as common as an article does not fill the result cap before the titles starting with it.
         repeat(450) { film("Le Film $it") }
         film("Léon", 1994)
         assertEquals("Léon", catalog.search("léon").titles.first().title)
@@ -442,7 +442,7 @@ class LocalCatalogTest {
         film("Un seul", collectionId = alone)
         assertEquals(listOf("Le Seigneur des Anneaux"), catalog.search("anneau").sagas.map { it.title })
 
-        // Renamed by a scan, a title is found by its new name only.
+        // A title renamed by a scan is found by its new name only.
         val id = film("Old Name")
         dao.saveScanned(checkNotNull(dao.item(id)).copy(title = "Nouveau Nom", sortTitle = "nouveau nom"))
         assertEquals(listOf("Nouveau Nom"), catalog.search("nouv").titles.map { it.title })

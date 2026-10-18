@@ -41,7 +41,7 @@ class CodecsTest {
             "pcm_s16le" to "PCM",
         )
         sounds.forEach { (kodi, shown) -> assertEquals(kodi, shown, Codecs.audio(kodi)) }
-        // High Resolution says DTS-HD too: it is not Master Audio.
+        // DTS-HD High Resolution is not Master Audio.
         assertEquals("DTS-HD HRA", Codecs.audio("DTS-HD HRA"))
     }
 

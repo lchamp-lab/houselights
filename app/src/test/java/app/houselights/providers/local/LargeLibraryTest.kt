@@ -24,20 +24,14 @@ import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicInteger
 import javax.crypto.KeyGenerator
 
-/**
- * A library the size of a real one (1,000 films in 200 sagas, 100 shows of 30 episodes, with NFO text):
- * how many queries the home screen and a library page cost. The counts guard against a query per title.
- */
+/** Query counts for home and a library page on a real-sized library, guarding against a query per title. */
 @RunWith(RobolectricTestRunner::class)
 class LargeLibraryTest {
     private lateinit var db: LibraryDatabase
     private lateinit var provider: LocalProvider
     private val queries = AtomicInteger()
 
-    /**
-     * Room's query executor, one thread. After each write, Room's invalidation tracker checks there what
-     * it changed, a moment later (four statements): [measure] waits for it, so they are not the screen's.
-     */
+    /** Room's query executor, where the invalidation tracker runs after each write: [measure] waits for it. */
     private lateinit var roomWork: ExecutorService
 
     @Before
@@ -118,7 +112,6 @@ class LargeLibraryTest {
         lastPlayedAt = lastPlayedAt, genres = listOf("Drame"),
     )
 
-    /** The credit of person [person] on the film [itemId]. */
     private fun credit(itemId: Long, job: Job, ord: Int, person: Int) =
         CreditEntity(itemId, job, ord, PersonKeys.tmdb(person), "Person $person", "person $person", null, "/p$person.jpg")
 
@@ -170,7 +163,7 @@ class LargeLibraryTest {
         assertTrue("sagas page ran $count queries", count <= PAGE_QUERIES)
     }
 
-    /** "À suivre": where every episode of the shows watched last stands, then the next of each. */
+    /** "À suivre": the state of every episode of the last shows watched, then the next episode of each. */
     @Test
     fun nextUpCostsAFewQueries() = runTest {
         val (sections, count) = measure("home") { provider.home() }

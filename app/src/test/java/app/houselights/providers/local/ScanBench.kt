@@ -13,10 +13,7 @@ import java.io.File
 import java.util.concurrent.atomic.AtomicInteger
 import javax.crypto.KeyGenerator
 
-/**
- * A library on an in-memory database, scanned from a NAS ([nas], [showsNas]) and a TMDB ([tmdb]) held
- * in memory: what scenario tests of scans stand on. Robolectric tests only.
- */
+/** An in-memory library, NAS ([nas], [showsNas]) and TMDB ([tmdb]) for scan scenario tests, on Robolectric. */
 class ScanBench(artworkDir: File, tmdbKey: Boolean = true) {
     private val key = KeyGenerator.getInstance("AES").apply { init(256) }.generateKey()
     val db: LibraryDatabase = Room.inMemoryDatabaseBuilder(ApplicationProvider.getApplicationContext(), LibraryDatabase::class.java)
@@ -29,22 +26,21 @@ class ScanBench(artworkDir: File, tmdbKey: Boolean = true) {
     private val passes = SupervisorJob()
     var now = START
 
-    /** Whether the app has a TMDB key. */
     var withTmdb = tmdbKey
 
-    /** The scans' client, kept as the app keeps it: its pause lasts from one pass to the next. */
+    /** The scans' client, kept as the app keeps it: its pause carries over from one pass to the next. */
     val scanClient = tmdb.client(pauseWhenUnreachable = true)
 
-    /** The bytes the device can still write, where the artwork is copied. */
+    /** Bytes the device can still write where the artwork is copied. */
     var freeSpace = Long.MAX_VALUE
 
     val artwork = ArtworkCache(artworkDir) { freeSpace }
 
-    /** A film playing, the app on screen: what a scan waits for. */
+    /** Whether a film is playing and whether the app is on screen: what a scan waits for. */
     val playing = MutableStateFlow(false)
     val started = MutableStateFlow(true)
 
-    /** Times the scanner closed what it kept on the NAS, and what runs when it does. */
+    /** Times the scanner closed its NAS connections, and what runs when it does. */
     val closed = AtomicInteger()
     var onClose: () -> Unit = {}
 
@@ -80,19 +76,19 @@ class ScanBench(artworkDir: File, tmdbKey: Boolean = true) {
         return checkNotNull(dao.source(id))
     }
 
-    /** One whole pass, as the app asks for it, waited for. */
+    /** One whole pass, as the app requests it, awaited. */
     suspend fun scan(refreshMetadata: Boolean = false) {
         scanner.scanAll(refreshMetadata)
         awaitScans()
     }
 
-    /** A pass the app starts of itself, every few minutes ([LibraryScanner.scanIfStale]), waited for. */
+    /** A pass the app starts on its own every few minutes ([LibraryScanner.scanIfStale]), awaited. */
     suspend fun autoScan() {
         scanner.scanIfStale(0)
         awaitScans()
     }
 
-    /** Waits for the scans under way, such as one the scanner started of itself. */
+    /** Waits for the scans under way, such as one the scanner started on its own. */
     suspend fun awaitScans() = passes.children.toList().forEach { it.join() }
 
     /** How many times screens are told the library changed while [block] runs. */

@@ -12,11 +12,7 @@ import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 
-/**
- * Films in several files (CD1, CD2, disc 1…), as a scan meets them: one title under the first part,
- * found by the film's NFO and artwork, whose parts may be renamed, added or gone without the title
- * being another.
- */
+/** Films in several files (CD1, disc 1…): one title under the first part, whatever happens to its parts. */
 @RunWith(RobolectricTestRunner::class)
 class ScanStacksTest {
     @get:Rule
@@ -57,7 +53,7 @@ class ScanStacksTest {
         assertEquals("$DIR/Le Parrain (1972).nfo", film.nfoPath)
         assertEquals("The Godfather", film.title)
         assertTrue("its folder is its own", film.posterPath.isCachedArtwork())
-        // Its size and what it holds are its first part's.
+        // Its size and media info are its first part's.
         assertEquals(7_000_000_000L, film.fileSize)
         assertFalse("the second part is not read", nas.reads.any { it.endsWith("CD2.mkv") })
     }
@@ -79,7 +75,7 @@ class ScanStacksTest {
         assertEquals(null, renamed.missingSince)
         assertTrue("screens show its parts", told > 0)
 
-        // A part gone: the film of one file it now is keeps its row.
+        // A part removed: the film, now in one file, keeps its row.
         nas.remove("$DIR/Le Parrain (1972) - Disc 2.mkv")
         bench.scan()
         val alone = rows().single()
@@ -87,11 +83,7 @@ class ScanStacksTest {
         assertEquals(emptyList<String>(), alone.parts)
     }
 
-    /**
-     * A film's first part out of sight a while (a disk of a pool offline, a file the NAS could not be asked
-     * about): its row waits for it, and its other parts make no title meanwhile, which TMDB would be asked for
-     * and might match with another film. Back, it is the film as it was.
-     */
+    /** While its first part is out of sight, the film's other parts make no title that TMDB might mismatch. */
     @Test
     fun theOtherPartsOfAFilmWaitingForItsFirstMakeNoTitle() = runTest {
         godfather()
@@ -105,7 +97,7 @@ class ScanStacksTest {
         bench.scan()
         assertEquals(listOf(film.id), rows().map { it.id })
         assertTrue("its row waits", rows().single().missingSince != null)
-        // Not asked about: out of sight, not missing.
+        // Not queried: out of sight, not missing.
         nas.unreadable = listOf(first)
         bench.scan()
         assertEquals(listOf(film.id), rows().map { it.id })
@@ -123,7 +115,7 @@ class ScanStacksTest {
 
     @Test
     fun aFilmScannedFileByFileBecomesOneTitleAtOnce() = runTest {
-        // What a scan made of the parts before it told them apart: one title a file.
+        // Legacy rows: one title per file.
         godfather()
         val first = bench.dao.insert(row("$DIR/Le Parrain (1972) CD1.mkv", 7_000_000_000))
         bench.dao.insert(row("$DIR/Le Parrain (1972) CD2.mkv", 6_000_000_000))
@@ -135,7 +127,6 @@ class ScanStacksTest {
         assertTrue(film.favorite)
     }
 
-    /** Two films whose names read as the parts of one, each matched with its own: each keeps its row and what the user did with it. */
     @Test
     fun filesMatchedWithTwoFilmsStayTwoFilms() = runTest {
         nas.put("Kill Bill CD1.avi")
@@ -172,7 +163,7 @@ class ScanStacksTest {
         bench.scan()
         assertEquals("named by its only file", "Heat CD1", rows().single().title)
 
-        // Its second part arrives: the film is asked for again, by its name.
+        // Its second part arrives: the film is looked up again, by its name.
         nas.put("Heat CD2.avi")
         bench.scan()
         val heat = rows().single()
@@ -181,7 +172,7 @@ class ScanStacksTest {
         assertEquals(listOf("Heat CD2.avi"), heat.parts)
     }
 
-    /** TMDB knows nothing of it, and no NFO names it: the film is named as its files are, not as its first part. */
+    /** Unknown to TMDB and named by no NFO: the film is named as its files are, not as its first part. */
     @Test
     fun aFilmInPartsTmdbDoesNotKnowIsNamedByItsFiles() = runTest {
         bench.withTmdb = true
@@ -189,7 +180,7 @@ class ScanStacksTest {
         nas.put("Ronin CD1.avi")
         bench.scan()
         assertEquals(listOf("Heat CD1", "Ronin CD1"), rows().map { it.title })
-        // A name it was given otherwise stays.
+        // A name given by other means stays.
         rows().last().let { bench.dao.saveScanned(it.copy(title = "Ronin (Frankenheimer)")) }
 
         nas.put("Heat CD2.avi")

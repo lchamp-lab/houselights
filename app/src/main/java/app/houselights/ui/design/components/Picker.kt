@@ -30,10 +30,7 @@ import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.groundStepFill
 import app.houselights.ui.util.toPx
 
-/**
- * One artwork to choose from, at the shape it is used in, with a caption saying what it is.
- * The one in use carries the check of your choice, in ember ([SelectedMark]).
- */
+/** An artwork option at its use's aspect ratio, captioned; the one in use carries [SelectedMark]. */
 @Composable
 fun ArtworkChoiceCard(
     image: ImageRef?,
@@ -44,9 +41,9 @@ fun ArtworkChoiceCard(
     width: Dp,
     aspectRatio: Float,
     modifier: Modifier = Modifier,
-    /** Logos keep their transparent outline on the plain card; pictures fill it. */
+    /** Fits a logo inside the card, keeping its transparency; pictures are cropped to fill it. */
     fit: Boolean = false,
-    /** Set in type when there is no picture (a title without logo). */
+    /** Text shown when there is no picture (a title without a logo). */
     placeholder: String? = null,
     onFocused: () -> Unit = {},
 ) {
@@ -60,7 +57,7 @@ fun ArtworkChoiceCard(
         ) {
             val url = image?.url(width.toPx())
             when {
-                // An image that fails says which choice it was, set like a one-sheet.
+                // A failed image shows which choice it was, set like a one-sheet.
                 url != null -> ArtworkImage(
                     url,
                     title,
@@ -94,10 +91,8 @@ fun SelectedMark(modifier: Modifier = Modifier) {
 }
 
 /**
- * A title found by a search, set like a small one-sheet: its poster, its name in the voice of the
- * poster, facts (year, original title), three lines of overview. The title in use ([mark]) is
- * edged in ember and says so next to its name, with the light of a state ("Actuel"). While it
- * is being chosen, [busy] says so there instead ("Association…").
+ * A search result set like a small one-sheet: poster, name, facts and overview; the title in use is edged
+ * in ember with [mark] ("Actuel"), replaced by [busy] while it is being chosen ("Association…").
  */
 @Composable
 fun HlResultItem(
@@ -142,14 +137,14 @@ fun HlResultItem(
     }
 }
 
-/** A small poster in a list, at [width]; an empty frame when there is none, or it fails to load. */
+/** A small poster in a list, at [width]; an empty frame when there is none or it fails to load. */
 @Composable
 fun PosterThumb(poster: ImageRef?, modifier: Modifier = Modifier, width: Dp = HlSize.posterThumb) {
     ArtworkImage(
         poster?.url(width.toPx()),
         description = null,
         modifier = modifier.width(width).aspectRatio(2f / 3f),
-        // Loading, the poster's place shows on its ground, edged as artwork at rest.
+        // While loading, the poster's slot shows its ground, edged like artwork at rest.
         picture = Modifier.clip(HlShapes.artwork).background(groundStepFill()).artworkEdge(HlShapes.artwork, Hl.colors),
     ) { EmptyFrame(Modifier.fillMaxSize()) }
 }

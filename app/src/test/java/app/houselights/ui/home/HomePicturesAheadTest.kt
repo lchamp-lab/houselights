@@ -46,12 +46,7 @@ import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import java.util.IdentityHashMap
 
-/**
- * What the launch loads ahead is what home's first view asks Coil for once laid out: the same
- * pictures (keys) at the same sizes, so home finds each one in memory and shows it at once. The
- * hero's backdrop, its tiny copy and its logo, then the cards of the first row on the screen, and
- * no other.
- */
+/** What the launch loads ahead is exactly what home's first view asks Coil for, by key and size. */
 @RunWith(RobolectricTestRunner::class)
 @Config(application = Application::class, qualifiers = TV)
 class HomePicturesAheadTest {
@@ -115,10 +110,7 @@ class HomePicturesAheadTest {
         return loaded to synchronized(asked) { asked.toList() }
     }
 
-    /**
-     * Waits a while at most for [condition], running what Coil hands back to the main thread from
-     * its own: the pictures come from other threads, which the test's main looper does not wait for.
-     */
+    /** Waits a while for [condition], running what Coil posts to the main thread, unseen by the test looper. */
     private fun waitFor(condition: () -> Boolean) {
         val until = System.currentTimeMillis() + TIMEOUT_MS
         while (!synchronized(asked, condition) && System.currentTimeMillis() < until) {
@@ -152,10 +144,7 @@ class HomePicturesAheadTest {
         assertEquals("the first row's stills home asked for", firstRow(shown, "still/"), firstRow(loaded, "still/"))
     }
 
-    /**
-     * Home composed under the launch screen while the launch still loads its pictures: each one home
-     * asks for waits for the one on its way ([AwaitAhead]), then comes from memory; none is fetched twice.
-     */
+    /** Each picture home asks for while the launch is loading it waits for that load ([AwaitAhead]). */
     @Test
     fun homeComposedWhileThePicturesLoadFetchesNoneTwice() {
         val sent = CompletableDeferred<Unit>()

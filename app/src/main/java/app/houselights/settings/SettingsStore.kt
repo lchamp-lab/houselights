@@ -37,7 +37,7 @@ import kotlin.coroutines.CoroutineContext
 
 private val Context.dataStore by preferencesDataStore(
     name = "settings",
-    // A damaged settings file starts over from the defaults instead of stopping the app at launch.
+    // A corrupt settings file resets to the defaults rather than crashing the app at launch.
     corruptionHandler = ReplaceFileCorruptionHandler { emptyPreferences() },
     produceMigrations = { listOf(SealSecrets(Secrets.device)) },
 )
@@ -52,13 +52,9 @@ private object Keys {
     val collectionMin = intPreferencesKey("collection_min_films")
 }
 
-/**
- * The settings that hold a secret: the source (with its server token), a personal TMDB key, and path
- * mappings, whose network paths may carry a password.
- */
 private val SECRET_KEYS = listOf(Keys.source, Keys.tmdbKey, Keys.mappings)
 
-/** A setting that holds a secret, named for the screens that say it could not be read again. */
+/** A setting that holds a secret, named so screens can say which one could not be read. */
 enum class SecretSetting {
     /** The source: a server's token. */
     SOURCE,
@@ -75,18 +71,13 @@ private val Preferences.Key<String>.secret: SecretSetting
         else -> SecretSetting.PATH_MAPPINGS
     }
 
-/** A source holds a secret, the server's token, unless it is the folders: those are never sealed. */
+/** A source holds a secret (the server's token) unless it is the local folders, which are never sealed. */
 private fun sourceHoldsSecret(plain: String): Boolean =
     runCatching { lenientJson.decodeFromString<SourceConfig>(plain) }.getOrNull() != SourceConfig.Local
 
-/** [plain], kept under [key], is a secret to seal: anything there but a source that is the folders. */
 private fun needsSealing(key: Preferences.Key<String>, plain: String): Boolean = key != Keys.source || sourceHoldsSecret(plain)
 
-/**
- * Seals secrets written in plain text before sealing existed. A Keystore that cannot seal leaves them
- * as they are: read as plain text, they are sealed at a later launch, never lost, and the settings
- * still open.
- */
+/** Seals plain-text secrets; if the Keystore cannot seal, they stay plain and are sealed at a later launch. */
 internal class SealSecrets(private val secrets: Secrets) : DataMigration<Preferences> {
     override suspend fun shouldMigrate(currentData: Preferences) =
         SECRET_KEYS.any { key -> currentData[key]?.let { !secrets.isSealed(it) && needsSealing(key, it) } == true }
@@ -112,26 +103,19 @@ data class AppSettings(
     val pathMappings: List<PathMapping> = emptyList(),
     val forceHttp: Boolean = false,
     val ui4k: Boolean = true,
-    /** User-provided TMDB key, overrides the one built into the APK. */
+    /** TMDB key saved in Settings; overrides the one built into the APK. */
     val tmdbApiKey: String? = null,
     /** How many films of a collection the library needs to show it; 0 hides collections. */
     val collectionMinFilms: Int = CollectionThreshold.DEFAULT,
-    /**
-     * The secrets kept here (the source's token, path mappings, the TMDB key) that could not be read
-     * again (the Keystore's key is gone, or a value no longer makes sense): each reads as not set, and
-     * is to be given again. Saving a new value puts it back.
-     */
+    /** Secrets that could not be read back (key lost, bad value): each reads as unset until saved again. */
     val lostSecrets: Set<SecretSetting> = emptySet(),
-    /**
-     * The settings file could not be read, again and again: not [loaded], and still tried, less and
-     * less often. Never the defaults in its place, which would open on the welcome screen.
-     */
+    /** The file keeps failing to read: retried ever less often, never replaced by defaults (which open Welcome). */
     val readFailed: Boolean = false,
 ) {
-    /** The connection kept (a server and its token) could not be read again: the welcome screen says so. */
+    /** The saved connection (server and token) could not be read back; the welcome screen says so. */
     val lostSource: Boolean get() = SecretSetting.SOURCE in lostSecrets
 
-    /** Never the TMDB key nor the mappings' network paths, which may carry a password: a log line may quote the settings. */
+    /** Omits the TMDB key and the mappings' network paths, which may carry a password: logs may quote the settings. */
     override fun toString() =
         "AppSettings(loaded=$loaded, source=$source, deviceId=$deviceId, pathMappings=${pathMappings.size}, " +
             "forceHttp=$forceHttp, ui4k=$ui4k, tmdbApiKey=${tmdbApiKey?.let { "***" }}, " +
@@ -142,33 +126,24 @@ class SettingsStore(
     private val dataStore: DataStore<Preferences>,
     scope: CoroutineScope,
     private val secrets: Secrets = Secrets.device,
-    /**
-     * Where the settings are read and their secrets opened: never the main thread [scope] may run on,
-     * since the first opening loads the Keystore's key and each one asks the keystore daemon.
-     */
+    /** Where settings are read and secrets opened, never the main thread: each opening calls the keystore daemon. */
     private val readOn: CoroutineContext = Dispatchers.Default,
 ) {
-    /** The app's own settings file. */
     constructor(context: Context, scope: CoroutineScope, secrets: Secrets = Secrets.device) : this(context.dataStore, scope, secrets)
 
     private val _state = MutableStateFlow(AppSettings())
 
-    /**
-     * The settings as last read. A read that fails is tried again, a little later each time: the
-     * settings stay unread meanwhile, rather than the defaults, and say [AppSettings.readFailed]
-     * after a few tries.
-     */
+    /** The settings as last read; a failed read is retried with growing delays, never replaced by defaults. */
     val state: StateFlow<AppSettings> = _state
 
-    /** Asked to read again at once ([readAgain]); one ask stands for any number. */
     private val readNow = Channel<Unit>(Channel.CONFLATED)
 
     private val _reading = MutableStateFlow(false)
 
-    /** A read asked by [readAgain] is under way: the screen that asked says it is at work. */
+    /** True while a read requested by [readAgain] runs, so the screen can show it is busy. */
     val reading: StateFlow<Boolean> = _reading
 
-    /** The file as [state] last read it: a write returns once it is read ([write]). */
+    /** The file [state] last read, which [write] waits for. */
     private val readFrom = MutableStateFlow<Preferences?>(null)
 
     init {
@@ -181,7 +156,7 @@ class SettingsStore(
                     Log.w(TAG, "Settings could not be read (try ${attempt + 1})", e)
                     _reading.value = false
                     if (attempt + 1 >= READ_TRIES && !_state.value.loaded) _state.value = AppSettings(readFailed = true)
-                    // An ask from before this failure is answered by it.
+                    // A request made before this failure is answered by it.
                     readNow.tryReceive()
                     withTimeoutOrNull(minOf(MAX_READ_WAIT_MS, FIRST_READ_WAIT_MS shl attempt.toInt().coerceAtMost(MAX_SHIFT))) {
                         readNow.receive()
@@ -196,7 +171,7 @@ class SettingsStore(
         }
     }
 
-    /** After the settings could not be read ([AppSettings.readFailed]): reads them again now, not at the next try. */
+    /** After [AppSettings.readFailed]: reads again now rather than at the next retry. */
     fun readAgain() {
         if (_state.value.loaded) return
         _reading.value = true
@@ -222,7 +197,7 @@ class SettingsStore(
         )
     }
 
-    /** The plain text of a secret; when it can't be read, null, written down in [lost] and logged (never its value). */
+    /** A secret's plain text; null when unreadable, recorded in [lost] and logged without its value. */
     private fun opened(key: Preferences.Key<String>, stored: String, lost: MutableSet<SecretSetting>): String? {
         val plain = secrets.open(stored)
         if (plain == null) {
@@ -232,21 +207,19 @@ class SettingsStore(
         return plain
     }
 
-    /** What [text] holds; when it no longer reads (a version that renamed a field), null, written down in [lost]. */
+    /** [text] decoded; null when it does not parse (a renamed field), recorded in [lost]. */
     private inline fun <reified T> decoded(key: Preferences.Key<String>, text: String, lost: MutableSet<SecretSetting>): T? = try {
         lenientJson.decodeFromString<T>(text)
     } catch (e: IllegalArgumentException) {
-        // A SerializationException among them: its message would quote the value.
+        // Includes SerializationException, whose message would quote the value: only its type is logged.
         Log.w(TAG, "${key.name} no longer reads: ${e.javaClass.simpleName}")
         lost += key.secret
         null
     }
 
     /**
-     * Writes the file, and returns once [state] says what it holds: read away from the main thread,
-     * the settings reach [state] a moment after the file. Signing in saves the source, then goes home,
-     * whose rows ask [state] for it at once: the new one, not the one before. A read that fails
-     * meanwhile is waited for [WRITE_READ_MS] at most.
+     * Writes the file and returns once [state] reflects it, within [WRITE_READ_MS]: signing in saves the
+     * source then goes home, whose rows read [state] at once.
      */
     private suspend fun write(transform: suspend (MutablePreferences) -> Unit) {
         val written = dataStore.edit(transform)
@@ -261,7 +234,7 @@ class SettingsStore(
         return id
     }
 
-    /** Saves the source; the folders hold no secret and are never sealed, so choosing them never waits on the Keystore. */
+    /** Saves the source; local folders hold no secret and are never sealed, so they never wait on the Keystore. */
     suspend fun setSource(source: SourceConfig?) {
         write {
             when (source) {
@@ -305,5 +278,5 @@ private const val FIRST_READ_WAIT_MS = 500L
 private const val MAX_READ_WAIT_MS = 30_000L
 private const val MAX_SHIFT = 16
 
-/** How long a write waits for [SettingsStore.state] to read it: the Keystore's slowest opening, and a try again. */
+/** How long a write waits for [SettingsStore.state]: the Keystore's slowest opening plus one retry. */
 private const val WRITE_READ_MS = 2_000L

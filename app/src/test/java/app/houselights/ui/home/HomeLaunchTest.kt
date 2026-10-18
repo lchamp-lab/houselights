@@ -33,10 +33,8 @@ import java.io.IOException
 import app.houselights.ui.testing.SettleMainLooper
 
 /**
- * A cold start: home's rows and the pictures of its first view are asked once, while the launch
- * screen holds. Home takes the rows as soon as they come, without asking the source again, and is
- * composed under the launch screen while the pictures load; the gate opens once both are in and home
- * has drawn them (or at once on another start screen, or at the cap).
+ * A cold start asks once for home's rows and first pictures under the launch screen, and home takes the rows
+ * without asking again; the gate opens once both are in and drawn.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
@@ -242,10 +240,7 @@ class HomeLaunchTest {
         assertNull(launch.take(SourceConfig.Jellyfin("http://nas:8096", "Maison", "u1", "viewer", "token")))
     }
 
-    /**
-     * The first window closed under the launch screen (Back), and the app opens again later, the
-     * process kept: the rows the launch read are shown only while the library has not moved on.
-     */
+    /** After Back under the launch screen, a reopen shows the launch's rows only if the library has not moved. */
     @Test
     fun rowsTheLibraryMovedOnFromAreNotShown() = runTest {
         val launch = coldStart(gate())
@@ -258,11 +253,7 @@ class HomeLaunchTest {
         assertEquals(HomeRows(provider.libraries, rows), unchanged.take(SourceConfig.Local))
     }
 
-    /**
-     * The first window closed under the launch screen (Back), the process kept: the rows the launch
-     * read go with it, so a later warm start never shows rows of that moment (a Jellyfin server's
-     * changes never move the library's version).
-     */
+    /** Closing the first window drops the launch's rows: Jellyfin changes never move the library version. */
     @Test
     fun theRowsGoWhenTheFirstWindowFinishes() = runTest {
         val launch = coldStart(gate())

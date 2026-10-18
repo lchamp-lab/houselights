@@ -3,9 +3,7 @@ package app.houselights.core
 import kotlinx.serialization.json.Json
 
 /**
- * JSON as the app reads it: keys it does not know are passed over (a newer player's or server's
- * fields, one a later version of the app dropped). The settings and each file's media info are also
- * written with it, so an option added here changes what they hold. Jellyfin's and TMDB's clients
- * keep formats of their own.
+ * The app's JSON format, ignoring unknown keys (a newer server's fields). Settings and media info are written
+ * with it too, so an option added here changes what they store; Jellyfin and TMDB clients have their own.
  */
 val lenientJson: Json = Json { ignoreUnknownKeys = true }

@@ -50,7 +50,7 @@ class ArtworkCacheTest {
         return ByteArrayOutputStream().also { bitmap.compress(format, 90, it) }.toByteArray()
     }
 
-    /** Copies [bytes], put on a NAS at [path], into a cache of its own: the copy, and the NAS. */
+    /** Copies [bytes], stored at [path] on [nas], into a fresh cache, and returns the copy. */
     private fun copied(path: String, bytes: ByteArray, nas: FakeRemoteBrowser = FakeRemoteBrowser()): File? = runBlocking {
         nas.put(path, size = bytes.size.toLong(), bytes = bytes)
         ArtworkCache(temp.newFolder()).copy(source, RemoteFile(path, bytes.size.toLong()), nas)?.let { File(it.removePrefix("file://")) }
@@ -93,10 +93,7 @@ class ArtworkCacheTest {
         assertTrue(copied.orEmpty(), copied?.let { File(it.removePrefix("file://")).isFile } == true)
     }
 
-    /**
-     * A poster rewritten on the NAS with as many bytes as the one before: its date tells, and the new
-     * one is copied, under a new name the screens' image caches never saw.
-     */
+    /** Same size, new date: copied again under a new name, so the screens' image caches never show the old one. */
     @Test
     fun aPictureRewrittenWithTheSameSizeIsCopiedAgain() = runBlocking {
         val cache = ArtworkCache(temp.newFolder())
@@ -111,7 +108,6 @@ class ArtworkCacheTest {
         assertArrayEquals(after, second?.let { File(it.removePrefix("file://")).readBytes() })
     }
 
-    /** A picture as it was is not read again, pass after pass. */
     @Test
     fun aPictureUnchangedIsNotCopiedAgain() = runBlocking {
         val cache = ArtworkCache(temp.newFolder())
@@ -124,7 +120,7 @@ class ArtworkCacheTest {
         assertEquals(read, nas.reads.size)
     }
 
-    /** A fanart of several megabytes never sits whole in memory: it comes over a block at a time, straight to the file. */
+    /** A fanart of several megabytes is never held whole in memory: it is copied a block at a time to the file. */
     @Test
     fun aLargePictureIsCopiedABlockAtATime() {
         val bytes = ByteArray(1_000_000) { (it % 251).toByte() }
@@ -154,17 +150,13 @@ class ArtworkCacheTest {
         assertTrue(BitmapFactory.decodeFile(copy.path).hasAlpha())
     }
 
-    /** What the screen can show as it is stays byte for byte as the NAS has it. */
     @Test
     fun aPictureThatFitsIsCopiedAsItIs() {
         val logo = picture(800, 310, Bitmap.CompressFormat.PNG, alpha = true)
         assertArrayEquals(logo, copied("Dune (2021)/clearlogo.png", logo)?.readBytes())
     }
 
-    /**
-     * A phone's photo, stored on its side with an EXIF orientation: Coil shows it upright, which a new
-     * encoding would lose, so it stays as the NAS has it.
-     */
+    /** Re-encoding would lose the EXIF orientation that Coil uses to show a phone photo upright. */
     @Test
     fun aPhotoTurnedByItsExifIsCopiedAsItIs() {
         val stored = File(temp.newFolder(), "photo.jpg").apply { writeBytes(picture(4032, 3024)) }
@@ -176,7 +168,6 @@ class ArtworkCacheTest {
         assertArrayEquals(photo, copied("Holidays (2024)/poster.jpg", photo)?.readBytes())
     }
 
-    /** A NAS that stops in the middle of a copy leaves no picture, whole or not, in the cache. */
     @Test
     fun aCopyCutOffLeavesNothingBehind() = runBlocking {
         val dir = temp.newFolder("artwork")

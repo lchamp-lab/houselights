@@ -50,10 +50,7 @@ class LibraryDatabaseTest {
         assertEquals(id, db.dao().sources().single().id)
     }
 
-    /**
-     * A password a Keystore at fault left in plain text (migration 6 to 7) is sealed at a later launch,
-     * once the Keystore seals again; one already sealed, or none, stays as it is.
-     */
+    /** A password left plain by a faulty Keystore (migration 6 to 7) is sealed at a later launch that can seal. */
     @Test
     fun aPasswordLeftInPlainTextIsSealedAtTheNextLaunch() = runTest {
         val dao = db.dao()

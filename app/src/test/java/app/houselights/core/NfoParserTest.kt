@@ -84,7 +84,6 @@ class NfoParserTest {
 
     private fun titleOf(bytes: ByteArray) = NfoParser.parse(NfoParser.decode(bytes))?.title
 
-    /** Written by an older media manager, in the Latin-1 of Windows, and saying so or not. */
     @Test
     fun latin1NfoIsReadInItsEncoding() {
         val windows = charset("windows-1252")
@@ -106,10 +105,7 @@ class NfoParserTest {
         assertEquals("Le Fabuleux Destin d’Amélie Poulain", titleOf(amelie.toByteArray(Charsets.UTF_16BE)))
     }
 
-    /**
-     * A declaration that does not say what the bytes are: .NET writes "utf-16" in the XML it saves
-     * in UTF-8, or in the Latin-1 of Windows. What was read right as UTF-8 before still is.
-     */
+    /** .NET writes "utf-16" in XML it saves as UTF-8 or Windows Latin-1: valid UTF-8 bytes are read as UTF-8. */
     @Test
     fun aDeclarationTheBytesBelieIsNotFollowed() {
         val title = "<movie><title>Amélie</title></movie>"
@@ -122,12 +118,11 @@ class NfoParserTest {
         assertEquals("Брат", titleOf(brat.toByteArray(charset("windows-1251"))))
     }
 
-    /** An NFO longer than what a scan reads ends in the middle of a character: still UTF-8. */
+    /** An NFO longer than the scan's read limit can be cut mid-character: it still decodes as UTF-8. */
     @Test
     fun utf8CutWithinACharacterStaysUtf8() {
         val start = amelie.removeSuffix("</movie>") + "<tagline>Ét"
         val bytes = "${start}é".toByteArray()
-        // The last character, "é", cut after its first byte.
         assertEquals(start, NfoParser.decode(bytes.copyOf(bytes.size - 1)))
     }
 
@@ -143,7 +138,6 @@ class NfoParserTest {
         assertEquals(8.9, rating(imdb + critics)!!, 0.001)
     }
 
-    /** Without a default, a critics' score listed first gives way to IMDb's or TMDB's rating, as both sites show it. */
     @Test
     fun withoutADefaultImdbOrTmdbRatingIsTaken() {
         fun rating(ratings: String) = NfoParser.parse("<movie><ratings>$ratings</ratings></movie>")?.rating

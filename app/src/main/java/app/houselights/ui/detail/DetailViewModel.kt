@@ -40,14 +40,11 @@ data class DetailState(
     val item: MediaItem? = null,
     val error: UiError? = null,
     val capabilities: ProviderCapabilities? = null,
-    /** For a series: the episode "Play" starts. */
+    /** For a series: the episode Lire starts. */
     val nextUp: MediaItem? = null,
     val seasons: List<MediaItem> = emptyList(),
     val selectedSeasonId: String? = null,
-    /**
-     * The episodes of [selectedSeasonId]; empty while they load ([episodesLoading]) or failed to
-     * ([episodesError]). Tried again, the error stays while they load: its row stays, Réessayer at work.
-     */
+    /** Episodes of [selectedSeasonId]; empty while loading or failed; on retry the error row stays, busy. */
     val episodes: List<MediaItem> = emptyList(),
     val episodesLoading: Boolean = false,
     val episodesError: UiError? = null,
@@ -58,32 +55,25 @@ data class DetailState(
     val collection: MediaItem? = null,
     /** For a collection: its films; for a film: the other films of its collection. */
     val collectionFilms: List<MediaItem> = emptyList(),
-    /** Why marking the title watched or a favourite did not take, shown beside the actions until the next one. */
+    /** Why marking watched or favourite failed, shown beside the actions until the next one. */
     val actionError: UiError? = null,
-    /**
-     * Only the title is in, its rows (seasons, saga, similar titles) still coming: the page shows
-     * what it says of the title at once, and focus waits for the rows it may come back to.
-     */
+    /** Only the title is loaded, its rows still coming: the page shows the title, and focus waits for the rows. */
     val partial: Boolean = false,
-    /** Its people by job ([app.houselights.core.Catalog.credits]); null when the source tells only the cast. */
+    /** People by job ([app.houselights.core.Catalog.credits]); null when the source reports only the cast. */
     val credits: Credits? = null,
-    /** For a collection: its saga whole, the films the library lacks in their place; null when the source cannot tell them. */
+    /** For a collection: the whole saga, missing films in place; null when the source does not know it. */
     val saga: Saga? = null,
-    /** For a film in several copies: each, the one Lire plays first ([Version.chosen]); empty for one copy. */
+    /** For a film in several copies: each one, the one Lire plays marked ([Version.chosen]); empty for one copy. */
     val versions: List<Version> = emptyList(),
 ) {
     /** The copy Lire plays, for a film in several; null for one copy. */
     val playedCopy: Version? get() = versions.takeIf { it.size > 1 }?.let { all -> all.firstOrNull { it.chosen } ?: all.first() }
 
-    /** Where [playedCopy] stands among the copies: it names one without an edition ("Copie 2"). */
+    /** Index of [playedCopy], to name a copy without an edition ("Copie 2"). */
     val playedCopyIndex: Int get() = versions.indexOfFirst { it.chosen }.coerceAtLeast(0)
 }
 
-/**
- * A title's page, from the [provider] of the source in use; what it changes, it tells [events]. The
- * season chosen is kept in [saved]: Android may stop the app while an episode plays. [now] is the
- * time since boot, which a change of the clock never moves.
- */
+/** A title's page; the chosen season is kept in [saved], and [now] is time since boot, immune to clock changes. */
 class DetailViewModel(
     private val itemId: String,
     private val provider: () -> MediaProvider,
@@ -96,7 +86,7 @@ class DetailViewModel(
 
     private val loads = LatestJob(viewModelScope)
 
-    /** The episodes of the season chosen last: one at a time, so a slower answer never shows under another tab. */
+    /** Episodes of the last chosen season, one load at a time, so a slow answer never shows under another tab. */
     private val seasonLoads = LatestJob(viewModelScope)
 
     init {
@@ -104,10 +94,9 @@ class DetailViewModel(
     }
 
     fun load() {
-        // A newer load replaces an older one: two loads never finish out of order. It loads the
-        // episodes of the season chosen itself.
+        // A newer load replaces an older one, season load included: it loads the chosen season itself.
         seasonLoads.cancel()
-        // With no title shown yet, trying again shows: the error gives way to the load.
+        // With no title shown, a retry clears the error to show the load.
         if (_state.value.item == null) _state.update { it.copy(error = null) }
         loads.launch {
             // In a scope of its own, a failed parallel request ends up here instead of crashing the app.
@@ -115,7 +104,7 @@ class DetailViewModel(
                 val source = provider()
                 val item = source.item(itemId)
                 val similar = async { if (source.capabilities.similar) source.similar(item) else emptyList() }
-                // Without them the page keeps its cast: a failure here never fails the page.
+                // Optional: on failure the page keeps its cast.
                 val credits = async {
                     suspendRunCatching { source.catalog?.credits(item) }.onFailure { Log.w(TAG, "Credits of $itemId", it) }.getOrNull()
                 }
@@ -129,13 +118,12 @@ class DetailViewModel(
                 }.copy(credits = credits.await())
             } }.onSuccess { loaded ->
                 val canEdit = loaded.item?.let { provider().editor?.canEdit(it) } == true
-                // A failure said beside the actions stays until the next action; a season chosen while
-                // the page loaded again stays chosen.
+                // Keep the action error until the next action, and any season chosen during the reload.
                 _state.update { loaded.copy(canEdit = canEdit, actionError = it.actionError).keepingSeasonOf(it) }
             }
                 .onFailure { e ->
                     val error = e.reported(TAG, "Detail of $itemId")
-                    // A season this load took over is not left loading: its row says why, with Réessayer.
+                    // A season load this one superseded is not left busy: its row shows the error, with Réessayer.
                     _state.update { s ->
                         val rowError = s.episodesError ?: error.takeIf { s.episodesLoading }
                         s.copy(error = error, episodesLoading = false, episodesError = rowError, partial = false)
@@ -144,17 +132,14 @@ class DetailViewModel(
         }
     }
 
-    /**
-     * A first load says the title at once, on the picture the cut kept, once what Lire starts is
-     * known ([nextUp] for a series): its rows follow ([DetailState.partial]).
-     */
+    /** On a first load, shows the title once what Lire starts is known; rows follow ([DetailState.partial]). */
     private fun sayFirst(source: MediaProvider, item: MediaItem, nextUp: MediaItem? = null) {
         if (_state.value.item != null) return
         val canEdit = source.editor?.canEdit(item) == true
         _state.update { it.copy(item = item, capabilities = source.capabilities, nextUp = nextUp, canEdit = canEdit, partial = true) }
     }
 
-    /** A series' page: what Lire starts, its seasons, the episodes of the season chosen, then [similar] titles. */
+    /** A series' page: what Lire starts, its seasons, the chosen season's episodes, then [similar] titles. */
     private suspend fun seriesPage(source: MediaProvider, item: MediaItem, similar: Deferred<List<MediaItem>>): DetailState =
         coroutineScope {
             val nextUp = async { source.nextUp(item) }
@@ -178,20 +163,17 @@ class DetailViewModel(
             )
         }
 
-    /**
-     * A collection's page: its films, from which Lire picks (the source is asked for them once), and
-     * its saga whole when the source knows it; without it, the films alone.
-     */
+    /** A collection's page: its films (requested once; Lire picks from them) and the whole saga if known. */
     private suspend fun collectionPage(source: MediaProvider, item: MediaItem): DetailState {
         val films = source.collectionItems(item)
         val saga = suspendRunCatching { source.catalog?.saga(item) }.onFailure { Log.w(TAG, "Saga of $itemId", it) }.getOrNull()
         return DetailState(item = item, capabilities = source.capabilities, nextUp = nextUpIn(films), collectionFilms = films, saga = saga)
     }
 
-    /** A film's page: its saga, then [similar] titles that are not of it. */
+    /** A film's page: its saga, then [similar] titles outside it. */
     private suspend fun filmPage(source: MediaProvider, item: MediaItem, similar: Deferred<List<MediaItem>>): DetailState {
         val collection = source.collectionOf(item)
-        // The film itself in its place among them: where it stands in its saga.
+        // Includes the film itself, showing its place in the saga.
         val saga = collection?.let { c -> source.collectionItems(c) }.orEmpty()
         // Films of the same saga are shown as such, not again as "similar".
         val similarFilms = similar.await().filter { s -> saga.none { it.id == s.id } }
@@ -205,11 +187,7 @@ class DetailViewModel(
         )
     }
 
-    /**
-     * The library changed: the page loads again, unless the change is its own and it already did. Only
-     * a signal soon after that change can be its own: one later (the page left meanwhile for Identify,
-     * a change of artwork merged into it) is another change, and loads the page.
-     */
+    /** Reloads after a library change, unless it is this page's own change, signalled within [OWN_CHANGE_MS]. */
     fun onLibraryChanged() {
         val own = ownChangeAt
         ownChangeAt = null
@@ -217,10 +195,7 @@ class DetailViewModel(
         load()
     }
 
-    /**
-     * Shows the season's tab at once, its row emptied; its episodes load once focus has stopped on the
-     * tab (tabs are chosen as focus crosses them), unless another season was chosen meanwhile.
-     */
+    /** Shows the season's tab at once, row emptied; episodes load once focus settles (tabs select on focus). */
     fun selectSeason(seasonId: String) {
         val s = _state.value
         val series = s.item ?: return
@@ -230,7 +205,7 @@ class DetailViewModel(
         loadSeason(series, seasonId, settle = true)
     }
 
-    /** After the episodes of the season chosen failed to load: tries again, the row's error kept until the answer. */
+    /** Retries the chosen season's episodes, keeping the row's error until the result. */
     fun retrySeason() {
         val s = _state.value
         val series = s.item ?: return
@@ -255,11 +230,7 @@ class DetailViewModel(
 
     private var toggleJob: Job? = null
 
-    /**
-     * When this page changed the library itself (watched, a favourite) and loaded again at once: the
-     * library's signal of that change, which follows within [OWN_CHANGE_MS], finds the page already
-     * showing it. Null when there is none to wait for.
-     */
+    /** When this page last changed the library itself, so that change's signal is skipped; null if none. */
     private var ownChangeAt: Long? = null
 
     fun togglePlayed() = toggle("Watched") { item ->
@@ -274,10 +245,7 @@ class DetailViewModel(
         item.user.copy(favorite = favorite)
     }
 
-    /**
-     * Makes [version] the copy Lire plays (null: back to the best), then reads the copies again. A
-     * failure is said beside the actions.
-     */
+    /** Makes [version] the copy Lire plays (null for the best) and rereads the copies; failures show by the actions. */
     fun chooseVersion(version: Version?) {
         val item = _state.value.item ?: return
         _state.update { it.copy(actionError = null) }
@@ -291,7 +259,7 @@ class DetailViewModel(
         }
     }
 
-    /** The copies of [item]'s film, when the source keeps them as one title; a failure leaves none. */
+    /** The copies of [item]'s film, when the source groups them as one title; none on failure. */
     private suspend fun versionsOf(source: MediaProvider, item: MediaItem): List<Version> {
         if (!source.capabilities.versions) return emptyList()
         return suspendRunCatching { source.catalog?.versions(item) }
@@ -300,14 +268,10 @@ class DetailViewModel(
             .orEmpty()
     }
 
-    /** A failure beside the actions is read; the next action clears it. */
+    /** Dismisses the error shown beside the actions. */
     fun clearActionError() = _state.update { it.copy(actionError = null) }
 
-    /**
-     * Changes where the title stands for the user, one change at a time: a second press while one is
-     * saved does nothing. Once saved, the page shows it at once and loads again; the other screens
-     * reload when they come back. A failure is said beside the actions.
-     */
+    /** Changes the title's user state, one change at a time, then reloads; a failure shows beside the actions. */
     private fun toggle(what: String, change: suspend (MediaItem) -> UserState) {
         val item = _state.value.item ?: return
         if (toggleJob?.isActive == true) return
@@ -316,8 +280,7 @@ class DetailViewModel(
             suspendRunCatching { change(item) }
                 .onSuccess { user ->
                     _state.update { s -> s.copy(item = s.item?.takeIf { it.id == item.id }?.copy(user = user) ?: s.item) }
-                    // At once: the library's signal may wait a few seconds behind a scan's. That
-                    // signal, once here, does not load the page a second time.
+                    // Signal at once, as the library's may lag behind a scan's; it then skips the reload.
                     ownChangeAt = now()
                     events.libraryChanged()
                     load()
@@ -336,20 +299,12 @@ class DetailViewModel(
     }
 }
 
-/** The season chosen, in the saved state. */
 private const val SEASON = "season"
 
-/**
- * How long after a change of its own the library's signal can still be that change's: the library
- * moves its version at most once per [LibraryChanges.LIBRARY_CHANGE_MS], plus a margin for a busy
- * main thread.
- */
+/** How late the signal of the page's own change may come: [LibraryChanges.LIBRARY_CHANGE_MS] plus a margin. */
 internal const val OWN_CHANGE_MS = LibraryChanges.LIBRARY_CHANGE_MS + 1_000L
 
-/**
- * This page as loaded, with the season chosen in [current] when one was chosen while it loaded (and
- * the series still has it): the tab focus is on keeps its row.
- */
+/** This page, keeping a season chosen during the load in [current] (if it still exists) for the focused tab. */
 internal fun DetailState.keepingSeasonOf(current: DetailState): DetailState {
     val chosen = current.selectedSeasonId
     if (chosen == null || chosen == selectedSeasonId || seasons.none { it.id == chosen }) return this

@@ -19,7 +19,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.shadows.ShadowLog
 
-/** The artwork a title can be given: what TMDB could not list says why, in the choices and in the log. */
+/** The artwork a title can be given: when TMDB cannot list it, the reason shows in the choices and the log. */
 @RunWith(RobolectricTestRunner::class)
 class LocalEditorTest {
     @get:Rule
@@ -45,7 +45,7 @@ class LocalEditorTest {
 
     private fun editor(tmdb: TmdbClient? = bench.tmdb.client()) = LocalEditor(bench.dao, bench.scanner) { tmdb }
 
-    /** With the key refused, the screen can say the key is what to change, not the connection. */
+    /** With the key refused, the screen can say the key needs changing, not the connection. */
     @Test
     fun imagesTmdbDoesNotListSayWhy() = runTest {
         bench.tmdb.movie(949, "Heat", 1995)

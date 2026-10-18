@@ -28,42 +28,35 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import android.util.Log
 
-/**
- * What home shows under its bar, decided here rather than in the screen, which only draws it. Two
- * families: [Browsing], the hero's band then the rows; [Message], an intertitle (or the first scan's
- * counter) where the title under focus would start.
- */
+/** What Home shows below its bar: [Browsing] (hero, then rows) or a [Message] where the focused title would start. */
 sealed interface HomeContent {
-    /** The hero's band, then the rows or their empty frames; [firstScan]: the scan's counter between them. */
+    /** The hero's band, then the rows or their empty frames; with [firstScan], the scan's counter between them. */
     sealed interface Browsing : HomeContent {
         val firstScan: Boolean
     }
 
-    /** Nothing to browse: what the screen says starts where the title under focus would. */
+    /** Nothing to browse: the message starts where the focused title would. */
     sealed interface Message : HomeContent
 
-    /** The rows load for the first time. */
     data class Loading(override val firstScan: Boolean) : Browsing
 
-    /** The rows; [firstScan]: a folder is read for the first time, its counter above them. */
+    /** The rows; with [firstScan], a folder's first scan is running and its counter shows above them. */
     data class Rows(val sections: List<HomeSection>, override val firstScan: Boolean) : Browsing
 
-    /** No rows yet, and a scan going on: its counter, the rows filling in as titles are found. */
+    /** No rows yet and a scan running: its counter, with rows filling in as titles are found. */
     data object FirstScan : Message
 
-    /** The source could not be read; [retrying]: it is read again, and the intertitle stays, its button at work. */
+    /** The source could not be read; while [retrying], the intertitle stays with its button busy. */
     data class Failed(val error: UiError, val retrying: Boolean) : Message
 
-    /** The folders are still being read: nothing to say about them yet. */
     data object ReadingFolders : Message
 
-    /** Not "add a folder" when there is one: [folder]'s last scan failed, and [error] says why. */
+    /** Shown instead of "add a folder" when folders exist: [folder]'s last scan failed, [error] says why. */
     data class ScanFailed(val folder: SourceEntity, val error: ScanError) : Message
 
-    /** Folders without a film yet, or none at all ([hasFolders]: they can be seen from here). */
+    /** No films yet: folders without any, or no folders at all ([hasFolders]; they can be opened from here). */
     data class NoFilms(val hasFolders: Boolean) : Message
 
-    /** A server with nothing to show. */
     data object ServerEmpty : Message
 }
 
@@ -72,30 +65,26 @@ data class HomeState(
     val libraries: List<Library> = emptyList(),
     val content: HomeContent = HomeContent.Loading(firstScan = false),
 ) {
-    /** The tabs: every library but the sagas, which a films' wall shows in their place ([sagas]). */
+    /** The tabs: every library except the sagas, which a films' wall shows instead ([sagas]). */
     val tabs: List<Library> get() = libraries.filter { it.kind != LibraryKind.COLLECTIONS }
 
-    /** The sagas of the source, if it has any to show: a films' wall shows them on demand. */
+    /** The source's sagas, if it has any: a films' wall shows them on demand. */
     val sagas: Library? get() = libraries.firstOrNull { it.kind == LibraryKind.COLLECTIONS }
 }
 
-/**
- * What the source last gave home, or why it could not: kept while it loads again with nothing shown
- * ([loading] with an [error]), so the intertitle stays in place with focus on its button.
- */
+/** The source's last result for Home, kept while reloading so an intertitle and its focused button stay. */
 internal data class HomeLoad(
     val loading: Boolean = true,
     val error: UiError? = null,
     val libraries: List<Library> = emptyList(),
     val sections: List<HomeSection> = emptyList(),
-    /** The rows the library writes under them ([LibraryRows]), once drawn. */
+    /** The library's own rows below them ([LibraryRows]), once computed. */
     val drawn: List<HomeSection> = emptyList(),
 )
 
 /**
- * Home's rows, from the [provider] of the source in use, and what home shows without them, from the
- * [scan], the [folders] and the source in [settings]. The scan's progress is the first scan's
- * counter's alone to read ([scan]): a file read changes [state] only when it changes what home shows.
+ * Home's rows from the current source's [provider], and what Home shows without them. Only the first scan's
+ * counter reads [scan] progress, so a file scanned changes [state] only when it changes what Home shows.
  */
 class HomeViewModel(
     private val provider: () -> MediaProvider,
@@ -103,21 +92,18 @@ class HomeViewModel(
     folders: Flow<List<SourceEntity>>,
     settings: StateFlow<AppSettings>,
     private val scanAll: () -> Unit,
-    /** The rows the launch asked for home already ([HomeLaunch.take]), once; null: home asks the source. */
+    /** Rows the launch already requested for Home ([HomeLaunch.take]), once; on null, Home asks the source. */
     private val launched: suspend () -> HomeRows? = { null },
-    /** The rows the library writes under home's own ([LibraryRows]); none, when null. */
+    /** The library's rows below Home's own ([LibraryRows]); none when null. */
     private val libraryRows: LibraryRows? = null,
-    /** Waits for the launch screen to leave: the library's rows are read after it, outside home's first view. */
+    /** Waits for the launch screen to close: the library's rows load after it, outside Home's first view. */
     private val afterLaunch: suspend () -> Unit = {},
 ) : ViewModel() {
     private val load = MutableStateFlow(HomeLoad())
     private val loads = LatestJob(viewModelScope)
     private val draws = LatestJob(viewModelScope)
 
-    /**
-     * Null until the folders are first read. Back on home after a while away, the folders last read
-     * stand until the database reads them again: what home showed stays, with no blank in between.
-     */
+    /** Null until first read; on return, the last list stays until the database re-reads it, so Home never blanks. */
     private val folderList: StateFlow<List<SourceEntity>?> = folders.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), null)
 
     val state: StateFlow<HomeState> = combine(load, scan, folderList, settings) { loaded, progress, list, current ->
@@ -133,8 +119,7 @@ class HomeViewModel(
     }
 
     fun load() {
-        // Trying again with nothing shown shows: the error stays, at work, until the answer. Rows shown,
-        // or the first scan's progress over none, stay as they are while they load again.
+        // A retry with nothing shown keeps the error, busy; shown rows or first-scan progress stay while reloading.
         if (load.value.sections.isEmpty() && load.value.error != null) load.update { it.copy(loading = true) }
         loads.launch {
             suspendRunCatching {
@@ -149,13 +134,13 @@ class HomeViewModel(
         }
     }
 
-    /** The library changed: its rows are drawn again from what it holds now, with home's own. */
+    /** Reloads after a library change, recomputing the library's rows along with Home's own. */
     fun onLibraryChanged() {
         libraryRows?.forget()
         load()
     }
 
-    /** The library's rows, under home's own, once the launch screen has left; a failure leaves them out. */
+    /** Loads the library's rows, below Home's own, once the launch screen has closed; a failure leaves them out. */
     private fun drawLibraryRows() {
         val rows = libraryRows ?: return
         draws.launch {
@@ -166,7 +151,7 @@ class HomeViewModel(
         }
     }
 
-    /** The folders are read again: a scan that failed is tried once more. */
+    /** Scans the folders again, retrying a failed scan. */
     fun rescan() = scanAll()
 
     companion object {
@@ -188,10 +173,8 @@ class HomeViewModel(
 }
 
 /**
- * What home shows, from what the source gave ([load]), the [scan], the [folders] (null until read)
- * and whether the source is the [local] folders. Rows shown stay, whatever else happens; with none,
- * a first load shows the hero's room and empty frames, then the first scan's counter, an error, or
- * why the library is still empty.
+ * What Home shows, from [load], [scan], [folders] (null until read) and whether the source is [local]. Shown rows
+ * always stay; with none, the hero's room and empty frames, then the scan counter, an error, or why it is empty.
  */
 internal fun homeContent(load: HomeLoad, scan: ScanState, folders: List<SourceEntity>?, local: Boolean): HomeContent {
     val empty = load.sections.isEmpty()
@@ -209,15 +192,15 @@ internal fun homeContent(load: HomeLoad, scan: ScanState, folders: List<SourceEn
     }
 }
 
-/** A folder read for the first time, or a scan going on while home has nothing to show. */
+/** A folder's first scan, or any scan while Home has nothing to show. */
 internal fun firstScan(scan: ScanState, empty: Boolean, folders: List<SourceEntity>?): Boolean =
     scan.running && (empty || folders.orEmpty().any { it.id == scan.sourceId && it.lastScanAt <= 0 })
 
-/** The first folder still there whose last scan failed, and why. */
+/** The first existing folder whose last scan failed, and why. */
 internal fun failedFolder(errors: Map<Long, ScanError>, folders: List<SourceEntity>): Pair<SourceEntity, ScanError>? =
     folders.firstNotNullOfOrNull { folder -> errors[folder.id]?.let { folder to it } }
 
-/** How long the screen may be away (a configuration change, a title opened and closed) before home stops listening. */
+/** How long the screen may be away (a configuration change, a title opened and closed) before Home stops collecting. */
 private const val STOP_AFTER_MS = 5_000L
 
 private const val TAG = "Home"

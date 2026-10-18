@@ -5,7 +5,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** When focus runs across the cards, an arrow held, and when it stops. */
+/** When focus runs across the cards with an arrow held, and when it stops. */
 class ScrubTest {
     private var clock = 0L
     private val pending = mutableListOf<Pair<Long, () -> Unit>>()
@@ -44,7 +44,7 @@ class ScrubTest {
         assertFalse(scrub.active)
     }
 
-    /** An infrared remote repeats by pressing again: quick presses run too, and no card lights between them. */
+    /** An infrared remote repeats by pressing again: quick presses run too, and no card lights up between them. */
     @Test
     fun quickPressesRunAsAHeldArrow() {
         press(); release(); advance(80)

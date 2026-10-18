@@ -64,10 +64,7 @@ enum class PanelLevel {
     Raised,
 }
 
-/**
- * The one panel of the design system: a rounded, quietly lit area with a hairline edge. [lit]
- * draws the edge in ember, for something that is on or chosen.
- */
+/** The design system's panel: rounded, quietly lit, hairline edge; [lit] draws the edge in ember. */
 @Composable
 fun HlPanel(
     modifier: Modifier = Modifier,
@@ -92,19 +89,11 @@ fun HlPanel(
     }
 }
 
-/**
- * A panel's surface: [fill] clipped to [shape], [edge] drawn around it. The one recipe, so an area
- * to read on its quiet panel ([HlScrollArea]) is the panel itself.
- */
+/** A panel's surface, shared with [HlScrollArea]: [fill] clipped to [shape], [edge] around it. */
 internal fun Modifier.panel(shape: Shape, fill: Color, edge: BorderStroke): Modifier =
     clip(shape).background(fill).border(edge, shape)
 
-/**
- * A panel that can be chosen (list entries, results, source cards): quiet at rest, raised with a
- * projector-white outline when focused. [lit] edges it in ember at rest: the choice in use.
- * Not [enabled], it sits in a faint well with tertiary content (what [content] draws in
- * `LocalContentColor`), keeps focus and ignores OK. [content] receives the focus state.
- */
+/** A selectable panel (list entries, source cards), lifted on focus; [lit] edges it in ember at rest. */
 @Composable
 fun HlPanelButton(
     onClick: () -> Unit,
@@ -141,13 +130,7 @@ fun HlPanelButton(
     }
 }
 
-/**
- * A row that can be chosen, as wide as its column (a setting, a navigation entry, a menu option, a
- * fact of the technical sheet): the row's shape, and with focus the white fill, without growing
- * ([FocusStyle.Fill.Row]). [rest] and [restContent] at rest; not [enabled], it keeps focus,
- * outlined, and its words go [disabledContent]. What sets one row apart (its height, what it says
- * to accessibility services) goes in [modifier]. [content] receives the focus state.
- */
+/** A full-width selectable row, white-filled on focus without growing; disabled, it keeps focus, outlined. */
 @Composable
 internal fun HlRowSurface(
     onClick: () -> Unit,
@@ -185,11 +168,7 @@ fun HlDivider(modifier: Modifier = Modifier, vertical: Boolean = false) {
     }
 }
 
-/**
- * Facts on one line, separated by space and never by punctuation: "2026   2 h 02   12". Empty
- * facts are left out, and so are those past the room, whole and from the last: put the ones that
- * matter first. A single fact too long for the line ends in an ellipsis.
- */
+/** Facts on one line, space-separated ("2026   2 h 02   12"); those that do not fit drop whole from the end. */
 @Composable
 fun FactRow(
     facts: List<String?>,
@@ -205,13 +184,9 @@ fun FactRow(
 }
 
 /**
- * What a screen says when it has nothing to show or could not load, as an intertitle: what
- * happened ([title], in the voice of the poster), what to check ([message]), and the action that
- * fixes it, focused; [secondaryAction] is a quieter way out beside it (where to look more closely).
- * A failure calls for [attention]: its rule is ember. With no action, [backHint] says that Back
- * is the way out. While the action is at work (trying again), [busy] says so in its place: the
- * intertitle stays, and focus with it. It takes the place of what the screen would show, from the
- * top of that place. A specimen among others (the catalogue) leaves focus where it is ([focusOnAppear]).
+ * An [Intertitle] for a screen with nothing to show or a failure: [title], [message] and a focused [action]
+ * (labelled [busy] while it runs), or [backHint] when nothing fixes it. Pass [focusOnAppear] false for a
+ * specimen among others (the catalogue).
  */
 @Composable
 fun HlEmptyState(
@@ -257,16 +232,12 @@ fun HlEmptyState(
 }
 
 /**
- * The state of something the app depends on. [On]: in use or your choice, the ember light.
- * [Done]: a fact that holds (a file read, a match found by the app), projector white, like a title
- * watched. [Off]: not there or not yet. [Pending]: at work. [Attention]: something went wrong.
+ * The state of something the app depends on: [On] in use or chosen (ember), [Done] an established fact
+ * (white), [Off] absent, [Pending] in progress, [Attention] something went wrong.
  */
 enum class StatusState { On, Done, Off, Pending, Attention }
 
-/**
- * A state in words with its light (see [StatusLight]). [detail] says why, under the words and
- * aligned with them.
- */
+/** A state in words with its light ([StatusLight]); [detail] explains why, below and aligned with the words. */
 @Composable
 fun HlStatus(state: StatusState, text: String, modifier: Modifier = Modifier, detail: String? = null) {
     val c = Hl.colors
@@ -290,11 +261,8 @@ fun HlStatus(state: StatusState, text: String, modifier: Modifier = Modifier, de
 }
 
 /**
- * The light of a [StatusState], in a box of its own width so words line up after any of them: an
- * ember dot when on, a white one when done, a quiet one while pending, an empty ring when off,
- * and for attention the circled exclamation mark in ember: never the same mark as on, so the two
- * are told apart without their colour. Also where a busy button's icon was, and before an error.
- * [ink] replaces every colour (a light on a focused row takes the row's ink).
+ * The light of a [StatusState] in a fixed-width box: dots for on, done and pending, a ring for off, and a
+ * circled exclamation mark for attention, so it differs from on without colour. [ink] overrides colours.
  */
 @Composable
 internal fun StatusLight(state: StatusState, modifier: Modifier = Modifier, ink: Color? = null) {
@@ -316,11 +284,7 @@ internal fun StatusLight(state: StatusState, modifier: Modifier = Modifier, ink:
     }
 }
 
-/**
- * What needs attention, beside what it concerns (a folder that could not be read, images that
- * cannot be fetched): the attention light by the first line, then the words in ember, as under
- * a field. A screen never sets ember itself: it says attention through this, or [HlStatus].
- */
+/** An attention note: the attention light, then [text] in ember; screens never set ember themselves. */
 @Composable
 fun AttentionNote(text: String, modifier: Modifier = Modifier, style: TextStyle = Hl.type.caption) {
     Row(modifier) {
@@ -332,11 +296,7 @@ fun AttentionNote(text: String, modifier: Modifier = Modifier, style: TextStyle 
     }
 }
 
-/**
- * The ink of a part of a [HlMeter], by rank: projector white, then the two greys of reading. A
- * share of a capacity is not a state, so a meter never lights: parts are told apart by their
- * order, the gap between them and the legend.
- */
+/** [HlMeter] part colours by rank; a share of capacity is not a state, so a meter never lights. */
 enum class MeterInk { Primary, Secondary, Tertiary }
 
 @Composable
@@ -349,10 +309,7 @@ private fun MeterInk.color(): Color = when (this) {
 /** One part of a [HlMeter]. */
 data class MeterSegment(val fraction: Float, val ink: MeterInk)
 
-/**
- * A segmented gauge: how a capacity is shared. Segments are drawn left to right on a faint
- * track, a gap apart; what is left of the track is free.
- */
+/** A segmented gauge of how a capacity is shared; the rest of the track is free. */
 @Composable
 fun HlMeter(segments: List<MeterSegment>, modifier: Modifier = Modifier) {
     val c = Hl.colors
@@ -373,10 +330,7 @@ fun HlMeter(segments: List<MeterSegment>, modifier: Modifier = Modifier) {
     }
 }
 
-/**
- * A line of a meter's legend, read as a table like the back of a case: its ink, what it is in a
- * column of its own, then how much, on the same baseline, in tabular figures that line up.
- */
+/** A meter legend line: colour dot, label column, then the value in tabular figures. */
 @Composable
 fun MeterLegend(label: String, value: String, ink: MeterInk, modifier: Modifier = Modifier) {
     Row(modifier.fillMaxWidth()) {

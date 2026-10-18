@@ -12,47 +12,40 @@ import androidx.sqlite.db.SupportSQLiteQuery
 import app.houselights.core.Job
 import kotlinx.coroutines.flow.Flow
 
-/**
- * Ids bound by one statement at most: Android 9's SQLite (3.22) takes at most 999 values in a
- * statement, and lists of ids can be longer. Robolectric's SQLite takes more: tests count them.
- */
+/** Max ids bound per statement: Android 9's SQLite (3.22) allows 999 variables; Robolectric more, so tests check it. */
 internal const val SQL_IN_LIMIT = 500
 
 private const val SET_PLAYED =
     "UPDATE items SET played = :played, positionMs = 0, lastPlayedAt = CASE WHEN :played THEN :now ELSE lastPlayedAt END"
 
-/**
- * The row :id and, for a film, its other copies ([ItemEntity.versionOf]): what is watched or a favourite of a
- * film is of all its copies. Through the indexes on the id and on versionOf.
- */
+/** Row :id plus, for a film, its other copies ([ItemEntity.versionOf]), which share watched and favourite state. */
 private const val COPIES =
     "(id = :id OR id = (SELECT versionOf FROM items WHERE id = :id) " +
         "OR versionOf = (SELECT COALESCE(versionOf, id) FROM items WHERE id = :id AND kind = 'MOVIE'))"
 
-/** The title of each film's copies ([LibraryDao.groupVersions]): the first row of its TMDB id, none for itself. */
+/** Main row of a film's copies ([LibraryDao.groupVersions]): the lowest id with its TMDB id. */
 private const val TITLE_OF_COPY = "NULLIF((SELECT MIN(o.id) FROM items o WHERE o.kind = 'MOVIE' AND o.tmdbId = items.tmdbId), id)"
 
-/** Gathers the copies of each film, writing only the rows that change (see [LibraryDao.groupVersions]). */
+/** Groups each film's copies, writing only rows whose versionOf changes (see [LibraryDao.groupVersions]). */
 internal const val GROUP_VERSIONS = "UPDATE items SET versionOf = $TITLE_OF_COPY WHERE kind = 'MOVIE' AND versionOf IS NOT $TITLE_OF_COPY"
 
-/** How many titles hold the person of the credit c, a film of several copies once (see [LibraryDao.creditsOf]). */
+/** Number of titles crediting c's person, counting a multi-copy film once (see [LibraryDao.creditsOf]). */
 private const val TITLES_OF_PERSON =
     "(SELECT COUNT(DISTINCT o.itemId) FROM credits o JOIN items oi ON oi.id = o.itemId " +
         "WHERE o.personKey = c.personKey AND oi.versionOf IS NULL)"
 
-/** People with their name, a portrait and how many titles hold them, a film of several copies once. */
 private const val PERSON_SUMMARY =
     "SELECT c.personKey, MIN(c.name) AS name, MAX(c.profilePath) AS profilePath, COUNT(DISTINCT c.itemId) AS titles " +
         "FROM credits c JOIN items i ON i.id = c.itemId"
-/** A folder's password as the database keeps it: sealed text, or plain text from before sealing. */
+/** A source password as stored: sealed, or plain text not yet sealed ([LibraryDatabase.sealPlainPasswords]). */
 data class StoredPassword(val id: Long, val password: String) {
     override fun toString() = "StoredPassword($id, ***)"
 }
 
-/** What a folder holds, as its card in the settings says it: films and shows, and files in Ultra HD. */
+/** Counts shown on a source's settings card: titles (films and shows) and Ultra HD files. */
 data class FolderCounts(val sourceId: Long, val titles: Int, val ultraHd: Int)
 
-/** A credit of a title, and how many titles of the library hold its person ([LibraryDao.creditsOf]). */
+/** A credit of a title, with the number of library titles crediting that person ([LibraryDao.creditsOf]). */
 data class TitleCredit(
     val personKey: String,
     val name: String,
@@ -63,25 +56,23 @@ data class TitleCredit(
     val titles: Int,
 )
 
-/** A credit of a person, on the title [itemId] ([LibraryDao.creditsOfPerson]). */
 data class PersonCredit(val itemId: Long, val job: Job, val ord: Int, val name: String, val character: String?, val profilePath: String?)
 
-/** A person: a name, a portrait, and how many titles of the library hold them. */
 data class PersonSummary(val personKey: String, val name: String, val profilePath: String?, val titles: Int)
 
-/** A person's TMDB key, by their folded name ([LibraryDao.tmdbKeysOf]). */
+/** A person's TMDB key for a folded name ([LibraryDao.tmdbKeysOf]). */
 data class NamedKey(val foldedName: String, val personKey: String)
 
-/** A film of a saga as TMDB lists it, and the library's title of it, when it holds one. */
+/** A saga part as TMDB lists it, with the library's matching item, if any. */
 data class SagaPartRow(@Embedded val part: SagaPartEntity, val itemId: Long?)
 
-/** When the recent viewing of a show or a saga ([id]) was. */
+/** Last viewing time of a show or saga [id]. */
 data class Recent(val id: Long, val at: Long)
 
-/** Where a film of a saga stands for the viewer, in the saga's order ([LibraryDao.startedSagas]). */
+/** Viewing state of a saga film, listed in saga order ([LibraryDao.startedSagas]). */
 data class SagaFilmState(val id: Long, val collectionId: Long, val played: Boolean, val positionMs: Long, val lastPlayedAt: Long?)
 
-/** What the library in numbers counts of a film's or an episode's file, nothing it would decode ([LibraryDao.fileFacts]). */
+/** Columns of a film or episode file used by [LibraryCount], none needing decoding ([LibraryDao.fileFacts]). */
 data class FileFacts(
     val id: Long,
     val kind: ItemKind,
@@ -96,10 +87,9 @@ data class FileFacts(
     val runtimeMin: Int?,
 )
 
-/** How a library's files end, each way once ([LibraryDao.fileEnds]). */
+/** A distinct file ending of the library ([LibraryDao.fileEnds]). */
 data class FileEnd(val tail: String, val bluRay: Boolean, val dvd: Boolean)
 
-/** What a search word found ([LibraryDao.searchRefs]). */
 data class SearchRef(val ref: String)
 
 @Dao
@@ -120,10 +110,7 @@ interface LibraryDao {
     @Update
     suspend fun updateSource(source: SourceEntity)
 
-    /**
-     * A folder's new address or sign-in, column by column: it keeps its id, so its titles and what the
-     * user did with them stay, and its kind and scan dates. [name] follows from the path.
-     */
+    /** Updates address and credentials in place, keeping id, kind and scan dates, so titles keep their user state. */
     @Query(
         "UPDATE sources SET name = :name, protocol = :protocol, host = :host, share = :share, path = :path, " +
             "username = :username, password = :password WHERE id = :id"
@@ -143,29 +130,26 @@ interface LibraryDao {
     @Query("SELECT * FROM sources WHERE id = :id")
     suspend fun source(id: Long): SourceEntity?
 
-    /** Folders' passwords as stored, sealed or not: read as text, they are not opened ([LibraryDatabase.sealPlainPasswords]). */
+    /** Raw stored passwords, sealed or not, read without unsealing ([LibraryDatabase.sealPlainPasswords]). */
     @Query("SELECT id, password FROM sources WHERE password != ''")
     suspend fun storedPasswords(): List<StoredPassword>
 
-    /** Writes [sealed] in place of the [plain] password read, unless the folder was saved meanwhile. */
+    /** Replaces the [plain] password with [sealed], unless the source was saved since it was read. */
     @Query("UPDATE sources SET password = :sealed WHERE id = :id AND password = :plain")
     suspend fun sealPassword(id: Long, plain: String, sealed: String)
 
-    /**
-     * The end of a scan, written alone: the rest of the folder's row may have changed during the
-     * scan, and writing it again would seal its password again.
-     */
+    /** Writes only the scan columns: the row may have changed meanwhile, and rewriting it would reseal the password. */
     @Query("UPDATE sources SET lastScanAt = :at, firstScanAt = CASE WHEN firstScanAt = 0 THEN :at ELSE firstScanAt END WHERE id = :id")
     suspend fun markScanned(id: Long, at: Long)
 
-    // What the user changes is written column by column, so it never overwrites a scan's work.
-    // Watched state goes by parent, never by a list of ids: a long show holds thousands of episodes.
+    // User changes are written column by column so they never overwrite a scan's work.
+    // Watched state is set by parent, not by id list: a long show has thousands of episodes.
 
-    /** A film's other copies are watched, or not, with it ([COPIES]). */
+    /** Applies to all copies of a film ([COPIES]). */
     @Query("$SET_PLAYED WHERE $COPIES")
     suspend fun setPlayed(id: Long, played: Boolean, now: Long)
 
-    /** The other copies of the film [id] are watched too, their resume points kept: one copy was watched to its end. */
+    /** Marks the other copies of film [id] watched, keeping their resume points, after one copy was finished. */
     @Query("UPDATE items SET played = 1 WHERE played = 0 AND $COPIES")
     suspend fun setCopiesPlayed(id: Long)
 
@@ -178,15 +162,15 @@ interface LibraryDao {
     @Query("$SET_PLAYED WHERE kind = 'MOVIE' AND collectionId = :collectionId")
     suspend fun setCollectionPlayed(collectionId: Long, played: Boolean, now: Long)
 
-    /** A film's other copies are a favourite, or not, with it ([COPIES]). */
+    /** Applies to all copies of a film ([COPIES]). */
     @Query("UPDATE items SET favorite = :favorite WHERE $COPIES")
     suspend fun setFavorite(id: Long, favorite: Boolean)
 
-    /** The copy of its film "Lire" plays ([ItemEntity.versionChoice]), on the title's row [id]; null: the best. */
+    /** Sets the copy to play on main row [id] ([ItemEntity.versionChoice]); null plays the best copy. */
     @Query("UPDATE items SET versionChoice = :choice WHERE id = :id")
     suspend fun setVersionChoice(id: Long, choice: Long?)
 
-    /** When it was played, alone: a report of the previous session may land meanwhile. */
+    /** Writes only lastPlayedAt, since a late report from the previous session may update the rest meanwhile. */
     @Query("UPDATE items SET lastPlayedAt = :now WHERE id = :id")
     suspend fun setLastPlayedAt(id: Long, now: Long)
 
@@ -201,18 +185,17 @@ interface LibraryDao {
 
     // Items
 
-    /** New rows only: a row inserted again fails, rather than replacing what the user did with it. */
+    /** Insert only: inserting an existing row fails rather than replacing its user state. */
     @Insert
     suspend fun insertRow(item: ItemEntity): Long
 
-    /** A new row ([insertRow]), and a film's or a show's words for searches. */
+    /** Inserts a row ([insertRow]) and indexes a film's or show's search words. */
     @Transaction
     suspend fun insert(item: ItemEntity): Long = insertRow(item).also { indexTitle(item.copy(id = it)) }
 
     @Update
     suspend fun update(item: ItemEntity)
 
-    /** The words a search finds a film or a show by ([SearchWords]), its title's and its original title's. */
     @Transaction
     suspend fun indexTitle(item: ItemEntity) {
         if (item.kind != ItemKind.MOVIE && item.kind != ItemKind.SERIES) return
@@ -220,54 +203,48 @@ interface LibraryDao {
         insertSearchWords(SearchWords.rows(SearchKind.TITLE, item.id.toString(), item.title, item.originalTitle))
     }
 
-    /** The whole row, its NFO text included: what a scan writes back, and what the player is handed artwork from. */
+    /** The full row, NFO text included: for writing back during a scan, and for the player's artwork. */
     @Query("SELECT * FROM items WHERE id = :id")
     suspend fun item(id: Long): ItemEntity?
 
-    /** The row as a title's page shows it ([ITEM_ROW]): all of it but its NFO text, which can weigh up to 1 MB. */
+    /** The row without its NFO text, which can reach 1 MB ([ITEM_ROW]); used by the title page. */
     @Query("SELECT $ITEM_ROW FROM items WHERE id = :id")
     suspend fun itemRow(id: Long): ItemEntity?
 
     @Query("SELECT sourceId, nfoPath, nfo FROM items WHERE id = :id")
     suspend fun nfoOf(id: Long): ItemNfo?
 
-    /** What a report of the player's progress needs of a title: read every ten seconds while it plays. */
+    /** Columns needed by playback progress reports, read every ten seconds during playback. */
     @Query("SELECT parts, positionMs, durationMs, fileDurationMs, runtimeMin, played FROM items WHERE id = :id")
     suspend fun playState(id: Long): PlayState?
 
-    /** The rows of a source's files, all but their NFO text: what the tests look at of a scan's work. */
+    /** A source's file rows without NFO text; used by tests to inspect a scan's result. */
     @Query("SELECT $ITEM_ROW FROM items WHERE sourceId = :sourceId AND filePath IS NOT NULL")
     suspend fun filesOf(sourceId: Long): List<ItemEntity>
 
-    /** A source's files, as a scan sorts what to do with them ([KnownFile]). */
     @Query(
         "SELECT id, filePath, parts, fileSize, missingSince, seriesId, tmdbId, userTmdbId, matchedAt, sidecarKey, probeVersion " +
             "FROM items WHERE sourceId = :sourceId AND filePath IS NOT NULL"
     )
     suspend fun knownFiles(sourceId: Long): List<KnownFile>
 
-    /** Whether the library holds a row for the file at [filePath] of a source. */
     @Query("SELECT EXISTS(SELECT 1 FROM items WHERE sourceId = :sourceId AND filePath = :filePath)")
     suspend fun hasFile(sourceId: Long, filePath: String): Boolean
 
     @Query("SELECT * FROM items WHERE kind = 'SERIES' AND matchKey = :key LIMIT 1")
     suspend fun seriesByKey(key: String): ItemEntity?
 
-    /** Shows of that name keyed with a year ([FilenameParser.showKey]); [nameKey] holds no LIKE wildcard. */
+    /** Shows of that name whose key has a year ([FilenameParser.showKey]); [nameKey] contains no LIKE wildcard. */
     @Query("SELECT * FROM items WHERE kind = 'SERIES' AND matchKey LIKE :nameKey || '${FilenameParser.YEAR_MARK}%'")
     suspend fun seriesNamed(nameKey: String): List<ItemEntity>
 
-    /**
-     * Episodes of a source under the folder [dir], as long as it is not the root (""): paths from "dir/" up to
-     * "dir0", "0" coming right after "/", which the index on the source and path reads as a range.
-     */
+    /** Episodes under [dir] (never ""): paths between "dir/" and "dir0", a range scan on the index. */
     @Query(
         "SELECT $CARD_ROW FROM items WHERE kind = 'EPISODE' AND sourceId = :sourceId " +
             "AND filePath > :dir || '/' AND filePath < :dir || '0'"
     )
     suspend fun episodesUnder(sourceId: Long, dir: String): List<ItemEntity>
 
-    /** Whether the show [seriesId] holds an episode besides [episodeId]. */
     @Query("SELECT EXISTS(SELECT 1 FROM items WHERE kind = 'EPISODE' AND seriesId = :seriesId AND id != :episodeId)")
     suspend fun hasOtherEpisodes(seriesId: Long, episodeId: Long): Boolean
 
@@ -285,31 +262,27 @@ interface LibraryDao {
     @Query("SELECT $CARD_ROW FROM items WHERE id IN (:ids)")
     suspend fun rows(ids: List<Long>): List<ItemEntity>
 
-    /** Per show: episodes not watched yet, and seasons. One query for a whole page of shows. */
+    /** Unwatched episodes and seasons per show, for a whole page in one query. */
     @Query(
         "SELECT seriesId, SUM(played = 0) AS unplayed, COUNT(DISTINCT parentId) AS seasons FROM items " +
             "WHERE kind = 'EPISODE' AND seriesId IN (:seriesIds) GROUP BY seriesId"
     )
     suspend fun seriesCounts(seriesIds: List<Long>): List<SeriesCounts>
 
-    /** Per season of a show: its episodes, and those watched. One query for the whole season track. */
+    /** Episode and watched counts per season, in one query for the season track. */
     @Query(
         "SELECT parentId AS seasonId, COUNT(*) AS episodes, SUM(played) AS played FROM items " +
             "WHERE kind = 'EPISODE' AND seriesId = :seriesId AND parentId IS NOT NULL GROUP BY parentId"
     )
     suspend fun seasonCounts(seriesId: Long): List<SeasonCounts>
 
-    /** Shows whose episodes were played most recently, and when. */
     @Query(
         "SELECT seriesId AS id, MAX(lastPlayedAt) AS at FROM items WHERE kind = 'EPISODE' AND seriesId IS NOT NULL " +
             "AND lastPlayedAt IS NOT NULL GROUP BY seriesId ORDER BY MAX(lastPlayedAt) DESC LIMIT :limit"
     )
     suspend fun recentSeries(limit: Int): List<Recent>
 
-    /**
-     * The films of the [limit] sagas one of whose films was watched last, saga by saga, each in the order they
-     * came out, a film of several copies once, as its copies together stand: what tells the next film of each.
-     */
+    /** Films of the [limit] most recently watched sagas, by saga in release order, with copies' state merged. */
     @Query(
         "SELECT id, collectionId, (played = 1 OR EXISTS (SELECT 1 FROM items c WHERE c.versionOf = items.id AND c.played = 1)) " +
             "AS played, (SELECT MAX(c.positionMs) FROM items c WHERE c.id = items.id OR c.versionOf = items.id) AS positionMs, " +
@@ -324,10 +297,7 @@ interface LibraryDao {
     @Query("SELECT $CARD_ROW FROM items WHERE seriesId = :seriesId AND kind = 'EPISODE' ORDER BY seasonNumber, episodeNumber")
     suspend fun episodesOfSeries(seriesId: Long): List<ItemEntity>
 
-    /**
-     * Where each episode of the shows [seriesIds] stands, show by show, in their order: one light query for
-     * the next episode of many shows, rather than every row of each.
-     */
+    /** Watch state of every episode of [seriesIds], in order: finds next episodes without loading full rows. */
     @Query(
         "SELECT id, seriesId, seasonNumber, episodeNumber, played, positionMs FROM items " +
             "WHERE kind = 'EPISODE' AND seriesId IN (:seriesIds) ORDER BY seriesId, seasonNumber, episodeNumber, id"
@@ -340,14 +310,14 @@ interface LibraryDao {
     )
     suspend fun inProgress(limit: Int): List<ItemEntity>
 
-    /** Titles last added: a film's other copies are no titles of their own ([ItemEntity.versionOf]). */
+    /** Most recently added titles, excluding secondary copies of films ([ItemEntity.versionOf]). */
     @Query("SELECT $CARD_ROW FROM items WHERE kind = :kind AND versionOf IS NULL ORDER BY addedAt DESC, id DESC LIMIT :limit")
     suspend fun latest(kind: ItemKind, limit: Int): List<ItemEntity>
 
     @Query("SELECT COUNT(*) FROM items WHERE kind = :kind")
     suspend fun count(kind: ItemKind): Int
 
-    /** Each title's genres, folded beside them by the lower() the genre filter compares ([PipeList.distinctGenres]). */
+    /** Each title's genres, with the lower() form the genre filter compares against ([PipeList.distinctGenres]). */
     @Query("SELECT genres, lower(genres) AS folded FROM items WHERE kind = :kind AND genres != ''")
     suspend fun genresOf(kind: ItemKind): List<GenreList>
 
@@ -357,14 +327,12 @@ interface LibraryDao {
     @Query("SELECT DISTINCT badges FROM items WHERE kind = :kind AND badges != ''")
     suspend fun badgesOf(kind: ItemKind): List<String>
 
-    /** Films and shows found in a source (not seasons or episodes). */
     @Query("SELECT COUNT(*) FROM items WHERE sourceId = :sourceId AND kind IN ('MOVIE','SERIES')")
     fun observeTitleCount(sourceId: Long): Flow<Int>
 
     @Query("SELECT COUNT(*) FROM items WHERE kind IN ('MOVIE','SERIES')")
     fun observeAllTitleCount(): Flow<Int>
 
-    /** Posters of the latest titles of a source, the user's choice first. */
     @Query(
         "SELECT COALESCE(NULLIF(userPosterPath, ''), posterPath) FROM items " +
             "WHERE sourceId = :sourceId AND kind IN ('MOVIE','SERIES') " +
@@ -372,15 +340,10 @@ interface LibraryDao {
     )
     fun observePosters(sourceId: Long, limit: Int): Flow<List<String>>
 
-    /** Files of a source in Ultra HD (their badges carry the definition token). */
     @Query("SELECT COUNT(*) FROM items WHERE sourceId = :sourceId AND filePath IS NOT NULL AND ${PipeList.BADGES_MATCH}")
     fun observeDefinitionCount(sourceId: Long, token: String): Flow<Int>
 
-    /**
-     * Per source, its films and shows and its files in Ultra HD (their badges carry [token], the
-     * definition's): what the two queries above count, for every source in one query, which each
-     * write to the items runs again.
-     */
+    /** Both counts above for every source in one query, as each Flow query reruns on every write to items. */
     @Query(
         "SELECT sourceId, SUM(kind IN ('MOVIE','SERIES')) AS titles, " +
             "SUM(filePath IS NOT NULL AND ${PipeList.BADGES_MATCH}) AS ultraHd " +
@@ -394,7 +357,7 @@ interface LibraryDao {
     @RawQuery
     suspend fun countQuery(query: SupportSQLiteQuery): Int
 
-    /** Titles of [kind] that have [genre], the best rated first; the id settles ties, so the row stays put. */
+    /** Titles of [kind] with [genre], best rated first; ties sort by id so the row order is stable. */
     @Query(
         "SELECT $CARD_ROW FROM items WHERE kind = :kind AND id != :excludeId AND versionOf IS NULL AND ${PipeList.GENRES_MATCH} " +
             "ORDER BY rating DESC, id LIMIT :limit"
@@ -404,14 +367,13 @@ interface LibraryDao {
     @Query("DELETE FROM items WHERE id IN (:ids)")
     suspend fun deleteItemBatch(ids: List<Long>)
 
-    /** Any number of items, [SQL_IN_LIMIT] per statement, all or none. */
+    /** Deletes any number of items, [SQL_IN_LIMIT] per statement, atomically. */
     @Transaction
     suspend fun deleteItems(ids: List<Long>) = ids.chunked(SQL_IN_LIMIT).forEach { deleteItemBatch(it) }
 
     /**
-     * Moves a row to the file that replaced its own (see [MissingFiles]): what the user did with the
-     * title stays. A file of another size is read again; one of the same size was only renamed.
-     * (SQLite reads the row as it was in every expression: fileSize is the old file's.)
+     * Points a row at its replacement file ([MissingFiles]): another size resets the probe, the same size is a rename.
+     * SQLite evaluates every expression against the old row, so fileSize is the old file's.
      */
     @Query(
         "UPDATE items SET filePath = :filePath, fileSize = :fileSize, " +
@@ -421,11 +383,7 @@ interface LibraryDao {
     )
     suspend fun relink(id: Long, filePath: String, fileSize: Long)
 
-    /**
-     * A film's parts after the first ([ItemEntity.parts], as [PipeList] writes them), as its folder lists
-     * them now. A film of one file that becomes one of several is asked for again: it was known by its
-     * first part's name ("Film CD1"), not the film's.
-     */
+    /** Sets [ItemEntity.parts]; a film gaining parts is rematched, as it was matched by its first part ("Film CD1"). */
     @Query(
         "UPDATE items SET parts = :parts, " +
             "matchedAt = CASE WHEN parts = '' AND :parts != '' THEN NULL ELSE matchedAt END WHERE id = :id"
@@ -435,18 +393,12 @@ interface LibraryDao {
     @Query("UPDATE items SET missingSince = :since WHERE id IN (:ids)")
     suspend fun setMissingSinceBatch(ids: List<Long>, since: Long?)
 
-    /**
-     * [since]: when a scan first missed their files (see [MissingFiles]); null once they are back.
-     * Any number of items, [SQL_IN_LIMIT] per statement, all or none.
-     */
+    /** Sets [since] (first missed, see [MissingFiles]; null once back) on any number of rows, atomically. */
     @Transaction
     suspend fun setMissingSince(ids: List<Long>, since: Long?) =
         ids.chunked(SQL_IN_LIMIT).forEach { setMissingSinceBatch(it, since) }
 
-    /**
-     * What a scan made of the rows of files its folder no longer lists (see [MissingFiles]), in one
-     * transaction: a rename of a whole library is a few thousand rows.
-     */
+    /** Applies [MissingFiles] decisions in one transaction, as a library rename touches thousands of rows. */
     @Transaction
     @Suppress("LongParameterList") // One per outcome of [MissingFiles.Outcome].
     suspend fun settleMissing(
@@ -462,28 +414,23 @@ interface LibraryDao {
         setMissingSince(back, null)
         setMissingSince(held, now)
         deleteItems(removed)
-        // A film's title gone, its next copy holds it at once.
+        // If a film's main row was removed, its next copy becomes the main row.
         if (removed.isNotEmpty()) groupVersions()
     }
 
-    /** Seasons without episodes, then series without seasons. */
     @Query("DELETE FROM items WHERE kind = 'SEASON' AND id NOT IN (SELECT parentId FROM items WHERE kind = 'EPISODE' AND parentId IS NOT NULL)")
     suspend fun deleteEmptySeasons()
 
     @Query("DELETE FROM items WHERE kind = 'SERIES' AND id NOT IN (SELECT parentId FROM items WHERE kind = 'SEASON' AND parentId IS NOT NULL)")
     suspend fun deleteEmptySeries()
 
-    /**
-     * Films and episodes of folders that are gone. Shows and seasons follow through [deleteEmptySeasons]
-     * and [deleteEmptySeries]: one show can gather episodes from several folders.
-     */
+    /** Deletes films and episodes of removed sources; shows and seasons, which can span sources, go once empty. */
     @Query("DELETE FROM items WHERE kind IN ('MOVIE', 'EPISODE') AND sourceId NOT IN (SELECT id FROM sources)")
     suspend fun deleteOrphanItems()
 
     /**
-     * Shows and seasons first found in a folder that is gone, which still hold episodes of another,
-     * move to that one: its card counts them, and they stay new as long as its titles do. Once
-     * [deleteEmptySeasons] and [deleteEmptySeries] ran, each still holds an episode.
+     * Moves shows and seasons of removed sources to a remaining episode's source, so its card counts them. Run after
+     * [deleteEmptySeasons] and [deleteEmptySeries], so each has an episode left.
      */
     @Query(
         "UPDATE items SET sourceId = (SELECT e.sourceId FROM items e WHERE e.kind = 'EPISODE' " +
@@ -493,7 +440,7 @@ interface LibraryDao {
     )
     suspend fun moveOrphanShows()
 
-    /** Removes a folder and what was found in it, at once. */
+    /** Removes a source and its items atomically. */
     @Transaction
     suspend fun removeSource(id: Long) {
         deleteSource(id)
@@ -505,15 +452,13 @@ interface LibraryDao {
         groupVersions()
     }
 
-    /** [writes], all or none: an identification, which changes a title, its seasons and its episodes. */
+    /** Runs [writes] atomically, e.g. an identification touching a title, its seasons and episodes. */
     @Transaction
     suspend fun inTransaction(writes: suspend () -> Unit) = writes()
 
     /**
-     * Saves what a scan found without touching what the user owns: artwork and match choices,
-     * favourite, watched state, resume point and the copy chosen may have changed while the scan was
-     * working; nor what is written apart (the copies of a film, when its credits were). A title's words
-     * for searches follow its names.
+     * Saves scan results, keeping columns the scan does not own, which may change meanwhile: user artwork and match,
+     * favourite, watched state, resume point, chosen copy, versionOf, creditsAt. Reindexes search words on rename.
      */
     @Transaction
     suspend fun saveScanned(item: ItemEntity) {
@@ -537,10 +482,7 @@ interface LibraryDao {
         if (item.title != current.title || item.originalTitle != current.originalTitle) indexTitle(item)
     }
 
-    /**
-     * What the user did with the title [fromId] goes to [toId] where it has none of it: its favourite, the user's
-     * match and artwork. For a show about to go, whose episodes another took over ([ShowIndexer]).
-     */
+    /** Copies favourite, user match and artwork from [fromId] where [toId] lacks them ([ShowIndexer]). */
     @Transaction
     suspend fun handOver(fromId: Long, toId: Long) {
         val from = item(fromId) ?: return
@@ -568,11 +510,10 @@ interface LibraryDao {
     @Query("UPDATE items SET userTmdbId = :tmdbId WHERE id = :id")
     suspend fun setUserTmdbId(id: Long, tmdbId: Int?)
 
-    /** After a new match: artwork chosen for the previous title no longer applies. */
+    /** Clears user artwork after a new match, as it was chosen for the previous title. */
     @Query("UPDATE items SET userPosterPath = NULL, userBackdropPath = NULL, userLogoPath = NULL WHERE id = :id")
     suspend fun clearUserArtwork(id: Long)
 
-    /** Every cached local image the library still points to. */
     @Query(
         "SELECT posterPath FROM items WHERE posterPath LIKE 'file:%' " +
             "UNION SELECT backdropPath FROM items WHERE backdropPath LIKE 'file:%' " +
@@ -585,11 +526,10 @@ interface LibraryDao {
     )
     suspend fun cachedArtworkPaths(): List<String>
 
-    /** Credits of items that no longer exist. */
     @Query("DELETE FROM credits WHERE itemId NOT IN (SELECT id FROM items)")
     suspend fun deleteOrphanCredits(): Int
 
-    /** Words of titles, people and sagas that no longer exist, or of a person's key another took over. */
+    /** Deletes search words of deleted titles and sagas, and of person keys no credit uses any more. */
     @Query(
         "DELETE FROM search_words WHERE (kind = 'TITLE' AND ref NOT IN (SELECT CAST(id AS TEXT) FROM items)) " +
             "OR (kind = 'PERSON' AND ref NOT IN (SELECT personKey FROM credits)) " +
@@ -598,39 +538,37 @@ interface LibraryDao {
     suspend fun deleteOrphanSearchWords(): Int
 
     /**
-     * Gathers the copies of each film ([ItemEntity.versionOf]): the films of one TMDB id are one title, held by
-     * the first of them, the oldest row, whose favourite, resume point and place in "recently added" it keeps. Rows
-     * already right are not written. Returns the rows written.
+     * Groups copies ([ItemEntity.versionOf]) by TMDB id under the oldest row, which keeps favourite, resume point and
+     * "recently added" position. Writes only changed rows and returns their count.
      */
     @Query(GROUP_VERSIONS)
     suspend fun groupVersions(): Int
 
-    /** The copies of the film whose title is the row [titleId], it first: all of each row but its NFO text. */
+    /** Copies of the film with main row [titleId], that row first, without NFO text. */
     @Query("SELECT $ITEM_ROW FROM items WHERE kind = 'MOVIE' AND (id = :titleId OR versionOf = :titleId) ORDER BY id")
     suspend fun copies(titleId: Long): List<ItemEntity>
 
-    /** Films and shows whose sort key starts with [prefix] (up to [upper], [SearchWords.upperBound]), in its order. */
+    /** Films and shows whose sort title starts with [prefix] ([upper] from [SearchWords.upperBound]), in sort order. */
     @Query(
         "SELECT $CARD_ROW FROM items WHERE kind IN ('MOVIE', 'SERIES') AND versionOf IS NULL " +
             "AND sortTitle >= :prefix AND sortTitle < :upper ORDER BY sortTitle, id LIMIT :limit"
     )
     suspend fun titlesStarting(prefix: String, upper: String, limit: Int): List<ItemEntity>
 
-    /** The best rated titles of [kind], with [minVotes] votes at least where their number is known. */
+    /** Best rated titles of [kind] with at least [minVotes] votes, or an unknown vote count. */
     @Query(
         "SELECT $CARD_ROW FROM items WHERE kind = :kind AND versionOf IS NULL AND rating IS NOT NULL " +
             "AND (votes IS NULL OR votes >= :minVotes) ORDER BY rating DESC, sortTitle, id LIMIT :limit"
     )
     suspend fun bestRated(kind: ItemKind, minVotes: Int, limit: Int): List<ItemEntity>
 
-    /** Every film's and episode's file, as the library in numbers counts them. */
     @Query(
         "SELECT id, kind, versionOf, seriesId, badges, filePath, parts, fileSize, fileDurationMs, durationMs, runtimeMin " +
             "FROM items WHERE kind IN ('MOVIE', 'EPISODE')"
     )
     suspend fun fileFacts(): List<FileFacts>
 
-    /** How the files of [kind] end, each way once: what tells their kinds of file without reading every path. */
+    /** Distinct path endings of [kind]'s files, enough to tell their file types without loading every path. */
     @Query(
         "SELECT DISTINCT lower(substr(filePath, -5)) AS tail, filePath LIKE '%BDMV/STREAM/%' AS bluRay, " +
             "filePath LIKE '%VIDEO_TS/%' AS dvd FROM items WHERE kind = :kind AND filePath IS NOT NULL"
@@ -650,36 +588,31 @@ interface LibraryDao {
     @Update
     suspend fun updateCollectionRow(collection: CollectionEntity)
 
-    /** A new collection ([insertCollectionRow]), and the words a search finds it by. */
+    /** Inserts a collection ([insertCollectionRow]) and indexes its search words. */
     @Transaction
     suspend fun insertCollection(collection: CollectionEntity): Long =
         insertCollectionRow(collection).also { indexSaga(it, collection.name) }
 
-    /** A collection written again ([updateCollectionRow]), and the words a search finds it by. */
+    /** Updates a collection ([updateCollectionRow]) and reindexes its search words. */
     @Transaction
     suspend fun updateCollection(collection: CollectionEntity) {
         updateCollectionRow(collection)
         indexSaga(collection.id, collection.name)
     }
 
-    /** The words a search finds the saga [id] by, its [name]'s. */
     @Transaction
     suspend fun indexSaga(id: Long, name: String) {
         deleteSearchWords(SearchKind.SAGA, id.toString())
         insertSearchWords(SearchWords.rows(SearchKind.SAGA, id.toString(), name))
     }
 
-    /** Films of a collection, in the order they came out, a film of several copies once. */
     @Query(
         "SELECT $CARD_ROW FROM items WHERE collectionId = :collectionId AND kind = 'MOVIE' AND versionOf IS NULL " +
             "ORDER BY year IS NULL, year, sortTitle"
     )
     suspend fun collectionFilms(collectionId: Long): List<ItemEntity>
 
-    /**
-     * The films of the collections [collectionIds], as their cards tell of them: collection by collection,
-     * each in the order they came out ([collectionFilms]). One query for a whole page of collections.
-     */
+    /** Card columns of the films of [collectionIds], by collection in release order: one query per page. */
     @Query(
         "SELECT collectionId, year, rating, genres, played, posterPath, userPosterPath, backdropPath, userBackdropPath " +
             "FROM items WHERE kind = 'MOVIE' AND versionOf IS NULL AND collectionId IN (:collectionIds) " +
@@ -687,7 +620,6 @@ interface LibraryDao {
     )
     suspend fun collectionMembers(collectionIds: List<Long>): List<CollectionMember>
 
-    /** Collections holding at least [minFilms] films of the library. */
     @Query(
         "SELECT COUNT(*) FROM (SELECT collectionId FROM items WHERE kind = 'MOVIE' AND collectionId IS NOT NULL " +
             "AND versionOf IS NULL GROUP BY collectionId HAVING COUNT(*) >= :minFilms)"
@@ -703,7 +635,7 @@ interface LibraryDao {
     @Query("DELETE FROM saga_parts WHERE collectionId NOT IN (SELECT id FROM collections)")
     suspend fun deleteOrphanSagaParts()
 
-    /** Collections no film is in any more, and what TMDB listed of them. */
+    /** Deletes collections without films, and their saga parts. */
     @Transaction
     suspend fun deleteEmptyCollections() {
         deleteEmptyCollectionRows()
@@ -713,11 +645,11 @@ interface LibraryDao {
     @Query("SELECT * FROM collections WHERE id IN (:ids)")
     suspend fun collections(ids: List<Long>): List<CollectionEntity>
 
-    /** Collections TMDB knows whose films it was not asked for yet ([SagaPartEntity]), [limit] at most. */
+    /** Up to [limit] collections with a TMDB id whose parts ([SagaPartEntity]) were never fetched. */
     @Query("SELECT * FROM collections WHERE tmdbId IS NOT NULL AND fetchedAt IS NULL ORDER BY id LIMIT :limit")
     suspend fun sagasDue(limit: Int): List<CollectionEntity>
 
-    // Sagas whole
+    // Saga parts
 
     @Query("DELETE FROM saga_parts WHERE collectionId = :collectionId")
     suspend fun deleteSagaParts(collectionId: Long)
@@ -725,14 +657,13 @@ interface LibraryDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertSagaParts(parts: List<SagaPartEntity>)
 
-    /** The films TMDB lists of the collection [collectionId], in place of those it listed before. */
     @Transaction
     suspend fun replaceSagaParts(collectionId: Long, parts: List<SagaPartEntity>) {
         deleteSagaParts(collectionId)
         insertSagaParts(parts)
     }
 
-    /** The films TMDB lists of a saga, in the order they came out, with the library's title of each it holds. */
+    /** TMDB parts of a saga in release order, each with the library's main row when present. */
     @Query(
         "SELECT p.*, (SELECT i.id FROM items i WHERE i.kind = 'MOVIE' AND i.tmdbId = p.tmdbId AND i.versionOf IS NULL " +
             "ORDER BY i.id LIMIT 1) AS itemId FROM saga_parts p WHERE p.collectionId = :collectionId ORDER BY p.ord"
@@ -741,50 +672,46 @@ interface LibraryDao {
 
     // Credits
 
-    /** The cast of the title [itemId], in billing order. */
     @Query("SELECT * FROM credits WHERE itemId = :itemId AND job = 'CAST' ORDER BY ord")
     suspend fun cast(itemId: Long): List<CreditEntity>
 
-    /** The credits of the title [itemId], job by job in billing order, each with how many titles hold its person. */
+    /** Credits of title [itemId] by job in billing order, each with its person's title count. */
     @Query(
         "SELECT c.personKey, c.name, c.job, c.ord, c.character, c.profilePath, $TITLES_OF_PERSON AS titles " +
             "FROM credits c WHERE c.itemId = :itemId ORDER BY c.job, c.ord"
     )
     suspend fun creditsOf(itemId: Long): List<TitleCredit>
 
-    /** Every credit of the person [personKey], on the titles of the library (a film of several copies once). */
     @Query(
         "SELECT c.itemId, c.job, c.ord, c.name, c.character, c.profilePath FROM credits c JOIN items i ON i.id = c.itemId " +
             "WHERE c.personKey = :personKey AND i.versionOf IS NULL"
     )
     suspend fun creditsOfPerson(personKey: String): List<PersonCredit>
 
-    /** The people of [job] in the most titles of [kind] (any when null), [minTitles] at least, most first. */
+    /** People of [job] credited on at least [minTitles] titles of [kind] (any if null), most titles first. */
     @Query(
         "$PERSON_SUMMARY WHERE c.job = :job AND i.versionOf IS NULL AND (:kind IS NULL OR i.kind = :kind) " +
             "GROUP BY c.personKey HAVING COUNT(DISTINCT c.itemId) >= :minTitles ORDER BY titles DESC, name LIMIT :limit"
     )
     suspend fun topPeople(job: Job, kind: ItemKind?, minTitles: Int, limit: Int): List<PersonSummary>
 
-    /** The people [personKeys], with how many titles hold each. */
     @Query("$PERSON_SUMMARY WHERE c.personKey IN (:personKeys) AND i.versionOf IS NULL GROUP BY c.personKey")
     suspend fun people(personKeys: List<String>): List<PersonSummary>
 
     @Query("DELETE FROM credits WHERE itemId = :itemId")
     suspend fun deleteCredits(itemId: Long)
 
-    /** The credits of the title [itemId] in the [jobs] (their names). */
+    /** Deletes the credits of [itemId] for [jobs] (enum names). */
     @Query("DELETE FROM credits WHERE itemId = :itemId AND job IN (:jobs)")
     suspend fun deleteCreditsIn(itemId: Long, jobs: List<String>)
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertCredits(credits: List<CreditEntity>)
 
-    /** Of the keys [personKeys], those some credit holds. */
     @Query("SELECT DISTINCT personKey FROM credits WHERE personKey IN (:personKeys)")
     suspend fun heldKeys(personKeys: List<String>): List<String>
 
-    /** The TMDB keys credits know the people of [foldedNames] by. */
+    /** TMDB keys already used in credits for [foldedNames]. */
     @Query(
         "SELECT foldedName, MIN(personKey) AS personKey FROM credits WHERE foldedName IN (:foldedNames) " +
             "AND personKey LIKE '${PersonKeys.TMDB}%' GROUP BY foldedName"
@@ -798,11 +725,8 @@ interface LibraryDao {
     suspend fun setCreditsAt(id: Long, at: Long)
 
     /**
-     * The credits of the title [itemId], in place of those it had ([whole]) or of those of the jobs they hold (an NFO's,
-     * TMDB not asked: what TMDB alone credits stays), complete [at] ([ItemEntity.creditsAt]; null for credits an NFO
-     * gave while TMDB, which knows the title, was not asked): a person named by name alone takes
-     * the TMDB key other titles know them by, and those other titles name by name alone a person TMDB keys here
-     * take that key, so that one person is one across the library. Their words for searches with them.
+     * Replaces [itemId]'s credits: all when [whole], else only the jobs in [credits]. [at] marks them complete (null:
+     * NFO only, for a title TMDB knows). Name keys are unified with TMDB keys library-wide; search words are indexed.
      */
     @Transaction
     suspend fun replaceCredits(itemId: Long, credits: List<CreditEntity>, at: Long?, whole: Boolean = true) {
@@ -819,11 +743,7 @@ interface LibraryDao {
         at?.let { setCreditsAt(itemId, it) }
     }
 
-    /**
-     * What a scan decided of a title's credits ([CreditRules]): written when it had any, all of them when TMDB answered
-     * for the title ([tmdbAnswered]), else job by job; complete [at] when TMDB answered or knows none of it
-     * ([complete]), so that the backfill leaves it alone.
-     */
+    /** Saves credits: all if [tmdbAnswered], else by job; [complete] makes the backfill skip the title. */
     @Transaction
     suspend fun saveCredits(itemId: Long, credits: List<CreditEntity>?, tmdbAnswered: Boolean, complete: Boolean, at: Long) {
         if (credits != null) {
@@ -834,10 +754,8 @@ interface LibraryDao {
     }
 
     /**
-     * Films and shows whose credits were never complete ([ItemEntity.creditsAt]), [limit] at most, whole: titles known
-     * before credits were kept, which scans do not read again. Those matched with a title TMDB knows, which TMDB is to
-     * be asked for, only [withTmdb]; those of no TMDB id, by their NFO. One left unmatched with a TMDB id waits for a
-     * scan to match it, which writes its credits.
+     * Up to [limit] films and shows never credit-completed ([ItemEntity.creditsAt]), i.e. pre-v12 rows.
+     * Rows with a TMDB id come only when [withTmdb] and matched; unmatched ones wait for the scan that matches them.
      */
     @Query(
         "SELECT * FROM items WHERE kind IN ('MOVIE', 'SERIES') AND creditsAt IS NULL " +
@@ -845,10 +763,7 @@ interface LibraryDao {
     )
     suspend fun creditsDue(withTmdb: Boolean, limit: Int): List<ItemEntity>
 
-    /**
-     * What the backfill read of a title known before credits were kept: its votes and its edition, from TMDB's
-     * answer and its NFO, and when its credits were written. Nothing else of the row: never what the user did.
-     */
+    /** Writes only the backfill's votes, edition and credits time, never user state. */
     @Query("UPDATE items SET votes = :votes, edition = :edition, creditsAt = :at WHERE id = :id")
     suspend fun setBackfilled(id: Long, votes: Int?, edition: String?, at: Long)
 
@@ -860,7 +775,7 @@ interface LibraryDao {
     @Query("DELETE FROM search_words WHERE kind = :kind AND ref = :ref")
     suspend fun deleteSearchWords(kind: SearchKind, ref: String)
 
-    /** What words found: the query [LocalCatalog] writes, one word's range of each kind by the primary key. */
+    /** Runs the search query built by [LocalCatalog]: one primary-key range per word and kind. */
     @RawQuery
     suspend fun searchRefs(query: SupportSQLiteQuery): List<SearchRef>
 }

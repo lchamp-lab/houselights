@@ -10,11 +10,8 @@ import app.houselights.ui.util.LocalErrorFix
 import app.houselights.ui.util.UiError
 
 /**
- * Something could not load ([error]): what happened, what to check, and what fixes it, as an
- * [HlEmptyState] that calls for attention, in place of what would have been shown. Trying again is
- * the screen's own [onRetry]; while it runs ([retrying]) the intertitle stays, its button at work and
- * still focused. The other actions lead where the problem is fixed ([LocalErrorFix]). An error no
- * action fixes leaves the way out to Back. [focusOnAppear] as in [HlEmptyState].
+ * An [error] in place of the content that failed to load, as an attention [HlEmptyState]: retry runs
+ * [onRetry] (busy while [retrying]); other actions open where the problem is fixed ([LocalErrorFix]).
  */
 @Composable
 fun HlErrorState(

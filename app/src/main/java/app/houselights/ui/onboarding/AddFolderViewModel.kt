@@ -34,7 +34,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 
-/** A network folder as the form describes it, as typed. */
+/** A network folder as typed in the form. */
 data class FolderForm(
     val kind: SourceKind = SourceKind.MOVIES,
     val protocol: Protocol = Protocol.NFS,
@@ -56,17 +56,14 @@ data class FolderForm(
         password = Secret(if (protocol == Protocol.SMB) password else ""),
     )
 
-    /**
-     * [stored] as the form changed it. It stays the same folder, of the same kind; its password is
-     * never shown, so a field left empty keeps it.
-     */
+    /** [stored] with the form's changes, same id and kind; an empty password field keeps its password. */
     fun toSource(stored: SourceEntity): SourceEntity {
         val typed = toSource()
         val password = if (protocol == Protocol.SMB && password.isEmpty()) stored.password else typed.password
         return typed.copy(id = stored.id, kind = stored.kind, password = password, domain = stored.domain)
     }
 
-    /** What the form lacks before the network is worth trying, so the message speaks about the form. */
+    /** What the form lacks before a network test is worth trying, so the message points at the form. */
     @StringRes
     fun missing(): Int? = when {
         host.isBlank() -> R.string.error_host_missing
@@ -75,7 +72,7 @@ data class FolderForm(
     }
 
     companion object {
-        /** The form of a folder already added, to edit it: everything but its password, never shown. */
+        /** The form for editing [folder]: everything but its password, which is never shown. */
         fun of(folder: SourceEntity) = FolderForm(
             kind = folder.kind,
             protocol = folder.protocol,
@@ -98,30 +95,24 @@ sealed interface FolderCheck {
 
     data class Failed(val error: ScanError, val host: String) : FolderCheck
 
-    /**
-     * [existing], already in the library, is this folder ([same]) or one inside or around it: its
-     * titles would show twice. Nothing was asked of the network, nothing was saved.
-     */
+    /** [existing] is this folder ([same]) or nests with it, so titles would show twice; nothing was tested or saved. */
     data class Overlaps(val existing: SourceEntity, val same: Boolean) : FolderCheck
 
-    /** The folder answered, but writing it failed (the device's storage, its Keystore): nothing was saved. */
+    /** The folder answered, but writing it failed (storage or Keystore): nothing was saved. */
     data class SaveFailed(val error: UiError) : FolderCheck
 }
 
-/**
- * The field of the folder form that focus starts on: the one the error that led there likely asks
- * to change. Kept: a navigation route carries it.
- */
+/** The form field focus starts on, the one the error that led there likely asks to change; kept as a route argument. */
 @Keep
 enum class FolderField {
-    /** The first one, for a folder to add, or to edit at will. */
+    /** The first control, for a new folder or a plain edit. */
     FIRST,
     HOST,
     PASSWORD,
     ;
 
     companion object {
-        /** After a scan that failed with [error]: a NAS silent or a share gone, its address; a sign-in refused, its password. */
+        /** After a scan failed with [error]: the address if the NAS or share is gone, the password if sign-in failed. */
         fun after(error: ScanErrorKind?): FolderField = when (error) {
             ScanErrorKind.LOGIN_FAILED -> PASSWORD
             ScanErrorKind.UNREACHABLE, ScanErrorKind.NOT_FOUND -> HOST
@@ -131,21 +122,17 @@ enum class FolderField {
 }
 
 /**
- * Adds a folder, or edits the folder [folderId]: the same form, filled in with it. What was typed,
- * but the password, is kept in [saved]: Android may stop the app while the NAS's address or share is
- * looked up in another one, and the form comes back as it was left.
+ * Adds a folder, or edits folder [folderId] with the same form. What was typed, password aside, is kept in [saved]
+ * in case Android kills the app while the NAS's address or share is looked up in another app.
  */
 class AddFolderViewModel(
     private val library: LocalLibrary,
     private val folderId: Long?,
-    /**
-     * Work that outlives the form (the app's): a folder tested is saved, and scanned, even when Back
-     * leaves the form while it is written.
-     */
+    /** The app's scope: a tested folder is saved and scanned even if Back leaves the form meanwhile. */
     private val background: CoroutineScope,
     /** Makes the folders the source; true when it changed (it was a server, or nothing yet). */
     private val useFolders: suspend () -> Boolean,
-    /** Reads the first level of a folder: how many entries it holds. Throws when it cannot. */
+    /** Lists a folder's first level and returns its entry count; throws when it cannot. */
     private val probe: suspend (SourceEntity) -> Int,
     private val saved: SavedStateHandle = SavedStateHandle(),
 ) : ViewModel() {
@@ -162,7 +149,7 @@ class AddFolderViewModel(
         saved = saved,
     )
 
-    /** The form as typed before Android stopped the app, its password aside; null when there was none. */
+    /** The form as typed before Android killed the app, password aside; null if none. */
     private val kept: FolderForm? = saved.folderForm()
 
     var form by mutableStateOf(kept ?: FolderForm())
@@ -170,35 +157,34 @@ class AddFolderViewModel(
     var check by mutableStateOf<FolderCheck?>(null)
         private set
 
-    /** A test of the folder is under way. */
     var testing by mutableStateOf(false)
         private set
 
-    /** The folder tested is being added or saved, until the library has it and has asked for a scan. */
+    /** Adding or saving the tested folder, until the library has it and has requested a scan. */
     var saving by mutableStateOf(false)
         private set
 
-    /** Add (or Save) pressed, until it is done or said why not: a second OK meanwhile changes nothing. */
+    /** Add (or Save) pressed and not yet resolved: a second OK meanwhile does nothing. */
     var submitting by mutableStateOf(false)
         private set
 
     /** Testing or saving: the other action waits. */
     val busy: Boolean get() = testing || saving || submitting
 
-    /** The folder edited, as stored; null while it is read, and when a folder is added. */
+    /** The edited folder as stored; null while it is read, and when adding. */
     private var editing: SourceEntity? = null
 
     val edits = folderId != null
 
-    /** The form can be saved: a folder edited has been read, else an empty field would erase its password. */
+    /** Whether saving is allowed: an edited folder must be read first, or an empty field would erase its password. */
     var ready by mutableStateOf(!edits)
         private set
 
-    /** The folder edited is no longer in the library: it was removed meanwhile, and nothing can be saved. */
+    /** The edited folder was removed from the library meanwhile: nothing can be saved. */
     var gone by mutableStateOf(false)
         private set
 
-    /** The folder edited has a password, which a field left empty keeps. */
+    /** The edited folder has a password, which an empty field keeps. */
     var keepsPassword by mutableStateOf(false)
         private set
 
@@ -228,10 +214,7 @@ class AddFolderViewModel(
         }
     }
 
-    /**
-     * What the last test said, success or failure, or why the folder was not added, speaks of the
-     * folder the form described then: a change to what a test reads (all but the kind) makes it stale.
-     */
+    /** Applies [change]; the last result goes stale when anything a test reads (all but the kind) changes. */
     fun edit(change: FolderForm.() -> FolderForm) {
         val before = form
         form = form.change()
@@ -239,13 +222,13 @@ class AddFolderViewModel(
         if (!form.testsAs(before)) check = null
     }
 
-    /** A test of this form says what one of [other] said: they differ in nothing a test reads, the kind at most. */
+    /** Whether a test reads the same folder: the forms differ at most in kind. */
     private fun FolderForm.testsAs(other: FolderForm) = copy(kind = other.kind) == other
 
-    /** The folder the form describes; an edited one keeps its id, its kind and, left empty, its password. */
+    /** The described folder; an edited one keeps its id, kind and, if the field is empty, its password. */
     private fun source(): SourceEntity = editing?.let(form::toSource) ?: form.toSource()
 
-    /** The folder to test, or null when the form lacks what a test needs, which [check] then says. */
+    /** The folder to test, or null when the form lacks something, which [check] then reports. */
     private fun toTest(): SourceEntity? {
         form.missing()?.let {
             check = FolderCheck.Incomplete(it)
@@ -254,7 +237,7 @@ class AddFolderViewModel(
         return source()
     }
 
-    /** Tests the folder, and says how it answered. */
+    /** Tests the folder and reports the result in [check]. */
     fun test() {
         if (busy || gone) return
         val typed = form
@@ -263,13 +246,10 @@ class AddFolderViewModel(
     }
 
     /**
-     * Tests the folder, then adds it to the library and makes the local library the source, or saves
-     * the folder edited under its id: its titles keep what was watched and chosen. A folder the library
-     * already holds, or one inside or around it, is refused first, unless it is this very folder, added
-     * before while making the folders the source failed: that is all there is left to do, without a
-     * test. [onDone] hears whether the source changed (it was a server, or nothing yet), unless the
-     * form was left meanwhile. A write that fails says why in [check]. A field a test reads, changed
-     * while it ran, saves nothing: the form stays, untested, for Add again; the kind is saved as it is.
+     * Tests, then adds the folder and makes the folders the source, or saves the edited folder under its id (its
+     * titles keep their watch state). An overlapping folder is refused, unless it is this one, added earlier when
+     * switching the source failed: only the switch is left. [onDone] gets whether the source changed; a failed
+     * write shows in [check]; if a field a test reads changes mid-test, nothing is saved.
      */
     fun submit(onDone: (switched: Boolean) -> Unit) {
         if (busy || !ready || gone) return
@@ -280,7 +260,7 @@ class AddFolderViewModel(
             try {
                 val held = library.overlapping(source, except = folderId)
                 when {
-                    // [reaches] holds for the form as it still is: saved as it is now, a kind changed meanwhile too.
+                    // reaches() vouches for the current form, so save it as it is now, a changed kind included.
                     held == null -> if (reaches(source, typed)) show(saveInBackground(source()), source, onDone)
                     addedBefore(held, source) -> show(saveInBackground(source), source, onDone)
                     else -> check = FolderCheck.Overlaps(held, same = held.samePlace(source))
@@ -291,10 +271,9 @@ class AddFolderViewModel(
         }
     }
 
-    /** [held], in the library, is the very folder added: the form adds it again, the source left unchanged. */
+    /** Whether [held] is this very folder, added earlier (when adding, not editing). */
     private fun addedBefore(held: SourceEntity, source: SourceEntity) = folderId == null && held.samePlace(source)
 
-    /** Says what saving [source] did ([outcome]), or leaves the form ([onDone]). */
     private fun show(outcome: Saved, source: SourceEntity, onDone: (switched: Boolean) -> Unit) {
         when (outcome) {
             is Saved.Done -> onDone(outcome.switched)
@@ -307,9 +286,7 @@ class AddFolderViewModel(
         check = FolderCheck.SaveFailed(error)
     }
 
-    /** What saving did. */
     private sealed interface Saved {
-        /** Saved; [switched] when the source changed. */
         data class Done(val switched: Boolean) : Saved
 
         data object Gone : Saved
@@ -317,10 +294,7 @@ class AddFolderViewModel(
         data class Overlaps(val existing: SourceEntity) : Saved
     }
 
-    /**
-     * Saves [folder] in the app's scope: Back leaving the form does not stop a folder half saved,
-     * before its scan. A failure there is logged even when no form is left to say it.
-     */
+    /** Saves [folder] in the app's scope, so Back cannot half-save it; failures are logged even with no form left. */
     private suspend fun saveInBackground(folder: SourceEntity): Saved {
         saving = true
         try {
@@ -337,8 +311,7 @@ class AddFolderViewModel(
         return when (result) {
             FolderSave.Saved -> Saved.Done(switched = folderId == null && useFolders())
             FolderSave.Gone -> Saved.Gone
-            // Added before, when making the folders the source failed: the folder is there, its scan
-            // asked; the source changes now. Already the folders, it is the same folder twice.
+            // Added earlier when switching the source failed: switch now; if already switched, it is a duplicate.
             is FolderSave.Overlaps -> if (addedBefore(result.existing, folder) && useFolders()) {
                 Saved.Done(switched = true)
             } else {
@@ -347,15 +320,11 @@ class AddFolderViewModel(
         }
     }
 
-    /**
-     * Tests [source], the form as [typed], and says how it answered: true when it did, for the form as
-     * it still is. A field a test reads, changed while it ran, leaves the folder untested: the answer
-     * was not the form's, and nothing may be saved on it.
-     */
+    /** Tests [source] (the form as [typed]); false, result dropped, if a field a test reads changed meanwhile. */
     private suspend fun reaches(source: SourceEntity, typed: FolderForm): Boolean {
         testing = true
         check = null
-        // The browser signs in of its own for a test: what the form says is what answers.
+        // The browser signs in on its own for a test, so the form's own credentials are what is tested.
         val answer = suspendRunCatching { probe(source) }
         answer.onFailure { e -> Log.w(TAG, "Test of ${source.host} failed", e) }
         val current = form.testsAs(typed)
@@ -382,10 +351,7 @@ private const val SHARE = "share"
 private const val PATH = "path"
 private const val USER = "user"
 
-/**
- * Kept as plain values, which a saved state holds across a stopped process. Never the password: the
- * saved state is written to the device in clear.
- */
+/** Keeps the form as plain values across a killed process; never the password, as saved state is written in clear. */
 private fun SavedStateHandle.keep(form: FolderForm) {
     this[KIND] = form.kind.name
     this[PROTOCOL] = form.protocol.name
@@ -395,7 +361,7 @@ private fun SavedStateHandle.keep(form: FolderForm) {
     this[USER] = form.user
 }
 
-/** The form kept, its password empty; null when none was, or one a newer version wrote no longer reads. */
+/** The kept form, password empty; null when none was kept or its values are unknown. */
 private fun SavedStateHandle.folderForm(): FolderForm? {
     val kind = get<String>(KIND)?.let { name -> SourceKind.entries.find { it.name == name } } ?: return null
     val protocol = get<String>(PROTOCOL)?.let { name -> Protocol.entries.find { it.name == name } } ?: return null

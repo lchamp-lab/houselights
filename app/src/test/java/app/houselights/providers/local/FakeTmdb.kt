@@ -19,12 +19,7 @@ import java.net.SocketTimeoutException
 import java.util.Collections
 import java.util.concurrent.CountDownLatch
 
-/**
- * TMDB in memory, in place of the network of a [TmdbClient] ([client]): films, shows, seasons and
- * collections by id, found by title or IMDb id. Every request is counted, and TMDB can be made to
- * fail, to answer a status or a body of its own, to break off a body, or to hold a request until it
- * is cancelled.
- */
+/** TMDB in memory behind [client]: counts requests; can fail, answer a status, break a body or hold a request. */
 class FakeTmdb : Interceptor {
     val movies: MutableMap<Int, TmdbMovie> = Collections.synchronizedMap(linkedMapOf())
     val shows: MutableMap<Int, TmdbTv> = Collections.synchronizedMap(linkedMapOf())
@@ -59,7 +54,7 @@ class FakeTmdb : Interceptor {
     @Volatile
     var bodyFailure: IOException? = null
 
-    /** When set, the body of every entry found, in its place: TMDB's answers changed shape. */
+    /** When set, replaces the body of every entry found: TMDB answering in an unexpected shape. */
     @Volatile
     var rawBody: String? = null
 

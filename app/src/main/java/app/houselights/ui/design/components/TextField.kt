@@ -65,12 +65,9 @@ import app.houselights.ui.design.groundStep
 import app.houselights.ui.design.groundStepFill
 
 /**
- * A text field for the remote: a focusable box first, the keyboard on OK. Focused and waiting, it
- * says so at its end ([KeyHint]: OK, type); its edge turns ember while typing, and only then.
- * Every field has a [label], read out even when [showLabel] is false because what surrounds the
- * field already names it (the title of its sheet). Under it, one line: [error] in ember after
- * the attention light, else [supporting] (what to type, what leaving it empty does). [placeholder]
- * shows an example while the field is empty ("Ex. : 192.168.1.10").
+ * A text field for the remote: a focusable box, the keyboard on OK ([KeyHint]); its edge turns ember only
+ * while typing. [label] is always read out, even when [showLabel] is false. Below, [error] or else
+ * [supporting]; [placeholder] is an example ("Ex. : 192.168.1.10").
  */
 @Composable
 fun HlTextField(
@@ -114,10 +111,7 @@ fun HlTextField(
     }
 }
 
-/**
- * The box of a [HlTextField]: on TV the keyboard only opens on OK, so the field is first a plain
- * focusable box, and only OK hands focus to the text inside.
- */
+/** On TV the keyboard opens only on OK, so the field is a focusable box that hands focus to the text on OK. */
 @Composable
 private fun FieldBox(
     value: String,
@@ -138,8 +132,7 @@ private fun FieldBox(
     val shape = HlShapes.field
     val c = Hl.colors
 
-    // Always one line of body text tall. Empty, a field would otherwise take the platform
-    // font's line height and stand taller than its neighbours.
+    // One body line tall: empty, it would take the platform font's taller line height.
     val textStyle = Hl.type.body.copy(color = c.content)
     val measurer = rememberTextMeasurer()
     val density = LocalDensity.current
@@ -203,7 +196,7 @@ private fun FieldBox(
             },
         )
         if (boxFocused && !editing) {
-            // Over the end of the text, on the field's own surface; never taller than the field.
+            // Over the text's end, on the field's surface, never taller than the field.
             Box(Modifier.matchParentSize(), contentAlignment = Alignment.CenterEnd) {
                 KeyHint(Modifier.wrapContentHeight(unbounded = true).background(groundFill(groundStep())).padding(start = HlSpace.s))
             }
@@ -211,10 +204,7 @@ private fun FieldBox(
     }
 }
 
-/**
- * Back closes the keyboard without telling the app, and the field would keep the remote: while
- * [editing], up or down, meaningless on one line, end typing and [leave] that way.
- */
+/** Back hides the keyboard without telling the app, so up or down while [editing] ends typing and leaves. */
 private fun Modifier.leaveVertically(editing: Boolean, leave: (FocusDirection) -> Unit): Modifier = onPreviewKeyEvent { event ->
     val direction = when (event.key) {
         Key.DirectionUp -> FocusDirection.Up
@@ -229,7 +219,7 @@ private fun Modifier.leaveVertically(editing: Boolean, leave: (FocusDirection) -
     }
 }
 
-/** OK on a field that waits starts typing (on the key's release, so the keyboard does not take it). */
+/** OK starts typing on key release, so the keyboard does not receive it. */
 private fun Modifier.openOnOk(waiting: Boolean, open: () -> Unit): Modifier = onKeyEvent { event ->
     val ok = event.key == Key.DirectionCenter || event.key == Key.Enter || event.key == Key.NumPadEnter
     if (waiting && ok) {
@@ -251,7 +241,7 @@ private fun fieldEdge(editing: Boolean, focused: Boolean): BorderStroke {
     }
 }
 
-/** An example of what to type, while the field is empty. Only a real one: an empty text would change the field's height. */
+/** Shown while the field is empty; skipped when blank, since empty text would change the field's height. */
 @Composable
 private fun Placeholder(text: String, shown: Boolean) {
     if (shown && text.isNotEmpty()) {
@@ -259,10 +249,7 @@ private fun Placeholder(text: String, shown: Boolean) {
     }
 }
 
-/**
- * What OK does on a field that has focus and waits: the key, drawn like a badge, then the word.
- * The remote has no other way to tell that OK opens the keyboard.
- */
+/** Shows that OK opens the keyboard (the key as a badge, then the word); nothing else tells the remote user. */
 @Composable
 internal fun KeyHint(modifier: Modifier = Modifier) {
     Row(modifier, verticalAlignment = Alignment.CenterVertically) {
@@ -272,11 +259,7 @@ internal fun KeyHint(modifier: Modifier = Modifier) {
     }
 }
 
-/**
- * The line under a field: what is wrong, an [AttentionNote] as beside anything else that needs
- * attention; else what to type, quiet. The field's edge does not change for an error: ember there
- * means typing.
- */
+/** [error] as an [AttentionNote], else [supporting]; the edge stays unchanged, since ember there means typing. */
 @Composable
 private fun FieldMessage(error: String?, supporting: String?) {
     if (error == null && supporting == null) return

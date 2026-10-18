@@ -4,21 +4,13 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
 
-/**
- * The layers under the screens (the domain, the player, the sources, the settings) raise and hold
- * facts; the screens say them in their words. This test reads every source of those layers and fails
- * on one that leans on the interface: a UiError kept by the player, a screen's state in a provider.
- */
+/** Fails when a layer under the screens (core, player, providers, settings) depends on the UI. */
 class LayersGuardTest {
     private val sources = File("src/main/java/app/houselights")
 
-    /** The layers under the screens, as packages. */
     private val layers = listOf("core", "player", "providers", "settings")
 
-    /**
-     * Deliberate exceptions, as "path:import". Keep this list short and say why; a new one is usually
-     * a fact of the domain ([app.houselights.core.FailureKind]) the interface translates.
-     */
+    /** Deliberate exceptions, as "path:import": keep it short; a new one usually belongs in the domain instead. */
     private val allowed = emptyList<String>()
 
     @Test
@@ -35,10 +27,6 @@ class LayersGuardTest {
         assertTrue("A layer under the screens imports the interface:\n" + found.joinToString("\n"), found.isEmpty())
     }
 
-    /**
-     * The domain lies under every other layer: the exceptions it classifies ([app.houselights.core.FailureKind])
-     * are its own, never a provider's or the player's.
-     */
     @Test
     fun theDomainLeansOnNoOtherLayer() {
         assertTrue("Sources not found from ${File(".").absolutePath}", sources.isDirectory)

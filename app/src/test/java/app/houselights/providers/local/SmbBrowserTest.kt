@@ -14,13 +14,13 @@ import org.robolectric.shadows.ShadowSystemClock
 import java.time.Duration
 import java.util.concurrent.TimeoutException
 
-/** SMB sessions on a NAS held in memory: which are kept, closed and opened again. On Robolectric for SystemClock. */
+/** SMB sessions on a NAS held in memory: which are kept, closed and reopened. On Robolectric for SystemClock. */
 @RunWith(RobolectricTestRunner::class)
 class SmbBrowserTest {
-    /** Folders of the share by path, "\" separators; a folder not there is refused. */
+    /** Folders of the share by path, "\" separators; a missing folder is refused. */
     private var tree = mapOf("" to listOf(SmbEntry("Dune (2021).mkv", isFolder = false, size = 4)))
 
-    /** A share signed in to, holding [tree]; what closed it, broken or not, in order. */
+    /** A share signed in to, holding [tree], recording what closed it (broken or not), in order. */
     private inner class Share : SmbShare {
         var hungUp = false
         var failure: Throwable? = null
@@ -66,7 +66,7 @@ class SmbBrowserTest {
         assertEquals(1, opened.size)
     }
 
-    /** Measured on elapsedRealtime: the wall clock set back an hour would keep it for an hour more. */
+    /** Measured on elapsedRealtime: a wall clock set back an hour would keep it an hour longer. */
     @Test
     fun aSessionLeftIdleIsClosedThenOpenedAgain() = runTest {
         val films = folder()
@@ -104,7 +104,7 @@ class SmbBrowserTest {
         assertEquals(2, opened.size)
     }
 
-    /** The NAS refused a file, or no longer has it: the session is sound, and serves the next file. */
+    /** The NAS refused a file, or no longer has it: the session is sound and serves the next file. */
     @Test
     fun aFileRefusedLeavesTheSessionOpen() = runTest {
         val films = folder()
@@ -128,7 +128,7 @@ class SmbBrowserTest {
         assertEquals(listOf(true), opened[0].closes)
     }
 
-    /** The form tests what it says: a session kept by a scan, signed in with the password stored, does not answer for it. */
+    /** The form tests what it was given: a scan's session, signed in with the stored password, is not reused. */
     @Test
     fun aTestSignsInOfItsOwn() = runTest {
         val films = folder()
@@ -145,7 +145,7 @@ class SmbBrowserTest {
         assertEquals(2, opened.size)
     }
 
-    /** A folder of another user, or lost+found, in the share: passed over, named, and the session kept. */
+    /** Another user's folder, or lost+found, in the share: skipped and named, and the session kept. */
     @Test
     fun aSubfolderRefusedIsPassedOver() = runTest {
         tree = mapOf(
@@ -159,7 +159,6 @@ class SmbBrowserTest {
         assertEquals(emptyList<Boolean>(), opened.single().closes)
     }
 
-    /** A file of a folder deep in the share, by its path from the share's root, "\" separators. */
     @Test
     fun aFileIsReadByItsPathInTheShare() = runTest {
         val films = folder().copy(path = "/Films/4K/")
@@ -168,7 +167,7 @@ class SmbBrowserTest {
         assertEquals(listOf("Films\\4K\\Dune (2021)\\movie.nfo", "Dune (2021).mkv"), opened.flatMap { it.read })
     }
 
-    /** The listing tells when each file was last written: an NFO rewritten in place keeps its size, not its date. */
+    /** The listing gives each file's modification date: an NFO rewritten in place keeps its size, not its date. */
     @Test
     fun aListingGivesWhenEachFileWasWritten() = runTest {
         tree = mapOf(
@@ -203,7 +202,7 @@ class SmbBrowserTest {
         assertEquals(listOf(false), opened[1].closes)
     }
 
-    /** What closing a session asks the NAS, in order, as smbj is asked it: [SmbBrowser.signOff]'s steps, then hanging up. */
+    /** What closing a session asks of the NAS through smbj: [SmbBrowser.signOff]'s steps, then hang-up. */
     private fun signOff(broken: Boolean = false, shareFails: Throwable? = null, sessionFails: Throwable? = null): List<String> {
         val asked = mutableListOf<String>()
         fun step(what: String, failure: Throwable?): () -> Unit = {
@@ -216,7 +215,7 @@ class SmbBrowserTest {
         return asked
     }
 
-    /** A NAS gone silent (powered off, its address changed by DHCP): each step would wait out the 15 s timeout. */
+    /** A NAS gone silent (powered off, or readdressed by DHCP): each step would wait out the 15 s timeout. */
     @Test
     fun aSignOffTheNasDoesNotAnswerHangsUpAtOnce() {
         val expired = SMBRuntimeException(TransportException(TimeoutException("Timeout expired")))
@@ -224,7 +223,7 @@ class SmbBrowserTest {
         assertEquals(listOf("share", "session", "hang up, forced"), signOff(sessionFails = expired))
     }
 
-    /** The NAS answered, if only to refuse: it is there, and frees the session when told. */
+    /** The NAS answered, if only to refuse: it is there, and frees the session when told to. */
     @Test
     fun aSignOffTheNasRefusesGoesOn() {
         assertEquals(listOf("share", "session", "hang up"), signOff(shareFails = smbStatus(NtStatus.STATUS_NETWORK_NAME_DELETED)))
@@ -235,7 +234,7 @@ class SmbBrowserTest {
     private companion object {
         const val PASSWORD = "secret"
 
-        /** As Share.receive throws an answer that is not a success. */
+        /** As Share.receive throws an answer other than success. */
         fun smbStatus(status: NtStatus) =
             SMBApiException(status.value, SMB2MessageCommandCode.SMB2_CREATE, "Create failed for \\\\nas\\films", null)
     }

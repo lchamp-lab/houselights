@@ -44,11 +44,7 @@ import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 
-/**
- * Under the launch screen, home says it is whole only once a frame is drawn with its rows, its hero
- * on the first title and that title's picture prepared: the launch screen then leaves on a home that
- * comes up whole, its backdrop with it.
- */
+/** Home is whole once a frame shows its rows, its hero on the first title, and that title's picture prepared. */
 @RunWith(RobolectricTestRunner::class)
 @Config(application = Application::class, qualifiers = "w960dp-h540dp-land-mdpi")
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
@@ -119,11 +115,7 @@ class HomeWholeTest {
         assertTrue("said once its picture is prepared, and not before", cover.toldWith == true)
     }
 
-    /**
-     * The rows come while home waits under the launch screen: the frame they first show in has its
-     * hero still on no title (it settles on the first one a frame later), so it is not whole, even
-     * with nothing to prepare for the picture it shows.
-     */
+    /** The frame the rows first show in has no hero title yet (it settles a frame later), so it is not whole. */
     @Test
     fun theFrameTheRowsComeInIsNotWholeYet() {
         val context = compose.activity.applicationContext

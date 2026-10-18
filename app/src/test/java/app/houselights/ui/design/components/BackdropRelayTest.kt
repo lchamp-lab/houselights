@@ -22,10 +22,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
-/**
- * Screens cut, the picture stays: a backdrop arriving starts from the picture of the screen left,
- * whole, which stays whole under what comes until it is in; a screen without a backdrop lets it go out.
- */
+/** A new backdrop comes up over the previous picture, kept opaque until then; no backdrop fades it out. */
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = TV)
 class BackdropRelayTest {
@@ -91,13 +88,11 @@ class BackdropRelayTest {
         assertFalse("its veils change: they fade", other.shown!!.atOnce)
     }
 
-    /** The picture handed on stays whole while what replaces it comes up. */
     @Test
     fun whatIsHandedOnHoldsUnderWhatComes() {
         assertEquals(1f, leavingAlpha(coming = "detail"))
     }
 
-    /** With nothing coming, it goes out on the black room. */
     @Test
     fun whatIsHandedOnGoesOutForNothing() {
         val alone = leavingAlpha(coming = null)

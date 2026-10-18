@@ -10,25 +10,20 @@ import java.util.concurrent.ConcurrentHashMap
 
 data class ParsedMovie(val title: String, val year: Int?)
 
-/** [lastEpisode]: the last episode the file holds when it holds several ("S01E01-E02"), else null. */
+/** [lastEpisode] is the last episode of a multi-episode file ("S01E01-E02"), else null. */
 data class ParsedEpisode(val showTitle: String?, val season: Int, val episode: Int, val lastEpisode: Int? = null)
 
-/**
- * An episode and its show, as the file's path names them. [dir]: the show's folder, relative to the
- * source, whose tvshow.nfo and artwork describe it; "" when the episodes lie at the source's root, or in
- * season folders there.
- */
+/** An episode and its show; [dir] is the show folder (tvshow.nfo, artwork), "" at the source root. */
 data class ShowPath(val title: String, val year: Int?, val dir: String, val episode: ParsedEpisode)
 
 /**
- * A Blu-ray's or a DVD's folder, as one of its streams' path gives it. [root]: the folder holding
- * BDMV or VIDEO_TS ("" at the source's root), which names the title and holds its NFO and artwork;
- * [index]: the disc's own name for its NFO, relative to [root], as Kodi reads it ("BDMV/index.nfo").
+ * A disc from one of its stream paths: [root] holds BDMV or VIDEO_TS ("" at the source root) and names the title;
+ * [index] is the disc's own NFO base name under [root], as Kodi reads it ("BDMV/index").
  */
 data class DiscPath(val root: String, val index: String)
 
 /** Extracts titles, years and episode numbers from file and folder names. */
-@Suppress("TooManyFunctions") // One function per question a name answers, in the one place a reader looks for them.
+@Suppress("TooManyFunctions") // All name-parsing rules live in one place.
 object FilenameParser {
     val VIDEO_EXTENSIONS = setOf(
         "mkv", "mp4", "m4v", "avi", "mov", "wmv", "ts", "m2ts", "mts", "iso",
@@ -37,38 +32,31 @@ object FilenameParser {
 
     private val YEAR = Regex("""(?<![0-9])(19[0-9]{2}|20[0-9]{2})(?![0-9])""")
 
-    /**
-     * "S01E02", "S01E1071" (numbered from a show's start); a file holding several episodes names the
-     * last one too: "S01E01-E02", "S01E01E02", "S01E01-02", "S01E01.S01E02", the last group read.
-     */
+    /** "S01E02", "S01E1071"; multi-episode "S01E01-E02", "S01E01E02", "S01E01-02", "S01E01.S01E02". */
     private val SXXEYY = Regex(
         """(?i)(?<![a-z0-9])s(\d{1,2})[ ._-]?e(\d{1,4})(?![0-9])(?:(?:[ ._-]?(?:s\1[ ._-]?)?e|-)(\d{1,4})(?![0-9a-z]))*"""
     )
     private val NXNN = Regex("""(?i)(?<![a-z0-9])(\d{1,2})x(\d{2,3})(?![0-9])""")
 
-    /**
-     * "03 - Victor", "1071 - Title" in a season's folder; not a year ("2019 Christmas Special", "1917"), nor a
-     * date ("2019-05-12 - Title"). A show numbered from its start names such episodes "S01E1917".
-     */
+    /** "03 - Victor", "1071 - Title" in a season folder; never a year ("1917") or a date ("2019-05-12 - Title"). */
     private val LEADING_EPISODE =
         Regex("""(?i)^(?:e|ep|episode|épisode)?[ ._-]?(?!(?:19|20)\d{2}(?![0-9]))(\d{1,4})(?![0-9]|[-.]\d{2}[-.]\d{2})""")
 
-    /** More episodes than this between the first and the last one a name gives is no range: "S01E05-2019". */
+    /** A wider span between first and last episode is not a range: "S01E05-2019". */
     private const val MAX_RANGE = 50
 
     private val SEASON_FOLDER = Regex("""(?i)^(?:season|saison|staffel|temporada|s)[ ._-]?(\d{1,2})$""")
 
-    /** Folders of a show's specials, its season 0, lowercase. Not "Special": a show bears that name. */
+    /** Lowercase folder names for season 0. Not "Special", which is also a show's title. */
     private val SPECIALS = setOf("specials", "spécial", "spéciaux", "speciaux", "spéciales", "speciales")
 
-    /** A Blu-ray's streams ("BDMV/STREAM/00800.m2ts"), and a DVD's ("VIDEO_TS/VTS_01_1.VOB"). */
     private val BLU_RAY_STREAM = Regex("""(?i)^(?:(.*)/)?BDMV/STREAM/[^/]+\.(?:m2ts|mts)$""")
     private val DVD_STREAM = Regex("""(?i)^(?:(.*)/)?VIDEO_TS/[^/]+\.vob$""")
 
     // Android's ICU engine needs closing brackets and braces escaped, unlike the JVM.
     private val BRACKETS = Regex("""\[[^\]]*\]|\{[^\}]*\}""")
 
-    /** Release tags no title holds as a word: definition, source, codecs, French release languages. */
+    /** Release tags that never occur as title words: definition, source, codecs, French release languages. */
     private const val TECHNICAL_TAGS =
         """2160p|1080p|1080i|720p|576p|480p|uhd|hdr10\+?|hdr|dovi|dolby[ ._-]?vision|""" +
             """blu[ ._-]?ray|bdrip|brrip|bdremux|remux|webrip|web[ ._-]?dl|hdtv|dvdrip|hdrip|hdlight|4klight|xvid|divx|""" +
@@ -76,18 +64,17 @@ object FilenameParser {
             """multi|truefrench|vff|vfq|vfi|vf2|vostfr|subfrench"""
 
     /**
-     * Release tags that are words of titles too: "The French Connection", "Charlotte's Web", "A Complete Unknown";
-     * "Intégrale", a French pack's whole show ("Kaamelott.Integrale.1080p"), but not after its article, a title's
-     * word then: "Florence Foresti - L'Intégrale 1080p", "Les.Inconnus.L.Integrale.DVDRip".
+     * Tags that can be title words ("The French Connection", "A Complete Unknown"). "Intégrale" marks a French series
+     * pack ("Kaamelott.Integrale.1080p"), but not after L' ("Florence Foresti - L'Intégrale 1080p").
      */
     private const val WORD_TAGS = "4k|dv|web|french|vf|proper|repack|extended|unrated|imax|hybrid|complete|internal|" +
         """(?<!^l['’ ._])(?<![^a-zA-Z0-9]l['’ ._])int[eéÉ]grale"""
 
-    /** Release tags, technical ones first, so that "WEB-DL" is read whole rather than as "WEB". */
+    /** All release tags, technical first so that "WEB-DL" matches whole rather than as "WEB". */
     private val JUNK = Regex("""(?i)(?<![a-z0-9])($TECHNICAL_TAGS|$WORD_TAGS)(?![a-z0-9])""")
     private val TECHNICAL = Regex("""(?i)(?:$TECHNICAL_TAGS)""")
 
-    /** What may lie between two tags of one run: "MULTi.VFF.2160p", "(FRENCH) 1080p". */
+    /** Characters allowed between tags of one run: "MULTi.VFF.2160p", "(FRENCH) 1080p". */
     private const val BETWEEN_TAGS = " ._-+()[]{}"
 
     fun extension(name: String): String = name.substringAfterLast('.', "").lowercase()
@@ -97,7 +84,6 @@ object FilenameParser {
     fun stripExtension(name: String): String =
         if (isVideo(name)) name.substringBeforeLast('.') else name
 
-    /** The disc [relativePath] is a stream of, or null for a file of no disc. */
     fun discOf(relativePath: String): DiscPath? {
         BLU_RAY_STREAM.matchEntire(relativePath)?.let { return DiscPath(it.groupValues[1], "BDMV/index") }
         DVD_STREAM.matchEntire(relativePath)?.let { return DiscPath(it.groupValues[1], "VIDEO_TS/VIDEO_TS") }
@@ -111,8 +97,7 @@ object FilenameParser {
     fun parseMovie(fileName: String): ParsedMovie {
         val base = normalizeSeparators(dropBrackets(stripExtension(fileName)))
 
-        // The year is the last plausible one that is not the whole title ("1917", "2001 A Space Odyssey 1968"),
-        // nor one to come ("Blade Runner 2049").
+        // The last plausible year, not at the start ("1917") nor in the future ("Blade Runner 2049").
         val latest = LocalDate.now().year + 1
         val year = YEAR.findAll(base).lastOrNull { it.range.first > 0 && it.value.toInt() <= latest }
         val title = beforeTags(if (year != null) base.substring(0, year.range.first) else base)
@@ -120,10 +105,8 @@ object FilenameParser {
     }
 
     /**
-     * The edition a film's file names ([Editions]), a disc by its folder: Plex's "{edition-Final Cut}" anywhere,
-     * one in brackets ("[Extended]"), or words after the film's year, where no title holds them: "Aliens (1986)
-     * Special Edition", "Blade Runner (1982) - Director's Cut" as Jellyfin names a version. Null for none: a name
-     * without a year says nothing of one, "Director's Cut" and "The Final Cut" being films too.
+     * The edition ([Editions]) of a file or disc folder: Plex's "{edition-Final Cut}", "[Extended]", or words after the
+     * year ("Blade Runner (1982) - Director's Cut"). Null without a year, as "The Final Cut" is also a film.
      */
     fun edition(relativePath: String): String? {
         val path = discOf(relativePath)?.root?.ifEmpty { null } ?: relativePath
@@ -136,16 +119,13 @@ object FilenameParser {
         return Editions.find(base.substring(year.range.last + 1))
     }
 
-    /** Plex's edition: "{edition-Director's Cut}". */
     private val PLEX_EDITION = Regex("""(?i)\{edition-([^\}]+)\}""")
     private val BRACKETED = Regex("""\[([^\]]*)\]""")
 
     /**
-     * [s] up to its release tags: from the run of tags that leads to the first one no title holds as a
-     * word ("MULTi.2160p", "FRENCH.1080p"). Without such a tag, words that are tags at times stay:
-     * "The French Connection", "Charlotte's Web", "A Proper Man". In capitals, in a name that has small
-     * letters, they are a release's too: "Le.Film.FRENCH", "Inception.PROPER", "Movie.EXTENDED.CUT"; unless
-     * nothing but an article comes before them, which no film is named: "The IMAX Experience".
+     * [s] cut at the tag run containing a technical tag ("FRENCH.1080p"); word tags alone stay ("The French
+     * Connection"). In mixed case an all-caps word tag also cuts ("Inception.PROPER"), unless only an article
+     * precedes it ("The IMAX Experience").
      */
     private fun beforeTags(s: String): String {
         val cased = s.any(Char::isLowerCase)
@@ -158,39 +138,29 @@ object FilenameParser {
             if (TECHNICAL.matches(tag.value)) return s.substring(0, runStart)
             if (cased && inCapitals(tag.value)) {
                 if (!NO_TITLE.matches(s.substring(0, runStart))) return s.substring(0, runStart)
-                // The title's word, it starts no run of tags: "The.IMAX.1080p" is "The IMAX".
+                // A title word, not the start of a tag run: "The.IMAX.1080p" gives "The IMAX".
                 runEnd = -1
             }
         }
         return s
     }
 
-    /** A tag written as scene groups write theirs: "FRENCH", "PROPER", "iNTERNAL", but not "4K", a letter alone. */
+    /** Scene-style capitals: "FRENCH", "PROPER", "iNTERNAL", but not "4K", which has a single letter. */
     private fun inCapitals(tag: String) = tag.count(Char::isLetter) > 1 && tag.drop(1).none(Char::isLowerCase)
 
-    /** What is no title before a tag: nothing, or an article alone ("The ", "L'", "Die "). */
+    /** A prefix that cannot be a title: nothing, or an article alone ("The ", "L'", "Die "). */
     private val NO_TITLE = Regex("""(?i)^[ ._-]*(?:(?:${MetadataMerge.ARTICLE_WORDS}|der|die|das)[ ._-]*|l['’])?$""")
 
-    /**
-     * The episode a file's name gives, and its show's title (see [parseShowPath]).
-     * @param folders folder names from the source root down to the file's parent.
-     */
+    /** The episode named by [fileName]; [folders] run from the source root to the file's parent. */
     fun parseEpisode(fileName: String, folders: List<String>): ParsedEpisode? = episodeIn(fileName, folders)?.episode
 
-    /**
-     * What [fileName] names after its episode's numbers, without the separators around it: the episode's title
-     * as Sonarr names it ("Crime-Scene" for "Show - S01E05 - Crime-Scene.mkv"), or a release's tags; "" for
-     * "Show.S01E05.mkv". Null when it names no episode by "S01E05" or "1x05".
-     */
+    /** Text after "S01E05" or "1x05" ("Crime-Scene" in "Show - S01E05 - Crime-Scene.mkv"); null without. */
     fun afterEpisode(fileName: String): String? =
         numbers(normalizeSeparators(dropBrackets(stripExtension(fileName))), null)?.after?.trim(' ', '.', '_', '-')
 
-    /**
-     * The episode at [relativePath] and its show: what every rule that names a show from its path
-     * reads. Null when the file's name gives no episode, or nothing names its show.
-     */
+    /** The episode at [relativePath] and its show; null when no episode or no show name is found. */
     fun parseShowPath(relativePath: String): ShowPath? {
-        // A disc is named by its folder, as a file by its name: "Show/Season 1/Show.S01E01/BDMV/STREAM/00001.m2ts".
+        // A disc is named by its folder: "Show/Season 1/Show.S01E01/BDMV/STREAM/00001.m2ts".
         val path = discOf(relativePath)?.root?.ifEmpty { null } ?: relativePath
         val folders = path.split('/').dropLast(1)
         val found = episodeIn(path.substringAfterLast('/'), folders) ?: return null
@@ -199,7 +169,6 @@ object FilenameParser {
         return ShowPath(title, found.year, dir, found.episode)
     }
 
-    /** An episode; its show's folder, by its index among the file's (null for none); its show's year. */
     private class Found(val episode: ParsedEpisode, val folder: Int?, val year: Int?)
 
     private fun episodeIn(fileName: String, folders: List<String>): Found? {
@@ -210,15 +179,11 @@ object FilenameParser {
     }
 
     /**
-     * The show's folder among [folders], by its index (null for none), and the show's name and year, for a file
-     * whose name names the show [named]. The show's folder is the one named as the file names the show, under a
-     * folder of kinds ("Animation/Arcane/Saison 1/Arcane.S01E01"); the one naming it with a year alone first, in a
-     * folder of its name holding one for each of its years ("Doctor Who/Doctor Who (2005)/Season 1"), or a season's
-     * pack naming the year, which gives the show its year and leaves it in the folder of its name above
-     * ("Doctor Who/Doctor Who (2005) - S01", "Breaking Bad/Breaking Bad (2008) Season 2 S02 (1080p)"); else one
-     * that names it before a pack's tags ("Friends.Complete.Series.1080p", "Friends - The Complete Series"), the
-     * show named as its files name it; else the first one, above a season's pack ("Show/Show.S01.1080p.WEB/Show.S01E01").
-     * Without one, the file's name names the show. A folder's name is a show's up to a season ([showName]).
+     * The show folder's index among [folders] and the show's name and year, given [named] from the file name:
+     * - a same-named folder, preferring name and year ("Doctor Who/Doctor Who (2005)/Season 1"); a season pack with
+     *   a year lends it to the same-named folder above ("Breaking Bad/Breaking Bad (2008) Season 2");
+     * - else a folder naming the show before pack tags ("Friends - The Complete Series");
+     * - else the first non-season folder ("Show/Show.S01.1080p.WEB/Show.S01E01"); without any, the file name.
      */
     private fun showIn(folders: List<String>, named: ParsedMovie): Pair<Int?, ParsedMovie?> {
         val shows = folders.indices.filter { seasonFromFolder(folders[it]) == null }
@@ -233,33 +198,20 @@ object FilenameParser {
         return first to (first?.let { showName(folders[it]) } ?: named.takeIf { known })
     }
 
-    /**
-     * A folder's name as a show's: up to its season's number, as a pack of a season names it, at the source's
-     * root too ("Show.Name.S01.1080p.WEB-GRP", "Show.Name.S01-S03.1080p", "Les.Revenants.Saison.1.FRENCH.720p"), or
-     * of several ("Les Revenants Saisons 1-2", "Le Bureau des Légendes Saisons 1 à 5"), or of an episode
-     * ("Show.Name.S01E01.1080p"), so that each season is not a show of its own.
-     */
+    /** A folder name cut before season numbers ("Show.Name.S01-S03.1080p"), so season packs are not separate shows. */
     private fun showName(folder: String): ParsedMovie = parseMovie(beforeSeason(folder))
 
-    /** [folder] up to its [SEASON_TOKEN], when something comes before it. */
     private fun beforeSeason(folder: String): String =
         SEASON_TOKEN.find(folder)?.let { folder.substring(0, it.range.first) }?.takeIf { it.isNotBlank() } ?: folder
 
-    /** [folder] names a season or several after a name: a season's pack ("Doctor Who (2005) - S01"), not a show's folder. */
+    /** True for a season pack after a name ("Doctor Who (2005) - S01"), as opposed to a show folder. */
     private fun namesSeason(folder: String): Boolean = beforeSeason(folder) != folder
 
-    /**
-     * A pack's season or seasons, or an episode's numbers, in a folder's name: "S01", "S01-S03", "S01E01", "Saison 1",
-     * and the first of several, "Saisons 1-2", "Saisons 1 à 5", "Seasons 1-3". Never "Seasons" before no number:
-     * "The Four Seasons" is a title.
-     */
+    /** "S01", "S01-S03", "S01E01", "Saison 1", "Saisons 1 à 5"; never "The Four Seasons". */
     private val SEASON_TOKEN =
         Regex("""(?i)(?<![a-z0-9])(?:s|(?:saisons?|seasons?)[ ._-]?)\d{1,2}(?:e\d{1,4}|-s?\d{1,2})?(?![a-z0-9])""")
 
-    /**
-     * [folder] names the show [title], then from a release tag on what of it it holds: "Friends.Complete.Series.1080p",
-     * "Friends - The Complete Series", whose own name, "Friends Complete Series", no show bears.
-     */
+    /** True when [folder] is [title] followed by release tags: "Friends - The Complete Series". */
     private fun namesThenTags(folder: String, title: String): Boolean {
         val base = normalizeSeparators(dropBrackets(folder))
         val tag = JUNK.find(base) ?: return false
@@ -267,10 +219,8 @@ object FilenameParser {
     }
 
     /**
-     * [folder] names a title and its year, and nothing else but ids in brackets: "Doctor Who (2005)", "Doctor.Who.2005",
-     * "Doctor Who (2005) [tvdbid-78804]"; or, its year in parentheses as media managers write a show's, then what of the
-     * show it holds, a season or a release's tags, which [showName] leaves out: "Doctor Who (2005) - S01", "Doctor Who
-     * (1963) 1080p". Not a pack's "Severance.2022.S01.1080p.WEB", a season of the show whose folder holds it.
+     * True for a title and year with at most bracketed ids ("Doctor.Who.2005", "Doctor Who (2005) [tvdbid-78804]"),
+     * or a parenthesized year then a season or tags ("Doctor Who (2005) - S01"); false for "Severance.2022.S01.WEB".
      */
     private fun titleAndYear(folder: String): Boolean {
         val name = parseMovie(folder)
@@ -281,18 +231,17 @@ object FilenameParser {
         return apart && letters(beforeTags(normalizeSeparators(dropBrackets(beforeSeason(folder))))) == named
     }
 
-    /** "The" ending a name, before "The Complete Series". */
+    /** The "The" left before "Complete Series". */
     private val TRAILING_THE = Regex("""(?i)(?<![a-z0-9])the[ ._-]*$""")
 
-    /** Two names of one show, whatever case, spaces and punctuation: "Marvel's Agents of S.H.I.E.L.D." and "Marvels.Agents.of.SHIELD". */
+    /** Compares ignoring case and punctuation: "Marvel's Agents of S.H.I.E.L.D." equals "Marvels.Agents.of.SHIELD". */
     private fun sameShow(a: String, b: String) = letters(a) == letters(b)
 
     private fun letters(s: String) = s.lowercase().filter(Char::isLetterOrDigit)
 
-    /** Season and episodes a file's name gives, and the text before and after them. */
     private class Numbers(val season: Int, val episode: Int, val last: Int?, val before: String, val after: String = "")
 
-    /** [base]'s numbers: "S01E02", "1x02", else "02 - Title" in a season's folder ([folderSeason]). */
+    /** "S01E02", "1x02", else "02 - Title" when in a season folder ([folderSeason]). */
     private fun numbers(base: String, folderSeason: Int?): Numbers? {
         val named = SXXEYY.find(base)?.let { m ->
             val (season, first, last) = m.destructured
@@ -352,16 +301,11 @@ object FilenameParser {
             .trim('-', '–', '(', ')', ' ', '.')
             .trim()
 
-    /**
-     * Key used to group episodes of the same show, with its year when its folder gives one
-     * ("doctor who|2005"): "Doctor Who (2005)" and "Doctor Who (1963)" are two shows.
-     */
+    /** Groups a show's episodes, with the folder's year when given ("doctor who|2005"), so remakes stay apart. */
     fun showKey(title: String, year: Int? = null): String =
         title.lowercase().replace(NOT_LETTERS, " ").trim().let { if (year == null) it else "$it$YEAR_MARK$year" }
 
-    /** What a show's key keeps of its name: letters and digits, whatever stands between them made one space. */
     private val NOT_LETTERS = Regex("""[^\p{L}\p{N}]+""")
 
-    /** Between a show's name and its year, in its key. */
     const val YEAR_MARK = "|"
 }

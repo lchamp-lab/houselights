@@ -15,9 +15,9 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import kotlin.concurrent.thread
 
-/** How sessions and mounts are kept between files, closed, and made again, and what waits for what. */
+/** How sessions and mounts are kept between files, closed and reopened, and what waits for what. */
 class KeptConnectionsTest {
-    /** A connection: what closed it, broken or not, in order. */
+    /** A connection, and what closed it (broken or not), in order. */
     private class Connection(val n: Int) {
         var hungUp = false
         val closes = mutableListOf<Boolean>()
@@ -28,7 +28,7 @@ class KeptConnectionsTest {
     private val kept = KeptConnections<Connection>(
         close = { connection, broken -> connection.closes += broken },
         isOpen = { !it.hungUp && it.closes.isEmpty() },
-        // As the browsers tell them: the network failed, not the file.
+        // As the browsers classify them: the network failed, not the file.
         isBroken = { it is IOException && it !is FileNotFoundException },
         clock = { now },
     )
@@ -143,9 +143,8 @@ class KeptConnectionsTest {
     }
 
     /**
-     * Runs an operation for [key] on [connections] on a thread of its own, held in its block (or,
-     * [connecting], in making its connection: a NAS that does not answer), and [meanwhile] while it
-     * is held, then lets it end. Whether [meanwhile] returned before the operation ended.
+     * Runs an operation for [key] held in its block (or, if [connecting], while connecting), runs [meanwhile],
+     * then releases it. Returns whether [meanwhile] returned before the operation ended.
      */
     private fun whileInUse(
         meanwhile: () -> Unit,
@@ -179,7 +178,7 @@ class KeptConnectionsTest {
         return returned
     }
 
-    /** An SMB session signs off: not under a read. */
+    /** An SMB session logs off, but not in the middle of a read. */
     @Test
     fun forgettingASessionWaitsForTheOperationUnderWay() {
         assertFalse(whileInUse({ runBlocking { kept.forget { true } } }, waitMs = 200))
@@ -202,7 +201,7 @@ class KeptConnectionsTest {
         assertEquals(2, made.size)
     }
 
-    /** A scan listing one share, and a folder of another share saved meanwhile with a new password: nothing to wait for. */
+    /** A scan lists one share while a folder of another share is saved with a new password. */
     @Test
     fun forgettingWaitsForNoOtherKeysOperation() {
         val shows = use("kodi@/nas/shows")
@@ -210,7 +209,6 @@ class KeptConnectionsTest {
         assertEquals(listOf(false), shows.closes)
     }
 
-    /** Two shares, two NAS: what one reads, the other does not wait for. */
     @Test
     fun anOperationWaitsForNoOtherKeys() {
         var other: Connection? = null
@@ -218,13 +216,13 @@ class KeptConnectionsTest {
         assertEquals(emptyList<Boolean>(), other?.closes)
     }
 
-    /** A NAS that does not answer (off, or its address changed) holds the connecting to it, not to another. */
+    /** A NAS that does not answer (off, or at a new address) holds connections to itself, not to another. */
     @Test
     fun connectingToANasHoldsNoOther() {
         assertTrue(whileInUse({ use("kodi@/other-nas/films") }, waitMs = 5_000, key = "kodi@/nas/films", connecting = true))
     }
 
-    /** Leaving the screen of a folder stops a wait for the operation under way on its share. */
+    /** Leaving a folder's screen stops a wait for the operation under way on its share. */
     @Test
     fun waitingForAnOperationStopsWithTheCoroutineThatWaits() {
         var gaveUp = false
@@ -237,7 +235,7 @@ class KeptConnectionsTest {
         assertTrue(gaveUp)
     }
 
-    /** Leaving the screen while a new password is saved stops the wait: the session signed in with the old one is not kept for all that. */
+    /** Leaving the screen while a new password is saved stops the wait; the old password's session is not kept. */
     @Test
     fun aWaitToForgetCutShortKeepsNothing() {
         val shows = use("nas/shows")
@@ -248,7 +246,7 @@ class KeptConnectionsTest {
         assertEquals("closed as its operation ended, not kept", listOf(false), made[1].closes)
     }
 
-    /** The pass is over: what it kept closes now, and one in use as its operation ends, without waiting for it. */
+    /** After a pass, idle connections close at once, one in use as its operation ends, without waiting for it. */
     @Test
     fun closingWhatIsIdleWaitsForNoOperation() {
         val films = use("nas/films")

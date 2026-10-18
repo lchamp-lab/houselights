@@ -33,10 +33,8 @@ fun appContainer(): AppContainer = (LocalContext.current.applicationContext as H
 fun Context.appContainer(): AppContainer = (applicationContext as HouselightsApp).container
 
 /**
- * Calls [reload] when the library changed since the screen last showed it: at once while the screen is
- * shown, or when it comes back to the front. A screen hidden behind another one does no work. What it
- * last showed is saved with the process it was shown in: after Android stopped the app, the versions
- * start again from 0 and say nothing of the screen restored, whose ViewModel loads anew all the same.
+ * Calls [reload] when the library changed since the screen last showed it, at once or on its return to the
+ * front. The shown version is saved with its process, as versions restart from 0 after process death.
  */
 @Composable
 fun ReloadOnLibraryChange(reload: () -> Unit) {
@@ -48,7 +46,7 @@ fun ReloadOnLibraryChange(reload: () -> Unit) {
     }
 }
 
-/** This process among others: the library versions of two processes do not compare. */
+/** Identifies this process: library versions from two processes do not compare. */
 private val PROCESS = Random.nextLong()
 
 /** What a screen showed, as its saved state keeps it: the process it was shown in, then the library version. */
@@ -57,23 +55,16 @@ internal fun shownAt(version: Long, process: Long = PROCESS) = longArrayOf(proce
 /** True when the library moved on to [current] since [shown]; a version shown in another process never is. */
 internal fun isBehind(shown: LongArray, current: Long, process: Long = PROCESS): Boolean = shown[0] == process && shown[1] != current
 
-/**
- * The error a screen shows: [error] when there is one, else the last one while the screen tries
- * again ([retrying]), so its intertitle stays in place with focus on its button, at work; null once
- * the screen has something else to show.
- */
+/** [error], or the last one while [retrying], so the intertitle and its busy button stay; else null. */
 @Composable
 fun retainedError(error: UiError?, retrying: Boolean): UiError? {
-    // Not state: what it returns follows its arguments, read again at each composition.
+    // Not state: the result follows the arguments, read again at each composition.
     val last = remember { arrayOfNulls<UiError>(1) }
     last[0] = error ?: last[0].takeIf { retrying }
     return last[0]
 }
 
-/**
- * False until the caller has been shown for [HlMotion.SKELETON_DELAY]: a placeholder waits for it,
- * so a slow load shows one and a quick load never flashes.
- */
+/** False until [HlMotion.SKELETON_DELAY] has passed, so a quick load never flashes a placeholder. */
 @Composable
 fun skeletonDelayPassed(): Boolean {
     val passed by produceState(false) {
@@ -84,10 +75,8 @@ fun skeletonDelayPassed(): Boolean {
 }
 
 /**
- * What [value] reads, once it has stayed for [HlMotion.SETTLE], after the focus motion: what follows
- * the title under focus (a backdrop, a hero, a preview) loads no image at each step. Null at first;
- * while nothing is shown, a value comes at once. [value] is read in an effect, never in composition:
- * a step recomposes nothing, and the caller only when what is shown changes.
+ * [value] once it has held for [HlMotion.SETTLE], so what follows focus loads no image per step; null at
+ * first, immediate while nothing is shown. Read in an effect, so steps never recompose the caller.
  */
 @Composable
 fun <T : Any> rememberSettled(value: () -> T?): State<T?> {
@@ -97,7 +86,7 @@ fun <T : Any> rememberSettled(value: () -> T?): State<T?> {
     return settled
 }
 
-/** Follows [this] into [settled] (see [rememberSettled]): a value that changes before [settle] has passed waits again. */
+/** Feeds [settled] for [rememberSettled]: a value changing before [settle] has passed waits again. */
 internal suspend fun <T : Any> Flow<T?>.settleInto(settled: MutableState<T?>, settle: Long = HlMotion.SETTLE) {
     collectLatest { next ->
         if (settled.value != null && next != settled.value) delay(settle)

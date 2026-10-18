@@ -23,7 +23,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import javax.crypto.KeyGenerator
 
-/** Editing a folder: the same folder at a new address, its titles and what was done with them kept. */
+/** Editing a folder: the same folder at a new address keeps its titles and what was done with them. */
 @RunWith(RobolectricTestRunner::class)
 class LocalLibraryTest {
     private lateinit var db: LibraryDatabase
@@ -42,7 +42,7 @@ class LocalLibraryTest {
             .build()
         dao = db.dao()
         artwork = ArtworkCache(context.cacheDir.resolve("artwork"))
-        // The scan asked after an edit never runs: it would go to the network.
+        // The scan requested after an edit never runs: it would go to the network.
         val idle = CoroutineScope(Job().apply { cancel() })
         val scanner = LibraryScanner(dao, { null }, idle, artwork, browsers = { FakeRemoteBrowser() }, closeIdle = {})
         library = LocalLibrary(context, dao, scanner, artwork) {}
@@ -79,7 +79,6 @@ class LocalLibraryTest {
         assertEquals("films-4k", edited.path)
         assertEquals("films-4k", edited.name)
         assertEquals("new", edited.password.value)
-        // What the form does not edit stays.
         assertEquals(SourceKind.MOVIES, edited.kind)
         assertEquals("WORKGROUP", edited.domain)
         assertEquals(2_000L, edited.lastScanAt)
@@ -134,7 +133,7 @@ class LocalLibraryTest {
     }
 
     private companion object {
-        /** As the form gives it: its kind is not the folder's, and must not be taken. */
+        /** As the form gives it: its kind is not the folder's and must be ignored. */
         val EDITED = SourceEntity(
             name = "films-4k", kind = SourceKind.SHOWS, protocol = Protocol.SMB, host = "192.168.1.20", share = "video",
             path = "films-4k", username = "kodi", password = Secret("new"),
@@ -153,7 +152,7 @@ class LocalLibraryTest {
         val films = dao.sources().single()
 
         assertEquals(FolderSave.Overlaps(films), library.addFolder(nfs("NAS", "/volume1/media/", "films/")))
-        // The share's root holds the folder; a folder inside it is held by it.
+        // The share's root contains the folder, and the folder contains a folder inside it.
         assertEquals(FolderSave.Overlaps(films), library.addFolder(nfs("nas", "volume1/media", "")))
         assertEquals(FolderSave.Overlaps(films), library.addFolder(nfs("nas", "volume1", "media/films/4K")))
         assertEquals(1, dao.sources().size)
@@ -165,7 +164,7 @@ class LocalLibraryTest {
         assertEquals(FolderSave.Saved, library.addFolder(nfs("nas", "volume1/media", "films", Protocol.SMB)))
         assertEquals(5, dao.sources().size)
 
-        // An SMB share ignores case (Samba's default, Windows): the same folder, written another way.
+        // An SMB share ignores case (Samba's default, as on Windows): the same folder, written differently.
         val smb = dao.sources().single { it.protocol == Protocol.SMB }
         assertEquals(FolderSave.Overlaps(smb), library.addFolder(nfs("nas", "Volume1/Media", "Films", Protocol.SMB)))
         // An NFS path does not: another folder.
@@ -187,7 +186,6 @@ class LocalLibraryTest {
         val (films, series) = dao.sources().sortedBy { it.id }
         assertEquals(FolderSave.Overlaps(films), library.updateFolder(series.id, nfs("nas", "volume1/media", "films")))
         assertEquals("series", dao.source(series.id)!!.path)
-        // Editing a folder at its own address is no overlap.
         assertEquals(FolderSave.Saved, library.updateFolder(films.id, nfs("192.168.1.10", "volume1/media", "films")))
     }
 }

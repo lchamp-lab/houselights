@@ -5,11 +5,8 @@ import app.houselights.core.escapeUriPath
 import app.houselights.core.escapeUriPathEnds
 
 /**
- * Turns a file path as seen by a media server into a URI the Zidoo player can open.
- * Returns null when no rule applies: the caller then falls back to HTTP streaming.
- *
- * A file's own name may hold "#", "?" or "%": escaped, they stay part of the path instead of
- * starting a fragment or a query the player would cut the name at.
+ * Turns a media server's file path into a URI the Zidoo player opens, escaping "#", "?" and "%" so the
+ * player does not cut the name; null when no rule applies, and the caller streams over HTTP.
  */
 object PathResolver {
     fun resolve(serverPath: String?, mappings: List<PathMapping>): String? {

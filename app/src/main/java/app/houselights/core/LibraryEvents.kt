@@ -2,15 +2,11 @@ package app.houselights.core
 
 import kotlinx.coroutines.flow.StateFlow
 
-/** When library data may have changed, for the screens that show it. */
+/** Tells screens when library data may have changed. */
 interface LibraryEvents {
-    /**
-     * Moves on when library data may have changed (playback ended, scan progress, something the user
-     * changed), at most every few seconds. Screens on display reload when it moves; screens behind
-     * others when they come back.
-     */
+    /** Increments, at most every few seconds, when library data may have changed; screens reload on it. */
     val libraryVersion: StateFlow<Long>
 
-    /** The user changed something screens show (watched, a favourite): the others reload. */
+    /** Reports an in-app edit that screens show (watched, favourite) so the other screens reload. */
     fun libraryChanged()
 }

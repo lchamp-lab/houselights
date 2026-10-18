@@ -21,29 +21,22 @@ import app.houselights.ui.util.reported
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 
-/** Where the library in numbers stands: being counted, counted, or not. */
+/** State of the library in numbers: counting, counted, or failed. */
 internal sealed interface NumbersState {
     data object Counting : NumbersState
 
-    /**
-     * The library counted ([numbers]), with what its source tells and filters by ([capabilities]), and the
-     * walls its doors open: its first library of films and of shows ([walls]).
-     */
+    /** The library's [numbers], its source's [capabilities], and the first films and shows libraries rows open. */
     data class Counted(
         val numbers: LibraryNumbers,
         val capabilities: ProviderCapabilities,
         val walls: Map<LibraryKind, Library>,
     ) : NumbersState
 
-    /** It could not be counted ([error]); [retrying] while it is counted again. */
+    /** Counting failed with [error]; [retrying] while it counts again. */
     data class Failed(val error: UiError, val retrying: Boolean = false) : NumbersState
 }
 
-/**
- * The library in numbers ([app.houselights.core.Catalog.numbers]), counted off the main thread the first time
- * its pane shows ([count]), then kept while the settings are open: coming back from a wall its rows opened
- * finds them as they were, focus on the row left.
- */
+/** The library in numbers, counted off the main thread when its pane first shows and kept while Settings is open. */
 internal class NumbersViewModel(private val provider: () -> MediaProvider) : ViewModel() {
     var state by mutableStateOf<NumbersState>(NumbersState.Counting)
         private set
@@ -51,14 +44,14 @@ internal class NumbersViewModel(private val provider: () -> MediaProvider) : Vie
     private val counting = LatestJob(viewModelScope)
     private var asked = false
 
-    /** The pane shows: the library is counted, once. */
+    /** Counts the library, once, when the pane first shows. */
     fun count() {
         if (asked) return
         asked = true
         start()
     }
 
-    /** After a failure: counts it again, the failure said meanwhile, its button at work. */
+    /** Counts again after a failure, which stays shown, its button busy, meanwhile. */
     fun retry() {
         val failed = state as? NumbersState.Failed ?: return
         if (failed.retrying) return
@@ -85,14 +78,14 @@ internal class NumbersViewModel(private val provider: () -> MediaProvider) : Vie
     private companion object {
         const val TAG = "Numbers"
 
-        /** The first library of films, and of shows: a door opens the films or the shows that hold its value. */
+        /** The first library of films and of shows: a row opens one of them, filtered on its value. */
         fun walls(libraries: List<Library>): Map<LibraryKind, Library> =
             listOf(LibraryKind.MOVIES, LibraryKind.SHOWS).mapNotNull { kind -> libraries.firstOrNull { it.kind == kind } }
                 .associateBy { it.kind }
     }
 }
 
-/** The settings' library in numbers, counted the first time its pane shows. */
+/** The library in numbers for Settings; counting starts the first time its pane shows. */
 @Composable
 internal fun numbersViewModel(): NumbersViewModel {
     val app = appContainer()

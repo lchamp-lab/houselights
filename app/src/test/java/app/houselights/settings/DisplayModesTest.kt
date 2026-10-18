@@ -21,7 +21,7 @@ class DisplayModesTest {
     fun standInModesLeaveTheOutputToThePlayer() {
         assertEquals(OutputControl.Player, DisplayModes.control(zidoo))
         assertNull(DisplayModes.ui4k(zidoo))
-        // A system that lists nothing says nothing true either.
+        // A system that lists no modes cannot be trusted either.
         assertEquals(OutputControl.Player, DisplayModes.control(emptyList()))
     }
 
@@ -51,7 +51,7 @@ class DisplayModesTest {
     fun atTheSameRateUltraHdIs3840Wide() {
         val dciFirst = listOf(OutputMode(4096, 2160, 60f, 1), OutputMode(3840, 2160, 60f, 2), OutputMode(3840, 2160, 50f, 3))
         assertEquals(2, DisplayModes.ui4k(dciFirst)?.id)
-        // Nearer to 60 Hz comes first.
+        // The rate nearer to 60 Hz comes first.
         assertEquals(1, DisplayModes.ui4k(listOf(OutputMode(4096, 2160, 60f, 1), OutputMode(3840, 2160, 59.5f, 2)))?.id)
     }
 }

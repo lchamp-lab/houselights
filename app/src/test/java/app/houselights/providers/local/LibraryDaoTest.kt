@@ -20,10 +20,7 @@ import org.robolectric.RobolectricTestRunner
 import java.util.concurrent.atomic.AtomicInteger
 import javax.crypto.KeyGenerator
 
-/**
- * Writes on many rows at once. Android 9's SQLite takes at most 999 values in a statement, and
- * Robolectric's takes far more: every statement's arguments are counted instead.
- */
+/** Bulk writes stay under Android 9's 999 values per statement, counted since Robolectric's SQLite takes more. */
 @RunWith(RobolectricTestRunner::class)
 class LibraryDaoTest {
     private lateinit var db: LibraryDatabase
@@ -65,7 +62,7 @@ class LibraryDaoTest {
 
     private fun assertFitsAndroid9() = assertTrue("${widest.get()} values in one statement", widest.get() <= ANDROID_9_LIMIT)
 
-    /** A file renamed keeps what was read of it; one of another size is read again, its probe and length with it. */
+    /** A renamed file keeps its probe; one of another size is probed again, its length with it. */
     @Test
     fun aFileReplacedByOneOfAnotherSizeIsReadAgain() = runTest {
         val info = MediaInfo(container = "MKV", durationMs = 7_094_000, probedWith = MediaProbe.VERSION)

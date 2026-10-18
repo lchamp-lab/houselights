@@ -22,21 +22,16 @@ object HlSpace {
     val safeV = 28.dp
     /** Between facts on one line (year, runtime, rating): wider than a word space. */
     val fact = 20.dp
-    /** How far what scrolls fades into its surface, at an edge with more beyond it (`scrollEdges`). */
+    /** Fade length at a scrolling edge with more beyond it (`scrollEdges`). */
     val fadeEdge = l
 }
 
-/**
- * Corner radii follow hierarchy: printed artwork is nearly square, rows less round than the
- * panels that hold them, panels less round than the sheets above the room; interactive controls
- * are pills, people are circles. A shape set close inside another keeps their corners parallel:
- * outer radius = inner radius + the gap between them (a menu: 8 + 8 = 16; a result: 4 + 8 = 12).
- */
+/** Radii follow hierarchy; a nested shape keeps corners parallel: outer = inner + gap (a menu: 8 + 8 = 16). */
 object HlShapes {
     val badge = RoundedCornerShape(3.dp)
     val artwork = RoundedCornerShape(4.dp)
     val field = RoundedCornerShape(6.dp)
-    /** Rows that can be chosen: settings, navigation entries, menu options. */
+    /** Selectable rows: settings, navigation entries, menu options. */
     val row = RoundedCornerShape(8.dp)
     val panel = RoundedCornerShape(12.dp)
     /** Sheets and menus above the room. */
@@ -45,50 +40,45 @@ object HlShapes {
     val avatar = CircleShape
 }
 
-/**
- * Inner padding of containers, by how much they hold. Each container takes the one of its kind,
- * so the same kind of thing breathes the same everywhere.
- */
+/** Inner padding of containers by kind, so the same kind of thing breathes the same everywhere. */
 object HlInset {
-    /** Containers whose rows carry their own padding (menus), or that hold a thumbnail (results). */
+    /** Menus (their rows carry their own padding) and results holding a thumbnail. */
     val tight = HlSpace.xs
     /** Dense rows and lines inside a container. */
     val compact = HlSpace.s
     /** Panels and cards. */
     val card = HlSpace.l
-    /** Sheets above the room. */
     val sheet = HlSpace.xl
 }
 
 object HlSize {
     val poster = 112.dp
-    /** Poster on the welcome wall. */
     val posterWall = 148.dp
-    /** Poster thumbnail in a list (search results, source cards). */
+    /** Poster in a list (search results, source cards). */
     val posterThumb = 64.dp
-    /** Poster of the title in use, a step above the results listed under it. */
+    /** Poster of the title in use, above the results listed under it. */
     val posterThumbLarge = 72.dp
     val landscape = 220.dp
     val episode = 264.dp
     val avatar = 76.dp
-    /** A person's portrait at the head of their page: the row's, grown to lead the page. */
+    /** A person's portrait at the head of their page. */
     val portrait = 128.dp
-    /** Column of a cast member: the portrait, then a name over two lines at most. */
+    /** Cast member column: the portrait, then a name of at most two lines. */
     val personColumn = 120.dp
-    /** Height of every control: pill buttons and round icon buttons line up. */
+    /** Height of every control, so pill buttons and round icon buttons line up. */
     val control = 48.dp
     val iconButton = control
     val icon = 20.dp
-    /** An icon drawn larger than a line's: a panel button's, an empty preview's. */
+    /** An icon larger than a line's: a panel button's, an empty preview's. */
     val discIcon = 24.dp
     /** Round mark over artwork (watched, selected). */
     val mark = 20.dp
     val markIcon = 14.dp
     /** Status dot (default track, online). */
     val dot = 8.dp
-    /** The box a state's light sits in, so words line up after a dot or the attention mark. */
+    /** The box a state's light sits in, so text lines up after a dot or the attention mark. */
     val statusLight = 16.dp
-    /** An icon set in a line of text (rating star). */
+    /** An icon in a line of text (rating star). */
     val inlineIcon = 16.dp
     val meter = 10.dp
     /** Between two parts of a meter, so two greys never touch. */
@@ -97,62 +87,48 @@ object HlSize {
     val scrollStep = 120.dp
     /** Minimum height of a setting row. */
     val row = 64.dp
-    /**
-     * An image previewed at the head of a row: its height, the width of a poster at that height,
-     * and the width of its slot (a backdrop).
-     */
+    /** Image at the head of a row: its height, a poster's width at that height, its slot's width. */
     val rowPreview = 48.dp
     val rowPreviewPoster = 32.dp
     val rowPreviewWide = 84.dp
     /** Progress shown beside text (time left). */
     val progressShort = 120.dp
-    /** The short rules standing for a title and its facts while a page loads. */
+    /** Placeholder rules for a title and its facts while a page loads. */
     val skeletonTitle = 48.dp
     val skeletonFacts = 24.dp
     val progress = 3.dp
-    /** The short rule heading a card that speaks, like an intertitle: a question asked in a sheet. */
+    /** The short rule heading an intertitle card: a question asked in a sheet. */
     val intertitleRule = 24.dp
     val intertitleRuleWeight = 2.dp
     /** An option inside a segmented track: with the track's padding, as tall as a control. */
     val segment = 40.dp
     val focusBorder = 2.dp
     val hairline = 1.dp
-    /**
-     * How tall the wordmark's capitals stand: in About, where a pane has its title (144 wide), and
-     * over the welcome wall (359 wide); each about as wide as the name set in type it replaced.
-     */
+    /** Wordmark cap height: in About (144 wide) and over the welcome wall (359 wide). */
     val wordmark = 12.dp
     val wordmarkHero = 30.dp
 }
 
-/** Widths and heights of layout parts. */
+/** Layout measures of screens (DESIGN.md, Layout). */
 object HlLayout {
     /**
-     * The width every screen is laid out for, in dp: the TV canvas, 960 × 540. The density follows
-     * the screen's real width (×2 for a 1080p interface), not what the device declares: the Zidoo
-     * declares 240 dpi, which would draw everything a quarter smaller than designed.
+     * Width every screen is laid out for, in dp (960 × 540). Density follows the screen's real width,
+     * not the declared dpi: the Zidoo declares 240 dpi, which would draw everything a quarter smaller.
      */
     const val CANVAS_WIDTH = 960f
     /** Longest comfortable line of reading text. */
     val readable = 640.dp
     /** Text set beside artwork (heroes, detail pages). */
     val readableNarrow = 520.dp
-    /**
-     * Longest line of a caption: about 66 characters at 14 sp (Archivo sets them about 6 dp apart),
-     * the measure the eye follows best. Read from three metres, a longer line loses the eye on its
-     * way back to the next one.
-     */
+    /** Longest caption line: about 66 characters at 14 sp, the most readable measure from three metres. */
     val captionMeasure = 400.dp
-    /** Side column of two-pane screens: navigation (settings), and explanation (setup forms). */
+    /** Side column of two-pane screens: navigation (settings), explanation (setup forms). */
     val sideColumn = 280.dp
     val sideColumnWide = 340.dp
-    /** Where the content of a two-pane screen starts, level with its first navigation entry. */
+    /** Where a two-pane screen's content starts, level with its first navigation entry. */
     val paneTop = 72.dp
     val fieldShort = 120.dp
-    /**
-     * Where rows that carry their own inset ([HlInset.card]) start on a page, so that their words
-     * line up with the safe area's: the end credits of a detail page.
-     */
+    /** Start of rows carrying their own [HlInset.card], so their text aligns with the safe area (end credits). */
     val insetRows = HlSpace.safeH - HlInset.card
     /** Clear logo or title of a detail page, and of a browsing hero. */
     val titleArtWidth = 440.dp
@@ -160,37 +136,22 @@ object HlLayout {
     val heroTitleWidth = 380.dp
     val heroTitleHeight = 76.dp
     /**
-     * The browsing hero's band (home), between the bar and the rows, [HlSpace.l] from each: a logo
-     * at most [heroTitleHeight] tall, a line of facts, two lines of overview, [HlSpace.s] apart
-     * (76 + 12 + 20 + 12 + 48). Under it, a focused poster's foot stays inside the safe area.
+     * Home hero band, [HlSpace.l] from the bar and the rows: logo, facts, two overview lines, [HlSpace.s]
+     * apart (76 + 12 + 20 + 12 + 48), so a focused poster's foot stays inside the safe area.
      */
     val hero = 168.dp
-    /**
-     * The line naming the focused title above a poster wall (library): 24 at the default text size,
-     * growing with the viewer's, as its text does.
-     */
+    /** Title line above a poster wall: 24 at the default text size, growing with it. */
     val infoLine: Dp
         @Composable @ReadOnlyComposable
         get() = textRoom(infoLineAtDefault)
     private val infoLineAtDefault = 24.dp
-    /** Overview of the focused episode under the episode row: three lines of caption (3 × 18), on the grid. */
+    /** Overview of the focused episode under the episode row: three caption lines (3 × 18), on the grid. */
     val episodeOverview = 56.dp
-    /**
-     * Between the blocks of a detail page (its hero, its rows): wider than the keyline a block
-     * comes to ([HlFocus.edge]), so the block above has left the screen when the next one is there.
-     */
+    /** Between detail page blocks: wider than [HlFocus.edge], so the block above leaves as the next arrives. */
     val detailGap = HlSpace.xl
-    /**
-     * What shows of a detail page's first row under its hero: the gap, the row's header whole (a
-     * line of `lead`, [header] tall), its gap ([HlSpace.xxs]) and padding ([HlSpace.s]), then a strip
-     * of its images ([HlSpace.s]), which ends at the screen's edge. The header stays inside the safe
-     * area, at any text size.
-     */
+    /** The first row's visible part under a detail hero: gap, header, its gap and padding, a strip of images. */
     private fun detailPeek(header: Dp) = detailGap + header + HlSpace.xxs + HlSpace.s + HlSpace.s
-    /**
-     * The least a detail page's hero takes of a [screen] that tall, under which its first row's
-     * header is [header] tall: all of it but [detailPeek].
-     */
+    /** Least height of a detail hero on a [screen]: all but [detailPeek], keeping a [header] in the safe area. */
     internal fun detailHeroMin(screen: Dp, header: Dp): Dp = screen - detailPeek(header)
     /** [detailHeroMin] with the header at the viewer's text size (26 at the default one). */
     @Composable
@@ -198,11 +159,7 @@ object HlLayout {
     fun detailHeroMin(screen: Dp): Dp = detailHeroMin(screen, textRoom(Hl.type.lead))
     /** Where an error sits on an otherwise empty detail page. */
     val errorTop = 96.dp
-    /**
-     * Choice cards of the artwork pickers, at the shape they are used in. A poster is its own
-     * preview, so its choices take the room a preview would have: 180 wide, 270 tall, with their
-     * two lines under them, below the header and inside the safe area.
-     */
+    /** Artwork picker choices; a poster, being its own preview, takes a preview's room (180 × 270). */
     val posterChoice = 180.dp
     val landscapeChoice = 240.dp
     /** The two columns of the welcome screen. */
@@ -218,10 +175,7 @@ object HlLayout {
     val definitionLabelShort = 120.dp
 }
 
-/*
- * Parts of components: measures a component keeps to itself, so that no screen needs to know them.
- * A screen lays out with HlLayout; a component's own proportions live with it here.
- */
+// Component parts: measures a component keeps to itself; screens lay out with HlLayout.
 
 /** A side sheet: 440 dp of content between its inset and the safe area, the page still in view. */
 internal object HlSideSheetDefaults {
@@ -239,22 +193,17 @@ internal object HlIconButtonDefaults {
     val labelWidth = 200.dp
 
     /**
-     * Room a row of round buttons keeps under itself for the label of the one with focus: the gap
-     * ([HlSpace.xs]) and the label on its plate (one caption line, 18 at the default text size, and
-     * its padding, 2 × 4), on the grid: 36. The caption grows with the viewer's text size, and the
-     * room with it. The label takes none of its own; [HlActionRow] keeps it.
+     * Room below a row of round buttons for the focused label (gap, plate, one caption line), on the grid:
+     * 36 at the default text size. The label takes none of its own; [HlActionRow] keeps it.
      */
     val labelRoom: Dp
         @Composable @ReadOnlyComposable
         get() = HlSpace.xs + HlControl.labelPaddingV * 2 + textRoom(Hl.type.caption) + toTheGrid
 
-    /** What brings the label's room at the default text size, 34, to the 4 dp grid. */
+    /** Rounds the label's room at the default text size, 34, up to the 4 dp grid. */
     private val toTheGrid = 2.dp
 
-    /**
-     * How close to a side of the screen the label may come: brief and passing, it may go past the
-     * safe area ([HlSpace.safeH]) so a button at its edge keeps its label centred.
-     */
+    /** Closest the label may come to a screen side: past the safe area, so an edge button keeps it centred. */
     val labelEdge = HlSpace.l
 }
 
@@ -263,37 +212,29 @@ internal object HlMenuDefaults {
     val width = 320.dp
 }
 
-/**
- * The technical sheet's rows: their least height (a fact and its value on one line, as a menu
- * option), and the widest their value goes beside its label ("Dolby Digital Plus Atmos   7.1").
- */
+/** Tech sheet rows: least height (as a menu option) and widest value ("Dolby Digital Plus Atmos   7.1"). */
 internal object TechSpecsDefaults {
     val rowHeight = 40.dp
     val valueWidth = 240.dp
 }
 
 /**
- * A code to scan: a module 6.5 wide, whole pixels on a 1080p interface (13) and a 4K one (26), so
- * no edge between two modules is blurred; a 29-module code and its quiet zone come to 240.5, which
- * a phone reads from the sofa. The quiet zone, 4 modules, is what readers need around a code.
+ * Module 6.5 wide: whole pixels at 1080p (13) and 4K (26), so no module edge blurs. 29 modules plus the
+ * 4-module quiet zone readers need make 240.5, which a phone reads from the sofa.
  */
 internal object QrCodeDefaults {
     val module = 6.5.dp
     const val QUIET_ZONE = 4
 }
 
-/**
- * How far a backdrop's left veil takes to fade out past the text column, from full strength: one
- * that ends the column lighter fades out sooner, at the same pace. A slow pace: over a light
- * picture, a quicker fade reads as the edge of a dark panel rather than as light falling off.
- */
+/** Left veil fade past the text column: slow, as a quicker fade over a light picture reads as a panel edge. */
 internal object BackdropDefaults {
     val veilFade = 420.dp
 }
 
 /** Inner padding of pill controls and of the options of a segmented track. */
 object HlControl {
-    /** A round button's label on its plate: room around the words, so the plate reads as a pill. */
+    /** A round button's label plate: room around the words, so the plate reads as a pill. */
     val labelPaddingH = 12.dp
     val labelPaddingV = 4.dp
     val tabPaddingH = 16.dp
@@ -305,51 +246,32 @@ object HlControl {
     val badgePaddingV = 2.dp
 }
 
-/**
- * How much a focused element grows, by family: artwork the most, wide things the least. Growth is
- * a share of the size, so the wider the element, the less it may grow: 1.04 takes a 500 dp row
- * 10 dp past its inset and the safe area ([reach]).
- */
+/** Focus growth by family, as a share of size: 1.04 takes a 500 dp row 10 dp past its inset ([reach]). */
 object HlFocus {
     const val ARTWORK_SCALE = 1.1f
     const val CARD_SCALE = 1.06f
     /** Pills and discs: buttons, round buttons, the options of a track. */
     const val CONTROL_SCALE = 1.04f
-    /** Panels that can be chosen: folder cards, list items, results. */
+    /** Selectable panels: folder cards, list items, results. */
     const val PANEL_SCALE = 1.02f
-    /**
-     * Rows as wide as their column (setting rows, navigation entries, menu options) do not grow:
-     * their white fill says focus.
-     */
+    /** Full-width rows (settings, navigation, menu options) do not grow: their white fill shows focus. */
     const val ROW_SCALE = 1f
 
-    /**
-     * How far an element [size] long reaches past each of its ends when it grows to [scale]: the
-     * room the container around it keeps.
-     */
+    /** How far an element [size] long reaches past each end at [scale]: the room its container keeps. */
     fun reach(size: Dp, scale: Float): Dp = size * (scale - 1f) / 2
 
-    /**
-     * The other cards of a row step back while one of them has focus: darker by this much, and
-     * with this much of their colour left. Partly, not grey: the wall stays inviting.
-     */
+    /** The focused card's siblings darken and lose this much colour: partly, so the wall stays inviting. */
     const val SIBLING_DIM = 0.3f
     const val SIBLING_SATURATION = 0.3f
-    /**
-     * The colour of a card stepping back goes in this many steps, so its image recomposes this
-     * many times at most over the 250 ms; the dimming stays continuous, read while drawing.
-     */
+    /** Colour steps of a receding card, bounding its image's recompositions; the dimming stays continuous. */
     const val RECEDE_STEPS = 3
 
-    /** The step of colour lost for how far a card has stepped back: 0 in front, [RECEDE_STEPS] behind. */
+    /** The colour step for how far a card has stepped back: 0 in front, [RECEDE_STEPS] behind. */
     fun recedeStep(recede: Float): Int = (recede.coerceIn(0f, 1f) * RECEDE_STEPS).roundToInt()
 
     /** How much of its colour an image keeps at [step]: all of it in front, [SIBLING_SATURATION] behind. */
     fun saturationAt(step: Int): Float = 1f - step.toFloat() / RECEDE_STEPS * (1f - SIBLING_SATURATION)
     val glow = 20.dp
-    /**
-     * How far a vertical list keeps what has focus from its top and bottom: the safe area, so
-     * the last row stops inside it and a focused poster grows into the margin, not off the screen.
-     */
+    /** Focus keyline from a list's top and bottom: the safe area, so a focused poster grows into the margin. */
     val edge = HlSpace.safeV
 }

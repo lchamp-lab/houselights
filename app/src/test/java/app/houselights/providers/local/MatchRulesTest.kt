@@ -37,7 +37,7 @@ class MatchRulesTest {
         assertTrue(MetadataMerge.describesOther(sonarr, userTmdbId = 2316, imdbId = "tt0386676", tvdbId = 73244))
         assertFalse(MetadataMerge.describesOther(sonarr, userTmdbId = 2996, imdbId = "tt0290978", tvdbId = 78107))
         assertFalse("unknown: the NFO is kept", MetadataMerge.describesOther(sonarr, userTmdbId = 2316, imdbId = null, tvdbId = null))
-        // The IMDb id tells first.
+        // The IMDb id takes precedence.
         val both = sonarr.copy(imdbId = "tt0290978")
         assertTrue(MetadataMerge.describesOther(both, userTmdbId = 2316, imdbId = "tt0386676", tvdbId = 78107))
         assertTrue(MetadataMerge.describesOther(both, userTmdbId = 2316, imdbId = null, tvdbId = 73244))

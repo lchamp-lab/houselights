@@ -37,7 +37,7 @@ sealed interface LoginError {
     /** No server was given. */
     data object NoAddress : LoginError
 
-    /** What was typed ([typed]) is not a server address: nothing was asked of the network. */
+    /** [typed] is not a server address; no network request was made. */
     data class InvalidAddress(val typed: String) : LoginError
 
     /** Nothing answered at [address]. */
@@ -49,24 +49,20 @@ sealed interface LoginError {
     /** Something answered at [address], but not a Jellyfin server. */
     data class NotJellyfin(val address: String) : LoginError
 
-    /** The server at [address] is a Jellyfin before 10.9 ([version]), or another [product]. */
+    /** The server at [address] is Jellyfin older than 10.9 ([version]), or another [product]. */
     data class Unsupported(val address: String, val product: String?, val version: String?) : LoginError
 
-    /** Signed in, but the device's Keystore refused to seal the server's token: nothing was saved. */
+    /** Signed in, but the Keystore refused to encrypt the server's token: nothing was saved. */
     data object Keystore : LoginError
 
-    /** The device's storage refused to write the device's id or the server chosen: nothing was saved. */
+    /** Storage refused to write the device id or the chosen server: nothing was saved. */
     data object NotSaved : LoginError
 
-    /** Anything else: the details are in the log. */
+    /** Anything else; the details are in the log. */
     data object Failed : LoginError
 }
 
-/**
- * What signing in at [address] (where the server was reached, else what was typed) failed on, in
- * words the user can act on. A failure to reach the server names the address whose failure says
- * the most ([ReachFailure]).
- */
+/** The actionable [LoginError] for a sign-in at [address] (where the server was reached, else what was typed). */
 internal fun loginError(e: Throwable, address: String): LoginError = when (e) {
     is SavingFailed -> e.loginError()
     is InvalidServerAddress -> if (e.input.isBlank()) LoginError.NoAddress else LoginError.InvalidAddress(e.input)
@@ -74,19 +70,16 @@ internal fun loginError(e: Throwable, address: String): LoginError = when (e) {
     else -> answerError(e, address)
 }
 
-/**
- * What the network or the server answered at [address], or where the server was reached
- * ([ReachFailure], read by its cause): what the failure comes down to, in sign-in's words.
- */
+/** Maps a network or server failure at [address], or at a [ReachFailure]'s own address, to a sign-in error. */
 private fun answerError(e: Throwable, address: String): LoginError {
     val reach = e as? ReachFailure
     val at = reach?.url ?: address
     return when ((reach?.cause ?: e).failureKind()) {
-        // A password refused, or an account the server keeps out (disabled, or not allowed now).
+        // Wrong password, or an account the server blocks (disabled, or not allowed at this time).
         FailureKind.REFUSED -> LoginError.Refused
         FailureKind.CERTIFICATE -> LoginError.Certificate(at)
         FailureKind.UNEXPECTED_ANSWER -> LoginError.NotJellyfin(at)
-        // Something answered where the server was looked for, but not as Jellyfin does.
+        // Something answered at a probed address, but not as Jellyfin does.
         FailureKind.GONE, FailureKind.SERVER_FAILED -> if (reach != null) LoginError.NotJellyfin(at) else LoginError.Failed
         FailureKind.UNREACHABLE, FailureKind.IO -> LoginError.Unreachable(at)
         FailureKind.KEYSTORE -> LoginError.Keystore
@@ -95,23 +88,20 @@ private fun answerError(e: Throwable, address: String): LoginError {
     }
 }
 
-/**
- * A write to the device itself failed while signing in ([cause]): its storage or its Keystore, never
- * the server, whatever the exception (a full disk is an IOException too).
- */
+/** A failed device write during sign-in, never a server error, whatever [cause] (a full disk is an IOException too). */
 internal class SavingFailed(override val cause: Throwable) : Exception(cause)
 
-/** What the device refused: its Keystore, its storage, or something else, which the log tells. */
+/** Which part of the device refused the write: Keystore, storage, or something else (see the log). */
 private fun SavingFailed.loginError(): LoginError = when (cause.toWriteError()) {
     UiError.KEYSTORE -> LoginError.Keystore
     UiError.NOT_SAVED -> LoginError.NotSaved
     else -> LoginError.Failed
 }
 
-/** [block], a write to the device itself: its failure is a [SavingFailed]. */
+/** Runs [block], a write to the device itself, wrapping any failure in [SavingFailed]. */
 private suspend fun <T> saving(block: suspend () -> T): T = suspendRunCatching { block() }.getOrElse { throw SavingFailed(it) }
 
-/** Signing in to a Jellyfin server, which becomes the source once [sources] switched to it. */
+/** Signs in to a Jellyfin server, which becomes the source once [sources] switches to it. */
 class JellyfinLoginViewModel(
     private val settings: SettingsStore,
     private val sources: SourceSwitcher,
@@ -125,11 +115,11 @@ class JellyfinLoginViewModel(
     var error by mutableStateOf<LoginError?>(null)
         private set
 
-    /** Servers that answered on the network, for the user to choose: any device can answer a discovery. */
+    /** Servers that answered discovery on the network, offered as choices: any device can answer one. */
     var discovered by mutableStateOf<List<DiscoveredServer>>(emptyList())
         private set
 
-    /** Signing in again to the server in use: its address and the user are filled in, only the password is asked. */
+    /** Signing in again to the current server: its address and user are prefilled, only the password is asked. */
     val again: Boolean
 
     init {
@@ -142,7 +132,7 @@ class JellyfinLoginViewModel(
         viewModelScope.launch { discovered = network.discover() }
     }
 
-    /** A field of the form: changed, it makes what signing in said of the last try stale, and no longer said. */
+    /** A form field: changing it clears the last attempt's error, which no longer applies. */
     private inner class Field : ReadWriteProperty<Any?, String> {
         private var typed by mutableStateOf("")
 
@@ -171,14 +161,13 @@ class JellyfinLoginViewModel(
                 onLoggedIn()
             }.onFailure { e ->
                 Log.w("Jellyfin", "Sign-in to $address failed", e)
-                // Said of what was typed: a field changed meanwhile is a sign-in not tried yet.
+                // Report only if the form is unchanged: edited fields are an attempt not yet made.
                 if (typed() == asked) error = loginError(e, address)
             }
             busy = false
         }
     }
 
-    /** What the form holds, as signing in reads it. */
     private fun typed() = listOf(server, user, password)
 
     companion object {

@@ -59,9 +59,8 @@ internal fun LazyListScope.playbackPane(s: AppSettings) {
 }
 
 /**
- * The path mappings, one line each, kept by the ViewModel. A field saves when it is left (its
- * keyboard action, or focus moving on), so there is no Save button; the result line says when
- * it is done. A new line takes focus; a line deleted hands it to the line above, else to Add.
+ * The path mappings, one line each; a field saves when it loses focus or on its keyboard action, so there is no
+ * Save button. A new line takes focus; a deleted one passes it to the line above, or to Add.
  */
 @Composable
 private fun PathMappings() {
@@ -97,7 +96,7 @@ private fun PathMappings() {
                     modifier = Modifier.weight(1.3f).focusRequester(networks.getOrPut(index) { FocusRequester() }).then(save),
                 )
                 HlIconButton(HlIcons.Close, stringResource(R.string.remove), onClick = {
-                    // Focus moves first, while the line above is where it was.
+                    // Move focus before removing, while the line above is still where it was.
                     (if (index > 0) networks[index - 1] else add)?.tryRequestFocus()
                     vm.removeMapping(index)
                 })
@@ -118,7 +117,7 @@ private fun PathMappings() {
         }
         val saved = if (vm.mappingsSaved) stringResource(R.string.saved) else null
         listOfNotNull(result, saved).takeIf { it.isNotEmpty() }?.let { Hint(it.joinToString(FACT_GAP)) }
-        // Saved as a field is left: said under the fields, where focus still is.
+        // Mappings save on leaving a field, so the error shows under the fields, where focus still is.
         vm.errorOf(SettingAction.PATH_MAPPINGS)?.let { error ->
             AttentionNote(stringResource(R.string.mappings_not_saved, stringResource(error.message)))
         }

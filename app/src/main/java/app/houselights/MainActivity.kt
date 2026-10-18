@@ -114,36 +114,34 @@ class MainActivity : ComponentActivity() {
         container.player.onPlayerResult(it.data)
     }
 
-    /** House lights: down while the player starts, back up when the user returns. */
+    /** House lights: down while the player starts, back up on return to the app. */
     private val lightsDown = mutableStateOf(false)
 
-    /** How far down the lights are as drawn, 0 to 1: the player waits for the room to be dark. */
+    /** Drawn dimming level, 0 to 1: the player starts only once the room is dark. */
     private var lightsLevel: State<Float> = mutableFloatStateOf(0f)
 
-    /** The cue under way, until the player takes over: Back stops it. */
+    /** The dimming cue in progress until the player takes over; Back cancels it. */
     private var cue: Job? = null
 
-    /** The launch screen hides the app (the first window of a cold start), until its black starts to lift. */
+    /** True while the launch screen covers the app (first window of a cold start), until its black starts to lift. */
     private var covered = false
 
-    /** Home said it drew its first frame whole under the launch screen. */
     private var drawnWhole = false
 
-    /** The launch screen as the screens under it see it ([LocalLaunchScreen]). */
+    /** The launch screen as the screens beneath it see it ([LocalLaunchScreen]). */
     private val launchScreen = object : LaunchScreen {
         override val covers: Boolean get() = covered
 
         override fun drawn() {
             if (!covered || drawnWhole) return
             drawnWhole = true
-            // Once the frame is drawn, not from inside its drawing: the cue starts on the next one.
+            // Posted to run after the frame rather than during its drawing: the cue starts on the next one.
             window.decorView.post(container.launch::homeDrawn)
         }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        // The launch screen: Android shows the mark alone on black (Theme.Houselights.Launch) before
-        // the app runs; at a cold start it covers the app while home gets ready under it.
+        // The mark alone on black (Theme.Houselights.Launch) covers a cold start while home loads underneath.
         val splash = installSplashScreen()
         super.onCreate(savedInstanceState)
         holdTheLaunchScreen(splash, restored = savedInstanceState != null)
@@ -155,8 +153,7 @@ class MainActivity : ComponentActivity() {
                 .distinctUntilChanged()
                 .collect(::applyDisplayMode)
         }
-        // New files on the NAS show up by themselves: an incremental scan when the app opens or
-        // comes back to the front (unless one just ran), then every few minutes while it is shown.
+        // An incremental scan on coming to the foreground (unless one just ran), then every few minutes.
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 container.settings.state.first { it.loaded }
@@ -189,7 +186,7 @@ class MainActivity : ComponentActivity() {
                     LocalLaunchScreen provides launchScreen,
                     LocalBackdropRelay provides relay,
                 ) {
-                    // The window is the black room already (@color/room): no second black under every screen.
+                    // The window background is already the room (@color/room): no second black under every screen.
                     Box(Modifier.fillMaxSize()) {
                         LeavingBackdrop(relay)
                         AppNavigation(nav, onPlay = ::play)
@@ -201,12 +198,9 @@ class MainActivity : ComponentActivity() {
     }
 
     /**
-     * At the process's first window, the launch screen covers the app until its gate opens
-     * ([LaunchGate]): home's rows and first pictures are asked meanwhile ([HomeLaunch]), home is
-     * composed, laid out and drawn under it, and it leaves on its cue, [lightsDown], once home drew
-     * its first frame whole, or at the cap. Nothing holds the window's drawing: the launch screen's
-     * own view lies over home, as Android drew it. A later window (a warm start) holds nothing and
-     * shows at once.
+     * On a cold start's first window, the launch screen covers the app until [LaunchGate] opens while
+     * [HomeLaunch] prefetches and home draws underneath (the splash view lies over it; drawing is never
+     * held), then leaves on its cue ([lightsDown]). A warm start holds nothing.
      */
     private fun holdTheLaunchScreen(splash: SplashScreen, restored: Boolean) {
         val launch = container.launch
@@ -226,16 +220,14 @@ class MainActivity : ComponentActivity() {
     }
 
     /**
-     * The launch screen leaves on its cue ([LaunchCue]): the lights go down on the mark, bar by bar,
-     * the widest first, then the black lifts off home, whole under it. The ground and each bar fade
-     * on their own: no layer the size of the screen for the player's graphics chip to fill on every
-     * frame.
+     * Plays the launch cue ([LaunchCue]): bars out one by one, widest first, then the black lifts. The
+     * background and each bar fade separately, so the GPU never fills a full-screen layer each frame.
      */
     private fun lightsDown(splash: SplashScreenViewProvider) {
-        // A colour of its own: the room's is shared with the window, which stays black.
+        // Mutated: the room drawable is shared with the window, which must stay black.
         val ground = splash.view.background?.mutate()
         val icon = splash.iconView
-        // Android 9 draws the mark in an image view over its whole layer: its bars are drawn there, one by one.
+        // On Android 9 the mark is an image view spanning its whole layer: the bars are drawn into it.
         val bars = (icon as? ImageView)?.takeIf { Build.VERSION.SDK_INT < Build.VERSION_CODES.S }?.let { view ->
             LaunchMarkDrawable(HlPalette.Ember.toArgb()).also(view::setImageDrawable)
         }
@@ -244,11 +236,11 @@ class MainActivity : ComponentActivity() {
             interpolator = LinearInterpolator()
             addUpdateListener {
                 val t = it.animatedFraction
-                // A system's own launch screen (Android 12 and up) draws its mark otherwise: it goes with the last bar.
+                // The system splash screen (Android 12 and up) draws its own mark: it fades with the last bar.
                 if (bars != null) bars.at(t) else icon.alpha = LaunchCue.bar(LaunchCue.bars - 1, t)
                 val darkness = LaunchCue.darkness(t)
                 if (darkness < 1f) covered = false
-                // A system's own launch screen may draw its ground otherwise too: then the whole of it fades.
+                // Without a background drawable, the whole splash view fades instead.
                 if (ground != null) ground.alpha = (darkness * OPAQUE).roundToInt() else splash.view.alpha = darkness
             }
             doOnEnd {
@@ -260,17 +252,12 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
-        // The first window gone before home took the launch's rows (Back under the launch screen): they
-        // go with it, so a later window never shows rows of that moment.
+        // Back under the launch screen: prefetched rows are dropped so a later window never shows stale ones.
         if (isFinishing) container.homeLaunch.drop()
         super.onDestroy()
     }
 
-    /**
-     * Asks for 2160p60 for the interface where the system lists it. A player that lists only
-     * stand-in modes (the Zidoo) sets its output in its own settings: there nothing is asked, and
-     * the stored choice waits for a device where it works.
-     */
+    /** Requests 2160p60 for the UI where listed; a Zidoo lists only placeholder modes and sets its own output. */
     private fun applyDisplayMode(ui4k: Boolean) {
         @Suppress("DEPRECATION")
         val display: Display = window.decorView.display ?: windowManager.defaultDisplay
@@ -283,21 +270,18 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        // Back from the player, or from elsewhere during the cue: the lights come up, nothing plays.
+        // Back from the player, or from elsewhere during the cue: the lights come up and nothing plays.
         cancelCue()
     }
 
-    /**
-     * While the lights go down the remote waits: Back brings them up again and nothing plays, other
-     * keys are held (a second OK never starts a second playback). The system's own keys still work.
-     */
+    /** During the cue, Back cancels it; other non-system keys are swallowed, so a second OK never plays twice. */
     // This is Activity.dispatchKeyEvent; lint sees androidx.core's restricted overload of the same name.
     @SuppressLint("RestrictedApi")
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
-        // Whether an arrow is held, running focus across the cards: told of every key, it takes none.
+        // Tracks whether an arrow is held (focus running across cards); it sees every key and consumes none.
         Scrub.onKey(event)
         return when {
-            // Under the launch screen nothing is chosen unseen: only the system's own keys, Back among them.
+            // Under the launch screen nothing is selected unseen: only system keys pass, Back included.
             covered && !event.isSystem -> true
             !lightsDown.value -> super.dispatchKeyEvent(event)
             event.keyCode == KeyEvent.KEYCODE_BACK -> {
@@ -318,12 +302,11 @@ class MainActivity : ComponentActivity() {
             val s = container.settings.state.value
             suspendRunCatching { container.provider.playback(item, resume, PlaybackOptions(s.pathMappings, s.forceHttp)) }
                 .onSuccess { plan ->
-                    // The room goes dark before the player takes over the screen: the cue ran while
-                    // the plan was resolved, and with animations off it is already over.
+                    // The cue ran while the plan resolved: the room is dark before the player takes over.
                     snapshotFlow { lightsLevel.value }.first { it >= 1f }
                     when (plan) {
                         is PlaybackPlan.Launch -> try {
-                            // The player needs the memory more than pictures that load again from disk.
+                            // The player needs the memory more than pictures that reload from disk.
                             imageLoader.memoryCache?.clear()
                             playerLauncher.launch(container.player.intentFor(plan))
                             container.player.onPlayerLaunched()
@@ -331,7 +314,7 @@ class MainActivity : ComponentActivity() {
                             container.player.onLaunchFailed()
                             failed(UiError.NO_PLAYER)
                         } catch (_: SecurityException) {
-                            // A player that lets no other app start it is no player for the app.
+                            // A player that refuses to be started by other apps is unusable here.
                             container.player.onLaunchFailed()
                             failed(UiError.NO_PLAYER)
                         } catch (e: PlaybackManager.CredentialsNotShared) {
@@ -346,7 +329,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    /** The lights come back up, and the detail page says why nothing plays. */
+    /** Brings the lights back up; the detail page shows why nothing plays. */
     private fun failed(error: UiError) {
         lightsDown.value = false
         container.playback.reportProblem(error)
@@ -364,7 +347,7 @@ private fun AppNavigation(nav: NavHostController, onPlay: (MediaItem, Boolean) -
     val app = appContainer()
     val settings by app.settings.state.collectAsStateWithLifecycle()
     if (!settings.loaded) {
-        // Never a black screen: settings that cannot be read say so, and can be read again.
+        // Never a black screen: unreadable settings show an error with a retry.
         if (settings.readFailed) SettingsUnread(app.settings)
         return
     }
@@ -377,14 +360,10 @@ private fun AppNavigation(nav: NavHostController, onPlay: (MediaItem, Boolean) -
         nav.navigate(Route.Library(library.id, library.kind, library.title, sagas = sagas?.id))
     fun goHome() = nav.navigate(Route.Home) { popUpTo(0) { inclusive = true } }
 
-    // Why choosing the folders on the welcome screen failed (the device's storage refused it): said
-    // there until it is left.
+    // Why choosing folders on the welcome screen failed (storage refused it), shown there until it is left.
     var sourceProblem by remember { mutableStateOf<UiError?>(null) }
 
-    /**
-     * "My files": the folders added before are kept across sources, else the first one is added. A
-     * failure goes to [onError]: the screen that asked says it, where focus is.
-     */
+    /** "My files": reuses folders added before, else opens the form; failures go to [onError], shown where focus is. */
     fun useFolders(onError: (UiError) -> Unit) {
         scope.launchAction("Sources", "Choosing the folders", onError = onError, errorOf = Throwable::toWriteError) {
             if (!app.library.hasFolders()) {
@@ -396,9 +375,8 @@ private fun AppNavigation(nav: NavHostController, onPlay: (MediaItem, Boolean) -
         }
     }
 
-    // Screens cut, as films do, never two faded together: the picture stays across the cut
-    // (BackdropRelay), the words change at once. The screen left is gone from the first frame,
-    // though composed for that frame still: never seen under one without a backdrop.
+    // Screens cut, never cross-fade: the backdrop carries across (BackdropRelay) and the text changes at once;
+    // the exiting screen is hidden from the first frame, so it never shows under one without a backdrop.
     NavHost(
         nav,
         startDestination = start,
@@ -406,7 +384,7 @@ private fun AppNavigation(nav: NavHostController, onPlay: (MediaItem, Boolean) -
         exitTransition = { fadeOut(snap()) },
     ) {
         composable<Route.Welcome> {
-            // Never said again on a later visit (signed out, a connection lost).
+            // Cleared on leaving, so a later visit (signed out, connection lost) does not repeat it.
             DisposableEffect(Unit) { onDispose { sourceProblem = null } }
             WelcomeScreen(
                 onLocal = {
@@ -470,7 +448,7 @@ private fun AppNavigation(nav: NavHostController, onPlay: (MediaItem, Boolean) -
         composable<Route.Nfo> { entry -> NfoScreen(entry.toRoute<Route.Nfo>().id) }
         composable<Route.Person> { entry -> PersonScreen(entry.toRoute<Route.Person>().id, onOpenItem = { openItem(it.id) }) }
         composable<Route.Settings> {
-            // Changing the source leaves the settings below: Back returns to them, the source intact.
+            // Source changes keep Settings on the back stack: Back returns to it, the source unchanged.
             SettingsScreen(
                 onFolderForm = { folderId, focus -> nav.navigate(Route.AddFolder(folderId, focus)) },
                 onUseFolders = ::useFolders,
@@ -485,7 +463,7 @@ private fun AppNavigation(nav: NavHostController, onPlay: (MediaItem, Boolean) -
     }
 }
 
-/** The settings could not be read, again and again: said, with Réessayer, at work while they are read again. */
+/** Shown when the settings keep failing to load: an error with Réessayer, busy while they are read again. */
 @Composable
 private fun SettingsUnread(settings: SettingsStore) {
     val reading by settings.reading.collectAsStateWithLifecycle()
@@ -494,18 +472,18 @@ private fun SettingsUnread(settings: SettingsStore) {
     }
 }
 
-/** What fixes an error, when it is not trying again (each screen does that itself): where it is fixed. */
+/** Navigates to where an error is fixed; retrying is left to each screen. */
 private fun NavHostController.fixError(action: ErrorAction) = when (action) {
     ErrorAction.RECONNECT -> navigate(Route.JellyfinLogin)
     ErrorAction.ADD_TMDB_KEY, ErrorAction.EDIT_TMDB_KEY -> navigate(Route.Settings)
     ErrorAction.RETRY -> Unit
 }
 
-/** Coming back to the app looks for new files, unless a scan ended this recently. */
+/** Returning to the app scans for new files unless a scan ended this recently. */
 private const val RESCAN_AFTER_MS = 2 * 60_000L
 
-/** While the app is on screen, it looks for new files this often. */
+/** Scan interval while the app is visible. */
 private const val RESCAN_EVERY_MS = 10 * 60_000L
 
-/** A drawable's alpha, opaque. */
+/** Fully opaque drawable alpha. */
 private const val OPAQUE = 255

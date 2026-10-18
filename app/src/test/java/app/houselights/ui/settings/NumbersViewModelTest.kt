@@ -30,7 +30,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import java.io.IOException
 
-/** The library in numbers: counted once, off the main thread, its walls found; a failure said, and counted again on demand. */
+/** The library in numbers: counted once off the main thread, with its walls; a failure recounts on demand. */
 @OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
 class NumbersViewModelTest {

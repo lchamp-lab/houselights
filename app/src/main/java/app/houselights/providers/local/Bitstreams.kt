@@ -3,21 +3,15 @@ package app.houselights.providers.local
 import app.houselights.core.HdrFormat
 
 /**
- * What a track's first frames say of their format where a Matroska header does not: Atmos in a
- * TrueHD or Dolby Digital Plus stream, the layers of a DTS one, HDR10+ and HDR10 in an HEVC one.
- * Read from the frames themselves, never from a track's name. Each reading is of a byte range
- * ([start] to [end]) of what was read of the file, and gives null when the range does not say.
+ * Format details Matroska headers omit, read from first frames: Atmos, DTS layers, HDR10+ and HDR10. Each function
+ * parses [start] to [end] of the buffer and returns null when inconclusive.
  */
-@Suppress("MagicNumber") // Byte masks and field widths, as the formats' specifications write them.
+@Suppress("MagicNumber") // Byte masks and field widths, as in the format specifications.
 internal object Bitstreams {
-    /** The layers a DTS frame carries, the richest first. */
+    /** DTS layers, richest first. */
     enum class Dts { X, MASTER_AUDIO, HIGH_RESOLUTION, EXPRESS, CORE }
 
-    /**
-     * A TrueHD access unit with a major sync: Atmos when it carries a fourth substream, the
-     * 16-channel presentation objects ride on (a TrueHD stream without them has three at most).
-     * Null when the unit has no major sync.
-     */
+    /** Atmos in TrueHD: a fourth substream carries the objects (plain TrueHD has three). Null without major sync. */
     fun trueHdAtmos(b: ByteArray, start: Int, end: Int): Boolean? {
         if (end - start < TRUEHD_HEADER || int32(b, start + TRUEHD_SYNC_AT) != TRUEHD_SYNC) return null
         if (int16(b, start + TRUEHD_SIGNATURE_AT) != TRUEHD_SIGNATURE) return null
@@ -26,9 +20,8 @@ internal object Bitstreams {
     }
 
     /**
-     * Dolby Digital and Dolby Digital Plus syncframes, one after another (a Blu-ray's 7.1 is a
-     * Dolby Digital core and a Dolby Digital Plus extension): Atmos when a Dolby Digital Plus frame
-     * flags its JOC extension (flag_ec3_extension_type_a). Null when no frame could be read.
+     * Atmos in Dolby Digital (Plus) syncframes, Blu-ray 7.1 being a DD core plus a DD+ extension: a DD+ frame flags JOC
+     * (flag_ec3_extension_type_a). Null when no DD+ frame could be read.
      */
     fun dolbyAtmos(b: ByteArray, start: Int, end: Int): Boolean? = runCatching {
         var at = start
@@ -46,7 +39,7 @@ internal object Bitstreams {
         if (read) false else null
     }.getOrNull()
 
-    /** What a DTS frame carries, by the sync words of its layers; null when it is not DTS. */
+    /** The richest DTS layer found by sync word; null when the range is not DTS. */
     fun dts(b: ByteArray, start: Int, end: Int): Dts? {
         val found = DTS_SYNCS.filterValues { contains(b, start, end, it) }.keys
         return when {
@@ -60,10 +53,8 @@ internal object Bitstreams {
     }
 
     /**
-     * The ranges an HEVC stream signals in the SEI messages of its first access units ([frames]:
-     * NAL units each after its length in [lengthSize] bytes): HDR10+ by its dynamic metadata (SMPTE
-     * 2094-40), HDR10 by its mastering display. Empty for SDR. A length that runs past its frame
-     * ends the frame's reading: up to 2^32 - 1 in four bytes, it is read and compared as a Long.
+     * HDR formats from SEI in HEVC [frames] (NAL units with [lengthSize]-byte lengths): HDR10+ by SMPTE 2094-40
+     * metadata, HDR10 by mastering display. Lengths are Longs, as four bytes reach 2^32 - 1.
      */
     fun hevcRanges(b: ByteArray, frames: List<IntRange>, lengthSize: Int): Set<HdrFormat> = buildSet {
         for (frame in frames) {
@@ -82,11 +73,7 @@ internal object Bitstreams {
         }
     }
 
-    /**
-     * The frames of a Block's data ([start] to [end], after its header) as its lacing packs them:
-     * none, Xiph, fixed-size or EBML. Only those whole in what was read. Sizes are added up as
-     * Longs: an EBML lace can say up to 2^56, which no frame of what was read can be.
-     */
+    /** Frames of a Block per its lacing, only those wholly in the buffer; Longs, as EBML lace sizes reach 2^56. */
     fun laced(b: ByteArray, start: Int, end: Int, lacing: Int): List<IntRange> = runCatching {
         if (lacing == LACING_NONE) return@runCatching listOf(start until end)
         val count = (b[start].toInt() and 0xFF) + 1
@@ -123,7 +110,6 @@ internal object Bitstreams {
         }
     }.getOrDefault(emptyList())
 
-    /** An AC-3 frame's size in bytes, from its sample rate and size codes. */
     private fun ac3FrameSize(b: ByteArray, at: Int): Int {
         val code = b[at + 4].toInt() and 0xFF
         val rate = code shr 6
@@ -138,7 +124,7 @@ internal object Bitstreams {
         return words * 2
     }
 
-    /** Reads a Dolby Digital Plus frame's bit stream information as far as its extension flag. */
+    /** Parses a DD+ frame's bitstream information up to its extension flag. */
     @Suppress("CyclomaticComplexMethod", "LongMethod", "NestedBlockDepth") // The bitstream syntax, field by field.
     private fun eac3Joc(b: ByteArray, at: Int, end: Int): Boolean {
         val r = Bits(b, at + 2, end)
@@ -197,10 +183,7 @@ internal object Bitstreams {
         return r.get(8) and 1 == 1
     }
 
-    /**
-     * The ranges SEI messages signal, from a NAL unit's payload, emulation bytes removed: message
-     * after message, up to its last byte, which holds the stop bit.
-     */
+    /** HDR formats in an unescaped SEI payload, up to the last byte, which holds the stop bit. */
     private fun seiRanges(p: ByteArray): Set<HdrFormat> = buildSet {
         var at = 0
         while (at < p.size - 1) {
@@ -220,7 +203,7 @@ internal object Bitstreams {
         }
     }
 
-    /** A NAL unit's bytes without their emulation-prevention bytes (the 3 in 00 00 03). */
+    /** NAL unit bytes with emulation-prevention bytes (the 03 in 00 00 03) removed. */
     private fun unescape(b: ByteArray, start: Int, end: Int): ByteArray {
         val out = java.io.ByteArrayOutputStream(end - start)
         var zeros = 0
@@ -245,7 +228,7 @@ internal object Bitstreams {
 
     private fun int32(b: ByteArray, at: Int) = (int16(b, at) shl 16) or int16(b, at + 2)
 
-    /** A bit cursor over [start] to [end]; reading past the end throws. */
+    /** Bit cursor; reading past [end] throws. */
     private class Bits(val b: ByteArray, start: Int, val end: Int) {
         private var bit = start * 8L
 
@@ -285,7 +268,7 @@ internal object Bitstreams {
     private const val BSID_AT = 5
     private const val AC3_MAX_BSID = 10
 
-    /** AC-3 bit rates by frame size code pair, in kb/s. */
+    /** AC-3 bit rates per frame size code pair, in kb/s. */
     private val AC3_KBPS = intArrayOf(32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320, 384, 448, 512, 576, 640)
 
     private const val DTS_CORE = "core"
@@ -297,7 +280,7 @@ internal object Bitstreams {
     private const val DTS_X96 = "X96"
     private const val DTS_LBR = "LBR"
 
-    /** The sync words of a DTS frame's layers. */
+    /** Sync words of the DTS layers. */
     private val DTS_SYNCS = mapOf(
         DTS_CORE to 0x7FFE8001,
         DTS_SUBSTREAM to 0x64582025,
@@ -314,6 +297,6 @@ internal object Bitstreams {
     private const val SEI_T35 = 4
     private const val SEI_MASTERING_DISPLAY = 137
 
-    /** ITU-T T.35 for the United States, Samsung, HDR10+ (SMPTE 2094-40) application 4. */
+    /** ITU-T T.35 prefix: United States, Samsung, HDR10+ (SMPTE 2094-40) application 4. */
     private val HDR10_PLUS_HEADER = byteArrayOf(0xB5.toByte(), 0x00, 0x3C, 0x00, 0x01, 0x04)
 }

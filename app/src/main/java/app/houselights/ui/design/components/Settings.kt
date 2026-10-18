@@ -38,10 +38,7 @@ import app.houselights.ui.design.HlInset
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
 
-/**
- * An entry of a settings navigation: its name, and under it what it is set to now ("8 films",
- * "4K 60 Hz"), so the left column alone tells how things stand. Focus selects it.
- */
+/** A settings navigation entry: its name, its current value below ("8 films", "4K 60 Hz"); focus selects it. */
 @Composable
 fun HlNavItem(
     icon: ImageVector,
@@ -59,7 +56,7 @@ fun HlNavItem(
         restContent = if (selected) c.content else c.contentSecondary,
     ) { focused ->
         Row(Modifier.padding(horizontal = HlSpace.m, vertical = HlSpace.s), verticalAlignment = Alignment.CenterVertically) {
-            // The current entry is white, as the current option of a track: where you are is not a state.
+            // The current entry is white, not ember: location is not a state.
             Icon(icon, contentDescription = null, modifier = Modifier.size(HlSize.icon))
             Spacer(Modifier.width(HlSpace.s))
             Column {
@@ -100,13 +97,9 @@ fun HlSettingGroup(title: String?, modifier: Modifier = Modifier, content: @Comp
 }
 
 /**
- * One setting: its name (and a line of description if needed) on the left, what it is set to
- * on the right. With [onClick] the row is a control that turns projector white with focus and
- * leads somewhere ([chevron]); without it, the row only states a value. [valueLit] marks a value
- * the user chose, in ember; [valueAttention] one that needs attention, in ember after its mark. [trailing] replaces the value
- * with another element (a status, badges); [leading] replaces the icon with a preview of what the
- * row changes ([RowPreview]). Not [enabled], its words go tertiary and OK does nothing; focus
- * still reaches it, outlined. Only on the room: a sheet leaves out an action that cannot be taken.
+ * One setting: name and description left, value right; with [onClick] a control, else read-only.
+ * [valueLit] (a user choice) and [valueAttention] set the value in ember; [trailing] replaces the value,
+ * [leading] the icon ([RowPreview]). Disabled rows belong on the room only: sheets omit unavailable actions.
  */
 @Composable
 fun HlSettingRow(
@@ -127,7 +120,7 @@ fun HlSettingRow(
     @Composable
     fun Content(focused: Boolean) {
         Row(
-            // Rows that can be chosen are taller targets; rows that state a value stay compact.
+            // Actionable rows are taller targets; read-only rows stay compact.
             Modifier.fillMaxWidth().heightIn(min = if (onClick != null) HlSize.row else HlSize.control)
                 .padding(horizontal = HlInset.card, vertical = HlInset.compact),
             verticalAlignment = Alignment.CenterVertically,
@@ -143,7 +136,6 @@ fun HlSettingRow(
                 Text(title, style = Hl.type.entry, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 if (description != null) {
                     Spacer(Modifier.height(HlSpace.xxs))
-                    // Secondary at rest: a description explains.
                     Text(
                         description,
                         style = Hl.type.caption,
@@ -191,7 +183,7 @@ fun HlSettingRow(
         enabled = enabled,
         disabledContent = c.contentTertiary,
     ) { focused ->
-        // A disabled row keeps its well under focus: its words stay as they are.
+        // A disabled row keeps its rest colours under focus.
         Content(focused && enabled)
     }
 }
@@ -199,11 +191,7 @@ fun HlSettingRow(
 /** One choice of a [HlChoiceSheet]. */
 data class ChoiceOption(val label: String, val description: String? = null)
 
-/**
- * The choices of a setting, in a side sheet opened from its row and headed by the setting's name
- * and [description]: focus starts on the current one; choosing applies it at once (the check moves)
- * and closes the sheet; Back closes it without changing anything.
- */
+/** A setting's choices in a side sheet, focus on the current one; choosing applies and closes, Back cancels. */
 @Composable
 fun HlChoiceSheet(
     title: String,
@@ -232,11 +220,7 @@ fun HlChoiceSheet(
     }
 }
 
-/**
- * The check of the current choice, at the end of its row: your choice, in ember at rest, the
- * focused content colour on a lit row. Sheets whose choices lead elsewhere mark the current one
- * with it too.
- */
+/** The current choice's check: ember at rest, the row's content colour under focus. */
 @Composable
 internal fun ChoiceCheck() {
     val content = LocalContentColor.current

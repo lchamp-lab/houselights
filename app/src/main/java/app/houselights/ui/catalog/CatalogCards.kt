@@ -59,10 +59,9 @@ import app.houselights.ui.design.components.LocalBackdropRelay
 import app.houselights.ui.design.components.Backdrop
 import app.houselights.ui.design.components.AbsentCard
 
-// Artwork comes from the app's own resources, and a failed image from a file that cannot exist:
-// nothing here needs the network.
+// Images come from app resources, and a failed one from a missing file: nothing needs the network.
 
-/** Cards, artwork and the parts of the pickers, each in the states it has today. */
+/** Cards, artwork and the parts of the pickers, each in every state it has. */
 internal fun LazyListScope.catalogCards() {
     item { Group("Media row: poster cards, the others step back") { PosterRow() } }
     item { Group("Ambient backdrop: a screen on its picture, whose light the focused card glows with") { AmbientBackdrops() } }
@@ -86,7 +85,6 @@ internal fun LazyListScope.catalogCards() {
 
 private const val BROKEN_URL = "file:///nonexistent/poster.jpg"
 
-/** Artwork that fails to load. */
 private val brokenImage = ImageRef("catalog-broken") { BROKEN_URL }
 
 /** Artwork the app ships with, so a card shows a real image without the network. */
@@ -132,14 +130,11 @@ private fun PosterRow() {
     }
 }
 
-/**
- * A screen on its picture, small: a card without artwork, focused, glows with the light of the
- * picture behind it; with no picture the room stays black, and so does the glow.
- */
+/** Small screens on their pictures: a focused card without artwork glows with the picture's light. */
 @Composable
 private fun AmbientBackdrops() {
     val art = shippedImage(R.drawable.banner)
-    // Backdrops on their own: nothing handed on to them, nor from them.
+    // Isolated backdrops: no relay hands a picture to them or from them.
     CompositionLocalProvider(LocalBackdropRelay provides null) { Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.l)) {
         listOf("a picture: its light" to art, "no picture: the black room, no light" to null).forEach { (state, image) ->
             Specimen(state, width = HlLayout.sideColumnWide) {
@@ -269,10 +264,7 @@ private fun CastRow() {
     }
 }
 
-/**
- * At the foot of a poster, on its plate: over a dark image, and over projector white, a light
- * poster's worst case. Then beside text, off the artwork (a hero, a pane), on its light track.
- */
+/** On a poster's plate (dark image, projector white), then beside text on its light track. */
 @Composable
 private fun ProgressLines() {
     val c = Hl.colors

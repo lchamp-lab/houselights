@@ -17,10 +17,7 @@ import org.robolectric.shadows.ShadowSystemClock
 import java.io.IOException
 import java.time.Duration
 
-/**
- * TMDB is optional to a scan: out of reach or refusing the key, files are indexed from their NFO and
- * local artwork, new episodes still come in, and what TMDB did not answer is asked again later.
- */
+/** Without TMDB, scans index files from their NFO and local artwork, and ask TMDB again later. */
 @RunWith(RobolectricTestRunner::class)
 class ScanTmdbTest {
     @get:Rule
@@ -47,7 +44,7 @@ class ScanTmdbTest {
         nas.put("$name-poster.jpg", size = 100, bytes = ByteArray(100))
     }
 
-    /** TMDB back, and an hour gone: the scans' pause is over, and what TMDB left unmatched is asked for again. */
+    /** TMDB answers again an hour later: the scans' pause is over, and what TMDB left unmatched is asked again. */
     private fun tmdbBack() {
         tmdb.failure = null
         tmdb.status = null
@@ -134,7 +131,7 @@ class ScanTmdbTest {
         assertNull(issue())
     }
 
-    /** "Scan now", once the network is back: what TMDB left unmatched does not wait the hour. */
+    /** "Scan now", once the network is back: what TMDB left unmatched does not wait for the hour. */
     @Test
     fun aScanAskedForAsksAtOnceForWhatTmdbLeftUnmatched() = runTest {
         val films = bench.folder("Films")
@@ -156,7 +153,7 @@ class ScanTmdbTest {
         assertNull(issue())
     }
 
-    /** A new file TMDB answers, within the hour: TMDB is back, said so, and the others are asked at the next pass. */
+    /** TMDB answers for a new file within the hour: it is back, says so, and the others are asked next pass. */
     @Test
     fun tmdbAnsweringANewFileEndsTheWait() = runTest {
         val films = bench.folder("Films")
@@ -261,7 +258,7 @@ class ScanTmdbTest {
         bench.scan()
         assertNotNull(bench.item(films, "Dune (2021).mkv").matchedAt)
 
-        // TMDB's details changed; the refresh asked for them finds TMDB out of reach.
+        // TMDB's details changed; the requested refresh finds TMDB unreachable.
         tmdb.movies[438631] = checkNotNull(tmdb.movies[438631]).copy(overview = "Arrakis")
         tmdb.failure = IOException("Network is unreachable")
         bench.scan(refreshMetadata = true)
@@ -328,12 +325,12 @@ class ScanTmdbTest {
         bench.scan()
         val series = checkNotNull(bench.dao.seriesByKey(FilenameParser.showKey("Mobland")))
         assertEquals("Season 1", bench.dao.season(series.id, 1)?.title)
-        // The device now speaks French: TMDB names the season otherwise.
+        // The device switches to French: TMDB names the season differently.
         tmdb.seasons[moblandId to 1] = tmdb.seasons.getValue(moblandId to 1).copy(name = "Saison 1", overview = "Deux familles de Londres")
         return series.id
     }
 
-    /** "Refresh all": seasons take TMDB's details again too, each asked once for all its episodes. */
+    /** "Refresh all": seasons take TMDB's details again too, each requested once for all its episodes. */
     @Test
     fun aRefreshGivesSeasonsTmdbsDetailsAgainAskingOnceASeason() = runTest {
         val seriesId = mobland()

@@ -151,18 +151,16 @@ fun DetailScreen(
     // A failure to play stays until the next action (OK, wherever it is pressed) or the next screen.
     DisposableEffect(Unit) { onDispose { app.playback.clearProblem() } }
 
-    // Each arrival puts focus back on what opened another screen (Modifier, the NFO, a film of a
-    // row); a first visit starts on the first action, the play button.
+    // Focus returns to what opened another screen; a first visit starts on the play button.
     val memory = rememberFocusMemory()
     val actionRow = remember { FocusRequester() }
-    // Once its rows are in: coming back, focus may return to one of their cards.
+    // Wait for the rows: returning focus may target one of their cards.
     RestoreFocus(memory, actionRow, ready = item != null && !state.partial)
     // A film started over is resumed next: back from the player, focus is on the play button.
     LaunchedEffect(Unit) {
         app.playback.playbackEnded.collect { if (memory.last == RESTART) memory.focus(PLAY) }
     }
     val page = rememberLazyListState()
-    // Directors and a show's creators, named in the cast row by their job.
     val directing = jobName(Job.DIRECTOR)
     val creating = jobName(Job.CREATOR)
     val people = state.item?.let { peopleOf(it, state.credits, directing, creating) }.orEmpty()
@@ -172,7 +170,6 @@ fun DetailScreen(
         return
     }
 
-    // Down the page, Back returns to the actions; from the top, it leaves.
     val scrolled by remember {
         derivedStateOf { backReturnsToActions(page.firstVisibleItemIndex, page.firstVisibleItemScrollOffset) }
     }
@@ -185,12 +182,9 @@ fun DetailScreen(
     val focusedEpisode = remember { mutableStateOf<MediaItem?>(null) }
     var showTech by remember { mutableStateOf(false) }
     val media = item.media?.takeIf { it.video != null || it.audio.isNotEmpty() }
-    // Beside the page: what the file holds, read row by row.
     if (showTech && media != null) TechSpecs(item, onDismiss = { showTech = false })
-    // Beside the page: the film's copies, the one Lire plays chosen there.
     var showVersions by remember { mutableStateOf(false) }
     if (showVersions) VersionsSheet(item, state.versions, onChoose = vm::chooseVersion, onDismiss = { showVersions = false })
-    // Beside the page: the overview the hero cuts, whole.
     var showSynopsis by remember { mutableStateOf(false) }
     if (showSynopsis) SynopsisSheet(item, onDismiss = { showSynopsis = false })
     var showEdit by remember { mutableStateOf(false) }
@@ -208,7 +202,7 @@ fun DetailScreen(
         onToggleFavorite = vm::toggleFavorite,
         onOpenSeries = { item.seriesId?.let(onOpenItem) },
         onOpenNfo = { onOpenNfo(item.id) },
-        // Left out where there is nothing to open: no technical sheet, a film of one copy.
+        // Null hides the button: no technical sheet, or a single copy.
         onShowTech = { showTech = true }.takeIf { media != null },
         onShowVersions = { showVersions = true }.takeIf { state.versions.size > 1 },
         onShowSynopsis = { showSynopsis = true },
@@ -231,8 +225,7 @@ fun DetailScreen(
         },
         recede = { recede.value },
     ) {
-        // The page turns by whole blocks: a row coming into view rises to the safe area, and
-        // the gap between blocks, wider than that keyline, takes the one above off the screen.
+        // Scrolls by blocks: an incoming row rises to the safe area; the wider block gap hides the row above.
         ListScroll(top = HlFocus.edge, toTop = true) { LazyColumn(
                 Modifier.fillMaxSize().houseLit(LocalHouseLights.current),
                 state = page,
@@ -240,8 +233,7 @@ fun DetailScreen(
                 verticalArrangement = Arrangement.spacedBy(HlLayout.detailGap),
             ) {
                 item(key = "hero") {
-                    // The screen less the first row's header and a strip of its images; taller
-                    // rather than squeezed when the text is long.
+                    // The screen minus a peek of the first row; grows rather than squeezes long text.
                     Box(Modifier.fillMaxWidth().heightIn(min = HlLayout.detailHeroMin(screenHeight)).scrollsAsBlock()) {
                         Hero(
                             item = item,
@@ -265,18 +257,18 @@ fun DetailScreen(
     }
 }
 
-/** A show's seasons and the episodes of the one chosen, under the hero; a single season names its episodes' row. */
+/** A show's season tabs and the chosen season's episodes, below the hero. */
 private fun LazyListScope.seasonRows(
     state: DetailState,
     memory: FocusMemory,
-    /** The episode with focus, read where it is shown. */
+    /** The focused episode, read only where its overview shows. */
     focusedEpisode: MutableState<MediaItem?>,
     vm: DetailViewModel,
     onPlay: (MediaItem, Boolean) -> Unit,
 ) {
     val item = state.item ?: return
     if (item.kind == MediaKind.SERIES && state.seasons.isNotEmpty()) {
-        // A track with one option is no choice: a single season names the episode row instead.
+        // One season is no choice: it titles the episode row instead of a tab.
         val single = state.seasons.singleOrNull()
         if (single == null) {
             item(key = "seasons") {
@@ -285,7 +277,7 @@ private fun LazyListScope.seasonRows(
         }
         item(key = "episodes-${state.selectedSeasonId}") {
             val failed = state.episodesError
-            // Réessayer had focus: once the episodes are there, focus goes to them, not nowhere.
+            // If Réessayer had focus, move it to the episodes once they load rather than lose it.
             LaunchedEffect(failed == null && state.episodes.isNotEmpty()) {
                 if (failed == null && state.episodes.isNotEmpty() && memory.last == RETRY_EPISODES) {
                     withFrameNanos { }
@@ -314,10 +306,9 @@ private fun LazyListScope.seasonRows(
     }
 }
 
-/** A collection's films, its saga whole; a film's saga, the film in its place. */
+/** A collection's films (its whole saga), or a film's saga with the film in its place. */
 private fun LazyListScope.sagaRows(item: MediaItem, state: DetailState, memory: FocusMemory, onOpenItem: (String) -> Unit) {
-    // A collection's saga whole, in the order its films came out: those the library lacks keep their
-    // place, as empty frames. Without the saga, the films it holds.
+    // The whole saga in release order, missing films as empty frames; without it, the films held.
     val parts = state.saga?.parts ?: state.collectionFilms.map { SagaPart(it, it.title, it.year) }
     if (item.kind == MediaKind.COLLECTION && parts.isNotEmpty()) {
         item(key = "films") {
@@ -334,8 +325,7 @@ private fun LazyListScope.sagaRows(item: MediaItem, state: DetailState, memory: 
         }
     }
 
-    // A film's saga: its films in order, the film itself in its place, under the saga's name; a saga
-    // of this film alone, no row.
+    // No row when the saga holds only this film.
     state.collection?.takeIf { state.collectionFilms.any { film -> film.id != item.id } }?.let { collection ->
         item(key = "collection") {
             MediaRow(collection.title, memory.rowGroup(SAGA)) {
@@ -347,10 +337,7 @@ private fun LazyListScope.sagaRows(item: MediaItem, state: DetailState, memory: 
     }
 }
 
-/**
- * The rows under a title's head: a collection's films, a film's saga, its people ([people]), the
- * titles like it.
- */
+/** The rows below a title's head: a collection's films, a film's saga, its [people], similar titles. */
 private fun LazyListScope.titleRows(
     item: MediaItem,
     state: DetailState,
@@ -389,7 +376,7 @@ private fun LazyListScope.titleRows(
     }
 }
 
-/** Where a title's page ends, as a film does: the crafts its head does not name. */
+/** The page's end credits: the crafts its head does not name. */
 private fun LazyListScope.endRows(item: MediaItem, credits: Credits?) {
     val crafts = endCrafts(item, credits)
     if (crafts.isNotEmpty()) {
@@ -402,16 +389,13 @@ private fun LazyListScope.endRows(item: MediaItem, credits: Credits?) {
     }
 }
 
-/**
- * A page whose title is not read yet: the picture handed on, then where its title and facts will
- * be once loading takes long enough to be seen, or why it could not be read ([error]).
- */
+/** A page whose title is not loaded yet: the backdrop handed on, then a skeleton once loading is slow, or [error]. */
 @Composable
 private fun NoTitleYet(error: UiError?, onRetry: () -> Unit) {
     Box(Modifier.fillMaxSize()) {
         Backdrop(null, BackdropStyle.Full)
         Box(Modifier.padding(top = HlLayout.errorTop)) {
-            // Trying again keeps the error on screen, its button at work, until the answer.
+            // While retrying, the error stays with its button busy.
             val loading = error == null
             val shown = retainedError(error, retrying = loading)
             when {
@@ -422,11 +406,7 @@ private fun NoTitleYet(error: UiError?, onRetry: () -> Unit) {
     }
 }
 
-/**
- * How far the film steps back as the page goes down ([away]): the rows read on the room, not on a
- * face. A page that comes back already scrolled is dark at once; then the veil follows the page
- * over SLOW.
- */
+/** How far the backdrop recedes once scrolled ([away]), so rows read on the room; snaps at first, then animates. */
 @Composable
 private fun rememberRecede(away: () -> Boolean): Animatable<Float, *> {
     val recede = remember { Animatable(0f) }
@@ -441,15 +421,10 @@ private fun rememberRecede(away: () -> Boolean): Animatable<Float, *> {
     return recede
 }
 
-/** Where a page's rows lead: another title, a person's page. */
 @Immutable
 private class RowLinks(val onOpenItem: (String) -> Unit, val onOpenPerson: (String) -> Unit)
 
-/**
- * What the actions of a detail page do, built once by [DetailScreen] and handed down as it is: each
- * by its name, so two of the same type cannot change places on the way. [onShowTech] and [onEdit]
- * are null for a title with no technical sheet, or that cannot be edited: their buttons are left out.
- */
+/** The page's actions, passed down whole; named fields keep same-typed lambdas apart, and null hides a button. */
 @Immutable
 private data class DetailActions(
     val onPlay: (MediaItem, resume: Boolean) -> Unit,
@@ -458,11 +433,9 @@ private data class DetailActions(
     val onOpenSeries: () -> Unit,
     val onOpenNfo: () -> Unit,
     val onShowTech: (() -> Unit)?,
-    /** The film's copies, null for a film of one copy. */
     val onShowVersions: (() -> Unit)?,
-    /** The overview whole, when the hero cuts it. */
     val onShowSynopsis: () -> Unit,
-    /** The copy Lire plays, among several, and its place among them (it names it); null for one copy. */
+    /** The copy Lire plays and its index (to name it); null for one copy. */
     val copy: Version? = null,
     val copyIndex: Int = 0,
     val onEdit: (() -> Unit)?,
@@ -482,9 +455,7 @@ private fun Hero(
     val isEpisode = item.kind == MediaKind.EPISODE
 
     Column(modifier) {
-        // The text keeps a reading measure; the actions below may run wider, within the safe area.
-        // At the end of a page the last rows cannot rise to the top: what is left of the hero above
-        // them fades out instead of showing a sliver.
+        // Reading measure; at the page's end the hero's remnant fades rather than showing a sliver.
         Column(Modifier.widthIn(max = HlLayout.readableNarrow).fadeOutsideSafeArea()) {
             TitleArt(
                 title = if (isEpisode) item.seriesTitle ?: item.title else item.title,
@@ -500,7 +471,7 @@ private fun Hero(
                 Spacer(Modifier.height(HlSpace.xs))
             }
             MetaLine(item)
-            // The picture, then the sound, as the back of a case lists them.
+            // Picture, then sound, as on the back of a case.
             if (item.badges.isNotEmpty() || item.media?.video != null || item.media?.audio?.isNotEmpty() == true) {
                 Spacer(Modifier.height(HlSpace.s))
                 FormatLines(item)
@@ -512,7 +483,7 @@ private fun Hero(
             }
             if (!item.overview.isNullOrBlank()) {
                 Spacer(Modifier.height(if (item.tagline != null) HlSpace.xs else HlSpace.l))
-                // Cut, it opens whole beside the page; down from it is the first action, as up from that is it.
+                // Opens in full beside the page when cut; Down goes to the first action, mirroring Up.
                 HeadOverview(item.overview, onOpen = actions.onShowSynopsis, Modifier.focusProperties { down = actionRow })
             }
             if (item.directors.isNotEmpty() || item.cast.isNotEmpty()) {
@@ -526,10 +497,7 @@ private fun Hero(
     }
 }
 
-/**
- * What can be done with the title ([actions]), in one row. Room under it for the label of a round
- * button: nothing moves when it shows. [actionRow] focuses the first of them.
- */
+/** The title's [actions] in one row, with room below for a round button's label so nothing moves when it shows. */
 @Composable
 private fun Actions(
     item: MediaItem,
@@ -544,7 +512,7 @@ private fun Actions(
     HlActionRow(Modifier.focusRequester(actionRow).fadeOutsideSafeArea()) {
         PlayButtons(item, nextUp, memory, actions)
         Parts(item, memory, actions.onPlay)
-        // A film in several copies: which one Lire plays is chosen beside the page.
+        // Several copies: the one Lire plays is chosen in a side sheet.
         if (actions.onShowVersions != null) {
             HlIconButton(
                 HlIcons.Versions,
@@ -556,8 +524,7 @@ private fun Actions(
         if (item.kind == MediaKind.EPISODE && item.seriesId != null) {
             HlButton(stringResource(R.string.view_series), onClick = actions.onOpenSeries, modifier = Modifier.focusKey(SERIES, memory))
         }
-        // A toggle says what OK does; its icon says where the title stands. Watched is done, not a
-        // choice: the check fills, in projector white.
+        // Label: what OK does; icon: the current state. Watched is done, not a choice: the check fills white.
         if (capabilities?.markPlayed == true) {
             HlIconButton(
                 if (item.user.played) HlIcons.CheckFilled else HlIcons.Check,
@@ -599,10 +566,7 @@ private fun Actions(
     }
 }
 
-/**
- * Why the last title asked for did not play ([problem]), or a change did not take ([actionError]),
- * beside the actions that asked for it.
- */
+/** Why the last play request failed ([problem]) or a change did not save ([actionError]), beside the actions. */
 @Composable
 private fun RowScope.ActionFailure(problem: UiError?, actionError: UiError?) {
     val (title, error) = problem?.let { R.string.play_failed to it } ?: actionError?.let { R.string.action_not_saved to it } ?: return
@@ -614,11 +578,7 @@ private fun RowScope.ActionFailure(problem: UiError?, actionError: UiError?) {
     )
 }
 
-/**
- * One button that says Lire or Reprendre, so that a film ended half seen keeps focus on it, and
- * beside it, once started, the way to start over. A series plays through its next episode, a
- * collection through its next film.
- */
+/** Lire or Reprendre (one button, so focus stays put), then start-over; a series or saga plays its next title. */
 @Composable
 private fun PlayButtons(item: MediaItem, nextUp: MediaItem?, memory: FocusMemory, actions: DetailActions) {
     val onPlay = actions.onPlay
@@ -647,7 +607,7 @@ private fun PlayButtons(item: MediaItem, nextUp: MediaItem?, memory: FocusMemory
     }
 }
 
-/** What Lire names of what it starts: the episode, the film of a saga, the edition of a film in copies. */
+/** What Lire names: the episode, the saga's film, or the edition of a film in copies. */
 @Composable
 private fun whatLirePlays(item: MediaItem, target: MediaItem, copy: Version?, copyIndex: Int): String? = when {
     item.kind == MediaKind.SERIES -> target.episodeLabel
@@ -656,10 +616,7 @@ private fun whatLirePlays(item: MediaItem, target: MediaItem, copy: Version?, co
     else -> null
 }
 
-/**
- * What Lire says beside its name: what it starts ([what]) and the time left when it [resume]s; the
- * length of a copy ("Lire  Version longue  2 h 28"), of a film; else what it starts alone.
- */
+/** Lire's detail: [what] plus the time left when resuming, or the length for a copy; else [what] or the length. */
 @Composable
 private fun playDetail(what: String?, target: MediaItem, resume: Boolean, copy: Boolean): String? = when {
     resume -> listOfNotNull(what, timeLeft(target)).joinToString(FACT_GAP)
@@ -667,12 +624,7 @@ private fun playDetail(what: String?, target: MediaItem, resume: Boolean, copy: 
     else -> what ?: target.runtimeMs?.let(::formatDuration)
 }
 
-/**
- * A film in several files, which the player plays one file at a time: beside Lire, which resumes its
- * first part, each part from its start, "Partie 1/2", "Partie 2/2". None for a film in one file.
- * From three parts on, their buttons would push the last round buttons out of the row: one button,
- * "Parties", opens them in a menu instead.
- */
+/** A multi-file film's parts ("Partie 1/2"), each from its start; from three on, a "Parties" menu instead. */
 @Composable
 private fun Parts(item: MediaItem, memory: FocusMemory, onPlay: (MediaItem, Boolean) -> Unit) {
     val count = item.parts.size
@@ -710,7 +662,7 @@ private fun Seasons(seasons: List<MediaItem>, selectedId: String?, onSelect: (St
     )
 }
 
-/** How far a season is watched, after its name: a check when all of it is, "6 / 10" when part is, nothing before. */
+/** A season's progress after its name: a check when fully watched, "6 / 10" when partly, nothing before. */
 internal fun seasonDetail(season: MediaItem): SegmentDetail? {
     val episodes = season.childCount?.takeIf { it > 0 } ?: return SegmentDetail.Done.takeIf { season.user.played }
     val watched = episodes - (season.user.unplayedCount ?: if (season.user.played) 0 else episodes)
@@ -721,7 +673,7 @@ internal fun seasonDetail(season: MediaItem): SegmentDetail? {
     }
 }
 
-/** Where an episode stands, in words: watched, or the time left; nothing when not started. */
+/** An episode's state: watched, or the time left; null when not started. */
 @Composable
 private fun episodeState(ep: MediaItem): String? =
     if (ep.user.played) stringResource(R.string.watched) else timeLeft(ep)
@@ -758,7 +710,7 @@ private fun Episodes(
             color = Hl.colors.contentSecondary,
             maxLines = 3,
             overflow = TextOverflow.Ellipsis,
-            // Three lines at the viewer's text size, so the page stays still as focus moves; more if a script needs it.
+            // At least three lines at the viewer's text size, so the page stays still as focus moves.
             modifier = Modifier
                 .padding(horizontal = HlSpace.safeH)
                 .widthIn(max = HlLayout.readable)
@@ -768,10 +720,7 @@ private fun Episodes(
     }
 }
 
-/**
- * Empty frames where a season's episodes will be, once loading takes long enough to be seen. Laid
- * out from the start all the same, unseen: the rows below stay where they are when they show.
- */
+/** Episode placeholders, shown once loading is slow but laid out from the start so the rows below never move. */
 @Composable
 private fun EpisodesSkeleton(header: String?) {
     val seen = skeletonDelayPassed()
@@ -786,10 +735,7 @@ private fun EpisodesSkeleton(header: String?) {
     }
 }
 
-/**
- * A season's episodes could not load: why, where the row would be, and what fixes it; trying again
- * ([retrying]), the row stays, its button at work and focused.
- */
+/** The episode row's error and its fix; while [retrying], the row stays, its button busy and focused. */
 @Composable
 private fun EpisodesFailed(header: String?, error: UiError, retrying: Boolean, onRetry: () -> Unit, action: Modifier) {
     Column(Modifier.scrollsAsBlock().padding(horizontal = HlSpace.safeH)) {
@@ -798,23 +744,20 @@ private fun EpisodesFailed(header: String?, error: UiError, retrying: Boolean, o
     }
 }
 
-/** A film's parts go in a menu from three on: two buttons beside Lire still leave the row its round buttons. */
+/** Parts go in a menu from three on: two buttons beside Lire still leave room for the round buttons. */
 internal fun partsInMenu(count: Int): Boolean = count > INLINE_PARTS
 
-/**
- * A film's [parts] as the options of its menu, in order, each named by [labels]. None is chosen,
- * so the menu opens on the first part; choosing one plays it from its start ([onPlay]).
- */
+/** [parts] as menu options named by [labels], none selected so the menu opens on the first part. */
 internal fun partOptions(parts: List<MediaItem>, labels: List<String>, onPlay: (MediaItem) -> Unit): List<MenuOption> =
     parts.mapIndexed { i, part -> MenuOption(labels[i], selected = false) { onPlay(part) } }
 
 /** Back returns to the actions once the page has scrolled down; at its top, it leaves. */
 internal fun backReturnsToActions(firstVisibleItem: Int, offset: Int): Boolean = firstVisibleItem > 0 || offset > 0
 
-/** A row of the page as a group: a card gone since focus left it, focus comes back to its row. */
+/** A page row as a focus group: if the focused card is gone, focus returns to its row. */
 private fun FocusMemory.rowGroup(row: String) = Modifier.focusGroupKey(FocusKey.row(row), this)
 
-/** A card of a row of the page: the same title may sit in two rows. */
+/** A card keyed within its row: the same title may sit in two rows. */
 private fun FocusMemory.card(row: String, item: MediaItem) =
     Modifier.focusKey(FocusKey.within(FocusKey.row(row), FocusKey.item(item.id)), this)
 
@@ -829,22 +772,18 @@ private val FAVORITE = FocusKey.action("favorite")
 private val EDIT = FocusKey.action("edit")
 private val PARTS = FocusKey.action("parts")
 
-/** The parts a film's actions row holds as buttons, beside Lire and the round buttons. */
+/** Parts shown as buttons in the action row, beside Lire and the round buttons. */
 private const val INLINE_PARTS = 2
 private const val EPISODES = "episodes"
 
-/** Réessayer of a season that failed, in its row: coming back, focus finds the row. */
+/** Réessayer of a failed season, keyed within its row so returning focus finds the row. */
 private val RETRY_EPISODES = FocusKey.within(FocusKey.row(EPISODES), FocusKey.action("retry"))
 private const val FILMS = "films"
 private const val SAGA = "collection"
 private const val SIMILAR = "similar"
 private const val CAST = "cast"
 
-/**
- * The people of [item]'s row, direction first: its directors ([directing]), a show's creators
- * ([creating]), named by their job, then its cast in billing order. Without credits from the
- * source, its cast alone.
- */
+/** The cast row: directors, or a show's creators, labelled by job, then the cast; the cast alone without credits. */
 internal fun peopleOf(item: MediaItem, credits: Credits?, directing: String, creating: String): List<Person> {
     if (credits == null) return item.cast
     val show = item.kind == MediaKind.SERIES
@@ -853,12 +792,7 @@ internal fun peopleOf(item: MediaItem, credits: Credits?, directing: String, cre
     return (direction + credits.cast).ifEmpty { item.cast }
 }
 
-/**
- * The crafts of [item]'s end credits, those its head does not name (its direction, a show's
- * creators, are in its billing block and its people): screenplay, music, cinematography, editing;
- * up to [CRAFT_NAMES] names each. A show's crafts change from one episode to the next: its music
- * alone. Without credits from the source, none.
- */
+/** End-credit crafts the head omits, up to [CRAFT_NAMES] names each; for a show only music (it varies by episode). */
 internal fun endCrafts(item: MediaItem, credits: Credits?): List<Pair<Job, List<String>>> {
     val crew = credits?.crew ?: return emptyList()
     val jobs = if (item.kind == MediaKind.SERIES) SHOW_CRAFTS else FILM_CRAFTS
@@ -871,8 +805,7 @@ private val FILM_CRAFTS = listOf(Job.WRITER, Job.COMPOSER, Job.CINEMATOGRAPHY, J
 private val SHOW_CRAFTS = listOf(Job.COMPOSER)
 
 
-/** Frames shown while a season loads: as many episodes as the screen shows whole. */
+/** Placeholders while a season loads: as many episodes as the screen shows whole. */
 private const val EPISODE_SKELETONS = 3
 
-/** The keys that act on what has focus. */
 private val OK_KEYS = setOf(Key.DirectionCenter, Key.Enter, Key.NumPadEnter)

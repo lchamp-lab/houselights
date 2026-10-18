@@ -58,14 +58,9 @@ import androidx.compose.ui.unit.toSize
 import kotlin.math.abs
 
 /**
- * Scrolls only by what is needed to bring an element into the window [leading, containerSize −
- * trailing] (px): never to a third of the screen as the TV default does, which scrolls titles and
- * heroes away for no reason. An element longer than the window aligns its start with the window's.
- *
- * With [toTop], a page of blocks ([scrollsAsBlock]): the block asked for always comes to the start
- * of the window, so the page turns by whole blocks and the one above leaves whole rather than as a
- * sliver of text. The distance is asked again on every frame of the motion, so it must hold all the
- * way: a block on its way up keeps moving until it reaches the start, even once it is inside.
+ * Scrolls only as far as needed to bring an element into [leading, containerSize − trailing] (px), not to a
+ * third of the screen as the TV default does. With [toTop] ([scrollsAsBlock] pages), the block always comes
+ * to the start: the distance is asked again every frame, so it holds until the block arrives.
  */
 @OptIn(ExperimentalFoundationApi::class)
 class EdgeScroll(
@@ -86,14 +81,10 @@ class EdgeScroll(
     }
 }
 
-/** Under half a pixel from where it goes, a block has arrived. */
+/** Within half a pixel of its target, a block has arrived. */
 private const val SETTLED = 0.5f
 
-/**
- * How vertical lists scroll, provided for the whole app by [HouselightsTheme]: what has focus
- * stops [HlFocus.edge] away from the bottom, so the last row rests inside the safe area and a
- * focused poster grows into the margin rather than off the screen, and [top] away from the top.
- */
+/** Vertical list scrolling app-wide ([HouselightsTheme]): focus stops [top] and [HlFocus.edge] from the ends. */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun rememberListScroll(top: Dp = HlFocus.edge, toTop: Boolean = false): BringIntoViewSpec {
@@ -102,12 +93,8 @@ fun rememberListScroll(top: Dp = HlFocus.edge, toTop: Boolean = false): BringInt
 }
 
 /**
- * For a list that starts below the top of the screen, under a hero or a header, already inside
- * the safe area: its rows come back to [top], where its first row rests (its top padding), and
- * the row above leaves the list whole instead of lingering as a sliver. With [toTop], a page of
- * blocks (a detail page: its hero, then its rows): every block that has to move comes to [top],
- * so the page shows whole blocks; with a gap between them at least [top] wide, the one above has
- * left the screen entirely.
+ * For a list starting below a hero or header: rows come back to [top], where the first rests, so the row above
+ * leaves whole. With [toTop] (a detail page's blocks), every moving block comes to [top].
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -115,12 +102,7 @@ fun ListScroll(top: Dp, toTop: Boolean = false, content: @Composable () -> Unit)
     CompositionLocalProvider(LocalBringIntoViewSpec provides rememberListScroll(top, toTop), content = content)
 }
 
-/**
- * Rows keep what has focus [ROW_MARGIN] away from both ends of the screen. With no margin, a row
- * scrolled back to its first card would stop with that card against the screen edge; with a
- * margin wider than the row's padding, the row comes back to where it rests, and moving right
- * always lets the next card peek in.
- */
+/** Rows keep focus [ROW_MARGIN] from both screen ends, so a row returns to its rest and the next card peeks in. */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun RowScroll(content: @Composable () -> Unit) {
@@ -133,13 +115,8 @@ fun RowScroll(content: @Composable () -> Unit) {
 private val ROW_MARGIN = HlSpace.safeH + HlSpace.xl
 
 /**
- * What scrolls fades into [color], the surface it scrolls on, over [HlSpace.fadeEdge] at the top
- * and the bottom, on each side only while there is more that way: a line cut at the edge reads as
- * more to come, not as a defect. A gradient of the surface's own colour over the content, without
- * a layer, so the surface must be opaque there (the black room, a raised sheet). An edge comes and
- * goes over [HlMotion.FAST] as an end is reached. Focus stays clear of it: a list keeps
- * [HlFocus.edge] (wider) from its ends, and one that rests against its top comes back to
- * [HlSpace.fadeEdge] (`ListScroll`). Not for rows of posters: [RowScroll] keeps their ends open.
+ * Fades content into [color] over [HlSpace.fadeEdge] at an end with more beyond, so a cut line reads as more
+ * to come. Drawn without a layer, so the surface must be opaque there. Not for poster rows ([RowScroll]).
  */
 fun Modifier.scrollEdges(state: ScrollableState, color: Color): Modifier = composed {
     val top by animateFloatAsState(if (state.canScrollBackward) 1f else 0f, tween(HlMotion.FAST), label = "fadeTop")
@@ -164,13 +141,8 @@ fun Modifier.scrollEdges(state: ScrollableState, color: Color): Modifier = compo
 }
 
 /**
- * Words never meet the edge of the screen: what this modifier holds (a line of text) is opaque
- * inside the safe area and fades out across its margin ([HlSpace.safeH] at the sides,
- * [HlSpace.safeV] at the top and the bottom), gone where it would touch the edge. Pictures may
- * peek past the safe area and invite the eye on; a word cut by the screen reads as a defect, and
- * the margin is where an overscanning TV crops. Read from where the text sits on the screen as
- * rows and pages scroll: a layer's alpha, set while placing, with no offscreen buffer and no
- * recomposition. For text only, inside components: a row's header, a card's caption.
+ * Fades a line of text out across the safe-area margin, where an overscanning TV crops, so no word meets
+ * the screen's edge. Set as a layer's alpha while placing: no offscreen buffer, no recomposition.
  */
 fun Modifier.fadeOutsideSafeArea(): Modifier = this then FadeOutsideSafeArea
 
@@ -185,10 +157,7 @@ private data object FadeOutsideSafeArea : ModifierNodeElement<SafeAreaFadeNode>(
 private class SafeAreaFadeNode : Modifier.Node(), LayoutModifierNode, GlobalPositionAwareModifierNode {
     private var shown by mutableFloatStateOf(1f)
 
-    /**
-     * Kept from one placing to the next, as rows scroll: the root of the window (its size is read
-     * each time), and the margins in px at the density they were worked out for.
-     */
+    /** Kept across placements: the root coordinates, and the margins in px for the density [marginsAt]. */
     private var root: LayoutCoordinates? = null
     private var marginsAt = 0f
     private var marginH = 0f
@@ -212,8 +181,7 @@ private class SafeAreaFadeNode : Modifier.Node(), LayoutModifierNode, GlobalPosi
             marginH = with(density) { HlSpace.safeH.toPx() }
             marginV = with(density) { HlSpace.safeV.toPx() }
         }
-        // Where the text really is, cut or not: its place in the root, unclipped by the lists it
-        // scrolls in, found in one walk up the tree.
+        // Its position in the root, unclipped by the lists it scrolls in, found in one walk up the tree.
         shown = safeAreaAlpha(coordinates.positionInRoot(), coordinates.size.toSize(), root.size.toSize(), marginH, marginV)
     }
 
@@ -222,11 +190,7 @@ private class SafeAreaFadeNode : Modifier.Node(), LayoutModifierNode, GlobalPosi
     }
 }
 
-/**
- * How much of a text at [origin], [size] large, on a [screen] shows: all of it inside the safe area
- * ([marginH] at the sides, [marginV] at the top and the bottom), none where it reaches the screen's
- * edge, in between across the margin, by the side that comes closest.
- */
+/** Alpha of a text at [origin]: 1 inside the safe area, 0 at the screen's edge, linear across the margin. */
 internal fun safeAreaAlpha(origin: Offset, size: Size, screen: Size, marginH: Float, marginV: Float): Float = minOf(
     marginShare(origin.x, marginH),
     marginShare(screen.width - (origin.x + size.width), marginH),
@@ -238,10 +202,7 @@ internal fun safeAreaAlpha(origin: Offset, size: Size, screen: Size, marginH: Fl
 private fun marginShare(distance: Float, margin: Float): Float =
     if (margin <= 0f) 1f else (distance / margin).coerceIn(0f, 1f)
 
-/**
- * Keeps vertical navigation inside this column: up or down at its edges does nothing instead
- * of jumping to a neighbouring column. Left and right still leave it.
- */
+/** Keeps up and down inside this column instead of jumping to a neighbour; left and right still leave it. */
 @OptIn(ExperimentalComposeUiApi::class)
 fun Modifier.keepVerticalFocus(): Modifier = this
     .focusProperties {
@@ -251,11 +212,7 @@ fun Modifier.keepVerticalFocus(): Modifier = this
     }
     .focusGroup()
 
-/**
- * This element scrolls as one block: whatever inside it asks to be seen (a card of a row, a button
- * of a hero), the list around it brings the whole block, its header included. A row then comes in
- * with its title whichever card focus lands on, and moving along it asks nothing more of the page.
- */
+/** Scrolls as one block: whatever inside asks to be shown, the list brings in the whole block, header included. */
 @OptIn(ExperimentalFoundationApi::class)
 fun Modifier.scrollsAsBlock(): Modifier = composed {
     val block = remember { Block() }
@@ -268,15 +225,11 @@ private class Block : BringIntoViewResponder {
 
     override fun calculateRectForParent(localRect: Rect): Rect = Rect(Offset.Zero, size.toSize())
 
-    // The block does not scroll itself: the list around it does, for the rectangle above.
+    // The list around the block scrolls, for the rectangle above.
     override suspend fun bringChildIntoView(localRect: () -> Rect?) = Unit
 }
 
-/**
- * When focus enters this element, scroll it fully into view, not only the focused child.
- * Use it on groups whose title or context sits above their first focusable element
- * (a row and its header, a hero and its buttons, a settings section).
- */
+/** Scrolls the whole element into view on focus, for groups whose title sits above their first focusable. */
 @OptIn(ExperimentalFoundationApi::class)
 fun Modifier.revealOnFocus(): Modifier = composed {
     val requester = remember { BringIntoViewRequester() }
@@ -287,10 +240,8 @@ fun Modifier.revealOnFocus(): Modifier = composed {
 }
 
 /**
- * State of a row whose content can change while it is shown (new titles found by a scan). A list
- * keeps showing the item it was showing first, so titles arriving in front would land out of
- * sight on the left. If the row was at its start, it stays there and the new titles show; if the
- * viewer had moved along it, nothing moves under them.
+ * State of a row whose content changes while shown: a row at its start stays there, so titles arriving in
+ * front show instead of landing off screen; a row the viewer moved along stays put.
  */
 @Composable
 fun rememberRowState(keys: List<Any>): LazyListState {

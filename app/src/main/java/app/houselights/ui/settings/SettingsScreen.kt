@@ -62,12 +62,9 @@ internal enum class Pane(val label: Int, val icon: ImageVector) {
 }
 
 /**
- * Settings in two panes: the categories on the left, each with what it is set to now; on the
- * right, the selected one as rows of settings with their value. Focus selects a category.
- * [onFolderForm] opens the form of a folder (a new one for null), focus on the field given;
- * [onUseFolders] makes the folders the source (or adds the first), and hands back why it could
- * not, said on the source's row; [onSignIn] signs in to Jellyfin. The library in numbers opens a
- * wall filtered by a value it counts ([onOpenWall]), or a director's page ([onOpenPerson]).
+ * Settings in two panes: categories with their current values, and the focused one's rows. [onUseFolders] makes
+ * the folders the source and reports a failure on the source's row; the library in numbers opens a filtered wall
+ * ([onOpenWall]) or a director's page ([onOpenPerson]).
  */
 @Composable
 fun SettingsScreen(
@@ -92,17 +89,16 @@ fun SettingsScreen(
         }
     }
     var pane by rememberSaveable { mutableStateOf(Pane.Library) }
-    // A change that failed is said in the pane it was made in, not in the next one.
+    // A failed change is reported in the pane it was made in, not in the next one.
     LaunchedEffect(pane) { vm.clearActionError() }
     val memory = rememberFocusMemory()
-    // Each pane keeps where it was scrolled, across the screens it opens.
+    // Each pane keeps its scroll position across the screens it opens.
     val list = rememberSaveable(pane, saver = LazyListState.Saver) { LazyListState() }
-    // Each arrival puts focus back on the row that opened another screen, else on the entry of the
-    // pane open: the pane stays as it was left.
+    // Focus returns to the row that opened another screen, else to the open pane's entry.
     RestoreFocus(
         memory,
         fallback = memory.requester(paneKey(pane.takeIf { it in panes } ?: panes.first())),
-        // The panes are laid out with the settings as stored, not with the defaults shown before.
+        // Lay out the panes with the stored settings, not the defaults shown before them.
         ready = s.loaded,
     ) { key -> revealRow(list, key, memory) }
     // From the pane on the right, Back returns to its entry; from the entries, it leaves.
@@ -140,10 +136,7 @@ fun SettingsScreen(
     }
 }
 
-/**
- * Brings the row [key] names into the pane's [list], item by item until it is there (a pane holds a
- * dozen items at most), and focuses it.
- */
+/** Scrolls [list] item by item until row [key] can be focused (a pane holds a dozen items at most). */
 private suspend fun revealRow(list: LazyListState, key: String, memory: FocusMemory): Boolean {
     for (i in 0 until list.layoutInfo.totalItemsCount) {
         list.scrollToItem(i)
@@ -153,10 +146,10 @@ private suspend fun revealRow(list: LazyListState, key: String, memory: FocusMem
     return false
 }
 
-/** Where the library in numbers leads: a wall filtered by a value it counts, a director's page. */
+/** Where the library in numbers leads: a wall filtered by a value it counts, or a director's page. */
 private class NumbersDoors(val onOpenWall: (Library, LibraryFilter) -> Unit, val onOpenPerson: (String) -> Unit)
 
-/** What [pane] says of a secret of its own that could not be read again, to be given again; null when none is lost. */
+/** The note [pane] shows when one of its secrets could not be read back and must be re-entered; else null. */
 internal fun lostSecretNote(pane: Pane, lost: Set<SecretSetting>): Int? = when {
     pane == Pane.Library && SecretSetting.TMDB_KEY in lost -> R.string.settings_lost_tmdb_key
     pane == Pane.Playback && SecretSetting.PATH_MAPPINGS in lost -> R.string.settings_lost_mappings
@@ -165,10 +158,9 @@ internal fun lostSecretNote(pane: Pane, lost: Set<SecretSetting>): Int? = when {
 
 private const val LOST_SECRET = "lost-secret"
 
-/** A pane's entry in the navigation; its rows are keyed within it. */
 private fun paneKey(pane: Pane) = FocusKey.pane(pane.name)
 
-/** What a category is set to, under its name. */
+/** A category's current value, under its name. */
 @Composable
 private fun summary(pane: Pane, s: AppSettings, titles: Int, stats: StorageStats?): String? = when (pane) {
     Pane.Library -> when (val source = s.source) {
@@ -177,13 +169,13 @@ private fun summary(pane: Pane, s: AppSettings, titles: Int, stats: StorageStats
     }
     Pane.Playback -> stringResource(if (s.forceHttp) R.string.http_stream else R.string.network_path)
     Pane.Display -> displaySummary(s)
-    // Counted when its pane shows, never ahead: its entry says nothing it would have to count first.
+    // Counting happens only when its pane shows, so its entry has no summary.
     Pane.Numbers -> null
     Pane.Storage -> stats?.let { formatBytes(it.total) }
     Pane.About -> stringResource(R.string.nav_version, BuildConfig.VERSION_NAME)
 }
 
-/** The rows of [pane]. Focus coming back from the navigation returns to the row it left. */
+/** The rows of [pane]. Focus returning from the navigation goes back to the row it left. */
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
 private fun PaneContent(
@@ -214,8 +206,7 @@ private fun PaneContent(
         contentPadding = PaddingValues(bottom = HlFocus.edge, end = HlSpace.m),
         verticalArrangement = Arrangement.spacedBy(HlSpace.l),
     ) {
-        // A secret of this pane that could not be read again: said at its head, where it is read first.
-        // A change that failed is said on its own row, where focus is.
+        // A lost secret shows at the pane's head; a failed change shows on its own row, where focus is.
         lostSecretNote(pane, s.lostSecrets)?.let { note -> item(key = LOST_SECRET) { AttentionNote(stringResource(note)) } }
         when (pane) {
             Pane.Library -> libraryPane(s, onFolderForm, onUseFolders, onSignIn, rows)

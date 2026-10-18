@@ -47,10 +47,7 @@ import org.robolectric.annotation.Config
 import java.io.IOException
 import javax.crypto.KeyGenerator
 
-/**
- * Signing in again, to a server or to a folder's NAS, focus starts on what is left to type: the
- * password, once the user is filled in; the user first, when there is none.
- */
+/** Signing in again, focus starts on what is left to type: the password if the user is set, else the user. */
 @RunWith(RobolectricTestRunner::class)
 @Config(application = Application::class, qualifiers = TV)
 class SignInFocusTest {

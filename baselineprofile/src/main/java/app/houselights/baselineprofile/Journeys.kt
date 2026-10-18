@@ -5,11 +5,8 @@ import androidx.benchmark.macro.MacrobenchmarkScope
 import androidx.test.uiautomator.By
 import java.util.regex.Pattern
 
-/*
- * The journeys a viewer makes most, from home: the code they run is what the baseline profile
- * compiles ahead of time, and what the benchmarks measure. Each starts from a fresh home, focus on
- * the first card, and finds its way by what the screen says, in the device's language.
- */
+// A viewer's most common journeys, which the baseline profile compiles and the benchmarks measure. Each
+// starts from a fresh home, focus on the first card, and navigates by on-screen text.
 
 /** Home freshly started: its first row shown, focus on its first card. */
 internal fun MacrobenchmarkScope.startHome() {
@@ -18,7 +15,6 @@ internal fun MacrobenchmarkScope.startHome() {
     awaitHome()
 }
 
-/** Waits for home's rows. */
 internal fun MacrobenchmarkScope.awaitHome() {
     await(By.text(appString("section_latest_movies")), "home's rows")
 }
@@ -33,7 +29,7 @@ internal fun MacrobenchmarkScope.browseHome() {
     up()
 }
 
-/** Up to the tabs, each library named under its light; then the films' wall, browsed. */
+/** Up to the tabs and along them, then the films' wall, browsed. */
 internal fun MacrobenchmarkScope.browseLibrary() {
     up(2)
     right(2)
@@ -86,10 +82,7 @@ internal fun MacrobenchmarkScope.browseSettings() {
     back(2)
 }
 
-/**
- * A search from home's bar: a few letters typed on its keys, what it finds read, then home. None for
- * a source that cannot search.
- */
+/** A search from home's bar: a few letters typed, the results read, then home. None for a source that cannot search. */
 internal fun MacrobenchmarkScope.browseSearch() {
     up(2)
     right(4)

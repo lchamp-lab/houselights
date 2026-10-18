@@ -3,15 +3,11 @@ package app.houselights.providers.local
 import app.houselights.core.PlaybackReporter
 
 /**
- * Saves a local film or episode's progress as the player reports it. A film in several files keeps one
- * resume point, its first part's ([part] 1), which the film's "Lire" resumes: a later part says only
- * when it was played. The film is watched at the end of its last part; the end of another is not its end.
+ * Saves playback progress. A multi-file film keeps one resume point, on [part] 1; later parts only record the play
+ * time, and the film is watched at the end of its last part.
  */
 internal class LocalReporter(private val dao: LibraryDao, private val itemId: Long, private val part: Int = 1) : PlaybackReporter {
-    /**
-     * Only says when it was played: where the player starts is not progress, and starting over must
-     * not lose the resume point before the viewer has watched anything.
-     */
+    /** Records only the play time, so starting over does not lose the resume point before anything was watched. */
     override suspend fun started(positionMs: Long) = dao.setLastPlayedAt(itemId, System.currentTimeMillis())
 
     override suspend fun progress(positionMs: Long, durationMs: Long?, paused: Boolean) =
@@ -19,15 +15,14 @@ internal class LocalReporter(private val dao: LibraryDao, private val itemId: Lo
 
     override suspend fun stopped(positionMs: Long, durationMs: Long?) = save(positionMs, durationMs, finished = true)
 
-    /** The film's part after this one, while there is one: its file comes next in its folder. */
     override suspend fun next(): PlaybackReporter.Next? {
-        // Part 2 is the first of the parts after the first file.
+        // parts lists the files after the first, so part 2 is index 0.
         val path = dao.playState(itemId)?.parts?.getOrNull(part - 1) ?: return null
         return PlaybackReporter.Next(path, LocalReporter(dao, itemId, part + 1), LocalId.ofPart(itemId, part + 1))
     }
 
     private suspend fun save(positionMs: Long, durationMs: Long?, finished: Boolean) {
-        // Every ten seconds while it plays: a few columns, never the NFO text the whole row holds.
+        // Called every ten seconds during playback: read a few columns, never the row's NFO text.
         val state = dao.playState(itemId) ?: return
         val watched = finished && part > state.parts.size && pastTheEnd(positionMs, durationMs ?: lengthOf(state))
         if (watched) copiesWatched(state)
@@ -35,12 +30,12 @@ internal class LocalReporter(private val dao: LibraryDao, private val itemId: Lo
             if (watched) dao.savePlayback(itemId, 0, state.durationMs, played = true, lastPlayedAt = System.currentTimeMillis())
             return
         }
-        // Only the playback columns: a scan may be writing the others at the same time.
+        // Write only playback columns, as a scan may be writing the others concurrently.
         dao.savePlayback(
             id = itemId,
             positionMs = when {
                 watched -> 0
-                // Every report, not only the last one: the first ones come seconds after starting over.
+                // Applies to every report, as the first ones arrive seconds after starting over.
                 positionMs < MIN_RESUME_MS -> if (state.played) 0 else state.positionMs
                 else -> positionMs
             },
@@ -50,25 +45,19 @@ internal class LocalReporter(private val dao: LibraryDao, private val itemId: Lo
         )
     }
 
-    /** A film's other copies are watched with the one watched to its end. */
     private suspend fun copiesWatched(state: PlayState) {
         if (!state.played) dao.setCopiesPlayed(itemId)
     }
 
-    /**
-     * The length the library knows of what plays, when the player gives none: the one its card shows
-     * ([runtimeMs]). A part's is the player's alone: the library knows the film's, and its first file's.
-     */
+    /** Fallback duration ([runtimeMs]); null for a part, whose own duration only the player knows. */
     private fun lengthOf(state: PlayState): Long? = if (state.parts.isNotEmpty()) null else state.runtimeMs()
 
-    /** Watched past [WATCHED_RATIO] of its [duration], when it is known. */
     private fun pastTheEnd(positionMs: Long, duration: Long?) = duration != null && duration > 0 && positionMs >= duration * WATCHED_RATIO
 
     private companion object {
-        /** Watched past this share of its length. */
         const val WATCHED_RATIO = 0.9
 
-        /** Before this, a film keeps its previous resume point (none once watched): started over, or by mistake. */
+        /** Below this, the previous resume point is kept: a restart or an accidental start. */
         const val MIN_RESUME_MS = 60_000L
     }
 }

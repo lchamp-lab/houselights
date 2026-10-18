@@ -25,11 +25,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
-/**
- * About, Soutenir Houselights: OK on the row shows, in a side sheet, the code a phone opens the
- * project's Ko-fi page with, its address under it; the sheet has nothing to focus, and Back closes
- * it with focus back on the row (DESIGN.md, Sheets).
- */
+/** About, Soutenir Houselights: OK shows the Ko-fi code in a side sheet; Back closes it, focus back on the row. */
 @RunWith(RobolectricTestRunner::class)
 @Config(application = Application::class, qualifiers = "fr-$TV")
 class SupportRowTest {

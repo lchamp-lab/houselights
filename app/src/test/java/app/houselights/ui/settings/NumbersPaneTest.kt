@@ -28,11 +28,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
-/**
- * The library in numbers: three figures at its head, then rows that open what they count, a format its films
- * on their wall and a director their page; a source that does not tell its room, hours or formats (Jellyfin)
- * shows its titles alone, never a figure of nothing.
- */
+/** The library in numbers: three figures, then rows that open what they count; Jellyfin shows its titles alone. */
 @RunWith(RobolectricTestRunner::class)
 @Config(application = Application::class, qualifiers = "fr-$TV")
 class NumbersPaneTest {
@@ -136,7 +132,6 @@ class NumbersPaneTest {
         assertEquals(emptyList<Pair<Library, LibraryFilter>>(), opened)
     }
 
-    /** Jellyfin tells its titles, not their room nor their hours nor their formats: the pane says none of them. */
     @Test
     fun aSourceThatTellsItsTitlesAloneShowsItsTitlesAlone() {
         // Its numbers carry a format all the same (Jellyfin counts its 4K films): the source does not tell the rest.

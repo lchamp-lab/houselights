@@ -35,14 +35,14 @@ fun JellyfinLoginScreen(onLoggedIn: () -> Unit) {
     JellyfinLoginForm(vm, onLoggedIn)
 }
 
-/** The form of [vm]: the server, the user and the password, and what signing in said. */
+/** The sign-in form of [vm]: server, user and password, with the sign-in status beside it. */
 @Composable
 internal fun JellyfinLoginForm(vm: JellyfinLoginViewModel, onLoggedIn: () -> Unit) {
     val firstField = remember { FocusRequester() }
     val userField = remember { FocusRequester() }
     val passwordField = remember { FocusRequester() }
-    // Signing in again, the server and the user are filled in: focus starts on the password, or on
-    // the user when there is none to sign in with.
+    // On a repeat sign-in the server and user are prefilled: focus starts on the password, or on the
+    // user when it is blank.
     LaunchedEffect(Unit) {
         when {
             !vm.again -> firstField
@@ -107,7 +107,7 @@ internal fun JellyfinLoginForm(vm: JellyfinLoginViewModel, onLoggedIn: () -> Uni
     }
 }
 
-/** Why signing in failed, in words that say what to check. */
+/** The sign-in error message, worded to say what to check. */
 @Composable
 private fun loginErrorText(e: LoginError): String = when (e) {
     LoginError.Refused -> stringResource(R.string.error_credentials)
@@ -125,12 +125,12 @@ private fun loginErrorText(e: LoginError): String = when (e) {
     LoginError.Failed -> stringResource(R.string.error_server_unexpected)
 }
 
-/** How to say where signing in stands. */
+/** The status text of the sign-in panel. */
 private fun loginState(busy: Boolean, failed: Boolean): Int = when {
     busy -> R.string.connection_testing
     failed -> R.string.connection_failed
     else -> R.string.connection_untested
 }
 
-/** The product name a Jellyfin server gives. */
+/** The product name a Jellyfin server reports. */
 private const val JELLYFIN = "Jellyfin Server"

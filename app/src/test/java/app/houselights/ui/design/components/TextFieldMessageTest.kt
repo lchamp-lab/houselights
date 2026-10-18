@@ -18,10 +18,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
-/**
- * DESIGN.md, Components: one line under an [HlTextField], what to type or, in its place, what is
- * wrong; the field says what is wrong to accessibility services too.
- */
+/** DESIGN.md, Components: one line under an [HlTextField], the hint or the error, also given to accessibility. */
 @RunWith(RobolectricTestRunner::class)
 @Config(application = Application::class, qualifiers = TV)
 class TextFieldMessageTest {

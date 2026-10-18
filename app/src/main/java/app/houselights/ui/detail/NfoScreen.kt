@@ -57,7 +57,7 @@ fun NfoScreen(itemId: String) {
     val loaded = state.document
     val doc = (loaded as? LoadState.Ready)?.value
     val info = doc?.info
-    // A failure takes the place of the tabs, and stays while trying again, its button at work.
+    // A failure replaces the tabs and stays while retrying, its button busy.
     val failure = retainedError((loaded as? LoadState.Failed)?.error, retrying = loaded is LoadState.Loading)
     LaunchedEffect(failure == null) { if (failure == null) tabsFocus.tryRequestFocus() }
     HlFormScaffold(
@@ -65,7 +65,7 @@ fun NfoScreen(itemId: String) {
         description = stringResource(R.string.nfo_desc),
         aside = {
             StatusPanel(
-                // A file read is a fact; one that cannot be read needs attention.
+                // A parsed file is shown as done; an unreadable one needs attention.
                 state = when {
                     info != null -> StatusState.Done
                     loaded is LoadState.Loading -> StatusState.Pending
@@ -82,7 +82,7 @@ fun NfoScreen(itemId: String) {
                 label = stringResource(R.string.label_file),
                 value = doc?.path?.substringAfterLast('/') ?: stringResource(R.string.placeholder_pending),
                 valueStyle = Hl.type.entry,
-                // Why it failed is the intertitle's to say, beside it.
+                // A failure is explained by the intertitle beside it.
                 detail = state.title,
             )
         },
@@ -107,10 +107,7 @@ fun NfoScreen(itemId: String) {
     }
 }
 
-/**
- * The NFO laid out like a sheet: what the title is (its name in the voice of the poster, its
- * facts), then one block per subject: its story, its credits, the rest, its identifiers.
- */
+/** The NFO laid out like a sheet: the title and its facts, then story, credits, details and identifiers. */
 @Composable
 private fun NfoDetails(info: NfoInfo?) = ScrollablePanel {
     val c = Hl.colors
@@ -170,7 +167,7 @@ private fun Facts(info: NfoInfo) {
     }
 }
 
-/** Who made it, then who plays whom: names in two columns, each with what they did. */
+/** Directors, then actors with their roles: names in two columns, each over what they did. */
 @Composable
 private fun Credits(info: NfoInfo) {
     val c = Hl.colors
@@ -191,7 +188,7 @@ private fun Credits(info: NfoInfo) {
     }
 }
 
-/** The databases the NFO points to, as the badges of the formats they are. */
+/** The database IDs the NFO points to, as badges. */
 @Composable
 private fun Identifiers(info: NfoInfo) {
     val ids = listOfNotNull(info.tmdbId?.let { "TMDB $it" }, info.imdbId?.let { "IMDb $it" }, info.tvdbId?.let { "TVDB $it" })
@@ -202,9 +199,8 @@ private fun Identifiers(info: NfoInfo) {
 }
 
 /**
- * The NFO as written, in a monospaced face since it is code. One text of up to a megabyte would be
- * laid out whole each time the tab shows; a lazy list lays out only the lines on screen, each one
- * where it stood in that text ([CodeLines]).
+ * The NFO's XML in a monospaced face, as a lazy list of lines: one text of up to a megabyte would be laid out
+ * whole each time the tab shows ([CodeLines] keeps the lines where one text would put them).
  */
 @Composable
 private fun XmlView(lines: List<String>) {
@@ -216,9 +212,8 @@ private fun XmlView(lines: List<String>) {
 }
 
 /**
- * The lines of a text in [code], as items of their own. The type scale trims a text's box to its
- * letters (Type.kt): the room a line height adds goes between lines only. So each line keeps that
- * room, but the first above it and the last under it, and the lines fall where they did in one text.
+ * Line styles for [code] text split into items: the type scale trims line-height spacing at a text's top and
+ * bottom (Type.kt), so only the first and last lines are trimmed, as in one text.
  */
 private class CodeLines(private val code: TextStyle) {
     private val alignment = code.lineHeightStyle?.alignment ?: LineHeightStyle.Alignment.Proportional
@@ -236,10 +231,7 @@ private class CodeLines(private val code: TextStyle) {
     }
 }
 
-/**
- * A panel the remote can focus and scroll with up and down. Up at the top lets focus
- * leave (to the tabs above).
- */
+/** A panel the remote focuses and scrolls with up and down; Up at the top leaves for the tabs. */
 @Composable
 private fun ScrollablePanel(content: @Composable () -> Unit) {
     HlScrollArea(Modifier.height(HlLayout.textPanel)) {
@@ -249,5 +241,5 @@ private fun ScrollablePanel(content: @Composable () -> Unit) {
 
 private const val MS_PER_MINUTE = 60_000L
 
-/** Actors listed: the leading cast, as a detail page shows it. */
+/** Actors listed: the leading cast, as on a detail page. */
 private const val ACTORS = 8

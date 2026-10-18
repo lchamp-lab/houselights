@@ -15,7 +15,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import java.io.File
 
-/** A folder removed takes what was found in it along, and leaves what another folder still holds to it. */
+/** Removing a folder removes what was found in it, and leaves what another folder still holds. */
 @RunWith(RobolectricTestRunner::class)
 class RemoveFolderTest {
     @get:Rule

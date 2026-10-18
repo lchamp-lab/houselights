@@ -2,7 +2,7 @@ package app.houselights.core
 
 /** How many films of a saga the library needs before it shows them as a collection. */
 object CollectionThreshold {
-    /** The default: a saga shows once two of its films are here. */
+    /** A saga shows once the library holds two of its films. */
     const val TWO_FILMS = 2
 
     /** Every saga, even with a single film. */

@@ -9,12 +9,10 @@ import app.houselights.core.Quality
 import app.houselights.core.WatchStatus
 
 /**
- * What a wall of the local library holds, as SQL on its items ([LibraryFilter]): titles alone (a film's other
- * copies are none, [ItemEntity.versionOf]), then each filter. What a file has (its picture, its sound, its kind)
- * a film has when one of its copies has it, and a show when one of its episodes does.
+ * SQL for a library wall ([LibraryFilter]), main rows only. File filters match a film when any copy matches, and a
+ * show when any episode does.
  */
 internal object LocalFilters {
-    /** The condition of a page's query, and its arguments in order. */
     class Where(val sql: String, val args: List<Any>)
 
     fun where(kind: ItemKind, filter: LibraryFilter): Where {
@@ -32,7 +30,7 @@ internal object LocalFilters {
             args += it + DECADE_LAST_YEAR
         }
         filter.person?.let {
-            // A film's credits are its title's row's, a show's its show's.
+            // Credits are stored on the film's main row and on the show row.
             clauses += "id IN (SELECT itemId FROM credits WHERE personKey = ?)"
             args += it
         }
@@ -55,7 +53,7 @@ internal object LocalFilters {
         }
     }
 
-    /** What [filter] asks of a file, each condition on the columns of the row the prefix names ("", "v.", "e."). */
+    /** File conditions of [filter], each taking the row alias prefix ("", "v.", "e."). */
     private fun fileConditions(filter: LibraryFilter): List<(String) -> String> = listOfNotNull(
         filter.quality?.let { quality -> { p: String -> qualityCondition(quality, "${p}badges") } },
         filter.picture?.let { token -> { p: String -> PipeList.matches("${p}badges", literal(token)) } },
@@ -63,10 +61,6 @@ internal object LocalFilters {
         filter.fileType?.let { type -> { p: String -> fileTypeCondition("${p}filePath", type) } },
     )
 
-    /**
-     * [condition] holds for a film or one of its other copies ([ItemEntity.versionOf]), for one of a show's
-     * episodes: its columns are those of the row the prefix it is given names.
-     */
     private fun anyFile(kind: ItemKind, condition: (String) -> String): String =
         if (kind == ItemKind.SERIES) {
             "EXISTS (SELECT 1 FROM items e WHERE e.seriesId = items.id AND e.kind = 'EPISODE' AND ${condition("e.")})"
@@ -74,9 +68,8 @@ internal object LocalFilters {
             "(${condition("")} OR EXISTS (SELECT 1 FROM items v WHERE v.versionOf = items.id AND ${condition("v.")}))"
         }
 
-    /** [column], a row's badges, holds [quality]. */
     fun qualityCondition(quality: Quality, column: String): String {
-        // Badges are the app's own tokens, never a quote in them.
+        // Badge tokens are the app's own and contain no quotes.
         fun holds(token: String) = PipeList.matches(column, "'$token'")
         return when (quality) {
             Quality.UHD_4K -> holds(Definition.ULTRA_HD.token)
@@ -85,17 +78,13 @@ internal object LocalFilters {
         }
     }
 
-    /**
-     * [column], a file's path, is of the kind [type] ([fileTypeOf]): a disc's stream by its folder, any other
-     * file by its extension.
-     */
     private fun fileTypeCondition(column: String, type: String): String = when (type) {
         FileTypes.BLU_RAY -> "$column LIKE '%$BLU_RAY_STREAMS%'"
         FileTypes.DVD -> "$column LIKE '%$DVD_STREAMS%'"
         else -> "$column LIKE ${literal("%.$type")} AND $column NOT LIKE '%$BLU_RAY_STREAMS%' AND $column NOT LIKE '%$DVD_STREAMS%'"
     }
 
-    /** The kind of the file at [path] ([FileTypes]): a disc's folder, else its extension in lower case. */
+    /** File type of [path] ([FileTypes]): the disc type, else the lowercase extension. */
     fun fileTypeOf(path: String): String {
         val disc = FilenameParser.discOf(path)
         return when {
@@ -105,7 +94,7 @@ internal object LocalFilters {
         }
     }
 
-    /** The kind of file of a path ending in [end] ([LibraryDao.fileEnds]), as [fileTypeOf] tells it. */
+    /** File type of a path ending in [end] ([LibraryDao.fileEnds]), consistent with [fileTypeOf]. */
     fun fileTypeOf(end: FileEnd): String? = when {
         end.bluRay -> FileTypes.BLU_RAY
         end.dvd -> FileTypes.DVD
@@ -113,25 +102,21 @@ internal object LocalFilters {
         else -> null
     }
 
-    /** [text] as an SQL string, its quotes doubled. */
     private fun literal(text: String) = "'" + text.replace("'", "''") + "'"
 
     private const val DECADE_LAST_YEAR = 9
     private const val BLU_RAY_STREAMS = "BDMV/STREAM/"
     private const val DVD_STREAMS = "VIDEO_TS/"
 
-    /**
-     * The badges the HDR filter keeps, and its menu offers it for: Dolby Vision, HDR10+ and HDR10, and
-     * a name's plain HDR. HLG, a broadcast range, has never been among them.
-     */
+    /** Badges matched by the HDR filter; HLG, a broadcast format, is excluded. */
     val HDR_BADGES = listOf(HdrFormat.DOLBY_VISION, HdrFormat.HDR10_PLUS, HdrFormat.HDR10).map(HdrFormat::token) + BadgeTokens.HDR
 
-    /** Picture tokens of badges, best first: definitions, then ranges. */
+    /** Picture badge tokens, best first: definitions, then dynamic ranges. */
     val PICTURE_TOKENS = Definition.entries.map { it.token } + HdrFormat.entries.map { it.token } + BadgeTokens.HDR
 
-    /** What badges hold that is neither picture nor sound: a layout ("7.1") and how the file was made. */
+    /** Channel layout badges ("7.1", "6 ch"), which are not sound formats. */
     private val CHANNELS = Regex("""\d\.\d|\d+ ch""")
 
-    /** A badge token names the file's sound: neither its picture, nor its channels, nor how it was made. */
+    /** True for a sound format badge: not picture, channel layout or remux. */
     fun isSound(token: String): Boolean = token !in PICTURE_TOKENS && token != BadgeTokens.REMUX && !CHANNELS.matches(token)
 }

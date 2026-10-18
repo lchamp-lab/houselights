@@ -16,17 +16,15 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 
 /**
- * A wall's first page, asked while home's track slides its pill to the library chosen: the wall
- * opens on it, the posters of its first two lines in memory, instead of on its placeholders. Taken
- * once, by the wall of that library opening on its first sort without a filter, soon after; any
- * other wall asks for its own.
+ * Prefetches a wall's first page and first two poster lines while Home's track moves to that library, so the
+ * wall opens filled. Consumed once, by that wall opening soon after with the default sort and no filter.
  */
 class LibraryAhead(private val provider: () -> MediaProvider, private val now: () -> Long = SystemClock::uptimeMillis) {
     private class Ahead(val libraryId: String, val page: Deferred<Result<Page>>, val at: Long)
 
     private var ahead: Ahead? = null
 
-    /** Asks for [library]'s first page in [scope], then loads its first two lines of posters with [loader]. */
+    /** Requests [library]'s first page in [scope], then preloads its first two lines of posters with [loader]. */
     fun ask(scope: CoroutineScope, library: Library, pictures: PicturesAhead, loader: ImageLoader) {
         val page = scope.async {
             suspendRunCatching { provider().libraryPage(library, FIRST_SORT, LibraryFilter(), start = 0, limit = LibraryViewModel.PAGE) }
@@ -37,10 +35,7 @@ class LibraryAhead(private val provider: () -> MediaProvider, private val now: (
         }
     }
 
-    /**
-     * The first page asked ahead for [library], sorted by [sort] and filtered by [filter]: null when
-     * none was, for that wall, or it failed (the wall then asks itself, and says why if it fails).
-     */
+    /** Consumes [library]'s prefetched page; null if none, stale, failed, or [sort] and [filter] are not defaults. */
     suspend fun take(library: Library, sort: SortOption, filter: LibraryFilter): Page? {
         val taken = ahead?.takeIf { it.libraryId == library.id && now() - it.at <= FRESH_MS } ?: return null
         ahead = null
@@ -49,13 +44,13 @@ class LibraryAhead(private val provider: () -> MediaProvider, private val now: (
     }
 
     private companion object {
-        /** How a wall opens, before it is sorted otherwise. */
+        /** The sort a wall opens with. */
         val FIRST_SORT = SortOption.TITLE
 
-        /** The lines of posters a wall shows before it scrolls. */
+        /** Poster lines visible before the wall scrolls. */
         const val FIRST_LINES = 2
 
-        /** A page asked this long ago is not the library as it is now: the wall asks again. */
+        /** A prefetch older than this may be stale: the wall loads again. */
         const val FRESH_MS = 5_000L
     }
 }

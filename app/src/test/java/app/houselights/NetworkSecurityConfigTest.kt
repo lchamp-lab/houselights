@@ -7,13 +7,7 @@ import org.w3c.dom.Element
 import java.io.File
 import javax.xml.parsers.DocumentBuilderFactory
 
-/**
- * res/xml/network_security_config.xml, read as Android applies it to a host: the most specific
- * domain-config that names it, what it leaves unsaid inherited from the configs around it.
- * Certificates the user installs are for home servers (a self-signed Jellyfin); TMDB, on the
- * internet, is reached over HTTPS trusting the system's authorities only, so that one installed
- * for a home server cannot read a personal TMDB key on its way.
- */
+/** The network security config per host, as Android resolves it: user CAs for home servers, not for TMDB. */
 class NetworkSecurityConfigTest {
     private val file = File("src/main/res/xml/network_security_config.xml")
 
@@ -44,7 +38,7 @@ class NetworkSecurityConfigTest {
         return root.children("domain-config").mapNotNull { match(it, host, start) }.maxByOrNull { it.first }?.second ?: start
     }
 
-    /** The most specific config under [config] (itself included) that names [host]: how long a name it matched, and its policy. */
+    /** The most specific config under [config] (or itself) naming [host]: matched name length and policy. */
     private fun match(config: Element, host: String, inherited: Policy): Pair<Int, Policy>? {
         val own = config.children("domain").mapNotNull { domain ->
             val name = domain.textContent.trim().lowercase()
@@ -56,7 +50,7 @@ class NetworkSecurityConfigTest {
         return (listOfNotNull(own?.let { it to policy }) + nested).maxByOrNull { it.first }
     }
 
-    /** [inherited], with what [config] says itself. */
+    /** [inherited], overridden by what [config] sets. */
     private fun applied(config: Element, inherited: Policy): Policy {
         val cleartext = config.getAttribute("cleartextTrafficPermitted").takeIf { it.isNotEmpty() }?.toBooleanStrict()
         val anchors = config.children("trust-anchors").singleOrNull()

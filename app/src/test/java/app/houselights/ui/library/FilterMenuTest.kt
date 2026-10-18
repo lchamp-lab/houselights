@@ -29,11 +29,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
-/**
- * The wall's filter menu: the picture, the sound and the kind of the files as the library holds them, never
- * an empty choice, only where the source filters by them; a person set from elsewhere, which it takes off and
- * puts back.
- */
+/** The filter menu offers what the library holds and the source can filter, and a person set from elsewhere. */
 @RunWith(RobolectricTestRunner::class)
 @Config(application = Application::class, qualifiers = "fr-$TV")
 class FilterMenuTest {

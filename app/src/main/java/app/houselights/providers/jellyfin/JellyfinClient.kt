@@ -20,24 +20,20 @@ import java.util.concurrent.TimeUnit
 import javax.net.ssl.SSLException
 import javax.net.ssl.SSLPeerUnverifiedException
 
-/** What was typed is not a server address ([input] is empty when nothing was): the network was not asked. */
+/** The input is not a valid server address ([input] is empty if nothing was typed); no request was made. */
 class InvalidServerAddress(val input: String) : IllegalArgumentException("Not a server address: \"$input\"")
 
-/**
- * No address tried for what was typed answered as a Jellyfin server. [url] is the one whose failure
- * ([cause]) says the most: a certificate refused over nothing answering, for one.
- */
+/** No candidate answered as Jellyfin; [url] has the most informative failure (bad certificate over timeout). */
 class ReachFailure(val url: String, override val cause: Exception) : IOException("$url: ${cause.message}", cause)
 
-/** A server answered at [url], but not one Houselights works with: a Jellyfin before 10.9, or another product. */
+/** A server answered at [url] but is unsupported: Jellyfin older than 10.9, or another product. */
 class UnsupportedServer(val url: String, val product: String?, val version: String?) :
     Exception("$url runs ${product ?: "an unknown server"} ${version.orEmpty()}")
 
-/** True when TLS failed on the server's certificate: expired, self-signed, or made out to another name. */
+/** True when TLS failed on the server's certificate: expired, self-signed, or issued for another host. */
 fun Throwable.isCertificateFailure(): Boolean = generateSequence(this) { it.cause }
     .any { it is CertificateException || it is CertPathValidatorException || it is SSLPeerUnverifiedException }
 
-/** HTTP access to one Jellyfin server, with the MediaBrowser authorization header. */
 class JellyfinClient(
     serverUrl: String,
     private val deviceId: String,
@@ -101,23 +97,19 @@ class JellyfinClient(
         private const val SIGN_OUT_MS = 3_000L
         private const val CONNECT_MS = 10_000L
 
-        /**
-         * The encrypted address tried first is a probe: a firewall that drops it without a word must not
-         * hold the plain address behind it for long.
-         */
+        /** Short connect timeout for the HTTPS probe, so a firewall dropping it does not delay the HTTP fallback. */
         private const val PROBE_CONNECT_MS = 3_000L
 
-        /** What answers System/Info/Public on a Jellyfin server. */
+        /** ProductName reported by System/Info/Public on Jellyfin. */
         private const val PRODUCT = "Jellyfin Server"
 
-        /** The first version with the routes of [JellyfinApi] (UserViews, UserItems, UserPlayedItems): 10.9. */
+        /** 10.9 is the first version with the routes of [JellyfinApi] (UserViews, UserItems, UserPlayedItems). */
         private const val MIN_MAJOR = 10
         private const val MIN_MINOR = 9
 
-        /** "nas:8096" and "[fd00::5]:8096" name their port; "nas" and "[fd00::5]" do not. */
+        /** True for "nas:8096" and "[fd00::5]:8096", false for "nas" and "[fd00::5]". */
         private fun hasPort(host: String) = if (host.startsWith("[")) host.substringAfter(']').startsWith(":") else ':' in host
 
-        /** Adds the scheme and the default Jellyfin port when missing. */
         fun normalizeUrl(input: String): String {
             var url = input.trim().trimEnd('/')
             if (url.isNotEmpty() && !url.startsWith("http://") && !url.startsWith("https://")) {
@@ -131,9 +123,8 @@ class JellyfinClient(
         }
 
         /**
-         * Addresses to try for what the user typed, encrypted first. "nas" gives https://nas:8920 then
-         * http://nas:8096 (Jellyfin's default ports); "nas:8096" gives https://nas:8096 then
-         * http://nas:8096. An address typed with its scheme is used as it is.
+         * HTTPS first: "nas" gives https://nas:8920 then http://nas:8096 (default ports); "nas:8096" gives both schemes
+         * on 8096. Input with a scheme is used as is.
          */
         fun candidateUrls(input: String): List<String> {
             val typed = input.trim().trimEnd('/')
@@ -146,10 +137,8 @@ class JellyfinClient(
         }
 
         /**
-         * The first of [candidateUrls] that answers as a Jellyfin server Houselights works with, with
-         * what it says about itself. What was typed is checked first ([InvalidServerAddress]); a server
-         * too old or of another product is [UnsupportedServer]; when none answers, [ReachFailure]
-         * names the address whose failure says the most.
+         * The first supported server among [candidateUrls], with its public info. Throws [InvalidServerAddress],
+         * [UnsupportedServer], or [ReachFailure] when none answers.
          */
         suspend fun reach(input: String, deviceId: String, http: OkHttpClient = Http.client): Pair<String, PublicSystemInfo> {
             val candidates = checkedCandidates(input)
@@ -160,31 +149,31 @@ class JellyfinClient(
                 if (!isSupported(info)) throw UnsupportedServer(url, info.productName, info.version)
                 return url to info
             }
-            // On a tie, the address tried last: the plain one, as typed.
+            // On a tie, report the last address tried: the plain HTTP one, closest to the input.
             val (url, cause) = failures.asReversed().maxBy { (_, e) -> e.meaning() }
             throw ReachFailure(url, cause)
         }
 
-        /** The addresses to try for [input], all of them addresses: else nothing is asked of the network. */
+        /** [candidateUrls] for [input]; throws [InvalidServerAddress] unless all of them parse as URLs. */
         private fun checkedCandidates(input: String): List<String> {
             val candidates = candidateUrls(input)
             if (candidates.isEmpty() || candidates.any { "$it/".toHttpUrlOrNull() == null }) throw InvalidServerAddress(input.trim())
             return candidates
         }
 
-        /** What the server at [url] says about itself; a failure that a server can cause, else it is thrown. */
+        /** Public info of the server at [url]; failures a server can cause are returned, others are thrown. */
         private suspend fun publicInfo(url: String, deviceId: String, http: OkHttpClient, connectMs: Long): Result<PublicSystemInfo> =
             try {
                 Result.success(JellyfinClient(url, deviceId, token = null, http, connectMs).api.publicInfo())
             } catch (e: IOException) {
-                Result.failure(e) // Nothing answers there, or not over TLS.
+                Result.failure(e) // No answer, or TLS failed.
             } catch (e: HttpException) {
                 Result.failure(e)
             } catch (e: SerializationException) {
-                Result.failure(e) // Something answers, but not Jellyfin.
+                Result.failure(e) // Something answered, but not Jellyfin.
             }
 
-        /** How much a failure at an address says, from least to most. */
+        /** Failure informativeness, least first. */
         private enum class Meaning { SILENCE, TLS_FAILED, ANSWER, CERTIFICATE_REFUSED }
 
         private fun Exception.meaning(): Meaning = when {
@@ -194,7 +183,7 @@ class JellyfinClient(
             else -> Meaning.SILENCE
         }
 
-        /** Jellyfin 10.9 or later; a server that does not say its version clearly is given the benefit of the doubt. */
+        /** Jellyfin 10.9 or later; a missing or unparsable version is accepted. */
         internal fun isSupported(info: PublicSystemInfo): Boolean {
             val jellyfin = info.productName == null || info.productName == PRODUCT
             val (major, minor) = info.version?.split('.', '-')?.take(2)?.mapNotNull { it.toIntOrNull() }?.takeIf { it.size == 2 }
@@ -204,15 +193,15 @@ class JellyfinClient(
 
         fun isEncrypted(url: String): Boolean = url.startsWith("https://")
 
-        /** Asks the server to forget the token, without waiting long for a server that is away. */
+        /** Revokes the token on the server, giving up after a short timeout if it is unreachable. */
         suspend fun signOut(config: SourceConfig.Jellyfin, deviceId: String) {
             withTimeoutOrNull(SIGN_OUT_MS) {
                 try {
                     JellyfinClient(config.serverUrl, deviceId, config.accessToken).api.logout()
                 } catch (_: IOException) {
-                    // The token stays valid on the server; it can be revoked from Jellyfin's dashboard.
+                    // The token stays valid; it can be revoked from Jellyfin's dashboard.
                 } catch (_: HttpException) {
-                    // The server had already forgotten it.
+                    // Already revoked.
                 }
             }
         }

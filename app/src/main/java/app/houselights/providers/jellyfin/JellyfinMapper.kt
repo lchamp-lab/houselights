@@ -16,7 +16,7 @@ import app.houselights.core.Person
 import app.houselights.core.UserState
 import app.houselights.core.yearOf
 
-/** Jellyfin's items as the app's [MediaItem]s, with their artwork at the size each place asks for. */
+/** Maps Jellyfin items to [MediaItem]s, with artwork URLs resolved at the requested width. */
 internal class JellyfinMapper(private val client: JellyfinClient) {
     fun image(itemId: String?, type: String, tag: String?): ImageRef? =
         if (itemId != null && tag != null) ImageRef("$itemId/$type/$tag") { w -> client.imageUrl(itemId, type, tag, w) } else null
@@ -43,7 +43,7 @@ internal class JellyfinMapper(private val client: JellyfinClient) {
         return MediaItem(
             id = dto.id,
             kind = kind,
-            // Text is set for display; the server sorts and searches what it stores.
+            // Typeset for display only; the server sorts and searches its raw text.
             title = Typeset.text(dto.name.orEmpty()),
             originalTitle = Typeset.text(dto.originalTitle),
             overview = Typeset.text(dto.overview),
@@ -83,8 +83,8 @@ internal class JellyfinMapper(private val client: JellyfinClient) {
 
     companion object {
         /**
-         * What Jellyfin's VideoRangeType says of the picture, value by value (10.9 to 10.11). Dolby Vision
-         * whose metadata cannot be used (DOVIInvalid) plays as its base layer, which it does not name.
+         * HDR formats for each VideoRangeType value (Jellyfin 10.9 to 10.11). DOVIInvalid plays as its
+         * base layer, whose format the server does not name, so it maps to none.
          */
         private val VIDEO_RANGES = mapOf(
             "SDR" to emptyList(),
@@ -101,12 +101,12 @@ internal class JellyfinMapper(private val client: JellyfinClient) {
             "DOVIInvalid" to emptyList(),
         )
 
-        /** The HDR formats of a VideoRangeType; one a newer server adds is Dolby Vision when it says so first. */
+        /** HDR formats of a VideoRangeType; an unknown value starting with DOVI counts as Dolby Vision. */
         internal fun hdrFormats(range: String?): List<HdrFormat> = range?.let { r ->
             VIDEO_RANGES[r] ?: listOf(HdrFormat.DOLBY_VISION).takeIf { r.startsWith("DOVI") }
         }.orEmpty()
 
-        /** What a media source contains (the item's first by default), in the shared [MediaInfo] model. */
+        /** Stream details of a media source (the item's first by default) as a [MediaInfo]. */
         fun mediaInfo(item: BaseItem, source: MediaSource? = item.mediaSources.firstOrNull()): MediaInfo? {
             if (source == null) return null
             val streams = source.mediaStreams
@@ -120,7 +120,7 @@ internal class JellyfinMapper(private val client: JellyfinClient) {
                     dolbyVisionProfile = v.dvProfile,
                     frameRate = v.realFrameRate ?: v.averageFrameRate,
                     dolbyVisionCompatibility = v.dvCompatibility.takeIf { v.dvProfile != null },
-                    // A server reports bitrates in bits a second.
+                    // Jellyfin reports bitrates in bits per second.
                     bitrateKbps = v.bitRate?.let { bpsToKbps(it.toLong()) },
                 )
             }

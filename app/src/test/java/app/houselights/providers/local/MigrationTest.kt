@@ -21,11 +21,7 @@ class MigrationTest {
     private val key = KeyGenerator.getInstance("AES").apply { init(256) }.generateKey()
     private val secrets = Secrets { key }
 
-    /**
-     * Versions 1 to 5 lived a day (13 and 14 October 2026), before Room exported schemas: theirs
-     * were rebuilt from those commits (app/schemas). Room checks the tables the migrations make
-     * against the entities when it opens the database; what the rows held must come through.
-     */
+    /** Schemas 1 to 5 predate Room's schema export and were rebuilt (app/schemas); Room checks them on open. */
     @Test
     fun everyVersionBeforeSchemasWereKeptReachesTheLatest() = runTest {
         for (version in 1..5) {
@@ -57,7 +53,7 @@ class MigrationTest {
                 assertEquals("from $version", listOf("Science-fiction"), dune.genres)
                 assertEquals("from $version", "Dune.mkv" to 42L, dune.filePath to dune.fileSize)
                 assertEquals("from $version", 600_000L to true, dune.positionMs to dune.favorite)
-                // Version 6 matches films again, for them to learn their collection.
+                // Version 6 matches films again, so they learn their collection.
                 assertEquals("from $version", null, dune.matchedAt)
                 assertEquals("from $version: never read", 0 to null, dune.probeVersion to dune.fileDurationMs)
             } finally {
@@ -93,7 +89,7 @@ class MigrationTest {
         }
     }
 
-    /** A Keystore that cannot seal leaves the password as it was: the library still opens, the folder still signs in. */
+    /** A Keystore that cannot seal leaves the password plain: the library still opens and the folder signs in. */
     @Test
     fun version7KeepsAPasswordTheKeystoreCannotSeal() = runTest {
         val name = "migration-7-broken-test.db"
@@ -199,11 +195,7 @@ class MigrationTest {
         }
     }
 
-    /**
-     * Version 11 reads, once, what each file was read with and how long it lasts out of its JSON, into columns
-     * of their own; the JSON and what the user did with each title stay as they were. A JSON that cannot be read
-     * leaves the file to read again, as it did.
-     */
+    /** Version 11 copies each file's probe version and length into columns; unreadable JSON means a new probe. */
     @Test
     fun version11ReadsEachFilesProbeAndLengthIntoTheirColumns() = runTest {
         val name = "migration-11-test.db"
@@ -246,10 +238,7 @@ class MigrationTest {
         }
     }
 
-    /**
-     * Keys stored by version 9 kept their accents, and sorted after Z, and an l' glued to its word: they
-     * are folded, the l' taken off, and nothing more. "la land" (La La Land) keeps its "la".
-     */
+    /** Version 10 folds version 9's accented sort keys and drops a glued l': "la land" keeps its "la". */
     @Test
     fun version10FoldsSortKeysAndTakesOffAGluedLAndNothingMore() = runTest {
         val name = "migration-10-sort-test.db"
@@ -289,10 +278,7 @@ class MigrationTest {
         }
     }
 
-    /**
-     * Two sagas named in Japanese made one, keyed "name:": their films leave it and are matched again, to
-     * find their own, from their NFO or TMDB. Other sagas stay as they were.
-     */
+    /** Sagas named in Japanese shared the key "name:": version 10 rematches their films, and only theirs. */
     @Test
     fun version10MatchesAgainTheFilmsOfSagasWhoseNamesLeftNoWord() = runTest {
         val name = "migration-10-sagas-test.db"
@@ -328,10 +314,8 @@ class MigrationTest {
     }
 
     /**
-     * Version 12 keeps the cast as credits and a film's directors with it, keyed by name; gives each title, person
-     * and saga their words for searches, each film the edition its file names and its copies their title; asks TMDB
-     * again for the films of the sagas it knows. What the user did with each title stays as it was, and a film's
-     * title takes what was done with its copies.
+     * Version 12 adds credits, search words, editions and copies' titles, and refetches known sagas' films,
+     * keeping what the user did with each title.
      */
     @Test
     fun version12KeepsTheCastAsCreditsAndWhatTheUserDidAsItWas() = runTest {
@@ -390,7 +374,7 @@ class MigrationTest {
                 assertEquals("file:/p.jpg", film.userPosterPath)
                 assertEquals("their crew comes at later passes", null, film.creditsAt)
             }
-            // Watched in its copy: watched as a title. The copy keeps its own.
+            // Watched in one copy: the title is watched. The copy keeps its own state.
             assertEquals(listOf(true, true, false), films.map { it.played })
             assertEquals(listOf(null, 78, null), films.map { it.userTmdbId })
             assertEquals(listOf(null, "Final Cut", "Extended"), films.map { it.edition })

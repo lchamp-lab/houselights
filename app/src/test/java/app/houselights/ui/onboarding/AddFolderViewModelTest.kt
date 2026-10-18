@@ -51,10 +51,7 @@ import javax.crypto.KeyGenerator
 import app.houselights.ui.testing.SettleMainLooper
 import org.junit.Rule
 
-/**
- * The folder form, on a library in memory: a folder is tested, then saved whole, even when the form
- * is left meanwhile; a folder edited is saved once read, never once gone, and signs in again to be tested.
- */
+/** The folder form on an in-memory library: tested, then saved whole even if the form is left meanwhile. */
 @OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
 class AddFolderViewModelTest {
@@ -122,7 +119,7 @@ class AddFolderViewModelTest {
         db.openHelper.writableDatabase.delete("sources", "id = ?", arrayOf(id))
     }
 
-    /** The form of [folderId] (a new folder for null), as a screen holds it: [forms] clears it when the screen is left. */
+    /** The form for [folderId] (null: a new one), as a screen holds it; [forms] clears it when the screen goes. */
     private fun form(
         folderId: Long?,
         probe: suspend (SourceEntity) -> Int = { folder ->
@@ -156,10 +153,7 @@ class AddFolderViewModelTest {
         return SavedStateHandle(saved.keys().associateWith { saved.get<Any?>(it) })
     }
 
-    /**
-     * Android stopped the app while the NAS's share was looked up in another one: the form comes back
-     * as it was typed, over the last folder added, but for its password, which is never kept.
-     */
+    /** After process death, the form returns as typed, over the last folder added, but never with its password. */
     @Test
     fun aFolderTypedOutlivesAStoppedProcess() = runTest {
         smbFolder()
@@ -177,7 +171,7 @@ class AddFolderViewModelTest {
         assertEquals(FolderForm(SourceKind.SHOWS, Protocol.SMB, "192.168.1.30", "video", "series", "lea"), after.form)
     }
 
-    /** A folder edited comes back with the changes typed, not as stored; its password left empty still keeps the stored one. */
+    /** An edited folder returns with its typed changes; an empty password still keeps the stored one. */
     @Test
     fun aFolderEditedOutlivesAStoppedProcess() = runTest {
         val id = smbFolder()
@@ -249,10 +243,7 @@ class AddFolderViewModelTest {
         assertFalse("a screen left hears nothing", done)
     }
 
-    /**
-     * The status frame speaks of the folder the form describes: what a test said, failure or success,
-     * goes once a field it read changes; the kind, which no test reads, leaves it.
-     */
+    /** What a test said goes once a field it read changes; the kind, which no test reads, leaves it. */
     @Test
     fun whatATestSaidGoesWithTheFieldsItRead() = runTest {
         var answers = false
@@ -307,11 +298,7 @@ class AddFolderViewModelTest {
         assertEquals("the kind is not tested", FolderCheck.Reachable(12), vm.check)
     }
 
-    /**
-     * A field changed while Add tested the folder: what answered is no longer what the form says, so
-     * nothing is added and the form stays, untested, for Add again. The kind, which no test reads, is
-     * added as the form says it once the folder answers.
-     */
+    /** A field changed while Add tests the folder: nothing is added, and the form stays untested for Add again. */
     @Test
     fun aFolderChangedWhileAddTestsItIsNotAddedAsItWas() = runTest {
         var answer = CompletableDeferred<Int>()
@@ -419,7 +406,7 @@ class AddFolderViewModelTest {
         assertFalse(vm.busy)
     }
 
-    /** The storage full when the source changes: said in the form, never a crash. */
+    /** The storage is full when the source changes: reported in the form, never a crash. */
     @Test
     fun aFolderThatCannotBeSavedSaysWhy() = runTest {
         val vm = form(null, useFolders = { throw IOException("No space left on device") })
@@ -431,10 +418,7 @@ class AddFolderViewModelTest {
         assertFalse(vm.busy)
     }
 
-    /**
-     * The folder was added, but making the folders the source failed (the storage full): Add again
-     * makes them the source, without a test, and is done. Once they are, it is the same folder twice.
-     */
+    /** The folder was added but making it the source failed: Add again makes it the source, without a test. */
     @Test
     fun aFolderAddedWhoseSourceDidNotChangeIsDoneOnTheNextAdd() = runTest {
         var full = true

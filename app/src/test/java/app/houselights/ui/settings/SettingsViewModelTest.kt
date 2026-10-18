@@ -99,9 +99,7 @@ class SettingsViewModelTest {
     fun close() {
         screens.clear()
         db.close()
-        // The ViewModel's state is Compose state: once a Compose test has run in this sandbox, what it
-        // wrote is handed to Compose on the main looper. That task runs before Robolectric clears the
-        // looper, or Compose's dispatcher waits for it forever and no Compose test after this one settles.
+        // Run the Compose task Robolectric would clear, or every later Compose test in this sandbox hangs.
         shadowOf(Looper.getMainLooper()).idle()
     }
 
@@ -135,7 +133,7 @@ class SettingsViewModelTest {
         }
     }
 
-    /** Said on the row it was made from, where focus is: never on another one. */
+    /** Reported on the row it was made from, where focus is, never on another. */
     @Test
     fun aSettingThatCannotBeWrittenSaysSoAndNeverCrashes() = runTest {
         val store = SettingsStore(FullStore(), backgroundScope, testSecrets())
@@ -152,7 +150,7 @@ class SettingsViewModelTest {
         assertNull(vm.errorOf(SettingAction.UI_RESOLUTION))
     }
 
-    /** "My files" chosen in the settings, refused by the device's storage: said on the source's row, until the next change. */
+    /** "My files" refused by the device's storage: reported on the source's row until the next change. */
     @Test
     fun foldersThatCannotBecomeTheSourceSaySoOnTheSourceRow() = runTest {
         val vm = settings(testSettings(folder.root, backgroundScope), backgroundScope)
@@ -163,7 +161,6 @@ class SettingsViewModelTest {
         assertNull(vm.errorOf(SettingAction.SOURCE))
     }
 
-    /** A folder that could not be removed says so on its own card, not on the others. */
     @Test
     fun aFolderThatCannotBeRemovedSaysSoOnItsCard() = runTest {
         val store = testSettings(folder.root, backgroundScope)
@@ -202,7 +199,7 @@ class SettingsViewModelTest {
         assertTrue(dao.sources().isEmpty())
     }
 
-    /** TMDB takes a few seconds to check a key; the sheet and the settings are left meanwhile: the key is saved all the same. */
+    /** TMDB checks a key for a few seconds; leaving the sheet and the settings meanwhile still saves it. */
     @Test
     fun aTmdbKeyIsSavedEvenWhenTheSettingsAreLeft() = runTest {
         val store = testSettings(folder.root, backgroundScope)
@@ -219,10 +216,7 @@ class SettingsViewModelTest {
         assertFalse(vm.savingTmdbKey)
     }
 
-    /**
-     * The sheet closed, then opened again while TMDB checks the key: how it went is the ViewModel's,
-     * which the sheet opened again reads, the key as typed with it, until a key is typed again.
-     */
+    /** The key check's outcome lives in the ViewModel, so a reopened sheet shows it with the typed key. */
     @Test
     fun howATmdbKeyWentOutlivesItsSheet() = runTest {
         val store = testSettings(folder.root, backgroundScope)
@@ -243,7 +237,7 @@ class SettingsViewModelTest {
         assertNull(vm.tmdbKey)
     }
 
-    /** A key typed while the last one is checked: how that one went is never said over the new one. */
+    /** A key typed while the last is checked: the last one's outcome never shows over the new one. */
     @Test
     fun aKeyTypedMeanwhileIsNotToldHowTheLastOneWent() = runTest {
         val store = testSettings(folder.root, backgroundScope)
@@ -275,10 +269,7 @@ class SettingsViewModelTest {
         assertFalse(vm.savingTmdbKey)
     }
 
-    /**
-     * Coil's cache reads its journal the first time its size is asked, and answers under the lock its
-     * cleanup holds while it deletes files: Settings > Storage never asks on the main thread.
-     */
+    /** Coil's cache reads its journal at the first size query, under its cleanup lock: off the main thread. */
     @OptIn(ExperimentalCoilApi::class)
     @Test
     fun theImageCacheIsMeasuredAwayFromTheMainThread() = runTest {

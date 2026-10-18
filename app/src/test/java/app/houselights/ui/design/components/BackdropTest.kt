@@ -66,7 +66,6 @@ class BackdropTest {
         assertEquals(SCREEN_W to SCREEN_H, picture.width to picture.height)
     }
 
-    /** A picture in memory when it is asked for (loaded ahead while the launch screen held) says so: it may show at once. */
     @Test
     fun aBackdropKnowsWhetherItCameFromMemory() {
         val loader = ImageLoader.Builder(context)

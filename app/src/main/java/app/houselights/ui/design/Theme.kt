@@ -47,7 +47,7 @@ fun HouselightsTheme(content: @Composable () -> Unit) {
             LocalBringIntoViewSpec provides rememberListScroll(),
         ) {
             MaterialTheme(colorScheme = scheme, typography = materialTypography) {
-                // A text without a style still speaks in the voice of reading, never in tv-material's.
+                // Unstyled text takes the reading style, never tv-material's default.
                 CompositionLocalProvider(
                     LocalContentColor provides c.content,
                     LocalTextStyle provides HouselightsType.body,
@@ -69,10 +69,7 @@ private val materialTypography = with(HouselightsType) {
     )
 }
 
-/**
- * The density that lays the canvas ([HlLayout.CANVAS_WIDTH] dp) across the screen's real width.
- * The system's text scale stays: it is the viewer's choice.
- */
+/** Density that fits the canvas ([HlLayout.CANVAS_WIDTH] dp) to the real screen width; font scale kept. */
 @Composable
 private fun canvasDensity(): Density {
     val width = screenWidthPx()

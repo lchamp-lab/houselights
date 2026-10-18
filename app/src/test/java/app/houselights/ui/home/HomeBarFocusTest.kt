@@ -25,11 +25,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
-/**
- * DESIGN.md, Focus: down from home's bar, the tabs or the settings button, focus goes into the
- * first row the same way, on the card it last had, else on its first; never on the card that
- * happens to lie under the settings button, at the far end of the row.
- */
+/** DESIGN.md, Focus: down from home's bar, focus enters the first row on its last card, else its first. */
 @RunWith(RobolectricTestRunner::class)
 @Config(application = Application::class, qualifiers = TV)
 class HomeBarFocusTest {

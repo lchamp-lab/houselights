@@ -35,9 +35,8 @@ import app.houselights.ui.design.HlSpace
 import kotlinx.coroutines.launch
 
 /**
- * A title's overview in its head, cut at [HEAD_OVERVIEW_LINES] lines. Cut, it takes focus, white
- * as every row, its words where they stood, and OK opens it whole ([onOpen], a [SynopsisSheet]);
- * whole, it is words alone, which focus passes by.
+ * A title's overview cut at [HEAD_OVERVIEW_LINES] lines. When truncated it becomes a focusable row, text
+ * in place, and OK opens it whole ([onOpen]); when it fits, focus skips it.
  */
 @Composable
 fun HeadOverview(text: String, onOpen: () -> Unit, modifier: Modifier = Modifier) {
@@ -71,11 +70,7 @@ fun HeadOverview(text: String, onOpen: () -> Unit, modifier: Modifier = Modifier
 /** Lines of the overview a title's head shows. */
 const val HEAD_OVERVIEW_LINES = 3
 
-/**
- * The overview whole, beside a title's page ([HlSideSheet]): its title and year in the head, then
- * its words in the voice of reading. Focus is on them: where they run past the panel, down and up
- * move them [READING_STEP] lines at a time. Back closes.
- */
+/** The whole overview in a side sheet, focused; down and up scroll it [READING_STEP] lines per press. */
 @Composable
 fun SynopsisSheet(item: MediaItem, onDismiss: () -> Unit) {
     val words = remember { FocusRequester() }
@@ -110,10 +105,10 @@ fun SynopsisSheet(item: MediaItem, onDismiss: () -> Unit) {
     }
 }
 
-/** Lines the words of a [SynopsisSheet] move by a press. */
+/** Lines scrolled per press in a [SynopsisSheet]. */
 private const val READING_STEP = 3
 
-/** Lays out what it holds [x] wider on each side and [y] taller on each, as if it were not. */
+/** Grows the content by [x] and [y] on each side without changing its layout size. */
 private fun Modifier.around(x: Dp, y: Dp): Modifier = layout { measurable, constraints ->
     val dx = x.roundToPx()
     val dy = y.roundToPx()
