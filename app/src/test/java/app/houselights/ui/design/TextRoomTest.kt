@@ -40,6 +40,10 @@ class TextRoomTest {
         compose.waitForIdle()
         val default = rooms.getValue(1f)
         val large = rooms.getValue(LARGEST)
+        // At the default text size, the rooms the layout was drawn for (the label's rounded up to the 4 dp grid).
+        assertEquals(454f, default.heroMin.value, 0.01f)
+        assertEquals(24f, default.infoLine.value, 0.01f)
+        assertEquals(36f, default.labelRoom.value, 0.01f)
         // How much taller a line of [height] at the default text size is at the largest.
         fun growth(height: Float) = with(Density(1f, LARGEST)) { height.sp.toDp().value } - height
         val header = growth(HouselightsType.lead.lineHeight.value)
