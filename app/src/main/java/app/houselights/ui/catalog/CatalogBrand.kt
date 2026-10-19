@@ -41,9 +41,9 @@ internal fun LazyListScope.catalogBrand() {
     item {
         Group("Brand: Gradation, the icon and the banner", still = true) {
             BrandSample(
-                "Three bars of ember whose widths halve, 4:2:1, as the house lights go down one stop at a time; " +
-                    "the fourth step is the black, where the name appears, in white. On the banner, a title card: " +
-                    "the mark above the name.",
+                "Three bars whose widths halve, 4:2:1, as the house lights go down one stop at a time, in one " +
+                    "ember gradient, orange to raspberry; the fourth step is the black, where the name appears, in " +
+                    "white. On the banner, a title card: the mark above the name.",
                 icon = R.mipmap.ic_launcher,
                 banner = R.drawable.banner,
             )

@@ -46,11 +46,11 @@ data class HlColors(
     /** Never for text: the rule of an empty frame, a skeleton. */
     val contentDecorative: Color,
     /**
-     * The house light: states only (in use, your choice, needs attention, new) and the mark's bars; never
-     * focus or a fact. Screens reach it through component states (`HlStatus`, `lit`), never by name.
+     * The house light: states only (in use, your choice, needs attention, new); never focus or a fact.
+     * Screens reach it through component states (`HlStatus`, `lit`), never by name.
      */
     val ember: Color,
-    /** Ember gradient ends, where it reads as light (progress, a rule, [emberLight]); small marks take [ember]. */
+    /** Ember gradient ends, where it reads as light (progress, a rule, the mark's bars, [emberLight]); small marks take [ember]. */
     val emberFrom: Color,
     val emberTo: Color,
     /** Ink on an ember fill (the main action): black, 5.8:1 at the gradient's raspberry end; never white. */

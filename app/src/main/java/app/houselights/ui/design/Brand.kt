@@ -1,10 +1,12 @@
 package app.houselights.ui.design
 
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.drawscope.DrawScope
 
 /**
- * Gradation, the mark (DESIGN.md, Brand): three ember bars halving in width (4:2:1), together as wide as
- * tall. The launcher icon, banner and splash vectors must match this geometry (`BrandTest`).
+ * Gradation, the mark (DESIGN.md, Brand): three bars halving in width (4:2:1), together as wide as tall, in
+ * one ember gradient ([light]). The launcher icon, banner and splash vectors must match it (`BrandTest`).
  */
 object Gradation {
     /** The bars' widths, in units of the thinnest. */
@@ -38,5 +40,17 @@ object Gradation {
         return widths.mapIndexed { i, width ->
             Rect(left, top, left + width * unit, top + height).also { left = it.right + (gaps.getOrNull(i) ?: 0f) * unit }
         }
+    }
+
+    /** The mark's light: `emberFrom` at the left edge of [bars] to `emberTo` at their right, shared by every bar. */
+    fun light(bars: List<Rect>, colors: HlColors): Brush =
+        Brush.horizontalGradient(listOf(colors.emberFrom, colors.emberTo), startX = bars.first().left, endX = bars.last().right)
+}
+
+/** Draws [bars] in one [light] across them, each bar at its own opacity ([level] of its index, 1 lit). */
+fun DrawScope.drawGradation(bars: List<Rect>, light: Brush, level: (Int) -> Float = { 1f }) {
+    bars.forEachIndexed { i, bar ->
+        val alpha = level(i)
+        if (alpha > 0f) drawRect(light, bar.topLeft, bar.size, alpha)
     }
 }

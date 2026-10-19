@@ -1,13 +1,36 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Gradation, the TV banner, composed like a title card: the mark above, the name under it in white expanded
-     capitals of Archivo whose weight goes down letter by letter (900 to 350), cap height 12 % of the banner. -->
+<!-- Gradation, the TV banner, composed like a title card: the mark above in its one ember gradient, the name
+     under it in white expanded capitals of Archivo whose weight goes down letter by letter (900 to 350), cap
+     height 12 % of the banner. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
     android:width="320dp" android:height="180dp"
     android:viewportWidth="320" android:viewportHeight="180">
     <path android:fillColor="#000000" android:pathData="M0 0h320v180h-320z" />
-    <path android:fillColor="#FF7A4D" android:pathData="M138.478 47.5h19.556v44h-19.556z" />
-    <path android:fillColor="#FF7A4D" android:pathData="M163.118 47.5h9.778v44h-9.778z" />
-    <path android:fillColor="#FF7A4D" android:pathData="M177.589 47.5h4.889v44h-4.889z" />
+    <path android:pathData="M138.478 47.5h19.556v44h-19.556z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="linear" android:startX="138.478" android:startY="0" android:endX="182.478" android:endY="0">
+                <item android:offset="0" android:color="#FFFF9F1C" />
+                <item android:offset="1" android:color="#FFFF2E63" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <path android:pathData="M163.118 47.5h9.778v44h-9.778z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="linear" android:startX="138.478" android:startY="0" android:endX="182.478" android:endY="0">
+                <item android:offset="0" android:color="#FFFF9F1C" />
+                <item android:offset="1" android:color="#FFFF2E63" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <path android:pathData="M177.589 47.5h4.889v44h-4.889z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="linear" android:startX="138.478" android:startY="0" android:endX="182.478" android:endY="0">
+                <item android:offset="0" android:color="#FFFF9F1C" />
+                <item android:offset="1" android:color="#FFFF2E63" />
+            </gradient>
+        </aapt:attr>
+    </path>
     <path android:fillColor="#F4F4F5" android:pathData="M34.331 132.5V111.439H41.464V119.031H50.739V111.439H57.872V132.5H50.739V124.602H41.464V132.5Z" />
     <path android:fillColor="#F4F4F5" android:pathData="M75.366 132.867Q71.509 132.867 68.708 131.612Q65.907 130.357 64.407 127.923Q62.907 125.49 62.907 121.969Q62.907 118.449 64.407 116.015Q65.907 113.582 68.708 112.327Q71.509 111.071 75.366 111.071Q79.285 111.071 82.07 112.327Q84.856 113.582 86.356 116.015Q87.856 118.449 87.856 121.969Q87.856 125.49 86.356 127.923Q84.856 130.357 82.07 131.612Q79.285 132.867 75.366 132.867ZM75.366 128.153Q76.775 128.153 77.877 127.755Q78.979 127.357 79.744 126.622Q80.509 125.888 80.922 124.862Q81.336 123.837 81.336 122.551V121.357Q81.336 120.102 80.922 119.061Q80.509 118.02 79.744 117.301Q78.979 116.582 77.877 116.199Q76.775 115.816 75.366 115.816Q73.989 115.816 72.887 116.199Q71.785 116.582 71.019 117.301Q70.254 118.02 69.856 119.061Q69.458 120.102 69.458 121.357V122.551Q69.458 123.837 69.856 124.862Q70.254 125.888 71.019 126.622Q71.785 127.357 72.887 127.755Q73.989 128.153 75.366 128.153Z" />
     <path android:fillColor="#F4F4F5" android:pathData="M103.142 132.867Q99.591 132.867 97.157 131.796Q94.723 130.724 93.483 128.628Q92.244 126.531 92.244 123.531V111.469H97.968V123.347Q97.968 125.765 99.315 127.112Q100.662 128.459 103.142 128.459Q105.652 128.459 106.999 127.112Q108.346 125.765 108.346 123.347V111.469H114.101V123.531Q114.101 126.531 112.846 128.628Q111.591 130.724 109.172 131.796Q106.754 132.867 103.142 132.867Z" />

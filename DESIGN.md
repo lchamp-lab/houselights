@@ -96,7 +96,7 @@ embers). `HlColors` names their roles; only roles reach components.
 | `contentTertiary` | `N57` | `#8C8C95` | what is guessed: joins, placeholders, key hints, disabled |
 | `contentDecorative` | `N28` | `#45454C` | never text: the rule of an empty frame, skeletons |
 | `ember` | `Ember` | `#FF7A4D` | states only, solid, where a gradient has no room (a dot, a check, a word) |
-| `emberFrom`, `emberTo` | `EmberStart`, `EmberEnd` | `#FF9F1C` → `#FF2E63` | the ember light (`emberLight()`): progress lines, an attention rule, a field being typed in, a lit edge |
+| `emberFrom`, `emberTo` | `EmberStart`, `EmberEnd` | `#FF9F1C` → `#FF2E63` | the ember light (`emberLight()`): progress lines, an attention rule, a field being typed in, a lit edge; the mark's bars |
 | `onEmber` | `N0` | `#000000` | ink on an ember fill (the main action), 5.8:1 at its raspberry end; never white |
 | `emberOnLight` | `EmberEnd` | `#FF2E63` | ember on projector white: marks only (3.3:1), never words |
 | `focus` | `N96` | `#F4F4F5` | focus fill and outline |
@@ -444,16 +444,17 @@ prompt.
 **Gradation** (`Gradation`): three ember bars whose widths halve, 4:2:1, like house lights going down one stop
 at a time, together as wide as they are tall. The name appears in white after them, as a title on screen.
 
-- **Ground:** pure black (`@color/room`) for the icon and the banner. No glow, gradient or halo.
-- **Colour:** the bars are flat `Ember`, and nothing else is. The meaning is in the widths, so the mark also
-  works in one colour.
+- **Ground:** pure black (`@color/room`) for the icon and the banner, flat: no glow or halo.
+- **Colour:** one horizontal gradient, `emberFrom` to `emberTo`, runs across the three bars from the wide bar's
+  left edge to the thin bar's right (`Gradation.light`, `drawGradation`), so the light reddens as it goes down;
+  nothing else is coloured. The meaning is in the widths, so the mark also works in one colour, white.
 - **Name:** HOUSELIGHTS in expanded Archivo capitals, weight decreasing letter by letter from 900 to 350, with
   optical spacing; outlines converted once to paths (`wordmark.xml`).
 - **Sizes:** the icon's mark is 46 of 108 units, inside the 66-unit safe circle; the banner follows Android
   TV's 320 × 180 grid; the launch mark is 36 units. Each is optically centred (`Gradation.PULL`).
 
 All are vectors: `ic_launcher_foreground` (with its `<monochrome>` layer), `banner.xml`, `splash_mark`.
-`BrandTest` checks their geometry and palette; `CatalogBrand` shows them as Android draws them.
+`BrandTest` checks their geometry, gradient and palette; `CatalogBrand` shows them as Android draws them.
 
 ## Performance
 

@@ -8,14 +8,19 @@ import app.houselights.testing.xmlRoot
 import app.houselights.ui.testing.argb
 import app.houselights.ui.testing.resourceArgb
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.w3c.dom.Element
 import java.io.File
 import kotlin.math.hypot
 
-/** The icon, banner and launch mark are vectors in Gradation's geometry and palette, inside their circle. */
+/** The icon, banner and launch mark are vectors in Gradation's geometry and light, inside their circle. */
 class BrandTest {
     private val drawables = File("src/main/res/drawable")
+
+    /** The mark's light: ember's two ends, at the gradient's two ends. */
+    private val light = listOf(0f to argb(HouselightsColors.emberFrom), 1f to argb(HouselightsColors.emberTo))
 
     @Test
     fun theIconIsTheMarkInsideTheSafeCircle() {
@@ -41,7 +46,7 @@ class BrandTest {
     @Test
     fun theBannerSetsTheMarkAboveTheName() {
         val paths = paths("banner")
-        val mark = paths.filter { it.first == argb(HlPalette.Ember) }.map { rect(it.second) }
+        val mark = lit(paths.filter { it.gradient != null })
         assertBars(Gradation.bars(BANNER_WIDTH / 2, BANNER_MARK_TOP + BANNER_MARK / 2, BANNER_MARK), mark)
         assertEquals("the room, the mark, the name's eleven letters", 1 + 3 + 11, paths.size)
     }
@@ -55,25 +60,71 @@ class BrandTest {
         assertEquals(bars.first().height, bars.last().right - bars.first().left, EXACT)
     }
 
+    /** The bars take the mark's light; everything else is flat, the room black and the name white. */
     @Test
     fun theBrandIsDrawnInThePalette() {
-        val palette = listOf(HlPalette.Ember, HlPalette.N96, HlPalette.N0).map(::argb).toSet()
+        val flat = listOf(HlPalette.N96, HlPalette.N0).map(::argb).toSet()
         listOf("ic_launcher_foreground", "splash_mark", "banner", "wordmark").forEach { name ->
-            paths(name).forEach { (fill, _) -> assertTrue("$name draws in $fill", fill in palette) }
+            paths(name).forEach { path ->
+                val gradient = path.gradient
+                if (gradient != null) {
+                    assertEquals("$name: the ember light", light, gradient.stops)
+                } else {
+                    assertTrue("$name draws in ${path.fill}", path.fill in flat)
+                }
+            }
         }
-        assertEquals(setOf(argb(HlPalette.N96)), paths("wordmark").map { it.first }.toSet())
+        assertEquals(setOf(argb(HlPalette.N96)), paths("wordmark").map { it.fill }.toSet())
     }
 
-    private fun bars(name: String): List<Rect> = paths(name).map { (fill, data) ->
-        assertEquals("$name: a bar of ember", argb(HlPalette.Ember), fill)
-        rect(data)
+    /** A vector's path: its flat fill as #AARRGGBB, or its gradient, and its data. */
+    private data class VectorPath(val fill: String?, val gradient: Gradient?, val data: String)
+
+    /** A linear gradient from (startX, startY) to (endX, endY), in the viewport's units; its stops by offset. */
+    private data class Gradient(
+        val startX: Float,
+        val startY: Float,
+        val endX: Float,
+        val endY: Float,
+        val stops: List<Pair<Float, String>>,
+    )
+
+    private fun bars(name: String): List<Rect> = lit(paths(name))
+
+    /**
+     * The bars of [paths], each in the mark's light: one horizontal gradient, the same for all, from the
+     * widest bar's left edge to the thinnest bar's right.
+     */
+    private fun lit(paths: List<VectorPath>): List<Rect> {
+        val bars = paths.map { rect(it.data) }
+        paths.forEach { path ->
+            assertNull("${path.data}: a flat bar", path.fill)
+            val gradient = path.gradient ?: error("${path.data}: no gradient")
+            assertEquals("${path.data}: the ember light", light, gradient.stops)
+            assertEquals("starts on the widest bar's left edge", bars.first().left, gradient.startX, EXACT)
+            assertEquals("ends on the thinnest bar's right edge", bars.last().right, gradient.endX, EXACT)
+            assertEquals("horizontal", gradient.startY, gradient.endY, EXACT)
+        }
+        return bars
     }
 
-    /** Each path of a vector drawable: its fill as #AARRGGBB, and its data. */
-    private fun paths(name: String): List<Pair<String, String>> =
+    /** Each path of a vector drawable, its gradient read from its inline `android:fillColor`. */
+    private fun paths(name: String): List<VectorPath> =
         xmlRoot(drawables.resolve("$name.xml")).descendants("path").map { path ->
-            resourceArgb(path.getAttribute("android:fillColor")) to path.getAttribute("android:pathData")
+            val fill = path.getAttribute("android:fillColor").takeIf { it.isNotEmpty() }?.let(::resourceArgb)
+            val gradient = path.children("aapt:attr").singleOrNull { it.getAttribute("name") == "android:fillColor" }
+                ?.let { gradient(it.children("gradient").single()) }
+            VectorPath(fill, gradient, path.getAttribute("android:pathData"))
         }
+
+    private fun gradient(gradient: Element): Gradient {
+        assertEquals("linear", gradient.getAttribute("android:type"))
+        fun at(name: String) = gradient.getAttribute("android:$name").toFloat()
+        val stops = gradient.children("item").map { stop ->
+            stop.getAttribute("android:offset").toFloat() to resourceArgb(stop.getAttribute("android:color"))
+        }
+        return Gradient(at("startX"), at("startY"), at("endX"), at("endY"), stops)
+    }
 
     /** A bar as its path draws it: `M x y h w v h h -w z`. */
     private fun rect(data: String): Rect {
