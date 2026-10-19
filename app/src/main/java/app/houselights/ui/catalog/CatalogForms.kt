@@ -39,6 +39,8 @@ import app.houselights.ui.design.components.HlChoiceSetting
 import app.houselights.ui.design.components.HlChoiceSheet
 import app.houselights.ui.design.components.HlDivider
 import app.houselights.ui.design.components.HlMenuButton
+import app.houselights.ui.design.components.HlNavItem
+import app.houselights.ui.design.components.HlPanel
 import app.houselights.ui.design.components.HlPanelButton
 import app.houselights.ui.design.components.HlScrollArea
 import app.houselights.ui.design.components.HlSegmented
@@ -46,11 +48,15 @@ import app.houselights.ui.design.components.HlSettingRow
 import app.houselights.ui.design.components.HlTextField
 import app.houselights.ui.design.components.MenuOption
 import app.houselights.ui.design.components.MenuSection
+import app.houselights.ui.design.components.PanelLevel
+import app.houselights.ui.design.components.PreviewShape
+import app.houselights.ui.design.components.RowPreview
 import app.houselights.ui.design.components.StatusPanel
 import app.houselights.ui.design.components.StatusState
 
 /** Forms, menus, choice sheets and long text; HlTwoPane and HlFormScaffold fill the screen (see setup). */
 internal fun LazyListScope.catalogForms() {
+    item { Group("Settings: entries and rows on the room, white with focus") { FormSettings() } }
     item { Group("Text fields") { FormTextFields() } }
     item { Group("Status panel", still = true) { FormStatusPanels() } }
     item { Group("Panel button") { FormPanelButtons() } }
@@ -62,10 +68,84 @@ internal fun LazyListScope.catalogForms() {
 }
 
 @Composable
+private fun FormSettings() {
+    Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.xxl), verticalAlignment = Alignment.Top) {
+        Specimen(
+            "no well, no chevron: the pane you are in lights its icon, raspberry on focus's white",
+            Modifier.width(HlLayout.sideColumn),
+            gap = HlSpace.xs,
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(HlSpace.xxs)) {
+                HlNavItem(HlIcons.Folder, stringResource(R.string.section_source), "10 titres", selected = true, onFocused = {})
+                HlNavItem(HlIcons.Numbers, stringResource(R.string.section_numbers), null, selected = false, onFocused = {})
+                HlNavItem(
+                    HlIcons.Display,
+                    stringResource(R.string.section_display),
+                    stringResource(R.string.display_by_player),
+                    selected = false,
+                    onFocused = {},
+                )
+            }
+        }
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(HlSpace.m)) {
+            Specimen("rows: words on the room, 60 tall; a chevron shows with focus where a row leads", gap = HlSpace.xs) {
+                Column(verticalArrangement = Arrangement.spacedBy(HlSpace.xxs)) {
+                    HlSettingRow(stringResource(R.string.interface_language), value = "Français", onClick = {})
+                    HlSettingRow(
+                        stringResource(R.string.tmdb_key),
+                        value = stringResource(R.string.tmdb_personal),
+                        valueLit = true,
+                        onClick = {},
+                    )
+                    HlSettingRow(
+                        stringResource(R.string.source_local),
+                        description = stringResource(R.string.scan_now_desc),
+                        icon = HlIcons.Folder,
+                        onClick = {},
+                        chevron = false,
+                    )
+                    HlSettingRow(
+                        stringResource(R.string.scan_now),
+                        description = stringResource(R.string.scan_now_desc),
+                        onClick = {},
+                        chevron = false,
+                        enabled = false,
+                    )
+                    HlSettingRow(stringResource(R.string.section_storage), value = "92,4 Mo")
+                }
+            }
+            Text(
+                "Above: a value, a value of your choice in ember, an icon grey until focus, a disabled row in its well " +
+                    "(focus rings it), a row that only states its value.",
+                style = Hl.type.caption,
+                color = Hl.colors.contentTertiary,
+            )
+        }
+    }
+    Specimen("in a sheet, on glass: rows 52 tall, a preview in each slot", Modifier.width(HlLayout.readable), gap = HlSpace.xs) {
+        HlPanel(Modifier.fillMaxWidth(), level = PanelLevel.Raised, padding = HlInset.tight) {
+            HlSettingRow(
+                stringResource(R.string.artwork_poster),
+                description = stringResource(R.string.artwork_poster_desc),
+                onClick = {},
+                leading = { RowPreview(null, PreviewShape.Poster) },
+            )
+            HlSettingRow(
+                stringResource(R.string.artwork_backdrop),
+                description = stringResource(R.string.artwork_backdrop_desc),
+                onClick = {},
+                leading = { RowPreview(null, PreviewShape.Backdrop) },
+            )
+        }
+    }
+}
+
+@Composable
 private fun FormTextFields() {
     Text(
-        "Focus outlines a field in projector white and shows, at its end, that OK types; OK opens the keyboard, " +
-            "and the edge turns ember while typing, and only then. Every field has a name, read out even when hidden.",
+        "A field is a glass plate edged by a hairline. Focus rings it in projector white and shows, at its end, that " +
+            "OK types; OK opens the keyboard, and while typing the ring is the ember light and the cursor raspberry, " +
+            "and only then. Every field has a name, read out even when hidden.",
         style = Hl.type.caption,
         color = Hl.colors.contentTertiary,
     )
@@ -225,9 +305,9 @@ private fun FormPanelButtons() {
 @Composable
 private fun FormFolder(name: String, address: String, facts: List<String>) {
     Column(Modifier.padding(HlInset.card)) {
-        Text(name, style = Hl.type.lead, color = Hl.colors.content)
+        Text(name, style = Hl.type.rowTitle, color = Hl.colors.content)
         Spacer(Modifier.height(HlSpace.xxs))
-        Text(address, style = Hl.type.meta, color = Hl.colors.contentSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(address, style = Hl.type.caption, color = Hl.colors.contentSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
         Spacer(Modifier.height(HlSpace.m))
         FactRow(facts)
     }

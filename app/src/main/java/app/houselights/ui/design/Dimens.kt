@@ -111,10 +111,10 @@ object HlSize {
     /** Least height of a setting row; [sheetRow] in a side sheet. */
     val row = 60.dp
     val sheetRow = 52.dp
-    /** Image at the head of a row: its height, a poster's width at that height, its slot's width. */
-    val rowPreview = 48.dp
-    val rowPreviewPoster = 32.dp
-    val rowPreviewWide = 84.dp
+    /** Image at the head of a row, as tall as a sheet row allows: its height, a poster's width at it, its slot's width. */
+    val rowPreview = 40.dp
+    val rowPreviewPoster = 27.dp
+    val rowPreviewWide = 72.dp
     /** Progress shown beside text (time left). */
     val progressShort = 120.dp
     /** The progress of home's hero title, before its time left. */
@@ -219,9 +219,12 @@ internal object HlSideSheetDefaults {
     val width = 520.dp
 }
 
-/** The widest value on the right of a setting row. */
+/** The widest value on the right of a setting row, and the room above and below its words. */
 internal object HlSettingRowDefaults {
     val valueWidth = 360.dp
+
+    /** A name over its description, or a [HlSize.rowPreview], fills a [HlSize.sheetRow] with this room. */
+    val paddingV = 6.dp
 }
 
 /** The label a tile shows under it with focus. */

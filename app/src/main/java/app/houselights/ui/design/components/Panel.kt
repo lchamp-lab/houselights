@@ -117,7 +117,10 @@ fun HlPanelButton(
     ) { focused -> content(focused) }
 }
 
-/** A full-width selectable row, white-filled on focus without growing; disabled, it keeps focus, ringed. */
+/**
+ * A full-width selectable row: its words on what holds it, white-filled on focus without growing; disabled,
+ * it sits in its [disabled] well and keeps focus, ringed.
+ */
 @Composable
 internal fun HlRowSurface(
     onClick: () -> Unit,
@@ -125,6 +128,7 @@ internal fun HlRowSurface(
     rest: Color = Color.Transparent,
     restContent: Color = Hl.colors.content,
     enabled: Boolean = true,
+    disabled: Color = rest,
     disabledContent: Color = restContent,
     shape: Shape = HlShapes.row,
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
@@ -132,7 +136,7 @@ internal fun HlRowSurface(
 ) {
     HlFocusSurface(
         onClick = onClick,
-        look = FocusStyle.fill(rest = rest, restInk = restContent, disabledInk = disabledContent),
+        look = FocusStyle.fill(rest = rest, restInk = restContent, disabled = disabled, disabledInk = disabledContent),
         shape = shape,
         modifier = modifier,
         enabled = enabled,

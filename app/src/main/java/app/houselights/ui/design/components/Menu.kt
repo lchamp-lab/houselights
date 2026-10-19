@@ -24,6 +24,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -144,12 +145,13 @@ private fun MenuPanel(sections: List<MenuSection>, maxHeight: Dp, motion: SheetM
             .heightIn(max = maxHeight)
             .stillWhileLeaving(motion)
             .graphicsLayer {
-                val p = motion.progress
-                val scale = HlMotion.ENTER_SCALE + (1f - HlMotion.ENTER_SCALE) * p
-                alpha = p
+                val scale = HlMotion.ENTER_SCALE + (1f - HlMotion.ENTER_SCALE) * motion.travel
+                alpha = motion.opacity
                 scaleX = scale
                 scaleY = scale
                 transformOrigin = position.origin
+                // Each drawing fades on its own: no offscreen pass.
+                compositingStrategy = CompositingStrategy.ModulateAlpha
             },
         level = PanelLevel.Raised,
         padding = HlMenuDefaults.inset,
@@ -184,19 +186,20 @@ private fun MenuPanel(sections: List<MenuSection>, maxHeight: Dp, motion: SheetM
     }
 }
 
+/** An option: the chosen one white with its ember check, raspberry on focus's white; the others grey. */
 @Composable
 private fun MenuItem(label: String, selected: Boolean, onClick: () -> Unit, modifier: Modifier) {
     val c = Hl.colors
     HlRowSurface(
         onClick = onClick,
-        modifier = modifier.fillMaxWidth().height(HlSize.segment).semantics { this.selected = selected },
+        modifier = modifier.fillMaxWidth().height(HlSize.controlCompact).semantics { this.selected = selected },
         restContent = if (selected) c.content else c.contentSecondary,
         shape = HlShapes.control,
     ) { focused ->
         Row(Modifier.fillMaxHeight().padding(horizontal = HlSpace.s), verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.size(HlSize.icon)) {
                 if (selected) {
-                    val ink = if (focused) c.onFocus else c.ember
+                    val ink = if (focused) c.emberOnLight else c.ember
                     Icon(HlIcons.Check, contentDescription = null, tint = ink, modifier = Modifier.size(HlSize.icon))
                 }
             }
