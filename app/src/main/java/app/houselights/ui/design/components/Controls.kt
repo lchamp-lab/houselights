@@ -69,6 +69,7 @@ import androidx.tv.material3.Icon
 import androidx.tv.material3.LocalContentColor
 import androidx.tv.material3.Text
 import app.houselights.R
+import app.houselights.ui.design.AmbientLight
 import app.houselights.ui.design.GradationMark
 import app.houselights.ui.design.Ground
 import app.houselights.ui.design.Hl
@@ -83,7 +84,7 @@ import app.houselights.ui.design.HlMotion
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
-import app.houselights.ui.design.LocalAmbientDeep
+import app.houselights.ui.design.LocalAmbient
 import app.houselights.ui.design.LocalGround
 import app.houselights.ui.design.RowScroll
 import app.houselights.ui.design.emberLight
@@ -274,12 +275,12 @@ private class PlateLook(val fill: ColorProducer, val disabled: ColorProducer, va
 private fun rememberPlate(): PlateLook {
     val c = Hl.colors
     val ground = LocalGround.current
-    val deep = LocalAmbientDeep.current
-    return remember(c, ground, deep) {
+    val light = LocalAmbient.current
+    return remember(c, ground, light) {
         val well = c.content.copy(alpha = HlAlpha.FILL_FAINT)
         when (ground) {
             Ground.Artwork -> {
-                val plate = ColorProducer { c.plate(deep()) }
+                val plate = ColorProducer { c.plate(light) }
                 PlateLook(plate, plate, BorderStroke(HlSize.hairline, c.plateEdge))
             }
             Ground.Glass -> {
@@ -388,7 +389,7 @@ fun HlIconButton(
         label = "label",
     )
     val c = Hl.colors
-    val deep = LocalAmbientDeep.current
+    val light = LocalAmbient.current
     Layout(
         modifier = modifier,
         content = {
@@ -403,7 +404,7 @@ fun HlIconButton(
                 modifier = Modifier
                     .clearAndSetSemantics {}
                     .graphicsLayer { alpha = labelAlpha }
-                    .labelPlate(c, deep)
+                    .labelPlate(c, light)
                     .padding(horizontal = HlControl.labelPaddingH, vertical = HlControl.labelPaddingV),
             )
         },
@@ -424,12 +425,12 @@ fun HlIconButton(
     }
 }
 
-/** A tile's label plate: the picture's own dark ([deep]) and its hairline, read while drawing. */
-private fun Modifier.labelPlate(c: HlColors, deep: () -> Color): Modifier = drawWithCache {
+/** A tile's label plate over the picture [light] comes from, and its hairline, read while drawing. */
+private fun Modifier.labelPlate(c: HlColors, light: AmbientLight): Modifier = drawWithCache {
     val outline = HlShapes.mark.createOutline(size, layoutDirection, this)
     val hairline = Stroke(HlSize.hairline.toPx())
     onDrawBehind {
-        drawOutline(outline, c.plate(deep()))
+        drawOutline(outline, c.plate(light))
         drawOutline(outline, c.plateEdge, style = hairline)
     }
 }

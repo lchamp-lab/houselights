@@ -6,7 +6,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.test.junit4.createComposeRule
+import app.houselights.ui.design.HlAlpha
+import app.houselights.ui.design.HlMotion
+import app.houselights.ui.design.HouselightsColors
 import app.houselights.ui.testing.TV
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -18,8 +22,9 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
 /**
- * Backdrop pictures fade in over `SLOW`, except one already in memory under the launch screen: opaque at once.
- * A picture handed on holds under the next one, and goes out when nothing comes.
+ * Backdrop pictures fade in over `TINT`, except one already in memory under the launch screen: opaque at once.
+ * A leaving picture holds under the next one as it was drawn, and goes out when nothing comes; plates take the
+ * pictures' dark as their layers composite.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = TV)
@@ -65,6 +70,55 @@ class BackdropFadeTest {
         assertTrue("$later: going out", later < 1f)
     }
 
+    @Test
+    fun aPictureInterruptedAsItCameHoldsWhereItWas() {
+        compose.mainClock.autoAdvance = false
+        var target by mutableStateOf("first")
+        val drawn = mutableMapOf<String, Float>()
+        compose.setContent {
+            FadeBetween(target, Modifier, holds = { _, coming -> coming != null }) { picture, alpha ->
+                val now = alpha()
+                SideEffect { drawn[picture] = now }
+            }
+        }
+        compose.mainClock.advanceTimeByFrame()
+        target = "second"
+        Snapshot.sendApplyNotifications()
+        repeat(FRAMES) { compose.mainClock.advanceTimeByFrame() }
+        val halfway = drawn.getValue("second")
+        assertTrue("$halfway", halfway > 0f && halfway < 1f)
+        target = "third"
+        Snapshot.sendApplyNotifications()
+        compose.mainClock.advanceTimeByFrame()
+        val held = drawn.getValue("second")
+        repeat(FRAMES) { compose.mainClock.advanceTimeByFrame() }
+        // What showed stays as it was under the third, a frame on at most: no dip, no jump.
+        assertEquals(1f, drawn.getValue("first"))
+        assertEquals(held, drawn.getValue("second"))
+        assertEquals(halfway, held, 16f / HlMotion.TINT)
+        assertTrue(drawn.getValue("third") > 0f && drawn.getValue("third") < 1f)
+    }
+
+    @Test
+    fun platesTakeThePicturesDarkAsTheirLayersComposite() {
+        val state = BackdropState()
+        assertEquals(HouselightsColors.ambientDeep, state.deep())
+        assertEquals(HlAlpha.PLATE, state.plateAlpha(), 0f)
+        assertEquals(Color.Transparent, state.glow())
+        var coming = 0.25f
+        state.layers += LitLayer(ImageLight(Color(0xFF1C0707), Color.Red), 0.8f) { 1f }
+        state.layers += LitLayer(ImageLight(Color(0xFF07071C), Color.Blue), 0.9f) { coming }
+        // The blue dark a quarter in over the red one, as the screen blends them.
+        val deep = state.deep()
+        assertEquals((0x1C * 0.75f + 0x07 * 0.25f) / 255, deep.red, 1f / 255)
+        assertEquals(0x07 / 255f, deep.green, 1f / 255)
+        assertEquals((0x07 * 0.75f + 0x1C * 0.25f) / 255, deep.blue, 1f / 255)
+        assertEquals(0.825f, state.plateAlpha(), 0.0001f)
+        assertEquals(0.75f, state.glow().red, 0.01f)
+        coming = 1f
+        assertEquals(Color(0xFF07071C), state.deep())
+    }
+
     /** The picture left by the previous screen holds under any other. */
     private val handedOn = { leaving: String?, coming: String? -> leaving == "left" && coming != null }
 
@@ -97,7 +151,7 @@ class BackdropFadeTest {
     }
 
     private companion object {
-        /** A few frames of `SLOW`: 100 ms of 600. */
+        /** A few frames of `TINT`: 100 ms of 480. */
         const val FRAMES = 6
     }
 }

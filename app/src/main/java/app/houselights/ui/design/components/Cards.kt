@@ -232,7 +232,7 @@ fun ArtworkSurface(
             .rememberedInGroup(group, member)
             .then(reading)
             .onFocusChanged { if (it.isFocused) onFocused() },
-        glow = { if (light != null) own.value else ambient() },
+        glow = { if (light != null) own.value else ambient.glow() },
         interactionSource = interaction,
         row = LocalRowFrame.current,
     ) {

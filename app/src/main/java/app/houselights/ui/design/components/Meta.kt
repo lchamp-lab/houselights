@@ -41,7 +41,7 @@ import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlControl
-import app.houselights.ui.design.LocalAmbientDeep
+import app.houselights.ui.design.LocalAmbient
 import app.houselights.ui.design.plate
 import app.houselights.ui.design.plateEdge
 import app.houselights.ui.design.HlIcons
@@ -176,12 +176,12 @@ private fun Jaquette(lines: List<Pair<String, List<String>>>, modifier: Modifier
     val caption = Hl.type.caption
     val names = shown.map { it.first }
     val column = remember(names, caption, density) { with(density) { names.maxOf { measurer.measure(it, caption).size.width }.toDp() } }
-    val deep = LocalAmbientDeep.current
+    val light = LocalAmbient.current
     val edge = c.plateEdge
     Column(
         modifier
             .width(IntrinsicSize.Max)
-            .drawBehind { drawRoundRect(c.plate(deep()), cornerRadius = CornerRadius(HlShapes.control.topStart.toPx(size, this))) }
+            .drawBehind { drawRoundRect(c.plate(light), cornerRadius = CornerRadius(HlShapes.control.topStart.toPx(size, this))) }
             .border(HlSize.hairline, edge, HlShapes.control),
     ) {
         shown.forEachIndexed { i, (name, words) ->

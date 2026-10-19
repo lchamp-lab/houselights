@@ -13,25 +13,28 @@ import coil.decode.ImageSource
 import coil.fetch.Fetcher
 import coil.fetch.SourceResult
 import coil.request.SuccessResult
+import coil.size.Dimension
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.test.runTest
 import okio.Buffer
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.GraphicsMode
 import java.io.ByteArrayOutputStream
 
-/** A backdrop is decoded at most at the size of its file: the layer it is drawn into enlarges it. */
+/** A backdrop is decoded at most at the size of its file, a wall's never: the layer it is drawn into enlarges it. */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 class BackdropTest {
     private val context: Context = ApplicationProvider.getApplicationContext()
 
-    /** Serves, for any test:// address, a PNG file of [width] by [height], as a disk would. */
-    private fun files(width: Int, height: Int) = Fetcher.Factory<Uri> { data, _, _ ->
+    /** Serves, for any test:// address, a PNG file of [width] by [height], as a disk would; [asked] gets each width asked for. */
+    private fun files(width: Int, height: Int, asked: MutableList<Int?>) = Fetcher.Factory<Uri> { data, options, _ ->
         if (data.scheme != "test") null else Fetcher {
+            asked += (options.size.width as? Dimension.Pixels)?.px
             val png = ByteArrayOutputStream().also {
                 Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888).compress(Bitmap.CompressFormat.PNG, 100, it)
             }
@@ -40,10 +43,10 @@ class BackdropTest {
     }
 
     /** A loader of [files], working on the thread that asks. */
-    private fun loader(width: Int, height: Int) = ImageLoader.Builder(context)
+    private fun loader(width: Int, height: Int, asked: MutableList<Int?> = mutableListOf()) = ImageLoader.Builder(context)
         .dispatcher(Dispatchers.Unconfined)
         .allowHardware(false)
-        .components { add(files(width, height)) }
+        .components { add(files(width, height, asked)) }
         .build()
 
     /** The backdrop of a screen of [SCREEN_W] by [SCREEN_H], as decoded from a file of [width] by [height]. */
@@ -74,10 +77,29 @@ class BackdropTest {
         val image = ImageRef("backdrop42") { "test://backdrop/42?w=$it" }
         try {
             runTest {
-                val first = prepareBackdrop(context, image, "test://backdrop/42", SCREEN_W, SCREEN_H)
-                val again = prepareBackdrop(context, image, "test://backdrop/42", SCREEN_W, SCREEN_H)
+                val first = prepareBackdrop(context, image, BackdropStyle.Hero, SCREEN_W)
+                val again = prepareBackdrop(context, image, BackdropStyle.Hero, SCREEN_W)
                 assertEquals("read from the file", false, first?.fromMemory)
                 assertEquals("found in memory", true, again?.fromMemory)
+            }
+        } finally {
+            Coil.reset()
+        }
+    }
+
+    @Test
+    fun aWallPreparesItsDiffuseFieldNeverItsPicture() {
+        val asked = mutableListOf<Int?>()
+        Coil.setImageLoader(loader(1280, 720, asked))
+        val image = ImageRef("backdrop42") { "test://backdrop/42?w=$it" }
+        try {
+            runTest {
+                val first = prepareBackdrop(context, image, BackdropStyle.Diffuse, SCREEN_W)
+                val again = prepareBackdrop(context, image, BackdropStyle.Diffuse, SCREEN_W)
+                assertEquals(FIELD_W to FIELD_H, first?.picture?.let { it.width to it.height })
+                assertEquals("read from the file", false, first?.fromMemory)
+                assertEquals("found in memory", true, again?.fromMemory)
+                assertTrue("widths asked: $asked", asked.isNotEmpty() && asked.all { it != null && it <= SAMPLE_PX })
             }
         } finally {
             Coil.reset()

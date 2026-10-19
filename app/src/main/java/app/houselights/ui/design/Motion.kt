@@ -12,7 +12,7 @@ import androidx.compose.animation.core.tween
 object HlMotion {
     const val FAST = 150
     const val STANDARD = 250
-    /** Backdrop and ambient light changes. */
+    /** The launch cue, a picture going out on black, a page's backdrop stepping back. */
     const val SLOW = 600
     /** House lights: room, then screen, then black before the player starts; backwards after. */
     const val DIM = 1000
@@ -23,7 +23,7 @@ object HlMotion {
     /** A plate turning white with focus, and back. */
     const val PLATE_IN = 120
     const val PLATE_OUT = 180
-    /** Plates and glass taking the colour of the picture under focus, once it has settled ([SETTLE]); linear. */
+    /** One backdrop picture crossfading to the next, with its veils and the plates' dark, once settled ([SETTLE]); linear. */
     const val TINT = 480
     /** One turn of a wait's light around its frame, looped: the only motion that does not stop. */
     const val WAIT_TURN = 1400

@@ -147,7 +147,7 @@ private fun AmbientBackdrops() {
                 }
             }
         }
-        Specimen("a wall's, quiet: its picture dimmed down to the foot", width = HlLayout.sideColumnWide) {
+        Specimen("quiet, a person's titles: the picture dimmed down to the foot", width = HlLayout.sideColumnWide) {
             Box(Modifier.fillMaxWidth().aspectRatio(16f / 9f)) { Backdrop(art, BackdropStyle.Quiet) }
         }
     } }

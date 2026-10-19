@@ -1,16 +1,21 @@
 package app.houselights.ui.design
 
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.colorspace.ColorSpaces
 import androidx.compose.ui.graphics.compositeOver
 import app.houselights.ui.testing.contrast
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import kotlin.math.floor
 
 /** DESIGN.md's 4.5:1 for text and 3:1 for marks, for each pair the system draws over what it sits on; forbidden pairs stay below. */
 class ContrastTest {
     private enum class Use(val minimum: Float) { Text(4.5f), Mark(3f) }
 
     private val c = HouselightsColors
+
+    /** The left veil in the neutral dark at the floor it takes over white. */
+    private val veilFloorOnWhite = c.ambientDeep.over(HlScrim.need(1f, tint = greyOf(c.ambientDeep)), Color.White)
 
     private val roles = mapOf(
         "content" to c.content,
@@ -49,14 +54,19 @@ class ContrastTest {
         "content" to c.content,
         // Whatever sits on artwork, on its plate over the worst image: a white one.
         "VEIL on a white image" to c.background.over(HlAlpha.VEIL, Color.White),
-        // A text column over a backdrop: the left veil at the floor a white image gets.
-        "the veil's floor on a white image" to c.background.over(HlScrim.need(1f), Color.White),
+        // A text column over a backdrop: the left veil, in the picture's dark, at the floor a white image gets.
+        "the veil's floor on a white image" to veilFloorOnWhite,
         // The main action, filled with the ember light, at each end and its middle.
         "emberFrom" to c.emberFrom, "ember" to c.ember, "emberTo" to c.emberTo,
         // A picture's own dark where it is whole: a veil or a plate at its floor.
         "ambientDeep" to c.ambientDeep,
         // A control's plate over a picture, where controls sit: on the veil at its floor over a white image.
-        "plate on the veil's floor on a white image" to c.plate().compositeOver(c.background.over(HlScrim.need(1f), Color.White)),
+        "plate on the veil's floor on a white image" to c.plate().compositeOver(veilFloorOnWhite),
+        // A plate on the bare picture: at its own opacity over white, and at the most its floor raises it to.
+        "plate on a white image" to c.plate().compositeOver(Color.White),
+        "plate at its ceiling on a white image" to c.plate(alpha = HlAlpha.PLATE_MAX).compositeOver(Color.White),
+        // A wall's diffuse field at its brightest, one level over its cap as dithering may draw it.
+        "the diffuse field's brightest" to grey((floor(srgb(HlScrim.FIELD_LUMINANCE_MAX) * 255f) + 1f) / 255f),
     )
 
     /** Every pair the system draws, as role, surface, use. */
@@ -129,6 +139,12 @@ class ContrastTest {
         // where the top and left veils meet at the picture's own dark.
         "emberFrom" on "background", "emberTo" on "background", "emberFrom" on "glass", "emberTo" on "glass",
         "emberFrom" on "ambientDeep",
+        // On a plate raised by its floor over the lightest picture: words, and ember as marks only.
+        "content" on "plate at its ceiling on a white image", "contentSecondary" on "plate at its ceiling on a white image",
+        "contentTertiary" on "plate at its ceiling on a white image",
+        ("ember" on "plate at its ceiling on a white image").mark(), ("emberTo" on "plate at its ceiling on a white image").mark(),
+        // On a wall's field, without a veil: names and facts; the quietest text only on a plate or in the title's band.
+        "content" on "the diffuse field's brightest", "contentSecondary" on "the diffuse field's brightest",
     )
 
     private val forbidden = listOf(
@@ -137,6 +153,11 @@ class ContrastTest {
         "content" on "emberFrom", "content" on "ember", "content" on "emberTo",
         // Raspberry on white marks, never words.
         "emberOnLight" on "focus",
+        // A plate on the bare picture without its floor; ember words on a plate there even with it.
+        "contentSecondary" on "plate on a white image", "contentTertiary" on "plate on a white image",
+        "emberTo" on "plate at its ceiling on a white image",
+        // The quietest text on a diffuse field, out of the title's band.
+        "contentTertiary" on "the diffuse field's brightest",
     )
 
     @Test
@@ -163,6 +184,10 @@ class ContrastTest {
     private fun ratio(p: Pairing): Float = contrast(roles.getValue(p.role), surfaces.getValue(p.surface))
 
     private fun Color.over(alpha: Float, background: Color) = copy(alpha = alpha).compositeOver(background)
+
+    private fun grey(level: Float) = Color(level, level, level)
+
+    private fun srgb(luminance: Float) = ColorSpaces.Srgb.oetf(luminance.toDouble()).toFloat()
 
     private fun format(ratio: Float) = "%.2f:1".format(ratio)
 }

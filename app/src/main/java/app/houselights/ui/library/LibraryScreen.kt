@@ -163,7 +163,7 @@ fun LibraryScreen(
 
     // Prepares the settled title's detail page, so OK opens it complete.
     DetailAhead(shown.value)
-    AmbientBackdrop(shown.value?.backdrop, BackdropStyle.Quiet) {
+    AmbientBackdrop(shown.value?.backdrop, BackdropStyle.Diffuse) {
         Column(Modifier.fillMaxSize()) {
             // The wall's name lit as the place, its count beside it; the menus on plates over the wall's picture.
             OnArtwork { HeaderControls { Row(

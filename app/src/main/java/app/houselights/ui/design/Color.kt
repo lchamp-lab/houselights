@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.ReadOnlyComposable
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -25,8 +26,8 @@ object HlPalette {
     val EmberStart = Color(0xFFFF9F1C)
     val EmberEnd = Color(0xFFFF2E63)
 
-    /** The dark of a grey picture: a picture's own dark at value 0.11, without its hue. */
-    val Deep = Color(0xFF1C1B1B)
+    /** The dark of a grey picture: a picture's own dark (luminance at most 0.006) without its hue, a touch cool. */
+    val Deep = Color(0xFF111113)
 }
 
 /** Semantic colour roles (DESIGN.md, Colour): the room, glass, fills over [LocalGround], projector-white focus. */
@@ -63,7 +64,7 @@ data class HlColors(
     val onFocus: Color,
     /** Secondary text in a focused control (a summary, a runtime): black at 62 % on [focus]. */
     val onFocusSecondary: Color,
-    /** The dark plates and veils take where no picture lends its own ([LocalAmbientDeep]). */
+    /** The dark plates and veils take where no picture lends its own ([LocalAmbient]). */
     val ambientDeep: Color,
 )
 
@@ -95,8 +96,11 @@ fun HlColors.emberLight(alpha: Float = 1f, across: Float = Float.POSITIVE_INFINI
 /** Every edge and divider of a container: [HlColors.outline] at `HlAlpha.EDGE`. */
 val HlColors.edge: Color get() = outline.copy(alpha = HlAlpha.EDGE)
 
-/** A plate over a picture: the picture's own dark ([LocalAmbientDeep]) at `PLATE`, set off by [plateEdge]. */
-fun HlColors.plate(deep: Color = ambientDeep): Color = deep.copy(alpha = HlAlpha.PLATE)
+/** A plate over a picture: its own dark at [alpha], set off by [plateEdge]. */
+fun HlColors.plate(deep: Color = ambientDeep, alpha: Float = HlAlpha.PLATE): Color = deep.copy(alpha = alpha)
+
+/** A plate over the picture [light] comes from, read while drawing: as opaque as its quietest text needs there. */
+fun HlColors.plate(light: AmbientLight): Color = plate(light.deep(), light.plateAlpha())
 
 /** The hairline around a [plate]. */
 val HlColors.plateEdge: Color get() = content.copy(alpha = HlAlpha.PLATE_EDGE)
@@ -153,8 +157,12 @@ object HlAlpha {
     const val VEIL_SIDE = 0.6f
     /** Behind a dialog, and plates on artwork: at 80 % a progress line's raspberry end keeps 3.5:1 on white. */
     const val VEIL = 0.8f
-    /** A [plate] in the picture's own dark, and the hairline (`content`) that sets it off. */
+    /**
+     * A [plate] in the picture's own dark, raised up to [PLATE_MAX] over a light picture so its quietest text
+     * keeps 4.5:1 (`ArtworkSample.plateFloor`), and the hairline (`content`) that sets it off.
+     */
     const val PLATE = 0.74f
+    const val PLATE_MAX = 0.92f
     const val PLATE_EDGE = 0.11f
 
     /** Every edge and divider of a container: `outline` at this opacity. */
@@ -166,8 +174,27 @@ object HlAlpha {
     val BLACK_LEVELS = listOf(0.03f, 0.06f, 0.09f, 0.12f, 0.15f, 0.2f)
 }
 
-/** Light spilling from the current artwork; a function read while drawing, so its changes never recompose. */
-val LocalAmbient = staticCompositionLocalOf<() -> Color> { { Color.Transparent } }
+/**
+ * The light of the picture a screen lies on (`AmbientBackdrop`), read while drawing: it follows the picture's
+ * fade without recomposing. Neutral without a picture.
+ */
+@Stable
+interface AmbientLight {
+    /** The picture's own dark: its veils, and plates over it. */
+    fun deep(): Color
 
-/** The current artwork's own dark, for plates and veils; a function read while drawing, neutral without one. */
-val LocalAmbientDeep = staticCompositionLocalOf<() -> Color> { { HouselightsColors.ambientDeep } }
+    /** How opaque a plate over it must be: [HlAlpha.PLATE], raised over a light picture. */
+    fun plateAlpha(): Float
+
+    /** Its glow, for a focused card without a tone of its own; transparent without a picture. */
+    fun glow(): Color
+}
+
+/** No picture: the neutral dark, plates at [HlAlpha.PLATE], no glow. */
+private object NoPicture : AmbientLight {
+    override fun deep() = HouselightsColors.ambientDeep
+    override fun plateAlpha() = HlAlpha.PLATE
+    override fun glow() = Color.Transparent
+}
+
+val LocalAmbient = staticCompositionLocalOf<AmbientLight> { NoPicture }

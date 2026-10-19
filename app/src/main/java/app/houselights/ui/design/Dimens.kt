@@ -272,9 +272,15 @@ internal object QrCodeDefaults {
     const val QUIET_ZONE = 4
 }
 
-/** Left veil fade past the text column: slow, as a quicker fade over a light picture reads as a panel edge. */
+/**
+ * The left veil's fade past the text column, by style: slow, as a quicker fade over a light picture reads as a
+ * panel edge. [plateBand]: the top of the screen where plates sit over the picture (a header's tiles, their labels).
+ */
 internal object BackdropDefaults {
-    val veilFade = 420.dp
+    val homeFade = 650.dp
+    val detailFade = 500.dp
+    val quietFade = 420.dp
+    val plateBand = 112.dp
 }
 
 /** Inner padding of controls and of the options of a segmented track. */

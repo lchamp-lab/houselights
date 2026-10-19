@@ -102,9 +102,16 @@ embers). `HlColors` names their roles; only roles reach components.
 | `focus` | `N96` | `#F4F4F5` | focus fill and outline |
 | `onFocus` | `N0` | `#000000` | a focused control's name and icon |
 | `onFocusSecondary` | `N36` | `#5D5D5D` | the line under a focused name (6.01:1) |
-| `ambientDeep` | `Deep` | `#1C1B1B` | a picture's own dark, neutral until one lends it (`LocalAmbientDeep`, read while drawing): plates (`plate()`) and veils |
+| `ambientDeep` | `Deep` | `#111113` | a picture's own dark (luminance at most 0.006), neutral until one lends it (`LocalAmbient`, read while drawing): its veils and plates (`plate()`) |
 
 **Neutrals are neutral**: no hue, only a touch of cool; warmth belongs to the films and to ember.
+
+**The picture's light** (`ImageLight`), read once from a backdrop's sample: the tone covering most of the
+picture, weighted by its saturation, among its coloured tones (`lightOf`: a red title on teal is teal, a few
+sparks do not tint a red picture; under a tenth of colour, the picture is grey). Its **dark**: that hue,
+saturation at most 0.75, value 0.11 lowered until its luminance is at most 0.006; `Deep` for a grey picture.
+Its **glow**: that hue at value 0.9, saturation 0.45 to 0.85; white for a grey picture. `AmbientBackdrop`
+lends both, and a plate's opacity, as `LocalAmbient`, blended as the pictures' layers crossfade.
 
 **Grounds.** Three materials: the room (`background`), glass (`glass`, set off by its hairline) and
 artwork. A component reads what it lies on (`LocalGround`: `Ground.Room`, `Glass`, `Artwork`) instead of
@@ -118,7 +125,7 @@ under it reads the ground opaque (`groundColor`, `groundFill`).
 |---|---|
 | Fills (`content` over its ground) | `FILL_FAINT` 6 % (wells, tracks, disabled), `FILL` 9 % (secondary controls, things on the room), `FILL_STRONG` 20 % (primary controls, the current option of a track) |
 | Veils (`background` over a picture) | `VEIL_SIDE` 60 % (beside a side sheet), `VEIL` 80 % (behind a dialog, the plate under what sits on artwork) |
-| Plates (a picture's own dark over it) | `PLATE` 74 %, set off by a `PLATE_EDGE` hairline (`content` at 11 %) |
+| Plates (a picture's own dark over it) | `PLATE` 74 %, raised over a light picture until its quietest text keeps 4.5:1, up to `PLATE_MAX` 92 %; set off by a `PLATE_EDGE` hairline (`content` at 11 %) |
 | Edges | `EDGE` (`outline` at 60 %, `HlColors.edge`), `EDGE_ARTWORK` (`content` at 12 %, around a picture) |
 
 Check fills on a TV with the catalogue's black-level chart (`BLACK_LEVELS`).
@@ -152,6 +159,8 @@ using it.
 - Forbidden: `contentTertiary` on `FILL_STRONG` (≈ 3.90:1); use `contentSecondary` (`FocusStyle.quietInk`).
 - A disabled control sits in a `FILL_FAINT` well with `contentTertiary` words, on the room only: a sheet
   omits an action that cannot be taken.
+- A plate on the bare picture holds `contentTertiary` only at its raised opacity (4.6:1 over white at
+  `PLATE_MAX`), and ember there as marks, never words (4.3:1).
 
 **On artwork.** A translucent white fill vanishes over a light image. What sits on an image takes a dark
 plate instead (`VEIL`, matte, `groundPlate()`): card marks and progress, and controls inside `OnArtwork { }`.
@@ -160,20 +169,37 @@ Over a white image, the raspberry end of a progress line still reaches 3.5:1.
 ### Veils (`Scrim.kt`)
 
 `HlScrim` holds the recipes laid over artwork: the left veil behind the text column, the top veil under the
-top bar, the bottom fade, and the welcome wall's veil.
+top bar, the bottom one, a wall's diffuse field, and the welcome wall's veil.
 
+- **The left and top veils are the picture's own dark** (`ambientDeep`), the bottom one the room's black, so
+  the floor stays the room. They go into the picture's cached layer as two gradients; the top's dark turns to
+  black where neither veils.
 - **No veil draws a line.** Stops are joined by one smooth monotone curve (`alphaAt`) rendered in 32 steps
   (`colorStops`); straight segments meeting at an angle show as a line across the picture.
-- **The left veil follows the text column in dp** (`safeH` + `readableNarrow`), then fades over
-  `BackdropDefaults.veilFade`, never as a share of an assumed screen width.
-- **It keeps a floor per band** (the four bands of `HlScrim.LEFT`), read from a small copy of the backdrop
-  (`ArtworkSample.leftVeil`): the opacity the quietest text needs for 4.5:1. Bands never get lighter
-  leftwards. Highlights under a twentieth of a band are ignored (`FLOOR_QUANTILE`).
+- **The left veil follows the text column in dp** (`safeH` + `readableNarrow`), its stops at the band edges
+  (home 0.95 to 0.48, a detail page 0.96 to 0.67), then fades over `BackdropDefaults.homeFade` (650) or
+  `BackdropDefaults.detailFade` (500), never as a share of an assumed screen width.
+- **It keeps a floor per band** (its four bands), read from a small copy of the backdrop
+  (`ArtworkSample.leftVeil`): the opacity the quietest text needs for 4.5:1, the top veil's dark counted over
+  the picture. A veil in the picture's dark lightens what it covers: it needs `(grey - ceiling) / (grey - dark)`,
+  0.915 over white (a black one, 0.85). Bands never get lighter leftwards. Highlights under a twentieth of a
+  band are ignored (`FLOOR_QUANTILE`).
 - **One exception to 4.5:1** (`HlScrim.LEFT_CONTRAST`): over the column's left half the quietest text keeps
   4.5:1; over the third quarter, 3.5:1; over the last, 3:1. Nowhere else does text go below 4.5:1.
-- **The bottom fade** runs in one stroke (`fadeFrom` to `fadeTo`); on a detail page, from 45 % of the height.
-  A dimmed picture (`Quiet`) stops at what its quietest text needs (`BackdropStyle.foot`).
-- **No picture, no light.** `Backdrop(null)` is the black room, and its ambient light is transparent.
+- **The top veil** is 0.74 at the edge and gone at 164 dp. **The bottom one** reaches black where rows sit:
+  home from 40 % to 77 % of the height, a detail page from 45 % to 96 %. A dimmed picture (`Quiet`) stops at
+  what its quietest text needs.
+- **Plates** over a picture rise from `PLATE` to what its quietest text needs over the top band where they
+  sit (`ArtworkSample.plateFloor`, `BackdropDefaults.plateBand`), at most `PLATE_MAX`.
+- **A wall's diffuse field** (`Diffuse`): its backdrop's sample averaged down to 64 × 36, blurred three times,
+  its colour lifted 1.2 times, its 95th percentile brought to luminance 0.039 and every point capped there,
+  rounded down. Enlarged with bilinear filtering under black veils (0.66 at the top, gone at 200 dp; 0.5 at
+  the foot), in one fill with an ordered 8 × 8 dither under one level: it shows rings otherwise, and the
+  player's GPU does not dither. `contentSecondary` keeps 4.6:1 on it bare, `contentTertiary` only in the
+  title's band or on a plate. A wall never decodes its picture: 9 KB a title, memory-cached beside its sample.
+- **One fade.** A picture, its veils and its dark crossfade together over `TINT` once the title has settled,
+  the leaving one held under the next: the screen never dips, and plates follow the same progress.
+- **No picture, no light.** `Backdrop(null)` is the black room: the neutral dark, no glow.
 
 ### Type (`Type.kt`)
 
@@ -271,8 +297,8 @@ The screen is a TV seen from three metres, through overscan that may crop its ma
 
 | Component | Use |
 |---|---|
-| `Backdrop` (`Hero`, `Full`, `Quiet`) | full-screen artwork under the `HlScrim` veils. Drawn once per picture: the next one is decoded off screen, then picture and veils go into one cached layer and two layers cross-fade. Handed across cuts (`BackdropRelay`); a screen without backdrop lets it fade to black (`LeavingBackdrop`). Steps back under a veil (`recede`) when focus is lower on the page (`ArtworkSample.floorAcross`) |
-| `AmbientBackdrop`, `rememberAmbientColor` | a screen on its picture, and the picture's light, provided as a function (`LocalAmbient`) and read while drawing |
+| `Backdrop` (`Hero`, `Full`, `Quiet`, `Diffuse`) | full-screen artwork under the `HlScrim` veils; a wall's is its diffuse field. Drawn once per picture: the next one is decoded off screen, then picture and veils go into one cached layer and two layers cross-fade. Handed across cuts (`BackdropRelay`); a screen without backdrop lets it fade to black (`LeavingBackdrop`). Steps back under a veil (`recede`) when focus is lower on the page (`ArtworkSample.floorAcross`) |
+| `AmbientBackdrop` | a screen on its picture, and the picture's light (its dark, a plate's opacity, its glow) provided as `LocalAmbient`, read while drawing |
 | `PosterCard`, `LandscapeCard`, `PersonCard`, `ArtworkSurface`, `ArtworkImage` | artwork with the shared focus treatment (see *Cards*), requested at its grown size (`requestedPoster`). Names under a card in `cardName`; a wide card's facts follow its name when both fit, else go under it. A person in two titles or more opens their page (`PersonScreen`); a person of a single title does nothing |
 | `AbsentCard` | a saga's missing films as empty frames, in release order; focusable, framed without growing, OK does nothing |
 | `HeroInfo`, `TitleArt`, `EpisodeHeading`, `MetaLine`, `BillingBlock` | what a title is: logo or condensed title, facts, credits. Logos are normalised to the same optical weight (`EvenLogo`, `SURFACE` 0.35) and requested as shown (`titleArtRequest`). A name waits for its picture (`WithItsPicture`, `HOLD` at most) |

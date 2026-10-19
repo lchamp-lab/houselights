@@ -7,7 +7,9 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -15,6 +17,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -43,6 +46,8 @@ import app.houselights.ui.design.HlPalette
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.components.Backdrop
+import app.houselights.ui.design.components.BackdropStyle
 import app.houselights.ui.design.components.Badge
 import app.houselights.ui.design.components.Emphasis
 import app.houselights.ui.design.components.HlActionRow
@@ -61,6 +66,7 @@ import app.houselights.ui.design.components.HlSideSheet
 import app.houselights.ui.design.components.HlStatus
 import app.houselights.ui.design.components.HlTextField
 import app.houselights.ui.design.components.LandscapeCard
+import app.houselights.ui.design.components.LocalBackdropRelay
 import app.houselights.ui.design.components.MeterInk
 import app.houselights.ui.design.components.MeterLegend
 import app.houselights.ui.design.components.MeterSegment
@@ -98,6 +104,8 @@ fun CatalogScreen() {
             item {
                 Group("Colour", Modifier.focusRequester(first), still = true) { Colours() }
             }
+
+            item { Group("Black levels: the room's steps, then the darks a picture lends", still = true) { BlackLevels() } }
 
             item {
                 Group("Type: the voices of the poster, of reading, technical; then the signature", still = true) {
@@ -327,7 +335,7 @@ fun CatalogScreen() {
     }
 }
 
-/** The palette, the roles that name it, ember and a picture's dark, then the black levels to check on the TV. */
+/** The palette, the roles that name it, ember and a picture's dark. */
 @Composable
 private fun Colours() {
     val c = Hl.colors
@@ -358,7 +366,15 @@ private fun Colours() {
             ).forEach { (name, color) -> Swatch(name, color) }
             Swatch("ember light", c.emberLight())
         }
-        // Look at it on the TV: every step should stand apart from the room.
+    }
+}
+
+/** The black levels to check on the TV, then a picture's veils and a wall's field, which must show no rings there. */
+@Composable
+private fun BlackLevels() {
+    val c = Hl.colors
+    Column(verticalArrangement = Arrangement.spacedBy(HlSpace.l)) {
+        // Every step should stand apart from the room.
         Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Bottom) {
             Swatch("room", c.background)
             HlAlpha.BLACK_LEVELS.forEach { level ->
@@ -371,6 +387,20 @@ private fun Colours() {
                 color = c.contentSecondary,
                 modifier = Modifier.padding(start = HlSpace.m).widthIn(max = HlLayout.readableNarrow),
             )
+        }
+        // The darks a picture lends: its veils in its own dark, and a wall's diffuse field.
+        val art = shippedImage(R.drawable.banner)
+        CompositionLocalProvider(LocalBackdropRelay provides null) {
+            Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.l)) {
+                listOf(
+                    "tinted veils: the picture's own dark at the left and the top, black at the foot" to BackdropStyle.Hero,
+                    "a wall's diffuse field: dithered, no rings, never brighter than its text allows" to BackdropStyle.Diffuse,
+                ).forEach { (state, style) ->
+                    Specimen(state, width = HlLayout.sideColumnWide) {
+                        Box(Modifier.fillMaxWidth().aspectRatio(16f / 9f)) { Backdrop(art, style) }
+                    }
+                }
+            }
         }
     }
 }
