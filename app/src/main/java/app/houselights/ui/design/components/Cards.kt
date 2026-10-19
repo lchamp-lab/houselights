@@ -257,7 +257,7 @@ private fun cardReading(readAs: String?, stateDescription: String?, focused: Boo
 val LocalArtworkRecede = staticCompositionLocalOf<() -> Float> { { 0f } }
 
 /**
- * Card artwork; [fallback] replaces it when missing or failing (NAS asleep), so a card is never blank.
+ * Card artwork; [fallback] replaces it when missing or failing (NAS asleep); without one, the surface shows.
  * [picture] styles the loaded image only. Decoded at its laid out size, or at [size] (px) when given, as
  * a preload asks for it. Receding dims and desaturates it through its colour filter, not a layer.
  */
@@ -492,7 +492,7 @@ fun PersonCard(person: Person, modifier: Modifier = Modifier, onOpen: (() -> Uni
             readAs = listOfNotNull(person.name, person.role).joinToString(", "),
             acts = onOpen != null,
         ) {
-            // Without a portrait, the empty frame: the name is written under it.
+            // Without a portrait, the bare frame: the name is written under it.
             ArtworkImage(person.image?.url(px), person.name, Modifier.fillMaxSize())
         }
         Spacer(Modifier.height(HlSpace.s))

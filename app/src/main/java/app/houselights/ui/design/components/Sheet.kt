@@ -365,7 +365,7 @@ fun RowPreview(image: ImageRef?, shape: PreviewShape, modifier: Modifier = Modif
                 .padding(if (logo) HlSpace.xxs else HlSpace.none),
         ) {
             if (icon != null) {
-                Icon(icon, contentDescription = null, tint = c.contentSecondary, modifier = Modifier.size(HlSize.discIcon))
+                Icon(icon, contentDescription = null, tint = c.contentSecondary, modifier = Modifier.size(HlSize.largeIcon))
             } else {
                 EmptyFrame(frame, HlShapes.thumb)
             }

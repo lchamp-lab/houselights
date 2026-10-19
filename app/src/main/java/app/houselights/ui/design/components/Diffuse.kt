@@ -187,7 +187,7 @@ internal fun diffusePaint(field: Bitmap, width: Float, height: Float, down: List
     val scale = max(width / field.width, height / field.height)
     val picture = BitmapShader(field, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP).apply {
         setLocalMatrix(Matrix().apply { setScale(scale, scale); postTranslate(width - field.width * scale, 0f) })
-        // Its own filter from Android 13, where a shader inside another no longer takes the paint's.
+        // From Android 13 a shader inside another ignores the paint's filter, so it sets its own.
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) filterMode = BitmapShader.FILTER_MODE_LINEAR
     }
     val stops = down.colorStops(Color.Black)

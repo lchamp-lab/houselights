@@ -241,7 +241,8 @@ private fun CacheDrawScope.drawPlate(look: FocusLook, shape: Shape, enabled: Boo
 /**
  * A framed picture's glow under it and its [frame] over it, [HlFocus.frameGap] off its grown edge, the
  * frame's corners parallel to the picture's ([shape]'s first corner). Outside the picture's layer, so the
- * frame keeps its width as the picture grows; without [frame] (it cannot act), its ring shows focus.
+ * frame keeps its width as the picture grows. Without [frame], its row draws it ([RowFrame]), or, disabled, its
+ * ring shows focus.
  */
 private fun CacheDrawScope.drawLight(shape: Shape, lift: Lift, frame: Brush?, glow: (() -> Color)?, lights: Lights): DrawResult {
     val corner = (shape as? RoundedCornerShape)?.topStart?.toPx(size, this) ?: 0f

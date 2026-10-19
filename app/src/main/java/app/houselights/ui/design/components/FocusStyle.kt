@@ -52,8 +52,8 @@ internal data class FocusLook(
 /**
  * The single definition of focus (DESIGN.md, Focus): projector white in two gestures, [frame] and [fill],
  * and the [ring] of what is read or typed in. Nothing is brighter than focus, and ember never marks it.
- * A surface that cannot act keeps its well: focus rings it, never fills it, since white would offer an
- * action. Components take focus from here only (`FocusStyleGuardTest`).
+ * A disabled surface keeps its well: focus rings it, never fills it, since white would offer an action.
+ * Components take focus from here only (`FocusStyleGuardTest`).
  */
 internal object FocusStyle {
     /** Frame: the white frame [HlFocus.frameGap] off the edge, grown by [lift], lit in the picture's own tone. */
@@ -108,7 +108,7 @@ internal object FocusStyle {
     @ReadOnlyComposable
     fun ring(): BorderStroke = BorderStroke(HlSize.focusBorder, Hl.colors.focus)
 
-    /** Secondary text colour by state; never tertiary at rest, which drops to 3.9:1 on a primary button. */
+    /** Secondary text colour by state; never tertiary at rest, which drops to 3.9:1 on `FILL_STRONG`. */
     @Composable
     @ReadOnlyComposable
     fun quietInk(focused: Boolean, enabled: Boolean, lit: Boolean, onFocus: Color = Hl.colors.onFocusSecondary): Color {

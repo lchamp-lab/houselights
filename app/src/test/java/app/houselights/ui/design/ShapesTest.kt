@@ -10,7 +10,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
 
-/** Radii follow hierarchy, nested shapes keep parallel corners, and only a status dot is round. */
+/** Radii follow hierarchy, nested shapes keep parallel corners, and only dots are round. */
 class ShapesTest {
     private val density = Density(1f)
 
@@ -53,12 +53,32 @@ class ShapesTest {
             HlShapes.row, HlShapes.artwork, HlShapes.wide, HlShapes.panel, HlShapes.sheet,
         ).forEach { assertEquals(it.radius(), it.topStart.toPx(Size(SMALL, SMALL), density), 0f) }
         val ui = File("src/main/java/app/houselights/ui")
-        val round = Regex("""\bCircleShape\b|RoundedCornerShape\(\s*percent""")
-        val dot = Regex("""HlSize\.(dot|newDot|newsDot)|dot\.""")
-        val found = kotlinSources(ui).linesWhere(ui) { line ->
-            !line.trimStart().startsWith("import ") && round.containsMatchIn(line) && !dot.containsMatchIn(line)
+        val found = kotlinSources(ui).flatMap { file ->
+            // A file may name its dot once (`val dot = Modifier.size(HlSize.dot)`) and round it where it draws it.
+            val namesItsDot = namedDot.containsMatchIn(file.readText())
+            listOf(file).linesWhere(ui) { line ->
+                !line.trimStart().startsWith("import ") && round.containsMatchIn(line) &&
+                    !dot.containsMatchIn(line) && !(namesItsDot && localDot.containsMatchIn(line))
+            }
         }
         assertTrue("Round, and not a status dot:\n" + found.joinToString("\n"), found.isEmpty())
+    }
+
+    /** A disc or a pill: a circle, or a radius given as a share of the size. */
+    private val round = Regex("""\bCircleShape\b|RoundedCornerShape\(\s*(percent\s*=\s*)?\d+\s*[,)]""")
+
+    /** The sizes of a status dot: a state, a new title, a row's new titles, the current place's word. */
+    private val dot = Regex("""\bHlSize\.(dot|newDot|newsDot|wordDot)\b""")
+    private val namedDot = Regex("""\bval dot = Modifier\.size\(HlSize\.(dot|newDot|newsDot|wordDot)\)""")
+    private val localDot = Regex("""\bdot\.\w+\(""")
+
+    @Test
+    fun theGuardCatchesWhatItShould() {
+        listOf("Modifier.clip(CircleShape)", "RoundedCornerShape(50)", "RoundedCornerShape(percent = 50)")
+            .forEach { assertTrue(it, round.containsMatchIn(it)) }
+        assertTrue(!round.containsMatchIn("RoundedCornerShape(4.dp)"))
+        assertTrue(dot.containsMatchIn("Modifier.size(HlSize.newsDot).background(c.ember, CircleShape)"))
+        assertTrue(!dot.containsMatchIn("Modifier.size(HlSize.tile).clip(CircleShape) // a dot."))
     }
 
     private companion object {

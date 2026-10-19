@@ -102,7 +102,7 @@ fun VersionRow(name: String, version: Version, onChoose: () -> Unit, modifier: M
                     Icon(
                         HlIcons.Check,
                         contentDescription = null,
-                        tint = if (focused) ink else c.ember,
+                        tint = if (focused) c.emberOnLight else c.ember,
                         modifier = Modifier.size(HlSize.inlineIcon),
                     )
                     Spacer(Modifier.width(HlSpace.xxs))

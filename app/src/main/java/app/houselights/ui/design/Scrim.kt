@@ -68,13 +68,15 @@ object HlScrim {
     const val DEEP_SATURATION_MAX = 0.75f
     const val DEEP_LUMINANCE_MAX = 0.006f
 
-    /** A picture whose coloured tones cover less than this share is grey: a neutral dark, a white glow. */
+    /** A picture whose coloured tones cover less than this share is grey: a neutral dark, a light grey glow. */
     const val TINT_SHARE = 0.1f
 
-    /** A focused card's glow: its artwork's main tone, bright; grey glows white. */
+    /** A focused card's glow: its artwork's main tone, bright; a grey picture glows light grey, at this value. */
     const val GLOW_VALUE = 0.9f
     const val GLOW_SATURATION_MIN = 0.45f
     const val GLOW_SATURATION_MAX = 0.85f
+
+    /** Under this saturation a tone is grey: it neither tints a picture's dark nor its glow. */
     const val GLOW_GREY = 0.12f
 
     /** How much a tone counts by its area alone, before its saturation adds to it. */

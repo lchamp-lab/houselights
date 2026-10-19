@@ -57,7 +57,7 @@ enum class PanelLevel {
     /** On the room itself: lists, status, information. */
     Quiet,
 
-    /** Above other content: dialogs and menus. */
+    /** Above other content: menus, on glass. */
     Raised,
 }
 
@@ -259,7 +259,7 @@ internal fun StatusLight(state: StatusState, modifier: Modifier = Modifier, ink:
             Icon(HlIcons.Attention, contentDescription = null, tint = ink ?: c.ember, modifier = Modifier.size(HlSize.statusLight))
             return@Box
         }
-        // A status dot is the one round thing.
+        // Dots are the only round things.
         val dot = Modifier.size(HlSize.dot).clip(CircleShape)
         Box(
             when (state) {
@@ -322,7 +322,7 @@ fun HlMeter(segments: List<MeterSegment>, modifier: Modifier = Modifier) {
 @Composable
 fun MeterLegend(label: String, value: String, ink: MeterInk, modifier: Modifier = Modifier) {
     Row(modifier.fillMaxWidth()) {
-        // A status dot is the one round thing.
+        // Dots are the only round things.
         Box(Modifier.align(Alignment.CenterVertically).size(HlSize.dot).clip(CircleShape).background(ink.color()))
         Spacer(Modifier.width(HlSpace.s))
         Text(

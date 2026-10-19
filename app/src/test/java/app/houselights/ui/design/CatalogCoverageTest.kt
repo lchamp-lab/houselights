@@ -4,8 +4,9 @@ import app.houselights.testing.kotlinSources
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
+import java.lang.reflect.Modifier
 
-/** Fails on a public component of `ui/design/components` that the catalogue never shows (DESIGN.md, Catalogue). */
+/** Fails on a component, shape, glyph, colour role or type style the catalogue never shows (DESIGN.md, Catalogue). */
 class CatalogCoverageTest {
     private val components = File("src/main/java/app/houselights/ui/design/components")
     private val catalog = File("src/main/java/app/houselights/ui/catalog")
@@ -46,6 +47,33 @@ class CatalogCoverageTest {
         val missing = declared.filter { !Regex("""\bHlShapes\.$it\b""").containsMatchIn(sheet) }
         assertTrue("Not on the catalogue's shape sheet: ${missing.joinToString()}", missing.isEmpty())
     }
+
+    /** Every colour role is on the catalogue's sheets; the ember light's two ends in its swatch. */
+    @Test
+    fun theCatalogueShowsEveryColourRole() {
+        val shown = kotlinSources(catalog).joinToString("\n") { it.readText() }
+        val roles = fieldsOf(HlColors::class.java)
+        assertTrue("No colour roles found", roles.isNotEmpty())
+        val inTheLight = setOf("emberFrom", "emberTo")
+        val missing = roles.filter { role ->
+            !Regex("""\b(c|Hl\.colors)\.$role\b""").containsMatchIn(shown) && !(role in inTheLight && "c.emberLight()" in shown)
+        }
+        assertTrue("Colour roles not in the catalogue: ${missing.joinToString()}", missing.isEmpty())
+    }
+
+    /** Every style of `HlType` is on the catalogue's type sheet. */
+    @Test
+    fun theCatalogueShowsEveryTypeStyle() {
+        val sheet = catalog.resolve("CatalogScreen.kt").readText()
+        val styles = fieldsOf(HlType::class.java)
+        assertTrue("No type styles found", styles.isNotEmpty())
+        val missing = styles.filter { !Regex("""\bt\.$it\b""").containsMatchIn(sheet) }
+        assertTrue("Not on the catalogue's type sheet: ${missing.joinToString()}", missing.isEmpty())
+    }
+
+    /** The properties a token class declares, in order. */
+    private fun fieldsOf(type: Class<*>): List<String> =
+        type.declaredFields.filter { !Modifier.isStatic(it.modifiers) }.map { it.name }
 
     /** Every glyph of `HlIcons` is on the catalogue's icon sheet, so a new one is seen at its sizes. */
     @Test

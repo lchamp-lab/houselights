@@ -28,7 +28,7 @@ object Hl {
 @Composable
 fun HouselightsTheme(content: @Composable () -> Unit) {
     val c = HouselightsColors
-    // tv-material components (Surface, Button) read this scheme for their defaults.
+    // tv-material's defaults in the system's colours; its Text and Icon take the content colour set below.
     val scheme = darkColorScheme(
         primary = c.focus,
         onPrimary = c.onFocus,
@@ -58,7 +58,7 @@ fun HouselightsTheme(content: @Composable () -> Unit) {
     }
 }
 
-/** tv-material's roles in Archivo, for the components that read them (a Button's label). */
+/** tv-material's type roles in Archivo, so none of its defaults falls back to another face. */
 private val materialTypography = with(HouselightsType) {
     Typography(
         displayLarge = display, displayMedium = headline, displaySmall = subject,

@@ -26,8 +26,8 @@ object HlSpace {
 }
 
 /**
- * Radii follow hierarchy, none a pill or a disc (a status dot is round on its own). A nested shape keeps its
- * corners parallel: outer = inner + gap (a menu: 10 + 6 = 16; a focus frame: the picture's + its gap).
+ * Radii follow hierarchy, never a pill or a disc: only dots are round. A nested shape keeps its corners
+ * parallel: outer = inner + gap (a menu: 10 + 6 = 16; a focus frame: the picture's + its gap).
  */
 object HlShapes {
     /** Images up to 48 dp: thumbnails, row previews. */
@@ -52,7 +52,7 @@ object HlShapes {
 
 /** Inner padding of containers by kind, so the same kind of thing breathes the same everywhere. */
 object HlInset {
-    /** Menus (their rows carry their own padding) and results holding a thumbnail. */
+    /** Results holding a thumbnail. */
     val tight = HlSpace.xs
     /** Panels and cards. */
     val card = HlSpace.l
@@ -88,7 +88,7 @@ object HlSize {
     /** An icon on a [tile]. */
     val tileIcon = 22.dp
     /** An icon larger than a line's: a panel button's, an empty preview's. */
-    val discIcon = 24.dp
+    val largeIcon = 24.dp
     /** A mark over a picture (watched, chosen), on its plate. */
     val mark = 22.dp
     val markIcon = 14.dp
@@ -127,7 +127,7 @@ object HlSize {
     /** Progress burning at the foot of a poster, of a wide image. */
     val progressPoster = 4.dp
     val progressWide = 5.dp
-    /** The short rule heading an intertitle card: a question asked in a sheet. */
+    /** The short rule heading every intertitle. */
     val intertitleRule = 24.dp
     val intertitleRuleWeight = 2.dp
     /** A word of a track (`HlSegmented`) on its plate: as tall as a compact tile. */
@@ -257,7 +257,7 @@ internal object HlMenuDefaults {
     val inset = 6.dp
 }
 
-/** Tech sheet rows: least height (as a menu option) and widest value ("Dolby Digital Plus Atmos   7.1"). */
+/** Tech sheet rows: least height (as a compact tile) and widest value ("Dolby Digital Plus Atmos   7.1"). */
 internal object TechSpecsDefaults {
     val rowHeight = 40.dp
     val valueWidth = 240.dp

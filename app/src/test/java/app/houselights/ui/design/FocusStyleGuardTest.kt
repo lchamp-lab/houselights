@@ -1,5 +1,7 @@
 package app.houselights.ui.design
 
+import app.houselights.testing.callFrom
+import app.houselights.testing.inCommentAt
 import app.houselights.testing.kotlinSources
 import app.houselights.testing.linesWhere
 import app.houselights.ui.design.components.Lift
@@ -11,8 +13,8 @@ import java.io.File
 /**
  * Focus is said in one place, `FocusStyle`, in two gestures (frame, fill) and the ring, and drawn by one
  * surface, `HlFocusSurface`, whose frame a row of cards takes over (`RowFrame`), so a row holds framed cards only:
- * no component builds its own white, frame or growth, and tv-material's focus (its scale, glow and Material
- * timing) is never drawn.
+ * no component builds its own white, frame or growth, tv-material's focus (its scale, glow and Material timing)
+ * is never drawn, OK clicks through the surface, what takes focus shows it, and `focusRestorer` is never used.
  */
 class FocusStyleGuardTest {
     private val main = File("src/main/java/app/houselights")
@@ -85,23 +87,6 @@ class FocusStyleGuardTest {
         assertTrue("A control after a row is not", !control.containsMatchIn(after.callFrom(after.indexOf('('))))
     }
 
-    /** The call whose arguments open at [open]: its arguments, then its trailing lambda, brackets balanced. */
-    private fun String.callFrom(open: Int): String {
-        var end = closing(open, '(', ')')
-        val lambda = (end + 1 until length).firstOrNull { !this[it].isWhitespace() } ?: -1
-        if (lambda >= 0 && this[lambda] == '{') end = closing(lambda, '{', '}')
-        return substring(open, end + 1)
-    }
-
-    private fun String.closing(open: Int, opens: Char, closes: Char): Int {
-        var depth = 0
-        for (i in open until length) {
-            if (this[i] == opens) depth++
-            if (this[i] == closes && --depth == 0) return i
-        }
-        return length - 1
-    }
-
     /** Only a picture grows: a plate's white shows focus, so a fill keeps its size. */
     @Test
     fun controlsDoNotGrow() {
@@ -117,8 +102,61 @@ class FocusStyleGuardTest {
         val allowed = setOf("Text", "Icon", "LocalContentColor", "LocalTextStyle", "MaterialTheme", "darkColorScheme", "Typography")
         val use = Regex("""androidx\.tv\.material3\.([\w*]+)""")
         val found = kotlinSources(main).linesWhere(main) { line ->
-            use.findAll(line).any { it.groupValues[1] !in allowed }
+            use.findAll(line).any { it.groupValues[1] !in allowed } || material.containsMatchIn(line)
         }
         assertTrue("Focus is drawn by HlFocusSurface; only tv-material's theme stays:\n" + found.joinToString("\n"), found.isEmpty())
+    }
+
+    /** Compose's Material: its components, ripples and icons. */
+    private val material = Regex("""\bandroidx\.compose\.material3?\.""")
+
+    /** OK clicks on its release, through `HlFocusSurface`: no other way to click, select or show a press. */
+    @Test
+    fun okClicksThroughTheSurface() {
+        val found = kotlinSources(main).linesWhere(main) { line -> !comment(line) && click.containsMatchIn(line) }
+        assertTrue("A click of its own, use a component on HlFocusSurface:\n" + found.joinToString("\n"), found.isEmpty())
+    }
+
+    private val click = Regex("""\.(clickable|combinedClickable|selectable|toggleable|triStateToggleable)\b|\bindication\s*=""")
+
+    /** What takes focus shows it: a surface, or a ring of `FocusStyle` drawn by the component itself. */
+    @Test
+    fun whatTakesFocusShowsIt() {
+        val ui = File("src/main/java/app/houselights/ui")
+        val focusable = Regex("""\.focusable\(""")
+        val found = kotlinSources(ui).filter { file ->
+            val text = file.readText()
+            val path = file.relativeTo(ui).path
+            path !in unseen && focusable.findAll(text).any { !text.inCommentAt(it.range.first) } &&
+                (!file.startsWith(components) || "FocusStyle." !in text)
+        }.map { it.relativeTo(ui).path }
+        assertTrue("Focusable without showing focus:\n" + found.joinToString("\n"), found.isEmpty())
+        val stale = unseen.keys.filter { path -> ui.resolve(path).let { !it.isFile || !focusable.containsMatchIn(it.readText()) } }
+        assertTrue("Exceptions for files that take no focus: ${stale.joinToString()}", stale.isEmpty())
+    }
+
+    /** Focusable without a mark of focus, and why. */
+    private val unseen = mapOf(
+        "design/components/Synopsis.kt" to "a sheet's whole text, the only thing in it, focused to scroll",
+        "catalog/CatalogParts.kt" to "a catalogue section with nothing to focus, so the remote reaches it",
+    )
+
+    /** `focusRestorer` crashes in Compose 1.7 when its list changes; children are restored by `keepChildFocus`. */
+    @Test
+    fun neverFocusRestorer() {
+        val restorer = Regex("""\b(focusRestorer|restoreFocusedChild|saveFocusedChild)\b""")
+        val found = kotlinSources(main).linesWhere(main) { line -> !comment(line) && restorer.containsMatchIn(line) }
+        assertTrue("Restore focus with keepChildFocus:\n" + found.joinToString("\n"), found.isEmpty())
+    }
+
+    private fun comment(line: String) = line.trimStart().let { it.startsWith("//") || it.startsWith("*") }
+
+    @Test
+    fun theGuardsCatchWhatTheyShould() {
+        listOf("import androidx.compose.material3.Button", "androidx.compose.material.ripple.rememberRipple()")
+            .forEach { assertTrue(it, material.containsMatchIn(it)) }
+        listOf("Modifier.clickable { }", "Modifier.combinedClickable(onClick = {})", "Modifier.selectable(true) {}", "indication = null")
+            .forEach { assertTrue(it, click.containsMatchIn(it)) }
+        assertTrue(!click.containsMatchIn("Modifier.selectableGroup()"))
     }
 }

@@ -149,7 +149,7 @@ fun EpisodeHeading(label: String?, title: String, modifier: Modifier = Modifier,
     }
 }
 
-/** Placeholder while a detail page loads: two quiet short rules, shown after [HlMotion.SKELETON_DELAY]. */
+/** Placeholder while a detail page loads: two quiet short rules, shown once `skeletonDelayPassed()`. */
 @Composable
 fun HeroSkeleton(modifier: Modifier = Modifier) {
     val rule = Hl.colors.contentDecorative

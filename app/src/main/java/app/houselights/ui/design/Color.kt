@@ -10,7 +10,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.compositeOver
 
-/** Raw colours: neutrals named by lightness (`N0` to `N96`) and embers; only [HouselightsColors] reads them. */
+/** Raw colours: neutrals named by lightness (`N0` to `N96`) and embers; only [HouselightsColors] and the catalogue read them. */
 object HlPalette {
     val N0 = Color(0xFF000000)
     val N8 = Color(0xFF131316)
@@ -35,7 +35,7 @@ object HlPalette {
 data class HlColors(
     /** The room: the base of every screen. */
     val background: Color,
-    /** Glass: side sheets, menus and dialogs, opaque over the dimmed room. */
+    /** Glass: side sheets and menus, opaque over the dimmed room. */
     val glass: Color,
     /** Outlined badges, and every edge at `HlAlpha.EDGE`. */
     val outline: Color,
@@ -47,8 +47,8 @@ data class HlColors(
     /** Never for text: the rule of an empty frame, a skeleton. */
     val contentDecorative: Color,
     /**
-     * The house light: states only (in use, your choice, needs attention, new); never focus or a fact.
-     * Screens reach it through component states (`HlStatus`, `lit`), never by name.
+     * The house light, a closed list of six states (in use, your choice, needs attention, new, where you are,
+     * the action to play); never focus or a fact. Screens reach it through component states, never by name.
      */
     val ember: Color,
     /** Ember gradient ends, where it reads as light (progress, a rule, the mark's bars, [emberLight]); small marks take [ember]. */
@@ -106,8 +106,8 @@ fun HlColors.plate(light: AmbientLight): Color = plate(light.deep(), light.plate
 val HlColors.plateEdge: Color get() = content.copy(alpha = HlAlpha.PLATE_EDGE)
 
 /**
- * What a component lies on, which decides how it stands out: the black room, glass (sheets, menus, dialogs)
- * or artwork, where content needs a dark plate. Components read it from [LocalGround], not a parameter.
+ * What a component lies on, which decides how it stands out: the black room, glass (sheets, menus) or
+ * artwork, where content needs a dark plate. Components read it from [LocalGround], not a parameter.
  */
 enum class Ground { Room, Glass, Artwork }
 
@@ -129,7 +129,7 @@ fun groundColor(): Color = if (LocalGround.current == Ground.Glass) Hl.colors.gl
 @ReadOnlyComposable
 fun groundStep(): Float = if (LocalGround.current == Ground.Glass) HlAlpha.FILL_FAINT else HlAlpha.FILL
 
-/** `content` at [groundStep], translucent: a quiet panel, a field, an empty frame, an image's loading ground. */
+/** `content` at [groundStep], translucent: a quiet panel, a scroll area, an empty frame, an image's loading ground. */
 @Composable
 @ReadOnlyComposable
 fun groundStepFill(): Color = Hl.colors.content.copy(alpha = groundStep())
@@ -146,16 +146,16 @@ fun groundPlate(): Color? = if (LocalGround.current == Ground.Artwork) Hl.colors
 
 /** Opacities by role: fills of `content`, veils of `background`, edges; every translucent layer uses one. */
 object HlAlpha {
-    /** Faint wells: the track of a segmented control or a meter, a row at rest, a disabled control. */
+    /** Faint wells: a meter's track, a disabled control, an absent film's card. */
     const val FILL_FAINT = 0.06f
-    /** Fill of a thing on its ground (a field, a placeholder): #161616 on the room, a step a TV still shows. */
+    /** Fill of a thing on its ground (a placeholder, a control on glass): #161616 on the room, a step a TV still shows. */
     const val FILL = 0.09f
-    /** A primary control at rest, a progress line's track off artwork, a track's current option. */
+    /** A progress line's track beside text. */
     const val FILL_STRONG = 0.2f
 
     /** The room beside a side sheet, which stays readable. */
     const val VEIL_SIDE = 0.6f
-    /** Behind a dialog, and plates on artwork: at 80 % a progress line's raspberry end keeps 3.5:1 on white. */
+    /** Card marks and their progress track on artwork: at 80 % a progress line's raspberry end keeps 3.5:1 on white. */
     const val VEIL = 0.8f
     /**
      * A [plate] in the picture's own dark, raised up to [PLATE_MAX] over a light picture so its quietest text

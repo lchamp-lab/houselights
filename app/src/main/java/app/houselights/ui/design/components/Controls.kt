@@ -466,7 +466,7 @@ fun HlListItem(
                         icon,
                         contentDescription = null,
                         tint = if (focused) c.content else c.contentSecondary,
-                        modifier = Modifier.size(HlSize.discIcon),
+                        modifier = Modifier.size(HlSize.largeIcon),
                     )
                     Spacer(Modifier.width(HlSpace.s))
                 }
@@ -609,7 +609,7 @@ private fun SegmentItem(
                 null -> Unit
                 SegmentDetail.Done -> {
                     Spacer(Modifier.width(HlSpace.xs))
-                    // A white check, dark under focus, as on the watched button.
+                    // A white check, dark under focus, as on a watched card's mark.
                     Icon(
                         HlIcons.Check,
                         contentDescription = null,

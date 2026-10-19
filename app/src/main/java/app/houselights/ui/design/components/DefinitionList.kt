@@ -82,7 +82,7 @@ fun SpecTable(rows: List<SpecTableRow>, columns: List<Dp>, modifier: Modifier = 
                     Box(
                         Modifier
                             .align(Alignment.CenterVertically)
-                            // A status dot is the one round thing.
+                            // Dots are the only round things.
                             .size(HlSize.dot).clip(CircleShape)
                             .then(if (row.inUse) Modifier.background(c.ember) else Modifier),
                     )

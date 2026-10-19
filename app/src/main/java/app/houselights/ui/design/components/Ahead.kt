@@ -23,7 +23,7 @@ import app.houselights.ui.design.LocalLaunchScreen
 import app.houselights.ui.util.screenWidthPx
 import coil.imageLoader
 
-/** The requests a screen's components will make, so pictures preloaded under the launch screen hit memory. */
+/** The requests a screen's components will make, so the pictures loaded ahead of it hit memory. */
 class PicturesAhead(private val context: Context, private val screenWidthPx: Int) {
     private val density = canvasDensityOf(screenWidthPx)
 

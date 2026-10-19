@@ -69,7 +69,7 @@ fun SearchQuery(query: String, hint: String, modifier: Modifier = Modifier) {
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f, fill = false),
             )
-            // As tall as the words, and still: only a wait moves on its own.
+            // As tall as the words, and still.
             val cursor = with(LocalDensity.current) { Hl.type.lead.fontSize.toDp() }
             Box(Modifier.width(HlSize.focusBorder).height(cursor).background(c.emberTo))
         }

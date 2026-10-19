@@ -106,7 +106,7 @@ fun HlSettingGroup(title: String?, modifier: Modifier = Modifier, content: @Comp
  * One setting: name and description left, value right, on what holds it; with [onClick] a control, else
  * read-only. [valueLit] (a user choice) and [valueAttention] set the value in ember; [trailing] replaces the
  * value, [leading] the icon ([RowPreview]); a [chevron] shows with focus. Disabled rows belong on the room
- * only, in a well: sheets omit unavailable actions. In a sheet (on glass), a row is [HlSize.sheetRow] tall.
+ * only, in a well: sheets omit unavailable actions. In a sheet, an action row is [HlSize.sheetRow] tall.
  */
 @Composable
 fun HlSettingRow(

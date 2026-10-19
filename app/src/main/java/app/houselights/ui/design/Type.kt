@@ -143,9 +143,9 @@ data class HlType(
     val cardTitle: TextStyle,
 
     // The voice of reading (normal width).
-    /** Taglines, an episode's name in its heading, dialog titles. */
+    /** A tagline set large, an episode's name in its heading. */
     val title: TextStyle,
-    /** A tagline, a name heading a block: a source, a form. */
+    /** A tagline under a title, a name heading a list choice, a typed query. */
     val lead: TextStyle,
     /** Overviews, descriptions, paragraphs. */
     val body: TextStyle,

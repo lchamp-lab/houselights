@@ -44,7 +44,7 @@ internal const val SAMPLE_PX = 96
 @Immutable
 data class ImageLight(val deep: Color, val glow: Color) {
     companion object {
-        /** A grey picture: the neutral dark, and white. */
+        /** A grey picture: the neutral dark, and a light grey glow. */
         val Grey = ImageLight(HouselightsColors.ambientDeep, Color.hsv(0f, 0f, HlScrim.GLOW_VALUE))
     }
 }

@@ -106,6 +106,7 @@ fun CatalogScreen() {
             }
 
             item { Group("Black levels: the room's steps, then the darks a picture lends", still = true) { BlackLevels() } }
+            catalogContrast()
 
             item {
                 Group("Type: the voices of the poster, of reading, technical; then the signature", still = true) {
@@ -116,7 +117,7 @@ fun CatalogScreen() {
                         "title" to t.title, "lead" to t.lead, "body" to t.body, "entry" to t.entry, "meta" to t.meta,
                         "caption" to t.caption, "group" to t.group, "code" to t.code,
                         "spec" to t.spec, "jaquette" to t.jaquette, "badge" to t.badge,
-                        "billing" to t.billing,
+                        "titleSignature" to t.titleSignature, "billing" to t.billing, "billingJoin" to t.billingJoin,
                     ).forEach { (name, style) -> StyleSpecimen(name, style) }
                 }
             }

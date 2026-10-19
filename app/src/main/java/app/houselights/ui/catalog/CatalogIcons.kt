@@ -80,7 +80,7 @@ private fun Glyph(icon: ImageVector, modifier: Modifier) {
 @Composable
 private fun Sizes(icon: ImageVector, ink: Color, modifier: Modifier) {
     Row(modifier, horizontalArrangement = Arrangement.spacedBy(HlSpace.s), verticalAlignment = Alignment.CenterVertically) {
-        Icon(icon, contentDescription = null, tint = ink, modifier = Modifier.size(HlSize.discIcon))
+        Icon(icon, contentDescription = null, tint = ink, modifier = Modifier.size(HlSize.largeIcon))
         Icon(icon, contentDescription = null, tint = ink, modifier = Modifier.size(HlSize.icon))
     }
 }

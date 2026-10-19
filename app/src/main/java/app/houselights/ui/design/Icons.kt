@@ -131,7 +131,7 @@ object HlIcons {
         moveTo(5f, 12.5f); lineTo(9.75f, 17f); lineTo(19f, 7.5f)
     }
 
-    /** Done in a toggle: [Check] cut out of a filled disc, so it reads as on whatever the tint. */
+    /** Done in a toggle: [Check] cut out of a filled circle, so it reads as on whatever the tint. */
     val CheckFilled = ImageVector.Builder("CheckFilled", 24.dp, 24.dp, 24f, 24f).apply {
         path(fill = SolidColor(Color.Black), pathFillType = PathFillType.EvenOdd) {
             moveTo(21.5f, 12f)

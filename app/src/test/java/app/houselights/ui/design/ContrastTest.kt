@@ -45,13 +45,10 @@ class ContrastTest {
         // The same step on glass, where it is fainter, and a row or a well on the room.
         "FILL_FAINT" to c.content.over(HlAlpha.FILL_FAINT, c.background),
         "FILL_FAINT on glass" to c.content.over(HlAlpha.FILL_FAINT, c.glass),
-        // A primary control at rest, a progress line's track off the artwork.
+        // A progress line's track beside text.
         "FILL_STRONG" to c.content.over(HlAlpha.FILL_STRONG, c.background),
         // A button in a side sheet.
         "FILL on glass" to c.content.over(HlAlpha.FILL, c.glass),
-        // The current option of a track: its quiet pill in the track's well, or on the track's plate over an image.
-        "FILL_STRONG on FILL_FAINT" to c.content.over(HlAlpha.FILL_STRONG, c.content.over(HlAlpha.FILL_FAINT, c.background)),
-        "FILL_STRONG on VEIL on a white image" to c.content.over(HlAlpha.FILL_STRONG, c.background.over(HlAlpha.VEIL, Color.White)),
         "focus" to c.focus,
         // The one light ground: a code to scan.
         "content" to c.content,
@@ -78,18 +75,14 @@ class ContrastTest {
         // Primary text, the count of unwatched episodes on its plate, the current option of a track.
         "content" on "background", "content" on "FILL", "content" on "glass",
         "content" on "FILL_FAINT", "content" on "FILL_FAINT on glass",
-        "content" on "FILL_STRONG", "content" on "FILL_STRONG on FILL_FAINT",
-        // On artwork: a round button's icon, the current option of a track, on their plate.
-        "content" on "VEIL on a white image", "content" on "FILL_STRONG on VEIL on a white image",
-        // The other options of a track at rest, in its well or on its plate over an image.
-        "contentSecondary" on "VEIL on a white image",
+        // On artwork, on a card's plate: the count of unwatched episodes, a person's initials.
+        "content" on "VEIL on a white image", "contentSecondary" on "VEIL on a white image",
         // A title's name, facts, overview and quietest words.
         "content" on "the veil's floor on a white image", "contentSecondary" on "the veil's floor on a white image",
         "contentTertiary" on "the veil's floor on a white image",
         // Descriptions, labels, a selected entry's summary, a button's detail at rest.
         "contentSecondary" on "background", "contentSecondary" on "FILL", "contentSecondary" on "glass",
         "contentSecondary" on "FILL_FAINT", "contentSecondary" on "FILL_FAINT on glass",
-        "contentSecondary" on "FILL_STRONG",
         // Hints, placeholders, an entry's summary at rest; never on a strong fill.
         "contentTertiary" on "background", "contentTertiary" on "FILL", "contentTertiary" on "glass",
         "contentTertiary" on "FILL_FAINT",
@@ -101,7 +94,7 @@ class ContrastTest {
         // A focused control: its name, and the line under it.
         "onFocus" on "focus", "onFocusSecondary" on "focus",
         // Focus, a white fill or outline, against its surroundings (WCAG 2.4.13 asks 3:1).
-        ("focus" on "FILL_FAINT").mark(), ("focus" on "FILL_STRONG on FILL_FAINT").mark(),
+        ("focus" on "FILL_FAINT").mark(),
         ("focus" on "VEIL on a white image").mark(), ("focus" on "background").mark(),
         // A row read in a sheet: no well at rest, white on the sheet itself.
         ("focus" on "glass").mark(),
@@ -112,8 +105,6 @@ class ContrastTest {
         ("ember" on "VEIL on a white image").mark(),
         // A meter's inks on its track, a gap apart: projector white, secondary, and tertiary (below).
         ("content" on "FILL_FAINT").mark(), ("contentSecondary" on "FILL_FAINT").mark(),
-        // A button's detail lit at rest (an active filter), on a primary button as on a secondary one (above).
-        "ember" on "FILL_STRONG",
         // A question asked in a sheet: Cancel, and the action asked about, its label ember at rest.
         "content" on "FILL on glass", "ember" on "FILL on glass",
         // A disabled control's icon, tertiary in its well.
@@ -133,7 +124,7 @@ class ContrastTest {
         "ember" on "ambientDeep", "emberTo" on "ambientDeep",
         // A state's light: pending, and the ring of off, on the room, in a sheet and in a busy button.
         ("contentTertiary" on "background").mark(), ("contentTertiary" on "glass").mark(),
-        ("contentTertiary" on "FILL_STRONG").mark(), ("contentTertiary" on "FILL").mark(),
+        ("contentTertiary" on "FILL").mark(),
         // A control's plate over a picture: its words, its detail, its words disabled, a chosen glyph, a lit value.
         "content" on "plate on the veil's floor on a white image", "contentSecondary" on "plate on the veil's floor on a white image",
         "contentTertiary" on "plate on the veil's floor on a white image",
