@@ -64,6 +64,7 @@ internal enum class SettingAction {
     UI_RESOLUTION,
     COLLECTIONS,
     METADATA_LANGUAGE,
+    INTERFACE_LANGUAGE,
     REMOVE_FOLDER,
     CLEANUP,
     CLEAR_IMAGE_CACHE,
@@ -85,8 +86,10 @@ internal class SettingsViewModel(
     private val work: CoroutineScope,
     private val images: ImageLoader?,
     private val checkTmdbKey: suspend (String) -> TmdbKeyCheck = { TmdbClient(it).checkKey() },
+    private val chooseLanguage: suspend (String?) -> Unit = {},
 ) : ViewModel() {
-    constructor(app: AppContainer, images: ImageLoader) : this(app.settings, app.library, app::provider, app.scope, images)
+    constructor(app: AppContainer, images: ImageLoader) :
+        this(app.settings, app.library, app::provider, app.scope, images, chooseLanguage = app.language::choose)
 
     val settings: StateFlow<AppSettings> = store.state
 
@@ -183,6 +186,11 @@ internal class SettingsViewModel(
     /** Saves TMDB's language ([tag], null for the device's); the app then reads every title again in it. */
     fun setMetadataLanguage(tag: String?) = change("Saving the details language", SettingAction.METADATA_LANGUAGE) {
         store.setMetadataLanguage(tag)
+    }
+
+    /** Saves the app's language ([tag], null for the device's); the activity then makes its screens again in it. */
+    fun setInterfaceLanguage(tag: String?) = change("Saving the interface language", SettingAction.INTERFACE_LANGUAGE) {
+        chooseLanguage(tag)
     }
 
     /**

@@ -20,7 +20,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
@@ -74,6 +73,7 @@ import app.houselights.ui.design.revealOnFocus
 import app.houselights.ui.design.tryRequestFocus
 import app.houselights.ui.onboarding.FolderField
 import app.houselights.ui.util.UiError
+import app.houselights.ui.util.appContainer
 import app.houselights.ui.util.scanErrorText
 import app.houselights.ui.util.sourceKindName
 import app.houselights.ui.util.toUiError
@@ -422,7 +422,7 @@ private fun CollectionsRow() {
 private fun MetadataLanguageRow() {
     val vm = settingsViewModel()
     val s by vm.settings.collectAsStateWithLifecycle()
-    val device = LocalConfiguration.current.locales[0]
+    val device by appContainer().deviceLocale.collectAsStateWithLifecycle()
     val tags = remember { TmdbClient.LANGUAGES.sortedWith(compareBy(Collator.getInstance(Locale.ROOT), ::metadataLanguageName)) }
     var choosing by remember { mutableStateOf(false) }
     val failure = rowFailure(vm.errorOf(SettingAction.METADATA_LANGUAGE))
@@ -436,12 +436,12 @@ private fun MetadataLanguageRow() {
     )
     RowFailureNote(failure)
     if (choosing) {
-        // Each language under its own name, then in the device's when that differs.
-        val deviceOption = ChoiceOption(stringResource(R.string.metadata_language_device), metadataLanguageName(device.toLanguageTag()))
+        // Each language under its own name, then in the app's when that differs.
+        val deviceOption = ChoiceOption(stringResource(R.string.device_language), metadataLanguageName(device.toLanguageTag()))
         val options = listOf(deviceOption) +
             tags.map { tag ->
                 val own = metadataLanguageName(tag)
-                ChoiceOption(own, metadataLanguageName(tag, device).takeUnless { it.equals(own, ignoreCase = true) })
+                ChoiceOption(own, metadataLanguageName(tag, Locale.getDefault()).takeUnless { it.equals(own, ignoreCase = true) })
             }
         HlChoiceSheet(
             title,

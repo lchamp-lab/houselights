@@ -87,6 +87,18 @@ class FocusMemory(initial: String? = null) {
     var last: String? by mutableStateOf(initial)
         private set
 
+    /**
+     * True until the screen's first frame ([RestoreFocus]) when it arrives with [initial] to restore: a new window
+     * focuses its first element on its own as it is first laid out, and that is not where the user was.
+     */
+    var arriving = initial != null
+        private set
+
+    /** The screen drew its first frame: focus from now on is the user's. */
+    fun arrived() {
+        arriving = false
+    }
+
     /** Requesters the screen focuses itself ([requester]), kept for the screen's lifetime. */
     private val requesters = HashMap<String, FocusRequester>()
 
@@ -107,7 +119,7 @@ class FocusMemory(initial: String? = null) {
 
     /** Records [key] as where focus is, without moving it. */
     fun record(key: String) {
-        last = key
+        if (!arriving) last = key
     }
 
     /**
@@ -149,6 +161,7 @@ class FocusMemory(initial: String? = null) {
         // Keep only the element left in view: one that refused focus must not pull the list away.
         var took: String? = null
         val focusing: (String) -> Boolean = { key -> focus(key).also { if (it) took = key } }
+        arrived()
         val restored = restoreFocus(last, focusing, revealed) { fallback?.tryRequestFocus() == true }
         took?.takeIf { it == last }?.let { key -> keepInView(key) }
         return restored
@@ -311,6 +324,10 @@ fun RestoreFocus(
     var done by remember { mutableStateOf(false) }
     val currentFallback by rememberUpdatedState(fallback)
     val currentReveal by rememberUpdatedState(reveal)
+    LaunchedEffect(memory) {
+        withFrameNanos { }
+        memory.arrived()
+    }
     LaunchedEffect(ready) {
         if (ready && !done) {
             done = true

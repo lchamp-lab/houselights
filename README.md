@@ -24,7 +24,9 @@ player's own menus keep working.
 - **Jellyfin**: browses your server and reports playback progress back to it. Emby and Plex are planned.
 - **Native playback**: files open directly in the Zidoo player (`smb://`, `nfs://` or HTTP). Progress is
   read from the player while it plays, so resume points stay in sync.
-- 4K60 interface output where the device allows it. English and French.
+- 4K60 interface output where the device allows it.
+- In English, French, German, Spanish, Italian, Portuguese, Dutch, Polish, Chinese (simplified and traditional),
+  Japanese and Korean: the device's language, or another chosen in Settings > Display.
 
 ## Install
 

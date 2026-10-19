@@ -2,6 +2,7 @@ package app.houselights
 
 import android.app.Application
 import android.content.res.Configuration
+import android.content.res.Resources
 import android.net.Uri
 import android.os.SystemClock
 import android.util.Log
@@ -12,6 +13,7 @@ import app.houselights.core.LibraryEvents
 import app.houselights.core.MediaProvider
 import app.houselights.core.Secrets
 import app.houselights.core.SourceConfig
+import app.houselights.core.Typeset
 import app.houselights.core.suspendRunCatching
 import app.houselights.player.PlaybackManager
 import app.houselights.player.Redact
@@ -25,6 +27,7 @@ import app.houselights.providers.local.LocalProvider
 import app.houselights.providers.local.RemoteBrowsers
 import app.houselights.providers.local.TmdbClient
 import app.houselights.settings.AppSettings
+import app.houselights.settings.InterfaceLanguage
 import app.houselights.settings.SettingsStore
 import app.houselights.settings.SourceSwitcher
 import app.houselights.ui.home.HomeLaunch
@@ -62,13 +65,21 @@ class HouselightsApp : Application(), ImageLoaderFactory {
     lateinit var container: AppContainer
         private set
 
+    /** The language the app speaks, in its resources ([getResources]) and each activity's. */
+    lateinit var language: InterfaceLanguage
+        private set
+
     override fun onCreate() {
         super.onCreate()
-        container = AppContainer(this)
+        language = InterfaceLanguage(baseContext).also { it.applyDefault() }
+        container = AppContainer(this, language)
     }
+
+    override fun getResources(): Resources = if (::language.isInitialized) language.resources else super.getResources()
 
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
+        language.applyDefault()
         container.deviceLocaleChanged(newConfig.locales[0])
     }
 
@@ -116,7 +127,7 @@ internal class ImageFailureLog(private val clock: () -> Long = SystemClock::elap
 }
 
 /** Manual dependency container, created once per process. */
-class AppContainer(private val app: Application) : LibraryEvents {
+class AppContainer(private val app: Application, val language: InterfaceLanguage) : LibraryEvents {
     /** Work that outlives screens (scans, playback reports); uncaught failures are logged, never fatal. */
     val scope = CoroutineScope(
         SupervisorJob() + Dispatchers.Main.immediate +
@@ -124,11 +135,13 @@ class AppContainer(private val app: Application) : LibraryEvents {
     )
     val settings = SettingsStore(app, scope, Secrets.device)
 
-    /** The device's first language, kept current by [HouselightsApp.onConfigurationChanged]. */
-    private val deviceLocale = MutableStateFlow(app.resources.configuration.locales[0])
+    private val _deviceLocale = MutableStateFlow(InterfaceLanguage.deviceLocales()[0])
+
+    /** The device's first language, whatever the app speaks; kept current by [HouselightsApp.onConfigurationChanged]. */
+    val deviceLocale: StateFlow<Locale> = _deviceLocale
 
     fun deviceLocaleChanged(locale: Locale) {
-        deviceLocale.value = locale
+        _deviceLocale.value = locale
     }
 
     /** TMDB's language: the one chosen in Settings, else the device's. */
@@ -189,6 +202,14 @@ class AppContainer(private val app: Application) : LibraryEvents {
                 if (settings.state.value.source == SourceConfig.Local) scanner.tmdbKeyChanged()
             }
         }
+        // Text from elsewhere is typeset for the language it comes in, whatever the app speaks.
+        scope.launch {
+            combine(settings.state, deviceLocale) { s, device ->
+                (if (s.source == SourceConfig.Local) metadataLocale(s, device) else device).language
+            }.collect { Typeset.language = it }
+        }
+        // Titles the library words itself ("Season 1") are made again in a new interface language.
+        scope.launch { language.chosen.drop(1).collect { libraryChanged() } }
         // Details read in another language than TMDB's are all read again; a refresh cut short resumes at launch.
         scope.launch {
             combine(settings.state.filter { it.loaded }, deviceLocale) { s, device ->

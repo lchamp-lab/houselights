@@ -403,7 +403,8 @@ prompt.
 ## Writing
 
 - French uses *vous*, typographic apostrophes (’) and a no-break space (U+00A0) before `: ; ! ?` and inside
-  `« »`.
+  `« »`. Every other language keeps the same polite register (*Sie*, *usted*, *u*…) and its own typography.
+- The interface speaks the device's language, or the one chosen in Affichage (`InterfaceLanguage`).
 - A number never leaves its unit: `3,27 Go`, `2 h 02`, `3840 × 1608` (`formatDuration`, `formatDimensions`,
   `formatBytes`, `formatRatio` in `ui/util/Format.kt`). Time left is a duration ("Il reste 1 h 26"); progress
   reads "3 / 9".
@@ -418,8 +419,8 @@ prompt.
   with "Ex. :" and live in the resources.
 - A failure says what happened and what to do, never an exception's text.
 - Text from elsewhere (TMDB, NFO, servers) goes through `Typeset.text` in the mappers, for display only:
-  apostrophes, ellipses and French quotes are typeset. `StringsTest` holds the resources to the same rules,
-  and values-fr to every key of values.
+  apostrophes, ellipses and, for French text, French quotes are typeset. `StringsTest` holds the resources to
+  the same rules, and every translation to every key of values with its format arguments.
 - Say only what the app can know: where a player lists stand-in display modes (the Zidoo), Affichage points to
   the player's own settings and offers no choice (`DisplayModes`).
 
@@ -460,7 +461,7 @@ The player's GPU fills a 1080p screen only a few times per frame, so:
 | `FocusStyleGuardTest` | focus defined in one place |
 | `ContrastTest`, `ScrimTest` | contrast pairs; veil floors and smoothness |
 | `TypeScaleTest`, `SpacingGridTest`, `LayoutTokensTest`, `GroundTest` | type scale, 4 dp grid, screen grid, grounds |
-| `ResourceTokensTest`, `StringsTest` | resources in step with tokens; French typography of resources |
+| `ResourceTokensTest`, `StringsTest` | resources in step with tokens; typography of resources, every translation complete |
 | `CatalogCoverageTest` | every public component and every `HlIcons` glyph in the catalogue |
 | `DesignDocTest` | every system name this document cites still exists |
 | `RunCatchingGuardTest` | no `runCatching` around focus requests (`tryRequestFocus`) or in suspending code (`suspendRunCatching`) |

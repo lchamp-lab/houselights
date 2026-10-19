@@ -26,6 +26,9 @@ object Typeset {
     @JvmName("textOrNull")
     fun text(value: String?, french: Boolean = isFrench()): String? = value?.let { text(it, french) }
 
-    /** Services return text in the device language, as requested. */
-    private fun isFrench() = Locale.getDefault().language == Locale.FRENCH.language
+    /** The language text from elsewhere comes in: TMDB's for the folders, else the device's; the app keeps it current. */
+    @Volatile
+    var language: String = Locale.getDefault().language
+
+    private fun isFrench() = language == Locale.FRENCH.language
 }

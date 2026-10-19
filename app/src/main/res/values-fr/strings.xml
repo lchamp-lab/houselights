@@ -250,7 +250,7 @@
     <string name="storage_database">Base de la bibliothèque</string>
     <string name="storage_none">Aucune</string>
     <string name="cleanup_now">Nettoyer maintenant</string>
-    <string name="cleanup_done">%1$s supprimés, %2$s libérés</string>
+    <string name="cleanup_done">%1$s en moins, %2$s libérés</string>
     <string name="cleanup_nothing">Rien à nettoyer</string>
     <string name="clear_image_cache">Vider le cache des images</string>
     <string name="image_cache_cleared">Cache des images vidé</string>
@@ -438,7 +438,7 @@
     <string name="metadata_language">Langue des fiches</string>
     <string name="metadata_language_desc">Titres, résumés et affiches de TMDB</string>
     <string name="metadata_language_sheet">Les titres, résumés et affiches viennent de TMDB dans cette langue. En changer met à jour toutes les fiches.</string>
-    <string name="metadata_language_device">Langue de l’appareil</string>
+    <string name="device_language">Langue de l’appareil</string>
     <string name="remove_folder">Retirer ce dossier</string>
     <string name="remove_folder_desc">Ses titres quittent la bibliothèque ; rien n’est supprimé sur le NAS.</string>
     <string name="remove_folder_row_desc">Ses titres quittent la bibliothèque</string>
@@ -451,6 +451,8 @@
     <string name="change_source_row">Source</string>
     <string name="ui_resolution">Résolution de l’interface</string>
     <string name="ui_resolution_desc">Pendant la lecture, le lecteur Zidoo choisit son propre mode.</string>
+    <string name="interface_language">Langue de l’interface</string>
+    <string name="interface_language_desc">Menus, réglages et messages</string>
     <string name="ui_4k_desc">Une interface nette sur les téléviseurs 4K</string>
     <string name="ui_system_desc">Le mode choisi par le système</string>
     <string name="current_output">Sortie actuelle</string>

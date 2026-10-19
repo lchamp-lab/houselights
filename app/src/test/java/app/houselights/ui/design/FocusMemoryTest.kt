@@ -10,6 +10,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
@@ -20,6 +24,7 @@ import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performScrollToIndex
+import androidx.compose.ui.test.requestFocus
 import androidx.compose.ui.unit.dp
 import app.houselights.ui.design.components.HlButton
 import app.houselights.ui.design.components.HlSettingRow
@@ -55,6 +60,43 @@ class FocusMemoryTest {
         }
         compose.onNodeWithTag("start").assertIsFocused()
         compose.runOnIdle { assertEquals(false, memory.focus(FocusKey.item("left"))) }
+    }
+
+    /** A recreated window focuses its first element on its own as it is laid out: the element left is restored. */
+    @Test
+    fun focusTheWindowGivesOnItsOwnDoesNotReplaceTheElementLeft() {
+        val memory = FocusMemory(initial = FocusKey.item("second"))
+        var ready by mutableStateOf(false)
+        twoButtons(memory) { ready }
+        compose.runOnIdle { ready = true }
+        compose.onNodeWithTag("second").assertIsFocused()
+        compose.runOnIdle { assertEquals(FocusKey.item("second"), memory.last) }
+    }
+
+    /** Focus the user moves while the screen still loads is theirs: the restore keeps it. */
+    @Test
+    fun focusMovedWhileTheScreenLoadsStaysWhereItWasPut() {
+        val memory = FocusMemory(initial = FocusKey.item("first"))
+        var ready by mutableStateOf(false)
+        twoButtons(memory) { ready }
+        compose.onNodeWithTag("second").requestFocus()
+        compose.runOnIdle { ready = true }
+        compose.onNodeWithTag("second").assertIsFocused()
+        compose.runOnIdle { assertEquals(FocusKey.item("second"), memory.last) }
+    }
+
+    /** Two keyed buttons, the first focused before the first frame as a new window does, restored once [ready]. */
+    private fun twoButtons(memory: FocusMemory, ready: () -> Boolean) {
+        val first = FocusRequester()
+        fun key(name: String) = Modifier.focusKey(FocusKey.item(name), memory).testTag(name)
+        compose.setTvContent {
+            Column {
+                HlButton("Premier", onClick = {}, modifier = key("first").focusRequester(first))
+                HlButton("Second", onClick = {}, modifier = key("second"))
+            }
+            LaunchedEffect(Unit) { first.requestFocus() }
+            RestoreFocus(memory, fallback = null, ready = ready())
+        }
     }
 
     /** Nor is the element that refused focus held in view: the list stays where focus went. */

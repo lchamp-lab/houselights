@@ -3,6 +3,7 @@ package app.houselights
 import android.animation.ValueAnimator
 import android.annotation.SuppressLint
 import android.content.ActivityNotFoundException
+import android.content.Context
 import android.os.Build
 import android.os.Bundle
 import android.widget.ImageView
@@ -140,12 +141,26 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(newBase)
+        newBase.appContainer().language.overrides()?.let(::applyOverrideConfiguration)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         // The mark alone on black (Theme.Houselights.Launch) covers a cold start while home loads underneath.
         val splash = installSplashScreen()
         super.onCreate(savedInstanceState)
         holdTheLaunchScreen(splash, restored = savedInstanceState != null)
 
+        // Another interface language: the screens are made again in it, where they were. Android 9 drops a
+        // relaunch asked while the activity is only started, so it is asked once resumed.
+        val spoken = container.language.chosen.value
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.RESUMED) {
+                container.language.chosen.first { it != spoken }
+                recreate()
+            }
+        }
         lifecycleScope.launch {
             container.settings.state
                 .filter { it.loaded }

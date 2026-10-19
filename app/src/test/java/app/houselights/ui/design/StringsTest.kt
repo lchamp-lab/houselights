@@ -7,29 +7,41 @@ import org.w3c.dom.Element
 import java.io.File
 import javax.xml.parsers.DocumentBuilderFactory
 
-/** DESIGN.md, Writing, checked on the resources: French typography, and the same strings as English. */
+/** DESIGN.md, Writing, checked on the resources: typography, and every language saying what English says. */
 class StringsTest {
     private val english = File("src/main/res/values/strings.xml")
     private val french = File("src/main/res/values-fr/strings.xml")
 
+    /** Every translation, by its folder ("values-de"). */
+    private val translations = File("src/main/res").listFiles().orEmpty()
+        .filter { it.name.startsWith("values-") }
+        .map { File(it, "strings.xml") }
+        .filter { it.isFile }
+        .sortedBy { it.parentFile.name }
+
     @Test
-    fun frenchSaysEverythingEnglishDoes() {
-        assertTrue("Resources not found from ${File(".").absolutePath}", english.isFile && french.isFile)
+    fun everyLanguageSaysEverythingEnglishDoes() {
+        assertTrue("Resources not found from ${File(".").absolutePath}", english.isFile && french in translations)
         val translatable = resources(english).filter { it.getAttribute("translatable") != "false" }.map { it.key }.toSet()
-        val translated = resources(french).map { it.key }.toSet()
-        assertEquals("Missing in values-fr", emptySet<String>(), translatable - translated)
-        assertEquals("Only in values-fr", emptySet<String>(), translated - translatable)
+        translations.forEach { file ->
+            val translated = resources(file).map { it.key }.toSet()
+            assertEquals("Missing in ${file.parentFile.name}", emptySet<String>(), translatable - translated)
+            assertEquals("Only in ${file.parentFile.name}", emptySet<String>(), translated - translatable)
+        }
     }
 
     @Test
-    fun frenchFormatsWhatEnglishDoes() {
-        // Format arguments must match in both languages, or only French users crash; French "many" is "other".
+    fun everyLanguageFormatsWhatEnglishDoes() {
+        // Format arguments must match in every language, or only its users crash; a quantity English lacks reads as "other".
         val englishFormats = resources(english).associate { it.key to formats(it) }
-        val found = resources(french).flatMap { resource ->
-            val expected = englishFormats[resource.key].orEmpty()
-            formats(resource).mapNotNull { (quantity, specifiers) ->
-                val wanted = expected[quantity] ?: expected["other"].orEmpty()
-                "${resource.key} ($quantity): ${specifiers.values} instead of ${wanted.values}".takeIf { specifiers != wanted }
+        val found = translations.flatMap { file ->
+            resources(file).flatMap { resource ->
+                val expected = englishFormats[resource.key].orEmpty()
+                formats(resource).mapNotNull { (quantity, specifiers) ->
+                    val wanted = expected[quantity] ?: expected["other"].orEmpty()
+                    "${file.parentFile.name} ${resource.key} ($quantity): ${specifiers.values} instead of ${wanted.values}"
+                        .takeIf { specifiers != wanted }
+                }
             }
         }
         assertTrue("Format specifiers:\n" + found.joinToString("\n"), found.isEmpty())
@@ -50,6 +62,16 @@ class StringsTest {
             texts(resource).flatMap { text -> problems(text).map { "${resource.key}: $it\n    $text" } }
         }
         assertTrue("French typography:\n" + found.joinToString("\n"), found.isEmpty())
+    }
+
+    @Test
+    fun everyLanguageIsTypeset() {
+        val found = translations.flatMap { file ->
+            resources(file).flatMap { resource ->
+                texts(resource).flatMap { text -> commonProblems(text).map { "${file.parentFile.name} ${resource.key}: $it\n    $text" } }
+            }
+        }
+        assertTrue("Typography:\n" + found.joinToString("\n"), found.isEmpty())
     }
 
     @Test
@@ -74,11 +96,16 @@ class StringsTest {
     private fun string(file: File, name: String) =
         resources(file).single { it.tagName == "string" && it.getAttribute("name") == name }.textContent
 
-    /** What breaks French typography in [text]. */
-    private fun problems(text: String): List<String> = buildList {
+    /** What breaks typography in [text], in any language. */
+    private fun commonProblems(text: String): List<String> = buildList {
         if ('\'' in text) add("a straight apostrophe: ’")
         if ("..." in text) add("three dots: …")
         if ('→' in text) add("an arrow in a sentence: words")
+    }
+
+    /** What breaks French typography in [text]. */
+    private fun problems(text: String): List<String> = buildList {
+        addAll(commonProblems(text))
         text.forEachIndexed { i, ch ->
             val before = text.getOrNull(i - 1)
             val after = text.getOrNull(i + 1)

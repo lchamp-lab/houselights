@@ -59,8 +59,10 @@ android {
         versionName = "0.1.0"
         buildConfigField("String", "TMDB_API_KEY", "\"$tmdbApiKey\"")
         manifestPlaceholders["appLabel"] = "@string/app_name"
-        // The languages of the interface: the libraries' strings in 80 others would only be shipped.
-        resourceConfigurations += listOf("en", "fr")
+        // The languages of the interface (InterfaceLanguage.LANGUAGES): the libraries' strings in 80 others would only be
+        // shipped. The libraries write Chinese by region.
+        resourceConfigurations +=
+            listOf("de", "en", "es", "fr", "it", "ja", "ko", "nl", "pl", "pt", "b+zh+Hans", "b+zh+Hant", "zh-rCN", "zh-rTW", "zh-rHK")
     }
 
     signingConfigs {

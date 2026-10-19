@@ -119,7 +119,8 @@ fun SettingsScreen(
                         title = stringResource(p.label),
                         summary = summary(p, s, titles, storage),
                         selected = p == pane,
-                        onFocused = { pane = p },
+                        // The window's own first focus, before the screen is restored, leaves the pane that was open.
+                        onFocused = { if (!memory.arriving) pane = p },
                         modifier = Modifier.focusKey(paneKey(p), memory),
                     )
                 }
@@ -212,7 +213,7 @@ private fun PaneContent(
             Pane.Library -> libraryPane(s, onFolderForm, onUseFolders, onSignIn, rows)
             Pane.Numbers -> counted?.let { numbersPane(it.state, rows, numbers.onOpenWall, numbers.onOpenPerson, it::retry) }
             Pane.Playback -> playbackPane(s)
-            Pane.Display -> displayPane(s)
+            Pane.Display -> displayPane(s, rows)
             Pane.Storage -> storagePane(storage)
             Pane.About -> aboutPane(onOpenCatalog, rows)
         }
