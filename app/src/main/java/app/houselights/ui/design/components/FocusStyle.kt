@@ -29,11 +29,17 @@ internal enum class Gesture {
 
 /** A surface's fill, read while drawing so it can take a picture's colour without recomposing, and its ink. */
 @Immutable
-internal class Plate(val fill: ColorProducer, val ink: Color)
+internal data class Plate(val fill: ColorProducer, val ink: Color)
+
+/** A fill of one colour, equal to another of that colour: a surface given the same look again skips. */
+@Immutable
+private data class Steady(private val color: Color) : ColorProducer {
+    override fun invoke(): Color = color
+}
 
 /** What a [HlFocusSurface] draws at rest, with focus and disabled; made by [FocusStyle] only. */
 @Immutable
-internal class FocusLook(
+internal data class FocusLook(
     val gesture: Gesture,
     val rest: Plate,
     val focus: Plate,
@@ -61,8 +67,8 @@ internal object FocusStyle {
         disabled: Color = rest,
         disabledInk: Color = restInk,
     ): FocusLook {
-        val still = Plate({ rest }, restInk)
-        return FocusLook(Gesture.Frame, still, still, Plate({ disabled }, disabledInk), edge, lift)
+        val still = Plate(Steady(rest), restInk)
+        return FocusLook(Gesture.Frame, still, still, Plate(Steady(disabled), disabledInk), edge, lift)
     }
 
     /** Fill: the plate turns white and its ink black. */
@@ -74,7 +80,7 @@ internal object FocusStyle {
         disabled: Color = rest,
         disabledInk: Color = restInk,
         edge: BorderStroke? = null,
-    ): FocusLook = fill({ rest }, restInk, { disabled }, disabledInk, edge)
+    ): FocusLook = fill(Steady(rest), restInk, Steady(disabled), disabledInk, edge)
 
     /** [fill] on a plate whose colour is read while drawing: a picture's own dark follows it without recomposing. */
     @Composable
@@ -87,11 +93,10 @@ internal object FocusStyle {
         edge: BorderStroke? = null,
     ): FocusLook {
         val c = Hl.colors
-        val white = c.focus
         return FocusLook(
             Gesture.Fill,
             rest = Plate(rest, restInk),
-            focus = Plate({ white }, c.onFocus),
+            focus = Plate(Steady(c.focus), c.onFocus),
             disabled = Plate(disabled, disabledInk),
             edge = edge,
             lift = Lift.Still,

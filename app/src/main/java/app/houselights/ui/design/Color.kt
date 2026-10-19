@@ -88,9 +88,9 @@ val HouselightsColors = HlColors(
 
 val LocalHlColors = staticCompositionLocalOf { HouselightsColors }
 
-/** The house light as a horizontal gradient across what it fills; at [alpha] for a fill. */
-fun HlColors.emberLight(alpha: Float = 1f): Brush =
-    Brush.horizontalGradient(listOf(emberFrom.copy(alpha = alpha), emberTo.copy(alpha = alpha)))
+/** The house light as a horizontal gradient across what it fills, or over its first [across] px; at [alpha] for a fill. */
+fun HlColors.emberLight(alpha: Float = 1f, across: Float = Float.POSITIVE_INFINITY): Brush =
+    Brush.horizontalGradient(listOf(emberFrom.copy(alpha = alpha), emberTo.copy(alpha = alpha)), endX = across)
 
 /** Every edge and divider of a container: [HlColors.outline] at `HlAlpha.EDGE`. */
 val HlColors.edge: Color get() = outline.copy(alpha = HlAlpha.EDGE)

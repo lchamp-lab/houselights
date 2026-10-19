@@ -41,8 +41,8 @@ class ShapesTest {
     fun nestedShapesKeepParallelCorners() {
         // A menu's options inside it.
         assertEquals(HlShapes.panel.radius(), HlShapes.control.radius() + HlMenuDefaults.inset.value, 0f)
-        // A track's options inside its well.
-        assertEquals(HlShapes.wide.radius(), HlShapes.control.radius() + HlSpace.xxs.value, 0f)
+        // A mark in the corner of a wide image (LandscapeCard's StatusMark).
+        assertEquals(HlShapes.wide.radius(), HlShapes.mark.radius() + HlSpace.xs.value, 0f)
     }
 
     @Test

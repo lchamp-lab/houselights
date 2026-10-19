@@ -76,6 +76,7 @@ import app.houselights.ui.design.components.HeroInfo
 import app.houselights.ui.design.components.HlButton
 import app.houselights.ui.design.components.LandscapeCard
 import app.houselights.ui.design.components.MediaRow
+import app.houselights.ui.design.components.wearsNewDot
 import app.houselights.ui.design.components.PosterCard
 import app.houselights.ui.design.components.ScanProgress
 import app.houselights.ui.util.ReloadOnLibraryChange
@@ -324,6 +325,7 @@ private fun Sections(
                     modifier = Modifier.focusGroupKey(FocusKey.section(section.key), memory),
                     spacing = section.spacing,
                     state = rememberRowState(section.items.map { it.id }),
+                    news = section.items.count { it.wearsNewDot() },
                 ) {
                     items(section.items, key = { it.id }) { item ->
                         val mod = Modifier.focusKey(cardKey(section, item), memory).then(if (sectionIndex == 0) toTabs else Modifier)

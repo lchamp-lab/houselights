@@ -97,6 +97,7 @@ import app.houselights.ui.design.components.StatusState
 import app.houselights.ui.design.components.LandscapeCard
 import app.houselights.ui.design.components.MediaRow
 import app.houselights.ui.design.components.MetaLine
+import app.houselights.ui.design.components.filmCount
 import app.houselights.ui.design.components.PersonCard
 import app.houselights.ui.design.components.PosterCard
 import app.houselights.ui.design.components.TechSpecs
@@ -327,7 +328,7 @@ private fun LazyListScope.sagaRows(item: MediaItem, state: DetailState, memory: 
     // No row when the saga holds only this film.
     state.collection?.takeIf { state.collectionFilms.any { film -> film.id != item.id } }?.let { collection ->
         item(key = "collection") {
-            MediaRow(collection.title, memory.rowGroup(SAGA)) {
+            MediaRow(collection.title, memory.rowGroup(SAGA), count = filmCount(state.collectionFilms.size, collection.totalCount)) {
                 items(state.collectionFilms, key = { it.id }) { f ->
                     PosterCard(f, onClick = { if (f.id != item.id) onOpenItem(f.id) }, modifier = memory.card(SAGA, f))
                 }

@@ -135,14 +135,7 @@ fun HlSettingRow(
             Modifier.fillMaxWidth().heightIn(min = least).padding(horizontal = HlInset.card, vertical = HlSettingRowDefaults.paddingV),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            if (leading != null) {
-                leading()
-                Spacer(Modifier.width(HlSpace.m))
-            } else if (icon != null) {
-                val tint = if (focused || !enabled) LocalContentColor.current else c.contentSecondary
-                Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(HlSize.icon))
-                Spacer(Modifier.width(HlSpace.m))
-            }
+            SettingLead(leading, icon, focused, enabled)
             Column(Modifier.weight(1f)) {
                 Text(title, style = Hl.type.entry, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 if (description != null) {
@@ -159,20 +152,7 @@ fun HlSettingRow(
             Spacer(Modifier.width(HlSpace.l))
             when {
                 trailing != null -> trailing()
-                value != null -> Row(verticalAlignment = Alignment.CenterVertically) {
-                    if (valueAttention) {
-                        StatusLight(StatusState.Attention, ink = if (focused) LocalContentColor.current else null)
-                        Spacer(Modifier.width(HlSpace.xs))
-                    }
-                    Text(
-                        value,
-                        style = Hl.type.meta,
-                        color = FocusStyle.quietInk(focused, enabled, valueLit || valueAttention, onFocus = LocalContentColor.current),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.widthIn(max = HlSettingRowDefaults.valueWidth),
-                    )
-                }
+                value != null -> SettingValue(value, valueLit, valueAttention, focused, enabled)
             }
             if (chevron) {
                 Spacer(Modifier.width(HlSpace.s))
@@ -199,6 +179,38 @@ fun HlSettingRow(
     ) { focused ->
         // A disabled row keeps its rest colours under focus.
         Content(focused && enabled)
+    }
+}
+
+/** A setting's [leading] picture or its [icon], before its name; the icon quiet at rest. */
+@Composable
+private fun SettingLead(leading: (@Composable () -> Unit)?, icon: ImageVector?, focused: Boolean, enabled: Boolean) {
+    if (leading != null) {
+        leading()
+        Spacer(Modifier.width(HlSpace.m))
+    } else if (icon != null) {
+        val tint = if (focused || !enabled) LocalContentColor.current else Hl.colors.contentSecondary
+        Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(HlSize.icon))
+        Spacer(Modifier.width(HlSpace.m))
+    }
+}
+
+/** A setting's value, quiet; in ember when [lit], or after the attention mark. */
+@Composable
+private fun SettingValue(value: String, lit: Boolean, attention: Boolean, focused: Boolean, enabled: Boolean) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        if (attention) {
+            StatusLight(StatusState.Attention, ink = if (focused) LocalContentColor.current else null)
+            Spacer(Modifier.width(HlSpace.xs))
+        }
+        Text(
+            value,
+            style = Hl.type.meta,
+            color = FocusStyle.quietInk(focused, enabled, lit || attention, onFocus = LocalContentColor.current),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.widthIn(max = HlSettingRowDefaults.valueWidth),
+        )
     }
 }
 

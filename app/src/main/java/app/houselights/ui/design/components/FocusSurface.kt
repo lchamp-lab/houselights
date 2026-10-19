@@ -58,15 +58,16 @@ import kotlinx.coroutines.launch
 
 /**
  * The surface every focusable control, row, panel and picture is drawn on, lit by its [look] from
- * [FocusStyle] (DESIGN.md, Focus). Fill, frame, growth and [glow] are read while drawing: focus moving
- * recomposes it only when a plate's ink turns, half way through its fill. Only a framed picture grows, in
- * a layer of its own, above its neighbours until its light is out. While an arrow is held ([Scrub]), focus
- * shows at once and nothing grows or glows.
+ * [FocusStyle] (DESIGN.md, Focus). Fill, frame, growth and [glow] are read while drawing, a plate's light in
+ * its content's clip layer: focus moving recomposes it as focus turns, and a plate again half way through its
+ * fill, when its ink turns. Only a framed picture grows, in a layer of its own, above its neighbours until its
+ * light is out, the focused one on top. While an arrow is held ([Scrub]), focus shows at once and nothing grows
+ * or glows.
  *
- * OK (centre, enter) presses on its way down and clicks on its way up; held, it long-clicks. Focus reaches
- * it when it cannot act ([enabled] false, or no [onClick]), and OK then does nothing. It is one element to
- * accessibility services, a [role] with its click. [content], clipped to [shape], is told when it is [lit]:
- * when its ink is focus's. Framed in a [row], it leaves its frame to the row ([RowFrame]).
+ * OK (centre, enter) presses on its way down and clicks on its way up if the press was taken here; held, it
+ * long-clicks instead. Focus reaches it when it cannot act ([enabled] false, or no [onClick]), and OK then does
+ * nothing. It is one element to accessibility services, a [role] with its click. [content], clipped to [shape],
+ * is told when it is [lit]: when its ink is focus's. Framed in a [row], it leaves its frame to the row ([RowFrame]).
  */
 @Composable
 internal fun HlFocusSurface(
@@ -90,19 +91,21 @@ internal fun HlFocusSurface(
     val lit = if (framed) focused else lights.halfLit
     val ring = FocusStyle.ring()
     val inRow = row?.takeIf { framed && enabled }?.let { rememberRowCard(it, look.lift, shape) { lights.risen.value } }
+    val frame = ring.brush.takeIf { enabled && inRow == null }
+    val light = remember(look, shape, frame, glow, lights) { framedLight(look, shape, frame, glow, lights) }
     Box(
         modifier
             .then(inRow ?: Modifier)
-            .raisedWhileLit(framed, lights)
+            .raisedWhileLit(framed, focused, lights)
             .pressWithOk(interaction, onClick.takeIf { enabled }, onLongClick.takeIf { enabled })
             .focusable(interactionSource = interaction)
             .semantics(mergeDescendants = true) { describe(role, selected, enabled, onClick, onLongClick) }
-            .framedLight(look, shape, ring.brush.takeIf { enabled && inRow == null }, glow, lights)
-            .drawWithCache { drawPlate(look, shape, enabled, ring, lights) },
+            .then(light),
         propagateMinConstraints = true,
     ) {
         CompositionLocalProvider(LocalContentColor provides look.ink(enabled, lit)) {
-            Box(Modifier.clip(shape)) { content(lit) }
+            // In the clip's layer, the plate's light redraws that layer alone, never the screen's.
+            Box(Modifier.clip(shape).drawWithCache { drawPlate(look, shape, enabled, ring, lights) }) { content(lit) }
         }
     }
 }
@@ -120,23 +123,27 @@ private class Lights {
     val showing by derivedStateOf { on.value > 0f || risen.value > 0f }
 }
 
-/** The light follows focus; growth and glow follow it only when focus rests, never while an arrow is held. */
+/**
+ * The light follows focus, at once while an arrow is held; growth and glow rise only when focus rests, and
+ * always fall back, so the picture an arrow leaves comes down as it does after a press.
+ */
 @Composable
 private fun rememberLights(focused: Boolean, framed: Boolean, rises: Boolean): Lights {
     val lights = remember { Lights() }
-    LaunchedEffect(focused) { lights.on.follow(focused, if (framed) FrameTiming else FillTiming) }
+    LaunchedEffect(focused) { lights.on.follow(focused, if (framed) FrameTiming else FillTiming, jumps = Scrub.active) }
     val rising = rises && focused && !Scrub.active
-    LaunchedEffect(rising) { lights.risen.follow(rising, FrameTiming) }
+    LaunchedEffect(rising) { lights.risen.follow(rising, FrameTiming, jumps = false) }
     return lights
 }
 
-private fun Modifier.raisedWhileLit(framed: Boolean, lights: Lights): Modifier =
-    if (framed) zIndex(if (lights.showing) 1f else 0f) else this
+/** A framed surface is drawn above its neighbours: on top with focus, then while its light goes out. */
+private fun Modifier.raisedWhileLit(framed: Boolean, focused: Boolean, lights: Lights): Modifier =
+    if (framed) zIndex(if (focused) 2f else if (lights.showing) 1f else 0f) else this
 
 /** A framed surface's glow, [frame] and growth, outside its plate; nothing for a plate that fills. */
-private fun Modifier.framedLight(look: FocusLook, shape: Shape, frame: Brush?, glow: (() -> Color)?, lights: Lights): Modifier {
-    if (look.gesture != Gesture.Frame) return this
-    val lit = drawWithCache { drawLight(shape, look.lift, frame, glow, lights) }
+private fun framedLight(look: FocusLook, shape: Shape, frame: Brush?, glow: (() -> Color)?, lights: Lights): Modifier {
+    if (look.gesture != Gesture.Frame) return Modifier
+    val lit = Modifier.drawWithCache { drawLight(shape, look.lift, frame, glow, lights) }
     return if (look.lift == Lift.Still) lit else lit.grown(look.lift, lights.risen)
 }
 
@@ -201,12 +208,13 @@ private fun CacheDrawScope.drawLight(shape: Shape, lift: Lift, frame: Brush?, gl
     val width = HlFocus.frame.toPx()
     val off = HlFocus.frameGap.toPx() + width / 2
     val stroke = Stroke(width)
-    val reach = HlFocus.glow.toPx()
+    val band = Stroke(HlFocus.glow.toPx() / HlScrim.GLOW_STEPS)
     return onDrawWithContent {
         val risen = lights.risen.value
         val grown = 1f + (lift.scale - 1f) * risen
-        val tone = glow?.invoke()
-        if (tone != null && risen > 0f) drawGlow(tone.copy(alpha = tone.alpha * risen), grown, reach, corner)
+        // Read once risen only: at rest, the light it follows redraws nothing.
+        val tone = if (risen > 0f) glow?.invoke() else null
+        if (tone != null) drawGlow(tone.copy(alpha = tone.alpha * risen), grown, band, corner)
         drawContent()
         val on = lights.on.value
         if (frame != null && on > 0f) {
@@ -225,15 +233,14 @@ private fun CacheDrawScope.drawLight(shape: Shape, lift: Lift, frame: Brush?, gl
 }
 
 /**
- * The glow [reach] around a picture at scale [grown]: each ring is drawn once at the combined alpha of
- * stacked layers, so each layer costs a ring's fill, not a picture's, on the player's GPU.
+ * The glow around a picture at scale [grown], in [HlScrim.GLOW_STEPS] rings [ring] wide: each ring is drawn once
+ * at the combined alpha of stacked layers, so each layer costs a ring's fill, not a picture's, on the player's GPU.
  */
-private fun DrawScope.drawGlow(tone: Color, grown: Float, reach: Float, corner: Float) {
+private fun DrawScope.drawGlow(tone: Color, grown: Float, ring: Stroke, corner: Float) {
     if (tone.alpha == 0f) return
     val grow = Offset(size.width * (grown - 1f) / 2f, size.height * (grown - 1f) / 2f)
     val steps = HlScrim.GLOW_STEPS
-    val band = reach / steps
-    val ring = Stroke(width = band)
+    val band = ring.width
     // Transmittance of the stacked layers, accumulated from the outermost ring inward.
     var through = 1f
     for (k in steps downTo 1) {
@@ -269,11 +276,12 @@ private class Timing(val on: Int, val off: Int)
 private val FrameTiming = Timing(HlMotion.FOCUS_IN, HlMotion.FOCUS_OUT)
 private val FillTiming = Timing(HlMotion.PLATE_IN, HlMotion.PLATE_OUT)
 
-/** Runs to 1 when [on], else to 0: in the focus pull, out in the fall back; at once while an arrow is held. */
-private suspend fun Animatable<Float, AnimationVector1D>.follow(on: Boolean, timing: Timing) {
+/** Runs to 1 when [on], else to 0: in the focus pull, out in the fall back, at once if it [jumps]; idle when there. */
+private suspend fun Animatable<Float, AnimationVector1D>.follow(on: Boolean, timing: Timing, jumps: Boolean) {
     val target = if (on) 1f else 0f
+    if (value == target && targetValue == target) return
     when {
-        Scrub.active -> snapTo(target)
+        jumps -> snapTo(target)
         on -> animateTo(target, tween(timing.on, easing = HlMotion.focusPull))
         else -> animateTo(target, tween(timing.off, easing = HlMotion.fallBack))
     }
@@ -282,7 +290,8 @@ private suspend fun Animatable<Float, AnimationVector1D>.follow(on: Boolean, tim
 /**
  * OK on the remote (centre, enter, the keypad's enter): pressed on its way down, a click on its way up;
  * held until it repeats, a long click instead, when there is one. Without [onClick] the key goes on to
- * what holds the surface. Focus leaving lets go of a press.
+ * what holds the surface. Focus leaving lets go of a press, and a key let go here without its press (taken
+ * by another surface, or spent on a long click) clicks nothing.
  */
 @Composable
 private fun Modifier.pressWithOk(
@@ -322,8 +331,9 @@ private fun Modifier.pressWithOk(
                 }
             }
             KeyEvent.ACTION_UP -> {
+                val pressed = press.value != null
                 release()
-                if (longClicked.value) longClicked.value = false else onClick()
+                if (longClicked.value) longClicked.value = false else if (pressed) onClick()
             }
         }
         true

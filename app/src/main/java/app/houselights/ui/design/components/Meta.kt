@@ -54,16 +54,21 @@ import java.util.Locale
 import app.houselights.ui.util.NBSP
 import androidx.compose.ui.graphics.Color
 
+/** The films of a saga held, [owned] of [total] when its length is known: "2 films sur 4", else "2 films". */
+@Composable
+fun filmCount(owned: Int, total: Int?): String = if (total != null) {
+    pluralStringResource(R.plurals.film_count_of, owned, owned, total)
+} else {
+    pluralStringResource(R.plurals.film_count, owned, owned)
+}
+
 /** A title's facts on one line, space-separated: year, length, rating badge, score, then genres. */
 @Composable
 fun MetaLine(item: MediaItem, modifier: Modifier = Modifier, showGenres: Boolean = true) {
     val c = Hl.colors
     val seasons = item.childCount?.takeIf { item.kind == MediaKind.SERIES && it > 0 }
         ?.let { pluralStringResource(R.plurals.season_count, it, it) }
-    val films = item.childCount?.takeIf { item.kind == MediaKind.COLLECTION }?.let { owned ->
-        item.totalCount?.let { total -> pluralStringResource(R.plurals.film_count_of, owned, owned, total) }
-            ?: pluralStringResource(R.plurals.film_count, owned, owned)
-    }
+    val films = item.childCount?.takeIf { item.kind == MediaKind.COLLECTION }?.let { owned -> filmCount(owned, item.totalCount) }
     val years = when {
         item.kind == MediaKind.COLLECTION && item.year != null && item.endYear != null -> "${item.year} – ${item.endYear}"
         item.kind != MediaKind.SERIES -> item.year?.toString()

@@ -78,18 +78,15 @@ class DesignTokenGuardTest {
         assertTrue("Toast in: ${found.joinToString()}", found.isEmpty())
     }
 
-    /** One icon family (`HlIcons`) everywhere; Play alone comes from Material, filled, as on a remote. */
+    /** One icon family (`HlIcons`) everywhere: Material's, which tv-material brings along, are never drawn. */
     @Test
     fun oneFamilyOfIcons() {
         val found = kotlinSources(sources).linesWhere(sources) { materialIcon.containsMatchIn(it) }
         assertTrue("Material icons, draw them in HlIcons:\n" + found.joinToString("\n"), found.isEmpty())
     }
 
-    /** A Material icon other than Play, used or imported. */
-    private val materialIcon = Regex(
-        """\bIcons\.(Filled|Default|Outlined|Rounded|Sharp|TwoTone|AutoMirrored)\.(?!PlayArrow\b)""" +
-            """|material\.icons\.(filled|outlined|rounded|sharp|twotone|automirrored)\.(?!PlayArrow\b)""",
-    )
+    /** A Material icon, used or imported. */
+    private val materialIcon = Regex("""\bIcons\.(Filled|Default|Outlined|Rounded|Sharp|TwoTone|AutoMirrored)\.|\bmaterial\.icons\b""")
 
     @Test
     fun theGuardCatchesWhatItShould() {
@@ -102,10 +99,9 @@ class DesignTokenGuardTest {
             "style = Hl.type.headline.emberLit(c)", "background(c.emberLight())", "brush = Brush.linearGradient(colors)",
         )
         samples.forEach { sample -> assertTrue(sample, rules.any { it.first.containsMatchIn(sample) }) }
-        listOf("Icons.Filled.Check", "Icons.Default.Settings", "import androidx.compose.material.icons.filled.Star")
+        listOf("Icons.Filled.PlayArrow", "Icons.Default.Settings", "import androidx.compose.material.icons.filled.Star")
             .forEach { assertTrue(it, materialIcon.containsMatchIn(it)) }
-        listOf("Icons.Filled.PlayArrow", "import androidx.compose.material.icons.filled.PlayArrow", "HlIcons.Check")
-            .forEach { assertTrue(it, !materialIcon.containsMatchIn(it)) }
+        listOf("HlIcons.Check", "HlIcons.Play").forEach { assertTrue(it, !materialIcon.containsMatchIn(it)) }
         val fine = listOf(
             "Modifier.padding(0.dp)", "screenWidthDp.dp", "HlSpace.l", "Hl.colors.content.copy(alpha = HlAlpha.FILL_FAINT)",
             "{ HlSpace.m -> it }", "HlLayout.detailHeroMin(screenHeight)", "spacedBy(HlSpace.xs)",

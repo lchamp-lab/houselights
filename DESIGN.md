@@ -96,7 +96,7 @@ embers). `HlColors` names their roles; only roles reach components.
 | `contentTertiary` | `N57` | `#8C8C95` | what is guessed: joins, placeholders, key hints, disabled |
 | `contentDecorative` | `N28` | `#45454C` | never text: the rule of an empty frame, skeletons |
 | `ember` | `Ember` | `#FF7A4D` | states only, solid, where a gradient has no room (a dot, a check, a word) |
-| `emberFrom`, `emberTo` | `EmberStart`, `EmberEnd` | `#FF9F1C` → `#FF2E63` | the ember light (`emberLight()`): progress lines, an attention rule, a field being typed in, a lit edge; the mark's bars |
+| `emberFrom`, `emberTo` | `EmberStart`, `EmberEnd` | `#FF9F1C` → `#FF2E63` | the ember light (`emberLight()`): progress lines, an attention rule, a field being typed in, a lit edge, a place's name, the main action; the mark's bars |
 | `onEmber` | `N0` | `#000000` | ink on an ember fill (the main action), 5.8:1 at its raspberry end; never white |
 | `emberOnLight` | `EmberEnd` | `#FF2E63` | ember on projector white: marks only (3.3:1), never words |
 | `focus` | `N96` | `#F4F4F5` | focus fill and outline |
@@ -123,18 +123,21 @@ under it reads the ground opaque (`groundColor`, `groundFill`).
 
 Check fills on a TV with the catalogue's black-level chart (`BLACK_LEVELS`).
 
-**Ember is a closed list.** It says four things:
+**Ember is a closed list.** It says six things:
 
 - *In use*: a title's progress, a scan, the track playing, the setup in use, a field being typed in.
 - *Your choice*: the current choice's check, a chosen value or match, an active filter, a favourite.
 - *Needs attention*: an error with its mark, the action a question asks about.
 - *New*: the dot of a title new to the library.
+- *Where you are*: the current tab's word, a screen's title, the open section's icon, the value a button is set
+  to (the sort).
+- *The action to play*: Lire or Reprendre, filled with the ember light.
 
 The mark's bars are the only exception. What is done or simply true is projector white (a watched title,
-`StatusState.Done`). Ember never marks focus, where you are, a fact (a score is grey) or a data series. It
-never comes alone: every ember state has a second sign (shape, mark or word); attention has its own circled
-exclamation. Screens never name ember: they state the state and the component lights it (`HlStatus`,
-`AttentionNote`, `lit`, `valueLit`, `detailLit`).
+`StatusState.Done`). Ember never marks focus, a fact (a score is grey) or a data series. It never comes alone:
+every ember state has a second sign (shape, mark or word); attention has its own circled exclamation. Screens
+never name ember: they state the state and the component lights it (`HlStatus`, `AttentionNote`, `lit`,
+`valueLit`, `detailLit`).
 
 **Your choice, one way.** One glyph, `HlIcons.Check`: white means done, ember means your choice. Over artwork
 both sit on the same dark plate (`SelectedMark`). In words, a choice takes a state's light (`HlStatus` On:
@@ -236,7 +239,7 @@ tv-material's roles onto the scale.
 |---|---|---|
 | `HlMotion`, `awaitMotion` | `Motion.kt` | two curves of the system's own: `focusPull` ("mise au point", 0.20 0.75 0.25 1) for what arrives, `fallBack` ("retombée", 0.45 0 0.55 1) for what leaves, and `lightsOut`; no Material curve, none drawn elsewhere, every tween names its easing (`MotionGuardTest`). `FOCUS_IN` 220 and `FOCUS_OUT` 260 ms, `PLATE_IN` 120 and `PLATE_OUT` 180, `TINT` 480 (linear, once settled), `WAIT_TURN` 1400 (looped); `FAST` 150, `STANDARD` 250, `SLOW` 600, `DIM` 1000 ms; `SETTLE` 300 ms before the title under focus changes the screen (`rememberSettled`); `SKELETON_DELAY` 400 ms; `HOLD` 400 ms, the longest anything waits for a picture; `WALL_DRIFT`; `ENTER_SCALE`. What follows a motion waits for its end (`awaitMotion`), never a fixed `delay`, so nothing waits with animations off |
 | `LocalHouseLights`, `HouseLightCue`, `LaunchCue`, `LocalLaunchScreen` | `Auditorium.kt` | house-light level (read while drawing), the playback and launch cues, the launch screen until the first screen is drawn whole |
-| `HlIcons` | `Icons.kt` | every icon, one drawing style (24 dp grid, 1.75 stroke, round caps and joins). Play is the one Material glyph, filled. A state that reads as on is the same drawing filled (`Heart`, `HeartFilled`). No other Material icon |
+| `HlIcons` | `Icons.kt` | every icon, one drawing style (24 dp grid, 1.75 stroke, round caps and joins). A state that reads as on is the same drawing filled (`Heart`, `HeartFilled`); Play is filled, as on a remote. No Material icon |
 | `rememberListScroll`, `ListScroll`, `RowScroll` | `Scroll.kt` | lists scroll only as needed (`EdgeScroll`) and keep focus `HlFocus.edge` from their ends; a list under a header brings rows back to its top (`ListScroll(top)`); rows keep focus 80 dp from the sides |
 | `scrollEdges(state, color)` | `Scroll.kt` | scrolling content fades into its opaque surface over `HlSpace.fadeEdge` where there is more; never on poster rows |
 | `revealOnFocus()`, `keepVerticalFocus()` | `Scroll.kt` | a group comes fully into view when focused; up and down never leave a column |
@@ -320,8 +323,9 @@ Artwork carries no text: the top of the screen names what has focus.
 
 - **At rest**, a faint edge (`EDGE_ARTWORK`) keeps dark artwork from dissolving into the room.
 - **One mark at most**, top right, on a dark plate: unwatched episodes, else the check of a watched title,
-  else the ember dot of a new title (added in the last week, not watched). Progress is the ember line at the
-  foot. Formats are never a card mark.
+  else the ember dot of a new title (added in the last week, not watched). Progress is the ember line burning at
+  the foot, 4 dp on a poster and 5 on a wide image, its light stretched over the part seen. Formats are never a
+  card mark.
 - **Without artwork** or on failure, the card is set like a one-sheet: a short rule, the name in `cardTitle`,
   the year in the technical voice. Pictures without a title (`PosterThumb`, `RowPreview`, free `PosterStrip`
   slots) and loading cards (`CardSkeleton`) show an empty frame: one step up (`groundStep()`), the artwork
@@ -370,8 +374,9 @@ projector white in two gestures and a ring, all drawn by one surface, `HlFocusSu
 
 No component writes its own focused colour, frame or scale, and every focusable surface takes a gesture
 (`FocusStyleGuardTest`). tv-material's surfaces (their scale, glow and Material timing) are never drawn.
-`HlFocusSurface` clicks on OK's release and long-clicks when it is held, reads as one element with its role,
-and reads its light, growth and glow while drawing: focus moving recomposes a plate once, when its ink turns.
+`HlFocusSurface` clicks on the release of an OK it was pressed with and long-clicks when it is held, reads as
+one element with its role, and reads its light, growth and glow while drawing, a plate's light in its content's
+clip layer: focus moving recomposes a surface as it turns, and a plate once more when its ink turns.
 
 - **Nothing is brighter than focus**, and ember never marks it: on a focused plate only marks stay lit, in
   `emberOnLight`.
@@ -465,7 +470,7 @@ The player's GPU fills a 1080p screen only a few times per frame, so:
 - **Draw full-screen content once and keep it.** A backdrop is one cached layer; the window is the only black
   under the screens; a transparent rectangle is not drawn; glows are non-overlapping rings (`drawGlow`).
 - **Prepare the next screen during the gesture before it.** Settled on a title, home and walls request its
-  detail logo (`DetailAhead`); while home's pill slides to a library, the wall's first page loads
+  detail logo (`DetailAhead`); while a library's name lights in home's bar, its wall's first page loads
   (`LibraryAhead`).
 - **Light nothing that focus only crosses** (`Scrub`).
 - **Measure on the player**, compiled as users run it (`cmd package compile -m speed-profile`), with
@@ -475,7 +480,7 @@ The player's GPU fills a 1080p screen only a few times per frame, so:
 
 | Test | Holds |
 |---|---|
-| `DesignTokenGuardTest` | no size, text size, font, colour, opacity or shape in a screen; no ember named in a screen; no arithmetic on tokens; no Material icon but Play; images only through `ArtworkImage`, `PosterThumb` or `RowPreview` |
+| `DesignTokenGuardTest` | no size, text size, font, colour, opacity or shape in a screen; no ember named in a screen; no arithmetic on tokens; no Material icon; images only through `ArtworkImage`, `PosterThumb` or `RowPreview` |
 | `FocusStyleGuardTest` | focus defined in one place, drawn by one surface; no tv-material surface |
 | `MotionGuardTest`, `ShapesTest` | the system's own curves only; radii by hierarchy, nested corners parallel, no pill or disc |
 | `ContrastTest`, `ScrimTest` | contrast pairs; veil floors and smoothness |
@@ -490,8 +495,8 @@ design system.
 
 Remote behaviour is tested as the remote drives it, on Robolectric with the app's theme on the TV canvas
 (`ui/testing/Remote.kt`): `MediaRowFocusTest`, `SheetFocusTest`, `SupportRowTest`, `ScrollAreaTest`,
-`TextFieldMessageTest`, `RestoreFocusTest`, `SegmentedFocusTest`. A focus rule that changes comes with its
-test.
+`TextFieldMessageTest`, `RestoreFocusTest`, `SegmentedFocusTest`, `OkPressTest`. A focus rule that changes comes
+with its test.
 
 ## Catalogue
 

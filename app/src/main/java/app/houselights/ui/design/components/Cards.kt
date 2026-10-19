@@ -40,6 +40,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
@@ -53,6 +54,8 @@ import androidx.compose.ui.layout.AlignmentLine
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.FirstBaseline
 import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.layout.Measurable
+import androidx.compose.ui.layout.Placeable
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -111,7 +114,7 @@ val LocalGroupFocused = compositionLocalOf { false }
 
 /**
  * A horizontal row of cards under [header] and its [count], or a custom [heading], then how many of its
- * titles are [news]. Focus returns to the last focused card; one frame travels from card to card.
+ * titles are [news] ([wearsNewDot]). Focus returns to the last focused card; one frame travels from card to card.
  */
 @Composable
 fun MediaRow(
@@ -431,28 +434,33 @@ private fun CardCaption(name: String?, number: String?, facts: List<String?>?, m
     ) { (names, factLines), constraints ->
         val loose = constraints.copy(minWidth = 0, minHeight = 0)
         val gap = HlSpace.s.roundToPx()
-        val nameWants = names.firstOrNull()?.maxIntrinsicWidth(loose.maxHeight) ?: 0
-        val factsWant = factLines.firstOrNull()?.maxIntrinsicWidth(loose.maxHeight) ?: 0
+        val nameWants = names.widest(loose.maxHeight)
+        val factsWant = factLines.widest(loose.maxHeight)
         val beside = nameWants == 0 || factsWant == 0 || nameWants + gap + factsWant <= loose.maxWidth
         val nameLine = names.firstOrNull()?.measure(loose)
-        val nameWidth = nameLine?.width ?: 0
-        val factRoom = if (beside && nameWidth > 0) (loose.maxWidth - nameWidth - gap).coerceAtLeast(0) else loose.maxWidth
+        val after = beside && nameLine.wide > 0
+        val factRoom = if (after) (loose.maxWidth - nameLine.wide - gap).coerceAtLeast(0) else loose.maxWidth
         val factLine = factLines.firstOrNull()?.measure(loose.copy(maxWidth = factRoom))
-        val nameBase = nameLine?.get(FirstBaseline)?.takeIf { it != AlignmentLine.Unspecified } ?: 0
-        val factBase = factLine?.get(FirstBaseline)?.takeIf { it != AlignmentLine.Unspecified } ?: 0
-        val under = if (beside) 0 else (nameLine?.height ?: 0) + HlSpace.xxs.roundToPx()
-        val factX = if (beside && nameWidth > 0) nameWidth + gap else 0
+        val factX = if (after) nameLine.wide + gap else 0
         // Beside, the two lines share a baseline; under, the facts start below the name.
-        val nameY = if (beside) (factBase - nameBase).coerceAtLeast(0) else 0
-        val factY = if (beside) (nameBase - factBase).coerceAtLeast(0) else under
-        val width = maxOf(nameWidth, factX + (factLine?.width ?: 0))
-        val height = maxOf(nameY + (nameLine?.height ?: 0), factY + (factLine?.height ?: 0))
+        val nameY = if (beside) (factLine.base - nameLine.base).coerceAtLeast(0) else 0
+        val factY = if (beside) (nameLine.base - factLine.base).coerceAtLeast(0) else nameLine.tall + HlSpace.xxs.roundToPx()
+        val width = maxOf(nameLine.wide, factX + factLine.wide)
+        val height = maxOf(nameY + nameLine.tall, factY + factLine.tall)
         layout(width.coerceIn(constraints.minWidth, constraints.maxWidth), height.coerceIn(constraints.minHeight, constraints.maxHeight)) {
             nameLine?.placeRelative(0, nameY)
             factLine?.placeRelative(factX, factY)
         }
     }
 }
+
+/** The widest the first of these lines would be, [height] tall; 0 without one. */
+private fun List<Measurable>.widest(height: Int): Int = firstOrNull()?.maxIntrinsicWidth(height) ?: 0
+
+/** A measured line's width, height and first baseline; 0 for a line that is not there. */
+private val Placeable?.wide: Int get() = this?.width ?: 0
+private val Placeable?.tall: Int get() = this?.height ?: 0
+private val Placeable?.base: Int get() = this?.get(FirstBaseline)?.takeIf { it != AlignmentLine.Unspecified } ?: 0
 
 /** A credited person: portrait, name and role; opens their page ([onOpen]) when in several titles. */
 @Composable
@@ -628,9 +636,12 @@ private fun StatusMark(item: MediaItem, modifier: Modifier) {
                 .padding(horizontal = HlSpace.xs, vertical = HlControl.badgePaddingV),
         ) { Text("$unplayed", style = Hl.type.badge, color = c.content) }
         item.user.played -> CheckMark(mark)
-        item.isNew() -> NewDot(mark)
+        item.wearsNewDot() -> NewDot(mark)
     }
 }
+
+/** A card wears the dot of a title new to the library unless it counts unwatched episodes instead; a row counts these. */
+fun MediaItem.wearsNewDot(): Boolean = (user.unplayedCount ?: 0) == 0 && isNew()
 
 /** A title new to the library: a solid ember dot ringed in black, so it stands off any picture; it recedes with it. */
 @Composable
@@ -671,7 +682,7 @@ private fun cardState(item: MediaItem): String? {
     val mark = when {
         unplayed > 0 -> pluralStringResource(R.plurals.card_unwatched, unplayed, unplayed)
         item.user.played -> stringResource(R.string.card_watched)
-        item.isNew() -> stringResource(R.string.card_new)
+        item.wearsNewDot() -> stringResource(R.string.card_new)
         else -> null
     }
     val progress = item.progress.takeIf { it > 0f }?.let { stringResource(R.string.card_in_progress, (it * PERCENT).roundToInt()) }
@@ -688,14 +699,19 @@ private const val PERCENT = 100
 @Composable
 fun ProgressLine(progress: Float, modifier: Modifier = Modifier, thickness: Dp = HlSize.progress) {
     if (progress <= 0f) return
-    val track = groundPlate() ?: Hl.colors.content.copy(alpha = HlAlpha.FILL_STRONG)
-    val light = Hl.colors.emberLight()
+    val c = Hl.colors
+    val track = groundPlate() ?: c.content.copy(alpha = HlAlpha.FILL_STRONG)
     val seen = progress.coerceAtMost(1f)
     val recede = LocalArtworkRecede.current
     Spacer(
-        modifier.fillMaxWidth().height(thickness).drawBehind {
-            drawRect(track)
-            drawRect(light, size = Size(size.width * seen, size.height), colorFilter = recedeFilterAt(recede()))
+        modifier.fillMaxWidth().height(thickness).drawWithCache {
+            val part = Size(size.width * seen, size.height)
+            // A brush spans the whole line unless told: the light ends where the part seen does.
+            val light = c.emberLight(across = part.width)
+            onDrawBehind {
+                drawRect(track)
+                drawRect(light, size = part, colorFilter = recedeFilterAt(recede()))
+            }
         },
     )
 }
