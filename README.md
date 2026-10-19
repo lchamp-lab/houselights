@@ -1,32 +1,64 @@
-# Houselights
+<p align="center">
+  <img src="docs/images/houselights.svg" alt="Houselights" width="100%">
+</p>
 
-A cinema-style media browser for **Zidoo** players (Z1000 Pro, Z9X, UHD series and other Android TV boxes)
-that hands playback to the **native Zidoo player**, so HDR10, HDR10+, Dolby Vision, audio passthrough and the
-player's own menus keep working.
+<h3 align="center">Your films, on the big screen.</h3>
 
-> **Status:** beta. Not affiliated with Zidoo, Jellyfin, Emby or Plex.
+<p align="center">
+  A cinema-style media browser for <b>Zidoo</b> players that hands playback to the <b>native Zidoo player</b>,<br>
+  so HDR10, HDR10+, Dolby Vision, audio passthrough and the player's own menus keep working.
+</p>
+
+<p align="center">
+  <a href="https://github.com/lchamp-lab/houselights/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/lchamp-lab/houselights?style=flat-square&label=release&color=FF7A4D"></a>
+  <img alt="Android TV 9 or later" src="https://img.shields.io/badge/Android%20TV-9%2B-555?style=flat-square">
+  <a href="LICENSE"><img alt="GPL-3.0-or-later" src="https://img.shields.io/badge/license-GPL--3.0--or--later-555?style=flat-square"></a>
+</p>
+
+<p align="center">
+  <a href="#install"><b>Install</b></a> ·
+  <a href="#features">Features</a> ·
+  <a href="#screenshots">Screenshots</a> ·
+  <a href="https://ko-fi.com/lchamp_lab">Support</a>
+</p>
+
+![Home: the focused film's backdrop, logo and summary above a row of posters](docs/images/home.jpg)
+
+> **Beta.** Made for the Zidoo Z1000 Pro, Z9X and UHD series, and other Android TV boxes running Android 9 or
+> later. Not affiliated with Zidoo, Jellyfin, Emby or Plex.
 
 ## Features
 
+- **The Zidoo player plays.** Files open directly in it (`smb://`, `nfs://` or HTTP), with everything it
+  supports. Progress is read from the player while it plays, so resume points stay in sync.
 - **A 10-foot interface built for the living room**: full-screen backdrops, clear logos, poster rows and
-  walls, detail pages with cast, seasons and episodes. Built with Jetpack Compose for TV on its own design
-  system ([DESIGN.md](DESIGN.md)).
+  walls, detail pages with cast, seasons and episodes, in 4K60 where the device allows it. Built with Jetpack
+  Compose for TV on its own design system ([DESIGN.md](DESIGN.md)).
 - **My files**: scans NFS or SMB shares, identifies films and shows from their names, and fetches artwork and
   details from TMDB.
   - Kodi-style NFO files and local artwork (`poster.jpg`, `fanart.jpg`, `clearlogo.png`…) take precedence;
     NFO ids identify titles exactly.
-  - Details come in the device's language, or another chosen in Settings > Library > Details language;
-    changing it updates every title.
   - Technical details (resolution, HDR, Dolby Vision, audio formats, subtitles) are read from the files.
   - Each title can be corrected from its page: poster, backdrop and logo chosen among TMDB's images, or a
     manual match by title, year or IMDb id. Corrections survive later scans.
   - Films of a saga are gathered, with a page per saga showing the films you own and those you don't.
 - **Jellyfin**: browses your server and reports playback progress back to it. Emby and Plex are planned.
-- **Native playback**: files open directly in the Zidoo player (`smb://`, `nfs://` or HTTP). Progress is
-  read from the player while it plays, so resume points stay in sync.
-- 4K60 interface output where the device allows it.
-- In English, French, German, Spanish, Italian, Portuguese, Dutch, Polish, Chinese (simplified and traditional),
-  Japanese and Korean: the device's language, or another chosen in Settings > Display.
+- **In your language**: the interface in English, French, German, Spanish, Italian, Portuguese, Dutch,
+  Polish, Chinese (simplified and traditional), Japanese and Korean, and details in the language of your
+  choice. Both follow the device unless chosen in the settings.
+
+## Screenshots
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/images/film.jpg" alt="A film's page"><br><sub>A film's page: what its file holds, read from the file itself.</sub></td>
+    <td width="50%"><img src="docs/images/show.jpg" alt="A show's episodes and cast"><br><sub>A show's episodes and cast.</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/images/saga.jpg" alt="A saga's page"><br><sub>A saga: the films you own among its films, resumed where you left off.</sub></td>
+    <td width="50%"><img src="docs/images/library.jpg" alt="The library's poster wall"><br><sub>The library as a poster wall, lit by the focused poster.</sub></td>
+  </tr>
+</table>
 
 ## Install
 
