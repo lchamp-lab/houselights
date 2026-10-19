@@ -47,7 +47,7 @@ with another one. Check an APK with `apksigner verify --print-certs` or the AppV
 certificate's SHA-256 is:
 
 ```
-C4:2C:70:C6:C8:AE:CA:07:F8:38:E3:90:6E:8F:D1:0E:17:86:33:9A:30:D4:63:30:0E:51:C2:7E:6A:55:70:73
+CA:0A:DF:07:52:64:58:F6:CB:3E:57:E4:C5:84:66:C4:55:B6:86:F5:84:3A:E6:4D:45:A3:76:A2:93:EB:4D:A8
 ```
 
 **TMDB key.** A release may ship without a TMDB key. The app then asks for yours (free, from
