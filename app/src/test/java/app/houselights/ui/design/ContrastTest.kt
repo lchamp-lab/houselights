@@ -17,6 +17,9 @@ class ContrastTest {
     /** The left veil in the neutral dark at the floor it takes over white. */
     private val veilFloorOnWhite = c.ambientDeep.over(HlScrim.need(1f, tint = greyOf(c.ambientDeep)), Color.White)
 
+    /** A wall's diffuse field at its brightest, one level over its cap as dithering may draw it. */
+    private val fieldBrightest = grey((floor(srgb(HlScrim.FIELD_LUMINANCE_MAX) * 255f) + 1f) / 255f)
+
     private val roles = mapOf(
         "content" to c.content,
         "contentSecondary" to c.contentSecondary,
@@ -65,8 +68,9 @@ class ContrastTest {
         // A plate on the bare picture: at its own opacity over white, and at the most its floor raises it to.
         "plate on a white image" to c.plate().compositeOver(Color.White),
         "plate at its ceiling on a white image" to c.plate(alpha = HlAlpha.PLATE_MAX).compositeOver(Color.White),
-        // A wall's diffuse field at its brightest, one level over its cap as dithering may draw it.
-        "the diffuse field's brightest" to grey((floor(srgb(HlScrim.FIELD_LUMINANCE_MAX) * 255f) + 1f) / 255f),
+        "the diffuse field's brightest" to fieldBrightest,
+        // A wall's title at the foot of its band (the safe area and a headline, 70 dp down), under the field's top veil.
+        "the title's foot on the diffuse field" to c.background.over(HlScrim.DIFFUSE_TOP.alphaAt(TITLE_FOOT), fieldBrightest),
     )
 
     /** Every pair the system draws, as role, surface, use. */
@@ -145,6 +149,9 @@ class ContrastTest {
         ("ember" on "plate at its ceiling on a white image").mark(), ("emberTo" on "plate at its ceiling on a white image").mark(),
         // On a wall's field, without a veil: names and facts; the quietest text only on a plate or in the title's band.
         "content" on "the diffuse field's brightest", "contentSecondary" on "the diffuse field's brightest",
+        // A wall's title, in the ember light, and the quietest text in its band.
+        "emberFrom" on "the title's foot on the diffuse field", "emberTo" on "the title's foot on the diffuse field",
+        "contentTertiary" on "the title's foot on the diffuse field",
     )
 
     private val forbidden = listOf(
@@ -190,4 +197,9 @@ class ContrastTest {
     private fun srgb(luminance: Float) = ColorSpaces.Srgb.oetf(luminance.toDouble()).toFloat()
 
     private fun format(ratio: Float) = "%.2f:1".format(ratio)
+
+    private companion object {
+        /** 70 dp of the TV's 540 dp high screen. */
+        const val TITLE_FOOT = 70f / 540f
+    }
 }

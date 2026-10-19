@@ -10,6 +10,7 @@ import androidx.compose.ui.graphics.luminance
 import androidx.test.core.app.ApplicationProvider
 import app.houselights.core.ImageRef
 import app.houselights.ui.design.HlScrim
+import app.houselights.ui.design.VeilStop
 import coil.ImageLoader
 import coil.decode.DataSource
 import coil.fetch.DrawableResult
@@ -24,6 +25,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 import kotlin.math.abs
 import kotlin.math.sin
@@ -119,22 +121,63 @@ class DiffuseTest {
     }
 
     @Test
+    @Config(sdk = [SHADER_FILTERS])
     fun itIsEnlargedWithoutRings() {
-        // A field of a smooth ramp, a level every 15 points across: drawn, no level holds more than a few in a row.
+        // A field of a smooth ramp, a level every 15 points across, drawn clear of its veils at mid-height.
         val ramp = picture { x, _ -> 0xFF000000.toInt() or (x * 2 * 0x010101) }
+        val levels = diffuseField(ramp, W, H).map { it and 0xFF }
+        assertTrue("its rows alike", levels.chunked(FIELD_W).distinct().size == 1)
         val field = Bitmap.createBitmap(diffuseField(ramp, W, H), FIELD_W, FIELD_H, Bitmap.Config.ARGB_8888)
-        val screen = Bitmap.createBitmap(SCREEN_W, SCREEN_H, Bitmap.Config.ARGB_8888)
-        val (width, height) = SCREEN_W.toFloat() to SCREEN_H.toFloat()
-        Canvas(screen).drawRect(0f, 0f, width, height, diffusePaint(field, width, height, BackdropStyle.Diffuse.veils.down, 1f))
-        val row = IntArray(SCREEN_W).also { screen.getPixels(it, 0, SCREEN_W, 0, SCREEN_H / 2, SCREEN_W, 1) }.map { (it shr 8) and 0xFF }
-        val runs = mutableListOf(1)
-        row.zipWithNext().forEach { (a, b) -> if (a == b) runs[runs.lastIndex]++ else runs += 1 }
-        val longest = runs.sorted()[(runs.size * 0.95f).toInt().coerceAtMost(runs.lastIndex)]
-        assertTrue("95 % of runs under $longest points: $runs", longest <= 4)
+        val screen = drawn(field, BackdropStyle.Diffuse.veils.down)
+        // Over each tile of the pattern, the screen shows the ramp its levels draw, plus the pattern's half level.
+        var before = Float.NaN
+        for (tile in 0 until SCREEN_W / TILE) {
+            val ideal = (tile * TILE until (tile + 1) * TILE).map { bilinear(levels, it) }.average().toFloat() + HALF
+            val error = tileMean(screen, tile * TILE, MID_TILE) - ideal
+            assertEquals("tile $tile: the ramp, without its steps", 0f, error, RAMP_SLACK)
+            if (!before.isNaN()) assertEquals("tile $tile: no step from its neighbour", before, error, STEP_SLACK)
+            before = error
+        }
         // The light follows the ramp, and its veils darken the top.
+        val row = IntArray(SCREEN_W).also { screen.getPixels(it, 0, SCREEN_W, 0, SCREEN_H / 2, SCREEN_W, 1) }.map { (it shr 8) and 0xFF }
         assertTrue(row.takeLast(60).average() > row.take(60).average() + 20)
         val top = IntArray(SCREEN_W).also { screen.getPixels(it, 0, SCREEN_W, 0, 0, SCREEN_W, 1) }.map { (it shr 8) and 0xFF }
         assertTrue(top.takeLast(60).average() < row.takeLast(60).average() * 0.5)
+    }
+
+    @Test
+    @Config(sdk = [SHADER_FILTERS])
+    fun theFractionOfALevelShows() {
+        // An even field of 60 under an even veil leaving 205 of 255: 48.24 levels, its fraction carried by the pattern.
+        val field = Bitmap.createBitmap(IntArray(FIELD_W * FIELD_H) { GREY_60 }, FIELD_W, FIELD_H, Bitmap.Config.ARGB_8888)
+        val veil = (255 - 205) / 255f
+        val screen = drawn(field, listOf(VeilStop(0f, veil), VeilStop(1f, veil)))
+        val light = 60 * 205 / 255f
+        for (tile in 0 until SCREEN_W / TILE) {
+            assertEquals("tile $tile", light + HALF, tileMean(screen, tile * TILE, MID_TILE), FRACTION_SLACK)
+        }
+    }
+
+    /** [field] drawn on a screen as a wall's, under veils [down] fully lifted. */
+    private fun drawn(field: Bitmap, down: List<VeilStop>): Bitmap {
+        val screen = Bitmap.createBitmap(SCREEN_W, SCREEN_H, Bitmap.Config.ARGB_8888)
+        val (width, height) = SCREEN_W.toFloat() to SCREEN_H.toFloat()
+        Canvas(screen).drawRect(0f, 0f, width, height, diffusePaint(field, width, height, down, 1f))
+        return screen
+    }
+
+    /** The mean level of the pattern's tile of [screen] from [left], [top]: all 64 steps of its dither. */
+    private fun tileMean(screen: Bitmap, left: Int, top: Int): Float {
+        val points = IntArray(TILE * TILE).also { screen.getPixels(it, 0, TILE, left, top, TILE, TILE) }
+        return points.map { (it shr 8) and 0xFF }.average().toFloat()
+    }
+
+    /** A field's row of [levels] at screen point [x], enlarged as bilinear filtering does, its middles aligned. */
+    private fun bilinear(levels: List<Int>, x: Int): Float {
+        val at = (x + 0.5f) * FIELD_W / SCREEN_W - 0.5f
+        val from = kotlin.math.floor(at).toInt()
+        val share = at - from
+        return levels[from.coerceIn(0, FIELD_W - 1)] * (1 - share) + levels[(from + 1).coerceIn(0, FIELD_W - 1)] * share
     }
 
     @Test
@@ -176,6 +219,18 @@ class DiffuseTest {
         const val BLACK = 0xFF000000.toInt()
         const val SCREEN_W = 960
         const val SCREEN_H = 540
+        /** The dither pattern's side, and a tile of it at mid-height, clear of the veils. */
+        const val TILE = 8
+        const val MID_TILE = SCREEN_H / 2 / TILE * TILE
+        /** What the pattern adds on average, rounded to the nearest level. */
+        const val HALF = 0.5f
+        /** In levels: rings, or a pattern stuck at whole levels, step a level every 15 points across. */
+        const val RAMP_SLACK = 0.15f
+        const val STEP_SLACK = 0.2f
+        const val FRACTION_SLACK = 0.1f
+        const val GREY_60 = 0xFF3C3C3C.toInt()
+        /** Skia on the CPU filters the field from here, as the player's GPU does: Robolectric's API 28 does not. */
+        const val SHADER_FILTERS = 35
         const val BACKDROP = "test://fanart/7"
         const val MEMORY = 64 * 1024 * 1024
     }

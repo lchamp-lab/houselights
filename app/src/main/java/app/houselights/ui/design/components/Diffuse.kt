@@ -9,6 +9,7 @@ import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.PorterDuff
 import android.graphics.Shader
+import android.os.Build
 import androidx.compose.ui.geometry.Size as DrawSize
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.colorspace.ColorSpaces
@@ -63,7 +64,7 @@ internal fun diffuseField(argb: IntArray, width: Int, height: Int): IntArray {
         val across = averaged(plane, width, height, horizontal = true, from = width - cropW, span = cropW, out = FIELD_W)
         averaged(across, FIELD_W, height, horizontal = false, from = 0f, span = cropH, out = FIELD_H)
     }
-    repeat(BLUR_PASSES) { field.forEach { blurred(it) } }
+    repeat(BLUR_PASSES) { field.forEach(::blurred) }
     val luma = FloatArray(FIELD_W * FIELD_H)
     for (i in luma.indices) {
         val y = lumaAt(field, i)
@@ -102,17 +103,19 @@ private fun averaged(plane: FloatArray, width: Int, height: Int, horizontal: Boo
     val result = FloatArray(outW * outH)
     val step = span / out
     val points = if (horizontal) width else height
+    // A line across the other axis: its length, and the strides between its points out and in.
+    val line = if (horizontal) height else width
+    val outStride = if (horizontal) outW else 1
+    val inStride = if (horizontal) width else 1
     for (o in 0 until out) {
         val a = from + o * step
         val b = a + step
+        val into = if (horizontal) o else o * outW
         var i = floor(a).toInt()
         while (i < b && i < points) {
             val weight = (minOf(b, i + 1f) - maxOf(a, i.toFloat())) / step
-            if (horizontal) {
-                for (y in 0 until height) result[y * outW + o] += plane[y * width + i] * weight
-            } else {
-                for (x in 0 until width) result[o * outW + x] += plane[i * width + x] * weight
-            }
+            val at = if (horizontal) i else i * width
+            for (k in 0 until line) result[into + k * outStride] += plane[at + k * inStride] * weight
             i++
         }
     }
@@ -177,13 +180,15 @@ internal class DiffusePaint(private val field: Bitmap, private val size: DrawSiz
 /**
  * Paint filling [width] × [height] px with [field] cropped as a backdrop (top and right edges kept), enlarged
  * with bilinear filtering, times what its veils [down] at [lift] leave, plus an ordered 8 × 8 pattern under
- * one level, all in one shader: the screen rounds once, dithered. Android 9's GPU does not dither, and a field
- * this dark shows rings otherwise. Its rounded-down levels make up for the pattern's half level on average.
+ * one level, all in one shader: the screen rounds once, dithered, where a field this dark shows rings otherwise.
+ * Its rounded-down levels make up for the pattern's half level on average.
  */
 internal fun diffusePaint(field: Bitmap, width: Float, height: Float, down: List<VeilStop>, lift: Float): Paint {
     val scale = max(width / field.width, height / field.height)
     val picture = BitmapShader(field, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP).apply {
         setLocalMatrix(Matrix().apply { setScale(scale, scale); postTranslate(width - field.width * scale, 0f) })
+        // Its own filter from Android 13, where a shader inside another no longer takes the paint's.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) filterMode = BitmapShader.FILTER_MODE_LINEAR
     }
     val stops = down.colorStops(Color.Black)
     val kept = LinearGradient(

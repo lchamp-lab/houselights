@@ -183,7 +183,10 @@ interface AmbientLight {
     /** The picture's own dark: its veils, and plates over it. */
     fun deep(): Color
 
-    /** How opaque a plate over it must be: [HlAlpha.PLATE], raised over a light picture. */
+    /**
+     * How opaque a plate over it must be: [HlAlpha.PLATE], raised as the header's band needs
+     * ([BackdropDefaults.plateBand]), for every plate on the screen.
+     */
     fun plateAlpha(): Float
 
     /** Its glow, for a focused card without a tone of its own; transparent without a picture. */

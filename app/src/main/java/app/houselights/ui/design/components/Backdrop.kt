@@ -1,13 +1,10 @@
 package app.houselights.ui.design.components
 
 import android.content.Context
-import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.core.updateTransition
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -20,23 +17,28 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshots.Snapshot
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.CacheDrawScope
+import androidx.compose.ui.draw.DrawResult
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.geometry.toRect
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.compositeOver
@@ -69,10 +71,12 @@ import app.houselights.ui.design.colorStops
 import app.houselights.ui.design.drawnWhole
 import app.houselights.ui.design.greyOf
 import app.houselights.ui.design.rememberCueStep
+import app.houselights.ui.util.screenSizePx
 import app.houselights.ui.util.screenWidthPx
 import coil.request.ImageRequest
 import kotlin.math.max
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.conflate
 
 /** How a backdrop shows its picture: its veils (DESIGN.md, Veils) and what it draws them over. */
 enum class BackdropStyle(
@@ -132,29 +136,29 @@ private fun BackdropOf(state: BackdropState, image: ImageRef?, style: BackdropSt
     val shown = state.shown
     SideEffect { relay?.shows(state, shown) }
     DisposableEffect(relay) { onDispose { relay?.release(state) } }
-    // The leaving picture holds under the next: the two crossfade without a dip, as plates follow them.
-    BackdropShots(shown, modifier, recede, holds = { _, coming -> coming != null }, lights = state)
+    BackdropShots(shown, modifier, recede, lights = state)
 }
 
 /**
- * A backdrop's pictures, crossfading ([FadeBetween]); [level] scales the whole backdrop's opacity. Each one drawn
- * lends its light to [lights], at the alpha it is drawn at.
+ * A backdrop's pictures, crossfading ([FadeBetween]); null is the room. [level] scales the whole backdrop's
+ * opacity. Each one drawn lends its light to [lights], at the alpha it is drawn at.
  */
 @Composable
-private fun BackdropShots(
+internal fun BackdropShots(
     shown: Shot?,
     modifier: Modifier,
     recede: (() -> Float)?,
-    holds: (leaving: Shot?, coming: Shot?) -> Boolean = { _, _ -> false },
     level: () -> Float = { 1f },
     lights: BackdropState? = null,
 ) {
     val density = LocalDensity.current
     // The text column of heroes and detail pages, which the veil follows at any screen width.
     val column = with(density) { (HlSpace.safeH + HlLayout.readableNarrow).toPx() }
-    var bounds by remember { mutableStateOf(Size.Zero) }
+    // The screen's until laid out: a backdrop fills it, so its first frame is veiled as the next.
+    val screen = screenSizePx()
+    var bounds by remember { mutableStateOf(screen.toSize()) }
     val sized = modifier.fillMaxSize().onSizeChanged { bounds = it.toSize() }
-    FadeBetween(shown, sized, atOnce = { it?.atOnce == true }, holds = holds) { shot, alpha ->
+    FadeBetween(shown, sized, atOnce = { it?.atOnce == true }, empty = { it == null }) { shot, alpha ->
         if (shot != null) BackdropPicture(shot.prepared, shot.style, bounds, column, { alpha() * level() }, recede, lights)
     }
 }
@@ -274,7 +278,6 @@ class BackdropRelay {
 }
 
 /** A picture drawn: its light, plates over it at [plateAlpha], its layer at [alpha]. */
-@Stable
 internal class LitLayer(val light: ImageLight, plateAlpha: Float, var alpha: () -> Float) {
     var plateAlpha by mutableFloatStateOf(plateAlpha)
 }
@@ -399,33 +402,34 @@ private fun BackdropPicture(
         Box(
             Modifier.fillMaxSize().drawWithCache {
                 // Built once per picture; the house lights only change the veils' alpha.
-                val field = if (!style.diffuse) null else DiffusePaint(prepared.picture.asAndroidBitmap(), size, veils.down)
+                if (style.diffuse) return@drawWithCache drawField(prepared.picture, veils.down, scrims)
                 val across = if (veil.isEmpty()) null else leftVeil(deep, veil, column, style.leftFade.toPx())
                 val top = if (veils.tinted) deep else black
                 val topEnd = veils.top.last().at
                 val down = Brush.verticalGradient(*veils.down.colorStops { if (it <= topEnd) top else black })
-                // Dithered where the GPU does it; a wall's field dithers itself.
+                // Dithered where the GPU does it.
                 val paint = Paint().apply { asFrameworkPaint().isDither = true }
                 val whole = size.toRect()
                 onDrawBehind {
                     val lift = scrims.value
                     drawIntoCanvas { canvas ->
-                        if (field != null) {
-                            // The field and its veils in one fill.
-                            canvas.nativeCanvas.drawRect(0f, 0f, size.width, size.height, field.at(lift))
-                        } else {
-                            if (across != null) {
-                                across.applyTo(size, paint, lift)
-                                canvas.drawRect(whole, paint)
-                            }
-                            down.applyTo(size, paint, lift)
+                        if (across != null) {
+                            across.applyTo(size, paint, lift)
                             canvas.drawRect(whole, paint)
                         }
+                        down.applyTo(size, paint, lift)
+                        canvas.drawRect(whole, paint)
                     }
                 }
             },
         )
     }
+}
+
+/** A wall's diffuse [field] under its veils [down] lifted by [scrims], in one fill that dithers itself. */
+private fun CacheDrawScope.drawField(field: ImageBitmap, down: List<VeilStop>, scrims: State<Float>): DrawResult {
+    val paint = DiffusePaint(field.asAndroidBitmap(), size, down)
+    return onDrawBehind { drawIntoCanvas { it.nativeCanvas.drawRect(0f, 0f, size.width, size.height, paint.at(scrims.value)) } }
 }
 
 /** Keeps [light] in [lights] while this picture is drawn, at [alpha], plates over it at [plateAlpha]. */
@@ -443,55 +447,65 @@ private fun LendsItsLight(lights: BackdropState, light: ImageLight, plateAlpha: 
 }
 
 /**
- * A [Crossfade] that hands the alpha to [content], so a cached layer fades as one texture, not two, over
- * `TINT`, linear; [atOnce] targets appear opaque. A leaving target that [holds] keeps the alpha it was drawn
- * at as the next came, under it until it is in: the next fades over what showed, with no dip.
+ * Fades to [target] one fade at a time, handing [content] its alpha so a cached layer fades as one texture:
+ * the coming one over `TINT`, linear, over the one before, held whole until it is in, then released. One coming
+ * during a fade waits for its end, in place of any waiting. [atOnce] targets appear opaque; an [empty] one
+ * draws nothing, what shows going out into the room as it comes.
  */
 @Composable
 internal fun <T> FadeBetween(
     target: T,
     modifier: Modifier,
     atOnce: (T) -> Boolean = { false },
-    holds: (leaving: T, coming: T) -> Boolean = { _, _ -> false },
+    empty: (T) -> Boolean = { false },
     content: @Composable (T, alpha: () -> Float) -> Unit,
 ) {
-    val transition = updateTransition(target, label = "backdrop")
-    val shown = remember { mutableStateListOf(transition.currentState) }
-    if (transition.currentState == transition.targetState && (shown.size != 1 || shown[0] != transition.targetState)) {
-        shown.removeAll { it != transition.targetState }
+    val fade = remember { Fade(target) }
+    val latest = rememberUpdatedState(target)
+    val opaque = rememberUpdatedState(atOnce)
+    val blank = rememberUpdatedState(empty)
+    LaunchedEffect(fade) {
+        // Conflated: whatever came last while a fade ran is the next.
+        snapshotFlow { latest.value }.conflate().collect { fade.to(it, opaque.value(it), blank.value(it)) }
     }
-    if (transition.targetState !in shown) shown.add(transition.targetState)
+    // Unless a fade runs, a target shown at once is drawn in the frame that brings it: a launch screen waits for it.
+    val whole = fade.shown.size == 1 && target != fade.shown[0] && atOnce(target)
     Box(modifier) {
-        shown.forEach { state ->
-            key(state) {
-                val alpha = transition.animateFloat(
-                    transitionSpec = { if (atOnce(targetState)) snap() else tween(HlMotion.TINT, easing = LinearEasing) },
-                    label = "backdropAlpha",
-                ) { if (it == state) 1f else 0f }
-                val held = remember { Held() }
-                val coming = transition.targetState
-                if (state == coming) {
-                    held.at = Float.NaN
-                } else if (held.at.isNaN() && holds(state, coming)) {
-                    // Not observed: the alpha is read while drawing, never by this composition.
-                    held.at = if (atOnce(state)) 1f else Snapshot.withoutReadObservation { alpha.value }
-                }
-                // Opaque from the first frame it is drawn, before the transition's first step.
-                content(state) {
-                    when {
-                        state == transition.targetState && atOnce(state) -> 1f
-                        !held.at.isNaN() -> held.at
-                        else -> alpha.value
-                    }
-                }
-            }
+        (if (whole) listOf(target) else fade.shown).forEach { shown ->
+            if (!empty(shown)) key(shown) { content(shown) { if (whole) 1f else fade.alphaOf(shown) } }
         }
     }
 }
 
-/** The alpha a leaving target is held at, NaN while it is not. */
-private class Held {
-    var at = Float.NaN
+/** What a [FadeBetween] shows, bottom to top: two targets at most, the top one coming in at [progress]. */
+@Stable
+private class Fade<T>(first: T) {
+    val shown = mutableStateListOf(first)
+    private var progress by mutableFloatStateOf(1f)
+
+    /** The top one is empty: the one under it goes out as it comes. */
+    private var intoTheRoom by mutableStateOf(false)
+
+    /** [layer]'s alpha, read while drawing: the top one's progress, the one under it whole or going out, 0 once released. */
+    fun alphaOf(layer: T): Float = when (layer) {
+        shown.last() -> progress
+        shown.first() -> if (intoTheRoom) 1f - progress else 1f
+        else -> 0f
+    }
+
+    /** Shows [next] at once, or fades it in over what shows and then releases that: one target shows between calls. */
+    suspend fun to(next: T, atOnce: Boolean, empty: Boolean) {
+        if (next == shown[0]) return
+        if (atOnce) {
+            shown[0] = next
+            return
+        }
+        intoTheRoom = empty
+        progress = 0f
+        shown += next
+        animate(0f, 1f, animationSpec = tween(HlMotion.TINT, easing = LinearEasing)) { value, _ -> progress = value }
+        shown.removeAt(0)
+    }
 }
 
 /** The left veil in [color] across [column] px, then faded out over up to [fade] px in proportion to its last stop. */

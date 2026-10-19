@@ -182,24 +182,28 @@ top bar, the bottom one, a wall's diffuse field, and the welcome wall's veil.
 - **It keeps a floor per band** (its four bands), read from a small copy of the backdrop
   (`ArtworkSample.leftVeil`): the opacity the quietest text needs for 4.5:1, the top veil's dark counted over
   the picture. A veil in the picture's dark lightens what it covers: it needs `(grey - ceiling) / (grey - dark)`,
-  0.915 over white (a black one, 0.85). Bands never get lighter leftwards. Highlights under a twentieth of a
-  band are ignored (`FLOOR_QUANTILE`).
+  at most 0.915 over white (a black one, 0.85). Bands never get lighter leftwards. Highlights under a twentieth
+  of a band are ignored (`FLOOR_QUANTILE`).
 - **One exception to 4.5:1** (`HlScrim.LEFT_CONTRAST`): over the column's left half the quietest text keeps
   4.5:1; over the third quarter, 3.5:1; over the last, 3:1. Nowhere else does text go below 4.5:1.
 - **The top veil** is 0.74 at the edge and gone at 164 dp. **The bottom one** reaches black where rows sit:
   home from 40 % to 77 % of the height, a detail page from 45 % to 96 %. A dimmed picture (`Quiet`) stops at
   what its quietest text needs.
-- **Plates** over a picture rise from `PLATE` to what its quietest text needs over the top band where they
-  sit (`ArtworkSample.plateFloor`, `BackdropDefaults.plateBand`), at most `PLATE_MAX`.
+- **Plates** over a picture rise from `PLATE` to what its quietest text needs over the header's band
+  (`ArtworkSample.plateFloor`, `BackdropDefaults.plateBand`), at most `PLATE_MAX`; every plate on the screen
+  takes it.
 - **A wall's diffuse field** (`Diffuse`): its backdrop's sample averaged down to 64 × 36, blurred three times,
   its colour lifted 1.2 times, its 95th percentile brought to luminance 0.039 and every point capped there,
   rounded down. Enlarged with bilinear filtering under black veils (0.66 at the top, gone at 200 dp; 0.5 at
-  the foot), in one fill with an ordered 8 × 8 dither under one level: it shows rings otherwise, and the
-  player's GPU does not dither. `contentSecondary` keeps 4.6:1 on it bare, `contentTertiary` only in the
-  title's band or on a plate. A wall never decodes its picture: 9 KB a title, memory-cached beside its sample.
-- **One fade.** A picture, its veils and its dark crossfade together over `TINT` once the title has settled,
-  the leaving one held under the next: the screen never dips, and plates follow the same progress.
-- **No picture, no light.** `Backdrop(null)` is the black room: the neutral dark, no glow.
+  the foot), in one fill with an ordered 8 × 8 dither under one level: it shows rings otherwise.
+  `contentSecondary` keeps 4.6:1 on it bare, `contentTertiary` only in the title's band or on a plate. A wall
+  never decodes its picture: 9 KB a title, memory-cached beside its sample.
+- **One fade at a time.** A picture, its veils and its dark crossfade together over `TINT` once the title has
+  settled, the leaving one held whole under the next, then released: the screen never dips, and plates follow
+  the same progress. A picture coming during a fade waits for its end, the last to come in place of any
+  waiting.
+- **No picture, no light.** `Backdrop(null)` is the black room: the neutral dark, no glow. It comes in turn
+  like a picture, the one showing going out into it.
 
 ### Type (`Type.kt`)
 

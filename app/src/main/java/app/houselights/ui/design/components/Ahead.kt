@@ -37,7 +37,7 @@ class PicturesAhead(private val context: Context, private val screenWidthPx: Int
     /** The posters of a wall's [items], at the size a [PosterCard] cell requests ([requestedPoster]). */
     fun wall(items: List<MediaItem>): List<ImageRequest> = items.mapNotNull { posterRequest(context, it, requestedPoster(null).px()) }
 
-    /** The logo a detail page of [item] shows, at its [TitleArt] size; its backdrop is already on screen. */
+    /** The logo a detail page of [item] shows, at its [TitleArt] size; its backdrop is decoded as the page opens. */
     fun detail(item: MediaItem): List<ImageRequest> =
         listOfNotNull(item.logo?.let { titleArtRequest(context, it, HlLayout.titleArtWidth.px(), HlLayout.titleArtHeight.px()) })
 

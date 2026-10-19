@@ -226,7 +226,7 @@ class ArtworkSample(val width: Int, val height: Int, private val grey: FloatArra
      */
     fun leftVeil(screen: Size, column: Float, veils: Veils, deep: Float): List<VeilStop> {
         val veil = veils.left
-        if (veil.isEmpty() || grey.isEmpty() || screen.isEmpty() || column <= 0f) return veil
+        if (veil.isEmpty() || column <= 0f || !shows(screen)) return veil
         val shown = Shown(screen)
         // The points whose middle shows on the screen, under the column.
         val cols = shown.firstCol..floor((column - shown.left) / shown.scale - MIDDLE).toInt().coerceAtMost(width - 1)
@@ -265,9 +265,9 @@ class ArtworkSample(val width: Int, val height: Int, private val grey: FloatArra
      * screen): what [HlScrim.FLOOR_QUANTILE] of the shown points need. 0 on a dark picture.
      */
     fun floorAcross(screen: Size, veils: Veils, deep: Float): Float {
-        if (grey.isEmpty() || screen.isEmpty()) return 0f
+        if (!shows(screen)) return 0f
         val shown = Shown(screen)
-        return quantileOfNeeds(shown, shown.firstCol..(width - 1), shown.rows, Down(shown, veils, if (veils.tinted) deep else 0f), 0f)
+        return quantileOfNeeds(shown.firstCol..(width - 1), shown.rows, Down(shown, veils, if (veils.tinted) deep else 0f), 0f)
     }
 
     /**
@@ -276,17 +276,20 @@ class ArtworkSample(val width: Int, val height: Int, private val grey: FloatArra
      * points need, from `HlAlpha.PLATE` to `HlAlpha.PLATE_MAX`.
      */
     fun plateFloor(screen: Size, left: Float, bottom: Float, veils: Veils, deep: Float): Float {
-        if (grey.isEmpty() || screen.isEmpty()) return HlAlpha.PLATE
+        if (!shows(screen)) return HlAlpha.PLATE
         val shown = Shown(screen)
         val cols = max(shown.firstCol, ceil((left - shown.left) / shown.scale - MIDDLE).toInt())..(width - 1)
         val rows = 0..min(shown.rows.last, floor(bottom / shown.scale - MIDDLE).toInt())
         if (cols.isEmpty() || rows.isEmpty()) return HlAlpha.PLATE
-        val need = quantileOfNeeds(shown, cols, rows, Down(shown, veils, if (veils.tinted) deep else 0f), deep)
+        val need = quantileOfNeeds(cols, rows, Down(shown, veils, if (veils.tinted) deep else 0f), deep)
         return need.coerceIn(HlAlpha.PLATE, HlAlpha.PLATE_MAX)
     }
 
+    /** Whether any of the picture shows on [screen]. */
+    private fun shows(screen: Size) = grey.isNotEmpty() && !screen.isEmpty()
+
     /** What [HlScrim.FLOOR_QUANTILE] of the points in [cols] and [rows] need of a layer of grey [tint] over them. */
-    private fun quantileOfNeeds(shown: Shown, cols: IntRange, rows: IntRange, down: Down, tint: Float): Float {
+    private fun quantileOfNeeds(cols: IntRange, rows: IntRange, down: Down, tint: Float): Float {
         val needs = FloatArray(cols.length * rows.length)
         var count = 0
         for (row in rows) {
