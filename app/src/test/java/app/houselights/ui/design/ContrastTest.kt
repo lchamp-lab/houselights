@@ -2,11 +2,11 @@ package app.houselights.ui.design
 
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.compositeOver
-import androidx.compose.ui.graphics.luminance
+import app.houselights.ui.testing.contrast
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** DESIGN.md's 4.5:1 for text and 3:1 for marks, over what each layer sits on; unlisted pairs are refused. */
+/** DESIGN.md's 4.5:1 for text and 3:1 for marks, for each pair the system draws over what it sits on; forbidden pairs stay below. */
 class ContrastTest {
     private enum class Use(val minimum: Float) { Text(4.5f), Mark(3f) }
 
@@ -55,8 +55,8 @@ class ContrastTest {
     private val permitted = listOf(
         // Primary text, the count of unwatched episodes on its plate, the current option of a track.
         "content" on "background", "content" on "FILL", "content" on "surfaceRaised",
-        "content" on "FILL", "content" on "FILL_FAINT", "content" on "FILL_FAINT on surfaceRaised",
-        "content" on "FILL", "content" on "FILL_STRONG", "content" on "FILL_STRONG on FILL_FAINT",
+        "content" on "FILL_FAINT", "content" on "FILL_FAINT on surfaceRaised",
+        "content" on "FILL_STRONG", "content" on "FILL_STRONG on FILL_FAINT",
         // On artwork: a round button's icon, the current option of a track, on their plate.
         "content" on "VEIL on a white image", "content" on "FILL_STRONG on VEIL on a white image",
         // The other options of a track at rest, in its well or on its plate over an image.
@@ -66,11 +66,11 @@ class ContrastTest {
         "contentTertiary" on "the veil's floor on a white image",
         // Descriptions, labels, a selected entry's summary, a button's detail at rest.
         "contentSecondary" on "background", "contentSecondary" on "FILL", "contentSecondary" on "surfaceRaised",
-        "contentSecondary" on "FILL", "contentSecondary" on "FILL_FAINT", "contentSecondary" on "FILL_FAINT on surfaceRaised",
-        "contentSecondary" on "FILL", "contentSecondary" on "FILL_STRONG",
+        "contentSecondary" on "FILL_FAINT", "contentSecondary" on "FILL_FAINT on surfaceRaised",
+        "contentSecondary" on "FILL_STRONG",
         // Hints, placeholders, an entry's summary at rest; never on a strong fill.
         "contentTertiary" on "background", "contentTertiary" on "FILL", "contentTertiary" on "surfaceRaised",
-        "contentTertiary" on "FILL", "contentTertiary" on "FILL_FAINT",
+        "contentTertiary" on "FILL_FAINT",
         // A value the user chose, the check of the current choice, a failed result, the mark at the launch.
         "ember" on "background", "ember" on "surfaceRaised", "ember" on "FILL",
         "ember" on "FILL_FAINT", "ember" on "FILL_FAINT on surfaceRaised",
@@ -90,8 +90,8 @@ class ContrastTest {
         ("ember" on "VEIL on a white image").mark(),
         // A meter's inks on its track, a gap apart: projector white, secondary, and tertiary (below).
         ("content" on "FILL_FAINT").mark(), ("contentSecondary" on "FILL_FAINT").mark(),
-        // A button's detail lit at rest (an active filter), on a secondary or a primary button.
-        "ember" on "FILL", "ember" on "FILL_STRONG",
+        // A button's detail lit at rest (an active filter), on a primary button as on a secondary one (above).
+        "ember" on "FILL_STRONG",
         // A question asked in a sheet: Cancel, and the action asked about, its label ember at rest.
         "content" on "FILL on surfaceRaised", "ember" on "FILL on surfaceRaised",
         // A disabled control's icon, tertiary in its well.
@@ -133,12 +133,6 @@ class ContrastTest {
     private infix fun String.on(surface: String) = Pairing(this, surface)
 
     private fun ratio(p: Pairing): Float = contrast(roles.getValue(p.role), surfaces.getValue(p.surface))
-
-    /** WCAG contrast ratio of two opaque colours. */
-    private fun contrast(a: Color, b: Color): Float {
-        val (light, dark) = listOf(a.luminance(), b.luminance()).sortedDescending()
-        return (light + 0.05f) / (dark + 0.05f)
-    }
 
     private fun Color.over(alpha: Float, background: Color) = copy(alpha = alpha).compositeOver(background)
 

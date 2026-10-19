@@ -18,6 +18,7 @@ import app.houselights.core.MediaKind
 import app.houselights.core.Version
 import app.houselights.ui.testing.TV
 import app.houselights.ui.testing.press
+import app.houselights.ui.testing.pressInSheet
 import app.houselights.ui.testing.setTvContent
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -25,7 +26,6 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
-import org.robolectric.shadows.ShadowDialog
 
 /** A film's copies: focus starts on the current choice, announced as such; OK on another chooses it. */
 @RunWith(RobolectricTestRunner::class)
@@ -53,29 +53,20 @@ class VersionsSheetTest {
         compose.press(Key.DirectionCenter)
     }
 
-    /** A key of the remote in the sheet that shows, delivered to its window. */
-    private fun pressInSheet(code: Int) {
-        compose.runOnIdle {
-            val window = checkNotNull(ShadowDialog.getLatestDialog()?.takeIf { it.isShowing }?.window) { "No sheet shows" }
-            listOf(KeyEvent.ACTION_DOWN, KeyEvent.ACTION_UP).forEach { window.decorView.dispatchKeyEvent(KeyEvent(it, code)) }
-        }
-        compose.waitForIdle()
-    }
-
     @Test
     fun yourChoiceIsSaidAndFocusStartsOnIt() {
         open()
         compose.onNodeWithContentDescription("Final cut", substring = true, useUnmergedTree = true)
             .assert(hasContentDescription("Your choice", substring = true))
-        pressInSheet(KeyEvent.KEYCODE_DPAD_CENTER)
+        compose.pressInSheet(KeyEvent.KEYCODE_DPAD_CENTER)
         assertEquals("OK where focus starts: the copy chosen", "final", chosen?.key)
     }
 
     @Test
     fun okOnAnotherChoosesIt() {
         open()
-        pressInSheet(KeyEvent.KEYCODE_DPAD_UP)
-        pressInSheet(KeyEvent.KEYCODE_DPAD_CENTER)
+        compose.pressInSheet(KeyEvent.KEYCODE_DPAD_UP)
+        compose.pressInSheet(KeyEvent.KEYCODE_DPAD_CENTER)
         assertEquals("theatrical", chosen?.key)
     }
 }

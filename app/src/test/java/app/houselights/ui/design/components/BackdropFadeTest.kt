@@ -17,7 +17,10 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
-/** Backdrop pictures fade in over `SLOW`, except one already in memory under the launch screen: opaque at once. */
+/**
+ * Backdrop pictures fade in over `SLOW`, except one already in memory under the launch screen: opaque at once.
+ * A picture handed on holds under the next one, and goes out when nothing comes.
+ */
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = TV)
 class BackdropFadeTest {
@@ -37,33 +40,55 @@ class BackdropFadeTest {
 
     @Test
     fun aPictureThatShowsAtOnceIsWholeFromItsFirstFrame() {
-        val (first, later) = alphaOfANewPicture(atOnce = true)
+        val (first, later) = alphas(from = null, to = "backdrop", watched = "backdrop", atOnce = { it != null })
         assertEquals(1f, first)
         assertEquals(1f, later)
     }
 
     @Test
     fun anyOtherPictureFadesIn() {
-        val (first, later) = alphaOfANewPicture(atOnce = false)
+        val (first, later) = alphas(from = null, to = "backdrop", watched = "backdrop")
         assertEquals("it comes from nothing", 0f, first)
         assertTrue("$later a few frames in: it is still coming up", later > 0f && later < 1f)
     }
 
-    /** The alpha a picture is drawn at in the first frame it shows, then a few frames later. */
-    private fun alphaOfANewPicture(atOnce: Boolean): Pair<Float, Float> {
+    @Test
+    fun whatIsHandedOnHoldsUnderWhatComes() {
+        val (first, later) = alphas(from = "left", to = "detail", watched = "left", holds = handedOn)
+        assertEquals(1f, first)
+        assertEquals(1f, later)
+    }
+
+    @Test
+    fun whatIsHandedOnGoesOutForNothing() {
+        val (_, later) = alphas(from = "left", to = null, watched = "left", holds = handedOn)
+        assertTrue("$later: going out", later < 1f)
+    }
+
+    /** The picture left by the previous screen holds under any other. */
+    private val handedOn = { leaving: String?, coming: String? -> leaving == "left" && coming != null }
+
+    /** The alpha [watched] is drawn at once the backdrop goes [from] one picture [to] another: first, then a few frames later. */
+    private fun alphas(
+        from: String?,
+        to: String?,
+        watched: String,
+        atOnce: (String?) -> Boolean = { false },
+        holds: (String?, String?) -> Boolean = { _, _ -> false },
+    ): Pair<Float, Float> {
         compose.mainClock.autoAdvance = false
-        var target by mutableStateOf<String?>(null)
+        var target by mutableStateOf(from)
         var alpha = -1f
         compose.setContent {
-            FadeBetween(target, Modifier, atOnce = { it != null && atOnce }) { picture, drawnAt ->
-                if (picture != null) {
+            FadeBetween(target, Modifier, atOnce, holds) { picture, drawnAt ->
+                if (picture == watched) {
                     val now = drawnAt()
                     SideEffect { alpha = now }
                 }
             }
         }
         compose.mainClock.advanceTimeByFrame()
-        target = "backdrop"
+        target = to
         Snapshot.sendApplyNotifications()
         compose.mainClock.advanceTimeByFrame()
         val first = alpha

@@ -1,5 +1,6 @@
 package app.houselights.ui.design.components
 
+import android.view.KeyEvent
 import androidx.compose.foundation.layout.Column
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -15,7 +16,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import app.houselights.ui.testing.TV
 import app.houselights.ui.testing.press
-import app.houselights.ui.testing.pressBackInSheet
+import app.houselights.ui.testing.pressInSheet
 import app.houselights.ui.testing.setTvContent
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -59,7 +60,7 @@ class SheetFocusTest {
         compose.press(Key.DirectionCenter)
         compose.onNodeWithTag("row").assertIsFocused()
 
-        compose.pressBackInSheet()
+        compose.pressInSheet(KeyEvent.KEYCODE_BACK)
         compose.onNodeWithTag("row").assertDoesNotExist()
         assertEquals(1, dismissed)
         compose.onNodeWithTag("opener").assertIsFocused()

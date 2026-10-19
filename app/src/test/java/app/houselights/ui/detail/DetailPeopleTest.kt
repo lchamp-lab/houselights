@@ -5,11 +5,11 @@ import app.houselights.core.Job
 import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
 import app.houselights.core.Person
+import app.houselights.core.hasPage
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import app.houselights.core.hasPage
 
 /** A title's people: direction first in the cast row, the end-credit crafts, and who opens a page. */
 class DetailPeopleTest {

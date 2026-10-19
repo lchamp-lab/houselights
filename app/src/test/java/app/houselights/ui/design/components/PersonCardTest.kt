@@ -16,7 +16,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
-/** A person credited on several titles opens their page, read as a button; one on a single title does nothing. */
+/** A person whose page opens is read as a button; one with nothing to open announces no action. */
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = TV)
 class PersonCardTest {
@@ -26,7 +26,7 @@ class PersonCardTest {
     @Test
     fun aPersonWhosePageOpensIsReadAsAButton() {
         var opened = 0
-        val villeneuve = Person("Denis Villeneuve", "Réalisation", null, id = "tmdb:1", titleCount = 4)
+        val villeneuve = Person("Denis Villeneuve", "Réalisation", null)
         compose.setTvContent { PersonCard(villeneuve, onOpen = { opened++ }) }
         compose.onNodeWithContentDescription("Denis Villeneuve, Réalisation")
             .assert(SemanticsMatcher.keyIsDefined(SemanticsActions.OnClick))
@@ -35,7 +35,7 @@ class PersonCardTest {
     }
 
     @Test
-    fun aPersonOfASingleTitleAnnouncesNoAction() {
+    fun aPersonWithNothingToOpenAnnouncesNoAction() {
         compose.setTvContent { PersonCard(Person("Benicio del Toro", "Alejandro", null)) }
         compose.onNodeWithContentDescription("Benicio del Toro, Alejandro").assert(SemanticsMatcher.keyNotDefined(SemanticsActions.OnClick))
     }

@@ -3,11 +3,13 @@ package app.houselights.ui.testing
 import app.houselights.core.ArtworkChoices
 import app.houselights.core.ArtworkKind
 import app.houselights.core.ArtworkOption
+import app.houselights.core.Catalog
 import app.houselights.core.HomeSection
 import app.houselights.core.Identity
 import app.houselights.core.Library
 import app.houselights.core.LibraryFacets
 import app.houselights.core.LibraryFilter
+import app.houselights.core.LibraryKind
 import app.houselights.core.MatchCandidate
 import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
@@ -27,7 +29,7 @@ class FakeProvider : MediaProvider {
     override var capabilities = ProviderCapabilities(markPlayed = true, favorites = true, similar = false, pathMapping = false)
 
     val items = mutableMapOf<String, MediaItem>()
-    var libraries = listOf(Library("films", app.houselights.core.LibraryKind.MOVIES, "Films"))
+    var libraries = listOf(Library("films", LibraryKind.MOVIES, "Films"))
     var home = listOf<HomeSection>()
 
     /** The wall of every library, in order. */
@@ -37,13 +39,12 @@ class FakeProvider : MediaProvider {
 
     var episodes = mapOf<String, List<MediaItem>>()
     var nfo: NfoDocument? = null
-    var editable = true
     var identity: Identity? = null
     var results = listOf<MatchCandidate>()
     var choices: ArtworkChoices? = null
 
     /** The source's catalog ([FakeCatalog]); none by default, like a source that only provides the cast. */
-    override var catalog: app.houselights.core.Catalog? = null
+    override var catalog: Catalog? = null
 
     /** What the title was last matched with, once the match is written. */
     var identified: MatchCandidate? = null
@@ -118,8 +119,7 @@ class FakeProvider : MediaProvider {
 
     override suspend fun playback(item: MediaItem, resume: Boolean, options: PlaybackOptions): PlaybackPlan = error("Not played here")
 
-    override val editor: MetadataEditor?
-        get() = if (editable) Editor() else null
+    override val editor: MetadataEditor = Editor()
 
     private inner class Editor : MetadataEditor {
         override fun canEdit(item: MediaItem) = true

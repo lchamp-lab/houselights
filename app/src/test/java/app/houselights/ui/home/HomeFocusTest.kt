@@ -1,18 +1,15 @@
 package app.houselights.ui.home
 
 import app.houselights.core.HomeSection
-import app.houselights.core.MediaItem
-import app.houselights.core.MediaKind
 import app.houselights.core.SectionType
 import app.houselights.ui.design.FocusKey
+import app.houselights.ui.testing.film
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 
 /** Home finds the row of the card focus left by what the row is, not where it was. */
 class HomeFocusTest {
-    private fun film(id: String) = MediaItem(id = id, kind = MediaKind.MOVIE, title = id)
-
     @Test
     fun aCardIsFoundInItsRowWhereverTheRowIsNow() {
         val continuing = HomeSection(SectionType.CONTINUE, listOf(film("1")), landscape = true)

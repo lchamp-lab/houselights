@@ -1,10 +1,5 @@
 package app.houselights.ui.home
 
-import android.graphics.Bitmap
-import android.graphics.Canvas
-import android.graphics.drawable.BitmapDrawable
-import android.net.Uri
-import android.os.Looper
 import androidx.activity.ComponentActivity
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
@@ -17,21 +12,19 @@ import app.houselights.core.ImageRef
 import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
 import app.houselights.core.SectionType
-import app.houselights.providers.local.ScanState
 import app.houselights.ui.design.HouselightsTheme
 import app.houselights.ui.design.LaunchScreen
 import app.houselights.ui.design.LocalLaunchScreen
+import app.houselights.ui.testing.TV
+import app.houselights.ui.testing.drawWindow
+import app.houselights.ui.testing.pictureServer
 import coil.Coil
 import coil.EventListener
 import coil.ImageLoader
-import coil.decode.DataSource
-import coil.fetch.DrawableResult
-import coil.fetch.Fetcher
 import coil.request.ImageRequest
 import coil.request.SuccessResult
-import coil.size.pxOrElse
 import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.Dispatchers
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -39,13 +32,12 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
-import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 
 /** Home is whole once a frame shows its rows, its hero on the first title, and that title's picture prepared. */
 @RunWith(RobolectricTestRunner::class)
-@Config(qualifiers = "w960dp-h540dp-land-mdpi")
+@Config(qualifiers = TV)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 class HomeWholeTest {
     @get:Rule
@@ -57,9 +49,11 @@ class HomeWholeTest {
         var toldWith: Boolean? = null
 
         override fun drawn() {
-            if (toldWith == null) toldWith = synchronized(loaded) { HERO_PICTURE in loaded }
+            if (toldWith == null) toldWith = HERO_PICTURE in loaded
         }
     }
+
+    private val cover = Cover()
 
     /** What came back from the server, by address. */
     private val loaded = mutableListOf<String>()
@@ -67,20 +61,25 @@ class HomeWholeTest {
     /** The hero's picture, held until the test sends it. */
     private val backdropSent = CompletableDeferred<Unit>()
 
-    private val server = Fetcher.Factory<Uri> { data, options, _ ->
-        Fetcher {
-            if (data.toString() == HERO_PICTURE) backdropSent.await()
-            val (width, height) = options.size.let { it.width.pxOrElse { PICTURE_PX } to it.height.pxOrElse { PICTURE_PX } }
-            val picture = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-            DrawableResult(BitmapDrawable(options.context.resources, picture), isSampled = false, dataSource = DataSource.NETWORK)
-        }
+    /** Pictures load on the thread that asks: on the main thread, between frames. */
+    private val loader by lazy {
+        ImageLoader.Builder(compose.activity)
+            .dispatcher(Dispatchers.Unconfined)
+            .components { add(pictureServer { data, _ -> if (data.toString() == HERO_PICTURE) backdropSent.await() }) }
+            .eventListener(
+                object : EventListener {
+                    override fun onSuccess(request: ImageRequest, result: SuccessResult) {
+                        loaded += request.data.toString()
+                    }
+                },
+            )
+            .build()
     }
 
-    private val events = object : EventListener {
-        override fun onSuccess(request: ImageRequest, result: SuccessResult) {
-            synchronized(loaded) { loaded += request.data.toString() }
-        }
-    }
+    private val rows = HomeContent.Rows(
+        listOf(HomeSection(SectionType.LATEST, (1..8).map(::film), landscape = false, libraryId = "films")),
+        firstScan = false,
+    )
 
     @After
     fun forgetTheLoader() = Coil.reset()
@@ -93,76 +92,58 @@ class HomeWholeTest {
         backdrop = ImageRef("backdrop$n") { "https://img.test/backdrop/$n?w=$it" },
     )
 
-    @Test
-    fun homeIsWholeOnceItsHerosPictureIsPrepared() {
-        val context = compose.activity.applicationContext
-        Coil.setImageLoader(ImageLoader.Builder(context).components { add(server) }.eventListener(events).build())
-        val cover = Cover()
-        val sections = listOf(HomeSection(SectionType.LATEST, (1..8).map(::film), landscape = false, libraryId = "films"))
-        val home = HomeState(content = HomeContent.Rows(sections, firstScan = false))
+    /** Home showing [home] under the launch screen, a few frames drawn. */
+    private fun show(home: () -> HomeState) {
+        Coil.setImageLoader(loader)
         compose.setContent {
             CompositionLocalProvider(LocalLaunchScreen provides cover) {
-                HouselightsTheme { HomeBands(home, MutableStateFlow(ScanState()), {}, { _, _ -> }, {}, {}, {}, {}) }
+                HouselightsTheme { HomeBands(home()) }
             }
         }
         repeat(FRAMES) { drawAFrame() }
+    }
+
+    /** Sends the hero's picture, then draws until the launch screen is told. */
+    private fun sendTheHerosPicture() {
+        backdropSent.complete(Unit)
+        repeat(FRAMES) { if (cover.toldWith == null) drawAFrame() }
+    }
+
+    @Test
+    fun homeIsWholeOnceItsHerosPictureIsPrepared() {
+        show { HomeState(content = rows) }
         assertEquals("the rows are in, the hero's picture is not: nothing said", null, cover.toldWith)
 
-        backdropSent.complete(Unit)
-        val until = System.currentTimeMillis() + TIMEOUT_MS
-        while (cover.toldWith == null && System.currentTimeMillis() < until) drawAFrame()
+        sendTheHerosPicture()
         assertTrue("said once its picture is prepared, and not before", cover.toldWith == true)
     }
 
     /** The frame the rows first show in has no hero title yet (it settles a frame later), so it is not whole. */
     @Test
     fun theFrameTheRowsComeInIsNotWholeYet() {
-        val context = compose.activity.applicationContext
-        Coil.setImageLoader(ImageLoader.Builder(context).components { add(server) }.eventListener(events).build())
-        val cover = Cover()
-        val sections = listOf(HomeSection(SectionType.LATEST, (1..8).map(::film), landscape = false, libraryId = "films"))
         var home by mutableStateOf(HomeState(content = HomeContent.Loading(firstScan = false)))
-        compose.setContent {
-            CompositionLocalProvider(LocalLaunchScreen provides cover) {
-                HouselightsTheme { HomeBands(home, MutableStateFlow(ScanState()), {}, { _, _ -> }, {}, {}, {}, {}) }
-            }
-        }
-        repeat(FRAMES) { drawAFrame() }
+        show { home }
         assertEquals("still loading: nothing said", null, cover.toldWith)
 
         compose.mainClock.autoAdvance = false
-        home = HomeState(content = HomeContent.Rows(sections, firstScan = false))
+        home = HomeState(content = rows)
         Snapshot.sendApplyNotifications()
         compose.mainClock.advanceTimeByFrame()
-        compose.runOnUiThread { draw() }
+        compose.drawWindow()
         assertEquals("the rows, the hero on no title yet: nothing said", null, cover.toldWith)
         compose.mainClock.autoAdvance = true
-        backdropSent.complete(Unit)
-        val until = System.currentTimeMillis() + TIMEOUT_MS
-        while (cover.toldWith == null && System.currentTimeMillis() < until) drawAFrame()
+        sendTheHerosPicture()
         assertTrue("said once the hero's picture is prepared", cover.toldWith == true)
     }
 
-    /** Lets what Coil hands back to the main thread run, then draws the window as Android would. */
     private fun drawAFrame() {
-        shadowOf(Looper.getMainLooper()).idle()
-        Thread.sleep(POLL_MS)
         compose.waitForIdle()
-        compose.runOnUiThread { draw() }
-    }
-
-    /** Draws the window now, as Android would, laying it out first. */
-    private fun draw() {
-        val window = compose.activity.window.decorView
-        window.draw(Canvas(Bitmap.createBitmap(window.width, window.height, Bitmap.Config.ARGB_8888)))
+        compose.drawWindow()
     }
 
     private companion object {
         /** The first title's backdrop on a screen 960 px wide, the one the hero shows first. */
         const val HERO_PICTURE = "https://img.test/backdrop/1?w=960"
-        const val PICTURE_PX = 4
         const val FRAMES = 10
-        const val TIMEOUT_MS = 15_000L
-        const val POLL_MS = 10L
     }
 }

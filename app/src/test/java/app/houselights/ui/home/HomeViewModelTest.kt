@@ -9,10 +9,13 @@ import app.houselights.providers.local.ScanState
 import app.houselights.providers.local.SourceEntity
 import app.houselights.providers.local.nfsFolder
 import app.houselights.settings.AppSettings
+import app.houselights.ui.testing.FakeCatalog
 import app.houselights.ui.testing.FakeProvider
 import app.houselights.ui.testing.MainDispatcherRule
+import app.houselights.ui.testing.SettleMainLooper
 import app.houselights.ui.testing.film
 import app.houselights.ui.util.UiError
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -32,7 +35,6 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import java.io.IOException
-import app.houselights.ui.testing.SettleMainLooper
 
 /** What home shows, decided by its ViewModel from the rows, the scan, the folders and the source. */
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -66,8 +68,8 @@ class HomeViewModelTest {
 
     @Test
     fun theLibrarysRowsComeAfterTheLaunch() = runTest {
-        provider.catalog = app.houselights.ui.testing.FakeCatalog().apply { best = (1..6).map { film("best$it") } }
-        val launchLeft = kotlinx.coroutines.CompletableDeferred<Unit>()
+        provider.catalog = FakeCatalog().apply { best = (1..6).map { film("best$it") } }
+        val launchLeft = CompletableDeferred<Unit>()
         val vm = HomeViewModel(
             { provider }, scan, folders.filterNotNull(), settings, scanAll = {},
             libraryRows = LibraryRows({ provider }),
@@ -139,24 +141,17 @@ class HomeViewModelTest {
         assertEquals(HomeContent.FirstScan, vm.content())
     }
 
-    @Test
-    fun aFailureSaysWhy() = runTest {
-        provider.fail = { IOException("Server away") }
-        val vm = home()
-        advanceUntilIdle()
-        assertEquals(HomeContent.Failed(UiError.OFFLINE, retrying = false), vm.content())
-    }
-
+    /** A failure with nothing shown says why; trying again keeps it, its button at work, until the answer. */
     @Test
     fun tryingAgainWithNothingShownKeepsTheErrorAtWork() = runTest {
         provider.fail = { IOException("Server away") }
         val vm = home()
         advanceUntilIdle()
+        assertEquals(HomeContent.Failed(UiError.OFFLINE, retrying = false), vm.content())
 
         val gate = provider.gate("libraries")
         vm.load()
         advanceUntilIdle()
-        // The intertitle stays, its button at work, until the answer.
         assertEquals(HomeContent.Failed(UiError.OFFLINE, retrying = true), vm.content())
         gate.complete(Unit)
         advanceUntilIdle()

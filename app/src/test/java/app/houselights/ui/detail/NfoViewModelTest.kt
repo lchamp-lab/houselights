@@ -3,6 +3,7 @@ package app.houselights.ui.detail
 import app.houselights.core.NfoDocument
 import app.houselights.ui.testing.FakeProvider
 import app.houselights.ui.testing.MainDispatcherRule
+import app.houselights.ui.testing.SettleMainLooper
 import app.houselights.ui.testing.film
 import app.houselights.ui.util.LoadState
 import app.houselights.ui.util.UiError
@@ -17,8 +18,8 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import java.io.IOException
-import app.houselights.ui.testing.SettleMainLooper
 
+/** A title's NFO: read from its source, parsed on the dispatcher the ViewModel is given, the latest load winning. */
 @OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
 class NfoViewModelTest {
@@ -44,7 +45,7 @@ class NfoViewModelTest {
         advanceUntilIdle()
         assertEquals("Heat", vm.state.value.title)
         assertEquals(LoadState.Ready(content), vm.state.value.document)
-        assertEquals("Heat", content.info?.title)
+        assertEquals("parsed", "Heat", (vm.state.value.document as LoadState.Ready).value?.info?.title)
     }
 
     /** Up to 1 MB of XML, parsed into lines off the main thread, on the dispatcher the ViewModel was given. */

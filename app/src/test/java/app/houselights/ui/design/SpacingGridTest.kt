@@ -1,6 +1,7 @@
 package app.houselights.ui.design
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /** Space and insets sit on the 4 dp grid, so every gap is one of a few steps. */
@@ -14,7 +15,7 @@ class SpacingGridTest {
     @Test
     fun spaceAndInsetsAreOnTheGrid() {
         val all = measures(HlSpace) + measures(HlInset)
-        assert(all.isNotEmpty())
+        assertTrue("No measures found", all.isNotEmpty())
         all.forEach { (name, value) -> assertEquals("$name is $value dp", 0f, value % 4f) }
     }
 }

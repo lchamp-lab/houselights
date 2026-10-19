@@ -4,15 +4,21 @@ import androidx.lifecycle.SavedStateHandle
 import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
 import app.houselights.core.MediaProvider
+import app.houselights.core.Saga
+import app.houselights.core.SagaPart
 import app.houselights.core.UserState
+import app.houselights.core.Version
+import app.houselights.ui.design.HlMotion
+import app.houselights.ui.testing.FakeCatalog
 import app.houselights.ui.testing.FakeEvents
 import app.houselights.ui.testing.FakeProvider
 import app.houselights.ui.testing.MainDispatcherRule
+import app.houselights.ui.testing.SettleMainLooper
+import app.houselights.ui.testing.afterProcessDeath
 import app.houselights.ui.testing.episode
 import app.houselights.ui.testing.film
 import app.houselights.ui.testing.season
 import app.houselights.ui.testing.series
-import app.houselights.ui.design.HlMotion
 import app.houselights.ui.util.UiError
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.TestScope
@@ -28,9 +34,8 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import java.io.IOException
-import app.houselights.ui.testing.SettleMainLooper
 
-/** A title's page on a fake source: loading, replacing a load, failures, watched and favourites. */
+/** A title's page on a fake source: loading, failures, watched and favourites, seasons, sagas, copies, and process death. */
 @OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
 class DetailViewModelTest {
@@ -315,7 +320,7 @@ class DetailViewModelTest {
         before.selectSeason("s3")
         advanceUntilIdle()
 
-        val after = DetailViewModel("show", { provider }, events, SavedStateHandle(saved.keys().associateWith { saved.get<Any?>(it) }))
+        val after = DetailViewModel("show", { provider }, events, saved.afterProcessDeath())
         advanceUntilIdle()
         assertEquals("s3", after.state.value.selectedSeasonId)
         assertEquals(listOf("s3e1", "s3e2"), after.shownEpisodes)
@@ -330,7 +335,7 @@ class DetailViewModelTest {
             film("aliens"),
             film("alien3").copy(user = UserState(positionMs = 60_000)),
         )
-        val source = Saga(provider, films)
+        val source = OneSaga(provider, films)
         val vm = DetailViewModel("saga", { source }, events, now = { testScheduler.currentTime })
         advanceUntilIdle()
         assertEquals(listOf("saga"), source.asked)
@@ -343,8 +348,8 @@ class DetailViewModelTest {
     @Test
     fun aFilmsCopiesAndTheOneChosen() = runTest {
         fun copy(key: String, edition: String?, best: Boolean) =
-            app.houselights.core.Version(film(key), edition, null, null, null, null, chosen = best, best = best, key = key)
-        val catalog = app.houselights.ui.testing.FakeCatalog().apply {
+            Version(film(key), edition, null, null, null, null, chosen = best, best = best, key = key)
+        val catalog = FakeCatalog().apply {
             copies = mapOf("m1" to listOf(copy("long", "Extended", best = true), copy("short", "Theatrical", best = false)))
         }
         provider.catalog = catalog
@@ -354,7 +359,7 @@ class DetailViewModelTest {
         assertEquals(listOf("long", "short"), vm.state.value.versions.map { it.key })
         vm.chooseVersion(vm.state.value.versions[1])
         advanceUntilIdle()
-        assertEquals(listOf("choose short"), catalog.calls)
+        assertEquals(listOf("choose short"), catalog.calls.filter { it.startsWith("choose") })
         assertEquals("short", vm.state.value.versions.single { it.chosen }.key)
     }
 
@@ -363,22 +368,16 @@ class DetailViewModelTest {
     fun aSagaIsWhole() = runTest {
         val collection = MediaItem("saga", MediaKind.COLLECTION, "Alien")
         provider.items["saga"] = collection
-        val whole = app.houselights.core.Saga(
-            collection,
-            listOf(
-                app.houselights.core.SagaPart(film("alien"), "Alien", 1979),
-                app.houselights.core.SagaPart(null, "Aliens", 1986),
-            ),
-        )
-        provider.catalog = app.houselights.ui.testing.FakeCatalog().apply { sagas = mapOf("saga" to whole) }
-        val vm = DetailViewModel("saga", { Saga(provider, listOf(film("alien"))) }, events, now = { testScheduler.currentTime })
+        val whole = Saga(collection, listOf(SagaPart(film("alien"), "Alien", 1979), SagaPart(null, "Aliens", 1986)))
+        provider.catalog = FakeCatalog().apply { sagas = mapOf("saga" to whole) }
+        val vm = DetailViewModel("saga", { OneSaga(provider, listOf(film("alien"))) }, events, now = { testScheduler.currentTime })
         advanceUntilIdle()
         assertEquals(whole, vm.state.value.saga)
     }
 }
 
 /** [source] with one collection of [films], counting requests; Lire's film follows MediaProvider's own rule. */
-private class Saga(source: FakeProvider, private val films: List<MediaItem>) : MediaProvider by source {
+private class OneSaga(source: FakeProvider, private val films: List<MediaItem>) : MediaProvider by source {
     val asked = mutableListOf<String>()
 
     override suspend fun collectionItems(collection: MediaItem): List<MediaItem> {

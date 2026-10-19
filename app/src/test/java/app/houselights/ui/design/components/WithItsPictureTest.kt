@@ -85,7 +85,8 @@ class WithItsPictureTest {
     fun aTitleWithoutAPictureIsSaidAtOnce() {
         show()
         select(film("2", "Ran", picture = false))
-        compose.mainClock.advanceTimeBy(HlMotion.STANDARD.toLong() * 2)
+        // Well before HOLD: nothing to wait for.
+        compose.mainClock.advanceTimeBy(HlMotion.HOLD / 2)
         said("Ran")
     }
 }

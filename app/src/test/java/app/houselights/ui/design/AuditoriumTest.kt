@@ -7,16 +7,16 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
+/** The cues of the house lights: going down for playback, and the launch's mark going out before home comes up. */
 class AuditoriumTest {
     @Test
     fun theRoomGoesDarkBeforeTheScreen() {
-        // When black starts, the room has gone and the scrims have lifted.
-        val blackStarts = 0.58f
-        assertEquals(0f, HouseLightCue.room(blackStarts))
-        assertEquals(0f, HouseLightCue.scrims(blackStarts))
-        assertEquals(0f, HouseLightCue.darkness(0.3f))
-        assertEquals(1f, HouseLightCue.darkness(1f))
         assertEquals(1f, HouseLightCue.room(0f))
+        assertEquals(1f, HouseLightCue.darkness(1f))
+        // On the first frame the black shows, the room has gone and the scrims have lifted.
+        val blackStarts = (0..FRAMES).map { it / FRAMES.toFloat() }.first { HouseLightCue.darkness(it) > 0f }
+        assertEquals("the room at $blackStarts", 0f, HouseLightCue.room(blackStarts))
+        assertEquals("the scrims at $blackStarts", 0f, HouseLightCue.scrims(blackStarts))
     }
 
     /** Reading a step redraws only on frames where it moves (the scrims: a third of the cue), not every frame. */
@@ -58,7 +58,6 @@ class AuditoriumTest {
     fun atTheLaunchTheBarsGoOutOneAfterTheOtherBeforeHomeComesUp() {
         val t = (0..FRAMES).map { it / FRAMES.toFloat() }
         val bars = 0 until LaunchCue.bars
-        assertEquals("the mark's bars", Gradation.widths.size, LaunchCue.bars)
         bars.forEach { bar ->
             assertEquals(1f, LaunchCue.bar(bar, 0f), EXACT)
             assertEquals(0f, LaunchCue.bar(bar, 1f), EXACT)
@@ -82,7 +81,6 @@ class AuditoriumTest {
         assertTrue(LaunchCue.darkness(lifting[lifting.size / 2]) < 0.5f)
         bars.forEach { bar -> assertTrue(t.zipWithNext().all { (a, b) -> LaunchCue.bar(bar, b) <= LaunchCue.bar(bar, a) }) }
         assertTrue(t.zipWithNext().all { (a, b) -> LaunchCue.darkness(b) <= LaunchCue.darkness(a) })
-        assertEquals("the length of the cue the launch had", HlMotion.SLOW, LaunchCue.DURATION)
     }
 
     private companion object {

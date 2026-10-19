@@ -1,7 +1,5 @@
 package app.houselights.ui.design
 
-import android.graphics.Bitmap
-import android.graphics.Canvas
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
@@ -12,6 +10,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import app.houselights.ui.testing.TV
+import app.houselights.ui.testing.drawWindow
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -44,13 +43,9 @@ class LaunchScreenTest {
         }
     }
 
-    /** Draws a frame as the window does: Robolectric lays the window out, but draws it only when asked. */
     private fun drawAFrame() {
         compose.waitForIdle()
-        compose.runOnUiThread {
-            val window = compose.activity.window.decorView
-            window.draw(Canvas(Bitmap.createBitmap(window.width, window.height, Bitmap.Config.ARGB_8888)))
-        }
+        compose.drawWindow()
     }
 
     @Test

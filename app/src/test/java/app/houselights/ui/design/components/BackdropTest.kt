@@ -39,16 +39,18 @@ class BackdropTest {
         }
     }
 
+    /** A loader of [files], working on the thread that asks. */
+    private fun loader(width: Int, height: Int) = ImageLoader.Builder(context)
+        .dispatcher(Dispatchers.Unconfined)
+        .allowHardware(false)
+        .components { add(files(width, height)) }
+        .build()
+
     /** The backdrop of a screen of [SCREEN_W] by [SCREEN_H], as decoded from a file of [width] by [height]. */
     private fun decoded(width: Int, height: Int): Bitmap {
-        val loader = ImageLoader.Builder(context)
-            .dispatcher(Dispatchers.Unconfined)
-            .allowHardware(false)
-            .components { add(files(width, height)) }
-            .build()
         lateinit var bitmap: Bitmap
         runTest {
-            val result = loader.execute(backdropRequest(context, "test://backdrop/42", SCREEN_W, SCREEN_H)) as SuccessResult
+            val result = loader(width, height).execute(backdropRequest(context, "test://backdrop/42", SCREEN_W, SCREEN_H)) as SuccessResult
             bitmap = (result.drawable as BitmapDrawable).bitmap
         }
         return bitmap
@@ -68,12 +70,7 @@ class BackdropTest {
 
     @Test
     fun aBackdropKnowsWhetherItCameFromMemory() {
-        val loader = ImageLoader.Builder(context)
-            .dispatcher(Dispatchers.Unconfined)
-            .allowHardware(false)
-            .components { add(files(1280, 720)) }
-            .build()
-        Coil.setImageLoader(loader)
+        Coil.setImageLoader(loader(1280, 720))
         val image = ImageRef("backdrop42") { "test://backdrop/42?w=$it" }
         try {
             runTest {

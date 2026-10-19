@@ -10,6 +10,8 @@ import app.houselights.core.SortOption
 import app.houselights.core.WatchStatus
 import app.houselights.ui.testing.FakeProvider
 import app.houselights.ui.testing.MainDispatcherRule
+import app.houselights.ui.testing.SettleMainLooper
+import app.houselights.ui.testing.afterProcessDeath
 import app.houselights.ui.testing.film
 import app.houselights.ui.util.UiError
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -24,9 +26,8 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import java.io.IOException
-import app.houselights.ui.testing.SettleMainLooper
 
-/** The wall: pages, reloads in place and failures, on a fake source. */
+/** The wall: pages, reloads in place, failures, and the sort and filter it opens on or comes back to, on a fake source. */
 @OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
 class LibraryViewModelTest {
@@ -167,30 +168,21 @@ class LibraryViewModelTest {
         assertEquals(UiError.OFFLINE, vm.state.value.error)
     }
 
-    /** Android killed the app while a film played: the wall comes back sorted and filtered as it was left. */
+    /** Android killed the app while a film played: the wall comes back sorted and filtered as it was left, by every field. */
     @Test
     fun theSortAndFilterOutliveAStoppedProcess() = runTest {
         val saved = SavedStateHandle()
+        val filter = LibraryFilter(
+            status = WatchStatus.UNWATCHED, genre = "Drame", decade = 1990, quality = Quality.UHD_4K,
+            picture = "Dolby Vision", sound = "TrueHD Atmos", fileType = "mkv", person = "p7",
+        )
         val before = LibraryViewModel({ provider }, library, saved)
         before.setSort(SortOption.ADDED)
-        before.setFilter(LibraryFilter(status = WatchStatus.UNWATCHED, genre = "Drame", decade = 1990, quality = Quality.UHD_4K))
+        before.setFilter(filter)
         advanceUntilIdle()
 
-        // What the platform keeps of the saved state, in a new process.
-        val after = LibraryViewModel({ provider }, library, SavedStateHandle(saved.keys().associateWith { saved.get<Any?>(it) }))
+        val after = LibraryViewModel({ provider }, library, saved.afterProcessDeath())
         assertEquals(SortOption.ADDED, after.state.value.sort)
-        assertEquals(LibraryFilter(WatchStatus.UNWATCHED, "Drame", 1990, Quality.UHD_4K), after.state.value.filter)
-    }
-
-    /** The files' picture, sound and kind, and a person, survive process death like the rest of the filter. */
-    @Test
-    fun whatTheFilesHoldAndAPersonOutliveAStoppedProcess() = runTest {
-        val saved = SavedStateHandle()
-        val filter = LibraryFilter(picture = "Dolby Vision", sound = "TrueHD Atmos", fileType = "mkv", person = "p7")
-        LibraryViewModel({ provider }, library, saved).setFilter(filter)
-        advanceUntilIdle()
-
-        val after = LibraryViewModel({ provider }, library, SavedStateHandle(saved.keys().associateWith { saved.get<Any?>(it) }))
         assertEquals(filter, after.state.value.filter)
     }
 
@@ -213,8 +205,7 @@ class LibraryViewModelTest {
         LibraryViewModel({ provider }, library, saved, opensOn = opensOn).setFilter(changed)
         advanceUntilIdle()
 
-        val restored = SavedStateHandle(saved.keys().associateWith { saved.get<Any?>(it) })
-        val after = LibraryViewModel({ provider }, library, restored, opensOn = opensOn)
+        val after = LibraryViewModel({ provider }, library, saved.afterProcessDeath(), opensOn = opensOn)
         assertEquals(changed, after.state.value.filter)
     }
 

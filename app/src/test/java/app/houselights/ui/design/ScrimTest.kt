@@ -5,12 +5,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.colorspace.ColorSpaces
 import androidx.compose.ui.graphics.luminance
 import app.houselights.ui.design.components.BackdropStyle
-import kotlin.math.hypot
-import kotlin.math.roundToInt
-import kotlin.math.sin
+import app.houselights.ui.testing.contrast
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import kotlin.math.hypot
+import kotlin.math.roundToInt
+import kotlin.math.sin
 
 /**
  * The left veil keeps a column's quietest text at its band's contrast over the lightest image, counting only
@@ -310,11 +311,6 @@ class ScrimTest {
 
     private fun sample(width: Int, height: Int, grey: (x: Int, y: Int) -> Float) =
         ArtworkSample(width, height, FloatArray(width * height) { grey(it % width, it / width) })
-
-    private fun contrast(a: Color, b: Color): Float {
-        val (light, dark) = listOf(a.luminance(), b.luminance()).sortedDescending()
-        return (light + 0.05f) / (dark + 0.05f)
-    }
 
     private companion object {
         /** Small enough that a curve's slope barely changes over it, while an angle changes it at once. */

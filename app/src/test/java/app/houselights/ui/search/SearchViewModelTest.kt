@@ -18,7 +18,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 
-/** A search: what is typed shows at once, what it finds comes 150 ms after the last key, once. */
+/** A search: what is typed shows at once, what it finds comes `WAIT_MS` after the last key, once. */
 @OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
 class SearchViewModelTest {
@@ -28,13 +28,7 @@ class SearchViewModelTest {
     @get:Rule
     val main = MainDispatcherRule()
 
-    private val asked = mutableListOf<String>()
-    private val catalog = object : app.houselights.core.Catalog by FakeCatalog() {
-        override suspend fun search(query: String, limit: Int): SearchResults {
-            asked += query
-            return SearchResults(titles = listOf(film("amelie", "Amélie")))
-        }
-    }
+    private val catalog = FakeCatalog().apply { found = SearchResults(titles = listOf(film("amelie", "Amélie"))) }
     private val provider = FakeProvider().apply { catalog = this@SearchViewModelTest.catalog }
 
     @Test
@@ -43,9 +37,9 @@ class SearchViewModelTest {
         backgroundScope.launch { vm.found.collect {} }
         "AME".forEach { vm.type(it); advanceTimeBy(SearchViewModel.WAIT_MS / 2) }
         assertEquals("AME", vm.query.value)
-        assertEquals("not while typing", emptyList<String>(), asked)
+        assertEquals("not while typing", emptyList<String>(), catalog.calls)
         advanceUntilIdle()
-        assertEquals(listOf("AME"), asked)
+        assertEquals(listOf("search AME"), catalog.calls)
         assertEquals("amelie", vm.found.value?.results?.titles?.single()?.id)
     }
 
@@ -67,6 +61,6 @@ class SearchViewModelTest {
         vm.type('A'); vm.delete()
         advanceUntilIdle()
         assertNull(vm.found.value)
-        assertEquals(emptyList<String>(), asked)
+        assertEquals(emptyList<String>(), catalog.calls)
     }
 }

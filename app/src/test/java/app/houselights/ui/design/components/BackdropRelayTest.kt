@@ -1,16 +1,9 @@
 package app.houselights.ui.design.components
 
 import android.graphics.Bitmap
-import androidx.compose.runtime.SideEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshots.Snapshot
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.test.junit4.createComposeRule
 import app.houselights.ui.design.ArtworkSample
-import app.houselights.ui.testing.TV
+import app.houselights.ui.testing.SettleMainLooper
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -20,14 +13,12 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
-import org.robolectric.annotation.Config
 
-/** A new backdrop comes up over the previous picture, kept opaque until then; no backdrop fades it out. */
+/** Between screens, a new backdrop starts from the picture left (at once when it is the same); a screen without one lets it go out. */
 @RunWith(RobolectricTestRunner::class)
-@Config(qualifiers = TV)
 class BackdropRelayTest {
     @get:Rule
-    val compose = createComposeRule()
+    val settle = SettleMainLooper()
 
     private val picture by lazy {
         PreparedBackdrop(Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888).asImageBitmap(), ArtworkSample(1, 1, floatArrayOf(0.5f)))
@@ -86,40 +77,5 @@ class BackdropRelayTest {
         other.startFrom(shot().handedOn())
         other.show(null, shot(BackdropStyle.Full), covered = false)
         assertFalse("its veils change: they fade", other.shown!!.atOnce)
-    }
-
-    @Test
-    fun whatIsHandedOnHoldsUnderWhatComes() {
-        assertEquals(1f, leavingAlpha(coming = "detail"))
-    }
-
-    @Test
-    fun whatIsHandedOnGoesOutForNothing() {
-        val alone = leavingAlpha(coming = null)
-        assertTrue("$alone: going out", alone < 1f)
-    }
-
-    private fun leavingAlpha(coming: String?): Float {
-        compose.mainClock.autoAdvance = false
-        var target by mutableStateOf<String?>("left")
-        var alpha = -1f
-        compose.setContent {
-            FadeBetween(target, Modifier, holds = { leaving, next -> leaving == "left" && next != null }) { shown, drawnAt ->
-                if (shown == "left") {
-                    val now = drawnAt()
-                    SideEffect { alpha = now }
-                }
-            }
-        }
-        compose.mainClock.advanceTimeByFrame()
-        target = coming
-        Snapshot.sendApplyNotifications()
-        repeat(FRAMES) { compose.mainClock.advanceTimeByFrame() }
-        return alpha
-    }
-
-    private companion object {
-        /** A few frames of `SLOW`: 100 ms of 600. */
-        const val FRAMES = 6
     }
 }

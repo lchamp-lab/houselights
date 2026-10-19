@@ -32,6 +32,7 @@ import app.houselights.ui.testing.TV
 import app.houselights.ui.testing.press
 import app.houselights.ui.testing.setTvContent
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -45,21 +46,6 @@ import org.robolectric.annotation.Config
 class FocusMemoryTest {
     @get:Rule
     val compose = createComposeRule()
-
-    @Test
-    fun anElementThatRefusesFocusLeavesItToTheFallback() {
-        val memory = FocusMemory(initial = FocusKey.item("left"))
-        val start = FocusRequester()
-        compose.setTvContent {
-            Column {
-                Box(Modifier.focusKey(FocusKey.item("left"), memory).focusProperties { canFocus = false }.focusable().size(HlSize.control))
-                HlButton("Lire", onClick = {}, modifier = Modifier.focusRequester(start).testTag("start"))
-            }
-            RestoreFocus(memory, fallback = start)
-        }
-        compose.onNodeWithTag("start").assertIsFocused()
-        compose.runOnIdle { assertEquals(false, memory.focus(FocusKey.item("left"))) }
-    }
 
     /** A recreated window focuses its first element on its own as it is laid out: the element left is restored. */
     @Test
@@ -98,7 +84,7 @@ class FocusMemoryTest {
         }
     }
 
-    /** Nor is the element that refused focus held in view: the list stays where focus went. */
+    /** An element that refuses focus leaves it to the fallback, and is not held in view: the list stays where focus went. */
     @Test
     fun anElementThatRefusesFocusIsNotHeldInView() {
         val memory = FocusMemory(initial = FocusKey.item("left"))
@@ -119,6 +105,7 @@ class FocusMemoryTest {
         compose.runOnIdle {
             assertEquals(0, list.firstVisibleItemIndex)
             assertEquals(0, list.firstVisibleItemScrollOffset)
+            assertFalse(memory.focus(FocusKey.item("left")))
         }
     }
 
@@ -138,7 +125,7 @@ class FocusMemoryTest {
             RestoreFocus(memory, fallback = start)
         }
         compose.onNodeWithTag("start").assertIsFocused()
-        compose.runOnIdle { assertEquals(false, memory.focus(row)) }
+        compose.runOnIdle { assertFalse(memory.focus(row)) }
     }
 
     @Test

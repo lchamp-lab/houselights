@@ -2,10 +2,11 @@ package app.houselights.ui.design
 
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.graphics.toArgb
 import app.houselights.testing.children
 import app.houselights.testing.descendants
 import app.houselights.testing.xmlRoot
+import app.houselights.ui.testing.argb
+import app.houselights.ui.testing.resourceArgb
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -40,7 +41,7 @@ class BrandTest {
     @Test
     fun theBannerSetsTheMarkAboveTheName() {
         val paths = paths("banner")
-        val mark = paths.filter { it.first == argb(HlPalette.Ember.toArgb()) }.map { rect(it.second) }
+        val mark = paths.filter { it.first == argb(HlPalette.Ember) }.map { rect(it.second) }
         assertBars(Gradation.bars(BANNER_WIDTH / 2, BANNER_MARK_TOP + BANNER_MARK / 2, BANNER_MARK), mark)
         assertEquals("the room, the mark, the name's eleven letters", 1 + 3 + 11, paths.size)
     }
@@ -56,23 +57,22 @@ class BrandTest {
 
     @Test
     fun theBrandIsDrawnInThePalette() {
-        val palette = listOf(HlPalette.Ember, HlPalette.N96, HlPalette.N0).map { argb(it.toArgb()) }.toSet()
+        val palette = listOf(HlPalette.Ember, HlPalette.N96, HlPalette.N0).map(::argb).toSet()
         listOf("ic_launcher_foreground", "splash_mark", "banner", "wordmark").forEach { name ->
             paths(name).forEach { (fill, _) -> assertTrue("$name draws in $fill", fill in palette) }
         }
-        assertEquals(setOf(argb(HlPalette.N96.toArgb())), paths("wordmark").map { it.first }.toSet())
+        assertEquals(setOf(argb(HlPalette.N96)), paths("wordmark").map { it.first }.toSet())
     }
 
     private fun bars(name: String): List<Rect> = paths(name).map { (fill, data) ->
-        assertEquals("$name: a bar of ember", argb(HlPalette.Ember.toArgb()), fill)
+        assertEquals("$name: a bar of ember", argb(HlPalette.Ember), fill)
         rect(data)
     }
 
     /** Each path of a vector drawable: its fill as #AARRGGBB, and its data. */
     private fun paths(name: String): List<Pair<String, String>> =
         xmlRoot(drawables.resolve("$name.xml")).descendants("path").map { path ->
-            val fill = path.getAttribute("android:fillColor").removePrefix("#").uppercase().padStart(ARGB_DIGITS, 'F')
-            "#$fill" to path.getAttribute("android:pathData")
+            resourceArgb(path.getAttribute("android:fillColor")) to path.getAttribute("android:pathData")
         }
 
     /** A bar as its path draws it: `M x y h w v h h -w z`. */
@@ -99,8 +99,6 @@ class BrandTest {
         }
     }
 
-    private fun argb(color: Int) = "#%08X".format(color)
-
     private companion object {
         const val MIDDLE = Gradation.LAYER / 2
         const val BANNER_WIDTH = 320f
@@ -112,7 +110,5 @@ class BrandTest {
 
         /** The precision the resources keep for a coordinate: three decimals. */
         const val EXACT = 0.001f
-
-        const val ARGB_DIGITS = 8
     }
 }

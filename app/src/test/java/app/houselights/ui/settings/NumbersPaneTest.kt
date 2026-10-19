@@ -4,10 +4,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.key.Key
-import androidx.compose.ui.test.junit4.createComposeRule
-import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.hasScrollToNodeAction
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.requestFocus
 import app.houselights.core.Library
@@ -21,6 +21,7 @@ import app.houselights.ui.testing.TV
 import app.houselights.ui.testing.press
 import app.houselights.ui.testing.setTvContent
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -159,11 +160,11 @@ class NumbersPaneTest {
     @Test
     fun aDirectorWhosePageTheSourceDoesNotOpenLeadsNowhere() {
         val page = numbersPage(NumbersState.Counted(numbers, local.copy(people = false), walls))
-        assertEquals(null, page.groups.single { it.kind == TallyKind.DIRECTORS }.rows.single().door)
+        assertNull(page.groups.single { it.kind == TallyKind.DIRECTORS }.rows.single().door)
     }
 
     private companion object {
-        const val NB = ' '
+        const val NB = Typography.nbsp
         const val MINUTE = 60_000L
         const val HOUR = 60 * MINUTE
     }

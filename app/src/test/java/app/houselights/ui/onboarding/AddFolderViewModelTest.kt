@@ -21,19 +21,19 @@ import app.houselights.providers.local.SourceEntity
 import app.houselights.providers.local.SourceKind
 import app.houselights.providers.local.onCallingThread
 import app.houselights.providers.local.testDatabase
+import app.houselights.ui.testing.MainDispatcherRule
+import app.houselights.ui.testing.SettleMainLooper
+import app.houselights.ui.testing.afterProcessDeath
+import app.houselights.ui.util.UiError
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
-import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
-import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -41,14 +41,12 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Before
+import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
-import app.houselights.ui.util.UiError
 import java.io.IOException
 import java.security.ProviderException
-import app.houselights.ui.testing.SettleMainLooper
-import org.junit.Rule
 
 /** The folder form on an in-memory library: tested, then saved whole even if the form is left meanwhile. */
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -57,10 +55,11 @@ class AddFolderViewModelTest {
     @get:Rule
     val settle = SettleMainLooper()
 
-    private val main = StandardTestDispatcher()
+    @get:Rule
+    val main = MainDispatcherRule()
 
     /** The app's scope, for work that outlives the form: its steps run with the test's. */
-    private val app = CoroutineScope(SupervisorJob() + main)
+    private val app = CoroutineScope(SupervisorJob() + main.dispatcher)
     private val forms = ViewModelStore()
     private lateinit var db: LibraryDatabase
     private lateinit var dao: LibraryDao
@@ -77,7 +76,6 @@ class AddFolderViewModelTest {
 
     @Before
     fun open() = runBlocking {
-        Dispatchers.setMain(main)
         val context = ApplicationProvider.getApplicationContext<Context>()
         db = testDatabase { onCallingThread() }
         dao = db.dao()
@@ -96,7 +94,6 @@ class AddFolderViewModelTest {
         forms.clear()
         app.cancel()
         db.close()
-        Dispatchers.resetMain()
     }
 
     private suspend fun smbFolder(): Long = dao.insertSource(
@@ -138,11 +135,10 @@ class AddFolderViewModelTest {
         return ViewModelProvider(forms, factory)[AddFolderViewModel::class.java]
     }
 
-    /** What the platform keeps of [saved] in a new process: plain values only. */
+    /** What a new process gets of [saved]; the form's ViewModel went with the old one. */
     private fun afterAStoppedProcess(saved: SavedStateHandle): SavedStateHandle {
-        // The form's ViewModel goes with its process.
         forms.clear()
-        return SavedStateHandle(saved.keys().associateWith { saved.get<Any?>(it) })
+        return saved.afterProcessDeath()
     }
 
     /** After process death, the form returns as typed, over the last folder added, but never with its password. */

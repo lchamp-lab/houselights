@@ -1,5 +1,7 @@
 package app.houselights.ui.edit
 
+import androidx.lifecycle.SavedStateHandle
+import androidx.lifecycle.viewModelScope
 import app.houselights.core.ArtworkChoices
 import app.houselights.core.ArtworkKind
 import app.houselights.core.ArtworkOption
@@ -8,23 +10,23 @@ import app.houselights.core.Identity
 import app.houselights.core.MatchCandidate
 import app.houselights.ui.testing.FakeProvider
 import app.houselights.ui.testing.MainDispatcherRule
+import app.houselights.ui.testing.SettleMainLooper
+import app.houselights.ui.testing.afterProcessDeath
 import app.houselights.ui.testing.film
 import app.houselights.ui.util.UiError
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import androidx.lifecycle.SavedStateHandle
-import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import java.io.IOException
-import app.houselights.ui.testing.SettleMainLooper
 
 /** Artwork and identification on a fake source. */
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -110,19 +112,6 @@ class EditViewModelsTest {
     }
 
     @Test
-    fun aFailedChoiceOfArtworkSaysWhy() = runTest {
-        val vm = ArtworkViewModel("m1", ArtworkKind.POSTER, { provider }, work = this)
-        advanceUntilIdle()
-        val option = vm.state.value.choices!!.options.first()
-        provider.fail = { if (it.startsWith("setArtwork")) IOException("NAS away") else null }
-        vm.choose(option)
-        advanceUntilIdle()
-        assertFalse(vm.state.value.done)
-        assertEquals(null, vm.state.value.choosing)
-        assertEquals(UiError.OFFLINE, vm.state.value.error)
-    }
-
-    @Test
     fun leavingWhileArtworkIsSavedNeverCutsItOff() = runTest {
         val vm = ArtworkViewModel("m1", ArtworkKind.POSTER, { provider }, work = this)
         advanceUntilIdle()
@@ -149,7 +138,7 @@ class EditViewModelsTest {
 
         provider.fail = { null }
         vm.retry()
-        assertEquals(null, vm.state.value.error)
+        assertNull(vm.state.value.error)
         advanceUntilIdle()
         assertEquals("Heat", vm.state.value.item?.title)
         assertEquals(listOf(heat), vm.state.value.results)
@@ -180,7 +169,7 @@ class EditViewModelsTest {
         before.setYear("1995a")
 
         provider.calls.clear()
-        val after = IdentifyViewModel("m1", { provider }, work = this, SavedStateHandle(saved.keys().associateWith { saved.get<Any?>(it) }))
+        val after = IdentifyViewModel("m1", { provider }, work = this, saved.afterProcessDeath())
         advanceUntilIdle()
         assertEquals("Heat McCann", after.state.value.query)
         assertEquals("1995", after.state.value.year)
@@ -209,7 +198,7 @@ class EditViewModelsTest {
         assertEquals(latest, vm.state.value.choices)
     }
 
-    /** A failed save shows in place of the choices; retrying shows them at once, keeping the title. */
+    /** A failed save says why in place of the choices, nothing chosen; retrying shows them at once, keeping the title. */
     @Test
     fun aFailedChoiceIsTriedAgainOverTheChoicesShown() = runTest {
         val vm = ArtworkViewModel("m1", ArtworkKind.POSTER, { provider }, work = this)
@@ -218,11 +207,13 @@ class EditViewModelsTest {
         vm.choose(vm.state.value.choices!!.options.first())
         advanceUntilIdle()
         assertEquals(UiError.OFFLINE, vm.state.value.error)
+        assertFalse(vm.state.value.done)
+        assertNull(vm.state.value.choosing)
         assertEquals("Heat", vm.state.value.item?.title)
 
         provider.fail = { null }
         vm.load()
-        assertEquals(null, vm.state.value.error)
+        assertNull(vm.state.value.error)
         assertEquals(provider.choices, vm.state.value.choices)
         advanceUntilIdle()
         assertEquals(provider.choices, vm.state.value.choices)

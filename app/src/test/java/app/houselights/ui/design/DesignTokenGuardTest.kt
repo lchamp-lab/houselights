@@ -49,12 +49,21 @@ class DesignTokenGuardTest {
                     val code = line.trimStart()
                     if (code.startsWith("import ") || code.startsWith("//") || code.startsWith("*")) return@mapIndexedNotNull null
                     val rule = rules.firstOrNull { (pattern, _) -> pattern.containsMatchIn(line) } ?: return@mapIndexedNotNull null
-                    if (allowed.any { it.substringBefore(':') == path && line.contains(it.substringAfter(':')) }) return@mapIndexedNotNull null
+                    if (allowed.any { it.allows(path, line) }) return@mapIndexedNotNull null
                     "$path:${i + 1}: ${rule.second}\n    ${line.trim()}"
                 }
             }
         assertTrue("Screens go around the design system:\n" + violations.joinToString("\n"), violations.isEmpty())
+        val stale = allowed.filter { exception ->
+            val path = exception.substringBefore(':')
+            val file = ui.resolve(path)
+            !file.isFile || file.readLines().none { line -> exception.allows(path, line) && rules.any { it.first.containsMatchIn(line) } }
+        }
+        assertTrue("Exceptions for lines that no longer break a rule: ${stale.joinToString()}", stale.isEmpty())
     }
+
+    /** Whether this exception, "path:fragment", covers [line] of the file at [path]. */
+    private fun String.allows(path: String, line: String) = substringBefore(':') == path && line.contains(substringAfter(':'))
 
     /** A message goes where the action was, in the app's own voice: never in a system Toast. */
     @Test
@@ -84,6 +93,7 @@ class DesignTokenGuardTest {
             "c.surface.copy(alpha = 0.7f)", "RoundedCornerShape(4.dp)", "FontFamily.Monospace",
             "padding(end = HlSpace.safeH - HlSpace.m)", "width = HlSize.posterThumb + HlSpace.xs", "HlSize.poster * 1.3f",
             "AsyncImage(model = url, contentDescription = null)", "color = c.ember", "tint = Hl.colors.ember",
+            "fontWeight = FontWeight.Bold", "letterSpacing = style.letterSpacing * 2",
         )
         samples.forEach { sample -> assertTrue(sample, rules.any { it.first.containsMatchIn(sample) }) }
         listOf("Icons.Filled.Check", "Icons.Default.Settings", "import androidx.compose.material.icons.filled.Star")

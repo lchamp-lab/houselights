@@ -99,13 +99,7 @@ class FocusTest {
         val memory = FocusMemory()
         assertTrue(memory.requester("row:similar") === memory.requester("row:similar"))
         assertFalse(memory.focus(FocusKey.item("1")))
-        // A group not composed: nothing to focus, said without throwing.
+        // A requester with nothing under it (not composed yet, or gone): said without throwing.
         assertFalse(memory.focus("row:similar"))
-    }
-
-    /** A requester with nothing to focus (not composed yet, or gone) is the one failure a screen expects. */
-    @Test
-    fun aRequestWithNothingToFocusSaysSo() {
-        assertFalse(FocusRequester().tryRequestFocus())
     }
 }

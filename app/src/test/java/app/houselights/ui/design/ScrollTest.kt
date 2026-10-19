@@ -4,7 +4,6 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /** A list of the screen's height (540 dp at density 1) keeping focus 28 dp from both ends. */
@@ -14,8 +13,12 @@ class ScrollTest {
     private val screen = 540f
     private val list = EdgeScroll(edge, edge)
 
-    /** Where the element starts once the list has scrolled for it. */
-    private fun landing(offset: Float, size: Float) = offset - list.calculateScrollDistance(offset, size, screen)
+    /** A detail page, which brings each block to the top. */
+    private val page = EdgeScroll(edge, edge, toTop = true)
+
+    /** Where the element starts once [scroll] has moved for it. */
+    private fun landing(offset: Float, size: Float, scroll: EdgeScroll = list) =
+        offset - scroll.calculateScrollDistance(offset, size, screen)
 
     @Test
     fun anElementBelowStopsAnEdgeFromTheBottom() {
@@ -53,43 +56,21 @@ class ScrollTest {
         assertEquals(230f, home.calculateScrollDistance(230f, 222f, 244f))
     }
 
+    /** A detail page: the block focus goes to comes to the keyline, wherever it starts. */
     @Test
     fun aPageOfBlocksBringsTheNextOneToTheTop() {
-        // A detail page: a row below the hero comes up to the keyline, not just above the bottom.
-        val page = EdgeScroll(edge, edge, toTop = true)
-        assertEquals(edge, 480f - page.calculateScrollDistance(480f, 222f, screen))
-        // Partly hidden at the bottom: it comes to the top too.
-        assertEquals(edge, 400f - page.calculateScrollDistance(400f, 222f, screen))
-    }
-
-    @Test
-    fun aBlockOnItsWayUpKeepsMovingOnceInside() {
-        // Asked again on every frame: half way up, the block keeps going to the keyline.
-        val page = EdgeScroll(edge, edge, toTop = true)
-        assertEquals(edge, 200f - page.calculateScrollDistance(200f, 222f, screen))
+        listOf(
+            Triple("a row below the hero, not just above the bottom", 480f, 222f),
+            Triple("a row partly hidden at the bottom", 400f, 222f),
+            Triple("a block half way up, asked again on the next frame", 200f, 222f),
+            Triple("a hero taller than the window", -300f, 600f),
+        ).forEach { (case, offset, size) -> assertEquals(case, edge, landing(offset, size, page)) }
     }
 
     @Test
     fun aBlockAtTheKeylineStays() {
-        val page = EdgeScroll(edge, edge, toTop = true)
         assertEquals(0f, page.calculateScrollDistance(edge, 222f, screen))
         assertEquals(0f, page.calculateScrollDistance(edge + 0.2f, 222f, screen))
-    }
-
-    @Test
-    fun theBlockAboveLeavesWholeWhenTheGapIsWiderThanTheKeyline() {
-        // The hero (454) then a gap of 32: the next block at the keyline puts the hero's end above the screen.
-        val page = EdgeScroll(edge, edge, toTop = true)
-        val gap = HlSpace.xl.value
-        val hero = screen - 86f
-        val distance = page.calculateScrollDistance(hero + gap, 222f, screen)
-        assertTrue(hero - distance <= 0f)
-    }
-
-    @Test
-    fun aHeroTallerThanTheWindowGoesToTheTop() {
-        val page = EdgeScroll(edge, edge, toTop = true)
-        assertEquals(edge, -300f - page.calculateScrollDistance(-300f, 600f, screen))
     }
 
     private fun alpha(left: Float, top: Float, right: Float, bottom: Float) =

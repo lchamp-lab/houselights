@@ -57,19 +57,13 @@ class StringsTest {
         assertEquals(emptyMap<Int, String>(), specifiers("100 %% sûr"))
     }
 
-    @Test
-    fun frenchIsTypeset() {
-        val found = resources(french).flatMap { resource ->
-            texts(resource).flatMap { text -> problems(text).map { "${resource.key}: $it\n    $text" } }
-        }
-        assertTrue("French typography:\n" + found.joinToString("\n"), found.isEmpty())
-    }
-
+    /** English and every translation by the rules of any language; French by its own as well. */
     @Test
     fun everyLanguageIsTypeset() {
-        val found = translations.flatMap { file ->
+        val found = (listOf(english) + translations).flatMap { file ->
+            val rules: (String) -> List<String> = if (file == french) ::problems else ::commonProblems
             resources(file).flatMap { resource ->
-                texts(resource).flatMap { text -> commonProblems(text).map { "${file.parentFile.name} ${resource.key}: $it\n    $text" } }
+                texts(resource).flatMap { text -> rules(text).map { "${file.parentFile.name} ${resource.key}: $it\n    $text" } }
             }
         }
         assertTrue("Typography:\n" + found.joinToString("\n"), found.isEmpty())
@@ -85,7 +79,7 @@ class StringsTest {
         }
     }
 
-    /** A changed player gets no token either: the message names both, in each language. */
+    /** A changed player gets no token either: the message names both, in English and in French. */
     @Test
     fun aChangedPlayerIsToldItGetsNeitherPasswordsNorAccess() {
         val french = string(french, "player_changed")

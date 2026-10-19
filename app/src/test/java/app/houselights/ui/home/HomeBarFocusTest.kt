@@ -13,11 +13,9 @@ import app.houselights.core.LibraryKind
 import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
 import app.houselights.core.SectionType
-import app.houselights.providers.local.ScanState
 import app.houselights.ui.design.HouselightsTheme
 import app.houselights.ui.testing.TV
 import app.houselights.ui.testing.press
-import kotlinx.coroutines.flow.MutableStateFlow
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -47,7 +45,7 @@ class HomeBarFocusTest {
     private val restoration = StateRestorationTester(compose)
 
     private fun open() = restoration.setContent {
-        HouselightsTheme { HomeBands(home, MutableStateFlow(ScanState()), {}, { _, _ -> }, {}, {}, {}, {}) }
+        HouselightsTheme { HomeBands(home) }
     }
 
     private fun focusIsOn(title: String) = compose.onNode(isFocused()).assert(hasText(title))

@@ -1,15 +1,12 @@
 package app.houselights.ui.settings
 
 import android.content.Context
-import android.os.Looper
-import androidx.datastore.core.DataStore
-import androidx.datastore.preferences.core.Preferences
-import androidx.datastore.preferences.core.emptyPreferences
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.ViewModelStore
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import androidx.test.core.app.ApplicationProvider
+import app.houselights.R
 import app.houselights.core.Secrets
 import app.houselights.providers.local.ArtworkCache
 import app.houselights.providers.local.FakeRemoteBrowser
@@ -22,27 +19,24 @@ import app.houselights.providers.local.nfsFolder
 import app.houselights.providers.local.testDatabase
 import app.houselights.settings.SecretSetting
 import app.houselights.settings.SettingsStore
-import app.houselights.testing.testSecrets
 import app.houselights.ui.testing.FakeProvider
 import app.houselights.ui.testing.MainDispatcherRule
+import app.houselights.ui.testing.SettleMainLooper
+import app.houselights.ui.testing.fullSettings
 import app.houselights.ui.testing.testSettings
+import app.houselights.ui.testing.waitFor
 import app.houselights.ui.util.UiError
 import coil.ImageLoader
 import coil.annotation.ExperimentalCoilApi
 import coil.disk.DiskCache
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
-import kotlinx.coroutines.withContext
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -53,9 +47,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
-import org.robolectric.Shadows.shadowOf
 import org.robolectric.RobolectricTestRunner
-import java.io.IOException
 import java.security.ProviderException
 import java.util.Collections
 
@@ -63,6 +55,9 @@ import java.util.Collections
 @OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
 class SettingsViewModelTest {
+    @get:Rule
+    val settle = SettleMainLooper()
+
     @get:Rule
     val main = MainDispatcherRule()
 
@@ -90,8 +85,6 @@ class SettingsViewModelTest {
     fun close() {
         screens.clear()
         db.close()
-        // Run the Compose task Robolectric would clear, or every later Compose test in this sandbox hangs.
-        shadowOf(Looper.getMainLooper()).idle()
     }
 
     /** The settings' ViewModel as the screen holds it: [screens] clears it when the settings are left. */
@@ -107,27 +100,10 @@ class SettingsViewModelTest {
         return ViewModelProvider(screens, factory)[SettingsViewModel::class.java]
     }
 
-    /** Settings that read, and refuse every write: the device's storage is full. */
-    private class FullStore : DataStore<Preferences> {
-        override val data = flowOf(emptyPreferences())
-
-        override suspend fun updateData(transform: suspend (t: Preferences) -> Preferences): Preferences =
-            throw IOException("No space left on device")
-    }
-
-    /** Lets work on Room's and the scanner's own threads finish. */
-    private suspend fun TestScope.settle(done: suspend () -> Boolean) {
-        repeat(200) {
-            advanceUntilIdle()
-            if (done()) return
-            withContext(Dispatchers.Default) { delay(10) }
-        }
-    }
-
     /** Reported on the row it was made from, where focus is, never on another. */
     @Test
     fun aSettingThatCannotBeWrittenSaysSoAndNeverCrashes() = runTest {
-        val store = SettingsStore(FullStore(), backgroundScope, testSecrets())
+        val store = fullSettings(backgroundScope)
         val vm = settings(store, backgroundScope)
         vm.setUi4k(false)
         advanceUntilIdle()
@@ -161,7 +137,7 @@ class SettingsViewModelTest {
         // The library's database refuses every write.
         db.openHelper.writableDatabase.execSQL("PRAGMA query_only = ON")
         vm.removeFolder(folder)
-        settle { id !in vm.removing }
+        waitFor("the folder's removal over") { id !in vm.removing }
         assertEquals(UiError.FAILED, vm.errorOf(SettingAction.REMOVE_FOLDER, id))
         assertNull(vm.errorOf(SettingAction.REMOVE_FOLDER, id + 1))
         assertNull(vm.errorOf(SettingAction.CLEANUP))
@@ -176,8 +152,7 @@ class SettingsViewModelTest {
         vm.removeFolder(dao.source(id)!!)
         assertTrue(id in vm.removing)
         screens.clear()
-        settle { dao.sources().isEmpty() }
-        assertTrue(dao.sources().isEmpty())
+        waitFor("the folder removed") { dao.sources().isEmpty() }
     }
 
     /** TMDB checks a key for a few seconds; leaving the sheet and the settings meanwhile still saves it. */
@@ -192,7 +167,7 @@ class SettingsViewModelTest {
         screens.clear()
         tmdb.complete(TmdbKeyCheck.ACCEPTED)
         assertEquals("k3y", store.state.first { it.tmdbApiKey != null }.tmdbApiKey)
-        settle { vm.tmdbKey?.outcome != null }
+        waitFor("the key's outcome") { vm.tmdbKey?.outcome != null }
         assertEquals(TmdbKeySave.Checked(TmdbKeyCheck.ACCEPTED), vm.tmdbKey?.outcome)
         assertFalse(vm.savingTmdbKey)
     }
@@ -210,7 +185,7 @@ class SettingsViewModelTest {
         assertNull(vm.saveTmdbApiKey("other"))
 
         tmdb.complete(TmdbKeyCheck.REFUSED)
-        settle { !vm.savingTmdbKey }
+        waitFor("the key saved") { !vm.savingTmdbKey }
         assertEquals(TmdbKeyAttempt(number, "k3y", TmdbKeySave.Checked(TmdbKeyCheck.REFUSED)), vm.tmdbKey)
         assertNull(store.state.value.tmdbApiKey)
 
@@ -228,12 +203,12 @@ class SettingsViewModelTest {
         advanceUntilIdle()
         vm.editTmdbKey()
         tmdb.complete(TmdbKeyCheck.REFUSED)
-        settle { !vm.savingTmdbKey }
+        waitFor("the first key saved") { !vm.savingTmdbKey }
         assertNull(vm.tmdbKey)
 
         // The next one has a number of its own: a sheet waiting on the first never takes it for its own.
         val second = vm.saveTmdbApiKey("")
-        settle { vm.tmdbKey?.outcome != null }
+        waitFor("the second key's outcome") { vm.tmdbKey?.outcome != null }
         assertTrue(second != first)
         assertEquals(TmdbKeyAttempt(second!!, "", TmdbKeySave.Checked(TmdbKeyCheck.ACCEPTED)), vm.tmdbKey)
     }
@@ -245,7 +220,7 @@ class SettingsViewModelTest {
         val store = testSettings(folder.root, backgroundScope, broken)
         val vm = settings(store, work = backgroundScope)
         vm.saveTmdbApiKey("k3y")
-        settle { vm.tmdbKey?.outcome != null }
+        waitFor("the key's outcome") { vm.tmdbKey?.outcome != null }
         assertEquals(TmdbKeySave.Failed(UiError.KEYSTORE), vm.tmdbKey?.outcome)
         assertFalse(vm.savingTmdbKey)
     }
@@ -262,7 +237,7 @@ class SettingsViewModelTest {
         }
         val images = ImageLoader.Builder(ApplicationProvider.getApplicationContext<Context>()).diskCache(cache).build()
         val vm = settings(testSettings(folder.root, backgroundScope), work = backgroundScope, images = images)
-        settle { vm.storage.value != null }
+        waitFor("the storage measured") { vm.storage.value != null }
         assertEquals(1_000_000L, vm.storage.value?.imageCacheMax)
         assertTrue("The size was never asked", askedOn.isNotEmpty())
         assertFalse("Asked on the main thread", Thread.currentThread() in askedOn)
@@ -271,8 +246,8 @@ class SettingsViewModelTest {
     @Test
     fun eachPaneSaysWhatOfItsOwnWasLost() {
         val lost = setOf(SecretSetting.TMDB_KEY, SecretSetting.PATH_MAPPINGS)
-        assertEquals(app.houselights.R.string.settings_lost_tmdb_key, lostSecretNote(Pane.Library, lost))
-        assertEquals(app.houselights.R.string.settings_lost_mappings, lostSecretNote(Pane.Playback, lost))
+        assertEquals(R.string.settings_lost_tmdb_key, lostSecretNote(Pane.Library, lost))
+        assertEquals(R.string.settings_lost_mappings, lostSecretNote(Pane.Playback, lost))
         assertNull(lostSecretNote(Pane.Display, lost))
         assertNull(lostSecretNote(Pane.Library, setOf(SecretSetting.SOURCE)))
     }

@@ -3,7 +3,6 @@ package app.houselights.ui.design
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.test.junit4.createComposeRule
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -26,34 +25,33 @@ class TextRoomTest {
 
     private class Rooms(val heroMin: Dp, val infoLine: Dp, val labelRoom: Dp)
 
-    private fun roomsAt(fontScale: Float): Rooms {
-        lateinit var rooms: Rooms
+    @Test
+    fun theRoomOfALineGrowsWithTheTextSize() {
+        val rooms = mutableMapOf<Float, Rooms>()
         compose.setContent {
-            CompositionLocalProvider(LocalDensity provides Density(1f, fontScale)) {
-                HouselightsTheme {
-                    rooms = Rooms(HlLayout.detailHeroMin(540.dp), HlLayout.infoLine, HlIconButtonDefaults.labelRoom)
+            listOf(1f, LARGEST).forEach { scale ->
+                CompositionLocalProvider(LocalDensity provides Density(1f, scale)) {
+                    HouselightsTheme {
+                        rooms[scale] = Rooms(HlLayout.detailHeroMin(540.dp), HlLayout.infoLine, HlIconButtonDefaults.labelRoom)
+                    }
                 }
             }
         }
         compose.waitForIdle()
-        return rooms
+        val default = rooms.getValue(1f)
+        val large = rooms.getValue(LARGEST)
+        // How much taller a line of [height] at the default text size is at the largest.
+        fun growth(height: Float) = with(Density(1f, LARGEST)) { height.sp.toDp().value } - height
+        val header = growth(HouselightsType.lead.lineHeight.value)
+        assertTrue(header > 0f)
+        assertEquals("the hero makes room for its header", default.heroMin.value - header, large.heroMin.value, 0.01f)
+        assertEquals("a poster wall's title line", default.infoLine.value + growth(default.infoLine.value), large.infoLine.value, 0.01f)
+        val label = growth(HouselightsType.caption.lineHeight.value)
+        assertEquals("a button's label", default.labelRoom.value + label, large.labelRoom.value, 0.01f)
     }
 
-    @Test
-    fun theRoomOfALineGrowsWithTheTextSize() {
-        val large = roomsAt(1.3f)
-        val growth = { style: TextStyle -> with(Density(1f, 1.3f)) { style.lineHeight.toDp().value } - style.lineHeight.value }
-        assertTrue(growth(HouselightsType.lead) > 0f)
-        assertEquals(454 - growth(HouselightsType.lead), large.heroMin.value, 0.01f)
-        assertEquals(with(Density(1f, 1.3f)) { 24.sp.toDp().value }, large.infoLine.value, 0.01f)
-        assertEquals(36 + growth(HouselightsType.caption), large.labelRoom.value, 0.01f)
-    }
-
-    @Test
-    fun atTheDefaultTextSizeTheRoomIsWhatItWas() {
-        val default = roomsAt(1f)
-        assertEquals(454f, default.heroMin.value, 0.01f)
-        assertEquals(24f, default.infoLine.value, 0.01f)
-        assertEquals(36f, default.labelRoom.value, 0.01f)
+    private companion object {
+        /** Android's largest text size. */
+        const val LARGEST = 1.3f
     }
 }

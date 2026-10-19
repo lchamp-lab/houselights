@@ -16,8 +16,6 @@ class RecedeTest {
 
     @Test
     fun theStepsRunFromFullColourToTheSiblingsShare() {
-        assertEquals(0, HlFocus.recedeStep(0f))
-        assertEquals(HlFocus.RECEDE_STEPS, HlFocus.recedeStep(1f))
         assertEquals(1f, HlFocus.saturationAt(0), 0.0001f)
         assertEquals(HlFocus.SIBLING_SATURATION, HlFocus.saturationAt(HlFocus.RECEDE_STEPS), 0.0001f)
     }

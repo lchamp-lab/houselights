@@ -1,17 +1,14 @@
 package app.houselights.ui.home
 
 import app.houselights.core.HomeSection
-import app.houselights.core.MediaItem
-import app.houselights.core.MediaKind
 import app.houselights.core.SectionType
+import app.houselights.ui.testing.film
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 
 /** Home always shows a title: the one last selected, else the first, where focus lands. */
 class HomeSelectedTest {
-    private fun film(id: String) = MediaItem(id = id, title = id, kind = MediaKind.MOVIE)
-
     private val resume = HomeSection(SectionType.CONTINUE, listOf(film("heat"), film("alien")), landscape = true)
     private val latest = HomeSection(SectionType.LATEST, listOf(film("playtime")), landscape = false, libraryId = "movies")
 

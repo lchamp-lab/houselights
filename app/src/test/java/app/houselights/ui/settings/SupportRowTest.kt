@@ -1,5 +1,6 @@
 package app.houselights.ui.settings
 
+import android.view.KeyEvent
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.ui.Modifier
@@ -16,7 +17,7 @@ import app.houselights.ui.design.components.HlSettingGroup
 import app.houselights.ui.design.components.HlSettingRow
 import app.houselights.ui.testing.TV
 import app.houselights.ui.testing.press
-import app.houselights.ui.testing.pressBackInSheet
+import app.houselights.ui.testing.pressInSheet
 import app.houselights.ui.testing.setTvContent
 import org.junit.Rule
 import org.junit.Test
@@ -71,7 +72,7 @@ class SupportRowTest {
         compose.press(Key.DirectionCenter)
         compose.onNodeWithText(ADDRESS).assertExists()
 
-        compose.pressBackInSheet()
+        compose.pressInSheet(KeyEvent.KEYCODE_BACK)
         compose.onNodeWithText(ADDRESS).assertDoesNotExist()
         compose.onNodeWithTag(ROW).assertIsFocused()
         // The remote goes on from there, down to the next action.

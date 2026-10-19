@@ -1,8 +1,5 @@
 package app.houselights.ui.onboarding
 
-import androidx.datastore.core.DataStore
-import androidx.datastore.preferences.core.Preferences
-import androidx.datastore.preferences.core.emptyPreferences
 import app.houselights.core.SecretsUnavailableException
 import app.houselights.core.SourceConfig
 import app.houselights.providers.jellyfin.AuthRequest
@@ -14,19 +11,17 @@ import app.houselights.providers.jellyfin.UserDto
 import app.houselights.settings.SettingsStore
 import app.houselights.settings.SourceSwitcher
 import app.houselights.testing.http
-import app.houselights.testing.testSecrets
 import app.houselights.ui.testing.MainDispatcherRule
+import app.houselights.ui.testing.SettleMainLooper
+import app.houselights.ui.testing.fullSettings
 import app.houselights.ui.testing.testSettings
+import app.houselights.ui.testing.waitFor
 import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
-import kotlinx.coroutines.withContext
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -38,7 +33,6 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import java.io.IOException
 import java.security.ProviderException
-import app.houselights.ui.testing.SettleMainLooper
 
 /** Signing in to Jellyfin, with a fake network in place of the server. */
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -87,14 +81,6 @@ class JellyfinLoginViewModelTest {
         val store = settings ?: testSettings(folder.root, backgroundScope)
         val sources = SourceSwitcher({ store.state.value }, save, backgroundScope, signOut = { _, _ -> })
         return JellyfinLoginViewModel(store, sources, network)
-    }
-
-    /** Settings that read, and refuse every write: the device's storage is full. */
-    private class FullStore : DataStore<Preferences> {
-        override val data = flowOf(emptyPreferences())
-
-        override suspend fun updateData(transform: suspend (t: Preferences) -> Preferences): Preferences =
-            throw IOException("No space left on device")
     }
 
     @Test
@@ -159,10 +145,7 @@ class JellyfinLoginViewModelTest {
         val vm = login()
         vm.server = "nas"
         vm.login {}
-        while (!network.asked.isCompleted) {
-            withContext(Dispatchers.Default) { delay(10) }
-            advanceUntilIdle()
-        }
+        waitFor("the server asked") { network.asked.isCompleted }
         vm.server = "nas2"
         network.answer?.complete(Unit)
         settle(vm)
@@ -189,17 +172,11 @@ class JellyfinLoginViewModelTest {
     /** The device's id cannot be written before the server is asked: the device's fault too. */
     @Test
     fun aDeviceIdThatCannotBeSavedSaysSo() = runTest {
-        assertEquals(LoginError.NotSaved, failure(SettingsStore(FullStore(), backgroundScope, testSecrets())))
+        assertEquals(LoginError.NotSaved, failure(fullSettings(backgroundScope)))
     }
 
     /** Lets signing in finish: the device id is written on DataStore's own threads. */
-    private suspend fun TestScope.settle(vm: JellyfinLoginViewModel) {
-        advanceUntilIdle()
-        while (vm.busy) {
-            withContext(Dispatchers.Default) { delay(10) }
-            advanceUntilIdle()
-        }
-    }
+    private suspend fun TestScope.settle(vm: JellyfinLoginViewModel) = waitFor("signing in finished") { !vm.busy }
 
     private suspend fun TestScope.failure(
         settings: SettingsStore? = null,

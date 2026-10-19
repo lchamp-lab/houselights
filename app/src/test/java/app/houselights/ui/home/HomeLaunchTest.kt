@@ -10,6 +10,7 @@ import app.houselights.providers.local.SourceEntity
 import app.houselights.settings.AppSettings
 import app.houselights.ui.testing.FakeProvider
 import app.houselights.ui.testing.MainDispatcherRule
+import app.houselights.ui.testing.SettleMainLooper
 import app.houselights.ui.testing.film
 import app.houselights.ui.util.UiError
 import kotlinx.coroutines.CompletableDeferred
@@ -30,7 +31,6 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import java.io.IOException
-import app.houselights.ui.testing.SettleMainLooper
 
 /**
  * A cold start asks once for home's rows and first pictures under the launch screen, and home takes the rows

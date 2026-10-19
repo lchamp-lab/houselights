@@ -1,7 +1,6 @@
 package app.houselights.ui.library
 
-import android.graphics.Bitmap
-import android.graphics.drawable.BitmapDrawable
+import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import app.houselights.core.Library
 import app.houselights.core.LibraryFilter
@@ -13,11 +12,10 @@ import app.houselights.ui.testing.FakeProvider
 import app.houselights.ui.testing.MainDispatcherRule
 import app.houselights.ui.testing.SettleMainLooper
 import app.houselights.ui.testing.film
+import app.houselights.ui.testing.pictureServer
 import coil.ImageLoader
-import coil.decode.DataSource
-import coil.fetch.DrawableResult
-import coil.fetch.Fetcher
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -27,6 +25,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import java.io.IOException
 
 /** A wall's first page, asked while home's pill slides to it, opens that wall without asking again. */
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -38,7 +37,7 @@ class LibraryAheadTest {
     @get:Rule
     val main = MainDispatcherRule()
 
-    private val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+    private val context = ApplicationProvider.getApplicationContext<Context>()
     private val provider = FakeProvider().apply { wall = (1..300).map { film("m$it") } }
     private val films = Library("films", LibraryKind.MOVIES, "Films")
     private val series = Library("series", LibraryKind.SHOWS, "Séries")
@@ -46,18 +45,9 @@ class LibraryAheadTest {
     private val ahead = LibraryAhead({ provider }, now = { clock })
 
     /** Posters come back at once, from nowhere. */
-    private val loader = ImageLoader.Builder(context).components {
-        add(
-            Fetcher.Factory<Any> { _, options, _ ->
-                Fetcher {
-                    val picture = Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888)
-                    DrawableResult(BitmapDrawable(options.context.resources, picture), isSampled = false, dataSource = DataSource.NETWORK)
-                }
-            },
-        )
-    }.build()
+    private val loader = ImageLoader.Builder(context).components { add(pictureServer()) }.build()
 
-    private fun kotlinx.coroutines.test.TestScope.ask(library: Library) {
+    private fun TestScope.ask(library: Library) {
         ahead.ask(this, library, PicturesAhead(context, SCREEN_PX), loader)
     }
 
@@ -103,7 +93,7 @@ class LibraryAheadTest {
 
     @Test
     fun aFailedPageLeavesTheWallToAskItself() = runTest {
-        provider.fail = { if (it.startsWith("page")) java.io.IOException("NAS away") else null }
+        provider.fail = { if (it.startsWith("page")) IOException("NAS away") else null }
         ask(films)
         advanceUntilIdle()
         assertNull(ahead.take(films, SortOption.TITLE, LibraryFilter()))

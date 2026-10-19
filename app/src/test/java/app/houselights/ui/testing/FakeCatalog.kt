@@ -14,10 +14,12 @@ import app.houselights.core.Saga
 import app.houselights.core.SearchResults
 import app.houselights.core.Version
 
-/** A catalog for tests: [credits], person [pages], home's [directors] and [best] films; requests go to [calls]. */
+/** A catalog whose answers each test sets: calls go to [calls], those [fail] picks throw. */
 class FakeCatalog : Catalog {
-    var credits = mapOf<String, Credits>()
+    /** Person pages, by person id. */
     var pages = mapOf<String, PersonPage>()
+
+    /** Home's directors and best rated films. */
     var directors = listOf<Person>()
     var best = listOf<MediaItem>()
 
@@ -26,30 +28,41 @@ class FakeCatalog : Catalog {
 
     /** The copies of each film, by its id; the one [chooseVersion] is told is chosen after. */
     var copies = mapOf<String, List<Version>>()
+    var numbers = LibraryNumbers(films = 0, shows = 0, episodes = 0, sizeBytes = null, runtimeMs = null)
+
+    /** What any search finds. */
+    var found = SearchResults()
+
     val calls = mutableListOf<String>()
+    var fail: (call: String) -> Throwable? = { null }
 
-    override suspend fun credits(item: MediaItem): Credits = credits[item.id] ?: Credits()
+    private fun call(name: String) {
+        calls += name
+        fail(name)?.let { throw it }
+    }
 
-    override suspend fun person(id: String): PersonPage? = pages[id].also { calls += "person $id" }
+    override suspend fun credits(item: MediaItem): Credits = Credits().also { call("credits ${item.id}") }
+
+    override suspend fun person(id: String): PersonPage? = pages[id].also { call("person $id") }
 
     override suspend fun people(job: Job, kind: MediaKind?, minTitles: Int, limit: Int): List<Person> =
-        directors.take(limit).also { calls += "people $job" }
+        directors.take(limit).also { call("people $job") }
 
-    override suspend fun bestRated(kind: MediaKind, minVotes: Int, limit: Int): List<MediaItem> = best.take(limit).also { calls += "best" }
+    override suspend fun bestRated(kind: MediaKind, minVotes: Int, limit: Int): List<MediaItem> = best.take(limit).also { call("best") }
 
-    override suspend fun saga(collection: MediaItem): Saga? = sagas[collection.id]
+    override suspend fun saga(collection: MediaItem): Saga? = sagas[collection.id].also { call("saga ${collection.id}") }
 
-    override suspend fun versions(item: MediaItem): List<Version> = copies[item.id].orEmpty()
+    override suspend fun versions(item: MediaItem): List<Version> = copies[item.id].orEmpty().also { call("versions ${item.id}") }
 
     override suspend fun chooseVersion(item: MediaItem, version: Version?) {
-        calls += "choose ${version?.key}"
+        call("choose ${version?.key}")
         val chosen = version?.key
         copies = copies + (item.id to copies[item.id].orEmpty().map { it.copy(chosen = if (chosen == null) it.best else it.key == chosen) })
     }
 
-    override suspend fun playback(version: Version, resume: Boolean, options: PlaybackOptions): PlaybackPlan = error("no playback")
+    override suspend fun playback(version: Version, resume: Boolean, options: PlaybackOptions): PlaybackPlan = error("Not played here")
 
-    override suspend fun numbers(): LibraryNumbers = LibraryNumbers(0, 0, 0, null, null)
+    override suspend fun numbers(): LibraryNumbers = numbers.also { call("numbers") }
 
-    override suspend fun search(query: String, limit: Int): SearchResults = SearchResults()
+    override suspend fun search(query: String, limit: Int): SearchResults = found.also { call("search $query") }
 }

@@ -1,11 +1,11 @@
 package app.houselights.ui.design
 
-import androidx.compose.ui.graphics.toArgb
 import app.houselights.testing.children
 import app.houselights.testing.descendants
 import app.houselights.testing.xmlRoot
+import app.houselights.ui.testing.argb
+import app.houselights.ui.testing.resourceArgb
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.w3c.dom.Element
 import java.io.File
@@ -16,7 +16,7 @@ class ResourceTokensTest {
 
     @Test
     fun theWindowIsTheRoom() {
-        assertEquals("@color/room", argb(HouselightsColors.background.toArgb()), resourceColor("room"))
+        assertEquals("@color/room", argb(HouselightsColors.background), resourceColor("room"))
     }
 
     /** Before the app runs, the launch screen is the room with the mark alone in it (`splash_mark`). */
@@ -27,7 +27,6 @@ class ResourceTokensTest {
         assertEquals("@color/room", item(launch, "windowSplashScreenBackground"))
         assertEquals("@drawable/splash_mark", item(launch, "windowSplashScreenAnimatedIcon"))
         assertEquals("@style/Theme.Houselights", item(launch, "postSplashScreenTheme"))
-        assertTrue(File("src/main/res/drawable/splash_mark.xml").isFile)
         val activity = xmlRoot(File("src/main/AndroidManifest.xml")).descendants("activity")
             .single { it.getAttribute("android:name") == ".MainActivity" }
         assertEquals("@style/Theme.Houselights.Launch", activity.getAttribute("android:theme"))
@@ -39,15 +38,7 @@ class ResourceTokensTest {
     private fun item(style: Element, name: String): String =
         style.children("item").single { it.getAttribute("name") == name }.textContent.trim()
 
-    /** A colour resource as #AARRGGBB, opaque when written #RRGGBB. */
-    private fun resourceColor(name: String): String {
-        val value = xmlRoot(colors).children("color").single { it.getAttribute("name") == name }.textContent
-        return "#" + value.trim().removePrefix("#").uppercase().padStart(ARGB_DIGITS, 'F')
-    }
-
-    private fun argb(color: Int) = "#%08X".format(color)
-
-    private companion object {
-        const val ARGB_DIGITS = 8
-    }
+    /** A colour resource as #AARRGGBB. */
+    private fun resourceColor(name: String): String =
+        resourceArgb(xmlRoot(colors).children("color").single { it.getAttribute("name") == name }.textContent)
 }

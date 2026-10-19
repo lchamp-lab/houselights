@@ -21,6 +21,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import java.io.IOException
 
 /** A person's page: read from the catalog, gone when none of their titles is left, kept when a reload fails. */
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -61,10 +62,7 @@ class PersonViewModelTest {
     fun aFailedReloadKeepsThePage() = runTest {
         val vm = PersonViewModel("tmdb:1") { provider }
         advanceUntilIdle()
-        catalog.pages = emptyMap()
-        provider.catalog = object : app.houselights.core.Catalog by catalog {
-            override suspend fun person(id: String): PersonPage = throw java.io.IOException("NAS away")
-        }
+        catalog.fail = { IOException("NAS away") }
         vm.load()
         advanceUntilIdle()
         assertEquals(page, vm.state.value.page)
