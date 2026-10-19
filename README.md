@@ -4,7 +4,7 @@ A cinema-style media browser for **Zidoo** players (Z1000 Pro, Z9X, UHD series a
 that hands playback to the **native Zidoo player**, so HDR10, HDR10+, Dolby Vision, audio passthrough and the
 player's own menus keep working.
 
-> **Status:** early development. Not affiliated with Zidoo, Jellyfin, Emby or Plex.
+> **Status:** beta. Not affiliated with Zidoo, Jellyfin, Emby or Plex.
 
 ## Features
 
