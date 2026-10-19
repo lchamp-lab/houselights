@@ -300,10 +300,10 @@ tv-material's roles onto the scale.
 
 ### Icons (`Icons.kt`)
 
-`HlIcons` holds every icon, drawn for the app in one style: 24 dp grid, 1.75 stroke, round caps and joins. A
-state that reads as on is the same drawing filled (`Heart`, `HeartFilled`) or cut out of a filled circle
-(`CheckFilled`); Play is filled, as on a remote. There is no other icon: no Material icon is drawn, imported or
-declared as a dependency (`DesignTokenGuardTest`).
+`HlIcons` holds every icon, all Lucide's ([license](third_party/lucide/LICENSE)), their SVG paths as Lucide draws
+them: 24 dp grid, stroke 2, round caps and joins. A state that reads as on is the same drawing filled (`Heart`,
+`HeartFilled`) or its check cut out of a filled circle (`CheckFilled`); Play is filled, as on a remote. There is no
+other family: no Material icon is drawn, imported or declared as a dependency (`DesignTokenGuardTest`).
 
 ### Scrolling (`Scroll.kt`)
 

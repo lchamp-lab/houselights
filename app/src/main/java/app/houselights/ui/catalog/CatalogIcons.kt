@@ -38,7 +38,7 @@ import app.houselights.ui.design.components.StatusState
 
 /** Every glyph of the app; the marks that say done and your choice; what ember never says. */
 internal fun LazyListScope.catalogIcons() {
-    item { Group("Icons: one line, 1.75 on a 24 grid, at 24 and 20; Play the one filled glyph", still = true) { IconSheet() } }
+    item { Group("Icons: Lucide, stroke 2 on a 24 grid, at 24 and 20; Play filled as on a remote", still = true) { IconSheet() } }
     item { Group("Done and your choice: one check, two inks; in words, a light") { Marks() } }
     item { Group("Ember, states only: a score is a fact; attention sits beside what it concerns", still = true) { Facts() } }
 }

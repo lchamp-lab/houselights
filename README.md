@@ -125,5 +125,7 @@ any later version ([LICENSE](LICENSE), `GPL-3.0-or-later`).
 
 - The Archivo typeface is licensed under the SIL Open Font License 1.1
   ([third_party/archivo/OFL.txt](third_party/archivo/OFL.txt)).
+- Icons are Lucide's (https://lucide.dev), under the ISC license, those derived from Feather under the MIT
+  license ([third_party/lucide/LICENSE](third_party/lucide/LICENSE)).
 - This product uses the TMDB API but is not endorsed or certified by TMDB. The TMDB logo is a trademark of
   TMDB, shown under its attribution guidelines, and is not covered by the GPL.

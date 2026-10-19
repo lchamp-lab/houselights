@@ -6,248 +6,199 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.graphics.vector.PathBuilder
-import androidx.compose.ui.graphics.vector.path
+import androidx.compose.ui.graphics.vector.addPathNodes
 import androidx.compose.ui.unit.dp
 
-/** App icons on a 24 dp grid, 1.75 stroke, round caps and joins, tinted by the caller. */
+/**
+ * App icons: Lucide's (lucide.dev, ISC, third_party/lucide), their SVG paths as Lucide draws them on its 24 grid,
+ * stroke 2, round caps and joins, tinted by the caller. Each names its Lucide glyph.
+ */
 object HlIcons {
-    private fun icon(name: String, filled: Boolean = false, block: PathBuilder.() -> Unit): ImageVector =
+    private const val STROKE = 2f
+
+    /** A Lucide drawing from its SVG [paths], stroked; [filled] fills them too. */
+    private fun icon(name: String, vararg paths: String, filled: Boolean = false): ImageVector =
         ImageVector.Builder(name, 24.dp, 24.dp, 24f, 24f).apply {
-            path(
-                fill = if (filled) SolidColor(Color.Black) else null,
-                stroke = SolidColor(Color.Black),
-                strokeLineWidth = 1.75f,
-                strokeLineCap = StrokeCap.Round,
-                strokeLineJoin = StrokeJoin.Round,
-                pathBuilder = block,
-            )
+            paths.forEach { d ->
+                addPath(
+                    pathData = addPathNodes(d),
+                    fill = if (filled) SolidColor(Color.Black) else null,
+                    stroke = SolidColor(Color.Black),
+                    strokeLineWidth = STROKE,
+                    strokeLineCap = StrokeCap.Round,
+                    strokeLineJoin = StrokeJoin.Round,
+                )
+            }
         }.build()
 
-    /** A folder on the NAS. */
-    val Folder = icon("Folder") {
-        moveTo(3.5f, 7f); lineTo(3.5f, 18f); quadTo(3.5f, 19f, 4.5f, 19f); lineTo(19.5f, 19f)
-        quadTo(20.5f, 19f, 20.5f, 18f); lineTo(20.5f, 9f); quadTo(20.5f, 8f, 19.5f, 8f)
-        lineTo(11.5f, 8f); lineTo(9.5f, 5.5f); lineTo(4.5f, 5.5f); quadTo(3.5f, 5.5f, 3.5f, 7f); close()
-    }
+    /** A folder on the NAS (`folder`). */
+    val Folder = icon(
+        "Folder",
+        "M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z",
+    )
 
-    /** A media server. */
-    val Server = icon("Server") {
-        moveTo(4f, 4.5f); lineTo(20f, 4.5f); lineTo(20f, 10.5f); lineTo(4f, 10.5f); close()
-        moveTo(4f, 13.5f); lineTo(20f, 13.5f); lineTo(20f, 19.5f); lineTo(4f, 19.5f); close()
-        moveTo(7.5f, 7.5f); lineTo(8f, 7.5f)
-        moveTo(7.5f, 16.5f); lineTo(8f, 16.5f)
-    }
+    /** A media server (`server`). */
+    val Server = icon(
+        "Server",
+        "M4 2h16a2 2 0 0 1 2 2v4a2 2 0 0 1 -2 2h-16a2 2 0 0 1 -2 -2v-4a2 2 0 0 1 2 -2Z",
+        "M4 14h16a2 2 0 0 1 2 2v4a2 2 0 0 1 -2 2h-16a2 2 0 0 1 -2 -2v-4a2 2 0 0 1 2 -2Z",
+        "M6 6L6.01 6",
+        "M6 18L6.01 18",
+    )
 
-    /** The TV screen. */
-    val Display = icon("Display") {
-        moveTo(3f, 5f); lineTo(21f, 5f); lineTo(21f, 16f); lineTo(3f, 16f); close()
-        moveTo(9f, 19.5f); lineTo(15f, 19.5f)
-        moveTo(12f, 16f); lineTo(12f, 19.5f)
-    }
+    /** The TV screen (`monitor`). */
+    val Display = icon(
+        "Display",
+        "M4 3h16a2 2 0 0 1 2 2v10a2 2 0 0 1 -2 2h-16a2 2 0 0 1 -2 -2v-10a2 2 0 0 1 2 -2Z",
+        "M8 21L16 21",
+        "M12 17L12 21",
+    )
 
-    /** Playback: a film frame with a play mark. */
-    val Playback = icon("Playback") {
-        moveTo(3.5f, 5f); lineTo(20.5f, 5f); lineTo(20.5f, 19f); lineTo(3.5f, 19f); close()
-        moveTo(10.25f, 9f); lineTo(15f, 12f); lineTo(10.25f, 15f); close()
-    }
+    /** Playback: a frame with a play mark (`square-play`). */
+    val Playback = icon(
+        "Playback",
+        "M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2Z",
+        "m9 8 6 4-6 4Z",
+    )
 
-    /** Play, filled as on a remote: the main action's glyph. */
-    val Play = icon("Play", filled = true) {
-        moveTo(7f, 4.5f); lineTo(19.5f, 12f); lineTo(7f, 19.5f); close()
-    }
+    /** Play, filled as on a remote: the main action's glyph (`play`). */
+    val Play = icon("Play", "M6 3L20 12L6 21L6 3Z", filled = true)
 
-    /** A film's copies: one frame, another behind it. */
-    val Versions = icon("Versions") {
-        moveTo(3.5f, 8f); lineTo(16f, 8f); lineTo(16f, 20.5f); lineTo(3.5f, 20.5f); close()
-        moveTo(8f, 3.5f); lineTo(20.5f, 3.5f); lineTo(20.5f, 16f)
-    }
+    /** A film's copies: one frame, another behind it (`copy`). */
+    val Versions = icon(
+        "Versions",
+        "M10 8h10a2 2 0 0 1 2 2v10a2 2 0 0 1 -2 2h-10a2 2 0 0 1 -2 -2v-10a2 2 0 0 1 2 -2Z",
+        "M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2",
+    )
 
-    val Sort = icon("Sort") {
-        moveTo(4f, 7f); lineTo(20f, 7f)
-        moveTo(4f, 12f); lineTo(15f, 12f)
-        moveTo(4f, 17f); lineTo(10f, 17f)
-    }
+    /** Sorting: lines of decreasing length, and the way they go (`arrow-down-wide-narrow`). */
+    val Sort = icon("Sort", "m3 16 4 4 4-4", "M7 20V4", "M11 4h10", "M11 8h7", "M11 12h4")
 
-    val Filter = icon("Filter") {
-        moveTo(4f, 5f); lineTo(20f, 5f); lineTo(14f, 12.5f); lineTo(14f, 18.5f); lineTo(10f, 20f); lineTo(10f, 12.5f); close()
-    }
+    /** Filtering: a funnel (`filter`). */
+    val Filter = icon("Filter", "M22 3L2 3L10 12.46L10 19L14 21L14 12.46L22 3Z")
 
-    /** Information, and About. */
-    val Info = icon("Info") {
-        moveTo(20.5f, 12f)
-        arcTo(8.5f, 8.5f, 0f, true, true, 3.5f, 12f)
-        arcTo(8.5f, 8.5f, 0f, true, true, 20.5f, 12f)
-        close()
-        moveTo(12f, 11f); lineTo(12f, 16.5f)
-        moveTo(12f, 7.75f); lineTo(12f, 8f)
-    }
+    /** Information, and About (`info`). */
+    val Info = icon("Info", "M2 12a10 10 0 1 0 20 0a10 10 0 1 0 -20 0Z", "M12 16v-4", "M12 8h.01")
 
-    /** A document: the NFO file. */
-    val Document = icon("Document") {
-        moveTo(6f, 3.5f); lineTo(14f, 3.5f); lineTo(18.5f, 8f); lineTo(18.5f, 20.5f); lineTo(6f, 20.5f); close()
-        moveTo(14f, 3.5f); lineTo(14f, 8f); lineTo(18.5f, 8f)
-        moveTo(9f, 12.5f); lineTo(15.5f, 12.5f)
-        moveTo(9f, 16f); lineTo(15.5f, 16f)
-    }
+    /** A document: the NFO file (`file-text`). */
+    val Document = icon(
+        "Document",
+        "M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z",
+        "M14 2v4a2 2 0 0 0 2 2h4",
+        "M10 9H8",
+        "M16 13H8",
+        "M16 17H8",
+    )
 
-    val Storage = icon("Storage") {
-        moveTo(4.5f, 6.5f); quadTo(4.5f, 4f, 12f, 4f); quadTo(19.5f, 4f, 19.5f, 6.5f); quadTo(19.5f, 9f, 12f, 9f); quadTo(4.5f, 9f, 4.5f, 6.5f); close()
-        moveTo(4.5f, 6.5f); lineTo(4.5f, 17.5f); quadTo(4.5f, 20f, 12f, 20f); quadTo(19.5f, 20f, 19.5f, 17.5f); lineTo(19.5f, 6.5f)
-        moveTo(4.5f, 12f); quadTo(4.5f, 14.5f, 12f, 14.5f); quadTo(19.5f, 14.5f, 19.5f, 12f)
-    }
+    /** Storage: a drive (`hard-drive`). */
+    val Storage = icon(
+        "Storage",
+        "M22 12L2 12",
+        "M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z",
+        "M6 16L6.01 16",
+        "M10 16L10.01 16",
+    )
 
-    /** The library in numbers: a number sign. */
-    val Numbers = icon("Numbers") {
-        moveTo(10.5f, 4f); lineTo(8.5f, 20f)
-        moveTo(15.5f, 4f); lineTo(13.5f, 20f)
-        moveTo(5f, 9f); lineTo(19.5f, 9f)
-        moveTo(4.5f, 15f); lineTo(19f, 15f)
-    }
+    /** The library in numbers: a number sign (`hash`). */
+    val Numbers = icon("Numbers", "M4 9L20 9", "M4 15L20 15", "M10 3L8 21", "M16 3L14 21")
 
-    val Edit = icon("Edit") {
-        moveTo(4.5f, 19.5f); lineTo(5.25f, 15.75f); lineTo(15.5f, 5.5f); quadTo(16.5f, 4.5f, 17.5f, 5.5f)
-        lineTo(18.5f, 6.5f); quadTo(19.5f, 7.5f, 18.5f, 8.5f); lineTo(8.25f, 18.75f); close()
-        moveTo(13.75f, 7.25f); lineTo(16.75f, 10.25f)
-    }
+    /** Edit: a pencil (`pencil`). */
+    val Edit = icon(
+        "Edit",
+        "M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622" +
+            "l4.353-1.32a2 2 0 0 0 .83-.497z",
+        "m15 5 4 4",
+    )
 
-    /** Logo: the title as type. */
-    val Logo = icon("Logo") {
-        moveTo(5f, 6.5f); lineTo(5f, 5f); lineTo(19f, 5f); lineTo(19f, 6.5f)
-        moveTo(12f, 5f); lineTo(12f, 19f)
-        moveTo(9f, 19f); lineTo(15f, 19f)
-    }
+    /** Logo: the title as type (`type`). */
+    val Logo = icon("Logo", "M4 7L4 4L20 4L20 7", "M9 20L15 20", "M12 4L12 20")
 
-    val Search = icon("Search") {
-        moveTo(17f, 10.5f)
-        arcTo(6.5f, 6.5f, 0f, true, true, 4f, 10.5f)
-        arcTo(6.5f, 6.5f, 0f, true, true, 17f, 10.5f)
-        close()
-        moveTo(15.25f, 15.25f); lineTo(20f, 20f)
-    }
+    /** Search: a magnifying glass (`search`). */
+    val Search = icon("Search", "M3 11a8 8 0 1 0 16 0a8 8 0 1 0 -16 0Z", "m21 21-4.3-4.3")
 
-    /** A check: done (watched) in projector white, your choice in ember. */
-    val Check = icon("Check") {
-        moveTo(5f, 12.5f); lineTo(9.75f, 17f); lineTo(19f, 7.5f)
-    }
+    /** A check: done (watched) in projector white, your choice in ember (`check`). */
+    val Check = icon("Check", "M20 6 9 17l-5-5")
 
-    /** Done in a toggle: [Check] cut out of a filled circle, so it reads as on whatever the tint. */
+    /**
+     * Done in a toggle (`circle-check`): its disc filled, the check's stroke with its round ends cut out of it,
+     * so it reads as on whatever the tint.
+     */
     val CheckFilled = ImageVector.Builder("CheckFilled", 24.dp, 24.dp, 24f, 24f).apply {
-        path(fill = SolidColor(Color.Black), pathFillType = PathFillType.EvenOdd) {
-            moveTo(21.5f, 12f)
-            arcTo(9.5f, 9.5f, 0f, true, true, 2.5f, 12f)
-            arcTo(9.5f, 9.5f, 0f, true, true, 21.5f, 12f)
-            close()
-            moveTo(6.8f, 13.13f); lineTo(10.63f, 16.83f); lineTo(17.33f, 9.9f)
-            arcTo(1.15f, 1.15f, 0f, false, false, 15.67f, 8.3f)
-            lineTo(10.57f, 13.57f); lineTo(8.4f, 11.47f)
-            arcTo(1.15f, 1.15f, 0f, false, false, 6.8f, 13.13f)
-            close()
-        }
+        addPath(
+            pathData = addPathNodes(
+                "M22 12A10 10 0 1 1 2 12A10 10 0 1 1 22 12Z" +
+                    "M8.29 12.71L10.29 14.71A1 1 0 0 0 11.71 14.71L15.71 10.71A1 1 0 0 0 14.29 9.29" +
+                    "L11 12.59L9.71 11.29A1 1 0 0 0 8.29 12.71Z",
+            ),
+            pathFillType = PathFillType.EvenOdd,
+            fill = SolidColor(Color.Black),
+        )
     }.build()
 
-    /** Play from the start: an arrow turning back to the top. */
-    val Restart = icon("Restart") {
-        moveTo(12f, 5.25f)
-        arcTo(7.25f, 7.25f, 0f, true, true, 4.75f, 12.5f)
-        moveTo(14.5f, 2.75f); lineTo(12f, 5.25f); lineTo(14.5f, 7.75f)
-    }
+    /** Play from the start: an arrow turning back (`rotate-ccw`). */
+    val Restart = icon("Restart", "M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8", "M3 3v5h5")
 
-    /** The Back key of the remote: an arrow turning back. */
-    val Back = icon("Back") {
-        moveTo(4.75f, 10f); lineTo(15f, 10f)
-        arcTo(4.5f, 4.5f, 0f, false, true, 15f, 19f)
-        lineTo(11f, 19f)
-        moveTo(8.75f, 6f); lineTo(4.75f, 10f); lineTo(8.75f, 14f)
-    }
+    /** The Back key of the remote: an arrow turning back (`undo-2`). */
+    val Back = icon("Back", "M9 14 4 9l5-5", "M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11")
 
-    /** Opens what a row leads to. */
-    val Chevron = icon("Chevron") {
-        moveTo(9.5f, 6f); lineTo(15.5f, 12f); lineTo(9.5f, 18f)
-    }
+    /** Opens what a row leads to (`chevron-right`). */
+    val Chevron = icon("Chevron", "m9 18 6-6-6-6")
 
-    /** Turns a screen to its other view: two arrows, one each way. */
-    val Swap = icon("Swap") {
-        moveTo(4.5f, 8f); lineTo(19.5f, 8f)
-        moveTo(15.5f, 4f); lineTo(19.5f, 8f); lineTo(15.5f, 12f)
-        moveTo(19.5f, 16f); lineTo(4.5f, 16f)
-        moveTo(8.5f, 12f); lineTo(4.5f, 16f); lineTo(8.5f, 20f)
-    }
+    /** Turns a screen to its other view: two arrows, one each way (`arrow-left-right`). */
+    val Swap = icon("Swap", "M8 3 4 7l4 4", "M4 7h16", "m16 21 4-4-4-4", "M20 17H4")
 
-    val Settings = icon("Settings") {
-        moveTo(10.28f, 5.99f); lineTo(10.59f, 3.11f); lineTo(13.41f, 3.11f); lineTo(13.72f, 5.99f)
-        arcTo(6.25f, 6.25f, 0f, false, true, 16.34f, 7.5f)
-        lineTo(18.99f, 6.34f); lineTo(20.4f, 8.77f); lineTo(18.06f, 10.49f)
-        arcTo(6.25f, 6.25f, 0f, false, true, 18.06f, 13.51f)
-        lineTo(20.4f, 15.23f); lineTo(18.99f, 17.66f); lineTo(16.34f, 16.5f)
-        arcTo(6.25f, 6.25f, 0f, false, true, 13.72f, 18.01f)
-        lineTo(13.41f, 20.89f); lineTo(10.59f, 20.89f); lineTo(10.28f, 18.01f)
-        arcTo(6.25f, 6.25f, 0f, false, true, 7.66f, 16.5f)
-        lineTo(5.01f, 17.66f); lineTo(3.6f, 15.23f); lineTo(5.94f, 13.51f)
-        arcTo(6.25f, 6.25f, 0f, false, true, 5.94f, 10.49f)
-        lineTo(3.6f, 8.77f); lineTo(5.01f, 6.34f); lineTo(7.66f, 7.5f)
-        arcTo(6.25f, 6.25f, 0f, false, true, 10.28f, 5.99f)
-        close()
-        moveTo(14.75f, 12f)
-        arcTo(2.75f, 2.75f, 0f, true, true, 9.25f, 12f)
-        arcTo(2.75f, 2.75f, 0f, true, true, 14.75f, 12f)
-        close()
-    }
+    /** Settings: three faders, each at its own level (`sliders-horizontal`). */
+    val Settings = icon(
+        "Settings",
+        "M21 4L14 4",
+        "M10 4L3 4",
+        "M21 12L12 12",
+        "M8 12L3 12",
+        "M21 20L16 20",
+        "M12 20L3 20",
+        "M14 2L14 6",
+        "M8 10L8 14",
+        "M16 18L16 22",
+    )
 
-    val Add = icon("Add") {
-        moveTo(12f, 5f); lineTo(12f, 19f)
-        moveTo(5f, 12f); lineTo(19f, 12f)
-    }
+    /** Add: a plus (`plus`). */
+    val Add = icon("Add", "M5 12h14", "M12 5v14")
 
-    /** Try again: an arrow going round, the mirror of [Restart]. */
-    val Refresh = icon("Refresh") {
-        moveTo(12f, 5.25f)
-        arcTo(7.25f, 7.25f, 0f, true, false, 19.25f, 12.5f)
-        moveTo(9.5f, 2.75f); lineTo(12f, 5.25f); lineTo(9.5f, 7.75f)
-    }
+    /** Try again: two arrows going round (`refresh-cw`). */
+    val Refresh = icon(
+        "Refresh",
+        "M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8",
+        "M21 3v5h-5",
+        "M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16",
+        "M8 16H3v5",
+    )
 
-    /** Test a connection: a pulse, as on a monitor. */
-    val Test = icon("Test") {
-        moveTo(3f, 12.5f); lineTo(7.5f, 12.5f); lineTo(9.75f, 7f); lineTo(14.25f, 18f); lineTo(16.5f, 12.5f); lineTo(21f, 12.5f)
-    }
+    /** Test a connection: a pulse, as on a monitor (`activity`). */
+    val Test = icon(
+        "Test",
+        "M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36" +
+            "A2 2 0 0 1 4.49 12H2",
+    )
 
-    /** Remove a line: a cross. */
-    val Close = icon("Close") {
-        moveTo(6.5f, 6.5f); lineTo(17.5f, 17.5f)
-        moveTo(17.5f, 6.5f); lineTo(6.5f, 17.5f)
-    }
+    /** Remove a line: a cross (`x`). */
+    val Close = icon("Close", "M18 6 6 18", "m6 6 12 12")
 
-    private val heart: PathBuilder.() -> Unit = {
-        moveTo(12f, 19.75f)
-        curveTo(7.5f, 16.5f, 3.5f, 13.25f, 3.5f, 9f)
-        curveTo(3.5f, 6.5f, 5.5f, 4.5f, 8f, 4.5f)
-        curveTo(9.75f, 4.5f, 11.25f, 5.5f, 12f, 7f)
-        curveTo(12.75f, 5.5f, 14.25f, 4.5f, 16f, 4.5f)
-        curveTo(18.5f, 4.5f, 20.5f, 6.5f, 20.5f, 9f)
-        curveTo(20.5f, 13.25f, 16.5f, 16.5f, 12f, 19.75f)
-        close()
-    }
+    private const val HEART =
+        "M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2" +
+            "A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"
 
-    /** Not a favourite: an outlined heart. */
-    val Heart = icon("Heart", block = heart)
+    /** Not a favourite: an outlined heart (`heart`). */
+    val Heart = icon("Heart", HEART)
 
     /** A favourite: the same heart, filled. */
-    val HeartFilled = icon("HeartFilled", filled = true, block = heart)
+    val HeartFilled = icon("HeartFilled", HEART, filled = true)
 
-    /** A score: a five-pointed star, set in a line of facts. */
-    val Star = icon("Star") {
-        moveTo(12f, 3.35f); lineTo(14.41f, 9.28f); lineTo(20.8f, 9.74f); lineTo(15.9f, 13.87f); lineTo(17.44f, 20.08f)
-        lineTo(12f, 16.7f); lineTo(6.56f, 20.08f); lineTo(8.1f, 13.87f); lineTo(3.2f, 9.74f); lineTo(9.59f, 9.28f)
-        close()
-    }
+    /** A score: a five-pointed star, set in a line of facts (`star`). */
+    val Star = icon(
+        "Star",
+        "M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z",
+    )
 
-    /** Something needs attention: a circled exclamation mark, [Info] turned over. */
-    val Attention = icon("Attention") {
-        moveTo(20.5f, 12f)
-        arcTo(8.5f, 8.5f, 0f, true, true, 3.5f, 12f)
-        arcTo(8.5f, 8.5f, 0f, true, true, 20.5f, 12f)
-        close()
-        moveTo(12f, 7.5f); lineTo(12f, 13f)
-        moveTo(12f, 16f); lineTo(12f, 16.25f)
-    }
+    /** Something needs attention: a circled exclamation mark, [Info] turned over (`circle-alert`). */
+    val Attention = icon("Attention", "M2 12a10 10 0 1 0 20 0a10 10 0 1 0 -20 0Z", "M12 8L12 12", "M12 16L12.01 16")
 }
