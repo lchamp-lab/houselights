@@ -35,7 +35,9 @@ import app.houselights.ui.design.components.HlIconButton
 import app.houselights.ui.design.components.HlSegmented
 import app.houselights.ui.design.components.HlSettingRow
 import app.houselights.ui.design.components.HlTitleSwitch
+import app.houselights.ui.design.components.ScreenTitle
 import app.houselights.ui.design.components.SegmentDetail
+import app.houselights.ui.design.components.TaskTitle
 import app.houselights.ui.util.NBSP
 import app.houselights.ui.util.libraryName
 import kotlinx.coroutines.delay
@@ -48,6 +50,7 @@ internal fun LazyListScope.catalogControls() {
             ControlStates()
         }
     }
+    item { Group("Titles: a place's name in the ember light, a task's in white") { Titles() } }
     item { Group("Tiles: 48 on a page, 40 in a header; a chosen state lights the glyph") { TileStates() } }
     item { Group("Over a picture: plates in its own dark, edged with a hairline") { OverAPicture() } }
     item { Group("Tracks: words in the poster's voice, the place in ember; focus is white") { Tracks() } }
@@ -141,6 +144,14 @@ private fun ControlStates() {
                 enabled = false,
             )
         }
+    }
+}
+
+@Composable
+private fun Titles() {
+    Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.xxl)) {
+        Specimen("a place", gap = HlSpace.xs) { ScreenTitle(stringResource(R.string.settings_title)) }
+        Specimen("a task or a form", gap = HlSpace.xs) { TaskTitle(stringResource(R.string.add_folder)) }
     }
 }
 

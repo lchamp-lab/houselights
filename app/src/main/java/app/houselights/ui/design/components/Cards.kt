@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -115,6 +116,7 @@ val LocalGroupFocused = compositionLocalOf { false }
 /**
  * A horizontal row of cards under [header] and its [count], or a custom [heading], then how many of its
  * titles are [news] ([wearsNewDot]). Focus returns to the last focused card; one frame travels from card to card.
+ * Whatever takes focus in it is a framed card ([ArtworkSurface], [AbsentCard]), as the row's frame is its only focus.
  */
 @Composable
 fun MediaRow(
@@ -175,7 +177,7 @@ private fun RowHeading(modifier: Modifier, count: String?, news: Int, title: @Co
             Spacer(Modifier.width(HlSpace.s))
             Row(Modifier.alignByBaseline(), verticalAlignment = Alignment.CenterVertically) {
                 // The ember dot says new; the words say how many.
-                Box(Modifier.size(HlSize.newsDot).clip(CircleShape).background(c.ember))
+                Box(Modifier.size(HlSize.newsDot).background(c.ember, CircleShape))
                 Spacer(Modifier.width(HlSpace.xs))
                 val words = pluralStringResource(R.plurals.row_news, news, news)
                 Text(words, style = Hl.type.caption, color = c.contentSecondary, maxLines = 1)
@@ -381,7 +383,7 @@ fun LandscapeCard(
     onFocused: () -> Unit = {},
 ) {
     val still = item.landscape?.url(width.toPx())
-    Column(modifier.width(width)) {
+    CardColumn(modifier.width(width)) {
         ArtworkSurface(
             onClick,
             Modifier.fillMaxWidth().aspectRatio(STILL_SHAPE),
@@ -462,24 +464,36 @@ private val Placeable?.wide: Int get() = this?.width ?: 0
 private val Placeable?.tall: Int get() = this?.height ?: 0
 private val Placeable?.base: Int get() = this?.get(FirstBaseline)?.takeIf { it != AlignmentLine.Unspecified } ?: 0
 
+/**
+ * A card's column: its framed surface, then what is written under it. Only siblings are ordered, so the column is
+ * drawn above its neighbours as its surface would be ([Raise]).
+ */
+@Composable
+internal fun CardColumn(
+    modifier: Modifier,
+    horizontalAlignment: Alignment.Horizontal = Alignment.Start,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    val raise = remember { Raise() }
+    val raised = remember(raise) { Modifier.raisedBy { raise.level() } }
+    Column(modifier.then(raised), horizontalAlignment = horizontalAlignment) {
+        CompositionLocalProvider(LocalRaise provides raise) { content() }
+    }
+}
+
 /** A credited person: portrait, name and role; opens their page ([onOpen]) when in several titles. */
 @Composable
 fun PersonCard(person: Person, modifier: Modifier = Modifier, onOpen: (() -> Unit)? = null) {
     val px = HlSize.portrait.toPx()
-    Column(modifier.width(HlSize.personColumn), horizontalAlignment = Alignment.CenterHorizontally) {
+    CardColumn(modifier.width(HlSize.personColumn), Alignment.CenterHorizontally) {
         ArtworkSurface(
             onClick = onOpen ?: {},
             modifier = Modifier.width(HlSize.portrait).aspectRatio(HlSize.PORTRAIT_RATIO),
             readAs = listOfNotNull(person.name, person.role).joinToString(", "),
             acts = onOpen != null,
         ) {
-            Text(
-                person.name.split(' ').mapNotNull { it.firstOrNull()?.uppercase() }.take(2).joinToString(""),
-                style = Hl.type.lead,
-                color = Hl.colors.contentTertiary,
-                modifier = Modifier.align(Alignment.Center),
-            )
-            person.image?.url(px)?.let { ArtworkImage(it, person.name, Modifier.fillMaxSize()) }
+            // Without a portrait, the empty frame: the name is written under it.
+            ArtworkImage(person.image?.url(px), person.name, Modifier.fillMaxSize())
         }
         Spacer(Modifier.height(HlSpace.s))
         // Already read by the portrait.

@@ -626,7 +626,10 @@ private fun SegmentItem(
     }
 }
 
-/** A track's word: the current one bold in the ember light, black under focus; each as wide as it is in bold. */
+/**
+ * A track's word: the current one bold in the ember light, black under focus; each as wide as it is in bold and
+ * set from its start, so turning bold moves neither it nor the words after it.
+ */
 @Composable
 private fun Word(text: String, current: Boolean, lit: Boolean) {
     val c = Hl.colors
@@ -637,7 +640,7 @@ private fun Word(text: String, current: Boolean, lit: Boolean) {
         lit -> t.placeCurrent
         else -> here
     }
-    Box(contentAlignment = Alignment.Center) {
+    Box(contentAlignment = Alignment.CenterStart) {
         // Measured, never drawn: choosing a word, which turns it bold, moves none of the others.
         Text(text, style = t.placeCurrent, maxLines = 1, softWrap = false, modifier = Modifier.clearAndSetSemantics {}.unplaced())
         Text(text, style = style, maxLines = 1, softWrap = false)

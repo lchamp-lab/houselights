@@ -45,13 +45,19 @@ fun SectionHeader(text: String, modifier: Modifier = Modifier) {
     Text(text, style = Hl.type.rowTitle, color = Hl.colors.content, modifier = modifier)
 }
 
-/** A screen's title, the place it is (a library, Réglages, a person), in the ember light; never a film's title. */
+/** The title of a place (a wall, Réglages, Rechercher, a person) in the ember light; never a film's title. */
 @Composable
 fun ScreenTitle(text: String, modifier: Modifier = Modifier) {
     val colors = Hl.colors
     val headline = Hl.type.headline
     val lit = remember(colors, headline) { headline.emberLit(colors) }
     Text(text, style = lit, color = colors.content, modifier = modifier)
+}
+
+/** The title of a task or a form (Identifier, Ajouter un dossier) in white: ember says where you are, not what you do. */
+@Composable
+fun TaskTitle(text: String, modifier: Modifier = Modifier) {
+    Text(text, style = Hl.type.headline, color = Hl.colors.content, modifier = modifier)
 }
 
 /**

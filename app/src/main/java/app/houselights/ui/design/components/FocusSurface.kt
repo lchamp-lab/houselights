@@ -16,6 +16,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.State
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -40,6 +44,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.SemanticsPropertyReceiver
 import androidx.compose.ui.semantics.disabled
@@ -48,7 +53,6 @@ import androidx.compose.ui.semantics.onLongClick
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.zIndex
 import androidx.tv.material3.LocalContentColor
 import app.houselights.ui.design.HlFocus
 import app.houselights.ui.design.HlMotion
@@ -61,8 +65,8 @@ import kotlinx.coroutines.launch
  * [FocusStyle] (DESIGN.md, Focus). Fill, frame, growth and [glow] are read while drawing, a plate's light in
  * its content's clip layer: focus moving recomposes it as focus turns, and a plate again half way through its
  * fill, when its ink turns. Only a framed picture grows, in a layer of its own, above its neighbours until its
- * light is out, the focused one on top. While an arrow is held ([Scrub]), focus shows at once and nothing grows
- * or glows.
+ * light is out, the focused one on top (its card's column in its stead, [CardColumn]). While an arrow is held
+ * ([Scrub]), focus shows at once and nothing grows or glows.
  *
  * OK (centre, enter) presses on its way down and clicks on its way up if the press was taken here; held, it
  * long-clicks instead. Focus reaches it when it cannot act ([enabled] false, or no [onClick]), and OK then does
@@ -85,7 +89,8 @@ internal fun HlFocusSurface(
     content: @Composable BoxScope.(lit: Boolean) -> Unit,
 ) {
     val interaction = interactionSource ?: remember { MutableInteractionSource() }
-    val focused by interaction.collectIsFocusedAsState()
+    val focus = interaction.collectIsFocusedAsState()
+    val focused by focus
     val framed = look.gesture == Gesture.Frame
     val lights = rememberLights(focused, framed, rises = enabled && (look.lift != Lift.Still || glow != null))
     val lit = if (framed) focused else lights.halfLit
@@ -96,14 +101,14 @@ internal fun HlFocusSurface(
     Box(
         modifier
             .then(inRow ?: Modifier)
-            .raisedWhileLit(framed, focused, lights)
+            .then(rememberRaise(framed, focus, lights))
             .pressWithOk(interaction, onClick.takeIf { enabled }, onLongClick.takeIf { enabled })
             .focusable(interactionSource = interaction)
             .semantics(mergeDescendants = true) { describe(role, selected, enabled, onClick, onLongClick) }
             .then(light),
         propagateMinConstraints = true,
     ) {
-        CompositionLocalProvider(LocalContentColor provides look.ink(enabled, lit)) {
+        CompositionLocalProvider(LocalContentColor provides look.ink(enabled, lit), LocalRaise provides null) {
             // In the clip's layer, the plate's light redraws that layer alone, never the screen's.
             Box(Modifier.clip(shape).drawWithCache { drawPlate(look, shape, enabled, ring, lights) }) { content(lit) }
         }
@@ -136,9 +141,44 @@ private fun rememberLights(focused: Boolean, framed: Boolean, rises: Boolean): L
     return lights
 }
 
-/** A framed surface is drawn above its neighbours: on top with focus, then while its light goes out. */
-private fun Modifier.raisedWhileLit(framed: Boolean, focused: Boolean, lights: Lights): Modifier =
-    if (framed) zIndex(if (focused) 2f else if (lights.showing) 1f else 0f) else this
+/**
+ * A framed surface is drawn above its neighbours: on top with focus, then while its light goes out. Read while
+ * placing; the card it is the picture of ([LocalRaise]) is raised in its stead.
+ */
+@Composable
+private fun rememberRaise(framed: Boolean, focus: State<Boolean>, lights: Lights): Modifier {
+    if (!framed) return Modifier
+    val level = remember(focus, lights) { { if (focus.value) ON_TOP else if (lights.showing) ABOVE else 0f } }
+    val card = LocalRaise.current ?: return remember(level) { Modifier.raisedBy(level) }
+    DisposableEffect(card, level) {
+        card.level = level
+        onDispose { card.level = AtRest }
+    }
+    return Modifier
+}
+
+/**
+ * The root of a card whose framed surface is not its root ([CardColumn]): only siblings are ordered, so it is
+ * drawn above its neighbours as its surface would be.
+ */
+@Stable
+internal class Raise {
+    /** How far above its neighbours, read while placing. */
+    var level by mutableStateOf(AtRest)
+}
+
+/** The card a framed surface is the picture of; null where the surface is its own root. */
+internal val LocalRaise = staticCompositionLocalOf<Raise?> { null }
+
+/** Drawn above its siblings by [level], read while placing: a change places it again and recomposes nothing. */
+internal fun Modifier.raisedBy(level: () -> Float): Modifier = layout { measurable, constraints ->
+    val placeable = measurable.measure(constraints)
+    layout(placeable.width, placeable.height) { placeable.place(0, 0, zIndex = level()) }
+}
+
+private val AtRest: () -> Float = { 0f }
+private const val ABOVE = 1f
+private const val ON_TOP = 2f
 
 /** A framed surface's glow, [frame] and growth, outside its plate; nothing for a plate that fills. */
 private fun framedLight(look: FocusLook, shape: Shape, frame: Brush?, glow: (() -> Color)?, lights: Lights): Modifier {

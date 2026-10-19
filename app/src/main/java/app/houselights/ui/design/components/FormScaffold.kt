@@ -66,7 +66,7 @@ fun HlFormScaffold(
     val scroll = rememberScrollState()
     HlTwoPane(
         side = {
-            ScreenTitle(title)
+            TaskTitle(title)
             Spacer(Modifier.height(HlSpace.m))
             Text(description, style = Hl.type.body, color = Hl.colors.contentSecondary)
             Spacer(Modifier.height(HlSpace.xl))

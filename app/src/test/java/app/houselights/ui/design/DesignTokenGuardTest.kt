@@ -2,6 +2,7 @@ package app.houselights.ui.design
 
 import app.houselights.testing.kotlinSources
 import app.houselights.testing.linesWhere
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
@@ -65,6 +66,30 @@ class DesignTokenGuardTest {
             !file.isFile || file.readLines().none { line -> exception.allows(path, line) && rules.any { it.first.containsMatchIn(line) } }
         }
         assertTrue("Exceptions for lines that no longer break a rule: ${stale.joinToString()}", stale.isEmpty())
+    }
+
+    /** The screens titled as a place, in ember (`ScreenTitle`); a task or a form is titled in white (`TaskTitle`). */
+    private val places = mapOf(
+        "library/LibraryScreen.kt" to "a wall: Films, Séries, Sagas",
+        "settings/SettingsScreen.kt" to "Réglages",
+        "search/SearchScreen.kt" to "Rechercher",
+        "person/PersonScreen.kt" to "a person",
+    )
+
+    /** Ember says where you are: only a place lights its title, never a task, a form or a film. */
+    @Test
+    fun onlyAPlaceIsTitledInEmber() {
+        val lit = Regex("""(?<!fun )\b(ScreenTitle|HlTitleSwitch)\(""")
+        // The catalogue shows both titles.
+        val elsewhere = listOf(ui.resolve("design"), ui.resolve("catalog"))
+        val titled = kotlinSources(ui).filter { file -> elsewhere.none { file.startsWith(it) } }
+            .filter { file -> file.readLines().any { !it.trimStart().startsWith("import ") && lit.containsMatchIn(it) } }
+            .map { it.relativeTo(ui).path }.toSortedSet()
+        assertEquals("Screens titled as a place", places.keys.toSortedSet(), titled)
+        // In the design system, only the switch of a wall's title lights one.
+        val components = ui.resolve("design/components")
+        val lighting = kotlinSources(components).filter { file -> file.readLines().any { lit.containsMatchIn(it) } }.map { it.name }
+        assertEquals(listOf("Controls.kt"), lighting)
     }
 
     /** Whether this exception, "path:fragment", covers [line] of the file at [path]. */

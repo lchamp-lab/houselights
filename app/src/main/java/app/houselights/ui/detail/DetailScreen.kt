@@ -744,7 +744,7 @@ private fun EpisodesFailed(header: String?, error: UiError, retrying: Boolean, o
     }
 }
 
-/** Parts go in a menu from three on: two buttons beside Lire still leave room for the round buttons. */
+/** Parts go in a menu from three on: two buttons beside Lire still leave room for the tiles. */
 internal fun partsInMenu(count: Int): Boolean = count > INLINE_PARTS
 
 /** [parts] as menu options named by [labels], none selected so the menu opens on the first part. */
@@ -772,7 +772,7 @@ private val FAVORITE = FocusKey.action("favorite")
 private val EDIT = FocusKey.action("edit")
 private val PARTS = FocusKey.action("parts")
 
-/** Parts shown as buttons in the action row, beside Lire and the round buttons. */
+/** Parts shown as buttons in the action row, beside Lire and the tiles. */
 private const val INLINE_PARTS = 2
 private const val EPISODES = "episodes"
 

@@ -6,7 +6,14 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.items
-import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.Composition
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.ExperimentalComposeRuntimeApi
+import androidx.compose.runtime.InternalComposeApi
+import androidx.compose.runtime.RecomposeScope
+import androidx.compose.runtime.currentComposer
+import androidx.compose.runtime.tooling.CompositionObserver
+import androidx.compose.runtime.tooling.observe
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -38,34 +45,54 @@ import java.time.Duration
 /** DESIGN.md, Focus: a row draws one frame, which travels from the card left to the card reached. */
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = TV)
+@OptIn(ExperimentalComposeRuntimeApi::class)
 class RowFrameTest {
     @get:Rule
     val compose = createComposeRule()
 
     private val frames = mutableMapOf<String, RowFrame>()
-    private var compositions = 0
-    private val start = FocusRequester()
+    private val requesters = mutableMapOf<String, FocusRequester>()
+
+    /** Scopes recomposed anywhere in the screen, the rows' cards and their surfaces included. */
+    private var recomposed = 0
+    private val counting = object : CompositionObserver {
+        override fun onBeginComposition(composition: Composition, invalidationMap: Map<RecomposeScope, Set<Any>?>) {
+            recomposed += invalidationMap.size
+        }
+
+        override fun onEndComposition(composition: Composition) = Unit
+    }
 
     /** Rows of eight posters named by [rows], focus on the first poster of the first. */
+    @OptIn(InternalComposeApi::class)
     private fun show(vararg rows: String) {
         compose.setTvContent {
+            // Observing the screen's composition observes the rows' items, composed apart, too.
+            val composition = currentComposer.composition
+            DisposableEffect(composition) {
+                val handle = composition.observe(counting)
+                onDispose { handle?.dispose() }
+            }
             Column {
                 rows.forEach { row ->
                     MediaRow(header = null) {
                         items((0 until 8).map { "$row$it" }) { card ->
                             frames[row] = checkNotNull(LocalRowFrame.current)
-                            SideEffect { compositions++ }
-                            val first = if (card == "${rows.first()}0") Modifier.focusRequester(start) else Modifier
+                            val requester = requesters.getOrPut(card) { FocusRequester() }
                             ArtworkSurface(
                                 onClick = {},
-                                modifier = first.testTag(card).width(HlSize.poster).aspectRatio(2f / 3f),
-                            ) { SideEffect { compositions++ } }
+                                modifier = Modifier.focusRequester(requester).testTag(card).width(HlSize.poster).aspectRatio(2f / 3f),
+                            ) {}
                         }
                     }
                 }
             }
         }
-        compose.runOnIdle { start.requestFocus() }
+        focusOn("${rows.first()}0")
+    }
+
+    private fun focusOn(card: String) {
+        compose.runOnIdle { requesters.getValue(card).requestFocus() }
         compose.waitForIdle()
     }
 
@@ -93,21 +120,39 @@ class RowFrameTest {
         assertEquals(frameWidth(1f), frame().width, 0.5f)
 
         compose.mainClock.autoAdvance = false
+        val before = recomposed
         compose.press(Key.DirectionRight)
         // Focus moving recomposes the two cards it concerns, once.
         repeat(3) { compose.mainClock.advanceTimeByFrame() }
-        val settled = compositions
+        val settled = recomposed
+        assertTrue("the cards' recomposition is seen", settled > before)
         val from = centre("a0").x
         val to = centre("a1").x
         val midway = frame().center.x
         assertTrue("the frame is on its way at $midway, from $from to $to", midway > from && midway < to)
         compose.mainClock.advanceTimeBy(HlMotion.FOCUS_IN / 2L)
         assertTrue("it keeps going", frame().center.x > midway)
-        assertEquals("only drawing follows the frame", settled, compositions)
 
+        // The card left falls back and its light goes out.
         compose.mainClock.advanceTimeBy(HlMotion.FOCUS_OUT.toLong())
         assertEquals(to, frame().center.x, 0.5f)
         assertEquals("it frames the reached card grown", frameWidth(1f), frame().width, 0.5f)
+        assertEquals("only drawing and placing follow the frame and the lights", settled, recomposed)
+    }
+
+    @Test
+    fun aJourneyCutShortGoesOnFromWhereTheFrameWas() {
+        show("a")
+        compose.mainClock.autoAdvance = false
+        compose.press(Key.DirectionRight)
+        repeat(3) { compose.mainClock.advanceTimeByFrame() }
+        val cut = frame().center.x
+        compose.press(Key.DirectionRight)
+        compose.mainClock.advanceTimeByFrame()
+        val next = frame().center.x
+        assertTrue("from $cut, it goes on at $next", next >= cut - 0.5f && next < centre("a2").x)
+        compose.mainClock.advanceTimeBy(HlMotion.FOCUS_IN.toLong() + HlMotion.FOCUS_OUT)
+        assertEquals(centre("a2").x, frame().center.x, 0.5f)
     }
 
     @Test
@@ -119,11 +164,15 @@ class RowFrameTest {
         assertEquals(1f, checkNotNull(frames["b"]).shown, 0f)
         assertEquals(centre("b0").y, frame("b").center.y, 0.5f)
 
-        // Coming back, it lights on the card focus returns to, from nowhere.
+        // Coming back on another card than the one it went out on, it lights there, from nowhere.
         compose.mainClock.autoAdvance = false
-        compose.press(Key.DirectionUp)
+        compose.runOnIdle { requesters.getValue("a2").requestFocus() }
         compose.mainClock.advanceTimeByFrame()
-        assertEquals(centre("a0").x, frame("a").center.x, 0.5f)
+        assertEquals("without travelling", centre("a2").x, frame("a").center.x, 0.5f)
+        assertTrue("it is lighting up", checkNotNull(frames["a"]).shown < 1f)
+        compose.mainClock.advanceTimeBy(HlMotion.FOCUS_IN.toLong())
+        assertEquals(1f, checkNotNull(frames["a"]).shown, 0f)
+        assertEquals(centre("a2").x, frame("a").center.x, 0.5f)
     }
 
     @Test

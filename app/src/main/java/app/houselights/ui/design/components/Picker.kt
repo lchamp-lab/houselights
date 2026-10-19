@@ -48,7 +48,7 @@ fun ArtworkChoiceCard(
     onFocused: () -> Unit = {},
 ) {
     val c = Hl.colors
-    Column(modifier.width(width)) {
+    CardColumn(modifier.width(width)) {
         ArtworkSurface(
             onClick,
             Modifier.fillMaxWidth().aspectRatio(aspectRatio).semantics { this.selected = selected },

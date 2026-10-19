@@ -70,6 +70,20 @@ private class FrameBox(val rect: Rect, val corner: Float)
 private fun between(from: FrameBox, to: FrameBox, t: Float) =
     FrameBox(lerp(from.rect, to.rect, t), from.corner + (to.corner - from.corner) * t)
 
+/** Where a frame stood from a card's frame, edge by edge and in its corner: it stays there as the card moves. */
+private class Shift(at: FrameBox, card: FrameBox) {
+    private val left = at.rect.left - card.rect.left
+    private val top = at.rect.top - card.rect.top
+    private val right = at.rect.right - card.rect.right
+    private val bottom = at.rect.bottom - card.rect.bottom
+    private val corner = at.corner - card.corner
+
+    fun from(card: FrameBox) = FrameBox(
+        Rect(card.rect.left + left, card.rect.top + top, card.rect.right + right, card.rect.bottom + bottom),
+        card.corner + corner,
+    )
+}
+
 /**
  * One frame for a row of framed cards (DESIGN.md, Focus): it travels from the card left to the card reached in
  * the focus pull, following their growth and the row's scroll, and goes out in place in the fall back when
@@ -149,12 +163,13 @@ internal class RowFrame(
         if (!lit) turn(on = true)
     }
 
-    /** Where a frame leaving [left] sets out: from it, or from where it was on its way to it. */
+    /** Where a frame leaving [left] sets out: from it, or from where it was on its way, held to it. */
     private fun setOutFrom(left: FramedCard): () -> FrameBox? {
-        val before = from
-        val t = travel
-        if (t >= 1f || before == null) return { boxOf(left) }
-        return { boxOf(left)?.let { to -> before()?.let { between(it, to, t) } ?: to } }
+        val at = now()
+        val card = boxOf(left)
+        if (travel >= 1f || at == null || card == null) return { boxOf(left) }
+        val shift = Shift(at, card)
+        return { boxOf(left)?.let(shift::from) }
     }
 
     private fun turn(on: Boolean) {

@@ -276,7 +276,7 @@ private fun CastRow() {
         "two lines" to Person("Maria de Medeiros Esteves", "Fabienne", null),
         "long role" to Person("François Périer", "Le commissaire chargé de l’enquête", null),
         "photo" to Person("Nathalie Delon", "Jane Lagrange", photo),
-        "photo failed: initials" to Person("Cathy Rosier", "La pianiste", brokenImage),
+        "photo failed: an empty frame" to Person("Cathy Rosier", "La pianiste", brokenImage),
         "no role" to Person("Jacques Leroy", null, null),
         "name cut" to Person("Maria de Medeiros Esteves Vitorino de Almeida", "Elle-même", null),
         "in two titles: opens their page" to Person("Jean-Pierre Melville", "Réalisation", null, id = "tmdb:1", titleCount = 7),

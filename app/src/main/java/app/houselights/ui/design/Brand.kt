@@ -51,13 +51,16 @@ object Gradation {
     /** The mark's light: `emberFrom` at the left edge of [bars] to `emberTo` at their right, shared by every bar. */
     fun light(bars: List<Rect>, colors: HlColors): Brush =
         Brush.horizontalGradient(listOf(colors.emberFrom, colors.emberTo), startX = bars.first().left, endX = bars.last().right)
+
+    /** The [light] once per bar: a brush keeps its shader for one size only, so each bar keeps its own. */
+    fun lights(bars: List<Rect>, colors: HlColors): List<Brush> = bars.map { light(bars, colors) }
 }
 
-/** Draws [bars] in one [light] across them, each bar at its own opacity ([level] of its index, 1 lit). */
-fun DrawScope.drawGradation(bars: List<Rect>, light: Brush, level: (Int) -> Float = { 1f }) {
+/** Draws [bars] in one light across them ([Gradation.lights]), each bar at its own opacity ([level] of its index, 1 lit). */
+fun DrawScope.drawGradation(bars: List<Rect>, lights: List<Brush>, level: (Int) -> Float = { 1f }) {
     bars.forEachIndexed { i, bar ->
         val alpha = level(i)
-        if (alpha > 0f) drawRect(light, bar.topLeft, bar.size, alpha)
+        if (alpha > 0f) drawRect(lights[i], bar.topLeft, bar.size, alpha)
     }
 }
 
@@ -68,8 +71,8 @@ fun GradationMark(modifier: Modifier = Modifier, height: Dp = HlSize.barMark) {
     Spacer(
         modifier.size(height).drawWithCache {
             val bars = Gradation.bars(size.width / 2, size.height / 2, size.height)
-            val light = Gradation.light(bars, colors)
-            onDrawBehind { drawGradation(bars, light) }
+            val lights = Gradation.lights(bars, colors)
+            onDrawBehind { drawGradation(bars, lights) }
         },
     )
 }

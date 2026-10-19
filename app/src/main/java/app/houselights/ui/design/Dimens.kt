@@ -54,8 +54,6 @@ object HlShapes {
 object HlInset {
     /** Menus (their rows carry their own padding) and results holding a thumbnail. */
     val tight = HlSpace.xs
-    /** Dense rows and lines inside a container. */
-    val compact = HlSpace.s
     /** Panels and cards. */
     val card = HlSpace.l
     val sheet = HlSpace.xl
@@ -132,7 +130,7 @@ object HlSize {
     /** The short rule heading an intertitle card: a question asked in a sheet. */
     val intertitleRule = 24.dp
     val intertitleRuleWeight = 2.dp
-    /** A word of a track (`HlSegmented`) on its plate, a menu option: as tall as a compact tile. */
+    /** A word of a track (`HlSegmented`) on its plate: as tall as a compact tile. */
     val segment = 40.dp
     /** The dot before the current place's word when it has focus. */
     val wordDot = 7.dp

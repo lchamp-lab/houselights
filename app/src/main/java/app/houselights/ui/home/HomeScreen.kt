@@ -233,8 +233,9 @@ internal fun HomeBands(
     }
 }
 
+/** Gradation, the places and the tiles, [HlSpace.safeV] from the top; as tall as a compact tile (`HomeLayoutTest`). */
 @Composable
-private fun TopBar(
+internal fun TopBar(
     libraries: List<Library>,
     memory: FocusMemory,
     returnTo: Int?,

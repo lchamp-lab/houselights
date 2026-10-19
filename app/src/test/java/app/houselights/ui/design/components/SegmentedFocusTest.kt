@@ -18,15 +18,18 @@ import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.unit.width
 import app.houselights.ui.testing.TV
 import app.houselights.ui.testing.press
 import app.houselights.ui.testing.setTvContent
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import org.robolectric.annotation.GraphicsMode
 
 /** DESIGN.md, Focus: focus entering an [HlSegmented] track lands on the current option, from any side. */
 @RunWith(RobolectricTestRunner::class)
@@ -62,6 +65,8 @@ class SegmentedFocusTest {
 
     /** A track that selects as focus moves turns each word it reaches bold and lit: none of the words moves. */
     @Test
+    // Real fonts, so a word measures wider in bold.
+    @GraphicsMode(GraphicsMode.Mode.NATIVE)
     fun choosingAWordMovesNone() {
         val above = FocusRequester()
         val seasons = (1..4).map { "Saison $it" }
@@ -72,14 +77,17 @@ class SegmentedFocusTest {
                 HlSegmented(seasons, selected = selected, onSelect = { selected = it }, selectOnFocus = true)
             }
         }
-        fun words() = seasons.map { compose.onNodeWithText(it, useUnmergedTree = true).getUnclippedBoundsInRoot().left }
+        fun bounds(word: String) = compose.onNodeWithText(word, useUnmergedTree = true).getUnclippedBoundsInRoot()
+        fun words() = seasons.map { bounds(it).left }
         val atRest = words()
+        val bold = bounds("Saison 1").width
         compose.runOnIdle { above.requestFocus() }
         compose.press(Key.DirectionDown)
         compose.onNodeWithText("Saison 1").assertIsFocused().assertIsSelected()
         compose.press(Key.DirectionRight, times = 2)
         compose.onNodeWithText("Saison 3").assertIsFocused().assertIsSelected()
         compose.onNodeWithText("Saison 1").assertIsNotSelected()
+        assertTrue("the weights measure apart, so a move would show", bounds("Saison 1").width < bold)
         assertEquals(atRest, words())
     }
 }

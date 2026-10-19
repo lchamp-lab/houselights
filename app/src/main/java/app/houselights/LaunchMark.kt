@@ -24,7 +24,7 @@ import androidx.compose.ui.graphics.Canvas as ComposeCanvas
  */
 internal class LaunchMarkDrawable(colors: HlColors) : Drawable() {
     private val bars = Gradation.bars(Gradation.LAYER / 2, Gradation.LAYER / 2, Gradation.LAUNCH)
-    private val light = Gradation.light(bars, colors)
+    private val lights = Gradation.lights(bars, colors)
     private val levels = FloatArray(bars.size) { 1f }
     private val scope = CanvasDrawScope()
 
@@ -40,7 +40,7 @@ internal class LaunchMarkDrawable(colors: HlColors) : Drawable() {
         canvas.withTranslation(bounds.left.toFloat(), bounds.top.toFloat()) {
             scope.draw(Density(1f), LayoutDirection.Ltr, ComposeCanvas(this), Size(width, height)) {
                 scale(width / Gradation.LAYER, height / Gradation.LAYER, Offset.Zero) {
-                    drawGradation(bars, light) { levels[it] }
+                    drawGradation(bars, lights) { levels[it] }
                 }
             }
         }
