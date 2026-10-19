@@ -10,7 +10,6 @@ import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
-import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /** The launch screen lifts once home has its rows, first images and a full frame drawn, never past the cap. */
@@ -19,46 +18,26 @@ class LaunchGateTest {
     /** Milliseconds since the process started, as the test sets them. */
     private var now = 0L
     private val said = mutableListOf<String>()
-    private val gate = LaunchGate(sinceStart = { now }, capMs = 1_500, report = { said += it })
 
-    @Test
-    fun itHoldsUntilHomeHasDrawnItsFirstFrameWhole() {
-        assertFalse(gate.isOpen)
-        now = 215
-        gate.homeLoaded()
-        assertFalse("rows alone: the pictures would fill in after", gate.isOpen)
-        now = 500
-        gate.picturesLoaded()
-        assertFalse("rows and pictures in memory, but home has yet to draw them", gate.isOpen)
-        now = 560
-        gate.homeDrawn()
-        assertEquals(Reason.READY, gate.reason)
-    }
+    private fun newGate() = LaunchGate(sinceStart = { now }, capMs = 1_500, report = { said += it })
 
-    @Test
-    fun aFrameDrawnBeforeThePicturesWaitsForThem() {
-        gate.homeLoaded()
-        gate.homeDrawn()
-        assertFalse(gate.isOpen)
-        gate.picturesLoaded()
-        assertEquals(Reason.READY, gate.reason)
-    }
+    private val gate = newGate()
 
+    /** Whichever of home's rows, first pictures and first full frame comes last, the gate waits for it. */
     @Test
-    fun picturesAndAFrameBeforeRowsAreNotEnough() {
-        gate.picturesLoaded()
-        gate.homeDrawn()
-        assertFalse(gate.isOpen)
-        gate.homeLoaded()
-        assertEquals(Reason.READY, gate.reason)
-    }
-
-    @Test
-    fun itOpensAtOnceWhenTheAppStartsElsewhere() {
-        now = 180
-        gate.startsElsewhere()
-        assertTrue(gate.isOpen)
-        assertEquals(Reason.START_SCREEN, gate.reason)
+    fun itHoldsUntilHomeHasItsRowsItsPicturesAndAFrameDrawn() {
+        val milestones = mapOf<String, LaunchGate.() -> Unit>(
+            "rows" to LaunchGate::homeLoaded,
+            "pictures" to LaunchGate::picturesLoaded,
+            "home drawn" to LaunchGate::homeDrawn,
+        )
+        milestones.forEach { (missing, record) ->
+            val fresh = newGate()
+            milestones.filterKeys { it != missing }.values.forEach { it(fresh) }
+            assertFalse("Open without $missing", fresh.isOpen)
+            fresh.record()
+            assertEquals(Reason.READY, fresh.reason)
+        }
     }
 
     /** A slow NAS or a slow first draw never keeps the launch screen up past the cap. */
@@ -115,13 +94,12 @@ class LaunchGateTest {
 
     @Test
     fun theLogSaysWhatTheCapCameBefore() = runTest {
-        val timed = LaunchGate(sinceStart = { now }, capMs = 1_500, report = { said += it })
         now = 120
-        timed.settingsRead()
+        gate.settingsRead()
         now = 430
-        timed.homeLoaded()
+        gate.homeLoaded()
         now = 1_517
-        timed.openAtCap()
+        gate.openAtCap()
         assertEquals(
             listOf(
                 "Launch screen left 1517 ms after the process started: cap " +

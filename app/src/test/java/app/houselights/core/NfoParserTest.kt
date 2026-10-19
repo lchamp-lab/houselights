@@ -4,6 +4,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 
+/** Reading an NFO as Kodi, tinyMediaManager and others write it: fields, kinds, encodings and ratings. */
 class NfoParserTest {
     private val movie = """
         <?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
@@ -39,7 +40,7 @@ class NfoParserTest {
     """.trimIndent()
 
     @Test
-    fun parsesKodiMovie() {
+    fun aKodiMoviesFieldsAreRead() {
         val nfo = NfoParser.parse(movie)!!
         assertEquals(NfoKind.MOVIE, nfo.kind)
         assertEquals("Bugonia", nfo.title)
@@ -60,7 +61,7 @@ class NfoParserTest {
     }
 
     @Test
-    fun linkOnlyNfo() {
+    fun anNfoThatIsOnlyALinkGivesItsId() {
         val nfo = NfoParser.parse("https://www.themoviedb.org/movie/701387-bugonia")!!
         assertEquals(NfoKind.LINK, nfo.kind)
         assertEquals(701387, nfo.tmdbId)
@@ -68,16 +69,56 @@ class NfoParserTest {
     }
 
     @Test
-    fun episode() {
-        val nfo = NfoParser.parse("<episodedetails><title>Pilot</title><season>1</season><episode>2</episode><aired>2022-02-18</aired></episodedetails>")!!
+    fun anEpisodeGivesItsSeasonAndNumber() {
+        val nfo = NfoParser.parse(
+            "<episodedetails><title>Pilot</title><season>1</season><episode>2</episode><aired>2022-02-18</aired></episodedetails>"
+        )!!
         assertEquals(NfoKind.EPISODE, nfo.kind)
         assertEquals(1, nfo.season)
         assertEquals(2, nfo.episode)
     }
 
     @Test
-    fun garbage() {
+    fun textThatIsNoNfoIsNothing() {
         assertNull(NfoParser.parse("not an nfo"))
+    }
+
+    @Test
+    fun anNfosWritersVotesEditionAndActorsIdsAreRead() {
+        val nfo = checkNotNull(
+            NfoParser.parse(
+                """
+                <movie>
+                    <title>Heat</title>
+                    <ratings><rating name="imdb" max="10" default="true"><value>8.3</value><votes>720,431</votes></rating></ratings>
+                    <credits>Michael Mann</credits>
+                    <credits>Michael Mann</credits>
+                    <edition>Director's Definitive Edition</edition>
+                    <actor><name>Al Pacino</name><role>Vincent Hanna</role><tmdbid>1158</tmdbid></actor>
+                    <actor><name>Robert De Niro</name></actor>
+                </movie>
+                """.trimIndent()
+            )
+        )
+        assertEquals(8.3, checkNotNull(nfo.rating), 0.001)
+        assertEquals(720_431, nfo.votes)
+        assertEquals(listOf("Michael Mann"), nfo.writers)
+        assertEquals("Director's Definitive Edition", nfo.edition)
+        assertEquals(listOf(1158, null), nfo.actors.map { it.tmdbId })
+        val older = NfoParser.parse("<movie><rating>7.1</rating><votes>1 200</votes></movie>")
+        assertEquals("Kodi's older votes, beside its rating", 1200, older?.votes)
+        assertNull(NfoParser.parse("<movie><votes>12</votes></movie>")?.votes)
+    }
+
+    /** Kodi writes the collection's TMDB id on its set, tinyMediaManager beside it. */
+    @Test
+    fun aSetGivesTheCollectionAndItsId() {
+        val kodi = NfoParser.parse("<movie><title>Top Gun</title><set tmdbcolid=\"531241\"><name>Top Gun Collection</name></set></movie>")!!
+        assertEquals("Top Gun Collection", kodi.collection)
+        assertEquals(531241, kodi.collectionTmdbId)
+        val tmm = NfoParser.parse("<movie><title>Top Gun</title><set>Top Gun</set><tmdbCollectionId>531241</tmdbCollectionId></movie>")!!
+        assertEquals("Top Gun", tmm.collection)
+        assertEquals(531241, tmm.collectionTmdbId)
     }
 
     private val amelie = "<movie><title>Le Fabuleux Destin d’Amélie Poulain</title><plot>Amélie, serveuse à Montmartre…</plot></movie>"
@@ -126,10 +167,11 @@ class NfoParserTest {
         assertEquals(start, NfoParser.decode(bytes.copyOf(bytes.size - 1)))
     }
 
+    private fun rating(ratings: String) = NfoParser.parse("<movie><ratings>$ratings</ratings></movie>")?.rating
+
     /** Kodi and tinyMediaManager keep each site's rating on its own scale. */
     @Test
     fun ratingsAreReadOutOfTen() {
-        fun rating(ratings: String) = NfoParser.parse("<movie><ratings>$ratings</ratings></movie>")?.rating
         assertEquals(7.8, rating("""<rating name="metacritic" max="100" default="true"><value>78</value></rating>""")!!, 0.001)
         assertEquals(8.2, rating("""<rating name="trakt" max="5"><value>4.1</value></rating>""")!!, 0.001)
         assertEquals(7.1, rating("""<rating name="imdb"><value>7.1</value></rating>""")!!, 0.001)
@@ -140,7 +182,6 @@ class NfoParserTest {
 
     @Test
     fun withoutADefaultImdbOrTmdbRatingIsTaken() {
-        fun rating(ratings: String) = NfoParser.parse("<movie><ratings>$ratings</ratings></movie>")?.rating
         val metacritic = """<rating name="metacritic" max="100"><value>78</value></rating>"""
         val tomatoes = """<rating name="tomatometerallcritics" max="100"><value>91</value></rating>"""
         assertEquals(7.6, rating(metacritic + """<rating name="imdb" max="10"><value>7.6</value></rating>""")!!, 0.001)

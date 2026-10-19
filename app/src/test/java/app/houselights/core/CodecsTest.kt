@@ -6,29 +6,25 @@ import org.junit.Test
 /** Every source names formats its own way; the app shows one name for each. */
 class CodecsTest {
     @Test
-    fun video() {
+    fun aVideoFormatHasOneNameWhateverItsSourceCallsIt() {
         assertEquals("HEVC", Codecs.video("x265"))
-        assertEquals("AVC", Codecs.video("h264"))
-        assertEquals("MPEG-2", Codecs.video("mpeg2video"))
         assertEquals("?", Codecs.video(null))
         assertEquals("PRORES", Codecs.video("prores"))
     }
 
     @Test
-    fun audio() {
+    fun aSoundFormatIsNamedWithItsProfile() {
         assertEquals("DTS-HD MA", Codecs.audio("dts", profile = "DTS-HD MA"))
         assertEquals("DTS-HD MA", Codecs.audio("DTSHD_MA"))
         assertEquals("DTS-HD HRA", Codecs.audio("dts", profile = "DTS-HD HRA"))
         assertEquals("DTS", Codecs.audio("dts"))
-        assertEquals("TrueHD", Codecs.audio("truehd"))
-        assertEquals("E-AC3", Codecs.audio("eac3"))
         assertEquals("PCM", Codecs.audio("pcm_s24le"))
         assertEquals("Opus", Codecs.audio("opus"))
     }
 
     /** What Kodi writes in an NFO's <streamdetails>: ffmpeg's names, a video's FOURCC, the layers of DTS. */
     @Test
-    fun kodiNames() {
+    fun theNamesKodiWritesAreKnown() {
         val videos = mapOf(
             "h264" to "AVC", "avc1" to "AVC", "hevc" to "HEVC", "hvc1" to "HEVC", "mpeg2video" to "MPEG-2",
             "vc1" to "VC-1", "wvc1" to "VC-1", "wmv3" to "VC-1", "av1" to "AV1",
@@ -46,7 +42,7 @@ class CodecsTest {
     }
 
     @Test
-    fun subtitles() {
+    fun aSubtitleFormatHasOneName() {
         assertEquals("SRT", Codecs.subtitle("subrip"))
         assertEquals("PGS", Codecs.subtitle("hdmv_pgs_subtitle"))
         assertEquals("VobSub", Codecs.subtitle("dvd_subtitle"))

@@ -80,7 +80,7 @@ class FailuresTest {
 
     /** No answer reads as the network on a screen, the storage after a write, and the NAS in a scan. */
     @Test
-    fun noAnswer() = check(
+    fun noAnswerIsOfflineOnAScreenAndNotSavedAfterAWrite() = check(
         mapOf(
             SocketTimeoutException() to Told(UiError.OFFLINE, UiError.NOT_SAVED, ScanErrorKind.UNREACHABLE),
             IOException("wrapped", ConnectException("Connection refused")) to
@@ -102,7 +102,7 @@ class FailuresTest {
 
     /** NAS refusals and missing paths: Settings reports them per folder; a screen shows a generic failure. */
     @Test
-    fun theNasRefusals() = check(
+    fun aNasRefusalIsReportedPerFolder() = check(
         mapOf(
             RuntimeException("STATUS_LOGON_FAILURE (0xc000006d): Authentication failed for 'zidoo'") to
                 Told(UiError.FAILED, UiError.FAILED, ScanErrorKind.LOGIN_FAILED),
@@ -124,14 +124,16 @@ class FailuresTest {
         )
     )
 
+    /** A 401 or 403 refuses the account (403: disabled, or not allowed at the moment). */
     @Test
-    fun signingIn() {
+    fun aSignInFailureSaysWhatFailedAndAtWhichAddress() {
         val typed = "http://nas:8096"
         val reached = "https://nas:8920"
         fun auth(e: Throwable) = loginError(e, typed)
         fun reach(e: Exception) = loginError(ReachFailure(reached, e), typed)
 
         assertEquals(LoginError.Refused, auth(http(401)))
+        assertEquals(LoginError.Refused, auth(http(403)))
         assertEquals(LoginError.Failed, auth(http(404)))
         assertEquals(LoginError.Failed, auth(http(500)))
         assertEquals(LoginError.NotJellyfin(typed), auth(SerializationException("Unexpected JSON token")))
@@ -144,18 +146,12 @@ class FailuresTest {
         assertEquals(LoginError.Keystore, auth(SecretsUnavailableException(ProviderException("Keystore"))))
 
         assertEquals(LoginError.Refused, reach(http(401)))
+        assertEquals(LoginError.Refused, reach(http(403)))
         assertEquals(LoginError.NotJellyfin(reached), reach(http(404)))
         assertEquals(LoginError.NotJellyfin(reached), reach(http(500)))
         assertEquals(LoginError.NotJellyfin(reached), reach(SerializationException("Unexpected JSON token")))
         assertEquals(LoginError.Certificate(reached), reach(certificateRefused()))
         assertEquals(LoginError.Unreachable(reached), reach(SocketTimeoutException()))
-    }
-
-    /** A 403 at sign-in means the server refuses this account (disabled, or not allowed at the moment). */
-    @Test
-    fun aServerRefusingTheAccountSaysSo() {
-        assertEquals(LoginError.Refused, loginError(http(403), "http://nas:8096"))
-        assertEquals(LoginError.Refused, loginError(ReachFailure("https://nas:8920", http(403)), "http://nas:8096"))
     }
 
     @Test

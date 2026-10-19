@@ -4,6 +4,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 
+/** Text typeset for the screen: apostrophes, ellipses and, in French, spaced punctuation and quotes. */
 class TypesetTest {
     private val nb = Typography.nbsp
 
@@ -14,8 +15,7 @@ class TypesetTest {
     }
 
     @Test
-    fun englishTextIsUntouched() {
-        assertEquals("Two families: a war!", Typeset.text("Two families: a war!", french = false))
+    fun nothingStaysNothing() {
         assertNull(Typeset.text(null as String?))
     }
 

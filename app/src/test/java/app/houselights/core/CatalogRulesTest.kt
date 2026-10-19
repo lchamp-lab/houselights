@@ -4,7 +4,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 
-/** Catalog reading rules: edition names, and an NFO's people, votes and edition. */
+/** Edition names, known whatever their spelling and found among a file name's words. */
 class CatalogRulesTest {
     @Test
     fun editionsAreKnownWhateverTheirSpelling() {
@@ -27,32 +27,5 @@ class CatalogRulesTest {
         assertEquals(Editions.UNRATED, Editions.find(" - Unrated"))
         assertNull(Editions.find("Imaxx 1080p"))
         assertNull(Editions.find("1080p x265"))
-    }
-
-    @Test
-    fun anNfosWritersVotesEditionAndActorsIdsAreRead() {
-        val nfo = checkNotNull(
-            NfoParser.parse(
-                """
-                <movie>
-                    <title>Heat</title>
-                    <ratings><rating name="imdb" max="10" default="true"><value>8.3</value><votes>720,431</votes></rating></ratings>
-                    <credits>Michael Mann</credits>
-                    <credits>Michael Mann</credits>
-                    <edition>Director's Definitive Edition</edition>
-                    <actor><name>Al Pacino</name><role>Vincent Hanna</role><tmdbid>1158</tmdbid></actor>
-                    <actor><name>Robert De Niro</name></actor>
-                </movie>
-                """.trimIndent()
-            )
-        )
-        assertEquals(8.3, checkNotNull(nfo.rating), 0.001)
-        assertEquals(720_431, nfo.votes)
-        assertEquals(listOf("Michael Mann"), nfo.writers)
-        assertEquals("Director's Definitive Edition", nfo.edition)
-        assertEquals(listOf(1158, null), nfo.actors.map { it.tmdbId })
-        val older = NfoParser.parse("<movie><rating>7.1</rating><votes>1 200</votes></movie>")
-        assertEquals("Kodi's older votes, beside its rating", 1200, older?.votes)
-        assertNull(NfoParser.parse("<movie><votes>12</votes></movie>")?.votes)
     }
 }

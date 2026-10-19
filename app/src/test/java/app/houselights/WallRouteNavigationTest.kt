@@ -29,7 +29,8 @@ class WallRouteNavigationTest {
 
     @Test
     fun aWallsFilterCrossesNavigationAsItsViewModelKeepsIt() {
-        val filter = LibraryFilter(quality = Quality.HDR, picture = "Dolby Vision", person = "p7")
+        val filter =
+            LibraryFilter(quality = Quality.HDR, picture = "Dolby Vision", sound = "TrueHD Atmos", fileType = "bdmv", person = "p7")
         val start = Route.Library.of(Library("movies", LibraryKind.MOVIES, null), filter, personName = "Denis Villeneuve")
         var read: Route.Library? = null
         var saved: List<Any?> = emptyList()
@@ -39,13 +40,13 @@ class WallRouteNavigationTest {
                     read = entry.toRoute<Route.Library>()
                     // The saved state a wall's ViewModel is given, as the wall's factory makes it.
                     val kept = viewModel { Kept(createSavedStateHandle()) }.handle
-                    saved = listOf("quality", "picture", "sound", "person").map { kept.get<Any?>(it) }
+                    saved = listOf("quality", "picture", "sound", "fileType", "person").map { kept.get<Any?>(it) }
                 }
             }
         }
         compose.waitForIdle()
         assertEquals(filter, read?.filter)
         assertEquals("Denis Villeneuve", read?.personName)
-        assertEquals(listOf("HDR", "Dolby Vision", null, "p7"), saved)
+        assertEquals(listOf("HDR", "Dolby Vision", "TrueHD Atmos", "bdmv", "p7"), saved)
     }
 }

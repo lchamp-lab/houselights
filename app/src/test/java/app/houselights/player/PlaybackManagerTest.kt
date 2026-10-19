@@ -56,38 +56,45 @@ class PlaybackManagerTest {
         statuses.removeFirstOrNull() ?: PlayerAnswer.NoAnswer
     }, clock = { currentTime }) { null }
 
+    /** A manager that launched the player for [plan], which then answers [answers] in turn. */
+    private fun TestScope.started(plan: PlaybackPlan.Launch = plan(), answers: List<PlayerAnswer?> = emptyList()) = manager().apply {
+        intentFor(plan)
+        statuses += answers
+        onPlayerLaunched()
+    }
+
+    /** What the backend was last told once the player returned at [positionMs]. */
+    private fun TestScope.closedAt(manager: PlaybackManager, positionMs: Int): String {
+        manager.onPlayerResult(result(positionMs))
+        advanceUntilIdle()
+        return reports.last()
+    }
+
     private fun plan(uri: String = "nfs://nas/films/Heat.mkv", backdrop: String? = null, disc: Boolean = false) = PlaybackPlan.Launch(
         uri = uri, container = uri.substringAfterLast('.'), title = "Heat", backdropUrl = backdrop, logoUrl = null, startMs = 0,
         reporter = reporter, resumeKey = "m1", disc = disc,
     )
 
-    private fun playing(positionMs: Long, durationMs: Long = HEAT) =
-        PlayerAnswer.Playing(ZidooPlayState(playing = true, paused = false, positionMs = positionMs, durationMs = durationMs))
+    /** The player at [positionMs] of a file [durationMs] long, which it names [path] (or not). */
+    private fun playing(positionMs: Long, durationMs: Long = HEAT, path: String? = null) =
+        PlayerAnswer.Playing(ZidooPlayState(playing = true, paused = false, positionMs = positionMs, durationMs = durationMs, path = path))
 
     private fun result(positionMs: Int) = Intent().putExtra("position", positionMs)
 
     @Test
     fun onlyWhatThePlayerSaysNowIsReported() = runTest {
-        val manager = manager()
-        manager.intentFor(plan())
-        statuses += listOf(playing(10_000)) + List(10) { null } + listOf(playing(30_000))
-        manager.onPlayerLaunched()
+        val manager = started(answers = listOf(playing(10_000)) + List(10) { null } + listOf(playing(30_000)))
         advanceTimeBy(4_000 + 2_000 * 11L + 1)
         // A report at the first status; the fifth and tenth polls had no answer, so nothing was reported.
         assertEquals(listOf("started 0", "progress 10000"), reports)
-        manager.onPlayerResult(result(31_000))
-        advanceUntilIdle()
-        assertEquals("stopped 31000 / $HEAT", reports.last())
+        assertEquals("stopped 31000 / $HEAT", closedAt(manager, 31_000))
     }
 
     /** Each write syncs a file to flash: done at the report pace, not every status, and once more at the end. */
     @Test
     fun thePositionIsWrittenDownAtTheReportsPace() = runTest {
-        val manager = manager()
         val kept = context.getSharedPreferences("playback", Context.MODE_PRIVATE)
-        manager.intentFor(plan())
-        statuses += (1..8).map { playing(it * 2_000L) } + List(15) { PlayerAnswer.NothingPlays }
-        manager.onPlayerLaunched()
+        val manager = started(answers = (1..8).map { playing(it * 2_000L) } + List(15) { PlayerAnswer.NothingPlays })
         advanceTimeBy(4_000 + 1)
         assertEquals("The first status is written down", 2_000L, kept.getLong(POSITION, -1))
         advanceTimeBy(2_000 * 4L)
@@ -99,28 +106,21 @@ class PlaybackManagerTest {
         assertFalse(manager.playing.value)
         assertEquals("The last status is written down as tracking stops", 16_000L, kept.getLong(POSITION, -1))
 
-        manager.onPlayerResult(result(20_000))
-        advanceUntilIdle()
-        assertEquals("stopped 20000 / $HEAT", reports.last())
+        assertEquals("stopped 20000 / $HEAT", closedAt(manager, 20_000))
         assertFalse(kept.contains(POSITION))
     }
 
     /** "Next" pressed mid-film: the player moved to the folder's next file, whose status is not this title's. */
     @Test
     fun anotherFileIsNotTakenForTheTitleLaunched() = runTest {
-        val manager = manager()
-        manager.intentFor(plan())
-        statuses += listOf(playing(7_000_000), playing(7_150_000), playing(300_000, durationMs = 2_400_000))
-        manager.onPlayerLaunched()
+        val manager = started(answers = listOf(playing(7_000_000), playing(7_150_000), playing(300_000, durationMs = 2_400_000)))
         advanceTimeBy(4_000 + 2_000 * 5L)
         val pollsThen = polls
         advanceTimeBy(20_000)
         assertEquals("Tracking stopped at the other file", pollsThen, polls)
 
         // The position the player returns is the other file's.
-        manager.onPlayerResult(result(300_000))
-        advanceUntilIdle()
-        assertEquals("stopped 7150000 / $HEAT", reports.last())
+        assertEquals("stopped 7150000 / $HEAT", closedAt(manager, 300_000))
     }
 
     /** Part [n] of a film in [of] files, whose next part's file the player names [nextPath]. */
@@ -143,129 +143,89 @@ class PlaybackManagerTest {
     private fun parts(at: String = "nfs://nas/films/Heat/Heat%20CD1.mkv", reporter: PlaybackReporter = part(1, of = 2)) =
         plan(at).copy(reporter = reporter)
 
-    private fun playingFile(positionMs: Long, durationMs: Long, path: String?) =
-        PlayerAnswer.Playing(ZidooPlayState(playing = true, paused = false, positionMs = positionMs, durationMs = durationMs, path = path))
-
     /** The player moves on by itself to the film's second file: still the film, whose end is the last part's. */
     @Test
     fun aFilmsNextPartIsFollowedToItsEnd() = runTest {
-        val manager = manager()
         val kept = context.getSharedPreferences("playback", Context.MODE_PRIVATE)
-        manager.intentFor(parts())
-        val first = (1..10).map { playingFile(CD1 - 22_000 + it * 2_000L, CD1, "/mnt/nfs/nas/films/Heat/Heat CD1.mkv") }
-        val second = (1..10).map { playingFile(it * 2_000L, CD2, "/mnt/nfs/nas/films/Heat/Heat CD2.mkv") }
-        statuses += first + second
-        manager.onPlayerLaunched()
+        val first = (1..10).map { playing(CD1 - 22_000 + it * 2_000L, CD1, "/mnt/nfs/nas/films/Heat/Heat CD1.mkv") }
+        val second = (1..10).map { playing(it * 2_000L, CD2, "/mnt/nfs/nas/films/Heat/Heat CD2.mkv") }
+        val manager = started(parts(), first + second)
         advanceTimeBy(4_000 + 2_000 * 19L + 1)
         assertTrue("Tracking went on with the second part", polls >= 20)
         assertTrue("The second part was reported: $reports", "part 2 progress 12000 / $CD2" in reports)
         assertEquals("A new process reports the second part", "m1p2", kept.getString("resume_key", null))
 
-        manager.onPlayerResult(result(CD2.toInt() - 1_000))
-        advanceUntilIdle()
-        assertEquals("part 2 stopped ${CD2 - 1_000} / $CD2", reports.last())
+        assertEquals("part 2 stopped ${CD2 - 1_000} / $CD2", closedAt(manager, CD2.toInt() - 1_000))
         assertFalse("The first part is not told it stopped elsewhere", reports.any { it.startsWith("part 1 stopped") })
     }
 
     @Test
     fun theNextPartIsTheFileAfterTheEndOfAPartWhenThePlayerNamesNone() = runTest {
-        val manager = manager()
-        manager.intentFor(parts())
-        statuses += listOf(playingFile(CD1 - 4_000, CD1, null), playingFile(CD1 - 2_000, CD1, null)) +
-            (1..10).map { playingFile(it * 2_000L, CD2, null) }
-        manager.onPlayerLaunched()
+        val end = listOf(playing(CD1 - 4_000, CD1), playing(CD1 - 2_000, CD1))
+        val manager = started(parts(), end + (1..10).map { playing(it * 2_000L, CD2) })
         advanceTimeBy(4_000 + 2_000 * 11L + 1)
         assertTrue("The second part was reported: $reports", "part 2 progress 18000 / $CD2" in reports)
 
-        manager.onPlayerResult(result(30_000))
-        advanceUntilIdle()
-        assertEquals("part 2 stopped 30000 / $CD2", reports.last())
+        assertEquals("part 2 stopped 30000 / $CD2", closedAt(manager, 30_000))
     }
 
+    /** The player names another file at the end of the first part. */
     @Test
     fun anotherFileAfterAPartIsNotItsNextPart() = runTest {
-        // The player names another file at the end of the first part.
-        val manager = manager()
-        manager.intentFor(parts())
-        statuses += listOf(playingFile(CD1 - 4_000, CD1, "/mnt/nfs/Heat CD1.mkv"), playingFile(CD1 - 2_000, CD1, "/mnt/nfs/Heat CD1.mkv")) +
-            (1..10).map { playingFile(it * 2_000L, CD2, "/mnt/nfs/Heat - Trailer.mkv") }
-        manager.onPlayerLaunched()
+        val end = listOf(playing(CD1 - 4_000, CD1, "/mnt/nfs/Heat CD1.mkv"), playing(CD1 - 2_000, CD1, "/mnt/nfs/Heat CD1.mkv"))
+        val manager = started(parts(), end + (1..10).map { playing(it * 2_000L, CD2, "/mnt/nfs/Heat - Trailer.mkv") })
         advanceTimeBy(4_000 + 2_000 * 11L + 1)
         assertEquals("Tracking stopped at the other file", 3, polls)
-        manager.onPlayerResult(result(30_000))
-        advanceUntilIdle()
-        assertEquals("part 1 stopped ${CD1 - 2_000} / $CD1", reports.last())
+        assertEquals("part 1 stopped ${CD1 - 2_000} / $CD1", closedAt(manager, 30_000))
+    }
 
-        // "Next" pressed in the middle of the first part, the player naming nothing.
-        reports.clear()
-        statuses.clear()
-        polls = 0
-        val again = manager()
-        again.intentFor(parts())
-        statuses += listOf(playingFile(600_000, CD1, null), playingFile(30_000, CD2, null))
-        again.onPlayerLaunched()
+    /** "Next" pressed in the middle of the first part, the player naming nothing. */
+    @Test
+    fun nextPressedMidPartWithoutAPathIsNotTheNextPart() = runTest {
+        val manager = started(parts(), listOf(playing(600_000, CD1), playing(30_000, CD2)))
         advanceTimeBy(4_000 + 2_000 * 10L)
         assertEquals("Tracking stopped at the other file", 2, polls)
-        again.onPlayerResult(result(30_000))
-        advanceUntilIdle()
-        assertEquals("part 1 stopped 600000 / $CD1", reports.last())
+        assertEquals("part 1 stopped 600000 / $CD1", closedAt(manager, 30_000))
     }
 
     /** A 3 min 30 episode played to its end, then the next one, about as long: that is another file. */
     @Test
     fun theNextShortEpisodeIsAnotherFile() = runTest {
-        val manager = manager()
-        manager.intentFor(plan("nfs://nas/series/Kaamelott/S01E01.mkv"))
         val first = (4..208 step 2).map { playing(it * 1_000L, durationMs = EPISODE) }
         val next = (1..30).map { playing(it * 2_000L, durationMs = EPISODE - 4_000) }
-        statuses += first + next
-        manager.onPlayerLaunched()
+        val manager = started(plan("nfs://nas/series/Kaamelott/S01E01.mkv"), first + next)
         advanceTimeBy(4_000 + 2_000 * (first.size + 10L))
         assertEquals("Tracking went on with the next episode", first.size + 1, polls)
 
-        manager.onPlayerResult(result(60_000))
-        advanceUntilIdle()
-        assertEquals("stopped 208000 / $EPISODE", reports.last())
+        assertEquals("stopped 208000 / $EPISODE", closedAt(manager, 60_000))
     }
 
     @Test
     fun aThirtySecondIntroThenATwoHourFilmIsTheSameTitle() = runTest {
-        val manager = manager()
-        manager.intentFor(plan("nfs://nas/films/Heat.iso", disc = true))
         val intro = (4..28 step 2).map { playing(it * 1_000L, durationMs = 30_000) }
         val film = (1..30).map { playing(it * 2_000L, durationMs = FILM) }
-        statuses += intro + film
-        manager.onPlayerLaunched()
+        val manager = started(plan("nfs://nas/films/Heat.iso", disc = true), intro + film)
         advanceTimeBy(4_000 + 2_000 * 30L)
         // Polls 0 to 12 are the intro's, the film follows: the fifteenth poll's report is the film's.
         assertTrue("The film's progress was not reported: $reports", "progress 6000" in reports)
 
-        manager.onPlayerResult(result(3_600_000))
-        advanceUntilIdle()
-        assertEquals("stopped 3600000 / $FILM", reports.last())
+        assertEquals("stopped 3600000 / $FILM", closedAt(manager, 3_600_000))
     }
 
     @Test
     fun aDiscsMenuAfterItsFilmIsNotTheFilm() = runTest {
-        val manager = manager()
-        manager.intentFor(plan("nfs://nas/films/Heat.iso", disc = true))
-        statuses += listOf(playing(FILM - 7_000, FILM), playing(FILM - 4_000, FILM), playing(2_000, durationMs = 30_000))
-        manager.onPlayerLaunched()
+        val menu = listOf(playing(FILM - 7_000, FILM), playing(FILM - 4_000, FILM), playing(2_000, durationMs = 30_000))
+        val manager = started(plan("nfs://nas/films/Heat.iso", disc = true), menu)
         advanceTimeBy(4_000 + 2_000 * 10L)
         assertEquals("Tracking went on with the menu", 3, polls)
 
-        manager.onPlayerResult(result(20_000))
-        advanceUntilIdle()
-        assertEquals("stopped ${FILM - 4_000} / $FILM", reports.last())
+        assertEquals("stopped ${FILM - 4_000} / $FILM", closedAt(manager, 20_000))
     }
 
     /** While the API is unreachable, the film keeps the NAS; polling slows, and stops only once nothing plays. */
     @Test
     fun aPlayerOutOfReachIsStillPlaying() = runTest {
-        val manager = manager()
-        manager.intentFor(plan())
-        statuses += listOf(playing(10_000)) + List(40) { null } + List(15) { PlayerAnswer.NothingPlays }
-        manager.onPlayerLaunched()
+        val manager = started(answers = listOf(playing(10_000)) + List(40) { null } + List(15) { PlayerAnswer.NothingPlays })
         advanceTimeBy(4_000 + 2_000 * 16L)
         assertTrue(manager.playing.value)
         // Past some thirty seconds without an answer, it is asked every ten seconds.
@@ -280,11 +240,8 @@ class PlaybackManagerTest {
 
     @Test
     fun aPlayerSilentLongerThanItsFilmHadLeftIsNoLongerPlaying() = runTest {
-        val manager = manager()
-        manager.intentFor(plan())
         // 1 h 50 of a 2 h film.
-        statuses += playing(6_600_000, durationMs = FILM)
-        manager.onPlayerLaunched()
+        val manager = started(answers = listOf(playing(6_600_000, durationMs = FILM)))
         advanceTimeBy(4_000 + 14 * 60_000L)
         assertTrue(manager.playing.value)
         advanceTimeBy(2 * 60_000L)
@@ -294,17 +251,13 @@ class PlaybackManagerTest {
         assertEquals("Still asked after it stopped", pollsThen, polls)
 
         // The session waits for the player's result all the same.
-        manager.onPlayerResult(result(7_100_000))
-        advanceUntilIdle()
-        assertEquals("stopped 7100000 / $FILM", reports.last())
+        assertEquals("stopped 7100000 / $FILM", closedAt(manager, 7_100_000))
     }
 
     /** Past about four hours without an answer, the scan resumes. */
     @Test
     fun aPlayerThatNeverAnsweredIsNotPlayingForEver() = runTest {
-        val manager = manager()
-        manager.intentFor(plan())
-        manager.onPlayerLaunched()
+        val manager = started()
         advanceTimeBy(3 * 60 * 60_000L + 59 * 60_000L)
         assertTrue(manager.playing.value)
         advanceTimeBy(2 * 60_000L)
@@ -314,10 +267,8 @@ class PlaybackManagerTest {
     /** A disc's 30 s intro, then a menu where the API stops answering: the film to come may play for hours. */
     @Test
     fun aDiscsIntroDoesNotBoundTheSilenceThatFollows() = runTest {
-        val manager = manager()
-        manager.intentFor(plan("nfs://nas/films/Heat.iso", disc = true))
-        statuses += (4..28 step 2).map { playing(it * 1_000L, durationMs = 30_000) }
-        manager.onPlayerLaunched()
+        val intro = (4..28 step 2).map { playing(it * 1_000L, durationMs = 30_000) }
+        val manager = started(plan("nfs://nas/films/Heat.iso", disc = true), intro)
         advanceTimeBy(2 * 60 * 60_000L)
         assertTrue(manager.playing.value)
         advanceTimeBy(2 * 60 * 60_000L + 60_000L)
@@ -326,10 +277,7 @@ class PlaybackManagerTest {
 
     @Test
     fun aPlayerThatSaysNothingPlaysIsNoLongerFollowed() = runTest {
-        val manager = manager()
-        manager.intentFor(plan())
-        statuses += listOf(playing(10_000)) + List(20) { PlayerAnswer.NothingPlays }
-        manager.onPlayerLaunched()
+        val manager = started(answers = listOf(playing(10_000)) + List(20) { PlayerAnswer.NothingPlays })
         assertTrue(manager.playing.value)
         advanceTimeBy(4_000 + 2_000 * 17L)
         assertFalse(manager.playing.value)
@@ -338,18 +286,14 @@ class PlaybackManagerTest {
         assertEquals(pollsThen, polls)
 
         // The result still ends the session.
-        manager.onPlayerResult(result(20_000))
-        advanceUntilIdle()
-        assertEquals("stopped 20000 / $HEAT", reports.last())
+        assertEquals("stopped 20000 / $HEAT", closedAt(manager, 20_000))
     }
 
     /** A player back in a moment: Stopped never reaches the server before Playing. */
     @Test
     fun stoppedWaitsForStarted() = runTest {
         startGate = CompletableDeferred()
-        val manager = manager()
-        manager.intentFor(plan())
-        manager.onPlayerLaunched()
+        val manager = started()
         manager.onPlayerResult(null)
         advanceTimeBy(1_000)
         assertEquals(emptyList<String>(), reports)
@@ -362,14 +306,16 @@ class PlaybackManagerTest {
     @Test
     fun aSessionOutlivesTheProcess() = runTest {
         // The first process dies: its tracking, in the background scope, never completes.
-        val first = PlaybackManager(context, backgroundScope, status = { statuses.removeFirstOrNull() ?: PlayerAnswer.NoAnswer }) { null }
+        val first = PlaybackManager(
+            context, backgroundScope, status = { statuses.removeFirstOrNull() ?: PlayerAnswer.NoAnswer }, clock = { currentTime },
+        ) { null }
         first.intentFor(plan())
         statuses += playing(600_000)
         first.onPlayerLaunched()
         advanceTimeBy(4_001)
 
         val reportersAsked = mutableListOf<String>()
-        val second = PlaybackManager(context, this, status = { PlayerAnswer.NoAnswer }) { key ->
+        val second = PlaybackManager(context, this, status = { PlayerAnswer.NoAnswer }, clock = { currentTime }) { key ->
             reportersAsked += key
             reporter
         }

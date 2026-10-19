@@ -1,6 +1,5 @@
 package app.houselights.providers.local
 
-import app.houselights.core.NfoParser
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -45,15 +44,5 @@ class CollectionRulesTest {
     fun onlyReleasedFilmsCount() {
         val dates = listOf("1986-05-16", "2022-05-24", "", null, "2031-01-01")
         assertEquals(2, CollectionRules.released(dates, "2026-10-14"))
-    }
-
-    @Test
-    fun nfoGivesTheCollectionAndItsId() {
-        val kodi = NfoParser.parse("<movie><title>Top Gun</title><set tmdbcolid=\"531241\"><name>Top Gun Collection</name></set></movie>")!!
-        assertEquals("Top Gun Collection", kodi.collection)
-        assertEquals(531241, kodi.collectionTmdbId)
-        val tmm = NfoParser.parse("<movie><title>Top Gun</title><set>Top Gun</set><tmdbCollectionId>531241</tmdbCollectionId></movie>")!!
-        assertEquals("Top Gun", tmm.collection)
-        assertEquals(531241, tmm.collectionTmdbId)
     }
 }

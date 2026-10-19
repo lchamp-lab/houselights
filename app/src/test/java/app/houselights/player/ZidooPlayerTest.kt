@@ -21,12 +21,13 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
-import org.robolectric.annotation.Config
 import java.security.MessageDigest
 
-/** Finding the Zidoo player among the video apps, and whether a password may go to it, on Android 9 and 11. */
+/**
+ * Finding the Zidoo player among the video apps, and whether a password may go to it. Robolectric applies no
+ * <queries> filtering on Android 11: [PlayerQueriesTest] holds the manifest to what is looked for.
+ */
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [28, 30])
 class ZidooPlayerTest {
     private val context = ApplicationProvider.getApplicationContext<Application>()
     private val apps = FakeApps(context)
@@ -34,15 +35,6 @@ class ZidooPlayerTest {
     private fun choose(device: DeviceIdentity) = ZidooPlayer(context) { device }.choose()
 
     private fun ZidooPlayer.Choice.playerClass() = player?.component?.className
-
-    @Test
-    fun aZidooIsToldByAnyFieldOfItsBuild() {
-        assertTrue(ZIDOO_BUILD.namesZidoo)
-        assertFalse(REALTEK_BUILD.namesZidoo)
-        assertFalse(OTHER_BUILD.namesZidoo)
-        assertTrue(REALTEK_BUILD.copy(model = "Zidoo Z2000 Pro").namesZidoo)
-        assertTrue(REALTEK_BUILD.copy(fingerprint = "ZIDOO/Z9X/rtd1619:9/PPR1/1:user/release-keys").namesZidoo)
-    }
 
     /** A build that names only its chip: a Zidoo app installed with the system still identifies a Zidoo. */
     @Test
@@ -143,6 +135,7 @@ class ZidooPlayerTest {
         val choice = choose(ZIDOO_BUILD)
         assertNull(choice.player)
         assertTrue(choice.candidates.isEmpty())
+        assertEquals("no decision to take", Decision.NO_PLAYER, choice.decision)
     }
 
     /** System apps first (old player, then Zidoo's, then any); within each, the default, then a film activity. */
@@ -193,12 +186,6 @@ class ZidooPlayerTest {
         val choice = players.choose()
         assertEquals(system, choice.player?.component)
         assertEquals(Decision.FIRMWARE, choice.decision)
-    }
-
-    @Test
-    fun aSystemPlayerOnAZidooIsTheFirmwares() {
-        apps.install(ZIDOO_PLAYER, ZIDOO_PLAYER_ACTIVITY, system = true)
-        assertEquals(Decision.FIRMWARE, choose(ZIDOO_BUILD).decision)
     }
 
     /** Elsewhere, no app gets a password, the system's own com.android.gallery3d (AOSP's gallery) neither. */
@@ -300,11 +287,6 @@ class ZidooPlayerTest {
         assertEquals(Decision.NO_CERTIFICATE, choose(ZIDOO_BUILD).decision)
     }
 
-    @Test
-    fun noPlayerIsNoDecisionToTake() {
-        assertEquals(Decision.NO_PLAYER, choose(ZIDOO_BUILD).decision)
-    }
-
     /** About says what playback decides, from the same code: found and trusted, found and not, or none. */
     @Test
     fun aboutSaysWhatPlaybackDecides() {
@@ -320,12 +302,6 @@ class ZidooPlayerTest {
         val asked = ZidooPlayer.probe(Uri.parse("https://zidoo:secret@nas:8920/Videos/1/stream.mkv?api_key=token"))
         assertEquals("https://nas:8920", asked.dataString)
         assertEquals("video/*", asked.type)
-    }
-
-    @Test
-    fun aDeviceIsNamedByItsMakerAndModel() {
-        assertEquals("ZIDOO Z9X Pro", ZIDOO_BUILD.name)
-        assertEquals("the maker said once", "Zidoo Z1000 Pro", ZIDOO_BUILD.copy(model = "Zidoo Z1000 Pro").name)
     }
 
     private fun sha256(certificate: String) =

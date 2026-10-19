@@ -4,6 +4,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 
+/** A picture's definition, from its width to the name its badge shows. */
 class DefinitionTest {
     @Test
     fun definitionComesFromTheWidth() {

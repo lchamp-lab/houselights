@@ -20,6 +20,8 @@ class TrackNamesTest {
             "English Dolby Atmos 7.1" to "en",
             "VO : English" to "en",
             "German DTS-HD MA 5.1" to "ger",
+            "Georgian" to "geo",
+            "Welsh 5.1" to "wel",
         ).forEach { (title, language) -> assertNull(title, TrackNames.note(title, language)) }
         assertNull(TrackNames.note(null))
     }
@@ -37,11 +39,5 @@ class TrackNamesTest {
         assertEquals("CA", TrackNames.region("fr", "VFQ 5.1"))
         assertEquals("FR", TrackNames.region("fre", "VFF  DD 5.1  384 kbps"))
         assertNull(TrackNames.region("en", "VO : English"))
-    }
-
-    @Test
-    fun aLanguageIsKnownByItsBibliographicCodeToo() {
-        assertNull(TrackNames.note("Georgian", "geo"))
-        assertNull(TrackNames.note("Welsh 5.1", "wel"))
     }
 }

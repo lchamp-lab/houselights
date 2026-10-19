@@ -6,18 +6,24 @@ import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
+import org.junit.Assert.assertSame
 import org.junit.Test
+import java.io.IOException
 
+/** Switching the library source: the new one saved first, then the old server's token revoked if no longer in use. */
 class SourceSwitcherTest {
     private val home = SourceConfig.Jellyfin("https://nas:8920", "Maison", "u1", "lea", "old-token")
 
     /** What the switcher did, in order. */
     private val done = mutableListOf<String>()
 
-    private fun switcher(from: SourceConfig?, scope: CoroutineScope) = SourceSwitcher(
+    private fun switcher(
+        from: SourceConfig?,
+        scope: CoroutineScope,
+        save: suspend (SourceConfig) -> Unit = { done += "save ${it.name()}" },
+    ) = SourceSwitcher(
         current = { AppSettings(loaded = true, source = from, deviceId = "device") },
-        save = { done += "save ${it.name()}" },
+        save = save,
         scope = scope,
         signOut = { server, deviceId -> done += "sign out ${server.accessToken} on $deviceId" },
     )
@@ -41,13 +47,9 @@ class SourceSwitcherTest {
 
     @Test
     fun aSourceThatCannotBeSavedLeavesTheServerSignedIn() = runTest {
-        val failing = SourceSwitcher(
-            current = { AppSettings(loaded = true, source = home, deviceId = "device") },
-            save = { throw java.io.IOException("disk full") },
-            scope = this,
-            signOut = { server, _ -> done += "sign out ${server.accessToken}" },
-        )
-        assertTrue(runCatching { failing.switchTo(SourceConfig.Local) }.isFailure)
+        val full = IOException("disk full")
+        val failing = switcher(home, this) { throw full }
+        assertSame(full, runCatching { failing.switchTo(SourceConfig.Local) }.exceptionOrNull())
         advanceUntilIdle()
         assertEquals(emptyList<String>(), done)
     }

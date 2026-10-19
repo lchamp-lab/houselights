@@ -9,6 +9,7 @@ import app.houselights.core.Secrets
 import app.houselights.core.SourceConfig
 import app.houselights.testing.testKey
 import app.houselights.testing.testSecrets
+import app.houselights.ui.testing.SettleMainLooper
 import app.houselights.ui.testing.testSettings
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -39,7 +40,6 @@ import java.io.IOException
 import java.security.ProviderException
 import java.util.Collections
 import java.util.concurrent.Executors
-import app.houselights.ui.testing.SettleMainLooper
 
 /** Reading the settings when the file or the Keystore fails. */
 @OptIn(ExperimentalCoroutinesApi::class)

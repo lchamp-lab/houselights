@@ -12,19 +12,9 @@ class LayersGuardTest {
 
     private val layers = listOf("core", "player", "providers", "settings")
 
-    /** Deliberate exceptions, as "path:import": keep it short; a new one usually belongs in the domain instead. */
-    private val allowed = emptyList<String>()
-
     @Test
     fun theLayersUnderTheScreensNeverLeanOnThem() {
-        val found = layers.flatMap { layer ->
-            kotlinSources(File(sources, layer)).flatMap { file ->
-                val path = file.relativeTo(sources).path
-                file.readLines().filter { it.startsWith("import app.houselights.ui.") }
-                    .filterNot { line -> "$path:${line.trim()}" in allowed }
-                    .map { "$path: $it" }
-            }
-        }
+        val found = layers.flatMap { kotlinSources(File(sources, it)) }.linesWhere(sources) { it.startsWith("import app.houselights.ui.") }
         assertTrue("A layer under the screens imports the interface:\n" + found.joinToString("\n"), found.isEmpty())
     }
 

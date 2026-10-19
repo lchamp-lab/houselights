@@ -9,7 +9,6 @@ import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /** The library version as the app wires it (scan, playback and user edits, throttled), in virtual time. */
@@ -25,7 +24,23 @@ class LibraryChangesTest {
     }
 
     @Test
-    fun aChangeDuringAScanWaitsAPeriodAtMost() = runTest {
+    fun aChangeDuringAPeriodShowsAtItsEnd() = runTest {
+        val scan = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+        val changes = LibraryChanges(backgroundScope, listOf(scan), periodMs = 3_000)
+        runCurrent()
+        scan.emit(Unit)
+        runCurrent()
+        assertEquals(1L, changes.version.value)
+        advanceTimeBy(1_000)
+        changes.userChanged()
+        runCurrent()
+        assertEquals("Shown before the period ended", 1L, changes.version.value)
+        advanceTimeBy(2_001)
+        assertEquals("Not shown at the period's end", 2L, changes.version.value)
+    }
+
+    @Test
+    fun aScanMovesTheVersionOncePerPeriodAtMost() = runTest {
         val scan = MutableSharedFlow<Unit>(extraBufferCapacity = 64)
         val changes = LibraryChanges(backgroundScope, listOf(scan), periodMs = 3_000)
         runCurrent()
@@ -37,15 +52,9 @@ class LibraryChangesTest {
                 delay(200)
             }
         }
-        advanceTimeBy(1_100)
-        val before = changes.version.value
-        changes.userChanged()
-        advanceTimeBy(3_000)
-        assertTrue("The change waited more than a period", changes.version.value > before)
-
-        advanceTimeBy(10_000)
-        // Over 14 s of scan: a version at once, then one per period.
+        advanceTimeBy(14_000)
+        // Over 10 s of scan: a version at once, then one per period.
         val moves = versions.drop(1).map { it.first }
-        assertTrue("Moved too often: $moves", moves.zipWithNext().all { (a, b) -> b - a >= 3_000 })
+        assertEquals(listOf(0L, 3_000L, 6_000L, 9_000L, 12_000L), moves)
     }
 }

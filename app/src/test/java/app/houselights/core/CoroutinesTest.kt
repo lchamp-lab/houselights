@@ -7,11 +7,12 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
-import org.junit.Assert.fail
 import org.junit.Test
 import java.io.IOException
 
+/** Catching failures but not cancellation, and throttling a flow to one value a period. */
 @OptIn(ExperimentalCoroutinesApi::class)
 class CoroutinesTest {
     @Test
@@ -23,12 +24,7 @@ class CoroutinesTest {
 
     @Test
     fun aCancellationIsNotAFailure() {
-        try {
-            suspendRunCatching { throw CancellationException("Replaced") }
-            fail("The cancellation was caught")
-        } catch (_: CancellationException) {
-            // Expected: the cancellation is rethrown.
-        }
+        assertThrows(CancellationException::class.java) { suspendRunCatching { throw CancellationException("Replaced") } }
     }
 
     @Test

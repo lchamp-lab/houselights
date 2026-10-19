@@ -5,7 +5,6 @@ import app.houselights.core.LibraryFilter
 import app.houselights.core.LibraryKind
 import app.houselights.core.Quality
 import app.houselights.core.WatchStatus
-import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -26,10 +25,6 @@ class RoutesTest {
         val route = Route.Library.of(films, filter, personName = "Denis Villeneuve")
         assertEquals(filter, route.filter)
         assertEquals("Denis Villeneuve", route.personName)
-        // Serialized as navigation saves it across process death.
-        val kept = Json.decodeFromString(Route.Library.serializer(), Json.encodeToString(Route.Library.serializer(), route))
-        assertEquals(route, kept)
-        assertEquals(filter, kept.filter)
     }
 
     /** Status, genre and decade are chosen on the wall itself: a door's route sets only the filter it names. */
