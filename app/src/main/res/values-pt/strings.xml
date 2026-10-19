@@ -503,6 +503,11 @@
         <item quantity="many">%d episódios não vistos</item>
         <item quantity="other">%d episódios não vistos</item>
     </plurals>
+    <plurals name="row_news">
+        <item quantity="one">%d novo</item>
+        <item quantity="many">%d novos</item>
+        <item quantity="other">%d novos</item>
+    </plurals>
     <!-- Sagas -->
     <plurals name="film_count">
         <item quantity="one">%d filme</item>

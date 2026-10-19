@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
+import androidx.compose.ui.draw.clip
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -64,13 +65,13 @@ import app.houselights.ui.design.components.AbsentCard
 
 /** Cards, artwork and the parts of the pickers, each in every state it has. */
 internal fun LazyListScope.catalogCards() {
-    item { Group("Media row: poster cards, the others step back") { PosterRow() } }
+    item { Group("Media row: its title, its new titles; one frame travels from card to card, the others step back") { PosterRow() } }
     item { Group("Ambient backdrop: a screen on its picture, whose light the focused card glows with") { AmbientBackdrops() } }
     item { Group("Artwork surface and image") { Surfaces() } }
-    item { Group("Landscape card") { LandscapeRow() } }
-    item { Group("A saga whole: the films the library lacks keep their place, as empty frames") { SagaRow() } }
+    item { Group("Landscape card: its name, then its facts beside it when both fit, else under it") { LandscapeRow() } }
+    item { Group("A saga whole, counted: the films the library lacks keep their place, as empty frames") { SagaRow() } }
     item { Group("Person card: one line, two lines, long role, no photo") { CastRow() } }
-    item { Group("Progress line: on artwork, dark and white; beside text", still = true) { ProgressLines() } }
+    item { Group("Progress line: at a poster's and a still's foot, on dark and white; beside text", still = true) { ProgressLines() } }
     item { Group("Card skeleton: the shapes screens ask for", still = true) { Skeletons() } }
     item { Group("Artwork choice: poster") { ChoiceRow(ArtworkKind.POSTER) } }
     item { Group("Artwork choice: backdrop") { ChoiceRow(ArtworkKind.BACKDROP) } }
@@ -126,7 +127,7 @@ private fun PosterRow() {
         ),
         "image failed: set in type" to sample("Pierrot le Fou", 1965).copy(poster = brokenImage),
     )
-    MediaRow("Ajoutés récemment") {
+    MediaRow("Ajoutés récemment", news = 1) {
         items(cards) { (state, media) -> Specimen(state, width = HlSize.poster) { PosterCard(media, {}) } }
     }
 }
@@ -185,6 +186,7 @@ private fun LandscapeRow() {
     val art = shippedImage(R.drawable.banner)
     val now = System.currentTimeMillis()
     val longName = "Où l’on comprend enfin pourquoi les hiboux ne sont pas ce qu’ils semblent être"
+    val left = stringResource(R.string.time_left, formatDuration(1_560_000))
     MediaRow(header = null, spacing = HlSpace.l) {
         item {
             Specimen("home: no artwork, 40%", width = HlSize.landscape) {
@@ -194,6 +196,26 @@ private fun LandscapeRow() {
         item {
             Specimen("home: artwork, new", width = HlSize.landscape) {
                 LandscapeCard(sample("Houselights", 2026, addedAt = now).copy(thumb = art), {})
+            }
+        }
+        item {
+            Specimen("resume: name and time left on one line", width = HlSize.landscape) {
+                LandscapeCard(
+                    sample("Twin Peaks", 1990, kind = MediaKind.EPISODE, positionMs = 1_440_000).copy(thumb = art),
+                    {},
+                    title = "Twin Peaks",
+                    facts = listOf("S1 E3", left),
+                )
+            }
+        }
+        item {
+            Specimen("resume: a long name, its facts under it", width = HlSize.landscape) {
+                LandscapeCard(
+                    sample("Les Brigades du Tigre", 1974, kind = MediaKind.EPISODE, positionMs = 1_440_000),
+                    {},
+                    title = "Les Brigades du Tigre",
+                    facts = listOf("S2 E11", left),
+                )
             }
         }
         item {
@@ -238,7 +260,7 @@ private fun LandscapeRow() {
 /** The cast row of a detail page: names of one and two lines side by side, their roles in line. */
 @Composable
 private fun SagaRow() {
-    MediaRow(header = null) {
+    MediaRow("Alien", count = "1 film sur 4") {
         item { Specimen("held", width = HlSize.poster) { PosterCard(sample("Alien", 1979), {}) } }
         item { Specimen("lacking: its title and year, focus outlined", width = HlSize.poster) { AbsentCard("Aliens", 1986) } }
         item { Specimen("a long title", width = HlSize.poster) { AbsentCard("Alien, la résurrection", 1997) } }
@@ -266,17 +288,22 @@ private fun CastRow() {
     }
 }
 
-/** On a poster's plate (dark image, projector white), then beside text on its light track. */
+/** At a poster's foot, then a still's, on its plate (dark image, projector white), then beside text on its light track. */
 @Composable
 private fun ProgressLines() {
     val c = Hl.colors
     listOf("dark image" to c.background, "white image" to c.content).forEach { (ground, color) ->
         Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Top) {
             listOf(0f to "0%: not drawn", 0.4f to "40%", 1f to "100%").forEach { (progress, label) ->
-                Specimen("$ground, $label", width = HlSize.poster) {
-                    Box(Modifier.width(HlSize.poster).height(HlSpace.l).background(color)) {
-                        OnArtwork { ProgressLine(progress, Modifier.align(Alignment.BottomCenter)) }
+                Specimen("poster, $ground, $label", width = HlSize.poster) {
+                    Box(Modifier.width(HlSize.poster).height(HlSpace.l).clip(HlShapes.artwork).background(color)) {
+                        OnArtwork { ProgressLine(progress, Modifier.align(Alignment.BottomCenter), HlSize.progressPoster) }
                     }
+                }
+            }
+            Specimen("still, $ground, 40%", width = HlSize.landscape) {
+                Box(Modifier.width(HlSize.landscape).height(HlSpace.l).clip(HlShapes.wide).background(color)) {
+                    OnArtwork { ProgressLine(0.4f, Modifier.align(Alignment.BottomCenter), HlSize.progressWide) }
                 }
             }
         }

@@ -1,11 +1,15 @@
 package app.houselights.ui.design.components
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -13,14 +17,20 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.layout.AlignmentLine
+import androidx.compose.ui.layout.FirstBaseline
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.layoutId
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.tv.material3.Icon
 import androidx.tv.material3.Text
@@ -31,6 +41,9 @@ import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlControl
+import app.houselights.ui.design.LocalAmbientDeep
+import app.houselights.ui.design.plate
+import app.houselights.ui.design.plateEdge
 import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
@@ -115,11 +128,12 @@ private fun FormatWord(text: String, ink: Color?) {
 }
 
 /**
- * A title's formats as unframed words ([Formats]): picture on one line, sound on the next; from the file's
- * media info, else the stored badges. Only on its page and in [VersionsSheet]; [ink] on a focused row.
+ * A title's formats ([Formats]), picture then sound, from the file's media info, else the stored badges. On its
+ * page, set as on a case's back ([plate]): a plate of two lines, "Image" and "Son", the words in `jaquette`.
+ * In a row ([VersionsSheet]), unframed words, in [ink] when the row has focus.
  */
 @Composable
-fun FormatLines(item: MediaItem, modifier: Modifier = Modifier, ink: Color? = null) {
+fun FormatLines(item: MediaItem, modifier: Modifier = Modifier, ink: Color? = null, plate: Boolean = true) {
     val video = item.media?.video
     val audio = item.media?.audio.orEmpty()
     val marks = remember(item.badges) { Formats.fromBadges(item.badges) }
@@ -132,9 +146,48 @@ fun FormatLines(item: MediaItem, modifier: Modifier = Modifier, ink: Color? = nu
         (Formats.sound(audio) + listOfNotNull(rate)).ifEmpty { marks.filter { it.family == FormatFamily.SOUND }.map { it.label } }
     }
     if (picture.isEmpty() && sound.isEmpty()) return
+    if (plate) {
+        Jaquette(listOf(stringResource(R.string.tech_video) to picture, stringResource(R.string.tech_audio) to sound), modifier)
+        return
+    }
     Column(modifier, verticalArrangement = Arrangement.spacedBy(HlSpace.xxs)) {
         listOf(picture, sound).filter { it.isNotEmpty() }.forEach { words ->
             OneLine(spacing = HlSpace.fact, squeezeFirst = false) { words.forEach { FormatWord(it, ink) } }
+        }
+    }
+}
+
+/**
+ * The back of a case: a plate in the picture's own dark, one line per family of [lines] with words, its name in
+ * a caption, the words after it in `jaquette`, a hairline between lines. As wide as its longest line.
+ */
+@Composable
+private fun Jaquette(lines: List<Pair<String, List<String>>>, modifier: Modifier) {
+    val c = Hl.colors
+    val shown = lines.filter { it.second.isNotEmpty() }
+    // The names share a column, as wide as the widest, so the words start together.
+    val measurer = rememberTextMeasurer()
+    val density = LocalDensity.current
+    val caption = Hl.type.caption
+    val names = shown.map { it.first }
+    val column = remember(names, caption, density) { with(density) { names.maxOf { measurer.measure(it, caption).size.width }.toDp() } }
+    val deep = LocalAmbientDeep.current
+    val edge = c.plateEdge
+    Column(
+        modifier
+            .width(IntrinsicSize.Max)
+            .drawBehind { drawRoundRect(c.plate(deep()), cornerRadius = CornerRadius(HlShapes.control.topStart.toPx(size, this))) }
+            .border(HlSize.hairline, edge, HlShapes.control),
+    ) {
+        shown.forEachIndexed { i, (name, words) ->
+            if (i > 0) Spacer(Modifier.fillMaxWidth().height(HlSize.hairline).background(edge))
+            Row(Modifier.padding(horizontal = HlSpace.s, vertical = HlSpace.xxs), verticalAlignment = Alignment.CenterVertically) {
+                Text(name, style = Hl.type.caption, color = c.contentSecondary, maxLines = 1, modifier = Modifier.width(column))
+                Spacer(Modifier.width(HlSpace.m))
+                OneLine(spacing = HlSpace.m, squeezeFirst = false) {
+                    words.forEach { Text(it, style = Hl.type.jaquette, color = c.content, maxLines = 1, softWrap = false) }
+                }
+            }
         }
     }
 }
@@ -153,12 +206,12 @@ private const val FRAME_RATE_DIGITS = 3
 fun audioBitrateLabel(kbps: Int): String =
     stringResource(R.string.audio_bitrate, NumberFormat.getIntegerInstance(Locale.getDefault()).format(kbps))
 
-/** A title's name and facts over a wall, on one line; the name is ellipsised before facts drop. */
+/** A title's name in `rowTitle` and its facts over a wall, on one baseline; the name is ellipsised before facts drop. */
 @Composable
 fun TitleLine(item: MediaItem, modifier: Modifier = Modifier) {
     Layout(
         contents = listOf(
-            { Text(item.title, style = Hl.type.entry, color = Hl.colors.content, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+            { Text(item.title, style = Hl.type.rowTitle, color = Hl.colors.content, maxLines = 1, overflow = TextOverflow.Ellipsis) },
             { MetaLine(item, showGenres = false) },
         ),
         modifier = modifier,
@@ -171,9 +224,15 @@ fun TitleLine(item: MediaItem, modifier: Modifier = Modifier) {
         val name = title.first().measure(loose.copy(maxWidth = (loose.maxWidth - factsRoom).coerceAtLeast(0)))
         val width = name.width + factsRoom
         val height = listOfNotNull(name, factsLine).maxOf { it.height }.coerceIn(constraints.minHeight, constraints.maxHeight)
+        // The facts sit on the name's baseline, the name centred in the line.
+        val nameY = (height - name.height) / 2
+        val factsY = factsLine?.let { line ->
+            val base = line[FirstBaseline]
+            if (base == AlignmentLine.Unspecified) (height - line.height) / 2 else nameY + name[FirstBaseline] - base
+        }
         layout(width.coerceIn(constraints.minWidth, constraints.maxWidth), height) {
-            name.placeRelative(0, (height - name.height) / 2)
-            factsLine?.placeRelative(name.width + afterTitle, (height - factsLine.height) / 2)
+            name.placeRelative(0, nameY)
+            factsLine?.placeRelative(name.width + afterTitle, factsY ?: 0)
         }
     }
 }
@@ -199,7 +258,9 @@ internal fun OneLine(
         val placeables = when {
             count > 0 -> measurables.take(count).mapIndexed { i, child ->
                 used += gaps[i]
-                child.measure(loose.copy(maxWidth = (loose.maxWidth - used).coerceAtLeast(0))).also { used += it.width }
+                // Unbounded when measured for its intrinsic width.
+                val room = if (loose.hasBoundedWidth) (loose.maxWidth - used).coerceAtLeast(0) else Constraints.Infinity
+                child.measure(loose.copy(maxWidth = room)).also { used += it.width }
             }
             squeezeFirst && measurables.isNotEmpty() -> listOf(measurables.first().measure(loose).also { used = it.width })
             else -> emptyList()

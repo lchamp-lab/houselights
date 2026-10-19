@@ -492,6 +492,10 @@
         <item quantity="one">%d ungesehene Folge</item>
         <item quantity="other">%d ungesehene Folgen</item>
     </plurals>
+    <plurals name="row_news">
+        <item quantity="one">%d neuer</item>
+        <item quantity="other">%d neue</item>
+    </plurals>
     <!-- Sagas -->
     <plurals name="film_count">
         <item quantity="one">%d Film</item>

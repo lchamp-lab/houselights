@@ -39,10 +39,10 @@ import app.houselights.ui.design.emberLit
 import androidx.compose.ui.platform.LocalContext
 import kotlin.math.roundToInt
 
-/** Row and section header, sentence case. */
+/** Row and section header in the poster's voice, sentence case. */
 @Composable
 fun SectionHeader(text: String, modifier: Modifier = Modifier) {
-    Text(text, style = Hl.type.lead, color = Hl.colors.content, modifier = modifier)
+    Text(text, style = Hl.type.rowTitle, color = Hl.colors.content, modifier = modifier)
 }
 
 /** A screen's title, the place it is (a library, Réglages, a person), in the ember light; never a film's title. */

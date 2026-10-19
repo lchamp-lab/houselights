@@ -520,6 +520,12 @@
         <item quantity="many">%d nieobejrzanych odcinków</item>
         <item quantity="other">%d nieobejrzanego odcinka</item>
     </plurals>
+    <plurals name="row_news">
+        <item quantity="one">%d nowy</item>
+        <item quantity="few">%d nowe</item>
+        <item quantity="many">%d nowych</item>
+        <item quantity="other">%d nowego</item>
+    </plurals>
     <!-- Sagas -->
     <plurals name="film_count">
         <item quantity="one">%d film</item>

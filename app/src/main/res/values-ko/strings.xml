@@ -475,6 +475,9 @@
     <plurals name="card_unwatched">
         <item quantity="other">미시청 에피소드 %d개</item>
     </plurals>
+    <plurals name="row_news">
+        <item quantity="other">새 작품 %d편</item>
+    </plurals>
     <!-- Sagas -->
     <plurals name="film_count">
         <item quantity="other">영화 %d편</item>

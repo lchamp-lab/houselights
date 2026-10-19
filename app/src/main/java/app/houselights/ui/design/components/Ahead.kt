@@ -34,8 +34,8 @@ class PicturesAhead(private val context: Context, private val screenWidthPx: Int
         item.backdrop?.let { backdropRequests(context, it, style, screenWidthPx) }.orEmpty() +
             listOfNotNull(item.logo?.let { titleArtRequest(context, it, HlLayout.heroTitleWidth.px(), HlLayout.heroTitleHeight.px()) })
 
-    /** The posters of a wall's [items], at the size a [PosterCard] cell requests ([CELL_POSTER]). */
-    fun wall(items: List<MediaItem>): List<ImageRequest> = items.mapNotNull { posterRequest(context, it, CELL_POSTER.px()) }
+    /** The posters of a wall's [items], at the size a [PosterCard] cell requests ([requestedPoster]). */
+    fun wall(items: List<MediaItem>): List<ImageRequest> = items.mapNotNull { posterRequest(context, it, requestedPoster(null).px()) }
 
     /** The logo a detail page of [item] shows, at its [TitleArt] size; its backdrop is already on screen. */
     fun detail(item: MediaItem): List<ImageRequest> =
@@ -44,7 +44,7 @@ class PicturesAhead(private val context: Context, private val screenWidthPx: Int
     /** The posters, or stills when [landscape], that a [MediaRow] of [items] shows before it scrolls. */
     fun row(items: List<MediaItem>, landscape: Boolean, spacing: Dp): List<ImageRequest> {
         val card = if (landscape) HlSize.landscape else HlSize.poster
-        val width = card.px()
+        val width = if (landscape) card.px() else requestedPoster(card).px()
         return items.take(cardsInView(card, spacing)).mapNotNull {
             if (landscape) stillRequest(context, it, width) else posterRequest(context, it, width)
         }

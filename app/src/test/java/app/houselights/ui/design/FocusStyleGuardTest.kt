@@ -10,13 +10,13 @@ import java.io.File
 
 /**
  * Focus is said in one place, `FocusStyle`, in two gestures (frame, fill) and the ring, and drawn by one
- * surface, `HlFocusSurface`: no component builds its own white, frame or growth, and tv-material's focus
- * (its scale, glow and Material timing) is never drawn.
+ * surface, `HlFocusSurface`, whose frame a row of cards takes over (`RowFrame`): no component builds its own
+ * white, frame or growth, and tv-material's focus (its scale, glow and Material timing) is never drawn.
  */
 class FocusStyleGuardTest {
     private val main = File("src/main/java/app/houselights")
     private val components = File("src/main/java/app/houselights/ui/design/components")
-    private val home = setOf("FocusStyle.kt", "FocusSurface.kt")
+    private val home = setOf("FocusStyle.kt", "FocusSurface.kt", "RowFrame.kt")
 
     /** What only FocusStyle and its surface may write. */
     private val rules = listOf(

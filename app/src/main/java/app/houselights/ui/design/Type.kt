@@ -145,7 +145,7 @@ data class HlType(
     // The voice of reading (normal width).
     /** Taglines, an episode's name in its heading, dialog titles. */
     val title: TextStyle,
-    /** Row headers, card and episode names. */
+    /** A tagline, a name heading a block: a source, a form. */
     val lead: TextStyle,
     /** Overviews, descriptions, paragraphs. */
     val body: TextStyle,

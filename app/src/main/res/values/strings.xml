@@ -504,6 +504,11 @@
         <item quantity="one">%d unwatched episode</item>
         <item quantity="other">%d unwatched episodes</item>
     </plurals>
+    <!-- A row's count of titles new to the library, after its title -->
+    <plurals name="row_news">
+        <item quantity="one">%d new</item>
+        <item quantity="other">%d new</item>
+    </plurals>
     <!-- Sagas -->
     <plurals name="film_count">
         <item quantity="one">%d film</item>

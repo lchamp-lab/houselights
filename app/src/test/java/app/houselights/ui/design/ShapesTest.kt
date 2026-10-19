@@ -54,7 +54,7 @@ class ShapesTest {
         ).forEach { assertEquals(it.radius(), it.topStart.toPx(Size(SMALL, SMALL), density), 0f) }
         val ui = File("src/main/java/app/houselights/ui")
         val round = Regex("""\bCircleShape\b|RoundedCornerShape\(\s*percent""")
-        val dot = Regex("""HlSize\.(dot|newDot)|dot\.""")
+        val dot = Regex("""HlSize\.(dot|newDot|newsDot)|dot\.""")
         val found = kotlinSources(ui).linesWhere(ui) { line ->
             !line.trimStart().startsWith("import ") && round.containsMatchIn(line) && !dot.containsMatchIn(line)
         }

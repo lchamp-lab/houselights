@@ -66,7 +66,7 @@ import kotlinx.coroutines.launch
  * OK (centre, enter) presses on its way down and clicks on its way up; held, it long-clicks. Focus reaches
  * it when it cannot act ([enabled] false, or no [onClick]), and OK then does nothing. It is one element to
  * accessibility services, a [role] with its click. [content], clipped to [shape], is told when it is [lit]:
- * when its ink is focus's.
+ * when its ink is focus's. Framed in a [row], it leaves its frame to the row ([RowFrame]).
  */
 @Composable
 internal fun HlFocusSurface(
@@ -80,6 +80,7 @@ internal fun HlFocusSurface(
     selected: Boolean? = null,
     glow: (() -> Color)? = null,
     interactionSource: MutableInteractionSource? = null,
+    row: RowFrame? = null,
     content: @Composable BoxScope.(lit: Boolean) -> Unit,
 ) {
     val interaction = interactionSource ?: remember { MutableInteractionSource() }
@@ -88,13 +89,15 @@ internal fun HlFocusSurface(
     val lights = rememberLights(focused, framed, rises = enabled && (look.lift != Lift.Still || glow != null))
     val lit = if (framed) focused else lights.halfLit
     val ring = FocusStyle.ring()
+    val inRow = row?.takeIf { framed && enabled }?.let { rememberRowCard(it, look.lift, shape) { lights.risen.value } }
     Box(
         modifier
+            .then(inRow ?: Modifier)
             .raisedWhileLit(framed, lights)
             .pressWithOk(interaction, onClick.takeIf { enabled }, onLongClick.takeIf { enabled })
             .focusable(interactionSource = interaction)
             .semantics(mergeDescendants = true) { describe(role, selected, enabled, onClick, onLongClick) }
-            .framedLight(look, shape, ring.brush.takeIf { enabled }, glow, lights)
+            .framedLight(look, shape, ring.brush.takeIf { enabled && inRow == null }, glow, lights)
             .drawWithCache { drawPlate(look, shape, enabled, ring, lights) },
         propagateMinConstraints = true,
     ) {

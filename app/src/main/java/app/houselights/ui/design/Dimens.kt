@@ -99,6 +99,8 @@ object HlSize {
     /** The dot of a title new to the library, ringed in black ([newDotRing]) to stand off any picture. */
     val newDot = 10.dp
     val newDotRing = 2.5.dp
+    /** The ember dot before a row's count of new titles. */
+    val newsDot = 7.dp
     /** The box a state's light sits in, so text lines up after a dot or the attention mark. */
     val statusLight = 16.dp
     /** An icon in a line of text (rating star). */
@@ -124,6 +126,9 @@ object HlSize {
     val skeletonTitle = 48.dp
     val skeletonFacts = 24.dp
     val progress = 3.dp
+    /** Progress burning at the foot of a poster, of a wide image. */
+    val progressPoster = 4.dp
+    val progressWide = 5.dp
     /** The short rule heading an intertitle card: a question asked in a sheet. */
     val intertitleRule = 24.dp
     val intertitleRuleWeight = 2.dp
@@ -172,11 +177,11 @@ object HlLayout {
      * apart (56 + 12 + 20 + 12 + 48), so a focused poster's foot stays inside the safe area.
      */
     val hero = 148.dp
-    /** Title line above a poster wall: 24 at the default text size, growing with it. */
+    /** Title line above a poster wall, in `rowTitle`: 28 at the default text size, growing with it. */
     val infoLine: Dp
         @Composable @ReadOnlyComposable
         get() = textRoom(infoLineAtDefault)
-    private val infoLineAtDefault = 24.dp
+    private val infoLineAtDefault = 28.dp
     /** Overview of the focused episode under the episode row: three caption lines (3 × 18), on the grid. */
     val episodeOverview = 56.dp
     /** Between detail page blocks: wider than [HlFocus.edge], so the block above leaves as the next arrives. */
@@ -185,10 +190,10 @@ object HlLayout {
     private fun detailPeek(header: Dp) = detailGap + header + HlSpace.xxs + HlFocus.room + HlSpace.s
     /** Least height of a detail hero on a [screen]: all but [detailPeek], keeping a [header] in the safe area. */
     internal fun detailHeroMin(screen: Dp, header: Dp): Dp = screen - detailPeek(header)
-    /** [detailHeroMin] with the header at the viewer's text size (26 at the default one). */
+    /** [detailHeroMin] with the row's header at the viewer's text size (28 at the default one). */
     @Composable
     @ReadOnlyComposable
-    fun detailHeroMin(screen: Dp): Dp = detailHeroMin(screen, textRoom(Hl.type.lead))
+    fun detailHeroMin(screen: Dp): Dp = detailHeroMin(screen, textRoom(Hl.type.rowTitle))
     /** Where an error sits on an otherwise empty detail page. */
     val errorTop = 96.dp
     /** Between a wall's columns: [WALL_COLUMNS] posters of [HlSize.wallPoster] across the safe area. */
