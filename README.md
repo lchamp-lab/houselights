@@ -15,6 +15,8 @@ player's own menus keep working.
   details from TMDB.
   - Kodi-style NFO files and local artwork (`poster.jpg`, `fanart.jpg`, `clearlogo.png`…) take precedence;
     NFO ids identify titles exactly.
+  - Details come in the device's language, or another chosen in Settings > Library > Details language;
+    changing it updates every title.
   - Technical details (resolution, HDR, Dolby Vision, audio formats, subtitles) are read from the files.
   - Each title can be corrected from its page: poster, backdrop and logo chosen among TMDB's images, or a
     manual match by title, year or IMDb id. Corrections survive later scans.

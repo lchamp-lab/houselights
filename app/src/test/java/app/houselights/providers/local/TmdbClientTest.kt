@@ -28,6 +28,7 @@ import java.net.SocketException
 import java.net.SocketTimeoutException
 import java.net.UnknownHostException
 import java.time.Duration
+import java.util.Locale
 import java.util.concurrent.TimeUnit
 
 /** TMDB's answers as the client reports them, against [FakeTmdb], on the device's clock. */
@@ -215,6 +216,21 @@ class TmdbClientTest {
         tmdb.rawBody = """{"id":2316,"name":"The Office","external_ids":{"imdb_id":"tt0386676","tvdb_id":73244,"wikidata_id":"Q23831"}}"""
         assertEquals(TmdbExternalIds("tt0386676", 73244), client.tv(2316).externalIds)
         assertTrue("external_ids" in asked.single().queryParameter("append_to_response").orEmpty().split(','))
+    }
+
+    /** Details, artwork and certification come in the client's language and region, not the device's. */
+    @Test
+    fun aClientAsksInItsOwnLanguage() = runTest {
+        val asked = mutableListOf<HttpUrl>()
+        val quebec = Locale.forLanguageTag("fr-CA")
+        val transport = Interceptor { chain -> asked += chain.request().url; tmdb.intercept(chain) }
+        val client = TmdbClient("key", transport = transport, locale = quebec)
+        client.movie(438631)
+        assertEquals("fr-CA", asked.single().queryParameter("language"))
+        assertEquals("fr,en,null", asked.single().queryParameter("include_image_language"))
+        assertEquals("CA", client.region)
+        assertTrue(client.fits("key", quebec))
+        assertFalse(client.fits("key", Locale.FRANCE))
     }
 
     @Test

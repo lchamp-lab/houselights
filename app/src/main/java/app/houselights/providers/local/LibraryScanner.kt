@@ -23,6 +23,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
+import java.util.Locale
 import java.util.concurrent.atomic.AtomicBoolean
 
 data class ScanState(
@@ -62,6 +63,8 @@ class LibraryScanner(
     private val elapsed: () -> Long = SystemClock::elapsedRealtime,
     /** Foreground state; in the background the scan waits, as another app may be playing from the NAS. */
     private val started: Flow<Boolean> = flowOf(true),
+    /** Told the language of a refresh that read every source again: all details are now in it. */
+    private val refreshedIn: suspend (Locale) -> Unit = {},
 ) {
     private val _state = MutableStateFlow(ScanState())
     val state: StateFlow<ScanState> = _state
@@ -261,6 +264,12 @@ class LibraryScanner(
         }
         // No change, no refresh of the screens.
         if (changed) _changed.emit(Unit)
+        if (refreshMetadata) refreshed(errors, client)
+    }
+
+    /** A refresh that read every source with TMDB leaves every title in [client]'s language. */
+    private suspend fun refreshed(errors: Map<Long, ScanError>, client: TmdbClient?) {
+        if (errors.isEmpty() && client != null) refreshedIn(client.locale)
     }
 
     /** Runs the [Backfill] after the sources; a failure is retried at the next pass. */

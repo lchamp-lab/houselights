@@ -63,6 +63,7 @@ internal enum class SettingAction {
     PATH_MAPPINGS,
     UI_RESOLUTION,
     COLLECTIONS,
+    METADATA_LANGUAGE,
     REMOVE_FOLDER,
     CLEANUP,
     CLEAR_IMAGE_CACHE,
@@ -177,6 +178,11 @@ internal class SettingsViewModel(
         store.setCollectionMinFilms(value)
         // Libraries and detail pages read the setting: let them reload.
         library.settingsChanged()
+    }
+
+    /** Saves TMDB's language ([tag], null for the device's); the app then reads every title again in it. */
+    fun setMetadataLanguage(tag: String?) = change("Saving the details language", SettingAction.METADATA_LANGUAGE) {
+        store.setMetadataLanguage(tag)
     }
 
     /**

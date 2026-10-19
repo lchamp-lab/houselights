@@ -10,6 +10,8 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import java.io.File
+import java.util.Collections
+import java.util.Locale
 import java.util.concurrent.atomic.AtomicInteger
 import javax.crypto.KeyGenerator
 
@@ -40,6 +42,9 @@ class ScanBench(artworkDir: File, tmdbKey: Boolean = true) {
     val playing = MutableStateFlow(false)
     val started = MutableStateFlow(true)
 
+    /** Languages the scanner said a refresh read every source in. */
+    val refreshedIn: MutableList<Locale> = Collections.synchronizedList(mutableListOf())
+
     /** Times the scanner closed its NAS connections, and what runs when it does. */
     val closed = AtomicInteger()
     var onClose: () -> Unit = {}
@@ -58,6 +63,7 @@ class ScanBench(artworkDir: File, tmdbKey: Boolean = true) {
         clock = { now },
         interactiveTmdb = { tmdb.client().takeIf { withTmdb } },
         started = started,
+        refreshedIn = { refreshedIn += it },
     )
 
     fun close() = db.close()

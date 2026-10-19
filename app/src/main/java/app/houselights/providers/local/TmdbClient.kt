@@ -40,7 +40,7 @@ enum class TmdbKeyCheck {
     UNCHECKED,
 }
 
-/** TMDB v3 client; metadata in the device language. */
+/** TMDB v3 client; metadata in [locale]'s language, certifications for its region. */
 class TmdbClient(
     private val apiKey: String,
     /**
@@ -50,11 +50,10 @@ class TmdbClient(
     private val pauseWhenUnreachable: Boolean = false,
     /** Fake TMDB for tests. */
     transport: Interceptor? = null,
+    val locale: Locale = Locale.getDefault(),
 ) {
-    private val locale: Locale = Locale.getDefault()
-
-    /** Whether this client still matches [key] and the device locale; otherwise a new one is needed. */
-    fun fits(key: String): Boolean = key == apiKey && locale == Locale.getDefault()
+    /** Whether this client still matches [key] and [locale]; otherwise a new one is needed. */
+    fun fits(key: String, locale: Locale): Boolean = key == apiKey && locale == this.locale
 
     val language: String = locale.toLanguageTag().ifBlank { "en-US" }
     val languageCode: String = locale.language.ifBlank { "en" }
@@ -197,7 +196,7 @@ class TmdbClient(
         return if (show) r.tvResults.firstOrNull() else r.movieResults.firstOrNull()
     }
 
-    /** All posters, backdrops and logos in the device language, English, or without text. */
+    /** All posters, backdrops and logos in the client's language, English, or without text. */
     suspend fun images(tmdbId: Int, show: Boolean): TmdbImageSet =
         call { if (show) it.tvImages(tmdbId, imageLanguages) else it.movieImages(tmdbId, imageLanguages) }
 
@@ -228,7 +227,7 @@ class TmdbClient(
     /** This week's trending film posters, for the welcome screen. */
     suspend fun trendingPosterPaths(): List<String> = call { it.trendingMovies(language) }.results.mapNotNull { it.posterPath }
 
-    /** Logo in the device language, else English, else language-neutral. */
+    /** Logo in the client's language, else English, else language-neutral. */
     fun pickLogo(images: TmdbImages): String? =
         listOf(languageCode, "en", null).firstNotNullOfOrNull { lang ->
             images.logos.filter { it.iso6391 == lang }.maxByOrNull { it.voteAverage }?.filePath
@@ -242,6 +241,13 @@ class TmdbClient(
         tv.contentRatings.results.firstOrNull { it.iso31661 == region }?.rating?.takeIf { it.isNotBlank() }
 
     companion object {
+        /** Languages offered for details besides the device's; the region also picks certifications. */
+        val LANGUAGES = listOf(
+            "cs-CZ", "da-DK", "de-DE", "el-GR", "en-GB", "en-US", "es-ES", "es-MX", "fi-FI", "fr-CA", "fr-FR", "hu-HU",
+            "it-IT", "ja-JP", "ko-KR", "nb-NO", "nl-NL", "pl-PL", "pt-BR", "pt-PT", "ro-RO", "ru-RU", "sv-SE", "tr-TR",
+            "uk-UA", "zh-CN", "zh-TW",
+        )
+
         private const val BASE_URL = "https://api.themoviedb.org/3/"
         private val GATEWAY_FAILURES = setOf(502, 503, 504)
         private const val UNREACHABLE_PAUSE_MS = 60_000L

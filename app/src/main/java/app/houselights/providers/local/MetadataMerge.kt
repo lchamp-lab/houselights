@@ -27,7 +27,7 @@ data class TmdbDetails(
     val continuing: Boolean? = null,
 )
 
-/** [certification] and [logo] depend on the device's region and language, so the client picks them. */
+/** [certification] and [logo] depend on the client's region and language, so the client picks them. */
 fun TmdbMovie.details(certification: String?, logo: String?) = TmdbDetails(
     id = id,
     title = title,

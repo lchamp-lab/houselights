@@ -20,6 +20,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
@@ -36,6 +37,7 @@ import app.houselights.providers.local.ScanError
 import app.houselights.providers.local.ScanErrorKind
 import app.houselights.providers.local.ScanState
 import app.houselights.providers.local.SourceEntity
+import app.houselights.providers.local.TmdbClient
 import app.houselights.providers.local.TmdbClient.Companion.ImageType
 import app.houselights.providers.local.TmdbKeyCheck
 import app.houselights.providers.local.address
@@ -56,6 +58,7 @@ import app.houselights.ui.design.components.Emphasis
 import app.houselights.ui.design.components.FactRow
 import app.houselights.ui.design.components.HlButton
 import app.houselights.ui.design.components.HlChoiceSetting
+import app.houselights.ui.design.components.HlChoiceSheet
 import app.houselights.ui.design.components.HlDivider
 import app.houselights.ui.design.components.HlSideSheet
 import app.houselights.ui.design.components.PosterStrip
@@ -75,6 +78,8 @@ import app.houselights.ui.util.scanErrorText
 import app.houselights.ui.util.sourceKindName
 import app.houselights.ui.util.toUiError
 import app.houselights.core.CollectionThreshold
+import java.text.Collator
+import java.util.Locale
 
 /** The library pane: folders or server, then actions; rows that open a screen are keyed in [rows]. */
 internal fun LazyListScope.libraryPane(
@@ -381,6 +386,7 @@ private fun LibraryActions(
             valueAttention = (s.tmdbApiKey == null && !hasBuiltIn) || issue != null,
             onClick = { editKey = true },
         )
+        MetadataLanguageRow()
         CollectionsRow()
         SourceRow(onUseFolders, onSignIn, rows.focus(SOURCE))
     }
@@ -409,6 +415,51 @@ private fun CollectionsRow() {
         attention = failure?.value,
     )
     RowFailureNote(failure)
+}
+
+/** TMDB's language: the device's, or one of [TmdbClient.LANGUAGES]; a new one reads every title again. */
+@Composable
+private fun MetadataLanguageRow() {
+    val vm = settingsViewModel()
+    val s by vm.settings.collectAsStateWithLifecycle()
+    val device = LocalConfiguration.current.locales[0]
+    val tags = remember { TmdbClient.LANGUAGES.sortedWith(compareBy(Collator.getInstance(Locale.ROOT), ::metadataLanguageName)) }
+    var choosing by remember { mutableStateOf(false) }
+    val failure = rowFailure(vm.errorOf(SettingAction.METADATA_LANGUAGE))
+    val title = stringResource(R.string.metadata_language)
+    HlSettingRow(
+        title,
+        value = failure?.value ?: metadataLanguageName(s.metadataLanguage ?: device.toLanguageTag()),
+        description = stringResource(R.string.metadata_language_desc),
+        valueAttention = failure != null,
+        onClick = { choosing = true },
+    )
+    RowFailureNote(failure)
+    if (choosing) {
+        // Each language under its own name, then in the device's when that differs.
+        val deviceOption = ChoiceOption(stringResource(R.string.metadata_language_device), metadataLanguageName(device.toLanguageTag()))
+        val options = listOf(deviceOption) +
+            tags.map { tag ->
+                val own = metadataLanguageName(tag)
+                ChoiceOption(own, metadataLanguageName(tag, device).takeUnless { it.equals(own, ignoreCase = true) })
+            }
+        HlChoiceSheet(
+            title,
+            options,
+            selected = s.metadataLanguage?.let { tags.indexOf(it) + 1 } ?: 0,
+            onSelect = { i -> vm.setMetadataLanguage(tags.getOrNull(i - 1)) },
+            onDismiss = { choosing = false },
+            description = stringResource(R.string.metadata_language_sheet),
+        )
+    }
+}
+
+/** [tag] named in [locale], by default its own ("Deutsch"), with its region where several are offered ("Français (Canada)"). */
+private fun metadataLanguageName(tag: String, locale: Locale = Locale.forLanguageTag(tag)): String {
+    val language = Locale.forLanguageTag(tag)
+    val regions = TmdbClient.LANGUAGES.count { Locale.forLanguageTag(it).language == language.language } > 1
+    val name = if (regions) language.getDisplayName(locale) else language.getDisplayLanguage(locale)
+    return name.replaceFirstChar { it.titlecase(locale) }
 }
 
 /** The current source and what changing it keeps; OK opens [SourceSheet]. */

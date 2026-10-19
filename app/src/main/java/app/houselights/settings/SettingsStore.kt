@@ -50,6 +50,8 @@ private object Keys {
     val ui4k = booleanPreferencesKey("ui_4k")
     val tmdbKey = stringPreferencesKey("tmdb_api_key")
     val collectionMin = intPreferencesKey("collection_min_films")
+    val metadataLanguage = stringPreferencesKey("metadata_language")
+    val libraryLanguage = stringPreferencesKey("library_language")
 }
 
 private val SECRET_KEYS = listOf(Keys.source, Keys.tmdbKey, Keys.mappings)
@@ -107,6 +109,10 @@ data class AppSettings(
     val tmdbApiKey: String? = null,
     /** How many films of a collection the library needs to show it; 0 hides collections. */
     val collectionMinFilms: Int = CollectionThreshold.DEFAULT,
+    /** TMDB's language as a BCP 47 tag ("fr-CA"); null follows the device. */
+    val metadataLanguage: String? = null,
+    /** The language the folders' details were last all read in; null before the first launch that records it. */
+    val libraryLanguage: String? = null,
     /** Secrets that could not be read back (key lost, bad value): each reads as unset until saved again. */
     val lostSecrets: Set<SecretSetting> = emptySet(),
     /** The file keeps failing to read: retried ever less often, never replaced by defaults (which open Welcome). */
@@ -119,7 +125,8 @@ data class AppSettings(
     override fun toString() =
         "AppSettings(loaded=$loaded, source=$source, deviceId=$deviceId, pathMappings=${pathMappings.size}, " +
             "forceHttp=$forceHttp, ui4k=$ui4k, tmdbApiKey=${tmdbApiKey?.let { "***" }}, " +
-            "collectionMinFilms=$collectionMinFilms, lostSecrets=$lostSecrets, readFailed=$readFailed)"
+            "collectionMinFilms=$collectionMinFilms, metadataLanguage=$metadataLanguage, libraryLanguage=$libraryLanguage, " +
+            "lostSecrets=$lostSecrets, readFailed=$readFailed)"
 }
 
 class SettingsStore(
@@ -193,6 +200,8 @@ class SettingsStore(
             ui4k = this[Keys.ui4k] ?: true,
             tmdbApiKey = this[Keys.tmdbKey]?.let { opened(Keys.tmdbKey, it, lost) }?.takeIf { it.isNotBlank() },
             collectionMinFilms = this[Keys.collectionMin] ?: CollectionThreshold.DEFAULT,
+            metadataLanguage = this[Keys.metadataLanguage],
+            libraryLanguage = this[Keys.libraryLanguage],
             lostSecrets = lost,
         )
     }
@@ -259,6 +268,14 @@ class SettingsStore(
 
     suspend fun setCollectionMinFilms(value: Int) {
         write { it[Keys.collectionMin] = value }
+    }
+
+    suspend fun setMetadataLanguage(tag: String?) {
+        write { if (tag == null) it.remove(Keys.metadataLanguage) else it[Keys.metadataLanguage] = tag }
+    }
+
+    suspend fun setLibraryLanguage(tag: String) {
+        write { it[Keys.libraryLanguage] = tag }
     }
 
     suspend fun setTmdbApiKey(value: String?) {

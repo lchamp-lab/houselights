@@ -435,6 +435,10 @@
     <!-- Settings rows -->
     <string name="nav_version">Version %s</string>
     <string name="refresh_metadata_desc">Récupère à nouveau affiches et informations sur TMDB</string>
+    <string name="metadata_language">Langue des fiches</string>
+    <string name="metadata_language_desc">Titres, résumés et affiches de TMDB</string>
+    <string name="metadata_language_sheet">Les titres, résumés et affiches viennent de TMDB dans cette langue. En changer met à jour toutes les fiches.</string>
+    <string name="metadata_language_device">Langue de l’appareil</string>
     <string name="remove_folder">Retirer ce dossier</string>
     <string name="remove_folder_desc">Ses titres quittent la bibliothèque ; rien n’est supprimé sur le NAS.</string>
     <string name="remove_folder_row_desc">Ses titres quittent la bibliothèque</string>

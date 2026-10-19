@@ -1,6 +1,7 @@
 package app.houselights
 
 import android.app.Application
+import android.content.res.Configuration
 import android.net.Uri
 import android.os.SystemClock
 import android.util.Log
@@ -23,6 +24,7 @@ import app.houselights.providers.local.LocalLibrary
 import app.houselights.providers.local.LocalProvider
 import app.houselights.providers.local.RemoteBrowsers
 import app.houselights.providers.local.TmdbClient
+import app.houselights.settings.AppSettings
 import app.houselights.settings.SettingsStore
 import app.houselights.settings.SourceSwitcher
 import app.houselights.ui.home.HomeLaunch
@@ -41,7 +43,9 @@ import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filter
@@ -50,6 +54,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import okhttp3.Dispatcher
 import okhttp3.OkHttpClient
+import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
 import app.houselights.ui.home.LibraryRows
 
@@ -60,6 +65,11 @@ class HouselightsApp : Application(), ImageLoaderFactory {
     override fun onCreate() {
         super.onCreate()
         container = AppContainer(this)
+    }
+
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        container.deviceLocaleChanged(newConfig.locales[0])
     }
 
     override fun newImageLoader(): ImageLoader = ImageLoader.Builder(this)
@@ -114,6 +124,16 @@ class AppContainer(private val app: Application) : LibraryEvents {
     )
     val settings = SettingsStore(app, scope, Secrets.device)
 
+    /** The device's first language, kept current by [HouselightsApp.onConfigurationChanged]. */
+    private val deviceLocale = MutableStateFlow(app.resources.configuration.locales[0])
+
+    fun deviceLocaleChanged(locale: Locale) {
+        deviceLocale.value = locale
+    }
+
+    /** TMDB's language: the one chosen in Settings, else the device's. */
+    fun metadataLocale(): Locale = metadataLocale(settings.state.value, deviceLocale.value)
+
     /** The only way to change the source: the current one stays active until the new one is saved. */
     val sources = SourceSwitcher({ settings.state.value }, { settings.setSource(it) }, scope)
     val database = LibraryDatabase.create(app, Secrets.device)
@@ -152,6 +172,7 @@ class AppContainer(private val app: Application) : LibraryEvents {
         browsers = remoteBrowsers::of,
         closeIdle = remoteBrowsers::closeIdle,
         started = ProcessLifecycleOwner.get().lifecycle.currentStateFlow.map { it.isAtLeast(Lifecycle.State.STARTED) },
+        refreshedIn = { libraryReadIn(it.toLanguageTag()) },
     )
     val library = LocalLibrary(app, database.dao(), scanner, artwork, remoteBrowsers::forget)
 
@@ -168,6 +189,25 @@ class AppContainer(private val app: Application) : LibraryEvents {
                 if (settings.state.value.source == SourceConfig.Local) scanner.tmdbKeyChanged()
             }
         }
+        // Details read in another language than TMDB's are all read again; a refresh cut short resumes at launch.
+        scope.launch {
+            combine(settings.state.filter { it.loaded }, deviceLocale) { s, device ->
+                val refreshable = s.source == SourceConfig.Local && tmdbKey(s) != null
+                Triple(metadataLocale(s, device).toLanguageTag(), s.libraryLanguage, refreshable)
+            }.distinctUntilChanged().collect { (wanted, read, refreshable) ->
+                when {
+                    // Until a language is recorded, the folders were read in the one in use.
+                    read == null -> libraryReadIn(wanted)
+                    wanted != read && refreshable -> scanner.scanAll(refreshMetadata = true)
+                }
+            }
+        }
+    }
+
+    /** Records the language all details are now in. */
+    private suspend fun libraryReadIn(tag: String) {
+        suspendRunCatching { settings.setLibraryLanguage(tag) }
+            .onFailure { Log.w("Houselights", "The library's language could not be saved", it) }
     }
 
     @Volatile
@@ -189,7 +229,7 @@ class AppContainer(private val app: Application) : LibraryEvents {
         }
 
     /** TMDB key in use: the one saved in Settings, else the one built into the APK. */
-    fun tmdbKey(): String? = settings.state.value.tmdbApiKey ?: BuildConfig.TMDB_API_KEY.ifBlank { null }
+    fun tmdbKey(s: AppSettings = settings.state.value): String? = s.tmdbApiKey ?: BuildConfig.TMDB_API_KEY.ifBlank { null }
 
     @Volatile
     private var tmdbClient: TmdbClient? = null
@@ -200,15 +240,17 @@ class AppContainer(private val app: Application) : LibraryEvents {
     /** TMDB client for scans, kept while key and language hold; fails fast for a while when TMDB is unreachable. */
     fun tmdb(): TmdbClient? {
         val key = tmdbKey()?.takeIf { it.isNotBlank() } ?: return null
-        tmdbClient?.takeIf { it.fits(key) }?.let { return it }
-        return TmdbClient(key, pauseWhenUnreachable = true).also { tmdbClient = it }
+        val locale = metadataLocale()
+        tmdbClient?.takeIf { it.fits(key, locale) }?.let { return it }
+        return TmdbClient(key, pauseWhenUnreachable = true, locale = locale).also { tmdbClient = it }
     }
 
     /** TMDB client for interactive requests (search, identification, artwork): it never pauses. */
     fun tmdbInteractive(): TmdbClient? {
         val key = tmdbKey()?.takeIf { it.isNotBlank() } ?: return null
-        tmdbInteractiveClient?.takeIf { it.fits(key) }?.let { return it }
-        return TmdbClient(key).also { tmdbInteractiveClient = it }
+        val locale = metadataLocale()
+        tmdbInteractiveClient?.takeIf { it.fits(key, locale) }?.let { return it }
+        return TmdbClient(key, locale = locale).also { tmdbInteractiveClient = it }
     }
 
     /** Poster URLs of trending films, or nothing when TMDB is unreachable. */
@@ -223,6 +265,8 @@ class AppContainer(private val app: Application) : LibraryEvents {
         scope.launch { LibraryDatabase.sealPlainPasswords(database.dao(), Secrets.device) }
     }
 }
+
+private fun metadataLocale(s: AppSettings, device: Locale): Locale = s.metadataLanguage?.let(Locale::forLanguageTag) ?: device
 
 /** Decoded pictures kept in memory: a few backdrops and the posters of several rows. */
 private const val IMAGE_MEMORY_BYTES = 64 * 1024 * 1024
