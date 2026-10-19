@@ -35,6 +35,7 @@ import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.Constraints
 import app.houselights.ui.design.HlType
+import app.houselights.ui.design.emberLit
 import androidx.compose.ui.platform.LocalContext
 import kotlin.math.roundToInt
 
@@ -44,10 +45,13 @@ fun SectionHeader(text: String, modifier: Modifier = Modifier) {
     Text(text, style = Hl.type.lead, color = Hl.colors.content, modifier = modifier)
 }
 
-/** Screen title (library name, settings). */
+/** A screen's title, the place it is (a library, Réglages, a person), in the ember light; never a film's title. */
 @Composable
 fun ScreenTitle(text: String, modifier: Modifier = Modifier) {
-    Text(text, style = Hl.type.headline, color = Hl.colors.content, modifier = modifier)
+    val colors = Hl.colors
+    val headline = Hl.type.headline
+    val lit = remember(colors, headline) { headline.emberLit(colors) }
+    Text(text, style = lit, color = colors.content, modifier = modifier)
 }
 
 /**

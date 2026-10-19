@@ -83,10 +83,12 @@ object HlSize {
     /** A button on a detail page; [controlCompact] in a screen's header. */
     val control = 48.dp
     val controlCompact = 44.dp
-    /** A square icon button; [tileCompact] in the home bar. */
+    /** A square icon button; [tileCompact] in a screen's header and home's bar. */
     val tile = 48.dp
     val tileCompact = 40.dp
     val icon = 20.dp
+    /** An icon on a [tile]. */
+    val tileIcon = 22.dp
     /** An icon larger than a line's: a panel button's, an empty preview's. */
     val discIcon = 24.dp
     /** A mark over a picture (watched, chosen), on its plate. */
@@ -115,6 +117,9 @@ object HlSize {
     val rowPreviewWide = 84.dp
     /** Progress shown beside text (time left). */
     val progressShort = 120.dp
+    /** The progress of home's hero title, before its time left. */
+    val heroProgress = 220.dp
+    val heroProgressWeight = 4.dp
     /** Placeholder rules for a title and its facts while a page loads. */
     val skeletonTitle = 48.dp
     val skeletonFacts = 24.dp
@@ -122,8 +127,12 @@ object HlSize {
     /** The short rule heading an intertitle card: a question asked in a sheet. */
     val intertitleRule = 24.dp
     val intertitleRuleWeight = 2.dp
-    /** An option inside a segmented track: with the track's padding, as tall as a control. */
+    /** A word of a track (`HlSegmented`) on its plate, a menu option: as tall as a compact tile. */
     val segment = 40.dp
+    /** The dot before the current place's word when it has focus. */
+    val wordDot = 7.dp
+    /** Gradation opening home's bar, as tall as its words' capitals. */
+    val barMark = 18.dp
     /** The ring of focus on a field, a read-only area, a control that cannot act. */
     val focusBorder = 2.dp
     val hairline = 1.dp
@@ -267,9 +276,9 @@ object HlControl {
     /** A tile's label plate: room around the words. */
     val labelPaddingH = 12.dp
     val labelPaddingV = 4.dp
-    val tabPaddingH = 16.dp
-    val buttonPaddingH = 24.dp
-    val buttonPaddingIcon = 20.dp
+    val tabPaddingH = 12.dp
+    val buttonPaddingH = 20.dp
+    val buttonPaddingIcon = 16.dp
     /** Between an icon and its text inside a control. */
     val iconGap = 8.dp
     val badgePaddingH = 6.dp

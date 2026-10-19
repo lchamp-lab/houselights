@@ -1,6 +1,10 @@
 package app.houselights.ui.design.components
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -8,12 +12,16 @@ import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.assertIsNotFocused
+import androidx.compose.ui.test.assertIsNotSelected
+import androidx.compose.ui.test.assertIsSelected
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import app.houselights.ui.testing.TV
 import app.houselights.ui.testing.press
 import app.houselights.ui.testing.setTvContent
+import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -50,5 +58,28 @@ class SegmentedFocusTest {
         compose.onNodeWithTag("below").assertIsFocused()
         compose.press(Key.DirectionUp)
         compose.onNodeWithText("Séries").assertIsFocused()
+    }
+
+    /** A track that selects as focus moves turns each word it reaches bold and lit: none of the words moves. */
+    @Test
+    fun choosingAWordMovesNone() {
+        val above = FocusRequester()
+        val seasons = (1..4).map { "Saison $it" }
+        compose.setTvContent {
+            var selected by remember { mutableIntStateOf(0) }
+            Column {
+                HlButton("Trier", onClick = {}, modifier = Modifier.focusRequester(above))
+                HlSegmented(seasons, selected = selected, onSelect = { selected = it }, selectOnFocus = true)
+            }
+        }
+        fun words() = seasons.map { compose.onNodeWithText(it, useUnmergedTree = true).getUnclippedBoundsInRoot().left }
+        val atRest = words()
+        compose.runOnIdle { above.requestFocus() }
+        compose.press(Key.DirectionDown)
+        compose.onNodeWithText("Saison 1").assertIsFocused().assertIsSelected()
+        compose.press(Key.DirectionRight, times = 2)
+        compose.onNodeWithText("Saison 3").assertIsFocused().assertIsSelected()
+        compose.onNodeWithText("Saison 1").assertIsNotSelected()
+        assertEquals(atRest, words())
     }
 }

@@ -2,70 +2,80 @@ package app.houselights.ui.design.components
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.runtime.Composable
-import androidx.compose.foundation.focusGroup
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.composed
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.ExperimentalComposeUiApi
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.composed
-import kotlin.math.roundToInt
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorProducer
+import androidx.compose.ui.graphics.drawOutline
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.unit.IntOffset
-import androidx.compose.ui.layout.positionInParent
-import androidx.compose.ui.layout.onPlaced
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateMapOf
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalWindowInfo
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.findRootCoordinates
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalWindowInfo
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Constraints
-import androidx.compose.ui.unit.constrain
-import androidx.compose.ui.layout.layout
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.foundation.layout.widthIn
-import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.stateDescription
-import app.houselights.R
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.constrainWidth
+import androidx.compose.ui.unit.offset
 import androidx.tv.material3.Icon
+import androidx.tv.material3.LocalContentColor
 import androidx.tv.material3.Text
-import app.houselights.ui.design.HlIconButtonDefaults
+import app.houselights.R
+import app.houselights.ui.design.GradationMark
+import app.houselights.ui.design.Ground
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlAlpha
+import app.houselights.ui.design.HlColors
 import app.houselights.ui.design.HlControl
+import app.houselights.ui.design.HlIconButtonDefaults
 import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlInset
 import app.houselights.ui.design.HlLayout
@@ -73,15 +83,31 @@ import app.houselights.ui.design.HlMotion
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
-import app.houselights.ui.design.groundPlate
+import app.houselights.ui.design.LocalAmbientDeep
+import app.houselights.ui.design.LocalGround
 import app.houselights.ui.design.RowScroll
+import app.houselights.ui.design.emberLight
+import app.houselights.ui.design.emberLit
+import app.houselights.ui.design.plate
+import app.houselights.ui.design.plateEdge
+import kotlin.math.roundToInt
 
 enum class Emphasis { Primary, Secondary }
 
+/** Set by [HeaderControls]: buttons and tiles take their compact sizes. */
+private val LocalInHeader = staticCompositionLocalOf { false }
+
+/** Lays [content] out as a screen's header or home's bar: its buttons 44 tall, its tiles 40 square. */
+@Composable
+fun HeaderControls(content: @Composable () -> Unit) {
+    CompositionLocalProvider(LocalInHeader provides true, content = content)
+}
+
 /**
- * Button, projector white on focus; the primary one is brighter at rest. Disabled, it keeps focus, ringed,
- * and ignores OK; [busy] shows the pending dot and [busyLabel] at the same width and ignores OK.
- * [detailLit] sets the detail in ember for a state it names (an active filter).
+ * Button. The primary one is the main action: the ember light in black ink, framed by focus. A secondary one is
+ * a plate turning white. Disabled, it keeps focus, ringed, and ignores OK; [busy] shows the pending dot and
+ * [busyLabel] at the same width and ignores OK. [detailLit] lights the detail for a state it names (an active
+ * filter, the sort chosen).
  */
 @Composable
 fun HlButton(
@@ -115,53 +141,106 @@ internal fun ButtonPlate(
 ) {
     val c = Hl.colors
     val busyState = stringResource(R.string.control_busy)
-    val fill = if (emphasis == Emphasis.Primary) HlAlpha.FILL_STRONG else HlAlpha.FILL
-    HlFocusSurface(
-        onClick = { if (!busy) onClick() },
-        look = FocusStyle.fill(
-            rest = c.content.copy(alpha = fill),
-            restInk = if (caution) c.ember else c.content,
-            disabled = c.content.copy(alpha = HlAlpha.FILL_FAINT),
-            disabledInk = c.contentTertiary,
-        ),
-        shape = HlShapes.control,
-        modifier = modifier.height(HlSize.control).semantics { if (busy) stateDescription = busyState },
-        enabled = enabled,
-    ) { lit ->
-        Row(
-            Modifier
-                .align(Alignment.Center)
-                .keepWidthWhile(busy)
-                .padding(
-                    start = if (icon != null || busy) HlControl.buttonPaddingIcon else HlControl.buttonPaddingH,
-                    end = HlControl.buttonPaddingH,
-                ),
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            if (busy) {
-                Box(Modifier.size(HlSize.icon), contentAlignment = Alignment.Center) { StatusLight(StatusState.Pending) }
+    val height = if (LocalInHeader.current) HlSize.controlCompact else HlSize.control
+    val surface = modifier.height(height).semantics { if (busy) stateDescription = busyState }
+    val words = ButtonWords(text, icon, detail, detailLit, busy, busyLabel)
+    if (emphasis == Emphasis.Primary) {
+        val light = remember(c) { c.emberLight() }
+        HlFocusSurface(
+            onClick = { if (!busy) onClick() },
+            look = FocusStyle.frame(
+                rest = Color.Transparent,
+                restInk = c.onEmber,
+                lift = Lift.Still,
+                disabled = c.content.copy(alpha = HlAlpha.FILL_FAINT),
+                disabledInk = c.contentTertiary,
+            ),
+            shape = HlShapes.control,
+            modifier = surface,
+            enabled = enabled,
+        ) { lit ->
+            // A disabled action keeps its well: the light is for what OK starts.
+            if (enabled) Box(Modifier.matchParentSize().background(light))
+            ButtonRow(words, primary = true, lit = lit, enabled = enabled)
+        }
+    } else {
+        val plate = rememberPlate()
+        HlFocusSurface(
+            onClick = { if (!busy) onClick() },
+            look = FocusStyle.fill(
+                rest = plate.fill,
+                restInk = if (caution) c.ember else c.content,
+                disabled = plate.disabled,
+                disabledInk = c.contentTertiary,
+                edge = plate.edge,
+            ),
+            shape = HlShapes.control,
+            modifier = surface,
+            enabled = enabled,
+        ) { lit -> ButtonRow(words, primary = false, lit = lit, enabled = enabled) }
+    }
+}
+
+/** What a button says. */
+@Immutable
+private class ButtonWords(
+    val text: String,
+    val icon: ImageVector?,
+    val detail: String?,
+    val detailLit: Boolean,
+    val busy: Boolean,
+    val busyLabel: String,
+)
+
+@Composable
+private fun BoxScope.ButtonRow(words: ButtonWords, primary: Boolean, lit: Boolean, enabled: Boolean) {
+    Row(
+        Modifier
+            .align(Alignment.Center)
+            .keepWidthWhile(words.busy)
+            .padding(
+                start = if (words.icon != null || words.busy) HlControl.buttonPaddingIcon else HlControl.buttonPaddingH,
+                end = HlControl.buttonPaddingH,
+            ),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (words.busy) {
+            // On the ember light, the pending dot takes the button's black ink.
+            val ink = LocalContentColor.current.takeIf { primary }
+            Box(Modifier.size(HlSize.icon), contentAlignment = Alignment.Center) { StatusLight(StatusState.Pending, ink = ink) }
+            Spacer(Modifier.width(HlControl.iconGap))
+            ButtonLabel(words.busyLabel)
+        } else {
+            words.icon?.let {
+                Icon(it, contentDescription = null, modifier = Modifier.size(HlSize.icon))
                 Spacer(Modifier.width(HlControl.iconGap))
-                ButtonLabel(busyLabel)
-            } else {
-                // A disabled button keeps its well under focus: white would offer an action.
-                ButtonContent(text, icon, detail, FocusStyle.quietInk(lit && enabled, enabled, detailLit))
+            }
+            ButtonLabel(words.text)
+            words.detail?.let {
+                Spacer(Modifier.width(HlControl.iconGap))
+                ButtonDetail(it, primary, lit, enabled, words.detailLit)
             }
         }
     }
 }
 
+/**
+ * A button's detail: on the main action, a duration in the technical voice and its black ink; on a plate,
+ * a value, quiet, lit in ember when it names a state (a disabled button keeps it quiet: no ember on a well).
+ */
 @Composable
-private fun ButtonContent(text: String, icon: ImageVector?, detail: String?, detailColor: Color) {
-    if (icon != null) {
-        Icon(icon, contentDescription = null, modifier = Modifier.size(HlSize.icon))
-        Spacer(Modifier.width(HlControl.iconGap))
+private fun ButtonDetail(text: String, primary: Boolean, lit: Boolean, enabled: Boolean, detailLit: Boolean) {
+    val c = Hl.colors
+    val t = Hl.type
+    val chosen = remember(c, t.entry) { t.entry.emberLit(c) }
+    val style = when {
+        primary -> t.jaquette
+        detailLit && enabled && !lit -> chosen
+        else -> t.entry
     }
-    ButtonLabel(text)
-    if (detail != null) {
-        Spacer(Modifier.width(HlSpace.s))
-        Text(detail, style = Hl.type.meta, color = detailColor, maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
-    }
+    val color = if (primary) Color.Unspecified else FocusStyle.quietInk(lit && enabled, enabled, lit = false)
+    Text(text, style = style, color = color, maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
 }
 
 /** Records the content width at rest and keeps at least that width while [busy], so the row does not shift. */
@@ -183,24 +262,94 @@ private fun ButtonLabel(text: String) {
     )
 }
 
-/** A screen title naming one of two views, then a ⇄ tile switching to the other; [label] names that one. */
+/** A plate under a secondary control, read while drawing, its edge, and its well when it cannot act. */
+@Immutable
+private class PlateLook(val fill: ColorProducer, val disabled: ColorProducer, val edge: BorderStroke?)
+
+/**
+ * By ground: on artwork, the picture's own dark ([plate]) set off by its hairline; on the room, glass; on glass,
+ * a step up. A control that cannot act sits in a faint well, but keeps its plate over a picture.
+ */
 @Composable
-fun HlTitleSwitch(title: String, label: String, onSwitch: () -> Unit, modifier: Modifier = Modifier) {
-    Row(modifier, verticalAlignment = Alignment.CenterVertically) {
-        ScreenTitle(title)
-        Spacer(Modifier.width(HlSpace.xs))
-        HlFocusSurface(
-            onClick = onSwitch,
-            look = FocusStyle.fill(rest = Color.Transparent, restInk = Hl.colors.contentSecondary),
-            shape = HlShapes.control,
-            modifier = Modifier.size(HlSize.tile),
-        ) {
-            Icon(HlIcons.Swap, contentDescription = label, modifier = Modifier.size(HlSize.icon).align(Alignment.Center))
+private fun rememberPlate(): PlateLook {
+    val c = Hl.colors
+    val ground = LocalGround.current
+    val deep = LocalAmbientDeep.current
+    return remember(c, ground, deep) {
+        val well = c.content.copy(alpha = HlAlpha.FILL_FAINT)
+        when (ground) {
+            Ground.Artwork -> {
+                val plate = ColorProducer { c.plate(deep()) }
+                PlateLook(plate, plate, BorderStroke(HlSize.hairline, c.plateEdge))
+            }
+            Ground.Glass -> {
+                val step = c.content.copy(alpha = HlAlpha.FILL)
+                PlateLook({ step }, { well }, null)
+            }
+            Ground.Room -> {
+                val glass = c.glass
+                PlateLook({ glass }, { well }, null)
+            }
         }
     }
 }
 
-/** A row of actions that reserves room below for a round button's focus label, so nothing moves. */
+/** A screen title naming one of two views, then a tile switching to the other; [label] names that one. */
+@Composable
+fun HlTitleSwitch(title: String, label: String, onSwitch: () -> Unit, modifier: Modifier = Modifier) {
+    Row(modifier, verticalAlignment = Alignment.CenterVertically) {
+        ScreenTitle(title)
+        Spacer(Modifier.width(HlSpace.s))
+        Tile(HlIcons.Swap, label, onSwitch)
+    }
+}
+
+/**
+ * A square tile on its plate, white with focus; 40 in a header ([HeaderControls]), else 48. [chosen] lights
+ * its glyph in ember, raspberry on the white of focus.
+ */
+@Composable
+private fun Tile(
+    icon: ImageVector,
+    label: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    chosen: Boolean = false,
+    interactionSource: MutableInteractionSource? = null,
+) {
+    val c = Hl.colors
+    val header = LocalInHeader.current
+    val plate = rememberPlate()
+    HlFocusSurface(
+        onClick = onClick,
+        look = FocusStyle.fill(
+            rest = plate.fill,
+            restInk = c.content,
+            disabled = plate.disabled,
+            disabledInk = c.contentTertiary,
+            edge = plate.edge,
+        ),
+        shape = HlShapes.control,
+        modifier = modifier.size(if (header) HlSize.tileCompact else HlSize.tile),
+        enabled = enabled,
+        interactionSource = interactionSource,
+    ) { lit ->
+        val tint = when {
+            !chosen || !enabled -> LocalContentColor.current
+            lit -> c.emberOnLight
+            else -> c.ember
+        }
+        Icon(
+            icon,
+            contentDescription = label,
+            tint = tint,
+            modifier = Modifier.size(if (header) HlSize.icon else HlSize.tileIcon).align(Alignment.Center),
+        )
+    }
+}
+
+/** A row of actions that reserves room below for a tile's focus label, so nothing moves. */
 @Composable
 fun HlActionRow(
     modifier: Modifier = Modifier,
@@ -216,9 +365,9 @@ fun HlActionRow(
 }
 
 /**
- * Square icon tile whose focus label overflows below it without taking layout space (an [HlActionRow]
- * reserves it), centred unless near the screen side ([HlIconButtonDefaults.labelEdge]), hidden under a
- * sheet. A toggle names its action ("Marquer comme vu") and shows its state by [lit].
+ * Square icon tile whose focus label overflows below it on a plate, without taking layout space (an
+ * [HlActionRow] reserves it), centred unless near the screen side ([HlIconButtonDefaults.labelEdge]), hidden
+ * under a sheet. A toggle names its action ("Marquer comme vu") and shows its state by [lit].
  */
 @Composable
 fun HlIconButton(
@@ -239,27 +388,11 @@ fun HlIconButton(
         label = "label",
     )
     val c = Hl.colors
-    val plate = groundPlate()
-    val restFill = plate ?: c.content.copy(alpha = HlAlpha.FILL)
+    val deep = LocalAmbientDeep.current
     Layout(
         modifier = modifier,
         content = {
-            HlFocusSurface(
-                onClick = onClick,
-                look = FocusStyle.fill(
-                    rest = restFill,
-                    restInk = if (lit) c.ember else c.content,
-                    // Over artwork, a disabled icon is secondary like all quiet content there.
-                    disabled = plate ?: c.content.copy(alpha = HlAlpha.FILL_FAINT),
-                    disabledInk = if (plate != null) c.contentSecondary else c.contentTertiary,
-                ),
-                shape = HlShapes.control,
-                modifier = Modifier.size(HlSize.tile),
-                enabled = enabled,
-                interactionSource = interaction,
-            ) {
-                Icon(icon, contentDescription = label, modifier = Modifier.size(HlSize.icon).align(Alignment.Center))
-            }
+            Tile(icon, label, onClick, enabled = enabled, chosen = lit, interactionSource = interaction)
             Text(
                 label,
                 style = Hl.type.caption,
@@ -270,7 +403,7 @@ fun HlIconButton(
                 modifier = Modifier
                     .clearAndSetSemantics {}
                     .graphicsLayer { alpha = labelAlpha }
-                    .background(c.background.copy(alpha = HlAlpha.VEIL), HlShapes.mark)
+                    .labelPlate(c, deep)
                     .padding(horizontal = HlControl.labelPaddingH, vertical = HlControl.labelPaddingV),
             )
         },
@@ -288,6 +421,16 @@ fun HlIconButton(
             } ?: ((button.width - text.width) / 2)
             text.place(x, button.height + gap)
         }
+    }
+}
+
+/** A tile's label plate: the picture's own dark ([deep]) and its hairline, read while drawing. */
+private fun Modifier.labelPlate(c: HlColors, deep: () -> Color): Modifier = drawWithCache {
+    val outline = HlShapes.mark.createOutline(size, layoutDirection, this)
+    val hairline = Stroke(HlSize.hairline.toPx())
+    onDrawBehind {
+        drawOutline(outline, c.plate(deep()))
+        drawOutline(outline, c.plateEdge, style = hairline)
     }
 }
 
@@ -349,9 +492,12 @@ fun HlListItem(
 }
 
 /**
- * Exclusive options in one track: the current one on a quiet sliding plate, the focused one white.
- * Focus enters on [enterAt] (the current option by default), never the nearest; options read as tabs.
- * [selectOnFocus] selects on move, as TV tabs do; [details] add a check or "6 / 10".
+ * Where you are among a few places, as words in the poster's voice: home's bar, seasons, NFO views, a form's
+ * choice. The current word is lit in ember, the others grey; focus is the white plate, a raspberry dot before
+ * the current word. Words line up with the start edge and their plates hang past it, so nothing moves as focus
+ * or the choice moves. Focus enters on [enterAt] (the current option by default), never the nearest; options
+ * read as tabs. [selectOnFocus] selects on move, as TV tabs do; [details] add a check or "6 / 10"; [withMark]
+ * opens the row with Gradation, as home's bar does.
  */
 @Composable
 fun HlSegmented(
@@ -363,56 +509,59 @@ fun HlSegmented(
     scrollable: Boolean = false,
     enterAt: Int = selected,
     details: List<SegmentDetail?> = emptyList(),
+    withMark: Boolean = false,
 ) {
-    val places = remember(options.size) { mutableStateMapOf<Int, Pair<Float, Float>>() }
     val requesters = remember(options.size) { List(options.size) { FocusRequester() } }
-    // A long track scrolls with its plate; end padding leaves room for a focused option.
     val scroll = rememberScrollState()
-    val content = if (scrollable) Modifier.horizontalScroll(scroll).padding(horizontal = HlSpace.xxs) else Modifier
-
-    val well = groundPlate() ?: Hl.colors.content.copy(alpha = HlAlpha.FILL_FAINT)
-    // The track's corners run parallel to its options', a padding further out.
-    val track = modifier
-        .background(well, HlShapes.wide)
-        .padding(vertical = HlSpace.xxs, horizontal = if (scrollable) HlSpace.none else HlSpace.xxs)
-    RowScroll {
-        Box(track) {
-            Box(content) {
-                // The quiet plate under the options, sliding to the selected one.
-                places[selected]?.let { (x, w) ->
-                    val slide = tween<Float>(HlMotion.STANDARD, easing = HlMotion.focusPull)
-                    val left by animateFloatAsState(x, slide, label = "pillX")
-                    val width by animateFloatAsState(w, slide, label = "pillWidth")
-                    Box(
-                        Modifier
-                            .offset { IntOffset(left.roundToInt(), 0) }
-                            // Width read at measure, offset at placement: the plate slides without recomposing.
-                            .layout { measurable, constraints ->
-                                val px = width.toDp().roundToPx().coerceAtLeast(0)
-                                val placeable = measurable.measure(constraints.constrain(Constraints(minWidth = px, maxWidth = px)))
-                                layout(placeable.width, placeable.height) { placeable.placeRelative(0, 0) }
-                            }
-                            .height(HlSize.segment)
-                            .background(Hl.colors.content.copy(alpha = HlAlpha.FILL_STRONG), HlShapes.control),
+    Row(modifier, verticalAlignment = Alignment.CenterVertically) {
+        if (withMark) {
+            GradationMark()
+            // As far from the first word as words are from each other.
+            Spacer(Modifier.width(WordSpacing))
+        }
+        RowScroll {
+            Row(
+                Modifier
+                    .hang(TrackHang)
+                    .then(if (scrollable) Modifier.horizontalScroll(scroll) else Modifier)
+                    .padding(start = DotRoom)
+                    .enterOn(requesters, enterAt)
+                    .selectableGroup(),
+                horizontalArrangement = Arrangement.spacedBy(PlateGap),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                options.forEachIndexed { i, label ->
+                    SegmentItem(
+                        label,
+                        detail = details.getOrNull(i),
+                        current = i == selected,
+                        onClick = { onSelect(i) },
+                        onFocused = { if (selectOnFocus) onSelect(i) },
+                        modifier = Modifier.focusRequester(requesters[i]),
                     )
-                }
-                Row(Modifier.enterOn(requesters, enterAt).selectableGroup(), horizontalArrangement = Arrangement.spacedBy(HlSpace.xxs)) {
-                    options.forEachIndexed { i, label ->
-                        SegmentItem(
-                            label,
-                            detail = details.getOrNull(i),
-                            selected = i == selected,
-                            onClick = { onSelect(i) },
-                            onFocused = { if (selectOnFocus) onSelect(i) },
-                            modifier = Modifier
-                                .focusRequester(requesters[i])
-                                .onPlaced { places[i] = it.positionInParent().x to it.size.width.toFloat() },
-                        )
-                    }
                 }
             }
         }
     }
+}
+
+/** Room before the current word for its dot. */
+private val DotRoom: Dp = HlSize.wordDot + HlControl.iconGap
+
+/** How far a track's plates may hang before its first word: a plate's padding and the current word's dot. */
+private val TrackHang: Dp = HlControl.tabPaddingH + DotRoom
+
+/** Between two plates of a track, so a current plate's dot room clears the word before it. */
+private val PlateGap: Dp = HlSpace.xs
+
+/** Between two words of a track, and between Gradation and the first. */
+private val WordSpacing: Dp = HlControl.tabPaddingH * 2 + PlateGap
+
+/** Laid out [by] further to the start than its slot, which it fills less [by]: what it draws hangs into the margin. */
+private fun Modifier.hang(by: Dp): Modifier = layout { measurable, constraints ->
+    val room = by.roundToPx()
+    val placeable = measurable.measure(constraints.offset(horizontal = room))
+    layout(constraints.constrainWidth(placeable.width - room), placeable.height) { placeable.place(-room, 0) }
 }
 
 /** A focus group entered on [current] from any side; on the nearest option when it is out of range. */
@@ -425,7 +574,7 @@ private fun Modifier.enterOn(requesters: List<FocusRequester>, current: Int): Mo
 private fun SegmentItem(
     text: String,
     detail: SegmentDetail?,
-    selected: Boolean,
+    current: Boolean,
     onClick: () -> Unit,
     onFocused: () -> Unit,
     modifier: Modifier = Modifier,
@@ -433,17 +582,28 @@ private fun SegmentItem(
     val c = Hl.colors
     HlFocusSurface(
         onClick = onClick,
-        look = FocusStyle.fill(rest = Color.Transparent, restInk = if (selected) c.content else c.contentSecondary),
+        look = FocusStyle.fill(rest = Color.Transparent, restInk = if (current) c.content else c.contentSecondary),
         shape = HlShapes.control,
-        modifier = modifier.height(HlSize.segment).onFocusChanged { if (it.isFocused) onFocused() },
+        // The current plate takes its dot's room before the word, hanging over the gap: the word stays put.
+        modifier = modifier
+            .then(if (current) Modifier.hang(DotRoom) else Modifier)
+            .height(HlSize.segment)
+            .onFocusChanged { if (it.isFocused) onFocused() },
         role = Role.Tab,
-        selected = selected,
+        selected = current,
     ) { lit ->
         Row(
-            Modifier.align(Alignment.Center).padding(horizontal = HlControl.tabPaddingH),
+            Modifier.align(Alignment.CenterStart).padding(horizontal = HlControl.tabPaddingH),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(text, style = Hl.type.entry, maxLines = 1, softWrap = false)
+            if (current) {
+                Box(Modifier.width(DotRoom), contentAlignment = Alignment.CenterStart) {
+                    // On the white of focus, the place stays marked: a raspberry dot.
+                    val dot = Modifier.size(HlSize.wordDot)
+                    if (lit) Box(dot.background(c.emberOnLight, CircleShape))
+                }
+            }
+            Word(text, current, lit)
             when (detail) {
                 null -> Unit
                 SegmentDetail.Done -> {
@@ -452,7 +612,7 @@ private fun SegmentItem(
                     Icon(
                         HlIcons.Check,
                         contentDescription = null,
-                        tint = if (lit) c.onFocus else c.content,
+                        tint = if (lit) LocalContentColor.current else c.content,
                         modifier = Modifier.size(HlSize.inlineIcon),
                     )
                 }
@@ -464,6 +624,30 @@ private fun SegmentItem(
             }
         }
     }
+}
+
+/** A track's word: the current one bold in the ember light, black under focus; each as wide as it is in bold. */
+@Composable
+private fun Word(text: String, current: Boolean, lit: Boolean) {
+    val c = Hl.colors
+    val t = Hl.type
+    val here = remember(c, t.placeCurrent) { t.placeCurrent.emberLit(c) }
+    val style = when {
+        !current -> t.place
+        lit -> t.placeCurrent
+        else -> here
+    }
+    Box(contentAlignment = Alignment.Center) {
+        // Measured, never drawn: choosing a word, which turns it bold, moves none of the others.
+        Text(text, style = t.placeCurrent, maxLines = 1, softWrap = false, modifier = Modifier.clearAndSetSemantics {}.unplaced())
+        Text(text, style = style, maxLines = 1, softWrap = false)
+    }
+}
+
+/** Takes its room in the layout without being placed, so it is neither drawn nor read. */
+private fun Modifier.unplaced(): Modifier = layout { measurable, constraints ->
+    val placeable = measurable.measure(constraints)
+    layout(placeable.width, placeable.height) {}
 }
 
 /** Progress shown after an [HlSegmented] option's name: a check when [Done], else figures ("6 / 10"). */

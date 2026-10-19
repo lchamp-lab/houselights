@@ -273,7 +273,8 @@ The screen is a TV seen from three metres, through overscan that may crop its ma
 | `AmbientBackdrop`, `rememberAmbientColor` | a screen on its picture, and the picture's light, provided as a function (`LocalAmbient`) and read while drawing |
 | `PosterCard`, `LandscapeCard`, `PersonCard`, `ArtworkSurface`, `ArtworkImage` | artwork with the shared focus treatment (see *Cards*). A person in two titles or more opens their page (`PersonScreen`); a person of a single title does nothing |
 | `AbsentCard` | a saga's missing films as empty frames, in release order; focusable, outlined, OK does nothing |
-| `HeroInfo`, `TitleArt`, `EpisodeHeading`, `MetaLine`, `BillingBlock` | what a title is: logo or condensed title, facts, credits. Logos are normalised to the same optical weight (`EvenLogo`, `SURFACE` 0.35) and requested as shown (`titleArtRequest`). A name waits for its picture (`WithItsPicture`, `HOLD` at most) |
+| `HeroInfo`, `TitleArt`, `EpisodeHeading`, `MetaLine`, `BillingBlock` | what a title is: logo or condensed title, facts, credits. Logos are normalised to the same optical weight (`EvenLogo`, `SURFACE` 0.35) and requested as shown (`titleArtRequest`). A name waits for its picture (`WithItsPicture`, `HOLD` at most). Home's hero has no formats; a title begun shows the ember light over a faint white track (`HlSize.heroProgress`), then its time left |
+| `ScreenTitle` | a screen's one place name (a library, Réglages, a person) in `headline`, lit in ember; never a film's title |
 | `TitleLine` | the selected title over a wall: name and facts on one line, ellipsised |
 | `FormatLines`, `Badge`, `FactRow`, `Score` | formats as words in the technical voice: picture on one line, sound on the next, nothing said twice (`Formats`), read from the file (`MkvProbe`). A `Badge` is a printed mark, never a format or state. A score is a quiet fact |
 | `HeadOverview`, `SynopsisSheet` | three lines of overview; when cut, focusable and opening the full text in a side sheet |
@@ -289,9 +290,9 @@ The screen is a TV seen from three metres, through overscan that may crop its ma
 
 | Component | Use |
 |---|---|
-| `HlButton` (`Primary`, `Secondary`), `HlIconButton` | pill and round actions, 48 dp tall. A round button shows its label below on focus, on a dark plate, kept inside the safe area (`HlIconButtonDefaults`); `HlActionRow` keeps room for it. Toggles name what OK does and show the state with the icon (`lit`, `HlIcons.CheckFilled`). `detailLit` lights a state in the detail. Disabled: keeps focus, outlined, ignores OK. `busy`: a pending dot and `busyLabel` ("Connexion…"), width kept, OK ignored |
-| `HlSegmented` | where you are among a few options (home, seasons with `scrollable`, NFO views, form choices). Focus is the white pill; the current option sits on a `FILL_STRONG` pill that slides to the choice, its words white. Focus entering lands on the current option. Exposed as tabs. On artwork, the track gets a plate |
-| `HlTitleSwitch` | a screen title with a disc that switches to its other view (Films and Sagas) |
+| `HlButton` (`Primary`, `Secondary`), `HlIconButton`, `HeaderControls` | actions 48 dp tall, radius 10. The primary one (Lire, Reprendre) is the ember light in black ink (`onEmber`), `HlIcons.Play`, a duration in `jaquette`; focus frames it. A secondary one is a plate (`plate()` edged by `plateEdge` over a picture, glass on the room) that focus fills white. `HlIconButton` is a square tile (48, its glyph `HlSize.tileIcon`) showing its label below on focus, on a plate, inside the safe area (`HlIconButtonDefaults`); `HlActionRow` keeps room for it. In a header (`HeaderControls`): buttons 44, tiles 40. Toggles name what OK does and show the state with the icon (`lit`: the glyph in ember, raspberry on white; `HlIcons.CheckFilled`). `detailLit` lights a chosen value in the detail. Disabled: a faint well, tertiary ink, ringed by focus, OK ignored. `busy`: a pending dot and `busyLabel` ("Connexion…"), width kept, OK ignored |
+| `HlSegmented` | where you are among a few places, as words in `place` (home's bar, opened by Gradation with `withMark`; seasons with `scrollable`; NFO views; form choices). The current word is lit in ember (`placeCurrent`), the others grey; focus is the white plate, with a raspberry dot (`HlSize.wordDot`) before the current word. Words line up with the start edge and plates hang past it, each word as wide as in bold: nothing moves as focus or the choice moves. Focus entering lands on the current option. Exposed as tabs |
+| `HlTitleSwitch` | a screen title with a tile that switches to its other view (Films and Sagas) |
 | `HlTextField` | focusable box, keyboard on OK, "OK saisir" hint (`KeyHint`), ember while typing. One line below: `supporting` or `error` (`AttentionNote`). Placeholders are examples from resources. Saved when left, never while typing |
 | `HlMenuButton`, `MenuSection`, `MenuOption` | a sectioned menu anchored to its button (sort, filters), opening below or above within the safe area; a sort applies once the menu has closed |
 | `HlScrollArea` | long content read with the remote, focusable only when scrollable; `HlScrollArea(lineHeight)` lays out only visible lines |
@@ -453,7 +454,8 @@ at a time, together as wide as they are tall. The name appears in white after th
 - **Sizes:** the icon's mark is 46 of 108 units, inside the 66-unit safe circle; the banner follows Android
   TV's 320 × 180 grid; the launch mark is 36 units. Each is optically centred (`Gradation.PULL`).
 
-All are vectors: `ic_launcher_foreground` (with its `<monochrome>` layer), `banner.xml`, `splash_mark`.
+All are vectors: `ic_launcher_foreground` (with its `<monochrome>` layer), `banner.xml`, `splash_mark`. On screen,
+`GradationMark` opens home's bar only (`HlSize.barMark`, the height of its words' capitals).
 `BrandTest` checks their geometry, gradient and palette; `CatalogBrand` shows them as Android draws them.
 
 ## Performance

@@ -29,6 +29,7 @@ import androidx.compose.ui.unit.DpSize
 import androidx.tv.material3.Text
 import app.houselights.R
 import app.houselights.ui.design.Gradation
+import app.houselights.ui.design.GradationMark
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlSize
@@ -52,6 +53,11 @@ internal fun LazyListScope.catalogBrand() {
     item {
         Group("Brand: the launch mark, as Android 9 draws it, in the circle it shows", still = true) {
             LaunchMark(R.drawable.splash_mark)
+        }
+    }
+    item {
+        Group("Brand: on screen, Gradation opens home's bar, as tall as its words' capitals", still = true) {
+            Specimen("in home's bar, before Accueil", gap = HlSpace.xs) { GradationMark() }
         }
     }
     item {

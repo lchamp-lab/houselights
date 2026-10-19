@@ -38,6 +38,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.components.HlIconButton
 import app.houselights.ui.design.components.HlSegmented
+import app.houselights.ui.design.components.HeaderControls
 import app.houselights.ui.design.components.HlEmptyState
 import app.houselights.ui.design.components.HlErrorState
 import app.houselights.ui.design.HlFocus
@@ -244,13 +245,13 @@ private fun TopBar(
     /** Null when the source cannot search. */
     onSearch: (() -> Unit)? = null,
 ) {
-    // The library track and the actions apart, on plates over the image; a long track scrolls, the buttons stay.
-    OnArtwork { Row(
+    // Gradation and the places on the veil, the actions apart on their plates; a long track scrolls, the tiles stay.
+    OnArtwork { HeaderControls { Row(
         Modifier.fillMaxWidth().padding(start = HlSpace.safeH, end = HlSpace.safeH, top = HlSpace.safeV),
         horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.Top,
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        // The pill slides to the chosen library before it opens; returning home selects Accueil again.
+        // The chosen library lights before it opens; returning home makes Accueil the place again.
         var current by remember { mutableIntStateOf(0) }
         val scope = rememberCoroutineScope()
         HlSegmented(
@@ -259,7 +260,7 @@ private fun TopBar(
             onSelect = { i ->
                 if (i > 0 && current == 0) {
                     current = i
-                    // Prefetch the wall while the pill slides.
+                    // Prefetch the wall while its name lights.
                     onLibraryAhead(libraries[i - 1])
                     scope.launch {
                         awaitMotion(HlMotion.STANDARD)
@@ -271,6 +272,7 @@ private fun TopBar(
             modifier = Modifier.weight(1f, fill = false).padding(end = HlSpace.l).focusGroupKey(TRACK, memory),
             scrollable = true,
             enterAt = returnTo ?: current,
+            withMark = true,
         )
         // Down from the buttons enters the first row as from the tabs, not on the card beneath the button.
         val down = Modifier.focusProperties { down = intoRows() ?: FocusRequester.Default }
@@ -290,7 +292,7 @@ private fun TopBar(
                 modifier = Modifier.focusKey(FocusKey.action("settings"), memory).then(down),
             )
         }
-    } }
+    } } }
 }
 
 @Composable

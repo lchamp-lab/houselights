@@ -14,8 +14,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -47,7 +45,6 @@ import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.components.Badge
 import app.houselights.ui.design.components.Emphasis
-import app.houselights.ui.design.components.FactRow
 import app.houselights.ui.design.components.HlActionRow
 import app.houselights.ui.design.components.HlButton
 import app.houselights.ui.design.components.HlDivider
@@ -58,7 +55,6 @@ import app.houselights.ui.design.components.HlMeter
 import app.houselights.ui.design.components.HlNavItem
 import app.houselights.ui.design.components.HlPanel
 import app.houselights.ui.design.components.HlSegmented
-import app.houselights.ui.design.components.HlTitleSwitch
 import app.houselights.ui.design.components.HlSettingGroup
 import app.houselights.ui.design.components.HlSettingRow
 import app.houselights.ui.design.components.HlSideSheet
@@ -80,12 +76,9 @@ import app.houselights.ui.design.plate
 import app.houselights.ui.design.tryRequestFocus
 import app.houselights.ui.util.NBSP
 import app.houselights.ui.util.formatDuration
-import app.houselights.ui.util.libraryName
-import app.houselights.core.LibraryKind
 import java.util.Locale
 import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
-import app.houselights.ui.design.components.SegmentDetail
 
 /** Every token and component in its states, for review on a real screen; debug builds only, untranslated. */
 @Composable
@@ -125,46 +118,7 @@ fun CatalogScreen() {
             catalogGestures()
             catalogIcons()
 
-            item {
-                Group("Controls") {
-                    HlActionRow {
-                        HlButton(
-                            stringResource(R.string.play),
-                            {},
-                            icon = Icons.Filled.PlayArrow,
-                            detail = "1 h 53",
-                            emphasis = Emphasis.Primary,
-                        )
-                        HlButton("Secondary", {})
-                        HlIconButton(HlIcons.Info, "Icon button", {})
-                    }
-                    ControlStates()
-                    var place by remember { mutableIntStateOf(0) }
-                    var season by remember { mutableIntStateOf(2) }
-                    HlSegmented(
-                        listOf(R.string.nav_home, R.string.library_movies, R.string.library_shows).map { stringResource(it) },
-                        selected = place,
-                        onSelect = { place = it },
-                    )
-                    // The Films wall's title: ⇄ turns it to its sagas and back.
-                    var sagas by remember { mutableStateOf(false) }
-                    val views = listOf(LibraryKind.MOVIES, LibraryKind.COLLECTIONS).map { libraryName(it) }
-                    HlTitleSwitch(views[if (sagas) 1 else 0], label = views[if (sagas) 0 else 1], onSwitch = { sagas = !sagas })
-                    HlSegmented(
-                        (1..12).map { stringResource(R.string.season_number, it) },
-                        selected = season,
-                        onSelect = { season = it },
-                        selectOnFocus = true,
-                        scrollable = true,
-                        // How far each season is watched: two done, the third begun.
-                        details = listOf(SegmentDetail.Done, SegmentDetail.Done, SegmentDetail.Count("6$NBSP/${NBSP}10")),
-                    )
-                    Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.xs)) {
-                        listOf("Ultra HD", "Dolby Vision", "HDR10", "TrueHD Atmos", "7.1", "12").forEach { Badge(it) }
-                    }
-                    FactRow(listOf("2026", "1 h 53", "8,2"))
-                }
-            }
+            catalogControls()
 
             item {
                 Group("Panels and status") {
@@ -322,7 +276,7 @@ fun CatalogScreen() {
                         HlButton(
                             stringResource(R.string.resume),
                             {},
-                            icon = Icons.Filled.PlayArrow,
+                            icon = HlIcons.Play,
                             detail = stringResource(R.string.time_left, "1${NBSP}h${NBSP}26"),
                             emphasis = Emphasis.Primary,
                         )
@@ -416,70 +370,6 @@ private fun Colours() {
                 style = Hl.type.caption,
                 color = c.contentSecondary,
                 modifier = Modifier.padding(start = HlSpace.m).widthIn(max = HlLayout.readableNarrow),
-            )
-        }
-    }
-}
-
-/** Buttons, round buttons and setting rows in their states, each named underneath. */
-@Composable
-private fun ControlStates() {
-    Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Top) {
-        Specimen("detail lit: a state it names", gap = HlSpace.xs) {
-            HlButton(
-                stringResource(R.string.filter),
-                {},
-                icon = HlIcons.Filter,
-                detail = stringResource(R.string.filter_unwatched),
-                detailLit = true,
-            )
-        }
-        Specimen("disabled: focus outlines it", gap = HlSpace.xs) {
-            HlButton(stringResource(R.string.add), {}, icon = HlIcons.Folder, enabled = false)
-        }
-        Specimen("busy: the screen's words", gap = HlSpace.xs) {
-            HlButton(
-                stringResource(R.string.test_connection),
-                {},
-                icon = HlIcons.Test,
-                busy = true,
-                busyLabel = stringResource(R.string.checking),
-            )
-        }
-    }
-    HlActionRow(horizontalArrangement = Arrangement.spacedBy(HlSpace.m)) {
-        var busy by remember { mutableStateOf(false) }
-        LaunchedEffect(busy) {
-            if (busy) {
-                delay(CATALOG_BUSY_MS)
-                busy = false
-            }
-        }
-        Specimen("OK: busy for 3 s, its width kept", gap = HlSpace.xs) {
-            HlButton(
-                stringResource(R.string.sign_in),
-                { busy = true },
-                emphasis = Emphasis.Primary,
-                busy = busy,
-                busyLabel = stringResource(R.string.signing_in),
-            )
-        }
-        // A round button's label takes no room of its own: this specimen keeps what a row of them keeps.
-        Specimen("round, disabled", gap = HlSpace.xs) {
-            HlActionRow { HlIconButton(HlIcons.Edit, stringResource(R.string.edit), {}, enabled = false) }
-        }
-    }
-    Specimen("a label longer than a reading column stops with an ellipsis", gap = HlSpace.xs) {
-        HlButton("Ajouter « Le Seigneur des anneaux : la Communauté de l’anneau, version longue » à vos favoris", {})
-    }
-    Column(Modifier.widthIn(max = HlLayout.readable)) {
-        Specimen("setting row, disabled: tertiary words, focus outlines it; never in a raised sheet", gap = HlSpace.xs) {
-            HlSettingRow(
-                stringResource(R.string.scan_now),
-                description = "Aucun dossier à analyser",
-                onClick = {},
-                chevron = false,
-                enabled = false,
             )
         }
     }
@@ -587,8 +477,6 @@ private fun SheetCode(onDismiss: () -> Unit) {
 /** More rows than a side sheet holds. */
 private const val CATALOG_LONG_ROWS = 14
 
-/** How long the catalogue's busy buttons work before they give their answer. */
-private const val CATALOG_BUSY_MS = 3_000L
 
 @Composable
 private fun Swatch(name: String, color: Color) = Swatch(name, SolidColor(color))

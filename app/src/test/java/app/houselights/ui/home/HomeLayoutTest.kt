@@ -16,11 +16,17 @@ class HomeLayoutTest {
     private val safeBottom = screen - HlSpace.safeV
     private fun sp(value: Float): Dp = value.dp
 
-    /** Where the rows start: the bar, a gap, the hero's band, a gap. */
-    private val rowsTop = HlSpace.safeV + HlSize.control + HlSpace.l + HlLayout.hero + HlSpace.l
+    /** Home's bar: its words' plates and its tiles, 40 tall. */
+    private val bar = maxOf(HlSize.segment, HlSize.tileCompact)
 
-    /** Where a row's cards start: its header and the room kept above a growing card. */
-    private val cardsTop = rowsTop + sp(HouselightsType.lead.lineHeight.value) + HlSpace.xxs + HlFocus.room
+    /** Where the rows start: the bar, a gap, the hero's band, a gap. */
+    private val rowsTop = HlSpace.safeV + bar + HlSpace.l + HlLayout.hero + HlSpace.l
+
+    /** Where a row's cards start: its header in the poster's voice and the room kept above a growing card. */
+    private val cardsTop = rowsTop + sp(HouselightsType.rowTitle.lineHeight.value) + HlSpace.xxs + HlFocus.room
+
+    @Test
+    fun theBarIsAsTallAsACompactTile() = assertTrue("the bar is $bar tall", bar <= HlSize.tileCompact)
 
     @Test
     fun aFocusedPosterOfTheFirstRowStaysInsideTheSafeArea() {
@@ -34,7 +40,7 @@ class HomeLayoutTest {
     @Test
     fun theCaptionsOfAFirstLandscapeRowStayInsideTheSafeArea() {
         val still = HlSize.landscape * 9 / 16
-        val caption = HlSpace.s + sp(HouselightsType.entry.lineHeight.value) + HlSpace.xxs + sp(HouselightsType.caption.lineHeight.value)
+        val caption = HlSpace.s + sp(HouselightsType.cardName.lineHeight.value) + HlSpace.xxs + sp(HouselightsType.caption.lineHeight.value)
         val bottom = cardsTop + still + caption
         assertTrue("captions end at $bottom", bottom <= safeBottom)
     }

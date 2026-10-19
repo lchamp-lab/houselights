@@ -14,8 +14,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -121,21 +119,21 @@ private fun Frames() {
     Specimen("a panel: 1.02, framed, no light of its own", Modifier.widthIn(max = HlLayout.readable)) {
         HlListItem(stringResource(R.string.source_local), "Vos vidéos sur un NAS ou un partage réseau.", {}, icon = HlIcons.Folder)
     }
+    Specimen("the main action: the ember light, framed, still", gap = HlSpace.xs) {
+        HlButton(stringResource(R.string.play), {}, icon = HlIcons.Play, detail = "1 h 53", emphasis = Emphasis.Primary)
+    }
 }
 
 @Composable
 private fun Fills() {
     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Top) {
-        Specimen("main action", gap = HlSpace.xs) {
-            HlButton(stringResource(R.string.play), {}, icon = Icons.Filled.PlayArrow, detail = "1 h 53", emphasis = Emphasis.Primary)
-        }
         Specimen("secondary", gap = HlSpace.xs) { HlButton(stringResource(R.string.filter), {}, icon = HlIcons.Filter) }
         // A tile's label takes no room of its own: the row keeps it.
         Specimen("tile", gap = HlSpace.xs) { HlActionRow { HlIconButton(HlIcons.Info, stringResource(R.string.tech_details), {}) } }
         Specimen("cannot act: ringed", gap = HlSpace.xs) { HlButton(stringResource(R.string.add), {}, enabled = false) }
     }
     var place by remember { mutableIntStateOf(1) }
-    Specimen("tabs: the current one stays quiet, focus is white", gap = HlSpace.xs) {
+    Specimen("tabs: the place lit in ember; focus is white, a dot marks the place", gap = HlSpace.xs) {
         HlSegmented(
             listOf(R.string.nav_home, R.string.library_movies, R.string.library_shows).map { stringResource(it) },
             selected = place,

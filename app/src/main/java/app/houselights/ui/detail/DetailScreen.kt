@@ -21,8 +21,6 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Immutable
@@ -64,6 +62,7 @@ import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.textRoom
 import app.houselights.ui.design.LocalHouseLights
 import app.houselights.ui.design.houseLit
+import app.houselights.ui.design.OnArtwork
 import app.houselights.ui.design.scrollsAsBlock
 import app.houselights.ui.design.ListScroll
 import app.houselights.ui.design.fadeOutsideSafeArea
@@ -497,7 +496,7 @@ private fun Hero(
     }
 }
 
-/** The title's [actions] in one row, with room below for a round button's label so nothing moves when it shows. */
+/** The title's [actions] in one row on plates over the picture, with room below for a tile's label so nothing moves. */
 @Composable
 private fun Actions(
     item: MediaItem,
@@ -509,7 +508,7 @@ private fun Actions(
     actionRow: FocusRequester,
 ) {
     val problem by appContainer().playback.playbackProblem.collectAsStateWithLifecycle()
-    HlActionRow(Modifier.focusRequester(actionRow).fadeOutsideSafeArea()) {
+    OnArtwork { HlActionRow(Modifier.focusRequester(actionRow).fadeOutsideSafeArea()) {
         PlayButtons(item, nextUp, memory, actions)
         Parts(item, memory, actions.onPlay)
         // Several copies: the one Lire plays is chosen in a side sheet.
@@ -563,7 +562,7 @@ private fun Actions(
             HlIconButton(HlIcons.Edit, stringResource(R.string.edit), onClick = actions.onEdit, modifier = Modifier.focusKey(EDIT, memory))
         }
         ActionFailure(problem, actionError)
-    }
+    } }
 }
 
 /** Why the last play request failed ([problem]) or a change did not save ([actionError]), beside the actions. */
@@ -592,7 +591,7 @@ private fun PlayButtons(item: MediaItem, nextUp: MediaItem?, memory: FocusMemory
         stringResource(if (resume) R.string.resume else R.string.play),
         onClick = { onPlay(target, resume) },
         modifier = Modifier.focusKey(PLAY, memory),
-        icon = Icons.Filled.PlayArrow,
+        icon = HlIcons.Play,
         detail = playDetail(episode, target, resume, copy != null),
         emphasis = Emphasis.Primary,
     )

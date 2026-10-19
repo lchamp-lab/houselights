@@ -74,14 +74,25 @@ internal object FocusStyle {
         disabled: Color = rest,
         disabledInk: Color = restInk,
         edge: BorderStroke? = null,
+    ): FocusLook = fill({ rest }, restInk, { disabled }, disabledInk, edge)
+
+    /** [fill] on a plate whose colour is read while drawing: a picture's own dark follows it without recomposing. */
+    @Composable
+    @ReadOnlyComposable
+    fun fill(
+        rest: ColorProducer,
+        restInk: Color,
+        disabled: ColorProducer = rest,
+        disabledInk: Color = restInk,
+        edge: BorderStroke? = null,
     ): FocusLook {
         val c = Hl.colors
         val white = c.focus
         return FocusLook(
             Gesture.Fill,
-            rest = Plate({ rest }, restInk),
+            rest = Plate(rest, restInk),
             focus = Plate({ white }, c.onFocus),
-            disabled = Plate({ disabled }, disabledInk),
+            disabled = Plate(disabled, disabledInk),
             edge = edge,
             lift = Lift.Still,
         )

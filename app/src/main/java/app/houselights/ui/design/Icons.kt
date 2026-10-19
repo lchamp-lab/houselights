@@ -10,7 +10,7 @@ import androidx.compose.ui.graphics.vector.PathBuilder
 import androidx.compose.ui.graphics.vector.path
 import androidx.compose.ui.unit.dp
 
-/** App icons on a 24 dp grid, 1.75 stroke, round caps and joins, tinted by the caller; only Play is Material's. */
+/** App icons on a 24 dp grid, 1.75 stroke, round caps and joins, tinted by the caller. */
 object HlIcons {
     private fun icon(name: String, filled: Boolean = false, block: PathBuilder.() -> Unit): ImageVector =
         ImageVector.Builder(name, 24.dp, 24.dp, 24f, 24f).apply {
@@ -50,6 +50,11 @@ object HlIcons {
     val Playback = icon("Playback") {
         moveTo(3.5f, 5f); lineTo(20.5f, 5f); lineTo(20.5f, 19f); lineTo(3.5f, 19f); close()
         moveTo(10.25f, 9f); lineTo(15f, 12f); lineTo(10.25f, 15f); close()
+    }
+
+    /** Play, filled as on a remote: the main action's glyph. */
+    val Play = icon("Play", filled = true) {
+        moveTo(7f, 4.5f); lineTo(19.5f, 12f); lineTo(7f, 19.5f); close()
     }
 
     /** A film's copies: one frame, another behind it. */

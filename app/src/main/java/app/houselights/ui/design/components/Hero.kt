@@ -11,6 +11,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import kotlinx.coroutines.flow.first
@@ -33,6 +36,7 @@ import androidx.tv.material3.Text
 import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
 import app.houselights.ui.design.Hl
+import app.houselights.ui.design.HlAlpha
 import app.houselights.ui.design.HlMotion
 import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlSize
@@ -66,7 +70,7 @@ fun HeroInfo(item: MediaItem?, modifier: Modifier = Modifier) {
             Spacer(Modifier.height(HlSpace.s))
             if (shown.progress > 0f) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    ProgressLine(shown.progress, Modifier.width(HlSize.progressShort))
+                    HeroProgress(shown.progress)
                     Spacer(Modifier.width(HlSpace.s))
                     timeLeft(shown)?.let { Text(it, style = Hl.type.caption, color = Hl.colors.contentSecondary) }
                 }
@@ -128,6 +132,26 @@ private fun rememberNamed(item: MediaItem?): MediaItem? {
     }
     // An update to the same title (progress, overview) applies at once.
     return if (item != null && item.id == named?.id) item else named
+}
+
+/** How far the hero's title is seen: the ember light stretched over the part seen, on a faint white track. */
+@Composable
+private fun HeroProgress(progress: Float) {
+    val c = Hl.colors
+    Spacer(
+        Modifier
+            .width(HlSize.heroProgress)
+            .height(HlSize.heroProgressWeight)
+            .drawWithCache {
+                val seen = size.width * progress.coerceIn(0f, 1f)
+                val light = Brush.horizontalGradient(listOf(c.emberFrom, c.emberTo), endX = seen)
+                val track = c.content.copy(alpha = HlAlpha.FILL_STRONG)
+                onDrawBehind {
+                    drawRect(track)
+                    drawRect(light, size = Size(seen, size.height))
+                }
+            },
+    )
 }
 
 /** Overview lines in a browsing hero: enough to recognise a film; the rest is on its page. */

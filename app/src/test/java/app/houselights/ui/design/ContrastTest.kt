@@ -55,6 +55,8 @@ class ContrastTest {
         "emberFrom" to c.emberFrom, "ember" to c.ember, "emberTo" to c.emberTo,
         // A picture's own dark where it is whole: a veil or a plate at its floor.
         "ambientDeep" to c.ambientDeep,
+        // A control's plate over a picture, where controls sit: on the veil at its floor over a white image.
+        "plate on the veil's floor on a white image" to c.plate().compositeOver(c.background.over(HlScrim.need(1f), Color.White)),
     )
 
     /** Every pair the system draws, as role, surface, use. */
@@ -118,6 +120,15 @@ class ContrastTest {
         // A state's light: pending, and the ring of off, on the room, in a sheet and in a busy button.
         ("contentTertiary" on "background").mark(), ("contentTertiary" on "glass").mark(),
         ("contentTertiary" on "FILL_STRONG").mark(), ("contentTertiary" on "FILL").mark(),
+        // A control's plate over a picture: its words, its detail, its words disabled, a chosen glyph, a lit value.
+        "content" on "plate on the veil's floor on a white image", "contentSecondary" on "plate on the veil's floor on a white image",
+        "contentTertiary" on "plate on the veil's floor on a white image",
+        ("ember" on "plate on the veil's floor on a white image").mark(),
+        "emberFrom" on "plate on the veil's floor on a white image", "emberTo" on "plate on the veil's floor on a white image",
+        // Words in the ember light: a screen's title, a value chosen on a glass plate, and the place in home's bar,
+        // where the top and left veils meet at the picture's own dark.
+        "emberFrom" on "background", "emberTo" on "background", "emberFrom" on "glass", "emberTo" on "glass",
+        "emberFrom" on "ambientDeep",
     )
 
     private val forbidden = listOf(
