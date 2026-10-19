@@ -1,6 +1,7 @@
 package app.houselights.providers.local
 
 import java.io.FileNotFoundException
+import java.nio.charset.Charset
 
 /** An in-memory NAS for scans: files with a size, first bytes and date; it counts reads and can fail on demand. */
 class FakeRemoteBrowser : RemoteBrowser {
@@ -30,6 +31,16 @@ class FakeRemoteBrowser : RemoteBrowser {
     fun put(path: String, size: Long = DEFAULT_SIZE, bytes: ByteArray = ByteArray(0), lastModified: Long? = null) {
         files[path] = Entry(size, bytes, lastModified)
     }
+
+    /** A text file, an NFO say, read whole. */
+    fun putText(path: String, text: String, lastModified: Long? = null, charset: Charset = Charsets.UTF_8) {
+        val bytes = text.toByteArray(charset)
+        put(path, size = bytes.size.toLong(), bytes = bytes, lastModified = lastModified)
+    }
+
+    /** An image of [size] bytes, read whole. */
+    fun putImage(path: String, size: Int = 100, lastModified: Long? = null) =
+        put(path, size = size.toLong(), bytes = ByteArray(size), lastModified = lastModified)
 
     fun remove(path: String) {
         files.remove(path)
@@ -66,6 +77,10 @@ class FakeRemoteBrowser : RemoteBrowser {
     }
 
     companion object {
-        const val DEFAULT_SIZE = 4_000_000_000L
+        private const val DEFAULT_SIZE = 4_000_000_000L
+
+        /** Two modification dates, as SMB or NFS list them. */
+        const val T1 = 1_760_000_000_000L
+        const val T2 = T1 + 60_000L
     }
 }

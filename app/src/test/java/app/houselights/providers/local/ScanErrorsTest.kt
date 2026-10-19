@@ -1,6 +1,5 @@
 package app.houselights.providers.local
 
-import android.database.sqlite.SQLiteFullException
 import android.system.ErrnoException
 import android.system.OsConstants
 import app.houselights.testing.mountFailure
@@ -22,27 +21,21 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import java.io.EOFException
 import java.io.IOException
-import java.net.ConnectException
 import java.net.SocketException
-import java.util.concurrent.ExecutionException
-import java.util.concurrent.TimeoutException
 
-/** Runs on Robolectric for Android's storage exceptions. */
+/**
+ * What a folder's scan reports for smbj's and nfs-client's own exceptions and messages, and for storage errors told by
+ * errno alone, beyond the failures every screen reads alike (FailuresTest). On Robolectric for Android's exceptions.
+ */
 @RunWith(RobolectricTestRunner::class)
 class ScanErrorsTest {
     private fun kind(e: Throwable) = ScanErrors.classify(e).kind
 
+    /** As nfs-client words an RPC connection it could not open, the portmapper's here. */
     @Test
-    fun unreachable() {
-        assertEquals(ScanErrorKind.UNREACHABLE, kind(IOException("rpc error, server: 192.168.1.20, RPC error: waiting for connection to be established, but failed /192.168.1.20:111")))
-        assertEquals(ScanErrorKind.UNREACHABLE, kind(IOException("wrapped", ConnectException("Connection refused"))))
-    }
-
-    /** As smbj 0.14 throws a NAS answer past the request timeout: Promise, Futures.get, Share.receive. */
-    @Test
-    fun anSmbRequestThatTimesOutIsUnreachable() {
-        val expired = SMBRuntimeException(TimeoutException("Timeout expired"))
-        assertEquals(ScanErrorKind.UNREACHABLE, kind(SMBRuntimeException(TransportException(ExecutionException(expired)))))
+    fun anNfsConnectionThatCannotBeOpenedIsUnreachable() {
+        val message = "rpc error, server: 192.168.1.20, RPC error: waiting for connection to be established, but failed /192.168.1.20:111"
+        assertEquals(ScanErrorKind.UNREACHABLE, kind(IOException(message)))
     }
 
     /** The packet reader fails the pending requests with what stopped it. */
@@ -99,23 +92,16 @@ class ScanErrorsTest {
         assertEquals(ScanErrorKind.OTHER, kind(MountException(MountStatus.MNT3ERR_IO, message, rpc)))
     }
 
-    /** Room writing to a full disk, and an image copied with no space left, as IoBridge throws it. */
+    /** No space left on the device, told by the errno alone; another write error is not a full device. */
     @Test
     fun aFullPlayerIsNotTheNas() {
-        assertEquals(ScanErrorKind.STORAGE_FULL, kind(SQLiteFullException("database or disk is full (code 13 SQLITE_FULL)")))
-        val full = ErrnoException("write", OsConstants.ENOSPC)
-        assertEquals(ScanErrorKind.STORAGE_FULL, kind(IOException("write failed: ENOSPC (No space left on device)", full)))
-        assertEquals(ScanErrorKind.STORAGE_FULL, kind(IOException(full)))
+        assertEquals(ScanErrorKind.STORAGE_FULL, kind(IOException(ErrnoException("write", OsConstants.ENOSPC))))
         assertEquals(ScanErrorKind.OTHER, kind(IOException(ErrnoException("write", OsConstants.EIO))))
     }
 
+    /** As smbj and nfs-client name a refusal in their messages. */
     @Test
-    fun smbLogin() {
-        assertEquals(ScanErrorKind.LOGIN_FAILED, kind(RuntimeException("STATUS_LOGON_FAILURE (0xc000006d): Authentication failed for 'zidoo'")))
-    }
-
-    @Test
-    fun accessDenied() {
+    fun aRefusalNamedInTheMessageIsAccessDenied() {
         assertEquals(ScanErrorKind.ACCESS_DENIED, kind(IOException("NFS3ERR_ACCES")))
         assertEquals(ScanErrorKind.ACCESS_DENIED, kind(RuntimeException("STATUS_ACCESS_DENIED (0xc0000022)")))
     }
@@ -123,7 +109,6 @@ class ScanErrorsTest {
     /** Nfs3's mount refused: the NAS does not export the folder to this device (seen on the emulator). */
     @Test
     fun anNfsMountRefusedIsAccessDenied() {
-        assertEquals(ScanErrorKind.ACCESS_DENIED, kind(mountFailure(MountStatus.MNT3ERR_ACCES)))
         assertEquals(ScanErrorKind.ACCESS_DENIED, kind(mountFailure(MountStatus.MNT3ERR_PERM)))
         assertEquals(ScanErrorKind.NOT_FOUND, kind(mountFailure(MountStatus.MNT3ERR_NOENT)))
     }
@@ -134,14 +119,10 @@ class ScanErrorsTest {
         assertEquals(ScanErrorKind.ACCESS_DENIED, kind(NfsException(NfsStatus.NFS3ERR_ACCES, "readdir error code: NfsStatus:13")))
     }
 
+    /** A share or export path the NAS does not have, as smbj and nfs-client name it. */
     @Test
-    fun notFound() {
+    fun aShareOrPathNamedMissingInTheMessageIsNotFound() {
         assertEquals(ScanErrorKind.NOT_FOUND, kind(RuntimeException("STATUS_BAD_NETWORK_NAME (0xc00000cc)")))
         assertEquals(ScanErrorKind.NOT_FOUND, kind(IOException("NFS3ERR_NOENT")))
-    }
-
-    @Test
-    fun other() {
-        assertEquals(ScanErrorKind.OTHER, kind(IllegalStateException("something else")))
     }
 }

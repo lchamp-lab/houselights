@@ -39,11 +39,7 @@ class ScanNamesTest {
 
     private suspend fun episodes() = bench.dao.filesOf(shows.id).sortedBy { it.episodeNumber }
 
-    private suspend fun filmPaths() = bench.dao.filesOf(films.id).mapNotNull { it.filePath }.sorted()
-
-    private fun putFile(path: String, text: String) = text.toByteArray().let { nas.put(path, size = it.size.toLong(), bytes = it) }
-
-    private fun putImage(path: String) = nas.put(path, size = 100, bytes = ByteArray(100))
+    private suspend fun filmPaths() = bench.paths(films)
 
     /** A Blu-ray folder is one film, named by its folder, played from its largest stream, described beside it. */
     @Test
@@ -51,8 +47,8 @@ class ScanNamesTest {
         nas.put("Inception (2010)/BDMV/STREAM/00000.m2ts", size = 300_000_000)
         nas.put("Inception (2010)/BDMV/STREAM/00800.m2ts", size = 38_000_000_000)
         nas.put("Inception (2010)/BDMV/STREAM/00801.m2ts", size = 2_000_000_000)
-        putFile("Inception (2010)/movie.nfo", "<movie><plot>A thief who steals secrets.</plot></movie>")
-        putImage("Inception (2010)/poster.jpg")
+        nas.putText("Inception (2010)/movie.nfo", "<movie><plot>A thief who steals secrets.</plot></movie>")
+        nas.putImage("Inception (2010)/poster.jpg")
         bench.scan()
 
         val path = "Inception (2010)/BDMV/STREAM/00800.m2ts"
@@ -84,7 +80,7 @@ class ScanNamesTest {
         nas.put("Films/Heat (1995)/VIDEO_TS/VTS_01_2.VOB", size = 1_073_000_000)
         nas.put("Films/Heat (1995)/VIDEO_TS/VTS_01_3.VOB", size = 400_000_000)
         nas.put("Films/Heat (1995)/VIDEO_TS/VTS_02_1.VOB", size = 1_073_000_000)
-        putFile("Films/Heat (1995)/VIDEO_TS/VIDEO_TS.nfo", "<movie><plot>Los Angeles.</plot></movie>")
+        nas.putText("Films/Heat (1995)/VIDEO_TS/VIDEO_TS.nfo", "<movie><plot>Los Angeles.</plot></movie>")
         bench.scan()
 
         val path = "Films/Heat (1995)/VIDEO_TS/VTS_01_1.VOB"
@@ -101,8 +97,8 @@ class ScanNamesTest {
         nas.put("Dune (2021)/Dune (2021)-trailer.mkv")
         nas.put("Dune (2021)/Featurettes/Making of.mkv")
         nas.put("Dune (2021)/Behind The Scenes/Sandworms.mkv")
-        putFile("Dune (2021)/movie.nfo", "<movie><plot>Arrakis.</plot></movie>")
-        putImage("Dune (2021)/poster.jpg")
+        nas.putText("Dune (2021)/movie.nfo", "<movie><plot>Arrakis.</plot></movie>")
+        nas.putImage("Dune (2021)/poster.jpg")
         nas.put("Trailers/Trailers.mkv")
         nas.put("Shorts/Night Shift.mkv")
         nas.put("Animation/Shorts/Bao (2018).mkv")
@@ -168,10 +164,11 @@ class ScanNamesTest {
         showsNas.put("Severance/Season 1/Severance - S01E01/BDMV/STREAM/00002.m2ts", size = 90_000_000)
         bench.scan()
 
+        val path = "Severance/Season 1/Severance - S01E01/BDMV/STREAM/00001.m2ts"
         val pilot = episodes().single()
-        assertEquals("Severance/Season 1/Severance - S01E01/BDMV/STREAM/00001.m2ts", pilot.filePath)
+        assertEquals(path, pilot.filePath)
         assertEquals(1 to 1, pilot.seasonNumber to pilot.episodeNumber)
-        assertEquals("Severance", bench.dao.item(checkNotNull(pilot.seriesId))?.title)
+        assertEquals("Severance", bench.showOf(shows, path).title)
     }
 
     /** Extras of an episode, beside it or in its season's folder, are not a second episode of that number. */
@@ -249,8 +246,8 @@ class ScanNamesTest {
     /** Season packs naming the show's year: one show, described by its folder, tvshow.nfo and season posters. */
     @Test
     fun aShowsSeasonPacksNamingItsYearStayInItsFolder() = runTest {
-        showsNas.put("Breaking Bad/tvshow.nfo", size = BREAKING_BAD.size.toLong(), bytes = BREAKING_BAD)
-        showsNas.put("Breaking Bad/season02-poster.jpg", size = 100, bytes = ByteArray(100))
+        showsNas.putText("Breaking Bad/tvshow.nfo", "<tvshow><title>Breaking Bad</title><year>2008</year></tvshow>")
+        showsNas.putImage("Breaking Bad/season02-poster.jpg")
         showsNas.put("Breaking Bad/Breaking Bad (2008) Season 1 S01 (1080p BluRay x265 Silence)/Breaking Bad (2008) - S01E01 - Pilot.mkv")
         showsNas.put("Breaking Bad/Breaking Bad (2008) Season 2 S02 (1080p BluRay x265 Silence)/Breaking Bad (2008) - S02E01 - 737.mkv")
         bench.scan()
@@ -263,7 +260,7 @@ class ScanNamesTest {
 
     @Test
     fun showsUnderAFolderOfKindsAreTheirOwn() = runTest {
-        showsNas.put("Animation/Arcane/tvshow.nfo", size = ARCANE.size.toLong(), bytes = ARCANE)
+        showsNas.putText("Animation/Arcane/tvshow.nfo", "<tvshow><title>Arcane</title><year>2021</year></tvshow>")
         showsNas.put("Animation/Arcane/Saison 1/Arcane.S01E01.MULTi.1080p.WEB.mkv")
         showsNas.put("Animation/Blue Eye Samurai/Saison 1/Blue.Eye.Samurai.S01E01.MULTi.1080p.WEB.mkv")
         bench.scan()
@@ -285,28 +282,6 @@ class ScanNamesTest {
         assertEquals(1, series().size)
     }
 
-    /** A show keyed before keys included the year keeps its row as episodes arrive; a yearless folder joins it. */
-    @Test
-    fun aShowKeyedWithoutItsYearKeepsItsRow() = runTest {
-        val old = bench.dao.insert(
-            ItemEntity(
-                kind = ItemKind.SERIES, sourceId = shows.id, matchKey = "severance", title = "Severance", sortTitle = "severance",
-                addedAt = 0,
-            )
-        )
-        bench.dao.setFavorite(old, true)
-        showsNas.put("Severance (2022)/Season 2/Severance - S02E01.mkv")
-        bench.scan()
-        val uhd = FakeRemoteBrowser().apply { put("Severance/Season 2/Severance - S02E02 2160p.mkv") }
-        val second = bench.folder("Séries 4K", SourceKind.SHOWS, on = uhd)
-        bench.scan()
-
-        val row = checkNotNull(bench.dao.item(old))
-        assertEquals("severance|2022", row.matchKey)
-        assertTrue(row.favorite)
-        assertEquals(listOf(old, old), (bench.dao.filesOf(shows.id) + bench.dao.filesOf(second.id)).map { it.seriesId })
-    }
-
     @Test
     fun videosThatNameNoEpisodeAreToldOnceAPass() = runTest {
         showsNas.put("Severance/Season 1/Severance - S01E01.mkv")
@@ -318,10 +293,5 @@ class ScanNamesTest {
         val told = ShadowLog.getLogsForTag("LibraryScanner").filter { "name no episode" in it.msg }
         assertEquals(1, told.size)
         assertTrue(told.single().msg, "1 of 2 videos" in told.single().msg)
-    }
-
-    private companion object {
-        val ARCANE = "<tvshow><title>Arcane</title><year>2021</year></tvshow>".toByteArray()
-        val BREAKING_BAD = "<tvshow><title>Breaking Bad</title><year>2008</year></tvshow>".toByteArray()
     }
 }

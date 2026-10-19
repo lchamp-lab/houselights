@@ -81,6 +81,16 @@ class FakeTmdb : Interceptor {
         TmdbTv(id = id, name = name, firstAirDate = year?.let { "$it-01-01" }, overview = "About $name", posterPath = "/show-$id.jpg")
             .also { shows[id] = it }
 
+    /** Changes what TMDB answers for the film [id], added before. */
+    fun editMovie(id: Int, edit: (TmdbMovie) -> TmdbMovie) {
+        movies[id] = edit(movies.getValue(id))
+    }
+
+    /** Changes what TMDB answers for the show [id], added before. */
+    fun editShow(id: Int, edit: (TmdbTv) -> TmdbTv) {
+        shows[id] = edit(shows.getValue(id))
+    }
+
     fun season(showId: Int, number: Int, episodes: Int) = TmdbSeason(
         seasonNumber = number,
         name = "Season $number",

@@ -107,13 +107,17 @@ class TmdbPassTest {
     @Test
     fun aServerFailureOrAnAnswerOfAnotherShapeCountsAndIsSaid() = runTest {
         tmdb.movie(1, "Film 0", 2020)
-        listOf<FakeTmdb.() -> Unit>({ status = 500 }, { rawBody = "{\"results\":\"none\"}" }).forEach { failing ->
+        val failures = mapOf<String, FakeTmdb.() -> Unit>(
+            "a server failure" to { status = 500 },
+            "an answer of another shape" to { rawBody = "{\"results\":\"none\"}" },
+        )
+        failures.forEach { (case, failing) ->
             tmdb.failing()
             val pass = TmdbPass(client)
             pass.film(0)
-            assertEquals("said from the first", UiError.TMDB_OFFLINE, pass.issue?.toUiError())
+            assertEquals("$case, said from the first", UiError.TMDB_OFFLINE, pass.issue?.toUiError())
             repeat(2) { pass.film(0) }
-            assertFalse(pass.open)
+            assertFalse("$case, three times: the pass stops", pass.open)
             tmdb.status = null
             tmdb.rawBody = null
         }

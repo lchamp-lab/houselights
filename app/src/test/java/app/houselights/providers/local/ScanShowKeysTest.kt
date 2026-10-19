@@ -37,7 +37,7 @@ class ScanShowKeysTest {
     @After
     fun close() = bench.close()
 
-    private suspend fun showOf(path: String): ItemEntity = checkNotNull(dao.item(checkNotNull(bench.item(shows, path).seriesId)))
+    private suspend fun showOf(path: String): ItemEntity = bench.showOf(shows, path)
 
     /** Keys [show] as an earlier rule did, with what the user did with it. */
     private suspend fun keyedBefore(show: ItemEntity, key: String, title: String): ItemEntity {
@@ -173,6 +173,29 @@ class ScanShowKeysTest {
         assertNull(earlier.userTmdbId)
         assertFalse(earlier.favorite)
         assertEquals(2, dao.count(ItemKind.SERIES))
+    }
+
+    /** A show keyed before keys included the year keeps its row as episodes arrive; a yearless folder joins it. */
+    @Test
+    fun aShowKeyedWithoutItsYearKeepsItsRow() = runTest {
+        bench.withTmdb = false
+        val old = dao.insert(
+            ItemEntity(
+                kind = ItemKind.SERIES, sourceId = shows.id, matchKey = "severance", title = "Severance", sortTitle = "severance",
+                addedAt = 0,
+            )
+        )
+        dao.setFavorite(old, true)
+        nas.put("Severance (2022)/Season 2/Severance - S02E01.mkv")
+        bench.scan()
+        val uhd = FakeRemoteBrowser().apply { put("Severance/Season 2/Severance - S02E02 2160p.mkv") }
+        val second = bench.folder("Séries 4K", SourceKind.SHOWS, on = uhd)
+        bench.scan()
+
+        val row = checkNotNull(dao.item(old))
+        assertEquals("severance|2022", row.matchKey)
+        assertTrue(row.favorite)
+        assertEquals(listOf(old, old), (dao.filesOf(shows.id) + dao.filesOf(second.id)).map { it.seriesId })
     }
 
     private companion object {

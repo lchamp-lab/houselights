@@ -33,14 +33,14 @@ class ScanStacksTest {
 
     private suspend fun rows() = bench.dao.filesOf(films.id).sortedBy { it.filePath }
 
-    private fun nfo(title: String) = "<movie><title>$title</title><year>1972</year></movie>".toByteArray()
+    private fun nfo(title: String) = "<movie><title>$title</title><year>1972</year></movie>"
 
     /** The Kodi way: the parts, and the film's NFO and poster under its folder. */
     private fun godfather() {
         nas.put("$DIR/Le Parrain (1972) CD1.mkv", size = 7_000_000_000)
         nas.put("$DIR/Le Parrain (1972) CD2.mkv", size = 6_000_000_000)
-        nas.put("$DIR/Le Parrain (1972).nfo", size = nfo("The Godfather").size.toLong(), bytes = nfo("The Godfather"))
-        nas.put("$DIR/poster.jpg", size = 100, bytes = ByteArray(100))
+        nas.putText("$DIR/Le Parrain (1972).nfo", nfo("The Godfather"))
+        nas.putImage("$DIR/poster.jpg")
     }
 
     @Test
@@ -145,7 +145,7 @@ class ScanStacksTest {
         assertEquals(null, two.missingSince)
 
         // Each is a title of its own: an NFO placed beside the second is read for it, not for the first.
-        nas.put("Kill Bill CD2.nfo", size = nfo("Kill Bill: Volume 2").size.toLong(), bytes = nfo("Kill Bill: Volume 2"))
+        nas.putText("Kill Bill CD2.nfo", nfo("Kill Bill: Volume 2"))
         bench.scan()
         assertEquals(listOf("Kill Bill: Vol. 1", "Kill Bill: Volume 2"), rows().map { it.title })
     }
@@ -193,24 +193,18 @@ class ScanStacksTest {
         assertEquals("Ronin (Frankenheimer)", ronin.title)
     }
 
+    /** A sequel's part or volume, with or without its year, among the other films of a folder: a title each. */
     @Test
     fun namesThatOnlyLookLikePartsAreFilmsOfTheirOwn() = runTest {
-        nas.put("Dune Part 2.mkv")
-        nas.put("Kill Bill Vol. 1 (2003).mkv")
-        nas.put("Kill Bill Vol. 2 (2004).mkv")
+        listOf(
+            "Dune Part 2.mkv", "Hunger Games Mockingjay Part 1.mkv", "Hunger Games Mockingjay Part 2.mkv", "Kill Bill Vol. 1 (2003).mkv",
+            "Kill Bill Vol. 2 (2004).mkv", "Top Gun Maverick.mkv",
+        ).forEach { nas.put(it) }
         bench.scan()
-        assertEquals(listOf("Dune Part 2", "Kill Bill Vol. 1", "Kill Bill Vol. 2"), rows().map { it.title })
-        assertTrue(rows().all { it.parts.isEmpty() })
-    }
-
-    /** Two films named "… Part 1" and "… Part 2" without their year, among the others of a folder: two titles. */
-    @Test
-    fun twoFilmsNamedPartOneAndPartTwoAreTwoTitles() = runTest {
-        nas.put("Hunger Games Mockingjay Part 1.mkv")
-        nas.put("Hunger Games Mockingjay Part 2.mkv")
-        nas.put("Top Gun Maverick.mkv")
-        bench.scan()
-        val titles = listOf("Hunger Games Mockingjay Part 1", "Hunger Games Mockingjay Part 2", "Top Gun Maverick")
+        val titles = listOf(
+            "Dune Part 2", "Hunger Games Mockingjay Part 1", "Hunger Games Mockingjay Part 2", "Kill Bill Vol. 1", "Kill Bill Vol. 2",
+            "Top Gun Maverick",
+        )
         assertEquals(titles, rows().map { it.title })
         assertTrue(rows().all { it.parts.isEmpty() })
     }

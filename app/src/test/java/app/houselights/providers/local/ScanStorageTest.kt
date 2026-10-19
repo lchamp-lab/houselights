@@ -69,7 +69,7 @@ class ScanStorageTest {
         val films = bench.folder("Films")
         repeat(3) {
             nas.put("Film $it (2020).mp4")
-            nas.put("Film $it (2020)-poster.jpg", size = 100, bytes = ByteArray(100))
+            nas.putImage("Film $it (2020)-poster.jpg")
         }
         nas.onRead = { _, _, _ -> throw IOException("write failed: ENOSPC (No space left on device)") }
         bench.scan()
@@ -87,7 +87,7 @@ class ScanStorageTest {
         assertEquals(ScanErrorKind.UNREACHABLE, bench.error(shows))
 
         nas.put("Dune (2021).mp4")
-        nas.put("Dune (2021)-poster.jpg", size = 100, bytes = ByteArray(100))
+        nas.putImage("Dune (2021)-poster.jpg")
         nas.onRead = { _, _, _ -> throw IOException("write failed: ENOSPC (No space left on device)") }
         bench.scan()
 
@@ -99,7 +99,7 @@ class ScanStorageTest {
     fun aDeviceNearlyFullLeavesImagesToTmdb() = runTest {
         val films = bench.folder("Films")
         nas.put("Dune (2021).mp4")
-        nas.put("Dune (2021)-poster.jpg", size = 100, bytes = ByteArray(100))
+        nas.putImage("Dune (2021)-poster.jpg")
         bench.freeSpace = ArtworkCache.MIN_FREE_BYTES
         bench.scan()
 

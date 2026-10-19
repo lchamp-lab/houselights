@@ -4,6 +4,8 @@ import app.houselights.core.FailureKind
 import app.houselights.core.TmdbUnreachableException
 import app.houselights.core.failureKind
 import app.houselights.core.suspendRunCatching
+import app.houselights.providers.local.FakeRemoteBrowser.Companion.T1
+import app.houselights.providers.local.FakeRemoteBrowser.Companion.T2
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -16,17 +18,18 @@ import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
-import org.robolectric.shadows.ShadowSystemClock
-import java.io.IOException
-import java.time.Duration
 
-/** An identification fetches everything from TMDB first, then writes everything: never half a new match. */
+/**
+ * An identification fetches everything from TMDB first, then writes everything: never half a new match. The user's
+ * match then outlasts the NFO beside the film or show, read again, rewritten, or while TMDB does not answer.
+ */
 @RunWith(RobolectricTestRunner::class)
 class IdentifyTest {
     @get:Rule
     val temp = TemporaryFolder()
 
     private lateinit var bench: ScanBench
+    private lateinit var films: SourceEntity
     private val tmdb get() = bench.tmdb
 
     @Before
@@ -55,7 +58,7 @@ class IdentifyTest {
         bench.showsNas.put("Severance/Season 1/Severance - S01E01.mkv")
         bench.showsNas.put("Severance/Season 2/Severance - S02E01.mkv")
         bench.scan()
-        val series = checkNotNull(bench.dao.seriesByKey(FilenameParser.showKey("Severance")))
+        val series = bench.series("Severance")
         assertEquals(1, series.tmdbId)
 
         // Another show of the name, whose second season TMDB does not answer.
@@ -126,8 +129,10 @@ class IdentifyTest {
     /** The Office (UK) as Sonarr describes it (TVDB and IMDb ids, no TMDB id), beside TMDB's American namesake. */
     private suspend fun theOffice(): ItemEntity {
         bench.folder("Séries", SourceKind.SHOWS)
-        tmdb.shows[OFFICE_UK] = tmdb.show(OFFICE_UK, "The Office (UK)", 2001).copy(externalIds = TmdbExternalIds("tt0290978", 78107))
-        tmdb.shows[OFFICE_US] = tmdb.show(OFFICE_US, "The Office", 2005).copy(externalIds = TmdbExternalIds("tt0386676", 73244))
+        tmdb.show(OFFICE_UK, "The Office (UK)", 2001)
+        tmdb.editShow(OFFICE_UK) { it.copy(externalIds = TmdbExternalIds("tt0290978", 78107)) }
+        tmdb.show(OFFICE_US, "The Office", 2005)
+        tmdb.editShow(OFFICE_US) { it.copy(externalIds = TmdbExternalIds("tt0386676", 73244)) }
         val nfo = """
             <?xml version="1.0" encoding="utf-8" standalone="yes"?>
             <tvshow>
@@ -139,11 +144,39 @@ class IdentifyTest {
               <genre>Comedy</genre>
               <actor><name>Ricky Gervais</name><role>David Brent</role></actor>
             </tvshow>
-        """.trimIndent().toByteArray()
-        bench.showsNas.put("The Office/tvshow.nfo", size = nfo.size.toLong(), bytes = nfo)
+        """.trimIndent()
+        bench.showsNas.putText("The Office/tvshow.nfo", nfo)
         bench.showsNas.put("The Office/S01/The.Office.S01E01.MULTi.1080p.WEB.H264-GRP.mkv")
         bench.scan()
-        return checkNotNull(bench.dao.seriesByKey(FilenameParser.showKey("The Office")))
+        return bench.series("The Office")
+    }
+
+    /** Disclosure Day beside an NFO naming Disclosure by its IMDb id, matched by the user with Disclosure Day. */
+    private suspend fun disclosureDay(nfo: String): ItemEntity {
+        films = bench.folder("Films")
+        tmdb.movie(DISCLOSURE, "Disclosure", 1994, imdbId = "tt0109635")
+        tmdb.movie(DISCLOSURE_DAY, "Disclosure Day", 2026, imdbId = "tt31227572")
+        bench.nas.put(FILM)
+        bench.nas.putText("Disclosure Day.nfo", nfo, lastModified = T1)
+        bench.scan()
+        val film = bench.item(films, FILM)
+        assertEquals(DISCLOSURE, film.tmdbId)
+        bench.scanner.identify(film.id, DISCLOSURE_DAY)
+        return bench.item(films, FILM)
+    }
+
+    /** Read again, the NFO names by IMDb id a film only TMDB tells apart from the user's match. */
+    @Test
+    fun aFilmIdentifiedAsAnotherKeepsItWhenItsNfoIsReadAgain() = runTest {
+        val nfo = "<movie><title>Disclosure</title><plot>Seattle, 1994.</plot><id>tt0109635</id></movie>"
+        assertEquals("Disclosure Day", disclosureDay(nfo).title)
+
+        bench.nas.putText("Disclosure Day.nfo", nfo, lastModified = T2)
+        bench.scan()
+        val read = bench.item(films, FILM)
+        assertEquals("Disclosure Day", read.title)
+        assertEquals("About Disclosure Day", read.overview)
+        assertEquals(DISCLOSURE_DAY, read.tmdbId)
     }
 
     @Test
@@ -173,6 +206,21 @@ class IdentifyTest {
     }
 
     @Test
+    fun aFilmIdentifiedAsAnotherKeepsItWhileTmdbDoesNotAnswer() = runTest {
+        val film = disclosureDay(
+            "<movie><title>Disclosure</title><plot>Seattle, 1994.</plot><id>tt0109635</id><actor><name>Demi Moore</name></actor></movie>",
+        )
+
+        tmdb.failingPath = "movie/$DISCLOSURE_DAY"
+        bench.scan(refreshMetadata = true)
+        val waiting = bench.item(films, FILM)
+        assertEquals("Disclosure Day", waiting.title)
+        assertEquals("About Disclosure Day", waiting.overview)
+        assertEquals(emptyList<String>(), bench.dao.cast(film.id).map { it.name })
+        assertNull("asked again at a later pass", waiting.matchedAt)
+    }
+
+    @Test
     fun aShowIdentifiedAsAnotherKeepsItWhileTmdbDoesNotAnswer() = runTest {
         val series = theOffice()
         bench.scanner.identify(series.id, OFFICE_US)
@@ -187,11 +235,30 @@ class IdentifyTest {
     }
 
     @Test
+    fun aFilmNfoRewrittenWhileTmdbIsOutOfReachIsDecidedOnceItAnswers() = runTest {
+        disclosureDay("<movie><title>Disclosure</title><id>tt0109635</id></movie>")
+
+        // Its media manager, now matching the user's choice, rewrites it with Disclosure Day's IMDb id.
+        bench.tmdbOutOfReach()
+        val rewritten = "<movie><title>Disclosure Day</title><plot>Director's cut.</plot><id>tt31227572</id></movie>"
+        bench.nas.putText("Disclosure Day.nfo", rewritten, lastModified = T2)
+        bench.scan()
+        assertEquals("waits for TMDB", "About Disclosure Day", bench.item(films, FILM).overview)
+
+        bench.tmdbBack()
+        bench.scan()
+        val read = bench.item(films, FILM)
+        assertEquals("Director's cut.", read.overview)
+        assertEquals(DISCLOSURE_DAY, read.tmdbId)
+        assertEquals("read once", emptyList<String>(), bench.pass().reads)
+    }
+
+    @Test
     fun aShowNfoRewrittenWhileTmdbIsOutOfReachIsDecidedOnceItAnswers() = runTest {
         val series = theOffice()
         bench.scanner.identify(series.id, OFFICE_US)
 
-        tmdb.failure = IOException("Network is unreachable")
+        bench.tmdbOutOfReach()
         val nfo = """
             <tvshow>
               <title>The Office (US)</title>
@@ -199,13 +266,12 @@ class IdentifyTest {
               <uniqueid type="tvdb" default="true">73244</uniqueid>
               <uniqueid type="imdb">tt0386676</uniqueid>
             </tvshow>
-        """.trimIndent().toByteArray()
-        bench.showsNas.put("The Office/tvshow.nfo", size = nfo.size.toLong(), bytes = nfo, lastModified = 1_760_000_060_000L)
+        """.trimIndent()
+        bench.showsNas.putText("The Office/tvshow.nfo", nfo, lastModified = T2)
         bench.scan()
         assertEquals("waits for TMDB", "About The Office", bench.dao.item(series.id)?.overview)
 
-        tmdb.failure = null
-        ShadowSystemClock.advanceBy(Duration.ofHours(1))
+        bench.tmdbBack()
         bench.scan()
         val read = checkNotNull(bench.dao.item(series.id))
         assertEquals("Scranton, a paper company's branch and its manager.", read.overview)
@@ -215,5 +281,8 @@ class IdentifyTest {
     private companion object {
         const val OFFICE_UK = 2996
         const val OFFICE_US = 2316
+        const val DISCLOSURE = 1
+        const val DISCLOSURE_DAY = 2
+        const val FILM = "Disclosure Day.mkv"
     }
 }

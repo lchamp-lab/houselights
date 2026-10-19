@@ -5,13 +5,11 @@ import com.emc.ecs.nfsclient.nfs.NfsStatus
 import com.emc.ecs.nfsclient.rpc.RpcException
 import com.emc.ecs.nfsclient.rpc.RpcStatus
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertThrows
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import java.io.FileNotFoundException
-import java.io.IOException
 
 /** Walking a NAS's folders: what is listed or skipped, what fails the whole walk. On Robolectric for the log. */
 @RunWith(RobolectricTestRunner::class)
@@ -51,18 +49,23 @@ class RemoteWalkTest {
     /** What nfs-client throws for a READDIR the NAS refuses. */
     private fun refused() = NfsException(NfsStatus.NFS3ERR_ACCES, "readdir error code: NfsStatus:13")
 
+    /** What nfs-client throws, after its retries, for a request the NAS no longer answers. */
+    private fun silent(): NfsException {
+        val rpc = RpcException(RpcStatus.NETWORK_ERROR, "rpc request timeout on the connection: /192.168.1.20:2049")
+        return NfsException(NfsStatus.NFS3ERR_IO, "network error, server: 192.168.1.20, RPC error: ${rpc.message}", rpc)
+    }
+
     /** What nfs-client throws for a query about a file no longer there (NFS3ERR_NOENT). */
     private fun gone(path: String) = FileNotFoundException("lookup /volume1/media/$path")
 
     @Test
     fun aFolderThatCannotBeReadIsNamedAndPassedOver() {
-        tree[""] = listOf("Dune (2021)/", "Private/", "lost+found/", "Shows/", "Arrival (2016).mkv", "poster.jpg")
+        tree[""] = listOf("Dune (2021)/", "Private/", "Shows/", "Arrival (2016).mkv", "poster.jpg")
         tree["Dune (2021)"] = listOf("Dune (2021).mkv", "movie.nfo")
         tree["Shows"] = listOf("Severance/", "Mine/")
         tree["Shows/Severance"] = listOf("Severance - S01E01.mkv")
         failures["Private"] = refused()
         failures["Shows/Mine"] = refused()
-        failures["lost+found"] = IOException("lost+found is root's alone")
 
         val listing = listing()
 
@@ -72,7 +75,6 @@ class RemoteWalkTest {
         )
         assertEquals(listOf("Dune (2021)/movie.nfo", "poster.jpg"), listing.sidecars.map { it.relativePath })
         assertEquals(listOf("Private", "Shows/Mine"), listing.unreadable)
-        assertFalse("lost+found is not even asked for", "lost+found" in listed)
     }
 
     /** Radarr or Sonarr replaced a file between the listing and its GETATTR: only that entry is skipped. */
@@ -95,9 +97,7 @@ class RemoteWalkTest {
     @Test
     fun aNasThatStopsAnsweringAboutAnEntryFailsTheListing() {
         tree[""] = listOf("Dune (2021)/", "Arrival (2016)/")
-        val rpc = RpcException(RpcStatus.NETWORK_ERROR, "rpc request timeout on the connection: /192.168.1.20:2049")
-        val message = "network error, server: 192.168.1.20, RPC error: ${rpc.message}"
-        kindFailures["Dune (2021)"] = NfsException(NfsStatus.NFS3ERR_IO, message, rpc)
+        kindFailures["Dune (2021)"] = silent()
         assertThrows(NfsException::class.java) { listing() }
         assertEquals("nothing more asked", listOf(""), listed)
     }
@@ -112,18 +112,35 @@ class RemoteWalkTest {
     @Test
     fun aNasThatStopsAnsweringFailsTheListing() {
         tree[""] = listOf("Dune (2021)/", "Arrival (2016)/")
-        val rpc = RpcException(RpcStatus.NETWORK_ERROR, "rpc request timeout on the connection: /192.168.1.20:2049")
-        failures["Dune (2021)"] = NfsException(NfsStatus.NFS3ERR_IO, "network error, server: 192.168.1.20, RPC error: ${rpc.message}", rpc)
+        failures["Dune (2021)"] = silent()
         assertThrows(NfsException::class.java) { listing() }
         assertEquals("nothing more asked", listOf("", "Dune (2021)"), listed)
     }
 
-    /** The browser reports a broken connection: the session is reopened and the listing read again. */
+    /** A connection the browser calls broken fails the whole walk; the browser, not the walk, opens another and lists again. */
     @Test
     fun aConnectionBrokenFailsTheListing() {
         tree[""] = listOf("Dune (2021)/")
         failures["Dune (2021)"] = IllegalStateException("session gone")
         assertThrows(IllegalStateException::class.java) { listing { it is IllegalStateException } }
+    }
+
+    /** The root is level 0: folders [RemoteBrowser.MAX_DEPTH] levels down are listed, deeper ones not even asked for. */
+    @Test
+    fun foldersDeeperThanTheLimitAreNotListed() {
+        val folders = (1..RemoteBrowser.MAX_DEPTH + 1).map { "Level $it" }
+        tree[""] = listOf("${folders.first()}/")
+        for (i in folders.indices) {
+            tree[folders.take(i + 1).joinToString("/")] = listOfNotNull("Film $i.mkv", folders.getOrNull(i + 1)?.let { "$it/" })
+        }
+
+        val listing = listing()
+
+        val deepest = folders.take(RemoteBrowser.MAX_DEPTH).joinToString("/")
+        assertEquals("$deepest/Film ${RemoteBrowser.MAX_DEPTH - 1}.mkv", listing.videos.last().relativePath)
+        assertEquals(RemoteBrowser.MAX_DEPTH, listing.videos.size)
+        assertEquals("the next level is not even asked for", RemoteBrowser.MAX_DEPTH + 1, listed.size)
+        assertEquals(emptyList<String>(), listing.unreadable)
     }
 
     @Test

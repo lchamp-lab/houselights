@@ -41,12 +41,10 @@ class ScanReadsTest {
     /** A refusal, as smbj words it: final for the file until its permissions change. */
     private fun refused() = IOException("STATUS_ACCESS_DENIED (0xc0000022): Create failed")
 
-    private fun nfo(title: String) = "<movie><title>$title</title><year>2021</year></movie>".toByteArray()
-
     private fun filmWithItsNfo() {
         nas.put("Dune (2021).mkv")
-        nas.put("Dune (2021).nfo", size = nfo("Dune: Part One").size.toLong(), bytes = nfo("Dune: Part One"))
-        nas.put("Dune (2021)-poster.jpg", size = 100, bytes = ByteArray(100))
+        nas.putText("Dune (2021).nfo", "<movie><title>Dune: Part One</title><year>2021</year></movie>")
+        nas.putImage("Dune (2021)-poster.jpg")
     }
 
     @Test
@@ -59,9 +57,7 @@ class ScanReadsTest {
         assertTrue("not kept as the file's description", MediaProbe.isStale(first.mediaInfo))
 
         nas.onRead = null
-        nas.reads.clear()
-        bench.scan()
-        assertEquals(listOf("Dune (2021).mkv"), nas.reads)
+        assertEquals(listOf("Dune (2021).mkv"), bench.pass().reads)
         assertEquals(Matroska.SAMPLE_BADGES, bench.item(films, "Dune (2021).mkv").badges)
     }
 
@@ -77,9 +73,9 @@ class ScanReadsTest {
     @Test
     fun anNfoIsReadInTheEncodingItSays() = runTest {
         val declaration = """<?xml version="1.0" encoding="ISO-8859-1"?>"""
-        val nfo = "$declaration<movie><title>Amélie</title><plot>Une serveuse à Montmartre.</plot></movie>".toByteArray(Charsets.ISO_8859_1)
+        val nfo = "$declaration<movie><title>Amélie</title><plot>Une serveuse à Montmartre.</plot></movie>"
         nas.put("Amélie (2001).mkv")
-        nas.put("Amélie (2001).nfo", size = nfo.size.toLong(), bytes = nfo)
+        nas.putText("Amélie (2001).nfo", nfo, charset = Charsets.ISO_8859_1)
         bench.scan()
         val amelie = bench.item(films, "Amélie (2001).mkv")
         assertEquals("Amélie", amelie.title)
@@ -97,9 +93,7 @@ class ScanReadsTest {
         assertEquals("MKV", MediaProbe.decode(dune.mediaInfo)?.container)
         assertFalse("the NAS's last word", MediaProbe.isStale(dune.mediaInfo))
 
-        nas.reads.clear()
-        assertEquals(0, bench.changesDuring { bench.scan() })
-        assertEquals(emptyList<String>(), nas.reads)
+        bench.assertQuiet()
     }
 
     @Test
@@ -122,9 +116,9 @@ class ScanReadsTest {
         nas.onRead = { path, _, _ -> if (path.endsWith(".nfo")) throw refused() }
         bench.scan()
 
-        nas.reads.clear()
-        assertEquals("nothing written, nothing to reload", 0, bench.changesDuring { bench.scan() })
-        assertEquals("tried again", listOf("Dune (2021).nfo"), nas.reads)
+        val pass = bench.pass()
+        assertEquals("nothing written, nothing to reload", 0, pass.changes)
+        assertEquals("tried again", listOf("Dune (2021).nfo"), pass.reads)
 
         // The permission is restored on the NAS.
         nas.onRead = null
@@ -179,7 +173,7 @@ class ScanReadsTest {
         // Files the probe does not open, without NFO: only their posters are read.
         repeat(5) {
             nas.put("New $it (2024).mp4")
-            nas.put("New $it (2024)-poster.jpg", size = 100, bytes = ByteArray(100))
+            nas.putImage("New $it (2024)-poster.jpg")
         }
         nas.readFailure = SocketTimeoutException("timeout")
         bench.scan()

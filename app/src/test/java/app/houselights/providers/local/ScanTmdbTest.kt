@@ -14,7 +14,6 @@ import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.shadows.ShadowSystemClock
-import java.io.IOException
 import java.time.Duration
 
 /** Without TMDB, scans index files from their NFO and local artwork, and ask TMDB again later. */
@@ -35,21 +34,11 @@ class ScanTmdbTest {
     @After
     fun close() = bench.close()
 
-    private fun nfo(title: String) = "<movie><title>$title</title></movie>".toByteArray()
-
     /** A film described by tinyMediaManager: its NFO and its poster beside it. */
     private fun described(name: String, title: String) {
         nas.put("$name.mkv")
-        nas.put("$name.nfo", size = nfo(title).size.toLong(), bytes = nfo(title))
-        nas.put("$name-poster.jpg", size = 100, bytes = ByteArray(100))
-    }
-
-    /** TMDB answers again an hour later: the scans' pause is over, and what TMDB left unmatched is asked again. */
-    private fun tmdbBack() {
-        tmdb.failure = null
-        tmdb.status = null
-        tmdb.failingPath = null
-        ShadowSystemClock.advanceBy(Duration.ofHours(1))
+        nas.putText("$name.nfo", "<movie><title>$title</title></movie>")
+        nas.putImage("$name-poster.jpg")
     }
 
     private fun issue() = bench.scanner.state.value.tmdbIssue
@@ -59,9 +48,10 @@ class ScanTmdbTest {
         val films = bench.folder("Films")
         repeat(5) { described("Film $it (2020)", "Mon film $it") }
         tmdb.movie(1, "Mon film 0", 2020)
-        tmdb.failure = IOException("Network is unreachable")
+        bench.tmdbOutOfReach()
         bench.scan()
 
+        assertEquals("asked once: the scans' client then pauses", 1, tmdb.requests.size)
         val first = bench.item(films, "Film 0 (2020).mkv")
         assertEquals("Mon film 0", first.title)
         assertTrue(first.posterPath.isCachedArtwork())
@@ -69,7 +59,7 @@ class ScanTmdbTest {
         assertEquals(5, bench.dao.filesOf(films.id).size)
         assertEquals(FailureKind.TMDB_UNREACHABLE, issue())
 
-        tmdbBack()
+        bench.tmdbBack()
         bench.scan()
         val matched = bench.item(films, "Film 0 (2020).mkv")
         assertEquals(1, matched.tmdbId)
@@ -98,12 +88,7 @@ class ScanTmdbTest {
         bench.scan()
         assertEquals(FailureKind.TMDB_KEY_REFUSED, issue())
 
-        nas.reads.clear()
-        tmdb.requests.clear()
-        val changes = bench.changesDuring { bench.autoScan() }
-        assertEquals("no NFO read", emptyList<String>(), nas.reads)
-        assertEquals("TMDB not asked", emptyList<String>(), tmdb.requests)
-        assertEquals("screens left as they are", 0, changes)
+        bench.assertQuiet(auto = true)
         assertEquals("still said", FailureKind.TMDB_KEY_REFUSED, issue())
     }
 
@@ -125,7 +110,7 @@ class ScanTmdbTest {
         assertEquals("asked again, and refused", 1, tmdb.requests.size)
         assertEquals("the other titles are not read once TMDB refused", 1, nas.reads.count { it.endsWith(".nfo") })
 
-        tmdbBack()
+        bench.tmdbBack()
         bench.scan()
         assertEquals(1, bench.item(films, "Film 0 (2020).mkv").tmdbId)
         assertNull(issue())
@@ -137,16 +122,13 @@ class ScanTmdbTest {
         val films = bench.folder("Films")
         repeat(3) { described("Film $it (2020)", "Mon film $it") }
         tmdb.movie(1, "Mon film 0", 2020)
-        tmdb.failure = IOException("Network is unreachable")
+        bench.tmdbOutOfReach()
         bench.scan()
         assertEquals(FailureKind.TMDB_UNREACHABLE, issue())
 
         // Past the client's own pause, within the hour.
-        tmdb.failure = null
-        ShadowSystemClock.advanceBy(Duration.ofMinutes(2))
-        tmdb.requests.clear()
-        bench.autoScan()
-        assertEquals("the app's own passes wait", emptyList<String>(), tmdb.requests)
+        bench.tmdbBack()
+        assertEquals("the app's own passes wait", emptyList<String>(), bench.pass(auto = true).requests)
 
         bench.scan()
         assertEquals(1, bench.item(films, "Film 0 (2020).mkv").tmdbId)
@@ -160,12 +142,11 @@ class ScanTmdbTest {
         repeat(2) { described("Film $it (2020)", "Mon film $it") }
         tmdb.movie(1, "Mon film 0", 2020)
         tmdb.movie(2, "Nouveau", 2021)
-        tmdb.failure = IOException("Network is unreachable")
+        bench.tmdbOutOfReach()
         bench.scan()
         assertEquals(FailureKind.TMDB_UNREACHABLE, issue())
 
-        tmdb.failure = null
-        ShadowSystemClock.advanceBy(Duration.ofMinutes(2))
+        bench.tmdbBack()
         described("Nouveau (2021)", "Nouveau")
         bench.autoScan()
         assertEquals(2, bench.item(films, "Nouveau (2021).mkv").tmdbId)
@@ -203,12 +184,12 @@ class ScanTmdbTest {
         assertEquals("Episode 1.1", bench.item(shows, "Severance/Season 1/Severance - S01E01.mkv").title)
 
         bench.showsNas.put("Severance/Season 1/Severance - S01E02.mkv")
-        tmdb.failure = IOException("Network is unreachable")
+        bench.tmdbOutOfReach()
         bench.scan()
         val new = bench.item(shows, "Severance/Season 1/Severance - S01E02.mkv")
         assertNull(new.matchedAt)
 
-        tmdbBack()
+        bench.tmdbBack()
         bench.scan()
         assertEquals("Episode 1.2", bench.item(shows, "Severance/Season 1/Severance - S01E02.mkv").title)
     }
@@ -219,15 +200,15 @@ class ScanTmdbTest {
         tmdb.show(95396, "Severance", 2022)
         tmdb.season(95396, 1, episodes = 3)
         repeat(3) { bench.showsNas.put("Severance/Season 1/Severance - S01E0${it + 1}.mkv") }
-        tmdb.failure = IOException("timeout")
+        bench.tmdbOutOfReach()
         bench.scan()
         assertEquals(3, bench.dao.filesOf(shows.id).size)
 
-        tmdbBack()
+        bench.tmdbBack()
         bench.scan()
         val titles = bench.dao.filesOf(shows.id).sortedBy { it.episodeNumber }.map { it.title }
         assertEquals(listOf("Episode 1.1", "Episode 1.2", "Episode 1.3"), titles)
-        val series = checkNotNull(bench.dao.seriesByKey(FilenameParser.showKey("Severance")))
+        val series = bench.series("Severance")
         assertEquals(95396, series.tmdbId)
         assertEquals("Season 1", bench.dao.season(series.id, 1)?.title)
     }
@@ -237,16 +218,16 @@ class ScanTmdbTest {
         bench.withTmdb = false
         bench.folder("Séries", SourceKind.SHOWS)
         tmdb.show(95396, "Severance", 2022)
-        bench.showsNas.put("Severance/poster.jpg", size = 100, bytes = ByteArray(100))
+        bench.showsNas.putImage("Severance/poster.jpg")
         bench.showsNas.put("Severance/Season 1/Severance - S01E01.mkv")
         bench.scan()
-        val unmatched = checkNotNull(bench.dao.seriesByKey(FilenameParser.showKey("Severance")))
+        val unmatched = bench.series("Severance")
         assertTrue(unmatched.posterPath.isCachedArtwork())
         assertNull(unmatched.matchedAt)
 
         bench.withTmdb = true
         bench.scan()
-        assertEquals(95396, bench.dao.seriesByKey(FilenameParser.showKey("Severance"))?.tmdbId)
+        assertEquals(95396, bench.series("Severance").tmdbId)
     }
 
     @Test
@@ -259,14 +240,14 @@ class ScanTmdbTest {
         assertNotNull(bench.item(films, "Dune (2021).mkv").matchedAt)
 
         // TMDB's details changed; the requested refresh finds TMDB unreachable.
-        tmdb.movies[438631] = checkNotNull(tmdb.movies[438631]).copy(overview = "Arrakis")
-        tmdb.failure = IOException("Network is unreachable")
+        tmdb.editMovie(438631) { it.copy(overview = "Arrakis") }
+        bench.tmdbOutOfReach()
         bench.scan(refreshMetadata = true)
         assertNull("asked again at the next scan", bench.item(films, "Dune (2021).mkv").matchedAt)
         assertNull("one TMDB had nothing for, too", bench.item(films, "Heat (1995).mkv").matchedAt)
         assertEquals("what it had stays meanwhile", 438631, bench.item(films, "Dune (2021).mkv").tmdbId)
 
-        tmdbBack()
+        bench.tmdbBack()
         bench.scan()
         val refreshed = bench.item(films, "Dune (2021).mkv")
         assertNotNull(refreshed.matchedAt)
@@ -280,7 +261,7 @@ class ScanTmdbTest {
         nas.put("Dune (2021).mkv")
         bench.scan()
 
-        tmdb.movies[438631] = checkNotNull(tmdb.movies[438631]).copy(overview = "Arrakis")
+        tmdb.editMovie(438631) { it.copy(overview = "Arrakis") }
         bench.withTmdb = false
         bench.scan(refreshMetadata = true)
         assertNull(bench.item(films, "Dune (2021).mkv").matchedAt)
@@ -299,16 +280,16 @@ class ScanTmdbTest {
         bench.showsNas.put(pilot)
         bench.scan()
 
-        tmdb.shows[95396] = checkNotNull(tmdb.shows[95396]).copy(overview = "Lumon")
-        tmdb.failure = IOException("Network is unreachable")
+        tmdb.editShow(95396) { it.copy(overview = "Lumon") }
+        bench.tmdbOutOfReach()
         bench.scan(refreshMetadata = true)
-        val series = checkNotNull(bench.dao.seriesByKey(FilenameParser.showKey("Severance")))
+        val series = bench.series("Severance")
         assertNull(series.matchedAt)
         assertNull(bench.item(shows, pilot).matchedAt)
 
-        tmdbBack()
+        bench.tmdbBack()
         bench.scan()
-        val refreshed = checkNotNull(bench.dao.seriesByKey(FilenameParser.showKey("Severance")))
+        val refreshed = bench.series("Severance")
         assertNotNull(refreshed.matchedAt)
         assertEquals("Lumon", refreshed.overview)
         assertNotNull(bench.item(shows, pilot).matchedAt)
@@ -323,7 +304,7 @@ class ScanTmdbTest {
         tmdb.season(moblandId, 1, episodes = 3)
         (1..3).forEach { bench.showsNas.put("Mobland/S01/Mobland.S01E0$it.MULTi.1080p.WEB.H265-GRP.mkv") }
         bench.scan()
-        val series = checkNotNull(bench.dao.seriesByKey(FilenameParser.showKey("Mobland")))
+        val series = bench.series("Mobland")
         assertEquals("Season 1", bench.dao.season(series.id, 1)?.title)
         // The device switches to French: TMDB names the season differently.
         tmdb.seasons[moblandId to 1] = tmdb.seasons.getValue(moblandId to 1).copy(name = "Saison 1", overview = "Deux familles de Londres")
@@ -352,7 +333,7 @@ class ScanTmdbTest {
         assertEquals("what it had stays meanwhile", "Season 1", waiting.title)
         assertNull(waiting.matchedAt)
 
-        tmdbBack()
+        bench.tmdbBack()
         bench.scan()
         val refreshed = checkNotNull(bench.dao.season(seriesId, 1))
         assertEquals("Saison 1", refreshed.title)
@@ -372,7 +353,7 @@ class ScanTmdbTest {
         assertNull("asked again at the next scan", dune.matchedAt)
         assertNull(bench.dao.collection(checkNotNull(dune.collectionId))?.fetchedAt)
 
-        tmdbBack()
+        bench.tmdbBack()
         bench.scan()
         val again = bench.item(films, "Dune (2021).mkv")
         assertNotNull(again.matchedAt)

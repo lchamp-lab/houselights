@@ -13,9 +13,6 @@ import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
-import org.robolectric.shadows.ShadowSystemClock
-import java.io.IOException
-import java.time.Duration
 
 /**
  * What scans write for the people, saga, copy and edition screens, and the backfill of known titles, a few
@@ -39,9 +36,6 @@ class ScanCreditsTest {
     @After
     fun close() = bench.close()
 
-    private fun FakeRemoteBrowser.text(path: String, text: String) =
-        text.toByteArray().let { put(path, size = it.size.toLong(), bytes = it) }
-
     private val duneCredits = TmdbCredits(
         cast = listOf(
             TmdbCastMember("Timothée Chalamet", "Paul Atreides", "/tc.jpg", order = 0, id = 1190668),
@@ -58,13 +52,12 @@ class ScanCreditsTest {
         ),
     )
 
-    private fun dune(collection: TmdbCollectionRef? = null) =
-        tmdb.movie(438631, "Dune", 2021, collection = collection).copy(credits = duneCredits, voteAverage = 7.8, voteCount = 12_000)
-            .also { tmdb.movies[it.id] = it }
+    private fun dune(collection: TmdbCollectionRef? = null) {
+        tmdb.movie(438631, "Dune", 2021, collection = collection)
+        tmdb.editMovie(438631) { it.copy(credits = duneCredits, voteAverage = 7.8, voteCount = 12_000) }
+    }
 
-    private fun jobs(itemId: Long) = runBlockingCredits(itemId).groupBy({ it.job }, { it.name })
-
-    private fun runBlockingCredits(itemId: Long) = kotlinx.coroutines.runBlocking { dao.creditsOf(itemId) }
+    private suspend fun jobs(itemId: Long) = dao.creditsOf(itemId).groupBy({ it.job }, { it.name })
 
     @Test
     fun aFilmTmdbAnswersHasItsCastAndCrewKeyedByTheirTmdbIds() = runTest {
@@ -98,7 +91,7 @@ class ScanCreditsTest {
         val films = bench.folder("Films")
         dune()
         nas.put("Dune (2021).mkv")
-        nas.text(
+        nas.putText(
             "Dune (2021).nfo",
             "<movie><title>Dune</title><uniqueid type=\"tmdb\">438631</uniqueid><director>Denis Villeneuve</director>" +
                 "<credits>Eric Roth</credits><actor><name>Timothée Chalamet</name><role>Paul</role></actor>" +
@@ -121,11 +114,11 @@ class ScanCreditsTest {
         val films = bench.folder("Films")
         dune()
         nas.put("Dune (2021).mkv")
-        nas.text("Dune (2021).nfo", "<movie><title>Dune</title><uniqueid type=\"tmdb\">438631</uniqueid></movie>")
+        nas.putText("Dune (2021).nfo", "<movie><title>Dune</title><uniqueid type=\"tmdb\">438631</uniqueid></movie>")
         bench.scan()
         // tinyMediaManager rewrites the NFO, for the same film, with its cast.
         val withCast = "<movie><title>Dune</title><uniqueid type=\"tmdb\">438631</uniqueid><actor><name>Zendaya</name></actor></movie>"
-        nas.text("Dune (2021).nfo", withCast)
+        nas.putText("Dune (2021).nfo", withCast)
         tmdb.requests.clear()
         bench.scan()
 
@@ -140,21 +133,24 @@ class ScanCreditsTest {
     @Test
     fun aShowsCreditsAreItsCastCreatorsAndComposers() = runTest {
         bench.folder("Séries", SourceKind.SHOWS)
-        tmdb.show(1, "Severance", 2022).copy(
-            createdBy = listOf(TmdbCreator("Dan Erickson", 2213217)),
-            credits = TmdbCredits(
-                cast = listOf(TmdbCastMember("Adam Scott", "Mark", order = 0, id = 55536)),
-                crew = listOf(
-                    TmdbCrewMember("Theodore Shapiro", "Original Music Composer", 7),
-                    TmdbCrewMember("Ben Stiller", "Director", 7399),
+        tmdb.show(1, "Severance", 2022)
+        tmdb.editShow(1) {
+            it.copy(
+                createdBy = listOf(TmdbCreator("Dan Erickson", 2213217)),
+                credits = TmdbCredits(
+                    cast = listOf(TmdbCastMember("Adam Scott", "Mark", order = 0, id = 55536)),
+                    crew = listOf(
+                        TmdbCrewMember("Theodore Shapiro", "Original Music Composer", 7),
+                        TmdbCrewMember("Ben Stiller", "Director", 7399),
+                    ),
                 ),
-            ),
-        ).also { tmdb.shows[1] = it }
+            )
+        }
         tmdb.season(1, 1, 1)
         bench.showsNas.put("Severance (2022)/Season 1/Severance.S01E01.mkv")
         bench.scan()
 
-        val series = checkNotNull(dao.seriesByKey(FilenameParser.showKey("Severance", 2022)))
+        val series = bench.series("Severance", 2022)
         assertEquals(
             mapOf(Job.CAST to listOf("Adam Scott"), Job.CREATOR to listOf("Dan Erickson"), Job.COMPOSER to listOf("Theodore Shapiro")),
             jobs(series.id),
@@ -193,7 +189,7 @@ class ScanCreditsTest {
         nas.put("Aliens (1986) Special Edition 1080p.mkv")
         nas.put("Blade Runner (1982) {edition-The Final Cut}.mkv")
         nas.put("Amadeus (1984).mkv")
-        nas.text("Amadeus (1984).nfo", "<movie><title>Amadeus</title><edition>DIRECTORS_CUT</edition></movie>")
+        nas.putText("Amadeus (1984).nfo", "<movie><title>Amadeus</title><edition>DIRECTORS_CUT</edition></movie>")
         nas.put("Director's Cut (2016).mkv")
         bench.scan()
 
@@ -244,8 +240,8 @@ class ScanCreditsTest {
         val films = bench.folder("Films")
         val count = Backfill.TITLES_PER_PASS + 5
         repeat(count) { i ->
-            val film = tmdb.movie(1000 + i, "Film $i", 2000)
-            tmdb.movies[film.id] = film.copy(credits = duneCredits, voteAverage = 7.0, voteCount = 300)
+            tmdb.movie(1000 + i, "Film $i", 2000)
+            tmdb.editMovie(1000 + i) { it.copy(credits = duneCredits, voteAverage = 7.0, voteCount = 300) }
             nas.put("Film $i (2000).mkv")
         }
         bench.scan()
@@ -294,27 +290,27 @@ class ScanCreditsTest {
         assertEquals(1, tmdb.requests.count { it.startsWith("collection/") })
     }
 
-    /** TMDB unreachable: the backfill tries three times, then waits a pass; NFO titles still get theirs. */
+    /** TMDB out of reach: the backfill waits for a pass TMDB answers; NFO titles still get theirs. */
     @Test
     fun tmdbOutOfReachLeavesTheBackfillToALaterPass() = runTest {
         val films = bench.folder("Films")
         repeat(5) { i ->
-            tmdb.movie(1000 + i, "Film $i", 2000).copy(credits = duneCredits).also { tmdb.movies[it.id] = it }
+            tmdb.movie(1000 + i, "Film $i", 2000)
+            tmdb.editMovie(1000 + i) { it.copy(credits = duneCredits) }
             nas.put("Film $i (2000).mkv")
         }
         nas.put("Mon film (2001).mkv")
-        nas.text("Mon film (2001).nfo", "<movie><title>Mon film</title><director>Moi</director></movie>")
+        nas.putText("Mon film (2001).nfo", "<movie><title>Mon film</title><director>Moi</director></movie>")
         bench.scan()
         asBeforeVersion12()
-        tmdb.failure = IOException("Network is unreachable")
+        bench.tmdbOutOfReach()
 
         bench.scan()
         val mine = bench.item(films, "Mon film (2001).mkv")
         assertEquals(listOf("Moi"), dao.creditsOf(mine.id).map { it.name })
         assertTrue(dao.filesOf(films.id).filter { it.tmdbId != null }.all { it.creditsAt == null })
 
-        tmdb.failure = null
-        ShadowSystemClock.advanceBy(Duration.ofHours(1))
+        bench.tmdbBack()
         bench.scan()
         assertTrue(dao.filesOf(films.id).all { it.creditsAt != null })
     }

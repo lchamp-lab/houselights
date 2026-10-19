@@ -30,11 +30,6 @@ class ScanProbeTest {
     @After
     fun close() = bench.close()
 
-    private fun put(on: FakeRemoteBrowser, path: String, text: String) {
-        val bytes = text.toByteArray()
-        on.put(path, size = bytes.size.toLong(), bytes = bytes)
-    }
-
     /** The library as the previous probe version left it; [read] is what it made of each file. */
     private suspend fun readByAnOlderProbe(read: (MediaInfo) -> MediaInfo = { it }) {
         for (source in bench.dao.sources()) {
@@ -50,7 +45,7 @@ class ScanProbeTest {
     private suspend fun duneMatchedByTheUser(): SourceEntity {
         val films = bench.folder("Films")
         nas.put("Dune (2021).mkv", size = 80_000_000_000, bytes = Matroska.sample())
-        put(nas, "Dune (2021).nfo", "<movie><title>Dune : Première partie</title><id>tt1160419</id></movie>")
+        nas.putText("Dune (2021).nfo", "<movie><title>Dune : Première partie</title><id>tt1160419</id></movie>")
         tmdb.movie(438631, "Dune", 2021, imdbId = "tt1160419")
         bench.scan()
         val dune = bench.item(films, "Dune (2021).mkv")
@@ -67,21 +62,17 @@ class ScanProbeTest {
         val films = duneMatchedByTheUser()
         val before = bench.item(films, "Dune (2021).mkv")
         readByAnOlderProbe()
-        nas.reads.clear()
-        tmdb.requests.clear()
 
-        val changes = bench.changesDuring { bench.scan() }
-        assertEquals("the video alone", setOf("Dune (2021).mkv"), nas.reads.toSet())
-        assertEquals(emptyList<String>(), tmdb.requests.toList())
-        assertEquals("read the same: nothing to reload", 0, changes)
+        val pass = bench.pass()
+        assertEquals("the video alone", setOf("Dune (2021).mkv"), pass.reads.toSet())
+        assertEquals(emptyList<String>(), pass.requests)
+        assertEquals("read the same: nothing to reload", 0, pass.changes)
         val dune = bench.item(films, "Dune (2021).mkv")
         assertEquals(MediaProbe.VERSION, dune.probeVersion)
         assertEquals(before.copy(mediaInfo = null, probeVersion = 0), dune.copy(mediaInfo = null, probeVersion = 0))
         assertEquals(Triple(438631, true, 600_000L), Triple(dune.userTmdbId, dune.favorite, dune.positionMs))
 
-        nas.reads.clear()
-        bench.scan()
-        assertEquals("read once", emptyList<String>(), nas.reads.toList())
+        assertEquals("read once", emptyList<String>(), bench.pass().reads)
     }
 
     @Test
@@ -91,16 +82,16 @@ class ScanProbeTest {
         tmdb.show(95396, "Severance", 2022)
         tmdb.season(95396, 1, episodes = 2)
         bench.showsNas.put(pilot, size = 4_000_000_000, bytes = Matroska.sample())
-        put(bench.showsNas, "Severance/Season 1/Severance - S01E01.nfo", "<episodedetails><title>Bonne nouvelle</title></episodedetails>")
-        put(bench.showsNas, "Severance/tvshow.nfo", "<tvshow><title>Severance</title></tvshow>")
+        val episodeNfo = "<episodedetails><title>Bonne nouvelle</title></episodedetails>"
+        bench.showsNas.putText("Severance/Season 1/Severance - S01E01.nfo", episodeNfo)
+        bench.showsNas.putText("Severance/tvshow.nfo", "<tvshow><title>Severance</title></tvshow>")
         bench.scan()
         readByAnOlderProbe()
-        bench.showsNas.reads.clear()
-        tmdb.requests.clear()
 
-        assertEquals(0, bench.changesDuring { bench.scan() })
-        assertEquals(setOf(pilot), bench.showsNas.reads.toSet())
-        assertEquals(emptyList<String>(), tmdb.requests.toList())
+        val pass = bench.pass()
+        assertEquals(0, pass.changes)
+        assertEquals(setOf(pilot), pass.reads.toSet())
+        assertEquals(emptyList<String>(), pass.requests)
         val episode = bench.item(shows, pilot)
         assertEquals("Bonne nouvelle" to MediaProbe.VERSION, episode.title to episode.probeVersion)
     }
@@ -114,17 +105,14 @@ class ScanProbeTest {
         tmdb.season(95396, 1, episodes = 2)
         bench.showsNas.put(pilot, size = 4_000_000_000, bytes = Matroska.sample())
         val nfo = { title: String -> "<tvshow><title>$title</title><uniqueid type=\"tmdb\">95396</uniqueid></tvshow>" }
-        put(bench.showsNas, "Severance/tvshow.nfo", nfo("Severance"))
+        bench.showsNas.putText("Severance/tvshow.nfo", nfo("Severance"))
         bench.scan()
         readByAnOlderProbe()
-        put(bench.showsNas, "Severance/tvshow.nfo", nfo("Severance : la série"))
-        bench.showsNas.reads.clear()
+        bench.showsNas.putText("Severance/tvshow.nfo", nfo("Severance : la série"))
 
-        bench.scan()
-        assertEquals("each once", listOf(pilot, "Severance/tvshow.nfo"), bench.showsNas.reads.sorted())
-        val episode = bench.item(shows, pilot)
-        assertEquals(MediaProbe.VERSION, episode.probeVersion)
-        assertEquals("Severance : la série", checkNotNull(bench.dao.item(checkNotNull(episode.seriesId))).title)
+        assertEquals("each once", listOf(pilot, "Severance/tvshow.nfo"), bench.pass().reads.sorted())
+        assertEquals(MediaProbe.VERSION, bench.item(shows, pilot).probeVersion)
+        assertEquals("Severance : la série", bench.showOf(shows, pilot).title)
     }
 
     /** A file the probe cannot open keeps the stream details its NFO gives, as stored in its row. */
@@ -134,15 +122,15 @@ class ScanProbeTest {
         nas.put("Heat (1995).avi")
         val streams = "<fileinfo><streamdetails><video><codec>xvid</codec><width>720</width></video>" +
             "<audio><codec>ac3</codec><channels>6</channels></audio></streamdetails></fileinfo>"
-        put(nas, "Heat (1995).nfo", "<movie><title>Heat</title>$streams</movie>")
+        nas.putText("Heat (1995).nfo", "<movie><title>Heat</title>$streams</movie>")
         bench.scan()
         val before = bench.item(films, "Heat (1995).avi")
         assertEquals("MPEG-4", MediaProbe.decode(before.mediaInfo)?.video?.codec)
         readByAnOlderProbe()
-        nas.reads.clear()
 
-        assertEquals(0, bench.changesDuring { bench.scan() })
-        assertEquals("not even the NFO", emptyList<String>(), nas.reads.toList())
+        val pass = bench.pass()
+        assertEquals(0, pass.changes)
+        assertEquals("not even the NFO", emptyList<String>(), pass.reads)
         val heat = bench.item(films, "Heat (1995).avi")
         assertEquals(MediaProbe.decode(before.mediaInfo), MediaProbe.decode(heat.mediaInfo))
         assertEquals(before.badges, heat.badges)

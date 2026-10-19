@@ -3,7 +3,10 @@ package app.houselights.providers.local
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
-/** What a listing that could not see everything does to the rows of the files it missed. */
+/**
+ * What a listing does to the rows of the files it did not list: out of sight under what it could not read, or the
+ * later parts of a film in several files, each part's row matched on its own or not.
+ */
 class MissingFilesTest {
     private fun film(id: Long, path: String) = KnownFile(id = id, filePath = path)
 

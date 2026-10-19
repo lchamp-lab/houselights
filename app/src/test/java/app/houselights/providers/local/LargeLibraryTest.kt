@@ -45,39 +45,37 @@ class LargeLibraryTest {
         val shows = dao.insertSource(nfsFolder("Séries", SourceKind.SHOWS))
         val nfo = "<movie><plot>${"x".repeat(NFO_BYTES)}</plot></movie>"
         db.withTransaction {
-            run {
-                val sagas = (0 until SAGAS).map {
-                    dao.insertCollection(CollectionEntity(matchKey = "name:saga $it", name = "Saga $it", sortTitle = "saga $it"))
+            val sagas = (0 until SAGAS).map {
+                dao.insertCollection(CollectionEntity(matchKey = "name:saga $it", name = "Saga $it", sortTitle = "saga $it"))
+            }
+            repeat(FILMS) { i ->
+                val playedAt = if (i % 50 == 0) i.toLong() else null
+                val film = item(ItemKind.MOVIE, films, "Film $i", addedAt = i.toLong(), nfo = nfo, lastPlayedAt = playedAt)
+                val id = dao.insert(film.copy(collectionId = sagas[i % SAGAS], year = 1980 + i / SAGAS, tmdbId = 10_000 + i))
+                // A director of five films each, a cast of thirty out of two thousand actors.
+                val credits = listOf(credit(id, Job.DIRECTOR, 0, i % DIRECTORS)) +
+                    (0 until CAST).map { credit(id, Job.CAST, it, DIRECTORS + (i * CAST + it * 7) % ACTORS) }
+                dao.insertCredits(credits)
+                dao.insertSearchWords(credits.flatMap { SearchWords.rows(SearchKind.PERSON, it.personKey, it.name) })
+            }
+            sagas.forEachIndexed { s, saga ->
+                val parts = (0 until FILMS / SAGAS + 2).map { n ->
+                    SagaPartEntity(saga, tmdbId = 10_000 + s + n * SAGAS, ord = n, title = "Part $n", releaseDate = "${1980 + n}-01-01")
                 }
-                repeat(FILMS) { i ->
-                    val playedAt = if (i % 50 == 0) i.toLong() else null
-                    val film = item(ItemKind.MOVIE, films, "Film $i", addedAt = i.toLong(), nfo = nfo, lastPlayedAt = playedAt)
-                    val id = dao.insert(film.copy(collectionId = sagas[i % SAGAS], year = 1980 + i / SAGAS, tmdbId = 10_000 + i))
-                    // A director of five films each, a cast of thirty out of two thousand actors.
-                    val credits = listOf(credit(id, Job.DIRECTOR, 0, i % DIRECTORS)) +
-                        (0 until CAST).map { credit(id, Job.CAST, it, DIRECTORS + (i * CAST + it * 7) % ACTORS) }
-                    dao.insertCredits(credits)
-                    dao.insertSearchWords(credits.flatMap { SearchWords.rows(SearchKind.PERSON, it.personKey, it.name) })
-                }
-                sagas.forEachIndexed { s, saga ->
-                    val parts = (0 until FILMS / SAGAS + 2).map { n ->
-                        SagaPartEntity(saga, tmdbId = 10_000 + s + n * SAGAS, ord = n, title = "Part $n", releaseDate = "${1980 + n}-01-01")
-                    }
-                    dao.insertSagaParts(parts)
-                }
-                repeat(SHOWS) { s ->
-                    val series = dao.insert(item(ItemKind.SERIES, shows, "Show $s", addedAt = s.toLong()))
-                    repeat(SEASONS) { n ->
-                        val season = dao.insert(item(ItemKind.SEASON, shows, "", parentId = series, seriesId = series, season = n + 1))
-                        repeat(EPISODES_PER_SEASON) { e ->
-                            val played = s % 3 == 0 && n == 0
-                            dao.insert(
-                                item(
-                                    ItemKind.EPISODE, shows, "Episode $e", parentId = season, seriesId = series, season = n + 1,
-                                    episode = e + 1, nfo = nfo, played = played, lastPlayedAt = if (played) (s * 100L + e) else null,
-                                )
+                dao.insertSagaParts(parts)
+            }
+            repeat(SHOWS) { s ->
+                val series = dao.insert(item(ItemKind.SERIES, shows, "Show $s", addedAt = s.toLong()))
+                repeat(SEASONS) { n ->
+                    val season = dao.insert(item(ItemKind.SEASON, shows, "", parentId = series, seriesId = series, season = n + 1))
+                    repeat(EPISODES_PER_SEASON) { e ->
+                        val played = s % 3 == 0 && n == 0
+                        dao.insert(
+                            item(
+                                ItemKind.EPISODE, shows, "Episode $e", parentId = season, seriesId = series, season = n + 1,
+                                episode = e + 1, nfo = nfo, played = played, lastPlayedAt = if (played) (s * 100L + e) else null,
                             )
-                        }
+                        )
                     }
                 }
             }
@@ -116,13 +114,6 @@ class LargeLibraryTest {
     }
 
     @Test
-    fun homeCostsAFewQueries() = runTest {
-        val (sections, count) = measure("home") { provider.home() }
-        assertTrue(sections.isNotEmpty())
-        assertTrue("home ran $count queries", count <= HOME_QUERIES)
-    }
-
-    @Test
     fun aPageOfShowsCostsAFewQueries() = runTest {
         val shows = Library(LocalProvider.SHOWS, LibraryKind.SHOWS, null)
         val (page, count) = measure("shows page") { provider.libraryPage(shows, SortOption.TITLE, LibraryFilter(), 0, SHOWS) }
@@ -153,9 +144,9 @@ class LargeLibraryTest {
         assertTrue("sagas page ran $count queries", count <= PAGE_QUERIES)
     }
 
-    /** "À suivre": the state of every episode of the last shows watched, then the next episode of each. */
+    /** Home, with "À suivre": the state of every episode of the last shows watched, then the next episode of each. */
     @Test
-    fun nextUpCostsAFewQueries() = runTest {
+    fun homeWithItsNextUpCostsAFewQueries() = runTest {
         val (sections, count) = measure("home") { provider.home() }
         val next = sections.single { it.type == SectionType.NEXT_UP }.items
         // Shows 0, 3, 6…: their first season watched, the next episode is the second season's first.

@@ -32,7 +32,7 @@ class ScanNasTest {
     @After
     fun close() = bench.close()
 
-    private suspend fun filePaths() = bench.dao.filesOf(films.id).mapNotNull { it.filePath }.sorted()
+    private suspend fun filePaths() = bench.paths(films)
 
     @Test
     fun eachPassClosesWhatItKeptOnTheNasOnce() = runTest {
@@ -75,6 +75,7 @@ class ScanNasTest {
 
         bench.started.value = true
         bench.awaitScans()
+        assertEquals(listOf("Dune (2021).mkv"), filePaths())
         assertEquals(2, bench.closed.get())
     }
 
