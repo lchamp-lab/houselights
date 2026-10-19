@@ -5,24 +5,26 @@ import app.houselights.core.NfoActor
 import app.houselights.core.NfoInfo
 import app.houselights.core.NfoKind
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** Which source wins for each detail of a film or a show. */
+/** Which source wins for each detail of a film or a show, and when an NFO describes another title than the one matched. */
 class MetadataMergeTest {
     private val film = ItemEntity(
         kind = ItemKind.MOVIE, sourceId = 1, title = "heat 1995", sortTitle = "heat 1995", year = 1995,
         overview = "Known before", genres = listOf("Known"), addedAt = 0,
     )
+    private val heatCredits = TmdbCredits(cast = listOf(TmdbCastMember("Al Pacino", "Vincent Hanna", order = 0)))
     private val tmdb = TmdbMovie(
         id = 949, title = "Heat", originalTitle = "Heat", overview = "", tagline = "A Los Angeles crime saga",
         releaseDate = "1995-12-15", runtime = 170, voteAverage = 7.9, genres = listOf(TmdbGenre("Action"), TmdbGenre("Crime")),
-        posterPath = "/tmdb-poster.jpg", credits = TmdbCredits(
-            cast = listOf(TmdbCastMember("Al Pacino", "Vincent Hanna", order = 0)),
+        posterPath = "/tmdb-poster.jpg", credits = heatCredits.copy(
             crew = listOf(TmdbCrewMember("Michael Mann", "Director"), TmdbCrewMember("Dante Spinotti", "Director of Photography")),
         ),
     ).details(certification = "12", logo = "/logo.png")
+    private val colony = NfoInfo(kind = NfoKind.MOVIE, title = "Colony")
 
     @Test
     fun theNfoWinsThenTmdbThenWhatWasKnown() {
@@ -102,5 +104,37 @@ class MetadataMergeTest {
         assertEquals("la land", MetadataMerge.sortKey("La La Land"))
     }
 
-    private val heatCredits =TmdbCredits(cast = listOf(TmdbCastMember("Al Pacino", "Vincent Hanna", order = 0)))
+    @Test
+    fun anNfoAppliesWithoutAManualMatchOrAnIdToCompare() {
+        assertFalse(MetadataMerge.describesOther(colony.copy(tmdbId = 1), userTmdbId = null, imdbId = null))
+        assertFalse(MetadataMerge.describesOther(colony, userTmdbId = 2, imdbId = "tt0110912"))
+    }
+
+    @Test
+    fun anNfoNamingAnotherTmdbTitleThanTheManualMatchIsSetAside() {
+        assertTrue(MetadataMerge.describesOther(colony.copy(tmdbId = 1), userTmdbId = 2, imdbId = null))
+        assertFalse(MetadataMerge.describesOther(colony.copy(tmdbId = 2), userTmdbId = 2, imdbId = null))
+    }
+
+    @Test
+    fun imdbIdsAreComparedWhenTheNfoHasNoTmdbId() {
+        val linked = colony.copy(imdbId = "tt0111161")
+        assertFalse(MetadataMerge.describesOther(linked, userTmdbId = 278, imdbId = "TT0111161"))
+        assertTrue(MetadataMerge.describesOther(linked, userTmdbId = 680, imdbId = "tt0110912"))
+        assertFalse("unknown: the NFO is kept", MetadataMerge.describesOther(linked, userTmdbId = 680, imdbId = null))
+        assertFalse("TMDB knows of none", MetadataMerge.describesOther(linked, userTmdbId = 680, imdbId = ""))
+    }
+
+    /** A show's NFO by Sonarr: TVDB's id, and IMDb's when TVDB has one. */
+    @Test
+    fun tvdbIdsAreComparedWhenTheNfoHasNeitherTmdbNorImdbId() {
+        val sonarr = NfoInfo(kind = NfoKind.SHOW, title = "The Office (UK)", tvdbId = "78107")
+        assertTrue(MetadataMerge.describesOther(sonarr, userTmdbId = 2316, imdbId = "tt0386676", tvdbId = 73244))
+        assertFalse(MetadataMerge.describesOther(sonarr, userTmdbId = 2996, imdbId = "tt0290978", tvdbId = 78107))
+        assertFalse("unknown: the NFO is kept", MetadataMerge.describesOther(sonarr, userTmdbId = 2316, imdbId = null, tvdbId = null))
+        // The IMDb id takes precedence.
+        val both = sonarr.copy(imdbId = "tt0290978")
+        assertTrue(MetadataMerge.describesOther(both, userTmdbId = 2316, imdbId = "tt0386676", tvdbId = 78107))
+        assertTrue(MetadataMerge.describesOther(both, userTmdbId = 2316, imdbId = null, tvdbId = 73244))
+    }
 }

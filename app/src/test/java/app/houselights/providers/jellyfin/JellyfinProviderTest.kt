@@ -3,13 +3,10 @@ package app.houselights.providers.jellyfin
 import app.houselights.core.Library
 import app.houselights.core.LibraryFilter
 import app.houselights.core.LibraryKind
-import app.houselights.core.MediaItem
-import app.houselights.core.MediaKind
 import app.houselights.core.PlaybackOptions
 import app.houselights.core.PlaybackPlan
 import app.houselights.core.SectionType
 import app.houselights.core.SortOption
-import app.houselights.core.SourceConfig
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
@@ -34,10 +31,8 @@ import kotlin.coroutines.CoroutineContext
 /** The Jellyfin provider against a test server: what it writes, what it reports, how it fails. */
 @RunWith(RobolectricTestRunner::class)
 class JellyfinProviderTest {
-    private val config = SourceConfig.Jellyfin("http://nas:8096", "Maison", "u1", "lea", "token")
-    private val film = MediaItem("f1", MediaKind.MOVIE, "Heat")
-
-    private fun provider(server: FakeServer) = JellyfinProvider(config, "device", server.http, retryDelaysMs = listOf(0, 0, 0))
+    private fun provider(server: FakeServer, retryDelaysMs: List<Long> = listOf(0, 0, 0)) =
+        JellyfinProvider(account, "device", server.http, retryDelaysMs)
 
     /** The HTTP failure [block] ends on; null when it succeeds. */
     private suspend fun httpFailure(block: suspend () -> Unit): HttpException? = try {
@@ -49,6 +44,15 @@ class JellyfinProviderTest {
 
     private val views = """{"Items":[{"Id":"lib1","Name":"Films","CollectionType":"movies"}],"TotalRecordCount":1}"""
     private val oneFilm = """{"Items":[{"Id":"f1","Name":"Heat","Type":"Movie"}],"TotalRecordCount":1}"""
+
+    /** A server with one library and nothing new in it, answering [rest] for every other list. */
+    private fun homeServer(rest: String = oneFilm) = FakeServer { request ->
+        when (request.url.encodedPath) {
+            "/UserViews" -> Answer(200, views)
+            "/Items/Latest" -> Answer(200, "[]")
+            else -> Answer(200, rest)
+        }
+    }
 
     @Test
     fun aServerErrorOnWatchedIsAFailure() = runTest {
@@ -87,16 +91,15 @@ class JellyfinProviderTest {
         assertEquals(4, server.paths.size)
     }
 
-    /** The request may have reached the server before the answer timed out: a second Stopped would count the film twice. */
+    /** An answer timed out or cut off may follow a request the server took: a second Stopped would count the film twice. */
     @Test
-    fun aReadTimeoutIsNotTriedAgain() = runTest {
-        val server = FakeServer { throw SocketTimeoutException("timeout") }
-        try {
-            provider(server).reporter("f1|s1")!!.stopped(7_000_000, null)
-        } catch (_: IOException) {
-            // Expected: reported as a failure.
+    fun aFailureThatMayHaveReachedTheServerIsNotTriedAgain() = runTest {
+        for (failure in listOf(SocketTimeoutException("timeout"), IOException("Connection reset"))) {
+            val server = FakeServer { throw failure }
+            val thrown = runCatching { provider(server).reporter("f1|s1")!!.stopped(7_000_000, null) }.exceptionOrNull()
+            assertTrue("$failure, reported as $thrown", thrown is IOException)
+            assertEquals("$failure", 1, server.paths.size)
         }
-        assertEquals(1, server.paths.size)
     }
 
     /** No connection within the timeout (a server asleep, a Wi-Fi joining again): Stopped never reached it, and is sent again. */
@@ -114,13 +117,6 @@ class JellyfinProviderTest {
         assertEquals(List(2) { "/Sessions/Playing/Stopped" }, server.paths)
     }
 
-    @Test
-    fun anAnswerOtherThanTheNetworkFailingIsNotTriedAgain() = runTest {
-        val server = FakeServer { throw IOException("Connection reset") }
-        runCatching { provider(server).reporter("f1|s1")!!.stopped(7_000_000, null) }
-        assertEquals(1, server.paths.size)
-    }
-
     /** Stopped(1) failing as episode 2 starts within seconds is sent once more before Playing(2), never after. */
     @Test
     fun aNewPlaybackSendsTheLastStoppedBeforeItsPlaying() = runTest {
@@ -134,7 +130,7 @@ class JellyfinProviderTest {
             Answer(204)
         }
         // The next try is a minute away: the next episode starts before it.
-        val jellyfin = JellyfinProvider(config, "device", server.http, retryDelaysMs = listOf(60_000, 60_000, 60_000))
+        val jellyfin = provider(server, retryDelaysMs = listOf(60_000, 60_000, 60_000))
         val first = launch { jellyfin.reporter("e1|s1")!!.stopped(7_000_000, null) }
         firstStopFailed.await()
         jellyfin.reporter("e2|s2")!!.started(0)
@@ -154,7 +150,7 @@ class JellyfinProviderTest {
                 Answer(204)
             }
         }
-        val jellyfin = JellyfinProvider(config, "device", server.http, retryDelaysMs = listOf(60_000, 60_000, 60_000))
+        val jellyfin = provider(server, retryDelaysMs = listOf(60_000, 60_000, 60_000))
         val first = launch { jellyfin.reporter("e1|s1")!!.stopped(7_000_000, null) }
         firstStopFailed.await()
         jellyfin.reporter("e2|s2")!!.started(0)
@@ -212,13 +208,7 @@ class JellyfinProviderTest {
     /** Home loads the libraries, then its rows, which need them too: the server is asked for them once. */
     @Test
     fun homeAsksForTheLibrariesOnce() = runTest {
-        val server = FakeServer { request ->
-            when (request.url.encodedPath) {
-                "/UserViews" -> Answer(200, views)
-                "/Items/Latest" -> Answer(200, "[]")
-                else -> Answer(200, oneFilm)
-            }
-        }
+        val server = homeServer()
         val provider = provider(server)
         assertEquals(listOf("lib1"), provider.libraries().map { it.id })
         provider.home()
@@ -252,14 +242,7 @@ class JellyfinProviderTest {
                 Dispatchers.Default.dispatch(context, block)
             }
         }
-        val server = FakeServer { request ->
-            when (request.url.encodedPath) {
-                "/UserViews" -> Answer(200, views)
-                "/Items/Latest" -> Answer(200, "[]")
-                else -> Answer(200, oneFilm)
-            }
-        }
-        val provider = JellyfinProvider(config, "device", server.http, retryDelaysMs = listOf(0, 0, 0), mapping = mapping)
+        val provider = JellyfinProvider(account, "device", homeServer().http, retryDelaysMs = listOf(0, 0, 0), mapping = mapping)
         val films = Library("lib1", LibraryKind.MOVIES, "Films")
         val page = provider.libraryPage(films, SortOption.TITLE, LibraryFilter(), start = 0, limit = 120)
         assertEquals(listOf("Heat"), page.items.map { it.title })
@@ -270,13 +253,6 @@ class JellyfinProviderTest {
 
     @Test
     fun anEmptyServerIsNotAFailure() = runTest {
-        val server = FakeServer { request ->
-            when (request.url.encodedPath) {
-                "/UserViews" -> Answer(200, views)
-                "/Items/Latest" -> Answer(200, "[]")
-                else -> Answer(200, "{}")
-            }
-        }
-        assertEquals(emptyList<Any>(), provider(server).home())
+        assertEquals(emptyList<Any>(), provider(homeServer(rest = "{}")).home())
     }
 }

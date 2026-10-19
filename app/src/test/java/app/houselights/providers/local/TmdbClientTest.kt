@@ -14,13 +14,13 @@ import okhttp3.Interceptor
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
-import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.shadows.ShadowSystemClock
+import retrofit2.HttpException
 import java.io.IOException
 import java.net.ConnectException
 import java.net.NoRouteToHostException
@@ -110,10 +110,11 @@ class TmdbClientTest {
         assertEquals(438631, client.movieById(438631)?.id)
     }
 
+    /** After the very failure that pauses a scan's client. */
     @Test
     fun someoneAskingIsAnsweredByTmdbItselfEveryTime() = runTest {
         val client = tmdb.client()
-        tmdb.failure = IOException("Network is unreachable")
+        tmdb.failure = ConnectException("Network is unreachable")
         failure<TmdbUnreachableException> { client.searchMovies("Dune", null) }
 
         tmdb.failure = null
@@ -234,8 +235,8 @@ class TmdbClientTest {
     }
 
     @Test
-    fun otherFailuresStayHttpFailures() {
+    fun otherFailuresStayHttpFailures() = runTest {
         tmdb.status = 500
-        assertThrows(retrofit2.HttpException::class.java) { kotlinx.coroutines.runBlocking { tmdb.client().movieById(438631) } }
+        failure<HttpException> { tmdb.client().movieById(438631) }
     }
 }

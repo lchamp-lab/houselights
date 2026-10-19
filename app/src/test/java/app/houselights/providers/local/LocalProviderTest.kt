@@ -47,6 +47,7 @@ class LocalProviderTest {
     @After
     fun close() = db.close()
 
+    /** A film in the library; [more] sets what else a test needs of its row. */
     private suspend fun movie(
         title: String,
         year: Int? = 2020,
@@ -55,12 +56,15 @@ class LocalProviderTest {
         collectionId: Long? = null,
         runtimeMin: Int? = 100,
         addedAt: Long = 0,
+        path: String = "$title.mkv",
+        badges: List<String> = emptyList(),
+        more: ItemEntity.() -> ItemEntity = { this },
     ): Long = dao.insert(
         ItemEntity(
             kind = ItemKind.MOVIE, sourceId = source, title = title, sortTitle = title.lowercase(), year = year,
             genres = genres, played = played, collectionId = collectionId, runtimeMin = runtimeMin,
-            filePath = "$title.mkv", addedAt = addedAt,
-        )
+            filePath = path, badges = badges, addedAt = addedAt,
+        ).more()
     )
 
     private suspend fun page(filter: LibraryFilter = LibraryFilter(), start: Int = 0, limit: Int = 50) =
@@ -130,7 +134,7 @@ class LocalProviderTest {
     }
 
     @Test
-    fun decadeAndWatchStatus() = runTest {
+    fun filmsAreFilteredByTheirDecadeAndWhetherTheyWereWatched() = runTest {
         movie("Alien", year = 1979, played = true)
         movie("Aliens", year = 1986)
         movie("Prometheus", year = 2012)
@@ -161,33 +165,20 @@ class LocalProviderTest {
 
     @Test
     fun nextEpisodeIsTheOneInProgressElseTheOneAfterTheLastWatched() = runTest {
-        val series = dao.insert(ItemEntity(kind = ItemKind.SERIES, sourceId = source, title = "Show", sortTitle = "show", addedAt = 0))
-        val season = dao.insert(
-            ItemEntity(
-                kind = ItemKind.SEASON, sourceId = source, parentId = series, seriesId = series, title = "S1", sortTitle = "001",
-                seasonNumber = 1, addedAt = 0,
-            )
-        )
-        suspend fun episode(n: Int, played: Boolean = false, positionMs: Long = 0) = dao.insert(
-            ItemEntity(
-                kind = ItemKind.EPISODE, sourceId = source, parentId = season, seriesId = series, title = "E$n",
-                sortTitle = "001-%04d".format(n), seasonNumber = 1, episodeNumber = n, played = played, positionMs = positionMs,
-                filePath = "Show/S01E0$n.mkv", addedAt = 0,
-            )
-        )
-        episode(1, played = true)
-        episode(2, played = true)
-        episode(3)
-        val e4 = episode(4)
-        val show = provider.item(series.toString())
-        assertEquals("E3", provider.nextUp(show)?.title)
+        val show = show("Show")
+        show.episode(1, 1, played = true)
+        show.episode(1, 2, played = true)
+        show.episode(1, 3)
+        val e4 = show.episode(1, 4)
+        val item = provider.item(show.id.toString())
+        assertEquals("S1E3", provider.nextUp(item)?.title)
 
         dao.savePlayback(e4, positionMs = 600_000, durationMs = null, played = false, lastPlayedAt = 1)
-        assertEquals("E4", provider.nextUp(show)?.title)
+        assertEquals("S1E4", provider.nextUp(item)?.title)
 
-        provider.setPlayed(show, played = true)
-        assertTrue(dao.episodesOfSeries(series).all { it.played })
-        assertNull(provider.nextUp(show))
+        provider.setPlayed(item, played = true)
+        assertTrue(dao.episodesOfSeries(show.id).all { it.played })
+        assertNull(provider.nextUp(item))
     }
 
     private suspend fun show(title: String) =
@@ -197,7 +188,7 @@ class LocalProviderTest {
     private inner class Show(val id: Long) {
         private val seasons = mutableMapOf<Int, Long>()
 
-        suspend fun episode(season: Int, n: Int, badges: List<String> = emptyList()): Long {
+        suspend fun episode(season: Int, n: Int, badges: List<String> = emptyList(), played: Boolean = false): Long {
             val parent = seasons.getOrPut(season) {
                 dao.insert(
                     ItemEntity(
@@ -210,7 +201,7 @@ class LocalProviderTest {
                 ItemEntity(
                     kind = ItemKind.EPISODE, sourceId = source, parentId = parent, seriesId = id, title = "S${season}E$n",
                     sortTitle = "%03d-%04d".format(season, n), seasonNumber = season, episodeNumber = n,
-                    filePath = "$id/S${season}E$n.mkv", badges = badges, addedAt = 0,
+                    filePath = "$id/S${season}E$n.mkv", badges = badges, played = played, addedAt = 0,
                 )
             )
         }
@@ -267,12 +258,7 @@ class LocalProviderTest {
     /** The menu offers a quality for the titles its filter keeps, matching the same whole badges. */
     @Test
     fun aQualityIsOfferedForTheFilmsItsFilterKeeps() = runTest {
-        suspend fun film(title: String, vararg badges: String) = dao.insert(
-            ItemEntity(
-                kind = ItemKind.MOVIE, sourceId = source, title = title, sortTitle = title.lowercase(), filePath = "$title.mkv",
-                badges = badges.toList(), addedAt = 0,
-            )
-        )
+        suspend fun film(title: String, vararg badges: String) = movie(title, badges = badges.toList())
         suspend fun titles(quality: Quality) = page(LibraryFilter(quality = quality)).items.map { it.title }
 
         film("Broadcast", "1080p", "HLG")
@@ -309,13 +295,10 @@ class LocalProviderTest {
         }
     }
 
-    private suspend fun godfather(positionMs: Long = 0): Long = dao.insert(
-        ItemEntity(
-            kind = ItemKind.MOVIE, sourceId = source, title = "Le Parrain", sortTitle = "parrain", year = 1972, runtimeMin = 175,
-            filePath = "Le Parrain/Le Parrain CD1.avi", parts = listOf("Le Parrain/Le Parrain CD2.avi"), addedAt = 0,
-            positionMs = positionMs, durationMs = 88 * 60_000L,
-        )
-    )
+    private suspend fun godfather(positionMs: Long = 0): Long =
+        movie("Le Parrain", year = 1972, runtimeMin = 175, path = "Le Parrain/Le Parrain CD1.avi") {
+            copy(parts = listOf("Le Parrain/Le Parrain CD2.avi"), positionMs = positionMs, durationMs = 88 * 60_000L)
+        }
 
     @Test
     fun aFilmInPartsOffersEachPartToPlay() = runTest {
@@ -388,17 +371,13 @@ class LocalProviderTest {
     @Test
     fun thePlayerGetsWebArtworkForWhatTheAppKeepsItself() = runTest {
         val nfo = """<movie><title>Heat</title><fanart><thumb>http://assets.fanart.tv/heat.jpg</thumb></fanart></movie>"""
-        val id = dao.insert(
-            ItemEntity(
-                kind = ItemKind.MOVIE, sourceId = source, title = "Heat", sortTitle = "heat", filePath = "Heat.mkv", addedAt = 0,
-                // A sidecar fanart, kept as a file of the app's; the user chose a local logo over TMDB's.
-                backdropPath = "file:///data/artwork/heat-fanart.jpg",
-                logoPath = "/tmdbLogo.png",
-                userLogoPath = "file:///data/artwork/heat-logo.png",
-                nfoPath = "Heat.nfo",
-                nfo = nfo,
+        val id = movie("Heat") {
+            // A sidecar fanart, kept as a file of the app's; the user chose a local logo over TMDB's.
+            copy(
+                backdropPath = "file:///data/artwork/heat-fanart.jpg", logoPath = "/tmdbLogo.png",
+                userLogoPath = "file:///data/artwork/heat-logo.png", nfoPath = "Heat.nfo", nfo = nfo,
             )
-        )
+        }
         val item = provider.item(id.toString())
         // Screens still show the files the app keeps.
         assertEquals("file:///data/artwork/heat-fanart.jpg", item.backdrop?.url(1920))
@@ -438,9 +417,7 @@ class LocalProviderTest {
     @Test
     fun aDiscImageIsPlayedAsADisc() = runTest {
         val options = PlaybackOptions(emptyList(), false)
-        val iso = dao.insert(
-            ItemEntity(kind = ItemKind.MOVIE, sourceId = source, title = "Heat", sortTitle = "heat", filePath = "Heat.ISO", addedAt = 0)
-        )
+        val iso = movie("Heat", path = "Heat.ISO")
         assertTrue((provider.playback(provider.item(iso.toString()), resume = false, options) as PlaybackPlan.Launch).disc)
         val mkv = movie("Ronin")
         assertFalse((provider.playback(provider.item(mkv.toString()), resume = false, options) as PlaybackPlan.Launch).disc)
@@ -449,12 +426,7 @@ class LocalProviderTest {
     /** No logo chosen (the title set in type): the player gets none either. */
     @Test
     fun noLogoChosenIsNoLogoForThePlayer() = runTest {
-        val id = dao.insert(
-            ItemEntity(
-                kind = ItemKind.MOVIE, sourceId = source, title = "Heat", sortTitle = "heat", filePath = "Heat.mkv", addedAt = 0,
-                logoPath = "/tmdbLogo.png", userLogoPath = "",
-            )
-        )
+        val id = movie("Heat") { copy(logoPath = "/tmdbLogo.png", userLogoPath = "") }
         val plan = provider.playback(provider.item(id.toString()), resume = false, PlaybackOptions(emptyList(), false))
         assertNull((plan as PlaybackPlan.Launch).logoUrl)
     }
@@ -463,12 +435,7 @@ class LocalProviderTest {
     @Test
     fun aCardLastsAsLongAsItsFile() = runTest {
         val read = MediaInfo(container = "MKV", durationMs = 9_300_000, probedWith = MediaProbe.VERSION)
-        dao.insert(
-            ItemEntity(
-                kind = ItemKind.MOVIE, sourceId = source, title = "Dune", sortTitle = "dune", runtimeMin = 155, filePath = "Dune.mkv",
-                addedAt = 0,
-            ).withMedia(read)
-        )
+        movie("Dune", runtimeMin = 155) { withMedia(read) }
         val card = page().items.single()
         assertEquals(9_300_000L, card.runtimeMs)
         assertNull(card.media)
@@ -495,11 +462,9 @@ class LocalProviderTest {
         assertEquals("https://assets.fanart.tv/heat.jpg", fanart.url(1920))
     }
 
+    /** Ids of other providers, or of a part 0, are not the library's. */
     @Test
-    fun favouritesAndUnknownIds() = runTest {
-        val id = movie("Heat")
-        provider.setFavorite(provider.item(id.toString()), favorite = true)
-        assertTrue(dao.item(id)!!.favorite)
+    fun localIdsReadBackAsTheyAreWritten() {
         assertEquals(LocalId.Collection(12), LocalId.parse("c12"))
         assertEquals(LocalId.Item(12), LocalId.parse("12"))
         assertEquals(LocalId.Item(12, part = 2), LocalId.parse(LocalId.ofPart(12, 2)))

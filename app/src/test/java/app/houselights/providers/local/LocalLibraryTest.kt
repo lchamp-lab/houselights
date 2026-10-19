@@ -20,7 +20,10 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 
-/** Editing a folder: the same folder at a new address keeps its titles and what was done with them. */
+/**
+ * Adding and editing folders: one the library already holds is refused, one removed meanwhile stays removed, and the
+ * same folder at a new address keeps its titles and what was done with them, and is scanned again.
+ */
 @RunWith(RobolectricTestRunner::class)
 class LocalLibraryTest {
     private lateinit var db: LibraryDatabase
@@ -64,18 +67,9 @@ class LocalLibraryTest {
 
         assertEquals(FolderSave.Saved, library.updateFolder(id, EDITED))
 
-        val edited = dao.source(id)!!
-        assertEquals(1, dao.sources().size)
-        assertEquals(Protocol.SMB, edited.protocol)
-        assertEquals("192.168.1.20", edited.host)
-        assertEquals("video", edited.share)
-        assertEquals("films-4k", edited.path)
-        assertEquals("films-4k", edited.name)
-        assertEquals("new", edited.password.value)
-        assertEquals(SourceKind.MOVIES, edited.kind)
-        assertEquals("WORKGROUP", edited.domain)
-        assertEquals(2_000L, edited.lastScanAt)
-        assertEquals(1_000L, edited.firstScanAt)
+        // The new address and account; the folder's kind, domain and scans as they were.
+        val kept = EDITED.copy(id = id, kind = SourceKind.MOVIES, domain = "WORKGROUP", lastScanAt = 2_000, firstScanAt = 1_000)
+        assertEquals(listOf(kept), dao.sources())
 
         dao.item(film)!!.let {
             assertEquals(id, it.sourceId)

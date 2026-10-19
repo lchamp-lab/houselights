@@ -87,15 +87,10 @@ class ItemRowTest {
     }
 
     @Test
-    fun listsNeverReadTheNfoText() = runTest {
+    fun listsNeverReadTheNfoTextNorWhatFilesHold() = runTest {
         val read = browseEveryList()
         assertTrue("No list went through CARD_ROW: ${read.joinToString("\n")}", read.any { "NULL AS nfo" in it })
         assertEquals("Lists reading the NFO text", emptyList<String>(), read.filter(::readsNfo).distinct())
-    }
-
-    @Test
-    fun listsNeverReadWhatFilesHold() = runTest {
-        val read = browseEveryList()
         assertEquals("Lists reading what files hold", emptyList<String>(), read.filter { reads(it, "mediaInfo") }.distinct())
     }
 

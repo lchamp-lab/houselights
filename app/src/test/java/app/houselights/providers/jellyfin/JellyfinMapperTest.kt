@@ -7,6 +7,7 @@ import app.houselights.core.HdrFormat.HLG
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
+/** How the app reads what Jellyfin says of a video: its range type as HDR formats. */
 class JellyfinMapperTest {
     @Test
     fun eachVideoRangeSaysItsFormats() {

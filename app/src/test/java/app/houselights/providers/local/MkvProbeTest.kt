@@ -1,6 +1,7 @@
 package app.houselights.providers.local
 
 import app.houselights.core.Definition
+import app.houselights.core.Formats
 import app.houselights.core.HdrFormat
 import app.houselights.providers.local.Matroska.element
 import app.houselights.providers.local.Matroska.file
@@ -16,11 +17,12 @@ import java.nio.ByteOrder
 
 /** What [MkvProbe] reads of a Matroska file's headers, tracks, first frames and tags. */
 class MkvProbeTest {
+    /** Files kept out of the repository (build/probe), read when present. */
+    private val realFiles = File("../build/probe").takeIf { it.isDirectory } ?: File("build/probe")
+
     @Test
-    fun readsTracks() {
-        val result = MkvProbe.probe(Matroska.sample())
-        assertTrue(result is MkvProbe.Result.Found)
-        val info = (result as MkvProbe.Result.Found).info
+    fun aFileSaysItsPictureSoundSubtitlesAndLength() {
+        val info = (MkvProbe.probe(Matroska.sample()) as MkvProbe.Result.Found).info
         val v = info.video!!
         assertEquals("HEVC", v.codec)
         assertEquals(3840, v.width)
@@ -28,7 +30,7 @@ class MkvProbeTest {
         assertEquals(10, v.bitDepth)
         assertEquals(listOf(HdrFormat.DOLBY_VISION, HdrFormat.HDR10), v.hdr)
         assertEquals(8, v.dolbyVisionProfile)
-        assertEquals(23.976, app.houselights.core.Formats.frameRate(v.frameRate!!), 0.0)
+        assertEquals(23.976, Formats.frameRate(v.frameRate!!), 0.0)
         assertEquals(7_094_000L, info.durationMs)
 
         assertEquals(2, info.audio.size)
@@ -55,7 +57,6 @@ class MkvProbeTest {
         // Track 1, timestamp 0, a keyframe without lacing.
         val block = element(0xA3, byteArrayOf(0x81.toByte(), 0, 0, 0x80.toByte()) + frame)
         val result = MkvProbe.probe(file(element(0x1654AE6B, video, audio), element(0x1F43B675, uint(0xE7, 0), block)))
-        assertTrue(result is MkvProbe.Result.Found)
         val info = (result as MkvProbe.Result.Found).info
         // With its frames read, HDR10+ comes only from their metadata, not from the track's name.
         assertEquals(listOf(HdrFormat.HDR10), info.video!!.hdr)
@@ -110,7 +111,7 @@ class MkvProbeTest {
     }
 
     @Test
-    fun rejectsOtherFormats() {
+    fun aFileOfAnotherFormatIsNotMatroska() {
         assertEquals(MkvProbe.Result.NotMatroska, MkvProbe.probe("not a video".toByteArray()))
     }
 
@@ -137,11 +138,10 @@ class MkvProbeTest {
         assertEquals(emptyMap<Long, Long>(), MkvProbe.bitrates("not tags".toByteArray()))
     }
 
-    /** The first megabyte of real files kept out of the repository (build/probe/frames-*.mkv), when present. */
+    /** The first megabyte of real files (frames-*.mkv). */
     @Test
     fun realFramesSayTheirFormats() {
-        val dir = File("../build/probe").takeIf { it.isDirectory } ?: File("build/probe")
-        fun read(name: String) = File(dir, "frames-$name.mkv").takeIf { it.isFile }
+        fun read(name: String) = File(realFiles, "frames-$name.mkv").takeIf { it.isFile }
             ?.let { (MkvProbe.probe(it.readBytes()) as MkvProbe.Result.Found).info }
         val expected = mapOf(
             // Dolby Digital, then Dolby Digital Plus Atmos named "VO DDP 5.1 Atmos".
@@ -167,16 +167,13 @@ class MkvProbeTest {
         }
     }
 
-    /** Real headers kept out of the repository (build/probe), checked when present. */
     @Test
-    fun realHeaders() {
-        val dir = File("../build/probe").takeIf { it.isDirectory } ?: File("build/probe")
-        val files = dir.listFiles { f -> f.extension == "mkv" }.orEmpty()
+    fun everyRealFileIsReadAsMatroska() {
+        val files = realFiles.listFiles { f -> f.extension == "mkv" }.orEmpty()
         assumeTrue(files.isNotEmpty())
         files.forEach { f ->
             val result = MkvProbe.probe(f.readBytes())
-            println("${f.name}: $result")
-            assertTrue(result is MkvProbe.Result.Found)
+            assertTrue("${f.name}: $result", result is MkvProbe.Result.Found)
         }
     }
 }

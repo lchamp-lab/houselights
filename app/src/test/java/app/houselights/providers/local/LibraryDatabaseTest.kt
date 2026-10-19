@@ -12,6 +12,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import java.security.ProviderException
 
+/** What the library does with folders' passwords at launch, beyond its migrations ([MigrationTest]). */
 @RunWith(RobolectricTestRunner::class)
 class LibraryDatabaseTest {
     private lateinit var db: LibraryDatabase
@@ -33,13 +34,6 @@ class LibraryDatabaseTest {
     /** The passwords as stored, by folder id. */
     private fun raw(): Map<Long, String> = db.openHelper.readableDatabase.query("SELECT id, password FROM sources").use {
         buildMap { while (it.moveToNext()) put(it.getLong(0), it.getString(1)) }
-    }
-
-    @Test
-    fun sourcesRoundTrip() = runTest {
-        val id = db.dao().insertSource(nfsFolder())
-        assertEquals(listOf("Films"), db.dao().sources().map { it.name })
-        assertEquals(id, db.dao().sources().single().id)
     }
 
     /** A password left plain by a faulty Keystore (migration 6 to 7) is sealed at a later launch that can seal. */

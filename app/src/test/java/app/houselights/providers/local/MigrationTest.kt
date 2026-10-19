@@ -2,11 +2,13 @@ package app.houselights.providers.local
 
 import android.content.Context
 import androidx.room.Room
+import androidx.sqlite.db.SupportSQLiteDatabase
 import androidx.test.core.app.ApplicationProvider
 import app.houselights.core.Job
 import app.houselights.core.Secrets
 import app.houselights.testing.testSecrets
 import kotlinx.coroutines.test.runTest
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -15,18 +17,42 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import java.security.ProviderException
 
+/** Libraries left by earlier versions, opened by this one: what each migration keeps, and what it changes. */
 @RunWith(RobolectricTestRunner::class)
 class MigrationTest {
     private val context get() = ApplicationProvider.getApplicationContext<Context>()
     private val secrets = testSecrets()
+    private val opened = mutableListOf<Pair<String, LibraryDatabase>>()
+
+    @After
+    fun close() = opened.forEach { (name, db) ->
+        db.close()
+        context.deleteDatabase(name)
+    }
+
+    /** A library created at schema [from] and filled by [fill], opened with every migration; closed after the test. */
+    private fun migrated(from: Int, keys: Secrets = secrets, fill: SupportSQLiteDatabase.() -> Unit): LibraryDatabase {
+        val name = "migration-from-$from-test.db"
+        context.deleteDatabase(name)
+        SchemaHistory.create(context, name, from, fill)
+        return Room.databaseBuilder(context, LibraryDatabase::class.java, name)
+            .addTypeConverter(SecretConverter(keys))
+            .addMigrations(*LibraryDatabase.migrations(keys))
+            .build()
+            .also { opened += name to it }
+    }
+
+    /** Folder 1, "Films", as schemas 8 and later hold it. */
+    private fun SupportSQLiteDatabase.filmsFolder() = execSQL(
+        "INSERT INTO sources (id, name, kind, protocol, host, share, path, username, password, domain, lastScanAt, firstScanAt) " +
+            "VALUES (1, 'Films', 'MOVIES', 'NFS', 'nas', 'media', 'films', '', '', '', 1000, 1000)"
+    )
 
     /** Schemas 1 to 5 predate Room's schema export and were rebuilt (app/schemas); Room checks them on open. */
     @Test
     fun everyVersionBeforeSchemasWereKeptReachesTheLatest() = runTest {
         for (version in 1..5) {
-            val name = "migration-from-$version-test.db"
-            context.deleteDatabase(name)
-            SchemaHistory.create(context, name, version) {
+            val db = migrated(from = version) {
                 val protocol = if (version >= 2) listOf("protocol" to "'NFS'") else emptyList()
                 val columns = listOf(
                     "id" to "1", "name" to "'Films'", "kind" to "'MOVIES'", "host" to "'nas'", "share" to "'media'", "path" to "'films'",
@@ -39,134 +65,57 @@ class MigrationTest {
                         "VALUES (1, 'MOVIE', 1, 'Dune', 'dune', 0, 'Science-fiction', '', 'Dune.mkv', 42, '', 0, 500, 600000, 0, 1)"
                 )
             }
-            val db = Room.databaseBuilder(context, LibraryDatabase::class.java, name)
-                .addTypeConverter(SecretConverter(secrets))
-                .addMigrations(*LibraryDatabase.migrations(secrets))
-                .build()
-            try {
-                val source = db.dao().sources().single()
-                assertEquals("from $version", if (version >= 2) Protocol.NFS else Protocol.SMB, source.protocol)
-                assertEquals("from $version", "s3cret", source.password.value)
-                assertEquals("from $version", 1000L, db.dao().firstScans().single().firstScanAt)
-                val dune = checkNotNull(db.dao().item(1))
-                assertEquals("from $version", listOf("Science-fiction"), dune.genres)
-                assertEquals("from $version", "Dune.mkv" to 42L, dune.filePath to dune.fileSize)
-                assertEquals("from $version", 600_000L to true, dune.positionMs to dune.favorite)
-                // Version 6 matches films again, so they learn their collection.
-                assertEquals("from $version", null, dune.matchedAt)
-                assertEquals("from $version: never read", 0 to null, dune.probeVersion to dune.fileDurationMs)
-            } finally {
-                db.close()
-                context.deleteDatabase(name)
-            }
+            val source = db.dao().sources().single()
+            assertEquals("from $version", if (version >= 2) Protocol.NFS else Protocol.SMB, source.protocol)
+            assertEquals("from $version", "s3cret", source.password.value)
+            assertEquals("from $version", 1000L, db.dao().firstScans().single().firstScanAt)
+            val dune = checkNotNull(db.dao().item(1))
+            assertEquals("from $version", listOf("Science-fiction"), dune.genres)
+            assertEquals("from $version", "Dune.mkv" to 42L, dune.filePath to dune.fileSize)
+            assertEquals("from $version", 600_000L to true, dune.positionMs to dune.favorite)
+            // Version 6 matches films again, so they learn their collection.
+            assertEquals("from $version", null, dune.matchedAt)
+            assertNull("from $version: never found missing", dune.missingSince)
+            assertEquals("from $version: never read", 0 to null, dune.probeVersion to dune.fileDurationMs)
         }
     }
 
     @Test
     fun version7SealsPasswords() = runTest {
-        val name = "migration-test.db"
-        context.deleteDatabase(name)
-        SchemaHistory.create(context, name, version = 6) {
-            val columns = "(id, name, kind, protocol, host, share, path, username, password, domain, lastScanAt)"
-            execSQL("INSERT INTO sources $columns VALUES (1, 'Films', 'MOVIES', 'SMB', 'nas', 'media', 'films', 'zidoo', 's3cret', '', 0)")
-            execSQL("INSERT INTO sources $columns VALUES (2, 'Séries', 'SHOWS', 'NFS', 'nas', 'volume1/media', 'series', '', '', '', 0)")
+        val db = migrated(from = 6) {
+            execSQL("$FOLDER_UP_TO_7 VALUES (1, 'Films', 'MOVIES', 'SMB', 'nas', 'media', 'films', 'zidoo', 's3cret', '', 0)")
+            execSQL("$FOLDER_UP_TO_7 VALUES (2, 'Séries', 'SHOWS', 'NFS', 'nas', 'volume1/media', 'series', '', '', '', 0)")
         }
-        val db = Room.databaseBuilder(context, LibraryDatabase::class.java, name)
-            .addTypeConverter(SecretConverter(secrets))
-            .addMigrations(*LibraryDatabase.migrations(secrets))
-            .build()
-        try {
-            val raw = db.openHelper.readableDatabase.query("SELECT password FROM sources ORDER BY id").use {
-                buildList { while (it.moveToNext()) add(it.getString(0)) }
-            }
-            assertTrue(secrets.isSealed(raw[0]))
-            assertEquals("", raw[1])
-            assertEquals(listOf("s3cret", ""), db.dao().sources().sortedBy { it.id }.map { it.password.value })
-        } finally {
-            db.close()
-            context.deleteDatabase(name)
+        val raw = db.openHelper.readableDatabase.query("SELECT password FROM sources ORDER BY id").use {
+            buildList { while (it.moveToNext()) add(it.getString(0)) }
         }
+        assertTrue(secrets.isSealed(raw[0]))
+        assertEquals("", raw[1])
+        assertEquals(listOf("s3cret", ""), db.dao().sources().sortedBy { it.id }.map { it.password.value })
     }
 
     /** A Keystore that cannot seal leaves the password plain: the library still opens and the folder signs in. */
     @Test
     fun version7KeepsAPasswordTheKeystoreCannotSeal() = runTest {
-        val name = "migration-7-broken-test.db"
-        context.deleteDatabase(name)
-        SchemaHistory.create(context, name, version = 6) {
-            val columns = "(id, name, kind, protocol, host, share, path, username, password, domain, lastScanAt)"
-            execSQL("INSERT INTO sources $columns VALUES (1, 'Films', 'MOVIES', 'SMB', 'nas', 'media', 'films', 'zidoo', 's3cret', '', 0)")
-        }
         val broken = Secrets { throw ProviderException("Keystore operation failed") }
-        val db = Room.databaseBuilder(context, LibraryDatabase::class.java, name)
-            .addTypeConverter(SecretConverter(broken))
-            .addMigrations(*LibraryDatabase.migrations(broken))
-            .build()
-        try {
-            assertEquals(listOf("s3cret"), db.dao().sources().map { it.password.value })
-        } finally {
-            db.close()
-            context.deleteDatabase(name)
+        val db = migrated(from = 6, keys = broken) {
+            execSQL("$FOLDER_UP_TO_7 VALUES (1, 'Films', 'MOVIES', 'SMB', 'nas', 'media', 'films', 'zidoo', 's3cret', '', 0)")
         }
+        assertEquals(listOf("s3cret"), db.dao().sources().map { it.password.value })
     }
 
     @Test
     fun version8KeepsWhatLibrariesHoldFromBeingNew() = runTest {
-        val name = "migration-8-test.db"
-        context.deleteDatabase(name)
-        SchemaHistory.create(context, name, version = 7) {
-            val columns = "(id, name, kind, protocol, host, share, path, username, password, domain, lastScanAt)"
-            execSQL("INSERT INTO sources $columns VALUES (1, 'Films', 'MOVIES', 'NFS', 'nas', 'media', 'films', '', '', '', 1000)")
-            execSQL("INSERT INTO sources $columns VALUES (2, 'Séries', 'SHOWS', 'NFS', 'nas', 'media', 'series', '', '', '', 0)")
+        val db = migrated(from = 7) {
+            execSQL("$FOLDER_UP_TO_7 VALUES (1, 'Films', 'MOVIES', 'NFS', 'nas', 'media', 'films', '', '', '', 1000)")
+            execSQL("$FOLDER_UP_TO_7 VALUES (2, 'Séries', 'SHOWS', 'NFS', 'nas', 'media', 'series', '', '', '', 0)")
         }
-        val db = Room.databaseBuilder(context, LibraryDatabase::class.java, name)
-            .addTypeConverter(SecretConverter(secrets))
-            .addMigrations(*LibraryDatabase.migrations(secrets))
-            .build()
-        try {
-            assertEquals(listOf(1L to 1000L, 2L to 0L), db.dao().firstScans().sortedBy { it.id }.map { it.id to it.firstScanAt })
-        } finally {
-            db.close()
-            context.deleteDatabase(name)
-        }
-    }
-
-    @Test
-    fun version9KeepsEveryRowListed() = runTest {
-        val name = "migration-9-test.db"
-        context.deleteDatabase(name)
-        SchemaHistory.create(context, name, version = 8) {
-            execSQL(
-                "INSERT INTO sources (id, name, kind, protocol, host, share, path, username, password, domain, lastScanAt, firstScanAt) " +
-                    "VALUES (1, 'Films', 'MOVIES', 'NFS', 'nas', 'media', 'films', '', '', '', 1000, 1000)"
-            )
-            execSQL(
-                "INSERT INTO items (id, kind, sourceId, title, sortTitle, continuing, genres, directors, filePath, fileSize, " +
-                    "badges, addedAt, positionMs, played, favorite) " +
-                    "VALUES (1, 'MOVIE', 1, 'Dune', 'dune', 0, '', '', 'Dune.mkv', 42, '', 0, 600000, 0, 1)"
-            )
-        }
-        val db = Room.databaseBuilder(context, LibraryDatabase::class.java, name)
-            .addTypeConverter(SecretConverter(secrets))
-            .addMigrations(*LibraryDatabase.migrations(secrets))
-            .build()
-        try {
-            val dune = checkNotNull(db.dao().item(1))
-            assertEquals(null, dune.missingSince)
-            assertEquals("Dune.mkv" to 42L, dune.filePath to dune.fileSize)
-            assertEquals(600_000L, dune.positionMs)
-            assertTrue(dune.favorite)
-        } finally {
-            db.close()
-            context.deleteDatabase(name)
-        }
+        assertEquals(listOf(1L to 1000L, 2L to 0L), db.dao().firstScans().sortedBy { it.id }.map { it.id to it.firstScanAt })
     }
 
     @Test
     fun version10KeepsEveryRowAsItWas() = runTest {
-        val name = "migration-10-test.db"
-        context.deleteDatabase(name)
-        SchemaHistory.create(context, name, version = 9) {
+        val db = migrated(from = 9) {
             execSQL(
                 "INSERT INTO sources (id, name, kind, protocol, host, share, path, username, password, domain, lastScanAt, firstScanAt) " +
                     "VALUES (1, 'Séries', 'SHOWS', 'NFS', 'nas', 'media', 'series', '', '', '', 1000, 1000)"
@@ -177,35 +126,21 @@ class MigrationTest {
                     "VALUES (1, 'EPISODE', 1, 'Pilot', 'pilot', 0, '', '', 1, 1, 'Show/S01E01.mkv', 42, '', 'Show/S01E01.nfo', 0, 0, 1, 0)"
             )
         }
-        val db = Room.databaseBuilder(context, LibraryDatabase::class.java, name)
-            .addTypeConverter(SecretConverter(secrets))
-            .addMigrations(*LibraryDatabase.migrations(secrets))
-            .build()
-        try {
-            val pilot = checkNotNull(db.dao().item(1))
-            assertEquals(null, pilot.lastEpisodeNumber)
-            assertEquals(emptyList<String>(), pilot.parts)
-            assertEquals(null, pilot.sidecarKey)
-            assertEquals("Show/S01E01.nfo", pilot.nfoPath)
-            assertTrue(pilot.played)
-        } finally {
-            db.close()
-            context.deleteDatabase(name)
-        }
+        val pilot = checkNotNull(db.dao().item(1))
+        assertEquals(null, pilot.lastEpisodeNumber)
+        assertEquals(emptyList<String>(), pilot.parts)
+        assertEquals(null, pilot.sidecarKey)
+        assertEquals("Show/S01E01.nfo", pilot.nfoPath)
+        assertTrue(pilot.played)
     }
 
     /** Version 11 copies each file's probe version and length into columns; unreadable JSON means a new probe. */
     @Test
     fun version11ReadsEachFilesProbeAndLengthIntoTheirColumns() = runTest {
-        val name = "migration-11-test.db"
-        context.deleteDatabase(name)
         val read = """{"container":"MKV","durationMs":9300000,"video":{"codec":"HEVC","width":3840},"probedWith":3}"""
         val fromNfo = """{"container":"AVI","video":{"codec":"MPEG-4"}}"""
-        SchemaHistory.create(context, name, version = 10) {
-            execSQL(
-                "INSERT INTO sources (id, name, kind, protocol, host, share, path, username, password, domain, lastScanAt, firstScanAt) " +
-                    "VALUES (1, 'Films', 'MOVIES', 'NFS', 'nas', 'media', 'films', '', '', '', 1000, 1000)"
-            )
+        val db = migrated(from = 10) {
+            filmsFolder()
             for ((id, mediaInfo) in listOf(1 to read, 2 to fromNfo, 3 to "not json", 4 to null)) {
                 execSQL(
                     "INSERT INTO items (id, kind, sourceId, title, sortTitle, continuing, genres, directors, filePath, parts, fileSize, " +
@@ -216,38 +151,24 @@ class MigrationTest {
                 )
             }
         }
-        val db = Room.databaseBuilder(context, LibraryDatabase::class.java, name)
-            .addTypeConverter(SecretConverter(secrets))
-            .addMigrations(*LibraryDatabase.migrations(secrets))
-            .build()
-        try {
-            val films = (1L..4L).map { checkNotNull(db.dao().item(it)) }
-            assertEquals(listOf(3, 0, 0, 0), films.map { it.probeVersion })
-            assertEquals(listOf(9_300_000L, null, null, null), films.map { it.fileDurationMs })
-            assertEquals(listOf(read, fromNfo, "not json", null), films.map { it.mediaInfo })
-            for (film in films) {
-                assertEquals(438631 to "file:/poster.jpg", film.userTmdbId to film.userPosterPath)
-                assertEquals(600_000L to 9_000_000L, film.positionMs to film.durationMs)
-                assertEquals(true to 5L, film.favorite to film.lastPlayedAt)
-                assertEquals(listOf("4K"), film.badges)
-            }
-        } finally {
-            db.close()
-            context.deleteDatabase(name)
+        val films = (1L..4L).map { checkNotNull(db.dao().item(it)) }
+        assertEquals(listOf(3, 0, 0, 0), films.map { it.probeVersion })
+        assertEquals(listOf(9_300_000L, null, null, null), films.map { it.fileDurationMs })
+        assertEquals(listOf(read, fromNfo, "not json", null), films.map { it.mediaInfo })
+        for (film in films) {
+            assertEquals(438631 to "file:/poster.jpg", film.userTmdbId to film.userPosterPath)
+            assertEquals(600_000L to 9_000_000L, film.positionMs to film.durationMs)
+            assertEquals(true to 5L, film.favorite to film.lastPlayedAt)
+            assertEquals(listOf("4K"), film.badges)
         }
     }
 
     /** Version 10 folds version 9's accented sort keys and drops a glued l': "la land" keeps its "la". */
     @Test
     fun version10FoldsSortKeysAndTakesOffAGluedLAndNothingMore() = runTest {
-        val name = "migration-10-sort-test.db"
-        context.deleteDatabase(name)
         val keys = listOf("ça", "à couteaux tirés", "été 85", "œdipe roi", "la land", "l'arnaque", "l’exorciste", "zodiac")
-        SchemaHistory.create(context, name, version = 9) {
-            execSQL(
-                "INSERT INTO sources (id, name, kind, protocol, host, share, path, username, password, domain, lastScanAt, firstScanAt) " +
-                    "VALUES (1, 'Films', 'MOVIES', 'NFS', 'nas', 'media', 'films', '', '', '', 1000, 1000)"
-            )
+        val db = migrated(from = 9) {
+            filmsFolder()
             keys.forEachIndexed { i, key ->
                 execSQL(
                     "INSERT INTO items (id, kind, sourceId, title, sortTitle, continuing, genres, directors, filePath, fileSize, " +
@@ -259,34 +180,20 @@ class MigrationTest {
             execSQL("INSERT INTO collections (id, matchKey, name, sortTitle) VALUES (1, 'name:etrange', 'Étrange saga', 'étrange saga')")
             execSQL("INSERT INTO collections (id, matchKey, name, sortTitle) VALUES (2, 'tmdb:1', 'L''Âge de glace', 'l''âge de glace')")
         }
-        val db = Room.databaseBuilder(context, LibraryDatabase::class.java, name)
-            .addTypeConverter(SecretConverter(secrets))
-            .addMigrations(*LibraryDatabase.migrations(secrets))
-            .build()
-        try {
-            assertEquals(
-                listOf("ca", "a couteaux tires", "ete 85", "oedipe roi", "la land", "arnaque", "exorciste", "zodiac"),
-                keys.indices.map { checkNotNull(db.dao().item(it + 1L)).sortTitle },
-            )
-            assertEquals("ça", db.dao().item(1)?.title)
-            assertEquals("etrange saga", db.dao().collection(1)?.sortTitle)
-            assertEquals("age de glace", db.dao().collection(2)?.sortTitle)
-        } finally {
-            db.close()
-            context.deleteDatabase(name)
-        }
+        assertEquals(
+            listOf("ca", "a couteaux tires", "ete 85", "oedipe roi", "la land", "arnaque", "exorciste", "zodiac"),
+            keys.indices.map { checkNotNull(db.dao().item(it + 1L)).sortTitle },
+        )
+        assertEquals("ça", db.dao().item(1)?.title)
+        assertEquals("etrange saga", db.dao().collection(1)?.sortTitle)
+        assertEquals("age de glace", db.dao().collection(2)?.sortTitle)
     }
 
     /** Sagas named in Japanese shared the key "name:": version 10 rematches their films, and only theirs. */
     @Test
     fun version10MatchesAgainTheFilmsOfSagasWhoseNamesLeftNoWord() = runTest {
-        val name = "migration-10-sagas-test.db"
-        context.deleteDatabase(name)
-        SchemaHistory.create(context, name, version = 9) {
-            execSQL(
-                "INSERT INTO sources (id, name, kind, protocol, host, share, path, username, password, domain, lastScanAt, firstScanAt) " +
-                    "VALUES (1, 'Films', 'MOVIES', 'NFS', 'nas', 'media', 'films', '', '', '', 1000, 1000)"
-            )
+        val db = migrated(from = 9) {
+            filmsFolder()
             execSQL("INSERT INTO collections (id, matchKey, name, sortTitle) VALUES (1, 'name:', '攻殻機動隊', '攻殻機動隊')")
             execSQL("INSERT INTO collections (id, matchKey, name, sortTitle) VALUES (2, 'tmdb:531241', 'Top Gun', 'top gun')")
             for ((id, collection) in listOf(1 to 1, 2 to 1, 3 to 2)) {
@@ -297,19 +204,10 @@ class MigrationTest {
                 )
             }
         }
-        val db = Room.databaseBuilder(context, LibraryDatabase::class.java, name)
-            .addTypeConverter(SecretConverter(secrets))
-            .addMigrations(*LibraryDatabase.migrations(secrets))
-            .build()
-        try {
-            assertEquals(listOf(null, null, 500L), (1L..3L).map { checkNotNull(db.dao().item(it)).matchedAt })
-            assertEquals(listOf(null, null, 2L), (1L..3L).map { checkNotNull(db.dao().item(it)).collectionId })
-            assertNull(db.dao().collection(1))
-            assertEquals("tmdb:531241", db.dao().collection(2)?.matchKey)
-        } finally {
-            db.close()
-            context.deleteDatabase(name)
-        }
+        assertEquals(listOf(null, null, 500L), (1L..3L).map { checkNotNull(db.dao().item(it)).matchedAt })
+        assertEquals(listOf(null, null, 2L), (1L..3L).map { checkNotNull(db.dao().item(it)).collectionId })
+        assertNull(db.dao().collection(1))
+        assertEquals("tmdb:531241", db.dao().collection(2)?.matchKey)
     }
 
     /**
@@ -318,13 +216,8 @@ class MigrationTest {
      */
     @Test
     fun version12KeepsTheCastAsCreditsAndWhatTheUserDidAsItWas() = runTest {
-        val name = "migration-12-test.db"
-        context.deleteDatabase(name)
-        SchemaHistory.create(context, name, version = 11) {
-            execSQL(
-                "INSERT INTO sources (id, name, kind, protocol, host, share, path, username, password, domain, lastScanAt, firstScanAt) " +
-                    "VALUES (1, 'Films', 'MOVIES', 'NFS', 'nas', 'media', 'films', '', '', '', 1000, 1000)"
-            )
+        val db = migrated(from = 11) {
+            filmsFolder()
             val collections = "INSERT INTO collections (id, matchKey, tmdbId, name, sortTitle, partCount, fetchedAt)"
             execSQL("$collections VALUES (1, 'tmdb:10', 10, 'Blade Runner - Saga', 'blade runner', 2, 99)")
             execSQL("$collections VALUES (2, 'name:mes films', NULL, 'Mes films', 'mes films', NULL, 99)")
@@ -350,51 +243,46 @@ class MigrationTest {
             execSQL("$cast VALUES (1, 0, 'Harrison Ford', 'Rick Deckard', '/ford.jpg')")
             execSQL("$cast VALUES (3, 0, 'Audrey Tautou', 'Amélie Poulain', NULL)")
         }
-        val db = Room.databaseBuilder(context, LibraryDatabase::class.java, name)
-            .addTypeConverter(SecretConverter(secrets))
-            .addMigrations(*LibraryDatabase.migrations(secrets))
-            .build()
-        try {
-            checkVersion12(db)
-        } finally {
-            db.close()
-            context.deleteDatabase(name)
-        }
+        checkVersion12(db)
     }
 
     /** What [version12KeepsTheCastAsCreditsAndWhatTheUserDidAsItWas] finds once migrated. */
     private suspend fun checkVersion12(db: LibraryDatabase) {
-        run {
-            val dao = db.dao()
-            val films = (1L..3L).map { checkNotNull(dao.item(it)) }
-            for (film in films) {
-                assertEquals(600_000L to 9_000_000L, film.positionMs to film.durationMs)
-                assertEquals(true to 5L, film.favorite to film.lastPlayedAt)
-                assertEquals("file:/p.jpg", film.userPosterPath)
-                assertEquals("their crew comes at later passes", null, film.creditsAt)
-            }
-            // Watched in one copy: the title is watched. The copy keeps its own state.
-            assertEquals(listOf(true, true, false), films.map { it.played })
-            assertEquals(listOf(null, 78, null), films.map { it.userTmdbId })
-            assertEquals(listOf(null, "Final Cut", "Extended"), films.map { it.edition })
-            assertEquals(listOf(null, 1L, null), films.map { it.versionOf })
-
-            val ford = dao.creditsOf(1).single { it.job == Job.CAST }
-            assertEquals("name:harrison ford", ford.personKey)
-            assertEquals("Rick Deckard" to "/ford.jpg", ford.character to ford.profilePath)
-            assertEquals("name:ridley scott", dao.creditsOf(1).single { it.job == Job.DIRECTOR }.personKey)
-            assertEquals("a copy counts once", 1, dao.creditsOf(2).single { it.job == Job.DIRECTOR }.titles)
-            assertEquals(listOf("Audrey Tautou", "Jean-Pierre Jeunet"), dao.creditsOf(3).map { it.name }.sorted())
-
-            val hasCast = db.openHelper.readableDatabase.query("SELECT name FROM sqlite_master WHERE name = 'cast'").use { it.count }
-            assertEquals(0, hasCast)
-            assertEquals(listOf(null, 99L), listOf(1L, 2L).map { dao.collection(it)?.fetchedAt })
-            assertEquals(listOf(dao.collection(1)), dao.sagasDue(10))
-
-            val catalog = LocalProvider(context, dao, NoEditor).catalog
-            assertEquals(listOf("Le Fabuleux Destin d’Amélie Poulain"), catalog.search("amel").titles.map { it.title })
-            assertEquals(listOf("Jean-Pierre Jeunet"), catalog.search("jeunet").people.map { it.name })
-            assertEquals(listOf("name:ridley scott"), catalog.search("ridley").people.map { it.id })
+        val dao = db.dao()
+        val films = (1L..3L).map { checkNotNull(dao.item(it)) }
+        for (film in films) {
+            assertEquals(600_000L to 9_000_000L, film.positionMs to film.durationMs)
+            assertEquals(true to 5L, film.favorite to film.lastPlayedAt)
+            assertEquals("file:/p.jpg", film.userPosterPath)
+            assertEquals("their crew comes at later passes", null, film.creditsAt)
         }
+        // Watched in one copy: the title is watched. The copy keeps its own state.
+        assertEquals(listOf(true, true, false), films.map { it.played })
+        assertEquals(listOf(null, 78, null), films.map { it.userTmdbId })
+        assertEquals(listOf(null, "Final Cut", "Extended"), films.map { it.edition })
+        assertEquals(listOf(null, 1L, null), films.map { it.versionOf })
+
+        val ford = dao.creditsOf(1).single { it.job == Job.CAST }
+        assertEquals("name:harrison ford", ford.personKey)
+        assertEquals("Rick Deckard" to "/ford.jpg", ford.character to ford.profilePath)
+        assertEquals("name:ridley scott", dao.creditsOf(1).single { it.job == Job.DIRECTOR }.personKey)
+        assertEquals("a copy counts once", 1, dao.creditsOf(2).single { it.job == Job.DIRECTOR }.titles)
+        assertEquals(listOf("Audrey Tautou", "Jean-Pierre Jeunet"), dao.creditsOf(3).map { it.name }.sorted())
+
+        val hasCast = db.openHelper.readableDatabase.query("SELECT name FROM sqlite_master WHERE name = 'cast'").use { it.count }
+        assertEquals(0, hasCast)
+        assertEquals(listOf(null, 99L), listOf(1L, 2L).map { dao.collection(it)?.fetchedAt })
+        assertEquals(listOf(dao.collection(1)), dao.sagasDue(10))
+
+        val catalog = LocalProvider(context, dao, NoEditor).catalog
+        assertEquals(listOf("Le Fabuleux Destin d’Amélie Poulain"), catalog.search("amel").titles.map { it.title })
+        assertEquals(listOf("Jean-Pierre Jeunet"), catalog.search("jeunet").people.map { it.name })
+        assertEquals(listOf("name:ridley scott"), catalog.search("ridley").people.map { it.id })
+    }
+
+    private companion object {
+        /** A folder's row in schemas 6 and 7, before firstScanAt. */
+        const val FOLDER_UP_TO_7 =
+            "INSERT INTO sources (id, name, kind, protocol, host, share, path, username, password, domain, lastScanAt)"
     }
 }

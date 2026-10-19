@@ -17,7 +17,10 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import java.util.concurrent.atomic.AtomicInteger
 
-/** Bulk writes stay under Android 9's 999 values per statement, counted since Robolectric's SQLite takes more. */
+/**
+ * The library's writes: bulk ones stay under Android 9's 999 values per statement (counted, as Robolectric's SQLite
+ * takes more), a relinked file keeps its probe only at the same size, and an insert never replaces a row.
+ */
 @RunWith(RobolectricTestRunner::class)
 class LibraryDaoTest {
     private lateinit var db: LibraryDatabase

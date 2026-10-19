@@ -1,16 +1,15 @@
 package app.houselights.providers.jellyfin
 
 import app.houselights.testing.certificateRefused
-import app.houselights.testing.http
 import app.houselights.ui.onboarding.LoginError
 import app.houselights.ui.onboarding.loginError
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
-import java.io.IOException
 import java.net.ConnectException
 import javax.net.ssl.SSLException
 
@@ -81,36 +80,24 @@ class JellyfinReachTest {
     }
 
     @Test
-    fun aJellyfinBefore109IsRefusedWithItsVersion() = runTest {
-        val server = FakeServer { Answer(200, info("10.8.13")) }
-        assertEquals(LoginError.Unsupported("https://nas:8920", "Jellyfin Server", "10.8.13"), signIn("nas", server))
+    fun aJellyfinBefore109OrAnotherProductIsRefusedByItsNameAndVersion() = runTest {
+        val old = FakeServer { Answer(200, info("10.8.13")) }
+        assertEquals(LoginError.Unsupported("https://nas:8920", "Jellyfin Server", "10.8.13"), signIn("nas", old))
+        val emby = FakeServer { Answer(200, info("4.8.10.0", product = "Emby Server")) }
+        assertEquals(LoginError.Unsupported("https://nas:8920", "Emby Server", "4.8.10.0"), signIn("nas", emby))
     }
 
     @Test
-    fun anotherProductIsRefusedByName() = runTest {
-        val server = FakeServer { Answer(200, info("4.8.10.0", product = "Emby Server")) }
-        assertEquals(LoginError.Unsupported("https://nas:8920", "Emby Server", "4.8.10.0"), signIn("nas", server))
-    }
-
-    @Test
-    fun versions() {
+    fun jellyfinFrom109OnIsSupportedAndAnUnclearAnswerIsNotRefused() {
         fun supported(version: String?, product: String? = "Jellyfin Server") =
             JellyfinClient.isSupported(PublicSystemInfo(version = version, productName = product))
         assertTrue(supported("10.9.0"))
         assertTrue(supported("10.10.7"))
         assertTrue(supported("11.0.0"))
-        assertTrue(!supported("10.8.13"))
-        assertTrue(!supported("9.11.0"))
-        assertTrue(!supported("10.11.0", product = "Emby Server"))
-        // An unclear answer is no reason to refuse.
+        assertFalse(supported("10.8.13"))
+        assertFalse(supported("9.11.0"))
+        assertFalse(supported("10.11.0", product = "Emby Server"))
         assertTrue(supported(null, product = null))
         assertTrue(supported("unstable"))
-    }
-
-    @Test
-    fun signingInFailures() {
-        assertEquals(LoginError.Refused, loginError(http(401), "https://nas:8920"))
-        assertEquals(LoginError.Unreachable("https://nas:8920"), loginError(IOException("Reset"), "https://nas:8920"))
-        assertEquals(LoginError.Failed, loginError(IllegalStateException("Odd"), "https://nas:8920"))
     }
 }

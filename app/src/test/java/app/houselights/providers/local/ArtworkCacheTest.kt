@@ -77,7 +77,7 @@ class ArtworkCacheTest {
     }
 
     @Test
-    fun missingFolderIsFine() {
+    fun aCacheFolderNotThereYetIsSweptWithoutFailing() {
         assertEquals(CleanupResult(0, 0), ArtworkCache(File(temp.root, "none")).sweep(emptyList()))
     }
 
@@ -165,28 +165,28 @@ class ArtworkCacheTest {
         assertArrayEquals(photo, copied("Holidays (2024)/poster.jpg", photo)?.readBytes())
     }
 
-    @Test
-    fun aCopyCutOffLeavesNothingBehind() = runBlocking {
-        val dir = temp.newFolder("artwork")
-        val bytes = ByteArray(1_000_000)
+    /** Copies a fanart into a fresh cache at [dir] from a NAS whose reads throw [failure] past the first block. */
+    private fun breakingAfterFirstBlock(dir: File, failure: Exception): Result<String?> = runBlocking {
+        val size = 1_000_000L
         val nas = FakeRemoteBrowser().apply {
-            put("Dune (2021)/fanart.jpg", size = bytes.size.toLong(), bytes = bytes)
-            onRead = { _, offset, _ -> if (offset > 0) throw IOException("Connection reset by peer") }
+            put("Dune (2021)/fanart.jpg", size = size, bytes = ByteArray(size.toInt()))
+            onRead = { _, offset, _ -> if (offset > 0) throw failure }
         }
-        assertNull(ArtworkCache(dir).copy(source, RemoteFile("Dune (2021)/fanart.jpg", bytes.size.toLong()), nas))
+        runCatching { ArtworkCache(dir).copy(source, RemoteFile("Dune (2021)/fanart.jpg", size), nas) }
+    }
+
+    @Test
+    fun aCopyCutOffLeavesNothingBehind() {
+        val dir = temp.newFolder("artwork")
+        assertNull(breakingAfterFirstBlock(dir, IOException("Connection reset by peer")).getOrThrow())
         assertEquals(emptyList<File>(), dir.walkTopDown().filter { it.isFile }.toList())
     }
 
     /** A scan stopped between two blocks (the folder removed, the app closing) leaves no half copy either. */
     @Test
-    fun aCopyCancelledLeavesNothingBehind() = runBlocking {
+    fun aCopyCancelledLeavesNothingBehind() {
         val dir = temp.newFolder("artwork")
-        val bytes = ByteArray(1_000_000)
-        val nas = FakeRemoteBrowser().apply {
-            put("Dune (2021)/fanart.jpg", size = bytes.size.toLong(), bytes = bytes)
-            onRead = { _, offset, _ -> if (offset > 0) throw CancellationException("The scan stopped") }
-        }
-        val cancelled = runCatching { ArtworkCache(dir).copy(source, RemoteFile("Dune (2021)/fanart.jpg", bytes.size.toLong()), nas) }
+        val cancelled = breakingAfterFirstBlock(dir, CancellationException("The scan stopped"))
         assertTrue(cancelled.toString(), cancelled.exceptionOrNull() is CancellationException)
         assertEquals(emptyList<File>(), dir.walkTopDown().filter { it.isFile }.toList())
     }

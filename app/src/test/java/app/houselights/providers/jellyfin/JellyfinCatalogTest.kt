@@ -4,12 +4,9 @@ import app.houselights.core.Job
 import app.houselights.core.Library
 import app.houselights.core.LibraryFilter
 import app.houselights.core.LibraryKind
-import app.houselights.core.MediaItem
-import app.houselights.core.MediaKind
 import app.houselights.core.PlaybackOptions
 import app.houselights.core.PlaybackPlan
 import app.houselights.core.SortOption
-import app.houselights.core.SourceConfig
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -21,9 +18,6 @@ import org.robolectric.RobolectricTestRunner
 /** What a Jellyfin server tells through the catalog: People, a person's titles, a film's media sources, searches. */
 @RunWith(RobolectricTestRunner::class)
 class JellyfinCatalogTest {
-    private val config = SourceConfig.Jellyfin("http://nas:8096", "Maison", "u1", "lea", "token")
-    private val film = MediaItem("f1", MediaKind.MOVIE, "Heat")
-
     private val heat = """
         {"Id":"f1","Name":"Heat","Type":"Movie","ProductionYear":1995,
          "People":[
@@ -51,7 +45,7 @@ class JellyfinCatalogTest {
         }
     }
 
-    private fun provider(server: FakeServer) = JellyfinProvider(config, "device", server.http)
+    private fun provider(server: FakeServer) = JellyfinProvider(account, "device", server.http)
 
     @Test
     fun aTitlesPeopleAreItsCreditsByJob() = runTest {
@@ -66,8 +60,10 @@ class JellyfinCatalogTest {
     @Test
     fun aPersonsTitlesAreTheServersWithWhatTheyDidOnEach() = runTest {
         val titles = """{"Items":[
-            {"Id":"f1","Name":"Heat","Type":"Movie","ProductionYear":1995,"People":[{"Id":"p1","Name":"Michael Mann","Type":"Director"},{"Id":"p1","Name":"Michael Mann","Type":"Writer"}]},
-            {"Id":"f2","Name":"Collateral","Type":"Movie","ProductionYear":2004,"People":[{"Id":"p1","Name":"Michael Mann","Type":"Director"}]}
+            {"Id":"f1","Name":"Heat","Type":"Movie","ProductionYear":1995,
+             "People":[{"Id":"p1","Name":"Michael Mann","Type":"Director"},{"Id":"p1","Name":"Michael Mann","Type":"Writer"}]},
+            {"Id":"f2","Name":"Collateral","Type":"Movie","ProductionYear":2004,
+             "People":[{"Id":"p1","Name":"Michael Mann","Type":"Director"}]}
             ],"TotalRecordCount":2}"""
         val server = server { url -> titles.takeIf { "personIds=p1" in url } }
         val page = checkNotNull(provider(server).catalog.person("p1"))

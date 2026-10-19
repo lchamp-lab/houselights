@@ -5,6 +5,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
+/** The addresses a typed server name becomes: its scheme and Jellyfin's ports, in the order they are tried. */
 class JellyfinUrlTest {
     @Test
     fun normalizeAddsSchemeAndPort() {
@@ -37,7 +38,7 @@ class JellyfinUrlTest {
     }
 
     @Test
-    fun encryption() {
+    fun onlyAnHttpsAddressIsEncrypted() {
         assertTrue(JellyfinClient.isEncrypted("https://nas:8920"))
         assertFalse(JellyfinClient.isEncrypted("http://nas:8096"))
     }

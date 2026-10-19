@@ -30,12 +30,13 @@ class LocalReporterTest {
     @After
     fun close() = db.close()
 
-    private suspend fun film(positionMs: Long = 0, played: Boolean = false): Long = dao.insert(
-        ItemEntity(
-            kind = ItemKind.MOVIE, sourceId = source, title = "Heat", sortTitle = "heat", runtimeMin = 100,
-            filePath = "Heat.mkv", addedAt = 0, positionMs = positionMs, played = played,
+    private suspend fun film(positionMs: Long = 0, played: Boolean = false, runtimeMin: Int = 100, fileDurationMs: Long? = null) =
+        dao.insert(
+            ItemEntity(
+                kind = ItemKind.MOVIE, sourceId = source, title = "Heat", sortTitle = "heat", runtimeMin = runtimeMin,
+                filePath = "Heat.mkv", fileDurationMs = fileDurationMs, addedAt = 0, positionMs = positionMs, played = played,
+            )
         )
-    )
 
     @Test
     fun startingOverAndLeavingWithinAMinuteKeepsTheResumePoint() = runTest {
@@ -95,7 +96,7 @@ class LocalReporterTest {
         val id = film(positionMs = 5_400_000, played = true)
         // Reads come before the previous session's last report has landed.
         val late = object : LibraryDao by dao {
-            override suspend fun item(id: Long): ItemEntity? = dao.item(id)?.copy(positionMs = 4_200_000, played = false)
+            override suspend fun playState(id: Long): PlayState? = dao.playState(id)?.copy(positionMs = 4_200_000, played = false)
         }
         LocalReporter(late, id).started(0)
         dao.item(id)!!.let {
@@ -108,12 +109,7 @@ class LocalReporterTest {
     /** Without the player's length, a long version is watched by its file's length, not TMDB's theatrical one. */
     @Test
     fun withoutThePlayersLengthAFilmIsWatchedByItsFilesAsItsCardSaysIt() = runTest {
-        val id = dao.insert(
-            ItemEntity(
-                kind = ItemKind.MOVIE, sourceId = source, title = "Heat", sortTitle = "heat", runtimeMin = 160,
-                filePath = "Heat.mkv", fileDurationMs = THREE_HOURS, addedAt = 0,
-            )
-        )
+        val id = film(runtimeMin = 160, fileDurationMs = THREE_HOURS)
         val card = LocalMapper(dao, ApplicationProvider.getApplicationContext()).map(checkNotNull(dao.item(id)))
         assertEquals(THREE_HOURS, card.runtimeMs)
 

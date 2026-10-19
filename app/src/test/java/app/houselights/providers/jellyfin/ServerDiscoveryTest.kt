@@ -10,6 +10,7 @@ import java.net.InetAddress
 import java.net.InetSocketAddress
 import kotlin.concurrent.thread
 
+/** Finding Jellyfin servers on the local network by UDP broadcast, against a device on the loopback address. */
 class ServerDiscoveryTest {
     /** A device that answers again and again, as fast as it can, until the test ends. */
     @Test
