@@ -27,7 +27,7 @@ jobs:
     env:
       # The project's signing certificate. A release signed with any other key could not update the app
       # people have installed: the build stops rather than publish one.
-      CERT_SHA256: c42c70c6c8aeca07f838e3906e8fd10e1786339a30d463300e51c27e6a557073
+      CERT_SHA256: ca0adf07526458f6cb3e57e4c58466c455b686f5843ae64d45a376a293eb4da8
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -89,7 +89,12 @@ jobs:
           apk="Houselights-${{ steps.version.outputs.name }}.apk"
           cp "$built" "$apk"
           apksigner="$(ls -d "$ANDROID_HOME"/build-tools/*/ | sort -V | tail -n 1)apksigner"
-          signed="$("$apksigner" verify --print-certs "$apk" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p')"
+          echo "apksigner $("$apksigner" version)"
+          certs="$("$apksigner" verify --print-certs "$apk")"
+          echo "$certs"
+          # "Signer #1 certificate SHA-256 digest: …" (build-tools 35) or "V3.0 Signer: certificate SHA-256
+          # digest: …" (37): every signer must be the project's key, so one distinct digest at most passes.
+          signed="$(printf '%s\n' "$certs" | sed -n 's/^.*certificate SHA-256 digest: //p' | sort -u)"
           if [ "$signed" != "$CERT_SHA256" ]; then
             echo "::error::The APK is signed with $signed, not the project's key $CERT_SHA256."
             exit 1
