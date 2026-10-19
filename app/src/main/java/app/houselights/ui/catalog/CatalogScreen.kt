@@ -75,6 +75,8 @@ import app.houselights.ui.design.components.ScreenTitle
 import app.houselights.ui.design.components.SheetConfirm
 import app.houselights.ui.design.components.StatusState
 import app.houselights.ui.design.emberLight
+import app.houselights.ui.design.emberLit
+import app.houselights.ui.design.plate
 import app.houselights.ui.design.tryRequestFocus
 import app.houselights.ui.util.NBSP
 import app.houselights.ui.util.formatDuration
@@ -101,56 +103,24 @@ fun CatalogScreen() {
             item { ScreenTitle("Design system") }
 
             item {
-                Group("Colour", Modifier.focusRequester(first), still = true) {
-                    Column(verticalArrangement = Arrangement.spacedBy(HlSpace.l)) {
-                        // The palette: the colours themselves, named by their lightness.
-                        Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m)) {
-                            listOf(
-                                "N0" to HlPalette.N0, "N8" to HlPalette.N8, "N21" to HlPalette.N21, "N28" to HlPalette.N28,
-                                "N36" to HlPalette.N36, "N57" to HlPalette.N57, "N65" to HlPalette.N65, "N96" to HlPalette.N96,
-                                "Ember" to HlPalette.Ember, "EmberStart" to HlPalette.EmberStart, "EmberEnd" to HlPalette.EmberEnd,
-                            ).forEach { (name, color) -> Swatch(name, color) }
-                        }
-                        // The roles that name them, as components use them.
-                        Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m)) {
-                            listOf(
-                                "background" to c.background, "fill" to c.content.copy(alpha = HlAlpha.FILL).compositeOver(c.background),
-                                "raised" to c.surfaceRaised, "outline" to c.outline, "decorative" to c.contentDecorative,
-                                "tertiary" to c.contentTertiary, "secondary" to c.contentSecondary, "content" to c.content,
-                                "focus" to c.focus, "on focus" to c.onFocus, "on focus, detail" to c.onFocusSecondary, "ember" to c.ember,
-                            ).forEach { (name, color) -> Swatch(name, color) }
-                            Swatch("ember light", c.emberLight())
-                        }
-                        // Look at it on the TV: every step should stand apart from the room.
-                        Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Bottom) {
-                            Swatch("room", c.background)
-                            HlAlpha.BLACK_LEVELS.forEach { level ->
-                                val step = c.content.copy(alpha = level).compositeOver(c.background)
-                                Swatch("white ${(level * PERCENT).roundToInt()} %", step)
-                            }
-                            Text(
-                                "Black levels: on the TV each step stands apart from the room, or its blacks are crushed.",
-                                style = Hl.type.caption,
-                                color = c.contentSecondary,
-                                modifier = Modifier.padding(start = HlSpace.m).widthIn(max = HlLayout.readableNarrow),
-                            )
-                        }
-                    }
-                }
+                Group("Colour", Modifier.focusRequester(first), still = true) { Colours() }
             }
 
             item {
                 Group("Type: the voices of the poster, of reading, technical; then the signature", still = true) {
                     listOf(
-                        "display" to t.display, "headline" to t.headline, "subject" to t.subject, "cardTitle" to t.cardTitle,
+                        "display" to t.display, "headline" to t.headline, "subject" to t.subject,
+                        "place" to t.place, "placeCurrent, ember lit" to t.placeCurrent.emberLit(c), "rowTitle" to t.rowTitle,
+                        "cardName" to t.cardName, "cardTitle" to t.cardTitle,
                         "title" to t.title, "lead" to t.lead, "body" to t.body, "entry" to t.entry, "meta" to t.meta,
                         "caption" to t.caption, "group" to t.group, "code" to t.code,
-                        "spec" to t.spec, "badge" to t.badge,
+                        "spec" to t.spec, "jaquette" to t.jaquette, "badge" to t.badge,
                         "billing" to t.billing,
                     ).forEach { (name, style) -> StyleSpecimen(name, style) }
                 }
             }
 
+            catalogFocus()
             // The three gestures of the small surfaces, side by side, before the components that use them.
             catalogGestures()
             catalogIcons()
@@ -399,6 +369,54 @@ fun CatalogScreen() {
 
             catalogStress()
             catalogBrand()
+        }
+    }
+}
+
+/** The palette, the roles that name it, ember and a picture's dark, then the black levels to check on the TV. */
+@Composable
+private fun Colours() {
+    val c = Hl.colors
+    Column(verticalArrangement = Arrangement.spacedBy(HlSpace.l)) {
+        // The palette: the colours themselves, named by their lightness.
+        Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m)) {
+            listOf(
+                "N0" to HlPalette.N0, "N8" to HlPalette.N8, "N21" to HlPalette.N21, "N28" to HlPalette.N28,
+                "N36" to HlPalette.N36, "N57" to HlPalette.N57, "N65" to HlPalette.N65, "N96" to HlPalette.N96,
+                "Ember" to HlPalette.Ember, "EmberStart" to HlPalette.EmberStart, "EmberEnd" to HlPalette.EmberEnd,
+                "Deep" to HlPalette.Deep,
+            ).forEach { (name, color) -> Swatch(name, color) }
+        }
+        // The roles that name them, as components use them.
+        Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m)) {
+            listOf(
+                "background" to c.background, "fill" to c.content.copy(alpha = HlAlpha.FILL).compositeOver(c.background),
+                "glass" to c.glass, "outline" to c.outline, "decorative" to c.contentDecorative,
+                "tertiary" to c.contentTertiary, "secondary" to c.contentSecondary, "content" to c.content,
+                "focus" to c.focus, "on focus" to c.onFocus, "on focus, detail" to c.onFocusSecondary,
+            ).forEach { (name, color) -> Swatch(name, color) }
+        }
+        // Ember and what it lies on; the picture's own dark and its plate, on the room.
+        Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m)) {
+            listOf(
+                "ember" to c.ember, "on ember" to c.onEmber, "ember on light" to c.emberOnLight,
+                "ambient deep" to c.ambientDeep, "plate" to c.plate().compositeOver(c.background),
+            ).forEach { (name, color) -> Swatch(name, color) }
+            Swatch("ember light", c.emberLight())
+        }
+        // Look at it on the TV: every step should stand apart from the room.
+        Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Bottom) {
+            Swatch("room", c.background)
+            HlAlpha.BLACK_LEVELS.forEach { level ->
+                val step = c.content.copy(alpha = level).compositeOver(c.background)
+                Swatch("white ${(level * PERCENT).roundToInt()} %", step)
+            }
+            Text(
+                "Black levels: on the TV each step stands apart from the room, or its blacks are crushed.",
+                style = Hl.type.caption,
+                color = c.contentSecondary,
+                modifier = Modifier.padding(start = HlSpace.m).widthIn(max = HlLayout.readableNarrow),
+            )
         }
     }
 }

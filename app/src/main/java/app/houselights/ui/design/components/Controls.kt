@@ -39,15 +39,12 @@ import androidx.compose.ui.layout.onPlaced
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateMapOf
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.findRootCoordinates
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
-import androidx.compose.ui.semantics.role
-import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Constraints
@@ -63,9 +60,7 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.stateDescription
 import app.houselights.R
-import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.Icon
-import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
 import app.houselights.ui.design.HlIconButtonDefaults
 import app.houselights.ui.design.Hl
@@ -84,8 +79,8 @@ import app.houselights.ui.design.RowScroll
 enum class Emphasis { Primary, Secondary }
 
 /**
- * Pill button, projector white on focus; the primary one is brighter at rest. Disabled, it keeps focus,
- * outlined, and ignores OK; [busy] shows the pending dot and [busyLabel] at the same width and ignores OK.
+ * Button, projector white on focus; the primary one is brighter at rest. Disabled, it keeps focus, ringed,
+ * and ignores OK; [busy] shows the pending dot and [busyLabel] at the same width and ignores OK.
  * [detailLit] sets the detail in ember for a state it names (an active filter).
  */
 @Composable
@@ -101,11 +96,11 @@ fun HlButton(
     enabled: Boolean = true,
     busy: Boolean = false,
     busyLabel: String = text,
-) = PillButton(text, onClick, modifier, icon, detail, emphasis, detailLit, enabled, busy, busyLabel)
+) = ButtonPlate(text, onClick, modifier, icon, detail, emphasis, detailLit, enabled, busy, busyLabel)
 
-/** The pill of [HlButton]; [caution] sets the label in ember for an irreversible action ([SheetConfirm]). */
+/** The plate of [HlButton]; [caution] sets the label in ember for an irreversible action ([SheetConfirm]). */
 @Composable
-internal fun PillButton(
+internal fun ButtonPlate(
     text: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -119,26 +114,20 @@ internal fun PillButton(
     caution: Boolean = false,
 ) {
     val c = Hl.colors
-    val interaction = remember { MutableInteractionSource() }
-    val focused by interaction.collectIsFocusedAsState()
     val busyState = stringResource(R.string.control_busy)
     val fill = if (emphasis == Emphasis.Primary) HlAlpha.FILL_STRONG else HlAlpha.FILL
-    // A Surface: tv-material's Button forces a minimum content height and would not centre the content.
-    Surface(
+    HlFocusSurface(
         onClick = { if (!busy) onClick() },
+        look = FocusStyle.fill(
+            rest = c.content.copy(alpha = fill),
+            restInk = if (caution) c.ember else c.content,
+            disabled = c.content.copy(alpha = HlAlpha.FILL_FAINT),
+            disabledInk = c.contentTertiary,
+        ),
+        shape = HlShapes.control,
         modifier = modifier.height(HlSize.control).semantics { if (busy) stateDescription = busyState },
         enabled = enabled,
-        shape = ClickableSurfaceDefaults.shape(HlShapes.control),
-        colors = FocusStyle.fill(
-            rest = c.content.copy(alpha = fill),
-            restContent = if (caution) c.ember else c.content,
-            disabled = c.content.copy(alpha = HlAlpha.FILL_FAINT),
-            disabledContent = c.contentTertiary,
-        ),
-        border = FocusStyle.disabledRing(HlShapes.control),
-        scale = FocusStyle.scale(FocusStyle.Fill.Pill),
-        interactionSource = interaction,
-    ) {
+    ) { lit ->
         Row(
             Modifier
                 .align(Alignment.Center)
@@ -156,7 +145,7 @@ internal fun PillButton(
                 ButtonLabel(busyLabel)
             } else {
                 // A disabled button keeps its well under focus: white would offer an action.
-                ButtonContent(text, icon, detail, FocusStyle.quietInk(focused && enabled, enabled, detailLit))
+                ButtonContent(text, icon, detail, FocusStyle.quietInk(lit && enabled, enabled, detailLit))
             }
         }
     }
@@ -194,18 +183,17 @@ private fun ButtonLabel(text: String) {
     )
 }
 
-/** A screen title naming one of two views, then a ⇄ disc switching to the other; [label] names that one. */
+/** A screen title naming one of two views, then a ⇄ tile switching to the other; [label] names that one. */
 @Composable
 fun HlTitleSwitch(title: String, label: String, onSwitch: () -> Unit, modifier: Modifier = Modifier) {
     Row(modifier, verticalAlignment = Alignment.CenterVertically) {
         ScreenTitle(title)
         Spacer(Modifier.width(HlSpace.xs))
-        Surface(
+        HlFocusSurface(
             onClick = onSwitch,
-            modifier = Modifier.size(HlSize.control),
-            shape = ClickableSurfaceDefaults.shape(HlShapes.avatar),
-            colors = FocusStyle.fill(rest = Color.Transparent, restContent = Hl.colors.contentSecondary),
-            scale = FocusStyle.scale(FocusStyle.Fill.Pill),
+            look = FocusStyle.fill(rest = Color.Transparent, restInk = Hl.colors.contentSecondary),
+            shape = HlShapes.control,
+            modifier = Modifier.size(HlSize.tile),
         ) {
             Icon(HlIcons.Swap, contentDescription = label, modifier = Modifier.size(HlSize.icon).align(Alignment.Center))
         }
@@ -228,7 +216,7 @@ fun HlActionRow(
 }
 
 /**
- * Round icon button whose focus label overflows below it without taking layout space (an [HlActionRow]
+ * Square icon tile whose focus label overflows below it without taking layout space (an [HlActionRow]
  * reserves it), centred unless near the screen side ([HlIconButtonDefaults.labelEdge]), hidden under a
  * sheet. A toggle names its action ("Marquer comme vu") and shows its state by [lit].
  */
@@ -243,29 +231,31 @@ fun HlIconButton(
 ) {
     val interaction = remember { MutableInteractionSource() }
     val focused by interaction.collectIsFocusedAsState()
-    // A sheet is a separate window: the button keeps focus under it but hides its label.
+    // A sheet is a separate window: the tile keeps focus under it but hides its label.
     val shown = focused && LocalWindowInfo.current.isWindowFocused
-    val labelAlpha by animateFloatAsState(if (shown) 1f else 0f, tween(HlMotion.FAST), label = "label")
+    val labelAlpha by animateFloatAsState(
+        if (shown) 1f else 0f,
+        if (shown) tween(HlMotion.PLATE_IN, easing = HlMotion.focusPull) else tween(HlMotion.PLATE_OUT, easing = HlMotion.fallBack),
+        label = "label",
+    )
     val c = Hl.colors
     val plate = groundPlate()
     val restFill = plate ?: c.content.copy(alpha = HlAlpha.FILL)
     Layout(
         modifier = modifier,
         content = {
-            Surface(
+            HlFocusSurface(
                 onClick = onClick,
-                modifier = Modifier.size(HlSize.iconButton),
-                enabled = enabled,
-                shape = ClickableSurfaceDefaults.shape(HlShapes.avatar),
-                scale = FocusStyle.scale(FocusStyle.Fill.Pill),
-                border = FocusStyle.disabledRing(HlShapes.avatar),
-                colors = FocusStyle.fill(
+                look = FocusStyle.fill(
                     rest = restFill,
-                    restContent = if (lit) c.ember else c.content,
+                    restInk = if (lit) c.ember else c.content,
                     // Over artwork, a disabled icon is secondary like all quiet content there.
                     disabled = plate ?: c.content.copy(alpha = HlAlpha.FILL_FAINT),
-                    disabledContent = if (plate != null) c.contentSecondary else c.contentTertiary,
+                    disabledInk = if (plate != null) c.contentSecondary else c.contentTertiary,
                 ),
+                shape = HlShapes.control,
+                modifier = Modifier.size(HlSize.tile),
+                enabled = enabled,
                 interactionSource = interaction,
             ) {
                 Icon(icon, contentDescription = label, modifier = Modifier.size(HlSize.icon).align(Alignment.Center))
@@ -280,7 +270,7 @@ fun HlIconButton(
                 modifier = Modifier
                     .clearAndSetSemantics {}
                     .graphicsLayer { alpha = labelAlpha }
-                    .background(c.background.copy(alpha = HlAlpha.VEIL), HlShapes.control)
+                    .background(c.background.copy(alpha = HlAlpha.VEIL), HlShapes.mark)
                     .padding(horizontal = HlControl.labelPaddingH, vertical = HlControl.labelPaddingV),
             )
         },
@@ -359,7 +349,7 @@ fun HlListItem(
 }
 
 /**
- * Exclusive options in one pill track: the current one on a quiet sliding pill, the focused one white.
+ * Exclusive options in one track: the current one on a quiet sliding plate, the focused one white.
  * Focus enters on [enterAt] (the current option by default), never the nearest; options read as tabs.
  * [selectOnFocus] selects on move, as TV tabs do; [details] add a check or "6 / 10".
  */
@@ -376,26 +366,27 @@ fun HlSegmented(
 ) {
     val places = remember(options.size) { mutableStateMapOf<Int, Pair<Float, Float>>() }
     val requesters = remember(options.size) { List(options.size) { FocusRequester() } }
-    // A long track scrolls with its pill; end padding leaves room for a focused option to grow.
+    // A long track scrolls with its plate; end padding leaves room for a focused option.
     val scroll = rememberScrollState()
     val content = if (scrollable) Modifier.horizontalScroll(scroll).padding(horizontal = HlSpace.xxs) else Modifier
 
     val well = groundPlate() ?: Hl.colors.content.copy(alpha = HlAlpha.FILL_FAINT)
+    // The track's corners run parallel to its options', a padding further out.
     val track = modifier
-        .background(well, HlShapes.control)
+        .background(well, HlShapes.wide)
         .padding(vertical = HlSpace.xxs, horizontal = if (scrollable) HlSpace.none else HlSpace.xxs)
     RowScroll {
         Box(track) {
             Box(content) {
-                // The quiet pill under the options, sliding to the selected one.
+                // The quiet plate under the options, sliding to the selected one.
                 places[selected]?.let { (x, w) ->
-                    val slide = tween<Float>(HlMotion.STANDARD, easing = HlMotion.emphasized)
+                    val slide = tween<Float>(HlMotion.STANDARD, easing = HlMotion.focusPull)
                     val left by animateFloatAsState(x, slide, label = "pillX")
                     val width by animateFloatAsState(w, slide, label = "pillWidth")
                     Box(
                         Modifier
                             .offset { IntOffset(left.roundToInt(), 0) }
-                            // Width read at measure, offset at placement: the pill slides without recomposing.
+                            // Width read at measure, offset at placement: the plate slides without recomposing.
                             .layout { measurable, constraints ->
                                 val px = width.toDp().roundToPx().coerceAtLeast(0)
                                 val placeable = measurable.measure(constraints.constrain(Constraints(minWidth = px, maxWidth = px)))
@@ -440,24 +431,14 @@ private fun SegmentItem(
     modifier: Modifier = Modifier,
 ) {
     val c = Hl.colors
-    val interaction = remember { MutableInteractionSource() }
-    val focused by interaction.collectIsFocusedAsState()
-    val fade = tween<Color>(HlMotion.STANDARD, easing = HlMotion.emphasized)
-    val rest by animateColorAsState(if (selected) c.content else c.contentSecondary, fade, label = "segmentText")
-    Surface(
+    HlFocusSurface(
         onClick = onClick,
-        modifier = modifier
-            .semantics {
-                role = Role.Tab
-                this.selected = selected
-            }
-            .height(HlSize.segment)
-            .onFocusChanged { if (it.isFocused) onFocused() },
-        shape = ClickableSurfaceDefaults.shape(HlShapes.control),
-        scale = FocusStyle.scale(FocusStyle.Fill.Pill),
-        colors = FocusStyle.fill(rest = Color.Transparent, restContent = rest),
-        interactionSource = interaction,
-    ) {
+        look = FocusStyle.fill(rest = Color.Transparent, restInk = if (selected) c.content else c.contentSecondary),
+        shape = HlShapes.control,
+        modifier = modifier.height(HlSize.segment).onFocusChanged { if (it.isFocused) onFocused() },
+        role = Role.Tab,
+        selected = selected,
+    ) { lit ->
         Row(
             Modifier.align(Alignment.Center).padding(horizontal = HlControl.tabPaddingH),
             verticalAlignment = Alignment.CenterVertically,
@@ -471,13 +452,13 @@ private fun SegmentItem(
                     Icon(
                         HlIcons.Check,
                         contentDescription = null,
-                        tint = if (focused) c.onFocus else c.content,
+                        tint = if (lit) c.onFocus else c.content,
                         modifier = Modifier.size(HlSize.inlineIcon),
                     )
                 }
                 is SegmentDetail.Count -> {
                     Spacer(Modifier.width(HlSpace.xs))
-                    val ink = FocusStyle.quietInk(focused, enabled = true, lit = false)
+                    val ink = FocusStyle.quietInk(lit, enabled = true, lit = false)
                     Text(detail.text, style = Hl.type.meta, color = ink, maxLines = 1, softWrap = false)
                 }
             }

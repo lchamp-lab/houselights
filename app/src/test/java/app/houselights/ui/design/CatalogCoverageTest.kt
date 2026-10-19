@@ -34,6 +34,19 @@ class CatalogCoverageTest {
         assertTrue("Exceptions for components that no longer exist: ${stale.joinToString()}", stale.isEmpty())
     }
 
+    /** Every shape of `HlShapes` is on the catalogue's shape sheet, with its radii. */
+    @Test
+    fun theCatalogueShowsEveryShape() {
+        val dimens = File("src/main/java/app/houselights/ui/design/Dimens.kt").readText()
+        val start = dimens.indexOf("object HlShapes")
+        val shapes = dimens.substring(start, dimens.indexOf("\n}\n", start))
+        val declared = Regex("""^\s{4}val (\w+) =""", RegexOption.MULTILINE).findAll(shapes).map { it.groupValues[1] }.toList()
+        assertTrue("No shapes found in Dimens.kt", declared.isNotEmpty())
+        val sheet = catalog.resolve("CatalogFocus.kt").readText()
+        val missing = declared.filter { !Regex("""\bHlShapes\.$it\b""").containsMatchIn(sheet) }
+        assertTrue("Not on the catalogue's shape sheet: ${missing.joinToString()}", missing.isEmpty())
+    }
+
     /** Every glyph of `HlIcons` is on the catalogue's icon sheet, so a new one is seen at its sizes. */
     @Test
     fun theCatalogueShowsEveryIcon() {

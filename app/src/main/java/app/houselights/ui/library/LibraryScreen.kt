@@ -231,7 +231,7 @@ fun LibraryScreen(
                     columns = GridCells.Fixed(COLUMNS),
                     state = gridState,
                     contentPadding = PaddingValues(start = HlSpace.safeH, end = HlSpace.safeH, top = HlSpace.m, bottom = HlFocus.edge),
-                    horizontalArrangement = Arrangement.spacedBy(HlSpace.l),
+                    horizontalArrangement = Arrangement.spacedBy(HlLayout.wallGutter),
                     verticalArrangement = Arrangement.spacedBy(HlSpace.l),
                     modifier = Modifier.fillMaxSize().onFocusChanged {
                         gridHasFocus = it.hasFocus
@@ -301,7 +301,7 @@ private fun SkeletonWall() {
         verticalArrangement = Arrangement.spacedBy(HlSpace.l),
     ) {
         repeat(SKELETON_ROWS) {
-            Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.l)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(HlLayout.wallGutter)) {
                 repeat(COLUMNS) { CardSkeleton(null, 2f / 3f, Modifier.weight(1f)) }
             }
         }

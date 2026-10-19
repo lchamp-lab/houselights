@@ -211,7 +211,7 @@ private fun SourceActions(
                     HEADER_POSTERS,
                     slotWidth = HlSize.rowPreviewPoster,
                     gap = HlSpace.xxs,
-                    shape = HlShapes.artwork,
+                    shape = HlShapes.thumb,
                 )
             }
         },

@@ -38,6 +38,7 @@ import app.houselights.ui.design.components.AmbientBackdrop
 import app.houselights.ui.design.components.ArtworkChoiceCard
 import app.houselights.ui.design.components.ArtworkImage
 import app.houselights.ui.design.components.ArtworkSurface
+import app.houselights.ui.design.components.Lift
 import app.houselights.ui.design.components.BackdropStyle
 import app.houselights.ui.design.components.CardSkeleton
 import app.houselights.ui.design.components.HeroSkeleton
@@ -89,7 +90,7 @@ private val brokenImage = ImageRef("catalog-broken") { BROKEN_URL }
 
 /** Artwork the app ships with, so a card shows a real image without the network. */
 @Composable
-private fun shippedImage(@DrawableRes id: Int): ImageRef {
+internal fun shippedImage(@DrawableRes id: Int): ImageRef {
     val pkg = LocalContext.current.packageName
     return remember(pkg, id) { ImageRef("catalog-res-$id") { "android.resource://$pkg/$id" } }
 }
@@ -156,21 +157,22 @@ private fun AmbientBackdrops() {
 private fun Surfaces() {
     val art = shippedImage(R.drawable.banner).url(0)
     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Top) {
+        val wide = Modifier.width(HlSize.landscape).aspectRatio(16f / 9f)
         Specimen("surface alone", width = HlSize.landscape) {
-            ArtworkSurface({}, Modifier.width(HlSize.landscape).aspectRatio(16f / 9f)) {}
+            ArtworkSurface({}, wide, shape = HlShapes.wide, lift = Lift.Wide) {}
         }
         Specimen("image", width = HlSize.landscape) {
-            ArtworkSurface({}, Modifier.width(HlSize.landscape).aspectRatio(16f / 9f)) {
+            ArtworkSurface({}, wide, shape = HlShapes.wide, lift = Lift.Wide) {
                 ArtworkImage(art, "Houselights", Modifier.fillMaxSize())
             }
         }
         Specimen("image failed: its fallback", width = HlSize.landscape) {
-            ArtworkSurface({}, Modifier.width(HlSize.landscape).aspectRatio(16f / 9f)) {
+            ArtworkSurface({}, wide, shape = HlShapes.wide, lift = Lift.Wide) {
                 ArtworkImage(BROKEN_URL, "Pierrot le Fou", Modifier.fillMaxSize()) { FallbackSample("Pierrot le Fou") }
             }
         }
-        Specimen("round, as a person", width = HlSize.personColumn) {
-            ArtworkSurface({}, Modifier.size(HlSize.avatar), shape = HlShapes.avatar) {
+        Specimen("a portrait, 3:4", width = HlSize.personColumn) {
+            ArtworkSurface({}, Modifier.width(HlSize.portrait).aspectRatio(HlSize.PORTRAIT_RATIO)) {
                 ArtworkImage(art, null, Modifier.fillMaxSize())
             }
         }

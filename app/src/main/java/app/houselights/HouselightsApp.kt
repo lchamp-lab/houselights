@@ -290,7 +290,7 @@ class AppContainer(private val app: Application, val language: InterfaceLanguage
 private fun metadataLocale(s: AppSettings, device: Locale): Locale = s.metadataLanguage?.let(Locale::forLanguageTag) ?: device
 
 /** Decoded pictures kept in memory: a few backdrops and the posters of several rows. */
-private const val IMAGE_MEMORY_BYTES = 64 * 1024 * 1024
+internal const val IMAGE_MEMORY_BYTES = 64 * 1024 * 1024
 
 /**
  * Image client sharing [api]'s pool with its own queue: OkHttp runs five requests per host, and Jellyfin serves

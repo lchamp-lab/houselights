@@ -52,7 +52,8 @@ fun ArtworkChoiceCard(
         ArtworkSurface(
             onClick,
             Modifier.fillMaxWidth().aspectRatio(aspectRatio).semantics { this.selected = selected },
-            lift = Lift.Card,
+            shape = if (aspectRatio > 1f) HlShapes.wide else HlShapes.artwork,
+            lift = Lift.Wide,
             onFocused = onFocused,
         ) {
             val url = image?.url(width.toPx())
@@ -145,6 +146,6 @@ fun PosterThumb(poster: ImageRef?, modifier: Modifier = Modifier, width: Dp = Hl
         description = null,
         modifier = modifier.width(width).aspectRatio(2f / 3f),
         // While loading, the poster's slot shows its ground, edged like artwork at rest.
-        picture = Modifier.clip(HlShapes.artwork).background(groundStepFill()).artworkEdge(HlShapes.artwork, Hl.colors),
-    ) { EmptyFrame(Modifier.fillMaxSize()) }
+        picture = Modifier.clip(HlShapes.thumb).background(groundStepFill()).artworkEdge(HlShapes.thumb, Hl.colors),
+    ) { EmptyFrame(Modifier.fillMaxSize(), HlShapes.thumb) }
 }

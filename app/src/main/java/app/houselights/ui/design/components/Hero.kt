@@ -101,7 +101,7 @@ fun WithItsPicture(item: MediaItem?, modifier: Modifier = Modifier, content: @Co
         laid.forEach { id ->
             key(id) {
                 val alpha = transition.animateFloat(
-                    transitionSpec = { tween(if (targetState == id) HlMotion.STANDARD else HlMotion.FAST) },
+                    transitionSpec = { tween(if (targetState == id) HlMotion.STANDARD else HlMotion.FAST, easing = HlMotion.fallBack) },
                     label = "namedAlpha",
                 ) { if (it == id) 1f else 0f }
                 // Only the target title is exposed to accessibility; the others are fading in or out.

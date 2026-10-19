@@ -29,6 +29,8 @@ class DesignTokenGuardTest {
         Regex("""\bAsyncImage\(""") to "an image: use ArtworkImage, PosterThumb or RowPreview",
         // Ember is a closed list of states: a screen says the state, the component lights it.
         Regex("""\.ember\b""") to "ember: say the state (HlStatus, AttentionNote, lit, valueLit, detailLit)",
+        // The ember light on words or a fill is a component's: the place you are in, the main action.
+        Regex("""\bember(Light|Lit)\(|\bbrush\s*=""") to "the ember light: a component lights the place or the state",
     )
 
     /** Deliberate exceptions, as "path:fragment of the line"; a value used twice belongs in the design system. */
@@ -37,6 +39,9 @@ class DesignTokenGuardTest {
         "catalog/CatalogScreen.kt:\"ember\" to c.ember",
         // The catalogue's own frames (swatches, a mark's white ground): a size no screen uses.
         "catalog/CatalogParts.kt:val CatalogSwatch = 52.dp",
+        // The catalogue's swatch of the ember light, and the type specimen of the place you are in.
+        "catalog/CatalogScreen.kt:Swatch(\"ember light\", c.emberLight())",
+        "catalog/CatalogScreen.kt:t.placeCurrent.emberLit(c)",
     )
 
     @Test
@@ -94,6 +99,7 @@ class DesignTokenGuardTest {
             "padding(end = HlSpace.safeH - HlSpace.m)", "width = HlSize.posterThumb + HlSpace.xs", "HlSize.poster * 1.3f",
             "AsyncImage(model = url, contentDescription = null)", "color = c.ember", "tint = Hl.colors.ember",
             "fontWeight = FontWeight.Bold", "letterSpacing = style.letterSpacing * 2",
+            "style = Hl.type.headline.emberLit(c)", "background(c.emberLight())", "brush = Brush.linearGradient(colors)",
         )
         samples.forEach { sample -> assertTrue(sample, rules.any { it.first.containsMatchIn(sample) }) }
         listOf("Icons.Filled.Check", "Icons.Default.Settings", "import androidx.compose.material.icons.filled.Star")

@@ -233,7 +233,7 @@ private fun Frames() {
             PosterStrip(listOf(BROKEN), slots = 6)
         }
         Specimen("a sheet's header: three places") {
-            PosterStrip(listOf(BROKEN), slots = 3, slotWidth = HlSize.rowPreviewPoster, gap = HlSpace.xxs, shape = HlShapes.artwork)
+            PosterStrip(listOf(BROKEN), slots = 3, slotWidth = HlSize.rowPreviewPoster, gap = HlSpace.xxs, shape = HlShapes.thumb)
         }
     }
     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.xl), verticalAlignment = Alignment.Top) {

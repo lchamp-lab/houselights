@@ -46,7 +46,7 @@ fun WelcomeScreen(onLocal: () -> Unit, onJellyfin: () -> Unit, problem: UiError?
     val app = appContainer()
     val lostSource = app.settings.state.collectAsStateWithLifecycle().value.lostSource
     val focus = remember { FocusRequester() }
-    val vm: WelcomeViewModel = viewModel(factory = WelcomeViewModel.factory(app, HlSize.posterWall.toPx()))
+    val vm: WelcomeViewModel = viewModel(factory = WelcomeViewModel.factory(app, HlSize.welcomePoster.toPx()))
     val posters by vm.posters.collectAsStateWithLifecycle()
     LaunchedEffect(Unit) {
         focus.tryRequestFocus()

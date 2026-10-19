@@ -18,8 +18,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.tv.material3.ClickableSurfaceDefaults
-import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
 import app.houselights.R
 import app.houselights.ui.design.Hl
@@ -71,7 +69,7 @@ fun LetterGrid(
                 Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.xs)) {
                     keys.forEachIndexed { column, key ->
                         val start = if (row == 0 && column == 0 && first != null) Modifier.focusRequester(first) else Modifier
-                        KeyPill(key.toString(), onClick = { onKey(key) }, modifier = start.size(HlSize.control))
+                        KeyTile(key.toString(), onClick = { onKey(key) }, modifier = start.size(HlSize.tile))
                     }
                 }
             }
@@ -83,19 +81,17 @@ fun LetterGrid(
     }
 }
 
-/** One key: a pill showing [label], white on focus. */
+/** One key: a tile showing [label], white on focus. */
 @Composable
-private fun KeyPill(label: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+private fun KeyTile(label: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val c = Hl.colors
-    Surface(
+    HlFocusSurface(
         onClick = onClick,
+        look = FocusStyle.fill(rest = c.content.copy(alpha = HlAlpha.FILL), restInk = c.content),
+        shape = HlShapes.control,
         modifier = modifier.semantics { contentDescription = label },
-        shape = ClickableSurfaceDefaults.shape(HlShapes.control),
-        scale = FocusStyle.scale(FocusStyle.Fill.Pill),
-        border = FocusStyle.disabledRing(HlShapes.control),
-        colors = FocusStyle.fill(rest = c.content.copy(alpha = HlAlpha.FILL), restContent = c.content),
     ) {
-        Box(Modifier.size(HlSize.control), contentAlignment = Alignment.Center) {
+        Box(Modifier.size(HlSize.tile), contentAlignment = Alignment.Center) {
             Text(label, style = Hl.type.entry, maxLines = 1)
         }
     }

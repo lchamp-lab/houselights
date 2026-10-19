@@ -24,6 +24,9 @@ object HlPalette {
     val Ember = Color(0xFFFF7A4D)
     val EmberStart = Color(0xFFFF9F1C)
     val EmberEnd = Color(0xFFFF2E63)
+
+    /** The dark of a grey picture: a picture's own dark at value 0.11, without its hue. */
+    val Deep = Color(0xFF1C1B1B)
 }
 
 /** Semantic colour roles (DESIGN.md, Colour): the room, glass, fills over [LocalGround], projector-white focus. */
@@ -32,13 +35,13 @@ data class HlColors(
     /** The room: the base of every screen. */
     val background: Color,
     /** Glass: side sheets, menus and dialogs, opaque over the dimmed room. */
-    val surfaceRaised: Color,
+    val glass: Color,
     /** Outlined badges, and every edge at `HlAlpha.EDGE`. */
     val outline: Color,
     /** Primary text: projector white. */
     val content: Color,
     val contentSecondary: Color,
-    /** The quietest text: 5.56:1 on [surfaceRaised], never on `FILL_STRONG` (`ContrastTest`). */
+    /** The quietest text: 5.56:1 on [glass], never on `FILL_STRONG` (`ContrastTest`). */
     val contentTertiary: Color,
     /** Never for text: the rule of an empty frame, a skeleton. */
     val contentDecorative: Color,
@@ -50,17 +53,23 @@ data class HlColors(
     /** Ember gradient ends, where it reads as light (progress, a rule, [emberLight]); small marks take [ember]. */
     val emberFrom: Color,
     val emberTo: Color,
+    /** Ink on an ember fill (the main action): black, 5.8:1 at the gradient's raspberry end; never white. */
+    val onEmber: Color,
+    /** Ember on projector white, for a mark only (3.3:1): what stays lit on a focused plate. */
+    val emberOnLight: Color,
     /** Focus outline and filled focused controls. */
     val focus: Color,
     /** Content drawn on [focus]. */
     val onFocus: Color,
     /** Secondary text in a focused control (a summary, a runtime): black at 62 % on [focus]. */
     val onFocusSecondary: Color,
+    /** The dark plates and veils take where no picture lends its own ([LocalAmbientDeep]). */
+    val ambientDeep: Color,
 )
 
 val HouselightsColors = HlColors(
     background = HlPalette.N0,
-    surfaceRaised = HlPalette.N8,
+    glass = HlPalette.N8,
     outline = HlPalette.N21,
     content = HlPalette.N96,
     contentSecondary = HlPalette.N65,
@@ -69,9 +78,12 @@ val HouselightsColors = HlColors(
     ember = HlPalette.Ember,
     emberFrom = HlPalette.EmberStart,
     emberTo = HlPalette.EmberEnd,
+    onEmber = HlPalette.N0,
+    emberOnLight = HlPalette.EmberEnd,
     focus = HlPalette.N96,
     onFocus = HlPalette.N0,
     onFocusSecondary = HlPalette.N36,
+    ambientDeep = HlPalette.Deep,
 )
 
 val LocalHlColors = staticCompositionLocalOf { HouselightsColors }
@@ -82,6 +94,12 @@ fun HlColors.emberLight(alpha: Float = 1f): Brush =
 
 /** Every edge and divider of a container: [HlColors.outline] at `HlAlpha.EDGE`. */
 val HlColors.edge: Color get() = outline.copy(alpha = HlAlpha.EDGE)
+
+/** A plate over a picture: the picture's own dark ([LocalAmbientDeep]) at `PLATE`, set off by [plateEdge]. */
+fun HlColors.plate(deep: Color = ambientDeep): Color = deep.copy(alpha = HlAlpha.PLATE)
+
+/** The hairline around a [plate]. */
+val HlColors.plateEdge: Color get() = content.copy(alpha = HlAlpha.PLATE_EDGE)
 
 /**
  * What a component lies on, which decides how it stands out: the black room, glass (sheets, menus, dialogs)
@@ -100,7 +118,7 @@ fun OnArtwork(content: @Composable () -> Unit) {
 /** The ground's opaque colour, for what hides or fades into it (a hint, scroll edges); black on artwork. */
 @Composable
 @ReadOnlyComposable
-fun groundColor(): Color = if (LocalGround.current == Ground.Glass) Hl.colors.surfaceRaised else Hl.colors.background
+fun groundColor(): Color = if (LocalGround.current == Ground.Glass) Hl.colors.glass else Hl.colors.background
 
 /** Fill one step up: `FILL` on the room; `FILL_FAINT` on glass, keeping the quietest text at 4.5:1 there. */
 @Composable
@@ -135,6 +153,9 @@ object HlAlpha {
     const val VEIL_SIDE = 0.6f
     /** Behind a dialog, and plates on artwork: at 80 % a progress line's raspberry end keeps 3.5:1 on white. */
     const val VEIL = 0.8f
+    /** A [plate] in the picture's own dark, and the hairline (`content`) that sets it off. */
+    const val PLATE = 0.74f
+    const val PLATE_EDGE = 0.11f
 
     /** Every edge and divider of a container: `outline` at this opacity. */
     const val EDGE = 0.6f
@@ -147,3 +168,6 @@ object HlAlpha {
 
 /** Light spilling from the current artwork; a function read while drawing, so its changes never recompose. */
 val LocalAmbient = staticCompositionLocalOf<() -> Color> { { Color.Transparent } }
+
+/** The current artwork's own dark, for plates and veils; a function read while drawing, neutral without one. */
+val LocalAmbientDeep = staticCompositionLocalOf<() -> Color> { { HouselightsColors.ambientDeep } }

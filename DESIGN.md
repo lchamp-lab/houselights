@@ -35,9 +35,9 @@ widths used as voices:
 
 | Voice | Width | Used for | Styles |
 |---|---|---|---|
-| Poster | condensed (70) | titles, what a panel is about, large figures, the billing block | `display`, `headline`, `subject`, `cardTitle`, `titleSignature`, `billing` |
+| Poster | condensed (70) | titles, places, rows and names under cards, what a panel is about, large figures, the billing block | `display`, `headline`, `subject`, `place`, `rowTitle`, `cardName`, `cardTitle`, `titleSignature`, `billing` |
 | Reading | normal (100) | everything read or chosen: overviews, list names, button words, values | `title`, `lead`, `body`, `entry`, `meta`, `caption`, `group` |
-| Technical | expanded (125), tabular figures | formats and specifications | `spec`, `badge` |
+| Technical | expanded (125), tabular figures | formats, specifications, printed marks | `spec`, `jaquette`, `badge` |
 
 - **No fourth voice.** An intermediate width reads as a mistake.
 - **Three weights, one meaning each:** Regular reads, SemiBold names, Bold announces. Medium belongs to the
@@ -89,7 +89,7 @@ embers). `HlColors` names their roles; only roles reach components.
 | Role | Palette | Value | Use |
 |---|---|---|---|
 | `background` | `N0` | `#000000` | the room; masks over artwork; the window and launcher icon ground (`@color/room`) |
-| `surfaceRaised` | `N8` | `#131316` | glass: side sheets, menus, dialogs |
+| `glass` | `N8` | `#131316` | glass: side sheets, menus, dialogs |
 | `outline` | `N21` | `#33333A` | badge borders; every edge at `EDGE` |
 | `content` | `N96` | `#F4F4F5` | projector white: what is read first |
 | `contentSecondary` | `N65` | `#A3A3AB` | what explains: summaries, descriptions, facts, hints |
@@ -97,13 +97,16 @@ embers). `HlColors` names their roles; only roles reach components.
 | `contentDecorative` | `N28` | `#45454C` | never text: the rule of an empty frame, skeletons |
 | `ember` | `Ember` | `#FF7A4D` | states only, solid, where a gradient has no room (a dot, a check, a word) |
 | `emberFrom`, `emberTo` | `EmberStart`, `EmberEnd` | `#FF9F1C` → `#FF2E63` | the ember light (`emberLight()`): progress lines, an attention rule, a field being typed in, a lit edge |
+| `onEmber` | `N0` | `#000000` | ink on an ember fill (the main action), 5.8:1 at its raspberry end; never white |
+| `emberOnLight` | `EmberEnd` | `#FF2E63` | ember on projector white: marks only (3.3:1), never words |
 | `focus` | `N96` | `#F4F4F5` | focus fill and outline |
 | `onFocus` | `N0` | `#000000` | a focused control's name and icon |
 | `onFocusSecondary` | `N36` | `#5D5D5D` | the line under a focused name (6.01:1) |
+| `ambientDeep` | `Deep` | `#1C1B1B` | a picture's own dark, neutral until one lends it (`LocalAmbientDeep`, read while drawing): plates (`plate()`) and veils |
 
 **Neutrals are neutral**: no hue, only a touch of cool; warmth belongs to the films and to ember.
 
-**Grounds.** Three materials: the room (`background`), glass (`surfaceRaised`, set off by its hairline) and
+**Grounds.** Three materials: the room (`background`), glass (`glass`, set off by its hairline) and
 artwork. A component reads what it lies on (`LocalGround`: `Ground.Room`, `Glass`, `Artwork`) instead of
 being told (`GroundTest`). A thing on its ground takes one step up, `groundStep()` laid as
 `groundStepFill()`: `FILL` on the room (a step a TV still shows), `FILL_FAINT` on glass. What must hide what is
@@ -115,6 +118,7 @@ under it reads the ground opaque (`groundColor`, `groundFill`).
 |---|---|
 | Fills (`content` over its ground) | `FILL_FAINT` 6 % (wells, tracks, disabled), `FILL` 9 % (secondary controls, things on the room), `FILL_STRONG` 20 % (primary controls, the current option of a track) |
 | Veils (`background` over a picture) | `VEIL_SIDE` 60 % (beside a side sheet), `VEIL` 80 % (behind a dialog, the plate under what sits on artwork) |
+| Plates (a picture's own dark over it) | `PLATE` 74 %, set off by a `PLATE_EDGE` hairline (`content` at 11 %) |
 | Edges | `EDGE` (`outline` at 60 %, `HlColors.edge`), `EDGE_ARTWORK` (`content` at 12 %, around a picture) |
 
 Check fills on a TV with the catalogue's black-level chart (`BLACK_LEVELS`).
@@ -171,8 +175,8 @@ top bar, the bottom fade, and the welcome wall's veil.
 
 ### Type (`Type.kt`)
 
-Eight sizes: **12 · 14 · 16 · 20 · 24 · 32 · 44 · 64 sp**, line heights on a 2 sp grid. Fourteen roles, one
-job each, plus the billing block's signature. A screen picks a role and never overrides its size, line height,
+Nine sizes: **12 · 14 · 16 · 20 · 24 · 26 · 32 · 44 · 64 sp**, line heights on a 2 sp grid. Nineteen roles,
+one job each, plus the billing block's signature. A screen picks a role and never overrides its size, line height,
 family, weight or tracking (`DesignTokenGuardTest`). Unstyled text is `body`; `HouselightsTheme` maps
 tv-material's roles onto the scale.
 
@@ -181,6 +185,9 @@ tv-material's roles onto the scale.
 | `display` | 64 / 72 | poster, Bold | a detail page's title without logo |
 | `headline` | 44 / 48 | poster, Bold | screen titles; home hero title without logo |
 | `subject` | 32 / 36 | poster, SemiBold | what a panel, sheet or pane is about; an intertitle's line; a stated figure |
+| `place`, `placeCurrent` | 26 / 30 | poster, SemiBold; Bold | the places in the bar; Bold for the one you are in |
+| `rowTitle` | 24 / 28 | poster, SemiBold | a row's title; the selected title over a wall |
+| `cardName` | 20 / 24 | poster, SemiBold | a name under a card |
 | `cardTitle` | 20 / 24 | poster, Bold | a title on a card without artwork |
 | `title` | 24 / 30 | reading, SemiBold | an episode's name in its heading |
 | `lead` | 20 / 26 | reading, SemiBold | row headers, card and result names, episode names, a tagline |
@@ -191,10 +198,13 @@ tv-material's roles onto the scale.
 | `group` | 14 / 18 | reading, SemiBold | the title over a group ("Vidéo", "État") |
 | `code` | 14 / 22 | monospace, Regular | raw text (NFO XML) |
 | `spec` | 20 / 26 | technical, SemiBold | a technical value stated large ("Ultra HD 60 Hz") |
-| `badge` | 12 / 16 | technical, SemiBold | format and rating badges |
+| `jaquette` | 14 / 18 | technical, SemiBold | formats as on a case's back, a duration inside a button |
+| `badge` | 12 / 14 | technical, Bold | printed marks: an age rating, a protocol |
 | `titleSignature` | 96 / 96 | signature | a short title without logo on one line; else `display` on two even lines (`TitleArt(measured = true)`) |
 | `billing` / `billingJoin` | 18 and 14 / 24 | signature | the billing block's capitals and small words |
 
+- **The ember light on words** (`emberLit`): the place you are in, a screen's title. A component sets it,
+  never a screen (`DesignTokenGuardTest`).
 - **Tabular figures** (`tnum`) in technical styles and wherever a figure changes (`subject`, `meta`,
   `caption`). `case` only for billing capitals, never with `tnum`.
 - **Tracking follows size** (`trackingFor`): −0.01 em from 44 sp, none from 16 to 32, +0.01 em at 14,
@@ -213,18 +223,18 @@ tv-material's roles onto the scale.
 |---|---|
 | `HlSpace` | 4 dp grid: `xxs` 4, `xs` 8, `s` 12, `m` 16, `l` 24, `xl` 32, `xxl` 48; `fact` 20 between facts; safe area `safeH` 48 / `safeV` 28; `fadeEdge` 24 |
 | `HlInset` | container padding: `tight` 8 (menus, thumbnail results), `compact` 12 (dense rows), `card` 24, `sheet` 32 |
-| `HlShapes` | radius follows hierarchy: `badge` 3, `artwork` 4, `field` 6, `row` 8, `panel` 12, `sheet` 16, `control` pill, `avatar` circle. Nested shapes keep parallel corners: **outer radius = inner radius + gap** |
-| `HlSize` | artwork (poster 112, landscape 220, episode 264, avatar 76, `portrait` 128), `control` 48, icons 20, marks 20, dots 8, setting rows 64, row previews 48, meter 10, `intertitleRule` 24 × 2, wordmark (`wordmark` 12, `wordmarkHero` 30) |
-| `HlLayout` | the screen grid, read by screens (`LayoutTokensTest`): reading widths (640, 520, caption 400), side columns (280, 340), pane top 72, the home hero band (168), `detailGap`, `detailHeroMin`, track table columns, `insetRows` |
+| `HlShapes` | radius follows hierarchy: `thumb` 4 (images up to 48 dp), `badge` 4, `mark` 6, `control` 10 (buttons, tiles, a tab's plate, menu options), `field` 10, `row` 12, `artwork` 12, `wide` 14, `panel` 16 (menus, source cards), `sheet` 24 (a side sheet's free corners, square against the edge). No pill, no disc: only a status dot is round, through a local `CircleShape`. Nested shapes keep parallel corners: **outer radius = inner radius + gap** (a menu: 10 + `HlMenuDefaults.inset` 6; a focus frame: the picture's + 3) (`ShapesTest`) |
+| `HlSize` | artwork (`poster` 120 × 180 in a row, `wallPoster` 112 × 168 on a wall, `landscape` 240 × 135, episode 264, `portrait` 96 at 3:4, `PORTRAIT_RATIO`), `control` 48 on a detail page and `controlCompact` 44 in a screen's header, `tile` 48 and `tileCompact` 40, icons 20, `mark` 22, dots 8, `newDot` 10 ringed `newDotRing` 2.5, setting rows `row` 60 and `sheetRow` 52, row previews 48, meter 10, `intertitleRule` 24 × 2, wordmark (`wordmark` 12, `wordmarkHero` 30) |
+| `HlLayout` | the screen grid, read by screens (`LayoutTokensTest`): reading widths (640, 520, caption 400), side columns (280, 340), pane top 72, the home hero band (148), `wallGutter` (seven posters across the safe area), `detailGap`, `detailHeroMin`, track table columns, `insetRows` |
 | `…Defaults` | internal component parts: `HlSideSheetDefaults` (520), `HlSettingRowDefaults` (value 360), `HlIconButtonDefaults` (label 200, edge 24), `HlMenuDefaults` (320), `TechSpecsDefaults`, `QrCodeDefaults` (module 6.5, whole pixels at 1080p and 4K), `BackdropDefaults` |
 | `HlControl` | padding of buttons, track options and badges; icon-to-text gap 8 |
-| `HlFocus` | focus scale by family (artwork 1.10, cards 1.06, pills and discs 1.04, panels 1.02, rows 1); `reach(size, scale)`; siblings stepping back (dim 0.3, saturation 0.3, `RECEDE_STEPS` 3); artwork glow 20; `edge` 28 |
+| `HlFocus` | growth by family (`POSTER_SCALE` 1.08, `WIDE_SCALE` 1.05, `PANEL_SCALE` 1.02, `CONTROL_SCALE` 1); the `frame` 2.5 `frameGap` 3 off the edge; `reach(size, scale)`, growth and frame, held by a row's `room` 16; siblings stepping back (`SIBLING_BRIGHTNESS` 0.64, `SIBLING_SATURATION` 0.65, `RECEDE_STEPS` 3); `glow` 28; `edge` 28 |
 
 ### Motion, icons, scrolling
 
 | Token | File | Content |
 |---|---|---|
-| `HlMotion`, `awaitMotion` | `Motion.kt` | `FAST` 150, `STANDARD` 250, `SLOW` 600, `DIM` 1000 ms; `lightsOut` (ease-out); `SETTLE` 300 ms before the title under focus changes the screen (`rememberSettled`); `SKELETON_DELAY` 400 ms; `HOLD` 400 ms, the longest anything waits for a picture; `WALL_DRIFT`; `ENTER_SCALE`. What follows a motion waits for its end (`awaitMotion`), never a fixed `delay`, so nothing waits with animations off |
+| `HlMotion`, `awaitMotion` | `Motion.kt` | two curves of the system's own: `focusPull` ("mise au point", 0.20 0.75 0.25 1) for what arrives, `fallBack` ("retombée", 0.45 0 0.55 1) for what leaves, and `lightsOut`; no Material curve, none drawn elsewhere, every tween names its easing (`MotionGuardTest`). `FOCUS_IN` 220 and `FOCUS_OUT` 260 ms, `PLATE_IN` 120 and `PLATE_OUT` 180, `TINT` 480 (linear, once settled), `WAIT_TURN` 1400 (looped); `FAST` 150, `STANDARD` 250, `SLOW` 600, `DIM` 1000 ms; `SETTLE` 300 ms before the title under focus changes the screen (`rememberSettled`); `SKELETON_DELAY` 400 ms; `HOLD` 400 ms, the longest anything waits for a picture; `WALL_DRIFT`; `ENTER_SCALE`. What follows a motion waits for its end (`awaitMotion`), never a fixed `delay`, so nothing waits with animations off |
 | `LocalHouseLights`, `HouseLightCue`, `LaunchCue`, `LocalLaunchScreen` | `Auditorium.kt` | house-light level (read while drawing), the playback and launch cues, the launch screen until the first screen is drawn whole |
 | `HlIcons` | `Icons.kt` | every icon, one drawing style (24 dp grid, 1.75 stroke, round caps and joins). Play is the one Material glyph, filled. A state that reads as on is the same drawing filled (`Heart`, `HeartFilled`). No other Material icon |
 | `rememberListScroll`, `ListScroll`, `RowScroll` | `Scroll.kt` | lists scroll only as needed (`EdgeScroll`) and keep focus `HlFocus.edge` from their ends; a list under a header brings rows back to its top (`ListScroll(top)`); rows keep focus 80 dp from the sides |
@@ -243,7 +253,7 @@ The screen is a TV seen from three metres, through overscan that may crop its ma
   keyline, and the gap between blocks (`HlLayout.detailGap`, 32) takes the previous one off screen. A detail
   page's first view is its hero plus the first row's header and a strip of images (`HlLayout.detailHeroMin`).
 - **Home is three bands** on `safeH`: the bar (track and settings button), the hero band (`HlLayout.hero`,
-  168: logo, one line of facts, two lines of overview or progress), the rows; `HlSpace.l` between them
+  148: logo, one line of facts, two lines of overview or progress), the rows; `HlSpace.l` between them
   (`HomeLayoutTest`).
 - **Three vertical gaps:** `HlSpace.s` within a block, `HlSpace.l` between home's bands, `HlSpace.xl` between
   the blocks of a scrolling page.
@@ -348,28 +358,33 @@ screen succeeds. Sources change in one place, `SourceSwitcher`.
 ## Focus
 
 Focus must read from the couch. It is defined in one place, `FocusStyle` (`components/FocusStyle.kt`), as
-projector white in three gestures:
+projector white in two gestures and a ring, all drawn by one surface, `HlFocusSurface`
+(`components/FocusSurface.kt`):
 
 | Gesture | For | Treatment |
 |---|---|---|
-| **Fill** (`FocusStyle.fill`) | controls, rows, track options | white fill, black content; pills and discs grow 1.04 (`CONTROL_SCALE`), rows not at all (`ROW_SCALE`) |
-| **Lift** (`FocusStyle.lift`) | artwork and panels | grow by family (`Lift.Artwork`, `Lift.Card`, `Lift.Panel`, 1.02 for panels) and take the white outline |
-| **Ring** (`FocusStyle.ring`) | what is read or typed in | white outline; a text field turns ember while typing |
+| **Frame** (`FocusStyle.frame`) | what carries its own light: pictures, panels, the main action | a white frame (`HlFocus.frame`) `HlFocus.frameGap` off the edge, its corners parallel; a picture grows by its `Lift` (`Lift.Poster`, `Lift.Wide`, `Lift.Panel`; `Lift.Still` frames without growing) and glows in its own tone. 220 ms on (`focusPull`), 260 off (`fallBack`) |
+| **Fill** (`FocusStyle.fill`) | plates: buttons, tiles, tabs, rows, menu options | white plate, black ink, nothing grows (`CONTROL_SCALE`). 120 ms on, 180 off |
+| **Ring** (`FocusStyle.ring`) | what is read or typed in, and what cannot act | white outline inside the edge; a field turns ember while typing |
 
-No component writes its own focused colour, border or scale, and every clickable surface takes one of the
-gestures (`FocusStyleGuardTest`).
+No component writes its own focused colour, frame or scale, and every focusable surface takes a gesture
+(`FocusStyleGuardTest`). tv-material's surfaces (their scale, glow and Material timing) are never drawn.
+`HlFocusSurface` clicks on OK's release and long-clicks when it is held, reads as one element with its role,
+and reads its light, growth and glow while drawing: focus moving recomposes a plate once, when its ink turns.
 
-- **Artwork** grows, gets a 2 dp outline and glows with its dominant tone (`rememberGlowColor`), drawn as
-  rings. Siblings step back (`SIBLING_DIM`, `SIBLING_SATURATION`). While an arrow is held, focus scrubs
-  across cards without growing or lighting them (`Scrub`).
-- **Track options**: the focused option is the white pill; the current one never is unless focused. Nothing
-  is brighter than focus. Focus entering a track lands on the current option (`focusProperties.enter`).
-- **Disabled controls** keep focus, outlined, never filled (`disabledRing`). A read-only row (the technical
-  sheet) is not disabled: it fills white and OK does nothing.
+- **Nothing is brighter than focus**, and ember never marks it: on a focused plate only marks stay lit, in
+  `emberOnLight`.
+- **Artwork** grows, takes the frame and glows with its dominant tone (`rememberGlowColor`), drawn as rings.
+  Siblings step back through their image's filter (`SIBLING_BRIGHTNESS`, `SIBLING_SATURATION`). While an
+  arrow is held, focus scrubs across cards: the frame shows at once, nothing grows or glows (`Scrub`).
+- **Track options**: the focused option is the white plate; the current one never is unless focused. Focus
+  entering a track lands on the current option (`focusProperties.enter`).
+- **Disabled controls** keep focus, ringed, never filled. A read-only row (the technical sheet) is not
+  disabled: it fills white and OK does nothing.
 - **Growth is a share of the size**, so each family has its own scale. `HlFocus.reach(size, scale)` gives
-  the room a container keeps (`FocusReachTest`).
+  the room a container keeps, frame included (`FocusReachTest`).
 - **Focus stays inside the safe area.** Lists stop it `HlFocus.edge` (28 dp) from the top and bottom and pad
-  their foot by as much; rows of cards keep `HlSpace.s` above and below for growth. Where content fades at an
+  their foot by as much; rows of cards keep `HlFocus.room` above and below for growth and frame. Where content fades at an
   edge, focus stays clear of the fade.
 - **Focus is never lost.** When its element disappears, it moves to a neighbour, else to the action that adds
   one ("Ajouter un dossier").
@@ -458,7 +473,8 @@ The player's GPU fills a 1080p screen only a few times per frame, so:
 | Test | Holds |
 |---|---|
 | `DesignTokenGuardTest` | no size, text size, font, colour, opacity or shape in a screen; no ember named in a screen; no arithmetic on tokens; no Material icon but Play; images only through `ArtworkImage`, `PosterThumb` or `RowPreview` |
-| `FocusStyleGuardTest` | focus defined in one place |
+| `FocusStyleGuardTest` | focus defined in one place, drawn by one surface; no tv-material surface |
+| `MotionGuardTest`, `ShapesTest` | the system's own curves only; radii by hierarchy, nested corners parallel, no pill or disc |
 | `ContrastTest`, `ScrimTest` | contrast pairs; veil floors and smoothness |
 | `TypeScaleTest`, `SpacingGridTest`, `LayoutTokensTest`, `GroundTest` | type scale, 4 dp grid, screen grid, grounds |
 | `ResourceTokensTest`, `StringsTest` | resources in step with tokens; typography of resources, every translation complete |
@@ -478,9 +494,9 @@ test.
 
 Debug builds show **Settings > About > Design system**: every token and component as a row of its states
 (rest, chosen, lit, loading, failed, empty), focus checked live with the remote. Sections live in
-`ui/catalog`: `CatalogScreen` (tokens, controls, sheets), `CatalogGestures`, `CatalogIcons`, `CatalogForms`,
-`CatalogCards`, `CatalogReading`, `CatalogStress` (longest labels, largest text size, fallback scripts, device
-metrics) and `CatalogBrand`.
+`ui/catalog`: `CatalogScreen` (tokens, controls, sheets), `CatalogFocus` (shapes, and focus in its gestures),
+`CatalogGestures`, `CatalogIcons`, `CatalogForms`, `CatalogCards`, `CatalogReading`, `CatalogStress` (longest
+labels, largest text size, fallback scripts, device metrics) and `CatalogBrand`.
 
 ## Adding a screen
 

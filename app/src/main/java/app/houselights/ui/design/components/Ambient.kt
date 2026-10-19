@@ -54,7 +54,7 @@ fun rememberAmbientColor(image: ImageRef?): State<Color> {
         if (light.value == Color.Transparent && launch.covers) {
             light.snapTo(target)
         } else {
-            light.animateTo(target, tween(HlMotion.SLOW, easing = HlMotion.standard))
+            light.animateTo(target, tween(HlMotion.SLOW, easing = HlMotion.fallBack))
         }
     }
     return light.asState()
@@ -125,7 +125,7 @@ private val glowTones = object : LinkedHashMap<String, Color>(GLOW_TONES, 0.75f,
 
 private const val GLOW_TONES = 200
 
-/** A focused card's glow: the main tone of its artwork at [url] ([glowOf]), animated with [active]. */
+/** A card's glow: the main tone of its artwork at [url] ([glowOf]), sampled once [active]; focus lights it. */
 @Composable
 fun rememberGlowColor(url: String?, active: Boolean): State<Color> {
     val context = LocalContext.current
@@ -139,8 +139,7 @@ fun rememberGlowColor(url: String?, active: Boolean): State<Color> {
             tone = found
         }
     }
-    val target = if (active) tone ?: Color.Transparent else Color.Transparent
-    return animateColorAsState(target, tween(HlMotion.STANDARD, easing = HlMotion.standard), label = "glow")
+    return animateColorAsState(tone ?: Color.Transparent, tween(HlMotion.FOCUS_IN, easing = HlMotion.focusPull), label = "glow")
 }
 
 /** The tone covering most of the picture, weighted by area and saturation: a red title on teal glows teal. */

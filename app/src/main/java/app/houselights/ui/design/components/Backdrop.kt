@@ -370,7 +370,7 @@ internal fun <T> FadeBetween(
         shown.forEach { state ->
             key(state) {
                 val alpha = transition.animateFloat(
-                    transitionSpec = { if (atOnce(targetState)) snap() else tween(HlMotion.SLOW, easing = HlMotion.standard) },
+                    transitionSpec = { if (atOnce(targetState)) snap() else tween(HlMotion.SLOW, easing = HlMotion.fallBack) },
                     label = "backdropAlpha",
                 ) { if (it == state) 1f else 0f }
                 // Opaque from the first frame it is drawn, before the transition's first step.

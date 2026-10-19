@@ -48,7 +48,6 @@ import androidx.tv.material3.Text
 import app.houselights.ui.design.HlMenuDefaults
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlIcons
-import app.houselights.ui.design.HlInset
 import app.houselights.ui.design.HlMotion
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
@@ -153,11 +152,11 @@ private fun MenuPanel(sections: List<MenuSection>, maxHeight: Dp, motion: SheetM
                 transformOrigin = position.origin
             },
         level = PanelLevel.Raised,
-        padding = HlInset.tight,
-        shape = HlShapes.sheet,
+        padding = HlMenuDefaults.inset,
+        shape = HlShapes.panel,
     ) {
         val scroll = rememberScrollState()
-        Column(Modifier.scrollEdges(scroll, c.surfaceRaised).verticalScroll(scroll)) {
+        Column(Modifier.scrollEdges(scroll, c.glass).verticalScroll(scroll)) {
         sections.forEachIndexed { s, section ->
             if (s > 0) {
                 Spacer(Modifier.height(HlSpace.s))
@@ -192,6 +191,7 @@ private fun MenuItem(label: String, selected: Boolean, onClick: () -> Unit, modi
         onClick = onClick,
         modifier = modifier.fillMaxWidth().height(HlSize.segment).semantics { this.selected = selected },
         restContent = if (selected) c.content else c.contentSecondary,
+        shape = HlShapes.control,
     ) { focused ->
         Row(Modifier.fillMaxHeight().padding(horizontal = HlSpace.s), verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.size(HlSize.icon)) {

@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.ui.Alignment
@@ -21,7 +22,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.tv.material3.Text
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlLayout
-import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
 
@@ -82,8 +82,8 @@ fun SpecTable(rows: List<SpecTableRow>, columns: List<Dp>, modifier: Modifier = 
                     Box(
                         Modifier
                             .align(Alignment.CenterVertically)
-                            .size(HlSize.dot)
-                            .clip(HlShapes.avatar)
+                            // A status dot is the one round thing.
+                            .size(HlSize.dot).clip(CircleShape)
                             .then(if (row.inUse) Modifier.background(c.ember) else Modifier),
                     )
                     Spacer(Modifier.width(HlSpace.s))

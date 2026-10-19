@@ -20,12 +20,13 @@ class HomeLayoutTest {
     private val rowsTop = HlSpace.safeV + HlSize.control + HlSpace.l + HlLayout.hero + HlSpace.l
 
     /** Where a row's cards start: its header and the room kept above a growing card. */
-    private val cardsTop = rowsTop + sp(HouselightsType.lead.lineHeight.value) + HlSpace.xxs + HlSpace.s
+    private val cardsTop = rowsTop + sp(HouselightsType.lead.lineHeight.value) + HlSpace.xxs + HlFocus.room
 
     @Test
     fun aFocusedPosterOfTheFirstRowStaysInsideTheSafeArea() {
         val poster = HlSize.poster * 3 / 2
-        val grown = HlFocus.reach(poster, HlFocus.ARTWORK_SCALE)
+        // Its growth and its frame.
+        val grown = HlFocus.reach(poster, HlFocus.POSTER_SCALE)
         val bottom = cardsTop + poster + grown
         assertTrue("a focused poster ends at $bottom", bottom <= safeBottom)
     }

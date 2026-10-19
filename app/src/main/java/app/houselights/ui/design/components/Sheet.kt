@@ -105,7 +105,7 @@ internal fun rememberSheetMotion(onDismiss: () -> Unit): SheetMotion {
         }
     }
     val transition = rememberTransition(shown, label = "sheet")
-    val progress = transition.animateFloat({ tween(HlMotion.STANDARD, easing = HlMotion.emphasized) }, label = "sheetProgress") {
+    val progress = transition.animateFloat({ tween(HlMotion.STANDARD, easing = HlMotion.focusPull) }, label = "sheetProgress") {
         if (it) 1f else 0f
     }
     if (shown.isIdle && !shown.currentState) {
@@ -178,7 +178,7 @@ fun HlSideSheet(
                 .width(HlSideSheetDefaults.width)
                 .fillMaxHeight()
                 .graphicsLayer { translationX = size.width * (1f - progress()) }
-                .background(Hl.colors.surfaceRaised),
+                .background(Hl.colors.glass),
         ) {
             HlDivider(vertical = true)
             Column(
@@ -192,7 +192,7 @@ fun HlSideSheet(
                 Spacer(Modifier.height(HlSpace.m))
                 // Its rows fade into the sheet where there are more.
                 Column(
-                    Modifier.weight(1f).scrollEdges(scroll, Hl.colors.surfaceRaised).verticalScroll(scroll),
+                    Modifier.weight(1f).scrollEdges(scroll, Hl.colors.glass).verticalScroll(scroll),
                     verticalArrangement = Arrangement.spacedBy(HlSpace.xxs),
                 ) { content(sheet) }
                 Spacer(Modifier.height(HlSpace.m))
@@ -293,7 +293,7 @@ private fun ConfirmCard(question: String, consequence: String, confirm: String, 
     Intertitle(question, message = consequence, attention = true) {
         Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.s)) {
             HlButton(stringResource(R.string.cancel), onClick = onCancel, modifier = Modifier.focusRequester(cancel))
-            PillButton(confirm, onClick = onConfirm, caution = true)
+            ButtonPlate(confirm, onClick = onConfirm, caution = true)
         }
     }
 }
@@ -328,14 +328,14 @@ fun RowPreview(image: ImageRef?, shape: PreviewShape, modifier: Modifier = Modif
             description = null,
             contentScale = if (logo) ContentScale.Fit else ContentScale.Crop,
             picture = frame
-                .clip(HlShapes.artwork)
+                .clip(HlShapes.thumb)
                 .background(if (logo) c.background else groundStepFill())
                 .padding(if (logo) HlSpace.xxs else HlSpace.none),
         ) {
             if (icon != null) {
                 Icon(icon, contentDescription = null, tint = c.contentSecondary, modifier = Modifier.size(HlSize.discIcon))
             } else {
-                EmptyFrame(frame)
+                EmptyFrame(frame, HlShapes.thumb)
             }
         }
     }

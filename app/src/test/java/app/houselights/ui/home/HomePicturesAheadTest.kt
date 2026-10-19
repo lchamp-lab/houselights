@@ -4,6 +4,7 @@ import android.app.Application
 import android.os.Looper
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.test.core.app.ApplicationProvider
+import app.houselights.IMAGE_MEMORY_BYTES
 import app.houselights.core.HomeSection
 import app.houselights.core.ImageRef
 import app.houselights.core.MediaItem
@@ -63,9 +64,12 @@ class HomePicturesAheadTest {
         }
     }
 
+    /** The app's memory budget: Robolectric's default, a share of a 16 MB heap, holds less than home's first view. */
+    private fun memory() = MemoryCache.Builder(context).maxSizeBytes(IMAGE_MEMORY_BYTES).build()
+
     /** Every address answers at once, on the thread that asks: each load is over when it returns. */
     private val loader = ImageLoader.Builder(context).dispatcher(Dispatchers.Unconfined).components { add(pictureServer()) }
-        .eventListener(listener).build()
+        .memoryCache(::memory).eventListener(listener).build()
 
     @After
     fun forgetTheLoader() = Coil.reset()
@@ -114,7 +118,7 @@ class HomePicturesAheadTest {
         val (loaded, shown) = loadAheadThenShow(sections)
         assertTheSame(loaded, shown)
         // The hero's three, and the posters of the first row that start on the screen.
-        assertEquals(3 + 8, loaded.size)
+        assertEquals(3 + 7, loaded.size)
         assertEquals("the first row's posters home asked for", firstRow(shown, "poster/"), firstRow(loaded, "poster/"))
     }
 
@@ -143,7 +147,7 @@ class HomePicturesAheadTest {
         val waiting = ImageLoader.Builder(context).components {
             add(slow)
             add(AwaitAhead)
-        }.eventListener(listener).build()
+        }.memoryCache(::memory).eventListener(listener).build()
         Coil.setImageLoader(waiting)
         val sections = listOf(HomeSection(SectionType.LATEST, (1..12).map(::film), landscape = false, libraryId = "films"))
         val ahead = firstPictures(PicturesAhead(context, context.resources.displayMetrics.widthPixels), sections)

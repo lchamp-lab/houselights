@@ -414,7 +414,7 @@ private fun rememberRecede(away: () -> Boolean): Animatable<Float, *> {
         var first = true
         snapshotFlow(away).collect { down ->
             val target = if (down) 1f else 0f
-            if (first) recede.snapTo(target) else recede.animateTo(target, tween(HlMotion.SLOW, easing = HlMotion.standard))
+            if (first) recede.snapTo(target) else recede.animateTo(target, tween(HlMotion.SLOW, easing = HlMotion.fallBack))
             first = false
         }
     }
