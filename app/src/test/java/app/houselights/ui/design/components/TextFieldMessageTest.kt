@@ -1,6 +1,5 @@
 package app.houselights.ui.design.components
 
-import android.app.Application
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -20,7 +19,7 @@ import org.robolectric.annotation.Config
 
 /** DESIGN.md, Components: one line under an [HlTextField], the hint or the error, also given to accessibility. */
 @RunWith(RobolectricTestRunner::class)
-@Config(application = Application::class, qualifiers = TV)
+@Config(qualifiers = TV)
 class TextFieldMessageTest {
     @get:Rule
     val compose = createComposeRule()

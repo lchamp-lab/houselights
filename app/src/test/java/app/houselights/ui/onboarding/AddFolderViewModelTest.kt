@@ -6,7 +6,6 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.ViewModelStore
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
-import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import app.houselights.core.Secrets
 import app.houselights.providers.local.ArtworkCache
@@ -18,9 +17,10 @@ import app.houselights.providers.local.LocalLibrary
 import app.houselights.providers.local.Protocol
 import app.houselights.providers.local.ScanErrorKind
 import app.houselights.providers.local.Secret
-import app.houselights.providers.local.SecretConverter
 import app.houselights.providers.local.SourceEntity
 import app.houselights.providers.local.SourceKind
+import app.houselights.providers.local.onCallingThread
+import app.houselights.providers.local.testDatabase
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -47,7 +47,6 @@ import org.robolectric.RobolectricTestRunner
 import app.houselights.ui.util.UiError
 import java.io.IOException
 import java.security.ProviderException
-import javax.crypto.KeyGenerator
 import app.houselights.ui.testing.SettleMainLooper
 import org.junit.Rule
 
@@ -80,14 +79,7 @@ class AddFolderViewModelTest {
     fun open() = runBlocking {
         Dispatchers.setMain(main)
         val context = ApplicationProvider.getApplicationContext<Context>()
-        val key = KeyGenerator.getInstance("AES").apply { init(256) }.generateKey()
-        db = Room.inMemoryDatabaseBuilder(context, LibraryDatabase::class.java)
-            .addTypeConverter(SecretConverter(Secrets { key }))
-            .allowMainThreadQueries()
-            // Queries answer on the test's own thread, so that its scheduler sees every step.
-            .setQueryExecutor(Runnable::run)
-            .setTransactionExecutor(Runnable::run)
-            .build()
+        db = testDatabase { onCallingThread() }
         dao = db.dao()
         val artwork = ArtworkCache(context.cacheDir.resolve("artwork"))
         // The scan asked after a save never runs: it would go to the network.
@@ -453,12 +445,7 @@ class AddFolderViewModelTest {
     @Test
     fun aPasswordTheKeystoreCannotSealSaysWhy() = runTest {
         val context = ApplicationProvider.getApplicationContext<Context>()
-        val broken = Room.inMemoryDatabaseBuilder(context, LibraryDatabase::class.java)
-            .addTypeConverter(SecretConverter(Secrets { throw ProviderException("Keystore operation failed") }))
-            .allowMainThreadQueries()
-            .setQueryExecutor(Runnable::run)
-            .setTransactionExecutor(Runnable::run)
-            .build()
+        val broken = testDatabase(Secrets { throw ProviderException("Keystore operation failed") }) { onCallingThread() }
         try {
             val artwork = ArtworkCache(context.cacheDir.resolve("artwork"))
             val idle = CoroutineScope(Job().apply { cancel() })

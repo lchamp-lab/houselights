@@ -1,6 +1,5 @@
 package app.houselights.ui.design
 
-import android.app.Application
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -29,7 +28,7 @@ import org.robolectric.annotation.Config
 
 /** DESIGN.md, Focus: focus returns to what was left, by identity, and a list changing under it never moves it. */
 @RunWith(RobolectricTestRunner::class)
-@Config(application = Application::class, qualifiers = TV)
+@Config(qualifiers = TV)
 class RestoreFocusTest {
     @get:Rule
     val compose = createComposeRule()

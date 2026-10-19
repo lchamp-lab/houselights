@@ -1,5 +1,6 @@
 package app.houselights.ui.design
 
+import app.houselights.testing.kotlinSources
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
@@ -26,7 +27,7 @@ class CatalogCoverageTest {
         val declared = components.listFiles { f -> f.extension == "kt" }.orEmpty()
             .flatMap { file -> publicFun.findAll(file.readText()).map { it.groupValues[1] }.toList() }
             .toSortedSet()
-        val shown = catalog.walkTopDown().filter { it.isFile && it.extension == "kt" }.joinToString("\n") { it.readText() }
+        val shown = kotlinSources(catalog).joinToString("\n") { it.readText() }
         val missing = declared.filter { it !in elsewhere && !Regex("""\b$it\s*[({]""").containsMatchIn(shown) }
         assertTrue("Not in the catalogue: ${missing.joinToString()}", missing.isEmpty())
         val stale = elsewhere.keys - declared

@@ -1,6 +1,5 @@
 package app.houselights.ui.design
 
-import android.app.Application
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -20,7 +19,7 @@ import org.robolectric.annotation.Config
 
 /** Heights holding a line of text grow with the text size as much as the line (non-linearly from Android 14). */
 @RunWith(RobolectricTestRunner::class)
-@Config(application = Application::class, qualifiers = TV)
+@Config(qualifiers = TV)
 class TextRoomTest {
     @get:Rule
     val compose = createComposeRule()

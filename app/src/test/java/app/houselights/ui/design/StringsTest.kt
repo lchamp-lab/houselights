@@ -1,11 +1,12 @@
 package app.houselights.ui.design
 
+import app.houselights.testing.children
+import app.houselights.testing.xmlRoot
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.w3c.dom.Element
 import java.io.File
-import javax.xml.parsers.DocumentBuilderFactory
 
 /** DESIGN.md, Writing, checked on the resources: typography, and every language saying what English says. */
 class StringsTest {
@@ -124,19 +125,12 @@ class StringsTest {
     private val Element.key get() = "${tagName}/${getAttribute("name")}"
 
     /** The strings, plurals and arrays of a resource file. */
-    private fun resources(file: File): List<Element> {
-        val root = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(file).documentElement
-        return (0 until root.childNodes.length).mapNotNull { root.childNodes.item(it) as? Element }
-            .filter { it.tagName in setOf("string", "plurals", "string-array") }
-    }
+    private fun resources(file: File): List<Element> = xmlRoot(file).children("string", "plurals", "string-array")
 
     /** The format specifiers of each text of a string or plural (by quantity), by argument. */
     private fun formats(resource: Element): Map<String, Map<Int, String>> =
         if (resource.tagName == "plurals") {
-            resource.getElementsByTagName("item").let { items ->
-                (0 until items.length).map { items.item(it) as Element }
-                    .associate { it.getAttribute("quantity") to specifiers(it.textContent) }
-            }
+            resource.children("item").associate { it.getAttribute("quantity") to specifiers(it.textContent) }
         } else {
             texts(resource).withIndex().associate { (i, text) -> "$i" to specifiers(text) }
         }
@@ -154,7 +148,7 @@ class StringsTest {
         if (resource.tagName == "string") {
             listOf(resource.textContent)
         } else {
-            resource.getElementsByTagName("item").let { items -> (0 until items.length).map { items.item(it).textContent } }
+            resource.children("item").map { it.textContent }
         }
 
     private companion object {

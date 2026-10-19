@@ -1,13 +1,11 @@
 package app.houselights.providers.local
 
-import androidx.room.Room
 import androidx.room.withTransaction
 import androidx.test.core.app.ApplicationProvider
 import app.houselights.core.Job
 import app.houselights.core.Library
 import app.houselights.core.LibraryFilter
 import app.houselights.core.LibraryKind
-import app.houselights.core.Secrets
 import app.houselights.core.SectionType
 import app.houselights.core.SortOption
 import kotlinx.coroutines.runBlocking
@@ -22,7 +20,6 @@ import org.robolectric.RobolectricTestRunner
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicInteger
-import javax.crypto.KeyGenerator
 
 /** Query counts for home and a library page on a real-sized library, guarding against a query per title. */
 @RunWith(RobolectricTestRunner::class)
@@ -36,18 +33,16 @@ class LargeLibraryTest {
 
     @Before
     fun fill() = runBlocking {
-        val key = KeyGenerator.getInstance("AES").apply { init(256) }.generateKey()
         roomWork = Executors.newSingleThreadExecutor()
-        db = Room.inMemoryDatabaseBuilder(ApplicationProvider.getApplicationContext(), LibraryDatabase::class.java)
-            .addTypeConverter(SecretConverter(Secrets { key }))
-            .setQueryCallback({ _, _ -> queries.incrementAndGet() }, Runnable::run)
-            .setQueryExecutor(roomWork)
-            .allowMainThreadQueries()
-            .build()
+        db = testDatabase {
+            setQueryCallback({ _, _ -> queries.incrementAndGet() }, Runnable::run)
+            setQueryExecutor(roomWork)
+            allowMainThreadQueries()
+        }
         val dao = db.dao()
-        provider = LocalProvider(ApplicationProvider.getApplicationContext(), dao, LocalProviderTest.NoEditor)
-        val films = dao.insertSource(source("Films", SourceKind.MOVIES))
-        val shows = dao.insertSource(source("Séries", SourceKind.SHOWS))
+        provider = LocalProvider(ApplicationProvider.getApplicationContext(), dao, NoEditor)
+        val films = dao.insertSource(nfsFolder())
+        val shows = dao.insertSource(nfsFolder("Séries", SourceKind.SHOWS))
         val nfo = "<movie><plot>${"x".repeat(NFO_BYTES)}</plot></movie>"
         db.withTransaction {
             run {
@@ -95,11 +90,6 @@ class LargeLibraryTest {
         db.close()
         roomWork.shutdown()
     }
-
-    private fun source(name: String, kind: SourceKind) = SourceEntity(
-        name = name, kind = kind, protocol = Protocol.NFS, host = "nas", share = "media", path = name, username = "",
-        password = Secret(""),
-    )
 
     @Suppress("LongParameterList")
     private fun item(

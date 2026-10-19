@@ -1,8 +1,7 @@
 package app.houselights.providers.local
 
-import androidx.room.Room
-import androidx.test.core.app.ApplicationProvider
 import app.houselights.core.Secrets
+import app.houselights.testing.testSecrets
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -12,19 +11,15 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import java.security.ProviderException
-import javax.crypto.KeyGenerator
 
 @RunWith(RobolectricTestRunner::class)
 class LibraryDatabaseTest {
     private lateinit var db: LibraryDatabase
-    private val key = KeyGenerator.getInstance("AES").apply { init(256) }.generateKey()
-    private val secrets = Secrets { key }
+    private val secrets = testSecrets()
 
     @Before
     fun open() {
-        db = Room.inMemoryDatabaseBuilder(ApplicationProvider.getApplicationContext(), LibraryDatabase::class.java)
-            .addTypeConverter(SecretConverter(secrets))
-            .build()
+        db = testDatabase(secrets)
     }
 
     @After
@@ -42,10 +37,7 @@ class LibraryDatabaseTest {
 
     @Test
     fun sourcesRoundTrip() = runTest {
-        val source = SourceEntity(
-            name = "Films", kind = SourceKind.MOVIES, host = "nas", share = "media", path = "films", username = "", password = Secret(""),
-        )
-        val id = db.dao().insertSource(source)
+        val id = db.dao().insertSource(nfsFolder())
         assertEquals(listOf("Films"), db.dao().sources().map { it.name })
         assertEquals(id, db.dao().sources().single().id)
     }

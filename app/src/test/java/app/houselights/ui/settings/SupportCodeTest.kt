@@ -1,11 +1,11 @@
 package app.houselights.ui.settings
 
+import app.houselights.testing.descendants
+import app.houselights.testing.xmlRoot
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import org.w3c.dom.Element
 import java.io.File
-import javax.xml.parsers.DocumentBuilderFactory
 
 /**
  * The About support code (`support_qr.xml`) still opens the project's Ko-fi page, decoded as a phone would:
@@ -38,13 +38,12 @@ class SupportCodeTest {
 
     /** The dark modules of the drawable, row by row: one path of runs, each "Mx,yhNv1h-Nz". */
     private fun modules(): Array<BooleanArray> {
-        assertTrue("Drawable not found from ${File(".").absolutePath}", drawable.isFile)
-        val vector = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(drawable).documentElement
+        val vector = xmlRoot(drawable)
         assertEquals("$SIZE", vector.getAttribute("android:viewportWidth"))
         assertEquals("$SIZE", vector.getAttribute("android:viewportHeight"))
-        val paths = vector.getElementsByTagName("path")
-        assertEquals(1, paths.length)
-        val pathData = (paths.item(0) as Element).getAttribute("android:pathData")
+        val paths = vector.descendants("path")
+        assertEquals(1, paths.size)
+        val pathData = paths.single().getAttribute("android:pathData")
         val code = Array(SIZE) { BooleanArray(SIZE) }
         var end = 0
         RUN.findAll(pathData).forEach { run ->

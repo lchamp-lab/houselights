@@ -1,6 +1,5 @@
 package app.houselights
 
-import android.app.Application
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
@@ -19,11 +18,9 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
-import org.robolectric.annotation.Config
 
 /** A wall opened through navigation reads its filter back from its saved state, under its ViewModel's keys. */
 @RunWith(RobolectricTestRunner::class)
-@Config(application = Application::class)
 class WallRouteNavigationTest {
     class Kept(val handle: SavedStateHandle) : ViewModel()
 

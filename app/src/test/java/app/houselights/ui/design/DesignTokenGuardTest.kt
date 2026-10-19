@@ -1,12 +1,15 @@
 package app.houselights.ui.design
 
+import app.houselights.testing.kotlinSources
+import app.houselights.testing.linesWhere
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
 
 /** Fails on a screen that hard-codes a colour, size or font instead of `ui/design`'s tokens and components. */
 class DesignTokenGuardTest {
-    private val ui = File("src/main/java/app/houselights/ui")
+    private val sources = File("src/main/java")
+    private val ui = sources.resolve("app/houselights/ui")
 
     /** What a screen may not write itself, and what to use instead. */
     private val rules = listOf(
@@ -38,10 +41,8 @@ class DesignTokenGuardTest {
 
     @Test
     fun screensUseTheDesignSystem() {
-        assertTrue("UI sources not found from ${File(".").absolutePath}", ui.isDirectory)
         val design = ui.resolve("design")
-        val violations = ui.walkTopDown()
-            .filter { it.isFile && it.extension == "kt" && !it.startsWith(design) }
+        val violations = kotlinSources(ui).filter { !it.startsWith(design) }
             .flatMap { file ->
                 val path = file.relativeTo(ui).path
                 file.readLines().mapIndexedNotNull { i, line ->
@@ -52,36 +53,21 @@ class DesignTokenGuardTest {
                     "$path:${i + 1}: ${rule.second}\n    ${line.trim()}"
                 }
             }
-            .toList()
         assertTrue("Screens go around the design system:\n" + violations.joinToString("\n"), violations.isEmpty())
     }
 
     /** A message goes where the action was, in the app's own voice: never in a system Toast. */
     @Test
     fun noToast() {
-        val sources = File("src/main/java")
-        assertTrue("Sources not found from ${File(".").absolutePath}", sources.isDirectory)
         val toast = Regex("""\bandroid\.widget\.Toast\b""")
-        val found = sources.walkTopDown()
-            .filter { it.isFile && it.extension == "kt" && toast.containsMatchIn(it.readText()) }
-            .map { it.relativeTo(sources).path }
-            .toList()
+        val found = kotlinSources(sources).filter { toast.containsMatchIn(it.readText()) }.map { it.relativeTo(sources).path }
         assertTrue("Toast in: ${found.joinToString()}", found.isEmpty())
     }
 
     /** One icon family (`HlIcons`) everywhere; Play alone comes from Material, filled, as on a remote. */
     @Test
     fun oneFamilyOfIcons() {
-        val sources = File("src/main/java")
-        assertTrue("Sources not found from ${File(".").absolutePath}", sources.isDirectory)
-        val found = sources.walkTopDown()
-            .filter { it.isFile && it.extension == "kt" }
-            .flatMap { file ->
-                file.readLines().mapIndexedNotNull { i, line ->
-                    if (materialIcon.containsMatchIn(line)) "${file.relativeTo(sources).path}:${i + 1}: ${line.trim()}" else null
-                }
-            }
-            .toList()
+        val found = kotlinSources(sources).linesWhere(sources) { materialIcon.containsMatchIn(it) }
         assertTrue("Material icons, draw them in HlIcons:\n" + found.joinToString("\n"), found.isEmpty())
     }
 

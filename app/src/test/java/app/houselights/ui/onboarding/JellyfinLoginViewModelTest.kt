@@ -13,8 +13,9 @@ import app.houselights.providers.jellyfin.PublicSystemInfo
 import app.houselights.providers.jellyfin.UserDto
 import app.houselights.settings.SettingsStore
 import app.houselights.settings.SourceSwitcher
+import app.houselights.testing.http
+import app.houselights.testing.testSecrets
 import app.houselights.ui.testing.MainDispatcherRule
-import app.houselights.ui.testing.testSecrets
 import app.houselights.ui.testing.testSettings
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
@@ -26,7 +27,6 @@ import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withContext
-import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -36,8 +36,6 @@ import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
-import retrofit2.HttpException
-import retrofit2.Response
 import java.io.IOException
 import java.security.ProviderException
 import app.houselights.ui.testing.SettleMainLooper
@@ -129,7 +127,7 @@ class JellyfinLoginViewModelTest {
 
     @Test
     fun aRefusedPasswordSaysSo() = runTest {
-        network.authFailure = HttpException(Response.error<Unit>(401, "".toResponseBody()))
+        network.authFailure = http(401)
         assertEquals(LoginError.Refused, failure())
     }
 

@@ -1,8 +1,5 @@
 package app.houselights.providers.local
 
-import androidx.room.Room
-import androidx.test.core.app.ApplicationProvider
-import app.houselights.core.Secrets
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.awaitCancellation
@@ -27,7 +24,6 @@ import java.net.ConnectException
 import java.net.SocketTimeoutException
 import java.util.Collections
 import java.util.concurrent.atomic.AtomicInteger
-import javax.crypto.KeyGenerator
 
 /** Whole scans of a folder on a NAS held in memory, without TMDB, on an in-memory database. */
 @RunWith(RobolectricTestRunner::class)
@@ -69,10 +65,8 @@ class LibraryScannerTest {
 
     @Before
     fun open() = runBlocking {
-        val key = KeyGenerator.getInstance("AES").apply { init(256) }.generateKey()
-        db = Room.inMemoryDatabaseBuilder(ApplicationProvider.getApplicationContext(), LibraryDatabase::class.java)
-            .addTypeConverter(SecretConverter(Secrets { key }))
-            .setQueryCallback({ sql, args ->
+        db = testDatabase {
+            setQueryCallback({ sql, args ->
                 widest.accumulateAndGet(args.size, ::maxOf)
                 if (recording) statements += sql
                 when {
@@ -80,7 +74,7 @@ class LibraryScannerTest {
                     sql.startsWith("END") -> depth.decrementAndGet()
                 }
             }, Runnable::run)
-            .build()
+        }
         dao = db.dao()
         scanner = LibraryScanner(
             dao = dao,
@@ -107,12 +101,7 @@ class LibraryScannerTest {
     fun close() = db.close()
 
     private suspend fun folder(name: String, kind: SourceKind, host: String = "nas"): SourceEntity {
-        val id = dao.insertSource(
-            SourceEntity(
-                name = name, kind = kind, protocol = Protocol.NFS, host = host, share = "media", path = name.lowercase(),
-                username = "", password = Secret(""),
-            )
-        )
+        val id = dao.insertSource(nfsFolder(name, kind, host = host))
         return checkNotNull(dao.source(id))
     }
 
@@ -635,7 +624,7 @@ class LibraryScannerTest {
 
     @Test
     fun aFileRenamedAloneIsNotReadAgain() = runTest {
-        nas.put("Dune (2021) Remux-2160p.mkv", size = 80_000_000_000, bytes = MkvProbeTest().sampleFile())
+        nas.put("Dune (2021) Remux-2160p.mkv", size = 80_000_000_000, bytes = Matroska.sample())
         scan()
         val dune = dao.filesOf(films.id).single()
 
@@ -651,7 +640,7 @@ class LibraryScannerTest {
         assertEquals("Dune (2021) {imdb-tt1160419} Remux-2160p.mkv", renamed.filePath)
         assertEquals("the same size, the same file", emptyList<String>(), nas.reads)
         assertEquals(dune.mediaInfo, renamed.mediaInfo)
-        assertEquals(REMUX_BADGES, renamed.badges)
+        assertEquals(Matroska.SAMPLE_BADGES, renamed.badges)
         assertTrue("screens learn the new name", changes.get() > 0)
     }
 
@@ -674,7 +663,7 @@ class LibraryScannerTest {
         assertEquals(emptyList<String>(), dao.filesOf(films.id).single().badges)
 
         // A remux in its place, under the same name; or the rest of a file read while it was copied.
-        nas.put("Dune (2021).mkv", size = 80_000_000_000, bytes = MkvProbeTest().sampleFile())
+        nas.put("Dune (2021).mkv", size = 80_000_000_000, bytes = Matroska.sample())
         nas.reads.clear()
         scan()
 
@@ -682,7 +671,7 @@ class LibraryScannerTest {
         assertEquals(listOf("Dune (2021).mkv"), nas.reads)
         assertEquals(80_000_000_000L, dune.fileSize)
         assertEquals(80_000_000_000L, MediaProbe.decode(dune.mediaInfo)?.sizeBytes)
-        assertEquals(REMUX_BADGES, dune.badges)
+        assertEquals(Matroska.SAMPLE_BADGES, dune.badges)
 
         nas.reads.clear()
         scan()
@@ -696,14 +685,14 @@ class LibraryScannerTest {
         showsNas.put(pilot, size = 2_000_000_000)
         scan()
 
-        showsNas.put(pilot, size = 9_000_000_000, bytes = MkvProbeTest().sampleFile())
+        showsNas.put(pilot, size = 9_000_000_000, bytes = Matroska.sample())
         showsNas.reads.clear()
         scan()
 
         val episode = dao.filesOf(shows.id).single()
         assertEquals(listOf(pilot), showsNas.reads)
         assertEquals(9_000_000_000L, episode.fileSize)
-        assertEquals(REMUX_BADGES, episode.badges)
+        assertEquals(Matroska.SAMPLE_BADGES, episode.badges)
 
         showsNas.reads.clear()
         scan()
@@ -756,7 +745,6 @@ class LibraryScannerTest {
     }
 
     private companion object {
-        val REMUX_BADGES = listOf("4K", "Dolby Vision", "HDR10", "TrueHD Atmos", "7.1")
         const val ANDROID_9_LIMIT = 999
         const val A_FEW_TRANSACTIONS = 20
         const val START = 1_800_000_000_000L

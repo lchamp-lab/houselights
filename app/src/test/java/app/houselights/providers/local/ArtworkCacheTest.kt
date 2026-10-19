@@ -28,10 +28,7 @@ class ArtworkCacheTest {
     @get:Rule
     val temp = TemporaryFolder()
 
-    private val source = SourceEntity(
-        id = 1, name = "Films", kind = SourceKind.MOVIES, protocol = Protocol.NFS, host = "nas", share = "media",
-        path = "films", username = "", password = Secret(""),
-    )
+    private val source = nfsFolder(id = 1)
 
     private fun file(dir: File, path: String, size: Int) = File(dir, path).apply {
         parentFile!!.mkdirs()

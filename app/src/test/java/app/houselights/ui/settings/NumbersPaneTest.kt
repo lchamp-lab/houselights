@@ -1,6 +1,5 @@
 package app.houselights.ui.settings
 
-import android.app.Application
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.ui.Modifier
@@ -30,7 +29,7 @@ import org.robolectric.annotation.Config
 
 /** The library in numbers: three figures, then rows that open what they count; Jellyfin shows its titles alone. */
 @RunWith(RobolectricTestRunner::class)
-@Config(application = Application::class, qualifiers = "fr-$TV")
+@Config(qualifiers = "fr-$TV")
 class NumbersPaneTest {
     @get:Rule
     val compose = createComposeRule()

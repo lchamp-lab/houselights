@@ -1,11 +1,9 @@
 package app.houselights.providers.local
 
-import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import app.houselights.core.Library
 import app.houselights.core.LibraryFilter
 import app.houselights.core.LibraryKind
-import app.houselights.core.Secrets
 import app.houselights.core.SortOption
 import app.houselights.core.WatchStatus
 import kotlinx.coroutines.runBlocking
@@ -19,7 +17,6 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import java.util.Collections
-import javax.crypto.KeyGenerator
 
 /**
  * The hand-written [ITEM_ROW] and [CARD_ROW] match Room's [ItemEntity] table (a missing column reads null
@@ -33,20 +30,13 @@ class ItemRowTest {
 
     @Before
     fun open() = runBlocking {
-        val key = KeyGenerator.getInstance("AES").apply { init(256) }.generateKey()
-        db = Room.inMemoryDatabaseBuilder(ApplicationProvider.getApplicationContext(), LibraryDatabase::class.java)
-            .addTypeConverter(SecretConverter(Secrets { key }))
-            .setQueryCallback({ sql, _ -> queries += sql }, Runnable::run)
-            .allowMainThreadQueries()
-            .build()
+        db = testDatabase {
+            setQueryCallback({ sql, _ -> queries += sql }, Runnable::run)
+            allowMainThreadQueries()
+        }
         val dao = db.dao()
-        provider = LocalProvider(ApplicationProvider.getApplicationContext(), dao, LocalProviderTest.NoEditor) { 1 }
-        val source = dao.insertSource(
-            SourceEntity(
-                name = "Médias", kind = SourceKind.MOVIES, protocol = Protocol.NFS, host = "nas", share = "media", path = "",
-                username = "", password = Secret(""),
-            )
-        )
+        provider = LocalProvider(ApplicationProvider.getApplicationContext(), dao, NoEditor) { 1 }
+        val source = dao.insertSource(nfsFolder("Médias", path = ""))
         val saga = dao.insertCollection(CollectionEntity(matchKey = "name:alien", name = "Alien", sortTitle = "alien"))
         fun item(kind: ItemKind, title: String, parentId: Long? = null, seriesId: Long? = null, positionMs: Long = 0) = ItemEntity(
             kind = kind, sourceId = source, title = title, sortTitle = title.lowercase(), parentId = parentId, seriesId = seriesId,

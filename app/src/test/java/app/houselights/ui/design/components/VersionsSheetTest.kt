@@ -1,6 +1,5 @@
 package app.houselights.ui.design.components
 
-import android.app.Application
 import android.view.KeyEvent
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -30,7 +29,7 @@ import org.robolectric.shadows.ShadowDialog
 
 /** A film's copies: focus starts on the current choice, announced as such; OK on another chooses it. */
 @RunWith(RobolectricTestRunner::class)
-@Config(application = Application::class, qualifiers = TV)
+@Config(qualifiers = TV)
 class VersionsSheetTest {
     @get:Rule
     val compose = createComposeRule()

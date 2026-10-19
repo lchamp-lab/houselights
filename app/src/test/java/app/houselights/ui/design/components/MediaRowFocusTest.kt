@@ -1,6 +1,5 @@
 package app.houselights.ui.design.components
 
-import android.app.Application
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.width
@@ -25,7 +24,7 @@ import org.robolectric.annotation.Config
 
 /** DESIGN.md, Components: focus coming back into a [MediaRow] lands on its last card, not the nearest. */
 @RunWith(RobolectricTestRunner::class)
-@Config(application = Application::class, qualifiers = TV)
+@Config(qualifiers = TV)
 class MediaRowFocusTest {
     @get:Rule
     val compose = createComposeRule()

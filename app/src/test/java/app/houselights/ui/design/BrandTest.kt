@@ -3,12 +3,13 @@ package app.houselights.ui.design
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.toArgb
+import app.houselights.testing.children
+import app.houselights.testing.descendants
+import app.houselights.testing.xmlRoot
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import org.w3c.dom.Element
 import java.io.File
-import javax.xml.parsers.DocumentBuilderFactory
 import kotlin.math.hypot
 
 /** The icon, banner and launch mark are vectors in Gradation's geometry and palette, inside their circle. */
@@ -20,12 +21,10 @@ class BrandTest {
         val bars = bars("ic_launcher_foreground")
         assertBars(Gradation.bars(MIDDLE, MIDDLE, Gradation.ICON), bars)
         assertInside(bars, Gradation.SAFE_CIRCLE / 2)
-        val icon = elements(File("src/main/res/mipmap-anydpi/ic_launcher.xml"), "adaptive-icon").single()
-        assertEquals("@color/room", (icon.getElementsByTagName("background").item(0) as Element).getAttribute("android:drawable"))
-        assertEquals(
-            "@drawable/ic_launcher_foreground",
-            (icon.getElementsByTagName("foreground").item(0) as Element).getAttribute("android:drawable"),
-        )
+        val icon = xmlRoot(File("src/main/res/mipmap-anydpi/ic_launcher.xml"))
+        assertEquals("adaptive-icon", icon.tagName)
+        assertEquals("@color/room", icon.children("background").single().getAttribute("android:drawable"))
+        assertEquals("@drawable/ic_launcher_foreground", icon.children("foreground").single().getAttribute("android:drawable"))
     }
 
     /** Half as tall as the circle Android 9 shows, so its corners stay well inside, and centred like the icon. */
@@ -71,7 +70,7 @@ class BrandTest {
 
     /** Each path of a vector drawable: its fill as #AARRGGBB, and its data. */
     private fun paths(name: String): List<Pair<String, String>> =
-        elements(drawables.resolve("$name.xml"), "path").map { path ->
+        xmlRoot(drawables.resolve("$name.xml")).descendants("path").map { path ->
             val fill = path.getAttribute("android:fillColor").removePrefix("#").uppercase().padStart(ARGB_DIGITS, 'F')
             "#$fill" to path.getAttribute("android:pathData")
         }
@@ -98,12 +97,6 @@ class BrandTest {
             val distance = hypot(corner.x - MIDDLE, corner.y - MIDDLE)
             assertTrue("$corner is $distance from the middle, past $radius", distance <= radius)
         }
-    }
-
-    private fun elements(file: File, tag: String): List<Element> {
-        assertTrue("${file.path} not found from ${File(".").absolutePath}", file.isFile)
-        val nodes = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(file).getElementsByTagName(tag)
-        return (0 until nodes.length).map { nodes.item(it) as Element }
     }
 
     private fun argb(color: Int) = "#%08X".format(color)

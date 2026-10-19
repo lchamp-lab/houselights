@@ -9,41 +9,35 @@ import app.houselights.providers.local.EmptyFolderException
 import app.houselights.providers.local.ScanErrorKind
 import app.houselights.providers.local.ScanErrors
 import app.houselights.providers.local.UnreadableFolderException
+import app.houselights.testing.certificateRefused
+import app.houselights.testing.http
+import app.houselights.testing.mountFailure
+import app.houselights.testing.smbStatus
 import app.houselights.ui.onboarding.LoginError
 import app.houselights.ui.onboarding.loginError
 import app.houselights.ui.util.UiError
 import app.houselights.ui.util.toUiError
 import app.houselights.ui.util.toWriteError
-import com.emc.ecs.nfsclient.mount.MountException
 import com.emc.ecs.nfsclient.mount.MountStatus
 import com.hierynomus.mserref.NtStatus
-import com.hierynomus.mssmb2.SMB2MessageCommandCode
-import com.hierynomus.mssmb2.SMBApiException
 import com.hierynomus.protocol.transport.TransportException
 import com.hierynomus.smbj.common.SMBRuntimeException
 import kotlinx.serialization.SerializationException
-import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
-import retrofit2.HttpException
-import retrofit2.Response
 import java.io.FileNotFoundException
 import java.io.IOException
 import java.net.ConnectException
 import java.net.SocketTimeoutException
 import java.security.ProviderException
-import java.security.cert.CertificateException
 import java.util.concurrent.ExecutionException
 import java.util.concurrent.TimeoutException
-import javax.net.ssl.SSLHandshakeException
 
 /** A failure reads the same on a screen, after a write, in a scan and at sign-in: all go through [failureKind]. */
 @RunWith(RobolectricTestRunner::class)
 class FailuresTest {
-    private fun http(code: Int) = HttpException(Response.error<Unit>(code, "".toResponseBody()))
-
     /** What a failure reads as: on a screen, after a write to the device, and for a folder's scan. */
     private data class Told(val screen: UiError, val write: UiError, val scan: ScanErrorKind)
 
@@ -171,15 +165,4 @@ class FailuresTest {
         outer.initCause(inner)
         assertEquals(FailureKind.IO, outer.failureKind())
     }
-
-    /** The exception OkHttp throws for a certificate it cannot trust. */
-    private fun certificateRefused() = SSLHandshakeException("Chain validation failed").apply { initCause(CertificateException("expired")) }
-
-    private fun mountFailure(status: MountStatus) = MountException(
-        status,
-        "mount failure, server: 192.168.1.20, export: /volume1/media, nfs version: 3, returned state: ${status.value}",
-    )
-
-    private fun smbStatus(status: NtStatus) =
-        SMBApiException(status.value, SMB2MessageCommandCode.SMB2_READ, "Read failed for \\\\nas\\media\\film.mkv", null)
 }

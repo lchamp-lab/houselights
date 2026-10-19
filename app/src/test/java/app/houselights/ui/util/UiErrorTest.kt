@@ -6,19 +6,15 @@ import app.houselights.core.SecretsUnavailableException
 import app.houselights.core.TmdbKeyRefusedException
 import app.houselights.core.TmdbNotFoundException
 import app.houselights.core.TmdbUnreachableException
-import okhttp3.ResponseBody.Companion.toResponseBody
+import app.houselights.testing.http
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import retrofit2.HttpException
-import retrofit2.Response
 import java.io.IOException
 import java.net.SocketTimeoutException
 
 class UiErrorTest {
-    private fun http(code: Int) = HttpException(Response.error<Unit>(code, "".toResponseBody()))
-
     @Test
     fun eachFailureShowsAsWhatFixesIt() {
         val expected = mapOf(

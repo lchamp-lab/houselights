@@ -1,21 +1,18 @@
 package app.houselights.providers.jellyfin
 
+import app.houselights.testing.certificateRefused
+import app.houselights.testing.http
 import app.houselights.ui.onboarding.LoginError
 import app.houselights.ui.onboarding.loginError
 import kotlinx.coroutines.test.runTest
-import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
-import retrofit2.HttpException
-import retrofit2.Response
 import java.io.IOException
 import java.net.ConnectException
-import java.security.cert.CertificateExpiredException
 import javax.net.ssl.SSLException
-import javax.net.ssl.SSLHandshakeException
 
 /** Reaching the server typed when signing in: which address, which failure, which server. */
 @RunWith(RobolectricTestRunner::class)
@@ -30,8 +27,6 @@ class JellyfinReachTest {
     } catch (e: Exception) {
         loginError(e, JellyfinClient.normalizeUrl(typed))
     }
-
-    private val expired = SSLHandshakeException("Certificate expired").apply { initCause(CertificateExpiredException("expired")) }
 
     @Test
     fun aServerOfNowIsReachedEncryptedFirst() = runTest {
@@ -54,7 +49,7 @@ class JellyfinReachTest {
     @Test
     fun aRefusedCertificateIsNotHiddenByThePlainAddress() = runTest {
         val server = FakeServer { request ->
-            if (request.url.isHttps) throw expired else throw ConnectException("Connection refused")
+            if (request.url.isHttps) throw certificateRefused() else throw ConnectException("Connection refused")
         }
         assertEquals(LoginError.Certificate("https://nas:8920"), signIn("nas", server))
     }
@@ -114,8 +109,7 @@ class JellyfinReachTest {
 
     @Test
     fun signingInFailures() {
-        val refused = HttpException(Response.error<Unit>(401, "".toResponseBody()))
-        assertEquals(LoginError.Refused, loginError(refused, "https://nas:8920"))
+        assertEquals(LoginError.Refused, loginError(http(401), "https://nas:8920"))
         assertEquals(LoginError.Unreachable("https://nas:8920"), loginError(IOException("Reset"), "https://nas:8920"))
         assertEquals(LoginError.Failed, loginError(IllegalStateException("Odd"), "https://nas:8920"))
     }

@@ -1,9 +1,6 @@
 package app.houselights.providers.local
 
-import androidx.room.Room
-import androidx.test.core.app.ApplicationProvider
 import app.houselights.core.Definition
-import app.houselights.core.Secrets
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
@@ -14,7 +11,6 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
-import javax.crypto.KeyGenerator
 
 /** What each folder holds, as the settings' cards say it: every folder counted in one query. */
 @RunWith(RobolectricTestRunner::class)
@@ -24,22 +20,14 @@ class FolderCountsTest {
 
     @Before
     fun open() = runBlocking {
-        val key = KeyGenerator.getInstance("AES").apply { init(256) }.generateKey()
-        db = Room.inMemoryDatabaseBuilder(ApplicationProvider.getApplicationContext(), LibraryDatabase::class.java)
-            .addTypeConverter(SecretConverter(Secrets { key }))
-            .build()
+        db = testDatabase()
         dao = db.dao()
     }
 
     @After
     fun close() = db.close()
 
-    private suspend fun folder(name: String, kind: SourceKind) = dao.insertSource(
-        SourceEntity(
-            name = name, kind = kind, protocol = Protocol.NFS, host = "nas", share = "media", path = name,
-            username = "", password = Secret(""),
-        ),
-    )
+    private suspend fun folder(name: String, kind: SourceKind) = dao.insertSource(nfsFolder(name, kind))
 
     private suspend fun row(
         source: Long,

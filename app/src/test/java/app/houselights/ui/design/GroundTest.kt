@@ -1,5 +1,7 @@
 package app.houselights.ui.design
 
+import app.houselights.testing.kotlinSources
+import app.houselights.testing.linesWhere
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -11,8 +13,7 @@ class GroundTest {
 
     @Test
     fun groundsAreProvidedInFewPlaces() {
-        assertTrue("Sources not found from ${File(".").absolutePath}", ui.isDirectory)
-        val providers = ui.walkTopDown().filter { it.isFile && it.extension == "kt" }
+        val providers = kotlinSources(ui)
             .filter { Regex("""LocalGround provides""").containsMatchIn(it.readText()) }
             .map { it.name }.toSortedSet()
         assertEquals(sortedSetOf("Cards.kt", "Color.kt", "Panel.kt", "Sheet.kt"), providers)
@@ -23,21 +24,15 @@ class GroundTest {
     fun theStepAndTheEdgeAreWrittenOnce() {
         // Elsewhere the step is only laid opaque and EDGE never read; a copy through a local is still a copy.
         val recipe = Regex("""(?<!groundFill\()groundStep\(\)|HlAlpha\.EDGE\b""")
-        val found = ui.walkTopDown().filter { it.isFile && it.extension == "kt" && it.name != "Color.kt" }
-            .flatMap { file ->
-                file.readLines().mapIndexedNotNull { i, line ->
-                    if (recipe.containsMatchIn(line)) "${file.name}:${i + 1}: ${line.trim()}" else null
-                }
-            }
-            .toList()
+        val found = kotlinSources(ui).filter { it.name != "Color.kt" }.linesWhere(ui) { recipe.containsMatchIn(it) }
         assertTrue("Use groundStepFill() and HlColors.edge:\n" + found.joinToString("\n"), found.isEmpty())
     }
 
     @Test
     fun noComponentIsToldItIsOnArtwork() {
-        val told = ui.walkTopDown().filter { it.isFile && it.extension == "kt" }
+        val told = kotlinSources(ui)
             .filter { Regex("""\bonArtwork\s*[:=]\s*(Boolean|true)""").containsMatchIn(it.readText()) }
-            .map { it.name }.toList()
+            .map { it.name }
         assertTrue("Read the ground (OnArtwork, groundPlate) instead of a flag: $told", told.isEmpty())
     }
 }

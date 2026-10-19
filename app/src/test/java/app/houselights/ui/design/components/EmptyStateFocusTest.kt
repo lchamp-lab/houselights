@@ -1,6 +1,5 @@
 package app.houselights.ui.design.components
 
-import android.app.Application
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.assertIsNotFocused
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -15,7 +14,7 @@ import org.robolectric.annotation.Config
 
 /** DESIGN.md, Components: an intertitle's action is focused as it appears, unless it is a specimen. */
 @RunWith(RobolectricTestRunner::class)
-@Config(application = Application::class, qualifiers = TV)
+@Config(qualifiers = TV)
 class EmptyStateFocusTest {
     @get:Rule
     val compose = createComposeRule()

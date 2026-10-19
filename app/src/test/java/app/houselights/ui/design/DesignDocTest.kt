@@ -1,5 +1,6 @@
 package app.houselights.ui.design
 
+import app.houselights.testing.kotlinSources
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
@@ -15,7 +16,7 @@ class DesignDocTest {
     @Test
     fun everyNameTheDocCitesExists() {
         assertTrue("DESIGN.md not found from ${File(".").absolutePath}", doc.isFile)
-        val files = sources.flatMap { root -> root.walkTopDown().filter { it.isFile && it.extension == "kt" }.toList() }
+        val files = sources.flatMap(::kotlinSources)
         val code = files.joinToString("\n") { it.readText() }
         val fileNames = files.map { it.nameWithoutExtension }.toSet()
         val cited = Regex("""`([A-Za-z][\w.]*)(?:\([^`]*\))?`""").findAll(doc.readText())

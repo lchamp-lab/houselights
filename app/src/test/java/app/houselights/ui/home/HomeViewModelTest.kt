@@ -3,13 +3,11 @@ package app.houselights.ui.home
 import app.houselights.core.HomeSection
 import app.houselights.core.SectionType
 import app.houselights.core.SourceConfig
-import app.houselights.providers.local.Protocol
 import app.houselights.providers.local.ScanError
 import app.houselights.providers.local.ScanErrorKind
 import app.houselights.providers.local.ScanState
-import app.houselights.providers.local.Secret
 import app.houselights.providers.local.SourceEntity
-import app.houselights.providers.local.SourceKind
+import app.houselights.providers.local.nfsFolder
 import app.houselights.settings.AppSettings
 import app.houselights.ui.testing.FakeProvider
 import app.houselights.ui.testing.MainDispatcherRule
@@ -55,10 +53,8 @@ class HomeViewModelTest {
     private val settings = MutableStateFlow(AppSettings(loaded = true, source = SourceConfig.Local))
     private var scans = 0
 
-    private fun folder(id: Long, lastScanAt: Long = 0) = SourceEntity(
-        id = id, name = "Films", kind = SourceKind.MOVIES, protocol = Protocol.NFS, host = "nas$id", share = "volume1",
-        path = "Films", username = "", password = Secret(""), lastScanAt = lastScanAt,
-    )
+    private fun folder(id: Long, lastScanAt: Long = 0) =
+        nfsFolder(host = "nas$id", share = "volume1", path = "Films", id = id, lastScanAt = lastScanAt)
 
     /** Home as the screen holds it: [HomeViewModel.state] is read while the screen is there. */
     private fun TestScope.home(): HomeViewModel =

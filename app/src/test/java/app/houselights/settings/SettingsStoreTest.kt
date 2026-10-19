@@ -7,7 +7,8 @@ import androidx.datastore.preferences.core.mutablePreferencesOf
 import androidx.datastore.preferences.core.stringPreferencesKey
 import app.houselights.core.Secrets
 import app.houselights.core.SourceConfig
-import app.houselights.ui.testing.testSecrets
+import app.houselights.testing.testKey
+import app.houselights.testing.testSecrets
 import app.houselights.ui.testing.testSettings
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -38,7 +39,6 @@ import java.io.IOException
 import java.security.ProviderException
 import java.util.Collections
 import java.util.concurrent.Executors
-import javax.crypto.KeyGenerator
 import app.houselights.ui.testing.SettleMainLooper
 
 /** Reading the settings when the file or the Keystore fails. */
@@ -75,7 +75,7 @@ class SettingsStoreTest {
     /** Opening secrets loads the Keystore key and calls its daemon: never on the collecting (main) thread. */
     @Test
     fun secretsAreOpenedAwayFromTheThreadThatCollects() = runTest {
-        val key = KeyGenerator.getInstance("AES").apply { init(256) }.generateKey()
+        val key = testKey()
         val keyAskedOn = Collections.synchronizedList(mutableListOf<Thread>())
         val reader = Secrets {
             keyAskedOn += Thread.currentThread()
@@ -98,7 +98,7 @@ class SettingsStoreTest {
     /** Settings are read off the main thread, yet home, right after sign-in, gets the source just saved. */
     @Test
     fun aSourceSavedIsReadBeforeItsSaveReturns() = runTest {
-        val key = KeyGenerator.getInstance("AES").apply { init(256) }.generateKey()
+        val key = testKey()
         // A Keystore as slow as a player's.
         val slow = Secrets {
             Thread.sleep(SLOW_KEYSTORE_MS)

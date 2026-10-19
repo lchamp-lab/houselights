@@ -34,16 +34,4 @@ class EbmlTest {
         assertThrows(IndexOutOfBoundsException::class.java) { Ebml.vint(bytes(0x81), 1) }
         assertThrows(IllegalArgumentException::class.java) { Ebml.vint(bytes(0x00, 0x81), 0) }
     }
-
-    /** Most files stream their segment, of unknown size: its tracks are read up to the end of what was read. */
-    @Test
-    fun aSegmentOfUnknownSizeIsRead() {
-        fun el(id: ByteArray, body: ByteArray) = id + bytes(0x10, 0, body.size shr 8, body.size and 0xFF) + body
-        val header = el(bytes(0x1A, 0x45, 0xDF, 0xA3), el(bytes(0x42, 0x82), "matroska".toByteArray()))
-        val track = el(bytes(0xAE), el(bytes(0x83), bytes(1)) + el(bytes(0x86), "V_MPEG4/ISO/AVC".toByteArray()))
-        val unknownSize = bytes(0x01, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF)
-        val segment = bytes(0x18, 0x53, 0x80, 0x67) + unknownSize + el(bytes(0x16, 0x54, 0xAE, 0x6B), track)
-        val found = MkvProbe.probe(header + segment) as MkvProbe.Result.Found
-        assertEquals("AVC", found.info.video?.codec)
-    }
 }

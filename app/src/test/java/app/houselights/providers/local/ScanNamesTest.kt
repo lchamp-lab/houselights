@@ -70,7 +70,7 @@ class ScanNamesTest {
         bench.scan()
 
         val inception = bench.item(films, "Inception (2010)/BDMV/STREAM/00800.m2ts")
-        val provider = LocalProvider(ApplicationProvider.getApplicationContext(), bench.dao, LocalProviderTest.NoEditor)
+        val provider = LocalProvider(ApplicationProvider.getApplicationContext(), bench.dao, NoEditor)
         val plan = provider.playback(provider.item(inception.id.toString()), resume = false, PlaybackOptions(emptyList(), false))
         assertTrue((plan as PlaybackPlan.Launch).disc)
     }

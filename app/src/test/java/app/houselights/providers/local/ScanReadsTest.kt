@@ -51,7 +51,7 @@ class ScanReadsTest {
 
     @Test
     fun aVideoThatCouldNotBeReadIsReadAgain() = runTest {
-        nas.put("Dune (2021).mkv", size = 80_000_000_000, bytes = MkvProbeTest().sampleFile())
+        nas.put("Dune (2021).mkv", size = 80_000_000_000, bytes = Matroska.sample())
         nas.onRead = { _, _, _ -> throw locked() }
         bench.scan()
         val first = bench.item(films, "Dune (2021).mkv")
@@ -62,12 +62,12 @@ class ScanReadsTest {
         nas.reads.clear()
         bench.scan()
         assertEquals(listOf("Dune (2021).mkv"), nas.reads)
-        assertEquals(REMUX_BADGES, bench.item(films, "Dune (2021).mkv").badges)
+        assertEquals(Matroska.SAMPLE_BADGES, bench.item(films, "Dune (2021).mkv").badges)
     }
 
     @Test
     fun aVideoReadKeepsItsProbeAndItsLengthBesideWhatItHolds() = runTest {
-        nas.put("Dune (2021).mkv", size = 80_000_000_000, bytes = MkvProbeTest().sampleFile())
+        nas.put("Dune (2021).mkv", size = 80_000_000_000, bytes = Matroska.sample())
         bench.scan()
         val dune = bench.item(films, "Dune (2021).mkv")
         assertEquals(MediaProbe.VERSION, MediaProbe.decode(dune.mediaInfo)?.probedWith)
@@ -90,7 +90,7 @@ class ScanReadsTest {
     @Test
     fun aVideoTheNasRefusesIsNotReadAgain() = runTest {
         // Written by a download client under its own account, with permissions the device's account lacks.
-        nas.put("Dune (2021).mkv", size = 80_000_000_000, bytes = MkvProbeTest().sampleFile())
+        nas.put("Dune (2021).mkv", size = 80_000_000_000, bytes = Matroska.sample())
         nas.onRead = { _, _, _ -> throw refused() }
         bench.scan()
         val dune = bench.item(films, "Dune (2021).mkv")
@@ -105,7 +105,7 @@ class ScanReadsTest {
     @Test
     fun aVideoRenamedBeforeItIsReadIsReadUnderItsNewName() = runTest {
         // Radarr renames the film between the listing and the read: the read finds it gone.
-        nas.put("Dune.2021.mkv", size = 80_000_000_000, bytes = MkvProbeTest().sampleFile())
+        nas.put("Dune.2021.mkv", size = 80_000_000_000, bytes = Matroska.sample())
         nas.onRead = { path, _, _ -> if (path == "Dune.2021.mkv") nas.rename(path, "Dune (2021).mkv") }
         bench.scan()
         assertTrue("not the file's last word", MediaProbe.isStale(bench.item(films, "Dune.2021.mkv").mediaInfo))
@@ -113,7 +113,7 @@ class ScanReadsTest {
         // The row follows the file, of the same size, and the file is read at its new path.
         nas.onRead = null
         bench.scan()
-        assertEquals(REMUX_BADGES, bench.item(films, "Dune (2021).mkv").badges)
+        assertEquals(Matroska.SAMPLE_BADGES, bench.item(films, "Dune (2021).mkv").badges)
     }
 
     @Test
@@ -135,8 +135,8 @@ class ScanReadsTest {
     @Test
     fun aReadFailingPastTheTracksKeepsThem() = runTest {
         // Tracks in the first read, their first frames further in, read next.
-        nas.put("Dune (2021).mkv", size = 80_000_000_000, bytes = MkvProbeTest().sampleFile() + ByteArray(FIRST_READ))
-        nas.onRead = { _, _, length -> if (length > FIRST_READ) throw locked() }
+        nas.put("Dune (2021).mkv", size = 80_000_000_000, bytes = Matroska.sample() + ByteArray(Matroska.FIRST_READ))
+        nas.onRead = { _, _, length -> if (length > Matroska.FIRST_READ) throw locked() }
         bench.scan()
 
         val dune = bench.item(films, "Dune (2021).mkv")
@@ -186,10 +186,5 @@ class ScanReadsTest {
 
         assertEquals(ScanErrorKind.UNREACHABLE, bench.error(films))
         assertEquals("gives up after three files, each with long timeouts", 3, nas.reads.size)
-    }
-
-    private companion object {
-        val REMUX_BADGES = listOf("4K", "Dolby Vision", "HDR10", "TrueHD Atmos", "7.1")
-        const val FIRST_READ = 256 shl 10
     }
 }

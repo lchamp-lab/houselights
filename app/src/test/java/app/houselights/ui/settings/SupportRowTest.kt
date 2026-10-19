@@ -1,6 +1,5 @@
 package app.houselights.ui.settings
 
-import android.app.Application
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.ui.Modifier
@@ -27,7 +26,7 @@ import org.robolectric.annotation.Config
 
 /** About, Soutenir Houselights: OK shows the Ko-fi code in a side sheet; Back closes it, focus back on the row. */
 @RunWith(RobolectricTestRunner::class)
-@Config(application = Application::class, qualifiers = "fr-$TV")
+@Config(qualifiers = "fr-$TV")
 class SupportRowTest {
     @get:Rule
     val compose = createComposeRule()

@@ -1,6 +1,5 @@
 package app.houselights.ui.home
 
-import android.app.Application
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.drawable.BitmapDrawable
@@ -46,7 +45,7 @@ import org.robolectric.annotation.GraphicsMode
 
 /** Home is whole once a frame shows its rows, its hero on the first title, and that title's picture prepared. */
 @RunWith(RobolectricTestRunner::class)
-@Config(application = Application::class, qualifiers = "w960dp-h540dp-land-mdpi")
+@Config(qualifiers = "w960dp-h540dp-land-mdpi")
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 class HomeWholeTest {
     @get:Rule

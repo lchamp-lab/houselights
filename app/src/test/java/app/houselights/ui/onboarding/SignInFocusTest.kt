@@ -1,14 +1,11 @@
 package app.houselights.ui.onboarding
 
-import android.app.Application
 import android.content.Context
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.isFocused
 import androidx.compose.ui.test.junit4.createComposeRule
-import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
-import app.houselights.core.Secrets
 import app.houselights.core.SourceConfig
 import app.houselights.providers.jellyfin.AuthRequest
 import app.houselights.providers.jellyfin.AuthResult
@@ -23,9 +20,10 @@ import app.houselights.providers.local.LocalLibrary
 import app.houselights.providers.local.Protocol
 import app.houselights.providers.local.ScanErrorKind
 import app.houselights.providers.local.Secret
-import app.houselights.providers.local.SecretConverter
 import app.houselights.providers.local.SourceEntity
 import app.houselights.providers.local.SourceKind
+import app.houselights.providers.local.onCallingThread
+import app.houselights.providers.local.testDatabase
 import app.houselights.settings.SourceSwitcher
 import app.houselights.ui.testing.TV
 import app.houselights.ui.testing.setTvContent
@@ -45,11 +43,10 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import java.io.IOException
-import javax.crypto.KeyGenerator
 
 /** Signing in again, focus starts on what is left to type: the password if the user is set, else the user. */
 @RunWith(RobolectricTestRunner::class)
-@Config(application = Application::class, qualifiers = TV)
+@Config(qualifiers = TV)
 class SignInFocusTest {
     @get:Rule
     val compose = createComposeRule()
@@ -59,15 +56,7 @@ class SignInFocusTest {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
-    private val db: LibraryDatabase by lazy {
-        val key = KeyGenerator.getInstance("AES").apply { init(256) }.generateKey()
-        Room.inMemoryDatabaseBuilder(ApplicationProvider.getApplicationContext<Context>(), LibraryDatabase::class.java)
-            .addTypeConverter(SecretConverter(Secrets { key }))
-            .allowMainThreadQueries()
-            .setQueryExecutor(Runnable::run)
-            .setTransactionExecutor(Runnable::run)
-            .build()
-    }
+    private val db: LibraryDatabase by lazy { testDatabase { onCallingThread() } }
 
     @After
     fun close() {

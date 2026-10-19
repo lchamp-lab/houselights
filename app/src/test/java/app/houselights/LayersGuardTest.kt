@@ -1,5 +1,7 @@
 package app.houselights
 
+import app.houselights.testing.kotlinSources
+import app.houselights.testing.linesWhere
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
@@ -15,9 +17,8 @@ class LayersGuardTest {
 
     @Test
     fun theLayersUnderTheScreensNeverLeanOnThem() {
-        assertTrue("Sources not found from ${File(".").absolutePath}", sources.isDirectory)
         val found = layers.flatMap { layer ->
-            File(sources, layer).walkTopDown().filter { it.isFile && it.extension == "kt" }.flatMap { file ->
+            kotlinSources(File(sources, layer)).flatMap { file ->
                 val path = file.relativeTo(sources).path
                 file.readLines().filter { it.startsWith("import app.houselights.ui.") }
                     .filterNot { line -> "$path:${line.trim()}" in allowed }
@@ -29,11 +30,8 @@ class LayersGuardTest {
 
     @Test
     fun theDomainLeansOnNoOtherLayer() {
-        assertTrue("Sources not found from ${File(".").absolutePath}", sources.isDirectory)
         val above = layers.filter { it != "core" }.map { "import app.houselights.$it." }
-        val found = File(sources, "core").walkTopDown().filter { it.isFile && it.extension == "kt" }.flatMap { file ->
-            file.readLines().filter { line -> above.any { line.startsWith(it) } }.map { "${file.relativeTo(sources).path}: $it" }
-        }.toList()
+        val found = kotlinSources(File(sources, "core")).linesWhere(sources) { line -> above.any { line.startsWith(it) } }
         assertTrue("The domain imports another layer:\n" + found.joinToString("\n"), found.isEmpty())
     }
 }

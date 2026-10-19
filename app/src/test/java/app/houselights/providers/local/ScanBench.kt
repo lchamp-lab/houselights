@@ -1,8 +1,5 @@
 package app.houselights.providers.local
 
-import androidx.room.Room
-import androidx.test.core.app.ApplicationProvider
-import app.houselights.core.Secrets
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -13,14 +10,10 @@ import java.io.File
 import java.util.Collections
 import java.util.Locale
 import java.util.concurrent.atomic.AtomicInteger
-import javax.crypto.KeyGenerator
 
 /** An in-memory library, NAS ([nas], [showsNas]) and TMDB ([tmdb]) for scan scenario tests, on Robolectric. */
 class ScanBench(artworkDir: File, tmdbKey: Boolean = true) {
-    private val key = KeyGenerator.getInstance("AES").apply { init(256) }.generateKey()
-    val db: LibraryDatabase = Room.inMemoryDatabaseBuilder(ApplicationProvider.getApplicationContext(), LibraryDatabase::class.java)
-        .addTypeConverter(SecretConverter(Secrets { key }))
-        .build()
+    val db: LibraryDatabase = testDatabase()
     val dao: LibraryDao = db.dao()
     val nas = FakeRemoteBrowser()
     val showsNas = FakeRemoteBrowser()
@@ -72,12 +65,7 @@ class ScanBench(artworkDir: File, tmdbKey: Boolean = true) {
     private val own = mutableMapOf<Long, FakeRemoteBrowser>()
 
     suspend fun folder(name: String, kind: SourceKind = SourceKind.MOVIES, on: FakeRemoteBrowser? = null): SourceEntity {
-        val id = dao.insertSource(
-            SourceEntity(
-                name = name, kind = kind, protocol = Protocol.NFS, host = "nas", share = "media", path = name.lowercase(),
-                username = "", password = Secret(""),
-            )
-        )
+        val id = dao.insertSource(nfsFolder(name, kind))
         on?.let { own[id] = it }
         return checkNotNull(dao.source(id))
     }

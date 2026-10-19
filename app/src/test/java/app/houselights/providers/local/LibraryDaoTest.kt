@@ -1,13 +1,11 @@
 package app.houselights.providers.local
 
 import android.database.sqlite.SQLiteConstraintException
-import androidx.room.Room
 import androidx.room.withTransaction
 import androidx.test.core.app.ApplicationProvider
 import app.houselights.core.MediaInfo
 import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
-import app.houselights.core.Secrets
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.junit.After
@@ -18,7 +16,6 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import java.util.concurrent.atomic.AtomicInteger
-import javax.crypto.KeyGenerator
 
 /** Bulk writes stay under Android 9's 999 values per statement, counted since Robolectric's SQLite takes more. */
 @RunWith(RobolectricTestRunner::class)
@@ -31,19 +28,10 @@ class LibraryDaoTest {
 
     @Before
     fun open() = runBlocking {
-        val key = KeyGenerator.getInstance("AES").apply { init(256) }.generateKey()
-        db = Room.inMemoryDatabaseBuilder(ApplicationProvider.getApplicationContext(), LibraryDatabase::class.java)
-            .addTypeConverter(SecretConverter(Secrets { key }))
-            .setQueryCallback({ _, args -> widest.accumulateAndGet(args.size, ::maxOf) }, Runnable::run)
-            .build()
+        db = testDatabase { setQueryCallback({ _, args -> widest.accumulateAndGet(args.size, ::maxOf) }, Runnable::run) }
         dao = db.dao()
-        provider = LocalProvider(ApplicationProvider.getApplicationContext(), dao, LocalProviderTest.NoEditor)
-        source = dao.insertSource(
-            SourceEntity(
-                name = "Séries", kind = SourceKind.SHOWS, protocol = Protocol.NFS, host = "nas", share = "media",
-                path = "series", username = "", password = Secret(""),
-            )
-        )
+        provider = LocalProvider(ApplicationProvider.getApplicationContext(), dao, NoEditor)
+        source = dao.insertSource(nfsFolder("Séries", SourceKind.SHOWS, path = "series"))
     }
 
     @After

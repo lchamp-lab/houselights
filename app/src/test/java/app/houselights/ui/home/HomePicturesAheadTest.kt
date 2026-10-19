@@ -48,7 +48,7 @@ import java.util.IdentityHashMap
 
 /** What the launch loads ahead is exactly what home's first view asks Coil for, by key and size. */
 @RunWith(RobolectricTestRunner::class)
-@Config(application = Application::class, qualifiers = TV)
+@Config(qualifiers = TV)
 class HomePicturesAheadTest {
     @get:Rule
     val compose = createComposeRule()

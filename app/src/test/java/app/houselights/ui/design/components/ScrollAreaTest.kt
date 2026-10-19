@@ -1,6 +1,5 @@
 package app.houselights.ui.design.components
 
-import android.app.Application
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.height
 import androidx.compose.ui.Modifier
@@ -28,7 +27,7 @@ import org.robolectric.annotation.Config
 
 /** DESIGN.md, Components: an [HlScrollArea] takes focus only when it can scroll, then scrolls a step per press. */
 @RunWith(RobolectricTestRunner::class)
-@Config(application = Application::class, qualifiers = TV)
+@Config(qualifiers = TV)
 class ScrollAreaTest {
     @get:Rule
     val compose = createComposeRule()

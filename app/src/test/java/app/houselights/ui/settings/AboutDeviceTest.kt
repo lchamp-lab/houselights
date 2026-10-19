@@ -1,6 +1,5 @@
 package app.houselights.ui.settings
 
-import android.app.Application
 import androidx.compose.foundation.layout.Column
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
@@ -16,7 +15,7 @@ import org.robolectric.annotation.Config
 
 /** About shows the device and its player as playback decides; one state per test, as first composed. */
 @RunWith(RobolectricTestRunner::class)
-@Config(application = Application::class, qualifiers = "fr-$TV")
+@Config(qualifiers = "fr-$TV")
 class AboutDeviceTest {
     @get:Rule
     val compose = createComposeRule()

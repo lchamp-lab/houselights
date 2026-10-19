@@ -1,5 +1,6 @@
 package app.houselights.core
 
+import app.houselights.testing.kotlinSources
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -20,16 +21,12 @@ class RunCatchingGuardTest {
 
     @Test
     fun noRunCatchingAroundSuspendingCodeOrFocus() {
-        assertTrue("Sources not found from ${File(".").absolutePath}", sources.isDirectory)
-        val found = sources.walkTopDown()
-            .filter { it.isFile && it.extension == "kt" }
-            .flatMap { file ->
-                val path = file.relativeTo(sources).path
-                violations(file.readLines()).filterNot { (_, line) ->
-                    allowed.any { it.substringBefore(':') == path && line.contains(it.substringAfter(':')) }
-                }.map { (i, line) -> "$path:${i + 1}: ${line.trim()}" }
-            }
-            .toList()
+        val found = kotlinSources(sources).flatMap { file ->
+            val path = file.relativeTo(sources).path
+            violations(file.readLines()).filterNot { (_, line) ->
+                allowed.any { it.substringBefore(':') == path && line.contains(it.substringAfter(':')) }
+            }.map { (i, line) -> "$path:${i + 1}: ${line.trim()}" }
+        }
         assertTrue(
             "runCatching where it hides what it should not (suspendRunCatching, tryRequestFocus):\n" + found.joinToString("\n"),
             found.isEmpty(),

@@ -1,22 +1,14 @@
 package app.houselights.providers.local
 
-import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
-import app.houselights.core.ArtworkChoices
-import app.houselights.core.ArtworkKind
-import app.houselights.core.ArtworkOption
-import app.houselights.core.Identity
 import app.houselights.core.Library
 import app.houselights.core.LibraryFilter
 import app.houselights.core.LibraryKind
-import app.houselights.core.MatchCandidate
 import app.houselights.core.MediaInfo
 import app.houselights.core.MediaItem
-import app.houselights.core.MetadataEditor
 import app.houselights.core.PlaybackOptions
 import app.houselights.core.PlaybackPlan
 import app.houselights.core.Quality
-import app.houselights.core.Secrets
 import app.houselights.core.SortOption
 import app.houselights.core.WatchStatus
 import app.houselights.providers.local.TmdbClient.Companion.ImageType
@@ -31,7 +23,6 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
-import javax.crypto.KeyGenerator
 
 /** The local library's queries and rules, on an in-memory database. */
 @RunWith(RobolectricTestRunner::class)
@@ -47,19 +38,10 @@ class LocalProviderTest {
 
     @Before
     fun open() = runBlocking {
-        val key = KeyGenerator.getInstance("AES").apply { init(256) }.generateKey()
-        db = Room.inMemoryDatabaseBuilder(ApplicationProvider.getApplicationContext(), LibraryDatabase::class.java)
-            .addTypeConverter(SecretConverter(Secrets { key }))
-            .allowMainThreadQueries()
-            .build()
+        db = testDatabase { allowMainThreadQueries() }
         dao = db.dao()
         provider = LocalProvider(ApplicationProvider.getApplicationContext(), dao, NoEditor) { collectionMin }
-        source = dao.insertSource(
-            SourceEntity(
-                name = "Films", kind = SourceKind.MOVIES, protocol = Protocol.NFS, host = "nas", share = "media",
-                path = "films", username = "", password = Secret(""),
-            )
-        )
+        source = dao.insertSource(nfsFolder())
     }
 
     @After
@@ -523,14 +505,5 @@ class LocalProviderTest {
         assertEquals(LocalId.Item(12, part = 2), LocalId.parse(LocalId.ofPart(12, 2)))
         assertNull(LocalId.parse("tt0113277"))
         assertNull(LocalId.parse("12p0"))
-    }
-
-    internal object NoEditor : MetadataEditor {
-        override fun canEdit(item: MediaItem) = false
-        override suspend fun artwork(item: MediaItem, kind: ArtworkKind): ArtworkChoices = error("unused")
-        override suspend fun setArtwork(item: MediaItem, kind: ArtworkKind, option: ArtworkOption) = error("unused")
-        override suspend fun identity(item: MediaItem): Identity = error("unused")
-        override suspend fun search(item: MediaItem, query: String, year: Int?): List<MatchCandidate> = error("unused")
-        override suspend fun identify(item: MediaItem, candidate: MatchCandidate?) = error("unused")
     }
 }

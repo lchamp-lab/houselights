@@ -1,6 +1,5 @@
 package app.houselights.ui.design.components
 
-import android.app.Application
 import androidx.compose.foundation.layout.Column
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -23,7 +22,7 @@ import org.robolectric.annotation.Config
 
 /** DESIGN.md, Focus: focus entering an [HlSegmented] track lands on the current option, from any side. */
 @RunWith(RobolectricTestRunner::class)
-@Config(application = Application::class, qualifiers = TV)
+@Config(qualifiers = TV)
 class SegmentedFocusTest {
     @get:Rule
     val compose = createComposeRule()

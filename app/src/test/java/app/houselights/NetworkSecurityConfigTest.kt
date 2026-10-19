@@ -1,11 +1,11 @@
 package app.houselights
 
+import app.houselights.testing.children
+import app.houselights.testing.xmlRoot
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.w3c.dom.Element
 import java.io.File
-import javax.xml.parsers.DocumentBuilderFactory
 
 /** The network security config per host, as Android resolves it: user CAs for home servers, not for TMDB. */
 class NetworkSecurityConfigTest {
@@ -29,8 +29,7 @@ class NetworkSecurityConfigTest {
     }
 
     private fun policy(host: String): Policy {
-        assertTrue("Not found from ${File(".").absolutePath}", file.isFile)
-        val root = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(file).documentElement
+        val root = xmlRoot(file)
         val base = root.children("base-config").singleOrNull()
         // Android's defaults for an app targeting API 28 or later: no cleartext, system authorities.
         val defaults = Policy(cleartext = false, anchors = setOf("system"))
@@ -57,7 +56,4 @@ class NetworkSecurityConfigTest {
             ?.children("certificates")?.map { it.getAttribute("src") }?.toSet()
         return Policy(cleartext ?: inherited.cleartext, anchors ?: inherited.anchors)
     }
-
-    private fun Element.children(tag: String): List<Element> =
-        (0 until childNodes.length).mapNotNull { childNodes.item(it) as? Element }.filter { it.tagName == tag }
 }

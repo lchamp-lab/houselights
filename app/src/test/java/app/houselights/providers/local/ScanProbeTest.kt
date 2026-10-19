@@ -49,7 +49,7 @@ class ScanProbeTest {
     /** Dune, matched by the user, beside an NFO naming a film by IMDb id: a full read would ask TMDB each time. */
     private suspend fun duneMatchedByTheUser(): SourceEntity {
         val films = bench.folder("Films")
-        nas.put("Dune (2021).mkv", size = 80_000_000_000, bytes = MkvProbeTest().sampleFile())
+        nas.put("Dune (2021).mkv", size = 80_000_000_000, bytes = Matroska.sample())
         put(nas, "Dune (2021).nfo", "<movie><title>Dune : Première partie</title><id>tt1160419</id></movie>")
         tmdb.movie(438631, "Dune", 2021, imdbId = "tt1160419")
         bench.scan()
@@ -90,7 +90,7 @@ class ScanProbeTest {
         val pilot = "Severance/Season 1/Severance - S01E01.mkv"
         tmdb.show(95396, "Severance", 2022)
         tmdb.season(95396, 1, episodes = 2)
-        bench.showsNas.put(pilot, size = 4_000_000_000, bytes = MkvProbeTest().sampleFile())
+        bench.showsNas.put(pilot, size = 4_000_000_000, bytes = Matroska.sample())
         put(bench.showsNas, "Severance/Season 1/Severance - S01E01.nfo", "<episodedetails><title>Bonne nouvelle</title></episodedetails>")
         put(bench.showsNas, "Severance/tvshow.nfo", "<tvshow><title>Severance</title></tvshow>")
         bench.scan()
@@ -112,7 +112,7 @@ class ScanProbeTest {
         val pilot = "Severance/Season 1/Severance - S01E01.mkv"
         tmdb.show(95396, "Severance", 2022)
         tmdb.season(95396, 1, episodes = 2)
-        bench.showsNas.put(pilot, size = 4_000_000_000, bytes = MkvProbeTest().sampleFile())
+        bench.showsNas.put(pilot, size = 4_000_000_000, bytes = Matroska.sample())
         val nfo = { title: String -> "<tvshow><title>$title</title><uniqueid type=\"tmdb\">95396</uniqueid></tvshow>" }
         put(bench.showsNas, "Severance/tvshow.nfo", nfo("Severance"))
         bench.scan()
@@ -152,7 +152,7 @@ class ScanProbeTest {
     @Test
     fun aFileReadOtherwiseIsShownAnew() = runTest {
         val films = bench.folder("Films")
-        nas.put("Dune (2021).mkv", size = 80_000_000_000, bytes = MkvProbeTest().sampleFile())
+        nas.put("Dune (2021).mkv", size = 80_000_000_000, bytes = Matroska.sample())
         bench.scan()
         readByAnOlderProbe { it.copy(video = it.video?.copy(codec = "VC-1")) }
 

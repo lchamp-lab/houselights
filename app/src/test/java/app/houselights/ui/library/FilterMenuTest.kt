@@ -1,6 +1,5 @@
 package app.houselights.ui.library
 
-import android.app.Application
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -31,7 +30,7 @@ import org.robolectric.annotation.Config
 
 /** The filter menu offers what the library holds and the source can filter, and a person set from elsewhere. */
 @RunWith(RobolectricTestRunner::class)
-@Config(application = Application::class, qualifiers = "fr-$TV")
+@Config(qualifiers = "fr-$TV")
 class FilterMenuTest {
     @get:Rule
     val compose = createComposeRule()

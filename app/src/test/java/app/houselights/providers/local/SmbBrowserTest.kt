@@ -1,7 +1,7 @@
 package app.houselights.providers.local
 
+import app.houselights.testing.smbStatus
 import com.hierynomus.mserref.NtStatus
-import com.hierynomus.mssmb2.SMB2MessageCommandCode
 import com.hierynomus.mssmb2.SMBApiException
 import com.hierynomus.protocol.transport.TransportException
 import com.hierynomus.smbj.common.SMBRuntimeException
@@ -233,9 +233,5 @@ class SmbBrowserTest {
 
     private companion object {
         const val PASSWORD = "secret"
-
-        /** As Share.receive throws an answer other than success. */
-        fun smbStatus(status: NtStatus) =
-            SMBApiException(status.value, SMB2MessageCommandCode.SMB2_CREATE, "Create failed for \\\\nas\\films", null)
     }
 }

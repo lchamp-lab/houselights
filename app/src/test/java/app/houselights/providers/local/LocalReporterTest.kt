@@ -1,8 +1,6 @@
 package app.houselights.providers.local
 
-import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
-import app.houselights.core.Secrets
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.junit.After
@@ -14,7 +12,6 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
-import javax.crypto.KeyGenerator
 
 /** What the player's reports, as the Zidoo player sends them, leave of a film's resume point. */
 @RunWith(RobolectricTestRunner::class)
@@ -25,18 +22,9 @@ class LocalReporterTest {
 
     @Before
     fun open() = runBlocking {
-        val key = KeyGenerator.getInstance("AES").apply { init(256) }.generateKey()
-        db = Room.inMemoryDatabaseBuilder(ApplicationProvider.getApplicationContext(), LibraryDatabase::class.java)
-            .addTypeConverter(SecretConverter(Secrets { key }))
-            .allowMainThreadQueries()
-            .build()
+        db = testDatabase { allowMainThreadQueries() }
         dao = db.dao()
-        source = dao.insertSource(
-            SourceEntity(
-                name = "Films", kind = SourceKind.MOVIES, protocol = Protocol.NFS, host = "nas", share = "media",
-                path = "films", username = "", password = Secret(""),
-            )
-        )
+        source = dao.insertSource(nfsFolder())
     }
 
     @After

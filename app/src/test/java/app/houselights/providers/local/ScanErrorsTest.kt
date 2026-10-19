@@ -3,6 +3,8 @@ package app.houselights.providers.local
 import android.database.sqlite.SQLiteFullException
 import android.system.ErrnoException
 import android.system.OsConstants
+import app.houselights.testing.mountFailure
+import app.houselights.testing.smbStatus
 import com.emc.ecs.nfsclient.mount.MountException
 import com.emc.ecs.nfsclient.mount.MountStatus
 import com.emc.ecs.nfsclient.nfs.NfsException
@@ -11,8 +13,6 @@ import com.emc.ecs.nfsclient.rpc.RpcException
 import com.emc.ecs.nfsclient.rpc.RpcStatus
 import com.hierynomus.mserref.NtStatus
 import com.hierynomus.mssmb.SMB1NotSupportedException
-import com.hierynomus.mssmb2.SMB2MessageCommandCode
-import com.hierynomus.mssmb2.SMBApiException
 import com.hierynomus.protocol.transport.TransportException
 import com.hierynomus.smbj.common.SMBRuntimeException
 import com.hierynomus.smbj.session.SMB2GuestSigningRequiredException
@@ -144,14 +144,4 @@ class ScanErrorsTest {
     fun other() {
         assertEquals(ScanErrorKind.OTHER, kind(IllegalStateException("something else")))
     }
-
-    /** As Nfs3.lookupRootHandle throws it for a status other than MNT3_OK. */
-    private fun mountFailure(status: MountStatus) = MountException(
-        status,
-        "mount failure, server: 192.168.1.20, export: /volume1/media, nfs version: 3, returned state: ${status.value}",
-    )
-
-    /** As Share.receive throws it for a status other than success. */
-    private fun smbStatus(status: NtStatus) =
-        SMBApiException(status.value, SMB2MessageCommandCode.SMB2_READ, "Read failed for \\\\nas\\media\\film.mkv", null)
 }

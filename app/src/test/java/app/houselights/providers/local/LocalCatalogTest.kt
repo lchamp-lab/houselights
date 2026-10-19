@@ -1,6 +1,5 @@
 package app.houselights.providers.local
 
-import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import app.houselights.core.Catalog
 import app.houselights.core.FileTypes
@@ -12,7 +11,6 @@ import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
 import app.houselights.core.PlaybackOptions
 import app.houselights.core.PlaybackPlan
-import app.houselights.core.Secrets
 import app.houselights.core.SectionType
 import app.houselights.core.SortOption
 import kotlinx.coroutines.runBlocking
@@ -26,7 +24,6 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
-import javax.crypto.KeyGenerator
 
 /** What the local library offers beyond titles ([LocalCatalog]): people, whole sagas, copies, numbers, search. */
 @RunWith(RobolectricTestRunner::class)
@@ -41,20 +38,11 @@ class LocalCatalogTest {
 
     @Before
     fun open() = runBlocking {
-        val key = KeyGenerator.getInstance("AES").apply { init(256) }.generateKey()
-        db = Room.inMemoryDatabaseBuilder(ApplicationProvider.getApplicationContext(), LibraryDatabase::class.java)
-            .addTypeConverter(SecretConverter(Secrets { key }))
-            .allowMainThreadQueries()
-            .build()
+        db = testDatabase { allowMainThreadQueries() }
         dao = db.dao()
-        provider = LocalProvider(ApplicationProvider.getApplicationContext(), dao, LocalProviderTest.NoEditor) { 2 }
+        provider = LocalProvider(ApplicationProvider.getApplicationContext(), dao, NoEditor) { 2 }
         catalog = provider.catalog
-        source = dao.insertSource(
-            SourceEntity(
-                name = "Films", kind = SourceKind.MOVIES, protocol = Protocol.NFS, host = "nas", share = "media",
-                path = "films", username = "", password = Secret(""),
-            )
-        )
+        source = dao.insertSource(nfsFolder())
     }
 
     @After

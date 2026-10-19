@@ -88,10 +88,7 @@ class NfsListingTest {
 
     private fun browser(export: Export) = NfsBrowser(mount = { export.also { mounts++ } }, clock = { 0L })
 
-    private val films = SourceEntity(
-        name = "Films", kind = SourceKind.MOVIES, protocol = Protocol.NFS, host = "192.168.1.20", share = "volume1/media",
-        path = "", username = "", password = Secret(""),
-    )
+    private val films = nfsFolder(host = "192.168.1.20", share = "volume1/media", path = "")
 
     /** A library as Radarr and Kodi leave it: a folder per film, with its NFO and artwork beside the video. */
     private fun library() {

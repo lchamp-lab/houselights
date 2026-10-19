@@ -1,5 +1,7 @@
 package app.houselights.ui.design
 
+import app.houselights.testing.kotlinSources
+import app.houselights.testing.linesWhere
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
@@ -17,16 +19,11 @@ class FocusStyleGuardTest {
         Regex("""\bHlFocus\.[A-Z]+_SCALE\b"""),
     )
 
-    private fun sources() = components.walkTopDown().filter { it.isFile && it.extension == "kt" && it.name != home }.toList()
+    private fun sources() = kotlinSources(components).filter { it.name != home }
 
     @Test
     fun noComponentBuildsItsOwnFocus() {
-        assertTrue("Sources not found from ${File(".").absolutePath}", components.isDirectory)
-        val found = sources().flatMap { file ->
-            file.readLines().mapIndexedNotNull { i, line ->
-                rules.firstOrNull { it.containsMatchIn(line) }?.let { "${file.name}:${i + 1}: ${line.trim()}" }
-            }
-        }
+        val found = sources().linesWhere(components) { line -> rules.any { it.containsMatchIn(line) } }
         assertTrue("Focus belongs to FocusStyle:\n" + found.joinToString("\n"), found.isEmpty())
     }
 
@@ -35,13 +32,7 @@ class FocusStyleGuardTest {
     fun noScreenDrawsFocus() {
         val ui = File("src/main/java/app/houselights/ui")
         val design = ui.resolve("design")
-        val found = ui.walkTopDown().filter { it.isFile && it.extension == "kt" && !it.startsWith(design) }
-            .flatMap { file ->
-                file.readLines().mapIndexedNotNull { i, line ->
-                    if ("FocusStyle." in line) "${file.relativeTo(ui).path}:${i + 1}: ${line.trim()}" else null
-                }
-            }
-            .toList()
+        val found = kotlinSources(ui).filter { !it.startsWith(design) }.linesWhere(ui) { "FocusStyle." in it }
         assertTrue("Focus is drawn by the design system's components:\n" + found.joinToString("\n"), found.isEmpty())
     }
 

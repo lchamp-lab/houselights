@@ -5,6 +5,7 @@ import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import app.houselights.core.Job
 import app.houselights.core.Secrets
+import app.houselights.testing.testSecrets
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -13,13 +14,11 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import java.security.ProviderException
-import javax.crypto.KeyGenerator
 
 @RunWith(RobolectricTestRunner::class)
 class MigrationTest {
     private val context get() = ApplicationProvider.getApplicationContext<Context>()
-    private val key = KeyGenerator.getInstance("AES").apply { init(256) }.generateKey()
-    private val secrets = Secrets { key }
+    private val secrets = testSecrets()
 
     /** Schemas 1 to 5 predate Room's schema export and were rebuilt (app/schemas); Room checks them on open. */
     @Test
@@ -392,7 +391,7 @@ class MigrationTest {
             assertEquals(listOf(null, 99L), listOf(1L, 2L).map { dao.collection(it)?.fetchedAt })
             assertEquals(listOf(dao.collection(1)), dao.sagasDue(10))
 
-            val catalog = LocalProvider(context, dao, LocalProviderTest.NoEditor).catalog
+            val catalog = LocalProvider(context, dao, NoEditor).catalog
             assertEquals(listOf("Le Fabuleux Destin d’Amélie Poulain"), catalog.search("amel").titles.map { it.title })
             assertEquals(listOf("Jean-Pierre Jeunet"), catalog.search("jeunet").people.map { it.name })
             assertEquals(listOf("name:ridley scott"), catalog.search("ridley").people.map { it.id })

@@ -1,6 +1,5 @@
 package app.houselights.ui.design
 
-import android.app.Application
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -42,7 +41,7 @@ import org.robolectric.annotation.Config
 
 /** A screen's [FocusMemory] on screen: whether focus really took, and what it keeps of a long list. */
 @RunWith(RobolectricTestRunner::class)
-@Config(application = Application::class, qualifiers = TV)
+@Config(qualifiers = TV)
 class FocusMemoryTest {
     @get:Rule
     val compose = createComposeRule()

@@ -1,12 +1,13 @@
 package app.houselights.player
 
+import app.houselights.testing.children
+import app.houselights.testing.xmlRoot
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.w3c.dom.Element
 import java.io.File
-import javax.xml.parsers.DocumentBuilderFactory
 
 /** On Android 11+, an intent [ZidooPlayer] sends finds no app unless the manifest's <queries> declares it. */
 @RunWith(RobolectricTestRunner::class)
@@ -46,12 +47,5 @@ class PlayerQueriesTest {
         assertTrue(packages.toString(), ZidooPlayer.KNOWN_PACKAGE in packages)
     }
 
-    private fun queries(): Element {
-        assertTrue("Not found from ${File(".").absolutePath}", file.isFile)
-        val root = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(file).documentElement
-        return root.children("queries").single()
-    }
-
-    private fun Element.children(tag: String): List<Element> =
-        (0 until childNodes.length).mapNotNull { childNodes.item(it) as? Element }.filter { it.tagName == tag }
+    private fun queries(): Element = xmlRoot(file).children("queries").single()
 }

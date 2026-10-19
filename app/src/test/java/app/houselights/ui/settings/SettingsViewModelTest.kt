@@ -9,7 +9,6 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.ViewModelStore
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
-import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import app.houselights.core.Secrets
 import app.houselights.providers.local.ArtworkCache
@@ -18,17 +17,14 @@ import app.houselights.providers.local.LibraryDao
 import app.houselights.providers.local.LibraryDatabase
 import app.houselights.providers.local.LibraryScanner
 import app.houselights.providers.local.LocalLibrary
-import app.houselights.providers.local.Protocol
-import app.houselights.providers.local.Secret
-import app.houselights.providers.local.SecretConverter
-import app.houselights.providers.local.SourceEntity
-import app.houselights.providers.local.SourceKind
 import app.houselights.providers.local.TmdbKeyCheck
+import app.houselights.providers.local.nfsFolder
+import app.houselights.providers.local.testDatabase
 import app.houselights.settings.SecretSetting
 import app.houselights.settings.SettingsStore
+import app.houselights.testing.testSecrets
 import app.houselights.ui.testing.FakeProvider
 import app.houselights.ui.testing.MainDispatcherRule
-import app.houselights.ui.testing.testSecrets
 import app.houselights.ui.testing.testSettings
 import app.houselights.ui.util.UiError
 import coil.ImageLoader
@@ -62,7 +58,6 @@ import org.robolectric.RobolectricTestRunner
 import java.io.IOException
 import java.security.ProviderException
 import java.util.Collections
-import javax.crypto.KeyGenerator
 
 /** The settings' changes: never a crash, and what must not be cut off goes on once the settings are left. */
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -82,11 +77,7 @@ class SettingsViewModelTest {
     @Before
     fun open() = runBlocking {
         val context = ApplicationProvider.getApplicationContext<Context>()
-        val key = KeyGenerator.getInstance("AES").apply { init(256) }.generateKey()
-        db = Room.inMemoryDatabaseBuilder(context, LibraryDatabase::class.java)
-            .addTypeConverter(SecretConverter(Secrets { key }))
-            .allowMainThreadQueries()
-            .build()
+        db = testDatabase { allowMainThreadQueries() }
         dao = db.dao()
         val artwork = ArtworkCache(context.cacheDir.resolve("artwork"))
         // No scan runs: it would go to the network.
@@ -164,12 +155,7 @@ class SettingsViewModelTest {
     @Test
     fun aFolderThatCannotBeRemovedSaysSoOnItsCard() = runTest {
         val store = testSettings(folder.root, backgroundScope)
-        val id = dao.insertSource(
-            SourceEntity(
-                name = "films", kind = SourceKind.MOVIES, protocol = Protocol.NFS, host = "nas", share = "media",
-                path = "films", username = "", password = Secret(""),
-            )
-        )
+        val id = dao.insertSource(nfsFolder("films"))
         val vm = settings(store, work = backgroundScope)
         val folder = dao.source(id)!!
         // The library's database refuses every write.
@@ -185,12 +171,7 @@ class SettingsViewModelTest {
     @Test
     fun aFolderRemovedIsRemovedEvenWhenTheSettingsAreLeft() = runTest {
         val store = testSettings(folder.root, backgroundScope)
-        val id = dao.insertSource(
-            SourceEntity(
-                name = "films", kind = SourceKind.MOVIES, protocol = Protocol.NFS, host = "nas", share = "media",
-                path = "films", username = "", password = Secret(""),
-            )
-        )
+        val id = dao.insertSource(nfsFolder("films"))
         val vm = settings(store, work = backgroundScope)
         vm.removeFolder(dao.source(id)!!)
         assertTrue(id in vm.removing)

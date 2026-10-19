@@ -2,60 +2,23 @@ package app.houselights.providers.local
 
 import app.houselights.core.Definition
 import app.houselights.core.HdrFormat
+import app.houselights.providers.local.Matroska.element
+import app.houselights.providers.local.Matroska.file
+import app.houselights.providers.local.Matroska.str
+import app.houselights.providers.local.Matroska.uint
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeTrue
 import org.junit.Test
-import java.io.ByteArrayOutputStream
 import java.io.File
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
+/** What [MkvProbe] reads of a Matroska file's headers, tracks, first frames and tags. */
 class MkvProbeTest {
-    // --- Minimal EBML writer, enough to build a Matroska header ------------------------------
-
-    private fun id(value: Long): ByteArray {
-        val out = ByteArrayOutputStream()
-        var started = false
-        for (shift in 24 downTo 0 step 8) {
-            val b = ((value shr shift) and 0xFF).toInt()
-            if (b != 0 || started) { out.write(b); started = true }
-        }
-        return out.toByteArray()
-    }
-
-    private fun size(n: Int): ByteArray = byteArrayOf((0x40 or ((n shr 8) and 0x3F)).toByte(), (n and 0xFF).toByte())
-
-    private fun el(idValue: Long, vararg children: ByteArray): ByteArray {
-        val body = children.fold(ByteArray(0)) { acc, b -> acc + b }
-        return id(idValue) + size(body.size) + body
-    }
-
-    private fun uint(idValue: Long, v: Long): ByteArray = el(idValue, byteArrayOf(v.toByte()))
-    private fun str(idValue: Long, s: String): ByteArray = el(idValue, s.toByteArray())
-    private fun raw(idValue: Long, b: ByteArray): ByteArray = el(idValue, b)
-
-    /** A 4K Dolby Vision file with TrueHD Atmos; scanner tests put it on their NAS. */
-    internal fun sampleFile(): ByteArray {
-        val video = el(
-            0xAE,
-            uint(0x83, 1), str(0x86, "V_MPEGH/ISO/HEVC"),
-            // DefaultDuration: 41,708,333 ns per frame, 24000/1001 frames per second.
-            raw(0x23E383, byteArrayOf(0x02, 0x7C, 0x6B, 0x2D)),
-            el(0xE0, raw(0xB0, byteArrayOf(0x0F, 0x00)), raw(0xBA, byteArrayOf(0x08, 0x70)), el(0x55B0, uint(0x55BA, 16), uint(0x55B2, 10))),
-            el(0x41E4, raw(0x41E7, byteArrayOf(0x64, 0x76, 0x63, 0x43)), raw(0x41ED, byteArrayOf(1, 0, (8 shl 1).toByte(), 0x35))),
-        )
-        val atmos = el(0xAE, uint(0x83, 2), str(0x86, "A_TRUEHD"), str(0x22B59C, "eng"), str(0x536E, "Dolby Atmos 7.1 Mix"), el(0xE1, uint(0x9F, 8)))
-        val french = el(0xAE, uint(0x83, 2), str(0x86, "A_AC3"), uint(0x88, 0), str(0x22B59C, "fre"), el(0xE1, uint(0x9F, 6)))
-        val forced = el(0xAE, uint(0x83, 17), str(0x86, "S_TEXT/UTF8"), str(0x22B59C, "fre"), str(0x536E, "Forced"))
-        val info = el(0x1549A966, raw(0x2AD7B1, byteArrayOf(0x0F, 0x42, 0x40)), raw(0x4489, java.nio.ByteBuffer.allocate(8).putDouble(7_094_000.0).array()))
-        val segment = el(0x18538067, info, el(0x1654AE6B, video, atmos, french, forced))
-        return el(0x1A45DFA3, str(0x4282, "matroska")) + segment
-    }
-
     @Test
     fun readsTracks() {
-        val result = MkvProbe.probe(sampleFile())
+        val result = MkvProbe.probe(Matroska.sample())
         assertTrue(result is MkvProbe.Result.Found)
         val info = (result as MkvProbe.Result.Found).info
         val v = info.video!!
@@ -75,7 +38,7 @@ class MkvProbeTest {
         assertEquals(false, info.audio[1].default)
 
         assertTrue(info.subtitles.single().forced)
-        assertEquals(listOf("4K", "Dolby Vision", "HDR10", "TrueHD Atmos", "7.1"), info.badges())
+        assertEquals(Matroska.SAMPLE_BADGES, info.badges())
     }
 
     @Test
@@ -83,16 +46,15 @@ class MkvProbeTest {
         // A 300-byte NAL unit, then one whose length (2^31 - 256) overflows an Int once added to its offset.
         val frame = byteArrayOf(0, 0, 1, 0x2C) + ByteArray(300) { 2 } +
             byteArrayOf(0x7F, 0xFF.toByte(), 0xFF.toByte(), 0x00, 2, 1) + ByteArray(8)
-        val video = el(
+        val video = element(
             0xAE,
             uint(0xD7, 1), uint(0x83, 1), str(0x86, "V_MPEGH/ISO/HEVC"), str(0x536E, "HDR10+"),
-            el(0xE0, raw(0xB0, byteArrayOf(0x0F, 0x00)), raw(0xBA, byteArrayOf(0x08, 0x70)), el(0x55B0, uint(0x55BA, 16), uint(0x55B2, 10))),
+            element(0xE0, uint(0xB0, 3840), uint(0xBA, 2160), element(0x55B0, uint(0x55BA, 16), uint(0x55B2, 10))),
         )
-        val audio = el(0xAE, uint(0xD7, 2), uint(0x83, 2), str(0x86, "A_AC3"), el(0xE1, uint(0x9F, 6)))
+        val audio = element(0xAE, uint(0xD7, 2), uint(0x83, 2), str(0x86, "A_AC3"), element(0xE1, uint(0x9F, 6)))
         // Track 1, timestamp 0, a keyframe without lacing.
-        val block = raw(0xA3, byteArrayOf(0x81.toByte(), 0, 0, 0x80.toByte()) + frame)
-        val segment = el(0x18538067, el(0x1654AE6B, video, audio), el(0x1F43B675, uint(0xE7, 0), block))
-        val result = MkvProbe.probe(el(0x1A45DFA3, str(0x4282, "matroska")) + segment)
+        val block = element(0xA3, byteArrayOf(0x81.toByte(), 0, 0, 0x80.toByte()) + frame)
+        val result = MkvProbe.probe(file(element(0x1654AE6B, video, audio), element(0x1F43B675, uint(0xE7, 0), block)))
         assertTrue(result is MkvProbe.Result.Found)
         val info = (result as MkvProbe.Result.Found).info
         // With its frames read, HDR10+ comes only from their metadata, not from the track's name.
@@ -104,8 +66,7 @@ class MkvProbeTest {
 
     /** A file holding only [tracks]: its video track's codec and its audio track's. */
     private fun codecs(vararg tracks: ByteArray): Pair<String?, String?> {
-        val segment = el(0x18538067, el(0x1654AE6B, *tracks))
-        val info = (MkvProbe.probe(el(0x1A45DFA3, str(0x4282, "matroska")) + segment) as MkvProbe.Result.Found).info
+        val info = (MkvProbe.probe(file(element(0x1654AE6B, *tracks))) as MkvProbe.Result.Found).info
         return info.video?.codec to info.audio.firstOrNull()?.codec
     }
 
@@ -117,10 +78,11 @@ class MkvProbeTest {
     private fun waveFormat(tag: Int): ByteArray = ByteBuffer.allocate(18).order(ByteOrder.LITTLE_ENDIAN)
         .putShort(tag.toShort()).putShort(6).putInt(48_000).putInt(56_000).putShort(1).putShort(0).putShort(0).array()
 
-    private fun vfw(fourcc: String) = el(0xAE, uint(0xD7, 1), uint(0x83, 1), str(0x86, "V_MS/VFW/FOURCC"), raw(0x63A2, bitmapInfo(fourcc)))
+    private fun vfw(fourcc: String) =
+        element(0xAE, uint(0xD7, 1), uint(0x83, 1), str(0x86, "V_MS/VFW/FOURCC"), element(0x63A2, bitmapInfo(fourcc)))
 
     private fun acm(tag: Int) =
-        el(0xAE, uint(0xD7, 2), uint(0x83, 2), str(0x86, "A_MS/ACM"), raw(0x63A2, waveFormat(tag)), el(0xE1, uint(0x9F, 6)))
+        element(0xAE, uint(0xD7, 2), uint(0x83, 2), str(0x86, "A_MS/ACM"), element(0x63A2, waveFormat(tag)), element(0xE1, uint(0x9F, 6)))
 
     /** An AVI remuxed as is by mkvmerge: tracks are named by their FOURCC and format tag, not codec ids. */
     @Test
@@ -134,17 +96,17 @@ class MkvProbeTest {
         assertEquals("DIV3", codecs(vfw("DIV3")).first)
         // WAVE_FORMAT_EXTENSIBLE: 24 bits, 5.1, then the format its SubFormat starts with.
         val extensible = waveFormat(0xFFFE) + byteArrayOf(24, 0, 0x3F, 0, 0, 0, 0x01, 0x00)
-        assertEquals("PCM", codecs(el(0xAE, uint(0xD7, 2), uint(0x83, 2), str(0x86, "A_MS/ACM"), raw(0x63A2, extensible))).second)
+        assertEquals("PCM", codecs(element(0xAE, uint(0xD7, 2), uint(0x83, 2), str(0x86, "A_MS/ACM"), element(0x63A2, extensible))).second)
     }
 
     @Test
     fun avcAndMpeg4Part2AreTwoFormats() {
-        val asp = el(0xAE, uint(0xD7, 1), uint(0x83, 1), str(0x86, "V_MPEG4/ISO/ASP"))
+        val asp = element(0xAE, uint(0xD7, 1), uint(0x83, 1), str(0x86, "V_MPEG4/ISO/ASP"))
         assertEquals("MPEG-4", codecs(asp).first)
-        val avc = el(0xAE, uint(0xD7, 1), uint(0x83, 1), str(0x86, "V_MPEG4/ISO/AVC"))
+        val avc = element(0xAE, uint(0xD7, 1), uint(0x83, 1), str(0x86, "V_MPEG4/ISO/AVC"))
         assertEquals("AVC", codecs(avc).first)
         // No header to read: no name, rather than a wrong one.
-        assertEquals("?", codecs(el(0xAE, uint(0xD7, 1), uint(0x83, 1), str(0x86, "V_MS/VFW/FOURCC"))).first)
+        assertEquals("?", codecs(element(0xAE, uint(0xD7, 1), uint(0x83, 1), str(0x86, "V_MS/VFW/FOURCC"))).first)
     }
 
     @Test
@@ -152,15 +114,26 @@ class MkvProbeTest {
         assertEquals(MkvProbe.Result.NotMatroska, MkvProbe.probe("not a video".toByteArray()))
     }
 
+    /** Most files stream their segment, of unknown size: its tracks are read up to the end of what was read. */
+    @Test
+    fun aSegmentOfUnknownSizeIsRead() {
+        val header = element(0x1A45DFA3, str(0x4282, "matroska"))
+        val track = element(0xAE, uint(0x83, 1), str(0x86, "V_MPEG4/ISO/AVC"))
+        // The Segment's ID, then a size with all its value bits set.
+        val segmentOfUnknownSize = byteArrayOf(0x18, 0x53, 0x80.toByte(), 0x67, 0x01) + ByteArray(7) { 0xFF.toByte() }
+        val found = MkvProbe.probe(header + segmentOfUnknownSize + element(0x1654AE6B, track)) as MkvProbe.Result.Found
+        assertEquals("AVC", found.info.video?.codec)
+    }
+
     @Test
     fun bitratesAreTheOnesTheTagsMeasured() {
-        val tag = el(
+        val tag = element(
             0x7373,
-            el(0x63C0, raw(0x63C5, byteArrayOf(0x12, 0x34))),
-            el(0x67C8, str(0x45A3, "BPS"), str(0x4487, "768000")),
-            el(0x67C8, str(0x45A3, "DURATION"), str(0x4487, "01:53:11.168000000")),
+            element(0x63C0, uint(0x63C5, 0x1234)),
+            element(0x67C8, str(0x45A3, "BPS"), str(0x4487, "768000")),
+            element(0x67C8, str(0x45A3, "DURATION"), str(0x4487, "01:53:11.168000000")),
         )
-        assertEquals(mapOf(0x1234L to 768_000L), MkvProbe.bitrates(el(0x1254C367, tag)))
+        assertEquals(mapOf(0x1234L to 768_000L), MkvProbe.bitrates(element(0x1254C367, tag)))
         assertEquals(emptyMap<Long, Long>(), MkvProbe.bitrates("not tags".toByteArray()))
     }
 

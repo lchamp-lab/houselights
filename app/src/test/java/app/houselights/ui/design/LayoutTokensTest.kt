@@ -1,5 +1,6 @@
 package app.houselights.ui.design
 
+import app.houselights.testing.kotlinSources
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
@@ -20,9 +21,7 @@ class LayoutTokensTest {
         val layout = text.substring(text.indexOf("object HlLayout"), text.indexOf("\n}\n", text.indexOf("object HlLayout")))
         val members = Regex("""^\s{4}(?:const )?(?:val|fun) (\w+)""", RegexOption.MULTILINE).findAll(layout)
             .map { it.groupValues[1] }.filter { it !in grid }.toList()
-        val screens = sources.walkTopDown()
-            .filter { it.isFile && it.extension == "kt" && !it.path.startsWith(design.path) }
-            .joinToString("\n") { it.readText() }
+        val screens = kotlinSources(sources).filter { !it.path.startsWith(design.path) }.joinToString("\n") { it.readText() }
         val unread = members.filter { !Regex("""HlLayout\.$it\b""").containsMatchIn(screens) }
         assertTrue("Measures no screen reads, to move into a component's Defaults: $unread", unread.isEmpty())
     }

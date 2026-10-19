@@ -1,5 +1,7 @@
 package app.houselights.core
 
+import app.houselights.testing.testKey
+import app.houselights.testing.testSecrets
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
@@ -14,15 +16,12 @@ import java.io.IOException
 import java.security.InvalidKeyException
 import java.security.ProviderException
 import java.security.UnrecoverableKeyException
-import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 import javax.crypto.spec.SecretKeySpec
 
 /** Runs on Robolectric because the Keystore's exceptions are Android classes. */
 @RunWith(RobolectricTestRunner::class)
 class SecretsTest {
-    private fun key() = KeyGenerator.getInstance("AES").apply { init(256) }.generateKey()
-
     /** Numbered keys created on first request; a version in [unusable] fails with a bare InvalidKeyException. */
     private inner class FakeKeystore {
         val keys = mutableMapOf<Int, SecretKey>()
@@ -31,7 +30,7 @@ class SecretsTest {
         fun newest() = keys.keys.maxOrNull() ?: Secrets.FIRST_KEY
 
         fun keyOf(version: Int): SecretKey {
-            val key = keys.getOrPut(version) { key() }
+            val key = keys.getOrPut(version) { testKey() }
             return if (version in unusable) SecretKeySpec(ByteArray(7), "AES") else key
         }
 
@@ -41,7 +40,7 @@ class SecretsTest {
 
     @Test
     fun sealsAndOpens() {
-        val key = key()
+        val key = testKey()
         val sealed = Secrets { key }.seal("p@ss:wörd")
         assertTrue(Secrets { key }.isSealed(sealed))
         assertFalse(sealed.contains("p@ss"))
@@ -51,22 +50,22 @@ class SecretsTest {
 
     @Test
     fun eachSealIsDifferent() {
-        val key = key()
+        val key = testKey()
         val secrets = Secrets { key }
         assertNotEquals(secrets.seal("same"), secrets.seal("same"))
     }
 
     @Test
     fun opensWithTheSameKeyOnly() {
-        val key = key()
+        val key = testKey()
         val sealed = Secrets { key }.seal("secret")
         assertEquals("secret", Secrets { key }.open(sealed))
-        assertNull(Secrets { key() }.open(sealed))
+        assertNull(testSecrets().open(sealed))
     }
 
     @Test
     fun plainTextFromBeforeSealingIsReturnedAsIs() {
-        val secrets = Secrets { key() }
+        val secrets = testSecrets()
         assertEquals("legacy", secrets.open("legacy"))
         assertFalse(secrets.isSealed("legacy"))
         assertEquals("", secrets.seal(""))
@@ -75,7 +74,7 @@ class SecretsTest {
     /** Every key version seals; sealed text is never taken for plain text, nor plain text for sealed. */
     @Test
     fun sealedTextNamesTheVersionOfItsKey() {
-        val secrets = Secrets { key() }
+        val secrets = testSecrets()
         assertTrue(secrets.isSealed("sealed1:AAAA"))
         assertTrue(secrets.isSealed("sealed12:AAAA"))
         listOf("sealed:AAAA", "sealed0:AAAA", "sealed01:AAAA", "sealedx:AAAA", "sealed2", "s3cret").forEach {
@@ -98,10 +97,10 @@ class SecretsTest {
     /** A faulty keymaster throws outside its contract: the secret reads as missing and the app carries on. */
     @Test
     fun aKeystoreThatFailsOpensNothing() {
-        val sealed = Secrets { key() }.seal("secret")
+        val sealed = testSecrets().seal("secret")
         assertNull(Secrets { throw ProviderException("Keystore operation failed") }.open(sealed))
         assertNull(Secrets { throw IOException("Keystore unavailable") }.open(sealed))
-        assertNull(Secrets { key() }.open("sealed1:not base64!"))
+        assertNull(testSecrets().open("sealed1:not base64!"))
     }
 
     /** The first key fails for good: the second seals from then on, and the first is kept for what it sealed. */
@@ -144,7 +143,7 @@ class SecretsTest {
 
     @Test
     fun aKeyInvalidatedForGoodGivesWayToTheNextOne() {
-        val good = key()
+        val good = testKey()
         val secrets = Secrets { version ->
             if (version == 1) throw InvalidKeyException("Keystore operation failed", KeyPermanentlyInvalidatedException()) else good
         }
@@ -157,7 +156,7 @@ class SecretsTest {
     @Test
     fun aTransientUnrecoverableKeyIsFetchedAgain() {
         var tries = 0
-        val good = key()
+        val good = testKey()
         val secrets = Secrets { if (tries++ == 0) throw UnrecoverableKeyException("Failed to obtain information about key") else good }
         val sealed = secrets.seal("token")
         assertTrue(sealed.startsWith("sealed1:"))
@@ -167,7 +166,7 @@ class SecretsTest {
     @Test
     fun aPassingFailureIsTriedAgainWithTheSameKey() {
         var tries = 0
-        val good = key()
+        val good = testKey()
         val versions = mutableListOf<Int>()
         val secrets = Secrets { version ->
             versions += version

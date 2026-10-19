@@ -30,10 +30,7 @@ class NfsBrowserTest {
             clock = { 0L },
         )
         val browsers = RemoteBrowsers(SmbBrowser(connect = { error("No SMB here") }, clock = { 0L }), nfs)
-        val folder = SourceEntity(
-            name = "Films", kind = SourceKind.MOVIES, protocol = Protocol.NFS, host = "192.168.1.20", share = "volume1/media",
-            path = "Films", username = "", password = Secret(""),
-        )
+        val folder = nfsFolder(host = "192.168.1.20", share = "volume1/media", path = "Films")
         val listing = thread { runCatching { runBlocking { nfs.list(folder) } } }
         assertTrue(mounting.await(5, TimeUnit.SECONDS))
 

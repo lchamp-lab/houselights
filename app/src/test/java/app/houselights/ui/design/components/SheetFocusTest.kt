@@ -1,6 +1,5 @@
 package app.houselights.ui.design.components
 
-import android.app.Application
 import androidx.compose.foundation.layout.Column
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -27,7 +26,7 @@ import org.robolectric.annotation.Config
 
 /** DESIGN.md, Sheets: Back closes a sheet, and when it has gone, focus is back where it was. */
 @RunWith(RobolectricTestRunner::class)
-@Config(application = Application::class, qualifiers = TV)
+@Config(qualifiers = TV)
 class SheetFocusTest {
     @get:Rule
     val compose = createComposeRule()

@@ -1,9 +1,7 @@
 package app.houselights.providers.local
 
 import android.content.Context
-import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
-import app.houselights.core.Secrets
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -21,7 +19,6 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
-import javax.crypto.KeyGenerator
 
 /** Editing a folder: the same folder at a new address keeps its titles and what was done with them. */
 @RunWith(RobolectricTestRunner::class)
@@ -35,11 +32,7 @@ class LocalLibraryTest {
     @Before
     fun open() = runBlocking {
         context = ApplicationProvider.getApplicationContext()
-        val key = KeyGenerator.getInstance("AES").apply { init(256) }.generateKey()
-        db = Room.inMemoryDatabaseBuilder(context, LibraryDatabase::class.java)
-            .addTypeConverter(SecretConverter(Secrets { key }))
-            .allowMainThreadQueries()
-            .build()
+        db = testDatabase { allowMainThreadQueries() }
         dao = db.dao()
         artwork = ArtworkCache(context.cacheDir.resolve("artwork"))
         // The scan requested after an edit never runs: it would go to the network.

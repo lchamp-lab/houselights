@@ -1,6 +1,5 @@
 package app.houselights.ui.home
 
-import android.app.Application
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.hasContentDescription
@@ -27,7 +26,7 @@ import org.robolectric.annotation.Config
 
 /** DESIGN.md, Focus: down from home's bar, focus enters the first row on its last card, else its first. */
 @RunWith(RobolectricTestRunner::class)
-@Config(application = Application::class, qualifiers = TV)
+@Config(qualifiers = TV)
 class HomeBarFocusTest {
     @get:Rule
     val compose = createComposeRule()
