@@ -72,11 +72,20 @@ private fun MacrobenchmarkScope.addFolder(setup: LibrarySetup, folder: String, s
     check(device.wait(Until.gone(By.text(appString("add_folder_desc"))), SCAN_MS)) { "The folder $folder was not added" }
 }
 
-/** Waits for home to show the row a scan fills, named by [row]. */
+/** Waits for home to show the row a scan fills, named by [row], going down to a row below the fold. */
 private fun MacrobenchmarkScope.awaitScan(row: String) {
-    await(By.text(appString(row)), "the first scan to fill the row \"${appString(row)}\"", SCAN_MS)
+    val heading = appString(row)
+    val end = System.currentTimeMillis() + SCAN_MS
+    while (!shows(heading)) {
+        check(System.currentTimeMillis() < end) { "Waited ${SCAN_MS / 1000} s for the first scan to fill the row \"$heading\"" }
+        down()
+        device.wait(Until.hasObject(By.textStartsWith(heading)), ROW_MS)
+    }
     device.wait(Until.gone(By.text(appString("home_scanning"))), SCAN_MS)
 }
+
+/** How long to look for the row after each step down. */
+private const val ROW_MS = 2_000L
 
 /** Presses Back until home shows its rows: Back first returns to where a screen starts, then leaves it. */
 internal fun MacrobenchmarkScope.backHome() {
@@ -85,7 +94,7 @@ internal fun MacrobenchmarkScope.backHome() {
         if (shows(rows)) return
         back()
     }
-    await(By.text(rows), "home after Back")
+    await(By.textStartsWith(rows), "home after Back")
 }
 
 /** The most presses of Back from a screen to home: a pane, its entry, the settings. */
