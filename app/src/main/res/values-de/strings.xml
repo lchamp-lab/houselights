@@ -472,6 +472,8 @@
     <string name="credit_data">Filmdaten</string>
     <string name="credit_font">Schrift</string>
     <string name="credit_font_value">Archivo, SIL Open Font License</string>
+    <string name="credit_icons">Symbole</string>
+    <string name="credit_icons_value">Lucide, ISC-Lizenz</string>
     <!-- Supporting the project: said once, in About, never elsewhere -->
     <string name="support">Houselights unterstützen</string>
     <string name="support_desc">Spendieren Sie dem Projekt einen Kaffee, von Ihrem Smartphone aus.</string>

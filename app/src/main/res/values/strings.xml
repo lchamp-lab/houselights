@@ -484,6 +484,8 @@
     <string name="credit_data">Film data</string>
     <string name="credit_font">Typeface</string>
     <string name="credit_font_value">Archivo, SIL Open Font License</string>
+    <string name="credit_icons">Icons</string>
+    <string name="credit_icons_value">Lucide, ISC License</string>
     <!-- Supporting the project: said once, in About, never elsewhere -->
     <string name="support">Support Houselights</string>
     <string name="support_desc">Buy the project a coffee, from your phone.</string>

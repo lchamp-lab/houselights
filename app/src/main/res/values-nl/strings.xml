@@ -472,6 +472,8 @@
     <string name="credit_data">Filmgegevens</string>
     <string name="credit_font">Lettertype</string>
     <string name="credit_font_value">Archivo, SIL Open Font License</string>
+    <string name="credit_icons">Pictogrammen</string>
+    <string name="credit_icons_value">Lucide, ISC-licentie</string>
     <!-- Supporting the project -->
     <string name="support">Houselights steunen</string>
     <string name="support_desc">Trakteer het project op een koffie, vanaf uw telefoon.</string>

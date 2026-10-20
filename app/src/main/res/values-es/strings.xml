@@ -485,6 +485,8 @@
     <string name="credit_data">Datos de películas</string>
     <string name="credit_font">Tipografía</string>
     <string name="credit_font_value">Archivo, SIL Open Font License</string>
+    <string name="credit_icons">Iconos</string>
+    <string name="credit_icons_value">Lucide, licencia ISC</string>
     <string name="support">Apoyar Houselights</string>
     <string name="support_desc">Invite al proyecto a un café, desde su teléfono.</string>
     <string name="support_scan">Escanee este código con su teléfono para abrir la página de Ko-fi del proyecto.</string>

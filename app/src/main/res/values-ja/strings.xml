@@ -459,6 +459,8 @@
     <string name="credit_data">映画データ</string>
     <string name="credit_font">書体</string>
     <string name="credit_font_value">Archivo, SIL Open Font License</string>
+    <string name="credit_icons">アイコン</string>
+    <string name="credit_icons_value">Lucide, ISC License</string>
     <string name="support">Houselightsを支援</string>
     <string name="support_desc">スマートフォンから、プロジェクトにコーヒーを1杯ごちそうできます。</string>
     <string name="support_scan">スマートフォンでこのコードを読み取ると、プロジェクトのKo-fiページが開きます。</string>

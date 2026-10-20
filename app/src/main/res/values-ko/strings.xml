@@ -459,6 +459,8 @@
     <string name="credit_data">영화 데이터</string>
     <string name="credit_font">서체</string>
     <string name="credit_font_value">Archivo, SIL Open Font License</string>
+    <string name="credit_icons">아이콘</string>
+    <string name="credit_icons_value">Lucide, ISC 라이선스</string>
     <string name="support">Houselights 후원하기</string>
     <string name="support_desc">휴대폰으로 프로젝트에 커피 한 잔을 사 주세요.</string>
     <string name="support_scan">휴대폰으로 이 코드를 스캔하면 프로젝트의 Ko-fi 페이지가 열립니다.</string>
