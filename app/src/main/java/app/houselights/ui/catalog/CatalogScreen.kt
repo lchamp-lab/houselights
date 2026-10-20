@@ -259,14 +259,17 @@ fun CatalogScreen() {
                             facts = listOf("1 h", stringResource(R.string.time_left, formatDuration(1_200_000))),
                         )
                     }
+                    // Raised on glass, as over the welcome wall.
                     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m)) {
                         HlListItem(
                             stringResource(R.string.source_local), "Vos vidéos sur un NAS ou un partage réseau (NFS ou SMB).", {},
                             Modifier.weight(1f), icon = HlIcons.Folder, badges = listOf("NFS", "SMB", "TMDB"), descriptionLines = 2,
+                            level = PanelLevel.Raised,
                         )
                         HlListItem(
                             stringResource(R.string.source_jellyfin), "Votre serveur Jellyfin.", {},
                             Modifier.weight(1f), icon = HlIcons.Server, badges = listOf("HTTPS", "HTTP"), descriptionLines = 2,
+                            level = PanelLevel.Raised,
                         )
                     }
                 }

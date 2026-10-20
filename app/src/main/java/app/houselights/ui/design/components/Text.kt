@@ -12,8 +12,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.absolutePadding
+import androidx.compose.foundation.layout.size
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -21,8 +22,10 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.foundation.layout.heightIn
 import androidx.tv.material3.Text
 import app.houselights.R
+import app.houselights.ui.design.Gradation
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.drawGradation
 import app.houselights.ui.util.toPx
 import app.houselights.core.ImageRef
 import coil.compose.AsyncImage
@@ -61,17 +64,38 @@ fun TaskTitle(text: String, modifier: Modifier = Modifier) {
 }
 
 /**
+ * The lockup (DESIGN.md, Brand): Gradation in its ember light, then the [Wordmark], read as the name. [capitals]
+ * is the name's cap height; the box is the name's, the mark hanging past it by a fifth above and below.
+ */
+@Composable
+fun Lockup(capitals: Dp, modifier: Modifier = Modifier) {
+    val colors = Hl.colors
+    Wordmark(
+        capitals,
+        modifier
+            .drawWithCache {
+                // The name's box has its capitals in the middle: round letters overshoot alike above and below.
+                val bars = Gradation.lockupBars(capitals.toPx(), size.height / 2)
+                val lights = Gradation.lights(bars, colors)
+                onDrawBehind { drawGradation(bars, lights) }
+            }
+            .absolutePadding(left = capitals * Gradation.lockupIndent),
+    )
+}
+
+/**
  * The HOUSELIGHTS wordmark, drawn from `wordmark.xml` rather than typeset (DESIGN.md, Brand), in flat
  * projector white. [height] is its cap height; round letters overshoot it slightly inside the box.
  */
 @Composable
-fun Wordmark(height: Dp, modifier: Modifier = Modifier) {
+private fun Wordmark(height: Dp, modifier: Modifier = Modifier) {
     Image(
         painterResource(R.drawable.wordmark),
         contentDescription = stringResource(R.string.wordmark),
         colorFilter = ColorFilter.tint(Hl.colors.content),
         contentScale = ContentScale.Fit,
-        modifier = modifier.height(height * WORDMARK_HEIGHT / WORDMARK_CAPITALS).aspectRatio(WORDMARK_WIDTH / WORDMARK_HEIGHT),
+        // Its exact size: an aspect ratio rounds to whole pixels and may widen the box, moving the name off the mark.
+        modifier = modifier.size(height * WORDMARK_WIDTH / WORDMARK_CAPITALS, height * WORDMARK_HEIGHT / WORDMARK_CAPITALS),
     )
 }
 

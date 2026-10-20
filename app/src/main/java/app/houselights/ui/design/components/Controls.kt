@@ -446,7 +446,10 @@ internal fun labelX(button: Int, label: Int, left: Int, screen: Int, edge: Int):
     return x.coerceAtMost(screen - edge - left - label).coerceAtLeast(edge - left)
 }
 
-/** A choice in a vertical list (sources, servers): a quiet panel with icon, [badges] and a focus chevron. */
+/**
+ * A choice in a vertical list (sources, servers): a panel with icon, [badges] and a focus chevron, quiet on the
+ * room, on glass when [level] raises it over a picture.
+ */
 @Composable
 fun HlListItem(
     title: String,
@@ -456,9 +459,10 @@ fun HlListItem(
     icon: ImageVector? = null,
     badges: List<String> = emptyList(),
     descriptionLines: Int = 1,
+    level: PanelLevel = PanelLevel.Quiet,
 ) {
     val c = Hl.colors
-    HlPanelButton(onClick, modifier.fillMaxWidth()) { focused ->
+    HlPanelButton(onClick, modifier.fillMaxWidth(), level = level) { focused ->
         Column(Modifier.padding(HlInset.card)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (icon != null) {

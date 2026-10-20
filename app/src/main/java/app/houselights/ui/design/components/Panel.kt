@@ -90,7 +90,7 @@ fun HlPanel(
 internal fun Modifier.panel(shape: Shape, fill: Color, edge: BorderStroke): Modifier =
     clip(shape).background(fill).border(edge, shape)
 
-/** A selectable panel (list entries, source cards): framed on focus; [lit] edges it in ember at rest. */
+/** A selectable panel (list entries, source cards): framed on focus; [lit] edges it in ember at rest, [level] raises it on glass. */
 @Composable
 fun HlPanelButton(
     onClick: () -> Unit,
@@ -98,13 +98,15 @@ fun HlPanelButton(
     onFocused: () -> Unit = {},
     lit: Boolean = false,
     enabled: Boolean = true,
+    level: PanelLevel = PanelLevel.Quiet,
     content: @Composable (focused: Boolean) -> Unit,
 ) {
     val c = Hl.colors
+    val raised = level == PanelLevel.Raised
     HlFocusSurface(
         onClick = onClick,
         look = FocusStyle.frame(
-            rest = groundStepFill(),
+            rest = if (raised) c.glass else groundStepFill(),
             restInk = c.content,
             edge = BorderStroke(HlSize.hairline, if (lit && enabled) c.emberLight() else SolidColor(c.edge)),
             disabled = c.content.copy(alpha = HlAlpha.FILL_FAINT),
@@ -113,7 +115,9 @@ fun HlPanelButton(
         shape = HlShapes.panel,
         modifier = modifier.onFocusChanged { if (it.isFocused) onFocused() },
         enabled = enabled,
-    ) { focused -> content(focused) }
+    ) { focused ->
+        if (raised) CompositionLocalProvider(LocalGround provides Ground.Glass) { content(focused) } else content(focused)
+    }
 }
 
 /**

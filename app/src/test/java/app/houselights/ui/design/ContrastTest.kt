@@ -17,6 +17,9 @@ class ContrastTest {
     /** The left veil in the neutral dark at the floor it takes over white. */
     private val veilFloorOnWhite = c.ambientDeep.over(HlScrim.need(1f, tint = greyOf(c.ambientDeep)), Color.White)
 
+    /** The welcome wall under its veil where it is lightest: a white poster at `WALL`, the veil at its least across. */
+    private val welcomeWall = c.background.over(HlScrim.WALL_ACROSS.minOf { it.alpha }, Color.White.over(HlScrim.WALL, c.background))
+
     /** A wall's diffuse field at its brightest, one level over its cap as dithering may draw it. */
     private val fieldBrightest = grey((floor(srgb(HlScrim.FIELD_LUMINANCE_MAX) * 255f) + 1f) / 255f)
 
@@ -68,6 +71,7 @@ class ContrastTest {
         "the diffuse field's brightest" to fieldBrightest,
         // A wall's title at the foot of its band (the safe area and a headline, 70 dp down), under the field's top veil.
         "the title's foot on the diffuse field" to c.background.over(HlScrim.DIFFUSE_TOP.alphaAt(TITLE_FOOT), fieldBrightest),
+        "the welcome wall" to welcomeWall,
     )
 
     /** Every pair the system draws, as role, surface, use. */
@@ -143,6 +147,9 @@ class ContrastTest {
         // A wall's title, in the ember light, and the quietest text in its band.
         "emberFrom" on "the title's foot on the diffuse field", "emberTo" on "the title's foot on the diffuse field",
         "contentTertiary" on "the title's foot on the diffuse field",
+        // Over the welcome wall: the task's title, the tagline, an attention note; the lockup's light and focus's frame.
+        "content" on "the welcome wall", "contentSecondary" on "the welcome wall", "ember" on "the welcome wall",
+        ("emberFrom" on "the welcome wall").mark(), ("emberTo" on "the welcome wall").mark(), ("focus" on "the welcome wall").mark(),
     )
 
     private val forbidden = listOf(

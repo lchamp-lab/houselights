@@ -105,7 +105,7 @@ fun PosterWall(urls: List<String>, modifier: Modifier = Modifier, opacity: Float
     }
 }
 
-/** The welcome wall's veil, darker where text sits; nothing glows behind the wordmark. */
+/** The welcome wall's veil, black and darker where text sits; nothing glows behind the lockup. */
 @Composable
 fun PosterWallScrim() {
     val black = Hl.colors.background

@@ -41,14 +41,29 @@ object Gradation {
     const val LAUNCH = 36f
     const val LAUNCH_CIRCLE = 72f
 
-    /** The bars, widest first, of a mark [height] tall centred on ([x], [y]), pulled right by [PULL]. */
-    fun bars(x: Float, y: Float, height: Float): List<Rect> {
+    /** The lockup's mark, in the name's capitals: it passes them by a fifth above and below, centred on them. */
+    const val LOCKUP_MARK = 1.4f
+
+    /** From the lockup's mark to its name, in capitals: the wide bar's width. */
+    val lockupGap: Float = LOCKUP_MARK * widths.first() / units
+
+    /** Where the lockup's name starts, in capitals. */
+    val lockupIndent: Float = LOCKUP_MARK + lockupGap
+
+    /** The bars, widest first, of a mark [height] tall centred on ([x], [y]), pulled right by [pull] of it. */
+    fun bars(x: Float, y: Float, height: Float, pull: Float = PULL): List<Rect> {
         val unit = height / units
-        var left = x - height / 2 + PULL * height
+        var left = x - height / 2 + pull * height
         val top = y - height / 2
         return widths.mapIndexed { i, width ->
             Rect(left, top, left + width * unit, top + height).also { left = it.right + (gaps.getOrNull(i) ?: 0f) * unit }
         }
+    }
+
+    /** The lockup's bars from x = 0, centred on [capitals] whose middle is at [y]; beside a name, they take no pull. */
+    fun lockupBars(capitals: Float, y: Float): List<Rect> {
+        val height = capitals * LOCKUP_MARK
+        return bars(height / 2, y, height, pull = 0f)
     }
 
     /** The mark's light: `emberFrom` at the left edge of [bars] to `emberTo` at their right, shared by every bar. */

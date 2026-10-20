@@ -2,6 +2,7 @@ package app.houselights.ui.design
 
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.Brush
 import app.houselights.testing.children
 import app.houselights.testing.descendants
 import app.houselights.testing.xmlRoot
@@ -15,7 +16,7 @@ import org.w3c.dom.Element
 import java.io.File
 import kotlin.math.hypot
 
-/** The icon, banner and launch mark are vectors in Gradation's geometry and light, inside their circle. */
+/** The icon, banner and launch mark are vectors in Gradation's geometry and light, inside their circle; the lockup sets it by the name. */
 class BrandTest {
     private val drawables = File("src/main/res/drawable")
 
@@ -49,6 +50,26 @@ class BrandTest {
         val mark = lit(paths.filter { it.gradient != null })
         assertBars(Gradation.bars(BANNER_WIDTH / 2, BANNER_MARK_TOP + BANNER_MARK / 2, BANNER_MARK), mark)
         assertEquals("the room, the mark, the name's eleven letters", 1 + 3 + 11, paths.size)
+    }
+
+    /**
+     * The lockup as its reference draws it, capitals 100 units tall on the baseline y = 0: the mark 1.4 times
+     * their height and centred on them, in one light across it, the name a wide bar's width after it.
+     */
+    @Test
+    fun theLockupSetsTheMarkBesideTheName() {
+        val bars = Gradation.lockupBars(CAPITALS, -CAPITALS / 2)
+        assertBars(LOCKUP_BARS, bars)
+        assertEquals(LOCKUP_NAME, Gradation.lockupIndent * CAPITALS, EXACT)
+        assertEquals("the gap is the wide bar", bars.first().width, Gradation.lockupGap * CAPITALS, EXACT)
+        val c = HouselightsColors
+        assertEquals(Brush.horizontalGradient(listOf(c.emberFrom, c.emberTo), startX = 0f, endX = LOCKUP_MARK), Gradation.light(bars, c))
+
+        // The name is wordmark.xml: as wide as the reference's, its box's middle that of its capitals.
+        val name = xmlRoot(drawables.resolve("wordmark.xml"))
+        assertEquals(LOCKUP_WIDTH - LOCKUP_NAME, name.getAttribute("android:viewportWidth").toFloat(), EXACT)
+        val baseline = name.children("group").single().getAttribute("android:translateY").toFloat()
+        assertEquals(baseline - CAPITALS / 2, name.getAttribute("android:viewportHeight").toFloat() / 2, ROUND_OVERSHOOT)
     }
 
     @Test
@@ -161,5 +182,15 @@ class BrandTest {
 
         /** The precision the resources keep for a coordinate: three decimals. */
         const val EXACT = 0.001f
+
+        /** The reference lockup (`lockup-ember.svg`, viewBox 0 −120 1399.069 140): its capitals, mark, name and width. */
+        const val CAPITALS = 100f
+        const val LOCKUP_MARK = 140f
+        const val LOCKUP_NAME = 202.222f
+        const val LOCKUP_WIDTH = 1399.069f
+        val LOCKUP_BARS = listOf(Rect(0f, -120f, 62.222f, 20f), Rect(78.4f, -120f, 109.511f, 20f), Rect(124.444f, -120f, 140f, 20f))
+
+        /** How far the name's box sits from its capitals' middle: its round letters overshoot alike above and below. */
+        const val ROUND_OVERSHOOT = 0.2f
     }
 }

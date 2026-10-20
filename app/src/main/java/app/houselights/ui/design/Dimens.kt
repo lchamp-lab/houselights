@@ -139,9 +139,9 @@ object HlSize {
     /** The ring of focus on a field, a read-only area, a control that cannot act. */
     val focusBorder = 2.dp
     val hairline = 1.dp
-    /** Wordmark cap height: in About (144 wide) and over the welcome wall (359 wide). */
+    /** The lockup's cap height: in About (168 wide) and over the welcome wall (364 wide, as the name alone was). */
     val wordmark = 12.dp
-    val wordmarkHero = 30.dp
+    val wordmarkHero = 26.dp
 }
 
 /** Layout measures of screens (DESIGN.md, Layout). */
@@ -199,9 +199,9 @@ object HlLayout {
     /** Artwork picker choices; a poster, being its own preview, takes a preview's room (180 × 270). */
     val posterChoice = 180.dp
     val landscapeChoice = 240.dp
-    /** The two columns of the welcome screen. */
+    /** The two columns of the welcome screen: the choices' holds its title on one line in French. */
     val welcomeTagline = 380.dp
-    val welcomeChoices = 430.dp
+    val welcomeChoices = 456.dp
     /** Columns of the technical sheet's track tables. */
     val specLanguage = 120.dp
     val specFormat = 136.dp

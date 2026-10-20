@@ -34,10 +34,10 @@ import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
-import app.houselights.ui.design.components.Wordmark
+import app.houselights.ui.design.components.Lockup
 import kotlin.math.roundToInt
 
-/** Gradation as Android draws it before the app runs (icon, banner, splash), then the wordmark at screen sizes. */
+/** Gradation as Android draws it before the app runs (icon, banner, splash), then on screen: home's place, the lockup. */
 internal fun LazyListScope.catalogBrand() {
     item {
         Group("Brand: Gradation, the icon and the banner", still = true) {
@@ -61,10 +61,11 @@ internal fun LazyListScope.catalogBrand() {
         }
     }
     item {
-        Group("Brand: the name, white and flat", still = true) {
+        Group("Brand: the lockup, Gradation in its light beside the name, white and flat", still = true) {
+            // The mark hangs past the name's box: a wider gap keeps it off the caption.
             Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.xl), verticalAlignment = Alignment.Bottom) {
-                Specimen("over the welcome wall", gap = HlSpace.xs) { Wordmark(HlSize.wordmarkHero) }
-                Specimen("in About", gap = HlSpace.xs) { Wordmark(HlSize.wordmark) }
+                Specimen("over the welcome wall", gap = HlSpace.m) { Lockup(HlSize.wordmarkHero) }
+                Specimen("in About", gap = HlSpace.m) { Lockup(HlSize.wordmark) }
             }
         }
     }
