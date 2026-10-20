@@ -117,7 +117,7 @@ class ContrastTest {
         ("emberFrom" on "VEIL on a white image").mark(), ("emberTo" on "VEIL on a white image").mark(),
         // The main action's words and icon on the ember light, at both ends and in its middle.
         "onEmber" on "emberFrom", "onEmber" on "ember", "onEmber" on "emberTo",
-        // What stays lit on a focused plate: a chosen check, the current place's dot.
+        // What stays lit on a focused plate: a chosen check, the current place's dot, home's Gradation.
         ("emberOnLight" on "focus").mark(),
         // On a picture's own dark: a title's words, the quietest, and the place in ember.
         "content" on "ambientDeep", "contentSecondary" on "ambientDeep", "contentTertiary" on "ambientDeep",

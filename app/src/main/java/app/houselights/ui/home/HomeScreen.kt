@@ -233,7 +233,7 @@ internal fun HomeBands(
     }
 }
 
-/** Gradation, the places and the tiles, [HlSpace.safeV] from the top; as tall as a compact tile (`HomeLayoutTest`). */
+/** The places, home's as Gradation, and the tiles, [HlSpace.safeV] from the top; as tall as a compact tile (`HomeLayoutTest`). */
 @Composable
 internal fun TopBar(
     libraries: List<Library>,
@@ -247,13 +247,13 @@ internal fun TopBar(
     /** Null when the source cannot search. */
     onSearch: (() -> Unit)? = null,
 ) {
-    // Gradation and the places on the veil, the actions apart on their plates; a long track scrolls, the tiles stay.
+    // The places on the veil, the actions apart on their plates; a long track scrolls, the tiles stay.
     OnArtwork { HeaderControls { Row(
         Modifier.fillMaxWidth().padding(start = HlSpace.safeH, end = HlSpace.safeH, top = HlSpace.safeV),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        // The chosen library lights before it opens; returning home makes Accueil the place again.
+        // The chosen library lights before it opens; returning home makes home the place again.
         var current by remember { mutableIntStateOf(0) }
         val scope = rememberCoroutineScope()
         HlSegmented(
@@ -274,7 +274,7 @@ internal fun TopBar(
             modifier = Modifier.weight(1f, fill = false).padding(end = HlSpace.l).focusGroupKey(TRACK, memory),
             scrollable = true,
             enterAt = returnTo ?: current,
-            withMark = true,
+            markFirst = true,
         )
         // Down from the buttons enters the first row as from the tabs, not on the card beneath the button.
         val down = Modifier.focusProperties { down = intoRows() ?: FocusRequester.Default }

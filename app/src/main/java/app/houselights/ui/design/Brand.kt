@@ -7,7 +7,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.isSpecified
 import androidx.compose.ui.unit.Dp
 
 /**
@@ -64,14 +67,14 @@ fun DrawScope.drawGradation(bars: List<Rect>, lights: List<Brush>, level: (Int) 
     }
 }
 
-/** Gradation on screen, [height] tall and as wide, in its ember light: a signature, never focusable or read. */
+/** Gradation on screen, [height] tall and as wide, in its ember light or in one [ink]; never focusable. */
 @Composable
-fun GradationMark(modifier: Modifier = Modifier, height: Dp = HlSize.barMark) {
+fun GradationMark(modifier: Modifier = Modifier, height: Dp = HlSize.barMark, ink: Color = Color.Unspecified) {
     val colors = Hl.colors
     Spacer(
         modifier.size(height).drawWithCache {
             val bars = Gradation.bars(size.width / 2, size.height / 2, size.height)
-            val lights = Gradation.lights(bars, colors)
+            val lights = if (ink.isSpecified) List(bars.size) { SolidColor(ink) } else Gradation.lights(bars, colors)
             onDrawBehind { drawGradation(bars, lights) }
         },
     )

@@ -134,7 +134,7 @@ object HlSize {
     val segment = 40.dp
     /** The dot before the current place's word when it has focus. */
     val wordDot = 7.dp
-    /** Gradation opening home's bar, as tall as its words' capitals. */
+    /** Gradation as home's place in its bar, as tall as its words' capitals. */
     val barMark = 18.dp
     /** The ring of focus on a field, a read-only area, a control that cannot act. */
     val focusBorder = 2.dp

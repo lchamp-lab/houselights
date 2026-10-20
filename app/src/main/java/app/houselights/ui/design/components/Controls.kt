@@ -58,6 +58,7 @@ import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextOverflow
@@ -496,8 +497,8 @@ fun HlListItem(
  * choice. The current word is lit in ember, the others grey; focus is the white plate, a raspberry dot before
  * the current word. Words line up with the start edge and their plates hang past it, so nothing moves as focus
  * or the choice moves. Focus enters on [enterAt] (the current option by default), never the nearest; options
- * read as tabs. [selectOnFocus] selects on move, as TV tabs do; [details] add a check or "6 / 10"; [withMark]
- * opens the row with Gradation, as home's bar does.
+ * read as tabs. [selectOnFocus] selects on move, as TV tabs do; [details] add a check or "6 / 10"; [markFirst]
+ * draws the first place as Gradation, read as its name: home, in home's bar.
  */
 @Composable
 fun HlSegmented(
@@ -509,16 +510,11 @@ fun HlSegmented(
     scrollable: Boolean = false,
     enterAt: Int = selected,
     details: List<SegmentDetail?> = emptyList(),
-    withMark: Boolean = false,
+    markFirst: Boolean = false,
 ) {
     val requesters = remember(options.size) { List(options.size) { FocusRequester() } }
     val scroll = rememberScrollState()
-    Row(modifier, verticalAlignment = Alignment.CenterVertically) {
-        if (withMark) {
-            GradationMark()
-            // As far from the first word as words are from each other.
-            Spacer(Modifier.width(WordSpacing))
-        }
+    Box(modifier, contentAlignment = Alignment.CenterStart) {
         RowScroll {
             Row(
                 Modifier
@@ -535,6 +531,7 @@ fun HlSegmented(
                         label,
                         detail = details.getOrNull(i),
                         current = i == selected,
+                        mark = markFirst && i == 0,
                         onClick = { onSelect(i) },
                         onFocused = { if (selectOnFocus) onSelect(i) },
                         modifier = Modifier.focusRequester(requesters[i]),
@@ -554,9 +551,6 @@ private val TrackHang: Dp = HlControl.tabPaddingH + DotRoom
 /** Between two plates of a track, so a current plate's dot room clears the word before it. */
 private val PlateGap: Dp = HlSpace.xs
 
-/** Between two words of a track, and between Gradation and the first. */
-private val WordSpacing: Dp = HlControl.tabPaddingH * 2 + PlateGap
-
 /** Laid out [by] further to the start than its slot, which it fills less [by]: what it draws hangs into the margin. */
 private fun Modifier.hang(by: Dp): Modifier = layout { measurable, constraints ->
     val room = by.roundToPx()
@@ -575,18 +569,21 @@ private fun SegmentItem(
     text: String,
     detail: SegmentDetail?,
     current: Boolean,
+    mark: Boolean,
     onClick: () -> Unit,
     onFocused: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val c = Hl.colors
+    // Gradation stays lit on focus's white: it takes no dot.
+    val dotted = current && !mark
     HlFocusSurface(
         onClick = onClick,
         look = FocusStyle.fill(rest = Color.Transparent, restInk = if (current) c.content else c.contentSecondary),
         shape = HlShapes.control,
         // The current plate takes its dot's room before the word, hanging over the gap: the word stays put.
         modifier = modifier
-            .then(if (current) Modifier.hang(DotRoom) else Modifier)
+            .then(if (dotted) Modifier.hang(DotRoom) else Modifier)
             .height(HlSize.segment)
             .onFocusChanged { if (it.isFocused) onFocused() },
         role = Role.Tab,
@@ -596,14 +593,14 @@ private fun SegmentItem(
             Modifier.align(Alignment.CenterStart).padding(horizontal = HlControl.tabPaddingH),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            if (current) {
+            if (dotted) {
                 Box(Modifier.width(DotRoom), contentAlignment = Alignment.CenterStart) {
                     // On the white of focus, the place stays marked: a raspberry dot.
                     val dot = Modifier.size(HlSize.wordDot)
                     if (lit) Box(dot.background(c.emberOnLight, CircleShape))
                 }
             }
-            Word(text, current, lit)
+            if (mark) PlaceMark(text, current, lit) else Word(text, current, lit)
             when (detail) {
                 null -> Unit
                 SegmentDetail.Done -> {
@@ -645,6 +642,17 @@ private fun Word(text: String, current: Boolean, lit: Boolean) {
         Text(text, style = t.placeCurrent, maxLines = 1, softWrap = false, modifier = Modifier.clearAndSetSemantics {}.unplaced())
         Text(text, style = style, maxLines = 1, softWrap = false)
     }
+}
+
+/** A place drawn as Gradation, read as [name]: its ember light when current, raspberry on focus's white, else a word's ink. */
+@Composable
+private fun PlaceMark(name: String, current: Boolean, lit: Boolean) {
+    val ink = when {
+        !current -> LocalContentColor.current
+        lit -> Hl.colors.emberOnLight
+        else -> Color.Unspecified
+    }
+    GradationMark(Modifier.semantics { contentDescription = name }, ink = ink)
 }
 
 /** Takes its room in the layout without being placed, so it is neither drawn nor read. */

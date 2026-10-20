@@ -56,8 +56,8 @@ internal fun LazyListScope.catalogBrand() {
         }
     }
     item {
-        Group("Brand: on screen, Gradation opens home's bar, as tall as its words' capitals", still = true) {
-            Specimen("in home's bar, before Accueil", gap = HlSpace.xs) { GradationMark() }
+        Group("Brand: on screen, Gradation is home's place in its bar, as tall as its words' capitals", still = true) {
+            Specimen("in home's bar, where you are", gap = HlSpace.xs) { GradationMark() }
         }
     }
     item {

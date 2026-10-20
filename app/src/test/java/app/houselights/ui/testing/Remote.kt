@@ -37,8 +37,8 @@ fun ComposeContentTestRule.pressInSheet(keyCode: Int) {
     waitForIdle()
 }
 
-/** Draws the activity's window now, as Android does each frame: Robolectric lays it out, but draws it only when asked. */
-fun AndroidComposeTestRule<*, out ComponentActivity>.drawWindow() = runOnUiThread {
+/** Draws the activity's window now, as Android does each frame, and returns it: Robolectric draws only when asked. */
+fun AndroidComposeTestRule<*, out ComponentActivity>.drawWindow(): Bitmap = runOnUiThread {
     val window = activity.window.decorView
-    window.draw(Canvas(Bitmap.createBitmap(window.width, window.height, Bitmap.Config.ARGB_8888)))
+    Bitmap.createBitmap(window.width, window.height, Bitmap.Config.ARGB_8888).also { window.draw(Canvas(it)) }
 }

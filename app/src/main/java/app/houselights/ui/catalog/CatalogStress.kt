@@ -195,7 +195,7 @@ private fun StressTopBar(libraries: List<String>) = OnArtwork { HeaderControls {
             onSelect = { current = it },
             modifier = Modifier.weight(1f, fill = false).padding(end = HlSpace.l),
             scrollable = true,
-            withMark = true,
+            markFirst = true,
         )
         HlIconButton(HlIcons.Settings, stringResource(R.string.nav_settings), onClick = {})
     }

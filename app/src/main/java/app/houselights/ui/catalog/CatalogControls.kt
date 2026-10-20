@@ -198,11 +198,11 @@ private fun OverAPicture() {
 private fun Tracks() {
     var place by remember { mutableIntStateOf(0) }
     val places = listOf(R.string.nav_home, R.string.library_movies, R.string.library_shows).map { stringResource(it) }
-    Specimen("home's bar: Gradation, the places, the tiles", Modifier.fillMaxWidth(), gap = HlSpace.xs) {
+    Specimen("home's bar: home as Gradation, the places, the tiles", Modifier.fillMaxWidth(), gap = HlSpace.xs) {
         OnArtwork {
             HeaderControls {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    HlSegmented(places, selected = place, onSelect = { place = it }, modifier = Modifier.weight(1f), withMark = true)
+                    HlSegmented(places, selected = place, onSelect = { place = it }, modifier = Modifier.weight(1f), markFirst = true)
                     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.s)) {
                         HlIconButton(HlIcons.Search, stringResource(R.string.search), {})
                         HlIconButton(HlIcons.Settings, stringResource(R.string.nav_settings), {})

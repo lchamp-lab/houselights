@@ -69,9 +69,9 @@ Three moments carry the identity:
   fit. The other crafts close a title's page as end credits (`EndCredits`).
 
 The **brand** is Gradation, in the ember light, and the **wordmark**, projector white (see *Brand*). On screen,
-Gradation opens home's bar (`GradationMark`); the wordmark (`Wordmark`) is drawn, never typeset, flat and
-without glow, on the welcome screen (`HlSize.wordmarkHero`, 30) and in About (`HlSize.wordmark`, 12). The two
-never meet on screen.
+Gradation is home's place in its bar (`GradationMark`), in place of a word; the wordmark (`Wordmark`) is drawn,
+never typeset, flat and without glow, on the welcome screen (`HlSize.wordmarkHero`, 30) and in About
+(`HlSize.wordmark`, 12). The two never meet on screen.
 
 ## Gestures: small surfaces
 
@@ -150,11 +150,11 @@ Check fills on a TV with the catalogue's black-level chart (`BLACK_LEVELS`).
 - *Your choice*: the current choice's check, a chosen value or match, an active filter, a favourite.
 - *Needs attention*: an error with its mark, the action a question asks about.
 - *New*: the dot of a title new to the library, a row's count of new titles.
-- *Where you are*: the current place's word in the bar, a place's title (never a task's), the open section's
-  icon, the current season.
+- *Where you are*: the current place in the bar (its word, or Gradation for home), a place's title (never a
+  task's), the open section's icon, the current season.
 - *The action to play*: Lire or Reprendre, filled with the ember light.
 
-The mark's bars are the only exception. What is done or simply true is projector white (a watched title,
+Gradation at launch is the only exception. What is done or simply true is projector white (a watched title,
 `StatusState.Done`). Ember never marks focus, a fact (a score is grey) or a data series. It never comes alone:
 every ember state has a second sign (shape, mark or word); attention has its own circled exclamation. Screens
 never name ember: they state the state and the component lights it (`HlStatus`, `AttentionNote`, `lit`,
@@ -326,9 +326,9 @@ The screen is a TV seen from three metres, through overscan that may crop its ma
 - **Pages turn by whole blocks** (`scrollsAsBlock`). On home and a title's page a block moves to the top
   keyline, and the gap between blocks (`HlLayout.detailGap`, 32) takes the previous one off screen. A title's
   page first shows its hero plus the first row's header and a strip of images (`HlLayout.detailHeroMin`).
-- **Home is three bands** on `safeH`: the bar (Gradation, the places, the search and settings tiles), the hero
-  band (`HlLayout.hero`, 148: logo, one line of facts, two lines of overview or progress), the rows;
-  `HlSpace.l` between them (`HomeLayoutTest`).
+- **Home is three bands** on `safeH`: the bar (the places, home's as Gradation, the search and settings
+  tiles), the hero band (`HlLayout.hero`, 148: logo, one line of facts, two lines of overview or progress), the
+  rows; `HlSpace.l` between them (`HomeLayoutTest`).
 - **Three vertical gaps:** `HlSpace.s` within a block, `HlSpace.l` between home's bands, `HlSpace.xl` between
   the blocks of a scrolling page.
 - **Reading measures:** `readable` 640, `readableNarrow` 520 beside artwork, `captionMeasure` 400.
@@ -381,8 +381,9 @@ crosses lights at once, nothing glows, the row's frame jumps; the run ends 120 m
 
 - **Nothing is brighter than focus**, and ember never marks it: on a focused plate only marks stay lit, in
   `emberOnLight`.
-- **Track options**: the focused word is the white plate; the current one is lit, never white unless focused.
-  Focus entering a track lands on the current option (`focusProperties.enter`, `SegmentedFocusTest`).
+- **Track options**: the focused word is the white plate; the current one is lit, never white unless focused;
+  home's Gradation, current, stays lit on the plate in `emberOnLight`. Focus entering a track lands on the
+  current option (`focusProperties.enter`, `SegmentedFocusTest`).
 - **Disabled controls** keep focus, ringed, never filled. A read-only row (the technical sheet) is not
   disabled: it fills white and OK does nothing.
 - **Nothing grows.** Focus reaches `HlFocus.reach` past what it frames, whatever its size: the room a
@@ -443,7 +444,7 @@ Back cancels it.
 | Component | Use |
 |---|---|
 | `HlButton` (`Primary`, `Secondary`), `HlIconButton`, `HeaderControls`, `HlActionRow` | actions 48 dp tall, radius 10. The primary one (Lire, Reprendre) is the ember light in black ink (`onEmber`), `HlIcons.Play`, a duration in `jaquette`; focus frames it. A secondary one is a plate by its ground (over a picture `plate(light)` edged by `plateEdge`, glass on the room, `FILL` on glass) that focus fills white. `HlIconButton` is a square tile (48, its glyph `HlSize.tileIcon`) showing its label below on focus, on a plate, at most `HlIconButtonDefaults.labelEdge` from the screen's side, hidden while a sheet is open; `HlActionRow` keeps room for it. In a header (`HeaderControls`): buttons 44, tiles 40, glyphs 20. Toggles name what OK does and show the state with the icon (`lit`: the glyph in ember, raspberry on white; `HlIcons.CheckFilled`). `detailLit` lights a chosen value in the detail. Disabled: a faint well (over a picture, its plate), tertiary ink, ringed by focus, OK ignored. `busy`: a pending dot and `busyLabel` ("Connexion…"), width kept, OK ignored |
-| `HlSegmented` | where you are among a few places, as words in `place`: home's bar (opened by Gradation with `withMark`), seasons (`scrollable`, chosen as focus moves with `selectOnFocus`, each with its `SegmentDetail`), NFO views, form choices. The current word is lit in ember (`placeCurrent`), the others grey, on no plate; focus is the white plate, with a raspberry dot (`HlSize.wordDot`) before the current word. Words line up with the start edge and plates hang past it, each word as wide as in bold and set from its start: nothing moves as focus or the choice moves. Focus entering lands on the current option (`enterAt`). Exposed as tabs |
+| `HlSegmented` | where you are among a few places, as words in `place`: home's bar (its first place, home, drawn as Gradation with `markFirst`), seasons (`scrollable`, chosen as focus moves with `selectOnFocus`, each with its `SegmentDetail`), NFO views, form choices. The current word is lit in ember (`placeCurrent`), the others grey, on no plate; focus is the white plate, with a raspberry dot (`HlSize.wordDot`) before the current word. Home's Gradation is a place like the words, read as its name: the ember light when current, `emberOnLight` on focus's plate, a word's ink otherwise, on a plate padded as a word's. Words line up with the start edge and plates hang past it, each word as wide as in bold and set from its start: nothing moves as focus or the choice moves. Focus entering lands on the current option (`enterAt`). Exposed as tabs |
 | `HlTextField` | a glass plate edged by a hairline (`field`), ringed white with focus, keyboard on OK, "OK saisir" hint (`KeyHint`); while typing, the ember ring and a raspberry cursor. One line below: `supporting` or `error` (`AttentionNote`). Its label is always read out, shown or not (`showLabel`); `password` hides the value. Placeholders are examples from resources. Saved when left, never while typing |
 | `HlMenuButton`, `MenuSection`, `MenuOption` | a sectioned menu anchored to its button (sort, filters), on raised glass (`panel`, 320 wide), opening below or above within the safe area and growing from `ENTER_SCALE`; options 44 tall, the chosen one white with its ember check (raspberry on focus's white plate), the others grey; a sort applies once the menu has closed, filters at once with the menu kept open (`closeOnSelect`) |
 | `HlScrollArea` | long content read with the remote: focusable only when scrollable, ringed white with focus, `HlSize.scrollStep` per press, a held key adding steps; `HlScrollArea(lineHeight)` lays out only visible lines |
@@ -559,9 +560,9 @@ at a time, together as wide as they are tall.
   TV's 320 × 180 grid; the launch mark is 36 units. Each is optically centred (`Gradation.PULL`).
 
 All are vectors: `ic_launcher_foreground` (with the icon's `<monochrome>` layer), `banner.xml`, `splash_mark`.
-On screen, `GradationMark` opens home's bar only (`HlSize.barMark`, the height of its words' capitals, a brush
-per bar: `Gradation.lights`). `BrandTest` checks their geometry, gradient and palette; `CatalogBrand` shows them
-as Android draws them.
+On screen, `GradationMark` is home's place in its bar only (`HlSize.barMark`, the height of its words' capitals, a
+brush per bar: `Gradation.lights`): in its ember light where you are, else in one ink (see `HlSegmented`).
+`BrandTest` checks their geometry, gradient and palette; `CatalogBrand` shows them as Android draws them.
 
 ## Performance
 
@@ -645,7 +646,7 @@ Debug builds show **Settings > About > Design system**: every token and componen
 | `CatalogCards` | a media row whose frame travels, with its new titles; cards on a picture's light; surfaces and images; wide cards, a saga with absent films, people; progress lines, skeletons, artwork choices, results, thumbnails and previews |
 | `CatalogReading` | title art, episode headings, meta and title lines, formats, end credits, the billing block, hero info, info blocks, definition lists, the technical sheet, search and its keys, the synopsis, versions |
 | `CatalogStress` | the longest labels, home's bar on the brightest image, the largest text size, fallback scripts, device metrics |
-| `CatalogBrand` | the icon and banner as a launcher draws them, the launch mark in its circle, Gradation in home's bar, the wordmark |
+| `CatalogBrand` | the icon and banner as a launcher draws them, the launch mark in its circle, Gradation as home's place, the wordmark |
 
 ## Adding a screen
 
