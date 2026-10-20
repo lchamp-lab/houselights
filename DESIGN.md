@@ -473,7 +473,7 @@ Artwork carries no text: the top of the screen names what has focus.
   ember line burning at the foot, 4 dp on a poster and 5 on a wide image, its light stretched over the part
   seen. Formats are never a card mark.
 - **Without artwork** or on failure, the card is set like a one-sheet: a short rule, the name in `cardTitle`,
-  the year in `badge`. Pictures without a title (`PosterThumb`, `RowPreview`, free `PosterStrip` slots) and
+  the year in `badge` and secondary ink, readable on a wall's field. Pictures without a title (`PosterThumb`, `RowPreview`, free `PosterStrip` slots) and
   loading cards (`CardSkeleton`) show an empty frame: one step up (`groundStep()`), the artwork edge and a
   short rule in `contentDecorative`. A person without a portrait is the bare frame, the name under it.
 - **Episodes** read as a number in tabular figures, a name, then length and progress.
@@ -580,16 +580,23 @@ The player's GPU (a Mali-G51) fills a 1080p screen only a few times per frame, s
 - **Measure on the player**, compiled as users run it (`cmd package compile -m speed-profile`), with
   `dumpsys gfxinfo <package> framestats` and `setprop debug.hwui.overdraw show`. See CONTRIBUTING.md.
 
-Reference measures on the Zidoo, each screen browsed with right every 400 ms then an arrow held 3 s:
+Reference measures on the Zidoo Z1000 Pro (2026-10-20): the `bench` build as `scripts/install.sh` leaves it,
+compiled `speed-profile` with the baseline profile, two passes; in brackets v0.1.0 compiled `speed`, three passes.
+Each screen from a fresh start, an arrow every 400 ms, then an arrow held 3 s.
 
 | Measure | Tool | Budget | Home | Wall | Title's page | Settings |
 |---|---|---|---|---|---|---|
-| Janky frames | `gfxinfo framestats` | +0.5 point at most | to measure | to measure | to measure | to measure |
-| Frame time, 90th / 99th percentile | `gfxinfo framestats` | 16.7 ms | to measure | to measure | to measure | to measure |
-| Overdraw | `debug.hwui.overdraw` | the room 1×, plates 2× | to measure | to measure | to measure | to measure |
-| Graphics memory | `dumpsys meminfo` | two backdrop layers | to measure | to measure | to measure | to measure |
-| Field and veils without bands | `screencap`, runs of one level on the black-level chart | 1 to 2 px | — | to measure | to measure | — |
-| Cold start to home's first frame | `am start -W` | 1.5 s | to measure | — | — | — |
+| Janky frames | `gfxinfo framestats` | +0.5 point at most | 0.8–1.5 % (3.0–4.9 %) | 0–0.2 % (0.3 %) | 1.1–1.3 % (1.1–1.3 %) | 19 % (19 %) |
+| Frame time, 90th / 99th percentile | `gfxinfo framestats` | 16.7 ms | 24 / 32–34 ms (27–29 / 38–40) | 18–19 / 25–26 ms (22–23 / 27–31) | 18–19 / 32–36 ms (18–19 / 34–40) | 57–61 / 150 ms (61–65 / 150) |
+| Overdraw | `debug.hwui.overdraw` | the room 1×, plates 2× | room and backdrop 1×, plates 2×, a card 3× | field 1×, posters 3× | backdrop 1×, plates 2×, the ember button 3× | rows 2×, the pane's pictures 3× |
+| GPU memory | `dumpsys gfxinfo` | two backdrop layers | 86 MB | 35 MB | 31 MB | 22 MB |
+| Field and veils without bands | `screencap`, runs of one level | 1 to 2 px | — | levels alternate pixel by pixel: dithered, no band | smooth, no band | — |
+| Cold start to home's first frame | `am start -W` | 1.5 s | 0.50–0.55 s (0.62–0.69 s) | — | — | — |
+
+Settings' janky frames are its pane, recomposed whole when its entry changes (120 to 150 ms in `draw`), as before
+the identity. Home's slowest frames on a row wait on the main thread for a picture (40 to 48 ms); a row's hold
+draws at 12 to 15 ms of GPU per frame, as a wall's scroll does. The room is painted twice, by the window and
+the screen: the only overdraw left at rest.
 
 ## Guard
 

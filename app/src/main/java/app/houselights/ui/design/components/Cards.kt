@@ -572,7 +572,7 @@ internal fun BoxScope.FallbackArtwork(title: String, year: Int?) {
         Text(title, style = Hl.type.cardTitle, color = c.content, maxLines = 4, overflow = TextOverflow.Ellipsis)
         if (year != null) {
             Spacer(Modifier.height(HlSpace.xxs))
-            Text(year.toString(), style = Hl.type.badge, color = c.contentTertiary)
+            Text(year.toString(), style = Hl.type.badge, color = c.contentSecondary)
         }
     }
 }
