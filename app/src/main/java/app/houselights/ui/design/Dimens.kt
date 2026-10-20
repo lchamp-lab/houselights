@@ -298,28 +298,22 @@ object HlControl {
 }
 
 /**
- * Focus by family (DESIGN.md, Focus): a framed picture grows by a share of its size and takes the white
- * frame [frameGap] off its edge; controls and rows do not grow, their white plate shows focus.
+ * Focus by family (DESIGN.md, Focus): a framed picture takes the white frame [frameGap] off its edge and glows;
+ * controls and rows take the white plate. Nothing grows.
  */
 object HlFocus {
-    /** A poster, a portrait. */
-    const val POSTER_SCALE = 1.08f
-    /** A wide image: a still, a backdrop or a logo to choose. */
-    const val WIDE_SCALE = 1.05f
-    /** A panel: a source card, a list choice, a search result. */
-    const val PANEL_SCALE = 1.02f
-    /** Buttons, tiles, tabs and rows. */
-    const val CONTROL_SCALE = 1f
-
     /** The white frame of focus, and how far it stands off the edge of what it frames. */
     val frame = 2.5.dp
     val frameGap = 3.dp
 
-    /** How far a framed element [size] long reaches past each end at [scale]: its growth, then its frame. */
-    fun reach(size: Dp, scale: Float): Dp = size * (scale - 1f) / 2 + frameGap + frame
+    /** How far focus reaches past what it frames: the gap, then the frame. */
+    val reach = frameGap + frame
 
-    /** Room a row of pictures keeps above and below its cards for their [reach]. */
-    val room = HlSpace.m
+    /**
+     * Room a row of pictures keeps above and below its cards: their [reach] inside it, their [glow] past it, as far
+     * as a lazy row draws across its axis (15 dp).
+     */
+    val room = HlSpace.s
 
     /** The focused card's siblings dim and lose colour through their image's filter: partly, so the wall stays inviting. */
     const val SIBLING_BRIGHTNESS = 0.64f
@@ -338,6 +332,6 @@ object HlFocus {
 
     /** The light a focused picture spreads around it, in its own tone. */
     val glow = 28.dp
-    /** Focus keyline from a list's top and bottom: the safe area, so a focused poster grows into the margin. */
+    /** Focus keyline from a list's top and bottom: the safe area, so a focused picture's frame lies in the margin. */
     val edge = HlSpace.safeV
 }

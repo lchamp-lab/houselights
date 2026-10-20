@@ -53,7 +53,6 @@ fun ArtworkChoiceCard(
             onClick,
             Modifier.fillMaxWidth().aspectRatio(aspectRatio).semantics { this.selected = selected },
             shape = if (aspectRatio > 1f) HlShapes.wide else HlShapes.artwork,
-            lift = Lift.Wide,
             onFocused = onFocused,
         ) {
             val url = image?.url(width.toPx())

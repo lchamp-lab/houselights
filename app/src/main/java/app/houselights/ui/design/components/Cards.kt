@@ -153,7 +153,7 @@ fun MediaRow(
                         }
                         .keepChildFocus(group)
                         .then(frame.drawn),
-                    // Room for a focused card's growth and frame ([HlFocus.reach]).
+                    // Room for a focused card's frame and glow ([HlFocus.room]).
                     contentPadding = PaddingValues(horizontal = HlSpace.safeH, vertical = HlFocus.room),
                     horizontalArrangement = Arrangement.spacedBy(spacing),
                     content = content,
@@ -187,8 +187,8 @@ private fun RowHeading(modifier: Modifier, count: String?, news: Int, title: @Co
 }
 
 /**
- * The focus treatment of all artwork (DESIGN.md, Cards): framed, it grows by [lift] and glows in its own
- * tone ([light], else the ambient light) while its siblings recede; in a [MediaRow], the row draws its frame.
+ * The focus treatment of all artwork (DESIGN.md, Cards): framed, it glows in its own tone ([light], else the
+ * ambient light) while its siblings recede; in a [MediaRow], the row draws its frame.
  * Read as one element with [stateDescription]; with [readAs], that text alone, actionable if [acts].
  */
 @Composable
@@ -196,7 +196,6 @@ fun ArtworkSurface(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     shape: Shape = HlShapes.artwork,
-    lift: Lift = Lift.Poster,
     onFocused: () -> Unit = {},
     stateDescription: String? = null,
     readAs: String? = null,
@@ -224,7 +223,6 @@ fun ArtworkSurface(
         look = FocusStyle.frame(
             rest = c.content.copy(alpha = HlAlpha.FILL),
             restInk = c.content,
-            lift = lift,
             edge = artworkEdge(c),
         ),
         shape = shape,
@@ -324,8 +322,8 @@ private fun artworkEdge(colors: HlColors) = BorderStroke(HlSize.hairline, colors
 @Composable
 fun posterPx(width: Dp? = null): Int = requestedPoster(width).toPx()
 
-/** The width a poster [width] wide, a wall's cell when null, is requested at: as it grows with focus, no more. */
-internal fun requestedPoster(width: Dp?): Dp = (width ?: HlSize.wallPoster) * Lift.Poster.scale
+/** The width a poster [width] wide, a wall's cell when null, is requested at. */
+internal fun requestedPoster(width: Dp?): Dp = width ?: HlSize.wallPoster
 
 /** Poster aspect ratio, width to height. */
 private const val POSTER_SHAPE = 2f / 3f
@@ -361,7 +359,7 @@ fun PosterCard(
     val sized = if (width != null) modifier.width(width) else modifier.fillMaxWidth()
     val px = posterPx(width)
     val poster = item.poster?.url(px)
-    // Decoded as grown by focus, as the preloads ask for it ([posterRequest]).
+    // Decoded at its width, as the preloads ask for it ([posterRequest]).
     val decoded = IntSize(px, (px / POSTER_SHAPE).roundToInt())
     ArtworkSurface(onClick, sized.aspectRatio(POSTER_SHAPE), onFocused = onFocused, stateDescription = cardState(item), light = poster) {
         ArtworkImage(poster, item.title, Modifier.fillMaxSize(), size = decoded) { FallbackArtwork(item.title, item.year) }
@@ -388,7 +386,6 @@ fun LandscapeCard(
             onClick,
             Modifier.fillMaxWidth().aspectRatio(STILL_SHAPE),
             shape = HlShapes.wide,
-            lift = Lift.Wide,
             onFocused = onFocused,
             stateDescription = cardState(item),
             light = still,
@@ -521,7 +518,7 @@ fun PersonCard(person: Person, modifier: Modifier = Modifier, onOpen: (() -> Uni
     }
 }
 
-/** A saga film missing from the library: an empty poster frame, framed without growing on focus; OK does nothing. */
+/** A saga film missing from the library: an empty poster frame, framed on focus; OK does nothing. */
 @Composable
 fun AbsentCard(title: String, year: Int?, modifier: Modifier = Modifier, width: Dp = HlSize.poster) {
     val c = Hl.colors
@@ -533,7 +530,6 @@ fun AbsentCard(title: String, year: Int?, modifier: Modifier = Modifier, width: 
         look = FocusStyle.frame(
             rest = c.content.copy(alpha = HlAlpha.FILL_FAINT),
             restInk = c.contentTertiary,
-            lift = Lift.Still,
             edge = artworkEdge(c),
         ),
         shape = HlShapes.artwork,

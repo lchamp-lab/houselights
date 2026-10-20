@@ -17,7 +17,7 @@ object HlMotion {
     const val SLOW = 600
     /** House lights: room, then screen, then black before the player starts; backwards after. */
     const val DIM = 1000
-    /** Focus arriving on what it frames: growth, frame, light, the siblings' recede ([focusPull]). */
+    /** Focus arriving on what it frames: frame, glow, the siblings' recede ([focusPull]). */
     const val FOCUS_IN = 220
     /** Focus leaving it, the same undone ([fallBack]). */
     const val FOCUS_OUT = 260
@@ -28,7 +28,7 @@ object HlMotion {
     const val TINT = 480
     /**
      * Focus rest before the title under it changes the screen: longer than [FOCUS_IN], so laying out its
-     * text (25 ms on the Zidoo) lands on a still frame, not on a growing card.
+     * text (25 ms on the Zidoo) comes once the frame and the glow are on.
      */
     const val SETTLE = 300L
     /** Placeholders wait this long: a slow load shows them, a quick one never flashes. */

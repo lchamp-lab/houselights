@@ -42,7 +42,6 @@ import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.translate
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.semantics.Role
@@ -62,11 +61,11 @@ import kotlinx.coroutines.launch
 
 /**
  * The surface every focusable control, row, panel and picture is drawn on, lit by its [look] from
- * [FocusStyle] (DESIGN.md, Focus). Fill, frame, growth and [glow] are read while drawing, a plate's light in
- * its content's clip layer: focus moving recomposes it as focus turns, and a plate again half way through its
- * fill, when its ink turns. Only a framed picture grows, in a layer of its own, above its neighbours until its
- * light is out, the focused one on top (its card's column in its stead, [CardColumn]). While an arrow is held
- * ([Scrub]), focus shows at once and nothing grows or glows.
+ * [FocusStyle] (DESIGN.md, Focus). Fill, frame and [glow] are read while drawing, a plate's light in its
+ * content's clip layer: focus moving recomposes it as focus turns, and a plate again half way through its fill,
+ * when its ink turns. A framed surface is drawn above its neighbours until its light is out, so its glow lies
+ * over them, the focused one on top (its card's column in its stead, [CardColumn]). While an arrow is held
+ * ([Scrub]), focus shows at once and nothing glows.
  *
  * OK (centre, enter) presses on its way down and clicks on its way up if the press was taken here; held, it
  * long-clicks instead. Focus reaches it when it cannot act ([enabled] false, or no [onClick]), and OK then does
@@ -92,10 +91,10 @@ internal fun HlFocusSurface(
     val focus = interaction.collectIsFocusedAsState()
     val focused by focus
     val framed = look.gesture == Gesture.Frame
-    val lights = rememberLights(focused, framed, rises = enabled && (look.lift != Lift.Still || glow != null))
+    val lights = rememberLights(focused, framed, glows = enabled && glow != null)
     val lit = if (framed) focused else lights.halfLit
     val ring = FocusStyle.ring()
-    val inRow = row?.takeIf { framed && enabled }?.let { rememberRowCard(it, look.lift, shape) { lights.risen.value } }
+    val inRow = row?.takeIf { framed && enabled }?.let { rememberRowCard(it, shape) }
     val frame = ring.brush.takeIf { enabled && inRow == null }
     val light = remember(look, shape, frame, glow, lights) { framedLight(look, shape, frame, glow, lights) }
     Box(
@@ -115,35 +114,35 @@ internal fun HlFocusSurface(
     }
 }
 
-/** A surface's light (0 at rest, 1 with focus) and how far it has risen: a picture's growth and glow. */
+/** A surface's light (0 at rest, 1 with focus) and a picture's glow. */
 @Stable
 private class Lights {
     val on = Animatable(0f)
-    val risen = Animatable(0f)
+    val glow = Animatable(0f)
 
     /** Past half its light, a plate's words take the ink of focus. */
     val halfLit by derivedStateOf { on.value >= HALF }
 
     /** Until its light is out, a framed surface is drawn above its neighbours. */
-    val showing by derivedStateOf { on.value > 0f || risen.value > 0f }
+    val showing by derivedStateOf { on.value > 0f || glow.value > 0f }
 }
 
 /**
- * The light follows focus, at once while an arrow is held; growth and glow rise only when focus rests, and
- * always fall back, so the picture an arrow leaves comes down as it does after a press.
+ * The light follows focus, at once while an arrow is held; the glow comes only when focus rests, and always
+ * falls back, so the picture an arrow leaves goes out as it does after a press.
  */
 @Composable
-private fun rememberLights(focused: Boolean, framed: Boolean, rises: Boolean): Lights {
+private fun rememberLights(focused: Boolean, framed: Boolean, glows: Boolean): Lights {
     val lights = remember { Lights() }
     LaunchedEffect(focused) { lights.on.follow(focused, if (framed) FrameTiming else FillTiming, jumps = Scrub.active) }
-    val rising = rises && focused && !Scrub.active
-    LaunchedEffect(rising) { lights.risen.follow(rising, FrameTiming, jumps = false) }
+    val glowing = glows && focused && !Scrub.active
+    LaunchedEffect(glowing) { lights.glow.follow(glowing, FrameTiming, jumps = false) }
     return lights
 }
 
 /**
- * A framed surface is drawn above its neighbours: on top with focus, then while its light goes out. Read while
- * placing; the card it is the picture of ([LocalRaise]) is raised in its stead.
+ * A framed surface is drawn above its neighbours, so its glow lies over them: on top with focus, then while its
+ * light goes out. Read while placing; the card it is the picture of ([LocalRaise]) is raised in its stead.
  */
 @Composable
 private fun rememberRaise(framed: Boolean, focus: State<Boolean>, lights: Lights): Modifier {
@@ -180,12 +179,9 @@ private val AtRest: () -> Float = { 0f }
 private const val ABOVE = 1f
 private const val ON_TOP = 2f
 
-/** A framed surface's glow, [frame] and growth, outside its plate; nothing for a plate that fills. */
-private fun framedLight(look: FocusLook, shape: Shape, frame: Brush?, glow: (() -> Color)?, lights: Lights): Modifier {
-    if (look.gesture != Gesture.Frame) return Modifier
-    val lit = Modifier.drawWithCache { drawLight(shape, look.lift, frame, glow, lights) }
-    return if (look.lift == Lift.Still) lit else lit.grown(look.lift, lights.risen)
-}
+/** A framed surface's glow and [frame], outside its plate; nothing for a plate that fills. */
+private fun framedLight(look: FocusLook, shape: Shape, frame: Brush?, glow: (() -> Color)?, lights: Lights): Modifier =
+    if (look.gesture == Gesture.Frame) Modifier.drawWithCache { drawLight(shape, frame, glow, lights) } else Modifier
 
 /** One element to accessibility services: its role, whether it is chosen, its clicks, whether it can act. */
 private fun SemanticsPropertyReceiver.describe(
@@ -207,13 +203,6 @@ private fun FocusLook.ink(enabled: Boolean, lit: Boolean): Color = when {
     !enabled -> disabled.ink
     lit -> focus.ink
     else -> rest.ink
-}
-
-/** A picture grown by [lift] as far as it has [risen], in its own layer, read while drawing. */
-private fun Modifier.grown(lift: Lift, risen: Animatable<Float, AnimationVector1D>): Modifier = graphicsLayer {
-    val scale = 1f + (lift.scale - 1f) * risen.value
-    scaleX = scale
-    scaleY = scale
 }
 
 /**
@@ -239,47 +228,36 @@ private fun CacheDrawScope.drawPlate(look: FocusLook, shape: Shape, enabled: Boo
 }
 
 /**
- * A framed picture's glow under it and its [frame] over it, [HlFocus.frameGap] off its grown edge, the
- * frame's corners parallel to the picture's ([shape]'s first corner). Outside the picture's layer, so the
- * frame keeps its width as the picture grows. Without [frame], its row draws it ([RowFrame]), or, disabled, its
- * ring shows focus.
+ * A framed picture's glow under it and its [frame] over it, [HlFocus.frameGap] off its edge, the frame's corners
+ * parallel to the picture's ([shape]'s first corner). Without [frame], its row draws it ([RowFrame]), or,
+ * disabled, its ring shows focus.
  */
-private fun CacheDrawScope.drawLight(shape: Shape, lift: Lift, frame: Brush?, glow: (() -> Color)?, lights: Lights): DrawResult {
+private fun CacheDrawScope.drawLight(shape: Shape, frame: Brush?, glow: (() -> Color)?, lights: Lights): DrawResult {
     val corner = (shape as? RoundedCornerShape)?.topStart?.toPx(size, this) ?: 0f
     val width = HlFocus.frame.toPx()
     val off = HlFocus.frameGap.toPx() + width / 2
     val stroke = Stroke(width)
     val band = Stroke(HlFocus.glow.toPx() / HlScrim.GLOW_STEPS)
+    val framed = Size(size.width + 2 * off, size.height + 2 * off)
     return onDrawWithContent {
-        val risen = lights.risen.value
-        val grown = 1f + (lift.scale - 1f) * risen
-        // Read once risen only: at rest, the light it follows redraws nothing.
-        val tone = if (risen > 0f) glow?.invoke() else null
-        if (tone != null) drawGlow(tone.copy(alpha = tone.alpha * risen), grown, band, corner)
+        val glowing = lights.glow.value
+        // Read once glowing only: at rest, the light it follows redraws nothing.
+        val tone = if (glowing > 0f) glow?.invoke() else null
+        if (tone != null) drawGlow(tone.copy(alpha = tone.alpha * glowing), band, corner)
         drawContent()
         val on = lights.on.value
         if (frame != null && on > 0f) {
-            val x = size.width * (grown - 1f) / 2 + off
-            val y = size.height * (grown - 1f) / 2 + off
-            drawRoundRect(
-                frame,
-                topLeft = Offset(-x, -y),
-                size = Size(size.width + 2 * x, size.height + 2 * y),
-                cornerRadius = CornerRadius(corner * grown + off),
-                alpha = on,
-                style = stroke,
-            )
+            drawRoundRect(frame, Offset(-off, -off), framed, CornerRadius(corner + off), alpha = on, style = stroke)
         }
     }
 }
 
 /**
- * The glow around a picture at scale [grown], in [HlScrim.GLOW_STEPS] rings [ring] wide: each ring is drawn once
- * at the combined alpha of stacked layers, so each layer costs a ring's fill, not a picture's, on the player's GPU.
+ * The glow around a picture, in [HlScrim.GLOW_STEPS] rings [ring] wide: each ring is drawn once at the combined
+ * alpha of stacked layers, so each layer costs a ring's fill, not a picture's, on the player's GPU.
  */
-private fun DrawScope.drawGlow(tone: Color, grown: Float, ring: Stroke, corner: Float) {
+private fun DrawScope.drawGlow(tone: Color, ring: Stroke, corner: Float) {
     if (tone.alpha == 0f) return
-    val grow = Offset(size.width * (grown - 1f) / 2f, size.height * (grown - 1f) / 2f)
     val steps = HlScrim.GLOW_STEPS
     val band = ring.width
     // Transmittance of the stacked layers, accumulated from the outermost ring inward.
@@ -290,9 +268,9 @@ private fun DrawScope.drawGlow(tone: Color, grown: Float, ring: Stroke, corner: 
         val middle = band * k - band / 2
         drawRoundRect(
             color = tone.copy(alpha = 1f - through),
-            topLeft = Offset(-grow.x - middle, -grow.y - middle),
-            size = Size(size.width + 2 * (grow.x + middle), size.height + 2 * (grow.y + middle)),
-            cornerRadius = CornerRadius(corner * grown + middle),
+            topLeft = Offset(-middle, -middle),
+            size = Size(size.width + 2 * middle, size.height + 2 * middle),
+            cornerRadius = CornerRadius(corner + middle),
             style = ring,
         )
     }

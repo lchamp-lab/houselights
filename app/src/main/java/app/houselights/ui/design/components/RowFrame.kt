@@ -49,18 +49,18 @@ internal fun rememberRowFrame(list: LazyListState): RowFrame {
 }
 
 /**
- * A framed surface as a card of [row], which draws its frame around it as far as it has [risen]: what tells the
- * row where it lies and when it takes or loses focus. The row forgets it when it leaves the composition.
+ * A framed surface as a card of [row], which draws its frame around it: what tells the row where it lies and when
+ * it takes focus. The row forgets it when it leaves the composition.
  */
 @Composable
-internal fun rememberRowCard(row: RowFrame, lift: Lift, shape: Shape, risen: () -> Float): Modifier {
-    val card = remember(row, lift, shape) { FramedCard(lift, shape, risen) }
+internal fun rememberRowCard(row: RowFrame, shape: Shape): Modifier {
+    val card = remember(row, shape) { FramedCard(shape) }
     DisposableEffect(row, card) { onDispose { row.forget(card) } }
     return remember(row, card) { row.holds(card) }
 }
 
-/** A card whose frame its row draws: where it is laid out, how far it has [risen], its [lift] and [shape]. */
-internal class FramedCard(val lift: Lift, val shape: Shape, val risen: () -> Float) {
+/** A card whose frame its row draws: where it is laid out, and its [shape]. */
+internal class FramedCard(val shape: Shape) {
     var at: LayoutCoordinates? = null
 }
 
@@ -86,9 +86,9 @@ private class Shift(at: FrameBox, card: FrameBox) {
 
 /**
  * One frame for a row of framed cards (DESIGN.md, Focus): it travels from the card left to the card reached in
- * the focus pull, following their growth and the row's scroll, and goes out in place in the fall back when
- * focus leaves the row ([rowFocused]). While an arrow is held, it jumps. All of it is read while drawing: the row's
- * draw alone follows it, nothing recomposes.
+ * the focus pull, following the row's scroll, and goes out in place in the fall back when focus leaves the row
+ * ([rowFocused]). While an arrow is held, it jumps. All of it is read while drawing: the row's draw alone follows
+ * it, nothing recomposes.
  */
 @Stable
 internal class RowFrame(
@@ -198,15 +198,12 @@ internal class RowFrame(
         return from?.invoke()?.let { between(it, to, t) } ?: to
     }
 
-    /** [card]'s frame: its bounds in the row grown as far as it has risen, then [off] beyond, corners parallel. */
+    /** [card]'s frame: its bounds in the row, then [off] beyond, corners parallel. */
     private fun boxOf(card: FramedCard): FrameBox? {
         val row = row?.takeIf { it.isAttached } ?: return null
         val at = card.at?.takeIf { it.isAttached } ?: return null
         val bounds = row.localBoundingBoxOf(at, clipBounds = false)
-        val grown = 1f + (card.lift.scale - 1f) * card.risen()
-        val x = bounds.width * (grown - 1f) / 2 + off
-        val y = bounds.height * (grown - 1f) / 2 + off
         val corner = (card.shape as? RoundedCornerShape)?.topStart?.toPx(bounds.size, density) ?: 0f
-        return FrameBox(Rect(bounds.left - x, bounds.top - y, bounds.right + x, bounds.bottom + y), corner * grown + off)
+        return FrameBox(bounds.inflate(off), corner + off)
     }
 }

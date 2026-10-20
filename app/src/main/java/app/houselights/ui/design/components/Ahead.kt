@@ -44,7 +44,7 @@ class PicturesAhead(private val context: Context, private val screenWidthPx: Int
     /** The posters, or stills when [landscape], that a [MediaRow] of [items] shows before it scrolls. */
     fun row(items: List<MediaItem>, landscape: Boolean, spacing: Dp): List<ImageRequest> {
         val card = if (landscape) HlSize.landscape else HlSize.poster
-        val width = if (landscape) card.px() else requestedPoster(card).px()
+        val width = card.px()
         return items.take(cardsInView(card, spacing)).mapNotNull {
             if (landscape) stillRequest(context, it, width) else posterRequest(context, it, width)
         }

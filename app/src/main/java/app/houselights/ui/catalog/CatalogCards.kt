@@ -39,7 +39,6 @@ import app.houselights.ui.design.components.AmbientBackdrop
 import app.houselights.ui.design.components.ArtworkChoiceCard
 import app.houselights.ui.design.components.ArtworkImage
 import app.houselights.ui.design.components.ArtworkSurface
-import app.houselights.ui.design.components.Lift
 import app.houselights.ui.design.components.BackdropStyle
 import app.houselights.ui.design.components.CardSkeleton
 import app.houselights.ui.design.components.HeroSkeleton
@@ -160,15 +159,15 @@ private fun Surfaces() {
     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Top) {
         val wide = Modifier.width(HlSize.landscape).aspectRatio(16f / 9f)
         Specimen("surface alone", width = HlSize.landscape) {
-            ArtworkSurface({}, wide, shape = HlShapes.wide, lift = Lift.Wide) {}
+            ArtworkSurface({}, wide, shape = HlShapes.wide) {}
         }
         Specimen("image", width = HlSize.landscape) {
-            ArtworkSurface({}, wide, shape = HlShapes.wide, lift = Lift.Wide) {
+            ArtworkSurface({}, wide, shape = HlShapes.wide) {
                 ArtworkImage(art, "Houselights", Modifier.fillMaxSize())
             }
         }
         Specimen("image failed: its fallback", width = HlSize.landscape) {
-            ArtworkSurface({}, wide, shape = HlShapes.wide, lift = Lift.Wide) {
+            ArtworkSurface({}, wide, shape = HlShapes.wide) {
                 ArtworkImage(BROKEN_URL, "Pierrot le Fou", Modifier.fillMaxSize()) { FallbackSample("Pierrot le Fou") }
             }
         }

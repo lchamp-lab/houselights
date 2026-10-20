@@ -13,8 +13,9 @@ Settings > About > Design system (see *Catalogue*).
 1. **The film lights the room.** The room is pure black and colour comes from the picture: the veils and
    plates over it take its own dark, and a focused card glows in its own tone (`LocalAmbient`,
    `rememberGlowColor`). Ember is the one fixed light, a closed list of six meanings (see *Colour*).
-2. **Focus is projector white, in two gestures.** What carries its own light is framed, a plate fills; in a
-   row, one frame travels from card to card (see *Focus*). Ember never marks focus.
+2. **Focus is projector white, in two gestures.** What carries its own light is lifted by its frame and its
+   glow, a plate fills; nothing grows. In a row, one frame travels from card to card (see *Focus*). Ember never
+   marks focus.
 3. **Ten-foot first.** Nothing below 12 sp, no content below 14 sp; text reaches 4.5:1 and marks 3:1 on what
    they sit on (see *Contrast*). Content stays inside the overscan-safe area (`HlSpace.safeH`, `safeV`).
 4. **One canvas.** Screens are laid out on 960 × 540 dp (`HlLayout.CANVAS_WIDTH`). `HouselightsTheme` derives
@@ -287,14 +288,14 @@ tv-material's roles onto the scale.
 | `HlLayout` | the screen grid, read by screens (`LayoutTokensTest`): reading widths (640, 520, caption 400), side columns (280, 340), pane top 72, the home hero band (148), `wallGutter` (seven posters across the safe area), `detailGap`, `detailHeroMin`, track table columns, `insetRows` |
 | `…Defaults` | internal component parts: `HlSideSheetDefaults` (520), `HlSettingRowDefaults` (value 360, room above and below 6), `HlIconButtonDefaults` (label 200, edge 24), `HlMenuDefaults` (320, inset 6), `TechSpecsDefaults`, `QrCodeDefaults` (module 6.5, whole pixels at 1080p and 4K), `BackdropDefaults` |
 | `HlControl` | padding of buttons, track words and badges; icon-to-text gap 8 |
-| `HlFocus` | growth by family (`POSTER_SCALE` 1.08, `WIDE_SCALE` 1.05, `PANEL_SCALE` 1.02, `CONTROL_SCALE` 1); the `frame` 2.5, `frameGap` 3 off the edge; `reach(size, scale)`, growth and frame, held by a row's `room` 16; siblings stepping back (`SIBLING_BRIGHTNESS` 0.64, `SIBLING_SATURATION` 0.65, `RECEDE_STEPS` 3); `glow` 28; `edge` 28 |
+| `HlFocus` | the `frame` 2.5, `frameGap` 3 off the edge: their `reach` 5.5, whatever the size, held by a row's `room` 12, which the glow passes as far as a row draws (15); siblings stepping back (`SIBLING_BRIGHTNESS` 0.64, `SIBLING_SATURATION` 0.65, `RECEDE_STEPS` 3); `glow` 28; `edge` 28 |
 
 ### Motion (`Motion.kt`, `Auditorium.kt`)
 
 | Token | Content |
 |---|---|
 | `HlMotion` curves | three of the system's own: `focusPull` ("mise au point", 0.20 0.75 0.25 1) for what arrives, `fallBack` ("retombée", 0.45 0 0.55 1) for what leaves or crosses, `lightsOut` (ease-out) for lights going out. No Material curve, no curve drawn elsewhere, no animation on a default spring or a cross-fading container; every tween names its easing (`MotionGuardTest`) |
-| `HlMotion` durations | `FOCUS_IN` 220 and `FOCUS_OUT` 260 ms (a frame, a growth, a recede), `PLATE_IN` 120 and `PLATE_OUT` 180 (a plate's white), `TINT` 480 (a backdrop's fade, linear, once settled); `FAST` 150, `STANDARD` 250, `SLOW` 600, `DIM` 1000 ms; `SETTLE` 300 ms before the title under focus changes the screen (`rememberSettled`); `SKELETON_DELAY` 400 ms; `HOLD` 400 ms, the longest anything waits for a picture; `WALL_DRIFT` 140 s, one loop of the welcome wall; `ENTER_SCALE`, which a menu grows from |
+| `HlMotion` durations | `FOCUS_IN` 220 and `FOCUS_OUT` 260 ms (a frame, a glow, a recede), `PLATE_IN` 120 and `PLATE_OUT` 180 (a plate's white), `TINT` 480 (a backdrop's fade, linear, once settled); `FAST` 150, `STANDARD` 250, `SLOW` 600, `DIM` 1000 ms; `SETTLE` 300 ms before the title under focus changes the screen (`rememberSettled`); `SKELETON_DELAY` 400 ms; `HOLD` 400 ms, the longest anything waits for a picture; `WALL_DRIFT` 140 s, one loop of the welcome wall; `ENTER_SCALE`, which a menu grows from |
 | `awaitMotion` | what follows a motion waits for its end, never a fixed `delay`, so nothing waits with animations off |
 | `LocalHouseLights`, `HouseLightCue`, `LaunchCue`, `LocalLaunchScreen` | house-light level (read while drawing, each layer redrawn only during its own step: `rememberCueStep`), the playback and launch cues, the launch screen until the first screen is drawn whole |
 
@@ -331,8 +332,8 @@ The screen is a TV seen from three metres, through overscan that may crop its ma
 - **Three vertical gaps:** `HlSpace.s` within a block, `HlSpace.l` between home's bands, `HlSpace.xl` between
   the blocks of a scrolling page.
 - **Reading measures:** `readable` 640, `readableNarrow` 520 beside artwork, `captionMeasure` 400.
-- **A focused poster stays inside the safe area**, its growth and frame included (`HomeLayoutTest`,
-  `DetailLayoutTest`, `FocusReachTest`).
+- **A focused poster stays inside the safe area**, its frame included (`HomeLayoutTest`, `DetailLayoutTest`,
+  `FocusReachTest`).
 
 ## Focus
 
@@ -341,30 +342,31 @@ projector white in two gestures and a ring:
 
 | Gesture | For | Treatment |
 |---|---|---|
-| **Frame** (`FocusStyle.frame`) | what carries its own light: pictures, panels, the main action | a white frame (`HlFocus.frame`) `HlFocus.frameGap` off the edge, its corners parallel; a picture grows by its `Lift` (`Lift.Poster`, `Lift.Wide`, `Lift.Panel`; `Lift.Still` frames without growing) and glows. 220 ms on (`focusPull`), 260 off (`fallBack`) |
-| **Fill** (`FocusStyle.fill`) | plates: buttons, tiles, track words, rows, menu options | white plate, black ink, nothing grows (`CONTROL_SCALE`). 120 ms on, 180 off |
+| **Frame** (`FocusStyle.frame`) | what carries its own light: pictures, panels, the main action | a white frame (`HlFocus.frame`) `HlFocus.frameGap` off the edge, its corners parallel; a picture glows in its own light. 220 ms on (`focusPull`), 260 off (`fallBack`) |
+| **Fill** (`FocusStyle.fill`) | plates: buttons, tiles, track words, rows, menu options | white plate, black ink. 120 ms on, 180 off |
 | **Ring** (`FocusStyle.ring`) | what is read or typed in, and what cannot act | a white outline inside the edge, drawn by a field or a scroll area, and by a disabled surface; a field turns ember while typing |
 
-No component writes its own focused colour, frame or scale; every focusable surface takes a gesture, and what
-takes focus shows it (`FocusStyleGuardTest`). The one exception is a synopsis sheet's text, the only thing in
-its sheet, focused to scroll.
+No component writes its own focused colour or frame, nothing scales with focus, every focusable surface takes a
+gesture, and what takes focus shows it (`FocusStyleGuardTest`). The one exception is a synopsis sheet's text, the
+only thing in its sheet, focused to scroll.
 
 **The surface.** `HlFocusSurface` (`components/FocusSurface.kt`) draws every focusable control, row, panel and
 picture. OK (centre, Enter, the keypad's Enter) presses on its way down and clicks on its way up, only on the
 surface that took the press; held until it repeats, it long-clicks instead, and the release clicks nothing;
 focus leaving lets go of a press (`OkPressTest`). There is no other way to click (`FocusStyleGuardTest`). It
-reads as one element with its role. Its light, growth and glow are read while drawing, a plate's light in its
-content's clip layer: focus moving recomposes a surface as it turns, and a plate once more when its ink turns.
+reads as one element with its role. Its light and glow are read while drawing, in no layer of their own, a
+plate's light in its content's clip layer: focus moving recomposes a surface as it turns, and a plate once more
+when its ink turns.
 
-**The frame that travels.** In a `MediaRow`, cards leave their frame to the row (`RowFrame`): one frame
-travels from the card left to the card reached in the focus pull, following their growth and the row's
-scroll, goes out in place in the fall back when focus leaves the row, and jumps while an arrow is held. It is
-read while drawing; nothing recomposes (`RowFrameTest`). **A row holds framed cards only**: a control there
-would show focus twice (`FocusStyleGuardTest`). A wall's cards keep their own frame.
+**The frame that travels.** In a `MediaRow`, cards leave their frame to the row (`RowFrame`): one frame travels
+from the card left to the card reached in the focus pull, following the row's scroll, goes out in place in the
+fall back when focus leaves the row, and jumps while an arrow is held. It is read while drawing; nothing
+recomposes (`RowFrameTest`). **A row holds framed cards only**: a control there would show focus twice
+(`FocusStyleGuardTest`). A wall's cards keep their own frame.
 
-**Above its neighbours.** The focused picture draws on top, the one it left above the rest until its light is
-out, read while placing; a card whose picture is not its root raises its whole column (`CardColumn`,
-`CardRaiseTest`).
+**Above its neighbours.** The focused picture draws on top, so its glow lies over its neighbours, the one it left
+above the rest until its light is out, read while placing; a card whose picture is not its root raises its whole
+column (`CardColumn`, `CardRaiseTest`).
 
 **Its light.** A picture glows in its own tone (`rememberGlowColor`, sampled once focus rests); a card without
 a picture of its own (a person, an artwork choice) glows in the light of the picture under the screen
@@ -373,9 +375,9 @@ combined alpha (`drawGlow`). Its siblings step back through their image's colour
 (`SIBLING_BRIGHTNESS`, `SIBLING_SATURATION`), marks and progress with them, inside a row or a wall
 (`RecedeTest`).
 
-**An arrow held.** While an arrow is held, or pressed again within 140 ms (`ScrubTracker`), focus runs: what
-it crosses lights at once, nothing grows or glows, the row's frame jumps; the run ends 120 ms after the last
-arrow (`Scrub`, `ScrubTest`).
+**An arrow held.** While an arrow is held, or pressed again within 140 ms (`ScrubTracker`), focus runs: what it
+crosses lights at once, nothing glows, the row's frame jumps; the run ends 120 ms after the last arrow (`Scrub`,
+`ScrubTest`).
 
 - **Nothing is brighter than focus**, and ember never marks it: on a focused plate only marks stay lit, in
   `emberOnLight`.
@@ -383,11 +385,11 @@ arrow (`Scrub`, `ScrubTest`).
   Focus entering a track lands on the current option (`focusProperties.enter`, `SegmentedFocusTest`).
 - **Disabled controls** keep focus, ringed, never filled. A read-only row (the technical sheet) is not
   disabled: it fills white and OK does nothing.
-- **Growth is a share of the size**, so each family has its own scale. `HlFocus.reach(size, scale)` gives
-  the room a container keeps, frame included (`FocusReachTest`).
+- **Nothing grows.** Focus reaches `HlFocus.reach` past what it frames, whatever its size: the room a
+  container keeps (`FocusReachTest`).
 - **Focus stays inside the safe area.** Lists stop it `HlFocus.edge` (28 dp) from the top and bottom and pad
-  their foot by as much; rows of cards keep `HlFocus.room` above and below for growth and frame. Where content
-  fades at an edge, focus stays clear of the fade.
+  their foot by as much; rows of cards keep `HlFocus.room` above and below for the frame, the glow passing it as
+  far as a row draws. Where content fades at an edge, focus stays clear of the fade.
 - **Focus is never lost.** When its element disappears, it moves to a neighbour, else to the action that adds
   one ("Ajouter un dossier").
 
@@ -421,8 +423,8 @@ Back cancels it.
 |---|---|
 | `Backdrop` (`Hero`, `Full`, `Quiet`, `Diffuse`) | full-screen artwork under its veils (see *Veils*); a wall's is its diffuse field. Each picture is decoded off screen, then drawn with its veils into one cached layer; one fade at a time, two layers at most (`FadeBetween`, `BackdropFadeTest`). Handed across cuts (`BackdropRelay`), the handed-on picture waiting up to `HOLD` for the arriving one; a screen without backdrop lets it go out over `SLOW` (`LeavingBackdrop`). Only the first picture, in memory under the launch screen, shows at once (`showsAtOnce`). Steps back (`recede`) when focus is lower on the page, to the veil text needs over the whole picture, at least `VEIL` (`ArtworkSample.floorAcross`) |
 | `AmbientBackdrop` | a screen on its picture, its light provided as `LocalAmbient` (see *Colour*) |
-| `PosterCard`, `LandscapeCard`, `PersonCard`, `ArtworkSurface`, `ArtworkImage` | artwork with the shared focus treatment (see *Cards*); a poster is requested at its grown size (`requestedPoster`), other pictures at their laid-out size. Names under a card in `cardName`; a wide card's facts follow its name when both fit, else go under it. A person in two titles or more opens their page (`PersonScreen`); a person of a single title does nothing |
-| `AbsentCard` | a saga's missing films, in release order: a faint plate with a short rule, the title in `cardTitle` and the year in `badge`, both tertiary; focusable, framed without growing, "Absent de votre bibliothèque" with focus; OK does nothing |
+| `PosterCard`, `LandscapeCard`, `PersonCard`, `ArtworkSurface`, `ArtworkImage` | artwork with the shared focus treatment (see *Cards*); every picture is requested at its laid-out size, a wall's poster at its cell's (`requestedPoster`). Names under a card in `cardName`; a wide card's facts follow its name when both fit, else go under it. A person in two titles or more opens their page (`PersonScreen`); a person of a single title does nothing |
+| `AbsentCard` | a saga's missing films, in release order: a faint plate with a short rule, the title in `cardTitle` and the year in `badge`, both tertiary; focusable, framed without a glow, "Absent de votre bibliothèque" with focus; OK does nothing |
 | `HeroInfo`, `TitleArt`, `EpisodeHeading`, `MetaLine`, `BillingBlock` | what a title is: logo or condensed title, facts, credits. Logos are normalised to the same optical weight (`EvenLogo`, `SURFACE` 0.35) and requested as shown (`titleArtRequest`). A name waits for its picture (`WithItsPicture`, `HOLD` at most) |
 | `ScreenTitle`, `TaskTitle`, `HlTitleSwitch` | a screen's title in `headline`. A place's name (a wall, Réglages, Rechercher, a person) is lit in ember, one per screen; a task or a form (Identifier, Ajouter un dossier, a choice of artwork) is white; never a film's title. `DesignTokenGuardTest` lists the places |
 | `TitleLine` | the selected title over a wall: name in `rowTitle` and facts on one baseline, ellipsised |
@@ -451,7 +453,7 @@ Back cancels it.
 
 | Component | Use |
 |---|---|
-| `HlPanel` (`Quiet`, `Raised`, `lit`), `HlPanelButton`, `HlRowSurface` | the one panel recipe (`Raised` is glass) and its focusable form, framed and grown by `Lift.Panel`; the row menu options, navigation entries and setting rows are made of |
+| `HlPanel` (`Quiet`, `Raised`, `lit`), `HlPanelButton`, `HlRowSurface` | the one panel recipe (`Raised` is glass) and its focusable form, framed; the row menu options, navigation entries and setting rows are made of |
 | `HlListItem`, `HlResultItem`, `PosterThumb` | list choices on a panel button; a search result with its poster, the one in use edged in ember ("Actuel") |
 | `HlNavItem`, `HlSettingGroup`, `HlSettingRow` | settings: navigation entries with their value, no well nor chevron, focus selecting them, the open pane's icon lit (raspberry with focus); rows on what holds them, white with focus. A row that leads somewhere or chooses is `row` 60 on the room, `sheetRow` 52 in a sheet, a chevron shown with focus where it leads; a value it only states is not focusable, 48 tall. A value lights with `valueLit` or `valueAttention`; a `RowPreview` may lead it. Disabled in a `FILL_FAINT` well, on the room only (`SettingRowTest`). What a pane only states is a block, not a row (see *Gestures*) |
 | `HlChoiceSheet`, `HlChoiceSetting` | a setting's choices in a side sheet: the current one checked and focused; choosing applies and closes. A change that failed says so in the row ("Non enregistré") |
@@ -478,6 +480,8 @@ Artwork carries no text: the top of the screen names what has focus.
   short rule in `contentDecorative`. A person without a portrait is the bare frame, the name under it.
 - **Episodes** read as a number in tabular figures, a name, then length and progress.
 - **People**: the name right under the portrait, the role under it.
+- **With focus**, artwork keeps its size, in a row as on a wall, a portrait as a poster: its frame and its glow
+  lift it.
 - **Stepping back**, siblings lose colour through the image's own filter in `RECEDE_STEPS` steps; no layer is
   drawn per card.
 
@@ -603,13 +607,13 @@ the screen: the only overdraw left at rest.
 | Test | Holds |
 |---|---|
 | `DesignTokenGuardTest` | no size, text size, tracking, font, text style, colour, palette, opacity, shape or gradient in a screen; no ember named in a screen; no arithmetic on tokens; images only through `ArtworkImage`, `PosterThumb` or `RowPreview`; one place lit per screen, and only the places; no Toast; no Material icon, drawn or declared; no shadow or blur |
-| `FocusStyleGuardTest` | focus said in one place, drawn by one surface, never by a screen; every surface takes a gesture and what takes focus shows it; a row holds framed cards only; controls never grow; OK clicks through the surface only; no tv-material surface, no Compose Material; never `focusRestorer` |
+| `FocusStyleGuardTest` | focus said in one place, drawn by one surface, never by a screen; every surface takes a gesture and what takes focus shows it; a row holds framed cards only; nothing grows with focus and a surface's light takes no layer; OK clicks through the surface only; no tv-material surface, no Compose Material; never `focusRestorer` |
 | `MotionGuardTest` | the system's own curves only, drawn in `Motion.kt`; every tween names its easing and every animation its spec; no spring, no cross-fading container |
 | `ShapesTest` | radii by hierarchy and in dp, nested corners parallel, a sheet square against the edge; nothing round but dots |
 | `ContrastTest`, `ScrimTest` | every pair drawn, on what it sits on; forbidden pairs stay below; veil floors, plate floors and smoothness |
 | `AmbientTest`, `DiffuseTest`, `BackdropTest`, `BackdropFadeTest`, `BackdropRelayTest` | a picture's light; the field's cap, ramp and dither; decoded sizes; one fade at a time; the relay across cuts |
 | `RowFrameTest`, `CardRaiseTest`, `OkPressTest`, `RecedeTest`, `ScrubTest` | the frame that travels, without recomposing; the focused card on top; OK on its release; siblings stepping back in steps; an arrow held |
-| `FocusReachTest`, `HomeLayoutTest`, `DetailLayoutTest`, `SettingRowTest` | growth and frame inside the room kept for them and inside the safe area; home's bands and a page's first view; setting rows' heights |
+| `FocusReachTest`, `HomeLayoutTest`, `DetailLayoutTest`, `SettingRowTest` | the frame inside the room kept for it and inside the safe area, a row's glow past it; home's bands and a page's first view; setting rows' heights |
 | `TypeScaleTest`, `SpacingGridTest`, `LayoutTokensTest`, `GroundTest`, `TextRoomTest` | type scale, 4 dp grid, screen grid, grounds, text room at every text size |
 | `ResourceTokensTest`, `StringsTest`, `BrandTest` | resources in step with tokens; typography of resources, every translation complete; the mark's vectors |
 | `CatalogCoverageTest` | every public component, shape, `HlIcons` glyph, colour role and type style in the catalogue |

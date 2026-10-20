@@ -152,7 +152,6 @@ internal fun ButtonPlate(
             look = FocusStyle.frame(
                 rest = Color.Transparent,
                 restInk = c.onEmber,
-                lift = Lift.Still,
                 disabled = c.content.copy(alpha = HlAlpha.FILL_FAINT),
                 disabledInk = c.contentTertiary,
             ),

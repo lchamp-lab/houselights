@@ -25,11 +25,11 @@ class DetailLayoutTest {
         }
     }
 
-    /** Come to the keyline, the first row holds a focused poster, grown and framed, inside the safe area. */
+    /** Come to the keyline, the first row holds a focused poster, framed, inside the safe area. */
     @Test
     fun aFocusedPosterOfTheFirstRowStaysInsideTheSafeArea() {
         val poster = HlSize.poster * 3 / 2
-        val reach = HlFocus.reach(poster, HlFocus.POSTER_SCALE)
+        val reach = HlFocus.reach
         val cardsTop = HlFocus.edge + header + HlSpace.xxs + HlFocus.room
         assertTrue("a focused poster starts at ${cardsTop - reach}", cardsTop - reach >= HlSpace.safeV)
         assertTrue("a focused poster ends at ${cardsTop + poster + reach}", cardsTop + poster + reach <= screen - HlSpace.safeV)

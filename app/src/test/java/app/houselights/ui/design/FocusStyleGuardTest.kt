@@ -4,8 +4,6 @@ import app.houselights.testing.callFrom
 import app.houselights.testing.inCommentAt
 import app.houselights.testing.kotlinSources
 import app.houselights.testing.linesWhere
-import app.houselights.ui.design.components.Lift
-import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
@@ -13,8 +11,9 @@ import java.io.File
 /**
  * Focus is said in one place, `FocusStyle`, in two gestures (frame, fill) and the ring, and drawn by one
  * surface, `HlFocusSurface`, whose frame a row of cards takes over (`RowFrame`), so a row holds framed cards only:
- * no component builds its own white, frame or growth, tv-material's focus (its scale, glow and Material timing)
- * is never drawn, OK clicks through the surface, what takes focus shows it, and `focusRestorer` is never used.
+ * no component builds its own white or frame, nothing grows with focus, tv-material's focus (its scale, glow and
+ * Material timing) is never drawn, OK clicks through the surface, what takes focus shows it, and `focusRestorer` is
+ * never used.
  */
 class FocusStyleGuardTest {
     private val main = File("src/main/java/app/houselights")
@@ -26,7 +25,7 @@ class FocusStyleGuardTest {
         Regex("""\bFocusLook\("""),
         Regex("""\bGesture\.(Frame|Fill)\b"""),
         Regex("""\b(c|colors|Hl\.colors)\.focus\b"""),
-        Regex("""\bHlFocus\.([A-Z]+_SCALE|frame|frameGap|glow)\b"""),
+        Regex("""\bHlFocus\.(frame|frameGap|glow)\b"""),
     )
 
     private fun sources() = kotlinSources(components).filter { it.name !in home }
@@ -87,14 +86,27 @@ class FocusStyleGuardTest {
         assertTrue("A control after a row is not", !control.containsMatchIn(after.callFrom(after.indexOf('('))))
     }
 
-    /** Only a picture grows: a plate's white shows focus, so a fill keeps its size. */
+    /** Nothing grows with focus: no scale in `HlFocus`, none on a surface, and no layer a surface keeps at rest. */
     @Test
-    fun controlsDoNotGrow() {
-        assertEquals(1f, Lift.Still.scale, 0f)
-        val style = components.resolve("FocusStyle.kt").readText()
-        val fill = style.substring(style.indexOf("fun fill("), style.indexOf("fun ring("))
-        assertTrue("A fill grows", "Lift.Still" in fill)
+    fun nothingGrows() {
+        val dimens = File("src/main/java/app/houselights/ui/design/Dimens.kt").readText()
+        val focus = dimens.substring(dimens.indexOf("object HlFocus {")).substringBefore("\n}")
+        assertTrue("HlFocus scales:\n$focus", !Regex("(?i)scale").containsMatchIn(focus))
+        val surfaces = kotlinSources(components).filter { it.name in home }
+        val layered = surfaces.linesWhere(components) { !comment(it) && "graphicsLayer" in it }
+        assertTrue("A surface's light is drawn, never in a layer of its own:\n" + layered.joinToString("\n"), layered.isEmpty())
+        val ui = File("src/main/java/app/houselights/ui")
+        val found = kotlinSources(ui).filter { it.name !in scales }.linesWhere(ui) { !comment(it) && scaling.containsMatchIn(it) }
+        assertTrue("Focus never scales what it shows:\n" + found.joinToString("\n"), found.isEmpty())
+        val stale = scales.keys.filter { name -> kotlinSources(ui).none { it.name == name && scaling.containsMatchIn(it.readText()) } }
+        assertTrue("Exceptions for files that scale nothing: ${stale.joinToString()}", stale.isEmpty())
     }
+
+    /** A scale set on a layer or a modifier; Coil's `scale(Scale.FIT)` fits a picture to its request. */
+    private val scaling = Regex("""\bscale[XY]\s*=|\.scale\((?!Scale\.)""")
+
+    /** What scales without focus, and why. */
+    private val scales = mapOf("Menu.kt" to "a menu grows from its button as it opens, whatever has focus")
 
     /** tv-material's surfaces bring Google TV's focus (scale, glow, 300 ms Material curves): only its theme stays. */
     @Test
@@ -158,5 +170,9 @@ class FocusStyleGuardTest {
         listOf("Modifier.clickable { }", "Modifier.combinedClickable(onClick = {})", "Modifier.selectable(true) {}", "indication = null")
             .forEach { assertTrue(it, click.containsMatchIn(it)) }
         assertTrue(!click.containsMatchIn("Modifier.selectableGroup()"))
+        listOf("graphicsLayer { scaleX = s }", "Modifier.scale(1.08f)", "graphicsLayer(scaleY = s)")
+            .forEach { assertTrue(it, scaling.containsMatchIn(it)) }
+        listOf(".scale(Scale.FIT)", "display = scale(HlFonts.condensed, FontWeight.Bold, 64, 72)")
+            .forEach { assertTrue(it, !scaling.containsMatchIn(it)) }
     }
 }

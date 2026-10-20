@@ -29,7 +29,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
-/** Home's bands on the TV canvas: the first row, a grown poster included, stays inside the safe area. */
+/** Home's bands on the TV canvas: the first row, a focused poster's frame included, stays inside the safe area. */
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = TV)
 class HomeLayoutTest {
@@ -46,7 +46,7 @@ class HomeLayoutTest {
     /** Where the rows start: the bar, a gap, the hero's band, a gap. */
     private val rowsTop = HlSpace.safeV + bar + HlSpace.l + HlLayout.hero + HlSpace.l
 
-    /** Where a row's cards start: its header in the poster's voice and the room kept above a growing card. */
+    /** Where a row's cards start: its header in the poster's voice and the room kept above a framed card. */
     private val cardsTop = rowsTop + sp(HouselightsType.rowTitle.lineHeight.value) + HlSpace.xxs + HlFocus.room
 
     /** The bar as composed, Gradation, words and tiles, at the default text size and at the largest. */
@@ -74,9 +74,7 @@ class HomeLayoutTest {
     @Test
     fun aFocusedPosterOfTheFirstRowStaysInsideTheSafeArea() {
         val poster = HlSize.poster * 3 / 2
-        // Its growth and its frame.
-        val grown = HlFocus.reach(poster, HlFocus.POSTER_SCALE)
-        val bottom = cardsTop + poster + grown
+        val bottom = cardsTop + poster + HlFocus.reach
         assertTrue("a focused poster ends at $bottom", bottom <= safeBottom)
     }
 

@@ -45,14 +45,13 @@ import app.houselights.ui.design.components.HlListItem
 import app.houselights.ui.design.components.HlSegmented
 import app.houselights.ui.design.components.HlSettingRow
 import app.houselights.ui.design.components.HlTextField
-import app.houselights.ui.design.components.Lift
 import app.houselights.ui.design.components.MediaRow
 
 /** Every shape at a size it takes, then focus in its two gestures and its ring, live with the remote. */
 internal fun LazyListScope.catalogFocus() {
     item { Group("Shapes: radii by hierarchy, no pill, no disc", still = true) { Shapes() } }
-    item { Group("Focus, frame: what carries its own light grows, framed 3 dp off, in its own light") { Frames() } }
-    item { Group("Focus, fill: a plate turns white, ink black, nothing grows; the ring where nothing acts") { Fills() } }
+    item { Group("Focus, frame: what carries its own light is framed 3 dp off and glows in its own light; nothing grows") { Frames() } }
+    item { Group("Focus, fill: a plate turns white, ink black; the ring where nothing acts") { Fills() } }
 }
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -88,38 +87,34 @@ private fun Frames() {
     val url = art.url(0)
     MediaRow(header = null) {
         item {
-            Specimen("a poster: 1.08", width = HlSize.poster) {
+            Specimen("a poster", width = HlSize.poster) {
                 ArtworkSurface({}, Modifier.width(HlSize.poster).aspectRatio(2f / 3f), light = url) {
                     ArtworkImage(url, null, Modifier.fillMaxSize())
                 }
             }
         }
         item {
-            Specimen("a wide image: 1.05", width = HlSize.landscape) {
-                ArtworkSurface(
-                    {},
-                    Modifier.width(HlSize.landscape).aspectRatio(16f / 9f),
-                    shape = HlShapes.wide,
-                    lift = Lift.Wide,
-                    light = url,
-                ) { ArtworkImage(url, null, Modifier.fillMaxSize()) }
+            Specimen("a wide image", width = HlSize.landscape) {
+                ArtworkSurface({}, Modifier.width(HlSize.landscape).aspectRatio(16f / 9f), shape = HlShapes.wide, light = url) {
+                    ArtworkImage(url, null, Modifier.fillMaxSize())
+                }
             }
         }
         item {
-            Specimen("a portrait: 1.08", width = HlSize.personColumn) {
+            Specimen("a portrait", width = HlSize.personColumn) {
                 ArtworkSurface({}, Modifier.width(HlSize.portrait).aspectRatio(HlSize.PORTRAIT_RATIO), light = url) {
                     ArtworkImage(url, null, Modifier.fillMaxSize())
                 }
             }
         }
         item {
-            Specimen("nothing to open: framed, still", width = HlSize.poster) { AbsentCard("Le Cercle rouge", 1970) }
+            Specimen("nothing to open: framed, no light of its own", width = HlSize.poster) { AbsentCard("Le Cercle rouge", 1970) }
         }
     }
-    Specimen("a panel: 1.02, framed, no light of its own", Modifier.widthIn(max = HlLayout.readable)) {
+    Specimen("a panel: framed, no light of its own", Modifier.widthIn(max = HlLayout.readable)) {
         HlListItem(stringResource(R.string.source_local), "Vos vidéos sur un NAS ou un partage réseau.", {}, icon = HlIcons.Folder)
     }
-    Specimen("the main action: the ember light, framed, still", gap = HlSpace.xs) {
+    Specimen("the main action: the ember light, framed", gap = HlSpace.xs) {
         HlButton(stringResource(R.string.play), {}, icon = HlIcons.Play, detail = "1 h 53", emphasis = Emphasis.Primary)
     }
 }

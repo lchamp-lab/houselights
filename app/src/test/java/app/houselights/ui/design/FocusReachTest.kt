@@ -1,56 +1,39 @@
 package app.houselights.ui.design
 
+import androidx.compose.ui.unit.dp
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** What focus grows and frames stays inside the room its container keeps for it. */
+/** Focus frames and glows without growing: its frame stays inside the room its container keeps for it. */
 class FocusReachTest {
-    /** A poster's height from its width: 2:3. */
-    private val posterHeight = 1.5f
-
-    @Test
-    fun controlsAndRowsDoNotGrow() {
-        // Their white plate shows focus: nothing moves.
-        assertEquals(1f, HlFocus.CONTROL_SCALE, 0f)
-    }
+    /** How far a lazy row draws past its bounds across its axis (Compose's `MaxSupportedElevation`). */
+    private val rowDrawsPast = 15.dp
 
     @Test
     fun theFrameStandsOffWhatItFrames() {
-        // Still, a framed element reaches as far as its frame: the gap, then the stroke.
-        assertEquals((HlFocus.frameGap + HlFocus.frame).value, HlFocus.reach(HlLayout.readable, HlFocus.CONTROL_SCALE).value, 0f)
+        // The gap, then the stroke, whatever the size of what it frames.
+        assertEquals((HlFocus.frameGap + HlFocus.frame).value, HlFocus.reach.value, 0f)
         assertTrue(HlFocus.frame > HlSize.focusBorder)
     }
 
     @Test
-    fun picturesGrowByTheirShape() {
-        // A poster most, a wide image less, a panel slightly.
-        assertTrue(HlFocus.POSTER_SCALE > HlFocus.WIDE_SCALE)
-        assertTrue(HlFocus.WIDE_SCALE > HlFocus.PANEL_SCALE)
-        assertTrue(HlFocus.PANEL_SCALE > HlFocus.CONTROL_SCALE)
+    fun aRowHoldsTheFrameAndTheGlow() {
+        // MediaRow keeps HlFocus.room above and below its cards, on the grid.
+        assertTrue(HlFocus.reach <= HlFocus.room)
+        assertEquals(0f, HlFocus.room.value % 4f, 0f)
+        // The glow's last ring is clear: what lights reaches one ring short of HlFocus.glow.
+        val lit = HlFocus.glow * (HlScrim.GLOW_STEPS - 1) / HlScrim.GLOW_STEPS
+        assertTrue("the glow lights $lit past a card", HlFocus.room + rowDrawsPast >= lit)
     }
 
     @Test
-    fun aPanelStaysCloseToItsColumn() {
-        // At the widest reading column, a panel that can be chosen reaches less than a row's gap past it.
-        assertTrue(HlFocus.reach(HlLayout.readable, HlFocus.PANEL_SCALE) <= HlSpace.s)
-    }
-
-    @Test
-    fun aRowOfCardsHoldsWhatGrows() {
-        // MediaRow keeps HlFocus.room above and below its cards.
-        assertTrue(HlFocus.reach(HlSize.poster * posterHeight, HlFocus.POSTER_SCALE) <= HlFocus.room)
-        assertTrue(HlFocus.reach(HlSize.landscape * 9 / 16, HlFocus.WIDE_SCALE) <= HlFocus.room)
-        assertTrue(HlFocus.reach(HlSize.portrait / HlSize.PORTRAIT_RATIO, HlFocus.POSTER_SCALE) <= HlFocus.room)
-        // Artwork choices grow as wide images do, whatever their shape.
-        assertTrue(HlFocus.reach(HlLayout.posterChoice * posterHeight, HlFocus.WIDE_SCALE) <= HlFocus.room)
-    }
-
-    @Test
-    fun aWallHoldsWhatGrows() {
-        // A wall keeps HlSpace.m above its first line, and its gutter between two posters.
-        assertTrue(HlFocus.reach(HlSize.wallPoster * posterHeight, HlFocus.POSTER_SCALE) <= HlSpace.m)
-        assertTrue(HlFocus.reach(HlSize.wallPoster, HlFocus.POSTER_SCALE) <= HlLayout.wallGutter)
+    fun aFrameStaysNearerItsCardThanItsNeighbour() {
+        // Cards of a row are HlSpace.m apart, a wall's posters its gutter.
+        assertTrue(HlFocus.reach * 2 <= HlSpace.m)
+        assertTrue(HlFocus.reach * 2 <= HlLayout.wallGutter)
+        // A wall keeps HlSpace.m above its first line.
+        assertTrue(HlFocus.reach <= HlSpace.m)
     }
 
     @Test

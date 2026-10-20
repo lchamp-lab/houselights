@@ -100,11 +100,8 @@ class RowFrameTest {
 
     private fun frame(row: String = "a") = checkNotNull(frames[row]?.boundsInRoot()) { "Row $row frames nothing" }
 
-    /** Width of the frame around a poster grown [risen] of the way. */
-    private fun frameWidth(risen: Float): Float {
-        val grown = 1f + (HlFocus.POSTER_SCALE - 1f) * risen
-        return HlSize.poster.value * grown + 2 * (HlFocus.frameGap.value + HlFocus.frame.value / 2)
-    }
+    /** Width of the frame around a poster: it stands off the card by its gap, to its stroke's middle. */
+    private val frameWidth = HlSize.poster.value + 2 * (HlFocus.frameGap.value + HlFocus.frame.value / 2)
 
     @After
     fun letGoOfTheArrow() {
@@ -117,7 +114,7 @@ class RowFrameTest {
     fun theFrameTravelsToTheCardReachedWithoutRecomposing() {
         show("a")
         assertEquals(centre("a0").x, frame().center.x, 0.5f)
-        assertEquals(frameWidth(1f), frame().width, 0.5f)
+        assertEquals(frameWidth, frame().width, 0.5f)
 
         compose.mainClock.autoAdvance = false
         val before = recomposed
@@ -136,7 +133,7 @@ class RowFrameTest {
         // The card left falls back and its light goes out.
         compose.mainClock.advanceTimeBy(HlMotion.FOCUS_OUT.toLong())
         assertEquals(to, frame().center.x, 0.5f)
-        assertEquals("it frames the reached card grown", frameWidth(1f), frame().width, 0.5f)
+        assertEquals("it frames the reached card", frameWidth, frame().width, 0.5f)
         assertEquals("only drawing and placing follow the frame and the lights", settled, recomposed)
     }
 
@@ -184,7 +181,6 @@ class RowFrameTest {
         compose.press(Key.DirectionRight)
         compose.mainClock.advanceTimeByFrame()
         assertEquals(centre("a1").x, frame().center.x, 0.5f)
-        // Crossed cards do not grow: the frame stands off the card as it is.
-        assertEquals(frameWidth(0f), frame().width, 0.5f)
+        assertEquals(frameWidth, frame().width, 0.5f)
     }
 }

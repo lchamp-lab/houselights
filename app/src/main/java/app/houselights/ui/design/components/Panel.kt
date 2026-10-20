@@ -90,7 +90,7 @@ fun HlPanel(
 internal fun Modifier.panel(shape: Shape, fill: Color, edge: BorderStroke): Modifier =
     clip(shape).background(fill).border(edge, shape)
 
-/** A selectable panel (list entries, source cards): framed on focus, grown slightly; [lit] edges it in ember at rest. */
+/** A selectable panel (list entries, source cards): framed on focus; [lit] edges it in ember at rest. */
 @Composable
 fun HlPanelButton(
     onClick: () -> Unit,
@@ -106,7 +106,6 @@ fun HlPanelButton(
         look = FocusStyle.frame(
             rest = groundStepFill(),
             restInk = c.content,
-            lift = Lift.Panel,
             edge = BorderStroke(HlSize.hairline, if (lit && enabled) c.emberLight() else SolidColor(c.edge)),
             disabled = c.content.copy(alpha = HlAlpha.FILL_FAINT),
             disabledInk = c.contentTertiary,
@@ -118,8 +117,8 @@ fun HlPanelButton(
 }
 
 /**
- * A full-width selectable row: its words on what holds it, white-filled on focus without growing; disabled,
- * it sits in its [disabled] well and keeps focus, ringed.
+ * A full-width selectable row: its words on what holds it, white-filled on focus; disabled, it sits in its
+ * [disabled] well and keeps focus, ringed.
  */
 @Composable
 internal fun HlRowSurface(
