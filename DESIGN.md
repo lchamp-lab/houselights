@@ -13,9 +13,9 @@ Settings > About > Design system (see *Catalogue*).
 1. **The film lights the room.** The room is pure black and colour comes from the picture: the veils and
    plates over it take its own dark, and a focused card glows in its own tone (`LocalAmbient`,
    `rememberGlowColor`). Ember is the one fixed light, a closed list of six meanings (see *Colour*).
-2. **Focus is projector white, in two gestures.** What carries its own light is lifted by its frame and its
-   glow, a plate fills; nothing grows. In a row, one frame travels from card to card (see *Focus*). Ember never
-   marks focus.
+2. **Focus is projector white, in two gestures.** A picture is lifted by its frame and its glow, a panel and
+   the main action by their frame, a plate fills; nothing grows. In a row, one frame travels from card to card
+   (see *Focus*). Ember never marks focus.
 3. **Ten-foot first.** Nothing below 12 sp, no content below 14 sp; text reaches 4.5:1 and marks 3:1 on what
    they sit on (see *Contrast*). Content stays inside the overscan-safe area (`HlSpace.safeH`, `safeV`).
 4. **One canvas.** Screens are laid out on 960 × 540 dp (`HlLayout.CANVAS_WIDTH`). `HouselightsTheme` derives
@@ -288,7 +288,7 @@ tv-material's roles onto the scale.
 | `HlLayout` | the screen grid, read by screens (`LayoutTokensTest`): reading widths (640, 520, caption 400), side columns (280, 340), pane top 72, the home hero band (148), `wallGutter` (seven posters across the safe area), `detailGap`, `detailHeroMin`, track table columns, `insetRows` |
 | `…Defaults` | internal component parts: `HlSideSheetDefaults` (520), `HlSettingRowDefaults` (value 360, room above and below 6), `HlIconButtonDefaults` (label 200, edge 24), `HlMenuDefaults` (320, inset 6), `TechSpecsDefaults`, `QrCodeDefaults` (module 6.5, whole pixels at 1080p and 4K), `BackdropDefaults` |
 | `HlControl` | padding of buttons, track words and badges; icon-to-text gap 8 |
-| `HlFocus` | the `frame` 2.5, `frameGap` 3 off the edge: their `reach` 5.5, whatever the size, held by a row's `room` 12, which the glow passes as far as a row draws (15); siblings stepping back (`SIBLING_BRIGHTNESS` 0.64, `SIBLING_SATURATION` 0.65, `RECEDE_STEPS` 3); `glow` 28; `edge` 28 |
+| `HlFocus` | the `frame` 2.5, `frameGap` 3 off the edge: their `reach` 5.5, whatever the size, held by a row's `room` 12, which the glow passes as far as a row draws (30), and a wall's `wallRoom` 24, where the grid cuts the glow once faded; siblings stepping back (`SIBLING_BRIGHTNESS` 0.64, `SIBLING_SATURATION` 0.65, `RECEDE_STEPS` 3); `glow` 28; `edge` 28 |
 
 ### Motion (`Motion.kt`, `Auditorium.kt`)
 
@@ -334,6 +334,8 @@ The screen is a TV seen from three metres, through overscan that may crop its ma
 - **Reading measures:** `readable` 640, `readableNarrow` 520 beside artwork, `captionMeasure` 400.
 - **A focused poster stays inside the safe area**, its frame included (`HomeLayoutTest`, `DetailLayoutTest`,
   `FocusReachTest`).
+- **A wall** keeps `HlFocus.wallRoom` (24, the gap between its lines) above its first line: the grid cuts a
+  focused poster's glow there, once faded (`FocusReachTest`).
 
 ## Focus
 
@@ -370,10 +372,10 @@ column (`CardColumn`, `CardRaiseTest`).
 
 **Its light.** A picture glows in its own tone (`rememberGlowColor`, sampled once focus rests); a card without
 a picture of its own (a person, an artwork choice) glows in the light of the picture under the screen
-(`LocalAmbient`). The glow is `HlScrim.GLOW_STEPS` rings out to `HlFocus.glow`, each drawn once at its
-combined alpha (`drawGlow`). Its siblings step back through their image's colour filter in `RECEDE_STEPS`
-(`SIBLING_BRIGHTNESS`, `SIBLING_SATURATION`), marks and progress with them, inside a row or a wall
-(`RecedeTest`).
+(`LocalAmbient`). The glow fades over `HlScrim.GLOW_STEPS` rings out to `HlFocus.glow`, the last one clear;
+each lit ring is drawn once at its combined alpha (`drawGlow`). Its siblings step back through their image's
+colour filter in `RECEDE_STEPS` (`SIBLING_BRIGHTNESS`, `SIBLING_SATURATION`), marks and progress with them,
+inside a row or a wall (`RecedeTest`).
 
 **An arrow held.** While an arrow is held, or pressed again within 140 ms (`ScrubTracker`), focus runs: what it
 crosses lights at once, nothing glows, the row's frame jumps; the run ends 120 ms after the last arrow (`Scrub`,
@@ -614,7 +616,7 @@ the screen: the only overdraw left at rest.
 | `ContrastTest`, `ScrimTest` | every pair drawn, on what it sits on; forbidden pairs stay below; veil floors, plate floors and smoothness |
 | `AmbientTest`, `DiffuseTest`, `BackdropTest`, `BackdropFadeTest`, `BackdropRelayTest` | a picture's light; the field's cap, ramp and dither; decoded sizes; one fade at a time; the relay across cuts |
 | `RowFrameTest`, `CardRaiseTest`, `OkPressTest`, `RecedeTest`, `ScrubTest` | the frame that travels, without recomposing; the focused card on top; OK on its release; siblings stepping back in steps; an arrow held |
-| `FocusReachTest`, `HomeLayoutTest`, `DetailLayoutTest`, `SettingRowTest` | the frame inside the room kept for it and inside the safe area, a row's glow past it; home's bands and a page's first view; setting rows' heights |
+| `FocusReachTest`, `HomeLayoutTest`, `DetailLayoutTest`, `SettingRowTest` | the frame inside the room kept for it and inside the safe area, a row's glow drawn whole past it, a wall's faded where its grid cuts it; home's bands and a page's first view; setting rows' heights |
 | `TypeScaleTest`, `SpacingGridTest`, `LayoutTokensTest`, `GroundTest`, `TextRoomTest` | type scale, 4 dp grid, screen grid, grounds, text room at every text size |
 | `ResourceTokensTest`, `StringsTest`, `BrandTest` | resources in step with tokens; typography of resources, every translation complete; the mark's vectors |
 | `CatalogCoverageTest` | every public component, shape, `HlIcons` glyph, colour role and type style in the catalogue |

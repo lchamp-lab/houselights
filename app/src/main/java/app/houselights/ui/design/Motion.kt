@@ -28,7 +28,8 @@ object HlMotion {
     const val TINT = 480
     /**
      * Focus rest before the title under it changes the screen: longer than [FOCUS_IN], so laying out its
-     * text (25 ms on the Zidoo) comes once the frame and the glow are on.
+     * text (25 ms on the Zidoo) comes once the frame is on and the glow at full strength; the first time, the
+     * glow's tone may still wait for its sample to decode.
      */
     const val SETTLE = 300L
     /** Placeholders wait this long: a slow load shows them, a quick one never flashes. */

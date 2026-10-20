@@ -311,9 +311,15 @@ object HlFocus {
 
     /**
      * Room a row of pictures keeps above and below its cards: their [reach] inside it, their [glow] past it, as far
-     * as a lazy row draws across its axis (15 dp).
+     * as a lazy row draws across its axis (30 dp).
      */
     val room = HlSpace.s
+
+    /**
+     * Room a wall keeps above its first line, where the grid cuts the glow once faded to about 1 %: no more than
+     * the gap between its lines ([HlSpace.l]), so the line scrolled above stays out of view.
+     */
+    val wallRoom = HlSpace.l
 
     /** The focused card's siblings dim and lose colour through their image's filter: partly, so the wall stays inviting. */
     const val SIBLING_BRIGHTNESS = 0.64f

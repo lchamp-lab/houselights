@@ -41,10 +41,13 @@ class PicturesAhead(private val context: Context, private val screenWidthPx: Int
     fun detail(item: MediaItem): List<ImageRequest> =
         listOfNotNull(item.logo?.let { titleArtRequest(context, it, HlLayout.titleArtWidth.px(), HlLayout.titleArtHeight.px()) })
 
-    /** The posters, or stills when [landscape], that a [MediaRow] of [items] shows before it scrolls. */
+    /**
+     * The posters, or stills when [landscape], that a [MediaRow] of [items] shows before it scrolls, at the size its
+     * cards request: a still at its width, a poster at [requestedPoster].
+     */
     fun row(items: List<MediaItem>, landscape: Boolean, spacing: Dp): List<ImageRequest> {
         val card = if (landscape) HlSize.landscape else HlSize.poster
-        val width = card.px()
+        val width = (if (landscape) card else requestedPoster(card)).px()
         return items.take(cardsInView(card, spacing)).mapNotNull {
             if (landscape) stillRequest(context, it, width) else posterRequest(context, it, width)
         }

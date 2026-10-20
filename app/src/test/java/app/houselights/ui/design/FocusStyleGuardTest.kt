@@ -86,27 +86,45 @@ class FocusStyleGuardTest {
         assertTrue("A control after a row is not", !control.containsMatchIn(after.callFrom(after.indexOf('('))))
     }
 
-    /** Nothing grows with focus: no scale in `HlFocus`, none on a surface, and no layer a surface keeps at rest. */
+    /**
+     * Nothing grows with focus: no scale in `HlFocus`, none in the UI but a menu's opening, and a surface's light in
+     * no layer of its own (its content's clip is one, kept at rest).
+     */
     @Test
     fun nothingGrows() {
         val dimens = File("src/main/java/app/houselights/ui/design/Dimens.kt").readText()
         val focus = dimens.substring(dimens.indexOf("object HlFocus {")).substringBefore("\n}")
         assertTrue("HlFocus scales:\n$focus", !Regex("(?i)scale").containsMatchIn(focus))
         val surfaces = kotlinSources(components).filter { it.name in home }
-        val layered = surfaces.linesWhere(components) { !comment(it) && "graphicsLayer" in it }
+        val layered = surfaces.linesWhere(components) { !comment(it) && layer.containsMatchIn(it) }
         assertTrue("A surface's light is drawn, never in a layer of its own:\n" + layered.joinToString("\n"), layered.isEmpty())
         val ui = File("src/main/java/app/houselights/ui")
-        val found = kotlinSources(ui).filter { it.name !in scales }.linesWhere(ui) { !comment(it) && scaling.containsMatchIn(it) }
+        val found = kotlinSources(ui).flatMap { file ->
+            val allowed = scales[file.relativeTo(ui).path].orEmpty()
+            listOf(file).linesWhere(ui) { !comment(it) && scaling.containsMatchIn(it) && it.trim() !in allowed }
+        }
         assertTrue("Focus never scales what it shows:\n" + found.joinToString("\n"), found.isEmpty())
-        val stale = scales.keys.filter { name -> kotlinSources(ui).none { it.name == name && scaling.containsMatchIn(it.readText()) } }
-        assertTrue("Exceptions for files that scale nothing: ${stale.joinToString()}", stale.isEmpty())
+        val stale = scales.flatMap { (path, lines) ->
+            val code = ui.resolve(path).takeIf { it.isFile }?.readLines()?.map { it.trim() }.orEmpty()
+            lines.filter { it !in code }.map { "$path: $it" }
+        }
+        assertTrue("Exceptions for lines that are gone: ${stale.joinToString()}", stale.isEmpty())
     }
 
-    /** A scale set on a layer or a modifier; Coil's `scale(Scale.FIT)` fits a picture to its request. */
-    private val scaling = Regex("""\bscale[XY]\s*=|\.scale\((?!Scale\.)""")
+    /** A scale set on a layer or a modifier, or drawn; Coil's `scale(Scale.FIT)` fits a picture to its request. */
+    private val scaling = Regex(
+        listOf(
+            """\bscale[XY]\s*=""",
+            """\.scale\((?!Scale\.)""",
+            """\bimport androidx\.compose\.ui\.(draw\.scale|graphics\.drawscope\.(scale|withTransform))\b""",
+        ).joinToString("|"),
+    )
 
-    /** What scales without focus, and why. */
-    private val scales = mapOf("Menu.kt" to "a menu grows from its button as it opens, whatever has focus")
+    /** A layer of a surface's own, set on it, placed with it or recorded. */
+    private val layer = Regex("""\b(graphicsLayer|placeWithLayer|placeRelativeWithLayer|rememberGraphicsLayer)\b""")
+
+    /** Lines that scale without focus, by file: a menu grows from its button as it opens, whatever has focus. */
+    private val scales = mapOf("design/components/Menu.kt" to setOf("scaleX = scale", "scaleY = scale"))
 
     /** tv-material's surfaces bring Google TV's focus (scale, glow, 300 ms Material curves): only its theme stays. */
     @Test
@@ -170,9 +188,15 @@ class FocusStyleGuardTest {
         listOf("Modifier.clickable { }", "Modifier.combinedClickable(onClick = {})", "Modifier.selectable(true) {}", "indication = null")
             .forEach { assertTrue(it, click.containsMatchIn(it)) }
         assertTrue(!click.containsMatchIn("Modifier.selectableGroup()"))
-        listOf("graphicsLayer { scaleX = s }", "Modifier.scale(1.08f)", "graphicsLayer(scaleY = s)")
-            .forEach { assertTrue(it, scaling.containsMatchIn(it)) }
-        listOf(".scale(Scale.FIT)", "display = scale(HlFonts.condensed, FontWeight.Bold, 64, 72)")
+        listOf(
+            "graphicsLayer { scaleX = s }", "Modifier.scale(1.08f)", "graphicsLayer(scaleY = s)",
+            "import androidx.compose.ui.draw.scale", "import androidx.compose.ui.graphics.drawscope.scale",
+            "import androidx.compose.ui.graphics.drawscope.withTransform",
+        ).forEach { assertTrue(it, scaling.containsMatchIn(it)) }
+        listOf(".scale(Scale.FIT)", "display = scale(HlFonts.condensed, FontWeight.Bold, 64, 72)", "import androidx.compose.ui.draw.clip")
             .forEach { assertTrue(it, !scaling.containsMatchIn(it)) }
+        listOf("Modifier.graphicsLayer { alpha = a }", "placeable.placeWithLayer(0, 0)", "val layer = rememberGraphicsLayer()")
+            .forEach { assertTrue(it, layer.containsMatchIn(it)) }
+        assertTrue(!layer.containsMatchIn("Box(Modifier.clip(shape))"))
     }
 }

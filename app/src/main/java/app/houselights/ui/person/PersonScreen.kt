@@ -140,10 +140,12 @@ internal fun PersonBands(page: PersonPage, onOpenItem: (MediaItem) -> Unit) {
                 ) {
                     WithItsPicture(shown) { TitleLine(it) }
                 }
-                ListScroll(top = HlSpace.m) { LazyVerticalGrid(
+                ListScroll(top = HlFocus.wallRoom) { LazyVerticalGrid(
                     columns = GridCells.Fixed(COLUMNS),
                     state = grid,
-                    contentPadding = PaddingValues(start = HlSpace.safeH, end = HlSpace.safeH, top = HlSpace.m, bottom = HlFocus.edge),
+                    contentPadding = PaddingValues(
+                        start = HlSpace.safeH, end = HlSpace.safeH, top = HlFocus.wallRoom, bottom = HlFocus.edge,
+                    ),
                     horizontalArrangement = Arrangement.spacedBy(HlLayout.wallGutter),
                     verticalArrangement = Arrangement.spacedBy(HlSpace.l),
                     modifier = Modifier.fillMaxSize(),

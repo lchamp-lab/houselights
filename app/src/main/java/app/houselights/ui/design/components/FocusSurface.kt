@@ -63,9 +63,9 @@ import kotlinx.coroutines.launch
  * The surface every focusable control, row, panel and picture is drawn on, lit by its [look] from
  * [FocusStyle] (DESIGN.md, Focus). Fill, frame and [glow] are read while drawing, a plate's light in its
  * content's clip layer: focus moving recomposes it as focus turns, and a plate again half way through its fill,
- * when its ink turns. A framed surface is drawn above its neighbours until its light is out, so its glow lies
- * over them, the focused one on top (its card's column in its stead, [CardColumn]). While an arrow is held
- * ([Scrub]), focus shows at once and nothing glows.
+ * when its ink turns. A framed surface that glows or draws its own frame is drawn above its neighbours until its
+ * light is out, so that light lies over them, the focused one on top (its card's column in its stead,
+ * [CardColumn]). While an arrow is held ([Scrub]), focus shows at once and nothing glows.
  *
  * OK (centre, enter) presses on its way down and clicks on its way up if the press was taken here; held, it
  * long-clicks instead. Focus reaches it when it cannot act ([enabled] false, or no [onClick]), and OK then does
@@ -91,7 +91,8 @@ internal fun HlFocusSurface(
     val focus = interaction.collectIsFocusedAsState()
     val focused by focus
     val framed = look.gesture == Gesture.Frame
-    val lights = rememberLights(focused, framed, glows = enabled && glow != null)
+    val glows = enabled && glow != null
+    val lights = rememberLights(focused, framed, glows)
     val lit = if (framed) focused else lights.halfLit
     val ring = FocusStyle.ring()
     val inRow = row?.takeIf { framed && enabled }?.let { rememberRowCard(it, shape) }
@@ -100,7 +101,7 @@ internal fun HlFocusSurface(
     Box(
         modifier
             .then(inRow ?: Modifier)
-            .then(rememberRaise(framed, focus, lights))
+            .then(rememberRaise(framed && (glows || frame != null), focus, lights))
             .pressWithOk(interaction, onClick.takeIf { enabled }, onLongClick.takeIf { enabled })
             .focusable(interactionSource = interaction)
             .semantics(mergeDescendants = true) { describe(role, selected, enabled, onClick, onLongClick) }
@@ -141,12 +142,12 @@ private fun rememberLights(focused: Boolean, framed: Boolean, glows: Boolean): L
 }
 
 /**
- * A framed surface is drawn above its neighbours, so its glow lies over them: on top with focus, then while its
+ * What a surface draws past its edge, when [raised], lies over its neighbours: on top with focus, then while its
  * light goes out. Read while placing; the card it is the picture of ([LocalRaise]) is raised in its stead.
  */
 @Composable
-private fun rememberRaise(framed: Boolean, focus: State<Boolean>, lights: Lights): Modifier {
-    if (!framed) return Modifier
+private fun rememberRaise(raised: Boolean, focus: State<Boolean>, lights: Lights): Modifier {
+    if (!raised) return Modifier
     val level = remember(focus, lights) { { if (focus.value) ON_TOP else if (lights.showing) ABOVE else 0f } }
     val card = LocalRaise.current ?: return remember(level) { Modifier.raisedBy(level) }
     DisposableEffect(card, level) {
@@ -260,9 +261,9 @@ private fun DrawScope.drawGlow(tone: Color, ring: Stroke, corner: Float) {
     if (tone.alpha == 0f) return
     val steps = HlScrim.GLOW_STEPS
     val band = ring.width
-    // Transmittance of the stacked layers, accumulated from the outermost ring inward.
+    // Transmittance of the stacked layers, accumulated from the outermost lit ring inward; the last ring is clear.
     var through = 1f
-    for (k in steps downTo 1) {
+    for (k in steps - 1 downTo 1) {
         through *= 1f - tone.alpha * HlScrim.GLOW_LAYER * (1f - k / steps.toFloat())
         // The band's middle line: a stroke is drawn half inside, half outside it.
         val middle = band * k - band / 2

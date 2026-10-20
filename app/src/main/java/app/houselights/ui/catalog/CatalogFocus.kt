@@ -50,7 +50,7 @@ import app.houselights.ui.design.components.MediaRow
 /** Every shape at a size it takes, then focus in its two gestures and its ring, live with the remote. */
 internal fun LazyListScope.catalogFocus() {
     item { Group("Shapes: radii by hierarchy, no pill, no disc", still = true) { Shapes() } }
-    item { Group("Focus, frame: what carries its own light is framed 3 dp off and glows in its own light; nothing grows") { Frames() } }
+    item { Group("Focus, frame: what carries its own light is framed 3 dp off; only a picture glows; nothing grows") { Frames() } }
     item { Group("Focus, fill: a plate turns white, ink black; the ring where nothing acts") { Fills() } }
 }
 

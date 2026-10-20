@@ -232,10 +232,12 @@ fun LibraryScreen(
                 )
                 // A scrolled line of posters comes to where the first line rests.
                 else -> CompositionLocalProvider(LocalGroupFocused provides gridHasFocus) {
-                    ListScroll(top = HlSpace.m) { LazyVerticalGrid(
+                    ListScroll(top = HlFocus.wallRoom) { LazyVerticalGrid(
                     columns = GridCells.Fixed(COLUMNS),
                     state = gridState,
-                    contentPadding = PaddingValues(start = HlSpace.safeH, end = HlSpace.safeH, top = HlSpace.m, bottom = HlFocus.edge),
+                    contentPadding = PaddingValues(
+                        start = HlSpace.safeH, end = HlSpace.safeH, top = HlFocus.wallRoom, bottom = HlFocus.edge,
+                    ),
                     horizontalArrangement = Arrangement.spacedBy(HlLayout.wallGutter),
                     verticalArrangement = Arrangement.spacedBy(HlSpace.l),
                     modifier = Modifier.fillMaxSize().onFocusChanged {
@@ -302,7 +304,7 @@ private fun BackToFirstPoster(focusedIndex: State<Int?>, toFirst: suspend () -> 
 private fun SkeletonWall() {
     if (!skeletonDelayPassed()) return
     Column(
-        Modifier.padding(start = HlSpace.safeH, end = HlSpace.safeH, top = HlSpace.m),
+        Modifier.padding(start = HlSpace.safeH, end = HlSpace.safeH, top = HlFocus.wallRoom),
         verticalArrangement = Arrangement.spacedBy(HlSpace.l),
     ) {
         repeat(SKELETON_ROWS) {
