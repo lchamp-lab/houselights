@@ -42,6 +42,17 @@
   - Each title can be corrected from its page: poster, backdrop and logo chosen among TMDB's images, or a
     manual match by title, year or IMDb id. Corrections survive later scans.
   - Films of a saga are gathered, with a page per saga showing the films you own and those you don't.
+  - Your [Trakt](https://trakt.tv) account connects in Settings > Trakt, with a code entered on your phone
+    or computer, and keeps what you watch in your folders (Jellyfin has its own Trakt plugin):
+    - a title watched on either side is watched on both, at the date it was seen; in every folder, a title
+      is watched from 80 % of its length, as on Trakt;
+    - where you stopped goes by the latest of Trakt's pause, the last play here (of the copy that plays)
+      and the last play Trakt knows, so a pause older than a play never comes back;
+    - marking a title unwatched removes every play of it from Trakt's history, those of other devices
+      too; a title only in progress loses its pause alone;
+    - marks and stops wait while Trakt cannot be reached, or until the account is connected again once
+      Trakt ended its connection; disconnecting forgets them, and choosing a server as the source
+      disconnects Trakt.
 - **Jellyfin**: browses your server and reports playback progress back to it. Emby and Plex are planned.
 - **In your language**: the interface in English, French, German, Spanish, Italian, Portuguese, Dutch,
   Polish, Chinese (simplified and traditional), Japanese and Korean, and details in the language of your
@@ -90,8 +101,8 @@ CA:0A:DF:07:52:64:58:F6:CB:3E:57:E4:C5:84:66:C4:55:B6:86:F5:84:3A:E6:4D:45:A3:76
 - **Prefer NFS**, which needs no credentials. With SMB, the Zidoo player receives the credentials in the file
   URI and Android logs started intents (readable over adb): use a **dedicated read-only NAS account**.
   Credentials are only passed to the Zidoo player installed with the system.
-- Passwords, the Jellyfin token, a personal TMDB key and path mappings are encrypted with a key held in the
-  Android Keystore. Android backup is disabled.
+- Passwords, the Jellyfin token, a personal TMDB key, path mappings and Trakt's tokens are encrypted with a key
+  held in the Android Keystore. Android backup is disabled. Disconnecting Trakt revokes the app's token there.
 - Jellyfin is reached over HTTPS when the server offers it; the settings show when a connection is not
   encrypted. Signing out revokes the app's token on the server. A stream played without path mappings
   carries the token in its URL and is only handed to another app through Android's app chooser.
@@ -109,14 +120,29 @@ If Houselights earns its place under your TV, you can support the project on
 Requires JDK 17 and the Android SDK (platform 35).
 
 ```sh
-echo "tmdb.apiKey=YOUR_KEY" >> local.properties   # optional; never commit it
+echo "tmdb.apiKey=YOUR_KEY" >> local.properties           # optional; never commit it
+echo "trakt.clientId=YOUR_CLIENT_ID" >> local.properties  # optional: Trakt, below
 ./gradlew assembleDebug
-scripts/preview.sh                                # Android TV emulator
-scripts/check.sh                                  # the checks CI runs
+scripts/preview.sh                                        # Android TV emulator
+scripts/check.sh                                          # the checks CI runs
 ```
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for checks, signing, releases and performance tooling, and
 [DESIGN.md](DESIGN.md) for the design system.
+
+### Trakt
+
+Settings > Trakt needs the client ID of a Trakt app, built into the APK. Without one, the build says it has
+no Trakt key and everything else works.
+
+1. Create the app on Trakt's developer portal ([new API app](https://app.trakt.tv/settings/apps/api/new));
+   Trakt first asks you to link a GitHub account, to prove who you are.
+2. Choose the Production type, and declare `https://github.com/lchamp-lab/houselights` as its redirect URI
+   (`TraktClient.REDIRECT_URI`): connecting with a code never opens it, but renewing the tokens names it. An
+   app declared with another URI gives it as `trakt.redirectUri` (`TRAKT_REDIRECT_URI`).
+3. Put its client ID in `local.properties` as `trakt.clientId`, or in the `TRAKT_CLIENT_ID` environment
+   variable. A client secret is needed only by an app that has one, as `trakt.clientSecret`
+   (`TRAKT_CLIENT_SECRET`); built into the APK, it can be read there.
 
 ## License
 

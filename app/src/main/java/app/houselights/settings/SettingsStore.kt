@@ -17,6 +17,7 @@ import app.houselights.core.PathMapping
 import app.houselights.core.Secrets
 import app.houselights.core.SecretsUnavailableException
 import app.houselights.core.SourceConfig
+import app.houselights.core.TraktSession
 import app.houselights.core.lenientJson
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -52,9 +53,10 @@ private object Keys {
     val collectionMin = intPreferencesKey("collection_min_films")
     val metadataLanguage = stringPreferencesKey("metadata_language")
     val libraryLanguage = stringPreferencesKey("library_language")
+    val trakt = stringPreferencesKey("trakt")
 }
 
-private val SECRET_KEYS = listOf(Keys.source, Keys.tmdbKey, Keys.mappings)
+private val SECRET_KEYS = listOf(Keys.source, Keys.tmdbKey, Keys.mappings, Keys.trakt)
 
 /** A setting that holds a secret, named so screens can say which one could not be read. */
 enum class SecretSetting {
@@ -64,12 +66,16 @@ enum class SecretSetting {
 
     /** Path mappings: their network paths may carry a password. */
     PATH_MAPPINGS,
+
+    /** The Trakt account's tokens. */
+    TRAKT,
 }
 
 private val Preferences.Key<String>.secret: SecretSetting
     get() = when (this) {
         Keys.source -> SecretSetting.SOURCE
         Keys.tmdbKey -> SecretSetting.TMDB_KEY
+        Keys.trakt -> SecretSetting.TRAKT
         else -> SecretSetting.PATH_MAPPINGS
     }
 
@@ -113,6 +119,8 @@ data class AppSettings(
     val metadataLanguage: String? = null,
     /** The language the folders' details were last all read in; null before the first launch that records it. */
     val libraryLanguage: String? = null,
+    /** The Trakt account connected for the folders' watch history; null when none is. */
+    val trakt: TraktSession? = null,
     /** Secrets that could not be read back (key lost, bad value): each reads as unset until saved again. */
     val lostSecrets: Set<SecretSetting> = emptySet(),
     /** The file keeps failing to read: retried ever less often, never replaced by defaults (which open Welcome). */
@@ -121,12 +129,12 @@ data class AppSettings(
     /** The saved connection (server and token) could not be read back; the welcome screen says so. */
     val lostSource: Boolean get() = SecretSetting.SOURCE in lostSecrets
 
-    /** Omits the TMDB key and the mappings' network paths, which may carry a password: logs may quote the settings. */
+    /** Omits the TMDB key, the mappings' network paths, which may carry a password, and Trakt's tokens: logs may quote the settings. */
     override fun toString() =
         "AppSettings(loaded=$loaded, source=$source, deviceId=$deviceId, pathMappings=${pathMappings.size}, " +
             "forceHttp=$forceHttp, ui4k=$ui4k, tmdbApiKey=${tmdbApiKey?.let { "***" }}, " +
             "collectionMinFilms=$collectionMinFilms, metadataLanguage=$metadataLanguage, libraryLanguage=$libraryLanguage, " +
-            "lostSecrets=$lostSecrets, readFailed=$readFailed)"
+            "trakt=$trakt, lostSecrets=$lostSecrets, readFailed=$readFailed)"
 }
 
 class SettingsStore(
@@ -202,6 +210,7 @@ class SettingsStore(
             collectionMinFilms = this[Keys.collectionMin] ?: CollectionThreshold.DEFAULT,
             metadataLanguage = this[Keys.metadataLanguage],
             libraryLanguage = this[Keys.libraryLanguage],
+            trakt = this[Keys.trakt]?.let { opened(Keys.trakt, it, lost) }?.let { decoded<TraktSession>(Keys.trakt, it, lost) },
             lostSecrets = lost,
         )
     }
@@ -276,6 +285,11 @@ class SettingsStore(
 
     suspend fun setLibraryLanguage(tag: String) {
         write { it[Keys.libraryLanguage] = tag }
+    }
+
+    /** Saves the Trakt account's tokens sealed, or forgets them ([session] null). */
+    suspend fun setTrakt(session: TraktSession?) {
+        write { if (session == null) it.remove(Keys.trakt) else it[Keys.trakt] = secrets.seal(lenientJson.encodeToString(session)) }
     }
 
     suspend fun setTmdbApiKey(value: String?) {

@@ -6,8 +6,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
 /**
- * Replaces the library source from any screen; the old Jellyfin server's token is revoked only once the new
- * source is saved, so a screen abandoned halfway changes nothing.
+ * Replaces the library source from any screen; only once the new source is saved, so a screen abandoned halfway
+ * changes nothing, the old Jellyfin server's token is revoked, and leaving the folders disconnects their Trakt account.
  */
 class SourceSwitcher(
     private val current: () -> AppSettings,
@@ -16,10 +16,13 @@ class SourceSwitcher(
     private val signOut: suspend (SourceConfig.Jellyfin, String) -> Unit = { server, deviceId ->
         JellyfinClient.signOut(server, deviceId)
     },
+    /** The folders are no longer the source: Trakt, which keeps their history, is disconnected. */
+    private val leftFolders: suspend () -> Unit = {},
 ) {
     suspend fun switchTo(source: SourceConfig) {
         val before = current()
         save(source)
+        if (before.source == SourceConfig.Local && source != SourceConfig.Local) scope.launch { leftFolders() }
         val left = before.source as? SourceConfig.Jellyfin ?: return
         // Signing in again to the same server may return the same token, which is now in use.
         if ((source as? SourceConfig.Jellyfin)?.accessToken == left.accessToken) return

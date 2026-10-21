@@ -47,6 +47,8 @@ class LocalProvider(
     private val context: Context,
     private val dao: LibraryDao,
     override val editor: MetadataEditor,
+    /** Told of marks and stops, for the Trakt account. */
+    private val history: WatchHistory = WatchHistory.None,
     /** Minimum owned films for a collection to be shown; 0 hides collections. */
     private val collectionMinFilms: () -> Int = { CollectionThreshold.DEFAULT },
 ) : MediaProvider {
@@ -267,12 +269,16 @@ class LocalProvider(
     override suspend fun setPlayed(item: MediaItem, played: Boolean) {
         val now = System.currentTimeMillis()
         val local = LocalId.parse(item.id)
-        if (local is LocalId.Collection) return dao.setCollectionPlayed(local.key, played, now)
+        if (local is LocalId.Collection) {
+            return history.mark(Marked.Saga(local.key), played) { dao.setCollectionPlayed(local.key, played, now) }
+        }
         val entity = entity(item) ?: return
-        when (entity.kind) {
-            ItemKind.SERIES -> dao.setSeriesPlayed(entity.id, played, now)
-            ItemKind.SEASON -> dao.setSeasonPlayed(entity.id, played, now)
-            else -> dao.setPlayed(entity.id, played, now)
+        history.mark(Marked.Row(entity.id), played) {
+            when (entity.kind) {
+                ItemKind.SERIES -> dao.setSeriesPlayed(entity.id, played, now)
+                ItemKind.SEASON -> dao.setSeasonPlayed(entity.id, played, now)
+                else -> dao.setPlayed(entity.id, played, now)
+            }
         }
     }
 
@@ -290,11 +296,7 @@ class LocalProvider(
         return play(copy ?: key, part, resume)
     }
 
-    private suspend fun chosenCopy(titleId: Long): Long? {
-        val copies = dao.copies(titleId).takeIf { it.size > 1 } ?: return null
-        val choice = copies.firstOrNull { it.id == titleId }?.versionChoice
-        return copies.firstOrNull { it.id == choice }?.id ?: VersionRank.best(copies)
-    }
+    private suspend fun chosenCopy(titleId: Long): Long? = VersionRank.played(dao.copies(titleId))
 
     /** Plays row [rowId] itself: [part] from its start, else the first part from the resume point. */
     internal suspend fun play(rowId: Long, part: Int?, resume: Boolean): PlaybackPlan {
@@ -311,7 +313,7 @@ class LocalProvider(
         return mapper.forPlayer(entity, shown).launch(
             fileUri(source, file), container,
             startMs = if (resume && part == null) entity.positionMs else 0L,
-            reporter = LocalReporter(dao, entity.id, part ?: 1),
+            reporter = LocalReporter(dao, entity.id, part ?: 1, history),
             resumeKey = if (part == null) entity.id.toString() else LocalId.ofPart(entity.id, part),
             // A disc image, or the stream a scan chose for a Blu-ray or DVD title (see ScanTitles).
             disc = container == DISC_IMAGE || FilenameParser.discOf(file) != null,
@@ -321,7 +323,7 @@ class LocalProvider(
     private fun partTitle(title: String, part: Int, parts: Int) = "$title · ${context.getString(R.string.part_of, part, parts)}"
 
     override fun reporter(resumeKey: String): PlaybackReporter? =
-        (LocalId.parse(resumeKey) as? LocalId.Item)?.let { LocalReporter(dao, it.key, it.part ?: 1) }
+        (LocalId.parse(resumeKey) as? LocalId.Item)?.let { LocalReporter(dao, it.key, it.part ?: 1, history) }
 
     /**
      * Next episode of each recent show and next film of each recent saga ([nextInSagas]), most recent first, without

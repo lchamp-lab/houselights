@@ -546,4 +546,43 @@
     <string name="search_people">인물</string>
     <string name="search_sagas">시리즈</string>
     <string name="search_none">시작 부분이 ‘%s’인 항목이 없습니다</string>
+    <!-- Trakt -->
+    <string name="trakt_desc">Trakt 계정에 폴더에서 시청한 내용이 기록됩니다. 본 영화와 에피소드, 그리고 어디까지 봤는지.</string>
+    <string name="trakt_no_keys">이 버전의 Houselights에는 Trakt 키가 없습니다.</string>
+    <string name="trakt_signed_out">연결 안 됨</string>
+    <string name="trakt_connected">연결됨</string>
+    <string name="trakt_signed_in_as">%s(으)로 연결됨</string>
+    <string name="trakt_connect">계정 연결</string>
+    <string name="trakt_connect_desc">휴대폰이나 컴퓨터에서 코드를 입력합니다</string>
+    <string name="trakt_disconnect">계정 연결 해제</string>
+    <string name="trakt_disconnect_desc">이 기기에서 계정 정보를 지웁니다.</string>
+    <string name="trakt_disconnecting">연결 해제 중…</string>
+    <string name="trakt_code_desc">휴대폰으로 QR 코드를 스캔하거나 컴퓨터에서 해당 주소를 연 다음 이 코드를 입력하세요.</string>
+    <string name="trakt_asking">Trakt에 코드를 요청하는 중…</string>
+    <string name="trakt_waiting">승인을 기다리는 중</string>
+    <string name="trakt_code_left">이 코드는 %s 후에 만료됩니다</string>
+    <string name="trakt_offline">Trakt가 응답하지 않습니다. 이 기기의 인터넷 연결을 확인한 후 다시 시도하세요.</string>
+    <string name="trakt_denied">Trakt에서 접근이 거부되었습니다. 허용하려면 다시 연결하세요.</string>
+    <string name="trakt_expired">코드를 입력하기 전에 만료되었습니다. 새 코드를 받으려면 다시 연결하세요.</string>
+    <string name="trakt_refused">Trakt가 이 버전의 키를 거부하여 계정을 연결할 수 없습니다.</string>
+    <string name="trakt_failed">Trakt에서 연결을 완료하지 못했습니다. 잠시 후 다시 시도하세요.</string>
+    <string name="trakt_ended">Trakt에서 이 연결을 종료했습니다. 계정을 다시 연결하세요.</string>
+    <string name="trakt_last_sync">마지막 동기화</string>
+    <plurals name="trakt_watched_count">
+        <item quantity="other">시청 완료 %d개</item>
+    </plurals>
+    <plurals name="trakt_in_progress_count">
+        <item quantity="other">시청 중 %d개</item>
+    </plurals>
+    <string name="trakt_counts">%1$s, %2$s</string>
+    <string name="trakt_sync_now">지금 동기화</string>
+    <string name="trakt_sync_now_desc">여기와 Trakt에서 시청한 내용을 합칩니다</string>
+    <string name="trakt_syncing">동기화 중…</string>
+    <string name="trakt_sync_offline">Trakt가 응답하지 않습니다. 시청한 내용은 응답이 돌아오는 즉시 전송됩니다.</string>
+    <string name="trakt_sync_busy">Trakt에서 잠시 기다려 달라고 요청했습니다. 동기화는 자동으로 다시 시작됩니다.</string>
+    <string name="trakt_sync_failed">Trakt와의 동기화를 완료하지 못했습니다. 자동으로 다시 시작됩니다.</string>
+    <string name="trakt_sync_refused">Trakt가 동기화를 거부합니다. 계정이 잠겼거나 이 버전의 키가 거부되었을 수 있습니다. trakt.tv에서 계정을 확인하세요.</string>
+    <string name="trakt_sync_unreadable">이 버전에서는 Trakt의 응답을 읽을 수 없습니다. Houselights를 업데이트하면 해결될 것입니다.</string>
+    <string name="trakt_certificate">Trakt의 인증서가 거부되었습니다. 이 기기의 날짜와 시간을 확인한 후 다시 시도하세요.</string>
+    <string name="settings_lost_trakt">이 플레이어에 저장된 Trakt 연결을 다시 읽을 수 없습니다. 계정을 다시 연결하세요.</string>
 </resources>

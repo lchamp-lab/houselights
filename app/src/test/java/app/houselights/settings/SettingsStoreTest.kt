@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.mutablePreferencesOf
 import androidx.datastore.preferences.core.stringPreferencesKey
 import app.houselights.core.Secrets
 import app.houselights.core.SourceConfig
+import app.houselights.core.TraktSession
 import app.houselights.testing.testKey
 import app.houselights.testing.testSecrets
 import app.houselights.ui.testing.SettleMainLooper
@@ -30,6 +31,7 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -40,6 +42,7 @@ import java.io.IOException
 import java.security.ProviderException
 import java.util.Collections
 import java.util.concurrent.Executors
+import kotlin.coroutines.EmptyCoroutineContext
 
 /** Reading the settings when the file or the Keystore fails. */
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -230,6 +233,33 @@ class SettingsStoreTest {
         val settings = testSettings(folder.root, backgroundScope, broken)
         settings.setSource(SourceConfig.Local)
         assertEquals(SourceConfig.Local, settings.state.first { it.source != null }.source)
+    }
+
+    /** Trakt's tokens are written sealed, read back, unreadable under another key, and forgotten on disconnecting. */
+    @Test
+    fun traktsTokensAreSealedThenReadBack() = runTest {
+        val traktKey = stringPreferencesKey("trakt")
+        val lea = TraktSession("acc3ss", "r3fresh", expiresAt = 1_700_000_000, username = "lea")
+        val secrets = testSecrets()
+        val file = folder.root.resolve("settings.preferences_pb")
+        val store = PreferenceDataStoreFactory.create(scope = backgroundScope, produceFile = { file })
+        val settings = SettingsStore(store, backgroundScope, secrets, readOn = EmptyCoroutineContext)
+        settings.state.first { it.loaded }
+
+        settings.setTrakt(lea)
+        assertEquals(lea, settings.state.first { it.trakt != null }.trakt)
+        val stored = checkNotNull(store.data.first()[traktKey])
+        assertTrue(secrets.isSealed(stored))
+        assertFalse(stored, "acc3ss" in stored || "r3fresh" in stored)
+
+        val other = SettingsStore(FlakyStore(0, mutablePreferencesOf(traktKey to stored)), backgroundScope, testSecrets())
+        val read = other.state.first { it.loaded }
+        assertNull(read.trakt)
+        assertEquals(setOf(SecretSetting.TRAKT), read.lostSecrets)
+
+        settings.setTrakt(null)
+        assertNull(settings.state.first { it.trakt == null }.trakt)
+        assertNull(store.data.first()[traktKey])
     }
 
     private companion object {

@@ -18,13 +18,15 @@ import kotlinx.coroutines.withContext
 @Database(
     entities = [
         SourceEntity::class, ItemEntity::class, CreditEntity::class, CollectionEntity::class, SagaPartEntity::class,
-        SearchWordEntity::class,
+        SearchWordEntity::class, TraktPendingEntity::class, TraktStateEntity::class,
     ],
-    version = 12,
+    version = 14,
 )
 @TypeConverters(SecretConverter::class, PipeList::class)
 abstract class LibraryDatabase : RoomDatabase() {
     abstract fun dao(): LibraryDao
+
+    abstract fun trakt(): TraktDao
 
     companion object {
         const val NAME = "library.db"
@@ -188,6 +190,28 @@ abstract class LibraryDatabase : RoomDatabase() {
             }
         }
 
+        /** v12 → v13: adds what waits for Trakt and where the sync stands ([TraktDao]). */
+        private val MIGRATION_12_13 = object : Migration(12, 13) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `trakt_pending` (`title` TEXT NOT NULL, `action` TEXT NOT NULL, `at` INTEGER NOT NULL, " +
+                        "`progress` REAL, `seq` INTEGER NOT NULL, PRIMARY KEY(`title`))"
+                )
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `trakt_state` (`id` INTEGER NOT NULL, `syncedAt` INTEGER, `watched` INTEGER NOT NULL, " +
+                        "`inProgress` INTEGER NOT NULL, `error` TEXT, `activities` TEXT, PRIMARY KEY(`id`))"
+                )
+            }
+        }
+
+        /** v13 → v14: what waits for Trakt counts its failed writes and notes when it was sent. */
+        private val MIGRATION_13_14 = object : Migration(13, 14) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE trakt_pending ADD COLUMN attempts INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE trakt_pending ADD COLUMN sentAt INTEGER")
+            }
+        }
+
         /** Tables, columns and indexes added in v12, as in Room's exported schema. */
         private fun createTables(db: SupportSQLiteDatabase) {
             db.execSQL(
@@ -315,7 +339,7 @@ abstract class LibraryDatabase : RoomDatabase() {
 
         internal fun migrations(secrets: Secrets) = arrayOf(
             MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, migration6To7(secrets), MIGRATION_7_8,
-            MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12,
+            MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14,
         )
 
         fun create(context: Context, secrets: Secrets): LibraryDatabase =

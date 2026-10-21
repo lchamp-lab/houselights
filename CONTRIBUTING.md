@@ -5,20 +5,23 @@
 Requirements: JDK 17 and the Android SDK (platform 35).
 
 ```sh
-echo "tmdb.apiKey=YOUR_KEY" >> local.properties   # optional, free at themoviedb.org
-scripts/preview.sh                                # start the Android TV 9 emulator
+echo "tmdb.apiKey=YOUR_KEY" >> local.properties           # optional, free at themoviedb.org
+echo "trakt.clientId=YOUR_CLIENT_ID" >> local.properties  # optional, see README, Trakt
+scripts/preview.sh                                        # start the Android TV 9 emulator
 ./gradlew installDebug
 ```
 
-The TMDB key can also come from the `TMDB_API_KEY` environment variable, or be entered in the app.
-`local.properties` is git-ignored: **never commit a key.**
+The TMDB key can also come from the `TMDB_API_KEY` environment variable, or be entered in the app. Trakt's
+client ID comes from `TRAKT_CLIENT_ID` as well; a client secret (`trakt.clientSecret`, `TRAKT_CLIENT_SECRET`)
+only for a Trakt app that has one, and its redirect URI (`trakt.redirectUri`) when not the project's (README,
+Trakt). `local.properties` is git-ignored: **never commit a key.**
 
 ## Project layout
 
 ```
 app/src/main/java/app/houselights/
   core/          backend-independent model and the MediaProvider interface
-  providers/     local (SMB, NFS, TMDB, Room) and jellyfin
+  providers/     local (SMB, NFS, TMDB, Room), jellyfin and trakt (the folders' Trakt account)
   player/        Zidoo player launch, progress tracking, path mapping
   ui/design/     design system: tokens and components (DESIGN.md)
   ui/            Compose for TV screens
@@ -108,7 +111,9 @@ the fingerprint in the README, and publishes the APK (also as `Houselights.apk`)
 drawn from the commits since the previous tag.
 
 Repository secrets: `HOUSELIGHTS_KEYSTORE` (`base64 -w0 houselights-release.jks`),
-`HOUSELIGHTS_KEYSTORE_PASSWORD` and, optionally, `TMDB_API_KEY` (a project key).
+`HOUSELIGHTS_KEYSTORE_PASSWORD` and, optionally, `TMDB_API_KEY` (a project key), `TRAKT_CLIENT_ID` (the
+project's Trakt app), `TRAKT_CLIENT_SECRET` (only for a Trakt app that has one) and `TRAKT_REDIRECT_URI`
+(only for one declared with another URI). CI reads the client ID and secret too.
 
 ## Performance
 

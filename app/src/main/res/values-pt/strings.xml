@@ -582,4 +582,47 @@
     <string name="search_people">Pessoas</string>
     <string name="search_sagas">Sagas</string>
     <string name="search_none">Nada começa com “%s”</string>
+    <!-- Trakt -->
+    <string name="trakt_desc">Sua conta do Trakt guarda o que você assiste das suas pastas: os filmes e episódios vistos, e onde você parou.</string>
+    <string name="trakt_no_keys">Esta versão do Houselights não tem chave do Trakt.</string>
+    <string name="trakt_signed_out">Não conectado</string>
+    <string name="trakt_connected">Conectado</string>
+    <string name="trakt_signed_in_as">Conectado como %s</string>
+    <string name="trakt_connect">Conectar sua conta</string>
+    <string name="trakt_connect_desc">Com um código digitado no seu telefone ou computador</string>
+    <string name="trakt_disconnect">Desconectar sua conta</string>
+    <string name="trakt_disconnect_desc">O Houselights a esquece neste dispositivo.</string>
+    <string name="trakt_disconnecting">Desconectando…</string>
+    <string name="trakt_code_desc">Escaneie o código QR com o telefone, ou abra o endereço dele em um computador, e digite este código.</string>
+    <string name="trakt_asking">Pedindo um código ao Trakt…</string>
+    <string name="trakt_waiting">Aguardando sua aprovação</string>
+    <string name="trakt_code_left">Este código expira em %s</string>
+    <string name="trakt_offline">O Trakt não responde. Verifique a conexão com a internet do dispositivo e tente de novo.</string>
+    <string name="trakt_denied">O acesso foi recusado no Trakt. Conecte de novo para permiti-lo.</string>
+    <string name="trakt_expired">O código expirou antes de ser digitado. Conecte de novo para receber outro.</string>
+    <string name="trakt_refused">O Trakt recusa a chave desta versão, então a conta não pode ser conectada.</string>
+    <string name="trakt_failed">O Trakt não conseguiu concluir a conexão. Tente de novo em instantes.</string>
+    <string name="trakt_ended">O Trakt encerrou esta conexão. Conecte sua conta de novo.</string>
+    <string name="trakt_last_sync">Última sincronização</string>
+    <plurals name="trakt_watched_count">
+        <item quantity="one">%d visto</item>
+        <item quantity="many">%d vistos</item>
+        <item quantity="other">%d vistos</item>
+    </plurals>
+    <plurals name="trakt_in_progress_count">
+        <item quantity="one">%d em andamento</item>
+        <item quantity="many">%d em andamento</item>
+        <item quantity="other">%d em andamento</item>
+    </plurals>
+    <string name="trakt_counts">%1$s, %2$s</string>
+    <string name="trakt_sync_now">Sincronizar agora</string>
+    <string name="trakt_sync_now_desc">Reúne o que você viu aqui e no Trakt</string>
+    <string name="trakt_syncing">Sincronizando…</string>
+    <string name="trakt_sync_offline">O Trakt não responde. O que você assistir será enviado assim que ele responder.</string>
+    <string name="trakt_sync_busy">O Trakt pede para aguardar um pouco. A sincronização será retomada sozinha.</string>
+    <string name="trakt_sync_failed">A sincronização com o Trakt não foi concluída. Ela será retomada sozinha.</string>
+    <string name="trakt_sync_refused">O Trakt recusa a sincronização: a conta pode estar bloqueada ou a chave desta versão foi recusada. Verifique sua conta em trakt.tv.</string>
+    <string name="trakt_sync_unreadable">O Trakt respondeu de um jeito que esta versão não consegue ler. Atualizar o Houselights deve resolver.</string>
+    <string name="trakt_certificate">O certificado do Trakt foi recusado. Verifique a data e a hora do dispositivo e tente de novo.</string>
+    <string name="settings_lost_trakt">Não foi possível reler a conexão com o Trakt salva neste player. Conecte sua conta de novo.</string>
 </resources>

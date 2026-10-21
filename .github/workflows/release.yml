@@ -7,6 +7,10 @@
 #   HOUSELIGHTS_KEYSTORE_PASSWORD  its password (the store's and the key's, one in a PKCS12 keystore)
 #   TMDB_API_KEY                   optional: the project's TMDB key, never a personal one; without it users
 #                                  enter their own in the app's settings
+#   TRAKT_CLIENT_ID                optional: the project's Trakt app; without it Settings says the build has
+#                                  no Trakt
+#   TRAKT_CLIENT_SECRET            optional: only for a Trakt app that has one; built into the APK, it can be read there
+#   TRAKT_REDIRECT_URI             optional: the Trakt app's redirect URI, when not the project's (README, Trakt)
 #
 # To release: set versionName in app/build.gradle.kts, commit, then tag that commit
 # (git tag -a v0.2.0 -m "Houselights 0.2.0" && git push origin v0.2.0).
@@ -76,6 +80,9 @@ jobs:
       - name: Checks and the signed release
         env:
           TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
+          TRAKT_CLIENT_ID: ${{ secrets.TRAKT_CLIENT_ID }}
+          TRAKT_CLIENT_SECRET: ${{ secrets.TRAKT_CLIENT_SECRET }}
+          TRAKT_REDIRECT_URI: ${{ secrets.TRAKT_REDIRECT_URI }}
         run: >-
           ./gradlew --no-daemon --max-workers=2
           -Dorg.gradle.jvmargs="-Xmx2g -XX:MaxMetaspaceSize=768m -Dfile.encoding=UTF-8"

@@ -32,6 +32,7 @@ import app.houselights.R
 import app.houselights.core.Library
 import app.houselights.core.LibraryFilter
 import app.houselights.core.SourceConfig
+import app.houselights.core.TraktSession
 import app.houselights.settings.AppSettings
 import app.houselights.settings.SecretSetting
 import app.houselights.ui.design.BackToStart
@@ -50,12 +51,14 @@ import app.houselights.ui.design.keepVerticalFocus
 import app.houselights.ui.design.rememberFocusMemory
 import app.houselights.ui.onboarding.FolderField
 import app.houselights.ui.util.UiError
+import app.houselights.ui.util.appContainer
 import app.houselights.ui.util.formatBytes
 
 internal enum class Pane(val label: Int, val icon: ImageVector) {
     Library(R.string.section_source, HlIcons.Folder),
     Numbers(R.string.section_numbers, HlIcons.Numbers),
     Playback(R.string.section_playback, HlIcons.Playback),
+    Trakt(R.string.section_trakt, HlIcons.History),
     Display(R.string.section_display, HlIcons.Display),
     Storage(R.string.section_storage, HlIcons.Storage),
     About(R.string.section_about, HlIcons.Info),
@@ -81,13 +84,7 @@ fun SettingsScreen(
         onUseFolders { vm.actionFailed(SettingAction.SOURCE, it) }
     }
     val s by vm.settings.collectAsStateWithLifecycle()
-    val panes = Pane.entries.filter { p ->
-        when (p) {
-            Pane.Playback -> s.source != null && vm.capabilities.pathMapping
-            Pane.Numbers -> s.source != null && vm.counts
-            else -> true
-        }
-    }
+    val panes = panesFor(s.source, vm.capabilities.pathMapping, vm.counts)
     var pane by rememberSaveable { mutableStateOf(Pane.Library) }
     // A failed change is reported in the pane it was made in, not in the next one.
     LaunchedEffect(pane) { vm.clearActionError() }
@@ -154,6 +151,7 @@ private class NumbersDoors(val onOpenWall: (Library, LibraryFilter) -> Unit, val
 internal fun lostSecretNote(pane: Pane, lost: Set<SecretSetting>): Int? = when {
     pane == Pane.Library && SecretSetting.TMDB_KEY in lost -> R.string.settings_lost_tmdb_key
     pane == Pane.Playback && SecretSetting.PATH_MAPPINGS in lost -> R.string.settings_lost_mappings
+    pane == Pane.Trakt && SecretSetting.TRAKT in lost -> R.string.settings_lost_trakt
     else -> null
 }
 
@@ -169,11 +167,31 @@ private fun summary(pane: Pane, s: AppSettings, titles: Int, stats: StorageStats
         else -> pluralStringResource(R.plurals.title_count, titles, titles)
     }
     Pane.Playback -> stringResource(if (s.forceHttp) R.string.http_stream else R.string.network_path)
+    Pane.Trakt -> traktSummary(s.trakt)
     Pane.Display -> displaySummary(s)
     // Counting happens only when its pane shows, so its entry has no summary.
     Pane.Numbers -> null
     Pane.Storage -> stats?.let { formatBytes(it.total) }
     Pane.About -> stringResource(R.string.nav_version, BuildConfig.VERSION_NAME)
+}
+
+/** The panes listed with [source]: path mappings where its provider uses them, counts where it counts. */
+internal fun panesFor(source: SourceConfig?, pathMapping: Boolean, counts: Boolean): List<Pane> = Pane.entries.filter { p ->
+    when (p) {
+        Pane.Playback -> source != null && pathMapping
+        Pane.Numbers -> source != null && counts
+        // Jellyfin keeps its own watch history, and has its own Trakt plugin.
+        Pane.Trakt -> source == SourceConfig.Local
+        else -> true
+    }
+}
+
+/** The account connected, by name, or that none is; nothing when this build cannot reach Trakt. */
+@Composable
+private fun traktSummary(session: TraktSession?): String? = when {
+    !appContainer().trakt.available -> null
+    session == null || session.ended -> stringResource(R.string.trakt_signed_out)
+    else -> session.username ?: stringResource(R.string.trakt_connected)
 }
 
 /** The rows of [pane]. Focus returning from the navigation goes back to the row it left. */
@@ -195,6 +213,7 @@ private fun PaneContent(
 ) {
     val vm = settingsViewModel()
     val counted = if (pane == Pane.Numbers) numbersViewModel() else null
+    val trakt = if (pane == Pane.Trakt) traktViewModel() else null
     LazyColumn(
         state = list,
         modifier = Modifier
@@ -213,6 +232,7 @@ private fun PaneContent(
             Pane.Library -> libraryPane(s, onFolderForm, onUseFolders, onSignIn, rows)
             Pane.Numbers -> counted?.let { numbersPane(it.state, rows, numbers.onOpenWall, numbers.onOpenPerson, it::retry) }
             Pane.Playback -> playbackPane(s)
+            Pane.Trakt -> trakt?.let { traktPane(it, s.trakt) }
             Pane.Display -> displayPane(s, rows)
             Pane.Storage -> storagePane(storage)
             Pane.About -> aboutPane(onOpenCatalog, rows)
