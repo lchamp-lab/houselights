@@ -176,6 +176,7 @@ class JellyfinProvider(
         if (item.kind == MediaKind.EPISODE) emptyList()
         else row("Similar to ${item.id}") { titles(api.similar(item.id, userId, 16, ROW_FIELDS).items) }.getOrDefault(emptyList())
 
+    /** A show or season by its own id: the server marks each of its episodes, clearing their resume points. */
     override suspend fun setPlayed(item: MediaItem, played: Boolean) {
         if (played) api.markPlayed(item.id, userId) else api.markUnplayed(item.id, userId)
     }

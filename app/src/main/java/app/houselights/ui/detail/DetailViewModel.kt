@@ -15,7 +15,6 @@ import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
 import app.houselights.core.MediaProvider
 import app.houselights.core.ProviderCapabilities
-import app.houselights.core.UserState
 import app.houselights.core.nextUpIn
 import app.houselights.core.suspendRunCatching
 import app.houselights.ui.design.HlMotion
@@ -71,6 +70,10 @@ data class DetailState(
 
     /** Index of [playedCopy], to name a copy without an edition ("Copie 2"). */
     val playedCopyIndex: Int get() = versions.indexOfFirst { it.chosen }.coerceAtLeast(0)
+
+    /** The chosen season when the page shows a season track (two seasons or more): what the watched tile marks. */
+    val shownSeason: MediaItem?
+        get() = seasons.takeIf { item?.kind == MediaKind.SERIES && it.size > 1 }?.firstOrNull { it.id == selectedSeasonId }
 }
 
 /** A title's page; the chosen season is kept in [saved], and [now] is time since boot, immune to clock changes. */
@@ -233,16 +236,34 @@ class DetailViewModel(
     /** When this page last changed the library itself, so that change's signal is skipped; null if none. */
     private var ownChangeAt: Long? = null
 
-    fun togglePlayed() = toggle("Watched") { item ->
-        val played = !item.user.played
-        provider().setPlayed(item, played)
-        item.user.copy(played = played)
+    /** Marks the title watched or not; a show, all its episodes. */
+    fun togglePlayed() {
+        val item = _state.value.item ?: return
+        markPlayed(item, !item.user.played)
     }
 
-    fun toggleFavorite() = toggle("Favorite") { item ->
+    /** Marks the season shown ([DetailState.shownSeason]) watched, or unwatched once all of it is. */
+    fun toggleSeasonPlayed() {
+        val season = _state.value.shownSeason ?: return
+        markPlayed(season, !seasonWatched(season))
+    }
+
+    /** Marks an episode of the season shown watched, or unwatched once it is. */
+    fun toggleEpisodePlayed(episode: MediaItem) {
+        val shown = _state.value.episodes.firstOrNull { it.id == episode.id } ?: return
+        markPlayed(shown, !shown.user.played)
+    }
+
+    private fun markPlayed(target: MediaItem, played: Boolean) =
+        change("Watched of ${target.id}", { provider().setPlayed(target, played) }) { it.marked(target, played) }
+
+    fun toggleFavorite() {
+        val item = _state.value.item ?: return
         val favorite = !item.user.favorite
-        provider().setFavorite(item, favorite)
-        item.user.copy(favorite = favorite)
+        change("Favorite of ${item.id}", { provider().setFavorite(item, favorite) }) { s ->
+            val shown = s.item?.takeIf { it.id == item.id } ?: return@change s
+            s.copy(item = shown.copy(user = shown.user.copy(favorite = favorite)))
+        }
     }
 
     /** Makes [version] the copy Lire plays (null for the best) and rereads the copies; failures show by the actions. */
@@ -271,22 +292,24 @@ class DetailViewModel(
     /** Dismisses the error shown beside the actions. */
     fun clearActionError() = _state.update { it.copy(actionError = null) }
 
-    /** Changes the title's user state, one change at a time, then reloads; a failure shows beside the actions. */
-    private fun toggle(what: String, change: suspend (MediaItem) -> UserState) {
-        val item = _state.value.item ?: return
-        if (toggleJob?.isActive == true) return
+    /**
+     * Saves a change of user state, one at a time, shows it at once ([shown]), then reloads; a failure shows beside
+     * the actions.
+     */
+    private fun change(what: String, save: suspend () -> Unit, shown: (DetailState) -> DetailState) {
+        if (_state.value.item == null || toggleJob?.isActive == true) return
         _state.update { it.copy(actionError = null) }
         toggleJob = viewModelScope.launch {
-            suspendRunCatching { change(item) }
-                .onSuccess { user ->
-                    _state.update { s -> s.copy(item = s.item?.takeIf { it.id == item.id }?.copy(user = user) ?: s.item) }
+            suspendRunCatching { save() }
+                .onSuccess {
+                    _state.update(shown)
                     // Signal at once, as the library's may lag behind a scan's; it then skips the reload.
                     ownChangeAt = now()
                     events.libraryChanged()
                     load()
                 }
                 .onFailure { e ->
-                    val error = e.reported(TAG, "$what of $itemId")
+                    val error = e.reported(TAG, what)
                     _state.update { it.copy(actionError = error) }
                 }
         }
@@ -314,6 +337,80 @@ internal fun DetailState.keepingSeasonOf(current: DetailState): DetailState {
         episodesLoading = current.episodesLoading,
         episodesError = current.episodesError,
     )
+}
+
+/** A season is watched once all its episodes are, as its tab's check says ([seasonDetail]). */
+internal fun seasonWatched(season: MediaItem): Boolean =
+    season.user.played || ((season.childCount ?: 0) > 0 && (season.user.unplayedCount ?: 1) <= 0)
+
+/** This page once [target] (the title, one of its seasons or episodes) is marked [played], as its source marks it. */
+internal fun DetailState.marked(target: MediaItem, played: Boolean): DetailState {
+    val title = item ?: return this
+    return when {
+        target.id == title.id -> markedTitle(title, played)
+        target.kind == MediaKind.SEASON -> markedSeason(target, played)
+        target.kind == MediaKind.EPISODE -> markedEpisode(target, played)
+        else -> this
+    }
+}
+
+private fun DetailState.markedTitle(title: MediaItem, played: Boolean): DetailState = when {
+    title.kind == MediaKind.SERIES -> copy(
+        item = title.markedWhole(played, episodeCount(seasons)),
+        seasons = seasons.map { it.markedWhole(played, it.childCount) },
+        episodes = episodes.map { it.markedFile(played) },
+    )
+    title.isPlayable -> copy(item = title.markedFile(played))
+    else -> copy(item = title.markedWhole(played, title.childCount))
+}
+
+private fun DetailState.markedSeason(target: MediaItem, played: Boolean): DetailState {
+    val season = seasons.firstOrNull { it.id == target.id } ?: return this
+    val shown = selectedSeasonId == season.id
+    val count = season.childCount ?: episodes.size.takeIf { shown && it > 0 }
+    val before = season.user.unplayedCount ?: if (seasonWatched(season)) 0 else count
+    val marked = season.markedWhole(played, count)
+    val after = marked.user.unplayedCount
+    // Counts unknown: the show is at least one episode short of watched, or as it was.
+    val delta = if (before != null && after != null) after - before else if (played) 0 else 1
+    return copy(
+        seasons = seasons.map { if (it.id == season.id) marked else it },
+        episodes = if (shown) episodes.map { it.markedFile(played) } else episodes,
+        item = item?.unwatchedBy(delta),
+    )
+}
+
+private fun DetailState.markedEpisode(target: MediaItem, played: Boolean): DetailState {
+    val episode = episodes.firstOrNull { it.id == target.id } ?: return this
+    val delta = when {
+        episode.user.played == played -> 0
+        played -> -1
+        else -> 1
+    }
+    val seasonId = episode.seasonId ?: selectedSeasonId
+    return copy(
+        episodes = episodes.map { if (it.id == episode.id) it.markedFile(played) else it },
+        seasons = seasons.map { if (it.id == seasonId) it.unwatchedBy(delta) else it },
+        item = item?.unwatchedBy(delta),
+    )
+}
+
+/** A show's episodes, from its [seasons]' counts; null when one is unknown. */
+private fun episodeCount(seasons: List<MediaItem>): Int? =
+    seasons.takeIf { all -> all.isNotEmpty() && all.all { it.childCount != null } }?.sumOf { it.childCount ?: 0 }
+
+/** A file marked [played]: back to its start either way, as sources clear its resume point. */
+private fun MediaItem.markedFile(played: Boolean) = copy(user = user.copy(played = played, positionMs = 0))
+
+/** A show or season marked [played] whole, its [episodes] all unwatched otherwise (unknown when null). */
+private fun MediaItem.markedWhole(played: Boolean, episodes: Int?) =
+    copy(user = user.copy(played = played, unplayedCount = if (played) 0 else episodes))
+
+/** A show or season [delta] episodes more unwatched; watched once none is left, unwatched once one is. */
+private fun MediaItem.unwatchedBy(delta: Int): MediaItem {
+    if (delta == 0) return this
+    val left = user.unplayedCount?.let { (it + delta).coerceAtLeast(0) }
+    return copy(user = user.copy(played = left?.let { it == 0 } ?: (user.played && delta < 0), unplayedCount = left))
 }
 
 private const val TAG = "Detail"

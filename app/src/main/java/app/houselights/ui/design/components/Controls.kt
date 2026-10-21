@@ -318,6 +318,8 @@ private fun Tile(
     enabled: Boolean = true,
     chosen: Boolean = false,
     interactionSource: MutableInteractionSource? = null,
+    onLongClick: (() -> Unit)? = null,
+    onLongClickLabel: String? = null,
 ) {
     val c = Hl.colors
     val header = LocalInHeader.current
@@ -334,6 +336,8 @@ private fun Tile(
         shape = HlShapes.control,
         modifier = modifier.size(if (header) HlSize.tileCompact else HlSize.tile),
         enabled = enabled,
+        onLongClick = onLongClick,
+        onLongClickLabel = onLongClickLabel,
         interactionSource = interactionSource,
     ) { lit ->
         val tint = when {
@@ -368,7 +372,8 @@ fun HlActionRow(
 /**
  * Square icon tile whose focus label overflows below it on a plate, without taking layout space (an
  * [HlActionRow] reserves it), centred unless near the screen side ([HlIconButtonDefaults.labelEdge]), hidden
- * under a sheet. A toggle names its action ("Marquer comme vu") and shows its state by [lit].
+ * under a sheet. A toggle names its action ("Marquer comme vu") and shows its state by [lit]. A long OK does
+ * [onLongClick], which [onLongClickLabel] names to accessibility services only.
  */
 @Composable
 fun HlIconButton(
@@ -378,6 +383,8 @@ fun HlIconButton(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     lit: Boolean = false,
+    onLongClick: (() -> Unit)? = null,
+    onLongClickLabel: String? = null,
 ) {
     val interaction = remember { MutableInteractionSource() }
     val focused by interaction.collectIsFocusedAsState()
@@ -393,7 +400,16 @@ fun HlIconButton(
     Layout(
         modifier = modifier,
         content = {
-            Tile(icon, label, onClick, enabled = enabled, chosen = lit, interactionSource = interaction)
+            Tile(
+                icon,
+                label,
+                onClick,
+                enabled = enabled,
+                chosen = lit,
+                interactionSource = interaction,
+                onLongClick = onLongClick,
+                onLongClickLabel = onLongClickLabel,
+            )
             Text(
                 label,
                 style = Hl.type.caption,

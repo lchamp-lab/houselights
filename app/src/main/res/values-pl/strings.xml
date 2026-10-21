@@ -101,6 +101,12 @@
     <string name="watched">Obejrzany</string>
     <string name="mark_watched">Oznacz jako obejrzany</string>
     <string name="mark_unwatched">Oznacz jako nieobejrzany</string>
+    <string name="mark_season_watched">Oznacz sezon jako obejrzany</string>
+    <string name="mark_season_unwatched">Oznacz sezon jako nieobejrzany</string>
+    <string name="mark_series_watched">Oznacz serial jako obejrzany</string>
+    <string name="mark_series_unwatched">Oznacz serial jako nieobejrzany</string>
+    <string name="mark_episode_watched">Oznacz odcinek jako obejrzany</string>
+    <string name="mark_episode_unwatched">Oznacz odcinek jako nieobejrzany</string>
     <string name="add_favorite">Dodaj do ulubionych</string>
     <string name="remove_favorite">Usuń z ulubionych</string>
     <string name="view_series">Zobacz serial</string>

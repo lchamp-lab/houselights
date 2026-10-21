@@ -92,6 +92,12 @@
     <string name="watched">시청 완료</string>
     <string name="mark_watched">시청 완료로 표시</string>
     <string name="mark_unwatched">미시청으로 표시</string>
+    <string name="mark_season_watched">시즌을 시청 완료로 표시</string>
+    <string name="mark_season_unwatched">시즌을 미시청으로 표시</string>
+    <string name="mark_series_watched">TV 프로그램을 시청 완료로 표시</string>
+    <string name="mark_series_unwatched">TV 프로그램을 미시청으로 표시</string>
+    <string name="mark_episode_watched">에피소드를 시청 완료로 표시</string>
+    <string name="mark_episode_unwatched">에피소드를 미시청으로 표시</string>
     <string name="add_favorite">즐겨찾기에 추가</string>
     <string name="remove_favorite">즐겨찾기에서 삭제</string>
     <string name="view_series">TV 프로그램 보기</string>

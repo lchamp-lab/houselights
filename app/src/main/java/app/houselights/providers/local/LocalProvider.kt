@@ -261,6 +261,7 @@ class LocalProvider(
         return mapper.mapAll(dao.byGenre(entity.kind, genre, entity.versionOf ?: entity.id, SIMILAR))
     }
 
+    /** A show, season or saga in one statement: all its titles change together. */
     override suspend fun setPlayed(item: MediaItem, played: Boolean) {
         val now = System.currentTimeMillis()
         val local = LocalId.parse(item.id)

@@ -199,6 +199,7 @@ fun DetailScreen(
     val actions = DetailActions(
         onPlay = onPlay,
         onTogglePlayed = vm::togglePlayed,
+        onToggleSeasonPlayed = vm::toggleSeasonPlayed,
         onToggleFavorite = vm::toggleFavorite,
         onOpenSeries = { item.seriesId?.let(onOpenItem) },
         onOpenNfo = { onOpenNfo(item.id) },
@@ -209,6 +210,7 @@ fun DetailScreen(
         copy = state.playedCopy,
         copyIndex = state.playedCopyIndex,
         onEdit = { showEdit = true }.takeIf { state.canEdit },
+        season = state.shownSeason,
     )
 
     val recede = rememberRecede { scrolled }
@@ -217,7 +219,8 @@ fun DetailScreen(
         item.backdrop,
         BackdropStyle.Full,
         Modifier.onPreviewKeyEvent {
-            if (it.type == KeyEventType.KeyDown && it.key in OK_KEYS) {
+            // Held, OK is still the one action: its repeats leave what it caused.
+            if (it.type == KeyEventType.KeyDown && it.key in OK_KEYS && it.nativeKeyEvent.repeatCount == 0) {
                 app.playback.clearProblem()
                 vm.clearActionError()
             }
@@ -300,6 +303,7 @@ private fun LazyListScope.seasonRows(
                     focused = focusedEpisode.value,
                     onFocus = { focusedEpisode.value = it },
                     onPlay = { ep -> onPlay(ep, ep.user.positionMs > 0) },
+                    onMark = vm::toggleEpisodePlayed.takeIf { state.capabilities?.markPlayed == true },
                 )
             }
         }
@@ -429,6 +433,7 @@ private class RowLinks(val onOpenItem: (String) -> Unit, val onOpenPerson: (Stri
 private data class DetailActions(
     val onPlay: (MediaItem, resume: Boolean) -> Unit,
     val onTogglePlayed: () -> Unit,
+    val onToggleSeasonPlayed: () -> Unit,
     val onToggleFavorite: () -> Unit,
     val onOpenSeries: () -> Unit,
     val onOpenNfo: () -> Unit,
@@ -439,6 +444,8 @@ private data class DetailActions(
     val copy: Version? = null,
     val copyIndex: Int = 0,
     val onEdit: (() -> Unit)?,
+    /** The season the watched tile marks, the whole show on a long OK; null where it marks the title. */
+    val season: MediaItem? = null,
 )
 
 @Composable
@@ -524,15 +531,7 @@ private fun Actions(
         if (item.kind == MediaKind.EPISODE && item.seriesId != null) {
             HlButton(stringResource(R.string.view_series), onClick = actions.onOpenSeries, modifier = Modifier.focusKey(SERIES, memory))
         }
-        // Label: what OK does; icon: the current state. Watched is done, not a choice: the check fills white.
-        if (capabilities?.markPlayed == true) {
-            HlIconButton(
-                if (item.user.played) HlIcons.CheckFilled else HlIcons.Check,
-                stringResource(if (item.user.played) R.string.mark_unwatched else R.string.mark_watched),
-                onClick = actions.onTogglePlayed,
-                modifier = Modifier.focusKey(WATCHED, memory),
-            )
-        }
+        if (capabilities?.markPlayed == true) WatchedTile(item, actions, Modifier.focusKey(WATCHED, memory))
         // A button bears the name of what it opens.
         if (actions.onShowTech != null) {
             HlIconButton(
@@ -564,6 +563,31 @@ private fun Actions(
         }
         ActionFailure(problem, actionError)
     } }
+}
+
+/**
+ * The watched tile: the title, or the season shown ([DetailActions.season]) and the whole show on a long OK.
+ * Label: what OK does; icon: the current state. Watched is done, not a choice: the check fills white.
+ */
+@Composable
+private fun WatchedTile(item: MediaItem, actions: DetailActions, modifier: Modifier) {
+    val season = actions.season
+    val show = item.user.played
+    val watched = season?.let(::seasonWatched) ?: show
+    val label = when {
+        season == null -> if (watched) R.string.mark_unwatched else R.string.mark_watched
+        watched -> R.string.mark_season_unwatched
+        else -> R.string.mark_season_watched
+    }
+    val whole = stringResource(if (show) R.string.mark_series_unwatched else R.string.mark_series_watched)
+    HlIconButton(
+        if (watched) HlIcons.CheckFilled else HlIcons.Check,
+        stringResource(label),
+        onClick = if (season != null) actions.onToggleSeasonPlayed else actions.onTogglePlayed,
+        modifier = modifier,
+        onLongClick = actions.onTogglePlayed.takeIf { season != null },
+        onLongClickLabel = whole.takeIf { season != null },
+    )
 }
 
 /** Why the last play request failed ([problem]) or a change did not save ([actionError]), beside the actions. */
@@ -662,15 +686,12 @@ private fun Seasons(seasons: List<MediaItem>, selectedId: String?, onSelect: (St
     )
 }
 
-/** A season's progress after its name: a check when fully watched, "6 / 10" when partly, nothing before. */
+/** A season's progress after its name: a check once watched ([seasonWatched]), "6 / 10" when partly, nothing before. */
 internal fun seasonDetail(season: MediaItem): SegmentDetail? {
-    val episodes = season.childCount?.takeIf { it > 0 } ?: return SegmentDetail.Done.takeIf { season.user.played }
-    val watched = episodes - (season.user.unplayedCount ?: if (season.user.played) 0 else episodes)
-    return when {
-        season.user.played || watched >= episodes -> SegmentDetail.Done
-        watched > 0 -> SegmentDetail.Count("$watched$NBSP/$NBSP$episodes")
-        else -> null
-    }
+    if (seasonWatched(season)) return SegmentDetail.Done
+    val episodes = season.childCount?.takeIf { it > 0 } ?: return null
+    val watched = episodes - (season.user.unplayedCount ?: episodes)
+    return if (watched > 0) SegmentDetail.Count("$watched$NBSP/$NBSP$episodes") else null
 }
 
 /** An episode's state: watched, or the time left; null when not started. */
@@ -678,6 +699,7 @@ internal fun seasonDetail(season: MediaItem): SegmentDetail? {
 private fun episodeState(ep: MediaItem): String? =
     if (ep.user.played) stringResource(R.string.watched) else timeLeft(ep)
 
+/** A season's episodes: OK plays one, a long OK marks it watched or not ([onMark], null where the source cannot). */
 @Composable
 private fun Episodes(
     header: String?,
@@ -686,11 +708,13 @@ private fun Episodes(
     focused: MediaItem?,
     onFocus: (MediaItem) -> Unit,
     onPlay: (MediaItem) -> Unit,
+    onMark: ((MediaItem) -> Unit)?,
 ) {
     // The row and the overview of its focused episode come into view together.
     Column(Modifier.scrollsAsBlock()) {
         MediaRow(header = header, modifier = memory.rowGroup(EPISODES), spacing = HlSpace.l) {
             items(episodes, key = { it.id }) { ep ->
+                val mark = if (ep.user.played) R.string.mark_episode_unwatched else R.string.mark_episode_watched
                 LandscapeCard(
                     item = ep,
                     modifier = memory.card(EPISODES, ep),
@@ -700,6 +724,8 @@ private fun Episodes(
                     number = ep.episodeNumbers,
                     facts = listOf(ep.runtimeMs?.let(::formatDuration), episodeState(ep)),
                     onFocused = { onFocus(ep) },
+                    onLongClick = onMark?.let { toggle -> { toggle(ep) } },
+                    onLongClickLabel = stringResource(mark),
                 )
             }
         }

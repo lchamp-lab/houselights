@@ -28,4 +28,14 @@ class SeasonDetailTest {
         assertEquals(SegmentDetail.Done, seasonDetail(season(null, null, played = true)))
         assertNull(seasonDetail(season(null, null)))
     }
+
+    /** The watched tile says the season watched exactly when its tab carries the check. */
+    @Test
+    fun watchedIsTheCheck() {
+        val seasons = listOf(
+            season(10, 0), season(10, 4), season(10, 10), season(10, 3, played = true),
+            season(null, null, played = true), season(null, null),
+        )
+        seasons.forEach { assertEquals(it.toString(), seasonDetail(it) == SegmentDetail.Done, seasonWatched(it)) }
+    }
 }

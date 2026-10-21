@@ -3,6 +3,8 @@ package app.houselights.providers.jellyfin
 import app.houselights.core.Library
 import app.houselights.core.LibraryFilter
 import app.houselights.core.LibraryKind
+import app.houselights.core.MediaItem
+import app.houselights.core.MediaKind
 import app.houselights.core.PlaybackOptions
 import app.houselights.core.PlaybackPlan
 import app.houselights.core.SectionType
@@ -59,6 +61,17 @@ class JellyfinProviderTest {
         val server = FakeServer { Answer(500) }
         assertEquals(500, httpFailure { provider(server).setPlayed(film, true) }?.code())
         assertEquals(listOf("/UserPlayedItems/f1"), server.paths)
+    }
+
+    /** A season is marked by its own id, the server marking its episodes; unmarked, it is deleted. */
+    @Test
+    fun aSeasonIsMarkedByItsOwnId() = runTest {
+        val server = FakeServer { Answer(200, "{}") }
+        val season = MediaItem("se1", MediaKind.SEASON, "Saison 1", seriesId = "sh1", seasonNumber = 1)
+        provider(server).setPlayed(season, true)
+        provider(server).setPlayed(season, false)
+        val requests = synchronized(server.requests) { server.requests.map { it.method to it.url.encodedPath } }
+        assertEquals(listOf("POST" to "/UserPlayedItems/se1", "DELETE" to "/UserPlayedItems/se1"), requests)
     }
 
     @Test

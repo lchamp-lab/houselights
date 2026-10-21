@@ -9,6 +9,7 @@ import app.houselights.core.SagaPart
 import app.houselights.core.UserState
 import app.houselights.core.Version
 import app.houselights.ui.design.HlMotion
+import app.houselights.ui.design.components.SegmentDetail
 import app.houselights.ui.testing.FakeCatalog
 import app.houselights.ui.testing.FakeEvents
 import app.houselights.ui.testing.FakeProvider
@@ -155,6 +156,98 @@ class DetailViewModelTest {
         assertEquals(UiError.OFFLINE, vm.state.value.actionError)
         vm.clearActionError()
         assertNull(vm.state.value.actionError)
+    }
+
+    /** A show of three seasons of two episodes, none watched, the first episode half seen, as a source counts them. */
+    private fun countedShow() = provider.apply {
+        items["show"] = series("show").copy(user = UserState(unplayedCount = 6))
+        seasons = mapOf("show" to (1..3).map { season("s$it", it, "show").copy(childCount = 2, user = UserState(unplayedCount = 2)) })
+        val begun = episode("s1e1", "s1", 1).copy(user = UserState(positionMs = 600_000))
+        episodes = episodes + ("s1" to listOf(begun, episode("s1e2", "s1", 2)))
+    }
+
+    private val DetailViewModel.season1 get() = state.value.seasons.first { it.id == "s1" }
+
+    /** The watched tile marks the season shown, its episodes from their start; the show counts it before a reload. */
+    @Test
+    fun theTileMarksTheSeasonShownThenTheWholeShow() = runTest {
+        countedShow()
+        val vm = detail("show")
+        advanceUntilIdle()
+        assertEquals("s1", vm.state.value.shownSeason?.id)
+        val reload = provider.gate("item show")
+        vm.toggleSeasonPlayed()
+        advanceUntilIdle()
+        assertTrue("played s1 true" in provider.calls)
+        assertTrue(seasonWatched(vm.season1))
+        assertEquals(listOf(true, true), vm.state.value.episodes.map { it.user.played })
+        assertEquals(listOf(0L, 0L), vm.state.value.episodes.map { it.user.positionMs })
+        assertEquals(4, vm.state.value.item?.user?.unplayedCount)
+        assertEquals(false, vm.state.value.item?.user?.played)
+        assertEquals(1L, events.libraryVersion.value)
+        reload.complete(Unit)
+        advanceUntilIdle()
+
+        // A long OK: the whole show, every season with it.
+        provider.gate("item show")
+        vm.togglePlayed()
+        advanceUntilIdle()
+        assertTrue("played show true" in provider.calls)
+        assertEquals(true, vm.state.value.item?.user?.played)
+        assertTrue(vm.state.value.seasons.all(::seasonWatched))
+    }
+
+    /** Unmarked, a watched season counts all its episodes again. */
+    @Test
+    fun aWatchedSeasonIsMarkedUnwatched() = runTest {
+        countedShow()
+        val watched = UserState(played = true, unplayedCount = 0)
+        provider.seasons = mapOf("show" to provider.seasons.getValue("show").map { it.copy(user = watched) })
+        provider.items["show"] = series("show").copy(user = watched)
+        val vm = detail("show")
+        advanceUntilIdle()
+        provider.gate("item show")
+        vm.toggleSeasonPlayed()
+        advanceUntilIdle()
+        assertTrue("played s1 false" in provider.calls)
+        assertEquals(2, vm.season1.user.unplayedCount)
+        assertFalse(seasonWatched(vm.season1))
+        assertEquals(UserState(unplayedCount = 2), vm.state.value.item?.user)
+    }
+
+    /** A long OK on an episode marks it alone; its season and its show count it at once. */
+    @Test
+    fun anEpisodeIsMarkedAndItsSeasonCountsIt() = runTest {
+        countedShow()
+        val vm = detail("show")
+        advanceUntilIdle()
+        val reload = provider.gate("item show")
+        vm.toggleEpisodePlayed(vm.state.value.episodes.first())
+        advanceUntilIdle()
+        assertTrue("played s1e1 true" in provider.calls)
+        assertEquals(UserState(played = true), vm.state.value.episodes.first().user)
+        assertEquals(SegmentDetail.Count("1\u00a0/\u00a02"), seasonDetail(vm.season1))
+        assertEquals(5, vm.state.value.item?.user?.unplayedCount)
+        reload.complete(Unit)
+        advanceUntilIdle()
+        assertEquals(true, vm.state.value.episodes.first().user.played)
+
+        vm.toggleEpisodePlayed(vm.state.value.episodes.first())
+        advanceUntilIdle()
+        assertTrue("played s1e1 false" in provider.calls)
+        assertEquals(false, vm.state.value.episodes.first().user.played)
+    }
+
+    /** One season has no track: the watched tile marks the show. */
+    @Test
+    fun aShowOfOneSeasonHasNoSeasonShown() = runTest {
+        provider.seasons = mapOf("show" to listOf(season("s1", 1, "show")))
+        val vm = detail("show")
+        advanceUntilIdle()
+        assertNull(vm.state.value.shownSeason)
+        vm.toggleSeasonPlayed()
+        advanceUntilIdle()
+        assertTrue(provider.calls.none { it.startsWith("played") })
     }
 
     private val DetailViewModel.shownEpisodes get() = state.value.episodes.map { it.id }

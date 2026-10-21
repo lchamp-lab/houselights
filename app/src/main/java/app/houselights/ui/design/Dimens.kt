@@ -233,7 +233,7 @@ internal object HlSettingRowDefaults {
 /** The label a tile shows under it with focus. */
 internal object HlIconButtonDefaults {
     /** Widest label; a longer one ends in an ellipsis. */
-    val labelWidth = 200.dp
+    val labelWidth = 256.dp
 
     /**
      * Room below a row of tiles for the focused label (gap, plate, one caption line), on the grid:

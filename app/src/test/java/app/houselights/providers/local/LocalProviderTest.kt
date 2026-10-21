@@ -10,6 +10,7 @@ import app.houselights.core.PlaybackOptions
 import app.houselights.core.PlaybackPlan
 import app.houselights.core.Quality
 import app.houselights.core.SortOption
+import app.houselights.core.UserState
 import app.houselights.core.WatchStatus
 import app.houselights.providers.local.TmdbClient.Companion.ImageType
 import kotlinx.coroutines.runBlocking
@@ -220,6 +221,39 @@ class LocalProviderTest {
         assertEquals(listOf(3, 3, 1), seasons.map { it.childCount })
         assertEquals(listOf(0, 2, 1), seasons.map { it.user.unplayedCount })
         assertEquals(listOf(true, false, false), seasons.map { it.user.played })
+    }
+
+    /** A season is marked whole in one statement, its episodes back to their start; the other seasons stay as they are. */
+    @Test
+    fun aSeasonIsMarkedWithItsEpisodesAlone() = runTest {
+        val show = show("MobLand")
+        val pilot = show.episode(1, 1)
+        show.episode(1, 2)
+        show.episode(2, 1)
+        dao.savePlayback(pilot, positionMs = 600_000, durationMs = null, played = false, lastPlayedAt = 1)
+        val item = provider.item(show.id.toString())
+        val first = provider.seasons(item).first()
+
+        provider.setPlayed(first, played = true)
+        assertEquals(listOf(true, false), provider.seasons(item).map { it.user.played })
+        assertEquals(listOf(0, 1), provider.seasons(item).map { it.user.unplayedCount })
+        assertEquals(listOf(0L, 0L), provider.episodes(item, first).map { it.user.positionMs })
+        assertEquals(1, provider.item(item.id).user.unplayedCount)
+
+        provider.setPlayed(first, played = false)
+        assertEquals(listOf(false, false), provider.episodes(item, first).map { it.user.played })
+        assertEquals(listOf(2, 1), provider.seasons(item).map { it.user.unplayedCount })
+    }
+
+    /** An episode marked unwatched starts over, as a film does. */
+    @Test
+    fun anEpisodeMarkedUnwatchedStartsOver() = runTest {
+        val show = show("MobLand")
+        val pilot = show.episode(1, 1)
+        dao.savePlayback(pilot, positionMs = 600_000, durationMs = null, played = true, lastPlayedAt = 1)
+        val episode = provider.item(pilot.toString())
+        provider.setPlayed(episode, played = false)
+        assertEquals(UserState(), provider.item(pilot.toString()).user)
     }
 
     /** Sonarr's "Specials" holds S00E01: "Play" still starts S01E01, and the specials once the rest is watched. */

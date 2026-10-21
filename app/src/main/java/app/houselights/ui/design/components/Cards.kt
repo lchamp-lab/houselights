@@ -189,7 +189,8 @@ private fun RowHeading(modifier: Modifier, count: String?, news: Int, title: @Co
 /**
  * The focus treatment of all artwork (DESIGN.md, Cards): framed, it glows in its own tone ([light], else the
  * ambient light) while its siblings recede; in a [MediaRow], the row draws its frame.
- * Read as one element with [stateDescription]; with [readAs], that text alone, actionable if [acts].
+ * Read as one element with [stateDescription]; with [readAs], that text alone, its click only if [acts].
+ * A long OK does [onLongClick], named by [onLongClickLabel].
  */
 @Composable
 fun ArtworkSurface(
@@ -201,6 +202,8 @@ fun ArtworkSurface(
     readAs: String? = null,
     acts: Boolean = false,
     light: String? = null,
+    onLongClick: (() -> Unit)? = null,
+    onLongClickLabel: String? = null,
     content: @Composable BoxScope.() -> Unit,
 ) {
     val interaction = remember { MutableInteractionSource() }
@@ -230,6 +233,8 @@ fun ArtworkSurface(
             .rememberedInGroup(group, member)
             .then(reading)
             .onFocusChanged { if (it.isFocused) onFocused() },
+        onLongClick = onLongClick,
+        onLongClickLabel = onLongClickLabel,
         glow = { if (light != null) own.value else ambient.glow() },
         interactionSource = interaction,
         row = LocalRowFrame.current,
@@ -368,7 +373,10 @@ fun PosterCard(
     }
 }
 
-/** 16:9 still with an optional caption: an episode [number] and the [title], then [facts], beside or under it. */
+/**
+ * 16:9 still with an optional caption: an episode [number] and the [title], then [facts], beside or under it.
+ * A long OK does [onLongClick], named by [onLongClickLabel].
+ */
 @Composable
 fun LandscapeCard(
     item: MediaItem,
@@ -379,6 +387,8 @@ fun LandscapeCard(
     number: String? = null,
     facts: List<String?> = emptyList(),
     onFocused: () -> Unit = {},
+    onLongClick: (() -> Unit)? = null,
+    onLongClickLabel: String? = null,
 ) {
     val still = item.landscape?.url(width.toPx())
     CardColumn(modifier.width(width)) {
@@ -389,6 +399,8 @@ fun LandscapeCard(
             onFocused = onFocused,
             stateDescription = cardState(item),
             light = still,
+            onLongClick = onLongClick,
+            onLongClickLabel = onLongClickLabel,
         ) {
             ArtworkImage(still, item.title, Modifier.fillMaxSize()) {
                 FallbackArtwork(title ?: item.title, item.year.takeIf { title == null })

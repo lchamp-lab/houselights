@@ -69,8 +69,9 @@ import kotlinx.coroutines.launch
  *
  * OK (centre, enter) presses on its way down and clicks on its way up if the press was taken here; held, it
  * long-clicks instead. Focus reaches it when it cannot act ([enabled] false, or no [onClick]), and OK then does
- * nothing. It is one element to accessibility services, a [role] with its click. [content], clipped to [shape],
- * is told when it is [lit]: when its ink is focus's. Framed in a [row], it leaves its frame to the row ([RowFrame]).
+ * nothing. It is one element to accessibility services, a [role] with its clicks, the long one named by
+ * [onLongClickLabel]. [content], clipped to [shape], is told when it is [lit]: when its ink is focus's. Framed in
+ * a [row], it leaves its frame to the row ([RowFrame]).
  */
 @Composable
 internal fun HlFocusSurface(
@@ -80,6 +81,7 @@ internal fun HlFocusSurface(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     onLongClick: (() -> Unit)? = null,
+    onLongClickLabel: String? = null,
     role: Role? = Role.Button,
     selected: Boolean? = null,
     glow: (() -> Color)? = null,
@@ -104,7 +106,7 @@ internal fun HlFocusSurface(
             .then(rememberRaise(framed && (glows || frame != null), focus, lights))
             .pressWithOk(interaction, onClick.takeIf { enabled }, onLongClick.takeIf { enabled })
             .focusable(interactionSource = interaction)
-            .semantics(mergeDescendants = true) { describe(role, selected, enabled, onClick, onLongClick) }
+            .semantics(mergeDescendants = true) { describe(role, selected, enabled, onClick, onLongClick, onLongClickLabel) }
             .then(light),
         propagateMinConstraints = true,
     ) {
@@ -185,17 +187,19 @@ private fun framedLight(look: FocusLook, shape: Shape, frame: Brush?, glow: (() 
     if (look.gesture == Gesture.Frame) Modifier.drawWithCache { drawLight(shape, frame, glow, lights) } else Modifier
 
 /** One element to accessibility services: its role, whether it is chosen, its clicks, whether it can act. */
+@Suppress("LongParameterList") // One per property it states.
 private fun SemanticsPropertyReceiver.describe(
     role: Role?,
     selected: Boolean?,
     enabled: Boolean,
     onClick: (() -> Unit)?,
     onLongClick: (() -> Unit)?,
+    longClickLabel: String?,
 ) {
     role?.let { this.role = it }
     selected?.let { this.selected = it }
     if (onClick != null) this.onClick(label = null) { enabled.also { if (it) onClick() } }
-    if (onLongClick != null) this.onLongClick(label = null) { enabled.also { if (it) onLongClick() } }
+    if (onLongClick != null) this.onLongClick(label = longClickLabel) { enabled.also { if (it) onLongClick() } }
     if (!enabled) disabled()
 }
 

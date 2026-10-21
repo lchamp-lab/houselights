@@ -102,9 +102,20 @@ class FakeProvider : MediaProvider {
         return null
     }
 
+    /** As a source does: a show or season marks its episodes, and every file is back to its start. */
     override suspend fun setPlayed(item: MediaItem, played: Boolean) {
         call("played ${item.id} $played")
         items[item.id] = item.copy(user = item.user.copy(played = played))
+        val seasonIds = when (item.kind) {
+            MediaKind.SERIES -> seasons[item.id].orEmpty().map { it.id }.toSet()
+            MediaKind.SEASON -> setOf(item.id)
+            else -> emptySet()
+        }
+        episodes = episodes.mapValues { (season, list) ->
+            list.map { ep ->
+                if (season in seasonIds || ep.id == item.id) ep.copy(user = ep.user.copy(played = played, positionMs = 0)) else ep
+            }
+        }
     }
 
     override suspend fun setFavorite(item: MediaItem, favorite: Boolean) {

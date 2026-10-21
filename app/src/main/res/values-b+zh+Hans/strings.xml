@@ -92,6 +92,12 @@
     <string name="watched">已观看</string>
     <string name="mark_watched">标记为已观看</string>
     <string name="mark_unwatched">标记为未观看</string>
+    <string name="mark_season_watched">将本季标记为已观看</string>
+    <string name="mark_season_unwatched">将本季标记为未观看</string>
+    <string name="mark_series_watched">将剧集标记为已观看</string>
+    <string name="mark_series_unwatched">将剧集标记为未观看</string>
+    <string name="mark_episode_watched">将本集标记为已观看</string>
+    <string name="mark_episode_unwatched">将本集标记为未观看</string>
     <string name="add_favorite">加入收藏</string>
     <string name="remove_favorite">取消收藏</string>
     <string name="view_series">查看剧集</string>
