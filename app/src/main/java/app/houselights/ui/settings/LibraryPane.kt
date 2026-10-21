@@ -669,26 +669,22 @@ private fun TmdbKeyStatus(personal: Boolean, hasBuiltIn: Boolean, unchecked: Boo
         lost && !personal -> HlStatus(
             StatusState.Attention,
             stringResource(R.string.tmdb_key_lost),
-            detailStyle = Hl.type.meta,
             detail = stringResource(if (hasBuiltIn) R.string.tmdb_key_lost_builtin else R.string.tmdb_key_lost_none),
         )
         issue != null && (personal || hasBuiltIn) -> HlStatus(
             StatusState.Attention,
             stringResource(if (personal) R.string.tmdb_key_personal else R.string.tmdb_key_builtin_state),
-            detailStyle = Hl.type.meta,
             detail = stringResource(if (issue == UiError.TMDB_KEY_REFUSED) R.string.tmdb_scan_key_refused else R.string.tmdb_scan_offline),
         )
         personal -> HlStatus(
             StatusState.On,
             stringResource(R.string.tmdb_key_personal),
-            detailStyle = Hl.type.meta,
             detail = if (unchecked) stringResource(R.string.tmdb_key_unchecked) else null,
         )
         hasBuiltIn -> HlStatus(StatusState.On, stringResource(R.string.tmdb_key_builtin_state))
         else -> HlStatus(
             StatusState.Attention,
             stringResource(R.string.tmdb_key_none),
-            detailStyle = Hl.type.meta,
             detail = stringResource(R.string.tmdb_key_none_desc),
         )
     }

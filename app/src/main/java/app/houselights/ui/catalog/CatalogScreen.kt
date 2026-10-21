@@ -112,7 +112,7 @@ fun CatalogScreen() {
             catalogContrast()
 
             item {
-                Group("Type: the voices of the poster, of reading, technical; then the signature", still = true) {
+                Group("Type: the voices of the poster, of reading, technical; then the signatures", still = true) {
                     listOf(
                         "display" to t.display, "headline" to t.headline, "subject" to t.subject,
                         "place" to t.place, "placeCurrent, ember lit" to t.placeCurrent.emberLit(c), "rowTitle" to t.rowTitle,
@@ -121,6 +121,7 @@ fun CatalogScreen() {
                         "caption" to t.caption, "group" to t.group, "code" to t.code,
                         "spec" to t.spec, "jaquette" to t.jaquette, "badge" to t.badge,
                         "titleSignature" to t.titleSignature, "billing" to t.billing, "billingJoin" to t.billingJoin,
+                        "codeSignature" to t.codeSignature,
                     ).forEach { (name, style) -> StyleSpecimen(name, style) }
                 }
             }

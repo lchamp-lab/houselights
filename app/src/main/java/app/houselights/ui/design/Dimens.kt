@@ -194,8 +194,8 @@ object HlLayout {
         @Composable @ReadOnlyComposable
         get() = textRoom(infoLineAtDefault)
     private val infoLineAtDefault = 28.dp
-    /** Overview of the focused episode under the episode row: three caption lines (3 × 18), on the grid. */
-    val episodeOverview = 56.dp
+    /** Overview of the focused episode under the episode row: three `body` lines (3 × 24). */
+    val episodeOverview = 72.dp
     /** Between detail page blocks: wider than [HlFocus.edge], so the block above leaves as the next arrives. */
     val detailGap = HlSpace.xl
     /** The first row's visible part under a detail hero: gap, header, its gap and focus room, a strip of images. */
@@ -270,23 +270,20 @@ internal object ShowcaseDefaults {
 /** The label a tile shows under it with focus. */
 internal object HlIconButtonDefaults {
     /** Widest label at the default text size, growing with it ([tileLabelWidth]); a longer one ends in an ellipsis. */
-    val labelWidth = 256.dp
+    val labelWidth = 280.dp
 
     /**
-     * Room below a row of tiles for the focused label (gap, plate, one caption line), on the grid:
-     * 36 at the default text size. The label takes none of its own; [HlActionRow] keeps it.
+     * Room below a row of tiles for the focused label (gap, plate, one `meta` line): 36 at the default text size.
+     * The label takes none of its own; [HlActionRow] keeps it.
      */
     val labelRoom: Dp
         @Composable @ReadOnlyComposable
-        get() = HlSpace.xs + HlControl.labelPaddingV * 2 + textRoom(Hl.type.caption) + toTheGrid
+        get() = HlSpace.xs + HlControl.labelPaddingV * 2 + textRoom(Hl.type.meta)
 
-    /** What [labelRoom] adds for a label's second line, a tile's hint: 20 at the default text size, on the grid. */
+    /** What [labelRoom] adds for a label's second line, a tile's hint: 20 at the default text size. */
     val hintRoom: Dp
         @Composable @ReadOnlyComposable
-        get() = textRoom(Hl.type.caption) + toTheGrid
-
-    /** Rounds the label's room (34) and a hint's line (18) at the default text size up to the 4 dp grid. */
-    private val toTheGrid = 2.dp
+        get() = textRoom(Hl.type.meta)
 
     /** Closest the label may come to a screen side: past the safe area, so an edge button keeps it centred. */
     val labelEdge = HlSpace.l

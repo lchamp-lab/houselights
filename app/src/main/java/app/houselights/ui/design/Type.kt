@@ -89,6 +89,9 @@ private const val CAPITALS = "case"
 private val CAPITALS_TRACKING = 0.04.em
 private val BILLING_JOIN_TRACKING = 0.02.em
 
+/** A code to type elsewhere, its letters set apart to be read from across the room. */
+private val CODE_TRACKING = 0.06.em
+
 private fun scale(
     family: FontFamily,
     weight: FontWeight,
@@ -119,9 +122,10 @@ private fun signature(family: FontFamily, weight: FontWeight, size: Int, line: I
     )
 
 /**
- * Type scale for a TV seen from the couch (DESIGN.md, Type): 12 to 64 sp, line heights on a 2 sp grid, no
- * content below 14 sp. Poster titles ([display], [cardTitle]) fit Vietnamese: in condensed bold a stacked
- * mark rises to 0.92 em and a descender falls to 0.20 em, hence lines 1.125 and 1.2 em apart.
+ * Type scale for a TV seen from the couch (DESIGN.md, Type): 12 to 64 sp, and two signature sizes (18, 96), line
+ * heights on a 2 sp grid. What is read is 16 sp or more; 14 only beside a larger line, 12 for printed marks. Poster
+ * titles ([display], [cardTitle]) fit Vietnamese: in condensed bold a stacked mark rises to 0.92 em and a descender
+ * falls to 0.20 em, hence lines 1.125 and 1.2 em apart.
  */
 @Immutable
 data class HlType(
@@ -153,11 +157,11 @@ data class HlType(
     val body: TextStyle,
     /** A name to choose: a menu option, a version, a button's words. */
     val entry: TextStyle,
-    /** Facts and values: year, runtime, score, sizes; tabular figures. */
+    /** Facts and values, and the line read under a name: a hint, a description, a status's reason; tabular figures. */
     val meta: TextStyle,
-    /** Secondary lines: hints, roles, paths, the line under a name; set tight so two lines read as one block. */
+    /** A line beside a larger one: facts under a card, a row's count, time left; set tight to read as one block. */
     val caption: TextStyle,
-    /** Title over a group of facts or settings ("Image", "État"): above its plate, not among its labels. */
+    /** Title over a group of facts or settings ("Image", "État"), above its plate: [entry] under another name. */
     val group: TextStyle,
     /** Raw text to read as written (NFO XML). */
     val code: TextStyle,
@@ -177,7 +181,12 @@ data class HlType(
     val billing: TextStyle,
     /** The small words between them: "a film by", "with", "and". */
     val billingJoin: TextStyle,
+    /** A code to type elsewhere (Trakt's): [display] with its letters set apart. */
+    val codeSignature: TextStyle,
 )
+
+/** A name to choose, and the title over a group. */
+private val ENTRY = scale(HlFonts.text, FontWeight.SemiBold, 16, 20)
 
 val HouselightsType = HlType(
     display = scale(HlFonts.condensed, FontWeight.Bold, 64, 72, lineBreak = TITLE),
@@ -193,10 +202,10 @@ val HouselightsType = HlType(
     lead = scale(HlFonts.text, FontWeight.SemiBold, 20, 26, lineBreak = TITLE),
     read = scale(HlFonts.text, FontWeight.Normal, 20, 32, lineBreak = PROSE),
     body = scale(HlFonts.text, FontWeight.Normal, 16, 24, lineBreak = PROSE),
-    entry = scale(HlFonts.text, FontWeight.SemiBold, 16, 20),
+    entry = ENTRY,
     meta = scale(HlFonts.text, FontWeight.Normal, 16, 20, FIGURES),
     caption = scale(HlFonts.text, FontWeight.Normal, 14, 18, FIGURES, PROSE),
-    group = scale(HlFonts.text, FontWeight.SemiBold, 16, 20),
+    group = ENTRY,
     code = scale(HlFonts.mono, FontWeight.Normal, 20, 32),
 
     spec = scale(HlFonts.expanded, FontWeight.SemiBold, 20, 26, FIGURES),
@@ -206,9 +215,30 @@ val HouselightsType = HlType(
     titleSignature = scale(HlFonts.condensed, FontWeight.Bold, 96, 96, lineBreak = TITLE),
     billing = signature(HlFonts.condensed, FontWeight.Medium, 18, 24, CAPITALS_TRACKING, CAPITALS),
     billingJoin = signature(HlFonts.condensed, FontWeight.Normal, 14, 24, BILLING_JOIN_TRACKING),
+    codeSignature = signature(HlFonts.condensed, FontWeight.Bold, 64, 72, CODE_TRACKING),
 )
 
 val LocalHlType = staticCompositionLocalOf { HouselightsType }
+
+/**
+ * Styles for the lines of one text laid out apart (a lazy list): only the first is trimmed above and the last below
+ * ([TRIMMED]), so each line stands where the whole text would set it.
+ */
+internal class TextLines(private val style: TextStyle) {
+    private val first = trimmed(LineHeightStyle.Trim.FirstLineTop)
+    private val middle = trimmed(LineHeightStyle.Trim.None)
+    private val last = trimmed(LineHeightStyle.Trim.LastLineBottom)
+
+    private fun trimmed(trim: LineHeightStyle.Trim) = style.copy(lineHeightStyle = LineHeightStyle(TRIMMED.alignment, trim))
+
+    /** The style of line [index] of [count]. */
+    fun of(index: Int, count: Int): TextStyle = when {
+        count == 1 -> style
+        index == 0 -> first
+        index == count - 1 -> last
+        else -> middle
+    }
+}
 
 /** This style lit across its words by the ember light: the place you are in, a screen's title. Components only. */
 fun TextStyle.emberLit(colors: HlColors): TextStyle = copy(brush = colors.emberLight())

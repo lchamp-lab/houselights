@@ -431,6 +431,6 @@ internal fun BackHint(modifier: Modifier = Modifier) {
     Row(modifier, verticalAlignment = Alignment.CenterVertically) {
         Icon(HlIcons.Back, contentDescription = null, tint = c.contentTertiary, modifier = Modifier.size(HlSize.inlineIcon))
         Spacer(Modifier.width(HlSpace.xs))
-        Text(stringResource(R.string.sheet_back_hint), style = Hl.type.caption, color = c.contentTertiary)
+        Text(stringResource(R.string.sheet_back_hint), style = Hl.type.meta, color = c.contentTertiary)
     }
 }

@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -16,8 +15,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.tv.material3.Text
@@ -104,7 +101,7 @@ internal fun NfoSheet(item: MediaItem, state: NfoState, onRetry: () -> Unit, onD
             failure != null -> HlErrorState(failure, onRetry, retrying = loaded is LoadState.Loading)
             doc == null -> Unit
             view == 0 -> HlScrollArea(shown, alwaysFocusable = true) { NfoDetails(info, doc.path.substringAfterLast('/')) }
-            else -> XmlView(doc.lines, shown)
+            else -> HlScrollArea(doc.lines, shown, alwaysFocusable = true)
         }
     }
 }
@@ -168,39 +165,6 @@ private fun Definition(label: String, value: String) {
     Row {
         Text(label, style = Hl.type.meta, color = c.contentSecondary, modifier = Modifier.width(HlLayout.readingLabel).alignByBaseline())
         Text(value, style = Hl.type.read, color = c.content, modifier = Modifier.weight(1f).alignByBaseline())
-    }
-}
-
-/**
- * The NFO's XML in a monospaced face, as a lazy list of lines: one text of up to a megabyte would be laid out
- * whole each time the view shows ([CodeLines] keeps the lines where one text would put them).
- */
-@Composable
-private fun XmlView(lines: List<String>, modifier: Modifier) {
-    val code = Hl.type.code
-    val styles = remember(code) { CodeLines(code) }
-    HlScrollArea(code.lineHeight, modifier, alwaysFocusable = true) {
-        itemsIndexed(lines) { i, line -> Text(line, style = styles.of(i, lines.size), color = Hl.colors.contentSecondary) }
-    }
-}
-
-/**
- * Line styles for [code] text split into items: the type scale trims line-height spacing at a text's top and
- * bottom (Type.kt), so only the first and last lines are trimmed, as in one text.
- */
-private class CodeLines(private val code: TextStyle) {
-    private val alignment = code.lineHeightStyle?.alignment ?: LineHeightStyle.Alignment.Proportional
-    private val first = trimmed(LineHeightStyle.Trim.FirstLineTop)
-    private val middle = trimmed(LineHeightStyle.Trim.None)
-    private val last = trimmed(LineHeightStyle.Trim.LastLineBottom)
-
-    private fun trimmed(trim: LineHeightStyle.Trim) = code.copy(lineHeightStyle = LineHeightStyle(alignment, trim))
-
-    fun of(index: Int, count: Int): TextStyle = when {
-        count == 1 -> code
-        index == 0 -> first
-        index == count - 1 -> last
-        else -> middle
     }
 }
 

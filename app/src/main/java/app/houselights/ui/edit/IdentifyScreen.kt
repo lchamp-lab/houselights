@@ -94,7 +94,7 @@ fun IdentifyScreen(itemId: String, onDone: () -> Unit) {
                 valueStyle = Hl.type.entry,
                 content = identity?.current?.let { current ->
                     {
-                        Text(stringResource(R.string.identify_current), style = Hl.type.caption, color = Hl.colors.contentSecondary)
+                        Text(stringResource(R.string.identify_current), style = Hl.type.meta, color = Hl.colors.contentSecondary)
                         Spacer(Modifier.height(HlSpace.s))
                         CurrentMatch(current, identity.manual)
                     }

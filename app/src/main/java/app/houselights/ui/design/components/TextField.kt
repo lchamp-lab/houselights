@@ -138,7 +138,7 @@ private fun FieldBox(
     val textStyle = Hl.type.read.copy(color = c.content)
     val measurer = rememberTextMeasurer()
     val density = LocalDensity.current
-    val lineHeight = remember(textStyle, density) {
+    val oneLine = remember(textStyle, density) {
         with(density) { measurer.measure("Ag", textStyle.copy(lineHeight = TextUnit.Unspecified)).size.height.toDp() }
     }
 
@@ -179,7 +179,7 @@ private fun FieldBox(
             }),
             modifier = Modifier
                 .fillMaxWidth()
-                .height(lineHeight)
+                .height(oneLine)
                 .focusRequester(fieldFocus)
                 .focusProperties { canFocus = editing }
                 .leaveVertically(editing) { direction ->

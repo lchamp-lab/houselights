@@ -205,7 +205,7 @@ fun HlResultItem(
                 FactRow(facts)
                 if (overview != null) {
                     Spacer(Modifier.height(HlSpace.xs))
-                    Text(overview, style = Hl.type.caption, color = c.contentSecondary, maxLines = 3, overflow = TextOverflow.Ellipsis)
+                    Text(overview, style = Hl.type.meta, color = c.contentSecondary, maxLines = 3, overflow = TextOverflow.Ellipsis)
                 }
             }
         }

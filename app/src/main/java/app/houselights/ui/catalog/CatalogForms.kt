@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyListScope
-import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -268,7 +267,7 @@ private fun FormStatusPanels() {
                 "Le.Samourai.1967.REMASTERED.2160p.UHD.BluRay.HDR10.DTS-HD.MA.5.1.x265-HOUSELIGHTS.mkv",
                 valueStyle = Hl.type.entry,
                 content = {
-                    Text(stringResource(R.string.identify_current), style = Hl.type.caption, color = Hl.colors.contentSecondary)
+                    Text(stringResource(R.string.identify_current), style = Hl.type.meta, color = Hl.colors.contentSecondary)
                     Spacer(Modifier.height(HlSpace.s))
                     Text("Le Samouraï", style = Hl.type.entry, color = Hl.colors.content)
                     FactRow(listOf("1967", "Jean-Pierre Melville"))
@@ -307,14 +306,14 @@ private fun FormPanelButtons() {
     }
 }
 
-/** A choice on a panel button as a list item says it: its name in `lead`, what it is in secondary `caption`. */
+/** A choice on a panel button as a list item says it: its name in `lead`, what it is in secondary `meta`. */
 @Composable
 private fun FormChoice(name: String, line: String, enabled: Boolean = true) {
     Column(Modifier.padding(HlInset.card)) {
         Text(name, style = Hl.type.lead)
         Spacer(Modifier.height(HlSpace.xs))
         // Disabled, its words keep LocalContentColor, which follows the state.
-        Text(line, style = Hl.type.caption, color = if (enabled) Hl.colors.contentSecondary else Color.Unspecified)
+        Text(line, style = Hl.type.meta, color = if (enabled) Hl.colors.contentSecondary else Color.Unspecified)
     }
 }
 
@@ -487,9 +486,7 @@ private fun FormScrollAreas() {
             HlScrollArea(Modifier.height(HlLayout.hero)) { FormReading(FORM_LONG_TEXT) }
         }
         Specimen("lazy, the lines of an NFO: laid out as they show, read the same", Modifier.weight(1f), gap = HlSpace.xs) {
-            HlScrollArea(Hl.type.code.lineHeight, Modifier.height(HlLayout.hero)) {
-                items(FORM_NFO_LINES) { Text(it, style = Hl.type.code, color = Hl.colors.contentSecondary) }
-            }
+            HlScrollArea(FORM_NFO_LINES, Modifier.height(HlLayout.hero))
         }
         Specimen("framed, fits: takes no focus", Modifier.weight(1f), gap = HlSpace.xs) {
             HlScrollArea(Modifier.height(HlLayout.hero)) { FormReading(listOf(FORM_SHORT_TEXT)) }
