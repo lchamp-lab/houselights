@@ -2,7 +2,7 @@
     <string name="source_local">Mes fichiers</string>
     <string name="source_local_desc">Vos vidéos sur un NAS ou un partage réseau (NFS ou SMB). Houselights les analyse et récupère affiches et informations sur TMDB.</string>
     <string name="source_jellyfin">Serveur Jellyfin</string>
-    <string name="source_jellyfin_desc">Utilisez la bibliothèque de votre serveur Jellyfin.</string>
+    <string name="source_jellyfin_desc">La bibliothèque de votre serveur</string>
     <string name="welcome_title">Choisissez votre bibliothèque</string>
 
     <string name="library_movies">Films</string>
@@ -184,8 +184,8 @@
     <string name="edit_folder_desc">Modifiez son adresse ou ses identifiants. Houselights teste la connexion avant d’enregistrer ; ses titres, vos visionnages et vos choix sont conservés.</string>
     <string name="edit_folder_row_desc">Son adresse ou ses identifiants</string>
     <string name="edit_folder_unreachable_desc">Son adresse a peut-être changé</string>
-    <string name="edit_folder_login_desc">Saisissez à nouveau l’identifiant ou le mot de passe</string>
-    <string name="edit_folder_not_found_desc">Son partage ou son chemin a peut-être changé</string>
+    <string name="edit_folder_login_desc">Saisissez à nouveau vos identifiants</string>
+    <string name="edit_folder_not_found_desc">Son partage ou son chemin a pu changer</string>
     <string name="password_kept">Inchangé</string>
     <string name="jellyfin_desc">Saisissez l’adresse de votre serveur et vos identifiants Jellyfin.</string>
     <string name="folder_kind">Contenu</string>
@@ -199,6 +199,9 @@
     <string name="field_user">Utilisateur</string>
     <string name="field_password">Mot de passe</string>
     <string name="placeholder_host">Ex. : 192.168.1.10</string>
+    <string name="placeholder_server_path">Ex. : /media/films</string>
+    <string name="placeholder_network_path">Ex. : nfs://192.168.1.10/volume1/films</string>
+    <string name="placeholder_tmdb_key">Ex. : 0123456789abcdef0123456789abcdef</string>
     <string name="placeholder_export">Ex. : /volume1/media</string>
     <string name="placeholder_share">Ex. : media</string>
     <string name="placeholder_path_movies">Ex. : films</string>
@@ -274,13 +277,13 @@
     <string name="change_source_jellyfin_desc">Ce serveur reste connecté jusqu’à ce que la nouvelle source soit prête.</string>
     <string name="change_source">Changer de source</string>
     <string name="reconnect">Se reconnecter</string>
-    <string name="source_local_first">Ajoutez un premier dossier de votre NAS</string>
+    <string name="source_local_first">Ajoutez un dossier de votre NAS</string>
     <plurals name="source_local_folders">
         <item quantity="one">%d dossier sur votre NAS</item>
         <item quantity="other">%d dossiers sur votre NAS</item>
         <item quantity="many">%d dossiers sur votre NAS</item>
     </plurals>
-    <string name="source_jellyfin_other">Un autre serveur, ou un autre compte</string>
+    <string name="source_jellyfin_other">Un autre serveur ou compte</string>
     <string name="sign_out">Se déconnecter</string>
     <string name="sign_out_confirm">Se déconnecter de « %s » ?</string>
     <string name="sign_out_desc">Houselights oubliera ce serveur sur cet appareil ; vos dossiers prendront sa place.</string>
@@ -345,7 +348,7 @@
     <string name="tmdb_scan_key_refused">TMDB a refusé cette clé pendant la dernière analyse : les titres attendent leurs détails.</string>
     <string name="tmdb_scan_offline">TMDB n’a pas répondu pendant la dernière analyse : les titres recevront leurs détails lors d’une prochaine analyse.</string>
     <string name="tmdb_key_revert">Revenir à la clé intégrée</string>
-    <string name="tmdb_key_revert_desc">Houselights oublie votre clé et reprend la sienne</string>
+    <string name="tmdb_key_revert_desc">Houselights oublie votre clé</string>
     <string name="save">Enregistrer</string>
     <string name="saved">Enregistré</string>
     <string name="section_playback">Lecture</string>
@@ -367,13 +370,13 @@
     <string name="billing_and">et</string>
     <string name="edit">Modifier</string>
     <string name="artwork_poster">Affiche</string>
-    <string name="artwork_poster_desc">Dans les rangées et la bibliothèque</string>
+    <string name="artwork_poster_desc">Rangées et bibliothèque</string>
     <string name="artwork_backdrop">Fond d’écran</string>
-    <string name="artwork_backdrop_desc">Derrière cette fiche et sur l’accueil</string>
+    <string name="artwork_backdrop_desc">Cette fiche et l’accueil</string>
     <string name="artwork_logo">Logo</string>
-    <string name="artwork_logo_desc">Le titre dessiné en haut de cette fiche</string>
+    <string name="artwork_logo_desc">Le titre dessiné en haut</string>
     <string name="identify">Identifier</string>
-    <string name="identify_menu_desc">Associer à un autre titre de TMDB</string>
+    <string name="identify_menu_desc">Associer à un autre titre TMDB</string>
     <plurals name="image_count">
         <item quantity="one">%d image</item>
         <item quantity="other">%d images</item>
@@ -461,7 +464,7 @@
     <string name="ui_resolution_desc">Pendant la lecture, le lecteur Zidoo choisit son propre mode.</string>
     <string name="interface_language">Langue de l’interface</string>
     <string name="interface_language_desc">Menus, réglages et messages</string>
-    <string name="ui_4k_desc">Une interface nette sur les téléviseurs 4K</string>
+    <string name="ui_4k_desc">Une interface nette en 4K</string>
     <string name="ui_system_desc">Le mode choisi par le système</string>
     <string name="current_output">Sortie actuelle</string>
     <string name="display_by_player">Réglé par le lecteur</string>
@@ -493,7 +496,7 @@
     <string name="support_desc">Offrez un café au projet, depuis votre téléphone.</string>
     <string name="support_scan">Scannez ce code avec votre téléphone pour ouvrir la page Ko-fi du projet.</string>
     <string name="file_access">Accès aux fichiers</string>
-    <string name="network_path_desc">Le lecteur lit les fichiers directement sur le NAS</string>
+    <string name="network_path_desc">Le lecteur lit directement le NAS</string>
     <string name="http_stream_desc">Le lecteur lit le flux du serveur</string>
     <string name="path_mappings">Correspondances de chemins</string>
     <plurals name="uhd_count">
@@ -529,9 +532,9 @@
     <string name="collections_setting">Sagas</string>
     <string name="collections_setting_desc">Les films d’une même saga, réunis</string>
     <string name="collections_two">À partir de 2 films</string>
-    <string name="collections_two_desc">Une saga apparaît dès que vous en avez au moins deux films</string>
+    <string name="collections_two_desc">Une saga s’affiche dès deux films</string>
     <string name="collections_all">Toutes</string>
-    <string name="collections_all_desc">Même quand vous n’avez qu’un film de la saga</string>
+    <string name="collections_all_desc">Même avec un seul film de la saga</string>
     <string name="collections_off">Masquées</string>
     <string name="collections_off_desc">Ni sagas dans Films, ni rangée de saga</string>
     <plurals name="collection_count">
@@ -548,7 +551,7 @@
     <string name="job_cinematography">Image</string>
     <string name="job_editing">Montage</string>
     <string name="synopsis">Synopsis</string>
-    <string name="end_credits">Générique</string>
+    <string name="tech_credits">Générique</string>
     <string name="error_person_gone_title">Plus aucun titre</string>
     <string name="error_person_gone">Aucun titre de cette personne n’est plus dans la bibliothèque.</string>
     <string name="row_films_of">les films de</string>

@@ -98,6 +98,7 @@ import java.util.Date
 import java.util.Locale
 import app.houselights.ui.design.components.WithItsPicture
 import app.houselights.ui.design.components.DetailAhead
+import app.houselights.ui.design.HlSize
 
 internal const val COLUMNS = 7
 
@@ -309,7 +310,7 @@ private fun SkeletonWall() {
     ) {
         repeat(SKELETON_ROWS) {
             Row(horizontalArrangement = Arrangement.spacedBy(HlLayout.wallGutter)) {
-                repeat(COLUMNS) { CardSkeleton(null, 2f / 3f, Modifier.weight(1f)) }
+                repeat(COLUMNS) { CardSkeleton(null, HlSize.POSTER_RATIO, Modifier.weight(1f)) }
             }
         }
     }

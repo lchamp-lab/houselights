@@ -63,7 +63,7 @@ data class TechSheet(val sections: List<TechSection>) {
                     language = t.language,
                     region = regions[i],
                     inUse = i == 0,
-                    value = listOfNotNull(TechValue.Word(Formats.soundName(t)), t.layout?.let(TechValue::Word)),
+                    value = listOfNotNull(TechValue.Word(Formats.soundName(t)), t.layout?.let(TechValue::Channels)),
                     detail = listOfNotNull(t.bitrateKbps?.let(TechValue::Kilobits)),
                     note = TrackNames.note(t.title, t.language),
                 )
@@ -159,8 +159,11 @@ enum class BaseRange { HDR10, HLG, SDR }
 
 /** A sheet value, formatted by the screen. */
 sealed interface TechValue {
-    /** A word a case prints as it is: Ultra HD, HEVC, Dolby Vision, 7.1, PGS, MKV, a file name. */
+    /** A word a case prints as it is: Ultra HD, HEVC, Dolby Vision, PGS, MKV, a file name. */
     data class Word(val text: String) : TechValue
+
+    /** A track's channels as a case counts them: 7.1, 5.1, 2.0. */
+    data class Channels(val layout: String) : TechValue
     data class Dimensions(val width: Int, val height: Int) : TechValue
     data class Ratio(val value: Float) : TechValue
     data class BitDepth(val bits: Int) : TechValue

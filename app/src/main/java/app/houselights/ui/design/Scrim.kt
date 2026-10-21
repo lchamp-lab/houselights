@@ -56,6 +56,9 @@ object HlScrim {
         VeilStop(0.9f, 0.96f), VeilStop(0.96f, 1f), VeilStop(1f, 1f),
     )
 
+    /** A source card's posters melting into its plate: from 62 % of their height, whole at their foot. */
+    val STRIP_FOOT = listOf(VeilStop(0.62f, 0f), VeilStop(1f, 1f))
+
     /** Over a wall's diffuse field, black: 0.66 at the top, gone at 200 dp; 0.5 at the foot. */
     val DIFFUSE_TOP = listOf(VeilStop(0f, 0.66f), VeilStop(dp(200f), 0f))
     val DIFFUSE_BOTTOM = listOf(VeilStop(0.7f, 0f), VeilStop(1f, 0.5f))

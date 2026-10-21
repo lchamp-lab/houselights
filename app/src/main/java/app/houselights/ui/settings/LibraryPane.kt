@@ -6,8 +6,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -16,16 +15,13 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.tv.material3.Text
 import app.houselights.BuildConfig
 import app.houselights.R
 import app.houselights.core.SourceConfig
@@ -42,26 +38,21 @@ import app.houselights.providers.local.TmdbKeyCheck
 import app.houselights.providers.local.address
 import app.houselights.settings.AppSettings
 import app.houselights.settings.SecretSetting
-import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlIcons
-import app.houselights.ui.design.HlInset
-import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.components.AttentionNote
 import app.houselights.ui.design.components.DefinitionList
-import app.houselights.ui.design.components.Badge
 import app.houselights.ui.design.components.ChoiceCheck
 import app.houselights.ui.design.components.ChoiceOption
-import app.houselights.ui.design.components.Emphasis
-import app.houselights.ui.design.components.FactRow
 import app.houselights.ui.design.components.HlButton
 import app.houselights.ui.design.components.HlChoiceSetting
 import app.houselights.ui.design.components.HlChoiceSheet
 import app.houselights.ui.design.components.HlDivider
 import app.houselights.ui.design.components.HlSideSheet
-import app.houselights.ui.design.components.PosterStrip
-import app.houselights.ui.design.components.HlPanelButton
+import app.houselights.ui.design.components.PosterThumb
+import app.houselights.ui.design.components.SOURCE_STRIP
+import app.houselights.ui.design.components.SourceCard
 import app.houselights.ui.design.components.HlSettingGroup
 import app.houselights.ui.design.components.HlSettingRow
 import app.houselights.ui.design.components.HlStatus
@@ -153,7 +144,7 @@ private fun Sources(rows: PaneRows, onEdit: (folderId: Long, focus: FolderField)
         }
         sources.forEach { source ->
             key(source.id) {
-                SourceCard(
+                FolderCard(
                     source,
                     counts = counts[source.id],
                     scan = scan.takeIf { it.running && it.sourceId == source.id },
@@ -200,19 +191,18 @@ private fun SourceActions(
     HlSideSheet(
         title = sourceName(source),
         onDismiss = onDismiss,
-        facts = listOf(kind.takeIf { !source.name.equals(it, ignoreCase = true) }, source.protocol.name),
+        facts = listOf(kind.takeIf { !source.name.equals(it, ignoreCase = true) }),
+        badges = listOf(source.protocol.name),
         description = source.address(withScheme = false),
         artwork = if (posters.isEmpty()) {
             null
         } else {
             {
-                PosterStrip(
-                    remember(posters) { posters.map { LocalProvider.image(it, ImageType.POSTER) } },
-                    HEADER_POSTERS,
-                    slotWidth = HlSize.rowPreviewPoster,
-                    gap = HlSpace.xxs,
-                    shape = HlShapes.thumb,
-                )
+                // Its latest posters, as tall as the title block; empty frames for the slots left.
+                val images = remember(posters) { posters.map { LocalProvider.image(it, ImageType.POSTER) } }
+                Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.xxs)) {
+                    repeat(HEADER_POSTERS) { PosterThumb(images.getOrNull(it), width = null) }
+                }
             }
         },
         initialFocus = if (fix != null) edit else scan,
@@ -230,7 +220,6 @@ private fun SourceActions(
                 Modifier.focusRequester(scan),
                 description = stringResource(R.string.scan_now_desc),
                 onClick = { sheet.dismiss { vm.library.scan() } },
-                chevron = false,
             )
 
             @Composable
@@ -262,7 +251,6 @@ private fun SourceActions(
                 origin,
                 description = stringResource(R.string.remove_folder_row_desc),
                 onClick = ask,
-                chevron = false,
             )
         }
     }
@@ -276,12 +264,9 @@ internal fun editFixes(error: ScanError?): ScanErrorKind? = error?.kind?.takeIf 
 @Composable
 private fun sourceName(source: SourceEntity) = source.name.replaceFirstChar { it.uppercase() }
 
-/**
- * A folder card, opened by its latest posters edge to edge: name in the poster's voice, kind, address, [counts]
- * (null until read), and last scan or running [scan].
- */
+/** A folder's card ([SourceCard]): its [counts] (null until read), and its last scan or running [scan]. */
 @Composable
-private fun SourceCard(
+private fun FolderCard(
     source: SourceEntity,
     counts: FolderCounts?,
     scan: ScanState?,
@@ -290,46 +275,35 @@ private fun SourceCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val c = Hl.colors
     val library = settingsViewModel().library
     val count = counts?.titles ?: 0
     val ultraHd = counts?.ultraHd ?: 0
-    val posters by remember(source.id) { library.latestPosters(source, STRIP) }.collectAsStateWithLifecycle(emptyList())
+    val posters by remember(source.id) { library.latestPosters(source, SOURCE_STRIP) }.collectAsStateWithLifecycle(emptyList())
     val kind = sourceKindName(source.kind)
-
-    HlPanelButton(onClick, modifier.fillMaxWidth()) {
-        Column {
-            PosterStrip(remember(posters) { posters.map { LocalProvider.image(it, ImageType.POSTER) } }, STRIP, name = sourceName(source))
-            Column(Modifier.padding(HlInset.card)) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(HlSpace.s)) {
-                    Text(sourceName(source), style = Hl.type.rowTitle, color = c.content)
-                    if (!source.name.equals(kind, ignoreCase = true)) Badge(kind)
-                    Badge(source.protocol.name)
-                }
-                Spacer(Modifier.height(HlSpace.xxs))
-                Text(
-                    source.address(withScheme = false),
-                    style = Hl.type.caption,
-                    color = c.contentSecondary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Spacer(Modifier.height(HlSpace.m))
-                when {
-                    scan != null -> ScanProgress(scan.processed, scan.total, current = scan.current)
-                    removeError != null -> AttentionNote(stringResource(R.string.folder_not_removed, stringResource(removeError.message)))
-                    error != null -> AttentionNote(scanErrorText(error, source.host))
-                    else -> FactRow(
-                        listOf(
-                            pluralStringResource(R.plurals.title_count, count, count),
-                            if (ultraHd > 0) pluralStringResource(R.plurals.uhd_count, ultraHd, ultraHd) else null,
-                            lastScanned(source.lastScanAt),
-                        ),
-                    )
-                }
-            }
-        }
-    }
+    val notRemoved = removeError?.let { stringResource(R.string.folder_not_removed, stringResource(it.message)) }
+    val failed = error?.let { scanErrorText(it, source.host) }
+    SourceCard(
+        name = sourceName(source),
+        protocol = source.protocol.name,
+        address = source.address(withScheme = false),
+        posters = remember(posters) { posters.map { LocalProvider.image(it, ImageType.POSTER) } },
+        onClick = onClick,
+        modifier = modifier,
+        facts = listOf(
+            // Never read is no state done: a plain fact, first as the state would be.
+            lastScanned(source.lastScanAt).takeIf { source.lastScanAt <= 0 },
+            kind.takeIf { !source.name.equals(it, ignoreCase = true) },
+            pluralStringResource(R.plurals.title_count, count, count),
+            if (ultraHd > 0) pluralStringResource(R.plurals.uhd_count, ultraHd, ultraHd) else null,
+        ),
+        scanned = lastScanned(source.lastScanAt).takeIf { source.lastScanAt > 0 },
+        state = when {
+            scan != null -> ({ focused -> ScanProgress(scan.processed, scan.total, current = scan.current, focused = focused) })
+            notRemoved != null -> ({ focused -> AttentionNote(notRemoved, focused = focused) })
+            failed != null -> ({ focused -> AttentionNote(failed, focused = focused) })
+            else -> null
+        },
+    )
 }
 
 @Composable
@@ -351,7 +325,6 @@ private fun LibraryActions(
         HlSettingRow(
             stringResource(R.string.add_folder),
             onClick = onAddFolder,
-            chevron = false,
             trailing = { PlusIcon() },
             modifier = rows.focus(ADD_FOLDER),
         )
@@ -364,13 +337,11 @@ private fun LibraryActions(
                 relativeTime(lastScan, alone = true)
             },
             onClick = { vm.library.scan() },
-            chevron = false,
         )
         HlSettingRow(
             stringResource(R.string.refresh_metadata),
             description = stringResource(R.string.refresh_metadata_desc),
             onClick = { vm.library.scan(refreshMetadata = true) },
-            chevron = false,
         )
         // TMDB failed during the last scan: report it on the key row, where it may be fixed.
         val issue = scan.tmdbIssue?.toUiError()
@@ -516,8 +487,7 @@ private fun SourceSheet(source: SourceConfig?, onDismiss: () -> Unit, onUseFolde
     HlSideSheet(
         title = stringResource(R.string.change_source),
         onDismiss = onDismiss,
-        subject = if (server != null) serverName else stringResource(R.string.source_local),
-        facts = sourceFacts(server),
+        facts = listOf(if (server != null) serverName else stringResource(R.string.source_local)) + sourceFacts(server),
         description = stringResource(sourceKeeps(source)),
         initialFocus = if (server != null) jellyfin else local,
     ) { sheet ->
@@ -539,7 +509,6 @@ private fun SourceSheet(source: SourceConfig?, onDismiss: () -> Unit, onUseFolde
                         else -> onUseFolders()
                     }
                 },
-                chevron = false,
                 trailing = if (source == SourceConfig.Local) ({ ChoiceCheck() }) else null,
             )
             HlSettingRow(
@@ -548,7 +517,6 @@ private fun SourceSheet(source: SourceConfig?, onDismiss: () -> Unit, onUseFolde
                 description = stringResource(if (server != null) R.string.source_jellyfin_other else R.string.source_jellyfin_desc),
                 icon = HlIcons.Server,
                 onClick = onSignIn,
-                chevron = false,
                 trailing = if (server != null) ({ ChoiceCheck() }) else null,
             )
         }
@@ -573,7 +541,7 @@ private fun foldersLine(count: Int): String =
 
 @Composable
 private fun PlusIcon() {
-    androidx.tv.material3.Icon(HlIcons.Add, contentDescription = null, modifier = Modifier.width(HlSize.icon))
+    androidx.tv.material3.Icon(HlIcons.Add, contentDescription = null, modifier = Modifier.size(HlSize.icon))
 }
 
 /** The TMDB key sheet; the outcome lives in the ViewModel, as the sheet may close during the check. */
@@ -625,7 +593,7 @@ private fun TmdbKeySheet(issue: UiError?, onDismiss: () -> Unit) {
                 vm.editTmdbKey()
             },
             Modifier.fillMaxWidth().focusRequester(field),
-            placeholder = stringResource(R.string.tmdb_key_personal),
+            placeholder = stringResource(R.string.placeholder_tmdb_key),
             showLabel = false,
             supporting = stringResource(if (hasBuiltIn) R.string.tmdb_key_builtin else R.string.tmdb_key_free),
             error = keyError(refused, notSaved),
@@ -638,7 +606,6 @@ private fun TmdbKeySheet(issue: UiError?, onDismiss: () -> Unit) {
             stringResource(R.string.save),
             onClick = { save(key) },
             icon = HlIcons.Check,
-            emphasis = Emphasis.Primary,
             busy = checking,
             busyLabel = stringResource(R.string.checking),
         )
@@ -649,7 +616,6 @@ private fun TmdbKeySheet(issue: UiError?, onDismiss: () -> Unit) {
                 description = stringResource(R.string.tmdb_key_revert_desc),
                 // Reverting is never refused or unchecked, so it also closes the sheet.
                 onClick = { save("") },
-                chevron = false,
             )
         }
     }
@@ -695,9 +661,6 @@ private fun TmdbKeyStatus(personal: Boolean, hasBuiltIn: Boolean, unchecked: Boo
         )
     }
 }
-
-/** Posters in a source card's strip. */
-private const val STRIP = 6
 
 /** Posters at the head of a folder's sheet. */
 private const val HEADER_POSTERS = 3

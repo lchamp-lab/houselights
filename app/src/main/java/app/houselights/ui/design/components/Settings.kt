@@ -104,9 +104,10 @@ fun HlSettingGroup(title: String?, modifier: Modifier = Modifier, content: @Comp
 
 /**
  * One setting: name and description left, value right, on what holds it; with [onClick] a control, else
- * read-only. [valueLit] (a user choice) and [valueAttention] set the value in ember; [trailing] replaces the
- * value, [leading] the icon ([RowPreview]); a [chevron] shows with focus. Disabled rows belong on the room
- * only, in a well: sheets omit unavailable actions. In a sheet, an action row is [HlSize.sheetRow] tall.
+ * read-only, its words saying what OK opens. [valueLit] (a user choice) and [valueAttention] set the value in
+ * ember; [trailing] replaces the value, [leading] the icon ([RowPreview]). Disabled rows belong on the room only,
+ * in a well: sheets omit unavailable actions. In a sheet, its description is in `meta` on one line, and an action
+ * row is [HlSize.sheetRow] tall.
  */
 @Composable
 fun HlSettingRow(
@@ -118,15 +119,15 @@ fun HlSettingRow(
     valueLit: Boolean = false,
     valueAttention: Boolean = false,
     onClick: (() -> Unit)? = null,
-    chevron: Boolean = onClick != null,
     trailing: (@Composable RowScope.() -> Unit)? = null,
     leading: (@Composable () -> Unit)? = null,
     enabled: Boolean = true,
 ) {
     val c = Hl.colors
+    val sheet = LocalGround.current == Ground.Glass
     val least = when {
         onClick == null -> HlSize.control
-        LocalGround.current == Ground.Glass -> HlSize.sheetRow
+        sheet -> HlSize.sheetRow
         else -> HlSize.row
     }
     @Composable
@@ -140,11 +141,12 @@ fun HlSettingRow(
                 Text(title, style = Hl.type.entry, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 if (description != null) {
                     Spacer(Modifier.height(HlSpace.xxs))
+                    // In a sheet, one line, so its rows keep one height.
                     Text(
                         description,
-                        style = Hl.type.caption,
+                        style = if (sheet) Hl.type.meta else Hl.type.caption,
                         color = FocusStyle.quietInk(focused, enabled, lit = false),
-                        maxLines = 2,
+                        maxLines = if (sheet) 1 else 2,
                         overflow = TextOverflow.Ellipsis,
                     )
                 }
@@ -153,13 +155,6 @@ fun HlSettingRow(
             when {
                 trailing != null -> trailing()
                 value != null -> SettingValue(value, valueLit, valueAttention, focused, enabled)
-            }
-            if (chevron) {
-                Spacer(Modifier.width(HlSpace.s))
-                // Where it leads shows with focus; its room is kept, so the value stays put.
-                Box(Modifier.size(HlSize.icon)) {
-                    if (focused) Icon(HlIcons.Chevron, contentDescription = null, modifier = Modifier.size(HlSize.icon))
-                }
             }
         }
     }
@@ -237,7 +232,6 @@ fun HlChoiceSheet(
                     onSelect(i)
                     sheet.dismiss()
                 },
-                chevron = false,
                 trailing = if (i == selected) ({ ChoiceCheck() }) else null,
                 modifier = (if (i == selected) Modifier.focusRequester(current) else Modifier)
                     .semantics { this.selected = i == selected },

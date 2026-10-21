@@ -16,7 +16,7 @@ class GroundTest {
         val providers = kotlinSources(ui)
             .filter { Regex("""LocalGround provides""").containsMatchIn(it.readText()) }
             .map { it.name }.toSortedSet()
-        assertEquals(sortedSetOf("Cards.kt", "Color.kt", "Panel.kt", "Sheet.kt"), providers)
+        assertEquals(sortedSetOf("Cards.kt", "Color.kt", "Panel.kt", "Sheet.kt", "SourceCard.kt"), providers)
     }
 
     /** The step fill and the container edge are written once, in Color.kt, so panels and fields stay alike. */

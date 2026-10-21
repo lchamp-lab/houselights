@@ -22,7 +22,8 @@ import app.houselights.ui.design.HlSpace
 
 /**
  * A running scan: the ember line, the count in tabular figures ("3 / 9"), then the file being read; [label]
- * goes above the line. Before files are counted ([total] 0) the line shows a sliver and no count.
+ * goes above the line. Before files are counted ([total] 0) the line shows a sliver and no count. On a [focused]
+ * plate its words take focus's ink and the line is a raspberry mark ([ProgressLine]).
  */
 @Composable
 fun ScanProgress(
@@ -32,24 +33,26 @@ fun ScanProgress(
     label: String? = null,
     current: String? = null,
     lineWidth: Dp = HlSize.progressShort,
+    focused: Boolean = false,
 ) {
-    val c = Hl.colors
     val fraction = if (total > 0) processed.toFloat() / total else 0f
+    val ink = FocusStyle.ink(focused)
     val file: @Composable (Modifier) -> Unit = { m ->
         if (current != null) {
-            Text(current, style = Hl.type.caption, color = c.contentTertiary, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = m)
+            val quiet = FocusStyle.hintInk(focused)
+            Text(current, style = Hl.type.caption, color = quiet, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = m)
         }
     }
     Column(modifier.semantics(mergeDescendants = true) { progressBarRangeInfo = ProgressBarRangeInfo(fraction, 0f..1f) }) {
         if (label != null) {
-            Text(label, style = Hl.type.subject, color = c.content)
+            Text(label, style = Hl.type.subject, color = ink)
             Spacer(Modifier.height(HlSpace.s))
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
-            ProgressLine(fraction.coerceAtLeast(SLIVER), Modifier.width(lineWidth))
+            ProgressLine(fraction.coerceAtLeast(SLIVER), Modifier.width(lineWidth), focused = focused)
             if (total > 0) {
                 Spacer(Modifier.width(HlSpace.s))
-                Text(stringResource(R.string.scan_progress, processed, total), style = Hl.type.meta, color = c.content, maxLines = 1)
+                Text(stringResource(R.string.scan_progress, processed, total), style = Hl.type.meta, color = ink, maxLines = 1)
             }
             if (label == null) {
                 Spacer(Modifier.width(HlSpace.m))

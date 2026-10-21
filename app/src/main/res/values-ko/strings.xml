@@ -3,7 +3,7 @@
     <string name="source_local">내 파일</string>
     <string name="source_local_desc">NAS 또는 네트워크 공유(NFS 또는 SMB)에 있는 동영상입니다. Houselights가 이를 스캔하고 TMDB에서 포스터와 작품 정보를 가져옵니다.</string>
     <string name="source_jellyfin">Jellyfin 서버</string>
-    <string name="source_jellyfin_desc">Jellyfin 서버의 라이브러리를 사용합니다.</string>
+    <string name="source_jellyfin_desc">서버의 라이브러리</string>
     <string name="welcome_title">라이브러리를 선택하세요</string>
 
     <!-- Libraries and sections -->
@@ -180,8 +180,8 @@
     <string name="edit_folder_desc">주소나 로그인 정보를 변경하세요. Houselights는 저장하기 전에 연결을 테스트하며, 작품과 시청 기록, 선택한 항목은 그대로 유지됩니다.</string>
     <string name="edit_folder_row_desc">주소 또는 로그인 정보</string>
     <string name="edit_folder_unreachable_desc">주소가 바뀌었을 수 있습니다</string>
-    <string name="edit_folder_login_desc">사용자 이름 또는 비밀번호를 다시 입력하세요</string>
-    <string name="edit_folder_not_found_desc">공유 폴더나 경로가 바뀌었을 수 있습니다</string>
+    <string name="edit_folder_login_desc">로그인 정보를 다시 입력하세요</string>
+    <string name="edit_folder_not_found_desc">공유나 경로가 바뀌었을 수 있음</string>
     <string name="password_kept">변경 없음</string>
     <string name="jellyfin_desc">서버 주소와 Jellyfin 로그인 정보를 입력하세요.</string>
     <string name="folder_kind">콘텐츠</string>
@@ -195,6 +195,9 @@
     <string name="field_user">사용자 이름</string>
     <string name="field_password">비밀번호</string>
     <string name="placeholder_host">예: 192.168.1.10</string>
+    <string name="placeholder_server_path">예: /media/movies</string>
+    <string name="placeholder_network_path">예: nfs://192.168.1.10/volume1/movies</string>
+    <string name="placeholder_tmdb_key">예: 0123456789abcdef0123456789abcdef</string>
     <string name="placeholder_export">예: /volume1/media</string>
     <string name="placeholder_share">예: media</string>
     <string name="placeholder_path_movies">예: movies</string>
@@ -268,7 +271,7 @@
     <string name="change_source_jellyfin_desc">새 소스가 준비될 때까지 이 서버는 연결된 상태로 유지됩니다.</string>
     <string name="change_source">소스 변경</string>
     <string name="reconnect">다시 로그인</string>
-    <string name="source_local_first">NAS에서 첫 폴더를 추가하세요</string>
+    <string name="source_local_first">NAS에서 폴더를 추가하세요</string>
     <plurals name="source_local_folders">
         <item quantity="other">NAS 폴더 %d개</item>
     </plurals>
@@ -330,7 +333,7 @@
     <string name="tmdb_scan_key_refused">지난 스캔 중 TMDB가 이 키를 거부했습니다. 작품 정보를 아직 가져오지 못했습니다.</string>
     <string name="tmdb_scan_offline">지난 스캔 중 TMDB가 응답하지 않았습니다. 작품 정보는 이후 스캔에서 가져옵니다.</string>
     <string name="tmdb_key_revert">내장 키로 되돌리기</string>
-    <string name="tmdb_key_revert_desc">입력한 키를 지우고 Houselights 자체 키를 사용합니다</string>
+    <string name="tmdb_key_revert_desc">입력한 키를 지웁니다</string>
     <string name="save">저장</string>
     <string name="saved">저장됨</string>
     <string name="section_playback">재생</string>
@@ -352,11 +355,11 @@
     <string name="billing_and">및</string>
     <string name="edit">편집</string>
     <string name="artwork_poster">포스터</string>
-    <string name="artwork_poster_desc">목록과 라이브러리에 표시</string>
+    <string name="artwork_poster_desc">목록과 라이브러리</string>
     <string name="artwork_backdrop">배경 이미지</string>
-    <string name="artwork_backdrop_desc">이 페이지 뒤와 홈 화면에 표시</string>
+    <string name="artwork_backdrop_desc">이 페이지와 홈 화면</string>
     <string name="artwork_logo">로고</string>
-    <string name="artwork_logo_desc">이 페이지 상단에 그려지는 제목</string>
+    <string name="artwork_logo_desc">상단에 그려진 제목</string>
     <string name="identify">식별</string>
     <string name="identify_menu_desc">다른 TMDB 작품과 매칭</string>
     <plurals name="image_count">
@@ -473,8 +476,8 @@
     <string name="support_desc">휴대폰으로 프로젝트에 커피 한 잔을 사 주세요.</string>
     <string name="support_scan">휴대폰으로 이 코드를 스캔하면 프로젝트의 Ko-fi 페이지가 열립니다.</string>
     <string name="file_access">파일 접근</string>
-    <string name="network_path_desc">플레이어가 NAS에서 파일을 직접 읽습니다</string>
-    <string name="http_stream_desc">플레이어가 서버의 스트림을 읽습니다</string>
+    <string name="network_path_desc">NAS에서 직접 읽습니다</string>
+    <string name="http_stream_desc">서버의 스트림을 읽습니다</string>
     <string name="path_mappings">경로 매핑</string>
     <plurals name="uhd_count">
         <item quantity="other">Ultra HD %d편</item>
@@ -498,11 +501,11 @@
     <string name="collections_setting">시리즈</string>
     <string name="collections_setting_desc">같은 시리즈의 영화를 한데 모아 표시</string>
     <string name="collections_two">2편 이상</string>
-    <string name="collections_two_desc">시리즈의 영화가 2편 이상 있으면 표시됩니다</string>
+    <string name="collections_two_desc">영화가 2편 이상인 시리즈</string>
     <string name="collections_all">전체</string>
-    <string name="collections_all_desc">시리즈의 영화가 1편만 있어도 표시됩니다</string>
+    <string name="collections_all_desc">영화가 1편뿐인 시리즈도</string>
     <string name="collections_off">숨김</string>
-    <string name="collections_off_desc">‘영화’에 시리즈를 표시하지 않고 시리즈 목록도 숨깁니다</string>
+    <string name="collections_off_desc">‘영화’와 목록에서 모두 숨김</string>
     <plurals name="collection_count">
         <item quantity="other">시리즈 %d개</item>
     </plurals>
@@ -515,7 +518,7 @@
     <string name="job_cinematography">촬영</string>
     <string name="job_editing">편집</string>
     <string name="synopsis">줄거리</string>
-    <string name="end_credits">크레딧</string>
+    <string name="tech_credits">제작진</string>
     <string name="error_person_gone_title">남은 작품 없음</string>
     <string name="error_person_gone">이 인물의 작품이 더 이상 라이브러리에 없습니다.</string>
     <string name="row_films_of">감독 작품</string>

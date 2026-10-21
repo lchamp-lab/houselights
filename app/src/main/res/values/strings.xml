@@ -9,7 +9,7 @@
     <string name="source_local">My files</string>
     <string name="source_local_desc">Videos on your NAS or a network share (NFS or SMB). Houselights scans them and fetches posters and details from TMDB.</string>
     <string name="source_jellyfin">Jellyfin server</string>
-    <string name="source_jellyfin_desc">Use the library of your Jellyfin server.</string>
+    <string name="source_jellyfin_desc">Your server’s library</string>
     <string name="welcome_title">Choose your library</string>
 
     <!-- Libraries and sections -->
@@ -209,6 +209,9 @@
     <string name="field_user">User</string>
     <string name="field_password">Password</string>
     <string name="placeholder_host">e.g. 192.168.1.10</string>
+    <string name="placeholder_server_path">e.g. /media/movies</string>
+    <string name="placeholder_network_path">e.g. nfs://192.168.1.10/volume1/movies</string>
+    <string name="placeholder_tmdb_key">e.g. 0123456789abcdef0123456789abcdef</string>
     <string name="placeholder_export" tools:ignore="Typos">e.g. /volume1/media</string>
     <string name="placeholder_share">e.g. media</string>
     <string name="placeholder_path_movies">e.g. movies</string>
@@ -285,12 +288,12 @@
     <string name="change_source_jellyfin_desc">This server stays connected until the new source is ready.</string>
     <string name="change_source">Change source</string>
     <string name="reconnect">Sign in again</string>
-    <string name="source_local_first">Add a first folder from your NAS</string>
+    <string name="source_local_first">Add a folder from your NAS</string>
     <plurals name="source_local_folders">
         <item quantity="one">%d folder on your NAS</item>
         <item quantity="other">%d folders on your NAS</item>
     </plurals>
-    <string name="source_jellyfin_other">Another server, or another account</string>
+    <string name="source_jellyfin_other">Another server or account</string>
     <string name="sign_out">Sign out</string>
     <string name="sign_out_confirm">Sign out of “%s”?</string>
     <string name="sign_out_desc">Houselights will forget this server on this device; your folders take its place.</string>
@@ -352,7 +355,7 @@
     <string name="tmdb_scan_key_refused">TMDB refused this key during the last scan: titles wait for their details.</string>
     <string name="tmdb_scan_offline">TMDB didn’t answer during the last scan: titles get their details at a later scan.</string>
     <string name="tmdb_key_revert">Back to the built-in key</string>
-    <string name="tmdb_key_revert_desc">Houselights forgets your key and uses its own</string>
+    <string name="tmdb_key_revert_desc">Houselights forgets your key</string>
     <string name="save">Save</string>
     <string name="saved">Saved</string>
     <string name="section_playback">Playback</string>
@@ -374,11 +377,11 @@
     <string name="billing_and">and</string>
     <string name="edit">Edit</string>
     <string name="artwork_poster">Poster</string>
-    <string name="artwork_poster_desc">Shown in rows and in the library</string>
+    <string name="artwork_poster_desc">Rows and library</string>
     <string name="artwork_backdrop">Backdrop</string>
-    <string name="artwork_backdrop_desc">Behind this page and on the home screen</string>
+    <string name="artwork_backdrop_desc">This page and Home</string>
     <string name="artwork_logo">Logo</string>
-    <string name="artwork_logo_desc">The title drawn at the top of this page</string>
+    <string name="artwork_logo_desc">The title drawn at the top</string>
     <string name="identify">Identify</string>
     <string name="identify_menu_desc">Match with another TMDB title</string>
     <plurals name="image_count">
@@ -499,7 +502,7 @@
     <string name="support_desc">Buy the project a coffee, from your phone.</string>
     <string name="support_scan">Scan this code with your phone to open the project’s Ko-fi page.</string>
     <string name="file_access">File access</string>
-    <string name="network_path_desc">The player reads files straight from the NAS</string>
+    <string name="network_path_desc">The player reads straight from the NAS</string>
     <string name="http_stream_desc">The player reads the server’s stream</string>
     <string name="path_mappings">Path mappings</string>
     <plurals name="uhd_count">
@@ -531,9 +534,9 @@
     <string name="collections_setting">Sagas</string>
     <string name="collections_setting_desc">Films of the same saga, gathered</string>
     <string name="collections_two">From 2 films</string>
-    <string name="collections_two_desc">A saga appears once you have at least two of its films</string>
+    <string name="collections_two_desc">A saga shows from two of its films</string>
     <string name="collections_all">All</string>
-    <string name="collections_all_desc">Even when you have a single film of the saga</string>
+    <string name="collections_all_desc">Even with a single film of the saga</string>
     <string name="collections_off">Hidden</string>
     <string name="collections_off_desc">No sagas in Movies and no saga row</string>
     <plurals name="collection_count">
@@ -549,7 +552,7 @@
     <string name="job_cinematography">Cinematography</string>
     <string name="job_editing">Editing</string>
     <string name="synopsis">Synopsis</string>
-    <string name="end_credits">Credits</string>
+    <string name="tech_credits">Crew</string>
     <string name="error_person_gone_title">No titles left</string>
     <string name="error_person_gone">None of this person’s titles is in the library any more.</string>
     <string name="row_films_of">films by</string>

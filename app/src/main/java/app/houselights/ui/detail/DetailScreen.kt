@@ -120,7 +120,6 @@ import app.houselights.core.Job
 import app.houselights.core.Person
 import androidx.compose.foundation.lazy.itemsIndexed
 import app.houselights.ui.util.jobName
-import app.houselights.ui.design.components.EndCredits
 import app.houselights.ui.design.components.HeadOverview
 import app.houselights.ui.design.components.SynopsisSheet
 import app.houselights.ui.design.components.Craft
@@ -199,7 +198,9 @@ internal fun DetailPage(
     val focusedEpisode = remember { mutableStateOf<MediaItem?>(null) }
     var showTech by remember { mutableStateOf(false) }
     val media = item.media?.takeIf { it.video != null || it.audio.isNotEmpty() }
-    if (showTech && media != null) TechSpecs(item, onDismiss = { showTech = false })
+    val crafts = endCrafts(item, state.credits).map { (job, names) -> Craft(jobName(job), names) }
+    val tech = techTile(file = media != null, credits = crafts.isNotEmpty())
+    if (showTech && tech != null) TechSpecs(item, onDismiss = { showTech = false }, crafts = crafts)
     var showVersions by remember { mutableStateOf(false) }
     if (showVersions) VersionsSheet(item, state.versions, onChoose = vm::chooseVersion, onDismiss = { showVersions = false })
     var showSynopsis by remember { mutableStateOf(false) }
@@ -220,8 +221,9 @@ internal fun DetailPage(
         onToggleFavorite = vm::toggleFavorite,
         onOpenSeries = { item.seriesId?.let(onOpenItem) },
         onOpenNfo = { onOpenNfo(item.id) },
-        // Null hides the button: no technical sheet, or a single copy.
-        onShowTech = { showTech = true }.takeIf { media != null },
+        // Null hides the button: nothing for the technical sheet, or a single copy.
+        onShowTech = { showTech = true }.takeIf { tech != null },
+        techAt = tech ?: TechTile.InPlace,
         onShowVersions = { showVersions = true }.takeIf { state.versions.size > 1 },
         onShowSynopsis = { showSynopsis = true },
         copy = state.playedCopy,
@@ -272,7 +274,6 @@ internal fun DetailPage(
 
                 seasonRows(state, memory, focusedEpisode, vm, onPlay)
                 titleRows(item, state, memory, people, RowLinks(onOpenItem, onOpenPerson))
-                endRows(item, state.credits)
             } }
     }
 }
@@ -399,19 +400,6 @@ private fun LazyListScope.titleRows(
     }
 }
 
-/** The page's end credits: the crafts its head does not name. */
-private fun LazyListScope.endRows(item: MediaItem, credits: Credits?) {
-    val crafts = endCrafts(item, credits)
-    if (crafts.isNotEmpty()) {
-        item(key = "credits") {
-            EndCredits(
-                crafts.map { (job, names) -> Craft(jobName(job), names) },
-                Modifier.padding(start = HlLayout.insetRows, end = HlSpace.safeH),
-            )
-        }
-    }
-}
-
 /** A page whose title is not loaded yet: the backdrop handed on, then a skeleton once loading is slow, or [error]. */
 @Composable
 private fun NoTitleYet(error: UiError?, onRetry: () -> Unit) {
@@ -457,6 +445,8 @@ private data class DetailActions(
     val onOpenSeries: () -> Unit,
     val onOpenNfo: () -> Unit,
     val onShowTech: (() -> Unit)?,
+    /** Where the technical sheet's tile stands ([techTile]). */
+    val techAt: TechTile = TechTile.InPlace,
     val onShowVersions: (() -> Unit)?,
     val onShowSynopsis: () -> Unit,
     /** The copy Lire plays and its index (to name it); null for one copy. */
@@ -554,15 +544,7 @@ private fun Actions(
             HlButton(stringResource(R.string.view_series), onClick = actions.onOpenSeries, modifier = Modifier.focusKey(SERIES, memory))
         }
         if (capabilities?.markPlayed == true) WatchedTile(item, actions, Modifier.focusKey(WATCHED, memory))
-        // A button bears the name of what it opens.
-        if (actions.onShowTech != null) {
-            HlIconButton(
-                HlIcons.Info,
-                stringResource(R.string.tech_details),
-                onClick = actions.onShowTech,
-                modifier = Modifier.focusKey(TECH, memory),
-            )
-        }
+        TechButton(actions, memory, TechTile.InPlace)
         if (item.hasNfo) {
             HlIconButton(
                 HlIcons.Document,
@@ -583,6 +565,7 @@ private fun Actions(
         if (actions.onEdit != null) {
             HlIconButton(HlIcons.Edit, stringResource(R.string.edit), onClick = actions.onEdit, modifier = Modifier.focusKey(EDIT, memory))
         }
+        TechButton(actions, memory, TechTile.Last)
         ActionFailure(problem, actionError)
     } }
 }
@@ -613,6 +596,26 @@ private fun WatchedTile(item: MediaItem, actions: DetailActions, modifier: Modif
         hint = hint.takeIf { season != null },
     )
 }
+
+/** The technical sheet's tile, when it stands [at] this place; it bears the name of what it opens. */
+@Composable
+private fun TechButton(actions: DetailActions, memory: FocusMemory, at: TechTile) {
+    val open = actions.onShowTech?.takeIf { actions.techAt == at } ?: return
+    HlIconButton(HlIcons.Info, stringResource(R.string.tech_details), onClick = open, modifier = Modifier.focusKey(TECH, memory))
+}
+
+/**
+ * Where the technical sheet's tile goes: in its place for a [file]'s facts, known as the page shows; last for
+ * [credits] alone, which come after the page, so no tile moves under focus. Null without either.
+ */
+internal fun techTile(file: Boolean, credits: Boolean): TechTile? = when {
+    file -> TechTile.InPlace
+    credits -> TechTile.Last
+    else -> null
+}
+
+/** Where the technical sheet's tile stands among the actions. */
+internal enum class TechTile { InPlace, Last }
 
 /** Why the last play request failed ([problem]) or a change did not save ([actionError]), beside the actions. */
 @Composable
@@ -860,7 +863,7 @@ internal fun peopleOf(item: MediaItem, credits: Credits?, directing: String, cre
     return (direction + credits.cast).ifEmpty { item.cast }
 }
 
-/** End-credit crafts the head omits, up to [CRAFT_NAMES] names each; for a show only music (it varies by episode). */
+/** The crafts the head omits, for the technical sheet, up to [CRAFT_NAMES] names each; a show's only music (it varies by episode). */
 internal fun endCrafts(item: MediaItem, credits: Credits?): List<Pair<Job, List<String>>> {
     val crew = credits?.crew ?: return emptyList()
     val jobs = if (item.kind == MediaKind.SERIES) SHOW_CRAFTS else FILM_CRAFTS

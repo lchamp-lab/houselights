@@ -55,6 +55,7 @@ import app.houselights.ui.design.components.TaskTitle
 import app.houselights.ui.design.components.TitleArt
 import app.houselights.ui.design.tryRequestFocus
 import app.houselights.ui.design.components.HlErrorState
+import app.houselights.ui.design.HlSize
 import app.houselights.ui.util.UiError
 import app.houselights.ui.util.appContainer
 import app.houselights.ui.util.FACT_GAP
@@ -235,5 +236,5 @@ private val ArtworkKind.cardWidth: Dp
     }
 
 private val ArtworkKind.aspectRatio: Float
-    get() = if (this == ArtworkKind.POSTER) 2f / 3f else 16f / 9f
+    get() = if (this == ArtworkKind.POSTER) HlSize.POSTER_RATIO else 16f / 9f
 

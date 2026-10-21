@@ -59,8 +59,15 @@ fun ScreenTitle(text: String, modifier: Modifier = Modifier) {
 
 /** The title of a task or a form (Identifier, Ajouter un dossier) in white: ember says where you are, not what you do. */
 @Composable
-fun TaskTitle(text: String, modifier: Modifier = Modifier) {
-    Text(text, style = Hl.type.headline, color = Hl.colors.content, modifier = modifier)
+fun TaskTitle(text: String, modifier: Modifier = Modifier, maxLines: Int = Int.MAX_VALUE) {
+    Text(
+        text,
+        style = Hl.type.headline,
+        color = Hl.colors.content,
+        maxLines = maxLines,
+        overflow = TextOverflow.Ellipsis,
+        modifier = modifier,
+    )
 }
 
 /**
