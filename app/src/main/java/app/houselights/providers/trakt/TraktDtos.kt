@@ -131,13 +131,12 @@ data class WatchedMovie(
     @SerialName("last_watched_at") val lastWatchedAt: String? = null,
 )
 
-/** A show and the episodes of it the account has watched, by season; [resetAt] starts a rewatch. */
+/** A show and the episodes of it the account has watched, by season. */
 @Serializable
 data class WatchedShow(
     @SerialName("show") val show: TraktShow,
     @SerialName("plays") val plays: Int = 0,
     @SerialName("last_watched_at") val lastWatchedAt: String? = null,
-    @SerialName("reset_at") val resetAt: String? = null,
     @SerialName("seasons") val seasons: List<WatchedSeason> = emptyList(),
 )
 
@@ -174,7 +173,7 @@ data class HistoryItems(
     @SerialName("episodes") val episodes: List<HistoryEpisode> = emptyList(),
 )
 
-/** A film watched at [watchedAt]; without it, now (adding) or every play (removing). */
+/** A film watched at [watchedAt] (an ISO date, or "released"); without it, every play (removing). */
 @Serializable
 data class HistoryMovie(
     @SerialName("ids") val ids: TraktIds,

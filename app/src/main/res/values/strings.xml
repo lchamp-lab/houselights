@@ -618,5 +618,8 @@
     <string name="trakt_sync_offline">Trakt doesn’t answer. What you watch will reach it once it does.</string>
     <string name="trakt_sync_busy">Trakt asks to wait a little. Syncing resumes on its own.</string>
     <string name="trakt_sync_failed">Syncing with Trakt didn’t complete. It resumes on its own.</string>
+    <string name="trakt_sync_refused">Trakt refuses to sync: the account may be locked, or this build’s key refused. Check your account on trakt.tv.</string>
+    <string name="trakt_sync_unreadable">Trakt answered in a way this version can’t read. Updating Houselights should fix it.</string>
+    <string name="trakt_certificate">Trakt’s certificate is refused. Check this device’s date and time, then try again.</string>
     <string name="settings_lost_trakt">The Trakt connection saved on this player could not be read again. Connect your account again.</string>
 </resources>

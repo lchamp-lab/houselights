@@ -581,5 +581,8 @@
     <string name="trakt_sync_offline">Traktが応答しません。視聴した内容は、応答が戻りしだい送信されます。</string>
     <string name="trakt_sync_busy">Traktから少し待つよう求められています。同期は自動的に再開されます。</string>
     <string name="trakt_sync_failed">Traktとの同期を完了できませんでした。自動的に再開されます。</string>
+    <string name="trakt_sync_refused">Traktが同期を拒否しています。アカウントがロックされているか、このビルドのキーが拒否された可能性があります。trakt.tvでアカウントを確認してください。</string>
+    <string name="trakt_sync_unreadable">Traktの応答をこのバージョンでは読み取れません。Houselightsを更新すると解決するはずです。</string>
+    <string name="trakt_certificate">Traktの証明書が拒否されました。このデバイスの日付と時刻を確認して、もう一度お試しください。</string>
     <string name="settings_lost_trakt">このプレーヤーに保存されたTraktの接続を読み込み直せませんでした。もう一度アカウントを接続してください。</string>
 </resources>

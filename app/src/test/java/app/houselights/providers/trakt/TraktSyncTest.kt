@@ -12,6 +12,7 @@ import app.houselights.providers.local.NoEditor
 import app.houselights.providers.local.SourceKind
 import app.houselights.providers.local.TraktAction
 import app.houselights.providers.local.TraktDao
+import app.houselights.providers.local.TraktPendingEntity
 import app.houselights.providers.local.TraktStateEntity
 import app.houselights.providers.local.TraktSyncError
 import app.houselights.providers.local.nfsFolder
@@ -19,6 +20,7 @@ import app.houselights.providers.local.onCallingThread
 import app.houselights.providers.local.testDatabase
 import app.houselights.providers.trakt.FakeTrakt.Companion.activities
 import app.houselights.providers.trakt.FakeTrakt.Companion.movie
+import app.houselights.providers.trakt.FakeTrakt.Companion.pausedEpisode
 import app.houselights.providers.trakt.FakeTrakt.Companion.pausedMovie
 import app.houselights.providers.trakt.FakeTrakt.Companion.show
 import app.houselights.ui.testing.waitFor
@@ -51,7 +53,7 @@ class TraktSyncTest {
     private var shows = 0L
 
     private val trakt = FakeTrakt()
-    private var session: TraktSession? = TraktSession("a1", "r1", expiresAt = NOW_S + WEEK_S, username = "lea")
+    private var session: TraktSession? = TraktSession("a1", "r1", expiresAt = NOW_S + DAY_S, username = "lea")
     private var changes = 0
 
     @Before
@@ -66,11 +68,12 @@ class TraktSyncTest {
     @After
     fun close() = db.close()
 
-    private fun TestScope.sync() = TraktSync(
+    private fun TestScope.sync(following: (suspend () -> Boolean)? = null) = TraktSync(
         TraktAccount(TraktKeys("id"), session = { session }, save = { session = it }, http = trakt.server.http, now = { NOW_S }),
         queue,
         backgroundScope,
         changed = { changes++ },
+        following = following,
         now = { NOW },
         clock = { testScheduler.currentTime },
     )
@@ -89,10 +92,13 @@ class TraktSyncTest {
         positionMs: Long = 0,
         lastPlayedAt: Long? = null,
         runtimeMin: Int? = 100,
+        /** The main row of the film this file is another copy of. */
+        versionOf: Long? = null,
     ) = dao.insert(
         ItemEntity(
             kind = ItemKind.MOVIE, sourceId = films, title = "F$tmdb", sortTitle = "f$tmdb", tmdbId = tmdb, runtimeMin = runtimeMin,
-            filePath = "F$tmdb.mkv", addedAt = 0, played = played, positionMs = positionMs, lastPlayedAt = lastPlayedAt,
+            filePath = if (versionOf == null) "F$tmdb.mkv" else "F$tmdb 4K.mkv", addedAt = 0, played = played,
+            positionMs = positionMs, lastPlayedAt = lastPlayedAt, versionOf = versionOf,
         )
     )
 
@@ -110,11 +116,18 @@ class TraktSyncTest {
         return show to season
     }
 
-    private suspend fun episode(show: Pair<Long, Long>, number: Int, last: Int? = null, played: Boolean = false) = dao.insert(
+    private suspend fun episode(
+        show: Pair<Long, Long>,
+        number: Int,
+        last: Int? = null,
+        played: Boolean = false,
+        positionMs: Long = 0,
+        lastPlayedAt: Long? = null,
+    ) = dao.insert(
         ItemEntity(
             kind = ItemKind.EPISODE, sourceId = shows, parentId = show.second, seriesId = show.first, title = "E$number",
             sortTitle = "e$number", seasonNumber = 1, episodeNumber = number, lastEpisodeNumber = last, filePath = "S01E$number.mkv",
-            runtimeMin = 40, addedAt = 0, played = played,
+            runtimeMin = 40, addedAt = 0, played = played, positionMs = positionMs, lastPlayedAt = lastPlayedAt,
         )
     )
 
@@ -124,6 +137,13 @@ class TraktSyncTest {
         get() = this["movies"]!!.jsonArray.map { it.jsonObject["ids"]!!.jsonObject["tmdb"]!!.jsonPrimitive.content.toInt() }
 
     private fun JsonObject.movieDate() = this["movies"]!!.jsonArray.single().jsonObject["watched_at"]?.jsonPrimitive?.content
+
+    /** The episode numbers of the first season sent. */
+    private val JsonObject.episodes
+        get() = this["shows"]!!.jsonArray.single().jsonObject["seasons"]!!.jsonArray.single().jsonObject["episodes"]!!.jsonArray
+            .map { it.jsonObject["number"]!!.jsonPrimitive.content.toInt() }
+
+    private val JsonObject.movieTmdb get() = this["movie"]!!.jsonObject["ids"]!!.jsonObject["tmdb"]!!.jsonPrimitive.content.toInt()
 
     @Test
     fun connectingJoinsBothSidesWatchedWhereverEitherSawIt() = runTest {
@@ -153,6 +173,13 @@ class TraktSyncTest {
         assertEquals(TraktSyncState(syncedAt = NOW, watched = 3, inProgress = 0), sync.state.value)
         assertEquals(1, changes)
         assertTrue(queue.pending().isEmpty())
+    }
+
+    @Test
+    fun aPlayWithoutADateGoesAtTheTitlesRelease() = runTest {
+        film(30, played = true)
+        connected()
+        assertEquals("released", trakt.sent("POST /sync/history").single().movieDate())
     }
 
     @Test
@@ -273,13 +300,40 @@ class TraktSyncTest {
     }
 
     @Test
-    fun aLimitTooLongToWaitIsSaidAndTheSyncTriedLater() = runTest {
+    fun aLimitTooLongToWaitIsSaidAndTheSyncTriedLaterStillJoiningBothSides() = runTest {
+        film(49, played = true, lastPlayedAt = ms(T1))
         trakt.stage("GET /sync/last_activities", Answer(429, headers = mapOf("Retry-After" to "600")))
         val sync = sync()
         sync.follow(connected = true, folders = true)
         waitFor("the limit said") { sync.state.value.error == TraktSyncError.BUSY && !sync.state.value.running }
         assertNull(sync.state.value.syncedAt)
         assertEquals(0, trakt.count("GET /sync/watched/movies"))
+
+        // The end of a scan asks only to check, but no sync has completed: both sides are joined.
+        sync.scanned(changedLibrary = false)
+        waitFor("the sync done") { sync.state.value.syncedAt != null && !sync.state.value.running }
+        assertNull(sync.state.value.error)
+        assertEquals(listOf(49), trakt.sent("POST /sync/history").single().tmdbs)
+    }
+
+    @Test
+    fun aLimitSaidOnlyByItsEndIsWaitedOutToIt() = runTest {
+        val limit = """{"name":"AUTHED_API_GET_LIMIT","period":300,"limit":1000,"remaining":0,"until":"2026-10-21T12:00:07Z"}"""
+        trakt.stage("GET /sync/last_activities", Answer(429, headers = mapOf("X-Ratelimit" to limit)))
+        val sync = connected()
+        assertEquals(2, trakt.count("GET /sync/last_activities"))
+        assertTrue("${testScheduler.currentTime}", testScheduler.currentTime >= 7_000)
+        assertNull(sync.state.value.error)
+    }
+
+    @Test
+    fun aTokenRefusedDuringASyncIsRenewedAndTheSyncGoesOn() = runTest {
+        trakt.stage("GET /sync/watched/movies", Answer(401))
+        val sync = connected()
+        assertEquals(1, trakt.count("POST /oauth/token"))
+        assertEquals("a2", session?.accessToken)
+        assertEquals(2, trakt.count("GET /sync/watched/movies"))
+        assertNull(sync.state.value.error)
     }
 
     @Test
@@ -343,16 +397,300 @@ class TraktSyncTest {
         assertTrue(queue.pending().isEmpty())
     }
 
+    @Test
+    fun aTitleWatchedOnTraktSinceItsPauseHereComesBackWatchedWithNoPauseOnEitherSide() = runTest {
+        // Stopped at 40 % here, then finished on another device.
+        val finished = film(31, positionMs = 40 * MINUTE, lastPlayedAt = ms(T1))
+        // Trakt's pause of it is older than its play there.
+        val stale = film(32)
+        trakt.movies = "[${movie(31, T2)},${movie(32, T2)}]"
+        trakt.playback = "[${pausedMovie(31, 32, 40f, T1)}]"
+
+        val sync = connected()
+
+        dao.item(finished)!!.let { assertEquals(Triple(true, 0L, ms(T2)), Triple(it.played, it.positionMs, it.lastPlayedAt)) }
+        dao.item(stale)!!.let { assertEquals(Triple(true, 0L, ms(T2)), Triple(it.played, it.positionMs, it.lastPlayedAt)) }
+        assertEquals(0, trakt.count("POST /scrobble/stop"))
+        assertEquals(0, sync.state.value.inProgress)
+        assertTrue(queue.pending().isEmpty())
+    }
+
+    @Test
+    fun aMarkMadeWhileTraktIsReadStandsAndReachesTrakt() = runTest {
+        val id = film(33, played = true, lastPlayedAt = ms(T1))
+        trakt.movies = "[${movie(33, T1)}]"
+        val sync = connected()
+        val provider = provider(sync)
+        trakt.during("GET /sync/watched/movies") { runBlocking { provider.mark(id, played = false) } }
+
+        sync.syncNow()
+        waitFor("the mark sent") { trakt.count("POST /sync/history/remove") == 1 && !sync.state.value.running }
+
+        assertFalse(dao.item(id)!!.played)
+        assertEquals(listOf(33), trakt.sent("POST /sync/history/remove").single().tmdbs)
+        assertTrue(queue.pending().isEmpty())
+    }
+
+    @Test
+    fun aFilmInSeveralCopiesResumesOnTheCopyThatPlays() = runTest {
+        // Trakt's pause goes where Lire plays from.
+        val main = film(34)
+        val chosen = film(34, versionOf = main)
+        dao.setVersionChoice(main, chosen)
+        trakt.playback = "[${pausedMovie(41, 34, 60f, T2)}]"
+        // Trakt hears where the copy that plays stopped, though another was played since.
+        val other = film(35, lastPlayedAt = ms(T2))
+        val played = film(35, positionMs = 50 * MINUTE, lastPlayedAt = ms(T1), versionOf = other)
+        dao.setVersionChoice(other, played)
+
+        connected()
+
+        assertEquals(0L, dao.item(main)!!.positionMs)
+        assertEquals(60 * MINUTE, dao.item(chosen)!!.positionMs)
+        val stop = trakt.sent("POST /scrobble/stop").single()
+        assertEquals(35, stop.movieTmdb)
+        assertEquals(50f, stop["progress"]!!.jsonPrimitive.content.toFloat())
+    }
+
+    @Test
+    fun unmarkingAFilmReachesTraktWhicheverCopyWasWatched() = runTest {
+        val main = film(37)
+        film(37, played = true, lastPlayedAt = ms(T1), versionOf = main)
+        val sync = connected()
+        provider(sync).mark(main, played = false)
+        waitFor("the film unmarked on Trakt") { trakt.count("POST /sync/history/remove") == 1 }
+        assertEquals(listOf(37), trakt.sent("POST /sync/history/remove").single().tmdbs)
+    }
+
+    @Test
+    fun markingAShowWatchedDropsThePauseOfAnEpisodeWatchedAgain() = runTest {
+        val show = series(100)
+        episode(show, 1, played = true, positionMs = 10 * MINUTE, lastPlayedAt = ms(T2))
+        episode(show, 2)
+        trakt.shows = "[${show(100, T1, 1 to 1)}]"
+        trakt.playback = "[${pausedEpisode(61, 100, 1 to 1, 25f, T2)}]"
+        val sync = connected()
+
+        provider(sync).mark(show.first, played = true)
+        waitFor("the pause dropped") { trakt.count("DELETE /sync/playback/61") == 1 && queue.pending().isEmpty() }
+        assertEquals(listOf(2), trakt.sent("POST /sync/history").single().episodes)
+    }
+
+    @Test
+    fun unmarkingATitleOnlyInProgressDropsItsPauseAlone() = runTest {
+        val id = film(38, positionMs = 30 * MINUTE, lastPlayedAt = ms(T1))
+        trakt.playback = "[${pausedMovie(42, 38, 30f, T1)}]"
+        val sync = connected()
+
+        provider(sync).mark(id, played = false)
+        waitFor("the pause dropped") { trakt.count("DELETE /sync/playback/42") == 1 && queue.pending().isEmpty() }
+        assertEquals(0, trakt.count("POST /sync/history/remove"))
+        assertEquals(0L, dao.item(id)!!.positionMs)
+    }
+
+    @Test
+    fun aMarkWhoseAnswerWasLostGoesAgainOnlyIfTraktLacksIt() = runTest {
+        val reached = film(39)
+        val lost = film(40)
+        val sync = connected()
+        val provider = provider(sync)
+
+        // Trakt takes the first mark, but its answer never comes back.
+        trakt.during("POST /sync/history") {
+            trakt.movies = "[${movie(39, iso(NOW))}]"
+            trakt.activities = activities(iso(NOW))
+        }
+        trakt.lose("POST /sync/history")
+        provider.mark(reached, played = true)
+        waitFor("the answer lost") { sync.state.value.error != null }
+        sync.scanned(changedLibrary = false)
+        waitFor("the mark found on Trakt") { queue.pending().isEmpty() && !sync.state.value.running }
+        assertEquals(1, trakt.count("POST /sync/history"))
+
+        // The second is lost on its way, Trakt's history having changed since.
+        trakt.lose("POST /sync/history")
+        provider.mark(lost, played = true)
+        waitFor("the answer lost") { trakt.count("POST /sync/history") == 2 && sync.state.value.error != null }
+        sync.scanned(changedLibrary = false)
+        waitFor("the mark sent again") { queue.pending().isEmpty() && !sync.state.value.running }
+        assertEquals(listOf(listOf(39), listOf(40), listOf(40)), trakt.sent("POST /sync/history").map { it.tmdbs })
+    }
+
+    @Test
+    fun aLateStopWatchedGoesToTheHistoryAtItsDateUnlessTraktSawItSince() = runTest {
+        val sync = connected()
+        val hourAgo = NOW - 60 * MINUTE
+        trakt.movies = "[${movie(52, iso(NOW - 30 * MINUTE))}]"
+        trakt.activities = activities(iso(NOW - 30 * MINUTE))
+        queue.queue(
+            listOf(
+                TraktPendingEntity("movie:51", TraktAction.PROGRESS, hourAgo, progress = 90f),
+                TraktPendingEntity("movie:52", TraktAction.PROGRESS, hourAgo, progress = 90f),
+            )
+        )
+
+        sync.scanned(changedLibrary = false)
+        waitFor("the stops sent") { queue.pending().isEmpty() && !sync.state.value.running }
+
+        val sent = trakt.sent("POST /sync/history").single()
+        assertEquals(listOf(51), sent.tmdbs)
+        assertEquals(iso(hourAgo), sent.movieDate())
+        assertEquals(0, trakt.count("POST /scrobble/stop"))
+    }
+
+    @Test
+    fun aLatePauseGivesWayToOneMadeSinceOnTrakt() = runTest {
+        val sync = connected()
+        val earlier = NOW - 3 * 60 * MINUTE
+        trakt.playback = "[${pausedMovie(71, 53, 70f, iso(NOW - 60 * MINUTE))}]"
+        queue.queue(
+            listOf(
+                TraktPendingEntity("movie:53", TraktAction.PROGRESS, earlier, progress = 30f),
+                TraktPendingEntity("movie:54", TraktAction.PROGRESS, earlier, progress = 30f),
+            )
+        )
+
+        sync.scanned(changedLibrary = false)
+        waitFor("the stops sent") { queue.pending().isEmpty() && !sync.state.value.running }
+
+        assertEquals(listOf(54), trakt.sent("POST /scrobble/stop").map { it.movieTmdb })
+    }
+
+    @Test
+    fun aWriteTraktKeepsFailingHoldsNoSyncAndIsDroppedAtItsFifth() = runTest {
+        queue.queue(listOf(TraktPendingEntity("movie:42", TraktAction.PROGRESS, NOW, progress = 30f)))
+        val there = film(43)
+        trakt.movies = "[${movie(43, T2)}]"
+        trakt.stage("POST /scrobble/stop", *Array(5) { Answer(500) })
+
+        val sync = connected()
+        // Trakt is read all the same.
+        assertTrue(dao.item(there)!!.played)
+        assertEquals(TraktSyncError.FAILED, sync.state.value.error)
+
+        repeat(4) { tried ->
+            sync.scanned(changedLibrary = false)
+            waitFor("try ${tried + 2}") { trakt.count("POST /scrobble/stop") == tried + 2 && !sync.state.value.running }
+        }
+        assertTrue(queue.pending().isEmpty())
+        sync.scanned(changedLibrary = false)
+        waitFor("a sync without it") { trakt.count("GET /sync/last_activities") == 6 && !sync.state.value.running }
+        assertEquals(5, trakt.count("POST /scrobble/stop"))
+        assertNull(sync.state.value.error)
+    }
+
+    @Test
+    fun aMarkTraktFailsWaitsAndOneItRefusesLeaves() = runTest {
+        val id = film(44)
+        val sync = connected()
+        trakt.stage("POST /sync/history", Answer(503), Answer(400))
+
+        provider(sync).mark(id, played = true)
+        waitFor("the failure said") { sync.state.value.error == TraktSyncError.FAILED }
+        assertEquals(listOf("movie:44"), queue.pending().map { it.title })
+
+        sync.scanned(changedLibrary = false)
+        waitFor("the refusal") { trakt.count("POST /sync/history") == 2 && !sync.state.value.running }
+        assertTrue(queue.pending().isEmpty())
+        assertNull(sync.state.value.error)
+    }
+
+    @Test
+    fun aBatchTraktRefusesGoesTitleByTitle() = runTest {
+        for (tmdb in 46..48) film(tmdb, played = true, lastPlayedAt = ms(T1))
+        trakt.stage("POST /sync/history", Answer(400), Answer(201, ADDED), Answer(400), Answer(201, ADDED))
+
+        connected()
+
+        assertEquals(listOf(listOf(46, 47, 48), listOf(46), listOf(47), listOf(48)), trakt.sent("POST /sync/history").map { it.tmdbs })
+        assertTrue(queue.pending().isEmpty())
+    }
+
+    @Test
+    fun aFileOfSeveralEpisodesStoppedIsWatchedWholeOrNotAtAll() = runTest {
+        val double = episode(series(100), 1, last = 2)
+        val sync = connected()
+
+        sync.stopped(double, 50f)
+        advanceUntilIdle()
+        assertTrue(queue.pending().isEmpty())
+
+        sync.stopped(double, 90f)
+        waitFor("both episodes sent") { trakt.count("POST /sync/history") == 1 && queue.pending().isEmpty() }
+        assertEquals(listOf(1, 2), trakt.sent("POST /sync/history").single().episodes)
+    }
+
+    @Test
+    fun whatWaitsWhenTraktEndsTheConnectionGoesOnceItIsConnectedAgain() = runTest {
+        val id = film(50, played = true, lastPlayedAt = ms(T1))
+        trakt.movies = "[${movie(50, T1)}]"
+        val sync = connected()
+        trakt.offline = true
+        provider(sync).mark(id, played = false)
+        waitFor("the mark waiting") { sync.state.value.error == TraktSyncError.OFFLINE }
+
+        session = session?.copy(accessToken = "", refreshToken = "", ended = true)
+        sync.follow(connected = false, folders = true, signedOut = false)
+        waitFor("the sync's state forgotten") { queue.state() == null }
+        assertEquals(listOf(TraktAction.UNWATCHED), queue.pending().map { it.action })
+
+        // Connected again: the removal reaches Trakt first, then both sides are joined.
+        trakt.offline = false
+        trakt.movies = "[]"
+        session = TraktSession("a3", "r3", expiresAt = NOW_S + DAY_S, username = "lea")
+        sync.follow(connected = true, folders = true)
+        waitFor("joined again") { sync.state.value.syncedAt != null && !sync.state.value.running }
+        assertEquals(listOf(50), trakt.sent("POST /sync/history/remove").single().tmdbs)
+        assertFalse(dao.item(id)!!.played)
+    }
+
+    @Test
+    fun aStopToldBeforeTheSettingsAreFollowedWaitsForThem() = runTest {
+        val id = film(55)
+        val sync = sync(following = { true })
+
+        sync.stopped(id, 30f)
+        advanceUntilIdle()
+        assertEquals(emptyList<String>(), trakt.routes)
+        assertEquals(listOf(TraktAction.PROGRESS), queue.pending().map { it.action })
+
+        sync.follow(connected = true, folders = true)
+        waitFor("the stop sent") { trakt.count("POST /scrobble/stop") == 1 && !sync.state.value.running }
+    }
+
+    @Test
+    fun leavingTheFoldersDisconnectsTheAccountAndForgetsWhatWaits() = runTest {
+        val id = film(56)
+        val sync = connected()
+        trakt.offline = true
+        provider(sync).mark(id, played = true)
+        waitFor("the mark waiting") { queue.pending().isNotEmpty() && sync.state.value.error != null }
+        trakt.offline = false
+
+        sync.leave()
+
+        assertNull(session)
+        assertEquals(1, trakt.count("POST /oauth/revoke"))
+        assertTrue(queue.pending().isEmpty())
+        assertNull(queue.state())
+        assertEquals(TraktSyncState(), sync.state.value)
+        assertTrue(dao.item(id)!!.played)
+    }
+
     private companion object {
         val NOW: Long = Instant.parse("2026-10-21T12:00:00Z").toEpochMilli()
         val NOW_S = NOW / 1_000
-        const val WEEK_S = 7 * 24 * 3_600L
+        const val DAY_S = 24 * 3_600L
         const val MINUTE = 60_000L
+
+        const val ADDED = """{"added":{"movies":1,"episodes":0},"not_found":{}}"""
 
         /** Before and after one another. */
         const val T1 = "2026-10-10T20:00:00.000Z"
         const val T2 = "2026-10-15T21:30:00.000Z"
 
         fun ms(date: String) = Instant.parse(date).toEpochMilli()
+
+        fun iso(ms: Long) = Instant.ofEpochMilli(ms).toString()
     }
 }

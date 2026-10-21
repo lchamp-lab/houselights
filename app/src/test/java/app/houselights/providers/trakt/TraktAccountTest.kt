@@ -37,7 +37,7 @@ import java.util.concurrent.TimeUnit
 @RunWith(RobolectricTestRunner::class)
 class TraktAccountTest {
     private var session: TraktSession? = null
-    private val now = 1_700_000_000L
+    private var now = 1_700_000_000L
 
     private val code = DeviceCode("dev-c0de", "ABCD1234", "https://trakt.tv/activate", expiresIn = 600, interval = 5)
 
@@ -115,7 +115,7 @@ class TraktAccountTest {
             assertFalse("A build without a secret sends none", "client_secret" in sent)
         }
         // Saved at once; the name is read after, so the sheet closes without waiting for it.
-        assertEquals(TraktSession("a1", "r1", expiresAt = now + WEEK), session)
+        assertEquals(TraktSession("a1", "r1", expiresAt = now + DAY), session)
         assertEquals(listOf(DEVICE_TOKEN), server.paths.distinct())
         assertEquals("lea", account.readName())
         assertEquals("lea", session?.username)
@@ -168,7 +168,7 @@ class TraktAccountTest {
         val account = account(server)
         assertEquals(DeviceCodeEnd.APPROVED, account.awaitApproval(code))
         assertNull(account.readName())
-        assertEquals(TraktSession("a1", "r1", expiresAt = now + WEEK), session)
+        assertEquals(TraktSession("a1", "r1", expiresAt = now + DAY), session)
     }
 
     @Test
@@ -251,7 +251,32 @@ class TraktAccountTest {
         assertFalse("client_secret" in sent)
         assertEquals("Bearer a2", server.at(SETTINGS).single().header("Authorization"))
         // The refresh token is single-use: the new one replaces it.
-        assertEquals(lea.copy(accessToken = "a2", refreshToken = "r2", expiresAt = now + WEEK), session)
+        assertEquals(lea.copy(accessToken = "a2", refreshToken = "r2", expiresAt = now + DAY), session)
+    }
+
+    /** Trakt's tokens live a day: one renewed is not renewed again until its last quarter. */
+    @Test
+    fun aRenewedTokenWaitsForItsLastQuarterBeforeTheNextRenewal() = runTest {
+        session = lea.copy(expiresAt = now + HOUR)
+        val server = server(TOKEN to listOf(answer(200, RENEWED_JSON)), SETTINGS to listOf(answer(200, SETTINGS_JSON)))
+        val account = account(server)
+        account.call { it.settings() }
+        account.call { it.settings() }
+        assertEquals(1, server.at(TOKEN).size)
+        assertEquals(DAY, session?.lifetime)
+        now += 17 * HOUR
+        account.call { it.settings() }
+        assertEquals("7 h left", 1, server.at(TOKEN).size)
+        now += 2 * HOUR
+        account.call { it.settings() }
+        assertEquals("5 h left", 2, server.at(TOKEN).size)
+    }
+
+    @Test
+    fun aRedirectIsNeverFollowed() {
+        val http = TraktClient(KEYS, token = { "a1" }).http
+        assertFalse(http.followRedirects)
+        assertFalse(http.followSslRedirects)
     }
 
     @Test
@@ -300,7 +325,7 @@ class TraktAccountTest {
         val thrown = runCatching { account(server).call { it.settings() } }.exceptionOrNull()
         assertEquals(401, (thrown as? HttpException)?.code())
         assertEquals(listOf(SETTINGS, TOKEN, SETTINGS), server.paths)
-        assertEquals(lea.copy(accessToken = "a2", refreshToken = "r2", expiresAt = now + WEEK), session)
+        assertEquals(lea.copy(accessToken = "a2", refreshToken = "r2", expiresAt = now + DAY), session)
     }
 
     @Test
@@ -313,7 +338,7 @@ class TraktAccountTest {
         // Trakt spent r1: r2 lives in memory until it is saved.
         assertEquals("r1", session?.refreshToken)
         account.call { it.settings() }
-        assertEquals(lea.copy(accessToken = "a2", refreshToken = "r2", expiresAt = now + WEEK), session)
+        assertEquals(lea.copy(accessToken = "a2", refreshToken = "r2", expiresAt = now + DAY), session)
         assertEquals(listOf(TOKEN, SETTINGS, SETTINGS), server.paths)
         assertEquals(List(2) { "Bearer a2" }, server.at(SETTINGS).map { it.header("Authorization") })
     }
@@ -323,7 +348,7 @@ class TraktAccountTest {
         session = lea.copy(expiresAt = now + HOUR, username = null)
         val server = server(TOKEN to listOf(answer(200, RENEWED_JSON)), SETTINGS to listOf(answer(200, SETTINGS_JSON)))
         assertEquals("lea", account(server).readName())
-        assertEquals(lea.copy(accessToken = "a2", refreshToken = "r2", expiresAt = now + WEEK), session)
+        assertEquals(lea.copy(accessToken = "a2", refreshToken = "r2", expiresAt = now + DAY), session)
     }
 
     @Test
@@ -400,7 +425,6 @@ class TraktAccountTest {
         val KEYS = TraktKeys("id")
         const val HOUR = 3_600L
         const val DAY = 24 * HOUR
-        const val WEEK = 7 * DAY
 
         const val DEVICE_CODE = "/oauth/device/code"
         const val DEVICE_TOKEN = "/oauth/device/token"
@@ -410,9 +434,9 @@ class TraktAccountTest {
 
         const val CODE_JSON = """{"device_code":"dev-c0de","user_code":"ABCD1234","verification_url":"https://trakt.tv/activate",""" +
             """"expires_in":600,"interval":5}"""
-        const val TOKENS_JSON = """{"access_token":"a1","token_type":"bearer","expires_in":604800,"refresh_token":"r1",""" +
+        const val TOKENS_JSON = """{"access_token":"a1","token_type":"bearer","expires_in":86400,"refresh_token":"r1",""" +
             """"scope":"public","created_at":1699990000}"""
-        const val RENEWED_JSON = """{"access_token":"a2","token_type":"bearer","expires_in":604800,"refresh_token":"r2",""" +
+        const val RENEWED_JSON = """{"access_token":"a2","token_type":"bearer","expires_in":86400,"refresh_token":"r2",""" +
             """"scope":"public","created_at":1700000000}"""
         const val SETTINGS_JSON = """{"user":{"username":"lea","private":false,"name":"Léa","vip":false,"ids":{"slug":"lea"}},""" +
             """"account":{"timezone":"Europe/Paris"}}"""

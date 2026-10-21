@@ -16,6 +16,7 @@ import app.houselights.providers.local.TraktSyncError
 import app.houselights.providers.local.WatchHistory
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -26,6 +27,11 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import okhttp3.Headers
 import retrofit2.HttpException
+import java.io.IOException
+import java.net.ConnectException
+import java.net.NoRouteToHostException
+import java.net.UnknownHostException
+import javax.net.ssl.SSLHandshakeException
 
 /** How much a sync does: [CHECK] reads Trakt only if it changed, [PULL] reads it, [UNION] also sends what Trakt lacks. */
 enum class SyncMode { CHECK, PULL, UNION }
@@ -48,12 +54,16 @@ interface TraktSyncing {
     fun syncNow()
 }
 
+/** A waiting intent and the title it names. */
+private typealias Queued = Pair<TraktPendingEntity, TraktTitle>
+
 /**
  * Keeps the folders' history and the Trakt account's together, in the background. Connecting joins both sides
- * ([SyncMode.UNION]); then each mark and each stop goes to Trakt at once, queued while Trakt cannot be reached and
- * sent at the next occasion (launch, end of a scan, a sync, a stop). Trakt is read again at launch after
- * [STALE_MS] and at the end of each scan, only when it changed unless the scan found titles. One exchange at a time;
- * Trakt's limits are waited out ([RETRY_AFTER]), its writes spaced by [WRITE_GAP_MS].
+ * ([SyncMode.UNION]), as every sync does until one completes; then each mark and each stop goes to Trakt at once,
+ * queued while Trakt cannot be reached and sent at the next occasion (launch, end of a scan, a sync, a stop). Trakt is
+ * read again at launch after [STALE_MS] and at the end of each scan, only when it changed unless the scan found
+ * titles, and read even when what waits cannot be sent. One exchange at a time; Trakt's limits are waited out
+ * ([RETRY_AFTER]), its writes spaced by [WRITE_GAP_MS], and a write it keeps failing dropped after [MAX_ATTEMPTS].
  */
 class TraktSync(
     private val account: TraktAccount,
@@ -61,6 +71,8 @@ class TraktSync(
     private val scope: CoroutineScope,
     /** Tells screens a sync changed the library. */
     private val changed: () -> Unit = {},
+    /** Whether the settings have Trakt keep the folders' history, read as a mark or a stop is queued; else the last [follow]. */
+    private val following: (suspend () -> Boolean)? = null,
     private val now: () -> Long = System::currentTimeMillis,
     /** A monotonic clock (ms) that spaces Trakt's writes. */
     private val clock: () -> Long = SystemClock::elapsedRealtime,
@@ -71,9 +83,16 @@ class TraktSync(
     /** One exchange with Trakt at a time: a sync, or the queue. */
     private val busy = Mutex()
 
-    /** Connected with the folders as the source: only then is anything read, queued or sent. */
+    /** The library's watched state, one change at a time: a mark with its intents, or what a sync applies. */
+    private val local = Mutex()
+
+    /** Connected with the folders as the source: only then is Trakt read or written. */
     @Volatile
     private var active = false
+
+    /** An account, even one Trakt ended, with the folders as the source: marks and stops are queued. */
+    @Volatile
+    private var follows = false
 
     /** Sync requests: one running, at most one more waiting, the larger [SyncMode] kept. Guarded by [runs]. */
     private val runs = Any()
@@ -82,13 +101,26 @@ class TraktSync(
 
     private var lastWrite: Long? = null
 
-    /** The account and the source as the settings have them: a connection starts, a disconnection forgets the queue. */
-    fun follow(connected: Boolean, folders: Boolean) {
+    /**
+     * The account and the source as the settings have them: a connection starts; signing out forgets what waits,
+     * which stays for the next connection when Trakt ended this one.
+     */
+    fun follow(connected: Boolean, folders: Boolean, signedOut: Boolean = !connected) {
         active = connected && folders
+        follows = !signedOut && folders
         when {
-            !connected -> scope.launch { disconnected() }
+            signedOut -> scope.launch { disconnected(keepQueue = false) }
+            !connected -> scope.launch { disconnected(keepQueue = true) }
             folders -> scope.launch { begin() }
         }
+    }
+
+    /** The folders are no longer the source: the account is disconnected, what waits and the sync's state forgotten. */
+    suspend fun leave() {
+        active = false
+        follows = false
+        suspendRunCatching { account.signOut() }.onFailure { Log.w(TAG, "Trakt could not be disconnected: ${described(it)}") }
+        disconnected(keepQueue = false)
     }
 
     /** A scan ended: Trakt is read for the titles it found, else only if Trakt changed. */
@@ -97,34 +129,53 @@ class TraktSync(
     override fun syncNow() = request(SyncMode.UNION)
 
     override suspend fun mark(what: Marked, played: Boolean, write: suspend () -> Unit) {
-        if (!active) return write()
-        val at = now()
-        val before = read("rows marked") { rowsOf(what) }
-        write()
-        // Only the titles the mark changes: marking a show watched adds no play to what Trakt already has.
-        val touched = before.orEmpty().filter { if (played) !it.played else it.played || it.positionMs > 0 }
-        val action = if (played) TraktAction.WATCHED else TraktAction.UNWATCHED
-        enqueue(touched.flatMap { it.titles() }.distinct().map { TraktPendingEntity(it.key, action, at) })
+        // Once written, the mark's intents are queued whatever becomes of the caller.
+        val queued = withContext(NonCancellable) {
+            local.withLock {
+                if (!keepsHistory()) {
+                    write()
+                    return@withLock false
+                }
+                val at = now()
+                val before = read("rows marked") { rowsOf(what) }.orEmpty()
+                write()
+                queued(intentsOf(before, played, at))
+            }
+        }
+        if (queued) scope.launch { sendQueue() }
     }
 
     override suspend fun stopped(id: Long, percent: Float) {
-        if (!active || percent < SyncPlan.MIN_PERCENT) return
-        val at = now()
-        val titles = read("row stopped") { rowsOf(Marked.Row(id)).filter { it.id == id } }.orEmpty().flatMap { it.titles() }
-        enqueue(
-            when {
-                titles.size == 1 -> listOf(TraktPendingEntity(titles.single().key, TraktAction.PROGRESS, at, percent))
-                // A file holding several episodes is watched or not: Trakt pauses one episode at a time.
-                percent >= SyncPlan.WATCHED_PERCENT -> titles.map { TraktPendingEntity(it.key, TraktAction.WATCHED, at) }
-                else -> emptyList()
+        if (percent < SyncPlan.MIN_PERCENT) return
+        val queued = withContext(NonCancellable) {
+            local.withLock {
+                if (!keepsHistory()) return@withLock false
+                val at = now()
+                val titles = read("row stopped") { rowsOf(Marked.Row(id)).filter { it.id == id } }.orEmpty().flatMap { it.titles() }
+                queued(
+                    when {
+                        titles.size == 1 -> listOf(TraktPendingEntity(titles.single().key, TraktAction.PROGRESS, at, percent))
+                        // A file holding several episodes is watched or not: Trakt pauses one episode at a time.
+                        percent >= SyncPlan.WATCHED_PERCENT -> titles.map { TraktPendingEntity(it.key, TraktAction.WATCHED, at) }
+                        else -> emptyList()
+                    }
+                )
             }
-        )
+        }
+        if (queued) scope.launch { sendQueue() }
     }
+
+    /** Whether a mark or a stop is queued for Trakt now. */
+    private suspend fun keepsHistory(): Boolean = following?.invoke() ?: follows
 
     private suspend fun rowsOf(what: Marked): List<SyncRow> = when (what) {
         is Marked.Row -> dao.rowsOf(what.id)
         is Marked.Saga -> dao.rowsOfSaga(what.id)
     }
+
+    /** Queues [entries] in place of what each title had waiting, in the order told; true once queued. */
+    private suspend fun queued(entries: List<TraktPendingEntity>): Boolean =
+        entries.isNotEmpty() && read("queuing") { queue(entries) } != null
 
     private suspend fun begin() {
         val saved = read("sync state") { state() }
@@ -137,15 +188,10 @@ class TraktSync(
         }
     }
 
-    private suspend fun disconnected() {
-        busy.withLock { read("forgetting") { forget() } }
+    /** Forgets the sync's state, and what waits unless [keepQueue], after the exchange running and a mark being queued. */
+    private suspend fun disconnected(keepQueue: Boolean) {
+        busy.withLock { local.withLock { read("forgetting") { if (keepQueue) clearState() else forget() } } }
         _state.update { TraktSyncState(running = it.running) }
-    }
-
-    /** Queues [entries] in place of what each title had waiting, in the order told, then sends the queue. */
-    private suspend fun enqueue(entries: List<TraktPendingEntity>) {
-        if (entries.isEmpty()) return
-        if (read("queuing") { queue(entries) } != null) scope.launch { sendQueue() }
     }
 
     private suspend fun sendQueue() = busy.withLock {
@@ -199,35 +245,59 @@ class TraktSync(
         settle(saved, suspendRunCatching { exchange(mode, saved) })
     }
 
-    /** The queue first, so Trakt has the latest; then Trakt read and applied, and what it lacks sent. */
+    /**
+     * What waits goes first, so Trakt has the latest; then Trakt is read and applied, even when that failed, leaving
+     * the titles still waiting as they are; then what Trakt lacks is sent, unless sending already failed.
+     */
     private suspend fun exchange(mode: SyncMode, saved: TraktStateEntity): TraktStateEntity {
-        send()
+        var unsent = sendOrFailure()
         val activities = trakt { it.lastActivities() }.key()
+        // Trakt answers: what it did not take counts against those titles.
+        unsent?.let { counted(it) }
         if (mode == SyncMode.CHECK && saved.syncedAt != null && saved.activities == activities) {
-            return saved.copy(syncedAt = now(), error = null)
+            return saved.copy(syncedAt = now(), error = unsent?.let(::errorOf))
         }
         val movies = trakt { it.watchedMovies() }
         val shows = trakt { it.watchedShows() }
         val paused = trakt { it.playback() }
         val rows = dao.rows()
-        val plan = withContext(Dispatchers.Default) {
-            SyncPlan.of(rows, movies.watched() + shows.watched(), paused, union = mode == SyncMode.UNION)
-        }
-        dao.apply(plan.watched, plan.resumes)
+        val played = rows.mapNotNullTo(HashSet()) { it.versionOf }.mapNotNullTo(HashSet()) { dao.playedCopy(it) }
+        val union = mode == SyncMode.UNION || saved.syncedAt == null
+        val plan = withContext(Dispatchers.Default) { SyncPlan.of(rows, movies.watched() + shows.watched(), paused, union, played) }
+        local.withLock { dao.apply(plan.watched, plan.resumes, plan.titles) }
         if (plan.changes) changed()
         // Never in place of a mark waiting since the queue was sent.
         dao.queue(plan.send, replace = false)
-        send()
+        if (unsent == null) unsent = sendOrFailure()?.also { counted(it) }
         val watched = plan.watched.values.sumOf { it.size }
         Log.i(TAG, "Synced: $watched rows watched and ${plan.resumes.size} resumed from Trakt, ${plan.send.size} titles sent")
-        return TraktStateEntity(syncedAt = now(), watched = plan.watchedCount, inProgress = plan.inProgressCount, activities = activities)
+        return TraktStateEntity(
+            syncedAt = now(),
+            watched = plan.watchedCount,
+            inProgress = plan.inProgressCount,
+            error = unsent?.let(::errorOf),
+            activities = activities,
+        )
+    }
+
+    /** Sends what waits; a failure is returned, unless Trakt ended the connection. */
+    private suspend fun sendOrFailure(): Throwable? =
+        suspendRunCatching { send() }.exceptionOrNull()?.also { if (it is TraktSignedOutException) throw it }
+
+    /** A failed write counts against its titles, unless Trakt refused the account; those failed too often are dropped. */
+    private suspend fun counted(failure: Throwable) {
+        val unsent = failure as? Unsent ?: return
+        val status = (unsent.cause as? HttpException)?.code()
+        if (status != null && status in ACCOUNT) return
+        val dropped = read("failed writes") { failed(unsent.tried, MAX_ATTEMPTS) } ?: return
+        if (dropped > 0) Log.w(TAG, "Trakt failed $dropped titles $MAX_ATTEMPTS times: not sent again")
     }
 
     /** Saves where the sync stands after [result]: a failure is kept with the last sync; signed out, nothing is. */
     private suspend fun settle(saved: TraktStateEntity, result: Result<TraktStateEntity>) {
         val next = result.getOrElse { e ->
             if (e is TraktSignedOutException) return
-            Log.w(TAG, "Trakt could not be synced: ${described(e)}")
+            Log.w(TAG, "Trakt could not be synced: ${described((e as? Unsent)?.cause ?: e)}")
             saved.copy(error = errorOf(e))
         }
         val stored = read("sync state") { saveState(next) } != null
@@ -235,8 +305,9 @@ class TraktSync(
     }
 
     /**
-     * Sends what waits for Trakt: watched titles in batches, unmarked ones with their paused playbacks, stops one by
-     * one. What Trakt refuses as such ([KEPT] aside) is dropped; anything else stops the sending, the rest kept.
+     * Sends what waits: watched titles in batches, played titles removed and paused ones dropped, stops one by one.
+     * What Trakt refuses as such leaves the queue, a batch's titles only once each was tried alone; any other failure
+     * stops the sending ([Unsent]), the rest kept.
      */
     private suspend fun send(): Int {
         val pending = dao.pending()
@@ -244,44 +315,83 @@ class TraktSync(
         val titled = pending.mapNotNull { entry -> TraktTitle.parse(entry.title)?.let { entry to it } }
         dao.sent(pending - titled.map { it.first }.toSet())
         val byAction = titled.groupBy { it.first.action }
-        byAction[TraktAction.WATCHED]?.chunked(BATCH)?.forEach { batch ->
-            write(batch.map { it.first }) { it.addToHistory(historyOf(batch.map { (entry, title) -> title to entry.at })) }
-        }
-        byAction[TraktAction.UNWATCHED]?.let { unwatch(it) }
-        byAction[TraktAction.PROGRESS]?.forEach { (entry, title) -> stop(entry, title) }
+        val lookup = Lookup()
+        byAction[TraktAction.WATCHED]?.let { watch(it, lookup) }
+        unpause(byAction[TraktAction.UNWATCHED].orEmpty() + byAction[TraktAction.UNPAUSED].orEmpty(), lookup)
+        byAction[TraktAction.UNPAUSED]?.let { dao.sent(it.map { (entry, _) -> entry }) }
+        byAction[TraktAction.UNWATCHED]?.chunked(BATCH)?.forEach { history(it, remove = true) }
+        byAction[TraktAction.PROGRESS]?.forEach { (entry, title) -> stop(entry, title, lookup) }
         return pending.size
     }
 
-    private suspend fun unwatch(entries: List<Pair<TraktPendingEntity, TraktTitle>>) {
-        val titles = entries.map { it.second }.toSet()
-        trakt { it.playback() }.filter { it.title() in titles }.forEach { paused -> write(emptyList()) { it.removePlayback(paused.id) } }
-        entries.chunked(BATCH).forEach { batch ->
-            write(batch.map { it.first }) { it.removeFromHistory(historyOf(batch.map { (_, title) -> title to null }, dated = false)) }
+    /** Watched titles in batches; one sent before without an answer goes again only if Trakt lacks it, so no play doubles. */
+    private suspend fun watch(entries: List<Queued>, lookup: Lookup) {
+        val (reached, left) = entries.partition { (entry, title) ->
+            val sentAt = entry.sentAt
+            sentAt != null && lookup.watched(title, entry.at, since = sentAt)
+        }
+        dao.sent(reached.map { it.first })
+        left.chunked(BATCH).forEach { history(it, remove = false) }
+    }
+
+    /** Adds [batch]'s plays at their dates, or removes every play; refused whole, each title is tried alone. */
+    private suspend fun history(batch: List<Queued>, remove: Boolean) {
+        val entries = batch.map { it.first }
+        val items = historyOf(batch.map { (entry, title) -> title to entry.at }, dated = !remove)
+        val taken = write(entries) { if (remove) it.removeFromHistory(items) else it.addToHistory(items) }
+        if (taken || batch.size == 1) dao.sent(entries) else batch.forEach { history(listOf(it), remove) }
+    }
+
+    /** Drops the pauses Trakt keeps of [entries]' titles; one already gone is no failure. */
+    private suspend fun unpause(entries: List<Queued>, lookup: Lookup) {
+        if (entries.isEmpty()) return
+        val byTitle = entries.associate { (entry, title) -> title to entry }
+        for (pause in lookup.paused()) {
+            val entry = pause.title()?.let(byTitle::get) ?: continue
+            write(listOf(entry)) { it.removePlayback(pause.id) }
         }
     }
 
-    /** A stop as Trakt's scrobble; one replayed late and watched goes to the history at its date, as a scrobble is dated now. */
-    private suspend fun stop(entry: TraktPendingEntity, title: TraktTitle) {
+    /**
+     * A stop as Trakt's scrobble. One sent late is no longer now: watched, it goes to the history at its date, unless
+     * Trakt saw the title watched since; paused, it goes unless Trakt paused or watched the title since.
+     */
+    private suspend fun stop(entry: TraktPendingEntity, title: TraktTitle, lookup: Lookup) {
         val percent = entry.progress ?: return dao.sent(listOf(entry))
-        if (percent >= SyncPlan.WATCHED_PERCENT && now() - entry.at > LATE_MS) {
-            write(listOf(entry)) { it.addToHistory(historyOf(listOf(title to entry.at))) }
-        } else {
-            write(listOf(entry)) { it.scrobbleStop(scrobbleOf(title, percent)) }
+        val late = now() - entry.at > LATE_MS
+        val watched = percent >= SyncPlan.WATCHED_PERCENT
+        when {
+            late && (lookup.watched(title, entry.at) || !watched && lookup.paused(title, entry.at)) -> Unit
+            late && watched -> write(listOf(entry)) { it.addToHistory(historyOf(listOf(title to entry.at))) }
+            else -> write(listOf(entry)) { it.scrobbleStop(scrobbleOf(title, percent)) }
         }
+        dao.sent(listOf(entry))
     }
 
-    /** Sends a write, spaced from the last one, then takes [done] off the queue. */
-    private suspend fun write(done: List<TraktPendingEntity>, request: suspend (TraktApi) -> Any) {
+    /**
+     * Sends a write spaced from the last one, noting when [tried] went: true once Trakt took it, false when it
+     * refused what it carries; any other failure is thrown as [Unsent].
+     */
+    private suspend fun write(tried: List<TraktPendingEntity>, request: suspend (TraktApi) -> Any): Boolean {
         lastWrite?.let { delay(it + WRITE_GAP_MS - clock()) }
-        try {
+        // Noted before it goes: Trakt may take a write whose answer is lost, or whose process dies waiting.
+        read("sending") { sending(tried, now()) }
+        val failure = try {
             trakt(request)
+            return true
         } catch (e: HttpException) {
-            if (e.code() in KEPT || e.code() >= SERVER_ERRORS) throw e
-            Log.w(TAG, "Trakt refused ${done.size} titles (HTTP ${e.code()}): not sent again")
+            if (e.code() !in ACCOUNT && e.code() != TIMEOUT && e.code() < SERVER_ERRORS) {
+                Log.w(TAG, "Trakt refused ${tried.size} titles (HTTP ${e.code()})")
+                return false
+            }
+            e
+        } catch (e: IOException) {
+            e
         } finally {
             lastWrite = clock()
         }
-        dao.sent(done)
+        if (unreached(failure)) read("sending") { unsent(tried) }
+        throw Unsent(tried, failure)
     }
 
     /** Calls Trakt, waiting out its limit ([RETRY_AFTER], else [X_RATELIMIT]'s end) a few times, never for long. */
@@ -310,6 +420,41 @@ class TraktSync(
     private suspend fun <T> read(what: String, step: suspend TraktDao.() -> T): T? =
         suspendRunCatching { dao.step() }.onFailure { Log.w(TAG, "Trakt's $what: ${described(it)}") }.getOrNull()
 
+    /** What a send reads of Trakt to decide, each at most once and only when needed. */
+    private inner class Lookup {
+        private var activities: LastActivities? = null
+        private var movies: Map<TraktTitle, Long>? = null
+        private var shows: Map<TraktTitle, Long>? = null
+        private var pauses: List<PlaybackProgress>? = null
+
+        suspend fun paused(): List<PlaybackProgress> = pauses ?: trakt { it.playback() }.also { pauses = it }
+
+        /** Whether Trakt paused [title] after [at] (ms). */
+        suspend fun paused(title: TraktTitle, at: Long): Boolean =
+            paused().any { it.title() == title && (millisOf(it.pausedAt) ?: 0L) > at }
+
+        /**
+         * Whether Trakt has a play of [title] at [at] (ms) or later; its history is read only once its last activities
+         * say it changed [since] then, give or take [CLOCK_SKEW_MS] of the device's clock.
+         */
+        suspend fun watched(title: TraktTitle, at: Long, since: Long = at): Boolean {
+            val last = activities ?: trakt { it.lastActivities() }.also { activities = it }
+            val movie = title is TraktTitle.Movie
+            val changed = millisOf(if (movie) last.movies.watchedAt else last.episodes.watchedAt) ?: return false
+            if (changed < since - CLOCK_SKEW_MS) return false
+            val seen = if (movie) {
+                movies ?: trakt { it.watchedMovies() }.watched().also { movies = it }
+            } else {
+                shows ?: trakt { it.watchedShows() }.watched().also { shows = it }
+            }
+            // Trakt keeps a play's date to the second.
+            return (seen[title] ?: return false) >= at - MS_PER_S
+        }
+    }
+
+    /** A write that failed, [tried] kept for later. */
+    private class Unsent(val tried: List<TraktPendingEntity>, cause: Throwable) : Exception(cause)
+
     /** What changes Trakt's history or pauses, in one value. */
     private fun LastActivities.key() = listOf(movies.watchedAt, movies.pausedAt, episodes.watchedAt, episodes.pausedAt).joinToString("|")
 
@@ -336,6 +481,12 @@ class TraktSync(
         /** A stop sent later than this did not just happen. */
         const val LATE_MS = 10 * 60_000L
 
+        /** How far the device's clock may stand from Trakt's. */
+        const val CLOCK_SKEW_MS = 10 * 60_000L
+
+        /** Writes Trakt fails for a title, while answering reads, before the title is dropped. */
+        const val MAX_ATTEMPTS = 5
+
         const val RETRY_AFTER = "Retry-After"
         const val X_RATELIMIT = "X-Ratelimit"
         val UNTIL = Regex(""""until"\s*:\s*"([^"]+)"""")
@@ -343,18 +494,48 @@ class TraktSync(
         const val MAX_WAIT_MS = 60_000L
         const val BACKOFF_MS = 2_000L
 
+        const val TIMEOUT = 408
+        const val LOCKED = 423
         const val SERVER_ERRORS = 500
 
-        /** Refusals of the account, not of the titles sent: kept for later. */
-        val KEPT = setOf(HttpStatus.UNAUTHORIZED, HttpStatus.FORBIDDEN, 408, 423, HttpStatus.TOO_MANY_REQUESTS)
+        /** Refusals of the account, not of the titles sent: kept for later, never counted against them. */
+        val ACCOUNT = setOf(HttpStatus.UNAUTHORIZED, HttpStatus.FORBIDDEN, LOCKED, HttpStatus.TOO_MANY_REQUESTS)
 
-        fun errorOf(e: Throwable): TraktSyncError = when {
-            e is HttpException && e.code() == HttpStatus.TOO_MANY_REQUESTS -> TraktSyncError.BUSY
-            else -> when (e.failureKind()) {
-                FailureKind.UNREACHABLE, FailureKind.IO, FailureKind.CERTIFICATE -> TraktSyncError.OFFLINE
-                FailureKind.STORAGE_FULL, FailureKind.STORAGE_FAILED -> TraktSyncError.STORAGE
-                else -> TraktSyncError.FAILED
+        /** A write that never reached Trakt, or that Trakt refused before taking anything. */
+        fun unreached(e: Exception): Boolean = when (e) {
+            is HttpException -> e.code() in ACCOUNT
+            else -> e is UnknownHostException || e is ConnectException || e is NoRouteToHostException || e is SSLHandshakeException
+        }
+
+        fun errorOf(e: Throwable): TraktSyncError {
+            val failure = (e as? Unsent)?.cause ?: e
+            return when ((failure as? HttpException)?.code()) {
+                HttpStatus.TOO_MANY_REQUESTS -> TraktSyncError.BUSY
+                LOCKED -> TraktSyncError.REFUSED
+                else -> when (failure.failureKind()) {
+                    FailureKind.UNREACHABLE, FailureKind.IO -> TraktSyncError.OFFLINE
+                    FailureKind.CERTIFICATE -> TraktSyncError.CERTIFICATE
+                    FailureKind.REFUSED -> TraktSyncError.REFUSED
+                    FailureKind.UNEXPECTED_ANSWER -> TraktSyncError.UNREADABLE
+                    FailureKind.STORAGE_FULL, FailureKind.STORAGE_FAILED -> TraktSyncError.STORAGE
+                    else -> TraktSyncError.FAILED
+                }
             }
         }
+
+        /** What a mark changes on Trakt, one intent per title: a play added or every play removed, else its pause dropped. */
+        fun intentsOf(rows: List<SyncRow>, played: Boolean, at: Long): List<TraktPendingEntity> = rows
+            .flatMap { row ->
+                val action = when {
+                    row.played != played -> if (played) TraktAction.WATCHED else TraktAction.UNWATCHED
+                    // A position the mark resets: a title in progress unmarked, or one watched again marked watched.
+                    row.positionMs > 0 -> TraktAction.UNPAUSED
+                    else -> null
+                }
+                action?.let { a -> row.titles().map { it.key to a } }.orEmpty()
+            }
+            .groupBy({ it.first }, { it.second })
+            // A copy's play outweighs another's pause.
+            .map { (title, actions) -> TraktPendingEntity(title, actions.minBy { it == TraktAction.UNPAUSED }, at) }
     }
 }

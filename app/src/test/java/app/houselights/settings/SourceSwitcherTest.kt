@@ -26,6 +26,7 @@ class SourceSwitcherTest {
         save = save,
         scope = scope,
         signOut = { server, deviceId -> done += "sign out ${server.accessToken} on $deviceId" },
+        leftFolders = { done += "disconnect Trakt" },
     )
 
     private fun SourceConfig.name() = when (this) {
@@ -67,9 +68,24 @@ class SourceSwitcherTest {
     }
 
     @Test
-    fun leavingFoldersOrNothingSignsNothingOut() = runTest {
+    fun leavingTheFoldersForAServerDisconnectsTraktOnceTheServerIsSaved() = runTest {
         switch(from = SourceConfig.Local, to = home)
+        assertEquals(listOf("save old-token", "disconnect Trakt"), done)
+    }
+
+    @Test
+    fun theFoldersKeptOrChosenDisconnectNothing() = runTest {
+        switch(from = SourceConfig.Local, to = SourceConfig.Local)
         switch(from = null, to = SourceConfig.Local)
-        assertEquals(listOf("save old-token", "save folders"), done)
+        switch(from = null, to = home)
+        assertEquals(listOf("save folders", "save folders", "save old-token"), done)
+    }
+
+    @Test
+    fun aServerThatCannotBeSavedKeepsTrakt() = runTest {
+        val failing = switcher(SourceConfig.Local, this) { throw IOException("disk full") }
+        runCatching { failing.switchTo(home) }
+        advanceUntilIdle()
+        assertEquals(emptyList<String>(), done)
     }
 }

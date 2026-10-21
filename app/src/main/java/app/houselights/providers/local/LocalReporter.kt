@@ -37,7 +37,8 @@ internal class LocalReporter(
         } else {
             saveResumePoint(state, positionMs, durationMs, watched)
         }
-        if (finished) tell(state, positionMs, length, watched)
+        // Trakt hears the length the player or the file gives: a stated runtime may be another cut's.
+        if (finished) tell(state, positionMs, durationMs ?: state.durationMs ?: state.fileDurationMs, watched)
     }
 
     /** Writes only playback columns, as a scan may be writing the others concurrently. */
@@ -57,8 +58,8 @@ internal class LocalReporter(
     }
 
     /**
-     * Where a single file stopped, when its length is known and it moved the resume point; a multi-part film only once
-     * watched, as the length of the whole is unknown.
+     * Where a single file stopped, when the player or the file gives its [length] and it moved the resume point; a
+     * multi-part film only once watched, as the length of the whole is unknown.
      */
     private suspend fun tell(state: PlayState, positionMs: Long, length: Long?, watched: Boolean) {
         val percent = when {
@@ -77,12 +78,10 @@ internal class LocalReporter(
     /** Fallback duration ([runtimeMs]); null for a part, whose own duration only the player knows. */
     private fun lengthOf(state: PlayState): Long? = if (state.parts.isNotEmpty()) null else state.runtimeMs()
 
-    private fun pastTheEnd(positionMs: Long, duration: Long?) = duration != null && duration > 0 && positionMs >= duration * WATCHED_RATIO
+    private fun pastTheEnd(positionMs: Long, duration: Long?) =
+        duration != null && duration > 0 && positionMs >= duration * WatchHistory.WATCHED_PERCENT / WHOLE
 
     private companion object {
-        /** Trakt's own threshold, so a title is watched on both sides or neither. */
-        const val WATCHED_RATIO = 0.8
-
         const val WHOLE = 100f
 
         /** Below this, the previous resume point is kept: a restart or an accidental start. */

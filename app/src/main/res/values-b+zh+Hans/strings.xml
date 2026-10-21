@@ -584,5 +584,8 @@
     <string name="trakt_sync_offline">Trakt 无响应。您观看的内容将在它恢复响应后发送。</string>
     <string name="trakt_sync_busy">Trakt 要求稍等片刻。同步将自动继续。</string>
     <string name="trakt_sync_failed">与 Trakt 的同步未完成。它将自动继续。</string>
+    <string name="trakt_sync_refused">Trakt 拒绝同步：账户可能已被锁定，或此版本的密钥被拒绝。请在 trakt.tv 上检查您的账户。</string>
+    <string name="trakt_sync_unreadable">此版本无法读取 Trakt 的响应。更新 Houselights 应能解决此问题。</string>
+    <string name="trakt_certificate">Trakt 的证书被拒绝。请检查此设备的日期和时间，然后重试。</string>
     <string name="settings_lost_trakt">无法重新读取本播放器上保存的 Trakt 连接。请重新连接您的账户。</string>
 </resources>

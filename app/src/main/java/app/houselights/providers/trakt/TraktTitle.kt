@@ -85,9 +85,15 @@ internal fun PlaybackProgress.title(): TraktTitle? = when (type) {
     else -> null
 }
 
-/** [titles] dated (ms) as history items, a show's episodes by season; [dated] false sends no date (every play). */
-internal fun historyOf(titles: List<Pair<TraktTitle, Long?>>, dated: Boolean = true): HistoryItems {
-    fun date(at: Long?) = at?.takeIf { dated && it > 0 }?.let(::isoOf)
+/** Trakt's date for a play whose own is unknown: the title's release, never the day it is sent. */
+private const val RELEASED = "released"
+
+/**
+ * [titles] dated (ms, 0 when unknown) as history items, a show's episodes by season; [dated] false sends no date,
+ * which removing reads as every play.
+ */
+internal fun historyOf(titles: List<Pair<TraktTitle, Long>>, dated: Boolean = true): HistoryItems {
+    fun date(at: Long) = if (!dated) null else if (at > 0) isoOf(at) else RELEASED
     val movies = titles.mapNotNull { (title, at) -> (title as? TraktTitle.Movie)?.let { HistoryMovie(TraktIds(tmdb = it.tmdb), date(at)) } }
     val shows = titles.mapNotNull { (title, at) -> (title as? TraktTitle.Episode)?.let { it to at } }
         .groupBy { it.first.show }

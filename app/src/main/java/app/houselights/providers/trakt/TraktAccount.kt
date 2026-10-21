@@ -122,7 +122,8 @@ class TraktAccount(
     /** The new session, saved; if it cannot be, the account stays as it was and the failure is thrown. */
     private suspend fun signedIn(tokens: TraktTokens) = lock.withLock {
         val before = held
-        keep(TraktSession(tokens.accessToken, tokens.refreshToken, now() + tokens.expiresIn)).onFailure { held = before }.getOrThrow()
+        val next = TraktSession(tokens.accessToken, tokens.refreshToken, now() + tokens.expiresIn, tokens.expiresIn)
+        keep(next).onFailure { held = before }.getOrThrow()
     }
 
     /** The name stays unknown when Trakt cannot say it, to be read later; a failure to save it is thrown. */
@@ -143,7 +144,7 @@ class TraktAccount(
     suspend fun <T> call(block: suspend (TraktApi) -> T): T {
         if (held?.saved == false) lock.withLock { held?.takeUnless { it.saved }?.let { keep(it.session) } }
         var current = live()
-        if (current.expiresAt - now() < RENEW_BEFORE_S) {
+        if (current.expiresAt - now() < current.lifetime / RENEW_PART) {
             current = suspendRunCatching { renew(current) }.getOrElse { e ->
                 // Not renewed for now (no network, Trakt busy): the token still works until it ends.
                 if (e is TraktSignedOutException || current.expiresAt <= now()) throw e
@@ -177,8 +178,12 @@ class TraktAccount(
             throw TraktSignedOutException()
         }
         // Trakt has spent the old refresh token: the new one is kept in memory even if it cannot be saved yet.
-        current.copy(accessToken = tokens.accessToken, refreshToken = tokens.refreshToken, expiresAt = now() + tokens.expiresIn)
-            .also { keep(it) }
+        current.copy(
+            accessToken = tokens.accessToken,
+            refreshToken = tokens.refreshToken,
+            expiresAt = now() + tokens.expiresIn,
+            lifetime = tokens.expiresIn,
+        ).also { keep(it) }
     }
 
     /** Trakt ended the connection: its access token is revoked, and only the fact is kept. */
@@ -248,8 +253,8 @@ class TraktAccount(
 
         const val INVALID_GRANT = "invalid_grant"
 
-        /** Access tokens last seven days; renewed in their last. */
-        const val RENEW_BEFORE_S = 24 * 60 * 60L
+        /** A token is renewed once less than this part of its life is left: the last 6 h of Trakt's 24. */
+        const val RENEW_PART = 4
 
         const val SIGN_OUT_MS = 3_000L
     }

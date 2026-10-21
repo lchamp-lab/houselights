@@ -43,8 +43,16 @@
     manual match by title, year or IMDb id. Corrections survive later scans.
   - Films of a saga are gathered, with a page per saga showing the films you own and those you don't.
   - Your [Trakt](https://trakt.tv) account connects in Settings > Trakt, with a code entered on your phone
-    or computer, and keeps what you watch: titles watched on either side are watched on both, the latest
-    pause wins, and marks made offline wait for Trakt (Jellyfin has its own Trakt plugin).
+    or computer, and keeps what you watch in your folders (Jellyfin has its own Trakt plugin):
+    - a title watched on either side is watched on both, at the date it was seen; in every folder, a title
+      is watched from 80 % of its length, as on Trakt;
+    - where you stopped goes by the latest of Trakt's pause, the last play here (of the copy that plays)
+      and the last play Trakt knows, so a pause older than a play never comes back;
+    - marking a title unwatched removes every play of it from Trakt's history, those of other devices
+      too; a title only in progress loses its pause alone;
+    - marks and stops wait while Trakt cannot be reached, or until the account is connected again once
+      Trakt ended its connection; disconnecting forgets them, and choosing a server as the source
+      disconnects Trakt.
 - **Jellyfin**: browses your server and reports playback progress back to it. Emby and Plex are planned.
 - **In your language**: the interface in English, French, German, Spanish, Italian, Portuguese, Dutch,
   Polish, Chinese (simplified and traditional), Japanese and Korean, and details in the language of your
