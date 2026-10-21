@@ -601,4 +601,46 @@
     <string name="search_people">Osoby</string>
     <string name="search_sagas">Sagi</string>
     <string name="search_none">Nic nie zaczyna się od „%s”</string>
+    <!-- Trakt -->
+    <string name="trakt_desc">Konto Trakt zapisuje, co oglądasz z folderów: obejrzane filmy i odcinki oraz miejsce, w którym przerwano oglądanie.</string>
+    <string name="trakt_no_keys">Ta wersja Houselights nie ma klucza Trakt.</string>
+    <string name="trakt_signed_out">Nie połączono</string>
+    <string name="trakt_connected">Połączono</string>
+    <string name="trakt_signed_in_as">Połączono jako %s</string>
+    <string name="trakt_connect">Połącz konto</string>
+    <string name="trakt_connect_desc">Za pomocą kodu wpisanego w telefonie lub komputerze</string>
+    <string name="trakt_disconnect">Odłącz konto</string>
+    <string name="trakt_disconnect_desc">Houselights zapomni je na tym urządzeniu.</string>
+    <string name="trakt_disconnecting">Odłączanie…</string>
+    <string name="trakt_code_desc">Zeskanuj kod QR telefonem albo otwórz jego adres na komputerze, a potem wpisz ten kod.</string>
+    <string name="trakt_asking">Pobieranie kodu z Trakt…</string>
+    <string name="trakt_waiting">Oczekiwanie na zgodę</string>
+    <string name="trakt_code_left">Ten kod wygaśnie za %s</string>
+    <string name="trakt_offline">Trakt nie odpowiada. Sprawdź połączenie urządzenia z internetem i spróbuj ponownie.</string>
+    <string name="trakt_denied">Dostęp został odrzucony w Trakt. Połącz ponownie, aby na niego zezwolić.</string>
+    <string name="trakt_expired">Kod wygasł, zanim został wpisany. Połącz ponownie, aby otrzymać nowy.</string>
+    <string name="trakt_refused">Trakt odrzuca klucz tej wersji, więc nie można połączyć konta.</string>
+    <string name="trakt_failed">Trakt nie mógł dokończyć połączenia. Spróbuj ponownie za chwilę.</string>
+    <string name="trakt_ended">Trakt zakończył to połączenie. Połącz konto ponownie.</string>
+    <string name="trakt_last_sync">Ostatnia synchronizacja</string>
+    <plurals name="trakt_watched_count">
+        <item quantity="one">%d obejrzany</item>
+        <item quantity="few">%d obejrzane</item>
+        <item quantity="many">%d obejrzanych</item>
+        <item quantity="other">%d obejrzanego</item>
+    </plurals>
+    <plurals name="trakt_in_progress_count">
+        <item quantity="one">%d w trakcie</item>
+        <item quantity="few">%d w trakcie</item>
+        <item quantity="many">%d w trakcie</item>
+        <item quantity="other">%d w trakcie</item>
+    </plurals>
+    <string name="trakt_counts">%1$s, %2$s</string>
+    <string name="trakt_sync_now">Synchronizuj teraz</string>
+    <string name="trakt_sync_now_desc">Łączy to, co obejrzano tutaj i w Trakt</string>
+    <string name="trakt_syncing">Synchronizacja…</string>
+    <string name="trakt_sync_offline">Trakt nie odpowiada. To, co oglądasz, zostanie wysłane, gdy tylko odpowie.</string>
+    <string name="trakt_sync_busy">Trakt prosi o chwilę cierpliwości. Synchronizacja wznowi się sama.</string>
+    <string name="trakt_sync_failed">Synchronizacja z Trakt nie została ukończona. Wznowi się sama.</string>
+    <string name="settings_lost_trakt">Nie udało się ponownie odczytać połączenia z Trakt zapisanego na tym odtwarzaczu. Połącz konto ponownie.</string>
 </resources>

@@ -245,9 +245,10 @@ class SettingsViewModelTest {
 
     @Test
     fun eachPaneSaysWhatOfItsOwnWasLost() {
-        val lost = setOf(SecretSetting.TMDB_KEY, SecretSetting.PATH_MAPPINGS)
+        val lost = setOf(SecretSetting.TMDB_KEY, SecretSetting.PATH_MAPPINGS, SecretSetting.TRAKT)
         assertEquals(R.string.settings_lost_tmdb_key, lostSecretNote(Pane.Library, lost))
         assertEquals(R.string.settings_lost_mappings, lostSecretNote(Pane.Playback, lost))
+        assertEquals(R.string.settings_lost_trakt, lostSecretNote(Pane.Trakt, lost))
         assertNull(lostSecretNote(Pane.Display, lost))
         assertNull(lostSecretNote(Pane.Library, setOf(SecretSetting.SOURCE)))
     }

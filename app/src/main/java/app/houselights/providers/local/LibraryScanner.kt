@@ -74,6 +74,11 @@ class LibraryScanner(
     /** Emits while scanning, so screens show new entries progressively. */
     val changed: SharedFlow<Unit> = _changed
 
+    private val _passEnded = MutableSharedFlow<Boolean>(extraBufferCapacity = 1)
+
+    /** Emits at the end of each pass, true when it changed the library. */
+    val passEnded: SharedFlow<Boolean> = _passEnded
+
     private val lock = Mutex()
 
     private val files = ScanFiles(dao, artwork, browsers)
@@ -264,6 +269,7 @@ class LibraryScanner(
         }
         // No change, no refresh of the screens.
         if (changed) _changed.emit(Unit)
+        _passEnded.tryEmit(changed)
         if (refreshMetadata) refreshed(errors, client)
     }
 

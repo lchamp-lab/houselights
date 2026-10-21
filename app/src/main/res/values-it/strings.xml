@@ -586,4 +586,44 @@
     <string name="search_people">Persone</string>
     <string name="search_sagas">Saghe</string>
     <string name="search_none">Niente inizia con «%s»</string>
+    <!-- Trakt -->
+    <string name="trakt_desc">L’account Trakt conserva ciò che si guarda dalle cartelle: i film e gli episodi visti, e il punto raggiunto.</string>
+    <string name="trakt_no_keys">Questa versione di Houselights non ha una chiave Trakt.</string>
+    <string name="trakt_signed_out">Non connesso</string>
+    <string name="trakt_connected">Connesso</string>
+    <string name="trakt_signed_in_as">Connesso come %s</string>
+    <string name="trakt_connect">Collega l’account</string>
+    <string name="trakt_connect_desc">Con un codice da inserire sul telefono o sul computer</string>
+    <string name="trakt_disconnect">Scollega l’account</string>
+    <string name="trakt_disconnect_desc">Houselights lo dimentica su questo dispositivo.</string>
+    <string name="trakt_disconnecting">Scollegamento…</string>
+    <string name="trakt_code_desc">Inquadrare il codice QR con il telefono, o aprire il suo indirizzo su un computer, poi inserire questo codice.</string>
+    <string name="trakt_asking">Richiesta di un codice a Trakt…</string>
+    <string name="trakt_waiting">In attesa dell’approvazione</string>
+    <string name="trakt_code_left">Questo codice scade tra %s</string>
+    <string name="trakt_offline">Trakt non risponde. Verificare la connessione a Internet del dispositivo, poi riprovare.</string>
+    <string name="trakt_denied">L’accesso è stato negato su Trakt. Collegare di nuovo l’account per consentirlo.</string>
+    <string name="trakt_expired">Il codice è scaduto prima di essere inserito. Collegare di nuovo l’account per riceverne un altro.</string>
+    <string name="trakt_refused">Trakt rifiuta la chiave di questa versione: l’account non può essere collegato.</string>
+    <string name="trakt_failed">Trakt non è riuscito a completare il collegamento. Riprovare tra un momento.</string>
+    <string name="trakt_ended">Trakt ha chiuso questo collegamento. Collegare di nuovo l’account.</string>
+    <string name="trakt_last_sync">Ultima sincronizzazione</string>
+    <plurals name="trakt_watched_count">
+        <item quantity="one">%d visto</item>
+        <item quantity="many">%d visti</item>
+        <item quantity="other">%d visti</item>
+    </plurals>
+    <plurals name="trakt_in_progress_count">
+        <item quantity="one">%d in corso</item>
+        <item quantity="many">%d in corso</item>
+        <item quantity="other">%d in corso</item>
+    </plurals>
+    <string name="trakt_counts">%1$s, %2$s</string>
+    <string name="trakt_sync_now">Sincronizza ora</string>
+    <string name="trakt_sync_now_desc">Riunisce ciò che è stato visto qui e su Trakt</string>
+    <string name="trakt_syncing">Sincronizzazione…</string>
+    <string name="trakt_sync_offline">Trakt non risponde. Ciò che si guarda gli sarà inviato appena risponde.</string>
+    <string name="trakt_sync_busy">Trakt chiede di attendere un po’. La sincronizzazione riprenderà da sola.</string>
+    <string name="trakt_sync_failed">La sincronizzazione con Trakt non è stata completata. Riprenderà da sola.</string>
+    <string name="settings_lost_trakt">Impossibile rileggere il collegamento a Trakt salvato su questo lettore. Collegare di nuovo l’account.</string>
 </resources>

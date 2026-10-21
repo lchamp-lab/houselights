@@ -565,4 +565,42 @@
     <string name="search_people">Personen</string>
     <string name="search_sagas">Saga’s</string>
     <string name="search_none">Niets begint met “%s”</string>
+    <!-- Trakt -->
+    <string name="trakt_desc">Uw Trakt-account houdt bij wat u vanuit uw mappen kijkt: de bekeken films en afleveringen, en waar u gebleven bent.</string>
+    <string name="trakt_no_keys">Deze versie van Houselights heeft geen Trakt-sleutel.</string>
+    <string name="trakt_signed_out">Niet verbonden</string>
+    <string name="trakt_connected">Verbonden</string>
+    <string name="trakt_signed_in_as">Verbonden als %s</string>
+    <string name="trakt_connect">Uw account verbinden</string>
+    <string name="trakt_connect_desc">Met een code die u op uw telefoon of computer invoert</string>
+    <string name="trakt_disconnect">Uw account loskoppelen</string>
+    <string name="trakt_disconnect_desc">Houselights vergeet het op dit apparaat.</string>
+    <string name="trakt_disconnecting">Loskoppelen…</string>
+    <string name="trakt_code_desc">Scan de QR-code met uw telefoon, of open het adres op een computer, en voer dan deze code in.</string>
+    <string name="trakt_asking">Code opvragen bij Trakt…</string>
+    <string name="trakt_waiting">Wachten op uw toestemming</string>
+    <string name="trakt_code_left">Deze code verloopt over %s</string>
+    <string name="trakt_offline">Trakt reageert niet. Controleer de internetverbinding van het apparaat en probeer het opnieuw.</string>
+    <string name="trakt_denied">De toegang is op Trakt geweigerd. Verbind opnieuw om die toe te staan.</string>
+    <string name="trakt_expired">De code is verlopen voordat hij werd ingevoerd. Verbind opnieuw voor een nieuwe.</string>
+    <string name="trakt_refused">Trakt weigert de sleutel van deze versie, dus de account kan niet worden verbonden.</string>
+    <string name="trakt_failed">Trakt kon de verbinding niet voltooien. Probeer het zo meteen opnieuw.</string>
+    <string name="trakt_ended">Trakt heeft deze verbinding beëindigd. Verbind uw account opnieuw.</string>
+    <string name="trakt_last_sync">Laatste synchronisatie</string>
+    <plurals name="trakt_watched_count">
+        <item quantity="one">%d gezien</item>
+        <item quantity="other">%d gezien</item>
+    </plurals>
+    <plurals name="trakt_in_progress_count">
+        <item quantity="one">%d begonnen</item>
+        <item quantity="other">%d begonnen</item>
+    </plurals>
+    <string name="trakt_counts">%1$s, %2$s</string>
+    <string name="trakt_sync_now">Nu synchroniseren</string>
+    <string name="trakt_sync_now_desc">Brengt samen wat u hier en op Trakt hebt gezien</string>
+    <string name="trakt_syncing">Synchroniseren…</string>
+    <string name="trakt_sync_offline">Trakt reageert niet. Wat u bekijkt, wordt verstuurd zodra Trakt weer reageert.</string>
+    <string name="trakt_sync_busy">Trakt vraagt even te wachten. Het synchroniseren gaat vanzelf verder.</string>
+    <string name="trakt_sync_failed">Het synchroniseren met Trakt is niet voltooid. Het gaat vanzelf verder.</string>
+    <string name="settings_lost_trakt">De Trakt-verbinding die op deze speler is opgeslagen, kon niet opnieuw worden gelezen. Verbind uw account opnieuw.</string>
 </resources>

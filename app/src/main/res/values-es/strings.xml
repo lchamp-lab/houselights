@@ -586,4 +586,44 @@
     <string name="search_people">Personas</string>
     <string name="search_sagas">Sagas</string>
     <string name="search_none">Nada empieza por «%s»</string>
+    <!-- Trakt -->
+    <string name="trakt_desc">Su cuenta de Trakt guarda lo que ve desde sus carpetas: las películas y los episodios vistos, y dónde se quedó.</string>
+    <string name="trakt_no_keys">Esta versión de Houselights no tiene clave de Trakt.</string>
+    <string name="trakt_signed_out">No conectado</string>
+    <string name="trakt_connected">Conectado</string>
+    <string name="trakt_signed_in_as">Conectado como %s</string>
+    <string name="trakt_connect">Conectar su cuenta</string>
+    <string name="trakt_connect_desc">Con un código que se introduce en su teléfono u ordenador</string>
+    <string name="trakt_disconnect">Desconectar su cuenta</string>
+    <string name="trakt_disconnect_desc">Houselights la olvida en este dispositivo.</string>
+    <string name="trakt_disconnecting">Desconectando…</string>
+    <string name="trakt_code_desc">Escanee el código QR con su teléfono, o abra su dirección en un ordenador, y luego introduzca este código.</string>
+    <string name="trakt_asking">Pidiendo un código a Trakt…</string>
+    <string name="trakt_waiting">Esperando su aprobación</string>
+    <string name="trakt_code_left">Este código caduca en %s</string>
+    <string name="trakt_offline">Trakt no responde. Compruebe la conexión a Internet del dispositivo y vuelva a intentarlo.</string>
+    <string name="trakt_denied">Se denegó el acceso en Trakt. Vuelva a conectarse para permitirlo.</string>
+    <string name="trakt_expired">El código caducó antes de introducirse. Vuelva a conectarse para obtener otro.</string>
+    <string name="trakt_refused">Trakt rechaza la clave de esta versión, así que la cuenta no puede conectarse.</string>
+    <string name="trakt_failed">Trakt no pudo completar la conexión. Vuelva a intentarlo en un momento.</string>
+    <string name="trakt_ended">Trakt terminó esta conexión. Vuelva a conectar su cuenta.</string>
+    <string name="trakt_last_sync">Última sincronización</string>
+    <plurals name="trakt_watched_count">
+        <item quantity="one">%d visto</item>
+        <item quantity="many">%d vistos</item>
+        <item quantity="other">%d vistos</item>
+    </plurals>
+    <plurals name="trakt_in_progress_count">
+        <item quantity="one">%d en curso</item>
+        <item quantity="many">%d en curso</item>
+        <item quantity="other">%d en curso</item>
+    </plurals>
+    <string name="trakt_counts">%1$s, %2$s</string>
+    <string name="trakt_sync_now">Sincronizar ahora</string>
+    <string name="trakt_sync_now_desc">Reúne lo que ha visto aquí y en Trakt</string>
+    <string name="trakt_syncing">Sincronizando…</string>
+    <string name="trakt_sync_offline">Trakt no responde. Lo que vea se le enviará en cuanto responda.</string>
+    <string name="trakt_sync_busy">Trakt pide esperar un poco. La sincronización se reanudará sola.</string>
+    <string name="trakt_sync_failed">La sincronización con Trakt no se completó. Se reanudará sola.</string>
+    <string name="settings_lost_trakt">La conexión con Trakt guardada en este reproductor no se pudo volver a leer. Vuelva a conectar su cuenta.</string>
 </resources>

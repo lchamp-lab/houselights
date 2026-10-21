@@ -547,4 +547,40 @@
     <string name="search_people">人物</string>
     <string name="search_sagas">系列</string>
     <string name="search_none">没有以“%s”开头的结果</string>
+    <!-- Trakt -->
+    <string name="trakt_desc">您的 Trakt 账户会记录您在文件夹中观看的内容：看过的电影和剧集，以及您看到的位置。</string>
+    <string name="trakt_no_keys">此版本的 Houselights 没有 Trakt 密钥。</string>
+    <string name="trakt_signed_out">未连接</string>
+    <string name="trakt_connected">已连接</string>
+    <string name="trakt_signed_in_as">已连接账户 %s</string>
+    <string name="trakt_connect">连接您的账户</string>
+    <string name="trakt_connect_desc">在手机或电脑上输入一个代码即可</string>
+    <string name="trakt_disconnect">断开您的账户</string>
+    <string name="trakt_disconnect_desc">Houselights 将在此设备上忘记该账户。</string>
+    <string name="trakt_disconnecting">正在断开…</string>
+    <string name="trakt_code_desc">用手机扫描二维码，或在电脑上打开其地址，然后输入此代码。</string>
+    <string name="trakt_asking">正在向 Trakt 请求代码…</string>
+    <string name="trakt_waiting">等待您的授权</string>
+    <string name="trakt_code_left">此代码将在 %s 后过期</string>
+    <string name="trakt_offline">Trakt 无响应。请检查此设备的网络连接，然后重试。</string>
+    <string name="trakt_denied">您在 Trakt 上拒绝了访问。请重新连接以授权。</string>
+    <string name="trakt_expired">代码在输入前已过期。请重新连接以获取新代码。</string>
+    <string name="trakt_refused">Trakt 拒绝了此版本的密钥，因此无法连接账户。</string>
+    <string name="trakt_failed">Trakt 未能完成连接。请稍后重试。</string>
+    <string name="trakt_ended">Trakt 已结束此连接。请重新连接您的账户。</string>
+    <string name="trakt_last_sync">上次同步</string>
+    <plurals name="trakt_watched_count">
+        <item quantity="other">已看 %d 项</item>
+    </plurals>
+    <plurals name="trakt_in_progress_count">
+        <item quantity="other">在看 %d 项</item>
+    </plurals>
+    <string name="trakt_counts">%1$s，%2$s</string>
+    <string name="trakt_sync_now">立即同步</string>
+    <string name="trakt_sync_now_desc">合并您在这里和 Trakt 上看过的内容</string>
+    <string name="trakt_syncing">正在同步…</string>
+    <string name="trakt_sync_offline">Trakt 无响应。您观看的内容将在它恢复响应后发送。</string>
+    <string name="trakt_sync_busy">Trakt 要求稍等片刻。同步将自动继续。</string>
+    <string name="trakt_sync_failed">与 Trakt 的同步未完成。它将自动继续。</string>
+    <string name="settings_lost_trakt">无法重新读取本播放器上保存的 Trakt 连接。请重新连接您的账户。</string>
 </resources>
