@@ -109,6 +109,7 @@ import kotlin.math.ceil
 import kotlin.math.roundToInt
 import app.houselights.ui.design.Scrub
 import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.onLongClick
 
 /** True while a card of the enclosing row or grid has focus, so the others recede. */
 val LocalGroupFocused = compositionLocalOf { false }
@@ -189,7 +190,8 @@ private fun RowHeading(modifier: Modifier, count: String?, news: Int, title: @Co
 /**
  * The focus treatment of all artwork (DESIGN.md, Cards): framed, it glows in its own tone ([light], else the
  * ambient light) while its siblings recede; in a [MediaRow], the row draws its frame.
- * Read as one element with [stateDescription]; with [readAs], that text alone, actionable if [acts].
+ * Read as one element with [stateDescription]; with [readAs], that text alone, its click only if [acts].
+ * A long OK does [onLongClick], named by [onLongClickLabel].
  */
 @Composable
 fun ArtworkSurface(
@@ -201,6 +203,8 @@ fun ArtworkSurface(
     readAs: String? = null,
     acts: Boolean = false,
     light: String? = null,
+    onLongClick: (() -> Unit)? = null,
+    onLongClickLabel: String? = null,
     content: @Composable BoxScope.() -> Unit,
 ) {
     val interaction = remember { MutableInteractionSource() }
@@ -217,7 +221,7 @@ fun ArtworkSurface(
     val ambient = LocalAmbient.current
     val group = LocalGroupFocus.current
     val member = rememberGroupMember(group)
-    val reading = cardReading(readAs, stateDescription, focused, onClick.takeIf { acts })
+    val reading = cardReading(readAs, stateDescription, focused, onClick.takeIf { acts }, onLongClick, onLongClickLabel)
     HlFocusSurface(
         onClick = onClick,
         look = FocusStyle.frame(
@@ -230,6 +234,8 @@ fun ArtworkSurface(
             .rememberedInGroup(group, member)
             .then(reading)
             .onFocusChanged { if (it.isFocused) onFocused() },
+        onLongClick = onLongClick,
+        onLongClickLabel = onLongClickLabel,
         glow = { if (light != null) own.value else ambient.glow() },
         interactionSource = interaction,
         row = LocalRowFrame.current,
@@ -239,13 +245,22 @@ fun ArtworkSurface(
     }
 }
 
-/** Clearing semantics for [readAs] drops the click action, so focus is restated and [onClick] re-added. */
-private fun cardReading(readAs: String?, stateDescription: String?, focused: Boolean, onClick: (() -> Unit)?): Modifier =
+/** Clearing semantics for [readAs] drops the clicks, so focus is restated and [onClick] and [onLongClick] re-added. */
+@Suppress("LongParameterList") // What is restated, and its clicks.
+private fun cardReading(
+    readAs: String?,
+    stateDescription: String?,
+    focused: Boolean,
+    onClick: (() -> Unit)?,
+    onLongClick: (() -> Unit)?,
+    longClickLabel: String?,
+): Modifier =
     if (readAs != null) {
         Modifier.clearAndSetSemantics {
             contentDescription = readAs
             this.focused = focused
             onClick?.let { act -> onClick { act(); true } }
+            onLongClick?.let { act -> onLongClick(label = longClickLabel) { act(); true } }
         }
     } else {
         Modifier.semantics(mergeDescendants = true) { stateDescription?.let { this.stateDescription = it } }
@@ -368,7 +383,10 @@ fun PosterCard(
     }
 }
 
-/** 16:9 still with an optional caption: an episode [number] and the [title], then [facts], beside or under it. */
+/**
+ * 16:9 still with an optional caption: an episode [number] and the [title], then [facts], beside or under it.
+ * A long OK does [onLongClick], named by [onLongClickLabel].
+ */
 @Composable
 fun LandscapeCard(
     item: MediaItem,
@@ -379,6 +397,8 @@ fun LandscapeCard(
     number: String? = null,
     facts: List<String?> = emptyList(),
     onFocused: () -> Unit = {},
+    onLongClick: (() -> Unit)? = null,
+    onLongClickLabel: String? = null,
 ) {
     val still = item.landscape?.url(width.toPx())
     CardColumn(modifier.width(width)) {
@@ -389,6 +409,8 @@ fun LandscapeCard(
             onFocused = onFocused,
             stateDescription = cardState(item),
             light = still,
+            onLongClick = onLongClick,
+            onLongClickLabel = onLongClickLabel,
         ) {
             ArtworkImage(still, item.title, Modifier.fillMaxSize()) {
                 FallbackArtwork(title ?: item.title, item.year.takeIf { title == null })

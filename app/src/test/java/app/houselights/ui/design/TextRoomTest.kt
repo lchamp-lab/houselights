@@ -23,7 +23,7 @@ class TextRoomTest {
     @get:Rule
     val compose = createComposeRule()
 
-    private class Rooms(val heroMin: Dp, val infoLine: Dp, val labelRoom: Dp)
+    private class Rooms(val heroMin: Dp, val infoLine: Dp, val labelRoom: Dp, val hintRoom: Dp)
 
     @Test
     fun theRoomOfALineGrowsWithTheTextSize() {
@@ -32,7 +32,8 @@ class TextRoomTest {
             listOf(1f, LARGEST).forEach { scale ->
                 CompositionLocalProvider(LocalDensity provides Density(1f, scale)) {
                     HouselightsTheme {
-                        rooms[scale] = Rooms(HlLayout.detailHeroMin(540.dp), HlLayout.infoLine, HlIconButtonDefaults.labelRoom)
+                        val tile = HlIconButtonDefaults
+                        rooms[scale] = Rooms(HlLayout.detailHeroMin(540.dp), HlLayout.infoLine, tile.labelRoom, tile.hintRoom)
                     }
                 }
             }
@@ -44,6 +45,7 @@ class TextRoomTest {
         assertEquals(452f, default.heroMin.value, 0.01f)
         assertEquals(28f, default.infoLine.value, 0.01f)
         assertEquals(36f, default.labelRoom.value, 0.01f)
+        assertEquals(20f, default.hintRoom.value, 0.01f)
         // How much taller a line of [height] at the default text size is at the largest.
         fun growth(height: Float) = with(Density(1f, LARGEST)) { height.sp.toDp().value } - height
         val header = growth(HouselightsType.rowTitle.lineHeight.value)
@@ -52,6 +54,7 @@ class TextRoomTest {
         assertEquals("a poster wall's title line", default.infoLine.value + growth(default.infoLine.value), large.infoLine.value, 0.01f)
         val label = growth(HouselightsType.caption.lineHeight.value)
         assertEquals("a button's label", default.labelRoom.value + label, large.labelRoom.value, 0.01f)
+        assertEquals("a tile's hint", default.hintRoom.value + label, large.hintRoom.value, 0.01f)
     }
 
     private companion object {

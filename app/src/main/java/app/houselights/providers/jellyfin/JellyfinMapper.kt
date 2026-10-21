@@ -77,7 +77,8 @@ internal class JellyfinMapper(private val client: JellyfinClient) {
             seasonId = dto.seasonId,
             seasonNumber = if (kind == MediaKind.SEASON) dto.indexNumber else dto.parentIndexNumber,
             episodeNumber = if (kind == MediaKind.EPISODE) dto.indexNumber else null,
-            childCount = dto.childCount,
+            // A season counts its episodes on disk, as its unwatched count does.
+            childCount = if (kind == MediaKind.SEASON) dto.recursiveItemCount ?: dto.childCount else dto.childCount,
         )
     }
 

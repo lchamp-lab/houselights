@@ -63,6 +63,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.constrainWidth
 import androidx.compose.ui.unit.offset
@@ -92,6 +93,7 @@ import app.houselights.ui.design.emberLight
 import app.houselights.ui.design.emberLit
 import app.houselights.ui.design.plate
 import app.houselights.ui.design.plateEdge
+import app.houselights.ui.util.screenWidthPx
 import kotlin.math.roundToInt
 
 enum class Emphasis { Primary, Secondary }
@@ -318,6 +320,8 @@ private fun Tile(
     enabled: Boolean = true,
     chosen: Boolean = false,
     interactionSource: MutableInteractionSource? = null,
+    onLongClick: (() -> Unit)? = null,
+    onLongClickLabel: String? = null,
 ) {
     val c = Hl.colors
     val header = LocalInHeader.current
@@ -334,6 +338,8 @@ private fun Tile(
         shape = HlShapes.control,
         modifier = modifier.size(if (header) HlSize.tileCompact else HlSize.tile),
         enabled = enabled,
+        onLongClick = onLongClick,
+        onLongClickLabel = onLongClickLabel,
         interactionSource = interactionSource,
     ) { lit ->
         val tint = when {
@@ -350,15 +356,20 @@ private fun Tile(
     }
 }
 
-/** A row of actions that reserves room below for a tile's focus label, so nothing moves. */
+/**
+ * A row of actions that reserves room below for a tile's focus label, and for its hint's line when [hinted] (a tile
+ * may have one on this screen), so nothing moves.
+ */
 @Composable
 fun HlActionRow(
     modifier: Modifier = Modifier,
     horizontalArrangement: Arrangement.Horizontal = Arrangement.spacedBy(HlSpace.s),
+    hinted: Boolean = false,
     content: @Composable RowScope.() -> Unit,
 ) {
+    val room = HlIconButtonDefaults.labelRoom + if (hinted) HlIconButtonDefaults.hintRoom else HlSpace.none
     Row(
-        Modifier.padding(bottom = HlIconButtonDefaults.labelRoom).then(modifier),
+        Modifier.padding(bottom = room).then(modifier),
         horizontalArrangement = horizontalArrangement,
         verticalAlignment = Alignment.Top,
         content = content,
@@ -368,7 +379,8 @@ fun HlActionRow(
 /**
  * Square icon tile whose focus label overflows below it on a plate, without taking layout space (an
  * [HlActionRow] reserves it), centred unless near the screen side ([HlIconButtonDefaults.labelEdge]), hidden
- * under a sheet. A toggle names its action ("Marquer comme vu") and shows its state by [lit].
+ * under a sheet. A toggle names its action ("Marquer comme vu") and shows its state by [lit]. A long OK does
+ * [onLongClick], which [onLongClickLabel] names to accessibility services and [hint], a quieter second line, on screen.
  */
 @Composable
 fun HlIconButton(
@@ -378,6 +390,9 @@ fun HlIconButton(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     lit: Boolean = false,
+    onLongClick: (() -> Unit)? = null,
+    onLongClickLabel: String? = null,
+    hint: String? = null,
 ) {
     val interaction = remember { MutableInteractionSource() }
     val focused by interaction.collectIsFocusedAsState()
@@ -390,27 +405,37 @@ fun HlIconButton(
     )
     val c = Hl.colors
     val light = LocalAmbient.current
+    val screenWidth = screenWidthPx()
     Layout(
         modifier = modifier,
         content = {
-            Tile(icon, label, onClick, enabled = enabled, chosen = lit, interactionSource = interaction)
-            Text(
+            Tile(
+                icon,
                 label,
-                style = Hl.type.caption,
-                color = c.content,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                // Always on a plate: the label may fall over any picture.
-                modifier = Modifier
+                onClick,
+                enabled = enabled,
+                chosen = lit,
+                interactionSource = interaction,
+                onLongClick = onLongClick,
+                onLongClickLabel = onLongClickLabel,
+            )
+            // Always on a plate: the label may fall over any picture.
+            Column(
+                Modifier
                     .clearAndSetSemantics {}
                     .graphicsLayer { alpha = labelAlpha }
                     .labelPlate(c, light)
                     .padding(horizontal = HlControl.labelPaddingH, vertical = HlControl.labelPaddingV),
-            )
+            ) {
+                Text(label, style = Hl.type.caption, color = c.content, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                if (hint != null) {
+                    Text(hint, style = Hl.type.caption, color = c.contentTertiary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+            }
         },
     ) { measurables, constraints ->
         val button = measurables[0].measure(constraints)
-        val text = measurables[1].measure(Constraints(maxWidth = HlIconButtonDefaults.labelWidth.roundToPx()))
+        val text = measurables[1].measure(Constraints(maxWidth = tileLabelWidth(screenWidth)))
         val gap = HlSpace.xs.roundToPx()
         val edge = HlIconButtonDefaults.labelEdge.roundToPx()
         layout(button.width, button.height) {
@@ -433,6 +458,12 @@ private fun Modifier.labelPlate(c: HlColors, light: AmbientLight): Modifier = dr
         drawOutline(outline, c.plate(light))
         drawOutline(outline, c.plateEdge, style = hairline)
     }
+}
+
+/** A tile's widest label: [HlIconButtonDefaults.labelWidth] grown with the text size, within the [screen]'s label edges. */
+internal fun Density.tileLabelWidth(screen: Int): Int {
+    val edges = 2 * HlIconButtonDefaults.labelEdge.roundToPx()
+    return (HlIconButtonDefaults.labelWidth * fontScale).roundToPx().coerceAtMost(screen - edges)
 }
 
 /** The label's x offset from the button: centred, else aligned to the side nearing [edge], never past it. */

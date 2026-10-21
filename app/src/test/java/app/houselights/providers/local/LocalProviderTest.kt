@@ -9,7 +9,9 @@ import app.houselights.core.MediaItem
 import app.houselights.core.PlaybackOptions
 import app.houselights.core.PlaybackPlan
 import app.houselights.core.Quality
+import app.houselights.core.SectionType
 import app.houselights.core.SortOption
+import app.houselights.core.UserState
 import app.houselights.core.WatchStatus
 import app.houselights.providers.local.TmdbClient.Companion.ImageType
 import kotlinx.coroutines.runBlocking
@@ -221,6 +223,105 @@ class LocalProviderTest {
         assertEquals(listOf(0, 2, 1), seasons.map { it.user.unplayedCount })
         assertEquals(listOf(true, false, false), seasons.map { it.user.played })
     }
+
+    /** A season row whose episodes are all gone holds none, and is not watched, whatever its row says. */
+    @Test
+    fun aSeasonWithoutEpisodesIsNotWatched() = runTest {
+        val show = show("MobLand")
+        show.episode(1, 1, played = true)
+        dao.insert(
+            ItemEntity(
+                kind = ItemKind.SEASON, sourceId = source, parentId = show.id, seriesId = show.id, title = "Season 2",
+                sortTitle = "002", seasonNumber = 2, played = true, addedAt = 0,
+            )
+        )
+        val seasons = provider.seasons(provider.item(show.id.toString()))
+        assertEquals(listOf(1, 0), seasons.map { it.childCount })
+        assertEquals(listOf(true, false), seasons.map { it.user.played })
+    }
+
+    /** A season is marked whole in one statement, its episodes back to their start; the other seasons stay as they are. */
+    @Test
+    fun aSeasonIsMarkedWithItsEpisodesAlone() = runTest {
+        val show = show("MobLand")
+        val pilot = show.episode(1, 1)
+        show.episode(1, 2)
+        show.episode(2, 1)
+        dao.savePlayback(pilot, positionMs = 600_000, durationMs = null, played = false, lastPlayedAt = 1)
+        val item = provider.item(show.id.toString())
+        val first = provider.seasons(item).first()
+
+        provider.setPlayed(first, played = true)
+        assertEquals(listOf(true, false), provider.seasons(item).map { it.user.played })
+        assertEquals(listOf(0, 1), provider.seasons(item).map { it.user.unplayedCount })
+        assertEquals(listOf(0L, 0L), provider.episodes(item, first).map { it.user.positionMs })
+        assertEquals(1, provider.item(item.id).user.unplayedCount)
+
+        provider.setPlayed(first, played = false)
+        assertEquals(listOf(false, false), provider.episodes(item, first).map { it.user.played })
+        assertEquals(listOf(2, 1), provider.seasons(item).map { it.user.unplayedCount })
+    }
+
+    /** An episode marked unwatched starts over, as a film does. */
+    @Test
+    fun anEpisodeMarkedUnwatchedStartsOver() = runTest {
+        val show = show("MobLand")
+        val pilot = show.episode(1, 1)
+        dao.savePlayback(pilot, positionMs = 600_000, durationMs = null, played = true, lastPlayedAt = 1)
+        val episode = provider.item(pilot.toString())
+        provider.setPlayed(episode, played = false)
+        assertEquals(UserState(), provider.item(pilot.toString()).user)
+    }
+
+    /** Unmarked, an episode forgets it was played, as on Jellyfin: its show leaves À suivre unless another was played. */
+    @Test
+    fun anEpisodeUnmarkedLeavesUpNextUnlessAnotherOfItsShowWasPlayed() = runTest {
+        val show = show("MobLand")
+        val pilotRow = show.episode(1, 1)
+        val pilot = provider.item(pilotRow.toString())
+        val second = provider.item(show.episode(1, 2).toString())
+        show.episode(1, 3)
+        provider.setPlayed(pilot, played = true)
+        assertEquals(listOf("S1E2"), upNext())
+
+        provider.setPlayed(pilot, played = false)
+        assertNull(dao.item(pilotRow)?.lastPlayedAt)
+        assertEquals(emptyList<String>(), upNext())
+
+        provider.setPlayed(pilot, played = true)
+        provider.setPlayed(second, played = true)
+        provider.setPlayed(second, played = false)
+        assertEquals(listOf("S1E2"), upNext())
+    }
+
+    /** A season, a show and a film in copies unmarked forget they were played: none stays in À suivre. */
+    @Test
+    fun aTitleUnmarkedForgetsItWasPlayed() = runTest {
+        val show = show("MobLand")
+        show.episode(1, 1)
+        show.episode(1, 2)
+        show.episode(2, 1)
+        val item = provider.item(show.id.toString())
+        val first = provider.seasons(item).first()
+        provider.setPlayed(first, played = true)
+        assertEquals(listOf("S2E1"), upNext())
+        provider.setPlayed(first, played = false)
+        assertEquals(emptyList<String>(), upNext())
+
+        provider.setPlayed(item, played = true)
+        provider.setPlayed(item, played = false)
+        assertTrue(dao.episodesOfSeries(show.id).all { it.lastPlayedAt == null })
+
+        val copies = listOf("Heat.mkv", "Heat 4K.mkv").map { movie("Heat", path = it, more = { copy(tmdbId = 949) }) }
+        dao.groupVersions()
+        provider.setPlayed(provider.item(copies.last().toString()), played = true)
+        assertTrue(copies.all { dao.item(it)?.lastPlayedAt != null })
+        provider.setPlayed(provider.item(copies.first().toString()), played = false)
+        assertTrue(copies.all { dao.item(it)?.lastPlayedAt == null })
+    }
+
+    /** What À suivre shows, by title. */
+    private suspend fun upNext() = provider.home().singleOrNull { it.type == SectionType.NEXT_UP }?.items.orEmpty().map { it.title }
 
     /** Sonarr's "Specials" holds S00E01: "Play" still starts S01E01, and the specials once the rest is watched. */
     @Test

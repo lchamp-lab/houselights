@@ -3,6 +3,8 @@ package app.houselights.providers.jellyfin
 import app.houselights.core.Library
 import app.houselights.core.LibraryFilter
 import app.houselights.core.LibraryKind
+import app.houselights.core.MediaItem
+import app.houselights.core.MediaKind
 import app.houselights.core.PlaybackOptions
 import app.houselights.core.PlaybackPlan
 import app.houselights.core.SectionType
@@ -59,6 +61,35 @@ class JellyfinProviderTest {
         val server = FakeServer { Answer(500) }
         assertEquals(500, httpFailure { provider(server).setPlayed(film, true) }?.code())
         assertEquals(listOf("/UserPlayedItems/f1"), server.paths)
+    }
+
+    /** Seasons are asked for their episodes on disk: one without any, which the server calls watched, holds none. */
+    @Test
+    fun seasonsCountTheirEpisodesOnDisk() = runTest {
+        val seasons = """{"Items":[
+            {"Id":"se1","Name":"Saison 1","Type":"Season","IndexNumber":1,"ChildCount":8,"RecursiveItemCount":8,
+             "UserData":{"Played":false,"UnplayedItemCount":2}},
+            {"Id":"se2","Name":"Saison 2","Type":"Season","IndexNumber":2,"ChildCount":0,"RecursiveItemCount":0,
+             "UserData":{"Played":true,"UnplayedItemCount":0}}
+        ],"TotalRecordCount":2}"""
+        val server = FakeServer { Answer(200, seasons) }
+        val found = provider(server).seasons(MediaItem("sh1", MediaKind.SERIES, "MobLand"))
+        val asked = synchronized(server.requests) { server.requests.single { it.url.encodedPath.endsWith("/Seasons") } }
+        val fields = asked.url.queryParameter("fields").orEmpty().split(",")
+        assertTrue(fields.toString(), fields.containsAll(listOf("ChildCount", "RecursiveItemCount")))
+        assertEquals(listOf(8, 0), found.map { it.childCount })
+        assertEquals(listOf(2, 0), found.map { it.user.unplayedCount })
+    }
+
+    /** A season is marked by its own id, the server marking its episodes; unmarked, it is deleted. */
+    @Test
+    fun aSeasonIsMarkedByItsOwnId() = runTest {
+        val server = FakeServer { Answer(200, "{}") }
+        val season = MediaItem("se1", MediaKind.SEASON, "Saison 1", seriesId = "sh1", seasonNumber = 1)
+        provider(server).setPlayed(season, true)
+        provider(server).setPlayed(season, false)
+        val requests = synchronized(server.requests) { server.requests.map { it.method to it.url.encodedPath } }
+        assertEquals(listOf("POST" to "/UserPlayedItems/se1", "DELETE" to "/UserPlayedItems/se1"), requests)
     }
 
     @Test

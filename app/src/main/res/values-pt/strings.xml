@@ -98,6 +98,14 @@
     <string name="watched">Visto</string>
     <string name="mark_watched">Marcar como visto</string>
     <string name="mark_unwatched">Marcar como não visto</string>
+    <string name="mark_season_watched">Marcar temporada como vista</string>
+    <string name="mark_season_unwatched">Marcar temporada como não vista</string>
+    <string name="mark_series_watched">Marcar série como vista</string>
+    <string name="mark_series_unwatched">Marcar série como não vista</string>
+    <string name="long_press_series_watched">Segure OK: toda a série vista</string>
+    <string name="long_press_series_unwatched">Segure OK: toda a série não vista</string>
+    <string name="mark_episode_watched">Marcar episódio como visto</string>
+    <string name="mark_episode_unwatched">Marcar episódio como não visto</string>
     <string name="add_favorite">Adicionar aos favoritos</string>
     <string name="remove_favorite">Remover dos favoritos</string>
     <string name="view_series">Ver série</string>

@@ -104,6 +104,7 @@ import app.houselights.ui.design.components.TechSpecs
 import app.houselights.ui.design.components.TitleArt
 import app.houselights.ui.edit.EditMenu
 import app.houselights.ui.util.PartFailed
+import app.houselights.ui.util.PlaybackOutcome
 import app.houselights.ui.util.ReloadOnLibraryChange
 import app.houselights.ui.util.retainedError
 import app.houselights.ui.util.appContainer
@@ -146,10 +147,26 @@ fun DetailScreen(
     val app = appContainer()
     val vm: DetailViewModel = viewModel(key = "detail-$itemId", factory = DetailViewModel.factory(app, itemId))
     ReloadOnLibraryChange { vm.onLibraryChanged() }
+    DetailPage(vm, app.playback, onPlay, onOpenItem, onOpenNfo, onEditArtwork, onIdentify, onOpenPerson)
+}
+
+/** A title's page as [vm] has it; [playback] says when a title ended and why one did not play. */
+@Composable
+internal fun DetailPage(
+    vm: DetailViewModel,
+    playback: PlaybackOutcome,
+    onPlay: (MediaItem, Boolean) -> Unit,
+    onOpenItem: (String) -> Unit,
+    onOpenNfo: (String) -> Unit,
+    onEditArtwork: (String, ArtworkKind) -> Unit,
+    onIdentify: (String) -> Unit,
+    onOpenPerson: (String) -> Unit,
+) {
     val state by vm.state.collectAsStateWithLifecycle()
     val item = state.item
+    val problem by playback.playbackProblem.collectAsStateWithLifecycle()
     // A failure to play stays until the next action (OK, wherever it is pressed) or the next screen.
-    DisposableEffect(Unit) { onDispose { app.playback.clearProblem() } }
+    DisposableEffect(Unit) { onDispose { playback.clearProblem() } }
 
     // Focus returns to what opened another screen; a first visit starts on the play button.
     val memory = rememberFocusMemory()
@@ -158,7 +175,7 @@ fun DetailScreen(
     RestoreFocus(memory, actionRow, ready = item != null && !state.partial)
     // A film started over is resumed next: back from the player, focus is on the play button.
     LaunchedEffect(Unit) {
-        app.playback.playbackEnded.collect { if (memory.last == RESTART) memory.focus(PLAY) }
+        playback.playbackEnded.collect { if (memory.last == RESTART) memory.focus(PLAY) }
     }
     val page = rememberLazyListState()
     val directing = jobName(Job.DIRECTOR)
@@ -199,6 +216,7 @@ fun DetailScreen(
     val actions = DetailActions(
         onPlay = onPlay,
         onTogglePlayed = vm::togglePlayed,
+        onToggleSeasonPlayed = vm::toggleSeasonPlayed,
         onToggleFavorite = vm::toggleFavorite,
         onOpenSeries = { item.seriesId?.let(onOpenItem) },
         onOpenNfo = { onOpenNfo(item.id) },
@@ -209,6 +227,7 @@ fun DetailScreen(
         copy = state.playedCopy,
         copyIndex = state.playedCopyIndex,
         onEdit = { showEdit = true }.takeIf { state.canEdit },
+        season = state.shownSeason,
     )
 
     val recede = rememberRecede { scrolled }
@@ -216,13 +235,7 @@ fun DetailScreen(
     AmbientBackdrop(
         item.backdrop,
         BackdropStyle.Full,
-        Modifier.onPreviewKeyEvent {
-            if (it.type == KeyEventType.KeyDown && it.key in OK_KEYS) {
-                app.playback.clearProblem()
-                vm.clearActionError()
-            }
-            false
-        },
+        Modifier.okClears(playback::clearProblem),
         recede = { recede.value },
     ) {
         // Scrolls by blocks: an incoming row rises to the safe area; the wider block gap hides the row above.
@@ -234,11 +247,18 @@ fun DetailScreen(
             ) {
                 item(key = "hero") {
                     // The screen minus a peek of the first row; grows rather than squeezes long text.
-                    Box(Modifier.fillMaxWidth().heightIn(min = HlLayout.detailHeroMin(screenHeight)).scrollsAsBlock()) {
+                    Box(
+                        Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = HlLayout.detailHeroMin(screenHeight))
+                            .scrollsAsBlock()
+                            .okClears(vm::clearActionError),
+                    ) {
                         Hero(
                             item = item,
                             nextUp = state.nextUp,
                             capabilities = state.capabilities,
+                            problem = problem,
                             actionError = state.actionError,
                             actions = actions,
                             memory = memory,
@@ -300,6 +320,9 @@ private fun LazyListScope.seasonRows(
                     focused = focusedEpisode.value,
                     onFocus = { focusedEpisode.value = it },
                     onPlay = { ep -> onPlay(ep, ep.user.positionMs > 0) },
+                    onMark = vm::toggleEpisodePlayed.takeIf { state.capabilities?.markPlayed == true },
+                    markError = state.episodeMarkError,
+                    onClearMarkError = vm::clearEpisodeMarkError,
                 )
             }
         }
@@ -429,6 +452,7 @@ private class RowLinks(val onOpenItem: (String) -> Unit, val onOpenPerson: (Stri
 private data class DetailActions(
     val onPlay: (MediaItem, resume: Boolean) -> Unit,
     val onTogglePlayed: () -> Unit,
+    val onToggleSeasonPlayed: () -> Unit,
     val onToggleFavorite: () -> Unit,
     val onOpenSeries: () -> Unit,
     val onOpenNfo: () -> Unit,
@@ -439,6 +463,8 @@ private data class DetailActions(
     val copy: Version? = null,
     val copyIndex: Int = 0,
     val onEdit: (() -> Unit)?,
+    /** The season the watched tile marks, the whole show on a long OK; null where it marks the title. */
+    val season: MediaItem? = null,
 )
 
 @Composable
@@ -446,6 +472,7 @@ private fun Hero(
     item: MediaItem,
     nextUp: MediaItem?,
     capabilities: ProviderCapabilities?,
+    problem: UiError?,
     actionError: UiError?,
     actions: DetailActions,
     memory: FocusMemory,
@@ -493,7 +520,7 @@ private fun Hero(
         }
         Spacer(Modifier.height(HlSpace.xl))
 
-        Actions(item, nextUp, capabilities, actionError, actions, memory, actionRow)
+        Actions(item, nextUp, capabilities, problem, actionError, actions, memory, actionRow)
     }
 }
 
@@ -503,13 +530,15 @@ private fun Actions(
     item: MediaItem,
     nextUp: MediaItem?,
     capabilities: ProviderCapabilities?,
+    problem: UiError?,
     actionError: UiError?,
     actions: DetailActions,
     memory: FocusMemory,
     actionRow: FocusRequester,
 ) {
-    val problem by appContainer().playback.playbackProblem.collectAsStateWithLifecycle()
-    OnArtwork { HlActionRow(Modifier.focusRequester(actionRow).fadeOutsideSafeArea()) {
+    // A show's watched tile may say its long OK under its label: room for it from the start, so nothing moves.
+    val hinted = item.kind == MediaKind.SERIES && capabilities?.markPlayed == true
+    OnArtwork { HlActionRow(Modifier.focusRequester(actionRow).fadeOutsideSafeArea(), hinted = hinted) {
         PlayButtons(item, nextUp, memory, actions)
         Parts(item, memory, actions.onPlay)
         // Several copies: the one Lire plays is chosen in a side sheet.
@@ -524,15 +553,7 @@ private fun Actions(
         if (item.kind == MediaKind.EPISODE && item.seriesId != null) {
             HlButton(stringResource(R.string.view_series), onClick = actions.onOpenSeries, modifier = Modifier.focusKey(SERIES, memory))
         }
-        // Label: what OK does; icon: the current state. Watched is done, not a choice: the check fills white.
-        if (capabilities?.markPlayed == true) {
-            HlIconButton(
-                if (item.user.played) HlIcons.CheckFilled else HlIcons.Check,
-                stringResource(if (item.user.played) R.string.mark_unwatched else R.string.mark_watched),
-                onClick = actions.onTogglePlayed,
-                modifier = Modifier.focusKey(WATCHED, memory),
-            )
-        }
+        if (capabilities?.markPlayed == true) WatchedTile(item, actions, Modifier.focusKey(WATCHED, memory))
         // A button bears the name of what it opens.
         if (actions.onShowTech != null) {
             HlIconButton(
@@ -564,6 +585,33 @@ private fun Actions(
         }
         ActionFailure(problem, actionError)
     } }
+}
+
+/**
+ * The watched tile: the title, or the season shown ([DetailActions.season]) and the whole show on a long OK, which
+ * its hint says. Label: what OK does; icon: the current state. Watched is done, not a choice: the check fills white.
+ */
+@Composable
+private fun WatchedTile(item: MediaItem, actions: DetailActions, modifier: Modifier) {
+    val season = actions.season
+    val show = item.user.played
+    val watched = season?.let(::seasonWatched) ?: show
+    val label = when {
+        season == null -> if (watched) R.string.mark_unwatched else R.string.mark_watched
+        watched -> R.string.mark_season_unwatched
+        else -> R.string.mark_season_watched
+    }
+    val whole = stringResource(if (show) R.string.mark_series_unwatched else R.string.mark_series_watched)
+    val hint = stringResource(if (show) R.string.long_press_series_unwatched else R.string.long_press_series_watched)
+    HlIconButton(
+        if (watched) HlIcons.CheckFilled else HlIcons.Check,
+        stringResource(label),
+        onClick = if (season != null) actions.onToggleSeasonPlayed else actions.onTogglePlayed,
+        modifier = modifier,
+        onLongClick = actions.onTogglePlayed.takeIf { season != null },
+        onLongClickLabel = whole.takeIf { season != null },
+        hint = hint.takeIf { season != null },
+    )
 }
 
 /** Why the last play request failed ([problem]) or a change did not save ([actionError]), beside the actions. */
@@ -662,15 +710,12 @@ private fun Seasons(seasons: List<MediaItem>, selectedId: String?, onSelect: (St
     )
 }
 
-/** A season's progress after its name: a check when fully watched, "6 / 10" when partly, nothing before. */
+/** A season's progress after its name: a check once watched ([seasonWatched]), "6 / 10" when partly, nothing before. */
 internal fun seasonDetail(season: MediaItem): SegmentDetail? {
-    val episodes = season.childCount?.takeIf { it > 0 } ?: return SegmentDetail.Done.takeIf { season.user.played }
-    val watched = episodes - (season.user.unplayedCount ?: if (season.user.played) 0 else episodes)
-    return when {
-        season.user.played || watched >= episodes -> SegmentDetail.Done
-        watched > 0 -> SegmentDetail.Count("$watched$NBSP/$NBSP$episodes")
-        else -> null
-    }
+    if (seasonWatched(season)) return SegmentDetail.Done
+    val episodes = season.childCount?.takeIf { it > 0 } ?: return null
+    val watched = episodes - (season.user.unplayedCount ?: episodes)
+    return if (watched > 0) SegmentDetail.Count("$watched$NBSP/$NBSP$episodes") else null
 }
 
 /** An episode's state: watched, or the time left; null when not started. */
@@ -678,6 +723,10 @@ internal fun seasonDetail(season: MediaItem): SegmentDetail? {
 private fun episodeState(ep: MediaItem): String? =
     if (ep.user.played) stringResource(R.string.watched) else timeLeft(ep)
 
+/**
+ * A season's episodes: OK plays one, a long OK marks it watched or not ([onMark], null where the source cannot);
+ * a mark that did not save ([markError]) is said under them until an OK there.
+ */
 @Composable
 private fun Episodes(
     header: String?,
@@ -686,11 +735,15 @@ private fun Episodes(
     focused: MediaItem?,
     onFocus: (MediaItem) -> Unit,
     onPlay: (MediaItem) -> Unit,
+    onMark: ((MediaItem) -> Unit)?,
+    markError: UiError?,
+    onClearMarkError: () -> Unit,
 ) {
     // The row and the overview of its focused episode come into view together.
-    Column(Modifier.scrollsAsBlock()) {
+    Column(Modifier.scrollsAsBlock().okClears(onClearMarkError)) {
         MediaRow(header = header, modifier = memory.rowGroup(EPISODES), spacing = HlSpace.l) {
             items(episodes, key = { it.id }) { ep ->
+                val mark = if (ep.user.played) R.string.mark_episode_unwatched else R.string.mark_episode_watched
                 LandscapeCard(
                     item = ep,
                     modifier = memory.card(EPISODES, ep),
@@ -700,23 +753,32 @@ private fun Episodes(
                     number = ep.episodeNumbers,
                     facts = listOf(ep.runtimeMs?.let(::formatDuration), episodeState(ep)),
                     onFocused = { onFocus(ep) },
+                    onLongClick = onMark?.let { toggle -> { toggle(ep) } },
+                    onLongClickLabel = stringResource(mark),
                 )
             }
         }
         val shown = focused?.takeIf { f -> episodes.any { it.id == f.id } }
-        Text(
-            shown?.overview ?: "",
-            style = Hl.type.caption,
-            color = Hl.colors.contentSecondary,
-            maxLines = 3,
-            overflow = TextOverflow.Ellipsis,
-            // At least three lines at the viewer's text size, so the page stays still as focus moves.
-            modifier = Modifier
+        // At least three lines at the viewer's text size, so the page stays still as focus moves or an error comes.
+        Box(
+            Modifier
                 .padding(horizontal = HlSpace.safeH)
                 .widthIn(max = HlLayout.readable)
                 .heightIn(min = textRoom(HlLayout.episodeOverview))
                 .fadeOutsideSafeArea(),
-        )
+        ) {
+            if (markError != null) {
+                HlStatus(StatusState.Attention, stringResource(R.string.action_not_saved), detail = stringResource(markError.message))
+            } else {
+                Text(
+                    shown?.overview ?: "",
+                    style = Hl.type.caption,
+                    color = Hl.colors.contentSecondary,
+                    maxLines = 3,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
     }
 }
 
@@ -742,6 +804,12 @@ private fun EpisodesFailed(header: String?, error: UiError, retrying: Boolean, o
         header?.let { SectionHeader(it, Modifier.padding(bottom = HlSpace.xxs)) }
         PartFailed(error, retrying, onRetry, action = action)
     }
+}
+
+/** The first OK pressed within does [clear], not its repeats: held, OK is still one action and leaves what it caused. */
+private fun Modifier.okClears(clear: () -> Unit) = onPreviewKeyEvent {
+    if (it.type == KeyEventType.KeyDown && it.key in OK_KEYS && it.nativeKeyEvent.repeatCount == 0) clear()
+    false
 }
 
 /** Parts go in a menu from three on: two buttons beside Lire still leave room for the tiles. */
