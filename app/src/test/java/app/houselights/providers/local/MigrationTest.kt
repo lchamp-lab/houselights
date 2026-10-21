@@ -264,6 +264,16 @@ class MigrationTest {
         assertEquals(listOf(949), trakt.rows().map { it.tmdbId })
     }
 
+    @Test
+    fun version14KeepsWhatWaitsForTraktNeverTriedNorSent() = runTest {
+        val db = migrated(from = 13) {
+            execSQL("INSERT INTO trakt_pending (title, action, at, progress, seq) VALUES ('movie:949', 'PROGRESS', 5, 42.5, 1)")
+        }
+        val waiting = db.trakt().pending().single()
+        assertEquals(TraktPendingEntity("movie:949", TraktAction.PROGRESS, at = 5, progress = 42.5f, seq = 1), waiting)
+        assertEquals(0 to null, waiting.attempts to waiting.sentAt)
+    }
+
     /** What [version12KeepsTheCastAsCreditsAndWhatTheUserDidAsItWas] finds once migrated. */
     private suspend fun checkVersion12(db: LibraryDatabase) {
         val dao = db.dao()

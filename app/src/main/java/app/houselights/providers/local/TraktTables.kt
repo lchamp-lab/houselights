@@ -1,5 +1,6 @@
 package app.houselights.providers.local
 
+import androidx.room.ColumnInfo
 import androidx.room.Dao
 import androidx.room.Entity
 import androidx.room.Insert
@@ -8,11 +9,17 @@ import androidx.room.PrimaryKey
 import androidx.room.Query
 import androidx.room.Transaction
 
-/** What the viewer did to a title, for Trakt: watched it, unmarked it, or stopped it at a percentage. */
-enum class TraktAction { WATCHED, UNWATCHED, PROGRESS }
+/**
+ * What the viewer did to a title, for Trakt: watched it, unmarked it (every play removed), stopped it at a
+ * percentage, or dropped where it stood (its pause removed).
+ */
+enum class TraktAction { WATCHED, UNWATCHED, PROGRESS, UNPAUSED }
 
-/** Why the last exchange with Trakt failed. */
-enum class TraktSyncError { OFFLINE, BUSY, FAILED, STORAGE }
+/**
+ * Why the last exchange with Trakt failed: no answer, its limit, a refusal of the account or the app, a certificate
+ * refused (the device's clock), an answer this version cannot read, the device's storage, or Trakt failing.
+ */
+enum class TraktSyncError { OFFLINE, BUSY, REFUSED, CERTIFICATE, UNREADABLE, FAILED, STORAGE }
 
 /**
  * A title's latest intent for Trakt, kept until Trakt has it: one per [title] (a `TraktTitle` key), the newest
@@ -27,6 +34,10 @@ data class TraktPendingEntity(
     /** Percent seen, for [TraktAction.PROGRESS]. */
     val progress: Float? = null,
     val seq: Long = 0,
+    /** Writes Trakt answered with a failure, counted while it answers reads; dropped at a limit. */
+    @ColumnInfo(defaultValue = "0") val attempts: Int = 0,
+    /** When it was last sent (ms): a write left unanswered may have reached Trakt. */
+    val sentAt: Long? = null,
 )
 
 /** Where the sync with Trakt stands: a single row, gone once the account is disconnected. */
@@ -70,6 +81,11 @@ private const val SYNC_ROW =
         "i.episodeNumber, i.lastEpisodeNumber, i.versionOf, i.parts, i.played, i.positionMs, i.lastPlayedAt, i.durationMs, " +
         "i.fileDurationMs, i.runtimeMin FROM items i LEFT JOIN items s ON s.id = i.seriesId WHERE i.kind IN ('MOVIE', 'EPISODE')"
 
+/** Another copy of film :id ([ItemEntity.versionOf]). */
+private const val COPY_OF =
+    "(i.kind = 'MOVIE' AND (i.id = (SELECT versionOf FROM items WHERE id = :id) " +
+        "OR i.versionOf = (SELECT COALESCE(versionOf, id) FROM items WHERE id = :id AND kind = 'MOVIE')))"
+
 /** Values for a queued intent, numbered after every other. */
 private const val PENDING_VALUES =
     "(title, action, at, progress, seq) VALUES (:title, :action, :at, :progress, (SELECT IFNULL(MAX(seq), 0) + 1 FROM trakt_pending))"
@@ -80,8 +96,8 @@ interface TraktDao {
     @Query(SYNC_ROW)
     suspend fun rows(): List<SyncRow>
 
-    /** Row [id]'s films or episodes: a film, an episode, a season's episodes or a show's. */
-    @Query("$SYNC_ROW AND (i.id = :id OR i.parentId = :id OR i.seriesId = :id)")
+    /** Row [id]'s films or episodes: a film with its copies, an episode, a season's episodes or a show's. */
+    @Query("$SYNC_ROW AND (i.id = :id OR i.parentId = :id OR i.seriesId = :id OR $COPY_OF)")
     suspend fun rowsOf(id: Long): List<SyncRow>
 
     @Query("$SYNC_ROW AND i.collectionId = :collectionId")
@@ -94,8 +110,17 @@ interface TraktDao {
     )
     suspend fun watchedBatch(ids: List<Long>, at: Long)
 
-    @Query("UPDATE items SET positionMs = :positionMs, lastPlayedAt = :at WHERE id = :id")
+    /** Trakt's pause at [at], unless the row was played since: a stop saved meanwhile stands. */
+    @Query("UPDATE items SET positionMs = :positionMs, lastPlayedAt = :at WHERE id = :id AND IFNULL(lastPlayedAt, 0) < :at")
     suspend fun resumeAt(id: Long, positionMs: Long, at: Long)
+
+    /** Copies of the film with main row [titleId], that row first, without NFO text. */
+    @Query("SELECT $ITEM_ROW FROM items WHERE kind = 'MOVIE' AND (id = :titleId OR versionOf = :titleId) ORDER BY id")
+    suspend fun copies(titleId: Long): List<ItemEntity>
+
+    /** The copy of film [titleId] that Lire plays ([VersionRank.played]); null for a single copy. */
+    @Transaction
+    suspend fun playedCopy(titleId: Long): Long? = VersionRank.played(copies(titleId))
 
     /** Queues [title]'s intent in place of any before it. */
     @Query("INSERT OR REPLACE INTO trakt_pending $PENDING_VALUES")
@@ -112,6 +137,33 @@ interface TraktDao {
 
     @Query("SELECT * FROM trakt_pending ORDER BY seq")
     suspend fun pending(): List<TraktPendingEntity>
+
+    @Query("SELECT title FROM trakt_pending")
+    suspend fun waiting(): List<String>
+
+    @Query("UPDATE trakt_pending SET sentAt = :at WHERE title = :title AND seq = :seq")
+    suspend fun sending(title: String, seq: Long, at: Long?)
+
+    /** Notes when [entries] go to Trakt, unless queued again since. */
+    @Transaction
+    suspend fun sending(entries: List<TraktPendingEntity>, at: Long) = entries.forEach { sending(it.title, it.seq, at) }
+
+    /** [entries] never reached Trakt: each keeps when it was sent before, if ever. */
+    @Transaction
+    suspend fun unsent(entries: List<TraktPendingEntity>) = entries.forEach { sending(it.title, it.seq, it.sentAt) }
+
+    @Query("UPDATE trakt_pending SET attempts = attempts + 1 WHERE title = :title AND seq = :seq")
+    suspend fun tried(title: String, seq: Long)
+
+    @Query("DELETE FROM trakt_pending WHERE attempts >= :most")
+    suspend fun dropTried(most: Int): Int
+
+    /** Counts a failed write of [entries], then drops those that failed [most] times; returns how many. */
+    @Transaction
+    suspend fun failed(entries: List<TraktPendingEntity>, most: Int): Int {
+        entries.forEach { tried(it.title, it.seq) }
+        return dropTried(most)
+    }
 
     @Query("DELETE FROM trakt_pending WHERE title = :title AND seq = :seq")
     suspend fun sent(title: String, seq: Long)
@@ -139,11 +191,16 @@ interface TraktDao {
         clearState()
     }
 
-    /** Applies what a sync read from Trakt: rows watched at their dates, then resume points. */
+    /**
+     * Applies what a sync read from Trakt: rows watched at their dates, then resume points; a row whose [titles] (by
+     * row id) wait for Trakt is left as the viewer made it since.
+     */
     @Transaction
-    suspend fun apply(watched: Map<Long, List<Long>>, resumes: List<Resume>) {
-        watched.forEach { (at, ids) -> ids.chunked(SQL_IN_LIMIT).forEach { watchedBatch(it, at) } }
-        resumes.forEach { resumeAt(it.id, it.positionMs, it.at) }
+    suspend fun apply(watched: Map<Long, List<Long>>, resumes: List<Resume>, titles: Map<Long, List<String>>) {
+        val waiting = waiting().toSet()
+        val free = { id: Long -> titles[id].orEmpty().none { it in waiting } }
+        watched.forEach { (at, ids) -> ids.filter(free).chunked(SQL_IN_LIMIT).forEach { watchedBatch(it, at) } }
+        resumes.filter { free(it.id) }.forEach { resumeAt(it.id, it.positionMs, it.at) }
     }
 }
 

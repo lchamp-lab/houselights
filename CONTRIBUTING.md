@@ -112,8 +112,8 @@ drawn from the commits since the previous tag.
 
 Repository secrets: `HOUSELIGHTS_KEYSTORE` (`base64 -w0 houselights-release.jks`),
 `HOUSELIGHTS_KEYSTORE_PASSWORD` and, optionally, `TMDB_API_KEY` (a project key), `TRAKT_CLIENT_ID` (the
-project's Trakt app) and `TRAKT_CLIENT_SECRET` (only for a Trakt app that has one). CI reads the optional ones
-too.
+project's Trakt app), `TRAKT_CLIENT_SECRET` (only for a Trakt app that has one) and `TRAKT_REDIRECT_URI`
+(only for one declared with another URI). CI reads the client ID and secret too.
 
 ## Performance
 

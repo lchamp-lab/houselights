@@ -20,7 +20,7 @@ import kotlinx.coroutines.withContext
         SourceEntity::class, ItemEntity::class, CreditEntity::class, CollectionEntity::class, SagaPartEntity::class,
         SearchWordEntity::class, TraktPendingEntity::class, TraktStateEntity::class,
     ],
-    version = 13,
+    version = 14,
 )
 @TypeConverters(SecretConverter::class, PipeList::class)
 abstract class LibraryDatabase : RoomDatabase() {
@@ -204,6 +204,14 @@ abstract class LibraryDatabase : RoomDatabase() {
             }
         }
 
+        /** v13 → v14: what waits for Trakt counts its failed writes and notes when it was sent. */
+        private val MIGRATION_13_14 = object : Migration(13, 14) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE trakt_pending ADD COLUMN attempts INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE trakt_pending ADD COLUMN sentAt INTEGER")
+            }
+        }
+
         /** Tables, columns and indexes added in v12, as in Room's exported schema. */
         private fun createTables(db: SupportSQLiteDatabase) {
             db.execSQL(
@@ -331,7 +339,7 @@ abstract class LibraryDatabase : RoomDatabase() {
 
         internal fun migrations(secrets: Secrets) = arrayOf(
             MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, migration6To7(secrets), MIGRATION_7_8,
-            MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13,
+            MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14,
         )
 
         fun create(context: Context, secrets: Secrets): LibraryDatabase =

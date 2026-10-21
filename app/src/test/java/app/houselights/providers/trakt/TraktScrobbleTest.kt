@@ -130,8 +130,20 @@ class TraktScrobbleTest {
     }
 
     @Test
-    fun aStopOfflineWaitsAsAProgress() = runTest {
+    fun aStatedRuntimeAloneTellsTraktNothing() = runTest {
+        // TMDB's runtime may be another cut's: watched here from it, but Trakt hears only a length the file gives.
         val id = film(runtimeMin = 100)
+        val sync = connected()
+        played(sync, id, returnedMs = 85 * MINUTE.toInt())
+        waitFor("watched here") { dao.item(id)!!.played }
+        advanceUntilIdle()
+        assertEquals(0, trakt.count("POST /scrobble/stop"))
+        assertTrue(db.trakt().pending().isEmpty())
+    }
+
+    @Test
+    fun aStopOfflineWaitsAsAProgress() = runTest {
+        val id = film(runtimeMin = 100, fileDurationMs = 100 * MINUTE)
         val sync = connected()
         trakt.offline = true
         played(sync, id, returnedMs = 30 * MINUTE.toInt())

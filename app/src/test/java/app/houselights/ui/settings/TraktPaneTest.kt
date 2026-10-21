@@ -8,7 +8,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsFocused
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -175,13 +177,13 @@ class TraktPaneTest {
         compose.onNodeWithText("Il y a 5", substring = true).assertExists()
         compose.onNodeWithText("minutes${GAP}412 vus, 1 en cours", substring = true).assertExists()
         compose.onNodeWithText("Réunit ce que vous avez vu ici et sur Trakt").assertExists()
+        compose.onNodeWithText(SYNC).assertIsEnabled()
 
         ok(SYNC)
         assertEquals(1, sync.asked)
         compose.onNodeWithText("Synchronisation…").assertExists()
-        // Disabled while it runs: OK again asks nothing.
-        compose.press(Key.DirectionCenter)
-        assertEquals(1, sync.asked)
+        // Disabled while it runs, as the remote and accessibility services find it, and still focused.
+        compose.onNodeWithText(SYNC).assertIsNotEnabled().assertIsFocused()
     }
 
     @Test
@@ -198,6 +200,17 @@ class TraktPaneTest {
         show()
         compose.onNodeWithText("Trakt ne répond pas. Ce que vous regardez lui sera envoyé dès qu’il répondra.").assertExists()
         compose.onNodeWithText("Non effectué").assertExists()
+    }
+
+    @Test
+    fun aRefusalOfTheAccountSaysWhatToDo() {
+        session = lea
+        sync.state.value = TraktSyncState(syncedAt = System.currentTimeMillis(), error = TraktSyncError.REFUSED)
+        show()
+        compose.onNodeWithText(
+            "Trakt refuse la synchronisation$NB: le compte est peut-être verrouillé, ou la clé de cette version refusée. " +
+                "Vérifiez votre compte sur trakt.tv.",
+        ).assertExists()
     }
 
     @Test

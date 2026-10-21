@@ -154,11 +154,18 @@ class AppContainer(private val app: Application, val language: InterfaceLanguage
     val trakt = TraktAccount(TraktKeys.builtIn, session = { settings.state.value.trakt }, save = settings::setTrakt)
 
     /** The only way to change the source: the current one stays active until the new one is saved. */
-    val sources = SourceSwitcher({ settings.state.value }, { settings.setSource(it) }, scope)
+    val sources = SourceSwitcher({ settings.state.value }, { settings.setSource(it) }, scope, leftFolders = { traktSync.leave() })
     val database = LibraryDatabase.create(app, Secrets.device)
 
     /** Keeps the folders' history and the Trakt account's together, in the background. */
-    val traktSync = TraktSync(trakt, database.trakt(), scope, changed = ::libraryChanged)
+    val traktSync = TraktSync(
+        trakt,
+        database.trakt(),
+        scope,
+        changed = ::libraryChanged,
+        // Read at a playback's end too, which a process restarted meanwhile may report before the settings are followed.
+        following = { settings.state.first { it.loaded }.let { it.trakt != null && it.source == SourceConfig.Local } },
+    )
     val artwork = ArtworkCache(app.filesDir.resolve("artwork"))
     /** Launches the external player for a title and follows it while it plays. */
     val player = PlaybackManager(app, scope) { resumeKey ->
@@ -297,9 +304,9 @@ class AppContainer(private val app: Application, val language: InterfaceLanguage
         // Trakt follows the account and the source; the end of a scan reads it again.
         scope.launch {
             settings.state.filter { it.loaded }
-                .map { s -> (s.trakt?.ended == false) to (s.source == SourceConfig.Local) }
+                .map { s -> Triple(s.trakt?.ended == false, s.source == SourceConfig.Local, s.trakt == null) }
                 .distinctUntilChanged()
-                .collect { (connected, folders) -> traktSync.follow(connected, folders) }
+                .collect { (connected, folders, signedOut) -> traktSync.follow(connected, folders, signedOut) }
         }
         scope.launch { scanner.passEnded.collect(traktSync::scanned) }
     }

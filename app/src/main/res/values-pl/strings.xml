@@ -636,5 +636,8 @@
     <string name="trakt_sync_offline">Trakt nie odpowiada. To, co oglądasz, zostanie wysłane, gdy tylko odpowie.</string>
     <string name="trakt_sync_busy">Trakt prosi o chwilę cierpliwości. Synchronizacja wznowi się sama.</string>
     <string name="trakt_sync_failed">Synchronizacja z Trakt nie została ukończona. Wznowi się sama.</string>
+    <string name="trakt_sync_refused">Trakt odrzuca synchronizację: konto może być zablokowane albo klucz tej wersji odrzucony. Sprawdź swoje konto na trakt.tv.</string>
+    <string name="trakt_sync_unreadable">Trakt odpowiedział w sposób, którego ta wersja nie potrafi odczytać. Aktualizacja Houselights powinna to naprawić.</string>
+    <string name="trakt_certificate">Certyfikat Trakt został odrzucony. Sprawdź datę i godzinę na urządzeniu, a potem spróbuj ponownie.</string>
     <string name="settings_lost_trakt">Nie udało się ponownie odczytać połączenia z Trakt zapisanego na tym odtwarzaczu. Połącz konto ponownie.</string>
 </resources>

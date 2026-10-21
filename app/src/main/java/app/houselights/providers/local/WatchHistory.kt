@@ -19,4 +19,9 @@ interface WatchHistory {
     object None : WatchHistory {
         override suspend fun stopped(id: Long, percent: Float) = Unit
     }
+
+    companion object {
+        /** A title is watched from this share of its length (%), here as on Trakt. */
+        const val WATCHED_PERCENT = 80f
+    }
 }

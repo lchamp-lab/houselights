@@ -27,6 +27,7 @@ import org.robolectric.RobolectricTestRunner
 import java.io.IOException
 import java.net.UnknownHostException
 import java.security.ProviderException
+import javax.net.ssl.SSLPeerUnverifiedException
 
 /** Connecting Trakt: the code and its time left, how it ended, Back, and disconnecting. */
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -87,6 +88,7 @@ class TraktViewModelTest {
     fun aFailureIsSaidByWhatFailed() = runTest {
         val failures = mapOf(
             UnknownHostException("auth.trakt.tv") to R.string.trakt_offline,
+            SSLPeerUnverifiedException("auth.trakt.tv") to R.string.trakt_certificate,
             http(403) to R.string.trakt_refused,
             http(503) to R.string.trakt_failed,
             SecretsUnavailableException(ProviderException("Keystore")) to UiError.KEYSTORE.message,
@@ -177,6 +179,9 @@ class TraktViewModelTest {
         val notes = mapOf(
             TraktSyncError.OFFLINE to R.string.trakt_sync_offline,
             TraktSyncError.BUSY to R.string.trakt_sync_busy,
+            TraktSyncError.REFUSED to R.string.trakt_sync_refused,
+            TraktSyncError.CERTIFICATE to R.string.trakt_certificate,
+            TraktSyncError.UNREADABLE to R.string.trakt_sync_unreadable,
             TraktSyncError.FAILED to R.string.trakt_sync_failed,
             TraktSyncError.STORAGE to UiError.NOT_SAVED.message,
         )

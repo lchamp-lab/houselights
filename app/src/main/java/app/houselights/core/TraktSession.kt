@@ -10,6 +10,8 @@ data class TraktSession(
     val refreshToken: String,
     /** When [accessToken] stops working, in seconds since the epoch. */
     val expiresAt: Long,
+    /** How long Trakt gave [accessToken] (s): it is renewed in the last quarter. */
+    val lifetime: Long = DAY_S,
     /** The account's name on Trakt; null until read. */
     val username: String? = null,
     /** Trakt refused to renew the tokens: the account must be connected again. */
@@ -17,5 +19,8 @@ data class TraktSession(
 ) {
     /** Never the tokens: a log line may quote the settings. */
     override fun toString() =
-        "TraktSession(accessToken=***, refreshToken=***, expiresAt=$expiresAt, username=$username, ended=$ended)"
+        "TraktSession(accessToken=***, refreshToken=***, expiresAt=$expiresAt, lifetime=$lifetime, username=$username, ended=$ended)"
 }
+
+/** A Trakt access token's life. */
+private const val DAY_S = 24 * 60 * 60L

@@ -39,10 +39,11 @@ class TraktClient(
     token: () -> String?,
     base: OkHttpClient = Http.client,
 ) {
-    private val http: OkHttpClient = base.newBuilder()
+    internal val http: OkHttpClient = base.newBuilder()
         .connectTimeout(CONNECT_S, TimeUnit.SECONDS)
         .readTimeout(READ_S, TimeUnit.SECONDS)
-        // A redirect to http would replay a token or a secret in the clear.
+        // A redirect would replay a token or a secret to another host, or in the clear.
+        .followRedirects(false)
         .followSslRedirects(false)
         // First, so whatever the base client intercepts already carries them.
         .apply { interceptors().add(0, headers(keys.clientId)) }

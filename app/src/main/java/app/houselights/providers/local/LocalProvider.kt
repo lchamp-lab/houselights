@@ -293,11 +293,7 @@ class LocalProvider(
         return play(copy ?: key, part, resume)
     }
 
-    private suspend fun chosenCopy(titleId: Long): Long? {
-        val copies = dao.copies(titleId).takeIf { it.size > 1 } ?: return null
-        val choice = copies.firstOrNull { it.id == titleId }?.versionChoice
-        return copies.firstOrNull { it.id == choice }?.id ?: VersionRank.best(copies)
-    }
+    private suspend fun chosenCopy(titleId: Long): Long? = VersionRank.played(dao.copies(titleId))
 
     /** Plays row [rowId] itself: [part] from its start, else the first part from the resume point. */
     internal suspend fun play(rowId: Long, part: Int?, resume: Boolean): PlaybackPlan {

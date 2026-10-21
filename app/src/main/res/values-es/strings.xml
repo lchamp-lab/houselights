@@ -619,5 +619,8 @@
     <string name="trakt_sync_offline">Trakt no responde. Lo que vea se le enviará en cuanto responda.</string>
     <string name="trakt_sync_busy">Trakt pide esperar un poco. La sincronización se reanudará sola.</string>
     <string name="trakt_sync_failed">La sincronización con Trakt no se completó. Se reanudará sola.</string>
+    <string name="trakt_sync_refused">Trakt rechaza la sincronización: puede que la cuenta esté bloqueada o que se rechace la clave de esta versión. Revise su cuenta en trakt.tv.</string>
+    <string name="trakt_sync_unreadable">Trakt respondió de una forma que esta versión no sabe leer. Actualizar Houselights debería solucionarlo.</string>
+    <string name="trakt_certificate">Se rechaza el certificado de Trakt. Compruebe la fecha y la hora del dispositivo y vuelva a intentarlo.</string>
     <string name="settings_lost_trakt">La conexión con Trakt guardada en este reproductor no se pudo volver a leer. Vuelva a conectar su cuenta.</string>
 </resources>

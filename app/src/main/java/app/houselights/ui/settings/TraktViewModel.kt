@@ -164,23 +164,30 @@ internal fun noteOf(end: DeviceCodeEnd): Int? = when (end) {
     DeviceCodeEnd.INVALID, DeviceCodeEnd.USED -> R.string.trakt_failed
 }
 
-/** The message for a failure: the account ended, the network, Trakt refusing the build's key, the device's storage, else Trakt. */
+/**
+ * The message for a failure: the account ended, the network, a certificate refused, Trakt refusing the build's key,
+ * the device's storage, else Trakt.
+ */
 @StringRes
 internal fun noteOf(e: Throwable): Int {
     if (e is TraktSignedOutException) return R.string.trakt_ended
     return when (e.failureKind()) {
-        FailureKind.UNREACHABLE, FailureKind.IO, FailureKind.CERTIFICATE -> R.string.trakt_offline
+        FailureKind.UNREACHABLE, FailureKind.IO -> R.string.trakt_offline
+        FailureKind.CERTIFICATE -> R.string.trakt_certificate
         FailureKind.REFUSED -> R.string.trakt_refused
         FailureKind.KEYSTORE, FailureKind.STORAGE_FULL, FailureKind.STORAGE_FAILED -> e.toWriteError().message
         else -> R.string.trakt_failed
     }
 }
 
-/** Why the last exchange with Trakt failed, and that it resumes on its own. */
+/** Why the last exchange with Trakt failed: whether it resumes on its own, or what to do. */
 @StringRes
 internal fun noteOf(error: TraktSyncError): Int = when (error) {
     TraktSyncError.OFFLINE -> R.string.trakt_sync_offline
     TraktSyncError.BUSY -> R.string.trakt_sync_busy
+    TraktSyncError.REFUSED -> R.string.trakt_sync_refused
+    TraktSyncError.CERTIFICATE -> R.string.trakt_certificate
+    TraktSyncError.UNREADABLE -> R.string.trakt_sync_unreadable
     TraktSyncError.FAILED -> R.string.trakt_sync_failed
     TraktSyncError.STORAGE -> UiError.NOT_SAVED.message
 }
