@@ -155,10 +155,20 @@ private fun Titles() {
 
 @Composable
 private fun TileStates() {
-    HlActionRow(horizontalArrangement = Arrangement.spacedBy(HlSpace.m)) {
+    HlActionRow(horizontalArrangement = Arrangement.spacedBy(HlSpace.m), hinted = true) {
         Specimen("rest", gap = HlSpace.xs) { HlIconButton(HlIcons.Restart, stringResource(R.string.from_start), {}) }
         // Watched is done, not a choice: the check fills white.
         Specimen("done", gap = HlSpace.xs) { HlIconButton(HlIcons.CheckFilled, stringResource(R.string.mark_unwatched), {}) }
+        // A show's season tile: its hint names what a long OK does.
+        Specimen("a long OK, hinted", gap = HlSpace.xs) {
+            HlIconButton(
+                HlIcons.Check,
+                stringResource(R.string.mark_season_watched),
+                {},
+                onLongClick = {},
+                hint = stringResource(R.string.long_press_series_watched),
+            )
+        }
         Specimen("chosen", gap = HlSpace.xs) { HlIconButton(HlIcons.HeartFilled, stringResource(R.string.remove_favorite), {}, lit = true) }
         Specimen("disabled", gap = HlSpace.xs) { HlIconButton(HlIcons.Edit, stringResource(R.string.edit), {}, enabled = false) }
         Specimen("in a header", gap = HlSpace.xs) {

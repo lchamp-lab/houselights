@@ -61,6 +61,13 @@ internal object VersionRank {
     fun best(copies: List<ItemEntity>): Long =
         copies.maxWith(compareBy(comparator) { Copy(it.badges, MediaProbe.decode(it.mediaInfo), it.fileSize) }).id
 
+    /** The copy Lire plays among a film's [copies]: the one its main row chose, else the best; null for one copy. */
+    fun played(copies: List<ItemEntity>): Long? {
+        if (copies.size < 2) return null
+        val choice = copies.firstOrNull { it.versionOf == null }?.versionChoice
+        return copies.firstOrNull { it.id == choice }?.id ?: best(copies)
+    }
+
     /** The better copy compares greater. */
     val comparator: Comparator<Copy> = Comparator { a, b ->
         of(a).zip(of(b)).map { (x, y) -> x.compareTo(y) }.firstOrNull { it != 0 } ?: 0

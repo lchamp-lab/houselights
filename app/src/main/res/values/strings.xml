@@ -104,6 +104,14 @@
     <string name="watched">Watched</string>
     <string name="mark_watched">Mark as watched</string>
     <string name="mark_unwatched">Mark as unwatched</string>
+    <string name="mark_season_watched">Mark season as watched</string>
+    <string name="mark_season_unwatched">Mark season as unwatched</string>
+    <string name="mark_series_watched">Mark series as watched</string>
+    <string name="mark_series_unwatched">Mark series as unwatched</string>
+    <string name="long_press_series_watched">Hold OK: whole series watched</string>
+    <string name="long_press_series_unwatched">Hold OK: whole series unwatched</string>
+    <string name="mark_episode_watched">Mark episode as watched</string>
+    <string name="mark_episode_unwatched">Mark episode as unwatched</string>
     <string name="add_favorite">Add to favorites</string>
     <string name="remove_favorite">Remove from favorites</string>
     <string name="view_series">View series</string>
@@ -575,4 +583,46 @@
     <string name="search_people">People</string>
     <string name="search_sagas">Sagas</string>
     <string name="search_none">Nothing starts with “%s”</string>
+    <!-- Trakt: the account the folders' watch history goes to (Settings, Trakt). -->
+    <string name="section_trakt" translatable="false">Trakt</string>
+    <string name="trakt_desc">Your Trakt account keeps what you watch from your folders: the films and episodes seen, and where you stopped.</string>
+    <string name="trakt_no_keys">This build of Houselights has no Trakt key.</string>
+    <string name="trakt_signed_out">Not connected</string>
+    <string name="trakt_connected">Connected</string>
+    <string name="trakt_signed_in_as">Connected as %s</string>
+    <string name="trakt_connect">Connect your account</string>
+    <string name="trakt_connect_desc">With a code entered on your phone or computer</string>
+    <string name="trakt_disconnect">Disconnect your account</string>
+    <string name="trakt_disconnect_desc">Houselights forgets it on this device.</string>
+    <string name="trakt_disconnecting">Disconnecting…</string>
+    <string name="trakt_code_desc">Scan the QR code with your phone, or open its address on a computer, then enter this code.</string>
+    <string name="trakt_asking">Asking Trakt for a code…</string>
+    <string name="trakt_waiting">Waiting for your approval</string>
+    <string name="trakt_code_left">This code expires in %s</string>
+    <string name="trakt_offline">Trakt doesn’t answer. Check this device’s Internet connection, then try again.</string>
+    <string name="trakt_denied">Access was refused on Trakt. Connect your account again to allow it.</string>
+    <string name="trakt_expired">The code expired before it was entered. Connect your account again for a new one.</string>
+    <string name="trakt_refused">Trakt refuses this build’s key, so the account cannot be connected.</string>
+    <string name="trakt_failed">Trakt could not complete the connection. Try again in a moment.</string>
+    <string name="trakt_ended">Trakt ended this connection. Connect your account again.</string>
+    <string name="trakt_last_sync">Last sync</string>
+    <plurals name="trakt_watched_count">
+        <item quantity="one">%d watched</item>
+        <item quantity="other">%d watched</item>
+    </plurals>
+    <plurals name="trakt_in_progress_count">
+        <item quantity="one">%d in progress</item>
+        <item quantity="other">%d in progress</item>
+    </plurals>
+    <string name="trakt_counts">%1$s, %2$s</string>
+    <string name="trakt_sync_now">Sync now</string>
+    <string name="trakt_sync_now_desc">Joins what you watched here and on Trakt</string>
+    <string name="trakt_syncing">Syncing…</string>
+    <string name="trakt_sync_offline">Trakt doesn’t answer. What you watch will reach it once it does.</string>
+    <string name="trakt_sync_busy">Trakt asks to wait a little. Syncing resumes on its own.</string>
+    <string name="trakt_sync_failed">Syncing with Trakt didn’t complete. It resumes on its own.</string>
+    <string name="trakt_sync_refused">Trakt refuses to sync: the account may be locked, or this build’s key refused. Check your account on trakt.tv.</string>
+    <string name="trakt_sync_unreadable">Trakt answered in a way this version can’t read. Updating Houselights should fix it.</string>
+    <string name="trakt_certificate">Trakt’s certificate is refused. Check this device’s date and time, then try again.</string>
+    <string name="settings_lost_trakt">The Trakt connection saved on this player could not be read again. Connect your account again.</string>
 </resources>

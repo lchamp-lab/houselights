@@ -15,8 +15,9 @@ import kotlinx.coroutines.flow.Flow
 /** Max ids bound per statement: Android 9's SQLite (3.22) allows 999 variables; Robolectric more, so tests check it. */
 internal const val SQL_IN_LIMIT = 500
 
+/** Watched or not, back to the start; unwatched also forgets when it was played, as Jellyfin does, so it leaves À suivre. */
 private const val SET_PLAYED =
-    "UPDATE items SET played = :played, positionMs = 0, lastPlayedAt = CASE WHEN :played THEN :now ELSE lastPlayedAt END"
+    "UPDATE items SET played = :played, positionMs = 0, lastPlayedAt = CASE WHEN :played THEN :now ELSE NULL END"
 
 /** Row :id plus, for a film, its other copies ([ItemEntity.versionOf]), which share watched and favourite state. */
 private const val COPIES =

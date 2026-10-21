@@ -1,5 +1,6 @@
 package app.houselights.ui.settings
 
+import app.houselights.providers.trakt.TraktClient
 import app.houselights.testing.descendants
 import app.houselights.testing.xmlRoot
 import org.junit.Assert.assertEquals
@@ -8,28 +9,35 @@ import org.junit.Test
 import java.io.File
 
 /**
- * The About support code (`support_qr.xml`) still opens the project's Ko-fi page, decoded as a phone would:
- * version 3, level M, its format checked and its error correction recomputed.
+ * The About support code (`support_qr.xml`) still opens the project's Ko-fi page, and Trakt's (`trakt_qr.xml`) its
+ * activation page, decoded as a phone would: version 3, level M, its format checked and its error correction
+ * recomputed.
  */
 class SupportCodeTest {
-    private val drawable = File("src/main/res/drawable/support_qr.xml")
+    private val support = File("src/main/res/drawable/support_qr.xml")
+    private val trakt = File("src/main/res/drawable/trakt_qr.xml")
 
     @Test
-    fun theCodeOpensTheKoFiPage() {
-        val code = modules()
+    fun theCodeOpensTheKoFiPage() = assertOpens(support, URL)
+
+    @Test
+    fun traktsCodeOpensItsActivationPage() = assertOpens(trakt, TRAKT_URL)
+
+    private fun assertOpens(drawable: File, url: String) {
+        val code = modules(drawable)
         val (level, mask) = format(code)
         assertEquals("error correction level M", LEVEL_M, level)
         val codewords = codewords(code, mask)
         assertEquals(TOTAL_CODEWORDS, codewords.size)
         val data = codewords.take(DATA_CODEWORDS)
         assertEquals("its error correction, as a reader checks it", errorCorrection(data), codewords.drop(DATA_CODEWORDS))
-        assertEquals(URL, text(data))
+        assertEquals(url, text(data))
     }
 
     @Test
     fun oneModuleChangedFailsTheCheck() {
         // The first module of the data, at the bottom right: the error correction no longer matches what is read.
-        val code = modules()
+        val code = modules(support)
         val (_, mask) = format(code)
         code[SIZE - 1][SIZE - 1] = !code[SIZE - 1][SIZE - 1]
         val codewords = codewords(code, mask)
@@ -37,7 +45,7 @@ class SupportCodeTest {
     }
 
     /** The dark modules of the drawable, row by row: one path of runs, each "Mx,yhNv1h-Nz". */
-    private fun modules(): Array<BooleanArray> {
+    private fun modules(drawable: File): Array<BooleanArray> {
         val vector = xmlRoot(drawable)
         assertEquals("$SIZE", vector.getAttribute("android:viewportWidth"))
         assertEquals("$SIZE", vector.getAttribute("android:viewportHeight"))
@@ -152,6 +160,8 @@ class SupportCodeTest {
 
     private companion object {
         const val URL = "https://ko-fi.com/lchamp_lab"
+        /** The page the code opens is the one Settings names under it. */
+        const val TRAKT_URL = "https://${TraktClient.ACTIVATE}"
         val RUN = Regex("""M(\d+),(\d+)h(\d+)v1h-(\d+)z""")
         /** Where a run starts and how long it is: the figures before the one it goes back by. */
         const val RUN_FIGURES = 3

@@ -94,6 +94,14 @@
     <string name="watched">Vu</string>
     <string name="mark_watched">Marquer comme vu</string>
     <string name="mark_unwatched">Marquer comme non vu</string>
+    <string name="mark_season_watched">Marquer la saison comme vue</string>
+    <string name="mark_season_unwatched">Marquer la saison comme non vue</string>
+    <string name="mark_series_watched">Marquer la série comme vue</string>
+    <string name="mark_series_unwatched">Marquer la série comme non vue</string>
+    <string name="long_press_series_watched">Appui long : toute la série vue</string>
+    <string name="long_press_series_unwatched">Appui long : toute la série non vue</string>
+    <string name="mark_episode_watched">Marquer l’épisode comme vu</string>
+    <string name="mark_episode_unwatched">Marquer l’épisode comme non vu</string>
     <string name="add_favorite">Ajouter aux favoris</string>
     <string name="remove_favorite">Retirer des favoris</string>
     <string name="view_series">Voir la série</string>
@@ -574,4 +582,47 @@
     <string name="search_people">Personnes</string>
     <string name="search_sagas">Sagas</string>
     <string name="search_none">Rien ne commence par « %s »</string>
+    <!-- Trakt -->
+    <string name="trakt_desc">Votre compte Trakt garde ce que vous regardez depuis vos dossiers : les films et épisodes vus, et où vous en êtes.</string>
+    <string name="trakt_no_keys">Cette version de Houselights n’a pas de clé Trakt.</string>
+    <string name="trakt_signed_out">Non connecté</string>
+    <string name="trakt_connected">Connecté</string>
+    <string name="trakt_signed_in_as">Connecté en tant que %s</string>
+    <string name="trakt_connect">Connecter votre compte</string>
+    <string name="trakt_connect_desc">Avec un code à saisir sur votre téléphone ou votre ordinateur</string>
+    <string name="trakt_disconnect">Déconnecter votre compte</string>
+    <string name="trakt_disconnect_desc">Houselights l’oublie sur cet appareil.</string>
+    <string name="trakt_disconnecting">Déconnexion…</string>
+    <string name="trakt_code_desc">Scannez le code QR avec votre téléphone, ou ouvrez son adresse sur un ordinateur, puis saisissez ce code.</string>
+    <string name="trakt_asking">Demande d’un code à Trakt…</string>
+    <string name="trakt_waiting">En attente de votre accord</string>
+    <string name="trakt_code_left">Ce code expire dans %s</string>
+    <string name="trakt_offline">Trakt ne répond pas. Vérifiez la connexion Internet de l’appareil, puis réessayez.</string>
+    <string name="trakt_denied">L’accès a été refusé sur Trakt. Connectez votre compte à nouveau pour l’autoriser.</string>
+    <string name="trakt_expired">Le code a expiré avant d’être saisi. Connectez votre compte à nouveau pour en obtenir un autre.</string>
+    <string name="trakt_refused">Trakt refuse la clé de cette version : le compte ne peut pas être connecté.</string>
+    <string name="trakt_failed">Trakt n’a pas pu terminer la connexion. Réessayez dans un instant.</string>
+    <string name="trakt_ended">Trakt a mis fin à cette connexion. Connectez votre compte à nouveau.</string>
+    <string name="trakt_last_sync">Dernière synchronisation</string>
+    <plurals name="trakt_watched_count">
+        <item quantity="one">%d vu</item>
+        <item quantity="many">%d vus</item>
+        <item quantity="other">%d vus</item>
+    </plurals>
+    <plurals name="trakt_in_progress_count">
+        <item quantity="one">%d en cours</item>
+        <item quantity="many">%d en cours</item>
+        <item quantity="other">%d en cours</item>
+    </plurals>
+    <string name="trakt_counts">%1$s, %2$s</string>
+    <string name="trakt_sync_now">Synchroniser maintenant</string>
+    <string name="trakt_sync_now_desc">Réunit ce que vous avez vu ici et sur Trakt</string>
+    <string name="trakt_syncing">Synchronisation…</string>
+    <string name="trakt_sync_offline">Trakt ne répond pas. Ce que vous regardez lui sera envoyé dès qu’il répondra.</string>
+    <string name="trakt_sync_busy">Trakt demande de patienter. La synchronisation reprendra d’elle-même.</string>
+    <string name="trakt_sync_failed">La synchronisation avec Trakt n’a pas abouti. Elle reprendra d’elle-même.</string>
+    <string name="trakt_sync_refused">Trakt refuse la synchronisation : le compte est peut-être verrouillé, ou la clé de cette version refusée. Vérifiez votre compte sur trakt.tv.</string>
+    <string name="trakt_sync_unreadable">Trakt a répondu d’une façon que cette version ne sait pas lire. Mettez Houselights à jour pour y remédier.</string>
+    <string name="trakt_certificate">Le certificat de Trakt est refusé. Vérifiez la date et l’heure de l’appareil, puis réessayez.</string>
+    <string name="settings_lost_trakt">La connexion à Trakt enregistrée sur ce lecteur n’a pas pu être relue. Connectez votre compte à nouveau.</string>
 </resources>

@@ -131,7 +131,7 @@ class ContrastTest {
         // A state's light: pending, and the ring of off, on the room, in a sheet and in a busy button.
         ("contentTertiary" on "background").mark(), ("contentTertiary" on "glass").mark(),
         ("contentTertiary" on "FILL").mark(),
-        // A control's plate over a picture: its words, its detail, its words disabled, a chosen glyph, a lit value.
+        // A control's plate over a picture: its words, its detail, its words disabled or a tile's hint, a chosen glyph, a lit value.
         "content" on "plate on the veil's floor on a white image", "contentSecondary" on "plate on the veil's floor on a white image",
         "contentTertiary" on "plate on the veil's floor on a white image",
         ("ember" on "plate on the veil's floor on a white image").mark(),

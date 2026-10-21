@@ -246,6 +246,34 @@ class MigrationTest {
         checkVersion12(db)
     }
 
+    @Test
+    fun version13AddsWhatWaitsForTraktAndKeepsTheLibraryAsItWas() = runTest {
+        val db = migrated(from = 12) {
+            filmsFolder()
+            execSQL(
+                "INSERT INTO items (id, kind, sourceId, tmdbId, title, sortTitle, continuing, genres, directors, filePath, parts, " +
+                    "badges, probeVersion, addedAt, positionMs, played, favorite, lastPlayedAt) " +
+                    "VALUES (1, 'MOVIE', 1, 949, 'Heat', 'heat', 0, '', '', 'Heat.mkv', '', '', 0, 0, 600000, 1, 0, 5)"
+            )
+        }
+        db.dao().item(1)!!.let { assertEquals(Triple(true, 600_000L, 5L), Triple(it.played, it.positionMs, it.lastPlayedAt)) }
+        val trakt = db.trakt()
+        assertNull(trakt.state())
+        trakt.queue(listOf(TraktPendingEntity("movie:949", TraktAction.WATCHED, at = 5)))
+        assertEquals(listOf("movie:949"), trakt.pending().map { it.title })
+        assertEquals(listOf(949), trakt.rows().map { it.tmdbId })
+    }
+
+    @Test
+    fun version14KeepsWhatWaitsForTraktNeverTriedNorSent() = runTest {
+        val db = migrated(from = 13) {
+            execSQL("INSERT INTO trakt_pending (title, action, at, progress, seq) VALUES ('movie:949', 'PROGRESS', 5, 42.5, 1)")
+        }
+        val waiting = db.trakt().pending().single()
+        assertEquals(TraktPendingEntity("movie:949", TraktAction.PROGRESS, at = 5, progress = 42.5f, seq = 1), waiting)
+        assertEquals(0 to null, waiting.attempts to waiting.sentAt)
+    }
+
     /** What [version12KeepsTheCastAsCreditsAndWhatTheUserDidAsItWas] finds once migrated. */
     private suspend fun checkVersion12(db: LibraryDatabase) {
         val dao = db.dao()

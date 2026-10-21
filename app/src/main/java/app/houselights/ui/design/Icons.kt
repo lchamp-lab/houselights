@@ -198,4 +198,7 @@ object HlIcons {
 
     /** Something needs attention: a circled exclamation mark, [Info] turned over (`circle-alert`). */
     val Attention = icon("Attention", "M2 12a10 10 0 1 0 20 0a10 10 0 1 0 -20 0Z", "M12 8L12 12", "M12 16L12.01 16")
+
+    /** Watch history kept elsewhere, Trakt: a clock turning back (`history`). */
+    val History = icon("History", "M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8", "M3 3v5h5", "M12 7v5l4 2")
 }

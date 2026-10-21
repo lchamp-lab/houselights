@@ -113,13 +113,31 @@ class LocalReporterTest {
         val card = LocalMapper(dao, ApplicationProvider.getApplicationContext()).map(checkNotNull(dao.item(id)))
         assertEquals(THREE_HOURS, card.runtimeMs)
 
-        LocalReporter(dao, id).stopped(positionMs = 150 * 60_000L, durationMs = null)
+        LocalReporter(dao, id).stopped(positionMs = 140 * 60_000L, durationMs = null)
         dao.item(id)!!.let {
             assertFalse(it.played)
-            assertEquals(150 * 60_000L, it.positionMs)
+            assertEquals(140 * 60_000L, it.positionMs)
         }
         LocalReporter(dao, id).stopped(positionMs = 165 * 60_000L, durationMs = null)
         assertTrue(dao.item(id)!!.played)
+    }
+
+    /** Watched from 80 %, as Trakt counts it; the history hears each stop, unless it kept the resume point. */
+    @Test
+    fun aFilmIsWatchedFromEightyPercentAndTheHistoryToldWhereItStopped() = runTest {
+        val told = mutableListOf<Float>()
+        val history = object : WatchHistory {
+            override suspend fun stopped(id: Long, percent: Float) {
+                told += percent
+            }
+        }
+        val id = film()
+        LocalReporter(dao, id, history = history).stopped(30_000, DURATION)
+        LocalReporter(dao, id, history = history).stopped(4_740_000, DURATION)
+        assertFalse(dao.item(id)!!.played)
+        LocalReporter(dao, id, history = history).stopped(4_800_000, DURATION)
+        assertTrue(dao.item(id)!!.played)
+        assertEquals(listOf(79f, 80f), told)
     }
 
     private companion object {

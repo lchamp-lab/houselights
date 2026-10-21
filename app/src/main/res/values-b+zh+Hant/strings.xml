@@ -92,6 +92,14 @@
     <string name="watched">已觀看</string>
     <string name="mark_watched">標示為已觀看</string>
     <string name="mark_unwatched">標示為未觀看</string>
+    <string name="mark_season_watched">將本季標示為已觀看</string>
+    <string name="mark_season_unwatched">將本季標示為未觀看</string>
+    <string name="mark_series_watched">將影集標示為已觀看</string>
+    <string name="mark_series_unwatched">將影集標示為未觀看</string>
+    <string name="long_press_series_watched">長按：將影集標示為已觀看</string>
+    <string name="long_press_series_unwatched">長按：將影集標示為未觀看</string>
+    <string name="mark_episode_watched">將本集標示為已觀看</string>
+    <string name="mark_episode_unwatched">將本集標示為未觀看</string>
     <string name="add_favorite">加入我的最愛</string>
     <string name="remove_favorite">從我的最愛移除</string>
     <string name="view_series">查看影集</string>
@@ -544,4 +552,43 @@
     <string name="search_people">人物</string>
     <string name="search_sagas">系列</string>
     <string name="search_none">沒有以「%s」開頭的結果</string>
+    <!-- Trakt -->
+    <string name="trakt_desc">您的 Trakt 帳戶會記錄您在資料夾中觀看的內容：看過的電影和劇集，以及您看到的位置。</string>
+    <string name="trakt_no_keys">此版本的 Houselights 沒有 Trakt 金鑰。</string>
+    <string name="trakt_signed_out">未連線</string>
+    <string name="trakt_connected">已連線</string>
+    <string name="trakt_signed_in_as">已連線帳戶 %s</string>
+    <string name="trakt_connect">連結您的帳戶</string>
+    <string name="trakt_connect_desc">在手機或電腦上輸入一組代碼即可</string>
+    <string name="trakt_disconnect">中斷您的帳戶連結</string>
+    <string name="trakt_disconnect_desc">Houselights 將在此裝置上忘記該帳戶。</string>
+    <string name="trakt_disconnecting">正在中斷連結…</string>
+    <string name="trakt_code_desc">用手機掃描 QR 碼，或在電腦上開啟其網址，然後輸入此代碼。</string>
+    <string name="trakt_asking">正在向 Trakt 要求代碼…</string>
+    <string name="trakt_waiting">等待您的授權</string>
+    <string name="trakt_code_left">此代碼將在 %s 後過期</string>
+    <string name="trakt_offline">Trakt 沒有回應。請檢查此裝置的網路連線，然後重試。</string>
+    <string name="trakt_denied">您在 Trakt 上拒絕了存取。請重新連結以授權。</string>
+    <string name="trakt_expired">代碼在輸入前已過期。請重新連結以取得新代碼。</string>
+    <string name="trakt_refused">Trakt 拒絕了此版本的金鑰，因此無法連結帳戶。</string>
+    <string name="trakt_failed">Trakt 無法完成連結。請稍後重試。</string>
+    <string name="trakt_ended">Trakt 已結束此連結。請重新連結您的帳戶。</string>
+    <string name="trakt_last_sync">上次同步</string>
+    <plurals name="trakt_watched_count">
+        <item quantity="other">已看 %d 項</item>
+    </plurals>
+    <plurals name="trakt_in_progress_count">
+        <item quantity="other">觀看中 %d 項</item>
+    </plurals>
+    <string name="trakt_counts">%1$s，%2$s</string>
+    <string name="trakt_sync_now">立即同步</string>
+    <string name="trakt_sync_now_desc">合併您在這裡和 Trakt 上看過的內容</string>
+    <string name="trakt_syncing">正在同步…</string>
+    <string name="trakt_sync_offline">Trakt 沒有回應。您觀看的內容會在它恢復回應後傳送。</string>
+    <string name="trakt_sync_busy">Trakt 要求稍候片刻。同步會自動繼續。</string>
+    <string name="trakt_sync_failed">與 Trakt 的同步未完成。它會自動繼續。</string>
+    <string name="trakt_sync_refused">Trakt 拒絕同步：帳戶可能已遭鎖定，或此版本的金鑰遭到拒絕。請在 trakt.tv 上檢查您的帳戶。</string>
+    <string name="trakt_sync_unreadable">此版本無法讀取 Trakt 的回應。更新 Houselights 應該能解決此問題。</string>
+    <string name="trakt_certificate">Trakt 的憑證遭到拒絕。請檢查此裝置的日期和時間，然後重試。</string>
+    <string name="settings_lost_trakt">無法重新讀取本播放器上儲存的 Trakt 連結。請重新連結您的帳戶。</string>
 </resources>

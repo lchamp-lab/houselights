@@ -122,6 +122,8 @@ interface MediaProvider {
     suspend fun seasons(series: MediaItem): List<MediaItem>
     suspend fun episodes(series: MediaItem, season: MediaItem): List<MediaItem>
     suspend fun similar(item: MediaItem): List<MediaItem> = emptyList()
+
+    /** Marks [item] watched or not, its resume point cleared either way; a show, season or saga marks all it holds. */
     suspend fun setPlayed(item: MediaItem, played: Boolean) {}
     suspend fun setFavorite(item: MediaItem, favorite: Boolean) {}
     suspend fun playback(item: MediaItem, resume: Boolean, options: PlaybackOptions): PlaybackPlan

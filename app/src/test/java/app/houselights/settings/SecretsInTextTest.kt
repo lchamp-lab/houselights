@@ -2,6 +2,7 @@ package app.houselights.settings
 
 import app.houselights.core.PathMapping
 import app.houselights.core.SourceConfig
+import app.houselights.core.TraktSession
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -25,9 +26,11 @@ class SecretsInTextTest {
             source = server,
             tmdbApiKey = "tmdb-k3y",
             pathMappings = listOf(PathMapping("/media", "smb://zidoo:pa55word@nas/media")),
+            trakt = TraktSession("tr4kt-acc3ss", "tr4kt-r3fresh", expiresAt = 1_700_000_000, username = "lea"),
         )
         val text = settings.toString()
-        for (secret in listOf("j3llyf1n-t0ken", "tmdb-k3y", "pa55word")) assertFalse(text, text.contains(secret))
+        val secrets = listOf("j3llyf1n-t0ken", "tmdb-k3y", "pa55word", "tr4kt-acc3ss", "tr4kt-r3fresh")
+        for (secret in secrets) assertFalse(text, text.contains(secret))
         assertTrue(text, text.contains("loaded=true"))
     }
 }

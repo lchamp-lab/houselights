@@ -92,6 +92,14 @@
     <string name="watched">視聴済み</string>
     <string name="mark_watched">視聴済みにする</string>
     <string name="mark_unwatched">未視聴にする</string>
+    <string name="mark_season_watched">シーズンを視聴済みにする</string>
+    <string name="mark_season_unwatched">シーズンを未視聴にする</string>
+    <string name="mark_series_watched">TV番組を視聴済みにする</string>
+    <string name="mark_series_unwatched">TV番組を未視聴にする</string>
+    <string name="long_press_series_watched">長押し：TV番組を視聴済みに</string>
+    <string name="long_press_series_unwatched">長押し：TV番組を未視聴に</string>
+    <string name="mark_episode_watched">エピソードを視聴済みにする</string>
+    <string name="mark_episode_unwatched">エピソードを未視聴にする</string>
     <string name="add_favorite">お気に入りに追加</string>
     <string name="remove_favorite">お気に入りから削除</string>
     <string name="view_series">TV番組を表示</string>
@@ -541,4 +549,43 @@
     <string name="search_people">人物</string>
     <string name="search_sagas">シリーズ</string>
     <string name="search_none">「%s」で始まるものはありません</string>
+    <!-- Trakt -->
+    <string name="trakt_desc">Traktアカウントに、フォルダから視聴した内容が記録されます。観た映画とエピソード、そしてどこまで観たか。</string>
+    <string name="trakt_no_keys">このビルドのHouselightsにはTraktのキーがありません。</string>
+    <string name="trakt_signed_out">未接続</string>
+    <string name="trakt_connected">接続済み</string>
+    <string name="trakt_signed_in_as">%s として接続済み</string>
+    <string name="trakt_connect">アカウントを接続</string>
+    <string name="trakt_connect_desc">スマートフォンかパソコンでコードを入力します</string>
+    <string name="trakt_disconnect">アカウントの接続を解除</string>
+    <string name="trakt_disconnect_desc">このデバイスからアカウントの情報を消去します。</string>
+    <string name="trakt_disconnecting">接続を解除中…</string>
+    <string name="trakt_code_desc">スマートフォンでQRコードを読み取るか、パソコンでそのアドレスを開いて、このコードを入力してください。</string>
+    <string name="trakt_asking">Traktにコードを要求中…</string>
+    <string name="trakt_waiting">承認を待っています</string>
+    <string name="trakt_code_left">このコードはあと%sで期限切れになります</string>
+    <string name="trakt_offline">Traktが応答しません。このデバイスのインターネット接続を確認して、もう一度お試しください。</string>
+    <string name="trakt_denied">Traktでアクセスが拒否されました。許可するには、もう一度接続してください。</string>
+    <string name="trakt_expired">入力される前にコードの期限が切れました。新しいコードを取得するには、もう一度接続してください。</string>
+    <string name="trakt_refused">Traktがこのビルドのキーを拒否したため、アカウントを接続できません。</string>
+    <string name="trakt_failed">Traktで接続を完了できませんでした。しばらくしてからもう一度お試しください。</string>
+    <string name="trakt_ended">Traktがこの接続を終了しました。もう一度アカウントを接続してください。</string>
+    <string name="trakt_last_sync">前回の同期</string>
+    <plurals name="trakt_watched_count">
+        <item quantity="other">視聴済み%d件</item>
+    </plurals>
+    <plurals name="trakt_in_progress_count">
+        <item quantity="other">視聴中%d件</item>
+    </plurals>
+    <string name="trakt_counts">%1$s、%2$s</string>
+    <string name="trakt_sync_now">今すぐ同期</string>
+    <string name="trakt_sync_now_desc">こことTraktで視聴した内容をまとめます</string>
+    <string name="trakt_syncing">同期中…</string>
+    <string name="trakt_sync_offline">Traktが応答しません。視聴した内容は、応答が戻りしだい送信されます。</string>
+    <string name="trakt_sync_busy">Traktから少し待つよう求められています。同期は自動的に再開されます。</string>
+    <string name="trakt_sync_failed">Traktとの同期を完了できませんでした。自動的に再開されます。</string>
+    <string name="trakt_sync_refused">Traktが同期を拒否しています。アカウントがロックされているか、このビルドのキーが拒否された可能性があります。trakt.tvでアカウントを確認してください。</string>
+    <string name="trakt_sync_unreadable">Traktの応答をこのバージョンでは読み取れません。Houselightsを更新すると解決するはずです。</string>
+    <string name="trakt_certificate">Traktの証明書が拒否されました。このデバイスの日付と時刻を確認して、もう一度お試しください。</string>
+    <string name="settings_lost_trakt">このプレーヤーに保存されたTraktの接続を読み込み直せませんでした。もう一度アカウントを接続してください。</string>
 </resources>

@@ -1,7 +1,8 @@
 # Checks every push and pull request: unit tests, Android Lint, detekt (with and without the compiler's
 # types), and a minified release build, signed with the runner's debug key and never published.
 # TMDB_API_KEY is optional (a repository secret): without it the app builds and users enter their own key.
-# A pull request from a fork gets no secret, and needs none.
+# TRAKT_CLIENT_ID is optional too, and TRAKT_CLIENT_SECRET only for a Trakt app that has one: without them,
+# the app builds and says it has no Trakt. A pull request from a fork gets no secret, and needs none.
 name: CI
 
 on:
@@ -56,6 +57,8 @@ jobs:
       - name: Tests, lint, detekt, release build
         env:
           TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
+          TRAKT_CLIENT_ID: ${{ secrets.TRAKT_CLIENT_ID }}
+          TRAKT_CLIENT_SECRET: ${{ secrets.TRAKT_CLIENT_SECRET }}
         run: >-
           ./gradlew --no-daemon --max-workers=2
           -Dorg.gradle.jvmargs="-Xmx2g -XX:MaxMetaspaceSize=768m -Dfile.encoding=UTF-8"
