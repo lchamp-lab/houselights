@@ -4,7 +4,7 @@ import app.houselights.ui.design.components.labelX
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
-/** A round button's label sits under it: centred, else aligned with its edge, never past the label's edge. */
+/** A tile's label sits under it: centred, else aligned with its edge, never past the label's edge. */
 class IconLabelTest {
     private val screen = 1920
     private val safe = 96

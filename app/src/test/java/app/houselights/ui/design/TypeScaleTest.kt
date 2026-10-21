@@ -15,10 +15,11 @@ import org.junit.Test
 class TypeScaleTest {
     private val roles: Map<String, TextStyle> = with(HouselightsType) {
         mapOf(
-            "display" to display, "headline" to headline, "subject" to subject, "cardTitle" to cardTitle,
+            "display" to display, "headline" to headline, "subject" to subject, "place" to place,
+            "placeCurrent" to placeCurrent, "rowTitle" to rowTitle, "cardName" to cardName, "cardTitle" to cardTitle,
             "title" to title, "lead" to lead, "body" to body, "entry" to entry, "meta" to meta,
             "caption" to caption, "group" to group, "code" to code,
-            "spec" to spec, "badge" to badge,
+            "spec" to spec, "jaquette" to jaquette, "badge" to badge,
         )
     }
 
@@ -68,7 +69,7 @@ class TypeScaleTest {
     @Test
     fun sizesStayOnTheScale() {
         // The signatures are set to their own measure; every role uses the scale.
-        val scale = setOf(12f, 14f, 16f, 20f, 24f, 32f, 44f, 64f)
+        val scale = setOf(12f, 14f, 16f, 20f, 24f, 26f, 32f, 44f, 64f)
         roles.forEach { (name, style) ->
             assertTrue("$name is ${style.fontSize}", style.fontSize.value in scale)
             assertEquals("$name: line height on the 2 sp grid", 0f, style.lineHeight.value % 2f)
@@ -94,10 +95,29 @@ class TypeScaleTest {
 
     @Test
     fun titlesBalanceAndParagraphsBreakForReading() {
-        listOf("display", "headline", "subject", "cardTitle", "title", "lead").forEach {
+        listOf("display", "headline", "subject", "rowTitle", "cardName", "cardTitle", "title", "lead").forEach {
             assertEquals(it, LineBreak.Heading, roles.getValue(it).lineBreak)
         }
         listOf("body", "caption").forEach { assertEquals(it, LineBreak.Paragraph, roles.getValue(it).lineBreak) }
+    }
+
+    @Test
+    fun theVoicesKeepTheirWidths() {
+        // The poster's voice names places, rows and cards; the technical one, formats and printed marks.
+        listOf("place", "placeCurrent", "rowTitle", "cardName").forEach {
+            assertEquals(it, HlFonts.condensed, roles.getValue(it).fontFamily)
+        }
+        listOf("jaquette", "badge").forEach { assertEquals(it, HlFonts.expanded, roles.getValue(it).fontFamily) }
+        assertEquals(FontWeight.Bold, HouselightsType.placeCurrent.fontWeight)
+        assertEquals(HouselightsType.place.fontSize, HouselightsType.placeCurrent.fontSize)
+    }
+
+    @Test
+    fun theEmberLightLiesOnTheWordsOnly() {
+        // A gradient over the glyphs, nothing else of the style changed.
+        val lit = HouselightsType.placeCurrent.emberLit(HouselightsColors)
+        assertEquals(HouselightsColors.emberLight(), lit.brush)
+        assertEquals(HouselightsType.placeCurrent.copy(brush = lit.brush), lit)
     }
 
     @Test

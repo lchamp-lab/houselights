@@ -38,9 +38,9 @@ import app.houselights.ui.design.components.HlSettingRow
 import app.houselights.ui.design.components.HlSideSheet
 import app.houselights.ui.design.components.HlStatus
 import app.houselights.ui.design.components.InfoBlock
+import app.houselights.ui.design.components.Lockup
 import app.houselights.ui.design.components.QrCode
 import app.houselights.ui.design.components.StatusState
-import app.houselights.ui.design.components.Wordmark
 import app.houselights.ui.util.FACT_GAP
 
 internal fun LazyListScope.aboutPane(onOpenCatalog: () -> Unit, rows: PaneRows) {
@@ -74,12 +74,12 @@ internal fun SupportRow(modifier: Modifier = Modifier) {
     }
 }
 
-/** The wordmark, version and licence, placed where every pane has its title so nothing jumps between panes. */
+/** The lockup, version and licence, placed where every pane has its title so nothing jumps between panes. */
 @Composable
 private fun AboutBrand() {
     Column {
         Spacer(Modifier.height(HlLayout.paneTop))
-        Wordmark(HlSize.wordmark)
+        Lockup(HlSize.wordmark)
         Spacer(Modifier.height(HlSpace.xs))
         FactRow(
             listOf(
@@ -177,6 +177,9 @@ private fun AboutCredits() {
             Hint(stringResource(R.string.tmdb_attribution), Modifier.padding(start = HlLayout.definitionLabel))
             DefinitionRow(stringResource(R.string.credit_font)) {
                 Text(stringResource(R.string.credit_font_value), style = Hl.type.meta, color = Hl.colors.content)
+            }
+            DefinitionRow(stringResource(R.string.credit_icons)) {
+                Text(stringResource(R.string.credit_icons_value), style = Hl.type.meta, color = Hl.colors.content)
             }
         }
     }

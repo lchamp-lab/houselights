@@ -211,7 +211,7 @@ private fun SourceActions(
                     HEADER_POSTERS,
                     slotWidth = HlSize.rowPreviewPoster,
                     gap = HlSpace.xxs,
-                    shape = HlShapes.artwork,
+                    shape = HlShapes.thumb,
                 )
             }
         },
@@ -276,7 +276,10 @@ internal fun editFixes(error: ScanError?): ScanErrorKind? = error?.kind?.takeIf 
 @Composable
 private fun sourceName(source: SourceEntity) = source.name.replaceFirstChar { it.uppercase() }
 
-/** A folder card: latest posters, name, kind, address, [counts] (null until read), and last scan or running [scan]. */
+/**
+ * A folder card, opened by its latest posters edge to edge: name in the poster's voice, kind, address, [counts]
+ * (null until read), and last scan or running [scan].
+ */
 @Composable
 private fun SourceCard(
     source: SourceEntity,
@@ -299,14 +302,14 @@ private fun SourceCard(
             PosterStrip(remember(posters) { posters.map { LocalProvider.image(it, ImageType.POSTER) } }, STRIP, name = sourceName(source))
             Column(Modifier.padding(HlInset.card)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(HlSpace.s)) {
-                    Text(sourceName(source), style = Hl.type.lead, color = c.content)
+                    Text(sourceName(source), style = Hl.type.rowTitle, color = c.content)
                     if (!source.name.equals(kind, ignoreCase = true)) Badge(kind)
                     Badge(source.protocol.name)
                 }
                 Spacer(Modifier.height(HlSpace.xxs))
                 Text(
                     source.address(withScheme = false),
-                    style = Hl.type.meta,
+                    style = Hl.type.caption,
                     color = c.contentSecondary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,

@@ -51,7 +51,7 @@ import app.houselights.ui.design.components.AmbientBackdrop
 import app.houselights.ui.design.components.CardSkeleton
 import app.houselights.ui.design.components.MediaRow
 import app.houselights.ui.design.components.MetaLine
-import app.houselights.ui.design.components.ScreenTitle
+import app.houselights.ui.design.components.TaskTitle
 import app.houselights.ui.design.components.TitleArt
 import app.houselights.ui.design.tryRequestFocus
 import app.houselights.ui.design.components.HlErrorState
@@ -116,7 +116,7 @@ fun ArtworkScreen(itemId: String, kind: ArtworkKind, onDone: () -> Unit) {
 @Composable
 private fun Header(kind: ArtworkKind, item: MediaItem?, choices: ArtworkChoices?, onlineError: UiError?) {
     Column(Modifier.padding(horizontal = HlSpace.safeH)) {
-        ScreenTitle(stringResource(kind.title))
+        TaskTitle(stringResource(kind.title))
         Spacer(Modifier.height(HlSpace.xxs))
         FactRow(listOf(item?.title, choices?.let { pluralStringResource(R.plurals.image_count, it.options.size, it.options.size) }))
         Spacer(Modifier.height(HlSpace.xs))

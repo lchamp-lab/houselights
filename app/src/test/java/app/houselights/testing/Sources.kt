@@ -18,6 +18,53 @@ fun List<File>.linesWhere(root: File, flagged: (String) -> Boolean): List<String
     }
 }
 
+/** The call whose arguments open at [open]: its arguments, then its trailing lambda, brackets balanced. */
+fun String.callFrom(open: Int): String {
+    var end = closing(open, '(', ')')
+    val lambda = (end + 1 until length).firstOrNull { !this[it].isWhitespace() } ?: -1
+    if (lambda >= 0 && this[lambda] == '{') end = closing(lambda, '{', '}')
+    return substring(open, end + 1)
+}
+
+/** The arguments of the call whose brackets open at [open], split at its own commas, each trimmed. */
+fun String.argumentsFrom(open: Int): List<String> {
+    val end = closing(open, '(', ')')
+    val arguments = mutableListOf<String>()
+    var depth = 0
+    var quoted = false
+    var start = open + 1
+    for (i in open + 1 until end) {
+        val char = this[i]
+        if (char == '"' && this[i - 1] != '\\') quoted = !quoted
+        if (quoted) continue
+        when (char) {
+            '(', '{', '[' -> depth++
+            ')', '}', ']' -> depth--
+            ',' -> if (depth == 0) {
+                arguments += substring(start, i).trim()
+                start = i + 1
+            }
+        }
+    }
+    arguments += substring(start, end).trim()
+    return arguments.filter { it.isNotEmpty() }
+}
+
+private fun String.closing(open: Int, opens: Char, closes: Char): Int {
+    var depth = 0
+    for (i in open until length) {
+        if (this[i] == opens) depth++
+        if (this[i] == closes && --depth == 0) return i
+    }
+    return length - 1
+}
+
+/** Whether the line holding [index] is a comment or an import, so a guard reads code only. */
+fun String.inCommentAt(index: Int): Boolean {
+    val line = substring(lastIndexOf('\n', index) + 1).substringBefore('\n').trimStart()
+    return line.startsWith("//") || line.startsWith("*") || line.startsWith("/*") || line.startsWith("import ")
+}
+
 /** The root element of the XML [file], a path from the app module; fails when it is not there. */
 fun xmlRoot(file: File): Element {
     assertTrue("${file.path} not found from ${File(".").absolutePath}", file.isFile)

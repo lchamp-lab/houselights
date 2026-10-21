@@ -36,6 +36,7 @@ import app.houselights.ui.design.components.FactRow
 import app.houselights.ui.design.components.HeroInfo
 import app.houselights.ui.design.components.HlIconButton
 import app.houselights.ui.design.components.HlSegmented
+import app.houselights.ui.design.components.HeaderControls
 import app.houselights.ui.design.components.PosterCard
 import app.houselights.ui.design.components.TitleLine
 import app.houselights.ui.design.textRoom
@@ -180,12 +181,12 @@ private fun StressDeviceSection() {
 
 /** The home top bar as HomeScreen composes it, on projector white, the lightest backdrop a film can bring. */
 @Composable
-private fun StressTopBar(libraries: List<String>) = OnArtwork {
+private fun StressTopBar(libraries: List<String>) = OnArtwork { HeaderControls {
     Row(
         // The label of the settings button shows on the image, under the bar, as it does at home.
         Modifier.fillMaxWidth().background(Hl.colors.content).padding(top = HlSpace.safeV, bottom = HlIconButtonDefaults.labelRoom),
         horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.Top,
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         var current by remember { mutableIntStateOf(0) }
         HlSegmented(
@@ -194,10 +195,11 @@ private fun StressTopBar(libraries: List<String>) = OnArtwork {
             onSelect = { current = it },
             modifier = Modifier.weight(1f, fill = false).padding(end = HlSpace.l),
             scrollable = true,
+            markFirst = true,
         )
         HlIconButton(HlIcons.Settings, stringResource(R.string.nav_settings), onClick = {})
     }
-}
+} }
 
 /** The line naming the focused title above the library's wall, at the height LibraryScreen gives it. */
 @Composable

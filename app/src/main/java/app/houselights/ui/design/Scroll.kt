@@ -119,8 +119,9 @@ private val ROW_MARGIN = HlSpace.safeH + HlSpace.xl
  * to come. Drawn without a layer, so the surface must be opaque there. Not for poster rows ([RowScroll]).
  */
 fun Modifier.scrollEdges(state: ScrollableState, color: Color): Modifier = composed {
-    val top by animateFloatAsState(if (state.canScrollBackward) 1f else 0f, tween(HlMotion.FAST), label = "fadeTop")
-    val bottom by animateFloatAsState(if (state.canScrollForward) 1f else 0f, tween(HlMotion.FAST), label = "fadeBottom")
+    val fade = tween<Float>(HlMotion.FAST, easing = HlMotion.fallBack)
+    val top by animateFloatAsState(if (state.canScrollBackward) 1f else 0f, fade, label = "fadeTop")
+    val bottom by animateFloatAsState(if (state.canScrollForward) 1f else 0f, fade, label = "fadeBottom")
     drawWithContent {
         drawContent()
         val length = HlSpace.fadeEdge.toPx().coerceAtMost(size.height / 2)

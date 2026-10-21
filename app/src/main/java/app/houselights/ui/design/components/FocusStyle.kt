@@ -2,112 +2,104 @@ package app.houselights.ui.design.components
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Shape
-import androidx.tv.material3.Border
-import androidx.tv.material3.ClickableSurfaceBorder
-import androidx.tv.material3.ClickableSurfaceColors
-import androidx.tv.material3.ClickableSurfaceDefaults
-import androidx.tv.material3.ClickableSurfaceScale
+import androidx.compose.ui.graphics.ColorProducer
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlFocus
 import app.houselights.ui.design.HlSize
 
-/** Focus growth by family: a poster most, a wide still less, a panel slightly. */
-enum class Lift(val scale: Float) {
-    Artwork(HlFocus.ARTWORK_SCALE),
-    Card(HlFocus.CARD_SCALE),
-    Panel(HlFocus.PANEL_SCALE),
+/** The two gestures a surface takes focus with; a field draws [FocusStyle.ring] itself. */
+internal enum class Gesture {
+    /** What carries its own light (a picture, the main action) keeps its colours and takes the detached frame. */
+    Frame,
+
+    /** A plate (a button, a tile, a tab, a row) turns white with black ink. */
+    Fill,
 }
 
+/** A surface's fill, read while drawing so it can take a picture's colour without recomposing, and its ink. */
+@Immutable
+internal data class Plate(val fill: ColorProducer, val ink: Color)
+
+/** A fill of one colour, equal to another of that colour: a surface given the same look again skips. */
+@Immutable
+private data class Steady(private val color: Color) : ColorProducer {
+    override fun invoke(): Color = color
+}
+
+/** What a [HlFocusSurface] draws at rest, with focus and disabled; made by [FocusStyle] only. */
+@Immutable
+internal data class FocusLook(
+    val gesture: Gesture,
+    val rest: Plate,
+    val focus: Plate,
+    val disabled: Plate,
+    /** Drawn inside the surface's edge, at rest and with focus. */
+    val edge: BorderStroke?,
+)
+
 /**
- * The single definition of focus (DESIGN.md, Focus): projector white in three gestures, [fill], [lift]
- * and [ring]. A disabled control is outlined, never filled, since white would offer an action
- * ([disabledRing]). Components take focus from here only (FocusStyleGuardTest).
+ * The single definition of focus (DESIGN.md, Focus): projector white in two gestures, [frame] and [fill],
+ * and the [ring] of what is read or typed in. Nothing is brighter than focus, and ember never marks it.
+ * A disabled surface keeps its well: focus rings it, never fills it, since white would offer an action.
+ * Components take focus from here only (`FocusStyleGuardTest`).
  */
 internal object FocusStyle {
-    /** How a filled element grows: pills and discs slightly, full-width rows not at all. */
-    enum class Fill(val scale: Float) {
-        Pill(HlFocus.CONTROL_SCALE),
-        Row(HlFocus.ROW_SCALE),
+    /** Frame: the white frame [HlFocus.frameGap] off the edge, lit in the picture's own tone. */
+    @Composable
+    @ReadOnlyComposable
+    fun frame(
+        rest: Color,
+        restInk: Color,
+        edge: BorderStroke? = null,
+        disabled: Color = rest,
+        disabledInk: Color = restInk,
+    ): FocusLook {
+        val still = Plate(Steady(rest), restInk)
+        return FocusLook(Gesture.Frame, still, still, Plate(Steady(disabled), disabledInk), edge)
     }
 
-    /** A filled element's colours: white with black content when focused or pressed. */
+    /** Fill: the plate turns white and its ink black. */
     @Composable
+    @ReadOnlyComposable
     fun fill(
         rest: Color,
-        restContent: Color,
+        restInk: Color,
         disabled: Color = rest,
-        disabledContent: Color = restContent,
-    ): ClickableSurfaceColors {
+        disabledInk: Color = restInk,
+        edge: BorderStroke? = null,
+    ): FocusLook = fill(Steady(rest), restInk, Steady(disabled), disabledInk, edge)
+
+    /** [fill] on a plate whose colour is read while drawing: a picture's own dark follows it without recomposing. */
+    @Composable
+    @ReadOnlyComposable
+    fun fill(
+        rest: ColorProducer,
+        restInk: Color,
+        disabled: ColorProducer = rest,
+        disabledInk: Color = restInk,
+        edge: BorderStroke? = null,
+    ): FocusLook {
         val c = Hl.colors
-        return ClickableSurfaceDefaults.colors(
-            containerColor = rest,
-            contentColor = restContent,
-            focusedContainerColor = c.focus,
-            focusedContentColor = c.onFocus,
-            pressedContainerColor = c.focus,
-            pressedContentColor = c.onFocus,
-            disabledContainerColor = disabled,
-            disabledContentColor = disabledContent,
+        return FocusLook(
+            Gesture.Fill,
+            rest = Plate(rest, restInk),
+            focus = Plate(Steady(c.focus), c.onFocus),
+            disabled = Plate(disabled, disabledInk),
+            edge = edge,
         )
     }
 
-    /** How much a filled element grows with focus, enabled or not. */
+    /** The ring of focus in projector white, inside the edge: a field, a read-only area, what cannot act. */
     @Composable
-    fun scale(fill: Fill): ClickableSurfaceScale =
-        ClickableSurfaceDefaults.scale(focusedScale = fill.scale, focusedDisabledScale = fill.scale)
-
-    /** Focus on a disabled element: the projector-white outline, never the white fill. */
-    @Composable
-    fun disabledRing(shape: Shape): ClickableSurfaceBorder =
-        ClickableSurfaceDefaults.border(focusedDisabledBorder = Border(ring(), shape = shape))
-
-    /** A lifted element's colours, unchanged by focus, which the lift and outline show. */
-    @Composable
-    fun still(
-        rest: Color,
-        restContent: Color,
-        disabled: Color = rest,
-        disabledContent: Color = restContent,
-    ): ClickableSurfaceColors = ClickableSurfaceDefaults.colors(
-        containerColor = rest,
-        contentColor = restContent,
-        focusedContainerColor = rest,
-        focusedContentColor = restContent,
-        pressedContainerColor = rest,
-        pressedContentColor = restContent,
-        disabledContainerColor = disabled,
-        disabledContentColor = disabledContent,
-    )
-
-    /** Lifted growth, kept while pressed so a pressed card stays as large as its glow. */
-    @Composable
-    fun scale(lift: Lift): ClickableSurfaceScale =
-        ClickableSurfaceDefaults.scale(focusedScale = lift.scale, focusedDisabledScale = lift.scale, pressedScale = lift.scale)
-
-    /** A lifted element crossed while an arrow is held ([app.houselights.ui.design.Scrub]) does not grow. */
-    @Composable
-    fun crossed(): ClickableSurfaceScale = ClickableSurfaceDefaults.scale(focusedScale = 1f, focusedDisabledScale = 1f, pressedScale = 1f)
-
-    /** A lifted element's borders, with the white focus outline in [shape], enabled or not. */
-    @Composable
-    fun lift(shape: Shape, rest: Border = Border.None, disabled: Border = rest): ClickableSurfaceBorder {
-        val outline = Border(ring(), shape = shape)
-        return ClickableSurfaceDefaults.border(
-            border = rest,
-            focusedBorder = outline,
-            disabledBorder = disabled,
-            focusedDisabledBorder = outline,
-        )
-    }
-
-    /** The focus stroke in projector white, for a lift, a ring or a field. */
-    @Composable
+    @ReadOnlyComposable
     fun ring(): BorderStroke = BorderStroke(HlSize.focusBorder, Hl.colors.focus)
 
-    /** Secondary text colour by state; never tertiary at rest, which drops to 3.9:1 on a primary button. */
+    /** Secondary text colour by state; never tertiary at rest, which drops to 3.9:1 on `FILL_STRONG`. */
     @Composable
+    @ReadOnlyComposable
     fun quietInk(focused: Boolean, enabled: Boolean, lit: Boolean, onFocus: Color = Hl.colors.onFocusSecondary): Color {
         val c = Hl.colors
         return when {

@@ -42,7 +42,7 @@ import app.houselights.ui.design.colorStops
 import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
 
-private val POSTER_W = HlSize.posterWall
+private val POSTER_W = HlSize.welcomePoster
 private val POSTER_H = POSTER_W * 1.5f
 private val GAP = HlSpace.fact
 private const val COLUMNS = 9
@@ -105,7 +105,7 @@ fun PosterWall(urls: List<String>, modifier: Modifier = Modifier, opacity: Float
     }
 }
 
-/** The welcome wall's veil, darker where text sits; nothing glows behind the wordmark. */
+/** The welcome wall's veil, black and darker where text sits; nothing glows behind the lockup. */
 @Composable
 fun PosterWallScrim() {
     val black = Hl.colors.background

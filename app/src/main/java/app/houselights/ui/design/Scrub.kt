@@ -7,8 +7,8 @@ import android.view.KeyEvent
 import androidx.compose.runtime.mutableStateOf
 
 /**
- * Whether an arrow held (or re-pressed within [AGAIN_MS], as infrared remotes repeat) runs focus across a
- * row: crossed cards neither grow nor light, sparing work. A run ends [SETTLE_MS] after the last arrow.
+ * Whether an arrow held (or pressed again within [AGAIN_MS], as infrared remotes repeat) runs focus: crossed
+ * surfaces light at once, without glowing, sparing work. A run ends [SETTLE_MS] after the last arrow.
  */
 class ScrubTracker(
     private val now: () -> Long = SystemClock::uptimeMillis,

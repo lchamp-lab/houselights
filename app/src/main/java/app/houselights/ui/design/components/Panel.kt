@@ -4,7 +4,6 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -17,10 +16,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -30,15 +29,13 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
-import androidx.tv.material3.Border
-import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.Icon
-import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlAlpha
@@ -60,7 +57,7 @@ enum class PanelLevel {
     /** On the room itself: lists, status, information. */
     Quiet,
 
-    /** Above other content: dialogs and menus. */
+    /** Above other content: menus, on glass. */
     Raised,
 }
 
@@ -80,7 +77,7 @@ fun HlPanel(
         modifier
             .panel(
                 shape,
-                fill = if (raised) c.surfaceRaised else groundStepFill(),
+                fill = if (raised) c.glass else groundStepFill(),
                 edge = if (lit) BorderStroke(HlSize.hairline, c.emberLight()) else BorderStroke(HlSize.hairline, c.edge),
             )
             .padding(padding),
@@ -93,7 +90,7 @@ fun HlPanel(
 internal fun Modifier.panel(shape: Shape, fill: Color, edge: BorderStroke): Modifier =
     clip(shape).background(fill).border(edge, shape)
 
-/** A selectable panel (list entries, source cards), lifted on focus; [lit] edges it in ember at rest. */
+/** A selectable panel (list entries, source cards): framed on focus; [lit] edges it in ember at rest, [level] raises it on glass. */
 @Composable
 fun HlPanelButton(
     onClick: () -> Unit,
@@ -101,36 +98,32 @@ fun HlPanelButton(
     onFocused: () -> Unit = {},
     lit: Boolean = false,
     enabled: Boolean = true,
+    level: PanelLevel = PanelLevel.Quiet,
     content: @Composable (focused: Boolean) -> Unit,
 ) {
     val c = Hl.colors
-    val interaction = remember { MutableInteractionSource() }
-    val focused by interaction.collectIsFocusedAsState()
-    val edge = Border(BorderStroke(HlSize.hairline, c.edge), shape = HlShapes.panel)
-    Surface(
+    val raised = level == PanelLevel.Raised
+    HlFocusSurface(
         onClick = onClick,
+        look = FocusStyle.frame(
+            rest = if (raised) c.glass else groundStepFill(),
+            restInk = c.content,
+            edge = BorderStroke(HlSize.hairline, if (lit && enabled) c.emberLight() else SolidColor(c.edge)),
+            disabled = c.content.copy(alpha = HlAlpha.FILL_FAINT),
+            disabledInk = c.contentTertiary,
+        ),
+        shape = HlShapes.panel,
         modifier = modifier.onFocusChanged { if (it.isFocused) onFocused() },
         enabled = enabled,
-        shape = ClickableSurfaceDefaults.shape(HlShapes.panel),
-        scale = FocusStyle.scale(Lift.Panel),
-        border = FocusStyle.lift(
-            HlShapes.panel,
-            rest = if (lit) Border(BorderStroke(HlSize.hairline, c.emberLight()), shape = HlShapes.panel) else edge,
-            disabled = edge,
-        ),
-        colors = FocusStyle.still(
-            rest = groundStepFill(),
-            restContent = c.content,
-            disabled = c.content.copy(alpha = HlAlpha.FILL_FAINT),
-            disabledContent = c.contentTertiary,
-        ),
-        interactionSource = interaction,
-    ) {
-        content(focused)
+    ) { focused ->
+        if (raised) CompositionLocalProvider(LocalGround provides Ground.Glass) { content(focused) } else content(focused)
     }
 }
 
-/** A full-width selectable row, white-filled on focus without growing; disabled, it keeps focus, outlined. */
+/**
+ * A full-width selectable row: its words on what holds it, white-filled on focus; disabled, it sits in its
+ * [disabled] well and keeps focus, ringed.
+ */
 @Composable
 internal fun HlRowSurface(
     onClick: () -> Unit,
@@ -138,23 +131,20 @@ internal fun HlRowSurface(
     rest: Color = Color.Transparent,
     restContent: Color = Hl.colors.content,
     enabled: Boolean = true,
+    disabled: Color = rest,
     disabledContent: Color = restContent,
+    shape: Shape = HlShapes.row,
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
     content: @Composable (focused: Boolean) -> Unit,
 ) {
-    val focused by interactionSource.collectIsFocusedAsState()
-    Surface(
+    HlFocusSurface(
         onClick = onClick,
+        look = FocusStyle.fill(rest = rest, restInk = restContent, disabled = disabled, disabledInk = disabledContent),
+        shape = shape,
         modifier = modifier,
         enabled = enabled,
-        shape = ClickableSurfaceDefaults.shape(HlShapes.row),
-        scale = FocusStyle.scale(FocusStyle.Fill.Row),
-        border = FocusStyle.disabledRing(HlShapes.row),
-        colors = FocusStyle.fill(rest = rest, restContent = restContent, disabledContent = disabledContent),
         interactionSource = interactionSource,
-    ) {
-        content(focused)
-    }
+    ) { lit -> content(lit) }
 }
 
 /** A hairline that separates groups. */
@@ -272,13 +262,14 @@ internal fun StatusLight(state: StatusState, modifier: Modifier = Modifier, ink:
             Icon(HlIcons.Attention, contentDescription = null, tint = ink ?: c.ember, modifier = Modifier.size(HlSize.statusLight))
             return@Box
         }
-        val dot = Modifier.size(HlSize.dot).clip(HlShapes.avatar)
+        // Dots are the only round things.
+        val dot = Modifier.size(HlSize.dot).clip(CircleShape)
         Box(
             when (state) {
                 StatusState.On -> dot.background(ink ?: c.ember)
                 StatusState.Done -> dot.background(ink ?: c.content)
                 StatusState.Pending -> dot.background(ink ?: c.contentTertiary)
-                else -> dot.border(HlSize.hairline, ink ?: c.contentTertiary, HlShapes.avatar)
+                else -> dot.border(HlSize.hairline, ink ?: c.contentTertiary, CircleShape)
             }
         )
     }
@@ -317,7 +308,7 @@ fun HlMeter(segments: List<MeterSegment>, modifier: Modifier = Modifier) {
         modifier
             .fillMaxWidth()
             .height(HlSize.meter)
-            .clip(HlShapes.control)
+            .clip(HlShapes.badge)
             .background(c.content.copy(alpha = HlAlpha.FILL_FAINT)),
         horizontalArrangement = Arrangement.spacedBy(HlSize.meterGap),
     ) {
@@ -334,7 +325,8 @@ fun HlMeter(segments: List<MeterSegment>, modifier: Modifier = Modifier) {
 @Composable
 fun MeterLegend(label: String, value: String, ink: MeterInk, modifier: Modifier = Modifier) {
     Row(modifier.fillMaxWidth()) {
-        Box(Modifier.align(Alignment.CenterVertically).size(HlSize.dot).clip(HlShapes.avatar).background(ink.color()))
+        // Dots are the only round things.
+        Box(Modifier.align(Alignment.CenterVertically).size(HlSize.dot).clip(CircleShape).background(ink.color()))
         Spacer(Modifier.width(HlSpace.s))
         Text(
             label,

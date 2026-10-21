@@ -10,8 +10,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyListScope
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -40,20 +38,20 @@ import app.houselights.ui.design.components.StatusState
 
 /** Every glyph of the app; the marks that say done and your choice; what ember never says. */
 internal fun LazyListScope.catalogIcons() {
-    item { Group("Icons: one line, 1.75 on a 24 grid, at 24 and 20; Play the one filled glyph", still = true) { IconSheet() } }
+    item { Group("Icons: Lucide, stroke 2 on a 24 grid, at 24 and 20; Play filled as on a remote", still = true) { IconSheet() } }
     item { Group("Done and your choice: one check, two inks; in words, a light") { Marks() } }
     item { Group("Ember, states only: a score is a fact; attention sits beside what it concerns", still = true) { Facts() } }
 }
 
-/** The glyphs in the order of [HlIcons], each on the room and on projector white; Play last. */
+/** The glyphs in the order of [HlIcons], each on the room and on projector white. */
 @Composable
 private fun IconSheet() {
     val glyphs = listOf(
-        HlIcons.Folder, HlIcons.Server, HlIcons.Display, HlIcons.Playback, HlIcons.Versions, HlIcons.Sort, HlIcons.Filter,
+        HlIcons.Folder, HlIcons.Server, HlIcons.Display, HlIcons.Playback, HlIcons.Play, HlIcons.Versions, HlIcons.Sort, HlIcons.Filter,
         HlIcons.Info, HlIcons.Document, HlIcons.Storage, HlIcons.Numbers, HlIcons.Edit, HlIcons.Logo, HlIcons.Search,
         HlIcons.Check, HlIcons.CheckFilled, HlIcons.Restart, HlIcons.Back, HlIcons.Chevron, HlIcons.Swap, HlIcons.Settings, HlIcons.Add,
         HlIcons.Refresh, HlIcons.Test, HlIcons.Close, HlIcons.Heart, HlIcons.HeartFilled, HlIcons.Star,
-        HlIcons.Attention, Icons.Filled.PlayArrow,
+        HlIcons.Attention,
     )
     Column(verticalArrangement = Arrangement.spacedBy(HlSpace.l)) {
         glyphs.chunked(ICONS_PER_ROW).forEach { row ->
@@ -82,7 +80,7 @@ private fun Glyph(icon: ImageVector, modifier: Modifier) {
 @Composable
 private fun Sizes(icon: ImageVector, ink: Color, modifier: Modifier) {
     Row(modifier, horizontalArrangement = Arrangement.spacedBy(HlSpace.s), verticalAlignment = Alignment.CenterVertically) {
-        Icon(icon, contentDescription = null, tint = ink, modifier = Modifier.size(HlSize.discIcon))
+        Icon(icon, contentDescription = null, tint = ink, modifier = Modifier.size(HlSize.largeIcon))
         Icon(icon, contentDescription = null, tint = ink, modifier = Modifier.size(HlSize.icon))
     }
 }

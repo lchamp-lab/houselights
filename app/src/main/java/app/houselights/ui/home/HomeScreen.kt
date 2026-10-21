@@ -38,6 +38,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.components.HlIconButton
 import app.houselights.ui.design.components.HlSegmented
+import app.houselights.ui.design.components.HeaderControls
 import app.houselights.ui.design.components.HlEmptyState
 import app.houselights.ui.design.components.HlErrorState
 import app.houselights.ui.design.HlFocus
@@ -75,6 +76,7 @@ import app.houselights.ui.design.components.HeroInfo
 import app.houselights.ui.design.components.HlButton
 import app.houselights.ui.design.components.LandscapeCard
 import app.houselights.ui.design.components.MediaRow
+import app.houselights.ui.design.components.wearsNewDot
 import app.houselights.ui.design.components.PosterCard
 import app.houselights.ui.design.components.ScanProgress
 import app.houselights.ui.util.ReloadOnLibraryChange
@@ -231,8 +233,9 @@ internal fun HomeBands(
     }
 }
 
+/** The places, home's as Gradation, and the tiles, [HlSpace.safeV] from the top; as tall as a compact tile (`HomeLayoutTest`). */
 @Composable
-private fun TopBar(
+internal fun TopBar(
     libraries: List<Library>,
     memory: FocusMemory,
     returnTo: Int?,
@@ -244,13 +247,13 @@ private fun TopBar(
     /** Null when the source cannot search. */
     onSearch: (() -> Unit)? = null,
 ) {
-    // The library track and the actions apart, on plates over the image; a long track scrolls, the buttons stay.
-    OnArtwork { Row(
+    // The places on the veil, the actions apart on their plates; a long track scrolls, the tiles stay.
+    OnArtwork { HeaderControls { Row(
         Modifier.fillMaxWidth().padding(start = HlSpace.safeH, end = HlSpace.safeH, top = HlSpace.safeV),
         horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.Top,
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        // The pill slides to the chosen library before it opens; returning home selects Accueil again.
+        // The chosen library lights before it opens; returning home makes home the place again.
         var current by remember { mutableIntStateOf(0) }
         val scope = rememberCoroutineScope()
         HlSegmented(
@@ -259,7 +262,7 @@ private fun TopBar(
             onSelect = { i ->
                 if (i > 0 && current == 0) {
                     current = i
-                    // Prefetch the wall while the pill slides.
+                    // Prefetch the wall while its name lights.
                     onLibraryAhead(libraries[i - 1])
                     scope.launch {
                         awaitMotion(HlMotion.STANDARD)
@@ -271,6 +274,7 @@ private fun TopBar(
             modifier = Modifier.weight(1f, fill = false).padding(end = HlSpace.l).focusGroupKey(TRACK, memory),
             scrollable = true,
             enterAt = returnTo ?: current,
+            markFirst = true,
         )
         // Down from the buttons enters the first row as from the tabs, not on the card beneath the button.
         val down = Modifier.focusProperties { down = intoRows() ?: FocusRequester.Default }
@@ -290,7 +294,7 @@ private fun TopBar(
                 modifier = Modifier.focusKey(FocusKey.action("settings"), memory).then(down),
             )
         }
-    } }
+    } } }
 }
 
 @Composable
@@ -322,6 +326,7 @@ private fun Sections(
                     modifier = Modifier.focusGroupKey(FocusKey.section(section.key), memory),
                     spacing = section.spacing,
                     state = rememberRowState(section.items.map { it.id }),
+                    news = section.items.count { it.wearsNewDot() },
                 ) {
                     items(section.items, key = { it.id }) { item ->
                         val mod = Modifier.focusKey(cardKey(section, item), memory).then(if (sectionIndex == 0) toTabs else Modifier)

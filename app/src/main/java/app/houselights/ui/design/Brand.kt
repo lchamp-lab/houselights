@@ -1,10 +1,21 @@
 package app.houselights.ui.design
 
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.size
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.isSpecified
+import androidx.compose.ui.unit.Dp
 
 /**
- * Gradation, the mark (DESIGN.md, Brand): three ember bars halving in width (4:2:1), together as wide as
- * tall. The launcher icon, banner and splash vectors must match this geometry (`BrandTest`).
+ * Gradation, the mark (DESIGN.md, Brand): three bars halving in width (4:2:1), together as wide as tall, in
+ * one ember gradient ([light]). The launcher icon, banner and splash vectors must match it (`BrandTest`).
  */
 object Gradation {
     /** The bars' widths, in units of the thinnest. */
@@ -30,13 +41,56 @@ object Gradation {
     const val LAUNCH = 36f
     const val LAUNCH_CIRCLE = 72f
 
-    /** The bars, widest first, of a mark [height] tall centred on ([x], [y]), pulled right by [PULL]. */
-    fun bars(x: Float, y: Float, height: Float): List<Rect> {
+    /** The lockup's mark, in the name's capitals: it passes them by a fifth above and below, centred on them. */
+    const val LOCKUP_MARK = 1.4f
+
+    /** From the lockup's mark to its name, in capitals: the wide bar's width. */
+    val lockupGap: Float = LOCKUP_MARK * widths.first() / units
+
+    /** Where the lockup's name starts, in capitals. */
+    val lockupIndent: Float = LOCKUP_MARK + lockupGap
+
+    /** The bars, widest first, of a mark [height] tall centred on ([x], [y]), pulled right by [pull] of it. */
+    fun bars(x: Float, y: Float, height: Float, pull: Float = PULL): List<Rect> {
         val unit = height / units
-        var left = x - height / 2 + PULL * height
+        var left = x - height / 2 + pull * height
         val top = y - height / 2
         return widths.mapIndexed { i, width ->
             Rect(left, top, left + width * unit, top + height).also { left = it.right + (gaps.getOrNull(i) ?: 0f) * unit }
         }
     }
+
+    /** The lockup's bars from x = 0, centred on [capitals] whose middle is at [y]; beside a name, they take no pull. */
+    fun lockupBars(capitals: Float, y: Float): List<Rect> {
+        val height = capitals * LOCKUP_MARK
+        return bars(height / 2, y, height, pull = 0f)
+    }
+
+    /** The mark's light: `emberFrom` at the left edge of [bars] to `emberTo` at their right, shared by every bar. */
+    fun light(bars: List<Rect>, colors: HlColors): Brush =
+        Brush.horizontalGradient(listOf(colors.emberFrom, colors.emberTo), startX = bars.first().left, endX = bars.last().right)
+
+    /** The [light] once per bar: a brush keeps its shader for one size only, so each bar keeps its own. */
+    fun lights(bars: List<Rect>, colors: HlColors): List<Brush> = bars.map { light(bars, colors) }
+}
+
+/** Draws [bars] in one light across them ([Gradation.lights]), each bar at its own opacity ([level] of its index, 1 lit). */
+fun DrawScope.drawGradation(bars: List<Rect>, lights: List<Brush>, level: (Int) -> Float = { 1f }) {
+    bars.forEachIndexed { i, bar ->
+        val alpha = level(i)
+        if (alpha > 0f) drawRect(lights[i], bar.topLeft, bar.size, alpha)
+    }
+}
+
+/** Gradation on screen, [height] tall and as wide, in its ember light or in one [ink]; never focusable. */
+@Composable
+fun GradationMark(modifier: Modifier = Modifier, height: Dp = HlSize.barMark, ink: Color = Color.Unspecified) {
+    val colors = Hl.colors
+    Spacer(
+        modifier.size(height).drawWithCache {
+            val bars = Gradation.bars(size.width / 2, size.height / 2, size.height)
+            val lights = if (ink.isSpecified) List(bars.size) { SolidColor(ink) } else Gradation.lights(bars, colors)
+            onDrawBehind { drawGradation(bars, lights) }
+        },
+    )
 }

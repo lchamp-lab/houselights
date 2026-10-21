@@ -205,7 +205,6 @@ dependencies {
     implementation(libs.compose.animation)
     implementation(libs.compose.ui.tooling.preview)
     debugImplementation(libs.compose.ui.tooling)
-    implementation(libs.compose.material.icons.core)
     implementation(libs.tv.material)
 
     implementation(libs.androidx.core.ktx)

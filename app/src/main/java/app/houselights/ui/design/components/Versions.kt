@@ -102,7 +102,7 @@ fun VersionRow(name: String, version: Version, onChoose: () -> Unit, modifier: M
                     Icon(
                         HlIcons.Check,
                         contentDescription = null,
-                        tint = if (focused) ink else c.ember,
+                        tint = if (focused) c.emberOnLight else c.ember,
                         modifier = Modifier.size(HlSize.inlineIcon),
                     )
                     Spacer(Modifier.width(HlSpace.xxs))
@@ -110,7 +110,7 @@ fun VersionRow(name: String, version: Version, onChoose: () -> Unit, modifier: M
                 }
             }
             Spacer(Modifier.height(HlSpace.xs))
-            FormatLines(version.item.copy(media = version.media ?: version.item.media), ink = if (focused) ink else null)
+            FormatLines(version.item.copy(media = version.media ?: version.item.media), ink = if (focused) ink else null, plate = false)
             Spacer(Modifier.height(HlSpace.xxs))
             FactRow(listOf(size, length), color = if (focused) ink else c.contentSecondary)
         }

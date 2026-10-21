@@ -7,16 +7,17 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -45,9 +46,10 @@ import app.houselights.ui.design.HlPalette
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.components.Backdrop
+import app.houselights.ui.design.components.BackdropStyle
 import app.houselights.ui.design.components.Badge
 import app.houselights.ui.design.components.Emphasis
-import app.houselights.ui.design.components.FactRow
 import app.houselights.ui.design.components.HlActionRow
 import app.houselights.ui.design.components.HlButton
 import app.houselights.ui.design.components.HlDivider
@@ -58,13 +60,13 @@ import app.houselights.ui.design.components.HlMeter
 import app.houselights.ui.design.components.HlNavItem
 import app.houselights.ui.design.components.HlPanel
 import app.houselights.ui.design.components.HlSegmented
-import app.houselights.ui.design.components.HlTitleSwitch
 import app.houselights.ui.design.components.HlSettingGroup
 import app.houselights.ui.design.components.HlSettingRow
 import app.houselights.ui.design.components.HlSideSheet
 import app.houselights.ui.design.components.HlStatus
 import app.houselights.ui.design.components.HlTextField
 import app.houselights.ui.design.components.LandscapeCard
+import app.houselights.ui.design.components.LocalBackdropRelay
 import app.houselights.ui.design.components.MeterInk
 import app.houselights.ui.design.components.MeterLegend
 import app.houselights.ui.design.components.MeterSegment
@@ -75,15 +77,14 @@ import app.houselights.ui.design.components.ScreenTitle
 import app.houselights.ui.design.components.SheetConfirm
 import app.houselights.ui.design.components.StatusState
 import app.houselights.ui.design.emberLight
+import app.houselights.ui.design.emberLit
+import app.houselights.ui.design.plate
 import app.houselights.ui.design.tryRequestFocus
 import app.houselights.ui.util.NBSP
 import app.houselights.ui.util.formatDuration
-import app.houselights.ui.util.libraryName
-import app.houselights.core.LibraryKind
 import java.util.Locale
 import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
-import app.houselights.ui.design.components.SegmentDetail
 
 /** Every token and component in its states, for review on a real screen; debug builds only, untranslated. */
 @Composable
@@ -101,100 +102,32 @@ fun CatalogScreen() {
             item { ScreenTitle("Design system") }
 
             item {
-                Group("Colour", Modifier.focusRequester(first), still = true) {
-                    Column(verticalArrangement = Arrangement.spacedBy(HlSpace.l)) {
-                        // The palette: the colours themselves, named by their lightness.
-                        Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m)) {
-                            listOf(
-                                "N0" to HlPalette.N0, "N8" to HlPalette.N8, "N21" to HlPalette.N21, "N28" to HlPalette.N28,
-                                "N36" to HlPalette.N36, "N57" to HlPalette.N57, "N65" to HlPalette.N65, "N96" to HlPalette.N96,
-                                "Ember" to HlPalette.Ember, "EmberStart" to HlPalette.EmberStart, "EmberEnd" to HlPalette.EmberEnd,
-                            ).forEach { (name, color) -> Swatch(name, color) }
-                        }
-                        // The roles that name them, as components use them.
-                        Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m)) {
-                            listOf(
-                                "background" to c.background, "fill" to c.content.copy(alpha = HlAlpha.FILL).compositeOver(c.background),
-                                "raised" to c.surfaceRaised, "outline" to c.outline, "decorative" to c.contentDecorative,
-                                "tertiary" to c.contentTertiary, "secondary" to c.contentSecondary, "content" to c.content,
-                                "focus" to c.focus, "on focus" to c.onFocus, "on focus, detail" to c.onFocusSecondary, "ember" to c.ember,
-                            ).forEach { (name, color) -> Swatch(name, color) }
-                            Swatch("ember light", c.emberLight())
-                        }
-                        // Look at it on the TV: every step should stand apart from the room.
-                        Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Bottom) {
-                            Swatch("room", c.background)
-                            HlAlpha.BLACK_LEVELS.forEach { level ->
-                                val step = c.content.copy(alpha = level).compositeOver(c.background)
-                                Swatch("white ${(level * PERCENT).roundToInt()} %", step)
-                            }
-                            Text(
-                                "Black levels: on the TV each step stands apart from the room, or its blacks are crushed.",
-                                style = Hl.type.caption,
-                                color = c.contentSecondary,
-                                modifier = Modifier.padding(start = HlSpace.m).widthIn(max = HlLayout.readableNarrow),
-                            )
-                        }
-                    }
-                }
+                Group("Colour", Modifier.focusRequester(first), still = true) { Colours() }
             }
+
+            item { Group("Black levels: the room's steps, then the darks a picture lends", still = true) { BlackLevels() } }
+            catalogContrast()
 
             item {
                 Group("Type: the voices of the poster, of reading, technical; then the signature", still = true) {
                     listOf(
-                        "display" to t.display, "headline" to t.headline, "subject" to t.subject, "cardTitle" to t.cardTitle,
+                        "display" to t.display, "headline" to t.headline, "subject" to t.subject,
+                        "place" to t.place, "placeCurrent, ember lit" to t.placeCurrent.emberLit(c), "rowTitle" to t.rowTitle,
+                        "cardName" to t.cardName, "cardTitle" to t.cardTitle,
                         "title" to t.title, "lead" to t.lead, "body" to t.body, "entry" to t.entry, "meta" to t.meta,
                         "caption" to t.caption, "group" to t.group, "code" to t.code,
-                        "spec" to t.spec, "badge" to t.badge,
-                        "billing" to t.billing,
+                        "spec" to t.spec, "jaquette" to t.jaquette, "badge" to t.badge,
+                        "titleSignature" to t.titleSignature, "billing" to t.billing, "billingJoin" to t.billingJoin,
                     ).forEach { (name, style) -> StyleSpecimen(name, style) }
                 }
             }
 
+            catalogFocus()
             // The three gestures of the small surfaces, side by side, before the components that use them.
             catalogGestures()
             catalogIcons()
 
-            item {
-                Group("Controls") {
-                    HlActionRow {
-                        HlButton(
-                            stringResource(R.string.play),
-                            {},
-                            icon = Icons.Filled.PlayArrow,
-                            detail = "1 h 53",
-                            emphasis = Emphasis.Primary,
-                        )
-                        HlButton("Secondary", {})
-                        HlIconButton(HlIcons.Info, "Icon button", {})
-                    }
-                    ControlStates()
-                    var place by remember { mutableIntStateOf(0) }
-                    var season by remember { mutableIntStateOf(2) }
-                    HlSegmented(
-                        listOf(R.string.nav_home, R.string.library_movies, R.string.library_shows).map { stringResource(it) },
-                        selected = place,
-                        onSelect = { place = it },
-                    )
-                    // The Films wall's title: ⇄ turns it to its sagas and back.
-                    var sagas by remember { mutableStateOf(false) }
-                    val views = listOf(LibraryKind.MOVIES, LibraryKind.COLLECTIONS).map { libraryName(it) }
-                    HlTitleSwitch(views[if (sagas) 1 else 0], label = views[if (sagas) 0 else 1], onSwitch = { sagas = !sagas })
-                    HlSegmented(
-                        (1..12).map { stringResource(R.string.season_number, it) },
-                        selected = season,
-                        onSelect = { season = it },
-                        selectOnFocus = true,
-                        scrollable = true,
-                        // How far each season is watched: two done, the third begun.
-                        details = listOf(SegmentDetail.Done, SegmentDetail.Done, SegmentDetail.Count("6$NBSP/${NBSP}10")),
-                    )
-                    Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.xs)) {
-                        listOf("Ultra HD", "Dolby Vision", "HDR10", "TrueHD Atmos", "7.1", "12").forEach { Badge(it) }
-                    }
-                    FactRow(listOf("2026", "1 h 53", "8,2"))
-                }
-            }
+            catalogControls()
 
             item {
                 Group("Panels and status") {
@@ -326,14 +259,17 @@ fun CatalogScreen() {
                             facts = listOf("1 h", stringResource(R.string.time_left, formatDuration(1_200_000))),
                         )
                     }
+                    // Raised on glass, as over the welcome wall.
                     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m)) {
                         HlListItem(
                             stringResource(R.string.source_local), "Vos vidéos sur un NAS ou un partage réseau (NFS ou SMB).", {},
                             Modifier.weight(1f), icon = HlIcons.Folder, badges = listOf("NFS", "SMB", "TMDB"), descriptionLines = 2,
+                            level = PanelLevel.Raised,
                         )
                         HlListItem(
                             stringResource(R.string.source_jellyfin), "Votre serveur Jellyfin.", {},
                             Modifier.weight(1f), icon = HlIcons.Server, badges = listOf("HTTPS", "HTTP"), descriptionLines = 2,
+                            level = PanelLevel.Raised,
                         )
                     }
                 }
@@ -352,7 +288,7 @@ fun CatalogScreen() {
                         HlButton(
                             stringResource(R.string.resume),
                             {},
-                            icon = Icons.Filled.PlayArrow,
+                            icon = HlIcons.Play,
                             detail = stringResource(R.string.time_left, "1${NBSP}h${NBSP}26"),
                             emphasis = Emphasis.Primary,
                         )
@@ -376,6 +312,7 @@ fun CatalogScreen() {
                         ),
                         selected = library,
                         onSelect = { library = it },
+                        markFirst = true,
                     )
                     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.xs)) {
                         listOf("Ultra HD", "Dolby Vision", "HDR10+", "HDR10", "TrueHD Atmos", "DTS:X", "7.1", "16").forEach { Badge(it) }
@@ -403,66 +340,72 @@ fun CatalogScreen() {
     }
 }
 
-/** Buttons, round buttons and setting rows in their states, each named underneath. */
+/** The palette, the roles that name it, ember and a picture's dark. */
 @Composable
-private fun ControlStates() {
-    Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Top) {
-        Specimen("detail lit: a state it names", gap = HlSpace.xs) {
-            HlButton(
-                stringResource(R.string.filter),
-                {},
-                icon = HlIcons.Filter,
-                detail = stringResource(R.string.filter_unwatched),
-                detailLit = true,
-            )
+private fun Colours() {
+    val c = Hl.colors
+    Column(verticalArrangement = Arrangement.spacedBy(HlSpace.l)) {
+        // The palette: the colours themselves, named by their lightness.
+        Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m)) {
+            listOf(
+                "N0" to HlPalette.N0, "N8" to HlPalette.N8, "N21" to HlPalette.N21, "N28" to HlPalette.N28,
+                "N36" to HlPalette.N36, "N57" to HlPalette.N57, "N65" to HlPalette.N65, "N96" to HlPalette.N96,
+                "Ember" to HlPalette.Ember, "EmberStart" to HlPalette.EmberStart, "EmberEnd" to HlPalette.EmberEnd,
+                "Deep" to HlPalette.Deep,
+            ).forEach { (name, color) -> Swatch(name, color) }
         }
-        Specimen("disabled: focus outlines it", gap = HlSpace.xs) {
-            HlButton(stringResource(R.string.add), {}, icon = HlIcons.Folder, enabled = false)
+        // The roles that name them, as components use them.
+        Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m)) {
+            listOf(
+                "background" to c.background, "fill" to c.content.copy(alpha = HlAlpha.FILL).compositeOver(c.background),
+                "glass" to c.glass, "outline" to c.outline, "decorative" to c.contentDecorative,
+                "tertiary" to c.contentTertiary, "secondary" to c.contentSecondary, "content" to c.content,
+                "focus" to c.focus, "on focus" to c.onFocus, "on focus, detail" to c.onFocusSecondary,
+            ).forEach { (name, color) -> Swatch(name, color) }
         }
-        Specimen("busy: the screen's words", gap = HlSpace.xs) {
-            HlButton(
-                stringResource(R.string.test_connection),
-                {},
-                icon = HlIcons.Test,
-                busy = true,
-                busyLabel = stringResource(R.string.checking),
-            )
+        // Ember and what it lies on; the picture's own dark and its plate, on the room.
+        Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m)) {
+            listOf(
+                "ember" to c.ember, "on ember" to c.onEmber, "ember on light" to c.emberOnLight,
+                "ambient deep" to c.ambientDeep, "plate" to c.plate().compositeOver(c.background),
+            ).forEach { (name, color) -> Swatch(name, color) }
+            Swatch("ember light", c.emberLight())
         }
     }
-    HlActionRow(horizontalArrangement = Arrangement.spacedBy(HlSpace.m)) {
-        var busy by remember { mutableStateOf(false) }
-        LaunchedEffect(busy) {
-            if (busy) {
-                delay(CATALOG_BUSY_MS)
-                busy = false
+}
+
+/** The black levels to check on the TV, then a picture's veils and a wall's field, which must show no rings there. */
+@Composable
+private fun BlackLevels() {
+    val c = Hl.colors
+    Column(verticalArrangement = Arrangement.spacedBy(HlSpace.l)) {
+        // Every step should stand apart from the room.
+        Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Bottom) {
+            Swatch("room", c.background)
+            HlAlpha.BLACK_LEVELS.forEach { level ->
+                val step = c.content.copy(alpha = level).compositeOver(c.background)
+                Swatch("white ${(level * PERCENT).roundToInt()} %", step)
             }
-        }
-        Specimen("OK: busy for 3 s, its width kept", gap = HlSpace.xs) {
-            HlButton(
-                stringResource(R.string.sign_in),
-                { busy = true },
-                emphasis = Emphasis.Primary,
-                busy = busy,
-                busyLabel = stringResource(R.string.signing_in),
+            Text(
+                "Black levels: on the TV each step stands apart from the room, or its blacks are crushed.",
+                style = Hl.type.caption,
+                color = c.contentSecondary,
+                modifier = Modifier.padding(start = HlSpace.m).widthIn(max = HlLayout.readableNarrow),
             )
         }
-        // A round button's label takes no room of its own: this specimen keeps what a row of them keeps.
-        Specimen("round, disabled", gap = HlSpace.xs) {
-            HlActionRow { HlIconButton(HlIcons.Edit, stringResource(R.string.edit), {}, enabled = false) }
-        }
-    }
-    Specimen("a label longer than a reading column stops with an ellipsis", gap = HlSpace.xs) {
-        HlButton("Ajouter « Le Seigneur des anneaux : la Communauté de l’anneau, version longue » à vos favoris", {})
-    }
-    Column(Modifier.widthIn(max = HlLayout.readable)) {
-        Specimen("setting row, disabled: tertiary words, focus outlines it; never in a raised sheet", gap = HlSpace.xs) {
-            HlSettingRow(
-                stringResource(R.string.scan_now),
-                description = "Aucun dossier à analyser",
-                onClick = {},
-                chevron = false,
-                enabled = false,
-            )
+        // The darks a picture lends: its veils in its own dark, and a wall's diffuse field.
+        val art = shippedImage(R.drawable.banner)
+        CompositionLocalProvider(LocalBackdropRelay provides null) {
+            Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.l)) {
+                listOf(
+                    "tinted veils: the picture's own dark at the left and the top, black at the foot" to BackdropStyle.Hero,
+                    "a wall's diffuse field: dithered, no rings, never brighter than its text allows" to BackdropStyle.Diffuse,
+                ).forEach { (state, style) ->
+                    Specimen(state, width = HlLayout.sideColumnWide) {
+                        Box(Modifier.fillMaxWidth().aspectRatio(16f / 9f)) { Backdrop(art, style) }
+                    }
+                }
+            }
         }
     }
 }
@@ -569,8 +512,6 @@ private fun SheetCode(onDismiss: () -> Unit) {
 /** More rows than a side sheet holds. */
 private const val CATALOG_LONG_ROWS = 14
 
-/** How long the catalogue's busy buttons work before they give their answer. */
-private const val CATALOG_BUSY_MS = 3_000L
 
 @Composable
 private fun Swatch(name: String, color: Color) = Swatch(name, SolidColor(color))

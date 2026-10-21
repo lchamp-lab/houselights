@@ -460,14 +460,18 @@ private fun ReadingTechSheetSection() {
 
 @Composable
 private fun ReadingSearchSection() {
-    Group("Search: its words on the ember rule, its keys") {
+    Group("Search: its title, the field its keys always type in, its keys") {
+        val hint = "Les premières lettres d’un titre, d’une personne ou d’une saga"
         ReadingRow {
-            Specimen("nothing typed: the screen's name in its place", Modifier.width(HlLayout.readableNarrow), gap = HlSpace.xxs) {
-                SearchQuery("", "Rechercher", "Les premières lettres d’un titre, d’une personne ou d’une saga", Modifier.fillMaxWidth())
+            Specimen("nothing typed: the cursor waits, the hint says what", Modifier.width(HlLayout.readableNarrow), gap = HlSpace.xxs) {
+                SearchQuery("", hint, Modifier.fillMaxWidth())
             }
             Specimen("typed", Modifier.width(HlLayout.readableNarrow), gap = HlSpace.xxs) {
-                SearchQuery("AMEL", "Rechercher", "Les premières lettres d’un titre, d’une personne ou d’une saga", Modifier.fillMaxWidth())
+                SearchQuery("AMEL", hint, Modifier.fillMaxWidth())
             }
+        }
+        Specimen("longer than the field", Modifier.width(HlLayout.readableNarrow), gap = HlSpace.xxs) {
+            SearchQuery("LES PARAPLUIES DE CHERBOURG RESTAURÉ", hint, Modifier.fillMaxWidth())
         }
         Spacer(Modifier.height(HlSpace.l))
         Specimen("the keys, without the system's keyboard", gap = HlSpace.xxs) { LetterGrid(onKey = {}, onSpace = {}, onDelete = {}) }

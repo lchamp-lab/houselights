@@ -42,7 +42,7 @@ object HlFonts {
 
     val condensed = archivo(70f, FontWeight.Normal, FontWeight.Medium, FontWeight.SemiBold, FontWeight.Bold)
     val text = archivo(100f, FontWeight.Normal, FontWeight.SemiBold)
-    val expanded = archivo(125f, FontWeight.SemiBold)
+    val expanded = archivo(125f, FontWeight.SemiBold, FontWeight.Bold)
 
     /** Code read as written (NFO XML): fixed-width already, and a single weight on Android 9. */
     val mono = FontFamily.Monospace
@@ -58,7 +58,7 @@ private val TRACKING_SMALLEST = 0.02.em
 
 /**
  * Line-height room goes between lines only, so spacing is measured from the type and capitals centre in
- * pills; this is Compose's default, set explicitly so that a library update cannot move every text.
+ * plates; this is Compose's default, set explicitly so that a library update cannot move every text.
  */
 private val TRIMMED = LineHeightStyle(LineHeightStyle.Alignment.Proportional, LineHeightStyle.Trim.Both)
 
@@ -132,13 +132,20 @@ data class HlType(
     val headline: TextStyle,
     /** What a panel or sheet is about ("Modifier"), an intertitle's line, a figure that states something. */
     val subject: TextStyle,
+    /** The places of a track (Films, Séries, a season); [placeCurrent] for the one you are in. */
+    val place: TextStyle,
+    val placeCurrent: TextStyle,
+    /** A row's title over its cards; the selected title over a wall. */
+    val rowTitle: TextStyle,
+    /** A name under a card. */
+    val cardName: TextStyle,
     /** A title set on a card without artwork, like a plain one-sheet. */
     val cardTitle: TextStyle,
 
     // The voice of reading (normal width).
-    /** Taglines, an episode's name in its heading, dialog titles. */
+    /** A tagline set large, an episode's name in its heading. */
     val title: TextStyle,
-    /** Row headers, card and episode names. */
+    /** A tagline under a title, a name heading a list choice, a typed query. */
     val lead: TextStyle,
     /** Overviews, descriptions, paragraphs. */
     val body: TextStyle,
@@ -156,7 +163,9 @@ data class HlType(
     // The technical voice (expanded, tabular figures).
     /** The headline of a technical sheet: definition, ratio, codec. */
     val spec: TextStyle,
-    /** Format and rating badges: Ultra HD, Dolby Vision, 12. */
+    /** Formats set as on a case's back, a duration inside a button. */
+    val jaquette: TextStyle,
+    /** Printed marks: an age rating, a protocol. */
     val badge: TextStyle,
 
     // Signatures, each set to its own measure.
@@ -172,6 +181,10 @@ val HouselightsType = HlType(
     display = scale(HlFonts.condensed, FontWeight.Bold, 64, 72, lineBreak = TITLE),
     headline = scale(HlFonts.condensed, FontWeight.Bold, 44, 48, lineBreak = TITLE),
     subject = scale(HlFonts.condensed, FontWeight.SemiBold, 32, 36, FIGURES, TITLE),
+    place = scale(HlFonts.condensed, FontWeight.SemiBold, 26, 30),
+    placeCurrent = scale(HlFonts.condensed, FontWeight.Bold, 26, 30),
+    rowTitle = scale(HlFonts.condensed, FontWeight.SemiBold, 24, 28, lineBreak = TITLE),
+    cardName = scale(HlFonts.condensed, FontWeight.SemiBold, 20, 24, lineBreak = TITLE),
     cardTitle = scale(HlFonts.condensed, FontWeight.Bold, 20, 24, lineBreak = TITLE),
 
     title = scale(HlFonts.text, FontWeight.SemiBold, 24, 30, lineBreak = TITLE),
@@ -184,7 +197,8 @@ val HouselightsType = HlType(
     code = scale(HlFonts.mono, FontWeight.Normal, 14, 22),
 
     spec = scale(HlFonts.expanded, FontWeight.SemiBold, 20, 26, FIGURES),
-    badge = scale(HlFonts.expanded, FontWeight.SemiBold, 12, 16, FIGURES),
+    jaquette = scale(HlFonts.expanded, FontWeight.SemiBold, 14, 18, FIGURES),
+    badge = scale(HlFonts.expanded, FontWeight.Bold, 12, 14, FIGURES),
 
     titleSignature = scale(HlFonts.condensed, FontWeight.Bold, 96, 96, lineBreak = TITLE),
     billing = signature(HlFonts.condensed, FontWeight.Medium, 18, 24, CAPITALS_TRACKING, CAPITALS),
@@ -192,6 +206,9 @@ val HouselightsType = HlType(
 )
 
 val LocalHlType = staticCompositionLocalOf { HouselightsType }
+
+/** This style lit across its words by the ember light: the place you are in, a screen's title. Components only. */
+fun TextStyle.emberLit(colors: HlColors): TextStyle = copy(brush = colors.emberLight())
 
 /** Room for text, given at the default text size and scaled with the viewer's, so a frame never cuts it. */
 @Composable

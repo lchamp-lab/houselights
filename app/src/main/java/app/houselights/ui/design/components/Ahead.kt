@@ -23,7 +23,7 @@ import app.houselights.ui.design.LocalLaunchScreen
 import app.houselights.ui.util.screenWidthPx
 import coil.imageLoader
 
-/** The requests a screen's components will make, so pictures preloaded under the launch screen hit memory. */
+/** The requests a screen's components will make, so the pictures loaded ahead of it hit memory. */
 class PicturesAhead(private val context: Context, private val screenWidthPx: Int) {
     private val density = canvasDensityOf(screenWidthPx)
 
@@ -34,17 +34,20 @@ class PicturesAhead(private val context: Context, private val screenWidthPx: Int
         item.backdrop?.let { backdropRequests(context, it, style, screenWidthPx) }.orEmpty() +
             listOfNotNull(item.logo?.let { titleArtRequest(context, it, HlLayout.heroTitleWidth.px(), HlLayout.heroTitleHeight.px()) })
 
-    /** The posters of a wall's [items], at the size a [PosterCard] cell requests ([CELL_POSTER]). */
-    fun wall(items: List<MediaItem>): List<ImageRequest> = items.mapNotNull { posterRequest(context, it, CELL_POSTER.px()) }
+    /** The posters of a wall's [items], at the size a [PosterCard] cell requests ([requestedPoster]). */
+    fun wall(items: List<MediaItem>): List<ImageRequest> = items.mapNotNull { posterRequest(context, it, requestedPoster(null).px()) }
 
-    /** The logo a detail page of [item] shows, at its [TitleArt] size; its backdrop is already on screen. */
+    /** The logo a detail page of [item] shows, at its [TitleArt] size; its backdrop is decoded as the page opens. */
     fun detail(item: MediaItem): List<ImageRequest> =
         listOfNotNull(item.logo?.let { titleArtRequest(context, it, HlLayout.titleArtWidth.px(), HlLayout.titleArtHeight.px()) })
 
-    /** The posters, or stills when [landscape], that a [MediaRow] of [items] shows before it scrolls. */
+    /**
+     * The posters, or stills when [landscape], that a [MediaRow] of [items] shows before it scrolls, at the size its
+     * cards request: a still at its width, a poster at [requestedPoster].
+     */
     fun row(items: List<MediaItem>, landscape: Boolean, spacing: Dp): List<ImageRequest> {
         val card = if (landscape) HlSize.landscape else HlSize.poster
-        val width = card.px()
+        val width = (if (landscape) card else requestedPoster(card)).px()
         return items.take(cardsInView(card, spacing)).mapNotNull {
             if (landscape) stillRequest(context, it, width) else posterRequest(context, it, width)
         }

@@ -478,6 +478,8 @@
     <string name="credit_data">Données des films</string>
     <string name="credit_font">Police</string>
     <string name="credit_font_value">Archivo, SIL Open Font License</string>
+    <string name="credit_icons">Icônes</string>
+    <string name="credit_icons_value">Lucide, licence ISC</string>
     <!-- Supporting the project: said once, in About, never elsewhere -->
     <string name="support">Soutenir Houselights</string>
     <string name="support_desc">Offrez un café au projet, depuis votre téléphone.</string>
@@ -499,6 +501,11 @@
         <item quantity="one">%d épisode non vu</item>
         <item quantity="other">%d épisodes non vus</item>
         <item quantity="many">%d épisodes non vus</item>
+    </plurals>
+    <plurals name="row_news">
+        <item quantity="one">%d nouveau</item>
+        <item quantity="other">%d nouveaux</item>
+        <item quantity="many">%d nouveaux</item>
     </plurals>
     <!-- Sagas -->
     <plurals name="film_count">

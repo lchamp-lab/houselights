@@ -3,6 +3,7 @@ package app.houselights.ui.design.components
 import android.content.Context
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -11,6 +12,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -25,7 +27,7 @@ import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.compositionLocalOf
@@ -39,8 +41,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
@@ -48,10 +51,12 @@ import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.graphics.drawscope.DrawScope
-import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.layout.AlignmentLine
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.layout.FirstBaseline
+import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.layout.Measurable
+import androidx.compose.ui.layout.Placeable
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -61,10 +66,10 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Dp
-import androidx.tv.material3.ClickableSurfaceDefaults
+import androidx.compose.ui.unit.IntSize
 import androidx.tv.material3.Icon
-import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
 import app.houselights.R
 import app.houselights.core.ImageRef
@@ -78,7 +83,6 @@ import app.houselights.ui.design.HlControl
 import app.houselights.ui.design.HlFocus
 import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlMotion
-import app.houselights.ui.design.HlScrim
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
@@ -109,35 +113,48 @@ import androidx.compose.ui.semantics.onClick
 /** True while a card of the enclosing row or grid has focus, so the others recede. */
 val LocalGroupFocused = compositionLocalOf { false }
 
-/** A horizontal row of cards under [header], or a custom [heading]; focus returns to the last focused card. */
+/**
+ * A horizontal row of cards under [header] and its [count], or a custom [heading], then how many of its
+ * titles are [news] ([wearsNewDot]). Focus returns to the last focused card; one frame travels from card to card.
+ * Whatever takes focus in it is a framed card ([ArtworkSurface], [AbsentCard]), as the row's frame is its only focus.
+ */
 @Composable
 fun MediaRow(
     header: String?,
     modifier: Modifier = Modifier,
     spacing: Dp = HlSpace.m,
     state: LazyListState = rememberLazyListState(),
+    count: String? = null,
+    news: Int = 0,
     heading: (@Composable () -> Unit)? = null,
     content: LazyListScope.() -> Unit,
 ) {
     var rowFocused by remember { mutableStateOf(false) }
     // Scrolls as one block in the enclosing list: bringing any card into view brings the header too.
     Column(modifier.scrollsAsBlock()) {
-        val place = Modifier.padding(start = HlSpace.safeH, bottom = HlSpace.xxs).fadeOutsideSafeArea()
-        when {
-            heading != null -> Box(place) { heading() }
-            header != null -> SectionHeader(header, place)
+        if (heading != null || header != null) {
+            RowHeading(
+                Modifier.padding(start = HlSpace.safeH, bottom = HlSpace.xxs).fadeOutsideSafeArea(),
+                count,
+                news,
+            ) { line -> if (heading != null) Box(line) { heading() } else if (header != null) SectionHeader(header, line) }
         }
         val group = remember { GroupFocus() }
-        CompositionLocalProvider(LocalGroupFocused provides rowFocused, LocalGroupFocus provides group) {
+        val frame = rememberRowFrame(state)
+        CompositionLocalProvider(LocalGroupFocused provides rowFocused, LocalGroupFocus provides group, LocalRowFrame provides frame) {
             RowScroll {
                 LazyRow(
                     state = state,
                     // Observe the row's focus group itself, so hasFocus covers every card.
                     modifier = Modifier
-                        .onFocusChanged { rowFocused = it.hasFocus }
-                        .keepChildFocus(group),
-                    // Room for a focused card to grow: a poster grows by 8.4 dp at the top and the bottom.
-                    contentPadding = PaddingValues(horizontal = HlSpace.safeH, vertical = HlSpace.s),
+                        .onFocusChanged {
+                            rowFocused = it.hasFocus
+                            frame.rowFocused(it.hasFocus)
+                        }
+                        .keepChildFocus(group)
+                        .then(frame.drawn),
+                    // Room for a focused card's frame and glow ([HlFocus.room]).
+                    contentPadding = PaddingValues(horizontal = HlSpace.safeH, vertical = HlFocus.room),
                     horizontalArrangement = Arrangement.spacedBy(spacing),
                     content = content,
                 )
@@ -146,16 +163,39 @@ fun MediaRow(
     }
 }
 
+/** A row's title, then its [count] and its [news] in captions on the title's baseline. */
+@Composable
+private fun RowHeading(modifier: Modifier, count: String?, news: Int, title: @Composable (Modifier) -> Unit) {
+    val c = Hl.colors
+    Row(modifier) {
+        title(Modifier.alignByBaseline())
+        count?.let {
+            Spacer(Modifier.width(HlSpace.s))
+            Text(it, style = Hl.type.caption, color = c.contentSecondary, maxLines = 1, modifier = Modifier.alignByBaseline())
+        }
+        if (news > 0) {
+            Spacer(Modifier.width(HlSpace.s))
+            Row(Modifier.alignByBaseline(), verticalAlignment = Alignment.CenterVertically) {
+                // The ember dot says new; the words say how many.
+                Box(Modifier.size(HlSize.newsDot).background(c.ember, CircleShape))
+                Spacer(Modifier.width(HlSpace.xs))
+                val words = pluralStringResource(R.plurals.row_news, news, news)
+                Text(words, style = Hl.type.caption, color = c.contentSecondary, maxLines = 1)
+            }
+        }
+    }
+}
+
 /**
- * The focus treatment of all artwork (DESIGN.md, Cards): it grows, outlines and glows while neighbours
- * dim. Read as one element with [stateDescription]; with [readAs], that text alone, actionable if [acts].
+ * The focus treatment of all artwork (DESIGN.md, Cards): framed, it glows in its own tone ([light], else the
+ * ambient light) while its siblings recede; in a [MediaRow], the row draws its frame.
+ * Read as one element with [stateDescription]; with [readAs], that text alone, actionable if [acts].
  */
 @Composable
 fun ArtworkSurface(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     shape: Shape = HlShapes.artwork,
-    lift: Lift = Lift.Artwork,
     onFocused: () -> Unit = {},
     stateDescription: String? = null,
     readAs: String? = null,
@@ -164,59 +204,38 @@ fun ArtworkSurface(
     content: @Composable BoxScope.() -> Unit,
 ) {
     val interaction = remember { MutableInteractionSource() }
-    val focusedNow by interaction.collectIsFocusedAsState()
-    // Cards crossed while an arrow is held neither grow nor glow.
-    val crossed = focusedNow && Scrub.active
-    val focused = focusedNow && !crossed
+    val focused by interaction.collectIsFocusedAsState()
+    val receding = LocalGroupFocused.current && !focused
     val recede = animateFloatAsState(
-        if (LocalGroupFocused.current && !focusedNow) 1f else 0f,
-        tween(HlMotion.STANDARD, easing = HlMotion.standard),
+        if (receding) 1f else 0f,
+        if (receding) tween(HlMotion.FOCUS_IN, easing = HlMotion.focusPull) else tween(HlMotion.FOCUS_OUT, easing = HlMotion.fallBack),
         label = "recede",
     )
     val c = Hl.colors
-    // The glow takes the card's own tone ([light]) or the ambient light, both read while drawing.
-    val own = rememberGlowColor(light, focused)
+    // The card's own tone, sampled once focus rests on it (not while an arrow is held), else the ambient light.
+    val own = rememberGlowColor(light, focused && !Scrub.active)
     val ambient = LocalAmbient.current
-    // The card scales in its own layer; the glow, drawn outside it, follows the same scale.
-    val grown by animateFloatAsState(
-        if (focused) lift.scale else 1f,
-        tween(HlMotion.STANDARD, easing = HlMotion.standard),
-        label = "grown",
-    )
-    val reach = with(LocalDensity.current) { HlFocus.glow.toPx() }
     val group = LocalGroupFocus.current
     val member = rememberGroupMember(group)
-    val reading = cardReading(readAs, stateDescription, focusedNow, onClick.takeIf { acts })
-    Surface(
+    val reading = cardReading(readAs, stateDescription, focused, onClick.takeIf { acts })
+    HlFocusSurface(
         onClick = onClick,
+        look = FocusStyle.frame(
+            rest = c.content.copy(alpha = HlAlpha.FILL),
+            restInk = c.content,
+            edge = artworkEdge(c),
+        ),
+        shape = shape,
         modifier = modifier
             .rememberedInGroup(group, member)
             .then(reading)
-            .onFocusChanged { if (it.isFocused) onFocused() }
-            .drawBehind {
-                val tone = when {
-                    light != null -> own.value
-                    focused -> ambient()
-                    else -> Color.Transparent
-                }
-                drawGlow(tone, grown, reach, shape)
-            },
-        shape = ClickableSurfaceDefaults.shape(shape),
-        scale = if (crossed) FocusStyle.crossed() else FocusStyle.scale(lift),
-        border = FocusStyle.lift(shape),
-        colors = FocusStyle.still(rest = c.content.copy(alpha = HlAlpha.FILL), restContent = c.content),
+            .onFocusChanged { if (it.isFocused) onFocused() },
+        glow = { if (light != null) own.value else ambient.glow() },
         interactionSource = interaction,
+        row = LocalRowFrame.current,
     ) {
         // Recede is read while drawing, never recomposing the row; content sits on the artwork ground.
         CompositionLocalProvider(LocalArtworkRecede provides { recede.value }, LocalGround provides Ground.Artwork) { content() }
-        Box(Modifier.fillMaxSize().artworkEdge(shape, c))
-        Box(
-            Modifier.fillMaxSize().drawBehind {
-                // Draw nothing at rest: even a transparent rectangle costs the GPU a pass over the card.
-                val dim = recede.value * HlFocus.SIBLING_DIM
-                if (dim > 0f) drawRect(c.background.copy(alpha = dim))
-            }
-        )
     }
 }
 
@@ -232,39 +251,13 @@ private fun cardReading(readAs: String?, stateDescription: String?, focused: Boo
         Modifier.semantics(mergeDescendants = true) { stateDescription?.let { this.stateDescription = it } }
     }
 
-/**
- * The glow [reach] around a focused card at scale [grown]: each ring is drawn once at the combined alpha
- * of stacked layers, so each layer costs a ring's fill, not a card's, on the player's GPU.
- */
-private fun DrawScope.drawGlow(tone: Color, grown: Float, reach: Float, shape: Shape) {
-    if (tone.alpha == 0f) return
-    val grow = Offset(size.width * (grown - 1f) / 2f, size.height * (grown - 1f) / 2f)
-    val corner = (shape as? RoundedCornerShape)?.topStart?.toPx(size, this) ?: 0f
-    val steps = HlScrim.GLOW_STEPS
-    val band = reach / steps
-    val ring = Stroke(width = band)
-    // Transmittance of the stacked layers, accumulated from the outermost ring inward.
-    var through = 1f
-    for (k in steps downTo 1) {
-        through *= 1f - tone.alpha * HlScrim.GLOW_LAYER * (1f - k / steps.toFloat())
-        // The band's middle line: a stroke is drawn half inside, half outside it.
-        val middle = band * k - band / 2
-        drawRoundRect(
-            color = tone.copy(alpha = 1f - through),
-            topLeft = Offset(-grow.x - middle, -grow.y - middle),
-            size = Size(size.width + 2 * (grow.x + middle), size.height + 2 * (grow.y + middle)),
-            cornerRadius = CornerRadius(corner + middle),
-            style = ring,
-        )
-    }
-}
-
 /** How far a card's artwork recedes: 0 in front, 1 behind the focused card. */
 val LocalArtworkRecede = staticCompositionLocalOf<() -> Float> { { 0f } }
 
 /**
- * Card artwork; [fallback] replaces it when missing or failing (NAS asleep), so a card is never blank.
- * [picture] styles the loaded image only. Receding desaturates it through its colour filter, not a layer.
+ * Card artwork; [fallback] replaces it when missing or failing (NAS asleep); without one, the surface shows.
+ * [picture] styles the loaded image only. Decoded at its laid out size, or at [size] (px) when given, as
+ * a preload asks for it. Receding dims and desaturates it through its colour filter, not a layer.
  */
 @Composable
 fun ArtworkImage(
@@ -273,19 +266,20 @@ fun ArtworkImage(
     modifier: Modifier = Modifier,
     contentScale: ContentScale = ContentScale.Crop,
     picture: Modifier = Modifier,
+    size: IntSize? = null,
     fallback: @Composable BoxScope.() -> Unit = {},
 ) {
     var failed by remember(url) { mutableStateOf(false) }
+    val recede = LocalArtworkRecede.current
     if (url == null || failed) {
-        Box(modifier, content = fallback)
+        Box(modifier.receding(recede, Hl.colors.background), content = fallback)
     } else {
-        val recede = LocalArtworkRecede.current
         val step by remember(recede) { derivedStateOf { HlFocus.recedeStep(recede()) } }
-        val filter = remember(step) {
-            if (step == 0) null else ColorFilter.colorMatrix(ColorMatrix().apply { setToSaturation(HlFocus.saturationAt(step)) })
-        }
+        val filter = recedeFilters[step]
+        val context = LocalContext.current
+        val model = remember(url, size, context) { size?.let { artworkRequest(context, url, it.width, it.height) } ?: url }
         AsyncImage(
-            model = url,
+            model = model,
             contentDescription = description,
             contentScale = contentScale,
             colorFilter = filter,
@@ -295,16 +289,41 @@ fun ArtworkImage(
     }
 }
 
+/**
+ * What stands in for an image, or lies on it (a mark's plate), recedes with it at the same step, dimmed by the
+ * room drawn over it: no layer.
+ */
+private fun Modifier.receding(recede: () -> Float, room: Color): Modifier = drawWithContent {
+    drawContent()
+    val dim = 1f - HlFocus.brightnessAt(HlFocus.recedeStep(recede()))
+    if (dim > 0f) drawRect(room, alpha = dim)
+}
+
+/** A receding image at [step]: its colour and light lowered by one matrix, drawn with the image. */
+private fun recedeFilter(step: Int): ColorFilter {
+    val light = HlFocus.brightnessAt(step)
+    val matrix = ColorMatrix().apply { setToSaturation(HlFocus.saturationAt(step)) }
+    matrix *= ColorMatrix().apply { setToScale(light, light, light, 1f) }
+    return ColorFilter.colorMatrix(matrix)
+}
+
+/** The filter of each step, none in front: an image takes it, and what is drawn on it (a dot, progress) too. */
+private val recedeFilters: List<ColorFilter?> by lazy { (0..HlFocus.RECEDE_STEPS).map { if (it == 0) null else recedeFilter(it) } }
+
+/** The filter at how far [recede] has gone, read while drawing. */
+private fun recedeFilterAt(recede: Float): ColorFilter? = recedeFilters[HlFocus.recedeStep(recede)]
+
 /** The faint edge of artwork at rest, so a dark picture keeps its outline on black. */
-internal fun Modifier.artworkEdge(shape: Shape, colors: HlColors): Modifier =
-    border(HlSize.hairline, colors.content.copy(alpha = HlAlpha.EDGE_ARTWORK), shape)
+internal fun Modifier.artworkEdge(shape: Shape, colors: HlColors): Modifier = border(artworkEdge(colors), shape)
 
-/** Requested poster width in px: [width], or [CELL_POSTER] when it fills a grid cell. */
+private fun artworkEdge(colors: HlColors) = BorderStroke(HlSize.hairline, colors.content.copy(alpha = HlAlpha.EDGE_ARTWORK))
+
+/** Requested poster width in px: [requestedPoster]. */
 @Composable
-fun posterPx(width: Dp? = null): Int = (width ?: CELL_POSTER).toPx()
+fun posterPx(width: Dp? = null): Int = requestedPoster(width).toPx()
 
-/** Requested width of a poster in a wall cell: a little more than a row's, enough for any cell. */
-internal val CELL_POSTER = HlSize.poster * 1.3f
+/** The width a poster [width] wide, a wall's cell when null, is requested at. */
+internal fun requestedPoster(width: Dp?): Dp = width ?: HlSize.wallPoster
 
 /** Poster aspect ratio, width to height. */
 private const val POSTER_SHAPE = 2f / 3f
@@ -340,14 +359,16 @@ fun PosterCard(
     val sized = if (width != null) modifier.width(width) else modifier.fillMaxWidth()
     val px = posterPx(width)
     val poster = item.poster?.url(px)
+    // Decoded at its width, as the preloads ask for it ([posterRequest]).
+    val decoded = IntSize(px, (px / POSTER_SHAPE).roundToInt())
     ArtworkSurface(onClick, sized.aspectRatio(POSTER_SHAPE), onFocused = onFocused, stateDescription = cardState(item), light = poster) {
-        ArtworkImage(poster, item.title, Modifier.fillMaxSize()) { FallbackArtwork(item.title, item.year) }
+        ArtworkImage(poster, item.title, Modifier.fillMaxSize(), size = decoded) { FallbackArtwork(item.title, item.year) }
         StatusMark(item, Modifier.align(Alignment.TopEnd).padding(HlSpace.xs))
-        ProgressLine(item.progress, Modifier.align(Alignment.BottomCenter))
+        ProgressLine(item.progress, Modifier.align(Alignment.BottomCenter), HlSize.progressPoster)
     }
 }
 
-/** 16:9 still with an optional caption: an episode [number], the [title], then [facts]. */
+/** 16:9 still with an optional caption: an episode [number] and the [title], then [facts], beside or under it. */
 @Composable
 fun LandscapeCard(
     item: MediaItem,
@@ -360,11 +381,11 @@ fun LandscapeCard(
     onFocused: () -> Unit = {},
 ) {
     val still = item.landscape?.url(width.toPx())
-    Column(modifier.width(width)) {
+    CardColumn(modifier.width(width)) {
         ArtworkSurface(
             onClick,
             Modifier.fillMaxWidth().aspectRatio(STILL_SHAPE),
-            lift = Lift.Card,
+            shape = HlShapes.wide,
             onFocused = onFocused,
             stateDescription = cardState(item),
             light = still,
@@ -373,58 +394,109 @@ fun LandscapeCard(
                 FallbackArtwork(title ?: item.title, item.year.takeIf { title == null })
             }
             StatusMark(item, Modifier.align(Alignment.TopEnd).padding(HlSpace.xs))
-            ProgressLine(item.progress, Modifier.align(Alignment.BottomCenter))
+            ProgressLine(item.progress, Modifier.align(Alignment.BottomCenter), HlSize.progressWide)
         }
-        if (title != null) {
+        val said = facts.any { !it.isNullOrBlank() }
+        if (title != null || said) {
             Spacer(Modifier.height(HlSpace.s))
             // The caption fades out before the screen edge; the picture above may extend past it.
-            Row(Modifier.fadeOutsideSafeArea()) {
-                if (number != null) {
-                    Text(number, style = Hl.type.meta, color = Hl.colors.contentSecondary, modifier = Modifier.alignByBaseline())
-                    Spacer(Modifier.width(HlSpace.xs))
-                }
-                Text(
-                    title,
-                    style = Hl.type.entry,
-                    color = Hl.colors.content,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.alignByBaseline(),
-                )
-            }
+            CardCaption(title, number, facts.takeIf { said }, Modifier.fadeOutsideSafeArea())
         }
-        if (facts.any { !it.isNullOrBlank() }) {
-            Spacer(Modifier.height(HlSpace.xxs))
-            FactRow(facts, Modifier.fadeOutsideSafeArea(), style = Hl.type.caption)
+    }
+}
+
+/** A wide card's name in the poster's voice, after its episode [number]. */
+@Composable
+private fun CardName(name: String, number: String?) {
+    Row {
+        if (number != null) {
+            Text(number, style = Hl.type.meta, color = Hl.colors.contentSecondary, modifier = Modifier.alignByBaseline())
+            Spacer(Modifier.width(HlSpace.xs))
         }
+        Text(
+            name,
+            style = Hl.type.cardName,
+            color = Hl.colors.content,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.alignByBaseline(),
+        )
+    }
+}
+
+/** A card's [name] after its [number], then its [facts] on the same baseline when both fit whole, else under it. */
+@Composable
+private fun CardCaption(name: String?, number: String?, facts: List<String?>?, modifier: Modifier) {
+    Layout(
+        contents = listOf({ if (name != null) CardName(name, number) }, { if (facts != null) FactRow(facts, style = Hl.type.caption) }),
+        modifier = modifier,
+    ) { (names, factLines), constraints ->
+        val loose = constraints.copy(minWidth = 0, minHeight = 0)
+        val gap = HlSpace.s.roundToPx()
+        val nameWants = names.widest(loose.maxHeight)
+        val factsWant = factLines.widest(loose.maxHeight)
+        val beside = nameWants == 0 || factsWant == 0 || nameWants + gap + factsWant <= loose.maxWidth
+        val nameLine = names.firstOrNull()?.measure(loose)
+        val after = beside && nameLine.wide > 0
+        val factRoom = if (after) (loose.maxWidth - nameLine.wide - gap).coerceAtLeast(0) else loose.maxWidth
+        val factLine = factLines.firstOrNull()?.measure(loose.copy(maxWidth = factRoom))
+        val factX = if (after) nameLine.wide + gap else 0
+        // Beside, the two lines share a baseline; under, the facts start below the name.
+        val nameY = if (beside) (factLine.base - nameLine.base).coerceAtLeast(0) else 0
+        val factY = if (beside) (nameLine.base - factLine.base).coerceAtLeast(0) else nameLine.tall + HlSpace.xxs.roundToPx()
+        val width = maxOf(nameLine.wide, factX + factLine.wide)
+        val height = maxOf(nameY + nameLine.tall, factY + factLine.tall)
+        layout(width.coerceIn(constraints.minWidth, constraints.maxWidth), height.coerceIn(constraints.minHeight, constraints.maxHeight)) {
+            nameLine?.placeRelative(0, nameY)
+            factLine?.placeRelative(factX, factY)
+        }
+    }
+}
+
+/** The widest the first of these lines would be, [height] tall; 0 without one. */
+private fun List<Measurable>.widest(height: Int): Int = firstOrNull()?.maxIntrinsicWidth(height) ?: 0
+
+/** A measured line's width, height and first baseline; 0 for a line that is not there. */
+private val Placeable?.wide: Int get() = this?.width ?: 0
+private val Placeable?.tall: Int get() = this?.height ?: 0
+private val Placeable?.base: Int get() = this?.get(FirstBaseline)?.takeIf { it != AlignmentLine.Unspecified } ?: 0
+
+/**
+ * A card's column: its framed surface, then what is written under it. Only siblings are ordered, so the column is
+ * drawn above its neighbours as its surface would be ([Raise]).
+ */
+@Composable
+internal fun CardColumn(
+    modifier: Modifier,
+    horizontalAlignment: Alignment.Horizontal = Alignment.Start,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    val raise = remember { Raise() }
+    val raised = remember(raise) { Modifier.raisedBy { raise.level() } }
+    Column(modifier.then(raised), horizontalAlignment = horizontalAlignment) {
+        CompositionLocalProvider(LocalRaise provides raise) { content() }
     }
 }
 
 /** A credited person: portrait, name and role; opens their page ([onOpen]) when in several titles. */
 @Composable
 fun PersonCard(person: Person, modifier: Modifier = Modifier, onOpen: (() -> Unit)? = null) {
-    val px = HlSize.avatar.toPx()
-    Column(modifier.width(HlSize.personColumn), horizontalAlignment = Alignment.CenterHorizontally) {
+    val px = HlSize.portrait.toPx()
+    CardColumn(modifier.width(HlSize.personColumn), Alignment.CenterHorizontally) {
         ArtworkSurface(
             onClick = onOpen ?: {},
-            modifier = Modifier.size(HlSize.avatar),
-            shape = HlShapes.avatar,
+            modifier = Modifier.width(HlSize.portrait).aspectRatio(HlSize.PORTRAIT_RATIO),
             readAs = listOfNotNull(person.name, person.role).joinToString(", "),
             acts = onOpen != null,
         ) {
-            Text(
-                person.name.split(' ').mapNotNull { it.firstOrNull()?.uppercase() }.take(2).joinToString(""),
-                style = Hl.type.lead,
-                color = Hl.colors.contentTertiary,
-                modifier = Modifier.align(Alignment.Center),
-            )
-            person.image?.url(px)?.let { ArtworkImage(it, person.name, Modifier.fillMaxSize().clip(HlShapes.avatar)) }
+            // Without a portrait, the bare frame: the name is written under it.
+            ArtworkImage(person.image?.url(px), person.name, Modifier.fillMaxSize())
         }
         Spacer(Modifier.height(HlSpace.s))
         // Already read by the portrait.
         Text(
             person.name,
-            style = Hl.type.meta,
+            style = Hl.type.cardName,
             color = Hl.colors.content,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
@@ -446,27 +518,29 @@ fun PersonCard(person: Person, modifier: Modifier = Modifier, onOpen: (() -> Uni
     }
 }
 
-/** A saga film missing from the library: an empty poster frame that says so on focus; OK does nothing. */
+/** A saga film missing from the library: an empty poster frame, framed on focus; OK does nothing. */
 @Composable
 fun AbsentCard(title: String, year: Int?, modifier: Modifier = Modifier, width: Dp = HlSize.poster) {
     val c = Hl.colors
     val interaction = remember { MutableInteractionSource() }
     val focused by interaction.collectIsFocusedAsState()
     val absent = stringResource(R.string.saga_absent)
-    Surface(
-        onClick = {},
-        enabled = false,
+    HlFocusSurface(
+        onClick = null,
+        look = FocusStyle.frame(
+            rest = c.content.copy(alpha = HlAlpha.FILL_FAINT),
+            restInk = c.contentTertiary,
+            edge = artworkEdge(c),
+        ),
+        shape = HlShapes.artwork,
         modifier = modifier.width(width).aspectRatio(POSTER_SHAPE).clearAndSetSemantics {
             contentDescription = listOfNotNull(title, year?.toString(), absent).joinToString(", ")
             this.focused = focused
         },
-        shape = ClickableSurfaceDefaults.shape(HlShapes.artwork),
-        scale = FocusStyle.scale(FocusStyle.Fill.Row),
-        border = FocusStyle.disabledRing(HlShapes.artwork),
-        colors = FocusStyle.still(rest = Color.Transparent, restContent = c.contentTertiary),
+        role = null,
         interactionSource = interaction,
+        row = LocalRowFrame.current,
     ) {
-        Box(Modifier.fillMaxSize().artworkEdge(HlShapes.artwork, c))
         Column(Modifier.align(Alignment.BottomStart).padding(HlSpace.s)) {
             Box(Modifier.width(HlSpace.l).height(HlSize.hairline).background(c.contentDecorative))
             Spacer(Modifier.height(HlSpace.xs))
@@ -494,7 +568,7 @@ internal fun BoxScope.FallbackArtwork(title: String, year: Int?) {
         Text(title, style = Hl.type.cardTitle, color = c.content, maxLines = 4, overflow = TextOverflow.Ellipsis)
         if (year != null) {
             Spacer(Modifier.height(HlSpace.xxs))
-            Text(year.toString(), style = Hl.type.badge, color = c.contentTertiary)
+            Text(year.toString(), style = Hl.type.badge, color = c.contentSecondary)
         }
     }
 }
@@ -559,26 +633,51 @@ private const val POSTER_RATIO = 2f / 3f
 @Composable
 private fun StatusMark(item: MediaItem, modifier: Modifier) {
     val unplayed = item.user.unplayedCount ?: 0
-    val plate = Hl.colors.background.copy(alpha = HlAlpha.VEIL)
+    val c = Hl.colors
+    val plate = c.background.copy(alpha = HlAlpha.VEIL)
     // The card's state description says it in words, so the bare number is not read.
     val mark = modifier.clearAndSetSemantics {}
     when {
-        unplayed > 0 -> Box(mark.clip(HlShapes.control).background(plate).padding(horizontal = HlSpace.xs, vertical = HlControl.badgePaddingV)) {
-            Text("$unplayed", style = Hl.type.badge, color = Hl.colors.content)
-        }
+        unplayed > 0 -> Box(
+            mark
+                .clip(HlShapes.mark)
+                .background(plate)
+                .receding(LocalArtworkRecede.current, c.background)
+                .padding(horizontal = HlSpace.xs, vertical = HlControl.badgePaddingV),
+        ) { Text("$unplayed", style = Hl.type.badge, color = c.content) }
         item.user.played -> CheckMark(mark)
-        item.isNew() -> Box(mark.size(HlSize.mark).clip(HlShapes.avatar).background(plate), contentAlignment = Alignment.Center) {
-            Box(Modifier.size(HlSize.dot).clip(HlShapes.avatar).background(Hl.colors.ember))
-        }
+        item.wearsNewDot() -> NewDot(mark)
     }
 }
 
-/** The check over artwork: projector white for watched, ember for the [choice] in use ([SelectedMark]). */
+/** A card wears the dot of a title new to the library unless it counts unwatched episodes instead; a row counts these. */
+fun MediaItem.wearsNewDot(): Boolean = (user.unplayedCount ?: 0) == 0 && isNew()
+
+/** A title new to the library: a solid ember dot ringed in black, so it stands off any picture; it recedes with it. */
+@Composable
+private fun NewDot(modifier: Modifier) {
+    val c = Hl.colors
+    val ring = c.background.copy(alpha = HlAlpha.VEIL)
+    val recede = LocalArtworkRecede.current
+    // A status dot is the one round thing; its ring is drawn around it, outside its size.
+    Spacer(
+        modifier.size(HlSize.newDot).drawBehind {
+            drawCircle(ring, radius = size.minDimension / 2 + HlSize.newDotRing.toPx())
+            drawCircle(c.ember, colorFilter = recedeFilterAt(recede()))
+        },
+    )
+}
+
+/** The check over artwork: projector white for watched, ember for the [choice] in use ([SelectedMark]); it recedes with it. */
 @Composable
 internal fun CheckMark(modifier: Modifier = Modifier, choice: Boolean = false) {
     val c = Hl.colors
     Box(
-        modifier.size(HlSize.mark).clip(HlShapes.avatar).background(c.background.copy(alpha = HlAlpha.VEIL)),
+        modifier
+            .size(HlSize.mark)
+            .clip(HlShapes.mark)
+            .background(c.background.copy(alpha = HlAlpha.VEIL))
+            .receding(LocalArtworkRecede.current, c.background),
         contentAlignment = Alignment.Center,
     ) {
         val ink = if (choice) c.ember else c.content
@@ -593,7 +692,7 @@ private fun cardState(item: MediaItem): String? {
     val mark = when {
         unplayed > 0 -> pluralStringResource(R.plurals.card_unwatched, unplayed, unplayed)
         item.user.played -> stringResource(R.string.card_watched)
-        item.isNew() -> stringResource(R.string.card_new)
+        item.wearsNewDot() -> stringResource(R.string.card_new)
         else -> null
     }
     val progress = item.progress.takeIf { it > 0f }?.let { stringResource(R.string.card_in_progress, (it * PERCENT).roundToInt()) }
@@ -602,14 +701,29 @@ private fun cardState(item: MediaItem): String? {
 
 private const val PERCENT = 100
 
-/** Ember progress line for titles in progress; on artwork its track is the dark plate ([groundPlate]). */
+/**
+ * Ember progress line for titles in progress, [thickness] tall, the ember light stretched over the part seen.
+ * On artwork it burns at the picture's foot over the dark plate ([groundPlate]), cut by the picture's corners,
+ * and recedes with it.
+ */
 @Composable
-fun ProgressLine(progress: Float, modifier: Modifier = Modifier) {
+fun ProgressLine(progress: Float, modifier: Modifier = Modifier, thickness: Dp = HlSize.progress) {
     if (progress <= 0f) return
-    val track = groundPlate() ?: Hl.colors.content.copy(alpha = HlAlpha.FILL_STRONG)
-    Box(modifier.fillMaxWidth().height(HlSize.progress).background(track)) {
-        Box(Modifier.fillMaxWidth(progress).height(HlSize.progress).background(Hl.colors.emberLight()))
-    }
+    val c = Hl.colors
+    val track = groundPlate() ?: c.content.copy(alpha = HlAlpha.FILL_STRONG)
+    val seen = progress.coerceAtMost(1f)
+    val recede = LocalArtworkRecede.current
+    Spacer(
+        modifier.fillMaxWidth().height(thickness).drawWithCache {
+            val part = Size(size.width * seen, size.height)
+            // A brush spans the whole line unless told: the light ends where the part seen does.
+            val light = c.emberLight(across = part.width)
+            onDrawBehind {
+                drawRect(track)
+                drawRect(light, size = part, colorFilter = recedeFilterAt(recede()))
+            }
+        },
+    )
 }
 
 /** A loading card: an empty frame of its footprint, no shimmer; a null [width] fills a grid cell. */

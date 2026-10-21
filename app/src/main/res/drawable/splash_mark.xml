@@ -2,11 +2,34 @@
 <!-- The launch mark (Theme.Houselights.Launch): Gradation alone in the middle of the black room while home gets
      ready. Drawn as an adaptive icon's foreground: Android 9 lays its 108 units out 288 dp wide and shows a circle
      of 72 (192 dp). The bars are 36 units tall, half that circle, their corners well inside it, pulled right by
-     as much as the icon's for the weight of the wide bar. The launch's cue puts them out one by one (LaunchCue). -->
+     as much as the icon's for the weight of the wide bar, in the icon's gradient. The launch's cue puts them out
+     one by one (LaunchCue). -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
     android:width="108dp" android:height="108dp"
     android:viewportWidth="108" android:viewportHeight="108">
-    <path android:fillColor="#FF7A4D" android:pathData="M36.391 36h16v36h-16z" />
-    <path android:fillColor="#FF7A4D" android:pathData="M56.551 36h8v36h-8z" />
-    <path android:fillColor="#FF7A4D" android:pathData="M68.391 36h4v36h-4z" />
+    <path android:pathData="M36.391 36h16v36h-16z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="linear" android:startX="36.391" android:startY="0" android:endX="72.391" android:endY="0">
+                <item android:offset="0" android:color="#FFFF9F1C" />
+                <item android:offset="1" android:color="#FFFF2E63" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <path android:pathData="M56.551 36h8v36h-8z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="linear" android:startX="36.391" android:startY="0" android:endX="72.391" android:endY="0">
+                <item android:offset="0" android:color="#FFFF9F1C" />
+                <item android:offset="1" android:color="#FFFF2E63" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <path android:pathData="M68.391 36h4v36h-4z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="linear" android:startX="36.391" android:startY="0" android:endX="72.391" android:endY="0">
+                <item android:offset="0" android:color="#FFFF9F1C" />
+                <item android:offset="1" android:color="#FFFF2E63" />
+            </gradient>
+        </aapt:attr>
+    </path>
 </vector>

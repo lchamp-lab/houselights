@@ -39,13 +39,14 @@ import app.houselights.ui.design.components.LetterGrid
 import app.houselights.ui.design.components.MediaRow
 import app.houselights.ui.design.components.PersonCard
 import app.houselights.ui.design.components.PosterCard
+import app.houselights.ui.design.components.ScreenTitle
 import app.houselights.ui.design.components.SearchQuery
 import app.houselights.ui.util.appContainer
 import kotlinx.coroutines.flow.StateFlow
 
 /**
- * Library search over the black room: the query and an on-screen keyboard (not the system's) on the
- * left, results in rows on the right: titles, people, then sagas if any. Each typed word matches the
+ * Library search over the black room: its title, the query and an on-screen keyboard (not the system's) on
+ * the left, results in rows on the right: titles, people, then sagas if any. Each typed word matches the
  * start of a word, ignoring accents ("amel" finds Amélie). Returning from a result refocuses it.
  */
 @Composable
@@ -59,7 +60,9 @@ fun SearchScreen(onOpenItem: (MediaItem) -> Unit, onOpenPerson: (String) -> Unit
     Row(Modifier.fillMaxSize().padding(top = HlSpace.safeV)) {
         // The query is as wide as the keyboard below it.
         Column(Modifier.padding(start = HlSpace.safeH).width(IntrinsicSize.Max)) {
-            SearchQuery(query, stringResource(R.string.search), stringResource(R.string.search_hint), Modifier.fillMaxWidth())
+            ScreenTitle(stringResource(R.string.search))
+            Spacer(Modifier.height(HlSpace.m))
+            SearchQuery(query, stringResource(R.string.search_hint), Modifier.fillMaxWidth())
             Spacer(Modifier.height(HlSpace.m))
             LetterGrid(vm::type, vm::space, vm::delete, first = firstKey)
         }

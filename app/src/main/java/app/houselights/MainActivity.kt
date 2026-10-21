@@ -7,8 +7,7 @@ import android.content.Context
 import android.os.Build
 import android.os.Bundle
 import android.widget.ImageView
-import androidx.compose.ui.graphics.toArgb
-import app.houselights.ui.design.HlPalette
+import app.houselights.ui.design.HouselightsColors
 import app.houselights.ui.design.LaunchScreen
 import app.houselights.ui.design.LocalLaunchScreen
 import android.util.Log
@@ -244,7 +243,7 @@ class MainActivity : ComponentActivity() {
         val icon = splash.iconView
         // On Android 9 the mark is an image view spanning its whole layer: the bars are drawn into it.
         val bars = (icon as? ImageView)?.takeIf { Build.VERSION.SDK_INT < Build.VERSION_CODES.S }?.let { view ->
-            LaunchMarkDrawable(HlPalette.Ember.toArgb()).also(view::setImageDrawable)
+            LaunchMarkDrawable(HouselightsColors).also(view::setImageDrawable)
         }
         ValueAnimator.ofFloat(0f, 1f).apply {
             duration = LaunchCue.DURATION.toLong()

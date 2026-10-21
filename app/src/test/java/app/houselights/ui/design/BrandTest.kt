@@ -2,20 +2,26 @@ package app.houselights.ui.design
 
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.Brush
 import app.houselights.testing.children
 import app.houselights.testing.descendants
 import app.houselights.testing.xmlRoot
 import app.houselights.ui.testing.argb
 import app.houselights.ui.testing.resourceArgb
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.w3c.dom.Element
 import java.io.File
 import kotlin.math.hypot
 
-/** The icon, banner and launch mark are vectors in Gradation's geometry and palette, inside their circle. */
+/** The icon, banner and launch mark are vectors in Gradation's geometry and light, inside their circle; the lockup sets it by the name. */
 class BrandTest {
     private val drawables = File("src/main/res/drawable")
+
+    /** The mark's light: ember's two ends, at the gradient's two ends. */
+    private val light = listOf(0f to argb(HouselightsColors.emberFrom), 1f to argb(HouselightsColors.emberTo))
 
     @Test
     fun theIconIsTheMarkInsideTheSafeCircle() {
@@ -41,9 +47,29 @@ class BrandTest {
     @Test
     fun theBannerSetsTheMarkAboveTheName() {
         val paths = paths("banner")
-        val mark = paths.filter { it.first == argb(HlPalette.Ember) }.map { rect(it.second) }
+        val mark = lit(paths.filter { it.gradient != null })
         assertBars(Gradation.bars(BANNER_WIDTH / 2, BANNER_MARK_TOP + BANNER_MARK / 2, BANNER_MARK), mark)
         assertEquals("the room, the mark, the name's eleven letters", 1 + 3 + 11, paths.size)
+    }
+
+    /**
+     * The lockup as its reference draws it, capitals 100 units tall on the baseline y = 0: the mark 1.4 times
+     * their height and centred on them, in one light across it, the name a wide bar's width after it.
+     */
+    @Test
+    fun theLockupSetsTheMarkBesideTheName() {
+        val bars = Gradation.lockupBars(CAPITALS, -CAPITALS / 2)
+        assertBars(LOCKUP_BARS, bars)
+        assertEquals(LOCKUP_NAME, Gradation.lockupIndent * CAPITALS, EXACT)
+        assertEquals("the gap is the wide bar", bars.first().width, Gradation.lockupGap * CAPITALS, EXACT)
+        val c = HouselightsColors
+        assertEquals(Brush.horizontalGradient(listOf(c.emberFrom, c.emberTo), startX = 0f, endX = LOCKUP_MARK), Gradation.light(bars, c))
+
+        // The name is wordmark.xml: as wide as the reference's, its box's middle that of its capitals.
+        val name = xmlRoot(drawables.resolve("wordmark.xml"))
+        assertEquals(LOCKUP_WIDTH - LOCKUP_NAME, name.getAttribute("android:viewportWidth").toFloat(), EXACT)
+        val baseline = name.children("group").single().getAttribute("android:translateY").toFloat()
+        assertEquals(baseline - CAPITALS / 2, name.getAttribute("android:viewportHeight").toFloat() / 2, ROUND_OVERSHOOT)
     }
 
     @Test
@@ -55,25 +81,71 @@ class BrandTest {
         assertEquals(bars.first().height, bars.last().right - bars.first().left, EXACT)
     }
 
+    /** The bars take the mark's light; everything else is flat, the room black and the name white. */
     @Test
     fun theBrandIsDrawnInThePalette() {
-        val palette = listOf(HlPalette.Ember, HlPalette.N96, HlPalette.N0).map(::argb).toSet()
+        val flat = listOf(HlPalette.N96, HlPalette.N0).map(::argb).toSet()
         listOf("ic_launcher_foreground", "splash_mark", "banner", "wordmark").forEach { name ->
-            paths(name).forEach { (fill, _) -> assertTrue("$name draws in $fill", fill in palette) }
+            paths(name).forEach { path ->
+                val gradient = path.gradient
+                if (gradient != null) {
+                    assertEquals("$name: the ember light", light, gradient.stops)
+                } else {
+                    assertTrue("$name draws in ${path.fill}", path.fill in flat)
+                }
+            }
         }
-        assertEquals(setOf(argb(HlPalette.N96)), paths("wordmark").map { it.first }.toSet())
+        assertEquals(setOf(argb(HlPalette.N96)), paths("wordmark").map { it.fill }.toSet())
     }
 
-    private fun bars(name: String): List<Rect> = paths(name).map { (fill, data) ->
-        assertEquals("$name: a bar of ember", argb(HlPalette.Ember), fill)
-        rect(data)
+    /** A vector's path: its flat fill as #AARRGGBB, or its gradient, and its data. */
+    private data class VectorPath(val fill: String?, val gradient: Gradient?, val data: String)
+
+    /** A linear gradient from (startX, startY) to (endX, endY), in the viewport's units; its stops by offset. */
+    private data class Gradient(
+        val startX: Float,
+        val startY: Float,
+        val endX: Float,
+        val endY: Float,
+        val stops: List<Pair<Float, String>>,
+    )
+
+    private fun bars(name: String): List<Rect> = lit(paths(name))
+
+    /**
+     * The bars of [paths], each in the mark's light: one horizontal gradient, the same for all, from the
+     * widest bar's left edge to the thinnest bar's right.
+     */
+    private fun lit(paths: List<VectorPath>): List<Rect> {
+        val bars = paths.map { rect(it.data) }
+        paths.forEach { path ->
+            assertNull("${path.data}: a flat bar", path.fill)
+            val gradient = path.gradient ?: error("${path.data}: no gradient")
+            assertEquals("${path.data}: the ember light", light, gradient.stops)
+            assertEquals("starts on the widest bar's left edge", bars.first().left, gradient.startX, EXACT)
+            assertEquals("ends on the thinnest bar's right edge", bars.last().right, gradient.endX, EXACT)
+            assertEquals("horizontal", gradient.startY, gradient.endY, EXACT)
+        }
+        return bars
     }
 
-    /** Each path of a vector drawable: its fill as #AARRGGBB, and its data. */
-    private fun paths(name: String): List<Pair<String, String>> =
+    /** Each path of a vector drawable, its gradient read from its inline `android:fillColor`. */
+    private fun paths(name: String): List<VectorPath> =
         xmlRoot(drawables.resolve("$name.xml")).descendants("path").map { path ->
-            resourceArgb(path.getAttribute("android:fillColor")) to path.getAttribute("android:pathData")
+            val fill = path.getAttribute("android:fillColor").takeIf { it.isNotEmpty() }?.let(::resourceArgb)
+            val gradient = path.children("aapt:attr").singleOrNull { it.getAttribute("name") == "android:fillColor" }
+                ?.let { gradient(it.children("gradient").single()) }
+            VectorPath(fill, gradient, path.getAttribute("android:pathData"))
         }
+
+    private fun gradient(gradient: Element): Gradient {
+        assertEquals("linear", gradient.getAttribute("android:type"))
+        fun at(name: String) = gradient.getAttribute("android:$name").toFloat()
+        val stops = gradient.children("item").map { stop ->
+            stop.getAttribute("android:offset").toFloat() to resourceArgb(stop.getAttribute("android:color"))
+        }
+        return Gradient(at("startX"), at("startY"), at("endX"), at("endY"), stops)
+    }
 
     /** A bar as its path draws it: `M x y h w v h h -w z`. */
     private fun rect(data: String): Rect {
@@ -110,5 +182,15 @@ class BrandTest {
 
         /** The precision the resources keep for a coordinate: three decimals. */
         const val EXACT = 0.001f
+
+        /** The reference lockup (`lockup-ember.svg`, viewBox 0 −120 1399.069 140): its capitals, mark, name and width. */
+        const val CAPITALS = 100f
+        const val LOCKUP_MARK = 140f
+        const val LOCKUP_NAME = 202.222f
+        const val LOCKUP_WIDTH = 1399.069f
+        val LOCKUP_BARS = listOf(Rect(0f, -120f, 62.222f, 20f), Rect(78.4f, -120f, 109.511f, 20f), Rect(124.444f, -120f, 140f, 20f))
+
+        /** How far the name's box sits from its capitals' middle: its round letters overshoot alike above and below. */
+        const val ROUND_OVERSHOOT = 0.2f
     }
 }

@@ -17,7 +17,7 @@ import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.emberLight
 
 /**
- * The form of every app message (DESIGN.md, Messages): a short rule (ember for [attention]), the [title],
+ * The form of every app message (DESIGN.md, Gestures): a short rule (ember for [attention]), the [title],
  * a [message] in the narrow measure, then [actions]; it starts at its zone's margin, never centred.
  */
 @Composable

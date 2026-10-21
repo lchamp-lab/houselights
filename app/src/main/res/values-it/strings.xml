@@ -485,6 +485,8 @@
     <string name="credit_data">Dati dei film</string>
     <string name="credit_font">Carattere</string>
     <string name="credit_font_value">Archivo, SIL Open Font License</string>
+    <string name="credit_icons">Icone</string>
+    <string name="credit_icons_value">Lucide, licenza ISC</string>
     <string name="support">Sostieni Houselights</string>
     <string name="support_desc">Offrire un caffè al progetto, dal proprio telefono.</string>
     <string name="support_scan">Inquadrare questo codice con il telefono per aprire la pagina Ko-fi del progetto.</string>
@@ -504,6 +506,11 @@
         <item quantity="one">%d episodio non visto</item>
         <item quantity="many">%d episodi non visti</item>
         <item quantity="other">%d episodi non visti</item>
+    </plurals>
+    <plurals name="row_news">
+        <item quantity="one">%d nuovo</item>
+        <item quantity="many">%d nuovi</item>
+        <item quantity="other">%d nuovi</item>
     </plurals>
 
     <!-- Sagas -->

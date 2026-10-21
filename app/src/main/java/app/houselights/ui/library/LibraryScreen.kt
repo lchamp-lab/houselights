@@ -1,6 +1,8 @@
 package app.houselights.ui.library
 
 import app.houselights.ui.design.components.HlTitleSwitch
+import app.houselights.ui.design.components.HeaderControls
+import app.houselights.ui.design.OnArtwork
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
@@ -161,38 +163,41 @@ fun LibraryScreen(
 
     // Prepares the settled title's detail page, so OK opens it complete.
     DetailAhead(shown.value)
-    AmbientBackdrop(shown.value?.backdrop, BackdropStyle.Quiet) {
+    AmbientBackdrop(shown.value?.backdrop, BackdropStyle.Diffuse) {
         Column(Modifier.fillMaxSize()) {
-            Row(
+            // The wall's name lit as the place, its count beside it; the menus on plates over the wall's picture.
+            OnArtwork { HeaderControls { Row(
                 Modifier.fillMaxWidth().padding(start = HlSpace.safeH, end = HlSpace.safeH, top = HlSpace.safeV),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                // With sagas, ⇄ after the title turns the wall from the films to their sagas, and back.
-                if (sagas == null) {
-                    ScreenTitle(title)
-                } else {
-                    val films = title
-                    val other = libraryName(LibraryKind.COLLECTIONS)
-                    HlTitleSwitch(
-                        if (showSagas) other else films,
-                        label = if (showSagas) films else other,
-                        onSwitch = { showSagas = !showSagas },
-                    )
-                }
-                Spacer(Modifier.width(HlSpace.m))
-                if (state.total > 0) {
-                    val count = pluralStringResource(
-                        if (wall.kind == LibraryKind.COLLECTIONS) R.plurals.collection_count else R.plurals.title_count,
-                        state.total,
-                        state.total,
-                    )
-                    WallFolio(count, state.items, shown, state.total, state.sort)
+                Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m)) {
+                    // With sagas, ⇄ after the title turns the wall from the films to their sagas, and back.
+                    if (sagas == null) {
+                        ScreenTitle(title, Modifier.alignByBaseline())
+                    } else {
+                        val films = title
+                        val other = libraryName(LibraryKind.COLLECTIONS)
+                        HlTitleSwitch(
+                            if (showSagas) other else films,
+                            label = if (showSagas) films else other,
+                            onSwitch = { showSagas = !showSagas },
+                            modifier = Modifier.alignByBaseline(),
+                        )
+                    }
+                    if (state.total > 0) {
+                        val count = pluralStringResource(
+                            if (wall.kind == LibraryKind.COLLECTIONS) R.plurals.collection_count else R.plurals.title_count,
+                            state.total,
+                            state.total,
+                        )
+                        WallFolio(count, state.items, shown, state.total, state.sort, Modifier.alignByBaseline())
+                    }
                 }
                 Spacer(Modifier.weight(1f))
                 // The person the wall was opened for, offered by the filter menu.
                 val person = opensOn?.person?.let { id -> personName?.let { Person(it, null, null, id) } }
                 WallMenus(wall.kind, state, vm.capabilities, person, vm::setFilter, vm::setSort)
-            }
+            } } }
             // The selected title on one line; a long name drops its facts first, then ends in an ellipsis.
             Box(
                 Modifier
@@ -227,11 +232,13 @@ fun LibraryScreen(
                 )
                 // A scrolled line of posters comes to where the first line rests.
                 else -> CompositionLocalProvider(LocalGroupFocused provides gridHasFocus) {
-                    ListScroll(top = HlSpace.m) { LazyVerticalGrid(
+                    ListScroll(top = HlFocus.wallRoom) { LazyVerticalGrid(
                     columns = GridCells.Fixed(COLUMNS),
                     state = gridState,
-                    contentPadding = PaddingValues(start = HlSpace.safeH, end = HlSpace.safeH, top = HlSpace.m, bottom = HlFocus.edge),
-                    horizontalArrangement = Arrangement.spacedBy(HlSpace.l),
+                    contentPadding = PaddingValues(
+                        start = HlSpace.safeH, end = HlSpace.safeH, top = HlFocus.wallRoom, bottom = HlFocus.edge,
+                    ),
+                    horizontalArrangement = Arrangement.spacedBy(HlLayout.wallGutter),
                     verticalArrangement = Arrangement.spacedBy(HlSpace.l),
                     modifier = Modifier.fillMaxSize().onFocusChanged {
                         gridHasFocus = it.hasFocus
@@ -297,11 +304,11 @@ private fun BackToFirstPoster(focusedIndex: State<Int?>, toFirst: suspend () -> 
 private fun SkeletonWall() {
     if (!skeletonDelayPassed()) return
     Column(
-        Modifier.padding(start = HlSpace.safeH, end = HlSpace.safeH, top = HlSpace.m),
+        Modifier.padding(start = HlSpace.safeH, end = HlSpace.safeH, top = HlFocus.wallRoom),
         verticalArrangement = Arrangement.spacedBy(HlSpace.l),
     ) {
         repeat(SKELETON_ROWS) {
-            Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.l)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(HlLayout.wallGutter)) {
                 repeat(COLUMNS) { CardSkeleton(null, 2f / 3f, Modifier.weight(1f)) }
             }
         }
@@ -320,11 +327,12 @@ private fun WallMenus(
 ) {
     if (kind != LibraryKind.COLLECTIONS) FilterButton(state.filter, state.facets, can, person, onFilter)
     Spacer(Modifier.width(HlSpace.s))
-    // "Trier" plus the current sort: "Titre" alone would read as a title.
+    // "Trier" plus the current sort, a choice: "Titre" alone would read as a title.
     HlMenuButton(
         text = stringResource(R.string.sort),
         icon = HlIcons.Sort,
         detail = sortLabel(state.sort),
+        detailLit = true,
         sections = listOf(
             MenuSection(null, SortOption.entries.map { MenuOption(sortOrder(it), state.sort == it) { onSort(it) } }),
         ),
@@ -503,18 +511,25 @@ private fun sameAsciiLetter(a: Char, b: Char): Boolean = a.isLetter() && a < '\u
 
 /** The folio: the count, and past the third line the selected title's sort key and position; read only here. */
 @Composable
-private fun WallFolio(count: String, items: List<MediaItem>, shown: State<MediaItem?>, total: Int, sort: SortOption) {
+private fun WallFolio(
+    count: String,
+    items: List<MediaItem>,
+    shown: State<MediaItem?>,
+    total: Int,
+    sort: SortOption,
+    modifier: Modifier = Modifier,
+) {
     val item = shown.value
     val index = item?.let { selected -> items.indexOfFirst { it.id == selected.id } } ?: -1
     val folio = item?.takeIf { index >= COLUMNS * FOLIO_FROM_LINE }?.let { folioOf(it, sort) }
     if (folio == null) {
-        Text(count, style = Hl.type.meta, color = Hl.colors.contentSecondary)
+        Text(count, style = Hl.type.meta, color = Hl.colors.contentSecondary, modifier = modifier)
         return
     }
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Text(folio, style = Hl.type.subject, color = Hl.colors.contentSecondary)
-        Spacer(Modifier.width(HlSpace.s))
-        Text("${index + 1}$NBSP/$NBSP$total", style = Hl.type.meta, color = Hl.colors.contentSecondary)
+    val quiet = Hl.colors.contentSecondary
+    Row(modifier, horizontalArrangement = Arrangement.spacedBy(HlSpace.s)) {
+        Text(folio, style = Hl.type.subject, color = quiet, modifier = Modifier.alignByBaseline())
+        Text("${index + 1}$NBSP/$NBSP$total", style = Hl.type.meta, color = quiet, modifier = Modifier.alignByBaseline())
     }
 }
 

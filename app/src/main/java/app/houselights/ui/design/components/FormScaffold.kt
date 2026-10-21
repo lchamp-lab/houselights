@@ -31,8 +31,9 @@ import app.houselights.ui.design.keepVerticalFocus
 import app.houselights.ui.design.scrollEdges
 
 /**
- * The two-pane layout of setup and settings screens: a side column, a hairline, then scrolling content;
- * given its scroll [state], edges fade where more lies and focus stays [HlSpace.fadeEdge] clear of them.
+ * The two-pane layout of setup and settings screens: a side column, then scrolling content across a gap,
+ * with no rule between; given its scroll [state], edges fade where more lies and focus stays
+ * [HlSpace.fadeEdge] clear of them.
  */
 @Composable
 fun HlTwoPane(
@@ -45,9 +46,7 @@ fun HlTwoPane(
     Box(Modifier.fillMaxSize()) {
         Row(Modifier.fillMaxSize().padding(start = HlSpace.safeH, end = HlSpace.safeH, top = HlSpace.safeV)) {
             Column(Modifier.width(sideWidth).fillMaxHeight().padding(bottom = HlSpace.safeV), content = side)
-            Spacer(Modifier.width(HlSpace.xl))
-            HlDivider(Modifier.padding(vertical = HlSpace.xl), vertical = true)
-            Spacer(Modifier.width(HlSpace.xl))
+            Spacer(Modifier.width(HlSpace.xxl))
             val fades = if (state != null) Modifier.scrollEdges(state, room) else Modifier
             Box(Modifier.weight(1f).fillMaxHeight().then(fades)) {
                 ListScroll(top = if (state != null) HlSpace.fadeEdge else HlSpace.none) { content() }
@@ -67,7 +66,7 @@ fun HlFormScaffold(
     val scroll = rememberScrollState()
     HlTwoPane(
         side = {
-            ScreenTitle(title)
+            TaskTitle(title)
             Spacer(Modifier.height(HlSpace.m))
             Text(description, style = Hl.type.body, color = Hl.colors.contentSecondary)
             Spacer(Modifier.height(HlSpace.xl))

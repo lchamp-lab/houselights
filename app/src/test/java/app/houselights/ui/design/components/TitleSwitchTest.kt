@@ -18,7 +18,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
-/** The disc after a films' wall's title turns it to its sagas, and back. */
+/** The tile after a films' wall's title turns it to its sagas, and back. */
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = TV)
 class TitleSwitchTest {
@@ -26,7 +26,7 @@ class TitleSwitchTest {
     val compose = createComposeRule()
 
     @Test
-    fun theDiscTurnsTheTitleToTheOtherViewAndBack() {
+    fun theTileTurnsTheTitleToTheOtherViewAndBack() {
         compose.setTvContent {
             var sagas by remember { mutableStateOf(false) }
             HlTitleSwitch(if (sagas) "Sagas" else "Films", label = if (sagas) "Films" else "Sagas", onSwitch = { sagas = !sagas })

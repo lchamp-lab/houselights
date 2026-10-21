@@ -496,6 +496,8 @@
     <string name="credit_data">Dane o filmach</string>
     <string name="credit_font">Krój pisma</string>
     <string name="credit_font_value">Archivo, SIL Open Font License</string>
+    <string name="credit_icons">Ikony</string>
+    <string name="credit_icons_value">Lucide, licencja ISC</string>
     <!-- Supporting the project -->
     <string name="support">Wesprzyj Houselights</string>
     <string name="support_desc">Postaw projektowi kawę z telefonu.</string>
@@ -519,6 +521,12 @@
         <item quantity="few">%d nieobejrzane odcinki</item>
         <item quantity="many">%d nieobejrzanych odcinków</item>
         <item quantity="other">%d nieobejrzanego odcinka</item>
+    </plurals>
+    <plurals name="row_news">
+        <item quantity="one">%d nowy</item>
+        <item quantity="few">%d nowe</item>
+        <item quantity="many">%d nowych</item>
+        <item quantity="other">%d nowego</item>
     </plurals>
     <!-- Sagas -->
     <plurals name="film_count">

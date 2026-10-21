@@ -459,6 +459,8 @@
     <string name="credit_data">映画データ</string>
     <string name="credit_font">書体</string>
     <string name="credit_font_value">Archivo, SIL Open Font License</string>
+    <string name="credit_icons">アイコン</string>
+    <string name="credit_icons_value">Lucide, ISC License</string>
     <string name="support">Houselightsを支援</string>
     <string name="support_desc">スマートフォンから、プロジェクトにコーヒーを1杯ごちそうできます。</string>
     <string name="support_scan">スマートフォンでこのコードを読み取ると、プロジェクトのKo-fiページが開きます。</string>
@@ -474,6 +476,9 @@
     <string name="card_in_progress">視聴中、%d%%</string>
     <plurals name="card_unwatched">
         <item quantity="other">未視聴%d話</item>
+    </plurals>
+    <plurals name="row_news">
+        <item quantity="other">新着%d件</item>
     </plurals>
     <!-- Sagas -->
     <plurals name="film_count">

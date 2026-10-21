@@ -16,7 +16,7 @@ internal fun MacrobenchmarkScope.startHome() {
 }
 
 internal fun MacrobenchmarkScope.awaitHome() {
-    await(By.text(appString("section_latest_movies")), "home's rows")
+    await(By.textStartsWith(appString("section_latest_movies")), "home's rows")
 }
 
 /** Along the first row and back, the hero following focus; then the next row. */
@@ -35,7 +35,7 @@ internal fun MacrobenchmarkScope.browseLibrary() {
     right(2)
     focusOn(appString("library_movies"), KeyEvent.KEYCODE_DPAD_LEFT)
     ok()
-    await(By.text(appString("sort")), "the films' wall")
+    await(By.textStartsWith(appString("sort")), "the films' wall")
     right(4)
     down()
     left(2)
@@ -61,7 +61,7 @@ internal fun MacrobenchmarkScope.browseShow() {
     if (!device.hasObject(By.text(appString("library_shows")))) return
     focusOn(appString("library_shows"), KeyEvent.KEYCODE_DPAD_RIGHT)
     ok()
-    await(By.text(appString("sort")), "the series' wall")
+    await(By.textStartsWith(appString("sort")), "the series' wall")
     ok()
     awaitDetail()
     down()
@@ -104,6 +104,6 @@ internal fun MacrobenchmarkScope.browseSearch() {
 
 /** Waits for a detail page: its play button, Lire or Reprendre. */
 private fun MacrobenchmarkScope.awaitDetail() {
-    val play = Pattern.compile(Pattern.quote(appString("play")) + "|" + Pattern.quote(appString("resume")))
+    val play = Pattern.compile("(" + Pattern.quote(appString("play")) + "|" + Pattern.quote(appString("resume")) + ").*")
     await(By.text(play), "a detail page")
 }

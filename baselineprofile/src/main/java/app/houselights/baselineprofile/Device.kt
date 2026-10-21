@@ -48,7 +48,8 @@ internal fun MacrobenchmarkScope.back(times: Int = 1) = press(KeyEvent.KEYCODE_B
 internal fun MacrobenchmarkScope.await(selector: BySelector, what: String, timeout: Long = SCREEN_MS): UiObject2 =
     checkNotNull(device.wait(Until.findObject(selector), timeout)) { "Waited ${timeout / 1000} s for $what" }
 
-internal fun MacrobenchmarkScope.shows(text: String): Boolean = device.hasObject(By.text(text))
+/** Whether something on screen begins with [text]: a heading or a button carries its count after its name. */
+internal fun MacrobenchmarkScope.shows(text: String): Boolean = device.hasObject(By.textStartsWith(text))
 
 /** All the text an element says: its text, description and children's. */
 private fun UiObject2.words(): String =

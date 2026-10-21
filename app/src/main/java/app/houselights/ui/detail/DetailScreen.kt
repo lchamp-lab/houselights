@@ -21,8 +21,6 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Immutable
@@ -64,6 +62,7 @@ import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.textRoom
 import app.houselights.ui.design.LocalHouseLights
 import app.houselights.ui.design.houseLit
+import app.houselights.ui.design.OnArtwork
 import app.houselights.ui.design.scrollsAsBlock
 import app.houselights.ui.design.ListScroll
 import app.houselights.ui.design.fadeOutsideSafeArea
@@ -98,6 +97,7 @@ import app.houselights.ui.design.components.StatusState
 import app.houselights.ui.design.components.LandscapeCard
 import app.houselights.ui.design.components.MediaRow
 import app.houselights.ui.design.components.MetaLine
+import app.houselights.ui.design.components.filmCount
 import app.houselights.ui.design.components.PersonCard
 import app.houselights.ui.design.components.PosterCard
 import app.houselights.ui.design.components.TechSpecs
@@ -328,7 +328,7 @@ private fun LazyListScope.sagaRows(item: MediaItem, state: DetailState, memory: 
     // No row when the saga holds only this film.
     state.collection?.takeIf { state.collectionFilms.any { film -> film.id != item.id } }?.let { collection ->
         item(key = "collection") {
-            MediaRow(collection.title, memory.rowGroup(SAGA)) {
+            MediaRow(collection.title, memory.rowGroup(SAGA), count = filmCount(state.collectionFilms.size, collection.totalCount)) {
                 items(state.collectionFilms, key = { it.id }) { f ->
                     PosterCard(f, onClick = { if (f.id != item.id) onOpenItem(f.id) }, modifier = memory.card(SAGA, f))
                 }
@@ -414,7 +414,7 @@ private fun rememberRecede(away: () -> Boolean): Animatable<Float, *> {
         var first = true
         snapshotFlow(away).collect { down ->
             val target = if (down) 1f else 0f
-            if (first) recede.snapTo(target) else recede.animateTo(target, tween(HlMotion.SLOW, easing = HlMotion.standard))
+            if (first) recede.snapTo(target) else recede.animateTo(target, tween(HlMotion.SLOW, easing = HlMotion.fallBack))
             first = false
         }
     }
@@ -497,7 +497,7 @@ private fun Hero(
     }
 }
 
-/** The title's [actions] in one row, with room below for a round button's label so nothing moves when it shows. */
+/** The title's [actions] in one row on plates over the picture, with room below for a tile's label so nothing moves. */
 @Composable
 private fun Actions(
     item: MediaItem,
@@ -509,7 +509,7 @@ private fun Actions(
     actionRow: FocusRequester,
 ) {
     val problem by appContainer().playback.playbackProblem.collectAsStateWithLifecycle()
-    HlActionRow(Modifier.focusRequester(actionRow).fadeOutsideSafeArea()) {
+    OnArtwork { HlActionRow(Modifier.focusRequester(actionRow).fadeOutsideSafeArea()) {
         PlayButtons(item, nextUp, memory, actions)
         Parts(item, memory, actions.onPlay)
         // Several copies: the one Lire plays is chosen in a side sheet.
@@ -563,7 +563,7 @@ private fun Actions(
             HlIconButton(HlIcons.Edit, stringResource(R.string.edit), onClick = actions.onEdit, modifier = Modifier.focusKey(EDIT, memory))
         }
         ActionFailure(problem, actionError)
-    }
+    } }
 }
 
 /** Why the last play request failed ([problem]) or a change did not save ([actionError]), beside the actions. */
@@ -592,7 +592,7 @@ private fun PlayButtons(item: MediaItem, nextUp: MediaItem?, memory: FocusMemory
         stringResource(if (resume) R.string.resume else R.string.play),
         onClick = { onPlay(target, resume) },
         modifier = Modifier.focusKey(PLAY, memory),
-        icon = Icons.Filled.PlayArrow,
+        icon = HlIcons.Play,
         detail = playDetail(episode, target, resume, copy != null),
         emphasis = Emphasis.Primary,
     )
@@ -744,7 +744,7 @@ private fun EpisodesFailed(header: String?, error: UiError, retrying: Boolean, o
     }
 }
 
-/** Parts go in a menu from three on: two buttons beside Lire still leave room for the round buttons. */
+/** Parts go in a menu from three on: two buttons beside Lire still leave room for the tiles. */
 internal fun partsInMenu(count: Int): Boolean = count > INLINE_PARTS
 
 /** [parts] as menu options named by [labels], none selected so the menu opens on the first part. */
@@ -772,7 +772,7 @@ private val FAVORITE = FocusKey.action("favorite")
 private val EDIT = FocusKey.action("edit")
 private val PARTS = FocusKey.action("parts")
 
-/** Parts shown as buttons in the action row, beside Lire and the round buttons. */
+/** Parts shown as buttons in the action row, beside Lire and the tiles. */
 private const val INLINE_PARTS = 2
 private const val EPISODES = "episodes"
 

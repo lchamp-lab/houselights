@@ -83,7 +83,7 @@ class HomeBarFocusTest {
         backFromTheSettings()
         // From the tabs: the track, on its current tab, then the row under it.
         compose.press(Key.DirectionLeft)
-        compose.onNode(isFocused()).assert(hasText("Home"))
+        compose.onNode(isFocused()).assert(hasContentDescription("Home"))
         compose.press(Key.DirectionDown)
         focusIsOn("Film 1")
 

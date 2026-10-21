@@ -11,7 +11,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -140,11 +140,13 @@ internal fun PersonBands(page: PersonPage, onOpenItem: (MediaItem) -> Unit) {
                 ) {
                     WithItsPicture(shown) { TitleLine(it) }
                 }
-                ListScroll(top = HlSpace.m) { LazyVerticalGrid(
+                ListScroll(top = HlFocus.wallRoom) { LazyVerticalGrid(
                     columns = GridCells.Fixed(COLUMNS),
                     state = grid,
-                    contentPadding = PaddingValues(start = HlSpace.safeH, end = HlSpace.safeH, top = HlSpace.m, bottom = HlFocus.edge),
-                    horizontalArrangement = Arrangement.spacedBy(HlSpace.l),
+                    contentPadding = PaddingValues(
+                        start = HlSpace.safeH, end = HlSpace.safeH, top = HlFocus.wallRoom, bottom = HlFocus.edge,
+                    ),
+                    horizontalArrangement = Arrangement.spacedBy(HlLayout.wallGutter),
                     verticalArrangement = Arrangement.spacedBy(HlSpace.l),
                     modifier = Modifier.fillMaxSize(),
                 ) {
@@ -201,10 +203,11 @@ private fun Portrait(person: Person) {
     // The artwork well and edge at rest, as for a portrait in a row.
     Box(
         Modifier
-            .size(HlSize.portrait)
-            .clip(HlShapes.avatar)
+            .width(HlSize.portrait)
+            .aspectRatio(HlSize.PORTRAIT_RATIO)
+            .clip(HlShapes.artwork)
             .background(c.content.copy(alpha = HlAlpha.FILL))
-            .artworkEdge(HlShapes.avatar, c)
+            .artworkEdge(HlShapes.artwork, c)
             .clearAndSetSemantics {},
         contentAlignment = Alignment.Center,
     ) {

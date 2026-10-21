@@ -1,6 +1,7 @@
 package app.houselights.ui.design.components
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.rememberTransition
@@ -36,8 +37,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.drawOutline
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.key.onPreviewKeyEvent
@@ -69,6 +76,7 @@ import app.houselights.ui.design.scrollEdges
 import app.houselights.ui.design.tryRequestFocus
 import app.houselights.ui.util.toPx
 import app.houselights.ui.design.capitalsAtTop
+import app.houselights.ui.design.edge
 
 /** Lets a sheet's content close it with its motion, then act once it has gone. */
 @Stable
@@ -78,20 +86,23 @@ class SheetScope internal constructor(private val close: (then: () -> Unit) -> U
 }
 
 /**
- * The enter and exit motion of a sheet or menu: [progress] (0 gone, 1 shown) is read while drawing, and
- * keys are ignored while [leaving] so a second OK cannot choose twice.
+ * The enter and exit motion of a sheet or menu, read while drawing: [travel] (0 gone, 1 in place) in the
+ * focus pull and the fall back, and [opacity] over a plate's quicker timing. Keys are ignored while
+ * [leaving], so a second OK cannot choose twice.
  */
 @Stable
 internal class SheetMotion(
     private val shown: MutableTransitionState<Boolean>,
-    private val animated: State<Float>,
+    private val travelled: State<Float>,
+    private val lit: State<Float>,
     val sheet: SheetScope,
 ) {
-    val progress: Float get() = animated.value
+    val travel: Float get() = travelled.value
+    val opacity: Float get() = lit.value
     val leaving: Boolean get() = !shown.targetState
 }
 
-/** Sheet and menu motion ([HlMotion.STANDARD], emphasized); [onDismiss] runs once the sheet has gone. */
+/** Sheet and menu motion: in over [HlMotion.FOCUS_IN], out over [HlMotion.FOCUS_OUT]; [onDismiss] runs once gone. */
 @Composable
 internal fun rememberSheetMotion(onDismiss: () -> Unit): SheetMotion {
     val shown = remember { MutableTransitionState(false).apply { targetState = true } }
@@ -105,7 +116,10 @@ internal fun rememberSheetMotion(onDismiss: () -> Unit): SheetMotion {
         }
     }
     val transition = rememberTransition(shown, label = "sheet")
-    val progress = transition.animateFloat({ tween(HlMotion.STANDARD, easing = HlMotion.emphasized) }, label = "sheetProgress") {
+    val travel = transition.animateFloat({ arriving(targetState, HlMotion.FOCUS_IN, HlMotion.FOCUS_OUT) }, label = "sheetTravel") {
+        if (it) 1f else 0f
+    }
+    val opacity = transition.animateFloat({ arriving(targetState, HlMotion.PLATE_IN, HlMotion.PLATE_OUT) }, label = "sheetOpacity") {
         if (it) 1f else 0f
     }
     if (shown.isIdle && !shown.currentState) {
@@ -114,8 +128,12 @@ internal fun rememberSheetMotion(onDismiss: () -> Unit): SheetMotion {
             then()
         }
     }
-    return remember { SheetMotion(shown, progress, sheet) }
+    return remember { SheetMotion(shown, travel, opacity, sheet) }
 }
+
+/** In over [inMs] in the focus pull when [shown], else out over [outMs] in the fall back. */
+private fun arriving(shown: Boolean, inMs: Int, outMs: Int): FiniteAnimationSpec<Float> =
+    if (shown) tween(inMs, easing = HlMotion.focusPull) else tween(outMs, easing = HlMotion.fallBack)
 
 /** Keys go nowhere while a sheet or a menu leaves. */
 internal fun Modifier.stillWhileLeaving(motion: SheetMotion): Modifier = onPreviewKeyEvent { motion.leaving }
@@ -129,7 +147,7 @@ internal fun SheetWindow(
     onDismiss: () -> Unit,
     scrim: Float,
     initialFocus: FocusRequester?,
-    content: @Composable BoxScope.(progress: () -> Float, sheet: SheetScope) -> Unit,
+    content: @Composable BoxScope.(motion: SheetMotion) -> Unit,
 ) {
     val motion = rememberSheetMotion(onDismiss)
     Dialog(onDismissRequest = { motion.sheet.dismiss() }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
@@ -144,9 +162,9 @@ internal fun SheetWindow(
             Modifier
                 .fillMaxSize()
                 .stillWhileLeaving(motion)
-                .drawBehind { drawRect(room.copy(alpha = scrim * motion.progress)) },
+                .drawBehind { drawRect(room.copy(alpha = scrim * motion.opacity)) },
         ) {
-            content({ motion.progress }, motion.sheet)
+            content(motion)
         }
     }
 }
@@ -169,21 +187,22 @@ fun HlSideSheet(
     scroll: ScrollState = rememberScrollState(),
     content: @Composable ColumnScope.(sheet: SheetScope) -> Unit,
 ) {
-    SheetWindow(onDismiss, HlAlpha.VEIL_SIDE, initialFocus) { progress, sheet ->
+    SheetWindow(onDismiss, HlAlpha.VEIL_SIDE, initialFocus) { motion ->
+        val c = Hl.colors
         // Its rows and fields sit on glass.
         CompositionLocalProvider(LocalGround provides Ground.Glass) {
-        Row(
-            modifier
-                .align(Alignment.CenterEnd)
-                .width(HlSideSheetDefaults.width)
-                .fillMaxHeight()
-                .graphicsLayer { translationX = size.width * (1f - progress()) }
-                .background(Hl.colors.surfaceRaised),
-        ) {
-            HlDivider(vertical = true)
             Column(
-                Modifier
-                    .weight(1f)
+                modifier
+                    .align(Alignment.CenterEnd)
+                    .width(HlSideSheetDefaults.width)
+                    .fillMaxHeight()
+                    .graphicsLayer {
+                        // A short way in as it lights, each drawing faded on its own: no offscreen pass.
+                        translationX = HlSpace.l.toPx() * (1f - motion.travel)
+                        alpha = motion.opacity
+                        compositingStrategy = CompositingStrategy.ModulateAlpha
+                    }
+                    .sheetGlass(c.glass, c.edge)
                     .padding(start = HlInset.sheet, end = HlSpace.safeH, top = HlSpace.safeV, bottom = HlSpace.safeV),
             ) {
                 SheetHeader(title, subject, facts, description, artwork, status)
@@ -192,14 +211,27 @@ fun HlSideSheet(
                 Spacer(Modifier.height(HlSpace.m))
                 // Its rows fade into the sheet where there are more.
                 Column(
-                    Modifier.weight(1f).scrollEdges(scroll, Hl.colors.surfaceRaised).verticalScroll(scroll),
+                    Modifier.weight(1f).scrollEdges(scroll, c.glass).verticalScroll(scroll),
                     verticalArrangement = Arrangement.spacedBy(HlSpace.xxs),
-                ) { content(sheet) }
+                ) { content(motion.sheet) }
                 Spacer(Modifier.height(HlSpace.m))
                 BackHint()
             }
         }
-        }
+    }
+}
+
+/**
+ * A sheet's [glass] in [HlShapes.sheet], and its hairline [edge] on the side facing the screen only: its top
+ * and bottom lie on the screen's own edges.
+ */
+private fun Modifier.sheetGlass(glass: Color, edge: Color): Modifier = drawWithCache {
+    val outline = HlShapes.sheet.createOutline(size, layoutDirection, this)
+    val corner = HlShapes.sheet.topStart.toPx(size, this)
+    val hairline = Stroke(HlSize.hairline.toPx())
+    onDrawBehind {
+        drawOutline(outline, glass)
+        clipRect(left = -hairline.width, right = corner) { drawOutline(outline, edge, style = hairline) }
     }
 }
 
@@ -293,7 +325,7 @@ private fun ConfirmCard(question: String, consequence: String, confirm: String, 
     Intertitle(question, message = consequence, attention = true) {
         Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.s)) {
             HlButton(stringResource(R.string.cancel), onClick = onCancel, modifier = Modifier.focusRequester(cancel))
-            PillButton(confirm, onClick = onConfirm, caution = true)
+            ButtonPlate(confirm, onClick = onConfirm, caution = true)
         }
     }
 }
@@ -328,14 +360,14 @@ fun RowPreview(image: ImageRef?, shape: PreviewShape, modifier: Modifier = Modif
             description = null,
             contentScale = if (logo) ContentScale.Fit else ContentScale.Crop,
             picture = frame
-                .clip(HlShapes.artwork)
+                .clip(HlShapes.thumb)
                 .background(if (logo) c.background else groundStepFill())
                 .padding(if (logo) HlSpace.xxs else HlSpace.none),
         ) {
             if (icon != null) {
-                Icon(icon, contentDescription = null, tint = c.contentSecondary, modifier = Modifier.size(HlSize.discIcon))
+                Icon(icon, contentDescription = null, tint = c.contentSecondary, modifier = Modifier.size(HlSize.largeIcon))
             } else {
-                EmptyFrame(frame)
+                EmptyFrame(frame, HlShapes.thumb)
             }
         }
     }

@@ -472,6 +472,8 @@
     <string name="credit_data">Filmdaten</string>
     <string name="credit_font">Schrift</string>
     <string name="credit_font_value">Archivo, SIL Open Font License</string>
+    <string name="credit_icons">Symbole</string>
+    <string name="credit_icons_value">Lucide, ISC-Lizenz</string>
     <!-- Supporting the project: said once, in About, never elsewhere -->
     <string name="support">Houselights unterstützen</string>
     <string name="support_desc">Spendieren Sie dem Projekt einen Kaffee, von Ihrem Smartphone aus.</string>
@@ -491,6 +493,10 @@
     <plurals name="card_unwatched">
         <item quantity="one">%d ungesehene Folge</item>
         <item quantity="other">%d ungesehene Folgen</item>
+    </plurals>
+    <plurals name="row_news">
+        <item quantity="one">%d neuer</item>
+        <item quantity="other">%d neue</item>
     </plurals>
     <!-- Sagas -->
     <plurals name="film_count">

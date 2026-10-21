@@ -1,16 +1,27 @@
 package app.houselights.ui.design
 
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.colorspace.ColorSpaces
 import androidx.compose.ui.graphics.compositeOver
 import app.houselights.ui.testing.contrast
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import kotlin.math.floor
 
 /** DESIGN.md's 4.5:1 for text and 3:1 for marks, for each pair the system draws over what it sits on; forbidden pairs stay below. */
 class ContrastTest {
     private enum class Use(val minimum: Float) { Text(4.5f), Mark(3f) }
 
     private val c = HouselightsColors
+
+    /** The left veil in the neutral dark at the floor it takes over white. */
+    private val veilFloorOnWhite = c.ambientDeep.over(HlScrim.need(1f, tint = greyOf(c.ambientDeep)), Color.White)
+
+    /** The welcome wall under its veil where it is lightest: a white poster at `WALL`, the veil at its least across. */
+    private val welcomeWall = c.background.over(HlScrim.WALL_ACROSS.minOf { it.alpha }, Color.White.over(HlScrim.WALL, c.background))
+
+    /** A wall's diffuse field at its brightest, one level over its cap as dithering may draw it. */
+    private val fieldBrightest = grey((floor(srgb(HlScrim.FIELD_LUMINANCE_MAX) * 255f) + 1f) / 255f)
 
     private val roles = mapOf(
         "content" to c.content,
@@ -19,6 +30,8 @@ class ContrastTest {
         "ember" to c.ember,
         "emberFrom" to c.emberFrom,
         "emberTo" to c.emberTo,
+        "onEmber" to c.onEmber,
+        "emberOnLight" to c.emberOnLight,
         "onFocus" to c.onFocus,
         "onFocusSecondary" to c.onFocusSecondary,
         "focus" to c.focus,
@@ -29,86 +42,127 @@ class ContrastTest {
     private val surfaces = mapOf(
         "background" to c.background,
         // Glass: side sheets, menus, dialogs.
-        "surfaceRaised" to c.surfaceRaised,
+        "glass" to c.glass,
         // A thing on the room, one step up: a secondary control at rest, a quiet panel, a field.
         "FILL" to c.content.over(HlAlpha.FILL, c.background),
         // The same step on glass, where it is fainter, and a row or a well on the room.
         "FILL_FAINT" to c.content.over(HlAlpha.FILL_FAINT, c.background),
-        "FILL_FAINT on surfaceRaised" to c.content.over(HlAlpha.FILL_FAINT, c.surfaceRaised),
-        // A primary control at rest, a progress line's track off the artwork.
+        "FILL_FAINT on glass" to c.content.over(HlAlpha.FILL_FAINT, c.glass),
+        // A progress line's track beside text.
         "FILL_STRONG" to c.content.over(HlAlpha.FILL_STRONG, c.background),
         // A button in a side sheet.
-        "FILL on surfaceRaised" to c.content.over(HlAlpha.FILL, c.surfaceRaised),
-        // The current option of a track: its quiet pill in the track's well, or on the track's plate over an image.
-        "FILL_STRONG on FILL_FAINT" to c.content.over(HlAlpha.FILL_STRONG, c.content.over(HlAlpha.FILL_FAINT, c.background)),
-        "FILL_STRONG on VEIL on a white image" to c.content.over(HlAlpha.FILL_STRONG, c.background.over(HlAlpha.VEIL, Color.White)),
+        "FILL on glass" to c.content.over(HlAlpha.FILL, c.glass),
         "focus" to c.focus,
         // The one light ground: a code to scan.
         "content" to c.content,
         // Whatever sits on artwork, on its plate over the worst image: a white one.
         "VEIL on a white image" to c.background.over(HlAlpha.VEIL, Color.White),
-        // A text column over a backdrop: the left veil at the floor a white image gets.
-        "the veil's floor on a white image" to c.background.over(HlScrim.need(1f), Color.White),
+        // A text column over a backdrop: the left veil, in the picture's dark, at the floor a white image gets.
+        "the veil's floor on a white image" to veilFloorOnWhite,
+        // The main action, filled with the ember light, at each end and its middle.
+        "emberFrom" to c.emberFrom, "ember" to c.ember, "emberTo" to c.emberTo,
+        // A picture's own dark where it is whole: a veil or a plate at its floor.
+        "ambientDeep" to c.ambientDeep,
+        // A control's plate over a picture, where controls sit: on the veil at its floor over a white image.
+        "plate on the veil's floor on a white image" to c.plate().compositeOver(veilFloorOnWhite),
+        // A plate on the bare picture: at its own opacity over white, and at the most its floor raises it to.
+        "plate on a white image" to c.plate().compositeOver(Color.White),
+        "plate at its ceiling on a white image" to c.plate(alpha = HlAlpha.PLATE_MAX).compositeOver(Color.White),
+        "the diffuse field's brightest" to fieldBrightest,
+        // A wall's title at the foot of its band (the safe area and a headline, 70 dp down), under the field's top veil.
+        "the title's foot on the diffuse field" to c.background.over(HlScrim.DIFFUSE_TOP.alphaAt(TITLE_FOOT), fieldBrightest),
+        "the welcome wall" to welcomeWall,
     )
 
     /** Every pair the system draws, as role, surface, use. */
     private val permitted = listOf(
         // Primary text, the count of unwatched episodes on its plate, the current option of a track.
-        "content" on "background", "content" on "FILL", "content" on "surfaceRaised",
-        "content" on "FILL_FAINT", "content" on "FILL_FAINT on surfaceRaised",
-        "content" on "FILL_STRONG", "content" on "FILL_STRONG on FILL_FAINT",
-        // On artwork: a round button's icon, the current option of a track, on their plate.
-        "content" on "VEIL on a white image", "content" on "FILL_STRONG on VEIL on a white image",
-        // The other options of a track at rest, in its well or on its plate over an image.
-        "contentSecondary" on "VEIL on a white image",
+        "content" on "background", "content" on "FILL", "content" on "glass",
+        "content" on "FILL_FAINT", "content" on "FILL_FAINT on glass",
+        // On artwork, on a card's plate: the count of unwatched episodes, a person's initials.
+        "content" on "VEIL on a white image", "contentSecondary" on "VEIL on a white image",
         // A title's name, facts, overview and quietest words.
         "content" on "the veil's floor on a white image", "contentSecondary" on "the veil's floor on a white image",
         "contentTertiary" on "the veil's floor on a white image",
         // Descriptions, labels, a selected entry's summary, a button's detail at rest.
-        "contentSecondary" on "background", "contentSecondary" on "FILL", "contentSecondary" on "surfaceRaised",
-        "contentSecondary" on "FILL_FAINT", "contentSecondary" on "FILL_FAINT on surfaceRaised",
-        "contentSecondary" on "FILL_STRONG",
+        "contentSecondary" on "background", "contentSecondary" on "FILL", "contentSecondary" on "glass",
+        "contentSecondary" on "FILL_FAINT", "contentSecondary" on "FILL_FAINT on glass",
         // Hints, placeholders, an entry's summary at rest; never on a strong fill.
-        "contentTertiary" on "background", "contentTertiary" on "FILL", "contentTertiary" on "surfaceRaised",
+        "contentTertiary" on "background", "contentTertiary" on "FILL", "contentTertiary" on "glass",
         "contentTertiary" on "FILL_FAINT",
         // A value the user chose, the check of the current choice, a failed result, the mark at the launch.
-        "ember" on "background", "ember" on "surfaceRaised", "ember" on "FILL",
-        "ember" on "FILL_FAINT", "ember" on "FILL_FAINT on surfaceRaised",
+        "ember" on "background", "ember" on "glass", "ember" on "FILL",
+        "ember" on "FILL_FAINT", "ember" on "FILL_FAINT on glass",
         // What needs attention beside what it concerns, over a backdrop (images that cannot be fetched).
         "ember" on "the veil's floor on a white image",
         // A focused control: its name, and the line under it.
         "onFocus" on "focus", "onFocusSecondary" on "focus",
         // Focus, a white fill or outline, against its surroundings (WCAG 2.4.13 asks 3:1).
-        ("focus" on "FILL_FAINT").mark(), ("focus" on "FILL_STRONG on FILL_FAINT").mark(),
+        ("focus" on "FILL_FAINT").mark(),
         ("focus" on "VEIL on a white image").mark(), ("focus" on "background").mark(),
         // A row read in a sheet: no well at rest, white on the sheet itself.
-        ("focus" on "surfaceRaised").mark(),
+        ("focus" on "glass").mark(),
         // A code to scan: its black modules on projector white, and that ground against the sheet.
-        ("background" on "content").mark(), ("content" on "surfaceRaised").mark(),
+        ("background" on "content").mark(), ("content" on "glass").mark(),
         // Marks on their plate: a lit favourite icon, the chosen check, the new dot, a card's progress.
         ("ember" on "FILL").mark(),
         ("ember" on "VEIL on a white image").mark(),
         // A meter's inks on its track, a gap apart: projector white, secondary, and tertiary (below).
         ("content" on "FILL_FAINT").mark(), ("contentSecondary" on "FILL_FAINT").mark(),
-        // A button's detail lit at rest (an active filter), on a primary button as on a secondary one (above).
-        "ember" on "FILL_STRONG",
         // A question asked in a sheet: Cancel, and the action asked about, its label ember at rest.
-        "content" on "FILL on surfaceRaised", "ember" on "FILL on surfaceRaised",
+        "content" on "FILL on glass", "ember" on "FILL on glass",
         // A disabled control's icon, tertiary in its well.
         ("contentTertiary" on "FILL_FAINT").mark(),
         ("contentSecondary" on "VEIL on a white image").mark(),
         // The ember light (progress line, lit edge, scan counter): both ends of its gradient.
         ("emberFrom" on "background").mark(), ("emberTo" on "background").mark(),
-        ("emberFrom" on "surfaceRaised").mark(), ("emberTo" on "surfaceRaised").mark(),
+        ("emberFrom" on "glass").mark(), ("emberTo" on "glass").mark(),
         ("emberFrom" on "FILL_STRONG").mark(), ("emberTo" on "FILL_STRONG").mark(),
         ("emberFrom" on "VEIL on a white image").mark(), ("emberTo" on "VEIL on a white image").mark(),
+        // The main action's words and icon on the ember light, at both ends and in its middle.
+        "onEmber" on "emberFrom", "onEmber" on "ember", "onEmber" on "emberTo",
+        // What stays lit on a focused plate: a chosen check, the current place's dot, home's Gradation.
+        ("emberOnLight" on "focus").mark(),
+        // On a picture's own dark: a title's words, the quietest, and the place in ember.
+        "content" on "ambientDeep", "contentSecondary" on "ambientDeep", "contentTertiary" on "ambientDeep",
+        "ember" on "ambientDeep", "emberTo" on "ambientDeep",
         // A state's light: pending, and the ring of off, on the room, in a sheet and in a busy button.
-        ("contentTertiary" on "background").mark(), ("contentTertiary" on "surfaceRaised").mark(),
-        ("contentTertiary" on "FILL_STRONG").mark(), ("contentTertiary" on "FILL").mark(),
+        ("contentTertiary" on "background").mark(), ("contentTertiary" on "glass").mark(),
+        ("contentTertiary" on "FILL").mark(),
+        // A control's plate over a picture: its words, its detail, its words disabled, a chosen glyph, a lit value.
+        "content" on "plate on the veil's floor on a white image", "contentSecondary" on "plate on the veil's floor on a white image",
+        "contentTertiary" on "plate on the veil's floor on a white image",
+        ("ember" on "plate on the veil's floor on a white image").mark(),
+        "emberFrom" on "plate on the veil's floor on a white image", "emberTo" on "plate on the veil's floor on a white image",
+        // Words in the ember light: a screen's title, a value chosen on a glass plate, and the place in home's bar,
+        // where the top and left veils meet at the picture's own dark.
+        "emberFrom" on "background", "emberTo" on "background", "emberFrom" on "glass", "emberTo" on "glass",
+        "emberFrom" on "ambientDeep",
+        // On a plate raised by its floor over the lightest picture: words, and ember as marks only.
+        "content" on "plate at its ceiling on a white image", "contentSecondary" on "plate at its ceiling on a white image",
+        "contentTertiary" on "plate at its ceiling on a white image",
+        ("ember" on "plate at its ceiling on a white image").mark(), ("emberTo" on "plate at its ceiling on a white image").mark(),
+        // On a wall's field, without a veil: names and facts; the quietest text only on a plate or in the title's band.
+        "content" on "the diffuse field's brightest", "contentSecondary" on "the diffuse field's brightest",
+        // A wall's title, in the ember light, and the quietest text in its band.
+        "emberFrom" on "the title's foot on the diffuse field", "emberTo" on "the title's foot on the diffuse field",
+        "contentTertiary" on "the title's foot on the diffuse field",
+        // Over the welcome wall: the task's title, the tagline, an attention note; the lockup's light and focus's frame.
+        "content" on "the welcome wall", "contentSecondary" on "the welcome wall", "ember" on "the welcome wall",
+        ("emberFrom" on "the welcome wall").mark(), ("emberTo" on "the welcome wall").mark(), ("focus" on "the welcome wall").mark(),
     )
 
     private val forbidden = listOf(
         "contentTertiary" on "FILL_STRONG",
+        // White on ember: the main action's ink is black.
+        "content" on "emberFrom", "content" on "ember", "content" on "emberTo",
+        // Raspberry on white marks, never words.
+        "emberOnLight" on "focus",
+        // A plate on the bare picture without its floor; ember words on a plate there even with it.
+        "contentSecondary" on "plate on a white image", "contentTertiary" on "plate on a white image",
+        "emberTo" on "plate at its ceiling on a white image",
+        // The quietest text on a diffuse field, out of the title's band.
+        "contentTertiary" on "the diffuse field's brightest",
     )
 
     @Test
@@ -136,5 +190,14 @@ class ContrastTest {
 
     private fun Color.over(alpha: Float, background: Color) = copy(alpha = alpha).compositeOver(background)
 
+    private fun grey(level: Float) = Color(level, level, level)
+
+    private fun srgb(luminance: Float) = ColorSpaces.Srgb.oetf(luminance.toDouble()).toFloat()
+
     private fun format(ratio: Float) = "%.2f:1".format(ratio)
+
+    private companion object {
+        /** 70 dp of the TV's 540 dp high screen. */
+        const val TITLE_FOOT = 70f / 540f
+    }
 }

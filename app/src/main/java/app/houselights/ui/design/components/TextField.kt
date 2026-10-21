@@ -60,14 +60,12 @@ import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.emberLight
-import app.houselights.ui.design.groundFill
-import app.houselights.ui.design.groundStep
-import app.houselights.ui.design.groundStepFill
 
 /**
- * A text field for the remote: a focusable box, the keyboard on OK ([KeyHint]); its edge turns ember only
- * while typing. [label] is always read out, even when [showLabel] is false. Below, [error] or else
- * [supporting]; [placeholder] is an example ("Ex. : 192.168.1.10").
+ * A text field for the remote: a glass plate edged by a hairline, the keyboard on OK ([KeyHint]); focus
+ * rings it in white, and while typing the ring is the ember light and the cursor raspberry. [label] is
+ * always read out, even when [showLabel] is false. Below, [error] or else [supporting]; [placeholder] is an
+ * example ("Ex. : 192.168.1.10").
  */
 @Composable
 fun HlTextField(
@@ -155,7 +153,7 @@ private fun FieldBox(
             .openOnOk(waiting = !editing) { editing = true }
             .focusable()
             .clip(shape)
-            .background(groundStepFill())
+            .background(c.glass)
             .border(fieldEdge(editing, boxFocused), shape)
             .padding(horizontal = HlSpace.m, vertical = HlSpace.s),
     ) {
@@ -164,7 +162,7 @@ private fun FieldBox(
             onValueChange = onValueChange,
             singleLine = true,
             textStyle = textStyle,
-            cursorBrush = SolidColor(if (editing) c.ember else Color.Transparent),
+            cursorBrush = SolidColor(if (editing) c.emberTo else Color.Transparent),
             visualTransformation = if (password) PasswordVisualTransformation() else VisualTransformation.None,
             keyboardOptions = keyboardOptions,
             keyboardActions = KeyboardActions(onAny = {
@@ -198,7 +196,7 @@ private fun FieldBox(
         if (boxFocused && !editing) {
             // Over the text's end, on the field's surface, never taller than the field.
             Box(Modifier.matchParentSize(), contentAlignment = Alignment.CenterEnd) {
-                KeyHint(Modifier.wrapContentHeight(unbounded = true).background(groundFill(groundStep())).padding(start = HlSpace.s))
+                KeyHint(Modifier.wrapContentHeight(unbounded = true).background(c.glass).padding(start = HlSpace.s))
             }
         }
     }

@@ -167,7 +167,7 @@ class AppContainer(private val app: Application, val language: InterfaceLanguage
     /** Prefetches home's first rows and pictures while the launch screen holds. */
     val homeLaunch = HomeLaunch(launch, settings.state, { provider }, { libraryVersion.value })
 
-    /** Prefetches a wall's first page and posters while home's pill moves to it. */
+    /** Prefetches a wall's first page and posters while its name lights in home's bar. */
     val libraryAhead = LibraryAhead({ provider })
 
     /** Library-generated rows shown below home's own, chosen once a day. */
@@ -290,7 +290,7 @@ class AppContainer(private val app: Application, val language: InterfaceLanguage
 private fun metadataLocale(s: AppSettings, device: Locale): Locale = s.metadataLanguage?.let(Locale::forLanguageTag) ?: device
 
 /** Decoded pictures kept in memory: a few backdrops and the posters of several rows. */
-private const val IMAGE_MEMORY_BYTES = 64 * 1024 * 1024
+internal const val IMAGE_MEMORY_BYTES = 64 * 1024 * 1024
 
 /**
  * Image client sharing [api]'s pool with its own queue: OkHttp runs five requests per host, and Jellyfin serves

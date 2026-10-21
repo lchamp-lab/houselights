@@ -66,7 +66,7 @@ fun HeroInfo(item: MediaItem?, modifier: Modifier = Modifier) {
             Spacer(Modifier.height(HlSpace.s))
             if (shown.progress > 0f) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    ProgressLine(shown.progress, Modifier.width(HlSize.progressShort))
+                    ProgressLine(shown.progress, Modifier.width(HlSize.heroProgress), thickness = HlSize.heroProgressWeight)
                     Spacer(Modifier.width(HlSpace.s))
                     timeLeft(shown)?.let { Text(it, style = Hl.type.caption, color = Hl.colors.contentSecondary) }
                 }
@@ -101,7 +101,7 @@ fun WithItsPicture(item: MediaItem?, modifier: Modifier = Modifier, content: @Co
         laid.forEach { id ->
             key(id) {
                 val alpha = transition.animateFloat(
-                    transitionSpec = { tween(if (targetState == id) HlMotion.STANDARD else HlMotion.FAST) },
+                    transitionSpec = { tween(if (targetState == id) HlMotion.STANDARD else HlMotion.FAST, easing = HlMotion.fallBack) },
                     label = "namedAlpha",
                 ) { if (it == id) 1f else 0f }
                 // Only the target title is exposed to accessibility; the others are fading in or out.
@@ -149,7 +149,7 @@ fun EpisodeHeading(label: String?, title: String, modifier: Modifier = Modifier,
     }
 }
 
-/** Placeholder while a detail page loads: two quiet short rules, shown after [HlMotion.SKELETON_DELAY]. */
+/** Placeholder while a detail page loads: two quiet short rules, shown once `skeletonDelayPassed()`. */
 @Composable
 fun HeroSkeleton(modifier: Modifier = Modifier) {
     val rule = Hl.colors.contentDecorative
