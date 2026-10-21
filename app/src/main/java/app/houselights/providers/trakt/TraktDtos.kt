@@ -21,13 +21,15 @@ data class DeviceCode(
     override fun toString() = "DeviceCode(userCode=$userCode, verificationUrl=$verificationUrl, expiresIn=$expiresIn, interval=$interval)"
 }
 
-/** A client secret is sent only by an app Trakt issued one to; newer apps have none. */
+/** A client secret is sent only by an app that has one. Never the code nor the secret in [toString]. */
 @Serializable
 data class DeviceTokenRequest(
     @SerialName("code") val code: String,
     @SerialName("client_id") val clientId: String,
     @SerialName("client_secret") val clientSecret: String? = null,
-)
+) {
+    override fun toString() = "DeviceTokenRequest(code=***, clientId=$clientId, clientSecret=${clientSecret?.let { "***" }})"
+}
 
 @Serializable
 data class RefreshRequest(
@@ -36,14 +38,23 @@ data class RefreshRequest(
     @SerialName("client_secret") val clientSecret: String? = null,
     @SerialName("redirect_uri") val redirectUri: String,
     @SerialName("grant_type") val grantType: String = "refresh_token",
-)
+) {
+    override fun toString() =
+        "RefreshRequest(refreshToken=***, clientId=$clientId, clientSecret=${clientSecret?.let { "***" }}, redirectUri=$redirectUri)"
+}
 
 @Serializable
 data class RevokeRequest(
     @SerialName("token") val token: String,
     @SerialName("client_id") val clientId: String,
     @SerialName("client_secret") val clientSecret: String? = null,
-)
+) {
+    override fun toString() = "RevokeRequest(token=***, clientId=$clientId, clientSecret=${clientSecret?.let { "***" }})"
+}
+
+/** Why OAuth refused a request: invalid_grant for a refresh token Trakt refuses. */
+@Serializable
+data class OAuthError(@SerialName("error") val error: String? = null)
 
 /** Tokens: the access token lasts [expiresIn] seconds from [createdAt] (seconds since the epoch). */
 @Serializable

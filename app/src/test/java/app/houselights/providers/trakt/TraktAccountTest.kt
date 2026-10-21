@@ -1,11 +1,16 @@
 package app.houselights.providers.trakt
 
 import app.houselights.core.TraktSession
-import app.houselights.providers.jellyfin.Answer
-import app.houselights.providers.jellyfin.FakeServer
+import app.houselights.testing.Answer
+import app.houselights.testing.FakeServer
+import app.houselights.ui.testing.waitFor
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
@@ -20,11 +25,15 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import retrofit2.HttpException
 import java.io.IOException
 import java.net.UnknownHostException
 import java.util.Collections
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 
 /** The Trakt account against a test server: the device code's every answer, renewing the tokens, signing out. */
+@OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
 class TraktAccountTest {
     private var session: TraktSession? = null
@@ -35,10 +44,16 @@ class TraktAccountTest {
     /** The account a test signs in with, its access token ending in six days. */
     private val lea = TraktSession("a1", "r1", expiresAt = now + 6 * DAY, username = "lea")
 
+    /** Saves fail while above zero, each failure counted down. */
+    private var failedSaves = 0
+
     private fun TestScope.account(server: FakeServer, keys: TraktKeys = KEYS) = TraktAccount(
         keys,
         session = { session },
-        save = { session = it },
+        save = {
+            if (failedSaves-- > 0) throw IOException("No space left on device")
+            session = it
+        },
         http = server.http,
         now = { now },
         clock = { testScheduler.currentTime },
@@ -89,7 +104,8 @@ class TraktAccountTest {
             }
         }
         val server = server(DEVICE_TOKEN to polls, SETTINGS to listOf(answer(200, SETTINGS_JSON)))
-        assertEquals(DeviceCodeEnd.APPROVED, account(server).awaitApproval(code))
+        val account = account(server)
+        assertEquals(DeviceCodeEnd.APPROVED, account.awaitApproval(code))
         // Every 5 s, then 5 s slower once Trakt asks it.
         assertEquals(listOf(5_000L, 10_000L, 20_000L, 30_000L), polledAt)
         server.at(DEVICE_TOKEN).forEach { poll ->
@@ -98,7 +114,11 @@ class TraktAccountTest {
             assertEquals("id", sent.text("client_id"))
             assertFalse("A build without a secret sends none", "client_secret" in sent)
         }
-        assertEquals(TraktSession("a1", "r1", expiresAt = now + WEEK, username = "lea"), session)
+        // Saved at once; the name is read after, so the sheet closes without waiting for it.
+        assertEquals(TraktSession("a1", "r1", expiresAt = now + WEEK), session)
+        assertEquals(listOf(DEVICE_TOKEN), server.paths.distinct())
+        assertEquals("lea", account.readName())
+        assertEquals("lea", session?.username)
         // The name is read with the new token, from the API's host.
         val settings = server.at(SETTINGS).single()
         assertEquals("api.trakt.tv", settings.url.host)
@@ -145,26 +165,76 @@ class TraktAccountTest {
     @Test
     fun anAccountWhoseNameCannotBeReadIsConnectedAllTheSame() = runTest {
         val server = server(DEVICE_TOKEN to listOf(answer(200, TOKENS_JSON)), SETTINGS to listOf({ throw IOException("reset") }))
-        assertEquals(DeviceCodeEnd.APPROVED, account(server).awaitApproval(code))
+        val account = account(server)
+        assertEquals(DeviceCodeEnd.APPROVED, account.awaitApproval(code))
+        assertNull(account.readName())
         assertEquals(TraktSession("a1", "r1", expiresAt = now + WEEK), session)
     }
 
     @Test
-    fun aSecretInTheBuildIsSentWithTheCodeTheRenewalAndTheRevocation() = runTest {
+    fun anApprovalThatCannotBeSavedConnectsNothing() = runTest {
+        failedSaves = 1
+        val account = account(server(DEVICE_TOKEN to listOf(answer(200, TOKENS_JSON))))
+        assertTrue(runCatching { account.awaitApproval(code) }.exceptionOrNull() is IOException)
+        assertNull(session)
+        assertTrue(runCatching { account.call { it.settings() } }.exceptionOrNull() is TraktSignedOutException)
+    }
+
+    @Test
+    fun aStatusTheFlowDoesNotKnowStopsPollingAtOnce() = runTest {
+        val server = server(DEVICE_TOKEN to listOf(answer(400), answer(403)))
+        val thrown = runCatching { account(server).awaitApproval(code) }.exceptionOrNull()
+        assertEquals(403, (thrown as? HttpException)?.code())
+        assertEquals(2, server.requests.size)
+        assertNull(session)
+    }
+
+    @Test
+    fun cancellingTheWaitStopsPolling() = runTest {
+        // The first poll is held until the wait is cancelled.
+        val held = CountDownLatch(1)
+        val server = server(
+            DEVICE_TOKEN to listOf({
+                held.await(5, TimeUnit.SECONDS)
+                Answer(400)
+            }),
+        )
+        val waiting = launch { account(server).awaitApproval(code) }
+        waitFor("a first poll") { server.requests.isNotEmpty() }
+        waiting.cancel()
+        held.countDown()
+        advanceTimeBy(60_000)
+        assertEquals(1, server.requests.size)
+    }
+
+    @Test
+    fun aSecretInTheBuildIsSentWithTheCodeTheRenewalAndTheRevocationNeverTheToken() = runTest {
         val server = server(
             DEVICE_TOKEN to listOf(answer(200, TOKENS_JSON)),
             SETTINGS to listOf(answer(200, SETTINGS_JSON)),
             TOKEN to listOf(answer(200, RENEWED_JSON)),
             REVOKE to listOf(answer(200)),
         )
-        val account = account(server, TraktKeys("id", "s3cret"))
-        account.awaitApproval(code)
+        val keys = TraktKeys("id", "s3cret")
+        account(server, keys).awaitApproval(code)
+        // Another launch, the token in its last day.
         session = session?.copy(expiresAt = now + HOUR)
+        val account = account(server, keys)
         account.call { it.settings() }
         account.signOut()
         listOf(DEVICE_TOKEN, TOKEN, REVOKE).forEach { path ->
             assertEquals(path, "s3cret", body(server.at(path).single()).text("client_secret"))
+            // Trakt's own host gets no bearer, a session or not.
+            assertNull(path, server.at(path).single().header("Authorization"))
         }
+    }
+
+    @Test
+    fun anotherRedirectUriIsTheOneRenewalNames() = runTest {
+        session = lea.copy(expiresAt = now + HOUR)
+        val server = server(TOKEN to listOf(answer(200, RENEWED_JSON)), SETTINGS to listOf(answer(200, SETTINGS_JSON)))
+        account(server, TraktKeys("id", redirectUri = "urn:ietf:wg:oauth:2.0:oob")).call { it.settings() }
+        assertEquals("urn:ietf:wg:oauth:2.0:oob", body(server.at(TOKEN).single()).text("redirect_uri"))
     }
 
     @Test
@@ -194,16 +264,84 @@ class TraktAccountTest {
     }
 
     @Test
-    fun aRenewalTraktRefusesEndsTheConnection() = runTest {
+    fun aRefreshTokenTraktRefusesEndsTheConnectionItsTokensRevoked() = runTest {
         session = lea.copy(expiresAt = now + HOUR)
-        val server = server(TOKEN to listOf(answer(400, """{"error":"invalid_grant","error_description":"session not found"}""")))
+        val server = server(
+            TOKEN to listOf(answer(400, """{"error":"invalid_grant","error_description":"session not found"}""")),
+            REVOKE to listOf(answer(200)),
+        )
         val account = account(server)
         val thrown = runCatching { account.call { it.settings() } }.exceptionOrNull()
         assertTrue("$thrown", thrown is TraktSignedOutException)
-        assertEquals(true, session?.ended)
+        assertEquals("a1", body(server.at(REVOKE).single()).text("token"))
+        // Only the fact is kept.
+        assertEquals(lea.copy(accessToken = "", refreshToken = "", expiresAt = now + HOUR, ended = true), session)
         // Ended, it asks Trakt nothing more until connected again.
         assertTrue(runCatching { account.call { it.settings() } }.exceptionOrNull() is TraktSignedOutException)
-        assertEquals(listOf(TOKEN), server.paths)
+        assertEquals(listOf(TOKEN, REVOKE), server.paths)
+    }
+
+    @Test
+    fun aRenewalRefusedForAnotherReasonKeepsTheConnection() = runTest {
+        session = lea.copy(expiresAt = now + HOUR)
+        val server = server(
+            TOKEN to listOf(answer(400, """{"error":"invalid_request"}""")),
+            SETTINGS to listOf(answer(200, SETTINGS_JSON)),
+        )
+        account(server).call { it.settings() }
+        assertEquals("Bearer a1", server.at(SETTINGS).single().header("Authorization"))
+        assertEquals(lea.copy(expiresAt = now + HOUR), session)
+    }
+
+    @Test
+    fun aSecondRefusalOnceRenewedIsThrownWithoutRenewingAgain() = runTest {
+        session = lea
+        val server = server(SETTINGS to listOf(answer(401)), TOKEN to listOf(answer(200, RENEWED_JSON)))
+        val thrown = runCatching { account(server).call { it.settings() } }.exceptionOrNull()
+        assertEquals(401, (thrown as? HttpException)?.code())
+        assertEquals(listOf(SETTINGS, TOKEN, SETTINGS), server.paths)
+        assertEquals(lea.copy(accessToken = "a2", refreshToken = "r2", expiresAt = now + WEEK), session)
+    }
+
+    @Test
+    fun renewedTokensThatCannotBeSavedAreKeptAndSavedAtTheNextCall() = runTest {
+        session = lea.copy(expiresAt = now + HOUR)
+        failedSaves = 1
+        val server = server(TOKEN to listOf(answer(200, RENEWED_JSON)), SETTINGS to listOf(answer(200, SETTINGS_JSON)))
+        val account = account(server)
+        account.call { it.settings() }
+        // Trakt spent r1: r2 lives in memory until it is saved.
+        assertEquals("r1", session?.refreshToken)
+        account.call { it.settings() }
+        assertEquals(lea.copy(accessToken = "a2", refreshToken = "r2", expiresAt = now + WEEK), session)
+        assertEquals(listOf(TOKEN, SETTINGS, SETTINGS), server.paths)
+        assertEquals(List(2) { "Bearer a2" }, server.at(SETTINGS).map { it.header("Authorization") })
+    }
+
+    @Test
+    fun aNameReadDuringARenewalKeepsTheNewTokens() = runTest {
+        session = lea.copy(expiresAt = now + HOUR, username = null)
+        val server = server(TOKEN to listOf(answer(200, RENEWED_JSON)), SETTINGS to listOf(answer(200, SETTINGS_JSON)))
+        assertEquals("lea", account(server).readName())
+        assertEquals(lea.copy(accessToken = "a2", refreshToken = "r2", expiresAt = now + WEEK), session)
+    }
+
+    @Test
+    fun signingOutDuringARenewalRevokesTheNewTokenAndStaysSignedOut() = runTest {
+        session = lea.copy(expiresAt = now + HOUR)
+        val server = server(
+            TOKEN to listOf(answer(200, RENEWED_JSON)),
+            SETTINGS to listOf(answer(200, SETTINGS_JSON)),
+            REVOKE to listOf(answer(200)),
+        )
+        val account = account(server)
+        // The call renews first, holding the session until its tokens are kept.
+        val calling = async { runCatching { account.call { it.settings() } } }
+        runCurrent()
+        account.signOut()
+        calling.await()
+        assertEquals("a2", body(server.at(REVOKE).single()).text("token"))
+        assertNull(session)
     }
 
     @Test

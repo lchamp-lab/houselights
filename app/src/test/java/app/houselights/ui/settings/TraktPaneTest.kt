@@ -15,7 +15,9 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.requestFocus
 import androidx.compose.ui.unit.dp
+import app.houselights.core.SourceConfig
 import app.houselights.core.TraktSession
+import app.houselights.providers.jellyfin.account
 import app.houselights.providers.local.TraktSyncError
 import app.houselights.providers.trakt.DeviceCodeEnd
 import app.houselights.providers.trakt.TraktSyncState
@@ -30,6 +32,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -78,7 +81,7 @@ class TraktPaneTest {
         ok(CONNECT)
         compose.onNodeWithText("ABCD1234").assertExists()
         compose.onNodeWithContentDescription("Code QR").assertExists()
-        compose.onNodeWithText("auth.trakt.tv/activate").assertExists()
+        compose.onNodeWithText("trakt.tv/activate").assertExists()
         compose.onNodeWithText("En attente de votre accord").assertExists()
         compose.onNodeWithText("Ce code expire dans 10${NB}min").assertExists()
         compose.onNodeWithText(
@@ -130,7 +133,7 @@ class TraktPaneTest {
         compose.runOnIdle { link.end(DeviceCodeEnd.DENIED) }
         compose.waitForIdle()
         compose.onNodeWithText("ABCD1234").assertDoesNotExist()
-        compose.onNodeWithText("L’accès a été refusé sur Trakt. Connectez-vous à nouveau pour l’autoriser.").assertExists()
+        compose.onNodeWithText("L’accès a été refusé sur Trakt. Connectez votre compte à nouveau pour l’autoriser.").assertExists()
         compose.onNodeWithText("Non effectué").assertExists()
         compose.onNodeWithText(CONNECT).assertIsFocused()
     }
@@ -195,6 +198,13 @@ class TraktPaneTest {
         show()
         compose.onNodeWithText("Trakt ne répond pas. Ce que vous regardez lui sera envoyé dès qu’il répondra.").assertExists()
         compose.onNodeWithText("Non effectué").assertExists()
+    }
+
+    @Test
+    fun theEntryShowsWithTheFoldersOnly() {
+        assertTrue(Pane.Trakt in panesFor(SourceConfig.Local, pathMapping = false, counts = true))
+        assertFalse(Pane.Trakt in panesFor(account, pathMapping = true, counts = true))
+        assertFalse(Pane.Trakt in panesFor(null, pathMapping = false, counts = false))
     }
 
     @Test

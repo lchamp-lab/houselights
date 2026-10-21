@@ -49,7 +49,8 @@ class TraktViewModelTest {
         vm.connect()
         assertTrue(vm.connecting)
         runCurrent()
-        assertEquals(ShownCode("ABCD1234", 600_000), vm.code)
+        // Trakt's page as it names it.
+        assertEquals(ShownCode("ABCD1234", 600_000, "trakt.tv/activate"), vm.code)
         advanceTimeBy(61_000)
         runCurrent()
         assertEquals(539_000L, vm.code?.leftMs)
@@ -125,9 +126,9 @@ class TraktViewModelTest {
     @Test
     fun oneCodeAtATime() = runTest {
         val vm = model()
-        vm.connect()
+        assertTrue(vm.connect())
         runCurrent()
-        vm.connect()
+        assertFalse(vm.connect())
         runCurrent()
         assertEquals(1, link.codesAsked)
         // The countdown runs while the code waits: virtual time would never end.
@@ -184,7 +185,8 @@ class TraktViewModelTest {
 
     @Test
     fun aMinuteLeftReadsAsOneUntilTheEnd() {
-        assertEquals(0L, ShownCode("A", 0).leftMinutesMs)
+        // Its last poll too.
+        assertEquals(60_000L, ShownCode("A", 0).leftMinutesMs)
         assertEquals(60_000L, ShownCode("A", 1).leftMinutesMs)
         assertEquals(60_000L, ShownCode("A", 60_000).leftMinutesMs)
         assertEquals(120_000L, ShownCode("A", 60_001).leftMinutesMs)

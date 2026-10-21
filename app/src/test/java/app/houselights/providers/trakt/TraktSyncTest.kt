@@ -2,7 +2,7 @@ package app.houselights.providers.trakt
 
 import androidx.test.core.app.ApplicationProvider
 import app.houselights.core.TraktSession
-import app.houselights.providers.jellyfin.Answer
+import app.houselights.testing.Answer
 import app.houselights.providers.local.ItemEntity
 import app.houselights.providers.local.ItemKind
 import app.houselights.providers.local.LibraryDao

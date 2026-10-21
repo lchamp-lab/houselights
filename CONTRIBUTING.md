@@ -13,7 +13,8 @@ scripts/preview.sh                                        # start the Android TV
 
 The TMDB key can also come from the `TMDB_API_KEY` environment variable, or be entered in the app. Trakt's
 client ID comes from `TRAKT_CLIENT_ID` as well; a client secret (`trakt.clientSecret`, `TRAKT_CLIENT_SECRET`)
-only for a Trakt app that was issued one. `local.properties` is git-ignored: **never commit a key.**
+only for a Trakt app that has one, and its redirect URI (`trakt.redirectUri`) when not the project's (README,
+Trakt). `local.properties` is git-ignored: **never commit a key.**
 
 ## Project layout
 

@@ -84,15 +84,7 @@ fun SettingsScreen(
         onUseFolders { vm.actionFailed(SettingAction.SOURCE, it) }
     }
     val s by vm.settings.collectAsStateWithLifecycle()
-    val panes = Pane.entries.filter { p ->
-        when (p) {
-            Pane.Playback -> s.source != null && vm.capabilities.pathMapping
-            Pane.Numbers -> s.source != null && vm.counts
-            // Jellyfin keeps its own watch history, and has its own Trakt plugin.
-            Pane.Trakt -> s.source == SourceConfig.Local
-            else -> true
-        }
-    }
+    val panes = panesFor(s.source, vm.capabilities.pathMapping, vm.counts)
     var pane by rememberSaveable { mutableStateOf(Pane.Library) }
     // A failed change is reported in the pane it was made in, not in the next one.
     LaunchedEffect(pane) { vm.clearActionError() }
@@ -181,6 +173,17 @@ private fun summary(pane: Pane, s: AppSettings, titles: Int, stats: StorageStats
     Pane.Numbers -> null
     Pane.Storage -> stats?.let { formatBytes(it.total) }
     Pane.About -> stringResource(R.string.nav_version, BuildConfig.VERSION_NAME)
+}
+
+/** The panes listed with [source]: path mappings where its provider uses them, counts where it counts. */
+internal fun panesFor(source: SourceConfig?, pathMapping: Boolean, counts: Boolean): List<Pane> = Pane.entries.filter { p ->
+    when (p) {
+        Pane.Playback -> source != null && pathMapping
+        Pane.Numbers -> source != null && counts
+        // Jellyfin keeps its own watch history, and has its own Trakt plugin.
+        Pane.Trakt -> source == SourceConfig.Local
+        else -> true
+    }
 }
 
 /** The account connected, by name, or that none is; nothing when this build cannot reach Trakt. */

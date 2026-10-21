@@ -333,7 +333,7 @@ class TraktSync(
         /** Trakt takes one write a second per account. */
         const val WRITE_GAP_MS = 1_000L
 
-        /** A stop sent later than this is no longer one that just happened. */
+        /** A stop sent later than this did not just happen. */
         const val LATE_MS = 10 * 60_000L
 
         const val RETRY_AFTER = "Retry-After"
@@ -356,8 +356,5 @@ class TraktSync(
                 else -> TraktSyncError.FAILED
             }
         }
-
-        /** A failure for the log: its type and status, never its message, which may quote an answer. */
-        fun described(e: Throwable): String = if (e is HttpException) "HTTP ${e.code()}" else e.javaClass.simpleName
     }
 }

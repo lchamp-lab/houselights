@@ -589,8 +589,8 @@
     <string name="trakt_waiting">Waiting for your approval</string>
     <string name="trakt_code_left">This code expires in %s</string>
     <string name="trakt_offline">Trakt doesn’t answer. Check this device’s Internet connection, then try again.</string>
-    <string name="trakt_denied">Access was refused on Trakt. Connect again to allow it.</string>
-    <string name="trakt_expired">The code expired before it was entered. Connect again for a new one.</string>
+    <string name="trakt_denied">Access was refused on Trakt. Connect your account again to allow it.</string>
+    <string name="trakt_expired">The code expired before it was entered. Connect your account again for a new one.</string>
     <string name="trakt_refused">Trakt refuses this build’s key, so the account cannot be connected.</string>
     <string name="trakt_failed">Trakt could not complete the connection. Try again in a moment.</string>
     <string name="trakt_ended">Trakt ended this connection. Connect your account again.</string>

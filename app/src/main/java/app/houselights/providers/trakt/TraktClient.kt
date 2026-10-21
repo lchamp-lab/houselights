@@ -10,8 +10,11 @@ import retrofit2.Retrofit
 import retrofit2.converter.kotlinx.serialization.asConverterFactory
 import java.util.concurrent.TimeUnit
 
-/** The app's keys on Trakt; only [clientId] is needed, [clientSecret] only for an app Trakt issued one to. */
-class TraktKeys(val clientId: String, val clientSecret: String? = null) {
+/**
+ * The app's keys on Trakt: [clientId], a [clientSecret] only for an app that has one, and the [redirectUri] the app
+ * was declared with, which renewing the tokens names.
+ */
+class TraktKeys(val clientId: String, val clientSecret: String? = null, val redirectUri: String = TraktClient.REDIRECT_URI) {
     /** Without a client ID, this build cannot reach Trakt. */
     val available: Boolean get() = clientId.isNotBlank()
 
@@ -19,7 +22,11 @@ class TraktKeys(val clientId: String, val clientSecret: String? = null) {
 
     companion object {
         /** The keys built into the APK (README, Trakt). */
-        val builtIn = TraktKeys(BuildConfig.TRAKT_CLIENT_ID, BuildConfig.TRAKT_CLIENT_SECRET.ifBlank { null })
+        val builtIn = TraktKeys(
+            BuildConfig.TRAKT_CLIENT_ID,
+            BuildConfig.TRAKT_CLIENT_SECRET.ifBlank { null },
+            BuildConfig.TRAKT_REDIRECT_URI.ifBlank { TraktClient.REDIRECT_URI },
+        )
     }
 }
 
@@ -35,6 +42,8 @@ class TraktClient(
     private val http: OkHttpClient = base.newBuilder()
         .connectTimeout(CONNECT_S, TimeUnit.SECONDS)
         .readTimeout(READ_S, TimeUnit.SECONDS)
+        // A redirect to http would replay a token or a secret in the clear.
+        .followSslRedirects(false)
         // First, so whatever the base client intercepts already carries them.
         .apply { interceptors().add(0, headers(keys.clientId)) }
         .build()
@@ -63,7 +72,10 @@ class TraktClient(
         /** Trakt's page a code is entered on, as typed; `trakt_qr` encodes it, as Trakt asks of a QR code. */
         const val ACTIVATE = "auth.trakt.tv/activate"
 
-        /** Refreshing names the redirect URI of the Trakt app, which the device flow never opens (README, Trakt). */
+        /**
+         * The project's Trakt app's redirect URI, which the device flow never opens but renewing names; another app
+         * gives its own as trakt.redirectUri (README, Trakt).
+         */
         const val REDIRECT_URI = "https://github.com/lchamp-lab/houselights"
 
         private const val CONNECT_S = 10L

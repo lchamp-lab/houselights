@@ -1,8 +1,5 @@
-package app.houselights.providers.jellyfin
+package app.houselights.testing
 
-import app.houselights.core.MediaItem
-import app.houselights.core.MediaKind
-import app.houselights.core.SourceConfig
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Protocol
@@ -10,12 +7,6 @@ import okhttp3.Request
 import okhttp3.Response
 import okhttp3.ResponseBody.Companion.toResponseBody
 import java.util.Collections
-
-/** The account provider tests are signed in with. */
-val account = SourceConfig.Jellyfin("http://nas:8096", "Maison", "u1", "lea", "token")
-
-/** Heat, item "f1" on the test server. */
-val film = MediaItem("f1", MediaKind.MOVIE, "Heat")
 
 /** What a test server says to a request: a status, a body and headers. Throw an IOException for a network failure. */
 data class Answer(val code: Int, val body: String = "", val headers: Map<String, String> = emptyMap())

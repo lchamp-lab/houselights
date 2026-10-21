@@ -587,8 +587,8 @@
     <string name="trakt_waiting">En attente de votre accord</string>
     <string name="trakt_code_left">Ce code expire dans %s</string>
     <string name="trakt_offline">Trakt ne répond pas. Vérifiez la connexion Internet de l’appareil, puis réessayez.</string>
-    <string name="trakt_denied">L’accès a été refusé sur Trakt. Connectez-vous à nouveau pour l’autoriser.</string>
-    <string name="trakt_expired">Le code a expiré avant d’être saisi. Connectez-vous à nouveau pour en obtenir un autre.</string>
+    <string name="trakt_denied">L’accès a été refusé sur Trakt. Connectez votre compte à nouveau pour l’autoriser.</string>
+    <string name="trakt_expired">Le code a expiré avant d’être saisi. Connectez votre compte à nouveau pour en obtenir un autre.</string>
     <string name="trakt_refused">Trakt refuse la clé de cette version : le compte ne peut pas être connecté.</string>
     <string name="trakt_failed">Trakt n’a pas pu terminer la connexion. Réessayez dans un instant.</string>
     <string name="trakt_ended">Trakt a mis fin à cette connexion. Connectez votre compte à nouveau.</string>

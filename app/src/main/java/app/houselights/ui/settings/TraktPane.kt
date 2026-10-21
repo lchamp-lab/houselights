@@ -21,7 +21,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.tv.material3.Text
 import app.houselights.R
 import app.houselights.core.TraktSession
-import app.houselights.providers.trakt.TraktClient
 import app.houselights.providers.trakt.TraktSyncState
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlSpace
@@ -98,7 +97,8 @@ private fun LastSync(state: TraktSyncState) {
 @Composable
 private fun TraktRow(vm: TraktViewModel, session: TraktSession?) {
     val connected = session != null && !session.ended
-    var showing by remember { mutableStateOf(false) }
+    // Shown again over a connection that outlived the screen.
+    var showing by remember { mutableStateOf(vm.connecting) }
     val failure = vm.note?.let { RowFailure(stringResource(R.string.action_not_done), stringResource(it)) }
     HlSettingGroup(null, Modifier.revealOnFocus()) {
         if (connected) {
@@ -111,12 +111,7 @@ private fun TraktRow(vm: TraktViewModel, session: TraktSession?) {
             value = if (vm.disconnecting) stringResource(R.string.trakt_disconnecting) else failure?.value,
             valueAttention = failure != null && !vm.disconnecting,
             onClick = {
-                if (connected) {
-                    vm.disconnect()
-                } else {
-                    vm.connect()
-                    showing = true
-                }
+                if (connected) vm.disconnect() else if (vm.connect()) showing = true
             },
             // Connecting opens the code's sheet; disconnecting happens here.
             chevron = !connected,
@@ -177,7 +172,7 @@ private fun TraktCodeSheet(vm: TraktViewModel, onDismiss: () -> Unit) {
                 )
             }
             Spacer(Modifier.width(HlSpace.l))
-            QrCode(R.drawable.trakt_qr, TraktClient.ACTIVATE)
+            QrCode(R.drawable.trakt_qr, code.address)
         }
     }
 }

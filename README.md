@@ -129,11 +129,12 @@ no Trakt key and everything else works.
 
 1. Create the app on Trakt's developer portal ([new API app](https://app.trakt.tv/settings/apps/api/new));
    Trakt first asks you to link a GitHub account, to prove who you are.
-2. Choose the Production type, and give `https://github.com/lchamp-lab/houselights` as the redirect URI:
-   connecting with a code never opens it, but renewing the tokens names it.
+2. Choose the Production type, and declare `https://github.com/lchamp-lab/houselights` as its redirect URI
+   (`TraktClient.REDIRECT_URI`): connecting with a code never opens it, but renewing the tokens names it. An
+   app declared with another URI gives it as `trakt.redirectUri` (`TRAKT_REDIRECT_URI`).
 3. Put its client ID in `local.properties` as `trakt.clientId`, or in the `TRAKT_CLIENT_ID` environment
-   variable. Trakt no longer issues client secrets; an app created before that may add its own as
-   `trakt.clientSecret` (`TRAKT_CLIENT_SECRET`), which is then sent along.
+   variable. A client secret is needed only by an app that has one, as `trakt.clientSecret`
+   (`TRAKT_CLIENT_SECRET`); built into the APK, it can be read there.
 
 ## License
 

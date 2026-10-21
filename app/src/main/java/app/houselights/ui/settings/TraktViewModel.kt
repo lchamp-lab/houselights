@@ -16,10 +16,12 @@ import app.houselights.core.failureKind
 import app.houselights.core.suspendRunCatching
 import app.houselights.providers.local.TraktSyncError
 import app.houselights.providers.trakt.DeviceCodeEnd
+import app.houselights.providers.trakt.TraktClient
 import app.houselights.providers.trakt.TraktLink
 import app.houselights.providers.trakt.TraktSignedOutException
 import app.houselights.providers.trakt.TraktSyncState
 import app.houselights.providers.trakt.TraktSyncing
+import app.houselights.providers.trakt.described
 import app.houselights.ui.util.LatestJob
 import app.houselights.ui.util.UiError
 import app.houselights.ui.util.appContainer
@@ -30,10 +32,10 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
-/** A code on screen: [userCode] to enter on Trakt's page, valid for [leftMs] more. */
-internal data class ShownCode(val userCode: String, val leftMs: Long) {
-    /** The time left in whole minutes, rounded up: the last one reads "1 min" until the code ends. */
-    val leftMinutesMs: Long get() = (leftMs + MINUTE_MS - 1) / MINUTE_MS * MINUTE_MS
+/** A code on screen: [userCode] to enter on Trakt's page at [address], valid for [leftMs] more. */
+internal data class ShownCode(val userCode: String, val leftMs: Long, val address: String = TraktClient.ACTIVATE) {
+    /** The time left in whole minutes, rounded up: the last one reads "1 min" until the code ends, its last poll too. */
+    val leftMinutesMs: Long get() = ((leftMs + MINUTE_MS - 1) / MINUTE_MS * MINUTE_MS).coerceAtLeast(MINUTE_MS)
 
     private companion object {
         const val MINUTE_MS = 60_000L
@@ -79,18 +81,24 @@ internal class TraktViewModel(
         if (!sync.state.value.running) sync.syncNow()
     }
 
-    /** Asks Trakt for a code and waits for the viewer to approve it; a second call while one runs does nothing. */
-    fun connect() {
-        if (connecting || disconnecting) return
+    /**
+     * Asks Trakt for a code and waits for the viewer to approve it; true once started, false while a connection or a
+     * disconnection runs.
+     */
+    fun connect(): Boolean {
+        if (connecting || disconnecting) return false
         note = null
         connecting = true
         attempt.launch {
             suspendRunCatching {
                 val device = account.deviceCode()
                 val ends = clock() + device.expiresIn * MS_PER_S
+                val address = device.verificationUrl.substringAfter("://").trimEnd('/').ifBlank { TraktClient.ACTIVATE }
+                // The QR code opens the page as built in; the address shown is Trakt's own.
+                if (address != TraktClient.ACTIVATE) Log.i(TAG, "Trakt names its page $address; the QR code opens ${TraktClient.ACTIVATE}")
                 val countdown = launch {
                     while (true) {
-                        code = ShownCode(device.userCode, (ends - clock()).coerceAtLeast(0))
+                        code = ShownCode(device.userCode, (ends - clock()).coerceAtLeast(0), address)
                         delay(TICK_MS)
                     }
                 }
@@ -102,12 +110,13 @@ internal class TraktViewModel(
             }
                 .onSuccess { end -> note = noteOf(end) }
                 .onFailure { e ->
-                    Log.w(TAG, "Connecting to Trakt failed", e)
+                    Log.w(TAG, "Connecting to Trakt failed: ${described(e)}")
                     note = noteOf(e)
                 }
             code = null
             connecting = false
         }
+        return true
     }
 
     /** Stops waiting for the code shown: Back on its sheet. */
@@ -131,7 +140,7 @@ internal class TraktViewModel(
         disconnecting = true
         work.launch {
             suspendRunCatching { account.signOut() }.onFailure { e ->
-                Log.w(TAG, "Disconnecting from Trakt failed", e)
+                Log.w(TAG, "Disconnecting from Trakt failed: ${described(e)}")
                 note = e.toWriteError().message
             }
             disconnecting = false

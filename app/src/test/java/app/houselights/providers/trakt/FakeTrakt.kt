@@ -1,7 +1,7 @@
 package app.houselights.providers.trakt
 
-import app.houselights.providers.jellyfin.Answer
-import app.houselights.providers.jellyfin.FakeServer
+import app.houselights.testing.Answer
+import app.houselights.testing.FakeServer
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonObject

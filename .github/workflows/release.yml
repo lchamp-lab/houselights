@@ -9,7 +9,7 @@
 #                                  enter their own in the app's settings
 #   TRAKT_CLIENT_ID                optional: the project's Trakt app; without it Settings says the build has
 #                                  no Trakt
-#   TRAKT_CLIENT_SECRET            optional: only for a Trakt app that was issued one (newer apps have none)
+#   TRAKT_CLIENT_SECRET            optional: only for a Trakt app that has one; built into the APK, it can be read there
 #
 # To release: set versionName in app/build.gradle.kts, commit, then tag that commit
 # (git tag -a v0.2.0 -m "Houselights 0.2.0" && git push origin v0.2.0).
