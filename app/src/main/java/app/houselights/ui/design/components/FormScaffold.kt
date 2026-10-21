@@ -24,6 +24,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.tv.material3.Text
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlFocus
+import app.houselights.ui.design.HlFormScaffoldDefaults
 import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.ListScroll
@@ -77,7 +78,7 @@ fun HlFormScaffold(
     ) {
         Column(
             Modifier.fillMaxSize().keepVerticalFocus().verticalScroll(scroll)
-                .padding(top = HlLayout.paneTop, bottom = HlFocus.edge, end = HlSpace.m),
+                .padding(top = HlFormScaffoldDefaults.top, bottom = HlFocus.edge, end = HlSpace.m),
             verticalArrangement = Arrangement.spacedBy(HlSpace.l),
             content = form,
         )

@@ -34,14 +34,24 @@ import app.houselights.ui.design.FocusMemory
 import app.houselights.ui.design.focusKey
 import app.houselights.ui.design.revealOnFocus
 import app.houselights.ui.design.components.AttentionNote
+import app.houselights.ui.design.components.PaneHead
+import app.houselights.ui.design.components.StatusState
 import app.houselights.ui.util.UiError
 
-/** A pane's first group: aligned with the navigation, title and first settings revealed together so the title shows. */
+/**
+ * A pane's head ([PaneHead]: its title on the screen title's baseline, an [aside] with its [state], a [sentence])
+ * and its first block, revealed together so the head shows.
+ */
 @Composable
-internal fun Section(title: String, content: @Composable () -> Unit) {
+internal fun Section(
+    title: String,
+    aside: String? = null,
+    state: StatusState? = null,
+    sentence: String? = null,
+    content: @Composable () -> Unit,
+) {
     Column(Modifier.revealOnFocus()) {
-        Spacer(Modifier.height(HlLayout.paneTop))
-        Text(title, style = Hl.type.subject, color = Hl.colors.content)
+        PaneHead(title, aside = aside, state = state, sentence = sentence)
         Spacer(Modifier.height(HlSpace.l))
         content()
     }

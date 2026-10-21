@@ -1,17 +1,15 @@
 package app.houselights.ui.settings
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -38,24 +36,26 @@ import app.houselights.providers.local.TmdbKeyCheck
 import app.houselights.providers.local.address
 import app.houselights.settings.AppSettings
 import app.houselights.settings.SecretSetting
+import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlIcons
-import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.components.AttentionNote
-import app.houselights.ui.design.components.DefinitionList
 import app.houselights.ui.design.components.ChoiceCheck
 import app.houselights.ui.design.components.ChoiceOption
+import app.houselights.ui.design.components.FactPlate
 import app.houselights.ui.design.components.HlButton
 import app.houselights.ui.design.components.HlChoiceSetting
 import app.houselights.ui.design.components.HlChoiceSheet
 import app.houselights.ui.design.components.HlSideSheet
 import app.houselights.ui.design.components.PosterThumb
-import app.houselights.ui.design.components.SOURCE_STRIP
-import app.houselights.ui.design.components.SourceCard
 import app.houselights.ui.design.components.HlSettingGroup
 import app.houselights.ui.design.components.HlSettingRow
 import app.houselights.ui.design.components.HlStatus
 import app.houselights.ui.design.components.HlTextField
+import app.houselights.ui.design.components.PlateFact
+import app.houselights.ui.design.components.SHOWCASE_SLOTS
+import app.houselights.ui.design.components.Showcase
+import app.houselights.ui.design.components.ShowcaseRow
 import app.houselights.ui.design.components.SheetConfirm
 import app.houselights.ui.design.components.StatusState
 import app.houselights.ui.design.components.ScanProgress
@@ -64,6 +64,7 @@ import app.houselights.ui.design.tryRequestFocus
 import app.houselights.ui.onboarding.FolderField
 import app.houselights.ui.util.UiError
 import app.houselights.ui.util.appContainer
+import app.houselights.ui.util.formatCount
 import app.houselights.ui.util.scanErrorText
 import app.houselights.ui.util.sourceKindName
 import app.houselights.ui.util.toUiError
@@ -71,7 +72,7 @@ import app.houselights.core.CollectionThreshold
 import java.text.Collator
 import java.util.Locale
 
-/** The library pane: folders or server, then actions; rows that open a screen are keyed in [rows]. */
+/** The library pane: its folders' showcases or its server, then actions; rows that open a screen are keyed in [rows]. */
 internal fun LazyListScope.libraryPane(
     s: AppSettings,
     onFolderForm: (folderId: Long?, focus: FolderField) -> Unit,
@@ -81,27 +82,32 @@ internal fun LazyListScope.libraryPane(
 ) {
     when (val source = s.source) {
         SourceConfig.Local -> {
-            item { Section(stringResource(R.string.section_source)) { Sources(rows, onEdit = onFolderForm) } }
-            item { LibraryActions({ onFolderForm(null, FolderField.FIRST) }, onUseFolders, onSignIn, rows) }
+            item { Section(stringResource(R.string.section_source), aside = librarySummary()) { Showcases(rows, onEdit = onFolderForm) } }
+            item { LibraryActions({ onFolderForm(null, FolderField.FIRST) }, rows) }
+            item { FilmData() }
+            item { HlSettingGroup(null, Modifier.revealOnFocus()) { SourceRow(onUseFolders, onSignIn, rows.focus(SOURCE)) } }
         }
         is SourceConfig.Jellyfin -> {
             item {
-                Section(stringResource(R.string.source_jellyfin)) {
-                    // States, not settings: a definition list flush with the title.
+                Section(stringResource(R.string.section_source)) {
+                    // States, not settings: a case's back, the address under its facts.
                     val encrypted = JellyfinClient.isEncrypted(source.serverUrl)
-                    DefinitionList(
-                        listOfNotNull(
-                            stringResource(R.string.label_server) to (source.serverName ?: stringResource(R.string.source_jellyfin)),
-                            stringResource(R.string.label_address) to source.serverUrl,
-                            stringResource(R.string.label_connection) to
-                                stringResource(if (encrypted) R.string.connection_encrypted else R.string.connection_plain),
-                            source.userName?.let { stringResource(R.string.label_user) to it },
-                        ),
-                    )
+                    FactPlate(note = source.serverUrl) {
+                        PlateFact(
+                            stringResource(R.string.label_server),
+                            source.serverName ?: stringResource(R.string.source_jellyfin),
+                            Modifier.weight(1f, fill = false),
+                        )
+                        source.userName?.let { PlateFact(stringResource(R.string.label_user), it, Modifier.weight(1f, fill = false)) }
+                        PlateFact(
+                            stringResource(R.string.label_connection),
+                            stringResource(if (encrypted) R.string.connection_encrypted else R.string.connection_plain),
+                        )
+                    }
                 }
             }
             item {
-                HlSettingGroup(null) {
+                HlSettingGroup(null, Modifier.revealOnFocus()) {
                     // A password changed or a device revoked: the sign-in opens filled in, on the password.
                     HlSettingRow(
                         stringResource(R.string.reconnect),
@@ -117,16 +123,30 @@ internal fun LazyListScope.libraryPane(
     }
 }
 
-/** One card per folder, keyed in [rows]; when a folder is removed, focus moves to the next card, else to Add. */
+/** "12 titres dans 2 dossiers", beside the pane's title; null without folders. */
 @Composable
-private fun Sources(rows: PaneRows, onEdit: (folderId: Long, focus: FolderField) -> Unit) {
+private fun librarySummary(): String? {
+    val library = settingsViewModel().library
+    val folders by library.folders.collectAsStateWithLifecycle(emptyList())
+    val titles by library.titleCount.collectAsStateWithLifecycle(0)
+    if (folders.isEmpty()) return null
+    return stringResource(
+        R.string.library_in_folders,
+        pluralStringResource(R.plurals.title_count, titles, titles),
+        pluralStringResource(R.plurals.folder_count, folders.size, folders.size),
+    )
+}
+
+/** One showcase per folder, keyed in [rows]; when a folder is removed, focus moves to the next one, else to Add. */
+@Composable
+private fun Showcases(rows: PaneRows, onEdit: (folderId: Long, focus: FolderField) -> Unit) {
     val vm = settingsViewModel()
     val sources by vm.library.folders.collectAsStateWithLifecycle(emptyList())
     val scan by vm.library.scan.collectAsStateWithLifecycle()
-    // Collected once for all cards: each scan write re-runs it.
+    // Collected once for all showcases: each scan write re-runs it.
     val counts by vm.library.folderCounts.collectAsStateWithLifecycle(emptyMap())
     var actionsFor by remember { mutableStateOf<SourceEntity?>(null) }
-    // The folder being removed, and where focus goes once its card has gone.
+    // The folder being removed, and where focus goes once its showcase has gone.
     var removing by remember { mutableStateOf<Pair<Long, FocusRequester>?>(null) }
     LaunchedEffect(sources) {
         val (id, next) = removing ?: return@LaunchedEffect
@@ -136,19 +156,17 @@ private fun Sources(rows: PaneRows, onEdit: (folderId: Long, focus: FolderField)
         }
     }
 
-    Column(verticalArrangement = Arrangement.spacedBy(HlSpace.s)) {
-        // Removal waits for any file a scan is reading in the folder: say so rather than look stuck.
-        sources.filter { it.id in vm.removing }.forEach { source ->
-            HlStatus(StatusState.Pending, stringResource(R.string.folder_removing, sourceName(source)))
-        }
-        sources.forEach { source ->
-            key(source.id) {
-                FolderCard(
+    if (sources.isNotEmpty()) {
+        ShowcaseRow {
+            items(sources, key = { it.id }) { source ->
+                FolderShowcase(
                     source,
                     counts = counts[source.id],
                     scan = scan.takeIf { it.running && it.sourceId == source.id },
                     error = scan.errors[source.id],
                     removeError = vm.errorOf(SettingAction.REMOVE_FOLDER, source.id),
+                    // Removal waits for any file a scan is reading in the folder: say so rather than look stuck.
+                    removing = source.id in vm.removing,
                     onClick = { actionsFor = source },
                     modifier = rows.focus(folderRow(source.id)),
                 )
@@ -260,28 +278,27 @@ internal fun editFixes(error: ScanError?): ScanErrorKind? = error?.kind?.takeIf 
 @Composable
 private fun sourceName(source: SourceEntity) = source.name.replaceFirstChar { it.uppercase() }
 
-/** A folder's card ([SourceCard]): its [counts] (null until read), and its last scan or running [scan]. */
+/** A folder's [Showcase]: its [counts] (null until read), its last scan, or what it is doing ([scan], [removing]). */
 @Composable
-private fun FolderCard(
+private fun FolderShowcase(
     source: SourceEntity,
     counts: FolderCounts?,
     scan: ScanState?,
     error: ScanError?,
     removeError: UiError?,
+    removing: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val library = settingsViewModel().library
-    val count = counts?.titles ?: 0
-    val ultraHd = counts?.ultraHd ?: 0
-    val posters by remember(source.id) { library.latestPosters(source, SOURCE_STRIP) }.collectAsStateWithLifecycle(emptyList())
+    val posters by remember(source.id) { library.latestPosters(source, SHOWCASE_SLOTS) }.collectAsStateWithLifecycle(emptyList())
     val kind = sourceKindName(source.kind)
     val notRemoved = removeError?.let { stringResource(R.string.folder_not_removed, stringResource(it.message)) }
     val failed = error?.let { scanErrorText(it, source.host) }
-    SourceCard(
+    val removingText = stringResource(R.string.folder_removing, sourceName(source))
+    Showcase(
         name = sourceName(source),
-        protocol = source.protocol.name,
-        address = source.address(withScheme = false),
+        mark = source.protocol.name,
         posters = remember(posters) { posters.map { LocalProvider.image(it, ImageType.POSTER) } },
         onClick = onClick,
         modifier = modifier,
@@ -289,56 +306,75 @@ private fun FolderCard(
             // Never read is no state done: a plain fact, first as the state would be.
             lastScanned(source.lastScanAt).takeIf { source.lastScanAt <= 0 },
             kind.takeIf { !source.name.equals(it, ignoreCase = true) },
-            pluralStringResource(R.plurals.title_count, count, count),
-            if (ultraHd > 0) pluralStringResource(R.plurals.uhd_count, ultraHd, ultraHd) else null,
-        ),
-        scanned = lastScanned(source.lastScanAt).takeIf { source.lastScanAt > 0 },
-        state = when {
-            scan != null -> ({ focused -> ScanProgress(scan.processed, scan.total, current = scan.current, focused = focused) })
-            notRemoved != null -> ({ focused -> AttentionNote(notRemoved, focused = focused) })
-            failed != null -> ({ focused -> AttentionNote(failed, focused = focused) })
+        ) + folderFacts(counts),
+        state = lastScanned(source.lastScanAt).takeIf { source.lastScanAt > 0 },
+        status = when {
+            removing -> ({ HlStatus(StatusState.Pending, removingText) })
+            scan != null -> ({ ScanProgress(scan.processed, scan.total, current = scan.current) })
+            // On the facts' one line: the folder's sheet says it in full.
+            notRemoved != null -> ({ AttentionNote(notRemoved, maxLines = 1) })
+            failed != null -> ({ AttentionNote(failed, maxLines = 1) })
             else -> null
         },
     )
 }
 
+/** What a folder holds: its shows and their episodes when it holds shows alone, else its titles and how many in Ultra HD. */
 @Composable
-private fun LibraryActions(
-    onAddFolder: () -> Unit,
-    onUseFolders: () -> Unit,
-    onSignIn: () -> Unit,
-    rows: PaneRows,
-) {
-    val vm = settingsViewModel()
-    val s by vm.settings.collectAsStateWithLifecycle()
-    val scan by vm.library.scan.collectAsStateWithLifecycle()
-    val sources by vm.library.folders.collectAsStateWithLifecycle(emptyList())
-    var editKey by remember { mutableStateOf(false) }
-    val lastScan = sources.maxOfOrNull { it.lastScanAt } ?: 0L
-    val hasBuiltIn = BuildConfig.TMDB_API_KEY.isNotBlank()
+private fun folderFacts(counts: FolderCounts?): List<String?> {
+    val titles = counts?.titles ?: 0
+    val shows = counts?.shows ?: 0
+    if (shows > 0 && shows == titles) {
+        val episodes = counts?.episodes ?: 0
+        return listOf(
+            pluralStringResource(R.plurals.numbers_shows, shows, formatCount(shows.toLong())),
+            pluralStringResource(R.plurals.numbers_episodes, episodes, formatCount(episodes.toLong())).takeIf { episodes > 0 },
+        )
+    }
+    val ultraHd = counts?.ultraHd ?: 0
+    return listOf(
+        pluralStringResource(R.plurals.title_count, titles, titles),
+        if (ultraHd > 0) pluralStringResource(R.plurals.uhd_count, ultraHd, ultraHd) else null,
+    )
+}
 
+/** Scan, add a folder, read every title again: the library's three actions, on one plate. */
+@Composable
+private fun LibraryActions(onAddFolder: () -> Unit, rows: PaneRows) {
+    val vm = settingsViewModel()
+    val scan by vm.library.scan.collectAsStateWithLifecycle()
     HlSettingGroup(null, Modifier.revealOnFocus()) {
         HlSettingRow(
-            stringResource(R.string.add_folder),
-            onClick = onAddFolder,
-            trailing = { PlusIcon() },
-            modifier = rows.focus(ADD_FOLDER),
+            stringResource(R.string.scan_now),
+            description = stringResource(R.string.scan_now_desc),
+            // The counter's notation, as on the scanning folder's showcase.
+            value = if (scan.running) stringResource(R.string.scan_progress, scan.processed, scan.total) else null,
+            valueStyle = Hl.type.jaquette,
+            onClick = { vm.library.scan() },
         )
         HlSettingRow(
-            stringResource(R.string.scan_now),
-            // The counter's notation, as on the scanning folder's card.
-            value = if (scan.running) {
-                stringResource(R.string.scan_progress, scan.processed, scan.total)
-            } else {
-                relativeTime(lastScan, alone = true)
-            },
-            onClick = { vm.library.scan() },
+            stringResource(R.string.add_folder),
+            rows.focus(ADD_FOLDER),
+            description = stringResource(R.string.add_folder_row_desc),
+            onClick = onAddFolder,
         )
         HlSettingRow(
             stringResource(R.string.refresh_metadata),
             description = stringResource(R.string.refresh_metadata_desc),
             onClick = { vm.library.scan(refreshMetadata = true) },
         )
+    }
+}
+
+/** The films' details: the TMDB key, their language, and when sagas show. */
+@Composable
+private fun FilmData() {
+    val vm = settingsViewModel()
+    val s by vm.settings.collectAsStateWithLifecycle()
+    val scan by vm.library.scan.collectAsStateWithLifecycle()
+    var editKey by remember { mutableStateOf(false) }
+    val hasBuiltIn = BuildConfig.TMDB_API_KEY.isNotBlank()
+    HlSettingGroup(stringResource(R.string.credit_data), Modifier.revealOnFocus()) {
         // TMDB failed during the last scan: report it on the key row, where it may be fixed.
         val issue = scan.tmdbIssue?.toUiError()
         HlSettingRow(
@@ -358,7 +394,6 @@ private fun LibraryActions(
         )
         MetadataLanguageRow()
         CollectionsRow()
-        SourceRow(onUseFolders, onSignIn, rows.focus(SOURCE))
     }
     if (editKey) TmdbKeySheet(issue = scan.tmdbIssue?.toUiError(), onDismiss = { editKey = false })
 }
@@ -535,11 +570,6 @@ private fun sourceFacts(server: SourceConfig.Jellyfin?): List<String?> {
 private fun foldersLine(count: Int): String =
     if (count == 0) stringResource(R.string.source_local_first) else pluralStringResource(R.plurals.source_local_folders, count, count)
 
-@Composable
-private fun PlusIcon() {
-    androidx.tv.material3.Icon(HlIcons.Add, contentDescription = null, modifier = Modifier.size(HlSize.icon))
-}
-
 /** The TMDB key sheet; the outcome lives in the ViewModel, as the sheet may close during the check. */
 @Composable
 private fun TmdbKeySheet(issue: UiError?, onDismiss: () -> Unit) {
@@ -664,5 +694,5 @@ private const val HEADER_POSTERS = 3
 private const val ADD_FOLDER = "add_folder"
 private const val SOURCE = "source"
 
-/** A folder card's row key. */
+/** A folder's showcase's row key. */
 private fun folderRow(id: Long) = "folder-$id"

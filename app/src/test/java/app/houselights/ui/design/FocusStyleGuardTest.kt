@@ -168,6 +168,7 @@ class FocusStyleGuardTest {
     /** Focusable without a mark of focus, and why. */
     private val unseen = mapOf(
         "design/components/Synopsis.kt" to "a sheet's whole text, the only thing in it, focused to scroll",
+        "design/components/Pane.kt" to "a code to type elsewhere, the only thing in its pane while it waits, holding focus so Back cancels",
         "catalog/CatalogParts.kt" to "a catalogue section with nothing to focus, so the remote reaches it",
     )
 

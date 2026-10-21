@@ -267,8 +267,8 @@
     <string name="welcome_tagline">Filmy na wielkim ekranie.</string>
     <string name="section_about">O aplikacji</string>
     <string name="section_storage">Pamięć</string>
-    <string name="storage_artwork">Skopiowane obrazy lokalne</string>
-    <string name="storage_image_cache">Pamięć podręczna obrazów online</string>
+    <string name="storage_artwork">Obrazy lokalne</string>
+    <string name="storage_image_cache">Pamięć obrazów</string>
     <string name="storage_database">Baza danych biblioteki</string>
     <string name="storage_none">Brak</string>
     <string name="cleanup_now">Wyczyść teraz</string>
@@ -296,6 +296,12 @@
         <item quantity="many">%d folderów na serwerze NAS</item>
         <item quantity="other">%d folderu na serwerze NAS</item>
     </plurals>
+    <plurals name="folder_count">
+        <item quantity="one">%d folder</item>
+        <item quantity="few">%d foldery</item>
+        <item quantity="many">%d folderów</item>
+        <item quantity="other">%d folderu</item>
+    </plurals>
     <string name="source_jellyfin_other">Inny serwer lub inne konto</string>
     <string name="sign_out">Wyloguj się</string>
     <string name="sign_out_confirm">Wylogować się z „%s”?</string>
@@ -308,6 +314,21 @@
     <string name="label_address">Adres</string>
     <string name="label_user">Użytkownik</string>
     <string name="label_render">Renderowanie interfejsu</string>
+    <string name="add_folder_row_desc">Filmy lub seriale na serwerze NAS</string>
+    <string name="library_in_folders">%1$s, %2$s</string>
+    <string name="display_desc_player">Odtwarzacz ustala swoje wyjście; Houselights się do niego dostosowuje.</string>
+    <string name="display_desc_system">Houselights korzysta z wyjścia ustawionego na tym urządzeniu.</string>
+    <string name="display_interface">Interfejs</string>
+    <string name="storage_desc">Co Houselights przechowuje na tym urządzeniu; filmy zostają na serwerze NAS.</string>
+    <string name="mapping_becomes">staje się %s</string>
+    <string name="add_mapping_desc">Dla innego folderu serwera</string>
+    <string name="edit_mapping">Edytuj mapowanie</string>
+    <string name="trakt_account">Konto</string>
+    <string name="trakt_watched">Obejrzane</string>
+    <string name="trakt_in_progress">W trakcie</string>
+    <string name="label_version">Wersja</string>
+    <string name="label_licence">Licencja</string>
+    <string name="licence_free">%s, wolne oprogramowanie</string>
     <string name="label_modes">Dostępne tryby</string>
     <string name="label_device">Urządzenie</string>
     <string name="label_player">Odtwarzacz Zidoo</string>
@@ -366,7 +387,6 @@
     <string name="tmdb_key_revert">Przywróć klucz wbudowany</string>
     <string name="tmdb_key_revert_desc">Houselights zapomina podany klucz</string>
     <string name="save">Zapisz</string>
-    <string name="saved">Zapisano</string>
     <string name="section_playback">Odtwarzanie</string>
     <string name="network_path">Ścieżka sieciowa (SMB/NFS)</string>
     <string name="http_stream">Strumień HTTP</string>
@@ -462,7 +482,6 @@
     <string name="error_action_add_tmdb_key">Dodaj klucz</string>
     <string name="error_action_edit_tmdb_key">Zmień klucz</string>
     <!-- Settings rows -->
-    <string name="nav_version">Wersja %s</string>
     <string name="refresh_metadata_desc">Ponownie pobiera grafiki i informacje z TMDB</string>
     <string name="metadata_language">Język opisów</string>
     <string name="metadata_language_desc">Tytuły, streszczenia i grafiki z TMDB</string>
@@ -484,16 +503,15 @@
     <string name="interface_language_desc">Menu, ustawienia i komunikaty</string>
     <string name="ui_4k_desc">Ostry interfejs na telewizorach 4K</string>
     <string name="ui_system_desc">Tryb wybrany przez system</string>
-    <string name="current_output">Bieżące wyjście</string>
+    <string name="current_output">Wyjście</string>
     <string name="display_by_player">Ustawiane przez odtwarzacz</string>
     <string name="output_by_player">Ustawiane przez odtwarzacz</string>
-    <string name="output_by_player_hint">Odtwarzacz skaluje interfejs do swojego wyjścia. Rozdzielczość, liczbę klatek i HDR wybiera się w menu Ustawienia odtwarzacza &gt; Wyświetlanie.</string>
-    <string name="storage_used">w użyciu na tym urządzeniu</string>
-    <string name="storage_cache_limit">Obrazy online zajmują maksymalnie %s; najstarsze są usuwane jako pierwsze.</string>
+    <string name="output_by_player_hint">Aby je zmienić: Ustawienia odtwarzacza, następnie Wyświetlanie.</string>
+    <string name="storage_used">na tym urządzeniu</string>
+    <string name="storage_cache_limit">pamięć podręczna do %s</string>
     <string name="storage_full">Ostatnie skanowanie zostało przerwane: na tym urządzeniu brakuje miejsca. Można je zwolnić, czyszcząc nieużywane kopie lub pamięć podręczną obrazów.</string>
     <string name="cleanup_desc">Usuwa nieużywane kopie obrazów lokalnych</string>
     <string name="clear_cache_desc">Obrazy są pobierane ponownie w razie potrzeby</string>
-    <string name="about_free_software">Wolne oprogramowanie, licencja %s</string>
     <string name="about_status">Stan</string>
     <string name="detected">Wykryto</string>
     <string name="not_detected">Nie wykryto</string>
@@ -607,11 +625,10 @@
     <string name="search_sagas">Sagi</string>
     <string name="search_none">Nic nie zaczyna się od „%s”</string>
     <!-- Trakt -->
-    <string name="trakt_desc">Konto Trakt zapisuje, co oglądasz z folderów: obejrzane filmy i odcinki oraz miejsce, w którym przerwano oglądanie.</string>
+    <string name="trakt_desc">Konto Trakt zapisuje, co oglądasz: obejrzane filmy i odcinki oraz miejsce, w którym przerwano oglądanie. Na tym urządzeniu i wszędzie indziej.</string>
     <string name="trakt_no_keys">Ta wersja Houselights nie ma klucza Trakt.</string>
     <string name="trakt_signed_out">Nie połączono</string>
     <string name="trakt_connected">Połączono</string>
-    <string name="trakt_signed_in_as">Połączono jako %s</string>
     <string name="trakt_connect">Połącz konto</string>
     <string name="trakt_connect_desc">Za pomocą kodu wpisanego w telefonie lub komputerze</string>
     <string name="trakt_disconnect">Odłącz konto</string>
@@ -628,19 +645,6 @@
     <string name="trakt_failed">Trakt nie mógł dokończyć połączenia. Spróbuj ponownie za chwilę.</string>
     <string name="trakt_ended">Trakt zakończył to połączenie. Połącz konto ponownie.</string>
     <string name="trakt_last_sync">Ostatnia synchronizacja</string>
-    <plurals name="trakt_watched_count">
-        <item quantity="one">%d obejrzany</item>
-        <item quantity="few">%d obejrzane</item>
-        <item quantity="many">%d obejrzanych</item>
-        <item quantity="other">%d obejrzanego</item>
-    </plurals>
-    <plurals name="trakt_in_progress_count">
-        <item quantity="one">%d w trakcie</item>
-        <item quantity="few">%d w trakcie</item>
-        <item quantity="many">%d w trakcie</item>
-        <item quantity="other">%d w trakcie</item>
-    </plurals>
-    <string name="trakt_counts">%1$s, %2$s</string>
     <string name="trakt_sync_now">Synchronizuj teraz</string>
     <string name="trakt_sync_now_desc">Łączy to, co obejrzano tutaj i w Trakt</string>
     <string name="trakt_syncing">Synchronizacja…</string>

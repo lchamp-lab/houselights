@@ -1,6 +1,7 @@
 package app.houselights.ui.settings
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
@@ -42,11 +43,14 @@ import app.houselights.ui.design.RestoreFocus
 import app.houselights.ui.design.components.AttentionNote
 import app.houselights.ui.design.components.HlNavItem
 import app.houselights.ui.design.components.HlTwoPane
+import app.houselights.ui.design.components.PosterField
+import app.houselights.ui.design.components.bleed
 import app.houselights.ui.design.components.ScreenTitle
 import app.houselights.ui.design.focusKey
 import app.houselights.ui.design.keepVerticalFocus
 import app.houselights.ui.design.rememberFocusMemory
 import app.houselights.ui.onboarding.FolderField
+import app.houselights.ui.util.roomPosters
 import app.houselights.ui.util.UiError
 
 internal enum class Pane(val label: Int, val icon: ImageVector) {
@@ -98,32 +102,36 @@ fun SettingsScreen(
     BackToStart(away = inPane) { memory.focus(paneKey(pane)) }
     val storage by vm.storage.collectAsStateWithLifecycle()
 
-    HlTwoPane(
-        state = list,
-        side = {
-            ScreenTitle(stringResource(R.string.settings_title))
-            Spacer(Modifier.height(HlSpace.l))
-            Column(Modifier.keepVerticalFocus()) {
-                panes.forEach { p ->
-                    HlNavItem(
-                        icon = p.icon,
-                        title = stringResource(p.label),
-                        selected = p == pane,
-                        // The window's own first focus, before the screen is restored, leaves the pane that was open.
-                        onFocused = { if (!memory.arriving) pane = p },
-                        modifier = Modifier.focusKey(paneKey(p), memory),
-                    )
+    // The room is the library's posters, as a wall's field.
+    Box(Modifier.fillMaxSize()) {
+        PosterField(roomPosters())
+        HlTwoPane(
+            state = list,
+            side = {
+                ScreenTitle(stringResource(R.string.settings_title))
+                Spacer(Modifier.height(HlSpace.l))
+                Column(Modifier.keepVerticalFocus()) {
+                    panes.forEach { p ->
+                        HlNavItem(
+                            icon = p.icon,
+                            title = stringResource(p.label),
+                            selected = p == pane,
+                            // The window's own first focus, before the screen is restored, leaves the pane that was open.
+                            onFocused = { if (!memory.arriving) pane = p },
+                            modifier = Modifier.focusKey(paneKey(p), memory),
+                        )
+                    }
                 }
-            }
-        },
-    ) {
-        val rows = remember(pane) { PaneRows(memory, pane.name) }
-        PaneContent(
-            pane, s, storage, onFolderForm, useFolders, onSignIn, onOpenCatalog, rows, list,
-            entry = memory.requester(paneKey(pane)),
-            onFocusIn = { inPane = it },
-            numbers = NumbersDoors(onOpenWall, onOpenPerson),
-        )
+            },
+        ) {
+            val rows = remember(pane) { PaneRows(memory, pane.name) }
+            PaneContent(
+                pane, s, storage, onFolderForm, useFolders, onSignIn, onOpenCatalog, rows, list,
+                entry = memory.requester(paneKey(pane)),
+                onFocusIn = { inPane = it },
+                numbers = NumbersDoors(onOpenWall, onOpenPerson),
+            )
+        }
     }
 }
 
@@ -186,13 +194,15 @@ private fun PaneContent(
     LazyColumn(
         state = list,
         modifier = Modifier
+            // Runs on to the screen's end, so a row of showcases does; its blocks keep to the pane.
+            .bleed(end = HlSpace.safeH)
             .fillMaxSize()
             .onFocusChanged { onFocusIn(it.hasFocus) }
             .keepVerticalFocus()
             // Left goes back to the pane's own entry, not to the nearest one, which would open another pane.
             .focusProperties { exit = { direction -> if (direction == FocusDirection.Left) entry else FocusRequester.Default } }
             .focusGroup(),
-        contentPadding = PaddingValues(bottom = HlFocus.edge, end = HlSpace.m),
+        contentPadding = PaddingValues(bottom = HlFocus.edge, end = HlSpace.safeH),
         verticalArrangement = Arrangement.spacedBy(HlSpace.l),
     ) {
         // A lost secret shows at the pane's head; a failed change shows on its own row, where focus is.

@@ -61,8 +61,8 @@ object HlInset {
     /** A group's plate around its rows: [HlShapes.panel] less [HlShapes.row], so their corners stay parallel. */
     val group = HlSpace.xxs
 
-    /** A plate of facts ([FactPlate]) from its top and foot; its sides keep [card]. */
-    val plate = 20.dp
+    /** A plate of facts ([FactPlate]) from its top and foot, so its words sit as a group's rows do; its sides keep [card]. */
+    val plate = 24.dp
 }
 
 object HlSize {
@@ -113,6 +113,10 @@ object HlSize {
     /** An icon in a line of text (rating star). */
     val inlineIcon = 16.dp
     val meter = 10.dp
+    /** A meter that is what a pane states (Stockage), across its plate. */
+    val meterLarge = 14.dp
+    /** The square naming a meter's part beside its figure ([MeterFact]). */
+    val swatch = 10.dp
     /** Between two parts of a meter, so two greys never touch. */
     val meterGap = 2.dp
     /** How far one press of up or down scrolls a long text. */
@@ -156,8 +160,8 @@ object HlSize {
     /** The ring of focus on a field, a read-only area, a control that cannot act. */
     val focusBorder = 2.dp
     val hairline = 1.dp
-    /** The lockup's cap height: in About (168 wide) and over the welcome wall (364 wide, as the name alone was). */
-    val wordmark = 12.dp
+    /** The lockup's cap height: at the head of About (420 wide) and over the welcome wall (364 wide, as the name alone was). */
+    val wordmark = 30.dp
     val wordmarkHero = 26.dp
 }
 
@@ -177,8 +181,6 @@ object HlLayout {
     /** Side column of two-pane screens: navigation (settings, leaving its pane 560), explanation (setup forms). */
     val sideColumn = 256.dp
     val sideColumnWide = 340.dp
-    /** Where a two-pane screen's content starts, level with its first navigation entry. */
-    val paneTop = 72.dp
     val fieldShort = 120.dp
     /** Clear logo or title of a detail page, and of a browsing hero. */
     val titleArtWidth = 440.dp
@@ -240,6 +242,16 @@ internal object HlSideSheetDefaults {
     val wideWidth = 736.dp
 }
 
+/** Where a form beside its explanation starts ([HlFormScaffold]), level with the explanation under its title. */
+internal object HlFormScaffoldDefaults {
+    val top = 72.dp
+}
+
+/** A plate of definitions' label column ([PlateDefinition]): About's credits. */
+internal object PaneDefaults {
+    val plateLabel = 172.dp
+}
+
 /** The widest value on the right of a setting row, and the room above and below its words. */
 internal object HlSettingRowDefaults {
     val valueWidth = 360.dp
@@ -298,6 +310,9 @@ internal object TechSpecsDefaults {
  */
 internal object QrCodeDefaults {
     val module = 6.5.dp
+
+    /** Beside its words in a pane (Trakt's code): 10 and 20 px, 185 dp with its quiet zone. */
+    val moduleCompact = 5.dp
     const val QUIET_ZONE = 4
 }
 

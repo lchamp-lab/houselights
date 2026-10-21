@@ -257,8 +257,8 @@
     <string name="welcome_tagline">Uw films, op het grote scherm.</string>
     <string name="section_about">Over</string>
     <string name="section_storage">Opslag</string>
-    <string name="storage_artwork">Gekopieerde lokale afbeeldingen</string>
-    <string name="storage_image_cache">Cache van online afbeeldingen</string>
+    <string name="storage_artwork">Lokale afbeeldingen</string>
+    <string name="storage_image_cache">Afbeeldingencache</string>
     <string name="storage_database">Bibliotheekdatabase</string>
     <string name="storage_none">Geen</string>
     <string name="cleanup_now">Nu opschonen</string>
@@ -282,6 +282,10 @@
         <item quantity="one">%d map op uw NAS</item>
         <item quantity="other">%d mappen op uw NAS</item>
     </plurals>
+    <plurals name="folder_count">
+        <item quantity="one">%d map</item>
+        <item quantity="other">%d mappen</item>
+    </plurals>
     <string name="source_jellyfin_other">Andere server of ander account</string>
     <string name="sign_out">Uitloggen</string>
     <string name="sign_out_confirm">Uitloggen bij “%s”?</string>
@@ -294,6 +298,21 @@
     <string name="label_address">Adres</string>
     <string name="label_user">Gebruiker</string>
     <string name="label_render">Interfaceweergave</string>
+    <string name="add_folder_row_desc">Films of series, op uw NAS</string>
+    <string name="library_in_folders">%1$s in %2$s</string>
+    <string name="display_desc_player">De speler bepaalt zijn uitvoer; Houselights past zich aan.</string>
+    <string name="display_desc_system">Houselights volgt de uitvoer die dit apparaat instelt.</string>
+    <string name="display_interface">Interface</string>
+    <string name="storage_desc">Wat Houselights op dit apparaat bewaart; uw films blijven op de NAS.</string>
+    <string name="mapping_becomes">wordt %s</string>
+    <string name="add_mapping_desc">Voor een andere map van de server</string>
+    <string name="edit_mapping">Toewijzing bewerken</string>
+    <string name="trakt_account">Account</string>
+    <string name="trakt_watched">Gezien</string>
+    <string name="trakt_in_progress">Begonnen</string>
+    <string name="label_version">Versie</string>
+    <string name="label_licence">Licentie</string>
+    <string name="licence_free">%s, vrije software</string>
     <string name="label_modes">Beschikbare modi</string>
     <string name="label_device">Apparaat</string>
     <string name="label_player">Zidoo-speler</string>
@@ -346,7 +365,6 @@
     <string name="tmdb_key_revert">Terug naar de ingebouwde sleutel</string>
     <string name="tmdb_key_revert_desc">Houselights vergeet uw sleutel</string>
     <string name="save">Opslaan</string>
-    <string name="saved">Opgeslagen</string>
     <string name="section_playback">Afspelen</string>
     <string name="network_path">Netwerkpad (SMB/NFS)</string>
     <string name="http_stream">HTTP-stream</string>
@@ -438,7 +456,6 @@
     <string name="error_action_add_tmdb_key">Sleutel toevoegen</string>
     <string name="error_action_edit_tmdb_key">Sleutel wijzigen</string>
     <!-- Settings rows -->
-    <string name="nav_version">Versie %s</string>
     <string name="refresh_metadata_desc">Haalt afbeeldingen en gegevens opnieuw op bij TMDB</string>
     <string name="metadata_language">Taal van de gegevens</string>
     <string name="metadata_language_desc">Titels, samenvattingen en afbeeldingen van TMDB</string>
@@ -460,16 +477,15 @@
     <string name="interface_language_desc">Menu’s, instellingen en meldingen</string>
     <string name="ui_4k_desc">Een scherpe interface op 4K-tv’s</string>
     <string name="ui_system_desc">De modus die het systeem kiest</string>
-    <string name="current_output">Huidige uitvoer</string>
+    <string name="current_output">Uitvoer</string>
     <string name="display_by_player">Ingesteld door de speler</string>
     <string name="output_by_player">Ingesteld door de speler</string>
-    <string name="output_by_player_hint">De speler schaalt de interface naar zijn uitvoer. Resolutie, beeldfrequentie en HDR kiest u in Spelerinstellingen &gt; Weergave.</string>
-    <string name="storage_used">gebruikt op dit apparaat</string>
-    <string name="storage_cache_limit">Online afbeeldingen worden tot %s bewaard; de oudste gaan eerst weg.</string>
+    <string name="output_by_player_hint">Wijzigen: Spelerinstellingen, dan Weergave.</string>
+    <string name="storage_used">op dit apparaat</string>
+    <string name="storage_cache_limit">cache tot %s</string>
     <string name="storage_full">De laatste scan is gestopt: dit apparaat heeft geen ruimte meer. Opschonen, of de afbeeldingscache wissen, maakt ruimte vrij.</string>
     <string name="cleanup_desc">Verwijdert ongebruikte kopieën van lokale afbeeldingen</string>
     <string name="clear_cache_desc">Afbeeldingen worden zo nodig opnieuw gedownload</string>
-    <string name="about_free_software">Vrije software, licentie %s</string>
     <string name="about_status">Status</string>
     <string name="detected">Gedetecteerd</string>
     <string name="not_detected">Niet gedetecteerd</string>
@@ -571,11 +587,10 @@
     <string name="search_sagas">Saga’s</string>
     <string name="search_none">Niets begint met “%s”</string>
     <!-- Trakt -->
-    <string name="trakt_desc">Uw Trakt-account houdt bij wat u vanuit uw mappen kijkt: de bekeken films en afleveringen, en waar u gebleven bent.</string>
+    <string name="trakt_desc">Uw Trakt-account houdt bij wat u kijkt: de bekeken films en afleveringen, en waar u gebleven bent. Op dit apparaat en overal elders.</string>
     <string name="trakt_no_keys">Deze versie van Houselights heeft geen Trakt-sleutel.</string>
     <string name="trakt_signed_out">Niet verbonden</string>
     <string name="trakt_connected">Verbonden</string>
-    <string name="trakt_signed_in_as">Verbonden als %s</string>
     <string name="trakt_connect">Uw account verbinden</string>
     <string name="trakt_connect_desc">Met een code die u op uw telefoon of computer invoert</string>
     <string name="trakt_disconnect">Uw account loskoppelen</string>
@@ -592,15 +607,6 @@
     <string name="trakt_failed">Trakt kon de verbinding niet voltooien. Probeer het zo meteen opnieuw.</string>
     <string name="trakt_ended">Trakt heeft deze verbinding beëindigd. Verbind uw account opnieuw.</string>
     <string name="trakt_last_sync">Laatste synchronisatie</string>
-    <plurals name="trakt_watched_count">
-        <item quantity="one">%d gezien</item>
-        <item quantity="other">%d gezien</item>
-    </plurals>
-    <plurals name="trakt_in_progress_count">
-        <item quantity="one">%d begonnen</item>
-        <item quantity="other">%d begonnen</item>
-    </plurals>
-    <string name="trakt_counts">%1$s, %2$s</string>
     <string name="trakt_sync_now">Nu synchroniseren</string>
     <string name="trakt_sync_now_desc">Brengt samen wat u hier en op Trakt hebt gezien</string>
     <string name="trakt_syncing">Synchroniseren…</string>

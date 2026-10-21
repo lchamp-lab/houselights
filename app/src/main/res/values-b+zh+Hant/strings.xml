@@ -252,8 +252,8 @@
     <string name="welcome_tagline">您的電影，在大銀幕上。</string>
     <string name="section_about">關於</string>
     <string name="section_storage">儲存空間</string>
-    <string name="storage_artwork">已複製的本機圖片</string>
-    <string name="storage_image_cache">線上圖片快取</string>
+    <string name="storage_artwork">本機圖片</string>
+    <string name="storage_image_cache">圖片快取</string>
     <string name="storage_database">媒體庫資料庫</string>
     <string name="storage_none">無</string>
     <string name="cleanup_now">立即清理</string>
@@ -275,6 +275,9 @@
     <plurals name="source_local_folders">
         <item quantity="other">NAS 上的 %d 個資料夾</item>
     </plurals>
+    <plurals name="folder_count">
+        <item quantity="other">%d 個資料夾</item>
+    </plurals>
     <string name="source_jellyfin_other">其他伺服器或帳號</string>
     <string name="sign_out">登出</string>
     <string name="sign_out_confirm">要登出「%s」嗎？</string>
@@ -287,6 +290,21 @@
     <string name="label_address">位址</string>
     <string name="label_user">使用者</string>
     <string name="label_render">介面渲染</string>
+    <string name="add_folder_row_desc">NAS 上的電影或影集</string>
+    <string name="library_in_folders">%2$s，共 %1$s</string>
+    <string name="display_desc_player">播放器決定其輸出；Houselights 隨之調整。</string>
+    <string name="display_desc_system">Houselights 跟隨本裝置設定的輸出。</string>
+    <string name="display_interface">介面</string>
+    <string name="storage_desc">Houselights 在本裝置上保存的內容；您的影片仍在 NAS 上。</string>
+    <string name="mapping_becomes">變為 %s</string>
+    <string name="add_mapping_desc">用於伺服器上的另一個資料夾</string>
+    <string name="edit_mapping">編輯對應</string>
+    <string name="trakt_account">帳戶</string>
+    <string name="trakt_watched">已看</string>
+    <string name="trakt_in_progress">觀看中</string>
+    <string name="label_version">版本</string>
+    <string name="label_licence">授權</string>
+    <string name="licence_free">%s，自由軟體</string>
     <string name="label_modes">可用模式</string>
     <string name="label_device">裝置</string>
     <string name="label_player">Zidoo 播放器</string>
@@ -336,7 +354,6 @@
     <string name="tmdb_key_revert">改回內建金鑰</string>
     <string name="tmdb_key_revert_desc">Houselights 會忘記您的金鑰</string>
     <string name="save">儲存</string>
-    <string name="saved">已儲存</string>
     <string name="section_playback">播放</string>
     <string name="network_path">網路路徑（SMB/NFS）</string>
     <string name="http_stream">HTTP 串流</string>
@@ -426,7 +443,6 @@
     <string name="error_action_add_tmdb_key">加入金鑰</string>
     <string name="error_action_edit_tmdb_key">更換金鑰</string>
     <!-- Settings rows -->
-    <string name="nav_version">版本 %s</string>
     <string name="refresh_metadata_desc">從 TMDB 重新取得圖片和資料</string>
     <string name="metadata_language">資料語言</string>
     <string name="metadata_language_desc">來自 TMDB 的片名、簡介和圖片</string>
@@ -448,16 +464,15 @@
     <string name="interface_language_desc">選單、設定和訊息</string>
     <string name="ui_4k_desc">在 4K 電視上介面更清晰</string>
     <string name="ui_system_desc">由系統選擇的模式</string>
-    <string name="current_output">目前輸出</string>
+    <string name="current_output">輸出</string>
     <string name="display_by_player">由播放器設定</string>
     <string name="output_by_player">由播放器設定</string>
-    <string name="output_by_player_hint">播放器會依其輸出縮放介面。解析度、影格率和 HDR 請在「播放器設定 &gt; 顯示」中選擇。</string>
-    <string name="storage_used">本裝置已使用</string>
-    <string name="storage_cache_limit">線上圖片最多保留 %s；最舊的會最先清除。</string>
+    <string name="output_by_player_hint">如需變更：播放器設定，然後選擇「顯示」。</string>
+    <string name="storage_used">在本裝置上</string>
+    <string name="storage_cache_limit">快取上限 %s</string>
     <string name="storage_full">上次掃描已停止：本裝置已無剩餘空間。清理，或清除圖片快取，可以釋放一些空間。</string>
     <string name="cleanup_desc">刪除不再使用的本機圖片副本</string>
     <string name="clear_cache_desc">需要時會重新下載圖片</string>
-    <string name="about_free_software">自由軟體，%s 授權</string>
     <string name="about_status">狀態</string>
     <string name="detected">已偵測到</string>
     <string name="not_detected">未偵測到</string>
@@ -553,11 +568,10 @@
     <string name="search_sagas">系列</string>
     <string name="search_none">沒有以「%s」開頭的結果</string>
     <!-- Trakt -->
-    <string name="trakt_desc">您的 Trakt 帳戶會記錄您在資料夾中觀看的內容：看過的電影和劇集，以及您看到的位置。</string>
+    <string name="trakt_desc">您的 Trakt 帳戶會記錄您觀看的內容：看過的電影和劇集，以及您看到的位置。在本裝置上，也在其他任何地方。</string>
     <string name="trakt_no_keys">此版本的 Houselights 沒有 Trakt 金鑰。</string>
     <string name="trakt_signed_out">未連線</string>
     <string name="trakt_connected">已連線</string>
-    <string name="trakt_signed_in_as">已連線帳戶 %s</string>
     <string name="trakt_connect">連結您的帳戶</string>
     <string name="trakt_connect_desc">在手機或電腦上輸入一組代碼即可</string>
     <string name="trakt_disconnect">中斷您的帳戶連結</string>
@@ -574,13 +588,6 @@
     <string name="trakt_failed">Trakt 無法完成連結。請稍後重試。</string>
     <string name="trakt_ended">Trakt 已結束此連結。請重新連結您的帳戶。</string>
     <string name="trakt_last_sync">上次同步</string>
-    <plurals name="trakt_watched_count">
-        <item quantity="other">已看 %d 項</item>
-    </plurals>
-    <plurals name="trakt_in_progress_count">
-        <item quantity="other">觀看中 %d 項</item>
-    </plurals>
-    <string name="trakt_counts">%1$s，%2$s</string>
     <string name="trakt_sync_now">立即同步</string>
     <string name="trakt_sync_now_desc">合併您在這裡和 Trakt 上看過的內容</string>
     <string name="trakt_syncing">正在同步…</string>
