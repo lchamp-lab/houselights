@@ -14,15 +14,20 @@ import app.houselights.R
 import app.houselights.core.FailureKind
 import app.houselights.core.failureKind
 import app.houselights.core.suspendRunCatching
+import app.houselights.providers.local.TraktSyncError
 import app.houselights.providers.trakt.DeviceCodeEnd
 import app.houselights.providers.trakt.TraktLink
 import app.houselights.providers.trakt.TraktSignedOutException
+import app.houselights.providers.trakt.TraktSyncState
+import app.houselights.providers.trakt.TraktSyncing
 import app.houselights.ui.util.LatestJob
+import app.houselights.ui.util.UiError
 import app.houselights.ui.util.appContainer
 import app.houselights.ui.util.launchAction
 import app.houselights.ui.util.toWriteError
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
 /** A code on screen: [userCode] to enter on Trakt's page, valid for [leftMs] more. */
@@ -36,12 +41,13 @@ internal data class ShownCode(val userCode: String, val leftMs: Long) {
 }
 
 /**
- * The Trakt pane's work: connecting with a device code ([connecting] while asking for it and showing it), then
- * disconnecting. Why the last attempt failed stays in [note] until the next one. Disconnecting runs in [work],
+ * The Trakt pane's work: connecting with a device code ([connecting] while asking for it and showing it), syncing,
+ * then disconnecting. Why the last attempt failed stays in [note] until the next one. Disconnecting runs in [work],
  * which outlives the screen.
  */
 internal class TraktViewModel(
     private val account: TraktLink,
+    private val sync: TraktSyncing,
     private val work: CoroutineScope,
     /** The clock the code's time left is counted on. */
     private val clock: () -> Long = SystemClock::elapsedRealtime,
@@ -63,7 +69,15 @@ internal class TraktViewModel(
     var disconnecting by mutableStateOf(false)
         private set
 
+    /** Where the sync with Trakt stands. */
+    val syncState: StateFlow<TraktSyncState> get() = sync.state
+
     private val attempt = LatestJob(viewModelScope)
+
+    /** Joins the library and Trakt now; nothing while a sync runs. */
+    fun syncNow() {
+        if (!sync.state.value.running) sync.syncNow()
+    }
 
     /** Asks Trakt for a code and waits for the viewer to approve it; a second call while one runs does nothing. */
     fun connect() {
@@ -153,9 +167,18 @@ internal fun noteOf(e: Throwable): Int {
     }
 }
 
+/** Why the last exchange with Trakt failed, and that it resumes on its own. */
+@StringRes
+internal fun noteOf(error: TraktSyncError): Int = when (error) {
+    TraktSyncError.OFFLINE -> R.string.trakt_sync_offline
+    TraktSyncError.BUSY -> R.string.trakt_sync_busy
+    TraktSyncError.FAILED -> R.string.trakt_sync_failed
+    TraktSyncError.STORAGE -> UiError.NOT_SAVED.message
+}
+
 /** The pane's ViewModel, kept while Settings is open. */
 @Composable
 internal fun traktViewModel(): TraktViewModel {
     val app = appContainer()
-    return viewModel { TraktViewModel(app.trakt, app.scope) }
+    return viewModel { TraktViewModel(app.trakt, app.traktSync, app.scope) }
 }

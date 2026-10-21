@@ -43,7 +43,8 @@
     manual match by title, year or IMDb id. Corrections survive later scans.
   - Films of a saga are gathered, with a page per saga showing the films you own and those you don't.
   - Your [Trakt](https://trakt.tv) account connects in Settings > Trakt, with a code entered on your phone
-    or computer (Jellyfin has its own Trakt plugin).
+    or computer, and keeps what you watch: titles watched on either side are watched on both, the latest
+    pause wins, and marks made offline wait for Trakt (Jellyfin has its own Trakt plugin).
 - **Jellyfin**: browses your server and reports playback progress back to it. Emby and Plex are planned.
 - **In your language**: the interface in English, French, German, Spanish, Italian, Portuguese, Dutch,
   Polish, Chinese (simplified and traditional), Japanese and Korean, and details in the language of your

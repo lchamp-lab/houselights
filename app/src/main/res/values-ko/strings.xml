@@ -559,5 +559,19 @@
     <string name="trakt_refused">Trakt가 이 버전의 키를 거부하여 계정을 연결할 수 없습니다.</string>
     <string name="trakt_failed">Trakt에서 연결을 완료하지 못했습니다. 잠시 후 다시 시도하세요.</string>
     <string name="trakt_ended">Trakt에서 이 연결을 종료했습니다. 계정을 다시 연결하세요.</string>
+    <string name="trakt_last_sync">마지막 동기화</string>
+    <plurals name="trakt_watched_count">
+        <item quantity="other">시청 완료 %d개</item>
+    </plurals>
+    <plurals name="trakt_in_progress_count">
+        <item quantity="other">시청 중 %d개</item>
+    </plurals>
+    <string name="trakt_counts">%1$s, %2$s</string>
+    <string name="trakt_sync_now">지금 동기화</string>
+    <string name="trakt_sync_now_desc">여기와 Trakt에서 시청한 내용을 합칩니다</string>
+    <string name="trakt_syncing">동기화 중…</string>
+    <string name="trakt_sync_offline">Trakt가 응답하지 않습니다. 시청한 내용은 응답이 돌아오는 즉시 전송됩니다.</string>
+    <string name="trakt_sync_busy">Trakt에서 잠시 기다려 달라고 요청했습니다. 동기화는 자동으로 다시 시작됩니다.</string>
+    <string name="trakt_sync_failed">Trakt와의 동기화를 완료하지 못했습니다. 자동으로 다시 시작됩니다.</string>
     <string name="settings_lost_trakt">이 플레이어에 저장된 Trakt 연결을 다시 읽을 수 없습니다. 계정을 다시 연결하세요.</string>
 </resources>

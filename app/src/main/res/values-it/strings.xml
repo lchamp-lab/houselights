@@ -601,5 +601,23 @@
     <string name="trakt_refused">Trakt rifiuta la chiave di questa versione: l’account non può essere collegato.</string>
     <string name="trakt_failed">Trakt non è riuscito a completare il collegamento. Riprovare tra un momento.</string>
     <string name="trakt_ended">Trakt ha chiuso questo collegamento. Collegare di nuovo l’account.</string>
+    <string name="trakt_last_sync">Ultima sincronizzazione</string>
+    <plurals name="trakt_watched_count">
+        <item quantity="one">%d visto</item>
+        <item quantity="many">%d visti</item>
+        <item quantity="other">%d visti</item>
+    </plurals>
+    <plurals name="trakt_in_progress_count">
+        <item quantity="one">%d in corso</item>
+        <item quantity="many">%d in corso</item>
+        <item quantity="other">%d in corso</item>
+    </plurals>
+    <string name="trakt_counts">%1$s, %2$s</string>
+    <string name="trakt_sync_now">Sincronizza ora</string>
+    <string name="trakt_sync_now_desc">Riunisce ciò che è stato visto qui e su Trakt</string>
+    <string name="trakt_syncing">Sincronizzazione…</string>
+    <string name="trakt_sync_offline">Trakt non risponde. Ciò che si guarda gli sarà inviato appena risponde.</string>
+    <string name="trakt_sync_busy">Trakt chiede di attendere un po’. La sincronizzazione riprenderà da sola.</string>
+    <string name="trakt_sync_failed">La sincronizzazione con Trakt non è stata completata. Riprenderà da sola.</string>
     <string name="settings_lost_trakt">Impossibile rileggere il collegamento a Trakt salvato su questo lettore. Collegare di nuovo l’account.</string>
 </resources>

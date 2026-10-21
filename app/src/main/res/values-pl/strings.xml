@@ -616,5 +616,25 @@
     <string name="trakt_refused">Trakt odrzuca klucz tej wersji, więc nie można połączyć konta.</string>
     <string name="trakt_failed">Trakt nie mógł dokończyć połączenia. Spróbuj ponownie za chwilę.</string>
     <string name="trakt_ended">Trakt zakończył to połączenie. Połącz konto ponownie.</string>
+    <string name="trakt_last_sync">Ostatnia synchronizacja</string>
+    <plurals name="trakt_watched_count">
+        <item quantity="one">%d obejrzany</item>
+        <item quantity="few">%d obejrzane</item>
+        <item quantity="many">%d obejrzanych</item>
+        <item quantity="other">%d obejrzanego</item>
+    </plurals>
+    <plurals name="trakt_in_progress_count">
+        <item quantity="one">%d w trakcie</item>
+        <item quantity="few">%d w trakcie</item>
+        <item quantity="many">%d w trakcie</item>
+        <item quantity="other">%d w trakcie</item>
+    </plurals>
+    <string name="trakt_counts">%1$s, %2$s</string>
+    <string name="trakt_sync_now">Synchronizuj teraz</string>
+    <string name="trakt_sync_now_desc">Łączy to, co obejrzano tutaj i w Trakt</string>
+    <string name="trakt_syncing">Synchronizacja…</string>
+    <string name="trakt_sync_offline">Trakt nie odpowiada. To, co oglądasz, zostanie wysłane, gdy tylko odpowie.</string>
+    <string name="trakt_sync_busy">Trakt prosi o chwilę cierpliwości. Synchronizacja wznowi się sama.</string>
+    <string name="trakt_sync_failed">Synchronizacja z Trakt nie została ukończona. Wznowi się sama.</string>
     <string name="settings_lost_trakt">Nie udało się ponownie odczytać połączenia z Trakt zapisanego na tym odtwarzaczu. Połącz konto ponownie.</string>
 </resources>

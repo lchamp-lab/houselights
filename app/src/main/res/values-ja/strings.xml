@@ -559,5 +559,19 @@
     <string name="trakt_refused">Traktがこのビルドのキーを拒否したため、アカウントを接続できません。</string>
     <string name="trakt_failed">Traktで接続を完了できませんでした。しばらくしてからもう一度お試しください。</string>
     <string name="trakt_ended">Traktがこの接続を終了しました。もう一度アカウントを接続してください。</string>
+    <string name="trakt_last_sync">前回の同期</string>
+    <plurals name="trakt_watched_count">
+        <item quantity="other">視聴済み%d件</item>
+    </plurals>
+    <plurals name="trakt_in_progress_count">
+        <item quantity="other">視聴中%d件</item>
+    </plurals>
+    <string name="trakt_counts">%1$s、%2$s</string>
+    <string name="trakt_sync_now">今すぐ同期</string>
+    <string name="trakt_sync_now_desc">こことTraktで視聴した内容をまとめます</string>
+    <string name="trakt_syncing">同期中…</string>
+    <string name="trakt_sync_offline">Traktが応答しません。視聴した内容は、応答が戻りしだい送信されます。</string>
+    <string name="trakt_sync_busy">Traktから少し待つよう求められています。同期は自動的に再開されます。</string>
+    <string name="trakt_sync_failed">Traktとの同期を完了できませんでした。自動的に再開されます。</string>
     <string name="settings_lost_trakt">このプレーヤーに保存されたTraktの接続を読み込み直せませんでした。もう一度アカウントを接続してください。</string>
 </resources>

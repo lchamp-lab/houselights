@@ -16,9 +16,12 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.requestFocus
 import androidx.compose.ui.unit.dp
 import app.houselights.core.TraktSession
+import app.houselights.providers.local.TraktSyncError
 import app.houselights.providers.trakt.DeviceCodeEnd
+import app.houselights.providers.trakt.TraktSyncState
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.testing.FakeTraktLink
+import app.houselights.ui.testing.FakeTraktSync
 import app.houselights.ui.testing.TV
 import app.houselights.ui.testing.press
 import app.houselights.ui.testing.pressInSheet
@@ -44,9 +47,10 @@ class TraktPaneTest {
     private var session by mutableStateOf<TraktSession?>(null)
     private val lea = TraktSession("a1", "r1", expiresAt = 1_700_000_000, username = "lea")
     private var link = FakeTraktLink(onApproved = { session = lea }).apply { onSignOut = { session = null } }
+    private val sync = FakeTraktSync()
 
     private fun show() {
-        val vm = TraktViewModel(link, CoroutineScope(SupervisorJob() + Dispatchers.Main))
+        val vm = TraktViewModel(link, sync, CoroutineScope(SupervisorJob() + Dispatchers.Main))
         compose.setTvContent {
             LazyColumn(Modifier.fillMaxSize()) { traktPane(vm, session) }
         }
@@ -159,6 +163,41 @@ class TraktPaneTest {
     }
 
     @Test
+    fun theLastSyncIsSaidWithWhatItCountedAndSyncingIsOneRow() {
+        session = lea
+        sync.state.value = TraktSyncState(syncedAt = System.currentTimeMillis() - 5 * 60_000, watched = 412, inProgress = 1)
+        show()
+        compose.onNodeWithText("Dernière synchronisation").assertExists()
+        // The system words the time, its spaces breaking or not.
+        compose.onNodeWithText("Il y a 5", substring = true).assertExists()
+        compose.onNodeWithText("minutes${GAP}412 vus, 1 en cours", substring = true).assertExists()
+        compose.onNodeWithText("Réunit ce que vous avez vu ici et sur Trakt").assertExists()
+
+        ok(SYNC)
+        assertEquals(1, sync.asked)
+        compose.onNodeWithText("Synchronisation…").assertExists()
+        // Disabled while it runs: OK again asks nothing.
+        compose.press(Key.DirectionCenter)
+        assertEquals(1, sync.asked)
+    }
+
+    @Test
+    fun beforeTheFirstSyncItSaysNever() {
+        session = lea
+        show()
+        compose.onNodeWithText("Jamais").assertExists()
+    }
+
+    @Test
+    fun aFailedExchangeIsSaidUnderTheSyncRow() {
+        session = lea
+        sync.state.value = TraktSyncState(syncedAt = System.currentTimeMillis(), error = TraktSyncError.OFFLINE)
+        show()
+        compose.onNodeWithText("Trakt ne répond pas. Ce que vous regardez lui sera envoyé dès qu’il répondra.").assertExists()
+        compose.onNodeWithText("Non effectué").assertExists()
+    }
+
+    @Test
     fun aBuildWithoutKeysSaysSoAndOffersNothing() {
         link = FakeTraktLink(available = false)
         show()
@@ -168,6 +207,8 @@ class TraktPaneTest {
 
     private companion object {
         const val NB = Typography.nbsp
+        const val GAP = "$NB$NB "
+        const val SYNC = "Synchroniser maintenant"
         const val CONNECT = "Connecter votre compte"
         const val DISCONNECT = "Déconnecter votre compte"
         const val DESCRIPTION =

@@ -594,5 +594,21 @@
     <string name="trakt_refused">Trakt refuses this build’s key, so the account cannot be connected.</string>
     <string name="trakt_failed">Trakt could not complete the connection. Try again in a moment.</string>
     <string name="trakt_ended">Trakt ended this connection. Connect your account again.</string>
+    <string name="trakt_last_sync">Last sync</string>
+    <plurals name="trakt_watched_count">
+        <item quantity="one">%d watched</item>
+        <item quantity="other">%d watched</item>
+    </plurals>
+    <plurals name="trakt_in_progress_count">
+        <item quantity="one">%d in progress</item>
+        <item quantity="other">%d in progress</item>
+    </plurals>
+    <string name="trakt_counts">%1$s, %2$s</string>
+    <string name="trakt_sync_now">Sync now</string>
+    <string name="trakt_sync_now_desc">Joins what you watched here and on Trakt</string>
+    <string name="trakt_syncing">Syncing…</string>
+    <string name="trakt_sync_offline">Trakt doesn’t answer. What you watch will reach it once it does.</string>
+    <string name="trakt_sync_busy">Trakt asks to wait a little. Syncing resumes on its own.</string>
+    <string name="trakt_sync_failed">Syncing with Trakt didn’t complete. It resumes on its own.</string>
     <string name="settings_lost_trakt">The Trakt connection saved on this player could not be read again. Connect your account again.</string>
 </resources>

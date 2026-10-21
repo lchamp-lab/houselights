@@ -595,5 +595,23 @@
     <string name="trakt_refused">O Trakt recusa a chave desta versão, então a conta não pode ser conectada.</string>
     <string name="trakt_failed">O Trakt não conseguiu concluir a conexão. Tente de novo em instantes.</string>
     <string name="trakt_ended">O Trakt encerrou esta conexão. Conecte sua conta de novo.</string>
+    <string name="trakt_last_sync">Última sincronização</string>
+    <plurals name="trakt_watched_count">
+        <item quantity="one">%d visto</item>
+        <item quantity="many">%d vistos</item>
+        <item quantity="other">%d vistos</item>
+    </plurals>
+    <plurals name="trakt_in_progress_count">
+        <item quantity="one">%d em andamento</item>
+        <item quantity="many">%d em andamento</item>
+        <item quantity="other">%d em andamento</item>
+    </plurals>
+    <string name="trakt_counts">%1$s, %2$s</string>
+    <string name="trakt_sync_now">Sincronizar agora</string>
+    <string name="trakt_sync_now_desc">Reúne o que você viu aqui e no Trakt</string>
+    <string name="trakt_syncing">Sincronizando…</string>
+    <string name="trakt_sync_offline">O Trakt não responde. O que você assistir será enviado assim que ele responder.</string>
+    <string name="trakt_sync_busy">O Trakt pede para aguardar um pouco. A sincronização será retomada sozinha.</string>
+    <string name="trakt_sync_failed">A sincronização com o Trakt não foi concluída. Ela será retomada sozinha.</string>
     <string name="settings_lost_trakt">Não foi possível reler a conexão com o Trakt salva neste player. Conecte sua conta de novo.</string>
 </resources>

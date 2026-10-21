@@ -2,10 +2,12 @@ package app.houselights.ui.settings
 
 import app.houselights.R
 import app.houselights.core.SecretsUnavailableException
+import app.houselights.providers.local.TraktSyncError
 import app.houselights.providers.trakt.DeviceCodeEnd
 import app.houselights.providers.trakt.TraktSignedOutException
 import app.houselights.testing.http
 import app.houselights.ui.testing.FakeTraktLink
+import app.houselights.ui.testing.FakeTraktSync
 import app.houselights.ui.testing.MainDispatcherRule
 import app.houselights.ui.testing.SettleMainLooper
 import app.houselights.ui.util.UiError
@@ -37,8 +39,9 @@ class TraktViewModelTest {
     val main = MainDispatcherRule()
 
     private val link = FakeTraktLink()
+    private val sync = FakeTraktSync()
 
-    private fun TestScope.model() = TraktViewModel(link, backgroundScope, clock = { testScheduler.currentTime })
+    private fun TestScope.model() = TraktViewModel(link, sync, backgroundScope, clock = { testScheduler.currentTime })
 
     @Test
     fun theCodeShowsWithItsTimeLeftUntilApproved() = runTest {
@@ -157,6 +160,26 @@ class TraktViewModelTest {
         vm.disconnect()
         runCurrent()
         assertEquals(UiError.NOT_SAVED.message, vm.note)
+    }
+
+    @Test
+    fun syncingAsksOnceWhileASyncRuns() = runTest {
+        val vm = model()
+        vm.syncNow()
+        vm.syncNow()
+        assertEquals(1, sync.asked)
+        assertTrue(vm.syncState.value.running)
+    }
+
+    @Test
+    fun aFailedExchangeIsSaidByWhatFailed() {
+        val notes = mapOf(
+            TraktSyncError.OFFLINE to R.string.trakt_sync_offline,
+            TraktSyncError.BUSY to R.string.trakt_sync_busy,
+            TraktSyncError.FAILED to R.string.trakt_sync_failed,
+            TraktSyncError.STORAGE to UiError.NOT_SAVED.message,
+        )
+        notes.forEach { (error, note) -> assertEquals("$error", note, noteOf(error)) }
     }
 
     @Test

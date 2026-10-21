@@ -99,6 +99,19 @@ data class TraktEpisode(
     @SerialName("title") val title: String? = null,
 )
 
+/** When the account last changed what it watched ([watchedAt]) and where it paused ([pausedAt]). */
+@Serializable
+data class Activity(
+    @SerialName("watched_at") val watchedAt: String? = null,
+    @SerialName("paused_at") val pausedAt: String? = null,
+)
+
+@Serializable
+data class LastActivities(
+    @SerialName("movies") val movies: Activity = Activity(),
+    @SerialName("episodes") val episodes: Activity = Activity(),
+)
+
 /** A film the account has watched, [plays] times. */
 @Serializable
 data class WatchedMovie(

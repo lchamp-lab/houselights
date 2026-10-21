@@ -2,8 +2,10 @@ package app.houselights.providers.trakt
 
 import retrofit2.Response
 import retrofit2.http.Body
+import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.POST
+import retrofit2.http.Path
 
 /** Trakt's OAuth routes, on its own host ([TraktClient.AUTH_URL]). */
 interface TraktAuthApi {
@@ -27,6 +29,10 @@ interface TraktApi {
     @GET("users/settings")
     suspend fun settings(): UserSettings
 
+    /** When the account's history and paused playbacks last changed: a pull is skipped when they did not. */
+    @GET("sync/last_activities")
+    suspend fun lastActivities(): LastActivities
+
     @GET("sync/watched/movies")
     suspend fun watchedMovies(): List<WatchedMovie>
 
@@ -35,6 +41,10 @@ interface TraktApi {
 
     @GET("sync/playback")
     suspend fun playback(): List<PlaybackProgress>
+
+    /** Forgets a paused playback ([PlaybackProgress.id]); 404 once gone. */
+    @DELETE("sync/playback/{id}")
+    suspend fun removePlayback(@Path("id") id: Long)
 
     @POST("sync/history")
     suspend fun addToHistory(@Body body: HistoryItems): HistoryAdded
