@@ -23,6 +23,11 @@ import androidx.compose.ui.res.stringResource
 import androidx.tv.material3.Text
 import app.houselights.R
 import app.houselights.core.ImageRef
+import app.houselights.core.MediaItem
+import app.houselights.core.MediaKind
+import app.houselights.core.NfoActor
+import app.houselights.core.NfoInfo
+import app.houselights.core.NfoKind
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlLayout
@@ -34,6 +39,7 @@ import app.houselights.ui.design.components.FIELD_POSTERS
 import app.houselights.ui.design.components.DefinitionPlate
 import app.houselights.ui.design.components.DeviceCodePlate
 import app.houselights.ui.design.components.FactPlate
+import app.houselights.ui.design.components.Gallery
 import app.houselights.ui.design.components.GalleryTile
 import app.houselights.ui.design.components.HlButton
 import app.houselights.ui.design.components.HlGroup
@@ -57,10 +63,15 @@ import app.houselights.ui.design.components.PlateDefinition
 import app.houselights.ui.design.components.PlateFact
 import app.houselights.ui.design.components.PosterField
 import app.houselights.ui.design.components.PreviewShape
+import app.houselights.ui.design.components.ReadingPlate
 import app.houselights.ui.design.components.ScanProgress
 import app.houselights.ui.design.components.Showcase
 import app.houselights.ui.design.components.ShowcaseRow
 import app.houselights.ui.design.components.StatusState
+import app.houselights.ui.detail.NfoContent
+import app.houselights.ui.detail.NfoSheet
+import app.houselights.ui.detail.NfoState
+import app.houselights.ui.util.LoadState
 
 /** The grammar of the secondary screens: the posters' room, its places and groups, showcases, a gallery, sheets. */
 internal fun LazyListScope.catalogSecondary() {
@@ -68,7 +79,7 @@ internal fun LazyListScope.catalogSecondary() {
     item { Group("Panes: a head on the screen title's baseline, the lockup, case backs, a meter, a code to type") { SecondaryPanes() } }
     item { Group("Showcase: a folder's posters, full height, melting into glass in their own light") { SecondaryShowcases() } }
     item { Group("Gallery: a title's images at their shape of use, framed with focus") { SecondaryGallery() } }
-    item { Group("Sheets: what they do in subject, their plates in the film's light, one wide to read") { SecondarySheets() } }
+    item { Group("Sheets: their glass and plates in the film's light, what is read ringed, one wide to read") { SecondarySheets() } }
 }
 
 /** The settings' room: the field of the library's posters, the places as words, a group of rows, a plate of facts. */
@@ -186,13 +197,13 @@ private fun SecondaryShowcases() {
     )
 }
 
-/** Modifier's images, on a sheet's glass: the poster, the backdrop and the logo on its neutral step. */
+/** Modifier's images, on a sheet's glass: the poster, the backdrop and the logo on its neutral step; the others step back. */
 @Composable
 private fun SecondaryGallery() {
     val art = shippedImage(R.drawable.banner)
     val logo = shippedImage(R.drawable.tmdb_logo)
     HlPanel(level = PanelLevel.Raised) {
-        Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m)) {
+        Gallery {
             GalleryTile(art, PreviewShape.Poster, stringResource(R.string.artwork_poster), {}, width = HlLayout.posterChoice)
             Column(verticalArrangement = Arrangement.spacedBy(HlSpace.m)) {
                 GalleryTile(art, PreviewShape.Backdrop, stringResource(R.string.artwork_backdrop), {}, width = HlSize.galleryWide)
@@ -208,6 +219,7 @@ private fun SecondarySheets() {
     val art = shippedImage(R.drawable.banner)
     var acting by remember { mutableStateOf(false) }
     var reading by remember { mutableStateOf(false) }
+    var nfo by remember { mutableStateOf(false) }
     CompositionLocalProvider(LocalBackdropRelay provides null) {
         Box(Modifier.fillMaxWidth().aspectRatio(HlSize.PREVIEW_RATIO)) {
             AmbientBackdrop(art, BackdropStyle.Full) {
@@ -215,6 +227,7 @@ private fun SecondarySheets() {
                     Column(verticalArrangement = Arrangement.spacedBy(HlSpace.s)) {
                         HlButton("A sheet in the film’s light", { acting = true })
                         HlButton("A reading sheet, wide", { reading = true })
+                        HlButton("An NFO: its views on the title's line", { nfo = true })
                     }
                     // A sheet's glass, and on it a plate a step up in the film's glow.
                     HlPanel(Modifier.width(HlLayout.sideColumnWide), level = PanelLevel.Raised) {
@@ -225,6 +238,7 @@ private fun SecondarySheets() {
                 }
                 if (acting) SheetInItsLight(art, onDismiss = { acting = false })
                 if (reading) SheetToRead(onDismiss = { reading = false })
+                if (nfo) SheetOfAnNfo(onDismiss = { nfo = false })
             }
         }
     }
@@ -245,11 +259,37 @@ private fun SheetInItsLight(art: ImageRef, onDismiss: () -> Unit) {
                 onClick = {},
             )
         }
+        // What is read takes focus as a ring.
+        ReadingPlate(readAs = "Image, Ultra HD, 3840 × 1608") {
+            Text("Image", style = Hl.type.group, color = Hl.colors.contentSecondary)
+            Text("Ultra HD", style = Hl.type.spec, color = Hl.colors.content)
+            Text("3840 × 1608", style = Hl.type.meta, color = Hl.colors.contentSecondary)
+        }
         FactPlate {
             PlateFact("Image", "Ultra HD", technical = true, measure = "2,39:1")
             PlateFact("Son", "Dolby Atmos", technical = true)
         }
     }
+}
+
+/** An NFO as its sheet shows it: how it reads, its views, its details focused to be read. */
+@Composable
+private fun SheetOfAnNfo(onDismiss: () -> Unit) {
+    val film = MediaItem("nfo", MediaKind.MOVIE, "Le Samouraï", year = 1967)
+    val info = NfoInfo(
+        kind = NfoKind.MOVIE,
+        title = "Le Samouraï",
+        year = 1967,
+        runtimeMin = 105,
+        genres = listOf("Policier", "Drame"),
+        directors = listOf("Jean-Pierre Melville"),
+        actors = listOf(NfoActor("Alain Delon", null, null, 0), NfoActor("François Périer", null, null, 1)),
+        tmdbId = 5_511,
+        imdbId = "tt0062229",
+    )
+    val lines = listOf("<movie>", "  <title>Le Samouraï</title>", "  <year>1967</year>", "</movie>")
+    val read = LoadState.Ready(NfoContent("/films/Le Samouraï.nfo", info, lines))
+    NfoSheet(film, NfoState(film.title, read), onRetry = {}, onDismiss = onDismiss)
 }
 
 @Composable

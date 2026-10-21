@@ -138,7 +138,6 @@ fun DetailScreen(
     itemId: String,
     onPlay: (MediaItem, Boolean) -> Unit,
     onOpenItem: (String) -> Unit,
-    onOpenNfo: (String) -> Unit,
     onEditArtwork: (String, ArtworkKind) -> Unit,
     onIdentify: (String) -> Unit,
     onOpenPerson: (String) -> Unit = {},
@@ -146,7 +145,7 @@ fun DetailScreen(
     val app = appContainer()
     val vm: DetailViewModel = viewModel(key = "detail-$itemId", factory = DetailViewModel.factory(app, itemId))
     ReloadOnLibraryChange { vm.onLibraryChanged() }
-    DetailPage(vm, app.playback, onPlay, onOpenItem, onOpenNfo, onEditArtwork, onIdentify, onOpenPerson)
+    DetailPage(vm, app.playback, onPlay, onOpenItem, onEditArtwork, onIdentify, onOpenPerson)
 }
 
 /** A title's page as [vm] has it; [playback] says when a title ended and why one did not play. */
@@ -156,7 +155,6 @@ internal fun DetailPage(
     playback: PlaybackOutcome,
     onPlay: (MediaItem, Boolean) -> Unit,
     onOpenItem: (String) -> Unit,
-    onOpenNfo: (String) -> Unit,
     onEditArtwork: (String, ArtworkKind) -> Unit,
     onIdentify: (String) -> Unit,
     onOpenPerson: (String) -> Unit,
@@ -200,27 +198,17 @@ internal fun DetailPage(
     val media = item.media?.takeIf { it.video != null || it.audio.isNotEmpty() }
     val crafts = endCrafts(item, state.credits).map { (job, names) -> Craft(jobName(job), names) }
     val tech = techTile(file = media != null, credits = crafts.isNotEmpty())
-    if (showTech && tech != null) TechSpecs(item, onDismiss = { showTech = false }, crafts = crafts)
     var showVersions by remember { mutableStateOf(false) }
-    if (showVersions) VersionsSheet(item, state.versions, onChoose = vm::chooseVersion, onDismiss = { showVersions = false })
     var showSynopsis by remember { mutableStateOf(false) }
-    if (showSynopsis) SynopsisSheet(item, onDismiss = { showSynopsis = false })
+    var showNfo by remember { mutableStateOf(false) }
     var showEdit by remember { mutableStateOf(false) }
-    if (showEdit) {
-        EditMenu(
-            item = item,
-            onDismiss = { showEdit = false },
-            onArtwork = { kind -> showEdit = false; onEditArtwork(item.id, kind) },
-            onIdentify = { showEdit = false; onIdentify(item.id) },
-        )
-    }
     val actions = DetailActions(
         onPlay = onPlay,
         onTogglePlayed = vm::togglePlayed,
         onToggleSeasonPlayed = vm::toggleSeasonPlayed,
         onToggleFavorite = vm::toggleFavorite,
         onOpenSeries = { item.seriesId?.let(onOpenItem) },
-        onOpenNfo = { onOpenNfo(item.id) },
+        onOpenNfo = { showNfo = true },
         // Null hides the button: nothing for the technical sheet, or a single copy.
         onShowTech = { showTech = true }.takeIf { tech != null },
         techAt = tech ?: TechTile.InPlace,
@@ -275,6 +263,19 @@ internal fun DetailPage(
                 seasonRows(state, memory, focusedEpisode, vm, onPlay)
                 titleRows(item, state, memory, people, RowLinks(onOpenItem, onOpenPerson))
             } }
+        // Over the page, in its light.
+        if (showTech && tech != null) TechSpecs(item, onDismiss = { showTech = false }, crafts = crafts)
+        if (showVersions) VersionsSheet(item, state.versions, onChoose = vm::chooseVersion, onDismiss = { showVersions = false })
+        if (showSynopsis) SynopsisSheet(item, onDismiss = { showSynopsis = false })
+        if (showNfo) NfoSheet(item, onDismiss = { showNfo = false })
+        if (showEdit) {
+            EditMenu(
+                item = item,
+                onDismiss = { showEdit = false },
+                onArtwork = { kind -> showEdit = false; onEditArtwork(item.id, kind) },
+                onIdentify = { showEdit = false; onIdentify(item.id) },
+            )
+        }
     }
 }
 

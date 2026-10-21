@@ -112,7 +112,7 @@
     <string name="key_ok">OK</string>
     <string name="key_hint_type">입력</string>
     <string name="nfo_title">NFO 파일</string>
-    <string name="nfo_desc">미디어 관리 프로그램이 작성한 이 작품의 정보입니다. 여기에 담긴 정보가 TMDB보다 우선합니다.</string>
+    <string name="nfo_desc">미디어 관리 프로그램이 작성한 정보로, TMDB보다 우선합니다.</string>
     <string name="nfo_tab_info">정보</string>
     <string name="nfo_tab_xml">XML</string>
     <string name="nfo_state_full">전체 정보</string>
@@ -124,6 +124,10 @@
     <string name="nfo_unreadable">이 NFO는 XML로 읽을 수 없습니다.</string>
     <string name="nfo_link_only">이 NFO에는 작품 페이지 링크만 있습니다. Houselights는 이 링크로 작품을 식별합니다.</string>
     <string name="label_title">제목</string>
+    <string name="label_original_title">원제</string>
+    <string name="label_episode">에피소드</string>
+    <string name="label_certification">관람 등급</string>
+    <string name="label_rating">평점</string>
     <string name="label_year">연도</string>
     <string name="placeholder_year">2025</string>
     <string name="label_genres">장르</string>
@@ -152,6 +156,7 @@
     <string name="tech_container">컨테이너</string>
     <string name="tech_file">파일</string>
     <string name="tech_size">크기</string>
+    <string name="tech_file_fact">%1$s, %2$s</string>
     <string name="tech_bitrate">평균 비트레이트</string>
     <string name="tech_duration">재생 시간</string>
     <string name="bit_depth">%d비트</string>

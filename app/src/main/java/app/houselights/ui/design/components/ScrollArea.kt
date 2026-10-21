@@ -1,7 +1,7 @@
 package app.houselights.ui.design.components
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.animation.core.Animatable
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.ScrollableState
@@ -24,8 +24,10 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEvent
 import androidx.compose.ui.input.key.KeyEventType
@@ -34,22 +36,30 @@ import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.TextUnit
+import app.houselights.ui.design.Ground
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlInset
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
+import app.houselights.ui.design.LocalAmbient
+import app.houselights.ui.design.LocalGround
 import app.houselights.ui.design.edge
+import app.houselights.ui.design.glassPlate
 import app.houselights.ui.design.groundFill
 import app.houselights.ui.design.groundStep
 import app.houselights.ui.design.groundStepFill
+import app.houselights.ui.design.plateEdge
 import app.houselights.ui.design.scrollEdges
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
-/** A quiet panel scrolled with the remote; focusable only when there is something to scroll. */
+/**
+ * A quiet panel scrolled with the remote, in a sheet a group's plate in the film's light; focusable only when there
+ * is something to scroll, or always when [alwaysFocusable] (what a reading sheet is about, ringed as it is read).
+ */
 @Composable
-fun HlScrollArea(modifier: Modifier = Modifier, content: @Composable BoxScope.() -> Unit) {
+fun HlScrollArea(modifier: Modifier = Modifier, alwaysFocusable: Boolean = false, content: @Composable BoxScope.() -> Unit) {
     val scroll = rememberScrollState()
     val scope = rememberCoroutineScope()
     val step = with(LocalDensity.current) { HlSize.scrollStep.toPx() }
@@ -58,14 +68,14 @@ fun HlScrollArea(modifier: Modifier = Modifier, content: @Composable BoxScope.()
     Box(
         modifier
             .fillMaxWidth()
-            .panel(HlShapes.panel, groundStepFill(), readingEdge(focused))
+            .readingArea(focused)
             .onFocusChanged { focused = it.isFocused }
             .onKeyEvent { keys.onKey(it, step) }
-            .focusProperties { canFocus = scroll.maxValue > 0 }
+            .focusProperties { canFocus = alwaysFocusable || scroll.maxValue > 0 }
             .focusable()
-            .scrollEdges(scroll, groundFill(groundStep()))
+            .scrollEdges(scroll, readingFill())
             .verticalScroll(scroll)
-            .padding(HlInset.card),
+            .padding(readingPadding()),
         content = content,
     )
 }
@@ -75,7 +85,12 @@ fun HlScrollArea(modifier: Modifier = Modifier, content: @Composable BoxScope.()
  * laid out yet count [lineHeight] each.
  */
 @Composable
-fun HlScrollArea(lineHeight: TextUnit, modifier: Modifier = Modifier, content: LazyListScope.() -> Unit) {
+fun HlScrollArea(
+    lineHeight: TextUnit,
+    modifier: Modifier = Modifier,
+    alwaysFocusable: Boolean = false,
+    content: LazyListScope.() -> Unit,
+) {
     val list = rememberLazyListState()
     val scope = rememberCoroutineScope()
     val density = LocalDensity.current
@@ -86,22 +101,43 @@ fun HlScrollArea(lineHeight: TextUnit, modifier: Modifier = Modifier, content: L
     LazyColumn(
         modifier = modifier
             .fillMaxWidth()
-            .panel(HlShapes.panel, groundStepFill(), readingEdge(focused))
+            .readingArea(focused)
             .onFocusChanged { focused = it.isFocused }
             .onKeyEvent { keys.onKey(it, step) }
-            .focusProperties { canFocus = list.canScrollForward || list.canScrollBackward }
+            .focusProperties { canFocus = alwaysFocusable || list.canScrollForward || list.canScrollBackward }
             .focusable()
-            .scrollEdges(list, groundFill(groundStep())),
+            .scrollEdges(list, readingFill()),
         state = list,
-        contentPadding = PaddingValues(HlInset.card),
+        contentPadding = readingPadding(),
         content = content,
     )
 }
 
-/** The border of a reading area: the panel's hairline, or the focus ring while focused. */
+/** A reading area's surface: a step of the room, or on glass a group's plate; its hairline the focus ring while focused. */
 @Composable
-private fun readingEdge(focused: Boolean): BorderStroke =
-    if (focused) FocusStyle.ring() else BorderStroke(HlSize.hairline, Hl.colors.edge)
+private fun Modifier.readingArea(focused: Boolean): Modifier {
+    val c = Hl.colors
+    val onGlass = LocalGround.current == Ground.Glass
+    val edge = if (focused) FocusStyle.ring() else BorderStroke(HlSize.hairline, if (onGlass) c.plateEdge else c.edge)
+    return if (onGlass) clip(HlShapes.panel).plate(edge) else panel(HlShapes.panel, groundStepFill(), edge)
+}
+
+/** Room inside a reading area: a panel's all round, or on glass a plate of facts' ([FactPlate]). */
+@Composable
+private fun readingPadding(): PaddingValues = if (LocalGround.current == Ground.Glass) {
+    PaddingValues(horizontal = HlInset.card, vertical = HlInset.plate)
+} else {
+    PaddingValues(HlInset.card)
+}
+
+/** What a reading area's text fades into at a cut end, read while drawing: its fill. */
+@Composable
+private fun readingFill(): () -> Color {
+    val c = Hl.colors
+    if (LocalGround.current != Ground.Glass) return groundFill(groundStep()).let { fill -> { fill } }
+    val light = LocalAmbient.current
+    return remember(c, light) { { c.glassPlate(light) } }
+}
 
 /**
  * Up and down scroll one step per press; a held key adds steps to the target and keeps the velocity

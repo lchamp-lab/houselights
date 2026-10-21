@@ -1,42 +1,42 @@
 package app.houselights.ui.design.components
 
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsFocusedAsState
-import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.ScrollState
+import androidx.compose.foundation.gestures.animateScrollBy
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.layout.AlignmentLine
-import androidx.compose.ui.layout.FirstBaseline
-import androidx.compose.ui.layout.Layout
-import androidx.compose.ui.layout.Placeable
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.clearAndSetSemantics
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.focused
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.tv.material3.LocalContentColor
 import androidx.tv.material3.Text
 import app.houselights.R
 import app.houselights.core.BaseRange
 import app.houselights.core.HdrFormat
+import app.houselights.core.MediaInfo
 import app.houselights.core.MediaItem
 import app.houselights.core.TechLabel
 import app.houselights.core.TechRow
@@ -45,18 +45,17 @@ import app.houselights.core.TechSheet
 import app.houselights.core.TechTopic
 import app.houselights.core.TechValue
 import app.houselights.ui.design.Hl
-import app.houselights.ui.design.HlInset
+import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.TechSpecsDefaults
-import app.houselights.ui.design.revealOnFocus
 import app.houselights.ui.util.formatBytes
 import app.houselights.ui.util.formatDimensions
 import app.houselights.ui.util.formatDuration
 import app.houselights.ui.util.formatRatio
 import app.houselights.ui.util.languageName
 import java.util.Locale
-import kotlin.math.roundToInt
-import app.houselights.ui.design.CAP_HEIGHT
+import kotlinx.coroutines.launch
+import kotlin.math.min
 
 /** One craft of a title's credits: its [job] as credited ("Musique") and its [names] in billing order. */
 data class Craft(val job: String, val names: List<String>)
@@ -65,9 +64,9 @@ data class Craft(val job: String, val names: List<String>)
 const val CRAFT_NAMES = 3
 
 /**
- * A title's technical sheet ([TechSheet]) in a side sheet: picture, sound, then the [crafts] its head does not
- * name, subtitles and file; one focusable row per fact, track or craft, the file's default track dotted white.
- * OK does nothing, Back closes.
+ * A title's technical sheet ([TechSheet]) in a side sheet, its file's container and size among its facts, read as
+ * a case's back, block by block: picture, sound, then the [crafts] its head does not name, subtitles and file. A
+ * block is a plate the remote rings ([ReadingPlate]), scrolled through before focus leaves it; OK does nothing.
  */
 @Composable
 fun TechSpecs(item: MediaItem, onDismiss: () -> Unit, crafts: List<Craft> = emptyList()) {
@@ -80,117 +79,241 @@ fun TechSpecs(item: MediaItem, onDismiss: () -> Unit, crafts: List<Craft> = empt
         head.map(Block::Media) + listOfNotNull(credited) + tail.map(Block::Media)
     }
     val first = remember { FocusRequester() }
+    val scroll = rememberScrollState()
     HlSideSheet(
         stringResource(R.string.tech_details),
         onDismiss = onDismiss,
-        facts = listOf(item.title, item.year?.toString()),
-        artwork = item.poster?.let { poster -> { PosterThumb(poster, width = null) } },
+        facts = listOf(item.title, item.year?.toString(), media?.let { fileFact(it) }),
         initialFocus = first.takeIf { blocks.isNotEmpty() },
+        scroll = scroll,
     ) {
         blocks.forEachIndexed { i, block ->
-            if (i > 0) Spacer(Modifier.height(HlSpace.l))
+            val modifier = Modifier.readThrough(scroll).then(if (i == 0) Modifier.focusRequester(first) else Modifier)
             when (block) {
-                is Block.Media -> MediaSection(block.section, first.takeIf { i == 0 })
-                is Block.Credits -> Credits(block.crafts, first.takeIf { i == 0 })
+                is Block.Media -> when (block.section.topic) {
+                    TechTopic.PICTURE -> PictureBlock(block.section, modifier)
+                    TechTopic.SOUND, TechTopic.SUBTITLES -> TracksBlock(block.section, modifier)
+                    TechTopic.FILE -> FileBlock(block.section, modifier)
+                }
+                is Block.Credits -> CreditsBlock(block.crafts, modifier)
             }
         }
     }
 }
 
-/** A section of the sheet: the file's, or the credits. */
+/** A block of the sheet: a section of the file's, or the credits. */
 private sealed interface Block {
     data class Media(val section: TechSection) : Block
     data class Credits(val crafts: List<Craft>) : Block
 }
 
-/** A section of the file's sheet. */
+/** The file as a case's spine prints it: its container and its size ("MKV, 23,4 Go"). */
 @Composable
-private fun ColumnScope.MediaSection(section: TechSection, first: FocusRequester?) {
-    val count = section.tracks?.let { pluralStringResource(R.plurals.tech_track_count, it, it) }
-    Section(topicName(section.topic), count, section.rows, first) { row, modifier -> SheetRow(row, modifier) }
-}
-
-/** The crafts the head does not name, under the crew's name, up to [CRAFT_NAMES] names each. */
-@Composable
-private fun ColumnScope.Credits(crafts: List<Craft>, first: FocusRequester?) {
-    Section(stringResource(R.string.tech_credits), null, crafts, first) { craft, modifier ->
-        val names = craft.names.take(CRAFT_NAMES)
-        SpecRow(
-            label = craft.job,
-            words = names.map { Word(it, Voice.Name) },
-            readAs = (listOf(craft.job) + names).joinToString(", "),
-            modifier = modifier,
-        )
+private fun fileFact(media: MediaInfo): String? {
+    val size = media.sizeBytes?.let { formatBytes(it) }
+    return when {
+        media.container != null && size != null -> stringResource(R.string.tech_file_fact, media.container, size)
+        else -> media.container ?: size
     }
 }
 
-/** A section, its name revealed with its first row; later rows scroll on their own (long subtitle lists). */
+/**
+ * Down and up scroll the sheet through a block taller than its room, [HlSize.scrollStep] a press, before focus
+ * moves on: what does not fit is read, never skipped.
+ */
 @Composable
-private fun <T> ColumnScope.Section(
-    name: String,
-    count: String?,
-    rows: List<T>,
-    first: FocusRequester?,
-    row: @Composable (T, Modifier) -> Unit,
-) {
-    Column(Modifier.revealOnFocus()) {
-        SectionName(name, count)
-        row(rows.first(), first?.let { Modifier.focusRequester(it) } ?: Modifier)
+private fun Modifier.readThrough(scroll: ScrollState): Modifier {
+    val scope = rememberCoroutineScope()
+    val step = with(LocalDensity.current) { HlSize.scrollStep.toPx() }
+    val placed = remember { Placed() }
+    return onGloballyPositioned { placed.at = it }.onPreviewKeyEvent { event ->
+        val down = event.key == Key.DirectionDown
+        val moves = event.type == KeyEventType.KeyDown && (down || event.key == Key.DirectionUp)
+        val at = placed.at?.takeIf { moves && it.isAttached } ?: return@onPreviewKeyEvent false
+        // Its whole span against the part its sheet shows.
+        val shown = at.boundsInRoot()
+        val top = at.positionInRoot().y
+        val hidden = if (down) top + at.size.height - shown.bottom else shown.top - top
+        if (hidden < 1f) return@onPreviewKeyEvent false
+        scope.launch { scroll.animateScrollBy(if (down) min(step, hidden) else -min(step, hidden)) }
+        true
     }
-    rows.drop(1).forEach { row(it, Modifier) }
 }
 
-/** A section's name in `group`, and its track count ("Son   2 pistes"). */
+/** Where a block was last placed, kept without recomposing. */
+private class Placed {
+    var at: LayoutCoordinates? = null
+}
+
+/** A block's name in `group`, and how many tracks it holds ("Son   2 pistes"). */
 @Composable
-private fun SectionName(name: String, count: String?) {
+private fun BlockName(name: String, count: String? = null) {
     val c = Hl.colors
-    Row(Modifier.padding(start = HlInset.card, bottom = HlSpace.xs)) {
-        Text(name, style = Hl.type.group, color = c.contentSecondary)
+    Row {
+        Text(name, style = Hl.type.group, color = c.contentSecondary, modifier = Modifier.alignByBaseline())
         count?.let {
-            Spacer(Modifier.width(HlSpace.fact))
-            Text(it, style = Hl.type.caption, color = c.contentTertiary)
+            Spacer(Modifier.width(HlSpace.s))
+            Text(it, style = Hl.type.meta, color = c.contentTertiary, modifier = Modifier.alignByBaseline())
+        }
+    }
+    Spacer(Modifier.height(HlSpace.xs))
+}
+
+/** A format as a case's back prints it, and the measures that qualify it, one a line under it. */
+private data class Mark(val format: String, val measures: List<String>)
+
+/**
+ * The picture as marks across its plate ("Ultra HD" over "3832 × 1592" and "2,39:1"): each fact led by a format
+ * starts a mark, the others measure the mark before them.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun PictureBlock(section: TechSection, modifier: Modifier) {
+    val c = Hl.colors
+    val name = topicName(section.topic)
+    val marks = mutableListOf<Mark>()
+    section.rows.filterIsInstance<TechRow.Fact>().forEach { fact ->
+        val words = fact.value.map { it.text() }
+        val qualified = fact.detail.map { it.text() }
+        if (fact.value.firstOrNull()?.voice == Voice.Format || marks.isEmpty()) {
+            marks += Mark(words.firstOrNull() ?: return@forEach, qualified + words.drop(1))
+        } else {
+            marks[marks.lastIndex] = marks.last().let { it.copy(measures = it.measures + words + qualified) }
+        }
+    }
+    val readAs = (listOf(name) + marks.flatMap { listOf(it.format) + it.measures }).joinToString(", ")
+    ReadingPlate(modifier.fillMaxWidth(), readAs = readAs) {
+        BlockName(name)
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(HlSpace.xl), verticalArrangement = Arrangement.spacedBy(HlSpace.m)) {
+            marks.forEach { mark ->
+                Column {
+                    Text(mark.format, style = Hl.type.spec, color = c.content, maxLines = 1)
+                    Spacer(Modifier.height(HlSpace.xxs))
+                    mark.measures.forEach { Text(it, style = Hl.type.meta, color = c.contentSecondary, maxLines = 1) }
+                }
+            }
         }
     }
 }
 
+/**
+ * Sound or subtitle tracks, one a line: the format as a case prints it, then its language in white, the file's
+ * default after its white dot, then what measures and qualifies it.
+ */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun SheetRow(row: TechRow, modifier: Modifier = Modifier) {
-    when (row) {
-        is TechRow.Fact -> {
-            val label = labelName(row.label)
-            val words = words(row.value, row.detail)
-            SpecRow(
-                label = label,
-                words = words,
-                stacked = row.label == TechLabel.NAME,
-                readAs = (listOf(label) + words.map { it.text }).joinToString(", "),
-                modifier = modifier,
-            )
-        }
-        is TechRow.Track -> {
-            val language = trackLanguage(row.language, row.region)
-            val words = words(row.value, row.detail)
-            val inUse = stringResource(R.string.tech_in_use).takeIf { row.inUse }
-            SpecRow(
-                label = language,
-                words = words,
-                note = row.note,
-                inUse = row.inUse,
-                readAs = (listOf(language) + words.map { it.text } + listOfNotNull(row.note, inUse)).joinToString(", "),
-                modifier = modifier,
-            )
+private fun TracksBlock(section: TechSection, modifier: Modifier) {
+    val c = Hl.colors
+    val name = topicName(section.topic)
+    val count = section.tracks?.let { pluralStringResource(R.plurals.tech_track_count, it, it) }
+    val inUse = stringResource(R.string.tech_in_use)
+    val tracks = section.rows.filterIsInstance<TechRow.Track>().map { track ->
+        val format = track.value.firstOrNull()?.takeIf { it.voice == Voice.Format }
+        Triple(track, format?.text(), (track.value - listOfNotNull(format) + track.detail).map { it.text() } + listOfNotNull(track.note))
+    }
+    val languages = tracks.map { (track) -> trackLanguage(track.language, track.region) }
+    val readAs = (listOfNotNull(name, count) + tracks.mapIndexed { i, (track, format, words) ->
+        (listOfNotNull(format, languages[i]) + words + listOfNotNull(inUse.takeIf { track.inUse })).joinToString(", ")
+    }).joinToString(", ")
+    ReadingPlate(modifier.fillMaxWidth(), readAs = readAs) {
+        BlockName(name, count)
+        Column(verticalArrangement = Arrangement.spacedBy(HlSpace.xs)) {
+            tracks.forEachIndexed { i, (track, format, words) ->
+                Row {
+                    Text(
+                        format.orEmpty(),
+                        style = Hl.type.spec,
+                        color = c.content,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.width(TechSpecsDefaults.formatColumn).alignByBaseline(),
+                    )
+                    FlowRow(
+                        Modifier.weight(1f).alignByBaseline(),
+                        horizontalArrangement = Arrangement.spacedBy(HlSpace.fact),
+                        verticalArrangement = Arrangement.spacedBy(HlSpace.xxs),
+                    ) {
+                        Row(Modifier.alignByBaseline(), verticalAlignment = Alignment.CenterVertically) {
+                            // The file's default, a state.
+                            if (track.inUse) {
+                                StatusLight(StatusState.Done)
+                                Spacer(Modifier.width(HlSpace.xxs))
+                            }
+                            Text(languages[i], style = Hl.type.meta, color = c.content, maxLines = 1)
+                        }
+                        words.forEach {
+                            Text(it, Modifier.alignByBaseline(), style = Hl.type.meta, color = c.contentSecondary, maxLines = 1)
+                        }
+                    }
+                }
+            }
         }
     }
 }
 
-/** How a word on a row's right reads: a format as on a case's back, a measure or what qualifies it, a name. */
-internal enum class Voice { Format, Measure, Name }
-
-private data class Word(val text: String, val voice: Voice)
-
-/** A fact's words, its [value] then its [detail], each in the voice of its kind ([voice]). */
+/** The crafts the head does not name, each beside its names in the billing block's capitals, [CRAFT_NAMES] at most. */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun words(value: List<TechValue>, detail: List<TechValue>): List<Word> = (value + detail).map { Word(it.text(), it.voice) }
+private fun CreditsBlock(crafts: List<Craft>, modifier: Modifier) {
+    val c = Hl.colors
+    val name = stringResource(R.string.tech_credits)
+    val locale = Locale.getDefault()
+    val readAs = (listOf(name) + crafts.map { (listOf(it.job) + it.names.take(CRAFT_NAMES)).joinToString(", ") }).joinToString(", ")
+    ReadingPlate(modifier.fillMaxWidth(), readAs = readAs) {
+        BlockName(name)
+        Column(verticalArrangement = Arrangement.spacedBy(HlSpace.xs)) {
+            crafts.forEach { craft ->
+                Row {
+                    Text(
+                        craft.job,
+                        style = Hl.type.meta,
+                        color = c.contentSecondary,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.width(TechSpecsDefaults.craftColumn).alignByBaseline(),
+                    )
+                    FlowRow(Modifier.weight(1f).alignByBaseline(), horizontalArrangement = Arrangement.spacedBy(HlSpace.s)) {
+                        craft.names.take(CRAFT_NAMES).forEach {
+                            Text(it.uppercase(locale), Modifier.alignByBaseline(), style = Hl.type.billing, color = c.content, maxLines = 1)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** The file as a case's back states it: each fact's label over its value, then its name, whole. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun FileBlock(section: TechSection, modifier: Modifier) {
+    val c = Hl.colors
+    val name = topicName(section.topic)
+    val nameLabel = labelName(TechLabel.NAME)
+    val facts = section.rows.filterIsInstance<TechRow.Fact>().map { fact ->
+        labelName(fact.label) to (fact.value + fact.detail).map { it.text() }.joinToString(" ")
+    }
+    val (named, stated) = facts.partition { (label) -> label == nameLabel }
+    val readAs = (listOf(name) + facts.map { (label, value) -> "$label, $value" }).joinToString(", ")
+    ReadingPlate(modifier.fillMaxWidth(), readAs = readAs) {
+        BlockName(name)
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(HlSpace.xl), verticalArrangement = Arrangement.spacedBy(HlSpace.m)) {
+            stated.forEach { (label, value) -> PlateFact(label, value, technical = true) }
+        }
+        named.forEach { (label, value) ->
+            Spacer(Modifier.height(HlSpace.m))
+            Text(label, style = Hl.type.meta, color = c.contentSecondary)
+            Spacer(Modifier.height(HlSpace.xs))
+            Text(value, style = Hl.type.meta, color = c.content, maxLines = NAME_LINES, overflow = TextOverflow.Ellipsis)
+        }
+    }
+}
+
+/** Lines of a file name, as long as names get. */
+private const val NAME_LINES = 3
+
+/** How a value reads: a format as on a case's back, or a measure or what qualifies it. */
+internal enum class Voice { Format, Measure }
 
 /** Formats (Ultra HD, Dolby Vision, profil 8.1, PGS) as on a case's back; sizes, rates, durations, 7.1 and qualifiers measured. */
 internal val TechValue.voice: Voice
@@ -201,135 +324,6 @@ internal val TechValue.voice: Voice
         TechValue.Forced, TechValue.HearingImpaired,
         -> Voice.Measure
     }
-
-/**
- * A read-only row: [label] in `body` and [note] left, its [words] right, capped at the value width; [stacked]
- * puts them under the label (a file name). The margin holds the default track's dot; read as [readAs].
- */
-@Composable
-private fun SpecRow(
-    label: String,
-    words: List<Word>,
-    readAs: String,
-    modifier: Modifier = Modifier,
-    note: String? = null,
-    inUse: Boolean = false,
-    stacked: Boolean = false,
-) {
-    val c = Hl.colors
-    // Focus feeds the semantics below.
-    val interaction = remember { MutableInteractionSource() }
-    val focused by interaction.collectIsFocusedAsState()
-    // The in-use dot centres on the label's cap height.
-    val capitals = with(LocalDensity.current) { (Hl.type.body.fontSize.toPx() * CAP_HEIGHT / 2).roundToInt() }
-    HlRowSurface(
-        onClick = {},
-        modifier = modifier
-            .fillMaxWidth()
-            .clearAndSetSemantics {
-                contentDescription = readAs
-                this.focused = focused
-            },
-        interactionSource = interaction,
-    ) { lit ->
-        val ink = LocalContentColor.current
-        val secondary = FocusStyle.quietInk(lit, enabled = true, lit = false)
-        // Text centred vertically; label and words share a baseline.
-        Box(
-            Modifier
-                .fillMaxWidth()
-                .heightIn(min = TechSpecsDefaults.rowHeight)
-                .padding(end = HlInset.card, top = HlSpace.xs, bottom = HlSpace.xs),
-            contentAlignment = Alignment.CenterStart,
-        ) { Row(Modifier.fillMaxWidth()) {
-            // Only as tall as the dot: a line-tall margin would add space under the text.
-            Box(
-                Modifier.width(HlInset.card).alignBy { it.measuredHeight / 2 + capitals },
-                contentAlignment = Alignment.Center,
-            ) {
-                // The file's default, a state: white, black on focus's plate.
-                if (inUse) StatusLight(StatusState.Done, ink = ink.takeIf { lit })
-            }
-            if (stacked) {
-                Column(Modifier.weight(1f)) {
-                    Text(label, style = Hl.type.body, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    words.forEach {
-                        Text(it.text, style = Hl.type.meta, color = secondary, maxLines = STACKED_LINES, overflow = TextOverflow.Ellipsis)
-                    }
-                }
-            } else {
-                Column(Modifier.weight(1f).alignByBaseline()) {
-                    Text(label, style = Hl.type.body, maxLines = LINES, overflow = TextOverflow.Ellipsis)
-                    note?.let { Text(it, style = Hl.type.caption, color = secondary, maxLines = LINES, overflow = TextOverflow.Ellipsis) }
-                }
-                Spacer(Modifier.width(HlSpace.m))
-                EndWords(Modifier.widthIn(max = TechSpecsDefaults.valueWidth).alignByBaseline()) {
-                    words.forEach { word ->
-                        val (style, color) = when (word.voice) {
-                            Voice.Format -> Hl.type.jaquette to ink
-                            Voice.Measure -> Hl.type.meta to secondary
-                            Voice.Name -> Hl.type.meta to ink
-                        }
-                        Text(
-                            word.text,
-                            style = style,
-                            color = color,
-                            textAlign = TextAlign.End,
-                            maxLines = LINES,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
-                }
-            }
-        } }
-    }
-}
-
-/**
- * Words set from the end of their line, a fact's space apart and on one baseline, each whole: one that does not
- * fit starts the next line. Its first baseline is its first line's.
- */
-@Composable
-internal fun EndWords(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
-    Layout(content, modifier) { measurables, constraints ->
-        val gap = HlSpace.fact.roundToPx()
-        val between = HlSpace.xxs.roundToPx()
-        val words = measurables.map { it.measure(constraints.copy(minWidth = 0, minHeight = 0)) }
-        val lines = mutableListOf<MutableList<Placeable>>()
-        var used = 0
-        words.forEach { word ->
-            val line = lines.lastOrNull()
-            if (line == null || used + gap + word.width > constraints.maxWidth) {
-                lines += mutableListOf(word)
-                used = word.width
-            } else {
-                line += word
-                used += gap + word.width
-            }
-        }
-        fun Placeable.base() = this[FirstBaseline].takeIf { it != AlignmentLine.Unspecified } ?: height
-        val widths = lines.map { line -> line.sumOf { it.width } + gap * (line.size - 1) }
-        val ascents = lines.map { line -> line.maxOf { it.base() } }
-        val heights = lines.mapIndexed { i, line -> line.maxOf { ascents[i] - it.base() + it.height } }
-        val width = (widths.maxOrNull() ?: 0).coerceIn(constraints.minWidth, constraints.maxWidth)
-        val height = heights.sum() + between * (lines.size - 1).coerceAtLeast(0)
-        layout(width, height, mapOf(FirstBaseline to (ascents.firstOrNull() ?: 0))) {
-            var y = 0
-            lines.forEachIndexed { i, line ->
-                var x = width - widths[i]
-                line.forEach { word ->
-                    word.placeRelative(x, y + ascents[i] - word.base())
-                    x += word.width + gap
-                }
-                y += heights[i] + between
-            }
-        }
-    }
-}
-
-/** Maximum lines of a label, a word or a note; a stacked file name gets [STACKED_LINES]. */
-private const val LINES = 2
-private const val STACKED_LINES = 3
 
 @Composable
 private fun topicName(topic: TechTopic): String = stringResource(

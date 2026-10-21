@@ -210,7 +210,7 @@ fun CatalogScreen() {
                     var long by remember { mutableStateOf(false) }
                     var code by remember { mutableStateOf(false) }
                     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.s)) {
-                        HlButton("Modifier: previews in one box", { side = true })
+                        HlButton("Modifier: a gallery of its images", { side = true })
                         HlButton("An action that asks first", { asking = true })
                         HlButton("A status, a field", { keyed = true })
                         HlButton("More rows than it holds", { long = true })

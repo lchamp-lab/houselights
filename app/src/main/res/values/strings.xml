@@ -125,7 +125,7 @@
     <string name="key_ok">OK</string>
     <string name="key_hint_type">type</string>
     <string name="nfo_title">NFO file</string>
-    <string name="nfo_desc">The description of this title written by your media manager. Its details take precedence over TMDB.</string>
+    <string name="nfo_desc">Written by your media manager, it takes precedence over TMDB.</string>
     <string name="nfo_tab_info">Details</string>
     <string name="nfo_tab_xml">XML</string>
     <string name="nfo_state_full">Full description</string>
@@ -137,6 +137,10 @@
     <string name="nfo_unreadable">This NFO could not be read as XML.</string>
     <string name="nfo_link_only">This NFO only links to a title page; Houselights uses it to identify the title.</string>
     <string name="label_title">Title</string>
+    <string name="label_original_title">Original title</string>
+    <string name="label_episode">Episode</string>
+    <string name="label_certification">Age rating</string>
+    <string name="label_rating">Rating</string>
     <string name="label_year">Year</string>
     <string name="placeholder_year">2025</string>
     <string name="label_genres">Genres</string>
@@ -166,6 +170,7 @@
     <string name="tech_container">Container</string>
     <string name="tech_file">File</string>
     <string name="tech_size">Size</string>
+    <string name="tech_file_fact">%1$s, %2$s</string>
     <string name="tech_bitrate">Average bitrate</string>
     <string name="tech_duration">Duration</string>
     <string name="bit_depth">%d-bit</string>

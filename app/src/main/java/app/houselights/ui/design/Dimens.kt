@@ -224,11 +224,11 @@ object HlLayout {
     /** Columns of the technical sheet's track tables. */
     val specLanguage = 120.dp
     val specFormat = 136.dp
-    /** Height of long text panels (NFO). */
-    val textPanel = 440.dp
     /** Label column of label and value lists, and its short form inside a narrow panel. */
     val definitionLabel = 220.dp
     val definitionLabelShort = 120.dp
+    /** Label column of a reading sheet's definitions (an NFO's), its values at 20 beside it. */
+    val readingLabel = 180.dp
 }
 
 /** Columns of a poster wall (`LibraryScreen`, `PersonScreen`). */
@@ -295,10 +295,13 @@ internal object HlMenuDefaults {
     val inset = 6.dp
 }
 
-/** Tech sheet rows: least height (as a compact tile) and widest value ("Dolby Digital Plus Atmos   7.1"). */
+/**
+ * The technical sheet's columns: a track's format ("Dolby Atmos" whole, a longer one on two lines) before its
+ * language, a craft before its names.
+ */
 internal object TechSpecsDefaults {
-    val rowHeight = 40.dp
-    val valueWidth = 240.dp
+    val formatColumn = 188.dp
+    val craftColumn = 112.dp
 }
 
 /**

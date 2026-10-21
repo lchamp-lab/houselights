@@ -197,7 +197,7 @@ val HouselightsType = HlType(
     meta = scale(HlFonts.text, FontWeight.Normal, 16, 20, FIGURES),
     caption = scale(HlFonts.text, FontWeight.Normal, 14, 18, FIGURES, PROSE),
     group = scale(HlFonts.text, FontWeight.SemiBold, 16, 20),
-    code = scale(HlFonts.mono, FontWeight.Normal, 14, 22),
+    code = scale(HlFonts.mono, FontWeight.Normal, 20, 32),
 
     spec = scale(HlFonts.expanded, FontWeight.SemiBold, 20, 26, FIGURES),
     jaquette = scale(HlFonts.expanded, FontWeight.SemiBold, 14, 18, FIGURES),

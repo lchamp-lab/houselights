@@ -112,7 +112,7 @@
     <string name="key_ok">OK</string>
     <string name="key_hint_type">輸入</string>
     <string name="nfo_title">NFO 檔案</string>
-    <string name="nfo_desc">由您的媒體管理軟體寫入的此作品描述。其中的資料優先於 TMDB。</string>
+    <string name="nfo_desc">由您的媒體管理軟體寫入，優先於 TMDB。</string>
     <string name="nfo_tab_info">資料</string>
     <string name="nfo_tab_xml">XML</string>
     <string name="nfo_state_full">完整描述</string>
@@ -124,6 +124,10 @@
     <string name="nfo_unreadable">無法將此 NFO 讀取為 XML。</string>
     <string name="nfo_link_only">此 NFO 僅包含指向作品頁面的連結；Houselights 會用它來識別該作品。</string>
     <string name="label_title">片名</string>
+    <string name="label_original_title">原名</string>
+    <string name="label_episode">集</string>
+    <string name="label_certification">分級</string>
+    <string name="label_rating">評分</string>
     <string name="label_year">年份</string>
     <string name="placeholder_year">2025</string>
     <string name="label_genres">類型</string>
@@ -152,6 +156,7 @@
     <string name="tech_container">容器格式</string>
     <string name="tech_file">檔案</string>
     <string name="tech_size">大小</string>
+    <string name="tech_file_fact">%1$s，%2$s</string>
     <string name="tech_bitrate">平均位元率</string>
     <string name="tech_duration">片長</string>
     <string name="bit_depth">%d 位元</string>

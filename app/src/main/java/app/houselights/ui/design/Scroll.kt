@@ -118,22 +118,27 @@ private val ROW_MARGIN = HlSpace.safeH + HlSpace.xl
  * Fades content into [color] over [HlSpace.fadeEdge] at an end with more beyond, so a cut line reads as more
  * to come. Drawn without a layer, so the surface must be opaque there. Not for poster rows ([RowScroll]).
  */
-fun Modifier.scrollEdges(state: ScrollableState, color: Color): Modifier = composed {
+fun Modifier.scrollEdges(state: ScrollableState, color: Color): Modifier = scrollEdges(state) { color }
+
+/** [scrollEdges] into a surface whose [color] is read while drawing (a sheet in its film's light). */
+fun Modifier.scrollEdges(state: ScrollableState, color: () -> Color): Modifier = composed {
     val fade = tween<Float>(HlMotion.FAST, easing = HlMotion.fallBack)
     val top by animateFloatAsState(if (state.canScrollBackward) 1f else 0f, fade, label = "fadeTop")
     val bottom by animateFloatAsState(if (state.canScrollForward) 1f else 0f, fade, label = "fadeBottom")
     drawWithContent {
         drawContent()
+        if (top <= 0f && bottom <= 0f) return@drawWithContent
+        val into = color()
         val length = HlSpace.fadeEdge.toPx().coerceAtMost(size.height / 2)
         val edge = Size(size.width, length)
-        val clear = color.copy(alpha = 0f)
+        val clear = into.copy(alpha = 0f)
         if (top > 0f) {
-            drawRect(Brush.verticalGradient(0f to color.copy(alpha = color.alpha * top), 1f to clear, endY = length), size = edge)
+            drawRect(Brush.verticalGradient(0f to into.copy(alpha = into.alpha * top), 1f to clear, endY = length), size = edge)
         }
         if (bottom > 0f) {
             val from = size.height - length
             drawRect(
-                Brush.verticalGradient(0f to clear, 1f to color.copy(alpha = color.alpha * bottom), startY = from, endY = size.height),
+                Brush.verticalGradient(0f to clear, 1f to into.copy(alpha = into.alpha * bottom), startY = from, endY = size.height),
                 topLeft = Offset(0f, from),
                 size = edge,
             )
