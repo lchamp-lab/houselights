@@ -69,7 +69,7 @@ import app.houselights.ui.design.components.HlTextField
 import app.houselights.ui.design.components.LandscapeCard
 import app.houselights.ui.design.components.LocalBackdropRelay
 import app.houselights.ui.design.components.MeterInk
-import app.houselights.ui.design.components.MeterLegend
+import app.houselights.ui.design.components.MeterFact
 import app.houselights.ui.design.components.MeterSegment
 import app.houselights.ui.design.components.PanelLevel
 import app.houselights.ui.design.components.PosterCard
@@ -152,9 +152,11 @@ fun CatalogScreen() {
                                 MeterSegment(0.05f, MeterInk.Tertiary),
                             ),
                         )
-                        MeterLegend("Online images", "300 MB", MeterInk.Primary)
-                        MeterLegend("Local images", "100 MB", MeterInk.Secondary)
-                        MeterLegend("Database", "20 MB", MeterInk.Tertiary)
+                        Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.xxl)) {
+                            MeterFact("Image cache", "300 MB", MeterInk.Primary)
+                            MeterFact("Library database", "20 MB", MeterInk.Tertiary)
+                            MeterFact("Local images", "None", MeterInk.Secondary, technical = false, empty = true)
+                        }
                     }
                 }
             }

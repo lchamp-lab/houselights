@@ -60,7 +60,7 @@ class FolderCountsTest {
 
         val counts = dao.observeFolderCounts(uhd).first().associateBy { it.sourceId }
         assertEquals(FolderCounts(films, titles = 3, ultraHd = 1), counts[films])
-        assertEquals(FolderCounts(shows, titles = 1, ultraHd = 2), counts[shows])
+        assertEquals(FolderCounts(shows, titles = 1, ultraHd = 2, shows = 1, episodes = 2), counts[shows])
         assertNull("A folder with nothing in it has no row: its card says 0", counts[empty])
         for (source in listOf(films, shows, empty)) {
             assertEquals(dao.observeTitleCount(source).first(), counts[source]?.titles ?: 0)

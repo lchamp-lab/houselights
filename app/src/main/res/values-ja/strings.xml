@@ -254,8 +254,8 @@
     <string name="welcome_tagline">あなたの映画を、大きなスクリーンで。</string>
     <string name="section_about">アプリ情報</string>
     <string name="section_storage">ストレージ</string>
-    <string name="storage_artwork">コピーしたローカル画像</string>
-    <string name="storage_image_cache">オンライン画像のキャッシュ</string>
+    <string name="storage_artwork">ローカル画像</string>
+    <string name="storage_image_cache">画像キャッシュ</string>
     <string name="storage_database">ライブラリのデータベース</string>
     <string name="storage_none">なし</string>
     <string name="cleanup_now">今すぐクリーンアップ</string>
@@ -277,6 +277,9 @@
     <plurals name="source_local_folders">
         <item quantity="other">NASのフォルダ%d個</item>
     </plurals>
+    <plurals name="folder_count">
+        <item quantity="other">%dフォルダ</item>
+    </plurals>
     <string name="source_jellyfin_other">別のサーバーやアカウント</string>
     <string name="sign_out">ログアウト</string>
     <string name="sign_out_confirm">「%s」からログアウトしますか？</string>
@@ -289,6 +292,21 @@
     <string name="label_address">アドレス</string>
     <string name="label_user">ユーザー</string>
     <string name="label_render">インターフェースの描画</string>
+    <string name="add_folder_row_desc">NASの映画やシリーズ</string>
+    <string name="library_in_folders">%2$sに%1$s</string>
+    <string name="display_desc_player">出力はプレーヤーが設定し、Houselightsがそれに合わせます。</string>
+    <string name="display_desc_system">Houselightsはこのデバイスが設定した出力に従います。</string>
+    <string name="display_interface">インターフェース</string>
+    <string name="storage_desc">Houselightsがこのデバイスに保存しているもの。映画はNASに残ります。</string>
+    <string name="mapping_becomes">%sに変換</string>
+    <string name="add_mapping_desc">サーバーの別のフォルダ用</string>
+    <string name="edit_mapping">変換ルールを編集</string>
+    <string name="trakt_account">アカウント</string>
+    <string name="trakt_watched">視聴済み</string>
+    <string name="trakt_in_progress">視聴中</string>
+    <string name="label_version">バージョン</string>
+    <string name="label_licence">ライセンス</string>
+    <string name="licence_free">%s（フリーソフトウェア）</string>
     <string name="label_modes">利用可能なモード</string>
     <string name="label_device">デバイス</string>
     <string name="label_player">Zidooプレーヤー</string>
@@ -337,7 +355,6 @@
     <string name="tmdb_key_revert">内蔵キーに戻す</string>
     <string name="tmdb_key_revert_desc">お使いのキーを消去します</string>
     <string name="save">保存</string>
-    <string name="saved">保存しました</string>
     <string name="section_playback">再生</string>
     <string name="network_path">ネットワークパス（SMB/NFS）</string>
     <string name="http_stream">HTTPストリーム</string>
@@ -427,7 +444,6 @@
     <string name="error_action_add_tmdb_key">キーを追加</string>
     <string name="error_action_edit_tmdb_key">キーを変更</string>
     <!-- Settings rows -->
-    <string name="nav_version">バージョン%s</string>
     <string name="refresh_metadata_desc">TMDBから画像と作品情報を再取得</string>
     <string name="metadata_language">作品情報の言語</string>
     <string name="metadata_language_desc">TMDBのタイトル、あらすじ、画像</string>
@@ -449,16 +465,15 @@
     <string name="interface_language_desc">メニュー、設定、メッセージ</string>
     <string name="ui_4k_desc">4Kで鮮明なインターフェース</string>
     <string name="ui_system_desc">システムが選択したモード</string>
-    <string name="current_output">現在の出力</string>
+    <string name="current_output">出力</string>
     <string name="display_by_player">プレーヤーで設定</string>
     <string name="output_by_player">プレーヤーで設定</string>
-    <string name="output_by_player_hint">プレーヤーはインターフェースを出力に合わせて拡大縮小します。解像度、フレームレート、HDRは「プレーヤーの設定 &gt; ディスプレイ」で選択します。</string>
-    <string name="storage_used">このデバイスで使用中</string>
-    <string name="storage_cache_limit">オンライン画像は最大%sまで保存され、古いものから削除されます。</string>
+    <string name="output_by_player_hint">変更するには、プレーヤーの設定から「ディスプレイ」へ。</string>
+    <string name="storage_used">このデバイス上</string>
+    <string name="storage_cache_limit">キャッシュ上限 %s</string>
     <string name="storage_full">前回のスキャンは中止されました。このデバイスの空き容量がありません。クリーンアップするか、画像キャッシュを消去すると空き容量を確保できます。</string>
     <string name="cleanup_desc">使われなくなったローカル画像のコピーを削除します</string>
     <string name="clear_cache_desc">画像は必要に応じて再ダウンロードされます</string>
-    <string name="about_free_software">フリーソフトウェア（%sライセンス）</string>
     <string name="about_status">状態</string>
     <string name="detected">検出済み</string>
     <string name="not_detected">未検出</string>
@@ -552,11 +567,10 @@
     <string name="search_sagas">シリーズ</string>
     <string name="search_none">「%s」で始まるものはありません</string>
     <!-- Trakt -->
-    <string name="trakt_desc">Traktアカウントに、フォルダから視聴した内容が記録されます。観た映画とエピソード、そしてどこまで観たか。</string>
+    <string name="trakt_desc">Traktアカウントに、視聴した内容が記録されます。観た映画とエピソード、そしてどこまで観たか。このデバイスでも、ほかのどこでも。</string>
     <string name="trakt_no_keys">このビルドのHouselightsにはTraktのキーがありません。</string>
     <string name="trakt_signed_out">未接続</string>
     <string name="trakt_connected">接続済み</string>
-    <string name="trakt_signed_in_as">%s として接続済み</string>
     <string name="trakt_connect">アカウントを接続</string>
     <string name="trakt_connect_desc">スマートフォンかパソコンでコードを入力します</string>
     <string name="trakt_disconnect">アカウントの接続を解除</string>
@@ -573,13 +587,6 @@
     <string name="trakt_failed">Traktで接続を完了できませんでした。しばらくしてからもう一度お試しください。</string>
     <string name="trakt_ended">Traktがこの接続を終了しました。もう一度アカウントを接続してください。</string>
     <string name="trakt_last_sync">前回の同期</string>
-    <plurals name="trakt_watched_count">
-        <item quantity="other">視聴済み%d件</item>
-    </plurals>
-    <plurals name="trakt_in_progress_count">
-        <item quantity="other">視聴中%d件</item>
-    </plurals>
-    <string name="trakt_counts">%1$s、%2$s</string>
     <string name="trakt_sync_now">今すぐ同期</string>
     <string name="trakt_sync_now_desc">こことTraktで視聴した内容をまとめます</string>
     <string name="trakt_syncing">同期中…</string>

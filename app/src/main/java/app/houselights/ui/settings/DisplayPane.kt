@@ -4,10 +4,7 @@ import android.icu.util.ULocale
 import android.view.Display
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -20,7 +17,6 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.IntSize
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.tv.material3.Text
 import app.houselights.R
 import app.houselights.core.Definition
 import app.houselights.settings.AppSettings
@@ -28,7 +24,6 @@ import app.houselights.settings.DisplayModes
 import app.houselights.settings.InterfaceLanguage
 import app.houselights.settings.OutputControl
 import app.houselights.settings.outputModes
-import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.components.ChoiceOption
@@ -36,7 +31,11 @@ import app.houselights.ui.design.components.HlChoiceSetting
 import app.houselights.ui.design.components.HlChoiceSheet
 import app.houselights.ui.design.components.HlSettingGroup
 import app.houselights.ui.design.components.HlSettingRow
-import app.houselights.ui.design.components.InfoBlock
+import app.houselights.ui.design.components.FactPlate
+import app.houselights.ui.design.components.HlGroup
+import app.houselights.ui.design.components.HlPlate
+import app.houselights.ui.design.components.PlateFact
+import app.houselights.ui.design.components.StatusState
 import app.houselights.ui.design.components.SpecTable
 import app.houselights.ui.design.components.SpecTableRow
 import app.houselights.ui.util.FACT_GAP
@@ -49,22 +48,19 @@ import kotlin.math.abs
 import kotlin.math.roundToInt
 
 /**
- * What the screen receives: current output, render size, the display's modes; then the interface's language, and
- * its Ultra HD row where it applies. Where the player sets its own output (Zidoo), the pane says so and hides the
- * system's stand-in modes.
+ * What the screen receives, stated as a case's back: the current output and the render size; then the display's
+ * modes, and the interface's language with its Ultra HD row where it applies. Where the player sets its own output
+ * (Zidoo), the pane says so and hides the system's stand-in modes.
  */
 internal fun LazyListScope.displayPane(s: AppSettings, rows: PaneRows) {
     item {
         val control = outputControl()
-        Section(stringResource(R.string.section_display)) {
+        val sentence = if (control == OutputControl.Player) R.string.display_desc_player else R.string.display_desc_system
+        Section(stringResource(R.string.section_display), sentence = stringResource(sentence)) {
             Column(verticalArrangement = Arrangement.spacedBy(HlSpace.l)) {
-                when (control) {
-                    OutputControl.Player -> PlayerOutput()
-                    OutputControl.System, OutputControl.Ui4k -> SystemOutput()
-                }
-                RenderBlock()
-                if (control != OutputControl.Player) ModesBlock()
-                HlSettingGroup(null) {
+                OutputFacts(control)
+                if (control != OutputControl.Player) ModesGroup()
+                HlSettingGroup(stringResource(R.string.display_interface)) {
                     // Keyed: changing the language makes the screen again, and focus comes back here.
                     InterfaceLanguageRow(rows.focus("interface_language"))
                     if (control == OutputControl.Ui4k) InterfaceResolution(s)
@@ -73,16 +69,6 @@ internal fun LazyListScope.displayPane(s: AppSettings, rows: PaneRows) {
         }
     }
 }
-
-/** The Affichage value shown under its name: never a mode the app cannot request. */
-@Composable
-internal fun displaySummary(s: AppSettings): String = stringResource(
-    when (outputControl()) {
-        OutputControl.Ui4k -> if (s.ui4k) R.string.ui_4k else R.string.ui_system
-        OutputControl.System -> R.string.ui_system
-        OutputControl.Player -> R.string.display_by_player
-    },
-)
 
 /** Who sets the output on this device, judged from the modes its display lists. */
 @Composable
@@ -152,59 +138,48 @@ private fun InterfaceLanguageRow(modifier: Modifier) {
 private fun interfaceLanguageName(tag: String, locale: Locale = Locale.forLanguageTag(tag)): String =
     ULocale.forLanguageTag(tag).getDisplayNameWithDialect(ULocale.forLocale(locale)).replaceFirstChar { it.titlecase(locale) }
 
-/** Says the player sets its output in its own settings, and where; no mode is shown, as the system's are stand-ins. */
+/**
+ * The output and the render size: set by the player, with where to change it; else the system's mode, its
+ * definition and rate in `spec`, its frame size beside them. The render size is in pixels, not the declared
+ * density: every screen is laid out on the same canvas.
+ */
 @Composable
-private fun PlayerOutput() {
-    InfoBlock(stringResource(R.string.current_output)) {
-        Column {
-            Text(stringResource(R.string.output_by_player), style = Hl.type.meta, color = Hl.colors.content)
-            Spacer(Modifier.height(HlSpace.xs))
-            Hint(stringResource(R.string.output_by_player_hint))
-        }
-    }
-}
-
-/** The current mode: its definition and rate in the spec style, its frame size beside them. */
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun SystemOutput() {
-    val mode = LocalView.current.display?.mode ?: return
-    InfoBlock(stringResource(R.string.current_output)) {
-        // Short of room, the frame size wraps below as a whole, so a number never breaks.
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(HlSpace.fact)) {
-            Text(
-                "${definition(mode.physicalWidth, mode.physicalHeight)} ${hz(mode.refreshRate)}${NBSP}Hz",
-                style = Hl.type.spec,
-                color = Hl.colors.content,
-                softWrap = false,
-                modifier = Modifier.alignByBaseline(),
-            )
-            Text(
-                formatDimensions(mode.physicalWidth, mode.physicalHeight),
-                style = Hl.type.meta,
-                color = Hl.colors.contentSecondary,
-                softWrap = false,
-                modifier = Modifier.alignByBaseline(),
-            )
-        }
-    }
-}
-
-/** The render size in pixels, not the declared density: every screen is laid out on the same canvas. */
-@Composable
-private fun RenderBlock() {
+private fun OutputFacts(control: OutputControl) {
     val view = LocalView.current
     // Read again once laid out: a screen made again with its activity is composed before its window has a size.
     fun rendered() = IntSize(view.rootView.width, view.rootView.height)
     var size by remember { mutableStateOf(rendered()) }
-    InfoBlock(stringResource(R.string.label_render), Modifier.onGloballyPositioned { size = rendered() }) {
-        Text(formatDimensions(size.width, size.height), style = Hl.type.meta, color = Hl.colors.content)
+    val mode = view.display?.mode
+    val player = control == OutputControl.Player
+    FactPlate(
+        Modifier.onGloballyPositioned { size = rendered() },
+        note = if (player) stringResource(R.string.output_by_player_hint) else null,
+    ) {
+        when {
+            player -> PlateFact(
+                stringResource(R.string.current_output),
+                stringResource(R.string.output_by_player),
+                state = StatusState.Done,
+            )
+            mode != null -> PlateFact(
+                stringResource(R.string.current_output),
+                "${definition(mode.physicalWidth, mode.physicalHeight)} ${hz(mode.refreshRate)}${NBSP}Hz",
+                technical = true,
+                measure = formatDimensions(mode.physicalWidth, mode.physicalHeight),
+            )
+        }
+        PlateFact(
+            stringResource(R.string.label_render),
+            definition(size.width, size.height),
+            technical = true,
+            measure = formatDimensions(size.width, size.height),
+        )
     }
 }
 
 /** The display's modes, one row per frame size with its rates (largest first, current one dotted), to stay short. */
 @Composable
-private fun ModesBlock() {
+private fun ModesGroup() {
     val display: Display = LocalView.current.display ?: return
     val current = display.mode
     val rows = display.supportedModes
@@ -221,8 +196,8 @@ private fun ModesBlock() {
                 inUse = size.first == current.physicalWidth && size.second == current.physicalHeight,
             )
         }
-    InfoBlock(stringResource(R.string.label_modes)) {
-        SpecTable(rows, columns = listOf(HlLayout.specFormat))
+    HlGroup(stringResource(R.string.label_modes)) {
+        HlPlate(Modifier.fillMaxWidth()) { SpecTable(rows, columns = listOf(HlLayout.specFormat)) }
     }
 }
 

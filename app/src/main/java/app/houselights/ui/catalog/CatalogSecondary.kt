@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyListScope
@@ -30,9 +31,17 @@ import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.components.AmbientBackdrop
 import app.houselights.ui.design.components.BackdropStyle
 import app.houselights.ui.design.components.FIELD_POSTERS
+import app.houselights.ui.design.components.DefinitionPlate
+import app.houselights.ui.design.components.DeviceCodePlate
 import app.houselights.ui.design.components.FactPlate
 import app.houselights.ui.design.components.GalleryTile
 import app.houselights.ui.design.components.HlButton
+import app.houselights.ui.design.components.HlGroup
+import app.houselights.ui.design.components.HlMeter
+import app.houselights.ui.design.components.JaquetteLine
+import app.houselights.ui.design.components.MeterFact
+import app.houselights.ui.design.components.MeterInk
+import app.houselights.ui.design.components.MeterSegment
 import app.houselights.ui.design.components.HlNavItem
 import app.houselights.ui.design.components.HlPanel
 import app.houselights.ui.design.components.HlPlate
@@ -41,17 +50,22 @@ import app.houselights.ui.design.components.HlSettingRow
 import app.houselights.ui.design.components.HlSideSheet
 import app.houselights.ui.design.components.HlStatus
 import app.houselights.ui.design.components.LocalBackdropRelay
+import app.houselights.ui.design.components.PaneHead
+import app.houselights.ui.design.components.PaneLockup
 import app.houselights.ui.design.components.PanelLevel
+import app.houselights.ui.design.components.PlateDefinition
 import app.houselights.ui.design.components.PlateFact
 import app.houselights.ui.design.components.PosterField
 import app.houselights.ui.design.components.PreviewShape
 import app.houselights.ui.design.components.ScanProgress
 import app.houselights.ui.design.components.Showcase
+import app.houselights.ui.design.components.ShowcaseRow
 import app.houselights.ui.design.components.StatusState
 
 /** The grammar of the secondary screens: the posters' room, its places and groups, showcases, a gallery, sheets. */
 internal fun LazyListScope.catalogSecondary() {
     item { Group("Secondary screens: the library's posters as the room, its places, groups and facts") { SecondaryRoom() } }
+    item { Group("Panes: a head on the screen title's baseline, the lockup, case backs, a meter, a code to type") { SecondaryPanes() } }
     item { Group("Showcase: a folder's posters, full height, melting into glass in their own light") { SecondaryShowcases() } }
     item { Group("Gallery: a title's images at their shape of use, framed with focus") { SecondaryGallery() } }
     item { Group("Sheets: what they do in subject, their plates in the film's light, one wide to read") { SecondarySheets() } }
@@ -108,17 +122,63 @@ private fun SecondaryRoom() {
     }
 }
 
-/** Two folders, one whole and one waiting for posters, and one being read. */
+/** A pane's heads (a count, a state, a sentence; About's lockup), its case backs, the meter that states, a code. */
+@Composable
+private fun SecondaryPanes() {
+    Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.xxl)) {
+        Column(Modifier.width(HlSize.showcase), verticalArrangement = Arrangement.spacedBy(HlSpace.l)) {
+            PaneHead("Bibliothèque", aside = "12 titres dans 2 dossiers")
+            PaneHead("Trakt", aside = "En attente de votre accord", state = StatusState.Pending)
+            PaneHead("Stockage", sentence = stringResource(R.string.storage_desc))
+            PaneHead("Trakt", aside = "Non connecté", state = StatusState.Off, read = stringResource(R.string.trakt_desc))
+            PaneLockup()
+            JaquetteLine(listOf("Version" to "0.1.0", "Licence" to "GPL-3.0, logiciel libre"))
+        }
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(HlSpace.l)) {
+            HlGroup("Générique") {
+                DefinitionPlate {
+                    PlateDefinition("Données des films", note = stringResource(R.string.tmdb_attribution)) {
+                        Text("TMDB", style = Hl.type.spec, color = Hl.colors.content)
+                    }
+                    PlateDefinition("Police") { Text("Archivo, SIL Open Font License", style = Hl.type.lead, color = Hl.colors.content) }
+                }
+            }
+            HlPlate(Modifier.fillMaxWidth()) {
+                HlMeter(
+                    listOf(MeterSegment(0.15f, MeterInk.Primary), MeterSegment(0.01f, MeterInk.Tertiary)),
+                    height = HlSize.meterLarge,
+                )
+                Spacer(Modifier.height(HlSpace.l))
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    MeterFact("Cache des images", "151,5 Mo", MeterInk.Primary)
+                    MeterFact("Base de la bibliothèque", "472 Ko", MeterInk.Tertiary)
+                    MeterFact("Images locales", "Aucune", MeterInk.Secondary, technical = false, empty = true)
+                }
+            }
+            DeviceCodePlate(
+                "B4D7E29A",
+                stringResource(R.string.trakt_code_desc),
+                R.drawable.trakt_qr,
+                "trakt.tv/activate",
+                left = "Ce code expire dans 9 min",
+            )
+        }
+    }
+}
+
+/** Two folders in their row, one whole and one waiting for posters, and one being read. */
 @Composable
 private fun SecondaryShowcases() {
     val art = shippedImage(R.drawable.banner)
     val mark = shippedImage(R.drawable.ic_launcher_foreground)
-    Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m)) {
-        Showcase(
-            "Films", "NFS", listOf(art, mark, art, mark), {},
-            facts = listOf("11 titres", "8 en Ultra HD"), state = "Analysé à l’instant",
-        )
-        Showcase("Séries", "SMB", listOf(mark), {}, facts = listOf("1 série", "10 épisodes"))
+    ShowcaseRow {
+        item {
+            Showcase(
+                "Films", "NFS", listOf(art, mark, art, mark), {},
+                facts = listOf("11 titres", "8 en Ultra HD"), state = "Analysé à l’instant",
+            )
+        }
+        item { Showcase("Séries", "SMB", listOf(mark), {}, facts = listOf("1 série", "10 épisodes")) }
     }
     Showcase(
         "Concerts", "SMB", emptyList(), {},

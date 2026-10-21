@@ -44,7 +44,6 @@ import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlAlpha
 import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlInset
-import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
@@ -326,11 +325,17 @@ internal fun StatusLight(state: StatusState, modifier: Modifier = Modifier, ink:
 }
 
 /**
- * An attention note: the attention light, then [text] in ember; screens never set ember themselves. On a
- * [focused] plate the words take focus's ink and the light stays lit, raspberry.
+ * An attention note: the attention light, then [text] in ember, on [maxLines]; screens never set ember themselves.
+ * On a [focused] plate the words take focus's ink and the light stays lit, raspberry.
  */
 @Composable
-fun AttentionNote(text: String, modifier: Modifier = Modifier, style: TextStyle = Hl.type.caption, focused: Boolean = false) {
+fun AttentionNote(
+    text: String,
+    modifier: Modifier = Modifier,
+    style: TextStyle = Hl.type.caption,
+    focused: Boolean = false,
+    maxLines: Int = Int.MAX_VALUE,
+) {
     Row(modifier) {
         // As tall as the first line, so the light sits beside it.
         val line = with(LocalDensity.current) { style.lineHeight.toDp() }
@@ -338,7 +343,13 @@ fun AttentionNote(text: String, modifier: Modifier = Modifier, style: TextStyle 
             StatusLight(StatusState.Attention, ink = FocusStyle.emberMark(focused))
         }
         Spacer(Modifier.width(HlSpace.xs))
-        Text(text, style = style, color = FocusStyle.ink(focused, rest = Hl.colors.ember))
+        Text(
+            text,
+            style = style,
+            color = FocusStyle.ink(focused, rest = Hl.colors.ember),
+            maxLines = maxLines,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 
@@ -346,7 +357,7 @@ fun AttentionNote(text: String, modifier: Modifier = Modifier, style: TextStyle 
 enum class MeterInk { Primary, Secondary, Tertiary }
 
 @Composable
-private fun MeterInk.color(): Color = when (this) {
+internal fun MeterInk.color(): Color = when (this) {
     MeterInk.Primary -> Hl.colors.content
     MeterInk.Secondary -> Hl.colors.contentSecondary
     MeterInk.Tertiary -> Hl.colors.contentTertiary
@@ -355,14 +366,14 @@ private fun MeterInk.color(): Color = when (this) {
 /** One part of a [HlMeter]. */
 data class MeterSegment(val fraction: Float, val ink: MeterInk)
 
-/** A segmented gauge of how a capacity is shared; the rest of the track is free. */
+/** A segmented gauge of how a capacity is shared, [height] tall ([HlSize.meterLarge] where a pane states it); the rest is free. */
 @Composable
-fun HlMeter(segments: List<MeterSegment>, modifier: Modifier = Modifier) {
+fun HlMeter(segments: List<MeterSegment>, modifier: Modifier = Modifier, height: Dp = HlSize.meter) {
     val c = Hl.colors
     Row(
         modifier
             .fillMaxWidth()
-            .height(HlSize.meter)
+            .height(height)
             .clip(HlShapes.badge)
             .background(c.content.copy(alpha = HlAlpha.FILL_FAINT)),
         horizontalArrangement = Arrangement.spacedBy(HlSize.meterGap),
@@ -373,24 +384,5 @@ fun HlMeter(segments: List<MeterSegment>, modifier: Modifier = Modifier) {
         }
         val free = 1f - segments.sumOf { it.fraction.toDouble() }.toFloat()
         if (free > 0f) Spacer(Modifier.weight(free))
-    }
-}
-
-/** A meter legend line: colour dot, label column, then the value in tabular figures. */
-@Composable
-fun MeterLegend(label: String, value: String, ink: MeterInk, modifier: Modifier = Modifier) {
-    Row(modifier.fillMaxWidth()) {
-        // Dots are the only round things.
-        Box(Modifier.align(Alignment.CenterVertically).size(HlSize.dot).clip(CircleShape).background(ink.color()))
-        Spacer(Modifier.width(HlSpace.s))
-        Text(
-            label,
-            style = Hl.type.caption,
-            color = Hl.colors.contentSecondary,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.width(HlLayout.definitionLabel).alignByBaseline(),
-        )
-        Text(value, style = Hl.type.meta, color = Hl.colors.content, modifier = Modifier.alignByBaseline())
     }
 }
