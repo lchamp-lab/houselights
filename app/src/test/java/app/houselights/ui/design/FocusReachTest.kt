@@ -16,15 +16,23 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.test.assertIsFocused
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.requestFocus
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
+import app.houselights.ui.design.components.HlTwoPane
 import app.houselights.ui.design.components.MediaRow
 import app.houselights.ui.design.components.PosterCard
+import app.houselights.ui.design.components.Showcase
+import app.houselights.ui.design.components.ShowcaseRow
 import app.houselights.ui.testing.TV
 import app.houselights.ui.testing.drawWindow
+import app.houselights.ui.testing.press
 import app.houselights.ui.testing.setTvContent
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -100,6 +108,26 @@ class FocusReachTest {
         assertEquals(HlLayout.CANVAS_WIDTH - 2 * HlSpace.safeH.value, across.value, 0.01f)
     }
 
+    /** A pane's showcases run to the screen's end, the last one brought in with its frame inside the safe area. */
+    @Test
+    fun aShowcaseRowKeepsItsLastFrameInsideTheSafeArea() {
+        compose.setTvContent {
+            HlTwoPane(side = {}) {
+                ShowcaseRow {
+                    items(SHOWCASES) { i ->
+                        Showcase("Dossier $i", "NFS", emptyList(), onClick = {}, modifier = Modifier.testTag("showcase-$i"))
+                    }
+                }
+            }
+        }
+        compose.onNodeWithTag("showcase-0").requestFocus()
+        compose.press(Key.DirectionRight, times = SHOWCASES - 1)
+        val last = compose.onNodeWithTag("showcase-${SHOWCASES - 1}").assertIsFocused()
+        val box = last.getUnclippedBoundsInRoot()
+        // Half a pixel short of it, where a test pixel rounds the frame's reach.
+        assertTrue("$box", box.right + HlFocus.reach <= HlLayout.CANVAS_WIDTH.dp - HlSpace.safeH + HALF_PX)
+    }
+
     @Test
     fun focusStaysClearOfTheFades() {
         // A list keeps focus HlFocus.edge from its ends: past the fade of what scrolls.
@@ -152,6 +180,7 @@ class FocusReachTest {
 
     private companion object {
         const val CARD = "card"
+        const val SHOWCASES = 3
         val ABOVE = 60.dp
         val HALF_PX = 0.5.dp
 

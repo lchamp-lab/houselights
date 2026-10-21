@@ -23,10 +23,10 @@ import androidx.tv.material3.Text
 import app.houselights.R
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlIcons
-import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.TwoPaneDefaults
 import app.houselights.ui.design.components.AttentionNote
 import app.houselights.ui.design.components.CheckMark
 import app.houselights.ui.design.components.ChoiceCheck
@@ -48,9 +48,9 @@ internal fun LazyListScope.catalogIcons() {
 private fun IconSheet() {
     val glyphs = listOf(
         HlIcons.Folder, HlIcons.Server, HlIcons.Display, HlIcons.Playback, HlIcons.Play, HlIcons.Versions, HlIcons.Sort, HlIcons.Filter,
-        HlIcons.Info, HlIcons.Document, HlIcons.Storage, HlIcons.Numbers, HlIcons.Edit, HlIcons.Logo, HlIcons.Search,
-        HlIcons.Check, HlIcons.CheckFilled, HlIcons.Restart, HlIcons.Back, HlIcons.Swap, HlIcons.Settings, HlIcons.Add,
-        HlIcons.Refresh, HlIcons.Test, HlIcons.Close, HlIcons.Heart, HlIcons.HeartFilled, HlIcons.Star,
+        HlIcons.Info, HlIcons.Document, HlIcons.Storage, HlIcons.Numbers, HlIcons.Edit, HlIcons.Search,
+        HlIcons.Check, HlIcons.CheckFilled, HlIcons.Restart, HlIcons.Back, HlIcons.Erase, HlIcons.Swap, HlIcons.Settings, HlIcons.Add,
+        HlIcons.Refresh, HlIcons.Test, HlIcons.Heart, HlIcons.HeartFilled, HlIcons.Star,
         HlIcons.Attention, HlIcons.History,
     )
     Column(verticalArrangement = Arrangement.spacedBy(HlSpace.l)) {
@@ -111,7 +111,7 @@ private fun Marks() {
             Text(stringResource(R.string.identify_automatic), style = Hl.type.meta, color = c.contentSecondary)
         }
     }
-    Specimen("the current choice of a sheet: ember at rest", Modifier.width(HlLayout.sideColumnWide)) {
+    Specimen("the current choice of a sheet: ember at rest", Modifier.width(TwoPaneDefaults.sideWide)) {
         HlSettingRow(
             stringResource(R.string.source_local),
             description = "3 dossiers",
@@ -126,7 +126,7 @@ private fun Marks() {
 private fun Facts() {
     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.xl), verticalAlignment = Alignment.Top) {
         Specimen("a score: the line star, quiet") { Score(8.2) }
-        Specimen("attention, beside what it concerns", Modifier.widthIn(max = HlLayout.sideColumnWide)) {
+        Specimen("attention, beside what it concerns", Modifier.widthIn(max = TwoPaneDefaults.sideWide)) {
             AttentionNote(stringResource(R.string.error_scan_other))
         }
     }

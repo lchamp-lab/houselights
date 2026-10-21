@@ -3,11 +3,13 @@ package app.houselights.ui.design.components
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -20,36 +22,48 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.focused
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.tv.material3.Icon
 import androidx.tv.material3.Text
+import app.houselights.ui.design.Ground
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlAlpha
 import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlInset
-import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
-import app.houselights.ui.design.Ground
+import app.houselights.ui.design.LocalAmbient
 import app.houselights.ui.design.LocalGround
 import app.houselights.ui.design.edge
 import app.houselights.ui.design.emberLight
+import app.houselights.ui.design.glassPlate
 import app.houselights.ui.design.groundStepFill
+import app.houselights.ui.design.plate
+import app.houselights.ui.design.plateEdge
 import app.houselights.ui.design.tryRequestFocus
 
 /** How far a panel stands out from the room. */
@@ -147,7 +161,75 @@ internal fun HlRowSurface(
     ) { lit -> content(lit) }
 }
 
-/** A hairline that separates groups, a rule like an empty frame's. */
+/**
+ * A plate holding a group (DESIGN.md, Secondary screens), [HlShapes.panel] edged by `plateEdge`, read while drawing:
+ * on a field of posters ([PosterField]) its dark, as a plate over a picture; in a sheet the film's [glassPlate]; glass
+ * on the bare room. What it holds lies on glass.
+ */
+@Composable
+fun HlPlate(
+    modifier: Modifier = Modifier,
+    padding: PaddingValues = PaddingValues(HlInset.card),
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    Column(modifier.plate(BorderStroke(HlSize.hairline, Hl.colors.plateEdge)).padding(padding)) {
+        CompositionLocalProvider(LocalGround provides Ground.Glass) { content() }
+    }
+}
+
+/** A group's plate on what it lies on ([HlPlate]), [edge] around it. */
+@Composable
+internal fun Modifier.plate(edge: BorderStroke): Modifier {
+    val c = Hl.colors
+    val inSheet = LocalGround.current == Ground.Glass
+    val onField = LocalRoomField.current != null
+    val light = LocalAmbient.current
+    return drawWithCache {
+        val area = HlShapes.panel.createOutline(size, layoutDirection, this)
+        onDrawBehind {
+            val fill = when {
+                inSheet -> c.glassPlate(light)
+                onField -> c.plate(light)
+                else -> c.glass
+            }
+            drawOutline(area, fill)
+        }
+    }.border(edge, HlShapes.panel)
+}
+
+/**
+ * What is read in a sheet, focused to be read (a technical sheet's block): a group's plate ([HlPlate]) whose
+ * hairline becomes focus's ring ([FocusStyle.ring]); OK does nothing. [readAs] is what it says, else its words.
+ */
+@Composable
+fun ReadingPlate(
+    modifier: Modifier = Modifier,
+    readAs: String? = null,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    var focused by remember { mutableStateOf(false) }
+    val edge = if (focused) FocusStyle.ring() else BorderStroke(HlSize.hairline, Hl.colors.plateEdge)
+    val reading = if (readAs != null) {
+        Modifier.clearAndSetSemantics {
+            contentDescription = readAs
+            this.focused = focused
+        }
+    } else {
+        Modifier.semantics(mergeDescendants = true) {}
+    }
+    Column(
+        modifier
+            .onFocusChanged { focused = it.isFocused }
+            .then(reading)
+            .focusable()
+            .plate(edge)
+            .padding(start = HlInset.reading, end = HlInset.reading, top = HlSpace.m, bottom = HlInset.plate),
+    ) {
+        CompositionLocalProvider(LocalGround provides Ground.Glass) { content() }
+    }
+}
+
+/** A hairline between a menu's sections or a panel's parts; never between a pane's or a sheet's groups. */
 @Composable
 fun HlDivider(modifier: Modifier = Modifier, vertical: Boolean = false) {
     val color = Hl.colors.contentDecorative
@@ -158,27 +240,37 @@ fun HlDivider(modifier: Modifier = Modifier, vertical: Boolean = false) {
     }
 }
 
-/** Facts on one line, space-separated ("2026   2 h 02   12"); those that do not fit drop whole from the end. */
+/**
+ * Facts on one line, space-separated ("2026   2 h 02   12"); those that do not fit drop whole from the end. [lead]
+ * inks the first, the name the line is about.
+ */
 @Composable
 fun FactRow(
     facts: List<String?>,
     modifier: Modifier = Modifier,
     style: TextStyle = Hl.type.meta,
     color: Color = Hl.colors.contentSecondary,
+    lead: Color = color,
 ) {
     OneLine(modifier) {
-        facts.filterNotNull().filter { it.isNotBlank() }.forEach {
-            Text(it, style = style, color = color, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        facts.filterNotNull().filter { it.isNotBlank() }.forEachIndexed { i, fact ->
+            Text(fact, style = style, color = if (i == 0) lead else color, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
     }
 }
 
-/** Printed [badges] (a protocol), then [facts], on one line a fact's space apart. */
+/** Printed [badges] (a protocol), then [facts], the first inked [lead], on one line [gap] apart (a fact's space). */
 @Composable
-internal fun BadgedFactRow(badges: List<String>, facts: List<String?>, modifier: Modifier = Modifier) {
-    Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(HlSpace.fact)) {
+internal fun BadgedFactRow(
+    badges: List<String>,
+    facts: List<String?>,
+    modifier: Modifier = Modifier,
+    lead: Color = Hl.colors.contentSecondary,
+    gap: Dp = HlSpace.fact,
+) {
+    Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(gap)) {
         badges.forEach { Badge(it) }
-        if (facts.any { !it.isNullOrBlank() }) FactRow(facts, Modifier.weight(1f, fill = false))
+        if (facts.any { !it.isNullOrBlank() }) FactRow(facts, Modifier.weight(1f, fill = false), lead = lead)
     }
 }
 
@@ -230,14 +322,24 @@ fun HlEmptyState(
 }
 
 /**
- * The state of something the app depends on: [On] in use or chosen (ember), [Done] an established fact
- * (white), [Off] absent, [Pending] in progress, [Attention] something went wrong.
+ * The state of something the app depends on, said by a dot of projector white: [On] active (connected, in use)
+ * and [Done] an established fact, the dot; [Off] absent, its ring; [Pending] in progress, a quiet dot;
+ * [Attention] something went wrong, its circled mark in ember.
  */
 enum class StatusState { On, Done, Off, Pending, Attention }
 
-/** A state in words with its light ([StatusLight]); [detail] explains why, below and aligned with the words. */
+/**
+ * A state in words with its light ([StatusLight]); [detail] explains why, below and aligned with the words, in
+ * [detailStyle] (`meta` in a pane or a sheet).
+ */
 @Composable
-fun HlStatus(state: StatusState, text: String, modifier: Modifier = Modifier, detail: String? = null) {
+fun HlStatus(
+    state: StatusState,
+    text: String,
+    modifier: Modifier = Modifier,
+    detail: String? = null,
+    detailStyle: TextStyle = Hl.type.caption,
+) {
     val c = Hl.colors
     Column(modifier) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -250,7 +352,7 @@ fun HlStatus(state: StatusState, text: String, modifier: Modifier = Modifier, de
             Spacer(Modifier.height(HlSpace.xxs))
             Text(
                 detail,
-                style = Hl.type.caption,
+                style = detailStyle,
                 color = c.contentSecondary,
                 modifier = Modifier.padding(start = HlSize.statusLight + HlSpace.xs),
             )
@@ -259,8 +361,8 @@ fun HlStatus(state: StatusState, text: String, modifier: Modifier = Modifier, de
 }
 
 /**
- * The light of a [StatusState] in a fixed-width box: dots for on, done and pending, a ring for off, and a
- * circled exclamation mark for attention, so it differs from on without colour. [ink] overrides colours.
+ * The light of a [StatusState] in a fixed-width box: the white dot for on and done, a quiet one for pending, a
+ * ring for off, and a circled exclamation mark in ember for attention. [ink] overrides colours.
  */
 @Composable
 internal fun StatusLight(state: StatusState, modifier: Modifier = Modifier, ink: Color? = null) {
@@ -274,21 +376,26 @@ internal fun StatusLight(state: StatusState, modifier: Modifier = Modifier, ink:
         val dot = Modifier.size(HlSize.dot).clip(CircleShape)
         Box(
             when (state) {
-                StatusState.On -> dot.background(ink ?: c.ember)
-                StatusState.Done -> dot.background(ink ?: c.content)
+                StatusState.On, StatusState.Done -> dot.background(ink ?: c.content)
                 StatusState.Pending -> dot.background(ink ?: c.contentTertiary)
-                else -> dot.border(HlSize.hairline, ink ?: c.contentTertiary, CircleShape)
+                else -> dot.border(HlSize.dotRing, ink ?: c.contentSecondary, CircleShape)
             }
         )
     }
 }
 
 /**
- * An attention note: the attention light, then [text] in ember; screens never set ember themselves. On a
- * [focused] plate the words take focus's ink and the light stays lit, raspberry.
+ * An attention note: the attention light, then [text] in ember, on [maxLines], in `meta` as a pane's words are;
+ * screens never set ember themselves. On a [focused] plate the words take focus's ink and the light stays lit, raspberry.
  */
 @Composable
-fun AttentionNote(text: String, modifier: Modifier = Modifier, style: TextStyle = Hl.type.caption, focused: Boolean = false) {
+fun AttentionNote(
+    text: String,
+    modifier: Modifier = Modifier,
+    style: TextStyle = Hl.type.meta,
+    focused: Boolean = false,
+    maxLines: Int = Int.MAX_VALUE,
+) {
     Row(modifier) {
         // As tall as the first line, so the light sits beside it.
         val line = with(LocalDensity.current) { style.lineHeight.toDp() }
@@ -296,7 +403,13 @@ fun AttentionNote(text: String, modifier: Modifier = Modifier, style: TextStyle 
             StatusLight(StatusState.Attention, ink = FocusStyle.emberMark(focused))
         }
         Spacer(Modifier.width(HlSpace.xs))
-        Text(text, style = style, color = FocusStyle.ink(focused, rest = Hl.colors.ember))
+        Text(
+            text,
+            style = style,
+            color = FocusStyle.ink(focused, rest = Hl.colors.ember),
+            maxLines = maxLines,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 
@@ -304,7 +417,7 @@ fun AttentionNote(text: String, modifier: Modifier = Modifier, style: TextStyle 
 enum class MeterInk { Primary, Secondary, Tertiary }
 
 @Composable
-private fun MeterInk.color(): Color = when (this) {
+internal fun MeterInk.color(): Color = when (this) {
     MeterInk.Primary -> Hl.colors.content
     MeterInk.Secondary -> Hl.colors.contentSecondary
     MeterInk.Tertiary -> Hl.colors.contentTertiary
@@ -313,14 +426,14 @@ private fun MeterInk.color(): Color = when (this) {
 /** One part of a [HlMeter]. */
 data class MeterSegment(val fraction: Float, val ink: MeterInk)
 
-/** A segmented gauge of how a capacity is shared; the rest of the track is free. */
+/** A segmented gauge of how a capacity is shared, [height] tall ([HlSize.meterLarge] where a pane states it); the rest is free. */
 @Composable
-fun HlMeter(segments: List<MeterSegment>, modifier: Modifier = Modifier) {
+fun HlMeter(segments: List<MeterSegment>, modifier: Modifier = Modifier, height: Dp = HlSize.meter) {
     val c = Hl.colors
     Row(
         modifier
             .fillMaxWidth()
-            .height(HlSize.meter)
+            .height(height)
             .clip(HlShapes.badge)
             .background(c.content.copy(alpha = HlAlpha.FILL_FAINT)),
         horizontalArrangement = Arrangement.spacedBy(HlSize.meterGap),
@@ -331,24 +444,5 @@ fun HlMeter(segments: List<MeterSegment>, modifier: Modifier = Modifier) {
         }
         val free = 1f - segments.sumOf { it.fraction.toDouble() }.toFloat()
         if (free > 0f) Spacer(Modifier.weight(free))
-    }
-}
-
-/** A meter legend line: colour dot, label column, then the value in tabular figures. */
-@Composable
-fun MeterLegend(label: String, value: String, ink: MeterInk, modifier: Modifier = Modifier) {
-    Row(modifier.fillMaxWidth()) {
-        // Dots are the only round things.
-        Box(Modifier.align(Alignment.CenterVertically).size(HlSize.dot).clip(CircleShape).background(ink.color()))
-        Spacer(Modifier.width(HlSpace.s))
-        Text(
-            label,
-            style = Hl.type.caption,
-            color = Hl.colors.contentSecondary,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.width(HlLayout.definitionLabel).alignByBaseline(),
-        )
-        Text(value, style = Hl.type.meta, color = Hl.colors.content, modifier = Modifier.alignByBaseline())
     }
 }

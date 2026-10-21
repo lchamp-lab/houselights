@@ -13,21 +13,29 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
-/** About shows the device and its player as playback decides; one state per test, as first composed. */
+/** About states the device, its player as playback decides and its control API; one state per test, as first composed. */
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = "fr-$TV")
 class AboutDeviceTest {
     @get:Rule
     val compose = createComposeRule()
 
-    private fun show(player: PlayerStatus) = compose.setTvContent { Column { DeviceRows("ZIDOO Z9X Pro", player) } }
+    private fun show(player: PlayerStatus, api: Boolean? = true) =
+        compose.setTvContent { Column { DeviceFacts("ZIDOO Z9X Pro", player, api) } }
 
     @Test
-    fun aTrustedPlayerIsDetectedWithItsPackage() {
+    fun aTrustedPlayerIsDetected() {
         show(PlayerStatus.Detected("com.zidoo.player"))
         compose.onNodeWithText("ZIDOO Z9X Pro").assertExists()
         compose.onNodeWithText("Détecté").assertExists()
-        compose.onNodeWithText("com.zidoo.player").assertExists()
+        compose.onNodeWithText("En ligne").assertExists()
+        compose.onNodeWithText("com.zidoo.player").assertDoesNotExist()
+    }
+
+    @Test
+    fun anApiBeingAskedSaysSo() {
+        show(PlayerStatus.NotDetected, api = null)
+        compose.onNodeWithText("Vérification…").assertExists()
     }
 
     @Test

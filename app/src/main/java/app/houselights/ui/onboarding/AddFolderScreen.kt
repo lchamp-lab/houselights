@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -21,6 +22,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.tv.material3.Text
 import app.houselights.R
+import app.houselights.core.ImageRef
 import app.houselights.providers.local.Protocol
 import app.houselights.providers.local.SourceKind
 import app.houselights.ui.design.Hl
@@ -35,6 +37,7 @@ import app.houselights.ui.design.components.StatusPanel
 import app.houselights.ui.design.components.StatusState
 import app.houselights.ui.design.tryRequestFocus
 import app.houselights.ui.util.appContainer
+import app.houselights.ui.util.roomPosters
 import app.houselights.ui.util.scanErrorText
 import app.houselights.ui.util.sourceKindName
 
@@ -47,12 +50,17 @@ private val KINDS = listOf(SourceKind.MOVIES, SourceKind.SHOWS)
 fun AddFolderScreen(folderId: Long?, focusOn: FolderField = FolderField.FIRST, onDone: (switched: Boolean) -> Unit) {
     val app = appContainer()
     val vm: AddFolderViewModel = viewModel(factory = AddFolderViewModel.factory(app, folderId))
-    AddFolderForm(vm, focusOn, onDone)
+    AddFolderForm(vm, focusOn, roomPosters(), onDone)
 }
 
-/** The form of [vm], focus starting on [focusOn], with the folder's connection status beside it. */
+/** The form of [vm], focus starting on [focusOn], with the folder's connection status beside it, on [room]'s posters. */
 @Composable
-internal fun AddFolderForm(vm: AddFolderViewModel, focusOn: FolderField, onDone: (switched: Boolean) -> Unit) {
+internal fun AddFolderForm(
+    vm: AddFolderViewModel,
+    focusOn: FolderField,
+    room: List<ImageRef> = emptyList(),
+    onDone: (switched: Boolean) -> Unit,
+) {
     val form = vm.form
     val focus = remember { FormFocus() }
     // Wait until an edited folder is read, so its fields are laid out (the password only for SMB).
@@ -87,15 +95,17 @@ internal fun AddFolderForm(vm: AddFolderViewModel, focusOn: FolderField, onDone:
             Spacer(Modifier.height(HlSpace.l))
             Text(
                 stringResource(if (protocol == Protocol.NFS) R.string.nfs_hint else R.string.smb_hint),
-                style = Hl.type.caption,
+                style = Hl.type.meta,
                 color = Hl.colors.contentSecondary,
             )
         },
+        room = room,
     ) {
-        Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.xl)) {
+        // The choices over the fields' columns, a little further from them than the fields from each other.
+        Row(Modifier.padding(bottom = HlSpace.xs), horizontalArrangement = Arrangement.spacedBy(HlSpace.m)) {
             // An edited folder keeps its kind (its titles stay): the panel beside shows it.
             if (!vm.edits) {
-                Column {
+                Column(Modifier.weight(1f)) {
                     FieldLabel(stringResource(R.string.folder_kind))
                     HlSegmented(
                         KINDS.map { sourceKindName(it) },
@@ -105,7 +115,7 @@ internal fun AddFolderForm(vm: AddFolderViewModel, focusOn: FolderField, onDone:
                     )
                 }
             }
-            Column {
+            Column(Modifier.weight(1f)) {
                 FieldLabel(stringResource(R.string.field_protocol))
                 HlSegmented(
                     PROTOCOLS.map { it.name },
@@ -120,7 +130,7 @@ internal fun AddFolderForm(vm: AddFolderViewModel, focusOn: FolderField, onDone:
             Modifier.focusRequester(focus.host),
             placeholder = stringResource(R.string.placeholder_host), keyboardType = KeyboardType.Uri,
         )
-        Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.s)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m)) {
             HlTextField(
                 stringResource(if (protocol == Protocol.NFS) R.string.field_export else R.string.field_share),
                 form.share, { v -> vm.edit { copy(share = v) } },
@@ -131,10 +141,11 @@ internal fun AddFolderForm(vm: AddFolderViewModel, focusOn: FolderField, onDone:
                 stringResource(R.string.field_path), form.path, { v -> vm.edit { copy(path = v) } },
                 placeholder = stringResource(pathExample(kind)),
                 modifier = Modifier.weight(1f),
+                optional = true,
             )
         }
         if (protocol == Protocol.SMB) {
-            Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.s)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m)) {
                 HlTextField(
                     stringResource(R.string.field_user), form.user, { v -> vm.edit { copy(user = v) } },
                     modifier = Modifier.weight(1f).focusRequester(focus.user),
@@ -158,7 +169,7 @@ private fun FolderActions(vm: AddFolderViewModel, onDone: (switched: Boolean) ->
     var adding by remember { mutableStateOf(false) }
     val checking = stringResource(R.string.checking)
     val busy = vm.busy
-    Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.s)) {
+    Row(Modifier.padding(top = HlSpace.xs), horizontalArrangement = Arrangement.spacedBy(HlSpace.s)) {
         HlButton(
             stringResource(if (vm.edits) R.string.save else R.string.add),
             {

@@ -1,7 +1,8 @@
 package app.houselights.ui.edit
 
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -12,16 +13,19 @@ import app.houselights.R
 import app.houselights.core.ArtworkKind
 import app.houselights.core.MediaItem
 import app.houselights.ui.design.HlIcons
+import app.houselights.ui.design.HlLayout
+import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
-import app.houselights.ui.design.components.HlDivider
-import app.houselights.ui.design.components.HlSideSheet
+import app.houselights.ui.design.components.Gallery
+import app.houselights.ui.design.components.GalleryTile
+import app.houselights.ui.design.components.HlSettingGroup
 import app.houselights.ui.design.components.HlSettingRow
-import app.houselights.ui.design.components.RowPreview
+import app.houselights.ui.design.components.HlSideSheet
 import app.houselights.ui.design.components.PreviewShape
 
 /**
- * A title's edit side sheet: its poster, backdrop and logo, each with a preview of the current one,
- * then its match. Choosing a row opens its screen directly.
+ * A title's edit side sheet: its poster, backdrop and logo as a gallery, each image at its shape of use, then its
+ * match on a plate. Choosing an image opens its screen directly.
  */
 @Composable
 fun EditMenu(
@@ -37,34 +41,40 @@ fun EditMenu(
         facts = listOf(item.title, item.year?.toString()),
         initialFocus = first,
     ) {
-        HlSettingRow(
-            stringResource(R.string.artwork_poster),
-            Modifier.focusRequester(first),
-            description = stringResource(R.string.artwork_poster_desc),
-            onClick = { onArtwork(ArtworkKind.POSTER) },
-            leading = { RowPreview(item.poster, PreviewShape.Poster) },
-        )
-        HlSettingRow(
-            stringResource(R.string.artwork_backdrop),
-            description = stringResource(R.string.artwork_backdrop_desc),
-            onClick = { onArtwork(ArtworkKind.BACKDROP) },
-            leading = { RowPreview(item.backdrop, PreviewShape.Backdrop) },
-        )
-        HlSettingRow(
-            stringResource(R.string.artwork_logo),
-            description = stringResource(R.string.artwork_logo_desc),
-            onClick = { onArtwork(ArtworkKind.LOGO) },
-            leading = { RowPreview(item.logo, PreviewShape.Logo, icon = HlIcons.Logo) },
-        )
-        // Set apart from the artwork: the title's match.
-        Spacer(Modifier.height(HlSpace.s))
-        HlDivider()
-        Spacer(Modifier.height(HlSpace.s))
-        HlSettingRow(
-            stringResource(R.string.identify),
-            description = stringResource(R.string.identify_menu_desc),
-            onClick = onIdentify,
-            leading = { RowPreview(null, PreviewShape.Backdrop, icon = HlIcons.Search) },
-        )
+        // Its names a group's room (HlSpace.l) above the plate under it.
+        Gallery(Modifier.padding(bottom = HlSpace.xs)) {
+            GalleryTile(
+                item.poster,
+                PreviewShape.Poster,
+                stringResource(R.string.artwork_poster),
+                onClick = { onArtwork(ArtworkKind.POSTER) },
+                width = HlLayout.posterChoice,
+                modifier = Modifier.focusRequester(first),
+            )
+            Column(verticalArrangement = Arrangement.spacedBy(HlSpace.m)) {
+                GalleryTile(
+                    item.backdrop,
+                    PreviewShape.Backdrop,
+                    stringResource(R.string.artwork_backdrop),
+                    onClick = { onArtwork(ArtworkKind.BACKDROP) },
+                    width = HlSize.galleryWide,
+                )
+                GalleryTile(
+                    item.logo,
+                    PreviewShape.Logo,
+                    stringResource(R.string.artwork_logo),
+                    onClick = { onArtwork(ArtworkKind.LOGO) },
+                    width = HlSize.galleryWide,
+                )
+            }
+        }
+        HlSettingGroup(null) {
+            HlSettingRow(
+                stringResource(R.string.identify),
+                description = stringResource(R.string.identify_menu_desc),
+                icon = HlIcons.Search,
+                onClick = onIdentify,
+            )
+        }
     }
 }

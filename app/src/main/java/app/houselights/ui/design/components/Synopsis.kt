@@ -2,7 +2,10 @@ package app.houselights.ui.design.components
 
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.animateScrollBy
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.paddingFromBaseline
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -30,6 +33,7 @@ import app.houselights.R
 import app.houselights.core.MediaItem
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlInset
+import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlSpace
 import kotlinx.coroutines.launch
 
@@ -69,38 +73,49 @@ fun HeadOverview(text: String, onOpen: () -> Unit, modifier: Modifier = Modifier
 /** Lines of the overview a title's head shows. */
 const val HEAD_OVERVIEW_LINES = 3
 
-/** The whole overview in a side sheet, focused; down and up scroll it [READING_STEP] lines per press. */
+/**
+ * The whole overview in a reading sheet ([HlSideSheet] `wide`), its tagline in `title` over it, its text in `read` at
+ * the reading measure; the text is focused, down and up scroll it [READING_STEP] lines per press.
+ */
 @Composable
 fun SynopsisSheet(item: MediaItem, onDismiss: () -> Unit) {
+    val c = Hl.colors
     val words = remember { FocusRequester() }
     val scroll = rememberScrollState()
     val scope = rememberCoroutineScope()
-    val step = with(LocalDensity.current) { Hl.type.body.lineHeight.toPx() * READING_STEP }
+    val step = with(LocalDensity.current) { Hl.type.read.lineHeight.toPx() * READING_STEP }
     HlSideSheet(
         stringResource(R.string.synopsis),
         onDismiss = onDismiss,
-        facts = listOf(item.title, item.year?.toString()),
-        artwork = item.poster?.let { poster -> { PosterThumb(poster, width = null) } },
+        facts = listOf(item.title, item.year?.toString(), item.directors.firstOrNull()),
         initialFocus = words,
         scroll = scroll,
+        wide = true,
     ) { _ ->
-        Text(
-            item.overview.orEmpty(),
-            style = Hl.type.body,
-            color = Hl.colors.contentSecondary,
-            modifier = Modifier
-                .focusRequester(words)
-                .onPreviewKeyEvent { e ->
-                    val by = when (e.key) {
-                        Key.DirectionDown -> step
-                        Key.DirectionUp -> -step
-                        else -> return@onPreviewKeyEvent false
+        Column(Modifier.widthIn(max = HlLayout.readable)) {
+            // The tagline as far under the head as over the text, from its baseline.
+            item.tagline?.takeIf { it.isNotBlank() }?.let {
+                val apart = HlSpace.l + HlSpace.xxs
+                Text(it, style = Hl.type.title, color = c.content, modifier = Modifier.paddingFromBaseline(top = apart, bottom = apart))
+            }
+            Text(
+                item.overview.orEmpty(),
+                style = Hl.type.read,
+                color = c.contentSecondary,
+                modifier = Modifier
+                    .focusRequester(words)
+                    .onPreviewKeyEvent { e ->
+                        val by = when (e.key) {
+                            Key.DirectionDown -> step
+                            Key.DirectionUp -> -step
+                            else -> return@onPreviewKeyEvent false
+                        }
+                        if (e.type == KeyEventType.KeyDown) scope.launch { scroll.animateScrollBy(by) }
+                        true
                     }
-                    if (e.type == KeyEventType.KeyDown) scope.launch { scroll.animateScrollBy(by) }
-                    true
-                }
-                .focusable(),
-        )
+                    .focusable(),
+            )
+        }
     }
 }
 

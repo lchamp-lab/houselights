@@ -235,18 +235,20 @@ internal class SettingsViewModel(
 
     private var mappingsEdited = false
 
-    /** True once the mappings have been saved, until the next edit. */
-    var mappingsSaved by mutableStateOf(false)
-        private set
-
-    fun editMapping(index: Int, mapping: PathMapping) {
-        _mappings[index] = mapping
+    /**
+     * Saves [mapping] at line [index], or as a new line when null, kept only once both paths are given: a line whose
+     * paths are emptied goes.
+     */
+    fun putMapping(index: Int?, mapping: PathMapping) {
+        val incomplete = mapping.from.isBlank() || mapping.to.isBlank()
+        when {
+            index == null -> if (incomplete) return else _mappings += mapping
+            _mappings.getOrNull(index) == mapping -> return
+            incomplete -> _mappings.removeAt(index)
+            else -> _mappings[index] = mapping
+        }
         mappingsEdited = true
-        mappingsSaved = false
-    }
-
-    fun addMapping() {
-        _mappings += PathMapping("", "")
+        saveMappings()
     }
 
     fun removeMapping(index: Int) {
@@ -255,15 +257,12 @@ internal class SettingsViewModel(
         saveMappings()
     }
 
-    /** Saves the complete lines on leaving a field, not while typing, so a half-typed path never plays. */
-    fun saveMappings() {
+    /** Saves the complete lines as the sheet closes, not while typing, so a half-typed path never plays. */
+    private fun saveMappings() {
         if (!mappingsEdited) return
         mappingsEdited = false
         val complete = completeMappings()
-        change("Saving the path mappings", SettingAction.PATH_MAPPINGS) {
-            store.setPathMappings(complete)
-            mappingsSaved = true
-        }
+        change("Saving the path mappings", SettingAction.PATH_MAPPINGS) { store.setPathMappings(complete) }
     }
 
     private fun completeMappings() = _mappings.filter { it.from.isNotBlank() && it.to.isNotBlank() }

@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentHeight
@@ -46,6 +47,7 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.error
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -62,10 +64,10 @@ import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.emberLight
 
 /**
- * A text field for the remote: a glass plate edged by a hairline, the keyboard on OK ([KeyHint]); focus
- * rings it in white, and while typing the ring is the ember light and the cursor raspberry. [label] is
- * always read out, even when [showLabel] is false. Below, [error] or else [supporting]; [placeholder] is an
- * example ("Ex. : 192.168.1.10").
+ * A text field for the remote, [HlSize.field] tall: a glass plate edged by a hairline, the keyboard on OK ([KeyHint]);
+ * focus rings it in white, and while typing the ring is the ember light and the cursor raspberry. Its [label] in
+ * white over it, followed by "(optional)" in grey when [optional], is always read out, even when [showLabel] is
+ * false. Below, [error] or else [supporting]; [placeholder] is an example ("Ex. : 192.168.1.10").
  */
 @Composable
 fun HlTextField(
@@ -81,19 +83,21 @@ fun HlTextField(
     keyboardType: KeyboardType = KeyboardType.Text,
     imeAction: ImeAction = ImeAction.Next,
     onImeAction: () -> Unit = {},
+    optional: Boolean = false,
 ) {
     require(label.isNotBlank()) { "A field needs a name, if only for accessibility services" }
+    val named = if (optional) stringResource(R.string.field_optional, label) else label
     Column(modifier) {
         if (showLabel) {
             // Read out with the field itself, not twice.
-            Text(label, style = Hl.type.caption, color = Hl.colors.contentSecondary, modifier = Modifier.clearAndSetSemantics {})
-            Spacer(Modifier.height(HlSpace.xs))
+            FieldName(label, named, Modifier.clearAndSetSemantics {})
+            Spacer(Modifier.height(HlSpace.s))
         }
         FieldBox(
             value,
             onValueChange,
             Modifier.semantics {
-                contentDescription = label
+                contentDescription = named
                 if (error != null) error(error)
             },
             placeholder,
@@ -130,8 +134,8 @@ private fun FieldBox(
     val shape = HlShapes.field
     val c = Hl.colors
 
-    // One body line tall: empty, it would take the platform font's taller line height.
-    val textStyle = Hl.type.body.copy(color = c.content)
+    // One line tall: empty, it would take the platform font's taller line height.
+    val textStyle = Hl.type.read.copy(color = c.content)
     val measurer = rememberTextMeasurer()
     val density = LocalDensity.current
     val lineHeight = remember(textStyle, density) {
@@ -148,6 +152,7 @@ private fun FieldBox(
     Box(
         modifier
             .fillMaxWidth()
+            .heightIn(min = HlSize.field)
             .focusRequester(boxFocus)
             .onFocusChanged { boxFocused = it.isFocused }
             .openOnOk(waiting = !editing) { editing = true }
@@ -156,6 +161,7 @@ private fun FieldBox(
             .background(c.glass)
             .border(fieldEdge(editing, boxFocused), shape)
             .padding(horizontal = HlSpace.m, vertical = HlSpace.s),
+        contentAlignment = Alignment.CenterStart,
     ) {
         BasicTextField(
             value = value,
@@ -243,7 +249,7 @@ private fun fieldEdge(editing: Boolean, focused: Boolean): BorderStroke {
 @Composable
 private fun Placeholder(text: String, shown: Boolean) {
     if (shown && text.isNotEmpty()) {
-        Text(text, style = Hl.type.body, color = Hl.colors.contentTertiary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(text, style = Hl.type.read, color = Hl.colors.contentTertiary, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 
@@ -253,7 +259,7 @@ internal fun KeyHint(modifier: Modifier = Modifier) {
     Row(modifier, verticalAlignment = Alignment.CenterVertically) {
         Badge(stringResource(R.string.key_ok))
         Spacer(Modifier.width(HlSpace.xs))
-        Text(stringResource(R.string.key_hint_type), style = Hl.type.caption, color = Hl.colors.contentTertiary, maxLines = 1)
+        Text(stringResource(R.string.key_hint_type), style = Hl.type.meta, color = Hl.colors.contentTertiary, maxLines = 1)
     }
 }
 
@@ -265,6 +271,25 @@ private fun FieldMessage(error: String?, supporting: String?) {
     if (error != null) {
         AttentionNote(error)
     } else if (supporting != null) {
-        Text(supporting, style = Hl.type.caption, color = Hl.colors.contentSecondary)
+        Text(supporting, style = Hl.type.meta, color = Hl.colors.contentSecondary)
     }
+}
+
+/** A field's name in white, then what [named] adds to it ("(facultatif)") in grey: a name, then a remark. */
+@Composable
+private fun FieldName(label: String, named: String, modifier: Modifier) {
+    val c = Hl.colors
+    val t = Hl.type
+    val text = remember(label, named, c, t) {
+        val at = named.indexOf(label)
+        buildAnnotatedString {
+            append(named)
+            if (at >= 0 && named.length > label.length) {
+                val remark = t.meta.toSpanStyle().copy(color = c.contentSecondary)
+                if (at > 0) addStyle(remark, 0, at)
+                if (at + label.length < named.length) addStyle(remark, at + label.length, named.length)
+            }
+        }
+    }
+    Text(text, style = t.entry, color = c.content, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = modifier)
 }

@@ -112,18 +112,21 @@
     <string name="key_ok">OK</string>
     <string name="key_hint_type">입력</string>
     <string name="nfo_title">NFO 파일</string>
-    <string name="nfo_desc">미디어 관리 프로그램이 작성한 이 작품의 정보입니다. 여기에 담긴 정보가 TMDB보다 우선합니다.</string>
+    <string name="nfo_desc">미디어 관리 프로그램이 작성한 정보로, TMDB보다 우선합니다.</string>
     <string name="nfo_tab_info">정보</string>
     <string name="nfo_tab_xml">XML</string>
     <string name="nfo_state_full">전체 정보</string>
     <string name="nfo_state_link">링크만</string>
     <string name="nfo_state_unreadable">읽을 수 없음</string>
     <string name="nfo_state_reading">여는 중…</string>
-    <string name="nfo_block_details">세부 정보</string>
     <string name="label_file">파일</string>
     <string name="nfo_unreadable">이 NFO는 XML로 읽을 수 없습니다.</string>
     <string name="nfo_link_only">이 NFO에는 작품 페이지 링크만 있습니다. Houselights는 이 링크로 작품을 식별합니다.</string>
     <string name="label_title">제목</string>
+    <string name="label_original_title">원제</string>
+    <string name="label_episode">에피소드</string>
+    <string name="label_certification">관람 등급</string>
+    <string name="label_rating">평점</string>
     <string name="label_year">연도</string>
     <string name="placeholder_year">2025</string>
     <string name="label_genres">장르</string>
@@ -152,6 +155,7 @@
     <string name="tech_container">컨테이너</string>
     <string name="tech_file">파일</string>
     <string name="tech_size">크기</string>
+    <string name="tech_file_fact">%1$s, %2$s</string>
     <string name="tech_bitrate">평균 비트레이트</string>
     <string name="tech_duration">재생 시간</string>
     <string name="bit_depth">%d비트</string>
@@ -188,10 +192,11 @@
     <string name="field_protocol">프로토콜</string>
     <string name="field_host">NAS 주소</string>
     <string name="field_export">NFS 익스포트</string>
-    <string name="nfs_hint">NFS는 비밀번호가 필요 없습니다. NAS가 이 기기의 IP 주소를 신뢰합니다. NAS에서 이 IP를 허용하고(읽기 전용으로 충분합니다), 비특권 포트(1024보다 높은 포트)의 연결을 허용하세요.</string>
+    <string name="nfs_hint">비밀번호가 필요 없습니다. NAS에서 이 기기의 주소를 읽기 전용으로, 비특권 포트의 연결까지 허용하세요.</string>
     <string name="smb_hint">비밀번호는 이 기기에 저장되어 Zidoo 플레이어로 전달됩니다. 읽기 권한만 있는 별도 계정을 권장합니다.</string>
     <string name="field_share">공유 폴더</string>
-    <string name="field_path">폴더(선택 사항)</string>
+    <string name="field_path">폴더</string>
+    <string name="field_optional">%1$s(선택 사항)</string>
     <string name="field_user">사용자 이름</string>
     <string name="field_password">비밀번호</string>
     <string name="placeholder_host">예: 192.168.1.10</string>
@@ -204,6 +209,7 @@
     <string name="placeholder_path_shows">예: shows</string>
     <string name="test_connection">테스트</string>
     <string name="connection_untested">연결 테스트 전</string>
+    <string name="server_found">서버를 찾았습니다</string>
     <string name="connection_testing">연결 중…</string>
     <string name="connection_ok">연결됨</string>
     <string name="connection_failed">연결할 수 없음</string>
@@ -252,8 +258,8 @@
     <string name="welcome_tagline">내 영화를 큰 화면에서.</string>
     <string name="section_about">앱 정보</string>
     <string name="section_storage">저장 공간</string>
-    <string name="storage_artwork">복사한 로컬 이미지</string>
-    <string name="storage_image_cache">온라인 이미지 캐시</string>
+    <string name="storage_artwork">로컬 이미지</string>
+    <string name="storage_image_cache">이미지 캐시</string>
     <string name="storage_database">라이브러리 데이터베이스</string>
     <string name="storage_none">없음</string>
     <string name="cleanup_now">지금 정리</string>
@@ -267,13 +273,16 @@
     </plurals>
     <string name="playback_desc">Zidoo 플레이어가 서버의 파일에 접근하는 방식입니다.</string>
     <string name="tmdb_desc">포스터와 작품 정보는 TMDB에서 가져옵니다.</string>
-    <string name="change_source_local_desc">폴더는 그대로 유지되므로 언제든 다시 돌아올 수 있습니다.</string>
-    <string name="change_source_jellyfin_desc">새 소스가 준비될 때까지 이 서버는 연결된 상태로 유지됩니다.</string>
+    <string name="change_source_local_desc">폴더는 그대로 유지됩니다</string>
+    <string name="change_source_jellyfin_desc">전환할 때까지 연결이 유지됩니다</string>
     <string name="change_source">소스 변경</string>
     <string name="reconnect">다시 로그인</string>
     <string name="source_local_first">NAS에서 폴더를 추가하세요</string>
     <plurals name="source_local_folders">
         <item quantity="other">NAS 폴더 %d개</item>
+    </plurals>
+    <plurals name="folder_count">
+        <item quantity="other">폴더 %d개</item>
     </plurals>
     <string name="source_jellyfin_other">다른 서버 또는 다른 계정</string>
     <string name="sign_out">로그아웃</string>
@@ -287,6 +296,21 @@
     <string name="label_address">주소</string>
     <string name="label_user">사용자</string>
     <string name="label_render">인터페이스 렌더링</string>
+    <string name="add_folder_row_desc">NAS의 영화 또는 시리즈</string>
+    <string name="library_in_folders">%2$s에 %1$s</string>
+    <string name="display_desc_player">출력은 플레이어가 정하고, Houselights는 그에 맞춥니다.</string>
+    <string name="display_desc_system">Houselights는 이 기기가 설정한 출력을 따릅니다.</string>
+    <string name="display_interface">인터페이스</string>
+    <string name="storage_desc">Houselights가 이 기기에 보관하는 항목입니다. 영화는 NAS에 그대로 있습니다.</string>
+    <string name="mapping_becomes">%s로 변환</string>
+    <string name="add_mapping_desc">서버의 다른 폴더용</string>
+    <string name="edit_mapping">매핑 편집</string>
+    <string name="trakt_account">계정</string>
+    <string name="trakt_watched">시청함</string>
+    <string name="trakt_in_progress">보는 중</string>
+    <string name="label_version">버전</string>
+    <string name="label_licence">라이선스</string>
+    <string name="licence_free">%s, 자유 소프트웨어</string>
     <string name="label_modes">사용 가능한 모드</string>
     <string name="label_device">기기</string>
     <string name="label_player">Zidoo 플레이어</string>
@@ -335,7 +359,6 @@
     <string name="tmdb_key_revert">내장 키로 되돌리기</string>
     <string name="tmdb_key_revert_desc">입력한 키를 지웁니다</string>
     <string name="save">저장</string>
-    <string name="saved">저장됨</string>
     <string name="section_playback">재생</string>
     <string name="network_path">네트워크 경로(SMB/NFS)</string>
     <string name="http_stream">HTTP 스트림</string>
@@ -355,11 +378,8 @@
     <string name="billing_and">및</string>
     <string name="edit">편집</string>
     <string name="artwork_poster">포스터</string>
-    <string name="artwork_poster_desc">목록과 라이브러리</string>
     <string name="artwork_backdrop">배경 이미지</string>
-    <string name="artwork_backdrop_desc">이 페이지와 홈 화면</string>
     <string name="artwork_logo">로고</string>
-    <string name="artwork_logo_desc">상단에 그려진 제목</string>
     <string name="identify">식별</string>
     <string name="identify_menu_desc">다른 TMDB 작품과 매칭</string>
     <plurals name="image_count">
@@ -425,7 +445,6 @@
     <string name="error_action_add_tmdb_key">키 추가</string>
     <string name="error_action_edit_tmdb_key">키 변경</string>
     <!-- Settings rows -->
-    <string name="nav_version">버전 %s</string>
     <string name="refresh_metadata_desc">TMDB에서 이미지와 작품 정보를 다시 가져옵니다</string>
     <string name="metadata_language">작품 정보 언어</string>
     <string name="metadata_language_desc">TMDB의 제목, 줄거리, 이미지</string>
@@ -442,21 +461,19 @@
     <string name="tmdb_missing_short">없음</string>
     <string name="change_source_row">소스</string>
     <string name="ui_resolution">인터페이스 해상도</string>
-    <string name="ui_resolution_desc">재생 중에는 Zidoo 플레이어가 자체적으로 모드를 선택합니다.</string>
+    <string name="ui_resolution_desc">재생 중에는 플레이어의 모드</string>
     <string name="interface_language">인터페이스 언어</string>
     <string name="interface_language_desc">메뉴, 설정, 메시지</string>
     <string name="ui_4k_desc">4K TV에서 선명한 인터페이스</string>
     <string name="ui_system_desc">시스템이 선택한 모드</string>
-    <string name="current_output">현재 출력</string>
-    <string name="display_by_player">플레이어에서 설정</string>
+    <string name="current_output">출력</string>
     <string name="output_by_player">플레이어에서 설정</string>
-    <string name="output_by_player_hint">플레이어는 인터페이스를 출력에 맞게 조정합니다. 해상도, 프레임 레이트, HDR은 플레이어 설정 &gt; 디스플레이에서 선택합니다.</string>
-    <string name="storage_used">이 기기에서 사용 중</string>
-    <string name="storage_cache_limit">온라인 이미지는 최대 %s까지 보관되며, 오래된 것부터 삭제됩니다.</string>
+    <string name="output_by_player_hint">변경하려면 플레이어 설정에서 디스플레이로 이동하세요.</string>
+    <string name="storage_used">이 기기에서</string>
+    <string name="storage_cache_limit">캐시 최대 %s</string>
     <string name="storage_full">지난 스캔이 중단되었습니다. 이 기기에 남은 공간이 없습니다. 정리하거나 이미지 캐시를 삭제하면 공간을 확보할 수 있습니다.</string>
     <string name="cleanup_desc">더 이상 사용하지 않는 로컬 이미지 사본을 삭제합니다</string>
     <string name="clear_cache_desc">이미지는 필요할 때 다시 다운로드됩니다</string>
-    <string name="about_free_software">자유 소프트웨어, %s 라이선스</string>
     <string name="about_status">상태</string>
     <string name="detected">감지됨</string>
     <string name="not_detected">감지되지 않음</string>
@@ -542,7 +559,7 @@
     <string name="edition_anniversary">기념판</string>
     <string name="edition_open_matte">오픈 매트</string>
     <!-- Search -->
-    <string name="search_hint">작품, 인물, 시리즈 이름의 첫 글자</string>
+    <string name="search_hint">작품, 인물 또는 시리즈</string>
     <string name="search_space">띄어쓰기</string>
     <string name="search_delete">지우기</string>
     <string name="search_titles">작품</string>
@@ -550,11 +567,10 @@
     <string name="search_sagas">시리즈</string>
     <string name="search_none">시작 부분이 ‘%s’인 항목이 없습니다</string>
     <!-- Trakt -->
-    <string name="trakt_desc">Trakt 계정에 폴더에서 시청한 내용이 기록됩니다. 본 영화와 에피소드, 그리고 어디까지 봤는지.</string>
+    <string name="trakt_desc">Trakt 계정에 시청한 내용이 기록됩니다. 본 영화와 에피소드, 그리고 어디까지 봤는지. 이 기기에서도, 다른 어디에서도.</string>
     <string name="trakt_no_keys">이 버전의 Houselights에는 Trakt 키가 없습니다.</string>
     <string name="trakt_signed_out">연결 안 됨</string>
     <string name="trakt_connected">연결됨</string>
-    <string name="trakt_signed_in_as">%s(으)로 연결됨</string>
     <string name="trakt_connect">계정 연결</string>
     <string name="trakt_connect_desc">휴대폰이나 컴퓨터에서 코드를 입력합니다</string>
     <string name="trakt_disconnect">계정 연결 해제</string>
@@ -571,13 +587,6 @@
     <string name="trakt_failed">Trakt에서 연결을 완료하지 못했습니다. 잠시 후 다시 시도하세요.</string>
     <string name="trakt_ended">Trakt에서 이 연결을 종료했습니다. 계정을 다시 연결하세요.</string>
     <string name="trakt_last_sync">마지막 동기화</string>
-    <plurals name="trakt_watched_count">
-        <item quantity="other">시청 완료 %d개</item>
-    </plurals>
-    <plurals name="trakt_in_progress_count">
-        <item quantity="other">시청 중 %d개</item>
-    </plurals>
-    <string name="trakt_counts">%1$s, %2$s</string>
     <string name="trakt_sync_now">지금 동기화</string>
     <string name="trakt_sync_now_desc">여기와 Trakt에서 시청한 내용을 합칩니다</string>
     <string name="trakt_syncing">동기화 중…</string>

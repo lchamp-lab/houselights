@@ -1,5 +1,7 @@
 package app.houselights.ui.catalog
 
+import app.houselights.ui.design.HeroDefaults
+import app.houselights.ui.design.TwoPaneDefaults
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -7,17 +9,15 @@ import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyListScope
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import androidx.tv.material3.Text
 import app.houselights.R
 import app.houselights.core.AudioTrack
 import app.houselights.core.Codecs
@@ -30,15 +30,14 @@ import app.houselights.core.SubtitleTrack
 import app.houselights.core.VideoInfo
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlLayout
+import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.components.Badge
 import app.houselights.ui.design.components.FormatLines
 import app.houselights.ui.design.components.BillingBlock
-import app.houselights.ui.design.components.DefinitionList
 import app.houselights.ui.design.components.EpisodeHeading
 import app.houselights.ui.design.components.HeroInfo
 import app.houselights.ui.design.components.HlButton
-import app.houselights.ui.design.components.InfoBlock
 import app.houselights.ui.design.components.MetaLine
 import app.houselights.ui.design.components.TechSpecs
 import app.houselights.ui.design.components.TitleArt
@@ -56,6 +55,8 @@ import app.houselights.ui.design.components.VersionsSheet
 import app.houselights.ui.util.versionName
 import app.houselights.ui.design.components.SearchQuery
 import app.houselights.ui.design.components.LetterGrid
+import app.houselights.ui.design.components.ResultName
+import app.houselights.ui.design.components.ResultsHeading
 import androidx.compose.foundation.layout.fillMaxWidth
 
 /** What a title says about itself (name, facts, credits, sheets), without artwork, at the widths screens give. */
@@ -71,8 +72,6 @@ internal fun LazyListScope.catalogReading() {
     item { ReadingHeroInfoSection() }
     item { ReadingHeroEpisodeSection() }
     item { ReadingHeroLongTitleSection() }
-    item { ReadingInfoBlockSection() }
-    item { ReadingDefinitionListSection() }
     item { ReadingTechSheetSection() }
     item { ReadingSynopsisSection() }
     item { ReadingVersionsSection() }
@@ -122,8 +121,8 @@ private fun ReadingTitleArtSection() {
                 TitleArt(
                     title = "Twin Peaks",
                     logo = null,
-                    maxWidth = HlLayout.heroTitleWidth,
-                    maxHeight = HlLayout.heroTitleHeight,
+                    maxWidth = HeroDefaults.titleWidth,
+                    maxHeight = HeroDefaults.titleHeight,
                     style = Hl.type.headline,
                 )
             }
@@ -168,7 +167,7 @@ private fun ReadingMetaLineSection() {
         }
         ReadingRow {
             Specimen("series, ended", Modifier.width(HlLayout.readableNarrow), gap = HlSpace.xxs) { MetaLine(READING_SERIES_ENDED) }
-            Specimen("series, ended, in a side column", Modifier.width(HlLayout.sideColumn), gap = HlSpace.xxs) {
+            Specimen("series, ended, in a side column", Modifier.width(TwoPaneDefaults.side), gap = HlSpace.xxs) {
                 MetaLine(READING_SERIES_ENDED)
             }
         }
@@ -184,12 +183,12 @@ private fun ReadingMetaLineSection() {
             Specimen("long genres: the last goes whole", Modifier.width(HlLayout.readableNarrow), gap = HlSpace.xxs) {
                 MetaLine(READING_LONG_GENRES)
             }
-            Specimen("in a side column: genres, then the score, go", Modifier.width(HlLayout.sideColumn), gap = HlSpace.xxs) {
+            Specimen("in a side column: genres, then the score, go", Modifier.width(TwoPaneDefaults.side), gap = HlSpace.xxs) {
                 MetaLine(READING_LONG_GENRES)
             }
         }
         ReadingRow {
-            Specimen("narrower still: down to the year", Modifier.width(HlLayout.definitionLabelShort), gap = HlSpace.xxs) {
+            Specimen("narrower still: down to the year", Modifier.width(HlSize.poster), gap = HlSpace.xxs) {
                 MetaLine(READING_FILM)
             }
         }
@@ -224,7 +223,7 @@ private fun ReadingBadgeRowSection() {
             ) {
                 FormatLines(READING_TECH_FULL)
             }
-            Specimen("a lean file", Modifier.width(HlLayout.sideColumn), gap = HlSpace.xxs) { FormatLines(READING_TECH_LEAN) }
+            Specimen("a lean file", Modifier.width(TwoPaneDefaults.side), gap = HlSpace.xxs) { FormatLines(READING_TECH_LEAN) }
         }
         ReadingRow {
             Specimen(
@@ -234,7 +233,7 @@ private fun ReadingBadgeRowSection() {
             ) {
                 FormatLines(sample("Le Samouraï", 1967).copy(badges = listOf("4K", "Dolby Vision", "HDR10", "Atmos", "TrueHD", "7.1")))
             }
-            Specimen("Dolby Digital Plus for E-AC3; a remux is not a format", Modifier.width(HlLayout.sideColumn), gap = HlSpace.xxs) {
+            Specimen("Dolby Digital Plus for E-AC3; a remux is not a format", Modifier.width(TwoPaneDefaults.side), gap = HlSpace.xxs) {
                 FormatLines(sample("Playtime", 1967).copy(badges = listOf("1080p", "E-AC3", "5.1", "Remux")))
             }
         }
@@ -277,7 +276,7 @@ private fun ReadingBillingBlockSection() {
             Specimen("long names: the last leads drop", Modifier.width(HlLayout.readableNarrow), gap = HlSpace.xxs) {
                 BillingBlock(READING_LONG_DIRECTOR, READING_LONG_CAST)
             }
-            Specimen("the same in a side column", Modifier.width(HlLayout.sideColumn), gap = HlSpace.xxs) {
+            Specimen("the same in a side column", Modifier.width(TwoPaneDefaults.side), gap = HlSpace.xxs) {
                 BillingBlock(READING_LONG_DIRECTOR, READING_LONG_CAST)
             }
         }
@@ -336,90 +335,6 @@ private fun ReadingHeroLongTitleSection() {
 }
 
 @Composable
-private fun ReadingInfoBlockSection() {
-    Group("Info block", still = true) {
-        ReadingRow {
-            Specimen("a paragraph", Modifier.weight(1f), gap = HlSpace.xxs) {
-                InfoBlock(stringResource(R.string.label_plot)) {
-                    Column(Modifier.widthIn(max = HlLayout.readable)) {
-                        Text(
-                            "Il n’y a pas de plus profonde solitude que celle du samouraï.",
-                            style = Hl.type.title, color = Hl.colors.content,
-                        )
-                        Spacer(Modifier.height(HlSpace.xs))
-                        Text(READING_PLOT, style = Hl.type.body, color = Hl.colors.contentSecondary)
-                    }
-                }
-            }
-            Specimen("a definition list", Modifier.weight(1f), gap = HlSpace.xxs) {
-                InfoBlock(stringResource(R.string.nfo_block_details)) {
-                    DefinitionList(
-                        listOf(
-                            stringResource(R.string.label_genres) to "Policier, Drame, Thriller",
-                            stringResource(R.string.label_studios) to "Filmel, CICC, Fida Cinematografica",
-                            "Pays" to "France, Italie",
-                        ),
-                        labelWidth = HlLayout.definitionLabelShort,
-                    )
-                }
-            }
-        }
-        ReadingRow {
-            Specimen("badges", Modifier.weight(1f), gap = HlSpace.xxs) {
-                InfoBlock(stringResource(R.string.label_ids)) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.xs)) {
-                        Badge("TMDB 5511")
-                        Badge("IMDb tt0062229")
-                    }
-                }
-            }
-            Specimen("no content", Modifier.weight(1f), gap = HlSpace.xxs) { InfoBlock(stringResource(R.string.label_cast)) {} }
-        }
-    }
-}
-
-@Composable
-private fun ReadingDefinitionListSection() {
-    Group("Definition list", still = true) {
-        ReadingRow {
-            Specimen("default label column", Modifier.weight(1f), gap = HlSpace.xxs) {
-                DefinitionList(
-                    listOf(
-                        stringResource(R.string.tech_container) to "Matroska",
-                        stringResource(R.string.tech_size) to "61,8${NBSP}Go",
-                        stringResource(R.string.tech_bitrate) to "78,5${NBSP}Mb/s",
-                        stringResource(R.string.tech_duration) to "1${NBSP}h${NBSP}45",
-                    ),
-                )
-            }
-            Specimen("short label column, a value that wraps", Modifier.weight(1f), gap = HlSpace.xxs) {
-                DefinitionList(
-                    listOf(
-                        stringResource(R.string.label_studios) to
-                            "Filmel, Compagnie industrielle et commerciale cinématographique, Fida Cinematografica",
-                        stringResource(R.string.label_genres) to "Policier, Drame, Thriller",
-                    ),
-                    labelWidth = HlLayout.definitionLabelShort,
-                )
-            }
-        }
-        ReadingRow {
-            Specimen("labels longer than their column: the value on their first line", Modifier.weight(1f), gap = HlSpace.xxs) {
-                DefinitionList(
-                    listOf(
-                        "Fréquence d’images" to "23,976${NBSP}im/s",
-                        "Profondeur de couleur" to "10${NBSP}bits",
-                        stringResource(R.string.tech_aspect_ratio) to "2,39:1",
-                    ),
-                    labelWidth = HlLayout.definitionLabelShort,
-                )
-            }
-            Specimen("no rows: draws nothing", Modifier.weight(1f), gap = HlSpace.xxs) { DefinitionList(emptyList()) }
-        }
-    }
-}
-
-@Composable
 private fun ReadingTechSheetSection() {
     // Opened as a detail page opens it: the same panel, its first row focused.
     Group("Technical sheet") {
@@ -452,8 +367,8 @@ private fun ReadingTechSheetSection() {
 
 @Composable
 private fun ReadingSearchSection() {
-    Group("Search: its title, the field its keys always type in, its keys") {
-        val hint = "Les premières lettres d’un titre, d’une personne ou d’une saga"
+    Group("Search: its title, the field its keys always type in, its keys, its rows of results") {
+        val hint = stringResource(R.string.search_hint)
         ReadingRow {
             Specimen("nothing typed: the cursor waits, the hint says what", Modifier.width(HlLayout.readableNarrow), gap = HlSpace.xxs) {
                 SearchQuery("", hint, Modifier.fillMaxWidth())
@@ -466,7 +381,18 @@ private fun ReadingSearchSection() {
             SearchQuery("LES PARAPLUIES DE CHERBOURG RESTAURÉ", hint, Modifier.fillMaxWidth())
         }
         Spacer(Modifier.height(HlSpace.l))
-        Specimen("the keys, without the system's keyboard", gap = HlSpace.xxs) { LetterGrid(onKey = {}, onSpace = {}, onDelete = {}) }
+        ReadingRow {
+            Specimen("the keys, without the system's keyboard: tiles in the picture's dark, no edge", gap = HlSpace.xxs) {
+                LetterGrid(onKey = {}, onSpace = {}, onDelete = {})
+            }
+            Specimen("a row's title and count, the result in light under it", Modifier.width(HlLayout.readableNarrow), gap = HlSpace.xs) {
+                Column(verticalArrangement = Arrangement.spacedBy(HlSpace.s)) {
+                    ResultsHeading(stringResource(R.string.search_titles), 2)
+                    ResultName(sample("Les Parapluies de Cherbourg", 1964))
+                    ResultName(sample("Un titre bien trop long pour la ligne qui le nomme sous sa rangée", 2026))
+                }
+            }
+        }
     }
 }
 
@@ -526,10 +452,6 @@ private fun ReadingRow(content: @Composable RowScope.() -> Unit) {
 
 /** A logo whose image never loads. */
 private val READING_BROKEN_LOGO = ImageRef("catalog-broken-logo") { "file:///nonexistent/logo.png" }
-
-private const val READING_PLOT =
-    "Jef Costello, tueur à gages méthodique, se ménage un alibi parfait avant d’abattre le patron d’une boîte de nuit. " +
-        "Mais une pianiste l’a vu sortir du bureau, et la police comme ses commanditaires se lancent à sa poursuite."
 
 private val READING_FILM = sample("Le Samouraï", 1967).copy(
     runtimeMs = 6_300_000,

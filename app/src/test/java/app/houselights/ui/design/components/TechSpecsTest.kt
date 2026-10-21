@@ -1,28 +1,27 @@
 package app.houselights.ui.design.components
 
+import android.view.KeyEvent
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.semantics.getOrNull
+import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
+import androidx.compose.ui.test.isFocused
 import androidx.compose.ui.test.junit4.createComposeRule
-import androidx.compose.ui.test.onAllNodesWithContentDescription
-import androidx.compose.ui.test.onAllNodesWithText
-import androidx.compose.ui.test.onNodeWithContentDescription
-import androidx.compose.ui.test.onNodeWithText
-import androidx.compose.foundation.layout.width
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.test.onNodeWithTag
-import androidx.compose.ui.unit.dp
-import androidx.tv.material3.Text
 import app.houselights.core.AudioTrack
 import app.houselights.core.BaseRange
 import app.houselights.core.Codecs
+import app.houselights.core.HdrFormat
 import app.houselights.core.MediaInfo
 import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
 import app.houselights.core.SubtitleTrack
 import app.houselights.core.TechValue
 import app.houselights.core.VideoInfo
+import app.houselights.ui.design.HlSpace
 import app.houselights.ui.testing.TV
+import app.houselights.ui.testing.pressInSheet
 import app.houselights.ui.testing.setTvContent
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -31,11 +30,11 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
-import org.robolectric.annotation.GraphicsMode
 
 /**
- * The technical sheet: a fact read whole, its words in the voice of their kind, set from the row's end and whole;
- * the crew after the picture and the sound, three names a craft, and no crew without a name.
+ * The technical sheet, read block by block: the picture as marks, each measured under it; the crew after the
+ * picture and the sound, three names a craft, none without a name; a block taller than the sheet read through
+ * before focus leaves it.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = TV)
@@ -52,6 +51,8 @@ class TechSpecsTest {
             video = VideoInfo(codec = Codecs.HEVC, width = 1920, height = 804, bitDepth = 10),
             audio = listOf(AudioTrack(codec = Codecs.EAC3, channels = 6, language = "kor", default = true)),
             subtitles = listOf(SubtitleTrack(language = "fre", format = Codecs.SRT, default = true)),
+            container = "MKV",
+            sizeBytes = 9_310_000_000,
         ),
     )
 
@@ -60,23 +61,42 @@ class TechSpecsTest {
         Craft("Musique", emptyList()),
     )
 
+    /** The block read first as [name]. */
+    private fun block(name: String) = SemanticsMatcher("the $name block") {
+        it.config.getOrNull(SemanticsProperties.ContentDescription)?.firstOrNull()?.startsWith("$name, ") == true
+    }
+
+    /** What reads exactly as [words]. */
+    private fun read(words: String) = SemanticsMatcher.expectValue(SemanticsProperties.ContentDescription, listOf(words))
+
+    private fun top(name: String) = compose.onNode(block(name)).getUnclippedBoundsInRoot().top
+
     @Test
     fun theCreditsFollowThePictureAndTheSound() {
         compose.setTvContent { TechSpecs(film, onDismiss = {}, crafts = crafts) }
-        // A fact reads as its label, its word as on a case's back, then what qualifies it.
-        compose.onNodeWithContentDescription("Resolution, Full HD, 1920\u00A0×\u00A0804").assertExists()
-        compose.onNodeWithContentDescription("Image, Boris Kaufman, Louis Berger, Jean-Paul Alphen").assertExists()
-        compose.onAllNodesWithContentDescription("Musique", substring = true).assertCountEquals(0)
-        fun top(name: String) = compose.onNodeWithText(name).getUnclippedBoundsInRoot().top
+        // A mark reads as its format, then what measures it.
+        compose.onNode(block("Video")).assertExists()
+        compose.onAllNodes(read("Video, Full HD, 1920 × 804, 2.39:1, SDR, HEVC, 10-bit"))
+            .assertCountEquals(1)
+        compose.onAllNodes(read("Crew, Image, Boris Kaufman, Louis Berger, Jean-Paul Alphen"))
+            .assertCountEquals(1)
         assertTrue("the crew after the sound", top("Audio") < top("Crew"))
         assertTrue("subtitles after the crew", top("Crew") < top("Subtitles"))
     }
 
     @Test
+    fun theFileIsAFactOfTheHead() {
+        compose.setTvContent { TechSpecs(film, onDismiss = {}) }
+        compose.onAllNodes(SemanticsMatcher("MKV, 8.67 GB") { node ->
+            node.config.getOrNull(SemanticsProperties.Text)?.any { it.text.startsWith("MKV, ") } == true
+        }).assertCountEquals(1)
+    }
+
+    @Test
     fun noCraftNamedNoCrew() {
         compose.setTvContent { TechSpecs(film, onDismiss = {}, crafts = listOf(Craft("Musique", emptyList()))) }
-        compose.onAllNodesWithText("Crew").assertCountEquals(0)
-        compose.onNodeWithText("Video").assertExists()
+        compose.onAllNodes(block("Crew")).assertCountEquals(0)
+        compose.onNode(block("Video")).assertExists()
     }
 
     /** Formats as on a case's back, measures and what qualifies them alike, a video's bitrate as an audio track's. */
@@ -95,35 +115,51 @@ class TechSpecsTest {
         measures.forEach { assertEquals("$it", Voice.Measure, it.voice) }
     }
 
+    /** Dolby Vision and HDR10+ make one mark, its profile and the other range under it, the ratio under the definition. */
     @Test
-    // Real fonts, so words measure as on the device.
-    @GraphicsMode(GraphicsMode.Mode.NATIVE)
-    fun wordsAreSetFromTheEndAndWhole() {
-        compose.setTvContent {
-            EndWords(Modifier.width(WORDS).testTag("words")) {
-                Text("Ultra HD", Modifier.testTag("format"))
-                Text("3840 × 1608", Modifier.testTag("size"))
-                Text("Dolby TrueHD Atmos", Modifier.testTag("next"))
+    fun aFactLedByAFormatStartsAMark() {
+        val video = VideoInfo(
+            codec = Codecs.HEVC, width = 3840, height = 1608, bitDepth = 10,
+            hdr = listOf(HdrFormat.DOLBY_VISION, HdrFormat.HDR10_PLUS), dolbyVisionProfile = 8, dolbyVisionCompatibility = 1,
+        )
+        compose.setTvContent { TechSpecs(film.copy(media = MediaInfo(video = video)), onDismiss = {}) }
+        val read = compose.onNode(block("Video")).fetchSemanticsNode().config[SemanticsProperties.ContentDescription].first()
+        val order = listOf("Ultra HD", "3840", "2.39:1", "Dolby Vision", "profile 8.1", "HDR10+", "HEVC", "10-bit")
+        assertEquals(read, order, order.sortedBy { read.indexOf(it) })
+        assertTrue(read, order.all { it in read })
+    }
+
+    @Test
+    fun aBlockTallerThanTheSheetIsReadThrough() {
+        val many = (1..SUBTITLES).map { SubtitleTrack(language = "fre", format = Codecs.SRT, title = "Piste $it") }
+        compose.setTvContent { TechSpecs(film.copy(media = film.media!!.copy(subtitles = many)), onDismiss = {}) }
+        // Down from the picture to the subtitles, then through them.
+        repeat(2) { compose.pressInSheet(KeyEvent.KEYCODE_DPAD_DOWN) }
+        compose.onNode(block("Subtitles")).assertIsFocused()
+        var presses = 0
+        while (compose.onAllNodes(block("Subtitles") and isFocused()).fetchSemanticsNodes().isNotEmpty() && presses < SUBTITLES) {
+            val bottom = compose.onNode(block("Subtitles")).getUnclippedBoundsInRoot().bottom
+            compose.pressInSheet(KeyEvent.KEYCODE_DPAD_DOWN)
+            presses++
+            if (compose.onAllNodes(block("File") and isFocused()).fetchSemanticsNodes().isNotEmpty()) {
+                assertTrue("its foot was shown before focus left: $bottom", bottom.value <= SCREEN - HlSpace.safeV.value)
             }
         }
-        fun bounds(tag: String) = compose.onNodeWithTag(tag).getUnclippedBoundsInRoot()
-        val words = bounds("words")
-        assertEquals("the line ends at the row's end", words.right.value, bounds("size").right.value, 0.5f)
-        assertTrue("a word that does not fit starts the next line", bounds("next").top >= bounds("format").bottom)
-        assertEquals("whole, from the end", words.right.value, bounds("next").right.value, 0.5f)
-        assertEquals("on one baseline", bounds("format").top.value, bounds("size").top.value, 0.5f)
+        assertTrue("several presses read it: $presses", presses > 1)
+        compose.onNode(block("File")).assertIsFocused()
     }
 
     @Test
     fun aTitleWithCreditsAndNoFileShowsItsCredits() {
         val show = film.copy(kind = MediaKind.SERIES, media = null)
         compose.setTvContent { TechSpecs(show, onDismiss = {}, crafts = listOf(Craft("Musique", listOf("Daniel Pemberton")))) }
-        compose.onNodeWithContentDescription("Musique, Daniel Pemberton").assertExists()
-        compose.onAllNodesWithText("Video").assertCountEquals(0)
+        compose.onAllNodes(read("Crew, Musique, Daniel Pemberton"))
+            .assertCountEquals(1)
+        compose.onAllNodes(block("Video")).assertCountEquals(0)
     }
 
     private companion object {
-        /** Room for two words a fact's space apart, not three. */
-        val WORDS = 280.dp
+        const val SUBTITLES = 30
+        const val SCREEN = 540f
     }
 }

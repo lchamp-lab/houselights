@@ -43,8 +43,8 @@ data class StoredPassword(val id: Long, val password: String) {
     override fun toString() = "StoredPassword($id, ***)"
 }
 
-/** Counts shown on a source's settings card: titles (films and shows) and Ultra HD files. */
-data class FolderCounts(val sourceId: Long, val titles: Int, val ultraHd: Int)
+/** Counts shown on a source's settings showcase: titles (films and shows), Ultra HD files, shows and their episodes. */
+data class FolderCounts(val sourceId: Long, val titles: Int, val ultraHd: Int, val shows: Int = 0, val episodes: Int = 0)
 
 /** A credit of a title, with the number of library titles crediting that person ([LibraryDao.creditsOf]). */
 data class TitleCredit(
@@ -341,13 +341,21 @@ interface LibraryDao {
     )
     fun observePosters(sourceId: Long, limit: Int): Flow<List<String>>
 
+    @Query(
+        "SELECT COALESCE(NULLIF(userPosterPath, ''), posterPath) FROM items " +
+            "WHERE kind IN ('MOVIE','SERIES') " +
+            "AND COALESCE(NULLIF(userPosterPath, ''), posterPath) IS NOT NULL ORDER BY addedAt DESC LIMIT :limit"
+    )
+    fun observeAllPosters(limit: Int): Flow<List<String>>
+
     @Query("SELECT COUNT(*) FROM items WHERE sourceId = :sourceId AND filePath IS NOT NULL AND ${PipeList.BADGES_MATCH}")
     fun observeDefinitionCount(sourceId: Long, token: String): Flow<Int>
 
-    /** Both counts above for every source in one query, as each Flow query reruns on every write to items. */
+    /** The counts above, and shows and episodes, for every source in one query, as each Flow query reruns on every write to items. */
     @Query(
         "SELECT sourceId, SUM(kind IN ('MOVIE','SERIES')) AS titles, " +
-            "SUM(filePath IS NOT NULL AND ${PipeList.BADGES_MATCH}) AS ultraHd " +
+            "SUM(filePath IS NOT NULL AND ${PipeList.BADGES_MATCH}) AS ultraHd, " +
+            "SUM(kind = 'SERIES') AS shows, SUM(kind = 'EPISODE') AS episodes " +
             "FROM items GROUP BY sourceId"
     )
     fun observeFolderCounts(token: String): Flow<List<FolderCounts>>

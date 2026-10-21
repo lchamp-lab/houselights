@@ -7,6 +7,7 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import androidx.test.core.app.ApplicationProvider
 import app.houselights.R
+import app.houselights.core.PathMapping
 import app.houselights.core.Secrets
 import app.houselights.providers.local.ArtworkCache
 import app.houselights.providers.local.FakeRemoteBrowser
@@ -251,5 +252,15 @@ class SettingsViewModelTest {
         assertEquals(R.string.settings_lost_trakt, lostSecretNote(Pane.Trakt, lost))
         assertNull(lostSecretNote(Pane.Display, lost))
         assertNull(lostSecretNote(Pane.Library, setOf(SecretSetting.SOURCE)))
+    }
+
+    /** A mapping whose path is emptied goes at once, rather than stay as an empty row until the next start. */
+    @Test
+    fun aMappingEmptiedGoes() = runTest {
+        val vm = settings(testSettings(folder.root, backgroundScope), backgroundScope)
+        vm.putMapping(null, PathMapping("/media/films", "nfs://192.168.1.20/volume1/films"))
+        assertEquals(1, vm.mappings.size)
+        vm.putMapping(0, PathMapping("", "nfs://192.168.1.20/volume1/films"))
+        assertTrue(vm.mappings.isEmpty())
     }
 }

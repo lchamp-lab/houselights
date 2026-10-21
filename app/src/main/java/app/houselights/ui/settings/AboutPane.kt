@@ -2,11 +2,9 @@ package app.houselights.ui.settings
 
 import androidx.annotation.StringRes
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -28,19 +26,21 @@ import app.houselights.player.ZidooPlayer
 import app.houselights.player.ZidooPlayer.Decision
 import app.houselights.player.ZidooStatus
 import app.houselights.ui.design.Hl
-import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
-import app.houselights.ui.design.components.DefinitionRow
-import app.houselights.ui.design.components.FactRow
+import app.houselights.ui.design.components.DefinitionPlate
+import app.houselights.ui.design.components.FactPlate
+import app.houselights.ui.design.components.HlGroup
 import app.houselights.ui.design.components.HlSettingGroup
 import app.houselights.ui.design.components.HlSettingRow
 import app.houselights.ui.design.components.HlSideSheet
-import app.houselights.ui.design.components.HlStatus
-import app.houselights.ui.design.components.InfoBlock
-import app.houselights.ui.design.components.Lockup
+import app.houselights.ui.design.components.JaquetteLine
+import app.houselights.ui.design.components.PaneLockup
+import app.houselights.ui.design.components.PlateDefinition
+import app.houselights.ui.design.components.PlateFact
 import app.houselights.ui.design.components.QrCode
 import app.houselights.ui.design.components.StatusState
+import app.houselights.ui.design.revealOnFocus
 import app.houselights.ui.util.FACT_GAP
 
 internal fun LazyListScope.aboutPane(onOpenCatalog: () -> Unit, rows: PaneRows) {
@@ -48,7 +48,7 @@ internal fun LazyListScope.aboutPane(onOpenCatalog: () -> Unit, rows: PaneRows) 
     item { AboutStatus() }
     item { AboutCredits() }
     item {
-        HlSettingGroup(null) {
+        HlSettingGroup(null, Modifier.revealOnFocus()) {
             SupportRow()
             // Debug builds only: the design system catalogue, last.
             if (BuildConfig.DEBUG) HlSettingRow(CATALOG, rows.focus("catalog"), onClick = onOpenCatalog)
@@ -74,23 +74,22 @@ internal fun SupportRow(modifier: Modifier = Modifier) {
     }
 }
 
-/** The lockup, version and licence, placed where every pane has its title so nothing jumps between panes. */
+/** The lockup where every pane has its title, so nothing jumps between panes; its version and licence printed under it. */
 @Composable
 private fun AboutBrand() {
     Column {
-        Spacer(Modifier.height(HlLayout.paneTop))
-        Lockup(HlSize.wordmark)
-        Spacer(Modifier.height(HlSpace.xs))
-        FactRow(
+        PaneLockup()
+        Spacer(Modifier.height(HlSpace.l))
+        JaquetteLine(
             listOf(
-                stringResource(R.string.nav_version, BuildConfig.VERSION_NAME),
-                stringResource(R.string.about_free_software, LICENSE),
+                stringResource(R.string.label_version) to BuildConfig.VERSION_NAME,
+                stringResource(R.string.label_licence) to stringResource(R.string.licence_free, LICENSE),
             ),
         )
     }
 }
 
-/** What the app relies on on this device, each with its status light. */
+/** What the app relies on on this device, each with its state, checked each time it comes into view. */
 @Composable
 private fun AboutStatus() {
     val context = LocalContext.current.applicationContext
@@ -102,52 +101,45 @@ private fun AboutStatus() {
         )
     }
     val device = remember { DeviceIdentity.current().name }
-    // Checked each time the block comes into view.
     DisposableEffect(vm) {
         vm.check()
         onDispose { vm.forget() }
     }
-    val api = vm.api
-    InfoBlock(stringResource(R.string.about_status)) {
-        Column(verticalArrangement = Arrangement.spacedBy(HlSpace.xs)) {
-            DeviceRows(device, vm.player)
-            DefinitionRow(stringResource(R.string.label_api)) {
-                HlStatus(
-                    when (api) {
-                        null -> StatusState.Pending
-                        true -> StatusState.On
-                        false -> StatusState.Off
-                    },
-                    stringResource(
-                        when (api) {
-                            null -> R.string.testing
-                            true -> R.string.online
-                            false -> R.string.offline
-                        }
-                    ),
-                )
-            }
-        }
-    }
+    HlGroup(stringResource(R.string.about_status)) { DeviceFacts(device, vm.player, vm.api) }
 }
 
-/** The device's model, and its player as playback decides ([PlayerStatus]): may it get a password, or why not. */
+/**
+ * The device's model, its player as playback decides ([PlayerStatus]) and whether its control API answers ([api],
+ * null while asked); why a player found is not recognised is said under them.
+ */
 @Composable
-internal fun DeviceRows(device: String, player: PlayerStatus) {
-    DefinitionRow(stringResource(R.string.label_device)) {
-        Text(device, style = Hl.type.meta, color = Hl.colors.content)
-    }
-    DefinitionRow(stringResource(R.string.label_player)) {
-        when (player) {
-            is PlayerStatus.Detected -> HlStatus(StatusState.Done, stringResource(R.string.detected), detail = player.packageName)
-            is PlayerStatus.Unrecognized -> HlStatus(
-                // Not a fault on other devices: no player there gets a password.
-                if (player.reason == Decision.NOT_A_ZIDOO) StatusState.Off else StatusState.Attention,
-                stringResource(R.string.player_unrecognised),
-                detail = stringResource(player.reason.words()) + FACT_GAP + player.packageName,
-            )
-            PlayerStatus.NotDetected -> HlStatus(StatusState.Off, stringResource(R.string.not_detected))
+internal fun DeviceFacts(device: String, player: PlayerStatus, api: Boolean?) {
+    val why = (player as? PlayerStatus.Unrecognized)?.let { stringResource(it.reason.words()) + FACT_GAP + it.packageName }
+    FactPlate(note = why) {
+        PlateFact(stringResource(R.string.label_device), device, Modifier.weight(1f, fill = false))
+        val (words, state) = when (player) {
+            is PlayerStatus.Detected -> R.string.detected to StatusState.Done
+            // Not a fault on other devices: no player there gets a password.
+            is PlayerStatus.Unrecognized ->
+                R.string.player_unrecognised to if (player.reason == Decision.NOT_A_ZIDOO) StatusState.Off else StatusState.Attention
+            PlayerStatus.NotDetected -> R.string.not_detected to StatusState.Off
         }
+        PlateFact(stringResource(R.string.label_player), stringResource(words), state = state)
+        PlateFact(
+            stringResource(R.string.label_api),
+            stringResource(
+                when (api) {
+                    null -> R.string.testing
+                    true -> R.string.online
+                    false -> R.string.offline
+                }
+            ),
+            state = when (api) {
+                null -> StatusState.Pending
+                true -> StatusState.On
+                false -> StatusState.Off
+            },
+        )
     }
 }
 
@@ -160,30 +152,25 @@ private fun Decision.words(): Int = when (this) {
     else -> R.string.player_changed_since
 }
 
-/** Credits for the work the app builds on: who did what. */
+/** Credits for the work the app builds on: who did what, TMDB by its logo and the attribution it asks for. */
 @Composable
 private fun AboutCredits() {
-    InfoBlock(stringResource(R.string.about_credits)) {
-        Column(verticalArrangement = Arrangement.spacedBy(HlSpace.xs)) {
+    HlGroup(stringResource(R.string.about_credits)) {
+        DefinitionPlate {
             // The logo has no baseline: it sits level with the top of its label.
-            DefinitionRow(stringResource(R.string.credit_data)) {
-                Image(
-                    painterResource(R.drawable.tmdb_logo),
-                    contentDescription = "TMDB",
-                    modifier = Modifier.height(HlSize.inlineIcon),
-                )
+            PlateDefinition(stringResource(R.string.credit_data), note = stringResource(R.string.tmdb_attribution)) {
+                Image(painterResource(R.drawable.tmdb_logo), contentDescription = "TMDB", modifier = Modifier.height(HlSize.inlineIcon))
             }
-            // TMDB's required attribution, under its logo, in the values column.
-            Hint(stringResource(R.string.tmdb_attribution), Modifier.padding(start = HlLayout.definitionLabel))
-            DefinitionRow(stringResource(R.string.credit_font)) {
-                Text(stringResource(R.string.credit_font_value), style = Hl.type.meta, color = Hl.colors.content)
+            PlateDefinition(stringResource(R.string.credit_font)) {
+                Text(stringResource(R.string.credit_font_value), style = Hl.type.lead, color = Hl.colors.content)
             }
-            DefinitionRow(stringResource(R.string.credit_icons)) {
-                Text(stringResource(R.string.credit_icons_value), style = Hl.type.meta, color = Hl.colors.content)
+            PlateDefinition(stringResource(R.string.credit_icons)) {
+                Text(stringResource(R.string.credit_icons_value), style = Hl.type.lead, color = Hl.colors.content)
             }
         }
     }
 }
+
 private const val LICENSE = "GPL-3.0"
 /** The address `support_qr` encodes, without its scheme, as a phone shows it and a person types it. */
 private const val SUPPORT_ADDRESS = "ko-fi.com/lchamp_lab"

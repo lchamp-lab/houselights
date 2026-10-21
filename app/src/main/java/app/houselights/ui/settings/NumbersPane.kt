@@ -1,11 +1,8 @@
 package app.houselights.ui.settings
 
 import androidx.annotation.StringRes
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.runtime.Composable
@@ -23,6 +20,7 @@ import app.houselights.core.LibraryKind
 import app.houselights.core.Tally
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.components.FactPlate
 import app.houselights.ui.design.components.HlSettingGroup
 import app.houselights.ui.design.components.HlSettingRow
 import app.houselights.ui.design.revealOnFocus
@@ -133,7 +131,7 @@ internal fun LazyListScope.numbersPane(
                 Section(stringResource(R.string.numbers_title)) {
                     NumbersHead(page)
                     page.groups.firstOrNull()?.let {
-                        Spacer(Modifier.height(HlSpace.xl))
+                        Spacer(Modifier.height(HlSpace.l))
                         Tallies(it, rows, open)
                     }
                 }
@@ -143,11 +141,14 @@ internal fun LazyListScope.numbersPane(
     }
 }
 
-/** Films (else shows), size and hours, each over what it counts; unreported ones leave their place empty. */
+/**
+ * Films (else shows), size and hours as a case's back states them, on a plate: each figure in `spec` over what it
+ * counts in secondary `meta`; unreported ones leave their place empty.
+ */
 @Composable
 private fun NumbersHead(page: NumbersPage) {
     if (page.films == 0 && page.shows == 0) {
-        Hint(stringResource(R.string.empty_title))
+        Text(stringResource(R.string.empty_title), style = Hl.type.meta, color = Hl.colors.contentSecondary)
         return
     }
     val figures = listOfNotNull(
@@ -155,13 +156,13 @@ private fun NumbersHead(page: NumbersPage) {
         page.sizeBytes?.let { formatBytes(it) to stringResource(R.string.numbers_room) },
         page.runtimeMs?.let { formatHours(it) to stringResource(R.string.numbers_hours) },
     )
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(HlSpace.l)) {
+    FactPlate(gap = HlSpace.l) {
         figures.forEach { (figure, counts) ->
             Column(Modifier.weight(1f)) {
                 // Never wraps away from its noun: short of room (large text), it ends in an ellipsis.
-                Text(figure, style = Hl.type.subject, color = Hl.colors.content, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Spacer(Modifier.height(HlSpace.xxs))
-                Text(counts, style = Hl.type.caption, color = Hl.colors.contentSecondary)
+                Text(figure, style = Hl.type.spec, color = Hl.colors.content, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Spacer(Modifier.height(HlSpace.xs))
+                Text(counts, style = Hl.type.meta, color = Hl.colors.contentSecondary)
             }
         }
         repeat(HEAD_FIGURES - figures.size) { Spacer(Modifier.weight(1f)) }

@@ -1,9 +1,6 @@
 package app.houselights.ui.settings
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -11,46 +8,49 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
+import androidx.tv.material3.Text
 import app.houselights.R
+import app.houselights.core.PathMapping
 import app.houselights.player.PathResolver
 import app.houselights.player.Redact
 import app.houselights.settings.AppSettings
-import app.houselights.ui.design.HlIcons
-import app.houselights.ui.design.HlSpace
-import app.houselights.ui.design.components.ChoiceOption
+import app.houselights.ui.design.Hl
 import app.houselights.ui.design.components.AttentionNote
-import app.houselights.ui.design.components.HlButton
-import app.houselights.ui.design.components.HlChoiceSetting
-import app.houselights.ui.design.components.HlIconButton
+import app.houselights.ui.design.components.ChoiceCheck
 import app.houselights.ui.design.components.HlSettingGroup
+import app.houselights.ui.design.components.HlSettingRow
+import app.houselights.ui.design.components.HlSideSheet
 import app.houselights.ui.design.components.HlTextField
 import app.houselights.ui.design.revealOnFocus
-import app.houselights.ui.design.tryRequestFocus
-import app.houselights.ui.util.FACT_GAP
 
+/** How the player reaches the server's files, the chosen way checked in ember, then the path mappings, a line each. */
 internal fun LazyListScope.playbackPane(s: AppSettings) {
     item {
         val vm = settingsViewModel()
         val failure = rowFailure(vm.errorOf(SettingAction.FILE_ACCESS))
-        Section(stringResource(R.string.section_playback)) {
-            HlSettingGroup(null) {
-                HlChoiceSetting(
-                    stringResource(R.string.file_access),
-                    options = listOf(
-                        ChoiceOption(stringResource(R.string.network_path), stringResource(R.string.network_path_desc)),
-                        ChoiceOption(stringResource(R.string.http_stream), stringResource(R.string.http_stream_desc)),
-                    ),
-                    selected = if (s.forceHttp) 1 else 0,
-                    onSelect = { vm.setForceHttp(it == 1) },
-                    description = stringResource(R.string.playback_desc),
-                    attention = failure?.value,
-                )
+        Section(stringResource(R.string.section_playback), sentence = stringResource(R.string.playback_desc)) {
+            HlSettingGroup(stringResource(R.string.file_access)) {
+                listOf(
+                    false to (R.string.network_path to R.string.network_path_desc),
+                    true to (R.string.http_stream to R.string.http_stream_desc),
+                ).forEach { (http, words) ->
+                    val current = s.forceHttp == http
+                    HlSettingRow(
+                        stringResource(words.first),
+                        Modifier.semantics { selected = current },
+                        description = stringResource(words.second),
+                        value = failure?.value.takeIf { current },
+                        valueAttention = failure != null,
+                        onClick = { vm.setForceHttp(http) },
+                        trailing = if (current && failure == null) ({ ChoiceCheck() }) else null,
+                    )
+                }
                 RowFailureNote(failure)
             }
         }
@@ -58,68 +58,89 @@ internal fun LazyListScope.playbackPane(s: AppSettings) {
     item { HlSettingGroup(stringResource(R.string.path_mappings), Modifier.revealOnFocus()) { PathMappings() } }
 }
 
-/**
- * The path mappings, one line each; a field saves when it loses focus or on its keyboard action, so there is no
- * Save button. A new line takes focus; a deleted one passes it to the line above, or to Add.
- */
+/** The mappings, each read as a sentence ("/media/films devient nfs://…"); OK opens it in a sheet, as Add does a new one. */
 @Composable
 private fun PathMappings() {
     val vm = settingsViewModel()
-    val mappings = vm.mappings
+    // The mapping open in the sheet: its line, or -1 for a new one; null with the sheet closed.
+    var editing by remember { mutableStateOf<Int?>(null) }
+    vm.mappings.forEachIndexed { index, m ->
+        HlSettingRow(
+            m.from,
+            description = stringResource(R.string.mapping_becomes, Redact.uri(m.to)),
+            onClick = { editing = index },
+        )
+    }
+    HlSettingRow(
+        stringResource(R.string.add_mapping),
+        description = stringResource(R.string.add_mapping_desc),
+        onClick = { editing = NEW },
+    )
+    // Mappings save as the sheet closes, so the error shows under them, where focus returns.
+    vm.errorOf(SettingAction.PATH_MAPPINGS)?.let { error ->
+        AttentionNote(stringResource(R.string.mappings_not_saved, stringResource(error.message)))
+    }
+    editing?.let { index -> MappingSheet(index.takeIf { it != NEW }, onDismiss = { editing = null }) }
+}
+
+/**
+ * A mapping's two paths, the server's then the network's, with what they do to a file the server names; Back
+ * saves them once both are filled in. An existing one can be removed.
+ */
+@Composable
+private fun MappingSheet(index: Int?, onDismiss: () -> Unit) {
+    val vm = settingsViewModel()
+    val was = index?.let { vm.mappings.getOrNull(it) }
+    var from by remember { mutableStateOf(was?.from.orEmpty()) }
+    var to by remember { mutableStateOf(was?.to.orEmpty()) }
     var samplePath by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(Unit) { samplePath = vm.samplePath() }
-    val add = remember { FocusRequester() }
-    val servers = remember { mutableMapOf<Int, FocusRequester>() }
-    val networks = remember { mutableMapOf<Int, FocusRequester>() }
-    var added by remember { mutableStateOf(false) }
-    LaunchedEffect(mappings.size) {
-        if (added) {
-            added = false
-            servers[mappings.lastIndex]?.tryRequestFocus()
-        }
-    }
-    val save = Modifier.onFocusChanged { if (!it.hasFocus) vm.saveMappings() }
-
-    Column(Modifier.padding(horizontal = HlSpace.l), verticalArrangement = Arrangement.spacedBy(HlSpace.s)) {
-        Hint(stringResource(R.string.path_mapping_help))
-        samplePath?.let { Hint(stringResource(R.string.sample_path, it)) }
-        mappings.forEachIndexed { index, m ->
-            Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.s), verticalAlignment = Alignment.Bottom) {
-                HlTextField(
-                    stringResource(R.string.server_path), m.from, { vm.editMapping(index, m.copy(from = it)) },
-                    placeholder = stringResource(R.string.placeholder_server_path), onImeAction = vm::saveMappings,
-                    modifier = Modifier.weight(1f).focusRequester(servers.getOrPut(index) { FocusRequester() }).then(save),
-                )
-                HlTextField(
-                    stringResource(R.string.network_path), m.to, { vm.editMapping(index, m.copy(to = it)) },
-                    placeholder = stringResource(R.string.placeholder_network_path), onImeAction = vm::saveMappings,
-                    modifier = Modifier.weight(1.3f).focusRequester(networks.getOrPut(index) { FocusRequester() }).then(save),
-                )
-                HlIconButton(HlIcons.Close, stringResource(R.string.remove), onClick = {
-                    // Move focus before removing, while the line above is still where it was.
-                    (if (index > 0) networks[index - 1] else add)?.tryRequestFocus()
-                    vm.removeMapping(index)
-                })
-            }
-        }
-        HlButton(
-            stringResource(R.string.add_mapping),
-            onClick = {
-                vm.addMapping()
-                added = true
-            },
-            icon = HlIcons.Add,
-            modifier = Modifier.focusRequester(add),
+    val first = remember { FocusRequester() }
+    var removed by remember { mutableStateOf(false) }
+    HlSideSheet(
+        stringResource(if (index == null) R.string.add_mapping else R.string.edit_mapping),
+        onDismiss = {
+            if (!removed) vm.putMapping(index, PathMapping(from.trim(), to.trim()))
+            onDismiss()
+        },
+        description = stringResource(R.string.path_mapping_help),
+        initialFocus = first,
+    ) { sheet ->
+        // Its parts the sheet's own gap apart.
+        HlTextField(
+            stringResource(R.string.server_path), from, { from = it },
+            Modifier.fillMaxWidth().focusRequester(first),
+            placeholder = stringResource(R.string.placeholder_server_path),
         )
-        val result = samplePath?.let { path ->
-            val resolved = PathResolver.resolve(path, mappings)?.let(Redact::uri)
-            stringResource(R.string.mapping_result, resolved ?: stringResource(R.string.mapping_none))
+        HlTextField(
+            stringResource(R.string.network_path), to, { to = it },
+            Modifier.fillMaxWidth(),
+            placeholder = stringResource(R.string.placeholder_network_path),
+            onImeAction = { sheet.dismiss() },
+        )
+        samplePath?.let { path ->
+            val resolved = PathResolver.resolve(path, listOf(PathMapping(from, to)).filter { it.from.isNotBlank() && it.to.isNotBlank() })
+            val result = stringResource(R.string.mapping_result, resolved?.let(Redact::uri) ?: stringResource(R.string.mapping_none))
+            // The example and what it becomes, one line under the other.
+            Text(
+                stringResource(R.string.sample_path, path) + "\n" + result,
+                style = Hl.type.meta,
+                color = Hl.colors.contentSecondary,
+            )
         }
-        val saved = if (vm.mappingsSaved) stringResource(R.string.saved) else null
-        listOfNotNull(result, saved).takeIf { it.isNotEmpty() }?.let { Hint(it.joinToString(FACT_GAP)) }
-        // Mappings save on leaving a field, so the error shows under the fields, where focus still is.
-        vm.errorOf(SettingAction.PATH_MAPPINGS)?.let { error ->
-            AttentionNote(stringResource(R.string.mappings_not_saved, stringResource(error.message)))
+        if (index != null) {
+            HlSettingGroup(null) {
+                HlSettingRow(
+                    stringResource(R.string.remove),
+                    onClick = {
+                        removed = true
+                        sheet.dismiss { vm.removeMapping(index) }
+                    },
+                )
+            }
         }
     }
 }
+
+/** [MappingSheet]'s line for a mapping not yet added. */
+private const val NEW = -1

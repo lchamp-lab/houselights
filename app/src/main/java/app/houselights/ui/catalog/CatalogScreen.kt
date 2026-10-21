@@ -1,5 +1,7 @@
 package app.houselights.ui.catalog
 
+import app.houselights.ui.design.PaneDefaults
+import app.houselights.ui.design.TwoPaneDefaults
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -54,7 +56,6 @@ import app.houselights.ui.design.components.Badge
 import app.houselights.ui.design.components.Emphasis
 import app.houselights.ui.design.components.HlActionRow
 import app.houselights.ui.design.components.HlButton
-import app.houselights.ui.design.components.HlDivider
 import app.houselights.ui.design.components.HlEmptyState
 import app.houselights.ui.design.components.HlIconButton
 import app.houselights.ui.design.components.HlListItem
@@ -70,7 +71,7 @@ import app.houselights.ui.design.components.HlTextField
 import app.houselights.ui.design.components.LandscapeCard
 import app.houselights.ui.design.components.LocalBackdropRelay
 import app.houselights.ui.design.components.MeterInk
-import app.houselights.ui.design.components.MeterLegend
+import app.houselights.ui.design.components.MeterFact
 import app.houselights.ui.design.components.MeterSegment
 import app.houselights.ui.design.components.PanelLevel
 import app.houselights.ui.design.components.PosterCard
@@ -116,7 +117,7 @@ fun CatalogScreen() {
                         "display" to t.display, "headline" to t.headline, "subject" to t.subject,
                         "place" to t.place, "placeCurrent, ember lit" to t.placeCurrent.emberLit(c), "rowTitle" to t.rowTitle,
                         "cardName" to t.cardName, "cardTitle" to t.cardTitle,
-                        "title" to t.title, "lead" to t.lead, "body" to t.body, "entry" to t.entry, "meta" to t.meta,
+                        "title" to t.title, "lead" to t.lead, "read" to t.read, "body" to t.body, "entry" to t.entry, "meta" to t.meta,
                         "caption" to t.caption, "group" to t.group, "code" to t.code,
                         "spec" to t.spec, "jaquette" to t.jaquette, "badge" to t.badge,
                         "titleSignature" to t.titleSignature, "billing" to t.billing, "billingJoin" to t.billingJoin,
@@ -153,9 +154,11 @@ fun CatalogScreen() {
                                 MeterSegment(0.05f, MeterInk.Tertiary),
                             ),
                         )
-                        MeterLegend("Online images", "300 MB", MeterInk.Primary)
-                        MeterLegend("Local images", "100 MB", MeterInk.Secondary)
-                        MeterLegend("Database", "20 MB", MeterInk.Tertiary)
+                        Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.xxl)) {
+                            MeterFact("Image cache", "300 MB", MeterInk.Primary)
+                            MeterFact("Library database", "20 MB", MeterInk.Tertiary)
+                            MeterFact("Local images", "None", MeterInk.Secondary, technical = false, empty = true)
+                        }
                     }
                 }
             }
@@ -163,9 +166,9 @@ fun CatalogScreen() {
             item {
                 Group("Lists and settings") {
                     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m)) {
-                        Column(Modifier.width(HlLayout.sideColumn), verticalArrangement = Arrangement.spacedBy(HlSpace.xxs)) {
-                            HlNavItem(HlIcons.Folder, "Selected", "8 titles", selected = true, onFocused = {})
-                            HlNavItem(HlIcons.Display, "Other", "4K 60 Hz", selected = false, onFocused = {})
+                        Column(Modifier.width(TwoPaneDefaults.side)) {
+                            HlNavItem(HlIcons.Folder, "Selected", selected = true, onFocused = {})
+                            HlNavItem(HlIcons.Display, "Other", selected = false, onFocused = {})
                         }
                         Column(Modifier.widthIn(max = HlLayout.readable)) {
                             HlSettingGroup("Group") {
@@ -209,7 +212,7 @@ fun CatalogScreen() {
                     var long by remember { mutableStateOf(false) }
                     var code by remember { mutableStateOf(false) }
                     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.s)) {
-                        HlButton("Modifier: previews in one box", { side = true })
+                        HlButton("Modifier: a gallery of its images", { side = true })
                         HlButton("An action that asks first", { asking = true })
                         HlButton("A status, a field", { keyed = true })
                         HlButton("More rows than it holds", { long = true })
@@ -263,6 +266,7 @@ fun CatalogScreen() {
                 }
             }
 
+            catalogSecondary()
             catalogForms()
             catalogCards()
             catalogReading()
@@ -388,7 +392,7 @@ private fun BlackLevels() {
                     "tinted veils: the picture's own dark at the left and the top, black at the foot" to BackdropStyle.Hero,
                     "a wall's diffuse field: dithered, no rings, never brighter than its text allows" to BackdropStyle.Diffuse,
                 ).forEach { (state, style) ->
-                    Specimen(state, width = HlLayout.sideColumnWide) {
+                    Specimen(state, width = TwoPaneDefaults.sideWide) {
                         Box(Modifier.fillMaxWidth().aspectRatio(16f / 9f)) { Backdrop(art, style) }
                     }
                 }
@@ -417,9 +421,6 @@ private fun SheetQuestion(onDismiss: () -> Unit) {
                 description = stringResource(R.string.scan_now_desc),
                 onClick = { sheet.dismiss() },
             )
-            Spacer(Modifier.height(HlSpace.s))
-            HlDivider()
-            Spacer(Modifier.height(HlSpace.s))
             HlSettingRow(
                 stringResource(R.string.remove_folder),
                 origin,
@@ -512,7 +513,7 @@ private fun Swatch(name: String, brush: Brush) {
 @Composable
 private fun StyleSpecimen(name: String, style: TextStyle) {
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Column(Modifier.width(HlLayout.specLanguage)) {
+        Column(Modifier.width(PaneDefaults.specName)) {
             Text(name, style = Hl.type.caption, color = Hl.colors.contentSecondary)
             Text(specimenMeasure(style), style = Hl.type.caption, color = Hl.colors.contentTertiary)
         }

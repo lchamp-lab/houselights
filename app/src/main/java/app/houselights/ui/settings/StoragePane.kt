@@ -1,13 +1,12 @@
 package app.houselights.ui.settings
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -15,10 +14,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.tv.material3.Text
@@ -26,74 +23,98 @@ import app.houselights.R
 import app.houselights.providers.local.ScanErrorKind
 import app.houselights.providers.local.ScanState
 import app.houselights.ui.design.Hl
-import app.houselights.ui.design.HlLayout
+import app.houselights.ui.design.HlInset
+import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.components.AttentionNote
 import app.houselights.ui.design.components.HlMeter
+import app.houselights.ui.design.components.HlPlate
 import app.houselights.ui.design.components.HlSettingGroup
 import app.houselights.ui.design.components.HlSettingRow
+import app.houselights.ui.design.components.MeterFact
 import app.houselights.ui.design.components.MeterInk
-import app.houselights.ui.design.components.MeterLegend
 import app.houselights.ui.design.components.MeterSegment
 import app.houselights.ui.design.revealOnFocus
-import app.houselights.ui.util.FACT_GAP
 import app.houselights.ui.util.formatBytes
 import kotlinx.coroutines.launch
 
 internal fun LazyListScope.storagePane(storage: StorageStats?) {
-    item { Section(stringResource(R.string.section_storage)) { StorageSummary(storage) } }
+    item {
+        Section(stringResource(R.string.section_storage), sentence = stringResource(R.string.storage_desc)) { StorageSummary(storage) }
+    }
     item { StorageActions(storage) }
 }
 
-/** Artwork files and size ("12 fichiers · 3,4 Mo"), or that there are none. */
-@Composable
-private fun artworkUse(st: StorageStats): String =
-    if (st.artworkFiles == 0) stringResource(R.string.storage_none)
-    else pluralStringResource(R.plurals.file_count, st.artworkFiles, st.artworkFiles) + FACT_GAP + formatBytes(st.artworkBytes)
-
-/** Space used: the total, a meter scaled to the image cache limit, and a legend. */
+/**
+ * Space used, as a case's back states it: the total, the meter of the image cache's limit across the plate with
+ * that limit, and each part's figure under its name; a part with nothing in it says so in words.
+ */
 @Composable
 private fun StorageSummary(st: StorageStats?) {
     val c = Hl.colors
     val dash = stringResource(R.string.placeholder_none)
-    Column(Modifier.widthIn(max = HlLayout.readable)) {
-        Row(verticalAlignment = Alignment.Bottom) {
-            Text(st?.let { formatBytes(it.total) } ?: dash, style = Hl.type.subject, color = c.content)
+    // A line's room under the figures, as the total keeps its own above the meter.
+    val room = PaddingValues(start = HlInset.card, end = HlInset.card, top = HlInset.plate, bottom = HlSpace.xl)
+    HlPlate(Modifier.fillMaxWidth(), padding = room) {
+        Row(Modifier.fillMaxWidth()) {
+            val total = st?.let { formatBytes(it.total) } ?: dash
+            Text(total, style = Hl.type.headline, color = c.content, modifier = Modifier.alignByBaseline())
             Spacer(Modifier.width(HlSpace.s))
-            Text(
-                stringResource(R.string.storage_used),
-                style = Hl.type.caption,
-                color = c.contentSecondary,
-                modifier = Modifier.padding(bottom = HlSpace.xxs),
-            )
-        }
-        Spacer(Modifier.height(HlSpace.m))
-        val capacity = st?.let { maxOf(it.imageCacheMax, it.total, 1L).toFloat() } ?: 1f
-        HlMeter(
+            val used = stringResource(R.string.storage_used)
+            Text(used, style = Hl.type.meta, color = c.contentSecondary, modifier = Modifier.alignByBaseline())
+            Spacer(Modifier.weight(1f))
             st?.let {
-                listOf(
-                    MeterSegment(it.imageCacheBytes / capacity, MeterInk.Primary),
-                    MeterSegment(it.artworkBytes / capacity, MeterInk.Secondary),
-                    MeterSegment(it.databaseBytes / capacity, MeterInk.Tertiary),
+                Text(
+                    stringResource(R.string.storage_cache_limit, formatBytes(it.imageCacheMax)),
+                    style = Hl.type.meta,
+                    color = c.contentTertiary,
+                    modifier = Modifier.alignByBaseline(),
                 )
-            }.orEmpty(),
-        )
-        Spacer(Modifier.height(HlSpace.m))
-        Column(verticalArrangement = Arrangement.spacedBy(HlSpace.xs)) {
-            MeterLegend(stringResource(R.string.storage_image_cache), st?.let { formatBytes(it.imageCacheBytes) } ?: dash, MeterInk.Primary)
-            MeterLegend(stringResource(R.string.storage_artwork), st?.let { artworkUse(it) } ?: dash, MeterInk.Secondary)
-            MeterLegend(stringResource(R.string.storage_database), st?.let { formatBytes(it.databaseBytes) } ?: dash, MeterInk.Tertiary)
+            }
         }
-        st?.let {
-            Spacer(Modifier.height(HlSpace.m))
-            Hint(stringResource(R.string.storage_cache_limit, formatBytes(it.imageCacheMax)))
-        }
+        Spacer(Modifier.height(HlSpace.s))
+        StorageMeter(st)
+        Spacer(Modifier.height(HlSpace.l))
+        StorageParts(st, dash)
         // The last scan stopped for lack of space: say so here, above the actions that free some.
         val scan by settingsViewModel().library.scan.collectAsStateWithLifecycle()
         if (scan.storageFull) {
-            Spacer(Modifier.height(HlSpace.m))
+            Spacer(Modifier.height(HlSpace.l))
             AttentionNote(stringResource(R.string.storage_full))
         }
+    }
+}
+
+/** The meter of the image cache's limit, its parts in the order their figures read. */
+@Composable
+private fun StorageMeter(st: StorageStats?) {
+    val capacity = st?.let { maxOf(it.imageCacheMax, it.total, 1L).toFloat() } ?: 1f
+    HlMeter(
+        st?.let {
+            listOf(
+                MeterSegment(it.imageCacheBytes / capacity, MeterInk.Primary),
+                MeterSegment(it.databaseBytes / capacity, MeterInk.Tertiary),
+                MeterSegment(it.artworkBytes / capacity, MeterInk.Secondary),
+            )
+        }.orEmpty(),
+        height = HlSize.meterLarge,
+    )
+}
+
+/** Each part's figure under its name; local images, when there are none, say so in a word. */
+@Composable
+private fun StorageParts(st: StorageStats?, dash: String) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+        MeterFact(stringResource(R.string.storage_image_cache), st?.let { formatBytes(it.imageCacheBytes) } ?: dash, MeterInk.Primary)
+        MeterFact(stringResource(R.string.storage_database), st?.let { formatBytes(it.databaseBytes) } ?: dash, MeterInk.Tertiary)
+        val none = st != null && st.artworkFiles == 0
+        MeterFact(
+            stringResource(R.string.storage_artwork),
+            if (none) stringResource(R.string.storage_none) else st?.let { formatBytes(it.artworkBytes) } ?: dash,
+            MeterInk.Secondary,
+            technical = !none,
+            empty = none,
+        )
     }
 }
 
@@ -135,6 +156,8 @@ private fun StorageActions(storage: StorageStats?) {
             value = cacheFailure?.value
                 ?: if (cleared) stringResource(R.string.image_cache_cleared) else storage?.let { formatBytes(it.imageCacheBytes) },
             valueAttention = cacheFailure != null,
+            // What it frees is a figure; what it did, words.
+            valueStyle = if (cacheFailure == null && !cleared) Hl.type.jaquette else Hl.type.meta,
             onClick = {
                 scope.launch { cleared = vm.clearImageCache() }
             },

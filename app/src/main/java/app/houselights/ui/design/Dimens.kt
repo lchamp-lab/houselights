@@ -57,6 +57,15 @@ object HlInset {
     /** Panels and cards. */
     val card = HlSpace.l
     val sheet = HlSpace.xl
+
+    /** A group's plate around its rows: [HlShapes.panel] less [HlShapes.row], so their corners stay parallel. */
+    val group = HlSpace.xxs
+
+    /** A plate of facts ([FactPlate]) from its top and foot, so its words sit as a group's rows do; its sides keep [card]. */
+    val plate = HlSpace.l
+
+    /** A plate read in a sheet ([ReadingPlate], a technical sheet's block): its words from its sides; a status's from its top. */
+    val reading = HlSpace.fact
 }
 
 object HlSize {
@@ -94,8 +103,9 @@ object HlSize {
     /** A mark over a picture (watched, chosen), on its plate. */
     val mark = 22.dp
     val markIcon = 14.dp
-    /** Status dot (default track, online). */
+    /** Status dot (default track, online); a state that is off is its ring, [dotRing] wide. */
     val dot = 8.dp
+    val dotRing = 1.75.dp
     /** The dot of a title new to the library, ringed in black ([newDotRing]) to stand off any picture. */
     val newDot = 10.dp
     val newDotRing = 2.5.dp
@@ -106,15 +116,21 @@ object HlSize {
     /** An icon in a line of text (rating star). */
     val inlineIcon = 16.dp
     val meter = 10.dp
+    /** A meter that is what a pane states (Stockage), across its plate. */
+    val meterLarge = 14.dp
+    /** The square naming a meter's part beside its figure ([MeterFact]). */
+    val swatch = 10.dp
     /** Between two parts of a meter, so two greys never touch. */
     val meterGap = 2.dp
     /** How far one press of up or down scrolls a long text. */
     val scrollStep = 120.dp
-    /** Least height of a setting row; [sheetRow] in a side sheet. */
+    /** Least height of a setting row, in a pane as in a sheet. */
     val row = 60.dp
-    val sheetRow = 52.dp
-    /** The box at the head of a sheet row, one for whatever image it previews: 40 tall at [PREVIEW_RATIO], so the row keeps [sheetRow]. */
-    val rowPreview = 40.dp * PREVIEW_RATIO
+    /** Least height of a text field and of the search query: a setting row's. */
+    val field = row
+    /** A place in the settings' list of places: seven fit the safe area under its title. */
+    val navRow = 56.dp
+    /** A backdrop at its use, a gallery's wide image: 16:9. */
     const val PREVIEW_RATIO = 16f / 9f
     /** Progress shown beside text (time left). */
     val progressShort = 120.dp
@@ -135,13 +151,21 @@ object HlSize {
     val segment = 40.dp
     /** The dot before the current place's word when it has focus. */
     val wordDot = 7.dp
+    /** A folder's [Showcase]: four posters across, full height. */
+    val showcase = 416.dp
+    /**
+     * A gallery's wide images beside its poster ([HlLayout.posterChoice]): a backdrop at 16:9, and under it a logo's
+     * box at [LOGO_BOX_RATIO], together as tall as the poster with their names.
+     */
+    val galleryWide = 244.dp
+    const val LOGO_BOX_RATIO = 244f / 85f
     /** Gradation as home's place in its bar, as tall as its words' capitals. */
     val barMark = 18.dp
     /** The ring of focus on a field, a read-only area, a control that cannot act. */
     val focusBorder = 2.dp
     val hairline = 1.dp
-    /** The lockup's cap height: in About (168 wide) and over the welcome wall (364 wide, as the name alone was). */
-    val wordmark = 12.dp
+    /** The lockup's cap height: at the head of About (420 wide) and over the welcome wall (364 wide, as the name alone was). */
+    val wordmark = 30.dp
     val wordmarkHero = 26.dp
 }
 
@@ -156,19 +180,10 @@ object HlLayout {
     val readable = 640.dp
     /** Text set beside artwork (heroes, detail pages). */
     val readableNarrow = 520.dp
-    /** Longest caption line: about 66 characters at 14 sp, the most readable measure from three metres. */
-    val captionMeasure = 400.dp
-    /** Side column of two-pane screens: navigation (settings), explanation (setup forms). */
-    val sideColumn = 280.dp
-    val sideColumnWide = 340.dp
-    /** Where a two-pane screen's content starts, level with its first navigation entry. */
-    val paneTop = 72.dp
     val fieldShort = 120.dp
     /** Clear logo or title of a detail page, and of a browsing hero. */
     val titleArtWidth = 440.dp
     val titleArtHeight = 112.dp
-    val heroTitleWidth = 380.dp
-    val heroTitleHeight = 56.dp
     /**
      * Home hero band, [HlSpace.l] from the bar and the rows: logo, facts, two overview lines, [HlSpace.s]
      * apart (56 + 12 + 20 + 12 + 48), so a focused poster's foot stays inside the safe area.
@@ -201,14 +216,10 @@ object HlLayout {
     /** The two columns of the welcome screen: the choices' holds its title on one line in French. */
     val welcomeTagline = 380.dp
     val welcomeChoices = 456.dp
-    /** Columns of the technical sheet's track tables. */
-    val specLanguage = 120.dp
+    /** A table's value column ([app.houselights.ui.design.components.SpecTable]): Affichage's frame sizes. */
     val specFormat = 136.dp
-    /** Height of long text panels (NFO). */
-    val textPanel = 440.dp
-    /** Label column of label and value lists, and its short form inside a narrow panel. */
-    val definitionLabel = 220.dp
-    val definitionLabelShort = 120.dp
+    /** Label column of a reading sheet's definitions (an NFO's), its values at 20 beside it. */
+    val readingLabel = 180.dp
 }
 
 /** Columns of a poster wall (`LibraryScreen`, `PersonScreen`). */
@@ -219,14 +230,41 @@ private const val WALL_COLUMNS = 7
 /** A side sheet: 440 dp of content between its inset and the safe area, the page still in view. */
 internal object HlSideSheetDefaults {
     val width = 520.dp
+
+    /** A reading sheet (a synopsis, an NFO): the reading measure ([HlLayout.readable]) between the safe areas. */
+    val wideWidth = 736.dp
+}
+
+/** A plate of definitions' label column ([PlateDefinition]): About's credits; a table's names ([SpecTable]). */
+internal object PaneDefaults {
+    val plateLabel = 172.dp
+    val specName = 120.dp
+}
+
+/** The side column of two-pane screens: navigation (settings, leaving its pane 560), explanation (forms, leaving theirs 472). */
+internal object TwoPaneDefaults {
+    val side = 256.dp
+    val sideWide = 344.dp
+}
+
+/** The logo or title of a browsing hero (home's). */
+internal object HeroDefaults {
+    val titleWidth = 380.dp
+    val titleHeight = 56.dp
 }
 
 /** The widest value on the right of a setting row, and the room above and below its words. */
 internal object HlSettingRowDefaults {
     val valueWidth = 360.dp
 
-    /** A name over its description fills a [HlSize.sheetRow] with this room. */
+    /** A name over its description fills a [HlSize.row] with this room. */
     val paddingV = 6.dp
+}
+
+/** A [Showcase]'s words: from its sides and its foot, and where its name sets, over its posters' melted foot. */
+internal object ShowcaseDefaults {
+    val inset = 20.dp
+    val nameTop = 126.dp
 }
 
 /** The label a tile shows under it with focus. */
@@ -261,18 +299,31 @@ internal object HlMenuDefaults {
     val inset = 6.dp
 }
 
-/** Tech sheet rows: least height (as a compact tile) and widest value ("Dolby Digital Plus Atmos   7.1"). */
+/**
+ * The technical sheet's columns: a track's format before its language, the column as wide as the block's widest
+ * format and [HlSpace.m] between [formatColumn] and [formatColumnWide] ("Dolby Digital Plus" whole, a longer one on
+ * two lines), a craft before its names.
+ */
 internal object TechSpecsDefaults {
-    val rowHeight = 40.dp
-    val valueWidth = 240.dp
+    val formatColumn = 188.dp
+    val formatColumnWide = 280.dp
+    val craftColumn = 112.dp
 }
 
 /**
  * Module 6.5 wide: whole pixels at 1080p (13) and 4K (26), so no module edge blurs. 29 modules plus the
  * 4-module quiet zone readers need make 240.5, which a phone reads from the sofa.
  */
+/** A code to type elsewhere ([app.houselights.ui.design.components.DeviceCodePlate]): its words from the plate's edge. */
+internal object DeviceCodeDefaults {
+    val inset = 28.dp
+}
+
 internal object QrCodeDefaults {
     val module = 6.5.dp
+
+    /** Beside its words in a pane (Trakt's code): 10 and 20 px, 185 dp with its quiet zone. */
+    val moduleCompact = 5.dp
     const val QUIET_ZONE = 4
 }
 

@@ -115,18 +115,21 @@
     <string name="key_ok">OK</string>
     <string name="key_hint_type">typen</string>
     <string name="nfo_title">NFO-bestand</string>
-    <string name="nfo_desc">De beschrijving van deze titel, geschreven door uw mediabeheerder. Deze gegevens hebben voorrang op die van TMDB.</string>
+    <string name="nfo_desc">Door uw mediabeheerder geschreven, heeft voorrang op TMDB.</string>
     <string name="nfo_tab_info">Gegevens</string>
     <string name="nfo_tab_xml">XML</string>
     <string name="nfo_state_full">Volledige beschrijving</string>
     <string name="nfo_state_link">Alleen link</string>
     <string name="nfo_state_unreadable">Onleesbaar</string>
     <string name="nfo_state_reading">Openen…</string>
-    <string name="nfo_block_details">Details</string>
     <string name="label_file">Bestand</string>
     <string name="nfo_unreadable">Deze NFO kon niet als XML worden gelezen.</string>
     <string name="nfo_link_only">Deze NFO bevat alleen een link naar een titelpagina; Houselights gebruikt die om de titel te identificeren.</string>
     <string name="label_title">Titel</string>
+    <string name="label_original_title">Oorspronkelijke titel</string>
+    <string name="label_episode">Aflevering</string>
+    <string name="label_certification">Leeftijd</string>
+    <string name="label_rating">Beoordeling</string>
     <string name="label_year">Jaar</string>
     <string name="placeholder_year">2025</string>
     <string name="label_genres">Genres</string>
@@ -156,6 +159,7 @@
     <string name="tech_container">Container</string>
     <string name="tech_file">Bestand</string>
     <string name="tech_size">Grootte</string>
+    <string name="tech_file_fact">%1$s, %2$s</string>
     <string name="tech_bitrate">Gemiddelde bitrate</string>
     <string name="tech_duration">Duur</string>
     <string name="bit_depth">%d-bit</string>
@@ -192,10 +196,11 @@
     <string name="field_protocol">Protocol</string>
     <string name="field_host">NAS-adres</string>
     <string name="field_export">NFS-export</string>
-    <string name="nfs_hint">NFS vraagt geen wachtwoord: de NAS vertrouwt het IP-adres van dit apparaat. Sta dit IP-adres toe op de NAS (alleen-lezen volstaat) en schakel verbindingen vanaf niet-geprivilegieerde poorten (boven 1024) in.</string>
+    <string name="nfs_hint">Zonder wachtwoord: sta op de NAS het adres van dit apparaat toe, alleen-lezen, vanaf niet-geprivilegieerde poorten.</string>
     <string name="smb_hint">Het wachtwoord wordt op dit apparaat bewaard en aan de Zidoo-speler doorgegeven. Gebruik bij voorkeur een eigen account met alleen leesrechten.</string>
     <string name="field_share">Share</string>
-    <string name="field_path">Map (optioneel)</string>
+    <string name="field_path">Map</string>
+    <string name="field_optional">%1$s (optioneel)</string>
     <string name="field_user">Gebruiker</string>
     <string name="field_password">Wachtwoord</string>
     <string name="placeholder_host">Bijv. 192.168.1.10</string>
@@ -208,6 +213,7 @@
     <string name="placeholder_path_shows">Bijv. series</string>
     <string name="test_connection">Testen</string>
     <string name="connection_untested">Verbinding niet getest</string>
+    <string name="server_found">Server gevonden</string>
     <string name="connection_testing">Verbinden…</string>
     <string name="connection_ok">Verbonden</string>
     <string name="connection_failed">Verbinding mislukt</string>
@@ -257,8 +263,8 @@
     <string name="welcome_tagline">Uw films, op het grote scherm.</string>
     <string name="section_about">Over</string>
     <string name="section_storage">Opslag</string>
-    <string name="storage_artwork">Gekopieerde lokale afbeeldingen</string>
-    <string name="storage_image_cache">Cache van online afbeeldingen</string>
+    <string name="storage_artwork">Lokale afbeeldingen</string>
+    <string name="storage_image_cache">Afbeeldingencache</string>
     <string name="storage_database">Bibliotheekdatabase</string>
     <string name="storage_none">Geen</string>
     <string name="cleanup_now">Nu opschonen</string>
@@ -273,14 +279,18 @@
     </plurals>
     <string name="playback_desc">Hoe de Zidoo-speler de bestanden van uw server bereikt.</string>
     <string name="tmdb_desc">Posters en gegevens komen van TMDB.</string>
-    <string name="change_source_local_desc">Uw mappen blijven bewaard: u kunt er op elk moment naar terugkeren.</string>
-    <string name="change_source_jellyfin_desc">Deze server blijft verbonden tot de nieuwe bron klaar is.</string>
+    <string name="change_source_local_desc">Uw mappen blijven bewaard</string>
+    <string name="change_source_jellyfin_desc">Blijft verbonden tot de wissel</string>
     <string name="change_source">Bron wijzigen</string>
     <string name="reconnect">Opnieuw inloggen</string>
     <string name="source_local_first">Voeg een map van uw NAS toe</string>
     <plurals name="source_local_folders">
         <item quantity="one">%d map op uw NAS</item>
         <item quantity="other">%d mappen op uw NAS</item>
+    </plurals>
+    <plurals name="folder_count">
+        <item quantity="one">%d map</item>
+        <item quantity="other">%d mappen</item>
     </plurals>
     <string name="source_jellyfin_other">Andere server of ander account</string>
     <string name="sign_out">Uitloggen</string>
@@ -294,6 +304,21 @@
     <string name="label_address">Adres</string>
     <string name="label_user">Gebruiker</string>
     <string name="label_render">Interfaceweergave</string>
+    <string name="add_folder_row_desc">Films of series, op uw NAS</string>
+    <string name="library_in_folders">%1$s in %2$s</string>
+    <string name="display_desc_player">De speler bepaalt zijn uitvoer; Houselights past zich aan.</string>
+    <string name="display_desc_system">Houselights volgt de uitvoer die dit apparaat instelt.</string>
+    <string name="display_interface">Interface</string>
+    <string name="storage_desc">Wat Houselights op dit apparaat bewaart; uw films blijven op de NAS.</string>
+    <string name="mapping_becomes">wordt %s</string>
+    <string name="add_mapping_desc">Voor een andere map van de server</string>
+    <string name="edit_mapping">Toewijzing bewerken</string>
+    <string name="trakt_account">Account</string>
+    <string name="trakt_watched">Gezien</string>
+    <string name="trakt_in_progress">Begonnen</string>
+    <string name="label_version">Versie</string>
+    <string name="label_licence">Licentie</string>
+    <string name="licence_free">%s, vrije software</string>
     <string name="label_modes">Beschikbare modi</string>
     <string name="label_device">Apparaat</string>
     <string name="label_player">Zidoo-speler</string>
@@ -346,7 +371,6 @@
     <string name="tmdb_key_revert">Terug naar de ingebouwde sleutel</string>
     <string name="tmdb_key_revert_desc">Houselights vergeet uw sleutel</string>
     <string name="save">Opslaan</string>
-    <string name="saved">Opgeslagen</string>
     <string name="section_playback">Afspelen</string>
     <string name="network_path">Netwerkpad (SMB/NFS)</string>
     <string name="http_stream">HTTP-stream</string>
@@ -366,11 +390,8 @@
     <string name="billing_and">en</string>
     <string name="edit">Bewerken</string>
     <string name="artwork_poster">Poster</string>
-    <string name="artwork_poster_desc">Rijen en bibliotheek</string>
     <string name="artwork_backdrop">Achtergrond</string>
-    <string name="artwork_backdrop_desc">Deze pagina en Home</string>
     <string name="artwork_logo">Logo</string>
-    <string name="artwork_logo_desc">De getekende titel bovenaan</string>
     <string name="identify">Identificeren</string>
     <string name="identify_menu_desc">Andere TMDB-titel kiezen</string>
     <plurals name="image_count">
@@ -438,10 +459,9 @@
     <string name="error_action_add_tmdb_key">Sleutel toevoegen</string>
     <string name="error_action_edit_tmdb_key">Sleutel wijzigen</string>
     <!-- Settings rows -->
-    <string name="nav_version">Versie %s</string>
     <string name="refresh_metadata_desc">Haalt afbeeldingen en gegevens opnieuw op bij TMDB</string>
     <string name="metadata_language">Taal van de gegevens</string>
-    <string name="metadata_language_desc">Titels, samenvattingen en afbeeldingen van TMDB</string>
+    <string name="metadata_language_desc">Titels, inhoud en beelden van TMDB</string>
     <string name="metadata_language_sheet">Titels, samenvattingen en afbeeldingen komen in deze taal van TMDB. Wijzigen werkt elke titel bij.</string>
     <string name="device_language">Taal van het apparaat</string>
     <string name="remove_folder">Deze map verwijderen</string>
@@ -455,21 +475,19 @@
     <string name="tmdb_missing_short">Ontbreekt</string>
     <string name="change_source_row">Bron</string>
     <string name="ui_resolution">Resolutie van de interface</string>
-    <string name="ui_resolution_desc">Tijdens het afspelen kiest de Zidoo-speler zijn eigen modus.</string>
+    <string name="ui_resolution_desc">Bij afspelen kiest de speler zelf</string>
     <string name="interface_language">Taal van de interface</string>
     <string name="interface_language_desc">Menu’s, instellingen en meldingen</string>
     <string name="ui_4k_desc">Een scherpe interface op 4K-tv’s</string>
     <string name="ui_system_desc">De modus die het systeem kiest</string>
-    <string name="current_output">Huidige uitvoer</string>
-    <string name="display_by_player">Ingesteld door de speler</string>
+    <string name="current_output">Uitvoer</string>
     <string name="output_by_player">Ingesteld door de speler</string>
-    <string name="output_by_player_hint">De speler schaalt de interface naar zijn uitvoer. Resolutie, beeldfrequentie en HDR kiest u in Spelerinstellingen &gt; Weergave.</string>
-    <string name="storage_used">gebruikt op dit apparaat</string>
-    <string name="storage_cache_limit">Online afbeeldingen worden tot %s bewaard; de oudste gaan eerst weg.</string>
+    <string name="output_by_player_hint">Wijzigen: Spelerinstellingen, dan Weergave.</string>
+    <string name="storage_used">op dit apparaat</string>
+    <string name="storage_cache_limit">cache tot %s</string>
     <string name="storage_full">De laatste scan is gestopt: dit apparaat heeft geen ruimte meer. Opschonen, of de afbeeldingscache wissen, maakt ruimte vrij.</string>
     <string name="cleanup_desc">Verwijdert ongebruikte kopieën van lokale afbeeldingen</string>
-    <string name="clear_cache_desc">Afbeeldingen worden zo nodig opnieuw gedownload</string>
-    <string name="about_free_software">Vrije software, licentie %s</string>
+    <string name="clear_cache_desc">Worden zo nodig opnieuw gedownload</string>
     <string name="about_status">Status</string>
     <string name="detected">Gedetecteerd</string>
     <string name="not_detected">Niet gedetecteerd</string>
@@ -563,7 +581,7 @@
     <string name="edition_anniversary">Jubileumeditie</string>
     <string name="edition_open_matte">Open matte</string>
     <!-- Search: its keys, and what it found. -->
-    <string name="search_hint">De eerste letters van een titel, persoon of saga</string>
+    <string name="search_hint">Een titel, persoon of saga</string>
     <string name="search_space">Spatie</string>
     <string name="search_delete">Wissen</string>
     <string name="search_titles">Titels</string>
@@ -571,11 +589,10 @@
     <string name="search_sagas">Saga’s</string>
     <string name="search_none">Niets begint met “%s”</string>
     <!-- Trakt -->
-    <string name="trakt_desc">Uw Trakt-account houdt bij wat u vanuit uw mappen kijkt: de bekeken films en afleveringen, en waar u gebleven bent.</string>
+    <string name="trakt_desc">Uw Trakt-account houdt bij wat u kijkt: de bekeken films en afleveringen, en waar u gebleven bent. Op dit apparaat en overal elders.</string>
     <string name="trakt_no_keys">Deze versie van Houselights heeft geen Trakt-sleutel.</string>
     <string name="trakt_signed_out">Niet verbonden</string>
     <string name="trakt_connected">Verbonden</string>
-    <string name="trakt_signed_in_as">Verbonden als %s</string>
     <string name="trakt_connect">Uw account verbinden</string>
     <string name="trakt_connect_desc">Met een code die u op uw telefoon of computer invoert</string>
     <string name="trakt_disconnect">Uw account loskoppelen</string>
@@ -592,15 +609,6 @@
     <string name="trakt_failed">Trakt kon de verbinding niet voltooien. Probeer het zo meteen opnieuw.</string>
     <string name="trakt_ended">Trakt heeft deze verbinding beëindigd. Verbind uw account opnieuw.</string>
     <string name="trakt_last_sync">Laatste synchronisatie</string>
-    <plurals name="trakt_watched_count">
-        <item quantity="one">%d gezien</item>
-        <item quantity="other">%d gezien</item>
-    </plurals>
-    <plurals name="trakt_in_progress_count">
-        <item quantity="one">%d begonnen</item>
-        <item quantity="other">%d begonnen</item>
-    </plurals>
-    <string name="trakt_counts">%1$s, %2$s</string>
     <string name="trakt_sync_now">Nu synchroniseren</string>
     <string name="trakt_sync_now_desc">Brengt samen wat u hier en op Trakt hebt gezien</string>
     <string name="trakt_syncing">Synchroniseren…</string>

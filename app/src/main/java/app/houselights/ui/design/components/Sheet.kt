@@ -6,7 +6,7 @@ import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.rememberTransition
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.background
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -14,72 +14,74 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
-import app.houselights.ui.design.groundFill
-import app.houselights.ui.design.groundStep
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.paddingFromBaseline
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
-import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.key.onPreviewKeyEvent
-import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.AlignmentLine
+import androidx.compose.ui.layout.FirstBaseline
 import androidx.compose.ui.layout.Layout
-import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.window.DialogWindowProvider
 import androidx.tv.material3.Icon
 import androidx.tv.material3.Text
 import app.houselights.R
-import app.houselights.core.ImageRef
-import app.houselights.ui.design.HlSideSheetDefaults
+import app.houselights.ui.design.Ground
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlAlpha
+import app.houselights.ui.design.HlControl
+import app.houselights.ui.design.HlFocus
 import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlInset
 import app.houselights.ui.design.HlMotion
 import app.houselights.ui.design.HlShapes
+import app.houselights.ui.design.HlSideSheetDefaults
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
-import app.houselights.ui.design.Ground
+import app.houselights.ui.design.LocalAmbient
 import app.houselights.ui.design.LocalGround
-import app.houselights.ui.design.scrollEdges
-import app.houselights.ui.design.tryRequestFocus
-import app.houselights.ui.util.toPx
 import app.houselights.ui.design.capitalsAtTop
 import app.houselights.ui.design.edge
+import app.houselights.ui.design.scrollEdges
+import app.houselights.ui.design.sheetGlass
+import app.houselights.ui.design.tryRequestFocus
 
 /** Lets a sheet's content close it with its motion, then act once it has gone. */
 @Stable
@@ -141,9 +143,18 @@ private fun arriving(shown: Boolean, inMs: Int, outMs: Int): FiniteAnimationSpec
 /** Keys go nowhere while a sheet or a menu leaves. */
 internal fun Modifier.stillWhileLeaving(motion: SheetMotion): Modifier = onPreviewKeyEvent { motion.leaving }
 
+/** How many sheets are open: under one, the screen shows no focus ([HlFocusSurface]). */
+internal object OpenSheets {
+    var count by mutableIntStateOf(0)
+}
+
+/** True inside a sheet, whose surfaces keep showing focus while it is open. */
+internal val LocalInSheet = staticCompositionLocalOf { false }
+
 /**
  * The dialog window under every sheet, with our own scrim instead of the platform's grey dim and window
- * animation. [content] reads the motion's progress while drawing.
+ * animation. [content] reads the motion's progress while drawing. While it is open, the screen under it shows no
+ * focus: what opened it does not stay lit under the veil.
  */
 @Composable
 internal fun SheetWindow(
@@ -153,6 +164,10 @@ internal fun SheetWindow(
     content: @Composable BoxScope.(motion: SheetMotion) -> Unit,
 ) {
     val motion = rememberSheetMotion(onDismiss)
+    DisposableEffect(Unit) {
+        OpenSheets.count++
+        onDispose { OpenSheets.count-- }
+    }
     Dialog(onDismissRequest = { motion.sheet.dismiss() }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         val window = (LocalView.current.parent as? DialogWindowProvider)?.window
         SideEffect {
@@ -167,15 +182,19 @@ internal fun SheetWindow(
                 .stillWhileLeaving(motion)
                 .drawBehind { drawRect(room.copy(alpha = scrim * motion.opacity)) },
         ) {
-            content(motion)
+            CompositionLocalProvider(LocalInSheet provides true) { content(motion) }
         }
     }
 }
 
 /**
  * A full-height panel at the right edge for acting on or reading about what the screen shows (DESIGN.md,
- * Sheets): its task's [title], what it is about in [facts] after its printed [badges], beside its [artwork], as
- * tall as they are. No Close button: Back or [SheetScope.dismiss] closes it; [scroll] lets a text-only panel scroll.
+ * Sheets), its glass in the film's dark ([sheetGlass]): its task's [title], what it is about in [facts] after its printed
+ * [badges], ended by a [stateText] with its [state]'s dot, beside its [artwork], as tall as they are, and the
+ * [places] it shows (an NFO's views) at the end of the title's line; then its plates, [HlSpace.m] apart, in the
+ * film's light ([HlPlate]). [wide], a reading sheet holding the reading measure. No Close button nor hint: Back or
+ * [SheetScope.dismiss] closes it; [scroll] lets a text-only panel scroll, and without [scrolls] the content takes
+ * the sheet's height and scrolls itself.
  */
 @Composable
 fun HlSideSheet(
@@ -184,21 +203,28 @@ fun HlSideSheet(
     modifier: Modifier = Modifier,
     facts: List<String?> = emptyList(),
     badges: List<String> = emptyList(),
+    stateText: String? = null,
+    state: StatusState = StatusState.Done,
     description: String? = null,
     artwork: (@Composable () -> Unit)? = null,
+    places: (@Composable () -> Unit)? = null,
     initialFocus: FocusRequester? = null,
     status: (@Composable () -> Unit)? = null,
     scroll: ScrollState = rememberScrollState(),
+    scrolls: Boolean = true,
+    wide: Boolean = false,
     content: @Composable ColumnScope.(sheet: SheetScope) -> Unit,
 ) {
     SheetWindow(onDismiss, HlAlpha.VEIL_SIDE, initialFocus) { motion ->
         val c = Hl.colors
+        val light = LocalAmbient.current
+        val glass = remember(c, light) { { c.sheetGlass(light) } }
         // Its rows and fields sit on glass.
         CompositionLocalProvider(LocalGround provides Ground.Glass) {
             Column(
                 modifier
                     .align(Alignment.CenterEnd)
-                    .width(HlSideSheetDefaults.width)
+                    .width(if (wide) HlSideSheetDefaults.wideWidth else HlSideSheetDefaults.width)
                     .fillMaxHeight()
                     .graphicsLayer {
                         // A short way in as it lights, each drawing faded on its own: no offscreen pass.
@@ -206,67 +232,80 @@ fun HlSideSheet(
                         alpha = motion.opacity
                         compositingStrategy = CompositingStrategy.ModulateAlpha
                     }
-                    .sheetGlass(c.glass, c.edge)
-                    .padding(start = HlInset.sheet, end = HlSpace.safeH, top = HlSpace.safeV, bottom = HlSpace.safeV),
+                    .sheetGlass(glass, c.edge)
+                    .padding(
+                        start = if (wide) HlSpace.safeH else HlInset.sheet,
+                        end = HlSpace.safeH,
+                        top = HlSpace.safeV,
+                        bottom = HlSpace.safeV,
+                    ),
             ) {
-                SheetHeader(title, facts, badges, description, artwork, status)
-                Spacer(Modifier.height(HlSpace.m))
-                HlDivider()
-                Spacer(Modifier.height(HlSpace.m))
-                // Its rows fade into the sheet where there are more.
+                SheetHeader(SheetHead(title, facts, badges, stateText, state, description), artwork, places, status)
+                // Its plates fade into the sheet where there are more, never rising under its head; the room above and
+                // below them keeps a framed picture's light inside the scroll.
                 Column(
-                    Modifier.weight(1f).scrollEdges(scroll, c.glass).verticalScroll(scroll),
-                    verticalArrangement = Arrangement.spacedBy(HlSpace.xxs),
+                    Modifier
+                        .weight(1f)
+                        .padding(top = HlSpace.fact - HlFocus.room)
+                        .then(if (scrolls) Modifier.scrollEdges(scroll, glass).verticalScroll(scroll) else Modifier)
+                        .padding(vertical = HlFocus.room),
+                    verticalArrangement = Arrangement.spacedBy(HlSpace.m),
                 ) { content(motion.sheet) }
-                Spacer(Modifier.height(HlSpace.m))
-                BackHint()
             }
         }
     }
 }
 
 /**
- * A sheet's [glass] in [HlShapes.sheet], and its hairline [edge] on the side facing the screen only: its top
- * and bottom lie on the screen's own edges.
+ * A sheet's [glass] in [HlShapes.sheet], read while drawing, and its hairline [edge] on the side facing the screen
+ * only: its top and bottom lie on the screen's own edges.
  */
-private fun Modifier.sheetGlass(glass: Color, edge: Color): Modifier = drawWithCache {
+private fun Modifier.sheetGlass(glass: () -> Color, edge: Color): Modifier = drawWithCache {
     val outline = HlShapes.sheet.createOutline(size, layoutDirection, this)
     val corner = HlShapes.sheet.topStart.toPx(size, this)
     val hairline = Stroke(HlSize.hairline.toPx())
     onDrawBehind {
-        drawOutline(outline, glass)
+        drawOutline(outline, glass())
         clipRect(left = -hairline.width, right = corner) { drawOutline(outline, edge, style = hairline) }
     }
 }
 
+/** The words of a sheet's head: what it does, what about, and how that stands. */
+@Immutable
+private data class SheetHead(
+    val title: String,
+    val facts: List<String?>,
+    val badges: List<String>,
+    val stateText: String?,
+    val state: StatusState,
+    val description: String?,
+)
+
+/**
+ * What a sheet does, in `subject`, and what it is about on one line under it, its name first and in white, its
+ * printed marks before and its state after; its artwork beside them, as tall as both; its [places] at the end of
+ * the title's line, their words on its baseline and their plates hanging past the edge as they do past the start.
+ */
 @Composable
 private fun SheetHeader(
-    title: String,
-    facts: List<String?>,
-    badges: List<String>,
-    description: String?,
+    head: SheetHead,
     artwork: (@Composable () -> Unit)?,
+    places: (@Composable () -> Unit)?,
     status: (@Composable () -> Unit)?,
 ) {
     val c = Hl.colors
     Layout(
         contents = listOf(
             { artwork?.invoke() },
-            {
-                Column {
-                    // Its capitals level with the artwork's top.
-                    TaskTitle(title, if (artwork != null) Modifier.capitalsAtTop(Hl.type.headline.fontSize) else Modifier, maxLines = 2)
-                    if (badges.isNotEmpty() || facts.any { !it.isNullOrBlank() }) {
-                        Spacer(Modifier.height(HlSpace.xxs))
-                        BadgedFactRow(badges, facts)
-                    }
-                }
-            },
+            { HeadWords(head, capitalsAtTop = artwork != null) },
+            { places?.invoke() },
         ),
-    ) { (art, text), constraints ->
+    ) { (art, text, track), constraints ->
         val picture = art.firstOrNull()
         val block = text.first()
-        val width = constraints.maxWidth
+        val hang = HlControl.tabPaddingH.roundToPx()
+        val placed = track.firstOrNull()?.measure(Constraints(maxWidth = constraints.maxWidth))
+        val width = constraints.maxWidth - (placed?.let { it.width - hang + HlSpace.l.roundToPx() } ?: 0)
         val gap = if (picture != null) HlSpace.m.roundToPx() else 0
         // The artwork as tall as the title and its facts as they set beside it, one line or two, and as wide as
         // that height makes it: the title gives up its width, never the artwork.
@@ -282,18 +321,57 @@ private fun SheetHeader(
             ),
         )
         val start = shown?.let { it.width + gap } ?: 0
-        layout(width, words.height) {
+        layout(constraints.maxWidth, words.height) {
             shown?.placeRelative(0, 0)
             words.placeRelative(start, 0)
+            placed?.let {
+                val line = words[FirstBaseline].takeIf { b -> b != AlignmentLine.Unspecified } ?: 0
+                val own = it[FirstBaseline].takeIf { b -> b != AlignmentLine.Unspecified } ?: line
+                it.placeRelative(constraints.maxWidth - it.width + hang, line - own)
+            }
         }
     }
     if (status != null) {
         Spacer(Modifier.height(HlSpace.s))
         status()
     }
-    if (description != null) {
-        Spacer(Modifier.height(HlSpace.s))
-        Text(description, style = Hl.type.caption, color = c.contentSecondary)
+    if (head.description != null) {
+        Spacer(Modifier.height(HlSpace.l))
+        Text(head.description, style = Hl.type.meta, color = c.contentSecondary)
+    }
+}
+
+/** The title, then its facts after their printed marks and before their state, on one line. */
+@Composable
+private fun HeadWords(head: SheetHead, capitalsAtTop: Boolean) {
+    val c = Hl.colors
+    Column {
+        // Its capitals level with the artwork's top; alone, its baseline where a pane's sits under the screen's edge.
+        Text(
+            head.title,
+            style = Hl.type.subject,
+            color = c.content,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            modifier = if (capitalsAtTop) {
+                Modifier.capitalsAtTop(Hl.type.subject.fontSize)
+            } else {
+                Modifier.paddingFromBaseline(top = HlSpace.xl)
+            },
+        )
+        val facts = head.badges.isNotEmpty() || head.facts.any { !it.isNullOrBlank() }
+        if (facts || head.stateText != null) {
+            Spacer(Modifier.height(HlSpace.xs))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (facts) BadgedFactRow(head.badges, head.facts, Modifier.weight(1f, fill = false), lead = c.content)
+                head.stateText?.let {
+                    if (facts) Spacer(Modifier.width(HlSpace.fact))
+                    StatusLight(head.state)
+                    Spacer(Modifier.width(HlSpace.xxs))
+                    Text(it, style = Hl.type.meta, color = c.contentSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+            }
+        }
     }
 }
 
@@ -346,7 +424,7 @@ private fun ConfirmCard(question: String, consequence: String, confirm: String, 
     }
 }
 
-/** The Back hint at a sheet's foot. */
+/** The Back hint of an intertitle nothing else fixes. */
 @Composable
 internal fun BackHint(modifier: Modifier = Modifier) {
     val c = Hl.colors
@@ -354,54 +432,5 @@ internal fun BackHint(modifier: Modifier = Modifier) {
         Icon(HlIcons.Back, contentDescription = null, tint = c.contentTertiary, modifier = Modifier.size(HlSize.inlineIcon))
         Spacer(Modifier.width(HlSpace.xs))
         Text(stringResource(R.string.sheet_back_hint), style = Hl.type.caption, color = c.contentTertiary)
-    }
-}
-
-/** The shape of a [RowPreview]: that of the image's use. */
-enum class PreviewShape { Poster, Backdrop, Logo }
-
-/**
- * A small image at the head of a row, in one box whatever it previews ([HlSize.rowPreview], 16:9) on an opaque step
- * of its ground, so it holds on focus's white: a backdrop filling it, a logo fitted in it, a poster framed inside it
- * a step off its top and foot, its corners parallel to the box's. Without an image or on failure, a poster keeps its
- * own empty frame; a backdrop or a logo shows [icon], or the box alone.
- */
-@Composable
-fun RowPreview(image: ImageRef?, shape: PreviewShape, modifier: Modifier = Modifier, icon: ImageVector? = null) {
-    val c = Hl.colors
-    val url = image?.url(HlSize.rowPreview.toPx())
-    // The box's radius less the gap: square at this size.
-    val inner = RectangleShape
-    Box(
-        modifier
-            .width(HlSize.rowPreview)
-            .aspectRatio(HlSize.PREVIEW_RATIO)
-            .clip(HlShapes.thumb)
-            .background(groundFill(groundStep()))
-            .artworkEdge(HlShapes.thumb, c),
-        contentAlignment = Alignment.Center,
-    ) {
-        if (shape == PreviewShape.Poster) {
-            ArtworkImage(
-                url,
-                description = null,
-                modifier = Modifier
-                    .fillMaxHeight()
-                    .padding(vertical = HlSpace.xxs)
-                    .aspectRatio(HlSize.POSTER_RATIO, matchHeightConstraintsFirst = true),
-                picture = Modifier.clip(inner).artworkEdge(inner, c),
-            ) { EmptyFrame(Modifier.fillMaxSize(), inner) }
-        } else {
-            val logo = shape == PreviewShape.Logo
-            ArtworkImage(
-                url,
-                description = null,
-                modifier = Modifier.fillMaxSize(),
-                contentScale = if (logo) ContentScale.Fit else ContentScale.Crop,
-                picture = if (logo) Modifier.padding(HlSpace.xxs) else Modifier,
-            ) {
-                icon?.let { Icon(it, null, Modifier.align(Alignment.Center).size(HlSize.largeIcon), tint = c.contentSecondary) }
-            }
-        }
     }
 }

@@ -1,5 +1,6 @@
 package app.houselights.ui.catalog
 
+import app.houselights.ui.design.TwoPaneDefaults
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -9,12 +10,12 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -118,14 +119,14 @@ private fun StressHero() {
 
 @Composable
 private fun StressScriptsSection() {
-    // Widths that break every title in two: sideColumn for display, definitionLabel for headline.
+    // Widths that break every title in two: sideColumn for display, readingLabel for headline.
     Group("Scripts Archivo lacks", still = true) {
         StressScriptRow { script ->
             Text(script.title, style = Hl.type.display, color = Hl.colors.content)
             StressCaption("display · ${script.note}")
         }
         StressScriptRow { script ->
-            Text(script.title, style = Hl.type.headline, color = Hl.colors.content, modifier = Modifier.width(HlLayout.definitionLabel))
+            Text(script.title, style = Hl.type.headline, color = Hl.colors.content, modifier = Modifier.width(HlLayout.readingLabel))
             StressCaption("headline · ${script.note}")
         }
     }
@@ -146,7 +147,7 @@ private fun StressScriptsOnPosterSection() {
 private fun StressFactsSection() {
     Group("Six facts in a side column", still = true) {
         Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.l), verticalAlignment = Alignment.Top) {
-            Column(Modifier.width(HlLayout.sideColumn)) {
+            Column(Modifier.width(TwoPaneDefaults.side)) {
                 FactRow(STRESS_FACTS, Modifier.fillMaxWidth().background(Hl.colors.content.copy(alpha = HlAlpha.FILL)))
                 StressCaption("In sideColumn, on a fill to show its edge: the last facts go whole")
             }
@@ -211,7 +212,7 @@ private fun StressInfoLine(item: MediaItem) {
 @Composable
 private fun StressScriptRow(cell: @Composable (StressScript) -> Unit) {
     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.xs), verticalAlignment = Alignment.Top) {
-        STRESS_SCRIPTS.forEach { script -> Column(Modifier.width(HlLayout.sideColumn)) { cell(script) } }
+        STRESS_SCRIPTS.forEach { script -> Column(Modifier.width(TwoPaneDefaults.side)) { cell(script) } }
     }
 }
 

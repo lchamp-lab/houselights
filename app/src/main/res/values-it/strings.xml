@@ -118,18 +118,21 @@
     <string name="key_ok">OK</string>
     <string name="key_hint_type">digitare</string>
     <string name="nfo_title">File NFO</string>
-    <string name="nfo_desc">La descrizione di questo titolo scritta dal proprio gestore multimediale. Le sue informazioni prevalgono su quelle di TMDB.</string>
+    <string name="nfo_desc">Scritta dal proprio gestore multimediale, prevale su TMDB.</string>
     <string name="nfo_tab_info">Informazioni</string>
     <string name="nfo_tab_xml">XML</string>
     <string name="nfo_state_full">Descrizione completa</string>
     <string name="nfo_state_link">Solo link</string>
     <string name="nfo_state_unreadable">Illeggibile</string>
     <string name="nfo_state_reading">Apertura…</string>
-    <string name="nfo_block_details">Dettagli</string>
     <string name="label_file">File</string>
     <string name="nfo_unreadable">Impossibile leggere questo NFO come XML.</string>
     <string name="nfo_link_only">Questo NFO contiene solo un link a una scheda; Houselights lo usa per identificare il titolo.</string>
     <string name="label_title">Titolo</string>
+    <string name="label_original_title">Titolo originale</string>
+    <string name="label_episode">Episodio</string>
+    <string name="label_certification">Classificazione</string>
+    <string name="label_rating">Voto</string>
     <string name="label_year">Anno</string>
     <string name="placeholder_year">2025</string>
     <string name="label_genres">Generi</string>
@@ -160,6 +163,7 @@
     <string name="tech_container">Contenitore</string>
     <string name="tech_file">File</string>
     <string name="tech_size">Dimensione</string>
+    <string name="tech_file_fact">%1$s, %2$s</string>
     <string name="tech_bitrate">Bitrate medio</string>
     <string name="tech_duration">Durata</string>
     <string name="bit_depth">%d bit</string>
@@ -196,10 +200,11 @@
     <string name="field_protocol">Protocollo</string>
     <string name="field_host">Indirizzo del NAS</string>
     <string name="field_export">Export NFS</string>
-    <string name="nfs_hint">NFS non richiede password: il NAS si fida dell’indirizzo IP di questo dispositivo. Sul NAS, autorizzare questo IP (basta la sola lettura) e abilitare le connessioni da porte non privilegiate (superiori a 1024).</string>
+    <string name="nfs_hint">Senza password: sul NAS, autorizzare l’indirizzo di questo dispositivo in sola lettura, da porte non privilegiate.</string>
     <string name="smb_hint">La password viene salvata su questo dispositivo e trasmessa al lettore Zidoo. È preferibile un account dedicato in sola lettura.</string>
     <string name="field_share">Condivisione</string>
-    <string name="field_path">Cartella (facoltativa)</string>
+    <string name="field_path">Cartella</string>
+    <string name="field_optional">%1$s (facoltativo)</string>
     <string name="field_user">Utente</string>
     <string name="field_password">Password</string>
     <string name="placeholder_host">Es. 192.168.1.10</string>
@@ -212,6 +217,7 @@
     <string name="placeholder_path_shows">Es. serie</string>
     <string name="test_connection">Verifica</string>
     <string name="connection_untested">Connessione non verificata</string>
+    <string name="server_found">Server trovato</string>
     <string name="connection_testing">Connessione…</string>
     <string name="connection_ok">Connesso</string>
     <string name="connection_failed">Impossibile connettersi</string>
@@ -262,8 +268,8 @@
     <string name="welcome_tagline">I Suoi film, sul grande schermo.</string>
     <string name="section_about">Informazioni</string>
     <string name="section_storage">Archiviazione</string>
-    <string name="storage_artwork">Immagini locali copiate</string>
-    <string name="storage_image_cache">Cache delle immagini online</string>
+    <string name="storage_artwork">Immagini locali</string>
+    <string name="storage_image_cache">Cache delle immagini</string>
     <string name="storage_database">Database della libreria</string>
     <string name="storage_none">Nessuna</string>
     <string name="cleanup_now">Pulisci ora</string>
@@ -279,8 +285,8 @@
     </plurals>
     <string name="playback_desc">Come il lettore Zidoo accede ai file del server.</string>
     <string name="tmdb_desc">Locandine e informazioni provengono da TMDB.</string>
-    <string name="change_source_local_desc">Le cartelle vengono conservate: è possibile tornarci in qualsiasi momento.</string>
-    <string name="change_source_jellyfin_desc">Questo server resta connesso finché la nuova sorgente non è pronta.</string>
+    <string name="change_source_local_desc">Le cartelle vengono conservate</string>
+    <string name="change_source_jellyfin_desc">Resta connesso fino al cambio</string>
     <string name="change_source">Cambia sorgente</string>
     <string name="reconnect">Accedi di nuovo</string>
     <string name="source_local_first">Aggiungere una cartella dal NAS</string>
@@ -288,6 +294,11 @@
         <item quantity="one">%d cartella sul NAS</item>
         <item quantity="many">%d cartelle sul NAS</item>
         <item quantity="other">%d cartelle sul NAS</item>
+    </plurals>
+    <plurals name="folder_count">
+        <item quantity="one">%d cartella</item>
+        <item quantity="many">%d cartelle</item>
+        <item quantity="other">%d cartelle</item>
     </plurals>
     <string name="source_jellyfin_other">Un altro server o account</string>
     <string name="sign_out">Disconnetti</string>
@@ -301,6 +312,21 @@
     <string name="label_address">Indirizzo</string>
     <string name="label_user">Utente</string>
     <string name="label_render">Rendering dell’interfaccia</string>
+    <string name="add_folder_row_desc">Film o serie, sul NAS</string>
+    <string name="library_in_folders">%1$s in %2$s</string>
+    <string name="display_desc_player">Il lettore imposta la propria uscita; Houselights si adatta.</string>
+    <string name="display_desc_system">Houselights segue l’uscita impostata da questo dispositivo.</string>
+    <string name="display_interface">Interfaccia</string>
+    <string name="storage_desc">Ciò che Houselights conserva su questo dispositivo; i film restano sul NAS.</string>
+    <string name="mapping_becomes">diventa %s</string>
+    <string name="add_mapping_desc">Per un’altra cartella del server</string>
+    <string name="edit_mapping">Modifica la corrispondenza</string>
+    <string name="trakt_account">Account</string>
+    <string name="trakt_watched">Visti</string>
+    <string name="trakt_in_progress">In corso</string>
+    <string name="label_version">Versione</string>
+    <string name="label_licence">Licenza</string>
+    <string name="licence_free">%s, software libero</string>
     <string name="label_modes">Modalità disponibili</string>
     <string name="label_device">Dispositivo</string>
     <string name="label_player">Lettore Zidoo</string>
@@ -355,7 +381,6 @@
     <string name="tmdb_key_revert">Torna alla chiave integrata</string>
     <string name="tmdb_key_revert_desc">Houselights dimentica la sua chiave</string>
     <string name="save">Salva</string>
-    <string name="saved">Salvato</string>
     <string name="section_playback">Riproduzione</string>
     <string name="network_path">Percorso di rete (SMB/NFS)</string>
     <string name="http_stream">Flusso HTTP</string>
@@ -376,11 +401,8 @@
     <string name="billing_and">e</string>
     <string name="edit">Modifica</string>
     <string name="artwork_poster">Locandina</string>
-    <string name="artwork_poster_desc">Righe e libreria</string>
     <string name="artwork_backdrop">Sfondo</string>
-    <string name="artwork_backdrop_desc">Questa scheda e la Home</string>
     <string name="artwork_logo">Logo</string>
-    <string name="artwork_logo_desc">Il titolo disegnato in cima</string>
     <string name="identify">Identifica</string>
     <string name="identify_menu_desc">Associa a un altro titolo TMDB</string>
     <plurals name="image_count">
@@ -451,7 +473,6 @@
     <string name="error_action_edit_tmdb_key">Cambia la chiave</string>
 
     <!-- Settings rows -->
-    <string name="nav_version">Versione %s</string>
     <string name="refresh_metadata_desc">Recupera di nuovo immagini e informazioni da TMDB</string>
     <string name="metadata_language">Lingua delle schede</string>
     <string name="metadata_language_desc">Titoli, trame e immagini da TMDB</string>
@@ -468,21 +489,19 @@
     <string name="tmdb_missing_short">Mancante</string>
     <string name="change_source_row">Sorgente</string>
     <string name="ui_resolution">Risoluzione dell’interfaccia</string>
-    <string name="ui_resolution_desc">Durante la riproduzione, il lettore Zidoo sceglie la propria modalità.</string>
+    <string name="ui_resolution_desc">Nei film decide il lettore</string>
     <string name="interface_language">Lingua dell’interfaccia</string>
     <string name="interface_language_desc">Menu, impostazioni e messaggi</string>
     <string name="ui_4k_desc">Un’interfaccia nitida sui televisori 4K</string>
     <string name="ui_system_desc">La modalità scelta dal sistema</string>
-    <string name="current_output">Uscita attuale</string>
-    <string name="display_by_player">Impostato dal lettore</string>
+    <string name="current_output">Uscita</string>
     <string name="output_by_player">Impostata dal lettore</string>
-    <string name="output_by_player_hint">Il lettore adatta l’interfaccia alla propria uscita. Risoluzione, frequenza dei fotogrammi e HDR si scelgono in Impostazioni del lettore &gt; Display.</string>
-    <string name="storage_used">occupati su questo dispositivo</string>
-    <string name="storage_cache_limit">Le immagini online vengono conservate fino a %s; le più vecchie vengono rimosse per prime.</string>
+    <string name="output_by_player_hint">Per cambiarla: Impostazioni del lettore, poi Display.</string>
+    <string name="storage_used">su questo dispositivo</string>
+    <string name="storage_cache_limit">cache fino a %s</string>
     <string name="storage_full">L’ultima scansione si è interrotta: spazio esaurito su questo dispositivo. La pulizia, o lo svuotamento della cache delle immagini, ne libera un po’.</string>
     <string name="cleanup_desc">Rimuove le copie di immagini locali non più in uso</string>
-    <string name="clear_cache_desc">Le immagini vengono riscaricate quando servono</string>
-    <string name="about_free_software">Software libero, licenza %s</string>
+    <string name="clear_cache_desc">Riscaricate quando servono</string>
     <string name="about_status">Stato</string>
     <string name="detected">Rilevato</string>
     <string name="not_detected">Non rilevato</string>
@@ -584,7 +603,7 @@
     <string name="edition_open_matte">Open Matte</string>
 
     <!-- Search -->
-    <string name="search_hint">Le prime lettere di un titolo, di una persona o di una saga</string>
+    <string name="search_hint">Un titolo, una persona o una saga</string>
     <string name="search_space">Spazio</string>
     <string name="search_delete">Cancella</string>
     <string name="search_titles">Titoli</string>
@@ -592,11 +611,10 @@
     <string name="search_sagas">Saghe</string>
     <string name="search_none">Niente inizia con «%s»</string>
     <!-- Trakt -->
-    <string name="trakt_desc">L’account Trakt conserva ciò che si guarda dalle cartelle: i film e gli episodi visti, e il punto raggiunto.</string>
+    <string name="trakt_desc">L’account Trakt conserva ciò che si guarda: i film e gli episodi visti, e il punto raggiunto. Su questo dispositivo come altrove.</string>
     <string name="trakt_no_keys">Questa versione di Houselights non ha una chiave Trakt.</string>
     <string name="trakt_signed_out">Non connesso</string>
     <string name="trakt_connected">Connesso</string>
-    <string name="trakt_signed_in_as">Connesso come %s</string>
     <string name="trakt_connect">Collega l’account</string>
     <string name="trakt_connect_desc">Con un codice da inserire sul telefono o sul computer</string>
     <string name="trakt_disconnect">Scollega l’account</string>
@@ -613,17 +631,6 @@
     <string name="trakt_failed">Trakt non è riuscito a completare il collegamento. Riprovare tra un momento.</string>
     <string name="trakt_ended">Trakt ha chiuso questo collegamento. Collegare di nuovo l’account.</string>
     <string name="trakt_last_sync">Ultima sincronizzazione</string>
-    <plurals name="trakt_watched_count">
-        <item quantity="one">%d visto</item>
-        <item quantity="many">%d visti</item>
-        <item quantity="other">%d visti</item>
-    </plurals>
-    <plurals name="trakt_in_progress_count">
-        <item quantity="one">%d in corso</item>
-        <item quantity="many">%d in corso</item>
-        <item quantity="other">%d in corso</item>
-    </plurals>
-    <string name="trakt_counts">%1$s, %2$s</string>
     <string name="trakt_sync_now">Sincronizza ora</string>
     <string name="trakt_sync_now_desc">Riunisce ciò che è stato visto qui e su Trakt</string>
     <string name="trakt_syncing">Sincronizzazione…</string>

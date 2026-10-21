@@ -56,9 +56,20 @@ internal object FocusStyle {
         edge: BorderStroke? = null,
         disabled: Color = rest,
         disabledInk: Color = restInk,
+    ): FocusLook = frame(Steady(rest), restInk, edge, Steady(disabled), disabledInk)
+
+    /** [frame] on a plate whose colour is read while drawing: a showcase in its posters' light, once sampled. */
+    @Composable
+    @ReadOnlyComposable
+    fun frame(
+        rest: ColorProducer,
+        restInk: Color,
+        edge: BorderStroke? = null,
+        disabled: ColorProducer = rest,
+        disabledInk: Color = restInk,
     ): FocusLook {
-        val still = Plate(Steady(rest), restInk)
-        return FocusLook(Gesture.Frame, still, still, Plate(Steady(disabled), disabledInk), edge)
+        val still = Plate(rest, restInk)
+        return FocusLook(Gesture.Frame, still, still, Plate(disabled, disabledInk), edge)
     }
 
     /** Fill: the plate turns white and its ink black. */

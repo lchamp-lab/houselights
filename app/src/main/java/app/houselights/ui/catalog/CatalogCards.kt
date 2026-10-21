@@ -1,5 +1,6 @@
 package app.houselights.ui.catalog
 
+import app.houselights.ui.design.TwoPaneDefaults
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -30,7 +31,6 @@ import app.houselights.core.MediaKind
 import app.houselights.core.Person
 import app.houselights.ui.design.OnArtwork
 import app.houselights.ui.design.Hl
-import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
@@ -48,9 +48,7 @@ import app.houselights.ui.design.components.MediaRow
 import app.houselights.ui.design.components.PersonCard
 import app.houselights.ui.design.components.PosterCard
 import app.houselights.ui.design.components.PosterThumb
-import app.houselights.ui.design.components.PreviewShape
 import app.houselights.ui.design.components.ProgressLine
-import app.houselights.ui.design.components.RowPreview
 import app.houselights.ui.design.components.SelectedMark
 import app.houselights.ui.util.FACT_GAP
 import app.houselights.ui.util.formatDimensions
@@ -81,7 +79,7 @@ internal fun LazyListScope.catalogCards() {
         }
     }
     item { Group("Search result") { Results() } }
-    item { Group("Poster thumb and row preview", still = true) { Thumbs() } }
+    item { Group("Poster thumb", still = true) { Thumbs() } }
 }
 
 private const val BROKEN_URL = "file:///nonexistent/poster.jpg"
@@ -138,7 +136,7 @@ private fun AmbientBackdrops() {
     // Isolated backdrops: no relay hands a picture to them or from them.
     CompositionLocalProvider(LocalBackdropRelay provides null) { Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.l)) {
         listOf("a picture: its light" to art, "no picture: the black room, no light" to null).forEach { (state, image) ->
-            Specimen(state, width = HlLayout.sideColumnWide) {
+            Specimen(state, width = TwoPaneDefaults.sideWide) {
                 Box(Modifier.fillMaxWidth().aspectRatio(16f / 9f)) {
                     AmbientBackdrop(image, BackdropStyle.Hero) {
                         PosterCard(sample("Le Samouraï", 1967), {}, Modifier.align(Alignment.CenterStart).padding(start = HlSpace.l))
@@ -146,7 +144,7 @@ private fun AmbientBackdrops() {
                 }
             }
         }
-        Specimen("quiet, a person's titles: the picture dimmed down to the foot", width = HlLayout.sideColumnWide) {
+        Specimen("quiet, a person's titles: the picture dimmed down to the foot", width = TwoPaneDefaults.sideWide) {
             Box(Modifier.fillMaxWidth().aspectRatio(16f / 9f)) { Backdrop(art, BackdropStyle.Quiet) }
         }
     } }
@@ -454,11 +452,10 @@ private fun Results() {
     }
 }
 
-/** Small posters of lists, then the previews at the head of the edit menu's rows. */
+/** Small posters of lists and of a sheet's head. */
 @Composable
 private fun Thumbs() {
     val art = shippedImage(R.drawable.banner)
-    val logo = shippedImage(R.drawable.ic_launcher_foreground)
     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Top) {
         listOf(
             Triple("thumb", art, HlSize.posterThumb),
@@ -473,26 +470,5 @@ private fun Thumbs() {
                 Box(Modifier.height(HlSize.posterThumb)) { PosterThumb(image, width = null) }
             }
         }
-    }
-    Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Top) {
-        listOf(
-            Triple("poster", art, PreviewShape.Poster),
-            Triple("backdrop", art, PreviewShape.Backdrop),
-            Triple("logo", logo, PreviewShape.Logo),
-            Triple("poster, failed: empty frame", brokenImage, PreviewShape.Poster),
-            Triple("logo, failed: empty frame", brokenImage, PreviewShape.Logo),
-        ).forEach { (state, image, shape) ->
-            Specimen(state, width = HlSize.rowPreview) { RowPreview(image, shape) }
-        }
-        Specimen("logo, failed, icon", width = HlSize.rowPreview) {
-            RowPreview(brokenImage, PreviewShape.Logo, icon = HlIcons.Logo)
-        }
-    }
-    Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Top) {
-        Specimen("poster, none: empty frame", width = HlSize.rowPreview) { RowPreview(null, PreviewShape.Poster) }
-        Specimen("backdrop, none: empty frame", width = HlSize.rowPreview) { RowPreview(null, PreviewShape.Backdrop) }
-        Specimen("logo, none: empty frame", width = HlSize.rowPreview) { RowPreview(null, PreviewShape.Logo) }
-        Specimen("logo, none, icon", width = HlSize.rowPreview) { RowPreview(null, PreviewShape.Logo, icon = HlIcons.Logo) }
-        Specimen("icon (identify)", width = HlSize.rowPreview) { RowPreview(null, PreviewShape.Backdrop, icon = HlIcons.Search) }
     }
 }

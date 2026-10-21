@@ -129,7 +129,8 @@ internal fun backdropRequest(context: Context, url: String, widthPx: Int, height
 private suspend fun decodeSample(context: Context, image: ImageRef): Bitmap? =
     (context.imageLoader.execute(backdropSampleRequest(context, image)) as? SuccessResult)?.drawable?.toBitmap()
 
-private suspend fun decodeUrl(context: Context, url: String): Bitmap? =
+/** A small sample of the picture at [url] (a card's glow, a poster field's), its pixels readable. */
+internal suspend fun decodeUrl(context: Context, url: String): Bitmap? =
     (context.imageLoader.execute(glowSampleRequest(context, url)) as? SuccessResult)?.drawable?.toBitmap()
 
 /** Request for the small sample of a backdrop that its veils and light are read from. */
@@ -162,19 +163,26 @@ private const val GLOW_TONES = 200
 /** A card's glow: its artwork's light at [url] ([lightOf]), sampled once [active]; focus lights it. */
 @Composable
 fun rememberGlowColor(url: String?, active: Boolean): State<Color> {
-    val context = LocalContext.current
-    var tone by remember(url) { mutableStateOf(url?.let { synchronized(glowTones) { glowTones[it] } }) }
-    LaunchedEffect(url, active) {
-        if (!active || url == null || tone != null) return@LaunchedEffect
-        val bitmap = decodeUrl(context, url) ?: return@LaunchedEffect
-        val found = withContext(Dispatchers.Default) { lightOf(paletteOf(bitmap)).glow }
-        synchronized(glowTones) { glowTones[url] = found }
-        tone = found
-    }
+    val tone by rememberGlowTone(url, active)
     return animateColorAsState(tone ?: Color.Transparent, tween(HlMotion.FOCUS_IN, easing = HlMotion.focusPull), label = "glow")
 }
 
-private fun paletteOf(bitmap: Bitmap): Palette = Palette.from(bitmap).maximumColorCount(PALETTE_COLOURS).generate()
+/** The tone of [rememberGlowColor] as it is read, without its arrival: null until sampled. */
+@Composable
+internal fun rememberGlowTone(url: String?, active: Boolean): State<Color?> {
+    val context = LocalContext.current
+    val tone = remember(url) { mutableStateOf(url?.let { synchronized(glowTones) { glowTones[it] } }) }
+    LaunchedEffect(url, active) {
+        if (!active || url == null || tone.value != null) return@LaunchedEffect
+        val bitmap = decodeUrl(context, url) ?: return@LaunchedEffect
+        val found = withContext(Dispatchers.Default) { lightOf(paletteOf(bitmap)).glow }
+        synchronized(glowTones) { glowTones[url] = found }
+        tone.value = found
+    }
+    return tone
+}
+
+internal fun paletteOf(bitmap: Bitmap): Palette = Palette.from(bitmap).maximumColorCount(PALETTE_COLOURS).generate()
 
 private const val PALETTE_COLOURS = 16
 

@@ -10,6 +10,8 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ProcessLifecycleOwner
 import app.houselights.core.Http
 import app.houselights.core.LibraryEvents
+import app.houselights.ui.design.components.FIELD_POSTERS
+import app.houselights.ui.util.RoomPosters
 import app.houselights.core.MediaProvider
 import app.houselights.core.Secrets
 import app.houselights.core.SourceConfig
@@ -290,6 +292,14 @@ class AppContainer(private val app: Application, val language: InterfaceLanguage
         tmdbInteractiveClient?.takeIf { it.fits(key, locale) }?.let { return it }
         return TmdbClient(key, locale = locale).also { tmdbInteractiveClient = it }
     }
+
+    /** The posters the settings and their forms lie on, read once a visit. */
+    val roomPosters = RoomPosters(
+        source = { settings.state.first { it.loaded || it.readFailed }.source },
+        latest = { library.latestPosters(FIELD_POSTERS).first() },
+        hasFolders = { library.hasFolders() },
+        trending = ::trendingPosters,
+    )
 
     /** Poster URLs of trending films, or nothing when TMDB is unreachable. */
     suspend fun trendingPosters(widthPx: Int): List<String> = suspendRunCatching {

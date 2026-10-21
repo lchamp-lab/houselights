@@ -145,17 +145,19 @@ data class HlType(
     // The voice of reading (normal width).
     /** A tagline set large, an episode's name in its heading. */
     val title: TextStyle,
-    /** A tagline under a title, a name heading a list choice, a typed query. */
+    /** A tagline under a title, a row's name, a name heading a list choice, a typed query. */
     val lead: TextStyle,
+    /** Running text read at length (a synopsis, an NFO's values), at the reading measure. */
+    val read: TextStyle,
     /** Overviews, descriptions, paragraphs. */
     val body: TextStyle,
-    /** A name to read or choose: a setting, a menu option, a navigation entry, a button's words. */
+    /** A name to choose: a menu option, a version, a button's words. */
     val entry: TextStyle,
     /** Facts and values: year, runtime, score, sizes; tabular figures. */
     val meta: TextStyle,
     /** Secondary lines: hints, roles, paths, the line under a name; set tight so two lines read as one block. */
     val caption: TextStyle,
-    /** Title over a group of facts or settings ("Vidéo", "État"): above its labels, not among them. */
+    /** Title over a group of facts or settings ("Image", "État"): above its plate, not among its labels. */
     val group: TextStyle,
     /** Raw text to read as written (NFO XML). */
     val code: TextStyle,
@@ -189,12 +191,13 @@ val HouselightsType = HlType(
 
     title = scale(HlFonts.text, FontWeight.SemiBold, 24, 30, lineBreak = TITLE),
     lead = scale(HlFonts.text, FontWeight.SemiBold, 20, 26, lineBreak = TITLE),
+    read = scale(HlFonts.text, FontWeight.Normal, 20, 32, lineBreak = PROSE),
     body = scale(HlFonts.text, FontWeight.Normal, 16, 24, lineBreak = PROSE),
     entry = scale(HlFonts.text, FontWeight.SemiBold, 16, 20),
     meta = scale(HlFonts.text, FontWeight.Normal, 16, 20, FIGURES),
     caption = scale(HlFonts.text, FontWeight.Normal, 14, 18, FIGURES, PROSE),
-    group = scale(HlFonts.text, FontWeight.SemiBold, 14, 18),
-    code = scale(HlFonts.mono, FontWeight.Normal, 14, 22),
+    group = scale(HlFonts.text, FontWeight.SemiBold, 16, 20),
+    code = scale(HlFonts.mono, FontWeight.Normal, 20, 32),
 
     spec = scale(HlFonts.expanded, FontWeight.SemiBold, 20, 26, FIGURES),
     jaquette = scale(HlFonts.expanded, FontWeight.SemiBold, 14, 18, FIGURES),

@@ -17,7 +17,7 @@ class TypeScaleTest {
         mapOf(
             "display" to display, "headline" to headline, "subject" to subject, "place" to place,
             "placeCurrent" to placeCurrent, "rowTitle" to rowTitle, "cardName" to cardName, "cardTitle" to cardTitle,
-            "title" to title, "lead" to lead, "body" to body, "entry" to entry, "meta" to meta,
+            "title" to title, "lead" to lead, "read" to read, "body" to body, "entry" to entry, "meta" to meta,
             "caption" to caption, "group" to group, "code" to code,
             "spec" to spec, "jaquette" to jaquette, "badge" to badge,
         )
@@ -98,7 +98,19 @@ class TypeScaleTest {
         listOf("display", "headline", "subject", "rowTitle", "cardName", "cardTitle", "title", "lead").forEach {
             assertEquals(it, LineBreak.Heading, roles.getValue(it).lineBreak)
         }
-        listOf("body", "caption").forEach { assertEquals(it, LineBreak.Paragraph, roles.getValue(it).lineBreak) }
+        listOf("read", "body", "caption").forEach { assertEquals(it, LineBreak.Paragraph, roles.getValue(it).lineBreak) }
+    }
+
+    @Test
+    fun secondaryScreensReadFromTheCouch() {
+        // Running text at 20 on 32, Regular; a group's title at 16; a row's name in lead.
+        with(HouselightsType) {
+            assertEquals(20f to 32f, read.fontSize.value to read.lineHeight.value)
+            assertEquals(FontWeight.Normal, read.fontWeight)
+            assertEquals(HlFonts.text, read.fontFamily)
+            assertEquals(16f, group.fontSize.value)
+            assertEquals(20f, lead.fontSize.value)
+        }
     }
 
     @Test

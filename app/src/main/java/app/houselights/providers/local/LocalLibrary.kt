@@ -43,6 +43,9 @@ class LocalLibrary(
 
     fun latestPosters(folder: SourceEntity, limit: Int): Flow<List<String>> = dao.observePosters(folder.id, limit)
 
+    /** The [limit] posters last added to the whole library. */
+    fun latestPosters(limit: Int): Flow<List<String>> = dao.observeAllPosters(limit)
+
     suspend fun hasFolders(): Boolean = dao.sources().isNotEmpty()
 
     /** The most recently added source, as the next one is usually on the same server. */

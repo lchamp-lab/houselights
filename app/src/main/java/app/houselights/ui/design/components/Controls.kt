@@ -580,7 +580,7 @@ private val TrackHang: Dp = HlControl.tabPaddingH + DotRoom
 private val PlateGap: Dp = HlSpace.xs
 
 /** Laid out [by] further to the start than its slot, which it fills less [by]: what it draws hangs into the margin. */
-private fun Modifier.hang(by: Dp): Modifier = layout { measurable, constraints ->
+internal fun Modifier.hang(by: Dp): Modifier = layout { measurable, constraints ->
     val room = by.roundToPx()
     val placeable = measurable.measure(constraints.offset(horizontal = room))
     layout(constraints.constrainWidth(placeable.width - room), placeable.height) { placeable.place(-room, 0) }
