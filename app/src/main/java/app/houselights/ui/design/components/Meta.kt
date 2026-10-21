@@ -113,23 +113,23 @@ fun Score(score: Double, modifier: Modifier = Modifier) {
     }
 }
 
-/** Text in a hairline frame (age rating, remote key, protocol); never a state or a format. */
+/** Text in a hairline frame (age rating, remote key, protocol); never a state or a format. [ink] colours both on a focused plate. */
 @Composable
-fun Badge(text: String, modifier: Modifier = Modifier) {
+fun Badge(text: String, modifier: Modifier = Modifier, ink: Color? = null) {
     val c = Hl.colors
     Text(
         text,
         style = Hl.type.badge,
-        color = c.contentSecondary,
+        color = ink ?: c.contentSecondary,
         modifier = modifier
-            .border(HlSize.hairline, c.outline, HlShapes.badge)
+            .border(HlSize.hairline, ink ?: c.outline, HlShapes.badge)
             .padding(horizontal = HlControl.badgePaddingH, vertical = HlControl.badgePaddingV),
     )
 }
 
 @Composable
 private fun FormatWord(text: String, ink: Color?) {
-    Text(text, style = Hl.type.badge, color = ink ?: Hl.colors.contentSecondary, maxLines = 1, softWrap = false)
+    Text(text, style = Hl.type.jaquette, color = ink ?: Hl.colors.contentSecondary, maxLines = 1, softWrap = false)
 }
 
 /**

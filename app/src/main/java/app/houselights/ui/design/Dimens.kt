@@ -111,10 +111,9 @@ object HlSize {
     /** Least height of a setting row; [sheetRow] in a side sheet. */
     val row = 60.dp
     val sheetRow = 52.dp
-    /** Image at the head of a row, as tall as a sheet row allows: its height, a poster's width at it, its slot's width. */
-    val rowPreview = 40.dp
-    val rowPreviewPoster = 27.dp
-    val rowPreviewWide = 72.dp
+    /** The box at the head of a sheet row, [PREVIEW_RATIO], one for whatever image it previews. */
+    val rowPreview = 72.dp
+    const val PREVIEW_RATIO = 16f / 9f
     /** Progress shown beside text (time left). */
     val progressShort = 120.dp
     /** The progress of home's hero title, before its time left. */
@@ -163,8 +162,6 @@ object HlLayout {
     /** Where a two-pane screen's content starts, level with its first navigation entry. */
     val paneTop = 72.dp
     val fieldShort = 120.dp
-    /** Start of rows carrying their own [HlInset.card], so their text aligns with the safe area (end credits). */
-    val insetRows = HlSpace.safeH - HlInset.card
     /** Clear logo or title of a detail page, and of a browsing hero. */
     val titleArtWidth = 440.dp
     val titleArtHeight = 112.dp
@@ -226,7 +223,7 @@ internal object HlSideSheetDefaults {
 internal object HlSettingRowDefaults {
     val valueWidth = 360.dp
 
-    /** A name over its description, or a [HlSize.rowPreview], fills a [HlSize.sheetRow] with this room. */
+    /** A name over its description fills a [HlSize.sheetRow] with this room. */
     val paddingV = 6.dp
 }
 

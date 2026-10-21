@@ -36,6 +36,8 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorProducer
+import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawOutline
@@ -98,6 +100,7 @@ internal fun HlFocusSurface(
     val inRow = row?.takeIf { framed && enabled }?.let { rememberRowCard(it, shape) }
     val frame = ring.brush.takeIf { enabled && inRow == null }
     val light = remember(look, shape, frame, glow, lights) { framedLight(look, shape, frame, glow, lights) }
+    val plate = remember(look, enabled, lights) { ColorProducer { look.plateAt(enabled, lights.on.value) } }
     Box(
         modifier
             .then(inRow ?: Modifier)
@@ -108,7 +111,7 @@ internal fun HlFocusSurface(
             .then(light),
         propagateMinConstraints = true,
     ) {
-        CompositionLocalProvider(LocalContentColor provides look.ink(enabled, lit), LocalRaise provides null) {
+        CompositionLocalProvider(LocalContentColor provides look.ink(enabled, lit), LocalRaise provides null, LocalPlate provides plate) {
             // In the clip's layer, the plate's light redraws that layer alone, never the screen's.
             Box(Modifier.clip(shape).drawWithCache { drawPlate(look, shape, enabled, ring, lights) }) { content(lit) }
         }
@@ -165,6 +168,16 @@ private fun rememberRaise(raised: Boolean, focus: State<Boolean>, lights: Lights
 internal class Raise {
     /** How far above its neighbours, read while placing. */
     var level by mutableStateOf(AtRest)
+}
+
+/** The plate a surface's content lies on, read while drawing: what a picture on it fades into. */
+internal val LocalPlate = staticCompositionLocalOf<ColorProducer?> { null }
+
+/** The plate as drawn at [on] (0 at rest, 1 with focus): focus's white over the rest for a plate that fills. */
+private fun FocusLook.plateAt(enabled: Boolean, on: Float): Color = when {
+    !enabled -> disabled.fill()
+    gesture == Gesture.Fill && on > 0f -> focus.fill().copy(alpha = on).compositeOver(rest.fill())
+    else -> rest.fill()
 }
 
 /** The card a framed surface is the picture of; null where the surface is its own root. */

@@ -37,6 +37,8 @@ import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.text.TextStyle
 import androidx.tv.material3.Text
 import app.houselights.R
+import app.houselights.core.ImageRef
+import app.houselights.ui.edit.EditMenu
 import app.houselights.core.MediaKind
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlAlpha
@@ -207,7 +209,7 @@ fun CatalogScreen() {
                     var long by remember { mutableStateOf(false) }
                     var code by remember { mutableStateOf(false) }
                     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.s)) {
-                        HlButton("Side sheet", { side = true })
+                        HlButton("Modifier: previews in one box", { side = true })
                         HlButton("An action that asks first", { asking = true })
                         HlButton("A status, a field", { keyed = true })
                         HlButton("More rows than it holds", { long = true })
@@ -219,24 +221,10 @@ fun CatalogScreen() {
                     if (long) SheetLong(onDismiss = { long = false })
                     if (code) SheetCode(onDismiss = { code = false })
                     if (side) {
-                        HlSideSheet(
-                            stringResource(R.string.edit),
-                            onDismiss = { side = false },
-                            subject = "Le Samouraï",
-                            facts = listOf("1967"),
-                            description = "A panel to act on what the screen shows, which stays in view.",
-                        ) { sheet ->
-                            HlSettingRow(
-                                stringResource(R.string.artwork_poster),
-                                description = stringResource(R.string.artwork_poster_desc),
-                                onClick = sheet::dismiss,
-                            )
-                            HlSettingRow(
-                                stringResource(R.string.artwork_backdrop),
-                                description = stringResource(R.string.artwork_backdrop_desc),
-                                onClick = sheet::dismiss,
-                            )
-                        }
+                        // Its poster and backdrop from the app's own art, a logo that never loads.
+                        val art = shippedImage(R.drawable.banner)
+                        val edited = sample("Le Samouraï", 1967).copy(poster = art, backdrop = art, logo = BROKEN_LOGO)
+                        EditMenu(edited, onDismiss = { side = false }, onArtwork = { side = false }, onIdentify = { side = false })
                     }
                 }
             }
@@ -322,7 +310,6 @@ fun CatalogScreen() {
                             stringResource(R.string.refresh_metadata),
                             description = stringResource(R.string.refresh_metadata_desc),
                             onClick = {},
-                            chevron = false,
                         )
                         HlSettingRow(
                             "Fréquence d’affichage automatique",
@@ -429,7 +416,6 @@ private fun SheetQuestion(onDismiss: () -> Unit) {
                 stringResource(R.string.scan_now),
                 description = stringResource(R.string.scan_now_desc),
                 onClick = { sheet.dismiss() },
-                chevron = false,
             )
             Spacer(Modifier.height(HlSpace.s))
             HlDivider()
@@ -439,7 +425,6 @@ private fun SheetQuestion(onDismiss: () -> Unit) {
                 origin,
                 description = stringResource(R.string.remove_folder_row_desc),
                 onClick = ask,
-                chevron = false,
             )
         }
     }
@@ -484,7 +469,7 @@ private fun SheetStatusField(onDismiss: () -> Unit) {
                 key = it
                 refused = false
             },
-            placeholder = personal,
+            placeholder = stringResource(R.string.placeholder_tmdb_key),
             showLabel = false,
             supporting = stringResource(R.string.tmdb_key_builtin),
             error = if (refused) stringResource(R.string.error_tmdb_key_refused_title) else null,
@@ -551,3 +536,6 @@ private fun specimenMeasure(style: TextStyle): String {
 }
 
 private const val PERCENT = 100
+
+/** A logo whose image never loads: its row previews the icon. */
+private val BROKEN_LOGO = ImageRef("catalog-edit-broken-logo") { "file:///nonexistent/edit-logo.png" }

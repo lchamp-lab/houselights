@@ -465,10 +465,13 @@ private fun Thumbs() {
             Triple("thumb, none: empty frame", null, HlSize.posterThumb),
             Triple("thumb, failed: empty frame", brokenImage, HlSize.posterThumb),
             Triple("large", art, HlSize.posterThumbLarge),
-            Triple("row size", art, HlSize.rowPreviewPoster),
-            Triple("row size, none: empty frame", null, HlSize.rowPreviewPoster),
         ).forEach { (state, image, width) ->
             Specimen(state, width = HlSize.posterThumbLarge) { PosterThumb(image, width = width) }
+        }
+        listOf("as tall as it is given: a sheet's title block" to art, "as tall, none: empty frame" to null).forEach { (state, image) ->
+            Specimen(state, width = HlSize.posterThumbLarge) {
+                Box(Modifier.height(HlSize.posterThumb)) { PosterThumb(image, width = null) }
+            }
         }
     }
     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Top) {
@@ -479,17 +482,17 @@ private fun Thumbs() {
             Triple("poster, failed: empty frame", brokenImage, PreviewShape.Poster),
             Triple("logo, failed: empty frame", brokenImage, PreviewShape.Logo),
         ).forEach { (state, image, shape) ->
-            Specimen(state, width = HlSize.rowPreviewWide) { RowPreview(image, shape) }
+            Specimen(state, width = HlSize.rowPreview) { RowPreview(image, shape) }
         }
-        Specimen("logo, failed, icon", width = HlSize.rowPreviewWide) {
+        Specimen("logo, failed, icon", width = HlSize.rowPreview) {
             RowPreview(brokenImage, PreviewShape.Logo, icon = HlIcons.Logo)
         }
     }
     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Top) {
-        Specimen("poster, none: empty frame", width = HlSize.rowPreviewWide) { RowPreview(null, PreviewShape.Poster) }
-        Specimen("backdrop, none: empty frame", width = HlSize.rowPreviewWide) { RowPreview(null, PreviewShape.Backdrop) }
-        Specimen("logo, none: empty frame", width = HlSize.rowPreviewWide) { RowPreview(null, PreviewShape.Logo) }
-        Specimen("logo, none, icon", width = HlSize.rowPreviewWide) { RowPreview(null, PreviewShape.Logo, icon = HlIcons.Logo) }
-        Specimen("icon (identify)", width = HlSize.rowPreviewWide) { RowPreview(null, PreviewShape.Backdrop, icon = HlIcons.Search) }
+        Specimen("poster, none: empty frame", width = HlSize.rowPreview) { RowPreview(null, PreviewShape.Poster) }
+        Specimen("backdrop, none: empty frame", width = HlSize.rowPreview) { RowPreview(null, PreviewShape.Backdrop) }
+        Specimen("logo, none: empty frame", width = HlSize.rowPreview) { RowPreview(null, PreviewShape.Logo) }
+        Specimen("logo, none, icon", width = HlSize.rowPreview) { RowPreview(null, PreviewShape.Logo, icon = HlIcons.Logo) }
+        Specimen("icon (identify)", width = HlSize.rowPreview) { RowPreview(null, PreviewShape.Backdrop, icon = HlIcons.Search) }
     }
 }

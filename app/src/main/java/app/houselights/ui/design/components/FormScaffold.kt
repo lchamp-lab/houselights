@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.text.TextStyle
@@ -85,8 +86,9 @@ fun HlFormScaffold(
 }
 
 /**
- * A setup's status beside its form: the state with its light, [label] and [value] (an address), [detail]
- * and [badges]; under a hairline, [content] and the last [result], an [AttentionNote] if [resultIsError].
+ * A setup's status beside its form: the state with its light, [label] and [value] (an address), [detail],
+ * its printed [badges] and [facts]; under a hairline, [content] and the last [result], an [AttentionNote] if
+ * [resultIsError].
  */
 @Composable
 fun StatusPanel(
@@ -98,6 +100,7 @@ fun StatusPanel(
     valueStyle: TextStyle = Hl.type.spec,
     detail: String? = null,
     badges: List<String> = emptyList(),
+    facts: List<String?> = emptyList(),
     result: String? = null,
     resultIsError: Boolean = false,
     content: (@Composable ColumnScope.() -> Unit)? = null,
@@ -113,9 +116,14 @@ fun StatusPanel(
             Spacer(Modifier.height(HlSpace.xxs))
             Text(detail, style = Hl.type.meta, color = c.contentSecondary, maxLines = 2, overflow = TextOverflow.Ellipsis)
         }
-        if (badges.isNotEmpty()) {
+        if (badges.isNotEmpty() || facts.any { !it.isNullOrBlank() }) {
             Spacer(Modifier.height(HlSpace.s))
-            Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.xs)) { badges.forEach { Badge(it) } }
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(HlSpace.xs)) {
+                badges.forEach { Badge(it) }
+                if (facts.any { !it.isNullOrBlank() }) {
+                    FactRow(facts, Modifier.padding(start = if (badges.isEmpty()) HlSpace.none else HlSpace.xs))
+                }
+            }
         }
         if (content != null || result != null) {
             Spacer(Modifier.height(HlSpace.l))

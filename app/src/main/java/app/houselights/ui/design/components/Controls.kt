@@ -36,7 +36,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
@@ -447,7 +446,7 @@ internal fun labelX(button: Int, label: Int, left: Int, screen: Int, edge: Int):
 }
 
 /**
- * A choice in a vertical list (sources, servers): a panel with icon, [badges] and a focus chevron, quiet on the
+ * A choice in a vertical list (sources, servers): a panel with icon and [badges], quiet on the
  * room, on glass when [level] raises it over a picture.
  */
 @Composable
@@ -475,12 +474,6 @@ fun HlListItem(
                     Spacer(Modifier.width(HlSpace.s))
                 }
                 Text(title, style = Hl.type.lead, color = c.content, modifier = Modifier.weight(1f))
-                Icon(
-                    HlIcons.Chevron,
-                    contentDescription = null,
-                    tint = c.content,
-                    modifier = Modifier.size(HlSize.icon).alpha(if (focused) 1f else 0f),
-                )
             }
             if (description != null) {
                 Spacer(Modifier.height(HlSpace.xs))

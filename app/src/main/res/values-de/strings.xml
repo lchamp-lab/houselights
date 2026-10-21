@@ -191,6 +191,9 @@
     <string name="field_user">Benutzer</string>
     <string name="field_password">Passwort</string>
     <string name="placeholder_host">z. B. 192.168.1.10</string>
+    <string name="placeholder_server_path">z. B. /media/movies</string>
+    <string name="placeholder_network_path">z. B. nfs://192.168.1.10/volume1/movies</string>
+    <string name="placeholder_tmdb_key">z. B. 0123456789abcdef0123456789abcdef</string>
     <string name="placeholder_export" tools:ignore="Typos">z. B. /volume1/media</string>
     <string name="placeholder_share">z. B. media</string>
     <string name="placeholder_path_movies">z. B. filme</string>

@@ -141,9 +141,6 @@ object HlIcons {
     /** The Back key of the remote: an arrow turning back (`undo-2`). */
     val Back = icon("Back", "M9 14 4 9l5-5", "M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11")
 
-    /** Opens what a row leads to (`chevron-right`). */
-    val Chevron = icon("Chevron", "m9 18 6-6-6-6")
-
     /** Turns a screen to its other view: two arrows, one each way (`arrow-left-right`). */
     val Swap = icon("Swap", "M8 3 4 7l4 4", "M4 7h16", "m16 21 4-4-4-4", "M20 17H4")
 

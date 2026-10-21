@@ -69,7 +69,6 @@ internal fun JellyfinLoginForm(vm: JellyfinLoginViewModel, onLoggedIn: () -> Uni
                 stateText = stringResource(loginState(vm.busy, failed = error != null)),
                 label = stringResource(R.string.field_server),
                 value = server.ifBlank { stringResource(R.string.placeholder_pending) },
-                badges = listOf("Jellyfin"),
                 result = error,
                 resultIsError = true,
             )

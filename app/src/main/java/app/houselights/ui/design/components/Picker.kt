@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -79,7 +80,7 @@ fun ArtworkChoiceCard(
         Spacer(Modifier.height(HlSpace.s))
         Text(title, style = Hl.type.meta, color = c.content, maxLines = 1, overflow = TextOverflow.Ellipsis)
         if (caption != null) {
-            Text(caption, style = Hl.type.caption, color = c.contentTertiary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(caption, style = Hl.type.caption, color = c.contentSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
     }
 }
@@ -137,14 +138,24 @@ fun HlResultItem(
     }
 }
 
-/** A small poster in a list, at [width]; an empty frame when there is none or it fails to load. */
+/**
+ * A small poster in a list, at [width], or as tall as it is given when [width] is null (a sheet's header); an
+ * empty frame when there is none or it fails to load.
+ */
 @Composable
-fun PosterThumb(poster: ImageRef?, modifier: Modifier = Modifier, width: Dp = HlSize.posterThumb) {
+fun PosterThumb(poster: ImageRef?, modifier: Modifier = Modifier, width: Dp? = HlSize.posterThumb) {
+    val sized = if (width != null) {
+        modifier.width(width).aspectRatio(THUMB_RATIO)
+    } else {
+        modifier.fillMaxHeight().aspectRatio(THUMB_RATIO, matchHeightConstraintsFirst = true)
+    }
     ArtworkImage(
-        poster?.url(width.toPx()),
+        poster?.url((width ?: HlSize.posterThumb).toPx()),
         description = null,
-        modifier = modifier.width(width).aspectRatio(2f / 3f),
+        modifier = sized,
         // While loading, the poster's slot shows its ground, edged like artwork at rest.
         picture = Modifier.clip(HlShapes.thumb).background(groundStepFill()).artworkEdge(HlShapes.thumb, Hl.colors),
     ) { EmptyFrame(Modifier.fillMaxSize(), HlShapes.thumb) }
 }
+
+private const val THUMB_RATIO = 2f / 3f

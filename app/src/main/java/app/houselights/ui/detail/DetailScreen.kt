@@ -119,7 +119,6 @@ import app.houselights.core.Job
 import app.houselights.core.Person
 import androidx.compose.foundation.lazy.itemsIndexed
 import app.houselights.ui.util.jobName
-import app.houselights.ui.design.components.EndCredits
 import app.houselights.ui.design.components.HeadOverview
 import app.houselights.ui.design.components.SynopsisSheet
 import app.houselights.ui.design.components.Craft
@@ -182,7 +181,9 @@ fun DetailScreen(
     val focusedEpisode = remember { mutableStateOf<MediaItem?>(null) }
     var showTech by remember { mutableStateOf(false) }
     val media = item.media?.takeIf { it.video != null || it.audio.isNotEmpty() }
-    if (showTech && media != null) TechSpecs(item, onDismiss = { showTech = false })
+    val crafts = endCrafts(item, state.credits).map { (job, names) -> Craft(jobName(job), names) }
+    val technical = media != null || crafts.isNotEmpty()
+    if (showTech && technical) TechSpecs(item, onDismiss = { showTech = false }, crafts = crafts)
     var showVersions by remember { mutableStateOf(false) }
     if (showVersions) VersionsSheet(item, state.versions, onChoose = vm::chooseVersion, onDismiss = { showVersions = false })
     var showSynopsis by remember { mutableStateOf(false) }
@@ -202,8 +203,8 @@ fun DetailScreen(
         onToggleFavorite = vm::toggleFavorite,
         onOpenSeries = { item.seriesId?.let(onOpenItem) },
         onOpenNfo = { onOpenNfo(item.id) },
-        // Null hides the button: no technical sheet, or a single copy.
-        onShowTech = { showTech = true }.takeIf { media != null },
+        // Null hides the button: nothing for the technical sheet, or a single copy.
+        onShowTech = { showTech = true }.takeIf { technical },
         onShowVersions = { showVersions = true }.takeIf { state.versions.size > 1 },
         onShowSynopsis = { showSynopsis = true },
         copy = state.playedCopy,
@@ -252,7 +253,6 @@ fun DetailScreen(
 
                 seasonRows(state, memory, focusedEpisode, vm, onPlay)
                 titleRows(item, state, memory, people, RowLinks(onOpenItem, onOpenPerson))
-                endRows(item, state.credits)
             } }
     }
 }
@@ -372,19 +372,6 @@ private fun LazyListScope.titleRows(
                     PosterCard(s, onClick = { onOpenItem(s.id) }, modifier = memory.card(SIMILAR, s))
                 }
             }
-        }
-    }
-}
-
-/** The page's end credits: the crafts its head does not name. */
-private fun LazyListScope.endRows(item: MediaItem, credits: Credits?) {
-    val crafts = endCrafts(item, credits)
-    if (crafts.isNotEmpty()) {
-        item(key = "credits") {
-            EndCredits(
-                crafts.map { (job, names) -> Craft(jobName(job), names) },
-                Modifier.padding(start = HlLayout.insetRows, end = HlSpace.safeH),
-            )
         }
     }
 }
@@ -792,7 +779,7 @@ internal fun peopleOf(item: MediaItem, credits: Credits?, directing: String, cre
     return (direction + credits.cast).ifEmpty { item.cast }
 }
 
-/** End-credit crafts the head omits, up to [CRAFT_NAMES] names each; for a show only music (it varies by episode). */
+/** The crafts the head omits, for the technical sheet, up to [CRAFT_NAMES] names each; a show's only music (it varies by episode). */
 internal fun endCrafts(item: MediaItem, credits: Credits?): List<Pair<Job, List<String>>> {
     val crew = credits?.crew ?: return emptyList()
     val jobs = if (item.kind == MediaKind.SERIES) SHOW_CRAFTS else FILM_CRAFTS

@@ -199,6 +199,9 @@
     <string name="field_user">Użytkownik</string>
     <string name="field_password">Hasło</string>
     <string name="placeholder_host">np. 192.168.1.10</string>
+    <string name="placeholder_server_path">np. /media/movies</string>
+    <string name="placeholder_network_path">np. nfs://192.168.1.10/volume1/movies</string>
+    <string name="placeholder_tmdb_key">np. 0123456789abcdef0123456789abcdef</string>
     <string name="placeholder_export">np. /volume1/media</string>
     <string name="placeholder_share">np. media</string>
     <string name="placeholder_path_movies">np. filmy</string>

@@ -42,6 +42,10 @@ import app.houselights.ui.design.components.HlMenuButton
 import app.houselights.ui.design.components.HlNavItem
 import app.houselights.ui.design.components.HlPanel
 import app.houselights.ui.design.components.HlPanelButton
+import app.houselights.ui.design.components.AttentionNote
+import app.houselights.ui.design.components.ScanProgress
+import app.houselights.ui.design.components.SOURCE_STRIP
+import app.houselights.ui.design.components.SourceCard
 import app.houselights.ui.design.components.HlScrollArea
 import app.houselights.ui.design.components.HlSegmented
 import app.houselights.ui.design.components.HlSettingRow
@@ -60,6 +64,7 @@ internal fun LazyListScope.catalogForms() {
     item { Group("Text fields") { FormTextFields() } }
     item { Group("Status panel", still = true) { FormStatusPanels() } }
     item { Group("Panel button") { FormPanelButtons() } }
+    item { Group("Source card: a folder on glass, its posters melting into it") { FormSourceCards() } }
     item { Group("Divider", still = true) { FormDividers() } }
     item { Group("Menus") { FormMenus() } }
     item { Group("Choice sheet") { FormChoiceSheet() } }
@@ -71,7 +76,7 @@ internal fun LazyListScope.catalogForms() {
 private fun FormSettings() {
     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.xxl), verticalAlignment = Alignment.Top) {
         Specimen(
-            "no well, no chevron: the pane you are in lights its icon, raspberry on focus's white",
+            "no well: the pane you are in lights its icon, raspberry on focus's white",
             Modifier.width(HlLayout.sideColumn),
             gap = HlSpace.xs,
         ) {
@@ -88,7 +93,7 @@ private fun FormSettings() {
             }
         }
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(HlSpace.m)) {
-            Specimen("rows: words on the room, 60 tall; a chevron shows with focus where a row leads", gap = HlSpace.xs) {
+            Specimen("rows: words on the room, 60 tall; OK opens what the words say", gap = HlSpace.xs) {
                 Column(verticalArrangement = Arrangement.spacedBy(HlSpace.xxs)) {
                     HlSettingRow(stringResource(R.string.interface_language), value = "Français", onClick = {})
                     HlSettingRow(
@@ -102,13 +107,11 @@ private fun FormSettings() {
                         description = stringResource(R.string.scan_now_desc),
                         icon = HlIcons.Folder,
                         onClick = {},
-                        chevron = false,
                     )
                     HlSettingRow(
                         stringResource(R.string.scan_now),
                         description = stringResource(R.string.scan_now_desc),
                         onClick = {},
-                        chevron = false,
                         enabled = false,
                     )
                     HlSettingRow(stringResource(R.string.section_storage), value = "92,4 Mo")
@@ -122,7 +125,7 @@ private fun FormSettings() {
             )
         }
     }
-    Specimen("in a sheet, on glass: rows 52 tall, a preview in each slot", Modifier.width(HlLayout.readable), gap = HlSpace.xs) {
+    Specimen("in a sheet, on glass: names in body, every preview in one box", Modifier.width(HlLayout.readable), gap = HlSpace.xs) {
         HlPanel(Modifier.fillMaxWidth(), level = PanelLevel.Raised, padding = HlInset.tight) {
             HlSettingRow(
                 stringResource(R.string.artwork_poster),
@@ -131,10 +134,10 @@ private fun FormSettings() {
                 leading = { RowPreview(null, PreviewShape.Poster) },
             )
             HlSettingRow(
-                stringResource(R.string.artwork_backdrop),
-                description = stringResource(R.string.artwork_backdrop_desc),
+                stringResource(R.string.identify),
+                description = stringResource(R.string.identify_menu_desc),
                 onClick = {},
-                leading = { RowPreview(null, PreviewShape.Backdrop) },
+                leading = { RowPreview(null, PreviewShape.Backdrop, icon = HlIcons.Search) },
             )
         }
     }
@@ -297,6 +300,34 @@ private fun FormPanelButtons() {
                     Text("Aucun dossier", style = Hl.type.meta)
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun FormSourceCards() {
+    val art = shippedImage(R.drawable.banner)
+    val posters = List(SOURCE_STRIP) { art }
+    val address = "192.168.1.20/volume1/media/films"
+    val counts = listOf("11 titres", pluralStringResource(R.plurals.uhd_count, 8, 8))
+    Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.l), verticalAlignment = Alignment.Top) {
+        Specimen("rest; focus fills it white, the posters as they are", Modifier.width(HlLayout.readableNarrow), gap = HlSpace.xs) {
+            SourceCard("Films", "NFS", address, posters, {}, facts = counts, scanned = "Analysé à l’instant")
+        }
+        Specimen("scanning: the counter in the facts' place", Modifier.width(HlLayout.readableNarrow), gap = HlSpace.xs) {
+            SourceCard("Films", "NFS", address, posters, {}, state = { focused ->
+                ScanProgress(3, 9, current = "Bugonia (2025).mkv", focused = focused)
+            })
+        }
+    }
+    Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.l), verticalAlignment = Alignment.Top) {
+        Specimen("a failure, said in place", Modifier.width(HlLayout.readableNarrow), gap = HlSpace.xs) {
+            SourceCard("Séries", "SMB", "nas-salon.local/media/series", posters.take(1), {}, state = { focused ->
+                AttentionNote(stringResource(R.string.error_offline_title), focused = focused)
+            })
+        }
+        Specimen("no poster yet: its name like a one-sheet", Modifier.width(HlLayout.readableNarrow), gap = HlSpace.xs) {
+            SourceCard("Concerts", "SMB", "nas-salon.local/media/concerts", emptyList(), {}, facts = listOf("Jamais analysé"))
         }
     }
 }

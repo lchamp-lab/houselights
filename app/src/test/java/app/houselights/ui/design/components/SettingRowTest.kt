@@ -2,6 +2,7 @@ package app.houselights.ui.design.components
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.ui.test.assertHeightIsEqualTo
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
@@ -33,12 +34,20 @@ class SettingRowTest {
             }
             HlSideSheet("Modifier", onDismiss = {}) {
                 HlSettingRow("Un nom", description = "Une ligne", onClick = {})
-                HlSettingRow("Un aperçu", description = "Une ligne", onClick = {}, leading = { RowPreview(null, PreviewShape.Poster) })
+                HlSettingRow("Une affiche", description = "Une ligne", onClick = {}, leading = { RowPreview(null, PreviewShape.Poster) })
+                HlSettingRow(
+                    "Un logo",
+                    description = "Une ligne",
+                    onClick = {},
+                    leading = { RowPreview(null, PreviewShape.Logo, icon = HlIcons.Logo) },
+                )
             }
         }
         compose.onNodeWithText("Bibliothèque").assertHeightIsEqualTo(HlSize.row).assertIsSelected()
         compose.onNodeWithText("Sur la salle").assertHeightIsEqualTo(HlSize.row)
         compose.onNodeWithText("Un nom").assertHeightIsEqualTo(HlSize.sheetRow)
-        compose.onNodeWithText("Un aperçu").assertHeightIsEqualTo(HlSize.sheetRow)
+        // A preview's rows keep one height, whatever they preview.
+        val poster = compose.onNodeWithText("Une affiche").getUnclippedBoundsInRoot()
+        compose.onNodeWithText("Un logo").assertHeightIsEqualTo(poster.bottom - poster.top)
     }
 }

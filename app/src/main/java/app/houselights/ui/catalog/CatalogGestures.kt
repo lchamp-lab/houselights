@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.runtime.Composable
@@ -17,7 +18,6 @@ import app.houselights.R
 import app.houselights.core.ImageRef
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlLayout
-import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.components.BackHint
@@ -32,6 +32,7 @@ import app.houselights.ui.design.components.HlStatus
 import app.houselights.ui.design.components.InfoBlock
 import app.houselights.ui.design.components.Intertitle
 import app.houselights.ui.design.components.PosterStrip
+import app.houselights.ui.design.components.PosterThumb
 import app.houselights.ui.design.components.ScanProgress
 import app.houselights.ui.design.components.SpecTable
 import app.houselights.ui.design.components.SpecTableRow
@@ -160,7 +161,6 @@ private fun Counters() {
             value = stringResource(R.string.scan_progress, 3, 9),
             valueLit = true,
             onClick = {},
-            chevron = false,
         )
     }
 }
@@ -232,8 +232,12 @@ private fun Frames() {
         Specimen("a folder's card: one poster that fails, five free places", Modifier.width(HlLayout.readableNarrow)) {
             PosterStrip(listOf(BROKEN), slots = 6)
         }
-        Specimen("a sheet's header: three places") {
-            PosterStrip(listOf(BROKEN), slots = 3, slotWidth = HlSize.rowPreviewPoster, gap = HlSpace.xxs, shape = HlShapes.thumb)
+        Specimen("a sheet's header: three places, as tall as its title block") {
+            Row(Modifier.height(HlSize.posterThumb), horizontalArrangement = Arrangement.spacedBy(HlSpace.xxs)) {
+                PosterThumb(BROKEN, width = null)
+                PosterThumb(null, width = null)
+                PosterThumb(null, width = null)
+            }
         }
     }
     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.xl), verticalAlignment = Alignment.Top) {

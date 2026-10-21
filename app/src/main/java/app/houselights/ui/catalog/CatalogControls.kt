@@ -140,7 +140,6 @@ private fun ControlStates() {
                 stringResource(R.string.scan_now),
                 description = "Aucun dossier à analyser",
                 onClick = {},
-                chevron = false,
                 enabled = false,
             )
         }

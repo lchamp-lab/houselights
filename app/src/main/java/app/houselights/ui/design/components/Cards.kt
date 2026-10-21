@@ -704,13 +704,13 @@ private const val PERCENT = 100
 /**
  * Ember progress line for titles in progress, [thickness] tall, the ember light stretched over the part seen.
  * On artwork it burns at the picture's foot over the dark plate ([groundPlate]), cut by the picture's corners,
- * and recedes with it.
+ * and recedes with it. A focused plate gives its own [track].
  */
 @Composable
-fun ProgressLine(progress: Float, modifier: Modifier = Modifier, thickness: Dp = HlSize.progress) {
+fun ProgressLine(progress: Float, modifier: Modifier = Modifier, thickness: Dp = HlSize.progress, track: Color? = null) {
     if (progress <= 0f) return
     val c = Hl.colors
-    val track = groundPlate() ?: c.content.copy(alpha = HlAlpha.FILL_STRONG)
+    val under = track ?: groundPlate() ?: c.content.copy(alpha = HlAlpha.FILL_STRONG)
     val seen = progress.coerceAtMost(1f)
     val recede = LocalArtworkRecede.current
     Spacer(
@@ -719,7 +719,7 @@ fun ProgressLine(progress: Float, modifier: Modifier = Modifier, thickness: Dp =
             // A brush spans the whole line unless told: the light ends where the part seen does.
             val light = c.emberLight(across = part.width)
             onDrawBehind {
-                drawRect(track)
+                drawRect(under)
                 drawRect(light, size = part, colorFilter = recedeFilterAt(recede()))
             }
         },

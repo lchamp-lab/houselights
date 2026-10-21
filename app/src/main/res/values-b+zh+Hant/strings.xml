@@ -187,6 +187,9 @@
     <string name="field_user">使用者名稱</string>
     <string name="field_password">密碼</string>
     <string name="placeholder_host">例如：192.168.1.10</string>
+    <string name="placeholder_server_path">例如：/media/movies</string>
+    <string name="placeholder_network_path">例如：nfs://192.168.1.10/volume1/movies</string>
+    <string name="placeholder_tmdb_key">例如：0123456789abcdef0123456789abcdef</string>
     <string name="placeholder_export">例如：/volume1/media</string>
     <string name="placeholder_share">例如：media</string>
     <string name="placeholder_path_movies">例如：電影</string>

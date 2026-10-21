@@ -187,6 +187,9 @@
     <string name="field_user">사용자 이름</string>
     <string name="field_password">비밀번호</string>
     <string name="placeholder_host">예: 192.168.1.10</string>
+    <string name="placeholder_server_path">예: /media/movies</string>
+    <string name="placeholder_network_path">예: nfs://192.168.1.10/volume1/movies</string>
+    <string name="placeholder_tmdb_key">예: 0123456789abcdef0123456789abcdef</string>
     <string name="placeholder_export">예: /volume1/media</string>
     <string name="placeholder_share">예: media</string>
     <string name="placeholder_path_movies">예: movies</string>

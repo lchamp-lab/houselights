@@ -191,6 +191,9 @@
     <string name="field_user">Gebruiker</string>
     <string name="field_password">Wachtwoord</string>
     <string name="placeholder_host">Bijv. 192.168.1.10</string>
+    <string name="placeholder_server_path">Bijv. /media/movies</string>
+    <string name="placeholder_network_path">Bijv. nfs://192.168.1.10/volume1/movies</string>
+    <string name="placeholder_tmdb_key">Bijv. 0123456789abcdef0123456789abcdef</string>
     <string name="placeholder_export" tools:ignore="Typos">Bijv. /volume1/media</string>
     <string name="placeholder_share">Bijv. media</string>
     <string name="placeholder_path_movies">Bijv. films</string>

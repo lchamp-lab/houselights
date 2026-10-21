@@ -79,15 +79,9 @@ internal fun AddFolderForm(vm: AddFolderViewModel, focusOn: FolderField, onDone:
                 label = stringResource(R.string.label_address),
                 value = s.host.ifBlank { stringResource(R.string.placeholder_pending) },
                 detail = folder.takeIf { it.length > 1 },
-                // A deleted folder was never read: badges would show the form's defaults as its own.
-                badges = if (vm.gone) {
-                    emptyList()
-                } else {
-                    listOf(
-                        protocol.name,
-                        sourceKindName(kind),
-                    )
-                },
+                // A deleted folder was never read: its protocol and kind would be the form's defaults.
+                badges = if (vm.gone) emptyList() else listOf(protocol.name),
+                facts = if (vm.gone) emptyList() else listOf(sourceKindName(kind)),
                 result = result,
                 resultIsError = !success,
             )
@@ -239,7 +233,7 @@ private fun pathExample(kind: SourceKind): Int =
 private fun connectionState(check: FolderCheck?, testing: Boolean, gone: Boolean): Pair<StatusState, Int> = when {
     gone -> StatusState.Attention to R.string.folder_gone_state
     testing -> StatusState.Pending to R.string.connection_testing
-    check is FolderCheck.Reachable -> StatusState.On to R.string.connection_ok
+    check is FolderCheck.Reachable -> StatusState.Done to R.string.connection_ok
     check is FolderCheck.Failed -> StatusState.Attention to R.string.connection_failed
     check is FolderCheck.Overlaps -> StatusState.Attention to R.string.folder_overlaps_state
     check is FolderCheck.SaveFailed -> StatusState.Attention to R.string.folder_not_saved_state

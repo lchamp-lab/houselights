@@ -195,6 +195,9 @@
     <string name="field_user">Usuário</string>
     <string name="field_password">Senha</string>
     <string name="placeholder_host">Ex.: 192.168.1.10</string>
+    <string name="placeholder_server_path">Ex.: /media/movies</string>
+    <string name="placeholder_network_path">Ex.: nfs://192.168.1.10/volume1/movies</string>
+    <string name="placeholder_tmdb_key">Ex.: 0123456789abcdef0123456789abcdef</string>
     <string name="placeholder_export">Ex.: /volume1/media</string>
     <string name="placeholder_share">Ex.: media</string>
     <string name="placeholder_path_movies">Ex.: filmes</string>
