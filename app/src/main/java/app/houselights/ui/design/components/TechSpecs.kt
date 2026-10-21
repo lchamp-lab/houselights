@@ -31,7 +31,9 @@ import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.tv.material3.Text
 import app.houselights.R
 import app.houselights.core.BaseRange
@@ -218,6 +220,7 @@ private fun TracksBlock(section: TechSection, modifier: Modifier) {
     val readAs = (listOfNotNull(name, count) + tracks.mapIndexed { i, (track, format, words) ->
         (listOfNotNull(format, languages[i]) + words + listOfNotNull(inUse.takeIf { track.inUse })).joinToString(", ")
     }).joinToString(", ")
+    val formatColumn = formatColumn(tracks.mapNotNull { (_, format) -> format })
     ReadingPlate(modifier.fillMaxWidth(), readAs = readAs) {
         BlockName(name, count)
         Column(verticalArrangement = Arrangement.spacedBy(HlSpace.m)) {
@@ -229,7 +232,7 @@ private fun TracksBlock(section: TechSection, modifier: Modifier) {
                         color = c.content,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.width(TechSpecsDefaults.formatColumn).alignByBaseline(),
+                        modifier = Modifier.width(formatColumn).alignByBaseline(),
                     )
                     FlowRow(
                         Modifier.weight(1f).alignByBaseline(),
@@ -250,6 +253,24 @@ private fun TracksBlock(section: TechSection, modifier: Modifier) {
                     }
                 }
             }
+        }
+    }
+}
+
+/**
+ * The formats' column: the widest of [formats] on one line in `spec` and [HlSpace.m] before the language, held
+ * between the column's least and most.
+ */
+@Composable
+private fun formatColumn(formats: List<String>): Dp {
+    val measurer = rememberTextMeasurer()
+    val spec = Hl.type.spec
+    val density = LocalDensity.current
+    return remember(formats, spec, density) {
+        with(density) {
+            formats.maxOfOrNull { measurer.measure(it, spec, softWrap = false, maxLines = 1).size.width.toDp() + HlSpace.m }
+                ?.coerceIn(TechSpecsDefaults.formatColumn, TechSpecsDefaults.formatColumnWide)
+                ?: TechSpecsDefaults.formatColumn
         }
     }
 }

@@ -300,11 +300,13 @@ internal object HlMenuDefaults {
 }
 
 /**
- * The technical sheet's columns: a track's format ("Dolby Atmos" whole, a longer one on two lines) before its
- * language, a craft before its names.
+ * The technical sheet's columns: a track's format before its language, the column as wide as the block's widest
+ * format and [HlSpace.m] between [formatColumn] and [formatColumnWide] ("Dolby Digital Plus" whole, a longer one on
+ * two lines), a craft before its names.
  */
 internal object TechSpecsDefaults {
     val formatColumn = 188.dp
+    val formatColumnWide = 280.dp
     val craftColumn = 112.dp
 }
 
