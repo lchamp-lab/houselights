@@ -11,7 +11,7 @@
 
 <p align="center">
   <a href="https://github.com/lchamp-lab/houselights/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/lchamp-lab/houselights?style=flat-square&label=release&color=FF7A4D"></a>
-  <img alt="Android TV 9 or later" src="https://img.shields.io/badge/Android%20TV-9%2B-555?style=flat-square">
+  <img alt="Android 9 or later" src="https://img.shields.io/badge/Android-9%2B-555?style=flat-square">
   <a href="LICENSE"><img alt="GPL-3.0-or-later" src="https://img.shields.io/badge/license-GPL--3.0--or--later-555?style=flat-square"></a>
 </p>
 
@@ -24,8 +24,8 @@
 
 ![Home: the focused film's backdrop, logo and summary above a row of posters](docs/images/home.jpg)
 
-> **Beta.** Made for the Zidoo Z1000 Pro, Z9X and UHD series, and other Android TV boxes running Android 9 or
-> later. Not affiliated with Zidoo, Jellyfin, Emby or Plex.
+> **Beta.** Made for the Zidoo Z1000 Pro, Z9X and UHD series (Android 9 with Zidoo's launcher) and for Android TV
+> boxes running Android 9 or later. Not affiliated with Zidoo, Jellyfin, Emby or Plex.
 
 ## Features
 
@@ -79,7 +79,7 @@ changes. A new release installs over the previous one and keeps your library, hi
 | Method | How |
 |---|---|
 | Zidoo | Copy `Houselights-x.y.z.apk` to a USB stick and open it from the player's file manager. |
-| Any Android TV | In [Downloader](https://www.aftvnews.com/downloader/), enter `https://github.com/lchamp-lab/houselights/releases/latest/download/Houselights.apk`. |
+| Other Android boxes | In [Downloader](https://www.aftvnews.com/downloader/), enter `https://github.com/lchamp-lab/houselights/releases/latest/download/Houselights.apk`. |
 | Automatic updates | Add `https://github.com/lchamp-lab/houselights` to [Obtainium](https://github.com/ImranR98/Obtainium). |
 | Computer | `adb install -r Houselights-x.y.z.apk` |
 
