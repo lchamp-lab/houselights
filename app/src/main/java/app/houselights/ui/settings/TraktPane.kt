@@ -113,8 +113,6 @@ private fun TraktRow(vm: TraktViewModel, session: TraktSession?) {
             onClick = {
                 if (connected) vm.disconnect() else if (vm.connect()) showing = true
             },
-            // Connecting opens the code's sheet; disconnecting happens here.
-            chevron = !connected,
         )
         RowFailureNote(failure)
     }
@@ -141,7 +139,6 @@ private fun SyncRow(vm: TraktViewModel, state: TraktSyncState) {
         value = if (state.running) stringResource(R.string.trakt_syncing) else failure?.value,
         valueAttention = failure != null,
         onClick = vm::syncNow,
-        chevron = false,
         enabled = !state.running,
     )
     RowFailureNote(failure)
