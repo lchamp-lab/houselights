@@ -571,4 +571,26 @@
     <string name="search_people">Personnes</string>
     <string name="search_sagas">Sagas</string>
     <string name="search_none">Rien ne commence par « %s »</string>
+    <!-- Trakt -->
+    <string name="trakt_desc">Votre compte Trakt garde ce que vous regardez depuis vos dossiers : les films et épisodes vus, et où vous en êtes.</string>
+    <string name="trakt_no_keys">Cette version de Houselights n’a pas de clé Trakt.</string>
+    <string name="trakt_signed_out">Non connecté</string>
+    <string name="trakt_connected">Connecté</string>
+    <string name="trakt_signed_in_as">Connecté en tant que %s</string>
+    <string name="trakt_connect">Connecter votre compte</string>
+    <string name="trakt_connect_desc">Avec un code à saisir sur votre téléphone ou votre ordinateur</string>
+    <string name="trakt_disconnect">Déconnecter votre compte</string>
+    <string name="trakt_disconnect_desc">Houselights l’oublie sur cet appareil.</string>
+    <string name="trakt_disconnecting">Déconnexion…</string>
+    <string name="trakt_code_desc">Scannez le code QR avec votre téléphone, ou ouvrez son adresse sur un ordinateur, puis saisissez ce code.</string>
+    <string name="trakt_asking">Demande d’un code à Trakt…</string>
+    <string name="trakt_waiting">En attente de votre accord</string>
+    <string name="trakt_code_left">Ce code expire dans %s</string>
+    <string name="trakt_offline">Trakt ne répond pas. Vérifiez la connexion Internet de l’appareil, puis réessayez.</string>
+    <string name="trakt_denied">L’accès a été refusé sur Trakt. Connectez-vous à nouveau pour l’autoriser.</string>
+    <string name="trakt_expired">Le code a expiré avant d’être saisi. Connectez-vous à nouveau pour en obtenir un autre.</string>
+    <string name="trakt_refused">Trakt refuse la clé de cette version : le compte ne peut pas être connecté.</string>
+    <string name="trakt_failed">Trakt n’a pas pu terminer la connexion. Réessayez dans un instant.</string>
+    <string name="trakt_ended">Trakt a mis fin à cette connexion. Connectez votre compte à nouveau.</string>
+    <string name="settings_lost_trakt">La connexion à Trakt enregistrée sur ce lecteur n’a pas pu être relue. Connectez votre compte à nouveau.</string>
 </resources>

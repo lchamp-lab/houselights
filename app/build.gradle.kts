@@ -18,6 +18,12 @@ val localProps = Properties().apply {
 }
 val tmdbApiKey: String = localProps.getProperty("tmdb.apiKey") ?: System.getenv("TMDB_API_KEY") ?: ""
 
+// Trakt app keys: trakt.clientId (without it, Settings says the build has no Trakt) and, for apps created
+// before Trakt stopped issuing one, trakt.clientSecret, from local.properties or TRAKT_CLIENT_ID and
+// TRAKT_CLIENT_SECRET (CI). Never commit them.
+val traktClientId: String = localProps.getProperty("trakt.clientId") ?: System.getenv("TRAKT_CLIENT_ID") ?: ""
+val traktClientSecret: String = localProps.getProperty("trakt.clientSecret") ?: System.getenv("TRAKT_CLIENT_SECRET") ?: ""
+
 // Release signing: keystore.properties (never committed) gives storeFile, storePassword, keyAlias and
 // keyPassword. Android only updates an app signed with the same key, so a release signed with the debug
 // key of whatever machine built it could not be updated by one signed with yours: without the file,
@@ -58,6 +64,8 @@ android {
         versionCode = 1
         versionName = "0.1.0"
         buildConfigField("String", "TMDB_API_KEY", "\"$tmdbApiKey\"")
+        buildConfigField("String", "TRAKT_CLIENT_ID", "\"${traktClientId.trim()}\"")
+        buildConfigField("String", "TRAKT_CLIENT_SECRET", "\"${traktClientSecret.trim()}\"")
         manifestPlaceholders["appLabel"] = "@string/app_name"
         // The languages of the interface (InterfaceLanguage.LANGUAGES): the libraries' strings in 80 others would only be
         // shipped. The libraries write Chinese by region.

@@ -538,4 +538,26 @@
     <string name="search_people">人物</string>
     <string name="search_sagas">シリーズ</string>
     <string name="search_none">「%s」で始まるものはありません</string>
+    <!-- Trakt -->
+    <string name="trakt_desc">Traktアカウントに、フォルダから視聴した内容が記録されます。観た映画とエピソード、そしてどこまで観たか。</string>
+    <string name="trakt_no_keys">このビルドのHouselightsにはTraktのキーがありません。</string>
+    <string name="trakt_signed_out">未接続</string>
+    <string name="trakt_connected">接続済み</string>
+    <string name="trakt_signed_in_as">%s として接続済み</string>
+    <string name="trakt_connect">アカウントを接続</string>
+    <string name="trakt_connect_desc">スマートフォンかパソコンでコードを入力します</string>
+    <string name="trakt_disconnect">アカウントの接続を解除</string>
+    <string name="trakt_disconnect_desc">このデバイスからアカウントの情報を消去します。</string>
+    <string name="trakt_disconnecting">接続を解除中…</string>
+    <string name="trakt_code_desc">スマートフォンでQRコードを読み取るか、パソコンでそのアドレスを開いて、このコードを入力してください。</string>
+    <string name="trakt_asking">Traktにコードを要求中…</string>
+    <string name="trakt_waiting">承認を待っています</string>
+    <string name="trakt_code_left">このコードはあと%sで期限切れになります</string>
+    <string name="trakt_offline">Traktが応答しません。このデバイスのインターネット接続を確認して、もう一度お試しください。</string>
+    <string name="trakt_denied">Traktでアクセスが拒否されました。許可するには、もう一度接続してください。</string>
+    <string name="trakt_expired">入力される前にコードの期限が切れました。新しいコードを取得するには、もう一度接続してください。</string>
+    <string name="trakt_refused">Traktがこのビルドのキーを拒否したため、アカウントを接続できません。</string>
+    <string name="trakt_failed">Traktで接続を完了できませんでした。しばらくしてからもう一度お試しください。</string>
+    <string name="trakt_ended">Traktがこの接続を終了しました。もう一度アカウントを接続してください。</string>
+    <string name="settings_lost_trakt">このプレーヤーに保存されたTraktの接続を読み込み直せませんでした。もう一度アカウントを接続してください。</string>
 </resources>

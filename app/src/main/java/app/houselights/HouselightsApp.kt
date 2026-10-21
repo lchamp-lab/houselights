@@ -26,6 +26,8 @@ import app.houselights.providers.local.LocalLibrary
 import app.houselights.providers.local.LocalProvider
 import app.houselights.providers.local.RemoteBrowsers
 import app.houselights.providers.local.TmdbClient
+import app.houselights.providers.trakt.TraktAccount
+import app.houselights.providers.trakt.TraktKeys
 import app.houselights.settings.AppSettings
 import app.houselights.settings.InterfaceLanguage
 import app.houselights.settings.SettingsStore
@@ -146,6 +148,9 @@ class AppContainer(private val app: Application, val language: InterfaceLanguage
 
     /** TMDB's language: the one chosen in Settings, else the device's. */
     fun metadataLocale(): Locale = metadataLocale(settings.state.value, deviceLocale.value)
+
+    /** The Trakt account the folders' watch history goes to, its tokens in the settings. */
+    val trakt = TraktAccount(TraktKeys.builtIn, session = { settings.state.value.trakt }, save = settings::setTrakt)
 
     /** The only way to change the source: the current one stays active until the new one is saved. */
     val sources = SourceSwitcher({ settings.state.value }, { settings.setSource(it) }, scope)
