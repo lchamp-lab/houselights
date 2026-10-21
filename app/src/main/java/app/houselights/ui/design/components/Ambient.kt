@@ -129,7 +129,8 @@ internal fun backdropRequest(context: Context, url: String, widthPx: Int, height
 private suspend fun decodeSample(context: Context, image: ImageRef): Bitmap? =
     (context.imageLoader.execute(backdropSampleRequest(context, image)) as? SuccessResult)?.drawable?.toBitmap()
 
-private suspend fun decodeUrl(context: Context, url: String): Bitmap? =
+/** A small sample of the picture at [url] (a card's glow, a poster field's), its pixels readable. */
+internal suspend fun decodeUrl(context: Context, url: String): Bitmap? =
     (context.imageLoader.execute(glowSampleRequest(context, url)) as? SuccessResult)?.drawable?.toBitmap()
 
 /** Request for the small sample of a backdrop that its veils and light are read from. */

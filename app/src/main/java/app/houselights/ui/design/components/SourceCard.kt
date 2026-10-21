@@ -38,6 +38,7 @@ import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.LocalGround
+import app.houselights.ui.design.VeilStop
 import app.houselights.ui.design.colorStops
 import app.houselights.ui.design.edge
 
@@ -121,14 +122,14 @@ private fun Scanned(text: String, ink: Color, lit: Boolean) {
 }
 
 /**
- * Melts what it draws into its [plate] ([LocalPlate]) at its foot, along the system's curve ([HlScrim.STRIP_FOOT]);
- * the plate is read while drawing, so the melt follows focus's white.
+ * Melts what it draws into its [plate] ([LocalPlate]) at its foot, along a curve of the system ([foot]); the plate
+ * is read while drawing, so the melt follows focus's white.
  */
-private fun Modifier.meltsInto(plate: ColorProducer): Modifier =
+internal fun Modifier.meltsInto(plate: ColorProducer, foot: List<VeilStop> = HlScrim.STRIP_FOOT): Modifier =
     drawWithCache {
         // One mask, cached, drawn where the melt is: above it, it is clear.
-        val mask = Brush.verticalGradient(*HlScrim.STRIP_FOOT.colorStops(Color.White), startY = 0f, endY = size.height)
-        val from = HlScrim.STRIP_FOOT.first().at * size.height
+        val mask = Brush.verticalGradient(*foot.colorStops(Color.White), startY = 0f, endY = size.height)
+        val from = foot.first().at * size.height
         val band = Size(size.width, size.height - from)
         onDrawWithContent {
             drawContent()

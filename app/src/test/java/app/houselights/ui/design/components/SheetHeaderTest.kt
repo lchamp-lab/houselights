@@ -75,7 +75,7 @@ class SheetHeaderTest {
         }
         val words = compose.onNodeWithText(title).getUnclippedBoundsInRoot()
         val facts = compose.onNodeWithText("Films").getUnclippedBoundsInRoot()
-        val line = HouselightsType.headline.lineHeight.value * LARGEST
+        val line = HouselightsType.subject.lineHeight.value * LARGEST
         assertTrue("the title on two lines: $words", words.height.value > line)
         (0 until POSTERS).map { compose.onNodeWithTag("art$it").getUnclippedBoundsInRoot() }.forEach { art ->
             assertEquals("its foot is the facts' foot", facts.bottom.value, art.bottom.value, 1f)

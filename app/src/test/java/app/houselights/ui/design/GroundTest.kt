@@ -7,7 +7,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
 
-/** Components read their ground; only sheets, raised panels and artwork surfaces provide one, never a flag. */
+/** Components read their ground; only sheets, plates, raised panels and artwork surfaces provide one, never a flag. */
 class GroundTest {
     private val ui = File("src/main/java/app/houselights/ui")
 
@@ -16,7 +16,7 @@ class GroundTest {
         val providers = kotlinSources(ui)
             .filter { Regex("""LocalGround provides""").containsMatchIn(it.readText()) }
             .map { it.name }.toSortedSet()
-        assertEquals(sortedSetOf("Cards.kt", "Color.kt", "Panel.kt", "Sheet.kt", "SourceCard.kt"), providers)
+        assertEquals(sortedSetOf("Cards.kt", "Color.kt", "Panel.kt", "Sheet.kt", "Showcase.kt", "SourceCard.kt"), providers)
     }
 
     /** The step fill and the container edge are written once, in Color.kt, so panels and fields stay alike. */

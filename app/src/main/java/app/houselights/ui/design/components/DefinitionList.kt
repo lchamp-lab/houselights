@@ -4,7 +4,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -21,6 +23,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.tv.material3.Text
 import app.houselights.ui.design.Hl
+import app.houselights.ui.design.HlInset
 import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
@@ -61,6 +64,71 @@ fun InfoBlock(title: String, modifier: Modifier = Modifier, content: @Composable
         Spacer(Modifier.height(HlSpace.xs))
         content()
     }
+}
+
+/**
+ * What a pane states, as a case's back prints it (DESIGN.md, Secondary screens): a plate ([HlPlate]) of [facts]
+ * across, [gap] apart ([PlateFact]), then a [note] in secondary `meta`. Nothing in it takes focus.
+ */
+@Composable
+fun FactPlate(
+    modifier: Modifier = Modifier,
+    note: String? = null,
+    gap: Dp = HlSpace.xxl,
+    facts: @Composable RowScope.() -> Unit,
+) {
+    HlPlate(modifier.fillMaxWidth(), padding = PaddingValues(horizontal = HlInset.card, vertical = HlInset.plate)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(gap), content = facts)
+        if (note != null) {
+            Spacer(Modifier.height(HlSpace.l))
+            Text(note, style = Hl.type.meta, color = Hl.colors.contentSecondary)
+        }
+    }
+}
+
+/**
+ * One thing a [FactPlate] states: its [label] in secondary `meta` over its [value], words in `lead` or, when
+ * [technical] (a format, a figure), in `spec`; a [measure] follows on its baseline in secondary `meta`
+ * ("1920 × 1080"), and a [state] says itself by its dot before it.
+ */
+@Composable
+fun PlateFact(
+    label: String,
+    value: String,
+    modifier: Modifier = Modifier,
+    technical: Boolean = false,
+    measure: String? = null,
+    state: StatusState? = null,
+) {
+    val c = Hl.colors
+    Column(modifier) {
+        Text(label, style = Hl.type.meta, color = c.contentSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Spacer(Modifier.height(HlSpace.xs))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            if (state != null) {
+                StateDot(state)
+                Spacer(Modifier.width(HlSpace.xs))
+            }
+            Text(
+                value,
+                style = if (technical) Hl.type.spec else Hl.type.lead,
+                color = c.content,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.alignByBaseline(),
+            )
+            if (measure != null) {
+                Spacer(Modifier.width(HlSpace.s))
+                Text(measure, style = Hl.type.meta, color = c.contentSecondary, maxLines = 1, modifier = Modifier.alignByBaseline())
+            }
+        }
+    }
+}
+
+/** A state's light alone, flush with the words above it; attention keeps its circled mark. */
+@Composable
+private fun StateDot(state: StatusState) {
+    if (state == StatusState.Attention) StatusLight(state) else StatusLight(state, Modifier.size(HlSize.dot))
 }
 
 /** One row of a [SpecTable]: its [name], then [values] in column order; [inUse] marks the active row. */

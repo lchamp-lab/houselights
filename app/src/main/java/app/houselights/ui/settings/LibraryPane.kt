@@ -48,7 +48,6 @@ import app.houselights.ui.design.components.ChoiceOption
 import app.houselights.ui.design.components.HlButton
 import app.houselights.ui.design.components.HlChoiceSetting
 import app.houselights.ui.design.components.HlChoiceSheet
-import app.houselights.ui.design.components.HlDivider
 import app.houselights.ui.design.components.HlSideSheet
 import app.houselights.ui.design.components.PosterThumb
 import app.houselights.ui.design.components.SOURCE_STRIP
@@ -243,9 +242,6 @@ private fun SourceActions(
                 ScanRow()
                 EditRow()
             }
-            Spacer(Modifier.height(HlSpace.s))
-            HlDivider()
-            Spacer(Modifier.height(HlSpace.s))
             HlSettingRow(
                 stringResource(R.string.remove_folder),
                 origin,

@@ -1,7 +1,5 @@
 package app.houselights.ui.edit
 
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -12,8 +10,6 @@ import app.houselights.R
 import app.houselights.core.ArtworkKind
 import app.houselights.core.MediaItem
 import app.houselights.ui.design.HlIcons
-import app.houselights.ui.design.HlSpace
-import app.houselights.ui.design.components.HlDivider
 import app.houselights.ui.design.components.HlSideSheet
 import app.houselights.ui.design.components.HlSettingRow
 import app.houselights.ui.design.components.RowPreview
@@ -56,10 +52,6 @@ fun EditMenu(
             onClick = { onArtwork(ArtworkKind.LOGO) },
             leading = { RowPreview(item.logo, PreviewShape.Logo, icon = HlIcons.Logo) },
         )
-        // Set apart from the artwork: the title's match.
-        Spacer(Modifier.height(HlSpace.s))
-        HlDivider()
-        Spacer(Modifier.height(HlSpace.s))
         HlSettingRow(
             stringResource(R.string.identify),
             description = stringResource(R.string.identify_menu_desc),

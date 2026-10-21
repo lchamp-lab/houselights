@@ -91,17 +91,16 @@ class TraktPaneTest {
         ).assertExists()
     }
 
-    /** The code beside its QR code, which with the address under it ends above the Back hint: nothing is cut. */
+    /** The code beside its QR code, which with the address under it ends inside the safe area: nothing is cut. */
     @Test
     fun theWholeCodeFitsInTheSheet() {
         show()
         ok(CONNECT)
-        val hint = compose.onNodeWithText("Retour pour fermer").getBoundsInRoot()
+        // The QR code and its address are one element.
         val qr = compose.onNodeWithContentDescription("Code QR").getBoundsInRoot()
         val code = compose.onNodeWithText("ABCD1234").getBoundsInRoot()
         assertTrue("${code.right} beside ${qr.left}", code.right <= qr.left)
-        assertTrue("${qr.bottom} over ${hint.top}", qr.bottom <= hint.top)
-        assertTrue("${hint.bottom}", hint.bottom <= TV_HEIGHT - HlSpace.safeV)
+        assertTrue("${qr.bottom}", qr.bottom <= TV_HEIGHT - HlSpace.safeV)
     }
 
     @Test

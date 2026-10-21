@@ -1,9 +1,9 @@
 package app.houselights.ui.design.components
 
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
@@ -25,6 +25,7 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.tv.material3.Icon
 import androidx.tv.material3.LocalContentColor
@@ -36,18 +37,16 @@ import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlInset
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
-import app.houselights.ui.design.Ground
-import app.houselights.ui.design.LocalGround
 
 /**
- * A settings navigation entry: its icon, name and current value below ("8 films", "4K 60 Hz"), on the room
- * until focus whitens it; focus selects it. The [selected] pane's icon is lit, raspberry on focus's white.
+ * A place in the settings' list (DESIGN.md, Secondary screens): its icon and its name alone, grey until it is the
+ * open one ([selected]: white, its icon lit, raspberry on focus's white); focus whitens it and selects it. Its plate
+ * hangs [HlSpace.s] past the column's start, so its icon lines up with the title above.
  */
 @Composable
 fun HlNavItem(
     icon: ImageVector,
     title: String,
-    summary: String?,
     selected: Boolean,
     onFocused: () -> Unit,
     modifier: Modifier = Modifier,
@@ -55,59 +54,56 @@ fun HlNavItem(
     val c = Hl.colors
     HlRowSurface(
         onClick = onFocused,
-        modifier = modifier.fillMaxWidth().onFocusChanged { if (it.isFocused) onFocused() }.semantics { this.selected = selected },
+        modifier = modifier
+            .fillMaxWidth()
+            .hang(HlSpace.s)
+            .onFocusChanged { if (it.isFocused) onFocused() }
+            .semantics { this.selected = selected },
     ) { focused ->
         Row(
-            Modifier.heightIn(min = HlSize.row).padding(horizontal = HlSpace.m, vertical = HlSettingRowDefaults.paddingV),
+            Modifier.heightIn(min = HlSize.navRow).padding(horizontal = HlSpace.s),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             val tint = when {
                 selected && focused -> c.emberOnLight
                 selected -> c.ember
                 focused -> LocalContentColor.current
-                else -> c.contentSecondary
+                else -> c.contentTertiary
             }
-            Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(HlSize.icon))
-            Spacer(Modifier.width(HlSpace.m))
-            Column {
-                Text(title, style = Hl.type.entry, maxLines = 1)
-                if (summary != null) {
-                    Spacer(Modifier.height(HlSpace.xxs))
-                    Text(
-                        summary,
-                        style = Hl.type.caption,
-                        color = FocusStyle.quietInk(focused, enabled = true, lit = false),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-            }
-        }
-    }
-}
-
-/** A titled group of setting rows. */
-@Composable
-fun HlSettingGroup(title: String?, modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
-    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(HlSpace.xxs)) {
-        if (title != null) {
+            Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(HlSize.tileIcon))
+            Spacer(Modifier.width(HlSpace.s))
             Text(
                 title,
-                style = Hl.type.group,
-                color = Hl.colors.contentSecondary,
-                modifier = Modifier.padding(start = HlSpace.l, bottom = HlSpace.xs),
+                style = Hl.type.lead,
+                color = if (focused || selected) LocalContentColor.current else c.contentSecondary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
         }
-        content()
     }
 }
 
 /**
- * One setting: name and description left, value right, on what holds it; with [onClick] a control, else
- * read-only, its words saying what OK opens. [valueLit] (a user choice) and [valueAttention] set the value in
- * ember; [trailing] replaces the value, [leading] the icon ([RowPreview]). Disabled rows belong on the room only,
- * in a well: sheets omit unavailable actions. In a sheet, its description is in `meta` on one line, and an action
- * row is [HlSize.sheetRow] tall.
+ * Setting rows on one plate ([HlPlate]), [title] in `group` over it: glass on the room, the film's glass in a sheet.
+ * Rows lie in it [HlInset.group] from its edge, one after the other, no rule between them.
+ */
+@Composable
+fun HlSettingGroup(title: String?, modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
+    Column(modifier.fillMaxWidth()) {
+        if (title != null) {
+            Text(title, style = Hl.type.group, color = Hl.colors.contentSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Spacer(Modifier.height(HlSpace.xs))
+        }
+        HlPlate(Modifier.fillMaxWidth(), padding = PaddingValues(HlInset.group), content = content)
+    }
+}
+
+/**
+ * One setting, [HlSize.row] tall: its name in `lead` and its [description] in secondary `meta` on one line, its
+ * value on the right, in `meta` or, for a format or a figure, `jaquette` ([valueStyle]); with [onClick] a control,
+ * white with focus, else a value it only states. [valueLit] (a user choice) and [valueAttention] set the value in
+ * ember; [trailing] replaces the value, [leading] the icon ([RowPreview]). Disabled, it sits in a well, in a pane's
+ * plate only: sheets omit unavailable actions.
  */
 @Composable
 fun HlSettingRow(
@@ -118,35 +114,31 @@ fun HlSettingRow(
     icon: ImageVector? = null,
     valueLit: Boolean = false,
     valueAttention: Boolean = false,
+    valueStyle: TextStyle = Hl.type.meta,
     onClick: (() -> Unit)? = null,
     trailing: (@Composable RowScope.() -> Unit)? = null,
     leading: (@Composable () -> Unit)? = null,
     enabled: Boolean = true,
 ) {
     val c = Hl.colors
-    val sheet = LocalGround.current == Ground.Glass
-    val least = when {
-        onClick == null -> HlSize.control
-        sheet -> HlSize.sheetRow
-        else -> HlSize.row
-    }
+    val least = if (onClick == null) HlSize.control else HlSize.row
     @Composable
     fun Content(focused: Boolean) {
         Row(
-            Modifier.fillMaxWidth().heightIn(min = least).padding(horizontal = HlInset.card, vertical = HlSettingRowDefaults.paddingV),
+            Modifier.fillMaxWidth().heightIn(min = least).padding(horizontal = HlSpace.m, vertical = HlSettingRowDefaults.paddingV),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             SettingLead(leading, icon, focused, enabled)
             Column(Modifier.weight(1f)) {
-                Text(title, style = Hl.type.entry, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(title, style = Hl.type.lead, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 if (description != null) {
                     Spacer(Modifier.height(HlSpace.xxs))
-                    // In a sheet, one line, so its rows keep one height.
+                    // One line, so rows keep one height.
                     Text(
                         description,
-                        style = if (sheet) Hl.type.meta else Hl.type.caption,
+                        style = Hl.type.meta,
                         color = FocusStyle.quietInk(focused, enabled, lit = false),
-                        maxLines = if (sheet) 1 else 2,
+                        maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
                 }
@@ -154,7 +146,7 @@ fun HlSettingRow(
             Spacer(Modifier.width(HlSpace.l))
             when {
                 trailing != null -> trailing()
-                value != null -> SettingValue(value, valueLit, valueAttention, focused, enabled)
+                value != null -> SettingValue(value, valueStyle, valueLit, valueAttention, focused, enabled)
             }
         }
     }
@@ -190,9 +182,9 @@ private fun SettingLead(leading: (@Composable () -> Unit)?, icon: ImageVector?, 
     }
 }
 
-/** A setting's value, quiet; in ember when [lit], or after the attention mark. */
+/** A setting's value in [style], quiet; in ember when [lit], or after the attention mark. */
 @Composable
-private fun SettingValue(value: String, lit: Boolean, attention: Boolean, focused: Boolean, enabled: Boolean) {
+private fun SettingValue(value: String, style: TextStyle, lit: Boolean, attention: Boolean, focused: Boolean, enabled: Boolean) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         if (attention) {
             StatusLight(StatusState.Attention, ink = if (focused) LocalContentColor.current else null)
@@ -200,7 +192,7 @@ private fun SettingValue(value: String, lit: Boolean, attention: Boolean, focuse
         }
         Text(
             value,
-            style = Hl.type.meta,
+            style = style,
             color = FocusStyle.quietInk(focused, enabled, lit || attention, onFocus = LocalContentColor.current),
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
@@ -224,18 +216,20 @@ fun HlChoiceSheet(
 ) {
     val current = remember { FocusRequester() }
     HlSideSheet(title, onDismiss, description = description, initialFocus = current) { sheet ->
-        options.forEachIndexed { i, option ->
-            HlSettingRow(
-                title = option.label,
-                description = option.description,
-                onClick = {
-                    onSelect(i)
-                    sheet.dismiss()
-                },
-                trailing = if (i == selected) ({ ChoiceCheck() }) else null,
-                modifier = (if (i == selected) Modifier.focusRequester(current) else Modifier)
-                    .semantics { this.selected = i == selected },
-            )
+        HlSettingGroup(null) {
+            options.forEachIndexed { i, option ->
+                HlSettingRow(
+                    title = option.label,
+                    description = option.description,
+                    onClick = {
+                        onSelect(i)
+                        sheet.dismiss()
+                    },
+                    trailing = if (i == selected) ({ ChoiceCheck() }) else null,
+                    modifier = (if (i == selected) Modifier.focusRequester(current) else Modifier)
+                        .semantics { this.selected = i == selected },
+                )
+            }
         }
     }
 }

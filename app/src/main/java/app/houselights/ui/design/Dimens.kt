@@ -57,6 +57,12 @@ object HlInset {
     /** Panels and cards. */
     val card = HlSpace.l
     val sheet = HlSpace.xl
+
+    /** A group's plate around its rows: [HlShapes.panel] less [HlShapes.row], so their corners stay parallel. */
+    val group = HlSpace.xxs
+
+    /** A plate of facts ([FactPlate]) from its top and foot; its sides keep [card]. */
+    val plate = 20.dp
 }
 
 object HlSize {
@@ -94,8 +100,9 @@ object HlSize {
     /** A mark over a picture (watched, chosen), on its plate. */
     val mark = 22.dp
     val markIcon = 14.dp
-    /** Status dot (default track, online). */
+    /** Status dot (default track, online); a state that is off is its ring, [dotRing] wide. */
     val dot = 8.dp
+    val dotRing = 1.75.dp
     /** The dot of a title new to the library, ringed in black ([newDotRing]) to stand off any picture. */
     val newDot = 10.dp
     val newDotRing = 2.5.dp
@@ -110,10 +117,11 @@ object HlSize {
     val meterGap = 2.dp
     /** How far one press of up or down scrolls a long text. */
     val scrollStep = 120.dp
-    /** Least height of a setting row; [sheetRow] in a side sheet. */
+    /** Least height of a setting row, in a pane as in a sheet. */
     val row = 60.dp
-    val sheetRow = 52.dp
-    /** The box at the head of a sheet row, one for whatever image it previews: 40 tall at [PREVIEW_RATIO], so the row keeps [sheetRow]. */
+    /** A place in the settings' list of places: seven fit the safe area under its title. */
+    val navRow = 56.dp
+    /** The box at the head of a row, one for whatever image it previews: 40 tall at [PREVIEW_RATIO], inside its [row]. */
     val rowPreview = 40.dp * PREVIEW_RATIO
     const val PREVIEW_RATIO = 16f / 9f
     /** Progress shown beside text (time left). */
@@ -135,6 +143,14 @@ object HlSize {
     val segment = 40.dp
     /** The dot before the current place's word when it has focus. */
     val wordDot = 7.dp
+    /** A folder's [Showcase]: four posters across, full height. */
+    val showcase = 416.dp
+    /**
+     * A gallery's wide images beside its poster ([HlLayout.posterChoice]): a backdrop at 16:9, and under it a logo's
+     * box at [LOGO_BOX_RATIO], together as tall as the poster with their names.
+     */
+    val galleryWide = 244.dp
+    const val LOGO_BOX_RATIO = 244f / 85f
     /** Gradation as home's place in its bar, as tall as its words' capitals. */
     val barMark = 18.dp
     /** The ring of focus on a field, a read-only area, a control that cannot act. */
@@ -158,8 +174,8 @@ object HlLayout {
     val readableNarrow = 520.dp
     /** Longest caption line: about 66 characters at 14 sp, the most readable measure from three metres. */
     val captionMeasure = 400.dp
-    /** Side column of two-pane screens: navigation (settings), explanation (setup forms). */
-    val sideColumn = 280.dp
+    /** Side column of two-pane screens: navigation (settings, leaving its pane 560), explanation (setup forms). */
+    val sideColumn = 256.dp
     val sideColumnWide = 340.dp
     /** Where a two-pane screen's content starts, level with its first navigation entry. */
     val paneTop = 72.dp
@@ -219,14 +235,23 @@ private const val WALL_COLUMNS = 7
 /** A side sheet: 440 dp of content between its inset and the safe area, the page still in view. */
 internal object HlSideSheetDefaults {
     val width = 520.dp
+
+    /** A reading sheet (a synopsis, an NFO): the reading measure ([HlLayout.readable]) between the safe areas. */
+    val wideWidth = 736.dp
 }
 
 /** The widest value on the right of a setting row, and the room above and below its words. */
 internal object HlSettingRowDefaults {
     val valueWidth = 360.dp
 
-    /** A name over its description fills a [HlSize.sheetRow] with this room. */
+    /** A name over its description fills a [HlSize.row] with this room. */
     val paddingV = 6.dp
+}
+
+/** A [Showcase]'s words: from its sides and its foot, and where its name sets, over its posters' melted foot. */
+internal object ShowcaseDefaults {
+    val inset = 20.dp
+    val nameTop = 126.dp
 }
 
 /** The label a tile shows under it with focus. */

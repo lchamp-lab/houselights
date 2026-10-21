@@ -24,15 +24,12 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import app.houselights.BuildConfig
 import app.houselights.R
 import app.houselights.core.Library
 import app.houselights.core.LibraryFilter
 import app.houselights.core.SourceConfig
-import app.houselights.core.TraktSession
 import app.houselights.settings.AppSettings
 import app.houselights.settings.SecretSetting
 import app.houselights.ui.design.BackToStart
@@ -51,8 +48,6 @@ import app.houselights.ui.design.keepVerticalFocus
 import app.houselights.ui.design.rememberFocusMemory
 import app.houselights.ui.onboarding.FolderField
 import app.houselights.ui.util.UiError
-import app.houselights.ui.util.appContainer
-import app.houselights.ui.util.formatBytes
 
 internal enum class Pane(val label: Int, val icon: ImageVector) {
     Library(R.string.section_source, HlIcons.Folder),
@@ -65,7 +60,7 @@ internal enum class Pane(val label: Int, val icon: ImageVector) {
 }
 
 /**
- * Settings in two panes: categories with their current values, and the focused one's rows. [onUseFolders] makes
+ * Settings in two panes: its places, a word each, and the focused one's rows. [onUseFolders] makes
  * the folders the source and reports a failure on the source's row; the library in numbers opens a filtered wall
  * ([onOpenWall]) or a director's page ([onOpenPerson]).
  */
@@ -102,19 +97,17 @@ fun SettingsScreen(
     var inPane by remember { mutableStateOf(false) }
     BackToStart(away = inPane) { memory.focus(paneKey(pane)) }
     val storage by vm.storage.collectAsStateWithLifecycle()
-    val titles by vm.library.titleCount.collectAsStateWithLifecycle(0)
 
     HlTwoPane(
         state = list,
         side = {
             ScreenTitle(stringResource(R.string.settings_title))
-            Spacer(Modifier.height(HlSpace.xl))
-            Column(Modifier.keepVerticalFocus(), verticalArrangement = Arrangement.spacedBy(HlSpace.xxs)) {
+            Spacer(Modifier.height(HlSpace.l))
+            Column(Modifier.keepVerticalFocus()) {
                 panes.forEach { p ->
                     HlNavItem(
                         icon = p.icon,
                         title = stringResource(p.label),
-                        summary = summary(p, s, titles, storage),
                         selected = p == pane,
                         // The window's own first focus, before the screen is restored, leaves the pane that was open.
                         onFocused = { if (!memory.arriving) pane = p },
@@ -159,22 +152,6 @@ private const val LOST_SECRET = "lost-secret"
 
 private fun paneKey(pane: Pane) = FocusKey.pane(pane.name)
 
-/** A category's current value, under its name. */
-@Composable
-private fun summary(pane: Pane, s: AppSettings, titles: Int, stats: StorageStats?): String? = when (pane) {
-    Pane.Library -> when (val source = s.source) {
-        is SourceConfig.Jellyfin -> source.serverName ?: stringResource(R.string.source_jellyfin)
-        else -> pluralStringResource(R.plurals.title_count, titles, titles)
-    }
-    Pane.Playback -> stringResource(if (s.forceHttp) R.string.http_stream else R.string.network_path)
-    Pane.Trakt -> traktSummary(s.trakt)
-    Pane.Display -> displaySummary(s)
-    // Counting happens only when its pane shows, so its entry has no summary.
-    Pane.Numbers -> null
-    Pane.Storage -> stats?.let { formatBytes(it.total) }
-    Pane.About -> stringResource(R.string.nav_version, BuildConfig.VERSION_NAME)
-}
-
 /** The panes listed with [source]: path mappings where its provider uses them, counts where it counts. */
 internal fun panesFor(source: SourceConfig?, pathMapping: Boolean, counts: Boolean): List<Pane> = Pane.entries.filter { p ->
     when (p) {
@@ -184,14 +161,6 @@ internal fun panesFor(source: SourceConfig?, pathMapping: Boolean, counts: Boole
         Pane.Trakt -> source == SourceConfig.Local
         else -> true
     }
-}
-
-/** The account connected, by name, or that none is; nothing when this build cannot reach Trakt. */
-@Composable
-private fun traktSummary(session: TraktSession?): String? = when {
-    !appContainer().trakt.available -> null
-    session == null || session.ended -> stringResource(R.string.trakt_signed_out)
-    else -> session.username ?: stringResource(R.string.trakt_connected)
 }
 
 /** The rows of [pane]. Focus returning from the navigation goes back to the row it left. */

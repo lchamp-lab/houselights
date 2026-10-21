@@ -38,7 +38,7 @@ The app is recognised by its type, its vocabulary and three moments, not by deco
 | Voice | Width | Says | Styles |
 |---|---|---|---|
 | Poster | condensed (70) | where you are and what things are called: titles, the places of the bar (`place`), rows (`rowTitle`), names under cards (`cardName`), what a panel is about, large figures, the billing block | `display`, `headline`, `subject`, `place`, `placeCurrent`, `rowTitle`, `cardName`, `cardTitle`, `titleSignature`, `billing`, `billingJoin` |
-| Reading | normal (100) | everything read or chosen: overviews, list names, button words, values | `title`, `lead`, `body`, `entry`, `meta`, `caption`, `group` |
+| Reading | normal (100) | everything read or chosen: overviews, running text, row names, button words, values | `title`, `lead`, `read`, `body`, `entry`, `meta`, `caption`, `group` |
 | Technical | expanded (125), tabular figures | formats as on a case's back (`jaquette`), specifications, printed marks | `spec`, `jaquette`, `badge` |
 
 - **No fourth voice.** An intermediate width reads as a mistake.
@@ -79,12 +79,44 @@ Small surfaces (a settings pane, a message, a running scan) borrow exactly one g
 
 | Gesture | For | Rules |
 |---|---|---|
-| **Case back** | what a pane states | `InfoBlock`: a hairline, the name in `group`, the value. Pairs in a `DefinitionList` (labels in `caption`, a state with its light in a `DefinitionRow`), several of a kind in a `SpecTable` with the ember dot on the one in use. Formats in the technical voice; measures (sizes, counts, rates, durations) in `meta`, tabular. Only what acts is a row. Unknown values are omitted, never shown as zero. No gauges or charts. |
+| **Case back** | what a pane states | A `FactPlate` of `PlateFact`s: each label in secondary `meta` over its value, words in `lead`, a format or a figure in `spec`, its measure after it in `meta`, a state by its dot. Pairs in a `DefinitionList` (a state with its light in a `DefinitionRow`), several of a kind in a `SpecTable` with the ember dot on the one in use. Measures (sizes, counts, rates, durations) are tabular. Only what acts is a row. Unknown values are omitted, never shown as zero. No charts. |
 | **Intertitle** | every message | A short rule, one line in `subject`, one line of secondary `body` (`readableNarrow`), at most one action and a quieter one. An ember rule means attention. It replaces the content it concerns, aligned on the screen margin: never centred, never a snackbar, Toast or dialog. `HlEmptyState` on a screen, `SheetConfirm` in a sheet. |
 | **Counter** | progress | The ember line with its count in tabular figures ("3 / 9", `scan_progress`) and the current file in a quiet `caption` (`ScanProgress`); before the files are counted, a sliver and no count. On a focused plate, a raspberry line on the plate itself. Durations read "2 h 02", time left "Il reste 20 min"; a timecode only names a frame. |
 
 The library in numbers follows the case back: figures in `subject` over what they count in `caption`, then one
 row per value, each opening what it counts.
+
+## Secondary screens
+
+What is not the picture (settings, sheets, forms, search) keeps one grammar, read from three metres:
+
+1. **Scale.** A pane's title in `subject` on its screen title's baseline; a row `HlSize.row` (60) tall, its name in
+   `lead`, what it does in secondary `meta` on one line; running text in `read` (20 on 32); a group's title in
+   `group`. Nothing under 16 but `jaquette`.
+2. **Air.** Groups `HlSpace.l` apart, never a rule: no `HlDivider` in a pane or a sheet.
+3. **Density.** Five or six things in view; the rest scrolls.
+4. **Plates.** A group is one plate (`HlPlate`, `HlShapes.panel`, edged by `plateEdge`), its rows `HlInset.group`
+   inside it, one after the other: glass on the room, in a sheet the film's `glassPlate`.
+5. **Light.** Settings and their forms lie on the library's posters (`PosterField`), capped as a wall's field; a
+   sheet keeps its film's light in its plates.
+6. **Values.** Formats and figures in the technical voice (`jaquette` in a row, `spec` when stated); what a pane
+   states is a case's back (`FactPlate`), never a row; a state is a white dot (`HlStatus`): whole when on, a ring
+   when off, quiet while pending.
+7. **Ember** keeps its six meanings: one place lit per screen, its title or its place in the list.
+8. **Focus.** Pictures are framed (`Showcase`, `GalleryTile`), plates fill white, all on `HlFocusSurface`.
+9. **Places.** The settings' places are words alone, `HlSize.navRow` tall, seven inside the safe area.
+10. **Sheets** say what they do in `subject` and what about on the line under it, with no hint at their foot;
+    reading ones are wide (`HlSideSheetDefaults.wideWidth`) to hold the reading measure.
+
+| Component | Measures |
+|---|---|
+| `PosterField` | up to `FIELD_POSTERS` posters' samples side by side, each cropped to fill its slot (`posterStrip`), made a wall's field (`diffuseField`) and drawn as one (`DiffusePaint`) under its veils; the last one kept, coming in over `TINT` the first time |
+| `HlNavItem` | `HlSize.navRow`; icon `tileIcon`, grey (`contentTertiary`), the open place's ember; its name in `lead`, `contentSecondary`, white when open; its plate hangs `HlSpace.s` past the column (`hang`) |
+| `HlSettingGroup`, `HlSettingRow` | title, `HlSpace.xs`, the plate; a row `HlShapes.row` inside it, `HlSpace.m` from its sides, its value in `meta` or `jaquette` (`valueStyle`) |
+| `FactPlate`, `PlateFact` | `HlInset.card` across, `HlInset.plate` down; facts `HlSpace.xxl` apart; label, `HlSpace.xs`, value; a note `HlSpace.l` under them |
+| `Showcase` | `HlSize.showcase` wide, four posters full height (`SHOWCASE_SLOTS`) melting into glass in their light (`tintedGlass`, `SHOWCASE_FOOT`); the name in `subject` at `ShowcaseDefaults.nameTop`, the facts under it; framed with focus, no glow |
+| `GalleryTile` | an image at its shape of use: a poster `HlLayout.posterChoice` wide, a backdrop and a logo's box (`LOGO_BOX_RATIO`) `HlSize.galleryWide`; its name in `cardName` under it |
+| `HlSideSheet` | `subject` title, the facts' first in white, `HlSpace.l`, then plates `HlSpace.m` apart; `wide`: `HlSideSheetDefaults.wideWidth`, inset `safeH` on both sides |
 
 ## Tokens
 
@@ -132,13 +164,17 @@ A thing on its ground takes one step up, `groundStep()` laid as `groundStepFill(
 step a TV still shows), `FILL_FAINT` on glass. What must hide what is under it reads the ground opaque
 (`groundColor`, `groundFill`).
 
+**Plates on glass** keep the film's light: a sheet's plate is `glassPlate(light)`, the glass a step up
+(`GLASS_STEP`) and the film's glow at `GLASS_GLOW`, read while drawing, its quietest text at 4.5:1 under the lightest
+glow; a showcase's glass takes its posters' glow (`tintedGlass`).
+
 **Opacity.** `HlAlpha` names every opacity:
 
 | Family | Tokens |
 |---|---|
 | Fills (`content` over its ground) | `FILL_FAINT` 6 % (wells: a meter's track, a disabled control, an absent film's card), `FILL` 9 % (a thing on its ground: a placeholder, a quiet panel, a control on glass), `FILL_STRONG` 20 % (a progress line's track beside text) |
 | Veils (`background` over what is under it) | `VEIL_SIDE` 60 % (the room beside a side sheet), `VEIL` 80 % (card marks and their progress track on artwork; the least a receding backdrop takes) |
-| Plates (a picture's own dark over it) | `PLATE` 74 %, raised over a light picture until its quietest text keeps 4.5:1, up to `PLATE_MAX` 92 %; set off by a `PLATE_EDGE` hairline (`plateEdge`, `content` at 11 %) |
+| Plates (a picture's own dark over it) | `PLATE` 74 %, raised over a light picture until its quietest text keeps 4.5:1, up to `PLATE_MAX` 92 %; set off by a `PLATE_EDGE` hairline (`plateEdge`, `content` at 11 %). On glass: `GLASS_STEP` 3.5 % of `content`, then `GLASS_GLOW` 5 % of the film's glow (`glassPlate`) |
 | Edges | `EDGE` (`outline` at 60 %, `HlColors.edge`), `EDGE_ARTWORK` (`content` at 12 %, around a picture at rest) |
 
 Check fills on a TV with the catalogue's black-level chart (`BLACK_LEVELS`).
@@ -154,7 +190,7 @@ Check fills on a TV with the catalogue's black-level chart (`BLACK_LEVELS`).
 - *The action to play*: Lire or Reprendre, the one button filled with the ember light; any other is a plate.
 
 Gradation at launch is the only exception. What is done or simply true is projector white (a watched title, a
-file's default track, `StatusState.Done`). Ember never marks focus, a fact (a score is grey) or a data series. It never comes alone:
+file's default track, a state's dot, `HlStatus`). Ember never marks focus, a fact (a score is grey) or a data series. It never comes alone:
 every ember state has a second sign (shape, mark or word); attention has its own circled exclamation. Screens
 never name ember: they state the state and the component lights it (`HlStatus`, `AttentionNote`, `lit`,
 `valueLit`, `detailLit`).
@@ -162,7 +198,7 @@ never name ember: they state the state and the component lights it (`HlStatus`, 
 **Your choice, one way.** One glyph, `HlIcons.Check`: white means done, ember means your choice; a toggle that
 is done fills it (`CheckFilled`). Over artwork both sit on the same dark plate (`SelectedMark`). On a focused
 plate the ember check stays lit, raspberry (`emberOnLight`). In words, a choice is said beside its check
-("Votre choix") or with a state's light (`HlStatus` On, "Actuel"); how something was done is a plain `meta`
+("Votre choix") or as a state, its dot white ("Actuel", `HlStatus`); how something was done is a plain `meta`
 word ("Automatique"). A `Badge` is a printed mark (an age rating, a protocol), never a state; formats are
 words (`FormatLines`).
 
@@ -179,7 +215,8 @@ system draws and the catalogue's contrast board shows them; add a pair there bef
   line on a track there (2.1:1: on a focused plate a progress line lies on the plate);
   `contentTertiary` on `FILL_STRONG` (3.9:1); grey words on a plate on the bare picture below its floor; ember
   words on a plate over the bare picture, where it is a mark only (its raspberry end 4.3:1 even at
-  `PLATE_MAX`); `contentTertiary` on a wall's field out of its title's band.
+  `PLATE_MAX`); `contentTertiary` on a wall's field out of its title's band (a place's icon is a mark there);
+  raspberry words on a sheet's plate.
 - A disabled control sits in a `FILL_FAINT` well with `contentTertiary` words (over a picture it keeps its
   plate); a sheet omits an action that cannot be taken.
 - The quietest text on a plate over the bare picture needs its raised opacity: 4.6:1 over white at
@@ -203,7 +240,8 @@ line still reaches 3.5:1.
 
 - **A source card's posters melt into its plate** (`STRIP_FOOT`, from 62 % of their height), in the plate's colour
   read while drawing (`LocalPlate`): the glass at rest, focus's white with it. The melt is drawn over that band only,
-  its tint made once per colour; no plate is drawn under the posters.
+  its tint made once per colour; no plate is drawn under the posters. A showcase's melt from a third of their height
+  (`SHOWCASE_FOOT`), deep under its name.
 - **The left and top veils are the picture's own dark** (`ambientDeep`), the bottom one the room's black, so
   the floor stays the room. They go into the picture's cached layer as two gradients, dithered; the top's dark
   turns to black where neither veils.
@@ -229,6 +267,8 @@ line still reaches 3.5:1.
   0.66, gone at 200 dp; `DIFFUSE_BOTTOM` 0.5 at the foot), in one fill with an ordered 8 × 8 dither under one
   level: it shows rings otherwise. `contentSecondary` keeps 4.6:1 on it bare, `contentTertiary` only in the
   title's band or on a plate. A wall never decodes its picture: 9 KB a title, memory-cached beside its sample.
+- **The settings' field** (`PosterField`) is a wall's, made from a library's posters side by side, each cropped to
+  fill its slot: the same cap, veils and single fill.
 - **One fade at a time.** A picture, its veils and its dark crossfade together over `TINT`, linear, once the
   title has settled, the leaving one held whole under the next, then released: the screen never dips, and
   plates follow the same progress. A picture coming during a fade waits for its end, the last to come in
@@ -246,19 +286,20 @@ tv-material's roles onto the scale.
 | Style | Size / line | Voice, weight | Role |
 |---|---|---|---|
 | `display` | 64 / 72 | poster, Bold | a title's page without logo |
-| `headline` | 44 / 48 | poster, Bold | screen and sheet titles (`ScreenTitle`, `TaskTitle`); home's hero title without logo |
-| `subject` | 32 / 36 | poster, SemiBold | what a panel or pane is about; an intertitle's line; a stated figure |
+| `headline` | 44 / 48 | poster, Bold | screen titles (`ScreenTitle`, `TaskTitle`); home's hero title without logo |
+| `subject` | 32 / 36 | poster, SemiBold | what a pane is about, what a sheet does; a showcase's name; an intertitle's line; a stated figure |
 | `place`, `placeCurrent` | 26 / 30 | poster, SemiBold; Bold | the words of a track (`HlSegmented`): Bold and lit for the current one |
 | `rowTitle` | 24 / 28 | poster, SemiBold | a row's title; the selected title over a wall |
 | `cardName` | 20 / 24 | poster, SemiBold | a name under a card |
 | `cardTitle` | 20 / 24 | poster, Bold | a title on a card without artwork |
 | `title` | 24 / 30 | reading, SemiBold | a tagline set large; an episode's name in its heading |
-| `lead` | 20 / 26 | reading, SemiBold | a tagline under a title, a list choice's name, the typed query |
+| `lead` | 20 / 26 | reading, SemiBold | a row's name and the settings' places; a tagline under a title, a list choice's name, the typed query; a stated value in words |
+| `read` | 20 / 32 | reading, Regular | running text read at length: a synopsis, an NFO's values |
 | `body` | 16 / 24 | reading, Regular | overviews, descriptions; a read-only row's label (the technical sheet) |
-| `entry` | 16 / 20 | reading, SemiBold | a name to read or choose: setting and sheet rows, versions, menu options, button words |
-| `meta` | 16 / 20 | reading, Regular | facts and values: year, runtime, score, sizes, a path; what a sheet row does |
+| `entry` | 16 / 20 | reading, SemiBold | a name to choose: versions, menu options, button words |
+| `meta` | 16 / 20 | reading, Regular | facts and values: year, runtime, score, sizes, a path; what a row does; a stated value's label |
 | `caption` | 14 / 18 | reading, Regular | secondary lines: hints, roles, paths, labels, the line under a name |
-| `group` | 14 / 18 | reading, SemiBold | the title over a group ("Vidéo", "État"); an info block's name |
+| `group` | 16 / 20 | reading, SemiBold | the title over a group ("Image", "État"), above its plate; an info block's name |
 | `code` | 14 / 22 | monospace, Regular | raw text (NFO XML) |
 | `spec` | 20 / 26 | technical, SemiBold | a technical value stated large ("Ultra HD 60 Hz") |
 | `jaquette` | 14 / 18 | technical, SemiBold | formats as on a case's back, never a measure but on a title's plate (`FormatLines`); a duration inside a button |
@@ -285,11 +326,11 @@ tv-material's roles onto the scale.
 | Token | Content |
 |---|---|
 | `HlSpace` | 4 dp grid: `xxs` 4, `xs` 8, `s` 12, `m` 16, `l` 24, `xl` 32, `xxl` 48; `fact` 20 between facts; safe area `safeH` 48 / `safeV` 28; `fadeEdge` 24 |
-| `HlInset` | container padding: `tight` 8 (results holding a thumbnail), `card` 24, `sheet` 32 |
-| `HlShapes` | radius follows hierarchy: `thumb` 4 (images up to 48 dp), `badge` 4, `mark` 6, `control` 10 (buttons, tiles, a track's plate, menu options), `field` 10, `row` 12, `artwork` 12, `wide` 14, `panel` 16 (menus, source cards), `sheet` 24 (a side sheet's free corners, square against the edge). Every radius is in dp, never a pill or a disc; only dots are round, through a local `CircleShape` (`ShapesTest`). Nested shapes keep parallel corners: **outer radius = inner radius + gap** (a menu: 10 + `HlMenuDefaults.inset` 6; a mark in a wide image's corner: 6 + 8; a focus frame: the picture's + 3) |
-| `HlSize` | artwork (`poster` 120 × 180 in a row, `wallPoster` 112 × 168 on a wall, `landscape` 240 × 135, `episode` 264, `portrait` 96 at 3:4, `PORTRAIT_RATIO`; posters at 2:3, `POSTER_RATIO`), `control` 48 on a page and `controlCompact` 44 in a screen's header, `tile` 48 and `tileCompact` 40, `segment` 40, icons (`icon` 20, `tileIcon` 22, `largeIcon` 24, `inlineIcon` 16), `mark` 22, dots (`dot` 8, `newDot` 10 ringed `newDotRing` 2.5, `newsDot` 7, `wordDot` 7), setting rows `row` 60 and `sheetRow` 52, a row's preview box `rowPreview` 40 tall at 16:9 (`PREVIEW_RATIO`), so its row keeps 52, meter 10, progress lines (`progressPoster` 4, `progressWide` 5, `progress` 3 beside text, `heroProgress` 220 × 4), `intertitleRule` 24 × 2, `barMark` 18, the lockup's capitals (`wordmark` 12, `wordmarkHero` 26) |
-| `HlLayout` | the screen grid, read by screens (`LayoutTokensTest`): reading widths (640, 520, caption 400), side columns (280, 340), pane top 72, the home hero band (148), `wallGutter` (seven posters across the safe area), `detailGap`, `detailHeroMin`, track table columns |
-| `…Defaults` | internal component parts: `HlSideSheetDefaults` (520), `HlSettingRowDefaults` (value 360, room above and below 6), `HlIconButtonDefaults` (label 256 at the default text size, grown with it, edge 24, a hint's line `hintRoom` 20), `HlMenuDefaults` (320, inset 6), `TechSpecsDefaults`, `QrCodeDefaults` (module 6.5, whole pixels at 1080p and 4K), `BackdropDefaults` |
+| `HlInset` | container padding: `tight` 8 (results holding a thumbnail), `card` 24, `sheet` 32; `group` 4 (a group's plate around its rows), `plate` 20 (a plate of facts, top and foot) |
+| `HlShapes` | radius follows hierarchy: `thumb` 4 (images up to 48 dp), `badge` 4, `mark` 6, `control` 10 (buttons, tiles, a track's plate, menu options), `field` 10, `row` 12, `artwork` 12, `wide` 14, `panel` 16 (menus, source cards), `sheet` 24 (a side sheet's free corners, square against the edge). Every radius is in dp, never a pill or a disc; only dots are round, through a local `CircleShape` (`ShapesTest`). Nested shapes keep parallel corners: **outer radius = inner radius + gap** (a menu: 10 + `HlMenuDefaults.inset` 6; a group's rows: 12 + `HlInset.group` 4; a mark in a wide image's corner: 6 + 8; a focus frame: the picture's + 3) |
+| `HlSize` | artwork (`poster` 120 × 180 in a row, `wallPoster` 112 × 168 on a wall, `landscape` 240 × 135, `episode` 264, `portrait` 96 at 3:4, `PORTRAIT_RATIO`; posters at 2:3, `POSTER_RATIO`), `control` 48 on a page and `controlCompact` 44 in a screen's header, `tile` 48 and `tileCompact` 40, `segment` 40, icons (`icon` 20, `tileIcon` 22, `largeIcon` 24, `inlineIcon` 16), `mark` 22, dots (`dot` 8, its ring `dotRing` 1.75, `newDot` 10 ringed `newDotRing` 2.5, `newsDot` 7, `wordDot` 7), setting rows `row` 60 in a pane as in a sheet, the settings' places `navRow` 56, a row's preview box `rowPreview` 40 tall at 16:9 (`PREVIEW_RATIO`), a `showcase` 416, a gallery's wide images `galleryWide` 244 (a logo's box at `LOGO_BOX_RATIO`), meter 10, progress lines (`progressPoster` 4, `progressWide` 5, `progress` 3 beside text, `heroProgress` 220 × 4), `intertitleRule` 24 × 2, `barMark` 18, the lockup's capitals (`wordmark` 12, `wordmarkHero` 26) |
+| `HlLayout` | the screen grid, read by screens (`LayoutTokensTest`): reading widths (640, 520, caption 400), side columns (256, leaving the settings' pane 560; 340), pane top 72, the home hero band (148), `wallGutter` (seven posters across the safe area), `detailGap`, `detailHeroMin`, track table columns |
+| `…Defaults` | internal component parts: `HlSideSheetDefaults` (520, a reading sheet's `wideWidth` 736), `HlSettingRowDefaults` (value 360, room above and below 6), `ShowcaseDefaults` (its words' inset, where its name sets), `HlIconButtonDefaults` (label 256 at the default text size, grown with it, edge 24, a hint's line `hintRoom` 20), `HlMenuDefaults` (320, inset 6), `TechSpecsDefaults`, `QrCodeDefaults` (module 6.5, whole pixels at 1080p and 4K), `BackdropDefaults` |
 | `HlControl` | padding of buttons, track words and badges; icon-to-text gap 8 |
 | `HlFocus` | the `frame` 2.5, `frameGap` 3 off the edge: their `reach` 5.5, whatever the size, held by a row's `room` 12, which the glow passes as far as a row draws (30), and a wall's `wallRoom` 24, where the grid cuts the glow once faded; siblings stepping back (`SIBLING_BRIGHTNESS` 0.64, `SIBLING_SATURATION` 0.65, `RECEDE_STEPS` 3); `glow` 28; `edge` 28 |
 
@@ -350,7 +391,7 @@ projector white in two gestures and a ring:
 
 | Gesture | For | Treatment |
 |---|---|---|
-| **Frame** (`FocusStyle.frame`) | what carries its own light: pictures, panel buttons (a source card fills), the action to play | a white frame (`HlFocus.frame`) `HlFocus.frameGap` off the edge, its corners parallel; a picture glows in its own light. 220 ms on (`focusPull`), 260 off (`fallBack`) |
+| **Frame** (`FocusStyle.frame`) | what carries its own light: pictures, a showcase, panel buttons (a source card fills), the action to play | a white frame (`HlFocus.frame`) `HlFocus.frameGap` off the edge, its corners parallel; a picture glows in its own light. 220 ms on (`focusPull`), 260 off (`fallBack`) |
 | **Fill** (`FocusStyle.fill`) | plates: buttons, tiles, track words, rows, menu options, source cards | white plate, black ink (`FocusStyle.ink`, `hintInk`, `emberMark`); a picture on it stays as it is, but a source card's posters, which melt into the white at their foot (`STRIP_FOOT`). 120 ms on, 180 off |
 | **Ring** (`FocusStyle.ring`) | what is read or typed in, and what cannot act | a white outline inside the edge, drawn by a field or a scroll area, and by a disabled surface; a field turns ember while typing |
 
@@ -435,7 +476,7 @@ Back cancels it.
 | `PosterCard`, `LandscapeCard`, `PersonCard`, `ArtworkSurface`, `ArtworkImage` | artwork with the shared focus treatment (see *Cards*); every picture is requested at its laid-out size, a wall's poster at its cell's (`requestedPoster`). Names under a card in `cardName`; a wide card's facts follow its name when both fit, else go under it. A person in two titles or more opens their page (`PersonScreen`); a person of a single title does nothing |
 | `AbsentCard` | a saga's missing films, in release order: a faint plate with a short rule, the title in `cardTitle` and the year in `badge`, both tertiary; focusable, framed without a glow, "Absent de votre bibliothèque" with focus; OK does nothing |
 | `HeroInfo`, `TitleArt`, `EpisodeHeading`, `MetaLine`, `BillingBlock` | what a title is: logo or condensed title, facts, credits. Logos are normalised to the same optical weight (`EvenLogo`, `SURFACE` 0.35) and requested as shown (`titleArtRequest`). A name waits for its picture (`WithItsPicture`, `HOLD` at most) |
-| `ScreenTitle`, `TaskTitle`, `HlTitleSwitch` | a screen's title in `headline`. A place's name (a wall, Réglages, Rechercher, a person) is lit in ember, one per screen; a task or a form (Identifier, Ajouter un dossier, a choice of artwork, a sheet) is white; never a film's title. `DesignTokenGuardTest` lists the places |
+| `ScreenTitle`, `TaskTitle`, `HlTitleSwitch` | a screen's title in `headline`. A place's name (a wall, Réglages, Rechercher, a person) is lit in ember, one per screen; a task or a form (Identifier, Ajouter un dossier, a choice of artwork) is white, as a sheet's, in `subject`; never a film's title. `DesignTokenGuardTest` lists the places |
 | `TitleLine` | the selected title over a wall: name in `rowTitle` and facts on one baseline, ellipsised |
 | `FormatLines`, `Badge`, `FactRow`, `Score` | formats in the technical voice, nothing said twice (`Formats`), read from the file (`MkvProbe`), with the frame rate and the best track's bitrate: on a title's page, the plate of a case's back (`plate`, `HlShapes.control`), a line for picture and one for sound, named in a caption, the words in `jaquette`; in a version row, unframed words in `jaquette`. A `Badge` is a printed mark, never a format or state. A score is a quiet fact |
 | `HeadOverview`, `SynopsisSheet` | three lines of overview; when cut, focusable and opening the full text in a side sheet |
@@ -444,6 +485,9 @@ Back cancels it.
 | `SearchQuery`, `LetterGrid` | library search (`SearchScreen`) under its title: the typed query on a field the keys always type in (glass, the ember ring, a still raspberry cursor), an on-screen keyboard of square tiles (`tileCompact`, glass, white with focus; `LETTER_KEYS` A to Z then 0 to 9, Delete and Space as buttons), results in rows (titles, people, sagas), accent-insensitive, debounced 150 ms |
 | `PosterWall`, `PosterWallScrim`, `HouseLights`, `CardSkeleton`, `HeroSkeleton`, `ProgressLine` | the welcome wall (nine tilted columns at `HlScrim.WALL`, drifting over `WALL_DRIFT`) and its black veil; the playback cue's black; placeholders shaped like what is coming (after `SKELETON_DELAY`, `skeletonDelayPassed`; never a shimmer); progress lines in the ember light, stretched over the part seen: burning at a picture's foot (`HlSize.progressPoster`, `HlSize.progressWide`) on a black track, beside text or in home's hero on `FILL_STRONG`; on a focused plate, solid raspberry on the plate (`focused`) |
 | `PosterStrip` | a folder's latest posters in fixed slots, empty frames for the free ones; without posters, its name set like a one-sheet |
+| `Showcase` | a library folder in its posters' light (see *Secondary screens*): its name in `subject` beside its printed protocol, its facts, the first in white, and its state by the white dot, or what is happening to it (`status`); framed with focus, without a glow |
+| `GalleryTile` | one of a title's images to change, at its shape of use, a logo fitted on a neutral step; its name under it in `cardName`, white with focus; framed and glowing in the film's light |
+| `PosterField` | the room of the settings and their forms: a library's posters as a wall's field (see *Veils*) |
 | `ArtworkChoiceCard`, `SelectedMark` | one artwork to choose, at its shape of use, its name in `meta`; the one in use carries the ember check |
 
 ### Controls
@@ -464,14 +508,16 @@ Back cancels it.
 | `HlPanel` (`Quiet`, `Raised`, `lit`), `HlPanelButton`, `HlRowSurface` | the one panel recipe (`Raised` is glass) and its focusable form, framed, raised the same way; the row menu options, navigation entries and setting rows are made of |
 | `HlListItem`, `HlResultItem`, `PosterThumb` | list choices on a panel button, raised over the welcome wall; a search result with its poster, the one in use edged in ember ("Actuel"); a small poster at a width, or as tall as it is given (a sheet's header) |
 | `SourceCard` | a library folder on glass (`panel`): its latest posters edge to edge, melting into the glass at their foot; its name in `rowTitle` beside its protocol (`Badge`), its address in secondary `meta`, then the last scan, a state done (the white dot), and its facts in secondary `meta`, which drop from the end; a scan running or a failure in their place. Focus fills it white, its posters (`SOURCE_STRIP`) melting into the white at their foot; no plate lies under them |
-| `HlNavItem`, `HlSettingGroup`, `HlSettingRow` | settings: navigation entries with their value, no well nor chevron, focus selecting them, the open pane's icon lit (raspberry with focus); rows on what holds them, white with focus, no chevron: OK does what the words say. A row that leads somewhere or chooses is `row` 60 on the room, `sheetRow` 52 in a sheet, a preview included, its name in `entry`; in a sheet its description reads in `meta` on one line (`SheetRowLineTest`); a value it only states is not focusable, 48 tall. A value lights with `valueLit` or `valueAttention`; a `RowPreview` may lead it. Disabled in a `FILL_FAINT` well, on the room only (`SettingRowTest`). What a pane only states is a block, not a row (see *Gestures*) |
-| `HlChoiceSheet`, `HlChoiceSetting` | a setting's choices in a side sheet: the current one checked and focused; choosing applies and closes. A change that failed says so in the row ("Non enregistré") |
+| `HlPlate` | the plate of a group (see *Secondary screens*): glass on the room, `glassPlate` on glass, read while drawing; what it holds lies on glass |
+| `HlNavItem`, `HlSettingGroup`, `HlSettingRow` | settings: the places, words alone (`navRow`), no well nor chevron, focus selecting them, the open one white with its icon lit (raspberry with focus); a group's rows on one plate, no rule between them, white with focus, no chevron: OK does what the words say. A row is `row` 60 in a pane as in a sheet, a preview included, its name in `lead`, its description in secondary `meta` on one line (`SheetRowLineTest`), its value in `meta` or `jaquette` (`valueStyle`); a value it only states is not focusable, 48 tall. A value lights with `valueLit` or `valueAttention`; a `RowPreview` may lead it. Disabled in a `FILL_FAINT` well, in a pane only (`SettingRowTest`). What a pane only states is a `FactPlate`, not a row |
+| `FactPlate`, `PlateFact` | what a pane states, as a case's back (see *Gestures*): facts across a plate, each label over its value, then a note; nothing in it takes focus |
+| `HlChoiceSheet`, `HlChoiceSetting` | a setting's choices on one plate in a side sheet: the current one checked and focused; choosing applies and closes. A change that failed says so in the row ("Non enregistré") |
 | `traktPane` | Trakt (`HlIcons.History`), with "Mes fichiers" only: the account's state (`HlStatus`, or an `AttentionNote` once Trakt ended it) and, connected, its last sync in a `DefinitionRow` (when, then the titles watched and in progress); then a row that syncs now, disabled while a sync runs, which its value says, a failed exchange said under it, with what to do when it does not resume on its own; then one row that connects or disconnects, its words following the account so focus stays on it. Connecting opens a side sheet: the code in `place`, projector white, never ember, beside the `QrCode` of Trakt's page, its time left as a pending state; nothing in it takes focus, Back cancels. A failure is said under the row; a build without Trakt's keys says so in one line |
 | `HlTwoPane`, `HlFormScaffold`, `StatusPanel`, `FieldLabel` | two-pane screens (navigation or explanation left, content right, a gap and no rule between); `StatusPanel` shows where a setup stands beside its form, edged in ember when on, its protocol printed and its kind a fact |
-| `HlDivider`, `HlStatus`, `AttentionNote`, `HlMeter`, `MeterLegend` | a hairline in `contentDecorative`; a state with its light (`StatusState`: on a dot, off a ring, pending a quiet dot, done, attention) and its reason; attention beside what it concerns, in focus's ink on a focused plate, its mark raspberry; a segmented gauge inked white and grey (`MeterInk`), never ember |
+| `HlDivider`, `HlStatus`, `AttentionNote`, `HlMeter`, `MeterLegend` | a hairline in `contentDecorative` between a menu's sections or a panel's parts, never in a pane or a sheet; a state with its light (`StatusState`: on and done the white dot, off its ring, pending a quiet dot, attention its circled mark) and its reason; attention beside what it concerns, in focus's ink on a focused plate, its mark raspberry; a segmented gauge inked white and grey (`MeterInk`), never ember |
 | `InfoBlock`, `DefinitionList`, `DefinitionRow`, `SpecTable` | what a pane or the NFO states, aligned on one baseline (see *Gestures*) |
 | `TechSpecs`, `TechSheet`, `Craft` | the technical sheet in a side sheet: Image, Son, the crew (the crafts the head does not name, `CRAFT_NAMES` names each; "Générique", `tech_credits`), Sous-titres, which can run long, Fichier; section names in `group`, one row per fact: its label in `body`, its words set whole from the row's end, each in the voice of its kind (`TechValue`): formats as on a case's back in `jaquette`, measures and what qualifies them in secondary `meta` (sizes, rates, durations, `1920 × 804`, `7.1`), names in white `meta`. Tracks named by language and format (`TrackNames`), the file's default track marked in the margin by the white dot, a state. Its content is decided in `TechSheet`, pure and tested; a title with credits and no file opens it, "Fiche technique", with its crew alone, its tile last among the actions (`techTile`) |
-| `HlSideSheet`, `SheetScope`, `SheetConfirm` | side sheets (see *Sheets*): glass, its free corners `sheet`, a hairline on the screen's side; it comes 24 dp in as it lights (`FOCUS_IN`, `PLATE_IN`), read while drawing |
+| `HlSideSheet`, `SheetScope`, `SheetConfirm` | side sheets (see *Sheets*): glass, its free corners `sheet`, a hairline on the screen's side, `wide` to read; it comes 24 dp in as it lights (`FOCUS_IN`, `PLATE_IN`), read while drawing |
 | `RowPreview` | the image at the head of a sheet row that opens its screen: one 16:9 box (`rowPreview`) on an opaque step of its ground, a backdrop filling it, a logo fitted in it, a poster framed inside it a step off its top and foot, its corners parallel; without an image, a poster's empty frame, else an icon or the box alone |
 | `HlEmptyState`, `HlErrorState` | the intertitle of an empty or failed screen, its action a plate (ember is for Lire and Reprendre), focused as it appears (`EmptyStateFocusTest`). A `UiError` brings its own title, message and action (`ErrorAction`) |
 | `ScanProgress` | a running scan: what is read, the ember line and its count, the current file |
@@ -509,16 +555,18 @@ A sheet comes over the room behind our own scrim, closes with Back (no Close but
 motion it came in with. Focus stays inside and returns where it was (`SheetFocusTest`).
 
 - **`HlSideSheet`**: a full-height panel against the right edge (520 dp) under a lighter veil (`VEIL_SIDE`).
-  From the top: what it does, a task's title (`TaskTitle`), and what it is about in a line of facts (name, year),
-  printed marks first (a protocol, `Badge`), its artwork as tall as both as the title sets beside it, on one line or
-  two: the title gives up its width, never the artwork; a status; a hairline; the rows, fading into the sheet where
-  there is more; the Back hint. Rows that change an image preview it (`RowPreview`). Every action row describes
-  itself in one line, so rows keep one height (`SheetRowLineTest`, in every language, at the default text size and
-  1.3).
+  From the top: what it does in `subject`, and what it is about in a line of facts (its name first, in white, then
+  the year), printed marks first (a protocol, `Badge`), its artwork as tall as both as the title sets beside it, on
+  one line or two: the title gives up its width, never the artwork; a status; then its plates, `HlSpace.m` apart, in
+  the film's light (`glassPlate`), fading into the sheet where there is more. No hint: Back is the remote's own.
+  Rows that change an image preview it (`RowPreview`). Every action row describes itself in one line, so rows keep
+  one height (`SheetRowLineTest`, in every language, at the default text size and 1.3).
+- **Reading sheets** (a synopsis, an NFO) are wide (`HlSideSheetDefaults.wideWidth`, 736), set `safeH` in on both
+  sides, so their text keeps the reading measure (`HlLayout.readable`) in `read`.
 - **`SheetConfirm`**: an irreversible action asks in the sheet, as an intertitle in place of the rows: ember
   rule, the question in `subject`, the consequence, then Cancel (focused) and the action, its label in ember.
   Never red. Cancel or Back returns to the row that asked.
-- **Reading sheets** (the technical sheet) are rows too, one per fact, focusable one by one; OK does nothing.
+- **The technical sheet** is read row by row, one per fact, focusable one by one; OK does nothing.
 - **A QR code sheet** shows the `QrCode` in place of the rows; nothing in it takes focus.
 
 Content closes a sheet with `SheetScope.dismiss(then)`: the sheet leaves, then `then` runs; keys are ignored
@@ -599,7 +647,7 @@ The player's GPU (a Mali-G51) fills a 1080p screen only a few times per frame, s
 - **Two backdrop layers at most.** A backdrop is one cached layer, recorded again only when its picture
   changes or the house lights move; one fade at a time (`FadeBetween`).
 - **A wall's field in one fill.** 64 × 36, enlarged, veiled and dithered by one paint (`DiffusePaint`); a wall
-  never decodes its picture.
+  never decodes its picture. The settings' field is made once from posters' samples and drawn the same way.
 - **Prepare the next screen during the gesture before it.** Settled on a title, home and walls request its
   page's logo (`DetailAhead`); while a library's name lights in home's bar, its wall's first page loads
   (`LibraryAhead`).
@@ -634,7 +682,7 @@ the screen: the only overdraw left at rest.
 | `MotionGuardTest` | the system's own curves only, drawn in `Motion.kt`; every tween names its easing and every animation its spec; no spring, no cross-fading container |
 | `ShapesTest` | radii by hierarchy and in dp, nested corners parallel, a sheet square against the edge; nothing round but dots |
 | `ContrastTest`, `ScrimTest` | every pair drawn, on what it sits on; forbidden pairs stay below; veil floors, plate floors and smoothness |
-| `AmbientTest`, `DiffuseTest`, `BackdropTest`, `BackdropFadeTest`, `BackdropRelayTest` | a picture's light; the field's cap, ramp and dither; decoded sizes; one fade at a time; the relay across cuts |
+| `AmbientTest`, `DiffuseTest`, `PosterFieldTest`, `BackdropTest`, `BackdropFadeTest`, `BackdropRelayTest` | a picture's light; the field's cap, ramp and dither; posters laid side by side into a field; decoded sizes; one fade at a time; the relay across cuts |
 | `RowFrameTest`, `CardRaiseTest`, `OkPressTest`, `RecedeTest`, `ScrubTest` | the frame that travels, without recomposing; the focused card on top; OK on its release; siblings stepping back in steps; an arrow held |
 | `FocusReachTest`, `HomeLayoutTest`, `DetailLayoutTest`, `WelcomeLayoutTest`, `SettingRowTest`, `SheetRowLineTest` | the frame inside the room kept for it and inside the safe area, a row's glow drawn whole past it, a wall's faded where its grid cuts it; home's bands, a page's first view and the welcome screen; setting rows' heights; a sheet row's description on one line |
 | `TypeScaleTest`, `SpacingGridTest`, `LayoutTokensTest`, `GroundTest`, `TextRoomTest` | type scale, 4 dp grid, screen grid, grounds, text room at every text size |
@@ -664,7 +712,8 @@ Debug builds show **Settings > About > Design system**: every token and componen
 | `CatalogGestures` | case back, intertitle and counter side by side, then intertitles, error states, counters, case backs, empty frames and poster strips |
 | `CatalogIcons` | every glyph on the room and on focus; done and your choice; ember for states only |
 | `CatalogControls` | buttons in their states, a place's title and a task's, tiles, controls on a picture's plates, home's bar and the seasons |
-| `CatalogForms` | settings on the room and in a sheet, text fields, status panels, panel buttons, source cards, dividers, menus, choice sheets and settings, scroll areas |
+| `CatalogSecondary` | the settings' room of posters with its places, a group, a plate of facts and states; showcases; a gallery; a plate in a film's light and the sheets that hold them, one wide to read |
+| `CatalogForms` | settings in their group and in a sheet, text fields, status panels, panel buttons, source cards, dividers, menus, choice sheets and settings, scroll areas |
 | `CatalogCards` | a media row whose frame travels, with its new titles; cards on a picture's light; surfaces and images; wide cards, a saga with absent films, people; progress lines, skeletons, artwork choices, results, thumbnails and previews |
 | `CatalogReading` | title art, episode headings, meta and title lines, formats, a row's billing, the billing block, hero info, info blocks, definition lists, the technical sheet with its credits, search and its keys, the synopsis, versions |
 | `CatalogStress` | the longest labels, home's bar on the brightest image, the largest text size, fallback scripts, device metrics |

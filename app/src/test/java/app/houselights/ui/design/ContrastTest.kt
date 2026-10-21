@@ -3,6 +3,7 @@ package app.houselights.ui.design
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.colorspace.ColorSpaces
 import androidx.compose.ui.graphics.compositeOver
+import app.houselights.ui.design.components.ImageLight
 import app.houselights.ui.testing.contrast
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -19,6 +20,13 @@ class ContrastTest {
 
     /** The welcome wall under its veil where it is lightest: a white poster at `WALL`, the veil at its least across. */
     private val welcomeWall = c.background.over(HlScrim.WALL_ACROSS.minOf { it.alpha }, Color.White.over(HlScrim.WALL, c.background))
+
+    /** The lightest glow a film lends a sheet: a grey picture's. */
+    private val lightestGlow = object : AmbientLight {
+        override fun deep() = c.ambientDeep
+        override fun plateAlpha() = HlAlpha.PLATE
+        override fun glow() = ImageLight.Grey.glow
+    }
 
     /** A wall's diffuse field at its brightest, one level over its cap as dithering may draw it. */
     private val fieldBrightest = grey((floor(srgb(HlScrim.FIELD_LUMINANCE_MAX) * 255f) + 1f) / 255f)
@@ -73,6 +81,9 @@ class ContrastTest {
         // A wall's title at the foot of its band (the safe area and a headline, 70 dp down), under the field's top veil.
         "the title's foot on the diffuse field" to c.background.over(HlScrim.DIFFUSE_TOP.alphaAt(TITLE_FOOT), fieldBrightest),
         "the welcome wall" to welcomeWall,
+        // A sheet's plate, a step up from its glass in the film's glow, and a showcase's glass in its posters'.
+        "glassPlate in the lightest glow" to c.glassPlate(lightestGlow),
+        "glass tinted by the lightest glow" to c.tintedGlass(ImageLight.Grey.glow),
     )
 
     /** Every pair the system draws, as role, surface, use. */
@@ -152,6 +163,18 @@ class ContrastTest {
         // Over the welcome wall: the task's title, the tagline, an attention note; the lockup's light and focus's frame.
         "content" on "the welcome wall", "contentSecondary" on "the welcome wall", "ember" on "the welcome wall",
         ("emberFrom" on "the welcome wall").mark(), ("emberTo" on "the welcome wall").mark(), ("focus" on "the welcome wall").mark(),
+        // A disabled row in its well on a pane's plate.
+        "contentTertiary" on "FILL_FAINT on glass",
+        // On the settings' field: a place's icon, and the open one's lit.
+        ("contentTertiary" on "the diffuse field's brightest").mark(), ("ember" on "the diffuse field's brightest").mark(),
+        // On a sheet's plate: its words, a value of your choice, a check or a line, and focus's plate.
+        "content" on "glassPlate in the lightest glow", "contentSecondary" on "glassPlate in the lightest glow",
+        "contentTertiary" on "glassPlate in the lightest glow", "ember" on "glassPlate in the lightest glow",
+        "emberFrom" on "glassPlate in the lightest glow", ("emberTo" on "glassPlate in the lightest glow").mark(),
+        ("focus" on "glassPlate in the lightest glow").mark(),
+        // On a showcase's glass: its name and facts, its quietest words, and focus's frame.
+        "content" on "glass tinted by the lightest glow", "contentSecondary" on "glass tinted by the lightest glow",
+        "contentTertiary" on "glass tinted by the lightest glow", ("focus" on "glass tinted by the lightest glow").mark(),
     )
 
     private val forbidden = listOf(
@@ -166,6 +189,8 @@ class ContrastTest {
         "emberTo" on "plate at its ceiling on a white image",
         // The quietest text on a diffuse field, out of the title's band.
         "contentTertiary" on "the diffuse field's brightest",
+        // Raspberry words on a sheet's plate: a mark only there.
+        "emberTo" on "glassPlate in the lightest glow",
     )
 
     @Test

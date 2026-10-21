@@ -48,6 +48,7 @@ import app.houselights.ui.design.components.SOURCE_STRIP
 import app.houselights.ui.design.components.SourceCard
 import app.houselights.ui.design.components.HlScrollArea
 import app.houselights.ui.design.components.HlSegmented
+import app.houselights.ui.design.components.HlSettingGroup
 import app.houselights.ui.design.components.HlSettingRow
 import app.houselights.ui.design.components.HlTextField
 import app.houselights.ui.design.components.MenuOption
@@ -80,21 +81,15 @@ private fun FormSettings() {
             Modifier.width(HlLayout.sideColumn),
             gap = HlSpace.xs,
         ) {
-            Column(verticalArrangement = Arrangement.spacedBy(HlSpace.xxs)) {
-                HlNavItem(HlIcons.Folder, stringResource(R.string.section_source), "10 titres", selected = true, onFocused = {})
-                HlNavItem(HlIcons.Numbers, stringResource(R.string.section_numbers), null, selected = false, onFocused = {})
-                HlNavItem(
-                    HlIcons.Display,
-                    stringResource(R.string.section_display),
-                    stringResource(R.string.display_by_player),
-                    selected = false,
-                    onFocused = {},
-                )
+            Column {
+                HlNavItem(HlIcons.Folder, stringResource(R.string.section_source), selected = true, onFocused = {})
+                HlNavItem(HlIcons.Numbers, stringResource(R.string.section_numbers), selected = false, onFocused = {})
+                HlNavItem(HlIcons.Display, stringResource(R.string.section_display), selected = false, onFocused = {})
             }
         }
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(HlSpace.m)) {
-            Specimen("rows: words on the room, 60 tall; OK opens what the words say", gap = HlSpace.xs) {
-                Column(verticalArrangement = Arrangement.spacedBy(HlSpace.xxs)) {
+            Specimen("a group: its rows on one plate, 60 tall, no rule; OK does what the words say", gap = HlSpace.xs) {
+                HlSettingGroup(stringResource(R.string.section_display)) {
                     HlSettingRow(stringResource(R.string.interface_language), value = "Français", onClick = {})
                     HlSettingRow(
                         stringResource(R.string.tmdb_key),
@@ -114,31 +109,44 @@ private fun FormSettings() {
                         onClick = {},
                         enabled = false,
                     )
+                    HlSettingRow(
+                        stringResource(R.string.clear_image_cache),
+                        description = stringResource(R.string.clear_cache_desc),
+                        value = "151,5 Mo",
+                        valueStyle = Hl.type.jaquette,
+                        onClick = {},
+                    )
                     HlSettingRow(stringResource(R.string.section_storage), value = "92,4 Mo")
                 }
             }
             Text(
                 "Above: a value, a value of your choice in ember, an icon grey until focus, a disabled row in its well " +
-                    "(focus rings it), a row that only states its value.",
+                    "(focus rings it), a figure in the technical voice, a row that only states its value.",
                 style = Hl.type.caption,
                 color = Hl.colors.contentTertiary,
             )
         }
     }
-    Specimen("in a sheet, on glass: names in body, every preview in one box", Modifier.width(HlLayout.readable), gap = HlSpace.xs) {
+    Specimen(
+        "in a sheet, on glass: its group on a plate a step up, every preview in one box",
+        Modifier.width(HlLayout.readable),
+        gap = HlSpace.xs,
+    ) {
         HlPanel(Modifier.fillMaxWidth(), level = PanelLevel.Raised, padding = HlInset.tight) {
-            HlSettingRow(
-                stringResource(R.string.artwork_poster),
-                description = stringResource(R.string.artwork_poster_desc),
-                onClick = {},
-                leading = { RowPreview(null, PreviewShape.Poster) },
-            )
-            HlSettingRow(
-                stringResource(R.string.identify),
-                description = stringResource(R.string.identify_menu_desc),
-                onClick = {},
-                leading = { RowPreview(null, PreviewShape.Backdrop, icon = HlIcons.Search) },
-            )
+            HlSettingGroup(null) {
+                HlSettingRow(
+                    stringResource(R.string.artwork_poster),
+                    description = stringResource(R.string.artwork_poster_desc),
+                    onClick = {},
+                    leading = { RowPreview(null, PreviewShape.Poster) },
+                )
+                HlSettingRow(
+                    stringResource(R.string.identify),
+                    description = stringResource(R.string.identify_menu_desc),
+                    onClick = {},
+                    leading = { RowPreview(null, PreviewShape.Backdrop, icon = HlIcons.Search) },
+                )
+            }
         }
     }
 }

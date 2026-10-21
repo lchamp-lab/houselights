@@ -105,6 +105,19 @@ fun HlColors.plate(light: AmbientLight): Color = plate(light.deep(), light.plate
 /** The hairline around a [plate]. */
 val HlColors.plateEdge: Color get() = content.copy(alpha = HlAlpha.PLATE_EDGE)
 
+/** Glass in a picture's [glow] at `GLASS_GLOW`: a showcase in its posters' light. */
+fun HlColors.tintedGlass(glow: Color): Color = glow.copy(alpha = glow.alpha * HlAlpha.GLASS_GLOW).compositeOver(glass)
+
+/**
+ * A plate on a sheet's glass, in the light of the film under it, read while drawing: a step up (`GLASS_STEP`),
+ * then the film's [AmbientLight.glow] at `GLASS_GLOW`; the step alone without a picture.
+ */
+fun HlColors.glassPlate(light: AmbientLight): Color {
+    val glow = light.glow()
+    val step = content.copy(alpha = HlAlpha.GLASS_STEP).compositeOver(glass)
+    return glow.copy(alpha = glow.alpha * HlAlpha.GLASS_GLOW).compositeOver(step)
+}
+
 /**
  * What a component lies on, which decides how it stands out: the black room, glass (sheets, menus) or
  * artwork, where content needs a dark plate. Components read it from [LocalGround], not a parameter.
@@ -164,6 +177,13 @@ object HlAlpha {
     const val PLATE = 0.74f
     const val PLATE_MAX = 0.92f
     const val PLATE_EDGE = 0.11f
+
+    /**
+     * A plate on glass ([glassPlate]): `content` a step over it, under `FILL_FAINT` so the quietest text keeps
+     * 4.5:1 once the film's glow is added at [GLASS_GLOW].
+     */
+    const val GLASS_STEP = 0.035f
+    const val GLASS_GLOW = 0.05f
 
     /** Every edge and divider of a container: `outline` at this opacity. */
     const val EDGE = 0.6f

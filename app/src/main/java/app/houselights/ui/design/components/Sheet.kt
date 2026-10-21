@@ -57,6 +57,7 @@ import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.window.DialogWindowProvider
@@ -67,6 +68,7 @@ import app.houselights.core.ImageRef
 import app.houselights.ui.design.HlSideSheetDefaults
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlAlpha
+import app.houselights.ui.design.HlFocus
 import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlInset
 import app.houselights.ui.design.HlMotion
@@ -175,7 +177,9 @@ internal fun SheetWindow(
 /**
  * A full-height panel at the right edge for acting on or reading about what the screen shows (DESIGN.md,
  * Sheets): its task's [title], what it is about in [facts] after its printed [badges], beside its [artwork], as
- * tall as they are. No Close button: Back or [SheetScope.dismiss] closes it; [scroll] lets a text-only panel scroll.
+ * tall as they are; then its plates, [HlSpace.m] apart, in the film's light ([HlPlate]). [wide], a reading sheet
+ * holding the reading measure. No Close button nor hint: Back or [SheetScope.dismiss] closes it; [scroll] lets a
+ * text-only panel scroll.
  */
 @Composable
 fun HlSideSheet(
@@ -189,6 +193,7 @@ fun HlSideSheet(
     initialFocus: FocusRequester? = null,
     status: (@Composable () -> Unit)? = null,
     scroll: ScrollState = rememberScrollState(),
+    wide: Boolean = false,
     content: @Composable ColumnScope.(sheet: SheetScope) -> Unit,
 ) {
     SheetWindow(onDismiss, HlAlpha.VEIL_SIDE, initialFocus) { motion ->
@@ -198,7 +203,7 @@ fun HlSideSheet(
             Column(
                 modifier
                     .align(Alignment.CenterEnd)
-                    .width(HlSideSheetDefaults.width)
+                    .width(if (wide) HlSideSheetDefaults.wideWidth else HlSideSheetDefaults.width)
                     .fillMaxHeight()
                     .graphicsLayer {
                         // A short way in as it lights, each drawing faded on its own: no offscreen pass.
@@ -207,19 +212,24 @@ fun HlSideSheet(
                         compositingStrategy = CompositingStrategy.ModulateAlpha
                     }
                     .sheetGlass(c.glass, c.edge)
-                    .padding(start = HlInset.sheet, end = HlSpace.safeH, top = HlSpace.safeV, bottom = HlSpace.safeV),
+                    .padding(
+                        start = if (wide) HlSpace.safeH else HlInset.sheet,
+                        end = HlSpace.safeH,
+                        top = HlSpace.safeV,
+                        bottom = HlSpace.safeV,
+                    ),
             ) {
                 SheetHeader(title, facts, badges, description, artwork, status)
-                Spacer(Modifier.height(HlSpace.m))
-                HlDivider()
-                Spacer(Modifier.height(HlSpace.m))
-                // Its rows fade into the sheet where there are more.
+                // Its plates fade into the sheet where there are more; the room above and below them keeps a framed
+                // picture's light inside the scroll.
                 Column(
-                    Modifier.weight(1f).scrollEdges(scroll, c.glass).verticalScroll(scroll),
-                    verticalArrangement = Arrangement.spacedBy(HlSpace.xxs),
+                    Modifier
+                        .weight(1f)
+                        .scrollEdges(scroll, c.glass)
+                        .verticalScroll(scroll)
+                        .padding(top = HlSpace.l, bottom = HlFocus.room),
+                    verticalArrangement = Arrangement.spacedBy(HlSpace.m),
                 ) { content(motion.sheet) }
-                Spacer(Modifier.height(HlSpace.m))
-                BackHint()
             }
         }
     }
@@ -239,6 +249,10 @@ private fun Modifier.sheetGlass(glass: Color, edge: Color): Modifier = drawWithC
     }
 }
 
+/**
+ * What a sheet does, in `subject`, and what it is about on one line under it, its name first and in white, its
+ * printed marks before; its artwork beside them, as tall as both.
+ */
 @Composable
 private fun SheetHeader(
     title: String,
@@ -255,10 +269,17 @@ private fun SheetHeader(
             {
                 Column {
                     // Its capitals level with the artwork's top.
-                    TaskTitle(title, if (artwork != null) Modifier.capitalsAtTop(Hl.type.headline.fontSize) else Modifier, maxLines = 2)
+                    Text(
+                        title,
+                        style = Hl.type.subject,
+                        color = c.content,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = if (artwork != null) Modifier.capitalsAtTop(Hl.type.subject.fontSize) else Modifier,
+                    )
                     if (badges.isNotEmpty() || facts.any { !it.isNullOrBlank() }) {
-                        Spacer(Modifier.height(HlSpace.xxs))
-                        BadgedFactRow(badges, facts)
+                        Spacer(Modifier.height(HlSpace.xs))
+                        BadgedFactRow(badges, facts, lead = c.content)
                     }
                 }
             },
@@ -292,8 +313,8 @@ private fun SheetHeader(
         status()
     }
     if (description != null) {
-        Spacer(Modifier.height(HlSpace.s))
-        Text(description, style = Hl.type.caption, color = c.contentSecondary)
+        Spacer(Modifier.height(HlSpace.m))
+        Text(description, style = Hl.type.meta, color = c.contentSecondary)
     }
 }
 
@@ -346,7 +367,7 @@ private fun ConfirmCard(question: String, consequence: String, confirm: String, 
     }
 }
 
-/** The Back hint at a sheet's foot. */
+/** The Back hint of an intertitle nothing else fixes. */
 @Composable
 internal fun BackHint(modifier: Modifier = Modifier) {
     val c = Hl.colors

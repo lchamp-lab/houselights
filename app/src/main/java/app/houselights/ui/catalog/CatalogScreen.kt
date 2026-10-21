@@ -54,7 +54,6 @@ import app.houselights.ui.design.components.Badge
 import app.houselights.ui.design.components.Emphasis
 import app.houselights.ui.design.components.HlActionRow
 import app.houselights.ui.design.components.HlButton
-import app.houselights.ui.design.components.HlDivider
 import app.houselights.ui.design.components.HlEmptyState
 import app.houselights.ui.design.components.HlIconButton
 import app.houselights.ui.design.components.HlListItem
@@ -116,7 +115,7 @@ fun CatalogScreen() {
                         "display" to t.display, "headline" to t.headline, "subject" to t.subject,
                         "place" to t.place, "placeCurrent, ember lit" to t.placeCurrent.emberLit(c), "rowTitle" to t.rowTitle,
                         "cardName" to t.cardName, "cardTitle" to t.cardTitle,
-                        "title" to t.title, "lead" to t.lead, "body" to t.body, "entry" to t.entry, "meta" to t.meta,
+                        "title" to t.title, "lead" to t.lead, "read" to t.read, "body" to t.body, "entry" to t.entry, "meta" to t.meta,
                         "caption" to t.caption, "group" to t.group, "code" to t.code,
                         "spec" to t.spec, "jaquette" to t.jaquette, "badge" to t.badge,
                         "titleSignature" to t.titleSignature, "billing" to t.billing, "billingJoin" to t.billingJoin,
@@ -163,9 +162,9 @@ fun CatalogScreen() {
             item {
                 Group("Lists and settings") {
                     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m)) {
-                        Column(Modifier.width(HlLayout.sideColumn), verticalArrangement = Arrangement.spacedBy(HlSpace.xxs)) {
-                            HlNavItem(HlIcons.Folder, "Selected", "8 titles", selected = true, onFocused = {})
-                            HlNavItem(HlIcons.Display, "Other", "4K 60 Hz", selected = false, onFocused = {})
+                        Column(Modifier.width(HlLayout.sideColumn)) {
+                            HlNavItem(HlIcons.Folder, "Selected", selected = true, onFocused = {})
+                            HlNavItem(HlIcons.Display, "Other", selected = false, onFocused = {})
                         }
                         Column(Modifier.widthIn(max = HlLayout.readable)) {
                             HlSettingGroup("Group") {
@@ -263,6 +262,7 @@ fun CatalogScreen() {
                 }
             }
 
+            catalogSecondary()
             catalogForms()
             catalogCards()
             catalogReading()
@@ -417,9 +417,6 @@ private fun SheetQuestion(onDismiss: () -> Unit) {
                 description = stringResource(R.string.scan_now_desc),
                 onClick = { sheet.dismiss() },
             )
-            Spacer(Modifier.height(HlSpace.s))
-            HlDivider()
-            Spacer(Modifier.height(HlSpace.s))
             HlSettingRow(
                 stringResource(R.string.remove_folder),
                 origin,
