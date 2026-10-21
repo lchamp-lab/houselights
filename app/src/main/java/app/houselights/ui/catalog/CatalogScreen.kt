@@ -403,7 +403,7 @@ private fun SheetQuestion(onDismiss: () -> Unit) {
     HlSideSheet(
         "Films",
         onDismiss = onDismiss,
-        facts = listOf("NFS"),
+        badges = listOf("NFS"),
         description = "192.168.1.10/volume1/media/films",
     ) { sheet ->
         SheetConfirm(
@@ -479,7 +479,6 @@ private fun SheetStatusField(onDismiss: () -> Unit) {
         HlButton(
             stringResource(R.string.save),
             { checking = true },
-            emphasis = Emphasis.Primary,
             busy = checking,
             busyLabel = stringResource(R.string.checking),
         )

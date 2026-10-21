@@ -24,7 +24,6 @@ import app.houselights.ui.design.components.BackHint
 import app.houselights.ui.design.components.CardSkeleton
 import app.houselights.ui.design.components.DefinitionList
 import app.houselights.ui.design.components.DefinitionRow
-import app.houselights.ui.design.components.Emphasis
 import app.houselights.ui.design.components.HlButton
 import app.houselights.ui.design.components.HlErrorState
 import app.houselights.ui.design.components.HlSettingRow
@@ -76,7 +75,7 @@ private fun SideBySide() {
                 stringResource(R.string.error_offline_title),
                 message = "192.168.1.20 ne répond pas. Vérifiez que le NAS est allumé.",
                 attention = true,
-            ) { HlButton(stringResource(R.string.retry), {}, emphasis = Emphasis.Primary) }
+            ) { HlButton(stringResource(R.string.retry), {}) }
         }
         Specimen("counter: the ember line, the count, the file", Modifier.weight(1f)) {
             ScanProgress(3, 9, label = stringResource(R.string.home_scanning), current = "Bugonia (2025).mkv")
@@ -90,7 +89,7 @@ private fun Intertitles() {
         Specimen("neutral: what to do, and a quieter way", Modifier.weight(1f)) {
             Intertitle(stringResource(R.string.home_empty_title), message = stringResource(R.string.home_empty_local)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.s)) {
-                    HlButton(stringResource(R.string.add_folder), {}, emphasis = Emphasis.Primary)
+                    HlButton(stringResource(R.string.add_folder), {})
                     HlButton(stringResource(R.string.home_see_folders), {})
                 }
             }
@@ -100,7 +99,7 @@ private fun Intertitles() {
                 stringResource(R.string.error_tmdb_key_refused_title),
                 message = stringResource(R.string.error_tmdb_key_refused),
                 attention = true,
-            ) { HlButton(stringResource(R.string.error_action_edit_tmdb_key), {}, emphasis = Emphasis.Primary) }
+            ) { HlButton(stringResource(R.string.error_action_edit_tmdb_key), {}) }
         }
     }
     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.xl), verticalAlignment = Alignment.Top) {
@@ -246,8 +245,8 @@ private fun Frames() {
         }
         Specimen("loading cards: empty frames, at a poster and a thumbnail") {
             Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Bottom) {
-                CardSkeleton(HlSize.poster, POSTER)
-                CardSkeleton(HlSize.posterThumb, POSTER)
+                CardSkeleton(HlSize.poster, HlSize.POSTER_RATIO)
+                CardSkeleton(HlSize.posterThumb, HlSize.POSTER_RATIO)
             }
         }
     }
@@ -277,8 +276,6 @@ private fun CurrentOutput() {
 }
 
 private fun rates(vararg hz: String) = hz.joinToString(FACT_GAP) + "${NBSP}Hz"
-
-private const val POSTER = 2f / 3f
 
 /** A poster that fails to load. */
 private val BROKEN = ImageRef("catalog-gestures-broken") { "file:///nonexistent/gesture-poster.jpg" }

@@ -43,6 +43,7 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.layout.layout
@@ -73,6 +74,7 @@ import kotlinx.coroutines.launch
  * long-clicks instead. Focus reaches it when it cannot act ([enabled] false, or no [onClick]), and OK then does
  * nothing. It is one element to accessibility services, a [role] with its click. [content], clipped to [shape],
  * is told when it is [lit]: when its ink is focus's. Framed in a [row], it leaves its frame to the row ([RowFrame]).
+ * What its content covers from the top ([covered], in px, read while drawing) takes no plate under it.
  */
 @Composable
 internal fun HlFocusSurface(
@@ -87,6 +89,7 @@ internal fun HlFocusSurface(
     glow: (() -> Color)? = null,
     interactionSource: MutableInteractionSource? = null,
     row: RowFrame? = null,
+    covered: (() -> Float)? = null,
     content: @Composable BoxScope.(lit: Boolean) -> Unit,
 ) {
     val interaction = interactionSource ?: remember { MutableInteractionSource() }
@@ -113,7 +116,8 @@ internal fun HlFocusSurface(
     ) {
         CompositionLocalProvider(LocalContentColor provides look.ink(enabled, lit), LocalRaise provides null, LocalPlate provides plate) {
             // In the clip's layer, the plate's light redraws that layer alone, never the screen's.
-            Box(Modifier.clip(shape).drawWithCache { drawPlate(look, shape, enabled, ring, lights) }) { content(lit) }
+            val disabledRing = ring.takeUnless { enabled }
+            Box(Modifier.clip(shape).drawWithCache { drawPlate(look, shape, disabledRing, lights, covered) }) { content(lit) }
         }
     }
 }
@@ -220,25 +224,38 @@ private fun FocusLook.ink(enabled: Boolean, lit: Boolean): Color = when {
 }
 
 /**
- * The plate under the content, then the content, its edge and, when it cannot act, the [ring] of focus.
- * The white of focus lies over the plate at the light's strength, as a light would, never blending through
- * the colours between.
+ * The plate under the content, below what the content [covered], then the content, its edge and, given when it
+ * cannot act, the [disabledRing] of focus. The white of focus lies over the plate at the light's strength, as a
+ * light would, never blending through the colours between.
  */
-private fun CacheDrawScope.drawPlate(look: FocusLook, shape: Shape, enabled: Boolean, ring: BorderStroke, lights: Lights): DrawResult {
+private fun CacheDrawScope.drawPlate(
+    look: FocusLook,
+    shape: Shape,
+    disabledRing: BorderStroke?,
+    lights: Lights,
+    covered: (() -> Float)?,
+): DrawResult {
+    val enabled = disabledRing == null
     val area = shape.createOutline(size, layoutDirection, this)
     val edge = look.edge?.let { inside(shape, it) }
-    val disabledRing = if (enabled) null else inside(shape, ring)
+    val ring = disabledRing?.let { inside(shape, it) }
     val fills = enabled && look.gesture == Gesture.Fill
     return onDrawWithContent {
         val on = lights.on.value
         val rest = if (enabled) look.rest.fill() else look.disabled.fill()
-        // A clear plate draws nothing: a transparent rectangle still costs a pass.
-        if (rest.alpha > 0f) drawOutline(area, rest)
-        if (fills && on > 0f) drawOutline(area, look.focus.fill(), alpha = on)
+        val white = if (fills) on else 0f
+        val top = covered?.invoke() ?: 0f
+        if (top > 0f) clipRect(top = top) { fillPlate(area, rest, look, white) } else fillPlate(area, rest, look, white)
         drawContent()
         edge?.draw(this, 1f)
-        if (on > 0f) disabledRing?.draw(this, on)
+        if (on > 0f) ring?.draw(this, on)
     }
+}
+
+/** The plate at rest, then focus's white over it at [white]; a clear plate draws nothing, as a transparent rectangle costs a pass. */
+private fun DrawScope.fillPlate(area: Outline, rest: Color, look: FocusLook, white: Float) {
+    if (rest.alpha > 0f) drawOutline(area, rest)
+    if (white > 0f) drawOutline(area, look.focus.fill(), alpha = white)
 }
 
 /**

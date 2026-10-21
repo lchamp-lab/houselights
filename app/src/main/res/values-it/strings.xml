@@ -3,7 +3,7 @@
     <string name="source_local">I miei file</string>
     <string name="source_local_desc">Video sul proprio NAS o su una condivisione di rete (NFS o SMB). Houselights li scansiona e recupera locandine e informazioni da TMDB.</string>
     <string name="source_jellyfin">Server Jellyfin</string>
-    <string name="source_jellyfin_desc">Usare la libreria del proprio server Jellyfin.</string>
+    <string name="source_jellyfin_desc">La libreria del proprio server</string>
     <string name="welcome_title">Scelta della libreria</string>
 
     <!-- Libraries and sections -->
@@ -181,7 +181,7 @@
     <string name="edit_folder_row_desc">Indirizzo o credenziali</string>
     <string name="edit_folder_unreachable_desc">L’indirizzo potrebbe essere cambiato</string>
     <string name="edit_folder_login_desc">Reinserire nome utente o password</string>
-    <string name="edit_folder_not_found_desc">La condivisione o il percorso potrebbero essere cambiati</string>
+    <string name="edit_folder_not_found_desc">Condivisione o percorso forse cambiati</string>
     <string name="password_kept">Invariata</string>
     <string name="jellyfin_desc">Inserire l’indirizzo del server e le credenziali Jellyfin.</string>
     <string name="folder_kind">Contenuto</string>
@@ -195,8 +195,8 @@
     <string name="field_user">Utente</string>
     <string name="field_password">Password</string>
     <string name="placeholder_host">Es. 192.168.1.10</string>
-    <string name="placeholder_server_path">Es. /media/movies</string>
-    <string name="placeholder_network_path">Es. nfs://192.168.1.10/volume1/movies</string>
+    <string name="placeholder_server_path">Es. /media/film</string>
+    <string name="placeholder_network_path">Es. nfs://192.168.1.10/volume1/film</string>
     <string name="placeholder_tmdb_key">Es. 0123456789abcdef0123456789abcdef</string>
     <string name="placeholder_export">Es. /volume1/media</string>
     <string name="placeholder_share">Es. media</string>
@@ -275,13 +275,13 @@
     <string name="change_source_jellyfin_desc">Questo server resta connesso finché la nuova sorgente non è pronta.</string>
     <string name="change_source">Cambia sorgente</string>
     <string name="reconnect">Accedi di nuovo</string>
-    <string name="source_local_first">Aggiungere una prima cartella dal NAS</string>
+    <string name="source_local_first">Aggiungere una cartella dal NAS</string>
     <plurals name="source_local_folders">
         <item quantity="one">%d cartella sul NAS</item>
         <item quantity="many">%d cartelle sul NAS</item>
         <item quantity="other">%d cartelle sul NAS</item>
     </plurals>
-    <string name="source_jellyfin_other">Un altro server, o un altro account</string>
+    <string name="source_jellyfin_other">Un altro server o account</string>
     <string name="sign_out">Disconnetti</string>
     <string name="sign_out_confirm">Disconnettersi da «%s»?</string>
     <string name="sign_out_desc">Houselights dimenticherà questo server su questo dispositivo; le cartelle ne prenderanno il posto.</string>
@@ -345,7 +345,7 @@
     <string name="tmdb_scan_key_refused">TMDB ha rifiutato questa chiave durante l’ultima scansione: i titoli attendono le loro informazioni.</string>
     <string name="tmdb_scan_offline">TMDB non ha risposto durante l’ultima scansione: i titoli riceveranno le informazioni a una scansione successiva.</string>
     <string name="tmdb_key_revert">Torna alla chiave integrata</string>
-    <string name="tmdb_key_revert_desc">Houselights dimentica la chiave personale e usa la propria</string>
+    <string name="tmdb_key_revert_desc">Houselights dimentica la sua chiave</string>
     <string name="save">Salva</string>
     <string name="saved">Salvato</string>
     <string name="section_playback">Riproduzione</string>
@@ -368,11 +368,11 @@
     <string name="billing_and">e</string>
     <string name="edit">Modifica</string>
     <string name="artwork_poster">Locandina</string>
-    <string name="artwork_poster_desc">Mostrata nelle righe e nella libreria</string>
+    <string name="artwork_poster_desc">Righe e libreria</string>
     <string name="artwork_backdrop">Sfondo</string>
-    <string name="artwork_backdrop_desc">Dietro questa scheda e nella Home</string>
+    <string name="artwork_backdrop_desc">Questa scheda e la Home</string>
     <string name="artwork_logo">Logo</string>
-    <string name="artwork_logo_desc">Il titolo disegnato in cima a questa scheda</string>
+    <string name="artwork_logo_desc">Il titolo disegnato in cima</string>
     <string name="identify">Identifica</string>
     <string name="identify_menu_desc">Associa a un altro titolo TMDB</string>
     <plurals name="image_count">
@@ -494,7 +494,7 @@
     <string name="support_desc">Offrire un caffè al progetto, dal proprio telefono.</string>
     <string name="support_scan">Inquadrare questo codice con il telefono per aprire la pagina Ko-fi del progetto.</string>
     <string name="file_access">Accesso ai file</string>
-    <string name="network_path_desc">Il lettore legge i file direttamente dal NAS</string>
+    <string name="network_path_desc">Il lettore legge direttamente dal NAS</string>
     <string name="http_stream_desc">Il lettore legge il flusso del server</string>
     <string name="path_mappings">Corrispondenze di percorso</string>
     <plurals name="uhd_count">
@@ -530,11 +530,11 @@
     <string name="collections_setting">Saghe</string>
     <string name="collections_setting_desc">I film di una stessa saga, riuniti</string>
     <string name="collections_two">Da 2 film</string>
-    <string name="collections_two_desc">Una saga compare quando se ne possiedono almeno due film</string>
+    <string name="collections_two_desc">Una saga da due dei suoi film</string>
     <string name="collections_all">Tutte</string>
-    <string name="collections_all_desc">Anche quando si possiede un solo film della saga</string>
+    <string name="collections_all_desc">Anche con un solo film della saga</string>
     <string name="collections_off">Nascoste</string>
-    <string name="collections_off_desc">Nessuna saga in Film e nessuna riga di saghe</string>
+    <string name="collections_off_desc">Né in Film né in una riga</string>
     <plurals name="collection_count">
         <item quantity="one">%d saga</item>
         <item quantity="many">%d saghe</item>
@@ -550,7 +550,7 @@
     <string name="job_cinematography">Fotografia</string>
     <string name="job_editing">Montaggio</string>
     <string name="synopsis">Sinossi</string>
-    <string name="end_credits">Titoli di coda</string>
+    <string name="tech_credits">Troupe</string>
     <string name="error_person_gone_title">Nessun titolo rimasto</string>
     <string name="error_person_gone">Nessun titolo di questa persona è più nella libreria.</string>
     <string name="row_films_of">i film di</string>

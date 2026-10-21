@@ -116,7 +116,6 @@ private fun ControlStates() {
             HlButton(
                 stringResource(R.string.sign_in),
                 { busy = true },
-                emphasis = Emphasis.Primary,
                 busy = busy,
                 busyLabel = stringResource(R.string.signing_in),
             )

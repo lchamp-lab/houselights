@@ -3,7 +3,7 @@
     <string name="source_local">我的文件</string>
     <string name="source_local_desc">NAS 或网络共享文件夹（NFS 或 SMB）上的视频。Houselights 会扫描这些视频，并从 TMDB 获取海报和资料。</string>
     <string name="source_jellyfin">Jellyfin 服务器</string>
-    <string name="source_jellyfin_desc">使用 Jellyfin 服务器中的媒体库。</string>
+    <string name="source_jellyfin_desc">服务器中的媒体库</string>
     <string name="welcome_title">选择您的媒体库</string>
 
     <!-- Libraries and sections -->
@@ -187,8 +187,8 @@
     <string name="field_user">用户名</string>
     <string name="field_password">密码</string>
     <string name="placeholder_host">例如：192.168.1.10</string>
-    <string name="placeholder_server_path">例如：/media/movies</string>
-    <string name="placeholder_network_path">例如：nfs://192.168.1.10/volume1/movies</string>
+    <string name="placeholder_server_path">例如：/media/电影</string>
+    <string name="placeholder_network_path">例如：nfs://192.168.1.10/volume1/电影</string>
     <string name="placeholder_tmdb_key">例如：0123456789abcdef0123456789abcdef</string>
     <string name="placeholder_export">例如：/volume1/media</string>
     <string name="placeholder_share">例如：media</string>
@@ -263,11 +263,11 @@
     <string name="change_source_jellyfin_desc">在新来源准备就绪前，此服务器将保持连接。</string>
     <string name="change_source">更换来源</string>
     <string name="reconnect">重新登录</string>
-    <string name="source_local_first">从 NAS 添加第一个文件夹</string>
+    <string name="source_local_first">从 NAS 添加文件夹</string>
     <plurals name="source_local_folders">
         <item quantity="other">NAS 上的 %d 个文件夹</item>
     </plurals>
-    <string name="source_jellyfin_other">其他服务器，或其他账号</string>
+    <string name="source_jellyfin_other">其他服务器或账号</string>
     <string name="sign_out">退出登录</string>
     <string name="sign_out_confirm">要退出登录“%s”吗？</string>
     <string name="sign_out_desc">Houselights 将在本设备上忘记此服务器；您的文件夹将取而代之。</string>
@@ -326,7 +326,7 @@
     <string name="tmdb_scan_key_refused">TMDB 在上次扫描时拒绝了此密钥：作品的资料有待获取。</string>
     <string name="tmdb_scan_offline">TMDB 在上次扫描时无响应：作品将在之后的扫描中获取资料。</string>
     <string name="tmdb_key_revert">恢复使用内置密钥</string>
-    <string name="tmdb_key_revert_desc">Houselights 将忘记您的密钥，改用自带的密钥</string>
+    <string name="tmdb_key_revert_desc">Houselights 将忘记您的密钥</string>
     <string name="save">保存</string>
     <string name="saved">已保存</string>
     <string name="section_playback">播放</string>
@@ -348,13 +348,13 @@
     <string name="billing_and">与</string>
     <string name="edit">编辑</string>
     <string name="artwork_poster">海报</string>
-    <string name="artwork_poster_desc">显示在横排和媒体库中</string>
+    <string name="artwork_poster_desc">横排与媒体库</string>
     <string name="artwork_backdrop">背景图</string>
-    <string name="artwork_backdrop_desc">用于此页面背景和首页</string>
+    <string name="artwork_backdrop_desc">此页面与首页</string>
     <string name="artwork_logo">标志</string>
-    <string name="artwork_logo_desc">以图形显示在此页面顶部的片名</string>
+    <string name="artwork_logo_desc">页面顶部的图形片名</string>
     <string name="identify">识别</string>
-    <string name="identify_menu_desc">与 TMDB 上的其他作品匹配</string>
+    <string name="identify_menu_desc">匹配 TMDB 上的其他作品</string>
     <plurals name="image_count">
         <item quantity="other">%d 张图片</item>
     </plurals>
@@ -496,11 +496,11 @@
     <string name="collections_setting">系列</string>
     <string name="collections_setting_desc">汇集同一系列的电影</string>
     <string name="collections_two">至少 2 部电影</string>
-    <string name="collections_two_desc">拥有某系列至少两部电影时，才显示该系列</string>
+    <string name="collections_two_desc">拥有两部及以上电影时显示系列</string>
     <string name="collections_all">全部</string>
     <string name="collections_all_desc">即使只有该系列的一部电影</string>
     <string name="collections_off">隐藏</string>
-    <string name="collections_off_desc">“电影”中不显示系列，也不显示系列横排</string>
+    <string name="collections_off_desc">“电影”和横排中均不显示</string>
     <plurals name="collection_count">
         <item quantity="other">%d 个系列</item>
     </plurals>
@@ -513,7 +513,7 @@
     <string name="job_cinematography">摄影</string>
     <string name="job_editing">剪辑</string>
     <string name="synopsis">简介</string>
-    <string name="end_credits">演职员表</string>
+    <string name="tech_credits">制作团队</string>
     <string name="error_person_gone_title">已无作品</string>
     <string name="error_person_gone">媒体库中已没有此人的任何作品。</string>
     <string name="row_films_of">导演作品</string>

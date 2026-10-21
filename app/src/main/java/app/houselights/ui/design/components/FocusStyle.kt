@@ -97,6 +97,21 @@ internal object FocusStyle {
     @ReadOnlyComposable
     fun ring(): BorderStroke = BorderStroke(HlSize.focusBorder, Hl.colors.focus)
 
+    /** What a plate holds by state, words or a mark: [rest] at rest, focus's ink on its white. */
+    @Composable
+    @ReadOnlyComposable
+    fun ink(focused: Boolean, rest: Color = Hl.colors.content): Color = if (focused) Hl.colors.onFocus else rest
+
+    /** The quietest words by state (the file a scan reads): tertiary at rest, focus's quiet ink on its white. */
+    @Composable
+    @ReadOnlyComposable
+    fun hintInk(focused: Boolean): Color = if (focused) Hl.colors.onFocusSecondary else Hl.colors.contentTertiary
+
+    /** Ember as a mark by state: raspberry on focus's white, where ember words would not read. */
+    @Composable
+    @ReadOnlyComposable
+    fun emberMark(focused: Boolean): Color = if (focused) Hl.colors.emberOnLight else Hl.colors.ember
+
     /** Secondary text colour by state; never tertiary at rest, which drops to 3.9:1 on `FILL_STRONG`. */
     @Composable
     @ReadOnlyComposable

@@ -17,14 +17,13 @@ import androidx.compose.ui.unit.Dp
 import androidx.tv.material3.Text
 import app.houselights.R
 import app.houselights.ui.design.Hl
-import app.houselights.ui.design.HlAlpha
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
 
 /**
  * A running scan: the ember line, the count in tabular figures ("3 / 9"), then the file being read; [label]
  * goes above the line. Before files are counted ([total] 0) the line shows a sliver and no count. On a [focused]
- * plate its words take focus's ink.
+ * plate its words take focus's ink and the line is a raspberry mark ([ProgressLine]).
  */
 @Composable
 fun ScanProgress(
@@ -36,12 +35,11 @@ fun ScanProgress(
     lineWidth: Dp = HlSize.progressShort,
     focused: Boolean = false,
 ) {
-    val c = Hl.colors
     val fraction = if (total > 0) processed.toFloat() / total else 0f
-    val ink = if (focused) c.onFocus else c.content
+    val ink = FocusStyle.ink(focused)
     val file: @Composable (Modifier) -> Unit = { m ->
         if (current != null) {
-            val quiet = if (focused) c.onFocusSecondary else c.contentTertiary
+            val quiet = FocusStyle.hintInk(focused)
             Text(current, style = Hl.type.caption, color = quiet, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = m)
         }
     }
@@ -51,11 +49,7 @@ fun ScanProgress(
             Spacer(Modifier.height(HlSpace.s))
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
-            ProgressLine(
-                fraction.coerceAtLeast(SLIVER),
-                Modifier.width(lineWidth),
-                track = if (focused) c.onFocus.copy(alpha = HlAlpha.FILL_STRONG) else null,
-            )
+            ProgressLine(fraction.coerceAtLeast(SLIVER), Modifier.width(lineWidth), focused = focused)
             if (total > 0) {
                 Spacer(Modifier.width(HlSpace.s))
                 Text(stringResource(R.string.scan_progress, processed, total), style = Hl.type.meta, color = ink, maxLines = 1)

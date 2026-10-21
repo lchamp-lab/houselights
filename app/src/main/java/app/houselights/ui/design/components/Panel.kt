@@ -173,6 +173,15 @@ fun FactRow(
     }
 }
 
+/** Printed [badges] (a protocol), then [facts], on one line a fact's space apart. */
+@Composable
+internal fun BadgedFactRow(badges: List<String>, facts: List<String?>, modifier: Modifier = Modifier) {
+    Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(HlSpace.fact)) {
+        badges.forEach { Badge(it) }
+        if (facts.any { !it.isNullOrBlank() }) FactRow(facts, Modifier.weight(1f, fill = false))
+    }
+}
+
 /**
  * An [Intertitle] for a screen with nothing to show or a failure: [title], [message] and a focused [action]
  * (labelled [busy] while it runs), or [backHint] when nothing fixes it. Pass [focusOnAppear] false for a
@@ -208,7 +217,6 @@ fun HlEmptyState(
                         onAction,
                         Modifier.focusRequester(focus),
                         icon = actionIcon,
-                        emphasis = Emphasis.Primary,
                         busy = busy != null,
                         busyLabel = busy ?: action,
                     )
@@ -281,15 +289,14 @@ internal fun StatusLight(state: StatusState, modifier: Modifier = Modifier, ink:
  */
 @Composable
 fun AttentionNote(text: String, modifier: Modifier = Modifier, style: TextStyle = Hl.type.caption, focused: Boolean = false) {
-    val c = Hl.colors
     Row(modifier) {
         // As tall as the first line, so the light sits beside it.
         val line = with(LocalDensity.current) { style.lineHeight.toDp() }
         Box(Modifier.height(line), contentAlignment = Alignment.Center) {
-            StatusLight(StatusState.Attention, ink = if (focused) c.emberOnLight else null)
+            StatusLight(StatusState.Attention, ink = FocusStyle.emberMark(focused))
         }
         Spacer(Modifier.width(HlSpace.xs))
-        Text(text, style = style, color = if (focused) c.onFocus else c.ember)
+        Text(text, style = style, color = FocusStyle.ink(focused, rest = Hl.colors.ember))
     }
 }
 

@@ -19,11 +19,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.tv.material3.Text
 import app.houselights.R
 import app.houselights.ui.design.Hl
@@ -272,35 +272,30 @@ private fun FormStatusPanels() {
 
 @Composable
 private fun FormPanelButtons() {
+    // Servers a sign-in found, as its list says them.
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Top) {
-        Specimen("rest; focus raises it in projector white", Modifier.weight(1f), gap = HlSpace.xs) {
-            HlPanelButton({}, Modifier.fillMaxWidth()) {
-                FormFolder(
-                    "Films",
-                    "192.168.1.10/volume1/media/films",
-                    listOf("1 284 titres", pluralStringResource(R.plurals.uhd_count, 312, 312)),
-                )
-            }
+        Specimen("rest; focus frames it in projector white", Modifier.weight(1f), gap = HlSpace.xs) {
+            HlPanelButton({}, Modifier.fillMaxWidth()) { FormChoice("Salon", "http://192.168.1.20:8096") }
         }
         Specimen("lit: the choice in use", Modifier.weight(1f), gap = HlSpace.xs) {
-            HlPanelButton({}, Modifier.fillMaxWidth(), lit = true) {
-                FormFolder(
-                    "Séries",
-                    "nas-salon.local/media/series",
-                    listOf(pluralStringResource(R.plurals.title_count, 86, 86), "Analysé il y a 2 h"),
-                )
-            }
+            HlPanelButton({}, Modifier.fillMaxWidth(), lit = true) { FormChoice("Bureau", "http://nas-bureau.local:8096") }
         }
         Specimen("disabled: a faint well, focus outlines it", Modifier.weight(1f), gap = HlSpace.xs) {
-            // Its words in LocalContentColor, which follows the state.
             HlPanelButton({}, Modifier.fillMaxWidth(), enabled = false) {
-                Column(Modifier.padding(HlInset.card)) {
-                    Text("Concerts", style = Hl.type.lead)
-                    Spacer(Modifier.height(HlSpace.xxs))
-                    Text("Aucun dossier", style = Hl.type.meta)
-                }
+                FormChoice("Grenier", stringResource(R.string.error_offline_title), enabled = false)
             }
         }
+    }
+}
+
+/** A choice on a panel button as a list item says it: its name in `lead`, what it is in secondary `caption`. */
+@Composable
+private fun FormChoice(name: String, line: String, enabled: Boolean = true) {
+    Column(Modifier.padding(HlInset.card)) {
+        Text(name, style = Hl.type.lead)
+        Spacer(Modifier.height(HlSpace.xs))
+        // Disabled, its words keep LocalContentColor, which follows the state.
+        Text(line, style = Hl.type.caption, color = if (enabled) Hl.colors.contentSecondary else Color.Unspecified)
     }
 }
 
@@ -309,9 +304,9 @@ private fun FormSourceCards() {
     val art = shippedImage(R.drawable.banner)
     val posters = List(SOURCE_STRIP) { art }
     val address = "192.168.1.20/volume1/media/films"
-    val counts = listOf("11 titres", pluralStringResource(R.plurals.uhd_count, 8, 8))
+    val counts = listOf(pluralStringResource(R.plurals.title_count, 11, 11), pluralStringResource(R.plurals.uhd_count, 8, 8))
     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.l), verticalAlignment = Alignment.Top) {
-        Specimen("rest; focus fills it white, the posters as they are", Modifier.width(HlLayout.readableNarrow), gap = HlSpace.xs) {
+        Specimen("rest; focus fills it white, the posters melting into it", Modifier.width(HlLayout.readableNarrow), gap = HlSpace.xs) {
             SourceCard("Films", "NFS", address, posters, {}, facts = counts, scanned = "Analysé à l’instant")
         }
         Specimen("scanning: the counter in the facts' place", Modifier.width(HlLayout.readableNarrow), gap = HlSpace.xs) {
@@ -327,20 +322,9 @@ private fun FormSourceCards() {
             })
         }
         Specimen("no poster yet: its name like a one-sheet", Modifier.width(HlLayout.readableNarrow), gap = HlSpace.xs) {
-            SourceCard("Concerts", "SMB", "nas-salon.local/media/concerts", emptyList(), {}, facts = listOf("Jamais analysé"))
+            val never = stringResource(R.string.never_scanned)
+            SourceCard("Concerts", "SMB", "nas-salon.local/media/concerts", emptyList(), {}, facts = listOf(never))
         }
-    }
-}
-
-/** What a folder card says, without its cover. */
-@Composable
-private fun FormFolder(name: String, address: String, facts: List<String>) {
-    Column(Modifier.padding(HlInset.card)) {
-        Text(name, style = Hl.type.rowTitle, color = Hl.colors.content)
-        Spacer(Modifier.height(HlSpace.xxs))
-        Text(address, style = Hl.type.caption, color = Hl.colors.contentSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        Spacer(Modifier.height(HlSpace.m))
-        FactRow(facts)
     }
 }
 

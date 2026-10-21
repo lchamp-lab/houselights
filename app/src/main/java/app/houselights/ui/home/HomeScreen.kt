@@ -385,7 +385,7 @@ private fun SkeletonRows() {
     Column(Modifier.padding(start = HlSpace.safeH, top = HlSpace.xl), verticalArrangement = Arrangement.spacedBy(HlSpace.l)) {
         repeat(2) {
             Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m)) {
-                repeat(8) { CardSkeleton(HlSize.poster, 2f / 3f) }
+                repeat(8) { CardSkeleton(HlSize.poster, HlSize.POSTER_RATIO) }
             }
         }
     }

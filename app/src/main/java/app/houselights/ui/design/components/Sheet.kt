@@ -45,6 +45,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipRect
@@ -173,8 +174,8 @@ internal fun SheetWindow(
 
 /**
  * A full-height panel at the right edge for acting on or reading about what the screen shows (DESIGN.md,
- * Sheets): its task's [title], what it is about in [facts] beside its [artwork], as tall as they are. No Close
- * button: Back or [SheetScope.dismiss] closes it; [scroll] lets a text-only panel scroll.
+ * Sheets): its task's [title], what it is about in [facts] after its printed [badges], beside its [artwork], as
+ * tall as they are. No Close button: Back or [SheetScope.dismiss] closes it; [scroll] lets a text-only panel scroll.
  */
 @Composable
 fun HlSideSheet(
@@ -182,6 +183,7 @@ fun HlSideSheet(
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
     facts: List<String?> = emptyList(),
+    badges: List<String> = emptyList(),
     description: String? = null,
     artwork: (@Composable () -> Unit)? = null,
     initialFocus: FocusRequester? = null,
@@ -207,7 +209,7 @@ fun HlSideSheet(
                     .sheetGlass(c.glass, c.edge)
                     .padding(start = HlInset.sheet, end = HlSpace.safeH, top = HlSpace.safeV, bottom = HlSpace.safeV),
             ) {
-                SheetHeader(title, facts, description, artwork, status)
+                SheetHeader(title, facts, badges, description, artwork, status)
                 Spacer(Modifier.height(HlSpace.m))
                 HlDivider()
                 Spacer(Modifier.height(HlSpace.m))
@@ -241,6 +243,7 @@ private fun Modifier.sheetGlass(glass: Color, edge: Color): Modifier = drawWithC
 private fun SheetHeader(
     title: String,
     facts: List<String?>,
+    badges: List<String>,
     description: String?,
     artwork: (@Composable () -> Unit)?,
     status: (@Composable () -> Unit)?,
@@ -253,9 +256,9 @@ private fun SheetHeader(
                 Column {
                     // Its capitals level with the artwork's top.
                     TaskTitle(title, if (artwork != null) Modifier.capitalsAtTop(Hl.type.headline.fontSize) else Modifier, maxLines = 2)
-                    if (facts.any { !it.isNullOrBlank() }) {
+                    if (badges.isNotEmpty() || facts.any { !it.isNullOrBlank() }) {
                         Spacer(Modifier.height(HlSpace.xxs))
-                        FactRow(facts)
+                        BadgedFactRow(badges, facts)
                     }
                 }
             },
@@ -265,12 +268,15 @@ private fun SheetHeader(
         val block = text.first()
         val width = constraints.maxWidth
         val gap = if (picture != null) HlSpace.m.roundToPx() else 0
-        // The artwork as tall as the title and its facts, as wide as that height makes it.
-        val guess = picture?.maxIntrinsicWidth(block.minIntrinsicHeight(width)) ?: 0
-        val words = block.measure(Constraints(maxWidth = (width - guess - gap).coerceAtLeast(0)))
+        // The artwork as tall as the title and its facts as they set beside it, one line or two, and as wide as
+        // that height makes it: the title gives up its width, never the artwork.
+        val beside = picture?.let { width - it.maxIntrinsicWidth(block.minIntrinsicHeight(width)) - gap } ?: width
+        val tall = block.minIntrinsicHeight(beside.coerceAtLeast(0))
+        val wide = picture?.maxIntrinsicWidth(tall)?.coerceAtMost(width - gap) ?: 0
+        val words = block.measure(Constraints(maxWidth = (width - wide - gap).coerceAtLeast(0)))
         val shown = picture?.measure(
             Constraints(
-                maxWidth = picture.maxIntrinsicWidth(words.height).coerceAtMost(width - words.width - gap).coerceAtLeast(0),
+                maxWidth = picture.maxIntrinsicWidth(words.height).coerceAtMost(width - gap),
                 minHeight = words.height,
                 maxHeight = words.height,
             ),
@@ -356,14 +362,16 @@ enum class PreviewShape { Poster, Backdrop, Logo }
 
 /**
  * A small image at the head of a row, in one box whatever it previews ([HlSize.rowPreview], 16:9) on an opaque step
- * of its ground, so it holds on focus's white: a poster or a logo centred in it, a backdrop filling it; without an
- * image or on failure, [icon] or an empty frame.
+ * of its ground, so it holds on focus's white: a backdrop filling it, a logo fitted in it, a poster framed inside it
+ * a step off its top and foot, its corners parallel to the box's. Without an image or on failure, a poster keeps its
+ * own empty frame; a backdrop or a logo shows [icon], or the box alone.
  */
 @Composable
 fun RowPreview(image: ImageRef?, shape: PreviewShape, modifier: Modifier = Modifier, icon: ImageVector? = null) {
     val c = Hl.colors
-    val poster = shape == PreviewShape.Poster
-    val logo = shape == PreviewShape.Logo
+    val url = image?.url(HlSize.rowPreview.toPx())
+    // The box's radius less the gap: square at this size.
+    val inner = RectangleShape
     Box(
         modifier
             .width(HlSize.rowPreview)
@@ -373,25 +381,27 @@ fun RowPreview(image: ImageRef?, shape: PreviewShape, modifier: Modifier = Modif
             .artworkEdge(HlShapes.thumb, c),
         contentAlignment = Alignment.Center,
     ) {
-        ArtworkImage(
-            image?.url(HlSize.rowPreview.toPx()),
-            description = null,
-            modifier = if (poster) Modifier.fillMaxHeight().aspectRatio(POSTER_PREVIEW, true) else Modifier.fillMaxSize(),
-            contentScale = if (logo) ContentScale.Fit else ContentScale.Crop,
-            picture = if (logo) Modifier.padding(HlSpace.xxs) else Modifier,
-        ) {
-            if (icon != null) {
-                Icon(
-                    icon,
-                    contentDescription = null,
-                    tint = c.contentSecondary,
-                    modifier = Modifier.align(Alignment.Center).size(HlSize.largeIcon),
-                )
-            } else {
-                EmptyFrame(Modifier.fillMaxSize(), HlShapes.thumb)
+        if (shape == PreviewShape.Poster) {
+            ArtworkImage(
+                url,
+                description = null,
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .padding(vertical = HlSpace.xxs)
+                    .aspectRatio(HlSize.POSTER_RATIO, matchHeightConstraintsFirst = true),
+                picture = Modifier.clip(inner).artworkEdge(inner, c),
+            ) { EmptyFrame(Modifier.fillMaxSize(), inner) }
+        } else {
+            val logo = shape == PreviewShape.Logo
+            ArtworkImage(
+                url,
+                description = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = if (logo) ContentScale.Fit else ContentScale.Crop,
+                picture = if (logo) Modifier.padding(HlSpace.xxs) else Modifier,
+            ) {
+                icon?.let { Icon(it, null, Modifier.align(Alignment.Center).size(HlSize.largeIcon), tint = c.contentSecondary) }
             }
         }
     }
 }
-
-private const val POSTER_PREVIEW = 2f / 3f

@@ -45,7 +45,6 @@ import app.houselights.ui.design.components.AttentionNote
 import app.houselights.ui.design.components.DefinitionList
 import app.houselights.ui.design.components.ChoiceCheck
 import app.houselights.ui.design.components.ChoiceOption
-import app.houselights.ui.design.components.Emphasis
 import app.houselights.ui.design.components.HlButton
 import app.houselights.ui.design.components.HlChoiceSetting
 import app.houselights.ui.design.components.HlChoiceSheet
@@ -192,7 +191,8 @@ private fun SourceActions(
     HlSideSheet(
         title = sourceName(source),
         onDismiss = onDismiss,
-        facts = listOf(kind.takeIf { !source.name.equals(it, ignoreCase = true) }, source.protocol.name),
+        facts = listOf(kind.takeIf { !source.name.equals(it, ignoreCase = true) }),
+        badges = listOf(source.protocol.name),
         description = source.address(withScheme = false),
         artwork = if (posters.isEmpty()) {
             null
@@ -290,11 +290,11 @@ private fun FolderCard(
         onClick = onClick,
         modifier = modifier,
         facts = listOf(
+            // Never read is no state done: a plain fact, first as the state would be.
+            lastScanned(source.lastScanAt).takeIf { source.lastScanAt <= 0 },
             kind.takeIf { !source.name.equals(it, ignoreCase = true) },
             pluralStringResource(R.plurals.title_count, count, count),
             if (ultraHd > 0) pluralStringResource(R.plurals.uhd_count, ultraHd, ultraHd) else null,
-            // Never read is no state done: a plain fact.
-            lastScanned(source.lastScanAt).takeIf { source.lastScanAt <= 0 },
         ),
         scanned = lastScanned(source.lastScanAt).takeIf { source.lastScanAt > 0 },
         state = when {
@@ -606,7 +606,6 @@ private fun TmdbKeySheet(issue: UiError?, onDismiss: () -> Unit) {
             stringResource(R.string.save),
             onClick = { save(key) },
             icon = HlIcons.Check,
-            emphasis = Emphasis.Primary,
             busy = checking,
             busyLabel = stringResource(R.string.checking),
         )

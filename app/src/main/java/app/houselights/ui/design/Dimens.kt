@@ -76,6 +76,8 @@ object HlSize {
     /** A person's portrait, [PORTRAIT_RATIO]: in a row of people and at the head of their page. */
     val portrait = 96.dp
     const val PORTRAIT_RATIO = 3f / 4f
+    /** A poster's shape, width to height: 2:3. */
+    const val POSTER_RATIO = 2f / 3f
     /** Cast member column: the portrait, then a name of at most two lines. */
     val personColumn = 120.dp
     /** A button on a detail page; [controlCompact] in a screen's header. */
@@ -111,8 +113,8 @@ object HlSize {
     /** Least height of a setting row; [sheetRow] in a side sheet. */
     val row = 60.dp
     val sheetRow = 52.dp
-    /** The box at the head of a sheet row, [PREVIEW_RATIO], one for whatever image it previews. */
-    val rowPreview = 72.dp
+    /** The box at the head of a sheet row, one for whatever image it previews: 40 tall at [PREVIEW_RATIO], so the row keeps [sheetRow]. */
+    val rowPreview = 40.dp * PREVIEW_RATIO
     const val PREVIEW_RATIO = 16f / 9f
     /** Progress shown beside text (time left). */
     val progressShort = 120.dp

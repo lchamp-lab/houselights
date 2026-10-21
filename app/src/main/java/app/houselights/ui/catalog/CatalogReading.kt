@@ -651,7 +651,6 @@ private val READING_TECH_FULL = sample("Le Samouraï", 1967).copy(
     ),
 )
 
-/** The panel as designed: every picture row, the default dub first, a region where two dubs share a language. */
 /** A film's crafts, three names at most each: the fourth name is never shown. */
 private val READING_CRAFTS = listOf(
     Craft("Scénario", listOf("Will Tracy")),
@@ -660,6 +659,7 @@ private val READING_CRAFTS = listOf(
     Craft("Montage", listOf("Yorgos Mavropsaridis")),
 )
 
+/** The panel as designed: every picture row, the default dub first, a region where two dubs share a language. */
 private val READING_TECH_DOLBY = sample("Bugonia", 2025).copy(
     fileName = "Bugonia (2025) 2160p WEB-DL DV HDR10+ DDP Atmos.mkv",
     media = MediaInfo(

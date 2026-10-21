@@ -26,7 +26,6 @@ import app.houselights.providers.local.SourceKind
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlSpace
-import app.houselights.ui.design.components.Emphasis
 import app.houselights.ui.design.components.FieldLabel
 import app.houselights.ui.design.components.HlButton
 import app.houselights.ui.design.components.HlFormScaffold
@@ -167,7 +166,6 @@ private fun FolderActions(vm: AddFolderViewModel, onDone: (switched: Boolean) ->
                 vm.submit(onDone)
             },
             icon = if (vm.edits) HlIcons.Check else HlIcons.Add,
-            emphasis = Emphasis.Primary,
             enabled = vm.ready && !vm.gone && (adding || !busy),
             busy = busy && adding,
             busyLabel = if (vm.saving) stringResource(R.string.saving) else checking,

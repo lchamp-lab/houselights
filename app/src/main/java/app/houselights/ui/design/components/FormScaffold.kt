@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.text.TextStyle
@@ -118,12 +117,7 @@ fun StatusPanel(
         }
         if (badges.isNotEmpty() || facts.any { !it.isNullOrBlank() }) {
             Spacer(Modifier.height(HlSpace.s))
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(HlSpace.xs)) {
-                badges.forEach { Badge(it) }
-                if (facts.any { !it.isNullOrBlank() }) {
-                    FactRow(facts, Modifier.padding(start = if (badges.isEmpty()) HlSpace.none else HlSpace.xs))
-                }
-            }
+            BadgedFactRow(badges, facts)
         }
         if (content != null || result != null) {
             Spacer(Modifier.height(HlSpace.l))

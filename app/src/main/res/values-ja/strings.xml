@@ -3,7 +3,7 @@
     <string name="source_local">マイファイル</string>
     <string name="source_local_desc">NASやネットワーク共有（NFSまたはSMB）上の動画です。Houselightsがスキャンし、ポスターと作品情報をTMDBから取得します。</string>
     <string name="source_jellyfin">Jellyfinサーバー</string>
-    <string name="source_jellyfin_desc">Jellyfinサーバーのライブラリを使用します。</string>
+    <string name="source_jellyfin_desc">サーバーのライブラリ</string>
     <string name="welcome_title">ライブラリを選択</string>
 
     <!-- Libraries and sections -->
@@ -172,8 +172,8 @@
     <string name="edit_folder_desc">アドレスやログイン情報を変更します。Houselightsは保存する前に接続をテストします。作品、視聴履歴、選択内容はそのまま残ります。</string>
     <string name="edit_folder_row_desc">アドレスやログイン情報</string>
     <string name="edit_folder_unreachable_desc">アドレスが変わった可能性があります</string>
-    <string name="edit_folder_login_desc">ユーザー名またはパスワードを入力し直してください</string>
-    <string name="edit_folder_not_found_desc">共有フォルダやパスが変わった可能性があります</string>
+    <string name="edit_folder_login_desc">ログイン情報を再入力</string>
+    <string name="edit_folder_not_found_desc">共有やパスが変わった可能性</string>
     <string name="password_kept">変更なし</string>
     <string name="jellyfin_desc">サーバーのアドレスとJellyfinのログイン情報を入力してください。</string>
     <string name="folder_kind">内容</string>
@@ -263,11 +263,11 @@
     <string name="change_source_jellyfin_desc">新しいソースの準備ができるまで、このサーバーとの接続は維持されます。</string>
     <string name="change_source">ソースを変更</string>
     <string name="reconnect">再ログイン</string>
-    <string name="source_local_first">NASから最初のフォルダを追加</string>
+    <string name="source_local_first">NASからフォルダを追加</string>
     <plurals name="source_local_folders">
         <item quantity="other">NASのフォルダ%d個</item>
     </plurals>
-    <string name="source_jellyfin_other">別のサーバー、または別のアカウント</string>
+    <string name="source_jellyfin_other">別のサーバーやアカウント</string>
     <string name="sign_out">ログアウト</string>
     <string name="sign_out_confirm">「%s」からログアウトしますか？</string>
     <string name="sign_out_desc">Houselightsはこのデバイス上のこのサーバーの情報を消去します。代わりにフォルダが使われます。</string>
@@ -325,7 +325,7 @@
     <string name="tmdb_scan_key_refused">前回のスキャン中にTMDBがこのキーを拒否しました。作品情報はまだ取得されていません。</string>
     <string name="tmdb_scan_offline">前回のスキャン中にTMDBが応答しませんでした。作品情報は次回以降のスキャンで取得されます。</string>
     <string name="tmdb_key_revert">内蔵キーに戻す</string>
-    <string name="tmdb_key_revert_desc">お使いのキーを消去し、Houselightsのキーを使用します</string>
+    <string name="tmdb_key_revert_desc">お使いのキーを消去します</string>
     <string name="save">保存</string>
     <string name="saved">保存しました</string>
     <string name="section_playback">再生</string>
@@ -347,13 +347,13 @@
     <string name="billing_and">と</string>
     <string name="edit">編集</string>
     <string name="artwork_poster">ポスター</string>
-    <string name="artwork_poster_desc">各列とライブラリに表示</string>
+    <string name="artwork_poster_desc">各列とライブラリ</string>
     <string name="artwork_backdrop">背景画像</string>
-    <string name="artwork_backdrop_desc">このページの背景とホーム画面に表示</string>
+    <string name="artwork_backdrop_desc">このページとホーム</string>
     <string name="artwork_logo">ロゴ</string>
-    <string name="artwork_logo_desc">このページ上部に描かれるタイトル</string>
+    <string name="artwork_logo_desc">上部に描かれたタイトル</string>
     <string name="identify">作品を特定</string>
-    <string name="identify_menu_desc">TMDBの別の作品に関連付け</string>
+    <string name="identify_menu_desc">TMDBの別の作品を選ぶ</string>
     <plurals name="image_count">
         <item quantity="other">画像%d枚</item>
     </plurals>
@@ -437,7 +437,7 @@
     <string name="ui_resolution_desc">再生中は、Zidooプレーヤーが独自にモードを選択します。</string>
     <string name="interface_language">表示言語</string>
     <string name="interface_language_desc">メニュー、設定、メッセージ</string>
-    <string name="ui_4k_desc">4Kテレビでも鮮明なインターフェース</string>
+    <string name="ui_4k_desc">4Kで鮮明なインターフェース</string>
     <string name="ui_system_desc">システムが選択したモード</string>
     <string name="current_output">現在の出力</string>
     <string name="display_by_player">プレーヤーで設定</string>
@@ -468,8 +468,8 @@
     <string name="support_desc">スマートフォンから、プロジェクトにコーヒーを1杯ごちそうできます。</string>
     <string name="support_scan">スマートフォンでこのコードを読み取ると、プロジェクトのKo-fiページが開きます。</string>
     <string name="file_access">ファイルへのアクセス</string>
-    <string name="network_path_desc">プレーヤーがNASから直接ファイルを読み込みます</string>
-    <string name="http_stream_desc">プレーヤーがサーバーのストリームを読み込みます</string>
+    <string name="network_path_desc">NASから直接読み込みます</string>
+    <string name="http_stream_desc">サーバーのストリームを再生</string>
     <string name="path_mappings">パス変換</string>
     <plurals name="uhd_count">
         <item quantity="other">Ultra HD %d作品</item>
@@ -493,11 +493,11 @@
     <string name="collections_setting">シリーズ</string>
     <string name="collections_setting_desc">同じシリーズの映画をまとめて表示</string>
     <string name="collections_two">2作品以上</string>
-    <string name="collections_two_desc">シリーズの映画が2本以上あると表示されます</string>
+    <string name="collections_two_desc">2本以上の映画があるシリーズ</string>
     <string name="collections_all">すべて</string>
-    <string name="collections_all_desc">シリーズの映画が1本しかなくても表示されます</string>
+    <string name="collections_all_desc">映画が1本だけのシリーズも</string>
     <string name="collections_off">非表示</string>
-    <string name="collections_off_desc">「映画」内のシリーズも、シリーズの列も表示しません</string>
+    <string name="collections_off_desc">「映画」にも列にも表示しません</string>
     <plurals name="collection_count">
         <item quantity="other">%dシリーズ</item>
     </plurals>
@@ -510,7 +510,7 @@
     <string name="job_cinematography">撮影</string>
     <string name="job_editing">編集</string>
     <string name="synopsis">あらすじ</string>
-    <string name="end_credits">キャスト・スタッフ</string>
+    <string name="tech_credits">スタッフ</string>
     <string name="error_person_gone_title">作品が残っていません</string>
     <string name="error_person_gone">この人物の作品はもうライブラリにありません。</string>
     <string name="row_films_of">監督作品</string>

@@ -33,7 +33,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import app.houselights.R
 import app.houselights.ui.design.groundStepFill
-import app.houselights.ui.design.components.EmptyFrame
 import app.houselights.ui.design.components.FactRow
 import app.houselights.core.Job
 import app.houselights.core.MediaItem
@@ -197,7 +196,7 @@ internal fun personJobs(page: PersonPage): List<Job> = page.jobs.filterValues { 
 private fun Portrait(person: Person) {
     val px = HlSize.portrait.toPx()
     val c = Hl.colors
-    // The artwork well and edge at rest, as for a portrait in a row.
+    // The artwork well and edge at rest, as for a portrait in a row: without a picture, the bare frame.
     Box(
         Modifier
             .width(HlSize.portrait)
@@ -207,6 +206,6 @@ private fun Portrait(person: Person) {
             .artworkEdge(HlShapes.artwork, c)
             .clearAndSetSemantics {},
     ) {
-        ArtworkImage(person.image?.url(px), person.name, Modifier.fillMaxSize()) { EmptyFrame(Modifier.fillMaxSize()) }
+        ArtworkImage(person.image?.url(px), person.name, Modifier.fillMaxSize())
     }
 }

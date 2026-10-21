@@ -314,8 +314,8 @@ private fun ProgressLines() {
 @Composable
 private fun Skeletons() {
     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Top) {
-        Specimen("poster row (home)", width = HlSize.poster) { CardSkeleton(HlSize.poster, 2f / 3f) }
-        Specimen("poster choice", width = HlLayout.posterChoice) { CardSkeleton(HlLayout.posterChoice, 2f / 3f) }
+        Specimen("poster row (home)", width = HlSize.poster) { CardSkeleton(HlSize.poster, HlSize.POSTER_RATIO) }
+        Specimen("poster choice", width = HlLayout.posterChoice) { CardSkeleton(HlLayout.posterChoice, HlSize.POSTER_RATIO) }
         Specimen("backdrop or logo choice", width = HlLayout.landscapeChoice) {
             CardSkeleton(HlLayout.landscapeChoice, 16f / 9f)
         }
@@ -374,7 +374,7 @@ private fun ChoiceRow(kind: ArtworkKind) {
         )
     }
     val width = if (kind == ArtworkKind.POSTER) HlLayout.posterChoice else HlLayout.landscapeChoice
-    val ratio = if (kind == ArtworkKind.POSTER) 2f / 3f else 16f / 9f
+    val ratio = if (kind == ArtworkKind.POSTER) HlSize.POSTER_RATIO else 16f / 9f
     MediaRow(header = null) {
         item { Specimen("loading", width = width) { CardSkeleton(width, ratio) } }
         items(options) { option ->

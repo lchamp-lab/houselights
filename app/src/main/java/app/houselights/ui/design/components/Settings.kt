@@ -106,8 +106,8 @@ fun HlSettingGroup(title: String?, modifier: Modifier = Modifier, content: @Comp
  * One setting: name and description left, value right, on what holds it; with [onClick] a control, else
  * read-only, its words saying what OK opens. [valueLit] (a user choice) and [valueAttention] set the value in
  * ember; [trailing] replaces the value, [leading] the icon ([RowPreview]). Disabled rows belong on the room only,
- * in a well: sheets omit unavailable actions. In a sheet, its name is read in `body` and its description in
- * `meta`, and an action row is [HlSize.sheetRow] tall.
+ * in a well: sheets omit unavailable actions. In a sheet, its description is in `meta` on one line, and an action
+ * row is [HlSize.sheetRow] tall.
  */
 @Composable
 fun HlSettingRow(
@@ -138,14 +138,15 @@ fun HlSettingRow(
         ) {
             SettingLead(leading, icon, focused, enabled)
             Column(Modifier.weight(1f)) {
-                Text(title, style = if (sheet) Hl.type.body else Hl.type.entry, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(title, style = Hl.type.entry, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 if (description != null) {
                     Spacer(Modifier.height(HlSpace.xxs))
+                    // In a sheet, one line, so its rows keep one height.
                     Text(
                         description,
                         style = if (sheet) Hl.type.meta else Hl.type.caption,
                         color = FocusStyle.quietInk(focused, enabled, lit = false),
-                        maxLines = 2,
+                        maxLines = if (sheet) 1 else 2,
                         overflow = TextOverflow.Ellipsis,
                     )
                 }

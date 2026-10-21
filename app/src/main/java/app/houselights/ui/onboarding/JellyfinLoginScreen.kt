@@ -17,7 +17,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import app.houselights.R
 import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlSpace
-import app.houselights.ui.design.components.Emphasis
 import app.houselights.ui.design.components.FieldLabel
 import app.houselights.ui.design.components.HlButton
 import app.houselights.ui.design.components.HlFormScaffold
@@ -99,7 +98,6 @@ internal fun JellyfinLoginForm(vm: JellyfinLoginViewModel, onLoggedIn: () -> Uni
             stringResource(R.string.sign_in),
             ::login,
             icon = HlIcons.Check,
-            emphasis = Emphasis.Primary,
             busy = vm.busy,
             busyLabel = stringResource(R.string.signing_in),
         )

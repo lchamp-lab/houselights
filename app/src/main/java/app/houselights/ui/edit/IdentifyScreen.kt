@@ -35,7 +35,6 @@ import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
-import app.houselights.ui.design.components.Emphasis
 import app.houselights.ui.design.components.HlButton
 import app.houselights.ui.design.components.HlFormScaffold
 import app.houselights.ui.design.components.HlEmptyState
@@ -130,7 +129,7 @@ fun IdentifyScreen(itemId: String, onDone: () -> Unit) {
                 onImeAction = vm::search,
             )
         }
-        HlButton(stringResource(R.string.search), onClick = vm::search, icon = HlIcons.Search, emphasis = Emphasis.Primary)
+        HlButton(stringResource(R.string.search), onClick = vm::search, icon = HlIcons.Search)
 
         // Status shows above the results, which keep their place and focus; with none, a failure replaces them.
         val error = state.error

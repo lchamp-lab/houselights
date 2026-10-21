@@ -66,8 +66,8 @@ const val CRAFT_NAMES = 3
 
 /**
  * A title's technical sheet ([TechSheet]) in a side sheet: picture, sound, then the [crafts] its head does not
- * name, subtitles and file; one focusable row per fact, track or craft, the default track dotted. OK does
- * nothing, Back closes.
+ * name, subtitles and file; one focusable row per fact, track or craft, the file's default track dotted white.
+ * OK does nothing, Back closes.
  */
 @Composable
 fun TechSpecs(item: MediaItem, onDismiss: () -> Unit, crafts: List<Craft> = emptyList()) {
@@ -110,10 +110,10 @@ private fun ColumnScope.MediaSection(section: TechSection, first: FocusRequester
     Section(topicName(section.topic), count, section.rows, first) { row, modifier -> SheetRow(row, modifier) }
 }
 
-/** The crafts the head does not name, under the end credits' name, up to [CRAFT_NAMES] names each. */
+/** The crafts the head does not name, under the crew's name, up to [CRAFT_NAMES] names each. */
 @Composable
 private fun ColumnScope.Credits(crafts: List<Craft>, first: FocusRequester?) {
-    Section(stringResource(R.string.end_credits), null, crafts, first) { craft, modifier ->
+    Section(stringResource(R.string.tech_credits), null, crafts, first) { craft, modifier ->
         val names = craft.names.take(CRAFT_NAMES)
         SpecRow(
             label = craft.job,
@@ -140,12 +140,12 @@ private fun <T> ColumnScope.Section(
     rows.drop(1).forEach { row(it, Modifier) }
 }
 
-/** A section's name and its track count ("Son   2 pistes"), in the voice of a case back's line names. */
+/** A section's name in `group`, and its track count ("Son   2 pistes"). */
 @Composable
 private fun SectionName(name: String, count: String?) {
     val c = Hl.colors
     Row(Modifier.padding(start = HlInset.card, bottom = HlSpace.xs)) {
-        Text(name, style = Hl.type.caption, color = c.contentSecondary)
+        Text(name, style = Hl.type.group, color = c.contentSecondary)
         count?.let {
             Spacer(Modifier.width(HlSpace.fact))
             Text(it, style = Hl.type.caption, color = c.contentTertiary)
@@ -183,19 +183,28 @@ private fun SheetRow(row: TechRow, modifier: Modifier = Modifier) {
     }
 }
 
-/** How a word on a row's right reads: a format as on a case's back, a name, or what qualifies them. */
-private enum class Voice { Format, Name, Detail }
+/** How a word on a row's right reads: a format as on a case's back, a measure or what qualifies it, a name. */
+internal enum class Voice { Format, Measure, Name }
 
 private data class Word(val text: String, val voice: Voice)
 
-/** A fact's words: its first value as on a case's back, the rest of it and its [detail] qualifying it. */
+/** A fact's words, its [value] then its [detail], each in the voice of its kind ([voice]). */
 @Composable
-private fun words(value: List<TechValue>, detail: List<TechValue>): List<Word> =
-    value.mapIndexed { i, v -> Word(v.text(), if (i == 0) Voice.Format else Voice.Detail) } + detail.map { Word(it.text(), Voice.Detail) }
+private fun words(value: List<TechValue>, detail: List<TechValue>): List<Word> = (value + detail).map { Word(it.text(), it.voice) }
+
+/** Formats (Ultra HD, Dolby Vision, profil 8.1, PGS) as on a case's back; sizes, rates, durations, 7.1 and qualifiers measured. */
+internal val TechValue.voice: Voice
+    get() = when (this) {
+        is TechValue.Word, is TechValue.DolbyVisionProfile, is TechValue.BaseLayer, TechValue.StandardRange -> Voice.Format
+        is TechValue.Dimensions, is TechValue.Ratio, is TechValue.FrameRate, is TechValue.BitDepth, is TechValue.Channels,
+        is TechValue.Megabits, is TechValue.Kilobits, is TechValue.Bytes, is TechValue.Duration,
+        TechValue.Forced, TechValue.HearingImpaired,
+        -> Voice.Measure
+    }
 
 /**
  * A read-only row: [label] in `body` and [note] left, its [words] right, capped at the value width; [stacked]
- * puts them under the label (a file name). The margin holds the in-use dot; read as [readAs].
+ * puts them under the label (a file name). The margin holds the default track's dot; read as [readAs].
  */
 @Composable
 private fun SpecRow(
@@ -238,7 +247,8 @@ private fun SpecRow(
                 Modifier.width(HlInset.card).alignBy { it.measuredHeight / 2 + capitals },
                 contentAlignment = Alignment.Center,
             ) {
-                if (inUse) StatusLight(StatusState.On, ink = if (lit) ink else null)
+                // The file's default, a state: white, black on focus's plate.
+                if (inUse) StatusLight(StatusState.Done, ink = ink.takeIf { lit })
             }
             if (stacked) {
                 Column(Modifier.weight(1f)) {
@@ -257,8 +267,8 @@ private fun SpecRow(
                     words.forEach { word ->
                         val (style, color) = when (word.voice) {
                             Voice.Format -> Hl.type.jaquette to ink
+                            Voice.Measure -> Hl.type.meta to secondary
                             Voice.Name -> Hl.type.meta to ink
-                            Voice.Detail -> Hl.type.meta to secondary
                         }
                         Text(
                             word.text,
@@ -280,7 +290,7 @@ private fun SpecRow(
  * fit starts the next line. Its first baseline is its first line's.
  */
 @Composable
-private fun EndWords(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
+internal fun EndWords(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
     Layout(content, modifier) { measurables, constraints ->
         val gap = HlSpace.fact.roundToPx()
         val between = HlSpace.xxs.roundToPx()
@@ -359,6 +369,7 @@ private fun trackLanguage(code: String?, region: String?): String {
 @Suppress("CyclomaticComplexMethod") // One branch per kind of value: read down.
 private fun TechValue.text(): String = when (this) {
     is TechValue.Word -> text
+    is TechValue.Channels -> layout
     is TechValue.Dimensions -> formatDimensions(width, height)
     is TechValue.Ratio -> formatRatio(value)
     is TechValue.BitDepth -> stringResource(R.string.bit_depth, bits)

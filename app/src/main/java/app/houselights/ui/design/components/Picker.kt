@@ -145,9 +145,9 @@ fun HlResultItem(
 @Composable
 fun PosterThumb(poster: ImageRef?, modifier: Modifier = Modifier, width: Dp? = HlSize.posterThumb) {
     val sized = if (width != null) {
-        modifier.width(width).aspectRatio(THUMB_RATIO)
+        modifier.width(width).aspectRatio(HlSize.POSTER_RATIO)
     } else {
-        modifier.fillMaxHeight().aspectRatio(THUMB_RATIO, matchHeightConstraintsFirst = true)
+        modifier.fillMaxHeight().aspectRatio(HlSize.POSTER_RATIO, matchHeightConstraintsFirst = true)
     }
     ArtworkImage(
         poster?.url((width ?: HlSize.posterThumb).toPx()),
@@ -157,5 +157,3 @@ fun PosterThumb(poster: ImageRef?, modifier: Modifier = Modifier, width: Dp? = H
         picture = Modifier.clip(HlShapes.thumb).background(groundStepFill()).artworkEdge(HlShapes.thumb, Hl.colors),
     ) { EmptyFrame(Modifier.fillMaxSize(), HlShapes.thumb) }
 }
-
-private const val THUMB_RATIO = 2f / 3f

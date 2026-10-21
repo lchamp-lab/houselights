@@ -182,8 +182,8 @@ fun DetailScreen(
     var showTech by remember { mutableStateOf(false) }
     val media = item.media?.takeIf { it.video != null || it.audio.isNotEmpty() }
     val crafts = endCrafts(item, state.credits).map { (job, names) -> Craft(jobName(job), names) }
-    val technical = media != null || crafts.isNotEmpty()
-    if (showTech && technical) TechSpecs(item, onDismiss = { showTech = false }, crafts = crafts)
+    val tech = techTile(file = media != null, credits = crafts.isNotEmpty())
+    if (showTech && tech != null) TechSpecs(item, onDismiss = { showTech = false }, crafts = crafts)
     var showVersions by remember { mutableStateOf(false) }
     if (showVersions) VersionsSheet(item, state.versions, onChoose = vm::chooseVersion, onDismiss = { showVersions = false })
     var showSynopsis by remember { mutableStateOf(false) }
@@ -204,7 +204,8 @@ fun DetailScreen(
         onOpenSeries = { item.seriesId?.let(onOpenItem) },
         onOpenNfo = { onOpenNfo(item.id) },
         // Null hides the button: nothing for the technical sheet, or a single copy.
-        onShowTech = { showTech = true }.takeIf { technical },
+        onShowTech = { showTech = true }.takeIf { tech != null },
+        techAt = tech ?: TechTile.InPlace,
         onShowVersions = { showVersions = true }.takeIf { state.versions.size > 1 },
         onShowSynopsis = { showSynopsis = true },
         copy = state.playedCopy,
@@ -420,6 +421,8 @@ private data class DetailActions(
     val onOpenSeries: () -> Unit,
     val onOpenNfo: () -> Unit,
     val onShowTech: (() -> Unit)?,
+    /** Where the technical sheet's tile stands ([techTile]). */
+    val techAt: TechTile = TechTile.InPlace,
     val onShowVersions: (() -> Unit)?,
     val onShowSynopsis: () -> Unit,
     /** The copy Lire plays and its index (to name it); null for one copy. */
@@ -520,15 +523,7 @@ private fun Actions(
                 modifier = Modifier.focusKey(WATCHED, memory),
             )
         }
-        // A button bears the name of what it opens.
-        if (actions.onShowTech != null) {
-            HlIconButton(
-                HlIcons.Info,
-                stringResource(R.string.tech_details),
-                onClick = actions.onShowTech,
-                modifier = Modifier.focusKey(TECH, memory),
-            )
-        }
+        TechButton(actions, memory, TechTile.InPlace)
         if (item.hasNfo) {
             HlIconButton(
                 HlIcons.Document,
@@ -549,9 +544,30 @@ private fun Actions(
         if (actions.onEdit != null) {
             HlIconButton(HlIcons.Edit, stringResource(R.string.edit), onClick = actions.onEdit, modifier = Modifier.focusKey(EDIT, memory))
         }
+        TechButton(actions, memory, TechTile.Last)
         ActionFailure(problem, actionError)
     } }
 }
+
+/** The technical sheet's tile, when it stands [at] this place; it bears the name of what it opens. */
+@Composable
+private fun TechButton(actions: DetailActions, memory: FocusMemory, at: TechTile) {
+    val open = actions.onShowTech?.takeIf { actions.techAt == at } ?: return
+    HlIconButton(HlIcons.Info, stringResource(R.string.tech_details), onClick = open, modifier = Modifier.focusKey(TECH, memory))
+}
+
+/**
+ * Where the technical sheet's tile goes: in its place for a [file]'s facts, known as the page shows; last for
+ * [credits] alone, which come after the page, so no tile moves under focus. Null without either.
+ */
+internal fun techTile(file: Boolean, credits: Boolean): TechTile? = when {
+    file -> TechTile.InPlace
+    credits -> TechTile.Last
+    else -> null
+}
+
+/** Where the technical sheet's tile stands among the actions. */
+internal enum class TechTile { InPlace, Last }
 
 /** Why the last play request failed ([problem]) or a change did not save ([actionError]), beside the actions. */
 @Composable
