@@ -72,15 +72,10 @@ import kotlinx.coroutines.launch
  *
  * OK (centre, enter) presses on its way down and clicks on its way up if the press was taken here; held, it
  * long-clicks instead. Focus reaches it when it cannot act ([enabled] false, or no [onClick]), and OK then does
-<<<<<<< HEAD
- * nothing. It is one element to accessibility services, a [role] with its click. [content], clipped to [shape],
- * is told when it is [lit]: when its ink is focus's. Framed in a [row], it leaves its frame to the row ([RowFrame]).
- * What its content covers from the top ([covered], in px, read while drawing) takes no plate under it.
-=======
  * nothing. It is one element to accessibility services, a [role] with its clicks, the long one named by
  * [onLongClickLabel]. [content], clipped to [shape], is told when it is [lit]: when its ink is focus's. Framed in
- * a [row], it leaves its frame to the row ([RowFrame]).
->>>>>>> origin/main
+ * a [row], it leaves its frame to the row ([RowFrame]). What its content covers from the top ([covered], in px,
+ * read while drawing) takes no plate under it.
  */
 @Composable
 internal fun HlFocusSurface(

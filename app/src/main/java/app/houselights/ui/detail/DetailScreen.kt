@@ -543,29 +543,8 @@ private fun Actions(
         if (item.kind == MediaKind.EPISODE && item.seriesId != null) {
             HlButton(stringResource(R.string.view_series), onClick = actions.onOpenSeries, modifier = Modifier.focusKey(SERIES, memory))
         }
-<<<<<<< HEAD
-        // Label: what OK does; icon: the current state. Watched is done, not a choice: the check fills white.
-        if (capabilities?.markPlayed == true) {
-            HlIconButton(
-                if (item.user.played) HlIcons.CheckFilled else HlIcons.Check,
-                stringResource(if (item.user.played) R.string.mark_unwatched else R.string.mark_watched),
-                onClick = actions.onTogglePlayed,
-                modifier = Modifier.focusKey(WATCHED, memory),
-            )
-        }
-        TechButton(actions, memory, TechTile.InPlace)
-=======
         if (capabilities?.markPlayed == true) WatchedTile(item, actions, Modifier.focusKey(WATCHED, memory))
-        // A button bears the name of what it opens.
-        if (actions.onShowTech != null) {
-            HlIconButton(
-                HlIcons.Info,
-                stringResource(R.string.tech_details),
-                onClick = actions.onShowTech,
-                modifier = Modifier.focusKey(TECH, memory),
-            )
-        }
->>>>>>> origin/main
+        TechButton(actions, memory, TechTile.InPlace)
         if (item.hasNfo) {
             HlIconButton(
                 HlIcons.Document,
@@ -591,28 +570,6 @@ private fun Actions(
     } }
 }
 
-<<<<<<< HEAD
-/** The technical sheet's tile, when it stands [at] this place; it bears the name of what it opens. */
-@Composable
-private fun TechButton(actions: DetailActions, memory: FocusMemory, at: TechTile) {
-    val open = actions.onShowTech?.takeIf { actions.techAt == at } ?: return
-    HlIconButton(HlIcons.Info, stringResource(R.string.tech_details), onClick = open, modifier = Modifier.focusKey(TECH, memory))
-}
-
-/**
- * Where the technical sheet's tile goes: in its place for a [file]'s facts, known as the page shows; last for
- * [credits] alone, which come after the page, so no tile moves under focus. Null without either.
- */
-internal fun techTile(file: Boolean, credits: Boolean): TechTile? = when {
-    file -> TechTile.InPlace
-    credits -> TechTile.Last
-    else -> null
-}
-
-/** Where the technical sheet's tile stands among the actions. */
-internal enum class TechTile { InPlace, Last }
-
-=======
 /**
  * The watched tile: the title, or the season shown ([DetailActions.season]) and the whole show on a long OK, which
  * its hint says. Label: what OK does; icon: the current state. Watched is done, not a choice: the check fills white.
@@ -640,7 +597,26 @@ private fun WatchedTile(item: MediaItem, actions: DetailActions, modifier: Modif
     )
 }
 
->>>>>>> origin/main
+/** The technical sheet's tile, when it stands [at] this place; it bears the name of what it opens. */
+@Composable
+private fun TechButton(actions: DetailActions, memory: FocusMemory, at: TechTile) {
+    val open = actions.onShowTech?.takeIf { actions.techAt == at } ?: return
+    HlIconButton(HlIcons.Info, stringResource(R.string.tech_details), onClick = open, modifier = Modifier.focusKey(TECH, memory))
+}
+
+/**
+ * Where the technical sheet's tile goes: in its place for a [file]'s facts, known as the page shows; last for
+ * [credits] alone, which come after the page, so no tile moves under focus. Null without either.
+ */
+internal fun techTile(file: Boolean, credits: Boolean): TechTile? = when {
+    file -> TechTile.InPlace
+    credits -> TechTile.Last
+    else -> null
+}
+
+/** Where the technical sheet's tile stands among the actions. */
+internal enum class TechTile { InPlace, Last }
+
 /** Why the last play request failed ([problem]) or a change did not save ([actionError]), beside the actions. */
 @Composable
 private fun RowScope.ActionFailure(problem: UiError?, actionError: UiError?) {
