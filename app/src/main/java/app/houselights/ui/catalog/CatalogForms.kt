@@ -154,9 +154,9 @@ private fun FormSettings() {
 @Composable
 private fun FormTextFields() {
     Text(
-        "A field is a glass plate edged by a hairline. Focus rings it in projector white and shows, at its end, that " +
-            "OK types; OK opens the keyboard, and while typing the ring is the ember light and the cursor raspberry, " +
-            "and only then. Every field has a name, read out even when hidden.",
+        "A field is a glass plate 60 tall edged by a hairline, its name in white over it. Focus rings it in projector " +
+            "white and shows, at its end, that OK types; OK opens the keyboard, and while typing the ring is the ember " +
+            "light and the cursor raspberry, and only then. Every field has a name, read out even when hidden.",
         style = Hl.type.caption,
         color = Hl.colors.contentTertiary,
     )
@@ -213,11 +213,21 @@ private fun FormTextFields() {
             )
         }
     }
-    var protocol by remember { mutableIntStateOf(0) }
-    Specimen("FieldLabel over a segmented track", gap = HlSpace.xs) {
-        Column {
-            FieldLabel(stringResource(R.string.field_protocol))
-            HlSegmented(listOf("NFS", "SMB"), selected = protocol, onSelect = { protocol = it })
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Top) {
+        var protocol by remember { mutableIntStateOf(0) }
+        Specimen("FieldLabel over a segmented track", Modifier.weight(1f), gap = HlSpace.xs) {
+            Column {
+                FieldLabel(stringResource(R.string.field_protocol))
+                HlSegmented(listOf("NFS", "SMB"), selected = protocol, onSelect = { protocol = it })
+            }
+        }
+        var folder by remember { mutableStateOf("") }
+        Specimen("optional: said after its name, in grey", Modifier.weight(1f), gap = HlSpace.xs) {
+            HlTextField(
+                stringResource(R.string.field_path), folder, { folder = it },
+                placeholder = stringResource(R.string.placeholder_path_movies),
+                optional = true,
+            )
         }
     }
 }
@@ -239,7 +249,7 @@ private fun FormStatusPanels() {
         }
     }
     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Top) {
-        Specimen("on: lit, with what was found", Modifier.width(HlLayout.sideColumnWide), gap = HlSpace.xs) {
+        Specimen("on: its white dot, with what was found", Modifier.width(HlLayout.sideColumnWide), gap = HlSpace.xs) {
             StatusPanel(
                 StatusState.On, stringResource(R.string.connection_ok), address, "192.168.1.10",
                 detail = "/volume1/media/films", badges = nfs, result = pluralStringResource(R.plurals.entries_found, 128, 128),
@@ -274,6 +284,14 @@ private fun FormStatusPanels() {
         }
         Specimen("pending: reading, no value yet", Modifier.width(HlLayout.sideColumnWide), gap = HlSpace.xs) {
             StatusPanel(StatusState.Pending, "Lecture…", stringResource(R.string.identify_file), "…", valueStyle = Hl.type.entry)
+        }
+    }
+    Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Top) {
+        Specimen("done: a server found on the network, by its name", Modifier.width(HlLayout.sideColumnWide), gap = HlSpace.xs) {
+            StatusPanel(
+                StatusState.Done, stringResource(R.string.server_found), stringResource(R.string.field_server), "http://192.168.1.20:8096",
+                name = "Jellyfin du salon",
+            )
         }
     }
 }

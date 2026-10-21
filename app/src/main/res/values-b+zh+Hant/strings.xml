@@ -188,10 +188,11 @@
     <string name="field_protocol">通訊協定</string>
     <string name="field_host">NAS 位址</string>
     <string name="field_export">NFS 匯出路徑</string>
-    <string name="nfs_hint">NFS 不需要密碼：NAS 會信任本裝置的 IP 位址。請在 NAS 上允許此 IP（唯讀即可），並啟用來自非特權連接埠（大於 1024）的連線。</string>
+    <string name="nfs_hint">不需密碼：請在 NAS 上以唯讀方式允許本裝置的位址，並允許來自非特權連接埠的連線。</string>
     <string name="smb_hint">密碼儲存在本裝置上，並會傳給 Zidoo 播放器。建議使用專用的唯讀帳號。</string>
     <string name="field_share">共用資料夾</string>
-    <string name="field_path">資料夾（選填）</string>
+    <string name="field_path">資料夾</string>
+    <string name="field_optional">%1$s（選填）</string>
     <string name="field_user">使用者名稱</string>
     <string name="field_password">密碼</string>
     <string name="placeholder_host">例如：192.168.1.10</string>
@@ -204,6 +205,7 @@
     <string name="placeholder_path_shows">例如：影集</string>
     <string name="test_connection">測試</string>
     <string name="connection_untested">尚未測試連線</string>
+    <string name="server_found">已找到伺服器</string>
     <string name="connection_testing">正在連線…</string>
     <string name="connection_ok">已連線</string>
     <string name="connection_failed">無法連線</string>
@@ -545,7 +547,7 @@
     <string name="edition_anniversary">週年紀念版</string>
     <string name="edition_open_matte">Open Matte</string>
     <!-- Search: its keys, and what it found. -->
-    <string name="search_hint">片名、人名或系列名稱的開頭字母</string>
+    <string name="search_hint">片名、人名或系列名稱</string>
     <string name="search_space">空白</string>
     <string name="search_delete">刪除</string>
     <string name="search_titles">作品</string>

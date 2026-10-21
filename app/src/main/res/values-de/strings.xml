@@ -192,10 +192,11 @@
     <string name="field_protocol">Protokoll</string>
     <string name="field_host">NAS-Adresse</string>
     <string name="field_export">NFS-Export</string>
-    <string name="nfs_hint">NFS braucht kein Passwort: Das NAS vertraut der IP-Adresse dieses Geräts. Erlauben Sie diese IP auf dem NAS (Lesezugriff genügt) und aktivieren Sie Verbindungen von nicht privilegierten Ports (über 1024).</string>
+    <string name="nfs_hint">Ohne Passwort: Erlauben Sie auf dem NAS die Adresse dieses Geräts, schreibgeschützt und von nicht privilegierten Ports.</string>
     <string name="smb_hint">Das Passwort wird auf diesem Gerät gespeichert und an den Zidoo-Player übergeben. Nutzen Sie besser ein eigenes Konto mit reinem Lesezugriff.</string>
     <string name="field_share">Freigabe</string>
-    <string name="field_path">Ordner (optional)</string>
+    <string name="field_path">Ordner</string>
+    <string name="field_optional">%1$s (optional)</string>
     <string name="field_user">Benutzer</string>
     <string name="field_password">Passwort</string>
     <string name="placeholder_host">z. B. 192.168.1.10</string>
@@ -208,6 +209,7 @@
     <string name="placeholder_path_shows">z. B. serien</string>
     <string name="test_connection">Testen</string>
     <string name="connection_untested">Verbindung nicht getestet</string>
+    <string name="server_found">Server gefunden</string>
     <string name="connection_testing">Wird verbunden…</string>
     <string name="connection_ok">Verbunden</string>
     <string name="connection_failed">Keine Verbindung</string>
@@ -563,7 +565,7 @@
     <string name="edition_anniversary">Jubiläumsedition</string>
     <string name="edition_open_matte">Open Matte</string>
     <!-- Search: its keys, and what it found. -->
-    <string name="search_hint">Die ersten Buchstaben eines Titels, einer Person oder einer Filmreihe</string>
+    <string name="search_hint">Ein Titel, eine Person oder eine Filmreihe</string>
     <string name="search_space">Leertaste</string>
     <string name="search_delete">Löschen</string>
     <string name="search_titles">Titel</string>

@@ -341,6 +341,13 @@ interface LibraryDao {
     )
     fun observePosters(sourceId: Long, limit: Int): Flow<List<String>>
 
+    @Query(
+        "SELECT COALESCE(NULLIF(userPosterPath, ''), posterPath) FROM items " +
+            "WHERE kind IN ('MOVIE','SERIES') " +
+            "AND COALESCE(NULLIF(userPosterPath, ''), posterPath) IS NOT NULL ORDER BY addedAt DESC LIMIT :limit"
+    )
+    fun observeAllPosters(limit: Int): Flow<List<String>>
+
     @Query("SELECT COUNT(*) FROM items WHERE sourceId = :sourceId AND filePath IS NOT NULL AND ${PipeList.BADGES_MATCH}")
     fun observeDefinitionCount(sourceId: Long, token: String): Flow<Int>
 

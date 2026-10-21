@@ -56,6 +56,8 @@ import app.houselights.ui.design.components.VersionsSheet
 import app.houselights.ui.util.versionName
 import app.houselights.ui.design.components.SearchQuery
 import app.houselights.ui.design.components.LetterGrid
+import app.houselights.ui.design.components.ResultName
+import app.houselights.ui.design.components.ResultsHeading
 import androidx.compose.foundation.layout.fillMaxWidth
 
 /** What a title says about itself (name, facts, credits, sheets), without artwork, at the widths screens give. */
@@ -452,8 +454,8 @@ private fun ReadingTechSheetSection() {
 
 @Composable
 private fun ReadingSearchSection() {
-    Group("Search: its title, the field its keys always type in, its keys") {
-        val hint = "Les premières lettres d’un titre, d’une personne ou d’une saga"
+    Group("Search: its title, the field its keys always type in, its keys, its rows of results") {
+        val hint = stringResource(R.string.search_hint)
         ReadingRow {
             Specimen("nothing typed: the cursor waits, the hint says what", Modifier.width(HlLayout.readableNarrow), gap = HlSpace.xxs) {
                 SearchQuery("", hint, Modifier.fillMaxWidth())
@@ -466,7 +468,18 @@ private fun ReadingSearchSection() {
             SearchQuery("LES PARAPLUIES DE CHERBOURG RESTAURÉ", hint, Modifier.fillMaxWidth())
         }
         Spacer(Modifier.height(HlSpace.l))
-        Specimen("the keys, without the system's keyboard", gap = HlSpace.xxs) { LetterGrid(onKey = {}, onSpace = {}, onDelete = {}) }
+        ReadingRow {
+            Specimen("the keys, without the system's keyboard: tiles in the picture's dark, no edge", gap = HlSpace.xxs) {
+                LetterGrid(onKey = {}, onSpace = {}, onDelete = {})
+            }
+            Specimen("a row's title and count, the result in light under it", Modifier.width(HlLayout.readableNarrow), gap = HlSpace.xs) {
+                Column(verticalArrangement = Arrangement.spacedBy(HlSpace.s)) {
+                    ResultsHeading(stringResource(R.string.search_titles), 2)
+                    ResultName(sample("Les Parapluies de Cherbourg", 1964))
+                    ResultName(sample("Un titre bien trop long pour la ligne qui le nomme sous sa rangée", 2026))
+                }
+            }
+        }
     }
 }
 

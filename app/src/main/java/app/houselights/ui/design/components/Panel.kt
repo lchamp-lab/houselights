@@ -209,15 +209,16 @@ fun FactRow(
     }
 }
 
-/** Printed [badges] (a protocol), then [facts], the first inked [lead], on one line a fact's space apart. */
+/** Printed [badges] (a protocol), then [facts], the first inked [lead], on one line [gap] apart (a fact's space). */
 @Composable
 internal fun BadgedFactRow(
     badges: List<String>,
     facts: List<String?>,
     modifier: Modifier = Modifier,
     lead: Color = Hl.colors.contentSecondary,
+    gap: Dp = HlSpace.fact,
 ) {
-    Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(HlSpace.fact)) {
+    Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(gap)) {
         badges.forEach { Badge(it) }
         if (facts.any { !it.isNullOrBlank() }) FactRow(facts, Modifier.weight(1f, fill = false), lead = lead)
     }

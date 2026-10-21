@@ -188,10 +188,11 @@
     <string name="field_protocol">プロトコル</string>
     <string name="field_host">NASのアドレス</string>
     <string name="field_export">NFSエクスポート</string>
-    <string name="nfs_hint">NFSにパスワードは不要です。NASはこのデバイスのIPアドレスを信頼します。NAS側でこのIPアドレスを許可し（読み取り専用で十分です）、非特権ポート（1024番を超えるポート）からの接続を有効にしてください。</string>
+    <string name="nfs_hint">パスワードは不要です。NAS側で、このデバイスのアドレスを読み取り専用で、非特権ポートからの接続も含めて許可してください。</string>
     <string name="smb_hint">パスワードはこのデバイスに保存され、Zidooプレーヤーに渡されます。読み取り権限のみの専用アカウントをおすすめします。</string>
     <string name="field_share">共有フォルダ</string>
-    <string name="field_path">フォルダ（任意）</string>
+    <string name="field_path">フォルダ</string>
+    <string name="field_optional">%1$s（任意）</string>
     <string name="field_user">ユーザー名</string>
     <string name="field_password">パスワード</string>
     <string name="placeholder_host">例：192.168.1.10</string>
@@ -204,6 +205,7 @@
     <string name="placeholder_path_shows">例：shows</string>
     <string name="test_connection">テスト</string>
     <string name="connection_untested">接続テスト未実施</string>
+    <string name="server_found">サーバーが見つかりました</string>
     <string name="connection_testing">接続中…</string>
     <string name="connection_ok">接続しました</string>
     <string name="connection_failed">接続できません</string>
@@ -542,7 +544,7 @@
     <string name="edition_anniversary">アニバーサリー・エディション</string>
     <string name="edition_open_matte">オープンマット</string>
     <!-- Search -->
-    <string name="search_hint">作品名、人物名、シリーズ名の最初の文字</string>
+    <string name="search_hint">作品名、人物名、シリーズ名</string>
     <string name="search_space">スペース</string>
     <string name="search_delete">削除</string>
     <string name="search_titles">作品</string>

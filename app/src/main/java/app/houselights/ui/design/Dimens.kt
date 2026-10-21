@@ -119,6 +119,8 @@ object HlSize {
     val scrollStep = 120.dp
     /** Least height of a setting row, in a pane as in a sheet. */
     val row = 60.dp
+    /** Least height of a text field and of the search query: a setting row's. */
+    val field = row
     /** A place in the settings' list of places: seven fit the safe area under its title. */
     val navRow = 56.dp
     /** The box at the head of a row, one for whatever image it previews: 40 tall at [PREVIEW_RATIO], inside its [row]. */
@@ -174,9 +176,9 @@ object HlLayout {
     val readableNarrow = 520.dp
     /** Longest caption line: about 66 characters at 14 sp, the most readable measure from three metres. */
     val captionMeasure = 400.dp
-    /** Side column of two-pane screens: navigation (settings, leaving its pane 560), explanation (setup forms). */
+    /** Side column of two-pane screens: navigation (settings, leaving its pane 560), explanation (forms, leaving theirs 472). */
     val sideColumn = 256.dp
-    val sideColumnWide = 340.dp
+    val sideColumnWide = 344.dp
     /** Where a two-pane screen's content starts, level with its first navigation entry. */
     val paneTop = 72.dp
     val fieldShort = 120.dp

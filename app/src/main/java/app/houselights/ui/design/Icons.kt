@@ -141,6 +141,15 @@ object HlIcons {
     /** The Back key of the remote: an arrow turning back (`undo-2`). */
     val Back = icon("Back", "M9 14 4 9l5-5", "M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11")
 
+    /** Erase the last letter typed: a key with a cross (`delete`). */
+    val Erase = icon(
+        "Erase",
+        "M10 5a2 2 0 0 0-1.344.519l-6.328 5.74a1 1 0 0 0 0 1.481l6.328 5.741A2 2 0 0 0 10 19h10a2 2 0 0 0 2-2V7" +
+            "a2 2 0 0 0-2-2z",
+        "m12 9 6 6",
+        "m18 9-6 6",
+    )
+
     /** Turns a screen to its other view: two arrows, one each way (`arrow-left-right`). */
     val Swap = icon("Swap", "M8 3 4 7l4 4", "M4 7h16", "m16 21 4-4-4-4", "M20 17H4")
 

@@ -196,10 +196,11 @@
     <string name="field_protocol">Protocolo</string>
     <string name="field_host">Dirección del NAS</string>
     <string name="field_export">Exportación NFS</string>
-    <string name="nfs_hint">NFS no requiere contraseña: el NAS confía en la dirección IP de este dispositivo. En el NAS, autorice esta IP (basta con solo lectura) y active las conexiones desde puertos no privilegiados (por encima de 1024).</string>
+    <string name="nfs_hint">Sin contraseña: en el NAS, autorice la dirección de este dispositivo en solo lectura, desde puertos no privilegiados.</string>
     <string name="smb_hint">La contraseña se guarda en este dispositivo y se transmite al reproductor Zidoo. Es preferible una cuenta dedicada de solo lectura.</string>
     <string name="field_share">Recurso compartido</string>
-    <string name="field_path">Carpeta (opcional)</string>
+    <string name="field_path">Carpeta</string>
+    <string name="field_optional">%1$s (opcional)</string>
     <string name="field_user">Usuario</string>
     <string name="field_password">Contraseña</string>
     <string name="placeholder_host">Ej.: 192.168.1.10</string>
@@ -212,6 +213,7 @@
     <string name="placeholder_path_shows">Ej.: series</string>
     <string name="test_connection">Probar</string>
     <string name="connection_untested">Conexión no probada</string>
+    <string name="server_found">Servidor encontrado</string>
     <string name="connection_testing">Conectando…</string>
     <string name="connection_ok">Conectado</string>
     <string name="connection_failed">No se puede conectar</string>
@@ -584,7 +586,7 @@
     <string name="edition_open_matte">Open matte</string>
 
     <!-- Search -->
-    <string name="search_hint">Las primeras letras de un título, una persona o una saga</string>
+    <string name="search_hint">Un título, una persona o una saga</string>
     <string name="search_space">Espacio</string>
     <string name="search_delete">Borrar</string>
     <string name="search_titles">Títulos</string>
