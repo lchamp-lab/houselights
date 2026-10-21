@@ -6,14 +6,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.width
 import app.houselights.core.MediaItem
 import app.houselights.core.MediaKind
+import app.houselights.ui.design.HlLayout
 import app.houselights.ui.testing.TV
 import app.houselights.ui.testing.setTvContent
 import org.junit.Assert.assertTrue
@@ -59,5 +62,20 @@ class SynopsisTest {
         compose.onNodeWithText("Synopsis").assertIsDisplayed()
         compose.onNodeWithText("Zéro de conduite").assertIsDisplayed()
         compose.onAllNodesWithText(story).assertCountEquals(1)
+    }
+
+    /** A reading sheet: its tagline over the text, its director among its facts, its lines at the reading measure. */
+    @Test
+    fun theSheetReadsAtTheMeasure() {
+        val film = MediaItem(
+            "f1", MediaKind.MOVIE, "Zéro de conduite", year = 1933, overview = story + " " + story,
+            tagline = "Une révolte au collège.", directors = listOf("Jean Vigo"),
+        )
+        compose.setTvContent { SynopsisSheet(film, onDismiss = {}) }
+        compose.onNodeWithText("Jean Vigo").assertIsDisplayed()
+        val tagline = compose.onNodeWithText("Une révolte au collège.").getUnclippedBoundsInRoot()
+        val text = compose.onNodeWithText(story + " " + story).getUnclippedBoundsInRoot()
+        assertTrue("the tagline over the text", tagline.bottom <= text.top)
+        assertTrue("wider than a sheet's 440, within the measure: ${text.width}", text.width > 440.dp && text.width <= HlLayout.readable)
     }
 }

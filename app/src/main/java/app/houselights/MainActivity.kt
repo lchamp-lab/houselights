@@ -79,7 +79,6 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import app.houselights.ui.catalog.CatalogScreen
 import app.houselights.ui.detail.DetailScreen
-import app.houselights.ui.detail.NfoScreen
 import app.houselights.ui.edit.ArtworkScreen
 import app.houselights.ui.edit.IdentifyScreen
 import app.houselights.ui.home.HomeScreen
@@ -446,7 +445,6 @@ private fun AppNavigation(nav: NavHostController, onPlay: (MediaItem, Boolean) -
                 itemId = entry.toRoute<Route.Item>().id,
                 onPlay = onPlay,
                 onOpenItem = ::openItem,
-                onOpenNfo = { nav.navigate(Route.Nfo(it)) },
                 onEditArtwork = { id, kind -> nav.navigate(Route.Artwork(id, kind)) },
                 onIdentify = { nav.navigate(Route.Identify(it)) },
                 onOpenPerson = { nav.navigate(Route.Person(it)) },
@@ -459,7 +457,6 @@ private fun AppNavigation(nav: NavHostController, onPlay: (MediaItem, Boolean) -
         composable<Route.Identify> { entry ->
             IdentifyScreen(entry.toRoute<Route.Identify>().id, onDone = { nav.popBackStack() })
         }
-        composable<Route.Nfo> { entry -> NfoScreen(entry.toRoute<Route.Nfo>().id) }
         composable<Route.Person> { entry -> PersonScreen(entry.toRoute<Route.Person>().id, onOpenItem = { openItem(it.id) }) }
         composable<Route.Settings> {
             // Source changes keep Settings on the back stack: Back returns to it, the source unchanged.

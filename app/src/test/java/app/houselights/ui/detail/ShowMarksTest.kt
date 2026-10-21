@@ -75,7 +75,6 @@ class ShowMarksTest {
                 PlaybackOutcome(MutableSharedFlow()),
                 onPlay = { episode, _ -> played += episode.id },
                 onOpenItem = {},
-                onOpenNfo = {},
                 onEditArtwork = { _, _ -> },
                 onIdentify = {},
                 onOpenPerson = {},

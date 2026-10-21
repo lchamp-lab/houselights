@@ -81,7 +81,7 @@ class ContrastTest {
         // A wall's title at the foot of its band (the safe area and a headline, 70 dp down), under the field's top veil.
         "the title's foot on the diffuse field" to c.background.over(HlScrim.DIFFUSE_TOP.alphaAt(TITLE_FOOT), fieldBrightest),
         "the welcome wall" to welcomeWall,
-        // A sheet's plate, a step up from its glass in the film's glow, and a showcase's glass in its posters'.
+        // A sheet's plate, a step up from its glass in the film's glow, and a showcase's or a sheet's glass in its light.
         "glassPlate in the lightest glow" to c.glassPlate(lightestGlow),
         "glass tinted by the lightest glow" to c.tintedGlass(ImageLight.Grey.glow),
     )
@@ -172,9 +172,12 @@ class ContrastTest {
         "contentTertiary" on "glassPlate in the lightest glow", "ember" on "glassPlate in the lightest glow",
         "emberFrom" on "glassPlate in the lightest glow", ("emberTo" on "glassPlate in the lightest glow").mark(),
         ("focus" on "glassPlate in the lightest glow").mark(),
-        // On a showcase's glass: its name and facts, its quietest words, and focus's frame.
+        // On a showcase's glass or a sheet's: its name and facts, its quietest words, and focus's frame; a sheet's
+        // place lit (an NFO's view) and an attention mark.
         "content" on "glass tinted by the lightest glow", "contentSecondary" on "glass tinted by the lightest glow",
         "contentTertiary" on "glass tinted by the lightest glow", ("focus" on "glass tinted by the lightest glow").mark(),
+        "emberFrom" on "glass tinted by the lightest glow", "emberTo" on "glass tinted by the lightest glow",
+        ("ember" on "glass tinted by the lightest glow").mark(),
     )
 
     private val forbidden = listOf(

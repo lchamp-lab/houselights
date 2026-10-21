@@ -3,6 +3,7 @@ package app.houselights.ui.design.components
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -21,7 +22,10 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -35,11 +39,16 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.focused
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.tv.material3.Icon
 import androidx.tv.material3.Text
+import app.houselights.ui.design.Ground
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlAlpha
 import app.houselights.ui.design.HlIcons
@@ -48,14 +57,13 @@ import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
-import app.houselights.ui.design.Ground
 import app.houselights.ui.design.LocalAmbient
 import app.houselights.ui.design.LocalGround
 import app.houselights.ui.design.edge
 import app.houselights.ui.design.emberLight
 import app.houselights.ui.design.glassPlate
-import app.houselights.ui.design.plateEdge
 import app.houselights.ui.design.groundStepFill
+import app.houselights.ui.design.plateEdge
 import app.houselights.ui.design.tryRequestFocus
 
 /** How far a panel stands out from the room. */
@@ -163,17 +171,50 @@ fun HlPlate(
     padding: PaddingValues = PaddingValues(HlInset.card),
     content: @Composable ColumnScope.() -> Unit,
 ) {
+    Column(modifier.plate(BorderStroke(HlSize.hairline, Hl.colors.plateEdge)).padding(padding)) {
+        CompositionLocalProvider(LocalGround provides Ground.Glass) { content() }
+    }
+}
+
+/** A group's plate on what it lies on ([HlPlate]), [edge] around it. */
+@Composable
+internal fun Modifier.plate(edge: BorderStroke): Modifier {
     val c = Hl.colors
     val inSheet = LocalGround.current == Ground.Glass
     val light = LocalAmbient.current
+    return drawWithCache {
+        val area = HlShapes.panel.createOutline(size, layoutDirection, this)
+        onDrawBehind { drawOutline(area, if (inSheet) c.glassPlate(light) else c.glass) }
+    }.border(edge, HlShapes.panel)
+}
+
+/**
+ * What is read in a sheet, focused to be read (a technical sheet's block): a group's plate ([HlPlate]) whose
+ * hairline becomes focus's ring ([FocusStyle.ring]); OK does nothing. [readAs] is what it says, else its words.
+ */
+@Composable
+fun ReadingPlate(
+    modifier: Modifier = Modifier,
+    readAs: String? = null,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    var focused by remember { mutableStateOf(false) }
+    val edge = if (focused) FocusStyle.ring() else BorderStroke(HlSize.hairline, Hl.colors.plateEdge)
+    val reading = if (readAs != null) {
+        Modifier.clearAndSetSemantics {
+            contentDescription = readAs
+            this.focused = focused
+        }
+    } else {
+        Modifier.semantics(mergeDescendants = true) {}
+    }
     Column(
         modifier
-            .drawWithCache {
-                val area = HlShapes.panel.createOutline(size, layoutDirection, this)
-                onDrawBehind { drawOutline(area, if (inSheet) c.glassPlate(light) else c.glass) }
-            }
-            .border(HlSize.hairline, c.plateEdge, HlShapes.panel)
-            .padding(padding),
+            .onFocusChanged { focused = it.isFocused }
+            .then(reading)
+            .focusable()
+            .plate(edge)
+            .padding(horizontal = HlInset.card, vertical = HlInset.plate),
     ) {
         CompositionLocalProvider(LocalGround provides Ground.Glass) { content() }
     }

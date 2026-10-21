@@ -115,7 +115,7 @@
     <string name="key_ok">OK</string>
     <string name="key_hint_type">typen</string>
     <string name="nfo_title">NFO-bestand</string>
-    <string name="nfo_desc">De beschrijving van deze titel, geschreven door uw mediabeheerder. Deze gegevens hebben voorrang op die van TMDB.</string>
+    <string name="nfo_desc">Door uw mediabeheerder geschreven, heeft voorrang op TMDB.</string>
     <string name="nfo_tab_info">Gegevens</string>
     <string name="nfo_tab_xml">XML</string>
     <string name="nfo_state_full">Volledige beschrijving</string>
@@ -127,6 +127,10 @@
     <string name="nfo_unreadable">Deze NFO kon niet als XML worden gelezen.</string>
     <string name="nfo_link_only">Deze NFO bevat alleen een link naar een titelpagina; Houselights gebruikt die om de titel te identificeren.</string>
     <string name="label_title">Titel</string>
+    <string name="label_original_title">Oorspronkelijke titel</string>
+    <string name="label_episode">Aflevering</string>
+    <string name="label_certification">Leeftijd</string>
+    <string name="label_rating">Beoordeling</string>
     <string name="label_year">Jaar</string>
     <string name="placeholder_year">2025</string>
     <string name="label_genres">Genres</string>
@@ -156,6 +160,7 @@
     <string name="tech_container">Container</string>
     <string name="tech_file">Bestand</string>
     <string name="tech_size">Grootte</string>
+    <string name="tech_file_fact">%1$s, %2$s</string>
     <string name="tech_bitrate">Gemiddelde bitrate</string>
     <string name="tech_duration">Duur</string>
     <string name="bit_depth">%d-bit</string>

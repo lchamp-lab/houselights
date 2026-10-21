@@ -2,7 +2,6 @@ package app.houselights.ui.design.components
 
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -32,7 +31,6 @@ import app.houselights.core.MediaItem
 import app.houselights.core.Version
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlIcons
-import app.houselights.ui.design.HlInset
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.util.formatBytes
@@ -40,8 +38,8 @@ import app.houselights.ui.util.formatDuration
 import app.houselights.ui.util.versionName
 
 /**
- * A film's versions in a side sheet: edition ("Version longue"), formats, size and runtime; the one Lire
- * plays has the ember check. OK chooses a version ([onChoose]); Back closes.
+ * A film's versions in a side sheet, on one plate: edition ("Version longue"), formats, size and runtime; the one
+ * Lire plays has the ember check. OK chooses a version ([onChoose]); Back closes.
  */
 @Composable
 fun VersionsSheet(item: MediaItem, versions: List<Version>, onChoose: (Version) -> Unit, onDismiss: () -> Unit) {
@@ -50,10 +48,9 @@ fun VersionsSheet(item: MediaItem, versions: List<Version>, onChoose: (Version) 
         stringResource(R.string.versions),
         onDismiss = onDismiss,
         facts = listOf(item.title, item.year?.toString()),
-        artwork = item.poster?.let { poster -> { PosterThumb(poster, width = null) } },
         initialFocus = first.takeIf { versions.isNotEmpty() },
     ) { sheet ->
-        Column(verticalArrangement = Arrangement.spacedBy(HlSpace.xs)) {
+        HlSettingGroup(null) {
             // Focus starts on the copy Lire plays.
             val start = versions.indexOfFirst { it.chosen }.coerceAtLeast(0)
             versions.forEachIndexed { i, version ->
@@ -88,11 +85,11 @@ fun VersionRow(name: String, version: Version, onChoose: () -> Unit, modifier: M
         interactionSource = interaction,
     ) { _ ->
         val ink = LocalContentColor.current
-        Column(Modifier.fillMaxWidth().padding(horizontal = HlInset.card, vertical = HlSpace.s)) {
+        Column(Modifier.fillMaxWidth().padding(horizontal = HlSpace.m, vertical = HlSpace.s)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     name,
-                    style = Hl.type.entry,
+                    style = Hl.type.lead,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f, fill = false),

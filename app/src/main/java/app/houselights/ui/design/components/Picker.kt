@@ -1,8 +1,10 @@
 package app.houselights.ui.design.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -12,6 +14,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -136,6 +139,15 @@ fun GalleryTile(
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
+    }
+}
+
+/** A title's images side by side ([GalleryTile]), [HlSpace.m] apart: while one has focus, the others step back. */
+@Composable
+fun Gallery(modifier: Modifier = Modifier, content: @Composable RowScope.() -> Unit) {
+    var focused by remember { mutableStateOf(false) }
+    CompositionLocalProvider(LocalGroupFocused provides focused) {
+        Row(modifier.onFocusChanged { focused = it.hasFocus }, horizontalArrangement = Arrangement.spacedBy(HlSpace.m), content = content)
     }
 }
 
