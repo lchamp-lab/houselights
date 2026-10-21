@@ -243,7 +243,12 @@ internal object HlIconButtonDefaults {
         @Composable @ReadOnlyComposable
         get() = HlSpace.xs + HlControl.labelPaddingV * 2 + textRoom(Hl.type.caption) + toTheGrid
 
-    /** Rounds the label's room at the default text size, 34, up to the 4 dp grid. */
+    /** What [labelRoom] adds for a label's second line, a tile's hint: 20 at the default text size, on the grid. */
+    val hintRoom: Dp
+        @Composable @ReadOnlyComposable
+        get() = textRoom(Hl.type.caption) + toTheGrid
+
+    /** Rounds the label's room (34) and a hint's line (18) at the default text size up to the 4 dp grid. */
     private val toTheGrid = 2.dp
 
     /** Closest the label may come to a screen side: past the safe area, so an edge button keeps it centred. */

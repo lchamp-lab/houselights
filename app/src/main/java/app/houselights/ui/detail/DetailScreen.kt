@@ -536,7 +536,9 @@ private fun Actions(
     memory: FocusMemory,
     actionRow: FocusRequester,
 ) {
-    OnArtwork { HlActionRow(Modifier.focusRequester(actionRow).fadeOutsideSafeArea()) {
+    // A show's watched tile may say its long OK under its label: room for it from the start, so nothing moves.
+    val hinted = item.kind == MediaKind.SERIES && capabilities?.markPlayed == true
+    OnArtwork { HlActionRow(Modifier.focusRequester(actionRow).fadeOutsideSafeArea(), hinted = hinted) {
         PlayButtons(item, nextUp, memory, actions)
         Parts(item, memory, actions.onPlay)
         // Several copies: the one Lire plays is chosen in a side sheet.
@@ -586,8 +588,8 @@ private fun Actions(
 }
 
 /**
- * The watched tile: the title, or the season shown ([DetailActions.season]) and the whole show on a long OK.
- * Label: what OK does; icon: the current state. Watched is done, not a choice: the check fills white.
+ * The watched tile: the title, or the season shown ([DetailActions.season]) and the whole show on a long OK, which
+ * its hint says. Label: what OK does; icon: the current state. Watched is done, not a choice: the check fills white.
  */
 @Composable
 private fun WatchedTile(item: MediaItem, actions: DetailActions, modifier: Modifier) {
@@ -600,6 +602,7 @@ private fun WatchedTile(item: MediaItem, actions: DetailActions, modifier: Modif
         else -> R.string.mark_season_watched
     }
     val whole = stringResource(if (show) R.string.mark_series_unwatched else R.string.mark_series_watched)
+    val hint = stringResource(if (show) R.string.long_press_series_unwatched else R.string.long_press_series_watched)
     HlIconButton(
         if (watched) HlIcons.CheckFilled else HlIcons.Check,
         stringResource(label),
@@ -607,6 +610,7 @@ private fun WatchedTile(item: MediaItem, actions: DetailActions, modifier: Modif
         modifier = modifier,
         onLongClick = actions.onTogglePlayed.takeIf { season != null },
         onLongClickLabel = whole.takeIf { season != null },
+        hint = hint.takeIf { season != null },
     )
 }
 

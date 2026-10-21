@@ -102,6 +102,8 @@
     <string name="mark_season_unwatched">Segna la stagione come non vista</string>
     <string name="mark_series_watched">Segna la serie come vista</string>
     <string name="mark_series_unwatched">Segna la serie come non vista</string>
+    <string name="long_press_series_watched">Tieni premuto: serie vista</string>
+    <string name="long_press_series_unwatched">Tieni premuto: serie non vista</string>
     <string name="mark_episode_watched">Segna l’episodio come visto</string>
     <string name="mark_episode_unwatched">Segna l’episodio come non visto</string>
     <string name="add_favorite">Aggiungi ai preferiti</string>
