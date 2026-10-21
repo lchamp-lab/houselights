@@ -235,11 +235,16 @@ internal class SettingsViewModel(
 
     private var mappingsEdited = false
 
-    /** Saves [mapping] at line [index], or as a new line when null, kept only once both paths are given. */
+    /**
+     * Saves [mapping] at line [index], or as a new line when null, kept only once both paths are given: a line whose
+     * paths are emptied goes.
+     */
     fun putMapping(index: Int?, mapping: PathMapping) {
+        val incomplete = mapping.from.isBlank() || mapping.to.isBlank()
         when {
-            index == null -> if (mapping.from.isBlank() || mapping.to.isBlank()) return else _mappings += mapping
+            index == null -> if (incomplete) return else _mappings += mapping
             _mappings.getOrNull(index) == mapping -> return
+            incomplete -> _mappings.removeAt(index)
             else -> _mappings[index] = mapping
         }
         mappingsEdited = true

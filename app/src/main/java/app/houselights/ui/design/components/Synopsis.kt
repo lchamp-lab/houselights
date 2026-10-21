@@ -3,9 +3,8 @@ package app.houselights.ui.design.components
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.paddingFromBaseline
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.runtime.Composable
@@ -94,9 +93,10 @@ fun SynopsisSheet(item: MediaItem, onDismiss: () -> Unit) {
         wide = true,
     ) { _ ->
         Column(Modifier.widthIn(max = HlLayout.readable)) {
+            // The tagline as far under the head as over the text, from its baseline.
             item.tagline?.takeIf { it.isNotBlank() }?.let {
-                Text(it, style = Hl.type.title, color = c.content)
-                Spacer(Modifier.height(HlSpace.l))
+                val apart = HlSpace.l + HlSpace.xxs
+                Text(it, style = Hl.type.title, color = c.content, modifier = Modifier.paddingFromBaseline(top = apart, bottom = apart))
             }
             Text(
                 item.overview.orEmpty(),

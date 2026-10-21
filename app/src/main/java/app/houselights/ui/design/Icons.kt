@@ -110,9 +110,6 @@ object HlIcons {
         "m15 5 4 4",
     )
 
-    /** Logo: the title as type (`type`). */
-    val Logo = icon("Logo", "M4 7L4 4L20 4L20 7", "M9 20L15 20", "M12 4L12 20")
-
     /** Search: a magnifying glass (`search`). */
     val Search = icon("Search", "M3 11a8 8 0 1 0 16 0a8 8 0 1 0 -16 0Z", "m21 21-4.3-4.3")
 
@@ -185,9 +182,6 @@ object HlIcons {
         "M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36" +
             "A2 2 0 0 1 4.49 12H2",
     )
-
-    /** Remove a line: a cross (`x`). */
-    val Close = icon("Close", "M18 6 6 18", "m6 6 12 12")
 
     private const val HEART =
         "M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2" +

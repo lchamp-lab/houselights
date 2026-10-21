@@ -78,7 +78,8 @@ internal fun JellyfinLoginForm(vm: JellyfinLoginViewModel, room: List<ImageRef> 
                 },
                 stateText = stringResource(loginState(vm.busy, failed = error != null, found = chosen != null)),
                 label = stringResource(R.string.field_server),
-                value = server.ifBlank { stringResource(R.string.placeholder_pending) },
+                // Its protocol is printed beside it: the address says the rest.
+                value = server.withoutScheme().ifBlank { stringResource(R.string.placeholder_pending) },
                 name = chosen?.name,
                 // Its protocol printed once the address says it: HTTPS is encrypted, HTTP is not.
                 badges = listOfNotNull(server.schemeName()),
@@ -125,6 +126,9 @@ internal fun JellyfinLoginForm(vm: JellyfinLoginViewModel, room: List<ImageRef> 
 private fun String.schemeName(): String? =
     trim().substringBefore("://", "").uppercase().takeIf { it == HTTP || it == HTTPS }
 
+/** An address without the protocol it names, which is printed beside it: "192.168.1.20:8096". */
+private fun String.withoutScheme(): String = trim().let { if (it.schemeName() != null) it.substringAfter("://") else it }.trimEnd('/')
+
 private const val HTTP = "HTTP"
 private const val HTTPS = "HTTPS"
 
@@ -135,8 +139,8 @@ private fun FoundServers(servers: List<DiscoveredServer>, chosen: DiscoveredServ
     HlSettingGroup(stringResource(R.string.servers_found)) {
         servers.forEach { s ->
             HlSettingRow(
-                s.name ?: s.address,
-                description = s.address.takeIf { s.name != null },
+                s.name ?: s.address.withoutScheme(),
+                description = s.address.withoutScheme().takeIf { s.name != null },
                 onClick = { onChoose(s) },
                 trailing = if (s == chosen) ({ ChoiceCheck() }) else null,
                 modifier = Modifier.semantics { selected = s == chosen },

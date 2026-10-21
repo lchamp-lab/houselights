@@ -1,9 +1,7 @@
 package app.houselights.ui.design.components
 
-import androidx.annotation.DrawableRes
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.border
-import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -39,11 +37,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.constrainWidth
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.em
 import androidx.tv.material3.Text
 import app.houselights.ui.design.EdgeScroll
 import app.houselights.ui.design.Gradation
 import app.houselights.ui.design.Hl
+import app.houselights.ui.design.HlFocus
 import app.houselights.ui.design.HlInset
 import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlShapes
@@ -106,7 +104,8 @@ fun PaneHead(
                 sentence,
                 style = Hl.type.body,
                 color = c.contentSecondary,
-                modifier = Modifier.widthIn(max = HlLayout.readableNarrow).paddingFromBaseline(top = HlSpace.xl),
+                // Its box ends a little under its baseline, so a block HlSpace.l away sits where the board has it.
+                modifier = Modifier.widthIn(max = HlLayout.readableNarrow).paddingFromBaseline(top = HlSpace.xl, bottom = HlSpace.xxs),
             )
         }
         if (read != null) {
@@ -144,25 +143,26 @@ fun PaneLockup(modifier: Modifier = Modifier) {
 @Composable
 fun HlGroup(title: String, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
     Column(modifier.fillMaxWidth()) {
-        Text(title, style = Hl.type.group, color = Hl.colors.contentSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        Spacer(Modifier.height(HlSpace.xs))
+        GroupTitle(title)
         content()
     }
 }
 
 /**
  * A pane's row of [Showcase]s, [HlSpace.m] apart, running on to the screen's end where the next one waits; a focused
- * one comes inside the safe area, its frame clear of the row's start.
+ * one comes inside the safe area with its frame, clear of the row's start.
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun ShowcaseRow(modifier: Modifier = Modifier, content: LazyListScope.() -> Unit) {
     val density = LocalDensity.current
-    val spec = remember(density) { with(density) { EdgeScroll(HlSpace.s.toPx(), HlSpace.safeH.toPx()) } }
+    // At the end, the safe area and the frame's reach past the showcase.
+    val end = HlSpace.safeH + HlFocus.reach
+    val spec = remember(density) { with(density) { EdgeScroll(HlSpace.s.toPx(), end.toPx()) } }
     CompositionLocalProvider(LocalBringIntoViewSpec provides spec) {
         LazyRow(
             modifier.bleed(start = HlSpace.s, end = HlSpace.safeH),
-            contentPadding = PaddingValues(start = HlSpace.s, end = HlSpace.safeH),
+            contentPadding = PaddingValues(start = HlSpace.s, end = end),
             horizontalArrangement = Arrangement.spacedBy(HlSpace.m),
             content = content,
         )
@@ -274,52 +274,3 @@ fun MeterFact(
         Text(value, style = if (technical) Hl.type.spec else Hl.type.lead, color = c.content, maxLines = 1)
     }
 }
-
-/**
- * A code to type elsewhere (Trakt's), on a plate: [instructions] in secondary `meta`, the [code] in groups of four
- * in `display`, projector white, never lit, then the time it has [left]; beside them the [qr] code of [address].
- * Before the code comes, [asking] says it is on its way. It holds focus without showing it, so Back cancels.
- */
-@Composable
-fun DeviceCodePlate(
-    code: String?,
-    instructions: String,
-    @DrawableRes qr: Int,
-    address: String,
-    modifier: Modifier = Modifier,
-    left: String? = null,
-    asking: String? = null,
-) {
-    val c = Hl.colors
-    val shown = Hl.type.display
-    val spaced = remember(shown) { shown.copy(letterSpacing = CODE_TRACKING) }
-    HlPlate(modifier.fillMaxWidth().focusable(), padding = PaddingValues(HlSpace.xl)) {
-        Row {
-            Column(Modifier.weight(1f)) {
-                Text(instructions, style = Hl.type.meta, color = c.contentSecondary)
-                if (code == null) {
-                    Spacer(Modifier.height(HlSpace.l))
-                    if (asking != null) HlStatus(StatusState.Pending, asking)
-                    return@Column
-                }
-                Text(
-                    code.chunked(CODE_GROUP).joinToString(" "),
-                    style = spaced,
-                    color = c.content,
-                    maxLines = 1,
-                    softWrap = false,
-                    modifier = Modifier.paddingFromBaseline(top = HlSpace.xxl + HlSpace.xl),
-                )
-                if (left != null) {
-                    Text(left, style = Hl.type.meta, color = c.contentSecondary, modifier = Modifier.paddingFromBaseline(top = HlSpace.xl))
-                }
-            }
-            Spacer(Modifier.width(HlSpace.l))
-            QrCode(qr, address, compact = true)
-        }
-    }
-}
-
-/** A code's letters set apart, read from across the room; its groups' length. */
-private val CODE_TRACKING = 0.06.em
-private const val CODE_GROUP = 4

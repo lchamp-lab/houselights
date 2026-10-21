@@ -122,7 +122,6 @@
     <string name="nfo_state_link">Lien seulement</string>
     <string name="nfo_state_unreadable">Illisible</string>
     <string name="nfo_state_reading">Ouverture…</string>
-    <string name="nfo_block_details">Détails</string>
     <string name="label_file">Fichier</string>
     <string name="nfo_unreadable">Ce NFO n’a pas pu être lu comme du XML.</string>
     <string name="nfo_link_only">Ce NFO contient seulement un lien vers une fiche ; Houselights s’en sert pour identifier le titre.</string>
@@ -280,8 +279,8 @@
     </plurals>
     <string name="playback_desc">Comment le lecteur Zidoo accède aux fichiers de votre serveur.</string>
     <string name="tmdb_desc">Les affiches et les informations proviennent de TMDB.</string>
-    <string name="change_source_local_desc">Vos dossiers sont conservés : vous pourrez y revenir à tout moment.</string>
-    <string name="change_source_jellyfin_desc">Ce serveur reste connecté jusqu’à ce que la nouvelle source soit prête.</string>
+    <string name="change_source_local_desc">Vos dossiers sont conservés</string>
+    <string name="change_source_jellyfin_desc">Connecté jusqu’au changement</string>
     <string name="change_source">Changer de source</string>
     <string name="reconnect">Se reconnecter</string>
     <string name="source_local_first">Ajoutez un dossier de votre NAS</string>
@@ -396,11 +395,8 @@
     <string name="billing_and">et</string>
     <string name="edit">Modifier</string>
     <string name="artwork_poster">Affiche</string>
-    <string name="artwork_poster_desc">Rangées et bibliothèque</string>
     <string name="artwork_backdrop">Fond d’écran</string>
-    <string name="artwork_backdrop_desc">Cette fiche et l’accueil</string>
     <string name="artwork_logo">Logo</string>
-    <string name="artwork_logo_desc">Le titre dessiné en haut</string>
     <string name="identify">Identifier</string>
     <string name="identify_menu_desc">Associer à un autre titre TMDB</string>
     <plurals name="image_count">
@@ -486,20 +482,19 @@
     <string name="tmdb_missing_short">Manquante</string>
     <string name="change_source_row">Source</string>
     <string name="ui_resolution">Résolution de l’interface</string>
-    <string name="ui_resolution_desc">Pendant la lecture, le lecteur Zidoo choisit son propre mode.</string>
+    <string name="ui_resolution_desc">En lecture, le mode du lecteur</string>
     <string name="interface_language">Langue de l’interface</string>
     <string name="interface_language_desc">Menus, réglages et messages</string>
     <string name="ui_4k_desc">Une interface nette en 4K</string>
     <string name="ui_system_desc">Le mode choisi par le système</string>
     <string name="current_output">Sortie</string>
-    <string name="display_by_player">Réglé par le lecteur</string>
     <string name="output_by_player">Réglée par le lecteur</string>
     <string name="output_by_player_hint">Pour la changer : Réglages du lecteur, puis Affichage.</string>
     <string name="storage_used">sur cet appareil</string>
     <string name="storage_cache_limit">cache jusqu’à %s</string>
     <string name="storage_full">La dernière analyse s’est arrêtée : l’appareil n’a plus d’espace libre. Nettoyer, ou vider le cache des images, en libère.</string>
-    <string name="cleanup_desc">Supprime les copies d’images locales qui ne servent plus</string>
-    <string name="clear_cache_desc">Les images sont téléchargées à nouveau au besoin</string>
+    <string name="cleanup_desc">Supprime les images locales qui ne servent plus</string>
+    <string name="clear_cache_desc">Téléchargées à nouveau au besoin</string>
     <string name="about_status">État</string>
     <string name="detected">Détecté</string>
     <string name="not_detected">Non détecté</string>
@@ -612,7 +607,7 @@
     <string name="trakt_signed_out">Non connecté</string>
     <string name="trakt_connected">Connecté</string>
     <string name="trakt_connect">Connecter votre compte</string>
-    <string name="trakt_connect_desc">Avec un code à saisir sur votre téléphone ou votre ordinateur</string>
+    <string name="trakt_connect_desc">Avec un code à saisir sur téléphone ou ordinateur</string>
     <string name="trakt_disconnect">Déconnecter votre compte</string>
     <string name="trakt_disconnect_desc">Houselights l’oublie sur cet appareil.</string>
     <string name="trakt_disconnecting">Déconnexion…</string>

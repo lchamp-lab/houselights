@@ -8,12 +8,17 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.getBoundsInRoot
+import androidx.compose.ui.test.hasAnyDescendant
+import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.isFocused
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.requestFocus
 import androidx.compose.ui.unit.dp
@@ -23,7 +28,9 @@ import app.houselights.providers.jellyfin.account
 import app.houselights.providers.local.TraktSyncError
 import app.houselights.providers.trakt.DeviceCodeEnd
 import app.houselights.providers.trakt.TraktSyncState
+import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.HlSpace
+import app.houselights.ui.design.components.HlNavItem
 import app.houselights.ui.design.components.HlTwoPane
 import app.houselights.ui.testing.FakeTraktLink
 import app.houselights.ui.testing.FakeTraktSync
@@ -80,7 +87,7 @@ class TraktPaneTest {
         compose.onNodeWithText(DESCRIPTION).assertExists()
         compose.onNodeWithText("Non connecté").assertExists()
         compose.onNodeWithText(CONNECT).assertExists()
-        compose.onNodeWithText("Avec un code à saisir sur votre téléphone ou votre ordinateur").assertExists()
+        compose.onNodeWithText("Avec un code à saisir sur téléphone ou ordinateur").assertExists()
     }
 
     @Test
@@ -109,6 +116,45 @@ class TraktPaneTest {
         assertTrue("${code.right} beside ${qr.left}", code.right <= qr.left)
         assertTrue("${qr.right}", qr.right <= TV_WIDTH - HlSpace.safeH)
         assertTrue("${qr.bottom}", qr.bottom <= TV_HEIGHT - HlSpace.safeV)
+    }
+
+    /** Going through the places while a code waits never jumps into the pane: arriving on it takes no focus. */
+    @Test
+    fun arrivingOnThePaneWhileACodeWaitsLeavesFocusOnThePlaces() {
+        val vm = TraktViewModel(link, sync, CoroutineScope(SupervisorJob() + Dispatchers.Main))
+        var open by mutableStateOf(false)
+        compose.setTvContent {
+            val place = Modifier.testTag(PLACE)
+            HlTwoPane(side = { HlNavItem(HlIcons.History, "Trakt", selected = open, onFocused = { open = true }, place) }) {
+                LazyColumn(Modifier.fillMaxSize()) { if (open) traktPane(vm, session) }
+            }
+        }
+        compose.runOnIdle { vm.connect() }
+        compose.onNodeWithTag(PLACE).requestFocus()
+        compose.waitForIdle()
+        compose.onNodeWithText(CODE).assertExists()
+        compose.onNodeWithTag(PLACE).assertIsFocused()
+    }
+
+    /** Connecting from its row, focus goes to the code, never to the places beside the pane. */
+    @Test
+    fun connectingTakesFocusToTheCodeNotToThePlaces() {
+        val vm = TraktViewModel(link, sync, CoroutineScope(SupervisorJob() + Dispatchers.Main))
+        var placesFocused = 0
+        compose.setTvContent {
+            HlTwoPane(side = { HlNavItem(HlIcons.Folder, "Bibliothèque", selected = false, onFocused = { placesFocused++ }) }) {
+                LazyColumn(Modifier.fillMaxSize()) { traktPane(vm, session) }
+            }
+        }
+        ok(CONNECT)
+        compose.onNodeWithText(CODE).assertExists()
+        compose.runOnIdle { assertEquals("the places never took focus", 0, placesFocused) }
+        compose.onNode(hasAnyDescendant(hasText(CODE)) and isFocused()).assertExists()
+        compose.onNodeWithText(CONNECT).assertDoesNotExist()
+        // And back: the row takes focus as the code goes.
+        back()
+        compose.onNodeWithText(CONNECT).assertIsFocused()
+        compose.runOnIdle { assertEquals("the places never took focus", 0, placesFocused) }
     }
 
     @Test
@@ -242,6 +288,7 @@ class TraktPaneTest {
     private companion object {
         const val NB = Typography.nbsp
         const val CODE = "ABCD 1234"
+        const val PLACE = "place"
         const val SYNC = "Synchroniser maintenant"
         const val CONNECT = "Connecter votre compte"
         const val DISCONNECT = "Déconnecter votre compte"

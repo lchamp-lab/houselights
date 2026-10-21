@@ -119,7 +119,6 @@
     <string name="nfo_state_link">仅含链接</string>
     <string name="nfo_state_unreadable">无法读取</string>
     <string name="nfo_state_reading">正在打开…</string>
-    <string name="nfo_block_details">详情</string>
     <string name="label_file">文件</string>
     <string name="nfo_unreadable">无法将此 NFO 读取为 XML。</string>
     <string name="nfo_link_only">此 NFO 仅包含指向作品页面的链接；Houselights 会用它来识别该作品。</string>
@@ -274,8 +273,8 @@
     </plurals>
     <string name="playback_desc">Zidoo 播放器如何访问服务器上的文件。</string>
     <string name="tmdb_desc">海报和资料来自 TMDB。</string>
-    <string name="change_source_local_desc">您的文件夹会保留：随时可以切换回来。</string>
-    <string name="change_source_jellyfin_desc">在新来源准备就绪前，此服务器将保持连接。</string>
+    <string name="change_source_local_desc">您的文件夹会保留</string>
+    <string name="change_source_jellyfin_desc">切换前保持连接</string>
     <string name="change_source">更换来源</string>
     <string name="reconnect">重新登录</string>
     <string name="source_local_first">从 NAS 添加文件夹</string>
@@ -380,11 +379,8 @@
     <string name="billing_and">与</string>
     <string name="edit">编辑</string>
     <string name="artwork_poster">海报</string>
-    <string name="artwork_poster_desc">横排与媒体库</string>
     <string name="artwork_backdrop">背景图</string>
-    <string name="artwork_backdrop_desc">此页面与首页</string>
     <string name="artwork_logo">标志</string>
-    <string name="artwork_logo_desc">页面顶部的图形片名</string>
     <string name="identify">识别</string>
     <string name="identify_menu_desc">匹配 TMDB 上的其他作品</string>
     <plurals name="image_count">
@@ -466,13 +462,12 @@
     <string name="tmdb_missing_short">未设置</string>
     <string name="change_source_row">来源</string>
     <string name="ui_resolution">界面分辨率</string>
-    <string name="ui_resolution_desc">播放期间，Zidoo 播放器会自行选择模式。</string>
+    <string name="ui_resolution_desc">播放时由播放器选择模式</string>
     <string name="interface_language">界面语言</string>
     <string name="interface_language_desc">菜单、设置和提示信息</string>
     <string name="ui_4k_desc">在 4K 电视上界面更清晰</string>
     <string name="ui_system_desc">由系统选择的模式</string>
     <string name="current_output">输出</string>
-    <string name="display_by_player">由播放器设置</string>
     <string name="output_by_player">由播放器设置</string>
     <string name="output_by_player_hint">如需更改：播放器设置，然后选择“显示”。</string>
     <string name="storage_used">在本设备上</string>

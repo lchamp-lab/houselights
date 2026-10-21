@@ -83,8 +83,8 @@ internal fun Welcome(posters: List<String>, onLocal: () -> Unit, onJellyfin: () 
                 )
                 Column(Modifier.weight(1f).padding(top = HlSpace.xl), verticalArrangement = Arrangement.spacedBy(HlSpace.s)) {
                     // The saved connection could not be read back: say so rather than leave it unexplained.
-                    if (lostSource) AttentionNote(stringResource(R.string.welcome_lost_secrets))
-                    problem?.let { AttentionNote(stringResource(welcomeProblem(it))) }
+                    if (lostSource) AttentionNote(stringResource(R.string.welcome_lost_secrets), style = Hl.type.caption)
+                    problem?.let { AttentionNote(stringResource(welcomeProblem(it)), style = Hl.type.caption) }
                 }
             }
             Spacer(Modifier.width(HlSpace.xl))

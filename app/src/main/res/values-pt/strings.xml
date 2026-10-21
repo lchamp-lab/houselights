@@ -125,7 +125,6 @@
     <string name="nfo_state_link">Apenas o link</string>
     <string name="nfo_state_unreadable">Ilegível</string>
     <string name="nfo_state_reading">Abrindo…</string>
-    <string name="nfo_block_details">Detalhes</string>
     <string name="label_file">Arquivo</string>
     <string name="nfo_unreadable">Não foi possível ler este NFO como XML.</string>
     <string name="nfo_link_only">Este NFO só traz um link para a página de um título; o Houselights usa esse link para identificar o título.</string>
@@ -286,8 +285,8 @@
     </plurals>
     <string name="playback_desc">Como o player Zidoo acessa os arquivos do seu servidor.</string>
     <string name="tmdb_desc">Os cartazes e os detalhes vêm do TMDB.</string>
-    <string name="change_source_local_desc">Suas pastas são mantidas: você pode voltar a elas a qualquer momento.</string>
-    <string name="change_source_jellyfin_desc">Este servidor continua conectado até que a nova fonte esteja pronta.</string>
+    <string name="change_source_local_desc">Suas pastas são mantidas</string>
+    <string name="change_source_jellyfin_desc">Conectado até a troca</string>
     <string name="change_source">Mudar de fonte</string>
     <string name="reconnect">Entrar de novo</string>
     <string name="source_local_first">Adicione uma pasta do seu NAS</string>
@@ -401,11 +400,8 @@
     <string name="billing_and">e</string>
     <string name="edit">Editar</string>
     <string name="artwork_poster">Cartaz</string>
-    <string name="artwork_poster_desc">Fileiras e biblioteca</string>
     <string name="artwork_backdrop">Imagem de fundo</string>
-    <string name="artwork_backdrop_desc">Esta página e o Início</string>
     <string name="artwork_logo">Logo</string>
-    <string name="artwork_logo_desc">O título desenhado no alto</string>
     <string name="identify">Identificar</string>
     <string name="identify_menu_desc">Associar a outro título do TMDB</string>
     <plurals name="image_count">
@@ -491,20 +487,19 @@
     <string name="tmdb_missing_short">Nenhuma</string>
     <string name="change_source_row">Fonte</string>
     <string name="ui_resolution">Resolução da interface</string>
-    <string name="ui_resolution_desc">Durante a reprodução, o player Zidoo escolhe o próprio modo.</string>
+    <string name="ui_resolution_desc">Na reprodução, decide o Zidoo</string>
     <string name="interface_language">Idioma da interface</string>
     <string name="interface_language_desc">Menus, configurações e mensagens</string>
     <string name="ui_4k_desc">Uma interface nítida em TVs 4K</string>
     <string name="ui_system_desc">O modo escolhido pelo sistema</string>
     <string name="current_output">Saída</string>
-    <string name="display_by_player">Definida pelo player</string>
     <string name="output_by_player">Definida pelo player</string>
     <string name="output_by_player_hint">Para mudar: Configurações do player e depois Exibição.</string>
     <string name="storage_used">neste dispositivo</string>
     <string name="storage_cache_limit">cache até %s</string>
     <string name="storage_full">A última análise parou: este dispositivo está sem espaço livre. Fazer a limpeza, ou limpar o cache de imagens, libera espaço.</string>
-    <string name="cleanup_desc">Remove cópias de imagens locais que não são mais usadas</string>
-    <string name="clear_cache_desc">As imagens são baixadas de novo quando necessário</string>
+    <string name="cleanup_desc">Remove imagens locais que não são mais usadas</string>
+    <string name="clear_cache_desc">Baixadas de novo quando necessário</string>
     <string name="about_status">Status</string>
     <string name="detected">Detectado</string>
     <string name="not_detected">Não detectado</string>

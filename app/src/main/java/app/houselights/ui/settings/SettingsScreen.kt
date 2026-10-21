@@ -1,7 +1,6 @@
 package app.houselights.ui.settings
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
@@ -103,8 +102,7 @@ fun SettingsScreen(
     val storage by vm.storage.collectAsStateWithLifecycle()
 
     // The room is the library's posters, as a wall's field.
-    Box(Modifier.fillMaxSize()) {
-        PosterField(roomPosters())
+    PosterField(roomPosters()) {
         HlTwoPane(
             state = list,
             side = {

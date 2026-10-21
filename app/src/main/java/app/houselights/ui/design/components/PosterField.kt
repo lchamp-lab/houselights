@@ -8,24 +8,37 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.util.lerp
 import app.houselights.core.ImageRef
+import app.houselights.ui.design.AmbientLight
+import app.houselights.ui.design.HlAlpha
 import app.houselights.ui.design.HlMotion
+import app.houselights.ui.design.HouselightsColors
+import app.houselights.ui.design.LocalAmbient
 import kotlin.math.max
 import kotlin.math.roundToInt
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.withContext
 
 /** Posters a [PosterField] is drawn from, side by side. */
@@ -67,8 +80,11 @@ private const val HALF = 0.5f
 /** The light of [posters] as a wall's field ([diffuseField]): laid side by side ([posterStrip]), then made one. */
 internal fun posterField(posters: List<Points>): IntArray = diffuseField(posterStrip(posters, STRIP_W, STRIP_H), STRIP_W, STRIP_H)
 
-/** Reads the samples at [urls] and makes their field, off the main thread; null when none can be read. */
-private suspend fun loadPosterField(context: Context, urls: List<String>): Bitmap? = coroutineScope {
+/** A field made from the posters at [urls]: its [picture] and its [light], their dark and glow. */
+internal class MadeField(val urls: List<String>, val picture: Bitmap, val light: ImageLight)
+
+/** Reads the samples at [urls] and makes their field and light, off the main thread; null when none can be read. */
+private suspend fun loadPosterField(context: Context, urls: List<String>): MadeField? = coroutineScope {
     val samples = urls.map { async { decodeUrl(context, it) } }.awaitAll().filterNotNull()
     if (samples.isEmpty()) return@coroutineScope null
     withContext(Dispatchers.Default) {
@@ -77,55 +93,130 @@ private suspend fun loadPosterField(context: Context, urls: List<String>): Bitma
             sample.getPixels(argb, 0, sample.width, 0, 0, sample.width, sample.height)
             Points(argb, sample.width, sample.height)
         }
-        Bitmap.createBitmap(posterField(points), FIELD_W, FIELD_H, Bitmap.Config.ARGB_8888)
+        val strip = posterStrip(points, STRIP_W, STRIP_H)
+        val light = lightOf(paletteOf(Bitmap.createBitmap(strip, STRIP_W, STRIP_H, Bitmap.Config.ARGB_8888)))
+        MadeField(urls, Bitmap.createBitmap(diffuseField(strip, STRIP_W, STRIP_H), FIELD_W, FIELD_H, Bitmap.Config.ARGB_8888), light)
     }
 }
 
-/** The last field made, by its posters: the settings and their forms come back to it at once. */
-private object PosterFields {
-    private var urls: List<String>? = null
-    private var field: Bitmap? = null
+/** The last fields made, by their posters: the settings and their forms come back to them at once. */
+internal object PosterFields {
+    private val made = object : LinkedHashMap<List<String>, MadeField>(KEPT, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<List<String>, MadeField>) = size > KEPT
+    }
 
     @Synchronized
-    fun of(key: List<String>): Bitmap? = field.takeIf { key == urls }
+    fun of(urls: List<String>): MadeField? = made[urls]
 
     @Synchronized
-    fun keep(key: List<String>, made: Bitmap) {
-        urls = key
-        field = made
+    fun keep(field: MadeField) {
+        made[field.urls] = field
+    }
+
+    /** The one showing and the one coming in. */
+    private const val KEPT = 2
+}
+
+/**
+ * The room a [PosterField] draws, read while drawing: the field [under], whole, and the one coming in [over] it,
+ * one fade at a time; its light is the screen's ([AmbientLight]): its dark, plates at `PLATE`, its glow.
+ */
+@Stable
+internal class RoomField : AmbientLight {
+    var under by mutableStateOf<MadeField?>(null)
+        private set
+    var over by mutableStateOf<MadeField?>(null)
+        private set
+    val coming = Animatable(0f)
+
+    /** How much of a field shows: 0 on the bare room, 1 once one is whole. */
+    fun shown(): Float = if (under != null) 1f else if (over != null) coming.value else 0f
+
+    override fun deep(): Color = blend(under?.light?.deep ?: HouselightsColors.ambientDeep, over?.light?.deep)
+
+    override fun plateAlpha(): Float = HlAlpha.PLATE
+
+    override fun glow(): Color = blend(under?.light?.glow ?: Color.Transparent, over?.light?.glow)
+
+    /** What a scrolling edge fades into over the field, read while drawing: the room's black, short of opaque on a field. */
+    fun edge(room: Color): Color = room.copy(alpha = lerp(1f, HlAlpha.VEIL, shown()))
+
+    private fun blend(from: Color, to: Color?): Color = if (to == null) from else lerp(from, to, coming.value)
+
+    /** Shows [field] at once: the first frame of a visit, from the fields kept. */
+    fun showAtOnce(field: MadeField) {
+        under = field
+    }
+
+    /** Brings [field] in over the one showing, which stays whole under it until it is in: the room never dips. */
+    suspend fun bringIn(field: MadeField) {
+        coming.snapTo(0f)
+        over = field
+        coming.animateTo(1f, tween(HlMotion.TINT, easing = LinearEasing))
+        under = field
+        over = null
+        coming.snapTo(0f)
+    }
+}
+
+/** The room a [PosterField] provides, for what fades into it ([HlTwoPane]) and the plates that lie on it. */
+internal val LocalRoomField = staticCompositionLocalOf<RoomField?> { null }
+
+/**
+ * The room of the settings and their forms (DESIGN.md, Secondary screens), under [content]: the light of a library's
+ * [posters], up to [FIELD_POSTERS] side by side, as a wall's diffuse field, capped as a wall's, under its veils; one
+ * fill, no layer. The last fields made come back at once; a new one comes in over `TINT`, the one showing kept whole
+ * under it. Its light is [content]'s ([LocalAmbient]): plates on it take its dark.
+ */
+@Composable
+fun PosterField(posters: List<ImageRef>, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
+    val room = rememberRoomField(posters)
+    Box(
+        modifier.fillMaxSize().drawWithCache {
+            val down = BackdropStyle.Diffuse.veils.down
+            // Read here, so the paints are made again only when the fields change.
+            val under = room.under?.let { DiffusePaint(it.picture, size, down).at(1f) }
+            val over = room.over?.let { DiffusePaint(it.picture, size, down).at(1f) }
+            onDrawBehind {
+                drawIntoCanvas { canvas ->
+                    under?.let {
+                        it.alpha = OPAQUE
+                        canvas.nativeCanvas.drawRect(0f, 0f, size.width, size.height, it)
+                    }
+                    over?.let {
+                        // Its arrival read while drawing: one fill fades in over the other.
+                        it.alpha = (room.coming.value * OPAQUE).roundToInt()
+                        canvas.nativeCanvas.drawRect(0f, 0f, size.width, size.height, it)
+                    }
+                }
+            }
+        },
+    ) {
+        CompositionLocalProvider(LocalAmbient provides room, LocalRoomField provides room, content = content)
     }
 }
 
 /**
- * The room of the settings and their forms (DESIGN.md, Secondary screens): the light of a library's [posters], up
- * to [FIELD_POSTERS] side by side, as a wall's diffuse field, capped as a wall's, under its veils; one fill, no
- * layer, made once. It comes in over `TINT` the first time; before, and without posters, the room stays black.
+ * The room of [posters]: the field kept for them at once, else each new list's field made by [make] and brought in,
+ * one fade at a time, the last list asked for after the one running.
  */
 @Composable
-fun PosterField(posters: List<ImageRef>, modifier: Modifier = Modifier) {
+internal fun rememberRoomField(
+    posters: List<ImageRef>,
+    make: (suspend (Context, List<String>) -> MadeField?)? = null,
+): RoomField {
     val context = LocalContext.current
     val urls = remember(posters) { posters.take(FIELD_POSTERS).map { it.url(SAMPLE_PX) } }
-    val known = remember(urls) { PosterFields.of(urls) }
-    var field by remember(urls) { mutableStateOf(known) }
-    val shown = remember(urls) { Animatable(if (known != null) 1f else 0f) }
-    LaunchedEffect(urls) {
-        if (field != null || urls.isEmpty()) return@LaunchedEffect
-        val made = loadPosterField(context, urls) ?: return@LaunchedEffect
-        PosterFields.keep(urls, made)
-        field = made
-        shown.animateTo(1f, tween(HlMotion.TINT, easing = LinearEasing))
+    val room = remember { RoomField().apply { PosterFields.of(urls)?.let(::showAtOnce) } }
+    val wanted by rememberUpdatedState(urls)
+    LaunchedEffect(room) {
+        snapshotFlow { wanted }.conflate().collect { next ->
+            if (next.isEmpty() || next == room.under?.urls) return@collect
+            val field = PosterFields.of(next) ?: (make ?: ::loadPosterField)(context, next)?.also(PosterFields::keep)
+            field?.let { room.bringIn(it) }
+        }
     }
-    val drawn = field ?: return
-    Box(
-        modifier.fillMaxSize().drawWithCache {
-            val paint = DiffusePaint(drawn, size, BackdropStyle.Diffuse.veils.down).at(1f)
-            onDrawBehind {
-                // Its arrival read while drawing: the one fill fades in.
-                paint.alpha = (shown.value * OPAQUE).roundToInt()
-                drawIntoCanvas { it.nativeCanvas.drawRect(0f, 0f, size.width, size.height, paint) }
-            }
-        },
-    )
+    return room
 }
 
 private const val OPAQUE = 255

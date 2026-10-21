@@ -128,7 +128,6 @@
     <string name="nfo_state_link">Tylko link</string>
     <string name="nfo_state_unreadable">Nieczytelny</string>
     <string name="nfo_state_reading">Otwieranie…</string>
-    <string name="nfo_block_details">Szczegóły</string>
     <string name="label_file">Plik</string>
     <string name="nfo_unreadable">Nie udało się odczytać tego pliku NFO jako XML.</string>
     <string name="nfo_link_only">Ten plik NFO zawiera tylko link do strony tytułu; Houselights używa go do identyfikacji tytułu.</string>
@@ -292,8 +291,8 @@
     </plurals>
     <string name="playback_desc">Sposób, w jaki odtwarzacz Zidoo uzyskuje dostęp do plików na serwerze.</string>
     <string name="tmdb_desc">Plakaty i informacje pochodzą z TMDB.</string>
-    <string name="change_source_local_desc">Foldery zostają zachowane: można do nich wrócić w każdej chwili.</string>
-    <string name="change_source_jellyfin_desc">Ten serwer pozostaje połączony, dopóki nowe źródło nie będzie gotowe.</string>
+    <string name="change_source_local_desc">Foldery zostają zachowane</string>
+    <string name="change_source_jellyfin_desc">Połączony aż do zmiany</string>
     <string name="change_source">Zmień źródło</string>
     <string name="reconnect">Zaloguj się ponownie</string>
     <string name="source_local_first">Dodaj folder z serwera NAS</string>
@@ -413,11 +412,8 @@
     <string name="billing_and">i</string>
     <string name="edit">Edytuj</string>
     <string name="artwork_poster">Plakat</string>
-    <string name="artwork_poster_desc">Rzędy i biblioteka</string>
     <string name="artwork_backdrop">Tło</string>
-    <string name="artwork_backdrop_desc">Ta strona i strona główna</string>
     <string name="artwork_logo">Logo</string>
-    <string name="artwork_logo_desc">Graficzny tytuł u góry</string>
     <string name="identify">Identyfikuj</string>
     <string name="identify_menu_desc">Dopasuj do innego tytułu TMDB</string>
     <plurals name="image_count">
@@ -505,20 +501,19 @@
     <string name="tmdb_missing_short">Brak</string>
     <string name="change_source_row">Źródło</string>
     <string name="ui_resolution">Rozdzielczość interfejsu</string>
-    <string name="ui_resolution_desc">Podczas odtwarzania odtwarzacz Zidoo sam wybiera tryb.</string>
+    <string name="ui_resolution_desc">Przy odtwarzaniu decyduje Zidoo</string>
     <string name="interface_language">Język interfejsu</string>
     <string name="interface_language_desc">Menu, ustawienia i komunikaty</string>
     <string name="ui_4k_desc">Ostry interfejs na telewizorach 4K</string>
     <string name="ui_system_desc">Tryb wybrany przez system</string>
     <string name="current_output">Wyjście</string>
-    <string name="display_by_player">Ustawiane przez odtwarzacz</string>
     <string name="output_by_player">Ustawiane przez odtwarzacz</string>
     <string name="output_by_player_hint">Aby je zmienić: Ustawienia odtwarzacza, następnie Wyświetlanie.</string>
     <string name="storage_used">na tym urządzeniu</string>
     <string name="storage_cache_limit">pamięć podręczna do %s</string>
     <string name="storage_full">Ostatnie skanowanie zostało przerwane: na tym urządzeniu brakuje miejsca. Można je zwolnić, czyszcząc nieużywane kopie lub pamięć podręczną obrazów.</string>
     <string name="cleanup_desc">Usuwa nieużywane kopie obrazów lokalnych</string>
-    <string name="clear_cache_desc">Obrazy są pobierane ponownie w razie potrzeby</string>
+    <string name="clear_cache_desc">Pobierane ponownie w razie potrzeby</string>
     <string name="about_status">Stan</string>
     <string name="detected">Wykryto</string>
     <string name="not_detected">Nie wykryto</string>

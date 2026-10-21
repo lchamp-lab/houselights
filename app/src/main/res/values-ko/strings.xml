@@ -119,7 +119,6 @@
     <string name="nfo_state_link">링크만</string>
     <string name="nfo_state_unreadable">읽을 수 없음</string>
     <string name="nfo_state_reading">여는 중…</string>
-    <string name="nfo_block_details">세부 정보</string>
     <string name="label_file">파일</string>
     <string name="nfo_unreadable">이 NFO는 XML로 읽을 수 없습니다.</string>
     <string name="nfo_link_only">이 NFO에는 작품 페이지 링크만 있습니다. Houselights는 이 링크로 작품을 식별합니다.</string>
@@ -274,8 +273,8 @@
     </plurals>
     <string name="playback_desc">Zidoo 플레이어가 서버의 파일에 접근하는 방식입니다.</string>
     <string name="tmdb_desc">포스터와 작품 정보는 TMDB에서 가져옵니다.</string>
-    <string name="change_source_local_desc">폴더는 그대로 유지되므로 언제든 다시 돌아올 수 있습니다.</string>
-    <string name="change_source_jellyfin_desc">새 소스가 준비될 때까지 이 서버는 연결된 상태로 유지됩니다.</string>
+    <string name="change_source_local_desc">폴더는 그대로 유지됩니다</string>
+    <string name="change_source_jellyfin_desc">전환할 때까지 연결이 유지됩니다</string>
     <string name="change_source">소스 변경</string>
     <string name="reconnect">다시 로그인</string>
     <string name="source_local_first">NAS에서 폴더를 추가하세요</string>
@@ -379,11 +378,8 @@
     <string name="billing_and">및</string>
     <string name="edit">편집</string>
     <string name="artwork_poster">포스터</string>
-    <string name="artwork_poster_desc">목록과 라이브러리</string>
     <string name="artwork_backdrop">배경 이미지</string>
-    <string name="artwork_backdrop_desc">이 페이지와 홈 화면</string>
     <string name="artwork_logo">로고</string>
-    <string name="artwork_logo_desc">상단에 그려진 제목</string>
     <string name="identify">식별</string>
     <string name="identify_menu_desc">다른 TMDB 작품과 매칭</string>
     <plurals name="image_count">
@@ -465,13 +461,12 @@
     <string name="tmdb_missing_short">없음</string>
     <string name="change_source_row">소스</string>
     <string name="ui_resolution">인터페이스 해상도</string>
-    <string name="ui_resolution_desc">재생 중에는 Zidoo 플레이어가 자체적으로 모드를 선택합니다.</string>
+    <string name="ui_resolution_desc">재생 중에는 플레이어의 모드</string>
     <string name="interface_language">인터페이스 언어</string>
     <string name="interface_language_desc">메뉴, 설정, 메시지</string>
     <string name="ui_4k_desc">4K TV에서 선명한 인터페이스</string>
     <string name="ui_system_desc">시스템이 선택한 모드</string>
     <string name="current_output">출력</string>
-    <string name="display_by_player">플레이어에서 설정</string>
     <string name="output_by_player">플레이어에서 설정</string>
     <string name="output_by_player_hint">변경하려면 플레이어 설정에서 디스플레이로 이동하세요.</string>
     <string name="storage_used">이 기기에서</string>

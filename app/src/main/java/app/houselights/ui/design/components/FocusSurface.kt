@@ -12,16 +12,16 @@ import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.State
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.derivedStateOf
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -95,7 +95,10 @@ internal fun HlFocusSurface(
     content: @Composable BoxScope.(lit: Boolean) -> Unit,
 ) {
     val interaction = interactionSource ?: remember { MutableInteractionSource() }
-    val focus = interaction.collectIsFocusedAsState()
+    val held = interaction.collectIsFocusedAsState()
+    // Under an open sheet, the screen shows no focus: what opened it keeps it, unlit.
+    val inSheet = LocalInSheet.current
+    val focus = remember(held, inSheet) { derivedStateOf { held.value && (inSheet || OpenSheets.count == 0) } }
     val focused by focus
     val framed = look.gesture == Gesture.Frame
     val glows = enabled && glow != null

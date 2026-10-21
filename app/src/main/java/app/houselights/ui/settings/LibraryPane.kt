@@ -2,9 +2,7 @@ package app.houselights.ui.settings
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.Composable
@@ -253,19 +251,21 @@ private fun SourceActions(
                 ),
                 onClick = { sheet.dismiss { onEdit(FolderField.after(fix)) } },
             )
-            if (fix != null) {
-                EditRow()
-                ScanRow()
-            } else {
-                ScanRow()
-                EditRow()
+            HlSettingGroup(null) {
+                if (fix != null) {
+                    EditRow()
+                    ScanRow()
+                } else {
+                    ScanRow()
+                    EditRow()
+                }
+                HlSettingRow(
+                    stringResource(R.string.remove_folder),
+                    origin,
+                    description = stringResource(R.string.remove_folder_row_desc),
+                    onClick = ask,
+                )
             }
-            HlSettingRow(
-                stringResource(R.string.remove_folder),
-                origin,
-                description = stringResource(R.string.remove_folder_row_desc),
-                onClick = ask,
-            )
         }
     }
 }
@@ -302,11 +302,10 @@ private fun FolderShowcase(
         posters = remember(posters) { posters.map { LocalProvider.image(it, ImageType.POSTER) } },
         onClick = onClick,
         modifier = modifier,
-        facts = listOf(
-            // Never read is no state done: a plain fact, first as the state would be.
-            lastScanned(source.lastScanAt).takeIf { source.lastScanAt <= 0 },
+        // Never read is no state done: a plain fact, first as the state would be; then its figures, the first in
+        // white, and what it holds after them.
+        facts = listOf(lastScanned(source.lastScanAt).takeIf { source.lastScanAt <= 0 }) + folderFacts(counts) +
             kind.takeIf { !source.name.equals(it, ignoreCase = true) },
-        ) + folderFacts(counts),
         state = lastScanned(source.lastScanAt).takeIf { source.lastScanAt > 0 },
         status = when {
             removing -> ({ HlStatus(StatusState.Pending, removingText) })
@@ -528,28 +527,30 @@ private fun SourceSheet(source: SourceConfig?, onDismiss: () -> Unit, onUseFolde
             confirm = stringResource(R.string.sign_out),
             onConfirm = onUseFolders,
         ) { ask, origin ->
-            HlSettingRow(
-                stringResource(R.string.source_local),
-                origin.focusRequester(local),
-                description = foldersLine(folders.size),
-                icon = HlIcons.Folder,
-                onClick = {
-                    when {
-                        source is SourceConfig.Jellyfin -> ask()
-                        source == SourceConfig.Local && folders.isNotEmpty() -> sheet.dismiss()
-                        else -> onUseFolders()
-                    }
-                },
-                trailing = if (source == SourceConfig.Local) ({ ChoiceCheck() }) else null,
-            )
-            HlSettingRow(
-                stringResource(R.string.source_jellyfin),
-                Modifier.focusRequester(jellyfin),
-                description = stringResource(if (server != null) R.string.source_jellyfin_other else R.string.source_jellyfin_desc),
-                icon = HlIcons.Server,
-                onClick = onSignIn,
-                trailing = if (server != null) ({ ChoiceCheck() }) else null,
-            )
+            HlSettingGroup(null) {
+                HlSettingRow(
+                    stringResource(R.string.source_local),
+                    origin.focusRequester(local),
+                    description = foldersLine(folders.size),
+                    icon = HlIcons.Folder,
+                    onClick = {
+                        when {
+                            source is SourceConfig.Jellyfin -> ask()
+                            source == SourceConfig.Local && folders.isNotEmpty() -> sheet.dismiss()
+                            else -> onUseFolders()
+                        }
+                    },
+                    trailing = if (source == SourceConfig.Local) ({ ChoiceCheck() }) else null,
+                )
+                HlSettingRow(
+                    stringResource(R.string.source_jellyfin),
+                    Modifier.focusRequester(jellyfin),
+                    description = stringResource(if (server != null) R.string.source_jellyfin_other else R.string.source_jellyfin_desc),
+                    icon = HlIcons.Server,
+                    onClick = onSignIn,
+                    trailing = if (server != null) ({ ChoiceCheck() }) else null,
+                )
+            }
         }
     }
 }
@@ -627,7 +628,7 @@ private fun TmdbKeySheet(issue: UiError?, onDismiss: () -> Unit) {
             imeAction = ImeAction.Done,
             onImeAction = { save(key) },
         )
-        Spacer(Modifier.height(HlSpace.l))
+        // Its parts the sheet's own gap apart.
         HlButton(
             stringResource(R.string.save),
             onClick = { save(key) },
@@ -636,13 +637,14 @@ private fun TmdbKeySheet(issue: UiError?, onDismiss: () -> Unit) {
             busyLabel = stringResource(R.string.checking),
         )
         if (personal && hasBuiltIn) {
-            Spacer(Modifier.height(HlSpace.l))
-            HlSettingRow(
-                stringResource(R.string.tmdb_key_revert),
-                description = stringResource(R.string.tmdb_key_revert_desc),
-                // Reverting is never refused or unchecked, so it also closes the sheet.
-                onClick = { save("") },
-            )
+            HlSettingGroup(null) {
+                HlSettingRow(
+                    stringResource(R.string.tmdb_key_revert),
+                    description = stringResource(R.string.tmdb_key_revert_desc),
+                    // Reverting is never refused or unchecked, so it also closes the sheet.
+                    onClick = { save("") },
+                )
+            }
         }
     }
 }
@@ -667,22 +669,26 @@ private fun TmdbKeyStatus(personal: Boolean, hasBuiltIn: Boolean, unchecked: Boo
         lost && !personal -> HlStatus(
             StatusState.Attention,
             stringResource(R.string.tmdb_key_lost),
+            detailStyle = Hl.type.meta,
             detail = stringResource(if (hasBuiltIn) R.string.tmdb_key_lost_builtin else R.string.tmdb_key_lost_none),
         )
         issue != null && (personal || hasBuiltIn) -> HlStatus(
             StatusState.Attention,
             stringResource(if (personal) R.string.tmdb_key_personal else R.string.tmdb_key_builtin_state),
+            detailStyle = Hl.type.meta,
             detail = stringResource(if (issue == UiError.TMDB_KEY_REFUSED) R.string.tmdb_scan_key_refused else R.string.tmdb_scan_offline),
         )
         personal -> HlStatus(
             StatusState.On,
             stringResource(R.string.tmdb_key_personal),
+            detailStyle = Hl.type.meta,
             detail = if (unchecked) stringResource(R.string.tmdb_key_unchecked) else null,
         )
         hasBuiltIn -> HlStatus(StatusState.On, stringResource(R.string.tmdb_key_builtin_state))
         else -> HlStatus(
             StatusState.Attention,
             stringResource(R.string.tmdb_key_none),
+            detailStyle = Hl.type.meta,
             detail = stringResource(R.string.tmdb_key_none_desc),
         )
     }

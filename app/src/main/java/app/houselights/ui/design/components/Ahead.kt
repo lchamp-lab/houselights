@@ -1,5 +1,6 @@
 package app.houselights.ui.design.components
 
+import app.houselights.ui.design.HeroDefaults
 import android.content.Context
 import androidx.compose.ui.unit.Dp
 import app.houselights.core.MediaItem
@@ -32,7 +33,7 @@ class PicturesAhead(private val context: Context, private val screenWidthPx: Int
     /** A hero showing [item]: the [AmbientBackdrop] picture and sample in [style], and the [HeroInfo] logo. */
     fun hero(item: MediaItem, style: BackdropStyle = BackdropStyle.Hero): List<ImageRequest> =
         item.backdrop?.let { backdropRequests(context, it, style, screenWidthPx) }.orEmpty() +
-            listOfNotNull(item.logo?.let { titleArtRequest(context, it, HlLayout.heroTitleWidth.px(), HlLayout.heroTitleHeight.px()) })
+            listOfNotNull(item.logo?.let { titleArtRequest(context, it, HeroDefaults.titleWidth.px(), HeroDefaults.titleHeight.px()) })
 
     /** The posters of a wall's [items], at the size a [PosterCard] cell requests ([requestedPoster]). */
     fun wall(items: List<MediaItem>): List<ImageRequest> = items.mapNotNull { posterRequest(context, it, requestedPoster(null).px()) }

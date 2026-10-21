@@ -109,6 +109,12 @@ val HlColors.plateEdge: Color get() = content.copy(alpha = HlAlpha.PLATE_EDGE)
 fun HlColors.tintedGlass(glow: Color): Color = glow.copy(alpha = glow.alpha * HlAlpha.GLASS_GLOW).compositeOver(glass)
 
 /**
+ * A sheet's glass in the dark of the picture under it, read while drawing: [AmbientLight.deep] at `GLASS_DEEP` over
+ * glass, a quiet tint that a grey picture leaves neutral.
+ */
+fun HlColors.sheetGlass(light: AmbientLight): Color = light.deep().copy(alpha = HlAlpha.GLASS_DEEP).compositeOver(glass)
+
+/**
  * A plate on a sheet's glass, in the light of the film under it, read while drawing: a step up (`GLASS_STEP`),
  * then the film's [AmbientLight.glow] at `GLASS_GLOW`; the step alone without a picture.
  */
@@ -184,6 +190,9 @@ object HlAlpha {
      */
     const val GLASS_STEP = 0.035f
     const val GLASS_GLOW = 0.05f
+
+    /** A sheet's glass: the picture's dark over it ([sheetGlass]). */
+    const val GLASS_DEEP = 0.5f
 
     /** Every edge and divider of a container: `outline` at this opacity. */
     const val EDGE = 0.6f

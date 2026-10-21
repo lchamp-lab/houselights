@@ -17,6 +17,7 @@ import app.houselights.providers.local.ScanState
 import app.houselights.providers.local.SourceEntity
 import app.houselights.settings.AppSettings
 import app.houselights.ui.util.LatestJob
+import app.houselights.ui.util.RoomPosters
 import app.houselights.ui.util.UiError
 import app.houselights.ui.util.reported
 import kotlinx.coroutines.flow.Flow
@@ -98,6 +99,8 @@ class HomeViewModel(
     private val libraryRows: LibraryRows? = null,
     /** Waits for the launch screen to close: the library's rows load after it, outside Home's first view. */
     private val afterLaunch: suspend () -> Unit = {},
+    /** Home's rows as they are shown ([RoomPosters.shown]). */
+    private val shown: (List<HomeSection>) -> Unit = {},
 ) : ViewModel() {
     private val load = MutableStateFlow(HomeLoad())
     private val loads = LatestJob(viewModelScope)
@@ -126,6 +129,7 @@ class HomeViewModel(
                 launched()?.let { it.libraries to it.sections } ?: provider().let { source -> source.libraries() to source.home() }
             }.onSuccess { (libraries, sections) ->
                 load.update { HomeLoad(loading = false, libraries = libraries, sections = sections, drawn = it.drawn) }
+                shown(sections)
                 drawLibraryRows()
             }.onFailure { e ->
                 val error = e.reported(TAG, "Home")
@@ -166,6 +170,7 @@ class HomeViewModel(
                     launched = { app.homeLaunch.take(app.settings.state.value.source) },
                     libraryRows = app.libraryRows,
                     afterLaunch = { app.launch.awaitOpen() },
+                    shown = { app.roomPosters.shown(app.settings.state.value.source, it) },
                 )
             }
         }

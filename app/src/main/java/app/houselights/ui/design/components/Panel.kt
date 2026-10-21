@@ -62,6 +62,7 @@ import app.houselights.ui.design.edge
 import app.houselights.ui.design.emberLight
 import app.houselights.ui.design.glassPlate
 import app.houselights.ui.design.groundStepFill
+import app.houselights.ui.design.plate
 import app.houselights.ui.design.plateEdge
 import app.houselights.ui.design.tryRequestFocus
 
@@ -161,8 +162,9 @@ internal fun HlRowSurface(
 }
 
 /**
- * A plate holding a group (DESIGN.md, Secondary screens), [HlShapes.panel] edged by `plateEdge`: glass on the
- * room, in a sheet the film's [glassPlate], read while drawing. What it holds lies on glass.
+ * A plate holding a group (DESIGN.md, Secondary screens), [HlShapes.panel] edged by `plateEdge`, read while drawing:
+ * on a field of posters ([PosterField]) its dark, as a plate over a picture; in a sheet the film's [glassPlate]; glass
+ * on the bare room. What it holds lies on glass.
  */
 @Composable
 fun HlPlate(
@@ -180,10 +182,18 @@ fun HlPlate(
 internal fun Modifier.plate(edge: BorderStroke): Modifier {
     val c = Hl.colors
     val inSheet = LocalGround.current == Ground.Glass
+    val onField = LocalRoomField.current != null
     val light = LocalAmbient.current
     return drawWithCache {
         val area = HlShapes.panel.createOutline(size, layoutDirection, this)
-        onDrawBehind { drawOutline(area, if (inSheet) c.glassPlate(light) else c.glass) }
+        onDrawBehind {
+            val fill = when {
+                inSheet -> c.glassPlate(light)
+                onField -> c.plate(light)
+                else -> c.glass
+            }
+            drawOutline(area, fill)
+        }
     }.border(edge, HlShapes.panel)
 }
 
@@ -213,7 +223,7 @@ fun ReadingPlate(
             .then(reading)
             .focusable()
             .plate(edge)
-            .padding(horizontal = HlInset.card, vertical = HlInset.plate),
+            .padding(start = HlInset.reading, end = HlInset.reading, top = HlSpace.m, bottom = HlInset.plate),
     ) {
         CompositionLocalProvider(LocalGround provides Ground.Glass) { content() }
     }
@@ -318,9 +328,18 @@ fun HlEmptyState(
  */
 enum class StatusState { On, Done, Off, Pending, Attention }
 
-/** A state in words with its light ([StatusLight]); [detail] explains why, below and aligned with the words. */
+/**
+ * A state in words with its light ([StatusLight]); [detail] explains why, below and aligned with the words, in
+ * [detailStyle] (`meta` in a pane or a sheet).
+ */
 @Composable
-fun HlStatus(state: StatusState, text: String, modifier: Modifier = Modifier, detail: String? = null) {
+fun HlStatus(
+    state: StatusState,
+    text: String,
+    modifier: Modifier = Modifier,
+    detail: String? = null,
+    detailStyle: TextStyle = Hl.type.caption,
+) {
     val c = Hl.colors
     Column(modifier) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -333,7 +352,7 @@ fun HlStatus(state: StatusState, text: String, modifier: Modifier = Modifier, de
             Spacer(Modifier.height(HlSpace.xxs))
             Text(
                 detail,
-                style = Hl.type.caption,
+                style = detailStyle,
                 color = c.contentSecondary,
                 modifier = Modifier.padding(start = HlSize.statusLight + HlSpace.xs),
             )
@@ -366,14 +385,14 @@ internal fun StatusLight(state: StatusState, modifier: Modifier = Modifier, ink:
 }
 
 /**
- * An attention note: the attention light, then [text] in ember, on [maxLines]; screens never set ember themselves.
- * On a [focused] plate the words take focus's ink and the light stays lit, raspberry.
+ * An attention note: the attention light, then [text] in ember, on [maxLines], in `meta` as a pane's words are;
+ * screens never set ember themselves. On a [focused] plate the words take focus's ink and the light stays lit, raspberry.
  */
 @Composable
 fun AttentionNote(
     text: String,
     modifier: Modifier = Modifier,
-    style: TextStyle = Hl.type.caption,
+    style: TextStyle = Hl.type.meta,
     focused: Boolean = false,
     maxLines: Int = Int.MAX_VALUE,
 ) {

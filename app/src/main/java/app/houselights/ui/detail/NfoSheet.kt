@@ -113,7 +113,8 @@ internal fun NfoSheet(item: MediaItem, state: NfoState, onRetry: () -> Unit, onD
 @Composable
 private fun NfoDetails(info: NfoInfo?, file: String) {
     val c = Hl.colors
-    Column(verticalArrangement = Arrangement.spacedBy(HlSpace.m)) {
+    // A definition's baseline 42 under the last's: the board's rhythm.
+    Column(verticalArrangement = Arrangement.spacedBy(HlSpace.fact)) {
         when {
             info == null -> Text(stringResource(R.string.nfo_unreadable), style = Hl.type.read, color = c.contentSecondary)
             info.kind == NfoKind.LINK -> {

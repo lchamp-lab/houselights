@@ -35,6 +35,7 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.Dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlIcons
 import app.houselights.ui.design.components.HlIconButton
 import app.houselights.ui.design.components.HlSegmented
@@ -422,10 +423,10 @@ private fun TmdbIssue(issue: UiError?, keepRoom: Boolean) {
     Box {
         if (keepRoom) {
             listOf(UiError.TMDB_KEY_REFUSED, UiError.TMDB_OFFLINE).forEach { each ->
-                AttentionNote(stringResource(noteOf(each)), width.alpha(0f).clearAndSetSemantics {})
+                AttentionNote(stringResource(noteOf(each)), width.alpha(0f).clearAndSetSemantics {}, style = Hl.type.caption)
             }
         }
-        issue?.let { AttentionNote(stringResource(noteOf(it)), width) }
+        issue?.let { AttentionNote(stringResource(noteOf(it)), width, style = Hl.type.caption) }
     }
 }
 

@@ -1,5 +1,6 @@
 package app.houselights.ui.catalog
 
+import app.houselights.ui.design.TwoPaneDefaults
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -137,11 +138,11 @@ private fun Fills() {
         )
     }
     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Top) {
-        Specimen("a row", Modifier.width(HlLayout.sideColumnWide), gap = HlSpace.xs) {
+        Specimen("a row", Modifier.width(TwoPaneDefaults.sideWide), gap = HlSpace.xs) {
             HlSettingRow(stringResource(R.string.scan_now), description = stringResource(R.string.scan_now_desc), onClick = {})
         }
         var text by remember { mutableStateOf("") }
-        Specimen("a field: the ring, ember once typing", Modifier.width(HlLayout.sideColumnWide), gap = HlSpace.xs) {
+        Specimen("a field: the ring, ember once typing", Modifier.width(TwoPaneDefaults.sideWide), gap = HlSpace.xs) {
             HlTextField(
                 stringResource(R.string.field_host),
                 text,

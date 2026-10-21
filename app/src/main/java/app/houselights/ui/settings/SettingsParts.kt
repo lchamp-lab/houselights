@@ -7,7 +7,6 @@ import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
@@ -15,7 +14,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.platform.LocalContext
-import androidx.tv.material3.Text
 import android.content.Context
 import android.icu.text.DisplayContext
 import android.icu.text.RelativeDateTimeFormatter
@@ -25,9 +23,7 @@ import android.icu.text.RelativeDateTimeFormatter.RelativeUnit
 import android.icu.util.ULocale
 import android.text.format.DateUtils
 import app.houselights.R
-import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlInset
-import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.FocusKey
 import app.houselights.ui.design.FocusMemory
@@ -85,12 +81,6 @@ internal fun RowFailureNote(failure: RowFailure?) {
     val reveal = remember { BringIntoViewRequester() }
     LaunchedEffect(failure.reason) { reveal.bringIntoView() }
     AttentionNote(failure.reason, Modifier.padding(horizontal = HlInset.card, vertical = HlSpace.xs).bringIntoViewRequester(reveal))
-}
-
-/** A line of explanation under a group, in the reading measure. */
-@Composable
-internal fun Hint(text: String, modifier: Modifier = Modifier) {
-    Text(text, style = Hl.type.caption, color = Hl.colors.contentSecondary, modifier = modifier.widthIn(max = HlLayout.captionMeasure))
 }
 
 /** How long ago [at] was, relative to now: see the other [relativeTime]. */

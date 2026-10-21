@@ -156,7 +156,7 @@ private fun BlockName(name: String, count: String? = null) {
             Text(it, style = Hl.type.meta, color = c.contentTertiary, modifier = Modifier.alignByBaseline())
         }
     }
-    Spacer(Modifier.height(HlSpace.xs))
+    Spacer(Modifier.height(HlSpace.m))
 }
 
 /** A format as a case's back prints it, and the measures that qualify it, one a line under it. */
@@ -188,8 +188,11 @@ private fun PictureBlock(section: TechSection, modifier: Modifier) {
             marks.forEach { mark ->
                 Column {
                     Text(mark.format, style = Hl.type.spec, color = c.content, maxLines = 1)
-                    Spacer(Modifier.height(HlSpace.xxs))
-                    mark.measures.forEach { Text(it, style = Hl.type.meta, color = c.contentSecondary, maxLines = 1) }
+                    Spacer(Modifier.height(HlSpace.xs))
+                    // One text, its lines at their own height, a measure a line.
+                    if (mark.measures.isNotEmpty()) {
+                        Text(mark.measures.joinToString("\n"), style = Hl.type.meta, color = c.contentSecondary, softWrap = false)
+                    }
                 }
             }
         }
@@ -217,7 +220,7 @@ private fun TracksBlock(section: TechSection, modifier: Modifier) {
     }).joinToString(", ")
     ReadingPlate(modifier.fillMaxWidth(), readAs = readAs) {
         BlockName(name, count)
-        Column(verticalArrangement = Arrangement.spacedBy(HlSpace.xs)) {
+        Column(verticalArrangement = Arrangement.spacedBy(HlSpace.m)) {
             tracks.forEachIndexed { i, (track, format, words) ->
                 Row {
                     Text(
@@ -261,7 +264,7 @@ private fun CreditsBlock(crafts: List<Craft>, modifier: Modifier) {
     val readAs = (listOf(name) + crafts.map { (listOf(it.job) + it.names.take(CRAFT_NAMES)).joinToString(", ") }).joinToString(", ")
     ReadingPlate(modifier.fillMaxWidth(), readAs = readAs) {
         BlockName(name)
-        Column(verticalArrangement = Arrangement.spacedBy(HlSpace.xs)) {
+        Column(verticalArrangement = Arrangement.spacedBy(HlSpace.s)) {
             crafts.forEach { craft ->
                 Row {
                     Text(

@@ -15,6 +15,7 @@ import androidx.compose.ui.unit.dp
 import app.houselights.core.Library
 import app.houselights.core.LibraryKind
 import app.houselights.ui.design.FocusMemory
+import app.houselights.ui.design.HeroDefaults
 import app.houselights.ui.design.HlFocus
 import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlSize
@@ -88,7 +89,7 @@ class HomeLayoutTest {
 
     @Test
     fun theHeroHoldsALogoAFactLineAndTwoLinesOfOverview() {
-        val content = HlLayout.heroTitleHeight + HlSpace.s + sp(HouselightsType.meta.lineHeight.value) + HlSpace.s +
+        val content = HeroDefaults.titleHeight + HlSpace.s + sp(HouselightsType.meta.lineHeight.value) + HlSpace.s +
             sp(HouselightsType.body.lineHeight.value * 2)
         assertTrue("the hero's content takes $content", content <= HlLayout.hero)
     }

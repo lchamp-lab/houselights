@@ -41,6 +41,7 @@ import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlInset
 import app.houselights.ui.design.HlShapes
 import app.houselights.ui.design.HlSize
+import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.LocalAmbient
 import app.houselights.ui.design.LocalGround
 import app.houselights.ui.design.edge
@@ -122,10 +123,10 @@ private fun Modifier.readingArea(focused: Boolean): Modifier {
     return if (onGlass) clip(HlShapes.panel).plate(edge) else panel(HlShapes.panel, groundStepFill(), edge)
 }
 
-/** Room inside a reading area: a panel's all round, or on glass a plate of facts' ([FactPlate]). */
+/** Room inside a reading area: a panel's all round, or on glass a reading plate's down ([ReadingPlate]) and a card's across. */
 @Composable
 private fun readingPadding(): PaddingValues = if (LocalGround.current == Ground.Glass) {
-    PaddingValues(horizontal = HlInset.card, vertical = HlInset.plate)
+    PaddingValues(start = HlInset.card, end = HlInset.card, top = HlSpace.m, bottom = HlInset.plate)
 } else {
     PaddingValues(HlInset.card)
 }

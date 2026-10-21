@@ -33,7 +33,7 @@ class DesignTokenGuardTest {
         Regex("""\bHl(Space|Size|Layout|Inset)\.[a-z]\w*\s*[-+*/](?!>)""") to "arithmetic on a token: name the measure in Dimens.kt",
         Regex("""[\w)]\s*[-+*/]\s*Hl(Space|Size|Layout|Inset)\.[a-z]""") to "arithmetic on a token: name the measure in Dimens.kt",
         // A raw image is left blank when it fails: the design system's show the title or an empty frame.
-        Regex("""\bAsyncImage\(""") to "an image: use ArtworkImage, PosterThumb or RowPreview",
+        Regex("""\bAsyncImage\(""") to "an image: use ArtworkImage or PosterThumb",
         // Ember is a closed list of states: a screen says the state, the component lights it.
         Regex("""\.(ember|emberFrom|emberTo|emberOnLight|onEmber)\b""") to
             "ember: say the state (HlStatus, AttentionNote, lit, valueLit, detailLit)",

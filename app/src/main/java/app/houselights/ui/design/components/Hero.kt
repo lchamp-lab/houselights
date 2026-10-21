@@ -1,5 +1,6 @@
 package app.houselights.ui.design.components
 
+import app.houselights.ui.design.HeroDefaults
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.updateTransition
@@ -52,8 +53,8 @@ fun HeroInfo(item: MediaItem?, modifier: Modifier = Modifier) {
             TitleArt(
                 title = if (episode) shown.seriesTitle ?: shown.title else shown.title,
                 logo = shown.logo,
-                maxWidth = HlLayout.heroTitleWidth,
-                maxHeight = HlLayout.heroTitleHeight,
+                maxWidth = HeroDefaults.titleWidth,
+                maxHeight = HeroDefaults.titleHeight,
                 style = Hl.type.headline,
                 maxLines = 1,
             )

@@ -1,5 +1,7 @@
 package app.houselights.ui.catalog
 
+import app.houselights.ui.design.PaneDefaults
+import app.houselights.ui.design.TwoPaneDefaults
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -164,7 +166,7 @@ fun CatalogScreen() {
             item {
                 Group("Lists and settings") {
                     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m)) {
-                        Column(Modifier.width(HlLayout.sideColumn)) {
+                        Column(Modifier.width(TwoPaneDefaults.side)) {
                             HlNavItem(HlIcons.Folder, "Selected", selected = true, onFocused = {})
                             HlNavItem(HlIcons.Display, "Other", selected = false, onFocused = {})
                         }
@@ -390,7 +392,7 @@ private fun BlackLevels() {
                     "tinted veils: the picture's own dark at the left and the top, black at the foot" to BackdropStyle.Hero,
                     "a wall's diffuse field: dithered, no rings, never brighter than its text allows" to BackdropStyle.Diffuse,
                 ).forEach { (state, style) ->
-                    Specimen(state, width = HlLayout.sideColumnWide) {
+                    Specimen(state, width = TwoPaneDefaults.sideWide) {
                         Box(Modifier.fillMaxWidth().aspectRatio(16f / 9f)) { Backdrop(art, style) }
                     }
                 }
@@ -511,7 +513,7 @@ private fun Swatch(name: String, brush: Brush) {
 @Composable
 private fun StyleSpecimen(name: String, style: TextStyle) {
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Column(Modifier.width(HlLayout.specLanguage)) {
+        Column(Modifier.width(PaneDefaults.specName)) {
             Text(name, style = Hl.type.caption, color = Hl.colors.contentSecondary)
             Text(specimenMeasure(style), style = Hl.type.caption, color = Hl.colors.contentTertiary)
         }

@@ -119,7 +119,6 @@
     <string name="nfo_state_link">リンクのみ</string>
     <string name="nfo_state_unreadable">読み取れません</string>
     <string name="nfo_state_reading">読み込み中…</string>
-    <string name="nfo_block_details">詳細</string>
     <string name="label_file">ファイル</string>
     <string name="nfo_unreadable">このNFOはXMLとして読み取れませんでした。</string>
     <string name="nfo_link_only">このNFOには作品ページへのリンクしかありません。Houselightsはこのリンクで作品を特定します。</string>
@@ -274,8 +273,8 @@
     </plurals>
     <string name="playback_desc">Zidooプレーヤーがサーバーのファイルにアクセスする方法です。</string>
     <string name="tmdb_desc">ポスターと作品情報はTMDBから取得します。</string>
-    <string name="change_source_local_desc">フォルダは保持されます。いつでも元に戻せます。</string>
-    <string name="change_source_jellyfin_desc">新しいソースの準備ができるまで、このサーバーとの接続は維持されます。</string>
+    <string name="change_source_local_desc">フォルダは保持されます</string>
+    <string name="change_source_jellyfin_desc">切り替えまで接続を維持します</string>
     <string name="change_source">ソースを変更</string>
     <string name="reconnect">再ログイン</string>
     <string name="source_local_first">NASからフォルダを追加</string>
@@ -379,11 +378,8 @@
     <string name="billing_and">と</string>
     <string name="edit">編集</string>
     <string name="artwork_poster">ポスター</string>
-    <string name="artwork_poster_desc">各列とライブラリ</string>
     <string name="artwork_backdrop">背景画像</string>
-    <string name="artwork_backdrop_desc">このページとホーム</string>
     <string name="artwork_logo">ロゴ</string>
-    <string name="artwork_logo_desc">上部に描かれたタイトル</string>
     <string name="identify">作品を特定</string>
     <string name="identify_menu_desc">TMDBの別の作品を選ぶ</string>
     <plurals name="image_count">
@@ -465,13 +461,12 @@
     <string name="tmdb_missing_short">なし</string>
     <string name="change_source_row">ソース</string>
     <string name="ui_resolution">インターフェースの解像度</string>
-    <string name="ui_resolution_desc">再生中は、Zidooプレーヤーが独自にモードを選択します。</string>
+    <string name="ui_resolution_desc">再生中はプレーヤーのモード</string>
     <string name="interface_language">表示言語</string>
     <string name="interface_language_desc">メニュー、設定、メッセージ</string>
     <string name="ui_4k_desc">4Kで鮮明なインターフェース</string>
     <string name="ui_system_desc">システムが選択したモード</string>
     <string name="current_output">出力</string>
-    <string name="display_by_player">プレーヤーで設定</string>
     <string name="output_by_player">プレーヤーで設定</string>
     <string name="output_by_player_hint">変更するには、プレーヤーの設定から「ディスプレイ」へ。</string>
     <string name="storage_used">このデバイス上</string>
@@ -495,7 +490,7 @@
     <string name="credit_icons">アイコン</string>
     <string name="credit_icons_value">Lucide, ISC License</string>
     <string name="support">Houselightsを支援</string>
-    <string name="support_desc">スマートフォンから、プロジェクトにコーヒーを1杯ごちそうできます。</string>
+    <string name="support_desc">プロジェクトにコーヒーを1杯ごちそうできます</string>
     <string name="support_scan">スマートフォンでこのコードを読み取ると、プロジェクトのKo-fiページが開きます。</string>
     <string name="file_access">ファイルへのアクセス</string>
     <string name="network_path_desc">NASから直接読み込みます</string>

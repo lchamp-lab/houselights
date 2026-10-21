@@ -122,7 +122,6 @@
     <string name="nfo_state_link">Nur Link</string>
     <string name="nfo_state_unreadable">Unlesbar</string>
     <string name="nfo_state_reading">Wird geöffnet…</string>
-    <string name="nfo_block_details">Details</string>
     <string name="label_file">Datei</string>
     <string name="nfo_unreadable">Diese NFO-Datei konnte nicht als XML gelesen werden.</string>
     <string name="nfo_link_only">Diese NFO-Datei verweist nur auf eine Titelseite; Houselights identifiziert den Titel darüber.</string>
@@ -280,8 +279,8 @@
     </plurals>
     <string name="playback_desc">Wie der Zidoo-Player auf die Dateien Ihres Servers zugreift.</string>
     <string name="tmdb_desc">Poster und Infos stammen von TMDB.</string>
-    <string name="change_source_local_desc">Ihre Ordner bleiben erhalten: Sie können jederzeit zu ihnen zurückkehren.</string>
-    <string name="change_source_jellyfin_desc">Dieser Server bleibt verbunden, bis die neue Quelle bereit ist.</string>
+    <string name="change_source_local_desc">Ihre Ordner bleiben erhalten</string>
+    <string name="change_source_jellyfin_desc">Bleibt bis zum Wechsel verbunden</string>
     <string name="change_source">Quelle wechseln</string>
     <string name="reconnect">Erneut anmelden</string>
     <string name="source_local_first">Ordner von Ihrem NAS hinzufügen</string>
@@ -391,11 +390,8 @@
     <string name="billing_and">und</string>
     <string name="edit">Bearbeiten</string>
     <string name="artwork_poster">Poster</string>
-    <string name="artwork_poster_desc">Zeilen und Bibliothek</string>
     <string name="artwork_backdrop">Hintergrund</string>
-    <string name="artwork_backdrop_desc">Diese Seite und Startseite</string>
     <string name="artwork_logo">Logo</string>
-    <string name="artwork_logo_desc">Der Titel als Schriftzug oben</string>
     <string name="identify">Identifizieren</string>
     <string name="identify_menu_desc">Anderen TMDB-Titel zuordnen</string>
     <plurals name="image_count">
@@ -479,19 +475,18 @@
     <string name="tmdb_missing_short">Fehlt</string>
     <string name="change_source_row">Quelle</string>
     <string name="ui_resolution">Auflösung der Oberfläche</string>
-    <string name="ui_resolution_desc">Bei der Wiedergabe wählt der Zidoo-Player seinen eigenen Modus.</string>
+    <string name="ui_resolution_desc">Filme im Modus des Players</string>
     <string name="interface_language">Sprache der Oberfläche</string>
     <string name="interface_language_desc">Menüs, Einstellungen und Meldungen</string>
     <string name="ui_4k_desc">Eine scharfe Oberfläche in 4K</string>
     <string name="ui_system_desc">Der vom System gewählte Modus</string>
     <string name="current_output">Ausgabe</string>
-    <string name="display_by_player">Vom Player festgelegt</string>
     <string name="output_by_player">Vom Player festgelegt</string>
     <string name="output_by_player_hint">Ändern unter Player-Einstellungen, dann Anzeige.</string>
     <string name="storage_used">auf diesem Gerät</string>
     <string name="storage_cache_limit">Cache bis %s</string>
     <string name="storage_full">Der letzte Scan wurde angehalten: Auf diesem Gerät ist kein Speicherplatz mehr frei. Aufräumen oder den Bilder-Cache leeren schafft Platz.</string>
-    <string name="cleanup_desc">Entfernt Kopien lokaler Bilder, die nicht mehr genutzt werden</string>
+    <string name="cleanup_desc">Entfernt nicht mehr genutzte lokale Bilder</string>
     <string name="clear_cache_desc">Bilder werden bei Bedarf erneut geladen</string>
     <string name="about_status">Status</string>
     <string name="detected">Erkannt</string>
@@ -510,7 +505,7 @@
     <string name="credit_icons_value">Lucide, ISC-Lizenz</string>
     <!-- Supporting the project: said once, in About, never elsewhere -->
     <string name="support">Houselights unterstützen</string>
-    <string name="support_desc">Spendieren Sie dem Projekt einen Kaffee, von Ihrem Smartphone aus.</string>
+    <string name="support_desc">Spendieren Sie dem Projekt einen Kaffee</string>
     <string name="support_scan">Scannen Sie diesen Code mit Ihrem Smartphone, um die Ko-fi-Seite des Projekts zu öffnen.</string>
     <string name="file_access">Dateizugriff</string>
     <string name="network_path_desc">Der Player liest direkt vom NAS</string>
@@ -542,7 +537,7 @@
         <item quantity="other">%1$d von %2$d Filmen</item>
     </plurals>
     <string name="collections_setting">Filmreihen</string>
-    <string name="collections_setting_desc">Filme derselben Filmreihe, zusammengefasst</string>
+    <string name="collections_setting_desc">Filme einer Reihe, zusammengefasst</string>
     <string name="collections_two">Ab 2 Filmen</string>
     <string name="collections_two_desc">Eine Filmreihe ab zwei ihrer Filme</string>
     <string name="collections_all">Alle</string>
@@ -599,7 +594,7 @@
     <string name="trakt_signed_out">Nicht verbunden</string>
     <string name="trakt_connected">Verbunden</string>
     <string name="trakt_connect">Konto verbinden</string>
-    <string name="trakt_connect_desc">Mit einem Code, den Sie auf Ihrem Smartphone oder Computer eingeben</string>
+    <string name="trakt_connect_desc">Mit einem Code auf Ihrem Telefon oder PC</string>
     <string name="trakt_disconnect">Konto trennen</string>
     <string name="trakt_disconnect_desc">Houselights vergisst es auf diesem Gerät.</string>
     <string name="trakt_disconnecting">Wird getrennt…</string>
@@ -615,7 +610,7 @@
     <string name="trakt_ended">Trakt hat diese Verbindung beendet. Verbinden Sie Ihr Konto erneut.</string>
     <string name="trakt_last_sync">Letzte Synchronisierung</string>
     <string name="trakt_sync_now">Jetzt synchronisieren</string>
-    <string name="trakt_sync_now_desc">Führt zusammen, was Sie hier und auf Trakt gesehen haben</string>
+    <string name="trakt_sync_now_desc">Gleicht Gesehenes hier und auf Trakt ab</string>
     <string name="trakt_syncing">Synchronisierung…</string>
     <string name="trakt_sync_offline">Trakt antwortet nicht. Was Sie ansehen, wird gesendet, sobald Trakt wieder antwortet.</string>
     <string name="trakt_sync_busy">Trakt bittet um etwas Geduld. Die Synchronisierung wird von selbst fortgesetzt.</string>

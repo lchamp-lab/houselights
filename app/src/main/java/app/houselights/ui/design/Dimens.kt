@@ -62,7 +62,10 @@ object HlInset {
     val group = HlSpace.xxs
 
     /** A plate of facts ([FactPlate]) from its top and foot, so its words sit as a group's rows do; its sides keep [card]. */
-    val plate = 24.dp
+    val plate = HlSpace.l
+
+    /** A plate read in a sheet ([ReadingPlate], a technical sheet's block): its words from its sides; a status's from its top. */
+    val reading = HlSpace.fact
 }
 
 object HlSize {
@@ -127,8 +130,7 @@ object HlSize {
     val field = row
     /** A place in the settings' list of places: seven fit the safe area under its title. */
     val navRow = 56.dp
-    /** The box at the head of a row, one for whatever image it previews: 40 tall at [PREVIEW_RATIO], inside its [row]. */
-    val rowPreview = 40.dp * PREVIEW_RATIO
+    /** A backdrop at its use, a gallery's wide image: 16:9. */
     const val PREVIEW_RATIO = 16f / 9f
     /** Progress shown beside text (time left). */
     val progressShort = 120.dp
@@ -178,17 +180,10 @@ object HlLayout {
     val readable = 640.dp
     /** Text set beside artwork (heroes, detail pages). */
     val readableNarrow = 520.dp
-    /** Longest caption line: about 66 characters at 14 sp, the most readable measure from three metres. */
-    val captionMeasure = 400.dp
-    /** Side column of two-pane screens: navigation (settings, leaving its pane 560), explanation (forms, leaving theirs 472). */
-    val sideColumn = 256.dp
-    val sideColumnWide = 344.dp
     val fieldShort = 120.dp
     /** Clear logo or title of a detail page, and of a browsing hero. */
     val titleArtWidth = 440.dp
     val titleArtHeight = 112.dp
-    val heroTitleWidth = 380.dp
-    val heroTitleHeight = 56.dp
     /**
      * Home hero band, [HlSpace.l] from the bar and the rows: logo, facts, two overview lines, [HlSpace.s]
      * apart (56 + 12 + 20 + 12 + 48), so a focused poster's foot stays inside the safe area.
@@ -221,12 +216,8 @@ object HlLayout {
     /** The two columns of the welcome screen: the choices' holds its title on one line in French. */
     val welcomeTagline = 380.dp
     val welcomeChoices = 456.dp
-    /** Columns of the technical sheet's track tables. */
-    val specLanguage = 120.dp
+    /** A table's value column ([app.houselights.ui.design.components.SpecTable]): Affichage's frame sizes. */
     val specFormat = 136.dp
-    /** Label column of label and value lists, and its short form inside a narrow panel. */
-    val definitionLabel = 220.dp
-    val definitionLabelShort = 120.dp
     /** Label column of a reading sheet's definitions (an NFO's), its values at 20 beside it. */
     val readingLabel = 180.dp
 }
@@ -244,9 +235,22 @@ internal object HlSideSheetDefaults {
     val wideWidth = 736.dp
 }
 
-/** A plate of definitions' label column ([PlateDefinition]): About's credits. */
+/** A plate of definitions' label column ([PlateDefinition]): About's credits; a table's names ([SpecTable]). */
 internal object PaneDefaults {
     val plateLabel = 172.dp
+    val specName = 120.dp
+}
+
+/** The side column of two-pane screens: navigation (settings, leaving its pane 560), explanation (forms, leaving theirs 472). */
+internal object TwoPaneDefaults {
+    val side = 256.dp
+    val sideWide = 344.dp
+}
+
+/** The logo or title of a browsing hero (home's). */
+internal object HeroDefaults {
+    val titleWidth = 380.dp
+    val titleHeight = 56.dp
 }
 
 /** The widest value on the right of a setting row, and the room above and below its words. */
@@ -308,6 +312,11 @@ internal object TechSpecsDefaults {
  * Module 6.5 wide: whole pixels at 1080p (13) and 4K (26), so no module edge blurs. 29 modules plus the
  * 4-module quiet zone readers need make 240.5, which a phone reads from the sofa.
  */
+/** A code to type elsewhere ([app.houselights.ui.design.components.DeviceCodePlate]): its words from the plate's edge. */
+internal object DeviceCodeDefaults {
+    val inset = 28.dp
+}
+
 internal object QrCodeDefaults {
     val module = 6.5.dp
 

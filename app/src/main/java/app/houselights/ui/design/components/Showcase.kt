@@ -16,8 +16,16 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ColorProducer
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.tv.material3.Text
@@ -30,6 +38,8 @@ import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.LocalGround
 import app.houselights.ui.design.ShowcaseDefaults
+import app.houselights.ui.design.VeilStop
+import app.houselights.ui.design.colorStops
 import app.houselights.ui.design.plateEdge
 import app.houselights.ui.design.tintedGlass
 
@@ -53,9 +63,9 @@ fun Showcase(
     onFocused: () -> Unit = {},
 ) {
     val c = Hl.colors
-    // The glass takes the light of its first poster, sampled once; plain glass until then.
-    val glow = rememberGlowColor(posters.firstOrNull()?.url(SAMPLE_PX), active = true)
-    val glass = remember(glow, c) { ColorProducer { c.tintedGlass(glow.value) } }
+    // The glass takes the light of its first poster, sampled once, at once: plain glass until then.
+    val tone = rememberGlowTone(posters.firstOrNull()?.url(SAMPLE_PX), active = true)
+    val glass = remember(tone, c) { ColorProducer { c.tintedGlass(tone.value ?: Color.Transparent) } }
     // Posters in every slot cover the glass: none is drawn under them.
     val full = posters.size >= SHOWCASE_SLOTS
     val band = remember { mutableIntStateOf(0) }
@@ -122,3 +132,35 @@ private fun ShowcaseFacts(facts: List<String?>, state: String?) {
 
 /** Posters across a showcase. */
 const val SHOWCASE_SLOTS = 4
+
+/**
+ * Melts what it draws into its [plate] ([LocalPlate]) at its foot, along a curve of the system ([foot]); the plate
+ * is read while drawing.
+ */
+internal fun Modifier.meltsInto(plate: ColorProducer, foot: List<VeilStop>): Modifier =
+    drawWithCache {
+        // One mask, cached, drawn where the melt is: above it, it is clear.
+        val mask = Brush.verticalGradient(*foot.colorStops(Color.White), startY = 0f, endY = size.height)
+        val from = foot.first().at * size.height
+        val band = Size(size.width, size.height - from)
+        onDrawWithContent {
+            drawContent()
+            drawRect(mask, Offset(0f, from), band, colorFilter = PlateTints.of(plate()))
+        }
+    }
+
+/** The mask's tint per plate colour, the last few kept: a showcase's glass takes one colour, once. */
+private object PlateTints {
+    private val made = object : LinkedHashMap<Int, ColorFilter>(TINTS, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<Int, ColorFilter>) = size > TINTS
+    }
+
+    @Synchronized
+    fun of(color: Color): ColorFilter {
+        val argb = color.toArgb()
+        return made.getOrPut(argb) { ColorFilter.tint(Color(argb), BlendMode.SrcIn) }
+    }
+}
+
+/** Tints kept: a pane's showcases, and a few more. */
+private const val TINTS = 16

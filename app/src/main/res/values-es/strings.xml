@@ -125,7 +125,6 @@
     <string name="nfo_state_link">Solo enlace</string>
     <string name="nfo_state_unreadable">Ilegible</string>
     <string name="nfo_state_reading">Abriendo…</string>
-    <string name="nfo_block_details">Detalles</string>
     <string name="label_file">Archivo</string>
     <string name="nfo_unreadable">Este NFO no se pudo leer como XML.</string>
     <string name="nfo_link_only">Este NFO solo enlaza a la página de un título; Houselights lo usa para identificar el título.</string>
@@ -286,8 +285,8 @@
     </plurals>
     <string name="playback_desc">Cómo accede el reproductor Zidoo a los archivos de su servidor.</string>
     <string name="tmdb_desc">Los pósteres y los detalles provienen de TMDB.</string>
-    <string name="change_source_local_desc">Sus carpetas se conservan: puede volver a ellas en cualquier momento.</string>
-    <string name="change_source_jellyfin_desc">Este servidor sigue conectado hasta que la nueva fuente esté lista.</string>
+    <string name="change_source_local_desc">Sus carpetas se conservan</string>
+    <string name="change_source_jellyfin_desc">Conectado hasta el cambio</string>
     <string name="change_source">Cambiar de fuente</string>
     <string name="reconnect">Iniciar sesión de nuevo</string>
     <string name="source_local_first">Añada una carpeta de su NAS</string>
@@ -402,11 +401,8 @@
     <string name="billing_and">y</string>
     <string name="edit">Editar</string>
     <string name="artwork_poster">Póster</string>
-    <string name="artwork_poster_desc">Filas y biblioteca</string>
     <string name="artwork_backdrop">Fondo</string>
-    <string name="artwork_backdrop_desc">Esta página e Inicio</string>
     <string name="artwork_logo">Logo</string>
-    <string name="artwork_logo_desc">El título dibujado arriba</string>
     <string name="identify">Identificar</string>
     <string name="identify_menu_desc">Asociar con otro título de TMDB</string>
     <plurals name="image_count">
@@ -493,20 +489,19 @@
     <string name="tmdb_missing_short">Sin clave</string>
     <string name="change_source_row">Fuente</string>
     <string name="ui_resolution">Resolución de la interfaz</string>
-    <string name="ui_resolution_desc">Durante la reproducción, el reproductor Zidoo elige su propio modo.</string>
+    <string name="ui_resolution_desc">En reproducción, el del Zidoo</string>
     <string name="interface_language">Idioma de la interfaz</string>
     <string name="interface_language_desc">Menús, ajustes y mensajes</string>
     <string name="ui_4k_desc">Una interfaz nítida en televisores 4K</string>
     <string name="ui_system_desc">El modo elegido por el sistema</string>
     <string name="current_output">Salida</string>
-    <string name="display_by_player">Ajustada por el reproductor</string>
     <string name="output_by_player">Ajustada por el reproductor</string>
     <string name="output_by_player_hint">Para cambiarla: Ajustes del reproductor y luego Pantalla.</string>
     <string name="storage_used">en este dispositivo</string>
     <string name="storage_cache_limit">caché hasta %s</string>
     <string name="storage_full">El último análisis se detuvo: este dispositivo no tiene espacio libre. Limpiar, o vaciar la caché de imágenes, libera espacio.</string>
-    <string name="cleanup_desc">Elimina las copias de imágenes locales que ya no se usan</string>
-    <string name="clear_cache_desc">Las imágenes se vuelven a descargar cuando hace falta</string>
+    <string name="cleanup_desc">Elimina imágenes locales que ya no se usan</string>
+    <string name="clear_cache_desc">Se vuelven a descargar si hace falta</string>
     <string name="about_status">Estado</string>
     <string name="detected">Detectado</string>
     <string name="not_detected">No detectado</string>
@@ -560,7 +555,7 @@
         <item quantity="other">%1$d películas de %2$d</item>
     </plurals>
     <string name="collections_setting">Sagas</string>
-    <string name="collections_setting_desc">Las películas de una misma saga, reunidas</string>
+    <string name="collections_setting_desc">Películas de una saga, reunidas</string>
     <string name="collections_two">Desde 2 películas</string>
     <string name="collections_two_desc">Una saga desde dos de sus películas</string>
     <string name="collections_all">Todas</string>
@@ -621,7 +616,7 @@
     <string name="trakt_signed_out">No conectado</string>
     <string name="trakt_connected">Conectado</string>
     <string name="trakt_connect">Conectar su cuenta</string>
-    <string name="trakt_connect_desc">Con un código que se introduce en su teléfono u ordenador</string>
+    <string name="trakt_connect_desc">Con un código en su teléfono u ordenador</string>
     <string name="trakt_disconnect">Desconectar su cuenta</string>
     <string name="trakt_disconnect_desc">Houselights la olvida en este dispositivo.</string>
     <string name="trakt_disconnecting">Desconectando…</string>

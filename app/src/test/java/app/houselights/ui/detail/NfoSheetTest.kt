@@ -1,8 +1,11 @@
 package app.houselights.ui.detail
 
 import android.view.KeyEvent
+import androidx.compose.ui.layout.FirstBaseline
+import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.getAlignmentLinePosition
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.hasAnyDescendant
 import androidx.compose.ui.test.hasText
@@ -53,6 +56,9 @@ class NfoSheetTest {
     )
     private val lines = listOf("<movie>", "  <title>Colony</title>", "</movie>")
 
+    /** A text's first baseline on the screen. */
+    private fun SemanticsNodeInteraction.baseline() = getUnclippedBoundsInRoot().top.value + getAlignmentLinePosition(FirstBaseline).value
+
     private fun open(document: LoadState<NfoContent?>) = compose.setTvContent {
         NfoSheet(film, NfoState("Colony", document), onRetry = {}, onDismiss = {})
     }
@@ -68,10 +74,10 @@ class NfoSheetTest {
         compose.onNodeWithText("Colony.nfo").assertExists()
         compose.onNode(isFocused() and hasAnyDescendant(hasText("Yeon Sang-ho"))).assertExists()
         // A label beside its value, on one baseline.
-        val label = compose.onNodeWithText("Directors").getUnclippedBoundsInRoot()
-        val value = compose.onNodeWithText("Yeon Sang-ho").getUnclippedBoundsInRoot()
-        assertTrue("beside it", label.right <= value.left)
-        assertEquals("on its line", label.bottom.value, value.bottom.value, LINE)
+        val label = compose.onNodeWithText("Directors")
+        val value = compose.onNodeWithText("Yeon Sang-ho")
+        assertTrue("beside it", label.getUnclippedBoundsInRoot().right <= value.getUnclippedBoundsInRoot().left)
+        assertEquals("on its baseline", label.baseline(), value.baseline(), PX)
     }
 
     @Test
@@ -103,7 +109,7 @@ class NfoSheetTest {
     private companion object {
         const val SCREEN = 960f
 
-        /** Labels in `meta` and values in `read` share a baseline: their feet differ by their descents only. */
-        const val LINE = 4f
+        /** Bounds are whole test pixels. */
+        const val PX = 1f
     }
 }

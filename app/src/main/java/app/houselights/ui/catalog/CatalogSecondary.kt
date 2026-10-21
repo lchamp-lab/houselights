@@ -1,5 +1,6 @@
 package app.houselights.ui.catalog
 
+import app.houselights.ui.design.TwoPaneDefaults
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,13 +12,13 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.tv.material3.Text
@@ -89,10 +90,9 @@ private fun SecondaryRoom() {
     val mark = shippedImage(R.drawable.ic_launcher_foreground)
     val posters = remember(art, mark) { List(FIELD_POSTERS) { if (it % 2 == 0) art else mark } }
     var place by remember { mutableIntStateOf(0) }
-    Box(Modifier.fillMaxWidth().aspectRatio(HlSize.PREVIEW_RATIO)) {
-        PosterField(posters)
+    PosterField(posters, Modifier.fillMaxWidth().aspectRatio(HlSize.PREVIEW_RATIO)) {
         Row(Modifier.padding(HlSpace.l)) {
-            Column(Modifier.width(HlLayout.sideColumn)) {
+            Column(Modifier.width(TwoPaneDefaults.side)) {
                 listOf(
                     HlIcons.Folder to R.string.section_source,
                     HlIcons.History to R.string.section_trakt,
@@ -105,7 +105,7 @@ private fun SecondaryRoom() {
             Spacer(Modifier.width(HlSpace.xxl))
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(HlSpace.l)) {
                 FactPlate(note = "Pour la changer : Réglages du lecteur, puis Affichage.") {
-                    PlateFact(stringResource(R.string.current_output), stringResource(R.string.display_by_player), state = StatusState.Done)
+                    PlateFact(stringResource(R.string.current_output), stringResource(R.string.output_by_player), state = StatusState.Done)
                     PlateFact("Rendu de l’interface", "Full HD", technical = true, measure = "1920 × 1080")
                 }
                 HlSettingGroup("Interface") {
@@ -230,7 +230,7 @@ private fun SecondarySheets() {
                         HlButton("An NFO: its views on the title's line", { nfo = true })
                     }
                     // A sheet's glass, and on it a plate a step up in the film's glow.
-                    HlPanel(Modifier.width(HlLayout.sideColumnWide), level = PanelLevel.Raised) {
+                    HlPanel(Modifier.width(TwoPaneDefaults.sideWide), level = PanelLevel.Raised) {
                         HlPlate {
                             Text("glassPlate: glass a step up, 5 % of the film’s glow", style = Hl.type.meta, color = Hl.colors.content)
                         }

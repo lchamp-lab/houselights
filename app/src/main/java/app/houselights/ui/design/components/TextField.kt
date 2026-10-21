@@ -269,7 +269,7 @@ private fun FieldMessage(error: String?, supporting: String?) {
     if (error == null && supporting == null) return
     Spacer(Modifier.height(HlSpace.xs))
     if (error != null) {
-        AttentionNote(error, style = Hl.type.meta)
+        AttentionNote(error)
     } else if (supporting != null) {
         Text(supporting, style = Hl.type.meta, color = Hl.colors.contentSecondary)
     }

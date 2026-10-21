@@ -1,20 +1,38 @@
 package app.houselights.ui.design.components
 
+import android.graphics.Bitmap
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.test.junit4.createComposeRule
+import app.houselights.core.ImageRef
+import app.houselights.ui.design.HlMotion
 import app.houselights.ui.design.HlScrim
+import app.houselights.ui.testing.TV
+import app.houselights.ui.testing.setTvContent
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
+import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 
 /**
  * The settings' room is a library's posters side by side, each filling its slot, made a wall's field: as small,
- * never brighter than its cap, its colours where their posters lie.
+ * never brighter than its cap, its colours where their posters lie; the last made shows at once, and a new one comes
+ * in over the one showing, which never goes.
  */
 @RunWith(RobolectricTestRunner::class)
+@Config(qualifiers = TV)
 class PosterFieldTest {
+    @get:Rule
+    val compose = createComposeRule()
+
     private val red = poster(0xFFE02020.toInt())
     private val blue = poster(0xFF2040E0.toInt())
 
@@ -54,6 +72,53 @@ class PosterFieldTest {
         assertTrue("blue on the right: $right", right.blue > right.red)
     }
 
+    @Test
+    fun theFieldKeptShowsAtOnce() {
+        val kept = field("kept")
+        PosterFields.keep(kept)
+        lateinit var room: RoomField
+        compose.setTvContent { room = rememberRoomField(posters("kept")) { _, _ -> error("made again") } }
+        // The first frame: whole, no fade from the black room.
+        compose.runOnIdle {
+            assertSame(kept, room.under)
+            assertEquals(1f, room.shown())
+        }
+    }
+
+    @Test
+    fun aNewListComesInOverTheOneShowingWhichStaysWhole() {
+        val first = field("first")
+        val next = field("next")
+        PosterFields.keep(first)
+        var posters by mutableStateOf(posters("first"))
+        lateinit var room: RoomField
+        compose.mainClock.autoAdvance = false
+        compose.setTvContent { room = rememberRoomField(posters) { _, _ -> next } }
+        compose.runOnIdle { posters = posters("next") }
+        compose.waitForIdle()
+        compose.mainClock.advanceTimeBy(HlMotion.TINT / 2L)
+        compose.runOnIdle {
+            assertSame("the one showing, kept whole", first, room.under)
+            assertSame("the next, coming in over it", next, room.over)
+            assertEquals("never under whole", 1f, room.shown())
+            assertTrue("half way: ${room.coming.value}", room.coming.value in HALF_WAY)
+        }
+        compose.mainClock.advanceTimeBy(HlMotion.TINT.toLong())
+        compose.runOnIdle {
+            assertSame(next, room.under)
+            assertNull(room.over)
+        }
+    }
+
+    /** A field made from posters named after [name]. */
+    private fun field(name: String) = MadeField(
+        posters(name).map { it.url(SAMPLE_PX) },
+        Bitmap.createBitmap(FIELD_W, FIELD_H, Bitmap.Config.ARGB_8888),
+        ImageLight.Grey,
+    )
+
+    private fun posters(name: String) = List(FIELD_POSTERS) { i -> ImageRef("$name-$i") { w -> "file:///$name-$i-$w.jpg" } }
+
     private fun poster(argb: Int) = Points(IntArray(PW * PH) { argb }, PW, PH)
 
     private companion object {
@@ -63,5 +128,8 @@ class PosterFieldTest {
         const val H = 108
         const val WHITE = 0xFFFFFFFF.toInt()
         const val BLACK = 0xFF000000.toInt()
+
+        /** Half a fade on, give or take the frames it starts in. */
+        val HALF_WAY = 0.1f..0.9f
     }
 }

@@ -21,9 +21,9 @@ import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
 
 /**
- * A running scan: the ember line, the count in tabular figures ("3 / 9"), then the file being read; [label]
- * goes above the line. Before files are counted ([total] 0) the line shows a sliver and no count. On a [focused]
- * plate its words take focus's ink and the line is a raspberry mark ([ProgressLine]).
+ * A running scan: the ember line, the count in tabular figures ("3 / 9"), then the file being read, in `meta` on the
+ * count's line, in `caption` under a [label] above the line. Before files are counted ([total] 0) the line shows a
+ * sliver and no count. On a [focused] plate its words take focus's ink and the line is a raspberry mark ([ProgressLine]).
  */
 @Composable
 fun ScanProgress(
@@ -40,7 +40,8 @@ fun ScanProgress(
     val file: @Composable (Modifier) -> Unit = { m ->
         if (current != null) {
             val quiet = FocusStyle.hintInk(focused)
-            Text(current, style = Hl.type.caption, color = quiet, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = m)
+            val style = if (label == null) Hl.type.meta else Hl.type.caption
+            Text(current, style = style, color = quiet, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = m)
         }
     }
     Column(modifier.semantics(mergeDescendants = true) { progressBarRangeInfo = ProgressBarRangeInfo(fraction, 0f..1f) }) {

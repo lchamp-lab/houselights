@@ -1,5 +1,6 @@
 package app.houselights.ui.onboarding
 
+import app.houselights.ui.design.TwoPaneDefaults
 import android.content.Context
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
@@ -25,7 +26,6 @@ import app.houselights.providers.local.onCallingThread
 import app.houselights.providers.local.testDatabase
 import app.houselights.settings.SourceSwitcher
 import app.houselights.ui.design.HlFocus
-import app.houselights.ui.design.HlLayout
 import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.testing.TV
@@ -99,7 +99,7 @@ class FormLayoutTest {
         val vm = AddFolderViewModel(library, null, scope, useFolders = { false }, probe = { 0 })
         compose.setTvContent { AddFolderForm(vm, FolderField.FIRST) {} }
         compose.waitForIdle()
-        holds(field = R.string.field_host, action = R.string.add)
+        holds(first = R.string.folder_kind, field = R.string.field_host, action = R.string.add)
     }
 
     private fun jellyfinHolds() {
@@ -110,15 +110,20 @@ class FormLayoutTest {
         compose.setTvContent { JellyfinLoginForm(vm) {} }
         compose.waitForIdle()
         compose.onNodeWithText("Bureau").assertExists()
-        holds(field = R.string.field_server, action = R.string.sign_in)
+        holds(first = R.string.servers_found, field = R.string.field_server, action = R.string.sign_in)
     }
 
-    /** The form's [field] where the grid puts it, [HlSize.field] tall, and its [action] framed inside the safe area. */
-    private fun holds(field: Int, action: Int) {
+    /**
+     * The form from the top of the safe area, its [first] words there; its [field] where the grid puts it, [HlSize.field]
+     * tall, and its [action] framed inside the safe area.
+     */
+    private fun holds(first: Int, field: Int, action: Int) {
         fun text(id: Int) = compose.activity.getString(id)
+        val top = compose.onNodeWithText(text(first)).getUnclippedBoundsInRoot().top
+        assertEquals("the form from the safe area's top: $top", HlSpace.safeV.value, top.value, TOP)
         val box = compose.onNodeWithContentDescription(text(field)).getUnclippedBoundsInRoot()
         assertEquals("$box", HlSize.field.value, box.height.value, PX)
-        assertEquals("the form beside its column: $box", (HlSpace.safeH + HlLayout.sideColumnWide + HlSpace.xxl).value, box.left.value, PX)
+        assertEquals("the form beside its column: $box", (HlSpace.safeH + TwoPaneDefaults.sideWide + HlSpace.xxl).value, box.left.value, PX)
         assertEquals("the form to the safe area: $box", (SCREEN_W - HlSpace.safeH).value, box.right.value, PX)
         val button = compose.onNodeWithText(text(action)).getUnclippedBoundsInRoot()
         val reach = HlFocus.reach
@@ -144,5 +149,8 @@ class FormLayoutTest {
 
         /** Bounds are whole test pixels. */
         const val PX = 1f
+
+        /** Words whose box starts at their letters, a group's title set from its baseline. */
+        const val TOP = 2f
     }
 }

@@ -7,7 +7,6 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.rememberTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ScrollState
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -15,44 +14,43 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.paddingFromBaseline
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
-import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.layout.AlignmentLine
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.FirstBaseline
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalView
@@ -65,7 +63,6 @@ import androidx.compose.ui.window.DialogWindowProvider
 import androidx.tv.material3.Icon
 import androidx.tv.material3.Text
 import app.houselights.R
-import app.houselights.core.ImageRef
 import app.houselights.ui.design.Ground
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlAlpha
@@ -82,12 +79,9 @@ import app.houselights.ui.design.LocalAmbient
 import app.houselights.ui.design.LocalGround
 import app.houselights.ui.design.capitalsAtTop
 import app.houselights.ui.design.edge
-import app.houselights.ui.design.groundFill
-import app.houselights.ui.design.groundStep
 import app.houselights.ui.design.scrollEdges
-import app.houselights.ui.design.tintedGlass
+import app.houselights.ui.design.sheetGlass
 import app.houselights.ui.design.tryRequestFocus
-import app.houselights.ui.util.toPx
 
 /** Lets a sheet's content close it with its motion, then act once it has gone. */
 @Stable
@@ -149,9 +143,18 @@ private fun arriving(shown: Boolean, inMs: Int, outMs: Int): FiniteAnimationSpec
 /** Keys go nowhere while a sheet or a menu leaves. */
 internal fun Modifier.stillWhileLeaving(motion: SheetMotion): Modifier = onPreviewKeyEvent { motion.leaving }
 
+/** How many sheets are open: under one, the screen shows no focus ([HlFocusSurface]). */
+internal object OpenSheets {
+    var count by mutableIntStateOf(0)
+}
+
+/** True inside a sheet, whose surfaces keep showing focus while it is open. */
+internal val LocalInSheet = staticCompositionLocalOf { false }
+
 /**
  * The dialog window under every sheet, with our own scrim instead of the platform's grey dim and window
- * animation. [content] reads the motion's progress while drawing.
+ * animation. [content] reads the motion's progress while drawing. While it is open, the screen under it shows no
+ * focus: what opened it does not stay lit under the veil.
  */
 @Composable
 internal fun SheetWindow(
@@ -161,6 +164,10 @@ internal fun SheetWindow(
     content: @Composable BoxScope.(motion: SheetMotion) -> Unit,
 ) {
     val motion = rememberSheetMotion(onDismiss)
+    DisposableEffect(Unit) {
+        OpenSheets.count++
+        onDispose { OpenSheets.count-- }
+    }
     Dialog(onDismissRequest = { motion.sheet.dismiss() }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         val window = (LocalView.current.parent as? DialogWindowProvider)?.window
         SideEffect {
@@ -175,14 +182,14 @@ internal fun SheetWindow(
                 .stillWhileLeaving(motion)
                 .drawBehind { drawRect(room.copy(alpha = scrim * motion.opacity)) },
         ) {
-            content(motion)
+            CompositionLocalProvider(LocalInSheet provides true) { content(motion) }
         }
     }
 }
 
 /**
  * A full-height panel at the right edge for acting on or reading about what the screen shows (DESIGN.md,
- * Sheets), its glass in the film's light: its task's [title], what it is about in [facts] after its printed
+ * Sheets), its glass in the film's dark ([sheetGlass]): its task's [title], what it is about in [facts] after its printed
  * [badges], ended by a [stateText] with its [state]'s dot, beside its [artwork], as tall as they are, and the
  * [places] it shows (an NFO's views) at the end of the title's line; then its plates, [HlSpace.m] apart, in the
  * film's light ([HlPlate]). [wide], a reading sheet holding the reading measure. No Close button nor hint: Back or
@@ -211,7 +218,7 @@ fun HlSideSheet(
     SheetWindow(onDismiss, HlAlpha.VEIL_SIDE, initialFocus) { motion ->
         val c = Hl.colors
         val light = LocalAmbient.current
-        val glass = remember(c, light) { { c.tintedGlass(light.glow()) } }
+        val glass = remember(c, light) { { c.sheetGlass(light) } }
         // Its rows and fields sit on glass.
         CompositionLocalProvider(LocalGround provides Ground.Glass) {
             Column(
@@ -234,13 +241,14 @@ fun HlSideSheet(
                     ),
             ) {
                 SheetHeader(SheetHead(title, facts, badges, stateText, state, description), artwork, places, status)
-                // Its plates fade into the sheet where there are more; the room above and below them keeps a framed
-                // picture's light inside the scroll.
+                // Its plates fade into the sheet where there are more, never rising under its head; the room above and
+                // below them keeps a framed picture's light inside the scroll.
                 Column(
                     Modifier
                         .weight(1f)
+                        .padding(top = HlSpace.fact - HlFocus.room)
                         .then(if (scrolls) Modifier.scrollEdges(scroll, glass).verticalScroll(scroll) else Modifier)
-                        .padding(top = HlSpace.l, bottom = HlFocus.room),
+                        .padding(vertical = HlFocus.room),
                     verticalArrangement = Arrangement.spacedBy(HlSpace.m),
                 ) { content(motion.sheet) }
             }
@@ -338,14 +346,18 @@ private fun SheetHeader(
 private fun HeadWords(head: SheetHead, capitalsAtTop: Boolean) {
     val c = Hl.colors
     Column {
-        // Its capitals level with the artwork's top.
+        // Its capitals level with the artwork's top; alone, its baseline where a pane's sits under the screen's edge.
         Text(
             head.title,
             style = Hl.type.subject,
             color = c.content,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
-            modifier = if (capitalsAtTop) Modifier.capitalsAtTop(Hl.type.subject.fontSize) else Modifier,
+            modifier = if (capitalsAtTop) {
+                Modifier.capitalsAtTop(Hl.type.subject.fontSize)
+            } else {
+                Modifier.paddingFromBaseline(top = HlSpace.xl)
+            },
         )
         val facts = head.badges.isNotEmpty() || head.facts.any { !it.isNullOrBlank() }
         if (facts || head.stateText != null) {
@@ -420,54 +432,5 @@ internal fun BackHint(modifier: Modifier = Modifier) {
         Icon(HlIcons.Back, contentDescription = null, tint = c.contentTertiary, modifier = Modifier.size(HlSize.inlineIcon))
         Spacer(Modifier.width(HlSpace.xs))
         Text(stringResource(R.string.sheet_back_hint), style = Hl.type.caption, color = c.contentTertiary)
-    }
-}
-
-/** The shape of a [RowPreview]: that of the image's use. */
-enum class PreviewShape { Poster, Backdrop, Logo }
-
-/**
- * A small image at the head of a row, in one box whatever it previews ([HlSize.rowPreview], 16:9) on an opaque step
- * of its ground, so it holds on focus's white: a backdrop filling it, a logo fitted in it, a poster framed inside it
- * a step off its top and foot, its corners parallel to the box's. Without an image or on failure, a poster keeps its
- * own empty frame; a backdrop or a logo shows [icon], or the box alone.
- */
-@Composable
-fun RowPreview(image: ImageRef?, shape: PreviewShape, modifier: Modifier = Modifier, icon: ImageVector? = null) {
-    val c = Hl.colors
-    val url = image?.url(HlSize.rowPreview.toPx())
-    // The box's radius less the gap: square at this size.
-    val inner = RectangleShape
-    Box(
-        modifier
-            .width(HlSize.rowPreview)
-            .aspectRatio(HlSize.PREVIEW_RATIO)
-            .clip(HlShapes.thumb)
-            .background(groundFill(groundStep()))
-            .artworkEdge(HlShapes.thumb, c),
-        contentAlignment = Alignment.Center,
-    ) {
-        if (shape == PreviewShape.Poster) {
-            ArtworkImage(
-                url,
-                description = null,
-                modifier = Modifier
-                    .fillMaxHeight()
-                    .padding(vertical = HlSpace.xxs)
-                    .aspectRatio(HlSize.POSTER_RATIO, matchHeightConstraintsFirst = true),
-                picture = Modifier.clip(inner).artworkEdge(inner, c),
-            ) { EmptyFrame(Modifier.fillMaxSize(), inner) }
-        } else {
-            val logo = shape == PreviewShape.Logo
-            ArtworkImage(
-                url,
-                description = null,
-                modifier = Modifier.fillMaxSize(),
-                contentScale = if (logo) ContentScale.Fit else ContentScale.Crop,
-                picture = if (logo) Modifier.padding(HlSpace.xxs) else Modifier,
-            ) {
-                icon?.let { Icon(it, null, Modifier.align(Alignment.Center).size(HlSize.largeIcon), tint = c.contentSecondary) }
-            }
-        }
     }
 }

@@ -2,9 +2,8 @@ package app.houselights.ui.catalog
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyListScope
@@ -22,14 +21,17 @@ import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.components.BackHint
 import app.houselights.ui.design.components.CardSkeleton
-import app.houselights.ui.design.components.DefinitionList
-import app.houselights.ui.design.components.DefinitionRow
+import app.houselights.ui.design.components.DefinitionPlate
+import app.houselights.ui.design.components.FactPlate
 import app.houselights.ui.design.components.HlButton
 import app.houselights.ui.design.components.HlErrorState
+import app.houselights.ui.design.components.HlGroup
+import app.houselights.ui.design.components.HlPlate
+import app.houselights.ui.design.components.HlSettingGroup
 import app.houselights.ui.design.components.HlSettingRow
-import app.houselights.ui.design.components.HlStatus
-import app.houselights.ui.design.components.InfoBlock
 import app.houselights.ui.design.components.Intertitle
+import app.houselights.ui.design.components.PlateDefinition
+import app.houselights.ui.design.components.PlateFact
 import app.houselights.ui.design.components.PosterStrip
 import app.houselights.ui.design.components.PosterThumb
 import app.houselights.ui.design.components.ScanProgress
@@ -56,17 +58,21 @@ internal fun LazyListScope.catalogGestures() {
 @Composable
 private fun SideBySide() {
     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.xl), verticalAlignment = Alignment.Top) {
-        Specimen("back of a case: blocks to read, the dot on what is in service", Modifier.weight(1f)) {
+        Specimen("back of a case: what a pane states, a plate of facts, the dot on what is in service", Modifier.weight(1f)) {
             Column(verticalArrangement = Arrangement.spacedBy(HlSpace.l)) {
-                InfoBlock(stringResource(R.string.current_output)) { CurrentOutput() }
-                InfoBlock(stringResource(R.string.label_modes)) {
-                    SpecTable(
-                        listOf(
-                            SpecTableRow("Ultra HD", listOf(formatDimensions(3840, 2160)), inUse = true),
-                            SpecTableRow("Full HD", listOf(formatDimensions(1920, 1080))),
-                        ),
-                        columns = emptyList(),
-                    )
+                FactPlate {
+                    PlateFact(stringResource(R.string.current_output), "Ultra HD 60${NBSP}Hz", technical = true)
+                }
+                HlGroup(stringResource(R.string.label_modes)) {
+                    HlPlate(Modifier.fillMaxWidth()) {
+                        SpecTable(
+                            listOf(
+                                SpecTableRow("Ultra HD", listOf(formatDimensions(3840, 2160)), inUse = true),
+                                SpecTableRow("Full HD", listOf(formatDimensions(1920, 1080))),
+                            ),
+                            columns = emptyList(),
+                        )
+                    }
                 }
             }
         }
@@ -169,57 +175,64 @@ private fun Jackets() {
     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.xl), verticalAlignment = Alignment.Top) {
         Specimen("Affichage, on a TV that lists Ultra HD: the row that acts comes last", Modifier.width(HlLayout.readableNarrow)) {
             Column(verticalArrangement = Arrangement.spacedBy(HlSpace.l)) {
-                Text(stringResource(R.string.section_display), style = Hl.type.subject, color = Hl.colors.content)
-                InfoBlock(stringResource(R.string.current_output)) { CurrentOutput() }
-                InfoBlock(stringResource(R.string.label_render)) {
-                    Text(formatDimensions(1920, 1080), style = Hl.type.meta, color = Hl.colors.content)
-                }
-                InfoBlock(stringResource(R.string.label_modes)) {
-                    SpecTable(
-                        listOf(
-                            SpecTableRow(
-                                "Ultra HD",
-                                listOf(formatDimensions(3840, 2160), rates("23,976", "24", "50", "59,94", "60")),
-                                inUse = true,
-                            ),
-                            SpecTableRow("Full HD", listOf(formatDimensions(1920, 1080), rates("24", "50", "60"))),
-                            SpecTableRow("HD", listOf(formatDimensions(1280, 720), rates("50", "60"))),
-                        ),
-                        columns = listOf(HlLayout.specFormat),
+                FactPlate {
+                    PlateFact(
+                        stringResource(R.string.current_output),
+                        "Ultra HD 60${NBSP}Hz",
+                        technical = true,
+                        measure = formatDimensions(3840, 2160),
                     )
                 }
-                HlSettingRow(stringResource(R.string.ui_resolution), value = stringResource(R.string.ui_4k), onClick = {})
-            }
-        }
-        Specimen("Affichage on the Zidoo: the player sets its output") {
-            Column(verticalArrangement = Arrangement.spacedBy(HlSpace.l)) {
-                InfoBlock(stringResource(R.string.current_output)) {
-                    Column(verticalArrangement = Arrangement.spacedBy(HlSpace.xs)) {
-                        Text(stringResource(R.string.output_by_player), style = Hl.type.meta, color = Hl.colors.content)
-                        Text(stringResource(R.string.output_by_player_hint), style = Hl.type.caption, color = Hl.colors.contentSecondary)
+                HlGroup(stringResource(R.string.label_modes)) {
+                    HlPlate(Modifier.fillMaxWidth()) {
+                        SpecTable(
+                            listOf(
+                                SpecTableRow(
+                                    "Ultra HD",
+                                    listOf(formatDimensions(3840, 2160), rates("23,976", "24", "50", "59,94", "60")),
+                                    inUse = true,
+                                ),
+                                SpecTableRow("Full HD", listOf(formatDimensions(1920, 1080), rates("24", "50", "60"))),
+                                SpecTableRow("HD", listOf(formatDimensions(1280, 720), rates("50", "60"))),
+                            ),
+                            columns = listOf(HlLayout.specFormat),
+                        )
                     }
                 }
-                InfoBlock(stringResource(R.string.label_render)) {
-                    Text(formatDimensions(1920, 1080), style = Hl.type.meta, color = Hl.colors.content)
+                HlSettingGroup(null) {
+                    HlSettingRow(stringResource(R.string.ui_resolution), value = stringResource(R.string.ui_4k), onClick = {})
                 }
+            }
+        }
+        Specimen("Affichage on the Zidoo: the player sets its output", Modifier.width(HlLayout.readableNarrow)) {
+            FactPlate(note = stringResource(R.string.output_by_player_hint)) {
+                PlateFact(stringResource(R.string.current_output), stringResource(R.string.output_by_player), state = StatusState.Done)
+                PlateFact(
+                    stringResource(R.string.label_render),
+                    "Full HD",
+                    technical = true,
+                    measure = formatDimensions(1920, 1080),
+                )
             }
         }
     }
-    Specimen("À propos: states with their light, then the credits", Modifier.width(HlLayout.readableNarrow)) {
+    Specimen("À propos: states by their dot, then the credits", Modifier.width(HlLayout.readableNarrow)) {
         Column(verticalArrangement = Arrangement.spacedBy(HlSpace.l)) {
-            InfoBlock(stringResource(R.string.about_status)) {
-                Column(verticalArrangement = Arrangement.spacedBy(HlSpace.xs)) {
-                    DefinitionRow(stringResource(R.string.label_player)) { HlStatus(StatusState.Done, stringResource(R.string.detected)) }
-                    DefinitionRow(stringResource(R.string.label_api)) { HlStatus(StatusState.Pending, stringResource(R.string.checking)) }
+            HlGroup(stringResource(R.string.about_status)) {
+                FactPlate {
+                    PlateFact(stringResource(R.string.label_player), stringResource(R.string.detected), state = StatusState.Done)
+                    PlateFact(stringResource(R.string.label_api), stringResource(R.string.checking), state = StatusState.Pending)
                 }
             }
-            InfoBlock(stringResource(R.string.about_credits)) {
-                DefinitionList(
-                    listOf(
-                        stringResource(R.string.credit_data) to "TMDB",
-                        stringResource(R.string.credit_font) to stringResource(R.string.credit_font_value),
-                    ),
-                )
+            HlGroup(stringResource(R.string.about_credits)) {
+                DefinitionPlate {
+                    PlateDefinition(stringResource(R.string.credit_data)) {
+                        Text("TMDB", style = Hl.type.lead, color = Hl.colors.content)
+                    }
+                    PlateDefinition(stringResource(R.string.credit_font)) {
+                        Text(stringResource(R.string.credit_font_value), style = Hl.type.lead, color = Hl.colors.content)
+                    }
+                }
             }
         }
     }
@@ -249,29 +262,6 @@ private fun Frames() {
                 CardSkeleton(HlSize.posterThumb, HlSize.POSTER_RATIO)
             }
         }
-    }
-}
-
-/** "Ultra HD 60 Hz" in the technical voice, its frame size beside it, as Affichage sets it. */
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun CurrentOutput() {
-    // Short of room, the frame size goes under, whole: a number never breaks.
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(HlSpace.fact)) {
-        Text(
-            "Ultra HD 60${NBSP}Hz",
-            style = Hl.type.spec,
-            color = Hl.colors.content,
-            softWrap = false,
-            modifier = Modifier.alignByBaseline(),
-        )
-        Text(
-            formatDimensions(3840, 2160),
-            style = Hl.type.meta,
-            color = Hl.colors.contentSecondary,
-            softWrap = false,
-            modifier = Modifier.alignByBaseline(),
-        )
     }
 }
 

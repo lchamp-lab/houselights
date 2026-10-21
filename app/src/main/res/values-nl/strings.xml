@@ -122,7 +122,6 @@
     <string name="nfo_state_link">Alleen link</string>
     <string name="nfo_state_unreadable">Onleesbaar</string>
     <string name="nfo_state_reading">Openen…</string>
-    <string name="nfo_block_details">Details</string>
     <string name="label_file">Bestand</string>
     <string name="nfo_unreadable">Deze NFO kon niet als XML worden gelezen.</string>
     <string name="nfo_link_only">Deze NFO bevat alleen een link naar een titelpagina; Houselights gebruikt die om de titel te identificeren.</string>
@@ -280,8 +279,8 @@
     </plurals>
     <string name="playback_desc">Hoe de Zidoo-speler de bestanden van uw server bereikt.</string>
     <string name="tmdb_desc">Posters en gegevens komen van TMDB.</string>
-    <string name="change_source_local_desc">Uw mappen blijven bewaard: u kunt er op elk moment naar terugkeren.</string>
-    <string name="change_source_jellyfin_desc">Deze server blijft verbonden tot de nieuwe bron klaar is.</string>
+    <string name="change_source_local_desc">Uw mappen blijven bewaard</string>
+    <string name="change_source_jellyfin_desc">Blijft verbonden tot de wissel</string>
     <string name="change_source">Bron wijzigen</string>
     <string name="reconnect">Opnieuw inloggen</string>
     <string name="source_local_first">Voeg een map van uw NAS toe</string>
@@ -391,11 +390,8 @@
     <string name="billing_and">en</string>
     <string name="edit">Bewerken</string>
     <string name="artwork_poster">Poster</string>
-    <string name="artwork_poster_desc">Rijen en bibliotheek</string>
     <string name="artwork_backdrop">Achtergrond</string>
-    <string name="artwork_backdrop_desc">Deze pagina en Home</string>
     <string name="artwork_logo">Logo</string>
-    <string name="artwork_logo_desc">De getekende titel bovenaan</string>
     <string name="identify">Identificeren</string>
     <string name="identify_menu_desc">Andere TMDB-titel kiezen</string>
     <plurals name="image_count">
@@ -465,7 +461,7 @@
     <!-- Settings rows -->
     <string name="refresh_metadata_desc">Haalt afbeeldingen en gegevens opnieuw op bij TMDB</string>
     <string name="metadata_language">Taal van de gegevens</string>
-    <string name="metadata_language_desc">Titels, samenvattingen en afbeeldingen van TMDB</string>
+    <string name="metadata_language_desc">Titels, inhoud en beelden van TMDB</string>
     <string name="metadata_language_sheet">Titels, samenvattingen en afbeeldingen komen in deze taal van TMDB. Wijzigen werkt elke titel bij.</string>
     <string name="device_language">Taal van het apparaat</string>
     <string name="remove_folder">Deze map verwijderen</string>
@@ -479,20 +475,19 @@
     <string name="tmdb_missing_short">Ontbreekt</string>
     <string name="change_source_row">Bron</string>
     <string name="ui_resolution">Resolutie van de interface</string>
-    <string name="ui_resolution_desc">Tijdens het afspelen kiest de Zidoo-speler zijn eigen modus.</string>
+    <string name="ui_resolution_desc">Bij afspelen kiest de speler zelf</string>
     <string name="interface_language">Taal van de interface</string>
     <string name="interface_language_desc">Menu’s, instellingen en meldingen</string>
     <string name="ui_4k_desc">Een scherpe interface op 4K-tv’s</string>
     <string name="ui_system_desc">De modus die het systeem kiest</string>
     <string name="current_output">Uitvoer</string>
-    <string name="display_by_player">Ingesteld door de speler</string>
     <string name="output_by_player">Ingesteld door de speler</string>
     <string name="output_by_player_hint">Wijzigen: Spelerinstellingen, dan Weergave.</string>
     <string name="storage_used">op dit apparaat</string>
     <string name="storage_cache_limit">cache tot %s</string>
     <string name="storage_full">De laatste scan is gestopt: dit apparaat heeft geen ruimte meer. Opschonen, of de afbeeldingscache wissen, maakt ruimte vrij.</string>
     <string name="cleanup_desc">Verwijdert ongebruikte kopieën van lokale afbeeldingen</string>
-    <string name="clear_cache_desc">Afbeeldingen worden zo nodig opnieuw gedownload</string>
+    <string name="clear_cache_desc">Worden zo nodig opnieuw gedownload</string>
     <string name="about_status">Status</string>
     <string name="detected">Gedetecteerd</string>
     <string name="not_detected">Niet gedetecteerd</string>

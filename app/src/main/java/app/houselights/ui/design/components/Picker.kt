@@ -231,3 +231,6 @@ fun PosterThumb(poster: ImageRef?, modifier: Modifier = Modifier, width: Dp? = H
         picture = Modifier.clip(HlShapes.thumb).background(groundStepFill()).artworkEdge(HlShapes.thumb, Hl.colors),
     ) { EmptyFrame(Modifier.fillMaxSize(), HlShapes.thumb) }
 }
+
+/** The shape of an image at its use: a poster, a backdrop, a logo's box. */
+enum class PreviewShape { Poster, Backdrop, Logo }

@@ -1,5 +1,6 @@
 package app.houselights.ui.catalog
 
+import app.houselights.ui.design.TwoPaneDefaults
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -11,12 +12,12 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -42,10 +43,6 @@ import app.houselights.ui.design.components.HlMenuButton
 import app.houselights.ui.design.components.HlNavItem
 import app.houselights.ui.design.components.HlPanel
 import app.houselights.ui.design.components.HlPanelButton
-import app.houselights.ui.design.components.AttentionNote
-import app.houselights.ui.design.components.ScanProgress
-import app.houselights.ui.design.components.SOURCE_STRIP
-import app.houselights.ui.design.components.SourceCard
 import app.houselights.ui.design.components.HlScrollArea
 import app.houselights.ui.design.components.HlSegmented
 import app.houselights.ui.design.components.HlSettingGroup
@@ -54,8 +51,6 @@ import app.houselights.ui.design.components.HlTextField
 import app.houselights.ui.design.components.MenuOption
 import app.houselights.ui.design.components.MenuSection
 import app.houselights.ui.design.components.PanelLevel
-import app.houselights.ui.design.components.PreviewShape
-import app.houselights.ui.design.components.RowPreview
 import app.houselights.ui.design.components.StatusPanel
 import app.houselights.ui.design.components.StatusState
 
@@ -65,7 +60,6 @@ internal fun LazyListScope.catalogForms() {
     item { Group("Text fields") { FormTextFields() } }
     item { Group("Status panel", still = true) { FormStatusPanels() } }
     item { Group("Panel button") { FormPanelButtons() } }
-    item { Group("Source card: a folder on glass, its posters melting into it") { FormSourceCards() } }
     item { Group("Divider", still = true) { FormDividers() } }
     item { Group("Menus") { FormMenus() } }
     item { Group("Choice sheet") { FormChoiceSheet() } }
@@ -78,7 +72,7 @@ private fun FormSettings() {
     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.xxl), verticalAlignment = Alignment.Top) {
         Specimen(
             "no well: the pane you are in lights its icon, raspberry on focus's white",
-            Modifier.width(HlLayout.sideColumn),
+            Modifier.width(TwoPaneDefaults.side),
             gap = HlSpace.xs,
         ) {
             Column {
@@ -128,23 +122,22 @@ private fun FormSettings() {
         }
     }
     Specimen(
-        "in a sheet, on glass: its group on a plate a step up, every preview in one box",
+        "in a sheet, on glass: its group on a plate a step up",
         Modifier.width(HlLayout.readable),
         gap = HlSpace.xs,
     ) {
         HlPanel(Modifier.fillMaxWidth(), level = PanelLevel.Raised, padding = HlInset.tight) {
             HlSettingGroup(null) {
                 HlSettingRow(
-                    stringResource(R.string.artwork_poster),
-                    description = stringResource(R.string.artwork_poster_desc),
+                    stringResource(R.string.scan_now),
+                    description = stringResource(R.string.scan_now_desc),
                     onClick = {},
-                    leading = { RowPreview(null, PreviewShape.Poster) },
                 )
                 HlSettingRow(
                     stringResource(R.string.identify),
                     description = stringResource(R.string.identify_menu_desc),
+                    icon = HlIcons.Search,
                     onClick = {},
-                    leading = { RowPreview(null, PreviewShape.Backdrop, icon = HlIcons.Search) },
                 )
             }
         }
@@ -238,10 +231,10 @@ private fun FormStatusPanels() {
     val nfs = listOf("NFS", films)
     val address = stringResource(R.string.label_address)
     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Top) {
-        Specimen("off: untested, nothing typed yet", Modifier.width(HlLayout.sideColumnWide), gap = HlSpace.xs) {
+        Specimen("off: untested, nothing typed yet", Modifier.width(TwoPaneDefaults.sideWide), gap = HlSpace.xs) {
             StatusPanel(StatusState.Off, stringResource(R.string.connection_untested), address, "…", badges = nfs)
         }
-        Specimen("pending: testing", Modifier.width(HlLayout.sideColumnWide), gap = HlSpace.xs) {
+        Specimen("pending: testing", Modifier.width(TwoPaneDefaults.sideWide), gap = HlSpace.xs) {
             StatusPanel(
                 StatusState.Pending, stringResource(R.string.connection_testing), address, "192.168.1.10",
                 detail = "/volume1/media/films", badges = nfs,
@@ -249,7 +242,7 @@ private fun FormStatusPanels() {
         }
     }
     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Top) {
-        Specimen("on: its white dot, with what was found", Modifier.width(HlLayout.sideColumnWide), gap = HlSpace.xs) {
+        Specimen("on: its white dot, with what was found", Modifier.width(TwoPaneDefaults.sideWide), gap = HlSpace.xs) {
             StatusPanel(
                 StatusState.On, stringResource(R.string.connection_ok), address, "192.168.1.10",
                 detail = "/volume1/media/films", badges = nfs, result = pluralStringResource(R.plurals.entries_found, 128, 128),
@@ -257,7 +250,7 @@ private fun FormStatusPanels() {
         }
         Specimen(
             "attention: failed, its mark and the result as an attention note",
-            Modifier.width(HlLayout.sideColumnWide),
+            Modifier.width(TwoPaneDefaults.sideWide),
             gap = HlSpace.xs,
         ) {
             StatusPanel(
@@ -269,7 +262,7 @@ private fun FormStatusPanels() {
         }
     }
     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Top) {
-        Specimen("done: a fact, white; a long value stops at three lines", Modifier.width(HlLayout.sideColumnWide), gap = HlSpace.xs) {
+        Specimen("done: a fact, white; a long value stops at three lines", Modifier.width(TwoPaneDefaults.sideWide), gap = HlSpace.xs) {
             StatusPanel(
                 StatusState.Done, stringResource(R.string.identify_state_matched), stringResource(R.string.identify_file),
                 "Le.Samourai.1967.REMASTERED.2160p.UHD.BluRay.HDR10.DTS-HD.MA.5.1.x265-HOUSELIGHTS.mkv",
@@ -282,12 +275,12 @@ private fun FormStatusPanels() {
                 },
             )
         }
-        Specimen("pending: reading, no value yet", Modifier.width(HlLayout.sideColumnWide), gap = HlSpace.xs) {
+        Specimen("pending: reading, no value yet", Modifier.width(TwoPaneDefaults.sideWide), gap = HlSpace.xs) {
             StatusPanel(StatusState.Pending, "Lecture…", stringResource(R.string.identify_file), "…", valueStyle = Hl.type.entry)
         }
     }
     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.m), verticalAlignment = Alignment.Top) {
-        Specimen("done: a server found on the network, by its name", Modifier.width(HlLayout.sideColumnWide), gap = HlSpace.xs) {
+        Specimen("done: a server found on the network, by its name", Modifier.width(TwoPaneDefaults.sideWide), gap = HlSpace.xs) {
             StatusPanel(
                 StatusState.Done, stringResource(R.string.server_found), stringResource(R.string.field_server), "http://192.168.1.20:8096",
                 name = "Jellyfin du salon",
@@ -326,38 +319,9 @@ private fun FormChoice(name: String, line: String, enabled: Boolean = true) {
 }
 
 @Composable
-private fun FormSourceCards() {
-    val art = shippedImage(R.drawable.banner)
-    val posters = List(SOURCE_STRIP) { art }
-    val address = "192.168.1.20/volume1/media/films"
-    val counts = listOf(pluralStringResource(R.plurals.title_count, 11, 11), pluralStringResource(R.plurals.uhd_count, 8, 8))
-    Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.l), verticalAlignment = Alignment.Top) {
-        Specimen("rest; focus fills it white, the posters melting into it", Modifier.width(HlLayout.readableNarrow), gap = HlSpace.xs) {
-            SourceCard("Films", "NFS", address, posters, {}, facts = counts, scanned = "Analysé à l’instant")
-        }
-        Specimen("scanning: the counter in the facts' place", Modifier.width(HlLayout.readableNarrow), gap = HlSpace.xs) {
-            SourceCard("Films", "NFS", address, posters, {}, state = { focused ->
-                ScanProgress(3, 9, current = "Bugonia (2025).mkv", focused = focused)
-            })
-        }
-    }
-    Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.l), verticalAlignment = Alignment.Top) {
-        Specimen("a failure, said in place", Modifier.width(HlLayout.readableNarrow), gap = HlSpace.xs) {
-            SourceCard("Séries", "SMB", "nas-salon.local/media/series", posters.take(1), {}, state = { focused ->
-                AttentionNote(stringResource(R.string.error_offline_title), focused = focused)
-            })
-        }
-        Specimen("no poster yet: its name like a one-sheet", Modifier.width(HlLayout.readableNarrow), gap = HlSpace.xs) {
-            val never = stringResource(R.string.never_scanned)
-            SourceCard("Concerts", "SMB", "nas-salon.local/media/concerts", emptyList(), {}, facts = listOf(never))
-        }
-    }
-}
-
-@Composable
 private fun FormDividers() {
     Row(horizontalArrangement = Arrangement.spacedBy(HlSpace.xl), verticalAlignment = Alignment.Top) {
-        Specimen("horizontal", Modifier.width(HlLayout.sideColumnWide), gap = HlSpace.xs) {
+        Specimen("horizontal", Modifier.width(TwoPaneDefaults.sideWide), gap = HlSpace.xs) {
             Column {
                 Text(stringResource(R.string.scan_now), style = Hl.type.entry, color = Hl.colors.content)
                 Spacer(Modifier.height(HlSpace.s))

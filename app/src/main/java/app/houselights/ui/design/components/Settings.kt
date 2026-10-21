@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.paddingFromBaseline
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
@@ -90,10 +91,7 @@ fun HlNavItem(
 @Composable
 fun HlSettingGroup(title: String?, modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
     Column(modifier.fillMaxWidth()) {
-        if (title != null) {
-            Text(title, style = Hl.type.group, color = Hl.colors.contentSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Spacer(Modifier.height(HlSpace.xs))
-        }
+        if (title != null) GroupTitle(title)
         HlPlate(Modifier.fillMaxWidth(), padding = PaddingValues(HlInset.group), content = content)
     }
 }
@@ -102,8 +100,8 @@ fun HlSettingGroup(title: String?, modifier: Modifier = Modifier, content: @Comp
  * One setting, [HlSize.row] tall: its name in `lead` and its [description] in secondary `meta` on one line, its
  * value on the right, in `meta` or, for a format or a figure, `jaquette` ([valueStyle]); with [onClick] a control,
  * white with focus, else a value it only states. [valueLit] (a user choice) and [valueAttention] set the value in
- * ember; [trailing] replaces the value, [leading] the icon ([RowPreview]). Disabled, it sits in a well, in a pane's
- * plate only: sheets omit unavailable actions.
+ * ember; [trailing] replaces the value. Disabled, it sits in a well, in a pane's plate only: sheets omit
+ * unavailable actions.
  */
 @Composable
 fun HlSettingRow(
@@ -117,7 +115,6 @@ fun HlSettingRow(
     valueStyle: TextStyle = Hl.type.meta,
     onClick: (() -> Unit)? = null,
     trailing: (@Composable RowScope.() -> Unit)? = null,
-    leading: (@Composable () -> Unit)? = null,
     enabled: Boolean = true,
 ) {
     val c = Hl.colors
@@ -128,7 +125,12 @@ fun HlSettingRow(
             Modifier.fillMaxWidth().heightIn(min = least).padding(horizontal = HlSpace.m, vertical = HlSettingRowDefaults.paddingV),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            SettingLead(leading, icon, focused, enabled)
+            if (icon != null) {
+                // Quiet at rest.
+                val tint = if (focused || !enabled) LocalContentColor.current else c.contentSecondary
+                Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(HlSize.icon))
+                Spacer(Modifier.width(HlSpace.m))
+            }
             Column(Modifier.weight(1f)) {
                 Text(title, style = Hl.type.lead, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 if (description != null) {
@@ -166,19 +168,6 @@ fun HlSettingRow(
     ) { focused ->
         // A disabled row keeps its rest colours under focus.
         Content(focused && enabled)
-    }
-}
-
-/** A setting's [leading] picture or its [icon], before its name; the icon quiet at rest. */
-@Composable
-private fun SettingLead(leading: (@Composable () -> Unit)?, icon: ImageVector?, focused: Boolean, enabled: Boolean) {
-    if (leading != null) {
-        leading()
-        Spacer(Modifier.width(HlSpace.m))
-    } else if (icon != null) {
-        val tint = if (focused || !enabled) LocalContentColor.current else Hl.colors.contentSecondary
-        Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(HlSize.icon))
-        Spacer(Modifier.width(HlSpace.m))
     }
 }
 
@@ -240,4 +229,20 @@ internal fun ChoiceCheck() {
     val c = Hl.colors
     val tint = if (LocalContentColor.current == c.onFocus) c.emberOnLight else c.ember
     Icon(HlIcons.Check, contentDescription = null, tint = tint, modifier = Modifier.size(HlSize.icon))
+}
+
+/**
+ * A group's [title] in `group`, set from its baseline: [HlSpace.m] under what is above it (a block [HlSpace.l] away),
+ * its plate [HlSpace.s] under it.
+ */
+@Composable
+internal fun GroupTitle(title: String) {
+    Text(
+        title,
+        style = Hl.type.group,
+        color = Hl.colors.contentSecondary,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+        modifier = Modifier.paddingFromBaseline(top = HlSpace.m, bottom = HlSpace.s),
+    )
 }

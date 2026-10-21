@@ -1,8 +1,6 @@
 package app.houselights.ui.settings
 
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -23,7 +21,6 @@ import app.houselights.player.PathResolver
 import app.houselights.player.Redact
 import app.houselights.settings.AppSettings
 import app.houselights.ui.design.Hl
-import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.components.AttentionNote
 import app.houselights.ui.design.components.ChoiceCheck
 import app.houselights.ui.design.components.HlSettingGroup
@@ -109,12 +106,12 @@ private fun MappingSheet(index: Int?, onDismiss: () -> Unit) {
         description = stringResource(R.string.path_mapping_help),
         initialFocus = first,
     ) { sheet ->
+        // Its parts the sheet's own gap apart.
         HlTextField(
             stringResource(R.string.server_path), from, { from = it },
             Modifier.fillMaxWidth().focusRequester(first),
             placeholder = stringResource(R.string.placeholder_server_path),
         )
-        Spacer(Modifier.height(HlSpace.m))
         HlTextField(
             stringResource(R.string.network_path), to, { to = it },
             Modifier.fillMaxWidth(),
@@ -122,15 +119,16 @@ private fun MappingSheet(index: Int?, onDismiss: () -> Unit) {
             onImeAction = { sheet.dismiss() },
         )
         samplePath?.let { path ->
-            Spacer(Modifier.height(HlSpace.m))
             val resolved = PathResolver.resolve(path, listOf(PathMapping(from, to)).filter { it.from.isNotBlank() && it.to.isNotBlank() })
             val result = stringResource(R.string.mapping_result, resolved?.let(Redact::uri) ?: stringResource(R.string.mapping_none))
-            Text(stringResource(R.string.sample_path, path), style = Hl.type.meta, color = Hl.colors.contentSecondary)
-            Spacer(Modifier.height(HlSpace.xs))
-            Text(result, style = Hl.type.meta, color = Hl.colors.contentSecondary)
+            // The example and what it becomes, one line under the other.
+            Text(
+                stringResource(R.string.sample_path, path) + "\n" + result,
+                style = Hl.type.meta,
+                color = Hl.colors.contentSecondary,
+            )
         }
         if (index != null) {
-            Spacer(Modifier.height(HlSpace.l))
             HlSettingGroup(null) {
                 HlSettingRow(
                     stringResource(R.string.remove),

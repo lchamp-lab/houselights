@@ -132,7 +132,6 @@
     <string name="nfo_state_link">Link only</string>
     <string name="nfo_state_unreadable">Unreadable</string>
     <string name="nfo_state_reading">Opening…</string>
-    <string name="nfo_block_details">Details</string>
     <string name="label_file">File</string>
     <string name="nfo_unreadable">This NFO could not be read as XML.</string>
     <string name="nfo_link_only">This NFO only links to a title page; Houselights uses it to identify the title.</string>
@@ -291,8 +290,8 @@
     </plurals>
     <string name="playback_desc">How the Zidoo player reaches the files of your server.</string>
     <string name="tmdb_desc">Posters and details come from TMDB.</string>
-    <string name="change_source_local_desc">Your folders are kept: you can come back to them at any time.</string>
-    <string name="change_source_jellyfin_desc">This server stays connected until the new source is ready.</string>
+    <string name="change_source_local_desc">Your folders are kept</string>
+    <string name="change_source_jellyfin_desc">Stays connected until the change</string>
     <string name="change_source">Change source</string>
     <string name="reconnect">Sign in again</string>
     <string name="source_local_first">Add a folder from your NAS</string>
@@ -402,11 +401,8 @@
     <string name="billing_and">and</string>
     <string name="edit">Edit</string>
     <string name="artwork_poster">Poster</string>
-    <string name="artwork_poster_desc">Rows and library</string>
     <string name="artwork_backdrop">Backdrop</string>
-    <string name="artwork_backdrop_desc">This page and Home</string>
     <string name="artwork_logo">Logo</string>
-    <string name="artwork_logo_desc">The title drawn at the top</string>
     <string name="identify">Identify</string>
     <string name="identify_menu_desc">Match with another TMDB title</string>
     <plurals name="image_count">
@@ -491,13 +487,12 @@
     <string name="tmdb_missing_short">Missing</string>
     <string name="change_source_row">Source</string>
     <string name="ui_resolution">Interface resolution</string>
-    <string name="ui_resolution_desc">During playback, the Zidoo player picks its own mode.</string>
+    <string name="ui_resolution_desc">In playback, the player’s own mode</string>
     <string name="interface_language">Interface language</string>
     <string name="interface_language_desc">Menus, settings and messages</string>
     <string name="ui_4k_desc">A sharp interface on 4K TVs</string>
     <string name="ui_system_desc">The mode chosen by the system</string>
     <string name="current_output">Output</string>
-    <string name="display_by_player">Set by the player</string>
     <string name="output_by_player">Set by the player</string>
     <string name="output_by_player_hint">To change it: Player settings, then Display.</string>
     <string name="storage_used">on this device</string>

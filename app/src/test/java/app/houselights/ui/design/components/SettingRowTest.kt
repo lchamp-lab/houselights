@@ -22,7 +22,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 
-/** DESIGN.md, Secondary screens: a place is 56 tall, a row 60 in a pane's group as in a sheet, a preview included. */
+/** DESIGN.md, Secondary screens: a place is 56 tall, a row 60 in a pane's group as in a sheet, an icon included. */
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = TV)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
@@ -40,27 +40,15 @@ class SettingRowTest {
             HlSideSheet("Modifier", onDismiss = {}) {
                 HlSettingGroup(null) {
                     HlSettingRow("Un nom", description = "Une ligne", onClick = {})
-                    HlSettingRow(
-                        "Une affiche",
-                        description = "Une ligne",
-                        onClick = {},
-                        leading = { RowPreview(null, PreviewShape.Poster) },
-                    )
-                    HlSettingRow(
-                        "Un logo",
-                        description = "Une ligne",
-                        onClick = {},
-                        leading = { RowPreview(null, PreviewShape.Logo, icon = HlIcons.Logo) },
-                    )
+                    HlSettingRow("Identifier", description = "Une ligne", icon = HlIcons.Search, onClick = {})
                 }
             }
         }
         compose.onNodeWithText("Bibliothèque").assertHeightIsEqualTo(HlSize.navRow).assertIsSelected()
         compose.onNodeWithText("Dans un volet").assertHeightIsEqualTo(HlSize.row)
         compose.onNodeWithText("Un nom").assertHeightIsEqualTo(HlSize.row)
-        // A preview keeps the row's height, whatever it previews.
-        compose.onNodeWithText("Une affiche").assertHeightIsEqualTo(HlSize.row)
-        compose.onNodeWithText("Un logo").assertHeightIsEqualTo(HlSize.row)
+        // An icon keeps the row's height.
+        compose.onNodeWithText("Identifier").assertHeightIsEqualTo(HlSize.row)
     }
 
     @Test

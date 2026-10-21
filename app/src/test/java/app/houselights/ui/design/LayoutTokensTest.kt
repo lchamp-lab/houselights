@@ -9,6 +9,9 @@ import java.io.File
 class LayoutTokensTest {
     private val sources = File("src/main/java/app/houselights")
     private val design = File(sources, "ui/design")
+
+    /** The catalogue shows tokens; it is not a screen. */
+    private val catalog = File(sources, "ui/catalog")
     private val dimens = File(design, "Dimens.kt")
 
     /** Read only by the theme, by nature: the canvas every screen is laid out on. */
@@ -21,7 +24,9 @@ class LayoutTokensTest {
         val layout = text.substring(text.indexOf("object HlLayout"), text.indexOf("\n}\n", text.indexOf("object HlLayout")))
         val members = Regex("""^\s{4}(?:const )?(?:val|fun) (\w+)""", RegexOption.MULTILINE).findAll(layout)
             .map { it.groupValues[1] }.filter { it !in grid }.toList()
-        val screens = kotlinSources(sources).filter { !it.path.startsWith(design.path) }.joinToString("\n") { it.readText() }
+        val screens = kotlinSources(sources)
+            .filter { !it.path.startsWith(design.path) && !it.path.startsWith(catalog.path) }
+            .joinToString("\n") { it.readText() }
         val unread = members.filter { !Regex("""HlLayout\.$it\b""").containsMatchIn(screens) }
         assertTrue("Measures no screen reads, to move into a component's Defaults: $unread", unread.isEmpty())
     }
