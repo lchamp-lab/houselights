@@ -8,6 +8,7 @@ import androidx.compose.ui.text.style.LineBreak
 import androidx.compose.ui.text.style.LineHeightStyle
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -25,7 +26,7 @@ class TypeScaleTest {
 
     /** Signatures set to their own measure: their size, weight and tracking are their own. */
     private val signatures: Map<String, TextStyle> = with(HouselightsType) {
-        mapOf("titleSignature" to titleSignature, "billing" to billing, "billingJoin" to billingJoin)
+        mapOf("titleSignature" to titleSignature, "billing" to billing, "billingJoin" to billingJoin, "codeSignature" to codeSignature)
     }
 
     private val styles = roles + signatures
@@ -103,12 +104,12 @@ class TypeScaleTest {
 
     @Test
     fun secondaryScreensReadFromTheCouch() {
-        // Running text at 20 on 32, Regular; a group's title at 16; a row's name in lead.
+        // Running text at 20 on 32, Regular; a group's title is entry under another name; a row's name in lead.
         with(HouselightsType) {
             assertEquals(20f to 32f, read.fontSize.value to read.lineHeight.value)
             assertEquals(FontWeight.Normal, read.fontWeight)
             assertEquals(HlFonts.text, read.fontFamily)
-            assertEquals(16f, group.fontSize.value)
+            assertSame(entry, group)
             assertEquals(20f, lead.fontSize.value)
         }
     }

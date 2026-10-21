@@ -41,7 +41,7 @@ class TextRoomTest {
         compose.waitForIdle()
         val default = rooms.getValue(1f)
         val large = rooms.getValue(LARGEST)
-        // At the default text size, the rooms the layout was drawn for (the label's rounded up to the 4 dp grid).
+        // At the default text size, the rooms the layout was drawn for.
         assertEquals(452f, default.heroMin.value, 0.01f)
         assertEquals(28f, default.infoLine.value, 0.01f)
         assertEquals(36f, default.labelRoom.value, 0.01f)
@@ -52,7 +52,7 @@ class TextRoomTest {
         assertTrue(header > 0f)
         assertEquals("the hero makes room for its header", default.heroMin.value - header, large.heroMin.value, 0.01f)
         assertEquals("a poster wall's title line", default.infoLine.value + growth(default.infoLine.value), large.infoLine.value, 0.01f)
-        val label = growth(HouselightsType.caption.lineHeight.value)
+        val label = growth(HouselightsType.meta.lineHeight.value)
         assertEquals("a button's label", default.labelRoom.value + label, large.labelRoom.value, 0.01f)
         assertEquals("a tile's hint", default.hintRoom.value + label, large.hintRoom.value, 0.01f)
     }

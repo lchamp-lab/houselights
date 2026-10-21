@@ -328,18 +328,9 @@ fun HlEmptyState(
  */
 enum class StatusState { On, Done, Off, Pending, Attention }
 
-/**
- * A state in words with its light ([StatusLight]); [detail] explains why, below and aligned with the words, in
- * [detailStyle] (`meta` in a pane or a sheet).
- */
+/** A state in words with its light ([StatusLight]); [detail] explains why, below and aligned with the words. */
 @Composable
-fun HlStatus(
-    state: StatusState,
-    text: String,
-    modifier: Modifier = Modifier,
-    detail: String? = null,
-    detailStyle: TextStyle = Hl.type.caption,
-) {
+fun HlStatus(state: StatusState, text: String, modifier: Modifier = Modifier, detail: String? = null) {
     val c = Hl.colors
     Column(modifier) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -352,7 +343,7 @@ fun HlStatus(
             Spacer(Modifier.height(HlSpace.xxs))
             Text(
                 detail,
-                style = detailStyle,
+                style = Hl.type.meta,
                 color = c.contentSecondary,
                 modifier = Modifier.padding(start = HlSize.statusLight + HlSpace.xs),
             )

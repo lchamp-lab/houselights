@@ -776,7 +776,7 @@ private fun Episodes(
             } else {
                 Text(
                     shown?.overview ?: "",
-                    style = Hl.type.caption,
+                    style = Hl.type.body,
                     color = Hl.colors.contentSecondary,
                     maxLines = 3,
                     overflow = TextOverflow.Ellipsis,

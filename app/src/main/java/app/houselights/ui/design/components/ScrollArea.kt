@@ -11,8 +11,8 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -35,7 +35,7 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.unit.TextUnit
+import androidx.tv.material3.Text
 import app.houselights.ui.design.Ground
 import app.houselights.ui.design.Hl
 import app.houselights.ui.design.HlInset
@@ -44,6 +44,7 @@ import app.houselights.ui.design.HlSize
 import app.houselights.ui.design.HlSpace
 import app.houselights.ui.design.LocalAmbient
 import app.houselights.ui.design.LocalGround
+import app.houselights.ui.design.TextLines
 import app.houselights.ui.design.edge
 import app.houselights.ui.design.glassPlate
 import app.houselights.ui.design.groundFill
@@ -82,21 +83,18 @@ fun HlScrollArea(modifier: Modifier = Modifier, alwaysFocusable: Boolean = false
 }
 
 /**
- * A lazy [HlScrollArea] for content too long to lay out whole (an NFO's XML, up to a megabyte); lines not
- * laid out yet count [lineHeight] each.
+ * A lazy [HlScrollArea] of raw text's [lines] in `code`, too long to lay out whole (an NFO's XML, up to a megabyte):
+ * only the lines shown are laid out, each where the whole text would set it; the others count a line each.
  */
 @Composable
-fun HlScrollArea(
-    lineHeight: TextUnit,
-    modifier: Modifier = Modifier,
-    alwaysFocusable: Boolean = false,
-    content: LazyListScope.() -> Unit,
-) {
+fun HlScrollArea(lines: List<String>, modifier: Modifier = Modifier, alwaysFocusable: Boolean = false) {
+    val code = Hl.type.code
+    val styles = remember(code) { TextLines(code) }
     val list = rememberLazyListState()
     val scope = rememberCoroutineScope()
     val density = LocalDensity.current
     val step = with(density) { HlSize.scrollStep.toPx() }
-    val line by rememberUpdatedState(with(density) { lineHeight.toPx() })
+    val line by rememberUpdatedState(with(density) { code.lineHeight.toPx() })
     val keys = remember(list, scope) { LazyKeyScroll(list, scope) { line } }
     var focused by remember { mutableStateOf(false) }
     LazyColumn(
@@ -110,8 +108,9 @@ fun HlScrollArea(
             .scrollEdges(list, readingFill()),
         state = list,
         contentPadding = readingPadding(),
-        content = content,
-    )
+    ) {
+        itemsIndexed(lines) { i, text -> Text(text, style = styles.of(i, lines.size), color = Hl.colors.contentSecondary) }
+    }
 }
 
 /** A reading area's surface: a step of the room, or on glass a group's plate; its hairline the focus ring while focused. */

@@ -49,7 +49,7 @@ class TileLabelTest {
                     CompositionLocalProvider(LocalDensity provides Density(1f, scale)) {
                         HouselightsTheme {
                             val measurer = rememberTextMeasurer()
-                            val style = Hl.type.caption
+                            val style = Hl.type.meta
                             val screen = screenWidthPx()
                             // The plate's padding takes its share of the label's width.
                             val room = with(LocalDensity.current) { tileLabelWidth(screen) - 2 * HlControl.labelPaddingH.roundToPx() }

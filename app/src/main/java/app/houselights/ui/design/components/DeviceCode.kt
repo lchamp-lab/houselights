@@ -7,11 +7,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.paddingFromBaseline
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.unit.Constraints
-import androidx.compose.ui.unit.em
 import androidx.tv.material3.Text
 import app.houselights.ui.design.DeviceCodeDefaults
 import app.houselights.ui.design.Hl
@@ -20,7 +18,7 @@ import kotlin.math.max
 
 /**
  * A code to type elsewhere (Trakt's), on a plate: [instructions] in secondary `meta`, the [code] in groups of four in
- * `display`, projector white, never lit, then the time it has [left]; the [qr] code of [address] at the plate's end.
+ * `codeSignature`, projector white, never lit, then the time it has [left]; the [qr] code of [address] at the plate's end.
  * The code keeps its own width: where it does not fit beside the QR code, it goes under both. Before the code comes,
  * [asking] says it is on its way. It holds focus without showing it, so Back cancels.
  */
@@ -35,8 +33,6 @@ fun DeviceCodePlate(
     asking: String? = null,
 ) {
     val c = Hl.colors
-    val shown = Hl.type.display
-    val spaced = remember(shown) { shown.copy(letterSpacing = CODE_TRACKING) }
     HlPlate(modifier.fillMaxWidth().focusable(), padding = PaddingValues(DeviceCodeDefaults.inset)) {
         Layout(
             contents = listOf(
@@ -45,7 +41,7 @@ fun DeviceCodePlate(
                     if (code != null) {
                         Text(
                             code.chunked(CODE_GROUP).joinToString(" "),
-                            style = spaced,
+                            style = Hl.type.codeSignature,
                             color = c.content,
                             maxLines = 1,
                             softWrap = false,
@@ -92,8 +88,7 @@ fun DeviceCodePlate(
     }
 }
 
-/** A code's letters set apart, read from across the room; its groups' length. */
-private val CODE_TRACKING = 0.06.em
+/** Letters in each of a code's groups. */
 private const val CODE_GROUP = 4
 
 /** The QR code's place among the plate's parts. */

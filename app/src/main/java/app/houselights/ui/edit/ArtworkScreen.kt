@@ -123,9 +123,9 @@ private fun Header(kind: ArtworkKind, item: MediaItem?, choices: ArtworkChoices?
         Spacer(Modifier.height(HlSpace.xs))
         val reading = Modifier.widthIn(max = HlLayout.readable)
         if (choices != null && !choices.onlineAvailable) {
-            AttentionNote(stringResource(onlineNote(onlineError)), reading, style = Hl.type.caption)
+            AttentionNote(stringResource(onlineNote(onlineError)), reading)
         } else {
-            Text(stringResource(R.string.artwork_hint), style = Hl.type.caption, color = Hl.colors.contentSecondary, modifier = reading)
+            Text(stringResource(R.string.artwork_hint), style = Hl.type.meta, color = Hl.colors.contentSecondary, modifier = reading)
         }
     }
 }

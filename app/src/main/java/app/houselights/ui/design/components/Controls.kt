@@ -426,9 +426,9 @@ fun HlIconButton(
                     .labelPlate(c, light)
                     .padding(horizontal = HlControl.labelPaddingH, vertical = HlControl.labelPaddingV),
             ) {
-                Text(label, style = Hl.type.caption, color = c.content, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(label, style = Hl.type.meta, color = c.content, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 if (hint != null) {
-                    Text(hint, style = Hl.type.caption, color = c.contentTertiary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(hint, style = Hl.type.meta, color = c.contentTertiary, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
             }
         },
@@ -508,7 +508,7 @@ fun HlListItem(
             }
             if (description != null) {
                 Spacer(Modifier.height(HlSpace.xs))
-                Text(description, style = Hl.type.caption, color = c.contentSecondary, minLines = descriptionLines)
+                Text(description, style = Hl.type.meta, color = c.contentSecondary, minLines = descriptionLines)
             }
             if (badges.isNotEmpty()) {
                 Spacer(Modifier.height(HlSpace.m))

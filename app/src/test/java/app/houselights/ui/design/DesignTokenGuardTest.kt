@@ -7,18 +7,25 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
 
-/** Fails on a screen that hard-codes a colour, size or font instead of `ui/design`'s tokens and components. */
+/**
+ * Fails on a screen that hard-codes a colour, size or font instead of `ui/design`'s tokens and components, and on a
+ * component that sets type of its own instead of `Type.kt`'s styles.
+ */
 class DesignTokenGuardTest {
     private val sources = File("src/main/java")
     private val ui = sources.resolve("app/houselights/ui")
 
-    /** What a screen may not write itself, and what to use instead. */
-    private val rules = listOf(
-        Regex("""(?<![\w.])(?!0\.dp\b)\d+(\.\d+)?\.dp\b|\bDp\(\s*\d""") to "a size: use HlSpace, HlSize or HlLayout",
+    /** What neither a screen nor a component may write itself: type is made in `Type.kt` only. */
+    private val typeRules = listOf(
         Regex("""(?<![\w.])\d+(\.\d+)?\.(sp|em)\b""") to "a text size or tracking: use an Hl.type style",
-        Regex("""\b(fontSize|lineHeight|fontFamily|fontWeight|letterSpacing)\s*=|\bTextStyle\(""") to
+        Regex("""\b(fontSize|lineHeight|lineHeightStyle|fontFamily|fontWeight|letterSpacing)\s*=|\bTextStyle\(""") to
             "a text style of its own: use or add an Hl.type style",
         Regex("""FontFamily\.""") to "a font: use HlFonts through Hl.type",
+    )
+
+    /** What a screen may not write itself, and what to use instead. */
+    private val rules = typeRules + listOf(
+        Regex("""(?<![\w.])(?!0\.dp\b)\d+(\.\d+)?\.dp\b|\bDp\(\s*\d""") to "a size: use HlSpace, HlSize or HlLayout",
         Regex("""(?<!\w)Color\(\s*(0x|red\s*=|[\d.])""") to "a colour: use Hl.colors",
         Regex("""Color\.(Black|White|Gray|DarkGray|LightGray|Red|Green|Blue|Yellow|Cyan|Magenta)\b""") to
             "a named colour: use Hl.colors.background or content",
@@ -56,27 +63,67 @@ class DesignTokenGuardTest {
         "catalog/CatalogContrast.kt:val white = Color.White",
     )
 
+    /** A component's deliberate exceptions to [typeRules], as [allowed]'s are. */
+    private val allowedInComponents = listOf(
+        // An empty field is one line of its glyphs tall, without the line height the style adds.
+        "design/components/TextField.kt:textStyle.copy(lineHeight = TextUnit.Unspecified)",
+    )
+
     @Test
     fun screensUseTheDesignSystem() {
         val design = ui.resolve("design")
-        val violations = kotlinSources(ui).filter { !it.startsWith(design) }
-            .flatMap { file ->
-                val path = file.relativeTo(ui).path
-                file.readLines().mapIndexedNotNull { i, line ->
-                    val code = line.trimStart()
-                    if (code.startsWith("import ") || code.startsWith("//") || code.startsWith("*")) return@mapIndexedNotNull null
-                    val rule = rules.firstOrNull { (pattern, _) -> pattern.containsMatchIn(line) } ?: return@mapIndexedNotNull null
-                    if (allowed.any { it.allows(path, line) }) return@mapIndexedNotNull null
-                    "$path:${i + 1}: ${rule.second}\n    ${line.trim()}"
-                }
-            }
+        val violations = breaches(kotlinSources(ui).filter { !it.startsWith(design) }, rules, allowed)
         assertTrue("Screens go around the design system:\n" + violations.joinToString("\n"), violations.isEmpty())
-        val stale = allowed.filter { exception ->
-            val path = exception.substringBefore(':')
-            val file = ui.resolve(path)
-            !file.isFile || file.readLines().none { line -> exception.allows(path, line) && rules.any { it.first.containsMatchIn(line) } }
-        }
+        val stale = stale(allowed, rules)
         assertTrue("Exceptions for lines that no longer break a rule: ${stale.joinToString()}", stale.isEmpty())
+    }
+
+    @Test
+    fun componentsTakeTheirTypeFromTheScale() {
+        val violations = breaches(kotlinSources(ui.resolve("design/components")), typeRules, allowedInComponents)
+        assertTrue("Components set type of their own:\n" + violations.joinToString("\n"), violations.isEmpty())
+        val stale = stale(allowedInComponents, typeRules)
+        assertTrue("Exceptions for lines that no longer break a rule: ${stale.joinToString()}", stale.isEmpty())
+    }
+
+    /** The lines of [files] that break one of [rules], unless [exceptions] allow them; comments and imports aside. */
+    private fun breaches(files: List<File>, rules: List<Pair<Regex, String>>, exceptions: List<String>) = files.flatMap { file ->
+        val path = file.relativeTo(ui).path
+        file.readLines().mapIndexedNotNull { i, line ->
+            val code = line.trimStart()
+            if (code.startsWith("import ") || code.startsWith("//") || code.startsWith("*")) return@mapIndexedNotNull null
+            val rule = rules.firstOrNull { (pattern, _) -> pattern.containsMatchIn(line) } ?: return@mapIndexedNotNull null
+            if (exceptions.any { it.allows(path, line) }) return@mapIndexedNotNull null
+            "$path:${i + 1}: ${rule.second}\n    ${line.trim()}"
+        }
+    }
+
+    /** The [exceptions] whose line no longer breaks one of [rules]. */
+    private fun stale(exceptions: List<String>, rules: List<Pair<Regex, String>>) = exceptions.filter { exception ->
+        val path = exception.substringBefore(':')
+        val file = ui.resolve(path)
+        !file.isFile || file.readLines().none { line -> exception.allows(path, line) && rules.any { it.first.containsMatchIn(line) } }
+    }
+
+    /** Where 14 sp is read outside the catalogue, each time beside a larger line it completes (DESIGN.md, Type). */
+    private val captions = mapOf(
+        "design/components/Cards.kt" to "a card's facts under its name, a role under a name, a row's count beside its title",
+        "design/components/Hero.kt" to "time left beside the hero's progress, under its title",
+        "design/components/Meta.kt" to "a case back's names beside its formats",
+        "design/components/Picker.kt" to "an artwork choice's facts under its name",
+        "design/components/ScanProgress.kt" to "the file under a counter's label",
+        "home/HomeScreen.kt" to "TMDB's note in home's hero band, whose room is counted",
+    )
+
+    /** What is read keeps to 16 sp: `caption` only where [captions] says. */
+    @Test
+    fun whatIsReadKeepsToTheFloor() {
+        val caption = Regex("""\btype\.caption\b""")
+        val catalogue = ui.resolve("catalog")
+        val set = kotlinSources(ui).filter { !it.startsWith(catalogue) }
+            .filter { file -> file.readLines().any { caption.containsMatchIn(it) } }
+            .map { it.relativeTo(ui).path }.toSortedSet()
+        assertEquals("Files setting text in caption", captions.keys.toSortedSet(), set)
     }
 
     /** The screens titled as a place, in ember (`ScreenTitle`); a task or a form is titled in white (`TaskTitle`). */
@@ -158,7 +205,10 @@ class DesignTokenGuardTest {
             "Color(0.5f, 0.5f, 0.5f)", "Color(red = 1f, green = 0f, blue = 0f)", "Color.Gray", "graphicsLayer { alpha = 0.5f }",
             "Modifier.alpha(0.6f)", "CutCornerShape(4.dp)", "letterSpacing(0.02.em)", "TextStyle(color = c.content)",
             "Dp(12f)", "background(Brush.verticalGradient(stops))",
+            "code.copy(lineHeightStyle = LineHeightStyle(alignment, trim))",
         )
+        listOf("12.sp", "0.06.em", "lineHeight = 20.sp", "lineHeightStyle = trimmed", "TextStyle(fontSize = size)", "FontFamily.Serif")
+            .forEach { sample -> assertTrue(sample, typeRules.any { it.first.containsMatchIn(sample) }) }
         samples.forEach { sample -> assertTrue(sample, rules.any { it.first.containsMatchIn(sample) }) }
         listOf("Icons.Filled.PlayArrow", "Icons.Default.Settings", "import androidx.compose.material.icons.filled.Star")
             .forEach { assertTrue(it, materialIcon.containsMatchIn(it)) }
