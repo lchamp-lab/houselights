@@ -9,6 +9,7 @@ import app.houselights.core.MediaItem
 import app.houselights.core.PlaybackOptions
 import app.houselights.core.PlaybackPlan
 import app.houselights.core.Quality
+import app.houselights.core.SectionType
 import app.houselights.core.SortOption
 import app.houselights.core.UserState
 import app.houselights.core.WatchStatus
@@ -271,6 +272,56 @@ class LocalProviderTest {
         provider.setPlayed(episode, played = false)
         assertEquals(UserState(), provider.item(pilot.toString()).user)
     }
+
+    /** Unmarked, an episode forgets it was played, as on Jellyfin: its show leaves À suivre unless another was played. */
+    @Test
+    fun anEpisodeUnmarkedLeavesUpNextUnlessAnotherOfItsShowWasPlayed() = runTest {
+        val show = show("MobLand")
+        val pilotRow = show.episode(1, 1)
+        val pilot = provider.item(pilotRow.toString())
+        val second = provider.item(show.episode(1, 2).toString())
+        show.episode(1, 3)
+        provider.setPlayed(pilot, played = true)
+        assertEquals(listOf("S1E2"), upNext())
+
+        provider.setPlayed(pilot, played = false)
+        assertNull(dao.item(pilotRow)?.lastPlayedAt)
+        assertEquals(emptyList<String>(), upNext())
+
+        provider.setPlayed(pilot, played = true)
+        provider.setPlayed(second, played = true)
+        provider.setPlayed(second, played = false)
+        assertEquals(listOf("S1E2"), upNext())
+    }
+
+    /** A season, a show and a film in copies unmarked forget they were played: none stays in À suivre. */
+    @Test
+    fun aTitleUnmarkedForgetsItWasPlayed() = runTest {
+        val show = show("MobLand")
+        show.episode(1, 1)
+        show.episode(1, 2)
+        show.episode(2, 1)
+        val item = provider.item(show.id.toString())
+        val first = provider.seasons(item).first()
+        provider.setPlayed(first, played = true)
+        assertEquals(listOf("S2E1"), upNext())
+        provider.setPlayed(first, played = false)
+        assertEquals(emptyList<String>(), upNext())
+
+        provider.setPlayed(item, played = true)
+        provider.setPlayed(item, played = false)
+        assertTrue(dao.episodesOfSeries(show.id).all { it.lastPlayedAt == null })
+
+        val copies = listOf("Heat.mkv", "Heat 4K.mkv").map { movie("Heat", path = it, more = { copy(tmdbId = 949) }) }
+        dao.groupVersions()
+        provider.setPlayed(provider.item(copies.last().toString()), played = true)
+        assertTrue(copies.all { dao.item(it)?.lastPlayedAt != null })
+        provider.setPlayed(provider.item(copies.first().toString()), played = false)
+        assertTrue(copies.all { dao.item(it)?.lastPlayedAt == null })
+    }
+
+    /** What À suivre shows, by title. */
+    private suspend fun upNext() = provider.home().singleOrNull { it.type == SectionType.NEXT_UP }?.items.orEmpty().map { it.title }
 
     /** Sonarr's "Specials" holds S00E01: "Play" still starts S01E01, and the specials once the rest is watched. */
     @Test

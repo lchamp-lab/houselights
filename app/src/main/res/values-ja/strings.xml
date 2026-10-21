@@ -96,6 +96,8 @@
     <string name="mark_season_unwatched">シーズンを未視聴にする</string>
     <string name="mark_series_watched">TV番組を視聴済みにする</string>
     <string name="mark_series_unwatched">TV番組を未視聴にする</string>
+    <string name="long_press_series_watched">長押し：TV番組を視聴済みに</string>
+    <string name="long_press_series_unwatched">長押し：TV番組を未視聴に</string>
     <string name="mark_episode_watched">エピソードを視聴済みにする</string>
     <string name="mark_episode_unwatched">エピソードを未視聴にする</string>
     <string name="add_favorite">お気に入りに追加</string>

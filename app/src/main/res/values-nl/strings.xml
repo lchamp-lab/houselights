@@ -99,6 +99,8 @@
     <string name="mark_season_unwatched">Seizoen markeren als niet bekeken</string>
     <string name="mark_series_watched">Serie markeren als bekeken</string>
     <string name="mark_series_unwatched">Serie markeren als niet bekeken</string>
+    <string name="long_press_series_watched">Lang drukken: serie bekeken</string>
+    <string name="long_press_series_unwatched">Lang drukken: serie niet bekeken</string>
     <string name="mark_episode_watched">Aflevering markeren als bekeken</string>
     <string name="mark_episode_unwatched">Aflevering markeren als niet bekeken</string>
     <string name="add_favorite">Toevoegen aan favorieten</string>

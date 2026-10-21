@@ -356,15 +356,20 @@ private fun Tile(
     }
 }
 
-/** A row of actions that reserves room below for a tile's focus label, so nothing moves. */
+/**
+ * A row of actions that reserves room below for a tile's focus label, and for its hint's line when [hinted] (a tile
+ * may have one on this screen), so nothing moves.
+ */
 @Composable
 fun HlActionRow(
     modifier: Modifier = Modifier,
     horizontalArrangement: Arrangement.Horizontal = Arrangement.spacedBy(HlSpace.s),
+    hinted: Boolean = false,
     content: @Composable RowScope.() -> Unit,
 ) {
+    val room = HlIconButtonDefaults.labelRoom + if (hinted) HlIconButtonDefaults.hintRoom else HlSpace.none
     Row(
-        Modifier.padding(bottom = HlIconButtonDefaults.labelRoom).then(modifier),
+        Modifier.padding(bottom = room).then(modifier),
         horizontalArrangement = horizontalArrangement,
         verticalAlignment = Alignment.Top,
         content = content,
@@ -375,7 +380,7 @@ fun HlActionRow(
  * Square icon tile whose focus label overflows below it on a plate, without taking layout space (an
  * [HlActionRow] reserves it), centred unless near the screen side ([HlIconButtonDefaults.labelEdge]), hidden
  * under a sheet. A toggle names its action ("Marquer comme vu") and shows its state by [lit]. A long OK does
- * [onLongClick], which [onLongClickLabel] names to accessibility services only.
+ * [onLongClick], which [onLongClickLabel] names to accessibility services and [hint], a quieter second line, on screen.
  */
 @Composable
 fun HlIconButton(
@@ -387,6 +392,7 @@ fun HlIconButton(
     lit: Boolean = false,
     onLongClick: (() -> Unit)? = null,
     onLongClickLabel: String? = null,
+    hint: String? = null,
 ) {
     val interaction = remember { MutableInteractionSource() }
     val focused by interaction.collectIsFocusedAsState()
@@ -413,19 +419,19 @@ fun HlIconButton(
                 onLongClick = onLongClick,
                 onLongClickLabel = onLongClickLabel,
             )
-            Text(
-                label,
-                style = Hl.type.caption,
-                color = c.content,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                // Always on a plate: the label may fall over any picture.
-                modifier = Modifier
+            // Always on a plate: the label may fall over any picture.
+            Column(
+                Modifier
                     .clearAndSetSemantics {}
                     .graphicsLayer { alpha = labelAlpha }
                     .labelPlate(c, light)
                     .padding(horizontal = HlControl.labelPaddingH, vertical = HlControl.labelPaddingV),
-            )
+            ) {
+                Text(label, style = Hl.type.caption, color = c.content, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                if (hint != null) {
+                    Text(hint, style = Hl.type.caption, color = c.contentTertiary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+            }
         },
     ) { measurables, constraints ->
         val button = measurables[0].measure(constraints)
