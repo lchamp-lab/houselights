@@ -1,8 +1,11 @@
 package app.houselights.ui.util
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.produceState
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import app.houselights.core.ImageRef
 import app.houselights.core.SourceConfig
@@ -20,11 +23,12 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 fun roomPosters(): List<ImageRef> {
     val app = appContainer()
     val width = HlSize.welcomePoster.toPx()
-    val paths by produceState(emptyList<String>(), app, width) {
-        app.library.latestPosters(FIELD_POSTERS).distinctUntilChanged().collect { latest ->
-            val folders = app.settings.state.value.source == SourceConfig.Local
-            value = latest.takeIf { folders && it.isNotEmpty() } ?: app.trendingPosters(width).take(FIELD_POSTERS)
-        }
+    val latest by remember(app) { app.library.latestPosters(FIELD_POSTERS).distinctUntilChanged() }
+        .collectAsState(emptyList())
+    val folders = app.settings.state.collectAsState().value.source == SourceConfig.Local
+    var paths by remember { mutableStateOf(emptyList<String>()) }
+    LaunchedEffect(latest, folders, width) {
+        paths = latest.takeIf { folders && it.isNotEmpty() } ?: app.trendingPosters(width).take(FIELD_POSTERS)
     }
     return remember(paths) { paths.map { LocalProvider.image(it, ImageType.POSTER) } }
 }
